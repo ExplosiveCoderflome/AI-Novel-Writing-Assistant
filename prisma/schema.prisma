@@ -1,0 +1,129 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("user")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model NovelGenre {
+  id          String      @id @default(cuid())
+  name        String      
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  // 父级分类
+  parent      NovelGenre?  @relation("GenreHierarchy", fields: [parentId], references: [id])
+  parentId    String?
+  
+  // 子级分类
+  children    NovelGenre[] @relation("GenreHierarchy")
+  
+  // 小说关联
+  novels      Novel[]
+  
+  // 确保同一父级下的分类名称唯一
+  @@unique([parentId, name])
+}
+
+model Novel {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  genreId     String?
+  genre       NovelGenre? @relation(fields: [genreId], references: [id])
+  coverImage  String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  authorId    String
+  status      String      @default("draft")
+  outline     String?
+  structuredOutline String?
+  chapters    Chapter[]
+  characters  Character[]
+
+  @@map("novels")
+}
+
+model Chapter {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  order     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  novelId   String
+  novel     Novel    @relation(fields: [novelId], references: [id])
+
+  @@map("chapters")
+}
+
+model Character {
+  id          String   @id @default(cuid())
+  name        String
+  role        String
+  personality String
+  background  String
+  development String
+  novelId     String
+  novel       Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  baseCharacterId String?
+  baseCharacter   BaseCharacter? @relation(fields: [baseCharacterId], references: [id])
+
+  @@index([novelId])
+  @@index([baseCharacterId])
+}
+
+model APIKey {
+  id        String   @id @default(uuid())
+  provider  String
+  key       String
+  model     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+
+  @@unique([provider, userId])
+  @@map("api_keys")
+}
+
+// 基础角色模型
+model BaseCharacter {
+  id          String      @id @default(cuid())
+  name        String
+  role        String
+  personality String
+  background  String
+  development String
+  appearance  String      @default("") // 外貌描述
+  weaknesses  String      @default("") // 弱点与不足
+  interests   String      @default("") // 兴趣爱好
+  keyEvents   String      @default("") // 重要事件
+  tags        String      // 用于存储标签，以逗号分隔
+  category    String      // 角色分类，如：主角、反派、配角等
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  characters  Character[] // 关联到具体小说中的角色
+
+  @@map("base_characters")
+}

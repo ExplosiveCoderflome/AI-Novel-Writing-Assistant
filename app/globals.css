@@ -1,0 +1,204 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@layer base {
+     :root {
+        --background: 0 0% 100%;
+        --foreground: 222.2 84% 4.9%;
+        --card: 0 0% 100%;
+        --card-foreground: 222.2 84% 4.9%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 222.2 84% 4.9%;
+        --primary: 222.2 47.4% 11.2%;
+        --primary-foreground: 210 40% 98%;
+        --secondary: 210 40% 96.1%;
+        --secondary-foreground: 222.2 47.4% 11.2%;
+        --muted: 210 40% 96.1%;
+        --muted-foreground: 215.4 16.3% 46.9%;
+        --accent: 210 40% 96.1%;
+        --accent-foreground: 222.2 47.4% 11.2%;
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 214.3 31.8% 91.4%;
+        --input: 214.3 31.8% 91.4%;
+        --ring: 222.2 84% 4.9%;
+        --radius: 0.5rem;
+    }
+    .dark {
+        --background: 222.2 84% 4.9%;
+        --foreground: 210 40% 98%;
+        --card: 222.2 84% 4.9%;
+        --card-foreground: 210 40% 98%;
+        --popover: 222.2 84% 4.9%;
+        --popover-foreground: 210 40% 98%;
+        --primary: 210 40% 98%;
+        --primary-foreground: 222.2 47.4% 11.2%;
+        --secondary: 217.2 32.6% 17.5%;
+        --secondary-foreground: 210 40% 98%;
+        --muted: 217.2 32.6% 17.5%;
+        --muted-foreground: 215 20.2% 65.1%;
+        --accent: 217.2 32.6% 17.5%;
+        --accent-foreground: 210 40% 98%;
+        --destructive: 0 62.8% 30.6%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 217.2 32.6% 17.5%;
+        --input: 217.2 32.6% 17.5%;
+        --ring: 212.7 26.8% 83.9%;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
+
+/* 自定义滚动条 */
+
+::-webkit-scrollbar {
+    @apply w-2;
+}
+
+::-webkit-scrollbar-track {
+    @apply bg-muted rounded-full;
+}
+
+::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/20 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/40;
+}
+
+
+/* 文本溢出处理 */
+
+.line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+
+/* 移除点击高亮 */
+
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+
+/* Ant Design Menu 样式优化 */
+
+.ant-menu-horizontal {
+    border-bottom: none !important;
+    line-height: 64px !important;
+}
+
+.ant-menu-item {
+    @apply text-base font-medium;
+    padding: 0 24px !important;
+    margin: 0 4px !important;
+}
+
+.ant-menu-item:hover {
+    @apply text-blue-500 !important;
+}
+
+.ant-menu-item-selected {
+    @apply text-blue-500 !important;
+}
+
+.ant-menu-item::after {
+    @apply border-blue-500 !important;
+}
+
+
+/* 卡片样式优化 */
+
+.ant-card {
+    @apply border-none;
+}
+
+.ant-card-hoverable:hover {
+    @apply transform -translate-y-1 transition-transform duration-300;
+}
+
+.ant-card-meta-title {
+    @apply mb-2 !important;
+}
+
+.ant-card-actions {
+    @apply border-none bg-transparent !important;
+}
+
+.ant-card-actions>li {
+    margin: 12px 0 !important;
+}
+
+
+/* 标签样式优化 */
+
+.ant-tag {
+    @apply border-none transition-all duration-200;
+}
+
+
+/* 按钮样式优化 */
+
+.ant-btn {
+    @apply shadow-none;
+}
+
+.ant-btn-primary {
+    @apply font-medium;
+}
+
+
+/* 输入框样式优化 */
+
+.ant-input {
+    @apply rounded-lg border-gray-200;
+}
+
+.ant-input:hover {
+    @apply border-blue-400;
+}
+
+.ant-input:focus {
+    @apply border-blue-500 shadow-none;
+}
+
+
+/* Select 样式优化 */
+
+.ant-select {
+    @apply rounded-lg;
+}
+
+.ant-select:not(.ant-select-disabled):not(.ant-select-customize-input):not(.ant-pagination-size-changer):hover .ant-select-selector {
+    @apply border-blue-400;
+}
+
+.ant-select-focused:not(.ant-select-disabled).ant-select:not(.ant-select-customize-input) .ant-select-selector {
+    @apply border-blue-500 shadow-none;
+}
+
+
+/* Spin 样式优化 */
+
+.ant-spin-dot-item {
+    @apply bg-blue-500;
+}
