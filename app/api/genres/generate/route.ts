@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getApiKey } from '../../../../lib/api-key';
 import { LLMFactory } from '../../../../lib/llm/factory';
+import { prisma } from '../../../../lib/prisma';
 
 type ChunkType = {
   type: 'reasoning' | 'content' | 'error';
@@ -102,6 +103,15 @@ export async function POST(req: NextRequest) {
 
     // 使用 LLM Factory 创建对应的 LLM 实例
     const factory = LLMFactory.getInstance();
+    factory.setConfig({
+      defaultProvider: provider,
+      providers: {
+        [provider]: {
+          getApiKey: async () => apiKey
+        }
+      }
+    });
+
     const llm = await factory.getLLMInstance({
       provider,
       apiKey,
@@ -141,6 +151,7 @@ export async function POST(req: NextRequest) {
           });
 
           let isControllerClosed = false;
+          let accumulatedContent = '';
 
           // 处理流式响应
           for await (const chunk of stream) {
@@ -149,6 +160,7 @@ export async function POST(req: NextRequest) {
             try {
               const typedChunk = chunk as ChunkType;
               if (typedChunk.type === 'reasoning' || typedChunk.type === 'content') {
+                accumulatedContent += typedChunk.content;
                 // 发送消息
                 const message = {
                   type: typedChunk.type,
@@ -169,10 +181,92 @@ export async function POST(req: NextRequest) {
             }
           }
 
+          // 生成完成后，解析内容并创建角色模板
+          try {
+            const cleanContent = accumulatedContent
+              .replace(/```json\n?/, '')
+              .replace(/```/, '')
+              .trim();
+            const genreData = JSON.parse(cleanContent);
+
+            // 为每个生成的类型创建角色模板
+            const createTemplatesForGenre = async (genre: any, parentId?: string) => {
+              // 先创建类型
+              const createdGenre = await prisma.novelGenre.create({
+                data: {
+                  name: genre.name,
+                  description: genre.description,
+                  parentId
+                }
+              });
+
+              try {
+                // 生成该类型的角色模板
+                const characterTemplate = await factory.generateCharacterTemplate(
+                  genre.name,
+                  genre.description || ''
+                );
+
+                // 保存角色模板
+                await prisma.characterTemplate.create({
+                  data: {
+                    genreId: createdGenre.id,
+                    template: characterTemplate
+                  }
+                });
+
+                // 发送角色模板生成成功的消息
+                const templateMessage = {
+                  type: 'template',
+                  choices: [{
+                    delta: { 
+                      content: `已为 ${genre.name} 生成角色模板`,
+                      template: characterTemplate 
+                    },
+                    index: 0,
+                    finish_reason: null
+                  }]
+                };
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(templateMessage)}\n\n`));
+
+              } catch (error) {
+                console.error(`为类型 ${genre.name} 生成角色模板失败:`, error);
+                const errorMessage = {
+                  type: 'error',
+                  choices: [{
+                    delta: { content: `为类型 ${genre.name} 生成角色模板失败` },
+                    index: 0,
+                    finish_reason: 'error'
+                  }]
+                };
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorMessage)}\n\n`));
+              }
+
+              // 递归处理子类型
+              if (genre.children && Array.isArray(genre.children)) {
+                for (const child of genre.children) {
+                  await createTemplatesForGenre(child, createdGenre.id);
+                }
+              }
+
+              return createdGenre;
+            };
+
+            // 开始创建类型和模板
+            await createTemplatesForGenre(genreData);
+          } catch (error) {
+            console.error('创建类型或模板失败:', error);
+            const errorMessage = {
+              error: error instanceof Error ? error.message : '创建类型或模板失败',
+              type: 'error',
+            };
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorMessage)}\n\n`));
+          }
+
           if (!isControllerClosed) {
             controller.enqueue(encoder.encode('data: [DONE]\n\n'));
           }
-        } catch (error: unknown) {
+        } catch (error) {
           console.error('[Genre] 生成失败:', error);
           try {
             const errorMessage = {
@@ -181,7 +275,6 @@ export async function POST(req: NextRequest) {
             };
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorMessage)}\n\n`));
           } catch (e: unknown) {
-            // 如果控制器已关闭，忽略错误
             if (e instanceof TypeError && e.message.includes('Controller is already closed')) {
               console.log('[Genre] 消息发送时控制器已关闭');
             } else {
@@ -192,7 +285,6 @@ export async function POST(req: NextRequest) {
           try {
             controller.close();
           } catch (e: unknown) {
-            // 忽略已关闭的控制器错误
             if (e instanceof TypeError && e.message.includes('Controller is already closed')) {
               console.log('[Genre] 控制器已关闭');
             }

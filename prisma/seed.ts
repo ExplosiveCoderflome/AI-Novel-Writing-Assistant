@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { TemplateGenerator } from '../lib/services/template-generator';
 
 const prisma = new PrismaClient();
 
@@ -11,50 +12,55 @@ async function createGenreWithChildren(
     children?: Array<{
       name: string;
       description: string | null;
-      children?: Array<{
-        name: string;
-        description: string | null;
-      }>;
     }>;
   }>
 ) {
+  // 为当前类型生成模板
+  const template = await TemplateGenerator.generateTemplate({
+    name,
+    description
+  });
+
   const parent = await prisma.novelGenre.create({
     data: {
       name,
       description,
+      template
     },
   });
 
   for (const child of children) {
+    // 为子类型生成模板
+    const childTemplate = await TemplateGenerator.generateTemplate({
+      name: child.name,
+      description: child.description
+    });
+
     const childGenre = await prisma.novelGenre.create({
       data: {
         name: child.name,
         description: child.description,
+        template: childTemplate,
         parentId: parent.id,
       },
     });
 
     if (child.children) {
       for (const grandChild of child.children) {
-        const grandChildGenre = await prisma.novelGenre.create({
+        // 为孙子类型生成模板
+        const grandChildTemplate = await TemplateGenerator.generateTemplate({
+          name: grandChild.name,
+          description: grandChild.description
+        });
+
+        await prisma.novelGenre.create({
           data: {
             name: grandChild.name,
             description: grandChild.description,
+            template: grandChildTemplate,
             parentId: childGenre.id,
           },
         });
-
-        if (grandChild.children) {
-          for (const greatGrandChild of grandChild.children) {
-            await prisma.novelGenre.create({
-              data: {
-                name: greatGrandChild.name,
-                description: greatGrandChild.description,
-                parentId: grandChildGenre.id,
-              },
-            });
-          }
-        }
       }
     }
   }

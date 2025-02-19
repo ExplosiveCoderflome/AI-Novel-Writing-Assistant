@@ -24,7 +24,8 @@ import {
   BookTemplate,
   Compass,
   Shield,
-  Key
+  Key,
+  Globe2
 } from 'lucide-react';
 
 export function Navbar() {
@@ -72,6 +73,18 @@ export function Navbar() {
                         <div className="font-medium">我的作品</div>
                         <p className="text-sm text-muted-foreground">
                           管理你的所有小说作品
+                        </p>
+                      </div>
+                    </Link>
+                    <Link 
+                      href="/worlds" 
+                      className="flex items-center gap-2 p-2 hover:bg-accent rounded-md"
+                    >
+                      <Globe2 className="h-5 w-5" />
+                      <div>
+                        <div className="font-medium">世界管理</div>
+                        <p className="text-sm text-muted-foreground">
+                          创建和管理小说世界设定
                         </p>
                       </div>
                     </Link>

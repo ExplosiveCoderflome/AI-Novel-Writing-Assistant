@@ -26,6 +26,7 @@ model NovelGenre {
   id          String      @id @default(cuid())
   name        String      
   description String?
+  template    String?     // 改为 String 类型，存储 LLM 生成的文本模板
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   
@@ -41,6 +42,8 @@ model NovelGenre {
   
   // 确保同一父级下的分类名称唯一
   @@unique([parentId, name])
+
+  characterTemplate CharacterTemplate?
 }
 
 model Novel {
@@ -126,4 +129,16 @@ model BaseCharacter {
   characters  Character[] // 关联到具体小说中的角色
 
   @@map("base_characters")
+}
+
+// 角色模板
+model CharacterTemplate {
+  id          String      @id @default(cuid())
+  genreId     String      @unique  // 与小说类型一对一关联
+  genre       NovelGenre  @relation(fields: [genreId], references: [id])
+  template    Json        // 存储角色模板字段定义
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("character_templates")
 }

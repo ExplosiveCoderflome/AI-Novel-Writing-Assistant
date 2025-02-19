@@ -75,4 +75,119 @@ export interface NovelOutline {
       description: string;   // 描述
     }>;
   };
-} 
+}
+
+export type NovelGenre = 
+  | 'fantasy'
+  | 'science_fiction'
+  | 'historical'
+  | 'contemporary'
+  | 'mystery'
+  | 'horror'
+  | 'romance'
+  | 'adventure'
+  | 'dystopian'
+  | 'urban_fantasy';
+
+export interface GenreWorldFeatures {
+  hasFantasyElements: boolean;
+  hasTechnologyFocus: boolean;
+  hasHistoricalContext: boolean;
+  hasModernSetting: boolean;
+  hasSupernatural: boolean;
+  worldComplexity: 'low' | 'medium' | 'high';
+  requiredElements: string[];
+}
+
+export const genreFeatures: Record<NovelGenre, GenreWorldFeatures> = {
+  fantasy: {
+    hasFantasyElements: true,
+    hasTechnologyFocus: false,
+    hasHistoricalContext: true,
+    hasModernSetting: false,
+    hasSupernatural: true,
+    worldComplexity: 'high',
+    requiredElements: ['magic_system', 'mythical_creatures', 'unique_geography']
+  },
+  science_fiction: {
+    hasFantasyElements: false,
+    hasTechnologyFocus: true,
+    hasHistoricalContext: false,
+    hasModernSetting: false,
+    hasSupernatural: false,
+    worldComplexity: 'high',
+    requiredElements: ['advanced_technology', 'future_society', 'scientific_principles']
+  },
+  historical: {
+    hasFantasyElements: false,
+    hasTechnologyFocus: false,
+    hasHistoricalContext: true,
+    hasModernSetting: false,
+    hasSupernatural: false,
+    worldComplexity: 'medium',
+    requiredElements: ['historical_accuracy', 'period_customs', 'real_locations']
+  },
+  contemporary: {
+    hasFantasyElements: false,
+    hasTechnologyFocus: false,
+    hasHistoricalContext: false,
+    hasModernSetting: true,
+    hasSupernatural: false,
+    worldComplexity: 'low',
+    requiredElements: ['modern_society', 'current_issues', 'realistic_settings']
+  },
+  mystery: {
+    hasFantasyElements: false,
+    hasTechnologyFocus: false,
+    hasHistoricalContext: false,
+    hasModernSetting: true,
+    hasSupernatural: false,
+    worldComplexity: 'medium',
+    requiredElements: ['crime_elements', 'investigation_settings', 'suspense_atmosphere']
+  },
+  horror: {
+    hasFantasyElements: false,
+    hasTechnologyFocus: false,
+    hasHistoricalContext: false,
+    hasModernSetting: true,
+    hasSupernatural: true,
+    worldComplexity: 'medium',
+    requiredElements: ['dark_atmosphere', 'psychological_elements', 'threat_sources']
+  },
+  romance: {
+    hasFantasyElements: false,
+    hasTechnologyFocus: false,
+    hasHistoricalContext: false,
+    hasModernSetting: true,
+    hasSupernatural: false,
+    worldComplexity: 'low',
+    requiredElements: ['relationship_dynamics', 'emotional_settings', 'social_contexts']
+  },
+  adventure: {
+    hasFantasyElements: false,
+    hasTechnologyFocus: false,
+    hasHistoricalContext: false,
+    hasModernSetting: true,
+    hasSupernatural: false,
+    worldComplexity: 'medium',
+    requiredElements: ['exotic_locations', 'action_settings', 'journey_elements']
+  },
+  dystopian: {
+    hasFantasyElements: false,
+    hasTechnologyFocus: true,
+    hasHistoricalContext: false,
+    hasModernSetting: false,
+    hasSupernatural: false,
+    worldComplexity: 'high',
+    requiredElements: ['oppressive_system', 'social_commentary', 'survival_elements']
+  },
+  urban_fantasy: {
+    hasFantasyElements: true,
+    hasTechnologyFocus: false,
+    hasHistoricalContext: false,
+    hasModernSetting: true,
+    hasSupernatural: true,
+    worldComplexity: 'high',
+    requiredElements: ['hidden_magic', 'modern_supernatural', 'urban_setting']
+  }
+}; 
