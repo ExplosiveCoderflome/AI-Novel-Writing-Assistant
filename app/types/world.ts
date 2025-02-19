@@ -14,6 +14,22 @@ export interface WorldGeography {
   terrain: WorldElement[];
   climate: WorldElement[];
   locations: WorldElement[];
+  spatialStructure?: {
+    type: 'continuous' | 'heterogeneous_connected' | 'heterogeneous_isolated';
+    description: string;
+    connections: {
+      from: string;
+      to: string;
+      type: string;
+      conditions?: string;
+    }[];
+    boundaries: {
+      location: string;
+      type: string;
+      permeability: string;
+    }[];
+    narrativeSignificance: string;
+  };
 }
 
 export interface WorldCulture {
@@ -37,6 +53,7 @@ export interface WorldTechnology {
 }
 
 export interface GeneratedWorld {
+  id?: string;
   name: string;
   description: string;
   geography: WorldGeography;
@@ -45,6 +62,8 @@ export interface GeneratedWorld {
   technology?: WorldTechnology;
   history: WorldElement[];
   conflicts: WorldElement[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface WorldGenerationParams {

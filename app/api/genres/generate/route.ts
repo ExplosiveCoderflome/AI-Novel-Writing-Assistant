@@ -82,12 +82,6 @@ async function retryFetch(url: string, options: RequestInit, retries = 3) {
 }
 
 export async function POST(req: NextRequest) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => {
-    console.log('[Genre] 请求超时');
-    controller?.abort();
-  }, 120000); // 设置2分钟超时
-
   try {
     const { prompt, provider, model, temperature, maxTokens } = await req.json();
     
@@ -302,7 +296,6 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error) {
-    clearTimeout(timeoutId);
     console.error('[Genre] 生成类型失败:', error);
     return new Response(JSON.stringify({
       error: '生成类型失败',

@@ -421,7 +421,7 @@ export default class LLMFactory {
     const startTime = Date.now();
     let chunkCount = 0;
     let totalBytes = 0;
-    const TIMEOUT_MS = 600000; // 60 秒超时
+    const TIMEOUT_MS = 1800000; // 30分钟超时
     const MAX_RETRIES = 3;    // 最大重试次数
     let retryCount = 0;
     

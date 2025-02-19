@@ -3,6 +3,7 @@
 import React from 'react';
 import { WorldGenerator } from '../components/WorldGenerator';
 import { WorldDisplay } from '../components/WorldDisplay';
+import { WorldList } from '../components/WorldList';
 import { WorldGenerationParams, GeneratedWorld } from '../types/world';
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -22,22 +23,7 @@ export default function WorldsPage() {
     try {
       setIsGenerating(true);
       setError(null);
-
-      const response = await fetch('/api/worlds/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(params),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || '生成世界失败');
-      }
-
-      setGeneratedWorld(data);
+      setGeneratedWorld(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : '生成世界时发生未知错误');
     } finally {
@@ -85,19 +71,7 @@ export default function WorldsPage() {
         </TabsContent>
 
         <TabsContent value="saved">
-          <Card>
-            <CardHeader>
-              <CardTitle>已保存的世界</CardTitle>
-              <CardDescription>
-                这里将显示你之前创建并保存的所有世界设定
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                功能开发中...
-              </p>
-            </CardContent>
-          </Card>
+          <WorldList />
         </TabsContent>
       </Tabs>
     </div>

@@ -9,12 +9,6 @@ import { llmConfigFromDB } from '../../../../app/config/llm';
 import { log } from 'console';
 
 export async function POST(req: NextRequest) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => {
-    console.log('开始处理大纲生成请求...');
-    // controller?.abort();
-  }, 1200000); // 设置2分钟超时
-
   try {
     const { title, genre, promptContent, model } = await req.json();
     console.log('请求数据:', { title, genre, contentLength: promptContent?.length });
@@ -109,7 +103,6 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error('API Error:', error);
-    clearTimeout(timeoutId);
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : '生成大纲失败',

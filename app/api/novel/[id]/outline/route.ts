@@ -22,10 +22,6 @@ export async function POST(
     );
   }
 
-  const timeoutId = setTimeout(() => {
-    console.log('开始处理大纲生成请求...111');
-  }, 160000); // 设置2分钟超时
-
   try {
     const { provider, model, prompt } = await request.json();
     console.log('请求数据:', { provider, model, promptLength: prompt?.length });
@@ -183,7 +179,6 @@ export async function POST(
       },
       cancel() {
         console.log('流被取消');
-        clearTimeout(timeoutId);
       }
     });
 
@@ -197,7 +192,6 @@ export async function POST(
 
   } catch (error) {
     console.error('API Error:', error);
-    clearTimeout(timeoutId);
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : '生成大纲失败',

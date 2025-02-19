@@ -142,3 +142,23 @@ model CharacterTemplate {
 
   @@map("character_templates")
 }
+
+model World {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String
+  background  String?
+  cultures    String?
+  geography   String?
+  magicSystem String?
+  politics    String?
+  races       String?
+  religions   String?
+  technology  String?
+  conflicts   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("worlds")
+}
