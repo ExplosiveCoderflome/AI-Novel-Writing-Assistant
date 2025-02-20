@@ -210,7 +210,7 @@ const LLMPromptInputComponent = ({
           <SelectTrigger className="flex-1">
             <SelectValue placeholder={isLoading ? "加载模型中..." : "选择模型"} />
           </SelectTrigger>
-          <SelectContent className="w-full">
+          <SelectContent className="w-full max-h-[300px] overflow-y-auto">
             {models.map(model => (
               <SelectItem key={model.id} value={model.id}>
                 {getModelDisplayName(model.id)}

@@ -2,6 +2,7 @@
  * @LastEditors: biz
  */
 import { getApiKey } from '../../lib/api-key';
+import { LLMProviderConfig } from '../types/llm';
 
 export interface LLMConfig {
   openaiApiKey?: string;
@@ -12,68 +13,23 @@ export interface LLMConfig {
   siliconflowApiKey?: string;
 }
 
-export interface LLMProviderConfig {
-  getApiKey: () => Promise<string | null>;
-  model: string;
-  temperature: number;
-  maxTokens: number;
-}
-
 export interface LLMDBConfig {
-  openai: LLMProviderConfig;
-  anthropic: LLMProviderConfig;
-  deepseek: LLMProviderConfig;
-  cohere: LLMProviderConfig;
-  volc: LLMProviderConfig;
-  siliconflow: LLMProviderConfig;
   defaultProvider: string;
+  [provider: string]: LLMProviderConfig | string | undefined;
 }
 
-export const llmConfig: LLMConfig = {
-  openaiApiKey: undefined,
-  anthropicApiKey: undefined,
-  deepseekApiKey: undefined,
-  cohereApiKey: undefined,
-  volcApiKey: undefined,
-  siliconflowApiKey: undefined,
-};
-
-export const llmConfigFromDB: LLMDBConfig = {
-  openai: {
-    getApiKey: () => getApiKey('openai'),
-    model: 'gpt-3.5-turbo',
-    temperature: 0.7,
-    maxTokens: 2000,
-  },
-  anthropic: {
-    getApiKey: () => getApiKey('anthropic'),
-    model: 'claude-2',
-    temperature: 0.7,
-    maxTokens: 2000,
-  },
+export const llmConfig: LLMDBConfig = {
+  defaultProvider: 'deepseek',
   deepseek: {
-    getApiKey: () => getApiKey('deepseek'),
-    model: 'deepseek-reasoner',
-    temperature: 0.7,
-    maxTokens: 2000,
-  },
-  cohere: {
-    getApiKey: () => getApiKey('cohere'),
-    model: 'command',
-    temperature: 0.7,
-    maxTokens: 2000,
-  },
-  volc: {
-    getApiKey: () => getApiKey('volc'),
-    model: 'volc-1',
+    getApiKey: async () => process.env.DEEPSEEK_API_KEY || null,
+    model: 'deepseek-chat',
     temperature: 0.7,
     maxTokens: 2000,
   },
   siliconflow: {
-    getApiKey: () => getApiKey('siliconflow'),
-    model: 'sf-plus-001',
+    getApiKey: async () => process.env.SILICONFLOW_API_KEY || null,
+    model: 'silicon-copilot-v1',
     temperature: 0.7,
-    maxTokens: 1000,
+    maxTokens: 2000,
   },
-  defaultProvider: 'volc',
 }; 

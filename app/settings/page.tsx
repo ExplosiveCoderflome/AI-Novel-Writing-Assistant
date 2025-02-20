@@ -388,7 +388,7 @@ export default function SettingsPage() {
                               <span className="ml-2">加载模型列表...</span>
                             </div>
                           ) : models.length > 0 ? (
-                            <div className="space-y-2">
+                            <div className="space-y-2 max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent">
                               {models.map((model) => (
                                 <div 
                                   key={model.id} 

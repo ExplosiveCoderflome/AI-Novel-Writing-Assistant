@@ -25,7 +25,8 @@ import {
   Compass,
   Shield,
   Key,
-  Globe2
+  Globe2,
+  MessageSquare
 } from 'lucide-react';
 
 export function Navbar() {
@@ -170,6 +171,13 @@ export function Navbar() {
                     </Link>
                   </div>
                 </NavigationMenuContent>
+              </NavigationMenuItem>
+
+              <NavigationMenuItem>
+                <Link href="/chat" className="flex items-center gap-2 px-3 py-2 hover:bg-accent rounded-md">
+                  <MessageSquare className="h-5 w-5" />
+                  <span>AI 助手</span>
+                </Link>
               </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>

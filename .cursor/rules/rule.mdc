@@ -8,6 +8,10 @@ globs:
 ---
 ---
 description: 
+globs: 
+---
+---
+description: 
 globs: *.tsx,*.ts
 ---
 

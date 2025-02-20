@@ -170,7 +170,7 @@ export class SiliconFlowLLM extends BaseLLM {
 
       console.log('发送流式请求:', {
         url: `${this.baseUrl}/chat/completions`,
-        body: requestBody,
+        body: JSON.stringify(requestBody),
       });
 
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
@@ -184,69 +184,116 @@ export class SiliconFlowLLM extends BaseLLM {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        console.error('API 流式响应错误:', error);
-        
-        // 特殊处理余额不足的情况
-        if (error.code === 30011) {
-          yield {
-            type: 'error',
-            content: '该模型需要付费使用，当前账户余额不足。请充值后重试。',
-            reasoning_content: `错误代码: ${error.code}\n具体信息: ${error.message}`
-          };
-          return;
+        let errorMessage = '请求失败';
+        try {
+          const errorData = await response.json();
+          console.error('API 流式响应错误:', errorData);
+          
+          // 特殊处理余额不足的情况
+          if (errorData.code === 30011) {
+            yield {
+              type: 'error',
+              content: '该模型需要付费使用，当前账户余额不足。请充值后重试。',
+              reasoning_content: `错误代码: ${errorData.code}\n具体信息: ${errorData.message}`
+            };
+            return;
+          }
+          
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          console.error('解析错误响应失败:', e);
         }
-        
-        throw new Error(error.message || '请求失败');
+        throw new Error(errorMessage);
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('无法创建响应流读取器');
+      if (!response.body) {
+        throw new Error('响应体为空');
       }
 
-      const decoder = new TextDecoder();
       let buffer = '';
+      let isFirstChunk = true;
 
+      // 创建 ReadableStream 来处理响应数据
+      const stream = new ReadableStream({
+        async start(controller) {
+          const reader = (response.body as ReadableStream).getReader();
+          const decoder = new TextDecoder();
+
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              
+              if (done) {
+                // 处理缓冲区中的剩余数据
+                if (buffer.trim()) {
+                  const lines = buffer.split('\n');
+                  for (const line of lines) {
+                    if (line.trim() && line.startsWith('data: ')) {
+                      const data = line.slice(6).trim();
+                      if (data !== '[DONE]') {
+                        controller.enqueue(data);
+                      }
+                    }
+                  }
+                }
+                controller.close();
+                break;
+              }
+
+              const chunk = decoder.decode(value, { stream: true });
+              buffer += chunk;
+
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || '';
+
+              for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+
+                const data = trimmedLine.slice(6).trim();
+                if (data === '[DONE]') continue;
+
+                controller.enqueue(data);
+              }
+            }
+          } catch (error) {
+            controller.error(error);
+          } finally {
+            reader.releaseLock();
+          }
+        }
+      });
+
+      // 处理流数据
+      const reader = stream.getReader();
       try {
         while (true) {
           const { done, value } = await reader.read();
           
           if (done) {
-            console.log('流读取完成');
+            console.log('流处理完成');
             break;
           }
 
-          buffer += decoder.decode(value);
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-
-          for (const line of lines) {
-            if (line.trim() === '') continue;
+          try {
+            const parsed = JSON.parse(value);
+            const content = parsed.choices?.[0]?.delta?.content;
             
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') {
-                console.log('收到结束标记');
-                continue;
+            if (content) {
+              if (isFirstChunk) {
+                console.log('收到第一个数据块:', parsed);
+                isFirstChunk = false;
               }
 
-              try {
-                const parsed = JSON.parse(data);
-                const content = parsed.choices?.[0]?.delta?.content;
-                
-                if (content) {
-                  yield {
-                    type: 'content',
-                    content,
-                    reasoning_content: ''
-                  };
-                }
-              } catch (e) {
-                console.error('解析数据块失败:', e);
-                console.error('原始数据:', data);
-              }
+              yield {
+                type: 'content',
+                content,
+                reasoning_content: ''
+              };
             }
+          } catch (e) {
+            console.error('解析数据块失败:', e);
+            console.error('原始数据:', value);
           }
         }
       } finally {
@@ -261,7 +308,11 @@ export class SiliconFlowLLM extends BaseLLM {
           stack: error.stack
         });
       }
-      throw error;
+      yield {
+        type: 'error',
+        content: error instanceof Error ? error.message : '流式生成过程中发生未知错误',
+        reasoning_content: ''
+      };
     }
   }
 

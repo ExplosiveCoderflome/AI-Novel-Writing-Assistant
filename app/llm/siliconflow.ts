@@ -1,5 +1,5 @@
 import { BaseLLM } from './base';
-import { LLMResponse, StreamChunk, GenerateParams } from '../types/llm';
+import { LLMResponse, StreamChunk, GenerateParams, LLMModel } from '../types/llm';
 
 interface SiliconFlowModel {
   id: string;
@@ -58,10 +58,10 @@ export class SiliconFlowLLM extends BaseLLM {
         body: JSON.stringify({
           model,
           messages: [
-            {
+            ...(params.systemPrompt ? [{
               role: 'system',
-              content: params.systemPrompt || '',
-            },
+              content: params.systemPrompt,
+            }] : []),
             {
               role: 'user',
               content: params.userPrompt,
@@ -93,21 +93,25 @@ export class SiliconFlowLLM extends BaseLLM {
 
   async *generateRecommendationStream(params: GenerateParams): AsyncGenerator<StreamChunk, void, unknown> {
     try {
-      const model = params.model || await this.getModelToUse();
-      
+      const model = await this.getModelToUse();
+      if (!model) {
+        throw new Error('未找到可用的聊天模型');
+      }
+
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.apiKey}`,
+          'Accept': 'text/event-stream',
         },
         body: JSON.stringify({
           model,
           messages: [
-            {
+            ...(params.systemPrompt ? [{
               role: 'system',
-              content: params.systemPrompt || '',
-            },
+              content: params.systemPrompt,
+            }] : []),
             {
               role: 'user',
               content: params.userPrompt,
@@ -115,8 +119,8 @@ export class SiliconFlowLLM extends BaseLLM {
           ],
           temperature: params.temperature || 0.7,
           max_tokens: params.maxTokens || 1000,
-          stream: true
-        })
+          stream: true,
+        }),
       });
 
       if (!response.ok) {
@@ -125,36 +129,45 @@ export class SiliconFlowLLM extends BaseLLM {
       }
 
       const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
       if (!reader) {
         throw new Error('无法创建响应流读取器');
       }
 
+      const decoder = new TextDecoder();
+      let buffer = '';
+
       try {
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          
+          if (done) {
+            break;
+          }
 
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
+          buffer += decoder.decode(value);
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
 
           for (const line of lines) {
+            if (line.trim() === '') continue;
+            
             if (line.startsWith('data: ')) {
               const data = line.slice(6);
               if (data === '[DONE]') continue;
 
               try {
                 const parsed = JSON.parse(data);
-                const content = parsed.choices[0]?.delta?.content;
+                const content = parsed.choices?.[0]?.delta?.content;
+                
                 if (content) {
                   yield {
                     type: 'content',
                     content,
+                    reasoning_content: '',
                   };
                 }
               } catch (e) {
-                console.error('解析流数据失败:', e);
+                console.error('解析数据块失败:', e);
               }
             }
           }
@@ -163,30 +176,25 @@ export class SiliconFlowLLM extends BaseLLM {
         reader.releaseLock();
       }
     } catch (error) {
-      console.error('Stream generation error:', error);
-      throw error;
+      console.error('硅基流动 API 流式生成错误:', error);
+      yield {
+        type: 'error',
+        content: error instanceof Error ? error.message : '未知错误',
+      };
     }
   }
 
   async testConnection(): Promise<boolean> {
     try {
-      // 首先测试是否能获取到模型列表
-      const model = await this.getModelToUse();
-      if (!model) {
-        return false;
-      }
-
-      const response = await this.generateRecommendation({
-        userPrompt: '这是一个API连通性测试。请回复：连接成功。',
-      });
-      return response.content?.includes('连接成功') || false;
+      const models = await this.getAvailableModels();
+      return models.length > 0;
     } catch (error) {
-      console.error('硅基流动 API 测试错误:', error);
+      console.error('连接测试失败:', error);
       return false;
     }
   }
 
-  async getAvailableModels(): Promise<SiliconFlowModel[]> {
+  async getAvailableModels(): Promise<LLMModel[]> {
     try {
       const response = await fetch(`${this.baseUrl}/models`, {
         headers: {

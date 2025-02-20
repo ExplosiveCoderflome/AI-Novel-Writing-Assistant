@@ -7,15 +7,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { LLMFactory } from '../../../llm/factory';
-import { LLMDBConfig, llmConfigFromDB, LLMProviderConfig } from '../../../config/llm';
+import { LLMDBConfig, LLMProviderConfig } from '../../../types/llm';
 import { z } from 'zod';
-
-type LLMProvider = keyof Omit<LLMDBConfig, 'defaultProvider'>;
 
 const testSchema = z.object({
   provider: z.string(),
   type: z.enum(['connection', 'speed']).default('connection'),
-  model: z.string().optional(),
+  model: z.string(),
 });
 
 export async function POST(request: NextRequest) {
@@ -24,10 +22,11 @@ export async function POST(request: NextRequest) {
     const result = testSchema.safeParse(body);
 
     if (!result.success) {
-      return NextResponse.json(
-        { success: false, error: '输入数据无效', errors: result.error.errors },
-        { status: 400 }
-      );
+      return NextResponse.json({
+        success: false,
+        error: '无效的请求参数',
+        details: result.error.format()
+      });
     }
 
     const { provider, type, model } = result.data;
@@ -36,87 +35,77 @@ export async function POST(request: NextRequest) {
     const apiKey = await prisma.aPIKey.findFirst({
       where: {
         provider,
-        userId: 'default',
         isActive: true,
       },
     });
 
     if (!apiKey) {
-      return NextResponse.json(
-        { success: false, error: '未找到有效的 API Key' },
-        { status: 404 }
-      );
+      return NextResponse.json({
+        success: false,
+        error: '未找到有效的 API Key'
+      });
     }
 
-    // 创建 LLM 实例
-    const llmFactory = LLMFactory.getInstance();
-    const providerKey = provider as LLMProvider;
-    const config: LLMDBConfig = {
-      ...llmConfigFromDB,
-      [providerKey]: {
-        ...llmConfigFromDB[providerKey],
-        getApiKey: async () => apiKey.key,
-        model: model,
-      },
-    } as LLMDBConfig;
-    
-    llmFactory.setConfig(config);
+    // 创建配置
+    const providerConfig: LLMProviderConfig = {
+      getApiKey: async () => apiKey.key,
+      model,
+      temperature: 0.7,
+      maxTokens: 100
+    };
 
-    // 根据测试类型执行不同的测试
+    const config = {
+      defaultProvider: provider,
+      [provider]: providerConfig
+    } as LLMDBConfig;
+
+    const factory = LLMFactory.getInstance();
+    factory.setConfig(config);
+
     if (type === 'speed') {
-      console.log('开始速度测试:', {
-        provider,
+      console.log('开始速度测试:', { 
+        provider, 
         model,
         apiKey: {
           id: apiKey.id,
           provider: apiKey.provider,
           isActive: apiKey.isActive,
           keyLength: apiKey.key.length
-        },
-        config: {
-          provider: providerKey,
-          model: model || llmConfigFromDB[providerKey]?.model
         }
       });
 
-      const startTime = Date.now();
-      const response = await llmFactory.generateRecommendation({
-        prompt: '请介绍一下你自己。',
-        model: model
-      }, provider);
-      const endTime = Date.now();
-      const duration = endTime - startTime;
+      const result = await factory.testSpeed(provider, model);
+      console.log('速度测试结果:', result);
 
-      console.log('速度测试结果:', {
-        duration,
-        hasResponse: !!response,
-        responseContent: response.content,
-        model: model || llmConfigFromDB[providerKey]?.model || 'default'
-      });
+      if (!result.success) {
+        return NextResponse.json({
+          success: false,
+          error: result.data.error || '速度测试失败'
+        });
+      }
 
       return NextResponse.json({
         success: true,
         data: {
-          duration: duration,
-          response: response.content,
-          model: model || llmConfigFromDB[providerKey]?.model || 'default',
-        },
+          duration: result.data.duration,
+          response: result.data.response,
+          model: result.data.model
+        }
       });
+    } else if (type === 'connection') {
+      const result = await factory.testConnection(provider);
+      return NextResponse.json(result);
     } else {
-      const isConnected = await llmFactory.testConnection(provider);
-      if (!isConnected) {
-        return NextResponse.json(
-          { success: false, error: 'API 连接测试失败' },
-          { status: 400 }
-        );
-      }
-      return NextResponse.json({ success: true });
+      return NextResponse.json({
+        success: false,
+        error: '不支持的测试类型'
+      });
     }
   } catch (error) {
-    console.error('Test API error:', error);
-    return NextResponse.json(
-      { success: false, error: '测试 API 失败' },
-      { status: 500 }
-    );
+    console.error('测试失败:', error);
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : '未知错误'
+    });
   }
 } 

@@ -4,9 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { LLMFactory } from '../../../llm/factory';
-import { LLMDBConfig, llmConfigFromDB, LLMProviderConfig } from '../../../config/llm';
-
-type LLMProvider = keyof Omit<LLMDBConfig, 'defaultProvider'>;
+import { LLMDBConfig, LLMProviderConfig } from '../../../types/llm';
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,14 +36,18 @@ export async function GET(request: NextRequest) {
 
     // 创建 LLM 实例
     const llmFactory = LLMFactory.getInstance();
-    const providerKey = provider as LLMProvider;
+    
+    // 创建新的配置对象
+    const providerConfig: LLMProviderConfig = {
+      getApiKey: async () => apiKey.key,
+      temperature: 0.7,
+      maxTokens: 2000
+    };
+
     const config: LLMDBConfig = {
-      ...llmConfigFromDB,
-      [providerKey]: {
-        ...llmConfigFromDB[providerKey],
-        getApiKey: async () => apiKey.key,
-      },
-    } as LLMDBConfig;
+      defaultProvider: provider,
+      [provider]: providerConfig
+    };
     
     llmFactory.setConfig(config);
 

@@ -1,5 +1,11 @@
-# 当前项目 由100% AI编写完成
+
 # AI Novel Writing Assistant AI小说创作助手
+
+
+## 这是对AI完全接入项目开发的一次尝试
+## 项目中所有代码都是AI编写
+## 目标：只需要进行书名配置 和 点击确认按钮 即可生成（理想）小说
+
 
 [English](#english) | [中文](#chinese)
 
