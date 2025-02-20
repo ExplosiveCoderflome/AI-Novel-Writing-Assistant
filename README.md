@@ -1,3 +1,4 @@
+# 当前项目 由100% AI编写完成
 # AI Novel Writing Assistant AI小说创作助手
 
 [English](#english) | [中文](#chinese)
