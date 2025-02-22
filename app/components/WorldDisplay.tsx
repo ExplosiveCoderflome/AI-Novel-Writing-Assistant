@@ -128,7 +128,7 @@ const ElementDisplay: React.FC<{ elements?: WorldElement[] }> = ({ elements = []
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 gap-4">
       {elements.map((element, index) => (
         <Card key={index} className="bg-muted/50">
           <CardHeader className="pb-2">

@@ -1,3 +1,6 @@
+/*
+ * @LastEditors: biz
+ */
 'use client';
 
 import React, { useState } from 'react';
@@ -13,7 +16,6 @@ import { toast } from '../components/ui/use-toast';
 export default function WorldsPage() {
   const [generatedWorld, setGeneratedWorld] = useState<GeneratedWorld | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [streamContent, setStreamContent] = useState('');
 
   const handleGenerate = async (params: WorldGenerationParams & {
     provider: string;
@@ -23,7 +25,6 @@ export default function WorldsPage() {
   }) => {
     try {
       setIsGenerating(true);
-      setStreamContent('');
       setGeneratedWorld(null);
 
       const response = await fetch('/api/worlds/generate', {
@@ -35,51 +36,19 @@ export default function WorldsPage() {
       });
 
       if (!response.ok) {
-        throw new Error('生成世界失败');
+        const error = await response.json();
+        throw new Error(error.error || '生成世界失败');
       }
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (!reader) {
-        throw new Error('无法读取响应数据');
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || '生成世界失败');
       }
 
-      while (true) {
-        const { done, value } = await reader.read();
-        
-        if (done) {
-          break;
-        }
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            
-            if (data === '[DONE]') {
-              continue;
-            }
-
-            try {
-              const parsed = JSON.parse(data);
-              
-              if (parsed.type === 'content') {
-                setStreamContent(prev => prev + (parsed.choices[0]?.delta?.content || ''));
-              } else if (parsed.type === 'json') {
-                setGeneratedWorld(parsed.data);
-              } else if (parsed.type === 'error') {
-                throw new Error(parsed.error);
-              }
-            } catch (e) {
-              console.warn('解析数据失败:', e);
-            }
-          }
-        }
-      }
+      setGeneratedWorld(data.data);
     } catch (error) {
+      console.error('生成世界失败:', error);
       toast({
         title: '生成失败',
         description: error instanceof Error ? error.message : '生成世界时发生未知错误',
@@ -107,25 +76,10 @@ export default function WorldsPage() {
 
         <TabsContent value="generate" className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <WorldGenerator
-                onGenerate={handleGenerate}
-                isGenerating={isGenerating}
-              />
-              
-              {streamContent && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>生成进度</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ScrollArea className="h-[200px] w-full rounded-md border p-4">
-                      <pre className="text-sm whitespace-pre-wrap">{streamContent}</pre>
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+            <WorldGenerator
+              onGenerate={handleGenerate}
+              isGenerating={isGenerating}
+            />
 
             <div>
               {generatedWorld && <WorldDisplay world={generatedWorld} />}

@@ -1,54 +1,37 @@
-import { NextResponse } from "next/server";
-import { prisma } from "../../../../lib/prisma";
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../auth/[...nextauth]/route';
-import { LLMFactory } from '../../../../lib/llm/factory';
-import { genreFeatures, NovelGenre } from '../../../../app/types/novel';
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '../../../../lib/prisma';
+import { LLMFactory } from '../../../llm/factory';
+import { LLMDBConfig, LLMProviderConfig } from '../../../types/llm';
+import { LLMProviderType } from '../../../llm/providers/factory';
+import { z } from 'zod';
 
-export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return new Response(
-      JSON.stringify({ error: '请先登录' }),
-      { status: 401 }
-    );
-  }
+// 验证请求体的 schema
+const worldGenerateSchema = z.object({
+  provider: z.enum(['deepseek', 'siliconflow'] as const),
+  model: z.string(),
+  prompt: z.string(),
+  genre: z.string(),
+  complexity: z.string(),
+  emphasis: z.object({
+    geography: z.boolean(),
+    culture: z.boolean(),
+    magic: z.boolean(),
+    technology: z.boolean(),
+  }),
+  temperature: z.number().optional(),
+  maxTokens: z.number().optional(),
+});
 
-  try {
-    const { genre, prompt, complexity, emphasis, provider, model, temperature, maxTokens } = await request.json();
+// 系统提示词模板
+const getSystemPrompt = (genre: string, complexity: string, emphasis: any) => {
+  const emphasisPoints = [
+    emphasis.geography ? '重点描述地理环境特征' : '',
+    emphasis.culture ? '重点描述文化社会特征' : '',
+    emphasis.magic ? '重点描述魔法系统特征' : '',
+    emphasis.technology ? '重点描述科技发展特征' : '',
+  ].filter(Boolean).join('\n');
 
-    // 获取 API Key
-    const apiKey = await prisma.aPIKey.findFirst({
-      where: {
-        provider,
-        isActive: true,
-        OR: [
-          { userId: session.user.id },
-          { userId: 'default' }
-        ]
-      },
-      orderBy: {
-        updatedAt: 'desc'
-      }
-    });
-
-    if (!apiKey) {
-      throw new Error('未找到有效的 API Key，请先在设置中配置');
-    }
-
-    // 使用 LLM Factory 创建实例
-    const llmFactory = LLMFactory.getInstance();
-    const llm = await llmFactory.getLLMInstance({
-      provider,
-      apiKey: apiKey.key,
-      model
-    });
-
-    // 获取类型特征
-    const features = genreFeatures[genre as NovelGenre];
-
-    // 构建系统提示词
-    const systemPrompt = `你是一位专业的小说世界设定设计师。请根据用户的要求，设计一个完全独特的世界设定。在构建世界时，你需要考虑以下五个核心维度：
+  return `你是一位专业的小说世界设定设计师。请根据用户的要求，设计一个完全独特的世界设定。在构建世界时，你需要考虑以下五个核心维度：
 
 1. 物理维度（世界的"骨架"）：
    - 空间广度：地理环境、地形特征、气候变化
@@ -205,8 +188,7 @@ export async function POST(request: Request) {
       }
     ]
   },
-  ${features.hasFantasyElements ? `
-  "magicSystem": {
+  ${emphasis.magic ? `"magicSystem": {
     "rules": [
       {
         "name": "魔法规则",
@@ -256,8 +238,7 @@ export async function POST(request: Request) {
       }
     ]
   },` : ''}
-  ${features.hasTechnologyFocus ? `
-  "technology": {
+  ${emphasis.technology ? `"technology": {
     "level": "技术水平描述",
     "innovations": [
       {
@@ -313,9 +294,9 @@ export async function POST(request: Request) {
 注意事项：
 1. 必须严格按照给定的 JSON 格式返回
 2. 所有字段都必须填写，不能为空
-3. 世界设定要符合${genre.replace('_', ' ')}类型的特点
+3. 世界设定要符合${genre}类型的特点
 4. 复杂度要求：${complexity}
-5. ${emphasis.geography ? '重点描述地理环境特征\n' : ''}${emphasis.culture ? '重点描述文化社会特征\n' : ''}${emphasis.magic ? '重点描述魔法系统特征\n' : ''}${emphasis.technology ? '重点描述科技发展特征\n' : ''}
+${emphasisPoints ? `5. 重点关注：\n${emphasisPoints}` : ''}
 6. 多维度整合要求：
    - 确保物理、社会、心理、哲学、叙事五个维度相互支撑
    - 每个设定元素都应该在多个维度上产生影响
@@ -336,6 +317,58 @@ export async function POST(request: Request) {
    - 心理维度要体现角色和读者的情感联结
    - 哲学维度要深化世界的思想内涵
    - 叙事维度要管理信息流动和节奏把控`;
+};
+
+export async function POST(request: NextRequest) {
+  try {
+    // 解析并验证请求体
+    const body = await request.json();
+    const result = worldGenerateSchema.safeParse(body);
+
+    if (!result.success) {
+      return NextResponse.json({
+        success: false,
+        error: '无效的请求参数',
+        details: result.error.format()
+      }, { status: 400 });
+    }
+
+    const { provider, model, prompt, genre, complexity, emphasis, temperature, maxTokens } = result.data;
+
+    // 获取 API Key
+    const apiKey = await prisma.aPIKey.findFirst({
+      where: {
+        provider,
+        isActive: true,
+      },
+    });
+
+    if (!apiKey) {
+      return NextResponse.json({
+        success: false,
+        error: '未找到有效的 API Key'
+      }, { status: 404 });
+    }
+
+    // 创建配置
+    const providerConfig: LLMProviderConfig = {
+      getApiKey: async () => apiKey.key,
+      model,
+      temperature: temperature || 0.7,
+      maxTokens: maxTokens || 2000
+    };
+
+    const config = {
+      defaultProvider: provider,
+      [provider]: providerConfig
+    } as LLMDBConfig;
+
+    // 初始化 LLM Factory
+    const factory = LLMFactory.getInstance();
+    factory.setConfig(config);
+
+    // 构建系统提示词
+    const systemPrompt = getSystemPrompt(genre, complexity, emphasis);
 
     // 构建用户提示词
     const userPrompt = `请根据以下要求设计世界：
@@ -347,96 +380,56 @@ ${prompt}
 3. 保持世界设定的完整性和连贯性
 4. 根据用户的具体要求调整细节`;
 
-    // 创建流式响应
-    const encoder = new TextEncoder();
-    const stream = new TransformStream();
-    const writer = stream.writable.getWriter();
+    console.log('开始生成世界，参数:', {
+      provider,
+      model,
+      genre,
+      complexity,
+      emphasis,
+      temperature,
+      maxTokens
+    });
 
-    try {
-      const streamGenerator = llm.generateRecommendationStream({
-        systemPrompt,
-        userPrompt
-      });
+    // 直接生成完整内容
+    const response = await factory.generateRecommendation({
+      userPrompt,
+      systemPrompt,
+      model,
+      temperature,
+      maxTokens: Math.min(maxTokens || 2000, 4000)
+    }, provider as LLMProviderType);
 
-      let accumulatedContent = '';
-      
-      // 处理流式响应
-      for await (const chunk of streamGenerator) {
-        if (!chunk) continue;
-
-        accumulatedContent += chunk;
-        
-        // 构建消息对象
-        const message = {
-          type: 'content',
-          choices: [{
-            delta: { content: chunk },
-            index: 0,
-            finish_reason: null
-          }]
-        };
-
-        // 发送数据块
-        await writer.write(encoder.encode(`data: ${JSON.stringify(message)}\n\n`));
-      }
-
-      // 尝试解析完整的 JSON
-      try {
-        const cleanContent = accumulatedContent
-          .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
-          .replace(/\n/g, ' ')
-          .replace(/\r/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-
-        const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          throw new Error('未找到有效的 JSON 内容');
-        }
-
-        const jsonContent = jsonMatch[0];
-        const worldData = JSON.parse(jsonContent);
-
-        // 发送解析后的 JSON 数据
-        const finalMessage = {
-          type: 'json',
-          data: worldData
-        };
-        await writer.write(encoder.encode(`data: ${JSON.stringify(finalMessage)}\n\n`));
-      } catch (error) {
-        console.error('JSON 解析失败:', error);
-        const errorMessage = {
-          type: 'error',
-          error: '生成的内容无法解析为有效的 JSON 格式'
-        };
-        await writer.write(encoder.encode(`data: ${JSON.stringify(errorMessage)}\n\n`));
-      }
-
-      // 发送完成标记
-      await writer.write(encoder.encode('data: [DONE]\n\n'));
-      await writer.close();
-    } catch (error) {
-      console.error('生成过程出错:', error);
-      const errorMessage = {
-        type: 'error',
-        error: error instanceof Error ? error.message : '生成失败'
-      };
-      await writer.write(encoder.encode(`data: ${JSON.stringify(errorMessage)}\n\n`));
-      await writer.close();
+    if (!response || !response.content) {
+      console.warn('生成的内容为空');
+      return NextResponse.json({
+        success: false,
+        error: '生成的回复为空，请重试'
+      }, { status: 500 });
     }
 
-    return new Response(stream.readable, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
-    });
+    try {
+      // 清理并解析 JSON
+      const cleanJson = response.content.replace(/[\r\n\t]/g, '').trim();
+      const worldData = JSON.parse(cleanJson);
+
+      console.log('生成完成，数据长度:', cleanJson.length);
+
+      return NextResponse.json({
+        success: true,
+        data: worldData
+      });
+    } catch (error) {
+      console.error('解析世界数据失败:', error);
+      return NextResponse.json({
+        success: false,
+        error: '解析世界数据失败'
+      }, { status: 500 });
+    }
   } catch (error) {
-    console.error("生成世界失败:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "生成世界失败" },
-      { status: 500 }
-    );
+    console.error('处理请求时发生错误:', error);
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : '处理请求时发生未知错误'
+    }, { status: 500 });
   }
 } 
