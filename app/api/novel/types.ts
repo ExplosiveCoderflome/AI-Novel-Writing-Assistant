@@ -2,7 +2,8 @@ export interface Novel {
   id: string;
   title: string;
   description: string;
-  genre: string;
+  genreId?: string;
+  genre?: NovelGenre;
   coverImage?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -51,9 +52,5 @@ export interface NovelGenre {
   id: string;
   name: string;
   description?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  parentId?: string | null;
-  children?: NovelGenre[];
-  fullPath?: string;
+  template?: string;
 }
