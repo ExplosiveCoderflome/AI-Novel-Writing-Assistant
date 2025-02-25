@@ -11,15 +11,13 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
+  id        String   @id @default(cuid())
   email     String   @unique
-  password  String
-  role      String   @default("user")
+  name      String?
+  image     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@map("users")
+  worlds    World[]  // 添加反向关系
 }
 
 model NovelGenre {
@@ -145,20 +143,22 @@ model CharacterTemplate {
 
 model World {
   id          String   @id @default(cuid())
-  userId      String
   name        String
-  description String
-  background  String?
-  cultures    String?
-  geography   String?
-  magicSystem String?
-  politics    String?
-  races       String?
-  religions   String?
-  technology  String?
-  conflicts   String?
+  description String?
+  genre       String?
+  magicSystem Json?
+  technology  Json?
+  races       Json?
+  religions   Json?
+  politics    Json?
+  geography   Json?    // 添加地理信息字段
+  culture     Json?    // 添加文化信息字段
+  history     Json?    // 添加历史信息字段
+  conflicts   Json?    // 添加冲突信息字段
+  userId      String
+  user        User     @relation(fields: [userId], references: [email])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@map("worlds")
+  @@index([userId])
 }

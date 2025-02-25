@@ -29,26 +29,40 @@ export async function GET(
       return new NextResponse('Forbidden', { status: 403 });
     }
 
-    // 将 JSON 字符串转换回对象，并确保所有必需的字段都存在
+    // 辅助函数，安全地解析JSON
+    const safeParseJson = (value: any, defaultValue: any) => {
+      if (!value) return defaultValue;
+      if (typeof value === 'string') {
+        try {
+          return JSON.parse(value);
+        } catch (e) {
+          console.error('JSON解析失败:', e);
+          return defaultValue;
+        }
+      }
+      return value; // 已经是对象，直接返回
+    };
+
+    // 将 JSON 字段转换为对象，并确保所有必需的字段都存在
     const parsedWorld = {
       ...world,
-      geography: world.geography ? JSON.parse(world.geography) : {
+      geography: safeParseJson(world.geography, {
         terrain: [],
         climate: [],
         locations: []
-      },
-      culture: world.cultures ? JSON.parse(world.cultures) : {
+      }),
+      culture: safeParseJson(world.cultures, {
         societies: [],
         customs: [],
         religions: [],
         politics: []
-      },
-      magicSystem: world.magicSystem ? JSON.parse(world.magicSystem) : null,
-      technology: world.technology ? JSON.parse(world.technology) : null,
-      history: world.background ? JSON.parse(world.background) : [],
-      conflicts: world.conflicts ? JSON.parse(world.conflicts) : [],
-      races: world.races ? JSON.parse(world.races) : [],
-      religions: world.religions ? JSON.parse(world.religions) : []
+      }),
+      magicSystem: safeParseJson(world.magicSystem, null),
+      technology: safeParseJson(world.technology, null),
+      history: safeParseJson(world.background, []),
+      conflicts: safeParseJson(world.conflicts, []),
+      races: safeParseJson(world.races, []),
+      religions: safeParseJson(world.religions, [])
     };
 
     // 确保所有必需的嵌套对象都存在

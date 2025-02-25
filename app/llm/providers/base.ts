@@ -20,6 +20,93 @@ export abstract class BaseLLMProvider implements LLMProviderInterface {
     this.baseUrl = baseUrl;
   }
 
+  /**
+   * 解析API错误响应
+   * @param response 响应对象
+   * @param provider 提供商名称
+   * @returns 格式化的错误信息
+   */
+  protected async parseErrorResponse(response: Response, provider: string = 'unknown'): Promise<string> {
+    let errorMessage = `请求失败: ${response.status} ${response.statusText}`;
+    let errorDetails = '';
+    
+    try {
+      // 尝试读取响应文本
+      const errorText = await response.text();
+      
+      // 记录原始错误响应
+      console.error(`${provider} API错误响应(${response.status})内容:`, errorText);
+      
+      // 尝试解析为JSON
+      try {
+        const errorData = JSON.parse(errorText);
+        
+        // 根据不同提供商解析错误信息
+        if (provider === 'deepseek') {
+          // DeepSeek错误格式
+          errorDetails = this.parseDeepSeekError(response.status, errorData);
+        } else if (provider === 'siliconflow') {
+          // SiliconFlow错误格式
+          errorDetails = errorData.error?.message || errorData.message || errorText;
+        } else {
+          // 通用错误格式
+          errorDetails = errorData.error?.message || 
+                        errorData.message || 
+                        errorData.error || 
+                        errorText;
+        }
+      } catch (e) {
+        // 如果不是JSON，使用原始文本
+        errorDetails = errorText;
+      }
+    } catch (e) {
+      console.error('读取错误响应失败:', e);
+      errorDetails = '无法读取错误详情';
+    }
+    
+    return errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage;
+  }
+  
+  /**
+   * 解析DeepSeek特定的错误码
+   * @param statusCode HTTP状态码
+   * @param errorData 错误数据对象
+   * @returns 格式化的错误信息和建议
+   */
+  private parseDeepSeekError(statusCode: number, errorData: any): string {
+    const errorMessage = errorData.error?.message || errorData.message || '未知错误';
+    let suggestion = '';
+    
+    // 根据DeepSeek的错误码提供具体建议
+    switch (statusCode) {
+      case 400:
+        suggestion = '请求格式错误，请检查请求体格式是否正确';
+        break;
+      case 401:
+        suggestion = 'API密钥认证失败，请检查API密钥是否正确有效';
+        break;
+      case 402:
+        suggestion = '账号余额不足，请前往DeepSeek官网充值';
+        break;
+      case 422:
+        suggestion = '请求参数错误，请根据错误信息修改相关参数';
+        break;
+      case 429:
+        suggestion = '请求速率达到上限(TPM或RPM)，请降低请求频率或稍后重试';
+        break;
+      case 500:
+        suggestion = '服务器内部故障，请稍后重试';
+        break;
+      case 503:
+        suggestion = '服务器负载过高，请稍后重试';
+        break;
+      default:
+        suggestion = '请检查请求参数或稍后重试';
+    }
+    
+    return `${errorMessage}。${suggestion}`;
+  }
+
   abstract generateRecommendation(params: GenerateParams): Promise<LLMResponse>;
   abstract generateRecommendationStream(params: GenerateParams): AsyncGenerator<StreamChunk, void, unknown>;
   abstract getAvailableModels(): Promise<LLMModel[]>;

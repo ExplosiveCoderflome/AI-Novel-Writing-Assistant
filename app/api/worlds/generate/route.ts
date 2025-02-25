@@ -335,6 +335,15 @@ export async function POST(request: NextRequest) {
 
     const { provider, model, prompt, genre, complexity, emphasis, temperature, maxTokens } = result.data;
 
+    // 验证和调整参数
+    const adjustedMaxTokens = Math.min(maxTokens || 2000, 2000); // 限制最大token数为2000
+    const adjustedTemperature = Math.min(Math.max(temperature || 0.7, 0.1), 1.0); // 确保温度在0.1-1.0之间
+    
+    console.log('调整后的参数:', {
+      maxTokens: `${maxTokens} -> ${adjustedMaxTokens}`,
+      temperature: `${temperature} -> ${adjustedTemperature}`
+    });
+
     // 获取 API Key
     const apiKey = await prisma.aPIKey.findFirst({
       where: {
@@ -350,12 +359,23 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
 
+    // 验证API密钥格式
+    if (!apiKey.key || apiKey.key.trim().length < 10) {
+      return NextResponse.json({
+        success: false,
+        error: 'API密钥格式无效或长度不足',
+        details: '请检查API密钥设置'
+      }, { status: 400 });
+    }
+
+    console.log(`使用${provider}的API密钥，长度: ${apiKey.key.length}`);
+
     // 创建配置
     const providerConfig: LLMProviderConfig = {
       getApiKey: async () => apiKey.key,
       model,
-      temperature: temperature || 0.7,
-      maxTokens: maxTokens || 2000
+      temperature: adjustedTemperature,
+      maxTokens: adjustedMaxTokens
     };
 
     const config = {
@@ -369,6 +389,7 @@ export async function POST(request: NextRequest) {
 
     // 构建系统提示词
     const systemPrompt = getSystemPrompt(genre, complexity, emphasis);
+    console.log('系统提示词长度:', systemPrompt.length);
 
     // 构建用户提示词
     const userPrompt = `请根据以下要求设计世界：
@@ -380,39 +401,295 @@ ${prompt}
 3. 保持世界设定的完整性和连贯性
 4. 根据用户的具体要求调整细节`;
 
+    console.log('用户提示词长度:', userPrompt.length);
+    console.log('总提示词长度:', systemPrompt.length + userPrompt.length);
+
+    // 如果提示词太长，可能导致API失败
+    if (systemPrompt.length + userPrompt.length > 10000) {
+      console.warn('提示词总长度超过10000，可能导致API调用失败');
+      return NextResponse.json({
+        success: false,
+        error: '提示词过长',
+        details: '系统提示词和用户提示词的总长度超过了API限制',
+        suggestion: '请减少输入内容或简化要求'
+      }, { status: 400 });
+    }
+
     console.log('开始生成世界，参数:', {
       provider,
       model,
       genre,
       complexity,
       emphasis,
-      temperature,
-      maxTokens
+      temperature: adjustedTemperature,
+      maxTokens: adjustedMaxTokens
     });
 
-    // 直接生成完整内容
+    // 尝试减小token数量，避免超出限制
+    const safeMaxTokens = Math.min(adjustedMaxTokens, 1500);
+    console.log(`为安全起见，将maxTokens从${adjustedMaxTokens}减小到${safeMaxTokens}`);
+    
+    console.log('开始请求LLM生成世界...');
     const response = await factory.generateRecommendation({
       userPrompt,
       systemPrompt,
       model,
-      temperature,
-      maxTokens: Math.min(maxTokens || 2000, 4000)
+      temperature: adjustedTemperature,
+      maxTokens: safeMaxTokens
     }, provider as LLMProviderType);
+
+    // 检查响应是否包含错误
+    if (response.error) {
+      console.error('LLM生成世界失败:', response.error);
+      return NextResponse.json({
+        success: false,
+        error: '生成世界失败',
+        details: response.error,
+        provider,
+        model,
+        suggestion: '请尝试使用不同的模型、减小maxTokens值或检查API密钥状态'
+      }, { status: 500 });
+    }
 
     if (!response || !response.content) {
       console.warn('生成的内容为空');
       return NextResponse.json({
         success: false,
-        error: '生成的回复为空，请重试'
+        error: '生成的回复为空，请重试',
+        details: response?.error || '未知错误',
+        provider,
+        model,
+        suggestion: '请尝试使用不同的模型或减小maxTokens值'
       }, { status: 500 });
     }
 
     try {
       // 清理并解析 JSON
-      const cleanJson = response.content.replace(/[\r\n\t]/g, '').trim();
-      const worldData = JSON.parse(cleanJson);
+      console.log('原始响应内容:', response.content.substring(0, 200) + '...');
+      
+      // 检查响应是否为空
+      if (!response.content || response.content.trim().length === 0) {
+        return NextResponse.json({
+          success: false,
+          error: '生成的内容为空',
+          details: '模型未返回任何内容',
+          suggestion: '请尝试减小maxTokens值或使用不同的模型'
+        }, { status: 500 });
+      }
+      
+      // 尝试找到并提取JSON部分
+      let jsonContent = response.content;
+      let worldData;
+      
+      // 记录原始响应内容的长度
+      console.log('原始响应内容长度:', response.content.length);
+      
+      // 检查是否包含Markdown代码块
+      const jsonBlockMatch = response.content.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (jsonBlockMatch && jsonBlockMatch[1]) {
+        console.log('从Markdown代码块中提取JSON');
+        jsonContent = jsonBlockMatch[1].trim();
+      }
+      
+      // 查找可能的JSON开始位置
+      const jsonStartIndex = jsonContent.indexOf('{');
+      if (jsonStartIndex > 0) {
+        console.log(`JSON似乎不在开头，从位置${jsonStartIndex}开始提取`);
+        jsonContent = jsonContent.substring(jsonStartIndex);
+      }
+      
+      // 查找可能的JSON结束位置
+      const lastBraceIndex = jsonContent.lastIndexOf('}');
+      if (lastBraceIndex > 0 && lastBraceIndex < jsonContent.length - 1) {
+        console.log(`JSON似乎不在末尾，截取到位置${lastBraceIndex + 1}`);
+        jsonContent = jsonContent.substring(0, lastBraceIndex + 1);
+      }
+      
+      // 检查是否是DeepSeek API响应中的嵌套JSON
+      if (jsonContent.includes('"content":"{')) {
+        try {
+          // 先解析外层JSON
+          const outerData = JSON.parse(jsonContent);
+          // 提取内层JSON字符串并处理转义
+          if (outerData.choices?.[0]?.message?.content) {
+            const innerJsonStr = outerData.choices[0].message.content;
+            console.log('检测到DeepSeek嵌套JSON响应，提取内层JSON');
+            jsonContent = innerJsonStr;
+          }
+        } catch (e) {
+          console.log('尝试解析嵌套JSON失败，继续使用原始内容');
+        }
+      }
+      
+      // 清理JSON字符串
+      const cleanJson = jsonContent.replace(/[\r\n\t]/g, ' ').trim();
+      console.log('清理后的JSON:', cleanJson.substring(0, 200) + '...');
+      
+      try {
+        worldData = JSON.parse(cleanJson);
+      } catch (parseError) {
+        console.error('JSON解析失败，尝试修复格式问题:', parseError);
+        
+        // 检查是否是截断的JSON问题
+        const errorMessage = parseError instanceof Error ? parseError.message : '未知错误';
+        const positionMatch = errorMessage.match(/position (\d+)/);
+        const errorPosition = positionMatch ? parseInt(positionMatch[1]) : -1;
+        
+        if (errorPosition > 0) {
+          console.log(`JSON解析在位置 ${errorPosition} 失败，尝试修复或截断`);
+          
+          // 如果错误位置接近JSON末尾，可能是截断问题
+          if (errorPosition > cleanJson.length * 0.9) {
+            console.log('错误位置接近JSON末尾，尝试截断修复');
+            try {
+              // 尝试在错误位置前找到最后一个完整的属性结束位置
+              let truncatedJson = cleanJson.substring(0, errorPosition);
+              // 找到最后一个完整的属性（以逗号结尾）
+              const lastValidPos = Math.max(
+                truncatedJson.lastIndexOf(','),
+                truncatedJson.lastIndexOf('}')
+              );
+              
+              if (lastValidPos > 0) {
+                truncatedJson = truncatedJson.substring(0, lastValidPos) + '}';
+                console.log('截断修复后的JSON:', truncatedJson.substring(0, 200) + '...');
+                worldData = JSON.parse(truncatedJson);
+                console.log('截断修复成功!');
+              }
+            } catch (truncateError) {
+              console.error('截断修复失败:', truncateError);
+            }
+          }
+        }
+        
+        // 如果截断修复失败，尝试更全面的修复
+        if (!worldData) {
+          try {
+            // 更全面的JSON修复
+            let fixedJson = cleanJson
+              .replace(/,\s*}/g, '}')  // 移除对象末尾多余的逗号
+              .replace(/,\s*]/g, ']')  // 移除数组末尾多余的逗号
+              .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":') // 确保属性名有引号
+              .replace(/\\"/g, '"')    // 处理转义引号
+              .replace(/"{/g, '{')     // 修复错误的字符串开始
+              .replace(/}"/g, '}')     // 修复错误的字符串结束
+              .replace(/\\n/g, ' ')    // 替换换行符
+              .replace(/\\t/g, ' ');   // 替换制表符
+              
+            // 检查并修复未闭合的字符串
+            const matches = fixedJson.match(/"(?:[^"\\]|\\.)*"/g) || [];
+            for (const match of matches) {
+              if (!match.endsWith('"')) {
+                fixedJson = fixedJson.replace(match, match + '"');
+              }
+            }
+            
+            // 处理未闭合的字符串问题
+            let inString = false;
+            let result = '';
+            for (let i = 0; i < fixedJson.length; i++) {
+              const char = fixedJson[i];
+              const prevChar = i > 0 ? fixedJson[i-1] : '';
+              
+              // 处理字符串开始/结束
+              if (char === '"' && prevChar !== '\\') {
+                inString = !inString;
+              }
+              
+              // 如果到达字符串末尾但仍在字符串内，添加闭合引号
+              if (i === fixedJson.length - 1 && inString) {
+                result += char + '"';
+              } else {
+                result += char;
+              }
+            }
+            
+            // 确保JSON对象正确闭合
+            let braceCount = 0;
+            for (const char of result) {
+              if (char === '{') braceCount++;
+              if (char === '}') braceCount--;
+            }
+            
+            // 如果左大括号多于右大括号，添加缺少的右大括号
+            if (braceCount > 0) {
+              console.log(`检测到未闭合的JSON对象，添加 ${braceCount} 个右大括号`);
+              result += '}'.repeat(braceCount);
+            }
+            
+            // 尝试解析修复后的JSON
+            console.log('修复后的JSON:', result.substring(0, 200) + '...');
+            worldData = JSON.parse(result);
+          } catch (fixError) {
+            console.error('修复JSON格式后仍然解析失败，尝试将文本转换为结构化数据:', fixError);
+            
+            // 如果JSON解析失败，尝试将文本转换为结构化数据
+            worldData = convertTextToWorldData(response.content, genre);
+            console.log('文本转换为结构化数据完成，提取的字段:', Object.keys(worldData).join(', '));
+          }
+        }
+      }
 
-      console.log('生成完成，数据长度:', cleanJson.length);
+      // 验证世界数据的完整性
+      if (!worldData || typeof worldData !== 'object') {
+        console.error('生成的世界数据无效');
+        return NextResponse.json({
+          success: false,
+          error: '生成的世界数据无效',
+          details: '无法从模型响应中提取有效的世界数据',
+          rawContentPreview: response.content.substring(0, 200) + '...',
+          suggestion: '请尝试减小maxTokens值或使用不同的模型'
+        }, { status: 500 });
+      }
+
+      // 确保必要的字段存在
+      if (!worldData.name) worldData.name = "生成的世界";
+      if (!worldData.description) worldData.description = "一个神秘的世界";
+      if (!worldData.genre) worldData.genre = genre;
+      
+      // 确保地理信息存在
+      if (!worldData.geography) {
+        worldData.geography = {
+          terrain: [],
+          climate: [],
+          locations: []
+        };
+      }
+      
+      // 确保文化信息存在
+      if (!worldData.culture) {
+        worldData.culture = {
+          societies: [],
+          customs: [],
+          religions: [],
+          politics: []
+        };
+      }
+      
+      // 根据强调项确保魔法系统存在
+      if (emphasis.magic && !worldData.magicSystem) {
+        worldData.magicSystem = {
+          rules: [],
+          elements: [],
+          practitioners: [],
+          limitations: []
+        };
+      }
+      
+      // 根据强调项确保技术存在
+      if (emphasis.technology && !worldData.technology) {
+        worldData.technology = {
+          level: "基础",
+          innovations: [],
+          impact: []
+        };
+      }
+      
+      // 确保历史和冲突存在
+      if (!worldData.history) worldData.history = [];
+      if (!worldData.conflicts) worldData.conflicts = [];
+
+      console.log('生成完成，数据结构:', Object.keys(worldData).join(', '));
 
       return NextResponse.json({
         success: true,
@@ -420,9 +697,12 @@ ${prompt}
       });
     } catch (error) {
       console.error('解析世界数据失败:', error);
+      console.error('原始内容:', response.content.substring(0, 500) + '...');
       return NextResponse.json({
         success: false,
-        error: '解析世界数据失败'
+        error: '解析世界数据失败',
+        details: error instanceof Error ? error.message : '未知错误',
+        rawContentPreview: response.content.substring(0, 200) + '...'
       }, { status: 500 });
     }
   } catch (error) {
@@ -432,4 +712,129 @@ ${prompt}
       error: error instanceof Error ? error.message : '处理请求时发生未知错误'
     }, { status: 500 });
   }
+}
+
+// 将文本转换为结构化的世界数据
+function convertTextToWorldData(text: string, genre: string): any {
+  console.log('尝试将文本转换为结构化数据');
+  
+  // 提取世界名称
+  const nameMatch = text.match(/(?:世界名称|名称|标题)[:：]\s*([^\n]+)/i);
+  const name = nameMatch ? nameMatch[1].trim() : "生成的世界";
+  
+  // 提取描述
+  const descMatch = text.match(/(?:描述|概述|简介)[:：]\s*([^\n]+)/i);
+  const description = descMatch ? descMatch[1].trim() : text.split('\n')[0];
+  
+  // 提取地理信息
+  const geographySection = extractSection(text, ['地理', '环境', '地形']);
+  const geography = {
+    terrain: extractElements(geographySection, ['地形', '地貌', '地势']),
+    climate: extractElements(geographySection, ['气候', '天气']),
+    locations: extractElements(geographySection, ['地点', '位置', '区域'])
+  };
+  
+  // 提取文化信息
+  const cultureSection = extractSection(text, ['文化', '社会', '种族']);
+  const culture = {
+    societies: extractElements(cultureSection, ['社会', '组织', '结构']),
+    customs: extractElements(cultureSection, ['习俗', '传统', '礼仪']),
+    religions: extractElements(cultureSection, ['宗教', '信仰', '崇拜']),
+    politics: extractElements(cultureSection, ['政治', '政府', '统治'])
+  };
+  
+  // 提取魔法系统
+  const magicSection = extractSection(text, ['魔法', '法术', '超能力']);
+  const magicSystem = {
+    rules: extractElements(magicSection, ['规则', '法则', '原理']),
+    elements: extractElements(magicSection, ['元素', '能量', '源泉']),
+    practitioners: extractElements(magicSection, ['施法者', '法师', '使用者']),
+    limitations: extractElements(magicSection, ['限制', '代价', '弱点'])
+  };
+  
+  // 提取技术
+  const techSection = extractSection(text, ['技术', '科技', '发明']);
+  const technology = {
+    level: extractTechLevel(techSection),
+    innovations: extractElements(techSection, ['创新', '发明', '技术']),
+    impact: extractElements(techSection, ['影响', '作用', '效果'])
+  };
+  
+  // 提取历史
+  const historySection = extractSection(text, ['历史', '背景', '过去']);
+  const history = extractElements(historySection, ['事件', '时期', '时代']);
+  
+  // 提取冲突
+  const conflictSection = extractSection(text, ['冲突', '矛盾', '战争']);
+  const conflicts = extractElements(conflictSection, ['战争', '争端', '斗争']);
+  
+  return {
+    name,
+    description,
+    genre,
+    geography,
+    culture,
+    magicSystem: Object.values(magicSystem).some(arr => arr.length > 0) ? magicSystem : null,
+    technology: Object.values(technology).some(arr => arr.length > 0 || technology.level) ? technology : null,
+    history,
+    conflicts
+  };
+}
+
+// 从文本中提取特定部分
+function extractSection(text: string, keywords: string[]): string {
+  const regex = new RegExp(`(?:${keywords.join('|')})(?:[：:][^\\n]*|[^\\n]*[：:]|\\s*\\n)([\\s\\S]*?)(?:\\n\\s*\\n|$)`, 'i');
+  const match = text.match(regex);
+  return match ? match[1].trim() : '';
+}
+
+// 从文本中提取元素列表
+function extractElements(text: string, keywords: string[]): any[] {
+  if (!text) return [];
+  
+  const elements = [];
+  const regex = new RegExp(`(?:${keywords.join('|')})(?:[：:][^\\n]*|[^\\n]*[：:]|\\s*\\n)([\\s\\S]*?)(?:\\n\\s*\\n|$)`, 'i');
+  const match = text.match(regex);
+  
+  if (match && match[1]) {
+    const content = match[1].trim();
+    
+    // 尝试提取列表项
+    const listItems = content.split(/\n(?:-|\d+\.|\*)\s+/).filter(Boolean);
+    
+    if (listItems.length > 1) {
+      // 如果找到列表项，为每个项创建一个元素
+      listItems.forEach(item => {
+        if (item.trim()) {
+          elements.push({
+            name: item.split(/[：:]/)[0]?.trim() || '元素',
+            description: item.trim(),
+            significance: '世界的重要组成部分',
+            attributes: {}
+          });
+        }
+      });
+    } else {
+      // 如果没有找到列表项，创建一个包含整个内容的元素
+      elements.push({
+        name: keywords[0],
+        description: content,
+        significance: '世界的重要组成部分',
+        attributes: {}
+      });
+    }
+  }
+  
+  return elements;
+}
+
+// 提取技术水平
+function extractTechLevel(text: string): string {
+  if (!text) return '';
+  
+  if (text.match(/(?:高级|先进|未来|科幻)/i)) return 'Advanced';
+  if (text.match(/(?:现代|当代|工业)/i)) return 'Modern';
+  if (text.match(/(?:中世纪|古代|原始)/i)) return 'Medieval';
+  
+  return 'Basic';
 } 

@@ -131,10 +131,82 @@ Ensure the world remains consistent with the genre conventions while incorporati
     significance: string;
     attributes: Record<string, string>;
   }> {
-    // 简单的实现，实际应用中需要更复杂的解析逻辑
+    // 尝试从内容中提取结构化信息
+    try {
+      // 检查内容是否包含 JSON 格式的数据
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const jsonData = JSON.parse(jsonMatch[0]);
+          if (Array.isArray(jsonData)) {
+            return jsonData;
+          } else if (jsonData[category] && Array.isArray(jsonData[category])) {
+            return jsonData[category];
+          }
+        } catch (e) {
+          console.warn(`解析 JSON 失败: ${e}`);
+        }
+      }
+
+      // 尝试根据类别提取相关段落
+      const categoryRegex = new RegExp(`${category}[\\s\\S]*?(?=\\n\\n|$)`, 'i');
+      const categoryMatch = content.match(categoryRegex);
+      
+      if (categoryMatch) {
+        const categoryContent = categoryMatch[0];
+        
+        // 尝试提取结构化信息
+        const elements = [];
+        
+        // 提取名称、描述和重要性
+        const nameMatch = categoryContent.match(/名称[：:]\s*(.+?)(?=\n|$)/i);
+        const descMatch = categoryContent.match(/描述[：:]\s*(.+?)(?=\n|$)/i);
+        const sigMatch = categoryContent.match(/(?:重要性|意义|影响)[：:]\s*(.+?)(?=\n|$)/i);
+        
+        const name = nameMatch ? nameMatch[1].trim() : category;
+        const description = descMatch ? descMatch[1].trim() : categoryContent.trim();
+        const significance = sigMatch ? sigMatch[1].trim() : "重要的世界元素";
+        
+        // 提取属性
+        const attributes: Record<string, string> = {};
+        
+        // 常见属性关键词
+        const attributeKeywords = {
+          societies: ["structure", "values", "customs", "hierarchy", "organization"],
+          customs: ["origin", "practice", "impact", "tradition", "ritual"],
+          religions: ["beliefs", "practices", "influence", "deity", "doctrine"],
+          politics: ["structure", "leadership", "laws", "government", "military"]
+        };
+        
+        // 根据类别选择相关属性关键词
+        const relevantKeywords = attributeKeywords[category as keyof typeof attributeKeywords] || [];
+        
+        // 尝试提取属性
+        relevantKeywords.forEach(keyword => {
+          const attrRegex = new RegExp(`${keyword}[：:]\s*(.+?)(?=\n|$)`, 'i');
+          const attrMatch = categoryContent.match(attrRegex);
+          if (attrMatch) {
+            attributes[keyword] = attrMatch[1].trim();
+          }
+        });
+        
+        elements.push({
+          name,
+          description,
+          significance,
+          attributes
+        });
+        
+        return elements;
+      }
+    } catch (error) {
+      console.error(`解析元素时出错: ${error}`);
+    }
+    
+    // 如果所有尝试都失败，返回简单的默认值
     return [{
       name: category,
-      description: content.trim(),
+      description: content.trim() || `${category} 的详细描述`,
       significance: "To be determined",
       attributes: {}
     }];

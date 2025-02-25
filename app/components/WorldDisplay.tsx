@@ -142,7 +142,7 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4">
+    <div className={`grid grid-cols-1 ${elements.length > 1 ? 'md:grid-cols-2' : ''} gap-4`}>
       {elements.map((element, index) => (
         <Card 
           key={index} 
@@ -364,15 +364,15 @@ export function WorldDisplay({ world, hideActions }: WorldDisplayProps) {
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      const response = await fetch(`/api/worlds/update`, {
-        method: 'PUT',
+      const endpoint = localWorld.id ? '/api/worlds/update' : '/api/worlds/create';
+      const method = localWorld.id ? 'PUT' : 'POST';
+
+      const response = await fetch(endpoint, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          id: localWorld.id,
-          ...localWorld,
-        }),
+        body: JSON.stringify(localWorld),
       });
 
       if (!response.ok) {
@@ -420,7 +420,7 @@ export function WorldDisplay({ world, hideActions }: WorldDisplayProps) {
                     <div className="space-y-6">
                       <div>
                         <SubSectionTitle>地形</SubSectionTitle>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className={`grid grid-cols-1 ${localWorld.geography.terrain.length > 1 ? 'md:grid-cols-2' : ''} gap-4`}>
                           {localWorld.geography.terrain.map((element, index) => (
                             <Card 
                               key={index} 
@@ -460,7 +460,7 @@ export function WorldDisplay({ world, hideActions }: WorldDisplayProps) {
                       </div>
                       <div>
                         <SubSectionTitle>气候</SubSectionTitle>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className={`grid grid-cols-1 ${localWorld.geography.climate.length > 1 ? 'md:grid-cols-2' : ''} gap-4`}>
                           {localWorld.geography.climate.map((element, index) => (
                             <Card 
                               key={index} 

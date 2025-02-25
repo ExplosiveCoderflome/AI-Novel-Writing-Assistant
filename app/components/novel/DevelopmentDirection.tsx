@@ -8,6 +8,8 @@ import { LLMPromptInput } from '../LLMPromptInput';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
 const MarkdownEditor = dynamic(() => import('../MarkdownEditor'), { ssr: false });
 
@@ -32,6 +34,7 @@ const DevelopmentDirection: React.FC<DevelopmentDirectionProps> = ({
   onOutlineChange,
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [characters, setCharacters] = useState<Character[]>([]);
   const [selectedCharacters, setSelectedCharacters] = useState<string[]>([]);
   const [isLoadingCharacters, setIsLoadingCharacters] = useState(false);
@@ -65,6 +68,32 @@ const DevelopmentDirection: React.FC<DevelopmentDirectionProps> = ({
         return [...prev, characterId];
       }
     });
+  };
+
+  const handleSaveOutline = async () => {
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/novel/${novelId}/outline`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          outline,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('保存发展走向失败');
+      }
+
+      toast.success('发展走向保存成功');
+    } catch (error) {
+      console.error('保存发展走向失败:', error);
+      toast.error(error instanceof Error ? error.message : '保存发展走向失败');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleGenerateOutline = async (params: { 
@@ -170,9 +199,24 @@ const DevelopmentDirection: React.FC<DevelopmentDirectionProps> = ({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label htmlFor="outline" className="text-lg font-medium">发展走向</Label>
-              <Badge variant="outline" className="text-xs">
-                预览模式
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">
+                  预览模式
+                </Badge>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleSaveOutline}
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      保存中...
+                    </>
+                  ) : '保存'}
+                </Button>
+              </div>
             </div>
             <div className="border rounded-lg">
               <MarkdownEditor

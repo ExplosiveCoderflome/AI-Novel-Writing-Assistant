@@ -1,153 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
+import { Prisma } from '@prisma/client';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../../lib/auth';
+import { authOptions } from '../../auth/[...nextauth]/route';
 import { z } from 'zod';
 
-// 验证请求体的 schema
-const updateWorldSchema = z.object({
-  id: z.string(),
+// 简化的验证 schema
+const worldSchema = z.object({
+  id: z.string().optional(),
   name: z.string(),
-  description: z.string(),
-  geography: z.object({
-    terrain: z.array(z.object({
-      name: z.string(),
-      description: z.string(),
-      significance: z.string().optional(),
-      attributes: z.record(z.string()).optional(),
-    })),
-    climate: z.array(z.object({
-      name: z.string(),
-      description: z.string(),
-      significance: z.string().optional(),
-      attributes: z.record(z.string()).optional(),
-    })),
-    locations: z.array(z.object({
-      name: z.string(),
-      description: z.string(),
-      significance: z.string().optional(),
-      attributes: z.record(z.string()).optional(),
-    })),
-  }).optional(),
-  culture: z.object({
-    societies: z.array(z.object({
-      name: z.string(),
-      description: z.string(),
-      significance: z.string().optional(),
-      attributes: z.record(z.string()).optional(),
-    })),
-    customs: z.array(z.object({
-      name: z.string(),
-      description: z.string(),
-      significance: z.string().optional(),
-      attributes: z.record(z.string()).optional(),
-    })),
-    religions: z.array(z.object({
-      name: z.string(),
-      description: z.string(),
-      significance: z.string().optional(),
-      attributes: z.record(z.string()).optional(),
-    })),
-    politics: z.array(z.object({
-      name: z.string(),
-      description: z.string(),
-      significance: z.string().optional(),
-      attributes: z.record(z.string()).optional(),
-    })),
-  }).optional(),
-  magicSystem: z.object({
-    rules: z.array(z.object({
-      name: z.string(),
-      description: z.string(),
-      significance: z.string().optional(),
-      attributes: z.record(z.string()).optional(),
-    })),
-    elements: z.array(z.object({
-      name: z.string(),
-      description: z.string(),
-      significance: z.string().optional(),
-      attributes: z.record(z.string()).optional(),
-    })),
-    practitioners: z.array(z.object({
-      name: z.string(),
-      description: z.string(),
-      significance: z.string().optional(),
-      attributes: z.record(z.string()).optional(),
-    })),
-    limitations: z.array(z.object({
-      name: z.string(),
-      description: z.string(),
-      significance: z.string().optional(),
-      attributes: z.record(z.string()).optional(),
-    })),
-  }).optional(),
-  technology: z.object({
-    level: z.string(),
-    innovations: z.array(z.object({
-      name: z.string(),
-      description: z.string(),
-      significance: z.string().optional(),
-      attributes: z.record(z.string()).optional(),
-    })),
-    impact: z.array(z.object({
-      name: z.string(),
-      description: z.string(),
-      significance: z.string().optional(),
-      attributes: z.record(z.string()).optional(),
-    })),
-  }).optional(),
-  history: z.array(z.object({
-    name: z.string(),
-    description: z.string(),
-    significance: z.string().optional(),
-    attributes: z.record(z.string()).optional(),
-  })).optional(),
-  conflicts: z.array(z.object({
-    name: z.string(),
-    description: z.string(),
-    significance: z.string().optional(),
-    attributes: z.record(z.string()).optional(),
-  })).optional(),
+  description: z.string().optional().nullable(),
+  genre: z.string().optional().nullable(),
+  magicSystem: z.any().optional().nullable(),
+  technology: z.any().optional().nullable(),
+  races: z.any().optional().nullable(),
+  religions: z.any().optional().nullable(),
+  politics: z.any().optional().nullable(),
+  geography: z.any().optional().nullable(),
+  culture: z.any().optional().nullable(),
+  history: z.any().optional().nullable(),
+  conflicts: z.any().optional().nullable()
 });
 
 export async function PUT(request: NextRequest) {
   try {
-    // 获取用户会话
     const session = await getServerSession(authOptions);
-    
     if (!session?.user?.email) {
       return NextResponse.json({
         success: false,
-        error: '未授权的访问'
+        error: '未登录'
       }, { status: 401 });
     }
 
-    // 解析请求体
     const body = await request.json();
-
-    // 如果没有 id，生成一个新的
-    if (!body.id) {
-      const newWorld = await prisma.world.create({
-        data: {
-          userId: session.user.email,
-          name: body.name,
-          description: body.description,
-          geography: body.geography ? JSON.stringify(body.geography) : null,
-          cultures: body.culture ? JSON.stringify(body.culture) : null,
-          magicSystem: body.magicSystem ? JSON.stringify(body.magicSystem) : null,
-          technology: body.technology ? JSON.stringify(body.technology) : null,
-          background: body.history ? JSON.stringify(body.history) : null,
-          conflicts: body.conflicts ? JSON.stringify(body.conflicts) : null,
-        }
-      });
-      body.id = newWorld.id;
-    }
-
-    // 验证请求体
-    const result = updateWorldSchema.safeParse(body);
+    const result = worldSchema.safeParse(body);
 
     if (!result.success) {
-      console.error('验证世界数据失败:', result.error);
+      console.log('验证世界数据失败:', JSON.stringify(result.error.format(), null, 2));
       return NextResponse.json({
         success: false,
         error: '无效的世界数据',
@@ -155,77 +44,82 @@ export async function PUT(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const { id, name, description, geography, culture, magicSystem, technology, history, conflicts } = result.data;
+    const { id, name, description, genre } = result.data;
 
-    // 检查世界是否存在且属于当前用户
-    const existingWorld = await prisma.world.findUnique({
-      where: { id }
-    });
-
-    if (!existingWorld) {
-      return NextResponse.json({
-        success: false,
-        error: '世界不存在'
-      }, { status: 404 });
-    }
-
-    if (existingWorld.userId !== session.user.email) {
-      return NextResponse.json({
-        success: false,
-        error: '无权修改此世界'
-      }, { status: 403 });
-    }
-
-    // 更新数据库中的世界数据
-    const updatedWorld = await prisma.world.update({
-      where: { id },
-      data: {
-        name,
-        description,
-        geography: geography ? JSON.stringify(geography) : null,
-        cultures: culture ? JSON.stringify(culture) : null,
-        magicSystem: magicSystem ? JSON.stringify(magicSystem) : null,
-        technology: technology ? JSON.stringify(technology) : null,
-        background: history ? JSON.stringify(history) : null,
-        conflicts: conflicts ? JSON.stringify(conflicts) : null,
-        updatedAt: new Date(),
-      },
-    });
-
-    console.log('世界数据更新成功:', {
-      id: updatedWorld.id,
-      name: updatedWorld.name,
-    });
-
-    // 将更新后的数据转换回前端需要的格式
-    const parsedWorld = {
-      ...updatedWorld,
-      geography: geography || {
-        terrain: [],
-        climate: [],
-        locations: []
-      },
-      culture: culture || {
-        societies: [],
-        customs: [],
-        religions: [],
-        politics: []
-      },
-      magicSystem,
-      technology,
-      history: history || [],
-      conflicts: conflicts || []
+    // 准备要保存的数据
+    const worldData = {
+      name,
+      description,
+      genre,
+      magicSystem: body.magicSystem as Prisma.InputJsonValue,
+      technology: body.technology as Prisma.InputJsonValue,
+      races: body.races as Prisma.InputJsonValue,
+      religions: body.religions as Prisma.InputJsonValue,
+      politics: body.politics as Prisma.InputJsonValue,
+      geography: body.geography as Prisma.InputJsonValue,
+      culture: body.culture as Prisma.InputJsonValue,
+      history: body.history as Prisma.InputJsonValue,
+      conflicts: body.conflicts as Prisma.InputJsonValue,
+      updatedAt: new Date()
     };
+
+    console.log('准备保存的数据:', JSON.stringify(worldData, null, 2));
+
+    let updatedWorld;
+
+    if (id) {
+      // 如果有 ID，检查世界是否存在且属于当前用户
+      const existingWorld = await prisma.world.findFirst({
+        where: {
+          id,
+          userId: session.user.email
+        }
+      });
+
+      if (!existingWorld) {
+        return NextResponse.json({
+          success: false,
+          error: '世界不存在或无权访问'
+        }, { status: 404 });
+      }
+
+      // 更新世界
+      updatedWorld = await prisma.world.update({
+        where: { id },
+        data: worldData
+      });
+    } else {
+      // 如果没有 ID，创建新世界
+      updatedWorld = await prisma.world.create({
+        data: {
+          ...worldData,
+          userId: session.user.email
+        }
+      });
+    }
+
+    // 转换响应数据
+    const responseData = updatedWorld;
 
     return NextResponse.json({
       success: true,
-      data: parsedWorld
+      data: responseData
     });
   } catch (error) {
-    console.error('更新世界数据失败:', error);
+    console.log('保存世界失败:', error instanceof Error ? error.message : '未知错误');
+    
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2003') {
+        return NextResponse.json({
+          success: false,
+          error: '外键约束错误：请确保所有引用的数据都存在'
+        }, { status: 400 });
+      }
+    }
+    
     return NextResponse.json({
       success: false,
-      error: error instanceof Error ? error.message : '更新世界数据时发生未知错误'
+      error: error instanceof Error ? error.message : '保存世界失败'
     }, { status: 500 });
   }
 } 
