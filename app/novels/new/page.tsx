@@ -10,6 +10,8 @@ import { GenreSelector } from '../../components/GenreSelector';
 import { toast } from '../../components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 import { NovelGenre } from '../../api/novel/types';
+import { TitleFactory } from '../../components/novel/TitleFactory';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 
 export default function NewNovelPage() {
   const router = useRouter();
@@ -18,6 +20,7 @@ export default function NewNovelPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [genreId, setGenreId] = useState('');
+  const [activeTab, setActiveTab] = useState<string>('basic');
 
   // 获取小说类型列表
   useEffect(() => {
@@ -91,66 +94,91 @@ export default function NewNovelPage() {
     }
   };
 
+  // 处理标题选择
+  const handleTitleSelect = (selectedTitle: string) => {
+    setTitle(selectedTitle);
+    setActiveTab('basic');
+    toast({
+      title: '标题已选择',
+      description: `已选择标题：${selectedTitle}`,
+    });
+  };
+
   return (
     <div className="container max-w-2xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6">创建新小说</h1>
       
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="title">标题</Label>
-          <Input
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="请输入小说标题"
-            disabled={loading}
-            required
-          />
-        </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="basic">基本信息</TabsTrigger>
+          <TabsTrigger value="title-factory">AI标题工厂</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="basic">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="title">标题</Label>
+              <Input
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="请输入小说标题"
+                disabled={loading}
+                required
+              />
+            </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="description">简介</Label>
-          <Textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="请输入小说简介"
-            disabled={loading}
-            required
-          />
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">简介</Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="请输入小说简介"
+                disabled={loading}
+                required
+              />
+            </div>
 
-        <div className="space-y-2">
-          <Label>类型</Label>
-          <GenreSelector
-            value={genreId}
-            onChange={setGenreId}
-            genres={genres}
-            placeholder="选择小说类型"
-          />
-        </div>
+            <div className="space-y-2">
+              <Label>类型</Label>
+              <GenreSelector
+                value={genreId}
+                onChange={setGenreId}
+                genres={genres}
+                placeholder="选择小说类型"
+              />
+            </div>
 
-        <div className="flex justify-end gap-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.back()}
-            disabled={loading}
-          >
-            取消
-          </Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                创建中...
-              </>
-            ) : (
-              '创建'
-            )}
-          </Button>
-        </div>
-      </form>
+            <div className="flex justify-end gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+                disabled={loading}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    创建中...
+                  </>
+                ) : (
+                  '创建'
+                )}
+              </Button>
+            </div>
+          </form>
+        </TabsContent>
+        
+        <TabsContent value="title-factory">
+          <div className="mb-6">
+            <TitleFactory onSelectTitle={handleTitleSelect} initialTitle={title} />
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 } 
