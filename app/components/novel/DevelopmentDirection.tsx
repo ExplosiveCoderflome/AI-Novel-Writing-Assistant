@@ -8,6 +8,8 @@ import { LLMPromptInput } from '../LLMPromptInput';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Save, Loader2 } from 'lucide-react';
 
 const MarkdownEditor = dynamic(() => import('../MarkdownEditor'), { ssr: false });
 
@@ -24,14 +26,17 @@ interface DevelopmentDirectionProps {
   novelId: string;
   outline: string;
   onOutlineChange: (value: string) => void;
+  onSave?: () => Promise<void>;
 }
 
 const DevelopmentDirection: React.FC<DevelopmentDirectionProps> = ({
   novelId,
   outline,
   onOutlineChange,
+  onSave,
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [characters, setCharacters] = useState<Character[]>([]);
   const [selectedCharacters, setSelectedCharacters] = useState<string[]>([]);
   const [isLoadingCharacters, setIsLoadingCharacters] = useState(false);
@@ -65,6 +70,23 @@ const DevelopmentDirection: React.FC<DevelopmentDirectionProps> = ({
         return [...prev, characterId];
       }
     });
+  };
+
+  const handleSave = async () => {
+    if (!onSave) {
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      await onSave();
+      toast.success('发展走向已保存');
+    } catch (error) {
+      console.error('保存发展走向失败:', error);
+      toast.error('保存发展走向失败');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleGenerateOutline = async (params: { 
@@ -159,10 +181,31 @@ const DevelopmentDirection: React.FC<DevelopmentDirectionProps> = ({
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>发展方向</CardTitle>
-        <CardDescription>
-          描述小说的整体发展方向，包括主要情节、人物成长和故事走向
-        </CardDescription>
+        <div className="flex justify-between items-center">
+          <div>
+            <CardTitle>发展方向</CardTitle>
+            <CardDescription>
+              描述小说的整体发展方向，包括主要情节、人物成长和故事走向
+            </CardDescription>
+          </div>
+          <Button 
+            onClick={handleSave} 
+            disabled={isSaving || !onSave}
+            className="flex items-center gap-2"
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>保存中...</span>
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                <span>保存</span>
+              </>
+            )}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-6">
@@ -225,10 +268,8 @@ const DevelopmentDirection: React.FC<DevelopmentDirectionProps> = ({
               </div>
               <LLMPromptInput
                 inputType="textarea"
-                placeholder="描述你期望的小说发展方向，包括主要情节走向、人物成长、矛盾冲突等..."
                 buttonText={isGenerating ? "正在生成..." : "生成发展走向"}
                 disabled={isGenerating}
-                showAdvancedOptions={true}
                 onSubmit={handleGenerateOutline}
               />
               <div className="text-sm text-muted-foreground">

@@ -58,7 +58,7 @@ const LLMPromptInputComponent = ({
   const [models, setModels] = useState<LLMModel[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('');
   const [temperature, setTemperature] = useState<number>(0.7);
-  const [maxTokens, setMaxTokens] = useState<number>(2000);
+  const [maxTokens, setMaxTokens] = useState<number>(4000);
 
   useEffect(() => {
     fetchProviders();
@@ -228,7 +228,7 @@ const LLMPromptInputComponent = ({
               id="temperature"
               type="range"
               min="0"
-              max="1"
+              max="2"
               step="0.1"
               value={temperature}
               onChange={(e) => setTemperature(Number(e.target.value))}
@@ -236,7 +236,7 @@ const LLMPromptInputComponent = ({
             />
             <Input
               min="0"
-              max="1"
+              max="2"
               step="0.1"
               value={temperature}
               onChange={(e) => setTemperature(Number(e.target.value))}

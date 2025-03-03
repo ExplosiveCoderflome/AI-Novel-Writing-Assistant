@@ -56,6 +56,9 @@ export async function GET(
       );
     }
 
+    // 确保返回structuredOutline字段
+    console.log('返回小说数据，包含structuredOutline:', !!novel.structuredOutline);
+
     return NextResponse.json(novel);
   } catch (error) {
     console.error('获取小说失败:', error);

@@ -41,6 +41,7 @@ interface DevelopmentDirectionProps {
   novelId: string;
   outline: string;
   onOutlineChange: (value: string) => void;
+  onSave: () => void;
 }
 
 interface StructuredOutlineProps {
@@ -152,33 +153,80 @@ export default function EditNovelPage({ params }: PageParams) {
   const [tabValue, setTabValue] = useState('basic');
 
   useEffect(() => {
-    fetchNovel();
-    fetchGenres();
-  }, []);
+    if (id) {
+      fetchNovel();
+      fetchGenres();
+    }
+  }, [id]);
+
+  // 确保大纲数据更新后进行日志记录
+  useEffect(() => {
+    if (structuredOutline) {
+      console.log('页面组件中的大纲数据已更新:', structuredOutline);
+    }
+  }, [structuredOutline]);
 
   const fetchNovel = async () => {
+    setIsLoading(true);
     try {
       const response = await fetch(`/api/novel/${id}`);
       if (!response.ok) {
         throw new Error('获取小说失败');
       }
+
       const data = await response.json();
+      console.log('加载小说数据:', {
+        id: data.id,
+        title: data.title,
+        hasOutline: !!data.outline,
+        hasStructuredOutline: !!data.structuredOutline
+      });
+      
       setNovel(data);
       setTitle(data.title);
-      setDescription(data.description || '');
-      setGenre(data.genreId || '');
-      if (data.chapters && data.chapters.length > 0) {
-        setCurrentChapter(data.chapters[0]);
+      setDescription(data.description);
+      setGenre(data.genre?.id || '');
+
+      // 尝试解析结构化大纲数据
+      if (data.structuredOutline) {
+        try {
+          console.log('结构化大纲原始数据类型:', typeof data.structuredOutline);
+          const parsedOutline = JSON.parse(data.structuredOutline);
+          console.log('加载已保存的结构化大纲:', parsedOutline);
+          setStructuredOutline(parsedOutline);
+        } catch (e) {
+          console.error('解析结构化大纲失败:', e);
+        }
+      } else {
+        console.log('小说没有保存的结构化大纲数据');
+        // 尝试从专门的API获取结构化大纲
+        fetchStructuredOutline();
       }
     } catch (error) {
       console.error('获取小说失败:', error);
-      toast({
-        variant: "destructive",
-        title: "错误",
-        description: "获取小说失败"
-      });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // 从专门的API获取结构化大纲
+  const fetchStructuredOutline = async () => {
+    try {
+      console.log('从专门API获取结构化大纲');
+      const response = await fetch(`/api/novel/${id}/structured-outline`);
+      if (!response.ok) {
+        throw new Error('获取结构化大纲失败');
+      }
+
+      const result = await response.json();
+      if (result.success && result.data) {
+        console.log('从API获取到结构化大纲:', result.data);
+        setStructuredOutline(result.data);
+      } else {
+        console.log('API返回成功但没有大纲数据');
+      }
+    } catch (error) {
+      console.error('获取结构化大纲失败:', error);
     }
   };
 
@@ -567,9 +615,43 @@ ${useExistingOutline ? '8. 在现有发展走向的基础上进行优化，保�
     }
   };
 
+  const handleSaveStructuredOutline = async (outline: NovelOutline) => {
+    if (!novel) return;
+    
+    try {
+      console.log('保存结构化大纲:', outline);
+      
+      const response = await fetch(`/api/novel/${id}/structured-outline`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          structuredOutline: outline
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('保存结构化大纲失败');
+      }
+
+      setStructuredOutline(outline);
+      
+      toast({
+        title: '保存成功',
+        description: '结构化大纲已更新',
+      });
+    } catch (error) {
+      console.error('保存结构化大纲失败:', error);
+      throw error; // 将错误传递给组件处理
+    }
+  };
+
   const handleOutlineGenerated = (outline: NovelOutline) => {
+    console.log('接收到大纲数据:', outline);
     setStructuredOutline(outline);
-    setTabValue('chapters');
+    // 保持在当前标签，不跳转到chapters
+    // setTabValue('chapters');
   };
 
   const handleChapterSelect = (chapterId: string) => {
@@ -634,15 +716,35 @@ ${useExistingOutline ? '8. 在现有发展走向的基础上进行优化，保�
             novelId={novel.id}
             outline={novel.outline || ''}
             onOutlineChange={(value) => setNovel(prev => prev ? { ...prev, outline: value } : null)}
+            onSave={handleSaveOutline}
           />
         </TabsContent>
 
         <TabsContent value="outline">
-          <StructuredOutline
-            novelId={novel.id}
-            developmentDirection={novel.outline || ''}
-            onOutlineGenerated={handleOutlineGenerated}
-          />
+          <div className="space-y-4">
+            {structuredOutline && (
+              <div className="bg-green-50 p-3 rounded-md mb-4">
+                <p className="font-medium text-green-800">✅ 大纲已成功生成！</p>
+                <p className="text-sm text-green-700">
+                  您可以在下方继续生成新的大纲，或切换到"章节管理"标签查看和使用生成的大纲。
+                </p>
+                <div className="text-xs mt-2 text-gray-500">
+                  调试信息: 大纲数据已加载，包含核心设定: {structuredOutline.core ? '✅' : '❌'}
+                </div>
+              </div>
+            )}
+            <StructuredOutline
+              novelId={novel.id}
+              developmentDirection={novel.outline || ''}
+              onOutlineGenerated={handleOutlineGenerated}
+              onSave={handleSaveStructuredOutline}
+              savedOutline={structuredOutline}
+              onDevelopmentDirectionChange={(value) => {
+                setNovel(prev => prev ? { ...prev, outline: value } : null);
+                setDevelopmentDirection(value);
+              }}
+            />
+          </div>
         </TabsContent>
 
         <TabsContent value="chapters">
