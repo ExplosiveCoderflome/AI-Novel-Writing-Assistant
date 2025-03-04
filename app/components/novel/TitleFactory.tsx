@@ -12,6 +12,8 @@ import { Badge } from '../../components/ui/badge';
 import { ScrollArea } from '../../components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../components/ui/tooltip';
 import { LLMPromptInput } from '../LLMPromptInput';
+import { GenreSelector } from '../GenreSelector';
+import { NovelGenre } from '../../api/novel/types';
 
 interface TitleSuggestion {
   title: string;
@@ -32,12 +34,54 @@ export function TitleFactory({ onSelectTitle, initialTitle = '' }: TitleFactoryP
   const [selectedTitle, setSelectedTitle] = useState<string | null>(null);
   const [advancedMode, setAdvancedMode] = useState<boolean>(false);
   const [titleCount, setTitleCount] = useState<number>(20);
+  const [genres, setGenres] = useState<NovelGenre[]>([]);
+  const [genreId, setGenreId] = useState<string>('');
+  const [selectedGenre, setSelectedGenre] = useState<NovelGenre | null>(null);
   const [llmParams, setLlmParams] = useState<{
     provider: string;
     model: string;
     temperature?: number;
     maxTokens?: number;
   } | null>(null);
+
+  // 获取小说类型列表
+  useEffect(() => {
+    fetchGenres();
+  }, []);
+
+  const fetchGenres = async () => {
+    try {
+      const response = await fetch('/api/genres');
+      if (!response.ok) throw new Error('获取类型列表失败');
+      const data = await response.json();
+      setGenres(data);
+    } catch (error) {
+      console.error('获取类型列表失败:', error);
+      toast({
+        title: '获取类型列表失败',
+        description: error instanceof Error ? error.message : '请稍后重试',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // 根据ID查找类型名称
+  const findGenreById = (id: string): NovelGenre | null => {
+    // 由于NovelGenre类型不包含children属性，改为在平面数组中查找
+    if (!genres || genres.length === 0) return null;
+    
+    return genres.find(genre => genre.id === id) || null;
+  };
+
+  // 当类型ID变化时，更新选中的类型
+  useEffect(() => {
+    if (genreId) {
+      const genre = findGenreById(genreId);
+      setSelectedGenre(genre);
+    } else {
+      setSelectedGenre(null);
+    }
+  }, [genreId, genres]);
 
   // 生成标题
   const generateTitles = async () => {
@@ -78,6 +122,15 @@ export function TitleFactory({ onSelectTitle, initialTitle = '' }: TitleFactoryP
         originalTitle: activeTab === 'adapt' ? originalTitle : undefined,
         titleCount: titleCount,
       };
+
+      // 添加类型信息到请求中
+      if (selectedGenre) {
+        requestBody.genre = {
+          id: selectedGenre.id,
+          name: selectedGenre.name,
+          description: selectedGenre.description
+        };
+      }
 
       // 如果是高级模式，添加模型参数
       if (advancedMode && llmParams) {
@@ -232,7 +285,21 @@ export function TitleFactory({ onSelectTitle, initialTitle = '' }: TitleFactoryP
           </TabsContent>
         </Tabs>
 
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="genre-selector">选择小说类型（可选）</Label>
+            <GenreSelector
+              value={genreId}
+              onChange={setGenreId}
+              genres={genres}
+              placeholder="选择小说类型以提高标题精准度"
+              disabled={loading}
+            />
+            <p className="text-sm text-gray-500">
+              选择特定类型可以让AI更好地理解你需要的标题风格
+            </p>
+          </div>
+
           <div className="flex justify-between">
             <Label htmlFor="title-count">生成标题数量: {titleCount}</Label>
             <span className="text-sm text-gray-500">

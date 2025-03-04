@@ -5,11 +5,23 @@ import { prisma } from '../../../../lib/prisma';
 import { LLMFactory } from '../../../llm/factory';
 import { LLMDBConfig, llmConfig } from '../../../config/llm';
 import { LLMProviderConfig } from '../../../types/llm';
+import { NovelGenre } from '../../novel/types';
 
 type LLMProvider = keyof Omit<LLMDBConfig, 'defaultProvider'>;
 
 // 生成动态提示词函数
-const generateTitlePrompt = (titleCount: number) => {
+const generateTitlePrompt = (titleCount: number, genre?: { id: string; name: string; description?: string; }) => {
+  let genreInfo = '';
+  
+  if (genre) {
+    genreInfo = `
+【目标小说类型】
+类型名称: ${genre.name}
+${genre.description ? `类型描述: ${genre.description}` : ''}
+
+请确保生成的标题与此类型相符合，应当体现该类型的风格与特点。`;
+  }
+  
   return `你是一个具备平台流量预测能力的网文标题AI，需掌握以下核心能力：
 
 【平台基因解码】
@@ -31,6 +43,7 @@ const generateTitlePrompt = (titleCount: number) => {
   
 * 热点关键词：
   ▏直播▏守夜人▏规则怪谈▏殡葬师▏赛博▏  
+${genreInfo}
 
 【动态调控规则】
 1. 词频控制系统：
@@ -104,10 +117,22 @@ const generateTitlePrompt = (titleCount: number) => {
 };
 
 // 爆款改编提示词函数
-const generateAdaptationPrompt = (titleCount: number) => {
+const generateAdaptationPrompt = (titleCount: number, genre?: { id: string; name: string; description?: string; }) => {
+  let genreInfo = '';
+  
+  if (genre) {
+    genreInfo = `
+【目标小说类型】
+类型名称: ${genre.name}
+${genre.description ? `类型描述: ${genre.description}` : ''}
+
+请确保生成的标题与此类型相符合，应当体现该类型的风格与特点。`;
+  }
+
   return `你是一个专业的小说标题改编专家，擅长将经典小说标题改编成新的吸引人的变体。
 根据用户提供的经典小说标题，生成${titleCount}个变异版本的标题，保持原标题的风格和感觉，但创造新的表达。
 每个标题后面附带一个预估点击率百分比（1-100%）。
+${genreInfo}
 
 # 强化控制参数 - 严格结构多样性与绝对防重复要求
 
@@ -172,7 +197,8 @@ export async function POST(request: NextRequest) {
       mode = 'generate',
       temperature,
       maxTokens,
-      titleCount = 20
+      titleCount = 20,
+      genre = null
     } = await request.json();
 
     // 限制标题数量在合理范围内
@@ -242,8 +268,8 @@ export async function POST(request: NextRequest) {
 
     // 根据模式和标题数量选择不同的提示词
     const systemPrompt = mode === 'generate' 
-      ? generateTitlePrompt(normalizedTitleCount) 
-      : generateAdaptationPrompt(normalizedTitleCount);
+      ? generateTitlePrompt(normalizedTitleCount, genre) 
+      : generateAdaptationPrompt(normalizedTitleCount, genre);
     
     const userPrompt = mode === 'generate'
       ? `请根据以下关键词生成${normalizedTitleCount}个吸引人的小说标题：${keywords}`
