@@ -162,3 +162,21 @@ model World {
 
   @@map("worlds")
 }
+
+// 标题库模型 - 存储用户保存的标题
+model TitleLibrary {
+  id          String   @id @default(cuid())
+  title       String
+  description String?   // 可选的标题描述
+  clickRate   Int?      // 存储预估的点击率
+  keywords    String?   // 生成标题时使用的关键词
+  genreId     String?   // 关联的小说类型
+  userId      String    // 关联的用户ID
+  usedCount   Int       @default(0) // 使用次数
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([genreId])
+  @@map("title_libraries")
+}

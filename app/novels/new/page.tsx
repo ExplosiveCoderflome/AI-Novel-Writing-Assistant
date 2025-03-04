@@ -11,7 +11,6 @@ import { toast } from '../../components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 import { NovelGenre } from '../../api/novel/types';
 import { TitleFactory } from '../../components/novel/TitleFactory';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 
 export default function NewNovelPage() {
   const router = useRouter();
@@ -20,7 +19,6 @@ export default function NewNovelPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [genreId, setGenreId] = useState('');
-  const [activeTab, setActiveTab] = useState<string>('basic');
 
   // 获取小说类型列表
   useEffect(() => {
@@ -97,7 +95,6 @@ export default function NewNovelPage() {
   // 处理标题选择
   const handleTitleSelect = (selectedTitle: string) => {
     setTitle(selectedTitle);
-    setActiveTab('basic');
     toast({
       title: '标题已选择',
       description: `已选择标题：${selectedTitle}`,
@@ -105,17 +102,12 @@ export default function NewNovelPage() {
   };
 
   return (
-    <div className="container max-w-2xl mx-auto p-6">
+    <div className="container mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6">创建新小说</h1>
       
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="basic">基本信息</TabsTrigger>
-          <TabsTrigger value="title-factory">AI标题工厂</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="basic">
-          <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
+        <div className="xl:col-span-2">
+          <form onSubmit={handleSubmit} className="space-y-6 sticky top-6">
             <div className="space-y-2">
               <Label htmlFor="title">标题</Label>
               <Input
@@ -137,6 +129,7 @@ export default function NewNovelPage() {
                 placeholder="请输入小说简介"
                 disabled={loading}
                 required
+                className="min-h-[150px]"
               />
             </div>
 
@@ -171,14 +164,12 @@ export default function NewNovelPage() {
               </Button>
             </div>
           </form>
-        </TabsContent>
+        </div>
         
-        <TabsContent value="title-factory">
-          <div className="mb-6">
-            <TitleFactory onSelectTitle={handleTitleSelect} initialTitle={title} />
-          </div>
-        </TabsContent>
-      </Tabs>
+        <div className="xl:col-span-3">
+          <TitleFactory onSelectTitle={handleTitleSelect} initialTitle={title} />
+        </div>
+      </div>
     </div>
   );
 } 

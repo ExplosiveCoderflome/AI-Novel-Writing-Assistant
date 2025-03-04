@@ -6,7 +6,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Loader2, BookmarkPlus, Save } from 'lucide-react';
 import { toast } from '../../components/ui/use-toast';
 import { Badge } from '../../components/ui/badge';
 import { ScrollArea } from '../../components/ui/scroll-area';
@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../
 import { LLMPromptInput } from '../LLMPromptInput';
 import { GenreSelector } from '../GenreSelector';
 import { NovelGenre } from '../../api/novel/types';
+import { TitleLibrary } from './TitleLibrary';
 
 interface TitleSuggestion {
   title: string;
@@ -43,6 +44,7 @@ export function TitleFactory({ onSelectTitle, initialTitle = '' }: TitleFactoryP
     temperature?: number;
     maxTokens?: number;
   } | null>(null);
+  const [savingTitle, setSavingTitle] = useState<string | null>(null);
 
   // 获取小说类型列表
   useEffect(() => {
@@ -201,6 +203,52 @@ export function TitleFactory({ onSelectTitle, initialTitle = '' }: TitleFactoryP
     onSelectTitle(title);
   };
 
+  // 保存标题到标题库
+  const saveToLibrary = async (title: TitleSuggestion) => {
+    setSavingTitle(title.title);
+    
+    try {
+      const response = await fetch('/api/title-library', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: title.title,
+          clickRate: title.clickRate,
+          genreId: selectedGenre?.id,
+          keywords: activeTab === 'generate' ? keywords : undefined,
+          description: activeTab === 'adapt' ? `改编自: ${originalTitle}` : undefined,
+        }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || '保存标题失败');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast({
+          title: '保存成功',
+          description: '标题已添加到您的标题库',
+        });
+      } else {
+        throw new Error(data.error || '保存标题失败');
+      }
+    } catch (error) {
+      console.error('保存标题失败:', error);
+      toast({
+        title: '保存标题失败',
+        description: error instanceof Error ? error.message : '请稍后重试',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingTitle(null);
+    }
+  };
+
   // 获取点击率对应的颜色
   const getClickRateColor = (rate: number): string => {
     if (rate >= 85) return 'bg-red-500';
@@ -247,9 +295,10 @@ export function TitleFactory({ onSelectTitle, initialTitle = '' }: TitleFactoryP
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="generate">关键词生成</TabsTrigger>
             <TabsTrigger value="adapt">爆款改编器</TabsTrigger>
+            <TabsTrigger value="library">我的标题库</TabsTrigger>
           </TabsList>
           
           <TabsContent value="generate" className="space-y-4 mt-4">
@@ -283,153 +332,122 @@ export function TitleFactory({ onSelectTitle, initialTitle = '' }: TitleFactoryP
               </p>
             </div>
           </TabsContent>
+          
+          <TabsContent value="library" className="mt-4">
+            <TitleLibrary onSelectTitle={handleSelectTitle} />
+          </TabsContent>
         </Tabs>
 
-        <div className="mt-4 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="genre-selector">选择小说类型（可选）</Label>
-            <GenreSelector
-              value={genreId}
-              onChange={setGenreId}
-              genres={genres}
-              placeholder="选择小说类型以提高标题精准度"
-              disabled={loading}
-            />
-            <p className="text-sm text-gray-500">
-              选择特定类型可以让AI更好地理解你需要的标题风格
-            </p>
-          </div>
+        {activeTab !== 'library' && (
+          <div className="mt-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="genre-selector">选择小说类型（可选）</Label>
+              <GenreSelector
+                value={genreId}
+                onChange={setGenreId}
+                genres={genres}
+                placeholder="选择小说类型以提高标题精准度"
+                disabled={loading}
+              />
+              <p className="text-sm text-gray-500">
+                选择特定类型可以让AI更好地理解你需要的标题风格
+              </p>
+            </div>
 
-          <div className="flex justify-between">
-            <Label htmlFor="title-count">生成标题数量: {titleCount}</Label>
-            <span className="text-sm text-gray-500">
-              建议: 数量越多，生成时间越长
-            </span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Input
-              id="title-count"
-              type="range"
-              min="5"
-              max="50"
-              step="5"
-              value={titleCount}
-              onChange={(e) => setTitleCount(Number(e.target.value))}
-              className="flex-1"
-              disabled={loading}
-            />
-            <Input
-              type="number"
-              min="5"
-              max="50"
-              step="5"
-              value={titleCount}
-              onChange={(e) => {
-                const val = Number(e.target.value);
-                setTitleCount(Math.min(Math.max(val, 5), 50));
-              }}
-              className="w-20"
-              disabled={loading}
-            />
-          </div>
-        </div>
+            <div className="flex justify-between">
+              <Label htmlFor="title-count">生成标题数量: {titleCount}</Label>
+              <span className="text-sm text-gray-500">
+                建议: 数量越多，生成时间越长
+              </span>
+            </div>
+            <div className="flex items-center gap-4">
+              <Input
+                id="title-count"
+                type="range"
+                min="5"
+                max="50"
+                step="5"
+                value={titleCount}
+                onChange={(e) => setTitleCount(Number(e.target.value))}
+                disabled={loading}
+              />
+              <span className="w-8 text-center">{titleCount}</span>
+            </div>
 
-        <div className="mt-4 p-3 bg-blue-50 rounded-md text-sm border border-blue-200">
-          <h4 className="font-medium text-blue-700 flex items-center gap-1">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
-            </svg>
-            智能熔断技术
-          </h4>
-          <p className="mt-1 text-blue-600">
-            我们的AI标题生成器配备了相似度熔断机制，当连续3个标题相似度超过60%时，会自动切换创新维度，确保生成多样化的标题。
-          </p>
-          <ul className="mt-2 space-y-1 text-blue-600 list-disc pl-4">
-            <li>自动切换创新维度（结构、主题、情感、视角）</li>
-            <li>多元化标题类型（冲突型、悬疑型、世界观型等）</li>
-            <li>为您提供多种风格选择，增加标题吸引力</li>
-          </ul>
-        </div>
+            {advancedMode && (
+              <div className="mt-6 p-4 border rounded-md">
+                <h3 className="text-sm font-medium mb-2">高级AI设置</h3>
+                <LLMPromptInput onSubmit={handleLLMSubmit} />
+              </div>
+            )}
 
-        {advancedMode && (
-          <div className="mt-4 border rounded-md p-4">
-            <h3 className="text-sm font-medium mb-2">高级设置</h3>
-            <LLMPromptInput
-              inputType="input"
-              buttonText="选择模型"
-              disabled={loading}
-              onSubmit={handleLLMSubmit}
-            />
-            {llmParams && (
-              <div className="mt-2 text-sm">
-                <p>已选择: {llmParams.provider} / {llmParams.model}</p>
-                <p>温度: {llmParams.temperature}, 最大Tokens: {llmParams.maxTokens}</p>
+            <div className="flex justify-center mt-6">
+              <Button 
+                onClick={generateTitles} 
+                disabled={loading}
+                size="lg"
+                className="w-full"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    生成中...
+                  </>
+                ) : (
+                  <>生成{titleCount}个标题</>
+                )}
+              </Button>
+            </div>
+
+            {titles.length > 0 && (
+              <div className="mt-8">
+                <h3 className="text-lg font-medium mb-4">生成结果</h3>
+                <ScrollArea className="h-[300px] rounded-md border p-4">
+                  <div className="space-y-3">
+                    {titles.map((title, index) => (
+                      <div 
+                        key={index}
+                        className={`flex items-center justify-between p-3 rounded-md hover:bg-accent ${selectedTitle === title.title ? 'bg-accent' : ''}`}
+                      >
+                        <div className="flex items-center gap-2 flex-1" onClick={() => handleSelectTitle(title.title)}>
+                          <Badge className={getClickRateColor(title.clickRate)}>
+                            {title.clickRate}%
+                          </Badge>
+                          <span className="font-medium cursor-pointer">{title.title}</span>
+                          {selectedTitle === title.title && (
+                            <Badge variant="outline" className="ml-1">已选择</Badge>
+                          )}
+                        </div>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => saveToLibrary(title)}
+                                disabled={savingTitle === title.title}
+                              >
+                                {savingTitle === title.title ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <BookmarkPlus className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>保存到标题库</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               </div>
             )}
           </div>
         )}
-
-        <Button 
-          onClick={generateTitles} 
-          className="w-full mt-4" 
-          disabled={loading || (advancedMode && !llmParams)}
-        >
-          {loading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              生成{titleCount}个标题中...
-            </>
-          ) : (
-            `生成${titleCount}个标题`
-          )}
-        </Button>
-
-        {titles.length > 0 && (
-          <div className="mt-6">
-            <h3 className="text-lg font-medium mb-2">标题建议（{titles.length}）</h3>
-            <ScrollArea className="h-[300px] rounded-md border p-4">
-              <div className="grid grid-cols-1 gap-2">
-                {titles.map((item, index) => (
-                  <TooltipProvider key={index}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div 
-                          className={`p-3 rounded-md border cursor-pointer transition-all hover:border-primary ${
-                            selectedTitle === item.title ? 'border-primary bg-primary/10' : ''
-                          }`}
-                          onClick={() => handleSelectTitle(item.title)}
-                        >
-                          <div className="flex justify-between items-center">
-                            <span className="font-medium">{item.title}</span>
-                            <Badge className={`${getClickRateColor(item.clickRate)}`}>
-                              {item.clickRate}%
-                            </Badge>
-                          </div>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>点击率预测：{item.clickRate}%</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                ))}
-              </div>
-            </ScrollArea>
-          </div>
-        )}
       </CardContent>
-      <CardFooter className="flex justify-between">
-        <p className="text-sm text-gray-500">
-          选择一个标题后点击确认使用
-        </p>
-        <Button 
-          variant="outline" 
-          onClick={() => selectedTitle && onSelectTitle(selectedTitle)}
-          disabled={!selectedTitle}
-        >
-          确认使用
-        </Button>
-      </CardFooter>
     </Card>
   );
 } 
