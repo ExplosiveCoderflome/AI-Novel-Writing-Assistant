@@ -27,12 +27,17 @@ export default function WorldsPage() {
       setIsGenerating(true);
       setGeneratedWorld(null);
 
+      const requestBody = {
+        ...params,
+        dimensionOptions: params.dimensionOptions,
+      };
+
       const response = await fetch('/api/worlds/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(params),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {

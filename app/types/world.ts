@@ -69,13 +69,45 @@ export interface GeneratedWorld {
 export interface WorldGenerationParams {
   genre: NovelGenre;
   prompt: string;
-  emphasis?: {
-    geography?: boolean;
-    culture?: boolean;
-    magic?: boolean;
-    technology?: boolean;
-  };
   complexity: 'simple' | 'moderate' | 'complex';
+  dimensionOptions: {
+    // 地理维度
+    geography: {
+      enabled: boolean;
+      terrain: boolean;
+      climate: boolean;
+      locations: boolean;
+      spatialStructure: boolean;
+    };
+    // 文化维度
+    culture: {
+      enabled: boolean;
+      societies: boolean;
+      customs: boolean;
+      religions: boolean;
+      politics: boolean;
+    };
+    // 魔法维度
+    magic: {
+      enabled: boolean;
+      rules: boolean;
+      elements: boolean;
+      practitioners: boolean;
+      limitations: boolean;
+    };
+    // 科技维度
+    technology: {
+      enabled: boolean;
+      innovations: boolean;
+      impact: boolean;
+    };
+    // 历史和冲突维度
+    narrative: {
+      enabled: boolean;
+      history: boolean;
+      conflicts: boolean;
+    };
+  };
 }
 
 export interface WorldGeneratorResponse {

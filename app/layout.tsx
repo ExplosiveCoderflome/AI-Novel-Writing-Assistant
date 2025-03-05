@@ -12,7 +12,7 @@ import { Toaster } from "./components/ui/toaster";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "小说创作平台",
+  title: "AI Novel Writing Assistant",
   description: "一个专注于小说创作的AI辅助写作平台",
 };
 
