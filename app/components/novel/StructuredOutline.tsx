@@ -111,7 +111,7 @@ const StructuredOutline: React.FC<StructuredOutlineProps> = ({
   const [isConverting, setIsConverting] = useState(false);
   const [plotNodes, setPlotNodes] = useState<PlotNode[]>([]);
   const [isGeneratingNodes, setIsGeneratingNodes] = useState(false);
-  const [subplots, setSubplots] = useState<SubplotTask[]>([]);
+  const [subplotTasks, setSubplotTasks] = useState<SubplotTask[]>([]);
   const [isGeneratingSubplots, setIsGeneratingSubplots] = useState(false);
   const [goldenChaptersAnalysis, setGoldenChaptersAnalysis] = useState<GoldenChaptersAnalysis | null>(null);
   const [isAnalyzingChapters, setIsAnalyzingChapters] = useState(false);
@@ -134,6 +134,7 @@ const StructuredOutline: React.FC<StructuredOutlineProps> = ({
   const [showLLMNodeInput, setShowLLMNodeInput] = useState(false);
   const [showLLMSubplotInput, setShowLLMSubplotInput] = useState(false);
   const [showLLMConvertInput, setShowLLMConvertInput] = useState(false);
+  const [outlineEngineSubTab, setOutlineEngineSubTab] = useState('structure_converter');
 
   // 当savedOutline变化时，更新本地状态
   useEffect(() => {
@@ -151,18 +152,27 @@ const StructuredOutline: React.FC<StructuredOutlineProps> = ({
         console.log('自动切换到预览标签');
         setActiveTab('preview');
       }
+    }
+  }, [savedOutline, activeTab]);
+
+  // 新增：初始化 plotNodes 和 subplots 数据
+  useEffect(() => {
+    if (savedOutline) {
+      console.log('检查savedOutline中是否包含plotNodes数据:', !!savedOutline.plotNodes);
       
-      // 从savedOutline加载关键节点数据
+      // 加载已保存的关键节点数据
       if (savedOutline.plotNodes && savedOutline.plotNodes.length > 0) {
+        console.log('从savedOutline加载关键节点数据:', savedOutline.plotNodes.length, '个节点');
         setPlotNodes(savedOutline.plotNodes);
       }
       
-      // 从savedOutline加载支线任务数据
+      // 加载已保存的支线任务数据
       if (savedOutline.subplots && savedOutline.subplots.length > 0) {
-        setSubplots(savedOutline.subplots);
+        console.log('从savedOutline加载支线任务数据:', savedOutline.subplots.length, '个支线');
+        setSubplotTasks(savedOutline.subplots);
       }
     }
-  }, [savedOutline, activeTab]);
+  }, [savedOutline]);
 
   // 生成大纲的处理函数
   const handleGenerateOutline = async (params: { 
@@ -449,8 +459,16 @@ const StructuredOutline: React.FC<StructuredOutlineProps> = ({
       // 显示成功消息
       toast.success('关键节点生成成功');
       
-      // 自动切换到节点标签
-      setActiveTab('nodes');
+      // 自动切换到大纲引擎标签页
+      setActiveTab('outline_engine');
+      
+      // 使用setTimeout确保切换到outline_engine后再选择plot_nodes子选项卡
+      setTimeout(() => {
+        const plotNodesTab = document.querySelector('[value="plot_nodes"]') as HTMLElement;
+        if (plotNodesTab) {
+          plotNodesTab.click();
+        }
+      }, 100);
     } catch (error) {
       console.error('生成关键节点失败:', error);
       toast.error(error instanceof Error ? error.message : '生成关键节点失败');
@@ -497,7 +515,7 @@ const StructuredOutline: React.FC<StructuredOutlineProps> = ({
       const subplots: SubplotTask[] = await response.json();
       
       // 保存到本地状态
-      setSubplots(subplots);
+      setSubplotTasks(subplots);
       
       // 显示成功消息
       toast.success('支线任务生成成功');
@@ -591,7 +609,7 @@ const StructuredOutline: React.FC<StructuredOutlineProps> = ({
       await onSave({
         ...outlineData,
         plotNodes: plotNodes, // 添加关键点数据
-        subplots: subplots    // 添加支线任务数据
+        subplots: subplotTasks    // 添加支线任务数据
       });
       toast.success("大纲及相关内容已保存");
     } catch (error) {
@@ -623,13 +641,13 @@ const StructuredOutline: React.FC<StructuredOutlineProps> = ({
 
   // 添加单独保存支线任务的功能
   const handleSaveSubplots = async () => {
-    if (!outlineData || !onSave || !subplots || subplots.length === 0) return;
+    if (!outlineData || !onSave || !subplotTasks || subplotTasks.length === 0) return;
     
     setIsSaving(true);
     try {
       await onSave({
         ...outlineData,
-        subplots: subplots
+        subplots: subplotTasks
       });
       toast.success("支线任务已保存");
     } catch (error) {
@@ -1688,44 +1706,23 @@ const StructuredOutline: React.FC<StructuredOutlineProps> = ({
                   <p className="text-sm text-teal-700">
                     系统会根据主线故事架构，生成推荐的支线任务，丰富故事内容，提升作品深度与广度。
                   </p>
-                  <div className="flex gap-2 mt-2">
-                    <Button 
-                      className="bg-teal-600 hover:bg-teal-700" 
-                      onClick={handleSubplotsGenerate}
-                      disabled={isGeneratingSubplots || !outlineData}
-                    >
-                      {isGeneratingSubplots ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          生成中...
-                        </>
-                      ) : (
-                        '生成支线任务'
-                      )}
-                    </Button>
-                    {subplots && subplots.length > 0 && (
-                      <Button 
-                        className="bg-teal-600 hover:bg-teal-700" 
-                        onClick={handleSaveSubplots}
-                        disabled={isSaving}
-                      >
-                        {isSaving ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            保存中...
-                          </>
-                        ) : (
-                          <>
-                            <SaveIcon className="h-4 w-4 mr-2" />
-                            保存支线任务
-                          </>
-                        )}
-                      </Button>
+                  <Button 
+                    className="mt-2 bg-teal-600 hover:bg-teal-700" 
+                    onClick={handleSubplotsGenerate}
+                    disabled={isGeneratingSubplots || !outlineData}
+                  >
+                    {isGeneratingSubplots ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        生成中...
+                      </>
+                    ) : (
+                      '生成支线任务'
                     )}
-                  </div>
+                  </Button>
                 </div>
                 
-                {subplots.length > 0 && (
+                {subplotTasks.length > 0 && (
                   <>
                     <div className="bg-white rounded-lg border p-4 mb-4">
                       <div className="flex justify-between items-center mb-4">
@@ -1736,81 +1733,126 @@ const StructuredOutline: React.FC<StructuredOutlineProps> = ({
                       <div className="space-y-4">
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">
-                            <span>感情线 <Badge>{subplots.filter(t => t.type === 'romance').length}条</Badge></span>
-                            <span className="text-blue-600">{Math.round(subplots.filter(t => t.type === 'romance').length / subplots.length * 100)}%</span>
+                            <span>感情线 <Badge>{subplotTasks.filter(t => t.type === 'romance').length}条</Badge></span>
+                            <span className="text-blue-600">{Math.round(subplotTasks.filter(t => t.type === 'romance').length / subplotTasks.length * 100)}%</span>
                           </div>
                           <div className="w-full bg-blue-100 rounded-full h-2">
-                            <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${Math.round(subplots.filter(t => t.type === 'romance').length / subplots.length * 100)}%` }}></div>
+                            <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${Math.round(subplotTasks.filter(t => t.type === 'romance').length / subplotTasks.length * 100)}%` }}></div>
                           </div>
                         </div>
                         
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">
-                            <span>能力升级线 <Badge>{subplots.filter(t => t.type === 'powerup').length}条</Badge></span>
-                            <span className="text-purple-600">{Math.round(subplots.filter(t => t.type === 'powerup').length / subplots.length * 100)}%</span>
+                            <span>能力升级线 <Badge>{subplotTasks.filter(t => t.type === 'powerup').length}条</Badge></span>
+                            <span className="text-purple-600">{Math.round(subplotTasks.filter(t => t.type === 'powerup').length / subplotTasks.length * 100)}%</span>
                           </div>
                           <div className="w-full bg-purple-100 rounded-full h-2">
-                            <div className="bg-purple-600 h-2 rounded-full" style={{ width: `${Math.round(subplots.filter(t => t.type === 'powerup').length / subplots.length * 100)}%` }}></div>
+                            <div className="bg-purple-600 h-2 rounded-full" style={{ width: `${Math.round(subplotTasks.filter(t => t.type === 'powerup').length / subplotTasks.length * 100)}%` }}></div>
                           </div>
                         </div>
                         
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">
-                            <span>世界探索线 <Badge>{subplots.filter(t => t.type === 'world').length}条</Badge></span>
-                            <span className="text-green-600">{Math.round(subplots.filter(t => t.type === 'world').length / subplots.length * 100)}%</span>
+                            <span>世界探索线 <Badge>{subplotTasks.filter(t => t.type === 'world').length}条</Badge></span>
+                            <span className="text-green-600">{Math.round(subplotTasks.filter(t => t.type === 'world').length / subplotTasks.length * 100)}%</span>
                           </div>
                           <div className="w-full bg-green-100 rounded-full h-2">
-                            <div className="bg-green-600 h-2 rounded-full" style={{ width: `${Math.round(subplots.filter(t => t.type === 'world').length / subplots.length * 100)}%` }}></div>
+                            <div className="bg-green-600 h-2 rounded-full" style={{ width: `${Math.round(subplotTasks.filter(t => t.type === 'world').length / subplotTasks.length * 100)}%` }}></div>
                           </div>
                         </div>
                         
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">
-                            <span>角色成长线 <Badge>{subplots.filter(t => t.type === 'character').length}条</Badge></span>
-                            <span className="text-amber-600">{Math.round(subplots.filter(t => t.type === 'character').length / subplots.length * 100)}%</span>
+                            <span>角色成长线 <Badge>{subplotTasks.filter(t => t.type === 'character').length}条</Badge></span>
+                            <span className="text-amber-600">{Math.round(subplotTasks.filter(t => t.type === 'character').length / subplotTasks.length * 100)}%</span>
                           </div>
                           <div className="w-full bg-amber-100 rounded-full h-2">
-                            <div className="bg-amber-600 h-2 rounded-full" style={{ width: `${Math.round(subplots.filter(t => t.type === 'character').length / subplots.length * 100)}%` }}></div>
+                            <div className="bg-amber-600 h-2 rounded-full" style={{ width: `${Math.round(subplotTasks.filter(t => t.type === 'character').length / subplotTasks.length * 100)}%` }}></div>
                           </div>
                         </div>
                       </div>
                     </div>
                     
-                    <div className="px-2 py-4">
-                      <div className="grid grid-cols-1 gap-4">
-                        {subplots.map((task) => (
-                          <div key={task.id} className={`border rounded-lg p-3 ${
-                            task.type === 'romance' ? 'border-blue-200 bg-blue-50' :
-                            task.type === 'powerup' ? 'border-purple-200 bg-purple-50' :
-                            task.type === 'world' ? 'border-green-200 bg-green-50' :
-                            'border-amber-200 bg-amber-50'
-                          }`}>
-                            <div className="flex justify-between items-start mb-2">
-                              <h4 className="font-medium">{task.title}</h4>
-                              <Badge variant="outline" className={
-                                task.type === 'romance' ? 'text-blue-600' :
-                                task.type === 'powerup' ? 'text-purple-600' :
-                                task.type === 'world' ? 'text-green-600' :
-                                'text-amber-600'
-                              }>
-                                {task.type === 'romance' ? '感情线' :
-                                task.type === 'powerup' ? '能力升级' :
-                                task.type === 'world' ? '世界探索' :
-                                '角色成长'}
-                              </Badge>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Card className="border-teal-200">
+                        <CardHeader className="bg-teal-50 pb-3">
+                          <CardTitle className="text-teal-800 text-base">感情线推荐</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          <ScrollArea className="h-[200px]">
+                            <div className="p-4 space-y-3">
+                              {subplotTasks.filter(task => task.type === 'romance').map(task => (
+                                <div key={task.id} className="p-3 bg-teal-50 rounded-md text-sm border-l-4 border-teal-400">
+                                  <div className="font-medium text-teal-800 mb-1 flex justify-between">
+                                    <span>{task.title}</span>
+                                    <Badge variant="outline" className="text-xs">{task.position}</Badge>
+                                  </div>
+                                  <p className="text-teal-700 text-xs">{task.description}</p>
+                                </div>
+                              ))}
+                              {subplotTasks.filter(task => task.type === 'romance').length === 0 && (
+                                <div className="p-3 text-center text-muted-foreground">
+                                  <p>没有相关支线任务</p>
+                                </div>
+                              )}
                             </div>
-                            <p className="text-sm text-gray-600 mb-2">{task.description}</p>
-                            <div className="flex justify-between items-center text-xs text-gray-500">
-                              <span>位置: {task.position}</span>
+                          </ScrollArea>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="border-purple-200">
+                        <CardHeader className="bg-purple-50 pb-3">
+                          <CardTitle className="text-purple-800 text-base">能力升级线推荐</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          <ScrollArea className="h-[200px]">
+                            <div className="p-4 space-y-3">
+                              {subplotTasks.filter(task => task.type === 'powerup').map(task => (
+                                <div key={task.id} className="p-3 bg-purple-50 rounded-md text-sm border-l-4 border-purple-400">
+                                  <div className="font-medium text-purple-800 mb-1 flex justify-between">
+                                    <span>{task.title}</span>
+                                    <Badge variant="outline" className="text-xs">{task.position}</Badge>
+                                  </div>
+                                  <p className="text-purple-700 text-xs">{task.description}</p>
+                                </div>
+                              ))}
+                              {subplotTasks.filter(task => task.type === 'powerup').length === 0 && (
+                                <div className="p-3 text-center text-muted-foreground">
+                                  <p>没有相关支线任务</p>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        ))}
+                          </ScrollArea>
+                        </CardContent>
+                      </Card>
+                    </div>
+                    
+                    <div className="p-3 bg-muted border-b flex justify-between items-center">
+                      <div className="font-medium">支线任务</div>
+                      <div className="flex space-x-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={handleSubplotsGenerate}
+                          disabled={isGeneratingSubplots}
+                        >
+                          重新生成
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={handleSaveSubplots}
+                          disabled={isSaving || !subplotTasks || subplotTasks.length === 0}
+                        >
+                          <SaveIcon className="h-4 w-4 mr-1" />
+                          保存支线
+                        </Button>
                       </div>
                     </div>
                   </>
                 )}
                 
-                {!subplots.length && (
+                {!subplotTasks.length && (
                   <div className="text-center text-muted-foreground py-12">
                     <p className="mb-2">点击上方按钮开始生成支线任务</p>
                     <p className="text-sm">系统将根据主线内容推荐合适的支线任务</p>

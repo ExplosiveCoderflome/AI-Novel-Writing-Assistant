@@ -61,7 +61,10 @@ interface ChapterManagerProps {
 // 动态导入组件
 const BasicInfo = dynamic(() => import('@/components/novel/BasicInfo'), { ssr: false });
 const DevelopmentDirection = dynamic(() => import('@/components/novel/DevelopmentDirection'), { ssr: false });
-const StructuredOutline = dynamic(() => import('@/components/novel/StructuredOutline'), { ssr: false });
+const StructuredOutline = dynamic(() => import('@/components/novel/StructuredOutline'), { 
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin" /></div>
+});
 const ChapterManager = dynamic(() => import('@/components/novel/ChapterManager'), { ssr: false });
 
 // 添加 ResizeHandle 组件
