@@ -12,6 +12,9 @@ import WorldPropertySelector from './WorldPropertySelector';
 import MarkdownEditor from '../MarkdownEditor';
 import { LLMPromptInput } from '../LLMPromptInput';
 import { useStreamResponse } from '../../hooks/useStreamResponse';
+import PropertyOptionCard from './PropertyOptionCard';
+import PropertyLibrary from './PropertyLibrary';
+import { WorldPropertyLibraryItem } from '../../types/worldV2';
 
 // 步骤类型
 type GenerationStep = 'options' | 'world' | 'result';
@@ -36,10 +39,47 @@ export default function WorldGeneratorV2({ onGenerateComplete }: WorldGeneratorV
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
   const [propertyDetails, setPropertyDetails] = useState<Record<string, string>>({});
   
+  // 处理单个属性的选择
+  const handlePropertySelect = (id: string, selected: boolean) => {
+    if (selected) {
+      setSelectedProperties(prev => [...prev.filter(p => p !== id), id]);
+    } else {
+      setSelectedProperties(prev => prev.filter(p => p !== id));
+    }
+  };
+  
   // 世界生成相关状态
   const [isGeneratingWorld, setIsGeneratingWorld] = useState(false);
   const [worldContent, setWorldContent] = useState<string>('');
   const [worldError, setWorldError] = useState<string | null>(null);
+
+  // 添加从属性库选择属性的处理函数
+  const handleSelectFromLibrary = (libraryItem: WorldPropertyLibraryItem) => {
+    // 检查是否已经添加过
+    const existingOption = worldProperties.find(opt => opt.name === libraryItem.name);
+    
+    if (existingOption) {
+      // 如果已存在，直接选中
+      if (!selectedProperties.includes(existingOption.id)) {
+        handlePropertySelect(existingOption.id, true);
+      }
+      return;
+    }
+    
+    // 转换库项目为选项
+    const newOption: WorldPropertyOption = {
+      id: libraryItem.id,
+      name: libraryItem.name,
+      description: libraryItem.description,
+      category: libraryItem.category
+    };
+    
+    // 添加到选项列表
+    setWorldProperties(prev => [...prev, newOption]);
+    
+    // 选中新添加的选项
+    handlePropertySelect(newOption.id, true);
+  };
 
   // 处理世界属性选项生成
   const handleGenerateOptions = async (llmParams: { 
@@ -324,30 +364,52 @@ export default function WorldGeneratorV2({ onGenerateComplete }: WorldGeneratorV
       case 'world':
         return (
           <div className="space-y-6">
-            <WorldPropertySelector 
-              properties={worldProperties}
-              selectedProperties={selectedProperties}
-              onSelect={setSelectedProperties}
-              propertyDetails={propertyDetails}
-              onPropertyDetailChange={handlePropertyDetailChange}
-              disabled={isGeneratingWorld}
-            />
-            
-            <div>
-              <h3 className="text-lg font-medium mb-3">补充提示词（可选）</h3>
-              <LLMPromptInput 
-                inputType="textarea"
-                buttonText="生成世界"
-                disabled={isGeneratingWorld || selectedProperties.length === 0}
-                onSubmit={handleGenerateWorld}
-              />
-            </div>
-            
             {worldError && (
               <div className="p-4 bg-red-50 text-red-600 rounded-md">
                 错误: {worldError}
               </div>
             )}
+            
+            <Tabs defaultValue="selected">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="selected">已选属性</TabsTrigger>
+                <TabsTrigger value="library">属性库</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="selected" className="mt-4">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {worldProperties.map((option) => (
+                      <PropertyOptionCard
+                        key={option.id}
+                        option={option}
+                        selected={selectedProperties.includes(option.id)}
+                        detail={propertyDetails[option.id] || ''}
+                        worldType={selectedWorldType}
+                        onSelect={handlePropertySelect}
+                        onDetailChange={handlePropertyDetailChange}
+                        disabled={isGeneratingWorld}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="library" className="mt-4">
+                <PropertyLibrary 
+                  worldType={selectedWorldType} 
+                  onSelectProperty={handleSelectFromLibrary}
+                />
+              </TabsContent>
+            </Tabs>
+            
+            <LLMPromptInput 
+              inputType="textarea"
+              buttonText="生成世界"
+              disabled={isGeneratingWorld || selectedProperties.length === 0}
+              onSubmit={handleGenerateWorld}
+            />
+            
           </div>
         );
         

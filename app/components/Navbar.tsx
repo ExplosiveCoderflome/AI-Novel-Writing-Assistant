@@ -90,6 +90,18 @@ export function Navbar() {
                       </div>
                     </Link>
                     <Link 
+                      href="/worlds/v2" 
+                      className="flex items-center gap-2 p-2 hover:bg-accent rounded-md"
+                    >
+                      <Globe2 className="h-5 w-5" />
+                      <div>
+                        <div className="font-medium">世界生成器V2</div>
+                        <p className="text-sm text-muted-foreground">
+                          使用升级版AI助手生成世界设定
+                        </p>
+                      </div>
+                    </Link>
+                    <Link 
                       href="/novels/new" 
                       className="flex items-center gap-2 p-2 hover:bg-accent rounded-md"
                     >

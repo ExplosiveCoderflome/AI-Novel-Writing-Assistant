@@ -163,6 +163,20 @@ model World {
   @@map("worlds")
 }
 
+// 世界属性库 - 存储用户创建的世界属性
+model WorldPropertyLibrary {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  category    String   @default("general")
+  worldType   String   // 属性来源的世界类型
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("world_property_library")
+}
+
 // 标题库模型 - 存储用户保存的标题
 model TitleLibrary {
   id          String   @id @default(cuid())
