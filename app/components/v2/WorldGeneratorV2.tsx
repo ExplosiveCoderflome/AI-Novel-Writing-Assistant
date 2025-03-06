@@ -11,6 +11,7 @@ import RefinementLevelSelector from './RefinementLevelSelector';
 import WorldPropertySelector from './WorldPropertySelector';
 import MarkdownEditor from '../MarkdownEditor';
 import { LLMPromptInput } from '../LLMPromptInput';
+import { useStreamResponse } from '../../hooks/useStreamResponse';
 
 // 步骤类型
 type GenerationStep = 'options' | 'world' | 'result';
@@ -26,6 +27,7 @@ export default function WorldGeneratorV2({ onGenerateComplete }: WorldGeneratorV
   // 选项生成相关状态
   const [selectedWorldType, setSelectedWorldType] = useState<string>('');
   const [refinementLevel, setRefinementLevel] = useState<WorldOptionRefinementLevel>('standard');
+  const [optionsCount, setOptionsCount] = useState<number>(5);
   const [isGeneratingOptions, setIsGeneratingOptions] = useState(false);
   const [optionsError, setOptionsError] = useState<string | null>(null);
   
@@ -52,6 +54,7 @@ export default function WorldGeneratorV2({ onGenerateComplete }: WorldGeneratorV
     console.log('开始生成世界属性选项:', {
       worldType: selectedWorldType,
       refinementLevel,
+      optionsCount,
       provider: llmParams.provider,
       model: llmParams.model,
       temperature: llmParams.temperature,
@@ -73,6 +76,7 @@ export default function WorldGeneratorV2({ onGenerateComplete }: WorldGeneratorV
           worldType: selectedWorldType,
           prompt: llmParams.prompt,
           refinementLevel,
+          optionsCount,
           provider: llmParams.provider,
           model: llmParams.model,
           temperature: llmParams.temperature,
@@ -159,28 +163,81 @@ export default function WorldGeneratorV2({ onGenerateComplete }: WorldGeneratorV
       });
       
       console.log('收到API响应，状态码:', response.status);
-      const result = await response.json();
-      console.log('解析响应数据:', {
-        success: result.success,
-        hasData: !!result.data,
-        error: result.error,
-        contentLength: result.data?.length || 0
-      });
       
-      if (!result.success) {
-        throw new Error(result.error || '生成失败');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP错误! 状态码: ${response.status}`);
       }
       
-      console.log('成功生成世界设定，内容长度:', result.data?.length || 0);
-      // 只使用result.data作为内容
-      setWorldContent(result.data);
+      // 处理流式响应
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('无法创建响应流读取器');
+      }
+      
+      const decoder = new TextDecoder();
+      let accumulatedContent = '';
+      let buffer = '';
       
       // 自动进入结果步骤
       setCurrentStep('result');
       
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            console.log('流式响应完成');
+            break;
+          }
+          
+          // 处理数据行
+          buffer += decoder.decode(value);
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6).trim();
+              if (data === '[DONE]') {
+                console.log('收到完成标记');
+                continue;
+              }
+              
+              try {
+                const parsed = JSON.parse(data);
+                
+                if (parsed.type === 'content' || parsed.type === 'reasoning') {
+                  const content = parsed.choices?.[0]?.delta?.content;
+                  if (content) {
+                    accumulatedContent += content;
+                    setWorldContent(accumulatedContent);
+                  }
+                } else if (parsed.type === 'error') {
+                  const errorMessage = parsed.choices?.[0]?.delta?.content;
+                  if (errorMessage) {
+                    throw new Error(errorMessage);
+                  }
+                }
+              } catch (e) {
+                if (e instanceof SyntaxError) {
+                  console.error('JSON解析错误:', e, data);
+                } else {
+                  throw e;
+                }
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+      
       // 回调通知生成完成
-      if (onGenerateComplete) {
-        onGenerateComplete(result.data);
+      if (onGenerateComplete && accumulatedContent) {
+        onGenerateComplete(accumulatedContent);
         console.log('已触发生成完成回调');
       }
     } catch (error) {
@@ -226,6 +283,24 @@ export default function WorldGeneratorV2({ onGenerateComplete }: WorldGeneratorV
                 onChange={setRefinementLevel}
                 disabled={isGeneratingOptions}
               />
+            </div>
+
+            <div>
+              <h3 className="text-lg font-medium mb-3">生成属性数量</h3>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={optionsCount}
+                  onChange={(e) => setOptionsCount(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
+                  className="flex h-10 w-24 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isGeneratingOptions}
+                />
+                <span className="text-sm text-muted-foreground">
+                  (1-20之间)
+                </span>
+              </div>
             </div>
             
             <div>
@@ -284,19 +359,12 @@ export default function WorldGeneratorV2({ onGenerateComplete }: WorldGeneratorV
                 <CardTitle>生成的世界</CardTitle>
               </CardHeader>
               <CardContent>
-                {isGeneratingWorld ? (
-                  <div className="flex items-center justify-center p-8">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    <span className="ml-3">正在生成世界...</span>
-                  </div>
-                ) : (
-                  <MarkdownEditor 
-                    value={worldContent}
-                    onChange={(value) => value !== undefined && setWorldContent(value)}
-                    preview="preview"
-                    height={600}
-                  />
-                )}
+                <MarkdownEditor 
+                  value={worldContent}
+                  onChange={(value) => value !== undefined && setWorldContent(value)}
+                  preview="preview"
+                  height={600}
+                />
               </CardContent>
             </Card>
           </div>

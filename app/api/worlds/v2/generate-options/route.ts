@@ -376,7 +376,7 @@ function extractOptionsFromText(text: string): WorldPropertyOption[] {
 
 // 生成提示词
 function generatePrompt(params: WorldOptionsGenerationParams): string {
-  const { worldType, prompt } = params;
+  const { worldType, prompt, optionsCount = 5 } = params;
   
   // 根据世界类型构建基本提示词
   let promptText = '';
@@ -393,7 +393,7 @@ function generatePrompt(params: WorldOptionsGenerationParams): string {
   }
   
   // 具体需求
-  promptText += `\n\n请为我生成5-8个最相关的世界属性选项，这些属性将帮助我构建一个完整的${formattedWorldType}小说世界。
+  promptText += `\n\n请为我生成${optionsCount}个最相关的世界属性选项，这些属性将帮助我构建一个完整的${formattedWorldType}小说世界。
 
 每个世界属性都应该包含:
 1. 属性名称 - 简洁明了的标题

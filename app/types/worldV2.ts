@@ -18,6 +18,7 @@ export interface WorldOptionsGenerationParams {
   worldType: string;
   prompt: string;
   refinementLevel: WorldOptionRefinementLevel;
+  optionsCount?: number;
   provider: string;
   model: string;
   temperature?: number;
