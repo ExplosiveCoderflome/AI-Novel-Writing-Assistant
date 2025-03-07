@@ -179,7 +179,7 @@ const LLMPromptInputComponent = ({
   };
 
   return (
-    <div className="space-y-4 w-full m-4">
+    <div className="space-y-4 w-full">
       <div className="flex gap-4 w-full">
         <Select
           value={selectedProvider}

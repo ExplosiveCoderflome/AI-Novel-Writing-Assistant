@@ -13,6 +13,8 @@ export interface Novel {
   reasoningContent?: string;
   chapters?: Chapter[];
   characters?: Character[];
+  structuredOutline?: OutlineNode[];
+  developmentDirection?: string;
 }
 
 export interface Character {
@@ -53,4 +55,11 @@ export interface NovelGenre {
   name: string;
   description?: string;
   template?: string;
+}
+
+export interface OutlineNode {
+  id: string;
+  type: string;
+  content: string;
+  children?: OutlineNode[];
 }

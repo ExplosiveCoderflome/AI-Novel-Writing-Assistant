@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Plus } from 'lucide-react';
+import { Plus, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 
@@ -20,6 +20,7 @@ interface ChapterManagerProps {
   chapters: Chapter[];
   onChapterSelect: (chapterId: string) => void;
   onChapterAdd: () => void;
+  onChapterGenerate?: () => void;
   selectedChapterId?: string;
 }
 
@@ -28,6 +29,7 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
   chapters,
   onChapterSelect,
   onChapterAdd,
+  onChapterGenerate,
   selectedChapterId
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,10 +48,18 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
               管理小说的所有章节内容
             </CardDescription>
           </div>
-          <Button onClick={onChapterAdd} className="flex items-center gap-1">
-            <Plus className="w-4 h-4" />
-            添加章节
-          </Button>
+          <div className="flex items-center gap-2">
+            {onChapterGenerate && (
+              <Button onClick={onChapterGenerate} className="flex items-center gap-1" variant="outline">
+                <Wand2 className="w-4 h-4" />
+                生成章节
+              </Button>
+            )}
+            <Button onClick={onChapterAdd} className="flex items-center gap-1">
+              <Plus className="w-4 h-4" />
+              添加章节
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>

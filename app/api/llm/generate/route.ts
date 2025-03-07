@@ -1,22 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '../../../../lib/prisma';
-import { LLMFactory } from '../../../llm/factory';
-import { LLMDBConfig, llmConfigFromDB } from '../../../config/llm';
-import { getServerSession } from 'next-auth';
+import { getApiKey } from '../../../../lib/api-key';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]/route';
-
-type LLMProvider = keyof Omit<LLMDBConfig, 'defaultProvider'>;
+import { LLMFactory } from '../../../llm/factory';
+import { GenerateParams } from '../../../types/llm';
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json(
-      { success: false, error: '请先登录' },
-      { status: 401 }
-    );
-  }
-
   try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user) {
+      return NextResponse.json(
+        { success: false, error: '未授权访问' },
+        { status: 401 }
+      );
+    }
+
     const { provider, model, prompt, temperature, maxTokens } = await request.json();
 
     if (!provider || !model || !prompt) {
@@ -26,68 +25,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 获取 API Key
-    const apiKey = await prisma.aPIKey.findFirst({
-      where: {
-        provider,
-        isActive: true,
-        OR: [
-          { userId: session.user.id },
-          { userId: 'default' }
-        ]
-      },
-      orderBy: {
-        updatedAt: 'desc'
-      }
-    });
-
-    if (!apiKey) {
+    // 使用封装好的方法获取 API Key
+    let apiKey;
+    try {
+      apiKey = await getApiKey(provider);
+    } catch (error) {
+      console.error(`获取 ${provider} 的API Key失败:`, error);
       return NextResponse.json(
-        { success: false, error: '未找到有效的 API Key' },
+        { 
+          success: false, 
+          error: error instanceof Error ? error.message : '未找到有效的 API Key，请在设置中配置或在环境变量中设置'
+        },
         { status: 404 }
       );
     }
 
     // 创建 LLM 实例
     const llmFactory = LLMFactory.getInstance();
-    const providerKey = provider as LLMProvider;
-    const config: LLMDBConfig = {
-      ...llmConfigFromDB,
-      [providerKey]: {
-        ...llmConfigFromDB[providerKey],
-        getApiKey: async () => apiKey.key,
-        model,
-        temperature: temperature ?? llmConfigFromDB[providerKey].temperature,
-        maxTokens: maxTokens ?? llmConfigFromDB[providerKey].maxTokens,
-      },
-    } as LLMDBConfig;
     
-    llmFactory.setConfig(config);
-
     // 生成内容
-    const response = await llmFactory.generateRecommendation({
-      prompt,
+    const params: GenerateParams = {
+      userPrompt: prompt,
       model,
-    }, provider);
+      temperature: temperature || 0.7,
+      maxTokens: maxTokens || 2000,
+    };
 
-    if (response.error) {
-      return NextResponse.json(
-        { success: false, error: response.error },
-        { status: 500 }
-      );
-    }
+    const response = await llmFactory.generateRecommendation(params, provider);
 
     return NextResponse.json({
       success: true,
-      content: response.content
+      data: response,
     });
   } catch (error) {
-    console.error('生成失败:', error);
+    console.error('生成内容失败:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : '生成失败' 
-      },
+      { success: false, error: error instanceof Error ? error.message : '生成内容失败' },
       { status: 500 }
     );
   }

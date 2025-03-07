@@ -35,11 +35,11 @@ export default function ChapterEditPage({ params }: PageProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  const { id: novelId, chapterId } = params;
+  const { id, chapterId } = params;
 
   const fetchChapter = useCallback(async () => {
     try {
-      const response = await fetch(`/api/novel/${novelId}/chapter/${chapterId}`);
+      const response = await fetch(`/api/novel/${id}/chapter/${chapterId}`);
       if (!response.ok) {
         throw new Error('获取章节失败');
       }
@@ -49,11 +49,11 @@ export default function ChapterEditPage({ params }: PageProps) {
       console.error('获取章节失败:', error);
       toast.error('获取章节失败');
     }
-  }, [novelId, chapterId]);
+  }, [id, chapterId]);
 
   const fetchChapters = useCallback(async () => {
     try {
-      const response = await fetch(`/api/novel/${novelId}/chapter`);
+      const response = await fetch(`/api/novel/${id}/chapter`);
       if (!response.ok) {
         throw new Error('获取章节列表失败');
       }
@@ -65,15 +65,15 @@ export default function ChapterEditPage({ params }: PageProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [novelId]);
+  }, [id]);
 
   // 初始化数据加载
   useEffect(() => {
-    if (!isInitialized && novelId && chapterId) {
+    if (!isInitialized && id && chapterId) {
       setIsInitialized(true);
       Promise.all([fetchChapter(), fetchChapters()]);
     }
-  }, [isInitialized, novelId, chapterId, fetchChapter, fetchChapters]);
+  }, [isInitialized, id, chapterId, fetchChapter, fetchChapters]);
 
   // 章节切换时更新数据
   useEffect(() => {
@@ -87,7 +87,7 @@ export default function ChapterEditPage({ params }: PageProps) {
 
     setIsSaving(true);
     try {
-      const response = await fetch(`/api/novel/${novelId}/chapter/${chapterId}`, {
+      const response = await fetch(`/api/novel/${id}/chapter/${chapterId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -110,8 +110,8 @@ export default function ChapterEditPage({ params }: PageProps) {
 
   const navigateToChapter = useCallback((targetChapterId: string) => {
     if (targetChapterId === chapterId) return;
-    router.push(`/novels/${novelId}/chapters/${targetChapterId}`);
-  }, [router, novelId, chapterId]);
+    router.push(`/novels/${id}/chapters/${targetChapterId}`);
+  }, [router, id, chapterId]);
 
   const currentChapterIndex = chapters.findIndex(c => c.id === chapterId);
   const prevChapter = currentChapterIndex > 0 ? chapters[currentChapterIndex - 1] : null;

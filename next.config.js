@@ -8,10 +8,10 @@ const nextConfig = {
     images: {
         domains: ['api.openai.com', 'api.anthropic.com', 'api.cohere.ai'],
     },
-    serverExternalPackages: ['undici', 'puppeteer-core', 'puppeteer'],
+    serverExternalPackages: ['undici'],
     webpack: (config, { isServer }) => {
         if (isServer) {
-            config.externals = [...config.externals, 'puppeteer'];
+            config.externals = [...config.externals];
         }
         config.resolve.alias = {
             ...config.resolve.alias,
@@ -27,10 +27,7 @@ const nextConfig = {
                 value: "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-eval' 'unsafe-inline';"
             }]
         }];
-    },
-    experimental: {
-        appDir: true,
-    },
+    }
 };
 
 module.exports = nextConfig;
