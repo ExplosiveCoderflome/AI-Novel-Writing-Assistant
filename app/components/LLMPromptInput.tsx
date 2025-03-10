@@ -38,7 +38,13 @@ interface LLMPromptInputProps {
     prompt: string;
     temperature?: number;
     maxTokens?: number;
+    systemPrompt?: string;
+    agentMode?: boolean;
   }) => void;
+  // 系统提示词
+  systemPrompt?: string;
+  // 智能体模式
+  agentMode?: boolean;
 }
 
 interface APIKeyData {
@@ -52,6 +58,8 @@ const LLMPromptInputComponent = ({
   buttonText = 'AI 生成',
   disabled = false,
   onSubmit,
+  systemPrompt,
+  agentMode = false,
 }: LLMPromptInputProps) => {
   const [prompt, setPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -159,6 +167,8 @@ const LLMPromptInputComponent = ({
         prompt: inputType === 'input' ? '' : prompt.trim(),
         temperature,
         maxTokens: maxTokens,
+        systemPrompt,
+        agentMode,
       });
     } finally {
       setIsLoading(false);

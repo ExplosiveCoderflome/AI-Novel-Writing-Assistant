@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiKey } from '../../../../lib/api-key';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/options';
-import { GenerateParams } from '../../../types/llm';
 import { LangChainFactory } from '../../../../lib/langchain/factory';
+import { initLangChainConfig } from '../../../../lib/config/langchain';
 import { createStreamableResponse } from '../../../../lib/langchain/streaming';
-// 导入LangChain初始化文件，确保配置已加载
-import '../../_initLangChain';
+import { GenerateParams } from '../../../types/llm';
 
+/**
+ * LangChain测试API
+ * 用于测试LangChain集成是否正常工作
+ */
 export async function POST(request: NextRequest) {
   try {
-    console.log('收到LLM生成请求');
-
+    console.log('收到LangChain测试请求');
+    
     // 检查用户会话
     const session = await getServerSession(authOptions);
     if (!session?.user) {
@@ -20,70 +22,76 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
-
+    
     // 解析请求内容
     const body = await request.json();
-    const { prompt, systemPrompt, model, provider, stream = false, temperature, maxTokens } = body;
+    const { 
+      prompt = '你好，请简要介绍一下自己。', 
+      provider = 'openai',
+      stream = false,
+      temperature = 0.7,
+      maxTokens = 2000
+    } = body;
     
-    if (!prompt) {
-      return NextResponse.json(
-        { error: '必须提供提示词' },
-        { status: 400 }
-      );
-    }
-    
-    console.log('LLM生成请求参数:', {
-      provider: provider || '默认',
-      model: model || '默认',
+    console.log('LangChain测试参数:', {
+      provider,
       promptLength: prompt.length,
-      systemPromptLength: systemPrompt?.length || 0,
       stream,
       temperature,
       maxTokens
     });
-
-    // 获取LangChain工厂实例
+    
+    // 初始化LangChain配置
+    await initLangChainConfig();
     const langChainFactory = LangChainFactory.getInstance();
     
     // 构建生成参数
     const generateParams: GenerateParams = {
       userPrompt: prompt,
-      systemPrompt,
-      model,
+      systemPrompt: '你是一个有帮助的AI助手，提供简明扼要的回答。',
       temperature,
       maxTokens
     };
-
+    
     // 流式响应处理
     if (stream) {
       console.log('使用流式响应模式');
       
       const { stream: responseStream, controller } = createStreamableResponse({
         onStart: () => {
-          console.log('开始LLM流式生成');
+          console.log('开始LangChain流式测试');
         },
         onComplete: (content) => {
-          console.log('LLM流式生成完成, 总内容长度:', content.length);
+          console.log('LangChain流式测试完成, 总内容长度:', content.length);
         },
         onError: (error) => {
-          console.error('LLM流式生成错误:', error);
+          console.error('LangChain流式测试错误:', error);
         }
       });
       
       // 异步处理生成过程
       (async () => {
         try {
-          // 获取API密钥
-          const apiKey = await getApiKey(provider);
+          const config = langChainFactory.getConfig();
+          if (!config) {
+            throw new Error('LangChain配置未初始化');
+          }
+          
+          const providerConfig = config[provider];
+          if (typeof providerConfig === 'string') {
+            throw new Error(`提供商 ${provider} 的配置无效`);
+          }
+          
+          const apiKey = await providerConfig.getApiKey();
           if (!apiKey) {
-            throw new Error(`找不到 ${provider || '默认'} 提供商的API密钥`);
+            throw new Error(`找不到 ${provider} 提供商的API密钥`);
           }
           
           // 获取LangChain实例
           const langChain = await langChainFactory.getLangChainInstance({
-            provider: provider || 'openai',
+            provider,
             apiKey,
-            model
+            model: providerConfig.model
           });
           
           console.log('开始流式生成');
@@ -113,34 +121,53 @@ export async function POST(request: NextRequest) {
     } else {
       console.log('使用标准响应模式');
       
-      // 获取API密钥
-      const apiKey = await getApiKey(provider);
+      const config = langChainFactory.getConfig();
+      if (!config) {
+        return NextResponse.json(
+          { error: 'LangChain配置未初始化' },
+          { status: 500 }
+        );
+      }
+      
+      const providerConfig = config[provider];
+      if (typeof providerConfig === 'string') {
+        return NextResponse.json(
+          { error: `提供商 ${provider} 的配置无效` },
+          { status: 400 }
+        );
+      }
+      
+      const apiKey = await providerConfig.getApiKey();
       if (!apiKey) {
         return NextResponse.json(
-          { error: `找不到 ${provider || '默认'} 提供商的API密钥` },
+          { error: `找不到 ${provider} 提供商的API密钥` },
           { status: 400 }
         );
       }
       
       // 获取LangChain实例
       const langChain = await langChainFactory.getLangChainInstance({
-        provider: provider || 'openai',
+        provider,
         apiKey,
-        model
+        model: providerConfig.model
       });
       
       // 生成内容
       const response = await langChain.generateRecommendation(generateParams);
       
-      console.log('LLM生成完成', {
+      console.log('LangChain测试完成', {
         success: !response.error,
         contentLength: response.content?.length || 0
       });
       
-      return NextResponse.json(response);
+      return NextResponse.json({
+        success: !response.error,
+        content: response.content,
+        error: response.error
+      });
     }
   } catch (error) {
-    console.error('LLM生成API错误:', error);
+    console.error('LangChain测试API错误:', error);
     return NextResponse.json(
       { 
         error: error instanceof Error ? error.message : '处理请求时发生错误',
