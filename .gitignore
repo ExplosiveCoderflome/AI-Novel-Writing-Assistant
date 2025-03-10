@@ -27,7 +27,15 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# local env files
+# environment variables
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
 .env*.local
 
 # vercel
@@ -53,4 +61,5 @@ ehthumbs.db
 Thumbs.db
 
 .history
+
 
