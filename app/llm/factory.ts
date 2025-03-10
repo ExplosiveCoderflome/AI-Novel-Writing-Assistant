@@ -1,6 +1,6 @@
-import { LLMConfig, LLMDBConfig, LLMProviderConfig } from '../config/llm';
+import { LLMConfig, LLMDBConfig } from '../config/llm';
 import { validateApiKey, getApiKey, APIKeyError } from '../../lib/api-key';
-import { LLMResponse, StreamChunk, GenerateParams, ConnectionTestResult, SpeedTestResult } from '../types/llm';
+import { LLMResponse, StreamChunk, GenerateParams, ConnectionTestResult, SpeedTestResult, LLMProviderConfig } from '../types/llm';
 import { LLMProviderFactory, LLMProviderType } from './providers/factory';
 
 type LLMProvider = keyof Omit<LLMDBConfig, 'defaultProvider'>;
@@ -31,7 +31,7 @@ export class LLMFactory {
     }
 
     const providerConfig = this.config[provider as LLMProvider];
-    if (!providerConfig || !('getApiKey' in providerConfig)) {
+    if (!providerConfig || typeof providerConfig === 'string' || !('getApiKey' in providerConfig)) {
       throw new Error(`未找到 ${provider} 的配置`);
     }
 

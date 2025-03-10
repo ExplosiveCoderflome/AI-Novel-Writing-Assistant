@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { Button } from '../../components/ui/button';
@@ -10,7 +10,8 @@ import { toast } from '../../components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
-export default function LoginPage() {
+// 登录表单组件
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -59,62 +60,78 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="w-full max-w-md space-y-8 p-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold">登录</h1>
-          <p className="text-sm text-muted-foreground mt-2">
-            登录以继续使用小说创作平台
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="email">邮箱</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="请输入邮箱"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">密码</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="请输入密码"
-              required
-            />
-          </div>
-
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                登录中...
-              </>
-            ) : (
-              '登录'
-            )}
-          </Button>
-        </form>
-
-        <div className="text-center text-sm">
-          <span className="text-muted-foreground">还没有账号？</span>{' '}
-          <Link
-            href="/auth/register"
-            className="text-primary hover:underline font-medium"
-          >
-            立即注册
-          </Link>
-        </div>
+    <div className="w-full max-w-md space-y-8 p-8">
+      <div className="text-center">
+        <h1 className="text-2xl font-bold">登录</h1>
+        <p className="text-sm text-muted-foreground mt-2">
+          登录以继续使用小说创作平台
+        </p>
       </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-2">
+          <Label htmlFor="email">邮箱</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="请输入邮箱"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="password">密码</Label>
+          <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="请输入密码"
+            required
+          />
+        </div>
+
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              登录中...
+            </>
+          ) : (
+            '登录'
+          )}
+        </Button>
+      </form>
+
+      <div className="text-center text-sm">
+        <span className="text-muted-foreground">还没有账号？</span>{' '}
+        <Link
+          href="/auth/register"
+          className="text-primary hover:underline font-medium"
+        >
+          立即注册
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// 主页面组件
+export default function LoginPage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Suspense fallback={
+        <div className="w-full max-w-md space-y-8 p-8">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold">登录</h1>
+            <p className="text-sm text-muted-foreground mt-2">加载中...</p>
+          </div>
+        </div>
+      }>
+        <LoginForm />
+      </Suspense>
     </div>
   );
 } 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKey } from '../../../../lib/api-key';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../../auth/[...nextauth]/route';
+import { authOptions } from '../../auth/options';
 import { LLMFactory } from '../../../llm/factory';
 import { GenerateParams } from '../../../types/llm';
 

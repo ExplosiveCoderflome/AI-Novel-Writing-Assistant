@@ -2,14 +2,15 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/auth';
+import { NextRequest } from 'next/server';
 
 export async function GET(
-  req: Request,
-  context: { params: Promise<{ worldId: string }> }
+  request: NextRequest,
+  { params }: { params: { worldId: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    const { worldId } = await context.params;
+    const { worldId } = params;
     
     if (!session?.user?.email) {
       return new NextResponse('Unauthorized', { status: 401 });
@@ -78,11 +79,11 @@ export async function GET(
 
 export async function DELETE(
   req: Request,
-  context: { params: Promise<{ worldId: string }> }
+  { params }: { params: { worldId: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    const { worldId } = await context.params;
+    const { worldId } = params;
     
     if (!session?.user?.email) {
       return new NextResponse('Unauthorized', { status: 401 });
@@ -113,6 +114,54 @@ export async function DELETE(
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error('[WORLD_DELETE]', error);
+    return new NextResponse('Internal Error', { status: 500 });
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { worldId: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    const { worldId } = params;
+    const data = await request.json();
+    
+    if (!session?.user?.email) {
+      return new NextResponse('Unauthorized', { status: 401 });
+    }
+
+    // 确保世界属于当前用户
+    const world = await prisma.world.findUnique({
+      where: {
+        id: worldId,
+      },
+    });
+
+    if (!world) {
+      return new NextResponse('World not found', { status: 404 });
+    }
+
+    if (world.userId !== session.user.email) {
+      return new NextResponse('Forbidden', { status: 403 });
+    }
+
+    // 更新世界
+    const updatedWorld = await prisma.world.update({
+      where: {
+        id: worldId,
+      },
+      data: {
+        // 这里根据实际需要更新字段
+        name: data.name,
+        description: data.description,
+        // 其他字段...
+      },
+    });
+
+    return NextResponse.json(updatedWorld);
+  } catch (error) {
+    console.error('[WORLD_UPDATE]', error);
     return new NextResponse('Internal Error', { status: 500 });
   }
 } 

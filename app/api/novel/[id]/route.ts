@@ -4,23 +4,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../auth/[...nextauth]/route';
+import { authOptions } from '../../auth/options';
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const { id } = await context.params;
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user) {
-    return NextResponse.json(
-      { error: '请先登录' },
-      { status: 401 }
-    );
-  }
-  
   try {
+    const { id } = params;
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: '请先登录' },
+        { status: 401 }
+      );
+    }
+    
     const novel = await prisma.novel.findUnique({
       where: { 
         id,
@@ -71,19 +71,19 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const { id } = await context.params;
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user) {
-    return NextResponse.json(
-      { error: '请先登录' },
-      { status: 401 }
-    );
-  }
-  
   try {
+    const { id } = params;
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: '请先登录' },
+        { status: 401 }
+      );
+    }
+    
     const novelData = await request.json();
     console.log('更新小说数据:', novelData);
 
@@ -161,18 +161,17 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json(
-      { error: '请先登录' },
-      { status: 401 }
-    );
-  }
-
   try {
-    const { id } = await context.params;
+    const { id } = params;
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: '请先登录' },
+        { status: 401 }
+      );
+    }
 
     // 检查小说是否存在且属于当前用户
     const novel = await prisma.novel.findUnique({

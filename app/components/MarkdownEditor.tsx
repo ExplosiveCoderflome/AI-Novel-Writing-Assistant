@@ -11,9 +11,11 @@ const MDEditor = dynamic(
 
 interface MarkdownEditorProps {
   value: string;
-  onChange: (value?: string) => void;
+  onChange: (value?: string | React.SetStateAction<string>) => void;
   preview?: 'live' | 'edit' | 'preview';
   height?: number;
+  minHeight?: string;
+  placeholder?: string;
   className?: string;
 }
 
@@ -22,10 +24,14 @@ export default function MarkdownEditor({
   onChange,
   preview = 'live',
   height = 400,
+  minHeight,
+  placeholder = '请输入内容...',
   className = '',
 }: MarkdownEditorProps) {
+  const style = minHeight ? { minHeight } : undefined;
+  
   return (
-    <div className={`w-full ${className}`} data-color-mode="light">
+    <div className={`w-full ${className}`} data-color-mode="light" style={style}>
       <MDEditor
         value={value}
         onChange={onChange}
@@ -34,7 +40,7 @@ export default function MarkdownEditor({
         hideToolbar={false}
         enableScroll={true}
         textareaProps={{
-          placeholder: '请输入内容...',
+          placeholder,
         }}
       />
     </div>

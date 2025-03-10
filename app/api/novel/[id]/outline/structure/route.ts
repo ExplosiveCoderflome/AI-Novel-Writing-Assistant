@@ -2,18 +2,12 @@ import { NextRequest } from 'next/server';
 import { prisma } from '../../../../../../lib/prisma';
 import { LLMFactory } from '../../../../../../lib/llm/factory';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../../auth/[...nextauth]/route';
+import { authOptions } from '../../../../auth/options';
 import { NovelOutline } from '../../../../../types/novel';
-
-interface RouteContext {
-  params: {
-    id: string;
-  };
-}
 
 export async function POST(
   request: NextRequest,
-  context: RouteContext
+  { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -31,7 +25,7 @@ export async function POST(
       throw new Error('缺少必要参数');
     }
 
-    const { id: novelId } = context.params;
+    const { id: novelId } = params;
 
     // 检查小说是否存在且属于当前用户
     const novel = await prisma.novel.findUnique({

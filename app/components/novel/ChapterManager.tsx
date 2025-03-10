@@ -1,12 +1,33 @@
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { Plus, Wand2, MoreHorizontal, ArrowUp, ArrowDown, Trash2, Edit } from 'lucide-react';
+
+// UI Components
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Wand2 } from 'lucide-react';
-import { toast } from 'sonner';
-import dynamic from 'next/dynamic';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface Chapter {
   id: string;

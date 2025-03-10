@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../../../auth/[...nextauth]/route";
+import { authOptions } from "../../../../auth/options";
 import { prisma } from "@/lib/prisma";
-import { LLMFactory } from "../../../../llm/factory";
-import { LLMProviderType } from "../../../../llm/providers/factory";
-import { LLMDBConfig, LLMProviderConfig } from "../../../../types/llm";
+import { LLMFactory } from "@/llm/factory";
+import { LLMProviderType } from "@/llm/providers/factory";
+import { LLMDBConfig, LLMProviderConfig } from "@/types/llm";
 
 // 手动定义GoldenChaptersAnalysis类型，避免循环依赖
 interface GoldenChaptersAnalysis {

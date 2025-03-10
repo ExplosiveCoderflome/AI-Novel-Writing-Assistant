@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { LLMFactory } from '../../../llm/factory';
+import { getApiKey } from '../../../../lib/api-key';
+import { LLMDBConfig, LLMProviderConfig, GenerateParams } from '../../../types/llm';
 
 interface Chapter {
   id: string;
@@ -75,9 +78,9 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    // 添加大纲信息
-    if (data.outline && data.outline.length > 0) {
-      systemPrompt += `\n\n小说大纲:`;
+    // 处理大纲信息
+    if (data.outline && Array.isArray(data.outline) && data.outline.length > 0) {
+      systemPrompt += '\n\n小说大纲结构:';
       
       const processOutlineNode = (node: OutlineNode, depth: number = 0) => {
         const indent = '  '.repeat(depth);
@@ -125,75 +128,80 @@ export async function POST(request: NextRequest) {
     // 用户提供的额外提示
     const userPrompt = data.prompt ? data.prompt : "请根据上述信息生成章节规划。";
     
-    // 调用LLM API
-    const llmResponse = await fetch('/api/llm/completion', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        provider: data.provider,
-        model: data.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: data.temperature || 0.7,
-        max_tokens: data.maxTokens || 4000,
-      }),
-    });
-    
-    if (!llmResponse.ok) {
-      const errorData = await llmResponse.json();
-      console.error('LLM API错误:', errorData);
-      return NextResponse.json(
-        { error: 'LLM生成失败' },
-        { status: 500 }
-      );
-    }
-    
-    const llmData = await llmResponse.json();
-    let responseContent = "";
-    
-    if (llmData.choices && llmData.choices.length > 0) {
-      responseContent = llmData.choices[0].message.content;
-    } else {
-      throw new Error('无效的LLM响应');
-    }
-    
-    // 解析LLM返回的JSON
-    let parsedChapters;
     try {
-      // 尝试提取JSON部分
-      const jsonMatch = responseContent.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        parsedChapters = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('无法提取JSON数据');
+      // 获取API Key
+      const apiKey = await getApiKey(data.provider);
+      
+      // 创建配置
+      const providerConfig: LLMProviderConfig = {
+        getApiKey: async () => apiKey,
+        model: data.model,
+        temperature: data.temperature || 0.7,
+        maxTokens: data.maxTokens || 4000
+      };
+
+      const config = {
+        defaultProvider: data.provider,
+        [data.provider]: providerConfig
+      } as LLMDBConfig;
+      
+      // 初始化 LLM Factory
+      const factory = LLMFactory.getInstance();
+      factory.setConfig(config);
+      
+      // 调用LLM生成内容
+      const params: GenerateParams = {
+        userPrompt,
+        systemPrompt,
+        model: data.model,
+        temperature: data.temperature,
+        maxTokens: data.maxTokens
+      };
+      
+      const llmResponse = await factory.generateRecommendation(params, data.provider);
+      
+      if (!llmResponse.content) {
+        console.error('LLM响应内容为空');
+        return new Response(JSON.stringify({ error: 'LLM响应内容为空' }), { status: 500 });
       }
+      
+      const responseContent = llmResponse.content;
+      
+      // 解析LLM返回的JSON
+      let parsedChapters;
+      try {
+        // 尝试提取JSON部分
+        const jsonMatch = responseContent.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          parsedChapters = JSON.parse(jsonMatch[0]);
+        } else {
+          // 如果没有找到JSON数组，尝试解析整个响应
+          parsedChapters = JSON.parse(responseContent);
+        }
+      } catch (error) {
+        console.error('解析LLM响应失败:', error);
+        console.log('原始响应:', responseContent);
+        return NextResponse.json(
+          { error: '解析生成内容失败' },
+          { status: 500 }
+        );
+      }
+      
+      // 格式化章节数据
+      const chapters: Chapter[] = parsedChapters.map((chapter: any, index: number) => ({
+        id: '', // Prisma会自动生成ID
+        title: chapter.title,
+        content: chapter.content || '',
+        order: data.startChapterNumber + index
+      }));
+      
+      return NextResponse.json(chapters);
     } catch (error) {
-      console.error('解析LLM响应失败:', error);
-      console.log('原始响应:', responseContent);
-      return NextResponse.json(
-        { error: '解析生成内容失败' },
-        { status: 500 }
-      );
+      console.error('LLM调用失败:', error);
+      return new Response(JSON.stringify({ error: '生成章节失败: ' + (error instanceof Error ? error.message : String(error)) }), { status: 500 });
     }
-    
-    // 格式化章节数据
-    const chapters: Chapter[] = parsedChapters.map((chapter: any, index: number) => ({
-      id: '', // Prisma会自动生成ID
-      title: chapter.title,
-      content: chapter.content || '',
-      order: data.startChapterNumber + index
-    }));
-    
-    return NextResponse.json(chapters);
   } catch (error) {
-    console.error('生成章节失败:', error);
-    return NextResponse.json(
-      { error: '生成章节失败' },
-      { status: 500 }
-    );
+    console.error('LLM调用失败:', error);
+    return new Response(JSON.stringify({ error: '生成章节失败: ' + (error instanceof Error ? error.message : String(error)) }), { status: 500 });
   }
 } 

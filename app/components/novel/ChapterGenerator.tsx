@@ -127,9 +127,9 @@ const ChapterGenerator: React.FC<ChapterGeneratorProps> = ({
       const data = {
         id,
         basicInfo,
-        characters: useCharacters ? characters : [],
-        outline: useOutline ? outline : [],
-        developmentDirection: useDevelopmentDirection ? developmentDirection : "",
+        characters: useCharacters ? characters : undefined,
+        outline: useOutline ? outline : undefined,
+        developmentDirection: useDevelopmentDirection ? developmentDirection : undefined,
         chapterCount,
         startChapterNumber,
         generateContent,

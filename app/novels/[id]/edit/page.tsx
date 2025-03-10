@@ -25,6 +25,13 @@ import { Separator } from '@/components/ui/separator';
 import dynamic from 'next/dynamic';
 import type { ComponentType } from 'react';
 import ChapterGenerator from '@/components/novel/ChapterGenerator';
+import { BookOpen, Edit, FileText, Plus } from 'lucide-react';
+
+// 动态导入 Markdown 预览组件以避免 SSR 问题
+const MarkdownPreview = dynamic(
+  () => import('@uiw/react-markdown-preview').then((mod) => mod.default),
+  { ssr: false }
+);
 
 // 定义组件的 Props 类型
 interface BasicInfoProps {
@@ -136,6 +143,7 @@ export default function EditNovelPage({ params }: PageParams) {
   const [loading, setLoading] = useState(true);
   const [novel, setNovel] = useState<Novel & { genre?: NovelGenre } | null>(null);
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
+  const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -537,7 +545,7 @@ ${useExistingOutline ? '8. 在现有发展走向的基础上进行优化，保�
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          outline,
+          outline: outline,
         }),
       });
 
@@ -592,6 +600,8 @@ ${useExistingOutline ? '8. 在现有发展走向的基础上进行优化，保�
 
   const handleChapterSelect = (chapterId: string) => {
     setSelectedChapterId(chapterId);
+    const chapter = chapters.find(ch => ch.id === chapterId);
+    setSelectedChapter(chapter || null);
   };
 
   const handleGenerateChapters = () => {
@@ -717,7 +727,62 @@ ${useExistingOutline ? '8. 在现有发展走向的基础上进行优化，保�
               />
             </div>
             <div className="md:col-span-2">
-              {/* 章节编辑器 */}
+              {selectedChapterId && selectedChapter ? (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-bold">
+                      第 {selectedChapter.order} 章：{selectedChapter.title}
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push(`/novels/${id}/chapters/${selectedChapterId}/view`)}
+                      >
+                        <BookOpen className="mr-2 h-4 w-4" />
+                        阅读模式
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push(`/novels/${id}/chapters/${selectedChapterId}`)}
+                      >
+                        <Edit className="mr-2 h-4 w-4" />
+                        编辑章节
+                      </Button>
+                    </div>
+                  </div>
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="prose max-w-none">
+                        {selectedChapter.content ? (
+                          <div className="whitespace-pre-wrap">{selectedChapter.content}</div>
+                        ) : (
+                          <p className="text-muted-foreground text-center py-8">
+                            该章节暂无内容
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-6 text-center">
+                    <div className="py-8">
+                      <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
+                      <h3 className="text-lg font-medium mb-2">选择或创建章节</h3>
+                      <p className="text-muted-foreground mb-4">
+                        从左侧选择一个章节进行编辑，或点击"添加章节"创建新章节
+                      </p>
+                      <Button onClick={handleAddChapter}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        添加章节
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </TabsContent>

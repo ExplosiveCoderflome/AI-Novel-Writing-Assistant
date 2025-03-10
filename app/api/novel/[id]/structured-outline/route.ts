@@ -1,18 +1,12 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '../../../../../lib/prisma';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../auth/[...nextauth]/route';
+import { authOptions } from '../../../auth/options';
 import { NovelOutline } from '../../../../types/novel';
-
-interface RouteContext {
-  params: Promise<{
-    id: string;
-  }>;
-}
 
 export async function PUT(
   request: NextRequest,
-  context: RouteContext
+  { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -24,7 +18,7 @@ export async function PUT(
 
   try {
     const { structuredOutline } = await request.json();
-    const { id: novelId } = await context.params;
+    const { id: novelId } = params;
 
     console.log('准备保存结构化大纲:', {
       novelId,
@@ -101,7 +95,7 @@ export async function PUT(
 // 获取结构化大纲
 export async function GET(
   request: NextRequest,
-  context: RouteContext
+  { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -112,7 +106,7 @@ export async function GET(
   }
 
   try {
-    const { id: novelId } = await context.params;
+    const { id: novelId } = params;
     console.log('获取结构化大纲，小说ID:', novelId);
 
     // 检查小说是否存在且属于当前用户
@@ -168,6 +162,65 @@ export async function GET(
       JSON.stringify({
         success: false,
         error: error instanceof Error ? error.message : '获取结构化大纲失败',
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  }
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return new Response(
+      JSON.stringify({ error: '请先登录' }),
+      { status: 401 }
+    );
+  }
+
+  try {
+    const { id: novelId } = params;
+    const data = await request.json();
+    
+    // 检查小说是否存在且属于当前用户
+    const novel = await prisma.novel.findUnique({
+      where: {
+        id: novelId,
+        authorId: session.user.id
+      }
+    });
+
+    if (!novel) {
+      return new Response(
+        JSON.stringify({ error: '未找到小说或无权限访问' }),
+        { status: 404 }
+      );
+    }
+    
+    // 这里处理POST请求的逻辑
+    
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: '操作成功'
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+    
+  } catch (error) {
+    console.error('处理请求失败:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : '处理请求失败',
       }),
       {
         status: 500,

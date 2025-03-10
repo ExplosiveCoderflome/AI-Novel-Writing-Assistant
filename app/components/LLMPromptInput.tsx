@@ -29,6 +29,8 @@ interface LLMPromptInputProps {
   buttonText?: string;
   // 是否禁用
   disabled?: boolean;
+  // 默认提示文本
+  defaultPrompt?: string;
   // 回调函数
   onSubmit: (data: { 
     provider: string; 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '../../components/ui/button';
 import Link from 'next/link';
@@ -19,7 +19,8 @@ const errors = {
   default: "发生未知错误",
 };
 
-export default function ErrorPage() {
+// 错误内容组件
+function ErrorContent() {
   const searchParams = useSearchParams();
   const [error, setError] = useState<string>('');
 
@@ -29,22 +30,38 @@ export default function ErrorPage() {
   }, [searchParams]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="w-full max-w-md space-y-8 p-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600">认证错误</h1>
-          <p className="text-sm text-muted-foreground mt-2">{error}</p>
-        </div>
-
-        <div className="flex justify-center space-x-4">
-          <Button asChild variant="outline">
-            <Link href="/auth/login">返回登录</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/">返回首页</Link>
-          </Button>
-        </div>
+    <div className="w-full max-w-md space-y-8 p-8">
+      <div className="text-center">
+        <h1 className="text-2xl font-bold text-red-600">认证错误</h1>
+        <p className="text-sm text-muted-foreground mt-2">{error}</p>
       </div>
+
+      <div className="flex justify-center space-x-4">
+        <Button asChild variant="outline">
+          <Link href="/auth/login">返回登录</Link>
+        </Button>
+        <Button asChild>
+          <Link href="/">返回首页</Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// 主页面组件
+export default function ErrorPage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Suspense fallback={
+        <div className="w-full max-w-md space-y-8 p-8">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-red-600">认证错误</h1>
+            <p className="text-sm text-muted-foreground mt-2">加载中...</p>
+          </div>
+        </div>
+      }>
+        <ErrorContent />
+      </Suspense>
     </div>
   );
 } 

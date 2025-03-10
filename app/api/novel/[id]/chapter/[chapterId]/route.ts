@@ -4,9 +4,9 @@ import { Prisma } from '@prisma/client';
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string; chapterId: string }> }
+  { params }: { params: { id: string; chapterId: string } }
 ) {
-  const { id: novelId, chapterId } = await context.params;
+  const { id: novelId, chapterId } = params;
 
   try {
     const chapter = await prisma.chapter.findUnique({
@@ -48,9 +48,9 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string; chapterId: string }> }
+  { params }: { params: { id: string; chapterId: string } }
 ) {
-  const { id: novelId, chapterId } = await context.params;
+  const { id: novelId, chapterId } = params;
 
   try {
     const chapterData = await request.json();
@@ -102,9 +102,9 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string; chapterId: string }> }
+  { params }: { params: { id: string; chapterId: string } }
 ) {
-  const { id: novelId, chapterId } = await context.params;
+  const { id: novelId, chapterId } = params;
 
   try {
     // 验证章节是否属于当前小说

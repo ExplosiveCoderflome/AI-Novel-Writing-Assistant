@@ -1,19 +1,12 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '../../../../../../lib/prisma';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../../auth/[...nextauth]/route';
-
-interface RouteContext {
-  params: {
-    id: string;
-    characterId: string;
-  };
-}
+import { authOptions } from '../../../../auth/options';
 
 // 获取单个角色
 export async function GET(
   request: NextRequest,
-  context: RouteContext
+  { params }: { params: { id: string; characterId: string } }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -24,7 +17,7 @@ export async function GET(
   }
 
   try {
-    const { id: novelId, characterId } = await context.params;
+    const { id: novelId, characterId } = params;
 
     // 检查小说是否存在且属于当前用户
     const novel = await prisma.novel.findUnique({
@@ -81,7 +74,7 @@ export async function GET(
 // 更新角色
 export async function PUT(
   request: NextRequest,
-  context: RouteContext
+  { params }: { params: { id: string; characterId: string } }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -92,7 +85,7 @@ export async function PUT(
   }
 
   try {
-    const { id: novelId, characterId } = await context.params;
+    const { id: novelId, characterId } = params;
     const characterData = await request.json();
 
     // 检查小说是否存在且属于当前用户
@@ -150,7 +143,7 @@ export async function PUT(
 // 删除角色
 export async function DELETE(
   request: NextRequest,
-  context: RouteContext
+  { params }: { params: { id: string; characterId: string } }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -161,7 +154,7 @@ export async function DELETE(
   }
 
   try {
-    const { id: novelId, characterId } = await context.params;
+    const { id: novelId, characterId } = params;
 
     // 检查小说是否存在且属于当前用户
     const novel = await prisma.novel.findUnique({
