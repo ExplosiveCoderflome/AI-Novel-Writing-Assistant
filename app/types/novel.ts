@@ -75,6 +75,25 @@ export interface NovelOutline {
       description: string;   // 描述
     }>;
   };
+  
+  // 关键节点
+  plotNodes?: Array<{
+    id: string;
+    chapter: number;
+    title: string;
+    description: string;
+    phase: string;
+    importance: 1 | 2 | 3; // 1-普通 2-重要 3-关键
+  }>;
+  
+  // 支线任务
+  subplots?: Array<{
+    id: string;
+    title: string;
+    type: 'romance' | 'powerup' | 'world' | 'character';
+    description: string;
+    position: string;
+  }>;
 }
 
 export type NovelGenre = 

@@ -1,9 +1,0 @@
-[33mb55b3f8[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m)[m fix
-[33me1ddd51[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Refactor: Enhance Novel and World Management UI
-[33mf9cb21b[m Refactor: Simplify World Generation API and Frontend
-[33md9475d7[m fix: 添加对话缓存
-[33m1946d30[m Refactor: Enhance LLM Factory and Provider Implementations
-[33m1d45e4d[m Update README.md
-[33m773e9be[m Fix：world
-[33m36cbcad[m Feat:添加 世界生成功能
-[33mf641492[m first commit

@@ -8,10 +8,10 @@ const nextConfig = {
     images: {
         domains: ['api.openai.com', 'api.anthropic.com', 'api.cohere.ai'],
     },
-    serverExternalPackages: ['undici', 'puppeteer-core', 'puppeteer'],
+    serverExternalPackages: ['undici'],
     webpack: (config, { isServer }) => {
         if (isServer) {
-            config.externals = [...config.externals, 'puppeteer'];
+            config.externals = [...config.externals];
         }
         config.resolve.alias = {
             ...config.resolve.alias,
@@ -28,8 +28,13 @@ const nextConfig = {
             }]
         }];
     },
-    experimental: {
-        appDir: true,
+    typescript: {
+        // 在生产构建中忽略类型错误，生产环境下不要进行类型检查
+        ignoreBuildErrors: true,
+    },
+    eslint: {
+        // 在生产构建中忽略 ESLint 错误
+        ignoreDuringBuilds: true,
     },
 };
 

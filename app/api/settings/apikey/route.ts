@@ -5,29 +5,59 @@ import { Prisma } from '@prisma/client';
 // 获取所有API密钥
 export async function GET() {
   try {
-    const apiKeys = await prisma.$connect().then(() => 
-      prisma.aPIKey.findMany({
-        where: {
-          userId: 'user-1', // 临时固定用户ID
-        },
-        select: {
-          id: true,
-          provider: true,
-          isActive: true,
-          createdAt: true,
-          updatedAt: true,
-          // 不返回实际的key值，只返回是否已设置
-          key: false,
-        },
-      })
-    );
+    await prisma.$connect();
+    
+    // 从数据库获取API密钥
+    const dbApiKeys = await prisma.aPIKey.findMany({
+      where: {
+        userId: 'user-1', // 临时固定用户ID
+      },
+      select: {
+        id: true,
+        provider: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        key: true,
+      },
+    });
 
-    return NextResponse.json(
-      apiKeys.map((key: { id: string; provider: string; isActive: boolean; createdAt: Date; updatedAt: Date }) => ({
-        ...key,
-        hasKey: true,
-      }))
-    );
+    // 获取所有可能的provider列表
+    const allProviders = ['openai', 'anthropic', 'deepseek', 'cohere', 'volc', 'siliconflow'];
+    
+    // 合并数据库和环境变量中的API key信息
+    const mergedApiKeys = allProviders.map(provider => {
+      const dbKey = dbApiKeys.find(k => k.provider === provider);
+      const envKey = process.env[`${provider.toUpperCase()}_API_KEY`];
+      
+      if (dbKey) {
+        return {
+          id: dbKey.id,
+          provider: dbKey.provider,
+          isActive: dbKey.isActive,
+          createdAt: dbKey.createdAt,
+          updatedAt: dbKey.updatedAt,
+          hasKey: true,
+          source: 'database'
+        };
+      } else if (envKey) {
+        return {
+          id: `env-${provider}`,
+          provider: provider,
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          hasKey: true,
+          source: 'environment'
+        };
+      }
+      return null;
+    }).filter(key => key !== null);
+
+    return NextResponse.json({
+      success: true,
+      data: mergedApiKeys,
+    });
   } catch (error) {
     console.error('Failed to fetch API keys:', error);
     let errorMessage = 'Unknown error occurred';

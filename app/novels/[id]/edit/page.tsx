@@ -15,7 +15,6 @@ import { useSession } from 'next-auth/react';
 import { Textarea } from '../../../components/ui/textarea';
 import { GenreSelector } from '../../../components/GenreSelector';
 import { LLMPromptInput } from '../../../components/LLMPromptInput';
-import { useToast } from "@/components/ui/use-toast";
 import { OutlineGenerator } from '@/components/OutlineGenerator';
 import { NovelOutline } from '@/types/novel';
 import { Toaster } from 'sonner';
@@ -25,6 +24,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import dynamic from 'next/dynamic';
 import type { ComponentType } from 'react';
+import ChapterGenerator from '@/components/novel/ChapterGenerator';
+import { BookOpen, Edit, FileText, Plus } from 'lucide-react';
+
+// 动态导入 Markdown 预览组件以避免 SSR 问题
+const MarkdownPreview = dynamic(
+  () => import('@uiw/react-markdown-preview').then((mod) => mod.default),
+  { ssr: false }
+);
 
 // 定义组件的 Props 类型
 interface BasicInfoProps {
@@ -55,13 +62,17 @@ interface ChapterManagerProps {
   chapters: Chapter[];
   onChapterSelect: (chapterId: string) => void;
   onChapterAdd: () => void;
+  onChapterGenerate?: () => void;
   selectedChapterId?: string;
 }
 
 // 动态导入组件
 const BasicInfo = dynamic(() => import('@/components/novel/BasicInfo'), { ssr: false });
 const DevelopmentDirection = dynamic(() => import('@/components/novel/DevelopmentDirection'), { ssr: false });
-const StructuredOutline = dynamic(() => import('@/components/novel/StructuredOutline'), { ssr: false });
+const StructuredOutline = dynamic(() => import('@/components/novel/StructuredOutline'), { 
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin" /></div>
+});
 const ChapterManager = dynamic(() => import('@/components/novel/ChapterManager'), { ssr: false });
 
 // 添加 ResizeHandle 组件
@@ -129,10 +140,10 @@ export default function EditNovelPage({ params }: PageParams) {
   const { id } = React.use(params);
   const router = useRouter();
   const { data: session } = useSession();
-  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [novel, setNovel] = useState<Novel & { genre?: NovelGenre } | null>(null);
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
+  const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -151,6 +162,8 @@ export default function EditNovelPage({ params }: PageParams) {
   const [structuredOutline, setStructuredOutline] = useState<NovelOutline | null>(null);
   const [selectedChapterId, setSelectedChapterId] = useState<string>();
   const [tabValue, setTabValue] = useState('basic');
+  const [showChapterGenerator, setShowChapterGenerator] = useState(false);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
 
   useEffect(() => {
     if (id) {
@@ -241,9 +254,9 @@ export default function EditNovelPage({ params }: PageParams) {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleSaveBasicInfo = async () => {
+    if (!novel) return;
+    
     setIsSaving(true);
     try {
       const response = await fetch(`/api/novel/${id}`, {
@@ -259,24 +272,13 @@ export default function EditNovelPage({ params }: PageParams) {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || '更新失败');
+        throw new Error('保存失败');
       }
 
-      const updatedNovel = await response.json();
-      setNovel(updatedNovel);
-
-      toast({
-        title: '保存成功',
-        description: '小说信息已更新',
-      });
+      toast.success('基本信息已保存');
     } catch (error) {
-      console.error('保存小说失败:', error);
-      toast({
-        title: '保存失败',
-        description: error instanceof Error ? error.message : '无法更新小说信息',
-        variant: 'destructive',
-      });
+      console.error('保存基本信息失败:', error);
+      toast.error('保存基本信息失败');
     } finally {
       setIsSaving(false);
     }
@@ -299,10 +301,7 @@ export default function EditNovelPage({ params }: PageParams) {
         throw new Error('Failed to update chapter');
       }
 
-      toast({
-        title: '保存成功',
-        description: '章节内容已更新',
-      });
+      toast.success('章节内容已更新');
 
       // 更新本地数据
       setNovel(prev => {
@@ -316,11 +315,7 @@ export default function EditNovelPage({ params }: PageParams) {
       });
     } catch (error) {
       console.error('保存章节失败:', error);
-      toast({
-        title: '保存失败',
-        description: '无法更新章节内容',
-        variant: 'destructive',
-      });
+      toast.error('无法更新章节内容');
     } finally {
       setIsSaving(false);
     }
@@ -348,19 +343,12 @@ export default function EditNovelPage({ params }: PageParams) {
       }
 
       const data = await response.json();
-      toast({
-        title: 'AI 建议已生成',
-        description: '请查看生成的建议',
-      });
+      toast.success('AI 建议已生成');
 
       // TODO: 显示 AI 建议
     } catch (error) {
       console.error('获取 AI 建议失败:', error);
-      toast({
-        title: '生成失败',
-        description: '无法获取 AI 建议',
-        variant: 'destructive',
-      });
+      toast.error('无法获取 AI 建议');
     } finally {
       setIsGenerating(false);
     }
@@ -395,37 +383,22 @@ export default function EditNovelPage({ params }: PageParams) {
       });
       setCurrentChapter(newChapter);
 
-      toast({
-        title: '创建成功',
-        description: '新章节已添加',
-      });
+      toast.success('新章节已添加');
     } catch (error) {
       console.error('创建章节失败:', error);
-      toast({
-        title: '创建失败',
-        description: '无法创建新章节',
-        variant: 'destructive',
-      });
+      toast.error('无法创建新章节');
     }
   };
 
   const handleAIGenerateOutline = async (params: GenerateOutlineParams) => {
     if (!title || !genre) {
-      toast({
-        title: '错误',
-        description: '请先设置小说标题和类型',
-        variant: 'destructive',
-      });
+      toast.error('请先设置小说标题和类型');
       return;
     }
 
     const selectedGenre = genres.find(g => g.id === genre);
     if (!selectedGenre) {
-      toast({
-        title: '错误',
-        description: '请选择有效的小说类型',
-        variant: 'destructive',
-      });
+      toast.error('请选择有效的小说类型');
       return;
     }
 
@@ -552,17 +525,10 @@ ${useExistingOutline ? '8. 在现有发展走向的基础上进行优化，保�
         reader.releaseLock();
       }
 
-      toast({
-        title: "成功",
-        description: "大纲生成成功"
-      });
+      toast.success('大纲生成成功');
     } catch (error) {
       console.error('生成大纲时出错:', error);
-      toast({
-        variant: "destructive",
-        title: "错误",
-        description: error instanceof Error ? error.message : "生成大纲失败"
-      });
+      toast.error('生成大纲失败');
     } finally {
       setLoading(false);
     }
@@ -571,47 +537,28 @@ ${useExistingOutline ? '8. 在现有发展走向的基础上进行优化，保�
   const handleSaveOutline = async () => {
     if (!novel) return;
     
-    setIsSavingOutline(true);
+    setIsSaving(true);
     try {
-      let structuredOutline = null;
-      try {
-        structuredOutline = JSON.parse(novel.outline || '');
-      } catch (e) {
-        console.warn('发展走向内容不是有效的 JSON 格式');
-      }
-
-      const response = await fetch(`/api/novel/${id}/outline`, {
+      const response = await fetch(`/api/novel/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          outline: novel.outline,
-          structuredOutline
+          outline: outline,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('保存发展走向失败');
+        throw new Error('保存失败');
       }
 
-      toast({
-        title: '保存成功',
-        description: '发展走向内容已更新',
-      });
-
-      if (structuredOutline) {
-        setOutlineData(structuredOutline);
-      }
+      toast.success('大纲已保存');
     } catch (error) {
-      console.error('保存发展走向失败:', error);
-      toast({
-        title: '保存失败',
-        description: '无法更新发展走向内容',
-        variant: 'destructive',
-      });
+      console.error('保存大纲失败:', error);
+      toast.error('保存大纲失败');
     } finally {
-      setIsSavingOutline(false);
+      setIsSaving(false);
     }
   };
 
@@ -637,10 +584,7 @@ ${useExistingOutline ? '8. 在现有发展走向的基础上进行优化，保�
 
       setStructuredOutline(outline);
       
-      toast({
-        title: '保存成功',
-        description: '结构化大纲已更新',
-      });
+      toast.success('结构化大纲已更新');
     } catch (error) {
       console.error('保存结构化大纲失败:', error);
       throw error; // 将错误传递给组件处理
@@ -656,6 +600,29 @@ ${useExistingOutline ? '8. 在现有发展走向的基础上进行优化，保�
 
   const handleChapterSelect = (chapterId: string) => {
     setSelectedChapterId(chapterId);
+    const chapter = chapters.find(ch => ch.id === chapterId);
+    setSelectedChapter(chapter || null);
+  };
+
+  const handleGenerateChapters = () => {
+    setShowChapterGenerator(true);
+  };
+
+  const handleChaptersGenerated = async (newChapters: Chapter[]) => {
+    await fetchChapters();
+    toast.success(`成功添加 ${newChapters.length} 个章节`);
+  };
+
+  const fetchChapters = async () => {
+    try {
+      const response = await fetch(`/api/novel/${id}/chapters`);
+      if (!response.ok) throw new Error('获取章节列表失败');
+      const data = await response.json();
+      setChapters(data);
+    } catch (error) {
+      console.error('获取章节列表失败:', error);
+      toast.error('获取章节列表失败');
+    }
   };
 
   if (isLoading) {
@@ -747,16 +714,95 @@ ${useExistingOutline ? '8. 在现有发展走向的基础上进行优化，保�
           </div>
         </TabsContent>
 
-        <TabsContent value="chapters">
-          <ChapterManager
-            novelId={novel.id}
-            chapters={novel.chapters || []}
-            onChapterSelect={handleChapterSelect}
-            onChapterAdd={handleAddChapter}
-            selectedChapterId={selectedChapterId}
-          />
+        <TabsContent value="chapters" className="flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-1">
+              <ChapterManager
+                novelId={id}
+                chapters={novel.chapters || []}
+                onChapterSelect={handleChapterSelect}
+                onChapterAdd={handleAddChapter}
+                onChapterGenerate={handleGenerateChapters}
+                selectedChapterId={selectedChapterId}
+              />
+            </div>
+            <div className="md:col-span-2">
+              {selectedChapterId && selectedChapter ? (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-bold">
+                      第 {selectedChapter.order} 章：{selectedChapter.title}
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push(`/novels/${id}/chapters/${selectedChapterId}/view`)}
+                      >
+                        <BookOpen className="mr-2 h-4 w-4" />
+                        阅读模式
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push(`/novels/${id}/chapters/${selectedChapterId}`)}
+                      >
+                        <Edit className="mr-2 h-4 w-4" />
+                        编辑章节
+                      </Button>
+                    </div>
+                  </div>
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="prose max-w-none">
+                        {selectedChapter.content ? (
+                          <div className="whitespace-pre-wrap">{selectedChapter.content}</div>
+                        ) : (
+                          <p className="text-muted-foreground text-center py-8">
+                            该章节暂无内容
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-6 text-center">
+                    <div className="py-8">
+                      <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
+                      <h3 className="text-lg font-medium mb-2">选择或创建章节</h3>
+                      <p className="text-muted-foreground mb-4">
+                        从左侧选择一个章节进行编辑，或点击"添加章节"创建新章节
+                      </p>
+                      <Button onClick={handleAddChapter}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        添加章节
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
+
+      <ChapterGenerator
+        open={showChapterGenerator}
+        onOpenChange={setShowChapterGenerator}
+        id={id}
+        basicInfo={novel ? { 
+          title: novel.title, 
+          description: novel.description || '',
+          genre: genres.find(g => g.id === genre)?.name || '' 
+        } : undefined}
+        characters={novel?.characters || []}
+        outline={novel?.structuredOutline}
+        developmentDirection={novel?.developmentDirection}
+        existingChapters={novel?.chapters || []}
+        onChaptersGenerated={handleChaptersGenerated}
+      />
     </div>
   );
 }

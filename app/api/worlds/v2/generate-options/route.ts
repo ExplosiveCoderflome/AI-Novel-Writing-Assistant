@@ -6,9 +6,10 @@ import {
   WorldOptionRefinementLevel
 } from '../../../../types/worldV2';
 import LLMFactory from '../../../llm/factory';
-import { getApiKey } from '../../../../lib/api-key';
+
 import { LLMProviderConfig, LLMDBConfig } from '../../../../types/llm';
 import { log } from 'console';
+import { getApiKey } from '../../../../../lib/api-key';
 
 export const maxDuration = 300; // 5分钟超时
 

@@ -3,6 +3,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
+import { getApiKey } from '../../../../lib/api-key';
 import { z } from 'zod';
 
 const settingsSchema = z.object({
@@ -13,30 +14,28 @@ const settingsSchema = z.object({
 
 export async function GET() {
   try {
-    const apiKey = await prisma.aPIKey.findFirst({
-      where: {
-        userId: 'default', // TODO: 替换为实际的用户 ID
-        isActive: true,
-      },
-      orderBy: {
-        updatedAt: 'desc',
-      },
-    });
+    // 尝试获取默认provider的API Key
+    const providers = ['deepseek', 'siliconflow', 'openai', 'anthropic', 'cohere', 'volc'];
+    const result = [];
 
-    if (!apiKey) {
-      return NextResponse.json({
-        success: true,
-        data: null,
-      });
+    for (const provider of providers) {
+      try {
+        const key = await getApiKey(provider);
+        result.push({
+          provider,
+          hasKey: Boolean(key),
+        });
+      } catch (error) {
+        result.push({
+          provider,
+          hasKey: false,
+        });
+      }
     }
 
     return NextResponse.json({
       success: true,
-      data: {
-        provider: apiKey.provider,
-        key: apiKey.key,
-        model: apiKey.model,
-      },
+      data: result
     });
   } catch (error) {
     console.error('Error fetching LLM settings:', error);

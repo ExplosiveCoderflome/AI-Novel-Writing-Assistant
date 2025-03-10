@@ -16,8 +16,52 @@ export abstract class BaseLLMProvider implements LLMProviderInterface {
   protected baseUrl: string;
 
   constructor(apiKey: string, baseUrl: string) {
+    if (!apiKey) {
+      throw new Error('API Key is required');
+    }
+    if (!baseUrl) {
+      throw new Error('Base URL is required');
+    }
     this.apiKey = apiKey;
     this.baseUrl = baseUrl;
+    console.log(`[Base Provider] 初始化Provider - API Key: ${apiKey ? '已设置' : '未设置'}, Base URL: ${baseUrl}`);
+  }
+
+  protected validateApiKey(): void {
+    if (!this.apiKey) {
+      throw new Error('API Key is not set');
+    }
+    
+    // 检查API key是否只包含空白字符
+    if (this.apiKey.trim().length === 0) {
+      throw new Error('API Key cannot be empty');
+    }
+
+    // 检查API key是否包含非法字符
+    if (/[\s<>{}[\]|\\\/]/.test(this.apiKey)) {
+      throw new Error('API Key contains invalid characters');
+    }
+
+    // 检查API key的最小长度
+    if (this.apiKey.length < 8) {
+      throw new Error('API Key is too short');
+    }
+  }
+
+  protected validateProviderApiKey(provider: string): void {
+    // 针对不同的provider进行特定验证
+    switch (provider) {
+      case 'deepseek':
+        if (!this.apiKey.startsWith('sk-')) {
+          throw new Error('Deepseek API Key must start with "sk-"');
+        }
+        break;
+      case 'siliconflow':
+        if (!this.apiKey.startsWith('sf-')) {
+          throw new Error('SiliconFlow API Key must start with "sf-"');
+        }
+        break;
+    }
   }
 
   abstract generateRecommendation(params: GenerateParams): Promise<LLMResponse>;

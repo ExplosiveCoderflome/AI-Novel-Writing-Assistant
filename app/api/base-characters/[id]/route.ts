@@ -1,18 +1,12 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../auth/[...nextauth]/route';
-
-interface RouteContext {
-  params: {
-    id: string;
-  };
-}
+import { authOptions } from '../../auth/options';
 
 // 获取单个基础角色
 export async function GET(
   request: NextRequest,
-  context: RouteContext
+  { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -23,7 +17,7 @@ export async function GET(
   }
 
   try {
-    const { id } = await context.params;
+    const { id } = params;
 
     const character = await prisma.baseCharacter.findUnique({
       where: { id },
@@ -64,7 +58,7 @@ export async function GET(
 // 更新基础角色
 export async function PUT(
   request: NextRequest,
-  context: RouteContext
+  { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -75,7 +69,7 @@ export async function PUT(
   }
 
   try {
-    const { id } = await context.params;
+    const { id } = params;
     const data = await request.json();
 
     // 验证必要字段
@@ -124,7 +118,7 @@ export async function PUT(
 // 删除基础角色
 export async function DELETE(
   request: NextRequest,
-  context: RouteContext
+  { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -135,7 +129,7 @@ export async function DELETE(
   }
 
   try {
-    const { id } = await context.params;
+    const { id } = params;
 
     // 检查是否有小说角色在使用此基础角色
     const usageCount = await prisma.character.count({

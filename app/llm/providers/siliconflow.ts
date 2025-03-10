@@ -132,18 +132,46 @@ export class SiliconFlowProvider extends BaseLLMProvider {
   }
 
   async getAvailableModels(): Promise<LLMModel[]> {
-    const response = await fetch(`${this.baseUrl}/models`, {
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-      },
-    });
+    console.log('[SiliconFlow Provider] 开始获取可用模型列表');
+    try {
+      this.validateApiKey();
+      this.validateProviderApiKey('siliconflow');
+      console.log('[SiliconFlow Provider] API Key验证通过');
+      
+      console.log('[SiliconFlow Provider] 发起HTTP请求获取模型列表');
+      const response = await fetch(`${this.baseUrl}/models`, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+      });
 
-    if (!response.ok) {
-      throw new Error(`获取模型列表失败: ${response.status} ${response.statusText}`);
+      console.log(`[SiliconFlow Provider] 收到响应 - 状态码: ${response.status}`);
+
+      if (!response.ok) {
+        const errorBody = await response.text().catch(() => '无法读取错误响应体');
+        console.error(`[SiliconFlow Provider] 请求失败 - 状态码: ${response.status}, 状态文本: ${response.statusText}`);
+        console.error('[SiliconFlow Provider] 错误响应体:', errorBody);
+        
+        // 针对特定错误进行处理
+        if (response.status === 401) {
+          if (errorBody.includes('invalid')) {
+            throw new Error('API Key 无效，请检查格式是否正确');
+          }
+        }
+        
+        throw new Error(`获取模型列表失败: ${response.status} ${response.statusText}\n响应体: ${errorBody}`);
+      }
+
+      const data = await response.json();
+      console.log('[SiliconFlow Provider] 成功解析响应数据:', data);
+      return data.data;
+    } catch (error) {
+      console.error('[SiliconFlow Provider] 获取模型列表时发生错误:', error);
+      if (error instanceof Error) {
+        console.error('[SiliconFlow Provider] 错误堆栈:', error.stack);
+      }
+      throw error;
     }
-
-    const data = await response.json();
-    return data.data;
   }
 
   protected extractContentFromChunk(chunk: any): string | null {

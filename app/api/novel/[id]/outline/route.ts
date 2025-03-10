@@ -2,17 +2,40 @@ import { NextRequest } from 'next/server';
 import { prisma } from '../../../../../lib/prisma';
 import { LLMFactory } from '../../../../../lib/llm/factory';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../auth/[...nextauth]/route';
+import { authOptions } from '../../../auth/options';
 
-interface RouteContext {
-  params: Promise<{
-    id: string;
-  }>;
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return new Response(
+      JSON.stringify({ error: '请先登录' }),
+      { status: 401 }
+    );
+  }
+
+  try {
+    const { id: novelId } = params;
+    // ... existing code ...
+  } catch (error) {
+    console.error('API Error:', error);
+    return new Response(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : '生成大纲失败',
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  }
 }
 
 export async function POST(
   request: NextRequest,
-  context: RouteContext
+  { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -30,7 +53,7 @@ export async function POST(
       throw new Error('缺少必要参数');
     }
 
-    const { id: novelId } = await context.params;
+    const { id: novelId } = params;
 
     // 检查小说是否存在且属于当前用户
     const novel = await prisma.novel.findUnique({
@@ -206,7 +229,7 @@ export async function POST(
 
 export async function PUT(
   request: NextRequest,
-  context: RouteContext
+  { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -218,7 +241,7 @@ export async function PUT(
 
   try {
     const { outline } = await request.json();
-    const { id: novelId } = await context.params;
+    const { id: novelId } = params;
 
     // 检查小说是否存在且属于当前用户
     const novel = await prisma.novel.findUnique({

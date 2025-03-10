@@ -1,18 +1,12 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '../../../../../../lib/prisma';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../../auth/[...nextauth]/route';
+import { authOptions } from '../../../../auth/options';
 import { LLMFactory } from '../../../../../../lib/llm/factory';
-
-interface RouteContext {
-  params: {
-    id: string;
-  };
-}
 
 export async function POST(
   request: NextRequest,
-  context: RouteContext
+  { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -23,7 +17,7 @@ export async function POST(
   }
 
   try {
-    const { id: novelId } = await context.params;
+    const { id: novelId } = params;
     const { provider, model, prompt, context: novelContext } = await request.json();
 
     // 检查小说是否存在且属于当前用户

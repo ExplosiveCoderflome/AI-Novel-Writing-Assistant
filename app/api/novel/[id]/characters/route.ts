@@ -4,18 +4,12 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '../../../../../lib/prisma';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../auth/[...nextauth]/route';
+import { authOptions } from '../../../auth/options';
 
-interface RouteContext {
-  params: {
-    id: string;
-  };
-}
-
-// 获取角色列表
+// 获取小说角色列表
 export async function GET(
   request: NextRequest,
-  context: RouteContext
+  { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -26,7 +20,7 @@ export async function GET(
   }
 
   try {
-    const { id: novelId } = await context.params;
+    const { id: novelId } = params;
 
     // 检查小说是否存在且属于当前用户
     const novel = await prisma.novel.findUnique({

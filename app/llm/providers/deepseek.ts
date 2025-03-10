@@ -232,20 +232,49 @@ export class DeepseekProvider extends BaseLLMProvider {
   }
 
   async getAvailableModels(): Promise<LLMModel[]> {
-    const response = await fetch(`${this.baseUrl}/models`, {
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Accept': 'application/json',
-        'User-Agent': 'Smart-Search-Assistant/1.0'
-      },
-    });
+    console.log('[Deepseek Provider] 开始获取可用模型列表');
+    try {
+      this.validateApiKey();
+      this.validateProviderApiKey('deepseek');
+      console.log('[Deepseek Provider] API Key验证通过');
+      
+      console.log('[Deepseek Provider] 发起HTTP请求获取模型列表');
+      const response = await fetch(`${this.baseUrl}/models`, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Accept': 'application/json',
+          'User-Agent': 'Smart-Search-Assistant/1.0'
+        },
+      });
 
-    if (!response.ok) {
-      throw new Error(`获取模型列表失败: ${response.status} ${response.statusText}`);
+      console.log(`[Deepseek Provider] 收到响应 - 状态码: ${response.status}`);
+
+      if (!response.ok) {
+        const errorBody = await response.text().catch(() => '无法读取错误响应体');
+        console.error(`[Deepseek Provider] 请求失败 - 状态码: ${response.status}, 状态文本: ${response.statusText}`);
+        console.error('[Deepseek Provider] 错误响应体:', errorBody);
+        
+        // 针对特定错误进行处理
+        if (response.status === 401) {
+          const errorJson = JSON.parse(errorBody);
+          if (errorJson.error?.type === 'authentication_error') {
+            throw new Error(`API Key 认证失败: ${errorJson.error.message}`);
+          }
+        }
+        
+        throw new Error(`获取模型列表失败: ${response.status} ${response.statusText}\n响应体: ${errorBody}`);
+      }
+
+      const data = await response.json();
+      console.log('[Deepseek Provider] 成功解析响应数据:', data);
+      return data.data;
+    } catch (error) {
+      console.error('[Deepseek Provider] 获取模型列表时发生错误:', error);
+      if (error instanceof Error) {
+        console.error('[Deepseek Provider] 错误堆栈:', error.stack);
+      }
+      throw error;
     }
-
-    const data = await response.json();
-    return data.data;
   }
 
   protected extractContentFromChunk(chunk: any): string | null {

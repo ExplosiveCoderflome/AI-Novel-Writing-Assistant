@@ -29,6 +29,8 @@ interface LLMPromptInputProps {
   buttonText?: string;
   // 是否禁用
   disabled?: boolean;
+  // 默认提示文本
+  defaultPrompt?: string;
   // 回调函数
   onSubmit: (data: { 
     provider: string; 
@@ -179,7 +181,7 @@ const LLMPromptInputComponent = ({
   };
 
   return (
-    <div className="space-y-4 w-full m-4">
+    <div className="space-y-4 w-full">
       <div className="flex gap-4 w-full">
         <Select
           value={selectedProvider}

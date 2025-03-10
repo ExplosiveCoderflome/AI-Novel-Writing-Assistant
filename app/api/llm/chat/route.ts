@@ -4,6 +4,7 @@ import { LLMFactory } from '../../../llm/factory';
 import { LLMDBConfig, LLMProviderConfig } from '../../../types/llm';
 import { LLMProviderType } from '../../../llm/providers/factory';
 import { z } from 'zod';
+import { getApiKey } from '../../../../lib/api-key';
 
 // 验证请求体的 schema
 const chatRequestSchema = z.object({
@@ -52,23 +53,23 @@ export async function POST(request: NextRequest) {
     const { provider, model, prompt, temperature, maxTokens } = result.data;
 
     // 获取 API Key
-    const apiKey = await prisma.aPIKey.findFirst({
-      where: {
-        provider,
-        isActive: true,
-      },
-    });
-
-    if (!apiKey) {
-      return NextResponse.json({
-        success: false,
-        error: '未找到有效的 API Key'
-      }, { status: 404 });
+    let apiKey;
+    try {
+      apiKey = await getApiKey(provider);
+    } catch (error) {
+      console.error(`获取 ${provider} 的API Key失败:`, error);
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: error instanceof Error ? error.message : '未找到有效的 API Key，请在设置中配置或在环境变量中设置'
+        },
+        { status: 404 }
+      );
     }
 
     // 创建配置
     const providerConfig: LLMProviderConfig = {
-      getApiKey: async () => apiKey.key,
+      getApiKey: async () => apiKey,
       model,
       temperature: temperature || 0.7,
       maxTokens: maxTokens || 2000
