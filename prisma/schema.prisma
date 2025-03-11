@@ -194,3 +194,35 @@ model TitleLibrary {
   @@index([genreId])
   @@map("title_libraries")
 }
+
+// 写作公式模型 - 存储提取的写作风格和公式
+model WritingFormula {
+  id                String   @id @default(cuid())
+  name              String
+  sourceText        String   // 原始文本
+  genre             String   // 体裁/类型
+  style             String   // 整体风格
+  toneVoice         String   // 语气/语调
+  structure         String   // 整体结构
+  pacing            String   // 节奏控制
+  paragraphPattern  String   // 段落模式
+  sentenceStructure String   // 句式结构
+  vocabularyLevel   String   // 词汇水平
+  rhetoricalDevices String   // 修辞手法，以JSON字符串存储
+  narrativeMode     String   // 叙事模式
+  perspectivePoint  String   // 视角/人称
+  characterVoice    String   // 角色声音
+  themes            String   // 主题元素，以JSON字符串存储
+  motifs            String   // 意象/符号，以JSON字符串存储
+  emotionalTone     String   // 情感基调
+  uniqueFeatures    String   // 独特特征，以JSON字符串存储
+  formulaDescription String   // 公式描述
+  formulaSteps      String   // 公式步骤，以JSON字符串存储
+  applicationTips   String   // 应用技巧，以JSON字符串存储
+  userId            String   // 关联的用户ID
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+  @@map("writing_formulas")
+}

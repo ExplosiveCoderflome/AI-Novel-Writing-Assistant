@@ -26,7 +26,9 @@ import {
   Shield,
   Key,
   Globe2,
-  MessageSquare
+  MessageSquare,
+  FileText,
+  Sparkles
 } from 'lucide-react';
 
 export function Navbar() {
@@ -189,6 +191,20 @@ export function Navbar() {
                 <Link href="/chat" className="flex items-center gap-2 px-3 py-2 hover:bg-accent rounded-md">
                   <MessageSquare className="h-5 w-5" />
                   <span>AI 助手</span>
+                </Link>
+              </NavigationMenuItem>
+
+              <NavigationMenuItem>
+                <Link href="/content-publisher" className="flex items-center gap-2 px-3 py-2 hover:bg-accent rounded-md">
+                  <FileText className="h-5 w-5" />
+                  <span>内容发布助手</span>
+                </Link>
+              </NavigationMenuItem>
+
+              <NavigationMenuItem>
+                <Link href="/writing-formula" className="flex items-center gap-2 px-3 py-2 hover:bg-accent rounded-md">
+                  <Sparkles className="h-5 w-5" />
+                  <span>写作公式</span>
                 </Link>
               </NavigationMenuItem>
             </NavigationMenuList>

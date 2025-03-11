@@ -1,18 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { SystemPrompt, chatHistoryDB } from "../lib/indexedDB";
-import { Button } from "./ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Textarea } from "./ui/textarea";
-import { Badge } from "./ui/badge";
-import { ScrollArea } from "./ui/scroll-area";
+import { SystemPrompt, chatHistoryDB } from "../../lib/indexedDB";
+import { Button } from "../ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Textarea } from "../ui/textarea";
+import { Badge } from "../ui/badge";
+import { ScrollArea } from "../ui/scroll-area";
 import { PlusCircle, Edit, Trash2, Save, Bot, Brain, Sparkles } from "lucide-react";
-import { Switch } from "./ui/switch";
+import { Switch } from "../ui/switch";
 
 interface SystemPromptManagerProps {
   onPromptSelect: (prompt: SystemPrompt) => void;
@@ -36,7 +36,9 @@ export function SystemPromptManager({ onPromptSelect, activePromptId }: SystemPr
   useEffect(() => {
     const loadPrompts = async () => {
       try {
+        console.log("开始加载系统提示词列表...");
         const allPrompts = await chatHistoryDB.getAllSystemPrompts();
+        console.log("成功加载系统提示词列表:", allPrompts);
         setPrompts(allPrompts);
       } catch (error) {
         console.error("加载系统提示词失败:", error);
@@ -122,6 +124,11 @@ export function SystemPromptManager({ onPromptSelect, activePromptId }: SystemPr
 
   // 选择提示词
   const handleSelectPrompt = async (prompt: SystemPrompt) => {
+    // 如果已经是活跃的提示词，则不需要再次设置
+    if (prompt.id === activePromptId) {
+      return;
+    }
+    
     try {
       await chatHistoryDB.setActiveSystemPrompt(prompt.id);
       onPromptSelect(prompt);
@@ -204,7 +211,7 @@ export function SystemPromptManager({ onPromptSelect, activePromptId }: SystemPr
           <TabsTrigger value="agent">智能体</TabsTrigger>
         </TabsList>
         <TabsContent value="all" className="mt-2">
-          <ScrollArea className="h-[calc(100vh-300px)]">
+          <ScrollArea className="h-[calc(100vh-440px)]">
             <div className="space-y-2">
               {filteredPrompts.map((prompt) => (
                 <PromptCard
@@ -436,4 +443,4 @@ function PromptCard({ prompt, isActive, onSelect, onEdit, onDelete }: PromptCard
       </CardFooter>
     </Card>
   );
-} 
+}

@@ -4,6 +4,10 @@ import { ChatDeepSeek } from "@langchain/deepseek";
 import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 import { CallbackManager } from "@langchain/core/callbacks/manager";
 import { Message } from '../../../types/chat';
+import { processMessageWithWebSearch } from '../../../lib/services/webSearchService';
+
+// API超时设置 - 5分钟
+export const maxDuration = 300; // 单位：秒
 
 // 请求体验证schema
 const chatRequestSchema = z.object({
@@ -14,6 +18,8 @@ const chatRequestSchema = z.object({
   maxTokens: z.number().optional(),
   systemPrompt: z.string().optional(), // 添加系统提示词字段
   agentMode: z.boolean().optional().default(false), // 添加智能体模式字段
+  autoWebSearch: z.boolean().optional().default(true), // 添加自动联网搜索字段
+  searchProvider: z.enum(['serpapi', 'exa']).optional().default('serpapi'), // 添加搜索提供商字段
   contextHistory: z.array(z.object({
     id: z.string(),
     role: z.enum(['user', 'assistant']),
@@ -34,6 +40,7 @@ const DEFAULT_SYSTEM_PROMPT = `你是一位专业的小说创作助手，可以�
 5. 如果用户的问题不够清晰，主动询问更多细节
 6. 在合适的时候使用例子来说明观点
 7. 避免生成有害或不当的内容
+8. 使用Markdown格式来组织你的回答，包括标题、列表、代码块等
 
 你擅长：
 - 小说写作技巧指导
@@ -44,7 +51,21 @@ const DEFAULT_SYSTEM_PROMPT = `你是一位专业的小说创作助手，可以�
 - 创作瓶颈突破
 - 写作计划制定
 
-请根据用户的具体需求提供相应的帮助。`;
+请根据用户的具体需求提供相应的帮助。
+
+## Markdown格式指南
+- 使用 # ## ### 等标记标题层级
+- 使用 * 或 - 创建无序列表
+- 使用 1. 2. 3. 创建有序列表
+- 使用 **文本** 标记粗体
+- 使用 *文本* 标记斜体
+- 使用 > 创建引用块
+- 使用 \`\`\`语言\n代码\n\`\`\` 创建代码块
+- 使用 \`代码\` 标记行内代码
+- 使用 --- 创建分隔线
+- 使用 [文本](链接) 创建链接
+
+请充分利用Markdown格式，使你的回答更加结构化和易于阅读。`;
 
 // DeepSeek模型名称常量 - 使用官方支持的名称
 const DEEPSEEK_MODELS: Record<string, string> = {
@@ -86,7 +107,9 @@ export async function POST(req: NextRequest) {
       maxTokens, 
       contextHistory,
       systemPrompt,
-      agentMode = false
+      agentMode = false,
+      autoWebSearch = true,
+      searchProvider = 'serpapi'
     } = validationResult.data;
 
     // 在请求处理部分，打印接收到的系统提示词
@@ -98,7 +121,84 @@ export async function POST(req: NextRequest) {
     const writer = stream.writable.getWriter();
 
     // 记录请求信息
-    console.log(`开始处理DeepSeek请求, 模型: ${provider}/${model}, 温度: ${temperature}, 提示长度: ${prompt.length}, 历史消息数: ${contextHistory?.length || 0}, 智能体模式: ${agentMode}`);
+    console.log(`开始处理DeepSeek请求, 模型: ${provider}/${model}, 温度: ${temperature}, 提示长度: ${prompt.length}, 历史消息数: ${contextHistory?.length || 0}, 智能体模式: ${agentMode}, 自动联网搜索: ${autoWebSearch}, 搜索提供商: ${searchProvider}`);
+
+    // 如果启用了自动联网搜索，先尝试使用联网搜索处理
+    if (autoWebSearch) {
+      try {
+        // 获取OpenAI API密钥
+        const openAIApiKey = process.env.OPENAI_API_KEY;
+        
+        if (!openAIApiKey) {
+          console.warn("未找到OpenAI API密钥，无法使用自动联网搜索功能");
+        } else {
+          console.log(`尝试使用联网搜索处理用户消息，搜索提供商: ${searchProvider}`);
+          
+          // 转换聊天历史格式
+          const formattedHistory = contextHistory?.map(msg => ({
+            role: msg.role,
+            content: msg.content
+          })) || [];
+          
+          // 处理用户消息
+          const webSearchResult = await processMessageWithWebSearch(
+            prompt,
+            formattedHistory,
+            openAIApiKey,
+            searchProvider
+          );
+          
+          // 如果联网搜索成功处理了消息
+          if (webSearchResult.response) {
+            console.log("联网搜索成功处理了消息");
+            
+            // 发送搜索信息
+            if (webSearchResult.searchInfo.performed) {
+              await writer.write(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    type: "search_info",
+                    searchInfo: webSearchResult.searchInfo
+                  })}\n\n`
+                )
+              );
+            }
+            
+            // 发送响应内容
+            const responseChunks = webSearchResult.response.split(/(?<=\n)/);
+            for (const chunk of responseChunks) {
+              if (chunk) {
+                await writer.write(
+                  encoder.encode(
+                    `data: ${JSON.stringify({
+                      type: "content",
+                      choices: [{ delta: { content: chunk } }]
+                    })}\n\n`
+                  )
+                );
+                // 添加小延迟，模拟流式输出
+                await new Promise(resolve => setTimeout(resolve, 10));
+              }
+            }
+            
+            await writer.write(encoder.encode("data: [DONE]\n\n"));
+            await writer.close();
+            
+            return new Response(stream.readable, {
+              headers: {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+              },
+            });
+          }
+          
+          console.log("联网搜索未处理消息，回退到常规LLM处理");
+        }
+      } catch (error) {
+        console.error("联网搜索处理失败，回退到常规LLM处理:", error);
+      }
+    }
 
     // 获取正确的模型名称 - 使用我们定义的常量映射
     const requestedModel = model.includes('/') ? model.split('/')[1] : model;
@@ -151,6 +251,7 @@ export async function POST(req: NextRequest) {
       streaming: true,
       apiKey: process.env.DEEPSEEK_API_KEY,
       verbose: true, // 启用详细日志
+      timeout: 300000, // 5分钟超时
     });
     
     console.log(`DeepSeek模型已初始化: ${modelName}`);
@@ -168,8 +269,9 @@ export async function POST(req: NextRequest) {
 2. 提供额外的相关信息和拓展思路
 3. 推荐具体的实践步骤
 4. 在合适的情况下，提供多个可能的解决方案
+5. 使用Markdown格式组织你的回答，使其更加结构化
 
-请确保你的回答全面、主动且有实践价值。`;
+请确保你的回答全面、主动且有实践价值。使用Markdown的标题、列表、代码块等功能，使你的回答更加清晰易读。`;
     }
     
     messages.push(new SystemMessage(systemPromptContent));

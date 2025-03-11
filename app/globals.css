@@ -202,3 +202,151 @@
 .ant-spin-dot-item {
     @apply bg-blue-500;
 }
+
+/* Markdown样式 */
+.markdown-body {
+  @apply text-foreground;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  @apply font-bold mt-6 mb-4;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.markdown-body h1 {
+  @apply text-2xl;
+}
+
+.markdown-body h2 {
+  @apply text-xl;
+}
+
+.markdown-body h3 {
+  @apply text-lg;
+}
+
+.markdown-body p {
+  @apply my-4;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  @apply my-4 pl-6;
+}
+
+.markdown-body ul {
+  @apply list-disc;
+}
+
+.markdown-body ol {
+  @apply list-decimal;
+}
+
+.markdown-body li {
+  @apply my-1;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.markdown-body blockquote {
+  @apply border-l-4 border-gray-300 dark:border-gray-700 pl-4 py-1 my-4 text-gray-700 dark:text-gray-300;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.markdown-body pre {
+  @apply my-4 p-4 rounded-lg bg-gray-900 text-gray-100;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-width: 100%;
+}
+
+.markdown-body code {
+  @apply font-mono text-sm;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.markdown-body :not(pre) > code {
+  @apply bg-gray-200 dark:bg-gray-800 px-1 py-0.5 rounded text-gray-900 dark:text-gray-100;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.markdown-body table {
+  @apply w-full my-4 border-collapse;
+  table-layout: fixed;
+}
+
+.markdown-body th,
+.markdown-body td {
+  @apply border border-gray-300 dark:border-gray-700 px-3 py-2;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.markdown-body th {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+.markdown-body img {
+  @apply max-w-full h-auto my-4 rounded-lg;
+}
+
+.markdown-body hr {
+  @apply my-6 border-t border-gray-300 dark:border-gray-700;
+}
+
+.markdown-body a {
+  @apply text-blue-500 hover:underline;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* 代码高亮主题适配深色模式 */
+.dark .hljs {
+  @apply bg-gray-900 text-gray-100;
+}
+
+/* 移动设备适配 */
+@media (max-width: 640px) {
+  .markdown-body pre {
+    @apply text-xs;
+  }
+  
+  .markdown-body code {
+    @apply text-xs;
+  }
+  
+  .markdown-body table {
+    @apply text-xs;
+  }
+}
+
+/* 动画 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}

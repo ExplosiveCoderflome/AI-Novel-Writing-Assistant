@@ -45,6 +45,8 @@ interface LLMPromptInputProps {
   systemPrompt?: string;
   // 智能体模式
   agentMode?: boolean;
+  // 外部插入的内容
+  insertedContent?: string;
 }
 
 interface APIKeyData {
@@ -60,6 +62,7 @@ const LLMPromptInputComponent = ({
   onSubmit,
   systemPrompt,
   agentMode = false,
+  insertedContent,
 }: LLMPromptInputProps) => {
   const [prompt, setPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -69,6 +72,13 @@ const LLMPromptInputComponent = ({
   const [selectedModel, setSelectedModel] = useState<string>('');
   const [temperature, setTemperature] = useState<number>(0.7);
   const [maxTokens, setMaxTokens] = useState<number>(4000);
+
+  // 监听外部插入的内容
+  useEffect(() => {
+    if (insertedContent) {
+      setPrompt(prev => prev ? `${prev}\n\n${insertedContent}` : insertedContent);
+    }
+  }, [insertedContent]);
 
   useEffect(() => {
     fetchProviders();
@@ -170,6 +180,8 @@ const LLMPromptInputComponent = ({
         systemPrompt,
         agentMode,
       });
+      // 提交后清空输入框
+      setPrompt('');
     } finally {
       setIsLoading(false);
     }
@@ -191,14 +203,14 @@ const LLMPromptInputComponent = ({
   };
 
   return (
-    <div className="space-y-4 w-full">
-      <div className="flex gap-4 w-full">
+    <div className="space-y-2 w-full">
+      <div className="flex gap-2 w-full">
         <Select
           value={selectedProvider}
           onValueChange={handleProviderChange}
           disabled={disabled || isLoading}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[150px] h-8 text-sm">
             <SelectValue placeholder="选择 LLM 提供商" />
           </SelectTrigger>
           <SelectContent>
@@ -219,7 +231,7 @@ const LLMPromptInputComponent = ({
           onValueChange={setSelectedModel}
           disabled={disabled || isLoading || !selectedProvider}
         >
-          <SelectTrigger className="flex-1">
+          <SelectTrigger className="flex-1 h-8 text-sm">
             <SelectValue placeholder={isLoading ? "加载模型中..." : "选择模型"} />
           </SelectTrigger>
           <SelectContent className="w-full max-h-[300px] overflow-y-auto">
@@ -232,9 +244,9 @@ const LLMPromptInputComponent = ({
         </Select>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 w-full">
-        <div className="space-y-2">
-          <Label htmlFor="temperature">Temperature ({temperature})</Label>
+      <div className="grid grid-cols-2 gap-2 w-full">
+        <div className="space-y-1">
+          <Label htmlFor="temperature" className="text-xs">Temperature ({temperature})</Label>
           <div className="flex items-center gap-2">
             <Input
               id="temperature"
@@ -244,7 +256,7 @@ const LLMPromptInputComponent = ({
               step="0.1"
               value={temperature}
               onChange={(e) => setTemperature(Number(e.target.value))}
-              className="flex-1"
+              className="flex-1 h-6"
             />
             <Input
               min="0"
@@ -252,12 +264,12 @@ const LLMPromptInputComponent = ({
               step="0.1"
               value={temperature}
               onChange={(e) => setTemperature(Number(e.target.value))}
-              className="w-20"
+              className="w-16 h-6 text-xs"
             />
           </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="maxTokens">最大 Tokens</Label>
+        <div className="space-y-1">
+          <Label htmlFor="maxTokens" className="text-xs">最大 Tokens</Label>
           <Input
             id="maxTokens"
             type="number"
@@ -265,6 +277,7 @@ const LLMPromptInputComponent = ({
             max="8000"
             value={maxTokens}
             onChange={(e) => setMaxTokens(Number(e.target.value))}
+            className="h-6 text-xs"
           />
         </div>
       </div>
@@ -274,11 +287,11 @@ const LLMPromptInputComponent = ({
           <Button
             onClick={handleSubmit}
             disabled={!selectedProvider || !selectedModel || disabled || isLoading}
-            className="w-24"
+            className="w-24 h-8 text-sm"
           >
             {isLoading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
                 生成中...
               </>
             ) : (
@@ -287,23 +300,23 @@ const LLMPromptInputComponent = ({
           </Button>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1">
           <Textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="请输入提示词..."
             disabled={disabled || isLoading || !selectedModel}
-            className="min-h-[120px] resize-y"
+            className="min-h-[80px] max-h-[150px] resize-y text-sm"
           />
           <div className="flex justify-end">
             <Button
               onClick={handleSubmit}
               disabled={!prompt.trim() || !selectedProvider || !selectedModel || disabled || isLoading}
-              className="w-24"
+              className="w-24 h-8 text-sm"
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
                   生成中...
                 </>
               ) : (

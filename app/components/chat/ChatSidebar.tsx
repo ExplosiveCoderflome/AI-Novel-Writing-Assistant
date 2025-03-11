@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { SystemPrompt, chatHistoryDB } from "../lib/indexedDB";
+import { SystemPrompt, chatHistoryDB } from "../../lib/indexedDB";
 import { SystemPromptManager } from "./SystemPromptManager";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { ScrollArea } from "./ui/scroll-area";
-import { Button } from "./ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { ScrollArea } from "../ui/scroll-area";
+import { Button } from "../ui/button";
 import { MessageSquare, Settings2, BrainCircuit } from "lucide-react";
 
 interface ChatSidebarProps {
@@ -30,7 +30,11 @@ export function ChatSidebar({
         const prompt = await chatHistoryDB.getActiveSystemPrompt();
         if (prompt) {
           setActivePrompt(prompt);
-          onPromptSelect(prompt);
+          
+          // 只有当activePromptId不存在或与当前加载的提示词ID不同时，才调用onPromptSelect
+          if (!activePromptId || activePromptId !== prompt.id) {
+            onPromptSelect(prompt);
+          }
           
           // 如果提示词是智能体类型，自动启用智能体模式
           if (prompt.type === 'agent' && !isAgentMode) {
@@ -43,7 +47,7 @@ export function ChatSidebar({
     };
     
     loadActivePrompt();
-  }, [onPromptSelect, isAgentMode, onAgentModeChange]);
+  }, [onPromptSelect, isAgentMode, onAgentModeChange, activePromptId]);
   
   // 处理提示词选择
   const handlePromptSelect = (prompt: SystemPrompt) => {
