@@ -76,7 +76,11 @@ export async function GET(
       data: processedFormula,
     });
   } catch (error) {
-    console.error('获取写作公式详情失败:', error);
+    // 修正错误处理以避免null参数
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : "未知错误";
+    console.error('获取写作公式详情失败:', { error: errorMessage });
     
     // 关闭Prisma客户端连接
     await prisma.$disconnect();
@@ -85,7 +89,7 @@ export async function GET(
       {
         success: false,
         error: '获取写作公式详情失败',
-        details: error instanceof Error ? error.message : '未知错误',
+        details: errorMessage,
       },
       { status: 500 }
     );

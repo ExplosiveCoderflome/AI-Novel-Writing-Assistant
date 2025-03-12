@@ -14,17 +14,20 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '..
 interface Formula {
   id: string;
   name: string;
+  sourceText?: string;
+  content?: string;
   genre?: string;
   style?: string;
   toneVoice?: string;
   createdAt: string;
   updatedAt: string;
-  analysis: any;
+  analysis?: any;
 }
 
 interface FormulaApplicatorProps {
   formulas?: Formula[];
   onFormulaApplied?: (result: string) => void;
+  initialFormulaId?: string;
 }
 
 // 默认写作公式应用提示词
@@ -46,11 +49,13 @@ const DEFAULT_FORMULA_APPLICATION_PROMPT = `你是一位专业的写作助手，
 请确保改写后的文本保持原文的核心意思，但风格应该符合上述写作公式的特点。
 不要简单地复制原文，而是要真正按照指定的风格进行创造性改写。`;
 
-const FormulaApplicator: React.FC<FormulaApplicatorProps> = ({ formulas = [], onFormulaApplied }) => {
-  const [selectedFormulaId, setSelectedFormulaId] = useState<string>('');
+const FormulaApplicator: React.FC<FormulaApplicatorProps> = ({ formulas = [], onFormulaApplied, initialFormulaId }) => {
+  const [selectedFormulaId, setSelectedFormulaId] = useState<string>(initialFormulaId || '');
   const [inputText, setInputText] = useState('');
   const [outputText, setOutputText] = useState('');
+  const [streamText, setStreamText] = useState('');
   const [isApplying, setIsApplying] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [activeTab, setActiveTab] = useState('input');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -58,24 +63,43 @@ const FormulaApplicator: React.FC<FormulaApplicatorProps> = ({ formulas = [], on
   useEffect(() => {
     if (formulas.length > 0 && !selectedFormulaId) {
       setSelectedFormulaId(formulas[0].id);
+    } else if (initialFormulaId && formulas.length > 0) {
+      // 检查initialFormulaId是否在formulas列表中
+      const formulaExists = formulas.some(f => f.id === initialFormulaId);
+      if (formulaExists) {
+        setSelectedFormulaId(initialFormulaId);
+      }
     }
-  }, [formulas, selectedFormulaId]);
+  }, [formulas, selectedFormulaId, initialFormulaId]);
 
   useEffect(() => {
     // 当选择的公式变化时，更新系统提示词
     if (selectedFormulaId) {
       const selectedFormula = formulas.find(f => f.id === selectedFormulaId);
-      if (selectedFormula && selectedFormula.analysis) {
-        const analysis = selectedFormula.analysis;
-        
+      if (selectedFormula) {
         // 构建系统提示词
         let prompt = DEFAULT_FORMULA_APPLICATION_PROMPT;
         
-        // 替换占位符
-        prompt = prompt.replace('{summary}', analysis.summary || '未提供');
-        prompt = prompt.replace('{techniques}', JSON.stringify(analysis.techniques || [], null, 2));
-        prompt = prompt.replace('{styleGuide}', JSON.stringify(analysis.styleGuide || {}, null, 2));
-        prompt = prompt.replace('{applicationTips}', JSON.stringify(analysis.applicationTips || [], null, 2));
+        if (selectedFormula.content) {
+          // 如果有content字段，直接使用Markdown内容
+          prompt = `你是一位专业的写作助手，能够按照特定的写作风格改写文本。
+请按照以下写作公式，改写用户提供的文本：
+
+写作公式：
+${selectedFormula.content}
+
+请确保改写后的文本保持原文的核心意思，但风格应该符合上述写作公式的特点。
+不要简单地复制原文，而是要真正按照指定的风格进行创造性改写。`;
+        } else if (selectedFormula.analysis) {
+          // 兼容旧格式，使用analysis字段
+          const analysis = selectedFormula.analysis;
+          
+          // 替换占位符
+          prompt = prompt.replace('{summary}', analysis.summary || '未提供');
+          prompt = prompt.replace('{techniques}', JSON.stringify(analysis.techniques || [], null, 2));
+          prompt = prompt.replace('{styleGuide}', JSON.stringify(analysis.styleGuide || {}, null, 2));
+          prompt = prompt.replace('{applicationTips}', JSON.stringify(analysis.applicationTips || [], null, 2));
+        }
         
         setSystemPrompt(prompt);
       }
@@ -102,7 +126,9 @@ const FormulaApplicator: React.FC<FormulaApplicatorProps> = ({ formulas = [], on
     }
 
     setIsApplying(true);
-    setActiveTab('input');
+    setIsStreaming(true);
+    setStreamText('');
+    setOutputText('');
 
     try {
       const response = await fetch('/api/writing-formula/apply', {
@@ -134,6 +160,7 @@ const FormulaApplicator: React.FC<FormulaApplicatorProps> = ({ formulas = [], on
 
       let result = '';
       let hasError = false;
+      let hasStartedReceiving = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -161,7 +188,18 @@ const FormulaApplicator: React.FC<FormulaApplicatorProps> = ({ formulas = [], on
                 // 累积内容
                 const content = eventData.choices[0].delta.content;
                 result += content;
+                
+                // 直接更新流式文本状态，这会触发重新渲染
+                setStreamText(result);
+                // 同时更新输出文本
                 setOutputText(result);
+                
+                // 接收到第一个内容后，切换到结果标签页
+                if (!hasStartedReceiving) {
+                  hasStartedReceiving = true;
+                  setActiveTab('result');
+                  toast.success('正在应用写作公式，请稍候...');
+                }
               }
             } catch (e) {
               if (hasError) {
@@ -175,13 +213,12 @@ const FormulaApplicator: React.FC<FormulaApplicatorProps> = ({ formulas = [], on
       }
 
       if (result) {
-        setActiveTab('result');
-        
+        // 已经在流式响应开始时切换了标签页，这里不再需要
         if (onFormulaApplied) {
           onFormulaApplied(result);
         }
 
-        toast.success('写作公式应用成功');
+        toast.success('写作公式应用完成');
       } else {
         toast.error('未能成功应用写作公式');
       }
@@ -190,6 +227,7 @@ const FormulaApplicator: React.FC<FormulaApplicatorProps> = ({ formulas = [], on
       toast.error(error instanceof Error ? error.message : '应用失败，请重试');
     } finally {
       setIsApplying(false);
+      setIsStreaming(false);
     }
   };
 
@@ -205,7 +243,7 @@ const FormulaApplicator: React.FC<FormulaApplicatorProps> = ({ formulas = [], on
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-4">
             <TabsTrigger value="input">输入</TabsTrigger>
-            <TabsTrigger value="result" disabled={!outputText}>
+            <TabsTrigger value="result" disabled={!outputText && !isStreaming}>
               结果
             </TabsTrigger>
           </TabsList>
@@ -282,7 +320,7 @@ const FormulaApplicator: React.FC<FormulaApplicatorProps> = ({ formulas = [], on
               <Label htmlFor="output-text">生成结果</Label>
               <Textarea
                 id="output-text"
-                value={outputText}
+                value={isStreaming ? streamText : outputText}
                 readOnly
                 className="min-h-[300px] mt-1"
               />
@@ -294,6 +332,7 @@ const FormulaApplicator: React.FC<FormulaApplicatorProps> = ({ formulas = [], on
         <Button variant="outline" onClick={() => {
           setInputText('');
           setOutputText('');
+          setStreamText('');
           setActiveTab('input');
         }}>
           重置

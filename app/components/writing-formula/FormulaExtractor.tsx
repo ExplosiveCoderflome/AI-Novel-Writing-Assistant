@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
 import { Input } from '../ui/input';
@@ -9,6 +9,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { LLMPromptInput } from '../LLMPromptInput';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
+import { MarkdownRenderer } from '../ui/markdown-renderer';
 
 interface FormulaExtractorProps {
   onFormulaExtracted?: (formula: any) => void;
@@ -28,38 +29,25 @@ const FORMULA_EXTRACTION_PROMPT = `你是一个专业的写作风格分析专家
 8. 意象和符号运用
 9. 其他独特的写作技巧
 
-请以JSON格式返回分析结果，格式如下：
-{
-  "summary": "对整体写作风格的简要总结（100-200字）",
-  "techniques": [
-    {
-      "name": "技巧名称",
-      "description": "技巧详细描述",
-      "examples": ["文本中的例子1", "文本中的例子2"]
-    }
-  ],
-  "styleGuide": {
-    "vocabulary": "词汇选择特点",
-    "sentenceStructure": "句式结构特点",
-    "tone": "语气特点",
-    "rhythm": "节奏特点"
-  },
-  "applicationTips": [
-    "如何应用这种写作风格的建议1",
-    "如何应用这种写作风格的建议2"
-  ]
-}
+请以Markdown格式回答，自行组织内容结构，确保分析深入、专业，并提供具体的文本例证。
+你可以自由发挥，创建适合的写作公式格式，但应当包含以下方面：
+- 对整体写作风格的简要总结
+- 关键写作技巧及其例子
+- 风格指南（如词汇选择、句式结构、语气、节奏等）
+- 如何应用这种写作风格的建议
 
-请确保分析深入、专业，并提供具体的文本例证。`;
+请确保你的分析既有理论高度，又有实用性，能帮助作者理解并应用这种写作风格。`;
 
 const FormulaExtractor: React.FC<FormulaExtractorProps> = ({ onFormulaExtracted }) => {
   const [sourceText, setSourceText] = useState('');
   const [formulaName, setFormulaName] = useState('');
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedFormula, setExtractedFormula] = useState<any>(null);
+  const [streamContent, setStreamContent] = useState('');
   const [activeTab, setActiveTab] = useState('input');
   const [systemPrompt, setSystemPrompt] = useState(FORMULA_EXTRACTION_PROMPT);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
 
   const handleLLMSubmit = async (data: { 
     provider: string; 
@@ -81,10 +69,18 @@ const FormulaExtractor: React.FC<FormulaExtractorProps> = ({ onFormulaExtracted 
     }
 
     setIsExtracting(true);
-    setActiveTab('input');
-
+    setIsStreaming(true);
+    setStreamContent('');
+    
+    const baseFormula = {
+      name: formulaName,
+      sourceText,
+      content: '',
+    };
+    
+    setExtractedFormula(baseFormula);
+    
     try {
-      // 使用 LLMPromptInput 提供的模型参数
       const response = await fetch('/api/writing-formula/extract', {
         method: 'POST',
         headers: {
@@ -106,29 +102,21 @@ const FormulaExtractor: React.FC<FormulaExtractorProps> = ({ onFormulaExtracted 
         throw new Error(errorData.error || '提取失败');
       }
 
-      // 处理流式响应
       const reader = response.body?.getReader();
       if (!reader) {
         throw new Error('无法读取响应流');
       }
 
-      let formula: any = {
-        name: formulaName,
-        sourceText,
-      };
-      
       let accumulatedContent = '';
-      let analysisData = null;
       let hasError = false;
+      let hasStartedReceiving = false;
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        // 将 Uint8Array 转换为文本
         const text = new TextDecoder().decode(value);
         
-        // 处理 SSE 格式的数据
         const lines = text.split('\n\n');
         for (const line of lines) {
           if (line.startsWith('data: ')) {
@@ -144,88 +132,76 @@ const FormulaExtractor: React.FC<FormulaExtractorProps> = ({ onFormulaExtracted 
               }
               
               if (eventData.type === 'content' && eventData.choices && eventData.choices[0].delta.content) {
-                // 累积内容
                 const content = eventData.choices[0].delta.content;
                 accumulatedContent += content;
                 
-                // 尝试解析 JSON
-                try {
-                  // 检查是否是完整的 JSON
-                  const parsedData = JSON.parse(accumulatedContent);
-                  if (parsedData) {
-                    analysisData = parsedData;
-                    formula.analysis = analysisData;
-                    setExtractedFormula(formula);
-                    
-                    if (onFormulaExtracted) {
-                      onFormulaExtracted(formula);
-                    }
-                  }
-                } catch (e) {
-                  // 如果不是完整的 JSON，继续累积
+                setStreamContent(accumulatedContent);
+                
+                const updatedFormula = {
+                  ...baseFormula,
+                  content: accumulatedContent,
+                };
+                setExtractedFormula(updatedFormula);
+                
+                if (!hasStartedReceiving) {
+                  hasStartedReceiving = true;
+                  setActiveTab('result');
+                  toast.success('正在生成写作公式，请稍候...');
+                }
+                
+                if (onFormulaExtracted) {
+                  onFormulaExtracted(updatedFormula);
                 }
               }
             } catch (e) {
               if (hasError) {
                 throw e;
               }
-              // 解析错误，继续累积
               console.log('解析 SSE 数据失败:', e);
             }
           }
         }
       }
 
-      // 尝试最后一次解析完整的 JSON
-      if (!analysisData && accumulatedContent) {
-        try {
-          const cleanedContent = accumulatedContent.trim();
-          // 查找 JSON 的开始和结束
-          const jsonStartIndex = cleanedContent.indexOf('{');
-          const jsonEndIndex = cleanedContent.lastIndexOf('}') + 1;
-          
-          if (jsonStartIndex >= 0 && jsonEndIndex > jsonStartIndex) {
-            const jsonContent = cleanedContent.substring(jsonStartIndex, jsonEndIndex);
-            analysisData = JSON.parse(jsonContent);
-            formula.analysis = analysisData;
-            setExtractedFormula(formula);
-            
-            if (onFormulaExtracted) {
-              onFormulaExtracted(formula);
-            }
-          }
-        } catch (e) {
-          console.error('最终解析 JSON 失败:', e);
-        }
-      }
-
-      if (analysisData) {
-        setActiveTab('result');
-        toast.success('写作公式提取成功');
+      if (accumulatedContent) {
+        const finalFormula = {
+          ...baseFormula,
+          content: accumulatedContent,
+        };
+        setExtractedFormula(finalFormula);
+        toast.success('写作公式提取完成');
       } else {
-        toast.error('未能成功解析模型响应');
+        toast.error('未能获得模型响应');
       }
     } catch (error) {
       console.error('提取写作公式失败:', error);
       toast.error(error instanceof Error ? error.message : '提取失败，请重试');
     } finally {
       setIsExtracting(false);
+      setIsStreaming(false);
     }
   };
 
   const handleSave = async () => {
-    if (!extractedFormula) {
+    if (!extractedFormula || !extractedFormula.content) {
       toast.error('没有可保存的公式');
       return;
     }
 
     try {
+      const formulaToSave = {
+        name: extractedFormula.name,
+        sourceText: extractedFormula.sourceText,
+        content: extractedFormula.content,
+        createdAt: new Date().toISOString()
+      };
+
       const response = await fetch('/api/writing-formula/save', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(extractedFormula),
+        body: JSON.stringify(formulaToSave),
       });
 
       if (!response.ok) {
@@ -242,92 +218,37 @@ const FormulaExtractor: React.FC<FormulaExtractorProps> = ({ onFormulaExtracted 
   };
 
   const renderFormulaDetails = () => {
-    if (!extractedFormula || !extractedFormula.analysis) return null;
+    if (isStreaming && streamContent) {
+      return (
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-lg font-medium">公式名称</h3>
+            <div className="p-2 border rounded mt-2">{formulaName}</div>
+          </div>
+          
+          <div>
+            <h3 className="text-lg font-medium">写作公式内容</h3>
+            <div className="mt-2 p-4 border rounded bg-white dark:bg-gray-900">
+              <MarkdownRenderer key={streamContent.length} content={streamContent} />
+            </div>
+          </div>
+        </div>
+      );
+    }
     
-    const analysis = extractedFormula.analysis;
-
+    if (!extractedFormula || !extractedFormula.content) return null;
+    
     return (
       <div className="space-y-4">
         <div>
-          <h3 className="text-lg font-medium">基本信息</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
-            <div>
-              <Label>名称</Label>
-              <div className="p-2 border rounded">{extractedFormula.name}</div>
-            </div>
-            <div>
-              <Label>总结</Label>
-              <div className="p-2 border rounded whitespace-pre-wrap">{analysis.summary || '未提供'}</div>
-            </div>
-          </div>
+          <h3 className="text-lg font-medium">公式名称</h3>
+          <div className="p-2 border rounded mt-2">{extractedFormula.name}</div>
         </div>
-
+        
         <div>
-          <h3 className="text-lg font-medium">写作技巧</h3>
-          <div className="space-y-2 mt-2">
-            {analysis.techniques && analysis.techniques.length > 0 ? (
-              analysis.techniques.map((technique: any, index: number) => (
-                <div key={index} className="border rounded p-3">
-                  <h4 className="font-medium">{technique.name}</h4>
-                  <p className="text-sm mt-1">{technique.description}</p>
-                  {technique.examples && technique.examples.length > 0 && (
-                    <div className="mt-2">
-                      <Label className="text-xs">例子:</Label>
-                      <ul className="list-disc pl-5 text-sm">
-                        {technique.examples.map((example: string, i: number) => (
-                          <li key={i}>{example}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              ))
-            ) : (
-              <div className="p-2 border rounded">未提供写作技巧</div>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <h3 className="text-lg font-medium">风格指南</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
-            {analysis.styleGuide ? (
-              <>
-                <div>
-                  <Label>词汇选择</Label>
-                  <div className="p-2 border rounded">{analysis.styleGuide.vocabulary || '未指定'}</div>
-                </div>
-                <div>
-                  <Label>句式结构</Label>
-                  <div className="p-2 border rounded">{analysis.styleGuide.sentenceStructure || '未指定'}</div>
-                </div>
-                <div>
-                  <Label>语气</Label>
-                  <div className="p-2 border rounded">{analysis.styleGuide.tone || '未指定'}</div>
-                </div>
-                <div>
-                  <Label>节奏</Label>
-                  <div className="p-2 border rounded">{analysis.styleGuide.rhythm || '未指定'}</div>
-                </div>
-              </>
-            ) : (
-              <div className="col-span-2 p-2 border rounded">未提供风格指南</div>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <h3 className="text-lg font-medium">应用提示</h3>
-          <div className="mt-2">
-            {analysis.applicationTips && analysis.applicationTips.length > 0 ? (
-              <ul className="list-disc pl-5">
-                {analysis.applicationTips.map((tip: string, index: number) => (
-                  <li key={index} className="mb-1">{tip}</li>
-                ))}
-              </ul>
-            ) : (
-              <div className="p-2 border rounded">未提供应用提示</div>
-            )}
+          <h3 className="text-lg font-medium">写作公式内容</h3>
+          <div className="mt-2 p-4 border rounded bg-white dark:bg-gray-900">
+            <MarkdownRenderer content={extractedFormula.content} />
           </div>
         </div>
       </div>

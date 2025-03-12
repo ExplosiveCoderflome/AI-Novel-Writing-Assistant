@@ -50,7 +50,11 @@ export async function DELETE(
       message: '写作公式删除成功',
     });
   } catch (error) {
-    console.error('删除写作公式失败:', error);
+    // 修正错误处理以避免null参数
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : "未知错误";
+    console.error('删除写作公式失败:', { error: errorMessage });
     
     // 关闭Prisma客户端连接
     await prisma.$disconnect();
@@ -59,7 +63,7 @@ export async function DELETE(
       {
         success: false,
         error: '删除写作公式失败',
-        details: error instanceof Error ? error.message : '未知错误',
+        details: errorMessage,
       },
       { status: 500 }
     );

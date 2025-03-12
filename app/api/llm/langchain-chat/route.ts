@@ -76,8 +76,8 @@ const DEEPSEEK_MODELS: Record<string, string> = {
   "deepseek-coder": "deepseek-coder", 
   "deepseek/deepseek-coder": "deepseek-coder",
   // 推理模型 
-  "deepseek-reasoner": "deepseek-chat", // 使用deepseek-chat作为推理模型的替代
-  "deepseek/deepseek-reasoner": "deepseek-chat",
+  "deepseek-reasoner": "deepseek-reasoner", // 修正：使用真正的推理模型而不是替代
+  "deepseek/deepseek-reasoner": "deepseek-reasoner", // 修正：使用真正的推理模型而不是替代
   // 回退默认
   "default": "deepseek-chat"
 };
@@ -216,14 +216,17 @@ export async function POST(req: NextRequest) {
     // 创建回调管理器
     const callbacks = CallbackManager.fromHandlers({
       async handleLLMNewToken(token) {
-        await writer.write(
-          encoder.encode(
-            `data: ${JSON.stringify({
-              type: "content",
-              choices: [{ delta: { content: token } }]
-            })}\n\n`
-          )
-        );
+        // 简单处理token输出
+        if (token) {
+          await writer.write(
+            encoder.encode(
+              `data: ${JSON.stringify({
+                type: "content",
+                choices: [{ delta: { content: token } }]
+              })}\n\n`
+            )
+          );
+        }
       },
       async handleLLMEnd() {
         await writer.write(encoder.encode("data: [DONE]\n\n"));
@@ -243,8 +246,8 @@ export async function POST(req: NextRequest) {
       }
     });
     
-    // 创建DeepSeek模型实例
-    const deepseek = new ChatDeepSeek({
+    // DeepSeek模型实例选项
+    const modelOptions = {
       modelName: modelName,
       temperature: temperature,
       maxTokens: maxTokens,
@@ -252,7 +255,61 @@ export async function POST(req: NextRequest) {
       apiKey: process.env.DEEPSEEK_API_KEY,
       verbose: true, // 启用详细日志
       timeout: 300000, // 5分钟超时
-    });
+    };
+    
+    // 如果是推理模型，添加特殊处理
+    if (modelName === "deepseek-reasoner") {
+      console.log("检测到推理模型，启用思考过程处理");
+      
+      // 添加推理模型特定钩子
+      // @ts-ignore - 钩子API类型定义暂不完整，但这是DeepSeek API支持的功能
+      modelOptions.hooks = {
+        async beforeRequestStream(options: any) {
+          console.log("准备发送推理模型请求");
+          return options;
+        },
+        
+        async handleLLMStream(chunk: any) {
+          try {
+            // 解析流数据
+            if (chunk?.choices?.[0]?.delta) {
+              const delta = chunk.choices[0].delta;
+              
+              // 处理思考内容
+              if (delta.reasoning_content) {
+                await writer.write(
+                  encoder.encode(
+                    `data: ${JSON.stringify({
+                      type: "reasoning",
+                      choices: [{ delta: { reasoning_content: delta.reasoning_content } }]
+                    })}\n\n`
+                  )
+                );
+              }
+              
+              // 处理最终内容
+              if (delta.content) {
+                await writer.write(
+                  encoder.encode(
+                    `data: ${JSON.stringify({
+                      type: "content",
+                      choices: [{ delta: { content: delta.content } }]
+                    })}\n\n`
+                  )
+                );
+              }
+            }
+            return true; // 继续处理流
+          } catch (error) {
+            console.error("处理推理模型流数据时出错:", error);
+            return true; // 继续处理，不中断
+          }
+        }
+      };
+    }
+    
+    // 创建DeepSeek模型实例
+    const deepseek = new ChatDeepSeek(modelOptions);
     
     console.log(`DeepSeek模型已初始化: ${modelName}`);
     

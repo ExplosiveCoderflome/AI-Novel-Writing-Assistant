@@ -122,15 +122,17 @@ export default function ChatPage() {
         const contextHistory = await getContextHistory(settings.contextWindowSize);
         
         await sendChatRequest(data.prompt, {
-            ...data,
-            agentMode: data.agentMode || false, // 确保agentMode为boolean
-            autoWebSearch: autoWebSearch, // 添加自动联网搜索参数
-            searchProvider: searchProvider, // 添加搜索提供商参数
+            // 保留用户在UI中选择的模型
+            provider: data.provider || settings.provider,
+            model: data.model, // 使用用户选择的模型，不覆盖
+            prompt: data.prompt,
             contextHistory,
-            provider: settings.provider,
-            model: settings.model,
-            temperature: settings.temperature,
-            maxTokens: settings.maxTokens
+            temperature: data.temperature || settings.temperature,
+            maxTokens: data.maxTokens || settings.maxTokens,
+            systemPrompt: data.systemPrompt || activePrompt?.content,
+            agentMode: data.agentMode || isAgentMode || false,
+            autoWebSearch: autoWebSearch,
+            searchProvider: searchProvider
         });
 
         // 清除插入的内容

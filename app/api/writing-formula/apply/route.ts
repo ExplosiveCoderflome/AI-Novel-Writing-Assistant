@@ -160,20 +160,40 @@ export async function POST(req: NextRequest) {
     }
     
     // 构建提示
-    const analysis = formula.analysis;
-    
-    // 使用自定义系统提示词或构建默认提示词
     let systemPromptContent = validatedData.systemPrompt;
     
     if (!systemPromptContent) {
-      // 构建默认系统提示词
-      systemPromptContent = DEFAULT_FORMULA_APPLICATION_PROMPT;
-      
-      // 替换占位符
-      systemPromptContent = systemPromptContent.replace('{summary}', analysis.summary || '未提供');
-      systemPromptContent = systemPromptContent.replace('{techniques}', JSON.stringify(analysis.techniques || [], null, 2));
-      systemPromptContent = systemPromptContent.replace('{styleGuide}', JSON.stringify(analysis.styleGuide || {}, null, 2));
-      systemPromptContent = systemPromptContent.replace('{applicationTips}', JSON.stringify(analysis.applicationTips || [], null, 2));
+      // 检查是否有新格式的content字段
+      if (formula.content) {
+        // 使用新格式的Markdown内容
+        systemPromptContent = `你是一位专业的写作助手，能够按照特定的写作风格改写文本。
+请按照以下写作公式，改写用户提供的文本：
+
+写作公式：
+${formula.content}
+
+请确保改写后的文本保持原文的核心意思，但风格应该符合上述写作公式的特点。
+不要简单地复制原文，而是要真正按照指定的风格进行创造性改写。`;
+      } else if (formula.analysis) {
+        // 兼容旧格式，使用analysis字段
+        const analysis = formula.analysis;
+        
+        // 构建默认系统提示词
+        systemPromptContent = DEFAULT_FORMULA_APPLICATION_PROMPT;
+        
+        // 替换占位符
+        systemPromptContent = systemPromptContent.replace('{summary}', analysis.summary || '未提供');
+        systemPromptContent = systemPromptContent.replace('{techniques}', JSON.stringify(analysis.techniques || [], null, 2));
+        systemPromptContent = systemPromptContent.replace('{styleGuide}', JSON.stringify(analysis.styleGuide || {}, null, 2));
+        systemPromptContent = systemPromptContent.replace('{applicationTips}', JSON.stringify(analysis.applicationTips || [], null, 2));
+      } else {
+        // 如果两种格式都没有，返回错误
+        await prisma.$disconnect();
+        return NextResponse.json(
+          { success: false, error: '写作公式格式不正确或缺少内容' },
+          { status: 400 }
+        );
+      }
     }
 
     const messages = [
@@ -191,7 +211,11 @@ export async function POST(req: NextRequest) {
         
         console.log('写作公式应用完成');
       } catch (error: unknown) {
-        console.error('应用写作公式失败:', error);
+        // 修正错误处理以避免null参数
+        const errorMessage = error instanceof Error 
+          ? error.message 
+          : "未知错误";
+        console.error('应用写作公式失败:', { error: errorMessage });
         
         // 只有在 writer 未关闭时才尝试写入错误信息
         if (!writerClosed) {
@@ -200,14 +224,17 @@ export async function POST(req: NextRequest) {
               encoder.encode(
                 `data: ${JSON.stringify({
                   type: "error",
-                  error: `应用写作公式失败: ${error instanceof Error ? error.message : "未知错误"}`
+                  error: `应用写作公式失败: ${errorMessage}`
                 })}\n\n`
               )
             );
             writerClosed = true;
             await writer.close();
           } catch (writeError) {
-            console.error('写入错误信息到流失败:', writeError);
+            const writeErrorMsg = writeError instanceof Error 
+              ? writeError.message 
+              : '未知错误';
+            console.error('写入错误信息到流失败:', { error: writeErrorMsg });
           }
         }
       } finally {
@@ -234,13 +261,17 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    console.error('处理请求失败:', error);
+    // 修正错误处理以避免null参数
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : "未知错误";
+    console.error('处理请求失败:', { error: errorMessage });
     
     // 确保断开Prisma连接
     await prisma.$disconnect();
     
     return NextResponse.json(
-      { success: false, error: '应用写作公式失败', details: error instanceof Error ? error.message : "未知错误" },
+      { success: false, error: '应用写作公式失败', details: errorMessage },
       { status: 500 }
     );
   }

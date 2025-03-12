@@ -7,8 +7,12 @@ export interface WritingFormula {
   name: string;
   sourceText: string;
   analysis: WritingAnalysis;
+  content?: string;  // Markdown格式的公式内容
   createdAt: Date;
   updatedAt: Date;
+  genre?: string;    // 直接存储的基本字段，用于搜索和展示
+  style?: string;
+  toneVoice?: string;
 }
 
 // 写作分析结构

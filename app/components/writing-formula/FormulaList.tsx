@@ -8,22 +8,27 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Loader2, Search, Trash2, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, isValid, parseISO } from 'date-fns';
+import { MarkdownRenderer } from '../ui/markdown-renderer';
 
 interface Formula {
   id: string;
   name: string;
+  sourceText?: string;
+  content?: string;
   genre?: string;
   style?: string;
   toneVoice?: string;
   createdAt: string;
   updatedAt: string;
+  analysis?: any;
 }
 
 interface FormulaListProps {
   onSelectFormula?: (formula: any) => void;
+  onFormulaSelect?: (formulaId: string) => void;
 }
 
-const FormulaList: React.FC<FormulaListProps> = ({ onSelectFormula }) => {
+const FormulaList: React.FC<FormulaListProps> = ({ onSelectFormula, onFormulaSelect }) => {
   const [formulas, setFormulas] = useState<Formula[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -81,6 +86,12 @@ const FormulaList: React.FC<FormulaListProps> = ({ onSelectFormula }) => {
     }
   };
 
+  const handleApplyFormula = (formulaId: string) => {
+    if (onFormulaSelect) {
+      onFormulaSelect(formulaId);
+    }
+  };
+
   const handleDeleteFormula = async () => {
     if (!formulaToDelete) return;
     
@@ -118,6 +129,44 @@ const FormulaList: React.FC<FormulaListProps> = ({ onSelectFormula }) => {
   const renderFormulaDetails = () => {
     if (!selectedFormula) return null;
 
+    // 如果有Markdown内容，优先显示
+    if (selectedFormula.content) {
+      return (
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-lg font-medium">基本信息</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+              <div>
+                <Label>名称</Label>
+                <div className="p-2 border rounded">{selectedFormula.name}</div>
+              </div>
+              <div>
+                <Label>创建时间</Label>
+                <div className="p-2 border rounded">{formatDate(selectedFormula.createdAt)}</div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-medium">源文本</h3>
+            <div className="mt-2">
+              <div className="p-2 border rounded whitespace-pre-wrap max-h-[200px] overflow-y-auto">
+                {selectedFormula.sourceText || '未提供'}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-medium">写作公式内容</h3>
+            <div className="mt-2 p-4 border rounded bg-white dark:bg-gray-900">
+              <MarkdownRenderer content={selectedFormula.content} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 否则使用传统格式显示
     return (
       <div className="space-y-4">
         <div>
@@ -306,6 +355,7 @@ const FormulaList: React.FC<FormulaListProps> = ({ onSelectFormula }) => {
                     <TableHead>名称</TableHead>
                     <TableHead>体裁</TableHead>
                     <TableHead>风格</TableHead>
+                    <TableHead>语气/声音</TableHead>
                     <TableHead>创建时间</TableHead>
                     <TableHead className="text-right">操作</TableHead>
                   </TableRow>
@@ -316,6 +366,7 @@ const FormulaList: React.FC<FormulaListProps> = ({ onSelectFormula }) => {
                       <TableCell className="font-medium">{formula.name}</TableCell>
                       <TableCell>{formula.genre || '-'}</TableCell>
                       <TableCell>{formula.style || '-'}</TableCell>
+                      <TableCell>{formula.toneVoice || '-'}</TableCell>
                       <TableCell>
                         {formatDate(formula.createdAt)}
                       </TableCell>
@@ -325,13 +376,23 @@ const FormulaList: React.FC<FormulaListProps> = ({ onSelectFormula }) => {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleViewFormula(formula.id)}
+                            title="查看"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
+                            onClick={() => handleApplyFormula(formula.id)}
+                            title="应用"
+                          >
+                            <span className="text-xs">应用</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => confirmDelete(formula.id)}
+                            title="删除"
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>

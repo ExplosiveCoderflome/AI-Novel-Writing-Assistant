@@ -42,6 +42,7 @@ const saveFormulaSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, '名称不能为空'),
   sourceText: z.string().min(1, '源文本不能为空'),
+  content: z.string().optional(),
   genre: z.string().optional(),
   style: z.string().optional(),
   toneVoice: z.string().optional(),
@@ -83,6 +84,7 @@ export async function POST(req: NextRequest) {
         SET 
           name = ${validatedData.name},
           sourceText = ${validatedData.sourceText},
+          content = ${validatedData.content || ''},
           genre = ${validatedData.genre || ''},
           style = ${validatedData.style || ''},
           toneVoice = ${validatedData.toneVoice || ''},
@@ -120,13 +122,13 @@ export async function POST(req: NextRequest) {
       // 创建新公式
       await prisma.$executeRaw`
         INSERT INTO writing_formulas (
-          id, name, sourceText, genre, style, toneVoice, structure, pacing, 
+          id, name, sourceText, content, genre, style, toneVoice, structure, pacing, 
           paragraphPattern, sentenceStructure, vocabularyLevel, rhetoricalDevices, 
           narrativeMode, perspectivePoint, characterVoice, themes, motifs, 
           emotionalTone, uniqueFeatures, formulaDescription, formulaSteps, 
           applicationTips, userId, createdAt, updatedAt
         ) VALUES (
-          ${id}, ${validatedData.name}, ${validatedData.sourceText}, 
+          ${id}, ${validatedData.name}, ${validatedData.sourceText}, ${validatedData.content || ''}, 
           ${validatedData.genre || ''}, ${validatedData.style || ''}, ${validatedData.toneVoice || ''}, 
           ${validatedData.structure || ''}, ${validatedData.pacing || ''}, ${validatedData.paragraphPattern || ''}, 
           ${validatedData.sentenceStructure || ''}, ${validatedData.vocabularyLevel || ''}, 
@@ -160,7 +162,11 @@ export async function POST(req: NextRequest) {
       message: validatedData.id ? '写作公式更新成功' : '写作公式创建成功',
     });
   } catch (error) {
-    console.error('保存写作公式失败:', error);
+    // 修正错误处理以避免null参数
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : "未知错误";
+    console.error('保存写作公式失败:', { error: errorMessage });
     
     // 关闭Prisma客户端连接
     await prisma.$disconnect();
@@ -180,7 +186,7 @@ export async function POST(req: NextRequest) {
       {
         success: false,
         error: '保存写作公式失败',
-        details: error instanceof Error ? error.message : '未知错误',
+        details: errorMessage,
       },
       { status: 500 }
     );

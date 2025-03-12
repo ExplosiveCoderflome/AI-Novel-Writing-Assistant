@@ -34,29 +34,14 @@ const DEFAULT_FORMULA_EXTRACTION_PROMPT = `你是一个专业的写作风格分�
 8. 意象和符号运用
 9. 其他独特的写作技巧
 
-请以JSON格式返回分析结果，格式如下：
-{
-  "summary": "对整体写作风格的简要总结（100-200字）",
-  "techniques": [
-    {
-      "name": "技巧名称",
-      "description": "技巧详细描述",
-      "examples": ["文本中的例子1", "文本中的例子2"]
-    }
-  ],
-  "styleGuide": {
-    "vocabulary": "词汇选择特点",
-    "sentenceStructure": "句式结构特点",
-    "tone": "语气特点",
-    "rhythm": "节奏特点"
-  },
-  "applicationTips": [
-    "如何应用这种写作风格的建议1",
-    "如何应用这种写作风格的建议2"
-  ]
-}
+请以Markdown格式回答，自行组织内容结构，确保分析深入、专业，并提供具体的文本例证。
+你可以自由发挥，创建适合的写作公式格式，但应当包含以下方面：
+- 对整体写作风格的简要总结
+- 关键写作技巧及其例子
+- 风格指南（如词汇选择、句式结构、语气、节奏等）
+- 如何应用这种写作风格的建议
 
-请确保分析深入、专业，并提供具体的文本例证。`;
+请确保你的分析既有理论高度，又有实用性，能帮助作者理解并应用这种写作风格。`;
 
 /**
  * 写作公式提取API端点
@@ -178,29 +163,24 @@ export async function POST(req: NextRequest) {
         // 调用模型
         const response = await model.call(messages, { callbacks });
         
-        // 解析响应
-        let analysis;
-        try {
-          // 将 response.content 转换为字符串
-          const contentStr = typeof response.content === 'string' 
-            ? response.content 
-            : JSON.stringify(response.content);
-          
-          analysis = JSON.parse(contentStr);
-        } catch (error: unknown) {
-          console.error('解析模型响应失败:', error);
-          throw new Error('解析模型响应失败');
-        }
+        // 获取响应内容
+        const content = typeof response.content === 'string' 
+          ? response.content 
+          : JSON.stringify(response.content);
         
         // 保存到数据库
         await prisma.$executeRaw`
-          INSERT INTO writing_formulas (name, source_text, analysis, created_at, updated_at)
-          VALUES (${validatedData.name}, ${validatedData.sourceText}, ${JSON.stringify(analysis)}, NOW(), NOW())
+          INSERT INTO writing_formulas (name, source_text, content, created_at, updated_at)
+          VALUES (${validatedData.name}, ${validatedData.sourceText}, ${content}, NOW(), NOW())
         `;
         
         console.log('写作公式提取完成并保存到数据库');
       } catch (error: unknown) {
-        console.error('提取写作公式失败:', error);
+        // 修正错误处理以避免null参数
+        const errorMessage = error instanceof Error 
+          ? error.message 
+          : "未知错误";
+        console.error('提取写作公式失败:', { error: errorMessage });
         
         // 只有在 writer 未关闭时才尝试写入错误信息
         if (!writerClosed) {
@@ -209,14 +189,17 @@ export async function POST(req: NextRequest) {
               encoder.encode(
                 `data: ${JSON.stringify({
                   type: "error",
-                  error: `提取写作公式失败: ${error instanceof Error ? error.message : "未知错误"}`
+                  error: `提取写作公式失败: ${errorMessage}`
                 })}\n\n`
               )
             );
             writerClosed = true;
             await writer.close();
           } catch (writeError) {
-            console.error('写入错误信息到流失败:', writeError);
+            const writeErrorMsg = writeError instanceof Error 
+              ? writeError.message 
+              : '未知错误';
+            console.error('写入错误信息到流失败:', { error: writeErrorMsg });
           }
         }
       } finally {
@@ -243,13 +226,17 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    console.error('处理请求失败:', error);
+    // 修正错误处理以避免null参数
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : "未知错误";
+    console.error('处理请求失败:', { error: errorMessage });
     
     // 确保断开Prisma连接
     await prisma.$disconnect();
     
     return NextResponse.json(
-      { success: false, error: '提取写作公式失败', details: error instanceof Error ? error.message : "未知错误" },
+      { success: false, error: '提取写作公式失败', details: errorMessage },
       { status: 500 }
     );
   }

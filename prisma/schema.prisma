@@ -200,6 +200,7 @@ model WritingFormula {
   id                String   @id @default(cuid())
   name              String
   sourceText        String   // 原始文本
+  content           String?  // Markdown格式的公式内容
   genre             String   // 体裁/类型
   style             String   // 整体风格
   toneVoice         String   // 语气/语调

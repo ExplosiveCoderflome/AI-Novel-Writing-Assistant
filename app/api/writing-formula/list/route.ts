@@ -52,11 +52,12 @@ export async function GET(req: NextRequest) {
     if (search) {
       // 带搜索条件的查询
       formulas = await prisma.$queryRaw`
-        SELECT id, name, genre, style, toneVoice, createdAt, updatedAt
+        SELECT id, name, genre, style, toneVoice, content, createdAt, updatedAt
         FROM writing_formulas
         WHERE name LIKE ${'%' + search + '%'} 
            OR genre LIKE ${'%' + search + '%'} 
            OR style LIKE ${'%' + search + '%'}
+           OR content LIKE ${'%' + search + '%'}
         ORDER BY createdAt DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
@@ -68,6 +69,7 @@ export async function GET(req: NextRequest) {
         WHERE name LIKE ${'%' + search + '%'} 
            OR genre LIKE ${'%' + search + '%'} 
            OR style LIKE ${'%' + search + '%'}
+           OR content LIKE ${'%' + search + '%'}
       `;
       total = Array.isArray(totalResult) && totalResult.length > 0 && typeof totalResult[0] === 'object' && totalResult[0] !== null
         ? (totalResult[0] as any).count
@@ -75,7 +77,7 @@ export async function GET(req: NextRequest) {
     } else {
       // 不带搜索条件的查询
       formulas = await prisma.$queryRaw`
-        SELECT id, name, genre, style, toneVoice, createdAt, updatedAt
+        SELECT id, name, genre, style, toneVoice, content, createdAt, updatedAt
         FROM writing_formulas
         ORDER BY createdAt DESC
         LIMIT ${limit} OFFSET ${offset}
@@ -107,7 +109,11 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('获取写作公式列表失败:', error);
+    // 修正错误处理以避免null参数
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : "未知错误";
+    console.error('获取写作公式列表失败:', { error: errorMessage });
     
     // 关闭Prisma客户端连接
     await prisma.$disconnect();
@@ -116,7 +122,7 @@ export async function GET(req: NextRequest) {
       {
         success: false,
         error: '获取写作公式列表失败',
-        details: error instanceof Error ? error.message : '未知错误',
+        details: errorMessage,
       },
       { status: 500 }
     );
