@@ -13,13 +13,33 @@
 AI小说创作助手是一个基于 Next.js 构建的现代 Web 应用，集成了 DeepSeek 的 AI 模型，提供智能小说创作和内容生成功能。该应用利用先进的 AI 技术来增强创作过程，帮助作者高效地开发引人入胜的故事。
 
 ### 已完成功能
-- 🎯 AI 辅助创作
+- 🎯 **AI 辅助创作**
   - AI 创建小说类型：自动生成合适的小说类型模板
   - AI 创建世界观：构建完整的世界设定，包括地理、文化、魔法系统等
   - AI 创建小说发展走向：智能规划故事发展方向
   - AI 生成结构大纲：自动生成章节结构和内容框架
   - AI 角色设计：智能生成角色背景、性格特征
   - AI 情节优化：提供情节发展建议和优化方案
+- ✅ **写作公式模块**
+  - 提取写作风格和公式
+  - 存储和管理多种写作模板
+  - 分析句式结构、词汇水平和修辞手法
+- ✅ **内容发布功能**
+  - 支持作品在线发布
+  - 内容格式化和处理
+- ✅ **世界观生成**
+  - 自动构建完整世界设定
+  - 包括地理、文化、魔法系统等元素
+- ✅ **AI对话组件**
+  - 支持与AI进行创意讨论
+  - 流式输出响应
+- ✅ **角色管理系统**
+  - 基础角色库
+  - 角色模板功能
+  - 角色详细属性设置
+- ✅ **多LLM模型支持**
+  - 支持切换不同AI模型
+  - 集成DeepSeek、OpenAI、Anthropic等AI服务
 
 ### 待开发功能
 - 📝 创作增强
@@ -71,7 +91,7 @@ AI小说创作助手是一个基于 Next.js 构建的现代 Web 应用，集成�
 - 📚 写作工具：提供角色发展、情节构建和世界观设定等综合工具套件
 
 ### 技术栈
-- **前端框架**: Next.js 13 (App Router), React, TypeScript
+- **前端框架**: Next.js 15 (App Router), React, TypeScript
 - **样式方案**: TailwindCSS, Shadcn/ui
 - **状态管理**: React Context + Hooks
 - **数据库**: Prisma + SQLite
@@ -82,8 +102,8 @@ AI小说创作助手是一个基于 Next.js 构建的现代 Web 应用，集成�
 
 1. 克隆仓库
 ```bash
-git clone [仓库地址]
-cd ai-novel-assistant
+git clone https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant.git
+cd AI-Novel-Writing-Assistant
 ```
 
 2. 安装依赖
@@ -97,11 +117,18 @@ yarn install
 ```bash
 cp .env.example .env
 ```
-填写你的 DeepSeek API 密钥和其他必需的变量。
+在`.env`文件中填写以下配置:
+- `DATABASE_URL`: SQLite数据库路径
+- `NEXTAUTH_URL`: 你的应用URL (开发环境通常是 http://localhost:3000)
+- `NEXTAUTH_SECRET`: NextAuth认证密钥
+- `OPENAI_API_KEY`: OpenAI API密钥
+- `ANTHROPIC_API_KEY`: Anthropic API密钥
+- `DEEPSEEK_API_KEY`: DeepSeek API密钥（如果使用）
 
-4. 运行数据库迁移
+4. 初始化数据库
 ```bash
 npx prisma migrate dev
+npx prisma db seed
 ```
 
 5. 启动开发服务器
@@ -111,8 +138,48 @@ npm run dev
 yarn dev
 ```
 
+应用将在 [http://localhost:3000](http://localhost:3000) 启动。
+
 ### 许可证
 本项目采用 MIT 许可证 - 详见 LICENSE 文件。
+
+---
+
+## 项目技术栈和功能更新
+
+### 技术栈详情
+- **前端框架**: 
+  - Next.js 15
+  - React 19
+  - TypeScript
+- **UI/样式**:
+  - TailwindCSS
+  - Shadcn/ui（基于Radix UI组件库）
+  - Framer Motion动画
+  - Lucide React图标
+- **状态管理**:
+  - Zustand
+  - React Context
+- **数据库**:
+  - Prisma ORM
+  - SQLite数据库
+- **AI集成**:
+  - Anthropic Claude (通过@anthropic-ai/sdk)
+  - OpenAI API (通过openai库)
+  - LangChain框架集成 (@langchain/core, @langchain/openai, @langchain/deepseek)
+- **认证**:
+  - NextAuth.js
+- **工具库**:
+  - Zod (数据验证)
+  - date-fns (日期处理)
+  - React Query (@tanstack/react-query)
+  - React-Markdown (Markdown渲染)
+  - Sonner (Toast通知)
+
+### 正在开发功能
+- 🚧 **内容发布平台集成**
+- 🚧 **多人协作功能**
+- 🚧 **智能续写和情节优化**
 
 ---
 
@@ -123,13 +190,33 @@ yarn dev
 AI Novel Writing Assistant is a modern web application built with Next.js that integrates with DeepSeek's AI models to provide intelligent novel writing and content generation capabilities. The application leverages advanced AI technology to enhance the creative writing process and assist authors in developing compelling stories efficiently.
 
 ### Completed Features
-- 🎯 AI-Assisted Creation
+- 🎯 **AI-Assisted Creation**
   - AI Genre Creation: Automatically generates suitable novel genre templates
   - AI World Building: Constructs complete world settings including geography, culture, magic systems, etc.
   - AI Story Development: Intelligently plans story progression
   - AI Structure Outline: Automatically generates chapter structure and content framework
   - AI Character Design: Intelligently generates character backgrounds and personality traits
   - AI Plot Optimization: Provides plot development suggestions and optimization solutions
+- ✅ **Writing Formula Module**
+  - Extract writing styles and formulas
+  - Store and manage various writing templates
+  - Analyze sentence structure, vocabulary level, and rhetorical devices
+- ✅ **Content Publishing**
+  - Support for online publishing of works
+  - Content formatting and processing
+- ✅ **World Building**
+  - Automatic construction of complete world settings
+  - Including geography, culture, magic systems, and other elements
+- ✅ **AI Conversation Component**
+  - Support for creative discussions with AI
+  - Streaming output responses
+- ✅ **Character Management System**
+  - Base character library
+  - Character template functionality
+  - Detailed character attribute settings
+- ✅ **Multi-LLM Model Support**
+  - Support for switching between different AI models
+  - Integration with DeepSeek, OpenAI, Anthropic, and other AI services
 
 ### Features
 - 🤖 AI-Powered Writing: Utilizes DeepSeek's advanced AI models for story generation and plot development
@@ -150,8 +237,8 @@ AI Novel Writing Assistant is a modern web application built with Next.js that i
 
 1. Clone the repository
 ```bash
-git clone [repository-url]
-cd ai-novel-assistant
+git clone https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant.git
+cd AI-Novel-Writing-Assistant
 ```
 
 2. Install dependencies
@@ -165,11 +252,18 @@ yarn install
 ```bash
 cp .env.example .env
 ```
-Fill in your DeepSeek API key and other required variables.
+Fill in the following configuration in the `.env` file:
+- `DATABASE_URL`: SQLite database path
+- `NEXTAUTH_URL`: Your application URL (typically http://localhost:3000 for development)
+- `NEXTAUTH_SECRET`: NextAuth authentication secret
+- `OPENAI_API_KEY`: OpenAI API key
+- `ANTHROPIC_API_KEY`: Anthropic API key
+- `DEEPSEEK_API_KEY`: DeepSeek API key (if used)
 
-4. Run database migrations
+4. Initialize the database
 ```bash
 npx prisma migrate dev
+npx prisma db seed
 ```
 
 5. Start the development server
@@ -179,5 +273,45 @@ npm run dev
 yarn dev
 ```
 
+The application will be available at [http://localhost:3000](http://localhost:3000).
+
 ### License
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+---
+
+## Technology Stack and Feature Updates
+
+### Detailed Tech Stack
+- **Frontend Framework**: 
+  - Next.js 15
+  - React 19
+  - TypeScript
+- **UI/Styling**:
+  - TailwindCSS
+  - Shadcn/ui (based on Radix UI component library)
+  - Framer Motion animations
+  - Lucide React icons
+- **State Management**:
+  - Zustand
+  - React Context
+- **Database**:
+  - Prisma ORM
+  - SQLite database
+- **AI Integration**:
+  - Anthropic Claude (via @anthropic-ai/sdk)
+  - OpenAI API (via openai library)
+  - LangChain framework integration (@langchain/core, @langchain/openai, @langchain/deepseek)
+- **Authentication**:
+  - NextAuth.js
+- **Utility Libraries**:
+  - Zod (data validation)
+  - date-fns (date handling)
+  - React Query (@tanstack/react-query)
+  - React-Markdown (Markdown rendering)
+  - Sonner (Toast notifications)
+
+### Features in Development
+- 🚧 **Content Publishing Platform Integration**
+- 🚧 **Collaborative Writing Functionality**
+- 🚧 **Intelligent Continuation and Plot Optimization**
