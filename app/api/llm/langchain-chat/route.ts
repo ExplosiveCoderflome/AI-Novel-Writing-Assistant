@@ -347,6 +347,44 @@ export async function POST(req: NextRequest) {
     // 添加当前用户提问
     messages.push(new HumanMessage(prompt));
 
+    // 输出详细的API调用参数
+    console.log('\n============ DeepSeek API 调用参数 ============');
+    console.log('模型名称:', modelName);
+    console.log('温度:', temperature);
+    console.log('最大Token数:', maxTokens);
+    console.log('智能体模式:', agentMode ? '已启用' : '未启用');
+    
+    // 打印消息数组结构
+    console.log('\n消息数组结构:');
+    console.log(JSON.stringify(messages.map(msg => ({
+      role: msg._getType(),
+      contentLength: msg.content.length
+    })), null, 2));
+    
+    // 打印系统提示摘要
+    if (messages.length > 0 && messages[0]._getType() === 'system') {
+      console.log('\n系统提示词 (截取前300字符):');
+      console.log(messages[0].content.substring(0, 300) + (messages[0].content.length > 300 ? '...' : ''));
+    }
+    
+    // 打印最后一条用户消息
+    if (messages.length > 0) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg._getType() === 'human') {
+        console.log('\n用户提问 (截取前300字符):');
+        console.log(lastMsg.content.substring(0, 300) + (lastMsg.content.length > 300 ? '...' : ''));
+      }
+    }
+    
+    // 如果是推理模型，打印特殊配置
+    if (modelName === 'deepseek-reasoner') {
+      console.log('\n推理模型配置:');
+      console.log('- 启用思考过程处理');
+      console.log('- 启用钩子处理流数据');
+    }
+    
+    console.log('==========================================\n');
+
     // 异步调用模型
     (async () => {
       try {

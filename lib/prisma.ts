@@ -3,15 +3,19 @@
  */
 import { PrismaClient } from '@prisma/client';
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+// PrismaClient 是一个重量级对象，应该在应用程序生命周期内重用
+// 见: https://www.prisma.io/docs/guides/performance-and-optimization/connection-management
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+// 使用全局变量防止热重载导致的连接过多问题
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
-}
+export const prisma =
+  globalForPrisma.prisma ||
+  new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+  });
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 // 初始化检查
 export async function checkDatabaseConnection() {
