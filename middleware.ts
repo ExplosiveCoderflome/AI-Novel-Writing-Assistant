@@ -18,9 +18,15 @@ export const config = {
   matcher: [
     "/api/novel/:path*",
     "/api/settings/:path*",
+    "/api/base-characters/:path*",
+    "/api/worlds/:path*",
     "/novels/:path*",
     "/settings",
     "/settings/:path*",
-    "/admin/:path*"
+    "/admin/:path*",
+    "/base-characters",
+    "/base-characters/:path*",
+    "/worlds",
+    "/worlds/:path*",
   ],
 }; 

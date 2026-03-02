@@ -84,8 +84,23 @@ export async function GET(request: NextRequest) {
       where: {
         authorId: session.user.id,
       },
-      include: {
-        genre: true,
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        genreId: true,
+        coverImage: true,
+        createdAt: true,
+        updatedAt: true,
+        authorId: true,
+        status: true,
+        genre: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          },
+        },
       },
       orderBy: {
         updatedAt: 'desc',

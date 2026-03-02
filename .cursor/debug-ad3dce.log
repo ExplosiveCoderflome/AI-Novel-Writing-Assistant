@@ -1,0 +1,7 @@
+{"sessionId":"ad3dce","location":"api/base-characters/route.ts:8","message":"GET base-characters","data":{"hasSession":true,"userId":"277ba414-f67d-4d78-8070-59a7041b1379"},"timestamp":1772265767912,"hypothesisId":"H3"}
+{"sessionId":"ad3dce","location":"middleware.ts:7","message":"middleware check","data":{"path":"/api/settings/apikeys","hasToken":true},"timestamp":1772265768663,"hypothesisId":"H3"}
+{"sessionId":"ad3dce","location":"middleware.ts:7","message":"middleware check","data":{"path":"/api/settings/apikeys","hasToken":true},"timestamp":1772265770513,"hypothesisId":"H3"}
+{"sessionId":"ad3dce","location":"test","message":"connectivity test","data":{},"timestamp":0}
+{"sessionId":"ad3dce","runId":"post-fix","location":"middleware.ts:7","message":"middleware check","data":{"path":"/api/settings/apikeys","hasToken":true,"protected":true},"timestamp":1772266041085,"hypothesisId":"H3"}
+{"sessionId":"ad3dce","runId":"post-fix","location":"middleware.ts:7","message":"middleware check","data":{"path":"/base-characters","hasToken":false,"protected":true},"timestamp":1772266057295,"hypothesisId":"H3"}
+{"sessionId":"ad3dce","runId":"post-fix","location":"middleware.ts:7","message":"middleware check","data":{"path":"/worlds","hasToken":false,"protected":true},"timestamp":1772266068346,"hypothesisId":"H3"}

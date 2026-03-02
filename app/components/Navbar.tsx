@@ -28,7 +28,8 @@ import {
   Globe2,
   MessageSquare,
   FileText,
-  Sparkles
+  Sparkles,
+  Stars
 } from 'lucide-react';
 
 export function Navbar() {
@@ -191,6 +192,13 @@ export function Navbar() {
                 <Link href="/chat" className="flex items-center gap-2 px-3 py-2 hover:bg-accent rounded-md">
                   <MessageSquare className="h-5 w-5" />
                   <span>AI 助手</span>
+                </Link>
+              </NavigationMenuItem>
+
+              <NavigationMenuItem>
+                <Link href="/astrology" className="flex items-center gap-2 px-3 py-2 hover:bg-accent rounded-md">
+                  <Stars className="h-5 w-5" />
+                  <span>命理工具</span>
                 </Link>
               </NavigationMenuItem>
 

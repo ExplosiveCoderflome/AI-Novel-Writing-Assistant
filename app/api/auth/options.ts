@@ -4,7 +4,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "../../../lib/prisma";
 
 export const authOptions: NextAuthOptions = {
-  debug: true,
+  debug: process.env.NEXTAUTH_DEBUG === "true",
   pages: {
     signIn: "/auth/login",
     error: "/auth/error",

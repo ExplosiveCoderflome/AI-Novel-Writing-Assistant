@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import FormulaExtractor from '../components/writing-formula/FormulaExtractor';
@@ -24,7 +24,7 @@ interface Formula {
 /**
  * 写作公式页面
  */
-const WritingFormulaPage: React.FC = () => {
+const WritingFormulaPageContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState('extract');
   const [formulas, setFormulas] = useState<Formula[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -132,4 +132,12 @@ const WritingFormulaPage: React.FC = () => {
   );
 };
 
-export default WritingFormulaPage; 
+const WritingFormulaPage: React.FC = () => {
+  return (
+    <Suspense fallback={<div className="container mx-auto py-6">Loading...</div>}>
+      <WritingFormulaPageContent />
+    </Suspense>
+  );
+};
+
+export default WritingFormulaPage;

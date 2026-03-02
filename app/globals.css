@@ -350,3 +350,55 @@
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out forwards;
 }
+
+/* React DatePicker 自定义样式 */
+.react-datepicker {
+  @apply bg-card border-border shadow-md rounded-lg;
+}
+
+.react-datepicker-wrapper {
+  @apply w-full;
+}
+
+.react-datepicker__header {
+  @apply bg-muted border-border;
+}
+
+.react-datepicker__current-month {
+  @apply text-foreground;
+}
+
+.react-datepicker__day {
+  @apply text-foreground hover:bg-primary hover:text-primary-foreground rounded;
+}
+
+.react-datepicker__day--selected {
+  @apply bg-primary text-primary-foreground;
+}
+
+.react-datepicker__day-name {
+  @apply text-muted-foreground;
+}
+
+.react-datepicker__day--outside-month {
+  @apply text-muted-foreground;
+}
+
+.react-datepicker__navigation {
+  @apply top-2;
+}
+
+.react-datepicker__year-dropdown,
+.react-datepicker__month-dropdown {
+  @apply bg-card border-border;
+}
+
+.react-datepicker__year-option,
+.react-datepicker__month-option {
+  @apply text-foreground hover:bg-muted;
+}
+
+.react-datepicker__year-option--selected,
+.react-datepicker__month-option--selected {
+  @apply bg-primary text-primary-foreground;
+}

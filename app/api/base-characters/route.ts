@@ -6,6 +6,7 @@ import { authOptions } from '../auth/options';
 // 获取基础角色列表
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
+
   if (!session?.user) {
     return new Response(
       JSON.stringify({ error: '请先登录' }),

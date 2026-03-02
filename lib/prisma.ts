@@ -9,10 +9,17 @@ import { PrismaClient } from '@prisma/client';
 // 使用全局变量防止热重载导致的连接过多问题
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
+const prismaLogLevels =
+  process.env.NODE_ENV === 'development'
+    ? process.env.PRISMA_QUERY_LOG === 'true'
+      ? (['query', 'error', 'warn'] as const)
+      : (['error', 'warn'] as const)
+    : (['error'] as const);
+
 export const prisma =
   globalForPrisma.prisma ||
   new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    log: prismaLogLevels,
   });
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;

@@ -5,10 +5,9 @@ import {
   WorldPropertyOption,
   WorldOptionRefinementLevel
 } from '../../../../types/worldV2';
-import LLMFactory from '../../../llm/factory';
+import { LLMFactory } from '../../../../llm/factory';
 
-import { LLMProviderConfig, LLMDBConfig } from '../../../../types/llm';
-import { log } from 'console';
+import { LLMProviderConfig } from '../../../../types/llm';
 import { getApiKey } from '../../../../../lib/api-key';
 
 export const maxDuration = 300; // 5分钟超时
@@ -52,14 +51,7 @@ export async function POST(req: NextRequest) {
     const config = {
       defaultProvider: params.provider,
       [params.provider]: providerConfig,
-      // 添加 deepseek 特定配置，确保非流式生成
-      deepseek: {
-        model: params.model,
-        temperature: params.temperature || 0.7,
-        maxTokens: params.maxTokens || 2000,
-        useStream: false // 明确设置为非流式模式
-      }
-    } as any; // 使用any绕过类型检查
+    };
     
     // 获取LLM工厂实例
     const llmFactory = LLMFactory.getInstance();
@@ -73,78 +65,25 @@ export async function POST(req: NextRequest) {
     
     console.log('开始调用LLM生成世界属性选项...');
     
-    // 特殊处理：直接调用Deepseek API而不是通过LLMFactory
-    if (params.provider === 'deepseek') {
-      try {
-        console.log('使用直接调用Deepseek API方式');
-        const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            model: params.model || 'deepseek-chat',
-            messages: [{ 
-              role: 'user', 
-              content: `${systemPrompt}\n\n${userPrompt}` 
-            }],
-            temperature: params.temperature || 0.7,
-            max_tokens: params.maxTokens || 2000,
-            stream: false // 明确指定不使用流式处理
-          })
-        });
-        console.log('Deepseek API 调用成功',response);
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Deepseek API 调用失败:', errorText);
-          return NextResponse.json({
-            success: false,
-            error: `调用Deepseek API失败: ${response.status}`
-          }, { status: 500 });
-        }
-        
-        const data = await response.json();
-        if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
-          return NextResponse.json({
-            success: false,
-            error: 'Deepseek API 返回了空内容'
-          }, { status: 500 });
-        }
-        
-        const content = data.choices[0].message.content;
-        console.log('成功获取Deepseek响应，内容长度:', content.length);
-        
-        // 处理响应
-        const result = processResponse(content, params.refinementLevel);
-        return NextResponse.json(result);
-      } catch (error) {
-        console.error('直接调用Deepseek API失败:', error);
-        return NextResponse.json({
-          success: false,
-          error: `调用Deepseek API时发生错误: ${error instanceof Error ? error.message : '未知错误'}`
-        }, { status: 500 });
-      }
-    } else {
-      // 对于其他提供商，使用之前的方法
-      // 调用LLM生成选项
-      const response = await llmFactory.generateRecommendation({
-        prompt: `${systemPrompt}\n\n${userPrompt}`
-      }, params.provider);
-      
-      if (!response || !response.content) {
-        console.warn('生成的内容为空');
-        return NextResponse.json({
-          success: false,
-          error: '生成的回复为空，请重试'
-        }, { status: 500 });
-      }
-      
-      // 处理响应
-      const result = processResponse(response.content, params.refinementLevel);
-      return NextResponse.json(result);
+    const response = await llmFactory.generateRecommendation({
+      systemPrompt,
+      userPrompt,
+      model: params.model,
+      temperature: params.temperature || 0.7,
+      maxTokens: params.maxTokens || 2000,
+    }, params.provider);
+
+    if (!response || !response.content) {
+      console.warn('生成的内容为空');
+      return NextResponse.json({
+        success: false,
+        error: response?.error || '生成的回复为空，请重试'
+      }, { status: 500 });
     }
+
+    // 处理响应
+    const result = processResponse(response.content, params.refinementLevel);
+    return NextResponse.json(result);
 
   } catch (error) {
     console.error('生成世界属性选项时出错:', error);

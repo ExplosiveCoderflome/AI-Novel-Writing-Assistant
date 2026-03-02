@@ -4,7 +4,6 @@ import { OpenAILangChain } from './openai';
 import { DeepseekLangChain } from './deepseek';
 import { LangChainFactoryConfig } from './types';
 import { LLMResponse, LLMDBConfig } from '../../app/types/llm';
-import { OpenAI } from "@langchain/community/llms/openai";
 import { ChatOpenAI } from "@langchain/openai";
 // Deepseek可能不在社区版中，需要检查确切路径
 
@@ -31,13 +30,13 @@ export function getLLMFromConfig({
       throw new Error('Missing OpenAI API key');
     }
 
-    // 根据模型名称创建对应的LLM实例
-    return new OpenAI({
-      modelName: model,
+    // 使用 LangChain 官方 OpenAI Chat 模型
+    return new ChatOpenAI({
+      model,
       temperature,
       maxTokens,
       streaming,
-      openAIApiKey: apiKey,
+      apiKey,
     });
   } else if (provider === 'deepseek') {
     const apiKey = process.env.DEEPSEEK_API_KEY;

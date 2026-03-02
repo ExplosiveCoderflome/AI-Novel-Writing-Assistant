@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
 import { Button } from './components/ui/button';
 import { Card } from './components/ui/card';
 import { Loader2 } from 'lucide-react';
@@ -10,7 +9,6 @@ import { Novel } from './api/novel/types';
 
 export default function HomePage() {
   const router = useRouter();
-  const { data: session } = useSession();
   const [novels, setNovels] = useState<Novel[]>([]);
   const [loading, setLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);

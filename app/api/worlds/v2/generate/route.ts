@@ -2,8 +2,6 @@ import { NextRequest } from 'next/server';
 import { LLMFactory } from '../../../../../lib/llm/factory';
 import { WorldGenerationParamsV2 } from '../../../../../app/types/worldV2';
 import { getApiKey } from '../../../../../lib/api-key';
-import { LLMDBConfig } from '../../../../../lib/types/llm';
-import { StreamChunk } from '../../../../../app/types/llm';
 
 export const maxDuration = 300; // 5分钟超时
 export const dynamic = 'force-dynamic';
@@ -65,151 +63,52 @@ export async function POST(req: NextRequest) {
             }
           });
 
-          // 特殊处理：直接调用Deepseek API而不是通过LLMFactory
-          if (params.provider === 'deepseek') {
-            try {
-              console.log('使用直接调用Deepseek API流式方式');
-              const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${apiKey}`,
-                  'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                  model: params.model || 'deepseek-chat',
-                  messages: [{ 
-                    role: 'user', 
-                    content: `${systemPrompt}\n\n${promptText}` 
-                  }],
-                  temperature: params.temperature || 0.7,
-                  max_tokens: params.maxTokens || 4000,
-                  stream: true // 使用流式处理
-                })
-              });
-              
-              if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Deepseek API 调用失败:', errorText);
-                const errorMessage = {
-                  type: 'error',
-                  choices: [{
-                    delta: { content: `调用Deepseek API失败: ${response.status}` },
-                    index: 0,
-                    finish_reason: 'error'
-                  }]
-                };
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorMessage)}\n\n`));
-                controller.close();
-                return;
-              }
-              
-              const reader = response.body?.getReader();
-              if (!reader) {
-                throw new Error('无法获取响应流');
-              }
-              
-              let accumulatedContent = '';
-              const decoder = new TextDecoder();
-              
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                
-                const chunk = decoder.decode(value);
-                const lines = chunk.split('\n');
-                
-                for (const line of lines) {
-                  if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-                    try {
-                      const jsonData = JSON.parse(line.substring(6));
-                      if (jsonData.choices && jsonData.choices[0]?.delta?.content) {
-                        const content = jsonData.choices[0].delta.content;
-                        accumulatedContent += content;
-                        
-                        // 发送消息
-                        const message = {
-                          type: 'content',
-                          choices: [{
-                            delta: { content },
-                            index: 0,
-                            finish_reason: null
-                          }]
-                        };
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify(message)}\n\n`));
-                      }
-                    } catch (e) {
-                      console.error('解析Deepseek流式响应时出错:', e);
-                    }
-                  }
-                }
-              }
-              
-              console.log('成功获取Deepseek流式响应，内容长度:', accumulatedContent.length);
-              controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-              controller.close();
-              
-            } catch (error) {
-              console.error('直接调用Deepseek API失败:', error);
-              const errorMessage = {
-                type: 'error',
+          // 统一通过 LangChain 适配层进行流式生成
+          try {
+            console.log(`开始使用 ${params.provider} 进行流式生成`);
+            
+            // 获取LLM实例
+            const llm = await llmFactory.getLLMInstance({
+              provider: params.provider,
+              apiKey,
+              model: params.model
+            });
+            
+            // 使用流式生成API
+            const stream = await llm.generateRecommendationStream({
+              systemPrompt,
+              userPrompt: promptText
+            });
+            
+            // 处理流式响应
+            for await (const chunk of stream) {
+              const message = {
+                type: chunk.type,
                 choices: [{
-                  delta: { content: `调用Deepseek API时发生错误: ${error instanceof Error ? error.message : '未知错误'}` },
+                  delta: { content: chunk.content },
                   index: 0,
-                  finish_reason: 'error'
+                  finish_reason: chunk.type === 'error' ? 'error' : null
                 }]
               };
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorMessage)}\n\n`));
-              controller.close();
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(message)}\n\n`));
             }
-          } else {
-            // 对于其他提供商，使用LLMFactory生成
-            try {
-              console.log(`开始使用 ${params.provider} 进行流式生成`);
-              
-              // 获取LLM实例
-              const llm = await llmFactory.getLLMInstance({
-                provider: params.provider,
-                apiKey,
-                model: params.model
-              });
-              
-              // 使用流式生成API
-              const stream = await llm.generateRecommendationStream({
-                systemPrompt,
-                userPrompt: promptText
-              });
-              
-              // 处理流式响应
-              for await (const chunk of stream) {
-                const message = {
-                  type: chunk.type,
-                  choices: [{
-                    delta: { content: chunk.content },
-                    index: 0,
-                    finish_reason: null
-                  }]
-                };
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify(message)}\n\n`));
-              }
-              
-              // 发送完成信号
-              controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-              controller.close();
-              
-            } catch (error) {
-              console.error('使用LLMFactory生成失败:', error);
-              const errorMessage = {
-                type: 'error',
-                choices: [{
-                  delta: { content: `生成失败: ${error instanceof Error ? error.message : '未知错误'}` },
-                  index: 0,
-                  finish_reason: 'error'
-                }]
-              };
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorMessage)}\n\n`));
-              controller.close();
-            }
+            
+            // 发送完成信号
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+            controller.close();
+            
+          } catch (error) {
+            console.error('使用LLMFactory生成失败:', error);
+            const errorMessage = {
+              type: 'error',
+              choices: [{
+                delta: { content: `生成失败: ${error instanceof Error ? error.message : '未知错误'}` },
+                index: 0,
+                finish_reason: 'error'
+              }]
+            };
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorMessage)}\n\n`));
+            controller.close();
           }
         } catch (error) {
           console.error('生成世界设定时出错:', error);

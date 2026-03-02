@@ -4,20 +4,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     reactStrictMode: true,
-    transpilePackages: ['@ant-design/icons', '@ant-design/pro-components', '@ant-design/cssinjs'],
+    experimental: {
+        optimizePackageImports: ['lucide-react'],
+    },
     images: {
         domains: ['api.openai.com', 'api.anthropic.com', 'api.cohere.ai'],
     },
     serverExternalPackages: ['undici'],
-    webpack: (config, { isServer }) => {
-        if (isServer) {
-            config.externals = [...config.externals];
-        }
-        config.resolve.alias = {
-            ...config.resolve.alias,
-            '@': './app',
-        };
-        return config;
+    redirects: async () => {
+        return [
+            { source: '/login', destination: '/auth/login', permanent: true },
+            { source: '/register', destination: '/auth/register', permanent: true },
+            { source: '/signin', destination: '/auth/login', permanent: true },
+        ];
     },
     headers: async() => {
         return [{
