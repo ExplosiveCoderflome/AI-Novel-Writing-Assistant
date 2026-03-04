@@ -1,0 +1,148 @@
+import { Router } from "express";
+import type { ApiResponse } from "@ai-novel/shared/types/api";
+import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
+import type { BaseMessageChunk } from "@langchain/core/messages";
+import { z } from "zod";
+import { getLLM } from "../llm/factory";
+import { initSSE, writeSSEFrame } from "../llm/streaming";
+import { authMiddleware } from "../middleware/auth";
+import { validate } from "../middleware/validate";
+
+const router = Router();
+
+const chatSchema = z.object({
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant", "system"]),
+        content: z.string().trim().min(1),
+      }),
+    )
+    .min(1),
+  systemPrompt: z.string().optional(),
+  agentMode: z.boolean().optional(),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic"]).optional(),
+  model: z.string().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  maxTokens: z.number().int().min(64).max(16384).optional(),
+  enableSearch: z.boolean().optional(),
+});
+
+router.use(authMiddleware);
+
+function chunkToText(content: BaseMessageChunk["content"]): string {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (Array.isArray(content)) {
+    return content
+      .map((item) => {
+        if (typeof item === "string") {
+          return item;
+        }
+        if (item && typeof item === "object" && "text" in item && typeof item.text === "string") {
+          return item.text;
+        }
+        return "";
+      })
+      .join("");
+  }
+  return "";
+}
+
+router.post("/", validate({ body: chatSchema }), async (req, res, next) => {
+  try {
+    const body = req.body as z.infer<typeof chatSchema>;
+    const llm = await getLLM(body.provider ?? "deepseek", {
+      model: body.model,
+      temperature: body.temperature ?? 0.7,
+      maxTokens: body.maxTokens,
+    });
+
+    const recentMessages = body.messages.slice(-20);
+    const systemPrompt =
+      body.systemPrompt ??
+      `你是一位专业的小说创作助手，擅长帮助作者进行小说创作、世界设定、角色设计等工作。
+- 使用 Markdown 格式组织回答
+- 提供具体、可操作的创作建议
+- 结合文学理论与商业写作实践
+- 擅长领域：写作技巧/情节构思/角色设计/世界观构建/文风建议/创作瓶颈突破`;
+
+    const finalSystemPrompt =
+      body.agentMode
+        ? `${systemPrompt}
+
+作为智能创作代理，你需要：
+- 主动分析用户需求背后的深层问题
+- 提供多个解决方案并分析各自优劣
+- 给出具体的下一步行动建议
+- 在必要时主动提问以获取更多信息`
+        : systemPrompt;
+
+    const searchHint = body.enableSearch
+      ? "\n提示：联网检索能力当前为预留状态，请在回答中说明基于已有上下文推断。"
+      : "";
+
+    const messages = [
+      new SystemMessage(finalSystemPrompt + searchHint),
+      ...recentMessages.map((item) => {
+        if (item.role === "assistant") {
+          return new AIMessage(item.content);
+        }
+        if (item.role === "system") {
+          return new SystemMessage(item.content);
+        }
+        return new HumanMessage(item.content);
+      }),
+    ];
+
+    const stream = await llm.stream(messages);
+    const disposeHeartbeat = initSSE(res);
+    let fullContent = "";
+
+    try {
+      for await (const chunk of stream) {
+        if (res.writableEnded) {
+          break;
+        }
+
+        const reasoningContent = (chunk.additional_kwargs as { reasoning_content?: string })
+          ?.reasoning_content;
+        if (reasoningContent) {
+          writeSSEFrame(res, { type: "reasoning", content: reasoningContent });
+        }
+
+        const text = chunkToText(chunk.content);
+        if (!text) {
+          continue;
+        }
+        fullContent += text;
+        writeSSEFrame(res, { type: "chunk", content: text });
+      }
+
+      writeSSEFrame(res, { type: "done", fullContent });
+    } catch (error) {
+      writeSSEFrame(res, {
+        type: "error",
+        error: error instanceof Error ? error.message : "对话流式生成失败。",
+      });
+    } finally {
+      disposeHeartbeat();
+      if (!res.writableEnded) {
+        res.end();
+      }
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/history", (_req, res) => {
+  res.status(200).json({
+    success: true,
+    data: [],
+    message: "当前由前端 IndexedDB 保存历史记录，此接口暂返回空数组。",
+  } satisfies ApiResponse<unknown[]>);
+});
+
+export default router;

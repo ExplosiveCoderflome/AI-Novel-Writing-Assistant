@@ -1,0 +1,343 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum ChapterGenerationState {
+  planned
+  drafted
+  reviewed
+  repaired
+  approved
+  published
+}
+
+enum PipelineJobStatus {
+  queued
+  running
+  succeeded
+  failed
+  cancelled
+}
+
+enum BeatStatus {
+  planned
+  completed
+  skipped
+}
+
+enum FactCategory {
+  world
+  character
+  timeline
+  plot
+  rule
+}
+
+model Novel {
+  id                String      @id @default(cuid())
+  title             String
+  description       String?
+  status            String      @default("draft")
+  outline           String?
+  structuredOutline String?
+  genreId           String?
+  genre             NovelGenre? @relation(fields: [genreId], references: [id])
+  chapters          Chapter[]
+  characters        Character[]
+  characterTimelines CharacterTimeline[]
+  bible             NovelBible?
+  plotBeats         PlotBeat[]
+  chapterSummaries  ChapterSummary[]
+  facts             ConsistencyFact[]
+  generationJobs    GenerationJob[]
+  qualityReports    QualityReport[]
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([genreId])
+}
+
+model Chapter {
+  id              String                 @id @default(cuid())
+  title           String
+  content         String?                @default("")
+  order           Int
+  generationState ChapterGenerationState @default(planned)
+  hook            String?
+  expectation     String?
+  novelId         String
+  novel           Novel                  @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapterSummary  ChapterSummary?
+  characterTimelines CharacterTimeline[]
+  facts           ConsistencyFact[]
+  qualityReports  QualityReport[]
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([novelId, order])
+}
+
+model Character {
+  id              String   @id @default(cuid())
+  name            String
+  role            String
+  personality     String?
+  background      String?
+  development     String?
+  currentState    String?
+  currentGoal     String?
+  lastEvolvedAt   DateTime?
+  novelId         String
+  novel           Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  baseCharacterId String?
+  timelines       CharacterTimeline[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([novelId])
+  @@index([baseCharacterId])
+}
+
+model CharacterTimeline {
+  id          String    @id @default(cuid())
+  novelId     String
+  characterId String
+  chapterId   String?
+  chapterOrder Int?
+  title       String
+  content     String
+  source      String    @default("auto")
+  novel       Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  chapter     Chapter?  @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([novelId, characterId])
+  @@index([characterId, chapterOrder])
+  @@index([chapterId])
+}
+
+model BaseCharacter {
+  id          String   @id @default(cuid())
+  name        String
+  role        String
+  personality String
+  background  String
+  development String
+  appearance  String?
+  weaknesses  String?
+  interests   String?
+  keyEvents   String?
+  tags        String   @default("")
+  category    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model NovelGenre {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  template    String?
+  parentId    String?
+  parent      NovelGenre?  @relation("GenreChildren", fields: [parentId], references: [id])
+  children    NovelGenre[] @relation("GenreChildren")
+  novels      Novel[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([parentId])
+}
+
+model World {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  background  String?
+  geography   String?
+  cultures    String?
+  magicSystem String?
+  politics    String?
+  races       String?
+  religions   String?
+  technology  String?
+  conflicts   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model WorldPropertyLibrary {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String
+  worldType   String?
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model WritingFormula {
+  id                 String   @id @default(cuid())
+  name               String
+  sourceText         String?
+  content            String?
+  genre              String?
+  style              String?
+  toneVoice          String?
+  structure          String?
+  pacing             String?
+  paragraphPattern   String?
+  sentenceStructure  String?
+  vocabularyLevel    String?
+  rhetoricalDevices  String?
+  narrativeMode      String?
+  perspectivePoint   String?
+  characterVoice     String?
+  themes             String?
+  motifs             String?
+  emotionalTone      String?
+  uniqueFeatures     String?
+  formulaDescription String?
+  formulaSteps       String?
+  applicationTips    String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model TitleLibrary {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  clickRate   Float?
+  keywords    String?
+  genreId     String?
+  usedCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model APIKey {
+  id        String   @id @default(cuid())
+  provider  String
+  key       String
+  model     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider])
+}
+
+model NovelBible {
+  id             String   @id @default(cuid())
+  novelId        String   @unique
+  coreSetting    String?
+  forbiddenRules String?
+  mainPromise    String?
+  characterArcs  String?
+  worldRules     String?
+  rawContent     String?
+  novel          Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model PlotBeat {
+  id           String     @id @default(cuid())
+  novelId      String
+  chapterOrder Int?
+  beatType     String
+  title        String
+  content      String
+  status       BeatStatus @default(planned)
+  metadata     String?
+  novel        Novel      @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([novelId])
+  @@index([novelId, chapterOrder])
+}
+
+model ChapterSummary {
+  id              String   @id @default(cuid())
+  novelId         String
+  chapterId       String   @unique
+  summary         String
+  keyEvents       String?
+  characterStates String?
+  hook            String?
+  novel           Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter         Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([novelId])
+}
+
+model ConsistencyFact {
+  id        String       @id @default(cuid())
+  novelId   String
+  chapterId String?
+  category  FactCategory @default(plot)
+  content   String
+  source    String?
+  novel     Novel        @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter   Chapter?     @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([novelId])
+  @@index([chapterId])
+  @@index([novelId, category])
+}
+
+model GenerationJob {
+  id             String            @id @default(cuid())
+  novelId        String
+  startOrder     Int
+  endOrder       Int
+  status         PipelineJobStatus @default(queued)
+  progress       Float             @default(0)
+  completedCount Int               @default(0)
+  totalCount     Int               @default(0)
+  retryCount     Int               @default(0)
+  maxRetries     Int               @default(2)
+  error          String?
+  payload        String?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  novel          Novel             @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([novelId])
+  @@index([novelId, status])
+}
+
+model QualityReport {
+  id         String   @id @default(cuid())
+  novelId    String
+  chapterId  String?
+  coherence  Int
+  repetition Int
+  pacing     Int
+  voice      Int
+  engagement Int
+  overall    Int
+  issues     String?
+  novel      Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter    Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([novelId])
+  @@index([chapterId])
+  @@index([novelId, createdAt])
+}

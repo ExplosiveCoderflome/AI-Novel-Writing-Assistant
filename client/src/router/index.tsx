@@ -1,0 +1,37 @@
+import type { RouteObject } from "react-router-dom";
+import { Navigate, useRoutes } from "react-router-dom";
+import AppLayout from "@/components/layout/AppLayout";
+import Home from "@/pages/Home";
+import ChatPage from "@/pages/chat/ChatPage";
+import CharacterLibrary from "@/pages/characters/CharacterLibrary";
+import NovelChapterEdit from "@/pages/novels/NovelChapterEdit";
+import NovelEdit from "@/pages/novels/NovelEdit";
+import NovelList from "@/pages/novels/NovelList";
+import SettingsPage from "@/pages/settings/SettingsPage";
+import WorldGenerator from "@/pages/worlds/WorldGenerator";
+import WorldList from "@/pages/worlds/WorldList";
+import WritingFormulaPage from "@/pages/writingFormula/WritingFormulaPage";
+
+const routes: RouteObject[] = [
+  {
+    path: "/",
+    element: <AppLayout />,
+    children: [
+      { index: true, element: <Home /> },
+      { path: "novels", element: <NovelList /> },
+      { path: "novels/:id/edit", element: <NovelEdit /> },
+      { path: "novels/:id/chapters/:chapterId", element: <NovelChapterEdit /> },
+      { path: "chat", element: <ChatPage /> },
+      { path: "settings", element: <SettingsPage /> },
+      { path: "worlds", element: <WorldList /> },
+      { path: "worlds/generator", element: <WorldGenerator /> },
+      { path: "writing-formula", element: <WritingFormulaPage /> },
+      { path: "base-characters", element: <CharacterLibrary /> },
+      { path: "*", element: <Navigate to="/" replace /> },
+    ],
+  },
+];
+
+export default function AppRouter() {
+  return useRoutes(routes);
+}

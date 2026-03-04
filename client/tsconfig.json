@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@ai-novel/shared/*": ["../shared/dist/*"]
+    },
+    "types": ["vite/client"],
+    "noEmit": true
+  },
+  "include": ["src", "vite.config.ts", "tailwind.config.ts"]
+}
