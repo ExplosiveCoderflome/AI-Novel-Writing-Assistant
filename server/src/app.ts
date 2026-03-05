@@ -12,12 +12,15 @@ import chatRouter from "./routes/chat";
 import healthRouter from "./routes/health";
 import llmRouter from "./routes/llm";
 import novelRouter from "./routes/novel";
+import ragRouter from "./routes/rag";
 import settingsRouter from "./routes/settings";
 import worldRouter from "./routes/world";
 import writingFormulaRouter from "./routes/writingFormula";
+import { ragServices } from "./services/rag";
 
 export function createApp() {
   const app = express();
+  const jsonBodyLimit = process.env.API_JSON_LIMIT ?? "20mb";
   const corsOriginEnv = process.env.CORS_ORIGIN;
   const corsAllowList = corsOriginEnv
     ? corsOriginEnv
@@ -45,12 +48,13 @@ export function createApp() {
   );
   app.use(helmet());
   app.use(morgan("dev"));
-  app.use(express.json());
+  app.use(express.json({ limit: jsonBodyLimit }));
 
   app.use("/api/health", healthRouter);
   app.use("/api/llm", llmRouter);
   app.use("/api/novels", novelRouter);
   app.use("/api/worlds", worldRouter);
+  app.use("/api/rag", ragRouter);
   app.use("/api/base-characters", characterRouter);
   app.use("/api/writing-formula", writingFormulaRouter);
   app.use("/api/chat", chatRouter);
@@ -79,6 +83,7 @@ async function bootstrap(): Promise<void> {
 
   const app = createApp();
   const port = Number(process.env.PORT ?? 3000);
+  ragServices.ragWorker.start();
 
   app.listen(port, () => {
     console.log(`[server] listening on http://localhost:${port}`);

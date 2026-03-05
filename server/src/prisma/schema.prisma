@@ -37,6 +37,33 @@ enum FactCategory {
   rule
 }
 
+enum RagOwnerType {
+  novel
+  chapter
+  world
+  character
+  bible
+  chapter_summary
+  consistency_fact
+  character_timeline
+  world_library_item
+  chat_message
+}
+
+enum RagJobType {
+  upsert
+  delete
+  rebuild
+}
+
+enum RagJobStatus {
+  queued
+  running
+  succeeded
+  failed
+  cancelled
+}
+
 model Novel {
   id                String      @id @default(cuid())
   title             String
@@ -45,7 +72,9 @@ model Novel {
   outline           String?
   structuredOutline String?
   genreId           String?
+  worldId           String?
   genre             NovelGenre? @relation(fields: [genreId], references: [id])
+  world             World?      @relation(fields: [worldId], references: [id], onDelete: SetNull)
   chapters          Chapter[]
   characters        Character[]
   characterTimelines CharacterTimeline[]
@@ -59,6 +88,7 @@ model Novel {
   updatedAt         DateTime    @updatedAt
 
   @@index([genreId])
+  @@index([worldId])
 }
 
 model Chapter {
@@ -155,31 +185,99 @@ model NovelGenre {
 }
 
 model World {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  background  String?
-  geography   String?
-  cultures    String?
-  magicSystem String?
-  politics    String?
-  races       String?
-  religions   String?
-  technology  String?
-  conflicts   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String                @id @default(cuid())
+  name               String
+  description        String?
+  worldType          String?
+  templateKey        String?
+  axioms             String?
+  background         String?
+  geography          String?
+  cultures           String?
+  magicSystem        String?
+  politics           String?
+  races              String?
+  religions          String?
+  technology         String?
+  conflicts          String?
+  history            String?
+  economy            String?
+  factions           String?
+  status             String                @default("draft")
+  version            Int                   @default(1)
+  selectedDimensions String?
+  selectedElements   String?
+  layerStates        String?
+  consistencyReport  String?
+  overviewSummary    String?
+  novels             Novel[]
+  snapshots          WorldSnapshot[]
+  deepeningQA        WorldDeepeningQA[]
+  consistencyIssues  WorldConsistencyIssue[]
+  libraryItems       WorldPropertyLibrary[]
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
 }
 
 model WorldPropertyLibrary {
+  id            String  @id @default(cuid())
+  name          String
+  description   String?
+  category      String
+  worldType     String?
+  usageCount    Int     @default(0)
+  sourceWorldId String?
+  sourceWorld   World?  @relation(fields: [sourceWorldId], references: [id], onDelete: SetNull)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([sourceWorldId])
+}
+
+model WorldSnapshot {
+  id        String   @id @default(cuid())
+  worldId   String
+  label     String?
+  data      String
+  world     World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([worldId, createdAt])
+}
+
+model WorldDeepeningQA {
+  id               String   @id @default(cuid())
+  worldId          String
+  priority         String   @default("recommended")
+  question         String
+  targetLayer      String?
+  targetField      String?
+  answer           String?
+  integratedSummary String?
+  status           String   @default("pending")
+  world            World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([worldId, status])
+}
+
+model WorldConsistencyIssue {
   id          String   @id @default(cuid())
-  name        String
-  description String?
-  category    String
-  worldType   String?
-  usageCount  Int      @default(0)
+  worldId     String
+  severity    String
+  code        String
+  message     String
+  detail      String?
+  source      String   @default("rule")
+  status      String   @default("open")
+  targetField String?
+  world       World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([worldId, status])
+  @@index([worldId, severity])
 }
 
 model WritingFormula {
@@ -340,4 +438,50 @@ model QualityReport {
   @@index([novelId])
   @@index([chapterId])
   @@index([novelId, createdAt])
+}
+
+model KnowledgeChunk {
+  id            String       @id @default(cuid())
+  tenantId      String       @default("default")
+  ownerType     RagOwnerType
+  ownerId       String
+  novelId       String?
+  worldId       String?
+  title         String?
+  chunkText     String
+  chunkHash     String
+  chunkOrder    Int
+  tokenEstimate Int          @default(0)
+  language      String       @default("zh")
+  metadataJson  String?
+  embedProvider String
+  embedModel    String
+  embedVersion  Int          @default(1)
+  indexedAt     DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([tenantId, ownerType, ownerId])
+  @@index([tenantId, novelId])
+  @@index([tenantId, worldId])
+  @@index([chunkHash])
+}
+
+model RagIndexJob {
+  id          String       @id @default(cuid())
+  tenantId    String       @default("default")
+  jobType     RagJobType
+  ownerType   RagOwnerType
+  ownerId     String
+  status      RagJobStatus @default(queued)
+  attempts    Int          @default(0)
+  maxAttempts Int          @default(5)
+  runAfter    DateTime     @default(now())
+  payloadJson String?
+  lastError   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([status, runAfter])
+  @@index([tenantId, ownerType, ownerId])
 }

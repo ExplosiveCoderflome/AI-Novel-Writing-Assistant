@@ -10,7 +10,9 @@ import NovelList from "@/pages/novels/NovelList";
 import SettingsPage from "@/pages/settings/SettingsPage";
 import WorldGenerator from "@/pages/worlds/WorldGenerator";
 import WorldList from "@/pages/worlds/WorldList";
+import WorldWorkspace from "@/pages/worlds/WorldWorkspace";
 import WritingFormulaPage from "@/pages/writingFormula/WritingFormulaPage";
+import { featureFlags } from "@/config/featureFlags";
 
 const routes: RouteObject[] = [
   {
@@ -24,7 +26,14 @@ const routes: RouteObject[] = [
       { path: "chat", element: <ChatPage /> },
       { path: "settings", element: <SettingsPage /> },
       { path: "worlds", element: <WorldList /> },
-      { path: "worlds/generator", element: <WorldGenerator /> },
+      {
+        path: "worlds/generator",
+        element: featureFlags.worldWizardEnabled ? <WorldGenerator /> : <Navigate to="/worlds" replace />,
+      },
+      {
+        path: "worlds/:id/workspace",
+        element: featureFlags.worldWizardEnabled ? <WorldWorkspace /> : <Navigate to="/worlds" replace />,
+      },
       { path: "writing-formula", element: <WritingFormulaPage /> },
       { path: "base-characters", element: <CharacterLibrary /> },
       { path: "*", element: <Navigate to="/" replace /> },

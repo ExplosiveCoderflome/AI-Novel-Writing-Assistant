@@ -12,6 +12,11 @@ export const queryKeys = {
   worlds: {
     all: ["worlds"] as const,
     detail: (id: string) => ["worlds", "detail", id] as const,
+    templates: ["worlds", "templates"] as const,
+    overview: (id: string) => ["worlds", "overview", id] as const,
+    visualization: (id: string) => ["worlds", "visualization", id] as const,
+    snapshots: (id: string) => ["worlds", "snapshots", id] as const,
+    library: (params: string) => ["worlds", "library", params] as const,
   },
   writingFormula: {
     all: ["writing-formula"] as const,

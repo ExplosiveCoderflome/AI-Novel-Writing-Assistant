@@ -7,6 +7,8 @@ import { getLLM } from "../llm/factory";
 import { initSSE, writeSSEFrame } from "../llm/streaming";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
+import { ragServices } from "../services/rag";
+import type { RagOwnerType } from "../services/rag/types";
 
 const router = Router();
 
@@ -26,6 +28,10 @@ const chatSchema = z.object({
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().min(64).max(16384).optional(),
   enableSearch: z.boolean().optional(),
+  enableRag: z.boolean().optional(),
+  contextScope: z.enum(["novel", "world", "global"]).optional(),
+  novelId: z.string().trim().optional(),
+  worldId: z.string().trim().optional(),
 });
 
 router.use(authMiddleware);
@@ -83,8 +89,35 @@ router.post("/", validate({ body: chatSchema }), async (req, res, next) => {
       ? "\n提示：联网检索能力当前为预留状态，请在回答中说明基于已有上下文推断。"
       : "";
 
+    const latestUserMessage = [...recentMessages]
+      .reverse()
+      .find((item) => item.role === "user")
+      ?.content
+      ?.trim();
+    const scope = body.contextScope ?? "global";
+    const ownerTypes: RagOwnerType[] | undefined = scope === "novel"
+      ? ["novel", "chapter", "bible", "chapter_summary", "consistency_fact", "character", "character_timeline"]
+      : scope === "world"
+        ? ["world", "world_library_item"]
+        : undefined;
+    let ragContext = "";
+    if (body.enableRag && latestUserMessage) {
+      try {
+        ragContext = await ragServices.hybridRetrievalService.buildContextBlock(latestUserMessage, {
+          novelId: scope === "novel" ? body.novelId : undefined,
+          worldId: scope === "world" ? body.worldId : undefined,
+          ownerTypes,
+        });
+      } catch {
+        ragContext = "";
+      }
+    }
+    const ragHint = ragContext
+      ? `\n以下是检索到的项目知识片段（可能不完整），请优先依据这些内容回答，并在冲突时说明不确定性：\n${ragContext}\n`
+      : "";
+
     const messages = [
-      new SystemMessage(finalSystemPrompt + searchHint),
+      new SystemMessage(finalSystemPrompt + searchHint + ragHint),
       ...recentMessages.map((item) => {
         if (item.role === "assistant") {
           return new AIMessage(item.content);

@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { createNovel, deleteNovel, getNovelList } from "@/api/novel";
+import { getWorldList } from "@/api/world";
 import { queryKeys } from "@/api/queryKeys";
 
 type StatusFilter = "all" | "draft" | "published";
@@ -18,6 +19,7 @@ export default function NovelList() {
   const [form, setForm] = useState({
     title: "",
     description: "",
+    worldId: "",
   });
 
   const novelListQuery = useQuery({
@@ -30,12 +32,18 @@ export default function NovelList() {
       createNovel({
         title: form.title,
         description: form.description,
+        worldId: form.worldId || undefined,
       }),
     onSuccess: async () => {
-      setForm({ title: "", description: "" });
+      setForm({ title: "", description: "", worldId: "" });
       setIsCreateOpen(false);
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.all });
     },
+  });
+
+  const worldListQuery = useQuery({
+    queryKey: queryKeys.worlds.all,
+    queryFn: getWorldList,
   });
 
   const deleteNovelMutation = useMutation({
@@ -98,6 +106,18 @@ export default function NovelList() {
                   setForm((prev) => ({ ...prev, description: event.target.value }))
                 }
               />
+              <select
+                className="w-full rounded-md border bg-background p-2 text-sm"
+                value={form.worldId}
+                onChange={(event) => setForm((prev) => ({ ...prev, worldId: event.target.value }))}
+              >
+                <option value="">不绑定世界观</option>
+                {(worldListQuery.data?.data ?? []).map((world) => (
+                  <option key={world.id} value={world.id}>
+                    {world.name}
+                  </option>
+                ))}
+              </select>
               <Button
                 className="w-full"
                 onClick={() => createNovelMutation.mutate()}
@@ -136,6 +156,11 @@ export default function NovelList() {
                 <div className="text-xs text-muted-foreground">
                   章节数：{novel._count.chapters}，角色数：{novel._count.characters}
                 </div>
+                {novel.world ? (
+                  <div className="text-xs text-muted-foreground">
+                    世界观：{novel.world.name}
+                  </div>
+                ) : null}
                 <div className="flex gap-2">
                   <Button asChild size="sm">
                     <Link to={`/novels/${novel.id}/edit`}>编辑</Link>

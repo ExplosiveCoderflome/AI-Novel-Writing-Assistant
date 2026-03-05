@@ -28,11 +28,31 @@ pnpm install
 copy server\.env.example server\.env
 ```
 
-3. 初始化数据库（迁移 + 种子）
+3. 启动向量库（Qdrant，可选但推荐）
+
+```bash
+docker compose -f infra/docker-compose.qdrant.yml up -d
+```
+
+4. 初始化数据库（迁移 + 种子）
 
 ```bash
 pnpm db:migrate
 pnpm db:seed
+```
+
+### 升级迁移（已有项目必须执行）
+
+本次版本包含以下 Prisma 迁移：
+
+- `server/src/prisma/migrations/20260305103000_world_generator_full`
+- `server/src/prisma/migrations/20260305173000_rag_vector_infra`
+
+执行步骤：
+
+```bash
+pnpm db:migrate
+pnpm --filter @ai-novel/server prisma:generate
 ```
 
 ## 启动项目
@@ -43,6 +63,41 @@ pnpm dev
 
 - 前端：`http://localhost:5173`
 - 后端健康检查：`http://localhost:3000/api/health`
+- RAG 健康检查：`http://localhost:3000/api/rag/health`
+
+## RAG 向量检索（Qdrant）
+
+系统已内置 `Qdrant + Embedding API + 混合检索（向量 + 关键词 + RRF） + 异步索引 Worker`。
+
+### 核心环境变量
+
+- `RAG_ENABLED=true`
+- `EMBEDDING_PROVIDER=openai|siliconflow`
+- `EMBEDDING_MODEL=text-embedding-3-small`（默认）
+- `QDRANT_URL=http://127.0.0.1:6333`
+- `QDRANT_COLLECTION=ai_novel_chunks_v1`
+
+完整变量见：
+
+- `server/.env.example`
+- `.env.example`
+
+### 触发索引重建
+
+```bash
+# 全量
+curl -X POST http://localhost:3000/api/rag/reindex \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d "{\"scope\":\"all\"}"
+```
+
+### 查看索引任务
+
+```bash
+curl -X GET "http://localhost:3000/api/rag/jobs?limit=50" \
+  -H "Authorization: Bearer <token>"
+```
 
 ## 常用命令
 

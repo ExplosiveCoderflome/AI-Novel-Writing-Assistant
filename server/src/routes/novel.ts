@@ -50,6 +50,7 @@ const createNovelSchema = z.object({
   title: z.string().trim().min(1, "标题不能为空。"),
   description: z.string().trim().optional(),
   genreId: z.string().trim().optional(),
+  worldId: z.string().trim().optional(),
 });
 
 const updateNovelSchema = z.object({
@@ -57,6 +58,7 @@ const updateNovelSchema = z.object({
   description: z.string().trim().optional(),
   status: z.enum(["draft", "published"]).optional(),
   genreId: z.string().trim().nullable().optional(),
+  worldId: z.string().trim().nullable().optional(),
   outline: z.string().nullable().optional(),
   structuredOutline: z.string().nullable().optional(),
 });
@@ -448,6 +450,28 @@ router.post(
         success: true,
         data,
         message: "角色信息演进更新完成。",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/world-check/characters/:charId",
+  validate({ params: characterParamsSchema, body: llmGenerateSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, charId } = req.params as z.infer<typeof characterParamsSchema>;
+      const data = await novelService.checkCharacterAgainstWorld(
+        id,
+        charId,
+        req.body as z.infer<typeof llmGenerateSchema>,
+      );
+      res.status(200).json({
+        success: true,
+        data,
+        message: "角色世界观一致性检查完成。",
       } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);

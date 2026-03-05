@@ -20,6 +20,19 @@ export function errorHandler(
   res: Response<ApiResponse<null>>,
   _next: NextFunction,
 ): void {
+  if (
+    error
+    && typeof error === "object"
+    && "type" in error
+    && (error as { type?: string }).type === "entity.too.large"
+  ) {
+    res.status(413).json({
+      success: false,
+      error: "请求体过大，请缩短文本或分段上传。",
+    });
+    return;
+  }
+
   if (error instanceof ZodError) {
     res.status(400).json({
       success: false,

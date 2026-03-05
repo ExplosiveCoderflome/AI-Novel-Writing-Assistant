@@ -41,6 +41,8 @@ interface NovelCharacterPanelProps {
   isSyncingAllTimeline: boolean;
   onEvolveCharacter: () => void;
   isEvolvingCharacter: boolean;
+  onWorldCheck: () => void;
+  isCheckingWorld: boolean;
   selectedCharacter?: Character;
   characterForm: CharacterFormState;
   onCharacterFormChange: (field: keyof CharacterFormState, value: string) => void;
@@ -73,6 +75,8 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
     isSyncingAllTimeline,
     onEvolveCharacter,
     isEvolvingCharacter,
+    onWorldCheck,
+    isCheckingWorld,
     selectedCharacter,
     characterForm,
     onCharacterFormChange,
@@ -200,6 +204,13 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                   disabled={isEvolvingCharacter || !selectedCharacterId}
                 >
                   {isEvolvingCharacter ? "更新中..." : "AI更新角色信息"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={onWorldCheck}
+                  disabled={isCheckingWorld || !selectedCharacterId}
+                >
+                  {isCheckingWorld ? "检查中..." : "世界规则检查"}
                 </Button>
               </div>
               <div className="rounded-md border p-3">

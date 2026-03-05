@@ -8,6 +8,7 @@ export interface Novel {
   outline?: string | null;
   structuredOutline?: string | null;
   genreId?: string | null;
+  worldId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

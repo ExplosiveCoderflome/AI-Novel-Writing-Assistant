@@ -24,6 +24,11 @@ export interface NovelListResponse {
         id: string;
         name: string;
       } | null;
+      world?: {
+        id: string;
+        name: string;
+        worldType?: string | null;
+      } | null;
     }
   >;
   page: number;
@@ -40,6 +45,16 @@ export interface NovelDetailResponse extends Novel {
   genre?: {
     id: string;
     name: string;
+  } | null;
+  world?: {
+    id: string;
+    name: string;
+    worldType?: string | null;
+    description?: string | null;
+    overviewSummary?: string | null;
+    axioms?: string | null;
+    magicSystem?: string | null;
+    conflicts?: string | null;
   } | null;
 }
 
@@ -58,7 +73,7 @@ export async function getNovelDetail(id: string) {
   return data;
 }
 
-export async function createNovel(payload: { title: string; description?: string; genreId?: string }) {
+export async function createNovel(payload: { title: string; description?: string; genreId?: string; worldId?: string }) {
   const { data } = await apiClient.post<ApiResponse<Novel>>("/novels", payload);
   return data;
 }
@@ -70,6 +85,7 @@ export async function updateNovel(
     description: string;
     status: "draft" | "published";
     genreId: string | null;
+    worldId: string | null;
     outline: string | null;
     structuredOutline: string | null;
   }>,
@@ -220,6 +236,25 @@ export async function evolveNovelCharacter(
     `/novels/${id}/characters/${charId}/evolve`,
     payload ?? {},
   );
+  return data;
+}
+
+export async function checkCharacterAgainstWorld(
+  id: string,
+  charId: string,
+  payload?: {
+    provider?: "deepseek" | "siliconflow" | "openai" | "anthropic";
+    model?: string;
+    temperature?: number;
+  },
+) {
+  const { data } = await apiClient.post<
+    ApiResponse<{
+      status: "pass" | "warn" | "error";
+      warnings: string[];
+      issues: Array<{ severity: "warn" | "error"; message: string; suggestion?: string }>;
+    }>
+  >(`/novels/${id}/world-check/characters/${charId}`, payload ?? {});
   return data;
 }
 

@@ -12,6 +12,7 @@ import StreamOutput from "@/components/common/StreamOutput";
 import NovelCharacterPanel from "./components/NovelCharacterPanel";
 import { getBaseCharacterList } from "@/api/character";
 import {
+  checkCharacterAgainstWorld,
   createNovelCharacter,
   createNovelChapter,
   evolveNovelCharacter,
@@ -27,6 +28,7 @@ import {
   updateNovel,
   updateNovelCharacter,
 } from "@/api/novel";
+import { getWorldList } from "@/api/world";
 import { queryKeys } from "@/api/queryKeys";
 import { useSSE } from "@/hooks/useSSE";
 import { useLLMStore } from "@/store/llmStore";
@@ -48,6 +50,7 @@ export default function NovelEdit() {
   const [basicForm, setBasicForm] = useState({
     title: "",
     description: "",
+    worldId: "",
     status: "draft" as "draft" | "published",
   });
   const [outlineText, setOutlineText] = useState("");
@@ -95,6 +98,11 @@ export default function NovelEdit() {
   const baseCharacterListQuery = useQuery({
     queryKey: queryKeys.baseCharacters.all,
     queryFn: () => getBaseCharacterList(),
+  });
+
+  const worldListQuery = useQuery({
+    queryKey: queryKeys.worlds.all,
+    queryFn: getWorldList,
   });
 
   const pipelineJobQuery = useQuery({
@@ -165,6 +173,7 @@ export default function NovelEdit() {
     setBasicForm({
       title: detail.title,
       description: detail.description ?? "",
+      worldId: detail.worldId ?? "",
       status: detail.status,
     });
     setOutlineText(detail.outline ?? "");
@@ -222,6 +231,7 @@ export default function NovelEdit() {
       updateNovel(id, {
         title: basicForm.title,
         description: basicForm.description,
+        worldId: basicForm.worldId || null,
         status: basicForm.status,
       }),
     onSuccess: invalidateNovelDetail,
@@ -365,6 +375,27 @@ export default function NovelEdit() {
     },
   });
 
+  const worldCheckMutation = useMutation({
+    mutationFn: () =>
+      checkCharacterAgainstWorld(id, selectedCharacterId, {
+        provider: llm.provider,
+        model: llm.model,
+        temperature: 0.2,
+      }),
+    onSuccess: (response) => {
+      const status = response.data?.status ?? "pass";
+      const warningText = response.data?.warnings?.join(" | ") ?? "";
+      const issueText = (response.data?.issues ?? [])
+        .map((item) => `${item.severity.toUpperCase()}: ${item.message}`)
+        .join(" | ");
+      setCharacterMessage(`世界规则检查(${status}) ${warningText} ${issueText}`.trim());
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "世界规则检查失败。";
+      setCharacterMessage(message);
+    },
+  });
+
   const saveCharacterMutation = useMutation({
     mutationFn: () =>
       updateNovelCharacter(id, selectedCharacterId, {
@@ -458,6 +489,52 @@ export default function NovelEdit() {
   });
 
   const qualitySummary = qualityReportQuery.data?.data?.summary;
+  const worldInjectionSummary = useMemo(() => {
+    const world = novelDetailQuery.data?.data?.world;
+    if (!world) {
+      return null;
+    }
+
+    let axioms: string[] = [];
+    if (world.axioms?.trim()) {
+      try {
+        const parsed = JSON.parse(world.axioms) as string[];
+        axioms = Array.isArray(parsed) ? parsed.filter((item) => item.trim()).slice(0, 3) : [];
+      } catch {
+        axioms = world.axioms
+          .split(/[\n,，;；]/)
+          .map((item) => item.trim())
+          .filter(Boolean)
+          .slice(0, 3);
+      }
+    }
+
+    const summaryBlock = world.overviewSummary?.trim() || world.description?.trim() || "No summary.";
+    const magicBlock = world.magicSystem?.trim() ? world.magicSystem.trim().slice(0, 120) : "";
+    const conflictBlock = world.conflicts?.trim() ? world.conflicts.trim().slice(0, 120) : "";
+
+    const lines = [
+      `${world.name}${world.worldType ? ` (${world.worldType})` : ""}`,
+      `Summary: ${summaryBlock}`,
+      ...(axioms.length > 0 ? [`Axioms: ${axioms.join(" | ")}`] : []),
+      ...(magicBlock ? [`Power: ${magicBlock}`] : []),
+      ...(conflictBlock ? [`Conflict: ${conflictBlock}`] : []),
+    ];
+    return lines.join("\n");
+  }, [novelDetailQuery.data?.data?.world]);
+
+  const renderWorldInjectionHint = () => (
+    <div className="rounded-md border border-emerald-300 bg-emerald-50 p-2 text-xs text-emerald-900">
+      {worldInjectionSummary ? (
+        <div className="space-y-1">
+          <div className="font-semibold">已注入世界规则上下文</div>
+          <pre className="whitespace-pre-wrap">{worldInjectionSummary}</pre>
+        </div>
+      ) : (
+        <div>当前未绑定世界观，生成过程不会注入世界规则。</div>
+      )}
+    </div>
+  );
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -478,6 +555,18 @@ export default function NovelEdit() {
           <CardContent className="space-y-3">
             <Input value={basicForm.title} placeholder="小说标题" onChange={(event) => setBasicForm((prev) => ({ ...prev, title: event.target.value }))} />
             <Input value={basicForm.description} placeholder="小说简介" onChange={(event) => setBasicForm((prev) => ({ ...prev, description: event.target.value }))} />
+            <select
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={basicForm.worldId}
+              onChange={(event) => setBasicForm((prev) => ({ ...prev, worldId: event.target.value }))}
+            >
+              <option value="">不绑定世界观</option>
+              {(worldListQuery.data?.data ?? []).map((world) => (
+                <option key={world.id} value={world.id}>
+                  {world.name}
+                </option>
+              ))}
+            </select>
             <div className="flex items-center gap-2">
               <Button variant={basicForm.status === "draft" ? "default" : "secondary"} onClick={() => setBasicForm((prev) => ({ ...prev, status: "draft" }))}>草稿</Button>
               <Button variant={basicForm.status === "published" ? "default" : "secondary"} onClick={() => setBasicForm((prev) => ({ ...prev, status: "published" }))}>已发布</Button>
@@ -494,6 +583,7 @@ export default function NovelEdit() {
             <LLMSelector />
           </CardHeader>
           <CardContent className="space-y-3">
+            {renderWorldInjectionHint()}
             {!hasCharacters ? (
               <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
                 <span>建议先为本小说添加至少 1 个角色，再生成发展走向。</span>
@@ -515,6 +605,7 @@ export default function NovelEdit() {
         <Card>
           <CardHeader><CardTitle>结构化章节大纲</CardTitle></CardHeader>
           <CardContent className="space-y-3">
+            {renderWorldInjectionHint()}
             {!hasCharacters ? (
               <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
                 <span>请先添加至少 1 个角色，再生成结构化章节大纲。</span>
@@ -550,6 +641,7 @@ export default function NovelEdit() {
         <Card>
           <CardHeader><CardTitle>章节管理</CardTitle></CardHeader>
           <CardContent className="space-y-2">
+            {renderWorldInjectionHint()}
             {!hasCharacters ? (
               <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
                 <span>请先添加至少 1 个角色，再生成章节内容。</span>
@@ -591,10 +683,11 @@ export default function NovelEdit() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>流水线与质量控制</CardTitle>
-              <LLMSelector />
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {!hasCharacters ? (
+            <LLMSelector />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {renderWorldInjectionHint()}
+            {!hasCharacters ? (
                 <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
                   <span>请先添加至少 1 个角色，再执行圣经/拍点/批量章节流水线。</span>
                   <Button size="sm" variant="outline" onClick={goToCharacterTab}>去角色管理</Button>
@@ -863,6 +956,8 @@ export default function NovelEdit() {
           isSyncingAllTimeline={syncAllTimelineMutation.isPending}
           onEvolveCharacter={() => evolveCharacterMutation.mutate()}
           isEvolvingCharacter={evolveCharacterMutation.isPending}
+          onWorldCheck={() => worldCheckMutation.mutate()}
+          isCheckingWorld={worldCheckMutation.isPending}
           selectedCharacter={selectedCharacter}
           characterForm={characterForm}
           onCharacterFormChange={(field, value) =>

@@ -3,6 +3,8 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../db/prisma";
 import { getLLM } from "../../llm/factory";
+import { ragServices } from "../rag";
+import type { RagOwnerType } from "../rag/types";
 
 interface PaginationInput {
   page: number;
@@ -13,6 +15,7 @@ interface CreateNovelInput {
   title: string;
   description?: string;
   genreId?: string;
+  worldId?: string;
 }
 
 interface UpdateNovelInput {
@@ -20,6 +23,7 @@ interface UpdateNovelInput {
   description?: string;
   status?: "draft" | "published";
   genreId?: string | null;
+  worldId?: string | null;
   outline?: string | null;
   structuredOutline?: string | null;
 }
@@ -261,6 +265,7 @@ export class NovelService {
         orderBy: { updatedAt: "desc" },
         include: {
           genre: true,
+          world: { select: { id: true, name: true, worldType: true } },
           bible: true,
           _count: { select: { chapters: true, characters: true, plotBeats: true } },
         },
@@ -272,9 +277,19 @@ export class NovelService {
   }
 
   async createNovel(input: CreateNovelInput) {
-    return prisma.novel.create({
-      data: { title: input.title, description: input.description, genreId: input.genreId },
+    const created = await prisma.novel.create({
+      data: {
+        title: input.title,
+        description: input.description,
+        genreId: input.genreId,
+        worldId: input.worldId,
+      },
     });
+    this.queueRagUpsert("novel", created.id);
+    if (created.worldId) {
+      this.queueRagUpsert("world", created.worldId);
+    }
+    return created;
   }
 
   async getNovelById(id: string) {
@@ -282,6 +297,7 @@ export class NovelService {
       where: { id },
       include: {
         genre: true,
+        world: true,
         bible: true,
         chapters: { orderBy: { order: "asc" }, include: { chapterSummary: true } },
         characters: { orderBy: { createdAt: "asc" } },
@@ -291,10 +307,17 @@ export class NovelService {
   }
 
   async updateNovel(id: string, input: UpdateNovelInput) {
-    return prisma.novel.update({ where: { id }, data: input });
+    const updated = await prisma.novel.update({ where: { id }, data: input });
+    this.queueRagUpsert("novel", id);
+    if (updated.worldId) {
+      this.queueRagUpsert("world", updated.worldId);
+    }
+    return updated;
   }
 
   async deleteNovel(id: string) {
+    this.queueRagDelete("novel", id);
+    this.queueRagDelete("bible", id);
     await prisma.novel.delete({ where: { id } });
   }
 
@@ -319,6 +342,7 @@ export class NovelService {
     if (chapter.content) {
       await this.syncChapterArtifacts(novelId, chapter.id, chapter.content);
     }
+    this.queueRagUpsert("chapter", chapter.id);
     return chapter;
   }
 
@@ -334,10 +358,13 @@ export class NovelService {
     if (typeof input.content === "string") {
       await this.syncChapterArtifacts(novelId, chapterId, input.content);
     }
+    this.queueRagUpsert("chapter", chapterId);
     return chapter;
   }
 
   async deleteChapter(novelId: string, chapterId: string) {
+    this.queueRagDelete("chapter", chapterId);
+    this.queueRagDelete("chapter_summary", chapterId);
     const deleted = await prisma.chapter.deleteMany({ where: { id: chapterId, novelId } });
     if (deleted.count === 0) {
       throw new Error("章节不存在。");
@@ -364,7 +391,9 @@ export class NovelService {
         development: input.development ?? baseCharacter.development,
       };
     }
-    return prisma.character.create({ data: { novelId, ...payload } });
+    const created = await prisma.character.create({ data: { novelId, ...payload } });
+    this.queueRagUpsert("character", created.id);
+    return created;
   }
 
   async updateCharacter(novelId: string, characterId: string, input: Partial<CharacterInput>) {
@@ -377,16 +406,19 @@ export class NovelService {
     }
     const hasStateChanged = typeof input.currentState === "string" && input.currentState !== exists.currentState;
     const hasGoalChanged = typeof input.currentGoal === "string" && input.currentGoal !== exists.currentGoal;
-    return prisma.character.update({
+    const updated = await prisma.character.update({
       where: { id: characterId },
       data: {
         ...input,
         ...(hasStateChanged || hasGoalChanged ? { lastEvolvedAt: new Date() } : {}),
       },
     });
+    this.queueRagUpsert("character", updated.id);
+    return updated;
   }
 
   async deleteCharacter(novelId: string, characterId: string) {
+    this.queueRagDelete("character", characterId);
     const deleted = await prisma.character.deleteMany({ where: { id: characterId, novelId } });
     if (deleted.count === 0) {
       throw new Error("角色不存在。");
@@ -556,6 +588,19 @@ export class NovelService {
         .map((item) => `${item.title}: ${item.content}`)
         .join("\n")
       : "暂无时间线事件。";
+    let ragContext = "";
+    try {
+      ragContext = await ragServices.hybridRetrievalService.buildContextBlock(
+        `角色演进 ${character.name}\n${timelineText}`,
+        {
+          novelId,
+          ownerTypes: ["character", "character_timeline", "chapter_summary", "consistency_fact", "novel", "bible"],
+          finalTopK: 6,
+        },
+      );
+    } catch {
+      ragContext = "";
+    }
 
     const result = await llm.invoke([
       new SystemMessage(
@@ -581,7 +626,9 @@ currentState=${character.currentState ?? "暂无"}
 currentGoal=${character.currentGoal ?? "暂无"}
 
 时间线事件：
-${timelineText}`,
+${timelineText}
+检索补充：
+${ragContext || "无"}`,
       ),
     ]);
 
@@ -618,29 +665,116 @@ ${timelineText}`,
     return updated;
   }
 
+  async checkCharacterAgainstWorld(
+    novelId: string,
+    characterId: string,
+    options: LLMGenerateOptions = {},
+  ) {
+    const [novel, character] = await Promise.all([
+      prisma.novel.findUnique({
+        where: { id: novelId },
+        include: { world: true },
+      }),
+      prisma.character.findFirst({
+        where: { id: characterId, novelId },
+      }),
+    ]);
+    if (!novel || !character) {
+      throw new Error("小说或角色不存在。");
+    }
+    if (!novel.world) {
+      return {
+        status: "pass" as const,
+        warnings: ["当前小说未绑定世界观，无法执行严格世界规则检查。"],
+        issues: [],
+      };
+    }
+
+    const worldContext = this.buildWorldContextFromNovel(novel);
+    try {
+      const llm = await getLLM(options.provider ?? "deepseek", {
+        model: options.model,
+        temperature: options.temperature ?? 0.2,
+      });
+      const result = await llm.invoke([
+        new SystemMessage(
+          `你是角色设定审计员。请输出 JSON：
+{
+  "status":"pass|warn|error",
+  "warnings":["..."],
+  "issues":[{"severity":"warn|error","message":"...","suggestion":"..."}]
+}
+仅输出 JSON。`,
+        ),
+        new HumanMessage(
+          `世界规则：
+${worldContext}
+
+角色设定：
+name=${character.name}
+role=${character.role}
+personality=${character.personality ?? "无"}
+background=${character.background ?? "无"}
+development=${character.development ?? "无"}
+currentState=${character.currentState ?? "无"}
+currentGoal=${character.currentGoal ?? "无"}`,
+        ),
+      ]);
+      const parsed = JSON.parse(extractJSONObject(toText(result.content))) as {
+        status?: "pass" | "warn" | "error";
+        warnings?: string[];
+        issues?: Array<{ severity: "warn" | "error"; message: string; suggestion?: string }>;
+      };
+      return {
+        status: parsed.status ?? "pass",
+        warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
+        issues: Array.isArray(parsed.issues) ? parsed.issues : [],
+      };
+    } catch {
+      return {
+        status: "warn" as const,
+        warnings: ["AI 检查失败，返回规则回退结果。"],
+        issues: [] as Array<{ severity: "warn" | "error"; message: string; suggestion?: string }>,
+      };
+    }
+  }
+
   async createOutlineStream(novelId: string, options: LLMGenerateOptions = {}) {
-    const novel = await prisma.novel.findUnique({ where: { id: novelId } });
+    const novel = await prisma.novel.findUnique({
+      where: { id: novelId },
+      include: { world: true },
+    });
     if (!novel) {
       throw new Error("小说不存在。");
     }
+    const worldContext = this.buildWorldContextFromNovel(novel);
     const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.7,
     });
     const stream = await llm.stream([
       new SystemMessage("你是一位专业的小说发展走向策划师，请输出完整发展走向。"),
-      new HumanMessage(`小说标题：${novel.title}\n小说简介：${novel.description ?? "无"}`),
+      new HumanMessage(
+        `小说标题：${novel.title}
+小说简介：${novel.description ?? "无"}
+世界上下文：
+${worldContext}`,
+      ),
     ]);
     return {
       stream: stream as AsyncIterable<BaseMessageChunk>,
       onDone: async (fullContent: string) => {
         await prisma.novel.update({ where: { id: novelId }, data: { outline: fullContent } });
+        this.queueRagUpsert("novel", novelId);
       },
     };
   }
 
   async createStructuredOutlineStream(novelId: string, options: StructuredOutlineGenerateOptions = {}) {
-    const novel = await prisma.novel.findUnique({ where: { id: novelId } });
+    const novel = await prisma.novel.findUnique({
+      where: { id: novelId },
+      include: { world: true },
+    });
     if (!novel) {
       throw new Error("小说不存在。");
     }
@@ -654,7 +788,12 @@ ${timelineText}`,
     });
     const stream = await llm.stream([
       new SystemMessage("你是一位专业的小说结构化编剧，请严格输出 JSON 数组。"),
-      new HumanMessage(`基于下述发展走向，生成${options.totalChapters ?? 20}章规划：\n${novel.outline}`),
+      new HumanMessage(
+        `世界上下文：
+${this.buildWorldContextFromNovel(novel)}
+基于下述发展走向，生成${options.totalChapters ?? 20}章规划：
+${novel.outline}`,
+      ),
     ]);
     return {
       stream: stream as AsyncIterable<BaseMessageChunk>,
@@ -662,6 +801,7 @@ ${timelineText}`,
         const jsonText = extractJSONArray(fullContent);
         JSON.parse(jsonText);
         await prisma.novel.update({ where: { id: novelId }, data: { structuredOutline: jsonText } });
+        this.queueRagUpsert("novel", novelId);
       },
     };
   }
@@ -732,11 +872,12 @@ ${context}
   async createBibleStream(novelId: string, options: LLMGenerateOptions = {}) {
     const novel = await prisma.novel.findUnique({
       where: { id: novelId },
-      include: { characters: true, genre: true },
+      include: { characters: true, genre: true, world: true },
     });
     if (!novel) {
       throw new Error("小说不存在。");
     }
+    const worldContext = this.buildWorldContextFromNovel(novel);
     await this.ensureNovelCharacters(novelId, "生成作品圣经");
     const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
@@ -758,7 +899,9 @@ ${context}
         `小说标题：${novel.title}
 类型：${novel.genre?.name ?? "未分类"}
 简介：${novel.description ?? "无"}
-角色：${novel.characters.map((item) => `${item.name}(${item.role})`).join("、") || "暂无"}`,
+角色：${novel.characters.map((item) => `${item.name}(${item.role})`).join("、") || "暂无"}
+世界上下文：
+${worldContext}`,
       ),
     ]);
     return {
@@ -785,6 +928,7 @@ ${context}
             rawContent: JSON.stringify(parsed),
           },
         });
+        this.queueRagUpsert("bible", novelId);
       },
     };
   }
@@ -792,7 +936,7 @@ ${context}
   async createBeatStream(novelId: string, options: GenerateBeatOptions = {}) {
     const novel = await prisma.novel.findUnique({
       where: { id: novelId },
-      include: { bible: true, chapters: true },
+      include: { bible: true, chapters: true, world: true },
     });
     if (!novel) {
       throw new Error("小说不存在。");
@@ -810,6 +954,7 @@ ${context}
       new HumanMessage(
         `小说标题：${novel.title}
 小说简介：${novel.description ?? "无"}
+世界上下文：${this.buildWorldContextFromNovel(novel)}
 作品圣经：${novel.bible?.rawContent ?? "暂无"}
 目标章节：${targetChapters}`,
       ),
@@ -924,6 +1069,7 @@ ${context}
       chapter.title,
       options.content ?? chapter.content ?? "",
       options,
+      novelId,
     );
     await prisma.chapter.update({ where: { id: chapterId }, data: { generationState: "reviewed" } });
     await this.createQualityReport(novelId, chapterId, review.score, review.issues);
@@ -944,6 +1090,19 @@ ${context}
       model: options.model,
       temperature: options.temperature ?? 0.5,
     });
+    let ragContext = "";
+    try {
+      ragContext = await ragServices.hybridRetrievalService.buildContextBlock(
+        `章节修复 ${novel.title}\n${chapter.title}\n${chapter.content ?? ""}`,
+        {
+          novelId,
+          ownerTypes: ["novel", "chapter", "chapter_summary", "consistency_fact", "character", "bible"],
+          finalTopK: 8,
+        },
+      );
+    } catch {
+      ragContext = "";
+    }
     const stream = await llm.stream([
       new SystemMessage("你是资深网文编辑，请基于审校问题修复章节，保证主线和口吻一致。"),
       new HumanMessage(
@@ -954,6 +1113,8 @@ ${context}
 ${chapter.content ?? "无"}
 审校问题：
 ${JSON.stringify(issues, null, 2)}
+检索补充：
+${ragContext || "无"}
 请输出修复后的完整章节正文。`,
       ),
     ]);
@@ -1033,11 +1194,78 @@ ${JSON.stringify(issues, null, 2)}
       update: { hook },
       create: { novelId, chapterId: chapter.id, summary: briefSummary(chapter.content ?? ""), hook },
     });
+    this.queueRagUpsert("chapter", chapter.id);
+    this.queueRagUpsert("chapter_summary", chapter.id);
     return { chapterId: chapter.id, hook, nextExpectation: expectation };
   }
 
+  private queueRagUpsert(ownerType: RagOwnerType, ownerId: string): void {
+    void ragServices.ragIndexService.enqueueUpsert(ownerType, ownerId).catch(() => {
+      // keep primary workflow resilient even when rag queueing fails
+    });
+  }
+
+  private queueRagDelete(ownerType: RagOwnerType, ownerId: string): void {
+    void ragServices.ragIndexService.enqueueDelete(ownerType, ownerId).catch(() => {
+      // keep primary workflow resilient even when rag queueing fails
+    });
+  }
+
+  private buildWorldContextFromNovel(
+    novel: { world?: {
+      name: string;
+      worldType?: string | null;
+      description?: string | null;
+      axioms?: string | null;
+      background?: string | null;
+      geography?: string | null;
+      magicSystem?: string | null;
+      politics?: string | null;
+      races?: string | null;
+      religions?: string | null;
+      technology?: string | null;
+      conflicts?: string | null;
+      history?: string | null;
+      economy?: string | null;
+      factions?: string | null;
+    } | null } | null,
+  ): string {
+    const world = novel?.world;
+    if (!world) {
+      return "世界上下文：暂无";
+    }
+    let axiomsText = "无";
+    if (world.axioms) {
+      try {
+        const parsed = JSON.parse(world.axioms) as string[];
+        axiomsText = Array.isArray(parsed) && parsed.length > 0
+          ? parsed.map((item) => `- ${item}`).join("\n")
+          : world.axioms;
+      } catch {
+        axiomsText = world.axioms;
+      }
+    }
+    return `世界上下文：
+世界名称：${world.name}
+世界类型：${world.worldType ?? "未指定"}
+世界简介：${world.description ?? "无"}
+核心公理：
+${axiomsText}
+背景：${world.background ?? "无"}
+地理：${world.geography ?? "无"}
+力量体系：${world.magicSystem ?? "无"}
+社会政治：${world.politics ?? "无"}
+种族：${world.races ?? "无"}
+宗教：${world.religions ?? "无"}
+科技：${world.technology ?? "无"}
+历史：${world.history ?? "无"}
+经济：${world.economy ?? "无"}
+势力关系：${world.factions ?? "无"}
+核心冲突：${world.conflicts ?? "无"}`;
+  }
+
   private async buildContextText(novelId: string, chapterOrder: number): Promise<string> {
-    const [bible, summaries, facts] = await Promise.all([
+    const [bible, summaries, facts, novel] = await Promise.all([
       prisma.novelBible.findUnique({ where: { novelId } }),
       prisma.chapterSummary.findMany({
         where: {
@@ -1052,6 +1280,10 @@ ${JSON.stringify(issues, null, 2)}
         where: { novelId },
         orderBy: { createdAt: "desc" },
         take: 12,
+      }),
+      prisma.novel.findUnique({
+        where: { id: novelId },
+        include: { world: true },
       }),
     ]);
     const bibleText = bible
@@ -1068,7 +1300,21 @@ ${JSON.stringify(issues, null, 2)}
     const factText = facts.length > 0
       ? `最近关键事实：\n${facts.map((item) => `[${item.category}] ${item.content}`).join("\n")}`
       : "最近关键事实：暂无";
-    return `${bibleText}\n\n${summaryText}\n\n${factText}`;
+    const worldText = this.buildWorldContextFromNovel(novel);
+    let ragText = "";
+    try {
+      ragText = await ragServices.hybridRetrievalService.buildContextBlock(
+        `小说上下文 第${chapterOrder}章 ${novel?.title ?? ""}`,
+        {
+          novelId,
+        },
+      );
+    } catch {
+      ragText = "";
+    }
+    return [worldText, bibleText, summaryText, factText, ragText ? `语义检索补充：\n${ragText}` : ""]
+      .filter(Boolean)
+      .join("\n\n");
   }
 
   private async ensureNovelCharacters(novelId: string, actionName: string, minCount = 1) {
@@ -1111,6 +1357,16 @@ ${JSON.stringify(issues, null, 2)}
       }
     });
     await this.syncCharacterTimelineForChapter(novelId, chapterId, content);
+    this.queueRagUpsert("chapter", chapterId);
+    this.queueRagUpsert("chapter_summary", chapterId);
+    this.queueRagUpsert("novel", novelId);
+    const factRows = await prisma.consistencyFact.findMany({
+      where: { novelId, chapterId },
+      select: { id: true },
+    });
+    for (const fact of factRows) {
+      this.queueRagUpsert("consistency_fact", fact.id);
+    }
   }
 
   private async syncCharacterTimelineForChapter(novelId: string, chapterId: string, content: string) {
@@ -1166,6 +1422,17 @@ ${JSON.stringify(issues, null, 2)}
         await tx.characterTimeline.createMany({ data: events });
       }
     });
+    const timelines = await prisma.characterTimeline.findMany({
+      where: {
+        novelId,
+        chapterId,
+        source: "chapter_extract",
+      },
+      select: { id: true },
+    });
+    for (const timeline of timelines) {
+      this.queueRagUpsert("character_timeline", timeline.id);
+    }
   }
 
   private async reviewChapterContent(
@@ -1173,6 +1440,7 @@ ${JSON.stringify(issues, null, 2)}
     chapterTitle: string,
     content: string,
     options: ReviewOptions = {},
+    novelId?: string,
   ): Promise<{ score: QualityScore; issues: ReviewIssue[] }> {
     if (!content.trim()) {
       return {
@@ -1190,11 +1458,33 @@ ${JSON.stringify(issues, null, 2)}
         model: options.model,
         temperature: options.temperature ?? 0.1,
       });
+      let ragContext = "";
+      if (novelId) {
+        try {
+          ragContext = await ragServices.hybridRetrievalService.buildContextBlock(
+            `章节审校 ${novelTitle}\n${chapterTitle}\n${content.slice(0, 1500)}`,
+            {
+              novelId,
+              ownerTypes: ["novel", "chapter", "chapter_summary", "consistency_fact", "character", "bible"],
+              finalTopK: 6,
+            },
+          );
+        } catch {
+          ragContext = "";
+        }
+      }
       const result = await llm.invoke([
         new SystemMessage(
           "你是网文审校专家。请输出 JSON：{\"score\":{\"coherence\":0-100,\"repetition\":0-100,\"pacing\":0-100,\"voice\":0-100,\"engagement\":0-100,\"overall\":0-100},\"issues\":[{\"severity\":\"low|medium|high|critical\",\"category\":\"coherence|repetition|pacing|voice|engagement|logic\",\"evidence\":\"...\",\"fixSuggestion\":\"...\"}]}。",
         ),
-        new HumanMessage(`小说：${novelTitle}\n章节：${chapterTitle}\n正文：\n${content}`),
+        new HumanMessage(
+          `小说：${novelTitle}
+章节：${chapterTitle}
+正文：
+${content}
+检索补充：
+${ragContext || "无"}`,
+        ),
       ]);
       return parseReviewOutput(toText(result.content));
     } catch {
@@ -1319,7 +1609,7 @@ ${JSON.stringify(issues, null, 2)}
           });
           await this.syncChapterArtifacts(novelId, chapter.id, content);
 
-          final = await this.reviewChapterContent(novel.title, chapter.title, content, options);
+          final = await this.reviewChapterContent(novel.title, chapter.title, content, options, novelId);
           await prisma.chapter.update({ where: { id: chapter.id }, data: { generationState: "reviewed" } });
           logPipelineInfo("章节审校结果", {
             jobId,
