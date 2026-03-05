@@ -2,6 +2,10 @@
 
 面向私有化部署的 AI 小说写作助手，采用 `pnpm workspace` Monorepo。
 
+
+启 Qdrant：docker compose -f infra/docker-compose.qdrant.yml up -d
+跑迁移：pnpm db:migrate（确保新表落库）
+触发一次重建：POST /api/rag/reindex（scope=all），再看 GET /api/rag/jobs 和 GET /api/rag/health
 ## 项目结构
 
 ```text
