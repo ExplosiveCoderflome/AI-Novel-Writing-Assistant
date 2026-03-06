@@ -332,6 +332,13 @@ model APIKey {
   @@unique([provider])
 }
 
+model AppSetting {
+  key       String   @id
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model NovelBible {
   id             String   @id @default(cuid())
   novelId        String   @unique

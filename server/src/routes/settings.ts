@@ -7,6 +7,11 @@ import { getProviderModels, refreshProviderModels } from "../llm/modelCatalog";
 import { authMiddleware } from "../middleware/auth";
 import { AppError } from "../middleware/errorHandler";
 import { validate } from "../middleware/validate";
+import {
+  getRagEmbeddingProviders,
+  getRagEmbeddingSettings,
+  saveRagEmbeddingSettings,
+} from "../services/settings/RagSettingsService";
 
 const router = Router();
 
@@ -20,7 +25,50 @@ const upsertApiKeySchema = z.object({
   isActive: z.boolean().optional(),
 });
 
+const ragSettingsSchema = z.object({
+  embeddingProvider: z.enum(["openai", "siliconflow"]),
+  embeddingModel: z.string().trim().min(1, "嵌入模型不能为空。"),
+});
+
 router.use(authMiddleware);
+
+router.get("/rag", async (_req, res, next) => {
+  try {
+    const [settings, providers] = await Promise.all([
+      getRagEmbeddingSettings(),
+      getRagEmbeddingProviders(),
+    ]);
+    const data = {
+      ...settings,
+      providers,
+    };
+    res.status(200).json({
+      success: true,
+      data,
+      message: "获取 RAG 设置成功。",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put(
+  "/rag",
+  validate({ body: ragSettingsSchema }),
+  async (req, res, next) => {
+    try {
+      const body = req.body as z.infer<typeof ragSettingsSchema>;
+      const data = await saveRagEmbeddingSettings(body);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "RAG 设置保存成功。",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 router.get("/api-keys", async (_req, res, next) => {
   try {

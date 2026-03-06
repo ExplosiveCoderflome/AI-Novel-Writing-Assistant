@@ -3,6 +3,7 @@ import { prisma } from "../../db/prisma";
 import { ragConfig } from "../../config/rag";
 import { PROVIDERS } from "../../llm/providers";
 import { normalizeRagText } from "./utils";
+import { getRagEmbeddingSettings } from "../settings/RagSettingsService";
 
 interface EmbeddingResult {
   vectors: number[][];
@@ -53,6 +54,14 @@ function isMissingTableError(error: unknown): boolean {
 }
 
 export class EmbeddingService {
+  private async resolveRuntimeSettings(): Promise<{ provider: "openai" | "siliconflow"; model: string }> {
+    const settings = await getRagEmbeddingSettings();
+    return {
+      provider: settings.embeddingProvider,
+      model: settings.embeddingModel,
+    };
+  }
+
   private async resolveApiKey(provider: "openai" | "siliconflow"): Promise<string> {
     const envApiKey = getProviderEnvApiKey(provider);
     if (envApiKey) {
@@ -87,17 +96,19 @@ export class EmbeddingService {
       .map((item) => normalizeRagText(item))
       .filter(Boolean);
     if (texts.length === 0) {
+      const settings = await this.resolveRuntimeSettings();
       return {
         vectors: [],
-        model: this.resolveModel(ragConfig.embeddingProvider),
-        provider: ragConfig.embeddingProvider,
+        model: settings.model,
+        provider: settings.provider,
       };
     }
 
-    const provider = ragConfig.embeddingProvider;
+    const settings = await this.resolveRuntimeSettings();
+    const provider = settings.provider;
     const apiKey = await this.resolveApiKey(provider);
     const baseUrl = this.resolveBaseUrl(provider);
-    const model = this.resolveModel(provider);
+    const model = settings.model || this.resolveModel(provider);
 
     const response = await fetch(`${baseUrl}/embeddings`, {
       method: "POST",
@@ -129,14 +140,15 @@ export class EmbeddingService {
 
   async healthCheck(): Promise<{ ok: boolean; provider: string; model: string; detail?: string }> {
     try {
-      const model = this.resolveModel(ragConfig.embeddingProvider);
+      const settings = await this.resolveRuntimeSettings();
       await this.embedTexts(["health check"]);
-      return { ok: true, provider: ragConfig.embeddingProvider, model };
+      return { ok: true, provider: settings.provider, model: settings.model };
     } catch (error) {
+      const settings = await this.resolveRuntimeSettings();
       return {
         ok: false,
-        provider: ragConfig.embeddingProvider,
-        model: this.resolveModel(ragConfig.embeddingProvider),
+        provider: settings.provider,
+        model: settings.model,
         detail: error instanceof Error ? error.message : "embedding health check failed",
       };
     }

@@ -179,7 +179,13 @@ export class VectorStoreService {
 
   async healthCheck(): Promise<{ ok: boolean; detail?: string }> {
     try {
-      await this.request<{ status: string }>(`${ragConfig.qdrantUrl}/healthz`);
+      const response = await fetch(`${ragConfig.qdrantUrl}/healthz`, {
+        headers: buildHeaders(),
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Qdrant health check failed(${response.status})：${text}`);
+      }
       return { ok: true };
     } catch (error) {
       return { ok: false, detail: error instanceof Error ? error.message : "qdrant health check failed" };

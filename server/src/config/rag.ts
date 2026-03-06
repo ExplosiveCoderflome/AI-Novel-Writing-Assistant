@@ -1,5 +1,7 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 
+export type EmbeddingProvider = "openai" | "siliconflow";
+
 function isEnabled(rawValue: string | undefined, defaultValue: boolean): boolean {
   if (!rawValue) {
     return defaultValue;
@@ -17,7 +19,7 @@ function asInt(rawValue: string | undefined, fallback: number, min: number, max:
   return Math.max(min, Math.min(max, value));
 }
 
-function asEmbeddingProvider(rawValue: string | undefined): "openai" | "siliconflow" {
+export function asEmbeddingProvider(rawValue: string | undefined): EmbeddingProvider {
   const normalized = (rawValue ?? "").trim().toLowerCase();
   if (normalized === "siliconflow") {
     return "siliconflow";

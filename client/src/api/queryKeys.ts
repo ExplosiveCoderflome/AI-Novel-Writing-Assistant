@@ -31,5 +31,6 @@ export const queryKeys = {
   },
   settings: {
     apiKeys: ["settings", "api-keys"] as const,
+    rag: ["settings", "rag"] as const,
   },
 };

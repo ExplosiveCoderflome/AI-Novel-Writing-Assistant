@@ -2,6 +2,8 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { apiClient } from "./client";
 
+export type EmbeddingProvider = Extract<LLMProvider, "openai" | "siliconflow">;
+
 export interface APIKeyStatus {
   provider: LLMProvider;
   name: string;
@@ -12,8 +14,36 @@ export interface APIKeyStatus {
   isActive: boolean;
 }
 
+export interface RagProviderStatus {
+  provider: EmbeddingProvider;
+  name: string;
+  isConfigured: boolean;
+  isActive: boolean;
+}
+
+export interface RagSettingsStatus {
+  embeddingProvider: EmbeddingProvider;
+  embeddingModel: string;
+  providers: RagProviderStatus[];
+}
+
 export async function getAPIKeySettings() {
   const { data } = await apiClient.get<ApiResponse<APIKeyStatus[]>>("/settings/api-keys");
+  return data;
+}
+
+export async function getRagSettings() {
+  const { data } = await apiClient.get<ApiResponse<RagSettingsStatus>>("/settings/rag");
+  return data;
+}
+
+export async function saveRagSettings(payload: {
+  embeddingProvider: EmbeddingProvider;
+  embeddingModel: string;
+}) {
+  const { data } = await apiClient.put<
+    ApiResponse<Pick<RagSettingsStatus, "embeddingProvider" | "embeddingModel">>
+  >("/settings/rag", payload);
   return data;
 }
 
