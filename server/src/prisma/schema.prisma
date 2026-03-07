@@ -100,6 +100,12 @@ enum BookAnalysisSectionStatus {
   failed
 }
 
+enum ImageSceneType {
+  character
+  novel_cover
+  chapter_illustration
+}
+
 model Novel {
   id                String      @id @default(cuid())
   title             String
@@ -201,8 +207,64 @@ model BaseCharacter {
   keyEvents   String?
   tags        String   @default("")
   category    String
+  imageTasks  ImageGenerationTask[]
+  imageAssets ImageAsset[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model ImageGenerationTask {
+  id              String            @id @default(cuid())
+  sceneType       ImageSceneType    @default(character)
+  baseCharacterId String?
+  provider        String
+  model           String
+  prompt          String
+  negativePrompt  String?
+  stylePreset     String?
+  size            String            @default("1024x1024")
+  imageCount      Int               @default(1)
+  seed            Int?
+  status          PipelineJobStatus @default(queued)
+  progress        Float             @default(0)
+  retryCount      Int               @default(0)
+  maxRetries      Int               @default(2)
+  error           String?
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  baseCharacter   BaseCharacter?    @relation(fields: [baseCharacterId], references: [id], onDelete: Cascade)
+  assets          ImageAsset[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([sceneType, status])
+  @@index([baseCharacterId, createdAt])
+}
+
+model ImageAsset {
+  id              String            @id @default(cuid())
+  taskId          String
+  sceneType       ImageSceneType    @default(character)
+  baseCharacterId String?
+  provider        String
+  model           String
+  url             String
+  mimeType        String?
+  width           Int?
+  height          Int?
+  seed            Int?
+  prompt          String?
+  isPrimary       Boolean           @default(false)
+  sortOrder       Int               @default(0)
+  metadata        String?
+  task            ImageGenerationTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  baseCharacter   BaseCharacter?    @relation(fields: [baseCharacterId], references: [id], onDelete: Cascade)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([taskId])
+  @@index([sceneType, createdAt])
+  @@index([baseCharacterId, isPrimary, createdAt])
 }
 
 model NovelGenre {

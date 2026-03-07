@@ -242,6 +242,9 @@ export default function KnowledgePage() {
             {document.fileName} | 版本数 {document.versionCount} | 当前 v{document.activeVersionNumber}
           </div>
           <div className="text-xs text-muted-foreground">拆书项目 {document.bookAnalysisCount}</div>
+          {document.latestIndexStatus === "failed" && document.latestIndexError ? (
+            <div className="text-xs text-destructive">失败原因：{document.latestIndexError}</div>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge variant="outline">{formatStatus(document.status)}</Badge>
@@ -553,8 +556,17 @@ export default function KnowledgePage() {
                 <Button variant="outline" onClick={() => reindexMutation.mutate(selectedDocumentId)}>
                   手动重建索引
                 </Button>
-              ) : null}
+                ) : null}
             </div>
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <Badge variant="outline">文档状态：{formatStatus(selectedDocument?.status ?? "-")}</Badge>
+              <Badge variant="outline">索引状态：{formatStatus(selectedDocument?.latestIndexStatus ?? "-")}</Badge>
+            </div>
+            {selectedDocument?.latestIndexStatus === "failed" && selectedDocument.latestIndexError ? (
+              <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                索引失败原因：{selectedDocument.latestIndexError}
+              </div>
+            ) : null}
             <Card>
               <CardHeader>
                 <CardTitle>召回测试</CardTitle>

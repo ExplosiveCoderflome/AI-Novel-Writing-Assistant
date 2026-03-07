@@ -12,6 +12,7 @@ export default function ChatPage() {
   const chatStore = useChatStore();
   const [input, setInput] = useState("");
   const [agentMode, setAgentMode] = useState(false);
+  const [enableRag, setEnableRag] = useState(true);
   const [systemPrompt, setSystemPrompt] = useState("");
   const [knowledgeDocumentIds, setKnowledgeDocumentIds] = useState<string[] | null>(null);
 
@@ -74,6 +75,7 @@ export default function ChatPage() {
       messages,
       systemPrompt: systemPrompt || undefined,
       agentMode,
+      enableRag,
       knowledgeDocumentIds: knowledgeDocumentIds ?? undefined,
       provider: llm.provider,
       model: llm.model,
@@ -204,6 +206,14 @@ export default function ChatPage() {
             />
             Enable agent mode
           </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={enableRag}
+              onChange={(event) => setEnableRag(event.target.checked)}
+            />
+            Enable knowledge retrieval (RAG)
+          </label>
           <div>
             <div className="mb-1 text-xs text-muted-foreground">System prompt</div>
             <textarea
@@ -217,7 +227,9 @@ export default function ChatPage() {
             selectedIds={knowledgeDocumentIds}
             onChange={setKnowledgeDocumentIds}
             title="Knowledge documents"
-            description="Leave empty to use automatic resolution, or select documents to limit retrieval."
+            description={enableRag
+              ? "Leave empty to use automatic resolution, or select documents to limit retrieval."
+              : "RAG is disabled. Re-enable it above to use document retrieval."}
             allowAuto
             queryStatus="enabled"
           />

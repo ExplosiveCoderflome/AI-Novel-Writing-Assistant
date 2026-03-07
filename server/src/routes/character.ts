@@ -60,6 +60,11 @@ router.get("/", validate({ query: listQuerySchema }), async (req, res, next) => 
               { name: { contains: query.search } },
               { personality: { contains: query.search } },
               { background: { contains: query.search } },
+              { appearance: { contains: query.search } },
+              { weaknesses: { contains: query.search } },
+              { interests: { contains: query.search } },
+              { keyEvents: { contains: query.search } },
+              { tags: { contains: query.search } },
             ]
           : undefined,
       },

@@ -132,6 +132,10 @@ interface CharacterTimelineSyncOptions {
 }
 
 const QUALITY_THRESHOLD = { coherence: 80, repetition: 20, engagement: 75 };
+const OPENING_COMPARE_LIMIT = 3;
+const OPENING_SLICE_LENGTH = 220;
+const OPENING_NGRAM_SIZE = 4;
+const OPENING_SIMILARITY_THRESHOLD = 0.42;
 type BeatStatus = "planned" | "completed" | "skipped";
 
 function logPipelineInfo(message: string, meta?: Record<string, unknown>) {
@@ -237,9 +241,106 @@ function isPass(score: QualityScore): boolean {
     && score.engagement >= QUALITY_THRESHOLD.engagement;
 }
 
-function briefSummary(content: string): string {
+function normalizeOpeningText(content: string): string {
+  return content
+    .replace(/\s+/g, "")
+    .replace(/[，。！？；：、“”‘’（）《》【】\[\]\(\)!?,.:;'"`~\-_/\\|@#$%^&*+=<>]/g, "")
+    .trim();
+}
+
+function extractOpening(content: string, maxLength = OPENING_SLICE_LENGTH): string {
   const text = content.replace(/\s+/g, " ").trim();
-  return text.length <= 260 ? text : `${text.slice(0, 260)}...`;
+  return text.slice(0, maxLength);
+}
+
+function buildNGramSet(source: string, n = OPENING_NGRAM_SIZE): Set<string> {
+  const normalized = normalizeOpeningText(source);
+  if (!normalized) {
+    return new Set<string>();
+  }
+  if (normalized.length <= n) {
+    return new Set<string>([normalized]);
+  }
+  const grams = new Set<string>();
+  for (let i = 0; i <= normalized.length - n; i += 1) {
+    grams.add(normalized.slice(i, i + n));
+  }
+  return grams;
+}
+
+function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) {
+    return 0;
+  }
+  let intersection = 0;
+  for (const item of a) {
+    if (b.has(item)) {
+      intersection += 1;
+    }
+  }
+  const union = a.size + b.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+function openingSimilarity(a: string, b: string): number {
+  return jaccardSimilarity(buildNGramSet(a), buildNGramSet(b));
+}
+
+function briefSummary(content: string, facts?: Array<{ category: "plot" | "character" | "world"; content: string }>): string {
+  const text = content.replace(/\s+/g, " ").trim();
+  if (!text) {
+    return "";
+  }
+
+  const extractedFacts = (facts ?? extractFacts(content))
+    .map((item) => ({ ...item, content: item.content.trim() }))
+    .filter((item) => item.content.length > 0);
+
+  const pickUnique = (items: string[], maxItems = 3): string[] => {
+    const result: string[] = [];
+    const seen = new Set<string>();
+    for (const item of items) {
+      if (seen.has(item)) {
+        continue;
+      }
+      seen.add(item);
+      result.push(item);
+      if (result.length >= maxItems) {
+        break;
+      }
+    }
+    return result;
+  };
+
+  const plotEvents = pickUnique(extractedFacts.filter((item) => item.category === "plot").map((item) => item.content), 2);
+  const characterStates = pickUnique(extractedFacts.filter((item) => item.category === "character").map((item) => item.content), 2);
+  const worldFacts = pickUnique(extractedFacts.filter((item) => item.category === "world").map((item) => item.content), 1);
+
+  const blocks: string[] = [];
+  if (plotEvents.length > 0) {
+    blocks.push(`Plot: ${plotEvents.join("；")}`);
+  }
+  if (characterStates.length > 0) {
+    blocks.push(`Character: ${characterStates.join("；")}`);
+  }
+  if (worldFacts.length > 0) {
+    blocks.push(`World: ${worldFacts.join("；")}`);
+  }
+  if (blocks.length > 0) {
+    return blocks.join("\n");
+  }
+
+  const sentences = text.split(/[。！？!?]/).map((item) => item.trim()).filter(Boolean);
+  if (sentences.length === 0) {
+    return text.length <= 220 ? text : `${text.slice(0, 220)}...`;
+  }
+  const middle = sentences[Math.floor((sentences.length - 1) / 2)] ?? "";
+  const tail = sentences[sentences.length - 1] ?? "";
+  const fallback = [middle, tail].filter(Boolean).join("；");
+  if (fallback) {
+    return `Plot: ${fallback}`;
+  }
+  return text.length <= 220 ? text : `${text.slice(0, 220)}...`;
 }
 
 function extractFacts(content: string): Array<{ category: "plot" | "character" | "world"; content: string }> {
@@ -921,44 +1022,67 @@ ${novel.outline}${referenceBlock}`,
       prisma.chapter.findFirst({ where: { id: chapterId, novelId } }),
     ]);
     if (!novel || !chapter) {
-      throw new Error("小说或章节不存在。");
+      throw new Error("Novel or chapter not found.");
     }
-    await this.ensureNovelCharacters(novelId, "生成章节内容");
+    await this.ensureNovelCharacters(novelId, "generate chapter content");
     const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.8,
     });
     const context = options.previousChaptersSummary?.join("\n") || (await this.buildContextText(novelId, chapter.order));
+    const openingHint = await this.buildOpeningConstraintHint(novelId, chapter.order);
     const charactersText = novel.characters.length > 0
       ? novel.characters
-          .map((c) => `- ${c.name}（${c.role}）${c.personality ? `：${c.personality.slice(0, 100)}` : ""}`)
+          .map((c) => `- ${c.name} (${c.role})${c.personality ? `: ${c.personality.slice(0, 100)}` : ""}`)
           .join("\n")
-      : "暂无";
+      : "none";
     const chapterPlan = chapter.expectation?.trim()
-      ? `\n本章大纲规划（必须严格遵循）：\n${chapter.expectation}`
+      ? `\nChapter plan (must follow):\n${chapter.expectation}`
       : "";
+
     const stream = await llm.stream([
       new SystemMessage(
-        "你是一位优秀的网文作者，请严格基于给定的角色设定和本章大纲规划输出连贯、可读、节奏紧凑的章节正文，不得自行发明新角色或偏离规划。",
+        `You are a web-novel writer. Output must be Simplified Chinese.
+Write 2000-3000 Chinese characters based on character settings, chapter plan and context.
+Hard requirements:
+1) Advance new plot events; do not retell completed events.
+2) Callback references are allowed but must be short; do not reuse long context sentences.
+3) Do not add new core characters or rewrite fixed settings.
+4) Chapter ending must include a new suspense/conflict/decision point.
+5) The opening 2-4 sentences must differ from recent chapters in scene trigger, temporal cue and sentence pattern.
+6) Avoid repetitive opening templates such as "I am X..." or "I am checking delivery updates in office...".`,
       ),
       new HumanMessage(
-        `小说：${novel.title}
-核心角色（必须使用这些角色，不得替换或忽略）：
+        `Novel: ${novel.title}
+Core characters (must remain consistent):
 ${charactersText}
-章节标题：第${chapter.order}章 ${chapter.title}${chapterPlan}
-上下文：
+Chapter: ${chapter.order} - ${chapter.title}${chapterPlan}
+Context:
 ${context}
-字数要求：2000-3000字`,
+
+Opening anti-repeat constraints:
+${openingHint}
+
+If an event is already covered in prior chapters, mention it in at most one sentence and move on to new events.`,
       ),
     ]);
+
     return {
       stream: stream as AsyncIterable<BaseMessageChunk>,
       onDone: async (fullContent: string) => {
+        const openingGuard = await this.enforceOpeningDiversity(
+          novelId,
+          chapter.order,
+          chapter.title,
+          fullContent,
+          options,
+        );
+        const finalContent = openingGuard.content;
         await prisma.chapter.update({
           where: { id: chapterId },
-          data: { content: fullContent, generationState: "drafted" },
+          data: { content: finalContent, generationState: "drafted" },
         });
-        await this.syncChapterArtifacts(novelId, chapterId, fullContent);
+        await this.syncChapterArtifacts(novelId, chapterId, finalContent);
       },
     };
   }
@@ -1399,7 +1523,7 @@ ${axiomsText}
   }
 
   private async buildContextText(novelId: string, chapterOrder: number): Promise<string> {
-    const [bible, summaries, facts, novel, styleReference, characters] = await Promise.all([
+    const [bible, summaries, facts, novel, styleReference, characters, recentChapters] = await Promise.all([
       prisma.novelBible.findUnique({ where: { novelId } }),
       prisma.chapterSummary.findMany({
         where: {
@@ -1421,7 +1545,18 @@ ${axiomsText}
       }),
       novelReferenceService.buildReferenceForStage(novelId, "chapter"),
       prisma.character.findMany({ where: { novelId }, orderBy: { createdAt: "asc" } }),
+      prisma.chapter.findMany({
+        where: {
+          novelId,
+          order: { lt: chapterOrder },
+          content: { not: null },
+        },
+        orderBy: { order: "desc" },
+        take: 2,
+        select: { order: true, title: true, content: true },
+      }),
     ]);
+
     const bibleText = bible
       ? `作品圣经：
 主线承诺：${bible.mainPromise ?? "无"}
@@ -1430,12 +1565,25 @@ ${axiomsText}
 角色成长弧：${bible.characterArcs ?? "无"}
 世界规则：${bible.worldRules ?? "无"}`
       : "作品圣经：暂无";
+
     const summaryText = summaries.length > 0
       ? `最近章节摘要：\n${summaries.map((item) => `第${item.chapter.order}章：${item.summary}`).join("\n")}`
       : "最近章节摘要：暂无";
+
     const factText = facts.length > 0
       ? `最近关键事实：\n${facts.map((item) => `[${item.category}] ${item.content}`).join("\n")}`
       : "最近关键事实：暂无";
+
+    const recentChapterContentText = recentChapters.length > 0
+      ? `最近章节正文片段（避免重复描写）：\n${recentChapters
+          .map((item) => {
+            const digest = (item.content ?? "").replace(/\s+/g, " ").trim().slice(0, 220);
+            return `第${item.order}章《${item.title}》：${digest}`;
+          })
+          .filter((item) => item.trim().length > 0)
+          .join("\n")}`
+      : "最近章节正文片段：暂无";
+
     const worldText = this.buildWorldContextFromNovel(novel);
     const outlineText = novel?.outline?.trim()
       ? `发展走向：\n${novel.outline.slice(0, 800)}`
@@ -1445,6 +1593,7 @@ ${axiomsText}
           .map((c) => `- ${c.name}（${c.role}）${c.personality ? `：${c.personality.slice(0, 80)}` : ""}`)
           .join("\n")}`
       : "";
+
     const ragQuery = getRagQueryForChapter(
       chapterOrder,
       novel?.title ?? "",
@@ -1458,12 +1607,141 @@ ${axiomsText}
     } catch {
       ragText = "";
     }
+
     const styleBlock = styleReference.trim()
       ? `文风参考（来自拆书分析）：\n${styleReference}`
       : "";
-    return [worldText, outlineText, charactersContextText, bibleText, summaryText, factText, ragText ? `语义检索补充：\n${ragText}` : "", styleBlock]
+
+    return [
+      worldText,
+      outlineText,
+      charactersContextText,
+      bibleText,
+      summaryText,
+      factText,
+      recentChapterContentText,
+      ragText ? `语义检索补充：\n${ragText}` : "",
+      styleBlock,
+    ]
       .filter(Boolean)
       .join("\n\n");
+  }
+
+  private async buildOpeningConstraintHint(novelId: string, chapterOrder: number): Promise<string> {
+    const recentChapters = await prisma.chapter.findMany({
+      where: {
+        novelId,
+        order: { lt: chapterOrder },
+        content: { not: null },
+      },
+      orderBy: { order: "desc" },
+      take: OPENING_COMPARE_LIMIT,
+      select: { order: true, title: true, content: true },
+    });
+    const openingList = recentChapters
+      .map((item) => ({
+        order: item.order,
+        title: item.title,
+        opening: extractOpening(item.content ?? ""),
+      }))
+      .filter((item) => item.opening.length > 0);
+    if (openingList.length === 0) {
+      return "Recent openings: none.";
+    }
+    return [
+      "Recent openings (do not reuse the same opening structure or sentence starter):",
+      ...openingList.map((item) => `- Chapter ${item.order} ${item.title}: ${item.opening}`),
+    ].join("\n");
+  }
+
+  private async enforceOpeningDiversity(
+    novelId: string,
+    chapterOrder: number,
+    chapterTitle: string,
+    content: string,
+    options: LLMGenerateOptions = {},
+  ): Promise<{ content: string; rewritten: boolean; maxSimilarity: number }> {
+    const trimmed = content.trim();
+    if (!trimmed) {
+      return { content, rewritten: false, maxSimilarity: 0 };
+    }
+    const currentOpening = extractOpening(trimmed);
+    if (!currentOpening) {
+      return { content, rewritten: false, maxSimilarity: 0 };
+    }
+
+    const recentChapters = await prisma.chapter.findMany({
+      where: {
+        novelId,
+        order: { lt: chapterOrder },
+        content: { not: null },
+      },
+      orderBy: { order: "desc" },
+      take: OPENING_COMPARE_LIMIT,
+      select: { order: true, title: true, content: true },
+    });
+    const compared = recentChapters
+      .map((item) => ({
+        order: item.order,
+        title: item.title,
+        opening: extractOpening(item.content ?? ""),
+      }))
+      .filter((item) => item.opening.length > 0);
+    if (compared.length === 0) {
+      return { content, rewritten: false, maxSimilarity: 0 };
+    }
+
+    const maxSimilarity = compared.reduce((max, item) => {
+      return Math.max(max, openingSimilarity(currentOpening, item.opening));
+    }, 0);
+    if (maxSimilarity < OPENING_SIMILARITY_THRESHOLD) {
+      return { content, rewritten: false, maxSimilarity };
+    }
+
+    try {
+      const llm = await getLLM(options.provider ?? "deepseek", {
+        model: options.model,
+        temperature: options.temperature ?? 0.5,
+      });
+      const forbiddenOpenings = compared
+        .map((item) => `- Chapter ${item.order} ${item.title}: ${item.opening}`)
+        .join("\n");
+      const rewritten = await llm.invoke([
+        new SystemMessage(
+          `You are a chapter rewrite editor.
+Keep the original plot facts, character logic and ending hook.
+Output must be Simplified Chinese and full chapter text.
+Hard rule: rewrite the opening paragraph with a clearly different sentence pattern, scene trigger and temporal cue.`,
+        ),
+        new HumanMessage(
+          `Chapter title: ${chapterTitle}
+Current full content:
+${trimmed}
+
+Forbidden opening patterns:
+${forbiddenOpenings}
+
+Rewrite full chapter. Keep the same core events but change the opening style significantly.`,
+        ),
+      ]);
+      const rewrittenContent = toText(rewritten.content).trim();
+      if (!rewrittenContent) {
+        return { content, rewritten: false, maxSimilarity };
+      }
+      const rewrittenOpening = extractOpening(rewrittenContent);
+      if (!rewrittenOpening) {
+        return { content, rewritten: false, maxSimilarity };
+      }
+      const rewrittenMaxSimilarity = compared.reduce((max, item) => {
+        return Math.max(max, openingSimilarity(rewrittenOpening, item.opening));
+      }, 0);
+      if (rewrittenMaxSimilarity >= maxSimilarity) {
+        return { content, rewritten: false, maxSimilarity };
+      }
+      return { content: rewrittenContent, rewritten: true, maxSimilarity: rewrittenMaxSimilarity };
+    } catch {
+      return { content, rewritten: false, maxSimilarity };
+    }
   }
 
   private async ensureNovelCharacters(novelId: string, actionName: string, minCount = 1) {
@@ -1474,8 +1752,8 @@ ${axiomsText}
   }
 
   private async syncChapterArtifacts(novelId: string, chapterId: string, content: string) {
-    const summary = briefSummary(content);
     const facts = extractFacts(content);
+    const summary = briefSummary(content, facts);
     await prisma.$transaction(async (tx) => {
       await tx.chapterSummary.upsert({
         where: { chapterId },
@@ -1735,20 +2013,65 @@ ${ragContext || "无"}`,
           });
           if (!content.trim()) {
             const context = await this.buildContextText(novelId, chapter.order);
+            const openingHint = await this.buildOpeningConstraintHint(novelId, chapter.order);
             const plan = await llm.invoke([
-              new SystemMessage("你是网文章节策划，请给出章目标、冲突点、钩子点。"),
-              new HumanMessage(`小说：${novel.title}\n章节：${chapter.title}\n上下文：\n${context}`),
+              new SystemMessage(
+                "You are a web-novel chapter planner. Provide chapter objective, conflict, hook and opening trigger. Avoid repeating previous chapter openings.",
+              ),
+              new HumanMessage(
+                `Novel: ${novel.title}
+Chapter: ${chapter.title}
+Context:
+${context}
+
+Opening anti-repeat constraints:
+${openingHint}`,
+              ),
             ]);
             const draft = await llm.invoke([
-              new SystemMessage("你是网文作者，请基于策划写出2000-3000字章节正文。"),
-              new HumanMessage(`章节策划：\n${toText(plan.content)}\n章节标题：${chapter.title}`),
+              new SystemMessage(
+                `You are a web-novel writer. Output must be Simplified Chinese.
+Write 2000-3000 Chinese characters.
+Requirements:
+1) Do not repeat completed events.
+2) Do not copy long context sentences.
+3) Must push new conflict and new information.
+4) Opening 2-4 sentences must be structurally different from recent chapters.`,
+              ),
+              new HumanMessage(
+                `Chapter plan:
+${toText(plan.content)}
+Chapter title: ${chapter.title}
+Chapter context:
+${context}
+
+Opening anti-repeat constraints:
+${openingHint}`,
+              ),
             ]);
             content = toText(draft.content);
-            logPipelineInfo("章节已生成初稿", {
+            logPipelineInfo("Chapter drafted", {
               jobId,
               order: chapter.order,
               attempt,
               length: content.length,
+            });
+          }
+
+          const openingGuard = await this.enforceOpeningDiversity(
+            novelId,
+            chapter.order,
+            chapter.title,
+            content,
+            options,
+          );
+          content = openingGuard.content;
+          if (openingGuard.rewritten) {
+            logPipelineInfo("Opening diversity rewrite applied", {
+              jobId,
+              order: chapter.order,
+              attempt,
+              maxSimilarity: Number(openingGuard.maxSimilarity.toFixed(4)),
             });
           }
 

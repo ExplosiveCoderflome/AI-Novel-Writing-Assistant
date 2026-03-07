@@ -22,6 +22,7 @@ export interface PendingState {
   rebuild: boolean;
   archive: boolean;
   regenerate: boolean;
+  optimizePreview: boolean;
   saveSection: boolean;
   publish: boolean;
 }
@@ -44,6 +45,7 @@ export interface BookAnalysisWorkspace {
   versionOptions: KnowledgeDocumentDetail["versions"];
   sourceDocument?: KnowledgeDocumentDetail;
   aggregatedEvidence: AggregatedEvidenceItem[];
+  optimizingSectionKey: BookAnalysisSectionKey | null;
   pending: PendingState;
   setKeyword: (keyword: string) => void;
   setStatus: (status: BookAnalysisStatus | "") => void;
@@ -57,6 +59,9 @@ export interface BookAnalysisWorkspace {
   rebuildAnalysis: (analysisId: string) => void;
   archiveAnalysis: (analysisId: string) => void;
   regenerateSection: (sectionKey: BookAnalysisSectionKey) => void;
+  optimizeSectionPreview: (section: BookAnalysisSection) => Promise<void>;
+  applySectionOptimizePreview: (section: BookAnalysisSection) => void;
+  clearSectionOptimizePreview: (section: BookAnalysisSection) => void;
   saveSection: (section: BookAnalysisSection) => void;
   downloadSelectedAnalysis: (format: ExportFormat) => Promise<void>;
   publishSelectedAnalysis: () => Promise<void>;

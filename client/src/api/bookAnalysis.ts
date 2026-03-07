@@ -2,6 +2,7 @@ import type {
   BookAnalysis,
   BookAnalysisDetail,
   BookAnalysisPublishResult,
+  BookAnalysisSectionOptimizePreview,
   BookAnalysisSectionKey,
   BookAnalysisStatus,
 } from "@ai-novel/shared/types/bookAnalysis";
@@ -59,6 +60,18 @@ export async function regenerateBookAnalysisSection(id: string, sectionKey: Book
   const { data } = await apiClient.post<ApiResponse<BookAnalysisDetail>>(
     `/book-analysis/${id}/sections/${sectionKey}/regenerate`,
     {},
+  );
+  return data;
+}
+
+export async function optimizeBookAnalysisSectionPreview(
+  id: string,
+  sectionKey: BookAnalysisSectionKey,
+  payload: { currentDraft: string; instruction: string },
+) {
+  const { data } = await apiClient.post<ApiResponse<BookAnalysisSectionOptimizePreview>>(
+    `/book-analysis/${id}/sections/${sectionKey}/optimize-preview`,
+    payload,
   );
   return data;
 }

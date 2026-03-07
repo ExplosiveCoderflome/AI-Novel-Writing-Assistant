@@ -37,11 +37,13 @@ export default function BookAnalysisPage() {
             publishFeedback={workspace.publishFeedback}
             lastPublishResult={workspace.lastPublishResult}
             aggregatedEvidence={workspace.aggregatedEvidence}
+            optimizingSectionKey={workspace.optimizingSectionKey}
             pending={{
               copy: workspace.pending.copy,
               rebuild: workspace.pending.rebuild,
               archive: workspace.pending.archive,
               regenerate: workspace.pending.regenerate,
+              optimizePreview: workspace.pending.optimizePreview,
               saveSection: workspace.pending.saveSection,
               publish: workspace.pending.publish,
             }}
@@ -52,6 +54,9 @@ export default function BookAnalysisPage() {
             onDownload={(format) => void workspace.downloadSelectedAnalysis(format)}
             onPublish={() => void workspace.publishSelectedAnalysis()}
             onRegenerateSection={(section) => workspace.regenerateSection(section.sectionKey)}
+            onOptimizeSection={(section) => void workspace.optimizeSectionPreview(section)}
+            onApplyOptimizePreview={workspace.applySectionOptimizePreview}
+            onCancelOptimizePreview={workspace.clearSectionOptimizePreview}
             onSaveSection={workspace.saveSection}
             onDraftChange={workspace.updateSectionDraft}
             getSectionDraft={workspace.getSectionDraft}

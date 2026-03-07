@@ -95,6 +95,8 @@ router.post("/", validate({ body: chatSchema }), async (req, res, next) => {
       .find((item) => item.role === "user")
       ?.content
       ?.trim();
+    const shouldEnableRag = body.enableRag
+      ?? (Array.isArray(body.knowledgeDocumentIds) && body.knowledgeDocumentIds.length > 0);
     const scope = body.contextScope ?? "global";
     const ownerTypes: RagOwnerType[] | undefined = scope === "novel"
       ? ["novel", "chapter", "bible", "chapter_summary", "consistency_fact", "character", "character_timeline"]
@@ -102,7 +104,7 @@ router.post("/", validate({ body: chatSchema }), async (req, res, next) => {
         ? ["world", "world_library_item"]
         : undefined;
     let ragContext = "";
-    if (body.enableRag && latestUserMessage) {
+    if (shouldEnableRag && latestUserMessage) {
       try {
         ragContext = await ragServices.hybridRetrievalService.buildContextBlock(latestUserMessage, {
           novelId: scope === "novel" ? body.novelId : undefined,

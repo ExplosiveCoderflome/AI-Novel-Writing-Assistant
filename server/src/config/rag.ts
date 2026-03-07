@@ -41,6 +41,9 @@ export const ragConfig = {
   embeddingModel: process.env.EMBEDDING_MODEL ?? "text-embedding-3-small",
   embeddingVersion: asInt(process.env.EMBEDDING_VERSION, 1, 1, 100),
   embeddingBatchSize: asInt(process.env.EMBEDDING_BATCH_SIZE, 64, 1, 256),
+  embeddingTimeoutMs: asInt(process.env.RAG_EMBEDDING_TIMEOUT_MS ?? process.env.RAG_HTTP_TIMEOUT_MS, 30000, 5000, 300000),
+  embeddingMaxRetries: asInt(process.env.RAG_EMBEDDING_MAX_RETRIES, 2, 0, 8),
+  embeddingRetryBaseMs: asInt(process.env.RAG_EMBEDDING_RETRY_BASE_MS, 500, 100, 10000),
   qdrantUrl: (process.env.QDRANT_URL ?? "http://127.0.0.1:6333").replace(/\/+$/, ""),
   qdrantApiKey: process.env.QDRANT_API_KEY ?? "",
   qdrantCollection: process.env.QDRANT_COLLECTION ?? "ai_novel_chunks_v1",
@@ -53,5 +56,6 @@ export const ragConfig = {
   workerPollMs: asInt(process.env.RAG_WORKER_POLL_MS, 2500, 200, 60000),
   workerMaxAttempts: asInt(process.env.RAG_WORKER_MAX_ATTEMPTS, 5, 1, 20),
   workerRetryBaseMs: asInt(process.env.RAG_WORKER_RETRY_BASE_MS, 5000, 1000, 300000),
+  httpTimeoutMs: asInt(process.env.RAG_HTTP_TIMEOUT_MS, 30000, 1000, 300000),
   providerPriority: ["openai", "siliconflow"] as Array<Extract<LLMProvider, "openai" | "siliconflow">>,
 };

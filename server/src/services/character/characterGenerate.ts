@@ -140,7 +140,7 @@ function buildConstraintsText(constraints: CharacterGenerateConstraints | null):
 async function invokeJsonWithRetry(
   llm: Awaited<ReturnType<typeof getLLM>>,
   messages: BaseMessage[],
-  stageLabel: "骨架" | "成稿",
+  stageLabel: string,
 ): Promise<JsonInvokeResult> {
   let retried = false;
   let rawText = "";
@@ -175,37 +175,51 @@ async function invokeJsonWithRetry(
 
 function buildFallbackSkeleton(input: CharacterGenerateInput, constraints: CharacterGenerateConstraints | null): Record<string, unknown> {
   const description = input.description.trim();
-  const growthStart = constraints?.growthStage ?? "起点";
+  const growthStart = constraints?.growthStage ?? "start";
   return {
-    nameSuggestion: description.slice(0, 12) || "未命名角色",
+    nameSuggestion: description.slice(0, 12) || "Unnamed Character",
     role: constraints?.storyFunction || input.category.trim(),
-    corePersona: constraints?.toneStyle || "理性克制但情绪暗涌",
+    corePersona: constraints?.toneStyle || "rational and restrained with hidden emotional tension",
+    surfaceTemperament: constraints?.toneStyle || "calm on the surface, intense underneath",
+    coreDrive: constraints?.internalNeed || "needs recognition and emotional safety",
+    socialMask: "appears composed and in-control in public, reveals anxiety in private",
     behaviorPatterns: [
-      constraints?.externalGoal ? `优先围绕“${constraints.externalGoal}”行动` : "以结果为导向",
-      constraints?.moralBottomLine ? `坚持底线“${constraints.moralBottomLine}”` : "关键时刻坚持个人底线",
+      constraints?.externalGoal ? `prioritizes actions around "${constraints.externalGoal}"` : "result-driven in critical moments",
+      constraints?.moralBottomLine ? `keeps moral line: "${constraints.moralBottomLine}"` : "keeps a personal bottom line under pressure",
     ],
     triggerPoints: [
-      constraints?.coreFear ? `触及“${constraints.coreFear}”会强烈应激` : "被背叛时会激烈反弹",
+      constraints?.coreFear ? `strong stress reaction when touching "${constraints.coreFear}"` : "reacts strongly to betrayal or being underestimated",
     ],
-    lifeOrigin: constraints?.relationshipHooks || `来自用户描述：${description}`,
-    relationshipNetwork: constraints?.relationshipHooks ? [constraints.relationshipHooks] : ["与核心人物存在强关联"],
-    externalGoal: constraints?.externalGoal || "达成阶段性胜利并保全关键关系",
-    internalNeed: constraints?.internalNeed || "获得被理解与自我接纳",
-    coreFear: constraints?.coreFear || "失去掌控并伤害重要之人",
-    moralBottomLine: constraints?.moralBottomLine || "不主动伤害无辜者",
-    secret: constraints?.secret || "隐藏过去的关键真相",
-    coreFlaw: constraints?.coreFlaw || "过度控制导致关系紧绷",
+    lifeOrigin: constraints?.relationshipHooks || `derived from user description: ${description}`,
+    relationshipNetwork: constraints?.relationshipHooks ? [constraints.relationshipHooks] : ["strong tie to core cast"],
+    externalGoal: constraints?.externalGoal || "secure a staged victory while preserving key relationships",
+    internalNeed: constraints?.internalNeed || "be understood and accepted",
+    coreFear: constraints?.coreFear || "losing control and hurting important people",
+    moralBottomLine: constraints?.moralBottomLine || "does not actively harm innocents",
+    secret: constraints?.secret || "keeps a decisive truth from the past",
+    coreFlaw: constraints?.coreFlaw || "overcontrol that strains relationships",
     growthArc: [
-      `${growthStart}：以外在目标驱动行动`,
-      "转折：在重大冲突中暴露缺陷并付出代价",
-      "收束：整合自我需求与外在使命，形成新选择",
+      `${growthStart}: acts for external objective`,
+      "turning point: flaw exposed in major conflict with real cost",
+      "resolution: integrates inner need with external mission and makes a new choice",
     ],
-    keyEvents: ["触发事件：被卷入高压冲突", "破局事件：秘密暴露或关系断裂", "收束事件：做出关键取舍"],
-    dailyAnchors: ["偏好独处复盘", "保持某种固定习惯以稳定情绪"],
-    conflictKeywords: ["控制", "信任", "牺牲"],
-    themeKeywords: ["成长", "救赎", "代价"],
-    appearance: "外在形象干练，细节处保留鲜明记忆点",
-    toneStyle: constraints?.toneStyle || "克制、冷静、内心有张力",
+    keyEvents: [
+      "trigger event: pulled into high-pressure conflict",
+      "breakthrough event: secret exposed or core relationship ruptures",
+      "resolution event: makes a decisive trade-off",
+    ],
+    dailyAnchors: ["regular solo debrief", "stabilizes mood with fixed rituals"],
+    habitualActions: ["brief pause before key responses", "adjusts sleeves when tense"],
+    speechStyle: "concise and controlled; direct at decision points",
+    talents: ["information synthesis", "rapid situational judgment", "execution under pressure"],
+    conflictKeywords: ["control", "trust", "sacrifice"],
+    themeKeywords: ["growth", "redemption", "cost"],
+    bodyType: "fit build, tense posture, efficient movement",
+    facialFeatures: "sharp eye focus and high facial recognizability",
+    styleSignature: "utility-first outfit with one repeating signature accessory",
+    auraAndVoice: "cool and steady voice, noticeable presence",
+    appearance: "clean and capable look with memorable detail",
+    toneStyle: constraints?.toneStyle || "restrained, calm, high inner tension",
   };
 }
 
@@ -221,46 +235,67 @@ function buildFallbackFinalPayload(
   const growthArc = toStringList(skeleton.growthArc, 3);
   const keyEvents = toStringList(skeleton.keyEvents, 3);
   const dailyAnchors = toStringList(skeleton.dailyAnchors, 3);
+  const habitualActions = toStringList(skeleton.habitualActions, 3);
+  const talents = toStringList(skeleton.talents, 4);
   const conflictKeywords = toStringList(skeleton.conflictKeywords, 4);
   const themeKeywords = toStringList(skeleton.themeKeywords, 4);
 
   const personality = [
-    `核心人格：${toTrimmedText(skeleton.corePersona) || "复杂克制"}`,
-    behaviorPatterns.length > 0 ? `行为模式：${behaviorPatterns.join("；")}` : "",
-    triggerPoints.length > 0 ? `触发点：${triggerPoints.join("；")}` : "",
-  ].filter(Boolean).join("。");
+    `Core Persona: ${toTrimmedText(skeleton.corePersona) || "complex and restrained"}` ,
+    `Surface Temperament: ${toTrimmedText(skeleton.surfaceTemperament) || constraints?.toneStyle || "calm and controlled"}`,
+    `Core Drive: ${toTrimmedText(skeleton.coreDrive) || constraints?.internalNeed || "needs understanding and belonging"}` ,
+    behaviorPatterns.length > 0 ? `Behavior Patterns: ${behaviorPatterns.join("; ")}` : "",
+    triggerPoints.length > 0 ? `Emotional Triggers: ${triggerPoints.join("; ")}` : "",
+    toTrimmedText(skeleton.socialMask) ? `Social Mask: ${toTrimmedText(skeleton.socialMask)}` : "",
+  ].filter(Boolean).join(". ");
 
   const background = [
-    `身世起点：${toTrimmedText(skeleton.lifeOrigin) || `来自描述：${input.description.trim()}`}`,
-    relationHooks.length > 0 ? `关系网络：${relationHooks.join("；")}` : "",
-    `秘密：${toTrimmedText(skeleton.secret) || constraints?.secret || "待剧情逐步揭示"}`,
-  ].filter(Boolean).join("。");
+    `Origin: ${toTrimmedText(skeleton.lifeOrigin) || `derived from description: ${input.description.trim()}`}` ,
+    relationHooks.length > 0 ? `Relationship Network: ${relationHooks.join("; ")}` : "",
+    `Secret: ${toTrimmedText(skeleton.secret) || constraints?.secret || "to be revealed by plot"}` ,
+  ].filter(Boolean).join(". ");
 
   const development = growthArc.length > 0
     ? growthArc.join(" -> ")
-    : `${constraints?.growthStage || "起点"} -> 受挫 -> 收束`;
+    : `${constraints?.growthStage || "start"} -> setback -> resolution`;
 
   const weaknesses = [
-    `核心缺陷：${toTrimmedText(skeleton.coreFlaw) || constraints?.coreFlaw || "高压下决策失衡"}`,
-    `代价：${toTrimmedText(skeleton.coreFear) || constraints?.coreFear || "容易错失关键关系"}`,
-  ].join("；");
+    `Core Flaw: ${toTrimmedText(skeleton.coreFlaw) || constraints?.coreFlaw || "decision instability under pressure"}` ,
+    `Cost: ${toTrimmedText(skeleton.coreFear) || constraints?.coreFear || "loss of key relationships"}` ,
+  ].join("; ");
+
+  const appearance = [
+    `Body: ${toTrimmedText(skeleton.bodyType) || "fit but tense posture"}` ,
+    `Facial Features: ${toTrimmedText(skeleton.facialFeatures) || toTrimmedText(skeleton.appearance) || "recognizable sharp gaze"}` ,
+    `Style Signature: ${toTrimmedText(skeleton.styleSignature) || "practical outfit with recurring marker"}` ,
+    `Aura/Voice: ${toTrimmedText(skeleton.auraAndVoice) || "steady cool voice with pressure aura"}` ,
+  ].filter(Boolean).join(". ");
+
+  const interests = [
+    dailyAnchors.length > 0 ? `Daily Anchors: ${dailyAnchors.join("; ")}` : "",
+    habitualActions.length > 0 ? `Habitual Actions: ${habitualActions.join("; ")}` : "",
+    toTrimmedText(skeleton.speechStyle) ? `Speech Style: ${toTrimmedText(skeleton.speechStyle)}` : "",
+    talents.length > 0 ? `Talents: ${talents.join("; ")}` : "",
+  ].filter(Boolean).join(". ");
 
   const tagSet = new Set<string>([
     role,
+    toTrimmedText(skeleton.surfaceTemperament),
+    ...talents,
     ...conflictKeywords,
     ...themeKeywords,
   ].filter(Boolean));
 
   return {
-    name: toTrimmedText(skeleton.nameSuggestion) || input.description.trim().slice(0, 12) || "未命名角色",
+    name: toTrimmedText(skeleton.nameSuggestion) || input.description.trim().slice(0, 12) || "Unnamed Character",
     role,
     personality: personality || input.description.trim(),
-    background: background || `来自用户描述：${input.description.trim()}`,
-    development: development || "待补充成长线",
-    appearance: toTrimmedText(skeleton.appearance),
+    background: background || `derived from user description: ${input.description.trim()}` ,
+    development: development || "growth arc pending",
+    appearance: appearance || toTrimmedText(skeleton.appearance),
     weaknesses,
-    interests: dailyAnchors.join("；") || "偏好通过日常仪式感维持稳定",
-    keyEvents: keyEvents.join("；") || "触发事件；破局事件；收束事件",
+    interests: interests || "maintains stability through repeated daily rituals",
+    keyEvents: keyEvents.join("; ") || "trigger event; breakthrough event; resolution event",
     tags: Array.from(tagSet).slice(0, 10).join(","),
     category: input.category.trim(),
   };
@@ -311,15 +346,19 @@ export async function generateBaseCharacterFromAI(input: CharacterGenerateInput)
 
   const constraintsText = buildConstraintsText(constraints);
   const stageOneMessages: BaseMessage[] = [
-    new SystemMessage(`你是资深中文小说角色策划。现在只做“角色骨架”设计。
-优先级（必须遵守）：约束条件 > 参考资料 > 用户描述。
-如果约束内部冲突，请在 conflictNotes 指出冲突点，并尽量给出可执行骨架。
-只输出合法 JSON，不要 markdown、不要解释。
-输出 JSON：
+    new SystemMessage(`You are a senior Chinese fiction character planner.
+Task: generate a character skeleton JSON only.
+Priority: constraints > reference context > user description.
+If constraints conflict, put conflict points into conflictNotes.
+Output valid JSON only, no markdown, no explanation.
+Required JSON keys:
 {
   "nameSuggestion": "...",
   "role": "...",
   "corePersona": "...",
+  "surfaceTemperament": "...",
+  "coreDrive": "...",
+  "socialMask": "...",
   "behaviorPatterns": ["..."],
   "triggerPoints": ["..."],
   "lifeOrigin": "...",
@@ -330,24 +369,32 @@ export async function generateBaseCharacterFromAI(input: CharacterGenerateInput)
   "moralBottomLine": "...",
   "secret": "...",
   "coreFlaw": "...",
-  "growthArc": ["阶段1","阶段2","阶段3"],
-  "keyEvents": ["事件1","事件2","事件3"],
+  "growthArc": ["phase1","phase2","phase3"],
+  "keyEvents": ["event1","event2","event3"],
   "dailyAnchors": ["..."],
+  "habitualActions": ["..."],
+  "speechStyle": "...",
+  "talents": ["..."],
   "conflictKeywords": ["..."],
   "themeKeywords": ["..."],
+  "bodyType": "...",
+  "facialFeatures": "...",
+  "styleSignature": "...",
+  "auraAndVoice": "...",
   "appearance": "...",
   "toneStyle": "...",
   "conflictNotes": ["..."]
 }`),
-    new HumanMessage(`角色描述：${input.description}
-角色类别：${input.category}
-小说类型：${input.genre ?? "通用"}
-约束条件：
+    new HumanMessage(`Character description: ${input.description}
+Character category: ${input.category}
+Genre: ${input.genre ?? "general"}
+Constraints:
 ${constraintsText}
-${referenceContext ? `参考资料：\n${referenceContext}` : "参考资料：无"}`),
+${referenceContext ? `Reference context:
+${referenceContext}` : "Reference context: none"}`),
   ];
 
-  const stageOne = await invokeJsonWithRetry(llm, stageOneMessages, "骨架");
+  const stageOne = await invokeJsonWithRetry(llm, stageOneMessages, "skeleton");
   if (stageOne.retried || !stageOne.parsed) {
     console.warn("[base-characters.generate] stage_one_retry_or_fallback", {
       retried: stageOne.retried,
@@ -358,17 +405,19 @@ ${referenceContext ? `参考资料：\n${referenceContext}` : "参考资料：�
 
   const skeleton = stageOne.parsed ?? buildFallbackSkeleton(input, constraints);
   const stageTwoMessages: BaseMessage[] = [
-    new SystemMessage(`你是资深中文小说角色编辑。请把角色骨架转换为最终入库 JSON。
-优先级（必须遵守）：约束条件 > 参考资料 > 用户描述。
-字段要求：
-- personality：核心人格 + 行为模式 + 触发点
-- background：身世/关系/秘密
-- development：三段式成长弧
-- weaknesses：核心缺陷 + 代价
-- keyEvents：严格 3 个关键事件，用“；”连接
-- interests：偏好与日常锚点
-- tags：逗号分隔，包含角色功能位 + 冲突关键词 + 主题词
-只输出合法 JSON：
+    new SystemMessage(`You are a senior Chinese fiction character editor.
+Convert the character skeleton into final storage JSON.
+Priority: constraints > reference context > user description.
+Field requirements:
+- personality: include core persona + surface temperament + core drive + behavior patterns + emotional triggers.
+- appearance: include body type + facial features + style signature + aura/voice.
+- background: include origin + relationship network + secret.
+- development: 3-stage growth arc.
+- weaknesses: flaw + cost.
+- interests: include daily anchors + habitual actions + speech style + talents.
+- keyEvents: exactly 3 pivotal events, joined in one string.
+- tags: comma-separated, include role + conflict/theme keywords + distinguishing traits.
+Output valid JSON only:
 {
   "name": "...",
   "role": "...",
@@ -379,16 +428,17 @@ ${referenceContext ? `参考资料：\n${referenceContext}` : "参考资料：�
   "weaknesses": "...",
   "interests": "...",
   "keyEvents": "...",
-  "tags": "标签1,标签2"
+  "tags": "tag1,tag2"
 }`),
-    new HumanMessage(`角色骨架：
+    new HumanMessage(`Character skeleton:
 ${JSON.stringify(skeleton, null, 2)}
-约束条件：
+Constraints:
 ${constraintsText}
-${referenceContext ? `参考资料：\n${referenceContext}` : "参考资料：无"}`),
+${referenceContext ? `Reference context:
+${referenceContext}` : "Reference context: none"}`),
   ];
 
-  const stageTwo = await invokeJsonWithRetry(llm, stageTwoMessages, "成稿");
+  const stageTwo = await invokeJsonWithRetry(llm, stageTwoMessages, "final");
   if (stageTwo.retried || !stageTwo.parsed) {
     console.warn("[base-characters.generate] stage_two_retry_or_fallback", {
       retried: stageTwo.retried,

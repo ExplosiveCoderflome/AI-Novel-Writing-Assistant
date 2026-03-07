@@ -18,6 +18,7 @@ interface PendingState {
   rebuild: boolean;
   archive: boolean;
   regenerate: boolean;
+  optimizePreview: boolean;
   saveSection: boolean;
   publish: boolean;
 }
@@ -29,6 +30,7 @@ interface BookAnalysisDetailPanelProps {
   publishFeedback: string;
   lastPublishResult: BookAnalysisPublishResult | null;
   aggregatedEvidence: AggregatedEvidenceItem[];
+  optimizingSectionKey: BookAnalysisSection["sectionKey"] | null;
   pending: PendingState;
   onSelectedNovelChange: (novelId: string) => void;
   onCopy: () => void;
@@ -37,6 +39,9 @@ interface BookAnalysisDetailPanelProps {
   onDownload: (format: ExportFormat) => void;
   onPublish: () => void;
   onRegenerateSection: (section: BookAnalysisSection) => void;
+  onOptimizeSection: (section: BookAnalysisSection) => void;
+  onApplyOptimizePreview: (section: BookAnalysisSection) => void;
+  onCancelOptimizePreview: (section: BookAnalysisSection) => void;
   onSaveSection: (section: BookAnalysisSection) => void;
   onDraftChange: (section: BookAnalysisSection, patch: Partial<SectionDraft>) => void;
   getSectionDraft: (section: BookAnalysisSection) => SectionDraft;
@@ -50,6 +55,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
     publishFeedback,
     lastPublishResult,
     aggregatedEvidence,
+    optimizingSectionKey,
     pending,
     onSelectedNovelChange,
     onCopy,
@@ -58,6 +64,9 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
     onDownload,
     onPublish,
     onRegenerateSection,
+    onOptimizeSection,
+    onApplyOptimizePreview,
+    onCancelOptimizePreview,
     onSaveSection,
     onDraftChange,
     getSectionDraft,
@@ -190,9 +199,13 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
           draft={getSectionDraft(section)}
           canOperate={Boolean(selectedAnalysis)}
           isRegenerating={pending.regenerate}
+          isOptimizing={pending.optimizePreview && optimizingSectionKey === section.sectionKey}
           isSaving={pending.saveSection}
           onDraftChange={onDraftChange}
           onRegenerate={onRegenerateSection}
+          onOptimize={onOptimizeSection}
+          onApplyOptimizePreview={onApplyOptimizePreview}
+          onCancelOptimizePreview={onCancelOptimizePreview}
           onSave={onSaveSection}
         />
       ))}

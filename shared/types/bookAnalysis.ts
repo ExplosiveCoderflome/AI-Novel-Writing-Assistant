@@ -83,3 +83,7 @@ export interface BookAnalysisPublishResult {
   bindingCount: number;
   publishedAt: string;
 }
+
+export interface BookAnalysisSectionOptimizePreview {
+  optimizedDraft: string;
+}

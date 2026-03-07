@@ -11,6 +11,7 @@ import bookAnalysisRouter from "./routes/bookAnalysis";
 import characterRouter from "./routes/character";
 import chatRouter from "./routes/chat";
 import healthRouter from "./routes/health";
+import imagesRouter from "./routes/images";
 import knowledgeRouter from "./routes/knowledge";
 import llmRouter from "./routes/llm";
 import novelRouter from "./routes/novel";
@@ -19,6 +20,7 @@ import settingsRouter from "./routes/settings";
 import worldRouter from "./routes/world";
 import writingFormulaRouter from "./routes/writingFormula";
 import { bookAnalysisService } from "./services/bookAnalysis/BookAnalysisService";
+import { imageGenerationService } from "./services/image/ImageGenerationService";
 import { ragServices } from "./services/rag";
 
 export function createApp() {
@@ -63,6 +65,7 @@ export function createApp() {
   app.use("/api/base-characters", characterRouter);
   app.use("/api/writing-formula", writingFormulaRouter);
   app.use("/api/chat", chatRouter);
+  app.use("/api/images", imagesRouter);
   app.use("/api/settings", settingsRouter);
   app.use("/api/astrology", astrologyRouter);
 
@@ -91,6 +94,9 @@ async function bootstrap(): Promise<void> {
   ragServices.ragWorker.start();
   void bookAnalysisService.resumePendingAnalyses().catch((error) => {
     console.warn("Failed to resume pending book analyses.", error);
+  });
+  void imageGenerationService.resumePendingTasks().catch((error) => {
+    console.warn("Failed to resume pending image generation tasks.", error);
   });
 
   app.listen(port, () => {

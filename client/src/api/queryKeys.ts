@@ -40,6 +40,10 @@ export const queryKeys = {
   llm: {
     providers: ["llm", "providers"] as const,
   },
+  images: {
+    task: (taskId: string) => ["images", "task", taskId] as const,
+    assets: (sceneType: "character", sceneId: string) => ["images", "assets", sceneType, sceneId] as const,
+  },
   settings: {
     apiKeys: ["settings", "api-keys"] as const,
     rag: ["settings", "rag"] as const,

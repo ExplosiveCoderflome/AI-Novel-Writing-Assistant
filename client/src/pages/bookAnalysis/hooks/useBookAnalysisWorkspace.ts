@@ -14,6 +14,7 @@ import {
   downloadBookAnalysisExport,
   getBookAnalysis,
   listBookAnalyses,
+  optimizeBookAnalysisSectionPreview,
   publishBookAnalysis,
   rebuildBookAnalysis,
   regenerateBookAnalysisSection,
@@ -50,6 +51,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   });
   const [sectionDrafts, setSectionDrafts] = useState<Record<string, SectionDraft>>({});
   const [draftAnalysisId, setDraftAnalysisId] = useState("");
+  const [optimizingSectionKey, setOptimizingSectionKey] = useState<BookAnalysisSectionKey | null>(null);
   const [publishFeedback, setPublishFeedback] = useState("");
   const [lastPublishResult, setLastPublishResult] = useState<BookAnalysisPublishResult | null>(null);
 
@@ -225,6 +227,35 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       setDraftAnalysisId(response.data.id);
       setSectionDrafts(syncDrafts(response.data));
       await refreshAnalysisData(response.data.id);
+    },
+  });
+
+  const optimizePreviewMutation = useMutation({
+    mutationFn: (payload: {
+      id: string;
+      sectionKey: BookAnalysisSectionKey;
+      currentDraft: string;
+      instruction: string;
+    }) => optimizeBookAnalysisSectionPreview(payload.id, payload.sectionKey, payload),
+    onSuccess: (response, payload) => {
+      const optimizedDraft = response.data?.optimizedDraft;
+      if (!optimizedDraft || !selectedAnalysis) {
+        return;
+      }
+      const section = selectedAnalysis.sections.find((item) => item.sectionKey === payload.sectionKey);
+      if (!section) {
+        return;
+      }
+      setSectionDrafts((prev) => ({
+        ...prev,
+        [section.id]: {
+          ...(prev[section.id] ?? buildSectionDraft(section)),
+          optimizePreview: optimizedDraft,
+        },
+      }));
+    },
+    onSettled: () => {
+      setOptimizingSectionKey(null);
     },
   });
 
@@ -410,15 +441,54 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     });
   };
 
+  const optimizeSectionPreview = async (section: BookAnalysisSection) => {
+    if (!selectedAnalysis) {
+      return;
+    }
+    const draft = getSectionDraft(section);
+    const instruction = draft.optimizeInstruction.trim();
+    if (!instruction) {
+      return;
+    }
+    setOptimizingSectionKey(section.sectionKey);
+    await optimizePreviewMutation.mutateAsync({
+      id: selectedAnalysis.id,
+      sectionKey: section.sectionKey,
+      currentDraft: draft.editedContent,
+      instruction,
+    });
+  };
+
+  const applySectionOptimizePreview = (section: BookAnalysisSection) => {
+    const draft = getSectionDraft(section);
+    if (!draft.optimizePreview.trim()) {
+      return;
+    }
+    updateSectionDraft(section, {
+      editedContent: draft.optimizePreview,
+      optimizePreview: "",
+    });
+  };
+
+  const clearSectionOptimizePreview = (section: BookAnalysisSection) => {
+    updateSectionDraft(section, {
+      optimizePreview: "",
+    });
+  };
+
   const saveSection = (section: BookAnalysisSection) => {
     if (!selectedAnalysis) {
       return;
     }
     const draft = getSectionDraft(section);
+    const normalize = (value: string | null | undefined) => value?.replace(/\r\n?/g, "\n").trim() ?? "";
+    const normalizedDraft = normalize(draft.editedContent);
+    const normalizedAi = normalize(section.aiContent ?? "");
+    const editedContent = normalizedDraft && normalizedDraft !== normalizedAi ? draft.editedContent : null;
     updateSectionMutation.mutate({
       id: selectedAnalysis.id,
       sectionKey: section.sectionKey,
-      editedContent: draft.editedContent.trim() ? draft.editedContent : null,
+      editedContent,
       notes: draft.notes.trim() ? draft.notes : null,
       frozen: draft.frozen,
     });
@@ -460,12 +530,14 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     versionOptions,
     sourceDocument,
     aggregatedEvidence,
+    optimizingSectionKey,
     pending: {
       create: createMutation.isPending,
       copy: copyMutation.isPending,
       rebuild: rebuildMutation.isPending,
       archive: archiveMutation.isPending,
       regenerate: regenerateMutation.isPending,
+      optimizePreview: optimizePreviewMutation.isPending,
       saveSection: updateSectionMutation.isPending,
       publish: publishMutation.isPending,
     },
@@ -481,6 +553,9 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     rebuildAnalysis,
     archiveAnalysis,
     regenerateSection,
+    optimizeSectionPreview,
+    applySectionOptimizePreview,
+    clearSectionOptimizePreview,
     saveSection,
     downloadSelectedAnalysis,
     publishSelectedAnalysis,

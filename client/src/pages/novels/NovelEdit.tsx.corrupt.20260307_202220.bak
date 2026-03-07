@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
@@ -180,7 +180,7 @@ export default function NovelEdit() {
   const [selectedBaseCharacterId, setSelectedBaseCharacterId] = useState("");
   const [quickCharacterForm, setQuickCharacterForm] = useState({
     name: "",
-    role: "主角",
+    role: "涓昏",
   });
   const [characterForm, setCharacterForm] = useState({
     personality: "",
@@ -255,7 +255,7 @@ export default function NovelEdit() {
   );
   const hasCharacters = characters.length > 0;
   const coreCharacterCount = useMemo(
-    () => characters.filter((item) => /主角|反派/.test(item.role)).length,
+    () => characters.filter((item) => /涓昏|鍙嶆淳/.test(item.role)).length,
     [characters],
   );
   const bible = novelDetailQuery.data?.data?.bible;
@@ -396,7 +396,7 @@ export default function NovelEdit() {
       if (response.data?.id) {
         setCurrentJobId(response.data.id);
       }
-      setPipelineMessage(response.message ?? "批量任务已启动。");
+      setPipelineMessage(response.message ?? "鎵归噺浠诲姟宸插惎鍔ㄣ€?);
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.pipelineJob(id, response.data?.id ?? "none") });
     },
   });
@@ -410,7 +410,7 @@ export default function NovelEdit() {
       }),
     onSuccess: async (response) => {
       setReviewResult(response.data ?? null);
-      setPipelineMessage("章节审校完成。");
+      setPipelineMessage("绔犺妭瀹℃牎瀹屾垚銆?);
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(id) });
     },
   });
@@ -424,7 +424,7 @@ export default function NovelEdit() {
         temperature: llm.temperature,
       }),
     onSuccess: async () => {
-      setPipelineMessage("章节钩子已生成。");
+      setPipelineMessage("绔犺妭閽╁瓙宸茬敓鎴愩€?);
       await invalidateNovelDetail();
     },
   });
@@ -444,7 +444,7 @@ export default function NovelEdit() {
     onSuccess: async (response) => {
       setCharacterMessage(
         response.message
-        ?? `角色时间线同步完成，本次新增 ${response.data?.syncedCount ?? 0} 条。`,
+        ?? `瑙掕壊鏃堕棿绾垮悓姝ュ畬鎴愶紝鏈鏂板 ${response.data?.syncedCount ?? 0} 鏉°€俙,
       );
       await queryClient.invalidateQueries({
         queryKey: queryKeys.novels.characterTimeline(id, selectedCharacterId || "none"),
@@ -461,7 +461,7 @@ export default function NovelEdit() {
     onSuccess: async (response) => {
       setCharacterMessage(
         response.message
-        ?? `全角色时间线同步完成，共新增 ${response.data?.syncedCount ?? 0} 条事件。`,
+        ?? `鍏ㄨ鑹叉椂闂寸嚎鍚屾瀹屾垚锛屽叡鏂板 ${response.data?.syncedCount ?? 0} 鏉′簨浠躲€俙,
       );
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
       await queryClient.invalidateQueries({
@@ -478,7 +478,7 @@ export default function NovelEdit() {
         temperature: 0.4,
       }),
     onSuccess: async () => {
-      setCharacterMessage("角色信息已按时间线完成演进更新。");
+      setCharacterMessage("瑙掕壊淇℃伅宸叉寜鏃堕棿绾垮畬鎴愭紨杩涙洿鏂般€?);
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.novels.characterTimeline(id, selectedCharacterId || "none"),
@@ -499,10 +499,10 @@ export default function NovelEdit() {
       const issueText = (response.data?.issues ?? [])
         .map((item) => `${item.severity.toUpperCase()}: ${item.message}`)
         .join(" | ");
-      setCharacterMessage(`世界规则检查(${status}) ${warningText} ${issueText}`.trim());
+      setCharacterMessage(`涓栫晫瑙勫垯妫€鏌?${status}) ${warningText} ${issueText}`.trim());
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "世界规则检查失败。";
+      const message = error instanceof Error ? error.message : "涓栫晫瑙勫垯妫€鏌ュけ璐ャ€?;
       setCharacterMessage(message);
     },
   });
@@ -517,7 +517,7 @@ export default function NovelEdit() {
         currentGoal: characterForm.currentGoal,
       }),
     onSuccess: async () => {
-      setCharacterMessage("角色信息已保存。");
+      setCharacterMessage("瑙掕壊淇℃伅宸蹭繚瀛樸€?);
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
     },
   });
@@ -525,7 +525,7 @@ export default function NovelEdit() {
   const importBaseCharacterMutation = useMutation({
     mutationFn: async () => {
       if (!selectedBaseCharacter) {
-        throw new Error("请先选择要导入的基础角色。");
+        throw new Error("璇峰厛閫夋嫨瑕佸鍏ョ殑鍩虹瑙掕壊銆?);
       }
       return createNovelCharacter(id, {
         name: selectedBaseCharacter.name,
@@ -537,14 +537,14 @@ export default function NovelEdit() {
       });
     },
     onSuccess: async (response) => {
-      setCharacterMessage(response.message ?? "基础角色已导入到当前小说。");
+      setCharacterMessage(response.message ?? "鍩虹瑙掕壊宸插鍏ュ埌褰撳墠灏忚銆?);
       if (response.data?.id) {
         setSelectedCharacterId(response.data.id);
       }
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "导入基础角色失败。";
+      const message = error instanceof Error ? error.message : "瀵煎叆鍩虹瑙掕壊澶辫触銆?;
       setCharacterMessage(message);
     },
   });
@@ -553,18 +553,18 @@ export default function NovelEdit() {
     mutationFn: async () =>
       createNovelCharacter(id, {
         name: quickCharacterForm.name.trim(),
-        role: quickCharacterForm.role.trim() || "主角",
+        role: quickCharacterForm.role.trim() || "涓昏",
       }),
     onSuccess: async (response) => {
-      setCharacterMessage(response.message ?? "角色创建成功。");
-      setQuickCharacterForm({ name: "", role: quickCharacterForm.role || "主角" });
+      setCharacterMessage(response.message ?? "瑙掕壊鍒涘缓鎴愬姛銆?);
+      setQuickCharacterForm({ name: "", role: quickCharacterForm.role || "涓昏" });
       if (response.data?.id) {
         setSelectedCharacterId(response.data.id);
       }
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "角色创建失败。";
+      const message = error instanceof Error ? error.message : "瑙掕壊鍒涘缓澶辫触銆?;
       setCharacterMessage(message);
     },
   });
@@ -575,7 +575,7 @@ export default function NovelEdit() {
 
   const startOutlineGeneration = () => {
     if (!hasCharacters) {
-      const confirmed = window.confirm("当前小说还没有角色。继续生成发展走向会降低后续一致性，是否继续？");
+      const confirmed = window.confirm("褰撳墠灏忚杩樻病鏈夎鑹层€傜户缁敓鎴愬彂灞曡蛋鍚戜細闄嶄綆鍚庣画涓€鑷存€э紝鏄惁缁х画锛?);
       if (!confirmed) {
         return;
       }
@@ -613,7 +613,7 @@ export default function NovelEdit() {
         axioms = Array.isArray(parsed) ? parsed.filter((item) => item.trim()).slice(0, 3) : [];
       } catch {
         axioms = world.axioms
-          .split(/[\n,，;；]/)
+          .split(/[\n,锛?锛沒/)
           .map((item) => item.trim())
           .filter(Boolean)
           .slice(0, 3);
@@ -638,11 +638,11 @@ export default function NovelEdit() {
     <div className="rounded-md border border-emerald-300 bg-emerald-50 p-2 text-xs text-emerald-900">
       {worldInjectionSummary ? (
         <div className="space-y-1">
-          <div className="font-semibold">已注入世界规则上下文</div>
+          <div className="font-semibold">宸叉敞鍏ヤ笘鐣岃鍒欎笂涓嬫枃</div>
           <pre className="whitespace-pre-wrap">{worldInjectionSummary}</pre>
         </div>
       ) : (
-        <div>当前未绑定世界观，生成过程不会注入世界规则。</div>
+        <div>褰撳墠鏈粦瀹氫笘鐣岃锛岀敓鎴愯繃绋嬩笉浼氭敞鍏ヤ笘鐣岃鍒欍€?/div>
       )}
     </div>
   );
@@ -652,38 +652,38 @@ export default function NovelEdit() {
       {id ? (
         <Card>
           <CardHeader>
-            <CardTitle>参考知识</CardTitle>
+            <CardTitle>鍙傝€冪煡璇?/CardTitle>
           </CardHeader>
           <CardContent>
-            <KnowledgeBindingPanel targetType="novel" targetId={id} title="小说知识绑定" />
+            <KnowledgeBindingPanel targetType="novel" targetId={id} title="灏忚鐭ヨ瘑缁戝畾" />
           </CardContent>
         </Card>
       ) : null}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
       <TabsList>
-        <TabsTrigger value="basic">基本信息</TabsTrigger>
-        <TabsTrigger value="character">角色管理</TabsTrigger>
-        <TabsTrigger value="outline">发展走向</TabsTrigger>
-        <TabsTrigger value="structured">章节大纲</TabsTrigger>
-        <TabsTrigger value="chapter">章节管理</TabsTrigger>
-        <TabsTrigger value="pipeline">自动流水线</TabsTrigger>
+        <TabsTrigger value="basic">鍩烘湰淇℃伅</TabsTrigger>
+        <TabsTrigger value="character">瑙掕壊绠＄悊</TabsTrigger>
+        <TabsTrigger value="outline">鍙戝睍璧板悜</TabsTrigger>
+        <TabsTrigger value="structured">绔犺妭澶х翰</TabsTrigger>
+        <TabsTrigger value="chapter">绔犺妭绠＄悊</TabsTrigger>
+        <TabsTrigger value="pipeline">鑷姩娴佹按绾?/TabsTrigger>
       </TabsList>
 
       <TabsContent value="basic">
         <Card>
           <CardHeader>
-            <CardTitle>基本信息</CardTitle>
+            <CardTitle>鍩烘湰淇℃伅</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Input value={basicForm.title} placeholder="小说标题" onChange={(event) => setBasicForm((prev) => ({ ...prev, title: event.target.value }))} />
-            <Input value={basicForm.description} placeholder="小说简介" onChange={(event) => setBasicForm((prev) => ({ ...prev, description: event.target.value }))} />
+            <Input value={basicForm.title} placeholder="灏忚鏍囬" onChange={(event) => setBasicForm((prev) => ({ ...prev, title: event.target.value }))} />
+            <Input value={basicForm.description} placeholder="灏忚绠€浠? onChange={(event) => setBasicForm((prev) => ({ ...prev, description: event.target.value }))} />
             <select
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={basicForm.worldId}
               onChange={(event) => setBasicForm((prev) => ({ ...prev, worldId: event.target.value }))}
             >
-              <option value="">不绑定世界观</option>
+              <option value="">涓嶇粦瀹氫笘鐣岃</option>
               {(worldListQuery.data?.data ?? []).map((world) => (
                 <option key={world.id} value={world.id}>
                   {world.name}
@@ -691,10 +691,10 @@ export default function NovelEdit() {
               ))}
             </select>
             <div className="flex items-center gap-2">
-              <Button variant={basicForm.status === "draft" ? "default" : "secondary"} onClick={() => setBasicForm((prev) => ({ ...prev, status: "draft" }))}>草稿</Button>
-              <Button variant={basicForm.status === "published" ? "default" : "secondary"} onClick={() => setBasicForm((prev) => ({ ...prev, status: "published" }))}>已发布</Button>
+              <Button variant={basicForm.status === "draft" ? "default" : "secondary"} onClick={() => setBasicForm((prev) => ({ ...prev, status: "draft" }))}>鑽夌</Button>
+              <Button variant={basicForm.status === "published" ? "default" : "secondary"} onClick={() => setBasicForm((prev) => ({ ...prev, status: "published" }))}>宸插彂甯?/Button>
             </div>
-            <Button onClick={() => saveBasicMutation.mutate()} disabled={saveBasicMutation.isPending}>{saveBasicMutation.isPending ? "保存中..." : "保存基本信息"}</Button>
+            <Button onClick={() => saveBasicMutation.mutate()} disabled={saveBasicMutation.isPending}>{saveBasicMutation.isPending ? "淇濆瓨涓?.." : "淇濆瓨鍩烘湰淇℃伅"}</Button>
           </CardContent>
         </Card>
       </TabsContent>
@@ -702,37 +702,37 @@ export default function NovelEdit() {
       <TabsContent value="outline">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>小说发展走向</CardTitle>
+            <CardTitle>灏忚鍙戝睍璧板悜</CardTitle>
             <LLMSelector />
           </CardHeader>
           <CardContent className="space-y-3">
             {renderWorldInjectionHint()}
             {!hasCharacters ? (
               <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
-                <span>建议先为本小说添加至少 1 个角色，再生成发展走向。</span>
-                <Button size="sm" variant="outline" onClick={goToCharacterTab}>去角色管理</Button>
+                <span>寤鸿鍏堜负鏈皬璇存坊鍔犺嚦灏?1 涓鑹诧紝鍐嶇敓鎴愬彂灞曡蛋鍚戙€?/span>
+                <Button size="sm" variant="outline" onClick={goToCharacterTab}>鍘昏鑹茬鐞?/Button>
               </div>
             ) : null}
             <div className="flex gap-2">
-              <Button onClick={startOutlineGeneration} disabled={outlineSSE.isStreaming}>生成发展走向</Button>
-              <Button variant="secondary" onClick={outlineSSE.abort} disabled={!outlineSSE.isStreaming}>停止生成</Button>
+              <Button onClick={startOutlineGeneration} disabled={outlineSSE.isStreaming}>鐢熸垚鍙戝睍璧板悜</Button>
+              <Button variant="secondary" onClick={outlineSSE.abort} disabled={!outlineSSE.isStreaming}>鍋滄鐢熸垚</Button>
             </div>
             <StreamOutput isStreaming={outlineSSE.isStreaming} content={outlineSSE.content} onAbort={outlineSSE.abort} />
             <textarea className="min-h-[260px] w-full rounded-md border bg-background p-3 text-sm" value={outlineText} onChange={(event) => setOutlineText(event.target.value)} />
-            <Button onClick={() => saveOutlineMutation.mutate()} disabled={saveOutlineMutation.isPending}>{saveOutlineMutation.isPending ? "保存中..." : "保存发展走向"}</Button>
+            <Button onClick={() => saveOutlineMutation.mutate()} disabled={saveOutlineMutation.isPending}>{saveOutlineMutation.isPending ? "淇濆瓨涓?.." : "淇濆瓨鍙戝睍璧板悜"}</Button>
           </CardContent>
         </Card>
       </TabsContent>
 
       <TabsContent value="structured">
         <Card>
-          <CardHeader><CardTitle>结构化章节大纲</CardTitle></CardHeader>
+          <CardHeader><CardTitle>缁撴瀯鍖栫珷鑺傚ぇ绾?/CardTitle></CardHeader>
           <CardContent className="space-y-3">
             {renderWorldInjectionHint()}
             {!hasCharacters ? (
               <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
-                <span>请先添加至少 1 个角色，再生成结构化章节大纲。</span>
-                <Button size="sm" variant="outline" onClick={goToCharacterTab}>去角色管理</Button>
+                <span>璇峰厛娣诲姞鑷冲皯 1 涓鑹诧紝鍐嶇敓鎴愮粨鏋勫寲绔犺妭澶х翰銆?/span>
+                <Button size="sm" variant="outline" onClick={goToCharacterTab}>鍘昏鑹茬鐞?/Button>
               </div>
             ) : null}
             <div className="flex gap-2">
@@ -740,19 +740,19 @@ export default function NovelEdit() {
                 onClick={() => void structuredSSE.start(`/novels/${id}/structured-outline/generate`, { provider: llm.provider, model: llm.model })}
                 disabled={structuredSSE.isStreaming || !hasCharacters}
               >
-                生成结构化大纲
+                鐢熸垚缁撴瀯鍖栧ぇ绾?
               </Button>
-              <Button variant="secondary" onClick={structuredSSE.abort} disabled={!structuredSSE.isStreaming}>停止生成</Button>
-              <Button variant="outline" onClick={() => batchCreateMutation.mutate()} disabled={batchCreateMutation.isPending || !hasCharacters || structuredVolumes.length === 0}>{batchCreateMutation.isPending ? "同步中..." : "重新同步章节"}</Button>
+              <Button variant="secondary" onClick={structuredSSE.abort} disabled={!structuredSSE.isStreaming}>鍋滄鐢熸垚</Button>
+              <Button variant="outline" onClick={() => batchCreateMutation.mutate()} disabled={batchCreateMutation.isPending || !hasCharacters || structuredVolumes.length === 0}>{batchCreateMutation.isPending ? "鍚屾涓?.." : "閲嶆柊鍚屾绔犺妭"}</Button>
             </div>
             <StreamOutput isStreaming={structuredSSE.isStreaming} content={structuredSSE.content} onAbort={structuredSSE.abort} />
             <div className="space-y-2">
-              {structuredVolumes.length === 0 ? <div className="text-sm text-muted-foreground">暂无结构化大纲。</div> : structuredVolumes.map((volume, volumeIndex) => (
+              {structuredVolumes.length === 0 ? <div className="text-sm text-muted-foreground">鏆傛棤缁撴瀯鍖栧ぇ绾层€?/div> : structuredVolumes.map((volume, volumeIndex) => (
                 <div key={`${volume.volumeTitle}-${volumeIndex}`} className="rounded-md border p-3">
                   <div className="mb-2 font-semibold">{volume.volumeTitle}</div>
                   <div className="space-y-1 text-sm">
                     {(volume.chapters ?? []).map((chapter, chapterIndex) => (
-                      <div key={`${volume.volumeTitle}-${chapter.order}-${chapterIndex}`}>第{chapter.order}章：{chapter.title} - {chapter.summary}</div>
+                      <div key={`${volume.volumeTitle}-${chapter.order}-${chapterIndex}`}>绗瑊chapter.order}绔狅細{chapter.title} - {chapter.summary}</div>
                     ))}
                   </div>
                 </div>
@@ -773,7 +773,7 @@ export default function NovelEdit() {
           <CardContent className="space-y-3">
             {renderWorldInjectionHint()}
             <div className="rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-900">
-              说明：文本输入、导入和生成链路都必须使用 UTF-8 编码，避免乱码。
+              说明：章节相关文本请统一使用 UTF-8 编码，避免出现乱码或解析失败。
             </div>
             {!hasCharacters ? (
               <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
@@ -781,6 +781,7 @@ export default function NovelEdit() {
                 <Button size="sm" variant="outline" onClick={goToCharacterTab}>去角色管理</Button>
               </div>
             ) : null}
+
             <div className="grid gap-3 md:grid-cols-[320px_minmax(0,1fr)]">
               <div className="rounded-md border">
                 <div className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">
@@ -796,7 +797,9 @@ export default function NovelEdit() {
                         type="button"
                         onClick={() => setSelectedChapterId(chapter.id)}
                         className={`w-full rounded-md border p-2 text-left transition ${
-                          selectedChapterId === chapter.id ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+                          selectedChapterId === chapter.id
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:bg-muted/50"
                         }`}
                       >
                         <div className="text-sm font-medium">第{chapter.order}章：{chapter.title}</div>
@@ -875,24 +878,24 @@ export default function NovelEdit() {
         </Card>
       </TabsContent>
 
-      <TabsContent value="pipeline">
+      <TabsContent value="pipeline"> 
         <div className="space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>流水线与质量控制</CardTitle>
+              <CardTitle>娴佹按绾夸笌璐ㄩ噺鎺у埗</CardTitle>
             <LLMSelector />
           </CardHeader>
           <CardContent className="space-y-3">
             {renderWorldInjectionHint()}
             {!hasCharacters ? (
                 <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
-                  <span>请先添加至少 1 个角色，再执行圣经/拍点/批量章节流水线。</span>
-                  <Button size="sm" variant="outline" onClick={goToCharacterTab}>去角色管理</Button>
+                  <span>璇峰厛娣诲姞鑷冲皯 1 涓鑹诧紝鍐嶆墽琛屽湥缁?鎷嶇偣/鎵归噺绔犺妭娴佹按绾裤€?/span>
+                  <Button size="sm" variant="outline" onClick={goToCharacterTab}>鍘昏鑹茬鐞?/Button>
                 </div>
               ) : null}
               <div className="grid gap-3 md:grid-cols-3">
                 <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">起始章节序号</div>
+                  <div className="text-xs font-medium text-muted-foreground">璧峰绔犺妭搴忓彿</div>
                   <Input
                     type="number"
                     min={1}
@@ -901,12 +904,12 @@ export default function NovelEdit() {
                     onChange={(event) =>
                       setPipelineForm((prev) => ({ ...prev, startOrder: Number(event.target.value) || 1 }))
                     }
-                    placeholder="例如：1"
+                    placeholder="渚嬪锛?"
                   />
-                  <div className="text-xs text-muted-foreground">从第几章开始纳入本次批量生成。</div>
+                  <div className="text-xs text-muted-foreground">浠庣鍑犵珷寮€濮嬬撼鍏ユ湰娆℃壒閲忕敓鎴愩€?/div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">结束章节序号</div>
+                  <div className="text-xs font-medium text-muted-foreground">缁撴潫绔犺妭搴忓彿</div>
                   <Input
                     type="number"
                     min={1}
@@ -915,12 +918,12 @@ export default function NovelEdit() {
                     onChange={(event) =>
                       setPipelineForm((prev) => ({ ...prev, endOrder: Number(event.target.value) || 1 }))
                     }
-                    placeholder="例如：10"
+                    placeholder="渚嬪锛?0"
                   />
-                  <div className="text-xs text-muted-foreground">到第几章结束（包含该章节）。</div>
+                  <div className="text-xs text-muted-foreground">鍒扮鍑犵珷缁撴潫锛堝寘鍚绔犺妭锛夈€?/div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">失败重试次数</div>
+                  <div className="text-xs font-medium text-muted-foreground">澶辫触閲嶈瘯娆℃暟</div>
                   <Input
                     type="number"
                     min={0}
@@ -929,45 +932,45 @@ export default function NovelEdit() {
                     onChange={(event) =>
                       setPipelineForm((prev) => ({ ...prev, maxRetries: Number(event.target.value) || 0 }))
                     }
-                    placeholder="例如：2"
+                    placeholder="渚嬪锛?"
                   />
-                  <div className="text-xs text-muted-foreground">单章不达标时，最多自动修复重跑几次。</div>
+                  <div className="text-xs text-muted-foreground">鍗曠珷涓嶈揪鏍囨椂锛屾渶澶氳嚜鍔ㄤ慨澶嶉噸璺戝嚑娆°€?/div>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button onClick={() => void bibleSSE.start(`/novels/${id}/bible/generate`, { provider: llm.provider, model: llm.model, temperature: 0.6 })} disabled={bibleSSE.isStreaming || !hasCharacters}>生成/更新作品圣经</Button>
-                <Button variant="secondary" onClick={bibleSSE.abort} disabled={!bibleSSE.isStreaming}>停止圣经生成</Button>
-                <Button onClick={() => void beatsSSE.start(`/novels/${id}/beats/generate`, { provider: llm.provider, model: llm.model, targetChapters: pipelineForm.endOrder })} disabled={beatsSSE.isStreaming || !hasCharacters}>生成剧情拍点</Button>
-                <Button variant="secondary" onClick={beatsSSE.abort} disabled={!beatsSSE.isStreaming}>停止拍点生成</Button>
-                <Button onClick={() => runPipelineMutation.mutate()} disabled={runPipelineMutation.isPending || !hasCharacters}>启动批量章节流水线</Button>
+                <Button onClick={() => void bibleSSE.start(`/novels/${id}/bible/generate`, { provider: llm.provider, model: llm.model, temperature: 0.6 })} disabled={bibleSSE.isStreaming || !hasCharacters}>鐢熸垚/鏇存柊浣滃搧鍦ｇ粡</Button>
+                <Button variant="secondary" onClick={bibleSSE.abort} disabled={!bibleSSE.isStreaming}>鍋滄鍦ｇ粡鐢熸垚</Button>
+                <Button onClick={() => void beatsSSE.start(`/novels/${id}/beats/generate`, { provider: llm.provider, model: llm.model, targetChapters: pipelineForm.endOrder })} disabled={beatsSSE.isStreaming || !hasCharacters}>鐢熸垚鍓ф儏鎷嶇偣</Button>
+                <Button variant="secondary" onClick={beatsSSE.abort} disabled={!beatsSSE.isStreaming}>鍋滄鎷嶇偣鐢熸垚</Button>
+                <Button onClick={() => runPipelineMutation.mutate()} disabled={runPipelineMutation.isPending || !hasCharacters}>鍚姩鎵归噺绔犺妭娴佹按绾?/Button>
               </div>
               {pipelineMessage ? <div className="text-sm text-muted-foreground">{pipelineMessage}</div> : null}
               <div className="rounded-md border p-3 text-sm">
-                <div className="mb-2 font-medium">任务状态</div>
+                <div className="mb-2 font-medium">浠诲姟鐘舵€?/div>
                 {pipelineJobQuery.data?.data ? (
                   <div className="space-y-1">
-                    <div>任务ID：{pipelineJobQuery.data.data.id}</div>
-                    <div>状态：{pipelineJobQuery.data.data.status}</div>
-                    <div>进度：{Math.round((pipelineJobQuery.data.data.progress ?? 0) * 100)}%</div>
-                    <div>完成章节：{pipelineJobQuery.data.data.completedCount}/{pipelineJobQuery.data.data.totalCount}</div>
-                    <div>重试次数：{pipelineJobQuery.data.data.retryCount}/{pipelineJobQuery.data.data.maxRetries}</div>
-                    {pipelineJobQuery.data.data.error ? <div className="text-red-600">错误：{pipelineJobQuery.data.data.error}</div> : null}
+                    <div>浠诲姟ID锛歿pipelineJobQuery.data.data.id}</div>
+                    <div>鐘舵€侊細{pipelineJobQuery.data.data.status}</div>
+                    <div>杩涘害锛歿Math.round((pipelineJobQuery.data.data.progress ?? 0) * 100)}%</div>
+                    <div>瀹屾垚绔犺妭锛歿pipelineJobQuery.data.data.completedCount}/{pipelineJobQuery.data.data.totalCount}</div>
+                    <div>閲嶈瘯娆℃暟锛歿pipelineJobQuery.data.data.retryCount}/{pipelineJobQuery.data.data.maxRetries}</div>
+                    {pipelineJobQuery.data.data.error ? <div className="text-red-600">閿欒锛歿pipelineJobQuery.data.data.error}</div> : null}
                   </div>
                 ) : (
-                  <div className="text-muted-foreground">暂无运行中的流水线任务。</div>
+                  <div className="text-muted-foreground">鏆傛棤杩愯涓殑娴佹按绾夸换鍔°€?/div>
                 )}
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader><CardTitle>章节审校与修复</CardTitle></CardHeader>
+            <CardHeader><CardTitle>绔犺妭瀹℃牎涓庝慨澶?/CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <select className="w-full rounded-md border bg-background p-2 text-sm" value={selectedChapterId} onChange={(event) => setSelectedChapterId(event.target.value)}>
-                {chapters.map((chapter) => <option key={chapter.id} value={chapter.id}>第{chapter.order}章 - {chapter.title}</option>)}
+                {chapters.map((chapter) => <option key={chapter.id} value={chapter.id}>绗瑊chapter.order}绔?- {chapter.title}</option>)}
               </select>
               <div className="flex flex-wrap gap-2">
-                <Button onClick={() => reviewMutation.mutate()} disabled={reviewMutation.isPending || !selectedChapterId}>执行章节审校</Button>
+                <Button onClick={() => reviewMutation.mutate()} disabled={reviewMutation.isPending || !selectedChapterId}>鎵ц绔犺妭瀹℃牎</Button>
                 <Button
                   variant="secondary"
                   onClick={() => {
@@ -981,23 +984,23 @@ export default function NovelEdit() {
                   }}
                   disabled={repairSSE.isStreaming || !selectedChapterId}
                 >
-                  按审校结果修复
+                  鎸夊鏍＄粨鏋滀慨澶?
                 </Button>
-                <Button variant="outline" onClick={() => hookMutation.mutate()} disabled={hookMutation.isPending || !selectedChapterId}>生成章节末钩子</Button>
+                <Button variant="outline" onClick={() => hookMutation.mutate()} disabled={hookMutation.isPending || !selectedChapterId}>鐢熸垚绔犺妭鏈挬瀛?/Button>
               </div>
               {reviewResult ? (
                 <div className="rounded-md border p-3 text-sm">
-                  <div className="mb-2 font-medium">审校评分</div>
+                  <div className="mb-2 font-medium">瀹℃牎璇勫垎</div>
                   <div className="grid gap-1 md:grid-cols-3">
-                    <div>连贯性：{reviewResult.score.coherence}</div>
-                    <div>重复率：{reviewResult.score.repetition}</div>
-                    <div>节奏：{reviewResult.score.pacing}</div>
-                    <div>口吻：{reviewResult.score.voice}</div>
-                    <div>追更感：{reviewResult.score.engagement}</div>
-                    <div>综合：{reviewResult.score.overall}</div>
+                    <div>杩炶疮鎬э細{reviewResult.score.coherence}</div>
+                    <div>閲嶅鐜囷細{reviewResult.score.repetition}</div>
+                    <div>鑺傚锛歿reviewResult.score.pacing}</div>
+                    <div>鍙ｅ惢锛歿reviewResult.score.voice}</div>
+                    <div>杩芥洿鎰燂細{reviewResult.score.engagement}</div>
+                    <div>缁煎悎锛歿reviewResult.score.overall}</div>
                   </div>
                   <div className="mt-3 text-xs text-muted-foreground">
-                    问题数：{reviewResult.issues.length}
+                    闂鏁帮細{reviewResult.issues.length}
                   </div>
                 </div>
               ) : null}
@@ -1005,22 +1008,22 @@ export default function NovelEdit() {
               {(repairBeforeContent || repairAfterContent) ? (
                 <div className="space-y-2 rounded-md border p-3">
                   <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium">修复前后对比</div>
+                    <div className="text-sm font-medium">淇鍓嶅悗瀵规瘮</div>
                     <div className="text-xs text-muted-foreground">
-                      修复前：{repairBeforeContent.length} 字 | 修复后：{repairAfterContent.length} 字
+                      淇鍓嶏細{repairBeforeContent.length} 瀛?| 淇鍚庯細{repairAfterContent.length} 瀛?
                     </div>
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
                     <div className="space-y-1">
-                      <div className="text-xs font-medium text-muted-foreground">修复前</div>
+                      <div className="text-xs font-medium text-muted-foreground">淇鍓?/div>
                       <pre className="max-h-[280px] overflow-auto whitespace-pre-wrap rounded-md border bg-muted/30 p-2 text-xs">
-                        {repairBeforeContent || "暂无"}
+                        {repairBeforeContent || "鏆傛棤"}
                       </pre>
                     </div>
                     <div className="space-y-1">
-                      <div className="text-xs font-medium text-muted-foreground">修复后</div>
+                      <div className="text-xs font-medium text-muted-foreground">淇鍚?/div>
                       <pre className="max-h-[280px] overflow-auto whitespace-pre-wrap rounded-md border bg-muted/30 p-2 text-xs">
-                        {repairAfterContent || "修复执行后将显示结果"}
+                        {repairAfterContent || "淇鎵ц鍚庡皢鏄剧ず缁撴灉"}
                       </pre>
                     </div>
                   </div>
@@ -1030,25 +1033,25 @@ export default function NovelEdit() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle>质量报告</CardTitle></CardHeader>
+            <CardHeader><CardTitle>璐ㄩ噺鎶ュ憡</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               {qualitySummary ? (
                 <div className="grid gap-2 md:grid-cols-3">
-                  <Badge variant="outline">连贯性：{qualitySummary.coherence}</Badge>
-                  <Badge variant="outline">重复率：{qualitySummary.repetition}</Badge>
-                  <Badge variant="outline">节奏：{qualitySummary.pacing}</Badge>
-                  <Badge variant="outline">口吻：{qualitySummary.voice}</Badge>
-                  <Badge variant="outline">追更感：{qualitySummary.engagement}</Badge>
-                  <Badge variant="default">综合：{qualitySummary.overall}</Badge>
+                  <Badge variant="outline">杩炶疮鎬э細{qualitySummary.coherence}</Badge>
+                  <Badge variant="outline">閲嶅鐜囷細{qualitySummary.repetition}</Badge>
+                  <Badge variant="outline">鑺傚锛歿qualitySummary.pacing}</Badge>
+                  <Badge variant="outline">鍙ｅ惢锛歿qualitySummary.voice}</Badge>
+                  <Badge variant="outline">杩芥洿鎰燂細{qualitySummary.engagement}</Badge>
+                  <Badge variant="default">缁煎悎锛歿qualitySummary.overall}</Badge>
                 </div>
               ) : (
-                <div className="text-sm text-muted-foreground">暂无质量报告。</div>
+                <div className="text-sm text-muted-foreground">鏆傛棤璐ㄩ噺鎶ュ憡銆?/div>
               )}
               <div className="space-y-2 text-sm">
                 {(qualityReportQuery.data?.data?.chapterReports ?? []).slice(0, 8).map((item, index) => (
                   <div key={`${item.chapterId ?? "novel"}-${index}`} className="rounded-md border p-2">
-                    <div>章节：{item.chapterId ?? "全书"}</div>
-                    <div className="text-muted-foreground">综合分：{item.overall}，连贯性：{item.coherence}，重复率：{item.repetition}</div>
+                    <div>绔犺妭锛歿item.chapterId ?? "鍏ㄤ功"}</div>
+                    <div className="text-muted-foreground">缁煎悎鍒嗭細{item.overall}锛岃繛璐€э細{item.coherence}锛岄噸澶嶇巼锛歿item.repetition}</div>
                   </div>
                 ))}
               </div>
@@ -1056,15 +1059,15 @@ export default function NovelEdit() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle>流式输出调试区</CardTitle></CardHeader>
+            <CardHeader><CardTitle>娴佸紡杈撳嚭璋冭瘯鍖?/CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <div className="grid gap-3 md:grid-cols-2">
                 <div>
-                  <div className="mb-2 text-sm font-medium">作品圣经输出</div>
+                  <div className="mb-2 text-sm font-medium">浣滃搧鍦ｇ粡杈撳嚭</div>
                   <StreamOutput content={bibleSSE.content} isStreaming={bibleSSE.isStreaming} onAbort={bibleSSE.abort} />
                 </div>
                 <div>
-                  <div className="mb-2 text-sm font-medium">剧情拍点输出</div>
+                  <div className="mb-2 text-sm font-medium">鍓ф儏鎷嶇偣杈撳嚭</div>
                   <StreamOutput content={beatsSSE.content} isStreaming={beatsSSE.isStreaming} onAbort={beatsSSE.abort} />
                 </div>
               </div>
@@ -1072,55 +1075,55 @@ export default function NovelEdit() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle>已保存的作品圣经</CardTitle></CardHeader>
+            <CardHeader><CardTitle>宸蹭繚瀛樼殑浣滃搧鍦ｇ粡</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
               {bible ? (
                 <div className="space-y-2">
                   <div className="rounded-md border p-2 whitespace-pre-wrap">
-                    <div className="font-medium">主线承诺</div>
-                    <div className="text-muted-foreground">{bible.mainPromise ?? "暂无"}</div>
+                    <div className="font-medium">涓荤嚎鎵胯</div>
+                    <div className="text-muted-foreground">{bible.mainPromise ?? "鏆傛棤"}</div>
                   </div>
                   <div className="rounded-md border p-2 whitespace-pre-wrap">
-                    <div className="font-medium">核心设定</div>
-                    <div className="text-muted-foreground">{bible.coreSetting ?? "暂无"}</div>
+                    <div className="font-medium">鏍稿績璁惧畾</div>
+                    <div className="text-muted-foreground">{bible.coreSetting ?? "鏆傛棤"}</div>
                   </div>
                   <div className="rounded-md border p-2 whitespace-pre-wrap">
-                    <div className="font-medium">禁止冲突规则</div>
-                    <div className="text-muted-foreground">{bible.forbiddenRules ?? "暂无"}</div>
+                    <div className="font-medium">绂佹鍐茬獊瑙勫垯</div>
+                    <div className="text-muted-foreground">{bible.forbiddenRules ?? "鏆傛棤"}</div>
                   </div>
                   <div className="rounded-md border p-2 whitespace-pre-wrap">
-                    <div className="font-medium">角色成长弧</div>
-                    <div className="text-muted-foreground">{bible.characterArcs ?? "暂无"}</div>
+                    <div className="font-medium">瑙掕壊鎴愰暱寮?/div>
+                    <div className="text-muted-foreground">{bible.characterArcs ?? "鏆傛棤"}</div>
                   </div>
                   <div className="rounded-md border p-2 whitespace-pre-wrap">
-                    <div className="font-medium">世界规则</div>
-                    <div className="text-muted-foreground">{bible.worldRules ?? "暂无"}</div>
+                    <div className="font-medium">涓栫晫瑙勫垯</div>
+                    <div className="text-muted-foreground">{bible.worldRules ?? "鏆傛棤"}</div>
                   </div>
                 </div>
               ) : (
-                <div className="text-muted-foreground">暂无已保存的作品圣经。请先点击“生成/更新作品圣经”。</div>
+                <div className="text-muted-foreground">鏆傛棤宸蹭繚瀛樼殑浣滃搧鍦ｇ粡銆傝鍏堢偣鍑烩€滅敓鎴?鏇存柊浣滃搧鍦ｇ粡鈥濄€?/div>
               )}
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader><CardTitle>已保存的剧情拍点</CardTitle></CardHeader>
+            <CardHeader><CardTitle>宸蹭繚瀛樼殑鍓ф儏鎷嶇偣</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
               {plotBeats.length > 0 ? (
                 plotBeats.slice(0, 30).map((beat) => (
                   <div key={beat.id} className="rounded-md border p-2">
                     <div className="flex items-center justify-between gap-2">
                       <div className="font-medium">
-                        第 {beat.chapterOrder ?? "-"} 章 · {beat.title}
+                        绗?{beat.chapterOrder ?? "-"} 绔?路 {beat.title}
                       </div>
                       <Badge variant="outline">{beat.status}</Badge>
                     </div>
-                    <div className="text-xs text-muted-foreground">类型：{beat.beatType}</div>
+                    <div className="text-xs text-muted-foreground">绫诲瀷锛歿beat.beatType}</div>
                     <div className="mt-1 whitespace-pre-wrap text-muted-foreground">{beat.content}</div>
                   </div>
                 ))
               ) : (
-                <div className="text-muted-foreground">暂无已保存的剧情拍点。请先点击“生成剧情拍点”。</div>
+                <div className="text-muted-foreground">鏆傛棤宸蹭繚瀛樼殑鍓ф儏鎷嶇偣銆傝鍏堢偣鍑烩€滅敓鎴愬墽鎯呮媿鐐光€濄€?/div>
               )}
             </CardContent>
           </Card>
@@ -1173,3 +1176,5 @@ export default function NovelEdit() {
 interface ChapterWithState {
   generationState?: string;
 }
+
+

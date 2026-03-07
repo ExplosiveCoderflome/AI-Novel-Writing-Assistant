@@ -53,8 +53,26 @@ export class VectorStoreService {
   private ensuredDimension = 0;
   private readonly upsertWrapperBytes = estimateJsonBytes({ points: [] });
 
+  private async fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ragConfig.httpTimeoutMs);
+    try {
+      return await fetch(url, {
+        ...init,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new Error(`Qdrant 请求超时（>${ragConfig.httpTimeoutMs}ms）。`);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   private async request<T>(url: string, init?: RequestInit): Promise<T> {
-    const response = await fetch(url, {
+    const response = await this.fetchWithTimeout(url, {
       ...init,
       headers: {
         ...buildHeaders(),
@@ -117,7 +135,7 @@ export class VectorStoreService {
       return;
     }
 
-    const getResponse = await fetch(toCollectionUrl(""), { headers: buildHeaders() });
+    const getResponse = await this.fetchWithTimeout(toCollectionUrl(""), { headers: buildHeaders() });
     if (getResponse.status === 404) {
       await this.request(toCollectionUrl(""), {
         method: "PUT",
@@ -232,7 +250,7 @@ export class VectorStoreService {
 
   async healthCheck(): Promise<{ ok: boolean; detail?: string }> {
     try {
-      const response = await fetch(`${ragConfig.qdrantUrl}/healthz`, {
+      const response = await this.fetchWithTimeout(`${ragConfig.qdrantUrl}/healthz`, {
         headers: buildHeaders(),
       });
       if (!response.ok) {

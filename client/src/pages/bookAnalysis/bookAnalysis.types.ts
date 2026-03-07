@@ -4,6 +4,8 @@ export interface SectionDraft {
   editedContent: string;
   notes: string;
   frozen: boolean;
+  optimizeInstruction: string;
+  optimizePreview: string;
 }
 
 export interface LLMConfigState {

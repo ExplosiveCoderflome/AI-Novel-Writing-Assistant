@@ -12,6 +12,33 @@ import {
 } from "./common";
 
 export class KnowledgeService {
+  private async loadLatestFailedIndexErrors(documentIds: string[]): Promise<Map<string, string | null>> {
+    if (documentIds.length === 0) {
+      return new Map();
+    }
+
+    const rows = await prisma.ragIndexJob.findMany({
+      where: {
+        ownerType: "knowledge_document",
+        ownerId: { in: documentIds },
+        status: "failed",
+      },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+      select: {
+        ownerId: true,
+        lastError: true,
+      },
+    });
+
+    const errorMap = new Map<string, string | null>();
+    for (const row of rows) {
+      if (!errorMap.has(row.ownerId)) {
+        errorMap.set(row.ownerId, row.lastError ?? "索引任务失败。请到任务列表查看详情。");
+      }
+    }
+    return errorMap;
+  }
+
   private queueKnowledgeRebuild(documentId: string): void {
     void ragServices.ragIndexService.enqueueOwnerJob("rebuild", "knowledge_document", documentId).catch(() => {
       // Keep knowledge document CRUD resilient even if reindex queueing fails.
@@ -65,6 +92,8 @@ export class KnowledgeService {
       },
       orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
     });
+    const failedIndexErrors = await this.loadLatestFailedIndexErrors(rows.map((item) => item.id));
+
     return rows.map((item) => ({
       id: item.id,
       title: item.title,
@@ -73,6 +102,10 @@ export class KnowledgeService {
       activeVersionId: item.activeVersionId,
       activeVersionNumber: item.activeVersionNumber,
       latestIndexStatus: item.latestIndexStatus,
+      latestIndexError:
+        item.latestIndexStatus === "failed"
+          ? (failedIndexErrors.get(item.id) ?? "索引任务失败。请到任务列表查看详情。")
+          : null,
       lastIndexedAt: item.lastIndexedAt,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
@@ -98,6 +131,18 @@ export class KnowledgeService {
     if (!document) {
       return null;
     }
+    const failedIndexError = document.latestIndexStatus === "failed"
+      ? await prisma.ragIndexJob.findFirst({
+        where: {
+          ownerType: "knowledge_document",
+          ownerId: document.id,
+          status: "failed",
+        },
+        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+        select: { lastError: true },
+      })
+      : null;
+
     return {
       id: document.id,
       title: document.title,
@@ -106,6 +151,10 @@ export class KnowledgeService {
       activeVersionId: document.activeVersionId,
       activeVersionNumber: document.activeVersionNumber,
       latestIndexStatus: document.latestIndexStatus,
+      latestIndexError:
+        document.latestIndexStatus === "failed"
+          ? (failedIndexError?.lastError ?? "索引任务失败。请到任务列表查看详情。")
+          : null,
       lastIndexedAt: document.lastIndexedAt,
       createdAt: document.createdAt,
       updatedAt: document.updatedAt,

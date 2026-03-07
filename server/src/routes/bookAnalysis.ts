@@ -58,6 +58,11 @@ const sectionUpdateSchema = z.object({
   },
 );
 
+const sectionOptimizePreviewSchema = z.object({
+  currentDraft: z.string(),
+  instruction: z.string().trim().min(1),
+});
+
 const statusUpdateSchema = z.object({
   status: z.enum(["archived"]),
 });
@@ -157,6 +162,25 @@ router.post(
         success: true,
         data,
         message: "Book analysis published to novel knowledge.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/sections/:sectionKey/optimize-preview",
+  validate({ params: analysisSectionParamsSchema, body: sectionOptimizePreviewSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, sectionKey } = req.params as z.infer<typeof analysisSectionParamsSchema>;
+      const body = req.body as z.infer<typeof sectionOptimizePreviewSchema>;
+      const data = await bookAnalysisService.optimizeSectionPreview(id, sectionKey, body);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Book analysis section optimize preview generated.",
       } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);

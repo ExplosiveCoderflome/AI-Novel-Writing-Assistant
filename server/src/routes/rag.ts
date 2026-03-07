@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { ragServices } from "../services/rag";
+import { ragConfig } from "../config/rag";
 
 const router = Router();
 
@@ -55,8 +56,16 @@ router.get("/health", async (_req, res, next) => {
       ragServices.vectorStoreService.healthCheck(),
     ]);
     const data = {
-      embedding,
-      qdrant,
+      embedding: {
+        ...embedding,
+        timeoutMs: ragConfig.embeddingTimeoutMs,
+        batchSize: ragConfig.embeddingBatchSize,
+        maxRetries: ragConfig.embeddingMaxRetries,
+      },
+      qdrant: {
+        ...qdrant,
+        timeoutMs: ragConfig.httpTimeoutMs,
+      },
       ok: embedding.ok && qdrant.ok,
     };
     res.status(data.ok ? 200 : 503).json({

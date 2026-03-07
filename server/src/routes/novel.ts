@@ -131,7 +131,7 @@ const chapterGenerateSchema = llmGenerateSchema.extend({
 });
 
 const beatGenerateSchema = llmGenerateSchema.extend({
-  targetChapters: z.number().int().min(10).max(500).optional(),
+  targetChapters: z.number().int().min(1).max(500).optional(),
 });
 
 const pipelineRunSchema = llmGenerateSchema.extend({

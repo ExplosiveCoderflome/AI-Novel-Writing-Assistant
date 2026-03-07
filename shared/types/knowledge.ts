@@ -10,6 +10,7 @@ export interface KnowledgeDocument {
   activeVersionId?: string | null;
   activeVersionNumber: number;
   latestIndexStatus: KnowledgeIndexStatus;
+  latestIndexError?: string | null;
   lastIndexedAt?: string | null;
   createdAt: string;
   updatedAt: string;

@@ -446,6 +446,19 @@ function needsChineseConceptTranslation(card: InspirationConceptCard): boolean {
   return latinCount >= 12 && cjkCount < latinCount;
 }
 
+function needsChineseTextTranslation(text: string): boolean {
+  const normalized = text.trim();
+  if (!normalized) {
+    return false;
+  }
+  const latinCount = (normalized.match(/[A-Za-z]/g) ?? []).length;
+  if (latinCount < 12) {
+    return false;
+  }
+  const cjkCount = (normalized.match(/[\u4E00-\u9FFF]/g) ?? []).length;
+  return cjkCount === 0 || cjkCount * 2 < latinCount;
+}
+
 function normalizeAxiomList(raw: unknown): string[] {
   if (!Array.isArray(raw)) {
     return [];
@@ -1737,33 +1750,34 @@ Output JSON only.`,
 
     const requirements: string[] = [];
     if (input.dimensions.geography) {
-      requirements.push("geography: terrain, climate, landmarks (>=5)");
+      requirements.push("geography：地形、气候、地标（至少 5 项）");
     }
     if (input.dimensions.culture) {
-      requirements.push("cultures/politics/races/religions");
+      requirements.push("cultures/politics/races/religions：社会结构、政治秩序、种族关系、宗教观念");
     }
     if (input.dimensions.magicSystem) {
-      requirements.push("magicSystem: source, levels, limits, costs");
+      requirements.push("magicSystem：力量来源、等级体系、限制条件、代价机制");
     }
     if (input.dimensions.technology) {
-      requirements.push("technology: level, signature tech, social impact");
+      requirements.push("technology：技术水平、标志性技术、社会影响");
     }
     if (input.dimensions.history) {
-      requirements.push("history: origin, major events, current era");
+      requirements.push("history：起源、重大事件、当前时代");
     }
 
     const stream = await llm.stream([
       new SystemMessage(
-        `Generate world JSON. Allowed fields:
+        `你是小说世界观设定助手。请生成世界观 JSON，只允许包含以下字段：
 description, background, geography, cultures, magicSystem, politics, races,
-religions, technology, history, conflicts, economy, factions.`,
+religions, technology, history, conflicts, economy, factions。
+所有字段值必须使用简体中文。仅输出 JSON 对象，不要输出解释文字。`,
       ),
       new HumanMessage(
-        `name=${input.name}
-worldType=${input.worldType}
-description=${input.description}
-complexity=${input.complexity}
-requirements=${requirements.join("; ")}`,
+        `世界名=${input.name}
+世界类型=${input.worldType}
+需求描述=${input.description}
+复杂度=${input.complexity}
+细化要求=${requirements.join("；")}`,
       ),
     ]);
 
@@ -1849,7 +1863,9 @@ current=${input.currentValue}`,
     }
     const result = await llm.invoke([
       new SystemMessage(
-        `Generate only layer=${layerKey}. Output JSON object with fields from: ${layerFields.join(", ")}.`,
+        `你是世界观分层构建器。仅生成 layer=${layerKey} 对应字段内容。
+必须输出 JSON 对象，且字段只能来自：${layerFields.join(", ")}。
+所有字段值必须使用简体中文，不要输出英文句子，不要输出解释文字。`,
       ),
       new HumanMessage(
         `name=${world.name}
@@ -1869,7 +1885,8 @@ existing=${JSON.stringify({
           history: world.history,
           conflicts: world.conflicts,
         })}
-ragContext=${ragContext || "none"}`,
+ragContext=${ragContext || "none"}
+注意：输入可含英文，但输出字段值必须为简体中文。`,
       ),
     ]);
 
@@ -1899,7 +1916,61 @@ ragContext=${ragContext || "none"}`,
       generated = { [fallbackField]: text.trim() };
     }
 
-    return generated;
+    return this.localizeLayerGenerationToChineseIfNeeded(llm, layerKey, layerFields, generated);
+  }
+
+  private async localizeLayerGenerationToChineseIfNeeded(
+    llm: Awaited<ReturnType<typeof getLLM>>,
+    layerKey: WorldLayerKey,
+    layerFields: WorldTextField[],
+    generated: Partial<Record<WorldTextField, string>>,
+  ): Promise<Partial<Record<WorldTextField, string>>> {
+    const sourcePayload = layerFields.reduce((acc, field) => {
+      const value = generated[field]?.trim();
+      if (value) {
+        acc[field] = value;
+      }
+      return acc;
+    }, {} as Record<string, string>);
+
+    if (Object.keys(sourcePayload).length === 0) {
+      return generated;
+    }
+
+    const hasEnglishHeavyField = Object.values(sourcePayload).some((value) => needsChineseTextTranslation(value));
+    if (!hasEnglishHeavyField) {
+      return generated;
+    }
+
+    try {
+      const result = await llm.invoke([
+        new SystemMessage(
+          `你是文本本地化助手。将输入 JSON 对象中所有字段值改写为简体中文：
+- 保持字段名不变，不新增字段，不删除字段；
+- 保留原设定语义与专有名词含义；
+- 输出仅为 JSON 对象。`,
+        ),
+        new HumanMessage(
+          `layer=${layerKey}
+fields=${layerFields.join(",")}
+input=${JSON.stringify(sourcePayload)}`,
+        ),
+      ]);
+      const parsed = safeParseJSON<Partial<Record<WorldTextField, unknown>>>(
+        extractJSONObject(String(result.content)),
+        {},
+      );
+      const localized = { ...generated };
+      for (const field of layerFields) {
+        const value = normalizeGeneratedLayerFieldValue(parsed[field]);
+        if (value) {
+          localized[field] = value;
+        }
+      }
+      return localized;
+    } catch {
+      return generated;
+    }
   }
 
   private async translateConceptCardToChinese(

@@ -141,7 +141,11 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                     )}
                   </div>
                   <div className="text-muted-foreground">定位：{selectedBaseCharacter.role}</div>
-                  <div className="text-muted-foreground line-clamp-2">性格：{selectedBaseCharacter.personality || "暂无"}</div>
+                  <div className="text-muted-foreground line-clamp-3">性格：{selectedBaseCharacter.personality || "暂无"}</div>
+                  <div className="text-muted-foreground line-clamp-2">外貌/体态：{selectedBaseCharacter.appearance || "暂无"}</div>
+                  <div className="text-muted-foreground line-clamp-2">弱点与代价：{selectedBaseCharacter.weaknesses || "暂无"}</div>
+                  <div className="text-muted-foreground line-clamp-2">习惯与特长：{selectedBaseCharacter.interests || "暂无"}</div>
+                  <div className="text-muted-foreground line-clamp-2">关键事件：{selectedBaseCharacter.keyEvents || "暂无"}</div>
                 </div>
               ) : null}
               <div className="flex gap-2">

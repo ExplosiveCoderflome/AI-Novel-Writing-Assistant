@@ -16,10 +16,29 @@ export class RagWorker {
     if (!ragConfig.enabled || this.timer) {
       return;
     }
+    void this.requeueInterruptedJobs();
     this.timer = setInterval(() => {
       void this.tick();
     }, ragConfig.workerPollMs);
     void this.tick();
+  }
+
+  private async requeueInterruptedJobs(): Promise<void> {
+    while (true) {
+      const runningJobs = await this.ragIndexService.listJobs(500, "running");
+      if (runningJobs.length === 0) {
+        return;
+      }
+      await Promise.all(
+        runningJobs.map((job) =>
+          this.ragIndexService.updateJobStatus(job.id, {
+            status: "queued",
+            runAfter: new Date(),
+            lastError: job.lastError ?? "RAG worker restarted; interrupted job requeued.",
+          })
+        ),
+      );
+    }
   }
 
   stop(): void {
