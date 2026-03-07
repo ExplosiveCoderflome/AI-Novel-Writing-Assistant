@@ -2,6 +2,7 @@
   BookAnalysis,
   BookAnalysisDetail,
   BookAnalysisEvidenceItem,
+  BookAnalysisPublishResult,
   BookAnalysisSection,
   BookAnalysisSectionKey,
   BookAnalysisStatus,
@@ -14,6 +15,7 @@ import { prisma } from "../../db/prisma";
 import { supportsForcedJsonOutput } from "../../llm/capabilities";
 import { getLLM } from "../../llm/factory";
 import { AppError } from "../../middleware/errorHandler";
+import { KnowledgeService } from "../knowledge/KnowledgeService";
 
 type AnalysisTask =
   | { analysisId: string; kind: "full" }
@@ -525,10 +527,88 @@ function sectionContentToMarkdown(section: BookAnalysisSection): string {
   return content;
 }
 
+function buildPublishDocumentTitle(detail: Pick<BookAnalysisDetail, "id" | "documentTitle">): string {
+  return `${detail.documentTitle}｜拆书发布(${detail.id})`;
+}
+
+function buildPublishFileName(detail: Pick<BookAnalysisDetail, "id" | "documentTitle" | "documentVersionNumber">): string {
+  const slug = `${detail.documentTitle}-v${detail.documentVersionNumber}`.replace(/[\\/:*?"<>|]/g, "-");
+  return `${slug}-book-analysis-${detail.id}.md`;
+}
+
+function buildPublishMarkdown(
+  detail: Pick<
+    BookAnalysisDetail,
+    | "id"
+    | "title"
+    | "status"
+    | "documentTitle"
+    | "documentFileName"
+    | "documentVersionNumber"
+    | "currentDocumentVersionNumber"
+    | "sections"
+  >,
+  publishedAtISO: string,
+): { content: string; hasPublishableContent: boolean } {
+  const markdownParts: string[] = [
+    `# ${detail.title}（发布版）`,
+    "",
+    "## 发布元信息",
+    "",
+    `- 来源拆书ID：${detail.id}`,
+    `- 来源文档：${detail.documentTitle}`,
+    `- 来源文件名：${detail.documentFileName}`,
+    `- 来源版本：v${detail.documentVersionNumber}`,
+    `- 当前激活版本：v${detail.currentDocumentVersionNumber}`,
+    `- 拆书状态：${detail.status}`,
+    `- 发布时间：${publishedAtISO}`,
+    "",
+  ];
+
+  let hasPublishableContent = false;
+
+  for (const section of detail.sections) {
+    const content = getEffectiveContent(section).trim();
+    const notes = section.notes?.trim() ?? "";
+    const evidence = section.evidence.filter((item) => item.label.trim() || item.excerpt.trim());
+    if (!content && !notes && evidence.length === 0) {
+      continue;
+    }
+    hasPublishableContent = true;
+    markdownParts.push(`## ${section.title}`);
+    markdownParts.push("");
+    markdownParts.push(content || "_暂无内容_");
+    markdownParts.push("");
+
+    if (notes) {
+      markdownParts.push("### 人工备注");
+      markdownParts.push("");
+      markdownParts.push(notes);
+      markdownParts.push("");
+    }
+
+    if (evidence.length > 0) {
+      markdownParts.push("### 证据摘录");
+      markdownParts.push("");
+      for (const item of evidence) {
+        markdownParts.push(`- [${item.sourceLabel}] ${item.label}：${item.excerpt}`);
+      }
+      markdownParts.push("");
+    }
+  }
+
+  return {
+    content: markdownParts.join("\n"),
+    hasPublishableContent,
+  };
+}
+
 export class BookAnalysisService {
   private readonly taskQueue: AnalysisTask[] = [];
 
   private isProcessing = false;
+
+  private readonly knowledgeService = new KnowledgeService();
 
   async resumePendingAnalyses(): Promise<void> {
     try {
@@ -940,6 +1020,81 @@ export class BookAnalysisService {
       throw new AppError("Book analysis not found after status update.", 500);
     }
     return detail;
+  }
+
+  async publishToNovelKnowledge(analysisId: string, novelId: string): Promise<BookAnalysisPublishResult> {
+    const [detail, novel] = await Promise.all([
+      this.getAnalysisById(analysisId),
+      prisma.novel.findUnique({ where: { id: novelId }, select: { id: true } }),
+    ]);
+
+    if (!detail) {
+      throw new AppError("Book analysis not found.", 404);
+    }
+    if (detail.status === "archived") {
+      throw new AppError("Archived book analysis cannot be published.", 400);
+    }
+    if (!novel) {
+      throw new AppError("Novel not found.", 404);
+    }
+
+    const publishedAtISO = new Date().toISOString();
+    const publishPayload = buildPublishMarkdown(detail, publishedAtISO);
+    if (!publishPayload.hasPublishableContent) {
+      throw new AppError("Book analysis has no publishable content.", 400);
+    }
+
+    const publishedDocument = await this.knowledgeService.createDocument({
+      title: buildPublishDocumentTitle(detail),
+      fileName: buildPublishFileName(detail),
+      content: publishPayload.content,
+    });
+
+    const existingBindings = await prisma.knowledgeBinding.findMany({
+      where: {
+        targetType: "novel",
+        targetId: novelId,
+      },
+      select: {
+        documentId: true,
+      },
+    });
+    const mergedDocumentIds = new Set(existingBindings.map((item) => item.documentId));
+
+    if (!mergedDocumentIds.has(publishedDocument.id)) {
+      await prisma.knowledgeBinding.upsert({
+        where: {
+          targetType_targetId_documentId: {
+            targetType: "novel",
+            targetId: novelId,
+            documentId: publishedDocument.id,
+          },
+        },
+        update: {},
+        create: {
+          targetType: "novel",
+          targetId: novelId,
+          documentId: publishedDocument.id,
+        },
+      });
+      mergedDocumentIds.add(publishedDocument.id);
+    }
+
+    const bindingCount = await prisma.knowledgeBinding.count({
+      where: {
+        targetType: "novel",
+        targetId: novelId,
+      },
+    });
+
+    return {
+      analysisId,
+      novelId,
+      knowledgeDocumentId: publishedDocument.id,
+      knowledgeDocumentVersionNumber: publishedDocument.activeVersionNumber,
+      bindingCount,
+      publishedAt: publishedAtISO,
+    };
   }
 
   async buildExportContent(analysisId: string, format: "markdown" | "json"): Promise<{

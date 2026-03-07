@@ -1,6 +1,7 @@
 import type {
   BookAnalysis,
   BookAnalysisDetail,
+  BookAnalysisPublishResult,
   BookAnalysisSectionKey,
   BookAnalysisStatus,
 } from "@ai-novel/shared/types/bookAnalysis";
@@ -43,6 +44,14 @@ export async function rebuildBookAnalysis(id: string) {
 
 export async function copyBookAnalysis(id: string) {
   const { data } = await apiClient.post<ApiResponse<BookAnalysisDetail>>(`/book-analysis/${id}/copy`, {});
+  return data;
+}
+
+export async function publishBookAnalysis(id: string, payload: { novelId: string }) {
+  const { data } = await apiClient.post<ApiResponse<BookAnalysisPublishResult>>(
+    `/book-analysis/${id}/publish`,
+    payload,
+  );
   return data;
 }
 

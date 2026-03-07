@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   BookAnalysisDetail,
+  BookAnalysisPublishResult,
   BookAnalysisSection,
   BookAnalysisSectionKey,
   BookAnalysisStatus,
@@ -20,11 +21,13 @@ import {
   downloadBookAnalysisExport,
   getBookAnalysis,
   listBookAnalyses,
+  publishBookAnalysis,
   rebuildBookAnalysis,
   regenerateBookAnalysisSection,
   updateBookAnalysisSection,
 } from "@/api/bookAnalysis";
 import { getKnowledgeDocument, listKnowledgeDocuments } from "@/api/knowledge";
+import { getNovelList } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { useLLMStore } from "@/store/llmStore";
 
@@ -102,6 +105,7 @@ export default function BookAnalysisPage() {
   const [selectedAnalysisId, setSelectedAnalysisId] = useState(searchParams.get("analysisId") ?? "");
   const [selectedDocumentId, setSelectedDocumentId] = useState(searchParams.get("documentId") ?? "");
   const [selectedVersionId, setSelectedVersionId] = useState("");
+  const [selectedNovelId, setSelectedNovelId] = useState("");
   const [llmConfig, setLlmConfig] = useState<LLMConfigState>({
     provider: llmStore.provider,
     model: llmStore.model,
@@ -110,6 +114,8 @@ export default function BookAnalysisPage() {
   });
   const [sectionDrafts, setSectionDrafts] = useState<Record<string, SectionDraft>>({});
   const [draftAnalysisId, setDraftAnalysisId] = useState("");
+  const [publishFeedback, setPublishFeedback] = useState("");
+  const [lastPublishResult, setLastPublishResult] = useState<BookAnalysisPublishResult | null>(null);
 
   const listKey = `${keyword.trim()}-${status || "all"}-${selectedDocumentId || "any"}`;
 
@@ -129,6 +135,11 @@ export default function BookAnalysisPage() {
   const documentsQuery = useQuery({
     queryKey: queryKeys.knowledge.documents("book-analysis-source"),
     queryFn: () => listKnowledgeDocuments(),
+  });
+
+  const novelsQuery = useQuery({
+    queryKey: queryKeys.novels.list(1, 200),
+    queryFn: () => getNovelList({ page: 1, limit: 200 }),
   });
 
   const sourceDocumentQuery = useQuery({
@@ -169,6 +180,13 @@ export default function BookAnalysisPage() {
   }, [selectedDocumentId, sourceDocumentQuery.data?.data]);
 
   useEffect(() => {
+    const novels = novelsQuery.data?.data?.items ?? [];
+    if (!selectedNovelId && novels.length > 0) {
+      setSelectedNovelId(novels[0].id);
+    }
+  }, [novelsQuery.data?.data?.items, selectedNovelId]);
+
+  useEffect(() => {
     const rows = analysesQuery.data?.data ?? [];
     if (selectedAnalysisId || rows.length === 0) {
       return;
@@ -191,6 +209,11 @@ export default function BookAnalysisPage() {
     setSectionDrafts(syncDrafts(detail));
     setDraftAnalysisId(detail.id);
   }, [detailQuery.data?.data, draftAnalysisId]);
+
+  useEffect(() => {
+    setPublishFeedback("");
+    setLastPublishResult(null);
+  }, [selectedAnalysisId]);
 
   const refreshAnalysisData = async (analysisId: string) => {
     await queryClient.invalidateQueries({ queryKey: queryKeys.bookAnalysis.list(listKey) });
@@ -290,9 +313,33 @@ export default function BookAnalysisPage() {
     },
   });
 
+  const publishMutation = useMutation({
+    mutationFn: (payload: { id: string; novelId: string }) =>
+      publishBookAnalysis(payload.id, { novelId: payload.novelId }),
+    onSuccess: async (response, payload) => {
+      const published = response.data;
+      if (!published) {
+        return;
+      }
+      setLastPublishResult(published);
+      setPublishFeedback(
+        `已发布：文档ID ${published.knowledgeDocumentId}，版本 v${published.knowledgeDocumentVersionNumber}，当前绑定数 ${published.bindingCount}`,
+      );
+      await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.documents("book-analysis-source") });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novelsKnowledge.bindings(payload.novelId) });
+      await refreshAnalysisData(payload.id);
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "发布失败。";
+      setLastPublishResult(null);
+      setPublishFeedback(message);
+    },
+  });
+
   const analyses = analysesQuery.data?.data ?? [];
   const selectedAnalysis = detailQuery.data?.data;
   const documentOptions = documentsQuery.data?.data ?? [];
+  const novelOptions = novelsQuery.data?.data?.items ?? [];
   const versionOptions = sourceDocumentQuery.data?.data?.versions ?? [];
 
   const aggregatedEvidence = useMemo(() => {
@@ -334,6 +381,16 @@ export default function BookAnalysisPage() {
     }
     const exported = await downloadBookAnalysisExport(selectedAnalysisId, format);
     createDownload(exported.blob, exported.fileName);
+  };
+
+  const handlePublish = async () => {
+    if (!selectedAnalysisId || !selectedNovelId) {
+      return;
+    }
+    await publishMutation.mutateAsync({
+      id: selectedAnalysisId,
+      novelId: selectedNovelId,
+    });
   };
 
   const renderSectionCard = (section: BookAnalysisSection) => {
@@ -667,6 +724,38 @@ export default function BookAnalysisPage() {
                       当前拆书结果来自旧版本，知识库文档已经切换到 v{selectedAnalysis.currentDocumentVersionNumber}。旧分析不会被自动覆盖。
                     </div>
                   ) : null}
+                  <div className="rounded-md border p-3 text-sm">
+                    <div className="mb-2 font-medium">发布到小说知识库</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        className="h-9 min-w-[220px] rounded-md border bg-background px-2 text-sm"
+                        value={selectedNovelId}
+                        onChange={(event) => setSelectedNovelId(event.target.value)}
+                      >
+                        <option value="">选择目标小说</option>
+                        {novelOptions.map((novel) => (
+                          <option key={novel.id} value={novel.id}>
+                            {novel.title}
+                          </option>
+                        ))}
+                      </select>
+                      <Button
+                        size="sm"
+                        onClick={() => void handlePublish()}
+                        disabled={!selectedNovelId || publishMutation.isPending || selectedAnalysis.status === "archived"}
+                      >
+                        发布并绑定
+                      </Button>
+                    </div>
+                    {publishFeedback ? (
+                      <div className="mt-2 text-xs text-muted-foreground">{publishFeedback}</div>
+                    ) : null}
+                    {lastPublishResult ? (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        发布时间：{formatDate(lastPublishResult.publishedAt)}
+                      </div>
+                    ) : null}
+                  </div>
                   <div className="grid gap-3 md:grid-cols-2">
                     <div className="rounded-md border p-3 text-sm">
                       <div className="font-medium">总评摘要</div>

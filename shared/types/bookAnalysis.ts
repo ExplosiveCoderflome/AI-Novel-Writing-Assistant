@@ -73,3 +73,12 @@ export interface BookAnalysis {
 export interface BookAnalysisDetail extends BookAnalysis {
   sections: BookAnalysisSection[];
 }
+
+export interface BookAnalysisPublishResult {
+  analysisId: string;
+  novelId: string;
+  knowledgeDocumentId: string;
+  knowledgeDocumentVersionNumber: number;
+  bindingCount: number;
+  publishedAt: string;
+}
