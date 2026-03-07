@@ -548,7 +548,7 @@ model BookAnalysis {
   lastError                   String?
   lastRunAt                   DateTime?
   document                    KnowledgeDocument  @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  documentVersion             KnowledgeDocumentVersion @relation(fields: [documentVersionId], references: [id])
+  documentVersion             KnowledgeDocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: NoAction)
   sections                    BookAnalysisSection[]
   createdAt                   DateTime           @default(now())
   updatedAt                   DateTime           @updatedAt
