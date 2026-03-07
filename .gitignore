@@ -14,3 +14,5 @@ server/dev.db
 server/tmp_*.js
 server/src/prisma/dev.db
 server/src/prisma/dev.db-journal
+.history/
+.histyory/

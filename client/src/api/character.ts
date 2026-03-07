@@ -41,6 +41,8 @@ export async function generateBaseCharacter(payload: {
   description: string;
   category: string;
   genre?: string;
+  knowledgeDocumentIds?: string[];
+  bookAnalysisIds?: string[];
   provider?: LLMProvider;
   model?: string;
 }) {
