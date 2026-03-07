@@ -138,20 +138,34 @@ export default function BookAnalysisPage() {
   });
 
   const novelsQuery = useQuery({
-    queryKey: queryKeys.novels.list(1, 200),
-    queryFn: () => getNovelList({ page: 1, limit: 200 }),
+    queryKey: queryKeys.novels.list(1, 100),
+    queryFn: () => getNovelList({ page: 1, limit: 100 }),
   });
 
   const sourceDocumentQuery = useQuery({
     queryKey: queryKeys.knowledge.detail(selectedDocumentId || "none"),
     queryFn: () => getKnowledgeDocument(selectedDocumentId),
     enabled: Boolean(selectedDocumentId),
+    retry: (failureCount, error) => {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status === 404) {
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
 
   const detailQuery = useQuery({
     queryKey: queryKeys.bookAnalysis.detail(selectedAnalysisId || "none"),
     queryFn: () => getBookAnalysis(selectedAnalysisId),
     enabled: Boolean(selectedAnalysisId),
+    retry: (failureCount, error) => {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status === 404) {
+        return false;
+      }
+      return failureCount < 2;
+    },
     refetchInterval: (query) => {
       const nextStatus = query.state.data?.data?.status;
       return nextStatus === "queued" || nextStatus === "running" ? 4000 : false;
@@ -168,6 +182,39 @@ export default function BookAnalysisPage() {
       setSelectedDocumentId(nextDocumentId);
     }
   }, [searchParams, selectedAnalysisId, selectedDocumentId]);
+
+  useEffect(() => {
+    if (!selectedDocumentId) {
+      return;
+    }
+    const status = (sourceDocumentQuery.error as { response?: { status?: number } } | null)?.response?.status;
+    if (status !== 404) {
+      return;
+    }
+    setSelectedDocumentId("");
+    setSelectedVersionId("");
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("documentId");
+      return next;
+    });
+  }, [selectedDocumentId, setSearchParams, sourceDocumentQuery.error]);
+
+  useEffect(() => {
+    if (!selectedAnalysisId) {
+      return;
+    }
+    const status = (detailQuery.error as { response?: { status?: number } } | null)?.response?.status;
+    if (status !== 404) {
+      return;
+    }
+    setSelectedAnalysisId("");
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("analysisId");
+      return next;
+    });
+  }, [detailQuery.error, selectedAnalysisId, setSearchParams]);
 
   useEffect(() => {
     const document = sourceDocumentQuery.data?.data;
