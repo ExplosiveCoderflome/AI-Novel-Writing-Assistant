@@ -43,6 +43,112 @@ interface StructuredVolume {
   }>;
 }
 
+type JsonRecord = Record<string, unknown>;
+
+function isJsonRecord(value: unknown): value is JsonRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function pickFirstString(record: JsonRecord, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value !== "string") {
+      continue;
+    }
+    const trimmed = value.trim();
+    if (trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+  return null;
+}
+
+function parseOrder(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return Math.round(value);
+  }
+  if (typeof value === "string") {
+    const matched = value.match(/\d+/);
+    if (!matched) {
+      return null;
+    }
+    const parsed = Number.parseInt(matched[0], 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return null;
+}
+
+function normalizeStructuredChapter(raw: unknown, index: number): StructuredVolume["chapters"][number] | null {
+  if (!isJsonRecord(raw)) {
+    return null;
+  }
+  const order = parseOrder(raw.order ?? raw.chapterOrder ?? raw.chapterNo ?? raw.chapter ?? raw.index) ?? index + 1;
+  const rawTitle = pickFirstString(raw, ["title", "chapterTitle", "name", "chapterName"]);
+  const rawSummary = pickFirstString(raw, ["summary", "outline", "description", "content"]);
+  if (!rawTitle && !rawSummary) {
+    return null;
+  }
+  const title = rawTitle ?? `Chapter ${order}`;
+  const summary = rawSummary ?? "";
+  return { order, title, summary };
+}
+
+function normalizeStructuredVolume(raw: unknown, index: number): StructuredVolume | null {
+  if (!isJsonRecord(raw)) {
+    return null;
+  }
+  const volumeTitle = pickFirstString(raw, ["volumeTitle", "title", "name", "volume", "arcTitle"]) ?? `Volume ${index + 1}`;
+  const rawChapters =
+    (Array.isArray(raw.chapters) && raw.chapters)
+    || (Array.isArray(raw.chapterList) && raw.chapterList)
+    || (Array.isArray(raw.items) && raw.items)
+    || (Array.isArray(raw.sections) && raw.sections)
+    || [];
+  const chapters = rawChapters
+    .map((chapter, chapterIndex) => normalizeStructuredChapter(chapter, chapterIndex))
+    .filter((chapter): chapter is StructuredVolume["chapters"][number] => chapter !== null);
+  if (chapters.length === 0) {
+    return null;
+  }
+  return { volumeTitle, chapters };
+}
+
+function parseStructuredVolumes(raw: string | null | undefined): StructuredVolume[] {
+  if (!raw) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    const volumeLikeList = Array.isArray(parsed)
+      ? parsed
+      : isJsonRecord(parsed) && Array.isArray(parsed.volumes)
+        ? parsed.volumes
+        : isJsonRecord(parsed) && Array.isArray(parsed.items)
+          ? parsed.items
+          : [];
+    if (volumeLikeList.length === 0) {
+      return [];
+    }
+    const normalizedVolumes = volumeLikeList
+      .map((volume, volumeIndex) => normalizeStructuredVolume(volume, volumeIndex))
+      .filter((volume): volume is StructuredVolume => volume !== null);
+    if (normalizedVolumes.length > 0) {
+      return normalizedVolumes;
+    }
+    const chapters = volumeLikeList
+      .map((chapter, chapterIndex) => normalizeStructuredChapter(chapter, chapterIndex))
+      .filter((chapter): chapter is StructuredVolume["chapters"][number] => chapter !== null);
+    if (chapters.length === 0) {
+      return [];
+    }
+    return [{ volumeTitle: "Volume 1", chapters }];
+  } catch {
+    return [];
+  }
+}
+
 export default function NovelEdit() {
   const { id = "" } = useParams();
   const llm = useLLMStore();
@@ -119,17 +225,10 @@ export default function NovelEdit() {
     },
   });
 
-  const structuredVolumes = useMemo<StructuredVolume[]>(() => {
-    const raw = novelDetailQuery.data?.data?.structuredOutline;
-    if (!raw) {
-      return [];
-    }
-    try {
-      return JSON.parse(raw) as StructuredVolume[];
-    } catch {
-      return [];
-    }
-  }, [novelDetailQuery.data?.data?.structuredOutline]);
+  const structuredVolumes = useMemo<StructuredVolume[]>(
+    () => parseStructuredVolumes(novelDetailQuery.data?.data?.structuredOutline),
+    [novelDetailQuery.data?.data?.structuredOutline],
+  );
 
   const chapters = useMemo(() => novelDetailQuery.data?.data?.chapters ?? [], [novelDetailQuery.data?.data?.chapters]);
   const selectedChapter = useMemo(
@@ -235,7 +334,12 @@ export default function NovelEdit() {
         worldId: basicForm.worldId || null,
         status: basicForm.status,
       }),
-    onSuccess: invalidateNovelDetail,
+    onSuccess: async () => {
+      await invalidateNovelDetail();
+      if (!hasCharacters) {
+        setActiveTab("character");
+      }
+    },
   });
 
   const saveOutlineMutation = useMutation({
@@ -249,7 +353,7 @@ export default function NovelEdit() {
       if (volumes.length === 0) {
         return;
       }
-      const chapterList = volumes.flatMap((volume) => volume.chapters);
+      const chapterList = volumes.flatMap((volume) => volume.chapters ?? []);
       await Promise.all(
         chapterList.map((chapter) =>
           createNovelChapter(id, {
@@ -553,10 +657,10 @@ export default function NovelEdit() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
       <TabsList>
         <TabsTrigger value="basic">基本信息</TabsTrigger>
+        <TabsTrigger value="character">角色管理</TabsTrigger>
         <TabsTrigger value="outline">发展走向</TabsTrigger>
         <TabsTrigger value="structured">章节大纲</TabsTrigger>
         <TabsTrigger value="chapter">章节管理</TabsTrigger>
-        <TabsTrigger value="character">角色管理</TabsTrigger>
         <TabsTrigger value="pipeline">自动流水线</TabsTrigger>
       </TabsList>
 
@@ -637,11 +741,13 @@ export default function NovelEdit() {
             </div>
             <StreamOutput isStreaming={structuredSSE.isStreaming} content={structuredSSE.content} onAbort={structuredSSE.abort} />
             <div className="space-y-2">
-              {structuredVolumes.length === 0 ? <div className="text-sm text-muted-foreground">暂无结构化大纲。</div> : structuredVolumes.map((volume) => (
-                <div key={volume.volumeTitle} className="rounded-md border p-3">
+              {structuredVolumes.length === 0 ? <div className="text-sm text-muted-foreground">暂无结构化大纲。</div> : structuredVolumes.map((volume, volumeIndex) => (
+                <div key={`${volume.volumeTitle}-${volumeIndex}`} className="rounded-md border p-3">
                   <div className="mb-2 font-semibold">{volume.volumeTitle}</div>
                   <div className="space-y-1 text-sm">
-                    {volume.chapters.map((chapter) => <div key={`${volume.volumeTitle}-${chapter.order}`}>第{chapter.order}章：{chapter.title} - {chapter.summary}</div>)}
+                    {(volume.chapters ?? []).map((chapter, chapterIndex) => (
+                      <div key={`${volume.volumeTitle}-${chapter.order}-${chapterIndex}`}>第{chapter.order}章：{chapter.title} - {chapter.summary}</div>
+                    ))}
                   </div>
                 </div>
               ))}

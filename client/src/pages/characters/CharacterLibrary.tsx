@@ -3,9 +3,25 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { listBookAnalyses } from "@/api/bookAnalysis";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { CharacterGenerateConstraints } from "@/api/character";
 import { createBaseCharacter, generateBaseCharacter, getBaseCharacterList } from "@/api/character";
 import { listKnowledgeDocuments } from "@/api/knowledge";
 import { queryKeys } from "@/api/queryKeys";
+
+function createDefaultConstraints(): CharacterGenerateConstraints {
+  return {
+    storyFunction: undefined,
+    externalGoal: "",
+    internalNeed: "",
+    coreFear: "",
+    moralBottomLine: "",
+    secret: "",
+    coreFlaw: "",
+    relationshipHooks: "",
+    growthStage: undefined,
+    toneStyle: "",
+  };
+}
 
 export default function CharacterLibrary() {
   const queryClient = useQueryClient();
@@ -18,6 +34,7 @@ export default function CharacterLibrary() {
     category: "主角",
   });
   const [aiDescription, setAIDescription] = useState("");
+  const [constraints, setConstraints] = useState<CharacterGenerateConstraints>(createDefaultConstraints());
   const [selectedKnowledgeDocumentIds, setSelectedKnowledgeDocumentIds] = useState<string[]>([]);
   const [selectedBookAnalysisIds, setSelectedBookAnalysisIds] = useState<string[]>([]);
 
@@ -55,9 +72,10 @@ export default function CharacterLibrary() {
     mutationFn: () =>
       generateBaseCharacter({
         description: aiDescription,
-        category: form.category,
+        category: constraints.storyFunction ?? form.category,
         knowledgeDocumentIds: selectedKnowledgeDocumentIds.length > 0 ? selectedKnowledgeDocumentIds : undefined,
         bookAnalysisIds: selectedBookAnalysisIds.length > 0 ? selectedBookAnalysisIds : undefined,
+        constraints: Object.values(constraints).some(Boolean) ? constraints : undefined,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
@@ -136,6 +154,104 @@ export default function CharacterLibrary() {
             value={aiDescription}
             onChange={(event) => setAIDescription(event.target.value)}
           />
+          <div className="space-y-2 rounded-md border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-medium">高级设定（可选）</div>
+              <Button size="sm" variant="outline" onClick={() => setConstraints(createDefaultConstraints())}>
+                一键清空高级设定
+              </Button>
+            </div>
+            <div className="grid gap-2 md:grid-cols-2">
+              <label className="space-y-1 text-sm">
+                <div className="text-xs text-muted-foreground">角色功能位</div>
+                <select
+                  className="h-10 w-full rounded-md border bg-background px-2 text-sm"
+                  value={constraints.storyFunction ?? ""}
+                  onChange={(event) =>
+                    setConstraints((prev) => ({
+                      ...prev,
+                      storyFunction: (event.target.value || undefined) as CharacterGenerateConstraints["storyFunction"],
+                    }))
+                  }
+                >
+                  <option value="">不指定</option>
+                  <option value="主角">主角</option>
+                  <option value="反派">反派</option>
+                  <option value="导师">导师</option>
+                  <option value="对照组">对照组</option>
+                  <option value="配角">配角</option>
+                </select>
+              </label>
+              <label className="space-y-1 text-sm">
+                <div className="text-xs text-muted-foreground">成长阶段</div>
+                <select
+                  className="h-10 w-full rounded-md border bg-background px-2 text-sm"
+                  value={constraints.growthStage ?? ""}
+                  onChange={(event) =>
+                    setConstraints((prev) => ({
+                      ...prev,
+                      growthStage: (event.target.value || undefined) as CharacterGenerateConstraints["growthStage"],
+                    }))
+                  }
+                >
+                  <option value="">不指定</option>
+                  <option value="起点">起点</option>
+                  <option value="受挫">受挫</option>
+                  <option value="转折">转折</option>
+                  <option value="觉醒">觉醒</option>
+                  <option value="收束">收束</option>
+                </select>
+              </label>
+              <input
+                className="rounded-md border p-2 text-sm"
+                placeholder="外显目标（想达成什么）"
+                value={constraints.externalGoal ?? ""}
+                onChange={(event) => setConstraints((prev) => ({ ...prev, externalGoal: event.target.value }))}
+              />
+              <input
+                className="rounded-md border p-2 text-sm"
+                placeholder="内在需求（真正渴望）"
+                value={constraints.internalNeed ?? ""}
+                onChange={(event) => setConstraints((prev) => ({ ...prev, internalNeed: event.target.value }))}
+              />
+              <input
+                className="rounded-md border p-2 text-sm"
+                placeholder="核心恐惧"
+                value={constraints.coreFear ?? ""}
+                onChange={(event) => setConstraints((prev) => ({ ...prev, coreFear: event.target.value }))}
+              />
+              <input
+                className="rounded-md border p-2 text-sm"
+                placeholder="道德底线"
+                value={constraints.moralBottomLine ?? ""}
+                onChange={(event) => setConstraints((prev) => ({ ...prev, moralBottomLine: event.target.value }))}
+              />
+              <input
+                className="rounded-md border p-2 text-sm"
+                placeholder="不能说的秘密"
+                value={constraints.secret ?? ""}
+                onChange={(event) => setConstraints((prev) => ({ ...prev, secret: event.target.value }))}
+              />
+              <input
+                className="rounded-md border p-2 text-sm"
+                placeholder="核心缺陷"
+                value={constraints.coreFlaw ?? ""}
+                onChange={(event) => setConstraints((prev) => ({ ...prev, coreFlaw: event.target.value }))}
+              />
+              <input
+                className="rounded-md border p-2 text-sm md:col-span-2"
+                placeholder="关系钩子（与他人的冲突/羁绊）"
+                value={constraints.relationshipHooks ?? ""}
+                onChange={(event) => setConstraints((prev) => ({ ...prev, relationshipHooks: event.target.value }))}
+              />
+              <input
+                className="rounded-md border p-2 text-sm md:col-span-2"
+                placeholder="语气风格（如冷冽克制、幽默辛辣）"
+                value={constraints.toneStyle ?? ""}
+                onChange={(event) => setConstraints((prev) => ({ ...prev, toneStyle: event.target.value }))}
+              />
+            </div>
+          </div>
           <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-1">
               <div className="text-sm font-medium">参考知识库（可多选）</div>

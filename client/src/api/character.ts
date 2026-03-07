@@ -3,6 +3,19 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { BaseCharacter } from "@ai-novel/shared/types/novel";
 import { apiClient } from "./client";
 
+export interface CharacterGenerateConstraints {
+  storyFunction?: "主角" | "反派" | "导师" | "对照组" | "配角";
+  externalGoal?: string;
+  internalNeed?: string;
+  coreFear?: string;
+  moralBottomLine?: string;
+  secret?: string;
+  coreFlaw?: string;
+  relationshipHooks?: string;
+  growthStage?: "起点" | "受挫" | "转折" | "觉醒" | "收束";
+  toneStyle?: string;
+}
+
 export async function getBaseCharacterList(params?: {
   category?: string;
   tags?: string;
@@ -43,6 +56,7 @@ export async function generateBaseCharacter(payload: {
   genre?: string;
   knowledgeDocumentIds?: string[];
   bookAnalysisIds?: string[];
+  constraints?: CharacterGenerateConstraints;
   provider?: LLMProvider;
   model?: string;
 }) {
