@@ -1,5 +1,6 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../db/prisma";
 import { getLLM } from "../../llm/factory";
@@ -46,7 +47,7 @@ interface CharacterInput {
 }
 
 interface LLMGenerateOptions {
-  provider?: "deepseek" | "siliconflow" | "openai" | "anthropic";
+  provider?: LLMProvider;
   model?: string;
   temperature?: number;
 }

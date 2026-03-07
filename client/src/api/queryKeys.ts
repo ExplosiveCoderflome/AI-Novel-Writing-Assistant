@@ -17,6 +17,17 @@ export const queryKeys = {
     visualization: (id: string) => ["worlds", "visualization", id] as const,
     snapshots: (id: string) => ["worlds", "snapshots", id] as const,
     library: (params: string) => ["worlds", "library", params] as const,
+    knowledgeDocuments: (id: string) => ["worlds", "knowledge-documents", id] as const,
+  },
+  knowledge: {
+    documents: (params: string) => ["knowledge", "documents", params] as const,
+    detail: (id: string) => ["knowledge", "detail", id] as const,
+    ragJobs: (params: string) => ["knowledge", "rag-jobs", params] as const,
+    ragHealth: ["knowledge", "rag-health"] as const,
+  },
+  bookAnalysis: {
+    list: (params: string) => ["book-analysis", "list", params] as const,
+    detail: (id: string) => ["book-analysis", "detail", id] as const,
   },
   writingFormula: {
     all: ["writing-formula"] as const,
@@ -32,5 +43,8 @@ export const queryKeys = {
   settings: {
     apiKeys: ["settings", "api-keys"] as const,
     rag: ["settings", "rag"] as const,
+  },
+  novelsKnowledge: {
+    bindings: (id: string) => ["novels", "knowledge-documents", id] as const,
   },
 };

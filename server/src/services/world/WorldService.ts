@@ -1,7 +1,8 @@
-import type { Prisma, World as PrismaWorld } from "@prisma/client";
+﻿import type { Prisma, World as PrismaWorld } from "@prisma/client";
 import type { BaseMessageChunk } from "@langchain/core/messages";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
   WorldConsistencyReport,
   WorldLayerKey,
@@ -12,6 +13,7 @@ import { prisma } from "../../db/prisma";
 import { getLLM } from "../../llm/factory";
 import { createWorldBuildingGraph } from "../../graphs/worldBuildingGraph";
 import { getTemplateByKey, LAYER_FIELD_MAP, WORLD_LAYER_ORDER, WORLD_TEMPLATES } from "./worldTemplates";
+import { listActiveKnowledgeDocumentContents } from "../knowledge/common";
 import { ragServices } from "../rag";
 import type { RagOwnerType } from "../rag/types";
 
@@ -65,6 +67,7 @@ interface CreateWorldInput {
   factions?: string;
   selectedDimensions?: string;
   selectedElements?: string;
+  knowledgeDocumentIds?: string[];
 }
 
 interface WorldGenerateInput {
@@ -79,7 +82,7 @@ interface WorldGenerateInput {
     technology: boolean;
     history: boolean;
   };
-  provider?: "deepseek" | "siliconflow" | "openai" | "anthropic";
+  provider?: LLMProvider;
   model?: string;
 }
 
@@ -89,7 +92,7 @@ interface RefineWorldInput {
   refinementLevel: "light" | "deep";
   mode?: RefineMode;
   alternativesCount?: number;
-  provider?: "deepseek" | "siliconflow" | "openai" | "anthropic";
+  provider?: LLMProvider;
   model?: string;
 }
 
@@ -97,7 +100,8 @@ interface InspirationInput {
   input?: string;
   mode?: "free" | "reference" | "random";
   worldType?: string;
-  provider?: "deepseek" | "siliconflow" | "openai" | "anthropic";
+  knowledgeDocumentIds?: string[];
+  provider?: LLMProvider;
   model?: string;
 }
 
@@ -118,7 +122,7 @@ interface PreparedInspirationSource {
 }
 
 interface LayerGenerateInput {
-  provider?: "deepseek" | "siliconflow" | "openai" | "anthropic";
+  provider?: LLMProvider;
   model?: string;
   temperature?: number;
 }
@@ -136,7 +140,7 @@ interface ImportWorldInput {
   format: "json" | "markdown" | "text";
   content: string;
   name?: string;
-  provider?: "deepseek" | "siliconflow" | "openai" | "anthropic";
+  provider?: LLMProvider;
   model?: string;
 }
 
@@ -182,6 +186,13 @@ function safeParseJSON<T>(raw: string | null | undefined, fallback: T): T {
 
 function nowISO(): string {
   return new Date().toISOString();
+}
+
+function uniqueKnowledgeDocumentIds(ids: string[] | undefined): string[] {
+  if (!ids || ids.length === 0) {
+    return [];
+  }
+  return Array.from(new Set(ids.map((item) => item.trim()).filter(Boolean)));
 }
 
 function parseListFromText(content: string, fallback: string[]): string[] {
@@ -536,6 +547,22 @@ export class WorldService {
       };
     }
 
+    const knowledgeDocuments = await listActiveKnowledgeDocumentContents(
+      uniqueKnowledgeDocumentIds(input.knowledgeDocumentIds),
+      { allowDisabled: true },
+    );
+    if (knowledgeDocuments.length > 0) {
+      input = {
+        ...input,
+        input: [
+          input.input?.trim(),
+          knowledgeDocuments.map((item) => `知识文档：${item.title}\n${item.content}`).join("\n\n"),
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
+      };
+    }
+
     const llm = await getLLM(input.provider ?? "deepseek", {
       model: input.model,
       temperature: 0.7,
@@ -543,13 +570,15 @@ export class WorldService {
     const source = input.input?.trim() || "一个模糊的世界观想法。";
     const preparedSource = prepareInspirationSource(source);
     let ragContext = "";
-    try {
-      ragContext = await ragServices.hybridRetrievalService.buildContextBlock(source, {
-        ownerTypes: ["world", "world_library_item"],
-        finalTopK: 6,
-      });
-    } catch {
-      ragContext = "";
+    if (knowledgeDocuments.length === 0) {
+      try {
+        ragContext = await ragServices.hybridRetrievalService.buildContextBlock(source, {
+          ownerTypes: ["world", "world_library_item"],
+          finalTopK: 6,
+        });
+      } catch {
+        ragContext = "";
+      }
     }
     const templateKeys = WORLD_TEMPLATES.map((item) => item.key).join("|");
     const result = await llm.invoke([
@@ -604,6 +633,20 @@ export class WorldService {
   }
 
   async createWorld(input: CreateWorldInput) {
+    const knowledgeDocumentIds = uniqueKnowledgeDocumentIds(input.knowledgeDocumentIds);
+    if (knowledgeDocumentIds.length > 0) {
+      const documents = await prisma.knowledgeDocument.findMany({
+        where: {
+          id: { in: knowledgeDocumentIds },
+          status: { not: "archived" },
+        },
+        select: { id: true },
+      });
+      if (documents.length !== knowledgeDocumentIds.length) {
+        throw new Error("Some knowledge documents are missing or archived.");
+      }
+    }
+
     const world = await prisma.world.create({
       data: {
         name: input.name,
@@ -629,6 +672,15 @@ export class WorldService {
         layerStates: JSON.stringify(normalizeLayerStates(undefined)),
       },
     });
+    if (knowledgeDocumentIds.length > 0) {
+      await prisma.knowledgeBinding.createMany({
+        data: knowledgeDocumentIds.map((documentId) => ({
+          targetType: "world",
+          targetId: world.id,
+          documentId,
+        })),
+      });
+    }
     await this.createSnapshot(world.id, "initial-draft");
     this.queueRagUpsert("world", world.id);
     return world;
@@ -678,7 +730,7 @@ export class WorldService {
 
   async suggestAxioms(
     worldId: string,
-    options: { provider?: "deepseek" | "siliconflow" | "openai" | "anthropic"; model?: string },
+    options: { provider?: LLMProvider; model?: string },
   ) {
     const world = await prisma.world.findUnique({ where: { id: worldId } });
     if (!world) {
@@ -863,7 +915,7 @@ export class WorldService {
 
   async createDeepeningQuestions(
     worldId: string,
-    options: { provider?: "deepseek" | "siliconflow" | "openai" | "anthropic"; model?: string },
+    options: { provider?: LLMProvider; model?: string },
   ) {
     const world = await prisma.world.findUnique({ where: { id: worldId } });
     if (!world) {
@@ -1080,7 +1132,7 @@ ragContext=${ragContext || "none"}`,
 
   async checkConsistency(
     worldId: string,
-    options: { provider?: "deepseek" | "siliconflow" | "openai" | "anthropic"; model?: string } = {},
+    options: { provider?: LLMProvider; model?: string } = {},
   ): Promise<WorldConsistencyReport> {
     const world = await prisma.world.findUnique({ where: { id: worldId } });
     if (!world) {

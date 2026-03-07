@@ -7,15 +7,18 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { errorHandler } from "./middleware/errorHandler";
 import { loadProviderApiKeys } from "./llm/factory";
 import astrologyRouter from "./routes/astrology";
+import bookAnalysisRouter from "./routes/bookAnalysis";
 import characterRouter from "./routes/character";
 import chatRouter from "./routes/chat";
 import healthRouter from "./routes/health";
+import knowledgeRouter from "./routes/knowledge";
 import llmRouter from "./routes/llm";
 import novelRouter from "./routes/novel";
 import ragRouter from "./routes/rag";
 import settingsRouter from "./routes/settings";
 import worldRouter from "./routes/world";
 import writingFormulaRouter from "./routes/writingFormula";
+import { bookAnalysisService } from "./services/bookAnalysis/BookAnalysisService";
 import { ragServices } from "./services/rag";
 
 export function createApp() {
@@ -51,6 +54,8 @@ export function createApp() {
   app.use(express.json({ limit: jsonBodyLimit }));
 
   app.use("/api/health", healthRouter);
+  app.use("/api/book-analysis", bookAnalysisRouter);
+  app.use("/api/knowledge", knowledgeRouter);
   app.use("/api/llm", llmRouter);
   app.use("/api/novels", novelRouter);
   app.use("/api/worlds", worldRouter);
@@ -84,6 +89,9 @@ async function bootstrap(): Promise<void> {
   const app = createApp();
   const port = Number(process.env.PORT ?? 3000);
   ragServices.ragWorker.start();
+  void bookAnalysisService.resumePendingAnalyses().catch((error) => {
+    console.warn("Failed to resume pending book analyses.", error);
+  });
 
   app.listen(port, () => {
     console.log(`[server] listening on http://localhost:${port}`);

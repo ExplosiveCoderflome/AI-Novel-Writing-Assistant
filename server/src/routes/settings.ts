@@ -16,7 +16,7 @@ import {
 const router = Router();
 
 const providerSchema = z.object({
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic"]),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]),
 });
 
 const upsertApiKeySchema = z.object({

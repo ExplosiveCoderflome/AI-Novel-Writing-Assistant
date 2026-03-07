@@ -5,6 +5,8 @@ const navItems = [
   { to: "/", label: "首页" },
   { to: "/novels", label: "小说列表" },
   { to: "/chat", label: "AI 对话" },
+  { to: "/book-analysis", label: "拆书" },
+  { to: "/knowledge", label: "知识库" },
   { to: "/worlds", label: "世界观" },
   { to: "/writing-formula", label: "写作公式" },
   { to: "/base-characters", label: "基础角色库" },

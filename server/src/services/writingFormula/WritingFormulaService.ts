@@ -1,5 +1,6 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
 import { getLLM } from "../../llm/factory";
 
@@ -8,7 +9,7 @@ interface ExtractFormulaInput {
   sourceText: string;
   extractLevel: "basic" | "standard" | "deep";
   focusAreas: string[];
-  provider?: "deepseek" | "siliconflow" | "openai" | "anthropic";
+  provider?: LLMProvider;
   model?: string;
 }
 
@@ -19,7 +20,7 @@ interface ApplyFormulaInput {
   sourceText?: string;
   topic?: string;
   targetLength?: number;
-  provider?: "deepseek" | "siliconflow" | "openai" | "anthropic";
+  provider?: LLMProvider;
   model?: string;
 }
 

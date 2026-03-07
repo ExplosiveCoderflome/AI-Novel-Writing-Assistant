@@ -1,4 +1,5 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
+import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
   Chapter,
   ChapterSummary,
@@ -227,7 +228,7 @@ export async function evolveNovelCharacter(
   id: string,
   charId: string,
   payload?: {
-    provider?: "deepseek" | "siliconflow" | "openai" | "anthropic";
+    provider?: LLMProvider;
     model?: string;
     temperature?: number;
   },
@@ -243,7 +244,7 @@ export async function checkCharacterAgainstWorld(
   id: string,
   charId: string,
   payload?: {
-    provider?: "deepseek" | "siliconflow" | "openai" | "anthropic";
+    provider?: LLMProvider;
     model?: string;
     temperature?: number;
   },
@@ -261,7 +262,7 @@ export async function checkCharacterAgainstWorld(
 export async function generateNovelTitles(
   id: string,
   payload?: {
-    provider?: "deepseek" | "siliconflow" | "openai" | "anthropic";
+    provider?: LLMProvider;
     model?: string;
     temperature?: number;
   },
@@ -284,7 +285,7 @@ export async function runNovelPipeline(
     startOrder: number;
     endOrder: number;
     maxRetries?: number;
-    provider?: "deepseek" | "siliconflow" | "openai" | "anthropic";
+    provider?: LLMProvider;
     model?: string;
     temperature?: number;
   },
@@ -302,7 +303,7 @@ export async function reviewNovelChapter(
   id: string,
   chapterId: string,
   payload?: {
-    provider?: "deepseek" | "siliconflow" | "openai" | "anthropic";
+    provider?: LLMProvider;
     model?: string;
     temperature?: number;
     content?: string;
@@ -342,7 +343,7 @@ export async function generateChapterHook(
   id: string,
   payload?: {
     chapterId?: string;
-    provider?: "deepseek" | "siliconflow" | "openai" | "anthropic";
+    provider?: LLMProvider;
     model?: string;
     temperature?: number;
   },
@@ -365,3 +366,4 @@ export async function listNovelChapterSummaries(id: string) {
     .filter((item): item is ChapterSummary => Boolean(item));
   return summaries;
 }
+

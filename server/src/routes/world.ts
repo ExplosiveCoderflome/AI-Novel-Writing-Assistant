@@ -7,10 +7,12 @@ import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { streamToSSE } from "../llm/streaming";
 import { featureFlags } from "../config/featureFlags";
+import { KnowledgeService } from "../services/knowledge/KnowledgeService";
 import { WorldService } from "../services/world/WorldService";
 
 const router = Router();
 const worldService = new WorldService();
+const knowledgeService = new KnowledgeService();
 
 const requireWorldWizard: RequestHandler = (_req, res, next) => {
   if (featureFlags.worldWizardEnabled) {
@@ -34,7 +36,7 @@ const requireWorldVisualization: RequestHandler = (_req, res, next) => {
   } satisfies ApiResponse<null>);
 };
 
-const providerSchema = z.enum(["deepseek", "siliconflow", "openai", "anthropic"]);
+const providerSchema = z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]);
 
 const worldIdSchema = z.object({
   id: z.string().trim().min(1),
@@ -79,6 +81,7 @@ const createWorldSchema = z.object({
   factions: z.string().optional(),
   selectedDimensions: z.string().optional(),
   selectedElements: z.string().optional(),
+  knowledgeDocumentIds: z.array(z.string().trim().min(1)).optional(),
 });
 
 const updateWorldSchema = createWorldSchema.partial();
@@ -103,8 +106,13 @@ const inspirationSchema = z.object({
   input: z.string().max(2_000_000).optional(),
   mode: z.enum(["free", "reference", "random"]).optional(),
   worldType: z.string().optional(),
+  knowledgeDocumentIds: z.array(z.string().trim().min(1)).optional(),
   provider: providerSchema.optional(),
   model: z.string().optional(),
+});
+
+const knowledgeBindingsSchema = z.object({
+  documentIds: z.array(z.string().trim().min(1)).default([]),
 });
 
 const suggestAxiomsSchema = z.object({
@@ -372,6 +380,39 @@ router.get("/:id", validate({ params: worldIdSchema }), async (req, res, next) =
     next(error);
   }
 });
+
+router.get("/:id/knowledge-documents", validate({ params: worldIdSchema }), async (req, res, next) => {
+  try {
+    const { id } = req.params as z.infer<typeof worldIdSchema>;
+    const data = await knowledgeService.listBindings("world", id);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "World knowledge documents loaded.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put(
+  "/:id/knowledge-documents",
+  validate({ params: worldIdSchema, body: knowledgeBindingsSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof worldIdSchema>;
+      const body = req.body as z.infer<typeof knowledgeBindingsSchema>;
+      const data = await knowledgeService.replaceBindings("world", id, body.documentIds);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "World knowledge documents updated.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 router.put("/:id", validate({ params: worldIdSchema, body: updateWorldSchema }), async (req, res, next) => {
   try {

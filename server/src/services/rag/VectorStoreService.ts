@@ -31,6 +31,7 @@ interface VectorSearchFilter {
   novelId?: string;
   worldId?: string;
   ownerTypes?: RagOwnerType[];
+  ownerIds?: string[];
 }
 
 function buildHeaders(): HeadersInit {
@@ -44,8 +45,13 @@ function toCollectionUrl(suffix: string): string {
   return `${ragConfig.qdrantUrl}/collections/${ragConfig.qdrantCollection}${suffix}`;
 }
 
+function estimateJsonBytes(value: unknown): number {
+  return Buffer.byteLength(JSON.stringify(value), "utf8");
+}
+
 export class VectorStoreService {
   private ensuredDimension = 0;
+  private readonly upsertWrapperBytes = estimateJsonBytes({ points: [] });
 
   private async request<T>(url: string, init?: RequestInit): Promise<T> {
     const response = await fetch(url, {
@@ -60,6 +66,47 @@ export class VectorStoreService {
       throw new Error(`Qdrant 请求失败(${response.status})：${text}`);
     }
     return await response.json() as T;
+  }
+
+  private async upsertPointBatch(points: QdrantPoint[]): Promise<void> {
+    await this.request(toCollectionUrl("/points?wait=true"), {
+      method: "PUT",
+      body: JSON.stringify({ points }),
+    });
+  }
+
+  private splitPointBatches(points: QdrantPoint[]): QdrantPoint[][] {
+    const maxBytes = ragConfig.qdrantUpsertMaxBytes;
+    const batches: QdrantPoint[][] = [];
+    let currentBatch: QdrantPoint[] = [];
+    let currentBytes = this.upsertWrapperBytes;
+
+    for (const point of points) {
+      const pointBytes = estimateJsonBytes(point);
+      const singlePointBytes = this.upsertWrapperBytes + pointBytes;
+      if (singlePointBytes > maxBytes) {
+        throw new Error(
+          `Qdrant single point payload is too large: point=${point.id}, bytes=${singlePointBytes}, limit=${maxBytes}`,
+        );
+      }
+
+      const separatorBytes = currentBatch.length > 0 ? 1 : 0;
+      if (currentBatch.length > 0 && currentBytes + separatorBytes + pointBytes > maxBytes) {
+        batches.push(currentBatch);
+        currentBatch = [point];
+        currentBytes = this.upsertWrapperBytes + pointBytes;
+        continue;
+      }
+
+      currentBatch.push(point);
+      currentBytes += separatorBytes + pointBytes;
+    }
+
+    if (currentBatch.length > 0) {
+      batches.push(currentBatch);
+    }
+
+    return batches;
   }
 
   async ensureCollection(dimension: number): Promise<void> {
@@ -108,10 +155,10 @@ export class VectorStoreService {
     if (points.length === 0) {
       return;
     }
-    await this.request(toCollectionUrl("/points?wait=true"), {
-      method: "PUT",
-      body: JSON.stringify({ points }),
-    });
+    const batches = this.splitPointBatches(points);
+    for (const batch of batches) {
+      await this.upsertPointBatch(batch);
+    }
   }
 
   async deletePoints(pointIds: string[]): Promise<void> {
@@ -152,6 +199,12 @@ export class VectorStoreService {
       must.push({
         key: "ownerType",
         match: { any: filter.ownerTypes },
+      });
+    }
+    if (filter.ownerIds && filter.ownerIds.length > 0) {
+      must.push({
+        key: "ownerId",
+        match: { any: filter.ownerIds },
       });
     }
 

@@ -4,11 +4,13 @@ import { z } from "zod";
 import { authMiddleware } from "../middleware/auth";
 import { AppError } from "../middleware/errorHandler";
 import { validate } from "../middleware/validate";
+import { KnowledgeService } from "../services/knowledge/KnowledgeService";
 import { streamToSSE } from "../llm/streaming";
 import { NovelService } from "../services/novel/NovelService";
 
 const router = Router();
 const novelService = new NovelService();
+const knowledgeService = new KnowledgeService();
 
 function forwardBusinessError(error: unknown, next: (err?: unknown) => void): boolean {
   if (!(error instanceof Error)) {
@@ -63,6 +65,10 @@ const updateNovelSchema = z.object({
   structuredOutline: z.string().nullable().optional(),
 });
 
+const knowledgeBindingsSchema = z.object({
+  documentIds: z.array(z.string().trim().min(1)).default([]),
+});
+
 const chapterSchema = z.object({
   title: z.string().trim().min(1, "章节标题不能为空。"),
   order: z.number().int().nonnegative(),
@@ -110,7 +116,7 @@ const characterTimelineSyncSchema = z.object({
 });
 
 const llmGenerateSchema = z.object({
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic"]).optional(),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]).optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
 });
@@ -205,6 +211,39 @@ router.get("/:id", validate({ params: idParamsSchema }), async (req, res, next) 
     next(error);
   }
 });
+
+router.get("/:id/knowledge-documents", validate({ params: idParamsSchema }), async (req, res, next) => {
+  try {
+    const { id } = req.params as z.infer<typeof idParamsSchema>;
+    const data = await knowledgeService.listBindings("novel", id);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Novel knowledge documents loaded.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put(
+  "/:id/knowledge-documents",
+  validate({ params: idParamsSchema, body: knowledgeBindingsSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const body = req.body as z.infer<typeof knowledgeBindingsSchema>;
+      const data = await knowledgeService.replaceBindings("novel", id, body.documentIds);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Novel knowledge documents updated.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 router.put(
   "/:id",

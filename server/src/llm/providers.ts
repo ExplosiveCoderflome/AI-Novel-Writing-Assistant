@@ -44,6 +44,19 @@ export const PROVIDERS: Record<LLMProvider, ProviderConfig> = {
     ],
     envKey: "ANTHROPIC_API_KEY",
   },
+  grok: {
+    name: "Grok",
+    baseURL: process.env.XAI_BASE_URL ?? "https://api.x.ai/v1",
+    defaultModel: process.env.XAI_MODEL ?? "grok-4",
+    models: [
+      process.env.XAI_MODEL ?? "grok-4",
+      "grok-4-latest",
+      "grok-4-1-fast-reasoning",
+      "grok-3",
+      "grok-code-fast-1",
+    ],
+    envKey: "XAI_API_KEY",
+  },
 };
 
 export const SUPPORTED_PROVIDERS = Object.keys(PROVIDERS) as LLMProvider[];

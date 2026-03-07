@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LLMSelector from "@/components/common/LLMSelector";
 import StreamOutput from "@/components/common/StreamOutput";
+import KnowledgeBindingPanel from "@/components/knowledge/KnowledgeBindingPanel";
 import NovelCharacterPanel from "./components/NovelCharacterPanel";
 import { getBaseCharacterList } from "@/api/character";
 import {
@@ -537,7 +538,19 @@ export default function NovelEdit() {
   );
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+    <>
+      {id ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>参考知识</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <KnowledgeBindingPanel targetType="novel" targetId={id} title="小说知识绑定" />
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
       <TabsList>
         <TabsTrigger value="basic">基本信息</TabsTrigger>
         <TabsTrigger value="outline">发展走向</TabsTrigger>
@@ -968,7 +981,8 @@ export default function NovelEdit() {
           timelineEvents={characterTimelineQuery.data?.data ?? []}
         />
       </TabsContent>
-    </Tabs>
+      </Tabs>
+    </>
   );
 }
 

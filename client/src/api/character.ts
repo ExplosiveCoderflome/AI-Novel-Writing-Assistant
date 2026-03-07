@@ -1,4 +1,5 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
+import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { BaseCharacter } from "@ai-novel/shared/types/novel";
 import { apiClient } from "./client";
 
@@ -40,7 +41,7 @@ export async function generateBaseCharacter(payload: {
   description: string;
   category: string;
   genre?: string;
-  provider?: "deepseek" | "siliconflow" | "openai" | "anthropic";
+  provider?: LLMProvider;
   model?: string;
 }) {
   const { data } = await apiClient.post<ApiResponse<BaseCharacter>>(
@@ -49,3 +50,4 @@ export async function generateBaseCharacter(payload: {
   );
   return data;
 }
+

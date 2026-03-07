@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { Badge } from "@/components/ui/badge";
@@ -9,12 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { queryKeys } from "@/api/queryKeys";
 import {
-  type EmbeddingProvider,
   getAPIKeySettings,
   getRagSettings,
   refreshProviderModelList,
   saveAPIKeySetting,
-  saveRagSettings,
   testLLMConnection,
 } from "@/api/settings";
 
@@ -25,15 +24,8 @@ export default function SettingsPage() {
     key: "",
     model: "",
   });
-  const [ragForm, setRagForm] = useState<{
-    embeddingProvider: EmbeddingProvider;
-    embeddingModel: string;
-  }>({
-    embeddingProvider: "openai",
-    embeddingModel: "text-embedding-3-small",
-  });
-  const [testResult, setTestResult] = useState<string>("");
-  const [actionResult, setActionResult] = useState<string>("");
+  const [testResult, setTestResult] = useState("");
+  const [actionResult, setActionResult] = useState("");
 
   const apiKeySettingsQuery = useQuery({
     queryKey: queryKeys.settings.apiKeys,
@@ -54,16 +46,8 @@ export default function SettingsPage() {
     onSuccess: async (response) => {
       setEditingProvider("");
       setForm({ key: "", model: "" });
-      setActionResult(response.message ?? "配置保存成功。");
+      setActionResult(response.message ?? "Saved.");
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeys });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.settings.rag });
-    },
-  });
-
-  const saveRagMutation = useMutation({
-    mutationFn: saveRagSettings,
-    onSuccess: async (response) => {
-      setActionResult(response.message ?? "Embedding 设置已保存。");
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.rag });
     },
   });
@@ -73,10 +57,10 @@ export default function SettingsPage() {
       testLLMConnection(payload),
     onSuccess: (response) => {
       const latency = response.data?.latency ?? 0;
-      setTestResult(`连接成功，延迟 ${latency}ms`);
+      setTestResult(`Connection ok, latency ${latency}ms`);
     },
     onError: () => {
-      setTestResult("连接失败，请检查 API Key 与模型配置。");
+      setTestResult("Connection failed. Check the API key and model.");
     },
   });
 
@@ -85,117 +69,66 @@ export default function SettingsPage() {
     onSuccess: async (response, provider) => {
       const count = response.data?.models?.length ?? 0;
       const providerName = providerConfigs.find((item) => item.provider === provider)?.name ?? provider;
-      setActionResult(`${providerName} 模型列表已更新（${count} 个）。`);
+      setActionResult(`${providerName} models refreshed (${count}).`);
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeys });
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.rag });
       await queryClient.invalidateQueries({ queryKey: queryKeys.llm.providers });
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "刷新模型列表失败。");
+      setActionResult(error instanceof Error ? error.message : "Failed to refresh models.");
     },
   });
 
   const providerConfigs = useMemo(() => apiKeySettingsQuery.data?.data ?? [], [apiKeySettingsQuery.data?.data]);
-  const ragProviderConfigs = useMemo(
-    () => ragSettingsQuery.data?.data?.providers ?? [],
-    [ragSettingsQuery.data?.data?.providers],
-  );
   const editingConfig = useMemo(
     () => providerConfigs.find((item) => item.provider === editingProvider),
     [providerConfigs, editingProvider],
   );
-  const selectedRagProvider = useMemo(
-    () => ragProviderConfigs.find((item) => item.provider === ragForm.embeddingProvider),
-    [ragProviderConfigs, ragForm.embeddingProvider],
+  const ragSettings = ragSettingsQuery.data?.data;
+  const ragProvider = useMemo(
+    () => ragSettings?.providers.find((item) => item.provider === ragSettings.embeddingProvider),
+    [ragSettings],
   );
-
-  useEffect(() => {
-    const data = ragSettingsQuery.data?.data;
-    if (!data) {
-      return;
-    }
-    setRagForm({
-      embeddingProvider: data.embeddingProvider,
-      embeddingModel: data.embeddingModel,
-    });
-  }, [ragSettingsQuery.data?.data]);
 
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Embedding 配置</CardTitle>
-          <CardDescription>控制向量检索使用的嵌入 Provider 与模型。保存后立即生效，无需重启服务。</CardDescription>
+          <CardTitle>Embedding Settings Moved</CardTitle>
+          <CardDescription>
+            Embedding provider and model configuration now live in the knowledge module.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <div className="text-sm font-medium">Embedding Provider</div>
-              <Select
-                value={ragForm.embeddingProvider}
-                onValueChange={(value) =>
-                  setRagForm((prev) => ({ ...prev, embeddingProvider: value as EmbeddingProvider }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="请选择 Embedding Provider" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ragProviderConfigs.map((item) => (
-                    <SelectItem key={item.provider} value={item.provider}>
-                      {item.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-md border p-3">
+              <div className="text-xs text-muted-foreground">Current embedding provider</div>
+              <div className="mt-1 font-medium">{ragProvider?.name ?? ragSettings?.embeddingProvider ?? "-"}</div>
             </div>
-            <div className="space-y-2">
-              <div className="text-sm font-medium">Embedding Model</div>
-              <Input
-                value={ragForm.embeddingModel}
-                placeholder="例如 text-embedding-3-small"
-                onChange={(event) => setRagForm((prev) => ({ ...prev, embeddingModel: event.target.value }))}
-              />
+            <div className="rounded-md border p-3">
+              <div className="text-xs text-muted-foreground">Current embedding model</div>
+              <div className="mt-1 font-medium">{ragSettings?.embeddingModel ?? "-"}</div>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span>当前 Provider：</span>
-            <Badge variant="outline">{selectedRagProvider?.name ?? ragForm.embeddingProvider}</Badge>
-            <Badge
-              variant={selectedRagProvider?.isConfigured ? "default" : "outline"}
-              className={selectedRagProvider?.isConfigured ? "bg-emerald-600 text-white hover:bg-emerald-600" : ""}
-            >
-              {selectedRagProvider?.isConfigured ? "API Key 已配置" : "API Key 未配置"}
+            <span>Status</span>
+            <Badge variant={ragProvider?.isConfigured ? "default" : "outline"}>
+              {ragProvider?.isConfigured ? "API key ready" : "API key missing"}
             </Badge>
-            <Badge variant={selectedRagProvider?.isActive ? "default" : "outline"}>
-              {selectedRagProvider?.isActive ? "已启用" : "未启用"}
+            <Badge variant={ragProvider?.isActive ? "default" : "outline"}>
+              {ragProvider?.isActive ? "Active" : "Inactive"}
             </Badge>
           </div>
-          {!selectedRagProvider?.isConfigured ? (
-            <div className="text-sm text-amber-600">
-              当前 Provider 还没有可用 API Key。先在下方“模型配置”里配置对应的 OpenAI 或 SiliconFlow Key。
-            </div>
-          ) : null}
-          <div className="flex gap-2">
-            <Button
-              onClick={() =>
-                saveRagMutation.mutate({
-                  embeddingProvider: ragForm.embeddingProvider,
-                  embeddingModel: ragForm.embeddingModel.trim(),
-                })
-              }
-              disabled={saveRagMutation.isPending || !ragForm.embeddingModel.trim()}
-            >
-              {saveRagMutation.isPending ? "保存中..." : "保存 Embedding 设置"}
-            </Button>
-          </div>
+          <Button asChild>
+            <Link to="/knowledge?tab=settings">Open knowledge settings</Link>
+          </Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>模型配置</CardTitle>
-          <CardDescription>管理各 Provider 的 API Key 与默认模型。</CardDescription>
+          <CardTitle>Model Providers</CardTitle>
+          <CardDescription>Manage provider API keys, default models, and connectivity tests.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
           {providerConfigs.map((item) => (
@@ -213,12 +146,10 @@ export default function SettingsPage() {
                   variant={item.isConfigured ? "default" : "outline"}
                   className={item.isConfigured ? "bg-emerald-600 text-white hover:bg-emerald-600" : ""}
                 >
-                  {item.isConfigured ? "已配置" : "未配置"}
+                  {item.isConfigured ? "Configured" : "Not configured"}
                 </Badge>
               </div>
-              <div className="mb-2 text-xs text-muted-foreground">
-                当前模型：{item.currentModel}
-              </div>
+              <div className="mb-2 text-xs text-muted-foreground">Current model: {item.currentModel}</div>
               <div className="mb-3 flex flex-wrap gap-1">
                 {item.models.map((model) => (
                   <Badge
@@ -243,7 +174,7 @@ export default function SettingsPage() {
                     setActionResult("");
                   }}
                 >
-                  配置
+                  Configure
                 </Button>
                 <Button
                   size="sm"
@@ -256,7 +187,7 @@ export default function SettingsPage() {
                   }}
                   disabled={testMutation.isPending}
                 >
-                  测试连接
+                  Test
                 </Button>
                 <Button
                   size="sm"
@@ -268,36 +199,37 @@ export default function SettingsPage() {
                   disabled={!item.isConfigured || refreshModelsMutation.isPending}
                 >
                   {refreshModelsMutation.isPending && refreshModelsMutation.variables === item.provider
-                    ? "刷新中..."
-                    : "刷新模型"}
+                    ? "Refreshing..."
+                    : "Refresh models"}
                 </Button>
               </div>
             </div>
           ))}
         </CardContent>
       </Card>
+
       {actionResult ? <div className="text-sm text-muted-foreground">{actionResult}</div> : null}
 
       <Dialog open={Boolean(editingProvider)} onOpenChange={(open) => !open && setEditingProvider("")}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>配置 API Key</DialogTitle>
+            <DialogTitle>Configure API Key</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <Input
               type="password"
               value={form.key}
-              placeholder="请输入 API Key"
+              placeholder="Enter API key"
               onChange={(event) => setForm((prev) => ({ ...prev, key: event.target.value }))}
             />
             <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">可调用模型</div>
+              <div className="text-xs text-muted-foreground">Available models</div>
               <Select
                 value={form.model}
                 onValueChange={(value) => setForm((prev) => ({ ...prev, model: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="请选择模型" />
+                  <SelectValue placeholder="Select a model" />
                 </SelectTrigger>
                 <SelectContent>
                   {(editingConfig?.models ?? []).map((model) => (
@@ -320,7 +252,7 @@ export default function SettingsPage() {
                 }
                 disabled={saveMutation.isPending || !form.key.trim() || !form.model.trim()}
               >
-                {saveMutation.isPending ? "保存中..." : "保存"}
+                {saveMutation.isPending ? "Saving..." : "Save"}
               </Button>
               <Button
                 variant="secondary"
@@ -334,7 +266,7 @@ export default function SettingsPage() {
                 }
                 disabled={testMutation.isPending}
               >
-                测试连接
+                Test
               </Button>
             </div>
             {testResult ? <div className="text-sm text-muted-foreground">{testResult}</div> : null}

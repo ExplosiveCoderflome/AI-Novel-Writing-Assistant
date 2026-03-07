@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import LLMSelector from "@/components/common/LLMSelector";
+import KnowledgeDocumentPicker from "@/components/knowledge/KnowledgeDocumentPicker";
+import { TEXT_FILE_MAX_SIZE, isTxtFile, readTextFile } from "@/lib/textFile";
 import {
   analyzeWorldInspiration,
   createWorld,
@@ -32,9 +34,6 @@ const DIMENSION_LABELS: Record<string, string> = {
   history: "历史层",
   conflict: "冲突层",
 };
-const REFERENCE_TXT_MAX_SIZE = 2 * 1024 * 1024;
-const REFERENCE_TXT_ENCODING_CANDIDATES = ["utf-8", "gb18030", "gbk", "big5", "utf-16le", "utf-16be"] as const;
-
 function getDimensionLabel(key: string): string {
   return DIMENSION_LABELS[key] ?? key;
 }
@@ -46,19 +45,6 @@ function normalizeAxiomTexts(items: unknown): string[] {
   return items
     .map((item) => (typeof item === "string" ? item.trim() : String(item ?? "").trim()))
     .filter(Boolean);
-}
-
-function detectTxtBomEncoding(bytes: Uint8Array): string | null {
-  if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
-    return "utf-8";
-  }
-  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
-    return "utf-16le";
-  }
-  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
-    return "utf-16be";
-  }
-  return null;
 }
 
 function scoreDecodedTxt(text: string): number {
@@ -74,29 +60,7 @@ function scoreDecodedTxt(text: string): number {
 }
 
 async function readReferenceTxt(file: File): Promise<string> {
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const bomEncoding = detectTxtBomEncoding(bytes);
-  const encodings = bomEncoding
-    ? [bomEncoding, ...REFERENCE_TXT_ENCODING_CANDIDATES.filter((encoding) => encoding !== bomEncoding)]
-    : [...REFERENCE_TXT_ENCODING_CANDIDATES];
-
-  let bestDecoded = "";
-  let bestScore = Number.NEGATIVE_INFINITY;
-
-  for (const encoding of encodings) {
-    try {
-      const decoded = new TextDecoder(encoding).decode(bytes);
-      const score = scoreDecodedTxt(decoded);
-      if (score > bestScore) {
-        bestDecoded = decoded;
-        bestScore = score;
-      }
-    } catch {
-      // Unsupported encodings vary by browser; ignore and continue fallback.
-    }
-  }
-
-  return bestDecoded.replace(/\u0000/g, "").trim();
+  return readTextFile(file);
 }
 
 export default function WorldGenerator() {
@@ -111,6 +75,7 @@ export default function WorldGenerator() {
   const [referenceTxtSize, setReferenceTxtSize] = useState(0);
   const [referenceTxtError, setReferenceTxtError] = useState("");
   const [isReadingReferenceTxt, setIsReadingReferenceTxt] = useState(false);
+  const [selectedKnowledgeDocumentIds, setSelectedKnowledgeDocumentIds] = useState<string[]>([]);
   const [concept, setConcept] = useState<{
     worldType: string;
     templateKey: string;
@@ -143,12 +108,13 @@ export default function WorldGenerator() {
 
   const analyzeMutation = useMutation({
     mutationFn: () =>
-      analyzeWorldInspiration({
-        input: inspirationText,
-        mode: inspirationMode,
-        provider: llm.provider,
-        model: llm.model,
-      }),
+        analyzeWorldInspiration({
+          input: inspirationText,
+          mode: inspirationMode,
+          knowledgeDocumentIds: selectedKnowledgeDocumentIds,
+          provider: llm.provider,
+          model: llm.model,
+        }),
     onSuccess: (response) => {
       const card = response.data?.conceptCard;
       if (!card) {
@@ -170,6 +136,7 @@ export default function WorldGenerator() {
         templateKey: selectedTemplate?.key ?? "custom",
         selectedDimensions: JSON.stringify(selectedDimensions),
         selectedElements: JSON.stringify(selectedElements),
+        knowledgeDocumentIds: selectedKnowledgeDocumentIds,
       });
       const createdId = createResp.data?.id;
       if (!createdId) {
@@ -216,12 +183,11 @@ export default function WorldGenerator() {
     setInspirationSourceMeta(null);
     setReferenceTxtName("");
     setReferenceTxtSize(0);
-    const isTxt = file.type === "text/plain" || file.name.toLowerCase().endsWith(".txt");
-    if (!isTxt) {
+    if (!isTxtFile(file)) {
       setReferenceTxtError("仅支持 .txt 文本文件。");
       return;
     }
-    if (file.size > REFERENCE_TXT_MAX_SIZE) {
+    if (file.size > TEXT_FILE_MAX_SIZE) {
       setReferenceTxtError("文件过大，请上传 2MB 以内的 txt 文件。");
       return;
     }
@@ -311,6 +277,13 @@ export default function WorldGenerator() {
                   ) : null}
                 </div>
               ) : null}
+              <KnowledgeDocumentPicker
+                selectedIds={selectedKnowledgeDocumentIds}
+                onChange={(next) => setSelectedKnowledgeDocumentIds(next ?? [])}
+                title="知识库文档"
+                description="可直接从知识库选择参考文档。创建世界后会自动写入世界绑定。"
+                queryStatus="enabled"
+              />
               <textarea
                 className="min-h-[180px] w-full rounded-md border p-2 text-sm"
                 placeholder={inspirationMode === "reference" ? "粘贴参考作品片段，或上传 txt 自动填充" : "描述你的世界灵感"}

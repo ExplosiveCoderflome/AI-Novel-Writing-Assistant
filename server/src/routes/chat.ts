@@ -23,7 +23,7 @@ const chatSchema = z.object({
     .min(1),
   systemPrompt: z.string().optional(),
   agentMode: z.boolean().optional(),
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic"]).optional(),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]).optional(),
   model: z.string().optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().min(64).max(16384).optional(),
@@ -32,6 +32,7 @@ const chatSchema = z.object({
   contextScope: z.enum(["novel", "world", "global"]).optional(),
   novelId: z.string().trim().optional(),
   worldId: z.string().trim().optional(),
+  knowledgeDocumentIds: z.array(z.string().trim().min(1)).optional(),
 });
 
 router.use(authMiddleware);
@@ -107,6 +108,7 @@ router.post("/", validate({ body: chatSchema }), async (req, res, next) => {
           novelId: scope === "novel" ? body.novelId : undefined,
           worldId: scope === "world" ? body.worldId : undefined,
           ownerTypes,
+          knowledgeDocumentIds: body.knowledgeDocumentIds,
         });
       } catch {
         ragContext = "";

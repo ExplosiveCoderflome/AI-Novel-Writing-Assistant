@@ -8,6 +8,7 @@ export const RAG_OWNER_TYPES = [
   "consistency_fact",
   "character_timeline",
   "world_library_item",
+  "knowledge_document",
   "chat_message",
 ] as const;
 
@@ -68,6 +69,7 @@ export interface RagSearchOptions {
   novelId?: string;
   worldId?: string;
   ownerTypes?: RagOwnerType[];
+  knowledgeDocumentIds?: string[];
   vectorCandidates?: number;
   keywordCandidates?: number;
   finalTopK?: number;

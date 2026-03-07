@@ -292,6 +292,32 @@ export class RagIndexService {
           }]
           : [];
       }
+      case "knowledge_document": {
+        const document = await prisma.knowledgeDocument.findUnique({
+          where: { id: ownerId },
+          include: { activeVersion: true },
+        });
+        if (!document?.activeVersion || document.status === "archived") {
+          return [];
+        }
+        const content = normalizeRagText(document.activeVersion.content);
+        return content
+          ? [{
+            ownerType,
+            ownerId,
+            tenantId,
+            title: document.title,
+            content,
+            metadata: {
+              fileName: document.fileName,
+              status: document.status,
+              activeVersionId: document.activeVersionId,
+              activeVersionNumber: document.activeVersionNumber,
+              updatedAt: document.updatedAt.toISOString(),
+            },
+          }]
+          : [];
+      }
       case "chat_message":
       default:
         return [];
@@ -576,7 +602,7 @@ export class RagIndexService {
     runAfter?: Date;
     lastError?: string | null;
   }) {
-    return prisma.ragIndexJob.update({
+    const job = await prisma.ragIndexJob.update({
       where: { id: jobId },
       data: {
         status: payload.status,
@@ -585,6 +611,8 @@ export class RagIndexService {
         lastError: payload.lastError,
       },
     });
+    await this.syncKnowledgeDocumentIndexStatus(job.ownerType as RagOwnerType, job.ownerId, payload.status);
+    return job;
   }
 
   async listJobs(limit = 100, status?: RagJobStatus) {
@@ -604,5 +632,31 @@ export class RagIndexService {
       return { chunks: 0 };
     }
     return this.upsertOwnerChunks(ownerType, job.ownerId, tenantId);
+  }
+
+  private async syncKnowledgeDocumentIndexStatus(
+    ownerType: RagOwnerType,
+    ownerId: string,
+    status: RagJobStatus,
+  ): Promise<void> {
+    if (ownerType !== "knowledge_document") {
+      return;
+    }
+
+    const nextStatus = status === "queued"
+      ? "queued"
+      : status === "running"
+        ? "running"
+        : status === "succeeded"
+          ? "succeeded"
+          : "failed";
+
+    await prisma.knowledgeDocument.updateMany({
+      where: { id: ownerId },
+      data: {
+        latestIndexStatus: nextStatus,
+        ...(status === "succeeded" ? { lastIndexedAt: new Date() } : {}),
+      },
+    });
   }
 }

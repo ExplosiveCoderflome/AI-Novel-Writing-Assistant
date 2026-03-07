@@ -47,6 +47,7 @@ enum RagOwnerType {
   consistency_fact
   character_timeline
   world_library_item
+  knowledge_document
   chat_message
 }
 
@@ -62,6 +63,41 @@ enum RagJobStatus {
   succeeded
   failed
   cancelled
+}
+
+enum KnowledgeDocumentStatus {
+  enabled
+  disabled
+  archived
+}
+
+enum KnowledgeIndexStatus {
+  idle
+  queued
+  running
+  succeeded
+  failed
+}
+
+enum KnowledgeBindingTargetType {
+  novel
+  world
+}
+
+enum BookAnalysisStatus {
+  draft
+  queued
+  running
+  succeeded
+  failed
+  archived
+}
+
+enum BookAnalysisSectionStatus {
+  idle
+  running
+  succeeded
+  failed
 }
 
 model Novel {
@@ -445,6 +481,101 @@ model QualityReport {
   @@index([novelId])
   @@index([chapterId])
   @@index([novelId, createdAt])
+}
+
+model KnowledgeDocument {
+  id                  String                   @id @default(cuid())
+  title               String
+  fileName            String
+  status              KnowledgeDocumentStatus  @default(enabled)
+  activeVersionId     String?
+  activeVersionNumber Int                      @default(0)
+  latestIndexStatus   KnowledgeIndexStatus     @default(idle)
+  lastIndexedAt       DateTime?
+  activeVersion       KnowledgeDocumentVersion? @relation("KnowledgeDocumentActiveVersion", fields: [activeVersionId], references: [id], onDelete: SetNull)
+  versions            KnowledgeDocumentVersion[] @relation("KnowledgeDocumentVersions")
+  bindings            KnowledgeBinding[]
+  bookAnalyses        BookAnalysis[]
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  @@index([status, updatedAt])
+  @@index([title])
+}
+
+model KnowledgeDocumentVersion {
+  id                 String               @id @default(cuid())
+  documentId         String
+  versionNumber      Int
+  content            String
+  contentHash        String
+  charCount          Int
+  document           KnowledgeDocument    @relation("KnowledgeDocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
+  activeForDocuments KnowledgeDocument[]  @relation("KnowledgeDocumentActiveVersion")
+  bookAnalyses       BookAnalysis[]
+  createdAt          DateTime             @default(now())
+
+  @@unique([documentId, versionNumber])
+  @@index([documentId, createdAt])
+  @@index([contentHash])
+}
+
+model KnowledgeBinding {
+  id         String                     @id @default(cuid())
+  targetType KnowledgeBindingTargetType
+  targetId   String
+  documentId String
+  document   KnowledgeDocument          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdAt  DateTime                   @default(now())
+
+  @@unique([targetType, targetId, documentId])
+  @@index([targetType, targetId])
+  @@index([documentId])
+}
+
+model BookAnalysis {
+  id                          String             @id @default(cuid())
+  documentId                  String
+  documentVersionId           String
+  title                       String
+  status                      BookAnalysisStatus @default(queued)
+  summary                     String?
+  provider                    String?
+  model                       String?
+  temperature                 Float?
+  maxTokens                   Int?
+  progress                    Float              @default(0)
+  lastError                   String?
+  lastRunAt                   DateTime?
+  document                    KnowledgeDocument  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentVersion             KnowledgeDocumentVersion @relation(fields: [documentVersionId], references: [id])
+  sections                    BookAnalysisSection[]
+  createdAt                   DateTime           @default(now())
+  updatedAt                   DateTime           @updatedAt
+
+  @@index([documentId, status])
+  @@index([documentVersionId])
+  @@index([status, updatedAt])
+}
+
+model BookAnalysisSection {
+  id                 String                    @id @default(cuid())
+  analysisId         String
+  sectionKey         String
+  title              String
+  status             BookAnalysisSectionStatus @default(idle)
+  aiContent          String?
+  editedContent      String?
+  notes              String?
+  structuredDataJson String?
+  evidenceJson       String?
+  frozen             Boolean                   @default(false)
+  sortOrder          Int
+  analysis           BookAnalysis              @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  updatedAt          DateTime                  @updatedAt
+
+  @@unique([analysisId, sectionKey])
+  @@index([analysisId, sortOrder])
 }
 
 model KnowledgeChunk {

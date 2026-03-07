@@ -11,6 +11,7 @@ export const providerModelMap: Record<LLMProvider, string[]> = {
   ],
   openai: ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"],
   anthropic: ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022"],
+  grok: ["grok-4", "grok-4-latest", "grok-4-1-fast-reasoning", "grok-3", "grok-code-fast-1"],
 };
 
 interface LLMStoreState {

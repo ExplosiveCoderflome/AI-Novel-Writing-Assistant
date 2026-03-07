@@ -44,6 +44,7 @@ export const ragConfig = {
   qdrantUrl: (process.env.QDRANT_URL ?? "http://127.0.0.1:6333").replace(/\/+$/, ""),
   qdrantApiKey: process.env.QDRANT_API_KEY ?? "",
   qdrantCollection: process.env.QDRANT_COLLECTION ?? "ai_novel_chunks_v1",
+  qdrantUpsertMaxBytes: asInt(process.env.QDRANT_UPSERT_MAX_BYTES, 24 * 1024 * 1024, 1024 * 1024, 64 * 1024 * 1024),
   chunkSize: asInt(process.env.RAG_CHUNK_SIZE, 800, 200, 4000),
   chunkOverlap: asInt(process.env.RAG_CHUNK_OVERLAP, 120, 0, 1000),
   vectorCandidates: asInt(process.env.RAG_VECTOR_CANDIDATES, 40, 1, 200),

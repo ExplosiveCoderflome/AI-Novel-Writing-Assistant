@@ -1,10 +1,11 @@
-export type LLMProvider = "deepseek" | "siliconflow" | "openai" | "anthropic";
+export type LLMProvider = "deepseek" | "siliconflow" | "openai" | "anthropic" | "grok";
 
 export interface ModelConfig {
   provider: LLMProvider;
   model: string;
   baseURL?: string;
   temperature?: number;
+  maxTokens?: number;
 }
 
 export interface ProviderConfig {

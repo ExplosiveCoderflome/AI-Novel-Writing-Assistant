@@ -39,7 +39,7 @@ const generateSchema = z.object({
   description: z.string().trim().min(1),
   category: z.string().trim().min(1),
   genre: z.string().trim().optional(),
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic"]).optional(),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]).optional(),
   model: z.string().optional(),
 });
 

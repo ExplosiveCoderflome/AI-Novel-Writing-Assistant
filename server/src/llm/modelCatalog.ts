@@ -24,6 +24,8 @@ function getProviderEnvBaseUrl(provider: LLMProvider): string | undefined {
       return process.env.OPENAI_BASE_URL;
     case "anthropic":
       return process.env.ANTHROPIC_BASE_URL;
+    case "grok":
+      return process.env.XAI_BASE_URL;
     default:
       return undefined;
   }

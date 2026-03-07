@@ -3,15 +3,34 @@ import { ragConfig } from "../../config/rag";
 import { compactSnippet, normalizeRagText, toKeywordTerms } from "./utils";
 import { EmbeddingService } from "./EmbeddingService";
 import { VectorStoreService } from "./VectorStoreService";
-import type { RagOwnerType, RagSearchOptions, RetrievedChunk } from "./types";
+import { resolveKnowledgeDocumentIds } from "../knowledge/common";
+import { RAG_OWNER_TYPES, type RagOwnerType, type RagSearchOptions, type RetrievedChunk } from "./types";
 
 const RRF_K = 60;
+const NON_KNOWLEDGE_OWNER_TYPES = RAG_OWNER_TYPES.filter((item) => item !== "knowledge_document");
 
 function toOwnerTypes(raw?: RagOwnerType[]): RagOwnerType[] | undefined {
   if (!raw || raw.length === 0) {
     return undefined;
   }
   return Array.from(new Set(raw));
+}
+
+function toOwnerIds(raw?: string[]): string[] | undefined {
+  if (!raw || raw.length === 0) {
+    return undefined;
+  }
+  return Array.from(new Set(raw.map((item) => item.trim()).filter(Boolean)));
+}
+
+interface SearchScopeOptions {
+  tenantId: string;
+  novelId?: string;
+  worldId?: string;
+  ownerTypes?: RagOwnerType[];
+  ownerIds?: string[];
+  vectorCandidates?: number;
+  keywordCandidates?: number;
 }
 
 export class HybridRetrievalService {
@@ -46,21 +65,26 @@ export class HybridRetrievalService {
     return Array.from(scoreMap.values())
       .sort((a, b) => b.score - a.score || a.item.chunkOrder - b.item.chunkOrder)
       .slice(0, finalTopK)
-      .map((entry) => entry.item);
+      .map((entry) => ({
+        ...entry.item,
+        score: entry.score,
+      }));
   }
 
-  private async keywordSearch(query: string, options: Required<Pick<RagSearchOptions, "tenantId">> & RagSearchOptions): Promise<RetrievedChunk[]> {
+  private async keywordSearch(query: string, options: SearchScopeOptions): Promise<RetrievedChunk[]> {
     const terms = toKeywordTerms(query);
     if (terms.length === 0) {
       return [];
     }
     const ownerTypes = toOwnerTypes(options.ownerTypes);
+    const ownerIds = toOwnerIds(options.ownerIds);
     const rows = await prisma.knowledgeChunk.findMany({
       where: {
         tenantId: options.tenantId,
         ...(options.novelId ? { novelId: options.novelId } : {}),
         ...(options.worldId ? { worldId: options.worldId } : {}),
         ...(ownerTypes ? { ownerType: { in: ownerTypes } } : {}),
+        ...(ownerIds ? { ownerId: { in: ownerIds } } : {}),
         OR: terms.map((term) => ({
           chunkText: { contains: term },
         })),
@@ -83,6 +107,39 @@ export class HybridRetrievalService {
     }));
   }
 
+  private async vectorSearch(query: string, options: SearchScopeOptions): Promise<RetrievedChunk[]> {
+    try {
+      const embedding = await this.embeddingService.embedTexts([query]);
+      const queryVector = embedding.vectors[0];
+      if (!queryVector || queryVector.length === 0) {
+        return [] as RetrievedChunk[];
+      }
+      await this.vectorStoreService.ensureCollection(queryVector.length);
+      const searchRows = await this.vectorStoreService.search(queryVector, options.vectorCandidates ?? ragConfig.vectorCandidates, {
+        tenantId: options.tenantId,
+        novelId: options.novelId,
+        worldId: options.worldId,
+        ownerTypes: toOwnerTypes(options.ownerTypes),
+        ownerIds: toOwnerIds(options.ownerIds),
+      });
+      return searchRows.map((row) => ({
+        id: row.id,
+        ownerType: row.payload.ownerType,
+        ownerId: row.payload.ownerId,
+        score: row.score,
+        title: row.payload.title,
+        chunkText: row.payload.chunkText,
+        chunkOrder: row.payload.chunkOrder,
+        novelId: row.payload.novelId,
+        worldId: row.payload.worldId,
+        metadataJson: row.payload.metadataJson,
+        source: "vector" as const,
+      }));
+    } catch {
+      return [] as RetrievedChunk[];
+    }
+  }
+
   async retrieve(query: string, options: RagSearchOptions = {}): Promise<RetrievedChunk[]> {
     if (!ragConfig.enabled) {
       return [];
@@ -92,52 +149,55 @@ export class HybridRetrievalService {
       return [];
     }
     const tenantId = options.tenantId ?? ragConfig.defaultTenantId;
-    const ownerTypes = toOwnerTypes(options.ownerTypes);
-    const vectorCandidates = options.vectorCandidates ?? ragConfig.vectorCandidates;
-    const keywordCandidates = options.keywordCandidates ?? ragConfig.keywordCandidates;
     const finalTopK = options.finalTopK ?? ragConfig.finalTopK;
-
-    const keywordPromise = this.keywordSearch(normalizedQuery, {
-      ...options,
-      tenantId,
-      ownerTypes,
-      keywordCandidates,
+    const filteredBaseOwnerTypes = (options.ownerTypes ?? NON_KNOWLEDGE_OWNER_TYPES)
+      .filter((item) => item !== "knowledge_document");
+    const baseOwnerTypes = options.ownerTypes
+      ? toOwnerTypes(filteredBaseOwnerTypes)
+      : toOwnerTypes(NON_KNOWLEDGE_OWNER_TYPES);
+    const knowledgeDocumentIds = await resolveKnowledgeDocumentIds({
+      targetType: options.novelId ? "novel" : options.worldId ? "world" : undefined,
+      targetId: options.novelId ?? options.worldId,
+      knowledgeDocumentIds: options.knowledgeDocumentIds,
     });
 
-    const vectorPromise = (async () => {
-      try {
-        const embedding = await this.embeddingService.embedTexts([normalizedQuery]);
-        const queryVector = embedding.vectors[0];
-        if (!queryVector || queryVector.length === 0) {
-          return [] as RetrievedChunk[];
-        }
-        await this.vectorStoreService.ensureCollection(queryVector.length);
-        const searchRows = await this.vectorStoreService.search(queryVector, vectorCandidates, {
-          tenantId,
-          novelId: options.novelId,
-          worldId: options.worldId,
-          ownerTypes,
-        });
-        return searchRows.map((row) => ({
-          id: row.id,
-          ownerType: row.payload.ownerType,
-          ownerId: row.payload.ownerId,
-          score: row.score,
-          title: row.payload.title,
-          chunkText: row.payload.chunkText,
-          chunkOrder: row.payload.chunkOrder,
-          novelId: row.payload.novelId,
-          worldId: row.payload.worldId,
-          metadataJson: row.payload.metadataJson,
-          source: "vector" as const,
-        }));
-      } catch {
-        return [] as RetrievedChunk[];
+    const baseScope: SearchScopeOptions | null = options.ownerTypes && filteredBaseOwnerTypes.length === 0
+      ? null
+      : {
+        tenantId,
+        novelId: options.novelId,
+        worldId: options.worldId,
+        ownerTypes: baseOwnerTypes,
+        vectorCandidates: options.vectorCandidates,
+        keywordCandidates: options.keywordCandidates,
+      };
+    const knowledgeScope: SearchScopeOptions | null = knowledgeDocumentIds.length > 0
+      ? {
+        tenantId,
+        ownerTypes: ["knowledge_document"],
+        ownerIds: knowledgeDocumentIds,
+        vectorCandidates: options.vectorCandidates,
+        keywordCandidates: options.keywordCandidates,
       }
-    })();
+      : null;
 
-    const [vectorRows, keywordRows] = await Promise.all([vectorPromise, keywordPromise]);
-    return this.fuseRrf(vectorRows, keywordRows, finalTopK);
+    const [
+      baseVectorRows,
+      baseKeywordRows,
+      knowledgeVectorRows,
+      knowledgeKeywordRows,
+    ] = await Promise.all([
+      baseScope ? this.vectorSearch(normalizedQuery, baseScope) : Promise.resolve([] as RetrievedChunk[]),
+      baseScope ? this.keywordSearch(normalizedQuery, baseScope) : Promise.resolve([] as RetrievedChunk[]),
+      knowledgeScope ? this.vectorSearch(normalizedQuery, knowledgeScope) : Promise.resolve([] as RetrievedChunk[]),
+      knowledgeScope ? this.keywordSearch(normalizedQuery, knowledgeScope) : Promise.resolve([] as RetrievedChunk[]),
+    ]);
+
+    return this.fuseRrf(
+      [...baseVectorRows, ...knowledgeVectorRows],
+      [...baseKeywordRows, ...knowledgeKeywordRows],
+      finalTopK,
+    );
   }
 
   async buildContextBlock(query: string, options: RagSearchOptions = {}): Promise<string> {

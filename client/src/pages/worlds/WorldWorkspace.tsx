@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LLMSelector from "@/components/common/LLMSelector";
 import StreamOutput from "@/components/common/StreamOutput";
+import KnowledgeBindingPanel from "@/components/knowledge/KnowledgeBindingPanel";
 import {
   answerWorldDeepeningQuestions,
   checkWorldConsistency,
@@ -430,6 +431,17 @@ export default function WorldWorkspace() {
           <LLMSelector />
         </CardHeader>
       </Card>
+
+      {id ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Reference Knowledge</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <KnowledgeBindingPanel targetType="world" targetId={id} title="World knowledge bindings" />
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Tabs defaultValue="layers" className="space-y-4">
         <TabsList>
