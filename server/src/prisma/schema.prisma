@@ -484,20 +484,21 @@ model QualityReport {
 }
 
 model KnowledgeDocument {
-  id                  String                   @id @default(cuid())
-  title               String
-  fileName            String
-  status              KnowledgeDocumentStatus  @default(enabled)
-  activeVersionId     String?
-  activeVersionNumber Int                      @default(0)
-  latestIndexStatus   KnowledgeIndexStatus     @default(idle)
-  lastIndexedAt       DateTime?
-  activeVersion       KnowledgeDocumentVersion? @relation("KnowledgeDocumentActiveVersion", fields: [activeVersionId], references: [id], onDelete: SetNull)
-  versions            KnowledgeDocumentVersion[] @relation("KnowledgeDocumentVersions")
-  bindings            KnowledgeBinding[]
-  bookAnalyses        BookAnalysis[]
-  createdAt           DateTime                 @default(now())
-  updatedAt           DateTime                 @updatedAt
+  id                     String                   @id @default(cuid())
+  title                  String
+  fileName               String
+  status                 KnowledgeDocumentStatus  @default(enabled)
+  activeVersionId        String?
+  activeVersionNumber    Int                      @default(0)
+  latestIndexStatus      KnowledgeIndexStatus     @default(idle)
+  lastIndexedAt          DateTime?
+  activeVersion          KnowledgeDocumentVersion? @relation("KnowledgeDocumentActiveVersion", fields: [activeVersionId], references: [id], onDelete: SetNull)
+  versions               KnowledgeDocumentVersion[] @relation("KnowledgeDocumentVersions")
+  bindings               KnowledgeBinding[]
+  bookAnalyses           BookAnalysis[]
+  publishedFromAnalyses  BookAnalysis[]           @relation("BookAnalysisPublishedDocument")
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
 
   @@index([status, updatedAt])
   @@index([title])
@@ -547,8 +548,10 @@ model BookAnalysis {
   progress                    Float              @default(0)
   lastError                   String?
   lastRunAt                   DateTime?
+  publishedDocumentId         String?
   document                    KnowledgeDocument  @relation(fields: [documentId], references: [id], onDelete: Cascade)
   documentVersion             KnowledgeDocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: NoAction)
+  publishedDocument           KnowledgeDocument?  @relation("BookAnalysisPublishedDocument", fields: [publishedDocumentId], references: [id], onDelete: SetNull)
   sections                    BookAnalysisSection[]
   createdAt                   DateTime           @default(now())
   updatedAt                   DateTime           @updatedAt

@@ -1,4 +1,5 @@
 import { prisma } from "../../db/prisma";
+import { novelReferenceService } from "../novel/NovelReferenceService";
 
 const MAX_DOCUMENT_REFERENCE_CHARS = 2_400;
 const MAX_ANALYSIS_SUMMARY_CHARS = 400;
@@ -19,12 +20,21 @@ function clipText(source: string, maxChars: number): string {
 }
 
 export async function buildReferenceContext(input: {
+  novelId?: string;
   knowledgeDocumentIds?: string[];
   bookAnalysisIds?: string[];
 }): Promise<string> {
   const knowledgeDocumentIds = dedupeIds(input.knowledgeDocumentIds);
   const bookAnalysisIds = dedupeIds(input.bookAnalysisIds);
+
   if (knowledgeDocumentIds.length === 0 && bookAnalysisIds.length === 0) {
+    if (input.novelId?.trim()) {
+      const ref = await novelReferenceService.buildReferenceForStage(
+        input.novelId.trim(),
+        "character",
+      );
+      return ref ? clipText(ref, MAX_REFERENCE_CONTEXT_CHARS) : "";
+    }
     return "";
   }
 

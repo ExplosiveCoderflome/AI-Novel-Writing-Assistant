@@ -156,7 +156,12 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
                       {item.documentTitle} | v{item.documentVersionNumber}
                     </div>
                   </div>
-                  <Badge variant="outline">{formatStatus(item.status)}</Badge>
+                  <div className="flex shrink-0 gap-1">
+                    {item.publishedDocumentId && (
+                      <Badge variant="secondary" className="text-xs">已发布</Badge>
+                    )}
+                    <Badge variant="outline">{formatStatus(item.status)}</Badge>
+                  </div>
                 </div>
                 <div className="mt-2 text-xs text-muted-foreground">
                   进度 {Math.round(item.progress * 100)}% | 更新于 {formatDate(item.updatedAt)}

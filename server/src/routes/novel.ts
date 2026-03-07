@@ -73,6 +73,7 @@ const chapterSchema = z.object({
   title: z.string().trim().min(1, "章节标题不能为空。"),
   order: z.number().int().nonnegative(),
   content: z.string().optional(),
+  expectation: z.string().optional(),
 });
 
 const updateChapterSchema = z.object({

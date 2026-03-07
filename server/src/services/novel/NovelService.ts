@@ -5,7 +5,50 @@ import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../db/prisma";
 import { getLLM } from "../../llm/factory";
 import { ragServices } from "../rag";
+import { getRagQueryForChapter, novelReferenceService } from "./NovelReferenceService";
 import type { RagOwnerType } from "../rag/types";
+
+function pickStr(obj: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const v = obj[key];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return "";
+}
+
+function parseChapterItem(raw: unknown, fallbackOrder: number): { order: number; title: string; summary: string } | null {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
+  const r = raw as Record<string, unknown>;
+  const orderRaw = r.order ?? r.chapterOrder ?? r.chapterNo ?? r.chapter ?? r.index;
+  let order = fallbackOrder;
+  if (typeof orderRaw === "number" && orderRaw > 0) order = Math.round(orderRaw);
+  else if (typeof orderRaw === "string") {
+    const n = parseInt(orderRaw.match(/\d+/)?.[0] ?? "", 10);
+    if (n > 0) order = n;
+  }
+  const title = pickStr(r, ["title", "chapterTitle", "name", "chapterName"]) || `第${order}章`;
+  const summary = pickStr(r, ["summary", "outline", "description", "content"]);
+  if (!title && !summary) return null;
+  return { order, title, summary };
+}
+
+function parseChaptersFromStructuredJson(parsed: unknown): Array<{ order: number; title: string; summary: string }> {
+  if (!Array.isArray(parsed) || parsed.length === 0) return [];
+  const first = parsed[0];
+  const isVolumeList =
+    typeof first === "object" &&
+    first !== null &&
+    !Array.isArray(first) &&
+    (Array.isArray((first as Record<string, unknown>).chapters) ||
+      Array.isArray((first as Record<string, unknown>).chapterList));
+  if (isVolumeList) {
+    return (parsed as Record<string, unknown>[]).flatMap((vol, vi) => {
+      const chaps = (Array.isArray(vol.chapters) ? vol.chapters : Array.isArray(vol.chapterList) ? vol.chapterList : []) as unknown[];
+      return chaps.map((c, ci) => parseChapterItem(c, vi * 100 + ci + 1)).filter((x): x is NonNullable<typeof x> => x !== null);
+    });
+  }
+  return parsed.map((c, ci) => parseChapterItem(c, ci + 1)).filter((x): x is NonNullable<typeof x> => x !== null);
+}
 
 interface PaginationInput {
   page: number;
@@ -33,6 +76,7 @@ interface ChapterInput {
   title: string;
   order: number;
   content?: string;
+  expectation?: string;
 }
 
 interface CharacterInput {
@@ -337,6 +381,7 @@ export class NovelService {
         title: input.title,
         order: input.order,
         content: input.content ?? "",
+        expectation: input.expectation,
         generationState: "planned",
       },
     });
@@ -743,23 +788,36 @@ currentGoal=${character.currentGoal ?? "无"}`,
   async createOutlineStream(novelId: string, options: LLMGenerateOptions = {}) {
     const novel = await prisma.novel.findUnique({
       where: { id: novelId },
-      include: { world: true },
+      include: { world: true, characters: true },
     });
     if (!novel) {
       throw new Error("小说不存在。");
     }
-    const worldContext = this.buildWorldContextFromNovel(novel);
+    const [worldContext, referenceContext] = await Promise.all([
+      Promise.resolve(this.buildWorldContextFromNovel(novel)),
+      novelReferenceService.buildReferenceForStage(novelId, "outline"),
+    ]);
+    const referenceBlock = referenceContext.trim()
+      ? `\n\n参考资料（来自已有作品拆书分析，可借鉴但不必照搬）：\n${referenceContext}`
+      : "";
+    const charactersText = novel.characters.length > 0
+      ? novel.characters
+          .map((c) => `- ${c.name}（${c.role}）${c.personality ? `：${c.personality.slice(0, 80)}` : ""}`)
+          .join("\n")
+      : "暂无";
     const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.7,
     });
     const stream = await llm.stream([
-      new SystemMessage("你是一位专业的小说发展走向策划师，请输出完整发展走向。"),
+      new SystemMessage("你是一位专业的小说发展走向策划师，请严格基于给定角色设定输出完整发展走向，不得自行发明角色。"),
       new HumanMessage(
         `小说标题：${novel.title}
 小说简介：${novel.description ?? "无"}
+核心角色（必须使用这些角色，不得替换或忽略）：
+${charactersText}
 世界上下文：
-${worldContext}`,
+${worldContext}${referenceBlock}`,
       ),
     ]);
     return {
@@ -774,7 +832,7 @@ ${worldContext}`,
   async createStructuredOutlineStream(novelId: string, options: StructuredOutlineGenerateOptions = {}) {
     const novel = await prisma.novel.findUnique({
       where: { id: novelId },
-      include: { world: true },
+      include: { world: true, characters: true },
     });
     if (!novel) {
       throw new Error("小说不存在。");
@@ -783,33 +841,83 @@ ${worldContext}`,
     if (!novel.outline) {
       throw new Error("请先生成小说发展走向。");
     }
+    const [worldContext, referenceContext] = await Promise.all([
+      Promise.resolve(this.buildWorldContextFromNovel(novel)),
+      novelReferenceService.buildReferenceForStage(novelId, "structured_outline"),
+    ]);
+    const referenceBlock = referenceContext.trim()
+      ? `\n\n参考资料（来自已有作品拆书分析）：\n${referenceContext}`
+      : "";
+    const charactersText = novel.characters.length > 0
+      ? novel.characters
+          .map((c) => `- ${c.name}（${c.role}）${c.personality ? `：${c.personality.slice(0, 80)}` : ""}`)
+          .join("\n")
+      : "暂无";
     const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.5,
     });
     const stream = await llm.stream([
-      new SystemMessage("你是一位专业的小说结构化编剧，请严格输出 JSON 数组。"),
+      new SystemMessage("你是一位专业的小说结构化编剧，请严格基于给定角色设定和发展走向输出 JSON 数组，不得自行发明角色。"),
       new HumanMessage(
-        `世界上下文：
-${this.buildWorldContextFromNovel(novel)}
+        `核心角色（必须使用这些角色，不得替换或忽略）：
+${charactersText}
+世界上下文：
+${worldContext}
 基于下述发展走向，生成${options.totalChapters ?? 20}章规划：
-${novel.outline}`,
+${novel.outline}${referenceBlock}`,
       ),
     ]);
     return {
       stream: stream as AsyncIterable<BaseMessageChunk>,
       onDone: async (fullContent: string) => {
         const jsonText = extractJSONArray(fullContent);
-        JSON.parse(jsonText);
+        const parsed = JSON.parse(jsonText) as unknown;
         await prisma.novel.update({ where: { id: novelId }, data: { structuredOutline: jsonText } });
+        const chapters = parseChaptersFromStructuredJson(parsed);
+        if (chapters.length > 0) {
+          await this.syncChaptersFromOutline(novelId, chapters);
+        }
         this.queueRagUpsert("novel", novelId);
       },
     };
   }
 
+  private async syncChaptersFromOutline(
+    novelId: string,
+    chapters: Array<{ order: number; title: string; summary: string }>,
+  ) {
+    const existing = await prisma.chapter.findMany({
+      where: { novelId },
+      select: { id: true, order: true },
+    });
+    const existingByOrder = new Map(existing.map((c) => [c.order, c.id]));
+    await Promise.all(
+      chapters.map((ch) => {
+        const existingId = existingByOrder.get(ch.order);
+        if (existingId) {
+          return prisma.chapter.update({
+            where: { id: existingId },
+            data: { title: ch.title, expectation: ch.summary },
+          });
+        }
+        return prisma.chapter.create({
+          data: {
+            novelId,
+            title: ch.title,
+            order: ch.order,
+            content: "",
+            expectation: ch.summary,
+            generationState: "planned",
+          },
+        });
+      }),
+    );
+  }
+
   async createChapterStream(novelId: string, chapterId: string, options: ChapterGenerateOptions = {}) {
     const [novel, chapter] = await Promise.all([
-      prisma.novel.findUnique({ where: { id: novelId } }),
+      prisma.novel.findUnique({ where: { id: novelId }, include: { characters: true } }),
       prisma.chapter.findFirst({ where: { id: chapterId, novelId } }),
     ]);
     if (!novel || !chapter) {
@@ -821,11 +929,23 @@ ${novel.outline}`,
       temperature: options.temperature ?? 0.8,
     });
     const context = options.previousChaptersSummary?.join("\n") || (await this.buildContextText(novelId, chapter.order));
+    const charactersText = novel.characters.length > 0
+      ? novel.characters
+          .map((c) => `- ${c.name}（${c.role}）${c.personality ? `：${c.personality.slice(0, 100)}` : ""}`)
+          .join("\n")
+      : "暂无";
+    const chapterPlan = chapter.expectation?.trim()
+      ? `\n本章大纲规划（必须严格遵循）：\n${chapter.expectation}`
+      : "";
     const stream = await llm.stream([
-      new SystemMessage("你是一位优秀的网文作者，请输出连贯、可读、节奏紧凑的章节正文。"),
+      new SystemMessage(
+        "你是一位优秀的网文作者，请严格基于给定的角色设定和本章大纲规划输出连贯、可读、节奏紧凑的章节正文，不得自行发明新角色或偏离规划。",
+      ),
       new HumanMessage(
         `小说：${novel.title}
-章节标题：${chapter.title}
+核心角色（必须使用这些角色，不得替换或忽略）：
+${charactersText}
+章节标题：第${chapter.order}章 ${chapter.title}${chapterPlan}
 上下文：
 ${context}
 字数要求：2000-3000字`,
@@ -878,8 +998,14 @@ ${context}
     if (!novel) {
       throw new Error("小说不存在。");
     }
-    const worldContext = this.buildWorldContextFromNovel(novel);
     await this.ensureNovelCharacters(novelId, "生成作品圣经");
+    const [worldContext, referenceContext] = await Promise.all([
+      Promise.resolve(this.buildWorldContextFromNovel(novel)),
+      novelReferenceService.buildReferenceForStage(novelId, "bible"),
+    ]);
+    const referenceBlock = referenceContext.trim()
+      ? `\n\n参考资料（来自已有作品拆书分析）：\n${referenceContext}`
+      : "";
     const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.6,
@@ -902,7 +1028,7 @@ ${context}
 简介：${novel.description ?? "无"}
 角色：${novel.characters.map((item) => `${item.name}(${item.role})`).join("、") || "暂无"}
 世界上下文：
-${worldContext}`,
+${worldContext}${referenceBlock}`,
       ),
     ]);
     return {
@@ -943,6 +1069,13 @@ ${worldContext}`,
       throw new Error("小说不存在。");
     }
     await this.ensureNovelCharacters(novelId, "生成剧情拍点");
+    const [worldContext, referenceContext] = await Promise.all([
+      Promise.resolve(this.buildWorldContextFromNovel(novel)),
+      novelReferenceService.buildReferenceForStage(novelId, "beats"),
+    ]);
+    const referenceBlock = referenceContext.trim()
+      ? `\n\n参考资料（来自已有作品拆书分析）：\n${referenceContext}`
+      : "";
     const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.7,
@@ -955,9 +1088,9 @@ ${worldContext}`,
       new HumanMessage(
         `小说标题：${novel.title}
 小说简介：${novel.description ?? "无"}
-世界上下文：${this.buildWorldContextFromNovel(novel)}
+世界上下文：${worldContext}
 作品圣经：${novel.bible?.rawContent ?? "暂无"}
-目标章节：${targetChapters}`,
+目标章节：${targetChapters}${referenceBlock}`,
       ),
     ]);
     return {
@@ -1266,7 +1399,7 @@ ${axiomsText}
   }
 
   private async buildContextText(novelId: string, chapterOrder: number): Promise<string> {
-    const [bible, summaries, facts, novel] = await Promise.all([
+    const [bible, summaries, facts, novel, styleReference, characters] = await Promise.all([
       prisma.novelBible.findUnique({ where: { novelId } }),
       prisma.chapterSummary.findMany({
         where: {
@@ -1286,6 +1419,8 @@ ${axiomsText}
         where: { id: novelId },
         include: { world: true },
       }),
+      novelReferenceService.buildReferenceForStage(novelId, "chapter"),
+      prisma.character.findMany({ where: { novelId }, orderBy: { createdAt: "asc" } }),
     ]);
     const bibleText = bible
       ? `作品圣经：
@@ -1302,18 +1437,31 @@ ${axiomsText}
       ? `最近关键事实：\n${facts.map((item) => `[${item.category}] ${item.content}`).join("\n")}`
       : "最近关键事实：暂无";
     const worldText = this.buildWorldContextFromNovel(novel);
+    const outlineText = novel?.outline?.trim()
+      ? `发展走向：\n${novel.outline.slice(0, 800)}`
+      : "";
+    const charactersContextText = characters.length > 0
+      ? `角色设定：\n${characters
+          .map((c) => `- ${c.name}（${c.role}）${c.personality ? `：${c.personality.slice(0, 80)}` : ""}`)
+          .join("\n")}`
+      : "";
+    const ragQuery = getRagQueryForChapter(
+      chapterOrder,
+      novel?.title ?? "",
+      novel?.structuredOutline ?? null,
+    );
     let ragText = "";
     try {
-      ragText = await ragServices.hybridRetrievalService.buildContextBlock(
-        `小说上下文 第${chapterOrder}章 ${novel?.title ?? ""}`,
-        {
-          novelId,
-        },
-      );
+      ragText = await ragServices.hybridRetrievalService.buildContextBlock(ragQuery, {
+        novelId,
+      });
     } catch {
       ragText = "";
     }
-    return [worldText, bibleText, summaryText, factText, ragText ? `语义检索补充：\n${ragText}` : ""]
+    const styleBlock = styleReference.trim()
+      ? `文风参考（来自拆书分析）：\n${styleReference}`
+      : "";
+    return [worldText, outlineText, charactersContextText, bibleText, summaryText, factText, ragText ? `语义检索补充：\n${ragText}` : "", styleBlock]
       .filter(Boolean)
       .join("\n\n");
   }

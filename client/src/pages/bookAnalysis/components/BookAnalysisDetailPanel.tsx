@@ -90,6 +90,9 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
             </div>
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline">{formatStatus(selectedAnalysis.status)}</Badge>
+              {selectedAnalysis.publishedDocumentId && (
+                <Badge variant="secondary">已发布</Badge>
+              )}
               <Badge variant="outline">进度 {Math.round(selectedAnalysis.progress * 100)}%</Badge>
               <Button size="sm" variant="outline" onClick={onCopy} disabled={pending.copy}>
                 复制

@@ -66,6 +66,7 @@ export interface BookAnalysis {
   progress: number;
   lastError?: string | null;
   lastRunAt?: string | null;
+  publishedDocumentId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

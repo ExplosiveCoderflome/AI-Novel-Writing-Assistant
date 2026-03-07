@@ -359,7 +359,8 @@ export default function NovelEdit() {
           createNovelChapter(id, {
             title: chapter.title,
             order: chapter.order,
-            content: chapter.summary,
+            content: "",
+            expectation: chapter.summary,
           })),
       );
     },
@@ -737,7 +738,7 @@ export default function NovelEdit() {
                 生成结构化大纲
               </Button>
               <Button variant="secondary" onClick={structuredSSE.abort} disabled={!structuredSSE.isStreaming}>停止生成</Button>
-              <Button onClick={() => batchCreateMutation.mutate()} disabled={batchCreateMutation.isPending || !hasCharacters}>{batchCreateMutation.isPending ? "写入中..." : "批量创建章节"}</Button>
+              <Button variant="outline" onClick={() => batchCreateMutation.mutate()} disabled={batchCreateMutation.isPending || !hasCharacters || structuredVolumes.length === 0}>{batchCreateMutation.isPending ? "同步中..." : "重新同步章节"}</Button>
             </div>
             <StreamOutput isStreaming={structuredSSE.isStreaming} content={structuredSSE.content} onAbort={structuredSSE.abort} />
             <div className="space-y-2">
@@ -772,9 +773,12 @@ export default function NovelEdit() {
             </div>
             {(novelDetailQuery.data?.data?.chapters ?? []).map((chapter) => (
               <div key={chapter.id} className="flex items-center justify-between rounded-md border p-3">
-                <div>
+                <div className="flex-1 min-w-0 pr-3">
                   <div className="font-medium">第 {chapter.order} 章：{chapter.title}</div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  {chapter.expectation && (
+                    <div className="mt-1 text-xs text-muted-foreground line-clamp-2">{chapter.expectation}</div>
+                  )}
+                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                     <span>字数：{chapter.content?.length ?? 0}</span>
                     {(chapter as ChapterWithState).generationState ? <Badge variant="outline">{(chapter as ChapterWithState).generationState}</Badge> : null}
                   </div>

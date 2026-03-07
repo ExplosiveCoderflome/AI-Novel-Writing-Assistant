@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   BookAnalysis,
   BookAnalysisDetail,
   BookAnalysisEvidenceItem,
@@ -1087,6 +1087,11 @@ export class BookAnalysisService {
       },
     });
 
+    await prisma.bookAnalysis.update({
+      where: { id: analysisId },
+      data: { publishedDocumentId: publishedDocument.id },
+    });
+
     return {
       analysisId,
       novelId,
@@ -1171,6 +1176,7 @@ export class BookAnalysisService {
     progress: number;
     lastError: string | null;
     lastRunAt: Date | null;
+    publishedDocumentId: string | null;
     createdAt: Date;
     updatedAt: Date;
     document: {
@@ -1205,6 +1211,7 @@ export class BookAnalysisService {
       progress: row.progress,
       lastError: row.lastError,
       lastRunAt: row.lastRunAt?.toISOString() ?? null,
+      publishedDocumentId: row.publishedDocumentId,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };

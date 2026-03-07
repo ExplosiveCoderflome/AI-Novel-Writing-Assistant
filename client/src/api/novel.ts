@@ -111,6 +111,7 @@ export async function createNovelChapter(
     title: string;
     order: number;
     content?: string;
+    expectation?: string;
   },
 ) {
   const { data } = await apiClient.post<ApiResponse<Chapter>>(`/novels/${id}/chapters`, payload);

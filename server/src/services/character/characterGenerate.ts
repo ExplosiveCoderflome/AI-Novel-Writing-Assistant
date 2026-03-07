@@ -30,6 +30,7 @@ export interface CharacterGenerateInput {
   genre?: string;
   provider?: LLMProvider;
   model?: string;
+  novelId?: string;
   knowledgeDocumentIds?: string[];
   bookAnalysisIds?: string[];
   constraints?: CharacterGenerateConstraints;
@@ -298,6 +299,7 @@ export async function generateBaseCharacterFromAI(input: CharacterGenerateInput)
   });
 
   const referenceContext = await buildReferenceContext({
+    novelId: input.novelId,
     knowledgeDocumentIds: input.knowledgeDocumentIds,
     bookAnalysisIds: input.bookAnalysisIds,
   });
