@@ -111,12 +111,21 @@ model Novel {
   title             String
   description       String?
   status            String      @default("draft")
+  writingMode       String      @default("original")
+  sourceNovelId     String?
+  sourceKnowledgeDocumentId String?
+  continuationBookAnalysisId String?
+  continuationBookAnalysisSections String?
   outline           String?
   structuredOutline String?
   genreId           String?
   worldId           String?
   genre             NovelGenre? @relation(fields: [genreId], references: [id])
   world             World?      @relation(fields: [worldId], references: [id], onDelete: SetNull)
+  sourceNovel       Novel?      @relation("NovelContinuation", fields: [sourceNovelId], references: [id], onDelete: SetNull)
+  continuationNovels Novel[]    @relation("NovelContinuation")
+  sourceKnowledgeDocument KnowledgeDocument? @relation("NovelKnowledgeContinuation", fields: [sourceKnowledgeDocumentId], references: [id], onDelete: SetNull)
+  continuationBookAnalysis BookAnalysis? @relation("NovelContinuationBookAnalysis", fields: [continuationBookAnalysisId], references: [id], onDelete: SetNull)
   chapters          Chapter[]
   characters        Character[]
   characterTimelines CharacterTimeline[]
@@ -131,6 +140,10 @@ model Novel {
 
   @@index([genreId])
   @@index([worldId])
+  @@index([writingMode])
+  @@index([sourceNovelId])
+  @@index([sourceKnowledgeDocumentId])
+  @@index([continuationBookAnalysisId])
 }
 
 model Chapter {
@@ -559,6 +572,7 @@ model KnowledgeDocument {
   bindings               KnowledgeBinding[]
   bookAnalyses           BookAnalysis[]
   publishedFromAnalyses  BookAnalysis[]           @relation("BookAnalysisPublishedDocument")
+  continuationNovels     Novel[]                  @relation("NovelKnowledgeContinuation")
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime                 @updatedAt
 
@@ -614,6 +628,7 @@ model BookAnalysis {
   document                    KnowledgeDocument  @relation(fields: [documentId], references: [id], onDelete: Cascade)
   documentVersion             KnowledgeDocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: NoAction)
   publishedDocument           KnowledgeDocument?  @relation("BookAnalysisPublishedDocument", fields: [publishedDocumentId], references: [id], onDelete: SetNull)
+  continuationNovels          Novel[]             @relation("NovelContinuationBookAnalysis")
   sections                    BookAnalysisSection[]
   createdAt                   DateTime           @default(now())
   updatedAt                   DateTime           @updatedAt

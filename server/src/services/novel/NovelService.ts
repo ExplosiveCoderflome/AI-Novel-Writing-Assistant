@@ -1,11 +1,13 @@
-import type { BaseMessageChunk } from "@langchain/core/messages";
+﻿import type { BaseMessageChunk } from "@langchain/core/messages";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
+import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import { prisma } from "../../db/prisma";
 import { getLLM } from "../../llm/factory";
 import { ragServices } from "../rag";
 import { getRagQueryForChapter, novelReferenceService } from "./NovelReferenceService";
+import { NovelContinuationService } from "./NovelContinuationService";
 import type { RagOwnerType } from "../rag/types";
 
 function pickStr(obj: Record<string, unknown>, keys: string[]): string {
@@ -26,7 +28,7 @@ function parseChapterItem(raw: unknown, fallbackOrder: number): { order: number;
     const n = parseInt(orderRaw.match(/\d+/)?.[0] ?? "", 10);
     if (n > 0) order = n;
   }
-  const title = pickStr(r, ["title", "chapterTitle", "name", "chapterName"]) || `第${order}章`;
+  const title = pickStr(r, ["title", "chapterTitle", "name", "chapterName"]) || `${order}章`;
   const summary = pickStr(r, ["summary", "outline", "description", "content"]);
   if (!title && !summary) return null;
   return { order, title, summary };
@@ -60,12 +62,22 @@ interface CreateNovelInput {
   description?: string;
   genreId?: string;
   worldId?: string;
+  writingMode?: "original" | "continuation";
+  sourceNovelId?: string | null;
+  sourceKnowledgeDocumentId?: string | null;
+  continuationBookAnalysisId?: string | null;
+  continuationBookAnalysisSections?: BookAnalysisSectionKey[] | null;
 }
 
 interface UpdateNovelInput {
   title?: string;
   description?: string;
   status?: "draft" | "published";
+  writingMode?: "original" | "continuation";
+  sourceNovelId?: string | null;
+  sourceKnowledgeDocumentId?: string | null;
+  continuationBookAnalysisId?: string | null;
+  continuationBookAnalysisSections?: BookAnalysisSectionKey[] | null;
   genreId?: string | null;
   worldId?: string | null;
   outline?: string | null;
@@ -94,6 +106,10 @@ interface LLMGenerateOptions {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
+}
+
+interface OutlineGenerateOptions extends LLMGenerateOptions {
+  initialPrompt?: string;
 }
 
 interface StructuredOutlineGenerateOptions extends LLMGenerateOptions {
@@ -189,7 +205,7 @@ function extractJSONObject(source: string): string {
   const first = text.indexOf("{");
   const last = text.lastIndexOf("}");
   if (first < 0 || last < 0 || first >= last) {
-    throw new Error("未检测到有效 JSON 对象。");
+    throw new Error("未检测到有效 JSON 对象");
   }
   return text.slice(first, last + 1);
 }
@@ -199,7 +215,7 @@ function extractJSONArray(source: string): string {
   const first = text.indexOf("[");
   const last = text.lastIndexOf("]");
   if (first < 0 || last < 0 || first >= last) {
-    throw new Error("未检测到有效 JSON 数组。");
+    throw new Error("未检测到有效 JSON 数组");
   }
   return text.slice(first, last + 1);
 }
@@ -223,7 +239,7 @@ function normalizeScore(value: Partial<QualityScore>): QualityScore {
 
 function ruleScore(content: string): QualityScore {
   const text = content.replace(/\s+/g, " ").trim();
-  const sentences = text.split(/[。！？!?]/).map((item) => item.trim()).filter(Boolean);
+  const sentences = text.split(/[。！"?]/).map((item) => item.trim()).filter(Boolean);
   const unique = new Set(sentences);
   const repeatRatio = sentences.length > 0 ? 1 - unique.size / sentences.length : 0;
   const coherence = text.length >= 1800 ? 85 : text.length >= 1200 ? 75 : 60;
@@ -318,25 +334,25 @@ function briefSummary(content: string, facts?: Array<{ category: "plot" | "chara
 
   const blocks: string[] = [];
   if (plotEvents.length > 0) {
-    blocks.push(`Plot: ${plotEvents.join("；")}`);
+    blocks.push(`Plot: ${plotEvents.join("")}`);
   }
   if (characterStates.length > 0) {
-    blocks.push(`Character: ${characterStates.join("；")}`);
+    blocks.push(`Character: ${characterStates.join("")}`);
   }
   if (worldFacts.length > 0) {
-    blocks.push(`World: ${worldFacts.join("；")}`);
+    blocks.push(`World: ${worldFacts.join("")}`);
   }
   if (blocks.length > 0) {
     return blocks.join("\n");
   }
 
-  const sentences = text.split(/[。！？!?]/).map((item) => item.trim()).filter(Boolean);
+  const sentences = text.split(/[。！"?]/).map((item) => item.trim()).filter(Boolean);
   if (sentences.length === 0) {
     return text.length <= 220 ? text : `${text.slice(0, 220)}...`;
   }
   const middle = sentences[Math.floor((sentences.length - 1) / 2)] ?? "";
   const tail = sentences[sentences.length - 1] ?? "";
-  const fallback = [middle, tail].filter(Boolean).join("；");
+  const fallback = [middle, tail].filter(Boolean).join("");
   if (fallback) {
     return `Plot: ${fallback}`;
   }
@@ -344,12 +360,12 @@ function briefSummary(content: string, facts?: Array<{ category: "plot" | "chara
 }
 
 function extractFacts(content: string): Array<{ category: "plot" | "character" | "world"; content: string }> {
-  const lines = content.split(/[\n。！？!?]/).map((item) => item.trim()).filter((item) => item.length >= 8).slice(0, 6);
+  const lines = content.split(/[\n。！"?]/).map((item) => item.trim()).filter((item) => item.length >= 8).slice(0, 6);
   return lines.map((line) => {
     if (/世界|地理|宗门|王朝|大陆|规则/.test(line)) {
       return { category: "world" as const, content: line };
     }
-    if (/主角|反派|角色|他|她/.test(line)) {
+    if (/主角|反派|角色|他/.test(line)) {
       return { category: "character" as const, content: line };
     }
     return { category: "plot" as const, content: line };
@@ -361,7 +377,7 @@ function extractCharacterEventLines(content: string, characterName: string, limi
     return [];
   }
   return content
-    .split(/[\n。！？!?]/)
+    .split(/[\n。！"?]/)
     .map((item) => item.trim())
     .filter((item) => item.length >= 8 && item.includes(characterName))
     .slice(0, limit);
@@ -384,7 +400,7 @@ function parseReviewOutput(text: string): { score: QualityScore; issues: ReviewI
 }
 
 function normalizeBeatStatus(value: unknown): BeatStatus {
-  if (value === "completed" || value === "已完成" || value === "finish" || value === "done") {
+  if (value === "completed" || value === "已完" || value === "finish" || value === "done") {
     return "completed";
   }
   if (value === "skipped" || value === "跳过") {
@@ -402,7 +418,66 @@ function normalizeBeatOrder(value: unknown, fallback: number): number {
   return normalized;
 }
 
+const CONTINUATION_ANALYSIS_SECTION_KEYS: BookAnalysisSectionKey[] = [
+  "overview",
+  "plot_structure",
+  "timeline",
+  "character_system",
+  "worldbuilding",
+  "themes",
+  "style_technique",
+  "market_highlights",
+];
+
+const CONTINUATION_ANALYSIS_SECTION_KEY_SET = new Set<BookAnalysisSectionKey>(CONTINUATION_ANALYSIS_SECTION_KEYS);
+
+function parseContinuationBookAnalysisSections(raw: string | null | undefined): BookAnalysisSectionKey[] | null {
+  if (!raw?.trim()) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return null;
+    }
+    const keys = parsed
+      .map((item) => (typeof item === "string" ? item : ""))
+      .filter((item): item is BookAnalysisSectionKey => CONTINUATION_ANALYSIS_SECTION_KEY_SET.has(item as BookAnalysisSectionKey));
+    if (keys.length === 0) {
+      return null;
+    }
+    return Array.from(new Set(keys));
+  } catch {
+    return null;
+  }
+}
+
+function serializeContinuationBookAnalysisSections(
+  value: BookAnalysisSectionKey[] | null | undefined,
+): string | null {
+  if (!Array.isArray(value) || value.length === 0) {
+    return null;
+  }
+  const normalized = value.filter((item) => CONTINUATION_ANALYSIS_SECTION_KEY_SET.has(item));
+  if (normalized.length === 0) {
+    return null;
+  }
+  return JSON.stringify(Array.from(new Set(normalized)));
+}
+
+const novelContinuationService = new NovelContinuationService();
+
 export class NovelService {
+  private normalizeNovelOutput<T extends { continuationBookAnalysisSections?: string | null }>(
+    novel: T,
+  ): Omit<T, "continuationBookAnalysisSections"> & { continuationBookAnalysisSections: BookAnalysisSectionKey[] | null } {
+    const parsedSections = parseContinuationBookAnalysisSections(novel.continuationBookAnalysisSections);
+    return {
+      ...novel,
+      continuationBookAnalysisSections: parsedSections,
+    };
+  }
+
   async listNovels({ page, limit }: PaginationInput) {
     const [items, total] = await Promise.all([
       prisma.novel.findMany({
@@ -419,27 +494,59 @@ export class NovelService {
       prisma.novel.count(),
     ]);
 
-    return { items, page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) };
+    return {
+      items: items.map((item) => this.normalizeNovelOutput(item)),
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    };
   }
 
   async createNovel(input: CreateNovelInput) {
+    const writingMode = input.writingMode ?? "original";
+    const sourceNovelId = input.sourceNovelId ?? null;
+    const sourceKnowledgeDocumentId = input.sourceKnowledgeDocumentId ?? null;
+    const continuationBookAnalysisId = input.continuationBookAnalysisId ?? null;
+    const normalizedContinuationBookAnalysisId =
+      writingMode === "continuation" && (sourceNovelId || sourceKnowledgeDocumentId) ? continuationBookAnalysisId : null;
+    const continuationBookAnalysisSections = serializeContinuationBookAnalysisSections(
+      input.continuationBookAnalysisSections,
+    );
+    await novelContinuationService.validateWritingModeConfig({
+      writingMode,
+      sourceNovelId,
+      sourceKnowledgeDocumentId,
+      continuationBookAnalysisId: normalizedContinuationBookAnalysisId,
+    });
+
     const created = await prisma.novel.create({
       data: {
         title: input.title,
         description: input.description,
         genreId: input.genreId,
         worldId: input.worldId,
+        writingMode,
+        sourceNovelId: writingMode === "continuation" ? sourceNovelId : null,
+        sourceKnowledgeDocumentId: writingMode === "continuation" ? sourceKnowledgeDocumentId : null,
+        continuationBookAnalysisId: normalizedContinuationBookAnalysisId,
+        continuationBookAnalysisSections:
+          writingMode === "continuation"
+          && (sourceNovelId || sourceKnowledgeDocumentId)
+          && normalizedContinuationBookAnalysisId
+            ? continuationBookAnalysisSections
+            : null,
       },
     });
     this.queueRagUpsert("novel", created.id);
     if (created.worldId) {
       this.queueRagUpsert("world", created.worldId);
     }
-    return created;
+    return this.normalizeNovelOutput(created);
   }
 
   async getNovelById(id: string) {
-    return prisma.novel.findUnique({
+    const row = await prisma.novel.findUnique({
       where: { id },
       include: {
         genre: true,
@@ -450,15 +557,73 @@ export class NovelService {
         plotBeats: { orderBy: [{ chapterOrder: "asc" }, { createdAt: "asc" }] },
       },
     });
+    if (!row) {
+      return null;
+    }
+    return this.normalizeNovelOutput(row);
   }
 
   async updateNovel(id: string, input: UpdateNovelInput) {
-    const updated = await prisma.novel.update({ where: { id }, data: input });
+    const existing = await prisma.novel.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        writingMode: true,
+        sourceNovelId: true,
+        sourceKnowledgeDocumentId: true,
+        continuationBookAnalysisId: true,
+        continuationBookAnalysisSections: true,
+      },
+    });
+    if (!existing) {
+      throw new Error("小说不存在");
+    }
+    const nextWritingMode = input.writingMode ?? (existing.writingMode === "continuation" ? "continuation" : "original");
+    const nextSourceNovelId = input.sourceNovelId !== undefined ? input.sourceNovelId : existing.sourceNovelId;
+    const nextSourceKnowledgeDocumentId = input.sourceKnowledgeDocumentId !== undefined
+      ? input.sourceKnowledgeDocumentId
+      : existing.sourceKnowledgeDocumentId;
+    const nextContinuationBookAnalysisId = input.continuationBookAnalysisId !== undefined
+      ? input.continuationBookAnalysisId
+      : existing.continuationBookAnalysisId;
+    const nextContinuationBookAnalysisSections = input.continuationBookAnalysisSections !== undefined
+      ? input.continuationBookAnalysisSections
+      : parseContinuationBookAnalysisSections(existing.continuationBookAnalysisSections);
+    const normalizedNextContinuationBookAnalysisId =
+      nextWritingMode === "continuation" && (nextSourceNovelId || nextSourceKnowledgeDocumentId)
+        ? nextContinuationBookAnalysisId
+        : null;
+
+    await novelContinuationService.validateWritingModeConfig({
+      novelId: id,
+      writingMode: nextWritingMode,
+      sourceNovelId: nextSourceNovelId,
+      sourceKnowledgeDocumentId: nextSourceKnowledgeDocumentId,
+      continuationBookAnalysisId: normalizedNextContinuationBookAnalysisId,
+    });
+
+    const { continuationBookAnalysisSections: _ignoreSectionPatch, ...restInput } = input;
+    const serializedContinuationSections = serializeContinuationBookAnalysisSections(nextContinuationBookAnalysisSections);
+    const updated = await prisma.novel.update({
+      where: { id },
+      data: {
+        ...restInput,
+        sourceNovelId: nextWritingMode === "continuation" ? nextSourceNovelId : null,
+        sourceKnowledgeDocumentId: nextWritingMode === "continuation" ? nextSourceKnowledgeDocumentId : null,
+        continuationBookAnalysisId: normalizedNextContinuationBookAnalysisId,
+        continuationBookAnalysisSections:
+          nextWritingMode === "continuation"
+          && (nextSourceNovelId || nextSourceKnowledgeDocumentId)
+          && normalizedNextContinuationBookAnalysisId
+            ? serializedContinuationSections
+            : null,
+      },
+    });
     this.queueRagUpsert("novel", id);
     if (updated.worldId) {
       this.queueRagUpsert("world", updated.worldId);
     }
-    return updated;
+    return this.normalizeNovelOutput(updated);
   }
 
   async deleteNovel(id: string) {
@@ -496,7 +661,7 @@ export class NovelService {
   async updateChapter(novelId: string, chapterId: string, input: Partial<ChapterInput>) {
     const exists = await prisma.chapter.findFirst({ where: { id: chapterId, novelId }, select: { id: true } });
     if (!exists) {
-      throw new Error("章节不存在。");
+      throw new Error("章节不存在");
     }
     const chapter = await prisma.chapter.update({
       where: { id: chapterId },
@@ -514,7 +679,7 @@ export class NovelService {
     this.queueRagDelete("chapter_summary", chapterId);
     const deleted = await prisma.chapter.deleteMany({ where: { id: chapterId, novelId } });
     if (deleted.count === 0) {
-      throw new Error("章节不存在。");
+      throw new Error("章节不存在");
     }
   }
 
@@ -529,7 +694,7 @@ export class NovelService {
         where: { id: input.baseCharacterId },
       });
       if (!baseCharacter) {
-        throw new Error("基础角色不存在。");
+        throw new Error("基础角色不存在");
       }
       payload = {
         ...payload,
@@ -549,7 +714,7 @@ export class NovelService {
       select: { id: true, currentState: true, currentGoal: true },
     });
     if (!exists) {
-      throw new Error("角色不存在。");
+      throw new Error("角色不存在");
     }
     const hasStateChanged = typeof input.currentState === "string" && input.currentState !== exists.currentState;
     const hasGoalChanged = typeof input.currentGoal === "string" && input.currentGoal !== exists.currentGoal;
@@ -568,7 +733,7 @@ export class NovelService {
     this.queueRagDelete("character", characterId);
     const deleted = await prisma.character.deleteMany({ where: { id: characterId, novelId } });
     if (deleted.count === 0) {
-      throw new Error("角色不存在。");
+      throw new Error("角色不存在");
     }
   }
 
@@ -588,7 +753,7 @@ export class NovelService {
       where: { id: characterId, novelId },
     });
     if (!character) {
-      throw new Error("角色不存在。");
+      throw new Error("角色不存在");
     }
 
     const chapters = await prisma.chapter.findMany({
@@ -634,7 +799,7 @@ export class NovelService {
           characterId,
           chapterId: chapter.id,
           chapterOrder: chapter.order,
-          title: `第${chapter.order}章 · ${chapter.title}`,
+          title: `${chapter.order}"· ${chapter.title}`,
           content: line,
           source: "chapter_extract",
         });
@@ -722,10 +887,8 @@ export class NovelService {
     ]);
 
     if (!novel || !character) {
-      throw new Error("小说或角色不存在。");
-    }
-
-    const llm = await getLLM(options.provider ?? "deepseek", {
+      throw new Error("小说或角色不存在");
+    }    const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.4,
     });
@@ -734,7 +897,7 @@ export class NovelService {
       ? timelines
         .map((item) => `${item.title}: ${item.content}`)
         .join("\n")
-      : "暂无时间线事件。";
+      : "暂无时间线事件";
     let ragContext = "";
     try {
       ragContext = await ragServices.hybridRetrievalService.buildContextBlock(
@@ -751,21 +914,21 @@ export class NovelService {
 
     const result = await llm.invoke([
       new SystemMessage(
-        `你是小说角色发展编辑。请基于角色经历输出 JSON：
+        `你是小说角色发展编辑。请基于角色经历输出 JSON"
 {
   "personality":"更新后的性格",
   "background":"更新后的背景信息（可选）",
   "development":"更新后的成长轨迹",
-  "currentState":"角色当前状态",
+  "currentState":"角色当前状",
   "currentGoal":"角色当前目标"
 }
-仅输出 JSON。`,
+仅输"JSON。`,
       ),
       new HumanMessage(
-        `小说：${novel.title}
-作品圣经：${novel.bible?.rawContent ?? "暂无"}
-角色：${character.name}(${character.role})
-现有设定：
+        `小说${novel.title}
+作品圣经${novel.bible?.rawContent ?? "暂无"}
+角色${character.name}(${character.role})
+现有设定"
 personality=${character.personality ?? "暂无"}
 background=${character.background ?? "暂无"}
 development=${character.development ?? "暂无"}
@@ -775,7 +938,7 @@ currentGoal=${character.currentGoal ?? "暂无"}
 时间线事件：
 ${timelineText}
 检索补充：
-${ragContext || "无"}`,
+${ragContext || ""}`,
       ),
     ]);
 
@@ -827,44 +990,43 @@ ${ragContext || "无"}`,
       }),
     ]);
     if (!novel || !character) {
-      throw new Error("小说或角色不存在。");
+      throw new Error("小说或角色不存在");
     }
     if (!novel.world) {
       return {
         status: "pass" as const,
-        warnings: ["当前小说未绑定世界观，无法执行严格世界规则检查。"],
+        warnings: ["当前小说未绑定世界观，无法执行严格世界规则检查"],
         issues: [],
       };
     }
 
     const worldContext = this.buildWorldContextFromNovel(novel);
-    try {
-      const llm = await getLLM(options.provider ?? "deepseek", {
+    try {    const llm = await getLLM(options.provider ?? "deepseek", {
         model: options.model,
         temperature: options.temperature ?? 0.2,
       });
       const result = await llm.invoke([
         new SystemMessage(
-          `你是角色设定审计员。请输出 JSON：
+          `你是角色设定审计员。请输出 JSON"
 {
   "status":"pass|warn|error",
   "warnings":["..."],
   "issues":[{"severity":"warn|error","message":"...","suggestion":"..."}]
 }
-仅输出 JSON。`,
+仅输"JSON。`,
         ),
         new HumanMessage(
-          `世界规则：
+          `世界规则"
 ${worldContext}
 
-角色设定：
+角色设定"
 name=${character.name}
 role=${character.role}
-personality=${character.personality ?? "无"}
-background=${character.background ?? "无"}
-development=${character.development ?? "无"}
-currentState=${character.currentState ?? "无"}
-currentGoal=${character.currentGoal ?? "无"}`,
+personality=${character.personality ?? ""}
+background=${character.background ?? ""}
+development=${character.development ?? ""}
+currentState=${character.currentState ?? ""}
+currentGoal=${character.currentGoal ?? ""}`,
         ),
       ]);
       const parsed = JSON.parse(extractJSONObject(toText(result.content))) as {
@@ -880,19 +1042,19 @@ currentGoal=${character.currentGoal ?? "无"}`,
     } catch {
       return {
         status: "warn" as const,
-        warnings: ["AI 检查失败，返回规则回退结果。"],
+        warnings: ["AI 检查失败，返回规则回退结果"],
         issues: [] as Array<{ severity: "warn" | "error"; message: string; suggestion?: string }>,
       };
     }
   }
 
-  async createOutlineStream(novelId: string, options: LLMGenerateOptions = {}) {
+  async createOutlineStream(novelId: string, options: OutlineGenerateOptions = {}) {
     const novel = await prisma.novel.findUnique({
       where: { id: novelId },
       include: { world: true, characters: true },
     });
     if (!novel) {
-      throw new Error("小说不存在。");
+      throw new Error("小说不存在");
     }
     const [worldContext, referenceContext] = await Promise.all([
       Promise.resolve(this.buildWorldContextFromNovel(novel)),
@@ -906,19 +1068,23 @@ currentGoal=${character.currentGoal ?? "无"}`,
           .map((c) => `- ${c.name}（${c.role}）${c.personality ? `：${c.personality.slice(0, 80)}` : ""}`)
           .join("\n")
       : "暂无";
+    const initialPrompt = options.initialPrompt?.trim() ?? "";
+    const initialPromptBlock = initialPrompt
+      ? `\n\n用户本次生成补充提示词（优先参考，不能违背角色和世界设定）：\n${initialPrompt.slice(0, 2000)}`
+      : "";
     const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.7,
     });
     const stream = await llm.stream([
-      new SystemMessage("你是一位专业的小说发展走向策划师，请严格基于给定角色设定输出完整发展走向，不得自行发明角色。"),
+      new SystemMessage("你是一位专业的小说发展走向策划师，请严格基于给定角色设定输出完整发展走向，不得自行发明角色"),
       new HumanMessage(
         `小说标题：${novel.title}
-小说简介：${novel.description ?? "无"}
+小说简介：${novel.description ?? ""}
 核心角色（必须使用这些角色，不得替换或忽略）：
 ${charactersText}
 世界上下文：
-${worldContext}${referenceBlock}`,
+${worldContext}${referenceBlock}${initialPromptBlock}`,
       ),
     ]);
     return {
@@ -936,11 +1102,11 @@ ${worldContext}${referenceBlock}`,
       include: { world: true, characters: true },
     });
     if (!novel) {
-      throw new Error("小说不存在。");
+      throw new Error("小说不存在");
     }
-    await this.ensureNovelCharacters(novelId, "生成结构化大纲");
+    await this.ensureNovelCharacters(novelId, "生成结构化大");
     if (!novel.outline) {
-      throw new Error("请先生成小说发展走向。");
+      throw new Error("请先生成小说发展走向");
     }
     const [worldContext, referenceContext] = await Promise.all([
       Promise.resolve(this.buildWorldContextFromNovel(novel)),
@@ -951,21 +1117,20 @@ ${worldContext}${referenceBlock}`,
       : "";
     const charactersText = novel.characters.length > 0
       ? novel.characters
-          .map((c) => `- ${c.name}（${c.role}）${c.personality ? `：${c.personality.slice(0, 80)}` : ""}`)
+          .map((c) => `- ${c.name}${c.role}${c.personality ? `${c.personality.slice(0, 80)}` : ""}`)
           .join("\n")
-      : "暂无";
-    const llm = await getLLM(options.provider ?? "deepseek", {
+      : "暂无";    const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.5,
     });
     const stream = await llm.stream([
-      new SystemMessage("你是一位专业的小说结构化编剧，请严格基于给定角色设定和发展走向输出 JSON 数组，不得自行发明角色。"),
+      new SystemMessage("你是一位专业的小说结构化编剧，请严格基于给定角色设定和发展走向输出 JSON 数组，不得自行发明角色"),
       new HumanMessage(
-        `核心角色（必须使用这些角色，不得替换或忽略）：
+        `核心角色（必须使用这些角色，不得替换或忽略）"
 ${charactersText}
 世界上下文：
 ${worldContext}
-基于下述发展走向，生成${options.totalChapters ?? 20}章规划：
+基于下述发展走向，生${options.totalChapters ?? 20}章规划：
 ${novel.outline}${referenceBlock}`,
       ),
     ]);
@@ -1024,13 +1189,13 @@ ${novel.outline}${referenceBlock}`,
     if (!novel || !chapter) {
       throw new Error("Novel or chapter not found.");
     }
-    await this.ensureNovelCharacters(novelId, "generate chapter content");
-    const llm = await getLLM(options.provider ?? "deepseek", {
+    await this.ensureNovelCharacters(novelId, "generate chapter content");    const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.8,
     });
     const context = options.previousChaptersSummary?.join("\n") || (await this.buildContextText(novelId, chapter.order));
     const openingHint = await this.buildOpeningConstraintHint(novelId, chapter.order);
+    const continuationPack = await novelContinuationService.buildChapterContextPack(novelId);
     const charactersText = novel.characters.length > 0
       ? novel.characters
           .map((c) => `- ${c.name} (${c.role})${c.personality ? `: ${c.personality.slice(0, 100)}` : ""}`)
@@ -1050,7 +1215,8 @@ Hard requirements:
 3) Do not add new core characters or rewrite fixed settings.
 4) Chapter ending must include a new suspense/conflict/decision point.
 5) The opening 2-4 sentences must differ from recent chapters in scene trigger, temporal cue and sentence pattern.
-6) Avoid repetitive opening templates such as "I am X..." or "I am checking delivery updates in office...".`,
+6) Avoid repetitive opening templates such as "I am X..." or "I am checking delivery updates in office...".
+${continuationPack.enabled ? `7) ${continuationPack.systemRule}` : ""}`.trim(),
       ),
       new HumanMessage(
         `Novel: ${novel.title}
@@ -1062,6 +1228,8 @@ ${context}
 
 Opening anti-repeat constraints:
 ${openingHint}
+
+${continuationPack.enabled ? `${continuationPack.humanBlock}\n` : ""}
 
 If an event is already covered in prior chapters, mention it in at most one sentence and move on to new events.`,
       ),
@@ -1077,7 +1245,15 @@ If an event is already covered in prior chapters, mention it in at most one sent
           fullContent,
           options,
         );
-        const finalContent = openingGuard.content;
+        const continuationGuard = await novelContinuationService.rewriteIfTooSimilar({
+          chapterTitle: chapter.title,
+          content: openingGuard.content,
+          continuationPack,
+          provider: options.provider,
+          model: options.model,
+          temperature: options.temperature,
+        });
+        const finalContent = continuationGuard.content;
         await prisma.chapter.update({
           where: { id: chapterId },
           data: { content: finalContent, generationState: "drafted" },
@@ -1096,9 +1272,8 @@ If an event is already covered in prior chapters, mention it in at most one sent
       include: { genre: true },
     });
     if (!novel) {
-      throw new Error("小说不存在。");
-    }
-    const llm = await getLLM(options.provider ?? "deepseek", {
+      throw new Error("小说不存在");
+    }    const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.9,
     });
@@ -1106,7 +1281,7 @@ If an event is already covered in prior chapters, mention it in at most one sent
       new SystemMessage(
         "你是网文标题专家，请输出 JSON：{\"titles\":[{\"title\":\"...\",\"clickRate\":85,\"style\":\"literary/conflict\"}]}",
       ),
-      new HumanMessage(`小说类型：${novel.genre?.name ?? "未分类"}\n小说简介：${novel.description ?? "无"}`),
+      new HumanMessage(`小说类型${novel.genre?.name ?? "未分"}\n小说简介：${novel.description ?? ""}`),
     ]);
     const parsed = JSON.parse(cleanJsonText(toText(result.content))) as {
       titles: Array<{ title: string; clickRate: number; style: "literary" | "conflict" }>;
@@ -1120,7 +1295,7 @@ If an event is already covered in prior chapters, mention it in at most one sent
       include: { characters: true, genre: true, world: true },
     });
     if (!novel) {
-      throw new Error("小说不存在。");
+      throw new Error("小说不存在");
     }
     await this.ensureNovelCharacters(novelId, "生成作品圣经");
     const [worldContext, referenceContext] = await Promise.all([
@@ -1129,28 +1304,27 @@ If an event is already covered in prior chapters, mention it in at most one sent
     ]);
     const referenceBlock = referenceContext.trim()
       ? `\n\n参考资料（来自已有作品拆书分析）：\n${referenceContext}`
-      : "";
-    const llm = await getLLM(options.provider ?? "deepseek", {
+      : "";    const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.6,
     });
     const stream = await llm.stream([
       new SystemMessage(
-        `你是网文总编，请输出作品圣经 JSON：
+        `你是网文总编，请输出作品圣经 JSON"
 {
   "coreSetting":"核心设定",
   "forbiddenRules":"禁止冲突规则",
   "mainPromise":"主线承诺",
-  "characterArcs":"核心角色成长弧",
+  "characterArcs":"核心角色成长",
   "worldRules":"世界运行规则"
 }
-仅输出 JSON。`,
+仅输"JSON。`,
       ),
       new HumanMessage(
-        `小说标题：${novel.title}
-类型：${novel.genre?.name ?? "未分类"}
-简介：${novel.description ?? "无"}
-角色：${novel.characters.map((item) => `${item.name}(${item.role})`).join("、") || "暂无"}
+        `小说标题${novel.title}
+类型${novel.genre?.name ?? "未分"}
+简介：${novel.description ?? ""}
+角色${novel.characters.map((item) => `${item.name}(${item.role})`).join("") || "暂无"}
 世界上下文：
 ${worldContext}${referenceBlock}`,
       ),
@@ -1190,7 +1364,7 @@ ${worldContext}${referenceBlock}`,
       include: { bible: true, chapters: true, world: true },
     });
     if (!novel) {
-      throw new Error("小说不存在。");
+      throw new Error("小说不存在");
     }
     await this.ensureNovelCharacters(novelId, "生成剧情拍点");
     const [worldContext, referenceContext] = await Promise.all([
@@ -1199,22 +1373,21 @@ ${worldContext}${referenceBlock}`,
     ]);
     const referenceBlock = referenceContext.trim()
       ? `\n\n参考资料（来自已有作品拆书分析）：\n${referenceContext}`
-      : "";
-    const llm = await getLLM(options.provider ?? "deepseek", {
+      : "";    const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.7,
     });
     const targetChapters = options.targetChapters ?? Math.max(30, novel.chapters.length || 30);
     const stream = await llm.stream([
       new SystemMessage(
-        "你是网文剧情策划，请输出 JSON 数组，每项字段：chapterOrder/beatType/title/content/status。",
+        "你是网文剧情策划，请输出 JSON 数组，每项字段：chapterOrder/beatType/title/content/status",
       ),
       new HumanMessage(
-        `小说标题：${novel.title}
-小说简介：${novel.description ?? "无"}
+        `小说标题${novel.title}
+小说简介：${novel.description ?? ""}
 世界上下文：${worldContext}
-作品圣经：${novel.bible?.rawContent ?? "暂无"}
-目标章节：${targetChapters}${referenceBlock}`,
+作品圣经${novel.bible?.rawContent ?? "暂无"}
+目标章节${targetChapters}${referenceBlock}`,
       ),
     ]);
     return {
@@ -1248,7 +1421,7 @@ ${worldContext}${referenceBlock}`,
   }
 
   async startPipelineJob(novelId: string, options: PipelineRunOptions) {
-    await this.ensureNovelCharacters(novelId, "启动批量章节流水线");
+    await this.ensureNovelCharacters(novelId, "启动批量章节流水");
     const chapterStats = await prisma.chapter.aggregate({
       where: { novelId },
       _min: { order: true },
@@ -1257,7 +1430,7 @@ ${worldContext}${referenceBlock}`,
     });
 
     if ((chapterStats._count.order ?? 0) === 0) {
-      throw new Error("当前小说还没有章节，请先创建章节后再启动流水线。");
+      throw new Error("当前小说还没有章节，请先创建章节后再启动流水线");
     }
 
     const chapters = await prisma.chapter.findMany({
@@ -1272,7 +1445,7 @@ ${worldContext}${referenceBlock}`,
       const minOrder = chapterStats._min.order ?? 1;
       const maxOrder = chapterStats._max.order ?? 1;
       throw new Error(
-        `指定区间内没有可生成的章节。当前可用章节范围为第 ${minOrder} 章到第 ${maxOrder} 章。`,
+        `指定区间内没有可生成的章节。当前可用章节范围为"${minOrder} 章到"${maxOrder} 章。`,
       );
     }
     logPipelineInfo("创建批量任务", {
@@ -1299,7 +1472,7 @@ ${worldContext}${referenceBlock}`,
         }),
       },
     });
-    logPipelineInfo("批量任务已入队", {
+    logPipelineInfo("批量任务已入", {
       jobId: job.id,
       novelId,
       totalCount: job.totalCount,
@@ -1320,7 +1493,7 @@ ${worldContext}${referenceBlock}`,
       include: { novel: true },
     });
     if (!chapter) {
-      throw new Error("章节不存在。");
+      throw new Error("章节不存在");
     }
     const review = await this.reviewChapterContent(
       chapter.novel.title,
@@ -1341,10 +1514,9 @@ ${worldContext}${referenceBlock}`,
       prisma.novelBible.findUnique({ where: { novelId } }),
     ]);
     if (!novel || !chapter) {
-      throw new Error("小说或章节不存在。");
+      throw new Error("小说或章节不存在");
     }
-    const issues = options.reviewIssues ?? (await this.reviewChapter(novelId, chapterId, options)).issues;
-    const llm = await getLLM(options.provider ?? "deepseek", {
+    const issues = options.reviewIssues ?? (await this.reviewChapter(novelId, chapterId, options)).issues;    const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.5,
     });
@@ -1362,17 +1534,17 @@ ${worldContext}${referenceBlock}`,
       ragContext = "";
     }
     const stream = await llm.stream([
-      new SystemMessage("你是资深网文编辑，请基于审校问题修复章节，保证主线和口吻一致。"),
+      new SystemMessage("你是资深网文编辑，请基于审校问题修复章节，保证主线和口吻一致"),
       new HumanMessage(
-        `小说标题：${novel.title}
-作品圣经：${bible?.rawContent ?? "暂无"}
-章节标题：${chapter.title}
-原始正文：
-${chapter.content ?? "无"}
-审校问题：
+        `小说标题${novel.title}
+作品圣经${bible?.rawContent ?? "暂无"}
+章节标题${chapter.title}
+原始正文"
+${chapter.content ?? ""}
+审校问题"
 ${JSON.stringify(issues, null, 2)}
 检索补充：
-${ragContext || "无"}
+${ragContext || ""}
 请输出修复后的完整章节正文。`,
       ),
     ]);
@@ -1425,9 +1597,8 @@ ${ragContext || "无"}
       ? await prisma.chapter.findFirst({ where: { id: options.chapterId, novelId } })
       : await prisma.chapter.findFirst({ where: { novelId }, orderBy: { order: "desc" } });
     if (!chapter) {
-      throw new Error("未找到可生成钩子的章节。");
-    }
-    const llm = await getLLM(options.provider ?? "deepseek", {
+      throw new Error("未找到可生成钩子的章节");
+    }    const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.8,
     });
@@ -1435,7 +1606,7 @@ ${ragContext || "无"}
       new SystemMessage(
         "你是网文运营编辑。请输出 JSON：{\"hook\":\"章节末钩子\",\"nextExpectation\":\"下章期待点\"}",
       ),
-      new HumanMessage(`章节标题：${chapter.title}\n章节内容：\n${(chapter.content ?? "").slice(-1800)}`),
+      new HumanMessage(`章节标题${chapter.title}\n章节内容：\n${(chapter.content ?? "").slice(-1800)}`),
     ]);
     const payload = JSON.parse(extractJSONObject(toText(result.content))) as {
       hook?: string;
@@ -1492,7 +1663,7 @@ ${ragContext || "无"}
     if (!world) {
       return "世界上下文：暂无";
     }
-    let axiomsText = "无";
+    let axiomsText = "";
     if (world.axioms) {
       try {
         const parsed = JSON.parse(world.axioms) as string[];
@@ -1504,22 +1675,22 @@ ${ragContext || "无"}
       }
     }
     return `世界上下文：
-世界名称：${world.name}
-世界类型：${world.worldType ?? "未指定"}
-世界简介：${world.description ?? "无"}
-核心公理：
+世界名称${world.name}
+世界类型${world.worldType ?? "未指"}
+世界简介：${world.description ?? ""}
+核心公理"
 ${axiomsText}
-背景：${world.background ?? "无"}
-地理：${world.geography ?? "无"}
-力量体系：${world.magicSystem ?? "无"}
-社会政治：${world.politics ?? "无"}
-种族：${world.races ?? "无"}
-宗教：${world.religions ?? "无"}
-科技：${world.technology ?? "无"}
-历史：${world.history ?? "无"}
-经济：${world.economy ?? "无"}
-势力关系：${world.factions ?? "无"}
-核心冲突：${world.conflicts ?? "无"}`;
+背景${world.background ?? ""}
+地理${world.geography ?? ""}
+力量体系${world.magicSystem ?? ""}
+社会政治${world.politics ?? ""}
+种族${world.races ?? ""}
+宗教${world.religions ?? ""}
+科技${world.technology ?? ""}
+历史${world.history ?? ""}
+经济${world.economy ?? ""}
+势力关系${world.factions ?? ""}
+核心冲突${world.conflicts ?? ""}`;
   }
 
   private async buildContextText(novelId: string, chapterOrder: number): Promise<string> {
@@ -1558,16 +1729,15 @@ ${axiomsText}
     ]);
 
     const bibleText = bible
-      ? `作品圣经：
-主线承诺：${bible.mainPromise ?? "无"}
-核心设定：${bible.coreSetting ?? "无"}
-禁止冲突：${bible.forbiddenRules ?? "无"}
-角色成长弧：${bible.characterArcs ?? "无"}
-世界规则：${bible.worldRules ?? "无"}`
-      : "作品圣经：暂无";
+      ? `作品圣经"主线承诺${bible.mainPromise ?? ""}
+核心设定${bible.coreSetting ?? ""}
+禁止冲突${bible.forbiddenRules ?? ""}
+角色成长弧：${bible.characterArcs ?? ""}
+世界规则${bible.worldRules ?? ""}`
+      : "作品圣经：暂";
 
     const summaryText = summaries.length > 0
-      ? `最近章节摘要：\n${summaries.map((item) => `第${item.chapter.order}章：${item.summary}`).join("\n")}`
+      ? `最近章节摘要：\n${summaries.map((item) => `${item.chapter.order}章：${item.summary}`).join("\n")}`
       : "最近章节摘要：暂无";
 
     const factText = facts.length > 0
@@ -1578,7 +1748,7 @@ ${axiomsText}
       ? `最近章节正文片段（避免重复描写）：\n${recentChapters
           .map((item) => {
             const digest = (item.content ?? "").replace(/\s+/g, " ").trim().slice(0, 220);
-            return `第${item.order}章《${item.title}》：${digest}`;
+            return `${item.order}章${item.title}》：${digest}`;
           })
           .filter((item) => item.trim().length > 0)
           .join("\n")}`
@@ -1590,7 +1760,7 @@ ${axiomsText}
       : "";
     const charactersContextText = characters.length > 0
       ? `角色设定：\n${characters
-          .map((c) => `- ${c.name}（${c.role}）${c.personality ? `：${c.personality.slice(0, 80)}` : ""}`)
+          .map((c) => `- ${c.name}${c.role}${c.personality ? `${c.personality.slice(0, 80)}` : ""}`)
           .join("\n")}`
       : "";
 
@@ -1698,8 +1868,7 @@ ${axiomsText}
       return { content, rewritten: false, maxSimilarity };
     }
 
-    try {
-      const llm = await getLLM(options.provider ?? "deepseek", {
+    try {    const llm = await getLLM(options.provider ?? "deepseek", {
         model: options.model,
         temperature: options.temperature ?? 0.5,
       });
@@ -1747,7 +1916,7 @@ Rewrite full chapter. Keep the same core events but change the opening style sig
   private async ensureNovelCharacters(novelId: string, actionName: string, minCount = 1) {
     const count = await prisma.character.count({ where: { novelId } });
     if (count < minCount) {
-      throw new Error(`请先在本小说中至少添加 ${minCount} 个角色后再${actionName}。`);
+      throw new Error(`请先在本小说中至少添"${minCount} 个角色后${actionName}。`);
     }
   }
 
@@ -1759,15 +1928,15 @@ Rewrite full chapter. Keep the same core events but change the opening style sig
         where: { chapterId },
         update: {
           summary,
-          keyEvents: facts.map((item) => item.content).slice(0, 3).join("；"),
-          characterStates: facts.filter((item) => item.category === "character").map((item) => item.content).slice(0, 3).join("；"),
+          keyEvents: facts.map((item) => item.content).slice(0, 3).join(""),
+          characterStates: facts.filter((item) => item.category === "character").map((item) => item.content).slice(0, 3).join(""),
         },
         create: {
           novelId,
           chapterId,
           summary,
-          keyEvents: facts.map((item) => item.content).slice(0, 3).join("；"),
-          characterStates: facts.filter((item) => item.category === "character").map((item) => item.content).slice(0, 3).join("；"),
+          keyEvents: facts.map((item) => item.content).slice(0, 3).join(""),
+          characterStates: facts.filter((item) => item.category === "character").map((item) => item.content).slice(0, 3).join(""),
         },
       });
       await tx.consistencyFact.deleteMany({ where: { novelId, chapterId } });
@@ -1830,7 +1999,7 @@ Rewrite full chapter. Keep the same core events but change the opening style sig
           characterId: character.id,
           chapterId,
           chapterOrder: chapter.order,
-          title: `第${chapter.order}章 · ${chapter.title}`,
+          title: `${chapter.order}"· ${chapter.title}`,
           content: line,
           source: "chapter_extract",
         });
@@ -1875,13 +2044,12 @@ Rewrite full chapter. Keep the same core events but change the opening style sig
         issues: [{
           severity: "critical",
           category: "coherence",
-          evidence: "章节内容为空。",
-          fixSuggestion: "先生成或补充正文，再进行审校。",
+          evidence: "章节内容为空",
+          fixSuggestion: "先生成或补充正文，再进行审校",
         }],
       };
     }
-    try {
-      const llm = await getLLM(options.provider ?? "deepseek", {
+    try {    const llm = await getLLM(options.provider ?? "deepseek", {
         model: options.model,
         temperature: options.temperature ?? 0.1,
       });
@@ -1902,15 +2070,15 @@ Rewrite full chapter. Keep the same core events but change the opening style sig
       }
       const result = await llm.invoke([
         new SystemMessage(
-          "你是网文审校专家。请输出 JSON：{\"score\":{\"coherence\":0-100,\"repetition\":0-100,\"pacing\":0-100,\"voice\":0-100,\"engagement\":0-100,\"overall\":0-100},\"issues\":[{\"severity\":\"low|medium|high|critical\",\"category\":\"coherence|repetition|pacing|voice|engagement|logic\",\"evidence\":\"...\",\"fixSuggestion\":\"...\"}]}。",
+          "你是网文审校专家。请输出 JSON：{\"score\":{\"coherence\":0-100,\"repetition\":0-100,\"pacing\":0-100,\"voice\":0-100,\"engagement\":0-100,\"overall\":0-100},\"issues\":[{\"severity\":\"low|medium|high|critical\",\"category\":\"coherence|repetition|pacing|voice|engagement|logic\",\"evidence\":\"...\",\"fixSuggestion\":\"...\"}]}",
         ),
         new HumanMessage(
-          `小说：${novelTitle}
-章节：${chapterTitle}
-正文：
+          `小说${novelTitle}
+章节${chapterTitle}
+正文"
 ${content}
 检索补充：
-${ragContext || "无"}`,
+${ragContext || ""}`,
         ),
       ]);
       return parseReviewOutput(toText(result.content));
@@ -1950,7 +2118,7 @@ ${ragContext || "无"}`,
         data,
       });
     } catch {
-      // 后台任务状态更新失败不应影响主服务稳定性
+      // 后台任务状态更新失败不应影响主服务稳定"
     }
   }
 
@@ -1964,7 +2132,7 @@ ${ragContext || "无"}`,
         status: "running",
         startedAt: new Date(),
       });
-      logPipelineInfo("任务开始执行", {
+      logPipelineInfo("任务开始执", {
         jobId,
         novelId,
         range: `${options.startOrder}-${options.endOrder}`,
@@ -1979,25 +2147,25 @@ ${ragContext || "无"}`,
         }),
       ]);
       if (!novel || chapters.length === 0) {
-        throw new Error("任务执行失败：小说或章节不存在。");
+        throw new Error("任务执行失败：小说或章节不存在");
       }
       logPipelineInfo("任务加载完成", {
         jobId,
         novelId,
         title: novel.title,
         chapterCount: chapters.length,
-      });
-      const llm = await getLLM(options.provider ?? "deepseek", {
+      });    const llm = await getLLM(options.provider ?? "deepseek", {
         model: options.model,
         temperature: options.temperature ?? 0.8,
       });
+      const continuationPack = await novelContinuationService.buildChapterContextPack(novelId);
 
       let completed = 0;
       for (const chapter of chapters) {
         let content = chapter.content ?? "";
         let final = { score: normalizeScore({}), issues: [] as ReviewIssue[] };
         let pass = false;
-        logPipelineInfo("开始处理章节", {
+        logPipelineInfo("开始处理章", {
           jobId,
           chapterId: chapter.id,
           order: chapter.order,
@@ -2005,7 +2173,7 @@ ${ragContext || "无"}`,
         });
 
         for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
-          logPipelineInfo("章节尝试开始", {
+          logPipelineInfo("章节尝试开", {
             jobId,
             order: chapter.order,
             attempt,
@@ -2016,7 +2184,7 @@ ${ragContext || "无"}`,
             const openingHint = await this.buildOpeningConstraintHint(novelId, chapter.order);
             const plan = await llm.invoke([
               new SystemMessage(
-                "You are a web-novel chapter planner. Provide chapter objective, conflict, hook and opening trigger. Avoid repeating previous chapter openings.",
+                `${continuationPack.enabled ? `${continuationPack.systemRule}\n` : ""}You are a web-novel chapter planner. Provide chapter objective, conflict, hook and opening trigger. Avoid repeating previous chapter openings.`,
               ),
               new HumanMessage(
                 `Novel: ${novel.title}
@@ -2025,7 +2193,9 @@ Context:
 ${context}
 
 Opening anti-repeat constraints:
-${openingHint}`,
+${openingHint}
+
+${continuationPack.enabled ? continuationPack.humanBlock : ""}`,
               ),
             ]);
             const draft = await llm.invoke([
@@ -2036,7 +2206,8 @@ Requirements:
 1) Do not repeat completed events.
 2) Do not copy long context sentences.
 3) Must push new conflict and new information.
-4) Opening 2-4 sentences must be structurally different from recent chapters.`,
+4) Opening 2-4 sentences must be structurally different from recent chapters.
+${continuationPack.enabled ? `5) ${continuationPack.systemRule}` : ""}`.trim(),
               ),
               new HumanMessage(
                 `Chapter plan:
@@ -2046,7 +2217,9 @@ Chapter context:
 ${context}
 
 Opening anti-repeat constraints:
-${openingHint}`,
+${openingHint}
+
+${continuationPack.enabled ? continuationPack.humanBlock : ""}`,
               ),
             ]);
             content = toText(draft.content);
@@ -2072,6 +2245,24 @@ ${openingHint}`,
               order: chapter.order,
               attempt,
               maxSimilarity: Number(openingGuard.maxSimilarity.toFixed(4)),
+            });
+          }
+
+          const continuationGuard = await novelContinuationService.rewriteIfTooSimilar({
+            chapterTitle: chapter.title,
+            content,
+            continuationPack,
+            provider: options.provider,
+            model: options.model,
+            temperature: options.temperature,
+          });
+          content = continuationGuard.content;
+          if (continuationGuard.rewritten) {
+            logPipelineInfo("Continuation anti-copy rewrite applied", {
+              jobId,
+              order: chapter.order,
+              attempt,
+              maxSimilarity: Number(continuationGuard.maxSimilarity.toFixed(4)),
             });
           }
 
@@ -2111,12 +2302,12 @@ ${openingHint}`,
               threshold: QUALITY_THRESHOLD,
             });
             const repaired = await llm.invoke([
-              new SystemMessage("你是网文修文编辑，请根据问题清单修复正文。"),
+              new SystemMessage("你是网文修文编辑，请根据问题清单修复正文"),
               new HumanMessage(
-                `章节标题：${chapter.title}
-当前正文：
+                `章节标题${chapter.title}
+当前正文"
 ${content}
-问题清单：
+问题清单"
 ${JSON.stringify(final.issues, null, 2)}`,
               ),
             ]);
@@ -2134,7 +2325,7 @@ ${JSON.stringify(final.issues, null, 2)}`,
         await this.createQualityReport(novelId, chapter.id, final.score, final.issues);
         if (!pass) {
           failedDetails.push(
-            `第${chapter.order}章(coherence=${final.score.coherence}, repetition=${final.score.repetition}, engagement=${final.score.engagement})`,
+            `${chapter.order}"coherence=${final.score.coherence}, repetition=${final.score.repetition}, engagement=${final.score.engagement})`,
           );
           logPipelineWarn("章节最终未达标", {
             jobId,
@@ -2159,7 +2350,7 @@ ${JSON.stringify(final.issues, null, 2)}`,
 
       await this.updateJobSafe(jobId, {
         status: failedDetails.length === 0 ? "succeeded" : "failed",
-        error: failedDetails.length === 0 ? null : `以下章节未达标：${failedDetails.join("；")}`,
+        error: failedDetails.length === 0 ? null : `以下章节未达标：${failedDetails.join("")}`,
         finishedAt: new Date(),
       });
       logPipelineInfo("任务执行结束", {
@@ -2170,14 +2361,17 @@ ${JSON.stringify(final.issues, null, 2)}`,
     } catch (error) {
       await this.updateJobSafe(jobId, {
         status: "failed",
-        error: error instanceof Error ? error.message : "流水线执行失败。",
+        error: error instanceof Error ? error.message : "流水线执行失败",
         finishedAt: new Date(),
       });
       logPipelineError("任务执行异常", {
         jobId,
         novelId,
-        message: error instanceof Error ? error.message : "流水线执行失败。",
+        message: error instanceof Error ? error.message : "流水线执行失败",
       });
     }
   }
 }
+
+
+

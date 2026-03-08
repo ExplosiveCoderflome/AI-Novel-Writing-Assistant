@@ -12,6 +12,7 @@ const bookAnalysisStatusSchema = z.enum(["draft", "queued", "running", "succeede
 const sectionKeySchema = z.enum([
   "overview",
   "plot_structure",
+  "timeline",
   "character_system",
   "worldbuilding",
   "themes",

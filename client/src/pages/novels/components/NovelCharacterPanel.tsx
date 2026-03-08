@@ -11,6 +11,8 @@ interface QuickCharacterFormState {
 }
 
 interface CharacterFormState {
+  name: string;
+  role: string;
   personality: string;
   background: string;
   development: string;
@@ -35,6 +37,9 @@ interface NovelCharacterPanelProps {
   isImportingBaseCharacter: boolean;
   selectedCharacterId: string;
   onSelectedCharacterChange: (id: string) => void;
+  onDeleteCharacter: (characterId: string) => void;
+  isDeletingCharacter: boolean;
+  deletingCharacterId: string;
   onSyncTimeline: () => void;
   isSyncingTimeline: boolean;
   onSyncAllTimeline: () => void;
@@ -69,6 +74,9 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
     isImportingBaseCharacter,
     selectedCharacterId,
     onSelectedCharacterChange,
+    onDeleteCharacter,
+    isDeletingCharacter,
+    deletingCharacterId,
     onSyncTimeline,
     isSyncingTimeline,
     onSyncAllTimeline,
@@ -88,6 +96,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
   return (
     <div className="space-y-4">
       {characterMessage ? <div className="text-sm text-muted-foreground">{characterMessage}</div> : null}
+
       <Card>
         <CardHeader><CardTitle>快速创建小说角色</CardTitle></CardHeader>
         <CardContent className="space-y-3 text-sm">
@@ -98,14 +107,11 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
               onChange={(event) => onQuickCharacterFormChange("name", event.target.value)}
             />
             <Input
-              placeholder="角色定位（如主角/反派）"
+              placeholder="角色定位（如：主角/反派）"
               value={quickCharacterForm.role}
               onChange={(event) => onQuickCharacterFormChange("role", event.target.value)}
             />
-            <Button
-              onClick={onQuickCreateCharacter}
-              disabled={isQuickCreating || !quickCharacterForm.name.trim()}
-            >
+            <Button onClick={onQuickCreateCharacter} disabled={isQuickCreating || !quickCharacterForm.name.trim()}>
               {isQuickCreating ? "创建中..." : "创建角色"}
             </Button>
           </div>
@@ -114,6 +120,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
           </div>
         </CardContent>
       </Card>
+
       <Card>
         <CardHeader><CardTitle>基础角色关联到当前小说</CardTitle></CardHeader>
         <CardContent className="space-y-3 text-sm">
@@ -131,7 +138,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                 ))}
               </select>
               {selectedBaseCharacter ? (
-                <div className="rounded-md border p-3 space-y-1">
+                <div className="space-y-1 rounded-md border p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="font-medium">{selectedBaseCharacter.name}</div>
                     {importedBaseCharacterIds.has(selectedBaseCharacter.id) ? (
@@ -141,11 +148,11 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                     )}
                   </div>
                   <div className="text-muted-foreground">定位：{selectedBaseCharacter.role}</div>
-                  <div className="text-muted-foreground line-clamp-3">性格：{selectedBaseCharacter.personality || "暂无"}</div>
-                  <div className="text-muted-foreground line-clamp-2">外貌/体态：{selectedBaseCharacter.appearance || "暂无"}</div>
-                  <div className="text-muted-foreground line-clamp-2">弱点与代价：{selectedBaseCharacter.weaknesses || "暂无"}</div>
-                  <div className="text-muted-foreground line-clamp-2">习惯与特长：{selectedBaseCharacter.interests || "暂无"}</div>
-                  <div className="text-muted-foreground line-clamp-2">关键事件：{selectedBaseCharacter.keyEvents || "暂无"}</div>
+                  <div className="line-clamp-3 text-muted-foreground">性格：{selectedBaseCharacter.personality || "暂无"}</div>
+                  <div className="line-clamp-2 text-muted-foreground">外貌/体态：{selectedBaseCharacter.appearance || "暂无"}</div>
+                  <div className="line-clamp-2 text-muted-foreground">弱点与代价：{selectedBaseCharacter.weaknesses || "暂无"}</div>
+                  <div className="line-clamp-2 text-muted-foreground">习惯与特长：{selectedBaseCharacter.interests || "暂无"}</div>
+                  <div className="line-clamp-2 text-muted-foreground">关键事件：{selectedBaseCharacter.keyEvents || "暂无"}</div>
                 </div>
               ) : null}
               <div className="flex gap-2">
@@ -173,56 +180,67 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>角色时间线与信息演进</CardTitle></CardHeader>
+        <CardHeader><CardTitle>角色列表 / 编辑 / 删除</CardTitle></CardHeader>
         <CardContent className="space-y-3 text-sm">
           {characters.length > 0 ? (
             <>
-              <select
-                className="w-full rounded-md border bg-background p-2 text-sm"
-                value={selectedCharacterId}
-                onChange={(event) => onSelectedCharacterChange(event.target.value)}
-              >
+              <div className="space-y-2">
                 {characters.map((character) => (
-                  <option key={character.id} value={character.id}>
-                    {character.name}（{character.role}）
-                  </option>
+                  <div
+                    key={character.id}
+                    className={`flex items-center justify-between rounded-md border p-2 ${
+                      selectedCharacterId === character.id ? "border-primary bg-primary/5" : ""
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{character.name}</div>
+                      <div className="text-xs text-muted-foreground">{character.role}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant={selectedCharacterId === character.id ? "default" : "outline"}
+                        onClick={() => onSelectedCharacterChange(character.id)}
+                      >
+                        编辑
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={isDeletingCharacter && deletingCharacterId === character.id}
+                        onClick={() => {
+                          const confirmed = window.confirm(`确认删除角色「${character.name}」？此操作不可恢复。`);
+                          if (!confirmed) {
+                            return;
+                          }
+                          onDeleteCharacter(character.id);
+                        }}
+                      >
+                        {isDeletingCharacter && deletingCharacterId === character.id ? "删除中..." : "删除"}
+                      </Button>
+                    </div>
+                  </div>
                 ))}
-              </select>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  onClick={onSyncTimeline}
-                  disabled={isSyncingTimeline || !selectedCharacterId}
-                >
-                  {isSyncingTimeline ? "同步中..." : "同步角色时间线"}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={onSyncAllTimeline}
-                  disabled={isSyncingAllTimeline}
-                >
-                  {isSyncingAllTimeline ? "全量同步中..." : "同步全部角色时间线"}
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={onEvolveCharacter}
-                  disabled={isEvolvingCharacter || !selectedCharacterId}
-                >
-                  {isEvolvingCharacter ? "更新中..." : "AI更新角色信息"}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={onWorldCheck}
-                  disabled={isCheckingWorld || !selectedCharacterId}
-                >
-                  {isCheckingWorld ? "检查中..." : "世界规则检查"}
-                </Button>
               </div>
+
               <div className="rounded-md border p-3">
-                <div className="mb-1 font-medium">角色当前状态</div>
+                <div className="mb-2 font-medium">编辑角色信息</div>
                 {!selectedCharacter ? (
-                  <div className="text-muted-foreground">未选择角色。</div>
+                  <div className="text-muted-foreground">请选择一个角色进行编辑。</div>
                 ) : (
                   <div className="space-y-2">
+                    <div className="grid gap-2 md:grid-cols-2">
+                      <Input
+                        placeholder="角色名称"
+                        value={characterForm.name}
+                        onChange={(event) => onCharacterFormChange("name", event.target.value)}
+                      />
+                      <Input
+                        placeholder="角色定位"
+                        value={characterForm.role}
+                        onChange={(event) => onCharacterFormChange("role", event.target.value)}
+                      />
+                    </div>
                     <div className="grid gap-2 md:grid-cols-2">
                       <Input
                         placeholder="当前状态（例如：重伤闭关）"
@@ -230,7 +248,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                         onChange={(event) => onCharacterFormChange("currentState", event.target.value)}
                       />
                       <Input
-                        placeholder="当前目标（例如：三月内突破）"
+                        placeholder="当前目标（例如：三个月内突破）"
                         value={characterForm.currentGoal}
                         onChange={(event) => onCharacterFormChange("currentGoal", event.target.value)}
                       />
@@ -255,22 +273,31 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                     />
                     <div className="flex items-center justify-between gap-2">
                       <div className="text-xs text-muted-foreground">
-                        最近演进时间：
-                        {selectedCharacter.lastEvolvedAt
-                          ? new Date(selectedCharacter.lastEvolvedAt).toLocaleString()
-                          : "暂无"}
+                        最近演进时间：{selectedCharacter.lastEvolvedAt ? new Date(selectedCharacter.lastEvolvedAt).toLocaleString() : "暂无"}
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={onSaveCharacter}
-                        disabled={isSavingCharacter || !selectedCharacterId}
-                      >
+                      <Button size="sm" onClick={onSaveCharacter} disabled={isSavingCharacter || !selectedCharacterId}>
                         {isSavingCharacter ? "保存中..." : "保存角色信息"}
                       </Button>
                     </div>
                   </div>
                 )}
               </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={onSyncTimeline} disabled={isSyncingTimeline || !selectedCharacterId}>
+                  {isSyncingTimeline ? "同步中..." : "同步角色时间线"}
+                </Button>
+                <Button variant="outline" onClick={onSyncAllTimeline} disabled={isSyncingAllTimeline}>
+                  {isSyncingAllTimeline ? "全量同步中..." : "同步全部角色时间线"}
+                </Button>
+                <Button variant="secondary" onClick={onEvolveCharacter} disabled={isEvolvingCharacter || !selectedCharacterId}>
+                  {isEvolvingCharacter ? "更新中..." : "AI更新角色信息"}
+                </Button>
+                <Button variant="outline" onClick={onWorldCheck} disabled={isCheckingWorld || !selectedCharacterId}>
+                  {isCheckingWorld ? "检查中..." : "世界规则检查"}
+                </Button>
+              </div>
+
               <div className="space-y-2">
                 <div className="font-medium">时间线事件（最近 20 条）</div>
                 {timelineEvents.slice(-20).reverse().map((event) => (
@@ -291,7 +318,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
               </div>
             </>
           ) : (
-            <div className="text-muted-foreground">当前小说还没有角色，先在角色管理里创建角色。</div>
+            <div className="text-muted-foreground">当前小说还没有角色，先在上方创建角色。</div>
           )}
         </CardContent>
       </Card>

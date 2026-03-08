@@ -17,6 +17,7 @@ export const MAX_ANALYSIS_MAX_TOKENS = 32_768;
 export const SECTION_PROMPTS: Record<BookAnalysisSectionKey, string> = {
   overview: `请输出拆书总览，覆盖：一句话定位、题材标签、卖点标签、目标读者、整体优势、整体短板。`,
   plot_structure: `请分析剧情结构，覆盖：主线梗概、阶段推进、冲突升级、高光设计、节奏评估、章节组织、结构问题、结构亮点、可复用套路。`,
+  timeline: `请分析故事时间线，覆盖：关键时间节点、事件先后关系、主线阶段划分、角色状态变化节点、时间跨度与节奏风险。`,
   character_system: `请分析人物系统，覆盖：主角定位、配角/反派功能、关系网络、成长弧线、人物高光、分工清晰度。`,
   worldbuilding: `请分析世界观与设定，覆盖：世界框架、规则系统、关键设定亮点、设定服务剧情方式、设定问题。`,
   themes: `请分析主题表达，覆盖：核心主题、题眼、情绪基调、象征母题、主题呈现方式。`,

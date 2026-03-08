@@ -214,6 +214,7 @@ export function renderNotesForPrompt(notes: SourceNote[]): string {
         `## ${note.sourceLabel}`,
         `摘要：${note.summary}`,
         `剧情要点：${note.plotPoints.join("；") || "无"}`,
+        `时间线节点：${note.timelineEvents.join("；") || "无"}`,
         `人物信息：${note.characters.join("；") || "无"}`,
         `设定信息：${note.worldbuilding.join("；") || "无"}`,
         `主题信息：${note.themes.join("；") || "无"}`,

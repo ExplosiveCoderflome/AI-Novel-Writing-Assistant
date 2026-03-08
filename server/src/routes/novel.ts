@@ -7,9 +7,11 @@ import { validate } from "../middleware/validate";
 import { KnowledgeService } from "../services/knowledge/KnowledgeService";
 import { streamToSSE } from "../llm/streaming";
 import { NovelService } from "../services/novel/NovelService";
+import { NovelDraftOptimizeService } from "../services/novel/NovelDraftOptimizeService";
 
 const router = Router();
 const novelService = new NovelService();
+const novelDraftOptimizeService = new NovelDraftOptimizeService();
 const knowledgeService = new KnowledgeService();
 
 function forwardBusinessError(error: unknown, next: (err?: unknown) => void): boolean {
@@ -28,6 +30,17 @@ const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(10),
 });
+
+const bookAnalysisSectionKeySchema = z.enum([
+  "overview",
+  "plot_structure",
+  "timeline",
+  "character_system",
+  "worldbuilding",
+  "themes",
+  "style_technique",
+  "market_highlights",
+]);
 
 const idParamsSchema = z.object({
   id: z.string().trim().min(1),
@@ -53,12 +66,22 @@ const createNovelSchema = z.object({
   description: z.string().trim().optional(),
   genreId: z.string().trim().optional(),
   worldId: z.string().trim().optional(),
+  writingMode: z.enum(["original", "continuation"]).optional(),
+  sourceNovelId: z.string().trim().optional(),
+  sourceKnowledgeDocumentId: z.string().trim().optional(),
+  continuationBookAnalysisId: z.string().trim().optional(),
+  continuationBookAnalysisSections: z.array(bookAnalysisSectionKeySchema).min(1).max(8).optional(),
 });
 
 const updateNovelSchema = z.object({
   title: z.string().trim().min(1).optional(),
   description: z.string().trim().optional(),
   status: z.enum(["draft", "published"]).optional(),
+  writingMode: z.enum(["original", "continuation"]).optional(),
+  sourceNovelId: z.string().trim().nullable().optional(),
+  sourceKnowledgeDocumentId: z.string().trim().nullable().optional(),
+  continuationBookAnalysisId: z.string().trim().nullable().optional(),
+  continuationBookAnalysisSections: z.array(bookAnalysisSectionKeySchema).min(1).max(8).nullable().optional(),
   genreId: z.string().trim().nullable().optional(),
   worldId: z.string().trim().nullable().optional(),
   outline: z.string().nullable().optional(),
@@ -122,6 +145,10 @@ const llmGenerateSchema = z.object({
   temperature: z.number().min(0).max(2).optional(),
 });
 
+const outlineGenerateSchema = llmGenerateSchema.extend({
+  initialPrompt: z.string().trim().max(2000).optional(),
+});
+
 const structuredOutlineSchema = llmGenerateSchema.extend({
   totalChapters: z.number().int().min(1).max(200).optional(),
 });
@@ -159,6 +186,13 @@ const repairSchema = llmGenerateSchema.extend({
 
 const hookGenerateSchema = llmGenerateSchema.extend({
   chapterId: z.string().trim().optional(),
+});
+
+const draftOptimizeSchema = llmGenerateSchema.extend({
+  currentDraft: z.string().trim().min(1),
+  instruction: z.string().trim().min(1),
+  mode: z.enum(["full", "selection"]).default("full"),
+  selectedText: z.string().trim().optional(),
 });
 
 router.use(authMiddleware);
@@ -685,15 +719,36 @@ router.post(
 
 router.post(
   "/:id/outline/generate",
-  validate({ params: idParamsSchema, body: llmGenerateSchema }),
+  validate({ params: idParamsSchema, body: outlineGenerateSchema }),
   async (req, res, next) => {
     try {
       const { id } = req.params as z.infer<typeof idParamsSchema>;
       const { stream, onDone } = await novelService.createOutlineStream(
         id,
-        req.body as z.infer<typeof llmGenerateSchema>,
+        req.body as z.infer<typeof outlineGenerateSchema>,
       );
       await streamToSSE(res, stream, onDone);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/outline/optimize-preview",
+  validate({ params: idParamsSchema, body: draftOptimizeSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const data = await novelDraftOptimizeService.optimizePreview(id, {
+        ...(req.body as z.infer<typeof draftOptimizeSchema>),
+        target: "outline",
+      });
+      res.status(200).json({
+        success: true,
+        data,
+        message: "发展走向优化预览生成成功。",
+      } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);
     }
@@ -715,6 +770,27 @@ router.post(
       if (forwardBusinessError(error, next)) {
         return;
       }
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/structured-outline/optimize-preview",
+  validate({ params: idParamsSchema, body: draftOptimizeSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const data = await novelDraftOptimizeService.optimizePreview(id, {
+        ...(req.body as z.infer<typeof draftOptimizeSchema>),
+        target: "structured_outline",
+      });
+      res.status(200).json({
+        success: true,
+        data,
+        message: "结构化大纲优化预览生成成功。",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
       next(error);
     }
   },

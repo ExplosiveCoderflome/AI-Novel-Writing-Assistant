@@ -1,4 +1,5 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
+import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
   Chapter,
@@ -59,6 +60,12 @@ export interface NovelDetailResponse extends Novel {
   } | null;
 }
 
+export interface DraftOptimizePreview {
+  optimizedDraft: string;
+  mode: "full" | "selection";
+  selectedText?: string | null;
+}
+
 export async function getNovelList(params?: { page?: number; limit?: number }) {
   const { data } = await apiClient.get<ApiResponse<NovelListResponse>>("/novels", {
     params: {
@@ -74,7 +81,17 @@ export async function getNovelDetail(id: string) {
   return data;
 }
 
-export async function createNovel(payload: { title: string; description?: string; genreId?: string; worldId?: string }) {
+export async function createNovel(payload: {
+  title: string;
+  description?: string;
+  genreId?: string;
+  worldId?: string;
+  writingMode?: "original" | "continuation";
+  sourceNovelId?: string;
+  sourceKnowledgeDocumentId?: string;
+  continuationBookAnalysisId?: string;
+  continuationBookAnalysisSections?: BookAnalysisSectionKey[];
+}) {
   const { data } = await apiClient.post<ApiResponse<Novel>>("/novels", payload);
   return data;
 }
@@ -85,6 +102,11 @@ export async function updateNovel(
     title: string;
     description: string;
     status: "draft" | "published";
+    writingMode: "original" | "continuation";
+    sourceNovelId: string | null;
+    sourceKnowledgeDocumentId: string | null;
+    continuationBookAnalysisId: string | null;
+    continuationBookAnalysisSections: BookAnalysisSectionKey[] | null;
     genreId: string | null;
     worldId: string | null;
     outline: string | null;
@@ -356,6 +378,44 @@ export async function generateChapterHook(
       nextExpectation: string;
     }>
   >(`/novels/${id}/hooks/generate`, payload ?? {});
+  return data;
+}
+
+export async function optimizeNovelOutlinePreview(
+  id: string,
+  payload: {
+    currentDraft: string;
+    instruction: string;
+    mode?: "full" | "selection";
+    selectedText?: string;
+    provider?: LLMProvider;
+    model?: string;
+    temperature?: number;
+  },
+) {
+  const { data } = await apiClient.post<ApiResponse<DraftOptimizePreview>>(
+    `/novels/${id}/outline/optimize-preview`,
+    payload,
+  );
+  return data;
+}
+
+export async function optimizeNovelStructuredOutlinePreview(
+  id: string,
+  payload: {
+    currentDraft: string;
+    instruction: string;
+    mode?: "full" | "selection";
+    selectedText?: string;
+    provider?: LLMProvider;
+    model?: string;
+    temperature?: number;
+  },
+) {
+  const { data } = await apiClient.post<ApiResponse<DraftOptimizePreview>>(
+    `/novels/${id}/structured-outline/optimize-preview`,
+    payload,
+  );
   return data;
 }
 

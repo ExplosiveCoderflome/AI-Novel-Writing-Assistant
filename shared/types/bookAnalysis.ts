@@ -5,6 +5,7 @@ export type BookAnalysisSectionStatus = "idle" | "running" | "succeeded" | "fail
 export type BookAnalysisSectionKey =
   | "overview"
   | "plot_structure"
+  | "timeline"
   | "character_system"
   | "worldbuilding"
   | "themes"
@@ -17,6 +18,7 @@ export const BOOK_ANALYSIS_SECTIONS: ReadonlyArray<{
 }> = [
   { key: "overview", title: "拆书总览" },
   { key: "plot_structure", title: "剧情结构" },
+  { key: "timeline", title: "故事时间线" },
   { key: "character_system", title: "人物系统" },
   { key: "worldbuilding", title: "世界观与设定" },
   { key: "themes", title: "主题表达" },

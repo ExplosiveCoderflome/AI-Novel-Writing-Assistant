@@ -95,6 +95,7 @@ export class BookAnalysisService {
     return rows.map((row) => serializeAnalysisRow(row));
   }
   async getAnalysisById(analysisId: string): Promise<BookAnalysisDetail | null> {
+    await this.ensureAnalysisSections(analysisId);
     const row = await prisma.bookAnalysis.findUnique({
       where: { id: analysisId },
       include: {
@@ -437,6 +438,38 @@ export class BookAnalysisService {
     this.taskQueue.push(task);
     void this.processQueue();
   }
+  private async ensureAnalysisSections(analysisId: string): Promise<void> {
+    const analysis = await prisma.bookAnalysis.findUnique({
+      where: { id: analysisId },
+      select: {
+        id: true,
+        sections: {
+          select: { sectionKey: true },
+        },
+      },
+    });
+    if (!analysis) {
+      return;
+    }
+    const existingKeys = new Set(analysis.sections.map((item) => item.sectionKey));
+    const missing = BOOK_ANALYSIS_SECTIONS.filter((section) => !existingKeys.has(section.key));
+    if (missing.length === 0) {
+      return;
+    }
+    try {
+      await prisma.bookAnalysisSection.createMany({
+        data: missing.map((section) => ({
+          analysisId,
+          sectionKey: section.key,
+          title: section.title,
+          sortOrder: BOOK_ANALYSIS_SECTIONS.findIndex((item) => item.key === section.key),
+          status: "idle",
+        })),
+      });
+    } catch {
+      // section may have been inserted concurrently
+    }
+  }
   private async processQueue(): Promise<void> {
     if (this.isProcessing) {
       return;
@@ -448,6 +481,7 @@ export class BookAnalysisService {
         if (!task) {
           continue;
         }
+        await this.ensureAnalysisSections(task.analysisId);
         if (task.kind === "full") {
           await this.generationService.runFullAnalysis(task.analysisId);
         } else {

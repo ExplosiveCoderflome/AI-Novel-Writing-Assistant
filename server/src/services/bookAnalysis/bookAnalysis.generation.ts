@@ -331,6 +331,7 @@ export class BookAnalysisGenerationService {
 {
   "summary": "short summary in Chinese",
   "plotPoints": ["..."],
+  "timelineEvents": ["..."],
   "characters": ["..."],
   "worldbuilding": ["..."],
   "themes": ["..."],
@@ -354,6 +355,7 @@ Rules:
             (typeof parsed.summary === "string" && parsed.summary.trim())
             || compactExcerpt(segment.content, 120),
           plotPoints: toStringList(parsed.plotPoints),
+          timelineEvents: toStringList(parsed.timelineEvents),
           characters: toStringList(parsed.characters),
           worldbuilding: toStringList(parsed.worldbuilding),
           themes: toStringList(parsed.themes),
@@ -366,6 +368,7 @@ Rules:
           sourceLabel: segment.label,
           summary: compactExcerpt(segment.content, 120),
           plotPoints: [],
+          timelineEvents: [],
           characters: [],
           worldbuilding: [],
           themes: [],

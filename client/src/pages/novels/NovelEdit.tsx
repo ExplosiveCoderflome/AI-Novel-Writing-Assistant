@@ -1,152 +1,38 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { BOOK_ANALYSIS_SECTIONS, type BookAnalysis, type BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import LLMSelector from "@/components/common/LLMSelector";
-import StreamOutput from "@/components/common/StreamOutput";
-import KnowledgeBindingPanel from "@/components/knowledge/KnowledgeBindingPanel";
-import NovelCharacterPanel from "./components/NovelCharacterPanel";
+import NovelEditView from "./components/NovelEditView";
 import { getBaseCharacterList } from "@/api/character";
+import { listBookAnalyses } from "@/api/bookAnalysis";
 import {
-  checkCharacterAgainstWorld,
-  createNovelCharacter,
   createNovelChapter,
-  evolveNovelCharacter,
   generateChapterHook,
-  getCharacterTimeline,
   getNovelDetail,
+  getNovelList,
   getNovelPipelineJob,
   getNovelQualityReport,
+  optimizeNovelOutlinePreview,
+  optimizeNovelStructuredOutlinePreview,
   reviewNovelChapter,
   runNovelPipeline,
-  syncAllCharacterTimeline,
-  syncCharacterTimeline,
   updateNovel,
-  updateNovelCharacter,
 } from "@/api/novel";
+import { getNovelKnowledgeDocuments, listKnowledgeDocuments } from "@/api/knowledge";
 import { getWorldList } from "@/api/world";
 import { queryKeys } from "@/api/queryKeys";
 import { useSSE } from "@/hooks/useSSE";
 import { useLLMStore } from "@/store/llmStore";
+import { buildWorldInjectionSummary, parseStructuredVolumes } from "./novelEdit.utils";
+import { useNovelCharacterMutations } from "./hooks/useNovelCharacterMutations";
 
-interface StructuredVolume {
-  volumeTitle: string;
-  chapters: Array<{
-    order: number;
-    title: string;
-    summary: string;
-  }>;
-}
-
-type JsonRecord = Record<string, unknown>;
-
-function isJsonRecord(value: unknown): value is JsonRecord {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function pickFirstString(record: JsonRecord, keys: string[]): string | null {
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value !== "string") {
-      continue;
-    }
-    const trimmed = value.trim();
-    if (trimmed.length > 0) {
-      return trimmed;
-    }
+function replaceFirstOccurrence(source: string, target: string, replacement: string): string {
+  const index = source.indexOf(target);
+  if (index < 0) {
+    return source;
   }
-  return null;
-}
-
-function parseOrder(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-    return Math.round(value);
-  }
-  if (typeof value === "string") {
-    const matched = value.match(/\d+/);
-    if (!matched) {
-      return null;
-    }
-    const parsed = Number.parseInt(matched[0], 10);
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed;
-    }
-  }
-  return null;
-}
-
-function normalizeStructuredChapter(raw: unknown, index: number): StructuredVolume["chapters"][number] | null {
-  if (!isJsonRecord(raw)) {
-    return null;
-  }
-  const order = parseOrder(raw.order ?? raw.chapterOrder ?? raw.chapterNo ?? raw.chapter ?? raw.index) ?? index + 1;
-  const rawTitle = pickFirstString(raw, ["title", "chapterTitle", "name", "chapterName"]);
-  const rawSummary = pickFirstString(raw, ["summary", "outline", "description", "content"]);
-  if (!rawTitle && !rawSummary) {
-    return null;
-  }
-  const title = rawTitle ?? `Chapter ${order}`;
-  const summary = rawSummary ?? "";
-  return { order, title, summary };
-}
-
-function normalizeStructuredVolume(raw: unknown, index: number): StructuredVolume | null {
-  if (!isJsonRecord(raw)) {
-    return null;
-  }
-  const volumeTitle = pickFirstString(raw, ["volumeTitle", "title", "name", "volume", "arcTitle"]) ?? `Volume ${index + 1}`;
-  const rawChapters =
-    (Array.isArray(raw.chapters) && raw.chapters)
-    || (Array.isArray(raw.chapterList) && raw.chapterList)
-    || (Array.isArray(raw.items) && raw.items)
-    || (Array.isArray(raw.sections) && raw.sections)
-    || [];
-  const chapters = rawChapters
-    .map((chapter, chapterIndex) => normalizeStructuredChapter(chapter, chapterIndex))
-    .filter((chapter): chapter is StructuredVolume["chapters"][number] => chapter !== null);
-  if (chapters.length === 0) {
-    return null;
-  }
-  return { volumeTitle, chapters };
-}
-
-function parseStructuredVolumes(raw: string | null | undefined): StructuredVolume[] {
-  if (!raw) {
-    return [];
-  }
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    const volumeLikeList = Array.isArray(parsed)
-      ? parsed
-      : isJsonRecord(parsed) && Array.isArray(parsed.volumes)
-        ? parsed.volumes
-        : isJsonRecord(parsed) && Array.isArray(parsed.items)
-          ? parsed.items
-          : [];
-    if (volumeLikeList.length === 0) {
-      return [];
-    }
-    const normalizedVolumes = volumeLikeList
-      .map((volume, volumeIndex) => normalizeStructuredVolume(volume, volumeIndex))
-      .filter((volume): volume is StructuredVolume => volume !== null);
-    if (normalizedVolumes.length > 0) {
-      return normalizedVolumes;
-    }
-    const chapters = volumeLikeList
-      .map((chapter, chapterIndex) => normalizeStructuredChapter(chapter, chapterIndex))
-      .filter((chapter): chapter is StructuredVolume["chapters"][number] => chapter !== null);
-    if (chapters.length === 0) {
-      return [];
-    }
-    return [{ volumeTitle: "Volume 1", chapters }];
-  } catch {
-    return [];
-  }
+  return source.slice(0, index) + replacement + source.slice(index + target.length);
 }
 
 export default function NovelEdit() {
@@ -159,8 +45,24 @@ export default function NovelEdit() {
     description: "",
     worldId: "",
     status: "draft" as "draft" | "published",
+    writingMode: "original" as "original" | "continuation",
+    continuationSourceType: "novel" as "novel" | "knowledge_document",
+    sourceNovelId: "",
+    sourceKnowledgeDocumentId: "",
+    continuationBookAnalysisId: "",
+    continuationBookAnalysisSections: [] as BookAnalysisSectionKey[],
   });
   const [outlineText, setOutlineText] = useState("");
+  const [outlineGenerationPrompt, setOutlineGenerationPrompt] = useState("");
+  const [outlineOptimizeInstruction, setOutlineOptimizeInstruction] = useState("");
+  const [outlineOptimizePreview, setOutlineOptimizePreview] = useState("");
+  const [outlineOptimizeMode, setOutlineOptimizeMode] = useState<"full" | "selection">("full");
+  const [outlineOptimizeSourceText, setOutlineOptimizeSourceText] = useState("");
+  const [structuredDraftText, setStructuredDraftText] = useState("");
+  const [structuredOptimizeInstruction, setStructuredOptimizeInstruction] = useState("");
+  const [structuredOptimizePreview, setStructuredOptimizePreview] = useState("");
+  const [structuredOptimizeMode, setStructuredOptimizeMode] = useState<"full" | "selection">("full");
+  const [structuredOptimizeSourceText, setStructuredOptimizeSourceText] = useState("");
   const [currentJobId, setCurrentJobId] = useState("");
   const [pipelineForm, setPipelineForm] = useState({
     startOrder: 1,
@@ -183,6 +85,8 @@ export default function NovelEdit() {
     role: "主角",
   });
   const [characterForm, setCharacterForm] = useState({
+    name: "",
+    role: "",
     personality: "",
     background: "",
     development: "",
@@ -212,6 +116,80 @@ export default function NovelEdit() {
     queryFn: getWorldList,
   });
 
+  const sourceNovelListQuery = useQuery({
+    queryKey: ["novels", "source-options", 200],
+    queryFn: async () => {
+      const firstPage = await getNovelList({ page: 1, limit: 100 });
+      const firstItems = firstPage.data?.items ?? [];
+      const totalPages = firstPage.data?.totalPages ?? 1;
+      if (totalPages <= 1) {
+        return firstItems;
+      }
+      const secondPage = await getNovelList({ page: 2, limit: 100 });
+      return [...firstItems, ...(secondPage.data?.items ?? [])];
+    },
+  });
+
+  const sourceKnowledgeListQuery = useQuery({
+    queryKey: ["knowledge", "source-options"],
+    queryFn: async () => {
+      const response = await listKnowledgeDocuments({ status: "enabled" });
+      return response.data ?? [];
+    },
+  });
+
+  const sourceBookAnalysesQuery = useQuery({
+    queryKey: [
+      "book-analysis",
+      "continuation-source-options",
+      basicForm.continuationSourceType,
+      basicForm.sourceNovelId,
+      basicForm.sourceKnowledgeDocumentId,
+    ],
+    enabled: (
+      basicForm.writingMode === "continuation"
+      && (
+        (basicForm.continuationSourceType === "novel" && Boolean(basicForm.sourceNovelId))
+        || (basicForm.continuationSourceType === "knowledge_document" && Boolean(basicForm.sourceKnowledgeDocumentId))
+      )
+    ),
+    queryFn: async () => {
+      if (basicForm.continuationSourceType === "knowledge_document") {
+        if (!basicForm.sourceKnowledgeDocumentId) {
+          return [] as BookAnalysis[];
+        }
+        const response = await listBookAnalyses({
+          documentId: basicForm.sourceKnowledgeDocumentId,
+          status: "succeeded",
+        });
+        return (response.data ?? []).sort((a, b) => {
+          return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+        });
+      }
+
+      if (!basicForm.sourceNovelId) {
+        return [] as BookAnalysis[];
+      }
+      const bindingResponse = await getNovelKnowledgeDocuments(basicForm.sourceNovelId);
+      const documentIds = Array.from(new Set((bindingResponse.data ?? []).map((item) => item.id)));
+      if (documentIds.length === 0) {
+        return [] as BookAnalysis[];
+      }
+      const responses = await Promise.all(
+        documentIds.map((documentId) => listBookAnalyses({ documentId, status: "succeeded" })),
+      );
+      const merged = new Map<string, BookAnalysis>();
+      for (const response of responses) {
+        for (const item of response.data ?? []) {
+          merged.set(item.id, item);
+        }
+      }
+      return Array.from(merged.values()).sort((a, b) => {
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      });
+    },
+  });
+
   const pipelineJobQuery = useQuery({
     queryKey: queryKeys.novels.pipelineJob(id, currentJobId || "none"),
     queryFn: () => getNovelPipelineJob(id, currentJobId),
@@ -225,11 +203,10 @@ export default function NovelEdit() {
     },
   });
 
-  const structuredVolumes = useMemo<StructuredVolume[]>(
-    () => parseStructuredVolumes(novelDetailQuery.data?.data?.structuredOutline),
-    [novelDetailQuery.data?.data?.structuredOutline],
+  const structuredVolumes = useMemo(
+    () => parseStructuredVolumes(structuredDraftText),
+    [structuredDraftText],
   );
-
   const chapters = useMemo(() => novelDetailQuery.data?.data?.chapters ?? [], [novelDetailQuery.data?.data?.chapters]);
   const selectedChapter = useMemo(
     () => chapters.find((item) => item.id === selectedChapterId),
@@ -264,6 +241,32 @@ export default function NovelEdit() {
     () => chapters.reduce((max, chapter) => Math.max(max, chapter.order), 1),
     [chapters],
   );
+  const worldInjectionSummary = useMemo(
+    () => buildWorldInjectionSummary(novelDetailQuery.data?.data?.world),
+    [novelDetailQuery.data?.data?.world],
+  );
+  const sourceNovelOptions = useMemo(
+    () => (sourceNovelListQuery.data ?? [])
+      .filter((item) => item.id !== id)
+      .map((item) => ({ id: item.id, title: item.title })),
+    [id, sourceNovelListQuery.data],
+  );
+  const sourceKnowledgeOptions = useMemo(
+    () => (sourceKnowledgeListQuery.data ?? [])
+      .map((item) => ({ id: item.id, title: item.title })),
+    [sourceKnowledgeListQuery.data],
+  );
+  const sourceNovelBookAnalysisOptions = useMemo(
+    () => (sourceBookAnalysesQuery.data ?? [])
+      .map((item) => ({
+        id: item.id,
+        title: item.title,
+        documentTitle: item.documentTitle,
+        documentVersionNumber: item.documentVersionNumber,
+      })),
+    [sourceBookAnalysesQuery.data],
+  );
+  const qualitySummary = qualityReportQuery.data?.data?.summary;
 
   useEffect(() => {
     const detail = novelDetailQuery.data?.data;
@@ -275,8 +278,15 @@ export default function NovelEdit() {
       description: detail.description ?? "",
       worldId: detail.worldId ?? "",
       status: detail.status,
+      writingMode: detail.writingMode ?? "original",
+      continuationSourceType: detail.sourceKnowledgeDocumentId ? "knowledge_document" : "novel",
+      sourceNovelId: detail.sourceNovelId ?? "",
+      sourceKnowledgeDocumentId: detail.sourceKnowledgeDocumentId ?? "",
+      continuationBookAnalysisId: detail.continuationBookAnalysisId ?? "",
+      continuationBookAnalysisSections: detail.continuationBookAnalysisSections ?? [],
     });
     setOutlineText(detail.outline ?? "");
+    setStructuredDraftText(detail.structuredOutline ?? "");
     setPipelineForm((prev) => ({
       ...prev,
       endOrder: Math.max(prev.endOrder, Math.max(10, detail.chapters.length || 10)),
@@ -302,8 +312,38 @@ export default function NovelEdit() {
   }, [baseCharacters, selectedBaseCharacterId]);
 
   useEffect(() => {
+    if (
+      basicForm.writingMode !== "continuation"
+      || !basicForm.continuationBookAnalysisId
+    ) {
+      return;
+    }
+    if (sourceBookAnalysesQuery.isLoading || sourceBookAnalysesQuery.isFetching) {
+      return;
+    }
+    const exists = sourceNovelBookAnalysisOptions.some((item) => item.id === basicForm.continuationBookAnalysisId);
+    if (exists) {
+      return;
+    }
+    setBasicForm((prev) => ({
+      ...prev,
+      continuationBookAnalysisId: "",
+      continuationBookAnalysisSections: [],
+    }));
+  }, [
+    basicForm.continuationBookAnalysisId,
+    basicForm.continuationSourceType,
+    basicForm.writingMode,
+    sourceBookAnalysesQuery.isFetching,
+    sourceBookAnalysesQuery.isLoading,
+    sourceNovelBookAnalysisOptions,
+  ]);
+
+  useEffect(() => {
     if (!selectedCharacter) {
       setCharacterForm({
+        name: "",
+        role: "",
         personality: "",
         background: "",
         development: "",
@@ -313,6 +353,8 @@ export default function NovelEdit() {
       return;
     }
     setCharacterForm({
+      name: selectedCharacter.name ?? "",
+      role: selectedCharacter.role ?? "",
       personality: selectedCharacter.personality ?? "",
       background: selectedCharacter.background ?? "",
       development: selectedCharacter.development ?? "",
@@ -326,6 +368,23 @@ export default function NovelEdit() {
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(id) });
   };
 
+  const outlineSSE = useSSE({ onDone: (fullContent) => setOutlineText(fullContent) });
+  const structuredSSE = useSSE({
+    onDone: async (fullContent) => {
+      setStructuredDraftText(fullContent);
+      await invalidateNovelDetail();
+    },
+  });
+  const chapterSSE = useSSE({ onDone: invalidateNovelDetail });
+  const bibleSSE = useSSE({ onDone: invalidateNovelDetail });
+  const beatsSSE = useSSE({ onDone: invalidateNovelDetail });
+  const repairSSE = useSSE({
+    onDone: async (fullContent) => {
+      setRepairAfterContent(fullContent);
+      await invalidateNovelDetail();
+    },
+  });
+
   const saveBasicMutation = useMutation({
     mutationFn: () =>
       updateNovel(id, {
@@ -333,6 +392,29 @@ export default function NovelEdit() {
         description: basicForm.description,
         worldId: basicForm.worldId || null,
         status: basicForm.status,
+        writingMode: basicForm.writingMode,
+        sourceNovelId: basicForm.writingMode === "continuation" && basicForm.continuationSourceType === "novel"
+          ? (basicForm.sourceNovelId || null)
+          : null,
+        sourceKnowledgeDocumentId: basicForm.writingMode === "continuation" && basicForm.continuationSourceType === "knowledge_document"
+          ? (basicForm.sourceKnowledgeDocumentId || null)
+          : null,
+        continuationBookAnalysisId: basicForm.writingMode === "continuation"
+          && (
+            (basicForm.continuationSourceType === "novel" && Boolean(basicForm.sourceNovelId))
+            || (basicForm.continuationSourceType === "knowledge_document" && Boolean(basicForm.sourceKnowledgeDocumentId))
+          )
+          ? (basicForm.continuationBookAnalysisId || null)
+          : null,
+        continuationBookAnalysisSections:
+          basicForm.writingMode === "continuation"
+            && (
+              (basicForm.continuationSourceType === "novel" && Boolean(basicForm.sourceNovelId))
+              || (basicForm.continuationSourceType === "knowledge_document" && Boolean(basicForm.sourceKnowledgeDocumentId))
+            )
+            && basicForm.continuationBookAnalysisId
+            ? (basicForm.continuationBookAnalysisSections.length > 0 ? basicForm.continuationBookAnalysisSections : null)
+            : null,
       }),
     onSuccess: async () => {
       await invalidateNovelDetail();
@@ -347,13 +429,53 @@ export default function NovelEdit() {
     onSuccess: invalidateNovelDetail,
   });
 
+  const saveStructuredMutation = useMutation({
+    mutationFn: () => updateNovel(id, { structuredOutline: structuredDraftText }),
+    onSuccess: invalidateNovelDetail,
+  });
+
+  const optimizeOutlineMutation = useMutation({
+    mutationFn: (payload: { mode: "full" | "selection"; selectedText?: string }) =>
+      optimizeNovelOutlinePreview(id, {
+        currentDraft: outlineText,
+        instruction: outlineOptimizeInstruction,
+        mode: payload.mode,
+        selectedText: payload.selectedText,
+        provider: llm.provider,
+        model: llm.model,
+        temperature: llm.temperature,
+      }),
+    onSuccess: (response) => {
+      setOutlineOptimizePreview(response.data?.optimizedDraft ?? "");
+      setOutlineOptimizeMode(response.data?.mode ?? "full");
+      setOutlineOptimizeSourceText(response.data?.selectedText ?? "");
+    },
+  });
+
+  const optimizeStructuredMutation = useMutation({
+    mutationFn: (payload: { mode: "full" | "selection"; selectedText?: string }) =>
+      optimizeNovelStructuredOutlinePreview(id, {
+        currentDraft: structuredDraftText,
+        instruction: structuredOptimizeInstruction,
+        mode: payload.mode,
+        selectedText: payload.selectedText,
+        provider: llm.provider,
+        model: llm.model,
+        temperature: llm.temperature,
+      }),
+    onSuccess: (response) => {
+      setStructuredOptimizePreview(response.data?.optimizedDraft ?? "");
+      setStructuredOptimizeMode(response.data?.mode ?? "full");
+      setStructuredOptimizeSourceText(response.data?.selectedText ?? "");
+    },
+  });
+
   const batchCreateMutation = useMutation({
     mutationFn: async () => {
-      const volumes = structuredVolumes;
-      if (volumes.length === 0) {
+      if (structuredVolumes.length === 0) {
         return;
       }
-      const chapterList = volumes.flatMap((volume) => volume.chapters ?? []);
+      const chapterList = structuredVolumes.flatMap((volume) => volume.chapters ?? []);
       await Promise.all(
         chapterList.map((chapter) =>
           createNovelChapter(id, {
@@ -429,149 +551,30 @@ export default function NovelEdit() {
     },
   });
 
-  const characterTimelineQuery = useQuery({
-    queryKey: queryKeys.novels.characterTimeline(id, selectedCharacterId || "none"),
-    queryFn: () => getCharacterTimeline(id, selectedCharacterId),
-    enabled: Boolean(id && selectedCharacterId),
+  const {
+    characterTimelineQuery,
+    syncTimelineMutation,
+    syncAllTimelineMutation,
+    evolveCharacterMutation,
+    worldCheckMutation,
+    saveCharacterMutation,
+    importBaseCharacterMutation,
+    quickCreateCharacterMutation,
+    deleteCharacterMutation,
+  } = useNovelCharacterMutations({
+    id,
+    selectedCharacterId,
+    selectedBaseCharacter,
+    characters,
+    pipelineForm,
+    llm,
+    characterForm,
+    quickCharacterForm,
+    queryClient,
+    setCharacterMessage,
+    setSelectedCharacterId,
+    setQuickCharacterForm,
   });
-
-  const syncTimelineMutation = useMutation({
-    mutationFn: () =>
-      syncCharacterTimeline(id, selectedCharacterId, {
-        startOrder: pipelineForm.startOrder,
-        endOrder: pipelineForm.endOrder,
-      }),
-    onSuccess: async (response) => {
-      setCharacterMessage(
-        response.message
-        ?? `角色时间线同步完成，本次新增 ${response.data?.syncedCount ?? 0} 条。`,
-      );
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.novels.characterTimeline(id, selectedCharacterId || "none"),
-      });
-    },
-  });
-
-  const syncAllTimelineMutation = useMutation({
-    mutationFn: () =>
-      syncAllCharacterTimeline(id, {
-        startOrder: pipelineForm.startOrder,
-        endOrder: pipelineForm.endOrder,
-      }),
-    onSuccess: async (response) => {
-      setCharacterMessage(
-        response.message
-        ?? `全角色时间线同步完成，共新增 ${response.data?.syncedCount ?? 0} 条事件。`,
-      );
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.novels.characterTimeline(id, selectedCharacterId || "none"),
-      });
-    },
-  });
-
-  const evolveCharacterMutation = useMutation({
-    mutationFn: () =>
-      evolveNovelCharacter(id, selectedCharacterId, {
-        provider: llm.provider,
-        model: llm.model,
-        temperature: 0.4,
-      }),
-    onSuccess: async () => {
-      setCharacterMessage("角色信息已按时间线完成演进更新。");
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.novels.characterTimeline(id, selectedCharacterId || "none"),
-      });
-    },
-  });
-
-  const worldCheckMutation = useMutation({
-    mutationFn: () =>
-      checkCharacterAgainstWorld(id, selectedCharacterId, {
-        provider: llm.provider,
-        model: llm.model,
-        temperature: 0.2,
-      }),
-    onSuccess: (response) => {
-      const status = response.data?.status ?? "pass";
-      const warningText = response.data?.warnings?.join(" | ") ?? "";
-      const issueText = (response.data?.issues ?? [])
-        .map((item) => `${item.severity.toUpperCase()}: ${item.message}`)
-        .join(" | ");
-      setCharacterMessage(`世界规则检查(${status}) ${warningText} ${issueText}`.trim());
-    },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : "世界规则检查失败。";
-      setCharacterMessage(message);
-    },
-  });
-
-  const saveCharacterMutation = useMutation({
-    mutationFn: () =>
-      updateNovelCharacter(id, selectedCharacterId, {
-        personality: characterForm.personality,
-        background: characterForm.background,
-        development: characterForm.development,
-        currentState: characterForm.currentState,
-        currentGoal: characterForm.currentGoal,
-      }),
-    onSuccess: async () => {
-      setCharacterMessage("角色信息已保存。");
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
-    },
-  });
-
-  const importBaseCharacterMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedBaseCharacter) {
-        throw new Error("请先选择要导入的基础角色。");
-      }
-      return createNovelCharacter(id, {
-        name: selectedBaseCharacter.name,
-        role: selectedBaseCharacter.role,
-        personality: selectedBaseCharacter.personality,
-        background: selectedBaseCharacter.background,
-        development: selectedBaseCharacter.development,
-        baseCharacterId: selectedBaseCharacter.id,
-      });
-    },
-    onSuccess: async (response) => {
-      setCharacterMessage(response.message ?? "基础角色已导入到当前小说。");
-      if (response.data?.id) {
-        setSelectedCharacterId(response.data.id);
-      }
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
-    },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : "导入基础角色失败。";
-      setCharacterMessage(message);
-    },
-  });
-
-  const quickCreateCharacterMutation = useMutation({
-    mutationFn: async () =>
-      createNovelCharacter(id, {
-        name: quickCharacterForm.name.trim(),
-        role: quickCharacterForm.role.trim() || "主角",
-      }),
-    onSuccess: async (response) => {
-      setCharacterMessage(response.message ?? "角色创建成功。");
-      setQuickCharacterForm({ name: "", role: quickCharacterForm.role || "主角" });
-      if (response.data?.id) {
-        setSelectedCharacterId(response.data.id);
-      }
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
-    },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : "角色创建失败。";
-      setCharacterMessage(message);
-    },
-  });
-
-  const goToCharacterTab = () => {
-    setActiveTab("character");
-  };
 
   const startOutlineGeneration = () => {
     if (!hasCharacters) {
@@ -584,592 +587,78 @@ export default function NovelEdit() {
       provider: llm.provider,
       model: llm.model,
       temperature: llm.temperature,
+      initialPrompt: outlineGenerationPrompt.trim() || undefined,
     });
   };
 
-  const outlineSSE = useSSE({ onDone: (fullContent) => setOutlineText(fullContent) });
-  const structuredSSE = useSSE({ onDone: invalidateNovelDetail });
-  const chapterSSE = useSSE({ onDone: invalidateNovelDetail });
-  const bibleSSE = useSSE({ onDone: invalidateNovelDetail });
-  const beatsSSE = useSSE({ onDone: invalidateNovelDetail });
-  const repairSSE = useSSE({
-    onDone: async (fullContent) => {
-      setRepairAfterContent(fullContent);
-      await invalidateNovelDetail();
-    },
-  });
-
-  const qualitySummary = qualityReportQuery.data?.data?.summary;
-  const worldInjectionSummary = useMemo(() => {
-    const world = novelDetailQuery.data?.data?.world;
-    if (!world) {
-      return null;
+  const goToCharacterTab = () => setActiveTab("character");
+  const handleGenerateSelectedChapter = () => {
+    if (!selectedChapter) {
+      return;
     }
+    void chapterSSE.start(`/novels/${id}/chapters/${selectedChapter.id}/generate`, {
+      provider: llm.provider,
+      model: llm.model,
+      previousChaptersSummary: [],
+    });
+  };
 
-    let axioms: string[] = [];
-    if (world.axioms?.trim()) {
-      try {
-        const parsed = JSON.parse(world.axioms) as string[];
-        axioms = Array.isArray(parsed) ? parsed.filter((item) => item.trim()).slice(0, 3) : [];
-      } catch {
-        axioms = world.axioms
-          .split(/[\n,，;；]/)
-          .map((item) => item.trim())
-          .filter(Boolean)
-          .slice(0, 3);
+  const basicTab = {
+    basicForm,
+    worldOptions: worldListQuery.data?.data ?? [],
+    sourceNovelOptions,
+    sourceKnowledgeOptions,
+    sourceNovelBookAnalysisOptions,
+    isLoadingSourceNovelBookAnalyses: sourceBookAnalysesQuery.isLoading,
+    availableBookAnalysisSections: [...BOOK_ANALYSIS_SECTIONS],
+    onFormChange: (patch: Partial<typeof basicForm>) => setBasicForm((prev) => {
+      const next = { ...prev, ...patch };
+      if (next.writingMode === "original") {
+        next.sourceNovelId = "";
+        next.sourceKnowledgeDocumentId = "";
+        next.continuationBookAnalysisId = "";
+        next.continuationBookAnalysisSections = [];
+      } else if (next.continuationSourceType === "novel") {
+        next.sourceKnowledgeDocumentId = "";
+      } else if (next.continuationSourceType === "knowledge_document") {
+        next.sourceNovelId = "";
       }
-    }
+      if (
+        patch.continuationSourceType !== undefined
+        && patch.continuationSourceType !== prev.continuationSourceType
+      ) {
+        next.continuationBookAnalysisId = "";
+        next.continuationBookAnalysisSections = [];
+      }
+      if (
+        next.continuationSourceType === "novel"
+        && patch.sourceNovelId !== undefined
+        && patch.sourceNovelId !== prev.sourceNovelId
+      ) {
+        next.continuationBookAnalysisId = "";
+        next.continuationBookAnalysisSections = [];
+      }
+      if (
+        next.continuationSourceType === "knowledge_document"
+        && patch.sourceKnowledgeDocumentId !== undefined
+        && patch.sourceKnowledgeDocumentId !== prev.sourceKnowledgeDocumentId
+      ) {
+        next.continuationBookAnalysisId = "";
+        next.continuationBookAnalysisSections = [];
+      }
+      if (patch.continuationBookAnalysisId !== undefined && !patch.continuationBookAnalysisId) {
+        next.continuationBookAnalysisSections = [];
+      }
+      return next;
+    }),
+    onSave: () => saveBasicMutation.mutate(),
+    isSaving: saveBasicMutation.isPending,
+  };
+  const outlineTab = { worldInjectionSummary, hasCharacters, isGenerating: outlineSSE.isStreaming, streamContent: outlineSSE.content, onGenerate: startOutlineGeneration, onStop: outlineSSE.abort, onAbortStream: outlineSSE.abort, onGoToCharacterTab: goToCharacterTab, generationPrompt: outlineGenerationPrompt, onGenerationPromptChange: setOutlineGenerationPrompt, draftText: outlineText, onDraftTextChange: setOutlineText, onSave: () => saveOutlineMutation.mutate(), isSaving: saveOutlineMutation.isPending, optimizeInstruction: outlineOptimizeInstruction, onOptimizeInstructionChange: setOutlineOptimizeInstruction, onOptimizeFull: () => { setOutlineOptimizeMode("full"); setOutlineOptimizeSourceText(""); optimizeOutlineMutation.mutate({ mode: "full" }); }, onOptimizeSelection: (selectedText: string) => { setOutlineOptimizeMode("selection"); setOutlineOptimizeSourceText(selectedText); optimizeOutlineMutation.mutate({ mode: "selection", selectedText }); }, isOptimizing: optimizeOutlineMutation.isPending, optimizePreview: outlineOptimizePreview, onApplyOptimizePreview: () => { if (outlineOptimizeMode === "selection" && outlineOptimizeSourceText.trim()) { setOutlineText((prev) => replaceFirstOccurrence(prev, outlineOptimizeSourceText, outlineOptimizePreview)); } else { setOutlineText(outlineOptimizePreview); } setOutlineOptimizePreview(""); setOutlineOptimizeSourceText(""); setOutlineOptimizeMode("full"); }, onCancelOptimizePreview: () => { setOutlineOptimizePreview(""); setOutlineOptimizeSourceText(""); setOutlineOptimizeMode("full"); } };
+  const structuredTab = { worldInjectionSummary, hasCharacters, isGenerating: structuredSSE.isStreaming, streamContent: structuredSSE.content, onGenerate: () => void structuredSSE.start(`/novels/${id}/structured-outline/generate`, { provider: llm.provider, model: llm.model }), onStop: structuredSSE.abort, onAbortStream: structuredSSE.abort, onGoToCharacterTab: goToCharacterTab, onResyncChapters: () => batchCreateMutation.mutate(), isResyncing: batchCreateMutation.isPending, draftText: structuredDraftText, onDraftTextChange: setStructuredDraftText, onSave: () => saveStructuredMutation.mutate(), isSaving: saveStructuredMutation.isPending, optimizeInstruction: structuredOptimizeInstruction, onOptimizeInstructionChange: setStructuredOptimizeInstruction, onOptimizeFull: () => { setStructuredOptimizeMode("full"); setStructuredOptimizeSourceText(""); optimizeStructuredMutation.mutate({ mode: "full" }); }, onOptimizeSelection: (selectedText: string) => { setStructuredOptimizeMode("selection"); setStructuredOptimizeSourceText(selectedText); optimizeStructuredMutation.mutate({ mode: "selection", selectedText }); }, isOptimizing: optimizeStructuredMutation.isPending, optimizePreview: structuredOptimizePreview, onApplyOptimizePreview: () => { if (structuredOptimizeMode === "selection" && structuredOptimizeSourceText.trim()) { setStructuredDraftText((prev) => replaceFirstOccurrence(prev, structuredOptimizeSourceText, structuredOptimizePreview)); } else { setStructuredDraftText(structuredOptimizePreview); } setStructuredOptimizePreview(""); setStructuredOptimizeSourceText(""); setStructuredOptimizeMode("full"); }, onCancelOptimizePreview: () => { setStructuredOptimizePreview(""); setStructuredOptimizeSourceText(""); setStructuredOptimizeMode("full"); }, structuredVolumes };
+  const chapterTab = { novelId: id, worldInjectionSummary, hasCharacters, chapters, selectedChapterId, selectedChapter, onSelectChapter: setSelectedChapterId, onGoToCharacterTab: goToCharacterTab, onCreateChapter: () => createChapterMutation.mutate(), isCreatingChapter: createChapterMutation.isPending, onGenerateSelectedChapter: handleGenerateSelectedChapter, streamContent: chapterSSE.content, isStreaming: chapterSSE.isStreaming, onAbortStream: chapterSSE.abort };
+  const pipelineTab = { novelId: id, worldInjectionSummary, hasCharacters, onGoToCharacterTab: goToCharacterTab, pipelineForm, onPipelineFormChange: (field: "startOrder" | "endOrder" | "maxRetries", value: number) => setPipelineForm((prev) => ({ ...prev, [field]: value })), maxOrder, onGenerateBible: () => void bibleSSE.start(`/novels/${id}/bible/generate`, { provider: llm.provider, model: llm.model, temperature: 0.6 }), onAbortBible: bibleSSE.abort, isBibleStreaming: bibleSSE.isStreaming, bibleStreamContent: bibleSSE.content, onGenerateBeats: () => void beatsSSE.start(`/novels/${id}/beats/generate`, { provider: llm.provider, model: llm.model, targetChapters: pipelineForm.endOrder }), onAbortBeats: beatsSSE.abort, isBeatsStreaming: beatsSSE.isStreaming, beatsStreamContent: beatsSSE.content, onRunPipeline: () => runPipelineMutation.mutate(), isRunningPipeline: runPipelineMutation.isPending, pipelineMessage, pipelineJob: pipelineJobQuery.data?.data, chapters, selectedChapterId, onSelectedChapterChange: setSelectedChapterId, onReviewChapter: () => reviewMutation.mutate(), isReviewing: reviewMutation.isPending, onRepairChapter: () => { setRepairBeforeContent(selectedChapter?.content ?? ""); setRepairAfterContent(""); void repairSSE.start(`/novels/${id}/chapters/${selectedChapterId}/repair`, { provider: llm.provider, model: llm.model, reviewIssues: reviewResult?.issues ?? [] }); }, isRepairing: repairSSE.isStreaming, onGenerateHook: () => hookMutation.mutate(), isGeneratingHook: hookMutation.isPending, reviewResult, repairBeforeContent, repairAfterContent, repairStreamContent: repairSSE.content, isRepairStreaming: repairSSE.isStreaming, onAbortRepair: repairSSE.abort, qualitySummary, chapterReports: qualityReportQuery.data?.data?.chapterReports ?? [], bible, plotBeats };
+  const characterTab = { characterMessage, quickCharacterForm, onQuickCharacterFormChange: (field: "name" | "role", value: string) => setQuickCharacterForm((prev) => ({ ...prev, [field]: value })), onQuickCreateCharacter: () => quickCreateCharacterMutation.mutate(), isQuickCreating: quickCreateCharacterMutation.isPending, characters, coreCharacterCount, baseCharacters, selectedBaseCharacterId, onSelectedBaseCharacterChange: setSelectedBaseCharacterId, selectedBaseCharacter, importedBaseCharacterIds, onImportBaseCharacter: () => importBaseCharacterMutation.mutate(), isImportingBaseCharacter: importBaseCharacterMutation.isPending, selectedCharacterId, onSelectedCharacterChange: setSelectedCharacterId, onDeleteCharacter: (characterId: string) => deleteCharacterMutation.mutate(characterId), isDeletingCharacter: deleteCharacterMutation.isPending, deletingCharacterId: deleteCharacterMutation.variables ?? "", onSyncTimeline: () => syncTimelineMutation.mutate(), isSyncingTimeline: syncTimelineMutation.isPending, onSyncAllTimeline: () => syncAllTimelineMutation.mutate(), isSyncingAllTimeline: syncAllTimelineMutation.isPending, onEvolveCharacter: () => evolveCharacterMutation.mutate(), isEvolvingCharacter: evolveCharacterMutation.isPending, onWorldCheck: () => worldCheckMutation.mutate(), isCheckingWorld: worldCheckMutation.isPending, selectedCharacter, characterForm, onCharacterFormChange: (field: "name" | "role" | "personality" | "background" | "development" | "currentState" | "currentGoal", value: string) => setCharacterForm((prev) => ({ ...prev, [field]: value })), onSaveCharacter: () => saveCharacterMutation.mutate(), isSavingCharacter: saveCharacterMutation.isPending, timelineEvents: characterTimelineQuery.data?.data ?? [] };
 
-    const summaryBlock = world.overviewSummary?.trim() || world.description?.trim() || "No summary.";
-    const magicBlock = world.magicSystem?.trim() ? world.magicSystem.trim().slice(0, 120) : "";
-    const conflictBlock = world.conflicts?.trim() ? world.conflicts.trim().slice(0, 120) : "";
-
-    const lines = [
-      `${world.name}${world.worldType ? ` (${world.worldType})` : ""}`,
-      `Summary: ${summaryBlock}`,
-      ...(axioms.length > 0 ? [`Axioms: ${axioms.join(" | ")}`] : []),
-      ...(magicBlock ? [`Power: ${magicBlock}`] : []),
-      ...(conflictBlock ? [`Conflict: ${conflictBlock}`] : []),
-    ];
-    return lines.join("\n");
-  }, [novelDetailQuery.data?.data?.world]);
-
-  const renderWorldInjectionHint = () => (
-    <div className="rounded-md border border-emerald-300 bg-emerald-50 p-2 text-xs text-emerald-900">
-      {worldInjectionSummary ? (
-        <div className="space-y-1">
-          <div className="font-semibold">已注入世界规则上下文</div>
-          <pre className="whitespace-pre-wrap">{worldInjectionSummary}</pre>
-        </div>
-      ) : (
-        <div>当前未绑定世界观，生成过程不会注入世界规则。</div>
-      )}
-    </div>
-  );
-
-  return (
-    <>
-      {id ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>参考知识</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <KnowledgeBindingPanel targetType="novel" targetId={id} title="小说知识绑定" />
-          </CardContent>
-        </Card>
-      ) : null}
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-      <TabsList>
-        <TabsTrigger value="basic">基本信息</TabsTrigger>
-        <TabsTrigger value="character">角色管理</TabsTrigger>
-        <TabsTrigger value="outline">发展走向</TabsTrigger>
-        <TabsTrigger value="structured">章节大纲</TabsTrigger>
-        <TabsTrigger value="chapter">章节管理</TabsTrigger>
-        <TabsTrigger value="pipeline">自动流水线</TabsTrigger>
-      </TabsList>
-
-      <TabsContent value="basic">
-        <Card>
-          <CardHeader>
-            <CardTitle>基本信息</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Input value={basicForm.title} placeholder="小说标题" onChange={(event) => setBasicForm((prev) => ({ ...prev, title: event.target.value }))} />
-            <Input value={basicForm.description} placeholder="小说简介" onChange={(event) => setBasicForm((prev) => ({ ...prev, description: event.target.value }))} />
-            <select
-              className="w-full rounded-md border bg-background p-2 text-sm"
-              value={basicForm.worldId}
-              onChange={(event) => setBasicForm((prev) => ({ ...prev, worldId: event.target.value }))}
-            >
-              <option value="">不绑定世界观</option>
-              {(worldListQuery.data?.data ?? []).map((world) => (
-                <option key={world.id} value={world.id}>
-                  {world.name}
-                </option>
-              ))}
-            </select>
-            <div className="flex items-center gap-2">
-              <Button variant={basicForm.status === "draft" ? "default" : "secondary"} onClick={() => setBasicForm((prev) => ({ ...prev, status: "draft" }))}>草稿</Button>
-              <Button variant={basicForm.status === "published" ? "default" : "secondary"} onClick={() => setBasicForm((prev) => ({ ...prev, status: "published" }))}>已发布</Button>
-            </div>
-            <Button onClick={() => saveBasicMutation.mutate()} disabled={saveBasicMutation.isPending}>{saveBasicMutation.isPending ? "保存中..." : "保存基本信息"}</Button>
-          </CardContent>
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="outline">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>小说发展走向</CardTitle>
-            <LLMSelector />
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {renderWorldInjectionHint()}
-            {!hasCharacters ? (
-              <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
-                <span>建议先为本小说添加至少 1 个角色，再生成发展走向。</span>
-                <Button size="sm" variant="outline" onClick={goToCharacterTab}>去角色管理</Button>
-              </div>
-            ) : null}
-            <div className="flex gap-2">
-              <Button onClick={startOutlineGeneration} disabled={outlineSSE.isStreaming}>生成发展走向</Button>
-              <Button variant="secondary" onClick={outlineSSE.abort} disabled={!outlineSSE.isStreaming}>停止生成</Button>
-            </div>
-            <StreamOutput isStreaming={outlineSSE.isStreaming} content={outlineSSE.content} onAbort={outlineSSE.abort} />
-            <textarea className="min-h-[260px] w-full rounded-md border bg-background p-3 text-sm" value={outlineText} onChange={(event) => setOutlineText(event.target.value)} />
-            <Button onClick={() => saveOutlineMutation.mutate()} disabled={saveOutlineMutation.isPending}>{saveOutlineMutation.isPending ? "保存中..." : "保存发展走向"}</Button>
-          </CardContent>
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="structured">
-        <Card>
-          <CardHeader><CardTitle>结构化章节大纲</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            {renderWorldInjectionHint()}
-            {!hasCharacters ? (
-              <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
-                <span>请先添加至少 1 个角色，再生成结构化章节大纲。</span>
-                <Button size="sm" variant="outline" onClick={goToCharacterTab}>去角色管理</Button>
-              </div>
-            ) : null}
-            <div className="flex gap-2">
-              <Button
-                onClick={() => void structuredSSE.start(`/novels/${id}/structured-outline/generate`, { provider: llm.provider, model: llm.model })}
-                disabled={structuredSSE.isStreaming || !hasCharacters}
-              >
-                生成结构化大纲
-              </Button>
-              <Button variant="secondary" onClick={structuredSSE.abort} disabled={!structuredSSE.isStreaming}>停止生成</Button>
-              <Button variant="outline" onClick={() => batchCreateMutation.mutate()} disabled={batchCreateMutation.isPending || !hasCharacters || structuredVolumes.length === 0}>{batchCreateMutation.isPending ? "同步中..." : "重新同步章节"}</Button>
-            </div>
-            <StreamOutput isStreaming={structuredSSE.isStreaming} content={structuredSSE.content} onAbort={structuredSSE.abort} />
-            <div className="space-y-2">
-              {structuredVolumes.length === 0 ? <div className="text-sm text-muted-foreground">暂无结构化大纲。</div> : structuredVolumes.map((volume, volumeIndex) => (
-                <div key={`${volume.volumeTitle}-${volumeIndex}`} className="rounded-md border p-3">
-                  <div className="mb-2 font-semibold">{volume.volumeTitle}</div>
-                  <div className="space-y-1 text-sm">
-                    {(volume.chapters ?? []).map((chapter, chapterIndex) => (
-                      <div key={`${volume.volumeTitle}-${chapter.order}-${chapterIndex}`}>第{chapter.order}章：{chapter.title} - {chapter.summary}</div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="chapter">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>章节管理</CardTitle>
-            <Button onClick={() => createChapterMutation.mutate()} disabled={createChapterMutation.isPending}>
-              {createChapterMutation.isPending ? "创建中..." : "新建章节"}
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {renderWorldInjectionHint()}
-            <div className="rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-900">
-              说明：文本输入、导入和生成链路都必须使用 UTF-8 编码，避免乱码。
-            </div>
-            {!hasCharacters ? (
-              <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
-                <span>请先添加至少 1 个角色，再生成章节内容。</span>
-                <Button size="sm" variant="outline" onClick={goToCharacterTab}>去角色管理</Button>
-              </div>
-            ) : null}
-            <div className="grid gap-3 md:grid-cols-[320px_minmax(0,1fr)]">
-              <div className="rounded-md border">
-                <div className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">
-                  章节列表：{chapters.length}
-                </div>
-                <div className="max-h-[560px] space-y-2 overflow-y-auto p-2">
-                  {chapters.length === 0 ? (
-                    <div className="rounded-md border border-dashed p-4 text-xs text-muted-foreground">暂无章节。</div>
-                  ) : (
-                    chapters.map((chapter) => (
-                      <button
-                        key={chapter.id}
-                        type="button"
-                        onClick={() => setSelectedChapterId(chapter.id)}
-                        className={`w-full rounded-md border p-2 text-left transition ${
-                          selectedChapterId === chapter.id ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
-                        }`}
-                      >
-                        <div className="text-sm font-medium">第{chapter.order}章：{chapter.title}</div>
-                        {chapter.expectation ? (
-                          <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{chapter.expectation}</div>
-                        ) : null}
-                        <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>字数：{chapter.content?.length ?? 0}</span>
-                          {(chapter as ChapterWithState).generationState ? (
-                            <Badge variant="outline">{(chapter as ChapterWithState).generationState}</Badge>
-                          ) : null}
-                        </div>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {selectedChapter ? (
-                  <div className="rounded-md border p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="font-medium">第{selectedChapter.order}章：{selectedChapter.title}</div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>字数：{selectedChapter.content?.length ?? 0}</span>
-                        {(selectedChapter as ChapterWithState).generationState ? (
-                          <Badge variant="outline">{(selectedChapter as ChapterWithState).generationState}</Badge>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <div className="mt-3 space-y-2">
-                      <div>
-                        <div className="mb-1 text-xs font-medium text-muted-foreground">本章大纲</div>
-                        <div className="max-h-24 overflow-y-auto whitespace-pre-wrap rounded-md border bg-muted/20 p-2 text-sm">
-                          {selectedChapter.expectation?.trim() || "暂无大纲"}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="mb-1 text-xs font-medium text-muted-foreground">正文预览</div>
-                        <div className="max-h-[360px] overflow-y-auto whitespace-pre-wrap rounded-md border bg-muted/20 p-2 text-sm">
-                          {selectedChapter.content?.trim() || "当前章节尚未生成正文"}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Button asChild size="sm">
-                        <Link to={`/novels/${id}/chapters/${selectedChapter.id}`}>编辑章节</Link>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() =>
-                          void chapterSSE.start(`/novels/${id}/chapters/${selectedChapter.id}/generate`, {
-                            provider: llm.provider,
-                            model: llm.model,
-                            previousChaptersSummary: [],
-                          })}
-                        disabled={!hasCharacters}
-                      >
-                        生成内容
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-                    请先在左侧选择一个章节查看详情。
-                  </div>
-                )}
-
-                <StreamOutput content={chapterSSE.content} isStreaming={chapterSSE.isStreaming} onAbort={chapterSSE.abort} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="pipeline">
-        <div className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>流水线与质量控制</CardTitle>
-            <LLMSelector />
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {renderWorldInjectionHint()}
-            {!hasCharacters ? (
-                <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
-                  <span>请先添加至少 1 个角色，再执行圣经/拍点/批量章节流水线。</span>
-                  <Button size="sm" variant="outline" onClick={goToCharacterTab}>去角色管理</Button>
-                </div>
-              ) : null}
-              <div className="grid gap-3 md:grid-cols-3">
-                <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">起始章节序号</div>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={maxOrder}
-                    value={pipelineForm.startOrder}
-                    onChange={(event) =>
-                      setPipelineForm((prev) => ({ ...prev, startOrder: Number(event.target.value) || 1 }))
-                    }
-                    placeholder="例如：1"
-                  />
-                  <div className="text-xs text-muted-foreground">从第几章开始纳入本次批量生成。</div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">结束章节序号</div>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={maxOrder}
-                    value={pipelineForm.endOrder}
-                    onChange={(event) =>
-                      setPipelineForm((prev) => ({ ...prev, endOrder: Number(event.target.value) || 1 }))
-                    }
-                    placeholder="例如：10"
-                  />
-                  <div className="text-xs text-muted-foreground">到第几章结束（包含该章节）。</div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">失败重试次数</div>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={5}
-                    value={pipelineForm.maxRetries}
-                    onChange={(event) =>
-                      setPipelineForm((prev) => ({ ...prev, maxRetries: Number(event.target.value) || 0 }))
-                    }
-                    placeholder="例如：2"
-                  />
-                  <div className="text-xs text-muted-foreground">单章不达标时，最多自动修复重跑几次。</div>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button onClick={() => void bibleSSE.start(`/novels/${id}/bible/generate`, { provider: llm.provider, model: llm.model, temperature: 0.6 })} disabled={bibleSSE.isStreaming || !hasCharacters}>生成/更新作品圣经</Button>
-                <Button variant="secondary" onClick={bibleSSE.abort} disabled={!bibleSSE.isStreaming}>停止圣经生成</Button>
-                <Button onClick={() => void beatsSSE.start(`/novels/${id}/beats/generate`, { provider: llm.provider, model: llm.model, targetChapters: pipelineForm.endOrder })} disabled={beatsSSE.isStreaming || !hasCharacters}>生成剧情拍点</Button>
-                <Button variant="secondary" onClick={beatsSSE.abort} disabled={!beatsSSE.isStreaming}>停止拍点生成</Button>
-                <Button onClick={() => runPipelineMutation.mutate()} disabled={runPipelineMutation.isPending || !hasCharacters}>启动批量章节流水线</Button>
-              </div>
-              {pipelineMessage ? <div className="text-sm text-muted-foreground">{pipelineMessage}</div> : null}
-              <div className="rounded-md border p-3 text-sm">
-                <div className="mb-2 font-medium">任务状态</div>
-                {pipelineJobQuery.data?.data ? (
-                  <div className="space-y-1">
-                    <div>任务ID：{pipelineJobQuery.data.data.id}</div>
-                    <div>状态：{pipelineJobQuery.data.data.status}</div>
-                    <div>进度：{Math.round((pipelineJobQuery.data.data.progress ?? 0) * 100)}%</div>
-                    <div>完成章节：{pipelineJobQuery.data.data.completedCount}/{pipelineJobQuery.data.data.totalCount}</div>
-                    <div>重试次数：{pipelineJobQuery.data.data.retryCount}/{pipelineJobQuery.data.data.maxRetries}</div>
-                    {pipelineJobQuery.data.data.error ? <div className="text-red-600">错误：{pipelineJobQuery.data.data.error}</div> : null}
-                  </div>
-                ) : (
-                  <div className="text-muted-foreground">暂无运行中的流水线任务。</div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle>章节审校与修复</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <select className="w-full rounded-md border bg-background p-2 text-sm" value={selectedChapterId} onChange={(event) => setSelectedChapterId(event.target.value)}>
-                {chapters.map((chapter) => <option key={chapter.id} value={chapter.id}>第{chapter.order}章 - {chapter.title}</option>)}
-              </select>
-              <div className="flex flex-wrap gap-2">
-                <Button onClick={() => reviewMutation.mutate()} disabled={reviewMutation.isPending || !selectedChapterId}>执行章节审校</Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setRepairBeforeContent(selectedChapter?.content ?? "");
-                    setRepairAfterContent("");
-                    void repairSSE.start(`/novels/${id}/chapters/${selectedChapterId}/repair`, {
-                      provider: llm.provider,
-                      model: llm.model,
-                      reviewIssues: reviewResult?.issues ?? [],
-                    });
-                  }}
-                  disabled={repairSSE.isStreaming || !selectedChapterId}
-                >
-                  按审校结果修复
-                </Button>
-                <Button variant="outline" onClick={() => hookMutation.mutate()} disabled={hookMutation.isPending || !selectedChapterId}>生成章节末钩子</Button>
-              </div>
-              {reviewResult ? (
-                <div className="rounded-md border p-3 text-sm">
-                  <div className="mb-2 font-medium">审校评分</div>
-                  <div className="grid gap-1 md:grid-cols-3">
-                    <div>连贯性：{reviewResult.score.coherence}</div>
-                    <div>重复率：{reviewResult.score.repetition}</div>
-                    <div>节奏：{reviewResult.score.pacing}</div>
-                    <div>口吻：{reviewResult.score.voice}</div>
-                    <div>追更感：{reviewResult.score.engagement}</div>
-                    <div>综合：{reviewResult.score.overall}</div>
-                  </div>
-                  <div className="mt-3 text-xs text-muted-foreground">
-                    问题数：{reviewResult.issues.length}
-                  </div>
-                </div>
-              ) : null}
-              <StreamOutput content={repairSSE.content} isStreaming={repairSSE.isStreaming} onAbort={repairSSE.abort} />
-              {(repairBeforeContent || repairAfterContent) ? (
-                <div className="space-y-2 rounded-md border p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium">修复前后对比</div>
-                    <div className="text-xs text-muted-foreground">
-                      修复前：{repairBeforeContent.length} 字 | 修复后：{repairAfterContent.length} 字
-                    </div>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="space-y-1">
-                      <div className="text-xs font-medium text-muted-foreground">修复前</div>
-                      <pre className="max-h-[280px] overflow-auto whitespace-pre-wrap rounded-md border bg-muted/30 p-2 text-xs">
-                        {repairBeforeContent || "暂无"}
-                      </pre>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="text-xs font-medium text-muted-foreground">修复后</div>
-                      <pre className="max-h-[280px] overflow-auto whitespace-pre-wrap rounded-md border bg-muted/30 p-2 text-xs">
-                        {repairAfterContent || "修复执行后将显示结果"}
-                      </pre>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle>质量报告</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              {qualitySummary ? (
-                <div className="grid gap-2 md:grid-cols-3">
-                  <Badge variant="outline">连贯性：{qualitySummary.coherence}</Badge>
-                  <Badge variant="outline">重复率：{qualitySummary.repetition}</Badge>
-                  <Badge variant="outline">节奏：{qualitySummary.pacing}</Badge>
-                  <Badge variant="outline">口吻：{qualitySummary.voice}</Badge>
-                  <Badge variant="outline">追更感：{qualitySummary.engagement}</Badge>
-                  <Badge variant="default">综合：{qualitySummary.overall}</Badge>
-                </div>
-              ) : (
-                <div className="text-sm text-muted-foreground">暂无质量报告。</div>
-              )}
-              <div className="space-y-2 text-sm">
-                {(qualityReportQuery.data?.data?.chapterReports ?? []).slice(0, 8).map((item, index) => (
-                  <div key={`${item.chapterId ?? "novel"}-${index}`} className="rounded-md border p-2">
-                    <div>章节：{item.chapterId ?? "全书"}</div>
-                    <div className="text-muted-foreground">综合分：{item.overall}，连贯性：{item.coherence}，重复率：{item.repetition}</div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle>流式输出调试区</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid gap-3 md:grid-cols-2">
-                <div>
-                  <div className="mb-2 text-sm font-medium">作品圣经输出</div>
-                  <StreamOutput content={bibleSSE.content} isStreaming={bibleSSE.isStreaming} onAbort={bibleSSE.abort} />
-                </div>
-                <div>
-                  <div className="mb-2 text-sm font-medium">剧情拍点输出</div>
-                  <StreamOutput content={beatsSSE.content} isStreaming={beatsSSE.isStreaming} onAbort={beatsSSE.abort} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle>已保存的作品圣经</CardTitle></CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              {bible ? (
-                <div className="space-y-2">
-                  <div className="rounded-md border p-2 whitespace-pre-wrap">
-                    <div className="font-medium">主线承诺</div>
-                    <div className="text-muted-foreground">{bible.mainPromise ?? "暂无"}</div>
-                  </div>
-                  <div className="rounded-md border p-2 whitespace-pre-wrap">
-                    <div className="font-medium">核心设定</div>
-                    <div className="text-muted-foreground">{bible.coreSetting ?? "暂无"}</div>
-                  </div>
-                  <div className="rounded-md border p-2 whitespace-pre-wrap">
-                    <div className="font-medium">禁止冲突规则</div>
-                    <div className="text-muted-foreground">{bible.forbiddenRules ?? "暂无"}</div>
-                  </div>
-                  <div className="rounded-md border p-2 whitespace-pre-wrap">
-                    <div className="font-medium">角色成长弧</div>
-                    <div className="text-muted-foreground">{bible.characterArcs ?? "暂无"}</div>
-                  </div>
-                  <div className="rounded-md border p-2 whitespace-pre-wrap">
-                    <div className="font-medium">世界规则</div>
-                    <div className="text-muted-foreground">{bible.worldRules ?? "暂无"}</div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-muted-foreground">暂无已保存的作品圣经。请先点击“生成/更新作品圣经”。</div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle>已保存的剧情拍点</CardTitle></CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              {plotBeats.length > 0 ? (
-                plotBeats.slice(0, 30).map((beat) => (
-                  <div key={beat.id} className="rounded-md border p-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="font-medium">
-                        第 {beat.chapterOrder ?? "-"} 章 · {beat.title}
-                      </div>
-                      <Badge variant="outline">{beat.status}</Badge>
-                    </div>
-                    <div className="text-xs text-muted-foreground">类型：{beat.beatType}</div>
-                    <div className="mt-1 whitespace-pre-wrap text-muted-foreground">{beat.content}</div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-muted-foreground">暂无已保存的剧情拍点。请先点击“生成剧情拍点”。</div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </TabsContent>
-
-      <TabsContent value="character">
-        <NovelCharacterPanel
-          characterMessage={characterMessage}
-          quickCharacterForm={quickCharacterForm}
-          onQuickCharacterFormChange={(field, value) =>
-            setQuickCharacterForm((prev) => ({ ...prev, [field]: value }))
-          }
-          onQuickCreateCharacter={() => quickCreateCharacterMutation.mutate()}
-          isQuickCreating={quickCreateCharacterMutation.isPending}
-          characters={characters}
-          coreCharacterCount={coreCharacterCount}
-          baseCharacters={baseCharacters}
-          selectedBaseCharacterId={selectedBaseCharacterId}
-          onSelectedBaseCharacterChange={setSelectedBaseCharacterId}
-          selectedBaseCharacter={selectedBaseCharacter}
-          importedBaseCharacterIds={importedBaseCharacterIds}
-          onImportBaseCharacter={() => importBaseCharacterMutation.mutate()}
-          isImportingBaseCharacter={importBaseCharacterMutation.isPending}
-          selectedCharacterId={selectedCharacterId}
-          onSelectedCharacterChange={setSelectedCharacterId}
-          onSyncTimeline={() => syncTimelineMutation.mutate()}
-          isSyncingTimeline={syncTimelineMutation.isPending}
-          onSyncAllTimeline={() => syncAllTimelineMutation.mutate()}
-          isSyncingAllTimeline={syncAllTimelineMutation.isPending}
-          onEvolveCharacter={() => evolveCharacterMutation.mutate()}
-          isEvolvingCharacter={evolveCharacterMutation.isPending}
-          onWorldCheck={() => worldCheckMutation.mutate()}
-          isCheckingWorld={worldCheckMutation.isPending}
-          selectedCharacter={selectedCharacter}
-          characterForm={characterForm}
-          onCharacterFormChange={(field, value) =>
-            setCharacterForm((prev) => ({ ...prev, [field]: value }))
-          }
-          onSaveCharacter={() => saveCharacterMutation.mutate()}
-          isSavingCharacter={saveCharacterMutation.isPending}
-          timelineEvents={characterTimelineQuery.data?.data ?? []}
-        />
-      </TabsContent>
-      </Tabs>
-    </>
-  );
-}
-
-interface ChapterWithState {
-  generationState?: string;
+  return <NovelEditView id={id} activeTab={activeTab} onActiveTabChange={setActiveTab} basicTab={basicTab} outlineTab={outlineTab} structuredTab={structuredTab} chapterTab={chapterTab} pipelineTab={pipelineTab} characterTab={characterTab} />;
 }

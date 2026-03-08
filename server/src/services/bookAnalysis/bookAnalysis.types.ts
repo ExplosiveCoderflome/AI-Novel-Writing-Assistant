@@ -13,6 +13,7 @@ export interface SourceNote {
   sourceLabel: string;
   summary: string;
   plotPoints: string[];
+  timelineEvents: string[];
   characters: string[];
   worldbuilding: string[];
   themes: string[];

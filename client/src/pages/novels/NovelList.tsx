@@ -11,10 +11,12 @@ import { getWorldList } from "@/api/world";
 import { queryKeys } from "@/api/queryKeys";
 
 type StatusFilter = "all" | "draft" | "published";
+type WritingModeFilter = "all" | "original" | "continuation";
 
 export default function NovelList() {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<StatusFilter>("all");
+  const [writingMode, setWritingMode] = useState<WritingModeFilter>("all");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [form, setForm] = useState({
     title: "",
@@ -55,34 +57,64 @@ export default function NovelList() {
 
   const novels = useMemo(() => {
     const items = novelListQuery.data?.data?.items ?? [];
-    if (status === "all") {
-      return items;
-    }
-    return items.filter((item) => item.status === status);
-  }, [novelListQuery.data?.data?.items, status]);
+    return items.filter((item) => {
+      if (status !== "all" && item.status !== status) {
+        return false;
+      }
+      if (writingMode !== "all" && item.writingMode !== writingMode) {
+        return false;
+      }
+      return true;
+    });
+  }, [novelListQuery.data?.data?.items, status, writingMode]);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Button
-            variant={status === "all" ? "default" : "secondary"}
-            onClick={() => setStatus("all")}
-          >
-            全部
-          </Button>
-          <Button
-            variant={status === "draft" ? "default" : "secondary"}
-            onClick={() => setStatus("draft")}
-          >
-            草稿
-          </Button>
-          <Button
-            variant={status === "published" ? "default" : "secondary"}
-            onClick={() => setStatus("published")}
-          >
-            已发布
-          </Button>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Button
+              variant={status === "all" ? "default" : "secondary"}
+              onClick={() => setStatus("all")}
+            >
+              全部
+            </Button>
+            <Button
+              variant={status === "draft" ? "default" : "secondary"}
+              onClick={() => setStatus("draft")}
+            >
+              草稿
+            </Button>
+            <Button
+              variant={status === "published" ? "default" : "secondary"}
+              onClick={() => setStatus("published")}
+            >
+              已发布
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={writingMode === "all" ? "default" : "secondary"}
+              onClick={() => setWritingMode("all")}
+            >
+              创作类型: 全部
+            </Button>
+            <Button
+              size="sm"
+              variant={writingMode === "original" ? "default" : "secondary"}
+              onClick={() => setWritingMode("original")}
+            >
+              原创
+            </Button>
+            <Button
+              size="sm"
+              variant={writingMode === "continuation" ? "default" : "secondary"}
+              onClick={() => setWritingMode("continuation")}
+            >
+              续写
+            </Button>
+          </div>
         </div>
 
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -144,9 +176,16 @@ export default function NovelList() {
               <CardHeader>
                 <div className="flex items-center justify-between gap-2">
                   <CardTitle className="line-clamp-1 text-lg">{novel.title}</CardTitle>
-                  <Badge variant={novel.status === "published" ? "default" : "secondary"}>
-                    {novel.status === "published" ? "已发布" : "草稿"}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={novel.status === "published" ? "default" : "secondary"}>
+                      {novel.status === "published" ? "已发布" : "草稿"}
+                    </Badge>
+                    {novel.writingMode === "continuation" ? (
+                      <Badge variant="outline">续写</Badge>
+                    ) : (
+                      <Badge variant="outline">原创</Badge>
+                    )}
+                  </div>
                 </div>
                 <CardDescription className="line-clamp-2">
                   {novel.description || "暂无简介"}

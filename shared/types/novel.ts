@@ -1,10 +1,17 @@
+import type { BookAnalysisSectionKey } from "./bookAnalysis";
 export type NovelStatus = "draft" | "published";
+export type NovelWritingMode = "original" | "continuation";
 
 export interface Novel {
   id: string;
   title: string;
   description?: string | null;
   status: NovelStatus;
+  writingMode: NovelWritingMode;
+  sourceNovelId?: string | null;
+  sourceKnowledgeDocumentId?: string | null;
+  continuationBookAnalysisId?: string | null;
+  continuationBookAnalysisSections?: BookAnalysisSectionKey[] | null;
   outline?: string | null;
   structuredOutline?: string | null;
   genreId?: string | null;
