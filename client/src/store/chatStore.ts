@@ -18,7 +18,7 @@ export interface ChatSession {
   createdAt: string;
   updatedAt: string;
 }
-
+   
 interface ChatStoreState {
   sessions: ChatSession[];
   currentSessionId: string;

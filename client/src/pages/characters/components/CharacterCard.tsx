@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import type { ImageAsset } from "@ai-novel/shared/types/image";
 import type { BaseCharacter } from "@ai-novel/shared/types/novel";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,10 @@ interface CharacterCardProps {
   assetsLoading?: boolean;
   onGenerateImage: () => void;
   onSetPrimary: (assetId: string) => void;
+  onEdit: () => void;
+  onDelete: () => void;
   settingPrimary?: boolean;
+  deleting?: boolean;
 }
 
 export function CharacterCard({
@@ -19,7 +22,10 @@ export function CharacterCard({
   assetsLoading,
   onGenerateImage,
   onSetPrimary,
+  onEdit,
+  onDelete,
   settingPrimary,
+  deleting,
 }: CharacterCardProps) {
   const [previewAsset, setPreviewAsset] = useState<ImageAsset | null>(null);
 
@@ -30,9 +36,17 @@ export function CharacterCard({
           <div className="font-medium">{character.name}</div>
           <div className="text-sm text-muted-foreground">{character.role}</div>
         </div>
-        <Button size="sm" variant="outline" onClick={onGenerateImage}>
-          生成形象图
-        </Button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button size="sm" variant="outline" onClick={onGenerateImage}>
+            生成形象图
+          </Button>
+          <Button size="sm" variant="outline" onClick={onEdit}>
+            编辑
+          </Button>
+          <Button size="sm" variant="destructive" onClick={onDelete} disabled={deleting}>
+            {deleting ? "删除中..." : "删除"}
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-1 text-sm">

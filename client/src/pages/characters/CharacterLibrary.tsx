@@ -1,19 +1,24 @@
-﻿import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ImageAsset } from "@ai-novel/shared/types/image";
 import type { BaseCharacter } from "@ai-novel/shared/types/novel";
-import { getBaseCharacterList } from "@/api/character";
+import { deleteBaseCharacter, getBaseCharacterList, updateBaseCharacter } from "@/api/character";
 import { listImageAssets, setPrimaryImageAsset } from "@/api/images";
 import { queryKeys } from "@/api/queryKeys";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CharacterCard } from "./components/CharacterCard";
 import { CharacterCreateDialog } from "./components/CharacterCreateDialog";
+import { CharacterEditDialog } from "./components/CharacterEditDialog";
 import { CharacterImageDialog } from "./components/CharacterImageDialog";
+
+type EditableBaseCharacter = Omit<BaseCharacter, "id" | "createdAt" | "updatedAt">;
 
 export default function CharacterLibrary() {
   const queryClient = useQueryClient();
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [selectedImageCharacter, setSelectedImageCharacter] = useState<BaseCharacter | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingCharacter, setEditingCharacter] = useState<BaseCharacter | null>(null);
 
   const characterListQuery = useQuery({
     queryKey: queryKeys.baseCharacters.all,
@@ -51,6 +56,46 @@ export default function CharacterLibrary() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({
+      characterId,
+      payload,
+    }: {
+      characterId: string;
+      payload: EditableBaseCharacter;
+    }) => updateBaseCharacter(characterId, payload),
+    onSuccess: async (_, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.baseCharacters.all }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.baseCharacters.detail(variables.characterId),
+        }),
+      ]);
+      setEditDialogOpen(false);
+      setEditingCharacter(null);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (characterId: string) => deleteBaseCharacter(characterId),
+    onSuccess: async (_, characterId) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.baseCharacters.all }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.images.assets("character", characterId),
+        }),
+      ]);
+      if (selectedImageCharacter?.id === characterId) {
+        setImageDialogOpen(false);
+        setSelectedImageCharacter(null);
+      }
+      if (editingCharacter?.id === characterId) {
+        setEditDialogOpen(false);
+        setEditingCharacter(null);
+      }
+    },
+  });
+
   const handleTaskCompleted = async (baseCharacterId: string) => {
     await queryClient.invalidateQueries({
       queryKey: queryKeys.images.assets("character", baseCharacterId),
@@ -60,6 +105,19 @@ export default function CharacterLibrary() {
   const openImageDialog = (character: BaseCharacter) => {
     setSelectedImageCharacter(character);
     setImageDialogOpen(true);
+  };
+
+  const openEditDialog = (character: BaseCharacter) => {
+    setEditingCharacter(character);
+    setEditDialogOpen(true);
+  };
+
+  const handleDeleteCharacter = (character: BaseCharacter) => {
+    const confirmed = window.confirm(`确认删除角色「${character.name}」？此操作不可恢复。`);
+    if (!confirmed) {
+      return;
+    }
+    deleteMutation.mutate(character.id);
   };
 
   return (
@@ -81,6 +139,27 @@ export default function CharacterLibrary() {
         onTaskCompleted={handleTaskCompleted}
       />
 
+      <CharacterEditDialog
+        open={editDialogOpen}
+        character={editingCharacter}
+        saving={updateMutation.isPending}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open);
+          if (!open) {
+            setEditingCharacter(null);
+          }
+        }}
+        onSubmit={(payload) => {
+          if (!editingCharacter) {
+            return;
+          }
+          updateMutation.mutate({
+            characterId: editingCharacter.id,
+            payload,
+          });
+        }}
+      />
+
       <Card>
         <CardHeader>
           <CardTitle>角色列表</CardTitle>
@@ -94,7 +173,10 @@ export default function CharacterLibrary() {
               assetsLoading={imageAssetQueries[index]?.isLoading}
               onGenerateImage={() => openImageDialog(character)}
               onSetPrimary={(assetId) => setPrimaryMutation.mutate(assetId)}
+              onEdit={() => openEditDialog(character)}
+              onDelete={() => handleDeleteCharacter(character)}
               settingPrimary={setPrimaryMutation.isPending}
+              deleting={deleteMutation.isPending && deleteMutation.variables === character.id}
             />
           ))}
           {characters.length === 0 ? <div className="text-sm text-muted-foreground">暂无角色。</div> : null}
