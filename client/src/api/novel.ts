@@ -66,6 +66,21 @@ export interface DraftOptimizePreview {
   selectedText?: string | null;
 }
 
+function extractFileName(contentDisposition: string | undefined, fallback: string): string {
+  if (!contentDisposition) {
+    return fallback;
+  }
+  const match = contentDisposition.match(/filename="?([^"]+)"?/i);
+  if (!match?.[1]) {
+    return fallback;
+  }
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
 export async function getNovelList(params?: { page?: number; limit?: number }) {
   const { data } = await apiClient.get<ApiResponse<NovelListResponse>>("/novels", {
     params: {
@@ -426,5 +441,17 @@ export async function listNovelChapterSummaries(id: string) {
     .map((chapter) => (chapter as Chapter & { chapterSummary?: ChapterSummary | null }).chapterSummary)
     .filter((item): item is ChapterSummary => Boolean(item));
   return summaries;
+}
+
+export async function downloadNovelExport(id: string, format: "txt" | "markdown" = "txt") {
+  const response = await apiClient.get<Blob>(`/novels/${id}/export`, {
+    params: { format },
+    responseType: "blob",
+  });
+  const fallback = format === "markdown" ? `novel-${id}.md` : `novel-${id}.txt`;
+  return {
+    blob: response.data,
+    fileName: extractFileName(response.headers["content-disposition"], fallback),
+  };
 }
 

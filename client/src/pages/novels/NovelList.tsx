@@ -6,12 +6,23 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { createNovel, deleteNovel, getNovelList } from "@/api/novel";
-import { getWorldList } from "@/api/world";
+import { createNovel, deleteNovel, downloadNovelExport, getNovelList } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
+import { getWorldList } from "@/api/world";
 
 type StatusFilter = "all" | "draft" | "published";
 type WritingModeFilter = "all" | "original" | "continuation";
+
+function createDownload(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
 
 export default function NovelList() {
   const queryClient = useQueryClient();
@@ -52,6 +63,13 @@ export default function NovelList() {
     mutationFn: (id: string) => deleteNovel(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.all });
+    },
+  });
+
+  const downloadNovelMutation = useMutation({
+    mutationFn: (novelId: string) => downloadNovelExport(novelId, "txt"),
+    onSuccess: ({ blob, fileName }) => {
+      createDownload(blob, fileName);
     },
   });
 
@@ -203,6 +221,16 @@ export default function NovelList() {
                 <div className="flex gap-2">
                   <Button asChild size="sm">
                     <Link to={`/novels/${novel.id}/edit`}>编辑</Link>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => downloadNovelMutation.mutate(novel.id)}
+                    disabled={downloadNovelMutation.isPending}
+                  >
+                    {downloadNovelMutation.isPending && downloadNovelMutation.variables === novel.id
+                      ? "导出中..."
+                      : "导出"}
                   </Button>
                   <Button
                     size="sm"
