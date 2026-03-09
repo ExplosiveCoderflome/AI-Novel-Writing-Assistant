@@ -34,6 +34,7 @@ export interface BookAnalysisWorkspace {
   selectedDocumentId: string;
   selectedVersionId: string;
   selectedNovelId: string;
+  includeTimeline: boolean;
   llmConfig: LLMConfigState;
   sectionDrafts: Record<string, SectionDraft>;
   publishFeedback: string;
@@ -50,6 +51,7 @@ export interface BookAnalysisWorkspace {
   setKeyword: (keyword: string) => void;
   setStatus: (status: BookAnalysisStatus | "") => void;
   setSelectedNovelId: (novelId: string) => void;
+  setIncludeTimeline: (include: boolean) => void;
   setLlmConfig: (config: LLMConfigState) => void;
   selectDocument: (documentId: string) => void;
   selectVersion: (versionId: string) => void;

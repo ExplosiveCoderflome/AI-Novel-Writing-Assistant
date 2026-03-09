@@ -18,6 +18,11 @@ export interface ImageGenerationTask {
   progress: number;
   retryCount: number;
   maxRetries: number;
+  heartbeatAt?: string | null;
+  currentStage?: string | null;
+  currentItemKey?: string | null;
+  currentItemLabel?: string | null;
+  cancelRequestedAt?: string | null;
   error?: string | null;
   startedAt?: string | null;
   finishedAt?: string | null;

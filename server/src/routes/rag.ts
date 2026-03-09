@@ -64,7 +64,7 @@ router.get("/health", async (_req, res, next) => {
       },
       qdrant: {
         ...qdrant,
-        timeoutMs: ragConfig.httpTimeoutMs,
+        timeoutMs: ragConfig.qdrantTimeoutMs,
       },
       ok: embedding.ok && qdrant.ok,
     };

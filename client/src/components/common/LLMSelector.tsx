@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,30 @@ type ProviderResponse = Record<
     defaultModel: string;
   }
 >;
+
+function sanitizeModelList(models: unknown): string[] {
+  if (!Array.isArray(models)) {
+    return [];
+  }
+  return Array.from(
+    new Set(
+      models
+        .map((item) => (typeof item === "string" ? item.trim() : ""))
+        .filter(Boolean),
+    ),
+  );
+}
+
+function resolveModel(provider: LLMProvider, currentModel: string, models: string[]): string {
+  const normalizedCurrent = currentModel.trim();
+  if (normalizedCurrent && models.includes(normalizedCurrent)) {
+    return normalizedCurrent;
+  }
+  if (normalizedCurrent && models.length === 0) {
+    return normalizedCurrent;
+  }
+  return models[0] ?? providerModelMap[provider][0];
+}
 
 function clampTemperature(value: number): number {
   return Math.min(2, Math.max(0, value));
@@ -66,38 +90,78 @@ export default function LLMSelector({
   });
 
   const providerOptions = useMemo(() => {
+    const knownProviders = Object.keys(providerModelMap) as LLMProvider[];
     if (!data || Object.keys(data).length === 0) {
-      return Object.keys(providerModelMap) as LLMProvider[];
+      return knownProviders;
     }
-    return Object.keys(data) as LLMProvider[];
+    const fromApi = Object.keys(data).filter(
+      (provider): provider is LLMProvider => provider in providerModelMap,
+    );
+    return fromApi.length > 0 ? fromApi : knownProviders;
+  }, [data]);
+
+  const providerModelsMap = useMemo(() => {
+    const entries = (Object.keys(providerModelMap) as LLMProvider[]).map((provider) => {
+      const providerData = data?.[provider] as ProviderResponse[string] | undefined;
+      const fromApi = sanitizeModelList(providerData?.models);
+      return [provider, fromApi.length > 0 ? fromApi : sanitizeModelList(providerModelMap[provider])] as const;
+    });
+    return Object.fromEntries(entries) as Record<LLMProvider, string[]>;
   }, [data]);
 
   const models = useMemo(() => {
-    const providerData = data?.[currentValue.provider];
-    if (providerData?.models?.length) {
-      return providerData.models;
-    }
-    return providerModelMap[currentValue.provider] ?? [];
-  }, [currentValue.provider, data]);
+    return providerModelsMap[currentValue.provider];
+  }, [currentValue.provider, providerModelsMap]);
+
+  const resolvedModel = useMemo(
+    () => resolveModel(currentValue.provider, currentValue.model, models),
+    [currentValue.provider, currentValue.model, models],
+  );
 
   const updateValue = (next: LLMSelectorValue) => {
+    const normalizedModel = resolveModel(next.provider, next.model, providerModelsMap[next.provider]);
+    const normalizedNext: LLMSelectorValue = {
+      ...next,
+      model: normalizedModel,
+    };
     if (onChange) {
-      onChange(next);
+      onChange(normalizedNext);
       return;
     }
-    store.setProvider(next.provider);
-    store.setModel(next.model);
-    if (next.temperature !== undefined) {
-      store.setTemperature(clampTemperature(next.temperature));
+    if (store.provider !== normalizedNext.provider) {
+      store.setProvider(normalizedNext.provider);
     }
-    if (next.maxTokens !== undefined) {
-      store.setMaxTokens(clampMaxTokens(next.maxTokens));
+    store.setModel(normalizedNext.model);
+    if (normalizedNext.temperature !== undefined) {
+      store.setTemperature(clampTemperature(normalizedNext.temperature));
+    }
+    if (normalizedNext.maxTokens !== undefined) {
+      store.setMaxTokens(clampMaxTokens(normalizedNext.maxTokens));
     }
   };
 
+  useEffect(() => {
+    if (resolvedModel === currentValue.model) {
+      return;
+    }
+    updateValue({
+      provider: currentValue.provider,
+      model: resolvedModel,
+      temperature: resolvedTemperature,
+      maxTokens: resolvedMaxTokens,
+    });
+  }, [
+    currentValue.model,
+    currentValue.provider,
+    resolvedMaxTokens,
+    resolvedModel,
+    resolvedTemperature,
+  ]);
+
   const onProviderChange = (provider: string) => {
     const typedProvider = provider as LLMProvider;
-    const nextModel = (data?.[typedProvider]?.models?.[0] ?? providerModelMap[typedProvider]?.[0]) ?? "";
+    const nextModels = providerModelsMap[typedProvider];
+    const nextModel = resolveModel(typedProvider, currentValue.model, nextModels);
     updateValue({
       provider: typedProvider,
       model: nextModel,
@@ -133,7 +197,7 @@ export default function LLMSelector({
         </Select>
 
         {showModel ? (
-          <Select value={currentValue.model} onValueChange={onModelChange}>
+          <Select value={resolvedModel} onValueChange={onModelChange}>
             <SelectTrigger className="w-[240px]">
               <SelectValue placeholder="选择模型" />
             </SelectTrigger>

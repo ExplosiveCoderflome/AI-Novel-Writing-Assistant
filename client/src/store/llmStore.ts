@@ -14,6 +14,28 @@ export const providerModelMap: Record<LLMProvider, string[]> = {
   grok: ["grok-4", "grok-4-latest", "grok-4-1-fast-reasoning", "grok-3", "grok-code-fast-1"],
 };
 
+function getDefaultModel(provider: LLMProvider): string {
+  return providerModelMap[provider][0];
+}
+
+function normalizeProvider(rawProvider: unknown): LLMProvider {
+  if (
+    typeof rawProvider === "string"
+    && Object.prototype.hasOwnProperty.call(providerModelMap, rawProvider)
+  ) {
+    return rawProvider as LLMProvider;
+  }
+  return "deepseek";
+}
+
+function normalizeModel(model: unknown, provider: LLMProvider): string {
+  if (typeof model !== "string") {
+    return getDefaultModel(provider);
+  }
+  const trimmed = model.trim();
+  return trimmed || getDefaultModel(provider);
+}
+
 interface LLMStoreState {
   provider: LLMProvider;
   model: string;
@@ -27,17 +49,20 @@ interface LLMStoreState {
 
 export const useLLMStore = create<LLMStoreState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       provider: "deepseek",
-      model: providerModelMap.deepseek[0],
+      model: getDefaultModel("deepseek"),
       temperature: 0.7,
       maxTokens: 4096,
       setProvider: (provider) =>
         set({
           provider,
-          model: providerModelMap[provider][0],
+          model: getDefaultModel(provider),
         }),
-      setModel: (model) => set({ model }),
+      setModel: (model) =>
+        set((state) => ({
+          model: normalizeModel(model, state.provider),
+        })),
       setTemperature: (temperature) => set({ temperature }),
       setMaxTokens: (maxTokens) => set({ maxTokens }),
     }),
@@ -49,18 +74,17 @@ export const useLLMStore = create<LLMStoreState>()(
         temperature: state.temperature,
         maxTokens: state.maxTokens,
       }),
-      merge: (persisted, current) => ({
-        ...current,
-        ...(persisted as Partial<LLMStoreState>),
-        model:
-          providerModelMap[
-            ((persisted as Partial<LLMStoreState>)?.provider ?? current.provider) as LLMProvider
-          ]?.includes((persisted as Partial<LLMStoreState>)?.model ?? "")
-            ? ((persisted as Partial<LLMStoreState>)?.model as string)
-            : providerModelMap[
-                ((persisted as Partial<LLMStoreState>)?.provider ?? current.provider) as LLMProvider
-              ][0],
-      }),
+      merge: (persisted, current) => {
+        const persistedState = (persisted ?? {}) as Partial<LLMStoreState>;
+        const provider = normalizeProvider(persistedState.provider ?? current.provider);
+        const model = normalizeModel(persistedState.model, provider);
+        return {
+          ...current,
+          ...persistedState,
+          provider,
+          model,
+        };
+      },
     },
   ),
 );

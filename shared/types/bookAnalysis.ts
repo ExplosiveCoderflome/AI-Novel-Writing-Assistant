@@ -1,6 +1,6 @@
 import type { LLMProvider } from "./llm";
 
-export type BookAnalysisStatus = "draft" | "queued" | "running" | "succeeded" | "failed" | "archived";
+export type BookAnalysisStatus = "draft" | "queued" | "running" | "succeeded" | "failed" | "cancelled" | "archived";
 export type BookAnalysisSectionStatus = "idle" | "running" | "succeeded" | "failed";
 export type BookAnalysisSectionKey =
   | "overview"
@@ -66,6 +66,13 @@ export interface BookAnalysis {
   temperature?: number | null;
   maxTokens?: number | null;
   progress: number;
+  heartbeatAt?: string | null;
+  currentStage?: string | null;
+  currentItemKey?: string | null;
+  currentItemLabel?: string | null;
+  cancelRequestedAt?: string | null;
+  attemptCount: number;
+  maxAttempts: number;
   lastError?: string | null;
   lastRunAt?: string | null;
   publishedDocumentId?: string | null;

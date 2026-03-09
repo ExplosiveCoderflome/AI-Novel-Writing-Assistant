@@ -2,19 +2,15 @@ import type { ImageAsset, ImageGenerationTask } from "@ai-novel/shared/types/ima
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
-import {
-  generateImagesByProvider,
-  isImageProviderSupported,
-  resolveImageModel,
-} from "./provider";
+import { generateImagesByProvider, isImageProviderSupported, resolveImageModel } from "./provider";
 import type { ImageGenerationRequest } from "./types";
 
 function isMissingTableError(error: unknown): boolean {
   return (
-    typeof error === "object"
-    && error !== null
-    && "code" in error
-    && (error as { code?: string }).code === "P2021"
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: string }).code === "P2021"
   );
 }
 
@@ -45,6 +41,11 @@ function toImageTask(row: Awaited<ReturnType<typeof prisma.imageGenerationTask.f
     progress: row.progress,
     retryCount: row.retryCount,
     maxRetries: row.maxRetries,
+    heartbeatAt: row.heartbeatAt?.toISOString() ?? null,
+    currentStage: row.currentStage,
+    currentItemKey: row.currentItemKey,
+    currentItemLabel: row.currentItemLabel,
+    cancelRequestedAt: row.cancelRequestedAt?.toISOString() ?? null,
     error: row.error,
     startedAt: row.startedAt?.toISOString() ?? null,
     finishedAt: row.finishedAt?.toISOString() ?? null,
@@ -139,6 +140,10 @@ export class ImageGenerationService {
         seed: input.seed,
         status: "queued",
         maxRetries: input.maxRetries ?? 2,
+        heartbeatAt: null,
+        currentStage: "queued",
+        currentItemKey: character.id,
+        currentItemLabel: character.name,
       },
     });
     this.enqueueTask(task.id);
@@ -150,6 +155,73 @@ export class ImageGenerationService {
       where: { id: taskId },
     });
     return toImageTask(task);
+  }
+
+  async retryTask(taskId: string): Promise<ImageGenerationTask> {
+    const task = await prisma.imageGenerationTask.findUnique({
+      where: { id: taskId },
+    });
+    if (!task) {
+      throw new AppError("Image task not found.", 404);
+    }
+    if (task.status !== "failed" && task.status !== "cancelled") {
+      throw new AppError("Only failed or cancelled image tasks can be retried.", 400);
+    }
+    await prisma.imageGenerationTask.update({
+      where: { id: taskId },
+      data: {
+        status: "queued",
+        progress: 0,
+        retryCount: 0,
+        error: null,
+        startedAt: null,
+        finishedAt: null,
+        heartbeatAt: null,
+        currentStage: "queued",
+        currentItemKey: task.baseCharacterId,
+        currentItemLabel: null,
+        cancelRequestedAt: null,
+      },
+    });
+    this.enqueueTask(taskId);
+    return this.getTask(taskId);
+  }
+
+  async cancelTask(taskId: string): Promise<ImageGenerationTask> {
+    const task = await prisma.imageGenerationTask.findUnique({
+      where: { id: taskId },
+    });
+    if (!task) {
+      throw new AppError("Image task not found.", 404);
+    }
+    if (task.status === "succeeded" || task.status === "failed" || task.status === "cancelled") {
+      throw new AppError("Only queued or running image tasks can be cancelled.", 400);
+    }
+    if (task.status === "queued") {
+      await prisma.imageGenerationTask.update({
+        where: { id: taskId },
+        data: {
+          status: "cancelled",
+          progress: task.progress,
+          error: null,
+          heartbeatAt: null,
+          currentStage: null,
+          currentItemKey: null,
+          currentItemLabel: null,
+          cancelRequestedAt: null,
+          finishedAt: new Date(),
+        },
+      });
+    } else {
+      await prisma.imageGenerationTask.update({
+        where: { id: taskId },
+        data: {
+          cancelRequestedAt: new Date(),
+          heartbeatAt: new Date(),
+        },
+      });
+    }
+    return this.getTask(taskId);
   }
 
   async listCharacterAssets(baseCharacterId: string): Promise<ImageAsset[]> {
@@ -207,6 +279,11 @@ export class ImageGenerationService {
           data: {
             status: "queued",
             error: "Task interrupted by server restart and requeued.",
+            heartbeatAt: null,
+            currentStage: "queued",
+            currentItemKey: null,
+            currentItemLabel: null,
+            cancelRequestedAt: null,
           },
         });
       }
@@ -258,6 +335,10 @@ export class ImageGenerationService {
     if (task.status !== "queued" && task.status !== "running") {
       return;
     }
+    if (task.cancelRequestedAt) {
+      await this.markCancelled(task.id, task.progress);
+      return;
+    }
     if (!task.baseCharacterId || !task.baseCharacter) {
       await prisma.imageGenerationTask.update({
         where: { id: task.id },
@@ -265,6 +346,11 @@ export class ImageGenerationService {
           status: "failed",
           progress: 1,
           error: "Base character was not found.",
+          heartbeatAt: null,
+          currentStage: null,
+          currentItemKey: null,
+          currentItemLabel: null,
+          cancelRequestedAt: null,
           finishedAt: new Date(),
         },
       });
@@ -277,10 +363,25 @@ export class ImageGenerationService {
         progress: 0.1,
         error: null,
         startedAt: task.startedAt ?? new Date(),
+        heartbeatAt: new Date(),
+        currentStage: "submitting",
+        currentItemKey: task.baseCharacterId,
+        currentItemLabel: task.baseCharacter.name,
       },
     });
 
     try {
+      await this.ensureNotCancelled(task.id);
+      await prisma.imageGenerationTask.update({
+        where: { id: task.id },
+        data: {
+          heartbeatAt: new Date(),
+          currentStage: "generating",
+          currentItemKey: task.baseCharacterId,
+          currentItemLabel: task.baseCharacter.name,
+        },
+      });
+
       const result = await generateImagesByProvider({
         provider: task.provider as LLMProvider,
         model: task.model,
@@ -289,6 +390,16 @@ export class ImageGenerationService {
         size: task.size as "512x512" | "768x768" | "1024x1024" | "1024x1536" | "1536x1024",
         count: task.imageCount,
         seed: task.seed ?? undefined,
+      });
+
+      await this.ensureNotCancelled(task.id);
+      await prisma.imageGenerationTask.update({
+        where: { id: task.id },
+        data: {
+          progress: 0.8,
+          heartbeatAt: new Date(),
+          currentStage: "saving_assets",
+        },
       });
 
       await prisma.$transaction(async (tx) => {
@@ -327,11 +438,20 @@ export class ImageGenerationService {
             status: "succeeded",
             progress: 1,
             error: null,
+            heartbeatAt: null,
+            currentStage: null,
+            currentItemKey: null,
+            currentItemLabel: null,
+            cancelRequestedAt: null,
             finishedAt: new Date(),
           },
         });
       });
     } catch (error) {
+      if (error instanceof AppError && error.message === "IMAGE_TASK_CANCELLED") {
+        await this.markCancelled(task.id, task.progress);
+        return;
+      }
       const errorMessage = normalizeError(error);
       const shouldRetry = task.retryCount < task.maxRetries;
       if (shouldRetry) {
@@ -342,6 +462,11 @@ export class ImageGenerationService {
             progress: 0,
             retryCount: { increment: 1 },
             error: errorMessage,
+            heartbeatAt: null,
+            currentStage: "queued",
+            currentItemKey: null,
+            currentItemLabel: null,
+            cancelRequestedAt: null,
           },
         });
         setTimeout(() => this.enqueueTask(task.id), 1500);
@@ -352,11 +477,46 @@ export class ImageGenerationService {
             status: "failed",
             progress: 1,
             error: errorMessage,
+            heartbeatAt: null,
+            currentStage: null,
+            currentItemKey: null,
+            currentItemLabel: null,
+            cancelRequestedAt: null,
             finishedAt: new Date(),
           },
         });
       }
     }
+  }
+
+  private async ensureNotCancelled(taskId: string): Promise<void> {
+    const task = await prisma.imageGenerationTask.findUnique({
+      where: { id: taskId },
+      select: {
+        status: true,
+        cancelRequestedAt: true,
+      },
+    });
+    if (!task || task.status === "cancelled" || task.cancelRequestedAt) {
+      throw new AppError("IMAGE_TASK_CANCELLED", 400);
+    }
+  }
+
+  private async markCancelled(taskId: string, progress: number): Promise<void> {
+    await prisma.imageGenerationTask.update({
+      where: { id: taskId },
+      data: {
+        status: "cancelled",
+        progress,
+        error: null,
+        heartbeatAt: null,
+        currentStage: null,
+        currentItemKey: null,
+        currentItemLabel: null,
+        cancelRequestedAt: null,
+        finishedAt: new Date(),
+      },
+    });
   }
 }
 

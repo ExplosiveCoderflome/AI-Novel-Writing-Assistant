@@ -43,6 +43,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   const [selectedDocumentId, setSelectedDocumentId] = useState(searchParams.get("documentId") ?? "");
   const [selectedVersionId, setSelectedVersionId] = useState("");
   const [selectedNovelId, setSelectedNovelId] = useState("");
+  const [includeTimeline, setIncludeTimeline] = useState(false);
   const [llmConfig, setLlmConfig] = useState<LLMConfigState>({
     provider: llmStore.provider,
     model: llmStore.model,
@@ -399,6 +400,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       model: llmConfig.model || undefined,
       temperature: llmConfig.temperature,
       maxTokens: llmConfig.maxTokens,
+      includeTimeline,
     });
   };
 
@@ -519,6 +521,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     selectedDocumentId,
     selectedVersionId,
     selectedNovelId,
+    includeTimeline,
     llmConfig,
     sectionDrafts,
     publishFeedback,
@@ -544,6 +547,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     setKeyword,
     setStatus,
     setSelectedNovelId,
+    setIncludeTimeline,
     setLlmConfig,
     selectDocument,
     selectVersion,

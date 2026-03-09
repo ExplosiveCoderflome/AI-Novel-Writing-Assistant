@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   BookAnalysis,
   BookAnalysisDetail,
   BookAnalysisPublishResult,
@@ -15,12 +15,39 @@ import { BookAnalysisGenerationService } from "./bookAnalysis.generation";
 import { publishAnalysisToNovel } from "./bookAnalysis.publish";
 import { serializeAnalysisRow, serializeSectionRow } from "./bookAnalysis.serialization";
 import type { AnalysisTask } from "./bookAnalysis.types";
-import { buildAnalysisSummaryFromContent, isMissingTableError, normalizeMaxTokens, normalizeTemperature } from "./bookAnalysis.utils";
+import {
+  buildAnalysisSummaryFromContent,
+  isMissingTableError,
+  normalizeMaxTokens,
+  normalizeTemperature,
+} from "./bookAnalysis.utils";
+
+const BOOK_ANALYSIS_WATCHDOG_INTERVAL_MS = 15_000;
+const BOOK_ANALYSIS_STALE_TIMEOUT_MS = 120_000;
+
+function toTaskKey(task: AnalysisTask): string {
+  return task.kind === "full" ? `${task.analysisId}:full` : `${task.analysisId}:section:${task.sectionKey}`;
+}
+
 export class BookAnalysisService {
   private readonly taskQueue: AnalysisTask[] = [];
+  private readonly queuedTaskKeys = new Set<string>();
   private isProcessing = false;
+  private watchdogTimer: NodeJS.Timeout | null = null;
   private readonly knowledgeService = new KnowledgeService();
   private readonly generationService = new BookAnalysisGenerationService();
+
+  startWatchdog(): void {
+    if (this.watchdogTimer) {
+      return;
+    }
+    this.watchdogTimer = setInterval(() => {
+      void this.recoverTimedOutAnalyses().catch((error) => {
+        console.warn("Failed to recover timed out book analyses.", error);
+      });
+    }, BOOK_ANALYSIS_WATCHDOG_INTERVAL_MS);
+  }
+
   async resumePendingAnalyses(): Promise<void> {
     try {
       const rows = await prisma.bookAnalysis.findMany({
@@ -29,20 +56,28 @@ export class BookAnalysisService {
             in: ["queued", "running"],
           },
         },
-        select: { id: true },
+        select: { id: true, status: true },
       });
       if (rows.length === 0) {
         return;
       }
-      await prisma.bookAnalysis.updateMany({
-        where: {
-          id: { in: rows.map((item) => item.id) },
-        },
-        data: {
-          status: "queued",
-          lastError: null,
-        },
-      });
+      const runningIds = rows.filter((item) => item.status === "running").map((item) => item.id);
+      if (runningIds.length > 0) {
+        await prisma.bookAnalysis.updateMany({
+          where: {
+            id: { in: runningIds },
+          },
+          data: {
+            status: "queued",
+            lastError: "Task interrupted by server restart and requeued.",
+            heartbeatAt: null,
+            currentStage: null,
+            currentItemKey: null,
+            currentItemLabel: null,
+            cancelRequestedAt: null,
+          },
+        });
+      }
       for (const row of rows) {
         this.enqueueTask({ analysisId: row.id, kind: "full" });
       }
@@ -53,6 +88,70 @@ export class BookAnalysisService {
       throw error;
     }
   }
+
+  async recoverTimedOutAnalyses(): Promise<void> {
+    const cutoff = new Date(Date.now() - BOOK_ANALYSIS_STALE_TIMEOUT_MS);
+    const rows = await prisma.bookAnalysis.findMany({
+      where: {
+        status: "running",
+        OR: [
+          { heartbeatAt: { lt: cutoff } },
+          { heartbeatAt: null, updatedAt: { lt: cutoff } },
+        ],
+      },
+      select: {
+        id: true,
+        attemptCount: true,
+        maxAttempts: true,
+      },
+    });
+
+    for (const row of rows) {
+      if (row.attemptCount < row.maxAttempts) {
+        await prisma.$transaction(async (tx) => {
+          await tx.bookAnalysis.update({
+            where: { id: row.id },
+            data: {
+              status: "queued",
+              lastError: null,
+              heartbeatAt: null,
+              currentStage: null,
+              currentItemKey: null,
+              currentItemLabel: null,
+              cancelRequestedAt: null,
+              attemptCount: { increment: 1 },
+            },
+          });
+          await tx.bookAnalysisSection.updateMany({
+            where: {
+              analysisId: row.id,
+              frozen: false,
+            },
+            data: {
+              status: "idle",
+            },
+          });
+        });
+        this.enqueueTask({ analysisId: row.id, kind: "full" });
+        continue;
+      }
+
+      await prisma.bookAnalysis.update({
+        where: { id: row.id },
+        data: {
+          status: "failed",
+          progress: 1,
+          lastError: "任务心跳超时",
+          heartbeatAt: null,
+          currentStage: null,
+          currentItemKey: null,
+          currentItemLabel: null,
+          cancelRequestedAt: null,
+        },
+      });
+    }
+  }
+
   async listAnalyses(filters: {
     keyword?: string;
     status?: BookAnalysisStatus;
@@ -65,12 +164,12 @@ export class BookAnalysisService {
         ...(filters.documentId ? { documentId: filters.documentId } : {}),
         ...(keyword
           ? {
-            OR: [
-              { title: { contains: keyword } },
-              { document: { title: { contains: keyword } } },
-              { document: { fileName: { contains: keyword } } },
-            ],
-          }
+              OR: [
+                { title: { contains: keyword } },
+                { document: { title: { contains: keyword } } },
+                { document: { fileName: { contains: keyword } } },
+              ],
+            }
           : {}),
       },
       include: {
@@ -94,6 +193,7 @@ export class BookAnalysisService {
     });
     return rows.map((row) => serializeAnalysisRow(row));
   }
+
   async getAnalysisById(analysisId: string): Promise<BookAnalysisDetail | null> {
     await this.ensureAnalysisSections(analysisId);
     const row = await prisma.bookAnalysis.findUnique({
@@ -127,6 +227,7 @@ export class BookAnalysisService {
       sections: row.sections.map((section) => serializeSectionRow(section)),
     };
   }
+
   async createAnalysis(input: {
     documentId: string;
     versionId?: string;
@@ -134,6 +235,7 @@ export class BookAnalysisService {
     model?: string;
     temperature?: number;
     maxTokens?: number;
+    includeTimeline?: boolean;
   }): Promise<BookAnalysisDetail> {
     const temperature = normalizeTemperature(input.temperature);
     const maxTokens = normalizeMaxTokens(input.maxTokens);
@@ -174,6 +276,8 @@ export class BookAnalysisService {
           maxTokens,
           progress: 0,
           lastError: null,
+          attemptCount: 0,
+          maxAttempts: 1,
         },
       });
       await tx.bookAnalysisSection.createMany({
@@ -183,6 +287,7 @@ export class BookAnalysisService {
           title: section.title,
           sortOrder: index,
           status: "idle",
+          frozen: section.key === "timeline" ? !input.includeTimeline : false,
         })),
       });
       return analysis.id;
@@ -194,6 +299,7 @@ export class BookAnalysisService {
     }
     return detail;
   }
+
   async copyAnalysis(analysisId: string): Promise<BookAnalysisDetail> {
     const source = await prisma.bookAnalysis.findUnique({
       where: { id: analysisId },
@@ -214,7 +320,7 @@ export class BookAnalysisService {
         data: {
           documentId: source.documentId,
           documentVersionId: source.documentVersionId,
-          title: `${source.title} - 鍓湰`,
+          title: `${source.title} - copy`,
           status: "draft",
           summary: source.summary,
           provider: source.provider,
@@ -222,6 +328,13 @@ export class BookAnalysisService {
           temperature: source.temperature,
           maxTokens: source.maxTokens,
           progress: 1,
+          heartbeatAt: null,
+          currentStage: null,
+          currentItemKey: null,
+          currentItemLabel: null,
+          cancelRequestedAt: null,
+          attemptCount: 0,
+          maxAttempts: source.maxAttempts,
           lastError: null,
           lastRunAt: source.lastRunAt,
         },
@@ -249,6 +362,7 @@ export class BookAnalysisService {
     }
     return detail;
   }
+
   async rebuildAnalysis(analysisId: string): Promise<BookAnalysisDetail> {
     const analysis = await prisma.bookAnalysis.findUnique({
       where: { id: analysisId },
@@ -269,6 +383,12 @@ export class BookAnalysisService {
           status: "queued",
           progress: 0,
           lastError: null,
+          heartbeatAt: null,
+          currentStage: null,
+          currentItemKey: null,
+          currentItemLabel: null,
+          cancelRequestedAt: null,
+          attemptCount: 0,
         },
       });
       await tx.bookAnalysisSection.updateMany({
@@ -288,6 +408,69 @@ export class BookAnalysisService {
     }
     return detail;
   }
+
+  async retryAnalysis(analysisId: string): Promise<BookAnalysisDetail> {
+    const analysis = await prisma.bookAnalysis.findUnique({
+      where: { id: analysisId },
+      select: { status: true },
+    });
+    if (!analysis) {
+      throw new AppError("Book analysis not found.", 404);
+    }
+    if (analysis.status !== "failed" && analysis.status !== "cancelled") {
+      throw new AppError("Only failed or cancelled analyses can be retried.", 400);
+    }
+    return this.rebuildAnalysis(analysisId);
+  }
+
+  async cancelAnalysis(analysisId: string): Promise<BookAnalysisDetail> {
+    const analysis = await prisma.bookAnalysis.findUnique({
+      where: { id: analysisId },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+    if (!analysis) {
+      throw new AppError("Book analysis not found.", 404);
+    }
+    if (analysis.status === "archived") {
+      throw new AppError("Archived book analysis cannot be cancelled.", 400);
+    }
+    if (analysis.status === "succeeded" || analysis.status === "failed" || analysis.status === "cancelled") {
+      throw new AppError("Only queued or running analyses can be cancelled.", 400);
+    }
+
+    if (analysis.status === "queued") {
+      await prisma.bookAnalysis.update({
+        where: { id: analysisId },
+        data: {
+          status: "cancelled",
+          lastError: null,
+          heartbeatAt: null,
+          currentStage: null,
+          currentItemKey: null,
+          currentItemLabel: null,
+          cancelRequestedAt: null,
+        },
+      });
+    } else {
+      await prisma.bookAnalysis.update({
+        where: { id: analysisId },
+        data: {
+          cancelRequestedAt: new Date(),
+          heartbeatAt: new Date(),
+        },
+      });
+    }
+
+    const detail = await this.getAnalysisById(analysisId);
+    if (!detail) {
+      throw new AppError("Book analysis not found after cancel.", 500);
+    }
+    return detail;
+  }
+
   async regenerateSection(analysisId: string, sectionKey: BookAnalysisSectionKey): Promise<BookAnalysisDetail> {
     const section = await prisma.bookAnalysisSection.findFirst({
       where: {
@@ -313,6 +496,11 @@ export class BookAnalysisService {
         data: {
           status: "queued",
           lastError: null,
+          heartbeatAt: null,
+          currentStage: null,
+          currentItemKey: null,
+          currentItemLabel: null,
+          cancelRequestedAt: null,
         },
       });
       await tx.bookAnalysisSection.update({
@@ -334,6 +522,7 @@ export class BookAnalysisService {
     }
     return detail;
   }
+
   async optimizeSectionPreview(
     analysisId: string,
     sectionKey: BookAnalysisSectionKey,
@@ -347,6 +536,7 @@ export class BookAnalysisService {
     });
     return { optimizedDraft };
   }
+
   async updateSection(
     analysisId: string,
     sectionKey: BookAnalysisSectionKey,
@@ -368,9 +558,8 @@ export class BookAnalysisService {
     const normalizedEditedContent = input.editedContent?.trim() || null;
     const normalizedAiContent = section.aiContent?.replace(/\r\n?/g, "\n").trim() || null;
     const normalizedForCompare = normalizedEditedContent?.replace(/\r\n?/g, "\n").trim() || null;
-    const finalEditedContent = normalizedForCompare && normalizedForCompare === normalizedAiContent
-      ? null
-      : normalizedEditedContent;
+    const finalEditedContent =
+      normalizedForCompare && normalizedForCompare === normalizedAiContent ? null : normalizedEditedContent;
     await prisma.bookAnalysisSection.update({
       where: {
         analysisId_sectionKey: {
@@ -398,7 +587,11 @@ export class BookAnalysisService {
     }
     return detail;
   }
-  async updateAnalysisStatus(analysisId: string, status: Extract<BookAnalysisStatus, "archived">): Promise<BookAnalysisDetail> {
+
+  async updateAnalysisStatus(
+    analysisId: string,
+    status: Extract<BookAnalysisStatus, "archived">,
+  ): Promise<BookAnalysisDetail> {
     const analysis = await prisma.bookAnalysis.findUnique({
       where: { id: analysisId },
     });
@@ -415,6 +608,7 @@ export class BookAnalysisService {
     }
     return detail;
   }
+
   async publishToNovelKnowledge(analysisId: string, novelId: string): Promise<BookAnalysisPublishResult> {
     return publishAnalysisToNovel({
       analysisId,
@@ -423,7 +617,11 @@ export class BookAnalysisService {
       getAnalysisById: (id) => this.getAnalysisById(id),
     });
   }
-  async buildExportContent(analysisId: string, format: "markdown" | "json"): Promise<{
+
+  async buildExportContent(
+    analysisId: string,
+    format: "markdown" | "json",
+  ): Promise<{
     fileName: string;
     contentType: string;
     content: string;
@@ -434,10 +632,17 @@ export class BookAnalysisService {
     }
     return buildAnalysisExportContent(detail, format);
   }
+
   private enqueueTask(task: AnalysisTask): void {
+    const taskKey = toTaskKey(task);
+    if (this.queuedTaskKeys.has(taskKey)) {
+      return;
+    }
     this.taskQueue.push(task);
+    this.queuedTaskKeys.add(taskKey);
     void this.processQueue();
   }
+
   private async ensureAnalysisSections(analysisId: string): Promise<void> {
     const analysis = await prisma.bookAnalysis.findUnique({
       where: { id: analysisId },
@@ -470,6 +675,7 @@ export class BookAnalysisService {
       // section may have been inserted concurrently
     }
   }
+
   private async processQueue(): Promise<void> {
     if (this.isProcessing) {
       return;
@@ -481,6 +687,7 @@ export class BookAnalysisService {
         if (!task) {
           continue;
         }
+        this.queuedTaskKeys.delete(toTaskKey(task));
         await this.ensureAnalysisSections(task.analysisId);
         if (task.kind === "full") {
           await this.generationService.runFullAnalysis(task.analysisId);
@@ -493,4 +700,5 @@ export class BookAnalysisService {
     }
   }
 }
+
 export const bookAnalysisService = new BookAnalysisService();

@@ -379,9 +379,8 @@ export class RagIndexService {
     }
 
     const docTexts = docs.map((item) => item.content);
-    const embedding = await this.embedTextsInBatches(docTexts.flatMap((text) =>
-      splitRagChunks(text, ragConfig.chunkSize, ragConfig.chunkOverlap),
-    ));
+    const splitTexts = docTexts.flatMap((text) => splitRagChunks(text, ragConfig.chunkSize, ragConfig.chunkOverlap));
+    const embedding = await this.embedTextsInBatches(splitTexts);
     const candidates = this.buildChunkCandidates(docs, embedding.provider, embedding.model);
     if (candidates.length === 0) {
       await this.deleteOwnerChunks(ownerType, ownerId, tenantId);
@@ -481,7 +480,7 @@ export class RagIndexService {
     if (existing) {
       return existing;
     }
-    return prisma.ragIndexJob.create({
+    const created = await prisma.ragIndexJob.create({
       data: {
         tenantId,
         jobType,
@@ -494,6 +493,7 @@ export class RagIndexService {
         payloadJson: options?.payload ? JSON.stringify(options.payload) : null,
       },
     });
+    return created;
   }
 
   async enqueueUpsert(ownerType: RagOwnerType, ownerId: string, tenantId?: string) {

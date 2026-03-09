@@ -33,6 +33,7 @@ export async function createBookAnalysis(payload: {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  includeTimeline?: boolean;
 }) {
   const { data } = await apiClient.post<ApiResponse<BookAnalysisDetail>>("/book-analysis", payload);
   return data;

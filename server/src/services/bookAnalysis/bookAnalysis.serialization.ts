@@ -14,6 +14,13 @@ export interface AnalysisRowForSerialize {
   temperature: number | null;
   maxTokens: number | null;
   progress: number;
+  heartbeatAt: Date | null;
+  currentStage: string | null;
+  currentItemKey: string | null;
+  currentItemLabel: string | null;
+  cancelRequestedAt: Date | null;
+  attemptCount: number;
+  maxAttempts: number;
   lastError: string | null;
   lastRunAt: Date | null;
   publishedDocumentId: string | null;
@@ -67,6 +74,13 @@ export function serializeAnalysisRow(row: AnalysisRowForSerialize): BookAnalysis
     temperature: row.temperature,
     maxTokens: row.maxTokens,
     progress: row.progress,
+    heartbeatAt: row.heartbeatAt?.toISOString() ?? null,
+    currentStage: row.currentStage,
+    currentItemKey: row.currentItemKey,
+    currentItemLabel: row.currentItemLabel,
+    cancelRequestedAt: row.cancelRequestedAt?.toISOString() ?? null,
+    attemptCount: row.attemptCount,
+    maxAttempts: row.maxAttempts,
     lastError: row.lastError,
     lastRunAt: row.lastRunAt?.toISOString() ?? null,
     publishedDocumentId: row.publishedDocumentId,

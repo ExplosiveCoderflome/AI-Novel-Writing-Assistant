@@ -8,7 +8,8 @@
     "shared"
   ],
   "scripts": {
-    "dev": "concurrently \"pnpm dev:server\" \"pnpm dev:client\"",
+    "dev": "concurrently \"pnpm dev:shared\" \"pnpm dev:server\" \"pnpm dev:client\"",
+    "dev:shared": "pnpm --filter @ai-novel/shared dev",
     "dev:server": "pnpm --filter @ai-novel/server dev",
     "dev:client": "pnpm --filter @ai-novel/client dev",
     "db:migrate": "pnpm --filter @ai-novel/server db:migrate",

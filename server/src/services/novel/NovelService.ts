@@ -8,49 +8,14 @@ import { getLLM } from "../../llm/factory";
 import { ragServices } from "../rag";
 import { getRagQueryForChapter, novelReferenceService } from "./NovelReferenceService";
 import { NovelContinuationService } from "./NovelContinuationService";
+import {
+  buildStructuredOutlineRepairSystemPrompt,
+  buildStructuredOutlineSystemPrompt,
+  parseStrictStructuredOutline,
+  stringifyStructuredOutline,
+  toOutlineChapterRows,
+} from "./structuredOutline";
 import type { RagOwnerType } from "../rag/types";
-
-function pickStr(obj: Record<string, unknown>, keys: string[]): string {
-  for (const key of keys) {
-    const v = obj[key];
-    if (typeof v === "string" && v.trim()) return v.trim();
-  }
-  return "";
-}
-
-function parseChapterItem(raw: unknown, fallbackOrder: number): { order: number; title: string; summary: string } | null {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
-  const r = raw as Record<string, unknown>;
-  const orderRaw = r.order ?? r.chapterOrder ?? r.chapterNo ?? r.chapter ?? r.index;
-  let order = fallbackOrder;
-  if (typeof orderRaw === "number" && orderRaw > 0) order = Math.round(orderRaw);
-  else if (typeof orderRaw === "string") {
-    const n = parseInt(orderRaw.match(/\d+/)?.[0] ?? "", 10);
-    if (n > 0) order = n;
-  }
-  const title = pickStr(r, ["title", "chapterTitle", "name", "chapterName"]) || `${order}章`;
-  const summary = pickStr(r, ["summary", "outline", "description", "content"]);
-  if (!title && !summary) return null;
-  return { order, title, summary };
-}
-
-function parseChaptersFromStructuredJson(parsed: unknown): Array<{ order: number; title: string; summary: string }> {
-  if (!Array.isArray(parsed) || parsed.length === 0) return [];
-  const first = parsed[0];
-  const isVolumeList =
-    typeof first === "object" &&
-    first !== null &&
-    !Array.isArray(first) &&
-    (Array.isArray((first as Record<string, unknown>).chapters) ||
-      Array.isArray((first as Record<string, unknown>).chapterList));
-  if (isVolumeList) {
-    return (parsed as Record<string, unknown>[]).flatMap((vol, vi) => {
-      const chaps = (Array.isArray(vol.chapters) ? vol.chapters : Array.isArray(vol.chapterList) ? vol.chapterList : []) as unknown[];
-      return chaps.map((c, ci) => parseChapterItem(c, vi * 100 + ci + 1)).filter((x): x is NonNullable<typeof x> => x !== null);
-    });
-  }
-  return parsed.map((c, ci) => parseChapterItem(c, ci + 1)).filter((x): x is NonNullable<typeof x> => x !== null);
-}
 
 interface PaginationInput {
   page: number;
@@ -127,6 +92,10 @@ interface GenerateBeatOptions extends LLMGenerateOptions {
 interface PipelineRunOptions extends LLMGenerateOptions {
   startOrder: number;
   endOrder: number;
+  maxRetries?: number;
+}
+
+interface PipelinePayload extends LLMGenerateOptions {
   maxRetries?: number;
 }
 
@@ -1119,34 +1088,76 @@ ${worldContext}${referenceBlock}${initialPromptBlock}`,
       ? novel.characters
           .map((c) => `- ${c.name}${c.role}${c.personality ? `${c.personality.slice(0, 80)}` : ""}`)
           .join("\n")
-      : "暂无";    const llm = await getLLM(options.provider ?? "deepseek", {
+      : "暂无";
+    const totalChapters = options.totalChapters ?? 20;
+    const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
-      temperature: options.temperature ?? 0.5,
+      temperature: options.temperature ?? 0.2,
     });
     const stream = await llm.stream([
-      new SystemMessage("你是一位专业的小说结构化编剧，请严格基于给定角色设定和发展走向输出 JSON 数组，不得自行发明角色"),
+      new SystemMessage(buildStructuredOutlineSystemPrompt(totalChapters)),
       new HumanMessage(
         `核心角色（必须使用这些角色，不得替换或忽略）"
 ${charactersText}
 世界上下文：
 ${worldContext}
-基于下述发展走向，生${options.totalChapters ?? 20}章规划：
-${novel.outline}${referenceBlock}`,
+基于下述发展走向，生成${totalChapters}章规划：
+${novel.outline}${referenceBlock}
+
+输出规则：
+1. 只能输出 JSON 数组
+2. 每个对象只能包含 chapter/title/summary/key_events/roles
+3. chapter 必须从 1 开始连续编号
+4. key_events 和 roles 必须是非空字符串数组`,
       ),
     ]);
     return {
       stream: stream as AsyncIterable<BaseMessageChunk>,
       onDone: async (fullContent: string) => {
-        const jsonText = extractJSONArray(fullContent);
-        const parsed = JSON.parse(jsonText) as unknown;
-        await prisma.novel.update({ where: { id: novelId }, data: { structuredOutline: jsonText } });
-        const chapters = parseChaptersFromStructuredJson(parsed);
+        let normalized: ReturnType<typeof parseStrictStructuredOutline>;
+        try {
+          normalized = parseStrictStructuredOutline(fullContent, totalChapters);
+        } catch (error) {
+          const repaired = await this.repairStructuredOutlineOutput(
+            fullContent,
+            totalChapters,
+            options,
+            error instanceof Error ? error.message : "invalid structured outline",
+          );
+          normalized = parseStrictStructuredOutline(repaired, totalChapters);
+        }
+        const structuredOutline = stringifyStructuredOutline(normalized);
+        await prisma.novel.update({ where: { id: novelId }, data: { structuredOutline } });
+        const chapters = toOutlineChapterRows(normalized);
         if (chapters.length > 0) {
           await this.syncChaptersFromOutline(novelId, chapters);
         }
         this.queueRagUpsert("novel", novelId);
       },
     };
+  }
+
+  private async repairStructuredOutlineOutput(
+    rawContent: string,
+    totalChapters: number,
+    options: StructuredOutlineGenerateOptions,
+    reason: string,
+  ): Promise<string> {
+    const llm = await getLLM(options.provider ?? "deepseek", {
+      model: options.model,
+      temperature: 0.1,
+    });
+    const result = await llm.invoke([
+      new SystemMessage(buildStructuredOutlineRepairSystemPrompt(totalChapters)),
+      new HumanMessage(
+        `请把下面内容修正为严格结构化 JSON 数组。
+校验失败原因：${reason}
+
+原始内容：
+${rawContent}`,
+      ),
+    ]);
+    return toText(result.content);
   }
 
   private async syncChaptersFromOutline(
@@ -1465,6 +1476,7 @@ ${worldContext}${referenceBlock}`,
         status: "queued",
         totalCount: chapters.length,
         maxRetries: options.maxRetries ?? 2,
+        currentStage: "queued",
         payload: JSON.stringify({
           provider: options.provider ?? "deepseek",
           model: options.model ?? "",
@@ -1485,6 +1497,64 @@ ${worldContext}${referenceBlock}`,
 
   async getPipelineJob(novelId: string, jobId: string) {
     return prisma.generationJob.findFirst({ where: { id: jobId, novelId } });
+  }
+
+  async getPipelineJobById(jobId: string) {
+    return prisma.generationJob.findUnique({ where: { id: jobId } });
+  }
+
+  async retryPipelineJob(jobId: string) {
+    const job = await prisma.generationJob.findUnique({
+      where: { id: jobId },
+    });
+    if (!job) {
+      throw new Error("任务不存在。");
+    }
+    if (job.status !== "failed" && job.status !== "cancelled") {
+      throw new Error("仅失败或已取消的任务支持重试。");
+    }
+    const payload = this.parsePipelinePayload(job.payload);
+    return this.startPipelineJob(job.novelId, {
+      startOrder: job.startOrder,
+      endOrder: job.endOrder,
+      maxRetries: job.maxRetries,
+      provider: payload.provider,
+      model: payload.model,
+      temperature: payload.temperature,
+    });
+  }
+
+  async cancelPipelineJob(jobId: string) {
+    const job = await prisma.generationJob.findUnique({
+      where: { id: jobId },
+    });
+    if (!job) {
+      throw new Error("任务不存在。");
+    }
+    if (job.status === "succeeded" || job.status === "failed" || job.status === "cancelled") {
+      throw new Error("仅排队中或运行中的任务可取消。");
+    }
+    if (job.status === "queued") {
+      return prisma.generationJob.update({
+        where: { id: jobId },
+        data: {
+          status: "cancelled",
+          cancelRequestedAt: null,
+          heartbeatAt: null,
+          currentStage: null,
+          currentItemKey: null,
+          currentItemLabel: null,
+          finishedAt: new Date(),
+        },
+      });
+    }
+    return prisma.generationJob.update({
+      where: { id: jobId },
+      data: {
+        cancelRequestedAt: new Date(),
+        heartbeatAt: new Date(),
+      },
+    });
   }
 
   async reviewChapter(novelId: string, chapterId: string, options: ReviewOptions = {}) {
@@ -2103,14 +2173,48 @@ ${ragContext || ""}`,
     });
   }
 
+  private parsePipelinePayload(payload: string | null | undefined): PipelinePayload {
+    if (!payload?.trim()) {
+      return {};
+    }
+    try {
+      const parsed = JSON.parse(payload) as Record<string, unknown>;
+      return {
+        provider: typeof parsed.provider === "string" ? (parsed.provider as LLMProvider) : undefined,
+        model: typeof parsed.model === "string" ? parsed.model : undefined,
+        temperature: typeof parsed.temperature === "number" ? parsed.temperature : undefined,
+      };
+    } catch {
+      return {};
+    }
+  }
+
+  private async ensurePipelineNotCancelled(jobId: string): Promise<void> {
+    const job = await prisma.generationJob.findUnique({
+      where: { id: jobId },
+      select: {
+        status: true,
+        cancelRequestedAt: true,
+      },
+    });
+    if (!job || job.status === "cancelled" || job.cancelRequestedAt) {
+      throw new Error("PIPELINE_CANCELLED");
+    }
+  }
+
   private async updateJobSafe(jobId: string, data: {
     status?: "queued" | "running" | "succeeded" | "failed" | "cancelled";
     progress?: number;
     completedCount?: number;
     retryCount?: number;
+    heartbeatAt?: Date | null;
+    currentStage?: string | null;
+    currentItemKey?: string | null;
+    currentItemLabel?: string | null;
+    cancelRequestedAt?: Date | null;
     error?: string | null;
-    startedAt?: Date;
-    finishedAt?: Date;
+    startedAt?: Date | null;
+    finishedAt?: Date | null;
   }) {
     try {
       await prisma.generationJob.update({
@@ -2131,6 +2235,8 @@ ${ragContext || ""}`,
       await this.updateJobSafe(jobId, {
         status: "running",
         startedAt: new Date(),
+        heartbeatAt: new Date(),
+        currentStage: "generating_chapters",
       });
       logPipelineInfo("任务开始执", {
         jobId,
@@ -2162,9 +2268,16 @@ ${ragContext || ""}`,
 
       let completed = 0;
       for (const chapter of chapters) {
+        await this.ensurePipelineNotCancelled(jobId);
         let content = chapter.content ?? "";
         let final = { score: normalizeScore({}), issues: [] as ReviewIssue[] };
         let pass = false;
+        await this.updateJobSafe(jobId, {
+          heartbeatAt: new Date(),
+          currentStage: "generating_chapters",
+          currentItemKey: chapter.id,
+          currentItemLabel: chapter.title,
+        });
         logPipelineInfo("开始处理章", {
           jobId,
           chapterId: chapter.id,
@@ -2173,6 +2286,7 @@ ${ragContext || ""}`,
         });
 
         for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+          await this.ensurePipelineNotCancelled(jobId);
           logPipelineInfo("章节尝试开", {
             jobId,
             order: chapter.order,
@@ -2180,6 +2294,12 @@ ${ragContext || ""}`,
             maxRetries,
           });
           if (!content.trim()) {
+            await this.updateJobSafe(jobId, {
+              heartbeatAt: new Date(),
+              currentStage: "generating_chapters",
+              currentItemKey: chapter.id,
+              currentItemLabel: chapter.title,
+            });
             const context = await this.buildContextText(novelId, chapter.order);
             const openingHint = await this.buildOpeningConstraintHint(novelId, chapter.order);
             const plan = await llm.invoke([
@@ -2272,6 +2392,12 @@ ${continuationPack.enabled ? continuationPack.humanBlock : ""}`,
           });
           await this.syncChapterArtifacts(novelId, chapter.id, content);
 
+          await this.updateJobSafe(jobId, {
+            heartbeatAt: new Date(),
+            currentStage: "reviewing",
+            currentItemKey: chapter.id,
+            currentItemLabel: chapter.title,
+          });
           final = await this.reviewChapterContent(novel.title, chapter.title, content, options, novelId);
           await prisma.chapter.update({ where: { id: chapter.id }, data: { generationState: "reviewed" } });
           logPipelineInfo("章节审校结果", {
@@ -2294,6 +2420,12 @@ ${continuationPack.enabled ? continuationPack.humanBlock : ""}`,
           }
 
           if (attempt < maxRetries) {
+            await this.updateJobSafe(jobId, {
+              heartbeatAt: new Date(),
+              currentStage: "repairing",
+              currentItemKey: chapter.id,
+              currentItemLabel: chapter.title,
+            });
             logPipelineWarn("章节未达标，准备修复重试", {
               jobId,
               order: chapter.order,
@@ -2338,6 +2470,7 @@ ${JSON.stringify(final.issues, null, 2)}`,
           completedCount: completed,
           progress: Number((completed / chapters.length).toFixed(4)),
           retryCount: totalRetryCount,
+          heartbeatAt: new Date(),
         });
         logPipelineInfo("任务进度更新", {
           jobId,
@@ -2351,6 +2484,11 @@ ${JSON.stringify(final.issues, null, 2)}`,
       await this.updateJobSafe(jobId, {
         status: failedDetails.length === 0 ? "succeeded" : "failed",
         error: failedDetails.length === 0 ? null : `以下章节未达标：${failedDetails.join("")}`,
+        heartbeatAt: null,
+        currentStage: null,
+        currentItemKey: null,
+        currentItemLabel: null,
+        cancelRequestedAt: null,
         finishedAt: new Date(),
       });
       logPipelineInfo("任务执行结束", {
@@ -2359,6 +2497,18 @@ ${JSON.stringify(final.issues, null, 2)}`,
         failedDetails,
       });
     } catch (error) {
+      if (error instanceof Error && error.message === "PIPELINE_CANCELLED") {
+        await this.updateJobSafe(jobId, {
+          status: "cancelled",
+          heartbeatAt: null,
+          currentStage: null,
+          currentItemKey: null,
+          currentItemLabel: null,
+          cancelRequestedAt: null,
+          finishedAt: new Date(),
+        });
+        return;
+      }
       await this.updateJobSafe(jobId, {
         status: "failed",
         error: error instanceof Error ? error.message : "流水线执行失败",

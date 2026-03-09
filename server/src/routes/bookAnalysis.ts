@@ -8,7 +8,7 @@ import { bookAnalysisService } from "../services/bookAnalysis/BookAnalysisServic
 const router = Router();
 
 const providerSchema = z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]);
-const bookAnalysisStatusSchema = z.enum(["draft", "queued", "running", "succeeded", "failed", "archived"]);
+const bookAnalysisStatusSchema = z.enum(["draft", "queued", "running", "succeeded", "failed", "cancelled", "archived"]);
 const sectionKeySchema = z.enum([
   "overview",
   "plot_structure",
@@ -42,6 +42,7 @@ const createSchema = z.object({
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().min(256).max(32768).optional(),
+  includeTimeline: z.boolean().optional().default(false),
 });
 
 const publishSchema = z.object({

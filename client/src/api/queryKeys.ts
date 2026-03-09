@@ -44,6 +44,10 @@ export const queryKeys = {
     task: (taskId: string) => ["images", "task", taskId] as const,
     assets: (sceneType: "character", sceneId: string) => ["images", "assets", sceneType, sceneId] as const,
   },
+  tasks: {
+    list: (params: string) => ["tasks", "list", params] as const,
+    detail: (kind: string, id: string) => ["tasks", "detail", kind, id] as const,
+  },
   settings: {
     apiKeys: ["settings", "api-keys"] as const,
     rag: ["settings", "rag"] as const,

@@ -13,6 +13,7 @@ interface BookAnalysisSidebarProps {
   selectedVersionId: string;
   keyword: string;
   status: BookAnalysisStatus | "";
+  includeTimeline: boolean;
   llmConfig: LLMConfigState;
   documentOptions: KnowledgeDocumentSummary[];
   versionOptions: KnowledgeDocumentDetail["versions"];
@@ -24,6 +25,7 @@ interface BookAnalysisSidebarProps {
   onSelectVersion: (versionId: string) => void;
   onKeywordChange: (keyword: string) => void;
   onStatusChange: (status: BookAnalysisStatus | "") => void;
+  onIncludeTimelineChange: (includeTimeline: boolean) => void;
   onLlmConfigChange: (config: LLMConfigState) => void;
   onCreate: () => void;
   onOpenAnalysis: (analysisId: string, documentId: string) => void;
@@ -35,6 +37,7 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
     selectedVersionId,
     keyword,
     status,
+    includeTimeline,
     llmConfig,
     documentOptions,
     versionOptions,
@@ -46,6 +49,7 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
     onSelectVersion,
     onKeywordChange,
     onStatusChange,
+    onIncludeTimelineChange,
     onLlmConfigChange,
     onCreate,
     onOpenAnalysis,
@@ -106,6 +110,15 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
               showParameters
             />
           </div>
+
+          <label className="flex items-center gap-2 rounded-md border p-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={includeTimeline}
+              onChange={(event) => onIncludeTimelineChange(event.target.checked)}
+            />
+            生成故事时间线（默认关闭）
+          </label>
 
           <Button className="w-full" onClick={onCreate} disabled={!selectedDocumentId || createPending}>
             创建

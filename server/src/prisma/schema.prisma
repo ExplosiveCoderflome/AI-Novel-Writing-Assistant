@@ -90,6 +90,7 @@ enum BookAnalysisStatus {
   running
   succeeded
   failed
+  cancelled
   archived
 }
 
@@ -242,6 +243,11 @@ model ImageGenerationTask {
   progress        Float             @default(0)
   retryCount      Int               @default(0)
   maxRetries      Int               @default(2)
+  heartbeatAt     DateTime?
+  currentStage    String?
+  currentItemKey  String?
+  currentItemLabel String?
+  cancelRequestedAt DateTime?
   error           String?
   startedAt       DateTime?
   finishedAt      DateTime?
@@ -525,6 +531,11 @@ model GenerationJob {
   totalCount     Int               @default(0)
   retryCount     Int               @default(0)
   maxRetries     Int               @default(2)
+  heartbeatAt    DateTime?
+  currentStage   String?
+  currentItemKey String?
+  currentItemLabel String?
+  cancelRequestedAt DateTime?
   error          String?
   payload        String?
   startedAt      DateTime?
@@ -622,6 +633,13 @@ model BookAnalysis {
   temperature                 Float?
   maxTokens                   Int?
   progress                    Float              @default(0)
+  heartbeatAt                 DateTime?
+  currentStage                String?
+  currentItemKey              String?
+  currentItemLabel            String?
+  cancelRequestedAt           DateTime?
+  attemptCount                Int                @default(0)
+  maxAttempts                 Int                @default(1)
   lastError                   String?
   lastRunAt                   DateTime?
   publishedDocumentId         String?

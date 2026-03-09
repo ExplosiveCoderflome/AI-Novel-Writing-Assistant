@@ -10,6 +10,7 @@ import NovelChapterEdit from "@/pages/novels/NovelChapterEdit";
 import NovelEdit from "@/pages/novels/NovelEdit";
 import NovelList from "@/pages/novels/NovelList";
 import SettingsPage from "@/pages/settings/SettingsPage";
+import TaskCenterPage from "@/pages/tasks/TaskCenterPage";
 import WorldGenerator from "@/pages/worlds/WorldGenerator";
 import WorldList from "@/pages/worlds/WorldList";
 import WorldWorkspace from "@/pages/worlds/WorldWorkspace";
@@ -27,6 +28,7 @@ const routes: RouteObject[] = [
       { path: "novels/:id/chapters/:chapterId", element: <NovelChapterEdit /> },
       { path: "chat", element: <ChatPage /> },
       { path: "book-analysis", element: <BookAnalysisPage /> },
+      { path: "tasks", element: <TaskCenterPage /> },
       { path: "knowledge", element: <KnowledgePage /> },
       { path: "settings", element: <SettingsPage /> },
       { path: "worlds", element: <WorldList /> },

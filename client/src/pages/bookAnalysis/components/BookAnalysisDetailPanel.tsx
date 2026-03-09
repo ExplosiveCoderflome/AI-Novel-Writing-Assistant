@@ -1,4 +1,5 @@
 import type { BookAnalysisDetail, BookAnalysisPublishResult, BookAnalysisSection } from "@ai-novel/shared/types/bookAnalysis";
+import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -114,6 +115,9 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
               >
                 重新生成
               </Button>
+              <Button asChild size="sm" variant="outline">
+                <Link to={`/tasks?kind=book_analysis&id=${selectedAnalysis.id}`}>在任务中心查看</Link>
+              </Button>
               <Button size="sm" variant="outline" onClick={() => onDownload("markdown")}>
                 导出 Markdown
               </Button>
@@ -179,6 +183,9 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                 <div>模型：{selectedAnalysis.model || "默认"}</div>
                 <div>温度：{selectedAnalysis.temperature ?? "默认"}</div>
                 <div>最大 Tokens：{selectedAnalysis.maxTokens ?? "默认"}</div>
+                <div>当前阶段：{selectedAnalysis.currentStage ?? "暂无"}</div>
+                <div>当前 section：{selectedAnalysis.currentItemLabel ?? "暂无"}</div>
+                <div>最近心跳：{formatDate(selectedAnalysis.heartbeatAt)}</div>
                 <div>最近运行：{formatDate(selectedAnalysis.lastRunAt)}</div>
                 <div>创建时间：{formatDate(selectedAnalysis.createdAt)}</div>
               </div>

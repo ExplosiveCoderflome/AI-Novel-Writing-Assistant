@@ -1,4 +1,4 @@
-﻿import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { prisma } from "../../db/prisma";
@@ -24,6 +24,13 @@ import {
   toEvidenceList,
   toStringList,
 } from "./bookAnalysis.utils";
+
+class AnalysisCancelledError extends Error {
+  constructor() {
+    super("BOOK_ANALYSIS_CANCELLED");
+  }
+}
+
 export class BookAnalysisGenerationService {
   async runFullAnalysis(analysisId: string): Promise<void> {
     const analysis = await prisma.bookAnalysis.findUnique({
@@ -35,43 +42,71 @@ export class BookAnalysisGenerationService {
         },
       },
     });
-    if (!analysis || analysis.status === "archived") {
+    if (!analysis || analysis.status === "archived" || analysis.status === "cancelled") {
       return;
     }
+    if (analysis.cancelRequestedAt) {
+      await this.markCancelled(analysisId, analysis.progress);
+      return;
+    }
+
     const activeSections = analysis.sections.filter((section) => !section.frozen);
     await prisma.bookAnalysis.update({
       where: { id: analysisId },
       data: {
         status: "running",
         progress: activeSections.length === 0 ? 1 : 0,
+        heartbeatAt: new Date(),
+        currentStage: "preparing_notes",
+        currentItemKey: null,
+        currentItemLabel: null,
         lastError: null,
         lastRunAt: new Date(),
       },
     });
+
     if (activeSections.length === 0) {
       await prisma.bookAnalysis.update({
         where: { id: analysisId },
         data: {
           status: "succeeded",
           progress: 1,
+          heartbeatAt: null,
+          currentStage: null,
+          currentItemKey: null,
+          currentItemLabel: null,
+          cancelRequestedAt: null,
         },
       });
       return;
     }
+
     const provider = (analysis.provider as LLMProvider | null) ?? "deepseek";
     const model = analysis.model ?? undefined;
     const temperature = normalizeTemperature(analysis.temperature);
     const maxTokens = normalizeMaxTokens(analysis.maxTokens);
+
     try {
-      const notes = await this.buildSourceNotes(analysis.documentVersion.content, provider, model, temperature, maxTokens);
+      const notes = await this.buildSourceNotes(analysis.documentVersion.content, provider, model, temperature, maxTokens, analysisId);
       let completedCount = 0;
       const errors: string[] = [];
       let summary = analysis.summary;
+
       for (const section of analysis.sections) {
         if (section.frozen) {
           continue;
         }
+        await this.ensureNotCancelled(analysisId);
         try {
+          await prisma.bookAnalysis.update({
+            where: { id: analysisId },
+            data: {
+              heartbeatAt: new Date(),
+              currentStage: "generating_sections",
+              currentItemKey: section.sectionKey,
+              currentItemLabel: section.title,
+            },
+          });
           await prisma.bookAnalysisSection.update({
             where: {
               analysisId_sectionKey: {
@@ -109,6 +144,9 @@ export class BookAnalysisGenerationService {
             summary = buildAnalysisSummaryFromContent(generated.markdown);
           }
         } catch (error) {
+          if (error instanceof AnalysisCancelledError) {
+            throw error;
+          }
           errors.push(`${section.title}: ${error instanceof Error ? error.message : "Unknown error"}`);
           await prisma.bookAnalysisSection.update({
             where: {
@@ -127,10 +165,13 @@ export class BookAnalysisGenerationService {
             where: { id: analysisId },
             data: {
               progress: Math.min(1, completedCount / activeSections.length),
+              heartbeatAt: new Date(),
             },
           });
         }
       }
+
+      await this.ensureNotCancelled(analysisId);
       await prisma.bookAnalysis.update({
         where: { id: analysisId },
         data: {
@@ -138,19 +179,34 @@ export class BookAnalysisGenerationService {
           progress: 1,
           summary,
           lastError: errors.length > 0 ? errors.join(" | ") : null,
+          heartbeatAt: null,
+          currentStage: null,
+          currentItemKey: null,
+          currentItemLabel: null,
+          cancelRequestedAt: null,
         },
       });
     } catch (error) {
+      if (error instanceof AnalysisCancelledError) {
+        await this.markCancelled(analysisId);
+        return;
+      }
       await prisma.bookAnalysis.update({
         where: { id: analysisId },
         data: {
           status: "failed",
           progress: 1,
           lastError: error instanceof Error ? error.message : "Book analysis failed.",
+          heartbeatAt: null,
+          currentStage: null,
+          currentItemKey: null,
+          currentItemLabel: null,
+          cancelRequestedAt: null,
         },
       });
     }
   }
+
   async runSingleSection(analysisId: string, sectionKey: BookAnalysisSectionKey): Promise<void> {
     const analysis = await prisma.bookAnalysis.findUnique({
       where: { id: analysisId },
@@ -159,26 +215,47 @@ export class BookAnalysisGenerationService {
         sections: true,
       },
     });
-    if (!analysis || analysis.status === "archived") {
+    if (!analysis || analysis.status === "archived" || analysis.status === "cancelled") {
       return;
     }
     const section = analysis.sections.find((item) => item.sectionKey === sectionKey);
     if (!section || section.frozen) {
       return;
     }
+    if (analysis.cancelRequestedAt) {
+      await this.markCancelled(analysisId, analysis.progress);
+      return;
+    }
+
     const provider = (analysis.provider as LLMProvider | null) ?? "deepseek";
     const model = analysis.model ?? undefined;
     const temperature = normalizeTemperature(analysis.temperature);
     const maxTokens = normalizeMaxTokens(analysis.maxTokens);
+
     await prisma.bookAnalysis.update({
       where: { id: analysisId },
       data: {
         status: "running",
         lastError: null,
         lastRunAt: new Date(),
+        heartbeatAt: new Date(),
+        currentStage: "preparing_notes",
+        currentItemKey: null,
+        currentItemLabel: null,
       },
     });
+
     try {
+      await this.ensureNotCancelled(analysisId);
+      await prisma.bookAnalysis.update({
+        where: { id: analysisId },
+        data: {
+          heartbeatAt: new Date(),
+          currentStage: "generating_sections",
+          currentItemKey: sectionKey,
+          currentItemLabel: section.title,
+        },
+      });
       await prisma.bookAnalysisSection.update({
         where: {
           analysisId_sectionKey: {
@@ -190,7 +267,15 @@ export class BookAnalysisGenerationService {
           status: "running",
         },
       });
-      const notes = await this.buildSourceNotes(analysis.documentVersion.content, provider, model, temperature, maxTokens);
+      const notes = await this.buildSourceNotes(
+        analysis.documentVersion.content,
+        provider,
+        model,
+        temperature,
+        maxTokens,
+        analysisId,
+      );
+      await this.ensureNotCancelled(analysisId);
       const generated = await this.generateSection(sectionKey, notes, provider, model, temperature, maxTokens);
       await prisma.bookAnalysisSection.update({
         where: {
@@ -216,11 +301,15 @@ export class BookAnalysisGenerationService {
           aiContent: true,
         },
       });
-      const overview = sectionKey === "overview"
-        ? generated.markdown
-        : getEffectiveContent(
-          sectionStatuses.find((item) => item.sectionKey === "overview") ?? { aiContent: null, editedContent: null },
-        );
+      const overview =
+        sectionKey === "overview"
+          ? generated.markdown
+          : getEffectiveContent(
+              sectionStatuses.find((item) => item.sectionKey === "overview") ?? {
+                aiContent: null,
+                editedContent: null,
+              },
+            );
       await prisma.bookAnalysis.update({
         where: { id: analysisId },
         data: {
@@ -228,9 +317,18 @@ export class BookAnalysisGenerationService {
           progress: 1,
           summary: buildAnalysisSummaryFromContent(overview),
           lastError: null,
+          heartbeatAt: null,
+          currentStage: null,
+          currentItemKey: null,
+          currentItemLabel: null,
+          cancelRequestedAt: null,
         },
       });
     } catch (error) {
+      if (error instanceof AnalysisCancelledError) {
+        await this.markCancelled(analysisId);
+        return;
+      }
       await prisma.bookAnalysisSection.update({
         where: {
           analysisId_sectionKey: {
@@ -248,10 +346,16 @@ export class BookAnalysisGenerationService {
           status: "failed",
           progress: 1,
           lastError: error instanceof Error ? error.message : "Section regeneration failed.",
+          heartbeatAt: null,
+          currentStage: null,
+          currentItemKey: null,
+          currentItemLabel: null,
+          cancelRequestedAt: null,
         },
       });
     }
   }
+
   async optimizeSectionPreview(input: {
     analysisId: string;
     sectionKey: BookAnalysisSectionKey;
@@ -291,10 +395,8 @@ export class BookAnalysisGenerationService {
       temperature,
       maxTokens,
     );
-    const baseDraft = input.currentDraft.trim()
-      || section.editedContent?.trim()
-      || section.aiContent?.trim()
-      || "";
+    const baseDraft =
+      input.currentDraft.trim() || section.editedContent?.trim() || section.aiContent?.trim() || "";
     const optimized = await this.generateOptimizedDraft({
       sectionKey: input.sectionKey,
       currentDraft: baseDraft,
@@ -307,12 +409,14 @@ export class BookAnalysisGenerationService {
     });
     return optimized.trim() || baseDraft;
   }
+
   private async buildSourceNotes(
     content: string,
     provider: LLMProvider,
     model?: string,
     temperature?: number,
     sectionMaxTokens?: number,
+    analysisId?: string,
   ): Promise<SourceNote[]> {
     const segments = buildSourceSegments(content);
     if (segments.length === 0) {
@@ -324,10 +428,25 @@ export class BookAnalysisGenerationService {
       maxTokens: getNotesMaxTokens(normalizeMaxTokens(sectionMaxTokens)),
     });
     const notes: SourceNote[] = [];
-    for (const segment of segments) {
+    for (let index = 0; index < segments.length; index += 1) {
+      const segment = segments[index];
+      if (analysisId) {
+        await this.ensureNotCancelled(analysisId);
+        await prisma.bookAnalysis.update({
+          where: { id: analysisId },
+          data: {
+            heartbeatAt: new Date(),
+            currentStage: "preparing_notes",
+            currentItemKey: `segment-${index + 1}`,
+            currentItemLabel: segment.label,
+          },
+        });
+      }
       try {
-        const result = await invokeWithJsonGuard(llm, [
-          new SystemMessage(`You are a book-analysis assistant. Output compact JSON only:
+        const result = await invokeWithJsonGuard(
+          llm,
+          [
+            new SystemMessage(`You are a book-analysis assistant. Output compact JSON only:
 {
   "summary": "short summary in Chinese",
   "plotPoints": ["..."],
@@ -343,17 +462,15 @@ Rules:
 - Use simplified Chinese for values.
 - Max 5 items per array.
 - Max 3 items in evidence.`),
-          new HumanMessage(`Segment title: ${segment.label}\n\nSegment content:\n${segment.content}`),
-        ], provider, model);
-        const parsed = safeParseJSON<Record<string, unknown>>(
-          extractJSONObject(String(result.content)),
-          {},
+            new HumanMessage(`Segment title: ${segment.label}\n\nSegment content:\n${segment.content}`),
+          ],
+          provider,
+          model,
         );
+        const parsed = safeParseJSON<Record<string, unknown>>(extractJSONObject(String(result.content)), {});
         notes.push({
           sourceLabel: segment.label,
-          summary:
-            (typeof parsed.summary === "string" && parsed.summary.trim())
-            || compactExcerpt(segment.content, 120),
+          summary: (typeof parsed.summary === "string" && parsed.summary.trim()) || compactExcerpt(segment.content, 120),
           plotPoints: toStringList(parsed.plotPoints),
           timelineEvents: toStringList(parsed.timelineEvents),
           characters: toStringList(parsed.characters),
@@ -363,7 +480,10 @@ Rules:
           marketHighlights: toStringList(parsed.marketHighlights),
           evidence: toEvidenceList(parsed.evidence, segment.label),
         });
-      } catch {
+      } catch (error) {
+        if (error instanceof AnalysisCancelledError) {
+          throw error;
+        }
         notes.push({
           sourceLabel: segment.label,
           summary: compactExcerpt(segment.content, 120),
@@ -380,6 +500,7 @@ Rules:
     }
     return notes;
   }
+
   private async generateSection(
     sectionKey: BookAnalysisSectionKey,
     notes: SourceNote[],
@@ -395,8 +516,10 @@ Rules:
     });
     const prompt = SECTION_PROMPTS[sectionKey];
     const notesText = renderNotesForPrompt(notes);
-    const result = await invokeWithJsonGuard(llm, [
-      new SystemMessage(`You are a senior Chinese fiction analyst. Generate section "${getSectionTitle(sectionKey)}".
+    const result = await invokeWithJsonGuard(
+      llm,
+      [
+        new SystemMessage(`You are a senior Chinese fiction analyst. Generate section "${getSectionTitle(sectionKey)}".
 Return JSON only:
 {
   "markdown": "Markdown content",
@@ -408,19 +531,19 @@ Constraints:
 - Evidence must be grounded in given notes.
 - Write markdown in Chinese.
 Extra focus: ${prompt}`),
-      new HumanMessage(`Section notes:\n${notesText}`),
-    ], provider, model);
+        new HumanMessage(`Section notes:\n${notesText}`),
+      ],
+      provider,
+      model,
+    );
     try {
-      const parsed = safeParseJSON<Record<string, unknown>>(
-        extractJSONObject(String(result.content)),
-        {},
-      );
+      const parsed = safeParseJSON<Record<string, unknown>>(extractJSONObject(String(result.content)), {});
       const markdown =
-        (typeof parsed.markdown === "string" && parsed.markdown.trim())
-        || String(result.content).trim();
-      const structuredData = parsed.structuredData && typeof parsed.structuredData === "object"
-        ? parsed.structuredData as Record<string, unknown>
-        : null;
+        (typeof parsed.markdown === "string" && parsed.markdown.trim()) || String(result.content).trim();
+      const structuredData =
+        parsed.structuredData && typeof parsed.structuredData === "object"
+          ? (parsed.structuredData as Record<string, unknown>)
+          : null;
       const evidence = toEvidenceList(parsed.evidence);
       return {
         markdown,
@@ -435,6 +558,7 @@ Extra focus: ${prompt}`),
       };
     }
   }
+
   private async generateOptimizedDraft(input: {
     sectionKey: BookAnalysisSectionKey;
     currentDraft: string;
@@ -451,12 +575,14 @@ Extra focus: ${prompt}`),
       maxTokens: normalizeMaxTokens(input.maxTokens),
     });
     const notesText = renderNotesForPrompt(input.notes);
-    const result = await invokeWithJsonGuard(llm, [
-      new SystemMessage(`You refine book-analysis drafts.
+    const result = await invokeWithJsonGuard(
+      llm,
+      [
+        new SystemMessage(`You refine book-analysis drafts.
 Keep section focus: ${getSectionTitle(input.sectionKey)}.
 Follow user instruction, preserve factual consistency with notes, and avoid unnecessary expansion.
 Return JSON only: {"optimizedDraft":"..."}`),
-      new HumanMessage(`User instruction:
+        new HumanMessage(`User instruction:
 ${input.instruction}
 
 Current draft:
@@ -464,7 +590,10 @@ ${input.currentDraft || "(empty)"}
 
 Section notes:
 ${notesText}`),
-    ], input.provider, input.model);
+      ],
+      input.provider,
+      input.model,
+    );
     try {
       const parsed = safeParseJSON<Record<string, unknown>>(extractJSONObject(String(result.content)), {});
       if (typeof parsed.optimizedDraft === "string" && parsed.optimizedDraft.trim()) {
@@ -474,5 +603,34 @@ ${notesText}`),
     } catch {
       return String(result.content).trim();
     }
+  }
+
+  private async ensureNotCancelled(analysisId: string): Promise<void> {
+    const row = await prisma.bookAnalysis.findUnique({
+      where: { id: analysisId },
+      select: {
+        status: true,
+        cancelRequestedAt: true,
+      },
+    });
+    if (!row || row.status === "cancelled" || row.cancelRequestedAt) {
+      throw new AnalysisCancelledError();
+    }
+  }
+
+  private async markCancelled(analysisId: string, progress?: number): Promise<void> {
+    await prisma.bookAnalysis.update({
+      where: { id: analysisId },
+      data: {
+        status: "cancelled",
+        progress: progress ?? undefined,
+        lastError: null,
+        heartbeatAt: null,
+        currentStage: null,
+        currentItemKey: null,
+        currentItemLabel: null,
+        cancelRequestedAt: null,
+      },
+    });
   }
 }

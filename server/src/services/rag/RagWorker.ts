@@ -12,10 +12,37 @@ export class RagWorker {
 
   constructor(private readonly ragIndexService: RagIndexService) {}
 
+  private logInfo(message: string, meta?: Record<string, unknown>): void {
+    if (!ragConfig.verboseLog) {
+      return;
+    }
+    if (meta) {
+      console.info(`[RAG][Worker] ${message}`, meta);
+      return;
+    }
+    console.info(`[RAG][Worker] ${message}`);
+  }
+
+  private logWarn(message: string, meta?: Record<string, unknown>): void {
+    if (!ragConfig.verboseLog) {
+      return;
+    }
+    if (meta) {
+      console.warn(`[RAG][Worker] ${message}`, meta);
+      return;
+    }
+    console.warn(`[RAG][Worker] ${message}`);
+  }
+
   start(): void {
     if (!ragConfig.enabled || this.timer) {
       return;
     }
+    this.logInfo("Worker started.", {
+      pollMs: ragConfig.workerPollMs,
+      maxAttempts: ragConfig.workerMaxAttempts,
+      retryBaseMs: ragConfig.workerRetryBaseMs,
+    });
     void this.requeueInterruptedJobs();
     this.timer = setInterval(() => {
       void this.tick();
@@ -29,6 +56,9 @@ export class RagWorker {
       if (runningJobs.length === 0) {
         return;
       }
+      this.logWarn("Requeue interrupted running jobs after restart.", {
+        count: runningJobs.length,
+      });
       await Promise.all(
         runningJobs.map((job) =>
           this.ragIndexService.updateJobStatus(job.id, {
@@ -47,6 +77,7 @@ export class RagWorker {
     }
     clearInterval(this.timer);
     this.timer = null;
+    this.logInfo("Worker stopped.");
   }
 
   private async tick(): Promise<void> {
@@ -61,6 +92,16 @@ export class RagWorker {
       }
 
       const nextAttempt = job.attempts + 1;
+      const startedAt = Date.now();
+      this.logInfo("Job picked.", {
+        jobId: job.id,
+        jobType: job.jobType,
+        ownerType: job.ownerType,
+        ownerId: job.ownerId,
+        tenantId: job.tenantId,
+        attempt: nextAttempt,
+        maxAttempts: job.maxAttempts,
+      });
       await this.ragIndexService.updateJobStatus(job.id, {
         status: "running",
         attempts: nextAttempt,
@@ -68,10 +109,15 @@ export class RagWorker {
       });
 
       try {
-        await this.ragIndexService.processJob(job);
+        const result = await this.ragIndexService.processJob(job);
         await this.ragIndexService.updateJobStatus(job.id, {
           status: "succeeded",
           lastError: null,
+        });
+        this.logInfo("Job succeeded.", {
+          jobId: job.id,
+          chunks: result.chunks,
+          elapsedMs: Date.now() - startedAt,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : "RAG 索引任务失败。";
@@ -81,13 +127,28 @@ export class RagWorker {
             attempts: nextAttempt,
             lastError: message,
           });
+          this.logWarn("Job failed permanently.", {
+            jobId: job.id,
+            attempt: nextAttempt,
+            maxAttempts: job.maxAttempts,
+            elapsedMs: Date.now() - startedAt,
+            error: message,
+          });
           return;
         }
+        const delayMs = backoffMs(nextAttempt);
         await this.ragIndexService.updateJobStatus(job.id, {
           status: "queued",
           attempts: nextAttempt,
-          runAfter: new Date(Date.now() + backoffMs(nextAttempt)),
+          runAfter: new Date(Date.now() + delayMs),
           lastError: message,
+        });
+        this.logWarn("Job failed and requeued.", {
+          jobId: job.id,
+          attempt: nextAttempt,
+          nextRetryInMs: delayMs,
+          elapsedMs: Date.now() - startedAt,
+          error: message,
         });
       }
     } finally {

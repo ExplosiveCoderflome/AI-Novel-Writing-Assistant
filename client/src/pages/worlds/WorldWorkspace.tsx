@@ -752,14 +752,14 @@ export default function WorldWorkspace() {
         <TabsContent value="assets">
           <Card>
             <CardHeader>
-              <CardTitle>Library + Snapshots + Import/Export</CardTitle>
+              <CardTitle>素材库 + 快照版本 + 导入导出</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-md border p-3 space-y-2">
-                <div className="font-medium">Library</div>
+                <div className="font-medium">素材库</div>
                 <div className="grid gap-2 md:grid-cols-3">
                   <Input
-                    placeholder="keyword"
+                    placeholder="关键词"
                     value={libraryKeyword}
                     onChange={(event) => setLibraryKeyword(event.target.value)}
                   />
@@ -768,15 +768,15 @@ export default function WorldWorkspace() {
                     value={libraryCategory}
                     onChange={(event) => setLibraryCategory(event.target.value)}
                   >
-                    <option value="all">all categories</option>
-                    <option value="terrain">terrain</option>
-                    <option value="race">race</option>
-                    <option value="power_system">power_system</option>
-                    <option value="organization">organization</option>
-                    <option value="resource">resource</option>
-                    <option value="event">event</option>
-                    <option value="artifact">artifact</option>
-                    <option value="custom">custom</option>
+                    <option value="all">全部分类</option>
+                    <option value="terrain">地理地貌</option>
+                    <option value="race">种族</option>
+                    <option value="power_system">力量体系</option>
+                    <option value="organization">组织势力</option>
+                    <option value="resource">资源</option>
+                    <option value="event">事件</option>
+                    <option value="artifact">道具奇物</option>
+                    <option value="custom">自定义</option>
                   </select>
                   <Button
                     variant="outline"
@@ -788,16 +788,16 @@ export default function WorldWorkspace() {
                       })
                     }
                   >
-                    Refresh
+                    刷新
                   </Button>
                 </div>
                 <div className="rounded-md border p-2 space-y-2">
                   <div className="text-xs font-semibold text-muted-foreground">
-                    Publish current setting to library
+                    将当前设定发布到素材库
                   </div>
                   <div className="grid gap-2 md:grid-cols-3">
                     <Input
-                      placeholder="item name"
+                      placeholder="素材名称"
                       value={publishName}
                       onChange={(event) => setPublishName(event.target.value)}
                     />
@@ -806,27 +806,27 @@ export default function WorldWorkspace() {
                       value={publishCategory}
                       onChange={(event) => setPublishCategory(event.target.value)}
                     >
-                      <option value="custom">custom</option>
-                      <option value="terrain">terrain</option>
-                      <option value="race">race</option>
-                      <option value="power_system">power_system</option>
-                      <option value="organization">organization</option>
-                      <option value="resource">resource</option>
-                      <option value="event">event</option>
-                      <option value="artifact">artifact</option>
+                      <option value="custom">自定义</option>
+                      <option value="terrain">地理地貌</option>
+                      <option value="race">种族</option>
+                      <option value="power_system">力量体系</option>
+                      <option value="organization">组织势力</option>
+                      <option value="resource">资源</option>
+                      <option value="event">事件</option>
+                      <option value="artifact">道具奇物</option>
                     </select>
                     <Button
                       onClick={() => publishLibraryMutation.mutate()}
                       disabled={publishLibraryMutation.isPending}
                     >
-                      {publishLibraryMutation.isPending ? "Publishing..." : "Publish"}
+                      {publishLibraryMutation.isPending ? "发布中..." : "发布素材"}
                     </Button>
                   </div>
                   <textarea
                     className="min-h-[80px] w-full rounded-md border bg-background p-2 text-sm"
                     value={publishDescription}
                     onChange={(event) => setPublishDescription(event.target.value)}
-                    placeholder="optional description (default uses current layer content)"
+                    placeholder="可选描述（留空时默认使用当前分层内容）"
                   />
                 </div>
                 {(libraryQuery.data?.data ?? []).map((item) => (
@@ -834,7 +834,7 @@ export default function WorldWorkspace() {
                     <div>
                       <div>{item.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        {item.category} / use={item.usageCount}
+                        {item.category} / 使用次数={item.usageCount}
                       </div>
                     </div>
                     <Button
@@ -846,22 +846,22 @@ export default function WorldWorkspace() {
                         })
                       }
                     >
-                      Inject
+                      注入到当前分层
                     </Button>
                   </div>
                 ))}
               </div>
 
               <div className="rounded-md border p-3 space-y-2">
-                <div className="font-medium">Snapshots</div>
+                <div className="font-medium">快照版本</div>
                 <div className="flex gap-2">
                   <Input
-                    placeholder="snapshot label (optional)"
+                    placeholder="快照标签（可选）"
                     value={snapshotLabel}
                     onChange={(event) => setSnapshotLabel(event.target.value)}
                   />
                   <Button onClick={() => snapshotCreateMutation.mutate()} disabled={snapshotCreateMutation.isPending}>
-                    Create Snapshot
+                    创建快照
                   </Button>
                 </div>
                 {(snapshotQuery.data?.data ?? []).map((snapshot) => (
@@ -874,7 +874,7 @@ export default function WorldWorkspace() {
                       variant="outline"
                       onClick={() => snapshotRestoreMutation.mutate(snapshot.id)}
                     >
-                      Restore
+                      恢复
                     </Button>
                   </div>
                 ))}
@@ -884,7 +884,7 @@ export default function WorldWorkspace() {
                     value={diffFrom}
                     onChange={(event) => setDiffFrom(event.target.value)}
                   >
-                    <option value="">from snapshot</option>
+                    <option value="">起始快照</option>
                     {(snapshotQuery.data?.data ?? []).map((snapshot) => (
                       <option key={`from-${snapshot.id}`} value={snapshot.id}>
                         {snapshot.label ?? snapshot.id.slice(0, 8)}
@@ -896,7 +896,7 @@ export default function WorldWorkspace() {
                     value={diffTo}
                     onChange={(event) => setDiffTo(event.target.value)}
                   >
-                    <option value="">to snapshot</option>
+                    <option value="">目标快照</option>
                     {(snapshotQuery.data?.data ?? []).map((snapshot) => (
                       <option key={`to-${snapshot.id}`} value={snapshot.id}>
                         {snapshot.label ?? snapshot.id.slice(0, 8)}
@@ -904,18 +904,18 @@ export default function WorldWorkspace() {
                     ))}
                   </select>
                   <Button onClick={() => snapshotDiffMutation.mutate()} disabled={!diffFrom || !diffTo}>
-                    Diff
+                    对比差异
                   </Button>
                 </div>
                 {snapshotDiffMutation.data?.data?.changes?.map((change) => (
                   <div key={change.field} className="rounded border p-2 text-xs">
-                    {change.field}: {change.before ?? "null"} {"->"} {change.after ?? "null"}
+                    {change.field}: {change.before ?? "空"} {"->"} {change.after ?? "空"}
                   </div>
                 ))}
               </div>
 
               <div className="rounded-md border p-3 space-y-2">
-                <div className="font-medium">Export</div>
+                <div className="font-medium">导出</div>
                 <div className="flex gap-2">
                   <Button
                     variant="secondary"
@@ -926,7 +926,7 @@ export default function WorldWorkspace() {
                       }
                     }}
                   >
-                    Export Markdown (Copy)
+                    导出 Markdown（复制到剪贴板）
                   </Button>
                   <Button
                     variant="secondary"
@@ -937,27 +937,27 @@ export default function WorldWorkspace() {
                       }
                     }}
                   >
-                    Export JSON (Copy)
+                    导出 JSON（复制到剪贴板）
                   </Button>
                 </div>
               </div>
 
               <div className="rounded-md border p-3 space-y-2">
-                <div className="font-medium">Import</div>
+                <div className="font-medium">导入</div>
                 <select
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={importFormat}
                   onChange={(event) => setImportFormat(event.target.value as "json" | "markdown" | "text")}
                 >
-                  <option value="text">text</option>
-                  <option value="markdown">markdown</option>
-                  <option value="json">json</option>
+                  <option value="text">纯文本</option>
+                  <option value="markdown">Markdown</option>
+                  <option value="json">JSON</option>
                 </select>
                 <textarea
                   className="min-h-[160px] w-full rounded-md border bg-background p-2 text-sm"
                   value={importContent}
                   onChange={(event) => setImportContent(event.target.value)}
-                  placeholder="paste import content here"
+                  placeholder="请粘贴要导入的内容"
                 />
                 <Button
                   onClick={() => importMutation.mutate()}

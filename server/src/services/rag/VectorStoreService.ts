@@ -52,10 +52,34 @@ function estimateJsonBytes(value: unknown): number {
 export class VectorStoreService {
   private ensuredDimension = 0;
   private readonly upsertWrapperBytes = estimateJsonBytes({ points: [] });
+  private static readonly timeoutPattern = /Qdrant 请求超时/;
+  private static readonly logPrefix = "[RAG][Qdrant]";
+
+  private logInfo(message: string, meta?: Record<string, unknown>): void {
+    if (!ragConfig.verboseLog) {
+      return;
+    }
+    if (meta) {
+      console.info(`${VectorStoreService.logPrefix} ${message}`, meta);
+      return;
+    }
+    console.info(`${VectorStoreService.logPrefix} ${message}`);
+  }
+
+  private logWarn(message: string, meta?: Record<string, unknown>): void {
+    if (!ragConfig.verboseLog) {
+      return;
+    }
+    if (meta) {
+      console.warn(`${VectorStoreService.logPrefix} ${message}`, meta);
+      return;
+    }
+    console.warn(`${VectorStoreService.logPrefix} ${message}`);
+  }
 
   private async fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), ragConfig.httpTimeoutMs);
+    const timer = setTimeout(() => controller.abort(), ragConfig.qdrantTimeoutMs);
     try {
       return await fetch(url, {
         ...init,
@@ -63,7 +87,7 @@ export class VectorStoreService {
       });
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
-        throw new Error(`Qdrant 请求超时（>${ragConfig.httpTimeoutMs}ms）。`);
+        throw new Error(`Qdrant 请求超时（>${ragConfig.qdrantTimeoutMs}ms）。`);
       }
       throw error;
     } finally {
@@ -90,6 +114,54 @@ export class VectorStoreService {
     await this.request(toCollectionUrl("/points?wait=true"), {
       method: "PUT",
       body: JSON.stringify({ points }),
+    });
+  }
+
+  private async upsertPointBatchAdaptive(
+    points: QdrantPoint[],
+    context: { batchIndex: number; totalBatches: number; depth: number },
+  ): Promise<void> {
+    const startedAt = Date.now();
+    const batchBytes = estimateJsonBytes({ points });
+    try {
+      await this.upsertPointBatch(points);
+      this.logInfo("Upsert batch succeeded.", {
+        batch: `${context.batchIndex}/${context.totalBatches}`,
+        depth: context.depth,
+        points: points.length,
+        bytes: batchBytes,
+        elapsedMs: Date.now() - startedAt,
+      });
+      return;
+    } catch (error) {
+      const isTimeout = error instanceof Error && VectorStoreService.timeoutPattern.test(error.message);
+      if (!isTimeout || points.length <= 1) {
+        this.logWarn("Upsert batch failed.", {
+          batch: `${context.batchIndex}/${context.totalBatches}`,
+          depth: context.depth,
+          points: points.length,
+          bytes: batchBytes,
+          elapsedMs: Date.now() - startedAt,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
+      this.logWarn("Upsert batch timed out; split and retry.", {
+        batch: `${context.batchIndex}/${context.totalBatches}`,
+        depth: context.depth,
+        points: points.length,
+        bytes: batchBytes,
+      });
+    }
+
+    const splitAt = Math.ceil(points.length / 2);
+    await this.upsertPointBatchAdaptive(points.slice(0, splitAt), {
+      ...context,
+      depth: context.depth + 1,
+    });
+    await this.upsertPointBatchAdaptive(points.slice(splitAt), {
+      ...context,
+      depth: context.depth + 1,
     });
   }
 
@@ -137,6 +209,10 @@ export class VectorStoreService {
 
     const getResponse = await this.fetchWithTimeout(toCollectionUrl(""), { headers: buildHeaders() });
     if (getResponse.status === 404) {
+      this.logInfo("Collection not found; creating collection.", {
+        collection: ragConfig.qdrantCollection,
+        dimension,
+      });
       await this.request(toCollectionUrl(""), {
         method: "PUT",
         body: JSON.stringify({
@@ -166,6 +242,11 @@ export class VectorStoreService {
     if (existingDimension && existingDimension !== dimension) {
       throw new Error(`Qdrant 集合维度不匹配：existing=${existingDimension}, expected=${dimension}`);
     }
+    this.logInfo("Collection ready.", {
+      collection: ragConfig.qdrantCollection,
+      expectedDimension: dimension,
+      existingDimension: existingDimension ?? dimension,
+    });
     this.ensuredDimension = dimension;
   }
 
@@ -173,21 +254,43 @@ export class VectorStoreService {
     if (points.length === 0) {
       return;
     }
+    const startedAt = Date.now();
     const batches = this.splitPointBatches(points);
-    for (const batch of batches) {
-      await this.upsertPointBatch(batch);
+    this.logInfo("Upsert points start.", {
+      totalPoints: points.length,
+      batches: batches.length,
+      timeoutMs: ragConfig.qdrantTimeoutMs,
+      upsertMaxBytes: ragConfig.qdrantUpsertMaxBytes,
+    });
+    for (let index = 0; index < batches.length; index += 1) {
+      const batch = batches[index];
+      await this.upsertPointBatchAdaptive(batch, {
+        batchIndex: index + 1,
+        totalBatches: batches.length,
+        depth: 0,
+      });
     }
+    this.logInfo("Upsert points finished.", {
+      totalPoints: points.length,
+      batches: batches.length,
+      elapsedMs: Date.now() - startedAt,
+    });
   }
 
   async deletePoints(pointIds: string[]): Promise<void> {
     if (pointIds.length === 0) {
       return;
     }
+    const startedAt = Date.now();
     await this.request(toCollectionUrl("/points/delete?wait=true"), {
       method: "POST",
       body: JSON.stringify({
         points: pointIds,
       }),
+    });
+    this.logInfo("Delete points finished.", {
+      points: pointIds.length,
+      elapsedMs: Date.now() - startedAt,
     });
   }
 

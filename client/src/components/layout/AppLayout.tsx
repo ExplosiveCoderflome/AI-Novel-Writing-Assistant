@@ -8,7 +8,7 @@ export default function AppLayout() {
       <Navbar />
       <div className="flex min-h-[calc(100vh-4rem)]">
         <Sidebar />
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-6 h-[calc(100vh-4rem)] overflow-y-auto">
           <Outlet />
         </main>
       </div>

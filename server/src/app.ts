@@ -18,6 +18,7 @@ import novelRouter from "./routes/novel";
 import novelExportRouter from "./routes/novelExport";
 import ragRouter from "./routes/rag";
 import settingsRouter from "./routes/settings";
+import tasksRouter from "./routes/tasks";
 import worldRouter from "./routes/world";
 import writingFormulaRouter from "./routes/writingFormula";
 import { bookAnalysisService } from "./services/bookAnalysis/BookAnalysisService";
@@ -68,6 +69,7 @@ export function createApp() {
   app.use("/api/writing-formula", writingFormulaRouter);
   app.use("/api/chat", chatRouter);
   app.use("/api/images", imagesRouter);
+  app.use("/api/tasks", tasksRouter);
   app.use("/api/settings", settingsRouter);
   app.use("/api/astrology", astrologyRouter);
 
@@ -94,6 +96,7 @@ async function bootstrap(): Promise<void> {
   const app = createApp();
   const port = Number(process.env.PORT ?? 3000);
   ragServices.ragWorker.start();
+  bookAnalysisService.startWatchdog();
   void bookAnalysisService.resumePendingAnalyses().catch((error) => {
     console.warn("Failed to resume pending book analyses.", error);
   });
