@@ -1,6 +1,31 @@
 import type { BookAnalysisSectionKey } from "./bookAnalysis";
 export type NovelStatus = "draft" | "published";
 export type NovelWritingMode = "original" | "continuation";
+export type ProjectMode = "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
+export type NarrativePov = "first_person" | "third_person" | "mixed";
+export type PacePreference = "slow" | "balanced" | "fast";
+export type EmotionIntensity = "low" | "medium" | "high";
+export type AIFreedom = "low" | "medium" | "high";
+export type ProjectProgressStatus = "not_started" | "in_progress" | "completed" | "rework" | "blocked";
+
+export type StorylineVersionStatus = "draft" | "active" | "frozen";
+
+export type ChapterStatus =
+  | "unplanned"
+  | "pending_generation"
+  | "generating"
+  | "pending_review"
+  | "needs_repair"
+  | "completed";
+
+export type PipelineRunMode = "fast" | "polish";
+export type PipelineRepairMode =
+  | "detect_only"
+  | "light_repair"
+  | "heavy_repair"
+  | "continuity_only"
+  | "character_only"
+  | "ending_only";
 
 export interface Novel {
   id: string;
@@ -8,6 +33,17 @@ export interface Novel {
   description?: string | null;
   status: NovelStatus;
   writingMode: NovelWritingMode;
+  projectMode?: ProjectMode | null;
+  narrativePov?: NarrativePov | null;
+  pacePreference?: PacePreference | null;
+  styleTone?: string | null;
+  emotionIntensity?: EmotionIntensity | null;
+  aiFreedom?: AIFreedom | null;
+  defaultChapterLength?: number | null;
+  projectStatus?: ProjectProgressStatus | null;
+  storylineStatus?: ProjectProgressStatus | null;
+  outlineStatus?: ProjectProgressStatus | null;
+  resourceReadyScore?: number | null;
   sourceNovelId?: string | null;
   sourceKnowledgeDocumentId?: string | null;
   continuationBookAnalysisId?: string | null;
@@ -26,6 +62,19 @@ export interface Chapter {
   content?: string | null;
   order: number;
   generationState?: ChapterGenerationState;
+  chapterStatus?: ChapterStatus | null;
+  targetWordCount?: number | null;
+  conflictLevel?: number | null;
+  revealLevel?: number | null;
+  mustAvoid?: string | null;
+  taskSheet?: string | null;
+  sceneCards?: string | null;
+  repairHistory?: string | null;
+  qualityScore?: number | null;
+  continuityScore?: number | null;
+  characterScore?: number | null;
+  pacingScore?: number | null;
+  riskFlags?: string | null;
   hook?: string | null;
   expectation?: string | null;
   novelId: string;
@@ -176,6 +225,12 @@ export interface PipelineJob {
   novelId: string;
   startOrder: number;
   endOrder: number;
+  runMode?: PipelineRunMode | null;
+  autoReview?: boolean | null;
+  autoRepair?: boolean | null;
+  skipCompleted?: boolean | null;
+  qualityThreshold?: number | null;
+  repairMode?: PipelineRepairMode | null;
   status: PipelineJobStatus;
   progress: number;
   completedCount: number;
@@ -188,6 +243,7 @@ export interface PipelineJob {
   currentItemLabel?: string | null;
   cancelRequestedAt?: string | null;
   error?: string | null;
+  lastErrorType?: string | null;
   payload?: string | null;
   startedAt?: string | null;
   finishedAt?: string | null;
@@ -206,4 +262,26 @@ export interface CharacterTimeline {
   source: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface StorylineVersion {
+  id: string;
+  novelId: string;
+  version: number;
+  status: StorylineVersionStatus;
+  content: string;
+  diffSummary?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StorylineDiff {
+  id: string;
+  novelId: string;
+  version: number;
+  status: StorylineVersionStatus;
+  diffSummary?: string | null;
+  changedLines: number;
+  affectedCharacters: number;
+  affectedChapters: number;
 }

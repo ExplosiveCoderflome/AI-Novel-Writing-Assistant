@@ -61,6 +61,26 @@ const pipelineJobParamsSchema = z.object({
   jobId: z.string().trim().min(1),
 });
 
+const storylineVersionParamsSchema = z.object({
+  id: z.string().trim().min(1),
+  versionId: z.string().trim().min(1),
+});
+
+const storylineDiffQuerySchema = z.object({
+  compareVersion: z.coerce.number().int().min(1).optional(),
+});
+
+const storylineDraftSchema = z.object({
+  content: z.string().trim().min(1),
+  diffSummary: z.string().trim().optional(),
+  baseVersion: z.number().int().min(1).optional(),
+});
+
+const storylineImpactSchema = z.object({
+  versionId: z.string().trim().optional(),
+  content: z.string().trim().optional(),
+});
+
 const createNovelSchema = z.object({
   title: z.string().trim().min(1, "标题不能为空。"),
   description: z.string().trim().optional(),
@@ -71,6 +91,17 @@ const createNovelSchema = z.object({
   sourceKnowledgeDocumentId: z.string().trim().optional(),
   continuationBookAnalysisId: z.string().trim().optional(),
   continuationBookAnalysisSections: z.array(bookAnalysisSectionKeySchema).min(1).max(8).optional(),
+  projectMode: z.enum(["ai_led", "co_pilot", "draft_mode", "auto_pipeline"]).optional(),
+  narrativePov: z.enum(["first_person", "third_person", "mixed"]).optional(),
+  pacePreference: z.enum(["slow", "balanced", "fast"]).optional(),
+  styleTone: z.string().trim().optional(),
+  emotionIntensity: z.enum(["low", "medium", "high"]).optional(),
+  aiFreedom: z.enum(["low", "medium", "high"]).optional(),
+  defaultChapterLength: z.number().int().min(500).max(10000).optional(),
+  projectStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).optional(),
+  storylineStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).optional(),
+  outlineStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).optional(),
+  resourceReadyScore: z.number().int().min(0).max(100).optional(),
 });
 
 const updateNovelSchema = z.object({
@@ -86,6 +117,17 @@ const updateNovelSchema = z.object({
   worldId: z.string().trim().nullable().optional(),
   outline: z.string().nullable().optional(),
   structuredOutline: z.string().nullable().optional(),
+  projectMode: z.enum(["ai_led", "co_pilot", "draft_mode", "auto_pipeline"]).nullable().optional(),
+  narrativePov: z.enum(["first_person", "third_person", "mixed"]).nullable().optional(),
+  pacePreference: z.enum(["slow", "balanced", "fast"]).nullable().optional(),
+  styleTone: z.string().trim().nullable().optional(),
+  emotionIntensity: z.enum(["low", "medium", "high"]).nullable().optional(),
+  aiFreedom: z.enum(["low", "medium", "high"]).nullable().optional(),
+  defaultChapterLength: z.number().int().min(500).max(10000).nullable().optional(),
+  projectStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).nullable().optional(),
+  storylineStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).nullable().optional(),
+  outlineStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).nullable().optional(),
+  resourceReadyScore: z.number().int().min(0).max(100).nullable().optional(),
 });
 
 const knowledgeBindingsSchema = z.object({
@@ -97,12 +139,39 @@ const chapterSchema = z.object({
   order: z.number().int().nonnegative(),
   content: z.string().optional(),
   expectation: z.string().optional(),
+  chapterStatus: z.enum(["unplanned", "pending_generation", "generating", "pending_review", "needs_repair", "completed"]).optional(),
+  targetWordCount: z.number().int().min(200).max(20000).optional(),
+  conflictLevel: z.number().int().min(0).max(100).optional(),
+  revealLevel: z.number().int().min(0).max(100).optional(),
+  mustAvoid: z.string().optional(),
+  taskSheet: z.string().optional(),
+  sceneCards: z.string().optional(),
+  repairHistory: z.string().optional(),
+  qualityScore: z.number().int().min(0).max(100).optional(),
+  continuityScore: z.number().int().min(0).max(100).optional(),
+  characterScore: z.number().int().min(0).max(100).optional(),
+  pacingScore: z.number().int().min(0).max(100).optional(),
+  riskFlags: z.string().optional(),
 });
 
 const updateChapterSchema = z.object({
   title: z.string().trim().min(1).optional(),
   order: z.number().int().nonnegative().optional(),
   content: z.string().optional(),
+  expectation: z.string().optional(),
+  chapterStatus: z.enum(["unplanned", "pending_generation", "generating", "pending_review", "needs_repair", "completed"]).optional(),
+  targetWordCount: z.number().int().min(200).max(20000).nullable().optional(),
+  conflictLevel: z.number().int().min(0).max(100).nullable().optional(),
+  revealLevel: z.number().int().min(0).max(100).nullable().optional(),
+  mustAvoid: z.string().nullable().optional(),
+  taskSheet: z.string().nullable().optional(),
+  sceneCards: z.string().nullable().optional(),
+  repairHistory: z.string().nullable().optional(),
+  qualityScore: z.number().int().min(0).max(100).nullable().optional(),
+  continuityScore: z.number().int().min(0).max(100).nullable().optional(),
+  characterScore: z.number().int().min(0).max(100).nullable().optional(),
+  pacingScore: z.number().int().min(0).max(100).nullable().optional(),
+  riskFlags: z.string().nullable().optional(),
 });
 
 const characterSchema = z.object({
@@ -165,6 +234,12 @@ const pipelineRunSchema = llmGenerateSchema.extend({
   startOrder: z.number().int().min(1),
   endOrder: z.number().int().min(1),
   maxRetries: z.number().int().min(0).max(5).optional(),
+  runMode: z.enum(["fast", "polish"]).optional(),
+  autoReview: z.boolean().optional(),
+  autoRepair: z.boolean().optional(),
+  skipCompleted: z.boolean().optional(),
+  qualityThreshold: z.number().int().min(0).max(100).optional(),
+  repairMode: z.enum(["detect_only", "light_repair", "heavy_repair", "continuity_only", "character_only", "ending_only"]).optional(),
 }).refine((value) => value.startOrder <= value.endOrder, {
   message: "起始章节必须小于或等于结束章节。",
 });
@@ -635,6 +710,115 @@ router.get(
         success: true,
         data,
         message: "获取任务状态成功。",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.get(
+  "/:id/storyline/versions",
+  validate({ params: idParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const data = await novelService.listStorylineVersions(id);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Storyline versions loaded.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/storyline/versions/draft",
+  validate({ params: idParamsSchema, body: storylineDraftSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const data = await novelService.createStorylineDraft(id, req.body as z.infer<typeof storylineDraftSchema>);
+      res.status(201).json({
+        success: true,
+        data,
+        message: "Storyline draft version created.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/storyline/versions/:versionId/activate",
+  validate({ params: storylineVersionParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, versionId } = req.params as z.infer<typeof storylineVersionParamsSchema>;
+      const data = await novelService.activateStorylineVersion(id, versionId);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Storyline version activated.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/storyline/versions/:versionId/freeze",
+  validate({ params: storylineVersionParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, versionId } = req.params as z.infer<typeof storylineVersionParamsSchema>;
+      const data = await novelService.freezeStorylineVersion(id, versionId);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Storyline version frozen.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.get(
+  "/:id/storyline/versions/:versionId/diff",
+  validate({ params: storylineVersionParamsSchema, query: storylineDiffQuerySchema }),
+  async (req, res, next) => {
+    try {
+      const { id, versionId } = req.params as z.infer<typeof storylineVersionParamsSchema>;
+      const query = storylineDiffQuerySchema.parse(req.query);
+      const data = await novelService.getStorylineDiff(id, versionId, query.compareVersion);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Storyline diff loaded.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/storyline/impact-analysis",
+  validate({ params: idParamsSchema, body: storylineImpactSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const data = await novelService.analyzeStorylineImpact(id, req.body as z.infer<typeof storylineImpactSchema>);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Storyline impact analysis completed.",
       } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);

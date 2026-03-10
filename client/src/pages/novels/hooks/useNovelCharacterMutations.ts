@@ -11,6 +11,7 @@ import {
   updateNovelCharacter,
 } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
+import { buildCharacterProfileFromWizard, type QuickCharacterCreatePayload } from "../components/characterPanel.utils";
 
 interface LLMState {
   provider?: LLMProvider;
@@ -195,11 +196,16 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
   });
 
   const quickCreateCharacterMutation = useMutation({
-    mutationFn: async () =>
-      createNovelCharacter(id, {
-        name: quickCharacterForm.name.trim(),
-        role: quickCharacterForm.role.trim() || "主角",
-      }),
+    mutationFn: async (payload?: QuickCharacterCreatePayload) => {
+      const nextName = payload?.name?.trim() || quickCharacterForm.name.trim();
+      const nextRole = payload?.role?.trim() || quickCharacterForm.role.trim() || "主角";
+      const generatedProfile = payload ? buildCharacterProfileFromWizard(payload) : {};
+      return createNovelCharacter(id, {
+        name: nextName,
+        role: nextRole,
+        ...generatedProfile,
+      });
+    },
     onSuccess: async (response) => {
       setCharacterMessage(response.message ?? "角色创建成功。");
       setQuickCharacterForm((prev) => ({ ...prev, name: "" }));

@@ -2,16 +2,27 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
+  AIFreedom,
   Chapter,
   ChapterSummary,
+  ChapterStatus,
   CharacterTimeline,
   Character,
+  EmotionIntensity,
+  NarrativePov,
   Novel,
   NovelBible,
+  PacePreference,
   PipelineJob,
+  PipelineRepairMode,
+  PipelineRunMode,
   PlotBeat,
+  ProjectMode,
+  ProjectProgressStatus,
   QualityScore,
   ReviewIssue,
+  StorylineDiff,
+  StorylineVersion,
 } from "@ai-novel/shared/types/novel";
 import { apiClient } from "./client";
 
@@ -102,6 +113,17 @@ export async function createNovel(payload: {
   genreId?: string;
   worldId?: string;
   writingMode?: "original" | "continuation";
+  projectMode?: ProjectMode;
+  narrativePov?: NarrativePov;
+  pacePreference?: PacePreference;
+  styleTone?: string;
+  emotionIntensity?: EmotionIntensity;
+  aiFreedom?: AIFreedom;
+  defaultChapterLength?: number;
+  projectStatus?: ProjectProgressStatus;
+  storylineStatus?: ProjectProgressStatus;
+  outlineStatus?: ProjectProgressStatus;
+  resourceReadyScore?: number;
   sourceNovelId?: string;
   sourceKnowledgeDocumentId?: string;
   continuationBookAnalysisId?: string;
@@ -118,6 +140,17 @@ export async function updateNovel(
     description: string;
     status: "draft" | "published";
     writingMode: "original" | "continuation";
+    projectMode: ProjectMode | null;
+    narrativePov: NarrativePov | null;
+    pacePreference: PacePreference | null;
+    styleTone: string | null;
+    emotionIntensity: EmotionIntensity | null;
+    aiFreedom: AIFreedom | null;
+    defaultChapterLength: number | null;
+    projectStatus: ProjectProgressStatus | null;
+    storylineStatus: ProjectProgressStatus | null;
+    outlineStatus: ProjectProgressStatus | null;
+    resourceReadyScore: number | null;
     sourceNovelId: string | null;
     sourceKnowledgeDocumentId: string | null;
     continuationBookAnalysisId: string | null;
@@ -149,6 +182,19 @@ export async function createNovelChapter(
     order: number;
     content?: string;
     expectation?: string;
+    chapterStatus?: ChapterStatus;
+    targetWordCount?: number;
+    conflictLevel?: number;
+    revealLevel?: number;
+    mustAvoid?: string;
+    taskSheet?: string;
+    sceneCards?: string;
+    repairHistory?: string;
+    qualityScore?: number;
+    continuityScore?: number;
+    characterScore?: number;
+    pacingScore?: number;
+    riskFlags?: string;
   },
 ) {
   const { data } = await apiClient.post<ApiResponse<Chapter>>(`/novels/${id}/chapters`, payload);
@@ -162,6 +208,20 @@ export async function updateNovelChapter(
     title: string;
     order: number;
     content: string;
+    expectation: string;
+    chapterStatus: ChapterStatus;
+    targetWordCount: number;
+    conflictLevel: number;
+    revealLevel: number;
+    mustAvoid: string;
+    taskSheet: string;
+    sceneCards: string;
+    repairHistory: string;
+    qualityScore: number;
+    continuityScore: number;
+    characterScore: number;
+    pacingScore: number;
+    riskFlags: string;
   }>,
 ) {
   const { data } = await apiClient.put<ApiResponse<Chapter>>(`/novels/${id}/chapters/${chapterId}`, payload);
@@ -323,12 +383,86 @@ export async function runNovelPipeline(
     startOrder: number;
     endOrder: number;
     maxRetries?: number;
+    runMode?: PipelineRunMode;
+    autoReview?: boolean;
+    autoRepair?: boolean;
+    skipCompleted?: boolean;
+    qualityThreshold?: number;
+    repairMode?: PipelineRepairMode;
     provider?: LLMProvider;
     model?: string;
     temperature?: number;
   },
 ) {
   const { data } = await apiClient.post<ApiResponse<PipelineJob>>(`/novels/${id}/pipeline/run`, payload);
+  return data;
+}
+
+export async function listStorylineVersions(id: string) {
+  const { data } = await apiClient.get<ApiResponse<StorylineVersion[]>>(`/novels/${id}/storyline/versions`);
+  return data;
+}
+
+export async function createStorylineDraft(
+  id: string,
+  payload: {
+    content: string;
+    diffSummary?: string;
+    baseVersion?: number;
+  },
+) {
+  const { data } = await apiClient.post<ApiResponse<StorylineVersion>>(`/novels/${id}/storyline/versions/draft`, payload);
+  return data;
+}
+
+export async function activateStorylineVersion(id: string, versionId: string) {
+  const { data } = await apiClient.post<ApiResponse<StorylineVersion>>(
+    `/novels/${id}/storyline/versions/${versionId}/activate`,
+    {},
+  );
+  return data;
+}
+
+export async function freezeStorylineVersion(id: string, versionId: string) {
+  const { data } = await apiClient.post<ApiResponse<StorylineVersion>>(
+    `/novels/${id}/storyline/versions/${versionId}/freeze`,
+    {},
+  );
+  return data;
+}
+
+export async function getStorylineDiff(id: string, versionId: string, compareVersion?: number) {
+  const { data } = await apiClient.get<ApiResponse<StorylineDiff>>(
+    `/novels/${id}/storyline/versions/${versionId}/diff`,
+    {
+      params: { compareVersion },
+    },
+  );
+  return data;
+}
+
+export async function analyzeStorylineImpact(
+  id: string,
+  payload: {
+    content?: string;
+    versionId?: string;
+  },
+) {
+  const { data } = await apiClient.post<
+    ApiResponse<{
+      novelId: string;
+      sourceVersion: number | null;
+      affectedCharacters: number;
+      affectedChapters: number;
+      changedLines: number;
+      requiresOutlineRebuild: boolean;
+      recommendations: {
+        shouldSyncOutline: boolean;
+        shouldRecheckCharacters: boolean;
+        suggestedStrategy: "rebuild_outline" | "incremental_sync";
+      };
+    }>
+  >(`/novels/${id}/storyline/impact-analysis`, payload);
   return data;
 }
 

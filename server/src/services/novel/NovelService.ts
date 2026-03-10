@@ -28,6 +28,17 @@ interface CreateNovelInput {
   genreId?: string;
   worldId?: string;
   writingMode?: "original" | "continuation";
+  projectMode?: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
+  narrativePov?: "first_person" | "third_person" | "mixed";
+  pacePreference?: "slow" | "balanced" | "fast";
+  styleTone?: string;
+  emotionIntensity?: "low" | "medium" | "high";
+  aiFreedom?: "low" | "medium" | "high";
+  defaultChapterLength?: number;
+  projectStatus?: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
+  storylineStatus?: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
+  outlineStatus?: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
+  resourceReadyScore?: number;
   sourceNovelId?: string | null;
   sourceKnowledgeDocumentId?: string | null;
   continuationBookAnalysisId?: string | null;
@@ -39,6 +50,17 @@ interface UpdateNovelInput {
   description?: string;
   status?: "draft" | "published";
   writingMode?: "original" | "continuation";
+  projectMode?: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline" | null;
+  narrativePov?: "first_person" | "third_person" | "mixed" | null;
+  pacePreference?: "slow" | "balanced" | "fast" | null;
+  styleTone?: string | null;
+  emotionIntensity?: "low" | "medium" | "high" | null;
+  aiFreedom?: "low" | "medium" | "high" | null;
+  defaultChapterLength?: number | null;
+  projectStatus?: "not_started" | "in_progress" | "completed" | "rework" | "blocked" | null;
+  storylineStatus?: "not_started" | "in_progress" | "completed" | "rework" | "blocked" | null;
+  outlineStatus?: "not_started" | "in_progress" | "completed" | "rework" | "blocked" | null;
+  resourceReadyScore?: number | null;
   sourceNovelId?: string | null;
   sourceKnowledgeDocumentId?: string | null;
   continuationBookAnalysisId?: string | null;
@@ -54,6 +76,19 @@ interface ChapterInput {
   order: number;
   content?: string;
   expectation?: string;
+  chapterStatus?: "unplanned" | "pending_generation" | "generating" | "pending_review" | "needs_repair" | "completed";
+  targetWordCount?: number | null;
+  conflictLevel?: number | null;
+  revealLevel?: number | null;
+  mustAvoid?: string | null;
+  taskSheet?: string | null;
+  sceneCards?: string | null;
+  repairHistory?: string | null;
+  qualityScore?: number | null;
+  continuityScore?: number | null;
+  characterScore?: number | null;
+  pacingScore?: number | null;
+  riskFlags?: string | null;
 }
 
 interface CharacterInput {
@@ -93,10 +128,33 @@ interface PipelineRunOptions extends LLMGenerateOptions {
   startOrder: number;
   endOrder: number;
   maxRetries?: number;
+  runMode?: "fast" | "polish";
+  autoReview?: boolean;
+  autoRepair?: boolean;
+  skipCompleted?: boolean;
+  qualityThreshold?: number;
+  repairMode?: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only";
 }
 
 interface PipelinePayload extends LLMGenerateOptions {
   maxRetries?: number;
+  runMode?: "fast" | "polish";
+  autoReview?: boolean;
+  autoRepair?: boolean;
+  skipCompleted?: boolean;
+  qualityThreshold?: number;
+  repairMode?: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only";
+}
+
+interface StorylineDraftInput {
+  content: string;
+  diffSummary?: string;
+  baseVersion?: number;
+}
+
+interface StorylineImpactInput {
+  versionId?: string;
+  content?: string;
 }
 
 interface ReviewOptions extends LLMGenerateOptions {
@@ -434,6 +492,53 @@ function serializeContinuationBookAnalysisSections(
   return JSON.stringify(Array.from(new Set(normalized)));
 }
 
+function normalizeStorylineLines(content: string): string[] {
+  return content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+function estimateChangedLines(previousContent: string, nextContent: string): number {
+  const previous = normalizeStorylineLines(previousContent);
+  const next = normalizeStorylineLines(nextContent);
+  const maxLength = Math.max(previous.length, next.length);
+  let changed = 0;
+  for (let index = 0; index < maxLength; index += 1) {
+    if ((previous[index] ?? "") !== (next[index] ?? "")) {
+      changed += 1;
+    }
+  }
+  return changed;
+}
+
+function buildStorylineDiffSummary(previousContent: string, nextContent: string): string {
+  const previous = normalizeStorylineLines(previousContent);
+  const next = normalizeStorylineLines(nextContent);
+  const changedLines = estimateChangedLines(previousContent, nextContent);
+  const addedLines = Math.max(0, next.length - previous.length);
+  const removedLines = Math.max(0, previous.length - next.length);
+  return `changed=${changedLines}; added=${addedLines}; removed=${removedLines}`;
+}
+
+function countCharacterMentions(content: string, names: string[]): number {
+  const normalized = content.replace(/\s+/g, "");
+  const uniqueNames = Array.from(new Set(names.filter((name) => name.trim().length > 0)));
+  return uniqueNames.filter((name) => normalized.includes(name.replace(/\s+/g, ""))).length;
+}
+
+function estimateAffectedChapterCount(content: string, chapterTotal: number, changedLines: number): number {
+  const explicitMatches = content.match(/第?\s*\d+\s*章/g) ?? [];
+  if (explicitMatches.length > 0) {
+    return Math.min(chapterTotal, explicitMatches.length);
+  }
+  if (chapterTotal <= 0) {
+    return 0;
+  }
+  const inferred = Math.max(1, Math.ceil(changedLines / 4));
+  return Math.min(chapterTotal, inferred);
+}
+
 const novelContinuationService = new NovelContinuationService();
 
 export class NovelService {
@@ -496,6 +601,17 @@ export class NovelService {
         genreId: input.genreId,
         worldId: input.worldId,
         writingMode,
+        projectMode: input.projectMode,
+        narrativePov: input.narrativePov,
+        pacePreference: input.pacePreference,
+        styleTone: input.styleTone,
+        emotionIntensity: input.emotionIntensity,
+        aiFreedom: input.aiFreedom,
+        defaultChapterLength: input.defaultChapterLength,
+        projectStatus: input.projectStatus,
+        storylineStatus: input.storylineStatus,
+        outlineStatus: input.outlineStatus,
+        resourceReadyScore: input.resourceReadyScore,
         sourceNovelId: writingMode === "continuation" ? sourceNovelId : null,
         sourceKnowledgeDocumentId: writingMode === "continuation" ? sourceKnowledgeDocumentId : null,
         continuationBookAnalysisId: normalizedContinuationBookAnalysisId,
@@ -530,6 +646,196 @@ export class NovelService {
       return null;
     }
     return this.normalizeNovelOutput(row);
+  }
+
+  async listStorylineVersions(novelId: string) {
+    return prisma.storylineVersion.findMany({
+      where: { novelId },
+      orderBy: [{ version: "desc" }],
+    });
+  }
+
+  async createStorylineDraft(novelId: string, input: StorylineDraftInput) {
+    const novel = await prisma.novel.findUnique({
+      where: { id: novelId },
+      select: { id: true, outline: true },
+    });
+    if (!novel) {
+      throw new Error("å°è¯´ä¸å­˜åœ¨");
+    }
+
+    const latestVersion = await prisma.storylineVersion.findFirst({
+      where: { novelId },
+      orderBy: { version: "desc" },
+    });
+
+    const baseVersion = typeof input.baseVersion === "number"
+      ? await prisma.storylineVersion.findFirst({
+        where: { novelId, version: input.baseVersion },
+      })
+      : null;
+
+    const previousContent = baseVersion?.content ?? latestVersion?.content ?? novel.outline ?? "";
+    const diffSummary = input.diffSummary?.trim() || buildStorylineDiffSummary(previousContent, input.content);
+
+    return prisma.storylineVersion.create({
+      data: {
+        novelId,
+        version: (latestVersion?.version ?? 0) + 1,
+        status: "draft",
+        content: input.content,
+        diffSummary,
+      },
+    });
+  }
+
+  async activateStorylineVersion(novelId: string, versionId: string) {
+    const target = await prisma.storylineVersion.findFirst({
+      where: { id: versionId, novelId },
+    });
+    if (!target) {
+      throw new Error("ä¸»çº¿ç‰ˆæœ¬ä¸å­˜åœ¨");
+    }
+
+    await prisma.$transaction([
+      prisma.storylineVersion.updateMany({
+        where: { novelId, status: "active" },
+        data: { status: "frozen" },
+      }),
+      prisma.storylineVersion.update({
+        where: { id: target.id },
+        data: { status: "active" },
+      }),
+      prisma.novel.update({
+        where: { id: novelId },
+        data: {
+          outline: target.content,
+          storylineStatus: "in_progress",
+        },
+      }),
+    ]);
+
+    const refreshed = await prisma.storylineVersion.findUnique({ where: { id: target.id } });
+    if (!refreshed) {
+      throw new Error("ä¸»çº¿ç‰ˆæœ¬æ¿€æ´»å¤±è´¥");
+    }
+    this.queueRagUpsert("novel", novelId);
+    return refreshed;
+  }
+
+  async freezeStorylineVersion(novelId: string, versionId: string) {
+    const target = await prisma.storylineVersion.findFirst({
+      where: { id: versionId, novelId },
+      select: { id: true },
+    });
+    if (!target) {
+      throw new Error("ä¸»çº¿ç‰ˆæœ¬ä¸å­˜åœ¨");
+    }
+    return prisma.storylineVersion.update({
+      where: { id: target.id },
+      data: { status: "frozen" },
+    });
+  }
+
+  async getStorylineDiff(novelId: string, versionId: string, compareVersion?: number) {
+    const target = await prisma.storylineVersion.findFirst({
+      where: { id: versionId, novelId },
+    });
+    if (!target) {
+      throw new Error("ä¸»çº¿ç‰ˆæœ¬ä¸å­˜åœ¨");
+    }
+
+    let baseline: { content: string } | null = null;
+    if (typeof compareVersion === "number") {
+      baseline = await prisma.storylineVersion.findFirst({
+        where: { novelId, version: compareVersion },
+        select: { content: true },
+      });
+    } else {
+      baseline = await prisma.storylineVersion.findFirst({
+        where: { novelId, version: { lt: target.version } },
+        orderBy: { version: "desc" },
+        select: { content: true },
+      });
+    }
+
+    const previousContent = baseline?.content ?? "";
+    const changedLines = estimateChangedLines(previousContent, target.content);
+    const [characters, chapterCount] = await Promise.all([
+      prisma.character.findMany({
+        where: { novelId },
+        select: { name: true },
+      }),
+      prisma.chapter.count({ where: { novelId } }),
+    ]);
+    const affectedCharacters = countCharacterMentions(target.content, characters.map((item) => item.name));
+    const affectedChapters = estimateAffectedChapterCount(target.content, chapterCount, changedLines);
+
+    return {
+      id: target.id,
+      novelId: target.novelId,
+      version: target.version,
+      status: target.status,
+      diffSummary: target.diffSummary ?? buildStorylineDiffSummary(previousContent, target.content),
+      changedLines,
+      affectedCharacters,
+      affectedChapters,
+    };
+  }
+
+  async analyzeStorylineImpact(novelId: string, input: StorylineImpactInput) {
+    const novel = await prisma.novel.findUnique({
+      where: { id: novelId },
+      select: { id: true, outline: true },
+    });
+    if (!novel) {
+      throw new Error("å°è¯´ä¸å­˜åœ¨");
+    }
+
+    let candidateContent = input.content?.trim() ?? "";
+    let sourceVersion: number | null = null;
+    if (!candidateContent && input.versionId) {
+      const version = await prisma.storylineVersion.findFirst({
+        where: { id: input.versionId, novelId },
+        select: { version: true, content: true },
+      });
+      if (!version) {
+        throw new Error("ä¸»çº¿ç‰ˆæœ¬ä¸å­˜åœ¨");
+      }
+      candidateContent = version.content;
+      sourceVersion = version.version;
+    }
+
+    if (!candidateContent) {
+      throw new Error("ç¼ºå°‘ä¸»çº¿å†…å®¹");
+    }
+
+    const baseContent = novel.outline ?? "";
+    const changedLines = estimateChangedLines(baseContent, candidateContent);
+    const [characters, chapterCount] = await Promise.all([
+      prisma.character.findMany({
+        where: { novelId },
+        select: { name: true },
+      }),
+      prisma.chapter.count({ where: { novelId } }),
+    ]);
+    const affectedCharacters = countCharacterMentions(candidateContent, characters.map((item) => item.name));
+    const affectedChapters = estimateAffectedChapterCount(candidateContent, chapterCount, changedLines);
+    const requiresOutlineRebuild = changedLines >= 8 || affectedChapters >= Math.max(3, Math.ceil(chapterCount * 0.25));
+
+    return {
+      novelId,
+      sourceVersion,
+      changedLines,
+      affectedCharacters,
+      affectedChapters,
+      requiresOutlineRebuild,
+      recommendations: {
+        shouldSyncOutline: changedLines > 0,
+        shouldRecheckCharacters: affectedCharacters > 0,
+        suggestedStrategy: requiresOutlineRebuild ? "rebuild_outline" : "incremental_sync",
+      },
+    };
   }
 
   async updateNovel(id: string, input: UpdateNovelInput) {
@@ -617,6 +923,19 @@ export class NovelService {
         order: input.order,
         content: input.content ?? "",
         expectation: input.expectation,
+        chapterStatus: input.chapterStatus,
+        targetWordCount: input.targetWordCount ?? null,
+        conflictLevel: input.conflictLevel ?? null,
+        revealLevel: input.revealLevel ?? null,
+        mustAvoid: input.mustAvoid ?? null,
+        taskSheet: input.taskSheet ?? null,
+        sceneCards: input.sceneCards ?? null,
+        repairHistory: input.repairHistory ?? null,
+        qualityScore: input.qualityScore ?? null,
+        continuityScore: input.continuityScore ?? null,
+        characterScore: input.characterScore ?? null,
+        pacingScore: input.pacingScore ?? null,
+        riskFlags: input.riskFlags ?? null,
         generationState: "planned",
       },
     });
@@ -634,7 +953,25 @@ export class NovelService {
     }
     const chapter = await prisma.chapter.update({
       where: { id: chapterId },
-      data: { title: input.title, order: input.order, content: input.content },
+      data: {
+        title: input.title,
+        order: input.order,
+        content: input.content,
+        expectation: input.expectation,
+        chapterStatus: input.chapterStatus,
+        targetWordCount: input.targetWordCount,
+        conflictLevel: input.conflictLevel,
+        revealLevel: input.revealLevel,
+        mustAvoid: input.mustAvoid,
+        taskSheet: input.taskSheet,
+        sceneCards: input.sceneCards,
+        repairHistory: input.repairHistory,
+        qualityScore: input.qualityScore,
+        continuityScore: input.continuityScore,
+        characterScore: input.characterScore,
+        pacingScore: input.pacingScore,
+        riskFlags: input.riskFlags,
+      },
     });
     if (typeof input.content === "string") {
       await this.syncChapterArtifacts(novelId, chapterId, input.content);
@@ -1448,6 +1785,9 @@ ${worldContext}${referenceBlock}`,
       where: {
         novelId,
         order: { gte: options.startOrder, lte: options.endOrder },
+        ...(options.skipCompleted
+          ? { generationState: { notIn: ["approved", "published"] as const } }
+          : {}),
       },
       orderBy: { order: "asc" },
       select: { id: true },
@@ -1473,6 +1813,12 @@ ${worldContext}${referenceBlock}`,
         novelId,
         startOrder: options.startOrder,
         endOrder: options.endOrder,
+        runMode: options.runMode ?? "fast",
+        autoReview: options.autoReview ?? true,
+        autoRepair: options.autoRepair ?? true,
+        skipCompleted: options.skipCompleted ?? true,
+        qualityThreshold: options.qualityThreshold ?? null,
+        repairMode: options.repairMode ?? "light_repair",
         status: "queued",
         totalCount: chapters.length,
         maxRetries: options.maxRetries ?? 2,
@@ -1481,6 +1827,12 @@ ${worldContext}${referenceBlock}`,
           provider: options.provider ?? "deepseek",
           model: options.model ?? "",
           temperature: options.temperature ?? 0.8,
+          runMode: options.runMode ?? "fast",
+          autoReview: options.autoReview ?? true,
+          autoRepair: options.autoRepair ?? true,
+          skipCompleted: options.skipCompleted ?? true,
+          qualityThreshold: options.qualityThreshold ?? null,
+          repairMode: options.repairMode ?? "light_repair",
         }),
       },
     });
@@ -1518,6 +1870,12 @@ ${worldContext}${referenceBlock}`,
       startOrder: job.startOrder,
       endOrder: job.endOrder,
       maxRetries: job.maxRetries,
+      runMode: job.runMode ?? payload.runMode,
+      autoReview: job.autoReview ?? payload.autoReview,
+      autoRepair: job.autoRepair ?? payload.autoRepair,
+      skipCompleted: job.skipCompleted ?? payload.skipCompleted,
+      qualityThreshold: job.qualityThreshold ?? payload.qualityThreshold,
+      repairMode: job.repairMode ?? payload.repairMode,
       provider: payload.provider,
       model: payload.model,
       temperature: payload.temperature,
@@ -2183,6 +2541,20 @@ ${ragContext || ""}`,
         provider: typeof parsed.provider === "string" ? (parsed.provider as LLMProvider) : undefined,
         model: typeof parsed.model === "string" ? parsed.model : undefined,
         temperature: typeof parsed.temperature === "number" ? parsed.temperature : undefined,
+        runMode: parsed.runMode === "polish" ? "polish" : parsed.runMode === "fast" ? "fast" : undefined,
+        autoReview: typeof parsed.autoReview === "boolean" ? parsed.autoReview : undefined,
+        autoRepair: typeof parsed.autoRepair === "boolean" ? parsed.autoRepair : undefined,
+        skipCompleted: typeof parsed.skipCompleted === "boolean" ? parsed.skipCompleted : undefined,
+        qualityThreshold: typeof parsed.qualityThreshold === "number" ? parsed.qualityThreshold : undefined,
+        repairMode:
+          parsed.repairMode === "detect_only"
+          || parsed.repairMode === "light_repair"
+          || parsed.repairMode === "heavy_repair"
+          || parsed.repairMode === "continuity_only"
+          || parsed.repairMode === "character_only"
+          || parsed.repairMode === "ending_only"
+            ? parsed.repairMode
+            : undefined,
       };
     } catch {
       return {};
@@ -2228,6 +2600,7 @@ ${ragContext || ""}`,
 
   private async executePipeline(jobId: string, novelId: string, options: PipelineRunOptions) {
     const maxRetries = options.maxRetries ?? 2;
+    const qualityThreshold = options.qualityThreshold ?? 75;
     let totalRetryCount = 0;
     const failedDetails: string[] = [];
 
@@ -2248,7 +2621,13 @@ ${ragContext || ""}`,
       const [novel, chapters] = await Promise.all([
         prisma.novel.findUnique({ where: { id: novelId } }),
         prisma.chapter.findMany({
-          where: { novelId, order: { gte: options.startOrder, lte: options.endOrder } },
+          where: {
+            novelId,
+            order: { gte: options.startOrder, lte: options.endOrder },
+            ...(options.skipCompleted
+              ? { generationState: { notIn: ["approved", "published"] as const } }
+              : {}),
+          },
           orderBy: { order: "asc" },
         }),
       ]);
@@ -2398,7 +2777,11 @@ ${continuationPack.enabled ? continuationPack.humanBlock : ""}`,
             currentItemKey: chapter.id,
             currentItemLabel: chapter.title,
           });
-          final = await this.reviewChapterContent(novel.title, chapter.title, content, options, novelId);
+          if (options.autoReview === false) {
+            final = { score: ruleScore(content), issues: [] };
+          } else {
+            final = await this.reviewChapterContent(novel.title, chapter.title, content, options, novelId);
+          }
           await prisma.chapter.update({ where: { id: chapter.id }, data: { generationState: "reviewed" } });
           logPipelineInfo("章节审校结果", {
             jobId,
@@ -2408,7 +2791,7 @@ ${continuationPack.enabled ? continuationPack.humanBlock : ""}`,
             issueCount: final.issues.length,
           });
 
-          if (isPass(final.score)) {
+          if (isPass(final.score) && final.score.overall >= qualityThreshold) {
             pass = true;
             await prisma.chapter.update({ where: { id: chapter.id }, data: { generationState: "approved" } });
             logPipelineInfo("章节通过质量门禁", {
@@ -2416,6 +2799,10 @@ ${continuationPack.enabled ? continuationPack.humanBlock : ""}`,
               order: chapter.order,
               attempt,
             });
+            break;
+          }
+
+          if (options.autoRepair === false) {
             break;
           }
 

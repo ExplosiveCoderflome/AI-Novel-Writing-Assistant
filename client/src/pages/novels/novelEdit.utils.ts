@@ -1,13 +1,31 @@
-export interface StructuredVolume {
-  volumeTitle: string;
-  chapters: Array<{
-    order: number;
-    title: string;
-    summary: string;
-  }>;
-}
+import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 
-type JsonRecord = Record<string, unknown>;
+export * from "./structuredOutline.utils";
+export * from "./structuredOutlineSync.utils";
+
+export interface NovelBasicFormState {
+  title: string;
+  description: string;
+  worldId: string;
+  status: "draft" | "published";
+  writingMode: "original" | "continuation";
+  projectMode: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
+  narrativePov: "first_person" | "third_person" | "mixed";
+  pacePreference: "slow" | "balanced" | "fast";
+  styleTone: string;
+  emotionIntensity: "low" | "medium" | "high";
+  aiFreedom: "low" | "medium" | "high";
+  defaultChapterLength: number;
+  projectStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
+  storylineStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
+  outlineStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
+  resourceReadyScore: number;
+  continuationSourceType: "novel" | "knowledge_document";
+  sourceNovelId: string;
+  sourceKnowledgeDocumentId: string;
+  continuationBookAnalysisId: string;
+  continuationBookAnalysisSections: BookAnalysisSectionKey[];
+}
 
 interface WorldContextSummaryInput {
   name: string;
@@ -17,110 +35,6 @@ interface WorldContextSummaryInput {
   axioms?: string | null;
   magicSystem?: string | null;
   conflicts?: string | null;
-}
-
-function isJsonRecord(value: unknown): value is JsonRecord {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function pickFirstString(record: JsonRecord, keys: string[]): string | null {
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value !== "string") {
-      continue;
-    }
-    const trimmed = value.trim();
-    if (trimmed.length > 0) {
-      return trimmed;
-    }
-  }
-  return null;
-}
-
-function parseOrder(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-    return Math.round(value);
-  }
-  if (typeof value === "string") {
-    const matched = value.match(/\d+/);
-    if (!matched) {
-      return null;
-    }
-    const parsed = Number.parseInt(matched[0], 10);
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed;
-    }
-  }
-  return null;
-}
-
-function normalizeStructuredChapter(raw: unknown, index: number): StructuredVolume["chapters"][number] | null {
-  if (!isJsonRecord(raw)) {
-    return null;
-  }
-  const order = parseOrder(raw.order ?? raw.chapterOrder ?? raw.chapterNo ?? raw.chapter ?? raw.index) ?? index + 1;
-  const rawTitle = pickFirstString(raw, ["title", "chapterTitle", "name", "chapterName"]);
-  const rawSummary = pickFirstString(raw, ["summary", "outline", "description", "content"]);
-  if (!rawTitle && !rawSummary) {
-    return null;
-  }
-  const title = rawTitle ?? `Chapter ${order}`;
-  const summary = rawSummary ?? "";
-  return { order, title, summary };
-}
-
-function normalizeStructuredVolume(raw: unknown, index: number): StructuredVolume | null {
-  if (!isJsonRecord(raw)) {
-    return null;
-  }
-  const volumeTitle = pickFirstString(raw, ["volumeTitle", "title", "name", "volume", "arcTitle"]) ?? `Volume ${index + 1}`;
-  const rawChapters =
-    (Array.isArray(raw.chapters) && raw.chapters)
-    || (Array.isArray(raw.chapterList) && raw.chapterList)
-    || (Array.isArray(raw.items) && raw.items)
-    || (Array.isArray(raw.sections) && raw.sections)
-    || [];
-  const chapters = rawChapters
-    .map((chapter, chapterIndex) => normalizeStructuredChapter(chapter, chapterIndex))
-    .filter((chapter): chapter is StructuredVolume["chapters"][number] => chapter !== null);
-  if (chapters.length === 0) {
-    return null;
-  }
-  return { volumeTitle, chapters };
-}
-
-export function parseStructuredVolumes(raw: string | null | undefined): StructuredVolume[] {
-  if (!raw) {
-    return [];
-  }
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    const volumeLikeList = Array.isArray(parsed)
-      ? parsed
-      : isJsonRecord(parsed) && Array.isArray(parsed.volumes)
-        ? parsed.volumes
-        : isJsonRecord(parsed) && Array.isArray(parsed.items)
-          ? parsed.items
-          : [];
-    if (volumeLikeList.length === 0) {
-      return [];
-    }
-    const normalizedVolumes = volumeLikeList
-      .map((volume, volumeIndex) => normalizeStructuredVolume(volume, volumeIndex))
-      .filter((volume): volume is StructuredVolume => volume !== null);
-    if (normalizedVolumes.length > 0) {
-      return normalizedVolumes;
-    }
-    const chapters = volumeLikeList
-      .map((chapter, chapterIndex) => normalizeStructuredChapter(chapter, chapterIndex))
-      .filter((chapter): chapter is StructuredVolume["chapters"][number] => chapter !== null);
-    if (chapters.length === 0) {
-      return [];
-    }
-    return [{ volumeTitle: "Volume 1", chapters }];
-  } catch {
-    return [];
-  }
 }
 
 export function buildWorldInjectionSummary(world: WorldContextSummaryInput | null | undefined): string | null {
@@ -154,4 +68,48 @@ export function buildWorldInjectionSummary(world: WorldContextSummaryInput | nul
     ...(conflictBlock ? [`Conflict: ${conflictBlock}`] : []),
   ];
   return lines.join("\n");
+}
+
+export function patchNovelBasicForm(
+  previous: NovelBasicFormState,
+  patch: Partial<NovelBasicFormState>,
+): NovelBasicFormState {
+  const next = { ...previous, ...patch };
+  if (next.writingMode === "original") {
+    next.sourceNovelId = "";
+    next.sourceKnowledgeDocumentId = "";
+    next.continuationBookAnalysisId = "";
+    next.continuationBookAnalysisSections = [];
+  } else if (next.continuationSourceType === "novel") {
+    next.sourceKnowledgeDocumentId = "";
+  } else if (next.continuationSourceType === "knowledge_document") {
+    next.sourceNovelId = "";
+  }
+  if (
+    patch.continuationSourceType !== undefined
+    && patch.continuationSourceType !== previous.continuationSourceType
+  ) {
+    next.continuationBookAnalysisId = "";
+    next.continuationBookAnalysisSections = [];
+  }
+  if (
+    next.continuationSourceType === "novel"
+    && patch.sourceNovelId !== undefined
+    && patch.sourceNovelId !== previous.sourceNovelId
+  ) {
+    next.continuationBookAnalysisId = "";
+    next.continuationBookAnalysisSections = [];
+  }
+  if (
+    next.continuationSourceType === "knowledge_document"
+    && patch.sourceKnowledgeDocumentId !== undefined
+    && patch.sourceKnowledgeDocumentId !== previous.sourceKnowledgeDocumentId
+  ) {
+    next.continuationBookAnalysisId = "";
+    next.continuationBookAnalysisSections = [];
+  }
+  if (patch.continuationBookAnalysisId !== undefined && !patch.continuationBookAnalysisId) {
+    next.continuationBookAnalysisSections = [];
+  }
+  return next;
 }

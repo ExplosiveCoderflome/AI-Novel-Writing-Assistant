@@ -15,6 +15,17 @@ interface BasicInfoTabProps {
     worldId: string;
     status: "draft" | "published";
     writingMode: "original" | "continuation";
+    projectMode: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
+    narrativePov: "first_person" | "third_person" | "mixed";
+    pacePreference: "slow" | "balanced" | "fast";
+    styleTone: string;
+    emotionIntensity: "low" | "medium" | "high";
+    aiFreedom: "low" | "medium" | "high";
+    defaultChapterLength: number;
+    projectStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
+    storylineStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
+    outlineStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
+    resourceReadyScore: number;
     continuationSourceType: "novel" | "knowledge_document";
     sourceNovelId: string;
     sourceKnowledgeDocumentId: string;
@@ -93,6 +104,109 @@ export default function BasicInfoTab(props: BasicInfoTabProps) {
             </option>
           ))}
         </select>
+
+        <div className="grid gap-2 md:grid-cols-2">
+          <select
+            className="w-full rounded-md border bg-background p-2 text-sm"
+            value={basicForm.projectMode}
+            onChange={(event) => onFormChange({ projectMode: event.target.value as BasicInfoTabProps["basicForm"]["projectMode"] })}
+          >
+            <option value="ai_led">AI 接管</option>
+            <option value="co_pilot">AI 副驾</option>
+            <option value="draft_mode">草稿优先</option>
+            <option value="auto_pipeline">流水线优先</option>
+          </select>
+          <select
+            className="w-full rounded-md border bg-background p-2 text-sm"
+            value={basicForm.narrativePov}
+            onChange={(event) => onFormChange({ narrativePov: event.target.value as BasicInfoTabProps["basicForm"]["narrativePov"] })}
+          >
+            <option value="first_person">第一人称</option>
+            <option value="third_person">第三人称</option>
+            <option value="mixed">混合视角</option>
+          </select>
+          <select
+            className="w-full rounded-md border bg-background p-2 text-sm"
+            value={basicForm.pacePreference}
+            onChange={(event) => onFormChange({ pacePreference: event.target.value as BasicInfoTabProps["basicForm"]["pacePreference"] })}
+          >
+            <option value="slow">慢节奏</option>
+            <option value="balanced">均衡</option>
+            <option value="fast">快节奏</option>
+          </select>
+          <select
+            className="w-full rounded-md border bg-background p-2 text-sm"
+            value={basicForm.emotionIntensity}
+            onChange={(event) => onFormChange({ emotionIntensity: event.target.value as BasicInfoTabProps["basicForm"]["emotionIntensity"] })}
+          >
+            <option value="low">低情绪浓度</option>
+            <option value="medium">中情绪浓度</option>
+            <option value="high">高情绪浓度</option>
+          </select>
+          <select
+            className="w-full rounded-md border bg-background p-2 text-sm"
+            value={basicForm.aiFreedom}
+            onChange={(event) => onFormChange({ aiFreedom: event.target.value as BasicInfoTabProps["basicForm"]["aiFreedom"] })}
+          >
+            <option value="low">低自由度</option>
+            <option value="medium">中自由度</option>
+            <option value="high">高自由度</option>
+          </select>
+          <Input
+            type="number"
+            min={500}
+            max={10000}
+            value={basicForm.defaultChapterLength}
+            placeholder="默认章节字数"
+            onChange={(event) => onFormChange({ defaultChapterLength: Number(event.target.value || 0) || 2000 })}
+          />
+          <select
+            className="w-full rounded-md border bg-background p-2 text-sm"
+            value={basicForm.projectStatus}
+            onChange={(event) => onFormChange({ projectStatus: event.target.value as BasicInfoTabProps["basicForm"]["projectStatus"] })}
+          >
+            <option value="not_started">项目未开始</option>
+            <option value="in_progress">项目进行中</option>
+            <option value="completed">项目已完成</option>
+            <option value="rework">项目返工</option>
+            <option value="blocked">项目阻塞</option>
+          </select>
+          <select
+            className="w-full rounded-md border bg-background p-2 text-sm"
+            value={basicForm.storylineStatus}
+            onChange={(event) => onFormChange({ storylineStatus: event.target.value as BasicInfoTabProps["basicForm"]["storylineStatus"] })}
+          >
+            <option value="not_started">主线未开始</option>
+            <option value="in_progress">主线进行中</option>
+            <option value="completed">主线已完成</option>
+            <option value="rework">主线返工</option>
+            <option value="blocked">主线阻塞</option>
+          </select>
+          <select
+            className="w-full rounded-md border bg-background p-2 text-sm"
+            value={basicForm.outlineStatus}
+            onChange={(event) => onFormChange({ outlineStatus: event.target.value as BasicInfoTabProps["basicForm"]["outlineStatus"] })}
+          >
+            <option value="not_started">大纲未开始</option>
+            <option value="in_progress">大纲进行中</option>
+            <option value="completed">大纲已完成</option>
+            <option value="rework">大纲返工</option>
+            <option value="blocked">大纲阻塞</option>
+          </select>
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            value={basicForm.resourceReadyScore}
+            placeholder="资源完备度(0-100)"
+            onChange={(event) => onFormChange({ resourceReadyScore: Math.max(0, Math.min(100, Number(event.target.value || 0))) })}
+          />
+        </div>
+        <Input
+          value={basicForm.styleTone}
+          placeholder="文风关键词（例如：冷峻、克制、黑色幽默）"
+          onChange={(event) => onFormChange({ styleTone: event.target.value })}
+        />
 
         <div className="space-y-2">
           <div className="text-sm font-medium">创作类型</div>

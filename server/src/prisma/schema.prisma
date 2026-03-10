@@ -107,12 +107,91 @@ enum ImageSceneType {
   chapter_illustration
 }
 
+enum ProjectMode {
+  ai_led
+  co_pilot
+  draft_mode
+  auto_pipeline
+}
+
+enum NarrativePov {
+  first_person
+  third_person
+  mixed
+}
+
+enum PacePreference {
+  slow
+  balanced
+  fast
+}
+
+enum EmotionIntensity {
+  low
+  medium
+  high
+}
+
+enum AIFreedom {
+  low
+  medium
+  high
+}
+
+enum ProjectProgressStatus {
+  not_started
+  in_progress
+  completed
+  rework
+  blocked
+}
+
+enum StorylineVersionStatus {
+  draft
+  active
+  frozen
+}
+
+enum ChapterStatus {
+  unplanned
+  pending_generation
+  generating
+  pending_review
+  needs_repair
+  completed
+}
+
+enum PipelineRunMode {
+  fast
+  polish
+}
+
+enum PipelineRepairMode {
+  detect_only
+  light_repair
+  heavy_repair
+  continuity_only
+  character_only
+  ending_only
+}
+
 model Novel {
   id                String      @id @default(cuid())
   title             String
   description       String?
   status            String      @default("draft")
   writingMode       String      @default("original")
+  projectMode       ProjectMode?
+  narrativePov      NarrativePov?
+  pacePreference    PacePreference?
+  styleTone         String?
+  emotionIntensity  EmotionIntensity?
+  aiFreedom         AIFreedom?
+  defaultChapterLength Int?
+  projectStatus     ProjectProgressStatus? @default(not_started)
+  storylineStatus   ProjectProgressStatus? @default(not_started)
+  outlineStatus     ProjectProgressStatus? @default(not_started)
+  resourceReadyScore Int?
   sourceNovelId     String?
   sourceKnowledgeDocumentId String?
   continuationBookAnalysisId String?
@@ -135,6 +214,7 @@ model Novel {
   chapterSummaries  ChapterSummary[]
   facts             ConsistencyFact[]
   generationJobs    GenerationJob[]
+  storylineVersions StorylineVersion[]
   qualityReports    QualityReport[]
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
@@ -153,6 +233,19 @@ model Chapter {
   content         String?                @default("")
   order           Int
   generationState ChapterGenerationState @default(planned)
+  chapterStatus   ChapterStatus?         @default(unplanned)
+  targetWordCount Int?
+  conflictLevel   Int?
+  revealLevel     Int?
+  mustAvoid       String?
+  taskSheet       String?
+  sceneCards      String?
+  repairHistory   String?
+  qualityScore    Int?
+  continuityScore Int?
+  characterScore  Int?
+  pacingScore     Int?
+  riskFlags       String?
   hook            String?
   expectation     String?
   novelId         String
@@ -525,6 +618,12 @@ model GenerationJob {
   novelId        String
   startOrder     Int
   endOrder       Int
+  runMode        PipelineRunMode?  @default(fast)
+  autoReview     Boolean           @default(true)
+  autoRepair     Boolean           @default(true)
+  skipCompleted  Boolean           @default(true)
+  qualityThreshold Int?
+  repairMode     PipelineRepairMode? @default(light_repair)
   status         PipelineJobStatus @default(queued)
   progress       Float             @default(0)
   completedCount Int               @default(0)
@@ -537,6 +636,7 @@ model GenerationJob {
   currentItemLabel String?
   cancelRequestedAt DateTime?
   error          String?
+  lastErrorType  String?
   payload        String?
   startedAt      DateTime?
   finishedAt     DateTime?
@@ -546,6 +646,21 @@ model GenerationJob {
 
   @@index([novelId])
   @@index([novelId, status])
+}
+
+model StorylineVersion {
+  id          String                @id @default(cuid())
+  novelId     String
+  version     Int
+  status      StorylineVersionStatus @default(draft)
+  content     String
+  diffSummary String?
+  novel       Novel                 @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@unique([novelId, version])
+  @@index([novelId, status, createdAt])
 }
 
 model QualityReport {
