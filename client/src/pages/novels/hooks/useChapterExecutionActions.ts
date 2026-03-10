@@ -1,12 +1,12 @@
 import { useMutation } from "@tanstack/react-query";
 import type { Chapter, ReviewIssue } from "@ai-novel/shared/types/novel";
 import { updateNovelChapter } from "@/api/novel";
+import { generateNovelChapterSummary } from "@/api/novelChapterSummary";
 import {
   buildChapterTaskSheet,
   buildRepairIssue,
   buildSceneCardsFromChapter,
   resolveTargetWordCount,
-  summarizeChapterContent,
   type ChapterExecutionStrategy,
 } from "../chapterExecution.utils";
 
@@ -42,6 +42,18 @@ export function useChapterExecutionActions({
     },
     onError: (error) => {
       const message = error instanceof Error ? error.message : "章节更新失败。";
+      onMessage(message);
+    },
+  });
+
+  const summarizeChapterMutation = useMutation({
+    mutationFn: () => generateNovelChapterSummary(novelId, selectedChapterId),
+    onSuccess: async () => {
+      await invalidateNovelDetail();
+      onMessage("已通过 AI 生成本章摘要。");
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "章节摘要生成失败。";
       onMessage(message);
     },
   });
@@ -102,14 +114,10 @@ export function useChapterExecutionActions({
   };
 
   const summarizeChapter = () => {
-    const chapter = ensureChapter();
-    if (!chapter) {
+    if (!ensureChapter()) {
       return;
     }
-    patchChapterMutation.mutate({
-      expectation: summarizeChapterContent(chapter),
-    });
-    onMessage("已更新本章摘要。");
+    summarizeChapterMutation.mutate();
   };
 
   const generateTaskSheet = () => {
@@ -210,7 +218,7 @@ export function useChapterExecutionActions({
   };
 
   return {
-    isPatchingChapter: patchChapterMutation.isPending,
+    isPatchingChapter: patchChapterMutation.isPending || summarizeChapterMutation.isPending,
     applyStrategy,
     rewriteChapter,
     expandChapter,

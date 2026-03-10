@@ -77,20 +77,3 @@ export function buildRepairIssue(category: ReviewIssue["category"], fixSuggestio
     fixSuggestion,
   };
 }
-
-export function summarizeChapterContent(chapter: Chapter): string {
-  const content = sanitize(chapter.content);
-  if (!content) {
-    return sanitize(chapter.expectation) || "暂无可总结正文";
-  }
-  const sentences = content
-    .split(/(?<=[。！？])/g)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .slice(0, 3);
-  if (sentences.length > 0) {
-    return sentences.join("");
-  }
-  return content.slice(0, 140);
-}
-

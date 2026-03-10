@@ -15,6 +15,7 @@ import imagesRouter from "./routes/images";
 import knowledgeRouter from "./routes/knowledge";
 import llmRouter from "./routes/llm";
 import novelRouter from "./routes/novel";
+import novelChapterSummaryRouter from "./routes/novelChapterSummary";
 import novelExportRouter from "./routes/novelExport";
 import ragRouter from "./routes/rag";
 import settingsRouter from "./routes/settings";
@@ -62,6 +63,7 @@ export function createApp() {
   app.use("/api/knowledge", knowledgeRouter);
   app.use("/api/llm", llmRouter);
   app.use("/api/novels", novelRouter);
+  app.use("/api/novels", novelChapterSummaryRouter);
   app.use("/api/novels", novelExportRouter);
   app.use("/api/worlds", worldRouter);
   app.use("/api/rag", ragRouter);
