@@ -9,4 +9,7 @@ export default defineConfig({
       "@": path.resolve(__dirname, "src"),
     },
   },
+  server: {
+    host: true, // 允许局域网访问（监听 0.0.0.0）
+  },
 });

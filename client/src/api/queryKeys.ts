@@ -49,6 +49,10 @@ export const queryKeys = {
     list: (params: string) => ["tasks", "list", params] as const,
     detail: (kind: string, id: string) => ["tasks", "detail", kind, id] as const,
   },
+  agentRuns: {
+    list: (params: string) => ["agent-runs", "list", params] as const,
+    detail: (id: string) => ["agent-runs", "detail", id] as const,
+  },
   settings: {
     apiKeys: ["settings", "api-keys"] as const,
     rag: ["settings", "rag"] as const,

@@ -6,6 +6,7 @@ interface UseSSEOptions {
   headers?: Record<string, string>;
   onReasoning?: (content: string) => void;
   onDone?: (fullContent: string) => void;
+  onRunStatus?: (payload: { runId: string; status: string; message?: string }) => void;
 }
 
 export function useSSE(options?: UseSSEOptions) {
@@ -14,6 +15,11 @@ export function useSSE(options?: UseSSEOptions) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isDone, setIsDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [events, setEvents] = useState<Array<Extract<SSEFrame, {
+    type: "tool_call" | "tool_result" | "approval_required" | "approval_resolved";
+  }>>>([]);
+  const [pendingApprovals, setPendingApprovals] = useState<Array<Extract<SSEFrame, { type: "approval_required" }>>>([]);
+  const [latestRun, setLatestRun] = useState<Extract<SSEFrame, { type: "run_status" }> | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
   const abort = useCallback(() => {
@@ -46,9 +52,31 @@ export function useSSE(options?: UseSSEOptions) {
         return;
       }
 
-      setIsStreaming(false);
-      setIsDone(false);
-      setError(frame.error);
+      if (frame.type === "tool_call" || frame.type === "tool_result" || frame.type === "approval_required" || frame.type === "approval_resolved") {
+        setEvents((prev) => [...prev, frame]);
+        if (frame.type === "approval_required") {
+          setPendingApprovals((prev) => {
+            const exists = prev.some((item) => item.approvalId === frame.approvalId);
+            return exists ? prev : [...prev, frame];
+          });
+        }
+        if (frame.type === "approval_resolved") {
+          setPendingApprovals((prev) => prev.filter((item) => item.approvalId !== frame.approvalId));
+        }
+        return;
+      }
+
+      if (frame.type === "run_status") {
+        setLatestRun(frame);
+        options?.onRunStatus?.(frame);
+        return;
+      }
+
+      if (frame.type === "error") {
+        setIsStreaming(false);
+        setIsDone(false);
+        setError(frame.error);
+      }
     },
     [options],
   );
@@ -60,6 +88,9 @@ export function useSSE(options?: UseSSEOptions) {
       setReasoning("");
       setError(null);
       setIsDone(false);
+      setEvents([]);
+      setPendingApprovals([]);
+      setLatestRun(null);
       setIsStreaming(true);
 
       const controller = new AbortController();
@@ -131,5 +162,8 @@ export function useSSE(options?: UseSSEOptions) {
     isStreaming,
     isDone,
     error,
+    events,
+    pendingApprovals,
+    latestRun,
   };
 }

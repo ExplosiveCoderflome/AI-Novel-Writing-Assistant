@@ -4,7 +4,19 @@ import type { SSEFrame } from "@ai-novel/shared/types/api";
 
 export type WritableSSEFrame = Extract<
   SSEFrame,
-  { type: "chunk" | "done" | "error" | "ping" | "reasoning" }
+  {
+    type:
+    | "chunk"
+    | "done"
+    | "error"
+    | "ping"
+    | "reasoning"
+    | "tool_call"
+    | "tool_result"
+    | "approval_required"
+    | "approval_resolved"
+    | "run_status";
+  }
 >;
 
 export function writeSSEFrame(res: Response, payload: WritableSSEFrame): void {

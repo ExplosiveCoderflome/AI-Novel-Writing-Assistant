@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ai-novel/shared": "workspace:*",
+    "@assistant-ui/react": "^0.12.17",
     "@hookform/resolvers": "^5.2.2",
     "@platejs/ai": "^52.3.1",
     "@radix-ui/react-dialog": "^1.1.15",

@@ -1,6 +1,6 @@
-export type TaskKind = "book_analysis" | "novel_pipeline" | "image_generation";
+export type TaskKind = "book_analysis" | "novel_pipeline" | "image_generation" | "agent_run";
 
-export type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
+export type TaskStatus = "queued" | "running" | "waiting_approval" | "succeeded" | "failed" | "cancelled";
 
 export interface UnifiedTaskStep {
   key: string;

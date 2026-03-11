@@ -175,6 +175,39 @@ enum PipelineRepairMode {
   ending_only
 }
 
+enum AgentRunStatus {
+  queued
+  running
+  waiting_approval
+  succeeded
+  failed
+  cancelled
+}
+
+enum AgentStepType {
+  planning
+  tool_call
+  tool_result
+  reasoning
+  write
+  approval
+}
+
+enum AgentStepStatus {
+  pending
+  running
+  succeeded
+  failed
+  cancelled
+}
+
+enum AgentApprovalStatus {
+  pending
+  approved
+  rejected
+  expired
+}
+
 model Novel {
   id                String      @id @default(cuid())
   title             String
@@ -214,6 +247,7 @@ model Novel {
   chapterSummaries  ChapterSummary[]
   facts             ConsistencyFact[]
   generationJobs    GenerationJob[]
+  agentRuns         AgentRun[]
   storylineVersions StorylineVersion[]
   qualityReports    QualityReport[]
   createdAt         DateTime    @default(now())
@@ -646,6 +680,81 @@ model GenerationJob {
 
   @@index([novelId])
   @@index([novelId, status])
+}
+
+model AgentRun {
+  id          String         @id @default(cuid())
+  novelId     String?
+  sessionId   String
+  goal        String
+  entryAgent  String
+  status      AgentRunStatus @default(queued)
+  currentStep String?
+  currentAgent String?
+  error       String?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  metadataJson String?
+  novel       Novel?         @relation(fields: [novelId], references: [id], onDelete: SetNull)
+  steps       AgentStep[]
+  approvals   AgentApproval[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([status, updatedAt])
+  @@index([novelId, createdAt])
+  @@index([sessionId, createdAt])
+}
+
+model AgentStep {
+  id             String          @id @default(cuid())
+  runId          String
+  seq            Int
+  agentName      String
+  stepType       AgentStepType
+  status         AgentStepStatus @default(succeeded)
+  parentStepId   String?
+  idempotencyKey String?
+  inputJson      String?
+  outputJson     String?
+  error          String?
+  errorCode      String?
+  provider       String?
+  model          String?
+  tokenUsageJson String?
+  costUsd        Float?
+  durationMs     Int?
+  run            AgentRun        @relation(fields: [runId], references: [id], onDelete: Cascade)
+  approvals      AgentApproval[]
+  createdAt      DateTime        @default(now())
+
+  @@unique([runId, seq])
+  @@index([runId, idempotencyKey])
+  @@index([runId, parentStepId])
+}
+
+model AgentApproval {
+  id           String             @id @default(cuid())
+  runId        String
+  stepId       String?
+  approvalType String
+  targetType   String
+  targetId     String
+  diffSummary  String
+  status       AgentApprovalStatus @default(pending)
+  expiresAt    DateTime?
+  decisionNote String?
+  decider      String?
+  decidedAt    DateTime?
+  payloadJson  String?
+  run          AgentRun           @relation(fields: [runId], references: [id], onDelete: Cascade)
+  step         AgentStep?         @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([runId, status])
+  @@index([stepId])
+  @@index([status, expiresAt])
 }
 
 model StorylineVersion {

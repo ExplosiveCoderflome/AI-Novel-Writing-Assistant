@@ -15,6 +15,8 @@ export interface ChatSession {
   id: string;
   title: string;
   messages: ChatMessage[];
+  latestRunId?: string | null;
+  runIds?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -27,6 +29,7 @@ interface ChatStoreState {
   createSession: (title?: string) => Promise<string>;
   setCurrentSession: (sessionId: string) => Promise<void>;
   appendMessage: (sessionId: string, message: ChatMessage) => Promise<void>;
+  setSessionRunId: (sessionId: string, runId: string | null) => Promise<void>;
   updateSessionTitle: (sessionId: string, title: string) => Promise<void>;
   removeSession: (sessionId: string) => Promise<void>;
 }
@@ -51,9 +54,17 @@ export const useChatStore = create<ChatStoreState>((setState, getState) => ({
       get<ChatSession[]>(CHAT_SESSIONS_KEY),
       get<string>(CHAT_CURRENT_SESSION_KEY),
     ]);
+    const normalizedSessions = (sessions ?? []).map((session) => ({
+      ...session,
+      runIds: Array.isArray(session.runIds)
+        ? session.runIds
+        : session.latestRunId
+          ? [session.latestRunId]
+          : [],
+    }));
     setState({
-      sessions: sessions ?? [],
-      currentSessionId: currentSessionId ?? sessions?.[0]?.id ?? "",
+      sessions: normalizedSessions,
+      currentSessionId: currentSessionId ?? normalizedSessions[0]?.id ?? "",
       hydrated: true,
     });
   },
@@ -63,6 +74,8 @@ export const useChatStore = create<ChatStoreState>((setState, getState) => ({
       id: generateId("session"),
       title,
       messages: [],
+      latestRunId: null,
+      runIds: [],
       createdAt: now,
       updatedAt: now,
     };
@@ -85,6 +98,36 @@ export const useChatStore = create<ChatStoreState>((setState, getState) => ({
           }
         : session,
     );
+    setState({ sessions });
+    await persistState(sessions, getState().currentSessionId);
+  },
+  setSessionRunId: async (sessionId, runId) => {
+    let changed = false;
+    const sessions = getState().sessions.map((session) => {
+      if (session.id !== sessionId) {
+        return session;
+      }
+      const currentRunIds = session.runIds ?? (session.latestRunId ? [session.latestRunId] : []);
+      const nextRunIds = runId
+        ? (currentRunIds.includes(runId) ? currentRunIds : [...currentRunIds, runId])
+        : currentRunIds;
+      const sameLatest = (session.latestRunId ?? null) === (runId ?? null);
+      const sameRunIds = nextRunIds.length === currentRunIds.length
+        && nextRunIds.every((id, index) => id === currentRunIds[index]);
+      if (sameLatest && sameRunIds) {
+        return session;
+      }
+      changed = true;
+      return {
+        ...session,
+        latestRunId: runId,
+        runIds: nextRunIds,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+    if (!changed) {
+      return;
+    }
     setState({ sessions });
     await persistState(sessions, getState().currentSessionId);
   },

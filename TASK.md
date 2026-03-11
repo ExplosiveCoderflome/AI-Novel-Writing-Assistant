@@ -1,1063 +1,458 @@
-下面给你一份 **《基于你当前页面结构的详细改版方案 V1》**。
-我会完全基于你现在这套页面，不推翻重做，而是按 **“保留骨架，重做工作流”** 的方式来改。
 
-目标很明确：
-
-> **把当前“功能页面集合”升级成“AI 接管式小说生产控制台”。**
-
-我会按这几个层次写：
-
-1. 改版总目标
-2. 全局结构调整
-3. 六个页面逐页改版方案
-4. 核心状态与数据字段建议
-5. 关键交互流程
-6. 开发优先级建议
+## 修改计划：AI 小说写作助手 v2 架构增强
 
 ---
 
-# 一、改版总目标
+### 阶段一：创作决策记忆系统
 
-你当前的问题不是没有功能，而是 **功能彼此割裂**。
-所以 V1 的目标不是继续堆模块，而是解决三件事：
+**灵感来源：** OpenClaw 四层记忆架构
+**优先级：** 最高（对生成质量影响最直接）
+**预估工作量：** 中
 
-## 目标 1：让页面体现“阶段感”
+#### 1.1 数据模型扩展
 
-用户进入一本小说后，应该马上知道：
+在 `schema.prisma` 中新增模型：
 
-* 当前准备到哪一步了
-* 下一步该让 AI 做什么
-* 哪些内容还没准备完
-* 哪些章节有问题
+```prisma
+model CreativeDecision {
+  id         String   @id @default(cuid())
+  novelId    String
+  chapterId  String?
+  category   String   // "plot_turn" | "character_change" | "style_pref" | "world_rule" | "foreshadow" | "avoid"
+  content    String   // 决策描述
+  importance String   @default("normal") // "critical" | "normal" | "minor"
+  expiresAt  Int?     // 可选：在第 N 章后失效
+  createdAt  DateTime @default(now())
+  novel      Novel    @relation(...)
+}
+
+model WritingSession {
+  id         String   @id @default(cuid())
+  novelId    String
+  startedAt  DateTime @default(now())
+  endedAt    DateTime?
+  decisions  Json?    // 本次会话产生的决策 ID 列表
+  editDiffs  Json?    // 用户对 AI 生成内容的修改摘要
+}
+```
+
+#### 1.2 创作决策采集
+
+- **显式采集**：在前端章节编辑页新增"创作笔记"侧边面板，用户可随时记录创作决策
+- **隐式采集**：在 `NovelService.createChapterStream` 的 `onDone` 回调中，对比 AI 生成内容与用户最终保存内容，用 LLM 提取用户修改意图，自动写入 `CreativeDecision`
+- **管线采集**：在 `executePipeline` 的审校/修复环节，将审校发现的问题和修复策略记录为决策
+
+#### 1.3 上下文注入增强
+
+修改 `NovelService.buildContextText`，在现有上下文基础上增加：
+
+```typescript
+// 在 buildContextText 中新增
+const decisions = await prisma.creativeDecision.findMany({
+  where: {
+    novelId,
+    OR: [
+      { expiresAt: null },
+      { expiresAt: { gte: chapterOrder } }
+    ]
+  },
+  orderBy: [
+    { importance: 'desc' },
+    { createdAt: 'desc' }
+  ],
+  take: 20
+});
+// 按 category 分组，注入到 system prompt
+```
+
+#### 1.4 前端界面
+
+- `client/src/pages/` 下新增 `CreativeDecisionPanel` 组件
+- 集成到 `NovelChapterEdit` 页面的侧边栏
+- 支持决策的增删改查、重要性标记、过期设置
 
 ---
 
-## 目标 2：让章节生成从“手动编辑”转向“AI操作”
+### 阶段二：事件驱动钩子系统
 
-你已经明确说了，核心使用方式是 **AI 接管**。
-所以系统不该再默认鼓励用户：
+**灵感来源：** OpenCode 20+ 事件钩子
+**优先级：** 高（解耦现有硬编码逻辑，提升可扩展性）
+**预估工作量：** 中高
 
-* 打开章节
-* 进编辑器
-* 自己改文
+#### 2.1 事件总线基础设施
 
-而应该默认鼓励用户：
+新建 `server/src/events/` 目录：
 
-* 调整目标
-* 下修正指令
-* 选择生成策略
-* 批量运行
-* 看质检结果
+```
+server/src/events/
+├── EventBus.ts          // 核心事件总线（基于 EventEmitter3 或自实现）
+├── types.ts             // 事件类型定义
+├── handlers/
+│   ├── onChapterDrafted.ts
+│   ├── onChapterUpdated.ts
+│   ├── onCharacterChanged.ts
+│   ├── onWorldSettingUpdated.ts
+│   ├── onOutlineRevised.ts
+│   ├── onPipelineCompleted.ts
+│   └── index.ts
+└── index.ts
+```
 
----
+#### 2.2 事件类型定义
 
-## 目标 3：让六个页面串成一条生产链
+```typescript
+// server/src/events/types.ts
+type NovelEvent =
+  | { type: 'chapter:drafted';    payload: { novelId, chapterId, chapterOrder } }
+  | { type: 'chapter:updated';    payload: { novelId, chapterId, changedFields: string[] } }
+  | { type: 'chapter:reviewed';   payload: { novelId, chapterId, qualityScore } }
+  | { type: 'character:changed';  payload: { novelId, characterId, changedFields: string[] } }
+  | { type: 'world:updated';      payload: { worldId, changedFields: string[] } }
+  | { type: 'outline:revised';    payload: { novelId, outlineType: 'outline' | 'structured' } }
+  | { type: 'pipeline:completed'; payload: { novelId, jobId, status } }
+  | { type: 'novel:exported';     payload: { novelId, format } }
+```
 
-你现在的页面像六个柜子。
-V1 需要把它们串成：
+#### 2.3 重构现有硬编码逻辑
 
-```text
-项目设定 → 角色准备 → 主线确认 → 生成规划 → 章节执行 → 批量质检
+当前 `NovelService` 中 `syncChapterArtifacts` 承担了过多职责（提取 fact、生成摘要、更新 RAG 索引）。重构为：
+
+- `syncChapterArtifacts` → 仅做数据写入
+- 其余逻辑迁移到事件处理器：
+  - `onChapterDrafted`：触发摘要生成（`NovelChapterSummaryService`）、fact 提取、RAG 索引
+  - `onCharacterChanged`：触发受影响章节的一致性标记
+  - `onWorldSettingUpdated`：触发全局一致性扫描任务
+
+#### 2.4 钩子注册机制
+
+```typescript
+// server/src/events/EventBus.ts
+class EventBus {
+  private handlers = new Map<string, EventHandler[]>();
+
+  on(eventType: string, handler: EventHandler, priority?: number): void;
+  emit(event: NovelEvent): Promise<void>;  // 按优先级顺序执行
+  off(eventType: string, handler: EventHandler): void;
+}
+
+// 应用启动时注册
+eventBus.on('chapter:drafted', handleSummaryGeneration, 10);
+eventBus.on('chapter:drafted', handleFactExtraction, 20);
+eventBus.on('chapter:drafted', handleRagIndexUpdate, 30);
 ```
 
 ---
 
-# 二、全局结构调整方案
+### 阶段三：专家代理团队
+
+**灵感来源：** OpenCode 双层代理架构（Primary + Subagent）
+**优先级：** 高（直接提升生成质量）
+**预估工作量：** 高
+
+#### 3.1 Agent 抽象层
+
+新建 `server/src/agents/` 目录：
+
+```
+server/src/agents/
+├── BaseAgent.ts         // 代理基类：name, role, systemPrompt, preferredModel, temperature
+├── PlannerAgent.ts      // 情节规划代理
+├── WriterAgent.ts       // 文本生成代理
+├── EditorAgent.ts       // 审校代理
+├── ContinuityAgent.ts   // 连贯性检查代理
+├── AgentOrchestrator.ts // 代理编排器
+├── types.ts
+└── index.ts
+```
+
+#### 3.2 代理定义
+
+```typescript
+// 每个 Agent 独立配置模型、temperature 和系统提示
+interface AgentConfig {
+  name: string;
+  role: string;
+  systemPrompt: string;
+  preferredProvider?: LLMProvider;
+  preferredModel?: string;
+  temperature?: number;
+  maxTokens?: number;
+}
+
+// PlannerAgent: 低 temperature，强推理模型
+// WriterAgent: 较高 temperature，创意模型
+// EditorAgent: 低 temperature，精确模型
+// ContinuityAgent: 低 temperature，长上下文模型
+```
+
+#### 3.3 编排器与管线集成
+
+重构 `executePipeline`，将当前内联的生成逻辑替换为代理调用：
+
+```
+当前流程：
+  executePipeline → 内联 LLM 调用（plan+draft → review → repair）
+
+新流程：
+  executePipeline → AgentOrchestrator.runChapterPipeline(chapter)
+    → PlannerAgent.planScene(context)     // 场景规划
+    → WriterAgent.draft(scenePlan)        // 正文生成
+    → EditorAgent.review(draft)           // 质量审校
+    → ContinuityAgent.check(draft)        // 连贯性检查
+    → WriterAgent.repair(draft, issues)   // 按需修复
+```
 
-这里不动你当前左侧菜单，也不强制改 tab 数量。
-只在小说详情这个区域内做增强。
+#### 3.4 激活 chapterWritingGraph
 
----
-
-## 2.1 顶部增加“小说生产状态栏”
-
-放在 tab 下方，内容类似：
-
-### 小说生产状态
-
-* 基本信息：已完成
-* 角色准备：进行中
-* 发展走向：已确认
-* 章节规划：已生成
-* 章节正文：生成中
-* 质量修复：未开始
-
-每一项用状态色区分：
-
-* 灰色：未开始
-* 蓝色：进行中
-* 绿色：已完成
-* 橙色：需返工
-* 红色：阻塞
-
-### 作用
-
-这一条会直接把你的系统从“多页表单”变成“生产流程系统”。
-
----
-
-## 2.2 右上角增加“项目概览卡入口”
-
-现在右上角只有“小说知识库绑定”，太散。
-建议改成一个统一入口按钮：
-
-### 项目概览
-
-点击展开抽屉，显示：
-
-* 小说名称
-* 世界观绑定状态
-* 知识库绑定状态
-* 当前主角数 / 核心角色数
-* 大纲章节数
-* 已生成章节数
-* 待修复章节数
-* 当前使用模型
-* 最近一次生成时间
-
-### 作用
-
-让用户一眼掌握这本书的运行状态。
-
----
-
-## 2.3 全局统一术语
-
-建议你把页签文案微调一下。
-不是必须改，但很建议。
-
-| 当前    | 建议      |
-| ----- | ------- |
-| 基本信息  | 项目设定    |
-| 角色管理  | 角色与关系   |
-| 发展走向  | 故事主线    |
-| 章节大纲  | 生成规划    |
-| 章节管理  | 章节执行    |
-| 自动流水线 | 批量生成与质检 |
-
-这样产品气质会立刻从“后台”变成“创作控制台”。
-
----
-
-# 三、逐页详细改版方案
-
----
-
-# 1. 基本信息页改版方案
-
-## 页面目标
-
-定义这本小说的 **项目级生成约束**，给后续所有 AI 生成提供统一基底。
-
----
-
-## 当前问题
-
-你现在这页只有：
-
-* 书名
-* 简介
-* 世界观绑定
-* 创作类型
-* 保存
-
-它只像“创建项目表单”，还不像“AI 写作配置页”。
-
----
-
-## 新布局建议
-
-页面分成 4 个区块：
-
-### A 区：项目基础信息
-
-保留：
-
-* 小说名称
-* 小说简介
-* 世界观绑定
-
-新增：
-
-* 小说类型（都市 / 仙侠 / 悬疑 / 家庭 / 科幻等）
-* 目标篇幅（短 / 中 / 长 / 超长）
-* 连载状态（筹备中 / 生成中 / 已完结 / 暂停）
-
----
-
-### B 区：创作策略
-
-把现在的“原创 / 续写 / 草稿 / 已发布”拆成两组：
-
-#### 项目来源
-
-* 原创
-* 续写
-* 改写
-* 衍生
-
-#### 生成模式
-
-* AI 主导
-* 人机协作
-* 草稿模式
-* 批量自动生成
-
-默认建议选中：**AI 主导**
-
----
-
-### C 区：全局生成设定
-
-新增字段：
-
-* 叙事视角：第一人称 / 第三人称 / 混合
-* 节奏倾向：慢热 / 均衡 / 快节奏
-* 文风倾向：克制 / 通俗 / 爽文 / 文艺 / 冷峻
-* 情绪浓度：低 / 中 / 高
-* AI 自由度：低 / 中 / 高
-* 默认章节长度：1500 / 2500 / 3500 / 自定义
-
-### 作用
-
-这些字段会成为后续：
-
-* 发展走向生成
-* 章节大纲生成
-* 章节正文生成
-* 自动流水线
-
-的默认参数。
-
----
-
-### D 区：项目资源状态卡
-
-把右上角“知识库绑定”并进来，做成状态卡：
-
-#### 当前资源状态
-
-* 世界观：未绑定 / 已绑定
-* 小说知识库：未绑定 / 已绑定
-* 角色设定：1/5 已完成
-* 主线规划：未生成 / 草稿 / 已确认
-* 章节大纲：20 章已生成
-* 章节正文：1/20 已生成
-
-下方给快捷按钮：
-
-* 去绑定知识库
-* 去完善角色
-* 去生成大纲
-
----
-
-## 建议新增按钮
-
-* 保存并进入角色管理
-* 保存并开始生成主线
-
----
-
-## 建议新增状态字段
-
-* `project_mode`
-* `narrative_pov`
-* `style_tone`
-* `pace_preference`
-* `ai_freedom`
-* `default_chapter_length`
-
----
-
-# 2. 角色管理页改版方案
-
-## 页面目标
-
-把角色从“静态设定文档”升级成“AI 可调用的动态角色资产”。
-
----
-
-## 当前问题
-
-你现在已经有角色创建、角色关联、角色列表。
-但角色展示还是偏长文，不够结构化，也缺少“动态状态”。
-
----
-
-## 新布局建议
-
-页面分成 3 个区块：
-
-### A 区：角色生成向导
-
-替代现在简单的“角色名称 + 主角”。
-
-输入项建议：
-
-* 角色名称
-* 角色类型（主角 / 配角 / 反派 / 导师 / 情感线 / 功能角色）
-* 与主角关系
-* 在故事中的作用
-* 角色关键词
-* 是否自动生成完整人设
-
-点击后 AI 输出：
-
-* 简版角色卡
-* 完整角色设定
-* 可用冲突点
-* 可埋伏笔点
-* 说话风格
-
----
-
-### B 区：角色资产面板
-
-当前角色不要再一整段平铺，改成卡片化结构：
-
-#### 基础卡
-
-* 姓名
-* 身份
-* 阵营
-* 主线权重
-* 最近出场章节
-
-#### 性格卡
-
-* 核心性格
-* 说话风格
-* 行为偏好
-* 禁止崩坏项
-
-#### 运行状态卡
-
-* 当前状态
-* 当前目标
-* 当前关系变化
-* 当前情绪基调
-* 当前秘密状态
-
-#### 折叠区
-
-* 完整人设说明
-* 关键往事
-* 长文本补充
-
----
-
-### C 区：角色关系区
-
-V1 不一定先做图谱，可先做列表式关系表：
-
-| 角色A | 角色B | 当前关系 | 趋势 | 最近变化章节 |
-| --- | --- | ---- | -- | ------ |
-| 吕良  | 林静  | 试探合作 | 升温 | 第4章    |
-| 吕良  | 陈墨  | 互相利用 | 紧张 | 第2章    |
-
-下方加按钮：
-
-* AI 生成关系建议
-* AI 检查关系一致性
-
----
-
-## 建议新增按钮
-
-* AI 生成角色卡
-* AI 补全角色状态
-* AI 分析角色关系
-* AI 检查人物崩坏风险
-
----
-
-## 建议新增状态字段
-
-* `current_goal`
-* `current_state`
-* `current_emotion`
-* `last_appearance_chapter`
-* `speech_style`
-* `behavior_preference`
-* `forbidden_breaks`
-
----
-
-# 3. 发展走向页改版方案
-
-## 页面目标
-
-生成并确认 **全书主线蓝图**，作为后续章节规划与章节生成的总依据。
-
----
-
-## 当前问题
-
-你现在这页已经有“生成发展走向”和“修正指令”，但结果还是偏一整篇长文，系统可利用度不够高。
-
----
-
-## 新布局建议
-
-页面分成左右两栏：
-
-### 左栏：故事主线输出
-
-支持双视图切换：
-
-#### 视图 1：文本版
-
-适合阅读、整体审感、手动润色。
-
-#### 视图 2：结构版
-
-字段化展示：
-
-* 核心主题
-* 主线目标
-* 前中后期推进
-* 主角成长路径
-* 情感线趋势
-* 核心冲突来源
-* 世界变化趋势
-* 结局方向
-* 禁止事项
-
----
-
-### 右栏：AI 修正与版本控制
-
-保留你当前的“AI 修正指令”，但要新增：
-
-#### 主线版本状态
-
-* 草稿版
-* 已确认版
-* 冻结版
-
-#### 版本操作
-
-* 生成新草稿
-* 覆盖当前草稿
-* 设为生效版
-* 冻结当前版本
-* 查看版本差异
-
----
-
-## 关键交互建议
-
-当用户重新生成发展走向时，不直接覆盖，而是提示：
-
-* 新版与当前版本差异
-* 受影响角色数量
-* 受影响章节数量
-* 是否同步更新章节大纲
-
----
-
-## 建议新增按钮
-
-* 生成主线草稿
-* 设为生效版
-* 冻结主线
-* 查看版本差异
-* 根据主线重建章节规划
-
----
-
-## 建议新增状态字段
-
-* `storyline_status`
-* `storyline_version`
-* `storyline_locked`
-* `theme`
-* `core_conflicts`
-* `growth_curve`
-* `ending_direction`
-
----
-
-# 4. 章节大纲页改版方案
-
-## 页面目标
-
-把主线蓝图转成 **章节级任务规划**，为 AI 批量生成做准备。
-
----
-
-## 当前问题
-
-你现在已经有 JSON 大纲，方向是对的。
-但默认让用户面对 JSON，太偏开发者体验。
-
----
-
-## 新布局建议
-
-页面分成 3 个视图：
-
-### 视图 1：章节卡片视图（默认）
-
-每章一张卡片：
-
-#### 第1章 滨城隐居
-
-* 摘要
-* 关键事件
-* 涉及角色
-* 推进目标
-* 冲突等级
-* 揭露等级
-* 伏笔安排
-* 当前状态
-
----
-
-### 视图 2：结构表格视图
-
-适合批量查看 20 章：
-
-| 章 | 标题 | 目标 | 冲突 | 揭露 | 角色 | 状态 |
-| - | -- | -- | -- | -- | -- | -- |
-
----
-
-### 视图 3：JSON 高级视图
-
-保留给你这种开发型使用者。
-默认折叠进“高级模式”。
+当前 `chapterWritingGraph.ts` 已定义但**未被任何代码调用**。将其接入管线：
 
----
-
-## 建议字段升级
-
-你当前字段有：
-
-* chapter
-* title
-* summary
-* key_events
-* roles
-
-建议升级为：
-
-* `chapter`
-* `title`
-* `summary`
-* `purpose`
-* `key_events`
-* `involved_roles`
-* `conflict_level`
-* `reveal_level`
-* `pacing`
-* `foreshadow`
-* `must_avoid`
-* `target_word_count`
-
----
-
-## 关键交互建议
-
-点击“重新同步章节”时，先展示差异预览：
-
-* 新增章节数
-* 删除章节数
-* 标题改动
-* 已生成章节是否受影响
-* 是否保留现有正文
-
----
-
-## 建议新增按钮
-
-* AI 生成任务单字段
-* 批量设置冲突等级
-* 批量设置字数目标
-* 查看同步差异
-* 应用到章节执行
-
----
-
-## 建议新增状态字段
-
-* `planning_status`
-* `outline_version`
-* `sync_impact_preview`
-* `target_word_count`
-* `must_avoid`
-
----
-
-# 5. 章节管理页改版方案
-
-这是最核心的一页。
-
-## 页面目标
-
-让用户不再主要“手工写章节”，而是 **指挥 AI 生成、重写、修复章节**。
-
----
-
-## 当前问题
-
-当前这页还是强烈偏向：
-
-* 左边选章节
-* 右边看正文
-* 手动编辑 / 生成内容
-
-这和你的“AI接管”目标冲突。
-
----
-
-## 新布局建议
-
-改成三块结构：
-
-### 左栏：章节状态列表
-
-不再展示过多长摘要，保留最关键状态：
-
-#### 每章显示
-
-* 章节名
-* 字数
-* 状态
-* 风险标记
-
-状态建议统一为：
-
-* 未规划
-* 待生成
-* 生成中
-* 待审校
-* 需修复
-* 已完成
-
-风险标记：
-
-* 连续性风险
-* 人设风险
-* 节奏风险
-* 伏笔风险
-
----
-
-### 中栏：章节阅读与资产区
-
-顶部显示：
-
-#### 章节信息卡
-
-* 标题
-* 状态
-* 当前字数
-* 目标字数
-* 使用的大纲版本
-* 上次生成时间
-* 质量评分
-
-中部显示：
-
-#### 正文阅读区
-
-默认只读，不直接进入编辑态。
-
-下方增加 tab：
-
-* 正文
-* 本章任务单
-* 场景拆解
-* 质量报告
-* 修复记录
-
-这一步非常关键，因为它会让章节变成“可追溯资产”。
-
----
-
-### 右栏：AI 操作面板
-
-替代现在单薄的“编辑章节 / 生成内容”。
-
-建议放这些操作：
-
-#### 生成类
-
-* 生成本章
-* 重写本章
-* 扩写本章
-* 压缩本章
-* 生成本章摘要
-
-#### 质量类
-
-* 检查连续性
-* 检查人设一致性
-* 检查节奏
-* 自动修复问题
-
-#### 风格类
-
-* 强化冲突
-* 增强情绪
-* 提升文风一致性
-* 增加对白 / 增加描写
-
----
-
-## 章节页顶部增加“生成策略条”
-
-例如：
-
-* 模式：快速 / 精修
-* 字数：短 / 中 / 长
-* 冲突：低 / 中 / 高
-* 节奏：慢 / 中 / 快
-* AI自由度：低 / 中 / 高
-
-这样用户主要控制参数，而不是直接写文本。
-
----
-
-## 选中文本的 inline AI
-
-如果技术允许，正文区支持：
-
-* 选中一段
-* 弹出 AI 操作菜单
-* 润色 / 重写 / 加强氛围 / 改成对白推进
-
-这会比整章重写更实用。
-
----
-
-## 建议新增按钮
-
-* 生成本章任务单
-* 生成场景拆解
-* 基于任务单重写
-* 定点修复本章
-* 将本章设为最终版
-
----
-
-## 建议新增状态字段
-
-* `chapter_status`
-* `quality_score`
-* `continuity_score`
-* `character_score`
-* `pacing_score`
-* `task_sheet_version`
-* `repair_history`
-
----
-
-# 6. 自动流水线页改版方案
-
-## 页面目标
-
-把自动流水线页升级成 **批量生成与质检总控台**。
-
----
-
-## 当前问题
-
-你已经有批量生成、审核、修复、质量报告，这很好。
-但目前还是按钮堆叠，不够“可视化控制”。
-
----
-
-## 新布局建议
-
-页面分成 4 个区块：
-
----
+- 每个 graph 节点绑定对应的 Agent
+- `planScene` → PlannerAgent
+- `generateContent` → WriterAgent
+- `summarizeChapter` → 快速模型（降低成本）
 
-### A 区：批量任务配置
+#### 3.5 用户可配置代理参数
+
+在 `SettingsPage` 或 `NovelEdit` 的 `BasicInfoTab` 中，允许用户为每个代理角色选择模型和调整 temperature。数据存储在 Novel 级别或全局 Settings 中。
+
+---
+
+### 阶段四：智能模型路由
+
+**灵感来源：** OpenCode 多模型任务路由
+**优先级：** 中高（与阶段三配合，提升质量和成本效率）
+**预估工作量：** 中
+
+#### 4.1 模型路由配置
+
+扩展 `server/src/llm/` 目录：
+
+```
+server/src/llm/
+├── factory.ts           // 现有
+├── providers.ts         // 现有
+├── modelRouter.ts       // 新增：任务→模型路由
+├── modelCatalog.ts      // 现有
+├── capabilities.ts      // 现有，扩展
+└── streaming.ts         // 现有
+```
 
-保留：
+#### 4.2 路由策略
 
-* 起始章节
-* 结束章节
-* 失败重试次数
+```typescript
+// server/src/llm/modelRouter.ts
+type TaskType =
+  | 'outline_planning'      // 大纲规划
+  | 'chapter_drafting'       // 正文生成
+  | 'chapter_review'         // 审校
+  | 'chapter_repair'         // 修复
+  | 'summary_generation'     // 摘要生成
+  | 'fact_extraction'        // fact 提取
+  | 'consistency_check'      // 一致性检查
+  | 'character_dialogue'     // 角色对话
+  | 'style_analysis'         // 风格分析
 
-新增：
+interface ModelRouteConfig {
+  taskType: TaskType;
+  preferredProvider: LLMProvider;
+  preferredModel: string;
+  temperature: number;
+  fallbackProvider?: LLMProvider;
+  fallbackModel?: string;
+}
 
-* 运行模式：快速 / 精修
-* 是否自动审校
-* 是否自动修复
-* 是否自动更新记忆库
-* 是否跳过已完成章节
-* 最低质量阈值
+function resolveModel(taskType: TaskType, userOverride?: LLMGenerateOptions): ResolvedModel;
+```
 
----
-
-### B 区：流水线阶段可视化
-
-显示完整流程：
-
-1. 装配上下文
-2. 生成章节任务单
-3. 生成场景拍点
-4. 生成正文
-5. 质量检测
-6. 自动修复
-7. 更新剧情记忆
-
-每个章节都显示：
-
-* 当前阶段
-* 运行耗时
-* 是否成功
-* 失败原因
-
----
-
-### C 区：任务运行面板
-
-展示：
-
-* 当前任务名
-* 当前处理章节
-* 已完成 / 总数
-* 成功数 / 失败数 / 待修复数
-* 当前输出日志
-
-按钮建议：
-
-* 启动批量生成
-* 暂停
-* 继续
-* 停止
-* 重跑失败章节
-* 导出任务报告
-
----
-
-### D 区：质量与修复中心
-
-把你当前的审核修复区升级成更完整的面板。
-
-#### 质量评分维度
-
-* 连续性
-* 人设一致性
-* 节奏推进
-* 文本表现
-
-#### 修复模式
-
-* 只检测不修复
-* 自动轻修
-* 自动重修
-* 只修连续性
-* 只修人设
-* 只修结尾力度
-
-#### 失败原因分类
-
-* 生成失败
-* 格式异常
-* 连续性冲突
-* 人设偏移
-* 字数不足
-* 重复度过高
-
----
-
-## 建议新增按钮
-
-* 按低分章节筛选
-* 仅重跑失败章节
-* 仅更新剧情记忆
-* 导出质量报告
-* 导出章节问题清单
-
----
-
-## 建议新增状态字段
-
-* `pipeline_status`
-* `current_stage`
-* `retry_count`
-* `last_error_type`
-* `auto_repair_mode`
-* `quality_threshold`
-
----
-
-# 四、核心状态与数据字段建议
-
-为了让你的前后端越来越稳，建议统一维护这些状态。
-
----
-
-## 4.1 项目级状态
-
-* `project_status`
-* `project_mode`
-* `resource_ready_score`
-* `storyline_status`
-* `outline_status`
-
----
-
-## 4.2 角色级状态
-
-* `current_goal`
-* `current_state`
-* `current_relationships`
-* `last_appearance_chapter`
-
----
-
-## 4.3 章节级状态
-
-* `chapter_status`
-* `task_sheet`
-* `scene_cards`
-* `draft_content`
-* `final_content`
-* `quality_report`
-* `repair_history`
-
----
-
-## 4.4 流水线级状态
-
-* `pipeline_job_id`
-* `pipeline_status`
-* `current_chapter_index`
-* `current_stage`
-* `passed_quality_check`
-* `repair_attempts`
-
----
-
-# 五、关键交互流程设计
-
----
-
-## 流程 1：创建一本新小说
-
-1. 填写项目设定
-2. 绑定世界观 / 知识库
-3. 生成主角与核心角色
-4. 生成主线草稿
-5. 确认并冻结主线
-6. 生成章节规划
-7. 同步到章节执行区
-
----
-
-## 流程 2：AI 接管生成单章
-
-1. 用户选中章节
-2. 系统读取本章任务单
-3. 用户调整生成策略
-4. AI 生成正文
-5. 系统自动做质量检测
-6. 若低于阈值，给出修复建议
-7. 用户选择自动修复或保留草稿
-
----
-
-## 流程 3：批量生成 1 到 20 章
-
-1. 在自动流水线页设置范围
-2. 选择快速 / 精修
-3. 设置最低质量阈值
-4. 启动任务
-5. 系统逐章跑流程
-6. 自动更新记忆库
-7. 输出生成报告与待修复章节列表
-
----
-
-## 流程 4：主线变更后影响处理
-
-1. 用户重生发展走向草稿
-2. 系统显示版本差异
-3. 系统分析受影响角色与章节
-4. 用户选择是否更新章节规划
-5. 用户选择是否仅更新未生成章节
-
----
-
-# 六、开发优先级建议
-
-你现在最适合的不是大爆改，而是分三期走。
-
----
-
-## P1，最优先
-
-这是最能立刻提升“AI接管感”的部分。
-
-### 1. 章节管理页改为 AI 操作导向
-
-弱化编辑，强化生成 / 修复 / 检查。
-
-### 2. 自动流水线页增加阶段可视化
-
-从按钮堆变成总控台。
-
-### 3. 章节大纲页加卡片视图
-
-JSON 退到高级模式。
-
----
-
-## P2，第二阶段
-
-### 4. 基本信息页增加全局生成设定
-
-### 5. 角色页增加动态状态与关系区
-
-### 6. 发展走向页增加版本控制与冻结机制
-
----
-
-## P3，第三阶段
-
-### 7. 章节中间产物展示
-
-### 8. 质量评分体系完整化
-
-### 9. 项目概览卡与全局状态条
-
----
+#### 4.3 数据库存储路由配置
 
-# 七、你现在最值得先改的页面样子
+在 `schema.prisma` 中新增：
 
-如果只给一句最实在的结论：
+```prisma
+model ModelRouteConfig {
+  id        String @id @default(cuid())
+  taskType  String @unique
+  provider  String
+  model     String
+  temperature Float @default(0.7)
+  maxTokens Int?
+}
+```
+
+#### 4.4 前端设置页
+
+在 `SettingsPage` 中新增"模型路由"标签页，以表格形式展示每种任务类型对应的模型配置，支持逐条编辑。
+
+#### 4.5 与 factory.ts 集成
+
+修改 `getLLM` 函数，增加 `taskType` 参数：
+
+```typescript
+// 当前: getLLM(provider, options)
+// 新增: getLLM(provider, options, taskType?)
+// 若提供 taskType 且存在路由配置，优先使用路由配置的 provider/model/temperature
+```
+
+
+
+### 阶段六：叙事距离感知检索
+
+**灵感来源：** OpenClaw 记忆时间衰减
+**优先级：** 中（精细化提升生成连贯性）
+**预估工作量：** 低
 
-## 最先动这三页
+#### 6.1 修改 HybridRetrievalService
 
-* 章节管理
-* 自动流水线
-* 章节大纲
+在 `server/src/services/rag/HybridRetrievalService.ts` 中，为检索结果增加叙事距离加权：
 
-因为这三页决定用户会不会觉得：
+```typescript
+// 在 RRF 融合后，增加距离衰减
+function applyNarrativeDecay(
+  chunks: RetrievedChunk[],
+  currentChapterOrder: number,
+  decayRate: number = 0.05
+): RetrievedChunk[] {
+  return chunks.map(chunk => {
+    const chapterOrder = chunk.metadata?.chapterOrder;
+    if (!chapterOrder) return chunk; // 非章节内容不衰减
+
+    const distance = Math.abs(currentChapterOrder - chapterOrder);
+    const isCritical = chunk.metadata?.importance === 'critical'; // 关键内容不衰减
+    const decayFactor = isCritical ? 1.0 : Math.exp(-decayRate * distance);
 
-> “这个系统真的在帮我批量生产小说”
+    return { ...chunk, score: chunk.score * decayFactor };
+  });
+}
+```
+
+#### 6.2 元数据增强
 
-而不是：
+在 `RagIndexService` 写入 Qdrant 时，payload 中增加 `chapterOrder` 和 `importance` 字段，使检索时可用于距离计算。
+
+#### 6.3 关键内容标记
 
-> “我在不同页面里分别点几个生成按钮”
+结合阶段一的 `CreativeDecision`（`importance: "critical"`）和已有的 `ConsistencyFact`，将这些标记为不衰减的"锚点内容"。
 
 ---
 
-# 八、V1 版最终结论
+### 阶段七：AI 推理过程可视化
 
-你现在这套系统已经有一个很不错的底盘了。
-V1 不需要推翻重做，关键是做三件事：
+**灵感来源：** OpenClaw 文件优先/透明化哲学
+**优先级：** 中（提升用户对 AI 的控制感）
+**预估工作量：** 中
 
-### 1. 页面从“资料页”转成“阶段页”
+#### 7.1 推理轨迹记录
 
-### 2. 操作从“手动编辑”转成“AI控制”
+新增数据模型：
 
-### 3. 结果从“正文文本”转成“可追溯资产”
+```prisma
+model GenerationTrace {
+  id          String   @id @default(cuid())
+  novelId     String
+  chapterId   String?
+  jobId       String?  // 关联 GenerationJob
+  stage       String   // "plan_scene" | "generate_content" | "review" | "repair" | ...
+  input       String   // 该阶段的输入上下文摘要
+  output      String   // 该阶段的输出
+  model       String   // 使用的模型
+  tokenUsage  Json?    // { prompt, completion, total }
+  durationMs  Int?
+  createdAt   DateTime @default(now())
+}
+```
+
+#### 7.2 LangGraph 节点插桩
+
+在每个 graph 节点执行前后记录 trace：
+
+```typescript
+// 包装 graph 节点
+function traced(nodeName: string, fn: NodeFunction): NodeFunction {
+  return async (state) => {
+    const start = Date.now();
+    const result = await fn(state);
+    await prisma.generationTrace.create({
+      data: {
+        novelId: state.novelId,
+        chapterId: state.chapterId,
+        stage: nodeName,
+        input: summarize(state), // 压缩输入
+        output: summarize(result),
+        model: state.model,
+        durationMs: Date.now() - start
+      }
+    });
+    return result;
+  };
+}
+```
+
+#### 7.3 前端推理轨迹查看器
+
+在 `NovelChapterEdit` 页面新增"生成轨迹"面板：
+
+- 以时间线形式展示每个阶段的推理过程
+- 可展开查看详细的输入/输出
+- 显示模型选择和 token 消耗
+- 用户可以点击某个阶段"从此处重新生成"，修改输入后重跑后续阶段
+
+---
+
+### 阶段八：创作快照与版本回溯
+
+**灵感来源：** OpenClaw Git 式版本管理 + 现有世界观 snapshot 机制
+**优先级：** 低（锦上添花，但长期价值高）
+**预估工作量：** 中高
+
+#### 8.1 小说级快照
+
+```prisma
+model NovelSnapshot {
+  id              String   @id @default(cuid())
+  novelId         String
+  label           String?  // 用户自定义标签，如 "大纲定稿" "第一卷完成"
+  snapshotData    String   // JSON: { novel, chapters, characters, outline, bible, ... }
+  triggerType     String   // "manual" | "auto_milestone" | "before_pipeline"
+  createdAt       DateTime @default(now())
+}
+```
+
+#### 8.2 自动快照时机
+
+- 管线启动前自动创建快照（`executePipeline` 入口）
+- 结构化大纲同步章节前（`syncChaptersFromOutline`）
+- 用户手动触发
+
+#### 8.3 快照恢复
+
+- `NovelService` 新增 `restoreFromSnapshot(snapshotId)` 方法
+- 恢复时仅覆盖内容字段，保留 ID 不变
+- 恢复前必须创建当前状态的快照（防止误操作）
+
+#### 8.4 前端快照管理
+
+在 `NovelEdit` 中新增"版本历史"标签页，支持快照列表、预览对比、恢复操作。
+
+---
+
+### 实施顺序建议
+
+```
+阶段六（叙事距离衰减） ──────── 工作量低，立竿见影
+  ↓
+阶段一（创作决策记忆） ──────── 核心能力增强
+  ↓
+阶段二（事件钩子系统） ──────── 架构解耦，为后续铺路
+  ↓
+阶段四（智能模型路由） ──────── 独立模块，可并行开发
+  ↓
+阶段三（专家代理团队） ──────── 依赖阶段二和四，最大改动
+  ↓
+阶段七（推理可视化）   ──────── 依赖阶段三的 Agent 体系
+  ↓
+阶段五（后台守护进程） ──────── 依赖阶段二的事件系统
+  ↓
+阶段八（创作快照）     ──────── 独立功能，可任意时间点开发
+```
+
+每个阶段都可独立交付使用价值，不存在"必须全部完成才能用"的情况。如果有你特别想优先推进的方向，可以进一步细化该阶段的技术方案。

@@ -1,4 +1,5 @@
 import "dotenv/config";
+import os from "node:os";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
@@ -7,6 +8,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { errorHandler } from "./middleware/errorHandler";
 import { loadProviderApiKeys } from "./llm/factory";
 import astrologyRouter from "./routes/astrology";
+import agentRunsRouter from "./routes/agentRuns";
 import bookAnalysisRouter from "./routes/bookAnalysis";
 import characterRouter from "./routes/character";
 import chatRouter from "./routes/chat";
@@ -26,6 +28,11 @@ import { bookAnalysisService } from "./services/bookAnalysis/BookAnalysisService
 import { imageGenerationService } from "./services/image/ImageGenerationService";
 import { ragServices } from "./services/rag";
 
+function parseEnvFlag(value: string | undefined, defaultValue: boolean): boolean {
+  if (value === undefined) return defaultValue;
+  return value === "true" || value === "1";
+}
+
 export function createApp() {
   const app = express();
   const jsonBodyLimit = process.env.API_JSON_LIMIT ?? "20mb";
@@ -37,6 +44,7 @@ export function createApp() {
       .filter(Boolean)
     : [];
 
+  const allowLan = parseEnvFlag(process.env.ALLOW_LAN, process.env.NODE_ENV !== "production");
   app.use(
     cors({
       origin: (origin, callback) => {
@@ -44,12 +52,10 @@ export function createApp() {
           callback(null, true);
           return;
         }
-        if (corsAllowList.length > 0) {
-          callback(null, corsAllowList.includes(origin));
-          return;
-        }
+        const isListedOrigin = corsAllowList.includes(origin);
         const isLocalhostDevOrigin = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
-        callback(null, isLocalhostDevOrigin);
+        const isLanOrigin = allowLan && /^https?:\/\/(?:\d{1,3}\.){3}\d{1,3}:\d+$/.test(origin);
+        callback(null, isListedOrigin || isLocalhostDevOrigin || isLanOrigin);
       },
       credentials: true,
     }),
@@ -59,6 +65,7 @@ export function createApp() {
   app.use(express.json({ limit: jsonBodyLimit }));
 
   app.use("/api/health", healthRouter);
+  app.use("/api/agent-runs", agentRunsRouter);
   app.use("/api/book-analysis", bookAnalysisRouter);
   app.use("/api/knowledge", knowledgeRouter);
   app.use("/api/llm", llmRouter);
@@ -88,6 +95,19 @@ export function createApp() {
   return app;
 }
 
+function getLanIp(): string | null {
+  const ifaces = os.networkInterfaces();
+  for (const list of Object.values(ifaces)) {
+    if (!list) continue;
+    for (const info of list) {
+      if (info.family === "IPv4" && !info.internal) {
+        return info.address;
+      }
+    }
+  }
+  return null;
+}
+
 async function bootstrap(): Promise<void> {
   try {
     await loadProviderApiKeys();
@@ -97,6 +117,8 @@ async function bootstrap(): Promise<void> {
 
   const app = createApp();
   const port = Number(process.env.PORT ?? 3000);
+  const allowLan = parseEnvFlag(process.env.ALLOW_LAN, process.env.NODE_ENV !== "production");
+  const host = process.env.HOST ?? (allowLan ? "0.0.0.0" : "localhost");
   ragServices.ragWorker.start();
   bookAnalysisService.startWatchdog();
   void bookAnalysisService.resumePendingAnalyses().catch((error) => {
@@ -106,8 +128,14 @@ async function bootstrap(): Promise<void> {
     console.warn("Failed to resume pending image generation tasks.", error);
   });
 
-  app.listen(port, () => {
+  app.listen(port, host, () => {
     console.log(`[server] listening on http://localhost:${port}`);
+    if (host === "0.0.0.0" || host === "::") {
+      const lanIp = getLanIp();
+      if (lanIp) {
+        console.log(`[server] LAN: http://${lanIp}:${port}`);
+      }
+    }
   });
 }
 

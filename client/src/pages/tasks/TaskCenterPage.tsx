@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 
-const ACTIVE_STATUSES = new Set<TaskStatus>(["queued", "running"]);
+const ACTIVE_STATUSES = new Set<TaskStatus>(["queued", "running", "waiting_approval"]);
 const ANOMALY_STATUSES = new Set<TaskStatus>(["failed", "cancelled"]);
 
 function formatDate(value: string | null | undefined): string {
@@ -31,6 +31,9 @@ function formatKind(kind: TaskKind): string {
   if (kind === "novel_pipeline") {
     return "小说流水线";
   }
+  if (kind === "agent_run") {
+    return "Agent 运行";
+  }
   return "图片生成";
 }
 
@@ -40,6 +43,9 @@ function formatStatus(status: TaskStatus): string {
   }
   if (status === "running") {
     return "运行中";
+  }
+  if (status === "waiting_approval") {
+    return "等待审批";
   }
   if (status === "succeeded") {
     return "已完成";
@@ -53,6 +59,9 @@ function formatStatus(status: TaskStatus): string {
 function toStatusVariant(status: TaskStatus): "default" | "outline" | "secondary" | "destructive" {
   if (status === "running") {
     return "default";
+  }
+  if (status === "waiting_approval") {
+    return "secondary";
   }
   if (status === "queued") {
     return "secondary";
@@ -240,6 +249,7 @@ export default function TaskCenterPage() {
               <option value="book_analysis">拆书分析</option>
               <option value="novel_pipeline">小说流水线</option>
               <option value="image_generation">图片生成</option>
+              <option value="agent_run">Agent 运行</option>
             </select>
             <select
               className="w-full rounded-md border bg-background p-2 text-sm"
@@ -249,6 +259,7 @@ export default function TaskCenterPage() {
               <option value="">全部状态</option>
               <option value="queued">排队中</option>
               <option value="running">运行中</option>
+              <option value="waiting_approval">等待审批</option>
               <option value="failed">失败</option>
               <option value="cancelled">已取消</option>
               <option value="succeeded">已完成</option>
@@ -360,7 +371,7 @@ export default function TaskCenterPage() {
                       重试
                     </Button>
                   ) : null}
-                  {(selectedTask.status === "queued" || selectedTask.status === "running") ? (
+                  {(selectedTask.status === "queued" || selectedTask.status === "running" || selectedTask.status === "waiting_approval") ? (
                     <Button
                       size="sm"
                       variant="outline"
