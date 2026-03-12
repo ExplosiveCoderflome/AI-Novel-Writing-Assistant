@@ -3,11 +3,13 @@ import type { TaskStatus, UnifiedTaskDetail, UnifiedTaskStep, UnifiedTaskSummary
 import { prisma } from "../../../db/prisma";
 import { agentRuntime } from "../../../agents";
 import { AppError } from "../../../middleware/errorHandler";
+import { buildTaskRecoveryHint, normalizeFailureSummary } from "../taskSupport";
 
 export class AgentRunTaskAdapter {
   toSummary(item: {
     id: string;
     novelId: string | null;
+    chapterId?: string | null;
     goal: string;
     status: AgentRunStatus;
     currentStep: string | null;
@@ -40,7 +42,35 @@ export class AgentRunTaskAdapter {
       heartbeatAt: item.status === "running" || item.status === "waiting_approval" ? item.updatedAt.toISOString() : null,
       ownerId: item.novelId ?? item.id,
       ownerLabel: item.novelId ? `Novel ${item.novelId}` : "Global chat",
-      sourceRoute: `/chat?runId=${item.id}${item.novelId ? `&novelId=${item.novelId}` : ""}`,
+      sourceRoute: `/creative-hub?runId=${item.id}${item.novelId ? `&novelId=${item.novelId}` : ""}`,
+      failureCode: item.status === "failed" ? "AGENT_RUN_FAILED" : null,
+      failureSummary: item.status === "failed"
+        ? normalizeFailureSummary(item.error, "运行失败，但没有记录明确错误。")
+        : item.status === "waiting_approval"
+          ? "当前运行在等待审批。"
+          : item.error,
+      recoveryHint: buildTaskRecoveryHint("agent_run", item.status as TaskStatus),
+      sourceResource: item.novelId
+        ? {
+          type: "novel",
+          id: item.novelId,
+          label: `小说 ${item.novelId}`,
+          route: `/novels/${item.novelId}/edit`,
+        }
+        : {
+          type: "agent_run",
+          id: item.id,
+          label: "全局运行",
+          route: `/creative-hub?runId=${item.id}`,
+        },
+      targetResources: item.chapterId
+        ? [{
+          type: "chapter",
+          id: item.chapterId,
+          label: item.currentStep ?? "章节目标",
+          route: item.novelId ? `/novels/${item.novelId}/edit` : `/creative-hub?runId=${item.id}`,
+        }]
+        : [],
     };
   }
 
@@ -80,6 +110,7 @@ export class AgentRunTaskAdapter {
     const summary = this.toSummary({
       id: detail.run.id,
       novelId: detail.run.novelId ?? null,
+      chapterId: detail.run.chapterId ?? null,
       goal: detail.run.goal,
       status: detail.run.status,
       currentStep: detail.run.currentStep ?? null,
@@ -107,8 +138,8 @@ export class AgentRunTaskAdapter {
 
     return {
       ...summary,
-      provider: null,
-      model: null,
+      provider: detail.steps.find((step) => step.provider)?.provider ?? null,
+      model: detail.steps.find((step) => step.model)?.model ?? null,
       startedAt: detail.run.startedAt ?? null,
       finishedAt: detail.run.finishedAt ?? null,
       retryCountLabel: "0/0",
@@ -119,6 +150,10 @@ export class AgentRunTaskAdapter {
         approvals: detail.approvals,
       },
       steps,
+      failureDetails: detail.diagnostics?.failureDetails
+        ?? detail.steps.filter((step) => step.status === "failed").at(-1)?.error
+        ?? detail.run.error
+        ?? null,
     };
   }
 

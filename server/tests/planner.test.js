@@ -49,3 +49,31 @@ test("compileIntentToPlan compiles rewrite into read plus pipeline approval path
     "queue_pipeline_run",
   ]);
 });
+
+test("compileIntentToPlan uses failure diagnostics for failed chapter generation question", () => {
+  const plan = compileIntentToPlan({
+    goal: "第三章为什么失败",
+    intent: "inspect_failure_reason",
+    confidence: 0.8,
+    requiresNovelContext: true,
+    chapterSelectors: {
+      orders: [3],
+    },
+  }, {
+    goal: "第三章为什么失败",
+    messages: [],
+    contextMode: "novel",
+    novelId: "novel-1",
+    currentRunId: "run-1",
+  });
+
+  assert.deepEqual(plan.actions.map((item) => item.tool), [
+    "get_run_failure_reason",
+    "explain_generation_blocker",
+  ]);
+  assert.deepEqual(plan.actions[1].input, {
+    novelId: "novel-1",
+    chapterOrder: 3,
+    runId: "run-1",
+  });
+});

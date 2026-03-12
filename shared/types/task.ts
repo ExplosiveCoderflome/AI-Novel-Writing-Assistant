@@ -1,3 +1,5 @@
+import type { ResourceRef } from "./agent";
+
 export type TaskKind = "book_analysis" | "novel_pipeline" | "image_generation" | "agent_run";
 
 export type TaskStatus = "queued" | "running" | "waiting_approval" | "succeeded" | "failed" | "cancelled";
@@ -27,6 +29,11 @@ export interface UnifiedTaskSummary {
   ownerId: string;
   ownerLabel: string;
   sourceRoute: string;
+  failureCode?: string | null;
+  failureSummary?: string | null;
+  recoveryHint?: string | null;
+  sourceResource?: ResourceRef | null;
+  targetResources?: ResourceRef[];
 }
 
 export interface UnifiedTaskDetail extends UnifiedTaskSummary {
@@ -37,6 +44,7 @@ export interface UnifiedTaskDetail extends UnifiedTaskSummary {
   retryCountLabel: string;
   meta: Record<string, unknown>;
   steps: UnifiedTaskStep[];
+  failureDetails?: string | null;
 }
 
 export interface UnifiedTaskListResponse {

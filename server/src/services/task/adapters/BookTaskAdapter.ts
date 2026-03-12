@@ -6,6 +6,7 @@ import type {
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { bookAnalysisService } from "../../bookAnalysis/BookAnalysisService";
+import { buildTaskRecoveryHint, normalizeFailureSummary } from "../taskSupport";
 import {
   BOOK_ANALYSIS_STEPS,
   buildSteps,
@@ -70,6 +71,23 @@ export class BookTaskAdapter {
         ownerId: row.documentId,
         ownerLabel: row.document.title,
         sourceRoute: `/book-analysis?analysisId=${row.id}&documentId=${row.documentId}`,
+        failureCode: row.status === "failed" ? "BOOK_ANALYSIS_FAILED" : null,
+        failureSummary: row.status === "failed"
+          ? normalizeFailureSummary(row.lastError, "拆书任务失败，但没有记录明确错误。")
+          : row.lastError,
+        recoveryHint: buildTaskRecoveryHint("book_analysis", mappedStatus),
+        sourceResource: {
+          type: "knowledge_document",
+          id: row.documentId,
+          label: row.document.title,
+          route: `/knowledge?id=${row.documentId}`,
+        },
+        targetResources: [{
+          type: "book_analysis",
+          id: row.id,
+          label: row.title,
+          route: `/book-analysis?analysisId=${row.id}&documentId=${row.documentId}`,
+        }],
       });
     }
     return summaries;
@@ -111,6 +129,23 @@ export class BookTaskAdapter {
       ownerId: row.documentId,
       ownerLabel: row.document.title,
       sourceRoute: `/book-analysis?analysisId=${row.id}&documentId=${row.documentId}`,
+      failureCode: row.status === "failed" ? "BOOK_ANALYSIS_FAILED" : null,
+      failureSummary: row.status === "failed"
+        ? normalizeFailureSummary(row.lastError, "拆书任务失败，但没有记录明确错误。")
+        : row.lastError,
+      recoveryHint: buildTaskRecoveryHint("book_analysis", status),
+      sourceResource: {
+        type: "knowledge_document",
+        id: row.documentId,
+        label: row.document.title,
+        route: `/knowledge?id=${row.documentId}`,
+      },
+      targetResources: [{
+        type: "book_analysis",
+        id: row.id,
+        label: row.title,
+        route: `/book-analysis?analysisId=${row.id}&documentId=${row.documentId}`,
+      }],
     };
     return {
       ...summary,
@@ -131,6 +166,7 @@ export class BookTaskAdapter {
         summary.createdAt,
         summary.updatedAt,
       ),
+      failureDetails: row.lastError,
     };
   }
 

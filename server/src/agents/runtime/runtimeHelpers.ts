@@ -109,6 +109,60 @@ export function summarizeOutput(tool: string, output: Record<string, unknown>): 
     const hitCount = typeof output.hitCount === "number" ? output.hitCount : 0;
     return `命中 ${hitCount} 条知识片段。`;
   }
+  if (tool === "list_book_analyses") {
+    const items = Array.isArray(output.items) ? output.items : [];
+    return `已读取 ${items.length} 个拆书任务。`;
+  }
+  if (tool === "get_book_analysis_detail") {
+    return typeof output.title === "string" ? `已读取拆书详情：${output.title}。` : "已读取拆书详情。";
+  }
+  if (tool === "get_book_analysis_failure_reason" || tool === "get_index_failure_reason" || tool === "get_task_failure_reason" || tool === "get_run_failure_reason") {
+    return typeof output.failureSummary === "string" ? output.failureSummary : `${tool} 已返回诊断信息。`;
+  }
+  if (tool === "list_knowledge_documents") {
+    const items = Array.isArray(output.items) ? output.items : [];
+    return `已读取 ${items.length} 个知识文档。`;
+  }
+  if (tool === "get_knowledge_document_detail") {
+    return typeof output.title === "string" ? `已读取知识文档《${output.title}》。` : "已读取知识文档详情。";
+  }
+  if (tool === "list_worlds") {
+    const items = Array.isArray(output.items) ? output.items : [];
+    return `已读取 ${items.length} 个世界观。`;
+  }
+  if (tool === "get_world_detail") {
+    return typeof output.name === "string" ? `已读取世界观《${output.name}》。` : "已读取世界观详情。";
+  }
+  if (tool === "explain_world_conflict" || tool === "explain_generation_blocker") {
+    return typeof output.failureSummary === "string" ? output.failureSummary : `${tool} 已返回冲突/阻塞说明。`;
+  }
+  if (tool === "list_writing_formulas") {
+    const items = Array.isArray(output.items) ? output.items : [];
+    return `已读取 ${items.length} 条写作公式。`;
+  }
+  if (tool === "get_writing_formula_detail") {
+    return typeof output.name === "string" ? `已读取写作公式《${output.name}》。` : "已读取写作公式详情。";
+  }
+  if (tool === "explain_formula_match") {
+    return typeof output.summary === "string" ? output.summary : "已完成写作公式适配分析。";
+  }
+  if (tool === "list_base_characters") {
+    const items = Array.isArray(output.items) ? output.items : [];
+    return `已读取 ${items.length} 个基础角色模板。`;
+  }
+  if (tool === "get_base_character_detail") {
+    return typeof output.name === "string" ? `已读取角色模板《${output.name}》。` : "已读取角色模板详情。";
+  }
+  if (tool === "list_tasks") {
+    const items = Array.isArray(output.items) ? output.items : [];
+    return `已读取 ${items.length} 个系统任务。`;
+  }
+  if (tool === "get_task_detail") {
+    return typeof output.title === "string" ? `已读取任务详情：${output.title}。` : "已读取任务详情。";
+  }
+  if (tool === "retry_task" || tool === "cancel_task") {
+    return typeof output.summary === "string" ? output.summary : `${tool} 执行完成。`;
+  }
   if (tool === "preview_pipeline_run") {
     return `已预览 ${String(output.chapterCount ?? 0)} 个章节。`;
   }

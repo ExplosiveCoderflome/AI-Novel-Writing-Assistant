@@ -2,6 +2,7 @@ import type { TaskStatus, UnifiedTaskDetail, UnifiedTaskSummary } from "@ai-nove
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { NovelService } from "../../novel/NovelService";
+import { buildTaskRecoveryHint, normalizeFailureSummary } from "../taskSupport";
 import {
   NOVEL_PIPELINE_STEPS,
   buildSteps,
@@ -61,6 +62,23 @@ export class PipelineTaskAdapter {
       ownerId: row.novelId,
       ownerLabel: row.novel.title,
       sourceRoute: `/novels/${row.novelId}/edit`,
+      failureCode: row.lastErrorType ?? (row.status === "failed" ? "PIPELINE_FAILED" : null),
+      failureSummary: row.status === "failed"
+        ? normalizeFailureSummary(row.error, "章节流水线失败，但没有记录明确错误。")
+        : row.error,
+      recoveryHint: buildTaskRecoveryHint("novel_pipeline", row.status as TaskStatus),
+      sourceResource: {
+        type: "novel",
+        id: row.novelId,
+        label: row.novel.title,
+        route: `/novels/${row.novelId}/edit`,
+      },
+      targetResources: [{
+        type: "generation_job",
+        id: row.id,
+        label: `${row.startOrder}-${row.endOrder}章流水线`,
+        route: `/novels/${row.novelId}/edit`,
+      }],
     }));
   }
 
@@ -97,6 +115,23 @@ export class PipelineTaskAdapter {
       ownerId: row.novelId,
       ownerLabel: row.novel.title,
       sourceRoute: `/novels/${row.novelId}/edit`,
+      failureCode: row.lastErrorType ?? (row.status === "failed" ? "PIPELINE_FAILED" : null),
+      failureSummary: row.status === "failed"
+        ? normalizeFailureSummary(row.error, "章节流水线失败，但没有记录明确错误。")
+        : row.error,
+      recoveryHint: buildTaskRecoveryHint("novel_pipeline", row.status as TaskStatus),
+      sourceResource: {
+        type: "novel",
+        id: row.novelId,
+        label: row.novel.title,
+        route: `/novels/${row.novelId}/edit`,
+      },
+      targetResources: [{
+        type: "generation_job",
+        id: row.id,
+        label: `${row.startOrder}-${row.endOrder}章流水线`,
+        route: `/novels/${row.novelId}/edit`,
+      }],
     };
 
     let payload: Record<string, unknown> = {};
@@ -131,6 +166,7 @@ export class PipelineTaskAdapter {
         summary.createdAt,
         summary.updatedAt,
       ),
+      failureDetails: row.error,
     };
   }
 

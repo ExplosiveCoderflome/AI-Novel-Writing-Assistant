@@ -20,7 +20,28 @@ export type AgentToolName =
   | "preview_pipeline_run"
   | "save_chapter_draft"
   | "apply_chapter_patch"
-  | "queue_pipeline_run";
+  | "queue_pipeline_run"
+  | "list_book_analyses"
+  | "get_book_analysis_detail"
+  | "get_book_analysis_failure_reason"
+  | "list_knowledge_documents"
+  | "get_knowledge_document_detail"
+  | "get_index_failure_reason"
+  | "list_worlds"
+  | "get_world_detail"
+  | "explain_world_conflict"
+  | "list_writing_formulas"
+  | "get_writing_formula_detail"
+  | "explain_formula_match"
+  | "list_base_characters"
+  | "get_base_character_detail"
+  | "list_tasks"
+  | "get_task_detail"
+  | "get_task_failure_reason"
+  | "get_run_failure_reason"
+  | "retry_task"
+  | "cancel_task"
+  | "explain_generation_blocker";
 
 export type AgentContextMode = "global" | "novel";
 
@@ -28,6 +49,7 @@ export type AgentIntentName =
   | "query_novel_title"
   | "query_chapter_content"
   | "query_progress"
+  | "inspect_failure_reason"
   | "write_chapter"
   | "rewrite_chapter"
   | "save_chapter_draft"
@@ -156,6 +178,7 @@ export interface PlannerInput {
   maxTokens?: number;
   currentRunStatus?: AgentRun["status"];
   currentStep?: string;
+  currentRunId?: string;
 }
 
 export interface PlannerResult {

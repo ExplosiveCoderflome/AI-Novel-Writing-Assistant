@@ -26,3 +26,20 @@ test("GET /api/llm/model-routes returns success payload", async () => {
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });
+
+test("GET /api/agent-catalog returns agents and tools", async () => {
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/agent-catalog`);
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    assert.ok(Array.isArray(payload.data.agents));
+    assert.ok(Array.isArray(payload.data.tools));
+    assert.ok(payload.data.tools.some((item) => item.name === "list_tasks"));
+  } finally {
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});

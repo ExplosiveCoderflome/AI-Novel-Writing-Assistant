@@ -188,8 +188,12 @@ export const novelToolDefinitions: Partial<
 > = {
   get_novel_context: {
     name: "get_novel_context",
+    title: "读取小说总览",
     description: "读取小说总览，包括标题、大纲和进度信息。",
+    category: "read",
     riskLevel: "low",
+    domainAgent: "NovelAgent",
+    resourceScopes: ["novel", "chapter"],
     inputSchema: getNovelContextInput,
     outputSchema: getNovelContextOutput,
     execute: async (_context, rawInput) => {
@@ -244,8 +248,12 @@ export const novelToolDefinitions: Partial<
   },
   list_chapters: {
     name: "list_chapters",
+    title: "列出章节元信息",
     description: "列出小说全部章节元信息，用于按章节序号定位。",
+    category: "read",
     riskLevel: "low",
+    domainAgent: "NovelAgent",
+    resourceScopes: ["novel", "chapter"],
     inputSchema: listChaptersInput,
     outputSchema: listChaptersOutput,
     execute: async (_context, rawInput) => {
@@ -274,8 +282,12 @@ export const novelToolDefinitions: Partial<
   },
   get_chapter_by_order: {
     name: "get_chapter_by_order",
+    title: "按序号读取章节",
     description: "按章节序号读取章节元信息。",
+    category: "read",
     riskLevel: "low",
+    domainAgent: "NovelAgent",
+    resourceScopes: ["novel", "chapter"],
     inputSchema: getChapterByOrderInput,
     outputSchema: getChapterByOrderOutput,
     execute: async (_context, rawInput) => {
@@ -293,8 +305,12 @@ export const novelToolDefinitions: Partial<
   },
   get_chapter_content_by_order: {
     name: "get_chapter_content_by_order",
+    title: "按序号读取章节正文",
     description: "按章节序号读取章节正文。",
+    category: "read",
     riskLevel: "low",
+    domainAgent: "NovelAgent",
+    resourceScopes: ["novel", "chapter"],
     inputSchema: getChapterByOrderInput,
     outputSchema: getChapterContentOutput,
     execute: async (_context, rawInput) => {
@@ -312,8 +328,12 @@ export const novelToolDefinitions: Partial<
   },
   get_chapter_content: {
     name: "get_chapter_content",
+    title: "读取章节正文",
     description: "按章节 ID 或章节序号读取章节正文。",
+    category: "read",
     riskLevel: "low",
+    domainAgent: "NovelAgent",
+    resourceScopes: ["novel", "chapter"],
     inputSchema: getChapterContentInput,
     outputSchema: getChapterContentOutput,
     execute: async (_context, rawInput) => {
@@ -333,8 +353,12 @@ export const novelToolDefinitions: Partial<
   },
   summarize_chapter_range: {
     name: "summarize_chapter_range",
+    title: "总结章节范围",
     description: "总结指定章节范围，用于前 N 章或连续章节问答。",
+    category: "inspect",
     riskLevel: "low",
+    domainAgent: "NovelAgent",
+    resourceScopes: ["novel", "chapter"],
     inputSchema: summarizeChapterRangeInput,
     outputSchema: summarizeChapterRangeOutput,
     execute: async (_context, rawInput) => {
@@ -382,8 +406,12 @@ export const novelToolDefinitions: Partial<
   },
   get_story_bible: {
     name: "get_story_bible",
+    title: "读取小说圣经",
     description: "读取小说圣经信息。",
+    category: "read",
     riskLevel: "low",
+    domainAgent: "NovelAgent",
+    resourceScopes: ["novel"],
     inputSchema: getStoryBibleInput,
     outputSchema: getStoryBibleOutput,
     execute: async (_context, rawInput) => {
@@ -404,8 +432,12 @@ export const novelToolDefinitions: Partial<
   },
   get_character_states: {
     name: "get_character_states",
+    title: "读取角色状态",
     description: "读取小说角色状态。",
+    category: "read",
     riskLevel: "low",
+    domainAgent: "CharacterAgent",
+    resourceScopes: ["novel", "chapter"],
     inputSchema: getCharacterStatesInput,
     outputSchema: getCharacterStatesOutput,
     execute: async (_context, rawInput) => {
@@ -430,8 +462,12 @@ export const novelToolDefinitions: Partial<
   },
   get_timeline_facts: {
     name: "get_timeline_facts",
+    title: "读取时间线事实",
     description: "读取时间线事实与一致性事实。",
+    category: "inspect",
     riskLevel: "low",
+    domainAgent: "NovelAgent",
+    resourceScopes: ["novel", "chapter"],
     inputSchema: getTimelineFactsInput,
     outputSchema: getTimelineFactsOutput,
     execute: async (_context, rawInput) => {
@@ -456,8 +492,12 @@ export const novelToolDefinitions: Partial<
   },
   get_world_constraints: {
     name: "get_world_constraints",
+    title: "读取世界观约束",
     description: "读取世界观硬规则和一致性约束。",
+    category: "inspect",
     riskLevel: "low",
+    domainAgent: "WorldAgent",
+    resourceScopes: ["world", "novel"],
     inputSchema: getWorldConstraintsInput,
     outputSchema: getWorldConstraintsOutput,
     execute: async (_context, rawInput) => {
@@ -513,8 +553,12 @@ export const novelToolDefinitions: Partial<
   },
   search_knowledge: {
     name: "search_knowledge",
+    title: "检索知识库",
     description: "检索知识库并返回上下文块。",
+    category: "inspect",
     riskLevel: "low",
+    domainAgent: "KnowledgeAgent",
+    resourceScopes: ["knowledge_document", "novel", "world"],
     inputSchema: searchKnowledgeInput,
     outputSchema: searchKnowledgeOutput,
     execute: async (_context, rawInput) => {

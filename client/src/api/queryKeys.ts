@@ -56,6 +56,7 @@ export const queryKeys = {
     list: (params: string) => ["agent-runs", "list", params] as const,
     detail: (id: string) => ["agent-runs", "detail", id] as const,
   },
+  agentCatalog: ["agent-catalog"] as const,
   settings: {
     apiKeys: ["settings", "api-keys"] as const,
     rag: ["settings", "rag"] as const,

@@ -130,6 +130,31 @@ function composeWriteAnswer(results: ToolExecutionResult[], waitingForApproval: 
   return null;
 }
 
+function composeFailureDiagnosisAnswer(results: ToolExecutionResult[]): string {
+  const candidates = [
+    ...getSuccessfulOutputs(results, "get_run_failure_reason"),
+    ...getSuccessfulOutputs(results, "explain_generation_blocker"),
+    ...getSuccessfulOutputs(results, "get_task_failure_reason"),
+    ...getSuccessfulOutputs(results, "get_index_failure_reason"),
+    ...getSuccessfulOutputs(results, "get_book_analysis_failure_reason"),
+  ];
+  const first = candidates.find((item) => typeof item.failureSummary === "string" && item.failureSummary.trim());
+  if (!first) {
+    return "当前没有可用的失败诊断信息";
+  }
+  const parts = [String(first.failureSummary).trim()];
+  if (typeof first.failureDetails === "string" && first.failureDetails.trim() && first.failureDetails.trim() !== parts[0]) {
+    parts.push(`详情：${first.failureDetails.trim()}`);
+  }
+  if (typeof first.recoveryHint === "string" && first.recoveryHint.trim()) {
+    parts.push(`建议：${first.recoveryHint.trim()}`);
+  }
+  if (typeof first.lastFailedStep === "string" && first.lastFailedStep.trim()) {
+    parts.push(`失败步骤：${first.lastFailedStep.trim()}`);
+  }
+  return parts.join("\n");
+}
+
 async function composeFallbackAnswer(
   goal: string,
   summary: string,
@@ -207,6 +232,8 @@ export async function composeAssistantMessage(
       return composeProgressAnswer(results);
     case "query_chapter_content":
       return composeChapterAnswer(results) ?? "未获取到章节正文";
+    case "inspect_failure_reason":
+      return composeFailureDiagnosisAnswer(results);
     case "write_chapter":
     case "rewrite_chapter":
     case "save_chapter_draft":

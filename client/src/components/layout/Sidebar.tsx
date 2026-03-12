@@ -12,7 +12,7 @@ const navGroups = [
     items: [
       { to: "/", label: "首页" },
       { to: "/novels", label: "小说列表" },
-      { to: "/chat", label: "AI 对话" },
+      { to: "/creative-hub", label: "创作中枢" },
       { to: "/book-analysis", label: "拆书" },
       { to: "/tasks", label: "任务中心" },
     ],

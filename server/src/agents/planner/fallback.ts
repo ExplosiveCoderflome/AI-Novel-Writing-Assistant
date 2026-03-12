@@ -16,6 +16,12 @@ export function inferFallbackIntent(input: PlannerInput): StructuredIntent {
   const firstN = extractFirstNChapters(goal);
   const singleOrder = extractSingleChapterOrder(goal);
   const content = extractContent(goal) ?? undefined;
+  const chapterOrders = orders.length > 0 ? orders : singleOrder != null ? [singleOrder] : undefined;
+  const asksFailureReason = /(失败|报错|错误|异常|卡住|阻塞|没成功)/.test(goal)
+    || (
+      /(为什么|什么原因|原因|怎么回事)/.test(goal)
+      && /(任务|运行|生成|索引|拆书|写作|审批|章节|第.{0,3}章)/.test(goal)
+    );
 
   if (/(这本书|该书|本小说|书名|标题).{0,8}(叫什么|名字|书名|标题)|^(书名|标题)$/.test(goal)) {
     return {
@@ -52,6 +58,20 @@ export function inferFallbackIntent(input: PlannerInput): StructuredIntent {
     };
   }
 
+  if (asksFailureReason) {
+    return {
+      goal,
+      intent: "inspect_failure_reason",
+      confidence: 0.4,
+      requiresNovelContext: input.contextMode === "novel",
+      chapterSelectors: {
+        chapterId: chapterId ?? undefined,
+        orders: chapterOrders,
+        range: range ?? undefined,
+      },
+    };
+  }
+
   if (/重写|改写|重做|重生成/.test(goal) && /章/.test(goal)) {
     return {
       goal,
@@ -60,7 +80,7 @@ export function inferFallbackIntent(input: PlannerInput): StructuredIntent {
       requiresNovelContext: true,
       chapterSelectors: {
         chapterId: chapterId ?? undefined,
-        orders: orders.length > 0 ? orders : singleOrder != null ? [singleOrder] : undefined,
+        orders: chapterOrders,
         range: range ?? undefined,
       },
       content,
@@ -75,7 +95,7 @@ export function inferFallbackIntent(input: PlannerInput): StructuredIntent {
       requiresNovelContext: true,
       chapterSelectors: {
         chapterId: chapterId ?? undefined,
-        orders: orders.length > 0 ? orders : singleOrder != null ? [singleOrder] : undefined,
+        orders: chapterOrders,
         range: range ?? undefined,
       },
     };

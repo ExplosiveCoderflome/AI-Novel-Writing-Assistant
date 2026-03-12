@@ -6,6 +6,32 @@ export type AgentRunStatus =
   | "failed"
   | "cancelled";
 
+export type DomainAgentName =
+  | "Coordinator"
+  | "NovelAgent"
+  | "BookAnalysisAgent"
+  | "KnowledgeAgent"
+  | "WorldAgent"
+  | "FormulaAgent"
+  | "CharacterAgent";
+
+export type ResourceScope =
+  | "global"
+  | "novel"
+  | "chapter"
+  | "book_analysis"
+  | "knowledge_document"
+  | "world"
+  | "writing_formula"
+  | "base_character"
+  | "creative_decision"
+  | "snapshot"
+  | "generation_job"
+  | "agent_run"
+  | "task";
+
+export type ToolCategory = "read" | "inspect" | "mutate" | "run";
+
 export type AgentStepType =
   | "planning"
   | "tool_call"
@@ -34,6 +60,45 @@ export interface AgentPlanContextNeed {
   key: string;
   required: boolean;
   reason?: string;
+}
+
+export interface ResourceRef {
+  type: ResourceScope;
+  id: string;
+  label?: string | null;
+  route?: string | null;
+}
+
+export interface AgentCatalogAgent {
+  name: DomainAgentName;
+  title: string;
+  description: string;
+  resourceScopes: ResourceScope[];
+}
+
+export interface CapabilityDefinition {
+  name: string;
+  title: string;
+  description: string;
+  category: ToolCategory;
+  riskLevel: AgentPlanRiskLevel;
+  domainAgent: DomainAgentName;
+  resourceScopes: ResourceScope[];
+  approvalRequired: boolean;
+  inputSchemaSummary: string[];
+}
+
+export interface AgentCatalog {
+  agents: AgentCatalogAgent[];
+  tools: CapabilityDefinition[];
+  approvalPolicySummary: string[];
+}
+
+export interface FailureDiagnostic {
+  failureCode?: string | null;
+  failureSummary?: string | null;
+  failureDetails?: string | null;
+  recoveryHint?: string | null;
 }
 
 export interface AgentPlanAction {
@@ -133,4 +198,7 @@ export interface AgentRunDetail {
   steps: AgentStep[];
   approvals: AgentApproval[];
   metrics?: AgentRunMetrics;
+  diagnostics?: FailureDiagnostic;
+  sourceResource?: ResourceRef | null;
+  targetResources?: ResourceRef[];
 }

@@ -137,6 +137,34 @@ export function compileIntentToPlan(parsed: StructuredIntent, input: PlannerInpu
       }
       break;
     }
+    case "inspect_failure_reason": {
+      if (input.currentRunId) {
+        actions.push(toolAction(
+          "Planner",
+          "get_run_failure_reason",
+          "读取当前运行失败原因",
+          { runId: input.currentRunId },
+          "run_failure_reason",
+          input,
+        ));
+      }
+      if (input.novelId) {
+        const chapterOrder = normalizedOrders[0] ?? range?.startOrder;
+        actions.push(toolAction(
+          "Planner",
+          "explain_generation_blocker",
+          chapterOrder != null
+            ? `诊断第${chapterOrder}章生成阻塞原因`
+            : "诊断当前小说最近一次生成阻塞原因",
+          chapterOrder != null
+            ? { novelId: input.novelId, chapterOrder, runId: input.currentRunId }
+            : { novelId: input.novelId, runId: input.currentRunId },
+          chapterOrder != null ? `generation_blocker_${chapterOrder}` : "generation_blocker",
+          input,
+        ));
+      }
+      break;
+    }
     case "write_chapter":
     case "start_pipeline": {
       if (input.novelId) {
