@@ -8,7 +8,94 @@
 
 文档策略默认采用：
 - `TASK.md` 直接替换为本计划，旧的“剩余改造清单”不再作为主文档继续维护。
-- 当前处于 Plan Mode，本计划即为后续写入 `TASK.md` 的定稿文本。
+- 本文件同时承担“目标计划 + 当前进度同步”两种职责，后续以实际代码状态持续更新。
+
+## 当前开发进度（2026-03-12）
+
+### 总体判断
+- 当前进度处于“基础骨架已落地，产品闭环未完成”阶段。
+- 已经完成的部分集中在：`创作中枢` 入口改名、统一能力目录、跨模块只读/诊断 tools、失败原因识别、任务/运行诊断字段、基础测试补齐。
+- 尚未完成的部分集中在：全模块控制类 tools、跨模块编排、模块页到创作中枢的联动入口、所有高风险动作统一经由 runtime、完整的前端产品化闭环。
+
+### 分项对账
+
+#### 1. 产品定位与信息架构重构
+- 当前状态：`部分完成`
+- 已实现：
+- 侧边栏已将 `AI 对话` 改名为 `创作中枢`。
+- 路由已新增 `/creative-hub`，旧 `/chat` 会跳转到新入口。
+- 新增了 `CreativeHubPage` 作为创作中枢壳层，顶部会展示能力目录、当前绑定 `novelId/runId` 摘要。
+- 待实现：
+- 各模块页还没有统一补上“发送到创作中枢”入口。
+- 当前资源绑定提示还没有下沉到小说、拆书、知识库、世界观、公式、角色等模块页顶部。
+- `/chat` 的内部交互仍然是原有工作台逻辑，尚未全面重构为“命令与状态中心”的产品表达。
+
+#### 2. 统一资源模型与能力目录
+- 当前状态：`已完成基础版本`
+- 已实现：
+- `shared/types/agent` 已补齐 `DomainAgentName`、`ResourceScope`、`ToolCategory`、`AgentCatalog`、`CapabilityDefinition`、`ResourceRef`。
+- 后端已新增 `GET /api/agent-catalog`，并返回领域 agents、tools、risk、scope、审批摘要。
+- Agent catalog 已定义 `Coordinator / NovelAgent / BookAnalysisAgent / KnowledgeAgent / WorldAgent / FormulaAgent / CharacterAgent`。
+- 所有已注册 tools 现在都有 `title/category/domainAgent/resourceScopes/approvalRequired` 元数据。
+- 待实现：
+- “资源”还主要停留在类型和 catalog 层，尚未完全变成所有页面和 runtime 的统一主语义。
+- 领域 agent 还没有真正演化成跨模块分派器，当前运行时主体仍是 `Planner / Writer / Reviewer / Continuity / Repair`。
+
+#### 3. 全模块 Tool Catalog 补齐
+- 当前状态：`部分完成`
+- 已实现：
+- 小说域已有章节定位、章节正文、范围总结、知识检索、写作预览、流水线启动等工具。
+- 已新增拆书域工具：列表、详情、失败原因。
+- 已新增知识库域工具：列表、详情、索引失败原因。
+- 已新增世界观域工具：列表、详情、冲突解释。
+- 已新增写作公式域工具：列表、详情、公式适配解释。
+- 已新增基础角色库工具：列表、详情。
+- 已新增任务域工具：统一任务列表、详情、任务失败原因、run 失败原因、重试、取消、章节生成阻塞解释。
+- 待实现：
+- 非小说域的大多数 `mutate/create/update/run/control` 工具还没有补齐。
+- 计划中提到的快照、创作决策、章节失败诊断的更细工具集还未完全进入 catalog。
+- “所有高风险写操作统一进入审批矩阵”目前主要覆盖小说写作链路，其他模块尚未统一收口。
+
+#### 4. Runtime、任务中心与诊断能力统一
+- 当前状态：`部分完成`
+- 已实现：
+- `shared/types/task` 和 `shared/types/agent` 已新增 `failureCode/failureSummary/failureDetails/recoveryHint/sourceResource/targetResources` 相关契约。
+- `BookTaskAdapter / PipelineTaskAdapter / ImageTaskAdapter / AgentRunTaskAdapter` 已开始返回失败摘要、恢复建议、来源资源和目标资源。
+- `/api/agent-runs/:id` 已对 run detail 做诊断增强。
+- planner 已新增 `inspect_failure_reason`，像“第三章为什么失败”会优先走诊断工具，不再直接误触发新写作任务。
+- answer composer 已能优先消费失败诊断工具结果。
+- 待实现：
+- `TaskCenter` 与 `Agent Runtime` 仍是两套实现，只是语义开始对齐，尚未真正收口为一个统一运行平面。
+- 计划中的通用 `explain_conflict` 还没有抽象成系统级工具，当前只有 `explain_world_conflict`。
+- “所有为什么失败/当前状态如何/能否继续执行”的自然语言覆盖还不完整，现阶段主要补强了章节生成失败这条痛点路径。
+
+#### 5. 创作中枢前端重做
+- 当前状态：`部分完成`
+- 已实现：
+- 创作中枢已有独立页面入口。
+- 现有聊天工作台本身已经是三栏布局，能够承载会话历史、命令流和运行面板。
+- 运行面板已有审批、轨迹、运行选择等能力。
+- 待实现：
+- 还没有显式动作建议卡片和跨模块快捷操作面板。
+- 左侧“资源固定区”还没有从普通会话区里独立出来。
+- 所有模块页顶部的“当前资源状态 / 最近任务 / 最近 Agent 操作 / 继续到创作中枢”还没有统一补齐。
+- 任务中心和创作中枢虽然开始共享任务语义，但前端视图层还没有完全打通。
+
+### 当前已实现功能清单
+- `创作中枢` 路由、导航入口和基础页头。
+- `GET /api/agent-catalog` 与共享能力目录契约。
+- 跨模块只读/诊断 tools：拆书、知识库、世界观、写作公式、基础角色库、任务中心。
+- 小说失败诊断主路径：`inspect_failure_reason -> get_run_failure_reason / explain_generation_blocker`。
+- 任务与运行时详情中的失败摘要、恢复建议、资源引用。
+- 与上述能力对应的 planner/tool/route 测试。
+
+### 当前待实现功能清单
+- 跨模块 `mutate/create/update/run/control` tools 的系统化补齐。
+- 模块页到创作中枢的统一跳转入口与资源绑定提示。
+- 创作中枢内的动作建议卡片、资源固定区和跨模块快捷编排。
+- 将更多高风险写操作从页面内直连服务迁移到 runtime + approval。
+- `TaskCenter` 与 `Agent Runtime` 的真正统一运行平面。
+- 计划中提到的快照、创作决策、跨模块工作流等更深层 agent 化能力。
 
 ## 关键改动
 
