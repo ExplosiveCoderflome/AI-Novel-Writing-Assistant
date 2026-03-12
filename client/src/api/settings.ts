@@ -1,5 +1,6 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { ModelRouteConfig, ModelRouteTaskType } from "@ai-novel/shared/types/novel";
 import { apiClient } from "./client";
 
 export type EmbeddingProvider = Extract<LLMProvider, "openai" | "siliconflow">;
@@ -25,6 +26,17 @@ export interface RagSettingsStatus {
   embeddingProvider: EmbeddingProvider;
   embeddingModel: string;
   providers: RagProviderStatus[];
+}
+
+export interface ModelRoutesResponse {
+  taskTypes: ModelRouteTaskType[];
+  routes: Array<{
+    taskType: string;
+    provider: string;
+    model: string;
+    temperature: number;
+    maxTokens: number | null;
+  }>;
 }
 
 export async function getAPIKeySettings() {
@@ -79,6 +91,16 @@ export async function refreshProviderModelList(provider: LLMProvider) {
 
 export async function getLLMProviders() {
   const { data } = await apiClient.get<ApiResponse<Record<string, unknown>>>("/llm/providers");
+  return data;
+}
+
+export async function getModelRoutes() {
+  const { data } = await apiClient.get<ApiResponse<ModelRoutesResponse>>("/llm/model-routes");
+  return data;
+}
+
+export async function saveModelRoute(payload: ModelRouteConfig) {
+  const { data } = await apiClient.put<ApiResponse<null>>("/llm/model-routes", payload);
   return data;
 }
 

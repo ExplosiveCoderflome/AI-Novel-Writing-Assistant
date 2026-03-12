@@ -6,7 +6,14 @@ import LLMSelector from "@/components/common/LLMSelector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { queryKeys } from "@/api/queryKeys";
-import { getNovelDetail, getChapterTraces, updateNovelChapter } from "@/api/novel";
+import {
+  createCreativeDecision,
+  deleteCreativeDecision,
+  getNovelDetail,
+  getChapterTraces,
+  listCreativeDecisions,
+  updateNovelChapter,
+} from "@/api/novel";
 import { useSSE } from "@/hooks/useSSE";
 import { useLLMStore } from "@/store/llmStore";
 
@@ -15,6 +22,10 @@ export default function NovelChapterEdit() {
   const queryClient = useQueryClient();
   const llm = useLLMStore();
   const [contentDraft, setContentDraft] = useState("");
+  const [decisionForm, setDecisionForm] = useState({
+    category: "plot",
+    content: "",
+  });
 
   const { data: detailResponse } = useQuery({
     queryKey: queryKeys.novels.detail(id),
@@ -47,6 +58,13 @@ export default function NovelChapterEdit() {
   });
   const traces = tracesResponse?.data ?? [];
 
+  const { data: decisionResponse } = useQuery({
+    queryKey: queryKeys.novels.creativeDecisions(id),
+    queryFn: () => listCreativeDecisions(id),
+    enabled: Boolean(id),
+  });
+  const decisions = decisionResponse?.data ?? [];
+
   const saveChapterMutation = useMutation({
     mutationFn: (text: string) =>
       updateNovelChapter(id, chapterId, {
@@ -59,8 +77,30 @@ export default function NovelChapterEdit() {
     },
   });
 
+  const createDecisionMutation = useMutation({
+    mutationFn: () => createCreativeDecision(id, {
+      chapterId,
+      category: decisionForm.category,
+      content: decisionForm.content,
+      importance: "normal",
+      sourceType: "manual",
+      sourceRefId: chapterId,
+    }),
+    onSuccess: async () => {
+      setDecisionForm({ category: "plot", content: "" });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.creativeDecisions(id) });
+    },
+  });
+
+  const deleteDecisionMutation = useMutation({
+    mutationFn: (decisionId: string) => deleteCreativeDecision(id, decisionId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.creativeDecisions(id) });
+    },
+  });
+
   return (
-    <div className="grid gap-4 lg:grid-cols-[40%_60%]">
+    <div className="grid gap-4 lg:grid-cols-[28%_44%_28%]">
       <Card>
         <CardHeader>
           <CardTitle>章节信息</CardTitle>
@@ -127,6 +167,65 @@ export default function NovelChapterEdit() {
             >
               {saveChapterMutation.isPending ? "保存中..." : "保存章节"}
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>创作决策</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <select
+            className="w-full rounded-md border bg-background p-2 text-sm"
+            value={decisionForm.category}
+            onChange={(event) => setDecisionForm((prev) => ({ ...prev, category: event.target.value }))}
+          >
+            <option value="plot">plot</option>
+            <option value="character">character</option>
+            <option value="world">world</option>
+            <option value="style">style</option>
+          </select>
+          <textarea
+            className="min-h-28 w-full rounded-md border bg-background p-3 text-sm"
+            value={decisionForm.content}
+            onChange={(event) => setDecisionForm((prev) => ({ ...prev, content: event.target.value }))}
+            placeholder="记录当前章节必须遵守的创作决策..."
+          />
+          <Button
+            onClick={() => createDecisionMutation.mutate()}
+            disabled={createDecisionMutation.isPending || !decisionForm.content.trim()}
+          >
+            添加决策
+          </Button>
+
+          <div className="space-y-2">
+            {decisions.map((decision) => (
+              <div key={decision.id} className="rounded-md border p-3 text-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="font-medium">{decision.category}</div>
+                    <div className="mt-1 text-muted-foreground">{decision.content}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {decision.sourceType ?? "manual"} · {new Date(decision.createdAt).toLocaleString()}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => deleteDecisionMutation.mutate(decision.id)}
+                    disabled={deleteDecisionMutation.isPending}
+                  >
+                    删除
+                  </Button>
+                </div>
+              </div>
+            ))}
+            {decisions.length === 0 ? (
+              <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                还没有创作决策。
+              </div>
+            ) : null}
           </div>
         </CardContent>
       </Card>

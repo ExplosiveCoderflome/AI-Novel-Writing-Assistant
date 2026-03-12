@@ -10,6 +10,7 @@ import OutlineTab from "./OutlineTab";
 import StructuredOutlineTab from "./StructuredOutlineTab";
 import ChapterManagementTab from "./ChapterManagementTab";
 import PipelineTab from "./PipelineTab";
+import VersionHistoryTab from "./VersionHistoryTab";
 import type { NovelEditViewProps } from "./NovelEditView.types";
 
 export default function NovelEditView(props: NovelEditViewProps) {
@@ -29,7 +30,7 @@ export default function NovelEditView(props: NovelEditViewProps) {
     }
   })() : "default";
 
-  const tabOrder = ["basic", "character", "outline", "structured", "chapter", "pipeline"];
+  const tabOrder = ["basic", "character", "outline", "structured", "chapter", "pipeline", "history"];
   const activeStageIndex = Math.max(0, tabOrder.indexOf(activeTab));
   const stages = [
     { key: "basic", label: "项目设定", ready: basicTab.basicForm.title.trim().length > 0 },
@@ -38,6 +39,7 @@ export default function NovelEditView(props: NovelEditViewProps) {
     { key: "structured", label: "生成规划", ready: structuredTab.draftText.trim().length > 0 },
     { key: "chapter", label: "章节执行", ready: generatedChapters > 0 },
     { key: "pipeline", label: "质量修复", ready: pipelineTab.qualitySummary ? pipelineTab.qualitySummary.overall >= 75 : false },
+    { key: "history", label: "版本历史", ready: Boolean(id) },
   ];
 
   return (
@@ -106,6 +108,7 @@ export default function NovelEditView(props: NovelEditViewProps) {
           <TabsTrigger value="structured">生成规划</TabsTrigger>
           <TabsTrigger value="chapter">章节执行</TabsTrigger>
           <TabsTrigger value="pipeline">质量修复</TabsTrigger>
+          <TabsTrigger value="history">版本历史</TabsTrigger>
         </TabsList>
 
         <TabsContent value="basic"><BasicInfoTab {...basicTab} /></TabsContent>
@@ -114,6 +117,7 @@ export default function NovelEditView(props: NovelEditViewProps) {
         <TabsContent value="chapter"><ChapterManagementTab {...chapterTab} /></TabsContent>
         <TabsContent value="pipeline"><PipelineTab {...pipelineTab} /></TabsContent>
         <TabsContent value="character"><NovelCharacterPanel {...characterTab} /></TabsContent>
+        <TabsContent value="history"><VersionHistoryTab novelId={id} /></TabsContent>
       </Tabs>
     </>
   );

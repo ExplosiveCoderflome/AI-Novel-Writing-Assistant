@@ -191,6 +191,7 @@ enum AgentStepType {
   reasoning
   write
   approval
+  answer
 }
 
 enum AgentStepStatus {
@@ -264,15 +265,18 @@ model Novel {
 }
 
 model CreativeDecision {
-  id         String   @id @default(cuid())
-  novelId    String
-  chapterId  String?
-  category   String
-  content    String
-  importance String   @default("normal")
-  expiresAt  Int?
-  novel      Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
+  id          String   @id @default(cuid())
+  novelId     String
+  chapterId   String?
+  category    String
+  content     String
+  importance  String   @default("normal")
+  expiresAt   Int?
+  sourceType  String?
+  sourceRefId String?
+  novel       Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([novelId, createdAt])
 }

@@ -33,6 +33,27 @@ export function compileIntentToPlan(parsed: StructuredIntent, input: PlannerInpu
     ? parsed.chapterSelectors.relative.count
     : null;
   const chapterId = parsed.chapterSelectors.chapterId;
+  const hasRelativeSummary = relativeFirstN != null;
+  const hasRangeSummary = Boolean(range);
+
+  function addSingleChapterPipeline(order: number, keyPrefix: string, reasonPrefix: string) {
+    actions.push(toolAction(
+      "Planner",
+      "preview_pipeline_run",
+      `${reasonPrefix}预览`,
+      { novelId: input.novelId, startOrder: order, endOrder: order },
+      `${keyPrefix}_preview_${order}`,
+      input,
+    ));
+    actions.push(toolAction(
+      "Planner",
+      "queue_pipeline_run",
+      `${reasonPrefix}执行`,
+      { novelId: input.novelId, startOrder: order, endOrder: order },
+      `${keyPrefix}_queue_${order}`,
+      input,
+    ));
+  }
 
   if (input.contextMode === "novel" && input.novelId) {
     contextNeeds.push({
@@ -69,30 +90,28 @@ export function compileIntentToPlan(parsed: StructuredIntent, input: PlannerInpu
           for (const order of normalizedOrders.slice(0, 5)) {
             actions.push(toolAction(
               "Planner",
-              "get_chapter_content",
+              "get_chapter_content_by_order",
               `读取第${order}章正文`,
               { novelId: input.novelId, chapterOrder: order },
               `chapter_${order}`,
               input,
             ));
           }
-        } else if (range) {
-          for (let order = range.startOrder; order <= Math.min(range.endOrder, range.startOrder + 4); order += 1) {
-            actions.push(toolAction(
-              "Planner",
-              "get_chapter_content",
-              `读取第${order}章正文`,
-              { novelId: input.novelId, chapterOrder: order },
-              `chapter_${order}`,
-              input,
-            ));
-          }
-        } else if (relativeFirstN != null) {
+        } else if (hasRangeSummary && range) {
           actions.push(toolAction(
             "Planner",
-            "get_novel_context",
-            `读取前${relativeFirstN}章摘要`,
-            { novelId: input.novelId, firstN: relativeFirstN },
+            "summarize_chapter_range",
+            `总结第${range.startOrder}到第${range.endOrder}章`,
+            { novelId: input.novelId, startOrder: range.startOrder, endOrder: range.endOrder, mode: "summary" },
+            `range_${range.startOrder}_${range.endOrder}`,
+            input,
+          ));
+        } else if (hasRelativeSummary && relativeFirstN != null) {
+          actions.push(toolAction(
+            "Planner",
+            "summarize_chapter_range",
+            `总结前${relativeFirstN}章`,
+            { novelId: input.novelId, startOrder: 1, endOrder: relativeFirstN, mode: "summary" },
             `first_${relativeFirstN}`,
             input,
           ));
@@ -145,16 +164,24 @@ export function compileIntentToPlan(parsed: StructuredIntent, input: PlannerInpu
       break;
     }
     case "rewrite_chapter": {
-      if (input.novelId && (chapterId || normalizedOrders[0])) {
-        const chapterPayload = chapterId
-          ? { novelId: input.novelId, chapterId }
-          : { novelId: input.novelId, chapterOrder: normalizedOrders[0] };
+      if (input.novelId && normalizedOrders[0]) {
+        const order = normalizedOrders[0];
+        actions.push(toolAction(
+          "Planner",
+          "get_chapter_content_by_order",
+          "读取待改写章节正文",
+          { novelId: input.novelId, chapterOrder: order },
+          `rewrite_read_${order}`,
+          input,
+        ));
+        addSingleChapterPipeline(order, "rewrite", `重写第${order}章`);
+      } else if (input.novelId && chapterId) {
         actions.push(toolAction(
           "Planner",
           "get_chapter_content",
           "读取待改写章节正文",
-          chapterPayload,
-          "rewrite_read",
+          { novelId: input.novelId, chapterId },
+          "rewrite_read_by_id",
           input,
         ));
       }

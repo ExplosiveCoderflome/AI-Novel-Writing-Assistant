@@ -148,6 +148,19 @@ export class AgentRuntime {
       throw new Error("novel mode requires novelId.");
     }
 
+    const activeRuns = await this.store.listRuns({
+      sessionId: input.sessionId,
+      novelId: input.novelId,
+      limit: 10,
+    });
+    const blockingRun = activeRuns.find((item) => item.status === "running" || item.status === "waiting_approval");
+    if (blockingRun && blockingRun.id !== input.runId) {
+      const message = blockingRun.status === "waiting_approval"
+        ? "当前已有运行在等待审批，请先处理审批。"
+        : "当前已有运行仍在执行中。";
+      return this.executor.getRunDetailOrThrow(blockingRun.id, message);
+    }
+
     if (input.runId) {
       await this.reconcileWaitingApprovalRun(input.runId);
       const existing = await this.store.getRun(input.runId);
@@ -203,6 +216,7 @@ export class AgentRuntime {
         temperature: input.temperature,
         maxTokens: input.maxTokens,
         currentRunStatus: "running",
+        currentStep: "planning",
       });
       await this.updateRunMetadata(run.id, input, planner.structuredIntent);
 

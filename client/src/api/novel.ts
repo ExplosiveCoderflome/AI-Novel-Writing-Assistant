@@ -8,10 +8,12 @@ import type {
   ChapterStatus,
   CharacterTimeline,
   Character,
+  CreativeDecision,
   EmotionIntensity,
   NarrativePov,
   Novel,
   NovelBible,
+  NovelSnapshot,
   PacePreference,
   PipelineJob,
   PipelineRepairMode,
@@ -475,6 +477,62 @@ export async function analyzeStorylineImpact(
 
 export async function getNovelPipelineJob(id: string, jobId: string) {
   const { data } = await apiClient.get<ApiResponse<PipelineJob>>(`/novels/${id}/pipeline/jobs/${jobId}`);
+  return data;
+}
+
+export async function listNovelSnapshots(id: string) {
+  const { data } = await apiClient.get<ApiResponse<NovelSnapshot[]>>(`/novels/${id}/snapshots`);
+  return data;
+}
+
+export async function createNovelSnapshot(
+  id: string,
+  payload: { triggerType: "manual" | "auto_milestone" | "before_pipeline"; label?: string },
+) {
+  const { data } = await apiClient.post<ApiResponse<NovelSnapshot>>(`/novels/${id}/snapshots`, payload);
+  return data;
+}
+
+export async function restoreNovelSnapshot(id: string, snapshotId: string) {
+  const { data } = await apiClient.post<ApiResponse<Novel>>(`/novels/${id}/snapshots/restore`, { snapshotId });
+  return data;
+}
+
+export async function listCreativeDecisions(id: string) {
+  const { data } = await apiClient.get<ApiResponse<CreativeDecision[]>>(`/novels/${id}/creative-decisions`);
+  return data;
+}
+
+export async function createCreativeDecision(
+  id: string,
+  payload: Omit<CreativeDecision, "id" | "novelId" | "createdAt" | "updatedAt">,
+) {
+  const { data } = await apiClient.post<ApiResponse<CreativeDecision>>(`/novels/${id}/creative-decisions`, payload);
+  return data;
+}
+
+export async function updateCreativeDecision(
+  id: string,
+  decisionId: string,
+  payload: Partial<Omit<CreativeDecision, "id" | "novelId" | "createdAt" | "updatedAt">>,
+) {
+  const { data } = await apiClient.put<ApiResponse<CreativeDecision>>(
+    `/novels/${id}/creative-decisions/${decisionId}`,
+    payload,
+  );
+  return data;
+}
+
+export async function deleteCreativeDecision(id: string, decisionId: string) {
+  const { data } = await apiClient.delete<ApiResponse<null>>(`/novels/${id}/creative-decisions/${decisionId}`);
+  return data;
+}
+
+export async function batchInvalidateCreativeDecisions(id: string, decisionIds: string[]) {
+  const { data } = await apiClient.post<ApiResponse<{ count: number; expiresAt: number }>>(
+    `/novels/${id}/creative-decisions/batch-invalidate`,
+    { decisionIds },
+  );
   return data;
 }
 

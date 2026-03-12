@@ -29,6 +29,7 @@ const navGroups = [
   {
     title: "系统",
     items: [
+      { to: "/settings/model-routes", label: "模型路由" },
       { to: "/settings", label: "系统设置" },
     ],
   },

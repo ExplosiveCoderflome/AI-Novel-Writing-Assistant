@@ -12,7 +12,8 @@ export type AgentStepType =
   | "tool_result"
   | "reasoning"
   | "write"
-  | "approval";
+  | "approval"
+  | "answer";
 
 export type AgentStepStatus = "pending" | "running" | "succeeded" | "failed" | "cancelled";
 

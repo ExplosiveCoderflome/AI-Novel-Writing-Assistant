@@ -400,7 +400,10 @@ export default function RuntimeSidebar({
                         <div className="min-w-0 flex-1">
                           <div className="font-medium text-slate-900">{item.text}</div>
                           <div className="mt-1 text-[11px] text-slate-500">
-                            {item.step.durationMs ? `${item.step.durationMs} ms` : "未记录耗时"}
+                            {item.step.stepType}
+                            {item.step.durationMs ? ` · ${item.step.durationMs} ms` : ""}
+                            {item.step.provider ? ` · ${item.step.provider}` : ""}
+                            {item.step.model ? ` / ${item.step.model}` : ""}
                           </div>
                         </div>
                       </div>

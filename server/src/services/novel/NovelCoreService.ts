@@ -2758,6 +2758,14 @@ ${ragContext || ""}`,
         status: failedDetails.length === 0 ? "succeeded" : "failed",
         failedDetails,
       });
+      void novelEventBus.emit({
+        type: "pipeline:completed",
+        payload: {
+          novelId,
+          jobId,
+          status: failedDetails.length === 0 ? "succeeded" : "failed",
+        },
+      }).catch(() => {});
     } catch (error) {
       if (error instanceof Error && error.message === "PIPELINE_CANCELLED") {
         await this.updateJobSafe(jobId, {
@@ -2769,6 +2777,10 @@ ${ragContext || ""}`,
           cancelRequestedAt: null,
           finishedAt: new Date(),
         });
+        void novelEventBus.emit({
+          type: "pipeline:completed",
+          payload: { novelId, jobId, status: "cancelled" },
+        }).catch(() => {});
         return;
       }
       await this.updateJobSafe(jobId, {
@@ -2781,6 +2793,10 @@ ${ragContext || ""}`,
         novelId,
         message: error instanceof Error ? error.message : "流水线执行失败",
       });
+      void novelEventBus.emit({
+        type: "pipeline:completed",
+        payload: { novelId, jobId, status: "failed" },
+      }).catch(() => {});
     }
   }
 

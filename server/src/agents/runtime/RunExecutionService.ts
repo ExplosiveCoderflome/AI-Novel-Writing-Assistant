@@ -2,6 +2,7 @@ import type { AgentRuntimeCallbacks, AgentRuntimeResult, PlannedAction, Structur
 import { canAgentUseTool, evaluateApprovalRequirement } from "../approvalPolicy";
 import { AgentTraceStore } from "../traceStore";
 import { getAgentToolDefinition } from "../toolRegistry";
+import { composeAssistantMessage } from "./answerComposer";
 import {
   APPROVAL_TTL_MS,
   MAX_TOOL_RETRIES,
@@ -9,7 +10,6 @@ import {
   buildAlternativePathFromRejectedApproval,
   buildFinalMessage,
   canRetry,
-  composeAssistantMessage,
   extractErrorCode,
   parseApprovalPayload,
   safeJson,
@@ -432,6 +432,23 @@ export class RunExecutionService {
 
     const summary = buildFinalMessage(allResults, waitingForApproval);
     const assistantOutput = await composeAssistantMessage(goal, summary, allResults, waitingForApproval, context, structuredIntent);
+    await this.store.addStep({
+      runId,
+      agentName: "Planner",
+      stepType: "answer",
+      status: "succeeded",
+      inputJson: safeJson({
+        goal,
+        waitingForApproval,
+        structuredIntent,
+      }),
+      outputJson: safeJson({
+        message: assistantOutput,
+        summary,
+      }),
+      provider: context.provider,
+      model: context.model,
+    });
     const detail = await this.store.getRunDetail(runId);
     if (!detail) {
       throw new Error("Run not found after execution.");

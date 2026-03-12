@@ -2,7 +2,9 @@ import { NovelCoreService } from "./NovelCoreService";
 import { NovelReviewService } from "./NovelReviewService";
 
 export class NovelPipelineService extends NovelReviewService {
-  startPipelineJob(...args: Parameters<NovelCoreService["startPipelineJob"]>) {
+  async startPipelineJob(...args: Parameters<NovelCoreService["startPipelineJob"]>) {
+    const [novelId] = args;
+    await this.core.createNovelSnapshot(novelId, "before_pipeline", `before-pipeline-${Date.now()}`);
     return this.core.startPipelineJob(...args);
   }
 

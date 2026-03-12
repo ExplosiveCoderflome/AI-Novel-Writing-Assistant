@@ -10,6 +10,8 @@ export const queryKeys = {
     pipelineJob: (id: string, jobId: string) => ["novels", "pipeline", id, jobId] as const,
     qualityReport: (id: string) => ["novels", "quality-report", id] as const,
     storylineVersions: (id: string) => ["novels", "storyline-versions", id] as const,
+    creativeDecisions: (id: string) => ["novels", "creative-decisions", id] as const,
+    snapshots: (id: string) => ["novels", "snapshots", id] as const,
   },
   worlds: {
     all: ["worlds"] as const,
@@ -57,6 +59,7 @@ export const queryKeys = {
   settings: {
     apiKeys: ["settings", "api-keys"] as const,
     rag: ["settings", "rag"] as const,
+    modelRoutes: ["settings", "model-routes"] as const,
   },
   novelsKnowledge: {
     bindings: (id: string) => ["novels", "knowledge-documents", id] as const,

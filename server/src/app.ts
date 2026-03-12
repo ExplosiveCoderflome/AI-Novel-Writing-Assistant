@@ -17,6 +17,7 @@ import imagesRouter from "./routes/images";
 import knowledgeRouter from "./routes/knowledge";
 import llmRouter from "./routes/llm";
 import novelRouter from "./routes/novel";
+import novelDecisionsRouter from "./routes/novelDecisions";
 import novelChapterSummaryRouter from "./routes/novelChapterSummary";
 import novelExportRouter from "./routes/novelExport";
 import ragRouter from "./routes/rag";
@@ -24,9 +25,12 @@ import settingsRouter from "./routes/settings";
 import tasksRouter from "./routes/tasks";
 import worldRouter from "./routes/world";
 import writingFormulaRouter from "./routes/writingFormula";
+import { novelEventBus, registerNovelEventHandlers } from "./events";
 import { bookAnalysisService } from "./services/bookAnalysis/BookAnalysisService";
 import { imageGenerationService } from "./services/image/ImageGenerationService";
 import { ragServices } from "./services/rag";
+
+registerNovelEventHandlers(novelEventBus);
 
 function parseEnvFlag(value: string | undefined, defaultValue: boolean): boolean {
   if (value === undefined) return defaultValue;
@@ -70,6 +74,7 @@ export function createApp() {
   app.use("/api/knowledge", knowledgeRouter);
   app.use("/api/llm", llmRouter);
   app.use("/api/novels", novelRouter);
+  app.use("/api/novels", novelDecisionsRouter);
   app.use("/api/novels", novelChapterSummaryRouter);
   app.use("/api/novels", novelExportRouter);
   app.use("/api/worlds", worldRouter);

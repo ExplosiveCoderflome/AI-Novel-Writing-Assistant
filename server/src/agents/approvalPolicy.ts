@@ -10,6 +10,10 @@ export interface ApprovalDecision {
 const AGENT_TOOL_ALLOWLIST: Record<AgentName, Set<AgentToolName>> = {
   Planner: new Set<AgentToolName>([
     "get_novel_context",
+    "list_chapters",
+    "get_chapter_by_order",
+    "get_chapter_content_by_order",
+    "summarize_chapter_range",
     "get_story_bible",
     "get_chapter_content",
     "get_world_constraints",
@@ -19,6 +23,8 @@ const AGENT_TOOL_ALLOWLIST: Record<AgentName, Set<AgentToolName>> = {
   ]),
   Writer: new Set<AgentToolName>([
     "get_novel_context",
+    "get_chapter_by_order",
+    "get_chapter_content_by_order",
     "get_story_bible",
     "get_chapter_content",
     "diff_chapter_patch",
@@ -27,6 +33,9 @@ const AGENT_TOOL_ALLOWLIST: Record<AgentName, Set<AgentToolName>> = {
   ]),
   Reviewer: new Set<AgentToolName>([
     "get_novel_context",
+    "list_chapters",
+    "get_chapter_by_order",
+    "summarize_chapter_range",
     "get_story_bible",
     "get_character_states",
     "get_timeline_facts",
@@ -36,6 +45,10 @@ const AGENT_TOOL_ALLOWLIST: Record<AgentName, Set<AgentToolName>> = {
   ]),
   Continuity: new Set<AgentToolName>([
     "get_novel_context",
+    "list_chapters",
+    "get_chapter_by_order",
+    "get_chapter_content_by_order",
+    "summarize_chapter_range",
     "get_story_bible",
     "get_timeline_facts",
     "get_world_constraints",
@@ -43,6 +56,8 @@ const AGENT_TOOL_ALLOWLIST: Record<AgentName, Set<AgentToolName>> = {
   ]),
   Repair: new Set<AgentToolName>([
     "get_novel_context",
+    "get_chapter_by_order",
+    "get_chapter_content_by_order",
     "get_chapter_content",
     "diff_chapter_patch",
     "save_chapter_draft",

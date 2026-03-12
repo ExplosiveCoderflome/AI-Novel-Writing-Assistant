@@ -127,6 +127,21 @@ export default function SettingsPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>模型路由</CardTitle>
+          <CardDescription>把不同写作角色交给不同模型，建议在独立页面集中管理。</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-between gap-3">
+          <div className="text-sm text-muted-foreground">
+            现在模型路由已经独立成管理台，支持按角色单独配置服务商和模型下拉选择。
+          </div>
+          <Button asChild>
+            <Link to="/settings/model-routes">进入模型路由管理</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Model Providers</CardTitle>
           <CardDescription>Manage provider API keys, default models, and connectivity tests.</CardDescription>
         </CardHeader>

@@ -1,8 +1,12 @@
-import type { AgentToolErrorCode } from "@ai-novel/shared/types/agent";
-import { getLLM } from "../../llm/factory";
-import { listAgentToolDefinitions } from "../toolRegistry";
+import type {
+  AgentRunStartInput,
+  PlannedAction,
+  StructuredIntent,
+  ToolCall,
+  ToolExecutionContext,
+} from "../types";
 import type { AgentToolError } from "../types";
-import type { AgentRunStartInput, PlannedAction, StructuredIntent, ToolCall, ToolExecutionContext } from "../types";
+import type { AgentToolErrorCode } from "@ai-novel/shared/types/agent";
 
 export interface ToolExecutionResult {
   tool: ToolCall["tool"];
@@ -75,67 +79,44 @@ export function canRetry(errorCode: AgentToolErrorCode): boolean {
 }
 
 export function summarizeOutput(tool: string, output: Record<string, unknown>): string {
-  const truncateText = (value: string, max = 240): string => {
-    const normalized = value.replace(/\s+/g, " ").trim();
-    if (normalized.length <= max) {
-      return normalized;
-    }
-    return `${normalized.slice(0, max)}…`;
-  };
   if (typeof output.summary === "string" && output.summary.trim()) {
     return output.summary;
   }
   if (tool === "get_novel_context") {
     const title = typeof output.title === "string" ? output.title.trim() : "";
     const chapterCount = typeof output.chapterCount === "number" ? output.chapterCount : null;
-    const completedChapterCount = typeof output.completedChapterCount === "number" ? output.completedChapterCount : null;
-    const latestCompletedChapterOrder = typeof output.latestCompletedChapterOrder === "number"
-      ? output.latestCompletedChapterOrder
-      : null;
-    const chapterSummary = Array.isArray(output.chapterSummary) ? output.chapterSummary : [];
-    const parts: string[] = [];
-    if (title) {
-      let titleLine = chapterCount !== null ? `当前小说标题：${title}（章节数 ${chapterCount}）` : `当前小说标题：${title}`;
-      if (completedChapterCount !== null) {
-        titleLine += `，已完成 ${completedChapterCount} 章`;
-        if (latestCompletedChapterOrder !== null) {
-          titleLine += `，最近完成到第${latestCompletedChapterOrder}章`;
-        }
-      }
-      parts.push(titleLine);
-    }
-    for (const ch of chapterSummary) {
-      if (isRecord(ch) && typeof ch.order === "number" && (typeof ch.title === "string" || typeof ch.excerpt === "string")) {
-        const excerpt = typeof ch.excerpt === "string" && ch.excerpt.trim().length > 0 ? ch.excerpt : "";
-        if (excerpt) {
-          parts.push(`第${ch.order}章 ${String(ch.title ?? "").trim() || "（无标题）"}：${truncateText(excerpt, 400)}`);
-        }
-      }
-    }
-    if (parts.length > 0) return parts.join("\n");
-    return "已读取小说上下文。";
+    return title
+      ? `${title}${chapterCount != null ? `（共 ${chapterCount} 章）` : ""}`
+      : "已读取小说总览。";
   }
-  if (tool === "get_chapter_content") {
+  if (tool === "list_chapters") {
+    const items = Array.isArray(output.items) ? output.items : [];
+    return `已读取 ${items.length} 个章节元信息。`;
+  }
+  if (tool === "get_chapter_by_order" || tool === "get_chapter_content_by_order" || tool === "get_chapter_content") {
     const order = typeof output.order === "number" ? output.order : null;
     const title = typeof output.title === "string" ? output.title.trim() : "";
-    const content = typeof output.content === "string" ? output.content : "";
-    const label = order != null
-      ? `第${order}章${title ? `《${title}》` : ""}`
-      : title || "章节";
-    return `${label}：${truncateText(content, 500) || "正文为空。"}`;
+    return order != null ? `已读取第${order}章${title ? `《${title}》` : ""}。` : "已读取章节内容。";
+  }
+  if (tool === "summarize_chapter_range") {
+    const start = typeof output.startOrder === "number" ? output.startOrder : null;
+    const end = typeof output.endOrder === "number" ? output.endOrder : null;
+    return start != null && end != null
+      ? `已总结第${start}到第${end}章。`
+      : "已完成章节范围总结。";
   }
   if (tool === "search_knowledge") {
     const hitCount = typeof output.hitCount === "number" ? output.hitCount : 0;
     return `命中 ${hitCount} 条知识片段。`;
   }
-  if (tool === "queue_pipeline_run") {
-    return `流水线任务已处理：${String(output.jobId ?? output.status ?? "")}`;
-  }
   if (tool === "preview_pipeline_run") {
-    return `流水线预览章节数：${String(output.chapterCount ?? 0)}`;
+    return `已预览 ${String(output.chapterCount ?? 0)} 个章节。`;
+  }
+  if (tool === "queue_pipeline_run") {
+    return `流水线任务已处理：${String(output.jobId ?? output.status ?? "unknown")}`;
   }
   if (tool === "apply_chapter_patch" || tool === "save_chapter_draft") {
-    return `章节处理完成，字数 ${String(output.contentLength ?? 0)}。`;
+    return `章节写入已处理，字数 ${String(output.contentLength ?? 0)}。`;
   }
   return `${tool} 执行完成。`;
 }
@@ -167,10 +148,7 @@ function isWriteTool(tool: ToolCall["tool"]): boolean {
 }
 
 export function shouldUseDryRunPreview(toolCall: ToolCall): boolean {
-  if (!isWriteTool(toolCall.tool)) {
-    return false;
-  }
-  return toolCall.input.dryRun !== true;
+  return isWriteTool(toolCall.tool) && toolCall.input.dryRun !== true;
 }
 
 export function normalizeAgent(value: unknown): PlannedAction["agent"] {
@@ -178,6 +156,16 @@ export function normalizeAgent(value: unknown): PlannedAction["agent"] {
     return value;
   }
   return "Planner";
+}
+
+function isStructuredIntent(value: unknown): value is StructuredIntent {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return typeof value.goal === "string"
+    && typeof value.intent === "string"
+    && typeof value.confidence === "number"
+    && isRecord(value.chapterSelectors);
 }
 
 export function parseApprovalPayload(payloadJson: string | null | undefined): SerializedContinuationPayload | null {
@@ -291,9 +279,8 @@ export function buildAlternativePathFromRejectedApproval(
 
 export function parseRunMetadata(metadataJson: string | null | undefined): RunMetadata {
   const raw = asObject(metadataJson);
-  const contextMode = raw.contextMode === "novel" ? "novel" : "global";
   const metadata: RunMetadata = {
-    contextMode,
+    contextMode: raw.contextMode === "novel" ? "novel" : "global",
   };
   if (typeof raw.provider === "string") {
     metadata.provider = raw.provider as AgentRunStartInput["provider"];
@@ -325,247 +312,4 @@ export function parseRunMetadata(metadataJson: string | null | undefined): RunMe
     metadata.plannerIntent = raw.plannerIntent;
   }
   return metadata;
-}
-
-function truncateText(value: string, max = 300): string {
-  const normalized = value.replace(/\s+/g, " ").trim();
-  if (!normalized) {
-    return "";
-  }
-  return normalized.length > max ? `${normalized.slice(0, max)}…` : normalized;
-}
-
-function getSuccessfulOutputs(results: ToolExecutionResult[], tool: ToolCall["tool"]): Record<string, unknown>[] {
-  return results
-    .filter((item) => item.success && item.tool === tool && item.output)
-    .map((item) => item.output as Record<string, unknown>);
-}
-
-function composeChapterAnswerFromOutputs(results: ToolExecutionResult[]): string | null {
-  const chapterOutputs = getSuccessfulOutputs(results, "get_chapter_content")
-    .filter((item) => typeof item.order === "number")
-    .sort((left, right) => Number(left.order) - Number(right.order));
-  if (chapterOutputs.length > 0) {
-    return chapterOutputs
-      .map((item) => {
-        const order = Number(item.order);
-        const title = typeof item.title === "string" ? item.title.trim() : "";
-        const content = typeof item.content === "string" ? item.content : "";
-        const heading = `第${order}章${title ? `《${title}》` : ""}`;
-        const excerpt = truncateText(content, 320);
-        return `${heading}：${excerpt || "正文为空。"}`;
-      })
-      .join("\n\n");
-  }
-
-  const contextOutputs = getSuccessfulOutputs(results, "get_novel_context");
-  for (const item of contextOutputs) {
-    const chapterSummary = Array.isArray(item.chapterSummary) ? item.chapterSummary : [];
-    const chapterLines = chapterSummary
-      .filter((entry) => isRecord(entry) && typeof entry.order === "number")
-      .sort((left, right) => Number(left.order) - Number(right.order))
-      .map((entry) => {
-        const order = Number(entry.order);
-        const title = typeof entry.title === "string" ? entry.title.trim() : "";
-        const excerpt = typeof entry.excerpt === "string" ? truncateText(entry.excerpt, 320) : "";
-        return `第${order}章${title ? `《${title}》` : ""}：${excerpt || "暂无摘要。"}`
-      });
-    if (chapterLines.length > 0) {
-      return chapterLines.join("\n\n");
-    }
-  }
-  return null;
-}
-
-function composePipelineAnswer(results: ToolExecutionResult[], waitingForApproval: boolean): string | null {
-  const queueResult = getSuccessfulOutputs(results, "queue_pipeline_run")[0];
-  const previewResult = getSuccessfulOutputs(results, "preview_pipeline_run")[0];
-  if (waitingForApproval && previewResult) {
-    const start = typeof previewResult.startOrder === "number" ? previewResult.startOrder : null;
-    const end = typeof previewResult.endOrder === "number" ? previewResult.endOrder : null;
-    if (start != null && end != null) {
-      return start === end
-        ? `已完成第${start}章的执行预览，当前为高影响写入，等待审批后继续。`
-        : `已完成第${start}到第${end}章的执行预览，当前为高影响写入，等待审批后继续。`;
-    }
-  }
-  if (queueResult) {
-    const start = typeof queueResult.startOrder === "number" ? queueResult.startOrder : null;
-    const end = typeof queueResult.endOrder === "number" ? queueResult.endOrder : null;
-    const jobId = typeof queueResult.jobId === "string" ? queueResult.jobId : "";
-    if (start != null && end != null) {
-      const scope = start === end ? `第${start}章` : `第${start}到第${end}章`;
-      return `已创建 ${scope} 的写作流水线任务${jobId ? `（任务 ${jobId}）` : ""}。`;
-    }
-  }
-  return null;
-}
-
-function composeProgressAnswer(results: ToolExecutionResult[]): string | null {
-  const context = getSuccessfulOutputs(results, "get_novel_context")[0];
-  if (!context) {
-    return null;
-  }
-  const completedChapterCount = typeof context.completedChapterCount === "number"
-    ? context.completedChapterCount
-    : null;
-  const chapterCount = typeof context.chapterCount === "number" ? context.chapterCount : null;
-  const latestCompletedChapterOrder = typeof context.latestCompletedChapterOrder === "number"
-    ? context.latestCompletedChapterOrder
-    : null;
-  if (completedChapterCount == null) {
-    return null;
-  }
-  const parts = [
-    chapterCount != null
-      ? `当前实际已写完 ${completedChapterCount} / ${chapterCount} 章。`
-      : `当前实际已写完 ${completedChapterCount} 章。`,
-  ];
-  if (latestCompletedChapterOrder != null) {
-    parts.push(`最近完成到第${latestCompletedChapterOrder}章。`);
-  }
-  if (completedChapterCount === 0) {
-    parts.push("当前还没有检测到已写入正文的章节内容。");
-  }
-  return parts.join("");
-}
-
-function buildGroundingFacts(results: ToolExecutionResult[]): string {
-  const facts = results.map((item) => ({
-    tool: item.tool,
-    success: item.success,
-    summary: item.summary,
-    output: item.output
-      ? Object.fromEntries(
-        Object.entries(item.output).map(([key, value]) => {
-          if (typeof value === "string") {
-            return [key, truncateText(value, 400)];
-          }
-          if (Array.isArray(value)) {
-            return [key, value.slice(0, 6)];
-          }
-          return [key, value];
-        }),
-      )
-      : undefined,
-  }));
-  return safeJson(facts);
-}
-
-function extractTitleFromSummary(summary: string): string | null {
-  const lines = summary.split("\n");
-  for (const line of lines) {
-    const match = line.match(/当前小说标题[:：]\s*([^\n（(]+)/);
-    if (!match?.[1]) {
-      continue;
-    }
-    const title = match[1].trim();
-    if (title) {
-      return title;
-    }
-  }
-  return null;
-}
-
-function isStructuredIntent(value: unknown): value is StructuredIntent {
-  if (!isRecord(value)) {
-    return false;
-  }
-  if (typeof value.goal !== "string" || typeof value.intent !== "string" || typeof value.confidence !== "number") {
-    return false;
-  }
-  return isRecord(value.chapterSelectors);
-}
-
-export async function composeAssistantMessage(
-  goal: string,
-  summary: string,
-  results: ToolExecutionResult[],
-  waitingForApproval: boolean,
-  context: Omit<ToolExecutionContext, "runId" | "agentName">,
-  structuredIntent?: StructuredIntent,
-): Promise<string> {
-  if (structuredIntent?.intent === "query_novel_title") {
-    const title = getSuccessfulOutputs(results, "get_novel_context")
-      .map((item) => (typeof item.title === "string" ? item.title.trim() : ""))
-      .find(Boolean)
-      ?? extractTitleFromSummary(summary);
-    if (title) {
-      return /^《.+》$/.test(title) ? title : `《${title}》`;
-    }
-    return "当前运行没有拿到小说标题，请确认已在 Novel 模式选中小说后重试。";
-  }
-
-  if (structuredIntent?.intent === "query_progress") {
-    const progressAnswer = composeProgressAnswer(results);
-    if (progressAnswer) {
-      return progressAnswer;
-    }
-    return "当前没有获取到小说写作进度信息，请重试。";
-  }
-
-  if (structuredIntent?.intent === "query_chapter_content") {
-    const chapterAnswer = composeChapterAnswerFromOutputs(results);
-    if (chapterAnswer) {
-      return chapterAnswer;
-    }
-    return "当前没有获取到对应章节的正文或摘要，请确认章节范围后重试。";
-  }
-
-  const pipelineAnswer = composePipelineAnswer(results, waitingForApproval);
-  if (pipelineAnswer) {
-    return pipelineAnswer;
-  }
-
-  if (waitingForApproval) {
-    return summary;
-  }
-
-  try {
-    const llm = await getLLM(context.provider ?? "deepseek", {
-      model: context.model,
-      temperature: 0.3,
-      maxTokens: context.maxTokens,
-    });
-    const toolList = listAgentToolDefinitions()
-      .map((item) => `- ${item.name}: ${item.description}`)
-      .join("\n");
-    const result = await llm.invoke([
-      {
-        role: "system",
-        content: `你是小说创作代理总控。请根据执行摘要生成简洁回复。
-硬约束：
-1) 只能使用执行摘要里明确出现的事实，禁止编造。
-2) 摘要里没有的信息必须明确说“未获取到”。
-3) 如果工具结果已经提供标题、章节正文、任务状态等字段，必须优先使用这些字段。
-4) 当前解析出的意图只用于约束回答方向，不能据此补充不存在的事实。
-可用工具：
-${toolList}`,
-      },
-      {
-        role: "user",
-        content: `用户目标：${goal}\n解析意图：${safeJson(structuredIntent ?? { intent: "unknown" })}\n执行摘要：\n${summary}\n工具事实：\n${buildGroundingFacts(results)}\n请返回简洁中文结果。`,
-      },
-    ]);
-    if (typeof result.content === "string") {
-      return result.content.trim();
-    }
-    if (Array.isArray(result.content)) {
-      return result.content
-        .map((item) => {
-          if (typeof item === "string") {
-            return item;
-          }
-          if (typeof item === "object" && item && "text" in item && typeof item.text === "string") {
-            return item.text;
-          }
-          return "";
-        })
-        .join("")
-        .trim();
-    }
-    return summary;
-  } catch {
-    return summary;
-  }
 }

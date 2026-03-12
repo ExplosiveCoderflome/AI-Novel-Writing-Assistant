@@ -1,19 +1,36 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { ModelRouteTaskType } from "@ai-novel/shared/types/novel";
 import { prisma } from "../db/prisma";
 import { PROVIDERS } from "./providers";
 
 export type TaskType =
+  | ModelRouteTaskType
   | "outline_planning"
   | "chapter_drafting"
   | "chapter_review"
   | "chapter_repair"
   | "summary_generation"
-  | "fact_extraction"
-  | "consistency_check"
-  | "character_dialogue"
-  | "style_analysis"
   | "chat"
   | "default";
+
+const TASK_TYPE_ALIASES: Partial<Record<TaskType, ModelRouteTaskType>> = {
+  outline_planning: "planner",
+  chapter_drafting: "writer",
+  chapter_review: "review",
+  chapter_repair: "repair",
+  summary_generation: "summary",
+  fact_extraction: "fact_extraction",
+};
+
+export const MODEL_ROUTE_TASK_TYPES: ModelRouteTaskType[] = [
+  "planner",
+  "writer",
+  "review",
+  "repair",
+  "summary",
+  "fact_extraction",
+  "chat",
+];
 
 export interface ResolvedModel {
   provider: LLMProvider;
@@ -22,32 +39,32 @@ export interface ResolvedModel {
   maxTokens?: number;
 }
 
-const DEFAULT_ROUTES: Record<TaskType, ResolvedModel> = {
-  outline_planning: {
+const DEFAULT_ROUTES: Record<ModelRouteTaskType | "default", ResolvedModel> = {
+  planner: {
     provider: "deepseek",
     model: PROVIDERS.deepseek.defaultModel,
     temperature: 0.3,
     maxTokens: 4096,
   },
-  chapter_drafting: {
+  writer: {
     provider: "deepseek",
     model: PROVIDERS.deepseek.defaultModel,
     temperature: 0.8,
     maxTokens: 4096,
   },
-  chapter_review: {
+  review: {
     provider: "deepseek",
     model: PROVIDERS.deepseek.defaultModel,
     temperature: 0.2,
     maxTokens: 2048,
   },
-  chapter_repair: {
+  repair: {
     provider: "deepseek",
     model: PROVIDERS.deepseek.defaultModel,
     temperature: 0.4,
     maxTokens: 4096,
   },
-  summary_generation: {
+  summary: {
     provider: "deepseek",
     model: PROVIDERS.deepseek.defaultModel,
     temperature: 0.2,
@@ -57,24 +74,6 @@ const DEFAULT_ROUTES: Record<TaskType, ResolvedModel> = {
     provider: "deepseek",
     model: PROVIDERS.deepseek.defaultModel,
     temperature: 0.2,
-    maxTokens: 2048,
-  },
-  consistency_check: {
-    provider: "deepseek",
-    model: PROVIDERS.deepseek.defaultModel,
-    temperature: 0.2,
-    maxTokens: 2048,
-  },
-  character_dialogue: {
-    provider: "deepseek",
-    model: PROVIDERS.deepseek.defaultModel,
-    temperature: 0.7,
-    maxTokens: 2048,
-  },
-  style_analysis: {
-    provider: "deepseek",
-    model: PROVIDERS.deepseek.defaultModel,
-    temperature: 0.4,
     maxTokens: 2048,
   },
   chat: {
@@ -100,15 +99,30 @@ function toLLMProvider(value: string): LLMProvider {
   return "deepseek";
 }
 
+function normalizeTaskType(taskType: TaskType): ModelRouteTaskType | "default" {
+  const aliased = TASK_TYPE_ALIASES[taskType];
+  if (aliased) {
+    return aliased;
+  }
+  if (taskType === "default") {
+    return "default";
+  }
+  if (MODEL_ROUTE_TASK_TYPES.includes(taskType as ModelRouteTaskType)) {
+    return taskType as ModelRouteTaskType;
+  }
+  return "default";
+}
+
 export async function resolveModel(
   taskType: TaskType,
   userOverride?: { provider?: LLMProvider; model?: string; temperature?: number; maxTokens?: number },
 ): Promise<ResolvedModel> {
-  const base = DEFAULT_ROUTES[taskType] ?? DEFAULT_ROUTES.default;
+  const normalizedTaskType = normalizeTaskType(taskType);
+  const base = DEFAULT_ROUTES[normalizedTaskType] ?? DEFAULT_ROUTES.default;
 
   try {
     const row = await prisma.modelRouteConfig.findUnique({
-      where: { taskType },
+      where: { taskType: normalizedTaskType },
     });
     if (row) {
       const resolved: ResolvedModel = {
@@ -159,10 +173,11 @@ export async function upsertModelRouteConfig(
   taskType: string,
   data: { provider: string; model: string; temperature?: number; maxTokens?: number | null },
 ): Promise<void> {
+  const normalizedTaskType = normalizeTaskType(taskType as TaskType);
   await prisma.modelRouteConfig.upsert({
-    where: { taskType },
+    where: { taskType: normalizedTaskType },
     create: {
-      taskType,
+      taskType: normalizedTaskType,
       provider: data.provider,
       model: data.model,
       temperature: data.temperature ?? 0.7,

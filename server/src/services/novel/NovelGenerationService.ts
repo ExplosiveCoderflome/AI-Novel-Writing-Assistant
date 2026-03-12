@@ -6,7 +6,9 @@ export class NovelGenerationService extends NovelArtifactService {
     return this.core.createOutlineStream(...args);
   }
 
-  createStructuredOutlineStream(...args: Parameters<NovelCoreService["createStructuredOutlineStream"]>) {
+  async createStructuredOutlineStream(...args: Parameters<NovelCoreService["createStructuredOutlineStream"]>) {
+    const [novelId] = args;
+    await this.core.createNovelSnapshot(novelId, "manual", `before-structured-outline-${Date.now()}`);
     return this.core.createStructuredOutlineStream(...args);
   }
 

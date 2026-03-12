@@ -27,6 +27,15 @@ export type PipelineRepairMode =
   | "character_only"
   | "ending_only";
 
+export type ModelRouteTaskType =
+  | "planner"
+  | "writer"
+  | "review"
+  | "repair"
+  | "summary"
+  | "fact_extraction"
+  | "chat";
+
 export interface Novel {
   id: string;
   title: string;
@@ -284,4 +293,35 @@ export interface StorylineDiff {
   changedLines: number;
   affectedCharacters: number;
   affectedChapters: number;
+}
+
+export interface CreativeDecision {
+  id: string;
+  novelId: string;
+  chapterId?: string | null;
+  category: string;
+  content: string;
+  importance: string;
+  expiresAt?: number | null;
+  sourceType?: string | null;
+  sourceRefId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NovelSnapshot {
+  id: string;
+  novelId: string;
+  label?: string | null;
+  snapshotData: string;
+  triggerType: "manual" | "auto_milestone" | "before_pipeline";
+  createdAt: string;
+}
+
+export interface ModelRouteConfig {
+  taskType: ModelRouteTaskType;
+  provider: string;
+  model: string;
+  temperature: number;
+  maxTokens?: number | null;
 }

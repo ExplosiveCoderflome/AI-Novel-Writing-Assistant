@@ -6,6 +6,10 @@ export type AgentName = "Planner" | "Writer" | "Reviewer" | "Continuity" | "Repa
 
 export type AgentToolName =
   | "get_novel_context"
+  | "list_chapters"
+  | "get_chapter_by_order"
+  | "get_chapter_content_by_order"
+  | "summarize_chapter_range"
   | "get_story_bible"
   | "get_chapter_content"
   | "get_character_states"
@@ -151,6 +155,7 @@ export interface PlannerInput {
   temperature?: number;
   maxTokens?: number;
   currentRunStatus?: AgentRun["status"];
+  currentStep?: string;
 }
 
 export interface PlannerResult {

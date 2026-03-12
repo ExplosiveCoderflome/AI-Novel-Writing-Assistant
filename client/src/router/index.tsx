@@ -9,6 +9,7 @@ import KnowledgePage from "@/pages/knowledge/KnowledgePage";
 import NovelChapterEdit from "@/pages/novels/NovelChapterEdit";
 import NovelEdit from "@/pages/novels/NovelEdit";
 import NovelList from "@/pages/novels/NovelList";
+import ModelRoutesPage from "@/pages/settings/ModelRoutesPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
 import TaskCenterPage from "@/pages/tasks/TaskCenterPage";
 import WorldGenerator from "@/pages/worlds/WorldGenerator";
@@ -30,6 +31,7 @@ const routes: RouteObject[] = [
       { path: "book-analysis", element: <BookAnalysisPage /> },
       { path: "tasks", element: <TaskCenterPage /> },
       { path: "knowledge", element: <KnowledgePage /> },
+      { path: "settings/model-routes", element: <ModelRoutesPage /> },
       { path: "settings", element: <SettingsPage /> },
       { path: "worlds", element: <WorldList /> },
       {

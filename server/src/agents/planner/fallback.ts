@@ -52,6 +52,21 @@ export function inferFallbackIntent(input: PlannerInput): StructuredIntent {
     };
   }
 
+  if (/重写|改写|重做|重生成/.test(goal) && /章/.test(goal)) {
+    return {
+      goal,
+      intent: "rewrite_chapter",
+      confidence: 0.4,
+      requiresNovelContext: true,
+      chapterSelectors: {
+        chapterId: chapterId ?? undefined,
+        orders: orders.length > 0 ? orders : singleOrder != null ? [singleOrder] : undefined,
+        range: range ?? undefined,
+      },
+      content,
+    };
+  }
+
   if (/章/.test(goal) && /(写|书写|生成|创作|补全|续写)/.test(goal)) {
     return {
       goal,

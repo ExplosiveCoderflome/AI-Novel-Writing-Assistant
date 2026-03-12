@@ -8,7 +8,7 @@ import { authMiddleware } from "../middleware/auth";
 import { AppError } from "../middleware/errorHandler";
 import { validate } from "../middleware/validate";
 import { getLLM } from "../llm/factory";
-import { listModelRouteConfigs, upsertModelRouteConfig } from "../llm/modelRouter";
+import { listModelRouteConfigs, MODEL_ROUTE_TASK_TYPES, upsertModelRouteConfig } from "../llm/modelRouter";
 import { PROVIDERS } from "../llm/providers";
 import { getProviderModels } from "../llm/modelCatalog";
 
@@ -48,7 +48,10 @@ router.get("/providers", async (_req, res, next) => {
 
 router.get("/model-routes", async (_req, res, next) => {
   try {
-    const data = await listModelRouteConfigs();
+    const data = {
+      taskTypes: MODEL_ROUTE_TASK_TYPES,
+      routes: await listModelRouteConfigs(),
+    };
     res.status(200).json({
       success: true,
       data,

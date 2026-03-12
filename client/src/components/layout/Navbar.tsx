@@ -15,7 +15,7 @@ export default function Navbar() {
       </div>
       {isHome ? (
         <Button asChild size="sm" variant="outline">
-          <Link to="/settings">模型设置</Link>
+          <Link to="/settings/model-routes">模型设置</Link>
         </Button>
       ) : (
         <LLMSelector />

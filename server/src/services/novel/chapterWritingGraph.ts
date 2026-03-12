@@ -112,7 +112,7 @@ export class ChapterWritingGraph {
     const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.8,
-      taskType: options.taskType ?? "chapter_drafting",
+      taskType: options.taskType ?? "writer",
     });
     const context = await this.deps.buildContextText(novelId, chapter.order);
     const openingHint = await this.deps.buildOpeningConstraintHint(novelId, chapter.order);
@@ -229,7 +229,7 @@ ${continuationPack.enabled ? continuationPack.humanBlock : ""}`,
     const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.8,
-      taskType: options.taskType ?? "chapter_repair",
+      taskType: options.taskType ?? "repair",
     });
     const repaired = await llm.invoke([
       new SystemMessage("你是网文修文编辑，请根据问题清单修复正文"),
@@ -258,7 +258,7 @@ ${JSON.stringify(issues, null, 2)}`,
     const llm = await getLLM(input.options.provider ?? "deepseek", {
       model: input.options.model,
       temperature: input.options.temperature ?? 0.8,
-      taskType: input.options.taskType ?? "chapter_drafting",
+      taskType: input.options.taskType ?? "writer",
     });
     const stream = await llm.stream([
       new SystemMessage(
