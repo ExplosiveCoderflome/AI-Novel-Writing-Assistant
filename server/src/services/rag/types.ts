@@ -73,4 +73,8 @@ export interface RagSearchOptions {
   vectorCandidates?: number;
   keywordCandidates?: number;
   finalTopK?: number;
+  /** 当前章节序号，用于叙事距离衰减：距离越近的章节权重越高 */
+  currentChapterOrder?: number;
+  /** 距离衰减系数，默认 0.05，越大衰减越快 */
+  narrativeDecayRate?: number;
 }

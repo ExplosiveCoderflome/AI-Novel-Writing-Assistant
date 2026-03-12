@@ -1,9 +1,10 @@
-﻿import type { BaseMessageChunk } from "@langchain/core/messages";
+import type { BaseMessageChunk } from "@langchain/core/messages";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import { prisma } from "../../db/prisma";
+import { agentRuntime } from "../../agents";
 import { getLLM } from "../../llm/factory";
 import { ragServices } from "../rag";
 import { getRagQueryForChapter, novelReferenceService } from "./NovelReferenceService";
@@ -17,6 +18,7 @@ import {
   toOutlineChapterRows,
 } from "./structuredOutline";
 import type { RagOwnerType } from "../rag/types";
+import { novelEventBus } from "../../events";
 
 interface PaginationInput {
   page: number;
@@ -1570,7 +1572,16 @@ ${rawContent}`,
           .map((c) => `- ${c.name} (${c.role})${c.personality ? `: ${c.personality.slice(0, 100)}` : ""}`)
           .join("\n")
       : "none";
-    return this.chapterWritingGraph.createChapterStream({
+
+    let traceRunId: string | null = null;
+    try {
+      traceRunId = await agentRuntime.createChapterGenRun(novelId, chapterId, chapter.order);
+    } catch {
+      // 轨迹记录失败不影响生成
+    }
+
+    const startMs = Date.now();
+    const result = await this.chapterWritingGraph.createChapterStream({
       novelId,
       novelTitle: novel.title,
       chapter: {
@@ -1583,6 +1594,23 @@ ${rawContent}`,
       characterLines: charactersText,
       options,
     });
+
+    const originalOnDone = result.onDone;
+    result.onDone = async (fullContent: string) => {
+      await originalOnDone(fullContent);
+      if (traceRunId) {
+        try {
+          await agentRuntime.finishChapterGenRun(
+            traceRunId,
+            `章节草稿已生成，约 ${(fullContent ?? "").length} 字`,
+            Date.now() - startMs,
+          );
+        } catch {
+          // ignore
+        }
+      }
+    };
+    return result;
   }
 
   async generateTitles(
@@ -2096,7 +2124,7 @@ ${axiomsText}
   }
 
   private async buildContextText(novelId: string, chapterOrder: number): Promise<string> {
-    const [bible, summaries, facts, novel, styleReference, characters, recentChapters] = await Promise.all([
+    const [bible, summaries, facts, novel, styleReference, characters, recentChapters, decisions] = await Promise.all([
       prisma.novelBible.findUnique({ where: { novelId } }),
       prisma.chapterSummary.findMany({
         where: {
@@ -2127,6 +2155,14 @@ ${axiomsText}
         orderBy: { order: "desc" },
         take: 2,
         select: { order: true, title: true, content: true },
+      }),
+      prisma.creativeDecision.findMany({
+        where: {
+          novelId,
+          OR: [{ expiresAt: null }, { expiresAt: { gte: chapterOrder } }],
+        },
+        orderBy: [{ importance: "asc" }, { createdAt: "desc" }],
+        take: 20,
       }),
     ]);
 
@@ -2175,6 +2211,7 @@ ${axiomsText}
     try {
       ragText = await ragServices.hybridRetrievalService.buildContextBlock(ragQuery, {
         novelId,
+        currentChapterOrder: chapterOrder,
       });
     } catch {
       ragText = "";
@@ -2182,6 +2219,10 @@ ${axiomsText}
 
     const styleBlock = styleReference.trim()
       ? `文风参考（来自拆书分析）：\n${styleReference}`
+      : "";
+
+    const decisionsBlock = decisions.length > 0
+      ? `创作决策（请遵守）：\n${decisions.map((d) => `[${d.category}${d.importance === "critical" ? " 重要" : ""}] ${d.content}`).join("\n")}`
       : "";
 
     return [
@@ -2194,6 +2235,7 @@ ${axiomsText}
       recentChapterContentText,
       ragText ? `语义检索补充：\n${ragText}` : "",
       styleBlock,
+      decisionsBlock,
     ]
       .filter(Boolean)
       .join("\n\n");
@@ -2364,6 +2406,17 @@ Rewrite full chapter. Keep the same core events but change the opening style sig
     });
     for (const fact of factRows) {
       this.queueRagUpsert("consistency_fact", fact.id);
+    }
+
+    const chapterRow = await prisma.chapter.findFirst({
+      where: { id: chapterId, novelId },
+      select: { order: true },
+    });
+    if (chapterRow) {
+      void novelEventBus.emit({
+        type: "chapter:drafted",
+        payload: { novelId, chapterId, chapterOrder: chapterRow.order },
+      }).catch(() => {});
     }
   }
 
@@ -2729,6 +2782,71 @@ ${ragContext || ""}`,
         message: error instanceof Error ? error.message : "流水线执行失败",
       });
     }
+  }
+
+  async createNovelSnapshot(novelId: string, triggerType: "manual" | "auto_milestone" | "before_pipeline", label?: string) {
+    const novel = await prisma.novel.findUnique({
+      where: { id: novelId },
+      include: {
+        chapters: { orderBy: { order: "asc" }, select: { id: true, title: true, order: true, content: true } },
+      },
+    });
+    if (!novel) {
+      throw new Error("Novel not found.");
+    }
+    const snapshotData = JSON.stringify({
+      outline: novel.outline,
+      structuredOutline: novel.structuredOutline,
+      chapters: novel.chapters.map((c) => ({ id: c.id, title: c.title, order: c.order, content: c.content })),
+    });
+    return prisma.novelSnapshot.create({
+      data: { novelId, label: label ?? null, snapshotData, triggerType },
+    });
+  }
+
+  async listNovelSnapshots(novelId: string) {
+    return prisma.novelSnapshot.findMany({
+      where: { novelId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+  }
+
+  async restoreFromSnapshot(novelId: string, snapshotId: string) {
+    const snapshot = await prisma.novelSnapshot.findFirst({
+      where: { id: snapshotId, novelId },
+    });
+    if (!snapshot) {
+      throw new Error("Snapshot not found.");
+    }
+    const data = JSON.parse(snapshot.snapshotData) as {
+      outline?: string | null;
+      structuredOutline?: string | null;
+      chapters?: Array<{ id: string; title?: string; order?: number; content?: string | null }>;
+    };
+    await this.createNovelSnapshot(novelId, "manual", `before-restore-${snapshotId.slice(0, 8)}`);
+    await prisma.novel.update({
+      where: { id: novelId },
+      data: {
+        outline: data.outline ?? undefined,
+        structuredOutline: data.structuredOutline ?? undefined,
+      },
+    });
+    if (Array.isArray(data.chapters) && data.chapters.length > 0) {
+      for (const ch of data.chapters) {
+        if (ch.id) {
+          await prisma.chapter.updateMany({
+            where: { id: ch.id, novelId },
+            data: {
+              ...(ch.title != null && { title: ch.title }),
+              ...(ch.order != null && { order: ch.order }),
+              ...(ch.content != null && { content: ch.content }),
+            },
+          });
+        }
+      }
+    }
+    return prisma.novel.findUnique({ where: { id: novelId } });
   }
 }
 

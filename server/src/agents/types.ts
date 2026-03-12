@@ -20,6 +20,42 @@ export type AgentToolName =
 
 export type AgentContextMode = "global" | "novel";
 
+export type AgentIntentName =
+  | "query_novel_title"
+  | "query_chapter_content"
+  | "query_progress"
+  | "write_chapter"
+  | "rewrite_chapter"
+  | "save_chapter_draft"
+  | "start_pipeline"
+  | "inspect_characters"
+  | "inspect_timeline"
+  | "inspect_world"
+  | "search_knowledge"
+  | "general_chat"
+  | "unknown";
+
+export interface StructuredIntent {
+  goal: string;
+  intent: AgentIntentName;
+  confidence: number;
+  requiresNovelContext: boolean;
+  chapterSelectors: {
+    chapterId?: string;
+    orders?: number[];
+    range?: {
+      startOrder: number;
+      endOrder: number;
+    };
+    relative?: {
+      type: "first_n";
+      count: number;
+    };
+  };
+  content?: string;
+  note?: string;
+}
+
 export interface AgentRunStartInput {
   runId?: string;
   sessionId: string;
@@ -93,6 +129,7 @@ export interface ToolCall {
   input: Record<string, unknown>;
   reason: string;
   dryRun?: boolean;
+  approvalSatisfied?: boolean;
 }
 
 export interface PlannedAction {
@@ -117,6 +154,7 @@ export interface PlannerInput {
 }
 
 export interface PlannerResult {
+  structuredIntent: StructuredIntent;
   plan: AgentPlan;
   actions: PlannedAction[];
   source: "llm" | "fallback";

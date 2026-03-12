@@ -74,4 +74,16 @@ export class NovelContextService {
   checkCharacterAgainstWorld(...args: Parameters<NovelCoreService["checkCharacterAgainstWorld"]>) {
     return this.core.checkCharacterAgainstWorld(...args);
   }
+
+  createNovelSnapshot(...args: Parameters<NovelCoreService["createNovelSnapshot"]>) {
+    return this.core.createNovelSnapshot(...args);
+  }
+
+  listNovelSnapshots(...args: Parameters<NovelCoreService["listNovelSnapshots"]>) {
+    return this.core.listNovelSnapshots(...args);
+  }
+
+  restoreFromSnapshot(...args: Parameters<NovelCoreService["restoreFromSnapshot"]>) {
+    return this.core.restoreFromSnapshot(...args);
+  }
 }

@@ -6,7 +6,7 @@ import LLMSelector from "@/components/common/LLMSelector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { queryKeys } from "@/api/queryKeys";
-import { getNovelDetail, updateNovelChapter } from "@/api/novel";
+import { getNovelDetail, getChapterTraces, updateNovelChapter } from "@/api/novel";
 import { useSSE } from "@/hooks/useSSE";
 import { useLLMStore } from "@/store/llmStore";
 
@@ -34,8 +34,18 @@ export default function NovelChapterEdit() {
   const { content, start, abort, isStreaming } = useSSE({
     onDone: (fullContent) => {
       setContentDraft(fullContent);
+      if (id && chapterId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterTraces(id, chapterId) });
+      }
     },
   });
+
+  const { data: tracesResponse } = useQuery({
+    queryKey: queryKeys.novels.chapterTraces(id, chapterId),
+    queryFn: () => getChapterTraces(id!, chapterId!),
+    enabled: Boolean(id && chapterId),
+  });
+  const traces = tracesResponse?.data ?? [];
 
   const saveChapterMutation = useMutation({
     mutationFn: (text: string) =>
@@ -78,6 +88,22 @@ export default function NovelChapterEdit() {
               停止生成
             </Button>
           </div>
+          {traces.length > 0 && (
+            <div className="rounded-md border p-2 text-sm">
+              <div className="mb-1 font-medium text-muted-foreground">生成轨迹</div>
+              <ul className="space-y-1">
+                {traces.slice(0, 5).map((run) => (
+                  <li key={run.id} className="flex items-center justify-between gap-2 text-xs">
+                    <span className="truncate">{run.goal}</span>
+                    <span className="shrink-0 text-muted-foreground">{run.status}</span>
+                    <span className="shrink-0 text-muted-foreground">
+                      {run.createdAt ? new Date(run.createdAt).toLocaleString() : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <StreamOutput content={content} isStreaming={isStreaming} onAbort={abort} />
         </CardContent>
       </Card>

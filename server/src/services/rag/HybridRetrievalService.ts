@@ -71,6 +71,32 @@ export class HybridRetrievalService {
       }));
   }
 
+  /** 叙事距离衰减：与 currentChapterOrder 距离越远的章节 chunk 权重越低 */
+  private applyNarrativeDecay(
+    chunks: RetrievedChunk[],
+    currentChapterOrder: number,
+    decayRate: number,
+  ): RetrievedChunk[] {
+    return chunks.map((chunk) => {
+      let chapterOrder: number | undefined;
+      let importance: string | undefined;
+      if (chunk.metadataJson) {
+        try {
+          const meta = JSON.parse(chunk.metadataJson) as Record<string, unknown>;
+          chapterOrder = typeof meta.chapterOrder === "number" ? meta.chapterOrder : typeof meta.order === "number" ? meta.order : undefined;
+          importance = typeof meta.importance === "string" ? meta.importance : undefined;
+        } catch {
+          // ignore
+        }
+      }
+      if (chapterOrder == null) return chunk;
+      const isCritical = importance === "critical";
+      const distance = Math.abs(currentChapterOrder - chapterOrder);
+      const decayFactor = isCritical ? 1 : Math.exp(-decayRate * distance);
+      return { ...chunk, score: chunk.score * decayFactor };
+    });
+  }
+
   private async keywordSearch(query: string, options: SearchScopeOptions): Promise<RetrievedChunk[]> {
     const terms = toKeywordTerms(query);
     if (terms.length === 0) {
@@ -193,11 +219,22 @@ export class HybridRetrievalService {
       knowledgeScope ? this.keywordSearch(normalizedQuery, knowledgeScope) : Promise.resolve([] as RetrievedChunk[]),
     ]);
 
-    return this.fuseRrf(
+    let fused = this.fuseRrf(
       [...baseVectorRows, ...knowledgeVectorRows],
       [...baseKeywordRows, ...knowledgeKeywordRows],
       finalTopK,
     );
+
+    const currentChapterOrder = options.currentChapterOrder;
+    const decayRate = options.narrativeDecayRate ?? 0.05;
+    if (currentChapterOrder != null && Number.isFinite(currentChapterOrder)) {
+      fused = this.applyNarrativeDecay(fused, currentChapterOrder, decayRate);
+      fused = fused
+        .sort((a, b) => b.score - a.score || a.chunkOrder - b.chunkOrder)
+        .slice(0, finalTopK);
+    }
+
+    return fused;
   }
 
   async buildContextBlock(query: string, options: RagSearchOptions = {}): Promise<string> {

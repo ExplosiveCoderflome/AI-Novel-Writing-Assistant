@@ -1,23 +1,68 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { SSEFrame } from "@ai-novel/shared/types/api";
 import type { AgentStep } from "@ai-novel/shared/types/agent";
 import { useSearchParams } from "react-router-dom";
-import MarkdownViewer from "@/components/common/MarkdownViewer";
-import KnowledgeDocumentPicker from "@/components/knowledge/KnowledgeDocumentPicker";
 import { getAgentRunDetail, replayAgentRunFromStep } from "@/api/agentRuns";
 import { getNovelList } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSSE } from "@/hooks/useSSE";
-import { useChatStore } from "@/store/chatStore";
+import { useChatStore, type ChatMessage } from "@/store/chatStore";
 import { useLLMStore } from "@/store/llmStore";
+import AssistantChatPanel from "@/pages/chat/components/AssistantChatPanel";
+import RuntimeSidebar from "@/pages/chat/components/RuntimeSidebar";
 
 type ChatMode = "standard" | "agent";
 type ContextMode = "global" | "novel";
+type RuntimeEvent = Extract<SSEFrame, {
+  type: "tool_call" | "tool_result" | "approval_required" | "approval_resolved";
+}>;
+type ApprovalRequiredEvent = Extract<SSEFrame, { type: "approval_required" }>;
+type RunStatusEvent = Extract<SSEFrame, { type: "run_status" }>;
 
-function formatEvent(event: Extract<SSEFrame, { type: "tool_call" | "tool_result" | "approval_required" | "approval_resolved" }>): string {
+function toRunStatusLabel(status: string): string {
+  if (status === "queued") return "排队中";
+  if (status === "running") return "运行中";
+  if (status === "waiting_approval") return "待审批";
+  if (status === "succeeded") return "已完成";
+  if (status === "failed") return "失败";
+  if (status === "cancelled") return "已取消";
+  return status;
+}
+
+function toApprovalActionLabel(action: string): string {
+  if (action === "approved") return "已通过";
+  if (action === "rejected") return "已拒绝";
+  return action;
+}
+
+function toStepTypeLabel(stepType: string): string {
+  if (stepType === "planning") return "规划";
+  if (stepType === "tool_call") return "工具调用";
+  if (stepType === "tool_result") return "工具结果";
+  if (stepType === "approval") return "审批";
+  if (stepType === "completion") return "收尾";
+  if (stepType === "analysis") return "分析";
+  if (stepType === "review") return "审校";
+  if (stepType === "repair") return "修复";
+  if (stepType === "writing") return "写作";
+  if (stepType === "context") return "上下文";
+  return stepType;
+}
+
+function toAgentNameLabel(name: string): string {
+  const normalized = name.toLowerCase();
+  if (normalized === "planner") return "规划器";
+  if (normalized === "writer") return "写作器";
+  if (normalized === "reviewer") return "审校器";
+  if (normalized === "continuity") return "连续性检查";
+  if (normalized === "repair") return "修复器";
+  return name;
+}
+
+function formatEvent(event: RuntimeEvent): string {
   if (event.type === "tool_call") {
     return `调用工具 ${event.toolName}: ${event.inputSummary}`;
   }
@@ -27,12 +72,12 @@ function formatEvent(event: Extract<SSEFrame, { type: "tool_call" | "tool_result
   if (event.type === "approval_required") {
     return `等待审批: ${event.summary}`;
   }
-  return `审批结果: ${event.action}${event.note ? ` (${event.note})` : ""}`;
+  return `审批结果: ${toApprovalActionLabel(event.action)}${event.note ? ` (${event.note})` : ""}`;
 }
 
 function safePreview(json: string | null | undefined): string {
   if (!json?.trim()) {
-    return "N/A";
+    return "无";
   }
   try {
     const parsed = JSON.parse(json) as unknown;
@@ -43,7 +88,7 @@ function safePreview(json: string | null | undefined): string {
 }
 
 function stepTitle(step: AgentStep): string {
-  return `${step.agentName}.${step.stepType} · ${step.status}`;
+  return `${toAgentNameLabel(step.agentName)} · ${toStepTypeLabel(step.stepType)} · ${toRunStatusLabel(step.status)}`;
 }
 
 export default function ChatPage() {
@@ -52,7 +97,6 @@ export default function ChatPage() {
   const novelIdFromUrl = searchParams.get("novelId")?.trim() ?? "";
   const llm = useLLMStore();
   const chatStore = useChatStore();
-  const [input, setInput] = useState("");
   const [chatMode, setChatMode] = useState<ChatMode>("standard");
   const [contextMode, setContextMode] = useState<ContextMode>("global");
   const [enableRag, setEnableRag] = useState(true);
@@ -62,12 +106,25 @@ export default function ChatPage() {
   const [approvalNote, setApprovalNote] = useState("");
   const [localError, setLocalError] = useState("");
   const [replayStepId, setReplayStepId] = useState("");
+  const [runtimeEvents, setRuntimeEvents] = useState<RuntimeEvent[]>([]);
+  const [runtimePendingApprovals, setRuntimePendingApprovals] = useState<ApprovalRequiredEvent[]>([]);
+  const [runtimeLatestRun, setRuntimeLatestRun] = useState<RunStatusEvent | null>(null);
+  const [runtimeIsStreaming, setRuntimeIsStreaming] = useState(false);
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const [runtimeResetToken, setRuntimeResetToken] = useState(0);
 
   useEffect(() => {
     if (!chatStore.hydrated) {
       void chatStore.hydrate();
     }
   }, [chatStore]);
+
+  useEffect(() => {
+    if (!chatStore.hydrated || chatStore.currentSessionId || chatStore.sessions.length > 0) {
+      return;
+    }
+    void chatStore.createSession("新对话");
+  }, [chatStore, chatStore.currentSessionId, chatStore.hydrated, chatStore.sessions.length]);
 
   useEffect(() => {
     if (novelIdFromUrl) {
@@ -86,9 +143,9 @@ export default function ChatPage() {
     () => chatStore.sessions.find((session) => session.id === chatStore.currentSessionId),
     [chatStore.currentSessionId, chatStore.sessions],
   );
-  const deferredMessages = useDeferredValue(currentSession?.messages ?? []);
   const runHistoryIds = currentSession?.runIds ?? (currentSession?.latestRunId ? [currentSession.latestRunId] : []);
   const currentRunId = currentSession?.latestRunId ?? runIdFromUrl;
+
   const runDetailQuery = useQuery({
     queryKey: queryKeys.agentRuns.detail(currentRunId || "none"),
     queryFn: () => getAgentRunDetail(currentRunId),
@@ -100,16 +157,22 @@ export default function ChatPage() {
   });
   const persistedRun = runDetailQuery.data?.data;
   const replaySteps = persistedRun?.steps ?? [];
+  const replayableSteps = useMemo(() => (
+    replaySteps.filter((step) => replaySteps.some((candidate) => (
+      candidate.seq > step.seq && candidate.stepType === "tool_call"
+    )))
+  ), [replaySteps]);
   const effectiveReplayStepId = useMemo(() => {
-    if (replayStepId && replaySteps.some((step) => step.id === replayStepId)) {
+    if (replayStepId && replayableSteps.some((step) => step.id === replayStepId)) {
       return replayStepId;
     }
-    return replaySteps[replaySteps.length - 1]?.id ?? "";
-  }, [replayStepId, replaySteps]);
+    return replayableSteps[replayableSteps.length - 1]?.id ?? "";
+  }, [replayStepId, replayableSteps]);
 
-  const sse = useSSE({
+  const approvalSse = useSSE({
     onDone: async (fullContent) => {
       if (!chatStore.currentSessionId || !fullContent.trim()) {
+        await runDetailQuery.refetch();
         return;
       }
       await chatStore.appendMessage(chatStore.currentSessionId, {
@@ -118,17 +181,40 @@ export default function ChatPage() {
         content: fullContent,
         createdAt: new Date().toISOString(),
       });
+      await runDetailQuery.refetch();
+      setRuntimeResetToken((prev) => prev + 1);
     },
   });
 
   useEffect(() => {
-    if (!chatStore.currentSessionId || !sse.latestRun?.runId) {
+    setRuntimeEvents([]);
+    setRuntimePendingApprovals([]);
+    setRuntimeLatestRun(null);
+    setRuntimeError(null);
+  }, [chatStore.currentSessionId, currentRunId]);
+
+  const persistedRunState = persistedRun
+    ? {
+      runId: persistedRun.run.id,
+      status: persistedRun.run.status,
+      message: persistedRun.run.error ?? undefined,
+    }
+    : null;
+  const latestRun = approvalSse.latestRun ?? runtimeLatestRun;
+  const scopedLatestRun = latestRun && latestRun.runId === currentRunId
+    ? latestRun
+    : null;
+  const isStreaming = runtimeIsStreaming || approvalSse.isStreaming;
+  const displayError = localError || runtimeError || approvalSse.error || "";
+
+  useEffect(() => {
+    if (!chatStore.currentSessionId || !latestRun?.runId) {
       return;
     }
-    if (currentSession?.latestRunId !== sse.latestRun.runId) {
-      void chatStore.setSessionRunId(chatStore.currentSessionId, sse.latestRun.runId);
+    if (currentSession?.latestRunId !== latestRun.runId) {
+      void chatStore.setSessionRunId(chatStore.currentSessionId, latestRun.runId);
     }
-    const needRunParamUpdate = runIdFromUrl !== sse.latestRun.runId;
+    const needRunParamUpdate = runIdFromUrl !== latestRun.runId;
     const needNovelParamUpdate = contextMode === "novel"
       ? novelIdFromUrl !== (novelId || "")
       : Boolean(novelIdFromUrl);
@@ -137,7 +223,7 @@ export default function ChatPage() {
     }
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      next.set("runId", sse.latestRun?.runId ?? "");
+      next.set("runId", latestRun.runId);
       if (contextMode === "novel" && novelId) {
         next.set("novelId", novelId);
       } else {
@@ -149,11 +235,11 @@ export default function ChatPage() {
     chatStore,
     contextMode,
     currentSession?.latestRunId,
+    latestRun?.runId,
     novelId,
     novelIdFromUrl,
     runIdFromUrl,
     setSearchParams,
-    sse.latestRun?.runId,
   ]);
 
   useEffect(() => {
@@ -166,80 +252,55 @@ export default function ChatPage() {
     void chatStore.setSessionRunId(chatStore.currentSessionId, runIdFromUrl);
   }, [chatStore, chatStore.currentSessionId, currentSession?.latestRunId, runIdFromUrl]);
 
-  const ensureSession = async () => {
+  const ensureSession = useCallback(async () => {
     if (chatStore.currentSessionId) {
       return chatStore.currentSessionId;
     }
-    return chatStore.createSession("New chat");
-  };
+    return chatStore.createSession("新对话");
+  }, [chatStore]);
 
-  const buildPayloadMessages = (sessionMessages: Array<{ role: "user" | "assistant" | "system"; content: string }>) => {
+  const buildPayloadMessages = (
+    sessionMessages: Array<{ role: "user" | "assistant" | "system"; content: string }>,
+  ) => {
     if (sessionMessages.length > 0) {
       return sessionMessages;
     }
     return [{ role: "user" as const, content: "继续当前任务。" }];
   };
 
-  const sendMessage = async () => {
-    const text = input.trim();
-    if (!text || sse.isStreaming) {
+  const onRuntimeEvent = useCallback((event: RuntimeEvent) => {
+    setRuntimeEvents((prev) => [...prev, event]);
+    if (event.type === "approval_required") {
+      setRuntimePendingApprovals((prev) => {
+        if (prev.some((item) => item.approvalId === event.approvalId)) {
+          return prev;
+        }
+        return [...prev, event];
+      });
       return;
     }
-    if (chatMode === "agent" && contextMode === "novel" && !novelId.trim()) {
-      setLocalError("novel 模式下必须先选择小说。");
-      return;
+    if (event.type === "approval_resolved") {
+      setRuntimePendingApprovals((prev) => prev.filter((item) => item.approvalId !== event.approvalId));
     }
-    setLocalError("");
+  }, []);
 
-    const sessionId = await ensureSession();
-    await chatStore.appendMessage(sessionId, {
-      id: `msg_${Date.now()}`,
-      role: "user",
-      content: text,
-      createdAt: new Date().toISOString(),
-    });
-    setInput("");
-
-    const session = chatStore.sessions.find((item) => item.id === sessionId);
-    const messages = buildPayloadMessages(
-      [...(session?.messages ?? []), { role: "user" as const, content: text }]
-        .slice(-20)
-        .map((item) => ({
-          role: item.role as "user" | "assistant" | "system",
-          content: item.content,
-        })),
-    );
-
-    await sse.start("/chat", {
-      messages,
-      systemPrompt: systemPrompt || undefined,
-      agentMode: chatMode === "agent",
-      chatMode,
-      contextMode,
-      novelId: contextMode === "novel" ? novelId || undefined : undefined,
-      sessionId,
-      runId: currentSession?.latestRunId ?? undefined,
-      enableRag,
-      knowledgeDocumentIds: knowledgeDocumentIds ?? undefined,
-      provider: llm.provider,
-      model: llm.model,
-      temperature: llm.temperature,
-      maxTokens: llm.maxTokens,
-    });
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (contextMode === "novel" && novelId) {
-        next.set("novelId", novelId);
-      }
-      return next;
-    }, { replace: true });
-  };
+  const onPersistConversation = useCallback(async (payload: {
+    sessionId: string;
+    messages: ChatMessage[];
+    runId?: string;
+  }) => {
+    await chatStore.setSessionMessages(payload.sessionId, payload.messages);
+    if (payload.runId) {
+      await chatStore.setSessionRunId(payload.sessionId, payload.runId);
+    }
+  }, [chatStore]);
 
   const submitApproval = async (action: "approve" | "reject") => {
     const sessionId = await ensureSession();
-    const runId = currentSession?.latestRunId;
+    const runId = currentRunId;
     const persistedPendingApproval = persistedRun?.approvals.find((item) => item.status === "pending");
-    const pending = sse.pendingApprovals[0]
+    const livePending = runtimePendingApprovals[0] ?? approvalSse.pendingApprovals[0];
+    const pending = livePending
       ?? (persistedPendingApproval
         ? {
           approvalId: persistedPendingApproval.id,
@@ -250,6 +311,13 @@ export default function ChatPage() {
       return;
     }
     setLocalError("");
+    setRuntimePendingApprovals((prev) => prev.filter((item) => item.approvalId !== pending.approvalId));
+    setRuntimeLatestRun({
+      type: "run_status",
+      runId,
+      status: "running",
+      message: action === "approve" ? "审批已提交，继续执行中" : "审批已提交，处理中",
+    });
     const sessionMessages = buildPayloadMessages(
       (currentSession?.messages ?? [])
         .slice(-20)
@@ -258,7 +326,7 @@ export default function ChatPage() {
           content: item.content,
         })),
     );
-    await sse.start("/chat", {
+    await approvalSse.start("/chat", {
       messages: sessionMessages,
       agentMode: true,
       chatMode: "agent",
@@ -281,31 +349,73 @@ export default function ChatPage() {
 
   const triggerReplay = async (mode: "continue" | "dry_run") => {
     if (!currentRunId || !effectiveReplayStepId) {
-      setLocalError("请选择可重放的步骤。");
+      setLocalError("当前运行没有可重放的步骤。");
       return;
     }
     setLocalError("");
-    const response = await replayAgentRunFromStep(currentRunId, {
-      fromStepId: effectiveReplayStepId,
-      mode,
-    });
-    const newRunId = response.data?.run.id;
-    if (!newRunId) {
-      setLocalError(response.error ?? "重放失败。");
+    try {
+      const response = await replayAgentRunFromStep(currentRunId, {
+        fromStepId: effectiveReplayStepId,
+        mode,
+      });
+      const newRunId = response.data?.run.id;
+      if (!newRunId) {
+        setLocalError(response.error ?? "重放失败。");
+        return;
+      }
+      if (chatStore.currentSessionId) {
+        await chatStore.setSessionRunId(chatStore.currentSessionId, newRunId);
+      }
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("runId", newRunId);
+        return next;
+      }, { replace: true });
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : "重放失败。";
+      setLocalError(
+        message === "No replayable tool steps after source step."
+          ? "所选步骤之后没有可重放的工具步骤，请选择更早的步骤。"
+          : message,
+      );
       return;
     }
-    if (chatStore.currentSessionId) {
-      await chatStore.setSessionRunId(chatStore.currentSessionId, newRunId);
-    }
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set("runId", newRunId);
-      return next;
-    }, { replace: true });
   };
 
-  const approvalCards = sse.pendingApprovals.length > 0
-    ? sse.pendingApprovals.map((item) => ({
+  const resolvedApprovalIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const event of runtimeEvents) {
+      if (event.type === "approval_resolved") {
+        ids.add(event.approvalId);
+      }
+    }
+    for (const event of approvalSse.events) {
+      if (event.type === "approval_resolved") {
+        ids.add(event.approvalId);
+      }
+    }
+    return ids;
+  }, [approvalSse.events, runtimeEvents]);
+
+  const livePendingApprovals = useMemo(() => {
+    const byId = new Map<string, ApprovalRequiredEvent>();
+    for (const item of runtimePendingApprovals) {
+      if (!resolvedApprovalIds.has(item.approvalId)) {
+        byId.set(item.approvalId, item);
+      }
+    }
+    for (const item of approvalSse.pendingApprovals) {
+      if (!resolvedApprovalIds.has(item.approvalId)) {
+        byId.set(item.approvalId, item);
+      }
+    }
+    return [...byId.values()];
+  }, [approvalSse.pendingApprovals, resolvedApprovalIds, runtimePendingApprovals]);
+
+  const approvalCards = livePendingApprovals.length > 0
+    ? livePendingApprovals.map((item) => ({
       approvalId: item.approvalId,
       targetType: item.targetType,
       targetId: item.targetId,
@@ -325,8 +435,25 @@ export default function ChatPage() {
     .slice(-6)
     .reverse();
 
-  const traceItems = sse.events.length > 0
-    ? sse.events.map((event, index) => ({
+  const headerRunState = isStreaming
+    ? (scopedLatestRun ?? persistedRunState)
+    : (persistedRunState ?? scopedLatestRun);
+  const headerRunLabel = headerRunState ? toRunStatusLabel(headerRunState.status) : "";
+  const headerRunMessage = headerRunState?.status === "waiting_approval"
+    ? "当前运行等待审批"
+    : headerRunState?.status === "running"
+      ? (headerRunState.message?.trim() || "当前运行中")
+      : headerRunState?.status === "succeeded"
+        ? "当前运行已完成"
+        : headerRunState?.status === "failed"
+          ? (headerRunState.message?.trim() || "当前运行失败")
+          : headerRunState?.status === "cancelled"
+            ? "当前运行已取消"
+            : "";
+
+  const liveEvents = [...runtimeEvents, ...approvalSse.events];
+  const traceItems = liveEvents.length > 0
+    ? liveEvents.map((event, index) => ({
       key: `${event.type}-${index}`,
       text: formatEvent(event),
       step: undefined,
@@ -338,14 +465,14 @@ export default function ChatPage() {
     }));
 
   return (
-    <div className="grid min-h-[70vh] gap-4 lg:grid-cols-[240px_1fr_320px]">
+    <div className="grid min-h-[70vh] gap-4 lg:grid-cols-[240px_minmax(0,1fr)_360px]">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Chat Sessions</CardTitle>
+          <CardTitle className="text-base">会话列表</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <Button className="w-full" onClick={() => void chatStore.createSession("New chat")}>
-            New chat
+          <Button className="w-full" onClick={() => void chatStore.createSession("新对话")}>
+            新建对话
           </Button>
           <div className="space-y-1">
             {chatStore.sessions.map((session) => (
@@ -360,7 +487,7 @@ export default function ChatPage() {
                 <div>{session.title}</div>
                 {session.latestRunId ? (
                   <div className="text-[11px] text-muted-foreground">
-                    run: {session.latestRunId.slice(0, 8)} · {session.runIds?.length ?? 1}条
+                    运行: {session.latestRunId.slice(0, 8)} · {session.runIds?.length ?? 1}条
                   </div>
                 ) : null}
               </button>
@@ -370,288 +497,107 @@ export default function ChatPage() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Messages</CardTitle>
+        <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+          <div className="space-y-1">
+            <CardTitle className="text-base">对话消息</CardTitle>
+            {headerRunMessage ? (
+              <div className="text-xs text-slate-500">{headerRunMessage}</div>
+            ) : null}
+          </div>
+          {headerRunState ? (
+            <div className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
+              {headerRunLabel}
+            </div>
+          ) : null}
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="max-h-[52vh] space-y-3 overflow-auto rounded-md border p-3">
-            {deferredMessages.map((message) => (
-              <div key={message.id} className="rounded-md border bg-muted/30 p-2">
-                <div className="mb-1 text-xs text-muted-foreground">
-                  {message.role === "user" ? "User" : message.role === "assistant" ? "Assistant" : "System"}
-                </div>
-                <MarkdownViewer content={message.content} />
-              </div>
-            ))}
-            {sse.reasoning ? (
-              <div className="rounded-md border bg-amber-50 p-2 text-sm">
-                <div className="mb-1 text-xs text-muted-foreground">Reasoning</div>
-                <MarkdownViewer content={sse.reasoning} />
-              </div>
-            ) : null}
-            {sse.content ? (
-              <div className="rounded-md border bg-blue-50 p-2 text-sm">
-                <div className="mb-1 text-xs text-muted-foreground">Streaming</div>
-                <MarkdownViewer content={sse.content} />
-              </div>
-            ) : null}
-          </div>
-          <textarea
-            className="min-h-[120px] w-full rounded-md border bg-background p-3 text-sm"
-            placeholder="Enter to send. Shift+Enter for a newline."
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                void sendMessage();
-              }
+          <AssistantChatPanel
+            key={`${chatStore.currentSessionId || "empty"}:${runtimeResetToken}`}
+            initialMessages={currentSession?.messages ?? []}
+            ensureSession={ensureSession}
+            chatMode={chatMode}
+            contextMode={contextMode}
+            novelId={novelId}
+            runId={currentRunId}
+            enableRag={enableRag}
+            knowledgeDocumentIds={knowledgeDocumentIds}
+            systemPrompt={systemPrompt}
+            provider={llm.provider}
+            model={llm.model}
+            temperature={llm.temperature}
+            maxTokens={llm.maxTokens}
+            onRunStart={() => {
+              setLocalError("");
+              setRuntimeError(null);
+              setRuntimeEvents([]);
+              setRuntimePendingApprovals([]);
             }}
+            onRuntimeEvent={onRuntimeEvent}
+            onRunStatus={setRuntimeLatestRun}
+            onStreamStateChange={({ isStreaming: nextStreaming, error }) => {
+              setRuntimeIsStreaming(nextStreaming);
+              setRuntimeError(error);
+            }}
+            onValidationError={setLocalError}
+            onPersistConversation={onPersistConversation}
           />
-          {localError ? (
+          {displayError ? (
             <div className="rounded-md border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-700">
-              {localError}
+              {displayError}
             </div>
           ) : null}
-          <div className="flex gap-2">
-            <Button onClick={() => void sendMessage()} disabled={sse.isStreaming || !input.trim()}>
-              Send
-            </Button>
-            <Button variant="secondary" onClick={sse.abort} disabled={!sse.isStreaming}>
-              Stop
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Runtime & Model</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div className="grid gap-2">
-            <label className="text-xs text-muted-foreground">Chat mode</label>
-            <select
-              className="w-full rounded-md border bg-background p-2"
-              value={chatMode}
-              onChange={(event) => setChatMode(event.target.value as ChatMode)}
-            >
-              <option value="standard">Standard</option>
-              <option value="agent">Agent Runtime</option>
-            </select>
-          </div>
-          <div className="grid gap-2">
-            <label className="text-xs text-muted-foreground">Context mode</label>
-            <select
-              className="w-full rounded-md border bg-background p-2"
-              value={contextMode}
-              onChange={(event) => setContextMode(event.target.value as ContextMode)}
-            >
-              <option value="global">Global</option>
-              <option value="novel">Novel</option>
-            </select>
-          </div>
-          {runHistoryIds.length > 0 ? (
-            <div className="grid gap-2">
-              <label className="text-xs text-muted-foreground">Session runs</label>
-              <select
-                className="w-full rounded-md border bg-background p-2"
-                value={currentRunId}
-                onChange={(event) => {
-                  const nextRunId = event.target.value;
-                  if (!chatStore.currentSessionId) {
-                    return;
-                  }
-                  void chatStore.setSessionRunId(chatStore.currentSessionId, nextRunId);
-                  setSearchParams((prev) => {
-                    const next = new URLSearchParams(prev);
-                    next.set("runId", nextRunId);
-                    return next;
-                  }, { replace: true });
-                }}
-              >
-                {runHistoryIds.map((id) => (
-                  <option key={id} value={id}>
-                    {id.slice(0, 16)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-          {contextMode === "novel" ? (
-            <div className="grid gap-2">
-              <label className="text-xs text-muted-foreground">Novel</label>
-              <select
-                className="w-full rounded-md border bg-background p-2"
-                value={novelId}
-                onChange={(event) => setNovelId(event.target.value)}
-              >
-                <option value="">Select novel</option>
-                {novels.map((novel) => (
-                  <option key={novel.id} value={novel.id}>
-                    {novel.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-
-          <div>
-            <div className="mb-1 text-xs text-muted-foreground">Provider</div>
-            <div>{llm.provider}</div>
-          </div>
-          <div>
-            <div className="mb-1 text-xs text-muted-foreground">Model</div>
-            <div>{llm.model}</div>
-          </div>
-          <div>
-            <div className="mb-1 text-xs text-muted-foreground">Temperature</div>
-            <input
-              type="number"
-              min={0}
-              max={2}
-              step={0.1}
-              className="w-full rounded-md border p-2"
-              value={llm.temperature}
-              onChange={(event) => llm.setTemperature(Number(event.target.value))}
-            />
-          </div>
-          <div>
-            <div className="mb-1 text-xs text-muted-foreground">Max tokens</div>
-            <input
-              type="number"
-              min={128}
-              max={16384}
-              step={128}
-              className="w-full rounded-md border p-2"
-              value={llm.maxTokens}
-              onChange={(event) => llm.setMaxTokens(Number(event.target.value))}
-            />
-          </div>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={enableRag}
-              onChange={(event) => setEnableRag(event.target.checked)}
-            />
-            Enable knowledge retrieval (RAG)
-          </label>
-          <div>
-            <div className="mb-1 text-xs text-muted-foreground">System prompt</div>
-            <textarea
-              className="min-h-[120px] w-full rounded-md border p-2"
-              value={systemPrompt}
-              onChange={(event) => setSystemPrompt(event.target.value)}
-              placeholder="Override the default system prompt."
-            />
-          </div>
-          <KnowledgeDocumentPicker
-            selectedIds={knowledgeDocumentIds}
-            onChange={setKnowledgeDocumentIds}
-            title="Knowledge documents"
-            description={enableRag
-              ? "Leave empty to use automatic resolution, or select documents to limit retrieval."
-              : "RAG is disabled. Re-enable it above to use document retrieval."}
-            allowAuto
-            queryStatus="enabled"
-          />
-
-          {chatMode === "agent" && approvalCards.length > 0 ? (
-            <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-2">
-              <div className="text-xs font-medium text-amber-800">Pending approvals</div>
-              {approvalCards.map((item) => (
-                <div key={item.approvalId} className="rounded-md border bg-white p-2">
-                  <div className="text-xs text-muted-foreground">{item.targetType}:{item.targetId}</div>
-                  <div className="text-sm">{item.summary}</div>
-                </div>
-              ))}
-              <textarea
-                className="min-h-[70px] w-full rounded-md border p-2"
-                value={approvalNote}
-                onChange={(event) => setApprovalNote(event.target.value)}
-                placeholder="Approval note (optional)"
-              />
-              <div className="flex gap-2">
-                <Button size="sm" onClick={() => void submitApproval("approve")} disabled={sse.isStreaming}>
-                  Approve
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => void submitApproval("reject")} disabled={sse.isStreaming}>
-                  Reject
-                </Button>
-              </div>
-            </div>
-          ) : null}
-          {chatMode === "agent" && approvalHistory.length > 0 ? (
-            <div className="space-y-2 rounded-md border p-2">
-              <div className="text-xs font-medium">Approval history</div>
-              {approvalHistory.map((item) => (
-                <div key={item.id} className="rounded border bg-muted/20 px-2 py-1 text-xs">
-                  {item.status} · {item.targetType}:{item.targetId}
-                  {item.decisionNote ? ` · ${item.decisionNote}` : ""}
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="space-y-2 rounded-md border p-2">
-            <div className="text-xs font-medium">Run trace</div>
-            {sse.latestRun ? (
-              <div className="text-xs text-muted-foreground">
-                run {sse.latestRun.runId.slice(0, 10)} · {sse.latestRun.status}
-                {sse.latestRun.message ? ` · ${sse.latestRun.message}` : ""}
-              </div>
-            ) : persistedRun ? (
-              <div className="text-xs text-muted-foreground">
-                run {persistedRun.run.id.slice(0, 10)} · {persistedRun.run.status}
-              </div>
-            ) : null}
-            {persistedRun?.steps.length ? (
-              <div className="space-y-1">
-                <select
-                  className="w-full rounded-md border bg-background p-1 text-xs"
-                  value={effectiveReplayStepId}
-                  onChange={(event) => setReplayStepId(event.target.value)}
-                >
-                  {persistedRun.steps.map((step) => (
-                    <option key={step.id} value={step.id}>
-                      {step.seq}. {stepTitle(step)}
-                    </option>
-                  ))}
-                </select>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => void triggerReplay("continue")} disabled={sse.isStreaming}>
-                    Replay
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => void triggerReplay("dry_run")} disabled={sse.isStreaming}>
-                    Dry Replay
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-            <div className="max-h-[180px] space-y-1 overflow-auto">
-              {traceItems.map((item) => (
-                item.step ? (
-                  <details key={item.key} className="rounded border bg-muted/20 px-2 py-1 text-xs">
-                    <summary className="cursor-pointer">{item.text}</summary>
-                    <div className="mt-1 space-y-1">
-                      <div>input: <pre className="overflow-auto whitespace-pre-wrap">{safePreview(item.step.inputJson)}</pre></div>
-                      <div>output: <pre className="overflow-auto whitespace-pre-wrap">{safePreview(item.step.outputJson)}</pre></div>
-                      {item.step.error ? <div className="text-red-600">error: {item.step.error}</div> : null}
-                    </div>
-                  </details>
-                ) : (
-                  <div key={item.key} className="rounded border bg-muted/20 px-2 py-1 text-xs">
-                    {item.text}
-                  </div>
-                )
-              ))}
-              {sse.events.length === 0 && !persistedRun ? (
-                <div className="text-xs text-muted-foreground">No runtime events yet.</div>
-              ) : null}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <RuntimeSidebar
+        chatMode={chatMode}
+        onChatModeChange={setChatMode}
+        contextMode={contextMode}
+        onContextModeChange={setContextMode}
+        runHistoryIds={runHistoryIds}
+        currentRunId={currentRunId}
+        onSelectRun={(nextRunId) => {
+          if (!chatStore.currentSessionId) {
+            return;
+          }
+          void chatStore.setSessionRunId(chatStore.currentSessionId, nextRunId);
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.set("runId", nextRunId);
+            return next;
+          }, { replace: true });
+        }}
+        novelId={novelId}
+        novels={novels}
+        onNovelChange={setNovelId}
+        provider={llm.provider}
+        model={llm.model}
+        temperature={llm.temperature}
+        onTemperatureChange={llm.setTemperature}
+        maxTokens={llm.maxTokens}
+        onMaxTokensChange={llm.setMaxTokens}
+        enableRag={enableRag}
+        onEnableRagChange={setEnableRag}
+        systemPrompt={systemPrompt}
+        onSystemPromptChange={setSystemPrompt}
+        knowledgeDocumentIds={knowledgeDocumentIds}
+        onKnowledgeDocumentIdsChange={setKnowledgeDocumentIds}
+        approvalCards={approvalCards}
+        approvalHistory={approvalHistory}
+        approvalNote={approvalNote}
+        onApprovalNoteChange={setApprovalNote}
+        onSubmitApproval={(action) => void submitApproval(action)}
+        isStreaming={isStreaming}
+        persistedSteps={persistedRun?.steps ?? []}
+        replayableSteps={replayableSteps}
+        effectiveReplayStepId={effectiveReplayStepId}
+        onReplayStepChange={setReplayStepId}
+        onReplay={(mode) => void triggerReplay(mode)}
+        traceItems={traceItems}
+        hasLiveEvents={liveEvents.length > 0}
+        safePreview={safePreview}
+        stepTitle={stepTitle}
+      />
     </div>
   );
 }

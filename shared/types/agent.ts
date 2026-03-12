@@ -73,6 +73,7 @@ export interface ReplayRequest {
 export interface AgentRun {
   id: string;
   novelId?: string | null;
+  chapterId?: string | null;
   sessionId: string;
   goal: string;
   entryAgent: string;

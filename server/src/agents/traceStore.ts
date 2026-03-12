@@ -17,6 +17,7 @@ import { prisma } from "../db/prisma";
 function toAgentRun(row: {
   id: string;
   novelId: string | null;
+  chapterId: string | null;
   sessionId: string;
   goal: string;
   entryAgent: string;
@@ -33,6 +34,7 @@ function toAgentRun(row: {
   return {
     id: row.id,
     novelId: row.novelId,
+    chapterId: row.chapterId ?? undefined,
     sessionId: row.sessionId,
     goal: row.goal,
     entryAgent: row.entryAgent,
@@ -131,6 +133,7 @@ export class AgentTraceStore {
     sessionId: string;
     goal: string;
     novelId?: string;
+    chapterId?: string;
     entryAgent: string;
     metadataJson?: string;
   }): Promise<AgentRun> {
@@ -139,6 +142,7 @@ export class AgentTraceStore {
         sessionId: input.sessionId,
         goal: input.goal,
         novelId: input.novelId ?? null,
+        chapterId: input.chapterId ?? null,
         entryAgent: input.entryAgent,
         status: "queued",
         metadataJson: input.metadataJson ?? null,
@@ -157,6 +161,7 @@ export class AgentTraceStore {
   async listRuns(filters: {
     status?: AgentRunStatus;
     novelId?: string;
+    chapterId?: string;
     sessionId?: string;
     limit?: number;
   }): Promise<AgentRun[]> {
@@ -164,6 +169,7 @@ export class AgentTraceStore {
       where: {
         ...(filters.status ? { status: filters.status } : {}),
         ...(filters.novelId ? { novelId: filters.novelId } : {}),
+        ...(filters.chapterId != null ? { chapterId: filters.chapterId } : {}),
         ...(filters.sessionId ? { sessionId: filters.sessionId } : {}),
       },
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],

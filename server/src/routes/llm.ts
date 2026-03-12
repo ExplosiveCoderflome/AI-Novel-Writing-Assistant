@@ -8,6 +8,7 @@ import { authMiddleware } from "../middleware/auth";
 import { AppError } from "../middleware/errorHandler";
 import { validate } from "../middleware/validate";
 import { getLLM } from "../llm/factory";
+import { listModelRouteConfigs, upsertModelRouteConfig } from "../llm/modelRouter";
 import { PROVIDERS } from "../llm/providers";
 import { getProviderModels } from "../llm/modelCatalog";
 
@@ -44,6 +45,49 @@ router.get("/providers", async (_req, res, next) => {
     next(error);
   }
 });
+
+router.get("/model-routes", async (_req, res, next) => {
+  try {
+    const data = await listModelRouteConfigs();
+    res.status(200).json({
+      success: true,
+      data,
+      message: "模型路由配置已加载。",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+const modelRouteUpsertSchema = z.object({
+  taskType: z.string().trim().min(1),
+  provider: z.string().trim().min(1),
+  model: z.string().trim().min(1),
+  temperature: z.number().min(0).max(2).optional(),
+  maxTokens: z.number().int().min(64).max(16384).optional(),
+});
+
+router.put(
+  "/model-routes",
+  validate({ body: modelRouteUpsertSchema }),
+  async (req, res, next) => {
+    try {
+      const body = req.body as z.infer<typeof modelRouteUpsertSchema>;
+      await upsertModelRouteConfig(body.taskType, {
+        provider: body.provider,
+        model: body.model,
+        temperature: body.temperature,
+        maxTokens: body.maxTokens ?? null,
+      });
+      res.status(200).json({
+        success: true,
+        message: "模型路由已更新。",
+      } satisfies ApiResponse<null>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 router.post(
   "/test",

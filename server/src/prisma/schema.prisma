@@ -247,10 +247,12 @@ model Novel {
   chapterSummaries  ChapterSummary[]
   facts             ConsistencyFact[]
   generationJobs    GenerationJob[]
-  agentRuns         AgentRun[]
-  storylineVersions StorylineVersion[]
-  qualityReports    QualityReport[]
-  createdAt         DateTime    @default(now())
+  agentRuns          AgentRun[]
+  creativeDecisions  CreativeDecision[]
+  novelSnapshots     NovelSnapshot[]
+  storylineVersions  StorylineVersion[]
+  qualityReports     QualityReport[]
+  createdAt          DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
   @@index([genreId])
@@ -259,6 +261,32 @@ model Novel {
   @@index([sourceNovelId])
   @@index([sourceKnowledgeDocumentId])
   @@index([continuationBookAnalysisId])
+}
+
+model CreativeDecision {
+  id         String   @id @default(cuid())
+  novelId    String
+  chapterId  String?
+  category   String
+  content    String
+  importance String   @default("normal")
+  expiresAt  Int?
+  novel      Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@index([novelId, createdAt])
+}
+
+model NovelSnapshot {
+  id           String   @id @default(cuid())
+  novelId      String
+  label        String?
+  snapshotData String
+  triggerType  String
+  novel        Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@index([novelId, createdAt])
 }
 
 model Chapter {
@@ -583,6 +611,17 @@ model AppSetting {
   updatedAt DateTime @updatedAt
 }
 
+model ModelRouteConfig {
+  id          String  @id @default(cuid())
+  taskType    String  @unique
+  provider    String
+  model       String
+  temperature Float   @default(0.7)
+  maxTokens   Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model NovelBible {
   id             String   @id @default(cuid())
   novelId        String   @unique
@@ -683,26 +722,28 @@ model GenerationJob {
 }
 
 model AgentRun {
-  id          String         @id @default(cuid())
-  novelId     String?
-  sessionId   String
-  goal        String
-  entryAgent  String
-  status      AgentRunStatus @default(queued)
-  currentStep String?
+  id           String         @id @default(cuid())
+  novelId      String?
+  chapterId    String?
+  sessionId    String
+  goal         String
+  entryAgent   String
+  status       AgentRunStatus @default(queued)
+  currentStep  String?
   currentAgent String?
-  error       String?
-  startedAt   DateTime?
-  finishedAt  DateTime?
+  error        String?
+  startedAt    DateTime?
+  finishedAt   DateTime?
   metadataJson String?
-  novel       Novel?         @relation(fields: [novelId], references: [id], onDelete: SetNull)
-  steps       AgentStep[]
-  approvals   AgentApproval[]
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  novel        Novel?         @relation(fields: [novelId], references: [id], onDelete: SetNull)
+  steps        AgentStep[]
+  approvals    AgentApproval[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 
   @@index([status, updatedAt])
   @@index([novelId, createdAt])
+  @@index([novelId, chapterId, createdAt])
   @@index([sessionId, createdAt])
 }
 

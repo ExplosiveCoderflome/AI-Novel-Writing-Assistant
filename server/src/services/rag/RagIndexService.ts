@@ -95,6 +95,7 @@ export class RagIndexService {
             content,
             metadata: {
               order: chapter.order,
+              chapterOrder: chapter.order,
               state: chapter.generationState,
               updatedAt: chapter.updatedAt.toISOString(),
             },

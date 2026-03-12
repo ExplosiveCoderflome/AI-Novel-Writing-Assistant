@@ -29,6 +29,7 @@ interface ChatStoreState {
   createSession: (title?: string) => Promise<string>;
   setCurrentSession: (sessionId: string) => Promise<void>;
   appendMessage: (sessionId: string, message: ChatMessage) => Promise<void>;
+  setSessionMessages: (sessionId: string, messages: ChatMessage[]) => Promise<void>;
   setSessionRunId: (sessionId: string, runId: string | null) => Promise<void>;
   updateSessionTitle: (sessionId: string, title: string) => Promise<void>;
   removeSession: (sessionId: string) => Promise<void>;
@@ -96,6 +97,19 @@ export const useChatStore = create<ChatStoreState>((setState, getState) => ({
             messages: [...session.messages, message],
             updatedAt: new Date().toISOString(),
           }
+        : session,
+    );
+    setState({ sessions });
+    await persistState(sessions, getState().currentSessionId);
+  },
+  setSessionMessages: async (sessionId, messages) => {
+    const sessions = getState().sessions.map((session) =>
+      session.id === sessionId
+        ? {
+          ...session,
+          messages,
+          updatedAt: new Date().toISOString(),
+        }
         : session,
     );
     setState({ sessions });

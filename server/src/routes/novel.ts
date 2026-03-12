@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
+import { agentRuntime } from "../agents";
 import { authMiddleware } from "../middleware/auth";
 import { AppError } from "../middleware/errorHandler";
 import { validate } from "../middleware/validate";
@@ -452,6 +453,81 @@ router.delete("/:id/chapters/:chapterId", validate({ params: chapterParamsSchema
     next(error);
   }
 });
+
+router.get(
+  "/:id/chapters/:chapterId/traces",
+  validate({ params: chapterParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
+      const data = await agentRuntime.listRuns({ novelId: id, chapterId, limit: 20 });
+      res.status(200).json({
+        success: true,
+        data,
+        message: "章节生成轨迹已加载。",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+const snapshotCreateSchema = z.object({
+  triggerType: z.enum(["manual", "auto_milestone", "before_pipeline"]),
+  label: z.string().trim().max(200).optional(),
+});
+router.get("/:id/snapshots", validate({ params: idParamsSchema }), async (req, res, next) => {
+  try {
+    const { id } = req.params as z.infer<typeof idParamsSchema>;
+    const data = await novelService.listNovelSnapshots(id);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "版本快照已加载。",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post(
+  "/:id/snapshots",
+  validate({ params: idParamsSchema, body: snapshotCreateSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const body = req.body as z.infer<typeof snapshotCreateSchema>;
+      const data = await novelService.createNovelSnapshot(id, body.triggerType, body.label);
+      res.status(201).json({
+        success: true,
+        data,
+        message: "快照已创建。",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+const snapshotRestoreSchema = z.object({ snapshotId: z.string().trim().min(1) });
+router.post(
+  "/:id/snapshots/restore",
+  validate({ params: idParamsSchema, body: snapshotRestoreSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const { snapshotId } = req.body as z.infer<typeof snapshotRestoreSchema>;
+      const data = await novelService.restoreFromSnapshot(id, snapshotId);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "已从快照恢复。",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 router.get("/:id/characters", validate({ params: idParamsSchema }), async (req, res, next) => {
   try {

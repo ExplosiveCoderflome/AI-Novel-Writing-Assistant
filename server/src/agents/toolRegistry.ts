@@ -23,6 +23,8 @@ const dryRunField = z.boolean().optional();
 const getNovelContextInput = z.object({
   novelId: z.string().trim().min(1),
   chapterOrder: z.number().int().min(1).optional(),
+  /** 当需要「前N章」内容时传入，返回前 N 章的较长摘要以便回答「前两章写了什么」等 */
+  firstN: z.number().int().min(1).max(20).optional(),
 });
 const getNovelContextOutput = z.object({
   novelId: z.string(),
@@ -30,6 +32,8 @@ const getNovelContextOutput = z.object({
   outline: z.string().nullable(),
   structuredOutline: z.string().nullable(),
   chapterCount: z.number().int(),
+  completedChapterCount: z.number().int(),
+  latestCompletedChapterOrder: z.number().int().nullable(),
   chapterSummary: z.array(
     z.object({
       id: z.string(),
@@ -55,7 +59,10 @@ const getStoryBibleOutput = z.object({
 
 const getChapterContentInput = z.object({
   novelId: z.string().trim().min(1),
-  chapterId: z.string().trim().min(1),
+  chapterId: z.string().trim().min(1).optional(),
+  chapterOrder: z.number().int().min(1).optional(),
+}).refine((input) => Boolean(input.chapterId || input.chapterOrder), {
+  message: "chapterId or chapterOrder is required.",
 });
 const getChapterContentOutput = z.object({
   novelId: z.string(),
@@ -225,6 +232,19 @@ async function getChapter(novelId: string, chapterId: string) {
   return chapter;
 }
 
+async function getChapterByOrder(novelId: string, chapterOrder: number) {
+  const chapter = await prisma.chapter.findFirst({
+    where: {
+      novelId,
+      order: chapterOrder,
+    },
+  });
+  if (!chapter) {
+    throw new AgentToolError("NOT_FOUND", `Chapter ${chapterOrder} not found.`);
+  }
+  return chapter;
+}
+
 function buildPatchedContent(base: string, input: z.infer<typeof applyChapterPatchInput>): string {
   if (input.mode === "append") {
     return `${base}\n\n${input.content}`.trim();
@@ -285,20 +305,29 @@ const definitions: Record<AgentToolName, AgentToolDefinition<Record<string, unkn
       if (!novel) {
         throw new AgentToolError("NOT_FOUND", "Novel not found.");
       }
-      const chapterSummary = novel.chapters
-        .slice(-12)
-        .map((chapter) => ({
-          id: chapter.id,
-          order: chapter.order,
-          title: chapter.title,
-          excerpt: (chapter.content ?? "").slice(0, 120),
-        }));
+      const firstN = input.firstN;
+      const aroundChapterOrder = input.chapterOrder;
+      const chaptersSlice = firstN != null
+        ? novel.chapters.slice(0, firstN)
+        : aroundChapterOrder != null
+          ? novel.chapters.filter((chapter) => Math.abs(chapter.order - aroundChapterOrder) <= 2)
+          : novel.chapters.slice(-12);
+      const excerptLen = firstN != null ? 2000 : aroundChapterOrder != null ? 300 : 120;
+      const completedChapters = novel.chapters.filter((chapter) => (chapter.content ?? "").trim().length > 0);
+      const chapterSummary = chaptersSlice.map((chapter) => ({
+        id: chapter.id,
+        order: chapter.order,
+        title: chapter.title,
+        excerpt: (chapter.content ?? "").slice(0, excerptLen),
+      }));
       return getNovelContextOutput.parse({
         novelId: novel.id,
         title: novel.title,
         outline: novel.outline,
         structuredOutline: novel.structuredOutline,
         chapterCount: novel.chapters.length,
+        completedChapterCount: completedChapters.length,
+        latestCompletedChapterOrder: completedChapters.at(-1)?.order ?? null,
         chapterSummary,
       });
     },
@@ -333,7 +362,9 @@ const definitions: Record<AgentToolName, AgentToolDefinition<Record<string, unkn
     outputSchema: getChapterContentOutput,
     execute: async (_context, rawInput) => {
       const input = getChapterContentInput.parse(rawInput);
-      const chapter = await getChapter(input.novelId, input.chapterId);
+      const chapter = input.chapterId
+        ? await getChapter(input.novelId, input.chapterId)
+        : await getChapterByOrder(input.novelId, input.chapterOrder as number);
       return getChapterContentOutput.parse({
         novelId: input.novelId,
         chapterId: chapter.id,

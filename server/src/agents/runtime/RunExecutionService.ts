@@ -1,4 +1,4 @@
-import type { AgentRuntimeCallbacks, AgentRuntimeResult, PlannedAction, ToolCall, ToolExecutionContext } from "../types";
+import type { AgentRuntimeCallbacks, AgentRuntimeResult, PlannedAction, StructuredIntent, ToolCall, ToolExecutionContext } from "../types";
 import { canAgentUseTool, evaluateApprovalRequirement } from "../approvalPolicy";
 import { AgentTraceStore } from "../traceStore";
 import { getAgentToolDefinition } from "../toolRegistry";
@@ -235,9 +235,11 @@ export class RunExecutionService {
     goal: string,
     context: Omit<ToolExecutionContext, "runId" | "agentName">,
     plannedActions: PlannedAction[],
+    structuredIntent?: StructuredIntent,
   ): string {
     const payload: SerializedContinuationPayload = {
       goal,
+      structuredIntent,
       context,
       plannedActions,
     };
@@ -249,6 +251,7 @@ export class RunExecutionService {
     goal: string,
     plannedActions: PlannedAction[],
     context: Omit<ToolExecutionContext, "runId" | "agentName">,
+    structuredIntent: StructuredIntent | undefined,
     failRun: (runId: string, message: string, agentName: string, callbacks?: AgentRuntimeCallbacks) => Promise<void>,
     callbacks?: AgentRuntimeCallbacks,
   ): Promise<AgentRuntimeResult> {
@@ -273,7 +276,7 @@ export class RunExecutionService {
         provider: context.provider,
         model: context.model,
       });
-      callbacks?.onReasoning?.(`${action.agent}: ${action.reasoning}`);
+      callbacks?.onReasoning?.(action.reasoning);
 
       for (let callIndex = 0; callIndex < action.calls.length; callIndex += 1) {
         const call = action.calls[callIndex];
@@ -297,7 +300,9 @@ export class RunExecutionService {
           return this.getRunDetailOrThrow(runId, message);
         }
 
-        const approvalDecision = evaluateApprovalRequirement(call.tool, call.input);
+        const approvalDecision = call.approvalSatisfied
+          ? { required: false }
+          : evaluateApprovalRequirement(call.tool, call.input);
         if (approvalDecision.required) {
           let diffSummary = approvalDecision.summary ?? "高影响写入操作待确认。";
           if (shouldUseDryRunPreview(call)) {
@@ -329,6 +334,7 @@ export class RunExecutionService {
 
           const currentCallAfterApproval: ToolCall = {
             ...call,
+            approvalSatisfied: true,
             dryRun: false,
             input: {
               ...call.input,
@@ -350,10 +356,10 @@ export class RunExecutionService {
             status: "pending",
             inputJson: safeJson({
               summary: diffSummary,
-              targetType: approvalDecision.targetType,
-              targetId: approvalDecision.targetId,
-              tool: call.tool,
-            }),
+            targetType: approvalDecision.targetType,
+            targetId: approvalDecision.targetId,
+            tool: call.tool,
+          }),
             provider: context.provider,
             model: context.model,
           });
@@ -365,7 +371,7 @@ export class RunExecutionService {
             targetId: approvalDecision.targetId ?? "unknown",
             diffSummary,
             expiresAt: new Date(Date.now() + APPROVAL_TTL_MS),
-            payloadJson: this.buildApprovalPayload(goal, context, continuationActions),
+            payloadJson: this.buildApprovalPayload(goal, context, continuationActions, structuredIntent),
           });
           await this.store.updateRun(runId, {
             status: "waiting_approval",
@@ -425,7 +431,7 @@ export class RunExecutionService {
     }
 
     const summary = buildFinalMessage(allResults, waitingForApproval);
-    const assistantOutput = await composeAssistantMessage(goal, summary, context);
+    const assistantOutput = await composeAssistantMessage(goal, summary, allResults, waitingForApproval, context, structuredIntent);
     const detail = await this.store.getRunDetail(runId);
     if (!detail) {
       throw new Error("Run not found after execution.");

@@ -1,6 +1,7 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { ChatOpenAI } from "@langchain/openai";
 import { prisma } from "../db/prisma";
+import { resolveModel, type TaskType } from "./modelRouter";
 import { PROVIDERS } from "./providers";
 
 interface LLMOptions {
@@ -9,6 +10,8 @@ interface LLMOptions {
   apiKey?: string;
   baseURL?: string;
   maxTokens?: number;
+  /** 任务类型，用于模型路由；若提供则优先使用路由配置的 provider/model/temperature */
+  taskType?: TaskType;
 }
 
 interface ProviderSecret {
@@ -112,8 +115,25 @@ async function resolveProviderSecret(provider: LLMProvider): Promise<ProviderSec
 }
 
 export async function getLLM(provider: LLMProvider, options: LLMOptions = {}): Promise<ChatOpenAI> {
-  const providerConfig = PROVIDERS[provider];
-  const dbSecret = await resolveProviderSecret(provider);
+  let resolvedProvider = provider;
+  let resolvedModel: string | undefined = options.model;
+  let resolvedTemperature: number | undefined = options.temperature;
+  let resolvedMaxTokens: number | undefined = options.maxTokens;
+
+  if (options.taskType) {
+    const route = await resolveModel(options.taskType, {
+      model: options.model,
+      temperature: options.temperature,
+      maxTokens: options.maxTokens,
+    });
+    resolvedProvider = route.provider;
+    if (options.model == null) resolvedModel = route.model;
+    if (options.temperature == null) resolvedTemperature = route.temperature;
+    if (options.maxTokens == null) resolvedMaxTokens = route.maxTokens;
+  }
+
+  const providerConfig = PROVIDERS[resolvedProvider];
+  const dbSecret = await resolveProviderSecret(resolvedProvider);
   const apiKey = options.apiKey ?? dbSecret?.key ?? process.env[providerConfig.envKey];
 
   if (!apiKey) {
@@ -121,22 +141,22 @@ export async function getLLM(provider: LLMProvider, options: LLMOptions = {}): P
   }
 
   const model =
-    options.model ??
+    resolvedModel ??
     dbSecret?.model ??
-    getProviderEnvModel(provider) ??
+    getProviderEnvModel(resolvedProvider) ??
     providerConfig.defaultModel;
 
   const baseURL =
     options.baseURL ??
-    getProviderEnvBaseUrl(provider) ??
+    getProviderEnvBaseUrl(resolvedProvider) ??
     providerConfig.baseURL;
 
   return new ChatOpenAI({
     apiKey,
     model,
     modelName: model,
-    temperature: options.temperature ?? 0.7,
-    maxTokens: options.maxTokens,
+    temperature: resolvedTemperature ?? 0.7,
+    maxTokens: resolvedMaxTokens,
     configuration: {
       baseURL,
     },

@@ -233,6 +233,13 @@ export async function deleteNovelChapter(id: string, chapterId: string) {
   return data;
 }
 
+export async function getChapterTraces(novelId: string, chapterId: string) {
+  const { data } = await apiClient.get<ApiResponse<import("@ai-novel/shared/types/agent").AgentRun[]>>(
+    `/novels/${novelId}/chapters/${chapterId}/traces`,
+  );
+  return data;
+}
+
 export async function getNovelCharacters(id: string) {
   const { data } = await apiClient.get<ApiResponse<Character[]>>(`/novels/${id}/characters`);
   return data;

@@ -2,6 +2,7 @@ import type { BaseMessageChunk } from "@langchain/core/messages";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
+import type { TaskType } from "../../llm/modelRouter";
 import { getLLM } from "../../llm/factory";
 import { NovelContinuationService } from "./NovelContinuationService";
 
@@ -9,6 +10,7 @@ export interface ChapterGraphLLMOptions {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
+  taskType?: TaskType;
 }
 
 export interface ChapterGraphGenerateOptions extends ChapterGraphLLMOptions {
@@ -110,6 +112,7 @@ export class ChapterWritingGraph {
     const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.8,
+      taskType: options.taskType ?? "chapter_drafting",
     });
     const context = await this.deps.buildContextText(novelId, chapter.order);
     const openingHint = await this.deps.buildOpeningConstraintHint(novelId, chapter.order);
@@ -226,6 +229,7 @@ ${continuationPack.enabled ? continuationPack.humanBlock : ""}`,
     const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.8,
+      taskType: options.taskType ?? "chapter_repair",
     });
     const repaired = await llm.invoke([
       new SystemMessage("你是网文修文编辑，请根据问题清单修复正文"),
@@ -254,6 +258,7 @@ ${JSON.stringify(issues, null, 2)}`,
     const llm = await getLLM(input.options.provider ?? "deepseek", {
       model: input.options.model,
       temperature: input.options.temperature ?? 0.8,
+      taskType: input.options.taskType ?? "chapter_drafting",
     });
     const stream = await llm.stream([
       new SystemMessage(
