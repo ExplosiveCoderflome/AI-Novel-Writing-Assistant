@@ -88,6 +88,52 @@ function initCreativeHubSSE(res: Response): () => void {
   return () => clearInterval(heartbeat);
 }
 
+async function buildSeedMessages(
+  threadId: string,
+  checkpointId: string | null,
+  incomingMessages: CreativeHubMessage[],
+): Promise<CreativeHubMessage[]> {
+  const baseMessages = checkpointId
+    ? (await creativeHubService.getCheckpointHistoryItem(threadId, checkpointId))?.messages
+    : (await creativeHubService.getThreadState(threadId)).messages;
+
+  if (!baseMessages || baseMessages.length === 0) {
+    return incomingMessages;
+  }
+  if (incomingMessages.length === 0) {
+    return baseMessages;
+  }
+
+  const normalizeMessage = (message: CreativeHubMessage) => JSON.stringify(message);
+  const baseSerialized = baseMessages.map(normalizeMessage);
+  const incomingSerialized = incomingMessages.map(normalizeMessage);
+
+  const incomingStartsWithBase = baseSerialized.length <= incomingSerialized.length
+    && baseSerialized.every((message, index) => incomingSerialized[index] === message);
+  if (incomingStartsWithBase) {
+    return incomingMessages;
+  }
+
+  const baseStartsWithIncoming = incomingSerialized.length <= baseSerialized.length
+    && incomingSerialized.every((message, index) => baseSerialized[index] === message);
+  if (baseStartsWithIncoming) {
+    return baseMessages;
+  }
+
+  let overlap = 0;
+  const maxOverlap = Math.min(baseSerialized.length, incomingSerialized.length);
+  for (let size = maxOverlap; size > 0; size -= 1) {
+    const baseSuffix = baseSerialized.slice(-size);
+    const incomingPrefix = incomingSerialized.slice(0, size);
+    if (JSON.stringify(baseSuffix) === JSON.stringify(incomingPrefix)) {
+      overlap = size;
+      break;
+    }
+  }
+
+  return [...baseMessages, ...incomingMessages.slice(overlap)];
+}
+
 async function buildStateResponse(threadId: string): Promise<CreativeHubThreadState> {
   return creativeHubService.getThreadState(threadId);
 }
@@ -212,11 +258,10 @@ router.post("/threads/:threadId/runs/stream", validate({
     const { threadId } = req.params as { threadId: string };
     const body = req.body as z.infer<typeof streamRunSchema>;
     const disposeHeartbeat = initCreativeHubSSE(res);
-    const parentCheckpointId = body.checkpointId ?? (await creativeHubService.getThreadState(threadId)).currentCheckpointId ?? null;
+    const threadState = await creativeHubService.getThreadState(threadId);
+    const parentCheckpointId = body.checkpointId ?? threadState.currentCheckpointId ?? null;
     const resourceBindings = toBindings(body.resourceBindings);
-    const seedMessages = body.messages.length > 0
-      ? body.messages
-      : (await creativeHubService.getThreadState(threadId)).messages;
+    const seedMessages = await buildSeedMessages(threadId, parentCheckpointId, body.messages);
 
     try {
       await creativeHubLangGraph.runThread({

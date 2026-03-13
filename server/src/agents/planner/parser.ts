@@ -58,6 +58,35 @@ export const intentSchema: z.ZodType<StructuredIntent> = z.object({
   note: z.string().trim().optional(),
 });
 
+export function summarizeIntentValidationFailure(
+  payload: Record<string, unknown>,
+  issues: z.ZodIssue[],
+): string {
+  const details = issues.slice(0, 3).map((issue) => {
+    const path = issue.path.length > 0 ? issue.path.join(".") : "root";
+    if (path === "intent") {
+      const rawIntent = typeof payload.intent === "string" && payload.intent.trim()
+        ? payload.intent.trim()
+        : "unknown";
+      return `意图字段不受支持：${rawIntent}`;
+    }
+    if (issue.code === "invalid_type") {
+      return `字段 ${path} 类型不正确`;
+    }
+    if (issue.code === "invalid_value") {
+      return `字段 ${path} 的值不在允许范围内`;
+    }
+    if (issue.code === "too_small") {
+      return `字段 ${path} 缺少有效内容`;
+    }
+    if (issue.code === "too_big") {
+      return `字段 ${path} 超出允许范围`;
+    }
+    return `字段 ${path} 不符合要求`;
+  });
+  return `LLM 返回的意图结构无效：${details.join("；")}。`;
+}
+
 export async function parseIntentWithLLM(input: PlannerInput): Promise<StructuredIntent> {
   const llm = await getLLM(input.provider ?? "deepseek", {
     model: input.model,
@@ -147,7 +176,7 @@ export async function parseIntentWithLLM(input: PlannerInput): Promise<Structure
   const normalizedPayload = normalizeIntentPayload(parsedJson, input);
   const result = intentSchema.safeParse(normalizedPayload);
   if (!result.success) {
-    throw new Error("LLM 返回的意图结构无效。");
+    throw new Error(summarizeIntentValidationFailure(normalizedPayload, result.error.issues));
   }
   return result.data;
 }

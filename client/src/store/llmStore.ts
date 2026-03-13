@@ -55,10 +55,9 @@ export const useLLMStore = create<LLMStoreState>()(
       temperature: 0.7,
       maxTokens: 4096,
       setProvider: (provider) =>
-        set({
+        set(() => ({
           provider,
-          model: getDefaultModel(provider),
-        }),
+        })),
       setModel: (model) =>
         set((state) => ({
           model: normalizeModel(model, state.provider),

@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { compileIntentToPlan } = require("../dist/agents/planner/compiler.js");
 const { normalizeIntentPayload } = require("../dist/agents/planner/utils.js");
+const { summarizeIntentValidationFailure } = require("../dist/agents/planner/parser.js");
 
 test("compileIntentToPlan uses chapter order tools for chapter content", () => {
   const plan = compileIntentToPlan({
@@ -313,4 +314,38 @@ test("normalizeIntentPayload maps character count style AI intents to inspect_ch
 
   assert.equal(normalized.intent, "inspect_characters");
   assert.deepEqual(normalized.chapterSelectors, {});
+});
+
+test("normalizeIntentPayload maps current novel character count style AI intents to inspect_characters", () => {
+  const normalized = normalizeIntentPayload({
+    intent: "current_novel_character_count",
+    confidence: 0.9,
+    chapterSelectors: null,
+  }, {
+    goal: "当前小说有几个角色",
+    messages: [],
+    contextMode: "novel",
+    novelId: "novel-1",
+  });
+
+  assert.equal(normalized.intent, "inspect_characters");
+  assert.deepEqual(normalized.chapterSelectors, {});
+});
+
+test("summarizeIntentValidationFailure returns readable intent validation details", () => {
+  const message = summarizeIntentValidationFailure(
+    {
+      goal: "当前小说有几个角色",
+      intent: "current_novel_character_total",
+      chapterSelectors: {},
+    },
+    [{
+      code: "invalid_value",
+      values: [],
+      path: ["intent"],
+      message: "Invalid option",
+    }],
+  );
+
+  assert.equal(message, "LLM 返回的意图结构无效：意图字段不受支持：current_novel_character_total。");
 });

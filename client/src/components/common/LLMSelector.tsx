@@ -46,10 +46,7 @@ function sanitizeModelList(models: unknown): string[] {
 
 function resolveModel(provider: LLMProvider, currentModel: string, models: string[]): string {
   const normalizedCurrent = currentModel.trim();
-  if (normalizedCurrent && models.includes(normalizedCurrent)) {
-    return normalizedCurrent;
-  }
-  if (normalizedCurrent && models.length === 0) {
+  if (normalizedCurrent) {
     return normalizedCurrent;
   }
   return models[0] ?? providerModelMap[provider][0];
@@ -110,8 +107,13 @@ export default function LLMSelector({
   }, [data]);
 
   const models = useMemo(() => {
-    return providerModelsMap[currentValue.provider];
-  }, [currentValue.provider, providerModelsMap]);
+    const providerModels = providerModelsMap[currentValue.provider] ?? [];
+    const currentModel = currentValue.model.trim();
+    if (!currentModel || providerModels.includes(currentModel)) {
+      return providerModels;
+    }
+    return [currentModel, ...providerModels];
+  }, [currentValue.model, currentValue.provider, providerModelsMap]);
 
   const resolvedModel = useMemo(
     () => resolveModel(currentValue.provider, currentValue.model, models),

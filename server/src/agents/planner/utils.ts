@@ -13,6 +13,12 @@ const INTENT_ALIAS_MAP: Record<string, string> = {
   system_task_status: "query_task_status",
   list_characters: "inspect_characters",
   query_character_count: "inspect_characters",
+  character_count: "inspect_characters",
+  count_characters: "inspect_characters",
+  novel_character_count: "inspect_characters",
+  current_novel_character_count: "inspect_characters",
+  query_novel_character_count: "inspect_characters",
+  query_characters: "inspect_characters",
   character_status: "inspect_characters",
   character_overview: "inspect_characters",
 };

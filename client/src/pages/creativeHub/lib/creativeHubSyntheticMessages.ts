@@ -2,6 +2,7 @@ import type { FailureDiagnostic } from "@ai-novel/shared/types/agent";
 import type { CreativeHubInterrupt } from "@ai-novel/shared/types/creativeHub";
 import type { CreativeHubStreamFrame } from "@ai-novel/shared/types/api";
 import type { LangChainMessage } from "@assistant-ui/react-langgraph";
+import { getIntentDisplayLabel, getPlannerSourceDisplayLabel } from "./plannerLabels";
 
 function compactArgs(record: Record<string, string | null | undefined>): Record<string, string | null> {
   return Object.fromEntries(
@@ -100,7 +101,7 @@ export function createSyntheticRunMessage(
     return {
       id: `assistant_planner_${sequence}`,
       type: "ai",
-      content: `**意图识别**\n来源：${String(planner.source ?? "unknown")}\n意图：${String(planner.intent ?? "unknown")}`
+      content: `**意图识别**\n来源：${getPlannerSourceDisplayLabel(planner.source)}\n意图：${getIntentDisplayLabel(planner.intent)}`
         + ("confidence" in planner ? `\n置信度：${String(planner.confidence ?? "-")}` : ""),
       additional_kwargs: {
         metadata: {

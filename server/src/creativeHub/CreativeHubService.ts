@@ -226,6 +226,16 @@ export class CreativeHubService {
     return records.map(mapCheckpoint);
   }
 
+  async getCheckpointHistoryItem(threadId: string, checkpointId: string): Promise<CreativeHubThreadHistoryItem | null> {
+    const record = await prisma.creativeHubCheckpoint.findFirst({
+      where: {
+        threadId,
+        checkpointId,
+      },
+    });
+    return record ? mapCheckpoint(record) : null;
+  }
+
   async resolveCheckpointId(threadId: string, messages: CreativeHubMessage[]): Promise<string | null> {
     const checkpoints = await this.getThreadHistory(threadId);
     const target = JSON.stringify(messages);

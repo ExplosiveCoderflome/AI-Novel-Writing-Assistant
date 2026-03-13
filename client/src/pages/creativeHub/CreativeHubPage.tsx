@@ -67,6 +67,18 @@ function applyBindingsToSearchParams(searchParams: URLSearchParams, bindings: Cr
   return next;
 }
 
+function sameBindings(a: CreativeHubResourceBinding, b: CreativeHubResourceBinding): boolean {
+  const normalizeList = (value?: string[]) => (value ?? []).filter(Boolean).slice().sort();
+  return (a.novelId ?? null) === (b.novelId ?? null)
+    && (a.chapterId ?? null) === (b.chapterId ?? null)
+    && (a.worldId ?? null) === (b.worldId ?? null)
+    && (a.taskId ?? null) === (b.taskId ?? null)
+    && (a.bookAnalysisId ?? null) === (b.bookAnalysisId ?? null)
+    && (a.formulaId ?? null) === (b.formulaId ?? null)
+    && (a.baseCharacterId ?? null) === (b.baseCharacterId ?? null)
+    && JSON.stringify(normalizeList(a.knowledgeDocumentIds)) === JSON.stringify(normalizeList(b.knowledgeDocumentIds));
+}
+
 export default function CreativeHubPage() {
   const llm = useLLMStore();
   const queryClient = useQueryClient();
@@ -117,15 +129,24 @@ export default function CreativeHubPage() {
 
   useEffect(() => {
     if (activeThreadId) return;
+    if (threads.length > 0) {
+      const matchedThread = shouldCreateBoundThread
+        ? threads.find((thread) => sameBindings(thread.resourceBindings, initialBindings))
+        : null;
+      const nextThread = matchedThread ?? threads[0];
+      setActiveThreadId(nextThread.id);
+      setSearchParams((prev) => {
+        const next = applyBindingsToSearchParams(prev, nextThread.resourceBindings);
+        next.set("threadId", nextThread.id);
+        return next;
+      }, { replace: true });
+      return;
+    }
     if (shouldCreateBoundThread && !createThreadMutation.isPending) {
       createThreadMutation.mutate({
         title: "新对话",
         resourceBindings: initialBindings,
       });
-      return;
-    }
-    if (threads.length > 0) {
-      setActiveThreadId(threads[0].id);
       return;
     }
     if (!threadsQuery.isLoading && !createThreadMutation.isPending) {
