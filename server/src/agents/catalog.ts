@@ -47,10 +47,52 @@ const DOMAIN_AGENTS: AgentCatalogAgent[] = [
   },
 ];
 
+function inferUiKind(toolName: string): string {
+  if (toolName === "create_novel" || toolName === "select_novel_workspace") {
+    return "workspace_action";
+  }
+  if (toolName.includes("failure") || toolName.includes("blocker") || toolName.includes("conflict")) {
+    return "diagnostic_card";
+  }
+  if (toolName.startsWith("list_")) {
+    return "resource_list";
+  }
+  if (toolName.includes("chapter_content") || toolName.includes("summarize")) {
+    return "chapter_reader";
+  }
+  if (toolName.includes("preview") || toolName.includes("queue") || toolName.includes("retry")) {
+    return "task_action";
+  }
+  return "default";
+}
+
+function inferFollowupActions(toolName: string): string[] {
+  if (toolName === "create_novel") {
+    return ["继续完善设定", "绑定当前工作区", "开始创建章节"];
+  }
+  if (toolName === "select_novel_workspace") {
+    return ["继续围绕该小说操作", "查看章节", "发起写作"];
+  }
+  if (toolName.includes("failure") || toolName.includes("blocker")) {
+    return ["查看相关任务", "继续追问失败原因", "尝试重试"];
+  }
+  if (toolName.startsWith("list_")) {
+    return ["筛选结果", "在创作中枢继续", "打开对应模块"];
+  }
+  if (toolName.includes("chapter")) {
+    return ["继续总结", "发起重写", "检查冲突"];
+  }
+  return ["继续追问", "打开对应模块"];
+}
+
 export function buildAgentCatalog(): AgentCatalog {
   return {
     agents: DOMAIN_AGENTS,
-    tools: listAgentToolDefinitions(),
+    tools: listAgentToolDefinitions().map((tool) => ({
+      ...tool,
+      uiKind: inferUiKind(tool.name),
+      followupActions: inferFollowupActions(tool.name),
+    })),
     approvalPolicySummary: getPermissionMatrixSummary()
       .split("\n")
       .map((item) => item.trim())

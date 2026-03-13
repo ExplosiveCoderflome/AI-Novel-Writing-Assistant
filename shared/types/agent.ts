@@ -85,6 +85,8 @@ export interface CapabilityDefinition {
   domainAgent: DomainAgentName;
   resourceScopes: ResourceScope[];
   approvalRequired: boolean;
+  uiKind?: string;
+  followupActions?: string[];
   inputSchemaSummary: string[];
 }
 

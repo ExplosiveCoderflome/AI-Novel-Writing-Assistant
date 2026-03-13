@@ -19,6 +19,17 @@ function sanitizeId(raw: string): string {
   return raw.trim().replace(/[^\w-]/g, "");
 }
 
+function cleanupNovelTitle(raw: string): string | null {
+  const normalized = raw
+    .trim()
+    .replace(/^[《“"'`]+/, "")
+    .replace(/[》”"'`]+$/, "")
+    .replace(/^(小说|书名|标题)[:：\s]*/u, "")
+    .replace(/[。！？!?,，；;]+$/u, "")
+    .trim();
+  return normalized.length > 0 ? normalized.slice(0, 80) : null;
+}
+
 export function parseChapterNumber(raw: string): number | null {
   const normalized = raw.trim();
   if (!normalized) {
@@ -150,10 +161,76 @@ export function extractContent(goal: string): string | null {
   return value.length > 0 ? value : null;
 }
 
+export function extractNovelTitle(goal: string): string | null {
+  const quotedPatterns = [
+    /《([^》\n]{1,80})》/u,
+    /“([^”\n]{1,80})”/u,
+    /"([^"\n]{1,80})"/u,
+  ];
+  for (const pattern of quotedPatterns) {
+    const match = goal.match(pattern);
+    const candidate = cleanupNovelTitle(match?.[1] ?? "");
+    if (candidate) {
+      return candidate;
+    }
+  }
+
+  const patterns = [
+    /(?:创建|新建|建立)(?:一?本)?(?:小说|书)(?:作品)?(?:叫|名为|标题为)?[:：\s]*([^\n]+)$/u,
+    /(?:把|将)\s*(.+?)\s*(?:设为|切换到|绑定为|作为).*(?:当前工作区|当前小说|工作区)/u,
+    /(?:选择|切换到|打开|进入)(?:小说|工作区)?[:：\s]*([^\n]+)$/u,
+  ];
+  for (const pattern of patterns) {
+    const match = goal.match(pattern);
+    const candidate = cleanupNovelTitle(match?.[1] ?? "");
+    if (candidate && !/^(当前工作区|当前小说|工作区)$/u.test(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
 export function buildIdempotencyKey(prefix: string, input: PlannerInput): string {
   return slug(`${prefix}_${input.novelId ?? "global"}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
 }
 
 export function normalizeOrders(values: number[] | undefined): number[] {
   return [...new Set((values ?? []).filter((item) => Number.isFinite(item) && item >= 1))].sort((a, b) => a - b);
+}
+
+export function normalizeIntentPayload(raw: unknown, input: PlannerInput): Record<string, unknown> {
+  const payload = raw && typeof raw === "object" && !Array.isArray(raw)
+    ? raw as Record<string, unknown>
+    : {};
+  const chapterSelectorsRaw = payload.chapterSelectors;
+  const chapterSelectors = chapterSelectorsRaw && typeof chapterSelectorsRaw === "object" && !Array.isArray(chapterSelectorsRaw)
+    ? chapterSelectorsRaw as Record<string, unknown>
+    : {};
+
+  const normalized: Record<string, unknown> = {
+    ...payload,
+    goal: typeof payload.goal === "string" && payload.goal.trim() ? payload.goal.trim() : input.goal,
+    chapterSelectors,
+  };
+
+  if (payload.novelTitle == null || (typeof payload.novelTitle === "string" && !payload.novelTitle.trim())) {
+    delete normalized.novelTitle;
+  }
+  if (payload.worldName == null || (typeof payload.worldName === "string" && !payload.worldName.trim())) {
+    delete normalized.worldName;
+  }
+  if (payload.content == null || (typeof payload.content === "string" && !payload.content.trim())) {
+    delete normalized.content;
+  }
+  if (payload.note == null || (typeof payload.note === "string" && !payload.note.trim())) {
+    delete normalized.note;
+  }
+  if (payload.requiresNovelContext == null) {
+    delete normalized.requiresNovelContext;
+  }
+  if (payload.confidence == null) {
+    delete normalized.confidence;
+  }
+
+  return normalized;
 }

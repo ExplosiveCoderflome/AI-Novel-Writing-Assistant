@@ -10,7 +10,9 @@ import type {
   StructuredIntent,
   ToolCall,
 } from "../types";
+import { ApprovalContinuationService } from "./ApprovalContinuationService";
 import { RunExecutionService } from "./RunExecutionService";
+import { withSharedRunLock } from "./runLocks";
 import { normalizeAgent, parseRunMetadata, safeJson, TERMINAL_STATUSES, isRecord, asObject, type RunMetadata } from "./runtimeHelpers";
 
 export class AgentRuntime {
@@ -18,75 +20,10 @@ export class AgentRuntime {
 
   private readonly executor = new RunExecutionService(this.store);
 
-  private readonly runLocks = new Map<string, Promise<void>>();
-
-  private async reconcileWaitingApprovalRun(runId: string): Promise<void> {
-    const run = await this.store.getRun(runId);
-    if (!run || run.status !== "waiting_approval") {
-      return;
-    }
-
-    await this.store.expirePendingApprovals(runId);
-    const detail = await this.store.getRunDetail(runId);
-    if (!detail || detail.run.status !== "waiting_approval") {
-      return;
-    }
-
-    const pendingApprovals = detail.approvals.filter((item) => item.status === "pending");
-    if (pendingApprovals.length > 0) {
-      return;
-    }
-
-    const latestApproval = detail.approvals[detail.approvals.length - 1];
-    const errorMessage = latestApproval?.status === "expired"
-      ? "审批已过期，运行已停止。"
-      : "审批状态异常，运行已停止。";
-
-    await this.store.updateRun(runId, {
-      status: "failed",
-      currentStep: latestApproval?.status === "expired" ? "approval_expired" : "approval_inconsistent",
-      currentAgent: detail.run.currentAgent ?? "Planner",
-      error: errorMessage,
-      finishedAt: new Date(),
-    });
-  }
-
-  private markApprovedContinuation(actions: PlannedAction[]): PlannedAction[] {
-    return actions.map((action, index) => {
-      if (index !== 0 || action.calls.length === 0) {
-        return action;
-      }
-      const [firstCall, ...restCalls] = action.calls;
-      return {
-        ...action,
-        calls: [
-          {
-            ...firstCall,
-            approvalSatisfied: true,
-          },
-          ...restCalls,
-        ],
-      };
-    });
-  }
+  private readonly approvals = new ApprovalContinuationService(this.store, this.executor);
 
   private async withRunLock<T>(runId: string, fn: () => Promise<T>): Promise<T> {
-    const previous = this.runLocks.get(runId) ?? Promise.resolve();
-    let release: () => void = () => undefined;
-    const current = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    const chained = previous.then(() => current);
-    this.runLocks.set(runId, chained);
-    await previous;
-    try {
-      return await fn();
-    } finally {
-      release();
-      if (this.runLocks.get(runId) === chained) {
-        this.runLocks.delete(runId);
-      }
-    }
+    return withSharedRunLock(runId, fn);
   }
 
   private async failRun(
@@ -162,7 +99,7 @@ export class AgentRuntime {
     }
 
     if (input.runId) {
-      await this.reconcileWaitingApprovalRun(input.runId);
+      await this.approvals.reconcileWaitingApprovalRun(input.runId);
       const existing = await this.store.getRun(input.runId);
       if (existing && !TERMINAL_STATUSES.has(existing.status)) {
         if (existing.status === "waiting_approval") {
@@ -206,18 +143,35 @@ export class AgentRuntime {
         model: input.model,
       });
 
-      const planner = await createStructuredPlan({
-        goal: input.goal,
-        messages: input.messages ?? [],
-        contextMode: input.contextMode,
-        novelId: input.novelId,
-        provider: input.provider,
-        model: input.model,
-        temperature: input.temperature,
-        maxTokens: input.maxTokens,
-        currentRunStatus: "running",
-        currentStep: "planning",
-      });
+      let planner;
+      try {
+        planner = await createStructuredPlan({
+          goal: input.goal,
+          messages: input.messages ?? [],
+          contextMode: input.contextMode,
+          novelId: input.novelId,
+          provider: input.provider,
+          model: input.model,
+          temperature: input.temperature,
+          maxTokens: input.maxTokens,
+          currentRunStatus: "running",
+          currentStep: "planning",
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "LLM 意图识别失败。";
+        await this.store.addStep({
+          runId: run.id,
+          agentName: "Planner",
+          parentStepId: planningStep.id,
+          stepType: "planning",
+          status: "failed",
+          error: message,
+          provider: input.provider,
+          model: input.model,
+        });
+        await this.failRun(run.id, message, "Planner", callbacks);
+        throw error;
+      }
       await this.updateRunMetadata(run.id, input, planner.structuredIntent);
 
       await this.store.addStep({
@@ -269,99 +223,7 @@ export class AgentRuntime {
   }
 
   async resolveApproval(input: AgentApprovalDecisionInput, callbacks?: AgentRuntimeCallbacks): Promise<AgentRuntimeResult> {
-    return this.withRunLock(input.runId, async () => {
-      await this.reconcileWaitingApprovalRun(input.runId);
-      const detail = await this.store.getRunDetail(input.runId);
-      if (!detail) {
-        throw new Error("Run not found.");
-      }
-      if (detail.run.status === "cancelled") {
-        throw new Error("Run is cancelled.");
-      }
-      await this.store.expirePendingApprovals(input.runId);
-      const pending = await this.store.findPendingApproval(input.runId, input.approvalId);
-      if (!pending) {
-        const latest = await this.store.getRunDetail(input.runId);
-        const target = latest?.approvals.find((item) => item.id === input.approvalId);
-        throw new Error(target ? `Approval already ${target.status}.` : "Approval not found.");
-      }
-
-      const approval = await this.store.resolveApproval({
-        runId: input.runId,
-        approvalId: input.approvalId,
-        action: input.action,
-        note: input.note,
-      });
-      callbacks?.onApprovalResolved?.({
-        runId: input.runId,
-        approvalId: input.approvalId,
-        action: input.action === "approve" ? "approved" : "rejected",
-        note: input.note,
-      });
-
-      const payload = this.executor.parseApprovalPayload(approval.payloadJson);
-      if (!payload) {
-        await this.failRun(input.runId, "审批续跑数据损坏，无法继续执行。", "Planner", callbacks);
-        return this.executor.getRunDetailOrThrow(input.runId, "审批续跑数据损坏，运行已终止。");
-      }
-
-      if (input.action === "reject") {
-        const alternatives = this.executor.buildAlternativePathFromRejectedApproval(payload, input.note);
-        if (alternatives.length === 0) {
-          await this.failRun(
-            input.runId,
-            input.note?.trim() || "用户拒绝高影响写入，且没有可执行替代路径。",
-            "Planner",
-            callbacks,
-          );
-          return this.executor.getRunDetailOrThrow(input.runId, "已拒绝该高影响写入，运行已停止。");
-        }
-        await this.store.updateRun(input.runId, {
-          status: "running",
-          currentStep: "executing",
-          currentAgent: alternatives[0].agent,
-          error: null,
-          finishedAt: null,
-        });
-        callbacks?.onRunStatus?.({
-          runId: input.runId,
-          status: "running",
-          message: "审批拒绝，改走替代路径",
-        });
-        return this.executor.runActionPlan(
-          input.runId,
-          payload.goal,
-          alternatives,
-          payload.context,
-          payload.structuredIntent,
-          this.failRun.bind(this),
-          callbacks,
-        );
-      }
-
-      await this.store.updateRun(input.runId, {
-        status: "running",
-        currentStep: "executing",
-        currentAgent: payload.plannedActions[0]?.agent ?? "Planner",
-        error: null,
-        finishedAt: null,
-      });
-      callbacks?.onRunStatus?.({
-        runId: input.runId,
-        status: "running",
-        message: "审批通过，继续执行",
-      });
-      const approvedActions = this.markApprovedContinuation(payload.plannedActions);
-      return this.executor.runActionPlan(
-        input.runId,
-        payload.goal,
-        approvedActions,
-        payload.context,
-        payload.structuredIntent,
-        this.failRun.bind(this),
-        callbacks,
-      );
-    });
+    return this.approvals.resolve(input, callbacks, this.failRun.bind(this));
   }
 
   async replayFromStep(runId: string, request: ReplayRequest): Promise<AgentRuntimeResult> {
@@ -440,7 +302,7 @@ export class AgentRuntime {
   }
 
   async getRunDetail(runId: string): Promise<AgentRunDetail | null> {
-    await this.reconcileWaitingApprovalRun(runId);
+    await this.approvals.reconcileWaitingApprovalRun(runId);
     return this.store.getRunDetail(runId);
   }
 
@@ -455,7 +317,7 @@ export class AgentRuntime {
     await Promise.all(
       runs
         .filter((item) => item.status === "waiting_approval")
-        .map((item) => this.reconcileWaitingApprovalRun(item.id)),
+        .map((item) => this.approvals.reconcileWaitingApprovalRun(item.id)),
     );
     return this.store.listRuns(filters);
   }

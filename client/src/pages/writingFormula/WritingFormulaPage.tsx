@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import StreamOutput from "@/components/common/StreamOutput";
+import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getWritingFormulas } from "@/api/writingFormula";
@@ -27,6 +28,10 @@ export default function WritingFormulaPage() {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <OpenInCreativeHubButton bindings={{}} label="公式页发往创作中枢" />
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>提取写作公式</CardTitle>
@@ -116,8 +121,16 @@ export default function WritingFormulaPage() {
         <CardContent className="space-y-2">
           {(formulaListQuery.data?.data ?? []).map((item) => (
             <div key={item.id} className="rounded-md border p-3">
-              <div className="font-medium">{item.name}</div>
-              <div className="text-sm text-muted-foreground">{item.style ?? "暂无风格说明"}</div>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div className="font-medium">{item.name}</div>
+                  <div className="text-sm text-muted-foreground">{item.style ?? "暂无风格说明"}</div>
+                </div>
+                <OpenInCreativeHubButton
+                  bindings={{ formulaId: item.id }}
+                  label="带着这条公式继续"
+                />
+              </div>
             </div>
           ))}
           {(formulaListQuery.data?.data ?? []).length === 0 ? (

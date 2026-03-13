@@ -82,6 +82,27 @@ export function summarizeOutput(tool: string, output: Record<string, unknown>): 
   if (typeof output.summary === "string" && output.summary.trim()) {
     return output.summary;
   }
+  if (tool === "list_novels") {
+    const items = Array.isArray(output.items) ? output.items : [];
+    return `已读取 ${items.length} 本小说。`;
+  }
+  if (tool === "create_novel") {
+    return typeof output.title === "string" ? `已创建小说《${output.title}》。` : "已创建小说。";
+  }
+  if (tool === "select_novel_workspace") {
+    return typeof output.title === "string" ? `已定位到小说《${output.title}》。` : "已定位到目标小说。";
+  }
+  if (tool === "bind_world_to_novel") {
+    const worldName = typeof output.worldName === "string" ? output.worldName.trim() : "";
+    const novelTitle = typeof output.novelTitle === "string" ? output.novelTitle.trim() : "";
+    if (worldName && novelTitle) {
+      return `已将世界观《${worldName}》绑定到小说《${novelTitle}》。`;
+    }
+    if (worldName) {
+      return `已绑定世界观《${worldName}》。`;
+    }
+    return "已完成世界观绑定。";
+  }
   if (tool === "get_novel_context") {
     const title = typeof output.title === "string" ? output.title.trim() : "";
     const chapterCount = typeof output.chapterCount === "number" ? output.chapterCount : null;

@@ -57,6 +57,11 @@ export const queryKeys = {
     detail: (id: string) => ["agent-runs", "detail", id] as const,
   },
   agentCatalog: ["agent-catalog"] as const,
+  creativeHub: {
+    threads: ["creative-hub", "threads"] as const,
+    state: (threadId: string) => ["creative-hub", "state", threadId] as const,
+    history: (threadId: string) => ["creative-hub", "history", threadId] as const,
+  },
   settings: {
     apiKeys: ["settings", "api-keys"] as const,
     rag: ["settings", "rag"] as const,

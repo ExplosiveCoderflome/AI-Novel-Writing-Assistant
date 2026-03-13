@@ -2,7 +2,8 @@ import type { RouteObject } from "react-router-dom";
 import { Navigate, useRoutes } from "react-router-dom";
 import AppLayout from "@/components/layout/AppLayout";
 import BookAnalysisPage from "@/pages/bookAnalysis/BookAnalysisPage";
-import CreativeHubPage from "@/pages/chat/CreativeHubPage";
+import CreativeHubPage from "@/pages/creativeHub/CreativeHubPage";
+import ChatPage from "@/pages/chat/ChatPage";
 import Home from "@/pages/Home";
 import CharacterLibrary from "@/pages/characters/CharacterLibrary";
 import KnowledgePage from "@/pages/knowledge/KnowledgePage";
@@ -28,6 +29,7 @@ const routes: RouteObject[] = [
       { path: "novels/:id/edit", element: <NovelEdit /> },
       { path: "novels/:id/chapters/:chapterId", element: <NovelChapterEdit /> },
       { path: "creative-hub", element: <CreativeHubPage /> },
+      { path: "chat-legacy", element: <ChatPage /> },
       { path: "chat", element: <Navigate to="/creative-hub" replace /> },
       { path: "book-analysis", element: <BookAnalysisPage /> },
       { path: "tasks", element: <TaskCenterPage /> },

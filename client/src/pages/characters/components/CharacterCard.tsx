@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { ImageAsset } from "@ai-novel/shared/types/image";
 import type { BaseCharacter } from "@ai-novel/shared/types/novel";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ interface CharacterCardProps {
   onDelete: () => void;
   settingPrimary?: boolean;
   deleting?: boolean;
+  extraActions?: ReactNode;
 }
 
 export function CharacterCard({
@@ -26,6 +27,7 @@ export function CharacterCard({
   onDelete,
   settingPrimary,
   deleting,
+  extraActions,
 }: CharacterCardProps) {
   const [previewAsset, setPreviewAsset] = useState<ImageAsset | null>(null);
 
@@ -37,6 +39,7 @@ export function CharacterCard({
           <div className="text-sm text-muted-foreground">{character.role}</div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
+          {extraActions}
           <Button size="sm" variant="outline" onClick={onGenerateImage}>
             生成形象图
           </Button>

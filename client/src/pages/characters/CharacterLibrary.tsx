@@ -5,6 +5,7 @@ import type { BaseCharacter } from "@ai-novel/shared/types/novel";
 import { deleteBaseCharacter, getBaseCharacterList, updateBaseCharacter } from "@/api/character";
 import { listImageAssets, setPrimaryImageAsset } from "@/api/images";
 import { queryKeys } from "@/api/queryKeys";
+import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CharacterCard } from "./components/CharacterCard";
 import { CharacterCreateDialog } from "./components/CharacterCreateDialog";
@@ -124,7 +125,10 @@ export default function CharacterLibrary() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <div className="text-sm text-muted-foreground">已创建角色：{characters.length}</div>
-        <CharacterCreateDialog />
+        <div className="flex flex-wrap gap-2">
+          <OpenInCreativeHubButton bindings={{}} label="角色库发往创作中枢" />
+          <CharacterCreateDialog />
+        </div>
       </div>
 
       <CharacterImageDialog
@@ -177,6 +181,12 @@ export default function CharacterLibrary() {
               onDelete={() => handleDeleteCharacter(character)}
               settingPrimary={setPrimaryMutation.isPending}
               deleting={deleteMutation.isPending && deleteMutation.variables === character.id}
+              extraActions={(
+                <OpenInCreativeHubButton
+                  bindings={{ baseCharacterId: character.id }}
+                  label="带着角色继续"
+                />
+              )}
             />
           ))}
           {characters.length === 0 ? <div className="text-sm text-muted-foreground">暂无角色。</div> : null}

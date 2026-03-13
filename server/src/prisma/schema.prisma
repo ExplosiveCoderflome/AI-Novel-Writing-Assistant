@@ -209,6 +209,13 @@ enum AgentApprovalStatus {
   expired
 }
 
+enum CreativeHubThreadStatus {
+  idle
+  busy
+  interrupted
+  error
+}
+
 model Novel {
   id                String      @id @default(cuid())
   title             String
@@ -800,6 +807,41 @@ model AgentApproval {
   @@index([runId, status])
   @@index([stepId])
   @@index([status, expiresAt])
+}
+
+model CreativeHubThread {
+  id               String                  @id @default(cuid())
+  title            String                  @default("新对话")
+  archived         Boolean                 @default(false)
+  status           CreativeHubThreadStatus @default(idle)
+  latestRunId      String?
+  latestError      String?
+  resourceBindingsJson String?
+  metadataJson     String?
+  checkpoints      CreativeHubCheckpoint[]
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@index([archived, updatedAt])
+  @@index([status, updatedAt])
+}
+
+model CreativeHubCheckpoint {
+  id                String            @id @default(cuid())
+  threadId          String
+  checkpointId      String
+  parentCheckpointId String?
+  runId             String?
+  messageCount      Int               @default(0)
+  preview           String?
+  messagesJson      String
+  interruptsJson    String?
+  metadataJson      String?
+  thread            CreativeHubThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  createdAt         DateTime          @default(now())
+
+  @@unique([threadId, checkpointId])
+  @@index([threadId, createdAt])
 }
 
 model StorylineVersion {

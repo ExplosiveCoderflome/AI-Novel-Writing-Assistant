@@ -13,8 +13,11 @@
   "dependencies": {
     "@ai-novel/shared": "workspace:*",
     "@assistant-ui/react": "^0.12.17",
+    "@assistant-ui/react-devtools": "^1.0.2",
+    "@assistant-ui/react-langgraph": "^0.13.3",
     "@assistant-ui/react-ui": "^0.2.1",
     "@hookform/resolvers": "^5.2.2",
+    "@langchain/langgraph-sdk": "^1.7.2",
     "@platejs/ai": "^52.3.1",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-select": "^2.2.6",

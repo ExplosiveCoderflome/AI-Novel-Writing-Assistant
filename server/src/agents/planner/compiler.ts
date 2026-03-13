@@ -70,6 +70,76 @@ export function compileIntentToPlan(parsed: StructuredIntent, input: PlannerInpu
   }
 
   switch (parsed.intent) {
+    case "list_novels": {
+      actions.push(toolAction(
+        "Planner",
+        "list_novels",
+        "读取小说列表",
+        parsed.novelTitle ? { query: parsed.novelTitle, limit: 10 } : { limit: 10 },
+        parsed.novelTitle ? `list_novels_${parsed.novelTitle}` : "list_novels",
+        input,
+      ));
+      break;
+    }
+    case "list_worlds": {
+      actions.push(toolAction(
+        "Planner",
+        "list_worlds",
+        "读取世界观列表",
+        { limit: 10 },
+        "list_worlds",
+        input,
+      ));
+      break;
+    }
+    case "create_novel": {
+      if (parsed.novelTitle) {
+        actions.push(toolAction(
+          "Planner",
+          "create_novel",
+          `创建小说《${parsed.novelTitle}》`,
+          { title: parsed.novelTitle },
+          `create_novel_${parsed.novelTitle}`,
+          input,
+        ));
+      }
+      break;
+    }
+    case "select_novel_workspace": {
+      if (parsed.novelTitle) {
+        actions.push(toolAction(
+          "Planner",
+          "select_novel_workspace",
+          `将《${parsed.novelTitle}》设为当前工作区`,
+          { title: parsed.novelTitle },
+          `select_novel_${parsed.novelTitle}`,
+          input,
+        ));
+      } else if (input.novelId) {
+        actions.push(toolAction(
+          "Planner",
+          "select_novel_workspace",
+          "将当前小说绑定为工作区",
+          { novelId: input.novelId },
+          "select_current_novel",
+          input,
+        ));
+      }
+      break;
+    }
+    case "bind_world_to_novel": {
+      if (input.novelId && parsed.worldName) {
+        actions.push(toolAction(
+          "Planner",
+          "bind_world_to_novel",
+          `将《${parsed.worldName}》绑定为当前小说世界观`,
+          { novelId: input.novelId, worldName: parsed.worldName },
+          `bind_world_${parsed.worldName}`,
+          input,
+        ));
+      }
+      break;
+    }
     case "query_novel_title":
     case "query_progress": {
       if (input.novelId) {
@@ -269,10 +339,7 @@ export function compileIntentToPlan(parsed: StructuredIntent, input: PlannerInpu
       }
       break;
     }
-    case "search_knowledge":
-    case "general_chat":
-    case "unknown":
-    default: {
+    case "search_knowledge": {
       actions.push(toolAction(
         "Planner",
         "search_knowledge",
@@ -283,6 +350,10 @@ export function compileIntentToPlan(parsed: StructuredIntent, input: PlannerInpu
       ));
       break;
     }
+    case "general_chat":
+    case "unknown":
+    default:
+      break;
   }
 
   const uniqueActions = actions.filter((action, index) => {

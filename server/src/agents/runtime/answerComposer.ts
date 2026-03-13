@@ -17,6 +17,10 @@ function getSuccessfulOutputs(results: ToolExecutionResult[], tool: ToolCall["to
     .map((item) => item.output as Record<string, unknown>);
 }
 
+function getFailedResult(results: ToolExecutionResult[], tool: ToolCall["tool"]): ToolExecutionResult | null {
+  return results.find((item) => !item.success && item.tool === tool) ?? null;
+}
+
 function buildGroundingFacts(results: ToolExecutionResult[]): string {
   return safeJson(results.map((item) => ({
     tool: item.tool,
@@ -43,6 +47,82 @@ function composeTitleAnswer(results: ToolExecutionResult[]): string {
     .map((item) => (typeof item.title === "string" ? item.title.trim() : ""))
     .find(Boolean);
   return title ? `《${title}》` : "未获取到标题";
+}
+
+function composeNovelListAnswer(results: ToolExecutionResult[]): string {
+  const list = getSuccessfulOutputs(results, "list_novels")[0];
+  const items = Array.isArray(list?.items) ? list.items : [];
+  if (items.length === 0) {
+    return "当前还没有小说。";
+  }
+  const lines = items.slice(0, 8).map((item, index) => {
+    const title = typeof item?.title === "string" && item.title.trim() ? item.title.trim() : "未命名小说";
+    const chapterCount = typeof item?.chapterCount === "number" ? item.chapterCount : null;
+    return `${index + 1}. 《${title}》${chapterCount != null ? `（${chapterCount}章）` : ""}`;
+  });
+  return `当前共有 ${items.length} 本小说：\n${lines.join("\n")}`;
+}
+
+function composeWorldListAnswer(results: ToolExecutionResult[]): string {
+  const list = getSuccessfulOutputs(results, "list_worlds")[0];
+  const items = Array.isArray(list?.items) ? list.items : [];
+  if (items.length === 0) {
+    return "当前还没有世界观。";
+  }
+  const lines = items.slice(0, 8).map((item, index) => {
+    const name = typeof item?.name === "string" && item.name.trim() ? item.name.trim() : "未命名世界观";
+    const status = typeof item?.status === "string" && item.status.trim() ? item.status.trim() : null;
+    return `${index + 1}. ${name}${status ? `（${status}）` : ""}`;
+  });
+  return `当前共有 ${items.length} 个世界观：\n${lines.join("\n")}`;
+}
+
+function composeCreateNovelAnswer(results: ToolExecutionResult[]): string {
+  const created = getSuccessfulOutputs(results, "create_novel")[0];
+  if (!created) {
+    return "请先提供小说标题";
+  }
+  const title = typeof created.title === "string" ? created.title.trim() : "";
+  return title ? `已创建小说《${title}》。` : "已创建小说。";
+}
+
+function composeSelectNovelWorkspaceAnswer(results: ToolExecutionResult[]): string {
+  const selected = getSuccessfulOutputs(results, "select_novel_workspace")[0];
+  if (!selected) {
+    return "请先提供要切换的小说名称";
+  }
+  const title = typeof selected.title === "string" ? selected.title.trim() : "";
+  return title ? `已将当前工作区切换到《${title}》。` : "已切换当前工作区。";
+}
+
+function composeBindWorldAnswer(
+  results: ToolExecutionResult[],
+  context: Omit<ToolExecutionContext, "runId" | "agentName">,
+): string {
+  const bound = getSuccessfulOutputs(results, "bind_world_to_novel")[0];
+  if (bound) {
+    const summary = typeof bound.summary === "string" ? bound.summary.trim() : "";
+    if (summary) {
+      return summary;
+    }
+    const worldName = typeof bound.worldName === "string" ? bound.worldName.trim() : "";
+    const novelTitle = typeof bound.novelTitle === "string" ? bound.novelTitle.trim() : "";
+    if (worldName && novelTitle) {
+      return `已将世界观《${worldName}》绑定到小说《${novelTitle}》。`;
+    }
+    return "已完成世界观绑定。";
+  }
+  if (!context.novelId) {
+    return "没有当前小说上下文，无法设置世界观。";
+  }
+  const failed = getFailedResult(results, "bind_world_to_novel");
+  if (failed?.errorCode === "NOT_FOUND") {
+    return "未找到要绑定的世界观。";
+  }
+  if (failed?.summary) {
+    return failed.summary;
+  }
+  return "未完成世界观绑定。";
 }
 
 function composeProgressAnswer(results: ToolExecutionResult[]): string {
@@ -226,6 +306,16 @@ export async function composeAssistantMessage(
   structuredIntent?: StructuredIntent,
 ): Promise<string> {
   switch (structuredIntent?.intent) {
+    case "list_novels":
+      return composeNovelListAnswer(results);
+    case "list_worlds":
+      return composeWorldListAnswer(results);
+    case "create_novel":
+      return composeCreateNovelAnswer(results);
+    case "select_novel_workspace":
+      return composeSelectNovelWorkspaceAnswer(results);
+    case "bind_world_to_novel":
+      return composeBindWorldAnswer(results, context);
     case "query_novel_title":
       return composeTitleAnswer(results);
     case "query_progress":

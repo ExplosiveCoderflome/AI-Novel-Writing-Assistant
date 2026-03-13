@@ -8,6 +8,7 @@ import type {
 } from "@ai-novel/shared/types/knowledge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -255,6 +256,10 @@ export default function KnowledgePage() {
         <Button size="sm" variant="secondary" onClick={() => setSelectedDocumentId(document.id)}>
           查看版本
         </Button>
+        <OpenInCreativeHubButton
+          bindings={{ knowledgeDocumentIds: [document.id] }}
+          label="在创作中枢中继续"
+        />
         <Button asChild size="sm" variant="outline">
           <Link to={`/book-analysis?documentId=${document.id}`}>新建拆书</Link>
         </Button>
@@ -293,6 +298,12 @@ export default function KnowledgePage() {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <OpenInCreativeHubButton
+          bindings={{ knowledgeDocumentIds: selectedDocumentId ? [selectedDocumentId] : [] }}
+          label="知识库发往创作中枢"
+        />
+      </div>
       <Tabs
         value={activeTab}
         onValueChange={(value) => setSearchParams({ tab: value })}

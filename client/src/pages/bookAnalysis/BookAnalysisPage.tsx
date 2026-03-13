@@ -1,3 +1,4 @@
+import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import BookAnalysisDetailPanel from "./components/BookAnalysisDetailPanel";
 import BookAnalysisSidebar from "./components/BookAnalysisSidebar";
 import { useBookAnalysisWorkspace } from "./hooks/useBookAnalysisWorkspace";
@@ -7,6 +8,15 @@ export default function BookAnalysisPage() {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <OpenInCreativeHubButton
+          bindings={{
+            bookAnalysisId: workspace.selectedAnalysisId || null,
+            knowledgeDocumentIds: workspace.selectedDocumentId ? [workspace.selectedDocumentId] : [],
+          }}
+          label="拆书结果发往创作中枢"
+        />
+      </div>
       <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
         <BookAnalysisSidebar
           selectedDocumentId={workspace.selectedDocumentId}

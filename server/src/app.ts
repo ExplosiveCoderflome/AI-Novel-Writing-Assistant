@@ -13,6 +13,7 @@ import agentRunsRouter from "./routes/agentRuns";
 import bookAnalysisRouter from "./routes/bookAnalysis";
 import characterRouter from "./routes/character";
 import chatRouter from "./routes/chat";
+import creativeHubRouter from "./routes/creativeHub";
 import healthRouter from "./routes/health";
 import imagesRouter from "./routes/images";
 import knowledgeRouter from "./routes/knowledge";
@@ -84,6 +85,7 @@ export function createApp() {
   app.use("/api/base-characters", characterRouter);
   app.use("/api/writing-formula", writingFormulaRouter);
   app.use("/api/chat", chatRouter);
+  app.use("/api/creative-hub", creativeHubRouter);
   app.use("/api/images", imagesRouter);
   app.use("/api/tasks", tasksRouter);
   app.use("/api/settings", settingsRouter);

@@ -70,6 +70,8 @@ export class RunExecutionService {
           toolName: call.tool,
           outputSummary: summary,
           success: cached.status === "succeeded",
+          output,
+          errorCode: cached.errorCode ?? undefined,
         });
         return {
           tool: call.tool,
@@ -141,6 +143,7 @@ export class RunExecutionService {
         toolName: call.tool,
         outputSummary: summary,
         success: true,
+        output: parsedOutput,
       });
       return {
         tool: call.tool,
@@ -176,6 +179,7 @@ export class RunExecutionService {
         toolName: call.tool,
         outputSummary: message,
         success: false,
+        errorCode: code,
       });
       return {
         tool: call.tool,

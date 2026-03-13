@@ -1,3 +1,5 @@
+import type { CreativeHubInterrupt, CreativeHubMessage } from "./creativeHub";
+
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -16,3 +18,26 @@ export type SSEFrame =
   | { type: "approval_required"; runId: string; approvalId: string; summary: string; targetType: string; targetId: string }
   | { type: "approval_resolved"; runId: string; approvalId: string; action: "approved" | "rejected"; note?: string }
   | { type: "run_status"; runId: string; status: "queued" | "running" | "waiting_approval" | "succeeded" | "failed" | "cancelled"; message?: string };
+
+export type CreativeHubStreamFrame =
+  | { event: "messages/partial"; data: CreativeHubMessage[] }
+  | { event: "messages/complete"; data: CreativeHubMessage[] }
+  | { event: "metadata"; data: Record<string, unknown> }
+  | { event: "creative_hub/run_status"; data: { runId?: string; status: string; message?: string } }
+  | { event: "creative_hub/tool_call"; data: { runId?: string; stepId?: string; toolName: string; inputSummary: string } }
+  | {
+    event: "creative_hub/tool_result";
+    data: {
+      runId?: string;
+      stepId?: string;
+      toolName: string;
+      outputSummary: string;
+      success: boolean;
+      output?: Record<string, unknown>;
+      errorCode?: string;
+    };
+  }
+  | { event: "creative_hub/interrupt"; data: CreativeHubInterrupt }
+  | { event: "creative_hub/approval_resolved"; data: { approvalId: string; action: "approved" | "rejected"; note?: string } }
+  | { event: "creative_hub/error"; data: { message: string } }
+  | { event: "error"; data: { message: string } };

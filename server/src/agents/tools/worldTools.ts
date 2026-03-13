@@ -26,6 +26,14 @@ const worldIdInput = z.object({
   worldId: z.string().trim().min(1),
 });
 
+const bindWorldToNovelInput = z.object({
+  novelId: z.string().trim().min(1),
+  worldId: z.string().trim().min(1).optional(),
+  worldName: z.string().trim().min(1).optional(),
+}).refine((input) => Boolean(input.worldId || input.worldName), {
+  message: "worldId or worldName is required.",
+});
+
 const getWorldDetailOutput = z.object({
   id: z.string(),
   name: z.string(),
@@ -36,6 +44,14 @@ const getWorldDetailOutput = z.object({
   consistencyReport: z.string().nullable(),
   novelCount: z.number().int(),
   openIssueCount: z.number().int(),
+  summary: z.string(),
+});
+
+const bindWorldToNovelOutput = z.object({
+  novelId: z.string(),
+  novelTitle: z.string(),
+  worldId: z.string(),
+  worldName: z.string(),
   summary: z.string(),
 });
 
@@ -85,6 +101,73 @@ export const worldToolDefinitions: Partial<
           updatedAt: row.updatedAt.toISOString(),
         })),
         summary: `已读取 ${rows.length} 个世界观。`,
+      });
+    },
+  },
+  bind_world_to_novel: {
+    name: "bind_world_to_novel",
+    title: "绑定小说世界观",
+    description: "将指定世界观绑定为当前小说的世界观。",
+    category: "mutate",
+    riskLevel: "medium",
+    domainAgent: "WorldAgent",
+    resourceScopes: ["world", "novel"],
+    inputSchema: bindWorldToNovelInput,
+    outputSchema: bindWorldToNovelOutput,
+    execute: async (_context, rawInput) => {
+      const input = bindWorldToNovelInput.parse(rawInput);
+      const novel = await prisma.novel.findUnique({
+        where: { id: input.novelId },
+        select: {
+          id: true,
+          title: true,
+        },
+      });
+      if (!novel) {
+        throw new AgentToolError("NOT_FOUND", "未找到当前小说。");
+      }
+
+      const resolvedWorld = input.worldId
+        ? await prisma.world.findUnique({
+          where: { id: input.worldId },
+          select: { id: true, name: true },
+        })
+        : (() => undefined)();
+      let world = resolvedWorld ?? null;
+      if (!world && input.worldName) {
+        const candidates = await prisma.world.findMany({
+          where: {
+            name: {
+              contains: input.worldName,
+            },
+          },
+          orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+          take: 8,
+          select: {
+            id: true,
+            name: true,
+          },
+        });
+        world = candidates.find((item) => item.name.trim() === input.worldName?.trim()) ?? candidates[0] ?? null;
+      }
+
+      if (!world) {
+        throw new AgentToolError("NOT_FOUND", "未找到要绑定的世界观。");
+      }
+
+      await prisma.novel.update({
+        where: { id: novel.id },
+        data: {
+          worldId: world.id,
+        },
+      });
+
+      return bindWorldToNovelOutput.parse({
+        novelId: novel.id,
+        novelTitle: novel.title,
+        worldId: world.id,
+        worldName: world.name,
+        summary: `已将世界观《${world.name}》绑定到小说《${novel.title}》。`,
       });
     },
   },

@@ -5,6 +5,10 @@ import type { AgentPlan, AgentToolErrorCode } from "@ai-novel/shared/types/agent
 export type AgentName = "Planner" | "Writer" | "Reviewer" | "Continuity" | "Repair";
 
 export type AgentToolName =
+  | "list_novels"
+  | "create_novel"
+  | "select_novel_workspace"
+  | "bind_world_to_novel"
   | "get_novel_context"
   | "list_chapters"
   | "get_chapter_by_order"
@@ -46,6 +50,11 @@ export type AgentToolName =
 export type AgentContextMode = "global" | "novel";
 
 export type AgentIntentName =
+  | "list_novels"
+  | "list_worlds"
+  | "create_novel"
+  | "select_novel_workspace"
+  | "bind_world_to_novel"
   | "query_novel_title"
   | "query_chapter_content"
   | "query_progress"
@@ -66,6 +75,8 @@ export interface StructuredIntent {
   intent: AgentIntentName;
   confidence: number;
   requiresNovelContext: boolean;
+  novelTitle?: string;
+  worldName?: string;
   chapterSelectors: {
     chapterId?: string;
     orders?: number[];
@@ -114,6 +125,8 @@ export interface AgentRuntimeCallbacks {
     toolName: AgentToolName;
     outputSummary: string;
     success: boolean;
+    output?: Record<string, unknown>;
+    errorCode?: AgentToolErrorCode;
   }) => void;
   onApprovalRequired?: (payload: {
     runId: string;
@@ -185,7 +198,7 @@ export interface PlannerResult {
   structuredIntent: StructuredIntent;
   plan: AgentPlan;
   actions: PlannedAction[];
-  source: "llm" | "fallback";
+  source: "llm";
   validationWarnings: string[];
 }
 

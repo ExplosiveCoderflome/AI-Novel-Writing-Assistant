@@ -9,6 +9,10 @@ export interface ApprovalDecision {
 
 const AGENT_TOOL_ALLOWLIST: Record<AgentName, Set<AgentToolName>> = {
   Planner: new Set<AgentToolName>([
+    "list_novels",
+    "create_novel",
+    "select_novel_workspace",
+    "bind_world_to_novel",
     "get_novel_context",
     "list_chapters",
     "get_chapter_by_order",

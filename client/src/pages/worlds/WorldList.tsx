@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getWorldList } from "@/api/world";
 import { queryKeys } from "@/api/queryKeys";
@@ -80,7 +81,8 @@ export default function WorldList() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        <OpenInCreativeHubButton bindings={{}} label="创作中枢总览" />
         {featureFlags.worldWizardEnabled ? (
           <Button asChild>
             <Link to="/worlds/generator">生成新世界观</Link>
@@ -115,11 +117,17 @@ export default function WorldList() {
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground">
                   <div className="mb-2">{detail}</div>
-                  {featureFlags.worldWizardEnabled ? (
-                    <Button asChild size="sm">
-                      <Link to={`/worlds/${world.id}/workspace`}>进入工作台</Link>
-                    </Button>
-                  ) : null}
+                  <div className="flex flex-wrap gap-2">
+                    <OpenInCreativeHubButton
+                      bindings={{ worldId: world.id }}
+                      label="在创作中枢中继续"
+                    />
+                    {featureFlags.worldWizardEnabled ? (
+                      <Button asChild size="sm">
+                        <Link to={`/worlds/${world.id}/workspace`}>进入工作台</Link>
+                      </Button>
+                    ) : null}
+                  </div>
                 </CardContent>
               </Card>
             );

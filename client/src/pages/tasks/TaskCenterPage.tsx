@@ -6,6 +6,7 @@ import { cancelTask, getTaskDetail, listTasks, retryTask } from "@/api/tasks";
 import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
@@ -388,6 +389,10 @@ export default function TaskCenterPage() {
                   <Button asChild size="sm" variant="outline">
                     <Link to={selectedTask.sourceRoute}>打开来源页面</Link>
                   </Button>
+                  <OpenInCreativeHubButton
+                    bindings={{ taskId: selectedTask.id }}
+                    label="在创作中枢诊断"
+                  />
                 </div>
                 <div className="space-y-2">
                   <div className="font-medium">步骤状态</div>
