@@ -26,6 +26,7 @@ export interface SerializedContinuationPayload {
 
 export interface RunMetadata {
   contextMode: AgentRunStartInput["contextMode"];
+  worldId?: string;
   provider?: AgentRunStartInput["provider"];
   model?: string;
   temperature?: number;
@@ -102,6 +103,28 @@ export function summarizeOutput(tool: string, output: Record<string, unknown>): 
       return `已绑定世界观《${worldName}》。`;
     }
     return "已完成世界观绑定。";
+  }
+  if (tool === "generate_world_for_novel") {
+    const worldName = typeof output.worldName === "string" ? output.worldName.trim() : "";
+    return worldName ? `已生成世界观《${worldName}》。` : "已生成小说世界观。";
+  }
+  if (tool === "generate_novel_characters") {
+    return `已生成 ${String(output.characterCount ?? 0)} 个核心角色。`;
+  }
+  if (tool === "generate_story_bible") {
+    return "已生成小说圣经。";
+  }
+  if (tool === "generate_novel_outline") {
+    return "已生成小说发展走向。";
+  }
+  if (tool === "generate_structured_outline") {
+    return `已生成 ${String(output.targetChapterCount ?? output.chapterCount ?? 0)} 章结构化大纲。`;
+  }
+  if (tool === "sync_chapters_from_structured_outline") {
+    return `已同步 ${String(output.chapterCount ?? 0)} 个章节目录。`;
+  }
+  if (tool === "start_full_novel_pipeline" || tool === "get_novel_production_status") {
+    return typeof output.summary === "string" ? output.summary : `${tool} 执行完成。`;
   }
   if (tool === "get_novel_context") {
     const title = typeof output.title === "string" ? output.title.trim() : "";
@@ -252,6 +275,7 @@ export function parseApprovalPayload(payloadJson: string | null | undefined): Se
   const context: SerializedContinuationPayload["context"] = {
     contextMode: contextRecord.contextMode === "novel" ? "novel" : "global",
     novelId: typeof contextRecord.novelId === "string" ? contextRecord.novelId : undefined,
+    worldId: typeof contextRecord.worldId === "string" ? contextRecord.worldId : undefined,
     provider: typeof contextRecord.provider === "string"
       ? contextRecord.provider as AgentRunStartInput["provider"]
       : undefined,
@@ -359,6 +383,9 @@ export function parseRunMetadata(metadataJson: string | null | undefined): RunMe
   };
   if (typeof raw.provider === "string") {
     metadata.provider = raw.provider as AgentRunStartInput["provider"];
+  }
+  if (typeof raw.worldId === "string") {
+    metadata.worldId = raw.worldId;
   }
   if (typeof raw.model === "string") {
     metadata.model = raw.model;

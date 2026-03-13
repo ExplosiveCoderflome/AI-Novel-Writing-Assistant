@@ -1,8 +1,14 @@
 import { useState } from "react";
 import type { FailureDiagnostic } from "@ai-novel/shared/types/agent";
-import type { CreativeHubInterrupt, CreativeHubResourceBinding, CreativeHubThread } from "@ai-novel/shared/types/creativeHub";
+import type {
+  CreativeHubInterrupt,
+  CreativeHubProductionStatus,
+  CreativeHubResourceBinding,
+  CreativeHubThread,
+} from "@ai-novel/shared/types/creativeHub";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import NovelProductionStarterCard from "./NovelProductionStarterCard";
 
 interface CreativeHubSidebarProps {
   thread?: CreativeHubThread;
@@ -10,6 +16,7 @@ interface CreativeHubSidebarProps {
   novels: Array<{ id: string; title: string }>;
   interrupt?: CreativeHubInterrupt;
   diagnostics?: FailureDiagnostic;
+  productionStatus?: CreativeHubProductionStatus | null;
   modelSummary: {
     provider: string;
     model: string;
@@ -22,6 +29,7 @@ interface CreativeHubSidebarProps {
   onResolveInterrupt: (action: "approve" | "reject") => void;
   onQuickAction?: (prompt: string) => void;
   onCreateNovel?: (title: string) => void;
+  onStartProduction?: (prompt: string) => void;
 }
 
 function bindingValue(value: string | null | undefined): string {
@@ -34,6 +42,7 @@ export default function CreativeHubSidebar({
   novels,
   interrupt,
   diagnostics,
+  productionStatus,
   modelSummary,
   approvalNote,
   onApprovalNoteChange,
@@ -41,8 +50,10 @@ export default function CreativeHubSidebar({
   onResolveInterrupt,
   onQuickAction,
   onCreateNovel,
+  onStartProduction,
 }: CreativeHubSidebarProps) {
   const [novelTitleDraft, setNovelTitleDraft] = useState("");
+  const currentNovelTitle = novels.find((item) => item.id === bindings.novelId)?.title ?? null;
 
   return (
     <Card className="flex h-full min-h-0 flex-col">
@@ -111,6 +122,30 @@ export default function CreativeHubSidebar({
             <div>基础角色: {bindingValue(bindings.baseCharacterId)}</div>
             <div>知识文档: {bindings.knowledgeDocumentIds?.length ?? 0} 个</div>
           </div>
+        </div>
+
+        <NovelProductionStarterCard
+          currentNovelId={bindings.novelId ?? null}
+          currentNovelTitle={currentNovelTitle}
+          productionStatus={productionStatus}
+          onQuickAction={onQuickAction}
+          onSubmit={(prompt) => onStartProduction?.(prompt)}
+        />
+
+        <div className="rounded-xl border border-slate-200 bg-white p-3">
+          <div className="mb-2 text-xs font-medium text-slate-500">整本生产状态</div>
+          {productionStatus ? (
+            <div className="space-y-2 text-xs text-slate-700">
+              <div>当前阶段：{productionStatus.currentStage}</div>
+              <div>资产完成度：{productionStatus.assetStages.filter((item) => item.status === "completed").length}/{productionStatus.assetStages.length}</div>
+              <div>章节目录：{productionStatus.chapterCount}/{productionStatus.targetChapterCount} 章</div>
+              <div>整本写作：{productionStatus.pipelineStatus ?? "未启动"}</div>
+              {productionStatus.failureSummary ? <div>失败摘要：{productionStatus.failureSummary}</div> : null}
+              {productionStatus.recoveryHint ? <div>恢复建议：{productionStatus.recoveryHint}</div> : null}
+            </div>
+          ) : (
+            <div className="text-xs text-slate-500">当前线程还没有整本生产状态。</div>
+          )}
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-3">

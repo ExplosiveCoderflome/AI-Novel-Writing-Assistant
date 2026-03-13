@@ -22,7 +22,8 @@
     "prisma:migrate": "prisma migrate dev --name init --schema src/prisma/schema.prisma",
     "db:migrate": "pnpm prisma:migrate",
     "db:seed": "prisma db seed --schema src/prisma/schema.prisma",
-    "db:studio": "prisma studio --schema src/prisma/schema.prisma"
+    "db:studio": "prisma studio --schema src/prisma/schema.prisma",
+    "db:restore": "node scripts/restore-dev-data.cjs"
   },
   "dependencies": {
     "@ai-novel/shared": "workspace:*",

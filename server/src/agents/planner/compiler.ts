@@ -55,6 +55,15 @@ export function compileIntentToPlan(parsed: StructuredIntent, input: PlannerInpu
     ));
   }
 
+  function addProductionAction(
+    tool: AgentPlan["actions"][number]["tool"],
+    reason: string,
+    actionInput: Record<string, unknown>,
+    keyPrefix: string,
+  ) {
+    actions.push(toolAction("Planner", tool, reason, actionInput, keyPrefix, input));
+  }
+
   if (input.contextMode === "novel" && input.novelId) {
     contextNeeds.push({
       key: "novel_context",
@@ -88,6 +97,17 @@ export function compileIntentToPlan(parsed: StructuredIntent, input: PlannerInpu
         "读取世界观列表",
         { limit: 10 },
         "list_worlds",
+        input,
+      ));
+      break;
+    }
+    case "query_task_status": {
+      actions.push(toolAction(
+        "Planner",
+        "list_tasks",
+        "读取当前系统任务状态",
+        { limit: 10 },
+        "list_tasks",
         input,
       ));
       break;
@@ -137,6 +157,117 @@ export function compileIntentToPlan(parsed: StructuredIntent, input: PlannerInpu
           `bind_world_${parsed.worldName}`,
           input,
         ));
+      }
+      break;
+    }
+    case "produce_novel": {
+      const hasCurrentNovel = Boolean(input.novelId);
+      if (!hasCurrentNovel && !parsed.novelTitle) {
+        break;
+      }
+      if (!hasCurrentNovel) {
+        addProductionAction(
+          "create_novel",
+          `创建小说《${parsed.novelTitle}》`,
+          {
+            title: parsed.novelTitle,
+            ...(parsed.description ? { description: parsed.description } : {}),
+            ...(parsed.genre ? { genre: parsed.genre } : {}),
+            ...(parsed.styleTone ? { styleTone: parsed.styleTone } : {}),
+            ...(parsed.pacePreference ? { pacePreference: parsed.pacePreference } : {}),
+            ...(parsed.narrativePov ? { narrativePov: parsed.narrativePov } : {}),
+          },
+          `produce_create_${parsed.novelTitle}`,
+        );
+      }
+      if (!input.worldId) {
+        addProductionAction(
+          "generate_world_for_novel",
+          "为当前小说生成世界观",
+          {
+            ...(parsed.description ? { description: parsed.description } : {}),
+            ...(parsed.worldType ? { worldType: parsed.worldType } : {}),
+          },
+          "produce_world",
+        );
+        addProductionAction(
+          "bind_world_to_novel",
+          "将生成的世界观绑定到当前小说",
+          {},
+          "produce_bind_world",
+        );
+      }
+      addProductionAction(
+        "generate_novel_characters",
+        "生成核心角色设定",
+        {
+          ...(parsed.description ? { description: parsed.description } : {}),
+          ...(parsed.genre ? { genre: parsed.genre } : {}),
+          ...(parsed.styleTone ? { styleTone: parsed.styleTone } : {}),
+          ...(parsed.narrativePov ? { narrativePov: parsed.narrativePov } : {}),
+        },
+        "produce_characters",
+      );
+      addProductionAction(
+        "generate_story_bible",
+        "生成小说圣经",
+        {},
+        "produce_bible",
+      );
+      addProductionAction(
+        "generate_novel_outline",
+        "生成发展走向",
+        {
+          ...(parsed.description ? { description: parsed.description } : {}),
+        },
+        "produce_outline",
+      );
+      addProductionAction(
+        "generate_structured_outline",
+        "生成结构化大纲",
+        {
+          targetChapterCount: parsed.targetChapterCount ?? 20,
+        },
+        "produce_structured_outline",
+      );
+      addProductionAction(
+        "sync_chapters_from_structured_outline",
+        "根据结构化大纲同步章节目录",
+        {},
+        "produce_sync_chapters",
+      );
+      addProductionAction(
+        "preview_pipeline_run",
+        "预览整本写作范围",
+        {
+          startOrder: 1,
+          endOrder: parsed.targetChapterCount ?? 20,
+        },
+        "produce_preview_pipeline",
+      );
+      addProductionAction(
+        "queue_pipeline_run",
+        "启动整本写作任务",
+        {
+          startOrder: 1,
+          endOrder: parsed.targetChapterCount ?? 20,
+        },
+        "produce_queue_pipeline",
+      );
+      break;
+    }
+    case "query_novel_production_status": {
+      if (input.novelId || parsed.novelTitle) {
+        addProductionAction(
+          "get_novel_production_status",
+          "读取整本生产状态",
+          {
+            ...(input.novelId ? { novelId: input.novelId } : {}),
+            ...(parsed.novelTitle ? { title: parsed.novelTitle } : {}),
+            ...(parsed.targetChapterCount ? { targetChapterCount: parsed.targetChapterCount } : {}),
+          },
+          parsed.novelTitle ? `production_status_${parsed.novelTitle}` : "production_status",
+        );
       }
       break;
     }

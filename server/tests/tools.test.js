@@ -15,6 +15,14 @@ test("tool registry exposes chapter range and cross-domain tools", () => {
   assert.ok(tools.includes("list_knowledge_documents"));
   assert.ok(tools.includes("list_worlds"));
   assert.ok(tools.includes("bind_world_to_novel"));
+  assert.ok(tools.includes("generate_world_for_novel"));
+  assert.ok(tools.includes("generate_novel_characters"));
+  assert.ok(tools.includes("generate_story_bible"));
+  assert.ok(tools.includes("generate_novel_outline"));
+  assert.ok(tools.includes("generate_structured_outline"));
+  assert.ok(tools.includes("sync_chapters_from_structured_outline"));
+  assert.ok(tools.includes("start_full_novel_pipeline"));
+  assert.ok(tools.includes("get_novel_production_status"));
   assert.ok(tools.includes("list_writing_formulas"));
   assert.ok(tools.includes("list_base_characters"));
   assert.ok(tools.includes("list_tasks"));

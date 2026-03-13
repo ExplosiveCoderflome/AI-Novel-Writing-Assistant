@@ -4,6 +4,7 @@ import type {
   CreativeHubMessage,
   CreativeHubResourceBinding,
   CreativeHubThread,
+  CreativeHubThreadMetadata,
   CreativeHubThreadHistoryItem,
   CreativeHubThreadState,
 } from "@ai-novel/shared/types/creativeHub";
@@ -213,7 +214,7 @@ export class CreativeHubService {
       interrupts: latestCheckpoint ? safeParseJson(latestCheckpoint.interruptsJson, [] as CreativeHubInterrupt[]) : [],
       currentCheckpointId: latestCheckpoint?.checkpointId ?? null,
       diagnostics,
-      metadata: safeParseJson(record.metadataJson, {} as Record<string, unknown>),
+      metadata: safeParseJson(record.metadataJson, {} as CreativeHubThreadMetadata),
     };
   }
 
@@ -265,6 +266,10 @@ export class CreativeHubService {
         latestError: input.latestError ?? null,
         status: input.status ?? existing.status,
         resourceBindingsJson: JSON.stringify(normalizeBindings(input.resourceBindings ?? safeParseJson(existing.resourceBindingsJson, {}))),
+        metadataJson: JSON.stringify({
+          ...safeParseJson(existing.metadataJson, {}),
+          ...(input.metadata ?? {}),
+        }),
       },
     });
     return {

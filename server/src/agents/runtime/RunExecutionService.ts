@@ -3,6 +3,7 @@ import { canAgentUseTool, evaluateApprovalRequirement } from "../approvalPolicy"
 import { AgentTraceStore } from "../traceStore";
 import { getAgentToolDefinition } from "../toolRegistry";
 import { composeAssistantMessage } from "./answerComposer";
+import { applyToolResultContext, resolveToolInput } from "./executionContext";
 import {
   APPROVAL_TTL_MS,
   MAX_TOOL_RETRIES,
@@ -260,6 +261,7 @@ export class RunExecutionService {
     callbacks?: AgentRuntimeCallbacks,
   ): Promise<AgentRuntimeResult> {
     const allResults: ToolExecutionResult[] = [];
+    let currentContext = { ...context };
     let waitingForApproval = false;
     for (let actionIndex = 0; actionIndex < plannedActions.length; actionIndex += 1) {
       const action = plannedActions[actionIndex];
@@ -277,13 +279,14 @@ export class RunExecutionService {
           reasoning: action.reasoning,
           toolCount: action.calls.length,
         }),
-        provider: context.provider,
-        model: context.model,
+        provider: currentContext.provider,
+        model: currentContext.model,
       });
       callbacks?.onReasoning?.(action.reasoning);
 
       for (let callIndex = 0; callIndex < action.calls.length; callIndex += 1) {
         const call = action.calls[callIndex];
+        const resolvedInput = resolveToolInput(currentContext, call.input);
         if (!canAgentUseTool(action.agent, call.tool)) {
           const message = `权限拒绝：${action.agent} 不允许调用 ${call.tool}。`;
           await this.store.addStep({
@@ -306,7 +309,7 @@ export class RunExecutionService {
 
         const approvalDecision = call.approvalSatisfied
           ? { required: false }
-          : evaluateApprovalRequirement(call.tool, call.input);
+          : evaluateApprovalRequirement(call.tool, resolvedInput);
         if (approvalDecision.required) {
           let diffSummary = approvalDecision.summary ?? "高影响写入操作待确认。";
           if (shouldUseDryRunPreview(call)) {
@@ -315,13 +318,13 @@ export class RunExecutionService {
               idempotencyKey: `${call.idempotencyKey}:preview`,
               dryRun: true,
               input: {
-                ...call.input,
+                ...resolvedInput,
                 dryRun: true,
               },
             };
             const previewResult = await this.executeToolWithRetry(
               {
-                ...context,
+                ...currentContext,
                 runId,
                 agentName: action.agent,
               },
@@ -341,7 +344,7 @@ export class RunExecutionService {
             approvalSatisfied: true,
             dryRun: false,
             input: {
-              ...call.input,
+              ...resolvedInput,
               dryRun: false,
             },
           };
@@ -375,7 +378,7 @@ export class RunExecutionService {
             targetId: approvalDecision.targetId ?? "unknown",
             diffSummary,
             expiresAt: new Date(Date.now() + APPROVAL_TTL_MS),
-            payloadJson: this.buildApprovalPayload(goal, context, continuationActions, structuredIntent),
+            payloadJson: this.buildApprovalPayload(goal, currentContext, continuationActions, structuredIntent),
           });
           await this.store.updateRun(runId, {
             status: "waiting_approval",
@@ -400,11 +403,14 @@ export class RunExecutionService {
 
         const result = await this.executeToolWithRetry(
           {
-            ...context,
+            ...currentContext,
             runId,
             agentName: action.agent,
           },
-          call,
+          {
+            ...call,
+            input: resolvedInput,
+          },
           callbacks,
         );
         allResults.push(result);
@@ -412,6 +418,7 @@ export class RunExecutionService {
           await failRun(runId, result.summary, action.agent, callbacks);
           return this.getRunDetailOrThrow(runId, result.summary);
         }
+        currentContext = applyToolResultContext(currentContext, call, result.output);
       }
 
       if (waitingForApproval) {
@@ -435,7 +442,7 @@ export class RunExecutionService {
     }
 
     const summary = buildFinalMessage(allResults, waitingForApproval);
-    const assistantOutput = await composeAssistantMessage(goal, summary, allResults, waitingForApproval, context, structuredIntent);
+    const assistantOutput = await composeAssistantMessage(goal, summary, allResults, waitingForApproval, currentContext, structuredIntent);
     await this.store.addStep({
       runId,
       agentName: "Planner",
@@ -450,8 +457,8 @@ export class RunExecutionService {
         message: assistantOutput,
         summary,
       }),
-      provider: context.provider,
-      model: context.model,
+      provider: currentContext.provider,
+      model: currentContext.model,
     });
     const detail = await this.store.getRunDetail(runId);
     if (!detail) {

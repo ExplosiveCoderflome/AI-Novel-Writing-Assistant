@@ -13,6 +13,14 @@ const AGENT_TOOL_ALLOWLIST: Record<AgentName, Set<AgentToolName>> = {
     "create_novel",
     "select_novel_workspace",
     "bind_world_to_novel",
+    "generate_world_for_novel",
+    "generate_novel_characters",
+    "generate_story_bible",
+    "generate_novel_outline",
+    "generate_structured_outline",
+    "sync_chapters_from_structured_outline",
+    "start_full_novel_pipeline",
+    "get_novel_production_status",
     "get_novel_context",
     "list_chapters",
     "get_chapter_by_order",
@@ -113,6 +121,15 @@ export function evaluateApprovalRequirement(tool: AgentToolName, input: Record<s
     return {
       required: true,
       summary: "启动小说流水线任务需要确认。",
+      targetType: "pipeline",
+      targetId: typeof input.novelId === "string" ? input.novelId : "unknown",
+    };
+  }
+
+  if (tool === "start_full_novel_pipeline") {
+    return {
+      required: true,
+      summary: "启动整本写作任务需要确认。",
       targetType: "pipeline",
       targetId: typeof input.novelId === "string" ? input.novelId : "unknown",
     };

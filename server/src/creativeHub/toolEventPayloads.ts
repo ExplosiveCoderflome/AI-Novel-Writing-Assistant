@@ -52,6 +52,85 @@ export function sanitizeCreativeHubToolOutput(
     };
   }
 
+  if (toolName === "generate_world_for_novel") {
+    return {
+      novelId: output.novelId,
+      worldId: output.worldId,
+      worldName: output.worldName,
+      reused: output.reused,
+      summary: typeof output.summary === "string" ? truncateText(output.summary) : output.summary,
+    };
+  }
+
+  if (toolName === "generate_novel_characters") {
+    return {
+      novelId: output.novelId,
+      reused: output.reused,
+      characterCount: output.characterCount,
+      items: sanitizeRecordArray(output.items),
+      summary: typeof output.summary === "string" ? truncateText(output.summary) : output.summary,
+    };
+  }
+
+  if (toolName === "generate_story_bible") {
+    return {
+      novelId: output.novelId,
+      exists: output.exists,
+      coreSetting: typeof output.coreSetting === "string" ? truncateText(output.coreSetting, 260) : output.coreSetting,
+      mainPromise: typeof output.mainPromise === "string" ? truncateText(output.mainPromise, 220) : output.mainPromise,
+      summary: typeof output.summary === "string" ? truncateText(output.summary) : output.summary,
+    };
+  }
+
+  if (toolName === "generate_novel_outline") {
+    return {
+      novelId: output.novelId,
+      outline: typeof output.outline === "string" ? truncateText(output.outline, 420) : output.outline,
+      outlineLength: output.outlineLength,
+      summary: typeof output.summary === "string" ? truncateText(output.summary) : output.summary,
+    };
+  }
+
+  if (toolName === "generate_structured_outline") {
+    return {
+      novelId: output.novelId,
+      chapterCount: output.chapterCount,
+      targetChapterCount: output.targetChapterCount,
+      structuredOutline: typeof output.structuredOutline === "string" ? truncateText(output.structuredOutline, 420) : output.structuredOutline,
+      summary: typeof output.summary === "string" ? truncateText(output.summary) : output.summary,
+    };
+  }
+
+  if (toolName === "sync_chapters_from_structured_outline") {
+    return {
+      novelId: output.novelId,
+      chapterCount: output.chapterCount,
+      createdCount: output.createdCount,
+      updatedCount: output.updatedCount,
+      summary: typeof output.summary === "string" ? truncateText(output.summary) : output.summary,
+    };
+  }
+
+  if (toolName === "start_full_novel_pipeline" || toolName === "get_novel_production_status") {
+    return {
+      novelId: output.novelId,
+      title: output.title,
+      worldId: output.worldId,
+      worldName: output.worldName,
+      chapterCount: output.chapterCount,
+      targetChapterCount: output.targetChapterCount,
+      currentStage: output.currentStage,
+      pipelineJobId: output.pipelineJobId ?? output.jobId,
+      pipelineStatus: output.pipelineStatus ?? output.status,
+      assetsReady: output.assetsReady,
+      pipelineReady: output.pipelineReady,
+      failureSummary: typeof output.failureSummary === "string" ? truncateText(output.failureSummary, 200) : output.failureSummary,
+      recoveryHint: typeof output.recoveryHint === "string" ? truncateText(output.recoveryHint, 200) : output.recoveryHint,
+      assetStages: sanitizeRecordArray(output.assetStages),
+      summary: typeof output.summary === "string" ? truncateText(output.summary) : output.summary,
+    };
+  }
+
   if (toolName === "bind_world_to_novel") {
     return {
       novelId: output.novelId,

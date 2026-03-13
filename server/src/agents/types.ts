@@ -9,6 +9,14 @@ export type AgentToolName =
   | "create_novel"
   | "select_novel_workspace"
   | "bind_world_to_novel"
+  | "generate_world_for_novel"
+  | "generate_novel_characters"
+  | "generate_story_bible"
+  | "generate_novel_outline"
+  | "generate_structured_outline"
+  | "sync_chapters_from_structured_outline"
+  | "start_full_novel_pipeline"
+  | "get_novel_production_status"
   | "get_novel_context"
   | "list_chapters"
   | "get_chapter_by_order"
@@ -52,9 +60,12 @@ export type AgentContextMode = "global" | "novel";
 export type AgentIntentName =
   | "list_novels"
   | "list_worlds"
+  | "query_task_status"
   | "create_novel"
   | "select_novel_workspace"
   | "bind_world_to_novel"
+  | "produce_novel"
+  | "query_novel_production_status"
   | "query_novel_title"
   | "query_chapter_content"
   | "query_progress"
@@ -77,6 +88,13 @@ export interface StructuredIntent {
   requiresNovelContext: boolean;
   novelTitle?: string;
   worldName?: string;
+  description?: string;
+  targetChapterCount?: number;
+  genre?: string;
+  worldType?: string;
+  styleTone?: string;
+  pacePreference?: "fast" | "balanced" | "slow";
+  narrativePov?: "first_person" | "third_person" | "mixed";
   chapterSelectors: {
     chapterId?: string;
     orders?: number[];
@@ -103,6 +121,7 @@ export interface AgentRunStartInput {
   }>;
   contextMode: AgentContextMode;
   novelId?: string;
+  worldId?: string;
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
@@ -155,6 +174,7 @@ export interface ToolExecutionContext {
   agentName: AgentName;
   contextMode: AgentContextMode;
   novelId?: string;
+  worldId?: string;
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
@@ -185,6 +205,7 @@ export interface PlannerInput {
   }>;
   contextMode: AgentContextMode;
   novelId?: string;
+  worldId?: string;
   provider?: LLMProvider;
   model?: string;
   temperature?: number;

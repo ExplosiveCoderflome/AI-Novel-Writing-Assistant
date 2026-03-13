@@ -5,8 +5,10 @@ import { createStructuredPlan } from "../agents/orchestrator";
 import { AgentTraceStore } from "../agents/traceStore";
 import { RunExecutionService } from "../agents/runtime/RunExecutionService";
 import { safeJson } from "../agents/runtime/runtimeHelpers";
+import { novelProductionService } from "../services/novel/NovelProductionService";
 import { sanitizeCreativeHubToolOutput } from "./toolEventPayloads";
 import { creativeHubService } from "./CreativeHubService";
+import { latestHumanGoal, toRunStatusContext } from "./creativeHubGraphHelpers";
 import {
   appendAssistantMessage,
   buildInterrupt,
@@ -35,21 +37,6 @@ interface RunThreadInput {
   resourceBindings: CreativeHubResourceBinding;
   parentCheckpointId?: string | null;
   runSettings: CreativeHubRunSettings;
-}
-
-function latestHumanGoal(messages: CreativeHubMessage[]): string {
-  const latestHuman = [...messages].reverse().find((item) => item.type === "human");
-  if (typeof latestHuman?.content === "string" && latestHuman.content.trim()) {
-    return latestHuman.content.trim();
-  }
-  return "继续当前创作中枢任务。";
-}
-
-function toRunStatusContext(status: CreativeHubThread["status"], latestError: string | null) {
-  return {
-    threadStatus: status,
-    latestError,
-  };
 }
 
 export class CreativeHubLangGraph {
@@ -145,6 +132,7 @@ export class CreativeHubLangGraph {
         model: state.runSettings.model,
         temperature: state.runSettings.temperature,
         maxTokens: state.runSettings.maxTokens,
+        worldId: state.resourceBindings.worldId ?? undefined,
         messages: state.runtimeMessages,
       }),
     });
@@ -184,6 +172,7 @@ export class CreativeHubLangGraph {
       messages: state.runtimeMessages,
       contextMode: state.resourceBindings.novelId ? "novel" : "global",
       novelId: state.resourceBindings.novelId ?? undefined,
+      worldId: state.resourceBindings.worldId ?? undefined,
       provider: state.runSettings.provider,
       model: state.runSettings.model,
       temperature: state.runSettings.temperature,
@@ -218,6 +207,7 @@ export class CreativeHubLangGraph {
         model: plannerInput.model,
         temperature: plannerInput.temperature,
         maxTokens: plannerInput.maxTokens,
+        worldId: plannerInput.worldId,
         messages: plannerInput.messages,
         plannerIntent: plannerResult.structuredIntent,
         plannerSource: plannerResult.source,
@@ -341,6 +331,7 @@ export class CreativeHubLangGraph {
       {
         contextMode: state.resourceBindings.novelId ? "novel" : "global",
         novelId: state.resourceBindings.novelId ?? undefined,
+        worldId: state.resourceBindings.worldId ?? undefined,
         provider: state.runSettings.provider,
         model: state.runSettings.model,
         temperature: state.runSettings.temperature,
@@ -391,6 +382,24 @@ export class CreativeHubLangGraph {
   }
 
   private async taskSyncNode(state: CreativeHubGraphStateValue) {
+    let productionStatus: Record<string, unknown> | undefined;
+    let nextBindings = state.nextBindings;
+    if (state.nextBindings.novelId) {
+      try {
+        const status = await novelProductionService.getNovelProductionStatus({
+          novelId: state.nextBindings.novelId,
+        });
+        productionStatus = status as unknown as Record<string, unknown>;
+        if (!nextBindings.worldId && status.worldId) {
+          nextBindings = {
+            ...nextBindings,
+            worldId: status.worldId,
+          };
+        }
+      } catch {
+        productionStatus = undefined;
+      }
+    }
     const checkpoint = await creativeHubService.saveCheckpoint(state.threadId, {
       checkpointId: crypto.randomUUID(),
       parentCheckpointId: state.parentCheckpointId ?? null,
@@ -399,11 +408,12 @@ export class CreativeHubLangGraph {
       latestError: state.latestError,
       messages: state.finalMessages,
       interrupts: state.interrupts,
-      resourceBindings: state.nextBindings,
+      resourceBindings: nextBindings,
       metadata: {
         source: "creative_hub_langgraph",
         runStatus: state.threadStatus,
-        resourceBindings: state.nextBindings,
+        resourceBindings: nextBindings,
+        productionStatus: productionStatus ?? null,
         planner: state.plannerResult
           ? {
             source: state.plannerResult.source,
@@ -424,12 +434,14 @@ export class CreativeHubLangGraph {
         threadId: state.threadId,
         checkpointId: checkpoint.checkpointId,
         runId: state.runId,
-        resourceBindings: state.nextBindings,
+        resourceBindings: nextBindings,
+        productionStatus: productionStatus ?? null,
       },
     });
 
     return {
       checkpoint,
+      nextBindings,
     };
   }
 

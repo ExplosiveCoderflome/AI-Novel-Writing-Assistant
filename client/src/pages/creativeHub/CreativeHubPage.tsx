@@ -36,6 +36,37 @@ function buildBindingsFromSearch(searchParams: URLSearchParams): CreativeHubReso
   };
 }
 
+function applyBindingsToSearchParams(searchParams: URLSearchParams, bindings: CreativeHubResourceBinding) {
+  const next = new URLSearchParams(searchParams);
+  const singleValueKeys = [
+    "novelId",
+    "chapterId",
+    "worldId",
+    "taskId",
+    "bookAnalysisId",
+    "formulaId",
+    "baseCharacterId",
+  ] as const;
+
+  for (const key of singleValueKeys) {
+    const value = bindings[key];
+    if (typeof value === "string" && value.trim()) {
+      next.set(key, value);
+    } else {
+      next.delete(key);
+    }
+  }
+
+  next.delete("knowledgeDocumentId");
+  for (const knowledgeId of bindings.knowledgeDocumentIds ?? []) {
+    if (knowledgeId.trim()) {
+      next.append("knowledgeDocumentId", knowledgeId);
+    }
+  }
+
+  return next;
+}
+
 export default function CreativeHubPage() {
   const llm = useLLMStore();
   const queryClient = useQueryClient();
@@ -70,13 +101,13 @@ export default function CreativeHubPage() {
 
   const createThreadMutation = useMutation({
     mutationFn: createCreativeHubThread,
-    onSuccess: async (response) => {
+    onSuccess: async (response, variables) => {
       const threadId = response.data?.id;
       await queryClient.invalidateQueries({ queryKey: queryKeys.creativeHub.threads });
       if (threadId) {
         setActiveThreadId(threadId);
         setSearchParams((prev) => {
-          const next = new URLSearchParams(prev);
+          const next = applyBindingsToSearchParams(prev, variables?.resourceBindings ?? {});
           next.set("threadId", threadId);
           return next;
         }, { replace: true });
@@ -117,8 +148,13 @@ export default function CreativeHubPage() {
     enabled: Boolean(activeThreadId),
   });
 
-  const currentBindings = stateQuery.data?.data?.thread.resourceBindings ?? initialBindings;
+  const rawThreadBindings = stateQuery.data?.data?.thread.resourceBindings ?? initialBindings;
   const currentThread = stateQuery.data?.data?.thread ?? threads.find((item) => item.id === activeThreadId);
+  const productionStatus = stateQuery.data?.data?.metadata?.productionStatus ?? null;
+  const currentBindings = useMemo<CreativeHubResourceBinding>(() => ({
+    ...rawThreadBindings,
+    worldId: rawThreadBindings.worldId ?? productionStatus?.worldId ?? null,
+  }), [productionStatus?.worldId, rawThreadBindings]);
 
   const loadThread = useCallback(async (threadId: string) => {
     const response = await getCreativeHubThreadState(threadId);
@@ -228,6 +264,22 @@ export default function CreativeHubPage() {
     await runtimeState.sendPrompt(`创建一本小说《${normalized}》`);
   }, [runtimeState]);
 
+  useEffect(() => {
+    if (!activeThreadId || !productionStatus?.worldId || rawThreadBindings.worldId === productionStatus.worldId) {
+      return;
+    }
+    void updateCreativeHubThread(activeThreadId, {
+      resourceBindings: {
+        ...rawThreadBindings,
+        worldId: productionStatus.worldId,
+      },
+    }).then(async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.creativeHub.threads });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.creativeHub.state(activeThreadId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.creativeHub.history(activeThreadId) });
+    });
+  }, [activeThreadId, productionStatus?.worldId, queryClient, rawThreadBindings]);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -263,7 +315,7 @@ export default function CreativeHubPage() {
             onCreate={() => {
               createThreadMutation.mutate({
                 title: "新对话",
-                resourceBindings: currentBindings,
+                resourceBindings: {},
               });
             }}
             onArchive={(threadId, archived) => void archiveThread(threadId, archived)}
@@ -290,6 +342,7 @@ export default function CreativeHubPage() {
             novels={novels}
             interrupt={runtimeState.interrupt}
             diagnostics={stateQuery.data?.data?.diagnostics}
+            productionStatus={productionStatus}
             modelSummary={{
               provider: llm.provider,
               model: llm.model,
@@ -302,6 +355,7 @@ export default function CreativeHubPage() {
             onResolveInterrupt={(action) => void handleResolveInterrupt(action)}
             onQuickAction={(prompt) => void handleQuickAction(prompt)}
             onCreateNovel={(title) => void handleCreateNovelQuickAction(title)}
+            onStartProduction={(prompt) => void handleQuickAction(prompt)}
           />
         </div>
       </div>

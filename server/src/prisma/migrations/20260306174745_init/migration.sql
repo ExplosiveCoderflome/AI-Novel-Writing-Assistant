@@ -1,4 +1,0 @@
--- no-op
--- This migration originally redefined BookAnalysis on a branch where the table
--- already existed. In the current migration history, BookAnalysis is created
--- later by 20260307133000_book_analysis_module.

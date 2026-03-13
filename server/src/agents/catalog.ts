@@ -51,6 +51,9 @@ function inferUiKind(toolName: string): string {
   if (toolName === "create_novel" || toolName === "select_novel_workspace") {
     return "workspace_action";
   }
+  if (toolName.startsWith("generate_") || toolName === "sync_chapters_from_structured_outline" || toolName === "get_novel_production_status") {
+    return "production_stage";
+  }
   if (toolName.includes("failure") || toolName.includes("blocker") || toolName.includes("conflict")) {
     return "diagnostic_card";
   }
@@ -69,6 +72,18 @@ function inferUiKind(toolName: string): string {
 function inferFollowupActions(toolName: string): string[] {
   if (toolName === "create_novel") {
     return ["继续完善设定", "绑定当前工作区", "开始创建章节"];
+  }
+  if (toolName === "generate_world_for_novel") {
+    return ["继续生成角色", "查看世界观", "检查世界观冲突"];
+  }
+  if (toolName === "generate_novel_characters") {
+    return ["继续生成圣经", "查看角色状态", "继续整本生成"];
+  }
+  if (toolName === "generate_story_bible" || toolName === "generate_novel_outline" || toolName === "generate_structured_outline") {
+    return ["继续整本生成", "查看整本生产状态", "检查当前资产准备情况"];
+  }
+  if (toolName === "get_novel_production_status") {
+    return ["继续生成当前小说", "为什么整本生成没有启动", "查看当前章节目录"];
   }
   if (toolName === "select_novel_workspace") {
     return ["继续围绕该小说操作", "查看章节", "发起写作"];

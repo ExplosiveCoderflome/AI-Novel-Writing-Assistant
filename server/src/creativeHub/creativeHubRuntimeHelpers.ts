@@ -134,14 +134,12 @@ export function deriveNextBindingsFromRunSteps(
         nextBindings.chapterId = null;
       }
       nextBindings.novelId = nextNovelId;
-      break;
     }
-    if (tool === "bind_world_to_novel" && typeof output.worldId === "string" && output.worldId.trim()) {
+    if ((tool === "generate_world_for_novel" || tool === "bind_world_to_novel") && typeof output.worldId === "string" && output.worldId.trim()) {
       nextBindings.worldId = output.worldId.trim();
       if (typeof output.novelId === "string" && output.novelId.trim()) {
         nextBindings.novelId = output.novelId.trim();
       }
-      break;
     }
   }
   return nextBindings;

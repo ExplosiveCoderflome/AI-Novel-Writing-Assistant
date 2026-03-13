@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import CreativeHubToolResultCard from "./CreativeHubToolResultCard";
 import { useCreativeHubInlineControls } from "./CreativeHubInlineControlsContext";
@@ -8,6 +9,14 @@ function formatArgs(argsText: string | undefined): string | null {
     return null;
   }
   return text.length > 280 ? `${text.slice(0, 280)}...` : text;
+}
+
+function formatSummary(text: string | undefined): string | null {
+  const value = text?.replace(/\s+/g, " ").trim();
+  if (!value) {
+    return null;
+  }
+  return value.length > 120 ? `${value.slice(0, 120)}...` : value;
 }
 
 function readArtifact(
@@ -33,10 +42,12 @@ function readArtifact(
 }
 
 export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProps) {
+  const [showArgs, setShowArgs] = useState(false);
   const inlineControls = useCreativeHubInlineControls();
   const argsText = formatArgs("argsText" in props && typeof props.argsText === "string" ? props.argsText : undefined);
   const resultText = "result" in props && typeof props.result === "string" ? props.result : undefined;
   const artifact = readArtifact("artifact" in props ? props.artifact : undefined);
+  const summaryText = formatSummary(artifact.summary ?? resultText ?? undefined);
   const success = artifact.success ?? !("isError" in props && props.isError === true);
   const args = "args" in props && props.args && typeof props.args === "object" && !Array.isArray(props.args)
     ? props.args as Record<string, unknown>
@@ -88,15 +99,31 @@ export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProp
   return (
     <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm font-medium text-slate-900">工具调用 · {props.toolName}</div>
-        <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-500">
-          tool-call
-        </span>
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-slate-900">工具调用 · {props.toolName}</div>
+          {summaryText ? <div className="text-xs text-slate-500">{summaryText}</div> : null}
+        </div>
+        <div className="flex items-center gap-2">
+          {argsText ? (
+            <button
+              type="button"
+              className="rounded-full border border-slate-300 bg-white px-3 py-1 text-[11px] text-slate-600 transition hover:bg-slate-100"
+              onClick={() => setShowArgs((value) => !value)}
+            >
+              {showArgs ? "收起参数" : "查看参数"}
+            </button>
+          ) : null}
+          <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-500">
+            tool-call
+          </span>
+        </div>
       </div>
-      {argsText ? (
+      {argsText && showArgs ? (
         <pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded-xl bg-white p-3 text-[11px] leading-5 text-slate-600">
           {argsText}
         </pre>
+      ) : argsText ? (
+        <div className="mt-2 text-xs text-slate-500">请求参数默认已收起，点击“查看参数”展开。</div>
       ) : null}
       {(resultText || artifact.summary) ? (
         <div className="mt-3">

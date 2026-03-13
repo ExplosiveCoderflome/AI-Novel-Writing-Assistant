@@ -4,6 +4,7 @@ import { AgentTraceStore } from "../agents/traceStore";
 import { ApprovalContinuationService } from "../agents/runtime/ApprovalContinuationService";
 import { RunExecutionService } from "../agents/runtime/RunExecutionService";
 import type { AgentRuntimeCallbacks } from "../agents/types";
+import { novelProductionService } from "../services/novel/NovelProductionService";
 import { sanitizeCreativeHubToolOutput } from "./toolEventPayloads";
 import { creativeHubService } from "./CreativeHubService";
 import {
@@ -218,6 +219,24 @@ export class CreativeHubInterruptLangGraph {
   }
 
   private async taskSyncNode(state: CreativeHubInterruptGraphStateValue) {
+    let productionStatus: Record<string, unknown> | undefined;
+    let nextBindings = state.nextBindings;
+    if (state.nextBindings.novelId) {
+      try {
+        const status = await novelProductionService.getNovelProductionStatus({
+          novelId: state.nextBindings.novelId,
+        });
+        productionStatus = status as unknown as Record<string, unknown>;
+        if (!nextBindings.worldId && status.worldId) {
+          nextBindings = {
+            ...nextBindings,
+            worldId: status.worldId,
+          };
+        }
+      } catch {
+        productionStatus = undefined;
+      }
+    }
     const checkpoint = await creativeHubService.saveCheckpoint(state.threadId, {
       checkpointId: crypto.randomUUID(),
       parentCheckpointId: state.parentCheckpointId ?? null,
@@ -226,11 +245,14 @@ export class CreativeHubInterruptLangGraph {
       latestError: state.latestError,
       messages: state.finalMessages,
       interrupts: state.interrupts,
-      resourceBindings: state.nextBindings,
+      resourceBindings: nextBindings,
       metadata: {
         source: "creative_hub_interrupt_langgraph",
         interruptId: state.interruptId,
         action: state.action,
+        runStatus: state.threadStatus,
+        resourceBindings: nextBindings,
+        productionStatus: productionStatus ?? null,
       },
     });
 
@@ -244,12 +266,14 @@ export class CreativeHubInterruptLangGraph {
         threadId: state.threadId,
         checkpointId: checkpoint.checkpointId,
         runId: state.runId,
-        resourceBindings: state.nextBindings,
+        resourceBindings: nextBindings,
+        productionStatus: productionStatus ?? null,
       },
     });
 
     return {
       checkpoint,
+      nextBindings,
     };
   }
 

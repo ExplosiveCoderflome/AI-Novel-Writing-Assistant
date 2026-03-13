@@ -53,6 +53,35 @@ export interface CreativeHubCheckpointRef {
   createdAt: string;
 }
 
+export interface CreativeHubProductionStage {
+  key: string;
+  label: string;
+  status: "pending" | "completed" | "running" | "blocked";
+  detail?: string | null;
+}
+
+export interface CreativeHubProductionStatus {
+  novelId: string;
+  worldId?: string | null;
+  title: string;
+  chapterCount: number;
+  targetChapterCount: number;
+  assetStages: CreativeHubProductionStage[];
+  pipelineJobId?: string | null;
+  pipelineStatus?: string | null;
+  currentStage: string;
+  failureSummary?: string | null;
+  recoveryHint?: string | null;
+  assetsReady: boolean;
+  pipelineReady: boolean;
+  summary: string;
+}
+
+export interface CreativeHubThreadMetadata {
+  productionStatus?: CreativeHubProductionStatus | null;
+  [key: string]: unknown;
+}
+
 export interface CreativeHubThread {
   id: string;
   title: string;
@@ -71,7 +100,7 @@ export interface CreativeHubThreadState {
   interrupts: CreativeHubInterrupt[];
   currentCheckpointId?: string | null;
   diagnostics?: FailureDiagnostic;
-  metadata?: Record<string, unknown> | null;
+  metadata?: CreativeHubThreadMetadata | null;
 }
 
 export interface CreativeHubThreadHistoryItem extends CreativeHubCheckpointRef {

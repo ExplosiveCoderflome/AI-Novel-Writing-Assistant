@@ -52,6 +52,7 @@ function composeTitleAnswer(results: ToolExecutionResult[]): string {
 function composeNovelListAnswer(results: ToolExecutionResult[]): string {
   const list = getSuccessfulOutputs(results, "list_novels")[0];
   const items = Array.isArray(list?.items) ? list.items : [];
+  const total = typeof list?.total === "number" ? list.total : items.length;
   if (items.length === 0) {
     return "当前还没有小说。";
   }
@@ -60,7 +61,7 @@ function composeNovelListAnswer(results: ToolExecutionResult[]): string {
     const chapterCount = typeof item?.chapterCount === "number" ? item.chapterCount : null;
     return `${index + 1}. 《${title}》${chapterCount != null ? `（${chapterCount}章）` : ""}`;
   });
-  return `当前共有 ${items.length} 本小说：\n${lines.join("\n")}`;
+  return `当前共有 ${total} 本小说：\n${lines.join("\n")}`;
 }
 
 function composeWorldListAnswer(results: ToolExecutionResult[]): string {
@@ -75,6 +76,25 @@ function composeWorldListAnswer(results: ToolExecutionResult[]): string {
     return `${index + 1}. ${name}${status ? `（${status}）` : ""}`;
   });
   return `当前共有 ${items.length} 个世界观：\n${lines.join("\n")}`;
+}
+
+function composeTaskListAnswer(results: ToolExecutionResult[]): string {
+  const list = getSuccessfulOutputs(results, "list_tasks")[0];
+  const items = Array.isArray(list?.items) ? list.items : [];
+  if (items.length === 0) {
+    return "当前没有系统任务。";
+  }
+  const lines = items.slice(0, 8).map((item, index) => {
+    const title = typeof item?.title === "string" && item.title.trim() ? item.title.trim() : "未命名任务";
+    const status = typeof item?.status === "string" && item.status.trim() ? item.status.trim() : "unknown";
+    const kind = typeof item?.kind === "string" && item.kind.trim() ? item.kind.trim() : null;
+    return `${index + 1}. ${title}${kind ? `（${kind}）` : ""} - ${status}`;
+  });
+  return `当前共有 ${items.length} 个系统任务：\n${lines.join("\n")}`;
+}
+
+function getFirstSuccessfulOutput(results: ToolExecutionResult[], tool: ToolCall["tool"]): Record<string, unknown> | null {
+  return getSuccessfulOutputs(results, tool)[0] ?? null;
 }
 
 function composeCreateNovelAnswer(results: ToolExecutionResult[]): string {
@@ -154,6 +174,24 @@ function composeProgressAnswer(results: ToolExecutionResult[]): string {
   return parts.join("");
 }
 
+function composeCharacterAnswer(results: ToolExecutionResult[]): string {
+  const characterState = getSuccessfulOutputs(results, "get_character_states")[0];
+  if (!characterState) {
+    return "未获取到角色状态信息";
+  }
+  const count = typeof characterState.count === "number" ? characterState.count : 0;
+  const items = Array.isArray(characterState.items) ? characterState.items : [];
+  if (count === 0 || items.length === 0) {
+    return "当前小说还没有已规划角色。";
+  }
+  const lines = items.slice(0, 6).map((item, index) => {
+    const name = typeof item?.name === "string" && item.name.trim() ? item.name.trim() : "未命名角色";
+    const role = typeof item?.role === "string" && item.role.trim() ? item.role.trim() : null;
+    return `${index + 1}. ${name}${role ? `（${role}）` : ""}`;
+  });
+  return `当前小说已规划 ${count} 个角色：\n${lines.join("\n")}`;
+}
+
 function composeChapterAnswer(results: ToolExecutionResult[]): string | null {
   const contentOutputs = [
     ...getSuccessfulOutputs(results, "get_chapter_content_by_order"),
@@ -208,6 +246,99 @@ function composeWriteAnswer(results: ToolExecutionResult[], waitingForApproval: 
     }
   }
   return null;
+}
+
+function composeProductionStatusAnswer(
+  results: ToolExecutionResult[],
+  context: Omit<ToolExecutionContext, "runId" | "agentName">,
+): string {
+  const status = getFirstSuccessfulOutput(results, "get_novel_production_status");
+  if (!status) {
+    return context.novelId
+      ? "未获取到整本生产状态。"
+      : "没有当前小说上下文，无法读取整本生产状态。";
+  }
+  const title = typeof status.title === "string" ? status.title.trim() : "当前小说";
+  const currentStage = typeof status.currentStage === "string" ? status.currentStage.trim() : "未知阶段";
+  const chapterCount = typeof status.chapterCount === "number" ? status.chapterCount : 0;
+  const targetChapterCount = typeof status.targetChapterCount === "number" ? status.targetChapterCount : null;
+  const pipelineStatus = typeof status.pipelineStatus === "string" ? status.pipelineStatus.trim() : null;
+  const failureSummary = typeof status.failureSummary === "string" ? status.failureSummary.trim() : "";
+  const recoveryHint = typeof status.recoveryHint === "string" ? status.recoveryHint.trim() : "";
+  const parts = [`《${title}》当前阶段：${currentStage}。`];
+  parts.push(targetChapterCount != null ? `章节目录：${chapterCount}/${targetChapterCount} 章。` : `章节目录：${chapterCount} 章。`);
+  if (pipelineStatus) {
+    parts.push(`整本写作任务状态：${pipelineStatus}。`);
+  }
+  if (failureSummary) {
+    parts.push(`失败原因：${failureSummary}`);
+  }
+  if (recoveryHint) {
+    parts.push(`建议：${recoveryHint}`);
+  }
+  return parts.join("");
+}
+
+function composeProduceNovelAnswer(
+  results: ToolExecutionResult[],
+  waitingForApproval: boolean,
+  context: Omit<ToolExecutionContext, "runId" | "agentName">,
+): string {
+  const created = getFirstSuccessfulOutput(results, "create_novel");
+  const world = getFirstSuccessfulOutput(results, "generate_world_for_novel");
+  const characters = getFirstSuccessfulOutput(results, "generate_novel_characters");
+  const bible = getFirstSuccessfulOutput(results, "generate_story_bible");
+  const outline = getFirstSuccessfulOutput(results, "generate_novel_outline");
+  const structured = getFirstSuccessfulOutput(results, "generate_structured_outline");
+  const synced = getFirstSuccessfulOutput(results, "sync_chapters_from_structured_outline");
+  const preview = getFirstSuccessfulOutput(results, "preview_pipeline_run");
+  const queued = getFirstSuccessfulOutput(results, "queue_pipeline_run");
+  const productionStatus = getFirstSuccessfulOutput(results, "get_novel_production_status");
+
+  if (!created && !context.novelId) {
+    return "请先提供小说标题";
+  }
+
+  const title = typeof created?.title === "string" && created.title.trim()
+    ? created.title.trim()
+    : typeof productionStatus?.title === "string" && productionStatus.title.trim()
+      ? productionStatus.title.trim()
+      : "当前小说";
+  const assetParts: string[] = [];
+  if (world) {
+    const worldName = typeof world.worldName === "string" ? world.worldName.trim() : "";
+    assetParts.push(worldName ? `世界观《${worldName}》` : "世界观");
+  }
+  if (characters) {
+    const characterCount = typeof characters.characterCount === "number" ? characters.characterCount : 0;
+    assetParts.push(`${characterCount} 个核心角色`);
+  }
+  if (bible) {
+    assetParts.push("小说圣经");
+  }
+  if (outline) {
+    assetParts.push("发展走向");
+  }
+  if (structured) {
+    const targetChapterCount = typeof structured.targetChapterCount === "number" ? structured.targetChapterCount : null;
+    assetParts.push(targetChapterCount != null ? `${targetChapterCount} 章结构化大纲` : "结构化大纲");
+  }
+  if (synced) {
+    const chapterCount = typeof synced.chapterCount === "number" ? synced.chapterCount : null;
+    assetParts.push(chapterCount != null ? `${chapterCount} 个章节目录` : "章节目录");
+  }
+
+  if (waitingForApproval && preview) {
+    return `《${title}》的核心资产已生成完成${assetParts.length > 0 ? `：${assetParts.join("、")}。` : "。"}整本写作预览已完成，当前等待审批。`;
+  }
+  if (queued) {
+    const jobId = typeof queued.jobId === "string" && queued.jobId.trim() ? `（任务 ${queued.jobId}）` : "";
+    return `《${title}》的核心资产已生成完成${assetParts.length > 0 ? `：${assetParts.join("、")}。` : "。"}整本写作任务已启动${jobId}。`;
+  }
+  if (preview) {
+    return `《${title}》的核心资产已生成完成${assetParts.length > 0 ? `：${assetParts.join("、")}。` : "。"}整本写作未启动。`;
+  }
+  return `《${title}》的核心资产已生成完成${assetParts.length > 0 ? `：${assetParts.join("、")}。` : "。"}`
 }
 
 function composeFailureDiagnosisAnswer(results: ToolExecutionResult[]): string {
@@ -310,12 +441,18 @@ export async function composeAssistantMessage(
       return composeNovelListAnswer(results);
     case "list_worlds":
       return composeWorldListAnswer(results);
+    case "query_task_status":
+      return composeTaskListAnswer(results);
     case "create_novel":
       return composeCreateNovelAnswer(results);
     case "select_novel_workspace":
       return composeSelectNovelWorkspaceAnswer(results);
     case "bind_world_to_novel":
       return composeBindWorldAnswer(results, context);
+    case "produce_novel":
+      return composeProduceNovelAnswer(results, waitingForApproval, context);
+    case "query_novel_production_status":
+      return composeProductionStatusAnswer(results, context);
     case "query_novel_title":
       return composeTitleAnswer(results);
     case "query_progress":

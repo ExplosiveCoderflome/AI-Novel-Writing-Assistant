@@ -1,5 +1,22 @@
 import type { PlannerInput } from "../types";
 
+const INTENT_ALIAS_MAP: Record<string, string> = {
+  complete_novel: "produce_novel",
+  finish_novel: "produce_novel",
+  continue_novel: "produce_novel",
+  continue_production: "produce_novel",
+  novel_production_status: "query_novel_production_status",
+  production_status: "query_novel_production_status",
+  list_tasks: "query_task_status",
+  task_status: "query_task_status",
+  task_overview: "query_task_status",
+  system_task_status: "query_task_status",
+  list_characters: "inspect_characters",
+  query_character_count: "inspect_characters",
+  character_status: "inspect_characters",
+  character_overview: "inspect_characters",
+};
+
 export function extractJsonObject(raw: string): string {
   const cleaned = raw.replace(/```json|```/gi, "").trim();
   const first = cleaned.indexOf("{");
@@ -213,11 +230,46 @@ export function normalizeIntentPayload(raw: unknown, input: PlannerInput): Recor
     chapterSelectors,
   };
 
+  if (typeof payload.intent === "string" && payload.intent.trim()) {
+    const rawIntent = payload.intent.trim();
+    normalized.intent = INTENT_ALIAS_MAP[rawIntent] ?? rawIntent;
+  }
+
   if (payload.novelTitle == null || (typeof payload.novelTitle === "string" && !payload.novelTitle.trim())) {
     delete normalized.novelTitle;
   }
   if (payload.worldName == null || (typeof payload.worldName === "string" && !payload.worldName.trim())) {
     delete normalized.worldName;
+  }
+  if (payload.description == null || (typeof payload.description === "string" && !payload.description.trim())) {
+    delete normalized.description;
+  }
+  if (payload.genre == null || (typeof payload.genre === "string" && !payload.genre.trim())) {
+    delete normalized.genre;
+  }
+  if (payload.worldType == null || (typeof payload.worldType === "string" && !payload.worldType.trim())) {
+    delete normalized.worldType;
+  }
+  if (payload.styleTone == null || (typeof payload.styleTone === "string" && !payload.styleTone.trim())) {
+    delete normalized.styleTone;
+  }
+  if (typeof payload.pacePreference === "string" && payload.pacePreference.trim()) {
+    const paceValue = payload.pacePreference.trim();
+    normalized.pacePreference = paceValue === "快节奏" ? "fast" : paceValue === "慢节奏" ? "slow" : paceValue === "均衡" ? "balanced" : paceValue;
+  } else {
+    delete normalized.pacePreference;
+  }
+  if (typeof payload.narrativePov === "string" && payload.narrativePov.trim()) {
+    const povValue = payload.narrativePov.trim();
+    normalized.narrativePov = povValue === "第一人称"
+      ? "first_person"
+      : povValue === "第三人称"
+        ? "third_person"
+        : povValue === "混合"
+          ? "mixed"
+          : povValue;
+  } else {
+    delete normalized.narrativePov;
   }
   if (payload.content == null || (typeof payload.content === "string" && !payload.content.trim())) {
     delete normalized.content;
@@ -230,6 +282,16 @@ export function normalizeIntentPayload(raw: unknown, input: PlannerInput): Recor
   }
   if (payload.confidence == null) {
     delete normalized.confidence;
+  }
+  const rawTargetChapterCount = payload.targetChapterCount;
+  if (typeof rawTargetChapterCount === "string" && /^\d+$/.test(rawTargetChapterCount.trim())) {
+    normalized.targetChapterCount = Number(rawTargetChapterCount.trim());
+  } else if (typeof rawTargetChapterCount === "number" && Number.isFinite(rawTargetChapterCount)) {
+    normalized.targetChapterCount = Math.max(1, Math.floor(rawTargetChapterCount));
+  } else if (normalized.intent === "produce_novel") {
+    normalized.targetChapterCount = 20;
+  } else {
+    delete normalized.targetChapterCount;
   }
 
   return normalized;

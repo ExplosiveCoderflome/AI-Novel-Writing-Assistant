@@ -10,6 +10,7 @@ import { ragServices } from "../rag";
 import { getRagQueryForChapter, novelReferenceService } from "./NovelReferenceService";
 import { NovelContinuationService } from "./NovelContinuationService";
 import { ChapterWritingGraph } from "./chapterWritingGraph";
+import { normalizeNovelBiblePayload } from "./novelBiblePersistence";
 import {
   buildStructuredOutlineRepairSystemPrompt,
   buildStructuredOutlineSystemPrompt,
@@ -1682,25 +1683,26 @@ ${worldContext}${referenceBlock}`,
     return {
       stream: stream as AsyncIterable<BaseMessageChunk>,
       onDone: async (fullContent: string) => {
-        const parsed = JSON.parse(extractJSONObject(fullContent)) as Record<string, string>;
+        const parsed = JSON.parse(extractJSONObject(fullContent)) as Record<string, unknown>;
+        const persisted = normalizeNovelBiblePayload(parsed, novel.title);
         await prisma.novelBible.upsert({
           where: { novelId },
           update: {
-            coreSetting: parsed.coreSetting ?? null,
-            forbiddenRules: parsed.forbiddenRules ?? null,
-            mainPromise: parsed.mainPromise ?? null,
-            characterArcs: parsed.characterArcs ?? null,
-            worldRules: parsed.worldRules ?? null,
-            rawContent: JSON.stringify(parsed),
+            coreSetting: persisted.coreSetting,
+            forbiddenRules: persisted.forbiddenRules,
+            mainPromise: persisted.mainPromise,
+            characterArcs: persisted.characterArcs,
+            worldRules: persisted.worldRules,
+            rawContent: persisted.rawContent,
           },
           create: {
             novelId,
-            coreSetting: parsed.coreSetting ?? null,
-            forbiddenRules: parsed.forbiddenRules ?? null,
-            mainPromise: parsed.mainPromise ?? null,
-            characterArcs: parsed.characterArcs ?? null,
-            worldRules: parsed.worldRules ?? null,
-            rawContent: JSON.stringify(parsed),
+            coreSetting: persisted.coreSetting,
+            forbiddenRules: persisted.forbiddenRules,
+            mainPromise: persisted.mainPromise,
+            characterArcs: persisted.characterArcs,
+            worldRules: persisted.worldRules,
+            rawContent: persisted.rawContent,
           },
         });
         this.queueRagUpsert("bible", novelId);

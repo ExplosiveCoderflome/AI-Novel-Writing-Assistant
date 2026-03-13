@@ -1,0 +1,3 @@
+-- Restored placeholder for migration record 20260313015012_init.
+-- The original directory was left empty by an interrupted Prisma command.
+-- No schema changes are defined here.

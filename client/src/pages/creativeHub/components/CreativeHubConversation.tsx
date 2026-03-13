@@ -68,6 +68,9 @@ export default function CreativeHubConversation({
                         <Button type="button" variant="outline" onClick={() => onQuickAction("列出当前知识库文档状态")}>
                           查看知识库
                         </Button>
+                        <Button type="button" variant="outline" onClick={() => onQuickAction("创建一本20章小说《新书样例》，并开始整本生成")}>
+                          启动整本生产
+                        </Button>
                       </div>
                     ) : null}
                   </div>

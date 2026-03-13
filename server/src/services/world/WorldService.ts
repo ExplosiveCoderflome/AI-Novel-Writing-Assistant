@@ -13,6 +13,7 @@ import { prisma } from "../../db/prisma";
 import { getLLM } from "../../llm/factory";
 import { createWorldBuildingGraph } from "../../graphs/worldBuildingGraph";
 import { getTemplateByKey, LAYER_FIELD_MAP, WORLD_LAYER_ORDER, WORLD_TEMPLATES } from "./worldTemplates";
+import { normalizeGeneratedWorldPayload } from "./worldPersistence";
 import { listActiveKnowledgeDocumentContents } from "../knowledge/common";
 import { ragServices } from "../rag";
 import type { RagOwnerType } from "../rag/types";
@@ -2030,31 +2031,34 @@ input=${JSON.stringify(sourcePayload)}`,
   }
 
   private async persistGeneratedWorld(input: WorldGenerateInput, fullContent: string) {
-    const parsed = safeParseJSON<Partial<Record<WorldTextField | "description", string>>>(
+    const parsed = safeParseJSON<Record<string, unknown>>(
       extractJSONObject(fullContent),
       {},
     );
+    const normalized = normalizeGeneratedWorldPayload(parsed, input.description);
     const world = await prisma.world.create({
       data: {
         name: input.name,
         worldType: input.worldType,
-        description: parsed.description ?? input.description,
-        background: parsed.background ?? null,
-        geography: parsed.geography ?? null,
-        cultures: parsed.cultures ?? null,
-        magicSystem: parsed.magicSystem ?? null,
-        politics: parsed.politics ?? null,
-        races: parsed.races ?? null,
-        religions: parsed.religions ?? null,
-        technology: parsed.technology ?? null,
-        conflicts: parsed.conflicts ?? null,
-        history: parsed.history ?? null,
-        economy: parsed.economy ?? null,
-        factions: parsed.factions ?? null,
+        description: normalized.description,
+        background: normalized.background,
+        geography: normalized.geography,
+        cultures: normalized.cultures,
+        magicSystem: normalized.magicSystem,
+        politics: normalized.politics,
+        races: normalized.races,
+        religions: normalized.religions,
+        technology: normalized.technology,
+        conflicts: normalized.conflicts,
+        history: normalized.history,
+        economy: normalized.economy,
+        factions: normalized.factions,
         templateKey: "custom",
         status: "refining",
-        selectedDimensions: JSON.stringify(input.dimensions),
-        layerStates: JSON.stringify(normalizeLayerStates(undefined)),
+        selectedDimensions: normalized.selectedDimensions ?? JSON.stringify(input.dimensions),
+        layerStates: normalized.layerStates ?? JSON.stringify(normalizeLayerStates(undefined)),
+        consistencyReport: normalized.consistencyReport,
+        overviewSummary: normalized.overviewSummary,
       },
     });
     await this.createSnapshot(world.id, featureFlags.worldGraphEnabled ? "graph-generate" : "legacy-generate");
