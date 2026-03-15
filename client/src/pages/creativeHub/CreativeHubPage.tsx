@@ -56,7 +56,7 @@ function applyBindingsToSearchParams(searchParams: URLSearchParams, bindings: Cr
   for (const key of singleValueKeys) {
     const value = bindings[key];
     if (typeof value === "string" && value.trim()) {
-      next.set(key, value);
+      next.set(key, value); 
     } else {
       next.delete(key);
     }
@@ -294,7 +294,9 @@ export default function CreativeHubPage() {
     defaultRuntimeDetailsCollapsed,
   });
 
-  const latestTurnSummary = runtimeState.latestTurnSummary ?? persistedLatestTurnSummary;
+  const latestTurnSummary = runtimeState.latestTurnSummary === undefined
+    ? persistedLatestTurnSummary
+    : runtimeState.latestTurnSummary;
   const currentCheckpointId = runtimeState.checkpointId ?? stateQuery.data?.data?.currentCheckpointId ?? null;
 
   const archiveThread = async (threadId: string, archived: boolean) => {
@@ -357,6 +359,9 @@ export default function CreativeHubPage() {
   };
 
   const handleQuickAction = useCallback(async (prompt: string) => {
+    if (runtimeState.isRunning) {
+      return;
+    }
     await runtimeState.sendPrompt(prompt);
   }, [runtimeState]);
 

@@ -19,6 +19,8 @@ function truncateText(value: string, max = 180): string {
 
 function formatIntentLabel(intent: StructuredIntent["intent"] | undefined): string {
   switch (intent) {
+    case "social_opening":
+      return "轻度开场";
     case "list_novels":
       return "查看小说工作区";
     case "create_novel":
@@ -92,8 +94,12 @@ function extractToolSummaries(steps: AgentStep[]): string[] {
 function shouldEmitTurnSummary(
   turnStatus: CreativeHubTurnStatus,
   latestError: string | null,
+  plannerResult: PlannerResult | null,
   executionResult: AgentRuntimeResult | null,
 ): boolean {
+  if (plannerResult?.structuredIntent.intent === "social_opening") {
+    return false;
+  }
   if (latestError) {
     return true;
   }
@@ -227,7 +233,7 @@ export function buildCreativeHubTurnSummary(input: {
   }
 
   const turnStatus = toTurnStatus(input.threadStatus, input.latestError, executionResult);
-  if (!shouldEmitTurnSummary(turnStatus, input.latestError, executionResult)) {
+  if (!shouldEmitTurnSummary(turnStatus, input.latestError, input.plannerResult, executionResult)) {
     return null;
   }
   const toolSummaries = extractToolSummaries(executionResult.steps);

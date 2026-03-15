@@ -90,18 +90,27 @@ export interface CreativeHubRunArtifacts {
   debugEntries: CreativeHubDebugTraceEntry[];
 }
 
+function hasMeaningfulDebugEntries(entries: CreativeHubDebugTraceEntry[]): boolean {
+  return entries.some((entry) => (
+    entry.id.startsWith("tool_call_")
+    || entry.id.startsWith("tool_result_")
+    || entry.id.startsWith("approval_")
+    || entry.id.startsWith("error_")
+  ));
+}
+
 export function buildRunArtifactMessages(
   runArtifacts: CreativeHubRunArtifacts[],
   defaultCollapsed: boolean,
 ): LangChainMessage[][] {
   return runArtifacts
-    .filter((artifact) => artifact.turnSummary || artifact.debugEntries.length > 0)
+    .filter((artifact) => artifact.turnSummary || hasMeaningfulDebugEntries(artifact.debugEntries))
     .map((artifact) => {
       const messages: LangChainMessage[] = [];
       if (artifact.turnSummary) {
         messages.push(createTurnSummaryMessage(artifact.turnSummary));
       }
-      if (artifact.debugEntries.length > 0) {
+      if (hasMeaningfulDebugEntries(artifact.debugEntries)) {
         messages.push(createDebugTraceMessage(artifact.runId, artifact.debugEntries, defaultCollapsed));
       }
       return messages;

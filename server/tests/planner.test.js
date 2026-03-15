@@ -29,6 +29,28 @@ test("compileIntentToPlan uses chapter order tools for chapter content", () => {
   });
 });
 
+test("compileIntentToPlan keeps social opening as no-op", () => {
+  const plan = compileIntentToPlan({
+    goal: "你好",
+    intent: "social_opening",
+    confidence: 0.98,
+    requiresNovelContext: false,
+    interactionMode: "co_create",
+    assistantResponse: "ask_followup",
+    shouldAskFollowup: false,
+    missingInfo: [],
+    chapterSelectors: {},
+  }, {
+    goal: "你好",
+    messages: [],
+    contextMode: "global",
+  });
+
+  assert.deepEqual(plan.actions, []);
+  assert.equal(plan.riskLevel, "low");
+  assert.equal(plan.requiresApproval, false);
+});
+
 test("compileIntentToPlan uses list_novels for global novel listing", () => {
   const plan = compileIntentToPlan({
     goal: "List current novels",
@@ -203,6 +225,29 @@ test("compileIntentToPlan expands produce_novel into fixed production chain", ()
   ]);
   assert.equal(plan.actions[0].input.title, "Anti Hero Legend");
   assert.equal(plan.actions[6].input.targetChapterCount, 20);
+});
+
+test("compileIntentToPlan holds production execution when collaboration is needed first", () => {
+  const plan = compileIntentToPlan({
+    goal: "I want to make this novel stronger before starting production",
+    intent: "produce_novel",
+    confidence: 0.78,
+    requiresNovelContext: false,
+    interactionMode: "co_create",
+    assistantResponse: "offer_options",
+    shouldAskFollowup: true,
+    missingInfo: ["core premise", "story promise"],
+    novelTitle: "Anti Hero Legend",
+    chapterSelectors: {},
+  }, {
+    goal: "I want to make this novel stronger before starting production",
+    messages: [],
+    contextMode: "global",
+  });
+
+  assert.deepEqual(plan.actions, []);
+  assert.equal(plan.riskLevel, "low");
+  assert.equal(plan.requiresApproval, false);
 });
 
 test("compileIntentToPlan carries production preferences into create_novel", () => {

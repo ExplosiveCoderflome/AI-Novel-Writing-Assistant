@@ -6,6 +6,7 @@ import type { PlannerInput, StructuredIntent } from "../types";
 import { extractJsonObject, normalizeIntentPayload } from "./utils";
 
 const INTENT_NAMES = [
+  "social_opening",
   "list_novels",
   "list_base_characters",
   "list_worlds",
@@ -100,6 +101,10 @@ export const intentSchema: z.ZodType<StructuredIntent> = z.object({
   intent: z.enum(INTENT_NAMES),
   confidence: z.number().min(0).max(1).default(0.5),
   requiresNovelContext: z.boolean().default(false),
+  interactionMode: z.enum(["co_create", "review", "query", "plan", "execute"]).default("execute"),
+  assistantResponse: z.enum(["ask_followup", "offer_options", "explain", "execute"]).default("explain"),
+  shouldAskFollowup: z.boolean().default(false),
+  missingInfo: z.array(z.string().trim().min(1)).max(4).default([]),
   novelTitle: z.string().trim().min(1).optional(),
   worldName: z.string().trim().min(1).optional(),
   description: z.string().trim().min(1).optional(),
@@ -206,6 +211,12 @@ export async function parseIntentWithLLM(input: PlannerInput): Promise<Structure
     {
       role: "system",
       content: [
+        "创作中枢默认是协作式创作搭档，不是命令路由器。",
+        "你必须在 JSON 中显式返回 interactionMode、assistantResponse、shouldAskFollowup、missingInfo。",
+        "如果用户还在探索方向、比较方案、表达不满、寻求诊断，或者创作目标本身还不够清晰，优先把 interactionMode 设为 co_create 或 review，并把 shouldAskFollowup 设为 true。",
+        "只有当用户明确要求立即创建、绑定、保存、启动任务或直接写内容时，才把 interactionMode 设为 execute。",
+        "当下一步更适合追问澄清时，assistantResponse 用 ask_followup；当下一步更适合给方案备选时，assistantResponse 用 offer_options。",
+        "如果用户只是寒暄、打招呼、简单问候，且还没有进入具体创作任务，intent 应优先使用 social_opening，而不是 general_chat。",
         "你是小说创作 Agent 的意图解析器，只能返回一个 JSON 对象。",
         "你的任务不是直接规划所有工具，而是先识别用户真实意图和章节槽位。",
         `intent 必须是以下枚举之一：${INTENT_NAMES.join(", ")}。`,

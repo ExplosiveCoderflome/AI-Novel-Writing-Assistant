@@ -384,6 +384,32 @@ export function normalizeIntentPayload(raw: unknown, input: PlannerInput): Recor
   if (payload.confidence == null) {
     delete normalized.confidence;
   }
+  if (typeof payload.interactionMode === "string" && payload.interactionMode.trim()) {
+    normalized.interactionMode = payload.interactionMode.trim();
+  } else {
+    delete normalized.interactionMode;
+  }
+  if (typeof payload.assistantResponse === "string" && payload.assistantResponse.trim()) {
+    normalized.assistantResponse = payload.assistantResponse.trim();
+  } else {
+    delete normalized.assistantResponse;
+  }
+  if (Array.isArray(payload.missingInfo)) {
+    normalized.missingInfo = payload.missingInfo
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 4);
+  } else {
+    delete normalized.missingInfo;
+  }
+  if (typeof payload.shouldAskFollowup === "boolean") {
+    normalized.shouldAskFollowup = payload.shouldAskFollowup;
+  } else if (typeof payload.shouldAskFollowup === "string") {
+    normalized.shouldAskFollowup = payload.shouldAskFollowup.trim().toLowerCase() === "true";
+  } else {
+    delete normalized.shouldAskFollowup;
+  }
   const rawTargetChapterCount = payload.targetChapterCount;
   if (typeof rawTargetChapterCount === "string" && /^\d+$/.test(rawTargetChapterCount.trim())) {
     normalized.targetChapterCount = Number(rawTargetChapterCount.trim());

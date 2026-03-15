@@ -1,4 +1,5 @@
 const INTENT_LABELS: Record<string, string> = {
+  social_opening: "轻度开场",
   list_novels: "列出小说",
   list_worlds: "列出世界观",
   query_task_status: "查询任务状态",

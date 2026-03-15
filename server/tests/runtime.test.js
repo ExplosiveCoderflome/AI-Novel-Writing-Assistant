@@ -71,6 +71,77 @@ test("buildCreativeHubTurnSummary skips pure setup chat turns without tool resul
   assert.equal(summary, null);
 });
 
+test("buildCreativeHubTurnSummary skips social opening turns", () => {
+  const summary = buildCreativeHubTurnSummary({
+    checkpointId: "checkpoint-social-1",
+    goal: "你好",
+    threadStatus: "idle",
+    latestError: null,
+    plannerResult: {
+      source: "llm",
+      validationWarnings: [],
+      structuredIntent: {
+        goal: "你好",
+        intent: "social_opening",
+        confidence: 0.99,
+        requiresNovelContext: false,
+        interactionMode: "co_create",
+        assistantResponse: "ask_followup",
+        shouldAskFollowup: false,
+        missingInfo: [],
+        chapterSelectors: {},
+      },
+      plan: {
+        goal: "你好",
+        contextNeeds: [],
+        actions: [],
+        riskLevel: "low",
+        requiresApproval: false,
+        confidence: 0.99,
+      },
+      actions: [],
+    },
+    executionResult: {
+      run: {
+        id: "run-social-1",
+        status: "succeeded",
+        currentStep: null,
+      },
+      approvals: [],
+      steps: [],
+      latestError: null,
+    },
+    interrupts: [],
+    productionStatus: null,
+  });
+
+  assert.equal(summary, null);
+});
+
+test("composeAssistantMessage returns a light greeting for social openings", async () => {
+  const text = await composeAssistantMessage(
+    "你好",
+    "执行摘要",
+    [],
+    false,
+    { contextMode: "global" },
+    {
+      goal: "你好",
+      intent: "social_opening",
+      confidence: 0.99,
+      requiresNovelContext: false,
+      interactionMode: "co_create",
+      assistantResponse: "ask_followup",
+      shouldAskFollowup: false,
+      missingInfo: [],
+      chapterSelectors: {},
+    },
+  );
+
+  assert.match(text, /你好/);
+  assert.doesNotMatch(text, /先不把它当成命令执行/);
+});
+
 test("composeAssistantMessage summarizes produce_novel before queue approval", async () => {
   const text = await composeAssistantMessage(
     "创建一本20章小说《抗日奇侠传》，并开始整本生成",

@@ -56,20 +56,20 @@ export default function CreativeHubConversation({
                 <ThreadPrimitive.Empty>
                   <div className="mx-auto mt-8 max-w-[680px] px-2 text-center">
                     <h3 className="text-4xl font-semibold tracking-tight text-slate-900">创作中枢</h3>
-                    <p className="mt-2 text-lg text-slate-500">在这里直接发起小说、知识库、世界观和任务诊断。</p>
+                    <p className="mt-2 text-lg text-slate-500">先把你卡住的创作问题抛进来，我会先帮你判断、拆解，再决定是否进入执行。</p>
                     {onQuickAction ? (
                       <div className="mt-5 flex flex-wrap justify-center gap-2">
-                        <Button type="button" variant="outline" onClick={() => onQuickAction("列出当前的小说列表")}>
-                          列出小说
+                        <Button type="button" variant="outline" onClick={() => onQuickAction("基于当前信息，给我 3 套这本书的一句话设定方向。")}>
+                          给我设定方向
                         </Button>
-                        <Button type="button" variant="outline" onClick={() => onQuickAction("列出当前系统任务状态")}>
-                          查看任务
+                        <Button type="button" variant="outline" onClick={() => onQuickAction("帮我判断当前设定最大的短板是什么，并告诉我先补哪一块。")}>
+                          先做诊断
                         </Button>
-                        <Button type="button" variant="outline" onClick={() => onQuickAction("列出当前知识库文档状态")}>
-                          查看知识库
+                        <Button type="button" variant="outline" onClick={() => onQuickAction("给我 3 套更有吸引力的故事承诺，要求气质差异明显。")}>
+                          要故事承诺
                         </Button>
-                        <Button type="button" variant="outline" onClick={() => onQuickAction("创建一本20章小说《新书样例》，并开始整本生成")}>
-                          启动整本生产
+                        <Button type="button" variant="outline" onClick={() => onQuickAction("别急着执行，先根据当前信息帮我收敛成一个可生产的初始化方案。")}>
+                          收敛初始化
                         </Button>
                       </div>
                     ) : null}
@@ -86,7 +86,7 @@ export default function CreativeHubConversation({
               <ComposerPrimitive.Root className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
                 <ComposerPrimitive.Input
                   className="min-h-[110px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
-                  placeholder="输入命令或问题，Enter 发送，Shift+Enter 换行。"
+                  placeholder="描述你现在的作品问题、犹豫点或想推进的一轮创作；Enter 发送，Shift+Enter 换行。"
                   submitMode="enter"
                 />
                 <div className="mt-3 flex gap-2">

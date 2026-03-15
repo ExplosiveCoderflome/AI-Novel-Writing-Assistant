@@ -57,8 +57,11 @@ export type AgentToolName =
   | "explain_generation_blocker";
 
 export type AgentContextMode = "global" | "novel";
+export type AgentInteractionMode = "co_create" | "review" | "query" | "plan" | "execute";
+export type AgentAssistantResponse = "ask_followup" | "offer_options" | "explain" | "execute";
 
 export type AgentIntentName =
+  | "social_opening"
   | "list_novels"
   | "list_base_characters"
   | "list_worlds"
@@ -90,6 +93,10 @@ export interface StructuredIntent {
   intent: AgentIntentName;
   confidence: number;
   requiresNovelContext: boolean;
+  interactionMode?: AgentInteractionMode;
+  assistantResponse?: AgentAssistantResponse;
+  shouldAskFollowup?: boolean;
+  missingInfo?: string[];
   novelTitle?: string;
   worldName?: string;
   description?: string;

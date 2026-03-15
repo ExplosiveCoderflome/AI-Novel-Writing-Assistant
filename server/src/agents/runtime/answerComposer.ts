@@ -40,6 +40,93 @@ function buildGroundingFacts(results: ToolExecutionResult[]): string {
   })));
 }
 
+function formatMissingInfo(structuredIntent?: StructuredIntent): string[] {
+  return (structuredIntent?.missingInfo ?? [])
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
+function buildCollaborativeQuestion(structuredIntent?: StructuredIntent): string {
+  switch (structuredIntent?.intent) {
+    case "produce_novel":
+    case "create_novel":
+      return "你想先把一句话设定钉牢，还是让我直接给你三套可选方向？";
+    case "write_chapter":
+    case "rewrite_chapter":
+      return "这章你最想先解决的是剧情推进、人物情绪，还是文风节奏？";
+    case "ideate_novel_setup":
+      return "你更想先看核心设定、故事承诺，还是题材风格的备选方案？";
+    default:
+      return "你现在最想先解决哪一个创作问题？";
+  }
+}
+
+function buildCollaborativeOptions(structuredIntent?: StructuredIntent): string[] {
+  switch (structuredIntent?.intent) {
+    case "produce_novel":
+    case "create_novel":
+      return [
+        "我先基于当前信息给你 3 套核心设定方向。",
+        "你补一句主角、冲突和目标，我帮你收敛成可执行设定。",
+        "如果你已经想清楚，也可以直接说“现在启动整本生产”。",
+      ];
+    case "write_chapter":
+    case "rewrite_chapter":
+      return [
+        "我先帮你判断这一章的问题出在情节、人物还是节奏。",
+        "你告诉我这章的目标和想保留的部分，我给你重写方案。",
+        "如果你已经确定范围，也可以直接说要改哪一章、往哪个方向改。",
+      ];
+    case "ideate_novel_setup":
+      return [
+        "先给你 3 套核心设定备选。",
+        "先给你 3 套故事承诺和卖点方向。",
+        "先给你 3 套题材风格与叙事配置组合。",
+      ];
+    default:
+      return [
+        "我先帮你拆清楚这个问题。",
+        "我先给你几个可选方向。",
+        "你补充最关键的限制条件，我再继续推进。",
+      ];
+  }
+}
+
+function composeCollaborativeAnswer(goal: string, structuredIntent?: StructuredIntent): string {
+  const missingInfo = formatMissingInfo(structuredIntent);
+  const lead = structuredIntent?.intent === "general_chat" || structuredIntent?.intent === "unknown"
+    ? `我先不把它当成命令执行，先和你一起把问题说清楚：${goal}`
+    : `我理解你现在想推进的是：${goal}`;
+  const collaborationLead = structuredIntent?.interactionMode === "review"
+    ? "这轮更适合先一起诊断和判断。"
+    : "这轮更适合先共创澄清，再决定是否进入执行。";
+
+  if ((structuredIntent?.assistantResponse ?? "explain") === "offer_options") {
+    const options = buildCollaborativeOptions(structuredIntent)
+      .map((item, index) => `${index + 1}. ${item}`)
+      .join("\n");
+    const missingLine = missingInfo.length > 0
+      ? `在继续之前，我还想补齐这几个点：${missingInfo.join("、")}。\n`
+      : "";
+    return `${lead}\n${collaborationLead}\n${missingLine}你可以直接选一个方向继续：\n${options}`;
+  }
+
+  const missingLine = missingInfo.length > 0
+    ? `在继续之前，我还缺这几个关键信息：${missingInfo.join("、")}。`
+    : "";
+  return [lead, collaborationLead, missingLine, buildCollaborativeQuestion(structuredIntent)]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function composeSocialOpeningAnswer(context: Omit<ToolExecutionContext, "runId" | "agentName">): string {
+  if (context.novelId) {
+    return "你好。我可以继续陪你打磨这本书的设定、大纲、人物、章节，或者先帮你判断当前卡点。你现在想先推进哪一块？";
+  }
+  return "你好。我可以帮你一起打磨设定、大纲、人物、章节，或者帮你诊断当前卡点。你现在想先推进哪一块？";
+}
+
 function composeTitleAnswer(results: ToolExecutionResult[]): string {
   const title = getSuccessfulOutputs(results, "get_novel_context")
     .map((item) => (typeof item.title === "string" ? item.title.trim() : ""))
@@ -417,7 +504,7 @@ async function composeFallbackAnswer(
         content: [
           "你是小说创作 Agent 的回答整理器。",
           "只能使用工具结果中的明确事实回答，禁止补充未执行到的信息。",
-          "如果工具结果不足，就明确说“当前信息不足，无法继续”。",
+          "如果工具结果不足，不要生硬地终止；优先指出信息缺口，并给出一个追问或 2-3 个下一步选项。",
           "以下是可用工具目录：",
           toolList,
         ].join("\n"),
@@ -465,6 +552,21 @@ export async function composeAssistantMessage(
   context: Omit<ToolExecutionContext, "runId" | "agentName">,
   structuredIntent?: StructuredIntent,
 ): Promise<string> {
+  if (structuredIntent?.intent === "social_opening") {
+    return composeSocialOpeningAnswer(context);
+  }
+
+  if (
+    !waitingForApproval
+    && structuredIntent
+    && (
+      structuredIntent.shouldAskFollowup
+      || ((structuredIntent.interactionMode ?? "execute") !== "execute" && results.length === 0)
+    )
+  ) {
+    return composeCollaborativeAnswer(goal, structuredIntent);
+  }
+
   switch (structuredIntent?.intent) {
     case "list_novels":
       return composeNovelListAnswer(results);

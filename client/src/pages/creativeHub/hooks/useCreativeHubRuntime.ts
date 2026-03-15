@@ -13,7 +13,12 @@ import {
   type LangGraphStreamCallback,
 } from "@assistant-ui/react-langgraph";
 import type { FailureDiagnostic } from "@ai-novel/shared/types/agent";
-import type { CreativeHubInterrupt, CreativeHubMessage, CreativeHubResourceBinding } from "@ai-novel/shared/types/creativeHub";
+import type {
+  CreativeHubInterrupt,
+  CreativeHubMessage,
+  CreativeHubResourceBinding,
+  CreativeHubTurnSummary,
+} from "@ai-novel/shared/types/creativeHub";
 import type { CreativeHubStreamFrame } from "@ai-novel/shared/types/api";
 import { toast } from "@/components/ui/toast";
 import { streamCreativeHubRun } from "@/api/creativeHub";
@@ -155,8 +160,10 @@ export function useCreativeHubRuntime({
   const latestThreadIdRef = useRef(threadId);
   const currentRunIdRef = useRef<string | null>(null);
   const debugEntrySeqRef = useRef(0);
+  const sendInFlightRef = useRef(false);
   const [isRunning, setIsRunning] = useState(false);
   const [runArtifacts, setRunArtifacts] = useState<CreativeHubRunArtifacts[]>([]);
+  const [threadStateLoaded, setThreadStateLoaded] = useState(false);
   const isThreadReady = threadId.trim().length > 0;
 
   useEffect(() => {
@@ -302,13 +309,21 @@ export function useCreativeHubRuntime({
   threadMessagesRef.current = baseThreadMessages;
 
   const handleSend = async (nextMessages: LangChainMessage[], config: { checkpointId?: string | null; runConfig?: unknown }) => {
+    if (sendInFlightRef.current) {
+      return;
+    }
     try {
+      sendInFlightRef.current = true;
+      setRunArtifacts([]);
+      currentRunIdRef.current = null;
+      debugEntrySeqRef.current = 0;
       setIsRunning(true);
       await sendMessage(nextMessages, {
         ...(config.checkpointId ? { checkpointId: config.checkpointId } : {}),
         ...(config.runConfig ? { runConfig: config.runConfig } : {}),
       });
     } finally {
+      sendInFlightRef.current = false;
       setIsRunning(false);
       onRefreshState?.();
     }
@@ -375,6 +390,7 @@ export function useCreativeHubRuntime({
       : undefined,
     onCancel: async () => {
       cancel();
+      sendInFlightRef.current = false;
       setIsRunning(false);
     },
     extras: {
@@ -388,6 +404,7 @@ export function useCreativeHubRuntime({
     return () => {
       streamSessionRef.current += 1;
       cancel();
+      sendInFlightRef.current = false;
       setIsRunning(false);
     };
   }, [threadId, cancel]);
@@ -400,6 +417,7 @@ export function useCreativeHubRuntime({
       setInterrupt(undefined);
       setIsRunning(false);
       setRunArtifacts([]);
+      setThreadStateLoaded(false);
       currentRunIdRef.current = null;
       debugEntrySeqRef.current = 0;
       return () => {
@@ -408,6 +426,7 @@ export function useCreativeHubRuntime({
     }
     setInterrupt(undefined);
     setRunArtifacts([]);
+    setThreadStateLoaded(false);
     currentRunIdRef.current = null;
     debugEntrySeqRef.current = 0;
     void loadThread(threadId).then((state) => {
@@ -421,6 +440,7 @@ export function useCreativeHubRuntime({
         turnSummary: state.latestTurnSummary,
         debugEntries: [],
       }] : []);
+      setThreadStateLoaded(true);
       currentRunIdRef.current = state.latestTurnSummary?.runId ?? null;
     });
     return () => {
@@ -437,6 +457,8 @@ export function useCreativeHubRuntime({
     setInterrupt,
     messages,
     sendPrompt,
-    latestTurnSummary: runArtifacts[runArtifacts.length - 1]?.turnSummary,
+    latestTurnSummary: threadStateLoaded
+      ? (runArtifacts[runArtifacts.length - 1]?.turnSummary ?? null) as CreativeHubTurnSummary | null
+      : undefined,
   };
 }

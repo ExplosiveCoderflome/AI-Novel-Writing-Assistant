@@ -19,6 +19,27 @@ function toolAction(
   };
 }
 
+const EXECUTION_FIRST_INTENTS = new Set<StructuredIntent["intent"]>([
+  "create_novel",
+  "bind_world_to_novel",
+  "unbind_world_from_novel",
+  "produce_novel",
+  "write_chapter",
+  "rewrite_chapter",
+  "save_chapter_draft",
+  "start_pipeline",
+]);
+
+function shouldHoldForCollaboration(parsed: StructuredIntent): boolean {
+  if (!EXECUTION_FIRST_INTENTS.has(parsed.intent)) {
+    return false;
+  }
+  if (parsed.shouldAskFollowup) {
+    return true;
+  }
+  return (parsed.interactionMode ?? "execute") !== "execute";
+}
+
 export function compileIntentToPlan(parsed: StructuredIntent, input: PlannerInput): AgentPlan {
   const actions: AgentPlan["actions"] = [];
   const contextNeeds: AgentPlan["contextNeeds"] = [];
@@ -78,7 +99,21 @@ export function compileIntentToPlan(parsed: StructuredIntent, input: PlannerInpu
     });
   }
 
+  if (shouldHoldForCollaboration(parsed)) {
+    return {
+      goal: parsed.goal,
+      contextNeeds,
+      actions: [],
+      riskLevel: "low",
+      requiresApproval: false,
+      confidence: parsed.confidence,
+    };
+  }
+
   switch (parsed.intent) {
+    case "social_opening": {
+      break;
+    }
     case "list_novels": {
       actions.push(toolAction(
         "Planner",
