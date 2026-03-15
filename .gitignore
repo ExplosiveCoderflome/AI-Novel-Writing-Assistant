@@ -12,6 +12,12 @@ server/.env
 server/.env.local
 server/dev.db
 server/tmp_*.js
+server/tmp/**/*.db
+server/tmp/**/*.db*
+server/tmp/**/*.db-*
+server/tmp/**/*.sqlite
+server/tmp/**/*.sqlite*
+server/tmp/**/*.sqlite-*
 server/src/prisma/dev.db
 server/src/prisma/dev.db-journal
 .history/

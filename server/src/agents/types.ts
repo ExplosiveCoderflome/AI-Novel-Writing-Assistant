@@ -9,6 +9,7 @@ export type AgentToolName =
   | "create_novel"
   | "select_novel_workspace"
   | "bind_world_to_novel"
+  | "unbind_world_from_novel"
   | "generate_world_for_novel"
   | "generate_novel_characters"
   | "generate_story_bible"
@@ -59,11 +60,13 @@ export type AgentContextMode = "global" | "novel";
 
 export type AgentIntentName =
   | "list_novels"
+  | "list_base_characters"
   | "list_worlds"
   | "query_task_status"
   | "create_novel"
   | "select_novel_workspace"
   | "bind_world_to_novel"
+  | "unbind_world_from_novel"
   | "produce_novel"
   | "query_novel_production_status"
   | "query_novel_title"
@@ -78,6 +81,7 @@ export type AgentIntentName =
   | "inspect_timeline"
   | "inspect_world"
   | "search_knowledge"
+  | "ideate_novel_setup"
   | "general_chat"
   | "unknown";
 
@@ -93,8 +97,12 @@ export interface StructuredIntent {
   genre?: string;
   worldType?: string;
   styleTone?: string;
+  projectMode?: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
   pacePreference?: "fast" | "balanced" | "slow";
   narrativePov?: "first_person" | "third_person" | "mixed";
+  emotionIntensity?: "low" | "medium" | "high";
+  aiFreedom?: "low" | "medium" | "high";
+  defaultChapterLength?: number;
   chapterSelectors: {
     chapterId?: string;
     orders?: number[];

@@ -1,8 +1,17 @@
 import { z } from "zod";
 import type { DomainAgentName, ResourceScope, ToolCategory } from "@ai-novel/shared/types/agent";
-import type { AgentToolName, ToolExecutionContext } from "../types";
+import type { AgentIntentName, AgentToolName, ToolExecutionContext } from "../types";
 
 export type ToolRiskLevel = "low" | "medium" | "high";
+
+export interface AgentToolParserHints {
+  intent?: AgentIntentName;
+  aliases?: string[];
+  phrases?: string[];
+  requiresNovelContext?: boolean;
+  whenToUse?: string;
+  whenNotToUse?: string;
+}
 
 export interface AgentToolDefinition<
   TInput extends Record<string, unknown>,
@@ -16,6 +25,7 @@ export interface AgentToolDefinition<
   domainAgent: DomainAgentName;
   resourceScopes: ResourceScope[];
   approvalRequired?: boolean;
+  parserHints?: AgentToolParserHints;
   inputSchema: z.ZodType<TInput>;
   outputSchema: z.ZodType<TOutput>;
   execute: (context: ToolExecutionContext, input: TInput) => Promise<TOutput>;

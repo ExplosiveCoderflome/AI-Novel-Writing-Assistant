@@ -314,6 +314,7 @@ export class CreativeHubInterruptLangGraph {
         messages: result.finalMessages,
         resourceBindings: result.nextBindings,
         diagnostics: result.diagnostics,
+        turnSummary: null,
       };
     } finally {
       this.invocations.delete(invocationId);

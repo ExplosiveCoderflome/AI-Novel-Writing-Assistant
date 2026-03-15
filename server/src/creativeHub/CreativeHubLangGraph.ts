@@ -6,8 +6,10 @@ import { AgentTraceStore } from "../agents/traceStore";
 import { RunExecutionService } from "../agents/runtime/RunExecutionService";
 import { safeJson } from "../agents/runtime/runtimeHelpers";
 import { novelProductionService } from "../services/novel/NovelProductionService";
+import type { ProductionStatusResult } from "../services/novel/NovelProductionStatusService";
 import { sanitizeCreativeHubToolOutput } from "./toolEventPayloads";
 import { creativeHubService } from "./CreativeHubService";
+import { buildCreativeHubTurnSummary } from "./creativeHubTurnSummary";
 import { latestHumanGoal, toRunStatusContext } from "./creativeHubGraphHelpers";
 import {
   appendAssistantMessage,
@@ -382,14 +384,14 @@ export class CreativeHubLangGraph {
   }
 
   private async taskSyncNode(state: CreativeHubGraphStateValue) {
-    let productionStatus: Record<string, unknown> | undefined;
+    let productionStatus: ProductionStatusResult | undefined;
     let nextBindings = state.nextBindings;
     if (state.nextBindings.novelId) {
       try {
         const status = await novelProductionService.getNovelProductionStatus({
           novelId: state.nextBindings.novelId,
         });
-        productionStatus = status as unknown as Record<string, unknown>;
+        productionStatus = status;
         if (!nextBindings.worldId && status.worldId) {
           nextBindings = {
             ...nextBindings,
@@ -400,8 +402,19 @@ export class CreativeHubLangGraph {
         productionStatus = undefined;
       }
     }
+    const checkpointId = crypto.randomUUID();
+    const turnSummary = buildCreativeHubTurnSummary({
+      checkpointId,
+      goal: state.goal,
+      threadStatus: state.threadStatus,
+      latestError: state.latestError,
+      plannerResult: state.plannerResult,
+      executionResult: state.executionResult,
+      interrupts: state.interrupts,
+      productionStatus,
+    });
     const checkpoint = await creativeHubService.saveCheckpoint(state.threadId, {
-      checkpointId: crypto.randomUUID(),
+      checkpointId,
       parentCheckpointId: state.parentCheckpointId ?? null,
       runId: state.runId ?? null,
       status: state.threadStatus,
@@ -414,6 +427,7 @@ export class CreativeHubLangGraph {
         runStatus: state.threadStatus,
         resourceBindings: nextBindings,
         productionStatus: productionStatus ?? null,
+        latestTurnSummary: turnSummary,
         planner: state.plannerResult
           ? {
             source: state.plannerResult.source,
@@ -428,6 +442,12 @@ export class CreativeHubLangGraph {
       event: "messages/complete",
       data: state.finalMessages,
     });
+    if (turnSummary) {
+      this.emitFrame(state, {
+        event: "creative_hub/turn_summary",
+        data: turnSummary,
+      });
+    }
     this.emitFrame(state, {
       event: "metadata",
       data: {
@@ -436,12 +456,14 @@ export class CreativeHubLangGraph {
         runId: state.runId,
         resourceBindings: nextBindings,
         productionStatus: productionStatus ?? null,
+        latestTurnSummary: turnSummary,
       },
     });
 
     return {
       checkpoint,
       nextBindings,
+      turnSummary,
     };
   }
 
@@ -484,6 +506,7 @@ export class CreativeHubLangGraph {
         threadStatus: "idle",
         latestError: null,
         diagnostics: undefined,
+        turnSummary: null,
       });
 
       return {
@@ -496,6 +519,7 @@ export class CreativeHubLangGraph {
         messages: result.finalMessages,
         resourceBindings: result.nextBindings,
         diagnostics: result.diagnostics,
+        turnSummary: result.turnSummary,
       };
     } finally {
       this.invocations.delete(invocationId);

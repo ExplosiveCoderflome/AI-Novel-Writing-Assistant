@@ -1,7 +1,10 @@
 import { useState } from "react";
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import CreativeHubToolResultCard from "./CreativeHubToolResultCard";
+import CreativeHubDebugTraceCard, { type CreativeHubDebugTraceEntry } from "./CreativeHubDebugTraceCard";
+import CreativeHubTurnSummaryCard from "./CreativeHubTurnSummaryCard";
 import { useCreativeHubInlineControls } from "./CreativeHubInlineControlsContext";
+import type { CreativeHubTurnSummary } from "@ai-novel/shared/types/creativeHub";
 
 function formatArgs(argsText: string | undefined): string | null {
   const text = argsText?.trim();
@@ -93,6 +96,28 @@ export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProp
           </button>
         </div>
       </div>
+    );
+  }
+
+  if (props.toolName === "creative_hub_turn_summary") {
+    return (
+      <CreativeHubTurnSummaryCard
+        summary={args as unknown as CreativeHubTurnSummary}
+        onQuickAction={inlineControls.onQuickAction}
+      />
+    );
+  }
+
+  if (props.toolName === "creative_hub_debug_trace") {
+    const entries = Array.isArray(args.entries)
+      ? args.entries.filter((item): item is CreativeHubDebugTraceEntry => !!item && typeof item === "object")
+      : [];
+    return (
+      <CreativeHubDebugTraceCard
+        runId={typeof args.runId === "string" ? args.runId : null}
+        entries={entries}
+        defaultCollapsed={args.defaultCollapsed !== false}
+      />
     );
   }
 

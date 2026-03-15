@@ -5,6 +5,7 @@ const INTENT_LABELS: Record<string, string> = {
   create_novel: "创建小说",
   select_novel_workspace: "切换小说工作区",
   bind_world_to_novel: "绑定世界观到小说",
+  unbind_world_from_novel: "解除小说世界观绑定",
   produce_novel: "整本生产",
   query_novel_production_status: "查询整本生产状态",
   query_novel_title: "查询小说标题",
@@ -19,6 +20,7 @@ const INTENT_LABELS: Record<string, string> = {
   inspect_timeline: "查看时间线",
   inspect_world: "查看世界观",
   search_knowledge: "检索知识库",
+  ideate_novel_setup: "生成设定备选",
   general_chat: "一般对话",
   unknown: "未识别意图",
 };

@@ -10,6 +10,7 @@ import type {
 } from "@ai-novel/shared/types/creativeHub";
 import type { FailureDiagnostic } from "@ai-novel/shared/types/agent";
 import { prisma } from "../db/prisma";
+import { novelSetupStatusService } from "../services/novel/NovelSetupStatusService";
 
 interface CreateThreadInput {
   title?: string;
@@ -208,13 +209,21 @@ export class CreativeHubService {
     }
     const latestCheckpoint = record.checkpoints[0];
     const diagnostics = await loadFailureDiagnostic(record.latestRunId);
+    const bindings = normalizeBindings(safeParseJson(record.resourceBindingsJson, {}));
+    const storedMetadata = safeParseJson(record.metadataJson, {} as CreativeHubThreadMetadata);
+    const novelSetup = bindings.novelId
+      ? await novelSetupStatusService.getNovelSetupStatus(bindings.novelId)
+      : null;
     return {
       thread: mapThread(record),
       messages: latestCheckpoint ? safeParseJson(latestCheckpoint.messagesJson, [] as CreativeHubMessage[]) : [],
       interrupts: latestCheckpoint ? safeParseJson(latestCheckpoint.interruptsJson, [] as CreativeHubInterrupt[]) : [],
       currentCheckpointId: latestCheckpoint?.checkpointId ?? null,
       diagnostics,
-      metadata: safeParseJson(record.metadataJson, {} as CreativeHubThreadMetadata),
+      metadata: {
+        ...storedMetadata,
+        novelSetup,
+      },
     };
   }
 

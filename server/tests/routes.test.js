@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const http = require("node:http");
 const { createApp } = require("../dist/app.js");
 const { AgentTraceStore } = require("../dist/agents/traceStore.js");
+const { creativeHubLangGraph } = require("../dist/creativeHub/CreativeHubLangGraph.js");
 const { creativeHubService } = require("../dist/creativeHub/CreativeHubService.js");
 
 function listen(server) {
@@ -74,6 +75,151 @@ test("creative hub thread create and state routes return success payloads", asyn
     assert.equal(statePayload.success, true);
     assert.equal(statePayload.data.thread.id, createPayload.data.id);
     assert.ok(Array.isArray(statePayload.data.messages));
+  } finally {
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("creative hub stream route emits turn summary frames", async () => {
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  const thread = await creativeHubService.createThread({
+    title: "stream summary test",
+  });
+  const originalRunThread = creativeHubLangGraph.runThread;
+  const turnSummary = {
+    runId: "run_summary_test",
+    checkpointId: "cp_summary_test",
+    status: "succeeded",
+    currentStage: "章节推进",
+    intentSummary: "围绕当前章节继续推进正文。",
+    actionSummary: "读取上下文并生成了新的章节回复。",
+    impactSummary: "线程状态已更新，下一步可以继续扩写或复盘。",
+    nextSuggestion: "继续扩写当前章节，并检查角色动机是否一致。",
+  };
+
+  creativeHubLangGraph.runThread = async (_input, emitFrame) => {
+    emitFrame({
+      event: "creative_hub/run_status",
+      data: {
+        runId: turnSummary.runId,
+        status: "running",
+      },
+    });
+    emitFrame({
+      event: "messages/complete",
+      data: [{
+        id: "ai_1",
+        type: "ai",
+        content: "已生成新的章节回复。",
+      }],
+    });
+    emitFrame({
+      event: "creative_hub/turn_summary",
+      data: turnSummary,
+    });
+    emitFrame({
+      event: "metadata",
+      data: {
+        checkpointId: turnSummary.checkpointId,
+        runId: turnSummary.runId,
+        latestTurnSummary: turnSummary,
+      },
+    });
+    return {
+      runId: turnSummary.runId,
+      assistantOutput: "已生成新的章节回复。",
+      checkpoint: {
+        checkpointId: turnSummary.checkpointId,
+        parentCheckpointId: null,
+        runId: turnSummary.runId,
+        messageCount: 2,
+        preview: "已生成新的章节回复。",
+        createdAt: new Date().toISOString(),
+      },
+      interrupts: [],
+      status: "idle",
+      latestError: null,
+      messages: [{
+        id: "ai_1",
+        type: "ai",
+        content: "已生成新的章节回复。",
+      }],
+      resourceBindings: {},
+      diagnostics: undefined,
+      turnSummary,
+    };
+  };
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/creative-hub/threads/${thread.id}/runs/stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messages: [{
+          id: "human_1",
+          type: "human",
+          content: "继续写这一章",
+        }],
+      }),
+    });
+    assert.equal(response.status, 200);
+    const text = await response.text();
+    assert.match(text, /"event":"creative_hub\/turn_summary"/);
+    assert.match(text, /"runId":"run_summary_test"/);
+    assert.match(text, /"checkpointId":"cp_summary_test"/);
+  } finally {
+    creativeHubLangGraph.runThread = originalRunThread;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("creative hub state route exposes latest turn summary metadata", async () => {
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  const thread = await creativeHubService.createThread({
+    title: "state summary test",
+  });
+  const turnSummary = {
+    runId: "run_state_summary",
+    checkpointId: "cp_state_summary",
+    status: "failed",
+    currentStage: "世界观校验",
+    intentSummary: "检查当前世界观设定是否冲突。",
+    actionSummary: "读取设定文档并发现了一处角色冲突。",
+    impactSummary: "本轮未继续推进正文，需要先修复设定问题。",
+    nextSuggestion: "先修复角色设定冲突，再继续章节写作。",
+  };
+
+  try {
+    await creativeHubService.saveCheckpoint(thread.id, {
+      checkpointId: turnSummary.checkpointId,
+      runId: turnSummary.runId,
+      status: "error",
+      latestError: "validation failed",
+      messages: [{
+        id: "human_1",
+        type: "human",
+        content: "检查世界观是否冲突",
+      }],
+      interrupts: [],
+      resourceBindings: {},
+      metadata: {
+        latestTurnSummary: turnSummary,
+      },
+    });
+
+    const response = await fetch(`http://127.0.0.1:${port}/api/creative-hub/threads/${thread.id}/state`);
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    assert.equal(payload.data.thread.id, thread.id);
+    assert.equal(payload.data.metadata.latestTurnSummary.runId, turnSummary.runId);
+    assert.equal(payload.data.metadata.latestTurnSummary.currentStage, turnSummary.currentStage);
   } finally {
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }

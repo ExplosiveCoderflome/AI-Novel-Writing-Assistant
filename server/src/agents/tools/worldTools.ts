@@ -34,6 +34,10 @@ const bindWorldToNovelInput = z.object({
   message: "worldId or worldName is required.",
 });
 
+const unbindWorldFromNovelInput = z.object({
+  novelId: z.string().trim().min(1),
+});
+
 const getWorldDetailOutput = z.object({
   id: z.string(),
   name: z.string(),
@@ -52,6 +56,16 @@ const bindWorldToNovelOutput = z.object({
   novelTitle: z.string(),
   worldId: z.string(),
   worldName: z.string(),
+  summary: z.string(),
+});
+
+const unbindWorldFromNovelOutput = z.object({
+  novelId: z.string(),
+  novelTitle: z.string(),
+  previousWorldId: z.string().nullable(),
+  previousWorldName: z.string().nullable(),
+  worldId: z.string().nullable(),
+  worldName: z.string().nullable(),
   summary: z.string(),
 });
 
@@ -82,6 +96,14 @@ export const worldToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "WorldAgent",
     resourceScopes: ["world"],
+    parserHints: {
+      intent: "list_worlds",
+      aliases: ["世界观列表", "世界观库", "worlds"],
+      phrases: ["列出世界观列表", "当前有哪些世界观", "查看世界观列表"],
+      requiresNovelContext: false,
+      whenToUse: "用户想查看全局世界观资源。",
+      whenNotToUse: "用户是在为当前小说绑定或检查某个具体世界观。",
+    },
     inputSchema: listWorldsInput,
     outputSchema: listWorldsOutput,
     execute: async (_context, rawInput) => {
@@ -112,6 +134,14 @@ export const worldToolDefinitions: Partial<
     riskLevel: "medium",
     domainAgent: "WorldAgent",
     resourceScopes: ["world", "novel"],
+    parserHints: {
+      intent: "bind_world_to_novel",
+      aliases: ["绑定世界观", "设置小说世界观"],
+      phrases: ["将某个世界观设为当前小说的世界观", "把世界观绑定为当前小说世界观"],
+      requiresNovelContext: true,
+      whenToUse: "用户要把某个世界观绑定到当前小说。",
+      whenNotToUse: "用户只是想查看世界观列表或详情。",
+    },
     inputSchema: bindWorldToNovelInput,
     outputSchema: bindWorldToNovelOutput,
     execute: async (_context, rawInput) => {
@@ -168,6 +198,66 @@ export const worldToolDefinitions: Partial<
         worldId: world.id,
         worldName: world.name,
         summary: `已将世界观《${world.name}》绑定到小说《${novel.title}》。`,
+      });
+    },
+  },
+  unbind_world_from_novel: {
+    name: "unbind_world_from_novel",
+    title: "解除小说世界观绑定",
+    description: "解除当前小说与已绑定世界观之间的关联。",
+    category: "mutate",
+    riskLevel: "medium",
+    domainAgent: "WorldAgent",
+    resourceScopes: ["world", "novel"],
+    parserHints: {
+      intent: "unbind_world_from_novel",
+      aliases: ["解绑世界观", "取消世界观绑定", "不使用当前世界观", "remove world binding"],
+      phrases: ["不要这个世界观了", "先不用这个世界观", "把当前小说的世界观解绑", "取消当前世界观"],
+      requiresNovelContext: true,
+      whenToUse: "用户要取消当前小说已绑定的世界观，或明确表示先不用某个世界观。",
+      whenNotToUse: "用户是在为当前小说指定一个新的世界观，或只是想查看世界观详情。",
+    },
+    inputSchema: unbindWorldFromNovelInput,
+    outputSchema: unbindWorldFromNovelOutput,
+    execute: async (_context, rawInput) => {
+      const input = unbindWorldFromNovelInput.parse(rawInput);
+      const novel = await prisma.novel.findUnique({
+        where: { id: input.novelId },
+        select: {
+          id: true,
+          title: true,
+          world: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+      if (!novel) {
+        throw new AgentToolError("NOT_FOUND", "未找到当前小说。");
+      }
+
+      const previousWorld = novel.world ?? null;
+      if (previousWorld) {
+        await prisma.novel.update({
+          where: { id: novel.id },
+          data: {
+            worldId: null,
+          },
+        });
+      }
+
+      return unbindWorldFromNovelOutput.parse({
+        novelId: novel.id,
+        novelTitle: novel.title,
+        previousWorldId: previousWorld?.id ?? null,
+        previousWorldName: previousWorld?.name ?? null,
+        worldId: null,
+        worldName: null,
+        summary: previousWorld
+          ? `已将世界观《${previousWorld.name}》从小说《${novel.title}》解绑。`
+          : `当前小说《${novel.title}》还没有绑定世界观。`,
       });
     },
   },

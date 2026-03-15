@@ -1,4 +1,5 @@
 import { prisma } from "../../db/prisma";
+import { novelSetupStatusService } from "../../services/novel/NovelSetupStatusService";
 import { AgentToolError, type AgentToolName } from "../types";
 import type { AgentToolDefinition } from "./toolTypes";
 import {
@@ -44,6 +45,14 @@ export const novelWorkspaceToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "NovelAgent",
     resourceScopes: ["global", "novel"],
+    parserHints: {
+      intent: "list_novels",
+      aliases: ["小说列表", "书列表", "novels"],
+      phrases: ["列出当前的小说列表", "当前有多少本小说", "查看小说工作区"],
+      requiresNovelContext: false,
+      whenToUse: "用户在查询全局小说列表、数量或可切换的工作区。",
+      whenNotToUse: "用户已经锁定某本小说并在追问章节、角色或生产状态。",
+    },
     inputSchema: listNovelsInput,
     outputSchema: listNovelsOutput,
     execute: async (_context, rawInput) => {
@@ -91,6 +100,14 @@ export const novelWorkspaceToolDefinitions: Partial<
     riskLevel: "medium",
     domainAgent: "NovelAgent",
     resourceScopes: ["global", "novel"],
+    parserHints: {
+      intent: "create_novel",
+      aliases: ["创建小说", "新建小说", "create novel"],
+      phrases: ["创建一本小说《xxx》", "新建一本书", "创建新的小说工作区"],
+      requiresNovelContext: false,
+      whenToUse: "用户只是在创建一部新小说。",
+      whenNotToUse: "用户要求创建后立刻开始整本生成，那更接近 produce_novel。",
+    },
     inputSchema: createNovelInput,
     outputSchema: createNovelOutput,
     execute: async (_context, rawInput) => {
@@ -104,18 +121,26 @@ export const novelWorkspaceToolDefinitions: Partial<
           narrativePov: input.narrativePov,
           pacePreference: input.pacePreference,
           styleTone: input.styleTone ?? null,
+          emotionIntensity: input.emotionIntensity,
+          aiFreedom: input.aiFreedom,
+          defaultChapterLength: input.defaultChapterLength,
           projectStatus: input.projectStatus ?? "in_progress",
           outlineStatus: "not_started",
           storylineStatus: "not_started",
           projectMode: input.projectMode ?? "auto_pipeline",
         },
       });
+      const setup = await novelSetupStatusService.getNovelSetupStatus(novel.id);
+      if (!setup) {
+        throw new AgentToolError("INTERNAL", "创建小说后未能读取初始化状态。");
+      }
       return createNovelOutput.parse({
         novelId: novel.id,
         title: novel.title,
         status: novel.status,
         chapterCount: 0,
-        summary: `已创建小说《${novel.title}》。`,
+        summary: `已创建小说《${novel.title}》，当前进入初始化引导。`,
+        setup,
       });
     },
   },
@@ -127,6 +152,14 @@ export const novelWorkspaceToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "NovelAgent",
     resourceScopes: ["global", "novel"],
+    parserHints: {
+      intent: "select_novel_workspace",
+      aliases: ["切换小说", "选择工作区", "select workspace"],
+      phrases: ["把《xxx》设为当前工作区", "切换到某本小说", "打开这本小说的工作区"],
+      requiresNovelContext: false,
+      whenToUse: "用户想把某本小说绑定为当前创作工作区。",
+      whenNotToUse: "用户只是想查看所有小说，不是切换上下文。",
+    },
     inputSchema: selectNovelWorkspaceInput,
     outputSchema: selectNovelWorkspaceOutput,
     execute: async (_context, rawInput) => {
@@ -166,11 +199,16 @@ export const novelWorkspaceToolDefinitions: Partial<
       if (!resolved) {
         throw new AgentToolError("NOT_FOUND", "未找到要绑定的小说。");
       }
+      const setup = await novelSetupStatusService.getNovelSetupStatus(resolved.id);
+      if (!setup) {
+        throw new AgentToolError("INTERNAL", "切换工作区后未能读取初始化状态。");
+      }
       return selectNovelWorkspaceOutput.parse({
         novelId: resolved.id,
         title: resolved.title,
         chapterCount: resolved._count.chapters,
-        summary: `已定位到小说《${resolved.title}》。`,
+        summary: `已切换到小说《${resolved.title}》的工作区。`,
+        setup,
       });
     },
   },

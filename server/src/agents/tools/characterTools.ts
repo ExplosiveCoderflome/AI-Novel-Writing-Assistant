@@ -55,6 +55,14 @@ export const characterToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "CharacterAgent",
     resourceScopes: ["base_character"],
+    parserHints: {
+      intent: "list_base_characters",
+      aliases: ["基础角色库", "角色模板库", "base characters"],
+      phrases: ["列出基础角色库中的角色", "查看基础角色库", "角色库里有什么角色"],
+      requiresNovelContext: false,
+      whenToUse: "用户想查看全局基础角色模板库。",
+      whenNotToUse: "用户问的是当前小说里已经规划的角色状态。",
+    },
     inputSchema: listBaseCharactersInput,
     outputSchema: listBaseCharactersOutput,
     execute: async (_context, rawInput) => {

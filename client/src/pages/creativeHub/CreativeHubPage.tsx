@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CreativeHubResourceBinding } from "@ai-novel/shared/types/creativeHub";
+import type { ApiResponse } from "@ai-novel/shared/types/api";
+import type { CreativeHubResourceBinding, CreativeHubThread } from "@ai-novel/shared/types/creativeHub";
 import type { LangChainMessage } from "@assistant-ui/react-langgraph";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -14,13 +15,17 @@ import {
 } from "@/api/creativeHub";
 import { getNovelList } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
-import { useLLMStore } from "@/store/llmStore";
 import { Badge } from "@/components/ui/badge";
+import { useLLMStore } from "@/store/llmStore";
+import { hasCreativeHubBindings } from "@/lib/creativeHubLinks";
 import CreativeHubConversation from "./components/CreativeHubConversation";
 import CreativeHubSidebar from "./components/CreativeHubSidebar";
 import CreativeHubThreadList from "./components/CreativeHubThreadList";
-import { hasCreativeHubBindings } from "@/lib/creativeHubLinks";
 import { useCreativeHubRuntime } from "./hooks/useCreativeHubRuntime";
+
+const RUNTIME_DETAILS_COLLAPSED_STORAGE_KEY = "creative-hub.runtime-details-collapsed";
+const DEFAULT_THREAD_TITLE = "\u65b0\u5bf9\u8bdd";
+const pendingAutoCreateThreadKeys = new Set<string>();
 
 function buildBindingsFromSearch(searchParams: URLSearchParams): CreativeHubResourceBinding {
   const knowledgeIds = searchParams.getAll("knowledgeDocumentId").map((item) => item.trim()).filter(Boolean);
@@ -79,12 +84,34 @@ function sameBindings(a: CreativeHubResourceBinding, b: CreativeHubResourceBindi
     && JSON.stringify(normalizeList(a.knowledgeDocumentIds)) === JSON.stringify(normalizeList(b.knowledgeDocumentIds));
 }
 
+function buildAutoCreateThreadKey(bindings: CreativeHubResourceBinding, shouldCreateBoundThread: boolean): string {
+  if (!shouldCreateBoundThread) {
+    return "blank";
+  }
+  return `bound:${JSON.stringify({
+    novelId: bindings.novelId ?? null,
+    chapterId: bindings.chapterId ?? null,
+    worldId: bindings.worldId ?? null,
+    taskId: bindings.taskId ?? null,
+    bookAnalysisId: bindings.bookAnalysisId ?? null,
+    formulaId: bindings.formulaId ?? null,
+    baseCharacterId: bindings.baseCharacterId ?? null,
+    knowledgeDocumentIds: (bindings.knowledgeDocumentIds ?? []).filter(Boolean).slice().sort(),
+  })}`;
+}
+
 export default function CreativeHubPage() {
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeThreadId, setActiveThreadId] = useState(searchParams.get("threadId")?.trim() ?? "");
   const [approvalNote, setApprovalNote] = useState("");
+  const [defaultRuntimeDetailsCollapsed, setDefaultRuntimeDetailsCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") {
+      return true;
+    }
+    return window.localStorage.getItem(RUNTIME_DETAILS_COLLAPSED_STORAGE_KEY) !== "expanded";
+  });
 
   const initialBindings = useMemo(
     () => buildBindingsFromSearch(searchParams),
@@ -93,6 +120,10 @@ export default function CreativeHubPage() {
   const shouldCreateBoundThread = useMemo(
     () => !searchParams.get("threadId") && hasCreativeHubBindings(initialBindings),
     [initialBindings, searchParams],
+  );
+  const autoCreateThreadKey = useMemo(
+    () => buildAutoCreateThreadKey(initialBindings, shouldCreateBoundThread),
+    [initialBindings, shouldCreateBoundThread],
   );
 
   const threadsQuery = useQuery({
@@ -115,6 +146,23 @@ export default function CreativeHubPage() {
     mutationFn: createCreativeHubThread,
     onSuccess: async (response, variables) => {
       const threadId = response.data?.id;
+      queryClient.setQueryData<ApiResponse<CreativeHubThread[]>>(queryKeys.creativeHub.threads, (previous) => {
+        const createdThread = response.data;
+        if (!createdThread) {
+          return previous;
+        }
+        const existingThreads = previous?.data ?? [];
+        if (existingThreads.some((thread) => thread.id === createdThread.id)) {
+          return previous;
+        }
+        return previous
+          ? { ...previous, data: [createdThread, ...existingThreads] }
+          : {
+            success: true,
+            data: [createdThread],
+            message: "Creative Hub thread list updated.",
+          };
+      });
       await queryClient.invalidateQueries({ queryKey: queryKeys.creativeHub.threads });
       if (threadId) {
         setActiveThreadId(threadId);
@@ -127,8 +175,33 @@ export default function CreativeHubPage() {
     },
   });
 
+  const autoCreateThread = useCallback(() => {
+    if (!threadsQuery.isSuccess) {
+      return;
+    }
+    if (pendingAutoCreateThreadKeys.has(autoCreateThreadKey)) {
+      return;
+    }
+    pendingAutoCreateThreadKeys.add(autoCreateThreadKey);
+    createThreadMutation.mutate({
+      title: DEFAULT_THREAD_TITLE,
+      resourceBindings: shouldCreateBoundThread ? initialBindings : {},
+    }, {
+      onSettled: () => {
+        pendingAutoCreateThreadKeys.delete(autoCreateThreadKey);
+      },
+    });
+  }, [
+    autoCreateThreadKey,
+    createThreadMutation,
+    initialBindings,
+    shouldCreateBoundThread,
+    threadsQuery.isSuccess,
+  ]);
+
   useEffect(() => {
     if (activeThreadId) return;
+    if (!threadsQuery.isSuccess) return;
     if (threads.length > 0) {
       const matchedThread = shouldCreateBoundThread
         ? threads.find((thread) => sameBindings(thread.resourceBindings, initialBindings))
@@ -140,22 +213,15 @@ export default function CreativeHubPage() {
         next.set("threadId", nextThread.id);
         return next;
       }, { replace: true });
-      return;
     }
-    if (shouldCreateBoundThread && !createThreadMutation.isPending) {
-      createThreadMutation.mutate({
-        title: "新对话",
-        resourceBindings: initialBindings,
-      });
-      return;
-    }
-    if (!threadsQuery.isLoading && !createThreadMutation.isPending) {
-      createThreadMutation.mutate({
-        title: "新对话",
-        resourceBindings: initialBindings,
-      });
-    }
-  }, [activeThreadId, createThreadMutation, initialBindings, shouldCreateBoundThread, threads, threadsQuery.isLoading]);
+  }, [activeThreadId, initialBindings, setSearchParams, shouldCreateBoundThread, threads, threadsQuery.isSuccess]);
+
+  useEffect(() => {
+    if (activeThreadId) return;
+    if (!threadsQuery.isSuccess) return;
+    if (threads.length > 0) return;
+    autoCreateThread();
+  }, [activeThreadId, autoCreateThread, threads, threadsQuery.isSuccess]);
 
   const stateQuery = useQuery({
     queryKey: queryKeys.creativeHub.state(activeThreadId || "none"),
@@ -172,10 +238,22 @@ export default function CreativeHubPage() {
   const rawThreadBindings = stateQuery.data?.data?.thread.resourceBindings ?? initialBindings;
   const currentThread = stateQuery.data?.data?.thread ?? threads.find((item) => item.id === activeThreadId);
   const productionStatus = stateQuery.data?.data?.metadata?.productionStatus ?? null;
+  const novelSetup = stateQuery.data?.data?.metadata?.novelSetup ?? null;
+  const persistedLatestTurnSummary = stateQuery.data?.data?.metadata?.latestTurnSummary ?? null;
   const currentBindings = useMemo<CreativeHubResourceBinding>(() => ({
     ...rawThreadBindings,
     worldId: rawThreadBindings.worldId ?? productionStatus?.worldId ?? null,
   }), [productionStatus?.worldId, rawThreadBindings]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(
+      RUNTIME_DETAILS_COLLAPSED_STORAGE_KEY,
+      defaultRuntimeDetailsCollapsed ? "collapsed" : "expanded",
+    );
+  }, [defaultRuntimeDetailsCollapsed]);
 
   const loadThread = useCallback(async (threadId: string) => {
     const response = await getCreativeHubThreadState(threadId);
@@ -184,6 +262,7 @@ export default function CreativeHubPage() {
       messages: (state?.messages ?? []) as unknown as LangChainMessage[],
       interrupts: state?.interrupts ?? [],
       checkpointId: state?.currentCheckpointId ?? null,
+      latestTurnSummary: state?.metadata?.latestTurnSummary ?? null,
     };
   }, []);
 
@@ -212,7 +291,11 @@ export default function CreativeHubPage() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.creativeHub.history(activeThreadId || "none") });
     },
     diagnostics: stateQuery.data?.data?.diagnostics,
+    defaultRuntimeDetailsCollapsed,
   });
+
+  const latestTurnSummary = runtimeState.latestTurnSummary ?? persistedLatestTurnSummary;
+  const currentCheckpointId = runtimeState.checkpointId ?? stateQuery.data?.data?.currentCheckpointId ?? null;
 
   const archiveThread = async (threadId: string, archived: boolean) => {
     await updateCreativeHubThread(threadId, { archived });
@@ -282,7 +365,7 @@ export default function CreativeHubPage() {
     if (!normalized) {
       return;
     }
-    await runtimeState.sendPrompt(`创建一本小说《${normalized}》`);
+    await runtimeState.sendPrompt(`创建一本小说《${normalized}》。`);
   }, [runtimeState]);
 
   useEffect(() => {
@@ -312,11 +395,12 @@ export default function CreativeHubPage() {
         {currentBindings.bookAnalysisId ? <Badge variant="outline">拆书 {currentBindings.bookAnalysisId}</Badge> : null}
         {currentBindings.formulaId ? <Badge variant="outline">公式 {currentBindings.formulaId}</Badge> : null}
         {currentBindings.baseCharacterId ? <Badge variant="outline">角色 {currentBindings.baseCharacterId}</Badge> : null}
+        {latestTurnSummary?.currentStage ? <Badge variant="outline">{latestTurnSummary.currentStage}</Badge> : null}
         {currentBindings.knowledgeDocumentIds?.length ? (
-          <Badge variant="outline">知识文档 {currentBindings.knowledgeDocumentIds.length} 个</Badge>
+          <Badge variant="outline">知识文档 {currentBindings.knowledgeDocumentIds.length} 份</Badge>
         ) : null}
-        {stateQuery.data?.data?.currentCheckpointId ? (
-          <Badge variant="outline">Checkpoint {stateQuery.data.data.currentCheckpointId.slice(0, 8)}</Badge>
+        {currentCheckpointId ? (
+          <Badge variant="outline">Checkpoint {currentCheckpointId.slice(0, 8)}</Badge>
         ) : null}
       </div>
 
@@ -335,7 +419,7 @@ export default function CreativeHubPage() {
             }}
             onCreate={() => {
               createThreadMutation.mutate({
-                title: "新对话",
+                title: DEFAULT_THREAD_TITLE,
                 resourceBindings: {},
               });
             }}
@@ -364,16 +448,20 @@ export default function CreativeHubPage() {
             interrupt={runtimeState.interrupt}
             diagnostics={stateQuery.data?.data?.diagnostics}
             productionStatus={productionStatus}
+            novelSetup={novelSetup}
+            latestTurnSummary={latestTurnSummary}
+            currentCheckpointId={currentCheckpointId}
             modelSummary={{
               provider: llm.provider,
               model: llm.model,
               temperature: llm.temperature,
               maxTokens: llm.maxTokens,
             }}
-            approvalNote={approvalNote}
-            onApprovalNoteChange={setApprovalNote}
+            defaultRuntimeDetailsCollapsed={defaultRuntimeDetailsCollapsed}
+            onToggleRuntimeDetailsDefault={() => {
+              setDefaultRuntimeDetailsCollapsed((value) => !value);
+            }}
             onNovelChange={(novelId) => void handleBindingsChange({ novelId: novelId || null })}
-            onResolveInterrupt={(action) => void handleResolveInterrupt(action)}
             onQuickAction={(prompt) => void handleQuickAction(prompt)}
             onCreateNovel={(title) => void handleCreateNovelQuickAction(title)}
             onStartProduction={(prompt) => void handleQuickAction(prompt)}

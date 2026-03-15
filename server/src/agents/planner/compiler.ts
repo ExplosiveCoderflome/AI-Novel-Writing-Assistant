@@ -90,6 +90,17 @@ export function compileIntentToPlan(parsed: StructuredIntent, input: PlannerInpu
       ));
       break;
     }
+    case "list_base_characters": {
+      actions.push(toolAction(
+        "Planner",
+        "list_base_characters",
+        "读取基础角色库列表",
+        { limit: 20 },
+        "list_base_characters",
+        input,
+      ));
+      break;
+    }
     case "list_worlds": {
       actions.push(toolAction(
         "Planner",
@@ -160,6 +171,19 @@ export function compileIntentToPlan(parsed: StructuredIntent, input: PlannerInpu
       }
       break;
     }
+    case "unbind_world_from_novel": {
+      if (input.novelId) {
+        actions.push(toolAction(
+          "Planner",
+          "unbind_world_from_novel",
+          "解除当前小说的世界观绑定",
+          { novelId: input.novelId },
+          "unbind_world",
+          input,
+        ));
+      }
+      break;
+    }
     case "produce_novel": {
       const hasCurrentNovel = Boolean(input.novelId);
       if (!hasCurrentNovel && !parsed.novelTitle) {
@@ -174,8 +198,12 @@ export function compileIntentToPlan(parsed: StructuredIntent, input: PlannerInpu
             ...(parsed.description ? { description: parsed.description } : {}),
             ...(parsed.genre ? { genre: parsed.genre } : {}),
             ...(parsed.styleTone ? { styleTone: parsed.styleTone } : {}),
+            ...(parsed.projectMode ? { projectMode: parsed.projectMode } : {}),
             ...(parsed.pacePreference ? { pacePreference: parsed.pacePreference } : {}),
             ...(parsed.narrativePov ? { narrativePov: parsed.narrativePov } : {}),
+            ...(parsed.emotionIntensity ? { emotionIntensity: parsed.emotionIntensity } : {}),
+            ...(parsed.aiFreedom ? { aiFreedom: parsed.aiFreedom } : {}),
+            ...(parsed.defaultChapterLength ? { defaultChapterLength: parsed.defaultChapterLength } : {}),
           },
           `produce_create_${parsed.novelTitle}`,
         );
@@ -475,10 +503,43 @@ export function compileIntentToPlan(parsed: StructuredIntent, input: PlannerInpu
         "Planner",
         "search_knowledge",
         "执行知识检索",
-        { query: parsed.goal, novelId: input.novelId },
+        {
+          query: parsed.goal,
+          ...(input.novelId ? { novelId: input.novelId } : {}),
+          ...(input.worldId ? { worldId: input.worldId } : {}),
+        },
         "knowledge_search",
         input,
       ));
+      break;
+    }
+    case "ideate_novel_setup": {
+      if (input.novelId) {
+        actions.push(toolAction(
+          "Planner",
+          "get_novel_context",
+          "读取当前小说概览，作为设定备选的基础信息",
+          { novelId: input.novelId },
+          "setup_ideation_context",
+          input,
+        ));
+        actions.push(toolAction(
+          "Planner",
+          "get_story_bible",
+          "读取当前小说圣经，补充已有设定约束",
+          { novelId: input.novelId },
+          "setup_ideation_bible",
+          input,
+        ));
+        actions.push(toolAction(
+          "Planner",
+          "get_world_constraints",
+          "读取当前小说绑定世界观的约束信息",
+          { novelId: input.novelId },
+          "setup_ideation_world",
+          input,
+        ));
+      }
       break;
     }
     case "general_chat":

@@ -13,6 +13,7 @@ const AGENT_TOOL_ALLOWLIST: Record<AgentName, Set<AgentToolName>> = {
     "create_novel",
     "select_novel_workspace",
     "bind_world_to_novel",
+    "unbind_world_from_novel",
     "generate_world_for_novel",
     "generate_novel_characters",
     "generate_story_bible",

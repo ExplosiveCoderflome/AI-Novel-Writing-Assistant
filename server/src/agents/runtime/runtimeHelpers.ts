@@ -88,10 +88,24 @@ export function summarizeOutput(tool: string, output: Record<string, unknown>): 
     return `已读取 ${items.length} 本小说。`;
   }
   if (tool === "create_novel") {
-    return typeof output.title === "string" ? `已创建小说《${output.title}》。` : "已创建小说。";
+    const title = typeof output.title === "string" ? output.title : "";
+    const stage = typeof (output.setup as Record<string, unknown> | undefined)?.stage === "string"
+      ? String((output.setup as Record<string, unknown>).stage)
+      : "";
+    if (title && stage === "ready_for_production") {
+      return `已创建小说《${title}》，初始化已完成。`;
+    }
+    return title ? `已创建小说《${title}》，并进入初始化引导。` : "已创建小说。";
   }
   if (tool === "select_novel_workspace") {
-    return typeof output.title === "string" ? `已定位到小说《${output.title}》。` : "已定位到目标小说。";
+    const title = typeof output.title === "string" ? output.title : "";
+    const stage = typeof (output.setup as Record<string, unknown> | undefined)?.stage === "string"
+      ? String((output.setup as Record<string, unknown>).stage)
+      : "";
+    if (title && stage !== "ready_for_production") {
+      return `已切换到小说《${title}》，当前继续初始化。`;
+    }
+    return title ? `已切换到小说《${title}》。` : "已切换到目标小说。";
   }
   if (tool === "bind_world_to_novel") {
     const worldName = typeof output.worldName === "string" ? output.worldName.trim() : "";
@@ -103,6 +117,17 @@ export function summarizeOutput(tool: string, output: Record<string, unknown>): 
       return `已绑定世界观《${worldName}》。`;
     }
     return "已完成世界观绑定。";
+  }
+  if (tool === "unbind_world_from_novel") {
+    const previousWorldName = typeof output.previousWorldName === "string" ? output.previousWorldName.trim() : "";
+    const novelTitle = typeof output.novelTitle === "string" ? output.novelTitle.trim() : "";
+    if (previousWorldName && novelTitle) {
+      return `已将世界观《${previousWorldName}》从小说《${novelTitle}》解绑。`;
+    }
+    if (novelTitle) {
+      return `小说《${novelTitle}》当前没有绑定世界观。`;
+    }
+    return "已处理世界观解绑。";
   }
   if (tool === "generate_world_for_novel") {
     const worldName = typeof output.worldName === "string" ? output.worldName.trim() : "";
@@ -132,6 +157,14 @@ export function summarizeOutput(tool: string, output: Record<string, unknown>): 
     return title
       ? `${title}${chapterCount != null ? `（共 ${chapterCount} 章）` : ""}`
       : "已读取小说总览。";
+  }
+  if (tool === "get_story_bible") {
+    const exists = output.exists === true;
+    return exists ? "已读取小说圣经设定。" : "当前小说还没有已保存的小说圣经。";
+  }
+  if (tool === "get_world_constraints") {
+    const worldName = typeof output.worldName === "string" ? output.worldName.trim() : "";
+    return worldName ? `已读取世界观约束：${worldName}。` : "当前小说尚未绑定世界观约束。";
   }
   if (tool === "list_chapters") {
     const items = Array.isArray(output.items) ? output.items : [];

@@ -11,6 +11,12 @@ export const novelProjectStatusSchema = z.enum([
 export const narrativePovSchema = z.enum(["first_person", "third_person", "mixed"]);
 export const pacePreferenceSchema = z.enum(["slow", "balanced", "fast"]);
 export const projectModeSchema = z.enum(["ai_led", "co_pilot", "draft_mode", "auto_pipeline"]);
+export const novelSetupStageSchema = z.enum([
+  "setup_in_progress",
+  "ready_for_planning",
+  "ready_for_production",
+]);
+export const novelSetupItemStatusSchema = z.enum(["missing", "partial", "ready"]);
 
 export const novelListItemSchema = z.object({
   id: z.string(),
@@ -40,8 +46,46 @@ export const createNovelInput = z.object({
   narrativePov: narrativePovSchema.optional(),
   pacePreference: pacePreferenceSchema.optional(),
   styleTone: z.string().trim().optional(),
+  emotionIntensity: z.enum(["low", "medium", "high"]).optional(),
+  aiFreedom: z.enum(["low", "medium", "high"]).optional(),
+  defaultChapterLength: z.number().int().min(500).max(10000).optional(),
   projectStatus: novelProjectStatusSchema.optional(),
   projectMode: projectModeSchema.optional(),
+});
+
+export const novelSetupChecklistItemSchema = z.object({
+  key: z.enum([
+    "premise",
+    "story_promise",
+    "direction",
+    "narrative",
+    "production_preferences",
+    "chapter_scale",
+    "world",
+    "world_rules",
+    "characters",
+    "outline",
+  ]),
+  label: z.string(),
+  status: novelSetupItemStatusSchema,
+  summary: z.string(),
+  requiredForProduction: z.boolean().optional(),
+  currentValue: z.string().nullable().optional(),
+  recommendedAction: z.string().optional(),
+  optionPrompt: z.string().optional(),
+});
+
+export const novelSetupStatusSchema = z.object({
+  novelId: z.string(),
+  title: z.string(),
+  stage: novelSetupStageSchema,
+  completionRatio: z.number().int().min(0).max(100),
+  completedCount: z.number().int().min(0),
+  totalCount: z.number().int().min(1),
+  missingItems: z.array(z.string()),
+  nextQuestion: z.string(),
+  recommendedAction: z.string(),
+  checklist: z.array(novelSetupChecklistItemSchema),
 });
 
 export const createNovelOutput = z.object({
@@ -50,6 +94,7 @@ export const createNovelOutput = z.object({
   status: z.string(),
   chapterCount: z.number().int(),
   summary: z.string(),
+  setup: novelSetupStatusSchema,
 });
 
 export const selectNovelWorkspaceInput = z
@@ -66,6 +111,7 @@ export const selectNovelWorkspaceOutput = z.object({
   title: z.string(),
   chapterCount: z.number().int(),
   summary: z.string(),
+  setup: novelSetupStatusSchema,
 });
 
 export const getNovelContextInput = z.object({
@@ -82,6 +128,17 @@ export const chapterOverviewSchema = z.object({
 export const getNovelContextOutput = z.object({
   novelId: z.string(),
   title: z.string(),
+  description: z.string().nullable(),
+  genre: z.string().nullable(),
+  styleTone: z.string().nullable(),
+  narrativePov: narrativePovSchema.nullable(),
+  pacePreference: pacePreferenceSchema.nullable(),
+  projectMode: projectModeSchema.nullable(),
+  emotionIntensity: z.enum(["low", "medium", "high"]).nullable(),
+  aiFreedom: z.enum(["low", "medium", "high"]).nullable(),
+  defaultChapterLength: z.number().int().nullable(),
+  worldId: z.string().nullable(),
+  worldName: z.string().nullable(),
   outline: z.string().nullable(),
   structuredOutline: z.string().nullable(),
   chapterCount: z.number().int(),

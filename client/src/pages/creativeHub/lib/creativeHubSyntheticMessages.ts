@@ -1,180 +1,327 @@
 import type { FailureDiagnostic } from "@ai-novel/shared/types/agent";
-import type { CreativeHubInterrupt } from "@ai-novel/shared/types/creativeHub";
+import type { CreativeHubInterrupt, CreativeHubTurnSummary } from "@ai-novel/shared/types/creativeHub";
 import type { CreativeHubStreamFrame } from "@ai-novel/shared/types/api";
 import type { LangChainMessage } from "@assistant-ui/react-langgraph";
+import type { CreativeHubDebugTraceEntry } from "../components/CreativeHubDebugTraceCard";
 import { getIntentDisplayLabel, getPlannerSourceDisplayLabel } from "./plannerLabels";
 
-function compactArgs(record: Record<string, string | null | undefined>): Record<string, string | null> {
+function compactArgs(record: Record<string, string | boolean | null | undefined>) {
   return Object.fromEntries(
-    Object.entries(record).filter((entry): entry is [string, string | null] => entry[1] !== undefined),
+    Object.entries(record).filter((entry): entry is [string, string | boolean | null] => entry[1] !== undefined),
   );
 }
 
-export function mergeDisplayMessages(
-  baseMessages: LangChainMessage[],
-  syntheticToolMessages: LangChainMessage[],
-  inlineStateMessages: LangChainMessage[],
-  syntheticRunMessages: LangChainMessage[],
-): LangChainMessage[] {
-  if (
-    syntheticToolMessages.length === 0
-    && inlineStateMessages.length === 0
-    && syntheticRunMessages.length === 0
-  ) {
-    return baseMessages;
+function toStatusLabel(status: string): string {
+  switch (status) {
+    case "running":
+      return "运行中";
+    case "queued":
+      return "排队中";
+    case "waiting_approval":
+      return "等待审批";
+    case "succeeded":
+      return "已完成";
+    case "failed":
+      return "失败";
+    case "cancelled":
+      return "已取消";
+    case "interrupted":
+      return "待确认";
+    default:
+      return status;
   }
-  const lastMessage = baseMessages[baseMessages.length - 1];
-  if (lastMessage?.type === "ai") {
-    return [
-      ...baseMessages.slice(0, -1),
-      ...syntheticToolMessages,
-      lastMessage,
-      ...inlineStateMessages,
-      ...syntheticRunMessages,
-    ];
-  }
-  return [...baseMessages, ...syntheticToolMessages, ...inlineStateMessages, ...syntheticRunMessages];
 }
 
-export function createSyntheticRunMessage(
-  frame: CreativeHubStreamFrame,
-  sequence: number,
-): LangChainMessage | null {
-  if (frame.event === "creative_hub/run_status") {
-    return {
-      id: `assistant_run_status_${sequence}`,
-      type: "ai",
-      content: `**运行状态**\n${frame.data.message || "当前状态已更新。"}`
-        + `\n\n状态：${frame.data.status}`,
-      additional_kwargs: {
-        metadata: {
-          synthetic: true,
-          kind: "run_status",
-          status: frame.data.status,
-          runId: frame.data.runId ?? null,
-        },
-      },
-    };
-  }
-  if (frame.event === "creative_hub/approval_resolved") {
-    return {
-      id: `assistant_approval_${sequence}`,
-      type: "ai",
-      content: `**${frame.data.action === "approved" ? "审批已通过" : "审批已拒绝"}**\n${frame.data.note?.trim() || "审批结果已记录。"}`,
-      additional_kwargs: {
-        metadata: {
-          synthetic: true,
-          kind: "approval_resolved",
-          approvalId: frame.data.approvalId ?? null,
-        },
-      },
-    };
-  }
-  if (frame.event === "creative_hub/error" || frame.event === "error") {
-    return {
-      id: `assistant_error_${sequence}`,
-      type: "ai",
-      content: `**运行异常**\n${frame.data.message}`,
-      additional_kwargs: {
-        metadata: {
-          synthetic: true,
-          kind: "error",
-        },
-      },
-    };
-  }
-  if (frame.event === "metadata" && typeof frame.data.reasoning === "string") {
-    return {
-      id: `assistant_reasoning_${sequence}`,
-      type: "ai",
-      content: `**推理更新**\n${frame.data.reasoning}`,
-      additional_kwargs: {
-        metadata: {
-          synthetic: true,
-          kind: "reasoning",
-        },
-      },
-    };
-  }
-  if (frame.event === "metadata" && typeof frame.data.planner === "object" && frame.data.planner) {
-    const planner = frame.data.planner as Record<string, unknown>;
-    return {
-      id: `assistant_planner_${sequence}`,
-      type: "ai",
-      content: `**意图识别**\n来源：${getPlannerSourceDisplayLabel(planner.source)}\n意图：${getIntentDisplayLabel(planner.intent)}`
-        + ("confidence" in planner ? `\n置信度：${String(planner.confidence ?? "-")}` : ""),
-      additional_kwargs: {
-        metadata: {
-          synthetic: true,
-          kind: "planner",
-        },
-      },
-    };
-  }
-  if (frame.event === "metadata" && typeof frame.data.checkpointId === "string") {
-    return {
-      id: `assistant_checkpoint_${sequence}`,
-      type: "ai",
-      content: `**检查点已保存**\nCheckpoint ${frame.data.checkpointId.slice(0, 8)} 已写回线程历史。`,
-      additional_kwargs: {
-        metadata: {
-          synthetic: true,
-          kind: "checkpoint",
-          checkpointId: frame.data.checkpointId,
-        },
-      },
-    };
-  }
-  return null;
-}
-
-export function createSyntheticToolCallMessage(
-  frame: Extract<CreativeHubStreamFrame, { event: "creative_hub/tool_call" }>,
-  toolCallId: string,
-): LangChainMessage {
+function createTurnSummaryMessage(summary: CreativeHubTurnSummary): LangChainMessage {
+  const payload = JSON.parse(JSON.stringify(summary)) as any;
   return {
-    id: `assistant_${toolCallId}`,
+    id: `assistant_turn_summary_${summary.runId}`,
     type: "ai",
     content: "",
     tool_calls: [{
-      id: toolCallId,
-      name: frame.data.toolName,
-      args: {
-        inputSummary: frame.data.inputSummary,
-      },
-      partial_json: JSON.stringify({
-        inputSummary: frame.data.inputSummary,
-      }),
+      id: `turn_summary_${summary.runId}`,
+      name: "creative_hub_turn_summary",
+      args: payload,
+      partial_json: JSON.stringify(summary),
     }],
     additional_kwargs: {
       metadata: {
         synthetic: true,
-        event: frame.event,
-        runId: frame.data.runId,
-        stepId: frame.data.stepId,
+        kind: "turn_summary",
+        runId: summary.runId,
       },
     },
   };
 }
 
-export function createSyntheticToolResultMessage(
-  frame: Extract<CreativeHubStreamFrame, { event: "creative_hub/tool_result" }>,
-  toolCallId: string,
+function createDebugTraceMessage(
+  runId: string,
+  entries: CreativeHubDebugTraceEntry[],
+  defaultCollapsed: boolean,
 ): LangChainMessage {
+  const payload = {
+    runId,
+    entries,
+    defaultCollapsed,
+  } as any;
   return {
-    id: `tool_${toolCallId}`,
-    type: "tool",
-    tool_call_id: toolCallId,
-    name: frame.data.toolName,
-    content: frame.data.outputSummary,
-    artifact: {
-      summary: frame.data.outputSummary,
-      output: frame.data.output,
-      success: frame.data.success,
-      errorCode: frame.data.errorCode,
+    id: `assistant_debug_trace_${runId}`,
+    type: "ai",
+    content: "",
+    tool_calls: [{
+      id: `debug_trace_${runId}`,
+      name: "creative_hub_debug_trace",
+      args: payload,
+      partial_json: JSON.stringify(payload),
+    }],
+    additional_kwargs: {
+      metadata: {
+        synthetic: true,
+        kind: "debug_trace",
+        runId,
+      },
     },
-    status: frame.data.success ? "success" : "error",
   };
+}
+
+export interface CreativeHubRunArtifacts {
+  runId: string;
+  turnSummary?: CreativeHubTurnSummary;
+  debugEntries: CreativeHubDebugTraceEntry[];
+}
+
+export function buildRunArtifactMessages(
+  runArtifacts: CreativeHubRunArtifacts[],
+  defaultCollapsed: boolean,
+): LangChainMessage[][] {
+  return runArtifacts
+    .filter((artifact) => artifact.turnSummary || artifact.debugEntries.length > 0)
+    .map((artifact) => {
+      const messages: LangChainMessage[] = [];
+      if (artifact.turnSummary) {
+        messages.push(createTurnSummaryMessage(artifact.turnSummary));
+      }
+      if (artifact.debugEntries.length > 0) {
+        messages.push(createDebugTraceMessage(artifact.runId, artifact.debugEntries, defaultCollapsed));
+      }
+      return messages;
+    });
+}
+
+export function mergeDisplayMessages(
+  baseMessages: LangChainMessage[],
+  inlineStateMessages: LangChainMessage[],
+  runArtifactMessages: LangChainMessage[][],
+): LangChainMessage[] {
+  if (runArtifactMessages.length === 0 && inlineStateMessages.length === 0) {
+    return baseMessages;
+  }
+
+  const aiIndices = baseMessages.reduce<number[]>((result, message, index) => {
+    if (message.type === "ai") {
+      result.push(index);
+    }
+    return result;
+  }, []);
+
+  const artifactStartIndex = Math.max(0, aiIndices.length - runArtifactMessages.length);
+  const artifactTargetIndices = aiIndices.slice(artifactStartIndex);
+  const artifactMap = new Map<number, LangChainMessage[]>();
+  artifactTargetIndices.forEach((targetIndex, index) => {
+    const artifactGroup = runArtifactMessages[index];
+    if (artifactGroup?.length) {
+      artifactMap.set(targetIndex, artifactGroup);
+    }
+  });
+
+  const merged: LangChainMessage[] = [];
+  baseMessages.forEach((message, index) => {
+    merged.push(message);
+    const artifactGroup = artifactMap.get(index);
+    if (artifactGroup?.length) {
+      merged.push(...artifactGroup);
+    }
+  });
+
+  return [...merged, ...inlineStateMessages];
+}
+
+function buildDebugTraceEntry(
+  frame: CreativeHubStreamFrame,
+  fallbackRunId: string | null,
+  sequence: number,
+): { runId: string; entry: CreativeHubDebugTraceEntry } | null {
+  if (frame.event === "creative_hub/turn_summary" || frame.event === "creative_hub/interrupt") {
+    return null;
+  }
+
+  if (frame.event === "creative_hub/run_status") {
+    const runId = frame.data.runId ?? fallbackRunId;
+    if (!runId) {
+      return null;
+    }
+    return {
+      runId,
+      entry: {
+        id: `run_status_${sequence}`,
+        kind: "运行状态",
+        title: "运行状态",
+        summary: frame.data.message || `当前状态：${toStatusLabel(frame.data.status)}`,
+        meta: [toStatusLabel(frame.data.status), `Run ${runId.slice(0, 8)}`],
+        tone: frame.data.status === "failed" || frame.data.status === "cancelled"
+          ? "destructive"
+          : frame.data.status === "waiting_approval"
+            ? "secondary"
+            : "default",
+      },
+    };
+  }
+
+  if (frame.event === "creative_hub/tool_call") {
+    const runId = frame.data.runId ?? fallbackRunId;
+    if (!runId) {
+      return null;
+    }
+    return {
+      runId,
+      entry: {
+        id: `tool_call_${sequence}`,
+        kind: "工具调用",
+        title: frame.data.toolName,
+        summary: frame.data.inputSummary || "正在准备工具输入。",
+        meta: [
+          `Run ${runId.slice(0, 8)}`,
+          frame.data.stepId ? `Step ${frame.data.stepId.slice(0, 8)}` : "",
+        ].filter(Boolean),
+      },
+    };
+  }
+
+  if (frame.event === "creative_hub/tool_result") {
+    const runId = frame.data.runId ?? fallbackRunId;
+    if (!runId) {
+      return null;
+    }
+    return {
+      runId,
+      entry: {
+        id: `tool_result_${sequence}`,
+        kind: frame.data.success ? "工具完成" : "工具失败",
+        title: frame.data.toolName,
+        summary: frame.data.outputSummary || "工具返回了空结果。",
+        meta: [
+          frame.data.success ? "成功" : "失败",
+          `Run ${runId.slice(0, 8)}`,
+        ],
+        tone: frame.data.success ? "default" : "destructive",
+      },
+    };
+  }
+
+  if (frame.event === "creative_hub/approval_resolved") {
+    const runId = fallbackRunId;
+    if (!runId) {
+      return null;
+    }
+    return {
+      runId,
+      entry: {
+        id: `approval_${sequence}`,
+        kind: "审批结果",
+        title: frame.data.action === "approved" ? "审批通过" : "审批拒绝",
+        summary: frame.data.note?.trim() || "当前审批动作已记录。",
+        meta: [
+          `Approval ${frame.data.approvalId.slice(0, 8)}`,
+        ],
+        tone: frame.data.action === "approved" ? "secondary" : "destructive",
+      },
+    };
+  }
+
+  if (frame.event === "creative_hub/error" || frame.event === "error") {
+    const runId = fallbackRunId;
+    if (!runId) {
+      return null;
+    }
+    return {
+      runId,
+      entry: {
+        id: `error_${sequence}`,
+        kind: "运行异常",
+        title: "运行异常",
+        summary: frame.data.message,
+        meta: [`Run ${runId.slice(0, 8)}`],
+        tone: "destructive",
+      },
+    };
+  }
+
+  if (frame.event === "metadata" && typeof frame.data.reasoning === "string") {
+    const runId = fallbackRunId;
+    if (!runId) {
+      return null;
+    }
+    return {
+      runId,
+      entry: {
+        id: `reasoning_${sequence}`,
+        kind: "推理更新",
+        title: "推理更新",
+        summary: frame.data.reasoning,
+        meta: [`Run ${runId.slice(0, 8)}`],
+      },
+    };
+  }
+
+  if (frame.event === "metadata" && typeof frame.data.planner === "object" && frame.data.planner) {
+    const runId = fallbackRunId;
+    if (!runId) {
+      return null;
+    }
+    const planner = frame.data.planner as Record<string, unknown>;
+    return {
+      runId,
+      entry: {
+        id: `planner_${sequence}`,
+        kind: "意图识别",
+        title: "意图识别",
+        summary: `来源：${getPlannerSourceDisplayLabel(planner.source)}；意图：${getIntentDisplayLabel(planner.intent)}`,
+        meta: [
+          "confidence" in planner ? `置信度 ${String(planner.confidence ?? "-")}` : "",
+          `Run ${runId.slice(0, 8)}`,
+        ].filter(Boolean),
+      },
+    };
+  }
+
+  if (frame.event === "metadata" && typeof frame.data.checkpointId === "string") {
+    const runId = typeof frame.data.runId === "string" && frame.data.runId.trim()
+      ? frame.data.runId
+      : fallbackRunId;
+    if (!runId) {
+      return null;
+    }
+    return {
+      runId,
+      entry: {
+        id: `checkpoint_${sequence}`,
+        kind: "Checkpoint",
+        title: "检查点已写回",
+        summary: `Checkpoint ${frame.data.checkpointId.slice(0, 8)} 已写回线程历史。`,
+        meta: [`Run ${runId.slice(0, 8)}`],
+      },
+    };
+  }
+
+  return null;
+}
+
+export function createRunArtifactEvent(
+  frame: CreativeHubStreamFrame,
+  fallbackRunId: string | null,
+  sequence: number,
+) {
+  return buildDebugTraceEntry(frame, fallbackRunId, sequence);
 }
 
 export function buildInlineStateMessages(

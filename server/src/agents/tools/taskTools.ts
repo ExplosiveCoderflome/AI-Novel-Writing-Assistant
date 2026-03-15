@@ -110,6 +110,14 @@ export const taskToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "Coordinator",
     resourceScopes: ["task", "agent_run", "generation_job"],
+    parserHints: {
+      intent: "query_task_status",
+      aliases: ["任务列表", "系统任务", "tasks"],
+      phrases: ["列出当前系统任务状态", "系统现在有哪些任务", "查看任务中心状态"],
+      requiresNovelContext: false,
+      whenToUse: "用户在查询任务中心、系统任务状态或任务列表。",
+      whenNotToUse: "用户是在追问某本小说的生产进度，这更接近 query_novel_production_status。",
+    },
     inputSchema: listTasksInput,
     outputSchema: listTasksOutput,
     execute: async (_context, rawInput) => {

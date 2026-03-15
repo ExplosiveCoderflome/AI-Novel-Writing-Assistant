@@ -221,6 +221,14 @@ export const novelProductionToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "NovelAgent",
     resourceScopes: ["novel", "chapter", "generation_job"],
+    parserHints: {
+      intent: "query_novel_production_status",
+      aliases: ["整本进度", "生产状态", "production status"],
+      phrases: ["整本生成到哪一步了", "为什么整本生成没有启动", "当前资产准备完成了吗"],
+      requiresNovelContext: true,
+      whenToUse: "用户在追问某本小说的整本生产状态、阻塞或资产准备情况。",
+      whenNotToUse: "用户只是查询系统任务中心的全局任务。",
+    },
     inputSchema: getNovelProductionStatusInput,
     outputSchema: getNovelProductionStatusOutput,
     execute: async (context, rawInput) => {

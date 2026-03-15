@@ -141,6 +141,12 @@ export function deriveNextBindingsFromRunSteps(
         nextBindings.novelId = output.novelId.trim();
       }
     }
+    if (tool === "unbind_world_from_novel") {
+      nextBindings.worldId = null;
+      if (typeof output.novelId === "string" && output.novelId.trim()) {
+        nextBindings.novelId = output.novelId.trim();
+      }
+    }
   }
   return nextBindings;
 }

@@ -45,6 +45,17 @@ export const novelReadToolDefinitions: Partial<
       const novel = await prisma.novel.findUnique({
         where: { id: input.novelId },
         include: {
+          genre: {
+            select: {
+              name: true,
+            },
+          },
+          world: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           chapters: {
             orderBy: { order: "desc" },
             take: 6,
@@ -79,6 +90,17 @@ export const novelReadToolDefinitions: Partial<
       return getNovelContextOutput.parse({
         novelId: novel.id,
         title: novel.title,
+        description: novel.description,
+        genre: novel.genre?.name ?? null,
+        styleTone: novel.styleTone ?? null,
+        narrativePov: novel.narrativePov ?? null,
+        pacePreference: novel.pacePreference ?? null,
+        projectMode: novel.projectMode ?? null,
+        emotionIntensity: novel.emotionIntensity ?? null,
+        aiFreedom: novel.aiFreedom ?? null,
+        defaultChapterLength: novel.defaultChapterLength ?? null,
+        worldId: novel.world?.id ?? null,
+        worldName: novel.world?.name ?? null,
         outline: novel.outline,
         structuredOutline: novel.structuredOutline,
         chapterCount,
@@ -284,6 +306,14 @@ export const novelReadToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "CharacterAgent",
     resourceScopes: ["novel", "chapter"],
+    parserHints: {
+      intent: "inspect_characters",
+      aliases: ["小说角色", "角色状态", "current novel characters"],
+      phrases: ["本书已经规划了几个角色", "当前小说有几个角色", "列出当前小说角色情况"],
+      requiresNovelContext: true,
+      whenToUse: "用户在查看当前小说中的角色状态、数量或名单。",
+      whenNotToUse: "用户是在查看基础角色模板库。",
+    },
     inputSchema: getCharacterStatesInput,
     outputSchema: getCharacterStatesOutput,
     execute: async (_context, rawInput) => {
@@ -405,6 +435,21 @@ export const novelReadToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "KnowledgeAgent",
     resourceScopes: ["knowledge_document", "novel", "world"],
+    parserHints: {
+      intent: "search_knowledge",
+      aliases: ["知识库检索", "搜索知识", "knowledge search", "设定参考检索", "世界观参考检索"],
+      phrases: [
+        "搜索知识库",
+        "查一下相关资料",
+        "从知识库里找信息",
+        "找类似的设定",
+        "有没有类似于某个设定的参考",
+        "从拆书或世界观里找参考",
+      ],
+      requiresNovelContext: false,
+      whenToUse: "用户在请求检索某个关键词、设定、关系模式、题材或世界观原型，尤其是要找类似参考，且答案可能存在于知识库、已索引的拆书资料或世界观库中。",
+      whenNotToUse: "用户已经明确要看某个具体世界观详情、具体拆书任务详情、具体小说列表或具体章节内容。",
+    },
     inputSchema: searchKnowledgeInput,
     outputSchema: searchKnowledgeOutput,
     execute: async (_context, rawInput) => {

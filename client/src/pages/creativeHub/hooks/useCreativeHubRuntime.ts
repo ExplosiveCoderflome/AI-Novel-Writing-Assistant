@@ -19,9 +19,9 @@ import { toast } from "@/components/ui/toast";
 import { streamCreativeHubRun } from "@/api/creativeHub";
 import {
   buildInlineStateMessages,
-  createSyntheticRunMessage,
-  createSyntheticToolCallMessage,
-  createSyntheticToolResultMessage,
+  buildRunArtifactMessages,
+  createRunArtifactEvent,
+  type CreativeHubRunArtifacts,
   mergeDisplayMessages,
 } from "../lib/creativeHubSyntheticMessages";
 
@@ -36,6 +36,7 @@ interface LoadThreadResult {
   messages: LangChainMessage[];
   interrupts?: CreativeHubInterrupt[];
   checkpointId?: string | null;
+  latestTurnSummary?: import("@ai-novel/shared/types/creativeHub").CreativeHubTurnSummary | null;
 }
 
 interface UseCreativeHubRuntimeOptions {
@@ -48,6 +49,7 @@ interface UseCreativeHubRuntimeOptions {
   onCheckpointChange?: (checkpointId: string | null) => void;
   onRefreshState?: () => void;
   diagnostics?: FailureDiagnostic;
+  defaultRuntimeDetailsCollapsed: boolean;
 }
 
 function toLangGraphInterrupt(interrupt?: CreativeHubInterrupt | null): LangGraphInterruptState | undefined {
@@ -146,21 +148,35 @@ export function useCreativeHubRuntime({
   onCheckpointChange,
   onRefreshState,
   diagnostics,
+  defaultRuntimeDetailsCollapsed,
 }: UseCreativeHubRuntimeOptions) {
   const checkpointRef = useRef<string | null>(null);
   const streamSessionRef = useRef(0);
   const latestThreadIdRef = useRef(threadId);
-  const pendingToolCallsRef = useRef(new Map<string, string[]>());
-  const syntheticToolSeqRef = useRef(0);
-  const syntheticRunSeqRef = useRef(0);
+  const currentRunIdRef = useRef<string | null>(null);
+  const debugEntrySeqRef = useRef(0);
   const [isRunning, setIsRunning] = useState(false);
-  const [syntheticToolMessages, setSyntheticToolMessages] = useState<LangChainMessage[]>([]);
-  const [syntheticRunMessages, setSyntheticRunMessages] = useState<LangChainMessage[]>([]);
+  const [runArtifacts, setRunArtifacts] = useState<CreativeHubRunArtifacts[]>([]);
   const isThreadReady = threadId.trim().length > 0;
 
   useEffect(() => {
     latestThreadIdRef.current = threadId;
   }, [threadId]);
+
+  const updateRunArtifacts = (
+    runId: string,
+    updater: (existing: CreativeHubRunArtifacts | undefined) => CreativeHubRunArtifacts,
+  ) => {
+    setRunArtifacts((previous) => {
+      const index = previous.findIndex((item) => item.runId === runId);
+      if (index === -1) {
+        return [...previous, updater(undefined)];
+      }
+      const next = previous.slice();
+      next[index] = updater(previous[index]);
+      return next;
+    });
+  };
 
   const stream = useMemo<LangGraphStreamCallback<LangChainMessage>>(
     () =>
@@ -185,33 +201,25 @@ export function useCreativeHubRuntime({
         );
 
         for await (const frame of streamGenerator) {
-          if (frame.event === "creative_hub/run_status" && frame.data.status === "running") {
-            pendingToolCallsRef.current.clear();
-            syntheticToolSeqRef.current = 0;
-            syntheticRunSeqRef.current = 0;
-            setSyntheticToolMessages([]);
-            setSyntheticRunMessages([]);
+          if (frame.event === "creative_hub/run_status" && frame.data.runId) {
+            currentRunIdRef.current = frame.data.runId;
           }
-          if (frame.event === "creative_hub/tool_call") {
-            syntheticToolSeqRef.current += 1;
-            const toolCallId = `tool_${frame.data.runId ?? "run"}_${syntheticToolSeqRef.current}`;
-            const queueKey = `${frame.data.runId ?? "run"}:${frame.data.toolName}`;
-            const queue = pendingToolCallsRef.current.get(queueKey) ?? [];
-            queue.push(toolCallId);
-            pendingToolCallsRef.current.set(queueKey, queue);
-            setSyntheticToolMessages((prev) => [...prev, createSyntheticToolCallMessage(frame, toolCallId)]);
+          if (frame.event === "creative_hub/turn_summary") {
+            currentRunIdRef.current = frame.data.runId;
+            updateRunArtifacts(frame.data.runId, (existing) => ({
+              runId: frame.data.runId,
+              debugEntries: existing?.debugEntries ?? [],
+              turnSummary: frame.data,
+            }));
           }
-          if (frame.event === "creative_hub/tool_result") {
-            const queueKey = `${frame.data.runId ?? "run"}:${frame.data.toolName}`;
-            const queue = pendingToolCallsRef.current.get(queueKey) ?? [];
-            const toolCallId = queue.shift() ?? `tool_${frame.data.runId ?? "run"}_${frame.data.toolName}_${Date.now()}`;
-            pendingToolCallsRef.current.set(queueKey, queue);
-            setSyntheticToolMessages((prev) => [...prev, createSyntheticToolResultMessage(frame, toolCallId)]);
-          }
-          const syntheticRunMessage = createSyntheticRunMessage(frame, syntheticRunSeqRef.current + 1);
-          if (syntheticRunMessage) {
-            syntheticRunSeqRef.current += 1;
-            setSyntheticRunMessages((prev) => [...prev, syntheticRunMessage]);
+          const runArtifactEvent = createRunArtifactEvent(frame, currentRunIdRef.current, debugEntrySeqRef.current + 1);
+          if (runArtifactEvent) {
+            debugEntrySeqRef.current += 1;
+            updateRunArtifacts(runArtifactEvent.runId, (existing) => ({
+              runId: runArtifactEvent.runId,
+              turnSummary: existing?.turnSummary,
+              debugEntries: [...(existing?.debugEntries ?? []), runArtifactEvent.entry].slice(-16),
+            }));
           }
           if (streamSessionId !== streamSessionRef.current || streamThreadId !== latestThreadIdRef.current) {
             break;
@@ -270,10 +278,14 @@ export function useCreativeHubRuntime({
     () => buildInlineStateMessages(interrupt?.value as CreativeHubInterrupt | undefined, diagnostics),
     [diagnostics, interrupt?.value],
   );
+  const runArtifactMessages = useMemo(
+    () => buildRunArtifactMessages(runArtifacts, defaultRuntimeDetailsCollapsed),
+    [defaultRuntimeDetailsCollapsed, runArtifacts],
+  );
 
   const displayMessages = useMemo(
-    () => mergeDisplayMessages(messages, syntheticToolMessages, inlineStateMessages, syntheticRunMessages),
-    [inlineStateMessages, messages, syntheticRunMessages, syntheticToolMessages],
+    () => mergeDisplayMessages(messages, inlineStateMessages, runArtifactMessages),
+    [inlineStateMessages, messages, runArtifactMessages],
   );
 
   const threadMessages = useExternalMessageConverter({
@@ -334,6 +346,8 @@ export function useCreativeHubRuntime({
         const checkpointId = await requireCheckpointIdForBranch(threadId, truncated, getCheckpointId);
         setMessages(truncated);
         setInterrupt(undefined);
+        setRunArtifacts([]);
+        currentRunIdRef.current = null;
         return handleSend([
           {
             type: "human",
@@ -351,6 +365,8 @@ export function useCreativeHubRuntime({
         const checkpointId = await requireCheckpointIdForBranch(threadId, truncated, getCheckpointId);
         setMessages(truncated);
         setInterrupt(undefined);
+        setRunArtifacts([]);
+        currentRunIdRef.current = null;
         return handleSend([], {
           checkpointId,
           runConfig: config.runConfig,
@@ -383,27 +399,29 @@ export function useCreativeHubRuntime({
       setMessages([]);
       setInterrupt(undefined);
       setIsRunning(false);
-      setSyntheticToolMessages([]);
-      setSyntheticRunMessages([]);
-      pendingToolCallsRef.current.clear();
-      syntheticToolSeqRef.current = 0;
-      syntheticRunSeqRef.current = 0;
+      setRunArtifacts([]);
+      currentRunIdRef.current = null;
+      debugEntrySeqRef.current = 0;
       return () => {
         disposed = true;
       };
     }
     setInterrupt(undefined);
-    setSyntheticToolMessages([]);
-    setSyntheticRunMessages([]);
-    pendingToolCallsRef.current.clear();
-    syntheticToolSeqRef.current = 0;
-    syntheticRunSeqRef.current = 0;
+    setRunArtifacts([]);
+    currentRunIdRef.current = null;
+    debugEntrySeqRef.current = 0;
     void loadThread(threadId).then((state) => {
       if (disposed) return;
       checkpointRef.current = state.checkpointId ?? null;
       onCheckpointChange?.(state.checkpointId ?? null);
       setMessages(state.messages);
       setInterrupt(toLangGraphInterrupt(state.interrupts?.[0] ?? null));
+      setRunArtifacts(state.latestTurnSummary ? [{
+        runId: state.latestTurnSummary.runId,
+        turnSummary: state.latestTurnSummary,
+        debugEntries: [],
+      }] : []);
+      currentRunIdRef.current = state.latestTurnSummary?.runId ?? null;
     });
     return () => {
       disposed = true;
@@ -418,8 +436,7 @@ export function useCreativeHubRuntime({
     isRunning,
     setInterrupt,
     messages,
-    syntheticRunMessages,
-    syntheticToolMessages,
     sendPrompt,
+    latestTurnSummary: runArtifacts[runArtifacts.length - 1]?.turnSummary,
   };
 }

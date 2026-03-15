@@ -1,6 +1,13 @@
 import { Annotation } from "@langchain/langgraph";
 import type { PlannerResult, AgentRuntimeResult } from "../agents/types";
-import type { CreativeHubCheckpointRef, CreativeHubInterrupt, CreativeHubMessage, CreativeHubResourceBinding, CreativeHubThread } from "@ai-novel/shared/types/creativeHub";
+import type {
+  CreativeHubCheckpointRef,
+  CreativeHubInterrupt,
+  CreativeHubMessage,
+  CreativeHubResourceBinding,
+  CreativeHubThread,
+  CreativeHubTurnSummary,
+} from "@ai-novel/shared/types/creativeHub";
 import type { FailureDiagnostic } from "@ai-novel/shared/types/agent";
 
 export interface CreativeHubRunSettings {
@@ -20,6 +27,7 @@ export interface CreativeHubGraphResult {
   messages: CreativeHubMessage[];
   resourceBindings: CreativeHubResourceBinding;
   diagnostics?: FailureDiagnostic;
+  turnSummary: CreativeHubTurnSummary | null;
 }
 
 export const CreativeHubGraphState = Annotation.Root({
@@ -42,6 +50,7 @@ export const CreativeHubGraphState = Annotation.Root({
   threadStatus: Annotation<CreativeHubThread["status"]>(),
   latestError: Annotation<string | null>(),
   diagnostics: Annotation<FailureDiagnostic | undefined>(),
+  turnSummary: Annotation<CreativeHubTurnSummary | null>(),
 });
 
 export type CreativeHubGraphStateValue = typeof CreativeHubGraphState.State;

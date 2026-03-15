@@ -2,7 +2,8 @@ import { getLLM } from "../../llm/factory";
 import { listAgentToolDefinitions } from "../toolRegistry";
 import type { StructuredIntent, ToolCall, ToolExecutionContext } from "../types";
 import { isRecord, safeJson, type ToolExecutionResult } from "./runtimeHelpers";
-
+import { composeCreateNovelSetupAnswer, composeMissingNovelKickoffAnswer, composeSelectNovelWorkspaceSetupAnswer } from "./novelSetupGuidanceComposer";
+import { composeNovelSetupIdeationAnswer } from "./novelSetupIdeationComposer";
 function truncateText(value: string, max = 320): string {
   const normalized = value.replace(/\s+/g, " ").trim();
   if (!normalized) {
@@ -10,17 +11,14 @@ function truncateText(value: string, max = 320): string {
   }
   return normalized.length > max ? `${normalized.slice(0, max)}...` : normalized;
 }
-
 function getSuccessfulOutputs(results: ToolExecutionResult[], tool: ToolCall["tool"]): Record<string, unknown>[] {
   return results
     .filter((item) => item.success && item.tool === tool && item.output)
     .map((item) => item.output as Record<string, unknown>);
 }
-
 function getFailedResult(results: ToolExecutionResult[], tool: ToolCall["tool"]): ToolExecutionResult | null {
   return results.find((item) => !item.success && item.tool === tool) ?? null;
 }
-
 function buildGroundingFacts(results: ToolExecutionResult[]): string {
   return safeJson(results.map((item) => ({
     tool: item.tool,
@@ -64,6 +62,23 @@ function composeNovelListAnswer(results: ToolExecutionResult[]): string {
   return `当前共有 ${total} 本小说：\n${lines.join("\n")}`;
 }
 
+function composeBaseCharacterListAnswer(results: ToolExecutionResult[]): string {
+  const list = getSuccessfulOutputs(results, "list_base_characters")[0];
+  const items = Array.isArray(list?.items) ? list.items : [];
+  if (items.length === 0) {
+    return "当前基础角色库还是空的。";
+  }
+  const lines = items.slice(0, 8).map((item, index) => {
+    const name = typeof item?.name === "string" && item.name.trim() ? item.name.trim() : "未命名角色";
+    const role = typeof item?.role === "string" && item.role.trim() ? item.role.trim() : null;
+    const category = typeof item?.category === "string" && item.category.trim() ? item.category.trim() : null;
+    const tags = typeof item?.tags === "string" && item.tags.trim() ? item.tags.trim() : null;
+    const suffix = [role, category, tags].filter(Boolean).join(" / ");
+    return `${index + 1}. ${name}${suffix ? `（${suffix}）` : ""}`;
+  });
+  return `当前基础角色库共有 ${items.length} 个角色模板：\n${lines.join("\n")}`;
+}
+
 function composeWorldListAnswer(results: ToolExecutionResult[]): string {
   const list = getSuccessfulOutputs(results, "list_worlds")[0];
   const items = Array.isArray(list?.items) ? list.items : [];
@@ -97,24 +112,6 @@ function getFirstSuccessfulOutput(results: ToolExecutionResult[], tool: ToolCall
   return getSuccessfulOutputs(results, tool)[0] ?? null;
 }
 
-function composeCreateNovelAnswer(results: ToolExecutionResult[]): string {
-  const created = getSuccessfulOutputs(results, "create_novel")[0];
-  if (!created) {
-    return "请先提供小说标题";
-  }
-  const title = typeof created.title === "string" ? created.title.trim() : "";
-  return title ? `已创建小说《${title}》。` : "已创建小说。";
-}
-
-function composeSelectNovelWorkspaceAnswer(results: ToolExecutionResult[]): string {
-  const selected = getSuccessfulOutputs(results, "select_novel_workspace")[0];
-  if (!selected) {
-    return "请先提供要切换的小说名称";
-  }
-  const title = typeof selected.title === "string" ? selected.title.trim() : "";
-  return title ? `已将当前工作区切换到《${title}》。` : "已切换当前工作区。";
-}
-
 function composeBindWorldAnswer(
   results: ToolExecutionResult[],
   context: Omit<ToolExecutionContext, "runId" | "agentName">,
@@ -143,6 +140,36 @@ function composeBindWorldAnswer(
     return failed.summary;
   }
   return "未完成世界观绑定。";
+}
+
+function composeUnbindWorldAnswer(
+  results: ToolExecutionResult[],
+  context: Omit<ToolExecutionContext, "runId" | "agentName">,
+): string {
+  const unbound = getSuccessfulOutputs(results, "unbind_world_from_novel")[0];
+  if (unbound) {
+    const summary = typeof unbound.summary === "string" ? unbound.summary.trim() : "";
+    if (summary) {
+      return summary;
+    }
+    const novelTitle = typeof unbound.novelTitle === "string" ? unbound.novelTitle.trim() : "";
+    const previousWorldName = typeof unbound.previousWorldName === "string" ? unbound.previousWorldName.trim() : "";
+    if (novelTitle && previousWorldName) {
+      return `已将世界观《${previousWorldName}》从小说《${novelTitle}》解绑。`;
+    }
+    if (novelTitle) {
+      return `已更新小说《${novelTitle}》的世界观绑定状态。`;
+    }
+    return "已完成世界观解绑。";
+  }
+  if (!context.novelId) {
+    return "没有当前小说上下文，无法解除世界观绑定。";
+  }
+  const failed = getFailedResult(results, "unbind_world_from_novel");
+  if (failed?.summary) {
+    return failed.summary;
+  }
+  return "未完成世界观解绑。";
 }
 
 function composeProgressAnswer(results: ToolExecutionResult[]): string {
@@ -279,11 +306,13 @@ function composeProductionStatusAnswer(
   return parts.join("");
 }
 
-function composeProduceNovelAnswer(
+async function composeProduceNovelAnswer(
   results: ToolExecutionResult[],
   waitingForApproval: boolean,
   context: Omit<ToolExecutionContext, "runId" | "agentName">,
-): string {
+  goal: string,
+  structuredIntent?: StructuredIntent,
+): Promise<string> {
   const created = getFirstSuccessfulOutput(results, "create_novel");
   const world = getFirstSuccessfulOutput(results, "generate_world_for_novel");
   const characters = getFirstSuccessfulOutput(results, "generate_novel_characters");
@@ -296,7 +325,7 @@ function composeProduceNovelAnswer(
   const productionStatus = getFirstSuccessfulOutput(results, "get_novel_production_status");
 
   if (!created && !context.novelId) {
-    return "请先提供小说标题";
+    return composeMissingNovelKickoffAnswer(goal, context, structuredIntent, "produce_missing_title");
   }
 
   const title = typeof created?.title === "string" && created.title.trim()
@@ -439,18 +468,22 @@ export async function composeAssistantMessage(
   switch (structuredIntent?.intent) {
     case "list_novels":
       return composeNovelListAnswer(results);
+    case "list_base_characters":
+      return composeBaseCharacterListAnswer(results);
     case "list_worlds":
       return composeWorldListAnswer(results);
     case "query_task_status":
       return composeTaskListAnswer(results);
     case "create_novel":
-      return composeCreateNovelAnswer(results);
+      return composeCreateNovelSetupAnswer(goal, results, context, structuredIntent);
     case "select_novel_workspace":
-      return composeSelectNovelWorkspaceAnswer(results);
+      return composeSelectNovelWorkspaceSetupAnswer(goal, results, context, structuredIntent);
     case "bind_world_to_novel":
       return composeBindWorldAnswer(results, context);
+    case "unbind_world_from_novel":
+      return composeUnbindWorldAnswer(results, context);
     case "produce_novel":
-      return composeProduceNovelAnswer(results, waitingForApproval, context);
+      return composeProduceNovelAnswer(results, waitingForApproval, context, goal, structuredIntent);
     case "query_novel_production_status":
       return composeProductionStatusAnswer(results, context);
     case "query_novel_title":
@@ -461,6 +494,8 @@ export async function composeAssistantMessage(
       return composeChapterAnswer(results) ?? "未获取到章节正文";
     case "inspect_failure_reason":
       return composeFailureDiagnosisAnswer(results);
+    case "ideate_novel_setup":
+      return composeNovelSetupIdeationAnswer(goal, results, context, structuredIntent);
     case "write_chapter":
     case "rewrite_chapter":
     case "save_chapter_draft":

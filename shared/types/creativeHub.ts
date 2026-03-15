@@ -1,6 +1,7 @@
 import type { FailureDiagnostic } from "./agent";
 
 export type CreativeHubThreadStatus = "idle" | "busy" | "interrupted" | "error";
+export type CreativeHubTurnStatus = "running" | "succeeded" | "interrupted" | "failed" | "cancelled";
 
 export interface CreativeHubResourceBinding {
   novelId?: string | null;
@@ -77,8 +78,63 @@ export interface CreativeHubProductionStatus {
   summary: string;
 }
 
+export type CreativeHubNovelSetupStage =
+  | "setup_in_progress"
+  | "ready_for_planning"
+  | "ready_for_production";
+
+export type CreativeHubNovelSetupItemStatus = "missing" | "partial" | "ready";
+export type CreativeHubNovelSetupChecklistKey =
+  | "premise"
+  | "story_promise"
+  | "direction"
+  | "narrative"
+  | "production_preferences"
+  | "chapter_scale"
+  | "world"
+  | "world_rules"
+  | "characters"
+  | "outline";
+
+export interface CreativeHubNovelSetupChecklistItem {
+  key: CreativeHubNovelSetupChecklistKey;
+  label: string;
+  status: CreativeHubNovelSetupItemStatus;
+  summary: string;
+  requiredForProduction?: boolean;
+  currentValue?: string | null;
+  recommendedAction?: string;
+  optionPrompt?: string;
+}
+
+export interface CreativeHubNovelSetupStatus {
+  novelId: string;
+  title: string;
+  stage: CreativeHubNovelSetupStage;
+  completionRatio: number;
+  completedCount: number;
+  totalCount: number;
+  missingItems: string[];
+  nextQuestion: string;
+  recommendedAction: string;
+  checklist: CreativeHubNovelSetupChecklistItem[];
+}
+
+export interface CreativeHubTurnSummary {
+  runId: string;
+  checkpointId: string | null;
+  status: CreativeHubTurnStatus;
+  currentStage: string;
+  intentSummary: string;
+  actionSummary: string;
+  impactSummary: string;
+  nextSuggestion: string;
+}
+
 export interface CreativeHubThreadMetadata {
   productionStatus?: CreativeHubProductionStatus | null;
+  novelSetup?: CreativeHubNovelSetupStatus | null;
+  latestTurnSummary?: CreativeHubTurnSummary | null;
   [key: string]: unknown;
 }
 

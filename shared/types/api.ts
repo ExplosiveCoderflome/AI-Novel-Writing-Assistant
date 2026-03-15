@@ -1,4 +1,4 @@
-import type { CreativeHubInterrupt, CreativeHubMessage } from "./creativeHub";
+import type { CreativeHubInterrupt, CreativeHubMessage, CreativeHubTurnSummary } from "./creativeHub";
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -24,6 +24,7 @@ export type CreativeHubStreamFrame =
   | { event: "messages/complete"; data: CreativeHubMessage[] }
   | { event: "metadata"; data: Record<string, unknown> }
   | { event: "creative_hub/run_status"; data: { runId?: string; status: string; message?: string } }
+  | { event: "creative_hub/turn_summary"; data: CreativeHubTurnSummary }
   | { event: "creative_hub/tool_call"; data: { runId?: string; stepId?: string; toolName: string; inputSummary: string } }
   | {
     event: "creative_hub/tool_result";

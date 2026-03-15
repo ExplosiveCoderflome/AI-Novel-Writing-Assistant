@@ -1,36 +1,103 @@
 import { z } from "zod";
 import { getLLM } from "../../llm/factory";
 import { getPermissionMatrixSummary } from "../approvalPolicy";
-import { listAgentToolDefinitions } from "../toolRegistry";
+import { listAgentToolDefinitions, listPlannerSemanticDefinitions } from "../toolRegistry";
 import type { PlannerInput, StructuredIntent } from "../types";
 import { extractJsonObject, normalizeIntentPayload } from "./utils";
 
+const INTENT_NAMES = [
+  "list_novels",
+  "list_base_characters",
+  "list_worlds",
+  "query_task_status",
+  "create_novel",
+  "select_novel_workspace",
+  "bind_world_to_novel",
+  "unbind_world_from_novel",
+  "produce_novel",
+  "query_novel_production_status",
+  "query_novel_title",
+  "query_chapter_content",
+  "query_progress",
+  "inspect_failure_reason",
+  "write_chapter",
+  "rewrite_chapter",
+  "save_chapter_draft",
+  "start_pipeline",
+  "inspect_characters",
+  "inspect_timeline",
+  "inspect_world",
+  "search_knowledge",
+  "ideate_novel_setup",
+  "general_chat",
+  "unknown",
+] as const satisfies readonly StructuredIntent["intent"][];
+
+const WORKFLOW_RECIPES = [
+  {
+    intent: "produce_novel",
+    when: "用户要求创建并启动整本生成，或继续/完成当前小说的整本生产。",
+    examples: [
+      "创建一本20章小说《抗日奇侠传》，并开始整本生成",
+      "继续生成当前小说",
+      "完成这本小说",
+      "把这本书写完",
+    ],
+  },
+  {
+    intent: "query_novel_production_status",
+    when: "用户在问整本生成卡在哪一步、是否启动、资产是否准备完成。",
+    examples: [
+      "整本生成到哪一步了",
+      "为什么整本生成没有启动",
+      "当前资产准备完成了吗",
+    ],
+  },
+  {
+    intent: "query_chapter_content",
+    when: "用户要查看某章或某段章节范围的正文/摘要。",
+    examples: [
+      "返回给我第1章的内容",
+      "前两章都写了什么",
+    ],
+  },
+  {
+    intent: "inspect_failure_reason",
+    when: "用户在问生成失败、章节失败或阻塞原因。",
+    examples: [
+      "第三章为什么失败",
+      "生成第三章失败的原因是什么",
+    ],
+  },
+  {
+    intent: "write_chapter",
+    when: "用户要求推进某章写作。",
+    examples: [
+      "写第三章",
+      "继续写第5章",
+    ],
+  },
+  {
+    intent: "rewrite_chapter",
+    when: "用户明确要求重写、改写某章。",
+    examples: [
+      "重写第三章",
+      "把第6章改写一版",
+    ],
+  },
+  {
+    intent: "query_progress",
+    when: "用户在问当前已经写完几章、进度到哪。",
+    examples: [
+      "当前写完了几章",
+      "现在进度到哪了",
+    ],
+  },
+];
+
 export const intentSchema: z.ZodType<StructuredIntent> = z.object({
   goal: z.string().min(1),
-  intent: z.enum([
-    "list_novels",
-    "list_worlds",
-    "query_task_status",
-    "create_novel",
-    "select_novel_workspace",
-    "bind_world_to_novel",
-    "produce_novel",
-    "query_novel_production_status",
-    "query_novel_title",
-    "query_chapter_content",
-    "query_progress",
-    "inspect_failure_reason",
-    "write_chapter",
-    "rewrite_chapter",
-    "save_chapter_draft",
-    "start_pipeline",
-    "inspect_characters",
-    "inspect_timeline",
-    "inspect_world",
-    "search_knowledge",
-    "general_chat",
-    "unknown",
-  ]),
+  intent: z.enum(INTENT_NAMES),
   confidence: z.number().min(0).max(1).default(0.5),
   requiresNovelContext: z.boolean().default(false),
   novelTitle: z.string().trim().min(1).optional(),
@@ -40,8 +107,12 @@ export const intentSchema: z.ZodType<StructuredIntent> = z.object({
   genre: z.string().trim().min(1).optional(),
   worldType: z.string().trim().min(1).optional(),
   styleTone: z.string().trim().min(1).optional(),
+  projectMode: z.enum(["ai_led", "co_pilot", "draft_mode", "auto_pipeline"]).optional(),
   pacePreference: z.enum(["fast", "balanced", "slow"]).optional(),
   narrativePov: z.enum(["first_person", "third_person", "mixed"]).optional(),
+  emotionIntensity: z.enum(["low", "medium", "high"]).optional(),
+  aiFreedom: z.enum(["low", "medium", "high"]).optional(),
+  defaultChapterLength: z.number().int().min(500).max(10000).optional(),
   chapterSelectors: z.object({
     chapterId: z.string().trim().min(1).optional(),
     orders: z.array(z.number().int().min(1)).max(8).optional(),
@@ -58,6 +129,37 @@ export const intentSchema: z.ZodType<StructuredIntent> = z.object({
   note: z.string().trim().optional(),
 });
 
+function buildSemanticCatalog(): string {
+  const items = listPlannerSemanticDefinitions();
+  if (items.length === 0) {
+    return "none";
+  }
+  return items.map((item) => [
+    `- intent=${item.intent}; tool=${item.toolName}; requiresNovelContext=${item.requiresNovelContext}`,
+    `  title=${item.title}`,
+    `  description=${item.description}`,
+    `  aliases=${item.aliases.join(", ") || "none"}`,
+    `  phrases=${item.phrases.join(" | ") || "none"}`,
+    `  when=${item.whenToUse ?? "none"}`,
+    `  avoid=${item.whenNotToUse ?? "none"}`,
+    `  inputs=${item.inputSchemaSummary.join(", ") || "none"}`,
+  ].join("\n")).join("\n");
+}
+
+function buildWorkflowRecipeCatalog(): string {
+  return WORKFLOW_RECIPES.map((item) => [
+    `- intent=${item.intent}`,
+    `  when=${item.when}`,
+    `  examples=${item.examples.join(" | ")}`,
+  ].join("\n")).join("\n");
+}
+
+function buildToolCatalog(): string {
+  return listAgentToolDefinitions()
+    .map((item) => `- ${item.name}: ${item.description}`)
+    .join("\n");
+}
+
 export function summarizeIntentValidationFailure(
   payload: Record<string, unknown>,
   issues: z.ZodIssue[],
@@ -68,7 +170,7 @@ export function summarizeIntentValidationFailure(
       const rawIntent = typeof payload.intent === "string" && payload.intent.trim()
         ? payload.intent.trim()
         : "unknown";
-      return `意图字段不受支持：${rawIntent}`;
+      return `intent 不受支持: ${rawIntent}`;
     }
     if (issue.code === "invalid_type") {
       return `字段 ${path} 类型不正确`;
@@ -84,7 +186,7 @@ export function summarizeIntentValidationFailure(
     }
     return `字段 ${path} 不符合要求`;
   });
-  return `LLM 返回的意图结构无效：${details.join("；")}。`;
+  return `LLM 返回的意图 JSON 无效: ${details.join("；")}`;
 }
 
 export async function parseIntentWithLLM(input: PlannerInput): Promise<StructuredIntent> {
@@ -94,11 +196,11 @@ export async function parseIntentWithLLM(input: PlannerInput): Promise<Structure
     maxTokens: input.maxTokens,
   });
 
-  const toolCatalog = listAgentToolDefinitions()
-    .map((item) => `- ${item.name}: ${item.description}`)
-    .join("\n");
   const permissionSummary = getPermissionMatrixSummary();
   const recentMessages = input.messages.slice(-12).map((item) => `${item.role}: ${item.content}`).join("\n");
+  const semanticCatalog = buildSemanticCatalog();
+  const workflowRecipes = buildWorkflowRecipeCatalog();
+  const toolCatalog = buildToolCatalog();
 
   const response = await llm.invoke([
     {
@@ -106,31 +208,23 @@ export async function parseIntentWithLLM(input: PlannerInput): Promise<Structure
       content: [
         "你是小说创作 Agent 的意图解析器，只能返回一个 JSON 对象。",
         "你的任务不是直接规划所有工具，而是先识别用户真实意图和章节槽位。",
-        "intent 必须是以下枚举之一：list_novels, list_worlds, query_task_status, create_novel, select_novel_workspace, bind_world_to_novel, produce_novel, query_novel_production_status, query_novel_title, query_chapter_content, query_progress, inspect_failure_reason, write_chapter, rewrite_chapter, save_chapter_draft, start_pipeline, inspect_characters, inspect_timeline, inspect_world, search_knowledge, general_chat, unknown。",
+        `intent 必须是以下枚举之一：${INTENT_NAMES.join(", ")}。`,
+        "优先使用“原子意图语义目录”识别列表、查询、检索、绑定这类单一意图。",
+        "只有在用户请求明显属于整本生产、章节写作、失败诊断等复合流程时，才使用 workflow intent。",
+        "如果用户表达命中目录中的 aliases / phrases，请返回对应的 canonical intent，不要返回别名或 tool 名。",
         "如果用户明确提到小说标题，可以放入 novelTitle。",
         "如果用户明确提到世界观名称，可以放入 worldName。",
-        "如果用户是在描述一本完整新书的生产任务，请使用 produce_novel，并尽量提取 description, targetChapterCount, genre, worldType, styleTone, pacePreference, narrativePov。",
-        "pacePreference 只能是 fast、balanced、slow；narrativePov 只能是 first_person、third_person、mixed。",
+        "如果用户是在描述一本完整新书的生产任务，请使用 produce_novel，并尽量提取 description, targetChapterCount, genre, worldType, styleTone, projectMode, pacePreference, narrativePov, emotionIntensity, aiFreedom, defaultChapterLength。",
+        "如果用户在问某个关键词、关系模式、题材、设定或世界观原型是否存在于知识库、已索引的拆书资料或世界观中，或者想找“类似于 X 的设定 / 参考案例”，优先使用 search_knowledge，不要误判成 general_chat。",
+        "如果用户是在取消或解绑当前小说的世界观，例如“不要这个世界观了”“取消世界观绑定”“先不用某某世界观”，优先使用 unbind_world_from_novel，不要误判成 bind_world_to_novel。",
+        "如果用户想基于当前标题、已有设定或当前工作区信息生成几套备选方案，例如“给我备选”“给几个方向”“提供 3 套核心设定/故事承诺/题材风格方案”，优先使用 ideate_novel_setup，不要误判成 general_chat。",
+        "projectMode 只能是 ai_led、co_pilot、draft_mode、auto_pipeline；pacePreference 只能是 fast、balanced、slow；narrativePov 只能是 first_person、third_person、mixed。",
+        "emotionIntensity 和 aiFreedom 只能是 low、medium、high；defaultChapterLength 是 500 到 10000 的整数。",
         "chapterSelectors 可包含：chapterId, orders, range{startOrder,endOrder}, relative{type,count}。",
-        "如果用户问“列出当前的小说列表”，intent 应该是 list_novels。",
-        "如果用户问“查看当前有多少本在写的小说”或“当前有多少本小说”，intent 也应该是 list_novels。",
-        "如果用户问“列出世界观列表”“当前有哪些世界观”或“查看世界观列表”，intent 应该是 list_worlds。",
-        "如果用户问“列出当前系统任务状态”“系统现在有哪些任务”或“查看任务中心状态”，intent 应该是 query_task_status。",
-        "如果用户说“创建一本小说《抗日奇侠传》”，intent 应该是 create_novel，novelTitle=抗日奇侠传。",
-        "如果用户说“创建一本20章小说《抗日奇侠传》，并开始整本生成”，intent 应该是 produce_novel，novelTitle=抗日奇侠传，targetChapterCount=20。",
-        "如果用户说“继续生成当前小说”，intent 应该是 produce_novel，requiresNovelContext=true。",
-        "如果用户说“完成这本小说”“把这本小说写完”“继续把这本书写完”，intent 也应该是 produce_novel，requiresNovelContext=true。",
-        "如果用户问“整本生成到哪一步了”“为什么整本生成没有启动”“当前资产准备完成了吗”，intent 应该是 query_novel_production_status。",
-        "如果用户问“本书已经规划了几个角色”“当前小说有几个角色”或“列出当前小说角色情况”，intent 应该是 inspect_characters，requiresNovelContext=true。",
-        "如果用户说“把《抗日奇侠传》设为当前工作区”，intent 应该是 select_novel_workspace，novelTitle=抗日奇侠传。",
-        "如果用户说“将四合院设为当前小说的世界观”或“把四合院绑定为当前小说世界观”，intent 应该是 bind_world_to_novel，worldName=四合院，requiresNovelContext=true。",
-        "如果用户问“返回给我第1章的内容”，intent 应该是 query_chapter_content，orders=[1]。",
-        "如果用户问“当前写完了几章”，intent 应该是 query_progress。",
-        "如果用户问“第三章为什么失败”或“生成第三章失败的原因是什么”，intent 应该是 inspect_failure_reason，orders=[3]。",
-        "如果用户说“写第三章”，intent 应该是 write_chapter，orders=[3]。",
-        "如果用户说“重写第三章”，intent 应该是 rewrite_chapter，orders=[3]。",
-        "如果信息不足，不要猜测不存在的 chapterId，可以只返回 orders/range/relative。",
+        "如果信息不足，不要猜测不存在的 chapterId，可以只返回 orders / range / relative。",
+        "如果用户问的是基础角色模板库，应该偏向 list_base_characters；如果用户问的是当前小说中的角色状态，应该偏向 inspect_characters，并要求小说上下文。",
         "confidence 必须保守评估，范围 0 到 1。",
+        "只返回 JSON，不要解释。",
       ].join("\n"),
     },
     {
@@ -143,9 +237,11 @@ export async function parseIntentWithLLM(input: PlannerInput): Promise<Structure
         `当前 run 状态: ${input.currentRunStatus ?? "queued"}`,
         `当前 run 步骤: ${input.currentStep ?? "planning"}`,
         `最近消息:\n${recentMessages || "none"}`,
-        `可用工具:\n${toolCatalog}`,
-        `权限矩阵:\n${permissionSummary}`,
-        "只返回 JSON，不要返回解释。",
+        `原子意图语义目录:\n${semanticCatalog}`,
+        `复合 workflow recipes:\n${workflowRecipes}`,
+        `可用工具总览:\n${toolCatalog}`,
+        `权限摘要:\n${permissionSummary}`,
+        "请输出一个合法 JSON 对象。",
       ].join("\n\n"),
     },
   ]);

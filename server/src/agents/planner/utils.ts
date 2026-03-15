@@ -1,12 +1,50 @@
 import type { PlannerInput } from "../types";
+import { listPlannerSemanticDefinitions } from "../toolRegistry";
 
 const INTENT_ALIAS_MAP: Record<string, string> = {
   complete_novel: "produce_novel",
   finish_novel: "produce_novel",
   continue_novel: "produce_novel",
   continue_production: "produce_novel",
+  generate_world_for_novel: "produce_novel",
+  generate_novel_characters: "produce_novel",
+  generate_story_bible: "produce_novel",
+  generate_novel_outline: "produce_novel",
+  generate_structured_outline: "produce_novel",
+  sync_chapters_from_structured_outline: "produce_novel",
+  start_full_novel_pipeline: "start_pipeline",
+  queue_pipeline_run: "start_pipeline",
+  preview_pipeline_run: "start_pipeline",
+  base_character_list: "list_base_characters",
+  list_base_character_library: "list_base_characters",
+  list_base_characters: "list_base_characters",
+  base_characters: "list_base_characters",
+  query_base_characters: "list_base_characters",
+  character_library: "list_base_characters",
   novel_production_status: "query_novel_production_status",
   production_status: "query_novel_production_status",
+  knowledge_search: "search_knowledge",
+  reference_search: "search_knowledge",
+  reference_lookup: "search_knowledge",
+  setting_reference: "search_knowledge",
+  search_setting_reference: "search_knowledge",
+  similar_setting_search: "search_knowledge",
+  find_similar_setting: "search_knowledge",
+  world_reference_search: "search_knowledge",
+  unbind_world: "unbind_world_from_novel",
+  remove_world_binding: "unbind_world_from_novel",
+  clear_world_binding: "unbind_world_from_novel",
+  detach_world_from_novel: "unbind_world_from_novel",
+  cancel_world_binding: "unbind_world_from_novel",
+  brainstorm_novel_setup: "ideate_novel_setup",
+  novel_setup_brainstorm: "ideate_novel_setup",
+  setup_options: "ideate_novel_setup",
+  generate_setup_options: "ideate_novel_setup",
+  brainstorm_setup_options: "ideate_novel_setup",
+  premise_options: "ideate_novel_setup",
+  core_setting_options: "ideate_novel_setup",
+  story_promise_options: "ideate_novel_setup",
+  direction_options: "ideate_novel_setup",
   list_tasks: "query_task_status",
   task_status: "query_task_status",
   task_overview: "query_task_status",
@@ -22,6 +60,22 @@ const INTENT_ALIAS_MAP: Record<string, string> = {
   character_status: "inspect_characters",
   character_overview: "inspect_characters",
 };
+
+function normalizeIntentAliasKey(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function buildSemanticIntentAliasMap(): Record<string, string> {
+  const semanticMap: Record<string, string> = {};
+  for (const item of listPlannerSemanticDefinitions()) {
+    semanticMap[normalizeIntentAliasKey(item.intent)] = item.intent;
+    semanticMap[normalizeIntentAliasKey(item.toolName)] = item.intent;
+    for (const alias of item.aliases) {
+      semanticMap[normalizeIntentAliasKey(alias)] = item.intent;
+    }
+  }
+  return semanticMap;
+}
 
 export function extractJsonObject(raw: string): string {
   const cleaned = raw.replace(/```json|```/gi, "").trim();
@@ -238,7 +292,10 @@ export function normalizeIntentPayload(raw: unknown, input: PlannerInput): Recor
 
   if (typeof payload.intent === "string" && payload.intent.trim()) {
     const rawIntent = payload.intent.trim();
-    normalized.intent = INTENT_ALIAS_MAP[rawIntent] ?? rawIntent;
+    const semanticAliases = buildSemanticIntentAliasMap();
+    normalized.intent = semanticAliases[normalizeIntentAliasKey(rawIntent)]
+      ?? INTENT_ALIAS_MAP[rawIntent]
+      ?? rawIntent;
   }
 
   if (payload.novelTitle == null || (typeof payload.novelTitle === "string" && !payload.novelTitle.trim())) {
@@ -259,6 +316,20 @@ export function normalizeIntentPayload(raw: unknown, input: PlannerInput): Recor
   if (payload.styleTone == null || (typeof payload.styleTone === "string" && !payload.styleTone.trim())) {
     delete normalized.styleTone;
   }
+  if (typeof payload.projectMode === "string" && payload.projectMode.trim()) {
+    const projectModeValue = payload.projectMode.trim();
+    normalized.projectMode = projectModeValue === "AI 主导"
+      ? "ai_led"
+      : projectModeValue === "人机协作"
+        ? "co_pilot"
+        : projectModeValue === "草稿优先"
+          ? "draft_mode"
+          : projectModeValue === "自动流水线"
+            ? "auto_pipeline"
+            : projectModeValue;
+  } else {
+    delete normalized.projectMode;
+  }
   if (typeof payload.pacePreference === "string" && payload.pacePreference.trim()) {
     const paceValue = payload.pacePreference.trim();
     normalized.pacePreference = paceValue === "快节奏" ? "fast" : paceValue === "慢节奏" ? "slow" : paceValue === "均衡" ? "balanced" : paceValue;
@@ -276,6 +347,30 @@ export function normalizeIntentPayload(raw: unknown, input: PlannerInput): Recor
           : povValue;
   } else {
     delete normalized.narrativePov;
+  }
+  if (typeof payload.emotionIntensity === "string" && payload.emotionIntensity.trim()) {
+    const emotionValue = payload.emotionIntensity.trim();
+    normalized.emotionIntensity = emotionValue === "低" || emotionValue === "低情绪强度"
+      ? "low"
+      : emotionValue === "中" || emotionValue === "中等情绪强度"
+        ? "medium"
+        : emotionValue === "高" || emotionValue === "高情绪强度"
+          ? "high"
+          : emotionValue;
+  } else {
+    delete normalized.emotionIntensity;
+  }
+  if (typeof payload.aiFreedom === "string" && payload.aiFreedom.trim()) {
+    const freedomValue = payload.aiFreedom.trim();
+    normalized.aiFreedom = freedomValue === "低" || freedomValue === "低 AI 自由度"
+      ? "low"
+      : freedomValue === "中" || freedomValue === "中 AI 自由度" || freedomValue === "中等 AI 自由度"
+        ? "medium"
+        : freedomValue === "高" || freedomValue === "高 AI 自由度"
+          ? "high"
+          : freedomValue;
+  } else {
+    delete normalized.aiFreedom;
   }
   if (payload.content == null || (typeof payload.content === "string" && !payload.content.trim())) {
     delete normalized.content;
@@ -298,6 +393,15 @@ export function normalizeIntentPayload(raw: unknown, input: PlannerInput): Recor
     normalized.targetChapterCount = 20;
   } else {
     delete normalized.targetChapterCount;
+  }
+
+  const rawDefaultChapterLength = payload.defaultChapterLength;
+  if (typeof rawDefaultChapterLength === "string" && /^\d+$/.test(rawDefaultChapterLength.trim())) {
+    normalized.defaultChapterLength = Math.max(500, Math.min(10000, Number(rawDefaultChapterLength.trim())));
+  } else if (typeof rawDefaultChapterLength === "number" && Number.isFinite(rawDefaultChapterLength)) {
+    normalized.defaultChapterLength = Math.max(500, Math.min(10000, Math.floor(rawDefaultChapterLength)));
+  } else {
+    delete normalized.defaultChapterLength;
   }
 
   return normalized;

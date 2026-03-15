@@ -34,7 +34,16 @@ export function applyToolResultContext(
     && output.worldId.trim()) {
     nextContext.worldId = output.worldId.trim();
   }
+  if (call.tool === "unbind_world_from_novel") {
+    nextContext.worldId = undefined;
+  }
   if (call.tool === "bind_world_to_novel"
+    && typeof output.novelId === "string"
+    && output.novelId.trim()) {
+    nextContext.novelId = output.novelId.trim();
+    nextContext.contextMode = "novel";
+  }
+  if (call.tool === "unbind_world_from_novel"
     && typeof output.novelId === "string"
     && output.novelId.trim()) {
     nextContext.novelId = output.novelId.trim();

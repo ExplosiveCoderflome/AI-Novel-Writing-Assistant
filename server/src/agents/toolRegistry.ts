@@ -7,6 +7,7 @@ import { novelToolDefinitions } from "./tools/novelTools";
 import { taskToolDefinitions } from "./tools/taskTools";
 import { worldToolDefinitions } from "./tools/worldTools";
 import { writeToolDefinitions } from "./tools/writeTools";
+import type { AgentIntentName } from "./types";
 import type { AgentToolDefinition, ToolRiskLevel } from "./tools/toolTypes";
 
 const definitions = {
@@ -21,6 +22,19 @@ const definitions = {
 } as Record<AgentToolName, AgentToolDefinition<Record<string, unknown>, Record<string, unknown>>>;
 
 export type { AgentToolDefinition, ToolRiskLevel } from "./tools/toolTypes";
+
+export interface PlannerSemanticDefinition {
+  toolName: AgentToolName;
+  intent: AgentIntentName;
+  title: string;
+  description: string;
+  aliases: string[];
+  phrases: string[];
+  requiresNovelContext: boolean;
+  whenToUse?: string;
+  whenNotToUse?: string;
+  inputSchemaSummary: string[];
+}
 
 function summarizeSchemaKeys(schema: unknown): string[] {
   if (!schema || typeof schema !== "object") {
@@ -76,4 +90,21 @@ export function listAgentToolDefinitions(): Array<{
     approvalRequired: item.approvalRequired === true,
     inputSchemaSummary: summarizeSchemaKeys(item.inputSchema),
   }));
+}
+
+export function listPlannerSemanticDefinitions(): PlannerSemanticDefinition[] {
+  return Object.values(definitions)
+    .filter((item): item is typeof item & { parserHints: NonNullable<typeof item.parserHints> } => Boolean(item.parserHints?.intent))
+    .map((item) => ({
+      toolName: item.name,
+      intent: item.parserHints.intent as AgentIntentName,
+      title: item.title,
+      description: item.description,
+      aliases: item.parserHints.aliases ?? [],
+      phrases: item.parserHints.phrases ?? [],
+      requiresNovelContext: item.parserHints.requiresNovelContext ?? false,
+      whenToUse: item.parserHints.whenToUse,
+      whenNotToUse: item.parserHints.whenNotToUse,
+      inputSchemaSummary: summarizeSchemaKeys(item.inputSchema),
+    }));
 }

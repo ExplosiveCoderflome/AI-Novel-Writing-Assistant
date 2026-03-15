@@ -27,6 +27,25 @@ function sanitizeRecordArray(value: unknown, maxItems = 6): Array<Record<string,
   });
 }
 
+function sanitizeNovelSetup(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const setup = value as Record<string, unknown>;
+  return {
+    stage: setup.stage,
+    completionRatio: setup.completionRatio,
+    completedCount: setup.completedCount,
+    totalCount: setup.totalCount,
+    missingItems: Array.isArray(setup.missingItems) ? setup.missingItems.slice(0, 6) : [],
+    nextQuestion: typeof setup.nextQuestion === "string" ? truncateText(setup.nextQuestion, 180) : setup.nextQuestion,
+    recommendedAction: typeof setup.recommendedAction === "string"
+      ? truncateText(setup.recommendedAction, 180)
+      : setup.recommendedAction,
+    checklist: sanitizeRecordArray(setup.checklist),
+  };
+}
+
 export function sanitizeCreativeHubToolOutput(
   toolName: AgentToolName,
   output: Record<string, unknown> | undefined,
@@ -49,6 +68,7 @@ export function sanitizeCreativeHubToolOutput(
       chapterCount: output.chapterCount,
       status: output.status,
       summary: typeof output.summary === "string" ? truncateText(output.summary) : output.summary,
+      setup: sanitizeNovelSetup(output.setup),
     };
   }
 
@@ -137,6 +157,18 @@ export function sanitizeCreativeHubToolOutput(
       novelTitle: output.novelTitle,
       worldId: output.worldId,
       worldName: output.worldName,
+      summary: typeof output.summary === "string" ? truncateText(output.summary) : output.summary,
+    };
+  }
+
+  if (toolName === "unbind_world_from_novel") {
+    return {
+      novelId: output.novelId,
+      novelTitle: output.novelTitle,
+      previousWorldId: output.previousWorldId,
+      previousWorldName: output.previousWorldName,
+      worldId: output.worldId ?? null,
+      worldName: output.worldName ?? null,
       summary: typeof output.summary === "string" ? truncateText(output.summary) : output.summary,
     };
   }
