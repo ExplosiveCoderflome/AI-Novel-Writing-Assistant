@@ -1,7 +1,7 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
+import type { AuditReport, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { TaskType } from "../../llm/modelRouter";
 import { getLLM } from "../../llm/factory";
 import { NovelContinuationService } from "./NovelContinuationService";
@@ -52,12 +52,18 @@ interface ChapterGraphDeps {
     content: string,
     options: ChapterGraphLLMOptions,
     novelId?: string,
-  ) => Promise<{ score: QualityScore; issues: ReviewIssue[] }>;
+    chapterId?: string,
+  ) => Promise<{ score: QualityScore; issues: ReviewIssue[]; auditReports?: AuditReport[] }>;
   createQualityReport: (
     novelId: string,
     chapterId: string,
     score: QualityScore,
     issues: ReviewIssue[],
+  ) => Promise<void>;
+  syncAuditReports?: (
+    novelId: string,
+    chapterId: string,
+    auditReports: AuditReport[],
   ) => Promise<void>;
   saveDraftAndArtifacts: (
     novelId: string,
@@ -95,6 +101,7 @@ export interface ChapterPipelineResult {
   pass: boolean;
   score: QualityScore;
   issues: ReviewIssue[];
+  auditReports?: AuditReport[];
   retryCountUsed: number;
 }
 
@@ -205,11 +212,12 @@ ${continuationPack.enabled ? continuationPack.humanBlock : ""}`,
     novelId: string,
     novelTitle: string,
     chapterTitle: string,
+    chapterId: string | undefined,
     content: string,
     options: ChapterGraphPipelineOptions,
-  ): Promise<{ score: QualityScore; issues: ReviewIssue[] }> {
+  ): Promise<{ score: QualityScore; issues: ReviewIssue[]; auditReports?: AuditReport[] }> {
     if (options.autoReview === false) {
-      return { score: this.deps.ruleScore(content), issues: [] };
+      return { score: this.deps.ruleScore(content), issues: [], auditReports: [] };
     }
     return this.deps.reviewChapterContent(
       novelTitle,
@@ -217,6 +225,7 @@ ${continuationPack.enabled ? continuationPack.humanBlock : ""}`,
       content,
       options,
       novelId,
+      chapterId,
     );
   }
 
@@ -315,7 +324,11 @@ If an event is already covered in prior chapters, mention it in at most one sent
     const qualityThreshold = input.options.qualityThreshold ?? 75;
     let retries = 0;
     let content = input.chapter.content ?? "";
-    let final = { score: this.deps.normalizeScore({}), issues: [] as ReviewIssue[] };
+    let final: { score: QualityScore; issues: ReviewIssue[]; auditReports?: AuditReport[] } = {
+      score: this.deps.normalizeScore({}),
+      issues: [],
+      auditReports: [],
+    };
     let pass = false;
     const continuationPack = await continuationService.buildChapterContextPack(input.novelId);
 
@@ -351,6 +364,7 @@ If an event is already covered in prior chapters, mention it in at most one sent
         input.novelId,
         input.novelTitle,
         input.chapter.title,
+        input.chapter.id,
         content,
         input.options,
       );
@@ -387,10 +401,14 @@ If an event is already covered in prior chapters, mention it in at most one sent
       final.score,
       final.issues,
     );
+    if (this.deps.syncAuditReports && (final.auditReports?.length ?? 0) > 0) {
+      await this.deps.syncAuditReports(input.novelId, input.chapter.id, final.auditReports ?? []);
+    }
     return {
       pass,
       score: final.score,
       issues: final.issues,
+      auditReports: final.auditReports ?? [],
       retryCountUsed: retries,
     };
   }

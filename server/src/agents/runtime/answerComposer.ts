@@ -4,6 +4,19 @@ import type { StructuredIntent, ToolCall, ToolExecutionContext } from "../types"
 import { isRecord, safeJson, type ToolExecutionResult } from "./runtimeHelpers";
 import { composeCreateNovelSetupAnswer, composeMissingNovelKickoffAnswer, composeSelectNovelWorkspaceSetupAnswer } from "./novelSetupGuidanceComposer";
 import { composeNovelSetupIdeationAnswer } from "./novelSetupIdeationComposer";
+
+const COLLABORATION_FIRST_INTENTS = new Set<StructuredIntent["intent"]>([
+  "create_novel",
+  "produce_novel",
+  "write_chapter",
+  "rewrite_chapter",
+  "save_chapter_draft",
+  "start_pipeline",
+  "ideate_novel_setup",
+  "general_chat",
+  "unknown",
+]);
+
 function truncateText(value: string, max = 320): string {
   const normalized = value.replace(/\s+/g, " ").trim();
   if (!normalized) {
@@ -559,6 +572,7 @@ export async function composeAssistantMessage(
   if (
     !waitingForApproval
     && structuredIntent
+    && COLLABORATION_FIRST_INTENTS.has(structuredIntent.intent)
     && (
       structuredIntent.shouldAskFollowup
       || ((structuredIntent.interactionMode ?? "execute") !== "execute" && results.length === 0)

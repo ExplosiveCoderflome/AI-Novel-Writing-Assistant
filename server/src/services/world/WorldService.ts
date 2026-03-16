@@ -13,7 +13,9 @@ import { prisma } from "../../db/prisma";
 import { getLLM } from "../../llm/factory";
 import { createWorldBuildingGraph } from "../../graphs/worldBuildingGraph";
 import { getTemplateByKey, LAYER_FIELD_MAP, WORLD_LAYER_ORDER, WORLD_TEMPLATES } from "./worldTemplates";
+import { buildConsistencySummary, localizeConsistencyIssue } from "./worldConsistency";
 import { normalizeGeneratedWorldPayload } from "./worldPersistence";
+import { buildWorldVisualizationPayload } from "./worldVisualization";
 import { listActiveKnowledgeDocumentContents } from "../knowledge/common";
 import { ragServices } from "../rag";
 import type { RagOwnerType } from "../rag/types";
@@ -38,6 +40,128 @@ const WORLD_TEXT_FIELDS = [
   "factions",
 ] as const;
 type WorldTextField = (typeof WORLD_TEXT_FIELDS)[number];
+
+const WORLD_TEXT_FIELD_SET = new Set<WorldTextField>(WORLD_TEXT_FIELDS);
+
+const DEEPENING_LAYER_PRIMARY_FIELD: Record<WorldLayerKey, WorldTextField> = {
+  foundation: "background",
+  power: "magicSystem",
+  society: "politics",
+  culture: "cultures",
+  history: "history",
+  conflict: "conflicts",
+};
+
+const DEEPENING_TARGET_LAYER_ALIASES: Record<string, WorldLayerKey> = {
+  foundation: "foundation",
+  "基础": "foundation",
+  "基础层": "foundation",
+  "世界基础": "foundation",
+  power: "power",
+  "力量": "power",
+  "力量层": "power",
+  "能力体系": "power",
+  society: "society",
+  "社会": "society",
+  "社会层": "society",
+  "政治": "society",
+  culture: "culture",
+  "文化": "culture",
+  "文化层": "culture",
+  history: "history",
+  "历史": "history",
+  "历史层": "history",
+  conflict: "conflict",
+  "冲突": "conflict",
+  "冲突层": "conflict",
+};
+
+const DEEPENING_TARGET_FIELD_ALIASES: Record<string, WorldTextField> = {
+  description: "description",
+  summary: "description",
+  overview: "description",
+  "世界概述": "description",
+  "世界总览": "description",
+  "概述": "description",
+  "设定概述": "description",
+  background: "background",
+  "背景": "background",
+  "基础背景": "background",
+  "世界背景": "background",
+  "故事背景": "background",
+  "时代背景": "background",
+  "起始背景": "background",
+  "开局背景": "background",
+  "角色定位": "background",
+  "人物定位": "background",
+  "身份定位": "background",
+  "主角身份": "background",
+  "时间地点": "background",
+  "时间与地点": "background",
+  "起始时间地点": "background",
+  geography: "geography",
+  location: "geography",
+  "地理": "geography",
+  "地理环境": "geography",
+  "地理格局": "geography",
+  "地图": "geography",
+  "区域": "geography",
+  "场景地点": "geography",
+  cultures: "cultures",
+  culture: "cultures",
+  "文化": "cultures",
+  "文化习俗": "cultures",
+  "风俗": "cultures",
+  "习俗": "cultures",
+  "社会风貌": "cultures",
+  magicsystem: "magicSystem",
+  powersystem: "magicSystem",
+  power: "magicSystem",
+  "力量体系": "magicSystem",
+  "能力体系": "magicSystem",
+  "超凡体系": "magicSystem",
+  politics: "politics",
+  "政治": "politics",
+  "政治结构": "politics",
+  "社会结构": "politics",
+  "权力结构": "politics",
+  "阵营关系": "politics",
+  "势力格局": "politics",
+  races: "races",
+  race: "races",
+  "种族": "races",
+  "族群": "races",
+  religions: "religions",
+  religion: "religions",
+  "宗教": "religions",
+  "信仰": "religions",
+  technology: "technology",
+  tech: "technology",
+  "科技": "technology",
+  "技术体系": "technology",
+  conflicts: "conflicts",
+  conflict: "conflicts",
+  "冲突": "conflicts",
+  "核心冲突": "conflicts",
+  "首要冲突": "conflicts",
+  "当前冲突": "conflicts",
+  history: "history",
+  "历史": "history",
+  "历史事件": "history",
+  "关键历史": "history",
+  economy: "economy",
+  "经济": "economy",
+  "经济系统": "economy",
+  "资源流通": "economy",
+  factions: "factions",
+  faction: "factions",
+  organization: "factions",
+  organizations: "factions",
+  "势力": "factions",
+  "势力关系": "factions",
+  "组织势力": "factions",
+  "主要势力": "factions",
+};
 
 type LayerStateMap = Record<
   WorldLayerKey,
@@ -509,6 +633,75 @@ function normalizeGeneratedLayerFieldValue(raw: unknown): string {
     return JSON.stringify(raw, null, 2);
   }
   return "";
+}
+
+function normalizeAliasKey(raw: string): string {
+  return raw.trim().toLowerCase().replace(/[\s_\-:/\\|（）()【】\[\]·、，,。.!?？：:]/g, "");
+}
+
+function normalizeDeepeningTargetLayer(raw: unknown): WorldLayerKey | null {
+  if (typeof raw !== "string") {
+    return null;
+  }
+  const normalized = normalizeAliasKey(raw);
+  return DEEPENING_TARGET_LAYER_ALIASES[normalized] ?? null;
+}
+
+function normalizeDeepeningTargetField(
+  raw: unknown,
+  targetLayer?: WorldLayerKey | null,
+  questionText?: string | null,
+): WorldTextField | null {
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (WORLD_TEXT_FIELD_SET.has(trimmed as WorldTextField)) {
+      return trimmed as WorldTextField;
+    }
+    const alias = DEEPENING_TARGET_FIELD_ALIASES[normalizeAliasKey(trimmed)];
+    if (alias) {
+      return alias;
+    }
+  }
+
+  const question = questionText?.trim() ?? "";
+  if (question) {
+    const questionField = DEEPENING_TARGET_FIELD_ALIASES[normalizeAliasKey(question)];
+    if (questionField) {
+      return questionField;
+    }
+    if (/冲突|敌对|威胁|危机/i.test(question)) {
+      return "conflicts";
+    }
+    if (/时间|历史|起源|前史|事件/i.test(question)) {
+      return targetLayer === "foundation" ? "background" : "history";
+    }
+    if (/地点|地理|区域|地图|场景/i.test(question)) {
+      return "geography";
+    }
+    if (/势力|阵营|权力|统治|政治/i.test(question)) {
+      return "politics";
+    }
+    if (/力量|能力|超凡|魔法|技术/i.test(question)) {
+      return /技术/i.test(question) ? "technology" : "magicSystem";
+    }
+    if (/文化|习俗|信仰|宗教/i.test(question)) {
+      return /宗教|信仰/i.test(question) ? "religions" : "cultures";
+    }
+    if (/种族|族群/i.test(question)) {
+      return "races";
+    }
+    if (/经济|资源|贸易/i.test(question)) {
+      return "economy";
+    }
+    if (/角色|人物|身份|主角/i.test(question)) {
+      return "background";
+    }
+  }
+
+  if (targetLayer) {
+    return DEEPENING_LAYER_PRIMARY_FIELD[targetLayer];
+  }
+  return null;
 }
 
 export class WorldService {
@@ -1000,15 +1193,20 @@ ragContext=${ragContext || "none"}`,
     const normalized = parsed
       .filter((item) => item.question?.trim())
       .slice(0, 3)
-      .map((item) => ({
-        worldId,
-        priority: item.priority ?? "recommended",
-        question: item.question!.trim(),
-        quickOptions: normalizeQuickOptionList(item.quickOptions),
-        targetLayer: item.targetLayer ?? null,
-        targetField: item.targetField ?? null,
-        status: "pending",
-      }));
+      .map((item) => {
+        const question = item.question!.trim();
+        const targetLayer = normalizeDeepeningTargetLayer(item.targetLayer);
+        const targetField = normalizeDeepeningTargetField(item.targetField, targetLayer, question);
+        return {
+          worldId,
+          priority: item.priority ?? "recommended",
+          question,
+          quickOptions: normalizeQuickOptionList(item.quickOptions),
+          targetLayer,
+          targetField,
+          status: "pending" as const,
+        };
+      });
 
     const deduped = Array.from(
       new Map(normalized.map((item) => [item.question, item])).values(),
@@ -1099,7 +1297,8 @@ ragContext=${ragContext || "none"}`,
         continue;
       }
       const merged = `Q: ${question.question}\nA: ${answer.answer.trim()}`;
-      const field = question.targetField as WorldTextField | null;
+      const targetLayer = normalizeDeepeningTargetLayer(question.targetLayer);
+      const field = normalizeDeepeningTargetField(question.targetField, targetLayer, question.question);
       if (!field) {
         continue;
       }
@@ -1114,9 +1313,13 @@ ragContext=${ragContext || "none"}`,
         if (!question) {
           continue;
         }
+        const targetLayer = normalizeDeepeningTargetLayer(question.targetLayer);
+        const targetField = normalizeDeepeningTargetField(question.targetField, targetLayer, question.question);
         await tx.worldDeepeningQA.update({
           where: { id: question.id },
           data: {
+            targetLayer,
+            targetField,
             answer: answer.answer.trim(),
             integratedSummary: `Q: ${question.question}\nA: ${answer.answer.trim()}`,
             status: "integrated",
@@ -1124,7 +1327,7 @@ ragContext=${ragContext || "none"}`,
         });
       }
       if (appendMap.size > 0) {
-        const updateData: Record<string, string> = {};
+        const updateData: Partial<Record<WorldTextField, string>> = {};
         for (const [field, segments] of appendMap.entries()) {
           const existing = world[field] ?? "";
           updateData[field] = `${existing}\n\n${segments.join("\n\n")}`.trim();
@@ -1229,14 +1432,18 @@ ragContext=${ragContext || "none"}`,
       }
       const result = await llm.invoke([
         new SystemMessage(
-          `Output JSON array of consistency issues.
-Each item: {"severity":"warn|error","code":"...","message":"...","detail":"...","targetField":"..."}
-If none, output [] only.`,
+          `你是世界观一致性审校器。请只输出 JSON 数组。
+每项结构：
+{"severity":"warn|error","code":"...","message":"中文问题概述","detail":"中文详细说明","targetField":"description|background|geography|cultures|magicSystem|politics|races|religions|technology|conflicts|history|economy|factions"}
+要求：
+1. message 和 detail 必须使用简体中文。
+2. 只指出真正的冲突或明显风险，不要泛泛而谈。
+3. 如果没有问题，只输出 []。`,
         ),
         new HumanMessage(
-          `name=${world.name}
-axioms=${world.axioms ?? "none"}
-payload=${JSON.stringify({
+          `世界名：${world.name}
+世界公理：${world.axioms ?? "无"}
+核心设定：${JSON.stringify({
             background: world.background,
             geography: world.geography,
             cultures: world.cultures,
@@ -1248,8 +1455,9 @@ payload=${JSON.stringify({
             conflicts: world.conflicts,
             history: world.history,
             economy: world.economy,
+            factions: world.factions,
           })}
-ragContext=${ragContext || "none"}`,
+检索补充：${ragContext || "无"}`,
         ),
       ]);
       const llmIssues = safeParseJSON<
@@ -1259,31 +1467,33 @@ ragContext=${ragContext || "none"}`,
         if (!issue.message?.trim()) {
           continue;
         }
-        issues.push({
+        issues.push(localizeConsistencyIssue({
           severity: issue.severity ?? "warn",
           code: issue.code ?? "LLM_REVIEW",
           message: issue.message.trim(),
           detail: issue.detail,
           source: "llm",
           targetField: issue.targetField,
-        });
+        }));
       }
     } catch {
       // keep rule-only result
     }
 
-    const errorCount = issues.filter((item) => item.severity === "error").length;
-    const warnCount = issues.filter((item) => item.severity === "warn").length;
+    const localizedIssues = issues.map((item) => localizeConsistencyIssue(item));
+    const dedupedIssues = Array.from(
+      new Map(localizedIssues.map((item) => [`${item.code}|${item.targetField ?? ""}|${item.message}`, item])).values(),
+    );
+    const errorCount = dedupedIssues.filter((item) => item.severity === "error").length;
+    const warnCount = dedupedIssues.filter((item) => item.severity === "warn").length;
     const score = Math.max(0, 100 - errorCount * 30 - warnCount * 12);
     const status: "pass" | "warn" | "error" = errorCount > 0 ? "error" : warnCount > 0 ? "warn" : "pass";
-    const summary = status === "pass"
-      ? "Consistency check passed."
-      : `Found ${errorCount} errors and ${warnCount} warnings.`;
+    const summary = buildConsistencySummary(status, errorCount, warnCount);
 
     await prisma.$transaction(async (tx) => {
       await tx.worldConsistencyIssue.deleteMany({ where: { worldId } });
       await tx.worldConsistencyIssue.createMany({
-        data: issues.map((item) => ({
+        data: dedupedIssues.map((item) => ({
           worldId,
           severity: item.severity,
           code: item.code,
@@ -1316,10 +1526,19 @@ ragContext=${ragContext || "none"}`,
       orderBy: [{ status: "asc" }, { severity: "desc" }, { createdAt: "desc" }],
     });
     const normalizedIssues: WorldConsistencyReport["issues"] = persisted.map((item) => ({
-      ...item,
+      ...localizeConsistencyIssue({
+        severity: item.severity as "pass" | "warn" | "error",
+        code: item.code,
+        message: item.message,
+        detail: item.detail ?? undefined,
+        source: item.source as "rule" | "llm",
+        targetField: item.targetField ?? undefined,
+      }),
+      id: item.id,
+      worldId: item.worldId,
+      status: item.status as "open" | "resolved" | "ignored",
       severity: item.severity as "pass" | "warn" | "error",
       source: item.source as "rule" | "llm",
-      status: item.status as "open" | "resolved" | "ignored",
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
     }));
@@ -1385,51 +1604,7 @@ ragContext=${ragContext || "none"}`,
     if (!world) {
       throw new Error("World not found.");
     }
-
-    const factionSeeds = parseListFromText(
-      `${world.factions ?? ""}\n${world.politics ?? ""}\n${world.races ?? ""}`,
-      ["Core State", "Regional Power", "Border Group"],
-    ).slice(0, 12);
-    const factionNodes = factionSeeds.map((label, index) => ({
-      id: `faction-${index + 1}`,
-      label,
-      type: /(state|kingdom|empire|republic|federation)/i.test(label) ? "state" : "faction",
-    }));
-    const factionEdges = factionNodes.slice(1).map((node, index) => ({
-      source: factionNodes[index]?.id ?? factionNodes[0].id,
-      target: node.id,
-      relation: "interaction",
-    }));
-
-    const powerTree = parseListFromText(
-      world.magicSystem ?? world.technology ?? "",
-      ["Tier 1", "Tier 2", "Tier 3", "Tier 4"],
-    ).map((description, index) => ({
-      level: `L${index + 1}`,
-      description,
-    }));
-
-    const geoSeeds = parseListFromText(world.geography ?? "", ["Central Zone", "Borderland", "Unknown Zone"]).slice(0, 10);
-    const geoNodes = geoSeeds.map((label, index) => ({ id: `geo-${index + 1}`, label }));
-    const geoEdges = geoNodes.slice(1).map((node, index) => ({
-      source: geoNodes[index]?.id ?? geoNodes[0].id,
-      target: node.id,
-      relation: "adjacent",
-    }));
-
-    const timelineSource = parseListFromText(world.history ?? "", ["Era Start", "Order Rise", "Conflict Breakout", "Current Age"]).slice(0, 12);
-    const timeline = timelineSource.map((event, index) => {
-      const yearMatch = event.match(/\d{3,4}|era\s*\d+/i);
-      return { year: yearMatch?.[0] ?? `stage-${index + 1}`, event };
-    });
-
-    return {
-      worldId,
-      factionGraph: { nodes: factionNodes, edges: factionEdges },
-      powerTree,
-      geographyMap: { nodes: geoNodes, edges: geoEdges },
-      timeline,
-    };
+    return buildWorldVisualizationPayload(world);
   }
 
   async listLibrary(query: { category?: string; worldType?: string; keyword?: string; limit?: number }) {

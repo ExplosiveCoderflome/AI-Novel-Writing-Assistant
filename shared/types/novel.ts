@@ -9,6 +9,9 @@ export type AIFreedom = "low" | "medium" | "high";
 export type ProjectProgressStatus = "not_started" | "in_progress" | "completed" | "rework" | "blocked";
 
 export type StorylineVersionStatus = "draft" | "active" | "frozen";
+export type StoryPlanLevel = "book" | "arc" | "chapter";
+export type AuditType = "continuity" | "character" | "plot";
+export type AuditIssueStatus = "open" | "resolved" | "ignored";
 
 export type ChapterStatus =
   | "unplanned"
@@ -180,6 +183,73 @@ export interface ReviewIssue {
   fixSuggestion: string;
 }
 
+export interface CharacterState {
+  id: string;
+  snapshotId: string;
+  characterId: string;
+  currentGoal?: string | null;
+  emotion?: string | null;
+  stressLevel?: number | null;
+  secretExposure?: string | null;
+  knownFactsJson?: string | null;
+  misbeliefsJson?: string | null;
+  summary?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RelationState {
+  id: string;
+  snapshotId: string;
+  sourceCharacterId: string;
+  targetCharacterId: string;
+  trustScore?: number | null;
+  intimacyScore?: number | null;
+  conflictScore?: number | null;
+  dependencyScore?: number | null;
+  summary?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InformationState {
+  id: string;
+  snapshotId: string;
+  holderType: string;
+  holderRefId?: string | null;
+  fact: string;
+  status: string;
+  summary?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ForeshadowState {
+  id: string;
+  snapshotId: string;
+  title: string;
+  summary?: string | null;
+  status: string;
+  setupChapterId?: string | null;
+  payoffChapterId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoryStateSnapshot {
+  id: string;
+  novelId: string;
+  sourceChapterId?: string | null;
+  summary?: string | null;
+  rawStateJson?: string | null;
+  characterStates: CharacterState[];
+  relationStates: RelationState[];
+  informationStates: InformationState[];
+  foreshadowStates: ForeshadowState[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface NovelBible {
   id: string;
   novelId: string;
@@ -316,6 +386,67 @@ export interface NovelSnapshot {
   snapshotData: string;
   triggerType: "manual" | "auto_milestone" | "before_pipeline";
   createdAt: string;
+}
+
+export interface ChapterPlanScene {
+  id: string;
+  planId: string;
+  sortOrder: number;
+  title: string;
+  objective?: string | null;
+  conflict?: string | null;
+  reveal?: string | null;
+  emotionBeat?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoryPlan {
+  id: string;
+  novelId: string;
+  chapterId?: string | null;
+  parentId?: string | null;
+  sourceStateSnapshotId?: string | null;
+  level: StoryPlanLevel;
+  title: string;
+  objective: string;
+  participantsJson?: string | null;
+  revealsJson?: string | null;
+  riskNotesJson?: string | null;
+  hookTarget?: string | null;
+  status: string;
+  externalRef?: string | null;
+  rawPlanJson?: string | null;
+  scenes: ChapterPlanScene[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuditIssue {
+  id: string;
+  reportId: string;
+  auditType: AuditType;
+  severity: "low" | "medium" | "high" | "critical";
+  code: string;
+  description: string;
+  evidence: string;
+  fixSuggestion: string;
+  status: AuditIssueStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuditReport {
+  id: string;
+  novelId: string;
+  chapterId: string;
+  auditType: AuditType;
+  overallScore?: number | null;
+  summary?: string | null;
+  legacyScoreJson?: string | null;
+  issues: AuditIssue[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ModelRouteConfig {

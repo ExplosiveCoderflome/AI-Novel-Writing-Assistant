@@ -1,7 +1,7 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
+import type { AuditReport, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import { prisma } from "../../db/prisma";
 import { agentRuntime } from "../../agents";
@@ -20,6 +20,9 @@ import {
 } from "./structuredOutline";
 import type { RagOwnerType } from "../rag/types";
 import { novelEventBus } from "../../events";
+import { auditService } from "../audit/AuditService";
+import { plannerService } from "../planner/PlannerService";
+import { stateService } from "../state/StateService";
 
 interface PaginationInput {
   page: number;
@@ -167,6 +170,7 @@ interface ReviewOptions extends LLMGenerateOptions {
 
 interface RepairOptions extends LLMGenerateOptions {
   reviewIssues?: ReviewIssue[];
+  auditIssueIds?: string[];
 }
 
 interface HookGenerateOptions extends LLMGenerateOptions {
@@ -555,10 +559,12 @@ export class NovelCoreService {
     buildOpeningConstraintHint: (novelId, chapterOrder) => this.buildOpeningConstraintHint(novelId, chapterOrder),
     enforceOpeningDiversity: (novelId, chapterOrder, chapterTitle, content, options) =>
       this.enforceOpeningDiversity(novelId, chapterOrder, chapterTitle, content, options),
-    reviewChapterContent: (novelTitle, chapterTitle, content, options, novelId) =>
-      this.reviewChapterContent(novelTitle, chapterTitle, content, options, novelId),
+    reviewChapterContent: (novelTitle, chapterTitle, content, options, novelId, chapterId) =>
+      this.reviewChapterWithAudit(novelTitle, chapterTitle, content, options, novelId, chapterId),
     createQualityReport: (novelId, chapterId, score, issues) =>
       this.createQualityReport(novelId, chapterId, score, issues),
+    syncAuditReports: (novelId, chapterId, auditReports) =>
+      this.syncAuditReports(novelId, chapterId, auditReports),
     saveDraftAndArtifacts: async (novelId, chapterId, content, generationState) => {
       await prisma.chapter.update({
         where: { id: chapterId },
@@ -1568,6 +1574,8 @@ ${rawContent}`,
       throw new Error("Novel or chapter not found.");
     }
     await this.ensureNovelCharacters(novelId, "generate chapter content");
+    const chapterPlan = await plannerService.ensureChapterPlan(novelId, chapterId, options);
+    const chapterPlanText = await plannerService.buildPlanPromptBlock(novelId, chapterId);
     const charactersText = novel.characters.length > 0
       ? novel.characters
           .map((c) => `- ${c.name} (${c.role})${c.personality ? `: ${c.personality.slice(0, 100)}` : ""}`)
@@ -1590,7 +1598,7 @@ ${rawContent}`,
         title: chapter.title,
         order: chapter.order,
         content: chapter.content,
-        expectation: chapter.expectation,
+        expectation: [chapter.expectation?.trim(), chapterPlanText || chapterPlan?.objective].filter(Boolean).join("\n\n"),
       },
       characterLines: charactersText,
       options,
@@ -1927,15 +1935,26 @@ ${worldContext}${referenceBlock}`,
     if (!chapter) {
       throw new Error("章节不存在");
     }
-    const review = await this.reviewChapterContent(
+    const review = await this.reviewChapterWithAudit(
       chapter.novel.title,
       chapter.title,
       options.content ?? chapter.content ?? "",
       options,
       novelId,
+      chapterId,
     );
     await prisma.chapter.update({ where: { id: chapterId }, data: { generationState: "reviewed" } });
     await this.createQualityReport(novelId, chapterId, review.score, review.issues);
+    if ((review.auditReports?.length ?? 0) > 0 && plannerService.shouldTriggerReplanFromAudit(review.auditReports ?? [])) {
+      await plannerService.replan(novelId, {
+        chapterId,
+        triggerType: "audit_failure",
+        reason: "High-severity audit issues require plan rebuild.",
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature,
+      }).catch(() => null);
+    }
     return review;
   }
 
@@ -1948,7 +1967,22 @@ ${worldContext}${referenceBlock}`,
     if (!novel || !chapter) {
       throw new Error("小说或章节不存在");
     }
-    const issues = options.reviewIssues ?? (await this.reviewChapter(novelId, chapterId, options)).issues;    const llm = await getLLM(options.provider ?? "deepseek", {
+    const fallbackReview = options.reviewIssues ? null : await this.reviewChapter(novelId, chapterId, options);
+    const auditIssues = options.auditIssueIds?.length
+      ? await prisma.auditIssue.findMany({
+          where: { id: { in: options.auditIssueIds } },
+          orderBy: { createdAt: "asc" },
+        })
+      : [];
+    const issues = options.reviewIssues
+      ?? fallbackReview?.issues
+      ?? auditIssues.map((item) => ({
+        severity: item.severity as ReviewIssue["severity"],
+        category: item.auditType === "continuity" ? "coherence" : item.auditType === "character" ? "logic" : "pacing",
+        evidence: item.evidence,
+        fixSuggestion: item.fixSuggestion,
+      }));
+    const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.5,
     });
@@ -1991,9 +2025,63 @@ ${ragContext || ""}
         const review = await this.reviewChapter(novelId, chapterId, { ...options, content: fullContent });
         if (isPass(review.score)) {
           await prisma.chapter.update({ where: { id: chapterId }, data: { generationState: "approved" } });
+          if (options.auditIssueIds?.length) {
+            await auditService.resolveIssues(novelId, options.auditIssueIds).catch(() => null);
+          }
         }
       },
     };
+  }
+
+  async getNovelState(novelId: string) {
+    return stateService.getNovelState(novelId);
+  }
+
+  async getLatestStateSnapshot(novelId: string) {
+    return stateService.getLatestSnapshot(novelId);
+  }
+
+  async getChapterStateSnapshot(novelId: string, chapterId: string) {
+    return stateService.getChapterSnapshot(novelId, chapterId);
+  }
+
+  async rebuildNovelState(novelId: string, options: LLMGenerateOptions = {}) {
+    return stateService.rebuildState(novelId, options);
+  }
+
+  async generateBookPlan(novelId: string, options: LLMGenerateOptions = {}) {
+    return plannerService.generateBookPlan(novelId, options);
+  }
+
+  async generateArcPlan(novelId: string, arcId: string, options: LLMGenerateOptions = {}) {
+    return plannerService.generateArcPlan(novelId, arcId, options);
+  }
+
+  async generateChapterPlan(novelId: string, chapterId: string, options: LLMGenerateOptions = {}) {
+    return plannerService.generateChapterPlan(novelId, chapterId, options);
+  }
+
+  async getChapterPlan(novelId: string, chapterId: string) {
+    return plannerService.getChapterPlan(novelId, chapterId);
+  }
+
+  async replanNovel(
+    novelId: string,
+    input: { chapterId?: string; triggerType?: string; reason: string } & LLMGenerateOptions,
+  ) {
+    return plannerService.replan(novelId, input);
+  }
+
+  async auditChapter(novelId: string, chapterId: string, scope: "full" | "continuity" | "character" | "plot", options: ReviewOptions = {}) {
+    return auditService.auditChapter(novelId, chapterId, scope, options);
+  }
+
+  async listChapterAuditReports(novelId: string, chapterId: string) {
+    return auditService.listChapterAuditReports(novelId, chapterId);
+  }
+
+  async resolveAuditIssues(novelId: string, issueIds: string[]) {
+    return auditService.resolveIssues(novelId, issueIds);
   }
 
   async getQualityReport(novelId: string) {
@@ -2126,7 +2214,7 @@ ${axiomsText}
   }
 
   private async buildContextText(novelId: string, chapterOrder: number): Promise<string> {
-    const [bible, summaries, facts, novel, styleReference, characters, recentChapters, decisions] = await Promise.all([
+    const [bible, summaries, facts, novel, styleReference, characters, recentChapters, decisions, stateContextBlock, chapterRow] = await Promise.all([
       prisma.novelBible.findUnique({ where: { novelId } }),
       prisma.chapterSummary.findMany({
         where: {
@@ -2165,6 +2253,11 @@ ${axiomsText}
         },
         orderBy: [{ importance: "asc" }, { createdAt: "desc" }],
         take: 20,
+      }),
+      stateService.buildStateContextBlock(novelId, chapterOrder),
+      prisma.chapter.findFirst({
+        where: { novelId, order: chapterOrder },
+        select: { id: true },
       }),
     ]);
 
@@ -2236,6 +2329,8 @@ ${axiomsText}
       factText,
       recentChapterContentText,
       ragText ? `语义检索补充：\n${ragText}` : "",
+      stateContextBlock,
+      chapterRow?.id ? await plannerService.buildPlanPromptBlock(novelId, chapterRow.id) : "",
       styleBlock,
       decisionsBlock,
     ]
@@ -2399,6 +2494,7 @@ Rewrite full chapter. Keep the same core events but change the opening style sig
       }
     });
     await this.syncCharacterTimelineForChapter(novelId, chapterId, content);
+    await stateService.syncChapterState(novelId, chapterId, content).catch(() => null);
     this.queueRagUpsert("chapter", chapterId);
     this.queueRagUpsert("chapter_summary", chapterId);
     this.queueRagUpsert("novel", novelId);
@@ -2560,6 +2656,74 @@ ${ragContext || ""}`,
     });
   }
 
+  private async reviewChapterWithAudit(
+    novelTitle: string,
+    chapterTitle: string,
+    content: string,
+    options: ReviewOptions = {},
+    novelId?: string,
+    chapterId?: string,
+  ): Promise<{ score: QualityScore; issues: ReviewIssue[]; auditReports?: AuditReport[] }> {
+    if (!content.trim()) {
+      return {
+        score: normalizeScore({}),
+        issues: [{
+          severity: "critical",
+          category: "coherence",
+          evidence: "章节内容为空",
+          fixSuggestion: "先生成或补全正文，再进行审校",
+        }],
+        auditReports: [],
+      };
+    }
+    if (novelId && chapterId) {
+      return auditService.auditChapter(novelId, chapterId, "full", {
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature,
+        content,
+      });
+    }
+    return this.reviewChapterContent(novelTitle, chapterTitle, content, options, novelId);
+  }
+
+  private async syncAuditReports(novelId: string, chapterId: string, auditReports: AuditReport[]) {
+    await prisma.$transaction(async (tx) => {
+      await tx.auditReport.deleteMany({
+        where: {
+          novelId,
+          chapterId,
+          auditType: {
+            in: auditReports.map((item) => item.auditType),
+          },
+        },
+      });
+      for (const report of auditReports) {
+        await tx.auditReport.create({
+          data: {
+            novelId,
+            chapterId,
+            auditType: report.auditType,
+            overallScore: report.overallScore ?? null,
+            summary: report.summary ?? null,
+            legacyScoreJson: null,
+            issues: {
+              create: report.issues.map((issue) => ({
+                auditType: report.auditType,
+                severity: issue.severity,
+                code: issue.code,
+                description: issue.description,
+                evidence: issue.evidence,
+                fixSuggestion: issue.fixSuggestion,
+                status: issue.status,
+              })),
+            },
+          },
+        });
+      }
+    });
+  }
+
   private parsePipelinePayload(payload: string | null | undefined): PipelinePayload {
     if (!payload?.trim()) {
       return {};
@@ -2689,6 +2853,10 @@ ${ragContext || ""}`,
           hasDraft: Boolean(content.trim()),
         });
 
+        const chapterPlanText = await plannerService
+          .ensureChapterPlan(novelId, chapter.id, options)
+          .then(() => plannerService.buildPlanPromptBlock(novelId, chapter.id))
+          .catch(() => "");
         const chapterResult = await this.chapterWritingGraph.runPipelineChapter({
           jobId,
           novelId,
@@ -2698,7 +2866,7 @@ ${ragContext || ""}`,
             title: chapter.title,
             order: chapter.order,
             content,
-            expectation: chapter.expectation,
+            expectation: [chapter.expectation?.trim(), chapterPlanText].filter(Boolean).join("\n\n"),
           },
           options: {
             ...options,

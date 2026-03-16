@@ -104,6 +104,7 @@ export interface WorldConsistencyReport {
   score: number;
   summary: string;
   status: "pass" | "warn" | "error";
+  generatedAt?: string;
   issues: WorldConsistencyIssue[];
 }
 

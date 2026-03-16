@@ -1,6 +1,9 @@
 import type {
   BaseCharacter,
+  AuditReport,
   Chapter,
+  StoryPlan,
+  StoryStateSnapshot,
   Character,
   CharacterTimeline,
   NovelBible,
@@ -186,6 +189,9 @@ export interface ChapterTabViewProps {
   onSummarizeChapter: () => void;
   onGenerateTaskSheet: () => void;
   onGenerateSceneCards: () => void;
+  onGenerateChapterPlan: () => void;
+  onReplanChapter: () => void;
+  onRunFullAudit: () => void;
   onCheckContinuity: () => void;
   onCheckCharacterConsistency: () => void;
   onCheckPacing: () => void;
@@ -200,7 +206,14 @@ export interface ChapterTabViewProps {
   reviewResult: {
     score: QualityScore;
     issues: ReviewIssue[];
+    auditReports?: AuditReport[];
   } | null;
+  chapterPlan?: StoryPlan | null;
+  latestStateSnapshot?: StoryStateSnapshot | null;
+  chapterAuditReports: AuditReport[];
+  isGeneratingChapterPlan: boolean;
+  isReplanningChapter: boolean;
+  isRunningFullAudit: boolean;
   chapterQualityReport?: {
     coherence: number;
     repetition: number;

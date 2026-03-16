@@ -614,6 +614,30 @@ test("normalizeIntentPayload maps current novel character count style AI intents
   assert.deepEqual(normalized.chapterSelectors, {});
 });
 
+test("normalizeIntentPayload maps generic current novel overview requests to production status query", () => {
+  const normalized = normalizeIntentPayload({
+    intent: "general_chat",
+    confidence: 0.62,
+    interactionMode: "review",
+    assistantResponse: "ask_followup",
+    shouldAskFollowup: true,
+    missingInfo: ["specific aspect to view, such as progress, chapters, or production status"],
+    chapterSelectors: {},
+  }, {
+    goal: "查看一下这本小说",
+    messages: [],
+    contextMode: "novel",
+    novelId: "novel-1",
+  });
+
+  assert.equal(normalized.intent, "query_novel_production_status");
+  assert.equal(normalized.requiresNovelContext, true);
+  assert.equal(normalized.interactionMode, "query");
+  assert.equal(normalized.assistantResponse, "execute");
+  assert.equal(normalized.shouldAskFollowup, false);
+  assert.deepEqual(normalized.missingInfo, []);
+});
+
 test("summarizeIntentValidationFailure returns readable intent validation details", () => {
   const message = summarizeIntentValidationFailure(
     {

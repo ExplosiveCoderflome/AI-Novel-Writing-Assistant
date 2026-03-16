@@ -35,6 +35,16 @@ import { useLLMStore } from "@/store/llmStore";
 import { useSSE } from "@/hooks/useSSE";
 import { featureFlags } from "@/config/featureFlags";
 import WorldVisualizationBoard from "./components/WorldVisualizationBoard";
+import {
+  localizeConsistencyField,
+  localizeConsistencyIssueDetail,
+  localizeConsistencyIssueMessage,
+  localizeConsistencyIssueTitle,
+  localizeConsistencySeverity,
+  localizeConsistencySource,
+  localizeConsistencyStatus,
+  parseConsistencyReport,
+} from "./worldConsistencyUi";
 
 const LAYERS: Array<{
   key: "foundation" | "power" | "society" | "culture" | "history" | "conflict";
@@ -212,6 +222,11 @@ export default function WorldWorkspace() {
   });
 
   const world = worldDetailQuery.data?.data;
+  const consistencyIssues = useMemo(() => world?.consistencyIssues ?? [], [world?.consistencyIssues]);
+  const consistencyReport = useMemo(
+    () => parseConsistencyReport(world?.consistencyReport, consistencyIssues),
+    [consistencyIssues, world?.consistencyReport],
+  );
   const selectedLayerMeta = useMemo(
     () => LAYERS.find((item) => item.key === selectedLayer) ?? LAYERS[0],
     [selectedLayer],
@@ -682,42 +697,68 @@ export default function WorldWorkspace() {
         <TabsContent value="consistency">
           <Card>
             <CardHeader>
-              <CardTitle>Consistency Check</CardTitle>
+              <CardTitle>一致性检查</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <Button onClick={() => consistencyMutation.mutate()} disabled={consistencyMutation.isPending}>
                 {consistencyMutation.isPending ? "检查中..." : "运行一致性检查"}
               </Button>
-              <div className="text-sm text-muted-foreground">
-                {world?.consistencyReport
-                  ? `report: ${world.consistencyReport}`
-                  : "暂无一致性报告"}
-              </div>
-              {(world?.consistencyIssues ?? []).map((issue) => (
+              {consistencyReport ? (
+                <div className="grid gap-3 md:grid-cols-4">
+                  <div className="rounded-md border p-3 text-sm">
+                    <div className="text-xs text-muted-foreground">检查状态</div>
+                    <div className="mt-1 font-semibold">{localizeConsistencyStatus(consistencyReport.status)}</div>
+                  </div>
+                  <div className="rounded-md border p-3 text-sm">
+                    <div className="text-xs text-muted-foreground">一致性分数</div>
+                    <div className="mt-1 font-semibold">{consistencyReport.score}</div>
+                  </div>
+                  <div className="rounded-md border p-3 text-sm md:col-span-2">
+                    <div className="text-xs text-muted-foreground">检查摘要</div>
+                    <div className="mt-1 font-medium">{consistencyReport.summary}</div>
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      生成时间：{consistencyReport.generatedAt ? new Date(consistencyReport.generatedAt).toLocaleString() : "未知"}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground">暂无一致性报告</div>
+              )}
+              {consistencyIssues.map((issue) => (
                 <div key={issue.id} className="rounded-md border p-3 space-y-2">
                   <div className="font-medium">
-                    [{issue.severity}] {issue.code}
+                    [{localizeConsistencySeverity(issue.severity)}] {localizeConsistencyIssueTitle(issue.code)}
                   </div>
-                  <div className="text-sm">{issue.message}</div>
-                  <div className="text-xs text-muted-foreground">{issue.detail ?? "-"}</div>
+                  <div className="text-sm">{localizeConsistencyIssueMessage(issue)}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {localizeConsistencyIssueDetail(issue) ?? "暂无补充说明"}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    来源：{localizeConsistencySource(issue.source)} | 影响字段：{localizeConsistencyField(issue.targetField)} | 当前状态：{localizeConsistencyStatus(issue.status)}
+                  </div>
                   <div className="flex gap-2">
                     <Button
                       size="sm"
                       variant="secondary"
                       onClick={() => patchIssueMutation.mutate({ issueId: issue.id, status: "resolved" })}
                     >
-                      Resolve
+                      标记已解决
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => patchIssueMutation.mutate({ issueId: issue.id, status: "ignored" })}
                     >
-                      Ignore
+                      忽略
                     </Button>
                   </div>
                 </div>
               ))}
+              {consistencyIssues.length === 0 ? (
+                <div className="rounded-md border p-3 text-sm text-muted-foreground">
+                  还没有一致性问题记录，运行检查后会在这里展示结果。
+                </div>
+              ) : null}
             </CardContent>
           </Card>
         </TabsContent>

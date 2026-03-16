@@ -52,6 +52,16 @@ const chapterParamsSchema = z.object({
   chapterId: z.string().trim().min(1),
 });
 
+const arcPlanParamsSchema = z.object({
+  id: z.string().trim().min(1),
+  arcId: z.string().trim().min(1),
+});
+
+const auditIssueParamsSchema = z.object({
+  id: z.string().trim().min(1),
+  issueId: z.string().trim().min(1),
+});
+
 const characterParamsSchema = z.object({
   id: z.string().trim().min(1),
   charId: z.string().trim().min(1),
@@ -258,6 +268,13 @@ const reviewSchema = llmGenerateSchema.extend({
 
 const repairSchema = llmGenerateSchema.extend({
   reviewIssues: z.array(reviewIssueSchema).optional(),
+  auditIssueIds: z.array(z.string().trim().min(1)).optional(),
+});
+
+const replanSchema = llmGenerateSchema.extend({
+  chapterId: z.string().trim().optional(),
+  triggerType: z.string().trim().optional(),
+  reason: z.string().trim().min(1),
 });
 
 const hookGenerateSchema = llmGenerateSchema.extend({
@@ -902,6 +919,160 @@ router.post(
   },
 );
 
+router.get("/:id/state", validate({ params: idParamsSchema }), async (req, res, next) => {
+  try {
+    const { id } = req.params as z.infer<typeof idParamsSchema>;
+    const data = await novelService.getNovelState(id);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Story state loaded.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/:id/state-snapshots/latest", validate({ params: idParamsSchema }), async (req, res, next) => {
+  try {
+    const { id } = req.params as z.infer<typeof idParamsSchema>;
+    const data = await novelService.getLatestStateSnapshot(id);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Latest state snapshot loaded.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get(
+  "/:id/chapters/:chapterId/state-snapshot",
+  validate({ params: chapterParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
+      const data = await novelService.getChapterStateSnapshot(id, chapterId);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Chapter state snapshot loaded.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/state/rebuild",
+  validate({ params: idParamsSchema, body: llmGenerateSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const data = await novelService.rebuildNovelState(id, req.body as z.infer<typeof llmGenerateSchema>);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Story state rebuild completed.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/plans/book/generate",
+  validate({ params: idParamsSchema, body: llmGenerateSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const data = await novelService.generateBookPlan(id, req.body as z.infer<typeof llmGenerateSchema>);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Book plan generated.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/plans/arcs/:arcId/generate",
+  validate({ params: arcPlanParamsSchema, body: llmGenerateSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, arcId } = req.params as z.infer<typeof arcPlanParamsSchema>;
+      const data = await novelService.generateArcPlan(id, arcId, req.body as z.infer<typeof llmGenerateSchema>);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Arc plan generated.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/chapters/:chapterId/plan/generate",
+  validate({ params: chapterParamsSchema, body: llmGenerateSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
+      const data = await novelService.generateChapterPlan(id, chapterId, req.body as z.infer<typeof llmGenerateSchema>);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Chapter plan generated.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.get(
+  "/:id/chapters/:chapterId/plan",
+  validate({ params: chapterParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
+      const data = await novelService.getChapterPlan(id, chapterId);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Chapter plan loaded.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/replan",
+  validate({ params: idParamsSchema, body: replanSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const data = await novelService.replanNovel(id, req.body as z.infer<typeof replanSchema>);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Replan completed.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 router.post(
   "/:id/chapters/:chapterId/review",
   validate({ params: chapterParamsSchema, body: reviewSchema }),
@@ -917,6 +1088,114 @@ router.post(
         success: true,
         data,
         message: "章节审校完成。",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/chapters/:chapterId/audit/continuity",
+  validate({ params: chapterParamsSchema, body: reviewSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
+      const data = await novelService.auditChapter(id, chapterId, "continuity", req.body as z.infer<typeof reviewSchema>);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Continuity audit completed.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/chapters/:chapterId/audit/character",
+  validate({ params: chapterParamsSchema, body: reviewSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
+      const data = await novelService.auditChapter(id, chapterId, "character", req.body as z.infer<typeof reviewSchema>);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Character audit completed.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/chapters/:chapterId/audit/plot",
+  validate({ params: chapterParamsSchema, body: reviewSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
+      const data = await novelService.auditChapter(id, chapterId, "plot", req.body as z.infer<typeof reviewSchema>);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Plot audit completed.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/chapters/:chapterId/audit/full",
+  validate({ params: chapterParamsSchema, body: reviewSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
+      const data = await novelService.auditChapter(id, chapterId, "full", req.body as z.infer<typeof reviewSchema>);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Full audit completed.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.get(
+  "/:id/chapters/:chapterId/audit-reports",
+  validate({ params: chapterParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
+      const data = await novelService.listChapterAuditReports(id, chapterId);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Audit reports loaded.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/audit-issues/:issueId/resolve",
+  validate({ params: auditIssueParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, issueId } = req.params as z.infer<typeof auditIssueParamsSchema>;
+      const data = await novelService.resolveAuditIssues(id, [issueId]);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Audit issue resolved.",
       } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);

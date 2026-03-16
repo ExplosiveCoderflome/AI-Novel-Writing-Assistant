@@ -275,6 +275,20 @@ export function normalizeOrders(values: number[] | undefined): number[] {
   return [...new Set((values ?? []).filter((item) => Number.isFinite(item) && item >= 1))].sort((a, b) => a - b);
 }
 
+function looksLikeCurrentNovelOverviewQuery(goal: string, input: PlannerInput): boolean {
+  if (input.contextMode !== "novel" || !input.novelId) {
+    return false;
+  }
+  const normalized = goal.replace(/\s+/g, "");
+  if (!normalized) {
+    return false;
+  }
+
+  return /(?:查看|看下|看一下|看看|检查一下|检查下|瞧瞧|瞅瞅).*(?:这本小说|当前小说|这本书|这部小说|这书)/u.test(normalized)
+    || /(?:这本小说|当前小说|这本书|这部小说).*(?:怎么样|什么情况|啥情况|状态|进度)/u.test(normalized)
+    || /(?:小说|这本书|当前小说).*(?:总览|概况|整体情况)/u.test(normalized);
+}
+
 export function normalizeIntentPayload(raw: unknown, input: PlannerInput): Record<string, unknown> {
   const payload = raw && typeof raw === "object" && !Array.isArray(raw)
     ? raw as Record<string, unknown>
@@ -428,6 +442,22 @@ export function normalizeIntentPayload(raw: unknown, input: PlannerInput): Recor
     normalized.defaultChapterLength = Math.max(500, Math.min(10000, Math.floor(rawDefaultChapterLength)));
   } else {
     delete normalized.defaultChapterLength;
+  }
+
+  if (
+    looksLikeCurrentNovelOverviewQuery(String(normalized.goal ?? input.goal), input)
+    && (
+      normalized.intent === "general_chat"
+      || normalized.intent === "unknown"
+      || normalized.intent == null
+    )
+  ) {
+    normalized.intent = "query_novel_production_status";
+    normalized.requiresNovelContext = true;
+    normalized.interactionMode = "query";
+    normalized.assistantResponse = "execute";
+    normalized.shouldAskFollowup = false;
+    normalized.missingInfo = [];
   }
 
   return normalized;

@@ -82,7 +82,7 @@ interface UseNovelEditMutationsArgs {
   setCurrentJobId: (value: string) => void;
   setPipelineMessage: (value: string) => void;
   setStructuredMessage: (value: string) => void;
-  setReviewResult: (value: { score: QualityScore; issues: ReviewIssue[] } | null) => void;
+  setReviewResult: (value: { score: QualityScore; issues: ReviewIssue[]; auditReports?: import("@ai-novel/shared/types/novel").AuditReport[] } | null) => void;
   queryClient: QueryClient;
   invalidateNovelDetail: () => Promise<void>;
 }

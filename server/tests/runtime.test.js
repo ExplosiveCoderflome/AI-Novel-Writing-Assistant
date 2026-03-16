@@ -272,6 +272,47 @@ test("composeAssistantMessage summarizes production status query", async () => {
   assert.match(text, /审批通过后启动整本写作/);
 });
 
+test("composeAssistantMessage does not turn novel overview queries into collaborative followups", async () => {
+  const text = await composeAssistantMessage(
+    "查看一下这本小说",
+    "执行摘要",
+    [
+      {
+        tool: "get_novel_production_status",
+        success: true,
+        summary: "已读取整本生产状态。",
+        output: {
+          novelId: "novel-1",
+          title: "妻子的秘密交易",
+          currentStage: "初始化设定中",
+          chapterCount: 0,
+          targetChapterCount: 20,
+          pipelineStatus: null,
+          failureSummary: null,
+          recoveryHint: "先补齐核心设定，再决定是否启动整本生产。",
+        },
+      },
+    ],
+    false,
+    { contextMode: "novel", novelId: "novel-1" },
+    {
+      goal: "查看一下这本小说",
+      intent: "query_novel_production_status",
+      confidence: 0.74,
+      requiresNovelContext: true,
+      interactionMode: "review",
+      assistantResponse: "ask_followup",
+      shouldAskFollowup: true,
+      missingInfo: ["specific aspect to view, such as progress, chapters, or production status"],
+      chapterSelectors: {},
+    },
+  );
+  assert.match(text, /妻子的秘密交易/);
+  assert.match(text, /初始化设定中/);
+  assert.doesNotMatch(text, /这轮更适合先一起诊断和判断/);
+  assert.doesNotMatch(text, /specific aspect to view/);
+});
+
 test("composeAssistantMessage summarizes world unbinding", async () => {
   const text = await composeAssistantMessage(
     "不使用妻孝世界观了",

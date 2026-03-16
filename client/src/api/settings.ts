@@ -39,6 +39,20 @@ export interface ModelRoutesResponse {
   }>;
 }
 
+export interface ModelRouteConnectivityStatus {
+  taskType: ModelRouteTaskType;
+  provider: string;
+  model: string;
+  ok: boolean;
+  latency: number | null;
+  error: string | null;
+}
+
+export interface ModelRouteConnectivityResponse {
+  testedAt: string;
+  statuses: ModelRouteConnectivityStatus[];
+}
+
 export async function getAPIKeySettings() {
   const { data } = await apiClient.get<ApiResponse<APIKeyStatus[]>>("/settings/api-keys");
   return data;
@@ -96,6 +110,11 @@ export async function getLLMProviders() {
 
 export async function getModelRoutes() {
   const { data } = await apiClient.get<ApiResponse<ModelRoutesResponse>>("/llm/model-routes");
+  return data;
+}
+
+export async function testModelRouteConnectivity() {
+  const { data } = await apiClient.post<ApiResponse<ModelRouteConnectivityResponse>>("/llm/model-routes/connectivity");
   return data;
 }
 

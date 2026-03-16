@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { Chapter, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
+import type { AuditReport, Chapter, QualityScore, ReviewIssue, StoryPlan, StoryStateSnapshot } from "@ai-novel/shared/types/novel";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,9 @@ interface ChapterManagementTabProps {
   onSummarizeChapter: () => void;
   onGenerateTaskSheet: () => void;
   onGenerateSceneCards: () => void;
+  onGenerateChapterPlan: () => void;
+  onReplanChapter: () => void;
+  onRunFullAudit: () => void;
   onCheckContinuity: () => void;
   onCheckCharacterConsistency: () => void;
   onCheckPacing: () => void;
@@ -55,7 +58,14 @@ interface ChapterManagementTabProps {
   reviewResult: {
     score: QualityScore;
     issues: ReviewIssue[];
+    auditReports?: AuditReport[];
   } | null;
+  chapterPlan?: StoryPlan | null;
+  latestStateSnapshot?: StoryStateSnapshot | null;
+  chapterAuditReports: AuditReport[];
+  isGeneratingChapterPlan: boolean;
+  isReplanningChapter: boolean;
+  isRunningFullAudit: boolean;
   chapterQualityReport?: {
     coherence: number;
     repetition: number;
@@ -127,6 +137,9 @@ export default function ChapterManagementTab(props: ChapterManagementTabProps) {
     onSummarizeChapter,
     onGenerateTaskSheet,
     onGenerateSceneCards,
+    onGenerateChapterPlan,
+    onReplanChapter,
+    onRunFullAudit,
     onCheckContinuity,
     onCheckCharacterConsistency,
     onCheckPacing,
@@ -139,6 +152,12 @@ export default function ChapterManagementTab(props: ChapterManagementTabProps) {
     isReviewingChapter,
     isRepairingChapter,
     reviewResult,
+    chapterPlan,
+    latestStateSnapshot,
+    chapterAuditReports,
+    isGeneratingChapterPlan,
+    isReplanningChapter,
+    isRunningFullAudit,
     chapterQualityReport,
     repairStreamContent,
     isRepairStreaming,
@@ -150,6 +169,24 @@ export default function ChapterManagementTab(props: ChapterManagementTabProps) {
 
   const [assetTab, setAssetTab] = useState<AssetTabKey>("content");
   const riskFlags = useMemo(() => parseRiskFlags(selectedChapter?.riskFlags), [selectedChapter?.riskFlags]);
+  const openAuditIssues = useMemo(
+    () => chapterAuditReports.flatMap((report) => report.issues.filter((issue) => issue.status === "open").map((issue) => ({
+      ...issue,
+      auditType: report.auditType,
+    }))),
+    [chapterAuditReports],
+  );
+  const planParticipants = useMemo(() => {
+    if (!chapterPlan?.participantsJson) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(chapterPlan.participantsJson) as unknown;
+      return Array.isArray(parsed) ? parsed.map((item) => String(item)).filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  }, [chapterPlan?.participantsJson]);
 
   return (
     <Card>
@@ -163,52 +200,75 @@ export default function ChapterManagementTab(props: ChapterManagementTabProps) {
         <div className="rounded-md border p-2 text-xs">
           <div className="mb-2 font-medium text-muted-foreground">生成策略条</div>
           <div className="grid gap-2 md:grid-cols-6">
-            <select
-              className="rounded-md border bg-background p-1"
-              value={strategy.runMode}
-              onChange={(event) => onStrategyChange("runMode", event.target.value)}
-            >
-              <option value="fast">快速</option>
-              <option value="polish">精修</option>
-            </select>
-            <select
-              className="rounded-md border bg-background p-1"
-              value={strategy.wordSize}
-              onChange={(event) => onStrategyChange("wordSize", event.target.value)}
-            >
-              <option value="short">短</option>
-              <option value="medium">中</option>
-              <option value="long">长</option>
-            </select>
-            <input
-              className="rounded-md border bg-background p-1"
-              type="number"
-              min={0}
-              max={100}
-              value={strategy.conflictLevel}
-              onChange={(event) => onStrategyChange("conflictLevel", Number(event.target.value || 0))}
-            />
-            <select
-              className="rounded-md border bg-background p-1"
-              value={strategy.pace}
-              onChange={(event) => onStrategyChange("pace", event.target.value)}
-            >
-              <option value="slow">慢</option>
-              <option value="balanced">中</option>
-              <option value="fast">快</option>
-            </select>
-            <select
-              className="rounded-md border bg-background p-1"
-              value={strategy.aiFreedom}
-              onChange={(event) => onStrategyChange("aiFreedom", event.target.value)}
-            >
-              <option value="low">低</option>
-              <option value="medium">中</option>
-              <option value="high">高</option>
-            </select>
-            <Button size="sm" onClick={onApplyStrategy} disabled={isApplyingStrategy || !selectedChapter}>
-              {isApplyingStrategy ? "应用中..." : "应用策略"}
-            </Button>
+            <div className="space-y-1">
+              <label htmlFor="chapter-strategy-run-mode" className="text-[11px] font-medium text-muted-foreground">运行模式</label>
+              <select
+                id="chapter-strategy-run-mode"
+                className="w-full rounded-md border bg-background p-1"
+                value={strategy.runMode}
+                onChange={(event) => onStrategyChange("runMode", event.target.value)}
+              >
+                <option value="fast">快速</option>
+                <option value="polish">精修</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="chapter-strategy-word-size" className="text-[11px] font-medium text-muted-foreground">篇幅</label>
+              <select
+                id="chapter-strategy-word-size"
+                className="w-full rounded-md border bg-background p-1"
+                value={strategy.wordSize}
+                onChange={(event) => onStrategyChange("wordSize", event.target.value)}
+              >
+                <option value="short">短</option>
+                <option value="medium">中</option>
+                <option value="long">长</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="chapter-strategy-conflict" className="text-[11px] font-medium text-muted-foreground">冲突强度</label>
+              <input
+                id="chapter-strategy-conflict"
+                className="w-full rounded-md border bg-background p-1"
+                type="number"
+                min={0}
+                max={100}
+                value={strategy.conflictLevel}
+                onChange={(event) => onStrategyChange("conflictLevel", Number(event.target.value || 0))}
+              />
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="chapter-strategy-pace" className="text-[11px] font-medium text-muted-foreground">节奏</label>
+              <select
+                id="chapter-strategy-pace"
+                className="w-full rounded-md border bg-background p-1"
+                value={strategy.pace}
+                onChange={(event) => onStrategyChange("pace", event.target.value)}
+              >
+                <option value="slow">慢</option>
+                <option value="balanced">中</option>
+                <option value="fast">快</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="chapter-strategy-ai-freedom" className="text-[11px] font-medium text-muted-foreground">AI 自由度</label>
+              <select
+                id="chapter-strategy-ai-freedom"
+                className="w-full rounded-md border bg-background p-1"
+                value={strategy.aiFreedom}
+                onChange={(event) => onStrategyChange("aiFreedom", event.target.value)}
+              >
+                <option value="low">低</option>
+                <option value="medium">中</option>
+                <option value="high">高</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <div className="text-[11px] font-medium text-muted-foreground">操作</div>
+              <Button className="w-full" size="sm" onClick={onApplyStrategy} disabled={isApplyingStrategy || !selectedChapter}>
+                {isApplyingStrategy ? "应用中..." : "应用策略"}
+              </Button>
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -280,6 +340,18 @@ export default function ChapterManagementTab(props: ChapterManagementTabProps) {
                   </div>
                 </div>
 
+                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                  <div className="rounded-md border p-2 text-xs">
+                    <div className="font-medium">章节计划</div>
+                    <div className="mt-1 text-muted-foreground">{chapterPlan?.objective ?? "暂无章节计划"}</div>
+                    {planParticipants.length > 0 ? <div className="mt-1 text-muted-foreground">参与角色：{planParticipants.join("、")}</div> : null}
+                  </div>
+                  <div className="rounded-md border p-2 text-xs">
+                    <div className="font-medium">最新状态快照</div>
+                    <div className="mt-1 text-muted-foreground">{latestStateSnapshot?.summary ?? "暂无状态快照"}</div>
+                  </div>
+                </div>
+
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button size="sm" variant={assetTab === "content" ? "default" : "outline"} onClick={() => setAssetTab("content")}>正文</Button>
                   <Button size="sm" variant={assetTab === "taskSheet" ? "default" : "outline"} onClick={() => setAssetTab("taskSheet")}>任务单</Button>
@@ -317,6 +389,14 @@ export default function ChapterManagementTab(props: ChapterManagementTabProps) {
                           <div className="font-medium">最近审校问题</div>
                           {reviewResult.issues.slice(0, 5).map((item, index) => (
                             <div key={`${item.category}-${index}`}>{item.category}: {item.fixSuggestion}</div>
+                          ))}
+                        </div>
+                      ) : null}
+                      {openAuditIssues.length > 0 ? (
+                        <div className="pt-1">
+                          <div className="font-medium">结构化审计问题</div>
+                          {openAuditIssues.slice(0, 6).map((item) => (
+                            <div key={item.id}>{item.auditType}: {item.fixSuggestion}</div>
                           ))}
                         </div>
                       ) : null}
@@ -361,6 +441,12 @@ export default function ChapterManagementTab(props: ChapterManagementTabProps) {
                 <div className="grid grid-cols-2 gap-2">
                   <Button size="sm" variant="outline" onClick={onGenerateTaskSheet} disabled={!selectedChapter}>生成任务单</Button>
                   <Button size="sm" variant="outline" onClick={onGenerateSceneCards} disabled={!selectedChapter}>生成场景拆解</Button>
+                  <Button size="sm" variant="outline" onClick={onGenerateChapterPlan} disabled={!selectedChapter || isGeneratingChapterPlan}>
+                    {isGeneratingChapterPlan ? "规划中..." : "查看章节计划"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={onReplanChapter} disabled={!selectedChapter || isReplanningChapter}>
+                    {isReplanningChapter ? "重规划中..." : "重新规划"}
+                  </Button>
                 </div>
 
                 <div className="pt-1 text-xs text-muted-foreground">质量类</div>
@@ -374,6 +460,9 @@ export default function ChapterManagementTab(props: ChapterManagementTabProps) {
                   <Button size="sm" variant="outline" onClick={onCheckPacing} disabled={!selectedChapter || isReviewingChapter}>检查节奏</Button>
                   <Button size="sm" variant="secondary" onClick={onAutoRepair} disabled={!selectedChapter || isRepairingChapter}>
                     {isRepairingChapter ? "修复中..." : "自动修复问题"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={onRunFullAudit} disabled={!selectedChapter || isRunningFullAudit}>
+                    {isRunningFullAudit ? "审计中..." : "运行完整审计"}
                   </Button>
                 </div>
 

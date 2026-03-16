@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { APIKeyStatus } from "@/api/settings";
-import { getAPIKeySettings, getModelRoutes, saveModelRoute } from "@/api/settings";
+import type { APIKeyStatus, ModelRouteConnectivityStatus } from "@/api/settings";
+import { getAPIKeySettings, getModelRoutes, saveModelRoute, testModelRouteConnectivity } from "@/api/settings";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,8 @@ interface RouteDraft {
   maxTokens: string;
 }
 
+type ConnectivityState = "idle" | "checking" | "healthy" | "failed";
+
 function getProviderConfig(providerConfigs: APIKeyStatus[], provider: string) {
   return providerConfigs.find((item) => item.provider === provider);
 }
@@ -26,6 +28,28 @@ function getModelOptions(providerConfigs: APIKeyStatus[], provider: string, curr
   const config = getProviderConfig(providerConfigs, provider);
   const models = config?.models ?? [];
   return [...new Set([currentModel, ...models].filter(Boolean))];
+}
+
+function formatConnectivityStatus(status?: ModelRouteConnectivityStatus | null): string {
+  if (!status) {
+    return "尚未检测当前生效路由。";
+  }
+  if (status.ok) {
+    return `连接正常：${status.provider} / ${status.model}${status.latency != null ? ` · ${status.latency}ms` : ""}`;
+  }
+  return `连接失败：${status.provider} / ${status.model} · ${status.error ?? "未知错误"}`;
+}
+
+function RouteStatusDot({ state }: { state: ConnectivityState }) {
+  const colorClass = state === "healthy"
+    ? "bg-emerald-500"
+    : state === "failed"
+      ? "bg-red-500"
+      : state === "checking"
+        ? "bg-amber-400"
+        : "bg-slate-300";
+
+  return <span className={`inline-block h-2.5 w-2.5 rounded-full ${colorClass}`} aria-hidden="true" />;
 }
 
 export default function ModelRoutesPage() {
@@ -43,6 +67,13 @@ export default function ModelRoutesPage() {
     queryFn: getModelRoutes,
   });
 
+  const modelRouteConnectivityQuery = useQuery({
+    queryKey: queryKeys.settings.modelRouteConnectivity,
+    queryFn: testModelRouteConnectivity,
+    enabled: modelRoutesQuery.isSuccess,
+    refetchOnWindowFocus: false,
+  });
+
   const saveModelRouteMutation = useMutation({
     mutationFn: (payload: {
       taskType: ModelRouteTaskType;
@@ -53,13 +84,30 @@ export default function ModelRoutesPage() {
     }) => saveModelRoute(payload),
     onSuccess: async () => {
       setActionResult("模型路由已更新。");
-      await queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
+      ]);
     },
   });
 
   const providerConfigs = useMemo(() => apiKeySettingsQuery.data?.data ?? [], [apiKeySettingsQuery.data?.data]);
   const modelRoutes = modelRoutesQuery.data?.data;
+  const modelRouteConnectivity = modelRouteConnectivityQuery.data?.data;
   const routeMap = useMemo(() => new Map((modelRoutes?.routes ?? []).map((item) => [item.taskType, item])), [modelRoutes?.routes]);
+  const connectivityMap = useMemo(
+    () => new Map((modelRouteConnectivity?.statuses ?? []).map((item) => [item.taskType, item])),
+    [modelRouteConnectivity?.statuses],
+  );
+  const connectivitySummary = useMemo(() => {
+    const statuses = modelRouteConnectivity?.statuses ?? [];
+    return {
+      total: statuses.length,
+      healthy: statuses.filter((item) => item.ok).length,
+      failed: statuses.filter((item) => !item.ok).length,
+      testedAt: modelRouteConnectivity?.testedAt ?? "",
+    };
+  }, [modelRouteConnectivity?.statuses, modelRouteConnectivity?.testedAt]);
 
   function getRouteDraft(taskType: ModelRouteTaskType): RouteDraft {
     const existing = routeDrafts[taskType];
@@ -93,13 +141,46 @@ export default function ModelRoutesPage() {
           <CardTitle>模型路由管理台</CardTitle>
           <CardDescription>把不同的写作角色分配给不同模型，避免所有任务共用一套配置。</CardDescription>
         </CardHeader>
-        <CardContent className="flex items-center justify-between gap-3">
-          <div className="text-sm text-muted-foreground">
-            `服务商` 和 `模型` 已改为下拉选择，减少手填错误。温度和最大输出长度仍可按任务单独调节。
+        <CardContent className="flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <div>
+              `服务商` 和 `模型` 已改为下拉选择，减少手填错误。温度和最大输出长度仍可按任务单独调节。
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              <span className="inline-flex items-center gap-2">
+                <RouteStatusDot
+                  state={modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching
+                    ? "checking"
+                    : connectivitySummary.failed > 0
+                      ? "failed"
+                      : connectivitySummary.total > 0
+                        ? "healthy"
+                        : "idle"}
+                />
+                {modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching
+                  ? "正在检测当前生效路由..."
+                  : connectivitySummary.total > 0
+                    ? `已检测 ${connectivitySummary.total} 个 Agent，正常 ${connectivitySummary.healthy}，异常 ${connectivitySummary.failed}`
+                    : "尚未执行模型连通性检测"}
+              </span>
+              {connectivitySummary.testedAt ? (
+                <span>检测时间：{new Date(connectivitySummary.testedAt).toLocaleString()}</span>
+              ) : null}
+              <span>未保存的表单修改不会参与连通性检测。</span>
+            </div>
           </div>
-          <Button asChild variant="outline">
-            <Link to="/settings">返回系统设置</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => void modelRouteConnectivityQuery.refetch()}
+              disabled={modelRouteConnectivityQuery.isFetching || !modelRoutesQuery.isSuccess}
+            >
+              {modelRouteConnectivityQuery.isFetching ? "检测中..." : "重新检测"}
+            </Button>
+            <Button asChild variant="outline">
+              <Link to="/settings">返回系统设置</Link>
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -109,11 +190,33 @@ export default function ModelRoutesPage() {
         const modelOptions = getModelOptions(providerConfigs, draft.provider, draft.model);
         const label = MODEL_ROUTE_LABELS[taskType];
         const providerName = getProviderConfig(providerConfigs, draft.provider)?.name ?? draft.provider;
+        const connectivity = connectivityMap.get(taskType);
+        const connectivityState: ConnectivityState = modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching
+          ? "checking"
+          : connectivity?.ok === true
+            ? "healthy"
+            : connectivity?.ok === false
+              ? "failed"
+              : "idle";
+        const hasUnsavedRouteDiff = connectivity != null
+          && (draft.provider !== connectivity.provider || (draft.model.trim().length > 0 && draft.model !== connectivity.model));
 
         return (
           <Card key={taskType}>
             <CardHeader>
-              <CardTitle>{label.title}</CardTitle>
+              <CardTitle className="flex flex-wrap items-center gap-2">
+                <span>{label.title}</span>
+                <span className="inline-flex items-center gap-2 rounded-full border px-2 py-0.5 text-xs font-normal text-muted-foreground">
+                  <RouteStatusDot state={connectivityState} />
+                  {connectivityState === "healthy"
+                    ? "连接正常"
+                    : connectivityState === "failed"
+                      ? "连接异常"
+                      : connectivityState === "checking"
+                        ? "检测中"
+                        : "未检测"}
+                </span>
+              </CardTitle>
               <CardDescription>
                 {label.description}
                 <span className="ml-2 text-xs">标识：{taskType}</span>
@@ -189,8 +292,15 @@ export default function ModelRoutesPage() {
               </div>
 
               <div className="flex items-center justify-between gap-3">
-                <div className="text-xs text-muted-foreground">
-                  当前服务商：{providerName}。未填写的字段会回退到系统默认路由。
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <div>表单当前选择：{providerName}。未填写的字段会回退到系统默认路由。</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <RouteStatusDot state={connectivityState} />
+                    <span>{formatConnectivityStatus(connectivity)}</span>
+                  </div>
+                  {hasUnsavedRouteDiff ? (
+                    <div>当前检测基于已生效路由；保存后会自动重新检测。</div>
+                  ) : null}
                 </div>
                 <Button
                   size="sm"

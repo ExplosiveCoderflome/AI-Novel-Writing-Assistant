@@ -1,4 +1,5 @@
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -48,6 +49,14 @@ interface BasicInfoTabProps {
   isSaving: boolean;
 }
 
+function FieldLabel({ htmlFor, children }: { htmlFor?: string; children: ReactNode }) {
+  return (
+    <label htmlFor={htmlFor} className="text-sm font-medium text-foreground">
+      {children}
+    </label>
+  );
+}
+
 export default function BasicInfoTab(props: BasicInfoTabProps) {
   const {
     basicForm,
@@ -82,131 +91,187 @@ export default function BasicInfoTab(props: BasicInfoTabProps) {
         <CardTitle>基本信息</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <Input
-          value={basicForm.title}
-          placeholder="小说标题"
-          onChange={(event) => onFormChange({ title: event.target.value })}
-        />
-        <Input
-          value={basicForm.description}
-          placeholder="小说简介"
-          onChange={(event) => onFormChange({ description: event.target.value })}
-        />
-        <select
-          className="w-full rounded-md border bg-background p-2 text-sm"
-          value={basicForm.worldId}
-          onChange={(event) => onFormChange({ worldId: event.target.value })}
-        >
-          <option value="">不绑定世界观</option>
-          {worldOptions.map((world) => (
-            <option key={world.id} value={world.id}>
-              {world.name}
-            </option>
-          ))}
-        </select>
-
-        <div className="grid gap-2 md:grid-cols-2">
-          <select
-            className="w-full rounded-md border bg-background p-2 text-sm"
-            value={basicForm.projectMode}
-            onChange={(event) => onFormChange({ projectMode: event.target.value as BasicInfoTabProps["basicForm"]["projectMode"] })}
-          >
-            <option value="ai_led">AI 接管</option>
-            <option value="co_pilot">AI 副驾</option>
-            <option value="draft_mode">草稿优先</option>
-            <option value="auto_pipeline">流水线优先</option>
-          </select>
-          <select
-            className="w-full rounded-md border bg-background p-2 text-sm"
-            value={basicForm.narrativePov}
-            onChange={(event) => onFormChange({ narrativePov: event.target.value as BasicInfoTabProps["basicForm"]["narrativePov"] })}
-          >
-            <option value="first_person">第一人称</option>
-            <option value="third_person">第三人称</option>
-            <option value="mixed">混合视角</option>
-          </select>
-          <select
-            className="w-full rounded-md border bg-background p-2 text-sm"
-            value={basicForm.pacePreference}
-            onChange={(event) => onFormChange({ pacePreference: event.target.value as BasicInfoTabProps["basicForm"]["pacePreference"] })}
-          >
-            <option value="slow">慢节奏</option>
-            <option value="balanced">均衡</option>
-            <option value="fast">快节奏</option>
-          </select>
-          <select
-            className="w-full rounded-md border bg-background p-2 text-sm"
-            value={basicForm.emotionIntensity}
-            onChange={(event) => onFormChange({ emotionIntensity: event.target.value as BasicInfoTabProps["basicForm"]["emotionIntensity"] })}
-          >
-            <option value="low">低情绪浓度</option>
-            <option value="medium">中情绪浓度</option>
-            <option value="high">高情绪浓度</option>
-          </select>
-          <select
-            className="w-full rounded-md border bg-background p-2 text-sm"
-            value={basicForm.aiFreedom}
-            onChange={(event) => onFormChange({ aiFreedom: event.target.value as BasicInfoTabProps["basicForm"]["aiFreedom"] })}
-          >
-            <option value="low">低自由度</option>
-            <option value="medium">中自由度</option>
-            <option value="high">高自由度</option>
-          </select>
+        <div className="space-y-1">
+          <FieldLabel htmlFor="basic-title">小说标题</FieldLabel>
           <Input
-            type="number"
-            min={500}
-            max={10000}
-            value={basicForm.defaultChapterLength}
-            placeholder="默认章节字数"
-            onChange={(event) => onFormChange({ defaultChapterLength: Number(event.target.value || 0) || 2000 })}
-          />
-          <select
-            className="w-full rounded-md border bg-background p-2 text-sm"
-            value={basicForm.projectStatus}
-            onChange={(event) => onFormChange({ projectStatus: event.target.value as BasicInfoTabProps["basicForm"]["projectStatus"] })}
-          >
-            <option value="not_started">项目未开始</option>
-            <option value="in_progress">项目进行中</option>
-            <option value="completed">项目已完成</option>
-            <option value="rework">项目返工</option>
-            <option value="blocked">项目阻塞</option>
-          </select>
-          <select
-            className="w-full rounded-md border bg-background p-2 text-sm"
-            value={basicForm.storylineStatus}
-            onChange={(event) => onFormChange({ storylineStatus: event.target.value as BasicInfoTabProps["basicForm"]["storylineStatus"] })}
-          >
-            <option value="not_started">主线未开始</option>
-            <option value="in_progress">主线进行中</option>
-            <option value="completed">主线已完成</option>
-            <option value="rework">主线返工</option>
-            <option value="blocked">主线阻塞</option>
-          </select>
-          <select
-            className="w-full rounded-md border bg-background p-2 text-sm"
-            value={basicForm.outlineStatus}
-            onChange={(event) => onFormChange({ outlineStatus: event.target.value as BasicInfoTabProps["basicForm"]["outlineStatus"] })}
-          >
-            <option value="not_started">大纲未开始</option>
-            <option value="in_progress">大纲进行中</option>
-            <option value="completed">大纲已完成</option>
-            <option value="rework">大纲返工</option>
-            <option value="blocked">大纲阻塞</option>
-          </select>
-          <Input
-            type="number"
-            min={0}
-            max={100}
-            value={basicForm.resourceReadyScore}
-            placeholder="资源完备度(0-100)"
-            onChange={(event) => onFormChange({ resourceReadyScore: Math.max(0, Math.min(100, Number(event.target.value || 0))) })}
+            id="basic-title"
+            value={basicForm.title}
+            placeholder="小说标题"
+            onChange={(event) => onFormChange({ title: event.target.value })}
           />
         </div>
-        <Input
-          value={basicForm.styleTone}
-          placeholder="文风关键词（例如：冷峻、克制、黑色幽默）"
-          onChange={(event) => onFormChange({ styleTone: event.target.value })}
-        />
+        <div className="space-y-1">
+          <FieldLabel htmlFor="basic-description">小说简介</FieldLabel>
+          <Input
+            id="basic-description"
+            value={basicForm.description}
+            placeholder="小说简介"
+            onChange={(event) => onFormChange({ description: event.target.value })}
+          />
+        </div>
+        <div className="space-y-1">
+          <FieldLabel htmlFor="basic-world">绑定世界观</FieldLabel>
+          <select
+            id="basic-world"
+            className="w-full rounded-md border bg-background p-2 text-sm"
+            value={basicForm.worldId}
+            onChange={(event) => onFormChange({ worldId: event.target.value })}
+          >
+            <option value="">不绑定世界观</option>
+            {worldOptions.map((world) => (
+              <option key={world.id} value={world.id}>
+                {world.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="grid gap-2 md:grid-cols-2">
+          <div className="space-y-1">
+            <FieldLabel htmlFor="basic-project-mode">项目模式</FieldLabel>
+            <select
+              id="basic-project-mode"
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={basicForm.projectMode}
+              onChange={(event) => onFormChange({ projectMode: event.target.value as BasicInfoTabProps["basicForm"]["projectMode"] })}
+            >
+              <option value="ai_led">AI 接管</option>
+              <option value="co_pilot">AI 副驾</option>
+              <option value="draft_mode">草稿优先</option>
+              <option value="auto_pipeline">流水线优先</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <FieldLabel htmlFor="basic-pov">叙事视角</FieldLabel>
+            <select
+              id="basic-pov"
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={basicForm.narrativePov}
+              onChange={(event) => onFormChange({ narrativePov: event.target.value as BasicInfoTabProps["basicForm"]["narrativePov"] })}
+            >
+              <option value="first_person">第一人称</option>
+              <option value="third_person">第三人称</option>
+              <option value="mixed">混合视角</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <FieldLabel htmlFor="basic-pace">节奏偏好</FieldLabel>
+            <select
+              id="basic-pace"
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={basicForm.pacePreference}
+              onChange={(event) => onFormChange({ pacePreference: event.target.value as BasicInfoTabProps["basicForm"]["pacePreference"] })}
+            >
+              <option value="slow">慢节奏</option>
+              <option value="balanced">均衡</option>
+              <option value="fast">快节奏</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <FieldLabel htmlFor="basic-emotion">情绪浓度</FieldLabel>
+            <select
+              id="basic-emotion"
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={basicForm.emotionIntensity}
+              onChange={(event) => onFormChange({ emotionIntensity: event.target.value as BasicInfoTabProps["basicForm"]["emotionIntensity"] })}
+            >
+              <option value="low">低情绪浓度</option>
+              <option value="medium">中情绪浓度</option>
+              <option value="high">高情绪浓度</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <FieldLabel htmlFor="basic-ai-freedom">AI 自由度</FieldLabel>
+            <select
+              id="basic-ai-freedom"
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={basicForm.aiFreedom}
+              onChange={(event) => onFormChange({ aiFreedom: event.target.value as BasicInfoTabProps["basicForm"]["aiFreedom"] })}
+            >
+              <option value="low">低自由度</option>
+              <option value="medium">中自由度</option>
+              <option value="high">高自由度</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <FieldLabel htmlFor="basic-default-length">默认章节字数</FieldLabel>
+            <Input
+              id="basic-default-length"
+              type="number"
+              min={500}
+              max={10000}
+              value={basicForm.defaultChapterLength}
+              placeholder="默认章节字数"
+              onChange={(event) => onFormChange({ defaultChapterLength: Number(event.target.value || 0) || 2000 })}
+            />
+          </div>
+          <div className="space-y-1">
+            <FieldLabel htmlFor="basic-project-status">项目状态</FieldLabel>
+            <select
+              id="basic-project-status"
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={basicForm.projectStatus}
+              onChange={(event) => onFormChange({ projectStatus: event.target.value as BasicInfoTabProps["basicForm"]["projectStatus"] })}
+            >
+              <option value="not_started">项目未开始</option>
+              <option value="in_progress">项目进行中</option>
+              <option value="completed">项目已完成</option>
+              <option value="rework">项目返工</option>
+              <option value="blocked">项目阻塞</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <FieldLabel htmlFor="basic-storyline-status">主线状态</FieldLabel>
+            <select
+              id="basic-storyline-status"
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={basicForm.storylineStatus}
+              onChange={(event) => onFormChange({ storylineStatus: event.target.value as BasicInfoTabProps["basicForm"]["storylineStatus"] })}
+            >
+              <option value="not_started">主线未开始</option>
+              <option value="in_progress">主线进行中</option>
+              <option value="completed">主线已完成</option>
+              <option value="rework">主线返工</option>
+              <option value="blocked">主线阻塞</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <FieldLabel htmlFor="basic-outline-status">大纲状态</FieldLabel>
+            <select
+              id="basic-outline-status"
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={basicForm.outlineStatus}
+              onChange={(event) => onFormChange({ outlineStatus: event.target.value as BasicInfoTabProps["basicForm"]["outlineStatus"] })}
+            >
+              <option value="not_started">大纲未开始</option>
+              <option value="in_progress">大纲进行中</option>
+              <option value="completed">大纲已完成</option>
+              <option value="rework">大纲返工</option>
+              <option value="blocked">大纲阻塞</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <FieldLabel htmlFor="basic-resource-score">资源完备度</FieldLabel>
+            <Input
+              id="basic-resource-score"
+              type="number"
+              min={0}
+              max={100}
+              value={basicForm.resourceReadyScore}
+              placeholder="资源完备度(0-100)"
+              onChange={(event) => onFormChange({ resourceReadyScore: Math.max(0, Math.min(100, Number(event.target.value || 0))) })}
+            />
+          </div>
+        </div>
+        <div className="space-y-1">
+          <FieldLabel htmlFor="basic-style-tone">文风关键词</FieldLabel>
+          <Input
+            id="basic-style-tone"
+            value={basicForm.styleTone}
+            placeholder="文风关键词（例如：冷峻、克制、黑色幽默）"
+            onChange={(event) => onFormChange({ styleTone: event.target.value })}
+          />
+        </div>
 
         <div className="space-y-2">
           <div className="text-sm font-medium">创作类型</div>
@@ -247,60 +312,72 @@ export default function BasicInfoTab(props: BasicInfoTabProps) {
             </div>
 
             {basicForm.continuationSourceType === "novel" ? (
-              <select
-                className="w-full rounded-md border bg-background p-2 text-sm"
-                value={basicForm.sourceNovelId}
-                onChange={(event) => onFormChange({ sourceNovelId: event.target.value })}
-              >
-                <option value="">请选择前作小说</option>
-                {sourceNovelOptions.map((novel) => (
-                  <option key={novel.id} value={novel.id}>
-                    {novel.title}
-                  </option>
-                ))}
-              </select>
+              <div className="space-y-1">
+                <FieldLabel htmlFor="basic-source-novel">前作小说</FieldLabel>
+                <select
+                  id="basic-source-novel"
+                  className="w-full rounded-md border bg-background p-2 text-sm"
+                  value={basicForm.sourceNovelId}
+                  onChange={(event) => onFormChange({ sourceNovelId: event.target.value })}
+                >
+                  <option value="">请选择前作小说</option>
+                  {sourceNovelOptions.map((novel) => (
+                    <option key={novel.id} value={novel.id}>
+                      {novel.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
             ) : (
-              <select
-                className="w-full rounded-md border bg-background p-2 text-sm"
-                value={basicForm.sourceKnowledgeDocumentId}
-                onChange={(event) => onFormChange({ sourceKnowledgeDocumentId: event.target.value })}
-              >
-                <option value="">请选择知识库小说</option>
-                {sourceKnowledgeOptions.map((doc) => (
-                  <option key={doc.id} value={doc.id}>
-                    {doc.title}
-                  </option>
-                ))}
-              </select>
+              <div className="space-y-1">
+                <FieldLabel htmlFor="basic-source-knowledge">知识库小说</FieldLabel>
+                <select
+                  id="basic-source-knowledge"
+                  className="w-full rounded-md border bg-background p-2 text-sm"
+                  value={basicForm.sourceKnowledgeDocumentId}
+                  onChange={(event) => onFormChange({ sourceKnowledgeDocumentId: event.target.value })}
+                >
+                  <option value="">请选择知识库小说</option>
+                  {sourceKnowledgeOptions.map((doc) => (
+                    <option key={doc.id} value={doc.id}>
+                      {doc.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
 
             {hasSelectedContinuationSource ? (
               <div className="space-y-2 rounded-md border p-3">
                 <div className="text-sm font-medium">续写拆书引用（结构化）</div>
-                <select
-                  className="w-full rounded-md border bg-background p-2 text-sm"
-                  value={basicForm.continuationBookAnalysisId}
-                  onChange={(event) => {
-                    const nextAnalysisId = event.target.value;
-                    onFormChange({
-                      continuationBookAnalysisId: nextAnalysisId,
-                      continuationBookAnalysisSections: nextAnalysisId
-                        ? (
-                          basicForm.continuationBookAnalysisSections.length > 0
-                            ? basicForm.continuationBookAnalysisSections
-                            : availableBookAnalysisSections.map((item) => item.key)
-                        )
-                        : [],
-                    });
-                  }}
-                >
-                  <option value="">不引用拆书</option>
-                  {sourceNovelBookAnalysisOptions.map((analysis) => (
-                    <option key={analysis.id} value={analysis.id}>
-                      {analysis.title} | {analysis.documentTitle} v{analysis.documentVersionNumber}
-                    </option>
-                  ))}
-                </select>
+                <div className="space-y-1">
+                  <FieldLabel htmlFor="basic-book-analysis">拆书结果</FieldLabel>
+                  <select
+                    id="basic-book-analysis"
+                    className="w-full rounded-md border bg-background p-2 text-sm"
+                    value={basicForm.continuationBookAnalysisId}
+                    onChange={(event) => {
+                      const nextAnalysisId = event.target.value;
+                      onFormChange({
+                        continuationBookAnalysisId: nextAnalysisId,
+                        continuationBookAnalysisSections: nextAnalysisId
+                          ? (
+                            basicForm.continuationBookAnalysisSections.length > 0
+                              ? basicForm.continuationBookAnalysisSections
+                              : availableBookAnalysisSections.map((item) => item.key)
+                          )
+                          : [],
+                      });
+                    }}
+                  >
+                    <option value="">不引用拆书</option>
+                    {sourceNovelBookAnalysisOptions.map((analysis) => (
+                      <option key={analysis.id} value={analysis.id}>
+                        {analysis.title} | {analysis.documentTitle} v{analysis.documentVersionNumber}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
                 {isLoadingSourceNovelBookAnalyses ? (
                   <div className="text-xs text-muted-foreground">正在加载当前来源可用拆书...</div>
@@ -364,19 +441,22 @@ export default function BasicInfoTab(props: BasicInfoTabProps) {
           </div>
         ) : null}
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant={basicForm.status === "draft" ? "default" : "secondary"}
-            onClick={() => onFormChange({ status: "draft" })}
-          >
-            草稿
-          </Button>
-          <Button
-            variant={basicForm.status === "published" ? "default" : "secondary"}
-            onClick={() => onFormChange({ status: "published" })}
-          >
-            已发布
-          </Button>
+        <div className="space-y-2">
+          <div className="text-sm font-medium">发布状态</div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={basicForm.status === "draft" ? "default" : "secondary"}
+              onClick={() => onFormChange({ status: "draft" })}
+            >
+              草稿
+            </Button>
+            <Button
+              variant={basicForm.status === "published" ? "default" : "secondary"}
+              onClick={() => onFormChange({ status: "published" })}
+            >
+              已发布
+            </Button>
+          </div>
         </div>
 
         <Button onClick={onSave} disabled={isSaving || continuationSourceMissing || continuationAnalysisSectionMissing}>

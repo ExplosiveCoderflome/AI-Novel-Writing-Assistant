@@ -3,6 +3,8 @@ import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
   AIFreedom,
+  AuditIssue,
+  AuditReport,
   Chapter,
   ChapterSummary,
   ChapterStatus,
@@ -23,6 +25,8 @@ import type {
   ProjectProgressStatus,
   QualityScore,
   ReviewIssue,
+  StoryPlan,
+  StoryStateSnapshot,
   StorylineDiff,
   StorylineVersion,
 } from "@ai-novel/shared/types/novel";
@@ -550,8 +554,125 @@ export async function reviewNovelChapter(
     ApiResponse<{
       score: QualityScore;
       issues: ReviewIssue[];
+      auditReports?: AuditReport[];
     }>
   >(`/novels/${id}/chapters/${chapterId}/review`, payload ?? {});
+  return data;
+}
+
+export async function getNovelState(id: string) {
+  const { data } = await apiClient.get<ApiResponse<StoryStateSnapshot | null>>(`/novels/${id}/state`);
+  return data;
+}
+
+export async function getLatestStateSnapshot(id: string) {
+  const { data } = await apiClient.get<ApiResponse<StoryStateSnapshot | null>>(`/novels/${id}/state-snapshots/latest`);
+  return data;
+}
+
+export async function getChapterStateSnapshot(id: string, chapterId: string) {
+  const { data } = await apiClient.get<ApiResponse<StoryStateSnapshot | null>>(`/novels/${id}/chapters/${chapterId}/state-snapshot`);
+  return data;
+}
+
+export async function rebuildNovelState(
+  id: string,
+  payload?: {
+    provider?: LLMProvider;
+    model?: string;
+    temperature?: number;
+  },
+) {
+  const { data } = await apiClient.post<ApiResponse<StoryStateSnapshot[]>>(`/novels/${id}/state/rebuild`, payload ?? {});
+  return data;
+}
+
+export async function generateBookPlan(
+  id: string,
+  payload?: {
+    provider?: LLMProvider;
+    model?: string;
+    temperature?: number;
+  },
+) {
+  const { data } = await apiClient.post<ApiResponse<StoryPlan>>(`/novels/${id}/plans/book/generate`, payload ?? {});
+  return data;
+}
+
+export async function generateArcPlan(
+  id: string,
+  arcId: string,
+  payload?: {
+    provider?: LLMProvider;
+    model?: string;
+    temperature?: number;
+  },
+) {
+  const { data } = await apiClient.post<ApiResponse<StoryPlan>>(`/novels/${id}/plans/arcs/${arcId}/generate`, payload ?? {});
+  return data;
+}
+
+export async function generateChapterPlan(
+  id: string,
+  chapterId: string,
+  payload?: {
+    provider?: LLMProvider;
+    model?: string;
+    temperature?: number;
+  },
+) {
+  const { data } = await apiClient.post<ApiResponse<StoryPlan>>(`/novels/${id}/chapters/${chapterId}/plan/generate`, payload ?? {});
+  return data;
+}
+
+export async function getChapterPlan(id: string, chapterId: string) {
+  const { data } = await apiClient.get<ApiResponse<StoryPlan | null>>(`/novels/${id}/chapters/${chapterId}/plan`);
+  return data;
+}
+
+export async function replanNovel(
+  id: string,
+  payload: {
+    reason: string;
+    chapterId?: string;
+    triggerType?: string;
+    provider?: LLMProvider;
+    model?: string;
+    temperature?: number;
+  },
+) {
+  const { data } = await apiClient.post<ApiResponse<StoryPlan>>(`/novels/${id}/replan`, payload);
+  return data;
+}
+
+export async function auditNovelChapter(
+  id: string,
+  chapterId: string,
+  scope: "continuity" | "character" | "plot" | "full",
+  payload?: {
+    provider?: LLMProvider;
+    model?: string;
+    temperature?: number;
+    content?: string;
+  },
+) {
+  const { data } = await apiClient.post<
+    ApiResponse<{
+      score: QualityScore;
+      issues: ReviewIssue[];
+      auditReports: AuditReport[];
+    }>
+  >(`/novels/${id}/chapters/${chapterId}/audit/${scope}`, payload ?? {});
+  return data;
+}
+
+export async function getChapterAuditReports(id: string, chapterId: string) {
+  const { data } = await apiClient.get<ApiResponse<AuditReport[]>>(`/novels/${id}/chapters/${chapterId}/audit-reports`);
+  return data;
+}
+
+export async function resolveAuditIssue(id: string, issueId: string) {
+  const { data } = await apiClient.post<ApiResponse<AuditIssue[]>>(`/novels/${id}/audit-issues/${issueId}/resolve`, {});
   return data;
 }
 

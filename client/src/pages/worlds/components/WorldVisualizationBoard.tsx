@@ -19,6 +19,50 @@ type GraphEdge = {
   relation: string;
 };
 
+function wrapLabel(label: string, lineSize = 6, maxLines = 3): string[] {
+  const normalized = label.trim();
+  if (!normalized) {
+    return [];
+  }
+  const chunks: string[] = [];
+  for (let index = 0; index < normalized.length; index += lineSize) {
+    chunks.push(normalized.slice(index, index + lineSize));
+    if (chunks.length >= maxLines) {
+      break;
+    }
+  }
+  if (normalized.length > lineSize * maxLines && chunks.length > 0) {
+    const lastIndex = chunks.length - 1;
+    chunks[lastIndex] = `${chunks[lastIndex].slice(0, Math.max(1, lineSize - 1))}…`;
+  }
+  return chunks;
+}
+
+function getNodeBadgeText(label: string): string {
+  const trimmed = label.trim();
+  if (!trimmed) {
+    return "?";
+  }
+  return trimmed.length <= 2 ? trimmed : trimmed.slice(0, 2);
+}
+
+const FACTION_TYPE_LABELS: Record<string, string> = {
+  all: "all types",
+  state: "state",
+  faction: "faction",
+  race: "race",
+  organization: "organization",
+  other: "other",
+};
+
+const FACTION_TYPE_COLORS: Record<string, string> = {
+  state: "#2563eb",
+  faction: "#16a34a",
+  race: "#ea580c",
+  organization: "#7c3aed",
+  other: "#64748b",
+};
+
 function buildCircularLayout(nodes: GraphNode[], width: number, height: number) {
   const radius = Math.min(width, height) * 0.32;
   const centerX = width / 2;
@@ -107,6 +151,9 @@ function DraggableGraph(props: {
               if (!from || !to) {
                 return null;
               }
+              const labelWidth = Math.max(48, edge.relation.length * 12);
+              const labelX = (from.x + to.x) / 2;
+              const labelY = (from.y + to.y) / 2;
               return (
                 <g key={`${edge.source}-${edge.target}-${edge.relation}`}>
                   <line
@@ -116,13 +163,23 @@ function DraggableGraph(props: {
                     y2={to.y}
                     stroke="hsl(var(--muted-foreground))"
                     strokeOpacity={0.5}
-                    strokeWidth={1.5}
+                    strokeWidth={2}
+                  />
+                  <rect
+                    x={labelX - labelWidth / 2}
+                    y={labelY - 11}
+                    width={labelWidth}
+                    height={22}
+                    rx={11}
+                    fill="rgba(255,255,255,0.92)"
+                    stroke="rgba(148,163,184,0.55)"
                   />
                   <text
-                    x={(from.x + to.x) / 2}
-                    y={(from.y + to.y) / 2}
-                    fill="hsl(var(--muted-foreground))"
-                    fontSize={10}
+                    x={labelX}
+                    y={labelY + 4}
+                    fill="#334155"
+                    fontSize={12}
+                    fontWeight={600}
                     textAnchor="middle"
                   >
                     {edge.relation}
@@ -136,19 +193,49 @@ function DraggableGraph(props: {
                 return null;
               }
               const fill = colorByType ? colorByType(node.type) : "hsl(var(--primary))";
+              const labelLines = wrapLabel(node.label, 6, 3);
+              const labelWidth = Math.max(72, Math.min(132, Math.max(...labelLines.map((line) => line.length), 0) * 14));
+              const labelHeight = Math.max(28, labelLines.length * 16 + 10);
+              const labelX = point.x - labelWidth / 2;
+              const labelY = point.y + 32;
               return (
                 <g key={node.id}>
-                  <circle cx={point.x} cy={point.y} r={23} fill={fill} opacity={0.85} />
+                  <title>{node.type ? `${node.label} (${node.type})` : node.label}</title>
+                  <circle cx={point.x} cy={point.y} r={22} fill={fill} opacity={0.92} />
                   <text
                     x={point.x}
                     y={point.y + 4}
                     fill="white"
-                    fontSize={10}
+                    fontSize={11}
+                    fontWeight={700}
                     textAnchor="middle"
                     style={{ pointerEvents: "none" }}
                   >
-                    {node.label.length > 10 ? `${node.label.slice(0, 10)}...` : node.label}
+                    {getNodeBadgeText(node.label)}
                   </text>
+                  <rect
+                    x={labelX}
+                    y={labelY}
+                    width={labelWidth}
+                    height={labelHeight}
+                    rx={12}
+                    fill="rgba(255,255,255,0.96)"
+                    stroke="rgba(148,163,184,0.55)"
+                  />
+                  {labelLines.map((line, index) => (
+                    <text
+                      key={`${node.id}-${line}-${index}`}
+                      x={point.x}
+                      y={labelY + 18 + index * 15}
+                      fill="#0f172a"
+                      fontSize={12}
+                      fontWeight={600}
+                      textAnchor="middle"
+                      style={{ pointerEvents: "none" }}
+                    >
+                      {line}
+                    </text>
+                  ))}
                 </g>
               );
             })}
@@ -165,8 +252,15 @@ function DraggableGraph(props: {
 export default function WorldVisualizationBoard({ payload }: WorldVisualizationBoardProps) {
   const [mode, setMode] = useState<"faction" | "geography" | "power" | "timeline">("faction");
   const [keyword, setKeyword] = useState("");
-  const [factionType, setFactionType] = useState<"all" | "state" | "faction">("all");
+  const [factionType, setFactionType] = useState("all");
   const [timelineLimit, setTimelineLimit] = useState(8);
+
+  const factionTypeOptions = useMemo(() => {
+    const types = Array.from(
+      new Set((payload?.factionGraph.nodes ?? []).map((node) => node.type?.trim()).filter(Boolean)),
+    );
+    return ["all", ...types];
+  }, [payload?.factionGraph.nodes]);
 
   const factionNodes = useMemo(() => {
     const source = payload?.factionGraph.nodes ?? [];
@@ -259,11 +353,13 @@ export default function WorldVisualizationBoard({ payload }: WorldVisualizationB
           <select
             className="rounded-md border bg-background px-2 py-1 text-sm"
             value={factionType}
-            onChange={(event) => setFactionType(event.target.value as "all" | "state" | "faction")}
+            onChange={(event) => setFactionType(event.target.value)}
           >
-            <option value="all">all types</option>
-            <option value="state">state</option>
-            <option value="faction">faction</option>
+            {factionTypeOptions.map((type) => (
+              <option key={type} value={type}>
+                {FACTION_TYPE_LABELS[type] ?? type}
+              </option>
+            ))}
           </select>
         ) : (
           <div />
@@ -287,12 +383,27 @@ export default function WorldVisualizationBoard({ payload }: WorldVisualizationB
       </div>
 
       {mode === "faction" ? (
-        <DraggableGraph
-          title={`Faction Graph (${factionNodes.length} nodes)`}
-          nodes={factionNodes}
-          edges={factionEdges}
-          colorByType={(type) => (type === "state" ? "#2563eb" : "#16a34a")}
-        />
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+            {factionTypeOptions
+              .filter((type) => type !== "all")
+              .map((type) => (
+                <div key={type} className="flex items-center gap-1.5">
+                  <span
+                    className="inline-block h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: FACTION_TYPE_COLORS[type] ?? FACTION_TYPE_COLORS.other }}
+                  />
+                  <span>{FACTION_TYPE_LABELS[type] ?? type}</span>
+                </div>
+              ))}
+          </div>
+          <DraggableGraph
+            title={`Faction Graph (${factionNodes.length} nodes)`}
+            nodes={factionNodes}
+            edges={factionEdges}
+            colorByType={(type) => FACTION_TYPE_COLORS[type ?? "other"] ?? FACTION_TYPE_COLORS.other}
+          />
+        </div>
       ) : null}
 
       {mode === "geography" ? (
@@ -340,4 +451,3 @@ export default function WorldVisualizationBoard({ payload }: WorldVisualizationB
     </div>
   );
 }
-
