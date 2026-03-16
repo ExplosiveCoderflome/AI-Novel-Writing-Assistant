@@ -28,11 +28,11 @@
 - [项目介绍](#项目介绍)
 - [为什么值得关注](#为什么值得关注)
 - [适合谁](#适合谁)
-- [快速开始](#快速开始)
 - [核心能力](#核心能力)
 - [典型使用流程](#典型使用流程)
 - [系统架构](#系统架构)
 - [项目结构](#项目结构)
+- [快速开始](#快速开始)
 - [升级记录](#升级记录)
 - [环境变量](#环境变量)
 - [常用命令](#常用命令)
@@ -76,67 +76,6 @@
 - 想做 AI 写作、AI Agent、AI 创作工作流产品的独立开发者或团队
 - 想研究 `React + Express + Prisma + LangGraph + RAG` 如何落地到真实业务的工程师
 - 想把世界观、角色、设定、拆书和章节生产串成一套系统的创作者
-
-## 快速开始
-
-### 前置要求
-
-- Node.js 20+
-- pnpm 10+
-- Docker（可选，仅在本地启用 Qdrant 时需要）
-
-### 1. 安装依赖
-
-```bash
-pnpm install
-```
-
-### 2. 配置环境变量
-
-Windows:
-
-```powershell
-copy server\.env.example server\.env
-```
-
-macOS/Linux:
-
-```bash
-cp server/.env.example server/.env
-```
-
-至少配置一个 LLM 提供商的 API Key，例如 `OPENAI_API_KEY`。
-
-### 3. 初始化数据库
-
-```bash
-pnpm db:migrate
-pnpm db:seed
-```
-
-### 4. 启动项目
-
-```bash
-pnpm dev
-```
-
-默认地址：
-
-- 前端：`http://localhost:5173`
-- 后端健康检查：`http://localhost:3000/api/health`
-- RAG 健康检查：`http://localhost:3000/api/rag/health`
-
-### 5. 可选：启动 Qdrant
-
-```bash
-docker compose -f infra/docker-compose.qdrant.yml up -d
-```
-
-如果暂时不使用 RAG，可以在 `server/.env` 中设置：
-
-```env
-RAG_ENABLED=false
-```
 
 ## 核心能力
 
@@ -240,6 +179,67 @@ shared (TypeScript types)
 ├─ docs/                       # 补充文档与审计记录
 ├─ scripts/                    # 开发辅助脚本
 └─ README.md
+```
+
+## 快速开始
+
+### 前置要求
+
+- Node.js 20+
+- pnpm 10+
+- Docker（可选，仅在本地启用 Qdrant 时需要）
+
+### 1. 安装依赖
+
+```bash
+pnpm install
+```
+
+### 2. 配置环境变量
+
+Windows:
+
+```powershell
+copy server\.env.example server\.env
+```
+
+macOS/Linux:
+
+```bash
+cp server/.env.example server/.env
+```
+
+至少配置一个 LLM 提供商的 API Key，例如 `OPENAI_API_KEY`。
+
+### 3. 初始化数据库
+
+```bash
+pnpm db:migrate
+pnpm db:seed
+```
+
+### 4. 启动项目
+
+```bash
+pnpm dev
+```
+
+默认地址：
+
+- 前端：`http://localhost:5173`
+- 后端健康检查：`http://localhost:3000/api/health`
+- RAG 健康检查：`http://localhost:3000/api/rag/health`
+
+### 5. 可选：启动 Qdrant
+
+```bash
+docker compose -f infra/docker-compose.qdrant.yml up -d
+```
+
+如果暂时不使用 RAG，可以在 `server/.env` 中设置：
+
+```env
+RAG_ENABLED=false
 ```
 
 ## 升级记录
