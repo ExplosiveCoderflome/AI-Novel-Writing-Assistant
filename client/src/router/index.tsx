@@ -18,6 +18,7 @@ import WorldList from "@/pages/worlds/WorldList";
 import WorldWorkspace from "@/pages/worlds/WorldWorkspace";
 import WritingFormulaPage from "@/pages/writingFormula/WritingFormulaPage";
 import { featureFlags } from "@/config/featureFlags";
+import NovelCreate from "@/pages/novels/NovelCreate";
 
 const routes: RouteObject[] = [
   {
@@ -26,6 +27,7 @@ const routes: RouteObject[] = [
     children: [
       { index: true, element: <Home /> },
       { path: "novels", element: <NovelList /> },
+      { path: "novels/create", element: <NovelCreate /> },
       { path: "novels/:id/edit", element: <NovelEdit /> },
       { path: "novels/:id/chapters/:chapterId", element: <NovelChapterEdit /> },
       { path: "creative-hub", element: <CreativeHubPage /> },

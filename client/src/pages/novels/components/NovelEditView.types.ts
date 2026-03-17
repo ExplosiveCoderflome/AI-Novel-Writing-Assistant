@@ -17,31 +17,10 @@ import type {
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { QuickCharacterCreatePayload } from "./characterPanel.utils";
 import type { OutlineSyncChapter, StructuredSyncOptions, StructuredVolume } from "../novelEdit.utils";
+import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 
 export interface BasicTabProps {
-  basicForm: {
-    title: string;
-    description: string;
-    worldId: string;
-    status: "draft" | "published";
-    writingMode: "original" | "continuation";
-    projectMode: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
-    narrativePov: "first_person" | "third_person" | "mixed";
-    pacePreference: "slow" | "balanced" | "fast";
-    styleTone: string;
-    emotionIntensity: "low" | "medium" | "high";
-    aiFreedom: "low" | "medium" | "high";
-    defaultChapterLength: number;
-    projectStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
-    storylineStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
-    outlineStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
-    resourceReadyScore: number;
-    continuationSourceType: "novel" | "knowledge_document";
-    sourceNovelId: string;
-    sourceKnowledgeDocumentId: string;
-    continuationBookAnalysisId: string;
-    continuationBookAnalysisSections: BookAnalysisSectionKey[];
-  };
+  basicForm: NovelBasicFormState;
   worldOptions: Array<{ id: string; name: string }>;
   sourceNovelOptions: Array<{ id: string; title: string }>;
   sourceKnowledgeOptions: Array<{ id: string; title: string }>;

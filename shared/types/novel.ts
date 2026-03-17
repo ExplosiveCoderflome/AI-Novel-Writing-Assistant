@@ -456,3 +456,9 @@ export interface ModelRouteConfig {
   temperature: number;
   maxTokens?: number | null;
 }
+
+export type {
+  ChapterRuntimePackage,
+  ChapterRuntimeRequest,
+  GenerationContextPackage,
+} from "./chapterRuntime";

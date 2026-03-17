@@ -1,5 +1,6 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { AuditReport, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { TaskType } from "../../llm/modelRouter";
@@ -31,6 +32,8 @@ interface ChapterRef {
   content?: string | null;
   expectation?: string | null;
 }
+
+type ContinuationPack = Awaited<ReturnType<NovelContinuationService["buildChapterContextPack"]>>;
 
 interface ChapterGraphDeps {
   toText: (content: unknown) => string;
@@ -83,7 +86,8 @@ export interface ChapterStreamInput {
   novelId: string;
   novelTitle: string;
   chapter: ChapterRef;
-  characterLines: string;
+  characterLines?: string;
+  contextPackage?: GenerationContextPackage;
   options: ChapterGraphGenerateOptions;
 }
 
@@ -106,6 +110,49 @@ export interface ChapterPipelineResult {
 }
 
 const continuationService = new NovelContinuationService();
+
+function buildCharacterLines(contextPackage?: GenerationContextPackage, fallback?: string): string {
+  if (fallback?.trim()) {
+    return fallback;
+  }
+  const roster = contextPackage?.characterRoster ?? [];
+  if (roster.length === 0) {
+    return "none";
+  }
+  return roster
+    .map((character) => {
+      const summary = [
+        character.personality?.trim(),
+        character.currentState?.trim() ? `当前状态: ${character.currentState.trim()}` : "",
+        character.currentGoal?.trim() ? `当前目标: ${character.currentGoal.trim()}` : "",
+      ].filter(Boolean).join(" | ");
+      return `- ${character.name} (${character.role})${summary ? `: ${summary}` : ""}`;
+    })
+    .join("\n");
+}
+
+function buildPlanText(contextPackage?: GenerationContextPackage, fallback?: string | null): string {
+  const plan = contextPackage?.plan;
+  if (!plan) {
+    return fallback?.trim()
+      ? `\nChapter plan (must follow):\n${fallback.trim()}`
+      : "";
+  }
+  const lines = [
+    `Plan title: ${plan.title}`,
+    `Objective: ${plan.objective}`,
+    plan.participants.length > 0 ? `Participants: ${plan.participants.join("、")}` : "",
+    plan.reveals.length > 0 ? `Key reveals: ${plan.reveals.join("；")}` : "",
+    plan.riskNotes.length > 0 ? `Risk notes: ${plan.riskNotes.join("；")}` : "",
+    plan.hookTarget ? `Hook target: ${plan.hookTarget}` : "",
+    plan.scenes.length > 0
+      ? `Scenes:\n${plan.scenes.map((scene) => (
+        `${scene.sortOrder}. ${scene.title}${scene.objective ? ` | 目标:${scene.objective}` : ""}${scene.conflict ? ` | 冲突:${scene.conflict}` : ""}${scene.reveal ? ` | 揭露:${scene.reveal}` : ""}${scene.emotionBeat ? ` | 情绪:${scene.emotionBeat}` : ""}`
+      )).join("\n")}`
+      : "",
+  ].filter(Boolean);
+  return lines.length > 0 ? `\nChapter plan (must follow):\n${lines.join("\n")}` : "";
+}
 
 export class ChapterWritingGraph {
   constructor(private readonly deps: ChapterGraphDeps) {}
@@ -255,15 +302,17 @@ ${JSON.stringify(issues, null, 2)}`,
 
   async createChapterStream(input: ChapterStreamInput): Promise<{
     stream: AsyncIterable<BaseMessageChunk>;
-    onDone: (fullContent: string) => Promise<void>;
+    onDone: (fullContent: string) => Promise<{ finalContent: string } | void>;
   }> {
-    const context = input.options.previousChaptersSummary?.join("\n")
+    const context = input.contextPackage?.chapter.supportingContextText
+      || input.options.previousChaptersSummary?.join("\n")
       || (await this.deps.buildContextText(input.novelId, input.chapter.order));
-    const openingHint = await this.deps.buildOpeningConstraintHint(input.novelId, input.chapter.order);
-    const continuationPack = await continuationService.buildChapterContextPack(input.novelId);
-    const chapterPlan = input.chapter.expectation?.trim()
-      ? `\nChapter plan (must follow):\n${input.chapter.expectation}`
-      : "";
+    const openingHint = input.contextPackage?.openingHint
+      || await this.deps.buildOpeningConstraintHint(input.novelId, input.chapter.order);
+    const continuationPack = (input.contextPackage?.continuation as ContinuationPack | undefined)
+      ?? await continuationService.buildChapterContextPack(input.novelId);
+    const chapterPlan = buildPlanText(input.contextPackage, input.chapter.expectation);
+    const characterLines = buildCharacterLines(input.contextPackage, input.characterLines);
     const llm = await getLLM(input.options.provider ?? "deepseek", {
       model: input.options.model,
       temperature: input.options.temperature ?? 0.8,
@@ -285,7 +334,7 @@ ${continuationPack.enabled ? `7) ${continuationPack.systemRule}` : ""}`.trim(),
       new HumanMessage(
         `Novel: ${input.novelTitle}
 Core characters (must remain consistent):
-${input.characterLines}
+${characterLines}
 Chapter: ${input.chapter.order} - ${input.chapter.title}${chapterPlan}
 Context:
 ${context}
@@ -315,6 +364,7 @@ If an event is already covered in prior chapters, mention it in at most one sent
           normalized,
           "drafted",
         );
+        return { finalContent: normalized };
       },
     };
   }

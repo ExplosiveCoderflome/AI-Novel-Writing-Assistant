@@ -1,7 +1,10 @@
 import { NovelArtifactService } from "./NovelArtifactService";
 import { NovelCoreService } from "./NovelCoreService";
+import { ChapterRuntimeCoordinator } from "./runtime/ChapterRuntimeCoordinator";
 
 export class NovelGenerationService extends NovelArtifactService {
+  private readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator();
+
   createOutlineStream(...args: Parameters<NovelCoreService["createOutlineStream"]>) {
     return this.core.createOutlineStream(...args);
   }
@@ -13,7 +16,17 @@ export class NovelGenerationService extends NovelArtifactService {
   }
 
   createChapterStream(...args: Parameters<NovelCoreService["createChapterStream"]>) {
-    return this.core.createChapterStream(...args);
+    const [novelId, chapterId, options] = args;
+    return this.chapterRuntimeCoordinator.createChapterStream(novelId, chapterId, options, {
+      includeRuntimePackage: false,
+    });
+  }
+
+  createChapterRuntimeStream(...args: Parameters<NovelCoreService["createChapterStream"]>) {
+    const [novelId, chapterId, options] = args;
+    return this.chapterRuntimeCoordinator.createChapterStream(novelId, chapterId, options, {
+      includeRuntimePackage: true,
+    });
   }
 
   generateTitles(...args: Parameters<NovelCoreService["generateTitles"]>) {

@@ -11,6 +11,7 @@ export type WritableSSEFrame = Extract<
     | "error"
     | "ping"
     | "reasoning"
+    | "runtime_package"
     | "tool_call"
     | "tool_result"
     | "approval_required"
@@ -18,6 +19,11 @@ export type WritableSSEFrame = Extract<
     | "run_status";
   }
 >;
+
+export interface StreamDonePayload {
+  fullContent?: string;
+  frames?: WritableSSEFrame[];
+}
 
 export function writeSSEFrame(res: Response, payload: WritableSSEFrame): void {
   if (res.writableEnded) {
@@ -64,7 +70,7 @@ export function initSSE(res: Response): () => void {
 export async function streamToSSE(
   res: Response,
   stream: AsyncIterable<BaseMessageChunk>,
-  onDone?: (fullContent: string) => void | Promise<void>,
+  onDone?: (fullContent: string) => void | StreamDonePayload | Promise<void | StreamDonePayload>,
 ): Promise<void> {
   const disposeHeartbeat = initSSE(res);
   let fullContent = "";
@@ -82,7 +88,15 @@ export async function streamToSSE(
       writeSSEFrame(res, { type: "chunk", content: text });
     }
 
-    await onDone?.(fullContent);
+    const donePayload = await onDone?.(fullContent);
+    if (donePayload?.frames?.length) {
+      for (const frame of donePayload.frames) {
+        writeSSEFrame(res, frame);
+      }
+    }
+    if (donePayload?.fullContent) {
+      fullContent = donePayload.fullContent;
+    }
     writeSSEFrame(res, { type: "done", fullContent });
   } catch (error) {
     writeSSEFrame(res, {

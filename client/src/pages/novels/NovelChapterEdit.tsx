@@ -9,6 +9,9 @@ import { queryKeys } from "@/api/queryKeys";
 import {
   createCreativeDecision,
   deleteCreativeDecision,
+  getChapterAuditReports,
+  getChapterPlan,
+  getChapterStateSnapshot,
   getNovelDetail,
   getChapterTraces,
   listCreativeDecisions,
@@ -16,6 +19,7 @@ import {
 } from "@/api/novel";
 import { useSSE } from "@/hooks/useSSE";
 import { useLLMStore } from "@/store/llmStore";
+import { ChapterRuntimeAuditCard, ChapterRuntimeContextCard } from "./components/ChapterRuntimePanels";
 
 export default function NovelChapterEdit() {
   const { id = "", chapterId = "" } = useParams();
@@ -42,11 +46,17 @@ export default function NovelChapterEdit() {
     setContentDraft(chapter?.content ?? "");
   }, [chapter?.content]);
 
-  const { content, start, abort, isStreaming } = useSSE({
-    onDone: (fullContent) => {
+  const { content, start, abort, isStreaming, runtimePackage } = useSSE({
+    onDone: async (fullContent) => {
       setContentDraft(fullContent);
       if (id && chapterId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterTraces(id, chapterId) });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterTraces(id, chapterId) }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterPlan(id, chapterId) }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterStateSnapshot(id, chapterId) }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterAuditReports(id, chapterId) }),
+        ]);
       }
     },
   });
@@ -57,6 +67,28 @@ export default function NovelChapterEdit() {
     enabled: Boolean(id && chapterId),
   });
   const traces = tracesResponse?.data ?? [];
+
+  const { data: chapterPlanResponse } = useQuery({
+    queryKey: queryKeys.novels.chapterPlan(id, chapterId),
+    queryFn: () => getChapterPlan(id, chapterId),
+    enabled: Boolean(id && chapterId),
+  });
+
+  const { data: chapterStateResponse } = useQuery({
+    queryKey: queryKeys.novels.chapterStateSnapshot(id, chapterId),
+    queryFn: () => getChapterStateSnapshot(id, chapterId),
+    enabled: Boolean(id && chapterId),
+  });
+
+  const { data: chapterAuditResponse } = useQuery({
+    queryKey: queryKeys.novels.chapterAuditReports(id, chapterId),
+    queryFn: () => getChapterAuditReports(id, chapterId),
+    enabled: Boolean(id && chapterId),
+  });
+
+  const chapterPlan = chapterPlanResponse?.data ?? null;
+  const chapterStateSnapshot = chapterStateResponse?.data ?? null;
+  const chapterAuditReports = chapterAuditResponse?.data ?? [];
 
   const { data: decisionResponse } = useQuery({
     queryKey: queryKeys.novels.creativeDecisions(id),
@@ -114,7 +146,7 @@ export default function NovelChapterEdit() {
           <div className="flex gap-2">
             <Button
               onClick={() =>
-                void start(`/novels/${id}/chapters/${chapterId}/generate`, {
+                void start(`/novels/${id}/chapters/${chapterId}/runtime/run`, {
                   provider: llm.provider,
                   model: llm.model,
                   temperature: llm.temperature,
@@ -144,6 +176,11 @@ export default function NovelChapterEdit() {
               </ul>
             </div>
           )}
+          <ChapterRuntimeContextCard
+            runtimePackage={runtimePackage}
+            chapterPlan={chapterPlan}
+            stateSnapshot={chapterStateSnapshot}
+          />
           <StreamOutput content={content} isStreaming={isStreaming} onAbort={abort} />
         </CardContent>
       </Card>
@@ -173,9 +210,13 @@ export default function NovelChapterEdit() {
 
       <Card>
         <CardHeader>
-          <CardTitle>创作决策</CardTitle>
+          <CardTitle>审计 / 决策</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          <ChapterRuntimeAuditCard
+            runtimePackage={runtimePackage}
+            auditReports={chapterAuditReports}
+          />
           <select
             className="w-full rounded-md border bg-background p-2 text-sm"
             value={decisionForm.category}

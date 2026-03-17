@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BOOK_ANALYSIS_SECTIONS, type BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import type { AuditReport, PipelineRepairMode, PipelineRunMode, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import NovelEditView from "./components/NovelEditView";
 import { getBaseCharacterList } from "@/api/character";
@@ -20,7 +20,7 @@ import { getWorldList } from "@/api/world";
 import { queryKeys } from "@/api/queryKeys";
 import { useSSE } from "@/hooks/useSSE";
 import { useLLMStore } from "@/store/llmStore";
-import { buildWorldInjectionSummary, parseStructuredVolumes, patchNovelBasicForm, type OutlineSyncChapter } from "./novelEdit.utils";
+import { buildWorldInjectionSummary, parseStructuredVolumes, type OutlineSyncChapter } from "./novelEdit.utils";
 import type { QuickCharacterCreatePayload } from "./components/characterPanel.utils";
 import type { ChapterExecutionStrategy } from "./chapterExecution.utils";
 import { useNovelCharacterMutations } from "./hooks/useNovelCharacterMutations";
@@ -28,6 +28,7 @@ import { useChapterExecutionActions } from "./hooks/useChapterExecutionActions";
 import { useNovelContinuationSources } from "./hooks/useNovelContinuationSources";
 import { useNovelEditMutations } from "./hooks/useNovelEditMutations";
 import { useStorylineVersionControl } from "./hooks/useStorylineVersionControl";
+import { createDefaultNovelBasicFormState, patchNovelBasicForm } from "./novelBasicInfo.shared";
 
 function replaceFirstOccurrence(source: string, target: string, replacement: string): string {
   const index = source.indexOf(target);
@@ -42,29 +43,7 @@ export default function NovelEdit() {
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("basic");
-  const [basicForm, setBasicForm] = useState({
-    title: "",
-    description: "",
-    worldId: "",
-    status: "draft" as "draft" | "published",
-    writingMode: "original" as "original" | "continuation",
-    projectMode: "ai_led" as "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline",
-    narrativePov: "third_person" as "first_person" | "third_person" | "mixed",
-    pacePreference: "balanced" as "slow" | "balanced" | "fast",
-    styleTone: "",
-    emotionIntensity: "medium" as "low" | "medium" | "high",
-    aiFreedom: "medium" as "low" | "medium" | "high",
-    defaultChapterLength: 2000,
-    projectStatus: "not_started" as "not_started" | "in_progress" | "completed" | "rework" | "blocked",
-    storylineStatus: "not_started" as "not_started" | "in_progress" | "completed" | "rework" | "blocked",
-    outlineStatus: "not_started" as "not_started" | "in_progress" | "completed" | "rework" | "blocked",
-    resourceReadyScore: 0,
-    continuationSourceType: "novel" as "novel" | "knowledge_document",
-    sourceNovelId: "",
-    sourceKnowledgeDocumentId: "",
-    continuationBookAnalysisId: "",
-    continuationBookAnalysisSections: [] as BookAnalysisSectionKey[],
-  });
+  const [basicForm, setBasicForm] = useState(() => createDefaultNovelBasicFormState());
   const [outlineText, setOutlineText] = useState("");
   const [outlineGenerationPrompt, setOutlineGenerationPrompt] = useState("");
   const [outlineOptimizeInstruction, setOutlineOptimizeInstruction] = useState("");
@@ -260,13 +239,13 @@ export default function NovelEdit() {
       worldId: detail.worldId ?? "",
       status: detail.status,
       writingMode: detail.writingMode ?? "original",
-      projectMode: detail.projectMode ?? "ai_led",
+      projectMode: detail.projectMode ?? "co_pilot",
       narrativePov: detail.narrativePov ?? "third_person",
       pacePreference: detail.pacePreference ?? "balanced",
       styleTone: detail.styleTone ?? "",
       emotionIntensity: detail.emotionIntensity ?? "medium",
       aiFreedom: detail.aiFreedom ?? "medium",
-      defaultChapterLength: detail.defaultChapterLength ?? 2000,
+      defaultChapterLength: detail.defaultChapterLength ?? 2800,
       projectStatus: detail.projectStatus ?? "not_started",
       storylineStatus: detail.storylineStatus ?? "not_started",
       outlineStatus: detail.outlineStatus ?? "not_started",

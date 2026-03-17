@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import KnowledgeBindingPanel from "@/components/knowledge/KnowledgeBindingPanel";
 import NovelCharacterPanel from "./NovelCharacterPanel";
 import BasicInfoTab from "./BasicInfoTab";
@@ -33,19 +32,77 @@ export default function NovelEditView(props: NovelEditViewProps) {
   const tabOrder = ["basic", "character", "outline", "structured", "chapter", "pipeline", "history"];
   const activeStageIndex = Math.max(0, tabOrder.indexOf(activeTab));
   const stages = [
-    { key: "basic", label: "项目设定", ready: basicTab.basicForm.title.trim().length > 0 },
-    { key: "character", label: "角色准备", ready: characterTab.characters.length > 0 },
-    { key: "outline", label: "故事主线", ready: outlineTab.draftText.trim().length > 0 },
-    { key: "structured", label: "生成规划", ready: structuredTab.draftText.trim().length > 0 },
-    { key: "chapter", label: "章节执行", ready: generatedChapters > 0 },
-    { key: "pipeline", label: "质量修复", ready: pipelineTab.qualitySummary ? pipelineTab.qualitySummary.overall >= 75 : false },
-    { key: "history", label: "版本历史", ready: Boolean(id) },
+    {
+      key: "basic",
+      label: "项目设定",
+      description: "定义作品身份、约束和 AI 协作方式。",
+      ready: basicTab.basicForm.title.trim().length > 0,
+    },
+    {
+      key: "character",
+      label: "角色准备",
+      description: "补齐核心角色、关系和当前目标。",
+      ready: characterTab.characters.length > 0,
+    },
+    {
+      key: "outline",
+      label: "故事主线",
+      description: "明确主线承诺与阶段推进方向。",
+      ready: outlineTab.draftText.trim().length > 0,
+    },
+    {
+      key: "structured",
+      label: "生成规划",
+      description: "把主线拆成章节级的可执行规划。",
+      ready: structuredTab.draftText.trim().length > 0,
+    },
+    {
+      key: "chapter",
+      label: "章节执行",
+      description: "生成章节、审计结果并处理修正。",
+      ready: generatedChapters > 0,
+    },
+    {
+      key: "pipeline",
+      label: "质量修复",
+      description: "批量执行生产链并跟踪质量风险。",
+      ready: pipelineTab.qualitySummary ? pipelineTab.qualitySummary.overall >= 75 : false,
+    },
+    {
+      key: "history",
+      label: "版本历史",
+      description: "查看重要版本、冻结点和差异。",
+      ready: Boolean(id),
+    },
   ];
+  const completedStages = stages.filter((stage) => stage.ready).length;
+  const progressPercent = Math.round((completedStages / Math.max(stages.length, 1)) * 100);
+
+  const renderActivePanel = () => {
+    switch (activeTab) {
+      case "basic":
+        return <BasicInfoTab {...basicTab} />;
+      case "outline":
+        return <OutlineTab {...outlineTab} />;
+      case "structured":
+        return <StructuredOutlineTab {...structuredTab} />;
+      case "chapter":
+        return <ChapterManagementTab {...chapterTab} />;
+      case "pipeline":
+        return <PipelineTab {...pipelineTab} />;
+      case "character":
+        return <NovelCharacterPanel {...characterTab} />;
+      case "history":
+        return <VersionHistoryTab novelId={id} />;
+      default:
+        return <BasicInfoTab {...basicTab} />;
+    }
+  };
 
   return (
-    <>
+    <div className="space-y-6 lg:space-y-7">
       {id ? (
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2 pb-1">
           <Dialog open={isProjectOverviewOpen} onOpenChange={setIsProjectOverviewOpen}>
             <DialogTrigger asChild>
               <Button variant="outline">项目概览</Button>
@@ -78,47 +135,84 @@ export default function NovelEditView(props: NovelEditViewProps) {
       ) : null}
 
       <Card>
-        <CardHeader><CardTitle>小说生产状态栏</CardTitle></CardHeader>
-        <CardContent className="grid gap-2 md:grid-cols-6">
+        <CardHeader className="gap-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div className="space-y-1">
+              <CardTitle>创作阶段</CardTitle>
+              <div className="text-sm text-muted-foreground">
+                这里是当前项目的唯一阶段导航。点击卡片即可切换到对应模块，并同时查看完成状态。
+              </div>
+            </div>
+            <div className="min-w-[220px] rounded-2xl border border-border/60 bg-muted/30 px-4 py-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium text-foreground">阶段进度</span>
+                <span className="text-muted-foreground">{completedStages}/{stages.length}</span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary transition-all"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <div className="mt-2 text-xs text-muted-foreground">
+                当前阶段：{stages[activeStageIndex]?.label ?? "项目设定"}
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
           {stages.map((stage, index) => {
             const isActive = index === activeStageIndex;
             const isDone = stage.ready;
+            const statusLabel = isActive ? "当前阶段" : isDone ? "已就绪" : "待推进";
             return (
               <button
                 key={stage.key}
                 type="button"
                 onClick={() => onActiveTabChange(stage.key)}
                 className={`rounded border px-3 py-2 text-left text-sm transition ${
-                  isActive ? "border-primary bg-primary/10" : isDone ? "border-emerald-500/40 bg-emerald-500/10" : "border-muted bg-background"
+                  isActive
+                    ? "border-sky-400/70 bg-sky-50 shadow-sm ring-1 ring-sky-200"
+                    : isDone
+                      ? "border-emerald-500/40 bg-emerald-500/10 hover:border-emerald-500/70"
+                      : "border-border/70 bg-background hover:border-primary/30 hover:bg-muted/30"
                 }`}
               >
-                <div className="font-medium">{stage.label}</div>
-                <div className="text-xs text-muted-foreground">{isDone ? "已就绪" : isActive ? "进行中" : "待完成"}</div>
+                <div className="flex items-center justify-between gap-2">
+                  <span
+                    className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
+                      isActive
+                        ? "bg-sky-600 text-white"
+                        : isDone
+                          ? "bg-emerald-600 text-white"
+                          : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {index + 1}
+                  </span>
+                  <span
+                    className={`rounded-full px-2 py-1 text-[11px] font-medium ${
+                      isActive
+                        ? "bg-sky-100 text-sky-700"
+                        : isDone
+                          ? "bg-emerald-500/15 text-emerald-700"
+                          : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {statusLabel}
+                  </span>
+                </div>
+                <div className="mt-3 font-medium text-foreground">{stage.label}</div>
+                <div className="mt-1 text-xs leading-5 text-muted-foreground">{stage.description}</div>
               </button>
             );
           })}
         </CardContent>
       </Card>
 
-      <Tabs value={activeTab} onValueChange={onActiveTabChange} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="basic">项目设定</TabsTrigger>
-          <TabsTrigger value="character">角色准备</TabsTrigger>
-          <TabsTrigger value="outline">故事主线</TabsTrigger>
-          <TabsTrigger value="structured">生成规划</TabsTrigger>
-          <TabsTrigger value="chapter">章节执行</TabsTrigger>
-          <TabsTrigger value="pipeline">质量修复</TabsTrigger>
-          <TabsTrigger value="history">版本历史</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="basic"><BasicInfoTab {...basicTab} /></TabsContent>
-        <TabsContent value="outline"><OutlineTab {...outlineTab} /></TabsContent>
-        <TabsContent value="structured"><StructuredOutlineTab {...structuredTab} /></TabsContent>
-        <TabsContent value="chapter"><ChapterManagementTab {...chapterTab} /></TabsContent>
-        <TabsContent value="pipeline"><PipelineTab {...pipelineTab} /></TabsContent>
-        <TabsContent value="character"><NovelCharacterPanel {...characterTab} /></TabsContent>
-        <TabsContent value="history"><VersionHistoryTab novelId={id} /></TabsContent>
-      </Tabs>
-    </>
+      <div className="space-y-4 pt-1">
+        {renderActivePanel()}
+      </div>
+    </div>
   );
 }

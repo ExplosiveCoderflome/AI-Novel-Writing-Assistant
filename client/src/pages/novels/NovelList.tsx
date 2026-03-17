@@ -4,11 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { createNovel, deleteNovel, downloadNovelExport, getNovelList } from "@/api/novel";
+import { deleteNovel, downloadNovelExport, getNovelList } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
-import { getWorldList } from "@/api/world";
 
 type StatusFilter = "all" | "draft" | "published";
 type WritingModeFilter = "all" | "original" | "continuation";
@@ -28,35 +25,10 @@ export default function NovelList() {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<StatusFilter>("all");
   const [writingMode, setWritingMode] = useState<WritingModeFilter>("all");
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    worldId: "",
-  });
 
   const novelListQuery = useQuery({
     queryKey: queryKeys.novels.list(1, 50),
     queryFn: () => getNovelList({ page: 1, limit: 50 }),
-  });
-
-  const createNovelMutation = useMutation({
-    mutationFn: () =>
-      createNovel({
-        title: form.title,
-        description: form.description,
-        worldId: form.worldId || undefined,
-      }),
-    onSuccess: async () => {
-      setForm({ title: "", description: "", worldId: "" });
-      setIsCreateOpen(false);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.all });
-    },
-  });
-
-  const worldListQuery = useQuery({
-    queryKey: queryKeys.worlds.all,
-    queryFn: getWorldList,
   });
 
   const deleteNovelMutation = useMutation({
@@ -135,49 +107,9 @@ export default function NovelList() {
           </div>
         </div>
 
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button>创建新小说</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>创建小说</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-              <Input
-                placeholder="请输入小说标题"
-                value={form.title}
-                onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
-              />
-              <Input
-                placeholder="请输入小说简介（可选）"
-                value={form.description}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, description: event.target.value }))
-                }
-              />
-              <select
-                className="w-full rounded-md border bg-background p-2 text-sm"
-                value={form.worldId}
-                onChange={(event) => setForm((prev) => ({ ...prev, worldId: event.target.value }))}
-              >
-                <option value="">不绑定世界观</option>
-                {(worldListQuery.data?.data ?? []).map((world) => (
-                  <option key={world.id} value={world.id}>
-                    {world.name}
-                  </option>
-                ))}
-              </select>
-              <Button
-                className="w-full"
-                onClick={() => createNovelMutation.mutate()}
-                disabled={createNovelMutation.isPending || !form.title.trim()}
-              >
-                {createNovelMutation.isPending ? "创建中..." : "确认创建"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button asChild>
+          <Link to="/novels/create">创建新小说</Link>
+        </Button>
       </div>
 
       {novels.length === 0 ? (

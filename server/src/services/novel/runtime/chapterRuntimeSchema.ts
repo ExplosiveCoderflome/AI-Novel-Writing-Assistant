@@ -1,0 +1,10 @@
+import { z } from "zod";
+
+export const chapterRuntimeRequestSchema = z.object({
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]).optional(),
+  model: z.string().trim().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  previousChaptersSummary: z.array(z.string()).optional(),
+});
+
+export type ChapterRuntimeRequestInput = z.infer<typeof chapterRuntimeRequestSchema>;

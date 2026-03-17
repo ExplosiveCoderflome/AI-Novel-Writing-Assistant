@@ -1,31 +1,6 @@
-import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
-
 export * from "./structuredOutline.utils";
 export * from "./structuredOutlineSync.utils";
-
-export interface NovelBasicFormState {
-  title: string;
-  description: string;
-  worldId: string;
-  status: "draft" | "published";
-  writingMode: "original" | "continuation";
-  projectMode: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
-  narrativePov: "first_person" | "third_person" | "mixed";
-  pacePreference: "slow" | "balanced" | "fast";
-  styleTone: string;
-  emotionIntensity: "low" | "medium" | "high";
-  aiFreedom: "low" | "medium" | "high";
-  defaultChapterLength: number;
-  projectStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
-  storylineStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
-  outlineStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
-  resourceReadyScore: number;
-  continuationSourceType: "novel" | "knowledge_document";
-  sourceNovelId: string;
-  sourceKnowledgeDocumentId: string;
-  continuationBookAnalysisId: string;
-  continuationBookAnalysisSections: BookAnalysisSectionKey[];
-}
+export * from "./novelBasicInfo.shared";
 
 interface WorldContextSummaryInput {
   name: string;
@@ -68,48 +43,4 @@ export function buildWorldInjectionSummary(world: WorldContextSummaryInput | nul
     ...(conflictBlock ? [`Conflict: ${conflictBlock}`] : []),
   ];
   return lines.join("\n");
-}
-
-export function patchNovelBasicForm(
-  previous: NovelBasicFormState,
-  patch: Partial<NovelBasicFormState>,
-): NovelBasicFormState {
-  const next = { ...previous, ...patch };
-  if (next.writingMode === "original") {
-    next.sourceNovelId = "";
-    next.sourceKnowledgeDocumentId = "";
-    next.continuationBookAnalysisId = "";
-    next.continuationBookAnalysisSections = [];
-  } else if (next.continuationSourceType === "novel") {
-    next.sourceKnowledgeDocumentId = "";
-  } else if (next.continuationSourceType === "knowledge_document") {
-    next.sourceNovelId = "";
-  }
-  if (
-    patch.continuationSourceType !== undefined
-    && patch.continuationSourceType !== previous.continuationSourceType
-  ) {
-    next.continuationBookAnalysisId = "";
-    next.continuationBookAnalysisSections = [];
-  }
-  if (
-    next.continuationSourceType === "novel"
-    && patch.sourceNovelId !== undefined
-    && patch.sourceNovelId !== previous.sourceNovelId
-  ) {
-    next.continuationBookAnalysisId = "";
-    next.continuationBookAnalysisSections = [];
-  }
-  if (
-    next.continuationSourceType === "knowledge_document"
-    && patch.sourceKnowledgeDocumentId !== undefined
-    && patch.sourceKnowledgeDocumentId !== previous.sourceKnowledgeDocumentId
-  ) {
-    next.continuationBookAnalysisId = "";
-    next.continuationBookAnalysisSections = [];
-  }
-  if (patch.continuationBookAnalysisId !== undefined && !patch.continuationBookAnalysisId) {
-    next.continuationBookAnalysisSections = [];
-  }
-  return next;
 }

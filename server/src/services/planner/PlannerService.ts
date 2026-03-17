@@ -34,6 +34,66 @@ interface ReplanInput extends PlannerOptions {
   reason: string;
 }
 
+function collectPlannerTextFragments(value: unknown): string[] {
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    return normalized ? [normalized] : [];
+  }
+  if (typeof value === "number") {
+    return [String(value)];
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectPlannerTextFragments(item));
+  }
+  if (value && typeof value === "object") {
+    return Object.values(value).flatMap((item) => collectPlannerTextFragments(item));
+  }
+  return [];
+}
+
+function toPlannerOptionalText(value: unknown, separator = "；"): string | null {
+  const parts = Array.from(new Set(collectPlannerTextFragments(value)));
+  return parts.length > 0 ? parts.join(separator) : null;
+}
+
+function toPlannerStringArray(value: unknown): string[] {
+  return Array.from(new Set(collectPlannerTextFragments(value)));
+}
+
+function normalizePlannerScenes(value: unknown): NonNullable<PlannerOutput["scenes"]> {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((scene, index) => {
+    if (!scene || typeof scene !== "object") {
+      return {
+        title: toPlannerOptionalText(scene) ?? `Scene ${index + 1}`,
+      };
+    }
+    const record = scene as Record<string, unknown>;
+    return {
+      title: toPlannerOptionalText(record.title) ?? `Scene ${index + 1}`,
+      objective: toPlannerOptionalText(record.objective) ?? undefined,
+      conflict: toPlannerOptionalText(record.conflict) ?? undefined,
+      reveal: toPlannerOptionalText(record.reveal) ?? undefined,
+      emotionBeat: toPlannerOptionalText(record.emotionBeat) ?? undefined,
+    };
+  });
+}
+
+export function normalizePlannerOutput(output: unknown): PlannerOutput {
+  const record = output && typeof output === "object" ? output as Record<string, unknown> : {};
+  return {
+    title: toPlannerOptionalText(record.title) ?? undefined,
+    objective: toPlannerOptionalText(record.objective) ?? undefined,
+    participants: toPlannerStringArray(record.participants),
+    reveals: toPlannerStringArray(record.reveals),
+    riskNotes: toPlannerStringArray(record.riskNotes),
+    hookTarget: toPlannerOptionalText(record.hookTarget) ?? undefined,
+    scenes: normalizePlannerScenes(record.scenes),
+  };
+}
+
 export class PlannerService {
   async getChapterPlan(novelId: string, chapterId: string) {
     return prisma.storyPlan.findFirst({
@@ -103,12 +163,12 @@ export class PlannerService {
     return this.persistPlan({
       novelId,
       level: "book",
-      title: output.title?.trim() || `${novel.title} 全书规划`,
-      objective: output.objective?.trim() || "建立全书目标与主线推进。",
+      title: output.title || `${novel.title} 全书规划`,
+      objective: output.objective || "建立全书目标与主线推进。",
       participants: output.participants ?? [],
       reveals: output.reveals ?? [],
       riskNotes: output.riskNotes ?? [],
-      hookTarget: output.hookTarget?.trim() || null,
+      hookTarget: output.hookTarget || null,
       scenes: [],
     });
   }
@@ -139,12 +199,12 @@ export class PlannerService {
       novelId,
       level: "arc",
       externalRef: arcId,
-      title: output.title?.trim() || `Arc ${arcId}`,
-      objective: output.objective?.trim() || `围绕 ${arcId} 推进主线`,
+      title: output.title || `Arc ${arcId}`,
+      objective: output.objective || `围绕 ${arcId} 推进主线`,
       participants: output.participants ?? [],
       reveals: output.reveals ?? [],
       riskNotes: output.riskNotes ?? [],
-      hookTarget: output.hookTarget?.trim() || null,
+      hookTarget: output.hookTarget || null,
       scenes: [],
     });
   }
@@ -216,12 +276,12 @@ export class PlannerService {
       chapterId: chapter.id,
       sourceStateSnapshotId: stateSnapshot?.id ?? null,
       level: "chapter",
-      title: output.title?.trim() || chapter.title,
-      objective: output.objective?.trim() || chapter.expectation?.trim() || `推进第${chapter.order}章主线。`,
+      title: output.title || chapter.title,
+      objective: output.objective || chapter.expectation?.trim() || `推进第${chapter.order}章主线。`,
       participants: output.participants ?? characters.slice(0, 4).map((item) => item.name),
       reveals: output.reveals ?? [],
       riskNotes: output.riskNotes ?? [],
-      hookTarget: output.hookTarget?.trim() || chapter.hook?.trim() || null,
+      hookTarget: output.hookTarget || chapter.hook?.trim() || null,
       scenes: output.scenes ?? [],
     });
   }
@@ -287,7 +347,7 @@ ${input.context}
 6. 场景必须有顺序，能直接给写作器消费。`,
       ),
     ]);
-    return parseJSONObject<PlannerOutput>(toText(result.content));
+    return normalizePlannerOutput(parseJSONObject<PlannerOutput>(toText(result.content)));
   }
 
   private async persistPlan(input: {

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SSEFrame } from "@ai-novel/shared/types/api";
+import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
 import { API_BASE_URL } from "@/lib/constants";
 
 interface UseSSEOptions {
   headers?: Record<string, string>;
   onReasoning?: (content: string) => void;
-  onDone?: (fullContent: string) => void;
+  onDone?: (fullContent: string) => void | Promise<void>;
   onRunStatus?: (payload: { runId: string; status: string; message?: string }) => void;
 }
 
@@ -20,6 +21,7 @@ export function useSSE(options?: UseSSEOptions) {
   }>>>([]);
   const [pendingApprovals, setPendingApprovals] = useState<Array<Extract<SSEFrame, { type: "approval_required" }>>>([]);
   const [latestRun, setLatestRun] = useState<Extract<SSEFrame, { type: "run_status" }> | null>(null);
+  const [runtimePackage, setRuntimePackage] = useState<ChapterRuntimePackage | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
   const abort = useCallback(() => {
@@ -48,7 +50,7 @@ export function useSSE(options?: UseSSEOptions) {
       if (frame.type === "done") {
         setIsStreaming(false);
         setIsDone(true);
-        options?.onDone?.(frame.fullContent);
+        void options?.onDone?.(frame.fullContent);
         return;
       }
 
@@ -72,6 +74,11 @@ export function useSSE(options?: UseSSEOptions) {
         return;
       }
 
+      if (frame.type === "runtime_package") {
+        setRuntimePackage(frame.package);
+        return;
+      }
+
       if (frame.type === "error") {
         setIsStreaming(false);
         setIsDone(false);
@@ -91,6 +98,7 @@ export function useSSE(options?: UseSSEOptions) {
       setEvents([]);
       setPendingApprovals([]);
       setLatestRun(null);
+      setRuntimePackage(null);
       setIsStreaming(true);
 
       const controller = new AbortController();
@@ -165,5 +173,6 @@ export function useSSE(options?: UseSSEOptions) {
     events,
     pendingApprovals,
     latestRun,
+    runtimePackage,
   };
 }

@@ -1,5 +1,4 @@
 import { useMutation, type QueryClient } from "@tanstack/react-query";
-import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { PipelineRepairMode, PipelineRunMode, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import {
   createNovelChapter,
@@ -13,31 +12,8 @@ import {
   updateNovel,
 } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
+import { buildNovelUpdatePayload, type NovelBasicFormState } from "../novelBasicInfo.shared";
 import { buildStructuredOutlineSyncPlan, buildTaskSheetFromStructuredChapter, type OutlineSyncChapter, type StructuredSyncOptions, type StructuredVolume } from "../novelEdit.utils";
-
-interface BasicFormState {
-  title: string;
-  description: string;
-  worldId: string;
-  status: "draft" | "published";
-  writingMode: "original" | "continuation";
-  projectMode: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
-  narrativePov: "first_person" | "third_person" | "mixed";
-  pacePreference: "slow" | "balanced" | "fast";
-  styleTone: string;
-  emotionIntensity: "low" | "medium" | "high";
-  aiFreedom: "low" | "medium" | "high";
-  defaultChapterLength: number;
-  projectStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
-  storylineStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
-  outlineStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
-  resourceReadyScore: number;
-  continuationSourceType: "novel" | "knowledge_document";
-  sourceNovelId: string;
-  sourceKnowledgeDocumentId: string;
-  continuationBookAnalysisId: string;
-  continuationBookAnalysisSections: BookAnalysisSectionKey[];
-}
 
 interface LlmSettings {
   provider?: "deepseek" | "siliconflow" | "openai" | "anthropic" | "grok";
@@ -59,7 +35,7 @@ interface PipelineFormState {
 
 interface UseNovelEditMutationsArgs {
   id: string;
-  basicForm: BasicFormState;
+  basicForm: NovelBasicFormState;
   hasCharacters: boolean;
   outlineText: string;
   outlineOptimizeInstruction: string;
@@ -117,47 +93,7 @@ export function useNovelEditMutations({
   invalidateNovelDetail,
 }: UseNovelEditMutationsArgs) {
   const saveBasicMutation = useMutation({
-    mutationFn: () =>
-      updateNovel(id, {
-        title: basicForm.title,
-        description: basicForm.description,
-        worldId: basicForm.worldId || null,
-        status: basicForm.status,
-        writingMode: basicForm.writingMode,
-        projectMode: basicForm.projectMode,
-        narrativePov: basicForm.narrativePov,
-        pacePreference: basicForm.pacePreference,
-        styleTone: basicForm.styleTone || null,
-        emotionIntensity: basicForm.emotionIntensity,
-        aiFreedom: basicForm.aiFreedom,
-        defaultChapterLength: basicForm.defaultChapterLength,
-        projectStatus: basicForm.projectStatus,
-        storylineStatus: basicForm.storylineStatus,
-        outlineStatus: basicForm.outlineStatus,
-        resourceReadyScore: basicForm.resourceReadyScore,
-        sourceNovelId: basicForm.writingMode === "continuation" && basicForm.continuationSourceType === "novel"
-          ? (basicForm.sourceNovelId || null)
-          : null,
-        sourceKnowledgeDocumentId: basicForm.writingMode === "continuation" && basicForm.continuationSourceType === "knowledge_document"
-          ? (basicForm.sourceKnowledgeDocumentId || null)
-          : null,
-        continuationBookAnalysisId: basicForm.writingMode === "continuation"
-          && (
-            (basicForm.continuationSourceType === "novel" && Boolean(basicForm.sourceNovelId))
-            || (basicForm.continuationSourceType === "knowledge_document" && Boolean(basicForm.sourceKnowledgeDocumentId))
-          )
-          ? (basicForm.continuationBookAnalysisId || null)
-          : null,
-        continuationBookAnalysisSections:
-          basicForm.writingMode === "continuation"
-            && (
-              (basicForm.continuationSourceType === "novel" && Boolean(basicForm.sourceNovelId))
-              || (basicForm.continuationSourceType === "knowledge_document" && Boolean(basicForm.sourceKnowledgeDocumentId))
-            )
-            && basicForm.continuationBookAnalysisId
-            ? (basicForm.continuationBookAnalysisSections.length > 0 ? basicForm.continuationBookAnalysisSections : null)
-            : null,
-      }),
+    mutationFn: () => updateNovel(id, buildNovelUpdatePayload(basicForm)),
     onSuccess: async () => {
       await invalidateNovelDetail();
       if (!hasCharacters) {
