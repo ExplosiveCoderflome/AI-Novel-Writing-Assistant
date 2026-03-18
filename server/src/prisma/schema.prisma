@@ -1155,6 +1155,7 @@ model KnowledgeDocumentVersion {
   document           KnowledgeDocument    @relation("KnowledgeDocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
   activeForDocuments KnowledgeDocument[]  @relation("KnowledgeDocumentActiveVersion")
   bookAnalyses       BookAnalysis[]
+  sourceCaches       BookAnalysisSourceCache[]
   createdAt          DateTime             @default(now())
 
   @@unique([documentId, versionNumber])
@@ -1208,6 +1209,24 @@ model BookAnalysis {
   @@index([documentId, status])
   @@index([documentVersionId])
   @@index([status, updatedAt])
+}
+
+model BookAnalysisSourceCache {
+  id                String                   @id @default(cuid())
+  documentVersionId String
+  provider          String
+  model             String
+  temperature       Float
+  notesMaxTokens    Int
+  segmentVersion    Int                      @default(1)
+  segmentCount      Int
+  notesJson         String
+  documentVersion   KnowledgeDocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  @@unique([documentVersionId, provider, model, temperature, notesMaxTokens, segmentVersion])
+  @@index([documentVersionId, updatedAt])
 }
 
 model BookAnalysisSection {

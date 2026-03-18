@@ -4,7 +4,7 @@ export const CHAPTER_HEADING_REGEX =
   /^\s*((第[零一二三四五六七八九十百千万两\d]+[章节回卷部集篇]|chapter\s+\d+|chap\.\s*\d+)[^\n]{0,40})\s*$/i;
 export const MIN_CHAPTER_DETECTION_COUNT = 3;
 export const MIN_SEGMENT_BODY_LENGTH = 120;
-export const MAX_SEGMENT_COUNT = 24;
+export const MAX_SEGMENT_COUNT = 12;
 export const MIN_SEGMENT_CHARS = 6_000;
 export const TARGET_SEGMENT_CHARS = 10_000;
 export const MAX_SEGMENT_CHARS = 16_000;

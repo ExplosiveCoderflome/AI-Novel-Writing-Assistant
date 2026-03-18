@@ -8,6 +8,28 @@ import type {
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { apiClient } from "./client";
 
+export interface RagJobProgress {
+  stage:
+    | "queued"
+    | "loading_source"
+    | "chunking"
+    | "embedding"
+    | "ensuring_collection"
+    | "deleting_existing"
+    | "upserting_vectors"
+    | "writing_metadata"
+    | "completed"
+    | "failed";
+  label: string;
+  detail?: string;
+  current?: number;
+  total?: number;
+  percent: number;
+  documents?: number;
+  chunks?: number;
+  updatedAt: string;
+}
+
 export interface RagJobSummary {
   id: string;
   ownerType: string;
@@ -18,6 +40,7 @@ export interface RagJobSummary {
   maxAttempts: number;
   runAfter: string;
   lastError?: string | null;
+  progress?: RagJobProgress;
   createdAt: string;
   updatedAt: string;
 }

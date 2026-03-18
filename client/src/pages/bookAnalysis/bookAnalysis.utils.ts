@@ -22,6 +22,19 @@ export function formatStatus(status: BookAnalysisStatus | BookAnalysisSection["s
   }
 }
 
+export function formatStage(stage?: string | null): string {
+  switch (stage) {
+    case "loading_cache":
+      return "查缓存";
+    case "preparing_notes":
+      return "准备 notes";
+    case "generating_sections":
+      return "生成章节";
+    default:
+      return stage?.trim() || "暂无";
+  }
+}
+
 export function formatDate(value?: string | null): string {
   if (!value) {
     return "暂无";

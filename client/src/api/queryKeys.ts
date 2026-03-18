@@ -79,6 +79,7 @@ export const queryKeys = {
   settings: {
     apiKeys: ["settings", "api-keys"] as const,
     rag: ["settings", "rag"] as const,
+    ragEmbeddingModels: (provider: string) => ["settings", "rag", "embedding-models", provider] as const,
     modelRoutes: ["settings", "model-routes"] as const,
     modelRouteConnectivity: ["settings", "model-route-connectivity"] as const,
   },

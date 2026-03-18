@@ -1,4 +1,4 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
@@ -7,11 +7,13 @@ import { getProviderModels, refreshProviderModels } from "../llm/modelCatalog";
 import { authMiddleware } from "../middleware/auth";
 import { AppError } from "../middleware/errorHandler";
 import { validate } from "../middleware/validate";
+import { ragServices } from "../services/rag";
 import {
   getRagEmbeddingProviders,
   getRagEmbeddingSettings,
   saveRagEmbeddingSettings,
 } from "../services/settings/RagSettingsService";
+import { getRagEmbeddingModelOptions } from "../services/settings/RagEmbeddingModelService";
 
 const router = Router();
 
@@ -28,6 +30,18 @@ const upsertApiKeySchema = z.object({
 const ragSettingsSchema = z.object({
   embeddingProvider: z.enum(["openai", "siliconflow"]),
   embeddingModel: z.string().trim().min(1, "嵌入模型不能为空。"),
+  collectionMode: z.enum(["auto", "manual"]),
+  collectionName: z.string().trim().min(1, "向量集合名不能为空。"),
+  collectionTag: z.string().trim().min(1, "集合标识不能为空。"),
+  autoReindexOnChange: z.boolean(),
+  embeddingBatchSize: z.coerce.number().int().min(1).max(256),
+  embeddingTimeoutMs: z.coerce.number().int().min(5000).max(300000),
+  embeddingMaxRetries: z.coerce.number().int().min(0).max(8),
+  embeddingRetryBaseMs: z.coerce.number().int().min(100).max(10000),
+});
+
+const ragEmbeddingProviderSchema = z.object({
+  provider: z.enum(["openai", "siliconflow"]),
 });
 
 router.use(authMiddleware);
@@ -58,11 +72,40 @@ router.put(
   async (req, res, next) => {
     try {
       const body = req.body as z.infer<typeof ragSettingsSchema>;
-      const data = await saveRagEmbeddingSettings(body);
+      const result = await saveRagEmbeddingSettings(body);
+      let reindexQueuedCount = 0;
+      let message = "RAG 设置保存成功。";
+      if (result.shouldReindex && result.settings.autoReindexOnChange) {
+        const reindexResult = await ragServices.ragIndexService.enqueueReindex("all");
+        reindexQueuedCount = reindexResult.count;
+        message = `RAG 设置保存成功，已自动触发全量重建索引（${reindexQueuedCount} 项）。`;
+      }
+      const data = {
+        ...result.settings,
+        reindexQueuedCount,
+      };
       res.status(200).json({
         success: true,
         data,
-        message: "RAG 设置保存成功。",
+        message,
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.get(
+  "/rag/models/:provider",
+  validate({ params: ragEmbeddingProviderSchema }),
+  async (req, res, next) => {
+    try {
+      const { provider } = req.params as z.infer<typeof ragEmbeddingProviderSchema>;
+      const data = await getRagEmbeddingModelOptions(provider);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "获取 Embedding 模型列表成功。",
       } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);

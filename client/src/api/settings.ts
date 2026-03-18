@@ -22,9 +22,30 @@ export interface RagProviderStatus {
   isActive: boolean;
 }
 
+export interface RagEmbeddingModelStatus {
+  provider: EmbeddingProvider;
+  name: string;
+  models: string[];
+  defaultModel: string;
+  isConfigured: boolean;
+  isActive: boolean;
+  source: "remote" | "fallback";
+}
+
 export interface RagSettingsStatus {
   embeddingProvider: EmbeddingProvider;
   embeddingModel: string;
+  collectionVersion: number;
+  collectionMode: "auto" | "manual";
+  collectionName: string;
+  collectionTag: string;
+  autoReindexOnChange: boolean;
+  embeddingBatchSize: number;
+  embeddingTimeoutMs: number;
+  embeddingMaxRetries: number;
+  embeddingRetryBaseMs: number;
+  suggestedCollectionName: string;
+  reindexQueuedCount?: number;
   providers: RagProviderStatus[];
 }
 
@@ -66,10 +87,40 @@ export async function getRagSettings() {
 export async function saveRagSettings(payload: {
   embeddingProvider: EmbeddingProvider;
   embeddingModel: string;
+  collectionMode: "auto" | "manual";
+  collectionName: string;
+  collectionTag: string;
+  autoReindexOnChange: boolean;
+  embeddingBatchSize: number;
+  embeddingTimeoutMs: number;
+  embeddingMaxRetries: number;
+  embeddingRetryBaseMs: number;
 }) {
   const { data } = await apiClient.put<
-    ApiResponse<Pick<RagSettingsStatus, "embeddingProvider" | "embeddingModel">>
+    ApiResponse<
+      Pick<
+        RagSettingsStatus,
+        | "embeddingProvider"
+        | "embeddingModel"
+        | "collectionVersion"
+        | "collectionMode"
+        | "collectionName"
+        | "collectionTag"
+        | "autoReindexOnChange"
+        | "embeddingBatchSize"
+        | "embeddingTimeoutMs"
+        | "embeddingMaxRetries"
+        | "embeddingRetryBaseMs"
+        | "suggestedCollectionName"
+        | "reindexQueuedCount"
+      >
+    >
   >("/settings/rag", payload);
+  return data;
+}
+
+export async function getRagEmbeddingModels(provider: EmbeddingProvider) {
+  const { data } = await apiClient.get<ApiResponse<RagEmbeddingModelStatus>>(`/settings/rag/models/${provider}`);
   return data;
 }
 

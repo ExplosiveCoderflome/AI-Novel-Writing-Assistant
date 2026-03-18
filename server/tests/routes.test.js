@@ -7,6 +7,7 @@ const { creativeHubLangGraph } = require("../dist/creativeHub/CreativeHubLangGra
 const { creativeHubService } = require("../dist/creativeHub/CreativeHubService.js");
 const { llmConnectivityService } = require("../dist/llm/connectivity.js");
 const { NovelService } = require("../dist/services/novel/NovelService.js");
+const { ragServices } = require("../dist/services/rag/index.js");
 
 function listen(server) {
   return new Promise((resolve) => {
@@ -28,6 +29,164 @@ test("GET /api/llm/model-routes returns success payload", async () => {
     assert.equal(payload.success, true);
     assert.ok(Array.isArray(payload.data.taskTypes));
   } finally {
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("GET /api/settings/rag/models/openai returns embedding-only models", async () => {
+  const originalFetch = global.fetch;
+  const originalOpenAIKey = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = "test-openai-key";
+  global.fetch = async () => new Response(JSON.stringify({
+    data: [
+      { id: "gpt-4o-mini" },
+      { id: "text-embedding-3-small" },
+      { id: "text-embedding-3-large" },
+    ],
+  }), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  const httpFetch = originalFetch.bind(global);
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await httpFetch(`http://127.0.0.1:${port}/api/settings/rag/models/openai`);
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    assert.equal(payload.data.provider, "openai");
+    assert.ok(Array.isArray(payload.data.models));
+    assert.ok(payload.data.models.every((model) => model.startsWith("text-embedding-")));
+    assert.ok(payload.data.models.includes("text-embedding-3-small"));
+    assert.equal(payload.data.source, "remote");
+  } finally {
+    global.fetch = originalFetch;
+    if (originalOpenAIKey === undefined) {
+      delete process.env.OPENAI_API_KEY;
+    } else {
+      process.env.OPENAI_API_KEY = originalOpenAIKey;
+    }
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("PUT /api/settings/rag saves extended settings and auto-enqueues reindex", async () => {
+  const originalEnqueueReindex = ragServices.ragIndexService.enqueueReindex;
+  ragServices.ragIndexService.enqueueReindex = async () => ({
+    scope: "all",
+    id: null,
+    count: 12,
+    jobs: [],
+  });
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const settingsResponse = await fetch(`http://127.0.0.1:${port}/api/settings/rag`);
+    assert.equal(settingsResponse.status, 200);
+    const settingsPayload = await settingsResponse.json();
+    const current = settingsPayload.data;
+    const nextModel = current.embeddingModel === "text-embedding-3-small"
+      ? "text-embedding-3-large"
+      : "text-embedding-3-small";
+
+    const response = await fetch(`http://127.0.0.1:${port}/api/settings/rag`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        embeddingProvider: current.embeddingProvider,
+        embeddingModel: nextModel,
+        collectionMode: "auto",
+        collectionName: current.collectionName,
+        collectionTag: "kb",
+        autoReindexOnChange: true,
+        embeddingBatchSize: current.embeddingBatchSize,
+        embeddingTimeoutMs: current.embeddingTimeoutMs,
+        embeddingMaxRetries: current.embeddingMaxRetries,
+        embeddingRetryBaseMs: current.embeddingRetryBaseMs,
+      }),
+    });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    assert.equal(payload.data.embeddingModel, nextModel);
+    assert.equal(payload.data.collectionMode, "auto");
+    assert.equal(payload.data.reindexQueuedCount, 12);
+
+    await fetch(`http://127.0.0.1:${port}/api/settings/rag`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        embeddingProvider: current.embeddingProvider,
+        embeddingModel: current.embeddingModel,
+        collectionMode: current.collectionMode,
+        collectionName: current.collectionName,
+        collectionTag: current.collectionTag,
+        autoReindexOnChange: current.autoReindexOnChange,
+        embeddingBatchSize: current.embeddingBatchSize,
+        embeddingTimeoutMs: current.embeddingTimeoutMs,
+        embeddingMaxRetries: current.embeddingMaxRetries,
+        embeddingRetryBaseMs: current.embeddingRetryBaseMs,
+      }),
+    });
+  } finally {
+    ragServices.ragIndexService.enqueueReindex = originalEnqueueReindex;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("GET /api/rag/jobs returns progress snapshots", async () => {
+  const originalListJobSummaries = ragServices.ragIndexService.listJobSummaries;
+  ragServices.ragIndexService.listJobSummaries = async () => ([{
+    id: "rag-job-1",
+    tenantId: "default",
+    jobType: "rebuild",
+    ownerType: "knowledge_document",
+    ownerId: "doc-1",
+    status: "running",
+    attempts: 1,
+    maxAttempts: 5,
+    runAfter: new Date("2026-03-18T10:00:00.000Z"),
+    lastError: null,
+    createdAt: new Date("2026-03-18T10:00:00.000Z"),
+    updatedAt: new Date("2026-03-18T10:01:00.000Z"),
+    progress: {
+      stage: "embedding",
+      label: "生成向量",
+      detail: "正在生成向量，第 2/4 批。",
+      current: 32,
+      total: 64,
+      percent: 0.5,
+      documents: 1,
+      chunks: 64,
+      updatedAt: "2026-03-18T10:01:00.000Z",
+    },
+  }]);
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/rag/jobs`);
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    assert.equal(payload.data[0].ownerType, "knowledge_document");
+    assert.equal(payload.data[0].progress.stage, "embedding");
+    assert.equal(payload.data[0].progress.current, 32);
+    assert.equal(payload.data[0].progress.total, 64);
+  } finally {
+    ragServices.ragIndexService.listJobSummaries = originalListJobSummaries;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });

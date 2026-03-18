@@ -38,7 +38,7 @@ router.post("/reindex", validate({ body: reindexSchema }), async (req, res, next
 router.get("/jobs", validate({ query: jobsQuerySchema }), async (req, res, next) => {
   try {
     const query = jobsQuerySchema.parse(req.query);
-    const data = await ragServices.ragIndexService.listJobs(query.limit, query.status);
+    const data = await ragServices.ragIndexService.listJobSummaries(query.limit, query.status);
     res.status(200).json({
       success: true,
       data,

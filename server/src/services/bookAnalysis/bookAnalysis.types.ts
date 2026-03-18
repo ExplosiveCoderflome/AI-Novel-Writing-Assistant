@@ -4,6 +4,8 @@ export type AnalysisTask =
   | { analysisId: string; kind: "full" }
   | { analysisId: string; kind: "section"; sectionKey: BookAnalysisSectionKey };
 
+export type BookAnalysisStage = "loading_cache" | "preparing_notes" | "generating_sections";
+
 export interface SourceSegment {
   label: string;
   content: string;
@@ -26,4 +28,17 @@ export interface SectionGenerationResult {
   markdown: string;
   structuredData: Record<string, unknown> | null;
   evidence: BookAnalysisEvidenceItem[];
+}
+
+export interface SourceNotesResult {
+  notes: SourceNote[];
+  segmentCount: number;
+  cacheHit: boolean;
+}
+
+export interface BookAnalysisProgressUpdate {
+  stage: BookAnalysisStage;
+  progress: number;
+  itemKey?: string | null;
+  itemLabel?: string | null;
 }

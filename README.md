@@ -155,6 +155,12 @@
 
 ### 最近升级记录
 
+### 2026-03-19
+
+- 知识库的 Embedding 配置现在会先按供应商展示匹配的模型，切换模型后也能更稳地对应新的集合命名方式，减少维度不一致带来的索引失败。
+- 知识库索引和拆书分析的进度展示都更细了，用户能直接看到“查缓存 / 准备 notes / 生成章节”等阶段，以及当前正在处理的片段或章节。
+- 拆书分析加入了可复用的 source notes 缓存和受控并发，同一版本、同一配置重复重建时会更快，单个 section 重新生成也不需要再整本重复跑 notes。
+
 ### 2026-03-18
 
 - 新增“类型管理”模块，支持按树结构维护题材类型，也支持用 AI 先生成一版类型树；这套类型资产开始同时服务小说创建、标题工坊和世界观向导。
@@ -202,8 +208,11 @@
 
 ### 当前验证状态
 
-- 2026-03-16 已在本地执行 `pnpm --filter @ai-novel/server test`
-- 服务端测试结果：`52/52` 通过
+- 2026-03-19 已在本地执行 `corepack pnpm --filter @ai-novel/server test:book-analysis`
+- 2026-03-19 已在本地执行 `corepack pnpm --filter @ai-novel/server test:routes`
+- 2026-03-19 已在本地执行 `corepack pnpm --filter @ai-novel/client typecheck`
+- 服务端拆书专项回归：`6/6` 通过
+- 服务端路由回归：`12/12` 通过
 
 ## 功能预览
 
@@ -322,14 +331,13 @@ shared (TypeScript types)
 
 ### 前置要求
 
-- Node.js 20+
-- pnpm 10+
+- Node.js 20+（建议直接通过 `corepack pnpm` 调用）
 - Docker（可选，仅在本地启用 Qdrant 时需要）
 
 ### 1. 安装依赖
 
 ```bash
-pnpm install
+corepack pnpm install
 ```
 
 ### 2. 配置环境变量
@@ -351,14 +359,14 @@ cp server/.env.example server/.env
 ### 3. 初始化数据库
 
 ```bash
-pnpm db:migrate
-pnpm db:seed
+corepack pnpm db:migrate
+corepack pnpm db:seed
 ```
 
 ### 4. 启动项目
 
 ```bash
-pnpm dev
+corepack pnpm dev
 ```
 
 默认地址：
@@ -403,20 +411,34 @@ QDRANT_URL=http://127.0.0.1:6333
 QDRANT_COLLECTION=ai_novel_chunks_v1
 ```
 
+拆书分析相关的可选调优项：
+
+```env
+BOOK_ANALYSIS_MAX_CONCURRENT_TASKS=2
+BOOK_ANALYSIS_NOTES_CONCURRENCY=2
+BOOK_ANALYSIS_SECTION_CONCURRENCY=2
+BOOK_ANALYSIS_CACHE_SEGMENT_VERSION=1
+```
+
+- `BOOK_ANALYSIS_MAX_CONCURRENT_TASKS`：同时运行的拆书任务数上限
+- `BOOK_ANALYSIS_NOTES_CONCURRENCY`：单次拆书在 source notes 阶段的并发片段数
+- `BOOK_ANALYSIS_SECTION_CONCURRENCY`：单次拆书在章节生成阶段的并发 section 数
+- `BOOK_ANALYSIS_CACHE_SEGMENT_VERSION`：分段算法版本号；调整分段策略后只需要升版本即可让旧缓存失效
+
 ## 常用命令
 
 ```bash
-pnpm dev
-pnpm dev:server
-pnpm dev:client
+corepack pnpm dev
+corepack pnpm dev:server
+corepack pnpm dev:client
 
-pnpm typecheck
-pnpm build
-pnpm lint
+corepack pnpm typecheck
+corepack pnpm build
+corepack pnpm lint
 
-pnpm db:migrate
-pnpm db:seed
-pnpm db:studio
+corepack pnpm db:migrate
+corepack pnpm db:seed
+corepack pnpm db:studio
 ```
 
 ## 接口与页面概览
@@ -471,7 +493,7 @@ pnpm db:studio
 建议的贡献方式：
 
 1. Fork 仓库并创建分支。
-2. 完成改动后运行 `pnpm typecheck`，必要时补充测试。
+2. 完成改动后运行 `corepack pnpm typecheck`，必要时补充测试。
 3. 在 PR 中清楚说明“问题、方案、影响范围、验证方式”。
 
 如果你也在探索 AI Native 应用、创作 Agent 或长篇生成工作流，这个仓库非常欢迎一起把路线走深。

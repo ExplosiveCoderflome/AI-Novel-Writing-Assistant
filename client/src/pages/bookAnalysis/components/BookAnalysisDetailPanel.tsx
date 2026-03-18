@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AggregatedEvidenceItem, SectionDraft } from "../bookAnalysis.types";
-import { formatDate, formatStatus } from "../bookAnalysis.utils";
+import { formatDate, formatStage, formatStatus } from "../bookAnalysis.utils";
 import BookAnalysisSectionCard from "./BookAnalysisSectionCard";
 
 type ExportFormat = "markdown" | "json";
@@ -183,7 +183,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                 <div>模型：{selectedAnalysis.model || "默认"}</div>
                 <div>温度：{selectedAnalysis.temperature ?? "默认"}</div>
                 <div>最大 Tokens：{selectedAnalysis.maxTokens ?? "默认"}</div>
-                <div>当前阶段：{selectedAnalysis.currentStage ?? "暂无"}</div>
+                <div>当前阶段：{formatStage(selectedAnalysis.currentStage)}</div>
                 <div>当前 section：{selectedAnalysis.currentItemLabel ?? "暂无"}</div>
                 <div>最近心跳：{formatDate(selectedAnalysis.heartbeatAt)}</div>
                 <div>最近运行：{formatDate(selectedAnalysis.lastRunAt)}</div>
