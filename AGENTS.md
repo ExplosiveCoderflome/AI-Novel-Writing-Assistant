@@ -24,3 +24,8 @@
 
 - If a single source file becomes too long, it must be split into functional modules.
 - Hard threshold: when a source file exceeds 500 lines, refactoring and modularization are mandatory before continuing feature expansion.
+
+## README Release Notes Workflow
+
+- When the user asks to commit or push code, inspect the Git scope for that push and update `README.md` before the Git write step if the change set has clear user-facing impact.
+- Write the README release note from the user's perspective: describe capabilities, workflow improvements, and visible product behavior instead of file names, route names, service names, tests, or refactor details.

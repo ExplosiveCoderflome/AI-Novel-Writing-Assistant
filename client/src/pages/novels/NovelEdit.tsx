@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import type { AuditReport, PipelineRepairMode, PipelineRunMode, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import NovelEditView from "./components/NovelEditView";
 import { getBaseCharacterList } from "@/api/character";
+import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
 import {
   auditNovelChapter,
   generateChapterPlan,
@@ -27,6 +28,8 @@ import { useNovelCharacterMutations } from "./hooks/useNovelCharacterMutations";
 import { useChapterExecutionActions } from "./hooks/useChapterExecutionActions";
 import { useNovelContinuationSources } from "./hooks/useNovelContinuationSources";
 import { useNovelEditMutations } from "./hooks/useNovelEditMutations";
+import { useNovelEditInitialization } from "./hooks/useNovelEditInitialization";
+import { useNovelStoryMacro } from "./hooks/useNovelStoryMacro";
 import { useStorylineVersionControl } from "./hooks/useStorylineVersionControl";
 import { createDefaultNovelBasicFormState, patchNovelBasicForm } from "./novelBasicInfo.shared";
 
@@ -136,6 +139,11 @@ export default function NovelEdit() {
     queryFn: getWorldList,
   });
 
+  const genreTreeQuery = useQuery({
+    queryKey: queryKeys.genres.all,
+    queryFn: getGenreTree,
+  });
+
   const {
     sourceBookAnalysesQuery,
     sourceNovelOptions,
@@ -146,6 +154,11 @@ export default function NovelEdit() {
     continuationSourceType: basicForm.continuationSourceType,
     sourceNovelId: basicForm.sourceNovelId,
     sourceKnowledgeDocumentId: basicForm.sourceKnowledgeDocumentId,
+  });
+
+  const { tab: storyMacroTab } = useNovelStoryMacro({
+    novelId: id,
+    llm,
   });
 
   const pipelineJobQuery = useQuery({
@@ -228,111 +241,28 @@ export default function NovelEdit() {
     [chapterAuditReports],
   );
 
-  useEffect(() => {
-    const detail = novelDetailQuery.data?.data;
-    if (!detail) {
-      return;
-    }
-    setBasicForm({
-      title: detail.title,
-      description: detail.description ?? "",
-      worldId: detail.worldId ?? "",
-      status: detail.status,
-      writingMode: detail.writingMode ?? "original",
-      projectMode: detail.projectMode ?? "co_pilot",
-      narrativePov: detail.narrativePov ?? "third_person",
-      pacePreference: detail.pacePreference ?? "balanced",
-      styleTone: detail.styleTone ?? "",
-      emotionIntensity: detail.emotionIntensity ?? "medium",
-      aiFreedom: detail.aiFreedom ?? "medium",
-      defaultChapterLength: detail.defaultChapterLength ?? 2800,
-      projectStatus: detail.projectStatus ?? "not_started",
-      storylineStatus: detail.storylineStatus ?? "not_started",
-      outlineStatus: detail.outlineStatus ?? "not_started",
-      resourceReadyScore: detail.resourceReadyScore ?? 0,
-      continuationSourceType: detail.sourceKnowledgeDocumentId ? "knowledge_document" : "novel",
-      sourceNovelId: detail.sourceNovelId ?? "",
-      sourceKnowledgeDocumentId: detail.sourceKnowledgeDocumentId ?? "",
-      continuationBookAnalysisId: detail.continuationBookAnalysisId ?? "",
-      continuationBookAnalysisSections: detail.continuationBookAnalysisSections ?? [],
-    });
-    setOutlineText(detail.outline ?? "");
-    setStructuredDraftText(detail.structuredOutline ?? "");
-    setPipelineForm((prev) => ({
-      ...prev,
-      endOrder: Math.max(prev.endOrder, Math.max(10, detail.chapters.length || 10)),
-    }));
-  }, [novelDetailQuery.data?.data]);
-
-  useEffect(() => {
-    if (!selectedChapterId && chapters.length > 0) {
-      setSelectedChapterId(chapters[0].id);
-    }
-  }, [chapters, selectedChapterId]);
-
-  useEffect(() => {
-    if (!selectedCharacterId && characters.length > 0) {
-      setSelectedCharacterId(characters[0].id);
-    }
-  }, [characters, selectedCharacterId]);
-
-  useEffect(() => {
-    if (!selectedBaseCharacterId && baseCharacters.length > 0) {
-      setSelectedBaseCharacterId(baseCharacters[0].id);
-    }
-  }, [baseCharacters, selectedBaseCharacterId]);
-
-  useEffect(() => {
-    if (
-      basicForm.writingMode !== "continuation"
-      || !basicForm.continuationBookAnalysisId
-    ) {
-      return;
-    }
-    if (sourceBookAnalysesQuery.isLoading || sourceBookAnalysesQuery.isFetching) {
-      return;
-    }
-    const exists = sourceNovelBookAnalysisOptions.some((item) => item.id === basicForm.continuationBookAnalysisId);
-    if (exists) {
-      return;
-    }
-    setBasicForm((prev) => ({
-      ...prev,
-      continuationBookAnalysisId: "",
-      continuationBookAnalysisSections: [],
-    }));
-  }, [
-    basicForm.continuationBookAnalysisId,
-    basicForm.continuationSourceType,
-    basicForm.writingMode,
-    sourceBookAnalysesQuery.isFetching,
-    sourceBookAnalysesQuery.isLoading,
+  useNovelEditInitialization({
+    detail: novelDetailQuery.data?.data,
+    chapters,
+    characters,
+    baseCharacters,
+    basicForm,
+    selectedCharacter,
+    selectedChapterId,
+    selectedCharacterId,
+    selectedBaseCharacterId,
     sourceNovelBookAnalysisOptions,
-  ]);
-
-  useEffect(() => {
-    if (!selectedCharacter) {
-      setCharacterForm({
-        name: "",
-        role: "",
-        personality: "",
-        background: "",
-        development: "",
-        currentState: "",
-        currentGoal: "",
-      });
-      return;
-    }
-    setCharacterForm({
-      name: selectedCharacter.name ?? "",
-      role: selectedCharacter.role ?? "",
-      personality: selectedCharacter.personality ?? "",
-      background: selectedCharacter.background ?? "",
-      development: selectedCharacter.development ?? "",
-      currentState: selectedCharacter.currentState ?? "",
-      currentGoal: selectedCharacter.currentGoal ?? "",
-    });
-  }, [selectedCharacter]);
+    sourceBookAnalysesLoading: sourceBookAnalysesQuery.isLoading,
+    sourceBookAnalysesFetching: sourceBookAnalysesQuery.isFetching,
+    setBasicForm,
+    setOutlineText,
+    setStructuredDraftText,
+    setPipelineForm,
+    setSelectedChapterId,
+    setSelectedCharacterId,
+    setSelectedBaseCharacterId,
+    setCharacterForm,
+  });
 
   const invalidateNovelDetail = async () => {
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
@@ -527,7 +457,9 @@ export default function NovelEdit() {
   const chapterExecutionActions = useChapterExecutionActions({ novelId: id, selectedChapterId, selectedChapter, strategy: chapterStrategy, reviewIssues: reviewResult?.issues ?? [], onGenerateChapter: handleGenerateSelectedChapter, onReviewChapter: () => reviewMutation.mutate(), onStartRepair: startChapterRepair, onMessage: setChapterOperationMessage, invalidateNovelDetail });
 
   const basicTab = {
+    novelId: id,
     basicForm,
+    genreOptions: flattenGenreTreeOptions(genreTreeQuery.data?.data ?? []),
     worldOptions: worldListQuery.data?.data ?? [],
     sourceNovelOptions,
     sourceKnowledgeOptions,
@@ -544,5 +476,5 @@ export default function NovelEdit() {
   const pipelineTab = { novelId: id, worldInjectionSummary, hasCharacters, onGoToCharacterTab: goToCharacterTab, pipelineForm, onPipelineFormChange: (field: "startOrder" | "endOrder" | "maxRetries" | "runMode" | "autoReview" | "autoRepair" | "skipCompleted" | "qualityThreshold" | "repairMode", value: number | boolean | string) => setPipelineForm((prev) => ({ ...prev, [field]: value } as typeof prev)), maxOrder, onGenerateBible: () => void bibleSSE.start(`/novels/${id}/bible/generate`, { provider: llm.provider, model: llm.model, temperature: 0.6 }), onAbortBible: bibleSSE.abort, isBibleStreaming: bibleSSE.isStreaming, bibleStreamContent: bibleSSE.content, onGenerateBeats: () => void beatsSSE.start(`/novels/${id}/beats/generate`, { provider: llm.provider, model: llm.model, targetChapters: pipelineForm.endOrder }), onAbortBeats: beatsSSE.abort, isBeatsStreaming: beatsSSE.isStreaming, beatsStreamContent: beatsSSE.content, onRunPipeline: (patch?: Partial<typeof pipelineForm>) => runPipelineMutation.mutate(patch), isRunningPipeline: runPipelineMutation.isPending, pipelineMessage, pipelineJob: pipelineJobQuery.data?.data, chapters, selectedChapterId, onSelectedChapterChange: setSelectedChapterId, onReviewChapter: () => reviewMutation.mutate(), isReviewing: reviewMutation.isPending, onRepairChapter: () => { setRepairBeforeContent(selectedChapter?.content ?? ""); setRepairAfterContent(""); void repairSSE.start(`/novels/${id}/chapters/${selectedChapterId}/repair`, { provider: llm.provider, model: llm.model, reviewIssues: reviewResult?.issues ?? [], auditIssueIds: openAuditIssueIds }); }, isRepairing: repairSSE.isStreaming, onGenerateHook: () => hookMutation.mutate(), isGeneratingHook: hookMutation.isPending, reviewResult, repairBeforeContent, repairAfterContent, repairStreamContent: repairSSE.content, isRepairStreaming: repairSSE.isStreaming, onAbortRepair: repairSSE.abort, qualitySummary, chapterReports: qualityReportQuery.data?.data?.chapterReports ?? [], bible, plotBeats };
   const characterTab = { characterMessage, quickCharacterForm, onQuickCharacterFormChange: (field: "name" | "role", value: string) => setQuickCharacterForm((prev) => ({ ...prev, [field]: value })), onQuickCreateCharacter: (payload: QuickCharacterCreatePayload) => quickCreateCharacterMutation.mutate(payload), isQuickCreating: quickCreateCharacterMutation.isPending, characters, coreCharacterCount, baseCharacters, selectedBaseCharacterId, onSelectedBaseCharacterChange: setSelectedBaseCharacterId, selectedBaseCharacter, importedBaseCharacterIds, onImportBaseCharacter: () => importBaseCharacterMutation.mutate(), isImportingBaseCharacter: importBaseCharacterMutation.isPending, selectedCharacterId, onSelectedCharacterChange: setSelectedCharacterId, onDeleteCharacter: (characterId: string) => deleteCharacterMutation.mutate(characterId), isDeletingCharacter: deleteCharacterMutation.isPending, deletingCharacterId: deleteCharacterMutation.variables ?? "", onSyncTimeline: () => syncTimelineMutation.mutate(), isSyncingTimeline: syncTimelineMutation.isPending, onSyncAllTimeline: () => syncAllTimelineMutation.mutate(), isSyncingAllTimeline: syncAllTimelineMutation.isPending, onEvolveCharacter: () => evolveCharacterMutation.mutate(), isEvolvingCharacter: evolveCharacterMutation.isPending, onWorldCheck: () => worldCheckMutation.mutate(), isCheckingWorld: worldCheckMutation.isPending, selectedCharacter, characterForm, onCharacterFormChange: (field: "name" | "role" | "personality" | "background" | "development" | "currentState" | "currentGoal", value: string) => setCharacterForm((prev) => ({ ...prev, [field]: value })), onSaveCharacter: () => saveCharacterMutation.mutate(), isSavingCharacter: saveCharacterMutation.isPending, timelineEvents: characterTimelineQuery.data?.data ?? [] };
 
-  return <NovelEditView id={id} activeTab={activeTab} onActiveTabChange={setActiveTab} basicTab={basicTab} outlineTab={outlineTab} structuredTab={structuredTab} chapterTab={chapterTab} pipelineTab={pipelineTab} characterTab={characterTab} />;
+  return <NovelEditView id={id} activeTab={activeTab} onActiveTabChange={setActiveTab} basicTab={basicTab} storyMacroTab={storyMacroTab} outlineTab={outlineTab} structuredTab={structuredTab} chapterTab={chapterTab} pipelineTab={pipelineTab} characterTab={characterTab} />;
 }

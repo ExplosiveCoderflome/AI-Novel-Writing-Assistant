@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,8 +27,15 @@ interface WorldOption {
   name: string;
 }
 
+interface GenreOption {
+  id: string;
+  label: string;
+  path: string;
+}
+
 interface NovelBasicInfoFormProps {
   basicForm: NovelBasicFormState;
+  genreOptions: GenreOption[];
   worldOptions: WorldOption[];
   sourceNovelOptions: Array<{ id: string; title: string }>;
   sourceKnowledgeOptions: Array<{ id: string; title: string }>;
@@ -44,11 +52,13 @@ interface NovelBasicInfoFormProps {
   isSubmitting: boolean;
   submitLabel: string;
   showPublicationStatus?: boolean;
+  titleQuickFill?: ReactNode;
 }
 
 export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
   const {
     basicForm,
+    genreOptions,
     worldOptions,
     sourceNovelOptions,
     sourceKnowledgeOptions,
@@ -60,6 +70,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
     isSubmitting,
     submitLabel,
     showPublicationStatus = true,
+    titleQuickFill,
   } = props;
 
   const continuationSourceMissing = basicForm.writingMode === "continuation"
@@ -97,6 +108,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
             placeholder="例如：雾港审判局"
             onChange={(event) => onFormChange({ title: event.target.value })}
           />
+          {titleQuickFill ? <div className="pt-1">{titleQuickFill}</div> : null}
         </div>
 
         <div className="space-y-2">
@@ -125,7 +137,24 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
           </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="space-y-2">
+            <FieldLabel htmlFor="basic-genre" hint={BASIC_INFO_FIELD_HINTS.genreId}>作品类型</FieldLabel>
+            <select
+              id="basic-genre"
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={basicForm.genreId}
+              onChange={(event) => onFormChange({ genreId: event.target.value })}
+            >
+              <option value="">暂不设置类型</option>
+              {genreOptions.map((genre) => (
+                <option key={genre.id} value={genre.id}>
+                  {genre.path}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="space-y-2">
             <FieldLabel htmlFor="basic-world" hint={BASIC_INFO_FIELD_HINTS.worldId}>绑定世界观</FieldLabel>
             <select

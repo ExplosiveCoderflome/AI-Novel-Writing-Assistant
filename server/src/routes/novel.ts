@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
+import { NOVEL_LIST_PAGE_LIMIT_DEFAULT, NOVEL_LIST_PAGE_LIMIT_MAX } from "@ai-novel/shared/types/pagination";
 import { z } from "zod";
 import { authMiddleware } from "../middleware/auth";
 import { AppError } from "../middleware/errorHandler";
@@ -13,6 +14,7 @@ import { registerNovelPlanningRoutes } from "./novelPlanningRoutes";
 import { registerNovelProductionRoutes } from "./novelProductionRoutes";
 import { registerNovelReviewRoutes } from "./novelReviewRoutes";
 import { registerNovelSnapshotCharacterRoutes } from "./novelSnapshotCharacterRoutes";
+import { registerNovelStoryMacroRoutes } from "./novelStoryMacroRoutes";
 import { registerNovelStorylineRoutes } from "./novelStorylineRoutes";
 
 const router = Router();
@@ -34,7 +36,7 @@ function forwardBusinessError(error: unknown, next: (err?: unknown) => void): bo
 
 const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(10),
+  limit: z.coerce.number().int().min(1).max(NOVEL_LIST_PAGE_LIMIT_MAX).default(NOVEL_LIST_PAGE_LIMIT_DEFAULT),
 });
 
 const bookAnalysisSectionKeySchema = z.enum([
@@ -282,6 +284,11 @@ const hookGenerateSchema = llmGenerateSchema.extend({
   chapterId: z.string().trim().optional(),
 });
 
+const titleGenerateSchema = llmGenerateSchema.extend({
+  count: z.number().int().min(3).max(24).optional(),
+  maxTokens: z.number().int().min(256).max(32768).optional(),
+});
+
 const draftOptimizeSchema = llmGenerateSchema.extend({
   currentDraft: z.string().trim().min(1),
   instruction: z.string().trim().min(1),
@@ -436,6 +443,11 @@ registerNovelStorylineRoutes({
   storylineImpactSchema,
 });
 
+registerNovelStoryMacroRoutes({
+  router,
+  idParamsSchema,
+});
+
 registerNovelChapterGenerationRoutes({
   router,
   novelService,
@@ -469,7 +481,7 @@ registerNovelProductionRoutes({
   novelDraftOptimizeService,
   idParamsSchema,
   pipelineJobParamsSchema,
-  llmGenerateSchema,
+  titleGenerateSchema,
   beatGenerateSchema,
   pipelineRunSchema,
   hookGenerateSchema,

@@ -323,7 +323,8 @@ export class PlannerService {
     context: string;
     includeScenes: boolean;
   }): Promise<PlannerOutput> {
-    const llm = await getLLM(input.options.provider ?? "deepseek", {
+    const llm = await getLLM(input.options.provider, {
+      fallbackProvider: "deepseek",
       model: input.options.model,
       temperature: input.options.temperature ?? 0.4,
       taskType: "planner",

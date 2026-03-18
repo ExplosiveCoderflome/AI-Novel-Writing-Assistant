@@ -14,13 +14,24 @@ import type {
   StorylineDiff,
   StorylineVersion,
 } from "@ai-novel/shared/types/novel";
+import type {
+  StoryConstraintEngine,
+  StoryDecomposition,
+  StoryExpansion,
+  StoryMacroField,
+  StoryMacroIssue,
+  StoryMacroLocks,
+  StoryMacroState,
+} from "@ai-novel/shared/types/storyMacro";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { QuickCharacterCreatePayload } from "./characterPanel.utils";
 import type { OutlineSyncChapter, StructuredSyncOptions, StructuredVolume } from "../novelEdit.utils";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 
 export interface BasicTabProps {
+  novelId: string;
   basicForm: NovelBasicFormState;
+  genreOptions: Array<{ id: string; label: string; path: string }>;
   worldOptions: Array<{ id: string; name: string }>;
   sourceNovelOptions: Array<{ id: string; title: string }>;
   sourceKnowledgeOptions: Array<{ id: string; title: string }>;
@@ -35,6 +46,32 @@ export interface BasicTabProps {
   onFormChange: (patch: Partial<BasicTabProps["basicForm"]>) => void;
   onSave: () => void;
   isSaving: boolean;
+}
+
+export interface StoryMacroTabProps {
+  storyInput: string;
+  onStoryInputChange: (value: string) => void;
+  expansion: StoryExpansion | null;
+  decomposition: StoryDecomposition;
+  issues: StoryMacroIssue[];
+  lockedFields: StoryMacroLocks;
+  constraintEngine: StoryConstraintEngine | null;
+  state: StoryMacroState;
+  message: string;
+  hasPlan: boolean;
+  onFieldChange: (field: StoryMacroField, value: string | string[]) => void;
+  onToggleLock: (field: StoryMacroField) => void;
+  onDecompose: () => void;
+  onRegenerateField: (field: StoryMacroField) => void;
+  regeneratingField: StoryMacroField | "";
+  onBuildConstraintEngine: () => void;
+  onSaveEdits: () => void;
+  onStateChange: (field: keyof StoryMacroState, value: string | number) => void;
+  onSaveState: () => void;
+  isDecomposing: boolean;
+  isBuilding: boolean;
+  isSaving: boolean;
+  isSavingState: boolean;
 }
 
 export interface OutlineTabViewProps {
@@ -328,6 +365,7 @@ export interface NovelEditViewProps {
   activeTab: string;
   onActiveTabChange: (value: string) => void;
   basicTab: BasicTabProps;
+  storyMacroTab: StoryMacroTabProps;
   outlineTab: OutlineTabViewProps;
   structuredTab: StructuredTabViewProps;
   chapterTab: ChapterTabViewProps;

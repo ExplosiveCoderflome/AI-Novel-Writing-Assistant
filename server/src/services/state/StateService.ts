@@ -237,7 +237,8 @@ export class StateService {
     const previousSummary = input.previousSnapshot?.summary
       ? `上一状态快照：${input.previousSnapshot.summary}`
       : "上一状态快照：无";
-    const llm = await getLLM(input.options.provider ?? "deepseek", {
+    const llm = await getLLM(input.options.provider, {
+      fallbackProvider: "deepseek",
       model: input.options.model,
       temperature: input.options.temperature ?? 0.2,
       taskType: "summary",

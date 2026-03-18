@@ -20,6 +20,8 @@ const navGroups = [
   {
     title: "资产",
     items: [
+      { to: "/genres", label: "类型管理" },
+      { to: "/titles", label: "标题工坊" },
       { to: "/knowledge", label: "知识库" },
       { to: "/worlds", label: "世界观" },
       { to: "/writing-formula", label: "写作公式" },

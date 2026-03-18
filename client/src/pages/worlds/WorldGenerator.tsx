@@ -1,12 +1,21 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type {
+  WorldOptionRefinementLevel,
+  WorldPropertyOption,
+} from "@ai-novel/shared/types/worldWizard";
+import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
+import {
+  mapWorldLibraryCategoryToLayer,
+  serializeWorldGenerationBlueprint,
+} from "@ai-novel/shared/types/worldWizard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/toast";
 import LLMSelector from "@/components/common/LLMSelector";
 import KnowledgeDocumentPicker from "@/components/knowledge/KnowledgeDocumentPicker";
-import { TEXT_FILE_MAX_SIZE, isTxtFile, readTextFile } from "@/lib/textFile";
 import {
   analyzeWorldInspiration,
   createWorld,
@@ -16,6 +25,19 @@ import {
 } from "@/api/world";
 import { queryKeys } from "@/api/queryKeys";
 import { useLLMStore } from "@/store/llmStore";
+import WorldLibraryQuickPick from "./components/generator/WorldLibraryQuickPick";
+import WorldPropertyOptionSelector from "./components/generator/WorldPropertyOptionSelector";
+
+type InspirationMode = "free" | "reference" | "random";
+
+interface ConceptCard {
+  worldType: string;
+  templateKey: string;
+  coreImagery: string[];
+  tone: string;
+  keywords: string[];
+  summary: string;
+}
 
 const DEFAULT_DIMENSIONS: Record<string, boolean> = {
   foundation: true,
@@ -34,6 +56,7 @@ const DIMENSION_LABELS: Record<string, string> = {
   history: "历史层",
   conflict: "冲突层",
 };
+
 function getDimensionLabel(key: string): string {
   return DIMENSION_LABELS[key] ?? key;
 }
@@ -47,51 +70,35 @@ function normalizeAxiomTexts(items: unknown): string[] {
     .filter(Boolean);
 }
 
-function scoreDecodedTxt(text: string): number {
-  if (!text.trim()) {
-    return Number.NEGATIVE_INFINITY;
-  }
-  const nonWhitespace = text.match(/\S/g)?.length ?? 0;
-  const cjkChars = text.match(/[\u3400-\u9fff]/g)?.length ?? 0;
-  const replacementChars = text.match(/\uFFFD/g)?.length ?? 0;
-  const controlChars = text.match(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g)?.length ?? 0;
-  const mojibakeChars = text.match(/[ÃÂ¤¦§¨±¿½]/g)?.length ?? 0;
-  return nonWhitespace + cjkChars * 2 - replacementChars * 12 - controlChars * 6 - mojibakeChars * 2;
-}
-
-async function readReferenceTxt(file: File): Promise<string> {
-  return readTextFile(file);
+function clampOptionsCount(value: number): number {
+  return Math.max(4, Math.min(8, Math.floor(value)));
 }
 
 export default function WorldGenerator() {
   const llm = useLLMStore();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [worldName, setWorldName] = useState("");
-  const [inspirationMode, setInspirationMode] = useState<"free" | "reference" | "random">("free");
+  const [selectedGenreId, setSelectedGenreId] = useState("");
+  const [inspirationMode, setInspirationMode] = useState<InspirationMode>("free");
   const [inspirationText, setInspirationText] = useState("");
-  const [referenceTxtName, setReferenceTxtName] = useState("");
-  const [referenceTxtSize, setReferenceTxtSize] = useState(0);
-  const [referenceTxtError, setReferenceTxtError] = useState("");
-  const [isReadingReferenceTxt, setIsReadingReferenceTxt] = useState(false);
   const [selectedKnowledgeDocumentIds, setSelectedKnowledgeDocumentIds] = useState<string[]>([]);
-  const [concept, setConcept] = useState<{
-    worldType: string;
-    templateKey: string;
-    coreImagery: string[];
-    tone: string;
-    keywords: string[];
-    summary: string;
-  } | null>(null);
+  const [optionRefinementLevel, setOptionRefinementLevel] = useState<WorldOptionRefinementLevel>("standard");
+  const [optionsCount, setOptionsCount] = useState(6);
+  const [concept, setConcept] = useState<ConceptCard | null>(null);
+  const [propertyOptions, setPropertyOptions] = useState<WorldPropertyOption[]>([]);
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState("custom");
+  const [selectedDimensions, setSelectedDimensions] = useState<Record<string, boolean>>(DEFAULT_DIMENSIONS);
+  const [selectedClassicElements, setSelectedClassicElements] = useState<string[]>([]);
+  const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
+  const [propertyDetails, setPropertyDetails] = useState<Record<string, string>>({});
   const [inspirationSourceMeta, setInspirationSourceMeta] = useState<{
     extracted: boolean;
     originalLength: number;
     chunkCount: number;
   } | null>(null);
-  const [selectedTemplateKey, setSelectedTemplateKey] = useState("custom");
-  const [selectedDimensions, setSelectedDimensions] = useState<Record<string, boolean>>(DEFAULT_DIMENSIONS);
-  const [selectedElements, setSelectedElements] = useState<string[]>([]);
   const [worldId, setWorldId] = useState("");
   const [axioms, setAxioms] = useState<string[]>([]);
 
@@ -99,44 +106,167 @@ export default function WorldGenerator() {
     queryKey: queryKeys.worlds.templates,
     queryFn: getWorldTemplates,
   });
+  const genreTreeQuery = useQuery({
+    queryKey: queryKeys.genres.all,
+    queryFn: getGenreTree,
+  });
 
   const templates = templateQuery.data?.data ?? [];
-  const selectedTemplate = useMemo(
-    () => templates.find((item) => item.key === selectedTemplateKey) ?? templates[0],
-    [selectedTemplateKey, templates],
+  const genreTree = genreTreeQuery.data?.data ?? [];
+  const genreOptions = useMemo(() => flattenGenreTreeOptions(genreTree), [genreTree]);
+  const selectedGenre = useMemo(
+    () => genreOptions.find((item) => item.id === selectedGenreId) ?? null,
+    [genreOptions, selectedGenreId],
   );
+  const effectiveKnowledgeDocumentIds = inspirationMode === "reference" ? selectedKnowledgeDocumentIds : [];
+  const selectedGenrePathSegments = useMemo(
+    () =>
+      (selectedGenre?.path ?? "")
+        .split("/")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    [selectedGenre],
+  );
+  const matchedTemplateWorldType = useMemo(() => {
+    if (selectedGenrePathSegments.length === 0) {
+      return "";
+    }
+    const matchedTemplate = templates.find((template) =>
+      selectedGenrePathSegments.includes(template.worldType.trim()),
+    );
+    return matchedTemplate?.worldType ?? selectedGenrePathSegments[selectedGenrePathSegments.length - 1] ?? "";
+  }, [selectedGenrePathSegments, templates]);
+  const worldTypeAnalysisHint = useMemo(() => {
+    if (!selectedGenre) {
+      return "";
+    }
+    return [
+      `主类型：${selectedGenre.name}`,
+      `类型路径：${selectedGenre.path}`,
+      selectedGenre.description?.trim() ? `类型说明：${selectedGenre.description.trim()}` : "",
+      selectedGenre.template?.trim() ? `类型模板：${selectedGenre.template.trim()}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }, [selectedGenre]);
+
+  const filteredTemplates = useMemo(() => {
+    if (!matchedTemplateWorldType) {
+      return templates;
+    }
+
+    const matched = templates.filter(
+      (template) => template.worldType === matchedTemplateWorldType || template.key === "custom",
+    );
+    return matched.length > 0 ? matched : templates;
+  }, [matchedTemplateWorldType, templates]);
+
+  const templateSelectValue = useMemo(() => {
+    if (filteredTemplates.some((item) => item.key === selectedTemplateKey)) {
+      return selectedTemplateKey;
+    }
+    return filteredTemplates[0]?.key ?? "custom";
+  }, [filteredTemplates, selectedTemplateKey]);
+
+  const selectedTemplate = useMemo(
+    () =>
+      filteredTemplates.find((item) => item.key === templateSelectValue)
+      ?? templates.find((item) => item.key === templateSelectValue)
+      ?? templates[0],
+    [filteredTemplates, templateSelectValue, templates],
+  );
+
+  const existingPropertyOptionIds = useMemo(
+    () => propertyOptions.map((item) => item.id),
+    [propertyOptions],
+  );
+
+  const resetGeneratedState = () => {
+    setConcept(null);
+    setPropertyOptions([]);
+    setSelectedTemplateKey("custom");
+    setSelectedPropertyIds([]);
+    setPropertyDetails({});
+    setInspirationSourceMeta(null);
+    setWorldId("");
+    setAxioms([]);
+  };
 
   const analyzeMutation = useMutation({
     mutationFn: () =>
-        analyzeWorldInspiration({
-          input: inspirationText,
-          mode: inspirationMode,
-          knowledgeDocumentIds: selectedKnowledgeDocumentIds,
-          provider: llm.provider,
-          model: llm.model,
-        }),
+      analyzeWorldInspiration({
+        input: inspirationText,
+        mode: inspirationMode,
+        worldType: worldTypeAnalysisHint || undefined,
+        knowledgeDocumentIds: effectiveKnowledgeDocumentIds,
+        refinementLevel: optionRefinementLevel,
+        optionsCount,
+        provider: llm.provider,
+        model: llm.model,
+      }),
     onSuccess: (response) => {
-      const card = response.data?.conceptCard;
-      if (!card) {
+      const nextConcept = response.data?.conceptCard;
+      if (!nextConcept) {
         return;
       }
-      setConcept(card);
+      setConcept(nextConcept);
+      setPropertyOptions(response.data?.propertyOptions ?? []);
+      setSelectedTemplateKey(nextConcept.templateKey || "custom");
+      setSelectedPropertyIds([]);
+      setPropertyDetails({});
       setInspirationSourceMeta(response.data?.sourceMeta ?? null);
-      setSelectedTemplateKey(card.templateKey || "custom");
+      setWorldId("");
+      setAxioms([]);
       setStep(2);
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "世界观分析失败，请重试。";
+      toast.error(message);
     },
   });
 
+  const canAnalyze =
+    !analyzeMutation.isPending
+    && Boolean(selectedGenre)
+    && (
+      inspirationMode === "random"
+      || (inspirationMode === "reference"
+        ? Boolean(inspirationText.trim() || effectiveKnowledgeDocumentIds.length > 0)
+        : Boolean(inspirationText.trim()))
+    );
+
   const createDraftMutation = useMutation({
     mutationFn: async () => {
+      const selectedPropertySelections = selectedPropertyIds
+        .map((optionId) => {
+          const option = propertyOptions.find((item) => item.id === optionId);
+          if (!option) {
+            return null;
+          }
+          return {
+            optionId: option.id,
+            name: option.name,
+            description: option.description,
+            targetLayer: option.targetLayer,
+            detail: propertyDetails[option.id]?.trim() || null,
+            source: option.source,
+            libraryItemId: option.libraryItemId ?? null,
+          };
+        })
+        .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
       const createResp = await createWorld({
         name: worldName.trim() || "未命名世界",
         description: concept?.summary ?? inspirationText,
-        worldType: concept?.worldType ?? selectedTemplate?.worldType ?? "custom",
+        worldType: selectedGenre?.path || concept?.worldType || matchedTemplateWorldType || selectedTemplate?.worldType || "自定义",
         templateKey: selectedTemplate?.key ?? "custom",
         selectedDimensions: JSON.stringify(selectedDimensions),
-        selectedElements: JSON.stringify(selectedElements),
-        knowledgeDocumentIds: selectedKnowledgeDocumentIds,
+        selectedElements: serializeWorldGenerationBlueprint({
+          version: 1,
+          classicElements: selectedClassicElements,
+          propertySelections: selectedPropertySelections,
+        }),
+        knowledgeDocumentIds: effectiveKnowledgeDocumentIds,
       });
       const createdId = createResp.data?.id;
       if (!createdId) {
@@ -172,41 +302,53 @@ export default function WorldGenerator() {
     },
   });
 
-  const handleReferenceTxtUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) {
-      return;
-    }
+  const handleToggleClassicElement = (element: string, checked: boolean) => {
+    setSelectedClassicElements((prev) =>
+      checked ? [...prev, element] : prev.filter((item) => item !== element),
+    );
+  };
 
-    setReferenceTxtError("");
-    setInspirationSourceMeta(null);
-    setReferenceTxtName("");
-    setReferenceTxtSize(0);
-    if (!isTxtFile(file)) {
-      setReferenceTxtError("仅支持 .txt 文本文件。");
-      return;
+  const handleTogglePropertyOption = (optionId: string, checked: boolean) => {
+    setSelectedPropertyIds((prev) =>
+      checked ? Array.from(new Set([...prev, optionId])) : prev.filter((item) => item !== optionId),
+    );
+    if (!checked) {
+      setPropertyDetails((prev) => {
+        const next = { ...prev };
+        delete next[optionId];
+        return next;
+      });
     }
-    if (file.size > TEXT_FILE_MAX_SIZE) {
-      setReferenceTxtError("文件过大，请上传 2MB 以内的 txt 文件。");
-      return;
-    }
+  };
 
-    try {
-      setIsReadingReferenceTxt(true);
-      const content = await readReferenceTxt(file);
-      if (!content) {
-        setReferenceTxtError("文件内容为空或编码不受支持，请尝试另存为 UTF-8 后重试。");
-        return;
+  const handlePropertyDetailChange = (optionId: string, detail: string) => {
+    setPropertyDetails((prev) => ({ ...prev, [optionId]: detail }));
+  };
+
+  const handleAddLibraryOption = (item: {
+    id: string;
+    name: string;
+    description?: string | null;
+    category: string;
+  }) => {
+    setPropertyOptions((prev) => {
+      if (prev.some((option) => option.id === item.id)) {
+        return prev;
       }
-      setInspirationText(content);
-      setReferenceTxtName(file.name);
-      setReferenceTxtSize(file.size);
-    } catch {
-      setReferenceTxtError("读取文件失败，请重试。");
-    } finally {
-      setIsReadingReferenceTxt(false);
-    }
+      return [
+        ...prev,
+        {
+          id: item.id,
+          name: item.name,
+          description: item.description?.trim() || `${item.name} 的素材库设定。`,
+          targetLayer: mapWorldLibraryCategoryToLayer(item.category),
+          reason: "来自素材库的可复用设定。",
+          source: "library",
+          libraryItemId: item.id,
+        },
+      ];
+    });
+    setSelectedPropertyIds((prev) => (prev.includes(item.id) ? prev : [...prev, item.id]));
   };
 
   return (
@@ -222,7 +364,7 @@ export default function WorldGenerator() {
               1. 灵感捕获
             </Button>
             <Button variant={step === 2 ? "default" : "secondary"} onClick={() => setStep(2)} disabled={!concept}>
-              2. 模板与维度
+              2. 模板与蓝图
             </Button>
             <Button variant={step === 3 ? "default" : "secondary"} onClick={() => setStep(3)} disabled={!worldId}>
               3. 核心公理
@@ -237,84 +379,152 @@ export default function WorldGenerator() {
                 value={worldName}
                 onChange={(event) => setWorldName(event.target.value)}
               />
+
+              <div className="space-y-2">
+                <div className="text-sm font-medium">世界类型</div>
+                <select
+                  className="w-full rounded-md border bg-background p-2 text-sm"
+                  value={selectedGenreId}
+                  disabled={genreTreeQuery.isLoading || genreOptions.length === 0}
+                  onChange={(event) => {
+                    setSelectedGenreId(event.target.value);
+                    resetGeneratedState();
+                  }}
+                >
+                  <option value="">
+                    {genreTreeQuery.isLoading ? "正在加载类型..." : "请选择通用类型"}
+                  </option>
+                  {genreOptions.map((genre) => (
+                    <option key={genre.id} value={genre.id}>
+                      {genre.path}
+                    </option>
+                  ))}
+                </select>
+                {selectedGenre ? (
+                  <div className="rounded-md border p-3 text-xs text-muted-foreground space-y-1">
+                    <div>当前类型路径：{selectedGenre.path}</div>
+                    {selectedGenre.description?.trim() ? (
+                      <div>类型说明：{selectedGenre.description.trim()}</div>
+                    ) : null}
+                    {selectedGenre.template?.trim() ? (
+                      <div className="whitespace-pre-wrap">类型模板：{selectedGenre.template.trim()}</div>
+                    ) : null}
+                  </div>
+                ) : null}
+                {genreTreeQuery.isLoading ? (
+                  <div className="text-xs text-muted-foreground">正在加载通用类型树...</div>
+                ) : null}
+                {!genreTreeQuery.isLoading && genreOptions.length === 0 ? (
+                  <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground space-y-2">
+                    <div>当前还没有可用类型。世界观向导会统一使用通用类型管理。</div>
+                    <Button type="button" variant="outline" onClick={() => void navigate("/genres")}>
+                      去类型管理
+                    </Button>
+                  </div>
+                ) : null}
+                <div className="text-xs text-muted-foreground">
+                  这里直接复用通用类型管理，不再使用模板内置类型列表作为入口。
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  先确定题材类型，再生成概念卡、前置属性和后续模板筛选。
+                </div>
+              </div>
+
               <select
                 className="w-full rounded-md border bg-background p-2 text-sm"
                 value={inspirationMode}
                 onChange={(event) => {
-                  const mode = event.target.value as "free" | "reference" | "random";
-                  setInspirationMode(mode);
-                  setInspirationSourceMeta(null);
-                  if (mode !== "reference") {
-                    setReferenceTxtError("");
+                  const nextMode = event.target.value as InspirationMode;
+                  setInspirationMode(nextMode);
+                  if (nextMode !== "reference") {
+                    setSelectedKnowledgeDocumentIds([]);
                   }
+                  resetGeneratedState();
                 }}
               >
                 <option value="free">自由输入</option>
                 <option value="reference">参考作品</option>
                 <option value="random">随机灵感</option>
               </select>
+
               {inspirationMode === "reference" ? (
-                <div className="rounded-md border p-3 space-y-2">
-                  <div className="text-sm font-medium">上传参考作品（txt）</div>
-                  <input
-                    type="file"
-                    accept=".txt,text/plain"
-                    className="w-full rounded-md border bg-background p-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-sm"
-                    onChange={(event) => {
-                      void handleReferenceTxtUpload(event);
-                    }}
-                  />
-                  <div className="text-xs text-muted-foreground">
-                    仅支持 .txt，最大 2MB。上传后将自动填入下方文本框。
-                  </div>
-                  {referenceTxtName ? (
-                    <div className="text-xs text-muted-foreground">
-                      已载入：{referenceTxtName}（{Math.max(1, Math.round(referenceTxtSize / 1024))} KB）
-                    </div>
-                  ) : null}
-                  {referenceTxtError ? (
-                    <div className="text-xs text-destructive">{referenceTxtError}</div>
-                  ) : null}
-                </div>
+                <KnowledgeDocumentPicker
+                  selectedIds={selectedKnowledgeDocumentIds}
+                  onChange={(next) => {
+                    setSelectedKnowledgeDocumentIds(next ?? []);
+                    setInspirationSourceMeta(null);
+                  }}
+                  title="参考知识库文档"
+                  description="仅在参考作品模式下使用。统一从知识库选择参考文档，不再单独上传作品。"
+                  queryStatus="enabled"
+                />
               ) : null}
-              <KnowledgeDocumentPicker
-                selectedIds={selectedKnowledgeDocumentIds}
-                onChange={(next) => setSelectedKnowledgeDocumentIds(next ?? [])}
-                title="知识库文档"
-                description="可直接从知识库选择参考文档。创建世界后会自动写入世界绑定。"
-                queryStatus="enabled"
-              />
+
               <textarea
                 className="min-h-[180px] w-full rounded-md border p-2 text-sm"
-                placeholder={inspirationMode === "reference" ? "粘贴参考作品片段，或上传 txt 自动填充" : "描述你的世界灵感"}
+                placeholder={
+                  inspirationMode === "reference"
+                    ? "粘贴参考片段，或仅选择上方知识库文档"
+                    : "描述你的世界灵感"
+                }
                 value={inspirationText}
                 onChange={(event) => {
                   setInspirationText(event.target.value);
                   setInspirationSourceMeta(null);
                 }}
               />
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-md border p-3 text-sm space-y-2">
+                  <div className="font-medium">属性选项细化程度</div>
+                  <select
+                    className="w-full rounded-md border bg-background p-2 text-sm"
+                    value={optionRefinementLevel}
+                    onChange={(event) => setOptionRefinementLevel(event.target.value as WorldOptionRefinementLevel)}
+                  >
+                    <option value="basic">基础</option>
+                    <option value="standard">标准</option>
+                    <option value="detailed">详细</option>
+                  </select>
+                </div>
+
+                <div className="rounded-md border p-3 text-sm space-y-2">
+                  <div className="font-medium">生成前置属性数量</div>
+                  <input
+                    className="w-full rounded-md border p-2 text-sm"
+                    type="number"
+                    min={4}
+                    max={8}
+                    value={optionsCount}
+                    onChange={(event) => setOptionsCount(clampOptionsCount(Number(event.target.value) || 6))}
+                  />
+                  <div className="text-xs text-muted-foreground">
+                    这一步会参考旧版 V2 的思路，先生成可选择的世界属性，再进入正式创建。
+                  </div>
+                </div>
+              </div>
+
               <Button
                 onClick={() => analyzeMutation.mutate()}
-                disabled={
-                  analyzeMutation.isPending
-                  || isReadingReferenceTxt
-                  || (inspirationMode !== "random" && !inspirationText.trim())
-                }
+                disabled={!canAnalyze}
               >
-                {analyzeMutation.isPending ? "分析中..." : "生成概念卡片"}
+                {analyzeMutation.isPending ? "分析中..." : "生成概念卡与属性选项"}
               </Button>
+
               {inspirationSourceMeta?.extracted ? (
                 <div className="text-xs text-muted-foreground">
                   已自动分段提取：原文 {inspirationSourceMeta.originalLength} 字符，切分 {inspirationSourceMeta.chunkCount} 段。
                 </div>
               ) : null}
+
               {concept ? (
-                <div className="rounded-md border p-3 text-sm">
-                  <div className="font-medium">概念卡片</div>
+                <div className="rounded-md border p-3 text-sm space-y-2">
+                  <div className="font-medium">概念卡</div>
                   <div>类型：{concept.worldType}</div>
                   <div>基调：{concept.tone}</div>
                   <div>关键词：{concept.keywords.join(" / ") || "-"}</div>
-                  <div className="mt-2 whitespace-pre-wrap">{concept.summary}</div>
+                  <div>前置属性选项：{propertyOptions.length}</div>
+                  <div className="whitespace-pre-wrap">{concept.summary}</div>
                 </div>
               ) : null}
             </div>
@@ -324,21 +534,25 @@ export default function WorldGenerator() {
             <div className="space-y-3">
               <select
                 className="w-full rounded-md border bg-background p-2 text-sm"
-                value={selectedTemplateKey}
+                value={templateSelectValue}
                 onChange={(event) => {
                   setSelectedTemplateKey(event.target.value);
-                  setSelectedElements([]);
+                  setSelectedClassicElements([]);
                 }}
               >
-                {templates.map((template) => (
+                {filteredTemplates.map((template) => (
                   <option key={template.key} value={template.key}>
                     {template.name}
                   </option>
                 ))}
               </select>
-              <div className="rounded-md border p-3 text-sm">
-                <div className="font-medium mb-1">{selectedTemplate?.description ?? "-"}</div>
-                <div className="text-xs text-muted-foreground mb-2">
+
+              <div className="rounded-md border p-3 text-sm space-y-2">
+                <div className="font-medium">{selectedTemplate?.description ?? "-"}</div>
+                <div className="text-xs text-muted-foreground">
+                  当前类型：{selectedGenre?.path || concept?.worldType || selectedTemplate?.worldType || "-"}
+                </div>
+                <div className="text-xs text-muted-foreground">
                   坑点提醒：{selectedTemplate?.pitfalls.join(" | ") || "-"}
                 </div>
                 <div className="grid gap-2 md:grid-cols-3">
@@ -356,6 +570,7 @@ export default function WorldGenerator() {
                   ))}
                 </div>
               </div>
+
               <div className="rounded-md border p-3 text-sm">
                 <div className="font-medium mb-2">经典元素</div>
                 <div className="grid gap-2 md:grid-cols-2">
@@ -363,20 +578,32 @@ export default function WorldGenerator() {
                     <label key={element} className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        checked={selectedElements.includes(element)}
-                        onChange={(event) =>
-                          setSelectedElements((prev) =>
-                            event.target.checked
-                              ? [...prev, element]
-                              : prev.filter((item) => item !== element),
-                          )
-                        }
+                        checked={selectedClassicElements.includes(element)}
+                        onChange={(event) => handleToggleClassicElement(element, event.target.checked)}
                       />
                       {element}
                     </label>
                   ))}
                 </div>
               </div>
+
+              <div className="space-y-2">
+                <div className="font-medium text-sm">前置世界属性</div>
+                <WorldPropertyOptionSelector
+                  options={propertyOptions}
+                  selectedIds={selectedPropertyIds}
+                  details={propertyDetails}
+                  onToggle={handleTogglePropertyOption}
+                  onDetailChange={handlePropertyDetailChange}
+                />
+              </div>
+
+              <WorldLibraryQuickPick
+                worldType={matchedTemplateWorldType || selectedGenre?.name || concept?.worldType || undefined}
+                existingOptionIds={existingPropertyOptionIds}
+                onAdd={handleAddLibraryOption}
+              />
+
               <Button onClick={() => createDraftMutation.mutate()} disabled={createDraftMutation.isPending}>
                 {createDraftMutation.isPending ? "创建中..." : "创建草稿并生成公理建议"}
               </Button>
@@ -394,10 +621,7 @@ export default function WorldGenerator() {
                   }
                 />
               ))}
-              <Button
-                variant="secondary"
-                onClick={() => setAxioms((prev) => [...prev, ""])}
-              >
+              <Button variant="secondary" onClick={() => setAxioms((prev) => [...prev, ""])}>
                 新增公理
               </Button>
               <Button onClick={() => finalizeMutation.mutate()} disabled={finalizeMutation.isPending}>

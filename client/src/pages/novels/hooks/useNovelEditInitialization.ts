@@ -1,0 +1,181 @@
+import { useEffect } from "react";
+import type { BaseCharacter, Character } from "@ai-novel/shared/types/novel";
+import type { NovelDetailResponse } from "@/api/novel";
+import type { NovelBasicFormState } from "../novelBasicInfo.shared";
+
+interface PipelineFormState {
+  startOrder: number;
+  endOrder: number;
+  maxRetries: number;
+  runMode: "fast" | "polish";
+  autoReview: boolean;
+  autoRepair: boolean;
+  skipCompleted: boolean;
+  qualityThreshold: number;
+  repairMode: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only";
+}
+
+interface CharacterFormState {
+  name: string;
+  role: string;
+  personality: string;
+  background: string;
+  development: string;
+  currentState: string;
+  currentGoal: string;
+}
+
+interface UseNovelEditInitializationArgs {
+  detail?: NovelDetailResponse;
+  chapters: NovelDetailResponse["chapters"];
+  characters: Character[];
+  baseCharacters: BaseCharacter[];
+  basicForm: NovelBasicFormState;
+  selectedCharacter?: Character;
+  selectedChapterId: string;
+  selectedCharacterId: string;
+  selectedBaseCharacterId: string;
+  sourceNovelBookAnalysisOptions: Array<{ id: string }>;
+  sourceBookAnalysesLoading: boolean;
+  sourceBookAnalysesFetching: boolean;
+  setBasicForm: (value: NovelBasicFormState | ((prev: NovelBasicFormState) => NovelBasicFormState)) => void;
+  setOutlineText: (value: string) => void;
+  setStructuredDraftText: (value: string) => void;
+  setPipelineForm: (value: PipelineFormState | ((prev: PipelineFormState) => PipelineFormState)) => void;
+  setSelectedChapterId: (value: string) => void;
+  setSelectedCharacterId: (value: string) => void;
+  setSelectedBaseCharacterId: (value: string) => void;
+  setCharacterForm: (value: CharacterFormState) => void;
+}
+
+const EMPTY_CHARACTER_FORM: CharacterFormState = {
+  name: "",
+  role: "",
+  personality: "",
+  background: "",
+  development: "",
+  currentState: "",
+  currentGoal: "",
+};
+
+export function useNovelEditInitialization({
+  detail,
+  chapters,
+  characters,
+  baseCharacters,
+  basicForm,
+  selectedCharacter,
+  selectedChapterId,
+  selectedCharacterId,
+  selectedBaseCharacterId,
+  sourceNovelBookAnalysisOptions,
+  sourceBookAnalysesLoading,
+  sourceBookAnalysesFetching,
+  setBasicForm,
+  setOutlineText,
+  setStructuredDraftText,
+  setPipelineForm,
+  setSelectedChapterId,
+  setSelectedCharacterId,
+  setSelectedBaseCharacterId,
+  setCharacterForm,
+}: UseNovelEditInitializationArgs) {
+  useEffect(() => {
+    if (!detail) {
+      return;
+    }
+
+    setBasicForm({
+      title: detail.title,
+      description: detail.description ?? "",
+      genreId: detail.genreId ?? "",
+      worldId: detail.worldId ?? "",
+      status: detail.status,
+      writingMode: detail.writingMode ?? "original",
+      projectMode: detail.projectMode ?? "co_pilot",
+      narrativePov: detail.narrativePov ?? "third_person",
+      pacePreference: detail.pacePreference ?? "balanced",
+      styleTone: detail.styleTone ?? "",
+      emotionIntensity: detail.emotionIntensity ?? "medium",
+      aiFreedom: detail.aiFreedom ?? "medium",
+      defaultChapterLength: detail.defaultChapterLength ?? 2800,
+      projectStatus: detail.projectStatus ?? "not_started",
+      storylineStatus: detail.storylineStatus ?? "not_started",
+      outlineStatus: detail.outlineStatus ?? "not_started",
+      resourceReadyScore: detail.resourceReadyScore ?? 0,
+      continuationSourceType: detail.sourceKnowledgeDocumentId ? "knowledge_document" : "novel",
+      sourceNovelId: detail.sourceNovelId ?? "",
+      sourceKnowledgeDocumentId: detail.sourceKnowledgeDocumentId ?? "",
+      continuationBookAnalysisId: detail.continuationBookAnalysisId ?? "",
+      continuationBookAnalysisSections: detail.continuationBookAnalysisSections ?? [],
+    });
+    setOutlineText(detail.outline ?? "");
+    setStructuredDraftText(detail.structuredOutline ?? "");
+    setPipelineForm((prev) => ({
+      ...prev,
+      endOrder: Math.max(prev.endOrder, Math.max(10, detail.chapters.length || 10)),
+    }));
+  }, [detail, setBasicForm, setOutlineText, setPipelineForm, setStructuredDraftText]);
+
+  useEffect(() => {
+    if (!selectedChapterId && chapters.length > 0) {
+      setSelectedChapterId(chapters[0].id);
+    }
+  }, [chapters, selectedChapterId, setSelectedChapterId]);
+
+  useEffect(() => {
+    if (!selectedCharacterId && characters.length > 0) {
+      setSelectedCharacterId(characters[0].id);
+    }
+  }, [characters, selectedCharacterId, setSelectedCharacterId]);
+
+  useEffect(() => {
+    if (!selectedBaseCharacterId && baseCharacters.length > 0) {
+      setSelectedBaseCharacterId(baseCharacters[0].id);
+    }
+  }, [baseCharacters, selectedBaseCharacterId, setSelectedBaseCharacterId]);
+
+  useEffect(() => {
+    if (
+      basicForm.writingMode !== "continuation"
+      || !basicForm.continuationBookAnalysisId
+    ) {
+      return;
+    }
+    if (sourceBookAnalysesLoading || sourceBookAnalysesFetching) {
+      return;
+    }
+    const exists = sourceNovelBookAnalysisOptions.some((item) => item.id === basicForm.continuationBookAnalysisId);
+    if (exists) {
+      return;
+    }
+    setBasicForm((prev) => ({
+      ...prev,
+      continuationBookAnalysisId: "",
+      continuationBookAnalysisSections: [],
+    }));
+  }, [
+    basicForm.continuationBookAnalysisId,
+    basicForm.writingMode,
+    sourceBookAnalysesFetching,
+    sourceBookAnalysesLoading,
+    sourceNovelBookAnalysisOptions,
+    setBasicForm,
+  ]);
+
+  useEffect(() => {
+    if (!selectedCharacter) {
+      setCharacterForm(EMPTY_CHARACTER_FORM);
+      return;
+    }
+    setCharacterForm({
+      name: selectedCharacter.name ?? "",
+      role: selectedCharacter.role ?? "",
+      personality: selectedCharacter.personality ?? "",
+      background: selectedCharacter.background ?? "",
+      development: selectedCharacter.development ?? "",
+      currentState: selectedCharacter.currentState ?? "",
+      currentGoal: selectedCharacter.currentGoal ?? "",
+    });
+  }, [selectedCharacter, setCharacterForm]);
+}

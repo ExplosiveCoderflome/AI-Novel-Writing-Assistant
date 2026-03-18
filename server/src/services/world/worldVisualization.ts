@@ -486,7 +486,8 @@ async function tryBuildWorldVisualizationWithLLM(
   world: VisualizationSource,
 ): Promise<VisualizationDraft | null> {
   try {
-    const llm = await getLLM("deepseek", {
+    const llm = await getLLM(undefined, {
+      fallbackProvider: "deepseek",
       temperature: 0.2,
       taskType: "planner",
     });

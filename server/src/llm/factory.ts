@@ -1,6 +1,7 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { ChatOpenAI } from "@langchain/openai";
 import { prisma } from "../db/prisma";
+import { attachLLMDebugLogging } from "./debugLogging";
 import { resolveModel, type TaskType } from "./modelRouter";
 import { PROVIDERS } from "./providers";
 
@@ -10,6 +11,7 @@ interface LLMOptions {
   apiKey?: string;
   baseURL?: string;
   maxTokens?: number;
+  fallbackProvider?: LLMProvider;
   /** 任务类型，用于模型路由；若提供则优先使用路由配置的 provider/model/temperature */
   taskType?: TaskType;
 }
@@ -114,20 +116,28 @@ async function resolveProviderSecret(provider: LLMProvider): Promise<ProviderSec
   }
 }
 
-export async function getLLM(provider: LLMProvider, options: LLMOptions = {}): Promise<ChatOpenAI> {
-  let resolvedProvider = provider;
+export async function getLLM(provider?: LLMProvider, options: LLMOptions = {}): Promise<ChatOpenAI> {
+  let resolvedProvider = provider ?? options.fallbackProvider ?? "deepseek";
   let resolvedModel: string | undefined = options.model;
   let resolvedTemperature: number | undefined = options.temperature;
   let resolvedMaxTokens: number | undefined = options.maxTokens;
 
   if (options.taskType) {
+    const hasExplicitProvider = provider != null;
+    const hasExplicitModel = options.model != null;
+    const shouldUseRouteProvider = !hasExplicitProvider && !hasExplicitModel;
     const route = await resolveModel(options.taskType, {
-      model: options.model,
-      temperature: options.temperature,
-      maxTokens: options.maxTokens,
+      ...(shouldUseRouteProvider ? {} : { provider: resolvedProvider }),
+      ...(options.model != null ? { model: options.model } : {}),
+      ...(options.temperature != null ? { temperature: options.temperature } : {}),
+      ...(options.maxTokens != null ? { maxTokens: options.maxTokens } : {}),
     });
-    resolvedProvider = route.provider;
-    if (options.model == null) resolvedModel = route.model;
+    if (shouldUseRouteProvider) {
+      resolvedProvider = route.provider;
+    }
+    if (options.model == null && shouldUseRouteProvider) {
+      resolvedModel = route.model;
+    }
     if (options.temperature == null) resolvedTemperature = route.temperature;
     if (options.maxTokens == null) resolvedMaxTokens = route.maxTokens;
   }
@@ -151,7 +161,7 @@ export async function getLLM(provider: LLMProvider, options: LLMOptions = {}): P
     getProviderEnvBaseUrl(resolvedProvider) ??
     providerConfig.baseURL;
 
-  return new ChatOpenAI({
+  const llm = new ChatOpenAI({
     apiKey,
     model,
     modelName: model,
@@ -160,5 +170,14 @@ export async function getLLM(provider: LLMProvider, options: LLMOptions = {}): P
     configuration: {
       baseURL,
     },
+  });
+
+  return attachLLMDebugLogging(llm, {
+    provider: resolvedProvider,
+    model,
+    temperature: resolvedTemperature ?? 0.7,
+    maxTokens: resolvedMaxTokens,
+    taskType: options.taskType,
+    baseURL,
   });
 }

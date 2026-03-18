@@ -168,7 +168,8 @@ export class AuditService {
     options: AuditOptions,
   ): Promise<FullAuditOutput> {
     try {
-      const llm = await getLLM(options.provider ?? "deepseek", {
+      const llm = await getLLM(options.provider, {
+        fallbackProvider: "deepseek",
         model: options.model,
         temperature: options.temperature ?? 0.1,
         taskType: "review",

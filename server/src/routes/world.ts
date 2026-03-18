@@ -107,6 +107,8 @@ const inspirationSchema = z.object({
   mode: z.enum(["free", "reference", "random"]).optional(),
   worldType: z.string().optional(),
   knowledgeDocumentIds: z.array(z.string().trim().min(1)).optional(),
+  refinementLevel: z.enum(["basic", "standard", "detailed"]).optional(),
+  optionsCount: z.number().int().min(4).max(8).optional(),
   provider: providerSchema.optional(),
   model: z.string().optional(),
 });

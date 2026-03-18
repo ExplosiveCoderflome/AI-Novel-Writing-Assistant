@@ -10,6 +10,10 @@ import type {
   WorldTemplate,
   WorldVisualizationPayload,
 } from "@ai-novel/shared/types/world";
+import type {
+  WorldOptionRefinementLevel,
+  WorldPropertyOption,
+} from "@ai-novel/shared/types/worldWizard";
 import { apiClient } from "./client";
 
 const WORLD_GENERATE_ALL_TIMEOUT_MS = 3 * 60 * 1000;
@@ -18,6 +22,7 @@ function normalizeSuggestedAxioms(raw: unknown): string[] {
   if (!Array.isArray(raw)) {
     return [];
   }
+
   const normalized = raw
     .map((item) => {
       if (typeof item === "string") {
@@ -26,6 +31,7 @@ function normalizeSuggestedAxioms(raw: unknown): string[] {
       if (!item || typeof item !== "object") {
         return "";
       }
+
       const record = item as Record<string, unknown>;
       const title = [record.axiom, record.text, record.title, record.name, record.rule]
         .find((value) => typeof value === "string") as string | undefined;
@@ -35,10 +41,10 @@ function normalizeSuggestedAxioms(raw: unknown): string[] {
         .find((value) => typeof value === "string") as string | undefined;
 
       if (title && description && effect) {
-        return `${title}�?{description}（影响：${effect}）`.trim();
+        return `${title}（${description}，影响：${effect}）`.trim();
       }
       if (title && description) {
-        return `${title}�?{description}`.trim();
+        return `${title}：${description}`.trim();
       }
       if (title) {
         return title.trim();
@@ -49,6 +55,7 @@ function normalizeSuggestedAxioms(raw: unknown): string[] {
       return "";
     })
     .filter(Boolean);
+
   return Array.from(new Set(normalized));
 }
 
@@ -93,6 +100,8 @@ export async function analyzeWorldInspiration(payload: {
   mode?: "free" | "reference" | "random";
   worldType?: string;
   knowledgeDocumentIds?: string[];
+  refinementLevel?: WorldOptionRefinementLevel;
+  optionsCount?: number;
   provider?: LLMProvider;
   model?: string;
 }) {
@@ -107,6 +116,7 @@ export async function analyzeWorldInspiration(payload: {
         keywords: string[];
         summary: string;
       };
+      propertyOptions?: WorldPropertyOption[];
       sourceMeta?: {
         extracted: boolean;
         originalLength: number;
@@ -284,8 +294,20 @@ export async function useWorldLibraryItem(
   libraryId: string,
   payload?: {
     worldId?: string;
-    targetField?: "description" | "background" | "geography" | "cultures" | "magicSystem" | "politics"
-    | "races" | "religions" | "technology" | "conflicts" | "history" | "economy" | "factions";
+    targetField?:
+      | "description"
+      | "background"
+      | "geography"
+      | "cultures"
+      | "magicSystem"
+      | "politics"
+      | "races"
+      | "religions"
+      | "technology"
+      | "conflicts"
+      | "history"
+      | "economy"
+      | "factions";
   },
 ) {
   const { data } = await apiClient.post<ApiResponse<{
@@ -340,4 +362,3 @@ export async function importWorldData(payload: {
   const { data } = await apiClient.post<ApiResponse<World>>("/worlds/import", payload);
   return data;
 }
-

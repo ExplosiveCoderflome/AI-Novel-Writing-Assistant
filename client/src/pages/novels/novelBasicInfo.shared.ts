@@ -3,6 +3,7 @@ import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis
 export interface NovelBasicFormState {
   title: string;
   description: string;
+  genreId: string;
   worldId: string;
   status: "draft" | "published";
   writingMode: "original" | "continuation";
@@ -177,6 +178,7 @@ export const BASIC_INFO_FIELD_HINTS = {
   defaultChapterLength: "这是章节规划和生成时的参考字数，不是硬限制。常见推荐值是 2500 到 3500。",
   resourceReadyScore: "用于标记当前设定、角色、主线资料是否充分。数值越高，越适合进入自动化生产阶段。",
   styleTone: "写几个关键词即可，例如冷峻、克制、黑色幽默。它会影响生成的语言风格。",
+  genreId: "类型会影响规划、标题和卖点倾向，建议尽量尽早确定。",
   worldId: "如果绑定世界观，后续规划和章节生成会自动注入该世界设定。",
   status: "只是作品生命周期标记，不影响基础创作能力，但会影响列表和项目管理状态。",
   continuationSourceType: "续写时选择是引用站内小说，还是知识库里的文档版本。",
@@ -187,6 +189,7 @@ export function createDefaultNovelBasicFormState(): NovelBasicFormState {
   return {
     title: "",
     description: "",
+    genreId: "",
     worldId: "",
     status: "draft",
     writingMode: "original",
@@ -257,6 +260,7 @@ export function buildNovelCreatePayload(basicForm: NovelBasicFormState) {
   return {
     title: basicForm.title.trim(),
     description: basicForm.description.trim() || undefined,
+    genreId: basicForm.genreId || undefined,
     worldId: basicForm.worldId || undefined,
     writingMode: basicForm.writingMode,
     projectMode: basicForm.projectMode,
@@ -299,6 +303,7 @@ export function buildNovelUpdatePayload(basicForm: NovelBasicFormState) {
   return {
     title: basicForm.title,
     description: basicForm.description,
+    genreId: basicForm.genreId || null,
     worldId: basicForm.worldId || null,
     status: basicForm.status,
     writingMode: basicForm.writingMode,

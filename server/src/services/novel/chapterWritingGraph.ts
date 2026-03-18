@@ -163,7 +163,8 @@ export class ChapterWritingGraph {
     chapter: ChapterRef,
     options: ChapterGraphLLMOptions,
   ): Promise<{ content: string; continuationPack: Awaited<ReturnType<NovelContinuationService["buildChapterContextPack"]>> }> {
-    const llm = await getLLM(options.provider ?? "deepseek", {
+    const llm = await getLLM(options.provider, {
+      fallbackProvider: "deepseek",
       model: options.model,
       temperature: options.temperature ?? 0.8,
       taskType: options.taskType ?? "writer",
@@ -282,7 +283,8 @@ ${continuationPack.enabled ? continuationPack.humanBlock : ""}`,
     issues: ReviewIssue[],
     options: ChapterGraphPipelineOptions,
   ): Promise<string> {
-    const llm = await getLLM(options.provider ?? "deepseek", {
+    const llm = await getLLM(options.provider, {
+      fallbackProvider: "deepseek",
       model: options.model,
       temperature: options.temperature ?? 0.8,
       taskType: options.taskType ?? "repair",
@@ -313,7 +315,8 @@ ${JSON.stringify(issues, null, 2)}`,
       ?? await continuationService.buildChapterContextPack(input.novelId);
     const chapterPlan = buildPlanText(input.contextPackage, input.chapter.expectation);
     const characterLines = buildCharacterLines(input.contextPackage, input.characterLines);
-    const llm = await getLLM(input.options.provider ?? "deepseek", {
+    const llm = await getLLM(input.options.provider, {
+      fallbackProvider: "deepseek",
       model: input.options.model,
       temperature: input.options.temperature ?? 0.8,
       taskType: input.options.taskType ?? "writer",

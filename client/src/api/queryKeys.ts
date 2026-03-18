@@ -16,6 +16,8 @@ export const queryKeys = {
     chapterAuditReports: (id: string, chapterId: string) => ["novels", "chapter-audit-reports", id, chapterId] as const,
     storylineVersions: (id: string) => ["novels", "storyline-versions", id] as const,
     creativeDecisions: (id: string) => ["novels", "creative-decisions", id] as const,
+    storyMacro: (id: string) => ["novels", "story-macro", id] as const,
+    storyMacroState: (id: string) => ["novels", "story-macro-state", id] as const,
     snapshots: (id: string) => ["novels", "snapshots", id] as const,
   },
   worlds: {
@@ -41,6 +43,13 @@ export const queryKeys = {
   writingFormula: {
     all: ["writing-formula"] as const,
     detail: (id: string) => ["writing-formula", "detail", id] as const,
+  },
+  genres: {
+    all: ["genres"] as const,
+  },
+  titles: {
+    all: ["titles"] as const,
+    list: (params: string) => ["titles", "list", params] as const,
   },
   baseCharacters: {
     all: ["base-characters"] as const,

@@ -12,7 +12,7 @@ interface RegisterNovelProductionRoutesInput {
   novelDraftOptimizeService: NovelDraftOptimizeService;
   idParamsSchema: z.ZodType<{ id: string }>;
   pipelineJobParamsSchema: z.ZodType<{ id: string; jobId: string }>;
-  llmGenerateSchema: z.ZodTypeAny;
+  titleGenerateSchema: z.ZodTypeAny;
   beatGenerateSchema: z.ZodTypeAny;
   pipelineRunSchema: z.ZodTypeAny;
   hookGenerateSchema: z.ZodTypeAny;
@@ -29,7 +29,7 @@ export function registerNovelProductionRoutes(input: RegisterNovelProductionRout
     novelDraftOptimizeService,
     idParamsSchema,
     pipelineJobParamsSchema,
-    llmGenerateSchema,
+    titleGenerateSchema,
     beatGenerateSchema,
     pipelineRunSchema,
     hookGenerateSchema,
@@ -204,7 +204,7 @@ export function registerNovelProductionRoutes(input: RegisterNovelProductionRout
 
   router.post(
     "/:id/title/generate",
-    validate({ params: idParamsSchema, body: llmGenerateSchema }),
+    validate({ params: idParamsSchema, body: titleGenerateSchema }),
     async (req, res, next) => {
       try {
         const { id } = req.params as z.infer<typeof idParamsSchema>;

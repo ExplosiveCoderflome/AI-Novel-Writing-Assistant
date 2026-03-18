@@ -9,11 +9,12 @@ import OutlineTab from "./OutlineTab";
 import StructuredOutlineTab from "./StructuredOutlineTab";
 import ChapterManagementTab from "./ChapterManagementTab";
 import PipelineTab from "./PipelineTab";
+import StoryMacroPlanTab from "./StoryMacroPlanTab";
 import VersionHistoryTab from "./VersionHistoryTab";
 import type { NovelEditViewProps } from "./NovelEditView.types";
 
 export default function NovelEditView(props: NovelEditViewProps) {
-  const { id, activeTab, onActiveTabChange, basicTab, outlineTab, structuredTab, chapterTab, pipelineTab, characterTab } = props;
+  const { id, activeTab, onActiveTabChange, basicTab, storyMacroTab, outlineTab, structuredTab, chapterTab, pipelineTab, characterTab } = props;
   const [isKnowledgeBindingOpen, setIsKnowledgeBindingOpen] = useState(false);
   const [isProjectOverviewOpen, setIsProjectOverviewOpen] = useState(false);
 
@@ -29,7 +30,7 @@ export default function NovelEditView(props: NovelEditViewProps) {
     }
   })() : "default";
 
-  const tabOrder = ["basic", "character", "outline", "structured", "chapter", "pipeline", "history"];
+  const tabOrder = ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline", "history"];
   const activeStageIndex = Math.max(0, tabOrder.indexOf(activeTab));
   const stages = [
     {
@@ -37,6 +38,12 @@ export default function NovelEditView(props: NovelEditViewProps) {
       label: "项目设定",
       description: "定义作品身份、约束和 AI 协作方式。",
       ready: basicTab.basicForm.title.trim().length > 0,
+    },
+    {
+      key: "story_macro",
+      label: "故事宏观规划",
+      description: "先把故事想法变成约束引擎，再进入角色和主线阶段。",
+      ready: storyMacroTab.constraintEngine !== null,
     },
     {
       key: "character",
@@ -84,6 +91,8 @@ export default function NovelEditView(props: NovelEditViewProps) {
         return <BasicInfoTab {...basicTab} />;
       case "outline":
         return <OutlineTab {...outlineTab} />;
+      case "story_macro":
+        return <StoryMacroPlanTab {...storyMacroTab} />;
       case "structured":
         return <StructuredOutlineTab {...structuredTab} />;
       case "chapter":

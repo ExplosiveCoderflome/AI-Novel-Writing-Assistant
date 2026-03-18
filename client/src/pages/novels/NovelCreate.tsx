@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
+import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
 import { createNovel } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { getWorldList } from "@/api/world";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import NovelBasicInfoForm from "./components/NovelBasicInfoForm";
+import NovelCreateTitleQuickFill from "./components/titleWorkshop/NovelCreateTitleQuickFill";
 import { useNovelContinuationSources } from "./hooks/useNovelContinuationSources";
 import {
   buildNovelCreatePayload,
@@ -22,6 +24,11 @@ export default function NovelCreate() {
   const worldListQuery = useQuery({
     queryKey: queryKeys.worlds.all,
     queryFn: getWorldList,
+  });
+
+  const genreTreeQuery = useQuery({
+    queryKey: queryKeys.genres.all,
+    queryFn: getGenreTree,
   });
 
   const {
@@ -80,6 +87,7 @@ export default function NovelCreate() {
         <CardContent>
           <NovelBasicInfoForm
             basicForm={basicForm}
+            genreOptions={flattenGenreTreeOptions(genreTreeQuery.data?.data ?? [])}
             worldOptions={worldListQuery.data?.data ?? []}
             sourceNovelOptions={sourceNovelOptions}
             sourceKnowledgeOptions={sourceKnowledgeOptions}
@@ -91,6 +99,12 @@ export default function NovelCreate() {
             isSubmitting={createNovelMutation.isPending}
             submitLabel="创建并进入项目"
             showPublicationStatus={false}
+            titleQuickFill={(
+              <NovelCreateTitleQuickFill
+                basicForm={basicForm}
+                onApplyTitle={(title) => setBasicForm((prev) => patchNovelBasicForm(prev, { title }))}
+              />
+            )}
           />
         </CardContent>
       </Card>

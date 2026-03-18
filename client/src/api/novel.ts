@@ -1,6 +1,8 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import { NOVEL_LIST_PAGE_LIMIT_DEFAULT, NOVEL_LIST_PAGE_LIMIT_MAX } from "@ai-novel/shared/types/pagination";
+import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import type {
   AIFreedom,
   AuditIssue,
@@ -83,6 +85,13 @@ export interface DraftOptimizePreview {
   selectedText?: string | null;
 }
 
+function normalizeNovelListLimit(limit: number | undefined): number {
+  if (typeof limit !== "number" || !Number.isFinite(limit)) {
+    return NOVEL_LIST_PAGE_LIMIT_DEFAULT;
+  }
+  return Math.max(1, Math.min(NOVEL_LIST_PAGE_LIMIT_MAX, Math.floor(limit)));
+}
+
 function extractFileName(contentDisposition: string | undefined, fallback: string): string {
   if (!contentDisposition) {
     return fallback;
@@ -102,7 +111,7 @@ export async function getNovelList(params?: { page?: number; limit?: number }) {
   const { data } = await apiClient.get<ApiResponse<NovelListResponse>>("/novels", {
     params: {
       page: params?.page ?? 1,
-      limit: params?.limit ?? 10,
+      limit: normalizeNovelListLimit(params?.limit),
     },
   });
   return data;
@@ -376,15 +385,13 @@ export async function generateNovelTitles(
     provider?: LLMProvider;
     model?: string;
     temperature?: number;
+    count?: number;
+    maxTokens?: number;
   },
 ) {
   const { data } = await apiClient.post<
     ApiResponse<{
-      titles: Array<{
-        title: string;
-        clickRate: number;
-        style: "literary" | "conflict";
-      }>;
+      titles: TitleFactorySuggestion[];
     }>
   >(`/novels/${id}/title/generate`, payload ?? {});
   return data;

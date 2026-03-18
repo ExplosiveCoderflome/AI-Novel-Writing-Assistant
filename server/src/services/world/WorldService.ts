@@ -8,6 +8,7 @@ import type {
   WorldLayerKey,
   WorldVisualizationPayload,
 } from "@ai-novel/shared/types/world";
+import type { WorldOptionRefinementLevel } from "@ai-novel/shared/types/worldWizard";
 import { featureFlags } from "../../config/featureFlags";
 import { prisma } from "../../db/prisma";
 import { getLLM } from "../../llm/factory";
@@ -16,6 +17,8 @@ import { getTemplateByKey, LAYER_FIELD_MAP, WORLD_LAYER_ORDER, WORLD_TEMPLATES }
 import { buildConsistencySummary, localizeConsistencyIssue } from "./worldConsistency";
 import { normalizeGeneratedWorldPayload } from "./worldPersistence";
 import { buildWorldVisualizationPayload } from "./worldVisualization";
+import { applyGeneratedWorldFields, buildWorldBlueprintPromptBlock } from "./worldGenerationBlueprint";
+import { generateWorldPropertyOptions } from "./worldPropertyOptions";
 import { listActiveKnowledgeDocumentContents } from "../knowledge/common";
 import { ragServices } from "../rag";
 import type { RagOwnerType } from "../rag/types";
@@ -226,6 +229,8 @@ interface InspirationInput {
   mode?: "free" | "reference" | "random";
   worldType?: string;
   knowledgeDocumentIds?: string[];
+  refinementLevel?: WorldOptionRefinementLevel;
+  optionsCount?: number;
   provider?: LLMProvider;
   model?: string;
 }
@@ -728,6 +733,158 @@ export class WorldService {
   }
 
   async analyzeInspiration(input: InspirationInput) {
+    {
+      let nextInput = input;
+      let seededConceptCard: InspirationConceptCard | null = null;
+      let inspirationSource = nextInput.input?.trim() || "一个模糊的世界观想法。";
+      let seededPreparedSource: PreparedInspirationSource | null = null;
+
+      if (nextInput.mode === "random") {
+        const randomTemplate = WORLD_TEMPLATES[Math.floor(Math.random() * WORLD_TEMPLATES.length)];
+        const randomPool = [
+          "浮空群岛",
+          "死寂古城",
+          "禁忌实验室",
+          "裂隙之门",
+          "古老契约",
+          "血脉觉醒",
+          "记忆税",
+          "灵魂货币",
+        ];
+        const pickedImagery = [...randomPool].sort(() => Math.random() - 0.5).slice(0, 4);
+        seededConceptCard = {
+          worldType: randomTemplate.worldType,
+          templateKey: randomTemplate.key,
+          coreImagery: pickedImagery,
+          tone: Math.random() > 0.5 ? "阴郁史诗" : "冒险史诗",
+          keywords: pickedImagery,
+          summary: `这是一个${randomTemplate.name}世界，核心意象为${pickedImagery.join("、")}，整体气质鲜明且冲突张力充足。`,
+        };
+        inspirationSource = seededConceptCard.summary;
+        seededPreparedSource = {
+          promptText: inspirationSource,
+          originalLength: inspirationSource.length,
+          chunkCount: 1,
+          extracted: false,
+        };
+      }
+
+      const activeKnowledgeDocuments = await listActiveKnowledgeDocumentContents(
+        uniqueKnowledgeDocumentIds(nextInput.knowledgeDocumentIds),
+        { allowDisabled: true },
+      );
+      if (activeKnowledgeDocuments.length > 0) {
+        nextInput = {
+          ...nextInput,
+          input: [
+            nextInput.input?.trim(),
+            activeKnowledgeDocuments.map((item) => `知识文档：${item.title}\n${item.content}`).join("\n\n"),
+          ]
+            .filter(Boolean)
+            .join("\n\n"),
+        };
+        inspirationSource = nextInput.input?.trim() || inspirationSource;
+      }
+
+      const inspirationLlm = await getLLM(nextInput.provider ?? "deepseek", {
+        model: nextInput.model,
+        temperature: 0.7,
+      });
+      const normalizedSource = seededPreparedSource ?? prepareInspirationSource(inspirationSource);
+      let inspirationRagContext = "";
+      if (activeKnowledgeDocuments.length === 0 && nextInput.mode !== "random") {
+        try {
+          inspirationRagContext = await ragServices.hybridRetrievalService.buildContextBlock(inspirationSource, {
+            ownerTypes: ["world", "world_library_item"],
+            finalTopK: 6,
+          });
+        } catch {
+          inspirationRagContext = "";
+        }
+      }
+
+      let resolvedConceptCard = seededConceptCard;
+      if (!resolvedConceptCard) {
+        const templateKeys = WORLD_TEMPLATES.map((item) => item.key).join("|");
+        const conceptResult = await inspirationLlm.invoke([
+          new SystemMessage(
+            `请输出世界灵感概念卡 JSON，所有文本字段必须使用简体中文：
+{
+  "worldType":"...",
+  "templateKey":"${templateKeys}",
+  "coreImagery":["..."],
+  "tone":"...",
+  "keywords":["..."],
+  "summary":"3-5句中文摘要"
+}
+只输出 JSON，不要输出解释。`,
+          ),
+          new HumanMessage(
+            `模式=${nextInput.mode ?? "free"}
+世界类型提示=${nextInput.worldType ?? "无"}
+灵感文本=${normalizedSource.promptText}
+是否分段提取=${normalizedSource.extracted ? "是" : "否"}
+原文长度=${normalizedSource.originalLength} 字符
+可用世界观素材检索=${inspirationRagContext || "无"}`,
+          ),
+        ]);
+        const parsedConcept = safeParseJSON<{
+          worldType?: string;
+          templateKey?: string;
+          coreImagery?: string[];
+          tone?: string;
+          keywords?: string[];
+          summary?: string;
+        }>(extractJSONObject(String(conceptResult.content)), {});
+        const rawConceptCard: InspirationConceptCard = {
+          worldType: parsedConcept.worldType ?? nextInput.worldType ?? "自定义",
+          templateKey: parsedConcept.templateKey
+            ? getTemplateByKey(parsedConcept.templateKey).key
+            : getTemplateByKey(undefined).key,
+          coreImagery: parsedConcept.coreImagery ?? [],
+          tone: parsedConcept.tone ?? "中性",
+          keywords: parsedConcept.keywords ?? [],
+          summary: parsedConcept.summary ?? compactInspirationExcerpt(inspirationSource, 360),
+        };
+        resolvedConceptCard = await this.translateConceptCardToChinese(inspirationLlm, rawConceptCard);
+      }
+
+      const resolvedTemplate = getTemplateByKey(resolvedConceptCard.templateKey);
+      let generatedPropertyOptions: Awaited<ReturnType<typeof generateWorldPropertyOptions>> = [];
+      try {
+        generatedPropertyOptions = await generateWorldPropertyOptions({
+          llm: inspirationLlm,
+          worldType: resolvedConceptCard.worldType || nextInput.worldType || resolvedTemplate.worldType,
+          templateName: resolvedTemplate.name,
+          templateDescription: resolvedTemplate.description,
+          classicElements: resolvedTemplate.classicElements,
+          pitfalls: resolvedTemplate.pitfalls,
+          conceptSummary: resolvedConceptCard.summary,
+          coreImagery: resolvedConceptCard.coreImagery,
+          keywords: resolvedConceptCard.keywords,
+          tone: resolvedConceptCard.tone,
+          sourcePrompt: normalizedSource.promptText,
+          ragContext: inspirationRagContext,
+          refinementLevel: nextInput.refinementLevel,
+          optionsCount: nextInput.optionsCount,
+        });
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : "unknown";
+        throw new Error(`前置世界属性生成失败：${reason}`);
+      }
+
+      return {
+        mode: nextInput.mode ?? "free",
+        conceptCard: resolvedConceptCard,
+        propertyOptions: generatedPropertyOptions,
+        sourceMeta: {
+          extracted: normalizedSource.extracted,
+          originalLength: normalizedSource.originalLength,
+          chunkCount: normalizedSource.chunkCount,
+        },
+      };
+    }
+
     if (input.mode === "random") {
       const template = WORLD_TEMPLATES[Math.floor(Math.random() * WORLD_TEMPLATES.length)];
       const pool = [
@@ -939,7 +1096,56 @@ export class WorldService {
     worldId: string,
     options: { provider?: LLMProvider; model?: string },
   ) {
-    const world = await prisma.world.findUnique({ where: { id: worldId } });
+    {
+      const loadedWorld = await prisma.world.findUnique({ where: { id: worldId } });
+      if (!loadedWorld) {
+        throw new Error("World not found.");
+      }
+      const axiomLlm = await getLLM(options.provider ?? "deepseek", {
+        model: options.model,
+        temperature: 0.5,
+      });
+      const template = getTemplateByKey(loadedWorld.templateKey);
+      const blueprintPromptBlock = buildWorldBlueprintPromptBlock(loadedWorld);
+      const axiomResult = await axiomLlm.invoke([
+        new SystemMessage(
+          `请生成 5 条世界核心公理。
+返回 JSON 数组，数组元素必须是字符串，全部使用简体中文。
+要求：
+1. 公理必须能约束后续世界生成，而不是空泛口号。
+2. 公理要能覆盖代价、秩序、冲突来源、边界条件等关键约束。
+3. 只输出 JSON 数组，不要输出解释。`,
+        ),
+        new HumanMessage(
+          `世界名=${loadedWorld.name}
+世界类型=${loadedWorld.worldType ?? "未知"}
+模板=${template.name}
+模板说明=${template.description}
+世界摘要=${loadedWorld.description ?? "无"}
+蓝图约束：
+${blueprintPromptBlock}`,
+        ),
+      ]);
+
+      let parsedAxiomRaw: unknown = [];
+      try {
+        parsedAxiomRaw = safeParseJSON<unknown[]>(extractJSONArray(String(axiomResult.content)), []);
+      } catch {
+        parsedAxiomRaw = [];
+      }
+      const normalizedAxioms = normalizeAxiomList(parsedAxiomRaw);
+      return normalizedAxioms.length > 0
+        ? normalizedAxioms
+        : [
+          "力量必须支付可衡量的代价。",
+          "任何规则突破都必须留下可追溯机制。",
+          "政治秩序受资源流动约束。",
+          "核心冲突必须源于世界规则而非偶然。",
+          "任何角色都不能直接违背基础公理。",
+        ];
+    }
+
+    const world = (await prisma.world.findUnique({ where: { id: worldId } }))!;
     if (!world) {
       throw new Error("World not found.");
     }
@@ -1024,7 +1230,55 @@ export class WorldService {
   }
 
   async generateAllLayers(worldId: string, input: LayerGenerateInput) {
-    const world = await prisma.world.findUnique({ where: { id: worldId } });
+    {
+      const loadedWorld = await prisma.world.findUnique({ where: { id: worldId } });
+      if (!loadedWorld) {
+        throw new Error("World not found.");
+      }
+      const layeredLlm = await getLLM(input.provider ?? "deepseek", {
+        model: input.model,
+        temperature: input.temperature ?? 0.7,
+      });
+
+      const generatedByLayer = WORLD_LAYER_ORDER.reduce((acc, layerKey) => {
+        acc[layerKey] = {};
+        return acc;
+      }, {} as Record<WorldLayerKey, Partial<Record<WorldTextField, string>>>);
+      const mergedGenerated: Partial<Record<WorldTextField, string>> = {};
+
+      let workingWorld = loadedWorld;
+      for (const layerKey of WORLD_LAYER_ORDER) {
+        const generatedLayer = await this.buildLayerGeneration(layeredLlm, workingWorld, layerKey);
+        generatedByLayer[layerKey] = generatedLayer;
+        Object.assign(mergedGenerated, generatedLayer);
+        workingWorld = applyGeneratedWorldFields(workingWorld, generatedLayer);
+      }
+
+      const states = normalizeLayerStates(loadedWorld.layerStates);
+      const updatedAt = nowISO();
+      for (const layerKey of WORLD_LAYER_ORDER) {
+        states[layerKey] = { key: layerKey, status: "generated", updatedAt };
+      }
+
+      const updatedWorld = await prisma.world.update({
+        where: { id: worldId },
+        data: {
+          status: "refining",
+          layerStates: JSON.stringify(states),
+          ...mergedGenerated,
+        },
+      });
+      await this.createSnapshot(worldId, "layers-generated-all");
+      this.queueRagUpsert("world", worldId);
+
+      return {
+        world: updatedWorld,
+        generated: generatedByLayer,
+        layerStates: states,
+      };
+    }
+
+    const world = (await prisma.world.findUnique({ where: { id: worldId } }))!;
     if (!world) {
       throw new Error("World not found.");
     }
@@ -2022,6 +2276,94 @@ current=${input.currentValue}`,
     world: PrismaWorld,
     layerKey: WorldLayerKey,
   ): Promise<Partial<Record<WorldTextField, string>>> {
+    {
+      const layerTemplate = getTemplateByKey(world.templateKey);
+      const targetFields = LAYER_FIELD_MAP[layerKey];
+      const blueprintPromptBlock = buildWorldBlueprintPromptBlock(world);
+      let layerRagContext = "";
+      try {
+        layerRagContext = await ragServices.hybridRetrievalService.buildContextBlock(
+          `世界分层生成 ${layerKey}\n${world.name}\n${world.description ?? ""}`,
+          {
+            worldId: world.id,
+            ownerTypes: ["world", "world_library_item"],
+            finalTopK: 6,
+          },
+        );
+      } catch {
+        layerRagContext = "";
+      }
+
+      const layeredResult = await llm.invoke([
+        new SystemMessage(
+          `你是世界观分层构建器，只负责生成 layer=${layerKey} 对应字段。
+必须输出 JSON 对象，且字段只能来自：${targetFields.join(", ")}。
+要求：
+1. 必须遵守世界公理、模板约束、用户前置蓝图选择和既有已生成内容。
+2. 不要写空泛摘要，要写能直接用于小说创作的具体设定。
+3. 当前层必须与前面层形成因果或结构关联，而不是孤立描述。
+4. 所有字段值必须使用简体中文。
+5. 只输出 JSON，不要输出解释。`,
+        ),
+        new HumanMessage(
+          `name=${world.name}
+worldType=${world.worldType ?? layerTemplate.worldType}
+template=${layerTemplate.name}
+templateDescription=${layerTemplate.description}
+classicElements=${layerTemplate.classicElements.join(" | ") || "none"}
+pitfalls=${layerTemplate.pitfalls.join(" | ") || "none"}
+axioms=${world.axioms ?? "none"}
+summary=${world.description ?? "none"}
+blueprint=
+${blueprintPromptBlock}
+existing=${JSON.stringify({
+            background: world.background,
+            geography: world.geography,
+            magicSystem: world.magicSystem,
+            technology: world.technology,
+            races: world.races,
+            politics: world.politics,
+            cultures: world.cultures,
+            religions: world.religions,
+            history: world.history,
+            conflicts: world.conflicts,
+          })}
+ragContext=${layerRagContext || "none"}`,
+        ),
+      ]);
+
+      const layeredText = String(layeredResult.content);
+      const fallbackField = targetFields[0];
+      let layeredGenerated: Partial<Record<WorldTextField, string>> = {};
+
+      try {
+        const parsedLayer = safeParseJSON<Partial<Record<WorldTextField, unknown>>>(
+          extractJSONObject(layeredText),
+          {},
+        );
+        for (const field of targetFields) {
+          const normalized = normalizeGeneratedLayerFieldValue(parsedLayer[field]);
+          if (normalized) {
+            layeredGenerated[field] = normalized;
+          }
+        }
+        if (Object.keys(layeredGenerated).length === 0) {
+          const normalizedObject = normalizeGeneratedLayerFieldValue(parsedLayer);
+          if (normalizedObject) {
+            layeredGenerated[fallbackField] = normalizedObject;
+          }
+        }
+      } catch {
+        layeredGenerated = { [fallbackField]: layeredText.trim() };
+      }
+
+      if (Object.keys(layeredGenerated).length === 0) {
+        layeredGenerated = { [fallbackField]: layeredText.trim() };
+      }
+
+      return this.localizeLayerGenerationToChineseIfNeeded(llm, layerKey, targetFields, layeredGenerated);
+    }
+
     const template = getTemplateByKey(world.templateKey);
     const layerFields = LAYER_FIELD_MAP[layerKey];
     let ragContext = "";

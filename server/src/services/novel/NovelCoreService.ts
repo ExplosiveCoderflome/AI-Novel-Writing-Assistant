@@ -3,6 +3,7 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { AuditReport, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { prisma } from "../../db/prisma";
 import { agentRuntime } from "../../agents";
 import { getLLM } from "../../llm/factory";
@@ -23,6 +24,7 @@ import { novelEventBus } from "../../events";
 import { auditService } from "../audit/AuditService";
 import { plannerService } from "../planner/PlannerService";
 import { stateService } from "../state/StateService";
+import { titleGenerationService } from "../title/TitleGenerationService";
 
 interface PaginationInput {
   page: number;
@@ -113,6 +115,7 @@ interface LLMGenerateOptions {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
+  maxTokens?: number;
 }
 
 interface OutlineGenerateOptions extends LLMGenerateOptions {
@@ -129,6 +132,10 @@ interface ChapterGenerateOptions extends LLMGenerateOptions {
 
 interface GenerateBeatOptions extends LLMGenerateOptions {
   targetChapters?: number;
+}
+
+interface TitleGenerateOptions extends LLMGenerateOptions {
+  count?: number;
 }
 
 interface PipelineRunOptions extends LLMGenerateOptions {
@@ -1624,8 +1631,12 @@ ${rawContent}`,
 
   async generateTitles(
     novelId: string,
-    options: LLMGenerateOptions = {},
-  ): Promise<{ titles: Array<{ title: string; clickRate: number; style: "literary" | "conflict" }> }> {
+    options: TitleGenerateOptions = {},
+  ): Promise<{ titles: TitleFactorySuggestion[] }> {
+    return titleGenerationService.generateNovelTitles(novelId, options);
+  }
+/*
+
     const novel = await prisma.novel.findUnique({
       where: { id: novelId },
       include: { genre: true },
@@ -1648,6 +1659,7 @@ ${rawContent}`,
     return parsed;
   }
 
+*/
   async createBibleStream(novelId: string, options: LLMGenerateOptions = {}) {
     const novel = await prisma.novel.findUnique({
       where: { id: novelId },

@@ -4,6 +4,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import BookAnalysisPage from "@/pages/bookAnalysis/BookAnalysisPage";
 import CreativeHubPage from "@/pages/creativeHub/CreativeHubPage";
 import ChatPage from "@/pages/chat/ChatPage";
+import GenreManagementPage from "@/pages/genres/GenreManagementPage";
 import Home from "@/pages/Home";
 import CharacterLibrary from "@/pages/characters/CharacterLibrary";
 import KnowledgePage from "@/pages/knowledge/KnowledgePage";
@@ -13,6 +14,7 @@ import NovelList from "@/pages/novels/NovelList";
 import ModelRoutesPage from "@/pages/settings/ModelRoutesPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
 import TaskCenterPage from "@/pages/tasks/TaskCenterPage";
+import TitleStudioPage from "@/pages/titles/TitleStudioPage";
 import WorldGenerator from "@/pages/worlds/WorldGenerator";
 import WorldList from "@/pages/worlds/WorldList";
 import WorldWorkspace from "@/pages/worlds/WorldWorkspace";
@@ -36,6 +38,8 @@ const routes: RouteObject[] = [
       { path: "book-analysis", element: <BookAnalysisPage /> },
       { path: "tasks", element: <TaskCenterPage /> },
       { path: "knowledge", element: <KnowledgePage /> },
+      { path: "genres", element: <GenreManagementPage /> },
+      { path: "titles", element: <TitleStudioPage /> },
       { path: "settings/model-routes", element: <ModelRoutesPage /> },
       { path: "settings", element: <SettingsPage /> },
       { path: "worlds", element: <WorldList /> },
