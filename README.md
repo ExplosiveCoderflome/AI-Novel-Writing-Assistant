@@ -29,12 +29,12 @@
 - [为什么值得关注](#为什么值得关注)
 - [适合谁](#适合谁)
 - [核心能力](#核心能力)
+- [升级记录](#升级记录)
 - [功能预览](#功能预览)
 - [典型使用流程](#典型使用流程)
 - [系统架构](#系统架构)
 - [项目结构](#项目结构)
 - [快速开始](#快速开始)
-- [升级记录](#升级记录)
 - [环境变量](#环境变量)
 - [常用命令](#常用命令)
 - [接口与页面概览](#接口与页面概览)
@@ -120,6 +120,90 @@
 - 支持多模型提供商：OpenAI / DeepSeek / SiliconFlow / Anthropic / xAI
 - 支持模型参数、API Key、Embedding Provider / Model 在线配置
 - 当前版本已引入独立的模型路由配置页，方便把不同能力分配给不同模型
+
+## 升级记录
+
+如果你是第一次来到这个仓库，建议先看“分支演进历史”，再看“最近升级记录”，这样能更快理解项目为什么会变成现在这个样子。
+
+### 分支演进历史
+
+以下演进主线以当前仓库中的 `main`、`next/main-replacement`、`codex/v3`、`codex/creative-hub-architecture` 为基线；其中 `main` 当前以 `origin/main` 作为历史起点。
+
+#### 1. `main`：单体原型期
+
+- 项目最早期的可运行原型，整体采用 `Next.js + Prisma` 的单体结构。
+- 页面、API 路由、LLM 调用和数据访问主要集中在根目录 `app/`、`lib/`、`prisma/`。
+- 这一阶段已经覆盖小说生成、世界观、写作公式、聊天、角色、设置等核心能力，重点是快速验证“AI 辅助小说生产平台”能否跑通。
+
+#### 2. `next/main-replacement`：工程重构与能力整合期
+
+- 项目从单体 `Next.js` 应用重构为 `client + server + shared` 的 `pnpm workspace` Monorepo。
+- 前端切换到 `React + Vite`，后端切换到 `Express + Prisma`，共享类型沉淀到 `shared/`。
+- 这一阶段完成了世界观工作台、RAG/Qdrant 配置、拆书分析发布到知识库、章节大纲同步、新版小说编辑器等关键能力整合。
+
+#### 3. `codex/v3`：Agent 化内核期
+
+- AI 从“页面触发的功能调用”升级为“可规划、可追踪、可组合的运行时系统”。
+- 新增 `server/src/agents/`、`planner/`、`toolRegistry`、`AgentRuntime`、`traceStore` 等核心模块。
+- `NovelService` 的职责开始向 `NovelCoreService`、运行时辅助模块、工具层和任务适配层迁移，底层更适合扩展 Agent 工作流。
+
+#### 4. `codex/creative-hub-architecture`：Creative Hub 双中枢期
+
+- 当前分支在 Agent 内核之上继续升级，引入 `Creative Hub` 作为统一创作中枢。
+- 后端新增 `server/src/creativeHub/`、LangGraph 中断/恢复链路、Agent Catalog、Novel Setup 状态判定、整本生产流程、回合总结等能力。
+- 当前版本的核心目标，已经从“AI 能生成内容”升级为“AI 能否组织整个创作系统”。
+
+### 最近升级记录
+
+### 2026-03-18
+
+- 新增“类型管理”模块，支持按树结构维护题材类型，也支持用 AI 先生成一版类型树；这套类型资产开始同时服务小说创建、标题工坊和世界观向导。
+- 新增“标题工坊 + 标题库”双入口，既可以基于项目上下文生成标题，也可以按创作简报或参考标题批量产出候选，并把可用标题沉淀下来反复复用。
+- 小说项目编辑流程补上“故事宏观规划”阶段，可以先把自然语言想法拆成卖点、冲突、主线钩子、成长路径和关键爆点，再整理成后续创作可直接消费的约束引擎。
+- 世界观向导重做为“先选类型，再定蓝图”的流程：先生成概念卡和前置世界属性，再结合素材库补充细节，让后续公理和分层生成更稳定、更贴近目标题材。
+
+### 2026-03-15 `57e13e2`
+
+- 新增小说开书设定脑暴能力，基于当前小说上下文、世界观约束、故事圣经和知识库事实生成设定备选方案。
+- 新增开书响应整理与回合总结能力，能给出当前阶段、影响摘要和下一步建议。
+- 补充 planner/runtime 测试，覆盖 grounded setup options 与 turn summary 相关行为。
+
+### 2026-03-15 `e53f42d`
+
+- 扩展 Creative Hub 的 novel setup 流程，新增 `CreativeHubNovelSetupCard`、`CreativeHubTurnSummaryCard`、调试卡片和侧边栏强化展示。
+- 后端新增 `NovelSetupStatusService`，对核心设定、故事承诺、题材风格、叙事配置、生产偏好、章节规格、世界观、角色和大纲进行阶段判定。
+- Creative Hub 状态接口开始回传 `novelSetup` 与 `latestTurnSummary` 元数据，前后端链路形成闭环。
+
+### 2026-03-13 `9b1d3c2`
+
+- 保留自定义 LLM 模型选择，避免升级后覆盖用户手动选择的模型配置。
+
+### 2026-03-13 `fb39b48`
+
+- 落地整本小说生产工作流，新增 novel production 相关 tools、service、status service 和前端启动卡片。
+- 引入整本生产审批、运行上下文、章节读取与任务追踪能力，支持从结构化大纲走到整本生产执行。
+- 完成数据库迁移整理，并保留开发期数据库备份与恢复脚本。
+
+### 2026-03-13 `9434c86`
+
+- 引入 LangGraph 集成，为 Creative Hub / Agent 运行时提供更稳定的图式执行基础。
+
+### 2026-03-12 `003b96f`
+
+- 规划双中枢 AI 创作系统，明确后续 Creative Hub 与生产流的协同方向。
+
+### 2026-03-12 `8c67aef`
+
+- 完成基于 Agent 的创作系统草案，为后续工具编排与工作流落地建立方案基础。
+
+### 2026-03-12 `5b308c1`
+
+- 规划 AI 小说 Agent 的后续路线图，明确未来升级方向与系统边界。
+
+### 当前验证状态
+
+- 2026-03-16 已在本地执行 `pnpm --filter @ai-novel/server test`
+- 服务端测试结果：`52/52` 通过
 
 ## 功能预览
 
@@ -294,90 +378,6 @@ docker compose -f infra/docker-compose.qdrant.yml up -d
 ```env
 RAG_ENABLED=false
 ```
-
-## 升级记录
-
-如果你是第一次来到这个仓库，建议先看“分支演进历史”，再看“最近升级记录”，这样能更快理解项目为什么会变成现在这个样子。
-
-### 分支演进历史
-
-以下演进主线以当前仓库中的 `main`、`next/main-replacement`、`codex/v3`、`codex/creative-hub-architecture` 为基线；其中 `main` 当前以 `origin/main` 作为历史起点。
-
-#### 1. `main`：单体原型期
-
-- 项目最早期的可运行原型，整体采用 `Next.js + Prisma` 的单体结构。
-- 页面、API 路由、LLM 调用和数据访问主要集中在根目录 `app/`、`lib/`、`prisma/`。
-- 这一阶段已经覆盖小说生成、世界观、写作公式、聊天、角色、设置等核心能力，重点是快速验证“AI 辅助小说生产平台”能否跑通。
-
-#### 2. `next/main-replacement`：工程重构与能力整合期
-
-- 项目从单体 `Next.js` 应用重构为 `client + server + shared` 的 `pnpm workspace` Monorepo。
-- 前端切换到 `React + Vite`，后端切换到 `Express + Prisma`，共享类型沉淀到 `shared/`。
-- 这一阶段完成了世界观工作台、RAG/Qdrant 配置、拆书分析发布到知识库、章节大纲同步、新版小说编辑器等关键能力整合。
-
-#### 3. `codex/v3`：Agent 化内核期
-
-- AI 从“页面触发的功能调用”升级为“可规划、可追踪、可组合的运行时系统”。
-- 新增 `server/src/agents/`、`planner/`、`toolRegistry`、`AgentRuntime`、`traceStore` 等核心模块。
-- `NovelService` 的职责开始向 `NovelCoreService`、运行时辅助模块、工具层和任务适配层迁移，底层更适合扩展 Agent 工作流。
-
-#### 4. `codex/creative-hub-architecture`：Creative Hub 双中枢期
-
-- 当前分支在 Agent 内核之上继续升级，引入 `Creative Hub` 作为统一创作中枢。
-- 后端新增 `server/src/creativeHub/`、LangGraph 中断/恢复链路、Agent Catalog、Novel Setup 状态判定、整本生产流程、回合总结等能力。
-- 当前版本的核心目标，已经从“AI 能生成内容”升级为“AI 能否组织整个创作系统”。
-
-### 最近升级记录
-
-### 2026-03-18
-
-- 新增“类型管理”模块，支持按树结构维护题材类型，也支持用 AI 先生成一版类型树；这套类型资产开始同时服务小说创建、标题工坊和世界观向导。
-- 新增“标题工坊 + 标题库”双入口，既可以基于项目上下文生成标题，也可以按创作简报或参考标题批量产出候选，并把可用标题沉淀下来反复复用。
-- 小说项目编辑流程补上“故事宏观规划”阶段，可以先把自然语言想法拆成卖点、冲突、主线钩子、成长路径和关键爆点，再整理成后续创作可直接消费的约束引擎。
-- 世界观向导重做为“先选类型，再定蓝图”的流程：先生成概念卡和前置世界属性，再结合素材库补充细节，让后续公理和分层生成更稳定、更贴近目标题材。
-
-### 2026-03-15 `57e13e2`
-
-- 新增小说开书设定脑暴能力，基于当前小说上下文、世界观约束、故事圣经和知识库事实生成设定备选方案。
-- 新增开书响应整理与回合总结能力，能给出当前阶段、影响摘要和下一步建议。
-- 补充 planner/runtime 测试，覆盖 grounded setup options 与 turn summary 相关行为。
-
-### 2026-03-15 `e53f42d`
-
-- 扩展 Creative Hub 的 novel setup 流程，新增 `CreativeHubNovelSetupCard`、`CreativeHubTurnSummaryCard`、调试卡片和侧边栏强化展示。
-- 后端新增 `NovelSetupStatusService`，对核心设定、故事承诺、题材风格、叙事配置、生产偏好、章节规格、世界观、角色和大纲进行阶段判定。
-- Creative Hub 状态接口开始回传 `novelSetup` 与 `latestTurnSummary` 元数据，前后端链路形成闭环。
-
-### 2026-03-13 `9b1d3c2`
-
-- 保留自定义 LLM 模型选择，避免升级后覆盖用户手动选择的模型配置。
-
-### 2026-03-13 `fb39b48`
-
-- 落地整本小说生产工作流，新增 novel production 相关 tools、service、status service 和前端启动卡片。
-- 引入整本生产审批、运行上下文、章节读取与任务追踪能力，支持从结构化大纲走到整本生产执行。
-- 完成数据库迁移整理，并保留开发期数据库备份与恢复脚本。
-
-### 2026-03-13 `9434c86`
-
-- 引入 LangGraph 集成，为 Creative Hub / Agent 运行时提供更稳定的图式执行基础。
-
-### 2026-03-12 `003b96f`
-
-- 规划双中枢 AI 创作系统，明确后续 Creative Hub 与生产流的协同方向。
-
-### 2026-03-12 `8c67aef`
-
-- 完成基于 Agent 的创作系统草案，为后续工具编排与工作流落地建立方案基础。
-
-### 2026-03-12 `5b308c1`
-
-- 规划 AI 小说 Agent 的后续路线图，明确未来升级方向与系统边界。
-
-### 当前验证状态
-
-- 2026-03-16 已在本地执行 `pnpm --filter @ai-novel/server test`
-- 服务端测试结果：`52/52` 通过
 
 ## 环境变量
 
