@@ -4,8 +4,15 @@ export function normalizeFailureSummary(summary?: string | null, fallback = "当
   return summary?.trim() || fallback;
 }
 
+export function isArchivableTaskStatus(status: TaskStatus): boolean {
+  return status === "succeeded" || status === "failed" || status === "cancelled";
+}
+
 export function buildTaskRecoveryHint(kind: TaskKind, status: TaskStatus): string {
   if (status === "failed") {
+    if (kind === "knowledge_document") {
+      return "建议检查知识文档版本、分块结果、向量模型和共享 RAG 队列占用情况后再重试。";
+    }
     if (kind === "agent_run") {
       return "建议查看最后失败步骤、相关审批状态和对应资源上下文后再重试。";
     }
@@ -24,9 +31,15 @@ export function buildTaskRecoveryHint(kind: TaskKind, status: TaskStatus): strin
     return "当前任务仍在执行中，建议先等待完成或查看实时轨迹。";
   }
   if (status === "queued") {
+    if (kind === "knowledge_document") {
+      return "当前知识库索引仍在共享 RAG 队列中，建议确认 worker 是否被更早的任务占满。";
+    }
     return "当前任务仍在排队，建议确认工作线程和模型服务是否可用。";
   }
   if (status === "cancelled") {
+    if (kind === "knowledge_document") {
+      return "当前知识库索引已取消，如需继续可重新提交索引任务。";
+    }
     return "当前任务已取消，如仍需继续，可重新发起或执行重试。";
   }
   return "当前无需恢复操作。";

@@ -12,7 +12,7 @@ export interface LLMConfigState {
   provider: LLMProvider;
   model: string;
   temperature: number;
-  maxTokens: number;
+  maxTokens?: number;
 }
 
 export interface AggregatedEvidenceItem {

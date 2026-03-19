@@ -16,6 +16,7 @@ import type {
 } from "@ai-novel/shared/types/novel";
 import type {
   StoryConstraintEngine,
+  StoryMacroFieldValue,
   StoryDecomposition,
   StoryExpansion,
   StoryMacroField,
@@ -53,13 +54,14 @@ export interface StoryMacroTabProps {
   onStoryInputChange: (value: string) => void;
   expansion: StoryExpansion | null;
   decomposition: StoryDecomposition;
+  constraints: string[];
   issues: StoryMacroIssue[];
   lockedFields: StoryMacroLocks;
   constraintEngine: StoryConstraintEngine | null;
   state: StoryMacroState;
   message: string;
   hasPlan: boolean;
-  onFieldChange: (field: StoryMacroField, value: string | string[]) => void;
+  onFieldChange: (field: StoryMacroField, value: StoryMacroFieldValue) => void;
   onToggleLock: (field: StoryMacroField) => void;
   onDecompose: () => void;
   onRegenerateField: (field: StoryMacroField) => void;

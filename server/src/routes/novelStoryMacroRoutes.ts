@@ -11,12 +11,22 @@ const llmGenerateSchema = z.object({
 });
 
 const storyMacroFieldSchema = z.enum([
+  "expanded_premise",
+  "protagonist_core",
+  "conflict_engine",
+  "conflict_layers",
+  "mystery_box",
+  "emotional_line",
+  "setpiece_seeds",
+  "tone_reference",
   "selling_point",
   "core_conflict",
   "main_hook",
+  "progression_loop",
   "growth_path",
   "major_payoffs",
   "ending_flavor",
+  "constraints",
 ]);
 
 const storyMacroFieldParamsSchema = z.object({
@@ -32,21 +42,47 @@ const storyMacroBuildSchema = llmGenerateSchema;
 
 const storyMacroUpdateSchema = z.object({
   storyInput: z.string().trim().nullable().optional(),
+  expansion: z.object({
+    expanded_premise: z.string().trim().optional(),
+    protagonist_core: z.string().trim().optional(),
+    conflict_engine: z.string().trim().optional(),
+    conflict_layers: z.object({
+      external: z.string().trim().optional(),
+      internal: z.string().trim().optional(),
+      relational: z.string().trim().optional(),
+    }).optional(),
+    mystery_box: z.string().trim().optional(),
+    emotional_line: z.string().trim().optional(),
+    setpiece_seeds: z.array(z.string().trim().min(1)).min(1).max(3).optional(),
+    tone_reference: z.string().trim().optional(),
+  }).optional(),
   decomposition: z.object({
     selling_point: z.string().trim().optional(),
     core_conflict: z.string().trim().optional(),
     main_hook: z.string().trim().optional(),
+    progression_loop: z.string().trim().optional(),
     growth_path: z.string().trim().optional(),
     major_payoffs: z.array(z.string().trim().min(1)).min(1).max(5).optional(),
     ending_flavor: z.string().trim().optional(),
   }).optional(),
+  constraints: z.array(z.string().trim().min(1)).min(1).max(8).optional(),
   lockedFields: z.object({
+    expanded_premise: z.boolean().optional(),
+    protagonist_core: z.boolean().optional(),
+    conflict_engine: z.boolean().optional(),
+    conflict_layers: z.boolean().optional(),
+    mystery_box: z.boolean().optional(),
+    emotional_line: z.boolean().optional(),
+    setpiece_seeds: z.boolean().optional(),
+    tone_reference: z.boolean().optional(),
     selling_point: z.boolean().optional(),
     core_conflict: z.boolean().optional(),
     main_hook: z.boolean().optional(),
+    progression_loop: z.boolean().optional(),
     growth_path: z.boolean().optional(),
     major_payoffs: z.boolean().optional(),
     ending_flavor: z.boolean().optional(),
+    constraints: z.boolean().optional(),
   }).optional(),
 });
 

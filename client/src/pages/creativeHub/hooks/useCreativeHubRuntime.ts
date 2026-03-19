@@ -34,7 +34,7 @@ type RunSettings = {
   provider: string;
   model: string;
   temperature: number;
-  maxTokens: number;
+  maxTokens?: number;
 };
 
 interface LoadThreadResult {

@@ -8,7 +8,7 @@ import { taskCenterService } from "../services/task/TaskCenterService";
 
 const router = Router();
 
-const kindSchema = z.enum(["book_analysis", "novel_pipeline", "image_generation", "agent_run"]);
+const kindSchema = z.enum(["book_analysis", "novel_pipeline", "knowledge_document", "image_generation", "agent_run"]);
 const statusSchema = z.enum(["queued", "running", "waiting_approval", "succeeded", "failed", "cancelled"]);
 
 const listQuerySchema = z.object({
@@ -89,6 +89,20 @@ router.post("/:kind/:id/cancel", validate({ params: taskParamsSchema }), async (
       success: true,
       data,
       message: "Task cancelled.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/:kind/:id/archive", validate({ params: taskParamsSchema }), async (req, res, next) => {
+  try {
+    const { kind, id } = req.params as z.infer<typeof taskParamsSchema>;
+    const data = await taskCenterService.archiveTask(kind, id);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Task archived.",
     } satisfies ApiResponse<typeof data>);
   } catch (error) {
     next(error);

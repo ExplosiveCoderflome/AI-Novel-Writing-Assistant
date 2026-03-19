@@ -3,7 +3,16 @@ import type { TaskStatus, UnifiedTaskDetail, UnifiedTaskStep, UnifiedTaskSummary
 import { prisma } from "../../../db/prisma";
 import { agentRuntime } from "../../../agents";
 import { AppError } from "../../../middleware/errorHandler";
-import { buildTaskRecoveryHint, normalizeFailureSummary } from "../taskSupport";
+import {
+  buildTaskRecoveryHint,
+  isArchivableTaskStatus,
+  normalizeFailureSummary,
+} from "../taskSupport";
+import {
+  archiveTask as recordTaskArchive,
+  getArchivedTaskIds,
+  isTaskArchived,
+} from "../taskArchive";
 
 export class AgentRunTaskAdapter {
   toSummary(item: {
@@ -79,8 +88,16 @@ export class AgentRunTaskAdapter {
     keyword?: string;
     take: number;
   }): Promise<UnifiedTaskSummary[]> {
+    const archivedIds = await getArchivedTaskIds("agent_run");
     const rows = await prisma.agentRun.findMany({
       where: {
+        ...(archivedIds.length
+          ? {
+            id: {
+              notIn: archivedIds,
+            },
+          }
+          : {}),
         ...(input.status ? { status: input.status as AgentRunStatus } : {}),
         ...(input.keyword
           ? {
@@ -103,6 +120,10 @@ export class AgentRunTaskAdapter {
   }
 
   async detail(id: string): Promise<UnifiedTaskDetail | null> {
+    if (await isTaskArchived("agent_run", id)) {
+      return null;
+    }
+
     const detail = await agentRuntime.getRunDetail(id);
     if (!detail) {
       return null;
@@ -158,6 +179,10 @@ export class AgentRunTaskAdapter {
   }
 
   async retry(id: string): Promise<UnifiedTaskDetail> {
+    if (await isTaskArchived("agent_run", id)) {
+      throw new AppError("Task not found.", 404);
+    }
+
     const result = await agentRuntime.retryRun(id);
     const detail = await this.detail(result.run.id);
     if (!detail) {
@@ -167,11 +192,38 @@ export class AgentRunTaskAdapter {
   }
 
   async cancel(id: string): Promise<UnifiedTaskDetail> {
+    if (await isTaskArchived("agent_run", id)) {
+      throw new AppError("Task not found.", 404);
+    }
+
     await agentRuntime.cancelRun(id);
     const detail = await this.detail(id);
     if (!detail) {
       throw new AppError("Task not found after cancellation.", 404);
     }
     return detail;
+  }
+
+  async archive(id: string): Promise<UnifiedTaskDetail | null> {
+    if (await isTaskArchived("agent_run", id)) {
+      return null;
+    }
+
+    const run = await prisma.agentRun.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+    if (!run) {
+      throw new AppError("Task not found.", 404);
+    }
+    if (!isArchivableTaskStatus(run.status as TaskStatus)) {
+      throw new AppError("Only completed, failed, or cancelled tasks can be archived.", 400);
+    }
+
+    await recordTaskArchive("agent_run", id);
+    return null;
   }
 }

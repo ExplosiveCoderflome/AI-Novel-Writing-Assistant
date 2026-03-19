@@ -1,6 +1,13 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import type { StoryDecomposition, StoryMacroField, StoryMacroLocks, StoryMacroPlan, StoryMacroState } from "@ai-novel/shared/types/storyMacro";
+import type {
+  StoryDecomposition,
+  StoryExpansion,
+  StoryMacroField,
+  StoryMacroLocks,
+  StoryMacroPlan,
+  StoryMacroState,
+} from "@ai-novel/shared/types/storyMacro";
 import { apiClient } from "./client";
 
 interface LLMPayload {
@@ -37,7 +44,9 @@ export async function updateNovelStoryMacroPlan(
   id: string,
   payload: {
     storyInput?: string | null;
+    expansion?: Partial<StoryExpansion>;
     decomposition?: Partial<StoryDecomposition>;
+    constraints?: string[];
     lockedFields?: StoryMacroLocks;
   },
 ) {

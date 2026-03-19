@@ -9,6 +9,13 @@ import { buildChunkId, computeChunkHash, estimateTokenCount, normalizeRagText, s
 
 type ReindexScope = "novel" | "world" | "all";
 
+export class RagJobCancelledError extends Error {
+  constructor() {
+    super("RAG job cancelled.");
+    this.name = "RagJobCancelledError";
+  }
+}
+
 function isCjk(text: string): boolean {
   return /[\u4E00-\u9FFF]/.test(text);
 }
@@ -37,6 +44,7 @@ export interface RagJobProgressSnapshot {
     | "upserting_vectors"
     | "writing_metadata"
     | "completed"
+    | "cancelled"
     | "failed";
   label: string;
   detail?: string;
@@ -95,6 +103,19 @@ export class RagIndexService {
       percent: Math.min(1, Math.max(0, Number.isFinite(input.percent) ? input.percent : 0)),
       updatedAt: new Date().toISOString(),
     };
+  }
+
+  private async assertJobNotCancelled(jobId: string): Promise<void> {
+    const job = await prisma.ragIndexJob.findUnique({
+      where: { id: jobId },
+      select: { status: true },
+    });
+    if (!job) {
+      throw new Error("RAG job not found.");
+    }
+    if (job.status === "cancelled") {
+      throw new RagJobCancelledError();
+    }
   }
 
   private async updateJobProgress(jobId: string, progress: Omit<RagJobProgressSnapshot, "updatedAt">): Promise<void> {
@@ -483,6 +504,9 @@ export class RagIndexService {
     tenantId: string,
     jobId?: string,
   ): Promise<{ deleted: number }> {
+    if (jobId) {
+      await this.assertJobNotCancelled(jobId);
+    }
     const existing = await prisma.knowledgeChunk.findMany({
       where: { tenantId, ownerType, ownerId },
       select: { id: true },
@@ -516,6 +540,7 @@ export class RagIndexService {
     tenantId: string,
     jobId: string,
   ): Promise<{ chunks: number }> {
+    await this.assertJobNotCancelled(jobId);
     await this.updateJobProgress(jobId, {
       stage: "loading_source",
       label: "读取文档",
@@ -525,6 +550,7 @@ export class RagIndexService {
       percent: 0.05,
     });
     const docs = await this.loadSourceDocuments(ownerType, ownerId, tenantId);
+    await this.assertJobNotCancelled(jobId);
     if (docs.length === 0) {
       await this.updateJobProgress(jobId, {
         stage: "deleting_existing",
@@ -558,6 +584,7 @@ export class RagIndexService {
       chunks: splitTexts.length,
       percent: 0.15,
     });
+    await this.assertJobNotCancelled(jobId);
     const embedding = await this.embedTextsInBatches(splitTexts, async ({ processed, total, batchIndex, totalBatches }) => {
       await this.updateJobProgress(jobId, {
         stage: "embedding",
@@ -570,6 +597,7 @@ export class RagIndexService {
         percent: 0.15 + (total > 0 ? (processed / total) * 0.5 : 0),
       });
     });
+    await this.assertJobNotCancelled(jobId);
     const candidates = this.buildChunkCandidates(docs, embedding.provider, embedding.model);
     if (candidates.length === 0) {
       await this.updateJobProgress(jobId, {
@@ -606,12 +634,14 @@ export class RagIndexService {
       chunks: candidates.length,
       percent: 0.7,
     });
+    await this.assertJobNotCancelled(jobId);
     await this.vectorStoreService.ensureCollection(vectorSize);
 
     const existing = await prisma.knowledgeChunk.findMany({
       where: { tenantId, ownerType, ownerId },
       select: { id: true },
     });
+    await this.assertJobNotCancelled(jobId);
     if (existing.length > 0) {
       await this.updateJobProgress(jobId, {
         stage: "deleting_existing",
@@ -623,6 +653,7 @@ export class RagIndexService {
         chunks: candidates.length,
         percent: 0.8,
       });
+      await this.assertJobNotCancelled(jobId);
       await this.vectorStoreService.deletePoints(existing.map((item) => item.id));
     } else {
       await this.updateJobProgress(jobId, {
@@ -647,6 +678,7 @@ export class RagIndexService {
       chunks: candidates.length,
       percent: 0.9,
     });
+    await this.assertJobNotCancelled(jobId);
     await this.vectorStoreService.upsertPoints(
       candidates.map((item, index) => ({
         id: item.id,
@@ -876,6 +908,19 @@ export class RagIndexService {
     runAfter?: Date;
     lastError?: string | null;
   }) {
+    const current = await prisma.ragIndexJob.findUnique({
+      where: { id: jobId },
+      select: { status: true, payloadJson: true },
+    });
+    if (!current) {
+      throw new Error("RAG job not found.");
+    }
+    if (current.status === "cancelled" && payload.status !== "cancelled") {
+      return prisma.ragIndexJob.findUnique({
+        where: { id: jobId },
+      }) as Promise<RagIndexJob>;
+    }
+
     const job = await prisma.ragIndexJob.update({
       where: { id: jobId },
       data: {
@@ -906,6 +951,18 @@ export class RagIndexService {
         detail: "索引任务已完成。",
         percent: 1,
       });
+    } else if (payload.status === "cancelled") {
+      const progress = this.parseJobPayload(current.payloadJson).progress;
+      await this.updateJobProgress(job.id, {
+        stage: "cancelled",
+        label: "任务已取消",
+        detail: payload.lastError ?? "索引任务已取消。",
+        current: progress?.current,
+        total: progress?.total,
+        documents: progress?.documents,
+        chunks: progress?.chunks,
+        percent: progress?.percent ?? 0,
+      });
     } else if (payload.status === "failed") {
       await this.updateJobProgress(job.id, {
         stage: "failed",
@@ -933,6 +990,7 @@ export class RagIndexService {
 
   async processJob(job: RagIndexJob): Promise<{ chunks: number }> {
     await getRagEmbeddingSettings();
+    await this.assertJobNotCancelled(job.id);
     const tenantId = job.tenantId || ragConfig.defaultTenantId;
     const ownerType = job.ownerType as RagOwnerType;
     const jobType = job.jobType as RagJobType;
@@ -973,7 +1031,9 @@ export class RagIndexService {
         ? "running"
         : status === "succeeded"
           ? "succeeded"
-          : "failed";
+          : status === "cancelled"
+            ? "idle"
+            : "failed";
 
     await prisma.knowledgeDocument.updateMany({
       where: { id: ownerId },

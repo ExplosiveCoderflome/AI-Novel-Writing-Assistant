@@ -34,7 +34,7 @@ interface AssistantChatPanelProps {
   provider: string;
   model: string;
   temperature: number;
-  maxTokens: number;
+  maxTokens?: number;
   onRunStart: () => void;
   onRuntimeEvent: (event: RuntimeEvent) => void;
   onRunStatus: (event: RuntimeRunStatus) => void;

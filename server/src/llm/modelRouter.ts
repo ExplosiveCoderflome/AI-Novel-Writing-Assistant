@@ -44,49 +44,41 @@ const DEFAULT_ROUTES: Record<ModelRouteTaskType | "default", ResolvedModel> = {
     provider: "deepseek",
     model: PROVIDERS.deepseek.defaultModel,
     temperature: 0.3,
-    maxTokens: 4096,
   },
   writer: {
     provider: "deepseek",
     model: PROVIDERS.deepseek.defaultModel,
     temperature: 0.8,
-    maxTokens: 4096,
   },
   review: {
     provider: "deepseek",
     model: PROVIDERS.deepseek.defaultModel,
     temperature: 0.2,
-    maxTokens: 2048,
   },
   repair: {
     provider: "deepseek",
     model: PROVIDERS.deepseek.defaultModel,
     temperature: 0.4,
-    maxTokens: 4096,
   },
   summary: {
     provider: "deepseek",
     model: PROVIDERS.deepseek.defaultModel,
     temperature: 0.2,
-    maxTokens: 1024,
   },
   fact_extraction: {
     provider: "deepseek",
     model: PROVIDERS.deepseek.defaultModel,
     temperature: 0.2,
-    maxTokens: 2048,
   },
   chat: {
     provider: "deepseek",
     model: PROVIDERS.deepseek.defaultModel,
     temperature: 0.7,
-    maxTokens: 4096,
   },
   default: {
     provider: "deepseek",
     model: PROVIDERS.deepseek.defaultModel,
     temperature: 0.7,
-    maxTokens: 4096,
   },
 };
 

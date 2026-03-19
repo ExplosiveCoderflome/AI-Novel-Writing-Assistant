@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TaskKind, TaskStatus } from "@ai-novel/shared/types/task";
 import { Link, useSearchParams } from "react-router-dom";
-import { cancelTask, getTaskDetail, listTasks, retryTask } from "@/api/tasks";
+import { archiveTask, cancelTask, getTaskDetail, listTasks, retryTask } from "@/api/tasks";
 import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { toast } from "@/components/ui/toast";
 
 const ACTIVE_STATUSES = new Set<TaskStatus>(["queued", "running", "waiting_approval"]);
 const ANOMALY_STATUSES = new Set<TaskStatus>(["failed", "cancelled"]);
+const ARCHIVABLE_STATUSES = new Set<TaskStatus>(["succeeded", "failed", "cancelled"]);
 
 function formatDate(value: string | null | undefined): string {
   if (!value) {
@@ -31,6 +32,9 @@ function formatKind(kind: TaskKind): string {
   }
   if (kind === "novel_pipeline") {
     return "小说流水线";
+  }
+  if (kind === "knowledge_document") {
+    return "知识库索引";
   }
   if (kind === "agent_run") {
     return "Agent 运行";
@@ -122,6 +126,7 @@ export default function TaskCenterPage() {
     queryKey: queryKeys.tasks.detail(selectedKind ?? "none", selectedId ?? "none"),
     queryFn: () => getTaskDetail(selectedKind as TaskKind, selectedId as string),
     enabled: Boolean(selectedKind && selectedId),
+    retry: false,
     refetchInterval: (query) => {
       const task = query.state.data?.data;
       return task && ACTIVE_STATUSES.has(task.status) ? 4000 : false;
@@ -196,6 +201,23 @@ export default function TaskCenterPage() {
     },
   });
 
+  const archiveMutation = useMutation({
+    mutationFn: (payload: { kind: TaskKind; id: string }) => archiveTask(payload.kind, payload.id),
+    onSuccess: async (_, payload) => {
+      await queryClient.cancelQueries({
+        queryKey: queryKeys.tasks.detail(payload.kind, payload.id),
+      });
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("kind");
+        next.delete("id");
+        return next;
+      });
+      await invalidateTaskQueries();
+      toast.success("任务已归档并从任务中心隐藏");
+    },
+  });
+
   const selectedTask = detailQuery.data?.data;
 
   return (
@@ -249,6 +271,7 @@ export default function TaskCenterPage() {
               <option value="">全部类型</option>
               <option value="book_analysis">拆书分析</option>
               <option value="novel_pipeline">小说流水线</option>
+              <option value="knowledge_document">知识库索引</option>
               <option value="image_generation">图片生成</option>
               <option value="agent_run">Agent 运行</option>
             </select>
@@ -382,8 +405,22 @@ export default function TaskCenterPage() {
                           id: selectedTask.id,
                         })}
                       disabled={cancelMutation.isPending}
-                    >
+                      >
                       取消
+                    </Button>
+                  ) : null}
+                  {ARCHIVABLE_STATUSES.has(selectedTask.status) ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        archiveMutation.mutate({
+                          kind: selectedTask.kind,
+                          id: selectedTask.id,
+                        })}
+                      disabled={archiveMutation.isPending}
+                    >
+                      归档
                     </Button>
                   ) : null}
                   <Button asChild size="sm" variant="outline">

@@ -14,6 +14,7 @@ export interface NovelBasicFormState {
   emotionIntensity: "low" | "medium" | "high";
   aiFreedom: "low" | "medium" | "high";
   defaultChapterLength: number;
+  estimatedChapterCount: number;
   projectStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
   storylineStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
   outlineStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
@@ -31,6 +32,8 @@ export interface BasicInfoOption<T extends string> {
   summary: string;
   recommended?: boolean;
 }
+
+export const DEFAULT_ESTIMATED_CHAPTER_COUNT = 20;
 
 export const WRITING_MODE_OPTIONS: BasicInfoOption<NovelBasicFormState["writingMode"]>[] = [
   {
@@ -176,6 +179,7 @@ export const BASIC_INFO_FIELD_HINTS = {
   emotionIntensity: "决定后续生成时情绪爆发和冲突的频率，不是越高越好。",
   aiFreedom: "决定 AI 可以偏离既有规划和设定的程度。前期建议保持低或中。",
   defaultChapterLength: "这是章节规划和生成时的参考字数，不是硬限制。常见推荐值是 2500 到 3500。",
+  estimatedChapterCount: "这是项目预估的总章节数，会作为结构化大纲、剧情拍点和流水线默认范围的参考，不是硬限制。",
   resourceReadyScore: "用于标记当前设定、角色、主线资料是否充分。数值越高，越适合进入自动化生产阶段。",
   styleTone: "写几个关键词即可，例如冷峻、克制、黑色幽默。它会影响生成的语言风格。",
   genreId: "类型会影响规划、标题和卖点倾向，建议尽量尽早确定。",
@@ -200,6 +204,7 @@ export function createDefaultNovelBasicFormState(): NovelBasicFormState {
     emotionIntensity: "medium",
     aiFreedom: "medium",
     defaultChapterLength: 2800,
+    estimatedChapterCount: DEFAULT_ESTIMATED_CHAPTER_COUNT,
     projectStatus: "not_started",
     storylineStatus: "not_started",
     outlineStatus: "not_started",
@@ -270,6 +275,7 @@ export function buildNovelCreatePayload(basicForm: NovelBasicFormState) {
     emotionIntensity: basicForm.emotionIntensity,
     aiFreedom: basicForm.aiFreedom,
     defaultChapterLength: basicForm.defaultChapterLength,
+    estimatedChapterCount: basicForm.estimatedChapterCount,
     projectStatus: basicForm.projectStatus,
     storylineStatus: basicForm.storylineStatus,
     outlineStatus: basicForm.outlineStatus,
@@ -314,6 +320,7 @@ export function buildNovelUpdatePayload(basicForm: NovelBasicFormState) {
     emotionIntensity: basicForm.emotionIntensity,
     aiFreedom: basicForm.aiFreedom,
     defaultChapterLength: basicForm.defaultChapterLength,
+    estimatedChapterCount: basicForm.estimatedChapterCount,
     projectStatus: basicForm.projectStatus,
     storylineStatus: basicForm.storylineStatus,
     outlineStatus: basicForm.outlineStatus,

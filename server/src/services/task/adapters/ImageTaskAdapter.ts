@@ -3,7 +3,16 @@ import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { imageGenerationService } from "../../image/ImageGenerationService";
 import { IMAGE_TASK_STEPS, buildSteps, toLegacyTaskStatus } from "../taskCenter.shared";
-import { buildTaskRecoveryHint, normalizeFailureSummary } from "../taskSupport";
+import {
+  buildTaskRecoveryHint,
+  isArchivableTaskStatus,
+  normalizeFailureSummary,
+} from "../taskSupport";
+import {
+  archiveTask as recordTaskArchive,
+  getArchivedTaskIds,
+  isTaskArchived,
+} from "../taskArchive";
 
 export class ImageTaskAdapter {
   async list(input: {
@@ -15,8 +24,16 @@ export class ImageTaskAdapter {
       return [];
     }
     const status = toLegacyTaskStatus(input.status);
+    const archivedIds = await getArchivedTaskIds("image_generation");
     const rows = await prisma.imageGenerationTask.findMany({
       where: {
+        ...(archivedIds.length
+          ? {
+            id: {
+              notIn: archivedIds,
+            },
+          }
+          : {}),
         ...(status ? { status } : {}),
         ...(input.keyword
           ? {
@@ -79,6 +96,10 @@ export class ImageTaskAdapter {
   }
 
   async detail(id: string): Promise<UnifiedTaskDetail | null> {
+    if (await isTaskArchived("image_generation", id)) {
+      return null;
+    }
+
     const row = await prisma.imageGenerationTask.findUnique({
       where: { id },
       include: {
@@ -160,6 +181,10 @@ export class ImageTaskAdapter {
   }
 
   async retry(id: string): Promise<UnifiedTaskDetail> {
+    if (await isTaskArchived("image_generation", id)) {
+      throw new AppError("Task not found.", 404);
+    }
+
     const task = await imageGenerationService.retryTask(id);
     const detail = await this.detail(task.id);
     if (!detail) {
@@ -169,11 +194,34 @@ export class ImageTaskAdapter {
   }
 
   async cancel(id: string): Promise<UnifiedTaskDetail> {
+    if (await isTaskArchived("image_generation", id)) {
+      throw new AppError("Task not found.", 404);
+    }
+
     const task = await imageGenerationService.cancelTask(id);
     const detail = await this.detail(task.id);
     if (!detail) {
       throw new AppError("Task not found after cancellation.", 404);
     }
     return detail;
+  }
+
+  async archive(id: string): Promise<UnifiedTaskDetail | null> {
+    if (await isTaskArchived("image_generation", id)) {
+      return null;
+    }
+
+    const task = await prisma.imageGenerationTask.findUnique({
+      where: { id },
+    });
+    if (!task) {
+      throw new AppError("Task not found.", 404);
+    }
+    if (!isArchivableTaskStatus(task.status as TaskStatus)) {
+      throw new AppError("Only completed, failed, or cancelled tasks can be archived.", 400);
+    }
+
+    await recordTaskArchive("image_generation", id);
+    return null;
   }
 }

@@ -8,6 +8,12 @@ export interface ApiHttpError extends Error {
   details?: unknown;
 }
 
+declare module "axios" {
+  interface AxiosRequestConfig {
+    silentErrorStatuses?: number[];
+  }
+}
+
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 180000,
@@ -18,6 +24,7 @@ apiClient.interceptors.response.use(
   (error: AxiosError<ApiResponse<unknown>>) => {
     const status = error.response?.status;
     const backendError = error.response?.data?.error;
+    const silentErrorStatuses = error.config?.silentErrorStatuses ?? [];
     let message = backendError ?? error.message ?? "请求失败。";
 
     if (!status) {
@@ -26,7 +33,9 @@ apiClient.interceptors.response.use(
       message = backendError ?? "服务器错误，请稍后重试。";
     }
 
-    toast.error(message);
+    if (!status || !silentErrorStatuses.includes(status)) {
+      toast.error(message);
+    }
 
     const normalizedError = new Error(
       message,

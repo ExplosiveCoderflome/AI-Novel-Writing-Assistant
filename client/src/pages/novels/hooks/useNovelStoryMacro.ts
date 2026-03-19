@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
-import type { StoryDecomposition, StoryExpansion, StoryMacroField, StoryMacroLocks, StoryMacroState } from "@ai-novel/shared/types/storyMacro";
+import type {
+  StoryConflictLayers,
+  StoryDecomposition,
+  StoryExpansion,
+  StoryMacroField,
+  StoryMacroFieldValue,
+  StoryMacroLocks,
+  StoryMacroState,
+} from "@ai-novel/shared/types/storyMacro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   buildNovelStoryConstraintEngine,
@@ -12,10 +20,30 @@ import {
 import { queryKeys } from "@/api/queryKeys";
 import type { StoryMacroTabProps } from "../components/NovelEditView.types";
 
+const EMPTY_CONFLICT_LAYERS: StoryConflictLayers = {
+  external: "",
+  internal: "",
+  relational: "",
+};
+
+const EMPTY_EXPANSION: StoryExpansion | null = null;
+
+const EMPTY_EXPANSION_VALUE: StoryExpansion = {
+  expanded_premise: "",
+  protagonist_core: "",
+  conflict_engine: "",
+  conflict_layers: EMPTY_CONFLICT_LAYERS,
+  mystery_box: "",
+  emotional_line: "",
+  setpiece_seeds: [],
+  tone_reference: "",
+};
+
 const EMPTY_DECOMPOSITION: StoryDecomposition = {
   selling_point: "",
   core_conflict: "",
   main_hook: "",
+  progression_loop: "",
   growth_path: "",
   major_payoffs: [],
   ending_flavor: "",
@@ -27,14 +55,27 @@ const EMPTY_STATE: StoryMacroState = {
   protagonistState: "",
 };
 
-const EMPTY_EXPANSION: StoryExpansion | null = null;
-
 interface UseNovelStoryMacroInput {
   novelId: string;
   llm: {
     provider: "deepseek" | "siliconflow" | "openai" | "anthropic" | "grok";
     model: string;
     temperature: number;
+  };
+}
+
+function normalizeExpansion(value: StoryExpansion | null | undefined): StoryExpansion | null {
+  if (!value) {
+    return null;
+  }
+  return {
+    ...EMPTY_EXPANSION_VALUE,
+    ...value,
+    conflict_layers: {
+      ...EMPTY_CONFLICT_LAYERS,
+      ...(value.conflict_layers ?? {}),
+    },
+    setpiece_seeds: value.setpiece_seeds ?? [],
   };
 }
 
@@ -45,7 +86,9 @@ export function useNovelStoryMacro(input: UseNovelStoryMacroInput): {
   const { novelId, llm } = input;
   const queryClient = useQueryClient();
   const [storyInput, setStoryInput] = useState("");
+  const [expansion, setExpansion] = useState<StoryExpansion | null>(EMPTY_EXPANSION);
   const [decomposition, setDecomposition] = useState<StoryDecomposition>(EMPTY_DECOMPOSITION);
+  const [constraints, setConstraints] = useState<string[]>([]);
   const [lockedFields, setLockedFields] = useState<StoryMacroLocks>({});
   const [storyState, setStoryState] = useState<StoryMacroState>(EMPTY_STATE);
   const [message, setMessage] = useState("");
@@ -66,13 +109,17 @@ export function useNovelStoryMacro(input: UseNovelStoryMacroInput): {
     const plan = planQuery.data?.data;
     if (!plan) {
       setStoryInput("");
+      setExpansion(EMPTY_EXPANSION);
       setDecomposition(EMPTY_DECOMPOSITION);
+      setConstraints([]);
       setLockedFields({});
       setStoryState(EMPTY_STATE);
       return;
     }
     setStoryInput(plan.storyInput ?? "");
+    setExpansion(normalizeExpansion(plan.expansion));
     setDecomposition(plan.decomposition ?? EMPTY_DECOMPOSITION);
+    setConstraints(plan.constraints ?? []);
     setLockedFields(plan.lockedFields ?? {});
     setStoryState(plan.state ?? EMPTY_STATE);
   }, [planQuery.data?.data]);
@@ -85,8 +132,10 @@ export function useNovelStoryMacro(input: UseNovelStoryMacroInput): {
       temperature: llm.temperature,
     }),
     onSuccess: async (response) => {
-      setMessage(response.message ?? "作家视角扩展与故事拆解已完成。");
+      setMessage(response.message ?? "故事引擎原型已生成。");
+      setExpansion(normalizeExpansion(response.data?.expansion));
       setDecomposition(response.data?.decomposition ?? EMPTY_DECOMPOSITION);
+      setConstraints(response.data?.constraints ?? []);
       setLockedFields(response.data?.lockedFields ?? {});
       setStoryState(response.data?.state ?? EMPTY_STATE);
       await invalidatePlan();
@@ -108,7 +157,9 @@ export function useNovelStoryMacro(input: UseNovelStoryMacroInput): {
   const saveMutation = useMutation({
     mutationFn: () => updateNovelStoryMacroPlan(novelId, {
       storyInput: storyInput.trim() || null,
+      expansion: expansion ?? EMPTY_EXPANSION_VALUE,
       decomposition,
+      constraints,
       lockedFields,
     }),
     onSuccess: async (response) => {
@@ -143,21 +194,69 @@ export function useNovelStoryMacro(input: UseNovelStoryMacroInput): {
     },
   });
 
+  const onFieldChange = (field: StoryMacroField, value: StoryMacroFieldValue) => {
+    switch (field) {
+      case "expanded_premise":
+      case "protagonist_core":
+      case "conflict_engine":
+      case "mystery_box":
+      case "emotional_line":
+      case "tone_reference":
+        setExpansion((prev) => ({
+          ...(prev ?? EMPTY_EXPANSION_VALUE),
+          [field]: typeof value === "string" ? value : "",
+        }));
+        return;
+      case "conflict_layers":
+        setExpansion((prev) => ({
+          ...(prev ?? EMPTY_EXPANSION_VALUE),
+          conflict_layers: {
+            ...EMPTY_CONFLICT_LAYERS,
+            ...((value && typeof value === "object" && !Array.isArray(value)) ? value : {}),
+          },
+        }));
+        return;
+      case "setpiece_seeds":
+        setExpansion((prev) => ({
+          ...(prev ?? EMPTY_EXPANSION_VALUE),
+          setpiece_seeds: Array.isArray(value) ? value : [],
+        }));
+        return;
+      case "selling_point":
+      case "core_conflict":
+      case "main_hook":
+      case "progression_loop":
+      case "growth_path":
+      case "ending_flavor":
+        setDecomposition((prev) => ({
+          ...prev,
+          [field]: typeof value === "string" ? value : "",
+        }));
+        return;
+      case "major_payoffs":
+        setDecomposition((prev) => ({
+          ...prev,
+          major_payoffs: Array.isArray(value) ? value : [],
+        }));
+        return;
+      case "constraints":
+        setConstraints(Array.isArray(value) ? value : []);
+    }
+  };
+
   const tab: StoryMacroTabProps = {
     storyInput,
     onStoryInputChange: setStoryInput,
-    expansion: planQuery.data?.data?.expansion ?? EMPTY_EXPANSION,
+    expansion,
     decomposition,
+    constraints,
     issues: planQuery.data?.data?.issues ?? [],
     lockedFields,
     constraintEngine: planQuery.data?.data?.constraintEngine ?? null,
     state: storyState,
     message,
     hasPlan: Boolean(planQuery.data?.data),
-    onFieldChange: (field, value) => setDecomposition((prev) => ({
-      ...prev,
-      [field]: value,
-    } as StoryDecomposition)),
+    onFieldChange,
     onToggleLock: (field) => setLockedFields((prev) => ({ ...prev, [field]: !prev[field] })),
     onDecompose: () => decomposeMutation.mutate(),
     onRegenerateField: (field) => regenerateMutation.mutate(field),

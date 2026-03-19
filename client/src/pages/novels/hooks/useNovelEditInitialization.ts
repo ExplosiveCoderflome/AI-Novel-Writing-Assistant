@@ -1,7 +1,10 @@
 import { useEffect } from "react";
 import type { BaseCharacter, Character } from "@ai-novel/shared/types/novel";
 import type { NovelDetailResponse } from "@/api/novel";
-import type { NovelBasicFormState } from "../novelBasicInfo.shared";
+import {
+  DEFAULT_ESTIMATED_CHAPTER_COUNT,
+  type NovelBasicFormState,
+} from "../novelBasicInfo.shared";
 
 interface PipelineFormState {
   startOrder: number;
@@ -99,6 +102,7 @@ export function useNovelEditInitialization({
       emotionIntensity: detail.emotionIntensity ?? "medium",
       aiFreedom: detail.aiFreedom ?? "medium",
       defaultChapterLength: detail.defaultChapterLength ?? 2800,
+      estimatedChapterCount: detail.estimatedChapterCount ?? DEFAULT_ESTIMATED_CHAPTER_COUNT,
       projectStatus: detail.projectStatus ?? "not_started",
       storylineStatus: detail.storylineStatus ?? "not_started",
       outlineStatus: detail.outlineStatus ?? "not_started",
@@ -111,9 +115,14 @@ export function useNovelEditInitialization({
     });
     setOutlineText(detail.outline ?? "");
     setStructuredDraftText(detail.structuredOutline ?? "");
+    const recommendedEndOrder = Math.max(
+      detail.estimatedChapterCount ?? DEFAULT_ESTIMATED_CHAPTER_COUNT,
+      detail.chapters.length || 0,
+      1,
+    );
     setPipelineForm((prev) => ({
       ...prev,
-      endOrder: Math.max(prev.endOrder, Math.max(10, detail.chapters.length || 10)),
+      endOrder: Math.max(prev.endOrder, recommendedEndOrder),
     }));
   }, [detail, setBasicForm, setOutlineText, setPipelineForm, setStructuredDraftText]);
 

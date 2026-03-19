@@ -36,15 +36,26 @@ function normalizeModel(model: unknown, provider: LLMProvider): string {
   return trimmed || getDefaultModel(provider);
 }
 
+function normalizeMaxTokens(maxTokens: unknown): number | undefined {
+  if (typeof maxTokens !== "number" || !Number.isFinite(maxTokens)) {
+    return undefined;
+  }
+  const normalized = Math.floor(maxTokens);
+  if (normalized < 256) {
+    return undefined;
+  }
+  return normalized === 4096 ? undefined : normalized;
+}
+
 interface LLMStoreState {
   provider: LLMProvider;
   model: string;
   temperature: number;
-  maxTokens: number;
+  maxTokens?: number;
   setProvider: (provider: LLMProvider) => void;
   setModel: (model: string) => void;
   setTemperature: (temperature: number) => void;
-  setMaxTokens: (maxTokens: number) => void;
+  setMaxTokens: (maxTokens?: number) => void;
 }
 
 export const useLLMStore = create<LLMStoreState>()(
@@ -53,7 +64,6 @@ export const useLLMStore = create<LLMStoreState>()(
       provider: "deepseek",
       model: getDefaultModel("deepseek"),
       temperature: 0.7,
-      maxTokens: 4096,
       setProvider: (provider) =>
         set(() => ({
           provider,
@@ -63,7 +73,7 @@ export const useLLMStore = create<LLMStoreState>()(
           model: normalizeModel(model, state.provider),
         })),
       setTemperature: (temperature) => set({ temperature }),
-      setMaxTokens: (maxTokens) => set({ maxTokens }),
+      setMaxTokens: (maxTokens) => set({ maxTokens: normalizeMaxTokens(maxTokens) }),
     }),
     {
       name: "llm-store",
@@ -77,11 +87,13 @@ export const useLLMStore = create<LLMStoreState>()(
         const persistedState = (persisted ?? {}) as Partial<LLMStoreState>;
         const provider = normalizeProvider(persistedState.provider ?? current.provider);
         const model = normalizeModel(persistedState.model, provider);
+        const maxTokens = normalizeMaxTokens(persistedState.maxTokens);
         return {
           ...current,
           ...persistedState,
           provider,
           model,
+          maxTokens,
         };
       },
     },

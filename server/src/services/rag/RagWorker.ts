@@ -1,5 +1,5 @@
 import { ragConfig } from "../../config/rag";
-import { RagIndexService } from "./RagIndexService";
+import { RagIndexService, RagJobCancelledError } from "./RagIndexService";
 
 function backoffMs(attempt: number): number {
   const factor = Math.min(Math.max(attempt, 1), 6);
@@ -120,6 +120,13 @@ export class RagWorker {
           elapsedMs: Date.now() - startedAt,
         });
       } catch (error) {
+        if (error instanceof RagJobCancelledError) {
+          this.logInfo("Job cancelled.", {
+            jobId: job.id,
+            elapsedMs: Date.now() - startedAt,
+          });
+          return;
+        }
         const message = error instanceof Error ? error.message : "RAG 索引任务失败。";
         if (nextAttempt >= job.maxAttempts) {
           await this.ragIndexService.updateJobStatus(job.id, {

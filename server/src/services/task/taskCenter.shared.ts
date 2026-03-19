@@ -5,7 +5,7 @@ import type {
 } from "@ai-novel/shared/types/task";
 
 export interface ListTasksFilters {
-  kind?: "book_analysis" | "novel_pipeline" | "image_generation" | "agent_run";
+  kind?: "book_analysis" | "novel_pipeline" | "knowledge_document" | "image_generation" | "agent_run";
   status?: TaskStatus;
   keyword?: string;
   limit?: number;
@@ -40,6 +40,18 @@ export const NOVEL_PIPELINE_STEPS = [
   { key: "reviewing", label: "审校" },
   { key: "repairing", label: "修复" },
   { key: "finalizing", label: "收尾" },
+] as const;
+
+export const KNOWLEDGE_DOCUMENT_STEPS = [
+  { key: "queued", label: "排队" },
+  { key: "loading_source", label: "读取文档" },
+  { key: "chunking", label: "切分分块" },
+  { key: "embedding", label: "生成向量" },
+  { key: "ensuring_collection", label: "校验集合" },
+  { key: "deleting_existing", label: "清理旧索引" },
+  { key: "upserting_vectors", label: "写入向量库" },
+  { key: "writing_metadata", label: "写入元数据" },
+  { key: "completed", label: "完成" },
 ] as const;
 
 export const IMAGE_TASK_STEPS = [

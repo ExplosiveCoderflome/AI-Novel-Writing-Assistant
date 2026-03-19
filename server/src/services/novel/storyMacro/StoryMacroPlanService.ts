@@ -1,10 +1,10 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
-  StoryConstraintEngine,
   StoryDecomposition,
   StoryExpansion,
   StoryMacroField,
+  StoryMacroFieldValue,
   StoryMacroIssue,
   StoryMacroLocks,
   StoryMacroPlan,
@@ -13,20 +13,38 @@ import type {
 import { prisma } from "../../../db/prisma";
 import { getLLM } from "../../../llm/factory";
 import {
+  EMPTY_DECOMPOSITION,
+  EMPTY_EXPANSION,
   EMPTY_STATE,
+  type StoryMacroEditablePlan,
   STORY_MACRO_RESPONSE_SCHEMA,
-  buildConstraintEngine,
+  buildConstraintEngine as buildStoryConstraintEngine,
   buildExpansionAndDecompositionPrompt,
   buildFieldRegenerationPrompt,
   extractJSONObject,
+  getEditablePlanFieldValue,
+  hasMeaningfulDecomposition,
+  hasMeaningfulExpansion,
   isDecompositionComplete,
   mergeLockedFields,
+  normalizeConstraints,
   normalizeDecomposition,
   normalizeExpansion,
   normalizeIssues,
-  safeParseJSON,
+  setEditablePlanFieldValue,
   toText,
 } from "./storyMacroPlanUtils";
+import {
+  type PersistedPlanRow,
+  mapRowToPlan,
+  serializeConstraintPayload,
+} from "./storyMacroPlanPersistence";
+import {
+  formatProjectContext,
+  normalizeRegeneratedFieldValue,
+  type StoryMacroNovelContext,
+  toEditablePlan,
+} from "./storyMacroPlanService.shared";
 
 interface LLMOptions {
   provider?: LLMProvider;
@@ -34,45 +52,29 @@ interface LLMOptions {
   temperature?: number;
 }
 
-interface PersistedPlanRow {
-  id: string;
-  novelId: string;
-  storyInput: string | null;
-  expansionJson: string | null;
-  decompositionJson: string | null;
-  issuesJson: string | null;
-  lockedFieldsJson: string | null;
-  constraintEngineJson: string | null;
-  stateJson: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-function mapRowToPlan(row: PersistedPlanRow): StoryMacroPlan {
-  return {
-    id: row.id,
-    novelId: row.novelId,
-    storyInput: row.storyInput,
-    expansion: safeParseJSON<StoryExpansion | null>(row.expansionJson, null),
-    decomposition: safeParseJSON<StoryDecomposition | null>(row.decompositionJson, null),
-    issues: safeParseJSON<StoryMacroIssue[]>(row.issuesJson, []),
-    lockedFields: safeParseJSON<StoryMacroLocks>(row.lockedFieldsJson, {}),
-    constraintEngine: safeParseJSON<StoryConstraintEngine | null>(row.constraintEngineJson, null),
-    state: safeParseJSON<StoryMacroState>(row.stateJson, EMPTY_STATE),
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-  };
-}
-
 export class StoryMacroPlanService {
-  private async ensureNovelExists(novelId: string): Promise<void> {
+  private async getNovelContext(novelId: string): Promise<StoryMacroNovelContext> {
     const novel = await prisma.novel.findUnique({
       where: { id: novelId },
-      select: { id: true },
+      select: {
+        id: true,
+        title: true,
+        styleTone: true,
+        narrativePov: true,
+        pacePreference: true,
+        emotionIntensity: true,
+        estimatedChapterCount: true,
+        genre: {
+          select: {
+            name: true,
+          },
+        },
+      },
     });
     if (!novel) {
       throw new Error("小说不存在。");
     }
+    return novel;
   }
 
   private async getRow(novelId: string): Promise<PersistedPlanRow | null> {
@@ -88,12 +90,21 @@ export class StoryMacroPlanService {
       storyInput?: string | null;
       expansion?: StoryExpansion | null;
       decomposition?: StoryDecomposition | null;
+      constraints?: string[];
       issues?: StoryMacroIssue[];
       lockedFields?: StoryMacroLocks;
-      constraintEngine?: StoryConstraintEngine | null;
+      constraintEngine?: ReturnType<typeof buildStoryConstraintEngine> | null;
       state?: StoryMacroState;
     },
   ): Promise<StoryMacroPlan> {
+    const previousRow = await this.getRow(novelId);
+    const previousPlan = previousRow ? mapRowToPlan(previousRow) : null;
+    const nextConstraints = input.constraints !== undefined
+      ? normalizeConstraints(input.constraints)
+      : (previousPlan?.constraints ?? []);
+    const nextConstraintEngine = input.constraintEngine !== undefined
+      ? input.constraintEngine
+      : (previousPlan?.constraintEngine ?? null);
     const row = await prisma.storyMacroPlan.upsert({
       where: { novelId },
       create: {
@@ -101,9 +112,12 @@ export class StoryMacroPlanService {
         storyInput: input.storyInput ?? null,
         expansionJson: input.expansion ? JSON.stringify(input.expansion) : null,
         decompositionJson: input.decomposition ? JSON.stringify(input.decomposition) : null,
-        issuesJson: input.issues ? JSON.stringify(input.issues) : JSON.stringify([]),
+        issuesJson: JSON.stringify(input.issues ?? []),
         lockedFieldsJson: JSON.stringify(input.lockedFields ?? {}),
-        constraintEngineJson: input.constraintEngine ? JSON.stringify(input.constraintEngine) : null,
+        constraintEngineJson: serializeConstraintPayload({
+          constraints: nextConstraints,
+          constraintEngine: nextConstraintEngine,
+        }),
         stateJson: JSON.stringify(input.state ?? EMPTY_STATE),
       },
       update: {
@@ -112,47 +126,132 @@ export class StoryMacroPlanService {
         ...(input.decomposition !== undefined ? { decompositionJson: input.decomposition ? JSON.stringify(input.decomposition) : null } : {}),
         ...(input.issues !== undefined ? { issuesJson: JSON.stringify(input.issues) } : {}),
         ...(input.lockedFields !== undefined ? { lockedFieldsJson: JSON.stringify(input.lockedFields) } : {}),
-        ...(input.constraintEngine !== undefined ? { constraintEngineJson: input.constraintEngine ? JSON.stringify(input.constraintEngine) : null } : {}),
+        ...(input.constraints !== undefined || input.constraintEngine !== undefined
+          ? {
+              constraintEngineJson: serializeConstraintPayload({
+                constraints: nextConstraints,
+                constraintEngine: nextConstraintEngine,
+              }),
+            }
+          : {}),
         ...(input.state !== undefined ? { stateJson: JSON.stringify(input.state) } : {}),
       },
     });
     return mapRowToPlan(row);
   }
 
+  private parseDecompositionResponse(rawContent: string) {
+    return STORY_MACRO_RESPONSE_SCHEMA.parse(JSON.parse(extractJSONObject(rawContent)));
+  }
+
+  private async repairDecompositionResponse(
+    storyInput: string,
+    projectContext: string,
+    rawContent: string,
+    options: LLMOptions,
+    reason: string,
+  ) {
+    const llm = await getLLM(options.provider, {
+      fallbackProvider: "deepseek",
+      model: options.model,
+      temperature: 0.1,
+      taskType: "planner",
+    });
+    const prompt = buildExpansionAndDecompositionPrompt(storyInput, projectContext);
+    const result = await llm.invoke([
+      new SystemMessage([
+        prompt.system,
+        "",
+        "你现在不是重新规划故事，而是 JSON 修复器。",
+        "请把用户提供的原始内容修复为严格合法的 JSON 对象。",
+        "优先保留原意，只修复括号、逗号、引号、数组格式和转义。",
+        "如果某个字段明显缺失或被截断，只做最小补全，并在 issues 中增加 missing_info。",
+        "不要输出解释文字，只能输出最终 JSON 对象。",
+      ].join("\n")),
+      new HumanMessage([
+        `项目上下文：\n${projectContext || "无"}`,
+        `原始故事想法：\n${storyInput}`,
+        `校验失败原因：${reason}`,
+        "请修复下面的内容：",
+        rawContent,
+      ].join("\n\n")),
+    ]);
+    return this.parseDecompositionResponse(toText(result.content));
+  }
+
+  private parseFieldRegenerationResponse(rawContent: string) {
+    return JSON.parse(extractJSONObject(rawContent)) as { value?: unknown };
+  }
+
+  private async repairFieldRegenerationResponse(
+    field: StoryMacroField,
+    rawContent: string,
+    options: LLMOptions,
+    reason: string,
+  ) {
+    const llm = await getLLM(options.provider, {
+      fallbackProvider: "deepseek",
+      model: options.model,
+      temperature: 0.1,
+      taskType: "planner",
+    });
+    const formatHint = field === "conflict_layers"
+      ? "{\"value\":{\"external\":\"...\",\"internal\":\"...\",\"relational\":\"...\"}}"
+      : (field === "major_payoffs" || field === "setpiece_seeds" || field === "constraints")
+        ? "{\"value\":[\"...\"]}"
+        : "{\"value\":\"...\"}";
+    const result = await llm.invoke([
+      new SystemMessage([
+        "你是 JSON 修复器。",
+        "请把用户提供的内容修复为严格合法的 JSON 对象，不要输出解释。",
+        `输出格式只能是 ${formatHint}。`,
+        `目标字段：${field}`,
+        "优先保留原意，只修复语法、括号、逗号、引号和数组结构。",
+      ].join("\n")),
+      new HumanMessage([
+        `校验失败原因：${reason}`,
+        "请修复下面的内容：",
+        rawContent,
+      ].join("\n\n")),
+    ]);
+    return this.parseFieldRegenerationResponse(toText(result.content));
+  }
+
   private async invokeDecompositionModel(
     storyInput: string,
+    projectContext: string,
     options: LLMOptions,
-  ): Promise<{ expansion: StoryExpansion; decomposition: StoryDecomposition; issues: StoryMacroIssue[] }> {
+  ): Promise<{ plan: StoryMacroEditablePlan; issues: StoryMacroIssue[] }> {
     const llm = await getLLM(options.provider, {
       fallbackProvider: "deepseek",
       model: options.model,
       temperature: options.temperature ?? 0.3,
-      maxTokens: 1800,
       taskType: "planner",
     });
-    const prompt = buildExpansionAndDecompositionPrompt(storyInput);
+    const prompt = buildExpansionAndDecompositionPrompt(storyInput, projectContext);
     const result = await llm.invoke([
       new SystemMessage(prompt.system),
       new HumanMessage(prompt.user),
     ]);
-    const parsed = STORY_MACRO_RESPONSE_SCHEMA.parse(JSON.parse(extractJSONObject(toText(result.content))));
+    const rawContent = toText(result.content);
+    let parsed: ReturnType<typeof STORY_MACRO_RESPONSE_SCHEMA.parse>;
+    try {
+      parsed = this.parseDecompositionResponse(rawContent);
+    } catch (error) {
+      parsed = await this.repairDecompositionResponse(
+        storyInput,
+        projectContext,
+        rawContent,
+        options,
+        error instanceof Error ? error.message : "invalid story macro decomposition json",
+      );
+    }
     return {
-      expansion: normalizeExpansion({
-        expanded_premise: parsed.expansion.expanded_premise,
-        protagonist_core: parsed.expansion.protagonist_core,
-        conflict_layers: parsed.expansion.conflict_layers,
-        emotional_line: parsed.expansion.emotional_line,
-        setpiece_seeds: parsed.expansion.setpiece_seeds,
-        tone_reference: parsed.expansion.tone_reference,
-      }),
-      decomposition: normalizeDecomposition({
-        selling_point: parsed.decomposition.selling_point,
-        core_conflict: parsed.decomposition.core_conflict,
-        main_hook: parsed.decomposition.main_hook,
-        growth_path: parsed.decomposition.growth_path,
-        major_payoffs: parsed.decomposition.major_payoffs,
-        ending_flavor: parsed.decomposition.ending_flavor,
-      }),
+      plan: {
+        expansion: normalizeExpansion(parsed.expansion),
+        decomposition: normalizeDecomposition(parsed.decomposition),
+        constraints: normalizeConstraints(parsed.constraints),
+      },
       issues: normalizeIssues(parsed.issues),
     };
   }
@@ -160,48 +259,47 @@ export class StoryMacroPlanService {
   private async invokeSingleFieldRegeneration(
     field: StoryMacroField,
     storyInput: string,
-    expansion: StoryExpansion | null,
-    decomposition: StoryDecomposition,
+    plan: StoryMacroEditablePlan,
     lockedFields: StoryMacroLocks,
     options: LLMOptions,
-  ): Promise<StoryDecomposition[StoryMacroField]> {
+    projectContext: string,
+  ): Promise<StoryMacroFieldValue> {
     const llm = await getLLM(options.provider, {
       fallbackProvider: "deepseek",
       model: options.model,
       temperature: options.temperature ?? 0.3,
-      maxTokens: 800,
       taskType: "planner",
     });
     const prompt = buildFieldRegenerationPrompt({
       field,
       storyInput,
-      expansion,
-      decomposition,
+      expansion: plan.expansion,
+      decomposition: plan.decomposition,
+      constraints: plan.constraints,
       lockedFields,
+      projectContext,
     });
     const result = await llm.invoke([
       new SystemMessage(prompt.system),
       new HumanMessage(prompt.user),
     ]);
-
-    const parsed = JSON.parse(extractJSONObject(toText(result.content))) as { value?: unknown };
-    if (field === "major_payoffs") {
-      const arrayValue = Array.isArray(parsed.value)
-        ? parsed.value.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean).slice(0, 5)
-        : [];
-      if (arrayValue.length === 0) {
-        throw new Error("AI 未返回有效的关键爆点列表。");
-      }
-      return arrayValue;
+    const rawContent = toText(result.content);
+    let parsed: { value?: unknown };
+    try {
+      parsed = this.parseFieldRegenerationResponse(rawContent);
+    } catch (error) {
+      parsed = await this.repairFieldRegenerationResponse(
+        field,
+        rawContent,
+        options,
+        error instanceof Error ? error.message : `invalid ${field} regeneration json`,
+      );
     }
-    if (typeof parsed.value !== "string" || !parsed.value.trim()) {
-      throw new Error(`AI 未返回有效的 ${field}。`);
-    }
-    return parsed.value.trim();
+    return normalizeRegeneratedFieldValue(field, parsed.value);
   }
 
   async getPlan(novelId: string): Promise<StoryMacroPlan | null> {
-    await this.ensureNovelExists(novelId);
+    await this.getNovelContext(novelId);
     const row = await this.getRow(novelId);
     return row ? mapRowToPlan(row) : null;
   }
@@ -212,21 +310,28 @@ export class StoryMacroPlanService {
   }
 
   async decompose(novelId: string, storyInput: string, options: LLMOptions = {}): Promise<StoryMacroPlan> {
-    await this.ensureNovelExists(novelId);
+    const novel = await this.getNovelContext(novelId);
     const row = await this.getRow(novelId);
     const previousPlan = row ? mapRowToPlan(row) : null;
     const normalizedInput = storyInput.trim();
     if (!normalizedInput) {
       throw new Error("故事想法不能为空。");
     }
-    const generated = await this.invokeDecompositionModel(normalizedInput, options);
+    const generated = await this.invokeDecompositionModel(
+      normalizedInput,
+      formatProjectContext(novel),
+      options,
+    );
     const locks = previousPlan?.lockedFields ?? {};
-    const merged = mergeLockedFields(generated.decomposition, previousPlan?.decomposition ?? null, locks);
-    const constraintEngine = buildConstraintEngine(merged);
+    const merged = mergeLockedFields(generated.plan, previousPlan ? toEditablePlan(previousPlan) : null, locks);
+    const constraintEngine = isDecompositionComplete(merged.decomposition)
+      ? buildStoryConstraintEngine(merged)
+      : null;
     return this.savePlan(novelId, {
       storyInput: normalizedInput,
-      expansion: generated.expansion,
-      decomposition: merged,
+      expansion: merged.expansion,
+      decomposition: merged.decomposition,
+      constraints: merged.constraints,
       issues: generated.issues,
       lockedFields: locks,
       constraintEngine,
@@ -235,50 +340,54 @@ export class StoryMacroPlanService {
   }
 
   async regenerateField(novelId: string, field: StoryMacroField, options: LLMOptions = {}): Promise<StoryMacroPlan> {
-    await this.ensureNovelExists(novelId);
+    const novel = await this.getNovelContext(novelId);
     const plan = await this.getPlan(novelId);
     if (!plan?.storyInput || !plan.decomposition) {
-      throw new Error("请先完成故事拆解。");
+      throw new Error("请先完成故事引擎拆解。");
     }
     if (plan.lockedFields[field]) {
       throw new Error("该字段已锁定，请先解锁后再重生成。");
     }
+    const editablePlan = toEditablePlan(plan);
     const nextFieldValue = await this.invokeSingleFieldRegeneration(
       field,
       plan.storyInput,
-      plan.expansion ?? null,
-      plan.decomposition,
+      editablePlan,
       plan.lockedFields,
       options,
+      formatProjectContext(novel),
     );
-    const nextDecomposition = normalizeDecomposition({
-      ...plan.decomposition,
-      [field]: nextFieldValue,
-    });
+    const nextPlan = setEditablePlanFieldValue(editablePlan, field, nextFieldValue);
+    const constraintEngine = isDecompositionComplete(nextPlan.decomposition)
+      ? buildStoryConstraintEngine(nextPlan)
+      : null;
     return this.savePlan(novelId, {
       storyInput: plan.storyInput,
-      expansion: plan.expansion ?? null,
-      decomposition: nextDecomposition,
+      expansion: nextPlan.expansion,
+      decomposition: nextPlan.decomposition,
+      constraints: nextPlan.constraints,
       issues: plan.issues,
       lockedFields: plan.lockedFields,
-      constraintEngine: buildConstraintEngine(nextDecomposition),
+      constraintEngine,
       state: plan.state,
     });
   }
 
   async buildConstraintEngine(novelId: string): Promise<StoryMacroPlan> {
-    await this.ensureNovelExists(novelId);
+    await this.getNovelContext(novelId);
     const plan = await this.getPlan(novelId);
     if (!plan?.decomposition || !isDecompositionComplete(plan.decomposition)) {
-      throw new Error("请先完成故事拆解，再构建约束引擎。");
+      throw new Error("请先完成故事引擎拆解，再构建约束引擎。");
     }
+    const editablePlan = toEditablePlan(plan);
     return this.savePlan(novelId, {
       storyInput: plan.storyInput ?? null,
-      expansion: plan.expansion ?? null,
-      decomposition: plan.decomposition,
+      expansion: hasMeaningfulExpansion(editablePlan.expansion) ? editablePlan.expansion : null,
+      decomposition: editablePlan.decomposition,
+      constraints: editablePlan.constraints,
       issues: plan.issues,
       lockedFields: plan.lockedFields,
-      constraintEngine: buildConstraintEngine(plan.decomposition),
+      constraintEngine: buildStoryConstraintEngine(editablePlan),
       state: plan.state,
     });
   }
@@ -287,11 +396,15 @@ export class StoryMacroPlanService {
     novelId: string,
     input: {
       storyInput?: string | null;
+      expansion?: Partial<Omit<StoryExpansion, "conflict_layers">> & {
+        conflict_layers?: Partial<StoryExpansion["conflict_layers"]>;
+      };
       decomposition?: Partial<StoryDecomposition>;
+      constraints?: string[];
       lockedFields?: StoryMacroLocks;
     },
   ): Promise<StoryMacroPlan> {
-    await this.ensureNovelExists(novelId);
+    await this.getNovelContext(novelId);
     const row = await this.getRow(novelId);
     const previousPlan = row ? mapRowToPlan(row) : null;
     const nextStoryInput = input.storyInput !== undefined
@@ -301,25 +414,31 @@ export class StoryMacroPlanService {
       ...(previousPlan?.lockedFields ?? {}),
       ...(input.lockedFields ?? {}),
     };
-    const nextDecomposition = previousPlan?.decomposition
-      ? normalizeDecomposition({
-          ...previousPlan.decomposition,
-          ...(input.decomposition ?? {}),
-          major_payoffs: input.decomposition?.major_payoffs ?? previousPlan.decomposition.major_payoffs,
-        })
-      : (
-        input.decomposition && isDecompositionComplete(input.decomposition)
-          ? normalizeDecomposition(input.decomposition)
-          : null
-      );
-    const nextConstraintEngine = nextDecomposition && isDecompositionComplete(nextDecomposition)
-      ? buildConstraintEngine(nextDecomposition)
+    const previousEditablePlan = previousPlan ? toEditablePlan(previousPlan) : null;
+    const nextEditablePlan: StoryMacroEditablePlan = {
+      expansion: normalizeExpansion({
+        ...(previousEditablePlan?.expansion ?? EMPTY_EXPANSION),
+        ...(input.expansion ?? {}),
+      }),
+      decomposition: normalizeDecomposition({
+        ...(previousEditablePlan?.decomposition ?? EMPTY_DECOMPOSITION),
+        ...(input.decomposition ?? {}),
+      }),
+      constraints: input.constraints !== undefined
+        ? normalizeConstraints(input.constraints)
+        : (previousEditablePlan?.constraints ?? []),
+    };
+    const nextExpansion = hasMeaningfulExpansion(nextEditablePlan.expansion) ? nextEditablePlan.expansion : null;
+    const nextDecomposition = hasMeaningfulDecomposition(nextEditablePlan.decomposition) ? nextEditablePlan.decomposition : null;
+    const nextConstraintEngine = nextDecomposition && isDecompositionComplete(nextDecomposition) && nextExpansion
+      ? buildStoryConstraintEngine(nextEditablePlan)
       : (previousPlan?.constraintEngine ?? null);
 
     return this.savePlan(novelId, {
       storyInput: nextStoryInput,
-      expansion: previousPlan?.expansion ?? null,
+      expansion: nextExpansion,
       decomposition: nextDecomposition,
+      constraints: nextEditablePlan.constraints,
       issues: previousPlan?.issues ?? [],
       lockedFields: nextLockedFields,
       constraintEngine: nextConstraintEngine,
@@ -331,10 +450,10 @@ export class StoryMacroPlanService {
     novelId: string,
     state: Partial<StoryMacroState>,
   ): Promise<StoryMacroState> {
-    await this.ensureNovelExists(novelId);
+    await this.getNovelContext(novelId);
     const plan = await this.getPlan(novelId);
     const constraintEngine = plan?.constraintEngine ?? null;
-    const phaseCount = constraintEngine?.phase_model.length ?? 4;
+    const phaseCount = constraintEngine?.phase_model.length ?? 5;
     const nextState: StoryMacroState = {
       currentPhase: Math.max(0, Math.min(phaseCount - 1, Math.floor(state.currentPhase ?? plan?.state.currentPhase ?? 0))),
       progress: Math.max(0, Math.min(100, Math.floor(state.progress ?? plan?.state.progress ?? 0))),
@@ -344,6 +463,7 @@ export class StoryMacroPlanService {
       storyInput: plan?.storyInput ?? null,
       expansion: plan?.expansion ?? null,
       decomposition: plan?.decomposition ?? null,
+      constraints: plan?.constraints ?? [],
       issues: plan?.issues ?? [],
       lockedFields: plan?.lockedFields ?? {},
       constraintEngine,

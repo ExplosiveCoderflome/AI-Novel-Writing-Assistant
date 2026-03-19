@@ -52,6 +52,7 @@ export interface Novel {
   emotionIntensity?: EmotionIntensity | null;
   aiFreedom?: AIFreedom | null;
   defaultChapterLength?: number | null;
+  estimatedChapterCount?: number | null;
   projectStatus?: ProjectProgressStatus | null;
   storylineStatus?: ProjectProgressStatus | null;
   outlineStatus?: ProjectProgressStatus | null;

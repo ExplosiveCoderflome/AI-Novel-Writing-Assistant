@@ -29,7 +29,7 @@ interface CreativeHubSidebarProps {
     provider: string;
     model: string;
     temperature: number;
-    maxTokens: number;
+    maxTokens?: number;
   };
   defaultRuntimeDetailsCollapsed: boolean;
   onToggleRuntimeDetailsDefault: () => void;
@@ -497,7 +497,7 @@ export default function CreativeHubSidebar({
               <DebugRow label="Provider" value={modelSummary.provider} />
               <DebugRow label="Model" value={modelSummary.model} />
               <DebugRow label="Temperature" value={String(modelSummary.temperature)} />
-              <DebugRow label="Max tokens" value={String(modelSummary.maxTokens)} />
+              <DebugRow label="Max tokens" value={modelSummary.maxTokens != null ? String(modelSummary.maxTokens) : "默认"} />
             </div>
 
             {latestTurnSummary ? (

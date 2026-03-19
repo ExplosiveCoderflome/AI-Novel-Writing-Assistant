@@ -6,7 +6,16 @@ import type {
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { bookAnalysisService } from "../../bookAnalysis/BookAnalysisService";
-import { buildTaskRecoveryHint, normalizeFailureSummary } from "../taskSupport";
+import {
+  buildTaskRecoveryHint,
+  isArchivableTaskStatus,
+  normalizeFailureSummary,
+} from "../taskSupport";
+import {
+  archiveTask as recordTaskArchive,
+  getArchivedTaskIds,
+  isTaskArchived,
+} from "../taskArchive";
 import {
   BOOK_ANALYSIS_STEPS,
   buildSteps,
@@ -24,9 +33,17 @@ export class BookTaskAdapter {
       return [];
     }
     const status = toLegacyTaskStatus(input.status);
+    const archivedIds = await getArchivedTaskIds("book_analysis");
     const rows = await prisma.bookAnalysis.findMany({
       where: {
         status: status ? status : { in: ["queued", "running", "succeeded", "failed", "cancelled"] },
+        ...(archivedIds.length
+          ? {
+            id: {
+              notIn: archivedIds,
+            },
+          }
+          : {}),
         ...(input.keyword
           ? {
             OR: [
@@ -94,6 +111,10 @@ export class BookTaskAdapter {
   }
 
   async detail(id: string): Promise<UnifiedTaskDetail | null> {
+    if (await isTaskArchived("book_analysis", id)) {
+      return null;
+    }
+
     const row = await prisma.bookAnalysis.findUnique({
       where: { id },
       include: {
@@ -171,6 +192,10 @@ export class BookTaskAdapter {
   }
 
   async retry(id: string): Promise<UnifiedTaskDetail> {
+    if (await isTaskArchived("book_analysis", id)) {
+      throw new AppError("Task not found.", 404);
+    }
+
     const analysis = await bookAnalysisService.retryAnalysis(id);
     const detail = await this.detail(analysis.id);
     if (!detail) {
@@ -180,11 +205,41 @@ export class BookTaskAdapter {
   }
 
   async cancel(id: string): Promise<UnifiedTaskDetail> {
+    if (await isTaskArchived("book_analysis", id)) {
+      throw new AppError("Task not found.", 404);
+    }
+
     const analysis = await bookAnalysisService.cancelAnalysis(id);
     const detail = await this.detail(analysis.id);
     if (!detail) {
       throw new AppError("Task not found after cancellation.", 404);
     }
     return detail;
+  }
+
+  async archive(id: string): Promise<UnifiedTaskDetail | null> {
+    if (await isTaskArchived("book_analysis", id)) {
+      return null;
+    }
+
+    const analysis = await prisma.bookAnalysis.findUnique({
+      where: { id },
+    });
+    if (!analysis) {
+      throw new AppError("Task not found.", 404);
+    }
+
+    const status = mapBookStatusToTaskStatus(analysis.status);
+    if (!status || !isArchivableTaskStatus(status)) {
+      if (analysis.status === "archived") {
+        await recordTaskArchive("book_analysis", id);
+        return null;
+      }
+      throw new AppError("Only completed, failed, or cancelled tasks can be archived.", 400);
+    }
+
+    await bookAnalysisService.updateAnalysisStatus(id, "archived");
+    await recordTaskArchive("book_analysis", id);
+    return null;
   }
 }

@@ -1,6 +1,6 @@
 import type { ResourceRef } from "./agent";
 
-export type TaskKind = "book_analysis" | "novel_pipeline" | "image_generation" | "agent_run";
+export type TaskKind = "book_analysis" | "novel_pipeline" | "knowledge_document" | "image_generation" | "agent_run";
 
 export type TaskStatus = "queued" | "running" | "waiting_approval" | "succeeded" | "failed" | "cancelled";
 

@@ -2,7 +2,16 @@ import type { TaskStatus, UnifiedTaskDetail, UnifiedTaskSummary } from "@ai-nove
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { NovelService } from "../../novel/NovelService";
-import { buildTaskRecoveryHint, normalizeFailureSummary } from "../taskSupport";
+import {
+  buildTaskRecoveryHint,
+  isArchivableTaskStatus,
+  normalizeFailureSummary,
+} from "../taskSupport";
+import {
+  archiveTask as recordTaskArchive,
+  getArchivedTaskIds,
+  isTaskArchived,
+} from "../taskArchive";
 import {
   NOVEL_PIPELINE_STEPS,
   buildSteps,
@@ -21,8 +30,16 @@ export class PipelineTaskAdapter {
       return [];
     }
     const status = toLegacyTaskStatus(input.status);
+    const archivedIds = await getArchivedTaskIds("novel_pipeline");
     const rows = await prisma.generationJob.findMany({
       where: {
+        ...(archivedIds.length
+          ? {
+            id: {
+              notIn: archivedIds,
+            },
+          }
+          : {}),
         ...(status ? { status } : {}),
         ...(input.keyword
           ? {
@@ -83,6 +100,10 @@ export class PipelineTaskAdapter {
   }
 
   async detail(id: string): Promise<UnifiedTaskDetail | null> {
+    if (await isTaskArchived("novel_pipeline", id)) {
+      return null;
+    }
+
     const row = await prisma.generationJob.findUnique({
       where: { id },
       include: {
@@ -171,6 +192,10 @@ export class PipelineTaskAdapter {
   }
 
   async retry(id: string): Promise<UnifiedTaskDetail> {
+    if (await isTaskArchived("novel_pipeline", id)) {
+      throw new AppError("Task not found.", 404);
+    }
+
     const job = await this.novelService.retryPipelineJob(id);
     const detail = await this.detail(job.id);
     if (!detail) {
@@ -180,11 +205,34 @@ export class PipelineTaskAdapter {
   }
 
   async cancel(id: string): Promise<UnifiedTaskDetail> {
+    if (await isTaskArchived("novel_pipeline", id)) {
+      throw new AppError("Task not found.", 404);
+    }
+
     const job = await this.novelService.cancelPipelineJob(id);
     const detail = await this.detail(job.id);
     if (!detail) {
       throw new AppError("Task not found after cancellation.", 404);
     }
     return detail;
+  }
+
+  async archive(id: string): Promise<UnifiedTaskDetail | null> {
+    if (await isTaskArchived("novel_pipeline", id)) {
+      return null;
+    }
+
+    const job = await prisma.generationJob.findUnique({
+      where: { id },
+    });
+    if (!job) {
+      throw new AppError("Task not found.", 404);
+    }
+    if (!isArchivableTaskStatus(job.status as TaskStatus)) {
+      throw new AppError("Only completed, failed, or cancelled tasks can be archived.", 400);
+    }
+
+    await recordTaskArchive("novel_pipeline", id);
+    return null;
   }
 }

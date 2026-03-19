@@ -19,6 +19,7 @@ export interface RagJobProgress {
     | "upserting_vectors"
     | "writing_metadata"
     | "completed"
+    | "cancelled"
     | "failed";
   label: string;
   detail?: string;

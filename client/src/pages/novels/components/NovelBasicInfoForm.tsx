@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import {
   AI_FREEDOM_OPTIONS,
   BASIC_INFO_FIELD_HINTS,
+  DEFAULT_ESTIMATED_CHAPTER_COUNT,
   EMOTION_OPTIONS,
   PACE_OPTIONS,
   POV_OPTIONS,
@@ -137,7 +138,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
           </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="space-y-2">
             <FieldLabel htmlFor="basic-genre" hint={BASIC_INFO_FIELD_HINTS.genreId}>作品类型</FieldLabel>
             <select
@@ -185,6 +186,26 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               onChange={(event) => onFormChange({ defaultChapterLength: Number(event.target.value || 0) || 2800 })}
             />
             <div className="text-xs text-muted-foreground">推荐先设为 2500-3500，后续仍可按章节单独调整。</div>
+          </div>
+
+          <div className="space-y-2">
+            <FieldLabel htmlFor="basic-estimated-chapters" hint={BASIC_INFO_FIELD_HINTS.estimatedChapterCount}>
+              预计章节数
+            </FieldLabel>
+            <Input
+              id="basic-estimated-chapters"
+              type="number"
+              min={1}
+              max={500}
+              value={basicForm.estimatedChapterCount}
+              onChange={(event) => onFormChange({
+                estimatedChapterCount: Math.max(
+                  1,
+                  Math.min(500, Number(event.target.value || 0) || DEFAULT_ESTIMATED_CHAPTER_COUNT),
+                ),
+              })}
+            />
+            <div className="text-xs text-muted-foreground">会作为大纲、拍点和流水线默认范围的参考，后续仍可调整。</div>
           </div>
         </div>
       </SectionBlock>

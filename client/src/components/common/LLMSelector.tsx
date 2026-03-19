@@ -137,9 +137,9 @@ export default function LLMSelector({
     if (normalizedNext.temperature !== undefined) {
       store.setTemperature(clampTemperature(normalizedNext.temperature));
     }
-    if (normalizedNext.maxTokens !== undefined) {
-      store.setMaxTokens(clampMaxTokens(normalizedNext.maxTokens));
-    }
+    store.setMaxTokens(
+      normalizedNext.maxTokens !== undefined ? clampMaxTokens(normalizedNext.maxTokens) : undefined,
+    );
   };
 
   useEffect(() => {
@@ -248,14 +248,23 @@ export default function LLMSelector({
           </label>
 
           <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">最大 Tokens (256~32768)</span>
+            <span className="text-muted-foreground">最大 Tokens (留空 = 不限制)</span>
             <Input
               type="number"
               step="1"
               min={256}
               max={32768}
-              value={resolvedMaxTokens}
+              value={resolvedMaxTokens ?? ""}
               onChange={(event) => {
+                if (!event.target.value.trim()) {
+                  updateValue({
+                    provider: currentValue.provider,
+                    model: currentValue.model,
+                    temperature: resolvedTemperature,
+                    maxTokens: undefined,
+                  });
+                  return;
+                }
                 const parsed = Number(event.target.value);
                 if (!Number.isFinite(parsed)) {
                   return;
@@ -268,6 +277,15 @@ export default function LLMSelector({
                 });
               }}
               onBlur={() => {
+                if (resolvedMaxTokens === undefined) {
+                  updateValue({
+                    provider: currentValue.provider,
+                    model: currentValue.model,
+                    temperature: resolvedTemperature,
+                    maxTokens: undefined,
+                  });
+                  return;
+                }
                 updateValue({
                   provider: currentValue.provider,
                   model: currentValue.model,

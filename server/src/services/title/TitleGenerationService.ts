@@ -153,7 +153,7 @@ export class TitleGenerationService {
     const llm = await getLLM(provider, {
       model: llmOptions.model,
       temperature: llmOptions.temperature ?? 0.85,
-      maxTokens: llmOptions.maxTokens ?? Math.max(2200, count * 140),
+      maxTokens: llmOptions.maxTokens,
       taskType: "planner",
     });
 

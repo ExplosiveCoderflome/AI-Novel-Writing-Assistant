@@ -157,9 +157,10 @@
 
 ### 2026-03-19
 
-- 知识库的 Embedding 配置现在会先按供应商展示匹配的模型，切换模型后也能更稳地对应新的集合命名方式，减少维度不一致带来的索引失败。
-- 知识库索引和拆书分析的进度展示都更细了，用户能直接看到“查缓存 / 准备 notes / 生成章节”等阶段，以及当前正在处理的片段或章节。
-- 拆书分析加入了可复用的 source notes 缓存和受控并发，同一版本、同一配置重复重建时会更快，单个 section 重新生成也不需要再整本重复跑 notes。
+- 任务中心现在会把知识库重建索引、拆书分析和其他后台任务放到同一处展示，排队、运行、失败和完成状态都更清楚，也支持取消队列中的任务并归档已完成或失败的记录。
+- 创建小说时可以直接设置预计章节数，后续的结构化大纲、拍点生成和章节范围推荐都会更贴近你的目标篇幅，开书时不需要再反复补参数。
+- 故事宏观规划已经从“六要素拆解”升级为“故事引擎原型”，会先锁定主角困局、持续升级的核心矛盾、信息不对称、关键场面和硬约束，再进入后续角色与正文规划。
+- 模型调用默认不再强行限制 token，上下文会尽量完整保留；本地安装和启动流程也更稳了，`pnpm dev` 不再依赖容易报错的 `corepack` 路径。
 
 ### 2026-03-18
 
@@ -208,9 +209,9 @@
 
 ### 当前验证状态
 
-- 2026-03-19 已在本地执行 `corepack pnpm --filter @ai-novel/server test:book-analysis`
-- 2026-03-19 已在本地执行 `corepack pnpm --filter @ai-novel/server test:routes`
-- 2026-03-19 已在本地执行 `corepack pnpm --filter @ai-novel/client typecheck`
+- 2026-03-19 已在本地执行 `pnpm --filter @ai-novel/server test:book-analysis`
+- 2026-03-19 已在本地执行 `pnpm --filter @ai-novel/server test:routes`
+- 2026-03-19 已在本地执行 `pnpm --filter @ai-novel/client typecheck`
 - 服务端拆书专项回归：`6/6` 通过
 - 服务端路由回归：`12/12` 通过
 
@@ -331,13 +332,14 @@ shared (TypeScript types)
 
 ### 前置要求
 
-- Node.js 20+（建议直接通过 `corepack pnpm` 调用）
+- Node.js 20+
+- pnpm 9.7.0+
 - Docker（可选，仅在本地启用 Qdrant 时需要）
 
 ### 1. 安装依赖
 
 ```bash
-corepack pnpm install
+pnpm install
 ```
 
 ### 2. 配置环境变量
@@ -359,14 +361,14 @@ cp server/.env.example server/.env
 ### 3. 初始化数据库
 
 ```bash
-corepack pnpm db:migrate
-corepack pnpm db:seed
+pnpm db:migrate
+pnpm db:seed
 ```
 
 ### 4. 启动项目
 
 ```bash
-corepack pnpm dev
+pnpm dev
 ```
 
 默认地址：
@@ -428,17 +430,17 @@ BOOK_ANALYSIS_CACHE_SEGMENT_VERSION=1
 ## 常用命令
 
 ```bash
-corepack pnpm dev
-corepack pnpm dev:server
-corepack pnpm dev:client
+pnpm dev
+pnpm dev:server
+pnpm dev:client
 
-corepack pnpm typecheck
-corepack pnpm build
-corepack pnpm lint
+pnpm typecheck
+pnpm build
+pnpm lint
 
-corepack pnpm db:migrate
-corepack pnpm db:seed
-corepack pnpm db:studio
+pnpm db:migrate
+pnpm db:seed
+pnpm db:studio
 ```
 
 ## 接口与页面概览
@@ -493,7 +495,7 @@ corepack pnpm db:studio
 建议的贡献方式：
 
 1. Fork 仓库并创建分支。
-2. 完成改动后运行 `corepack pnpm typecheck`，必要时补充测试。
+2. 完成改动后运行 `pnpm typecheck`，必要时补充测试。
 3. 在 PR 中清楚说明“问题、方案、影响范围、验证方式”。
 
 如果你也在探索 AI Native 应用、创作 Agent 或长篇生成工作流，这个仓库非常欢迎一起把路线走深。

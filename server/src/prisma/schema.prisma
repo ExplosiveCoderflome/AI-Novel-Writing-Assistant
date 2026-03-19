@@ -247,6 +247,7 @@ model Novel {
   emotionIntensity  EmotionIntensity?
   aiFreedom         AIFreedom?
   defaultChapterLength Int?
+  estimatedChapterCount Int?
   projectStatus     ProjectProgressStatus? @default(not_started)
   storylineStatus   ProjectProgressStatus? @default(not_started)
   outlineStatus     ProjectProgressStatus? @default(not_started)
@@ -1293,4 +1294,14 @@ model RagIndexJob {
 
   @@index([status, runAfter])
   @@index([tenantId, ownerType, ownerId])
+}
+
+model TaskCenterArchive {
+  id         String   @id @default(cuid())
+  taskKind   String
+  taskId     String
+  archivedAt DateTime @default(now())
+
+  @@unique([taskKind, taskId])
+  @@index([taskKind, archivedAt])
 }

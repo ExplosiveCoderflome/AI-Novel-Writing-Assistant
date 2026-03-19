@@ -45,8 +45,8 @@ interface RuntimeSidebarProps {
   model: string;
   temperature: number;
   onTemperatureChange: (value: number) => void;
-  maxTokens: number;
-  onMaxTokensChange: (value: number) => void;
+  maxTokens?: number;
+  onMaxTokensChange: (value?: number) => void;
   enableRag: boolean;
   onEnableRagChange: (value: boolean) => void;
   systemPrompt: string;
@@ -312,8 +312,14 @@ export default function RuntimeSidebar({
                         max={16384}
                         step={128}
                         className="w-full rounded-lg border border-slate-300 bg-white p-2"
-                        value={maxTokens}
-                        onChange={(event) => onMaxTokensChange(Number(event.target.value))}
+                        value={maxTokens ?? ""}
+                        onChange={(event) => {
+                          if (!event.target.value.trim()) {
+                            onMaxTokensChange(undefined);
+                            return;
+                          }
+                          onMaxTokensChange(Number(event.target.value));
+                        }}
                       />
                     </div>
                   </div>

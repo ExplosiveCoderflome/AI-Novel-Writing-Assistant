@@ -44,6 +44,7 @@ interface CreateNovelInput {
   emotionIntensity?: "low" | "medium" | "high";
   aiFreedom?: "low" | "medium" | "high";
   defaultChapterLength?: number;
+  estimatedChapterCount?: number;
   projectStatus?: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
   storylineStatus?: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
   outlineStatus?: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
@@ -66,6 +67,7 @@ interface UpdateNovelInput {
   emotionIntensity?: "low" | "medium" | "high" | null;
   aiFreedom?: "low" | "medium" | "high" | null;
   defaultChapterLength?: number | null;
+  estimatedChapterCount?: number | null;
   projectStatus?: "not_started" | "in_progress" | "completed" | "rework" | "blocked" | null;
   storylineStatus?: "not_started" | "in_progress" | "completed" | "rework" | "blocked" | null;
   outlineStatus?: "not_started" | "in_progress" | "completed" | "rework" | "blocked" | null;
@@ -472,6 +474,7 @@ const CONTINUATION_ANALYSIS_SECTION_KEYS: BookAnalysisSectionKey[] = [
 ];
 
 const CONTINUATION_ANALYSIS_SECTION_KEY_SET = new Set<BookAnalysisSectionKey>(CONTINUATION_ANALYSIS_SECTION_KEYS);
+const DEFAULT_ESTIMATED_CHAPTER_COUNT = 20;
 
 function parseContinuationBookAnalysisSections(raw: string | null | undefined): BookAnalysisSectionKey[] | null {
   if (!raw?.trim()) {
@@ -651,6 +654,7 @@ export class NovelCoreService {
         emotionIntensity: input.emotionIntensity,
         aiFreedom: input.aiFreedom,
         defaultChapterLength: input.defaultChapterLength,
+        estimatedChapterCount: input.estimatedChapterCount,
         projectStatus: input.projectStatus,
         storylineStatus: input.storylineStatus,
         outlineStatus: input.outlineStatus,
@@ -1469,7 +1473,9 @@ ${worldContext}${referenceBlock}${initialPromptBlock}`,
           .map((c) => `- ${c.name}${c.role}${c.personality ? `${c.personality.slice(0, 80)}` : ""}`)
           .join("\n")
       : "暂无";
-    const totalChapters = options.totalChapters ?? 20;
+    const totalChapters = options.totalChapters
+      ?? novel.estimatedChapterCount
+      ?? DEFAULT_ESTIMATED_CHAPTER_COUNT;
     const llm = await getLLM(options.provider ?? "deepseek", {
       model: options.model,
       temperature: options.temperature ?? 0.2,
@@ -1749,7 +1755,12 @@ ${worldContext}${referenceBlock}`,
       model: options.model,
       temperature: options.temperature ?? 0.7,
     });
-    const targetChapters = options.targetChapters ?? Math.max(30, novel.chapters.length || 30);
+    const targetChapters = options.targetChapters
+      ?? Math.max(
+        novel.estimatedChapterCount ?? DEFAULT_ESTIMATED_CHAPTER_COUNT,
+        novel.chapters.length || 0,
+        1,
+      );
     const stream = await llm.stream([
       new SystemMessage(
         "你是网文剧情策划，请输出 JSON 数组，每项字段：chapterOrder/beatType/title/content/status",
