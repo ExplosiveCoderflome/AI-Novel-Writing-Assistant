@@ -157,6 +157,9 @@
 
 ### 2026-03-20
 
+- 新增“写法引擎”模块，写法不再只是长段说明，而是可以被保存、编辑、绑定到整本书或章节，并直接参与试写、生成约束、AI 味检测和一键修正。
+- 拆书页现在可以把“文风与技法”一键转成写法资产，章节编辑页也可以直接查看、绑定和套用当前章节写法，不用再在拆书、公式、正文之间来回搬运。
+- 写法工作区的滚动布局改成三栏独立滚动，左侧资产、中间编辑区、右侧反 AI 规则库不会再互相撑高，长内容浏览更顺。
 - 小说现在会自动从已绑定世界里裁出“这本书真正会用到的组织、地点、规则和压力来源”，故事宏观规划、大纲、圣经、拍点和章节运行时都会优先使用这份更聚焦的世界切片，不再默认把整块世界百科全塞进去。
 - 小说编辑页新增“这本书会用到的世界设定”面板，可以直接查看当前实际生效的世界内容，并用更通俗的方式指定主舞台、必须保留的组织、地点和规则，减少重复手填。
 - 世界观向导和参考作品流程继续收紧：参考作品可以先提取原作锚点和可继承元素，再决定哪些内容保留或改造；世界工作台里的结构化设定也更明确区分规则、阵营、势力、地点和关系。
@@ -462,7 +465,8 @@ pnpm db:studio
 - `/knowledge` 知识库
 - `/worlds` 世界观列表
 - `/worlds/:id/workspace` 世界观工作台
-- `/writing-formula` 写作公式
+- `/style-engine` 写法引擎
+- `/writing-formula` 兼容跳转到写法引擎
 - `/base-characters` 基础角色库
 - `/tasks` 任务中心
 - `/settings` 系统设置
@@ -480,7 +484,12 @@ pnpm db:studio
 - `/api/knowledge`
 - `/api/worlds`
 - `/api/base-characters`
-- `/api/writing-formula`
+- `/api/style-profiles`
+- `/api/style-templates`
+- `/api/style-bindings`
+- `/api/anti-ai-rules`
+- `/api/style-detection`
+- `/api/writing-formula` 旧公式接口，保留兼容
 - `/api/rag`
 - `/api/llm`
 - `/api/settings`

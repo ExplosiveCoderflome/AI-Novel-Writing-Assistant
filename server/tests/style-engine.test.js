@@ -1,0 +1,165 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const http = require("node:http");
+const { createApp } = require("../dist/app.js");
+const { StyleCompiler } = require("../dist/services/styleEngine/StyleCompiler.js");
+const { StyleProfileService } = require("../dist/services/styleEngine/StyleProfileService.js");
+const { StyleBindingService } = require("../dist/services/styleEngine/StyleBindingService.js");
+const { StyleDetectionService } = require("../dist/services/styleEngine/StyleDetectionService.js");
+
+function listen(server) {
+  return new Promise((resolve) => {
+    server.listen(0, "127.0.0.1", () => {
+      resolve(server.address().port);
+    });
+  });
+}
+
+test("StyleCompiler changes anti-ai tone by weight", () => {
+  const compiler = new StyleCompiler();
+  const baseInput = {
+    styleProfile: {
+      narrativeRules: { summary: "以动作先于解释推进" },
+      characterRules: {},
+      languageRules: {},
+      rhythmRules: {},
+    },
+    antiAiRules: [{
+      id: "rule-1",
+      key: "forbid-explicit-psychology",
+      name: "禁止解释型心理描写",
+      type: "forbidden",
+      severity: "high",
+      description: "禁止直接解释人物心理。",
+      detectPatterns: [],
+      rewriteSuggestion: "改成动作。",
+      promptInstruction: "直接解释人物心理。",
+      autoRewrite: true,
+      enabled: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }],
+  };
+
+  const strong = compiler.compile({ ...baseInput, weight: 0.9 });
+  const medium = compiler.compile({ ...baseInput, weight: 0.5 });
+
+  assert.match(strong.antiAi, /禁止/);
+  assert.match(medium.antiAi, /尽量不要/);
+});
+
+test("style engine routes return mocked payloads", async () => {
+  const originalMethods = {
+    listProfiles: StyleProfileService.prototype.listProfiles,
+    createFromBookAnalysis: StyleProfileService.prototype.createFromBookAnalysis,
+    createBinding: StyleBindingService.prototype.createBinding,
+    check: StyleDetectionService.prototype.check,
+  };
+
+  const fakeProfile = {
+    id: "style-1",
+    name: "底层循环现实流",
+    description: "测试写法",
+    category: "现实流",
+    tags: ["口语化"],
+    applicableGenres: ["都市"],
+    sourceType: "manual",
+    sourceRefId: null,
+    sourceContent: null,
+    analysisMarkdown: "分析",
+    status: "active",
+    narrativeRules: {},
+    characterRules: {},
+    languageRules: {},
+    rhythmRules: {},
+    antiAiRules: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  StyleProfileService.prototype.listProfiles = async () => [fakeProfile];
+  StyleProfileService.prototype.createFromBookAnalysis = async () => fakeProfile;
+  StyleBindingService.prototype.createBinding = async () => ({
+    id: "binding-1",
+    styleProfileId: fakeProfile.id,
+    targetType: "chapter",
+    targetId: "chapter-1",
+    priority: 5,
+    weight: 1,
+    enabled: true,
+    styleProfile: fakeProfile,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+  StyleDetectionService.prototype.check = async () => ({
+    riskScore: 72,
+    summary: "存在解释型心理描写。",
+    violations: [{
+      ruleId: "rule-1",
+      ruleName: "禁止解释型心理描写",
+      ruleType: "forbidden",
+      severity: "high",
+      excerpt: "他感到一阵烦躁",
+      reason: "直接解释心理",
+      suggestion: "改成动作表达",
+      canAutoRewrite: true,
+    }],
+    canAutoRewrite: true,
+    appliedRuleIds: ["rule-1"],
+  });
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+
+  try {
+    const listResponse = await fetch(`http://127.0.0.1:${port}/api/style-profiles`);
+    assert.equal(listResponse.status, 200);
+    assert.equal((await listResponse.json()).data[0].id, fakeProfile.id);
+
+    const fromAnalysisResponse = await fetch(`http://127.0.0.1:${port}/api/style-profiles/from-book-analysis`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookAnalysisId: "analysis-1", name: "拆书写法" }),
+    });
+    assert.equal(fromAnalysisResponse.status, 201);
+    assert.equal((await fromAnalysisResponse.json()).data.name, fakeProfile.name);
+
+    const bindingResponse = await fetch(`http://127.0.0.1:${port}/api/style-bindings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        styleProfileId: fakeProfile.id,
+        targetType: "chapter",
+        targetId: "chapter-1",
+        priority: 5,
+        weight: 1,
+      }),
+    });
+    assert.equal(bindingResponse.status, 201);
+    assert.equal((await bindingResponse.json()).data.targetType, "chapter");
+
+    const detectResponse = await fetch(`http://127.0.0.1:${port}/api/style-detection/check`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        styleProfileId: fakeProfile.id,
+        content: "他感到一阵烦躁。",
+      }),
+    });
+    assert.equal(detectResponse.status, 200);
+    assert.equal((await detectResponse.json()).data.riskScore, 72);
+  } finally {
+    Object.assign(StyleProfileService.prototype, {
+      listProfiles: originalMethods.listProfiles,
+      createFromBookAnalysis: originalMethods.createFromBookAnalysis,
+    });
+    Object.assign(StyleBindingService.prototype, {
+      createBinding: originalMethods.createBinding,
+    });
+    Object.assign(StyleDetectionService.prototype, {
+      check: originalMethods.check,
+    });
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});

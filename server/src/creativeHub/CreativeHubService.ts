@@ -55,6 +55,7 @@ function normalizeBindings(bindings: CreativeHubResourceBinding | null | undefin
     taskId: bindings?.taskId ?? null,
     bookAnalysisId: bindings?.bookAnalysisId ?? null,
     formulaId: bindings?.formulaId ?? null,
+    styleProfileId: bindings?.styleProfileId ?? null,
     baseCharacterId: bindings?.baseCharacterId ?? null,
     knowledgeDocumentIds: Array.isArray(bindings?.knowledgeDocumentIds)
       ? bindings?.knowledgeDocumentIds.filter((item) => typeof item === "string" && item.trim().length > 0)

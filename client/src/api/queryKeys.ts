@@ -46,6 +46,13 @@ export const queryKeys = {
     all: ["writing-formula"] as const,
     detail: (id: string) => ["writing-formula", "detail", id] as const,
   },
+  styleEngine: {
+    profiles: ["style-engine", "profiles"] as const,
+    profile: (id: string) => ["style-engine", "profile", id] as const,
+    templates: ["style-engine", "templates"] as const,
+    antiAiRules: ["style-engine", "anti-ai-rules"] as const,
+    bindings: (params: string) => ["style-engine", "bindings", params] as const,
+  },
   genres: {
     all: ["genres"] as const,
   },

@@ -6,7 +6,7 @@ import type {
   BookAnalysisSectionKey,
   BookAnalysisStatus,
 } from "@ai-novel/shared/types/bookAnalysis";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   archiveBookAnalysis,
   copyBookAnalysis,
@@ -22,6 +22,7 @@ import {
 } from "@/api/bookAnalysis";
 import { getKnowledgeDocument, listKnowledgeDocuments } from "@/api/knowledge";
 import { getNovelList } from "@/api/novel";
+import { createStyleProfileFromBookAnalysis } from "@/api/styleEngine";
 import { queryKeys } from "@/api/queryKeys";
 import { useLLMStore } from "@/store/llmStore";
 import type { LLMConfigState, SectionDraft } from "../bookAnalysis.types";
@@ -34,6 +35,7 @@ function buildNovelOptions(items: Array<{ id: string; title: string }>): NovelOp
 
 export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const llmStore = useLLMStore();
 
@@ -283,6 +285,19 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     },
   });
 
+  const createStyleProfileMutation = useMutation({
+    mutationFn: (payload: { bookAnalysisId: string; name: string }) => createStyleProfileFromBookAnalysis({
+      ...payload,
+      provider: llmConfig.provider,
+      model: llmConfig.model || undefined,
+      temperature: llmConfig.temperature,
+    }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.styleEngine.profiles });
+      navigate("/style-engine");
+    },
+  });
+
   useEffect(() => {
     const nextAnalysisId = searchParams.get("analysisId");
     const nextDocumentId = searchParams.get("documentId");
@@ -514,6 +529,16 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     });
   };
 
+  const createStyleProfileFromAnalysis = async () => {
+    if (!selectedAnalysis) {
+      return;
+    }
+    await createStyleProfileMutation.mutateAsync({
+      bookAnalysisId: selectedAnalysis.id,
+      name: `${selectedAnalysis.title}-写法资产`,
+    });
+  };
+
   return {
     keyword,
     status,
@@ -563,6 +588,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     saveSection,
     downloadSelectedAnalysis,
     publishSelectedAnalysis,
+    createStyleProfileFromAnalysis,
     updateSectionDraft,
     getSectionDraft,
   };

@@ -8,6 +8,7 @@ export function hasCreativeHubBindings(bindings: CreativeHubResourceBinding): bo
     || bindings.taskId
     || bindings.bookAnalysisId
     || bindings.formulaId
+    || bindings.styleProfileId
     || bindings.baseCharacterId
     || bindings.knowledgeDocumentIds?.length,
   );
@@ -21,6 +22,7 @@ export function buildCreativeHubPath(bindings: CreativeHubResourceBinding): stri
   if (bindings.taskId) params.set("taskId", bindings.taskId);
   if (bindings.bookAnalysisId) params.set("bookAnalysisId", bindings.bookAnalysisId);
   if (bindings.formulaId) params.set("formulaId", bindings.formulaId);
+  if (bindings.styleProfileId) params.set("styleProfileId", bindings.styleProfileId);
   if (bindings.baseCharacterId) params.set("baseCharacterId", bindings.baseCharacterId);
   for (const documentId of bindings.knowledgeDocumentIds ?? []) {
     if (documentId.trim()) {

@@ -39,6 +39,7 @@ interface BookAnalysisDetailPanelProps {
   onArchive: (analysisId: string) => void;
   onDownload: (format: ExportFormat) => void;
   onPublish: () => void;
+  onCreateStyleProfile: () => void;
   onRegenerateSection: (section: BookAnalysisSection) => void;
   onOptimizeSection: (section: BookAnalysisSection) => void;
   onApplyOptimizePreview: (section: BookAnalysisSection) => void;
@@ -64,6 +65,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
     onArchive,
     onDownload,
     onPublish,
+    onCreateStyleProfile,
     onRegenerateSection,
     onOptimizeSection,
     onApplyOptimizePreview,
@@ -123,6 +125,9 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
               </Button>
               <Button size="sm" variant="outline" onClick={() => onDownload("json")}>
                 导出 JSON
+              </Button>
+              <Button size="sm" variant="outline" onClick={onCreateStyleProfile}>
+                从拆书生成写法
               </Button>
               <Button
                 size="sm"

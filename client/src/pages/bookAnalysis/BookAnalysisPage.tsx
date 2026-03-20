@@ -65,6 +65,7 @@ export default function BookAnalysisPage() {
             onArchive={workspace.archiveAnalysis}
             onDownload={(format) => void workspace.downloadSelectedAnalysis(format)}
             onPublish={() => void workspace.publishSelectedAnalysis()}
+            onCreateStyleProfile={() => void workspace.createStyleProfileFromAnalysis()}
             onRegenerateSection={(section) => workspace.regenerateSection(section.sectionKey)}
             onOptimizeSection={(section) => void workspace.optimizeSectionPreview(section)}
             onApplyOptimizePreview={workspace.applySectionOptimizePreview}

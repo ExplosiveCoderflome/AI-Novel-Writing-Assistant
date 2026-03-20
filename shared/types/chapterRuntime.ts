@@ -6,12 +6,16 @@ const auditTypeSchema = z.enum(["continuity", "character", "plot"]);
 const auditSeveritySchema = z.enum(["low", "medium", "high", "critical"]);
 const auditIssueStatusSchema = z.enum(["open", "resolved", "ignored"]);
 const chapterGenerationStateSchema = z.enum(["planned", "drafted", "reviewed", "repaired", "approved", "published"]);
+const styleBindingTargetTypeSchema = z.enum(["novel", "chapter", "task"]);
+const antiAiRuleTypeSchema = z.enum(["forbidden", "risk", "encourage"]);
+const antiAiSeveritySchema = z.enum(["low", "medium", "high"]);
 
 export const chapterRuntimeRequestSchema = z.object({
   provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
   previousChaptersSummary: z.array(z.string()).optional(),
+  taskStyleProfileId: z.string().trim().optional(),
 });
 
 export const runtimeChapterSchema = z.object({
@@ -137,6 +141,47 @@ export const runtimeContinuationSchema = z.object({
   antiCopyCorpus: z.array(z.string()).default([]),
 });
 
+export const runtimeStyleRuleBlockSchema = z.record(z.string(), z.unknown());
+
+export const runtimeCompiledStylePromptBlocksSchema = z.object({
+  context: z.string(),
+  style: z.string(),
+  character: z.string(),
+  antiAi: z.string(),
+  output: z.string(),
+  selfCheck: z.string(),
+  mergedRules: z.object({
+    narrativeRules: runtimeStyleRuleBlockSchema,
+    characterRules: runtimeStyleRuleBlockSchema,
+    languageRules: runtimeStyleRuleBlockSchema,
+    rhythmRules: runtimeStyleRuleBlockSchema,
+  }),
+  appliedRuleIds: z.array(z.string()),
+});
+
+export const runtimeStyleProfileSummarySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  category: z.string().nullable().optional(),
+});
+
+export const runtimeStyleBindingSchema = z.object({
+  id: z.string(),
+  styleProfileId: z.string(),
+  targetType: styleBindingTargetTypeSchema,
+  targetId: z.string(),
+  priority: z.number().int(),
+  weight: z.number(),
+  enabled: z.boolean(),
+  styleProfile: runtimeStyleProfileSummarySchema.optional(),
+});
+
+export const runtimeStyleContextSchema = z.object({
+  matchedBindings: z.array(runtimeStyleBindingSchema),
+  compiledBlocks: runtimeCompiledStylePromptBlocksSchema.nullable(),
+});
+
 export const generationContextPackageSchema = z.object({
   chapter: runtimeChapterSchema,
   plan: runtimePlanSchema.nullable(),
@@ -148,6 +193,7 @@ export const generationContextPackageSchema = z.object({
   previousChaptersSummary: z.array(z.string()),
   openingHint: z.string(),
   continuation: runtimeContinuationSchema,
+  styleContext: runtimeStyleContextSchema.nullable().optional(),
 });
 
 export const runtimeQualityScoreSchema = z.object({
@@ -170,6 +216,25 @@ export const runtimeAuditReportSchema = z.object({
   issues: z.array(runtimeAuditIssueSchema),
   createdAt: z.string(),
   updatedAt: z.string(),
+});
+
+export const styleDetectionViolationSchema = z.object({
+  ruleId: z.string(),
+  ruleName: z.string(),
+  ruleType: antiAiRuleTypeSchema,
+  severity: antiAiSeveritySchema,
+  excerpt: z.string(),
+  reason: z.string(),
+  suggestion: z.string(),
+  canAutoRewrite: z.boolean(),
+});
+
+export const styleDetectionReportSchema = z.object({
+  riskScore: z.number().int(),
+  summary: z.string(),
+  violations: z.array(styleDetectionViolationSchema),
+  canAutoRewrite: z.boolean(),
+  appliedRuleIds: z.array(z.string()),
 });
 
 export const chapterRuntimePackageSchema = z.object({
@@ -210,7 +275,12 @@ export type RuntimeCreativeDecision = z.infer<typeof runtimeCreativeDecisionSche
 export type RuntimeAuditIssue = z.infer<typeof runtimeAuditIssueSchema>;
 export type RuntimeStateSnapshot = z.infer<typeof runtimeStateSnapshotSchema>;
 export type RuntimeContinuation = z.infer<typeof runtimeContinuationSchema>;
+export type RuntimeCompiledStylePromptBlocks = z.infer<typeof runtimeCompiledStylePromptBlocksSchema>;
+export type RuntimeStyleBinding = z.infer<typeof runtimeStyleBindingSchema>;
+export type RuntimeStyleContext = z.infer<typeof runtimeStyleContextSchema>;
 export type GenerationContextPackage = z.infer<typeof generationContextPackageSchema>;
 export type RuntimeQualityScore = z.infer<typeof runtimeQualityScoreSchema>;
 export type RuntimeAuditReport = z.infer<typeof runtimeAuditReportSchema>;
 export type ChapterRuntimePackage = z.infer<typeof chapterRuntimePackageSchema>;
+export type RuntimeStyleDetectionViolation = z.infer<typeof styleDetectionViolationSchema>;
+export type RuntimeStyleDetectionReport = z.infer<typeof styleDetectionReportSchema>;

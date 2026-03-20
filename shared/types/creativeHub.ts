@@ -10,6 +10,7 @@ export interface CreativeHubResourceBinding {
   taskId?: string | null;
   bookAnalysisId?: string | null;
   formulaId?: string | null;
+  styleProfileId?: string | null;
   baseCharacterId?: string | null;
   knowledgeDocumentIds?: string[];
 }

@@ -67,6 +67,7 @@ export interface BookAnalysisWorkspace {
   saveSection: (section: BookAnalysisSection) => void;
   downloadSelectedAnalysis: (format: ExportFormat) => Promise<void>;
   publishSelectedAnalysis: () => Promise<void>;
+  createStyleProfileFromAnalysis: () => Promise<void>;
   updateSectionDraft: (section: BookAnalysisSection, patch: Partial<SectionDraft>) => void;
   getSectionDraft: (section: BookAnalysisSection) => SectionDraft;
 }

@@ -6,6 +6,7 @@ import { stateService } from "../../state/StateService";
 import { getRagQueryForChapter, novelReferenceService } from "../NovelReferenceService";
 import { NovelContinuationService } from "../NovelContinuationService";
 import { parseJsonStringArray } from "../novelP0Utils";
+import { StyleBindingService } from "../../styleEngine/StyleBindingService";
 import { NovelWorldSliceService } from "../storyWorldSlice/NovelWorldSliceService";
 import {
   buildLegacyWorldContextFromWorld,
@@ -115,6 +116,7 @@ function mapStateSnapshot(snapshot: Awaited<ReturnType<typeof stateService.getLa
 export class GenerationContextAssembler {
   private readonly continuationService = new NovelContinuationService();
   private readonly worldSliceService = new NovelWorldSliceService();
+  private readonly styleBindingService = new StyleBindingService();
 
   async assemble(
     novelId: string,
@@ -140,7 +142,7 @@ export class GenerationContextAssembler {
     }
 
     const ensuredPlan = await plannerService.ensureChapterPlan(novelId, chapterId, request);
-    const [storyWorldSlice, planPromptBlock, stateSnapshot, stateContextBlock, bible, summaries, facts, styleReference, recentChapters, decisions, openAuditIssues, continuationPack] = await Promise.all([
+    const [storyWorldSlice, planPromptBlock, stateSnapshot, stateContextBlock, bible, summaries, facts, styleReference, recentChapters, decisions, openAuditIssues, continuationPack, styleContext] = await Promise.all([
       this.worldSliceService.ensureStoryWorldSlice(novelId, { builderMode: "runtime" }),
       plannerService.buildPlanPromptBlock(novelId, chapterId),
       stateService.getLatestSnapshotBeforeChapter(novelId, chapter.order),
@@ -192,6 +194,11 @@ export class GenerationContextAssembler {
         orderBy: [{ createdAt: "desc" }],
       }),
       this.continuationService.buildChapterContextPack(novelId),
+      this.styleBindingService.resolveForGeneration({
+        novelId,
+        chapterId,
+        taskStyleProfileId: request.taskStyleProfileId,
+      }),
     ]);
 
     const previousChaptersSummary = request.previousChaptersSummary?.length
@@ -235,6 +242,14 @@ export class GenerationContextAssembler {
     const decisionsBlock = decisions.length > 0
       ? `创作决策（请遵守）：\n${decisions.map((item) => `[${item.category}${item.importance === "critical" ? " 重要" : ""}] ${item.content}`).join("\n")}`
       : "";
+    const styleEngineBlock = styleContext.compiledBlocks
+      ? [
+          "写法引擎约束：",
+          styleContext.compiledBlocks.style,
+          styleContext.compiledBlocks.character,
+          styleContext.compiledBlocks.antiAi,
+        ].filter(Boolean).join("\n\n")
+      : "";
 
     const ragQuery = getRagQueryForChapter(chapter.order, novel.title, novel.structuredOutline ?? null);
     let ragText = "";
@@ -269,6 +284,7 @@ export class GenerationContextAssembler {
           stateContextBlock,
           planPromptBlock,
           styleBlock,
+          styleEngineBlock,
           decisionsBlock,
         ].filter(Boolean).join("\n\n"),
       },
@@ -319,6 +335,7 @@ export class GenerationContextAssembler {
         humanBlock: continuationPack.humanBlock,
         antiCopyCorpus: continuationPack.antiCopyCorpus,
       },
+      styleContext,
     };
 
     return {

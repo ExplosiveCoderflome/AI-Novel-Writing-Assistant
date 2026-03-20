@@ -234,6 +234,24 @@ enum AuditIssueStatus {
   ignored
 }
 
+enum StyleBindingTargetType {
+  novel
+  chapter
+  task
+}
+
+enum AntiAiRuleType {
+  forbidden
+  risk
+  encourage
+}
+
+enum AntiAiSeverity {
+  low
+  medium
+  high
+}
+
 model Novel {
   id                String      @id @default(cuid())
   title             String
@@ -628,6 +646,99 @@ model WritingFormula {
   applicationTips    String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+}
+
+model StyleProfile {
+  id                 String   @id @default(cuid())
+  name               String
+  description        String?
+  category           String?
+  tagsJson           String?
+  applicableGenresJson String?
+  sourceType         String
+  sourceRefId        String?
+  sourceContent      String?
+  analysisMarkdown   String?
+  narrativeRulesJson String?
+  characterRulesJson String?
+  languageRulesJson  String?
+  rhythmRulesJson    String?
+  status             String   @default("active")
+  antiAiBindings     StyleProfileAntiAiRule[]
+  bindings           StyleBinding[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([status, updatedAt])
+  @@index([sourceType, sourceRefId])
+}
+
+model StyleTemplate {
+  id                   String   @id @default(cuid())
+  key                  String   @unique
+  name                 String
+  description          String
+  category             String
+  tagsJson             String?
+  applicableGenresJson String?
+  analysisMarkdown     String?
+  narrativeRulesJson   String?
+  characterRulesJson   String?
+  languageRulesJson    String?
+  rhythmRulesJson      String?
+  defaultAntiAiRuleKeysJson String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model AntiAiRule {
+  id               String         @id @default(cuid())
+  key              String         @unique
+  name             String
+  type             AntiAiRuleType
+  severity         AntiAiSeverity
+  description      String
+  detectPatternsJson String?
+  rewriteSuggestion String?
+  promptInstruction String?
+  autoRewrite      Boolean        @default(false)
+  enabled          Boolean        @default(true)
+  profileBindings  StyleProfileAntiAiRule[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([type, enabled])
+}
+
+model StyleProfileAntiAiRule {
+  id             String       @id @default(cuid())
+  styleProfileId String
+  antiAiRuleId   String
+  enabled        Boolean      @default(true)
+  weight         Float        @default(1)
+  styleProfile   StyleProfile @relation(fields: [styleProfileId], references: [id], onDelete: Cascade)
+  antiAiRule     AntiAiRule   @relation(fields: [antiAiRuleId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([styleProfileId, antiAiRuleId])
+  @@index([antiAiRuleId])
+}
+
+model StyleBinding {
+  id             String                 @id @default(cuid())
+  styleProfileId String
+  targetType     StyleBindingTargetType
+  targetId       String
+  priority       Int                    @default(1)
+  weight         Float                  @default(1)
+  enabled        Boolean                @default(true)
+  styleProfile   StyleProfile           @relation(fields: [styleProfileId], references: [id], onDelete: Cascade)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@index([targetType, targetId, enabled])
+  @@index([styleProfileId])
 }
 
 model TitleLibrary {

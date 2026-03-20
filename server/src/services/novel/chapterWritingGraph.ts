@@ -154,6 +154,20 @@ function buildPlanText(contextPackage?: GenerationContextPackage, fallback?: str
   return lines.length > 0 ? `\nChapter plan (must follow):\n${lines.join("\n")}` : "";
 }
 
+function buildStylePromptText(contextPackage?: GenerationContextPackage): string {
+  const compiled = contextPackage?.styleContext?.compiledBlocks;
+  if (!compiled) {
+    return "";
+  }
+  return [
+    "Style engine constraints:",
+    compiled.style,
+    compiled.character,
+    compiled.antiAi,
+    compiled.selfCheck,
+  ].filter(Boolean).join("\n\n");
+}
+
 export class ChapterWritingGraph {
   constructor(private readonly deps: ChapterGraphDeps) {}
 
@@ -315,6 +329,7 @@ ${JSON.stringify(issues, null, 2)}`,
       ?? await continuationService.buildChapterContextPack(input.novelId);
     const chapterPlan = buildPlanText(input.contextPackage, input.chapter.expectation);
     const characterLines = buildCharacterLines(input.contextPackage, input.characterLines);
+    const stylePrompt = buildStylePromptText(input.contextPackage);
     const llm = await getLLM(input.options.provider, {
       fallbackProvider: "deepseek",
       model: input.options.model,
@@ -332,7 +347,8 @@ Hard requirements:
 4) Chapter ending must include a new suspense/conflict/decision point.
 5) The opening 2-4 sentences must differ from recent chapters in scene trigger, temporal cue and sentence pattern.
 6) Avoid repetitive opening templates such as "I am X..." or "I am checking delivery updates in office...".
-${continuationPack.enabled ? `7) ${continuationPack.systemRule}` : ""}`.trim(),
+7) If style-engine constraints are present, they are mandatory and override generic prose habits.
+${continuationPack.enabled ? `8) ${continuationPack.systemRule}` : ""}`.trim(),
       ),
       new HumanMessage(
         `Novel: ${input.novelTitle}
@@ -344,6 +360,8 @@ ${context}
 
 Opening anti-repeat constraints:
 ${openingHint}
+
+${stylePrompt ? `${stylePrompt}\n\n` : ""}
 
 ${continuationPack.enabled ? `${continuationPack.humanBlock}\n` : ""}
 

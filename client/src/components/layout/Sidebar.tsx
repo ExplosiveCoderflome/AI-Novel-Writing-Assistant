@@ -24,7 +24,7 @@ const navGroups = [
       { to: "/titles", label: "标题工坊" },
       { to: "/knowledge", label: "知识库" },
       { to: "/worlds", label: "世界观" },
-      { to: "/writing-formula", label: "写作公式" },
+      { to: "/style-engine", label: "写法引擎" },
       { to: "/base-characters", label: "基础角色库" },
     ],
   },

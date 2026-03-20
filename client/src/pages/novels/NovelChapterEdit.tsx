@@ -17,6 +17,14 @@ import {
   listCreativeDecisions,
   updateNovelChapter,
 } from "@/api/novel";
+import {
+  createStyleBinding,
+  deleteStyleBinding,
+  detectStyleIssues,
+  getStyleBindings,
+  getStyleProfiles,
+  rewriteStyleIssues,
+} from "@/api/styleEngine";
 import { useSSE } from "@/hooks/useSSE";
 import { useLLMStore } from "@/store/llmStore";
 import { ChapterRuntimeAuditCard, ChapterRuntimeContextCard } from "./components/ChapterRuntimePanels";
@@ -26,6 +34,8 @@ export default function NovelChapterEdit() {
   const queryClient = useQueryClient();
   const llm = useLLMStore();
   const [contentDraft, setContentDraft] = useState("");
+  const [selectedStyleProfileId, setSelectedStyleProfileId] = useState("");
+  const [styleRewritePreview, setStyleRewritePreview] = useState("");
   const [decisionForm, setDecisionForm] = useState({
     category: "plot",
     content: "",
@@ -90,6 +100,25 @@ export default function NovelChapterEdit() {
   const chapterStateSnapshot = chapterStateResponse?.data ?? null;
   const chapterAuditReports = chapterAuditResponse?.data ?? [];
 
+  const { data: styleProfilesResponse } = useQuery({
+    queryKey: queryKeys.styleEngine.profiles,
+    queryFn: getStyleProfiles,
+  });
+  const styleProfiles = styleProfilesResponse?.data ?? [];
+
+  const { data: chapterStyleBindingsResponse } = useQuery({
+    queryKey: queryKeys.styleEngine.bindings(`chapter-${chapterId}`),
+    queryFn: () => getStyleBindings({ targetType: "chapter", targetId: chapterId }),
+    enabled: Boolean(chapterId),
+  });
+  const chapterStyleBindings = chapterStyleBindingsResponse?.data ?? [];
+
+  useEffect(() => {
+    if (!selectedStyleProfileId && styleProfiles.length > 0) {
+      setSelectedStyleProfileId(styleProfiles[0].id);
+    }
+  }, [selectedStyleProfileId, styleProfiles]);
+
   const { data: decisionResponse } = useQuery({
     queryKey: queryKeys.novels.creativeDecisions(id),
     queryFn: () => listCreativeDecisions(id),
@@ -128,6 +157,71 @@ export default function NovelChapterEdit() {
     mutationFn: (decisionId: string) => deleteCreativeDecision(id, decisionId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.creativeDecisions(id) });
+    },
+  });
+
+  const createStyleBindingMutation = useMutation({
+    mutationFn: () => createStyleBinding({
+      styleProfileId: selectedStyleProfileId,
+      targetType: "chapter",
+      targetId: chapterId,
+      priority: 5,
+      weight: 1,
+    }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.styleEngine.bindings(`chapter-${chapterId}`) });
+    },
+  });
+
+  const deleteStyleBindingMutation = useMutation({
+    mutationFn: (bindingId: string) => deleteStyleBinding(bindingId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.styleEngine.bindings(`chapter-${chapterId}`) });
+    },
+  });
+
+  const detectStyleMutation = useMutation({
+    mutationFn: () => detectStyleIssues({
+      content: contentDraft,
+      novelId: id,
+      chapterId,
+      provider: llm.provider,
+      model: llm.model,
+      temperature: 0.2,
+    }),
+  });
+
+  const rewriteStyleMutation = useMutation({
+    mutationFn: async () => {
+      const report = detectStyleMutation.data?.data ?? (await detectStyleIssues({
+        content: contentDraft,
+        novelId: id,
+        chapterId,
+        provider: llm.provider,
+        model: llm.model,
+        temperature: 0.2,
+      })).data;
+      if (!report || report.violations.length === 0) {
+        return { data: { content: contentDraft } };
+      }
+      return rewriteStyleIssues({
+        content: contentDraft,
+        novelId: id,
+        chapterId,
+        issues: report.violations.map((item) => ({
+          ruleName: item.ruleName,
+          excerpt: item.excerpt,
+          suggestion: item.suggestion,
+        })),
+        provider: llm.provider,
+        model: llm.model,
+        temperature: 0.5,
+      });
+    },
+    onSuccess: (response) => {
+      const next = response.data?.content ?? contentDraft;
+      setStyleRewritePreview(next);
+      setContentDraft(next);
     },
   });
 
@@ -210,9 +304,69 @@ export default function NovelChapterEdit() {
 
       <Card>
         <CardHeader>
-          <CardTitle>审计 / 决策</CardTitle>
+          <CardTitle>写法 / 审计 / 决策</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="rounded-md border p-3">
+            <div className="mb-2 text-sm font-medium">当前章节写法</div>
+            <div className="flex gap-2">
+              <select
+                className="flex-1 rounded-md border bg-background p-2 text-sm"
+                value={selectedStyleProfileId}
+                onChange={(event) => setSelectedStyleProfileId(event.target.value)}
+              >
+                {styleProfiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>{profile.name}</option>
+                ))}
+              </select>
+              <Button
+                size="sm"
+                onClick={() => createStyleBindingMutation.mutate()}
+                disabled={createStyleBindingMutation.isPending || !selectedStyleProfileId || !chapterId}
+              >
+                绑定到本章
+              </Button>
+            </div>
+            <div className="mt-2 space-y-2">
+              {chapterStyleBindings.map((binding) => (
+                <div key={binding.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+                  <span>{binding.styleProfile?.name ?? binding.styleProfileId}</span>
+                  <Button size="sm" variant="ghost" onClick={() => deleteStyleBindingMutation.mutate(binding.id)}>
+                    删除
+                  </Button>
+                </div>
+              ))}
+              {runtimePackage?.context.styleContext?.matchedBindings?.length ? (
+                <div className="rounded-md border bg-muted/20 p-2 text-xs text-muted-foreground">
+                  当前命中：{runtimePackage.context.styleContext.matchedBindings.map((binding) => binding.styleProfile?.name ?? binding.styleProfileId).join(" / ")}
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="rounded-md border p-3">
+            <div className="mb-2 text-sm font-medium">写法检测 / 一键修正</div>
+            <div className="flex gap-2">
+              <Button onClick={() => detectStyleMutation.mutate()} disabled={detectStyleMutation.isPending || !contentDraft.trim()}>
+                检测 AI 味
+              </Button>
+              <Button variant="secondary" onClick={() => rewriteStyleMutation.mutate()} disabled={rewriteStyleMutation.isPending || !contentDraft.trim()}>
+                一键修正
+              </Button>
+            </div>
+            {detectStyleMutation.data?.data ? (
+              <div className="mt-3 rounded-md border p-2 text-sm">
+                <div className="font-medium">风险分：{detectStyleMutation.data.data.riskScore}</div>
+                <div className="mt-1 text-muted-foreground">{detectStyleMutation.data.data.summary}</div>
+              </div>
+            ) : null}
+            {styleRewritePreview ? (
+              <div className="mt-2 rounded-md border bg-muted/20 p-2 text-xs text-muted-foreground">
+                已将修正结果回填到正文编辑区。
+              </div>
+            ) : null}
+          </div>
+
           <ChapterRuntimeAuditCard
             runtimePackage={runtimePackage}
             auditReports={chapterAuditReports}
