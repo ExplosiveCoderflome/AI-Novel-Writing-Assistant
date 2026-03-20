@@ -52,6 +52,30 @@ function buildRuntimePackage(novelId, chapterId) {
         updatedAt: now,
       },
       stateSnapshot: null,
+      storyWorldSlice: {
+        storyId: novelId,
+        worldId: "world-1",
+        coreWorldFrame: "现实压力驱动人物选择。",
+        appliedRules: [],
+        activeForces: [],
+        activeLocations: [],
+        activeElements: [],
+        conflictCandidates: [],
+        pressureSources: [],
+        mysterySources: [],
+        suggestedStoryAxes: [],
+        recommendedEntryPoints: [],
+        forbiddenCombinations: [],
+        storyScopeBoundary: "保留现实都市基底。",
+        metadata: {
+          schemaVersion: 1,
+          builtAt: now,
+          sourceWorldUpdatedAt: now,
+          storyInputDigest: "digest",
+          builtFromStructuredData: true,
+          builderMode: "runtime",
+        },
+      },
       characterRoster: [],
       creativeDecisions: [],
       openAuditIssues: [],
@@ -132,6 +156,7 @@ test("runtime chapter route emits runtime_package before done", async () => {
     const text = await response.text();
     assert.ok(text.includes("\"type\":\"runtime_package\""));
     assert.ok(text.includes("\"type\":\"done\""));
+    assert.ok(text.includes("\"storyWorldSlice\""));
     assert.ok(text.indexOf("\"type\":\"runtime_package\"") < text.indexOf("\"type\":\"done\""));
   } finally {
     NovelService.prototype.createChapterRuntimeStream = originalMethod;

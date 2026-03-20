@@ -6,6 +6,11 @@ import { stateService } from "../../state/StateService";
 import { getRagQueryForChapter, novelReferenceService } from "../NovelReferenceService";
 import { NovelContinuationService } from "../NovelContinuationService";
 import { parseJsonStringArray } from "../novelP0Utils";
+import { NovelWorldSliceService } from "../storyWorldSlice/NovelWorldSliceService";
+import {
+  buildLegacyWorldContextFromWorld,
+  formatStoryWorldSlicePromptBlock,
+} from "../storyWorldSlice/storyWorldSliceFormatting";
 import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 
 const OPENING_COMPARE_LIMIT = 3;
@@ -36,40 +41,7 @@ function buildWorldContextFromNovel(
     } | null;
   } | null,
 ): string {
-  const world = novel?.world;
-  if (!world) {
-    return "世界上下文：暂无";
-  }
-
-  let axiomsText = "";
-  if (world.axioms) {
-    try {
-      const parsed = JSON.parse(world.axioms) as string[];
-      axiomsText = Array.isArray(parsed) && parsed.length > 0
-        ? parsed.map((item) => `- ${item}`).join("\n")
-        : world.axioms;
-    } catch {
-      axiomsText = world.axioms;
-    }
-  }
-
-  return `世界上下文：
-世界名称${world.name}
-世界类型${world.worldType ?? "未指定"}
-世界简介：${world.description ?? ""}
-核心公理：
-${axiomsText}
-背景${world.background ?? ""}
-地理${world.geography ?? ""}
-力量体系${world.magicSystem ?? ""}
-社会政治${world.politics ?? ""}
-种族${world.races ?? ""}
-宗教${world.religions ?? ""}
-科技${world.technology ?? ""}
-历史${world.history ?? ""}
-经济${world.economy ?? ""}
-势力关系${world.factions ?? ""}
-核心冲突${world.conflicts ?? ""}`;
+  return buildLegacyWorldContextFromWorld(novel?.world ?? null);
 }
 
 function mapPlan(plan: Awaited<ReturnType<typeof plannerService.getChapterPlan>>): GenerationContextPackage["plan"] {
@@ -142,6 +114,7 @@ function mapStateSnapshot(snapshot: Awaited<ReturnType<typeof stateService.getLa
 
 export class GenerationContextAssembler {
   private readonly continuationService = new NovelContinuationService();
+  private readonly worldSliceService = new NovelWorldSliceService();
 
   async assemble(
     novelId: string,
@@ -167,7 +140,8 @@ export class GenerationContextAssembler {
     }
 
     const ensuredPlan = await plannerService.ensureChapterPlan(novelId, chapterId, request);
-    const [planPromptBlock, stateSnapshot, stateContextBlock, bible, summaries, facts, styleReference, recentChapters, decisions, openAuditIssues, continuationPack] = await Promise.all([
+    const [storyWorldSlice, planPromptBlock, stateSnapshot, stateContextBlock, bible, summaries, facts, styleReference, recentChapters, decisions, openAuditIssues, continuationPack] = await Promise.all([
+      this.worldSliceService.ensureStoryWorldSlice(novelId, { builderMode: "runtime" }),
       plannerService.buildPlanPromptBlock(novelId, chapterId),
       stateService.getLatestSnapshotBeforeChapter(novelId, chapter.order),
       stateService.buildStateContextBlock(novelId, chapter.order),
@@ -282,7 +256,9 @@ export class GenerationContextAssembler {
         content: chapter.content ?? null,
         expectation: chapter.expectation ?? null,
         supportingContextText: [
-          buildWorldContextFromNovel(novel),
+          storyWorldSlice
+            ? formatStoryWorldSlicePromptBlock(storyWorldSlice)
+            : buildWorldContextFromNovel(novel),
           outlineText,
           charactersContextText,
           bibleText,
@@ -298,6 +274,7 @@ export class GenerationContextAssembler {
       },
       plan: mapPlan(ensuredPlan),
       stateSnapshot: mapStateSnapshot(stateSnapshot),
+      storyWorldSlice,
       characterRoster: novel.characters.map((item) => ({
         id: item.id,
         name: item.name,

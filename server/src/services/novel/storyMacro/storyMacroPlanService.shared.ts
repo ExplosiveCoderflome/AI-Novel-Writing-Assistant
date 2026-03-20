@@ -20,7 +20,7 @@ export interface StoryMacroNovelContext {
   genre: { name: string } | null;
 }
 
-export function formatProjectContext(novel: StoryMacroNovelContext): string {
+export function formatProjectContext(novel: StoryMacroNovelContext, worldSliceContext = ""): string {
   return [
     novel.title ? `项目标题：${novel.title}` : "",
     novel.genre?.name ? `预设题材：${novel.genre.name}` : "",
@@ -29,6 +29,7 @@ export function formatProjectContext(novel: StoryMacroNovelContext): string {
     novel.pacePreference ? `节奏偏好：${novel.pacePreference}` : "",
     novel.emotionIntensity ? `情绪强度：${novel.emotionIntensity}` : "",
     novel.estimatedChapterCount ? `预计章节数：${novel.estimatedChapterCount}` : "",
+    worldSliceContext.trim(),
   ].filter(Boolean).join("\n");
 }
 

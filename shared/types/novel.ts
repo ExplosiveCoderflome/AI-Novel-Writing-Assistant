@@ -463,3 +463,15 @@ export type {
   ChapterRuntimeRequest,
   GenerationContextPackage,
 } from "./chapterRuntime";
+export type {
+  StoryWorldSlice,
+  StoryWorldSliceBuilderMode,
+  StoryWorldSliceElement,
+  StoryWorldSliceForce,
+  StoryWorldSliceLocation,
+  StoryWorldSliceMeta,
+  StoryWorldSliceOptionItem,
+  StoryWorldSliceOverrides,
+  StoryWorldSliceRule,
+  StoryWorldSliceView,
+} from "./storyWorldSlice";

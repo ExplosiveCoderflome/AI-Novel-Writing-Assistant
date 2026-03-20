@@ -71,6 +71,37 @@ function buildPreview(raw: string | null | undefined, fallback: string, limit: n
   return preview.length < (structured ?? normalized).length ? `${preview}...` : preview;
 }
 
+function buildStructuredWorldPreview(structureJson: string | null | undefined): {
+  summary: string | null;
+  detail: string | null;
+} {
+  if (!structureJson?.trim()) {
+    return { summary: null, detail: null };
+  }
+
+  try {
+    const parsed = JSON.parse(structureJson) as {
+      profile?: { summary?: string; identity?: string; coreConflict?: string };
+      rules?: { axioms?: Array<{ name?: string; summary?: string }> };
+    };
+    const summary = parsed.profile?.summary?.trim() || null;
+    const detail = [
+      parsed.profile?.identity?.trim(),
+      parsed.profile?.coreConflict?.trim(),
+      parsed.rules?.axioms?.[0]?.name?.trim(),
+      parsed.rules?.axioms?.[0]?.summary?.trim(),
+    ]
+      .filter(Boolean)
+      .join(" | ");
+    return {
+      summary,
+      detail: detail || null,
+    };
+  } catch {
+    return { summary: null, detail: null };
+  }
+}
+
 export default function WorldList() {
   const worldListQuery = useQuery({
     queryKey: queryKeys.worlds.all,
@@ -100,9 +131,10 @@ export default function WorldList() {
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {worlds.map((world) => {
-            const summary = buildPreview(world.description, "暂无描述", 120);
+            const structuredPreview = buildStructuredWorldPreview(world.structureJson);
+            const summary = buildPreview(structuredPreview.summary ?? world.description, "暂无描述", 120);
             const detail = buildPreview(
-              world.overviewSummary ?? world.conflicts ?? world.geography ?? world.background,
+              structuredPreview.detail ?? world.overviewSummary ?? world.conflicts ?? world.geography ?? world.background,
               "暂无详细信息",
               180,
             );

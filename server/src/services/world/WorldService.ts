@@ -4,11 +4,18 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
+  WorldBindingSupport,
   WorldConsistencyReport,
   WorldLayerKey,
+  WorldStructuredData,
+  WorldStructureSectionKey,
   WorldVisualizationPayload,
 } from "@ai-novel/shared/types/world";
-import type { WorldOptionRefinementLevel } from "@ai-novel/shared/types/worldWizard";
+import {
+  createEmptyWorldReferenceSeedBundle,
+  type WorldOptionRefinementLevel,
+  type WorldReferenceMode,
+} from "@ai-novel/shared/types/worldWizard";
 import { featureFlags } from "../../config/featureFlags";
 import { prisma } from "../../db/prisma";
 import { getLLM } from "../../llm/factory";
@@ -16,9 +23,22 @@ import { createWorldBuildingGraph } from "../../graphs/worldBuildingGraph";
 import { getTemplateByKey, LAYER_FIELD_MAP, WORLD_LAYER_ORDER, WORLD_TEMPLATES } from "./worldTemplates";
 import { buildConsistencySummary, localizeConsistencyIssue } from "./worldConsistency";
 import { normalizeGeneratedWorldPayload } from "./worldPersistence";
+import {
+  applyStructuredWorldToLegacyFields,
+  buildStructuredRulesFromAxiomTexts,
+  buildWorldBindingSupport,
+  buildWorldStructureFromLegacySource,
+  buildWorldStructureOverview,
+  buildWorldStructureSeedFromSource,
+  normalizeWorldBindingSupport,
+  normalizeWorldStructuredData,
+  parseWorldStructurePayload,
+  WORLD_STRUCTURE_SCHEMA_VERSION,
+} from "./worldStructure";
 import { buildWorldVisualizationPayload } from "./worldVisualization";
 import { applyGeneratedWorldFields, buildWorldBlueprintPromptBlock } from "./worldGenerationBlueprint";
 import { generateWorldPropertyOptions } from "./worldPropertyOptions";
+import { generateReferenceInspirationAnalysis } from "./worldReferenceInspiration";
 import { listActiveKnowledgeDocumentContents } from "../knowledge/common";
 import { ragServices } from "../rag";
 import type { RagOwnerType } from "../rag/types";
@@ -196,6 +216,8 @@ interface CreateWorldInput {
   selectedDimensions?: string;
   selectedElements?: string;
   knowledgeDocumentIds?: string[];
+  structure?: unknown;
+  bindingSupport?: unknown;
 }
 
 interface WorldGenerateInput {
@@ -229,6 +251,10 @@ interface InspirationInput {
   mode?: "free" | "reference" | "random";
   worldType?: string;
   knowledgeDocumentIds?: string[];
+  referenceMode?: WorldReferenceMode;
+  preserveElements?: string[];
+  allowedChanges?: string[];
+  forbiddenElements?: string[];
   refinementLevel?: WorldOptionRefinementLevel;
   optionsCount?: number;
   provider?: LLMProvider;
@@ -277,6 +303,23 @@ interface ImportWorldInput {
 interface LibraryUseInput {
   worldId?: string;
   targetField?: WorldTextField;
+  targetCollection?: "forces" | "locations";
+}
+
+interface StructureBackfillInput {
+  provider?: LLMProvider;
+  model?: string;
+}
+
+interface StructureGenerateInput extends StructureBackfillInput {
+  section: WorldStructureSectionKey;
+  structure?: unknown;
+  bindingSupport?: unknown;
+}
+
+interface StructureUpdateInput {
+  structure: unknown;
+  bindingSupport?: unknown;
 }
 
 function cleanJsonText(source: string): string {
@@ -563,6 +606,128 @@ function buildFieldDiff(
   return changes;
 }
 
+function buildWorldStructurePromptSource(world: {
+  name: string;
+  worldType?: string | null;
+  description?: string | null;
+  axioms?: string | null;
+  background?: string | null;
+  geography?: string | null;
+  cultures?: string | null;
+  magicSystem?: string | null;
+  politics?: string | null;
+  races?: string | null;
+  religions?: string | null;
+  technology?: string | null;
+  conflicts?: string | null;
+  history?: string | null;
+  economy?: string | null;
+  factions?: string | null;
+}): string {
+  return [
+    `世界名称：${world.name}`,
+    `世界类型：${world.worldType ?? "custom"}`,
+    `世界概要：${world.description ?? "无"}`,
+    `规则/公理：${world.axioms ?? "无"}`,
+    `背景：${world.background ?? "无"}`,
+    `地理：${world.geography ?? "无"}`,
+    `文化：${world.cultures ?? "无"}`,
+    `力量体系：${world.magicSystem ?? "无"}`,
+    `政治：${world.politics ?? "无"}`,
+    `种族：${world.races ?? "无"}`,
+    `宗教：${world.religions ?? "无"}`,
+    `科技：${world.technology ?? "无"}`,
+    `冲突：${world.conflicts ?? "无"}`,
+    `历史：${world.history ?? "无"}`,
+    `经济：${world.economy ?? "无"}`,
+    `势力：${world.factions ?? "无"}`,
+  ].join("\n\n");
+}
+
+function buildStructureSectionInstructions(section: WorldStructureSectionKey): string {
+  switch (section) {
+    case "profile":
+      return `只输出 JSON 对象，结构为：
+{
+  "summary": "...",
+  "identity": "...",
+  "tone": "...",
+  "themes": ["..."],
+  "coreConflict": "..."
+}`;
+    case "rules":
+      return `只输出 JSON 对象，结构为：
+{
+  "summary": "...",
+  "axioms": [{"id":"rule-1","name":"...","summary":"...","cost":"...","boundary":"...","enforcement":"..."}],
+  "taboo": ["..."],
+  "sharedConsequences": ["..."]
+}`;
+    case "factions":
+      return `只输出 JSON 对象，结构为：
+{
+  "factions": [{"id":"faction-1","name":"...","position":"...","doctrine":"...","goals":["..."],"methods":["..."],"representativeForceIds":["force-1"]}],
+  "forces": [{"id":"force-1","name":"...","type":"...","factionId":"faction-1","summary":"...","baseOfPower":"...","currentObjective":"...","pressure":"...","leader":"...","narrativeRole":"..."}]
+}
+补充约束：
+1. faction 是抽象阵营、立场、路线或世界站队，不是行业规则、社会压力机制或人际法则。
+2. force 是具体组织、圈层、部门、公司、网络或机构，必须是能施压、能参与冲突、能与地点建立关系的行动主体。
+3. 像“社会压力来源”“行业运作规则”“人际网络默认法则”这类世界级机制，应放到 rules，不要写进 factions / forces。`;
+    case "locations":
+      return `只输出 JSON 数组，元素结构为：
+[{"id":"location-1","name":"...","terrain":"...","summary":"...","narrativeFunction":"...","risk":"...","entryConstraint":"...","exitCost":"...","controllingForceIds":["force-1"]}]`;
+    case "relations":
+      return `只输出 JSON 对象，结构为：
+{
+  "forceRelations": [{"id":"force-relation-1","sourceForceId":"force-1","targetForceId":"force-2","relation":"...","tension":"...","detail":"..."}],
+  "locationControls": [{"id":"location-control-1","forceId":"force-1","locationId":"location-1","relation":"...","detail":"..."}]
+}`;
+    default:
+      return "只输出合法 JSON。";
+  }
+}
+
+function mergeWorldStructureSection(
+  current: WorldStructuredData,
+  section: WorldStructureSectionKey,
+  raw: unknown,
+): WorldStructuredData {
+  switch (section) {
+    case "profile":
+      return normalizeWorldStructuredData({
+        ...current,
+        profile: raw,
+      }, current);
+    case "rules":
+      return normalizeWorldStructuredData({
+        ...current,
+        rules: raw,
+      }, current);
+    case "factions": {
+      const record = raw && typeof raw === "object" && !Array.isArray(raw)
+        ? (raw as Record<string, unknown>)
+        : {};
+      return normalizeWorldStructuredData({
+        ...current,
+        factions: record.factions ?? current.factions,
+        forces: record.forces ?? current.forces,
+      }, current);
+    }
+    case "locations":
+      return normalizeWorldStructuredData({
+        ...current,
+        locations: raw,
+      }, current);
+    case "relations":
+      return normalizeWorldStructuredData({
+        ...current,
+        relations: raw,
+      }, current);
+    default:
+      return current;
+  }
+}
+
 function needsChineseConceptTranslation(card: InspirationConceptCard): boolean {
   const content = [
     card.worldType,
@@ -732,8 +897,9 @@ export class WorldService {
     });
   }
 
-  async analyzeInspiration(input: InspirationInput) {
+  async analyzeInspiration(input: InspirationInput, onProgress?: (message: string) => void) {
     {
+      onProgress?.(input.mode === "reference" ? "正在整理参考材料" : "正在整理灵感输入");
       let nextInput = input;
       let seededConceptCard: InspirationConceptCard | null = null;
       let inspirationSource = nextInput.input?.trim() || "一个模糊的世界观想法。";
@@ -791,20 +957,29 @@ export class WorldService {
         temperature: 0.7,
       });
       const normalizedSource = seededPreparedSource ?? prepareInspirationSource(inspirationSource);
-      let inspirationRagContext = "";
-      if (activeKnowledgeDocuments.length === 0 && nextInput.mode !== "random") {
-        try {
-          inspirationRagContext = await ragServices.hybridRetrievalService.buildContextBlock(inspirationSource, {
-            ownerTypes: ["world", "world_library_item"],
-            finalTopK: 6,
-          });
-        } catch {
-          inspirationRagContext = "";
-        }
-      }
+      // Keep pre-generation inspiration pure: only use the current input and
+      // explicitly selected knowledge documents, not unrelated saved worlds.
+      const inspirationRagContext = "";
 
       let resolvedConceptCard = seededConceptCard;
-      if (!resolvedConceptCard) {
+      let referenceAnchors: Array<{ id: string; label: string; content: string }> = [];
+      let referenceSeeds = createEmptyWorldReferenceSeedBundle();
+      if (nextInput.mode === "reference") {
+        onProgress?.("正在提取原作世界锚点");
+        const referenceAnalysis = await generateReferenceInspirationAnalysis({
+          llm: inspirationLlm,
+          sourceText: normalizedSource.promptText,
+          worldTypeHint: nextInput.worldType,
+          referenceMode: nextInput.referenceMode ?? "adapt_world",
+          preserveElements: Array.from(new Set((nextInput.preserveElements ?? []).map((item) => item.trim()).filter(Boolean))),
+          allowedChanges: Array.from(new Set((nextInput.allowedChanges ?? []).map((item) => item.trim()).filter(Boolean))),
+          forbiddenElements: Array.from(new Set((nextInput.forbiddenElements ?? []).map((item) => item.trim()).filter(Boolean))),
+        });
+        resolvedConceptCard = await this.translateConceptCardToChinese(inspirationLlm, referenceAnalysis.conceptCard);
+        referenceAnchors = referenceAnalysis.anchors;
+        referenceSeeds = referenceAnalysis.referenceSeeds;
+      } else if (!resolvedConceptCard) {
+        onProgress?.("正在生成概念卡");
         const templateKeys = WORLD_TEMPLATES.map((item) => item.key).join("|");
         const conceptResult = await inspirationLlm.invoke([
           new SystemMessage(
@@ -852,6 +1027,7 @@ export class WorldService {
       const resolvedTemplate = getTemplateByKey(resolvedConceptCard.templateKey);
       let generatedPropertyOptions: Awaited<ReturnType<typeof generateWorldPropertyOptions>> = [];
       try {
+        onProgress?.(nextInput.mode === "reference" ? "正在生成架空改造决策" : "正在生成前置属性选项");
         generatedPropertyOptions = await generateWorldPropertyOptions({
           llm: inspirationLlm,
           worldType: resolvedConceptCard.worldType || nextInput.worldType || resolvedTemplate.worldType,
@@ -865,6 +1041,11 @@ export class WorldService {
           tone: resolvedConceptCard.tone,
           sourcePrompt: normalizedSource.promptText,
           ragContext: inspirationRagContext,
+          referenceMode: nextInput.mode === "reference" ? (nextInput.referenceMode ?? "adapt_world") : null,
+          referenceAnchors,
+          preserveElements: nextInput.preserveElements,
+          allowedChanges: nextInput.allowedChanges,
+          forbiddenElements: nextInput.forbiddenElements,
           refinementLevel: nextInput.refinementLevel,
           optionsCount: nextInput.optionsCount,
         });
@@ -877,6 +1058,8 @@ export class WorldService {
         mode: nextInput.mode ?? "free",
         conceptCard: resolvedConceptCard,
         propertyOptions: generatedPropertyOptions,
+        referenceAnchors,
+        referenceSeeds,
         sourceMeta: {
           extracted: normalizedSource.extracted,
           originalLength: normalizedSource.originalLength,
@@ -933,17 +1116,9 @@ export class WorldService {
     });
     const source = input.input?.trim() || "一个模糊的世界观想法。";
     const preparedSource = prepareInspirationSource(source);
-    let ragContext = "";
-    if (knowledgeDocuments.length === 0) {
-      try {
-        ragContext = await ragServices.hybridRetrievalService.buildContextBlock(source, {
-          ownerTypes: ["world", "world_library_item"],
-          finalTopK: 6,
-        });
-      } catch {
-        ragContext = "";
-      }
-    }
+    // Keep pre-generation inspiration pure: only use the current input and
+    // explicitly selected knowledge documents, not unrelated saved worlds.
+    const ragContext = "";
     const templateKeys = WORLD_TEMPLATES.map((item) => item.key).join("|");
     const result = await llm.invoke([
       new SystemMessage(
@@ -1011,29 +1186,64 @@ export class WorldService {
       }
     }
 
+    const seededStructure = input.structure
+      ? normalizeWorldStructuredData(input.structure)
+      : buildWorldStructureSeedFromSource({
+        id: "",
+        name: input.name,
+        worldType: input.worldType ?? null,
+        description: input.description ?? null,
+        overviewSummary: null,
+        axioms: input.axioms ?? null,
+        background: input.background ?? null,
+        geography: input.geography ?? null,
+        cultures: input.cultures ?? null,
+        magicSystem: input.magicSystem ?? null,
+        politics: input.politics ?? null,
+        races: input.races ?? null,
+        religions: input.religions ?? null,
+        technology: input.technology ?? null,
+        conflicts: input.conflicts ?? null,
+        history: input.history ?? null,
+        economy: input.economy ?? null,
+        factions: input.factions ?? null,
+        selectedElements: input.selectedElements ?? null,
+        structureJson: null,
+        bindingSupportJson: null,
+        structureSchemaVersion: WORLD_STRUCTURE_SCHEMA_VERSION,
+      });
+    const bindingSupport = input.bindingSupport
+      ? normalizeWorldBindingSupport(input.bindingSupport)
+      : buildWorldBindingSupport(seededStructure);
+    const structuredFields = applyStructuredWorldToLegacyFields(seededStructure, input, bindingSupport);
+
     const world = await prisma.world.create({
       data: {
         name: input.name,
-        description: input.description,
+        description: (structuredFields.description as string | null | undefined) ?? input.description,
         worldType: input.worldType,
         templateKey: input.templateKey ?? "custom",
-        axioms: input.axioms,
+        axioms: input.axioms ?? (structuredFields.axioms as string | null | undefined) ?? null,
         background: input.background,
-        geography: input.geography,
+        geography: input.geography ?? (structuredFields.geography as string | null | undefined) ?? null,
         cultures: input.cultures,
         magicSystem: input.magicSystem,
-        politics: input.politics,
+        politics: input.politics ?? (structuredFields.politics as string | null | undefined) ?? null,
         races: input.races,
         religions: input.religions,
         technology: input.technology,
-        conflicts: input.conflicts,
+        conflicts: input.conflicts ?? (structuredFields.conflicts as string | null | undefined) ?? null,
         history: input.history,
         economy: input.economy,
-        factions: input.factions,
+        factions: input.factions ?? (structuredFields.factions as string | null | undefined) ?? null,
         selectedDimensions: input.selectedDimensions,
         selectedElements: input.selectedElements,
         status: "draft",
         layerStates: JSON.stringify(normalizeLayerStates(undefined)),
+        overviewSummary: (structuredFields.overviewSummary as string | null | undefined) ?? null,
+        structureJson: structuredFields.structureJson as string,
+        bindingSupportJson: structuredFields.bindingSupportJson as string,
+        structureSchemaVersion: WORLD_STRUCTURE_SCHEMA_VERSION,
       },
     });
     if (knowledgeDocumentIds.length > 0) {
@@ -1066,20 +1276,37 @@ export class WorldService {
     if (!world) {
       throw new Error("World not found.");
     }
+    const { structure: _structure, bindingSupport: _bindingSupport, ...legacyInput } = input;
 
     const states = normalizeLayerStates(world.layerStates);
     for (const layer of WORLD_LAYER_ORDER) {
       const watched = LAYER_FIELD_MAP[layer];
-      if (watched.some((field) => typeof input[field] === "string")) {
+      if (watched.some((field) => typeof legacyInput[field] === "string")) {
         states[layer] = { ...states[layer], status: "generated", updatedAt: nowISO() };
         markDownstreamStale(states, layer);
       }
     }
 
+    let structuredUpdate: Record<string, unknown> = {};
+    if (input.structure || input.bindingSupport) {
+      const { structure: currentStructure, bindingSupport: currentBindingSupport } = parseWorldStructurePayload(
+        world.structureJson,
+        world.bindingSupportJson,
+      );
+      const nextStructure = input.structure
+        ? normalizeWorldStructuredData(input.structure, currentStructure)
+        : currentStructure;
+      const nextBindingSupport = input.bindingSupport
+        ? normalizeWorldBindingSupport(input.bindingSupport, currentBindingSupport)
+        : buildWorldBindingSupport(nextStructure);
+      structuredUpdate = applyStructuredWorldToLegacyFields(nextStructure, world, nextBindingSupport);
+    }
+
     const updated = await prisma.world.update({
       where: { id },
       data: {
-        ...input,
+        ...legacyInput,
+        ...structuredUpdate,
         layerStates: JSON.stringify(states),
       },
     });
@@ -1183,9 +1410,30 @@ ${blueprintPromptBlock}`,
   }
 
   async updateAxioms(worldId: string, axioms: string[]) {
+    const world = await prisma.world.findUnique({ where: { id: worldId } });
+    if (!world) {
+      throw new Error("World not found.");
+    }
+
+    const parsed = parseWorldStructurePayload(world.structureJson, world.bindingSupportJson);
+    const nextStructure = {
+      ...parsed.structure,
+      rules: {
+        ...parsed.structure.rules,
+        axioms: buildStructuredRulesFromAxiomTexts(axioms),
+      },
+      metadata: {
+        ...parsed.structure.metadata,
+        lastGeneratedAt: nowISO(),
+      },
+    };
+    const nextBindingSupport = buildWorldBindingSupport(nextStructure);
+    const structuredFields = applyStructuredWorldToLegacyFields(nextStructure, world, nextBindingSupport);
+
     const updated = await prisma.world.update({
       where: { id: worldId },
       data: {
+        ...structuredFields,
         axioms: JSON.stringify(axioms),
         version: { increment: 1 },
       },
@@ -1825,6 +2073,18 @@ ragContext=${ragContext || "none"}`,
     if (!world) {
       throw new Error("World not found.");
     }
+    const structuredPayload = parseWorldStructurePayload(world.structureJson, world.bindingSupportJson);
+    if (structuredPayload.hasStructuredData) {
+      const structuredOverview = buildWorldStructureOverview(
+        structuredPayload.structure,
+        structuredPayload.bindingSupport,
+      );
+      return {
+        worldId,
+        summary: structuredOverview.summary,
+        sections: structuredOverview.sections,
+      };
+    }
     const sections = [
       { key: "description", title: "Overview", content: world.description ?? "N/A" },
       { key: "background", title: "Background", content: world.background ?? "N/A" },
@@ -1850,6 +2110,197 @@ ragContext=${ragContext || "none"}`,
       worldId,
       summary,
       sections,
+    };
+  }
+
+  async getStructure(worldId: string) {
+    const world = await prisma.world.findUnique({ where: { id: worldId } });
+    if (!world) {
+      throw new Error("World not found.");
+    }
+
+    const parsed = parseWorldStructurePayload(world.structureJson, world.bindingSupportJson);
+    if (parsed.hasStructuredData) {
+      return {
+        worldId,
+        hasStructuredData: true,
+        structure: parsed.structure,
+        bindingSupport: parsed.bindingSupport,
+      };
+    }
+
+    const seededStructure = buildWorldStructureSeedFromSource(world);
+    return {
+      worldId,
+      hasStructuredData: false,
+      structure: seededStructure,
+      bindingSupport: buildWorldBindingSupport(seededStructure),
+    };
+  }
+
+  async updateStructure(worldId: string, input: StructureUpdateInput) {
+    const world = await prisma.world.findUnique({ where: { id: worldId } });
+    if (!world) {
+      throw new Error("World not found.");
+    }
+
+    const nextStructure = normalizeWorldStructuredData(input.structure);
+    nextStructure.metadata = {
+      ...nextStructure.metadata,
+      schemaVersion: WORLD_STRUCTURE_SCHEMA_VERSION,
+    };
+    const nextBindingSupport = input.bindingSupport
+      ? normalizeWorldBindingSupport(input.bindingSupport)
+      : buildWorldBindingSupport(nextStructure);
+    const structuredFields = applyStructuredWorldToLegacyFields(nextStructure, world, nextBindingSupport);
+
+    const updated = await prisma.world.update({
+      where: { id: worldId },
+      data: {
+        ...structuredFields,
+        version: { increment: 1 },
+      },
+    });
+    await this.createSnapshot(worldId, "structure-saved");
+    this.queueRagUpsert("world", worldId);
+    return {
+      world: updated,
+      structure: nextStructure,
+      bindingSupport: nextBindingSupport,
+    };
+  }
+
+  async backfillStructure(worldId: string, options: StructureBackfillInput) {
+    const world = await prisma.world.findUnique({ where: { id: worldId } });
+    if (!world) {
+      throw new Error("World not found.");
+    }
+
+    const llm = await getLLM(options.provider ?? "deepseek", {
+      model: options.model,
+      temperature: 0.2,
+      taskType: "planner",
+    });
+    const result = await llm.invoke([
+      new SystemMessage(
+        `你是世界结构化提取器。请根据输入文本提取世界结构，并且只能输出 JSON 对象。
+JSON 结构必须为：
+{
+  "profile": {"summary":"...","identity":"...","tone":"...","themes":["..."],"coreConflict":"..."},
+  "rules": {"summary":"...","axioms":[{"id":"rule-1","name":"...","summary":"...","cost":"...","boundary":"...","enforcement":"..."}],"taboo":["..."],"sharedConsequences":["..."]},
+  "factions": [{"id":"faction-1","name":"...","position":"...","doctrine":"...","goals":["..."],"methods":["..."],"representativeForceIds":["force-1"]}],
+  "forces": [{"id":"force-1","name":"...","type":"...","factionId":"faction-1","summary":"...","baseOfPower":"...","currentObjective":"...","pressure":"...","leader":"...","narrativeRole":"..."}],
+  "locations": [{"id":"location-1","name":"...","terrain":"...","summary":"...","narrativeFunction":"...","risk":"...","entryConstraint":"...","exitCost":"...","controllingForceIds":["force-1"]}],
+  "relations": {
+    "forceRelations": [{"id":"force-relation-1","sourceForceId":"force-1","targetForceId":"force-2","relation":"...","tension":"...","detail":"..."}],
+    "locationControls": [{"id":"location-control-1","forceId":"force-1","locationId":"location-1","relation":"...","detail":"..."}]
+  }
+}
+要求：
+1. 只能提取文本里明确存在或强可推断的信息。
+2. 所有值必须使用简体中文。
+3. faction 是抽象阵营、立场或路线；force 是具体组织、圈层、公司、部门或网络。
+4. 像“社会压力机制”“行业运作规则”“人际法则”这类世界默认机制必须提取到 rules，不要写进 factions / forces。
+5. 不要输出解释，不要输出 Markdown，不要增加额外字段。`,
+      ),
+      new HumanMessage(buildWorldStructurePromptSource(world)),
+    ]);
+
+    const rawStructure = safeParseJSON<unknown>(extractJSONObject(String(result.content)), null);
+    if (!rawStructure) {
+      throw new Error("AI failed to produce valid structured world JSON.");
+    }
+    const nextStructure = normalizeWorldStructuredData(rawStructure, buildWorldStructureFromLegacySource(world));
+    nextStructure.metadata = {
+      ...nextStructure.metadata,
+      schemaVersion: WORLD_STRUCTURE_SCHEMA_VERSION,
+      seededFrom: "ai-backfill",
+      lastBackfilledAt: nowISO(),
+    };
+    const nextBindingSupport = buildWorldBindingSupport(nextStructure);
+    const structuredFields = applyStructuredWorldToLegacyFields(nextStructure, world, nextBindingSupport);
+
+    const updated = await prisma.world.update({
+      where: { id: worldId },
+      data: {
+        ...structuredFields,
+        version: { increment: 1 },
+      },
+    });
+    await this.createSnapshot(worldId, "structure-backfill");
+    this.queueRagUpsert("world", worldId);
+
+    return {
+      world: updated,
+      structure: nextStructure,
+      bindingSupport: nextBindingSupport,
+      source: "ai-backfill" as const,
+    };
+  }
+
+  async generateStructure(worldId: string, input: StructureGenerateInput) {
+    const world = await prisma.world.findUnique({ where: { id: worldId } });
+    if (!world) {
+      throw new Error("World not found.");
+    }
+
+    const stored = parseWorldStructurePayload(world.structureJson, world.bindingSupportJson);
+    const currentStructure = input.structure
+      ? normalizeWorldStructuredData(input.structure, stored.structure)
+      : (stored.hasStructuredData ? stored.structure : buildWorldStructureSeedFromSource(world));
+    const currentBindingSupport = input.bindingSupport
+      ? normalizeWorldBindingSupport(input.bindingSupport, stored.bindingSupport)
+      : buildWorldBindingSupport(currentStructure);
+
+    const llm = await getLLM(input.provider ?? "deepseek", {
+      model: input.model,
+      temperature: 0.4,
+      taskType: "planner",
+    });
+    const result = await llm.invoke([
+      new SystemMessage(
+        `你是世界结构化补全器。请只补全 section=${input.section} 对应的 JSON，不能输出解释。
+${buildStructureSectionInstructions(input.section)}
+要求：
+1. 不要破坏已有 ID；如果沿用现有实体，请复用当前结构中的 id。
+2. 不要编造与现有文本明显冲突的信息。
+3. 阵营与势力区块必须同时考虑 factions 和 forces。
+4. 如果 section=factions，禁止把社会压力机制、行业规则、人际法则这类世界默认机制写进 factions / forces，它们应属于 rules。
+5. 地点区块必须填写 narrativeFunction、risk、entryConstraint、exitCost。
+6. 关系区块只允许 forceRelations 和 locationControls。`,
+      ),
+      new HumanMessage(
+        [
+          buildWorldStructurePromptSource(world),
+          "当前结构：",
+          JSON.stringify(currentStructure, null, 2),
+          "当前绑定建议：",
+          JSON.stringify(currentBindingSupport, null, 2),
+        ].join("\n\n"),
+      ),
+    ]);
+
+    const rawSection = input.section === "locations"
+      ? safeParseJSON<unknown>(extractJSONArray(String(result.content)), null)
+      : safeParseJSON<unknown>(extractJSONObject(String(result.content)), null);
+    if (rawSection == null) {
+      throw new Error("AI failed to produce valid structure section JSON.");
+    }
+
+    const mergedStructure = mergeWorldStructureSection(currentStructure, input.section, rawSection);
+    mergedStructure.metadata = {
+      ...mergedStructure.metadata,
+      schemaVersion: WORLD_STRUCTURE_SCHEMA_VERSION,
+      lastGeneratedAt: nowISO(),
+      lastSectionGenerated: input.section,
+    };
+    const nextBindingSupport = buildWorldBindingSupport(mergedStructure);
+
+    return {
+      worldId,
+      section: input.section,
+      structure: mergedStructure,
+      bindingSupport: nextBindingSupport,
     };
   }
 
@@ -1907,6 +2358,65 @@ ragContext=${ragContext || "none"}`,
     });
     this.queueRagUpsert("world_library_item", itemId);
 
+    if (input.worldId && input.targetCollection) {
+      const world = await prisma.world.findUnique({ where: { id: input.worldId } });
+      if (!world) {
+        throw new Error("Target world not found.");
+      }
+      const parsed = parseWorldStructurePayload(world.structureJson, world.bindingSupportJson);
+      const baseStructure = parsed.hasStructuredData ? parsed.structure : buildWorldStructureSeedFromSource(world);
+      const nextStructure = normalizeWorldStructuredData({
+        ...baseStructure,
+        forces: input.targetCollection === "forces"
+          ? [
+            ...baseStructure.forces,
+            {
+              id: `force-library-${item.id}`,
+              name: item.name,
+              type: item.category,
+              factionId: null,
+              summary: item.description ?? "",
+              baseOfPower: "",
+              currentObjective: "",
+              pressure: "",
+              leader: null,
+              narrativeRole: "素材库注入",
+            },
+          ]
+          : baseStructure.forces,
+        locations: input.targetCollection === "locations"
+          ? [
+            ...baseStructure.locations,
+            {
+              id: `location-library-${item.id}`,
+              name: item.name,
+              terrain: item.category,
+              summary: item.description ?? "",
+              narrativeFunction: "素材库注入",
+              risk: "",
+              entryConstraint: "",
+              exitCost: "",
+              controllingForceIds: [],
+            },
+          ]
+          : baseStructure.locations,
+      }, baseStructure);
+      const nextBindingSupport = buildWorldBindingSupport(nextStructure);
+      const structuredFields = applyStructuredWorldToLegacyFields(nextStructure, world, nextBindingSupport);
+      await prisma.world.update({
+        where: { id: input.worldId },
+        data: structuredFields,
+      });
+      await this.createSnapshot(input.worldId, `library-use-${item.name}`);
+      this.queueRagUpsert("world", input.worldId);
+      return {
+        itemId,
+        injected: true,
+        worldId: input.worldId,
+        targetCollection: input.targetCollection,
+      };
+    }
+
     if (input.worldId && input.targetField) {
       const world = await prisma.world.findUnique({ where: { id: input.worldId } });
       if (!world) {
@@ -1921,9 +2431,9 @@ ragContext=${ragContext || "none"}`,
       });
       await this.createSnapshot(input.worldId, `library-use-${item.name}`);
       this.queueRagUpsert("world", input.worldId);
-      return { itemId, injected: true, worldId: input.worldId };
+      return { itemId, injected: true, worldId: input.worldId, targetCollection: null };
     }
-    return { itemId, injected: false, worldId: null };
+    return { itemId, injected: false, worldId: null, targetCollection: null };
   }
 
   async listSnapshots(worldId: string) {
@@ -1981,6 +2491,9 @@ ragContext=${ragContext || "none"}`,
         layerStates: (parsed.layerStates as string | null | undefined) ?? null,
         consistencyReport: (parsed.consistencyReport as string | null | undefined) ?? null,
         overviewSummary: (parsed.overviewSummary as string | null | undefined) ?? null,
+        structureJson: (parsed.structureJson as string | null | undefined) ?? null,
+        bindingSupportJson: (parsed.bindingSupportJson as string | null | undefined) ?? null,
+        structureSchemaVersion: Number(parsed.structureSchemaVersion ?? WORLD_STRUCTURE_SCHEMA_VERSION),
         version: { increment: 1 },
       },
     });
@@ -2012,6 +2525,7 @@ ragContext=${ragContext || "none"}`,
     if (!world) {
       throw new Error("World not found.");
     }
+    const structuredPayload = parseWorldStructurePayload(world.structureJson, world.bindingSupportJson);
 
     if (format === "json") {
       return {
@@ -2035,7 +2549,41 @@ ragContext=${ragContext || "none"}`,
           history: world.history,
           economy: world.economy,
           factions: world.factions,
+          structure: structuredPayload.hasStructuredData ? structuredPayload.structure : null,
+          bindingSupport: structuredPayload.hasStructuredData ? structuredPayload.bindingSupport : null,
+          structureSchemaVersion: world.structureSchemaVersion ?? WORLD_STRUCTURE_SCHEMA_VERSION,
         }, null, 2),
+      };
+    }
+
+    if (structuredPayload.hasStructuredData) {
+      const overview = buildWorldStructureOverview(
+        structuredPayload.structure,
+        structuredPayload.bindingSupport,
+      );
+      const markdown = [
+        `# ${world.name}`,
+        "",
+        `> Type: ${world.worldType ?? "N/A"} | Status: ${world.status} | Version: v${world.version}`,
+        "",
+        "## Summary",
+        overview.summary,
+        "",
+        ...overview.sections.flatMap((section) => [ `## ${section.title}`, section.content || "N/A", "" ]),
+        "## Binding Support",
+        [
+          ...structuredPayload.bindingSupport.recommendedEntryPoints.map((item) => `- 进入点：${item}`),
+          ...structuredPayload.bindingSupport.highPressureForces.map((item) => `- 高压势力：${item}`),
+          ...structuredPayload.bindingSupport.compatibleConflicts.map((item) => `- 兼容冲突：${item}`),
+          ...structuredPayload.bindingSupport.forbiddenCombinations.map((item) => `- 避免组合：${item}`),
+        ].join("\n") || "N/A",
+        "",
+      ].join("\n");
+
+      return {
+        format: "markdown" as const,
+        fileName: `${world.name}.world.md`,
+        content: markdown,
       };
     }
 
@@ -2086,8 +2634,17 @@ ragContext=${ragContext || "none"}`,
     }
 
     let payload: Partial<CreateWorldInput> = {};
+    let importedStructure: WorldStructuredData | null = null;
+    let importedBindingSupport: WorldBindingSupport | null = null;
     if (input.format === "json") {
-      payload = safeParseJSON<Partial<CreateWorldInput>>(input.content, {});
+      const parsed = safeParseJSON<Record<string, unknown>>(input.content, {});
+      payload = parsed as Partial<CreateWorldInput>;
+      if (parsed.structure) {
+        importedStructure = normalizeWorldStructuredData(parsed.structure);
+      }
+      if (parsed.bindingSupport) {
+        importedBindingSupport = normalizeWorldBindingSupport(parsed.bindingSupport);
+      }
     } else if (input.format === "markdown") {
       payload = this.parseMarkdownToWorld(input.content);
     } else {
@@ -2107,27 +2664,59 @@ Output JSON only.`,
       payload = safeParseJSON<Partial<CreateWorldInput>>(extractJSONObject(String(result.content)), {});
     }
 
+    const baseSource = {
+      id: "",
+      name: payload.name ?? input.name ?? `imported-world-${Date.now()}`,
+      worldType: payload.worldType ?? "custom",
+      description: payload.description ?? null,
+      overviewSummary: null,
+      axioms: payload.axioms ?? null,
+      background: payload.background ?? null,
+      geography: payload.geography ?? null,
+      cultures: payload.cultures ?? null,
+      magicSystem: payload.magicSystem ?? null,
+      politics: payload.politics ?? null,
+      races: payload.races ?? null,
+      religions: payload.religions ?? null,
+      technology: payload.technology ?? null,
+      conflicts: payload.conflicts ?? null,
+      history: payload.history ?? null,
+      economy: payload.economy ?? null,
+      factions: payload.factions ?? null,
+      selectedElements: payload.selectedElements ?? null,
+      structureJson: null,
+      bindingSupportJson: null,
+      structureSchemaVersion: WORLD_STRUCTURE_SCHEMA_VERSION,
+    };
+    const nextStructure = importedStructure ?? buildWorldStructureSeedFromSource(baseSource);
+    const nextBindingSupport = importedBindingSupport ?? buildWorldBindingSupport(nextStructure);
+    const structuredFields = applyStructuredWorldToLegacyFields(nextStructure, baseSource, nextBindingSupport);
+
     const world = await prisma.world.create({
       data: {
-        name: payload.name ?? input.name ?? `imported-world-${Date.now()}`,
-        description: payload.description,
+        name: baseSource.name,
+        description: (structuredFields.description as string | null | undefined) ?? payload.description ?? null,
         worldType: payload.worldType ?? "custom",
         templateKey: payload.templateKey ?? "custom",
-        axioms: payload.axioms ?? null,
+        axioms: payload.axioms ?? (structuredFields.axioms as string | null | undefined) ?? null,
         background: payload.background,
-        geography: payload.geography,
+        geography: payload.geography ?? (structuredFields.geography as string | null | undefined) ?? null,
         cultures: payload.cultures,
         magicSystem: payload.magicSystem,
-        politics: payload.politics,
+        politics: payload.politics ?? (structuredFields.politics as string | null | undefined) ?? null,
         races: payload.races,
         religions: payload.religions,
         technology: payload.technology,
-        conflicts: payload.conflicts,
+        conflicts: payload.conflicts ?? (structuredFields.conflicts as string | null | undefined) ?? null,
         history: payload.history,
         economy: payload.economy,
-        factions: payload.factions,
+        factions: payload.factions ?? (structuredFields.factions as string | null | undefined) ?? null,
         status: "draft",
         layerStates: JSON.stringify(normalizeLayerStates(undefined)),
+        overviewSummary: (structuredFields.overviewSummary as string | null | undefined) ?? null,
+        structureJson: structuredFields.structureJson as string,
+        bindingSupportJson: structuredFields.bindingSupportJson as string,
+        structureSchemaVersion: WORLD_STRUCTURE_SCHEMA_VERSION,
       },
     });
     await this.createSnapshot(world.id, "import-initial");
@@ -2553,29 +3142,66 @@ input=${JSON.stringify(sourcePayload)}`,
       {},
     );
     const normalized = normalizeGeneratedWorldPayload(parsed, input.description);
+    const seededStructure = buildWorldStructureSeedFromSource({
+      id: "",
+      name: input.name,
+      worldType: input.worldType,
+      description: normalized.description,
+      overviewSummary: normalized.overviewSummary,
+      axioms: null,
+      background: normalized.background,
+      geography: normalized.geography,
+      cultures: normalized.cultures,
+      magicSystem: normalized.magicSystem,
+      politics: normalized.politics,
+      races: normalized.races,
+      religions: normalized.religions,
+      technology: normalized.technology,
+      conflicts: normalized.conflicts,
+      history: normalized.history,
+      economy: normalized.economy,
+      factions: normalized.factions,
+      selectedElements: null,
+      structureJson: null,
+      bindingSupportJson: null,
+      structureSchemaVersion: WORLD_STRUCTURE_SCHEMA_VERSION,
+    });
+    const bindingSupport = buildWorldBindingSupport(seededStructure);
+    const structuredFields = applyStructuredWorldToLegacyFields(seededStructure, {
+      description: normalized.description,
+      overviewSummary: normalized.overviewSummary,
+      axioms: null,
+      geography: normalized.geography,
+      politics: normalized.politics,
+      conflicts: normalized.conflicts,
+      factions: normalized.factions,
+    }, bindingSupport);
     const world = await prisma.world.create({
       data: {
         name: input.name,
         worldType: input.worldType,
-        description: normalized.description,
+        description: (structuredFields.description as string | null | undefined) ?? normalized.description,
         background: normalized.background,
-        geography: normalized.geography,
+        geography: (structuredFields.geography as string | null | undefined) ?? normalized.geography,
         cultures: normalized.cultures,
         magicSystem: normalized.magicSystem,
-        politics: normalized.politics,
+        politics: (structuredFields.politics as string | null | undefined) ?? normalized.politics,
         races: normalized.races,
         religions: normalized.religions,
         technology: normalized.technology,
-        conflicts: normalized.conflicts,
+        conflicts: (structuredFields.conflicts as string | null | undefined) ?? normalized.conflicts,
         history: normalized.history,
         economy: normalized.economy,
-        factions: normalized.factions,
+        factions: (structuredFields.factions as string | null | undefined) ?? normalized.factions,
         templateKey: "custom",
         status: "refining",
         selectedDimensions: normalized.selectedDimensions ?? JSON.stringify(input.dimensions),
         layerStates: normalized.layerStates ?? JSON.stringify(normalizeLayerStates(undefined)),
         consistencyReport: normalized.consistencyReport,
-        overviewSummary: normalized.overviewSummary,
+        overviewSummary: (structuredFields.overviewSummary as string | null | undefined) ?? normalized.overviewSummary,
+        structureJson: structuredFields.structureJson as string,
+        bindingSupportJson: structuredFields.bindingSupportJson as string,
+        structureSchemaVersion: WORLD_STRUCTURE_SCHEMA_VERSION,
       },
     });
     await this.createSnapshot(world.id, featureFlags.worldGraphEnabled ? "graph-generate" : "legacy-generate");
@@ -2609,6 +3235,9 @@ input=${JSON.stringify(sourcePayload)}`,
       layerStates: world.layerStates,
       consistencyReport: world.consistencyReport,
       overviewSummary: world.overviewSummary,
+      structureJson: world.structureJson,
+      bindingSupportJson: world.bindingSupportJson,
+      structureSchemaVersion: world.structureSchemaVersion,
       updatedAt: world.updatedAt,
     });
   }

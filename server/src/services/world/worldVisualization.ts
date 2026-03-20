@@ -2,6 +2,10 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { World as PrismaWorld } from "@prisma/client";
 import type { WorldVisualizationPayload } from "@ai-novel/shared/types/world";
 import { getLLM } from "../../llm/factory";
+import {
+  buildWorldBindingSupport,
+  parseWorldStructurePayload,
+} from "./worldStructure";
 
 type FactionNodeType = "state" | "faction" | "race" | "organization" | "other";
 
@@ -23,6 +27,8 @@ type VisualizationSource = Pick<
   | "history"
   | "economy"
   | "factions"
+  | "structureJson"
+  | "bindingSupportJson"
 >;
 
 interface VisualizationDraft {
@@ -433,6 +439,98 @@ function buildPowerTree(world: VisualizationSource): WorldVisualizationPayload["
     }));
 }
 
+function buildStructuredWorldVisualizationPayload(world: VisualizationSource): WorldVisualizationPayload | null {
+  const { structure, hasStructuredData } = parseWorldStructurePayload(world.structureJson, world.bindingSupportJson);
+  if (!hasStructuredData) {
+    return null;
+  }
+
+  const forceNodes = structure.forces.map((item) => ({
+    id: item.id,
+    label: item.name,
+    type: normalizeNodeType(item.type, item.name),
+  }));
+  const factionNodes = structure.factions
+    .filter((item) => !forceNodes.some((force) => force.label === item.name))
+    .map((item) => ({
+      id: item.id,
+      label: item.name,
+      type: "faction",
+    }));
+  const factionNodesMerged = [...forceNodes, ...factionNodes].slice(0, MAX_FACTION_NODES);
+  const factionNodeIds = new Set(factionNodesMerged.map((item) => item.id));
+  const factionEdges = structure.relations.forceRelations
+    .filter((item) => factionNodeIds.has(item.sourceForceId) && factionNodeIds.has(item.targetForceId))
+    .map((item) => ({
+      source: item.sourceForceId,
+      target: item.targetForceId,
+      relation: item.relation || "关联",
+    }))
+    .slice(0, MAX_FACTION_EDGES);
+
+  const geographyNodes = structure.locations
+    .map((item) => ({ id: item.id, label: item.name }))
+    .slice(0, MAX_GEO_NODES);
+  const geographyNodeIdSet = new Set(geographyNodes.map((item) => item.id));
+  const forceNameById = new Map(structure.forces.map((item) => [item.id, item.name]));
+  const geographyEdges = structure.relations.locationControls
+    .filter((item) => geographyNodeIdSet.has(item.locationId))
+    .reduce<Array<{ source: string; target: string; relation: string }>>((acc, relation, index, list) => {
+      const sibling = list.find(
+        (candidate, siblingIndex) =>
+          siblingIndex > index
+          && candidate.forceId === relation.forceId
+          && candidate.locationId !== relation.locationId
+          && geographyNodeIdSet.has(candidate.locationId),
+      );
+      if (!sibling) {
+        return acc;
+      }
+      acc.push({
+        source: relation.locationId,
+        target: sibling.locationId,
+        relation: `${forceNameById.get(relation.forceId) ?? relation.forceId}${relation.relation ? `:${relation.relation}` : "控制"}`,
+      });
+      return acc;
+    }, [])
+    .slice(0, MAX_FACTION_EDGES);
+
+  const powerTree = (
+    structure.rules.axioms.length > 0
+      ? structure.rules.axioms.map((item, index) => ({
+        level: `R${index + 1}`,
+        description: [item.name, item.summary].filter(Boolean).join("："),
+      }))
+      : buildPowerTree(world)
+  ).slice(0, MAX_POWER_ITEMS);
+
+  const bindingSupport = buildWorldBindingSupport(structure);
+  const timeline = bindingSupport.compatibleConflicts.length > 0
+    ? bindingSupport.compatibleConflicts.slice(0, MAX_TIMELINE_ITEMS).map((item, index) => ({
+      year: `阶段${index + 1}`,
+      event: item,
+    }))
+    : buildTimeline(world);
+
+  if (factionNodesMerged.length === 0 && geographyNodes.length === 0) {
+    return null;
+  }
+
+  return {
+    worldId: world.id,
+    factionGraph: {
+      nodes: factionNodesMerged.length > 0 ? factionNodesMerged : buildFallbackWorldVisualizationPayload(world).factionGraph.nodes,
+      edges: factionEdges.length > 0 ? factionEdges : buildFallbackWorldVisualizationPayload(world).factionGraph.edges,
+    },
+    powerTree,
+    geographyMap: {
+      nodes: geographyNodes.length > 0 ? geographyNodes : buildFallbackWorldVisualizationPayload(world).geographyMap.nodes,
+      edges: geographyEdges.length > 0 ? geographyEdges : buildFallbackWorldVisualizationPayload(world).geographyMap.edges,
+    },
+    timeline,
+  };
+}
+
 function buildTimeline(world: VisualizationSource): WorldVisualizationPayload["timeline"] {
   return parseListFromText(world.history ?? "", ["当前历史脉络尚未明确"])
     .slice(0, MAX_TIMELINE_ITEMS)
@@ -585,6 +683,10 @@ function sanitizeVisualizationPayload(
 }
 
 export async function buildWorldVisualizationPayload(world: VisualizationSource): Promise<WorldVisualizationPayload> {
+  const structured = buildStructuredWorldVisualizationPayload(world);
+  if (structured) {
+    return structured;
+  }
   const fallback = buildFallbackWorldVisualizationPayload(world);
   const draft = await tryBuildWorldVisualizationWithLLM(world);
   return sanitizeVisualizationPayload(world, draft, fallback);

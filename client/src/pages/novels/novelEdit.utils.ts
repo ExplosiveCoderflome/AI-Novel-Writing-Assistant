@@ -44,3 +44,11 @@ export function buildWorldInjectionSummary(world: WorldContextSummaryInput | nul
   ];
   return lines.join("\n");
 }
+
+export function replaceFirstOccurrence(source: string, target: string, replacement: string): string {
+  const index = source.indexOf(target);
+  if (index < 0) {
+    return source;
+  }
+  return source.slice(0, index) + replacement + source.slice(index + target.length);
+}

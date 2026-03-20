@@ -24,8 +24,132 @@ export interface World {
   layerStates?: string | null;
   consistencyReport?: string | null;
   overviewSummary?: string | null;
+  structureJson?: string | null;
+  bindingSupportJson?: string | null;
+  structureSchemaVersion?: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export type WorldStructureSectionKey =
+  | "profile"
+  | "rules"
+  | "factions"
+  | "locations"
+  | "relations";
+
+export interface WorldProfile {
+  summary: string;
+  identity: string;
+  tone: string;
+  themes: string[];
+  coreConflict: string;
+}
+
+export interface WorldRule {
+  id: string;
+  name: string;
+  summary: string;
+  cost: string;
+  boundary: string;
+  enforcement: string;
+}
+
+export interface WorldRules {
+  summary: string;
+  axioms: WorldRule[];
+  taboo: string[];
+  sharedConsequences: string[];
+}
+
+export interface WorldFaction {
+  id: string;
+  name: string;
+  position: string;
+  doctrine: string;
+  goals: string[];
+  methods: string[];
+  representativeForceIds: string[];
+}
+
+export interface WorldForce {
+  id: string;
+  name: string;
+  type: string;
+  factionId?: string | null;
+  summary: string;
+  baseOfPower: string;
+  currentObjective: string;
+  pressure: string;
+  leader?: string | null;
+  narrativeRole: string;
+}
+
+export interface WorldLocation {
+  id: string;
+  name: string;
+  terrain: string;
+  summary: string;
+  narrativeFunction: string;
+  risk: string;
+  entryConstraint: string;
+  exitCost: string;
+  controllingForceIds: string[];
+}
+
+export interface WorldForceRelation {
+  id: string;
+  sourceForceId: string;
+  targetForceId: string;
+  relation: string;
+  tension: string;
+  detail: string;
+}
+
+export interface WorldLocationControlRelation {
+  id: string;
+  forceId: string;
+  locationId: string;
+  relation: string;
+  detail: string;
+}
+
+export interface WorldRelations {
+  forceRelations: WorldForceRelation[];
+  locationControls: WorldLocationControlRelation[];
+}
+
+export interface WorldBindingLocationCluster {
+  id: string;
+  label: string;
+  locationIds: string[];
+  reason: string;
+}
+
+export interface WorldBindingSupport {
+  recommendedEntryPoints: string[];
+  highPressureForces: string[];
+  suggestedLocationClusters: WorldBindingLocationCluster[];
+  compatibleConflicts: string[];
+  forbiddenCombinations: string[];
+}
+
+export interface WorldStructureMeta {
+  schemaVersion: number;
+  seededFrom?: string | null;
+  lastBackfilledAt?: string | null;
+  lastGeneratedAt?: string | null;
+  lastSectionGenerated?: WorldStructureSectionKey | null;
+}
+
+export interface WorldStructuredData {
+  profile: WorldProfile;
+  rules: WorldRules;
+  factions: WorldFaction[];
+  forces: WorldForce[];
+  locations: WorldLocation[];
+  relations: WorldRelations;
+  metadata: WorldStructureMeta;
 }
 
 export interface WorldPropertyLibrary {

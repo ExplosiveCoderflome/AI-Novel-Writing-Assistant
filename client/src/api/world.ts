@@ -2,17 +2,23 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
   World,
+  WorldBindingSupport,
   WorldConsistencyIssue,
   WorldConsistencyReport,
   WorldDeepeningQuestion,
   WorldLayerKey,
   WorldSnapshot,
+  WorldStructuredData,
+  WorldStructureSectionKey,
   WorldTemplate,
   WorldVisualizationPayload,
 } from "@ai-novel/shared/types/world";
 import type {
   WorldOptionRefinementLevel,
   WorldPropertyOption,
+  WorldReferenceAnchor,
+  WorldReferenceMode,
+  WorldReferenceSeedBundle,
 } from "@ai-novel/shared/types/worldWizard";
 import { apiClient } from "./client";
 
@@ -65,6 +71,35 @@ export type WorldDetail = World & {
   snapshots?: WorldSnapshot[];
 };
 
+export interface WorldStructurePayload {
+  worldId: string;
+  hasStructuredData?: boolean;
+  structure: WorldStructuredData;
+  bindingSupport: WorldBindingSupport;
+}
+
+export interface WorldInspirationAnalysisResult {
+  mode: string;
+  conceptCard: {
+    worldType: string;
+    templateKey: string;
+    coreImagery: string[];
+    tone: string;
+    keywords: string[];
+    summary: string;
+  };
+  propertyOptions?: WorldPropertyOption[];
+  referenceAnchors?: WorldReferenceAnchor[];
+  referenceSeeds?: WorldReferenceSeedBundle;
+  sourceMeta?: {
+    extracted: boolean;
+    originalLength: number;
+    chunkCount: number;
+  };
+}
+
+export const WORLD_INSPIRATION_ANALYZE_STREAM_PATH = "/worlds/inspiration/analyze/stream";
+
 export async function getWorldList() {
   const { data } = await apiClient.get<ApiResponse<World[]>>("/worlds");
   return data;
@@ -75,13 +110,78 @@ export async function getWorldDetail(id: string) {
   return data;
 }
 
-export async function createWorld(payload: Partial<World> & { name: string; knowledgeDocumentIds?: string[] }) {
+export async function createWorld(
+  payload: Partial<World> & {
+    name: string;
+    knowledgeDocumentIds?: string[];
+    structure?: WorldStructuredData;
+    bindingSupport?: WorldBindingSupport;
+  },
+) {
   const { data } = await apiClient.post<ApiResponse<World>>("/worlds", payload);
   return data;
 }
 
-export async function updateWorld(id: string, payload: Partial<World>) {
+export async function updateWorld(
+  id: string,
+  payload: Partial<World> & { structure?: WorldStructuredData; bindingSupport?: WorldBindingSupport },
+) {
   const { data } = await apiClient.put<ApiResponse<World>>(`/worlds/${id}`, payload);
+  return data;
+}
+
+export async function getWorldStructure(id: string) {
+  const { data } = await apiClient.get<ApiResponse<WorldStructurePayload>>(`/worlds/${id}/structure`);
+  return data;
+}
+
+export async function updateWorldStructure(
+  id: string,
+  payload: {
+    structure: WorldStructuredData;
+    bindingSupport?: WorldBindingSupport;
+  },
+) {
+  const { data } = await apiClient.put<ApiResponse<{
+    world: World;
+    structure: WorldStructuredData;
+    bindingSupport: WorldBindingSupport;
+  }>>(`/worlds/${id}/structure`, payload);
+  return data;
+}
+
+export async function backfillWorldStructure(
+  id: string,
+  payload?: {
+    provider?: LLMProvider;
+    model?: string;
+  },
+) {
+  const { data } = await apiClient.post<ApiResponse<{
+    world: World;
+    structure: WorldStructuredData;
+    bindingSupport: WorldBindingSupport;
+    source: "ai-backfill";
+  }>>(`/worlds/${id}/structure/backfill`, payload ?? {});
+  return data;
+}
+
+export async function generateWorldStructure(
+  id: string,
+  payload: {
+    section: WorldStructureSectionKey;
+    structure?: WorldStructuredData;
+    bindingSupport?: WorldBindingSupport;
+    provider?: LLMProvider;
+    model?: string;
+  },
+) {
+  const { data } = await apiClient.post<ApiResponse<{
+    worldId: string;
+    section: WorldStructureSectionKey;
+    structure: WorldStructuredData;
+    bindingSupport: WorldBindingSupport;
+  }>>(`/worlds/${id}/structure/generate`, payload);
   return data;
 }
 
@@ -100,29 +200,17 @@ export async function analyzeWorldInspiration(payload: {
   mode?: "free" | "reference" | "random";
   worldType?: string;
   knowledgeDocumentIds?: string[];
+  referenceMode?: WorldReferenceMode;
+  preserveElements?: string[];
+  allowedChanges?: string[];
+  forbiddenElements?: string[];
   refinementLevel?: WorldOptionRefinementLevel;
   optionsCount?: number;
   provider?: LLMProvider;
   model?: string;
 }) {
   const { data } = await apiClient.post<
-    ApiResponse<{
-      mode: string;
-      conceptCard: {
-        worldType: string;
-        templateKey: string;
-        coreImagery: string[];
-        tone: string;
-        keywords: string[];
-        summary: string;
-      };
-      propertyOptions?: WorldPropertyOption[];
-      sourceMeta?: {
-        extracted: boolean;
-        originalLength: number;
-        chunkCount: number;
-      };
-    }>
+    ApiResponse<WorldInspirationAnalysisResult>
   >("/worlds/inspiration/analyze", payload);
   return data;
 }
@@ -308,12 +396,14 @@ export async function useWorldLibraryItem(
       | "history"
       | "economy"
       | "factions";
+    targetCollection?: "forces" | "locations";
   },
 ) {
   const { data } = await apiClient.post<ApiResponse<{
     itemId: string;
     injected: boolean;
     worldId: string | null;
+    targetCollection?: "forces" | "locations" | null;
   }>>(`/worlds/library/${libraryId}/use`, payload ?? {});
   return data;
 }

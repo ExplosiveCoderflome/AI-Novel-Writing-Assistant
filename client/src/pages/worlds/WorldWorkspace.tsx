@@ -1,15 +1,13 @@
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import LLMSelector from "@/components/common/LLMSelector";
-import StreamOutput from "@/components/common/StreamOutput";
 import KnowledgeBindingPanel from "@/components/knowledge/KnowledgeBindingPanel";
 import {
   answerWorldDeepeningQuestions,
+  backfillWorldStructure,
   checkWorldConsistency,
   confirmWorldLayer,
   createWorldLibraryItem,
@@ -19,152 +17,47 @@ import {
   generateAllWorldLayers,
   generateWorldDeepeningQuestions,
   generateWorldLayer,
+  generateWorldStructure,
   getWorldDetail,
   getWorldOverview,
+  getWorldStructure,
   getWorldVisualization,
+  importWorldData,
   listWorldLibrary,
   listWorldSnapshots,
   patchWorldConsistencyIssue,
   restoreWorldSnapshot,
+  updateWorldAxioms,
   updateWorldLayer,
+  updateWorldStructure,
   useWorldLibraryItem,
-  importWorldData,
 } from "@/api/world";
 import { queryKeys } from "@/api/queryKeys";
 import { useLLMStore } from "@/store/llmStore";
 import { useSSE } from "@/hooks/useSSE";
 import { featureFlags } from "@/config/featureFlags";
-import WorldVisualizationBoard from "./components/WorldVisualizationBoard";
 import {
-  localizeConsistencyField,
-  localizeConsistencyIssueDetail,
-  localizeConsistencyIssueMessage,
-  localizeConsistencyIssueTitle,
-  localizeConsistencySeverity,
-  localizeConsistencySource,
-  localizeConsistencyStatus,
   parseConsistencyReport,
 } from "./worldConsistencyUi";
-
-const LAYERS: Array<{
-  key: "foundation" | "power" | "society" | "culture" | "history" | "conflict";
-  label: string;
-  primaryField:
-    | "background"
-    | "magicSystem"
-    | "politics"
-    | "cultures"
-    | "history"
-    | "conflicts";
-}> = [
-  { key: "foundation", label: "L1 基础层", primaryField: "background" },
-  { key: "power", label: "L2 力量层", primaryField: "magicSystem" },
-  { key: "society", label: "L3 社会层", primaryField: "politics" },
-  { key: "culture", label: "L4 文化层", primaryField: "cultures" },
-  { key: "history", label: "L5 历史层", primaryField: "history" },
-  { key: "conflict", label: "L6 冲突层", primaryField: "conflicts" },
-];
-
-type LayerKey = (typeof LAYERS)[number]["key"];
-type LayerField =
-  | "description"
-  | "background"
-  | "geography"
-  | "cultures"
-  | "magicSystem"
-  | "politics"
-  | "races"
-  | "religions"
-  | "technology"
-  | "conflicts"
-  | "history"
-  | "economy"
-  | "factions";
-
-const LAYER_STATUS_LABELS: Record<string, string> = {
-  pending: "待生成",
-  generated: "已生成",
-  confirmed: "已确认",
-  stale: "待重建",
-};
-
-const LAYER_FIELDS_BY_KEY: Record<LayerKey, LayerField[]> = {
-  foundation: ["background", "geography"],
-  power: ["magicSystem", "technology"],
-  society: ["politics", "races", "factions"],
-  culture: ["cultures", "religions", "economy"],
-  history: ["history"],
-  conflict: ["conflicts", "description"],
-};
-
-function normalizeLayerText(raw: unknown): string {
-  if (typeof raw === "string") {
-    return raw;
-  }
-  if (raw === null || raw === undefined) {
-    return "";
-  }
-  if (typeof raw === "object") {
-    try {
-      return JSON.stringify(raw, null, 2);
-    } catch {
-      return "";
-    }
-  }
-  return String(raw);
-}
-
-function pickLayerFieldText(
-  layerKey: LayerKey,
-  source: Record<string, unknown> | undefined,
-): string {
-  if (!source) {
-    return "";
-  }
-  for (const field of LAYER_FIELDS_BY_KEY[layerKey]) {
-    const text = normalizeLayerText(source[field]).trim();
-    if (text) {
-      return text;
-    }
-  }
-  return "";
-}
-
-type RefineAttribute =
-  | "description"
-  | "background"
-  | "geography"
-  | "cultures"
-  | "magicSystem"
-  | "politics"
-  | "races"
-  | "religions"
-  | "technology"
-  | "conflicts"
-  | "history"
-  | "economy"
-  | "factions";
-
-const REFINE_ATTRIBUTE_OPTIONS: Array<{ value: RefineAttribute; label: string }> = [
-  { value: "background", label: "基础背景" },
-  { value: "geography", label: "地理环境" },
-  { value: "cultures", label: "文化习俗" },
-  { value: "magicSystem", label: "力量体系" },
-  { value: "politics", label: "政治结构" },
-  { value: "races", label: "种族设定" },
-  { value: "religions", label: "宗教信仰" },
-  { value: "technology", label: "技术体系" },
-  { value: "history", label: "历史脉络" },
-  { value: "economy", label: "经济系统" },
-  { value: "conflicts", label: "核心冲突" },
-  { value: "description", label: "世界概述" },
-  { value: "factions", label: "势力关系" },
-];
+import WorldAssetsTab from "./components/workspace/WorldAssetsTab";
+import WorldAxiomsCard from "./components/workspace/WorldAxiomsCard";
+import WorldConsistencyTab from "./components/workspace/WorldConsistencyTab";
+import WorldDeepeningTab from "./components/workspace/WorldDeepeningTab";
+import WorldLayersTab from "./components/workspace/WorldLayersTab";
+import WorldOverviewTab from "./components/workspace/WorldOverviewTab";
+import WorldStructureTab from "./components/workspace/WorldStructureTab";
+import {
+  LAYERS,
+  parseLayerStates,
+  type LayerKey,
+  type RefineAttribute,
+} from "./components/workspace/worldWorkspaceShared";
 
 export default function WorldWorkspace() {
   const { id = "" } = useParams();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
+
   const [selectedLayer, setSelectedLayer] = useState<LayerKey>("foundation");
   const [layerDrafts, setLayerDrafts] = useState<Partial<Record<LayerKey, string>>>({});
   const [answerDrafts, setAnswerDrafts] = useState<Record<string, string>>({});
@@ -188,25 +81,26 @@ export default function WorldWorkspace() {
     queryFn: () => getWorldDetail(id),
     enabled: Boolean(id),
   });
-
+  const structureQuery = useQuery({
+    queryKey: queryKeys.worlds.structure(id),
+    queryFn: () => getWorldStructure(id),
+    enabled: Boolean(id),
+  });
   const overviewQuery = useQuery({
     queryKey: queryKeys.worlds.overview(id),
     queryFn: () => getWorldOverview(id),
     enabled: Boolean(id),
   });
-
   const visualizationQuery = useQuery({
     queryKey: queryKeys.worlds.visualization(id),
     queryFn: () => getWorldVisualization(id),
     enabled: Boolean(id) && featureFlags.worldVisEnabled,
   });
-
   const snapshotQuery = useQuery({
     queryKey: queryKeys.worlds.snapshots(id),
     queryFn: () => listWorldSnapshots(id),
     enabled: Boolean(id),
   });
-
   const libraryQuery = useQuery({
     queryKey: queryKeys.worlds.library(
       `${worldDetailQuery.data?.data?.worldType ?? "all"}-${libraryCategory}-${libraryKeyword}`,
@@ -231,83 +125,58 @@ export default function WorldWorkspace() {
     () => LAYERS.find((item) => item.key === selectedLayer) ?? LAYERS[0],
     [selectedLayer],
   );
+  const layerStates = useMemo(() => parseLayerStates(world?.layerStates), [world?.layerStates]);
+  const isInitialLayerGeneration = useMemo(
+    () => LAYERS.every((layer) => (layerStates[layer.key]?.status ?? "pending") === "pending"),
+    [layerStates],
+  );
+  const visibleDeepeningQuestions = useMemo(() => {
+    const list = world?.deepeningQA ?? [];
+    const actionable = list.filter((question) => question.status !== "integrated");
+    return (actionable.length > 0 ? actionable : list).slice(0, 3);
+  }, [world?.deepeningQA]);
 
   const invalidateWorld = async () => {
-    await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.detail(id) });
-    await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.overview(id) });
-    await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.visualization(id) });
-    await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.snapshots(id) });
-    await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.library("all") });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.worlds.detail(id) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.worlds.structure(id) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.worlds.overview(id) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.worlds.visualization(id) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.worlds.snapshots(id) }),
+    ]);
   };
 
   const generateLayerMutation = useMutation({
     mutationFn: (layerKey: LayerKey) =>
-      generateWorldLayer(id, layerKey, {
-        provider: llm.provider,
-        model: llm.model,
-        temperature: 0.7,
-      }),
+      generateWorldLayer(id, layerKey, { provider: llm.provider, model: llm.model, temperature: 0.7 }),
     onSuccess: async (response, layerKey) => {
-      const generated = pickLayerFieldText(
-        layerKey,
-        response.data?.generated as Record<string, unknown> | undefined,
-      );
-      if (generated.trim()) {
-        setLayerDrafts((prev) => ({ ...prev, [layerKey]: generated }));
+      const generated = response.data?.generated ?? {};
+      const text = Object.values(generated).find((item) => typeof item === "string" && item.trim()) ?? "";
+      if (typeof text === "string" && text.trim()) {
+        setLayerDrafts((prev) => ({ ...prev, [layerKey]: text }));
       }
       await invalidateWorld();
     },
   });
-
   const generateAllLayersMutation = useMutation({
-    mutationFn: () =>
-      generateAllWorldLayers(id, {
-        provider: llm.provider,
-        model: llm.model,
-        temperature: 0.7,
-      }),
-    onSuccess: async (response) => {
-      setLayerDrafts((prev) => {
-        const next = { ...prev };
-        for (const layer of LAYERS) {
-          const generated = pickLayerFieldText(
-            layer.key,
-            response.data?.generated?.[layer.key] as Record<string, unknown> | undefined,
-          );
-          if (generated.trim()) {
-            next[layer.key] = generated;
-          }
-        }
-        return next;
-      });
-      await invalidateWorld();
-    },
-  });
-
-  const saveLayerMutation = useMutation({
-    mutationFn: (payload: { layerKey: LayerKey; content: string }) =>
-      updateWorldLayer(id, payload.layerKey, payload.content),
+    mutationFn: () => generateAllWorldLayers(id, { provider: llm.provider, model: llm.model, temperature: 0.7 }),
     onSuccess: invalidateWorld,
   });
-
+  const saveLayerMutation = useMutation({
+    mutationFn: (payload: { layerKey: LayerKey; content: string }) => updateWorldLayer(id, payload.layerKey, payload.content),
+    onSuccess: invalidateWorld,
+  });
   const confirmLayerMutation = useMutation({
     mutationFn: (layerKey: LayerKey) => confirmWorldLayer(id, layerKey),
     onSuccess: invalidateWorld,
   });
-
   const deepeningQuestionMutation = useMutation({
-    mutationFn: () =>
-      generateWorldDeepeningQuestions(id, {
-        provider: llm.provider,
-        model: llm.model,
-      }),
+    mutationFn: () => generateWorldDeepeningQuestions(id, { provider: llm.provider, model: llm.model }),
     onSuccess: async (response) => {
       const nextMap: Record<string, string[]> = {};
       for (const item of response.data ?? []) {
-        const options = (item.quickOptions ?? [])
-          .map((option) => option.trim())
-          .filter(Boolean)
-          .slice(0, 4);
+        const options = (item.quickOptions ?? []).map((option) => option.trim()).filter(Boolean).slice(0, 4);
         if (options.length > 0) {
           nextMap[item.id] = options;
         }
@@ -318,7 +187,6 @@ export default function WorldWorkspace() {
       await invalidateWorld();
     },
   });
-
   const deepeningAnswerMutation = useMutation({
     mutationFn: () =>
       answerWorldDeepeningQuestions(
@@ -332,22 +200,28 @@ export default function WorldWorkspace() {
       await invalidateWorld();
     },
   });
-
   const consistencyMutation = useMutation({
-    mutationFn: () =>
-      checkWorldConsistency(id, {
-        provider: llm.provider,
-        model: llm.model,
-      }),
+    mutationFn: () => checkWorldConsistency(id, { provider: llm.provider, model: llm.model }),
     onSuccess: invalidateWorld,
   });
-
   const patchIssueMutation = useMutation({
     mutationFn: (payload: { issueId: string; status: "open" | "resolved" | "ignored" }) =>
       patchWorldConsistencyIssue(id, payload.issueId, payload.status),
     onSuccess: invalidateWorld,
   });
-
+  const saveStructureMutation = useMutation({
+    mutationFn: (payload: Parameters<typeof updateWorldStructure>[1]) => updateWorldStructure(id, payload),
+  });
+  const saveAxiomsMutation = useMutation({
+    mutationFn: (axioms: string[]) => updateWorldAxioms(id, axioms),
+    onSuccess: invalidateWorld,
+  });
+  const backfillStructureMutation = useMutation({
+    mutationFn: () => backfillWorldStructure(id, { provider: llm.provider, model: llm.model }),
+  });
+  const generateStructureMutation = useMutation({
+    mutationFn: (payload: Parameters<typeof generateWorldStructure>[1]) => generateWorldStructure(id, payload),
+  });
   const snapshotCreateMutation = useMutation({
     mutationFn: () => createWorldSnapshot(id, snapshotLabel || undefined),
     onSuccess: async () => {
@@ -355,33 +229,18 @@ export default function WorldWorkspace() {
       await invalidateWorld();
     },
   });
-
   const snapshotRestoreMutation = useMutation({
     mutationFn: (snapshotId: string) => restoreWorldSnapshot(id, snapshotId),
     onSuccess: invalidateWorld,
   });
-
   const snapshotDiffMutation = useMutation({
     mutationFn: () => diffWorldSnapshots(id, diffFrom, diffTo),
   });
-
-  const useLibraryMutation = useMutation({
-    mutationFn: (payload: { libraryId: string; targetField: typeof selectedLayerMeta.primaryField }) =>
-      useWorldLibraryItem(payload.libraryId, {
-        worldId: id,
-        targetField: payload.targetField,
-      }),
-    onSuccess: invalidateWorld,
-  });
-
   const publishLibraryMutation = useMutation({
     mutationFn: () =>
       createWorldLibraryItem({
         name: publishName.trim() || `${world?.name ?? "world"}-${selectedLayerMeta.key}`,
-        description:
-          publishDescription.trim()
-          || (world?.[selectedLayerMeta.primaryField] ?? "")?.slice(0, 240)
-          || "world setting item",
+        description: publishDescription.trim() || (world?.[selectedLayerMeta.primaryField] ?? "")?.slice(0, 240) || "world setting item",
         category: publishCategory,
         worldType: world?.worldType ?? undefined,
         sourceWorldId: id,
@@ -396,53 +255,28 @@ export default function WorldWorkspace() {
       });
     },
   });
-
   const importMutation = useMutation({
-    mutationFn: () =>
-      importWorldData({
-        format: importFormat,
-        content: importContent,
-        provider: llm.provider,
-        model: llm.model,
-      }),
-    onSuccess: async (response) => {
+    mutationFn: () => importWorldData({ format: importFormat, content: importContent, provider: llm.provider, model: llm.model }),
+    onSuccess: async () => {
       setImportContent("");
-      if (response.data?.id) {
-        await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all });
-      }
+      await invalidateWorld();
     },
   });
 
-  const refineSSE = useSSE({
-    onDone: invalidateWorld,
-  });
+  const refineSSE = useSSE({ onDone: invalidateWorld });
 
-  const layerStates = useMemo(() => {
-    try {
-      return JSON.parse(world?.layerStates ?? "{}") as Record<string, { status: string; updatedAt: string }>;
-    } catch {
-      return {};
+  const handleExport = async (format: "markdown" | "json") => {
+    const response = await exportWorldData(id, format);
+    if (response.data?.content) {
+      await navigator.clipboard.writeText(response.data.content);
     }
-  }, [world?.layerStates]);
-
-  const isInitialLayerGeneration = useMemo(
-    () => LAYERS.every((layer) => (layerStates[layer.key]?.status ?? "pending") === "pending"),
-    [layerStates],
-  );
-
-  const visibleDeepeningQuestions = useMemo(() => {
-    const list = world?.deepeningQA ?? [];
-    const actionable = list.filter((question) => question.status !== "integrated");
-    return (actionable.length > 0 ? actionable : list).slice(0, 3);
-  }, [world?.deepeningQA]);
+  };
 
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>
-            世界工作台：{world?.name ?? "加载中..."} {world?.version ? `(v${world.version})` : ""}
-          </CardTitle>
+          <CardTitle>世界工作台：{world?.name ?? "加载中..."} {world?.version ? `(v${world.version})` : ""}</CardTitle>
           <LLMSelector />
         </CardHeader>
       </Card>
@@ -450,565 +284,191 @@ export default function WorldWorkspace() {
       {id ? (
         <Card>
           <CardHeader>
-            <CardTitle>Reference Knowledge</CardTitle>
+            <CardTitle>参考资料</CardTitle>
           </CardHeader>
           <CardContent>
-            <KnowledgeBindingPanel targetType="world" targetId={id} title="World knowledge bindings" />
+            <KnowledgeBindingPanel targetType="world" targetId={id} title="已绑定的参考资料" />
           </CardContent>
         </Card>
       ) : null}
 
+      {id ? (
+        <WorldAxiomsCard
+          rawAxioms={world?.axioms}
+          savePending={saveAxiomsMutation.isPending}
+          onSave={(axioms) => saveAxiomsMutation.mutate(axioms)}
+        />
+      ) : null}
+
       <Tabs defaultValue="layers" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex flex-wrap">
+          <TabsTrigger value="structure">结构化设定</TabsTrigger>
           <TabsTrigger value="layers">分层构建</TabsTrigger>
           <TabsTrigger value="deepening">问答深化</TabsTrigger>
           <TabsTrigger value="consistency">一致性</TabsTrigger>
-          <TabsTrigger value="overview">总览{featureFlags.worldVisEnabled ? "可视化" : ""}</TabsTrigger>
+          <TabsTrigger value="overview">总览{featureFlags.worldVisEnabled ? "/可视化" : ""}</TabsTrigger>
           <TabsTrigger value="assets">素材/版本/导入导出</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="structure">
+          <WorldStructureTab
+            initialPayload={structureQuery.data?.data}
+            savePending={saveStructureMutation.isPending}
+            backfillPending={backfillStructureMutation.isPending}
+            generatePending={generateStructureMutation.isPending}
+            onSave={async (structure, bindingSupport) => {
+              await saveStructureMutation.mutateAsync({ structure, bindingSupport });
+              await invalidateWorld();
+            }}
+            onBackfill={async () => {
+              const response = await backfillStructureMutation.mutateAsync();
+              await invalidateWorld();
+              return response.data
+                ? { structure: response.data.structure, bindingSupport: response.data.bindingSupport }
+                : undefined;
+            }}
+            onGenerate={async (section, structure, bindingSupport) => {
+              const response = await generateStructureMutation.mutateAsync({
+                section,
+                structure,
+                bindingSupport,
+                provider: llm.provider,
+                model: llm.model,
+              });
+              return response.data
+                ? { structure: response.data.structure, bindingSupport: response.data.bindingSupport }
+                : undefined;
+            }}
+          />
+        </TabsContent>
+
         <TabsContent value="layers">
-          <Card>
-            <CardHeader>
-              <CardTitle>分层构建器</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-wrap items-center gap-2 rounded-md border p-3">
-                <Button
-                  onClick={() => generateAllLayersMutation.mutate()}
-                  disabled={generateAllLayersMutation.isPending || !world}
-                >
-                  {generateAllLayersMutation.isPending
-                    ? "六层生成中..."
-                    : isInitialLayerGeneration
-                      ? "首次 AI 生成六层"
-                      : "一键重建六层"}
-                </Button>
-                <div className="text-xs text-muted-foreground">
-                  {isInitialLayerGeneration
-                    ? "首次 AI 生成会并发构建 6 层。"
-                    : "首次生成已完成，支持单层 AI 重写。"}
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {LAYERS.map((layer) => {
-                  const hasDraft = Object.prototype.hasOwnProperty.call(layerDrafts, layer.key);
-                  const worldRecord = world as unknown as Record<string, unknown> | undefined;
-                  const layerValue = hasDraft
-                    ? (layerDrafts[layer.key] ?? "")
-                    : (pickLayerFieldText(layer.key, worldRecord)
-                      || normalizeLayerText(world?.[layer.primaryField] ?? ""));
-                  const layerStatus = layerStates[layer.key]?.status ?? "pending";
-                  const layerStatusLabel = LAYER_STATUS_LABELS[layerStatus] ?? layerStatus;
-                  const isGeneratingCurrentLayer =
-                    generateLayerMutation.isPending && generateLayerMutation.variables === layer.key;
-                  const isSavingCurrentLayer =
-                    saveLayerMutation.isPending && saveLayerMutation.variables?.layerKey === layer.key;
-                  const isConfirmingCurrentLayer =
-                    confirmLayerMutation.isPending && confirmLayerMutation.variables === layer.key;
-
-                  return (
-                    <div key={layer.key} className="rounded-md border p-3 space-y-2">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="font-medium">{layer.label}</div>
-                        <div className="text-xs text-muted-foreground">状态：{layerStatusLabel}</div>
-                      </div>
-                      <textarea
-                        className="min-h-[160px] w-full rounded-md border bg-background p-2 text-sm"
-                        value={layerValue}
-                        onFocus={() => setSelectedLayer(layer.key)}
-                        onChange={(event) =>
-                          setLayerDrafts((prev) => ({
-                            ...prev,
-                            [layer.key]: event.target.value,
-                          }))
-                        }
-                      />
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          onClick={() => {
-                            setSelectedLayer(layer.key);
-                            if (isInitialLayerGeneration) {
-                              generateAllLayersMutation.mutate();
-                              return;
-                            }
-                            generateLayerMutation.mutate(layer.key);
-                          }}
-                          disabled={generateAllLayersMutation.isPending || generateLayerMutation.isPending || !world}
-                        >
-                          {isInitialLayerGeneration
-                            ? generateAllLayersMutation.isPending
-                              ? "六层生成中..."
-                              : "首次 AI 生成六层"
-                            : isGeneratingCurrentLayer
-                              ? "重写中..."
-                              : "AI 重写本层"}
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          onClick={() => saveLayerMutation.mutate({ layerKey: layer.key, content: layerValue })}
-                          disabled={
-                            saveLayerMutation.isPending
-                            || generateAllLayersMutation.isPending
-                            || !layerValue.trim()
-                          }
-                        >
-                          {isSavingCurrentLayer ? "保存中..." : "手动保存本层"}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => confirmLayerMutation.mutate(layer.key)}
-                          disabled={confirmLayerMutation.isPending || generateAllLayersMutation.isPending}
-                        >
-                          {isConfirmingCurrentLayer ? "确认中..." : "确认本层"}
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="rounded-md border p-3">
-                <div className="mb-2 text-sm font-medium">精炼</div>
-                <div className="grid gap-2 md:grid-cols-4">
-                  <select
-                    className="rounded-md border bg-background p-2 text-sm"
-                    value={refineAttribute}
-                    onChange={(event) => setRefineAttribute(event.target.value as RefineAttribute)}
-                  >
-                    {REFINE_ATTRIBUTE_OPTIONS.map((item) => (
-                      <option key={item.value} value={item.value}>
-                        {item.label}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="rounded-md border bg-background p-2 text-sm"
-                    value={refineMode}
-                    onChange={(event) => setRefineMode(event.target.value as "replace" | "alternatives")}
-                  >
-                    <option value="replace">替换优化</option>
-                    <option value="alternatives">提供备选方案</option>
-                  </select>
-                  <select
-                    className="rounded-md border bg-background p-2 text-sm"
-                    value={refineLevel}
-                    onChange={(event) => setRefineLevel(event.target.value as "light" | "deep")}
-                  >
-                    <option value="light">轻度</option>
-                    <option value="deep">深度</option>
-                  </select>
-                  <Button
-                    onClick={() =>
-                      void refineSSE.start(`/worlds/${id}/refine`, {
-                        attribute: refineAttribute,
-                        currentValue: (world?.[refineAttribute] ?? "") || "N/A",
-                        refinementLevel: refineLevel,
-                        mode: refineMode,
-                        alternativesCount: 3,
-                        provider: llm.provider,
-                        model: llm.model,
-                      })
-                    }
-                    disabled={refineSSE.isStreaming}
-                  >
-                    {refineSSE.isStreaming ? "精炼中..." : "开始精炼"}
-                  </Button>
-                </div>
-                <StreamOutput content={refineSSE.content} isStreaming={refineSSE.isStreaming} onAbort={refineSSE.abort} />
-              </div>
-            </CardContent>
-          </Card>
+          <WorldLayersTab
+            world={world}
+            selectedLayer={selectedLayer}
+            setSelectedLayer={setSelectedLayer}
+            layerDrafts={layerDrafts}
+            setLayerDrafts={setLayerDrafts}
+            layerStates={layerStates}
+            isInitialLayerGeneration={isInitialLayerGeneration}
+            generateAllPending={generateAllLayersMutation.isPending}
+            generateLayerPending={generateLayerMutation.isPending}
+            generateLayerVariable={generateLayerMutation.variables}
+            saveLayerPending={saveLayerMutation.isPending}
+            saveLayerVariable={saveLayerMutation.variables}
+            confirmLayerPending={confirmLayerMutation.isPending}
+            confirmLayerVariable={confirmLayerMutation.variables}
+            onGenerateAll={() => generateAllLayersMutation.mutate()}
+            onGenerateLayer={(layerKey) => generateLayerMutation.mutate(layerKey)}
+            onSaveLayer={(payload) => saveLayerMutation.mutate(payload)}
+            onConfirmLayer={(layerKey) => confirmLayerMutation.mutate(layerKey)}
+            refineAttribute={refineAttribute}
+            setRefineAttribute={setRefineAttribute}
+            refineMode={refineMode}
+            setRefineMode={setRefineMode}
+            refineLevel={refineLevel}
+            setRefineLevel={setRefineLevel}
+            onStartRefine={() =>
+              void refineSSE.start(`/worlds/${id}/refine`, {
+                attribute: refineAttribute,
+                currentValue: (world?.[refineAttribute] ?? "") || "N/A",
+                refinementLevel: refineLevel,
+                mode: refineMode,
+                alternativesCount: 3,
+                provider: llm.provider,
+                model: llm.model,
+              })
+            }
+            refineStreaming={refineSSE.isStreaming}
+            refineContent={refineSSE.content}
+            onAbortRefine={refineSSE.abort}
+          />
         </TabsContent>
 
         <TabsContent value="deepening">
-          <Card>
-            <CardHeader>
-              <CardTitle>Deepening Q&A</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button onClick={() => deepeningQuestionMutation.mutate()} disabled={deepeningQuestionMutation.isPending}>
-                {deepeningQuestionMutation.isPending ? "生成中..." : "生成深化问题"}
-              </Button>
-              {visibleDeepeningQuestions.map((question) => {
-                const quickOptions = (question.quickOptions ?? llmQuickOptions[question.id] ?? [])
-                  .map((option) => option.trim())
-                  .filter(Boolean)
-                  .slice(0, 4);
-                return (
-                  <div key={question.id} className="rounded-md border p-3 space-y-2">
-                    <div className="text-sm font-medium">
-                      [{question.priority}] {question.question}
-                    </div>
-                    {quickOptions.length > 0 ? (
-                      <div className="space-y-1">
-                        <div className="text-xs text-muted-foreground">快捷选项（由模型返回，可一键填入）</div>
-                        <div className="flex flex-wrap gap-2">
-                          {quickOptions.map((option) => (
-                            <Button
-                              key={`${question.id}-${option}`}
-                              size="sm"
-                              variant={answerDrafts[question.id] === option ? "default" : "outline"}
-                              className="h-auto whitespace-normal text-left"
-                              onClick={() =>
-                                setAnswerDrafts((prev) => ({ ...prev, [question.id]: option }))
-                              }
-                            >
-                              {option}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-xs text-muted-foreground">
-                        当前问题未返回快捷选项，请直接填写回答。
-                      </div>
-                    )}
-                    <textarea
-                      className="min-h-[100px] w-full rounded-md border bg-background p-2 text-sm"
-                      value={answerDrafts[question.id] ?? ""}
-                      onChange={(event) =>
-                        setAnswerDrafts((prev) => ({ ...prev, [question.id]: event.target.value }))
-                      }
-                      placeholder="填写你的回答"
-                    />
-                    <div className="text-xs text-muted-foreground">
-                      target: {question.targetLayer ?? "-"} / {question.targetField ?? "-"} / status:{" "}
-                      {question.status}
-                    </div>
-                  </div>
-                );
-              })}
-              <Button
-                onClick={() => deepeningAnswerMutation.mutate()}
-                disabled={
-                  deepeningAnswerMutation.isPending
-                  || Object.keys(answerDrafts).length === 0
-                  || visibleDeepeningQuestions.length === 0
-                }
-              >
-                {deepeningAnswerMutation.isPending ? "整合中..." : "提交并整合回答"}
-              </Button>
-            </CardContent>
-          </Card>
+          <WorldDeepeningTab
+            questions={visibleDeepeningQuestions}
+            answerDrafts={answerDrafts}
+            setAnswerDrafts={setAnswerDrafts}
+            llmQuickOptions={llmQuickOptions}
+            generatePending={deepeningQuestionMutation.isPending}
+            submitPending={deepeningAnswerMutation.isPending}
+            onGenerate={() => deepeningQuestionMutation.mutate()}
+            onSubmit={() => deepeningAnswerMutation.mutate()}
+          />
         </TabsContent>
 
         <TabsContent value="consistency">
-          <Card>
-            <CardHeader>
-              <CardTitle>一致性检查</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button onClick={() => consistencyMutation.mutate()} disabled={consistencyMutation.isPending}>
-                {consistencyMutation.isPending ? "检查中..." : "运行一致性检查"}
-              </Button>
-              {consistencyReport ? (
-                <div className="grid gap-3 md:grid-cols-4">
-                  <div className="rounded-md border p-3 text-sm">
-                    <div className="text-xs text-muted-foreground">检查状态</div>
-                    <div className="mt-1 font-semibold">{localizeConsistencyStatus(consistencyReport.status)}</div>
-                  </div>
-                  <div className="rounded-md border p-3 text-sm">
-                    <div className="text-xs text-muted-foreground">一致性分数</div>
-                    <div className="mt-1 font-semibold">{consistencyReport.score}</div>
-                  </div>
-                  <div className="rounded-md border p-3 text-sm md:col-span-2">
-                    <div className="text-xs text-muted-foreground">检查摘要</div>
-                    <div className="mt-1 font-medium">{consistencyReport.summary}</div>
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      生成时间：{consistencyReport.generatedAt ? new Date(consistencyReport.generatedAt).toLocaleString() : "未知"}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-sm text-muted-foreground">暂无一致性报告</div>
-              )}
-              {consistencyIssues.map((issue) => (
-                <div key={issue.id} className="rounded-md border p-3 space-y-2">
-                  <div className="font-medium">
-                    [{localizeConsistencySeverity(issue.severity)}] {localizeConsistencyIssueTitle(issue.code)}
-                  </div>
-                  <div className="text-sm">{localizeConsistencyIssueMessage(issue)}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {localizeConsistencyIssueDetail(issue) ?? "暂无补充说明"}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    来源：{localizeConsistencySource(issue.source)} | 影响字段：{localizeConsistencyField(issue.targetField)} | 当前状态：{localizeConsistencyStatus(issue.status)}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => patchIssueMutation.mutate({ issueId: issue.id, status: "resolved" })}
-                    >
-                      标记已解决
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => patchIssueMutation.mutate({ issueId: issue.id, status: "ignored" })}
-                    >
-                      忽略
-                    </Button>
-                  </div>
-                </div>
-              ))}
-              {consistencyIssues.length === 0 ? (
-                <div className="rounded-md border p-3 text-sm text-muted-foreground">
-                  还没有一致性问题记录，运行检查后会在这里展示结果。
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
+          <WorldConsistencyTab
+            report={consistencyReport}
+            issues={consistencyIssues}
+            checkPending={consistencyMutation.isPending}
+            onCheck={() => consistencyMutation.mutate()}
+            onPatchIssue={(payload) => patchIssueMutation.mutate(payload)}
+          />
         </TabsContent>
 
         <TabsContent value="overview">
-          <Card>
-            <CardHeader>
-              <CardTitle>{featureFlags.worldVisEnabled ? "Overview + Visualization" : "Overview"}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="rounded-md border p-3 text-sm">
-                <div className="font-medium mb-1">Summary</div>
-                <div>{overviewQuery.data?.data?.summary ?? "N/A"}</div>
-              </div>
-              {(overviewQuery.data?.data?.sections ?? []).map((section) => (
-                <div key={section.key} className="rounded-md border p-3 text-sm">
-                  <div className="font-medium mb-1">{section.title}</div>
-                  <div className="whitespace-pre-wrap">{section.content}</div>
-                </div>
-              ))}
-              {featureFlags.worldVisEnabled ? (
-                <WorldVisualizationBoard payload={visualizationQuery.data?.data} />
-              ) : (
-                <div className="rounded-md border p-3 text-sm text-muted-foreground">
-                  可视化功能已关闭（`VITE_WORLD_VIS_ENABLED=false`）。
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <WorldOverviewTab
+            summary={overviewQuery.data?.data?.summary}
+            sections={overviewQuery.data?.data?.sections ?? []}
+            visualization={visualizationQuery.data?.data}
+          />
         </TabsContent>
 
         <TabsContent value="assets">
-          <Card>
-            <CardHeader>
-              <CardTitle>素材库 + 快照版本 + 导入导出</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-md border p-3 space-y-2">
-                <div className="font-medium">素材库</div>
-                <div className="grid gap-2 md:grid-cols-3">
-                  <Input
-                    placeholder="关键词"
-                    value={libraryKeyword}
-                    onChange={(event) => setLibraryKeyword(event.target.value)}
-                  />
-                  <select
-                    className="w-full rounded-md border bg-background p-2 text-sm"
-                    value={libraryCategory}
-                    onChange={(event) => setLibraryCategory(event.target.value)}
-                  >
-                    <option value="all">全部分类</option>
-                    <option value="terrain">地理地貌</option>
-                    <option value="race">种族</option>
-                    <option value="power_system">力量体系</option>
-                    <option value="organization">组织势力</option>
-                    <option value="resource">资源</option>
-                    <option value="event">事件</option>
-                    <option value="artifact">道具奇物</option>
-                    <option value="custom">自定义</option>
-                  </select>
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      queryClient.invalidateQueries({
-                        queryKey: queryKeys.worlds.library(
-                          `${worldDetailQuery.data?.data?.worldType ?? "all"}-${libraryCategory}-${libraryKeyword}`,
-                        ),
-                      })
-                    }
-                  >
-                    刷新
-                  </Button>
-                </div>
-                <div className="rounded-md border p-2 space-y-2">
-                  <div className="text-xs font-semibold text-muted-foreground">
-                    将当前设定发布到素材库
-                  </div>
-                  <div className="grid gap-2 md:grid-cols-3">
-                    <Input
-                      placeholder="素材名称"
-                      value={publishName}
-                      onChange={(event) => setPublishName(event.target.value)}
-                    />
-                    <select
-                      className="w-full rounded-md border bg-background p-2 text-sm"
-                      value={publishCategory}
-                      onChange={(event) => setPublishCategory(event.target.value)}
-                    >
-                      <option value="custom">自定义</option>
-                      <option value="terrain">地理地貌</option>
-                      <option value="race">种族</option>
-                      <option value="power_system">力量体系</option>
-                      <option value="organization">组织势力</option>
-                      <option value="resource">资源</option>
-                      <option value="event">事件</option>
-                      <option value="artifact">道具奇物</option>
-                    </select>
-                    <Button
-                      onClick={() => publishLibraryMutation.mutate()}
-                      disabled={publishLibraryMutation.isPending}
-                    >
-                      {publishLibraryMutation.isPending ? "发布中..." : "发布素材"}
-                    </Button>
-                  </div>
-                  <textarea
-                    className="min-h-[80px] w-full rounded-md border bg-background p-2 text-sm"
-                    value={publishDescription}
-                    onChange={(event) => setPublishDescription(event.target.value)}
-                    placeholder="可选描述（留空时默认使用当前分层内容）"
-                  />
-                </div>
-                {(libraryQuery.data?.data ?? []).map((item) => (
-                  <div key={item.id} className="flex items-center justify-between gap-2 rounded border p-2 text-sm">
-                    <div>
-                      <div>{item.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {item.category} / 使用次数={item.usageCount}
-                      </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        useLibraryMutation.mutate({
-                          libraryId: item.id,
-                          targetField: selectedLayerMeta.primaryField,
-                        })
-                      }
-                    >
-                      注入到当前分层
-                    </Button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="rounded-md border p-3 space-y-2">
-                <div className="font-medium">快照版本</div>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="快照标签（可选）"
-                    value={snapshotLabel}
-                    onChange={(event) => setSnapshotLabel(event.target.value)}
-                  />
-                  <Button onClick={() => snapshotCreateMutation.mutate()} disabled={snapshotCreateMutation.isPending}>
-                    创建快照
-                  </Button>
-                </div>
-                {(snapshotQuery.data?.data ?? []).map((snapshot) => (
-                  <div key={snapshot.id} className="flex items-center justify-between rounded border p-2 text-sm">
-                    <div>
-                      {snapshot.label ?? snapshot.id.slice(0, 8)} / {new Date(snapshot.createdAt).toLocaleString()}
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => snapshotRestoreMutation.mutate(snapshot.id)}
-                    >
-                      恢复
-                    </Button>
-                  </div>
-                ))}
-                <div className="grid gap-2 md:grid-cols-3">
-                  <select
-                    className="w-full rounded-md border bg-background p-2 text-sm"
-                    value={diffFrom}
-                    onChange={(event) => setDiffFrom(event.target.value)}
-                  >
-                    <option value="">起始快照</option>
-                    {(snapshotQuery.data?.data ?? []).map((snapshot) => (
-                      <option key={`from-${snapshot.id}`} value={snapshot.id}>
-                        {snapshot.label ?? snapshot.id.slice(0, 8)}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="w-full rounded-md border bg-background p-2 text-sm"
-                    value={diffTo}
-                    onChange={(event) => setDiffTo(event.target.value)}
-                  >
-                    <option value="">目标快照</option>
-                    {(snapshotQuery.data?.data ?? []).map((snapshot) => (
-                      <option key={`to-${snapshot.id}`} value={snapshot.id}>
-                        {snapshot.label ?? snapshot.id.slice(0, 8)}
-                      </option>
-                    ))}
-                  </select>
-                  <Button onClick={() => snapshotDiffMutation.mutate()} disabled={!diffFrom || !diffTo}>
-                    对比差异
-                  </Button>
-                </div>
-                {snapshotDiffMutation.data?.data?.changes?.map((change) => (
-                  <div key={change.field} className="rounded border p-2 text-xs">
-                    {change.field}: {change.before ?? "空"} {"->"} {change.after ?? "空"}
-                  </div>
-                ))}
-              </div>
-
-              <div className="rounded-md border p-3 space-y-2">
-                <div className="font-medium">导出</div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="secondary"
-                    onClick={async () => {
-                      const response = await exportWorldData(id, "markdown");
-                      if (response.data?.content) {
-                        await navigator.clipboard.writeText(response.data.content);
-                      }
-                    }}
-                  >
-                    导出 Markdown（复制到剪贴板）
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={async () => {
-                      const response = await exportWorldData(id, "json");
-                      if (response.data?.content) {
-                        await navigator.clipboard.writeText(response.data.content);
-                      }
-                    }}
-                  >
-                    导出 JSON（复制到剪贴板）
-                  </Button>
-                </div>
-              </div>
-
-              <div className="rounded-md border p-3 space-y-2">
-                <div className="font-medium">导入</div>
-                <select
-                  className="w-full rounded-md border bg-background p-2 text-sm"
-                  value={importFormat}
-                  onChange={(event) => setImportFormat(event.target.value as "json" | "markdown" | "text")}
-                >
-                  <option value="text">纯文本</option>
-                  <option value="markdown">Markdown</option>
-                  <option value="json">JSON</option>
-                </select>
-                <textarea
-                  className="min-h-[160px] w-full rounded-md border bg-background p-2 text-sm"
-                  value={importContent}
-                  onChange={(event) => setImportContent(event.target.value)}
-                  placeholder="请粘贴要导入的内容"
-                />
-                <Button
-                  onClick={() => importMutation.mutate()}
-                  disabled={importMutation.isPending || !importContent.trim()}
-                >
-                  {importMutation.isPending ? "导入中..." : "导入为新世界"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <WorldAssetsTab
+            worldId={id}
+            world={world}
+            selectedLayerPrimaryField={selectedLayerMeta.primaryField}
+            libraryKeyword={libraryKeyword}
+            setLibraryKeyword={setLibraryKeyword}
+            libraryCategory={libraryCategory}
+            setLibraryCategory={setLibraryCategory}
+            publishName={publishName}
+            setPublishName={setPublishName}
+            publishCategory={publishCategory}
+            setPublishCategory={setPublishCategory}
+            publishDescription={publishDescription}
+            setPublishDescription={setPublishDescription}
+            snapshotLabel={snapshotLabel}
+            setSnapshotLabel={setSnapshotLabel}
+            diffFrom={diffFrom}
+            setDiffFrom={setDiffFrom}
+            diffTo={diffTo}
+            setDiffTo={setDiffTo}
+            importFormat={importFormat}
+            setImportFormat={setImportFormat}
+            importContent={importContent}
+            setImportContent={setImportContent}
+            libraryItems={libraryQuery.data?.data ?? []}
+            snapshots={snapshotQuery.data?.data ?? []}
+            diffChanges={snapshotDiffMutation.data?.data?.changes ?? []}
+            createSnapshotPending={snapshotCreateMutation.isPending}
+            publishPending={publishLibraryMutation.isPending}
+            importPending={importMutation.isPending}
+            onRefreshLibrary={() =>
+              void queryClient.invalidateQueries({
+                queryKey: queryKeys.worlds.library(
+                  `${worldDetailQuery.data?.data?.worldType ?? "all"}-${libraryCategory}-${libraryKeyword}`,
+                ),
+              })
+            }
+            onInjectLibraryField={(libraryId) =>
+              void useWorldLibraryItem(libraryId, { worldId: id, targetField: selectedLayerMeta.primaryField }).then(
+                () => invalidateWorld(),
+              )
+            }
+            onInjectLibraryStructure={(libraryId, targetCollection) =>
+              void useWorldLibraryItem(libraryId, { worldId: id, targetCollection }).then(() => invalidateWorld())
+            }
+            onPublishLibrary={() => publishLibraryMutation.mutate()}
+            onCreateSnapshot={() => snapshotCreateMutation.mutate()}
+            onRestoreSnapshot={(snapshotId) => snapshotRestoreMutation.mutate(snapshotId)}
+            onDiffSnapshots={() => snapshotDiffMutation.mutate()}
+            onExport={handleExport}
+            onImport={() => importMutation.mutate()}
+          />
         </TabsContent>
       </Tabs>
     </div>

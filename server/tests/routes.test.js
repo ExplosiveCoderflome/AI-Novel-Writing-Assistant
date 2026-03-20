@@ -653,6 +653,138 @@ test("novel state and planning routes return success payloads", async () => {
   }
 });
 
+test("novel world slice routes return success payloads", async () => {
+  const originalMethods = {
+    getWorldSlice: NovelService.prototype.getWorldSlice,
+    refreshWorldSlice: NovelService.prototype.refreshWorldSlice,
+    updateWorldSliceOverrides: NovelService.prototype.updateWorldSliceOverrides,
+  };
+  const novelId = "novel-world-slice-route";
+  const worldSliceView = {
+    hasWorld: true,
+    worldId: "world-1",
+    worldName: "都市试验场",
+    slice: {
+      storyId: novelId,
+      worldId: "world-1",
+      coreWorldFrame: "现实压力驱动情节。",
+      appliedRules: [{
+        id: "rule-1",
+        name: "现实规则优先",
+        summary: "所有冲突都要落回现实社会机制。",
+        whyItMatters: "它决定剧情边界。",
+      }],
+      activeForces: [{
+        id: "force-1",
+        name: "乐圣公司",
+        summary: "控制资源的强势公司。",
+        roleInStory: "外部施压者",
+        pressure: "资源卡位",
+      }],
+      activeLocations: [{
+        id: "location-1",
+        name: "核心办公区",
+        summary: "职场主战场。",
+        storyUse: "承接竞争和交易",
+        risk: "失误会被放大",
+      }],
+      activeElements: [],
+      conflictCandidates: ["商业利益与情感关系冲突"],
+      pressureSources: ["乐圣公司的资源卡位"],
+      mysterySources: [],
+      suggestedStoryAxes: ["现实情感"],
+      recommendedEntryPoints: ["从主角入职后的第一次重大受挫切入"],
+      forbiddenCombinations: ["不要直接引入超自然力量"],
+      storyScopeBoundary: "保留现实都市基底。",
+      metadata: {
+        schemaVersion: 1,
+        builtAt: new Date().toISOString(),
+        sourceWorldUpdatedAt: new Date().toISOString(),
+        storyInputDigest: "digest",
+        builtFromStructuredData: true,
+        builderMode: "manual_refresh",
+      },
+    },
+    overrides: {
+      primaryLocationId: "location-1",
+      requiredForceIds: ["force-1"],
+      requiredLocationIds: ["location-1"],
+      requiredRuleIds: ["rule-1"],
+      scopeNote: "保留现实商业压力。",
+    },
+    availableRules: [{
+      id: "rule-1",
+      name: "现实规则优先",
+      summary: "所有冲突都要落回现实社会机制。",
+    }],
+    availableForces: [{
+      id: "force-1",
+      name: "乐圣公司",
+      summary: "控制资源的强势公司。",
+    }],
+    availableLocations: [{
+      id: "location-1",
+      name: "核心办公区",
+      summary: "职场主战场。",
+    }],
+    storyInputSource: "story_macro",
+    isStale: false,
+  };
+
+  NovelService.prototype.getWorldSlice = async () => worldSliceView;
+  NovelService.prototype.refreshWorldSlice = async () => ({
+    ...worldSliceView,
+    isStale: false,
+  });
+  NovelService.prototype.updateWorldSliceOverrides = async () => ({
+    ...worldSliceView,
+    overrides: {
+      ...worldSliceView.overrides,
+      scopeNote: "只保留现实压力。",
+    },
+  });
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const getResponse = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}/world-slice`);
+    assert.equal(getResponse.status, 200);
+    assert.equal((await getResponse.json()).data.worldId, "world-1");
+
+    const refreshResponse = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}/world-slice/refresh`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        builderMode: "manual_refresh",
+      }),
+    });
+    assert.equal(refreshResponse.status, 200);
+    assert.equal((await refreshResponse.json()).success, true);
+
+    const updateResponse = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}/world-slice/overrides`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        primaryLocationId: "location-1",
+        requiredForceIds: ["force-1"],
+        requiredLocationIds: ["location-1"],
+        requiredRuleIds: ["rule-1"],
+        scopeNote: "只保留现实压力。",
+      }),
+    });
+    assert.equal(updateResponse.status, 200);
+    assert.equal((await updateResponse.json()).data.overrides.scopeNote, "只保留现实压力。");
+  } finally {
+    Object.assign(NovelService.prototype, originalMethods);
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
 test("novel audit routes return success payloads", async () => {
   const originalMethods = {
     auditChapter: NovelService.prototype.auditChapter,

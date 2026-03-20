@@ -2,8 +2,11 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { getLLM } from "../../llm/factory";
 import type { WorldLayerKey } from "@ai-novel/shared/types/world";
 import type {
+  WorldPropertyChoice,
   WorldOptionRefinementLevel,
   WorldPropertyOption,
+  WorldReferenceAnchor,
+  WorldReferenceMode,
 } from "@ai-novel/shared/types/worldWizard";
 
 interface GenerateWorldPropertyOptionsInput {
@@ -19,6 +22,11 @@ interface GenerateWorldPropertyOptionsInput {
   tone: string;
   sourcePrompt: string;
   ragContext?: string;
+  referenceMode?: WorldReferenceMode | null;
+  referenceAnchors?: WorldReferenceAnchor[];
+  preserveElements?: string[];
+  allowedChanges?: string[];
+  forbiddenElements?: string[];
   refinementLevel?: WorldOptionRefinementLevel;
   optionsCount?: number;
 }
@@ -115,6 +123,32 @@ function clampOptionsCount(value: number): number {
   return Math.max(4, Math.min(8, Math.floor(value)));
 }
 
+function normalizeChoices(raw: unknown, optionName: string, targetLayer: WorldLayerKey): WorldPropertyChoice[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  const items = raw
+    .map<WorldPropertyChoice | null>((item, index) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+      const record = item as Record<string, unknown>;
+      const label = typeof record.label === "string" ? record.label.trim() : "";
+      const summary = typeof record.summary === "string" ? record.summary.trim() : "";
+      const id = typeof record.id === "string" && record.id.trim()
+        ? record.id.trim()
+        : slugifyWorldOptionId(`${optionName}-${label || index + 1}`, targetLayer, index);
+      if (!label || !summary) {
+        return null;
+      }
+      return { id, label, summary };
+    })
+    .filter((item): item is WorldPropertyChoice => Boolean(item));
+
+  return Array.from(new Map(items.map((item) => [item.id, item])).values()).slice(0, 4);
+}
+
 function normalizeOptions(raw: unknown, limit: number): WorldPropertyOption[] {
   if (!Array.isArray(raw)) {
     return [];
@@ -131,6 +165,7 @@ function normalizeOptions(raw: unknown, limit: number): WorldPropertyOption[] {
       const description = typeof record.description === "string" ? record.description.trim() : "";
       const targetLayer = normalizeLayer(record.targetLayer);
       const reason = typeof record.reason === "string" ? record.reason.trim() : "";
+      const choices = targetLayer ? normalizeChoices(record.choices, name, targetLayer) : [];
 
       if (!name || !description || !targetLayer) {
         return null;
@@ -144,6 +179,7 @@ function normalizeOptions(raw: unknown, limit: number): WorldPropertyOption[] {
         description,
         targetLayer,
         reason: reason || null,
+        choices,
         source: "ai" as const,
         libraryItemId: null,
       };
@@ -180,9 +216,52 @@ function buildPrompt(input: GenerateWorldPropertyOptionsInput, optionsCount: num
     .join("\n");
 }
 
-function buildRetryPrompt(input: GenerateWorldPropertyOptionsInput, optionsCount: number): string {
+function buildReferenceModeLabel(mode: WorldReferenceMode | null | undefined): string {
+  switch (mode) {
+    case "extract_base":
+      return "提取原作世界基底";
+    case "tone_rebuild":
+      return "借用原作气质与结构重建";
+    case "adapt_world":
+    default:
+      return "基于原作做架空改造";
+  }
+}
+
+function buildReferencePrompt(input: GenerateWorldPropertyOptionsInput, optionsCount: number): string {
   return [
-    buildPrompt(input, optionsCount),
+    `参考方式：${buildReferenceModeLabel(input.referenceMode)}`,
+    input.referenceAnchors && input.referenceAnchors.length > 0
+      ? `原作世界锚点：\n${input.referenceAnchors.map((item) => `- ${item.label}：${item.content}`).join("\n")}`
+      : "",
+    input.preserveElements && input.preserveElements.length > 0
+      ? `必须保留：${input.preserveElements.join("、")}`
+      : "",
+    input.allowedChanges && input.allowedChanges.length > 0
+      ? `允许改造：${input.allowedChanges.join("、")}`
+      : "",
+    input.forbiddenElements && input.forbiddenElements.length > 0
+      ? `禁止偏离：${input.forbiddenElements.join("、")}`
+      : "",
+    `请生成 ${optionsCount} 个“架空改造前必须先决定”的关键世界决策项。`,
+    "这些决策项必须围绕参考作品的世界基底展开，而不是重新发明一套无关的新故事。",
+    "要求：",
+    "1. 每个决策项都必须是世界层或世界-故事接口层的改造轴，不要写角色动机、具体剧情桥段、男女主感情推进节奏。",
+    "2. 每个决策项都必须给出 2-4 个互斥的可选方向 choices，让用户真的能选分支。",
+    "3. choices 之间必须体现不同架空路线，例如保留现实、半架空、加入隐性规则，而不是同义改写。",
+    "4. 优先围绕现实基底、城市规则、社会压迫结构、地点系统、势力网络、公开与隐秘边界这类真正影响世界的决策。",
+    "5. 不要把原作的核心气质彻底改没；如果某个改造方向会让作品失真，应在说明里体现边界。",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function buildRetryPrompt(input: GenerateWorldPropertyOptionsInput, optionsCount: number): string {
+  const basePrompt = input.referenceMode
+    ? buildReferencePrompt(input, optionsCount)
+    : buildPrompt(input, optionsCount);
+  return [
+    basePrompt,
     "",
     "请严格返回 JSON，不要添加任何解释。",
     "如果你不确定，也必须先给出结构化候选，而不是省略 options。",
@@ -190,10 +269,22 @@ function buildRetryPrompt(input: GenerateWorldPropertyOptionsInput, optionsCount
     `{
   "options": [
     {
-      "name": "禁忌知识传播方式",
-      "description": "决定克苏鲁知识如何扩散、谁能接触以及接触后的代价，会直接影响调查线、疯癫风险和世界恐怖感的建立。",
-      "targetLayer": "conflict",
-      "reason": "它会直接定义故事的危险来源和信息机制。"
+      "name": "城市现实性保留程度",
+      "description": "决定这次架空改造保留多少原作现实都市质感，会直接影响后续规则、地点和冲突成立方式。",
+      "targetLayer": "foundation",
+      "reason": "它定义了整个架空改造的边界。",
+      "choices": [
+        {
+          "id": "keep-reality",
+          "label": "保持现实都市基底",
+          "summary": "城市规则、职业生态和生活压力保持现实，只做轻度结构改造。"
+        },
+        {
+          "id": "hidden-rule",
+          "label": "现实外壳下加入隐性规则",
+          "summary": "表面仍是现实都市，但在租住、行业与人脉网络背后加入不公开的运行规则。"
+        }
+      ]
     }
   ]
 }`,
@@ -231,7 +322,36 @@ export async function generateWorldPropertyOptions(
   const refinementLevel = input.refinementLevel ?? "standard";
   const optionsCount = clampOptionsCount(input.optionsCount ?? resolveDefaultCount(refinementLevel));
 
-  const systemPrompt = `你是小说世界生成器的前置决策规划师。
+  const systemPrompt = input.referenceMode
+    ? `你是参考作品架空改造规划师。
+请根据用户给出的参考作品锚点、保留要求和改造边界，输出 JSON 对象：
+{
+  "options": [
+    {
+      "id": "可选",
+      "name": "属性名称",
+      "description": "40-90字，说明这个属性决定什么，以及为什么值得在生成前就做选择",
+      "targetLayer": "foundation|power|society|culture|history|conflict",
+      "reason": "一句话说明它为什么值得优先决策",
+      "choices": [
+        {
+          "id": "choice-a",
+          "label": "方向 A",
+          "summary": "说明这个方向如何改造原作世界"
+        }
+      ]
+    }
+  ]
+}
+规则：
+1. 只输出 JSON 对象，不要输出解释。
+2. options 数量必须与要求数量一致。
+3. 所有文本必须使用简体中文。
+4. targetLayer 只能是 foundation、power、society、culture、history、conflict。
+5. 每个 options 都必须包含 2-4 个 choices。
+6. choices 必须是互斥的分支方向，而不是同义改写。
+7. 不要生成角色动机、感情推进、具体桥段这类故事层选项，要优先生成世界层改造轴。`
+    : `你是小说世界生成器的前置决策规划师。
 请根据用户的世界类型、概念卡和参考素材，输出 JSON 对象：
 {
   "options": [
@@ -252,7 +372,7 @@ export async function generateWorldPropertyOptions(
 5. 不要生成“世界名称”“世界简介”这类过于宽泛的伪选项，要生成真正可选的设定方向。`;
 
   const attemptPrompts = [
-    buildPrompt(input, optionsCount),
+    input.referenceMode ? buildReferencePrompt(input, optionsCount) : buildPrompt(input, optionsCount),
     buildRetryPrompt(input, optionsCount),
   ];
 

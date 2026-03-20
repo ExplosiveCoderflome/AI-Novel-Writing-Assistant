@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import type { BasicTabProps } from "./NovelEditView.types";
 import NovelBasicInfoForm from "./NovelBasicInfoForm";
+import NovelWorldUsageCard from "./NovelWorldUsageCard";
 import NovelTitleWorkshop from "./titleWorkshop/NovelTitleWorkshop";
 
 export default function BasicInfoTab(props: BasicTabProps) {
@@ -52,6 +53,15 @@ export default function BasicInfoTab(props: BasicTabProps) {
           />
         </CardContent>
       </Card>
+
+      <NovelWorldUsageCard
+        view={props.worldSliceView}
+        message={props.worldSliceMessage}
+        isRefreshing={props.isRefreshingWorldSlice}
+        isSaving={props.isSavingWorldSliceOverrides}
+        onRefresh={props.onRefreshWorldSlice}
+        onSave={props.onSaveWorldSliceOverrides}
+      />
     </div>
   );
 }

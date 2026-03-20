@@ -16,6 +16,7 @@ import { registerNovelReviewRoutes } from "./novelReviewRoutes";
 import { registerNovelSnapshotCharacterRoutes } from "./novelSnapshotCharacterRoutes";
 import { registerNovelStoryMacroRoutes } from "./novelStoryMacroRoutes";
 import { registerNovelStorylineRoutes } from "./novelStorylineRoutes";
+import { registerNovelWorldSliceRoutes } from "./novelWorldSliceRoutes";
 
 const router = Router();
 const novelService = new NovelService();
@@ -446,6 +447,11 @@ registerNovelStorylineRoutes({
 });
 
 registerNovelStoryMacroRoutes({
+  router,
+  idParamsSchema,
+});
+
+registerNovelWorldSliceRoutes({
   router,
   idParamsSchema,
 });

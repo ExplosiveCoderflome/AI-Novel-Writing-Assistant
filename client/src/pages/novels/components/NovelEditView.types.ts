@@ -25,6 +25,7 @@ import type {
   StoryMacroState,
 } from "@ai-novel/shared/types/storyMacro";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import type { StoryWorldSliceOverrides, StoryWorldSliceView } from "@ai-novel/shared/types/storyWorldSlice";
 import type { QuickCharacterCreatePayload } from "./characterPanel.utils";
 import type { OutlineSyncChapter, StructuredSyncOptions, StructuredVolume } from "../novelEdit.utils";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
@@ -44,8 +45,14 @@ export interface BasicTabProps {
   }>;
   isLoadingSourceNovelBookAnalyses: boolean;
   availableBookAnalysisSections: Array<{ key: BookAnalysisSectionKey; title: string }>;
+  worldSliceView?: StoryWorldSliceView | null;
+  worldSliceMessage: string;
+  isRefreshingWorldSlice: boolean;
+  isSavingWorldSliceOverrides: boolean;
   onFormChange: (patch: Partial<BasicTabProps["basicForm"]>) => void;
   onSave: () => void;
+  onRefreshWorldSlice: () => void;
+  onSaveWorldSliceOverrides: (patch: StoryWorldSliceOverrides) => void;
   isSaving: boolean;
 }
 

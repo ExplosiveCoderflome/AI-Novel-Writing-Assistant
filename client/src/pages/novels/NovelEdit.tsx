@@ -21,7 +21,7 @@ import { getWorldList } from "@/api/world";
 import { queryKeys } from "@/api/queryKeys";
 import { useSSE } from "@/hooks/useSSE";
 import { useLLMStore } from "@/store/llmStore";
-import { buildWorldInjectionSummary, parseStructuredVolumes, type OutlineSyncChapter } from "./novelEdit.utils";
+import { buildWorldInjectionSummary, parseStructuredVolumes, replaceFirstOccurrence, type OutlineSyncChapter } from "./novelEdit.utils";
 import type { QuickCharacterCreatePayload } from "./components/characterPanel.utils";
 import type { ChapterExecutionStrategy } from "./chapterExecution.utils";
 import { useNovelCharacterMutations } from "./hooks/useNovelCharacterMutations";
@@ -29,6 +29,7 @@ import { useChapterExecutionActions } from "./hooks/useChapterExecutionActions";
 import { useNovelContinuationSources } from "./hooks/useNovelContinuationSources";
 import { useNovelEditMutations } from "./hooks/useNovelEditMutations";
 import { useNovelEditInitialization } from "./hooks/useNovelEditInitialization";
+import { useNovelWorldSlice } from "./hooks/useNovelWorldSlice";
 import { useNovelStoryMacro } from "./hooks/useNovelStoryMacro";
 import { useStorylineVersionControl } from "./hooks/useStorylineVersionControl";
 import {
@@ -36,14 +37,6 @@ import {
   createDefaultNovelBasicFormState,
   patchNovelBasicForm,
 } from "./novelBasicInfo.shared";
-
-function replaceFirstOccurrence(source: string, target: string, replacement: string): string {
-  const index = source.indexOf(target);
-  if (index < 0) {
-    return source;
-  }
-  return source.slice(0, index) + replacement + source.slice(index + target.length);
-}
 
 export default function NovelEdit() {
   const { id = "" } = useParams();
@@ -165,6 +158,19 @@ export default function NovelEdit() {
     llm,
   });
 
+  const {
+    worldSliceMessage,
+    worldSliceView,
+    isRefreshingWorldSlice,
+    isSavingWorldSliceOverrides,
+    refreshWorldSlice,
+    saveWorldSliceOverrides,
+  } = useNovelWorldSlice({
+    novelId: id,
+    llm,
+    queryClient,
+  });
+
   const pipelineJobQuery = useQuery({
     queryKey: queryKeys.novels.pipelineJob(id, currentJobId || "none"),
     queryFn: () => getNovelPipelineJob(id, currentJobId),
@@ -272,6 +278,7 @@ export default function NovelEdit() {
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(id) });
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.latestStateSnapshot(id) });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(id) });
     if (selectedChapterId) {
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterPlan(id, selectedChapterId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterAuditReports(id, selectedChapterId) });
@@ -470,8 +477,14 @@ export default function NovelEdit() {
     sourceNovelBookAnalysisOptions,
     isLoadingSourceNovelBookAnalyses: sourceBookAnalysesQuery.isLoading,
     availableBookAnalysisSections: [...BOOK_ANALYSIS_SECTIONS],
+    worldSliceView,
+    worldSliceMessage,
+    isRefreshingWorldSlice,
+    isSavingWorldSliceOverrides,
     onFormChange: (patch: Partial<typeof basicForm>) => setBasicForm((prev) => patchNovelBasicForm(prev, patch)),
     onSave: () => saveBasicMutation.mutate(),
+    onRefreshWorldSlice: refreshWorldSlice,
+    onSaveWorldSliceOverrides: saveWorldSliceOverrides,
     isSaving: saveBasicMutation.isPending,
   };
   const outlineTab = { worldInjectionSummary, hasCharacters, isGenerating: outlineSSE.isStreaming, streamContent: outlineSSE.content, onGenerate: startOutlineGeneration, onStop: outlineSSE.abort, onAbortStream: outlineSSE.abort, onGoToCharacterTab: goToCharacterTab, generationPrompt: outlineGenerationPrompt, onGenerationPromptChange: setOutlineGenerationPrompt, draftText: outlineText, onDraftTextChange: setOutlineText, onSave: () => saveOutlineMutation.mutate(), isSaving: saveOutlineMutation.isPending, optimizeInstruction: outlineOptimizeInstruction, onOptimizeInstructionChange: setOutlineOptimizeInstruction, onOptimizeFull: () => { setOutlineOptimizeMode("full"); setOutlineOptimizeSourceText(""); optimizeOutlineMutation.mutate({ mode: "full" }); }, onOptimizeSelection: (selectedText: string) => { setOutlineOptimizeMode("selection"); setOutlineOptimizeSourceText(selectedText); optimizeOutlineMutation.mutate({ mode: "selection", selectedText }); }, isOptimizing: optimizeOutlineMutation.isPending, optimizePreview: outlineOptimizePreview, onApplyOptimizePreview: () => { if (outlineOptimizeMode === "selection" && outlineOptimizeSourceText.trim()) { setOutlineText((prev) => replaceFirstOccurrence(prev, outlineOptimizeSourceText, outlineOptimizePreview)); } else { setOutlineText(outlineOptimizePreview); } setOutlineOptimizePreview(""); setOutlineOptimizeSourceText(""); setOutlineOptimizeMode("full"); }, onCancelOptimizePreview: () => { setOutlineOptimizePreview(""); setOutlineOptimizeSourceText(""); setOutlineOptimizeMode("full"); }, storylineMessage, storylineVersions, selectedVersionId, onSelectedVersionChange: setSelectedVersionId, onCreateDraftVersion: () => createDraftVersionMutation.mutate(), isCreatingDraftVersion: createDraftVersionMutation.isPending, onLoadSelectedVersionToDraft: loadSelectedVersionToDraft, onActivateVersion: () => activateVersionMutation.mutate(), isActivatingVersion: activateVersionMutation.isPending, onFreezeVersion: () => freezeVersionMutation.mutate(), isFreezingVersion: freezeVersionMutation.isPending, onLoadVersionDiff: () => diffMutation.mutate(), isLoadingVersionDiff: diffMutation.isPending, diffResult, onAnalyzeDraftImpact: () => analyzeDraftImpactMutation.mutate(), isAnalyzingDraftImpact: analyzeDraftImpactMutation.isPending, onAnalyzeVersionImpact: () => analyzeVersionImpactMutation.mutate(), isAnalyzingVersionImpact: analyzeVersionImpactMutation.isPending, impactResult };

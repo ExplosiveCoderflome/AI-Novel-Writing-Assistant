@@ -1,7 +1,12 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  buildWorldBindingSupport,
+  normalizeWorldStructuredData,
+} = require("../dist/services/world/worldStructure.js");
+const {
   buildFallbackWorldVisualizationPayload,
+  buildWorldVisualizationPayload,
 } = require("../dist/services/world/worldVisualization.js");
 
 test("buildFallbackWorldVisualizationPayload extracts chinese faction types and relations", () => {
@@ -58,4 +63,113 @@ test("buildFallbackWorldVisualizationPayload keeps timeline and geography usable
   assert.ok(payload.powerTree.length >= 3);
   assert.equal(payload.timeline[0].year, "1203年");
   assert.match(payload.timeline[0].event, /黑河谷失守/);
+});
+
+test("buildWorldVisualizationPayload prefers structured relations when structure exists", async () => {
+  const structure = normalizeWorldStructuredData({
+    profile: {
+      summary: "黑门港成为停战后最大的灰色港口。",
+      identity: "边境海港世界",
+      tone: "压抑",
+      themes: ["港口争夺"],
+      coreConflict: "守港军与黑市舰队围绕黑门港长期对抗。",
+    },
+    rules: {
+      summary: "蒸汽舰必须依赖潮汐引擎。",
+      axioms: [],
+      taboo: [],
+      sharedConsequences: [],
+    },
+    factions: [],
+    forces: [
+      {
+        id: "force-1",
+        name: "守港军",
+        type: "organization",
+        factionId: null,
+        summary: "官方驻港武装。",
+        baseOfPower: "港务大楼",
+        currentObjective: "封锁黑市码头",
+        pressure: "巡防线已接近崩溃",
+        leader: "沈弋",
+        narrativeRole: "守线者",
+      },
+      {
+        id: "force-2",
+        name: "黑市舰队",
+        type: "organization",
+        factionId: null,
+        summary: "控制地下航运。",
+        baseOfPower: "废弃船坞",
+        currentObjective: "打开新航道",
+        pressure: "补给线被官方压缩",
+        leader: "阮鹭",
+        narrativeRole: "破局者",
+      },
+    ],
+    locations: [
+      {
+        id: "location-1",
+        name: "黑门港",
+        terrain: "雾港",
+        summary: "灰色交易集散地。",
+        narrativeFunction: "核心舞台",
+        risk: "全天候巡防与暗杀并存",
+        entryConstraint: "必须持潮汐牌照入港",
+        exitCost: "一旦身份暴露即失去航线",
+        controllingForceIds: ["force-1", "force-2"],
+      },
+    ],
+    relations: {
+      forceRelations: [
+        {
+          id: "force-relation-1",
+          sourceForceId: "force-1",
+          targetForceId: "force-2",
+          relation: "对抗",
+          tension: "停战条约濒临失效",
+          detail: "双方围绕黑门港的补给线持续角力。",
+        },
+      ],
+      locationControls: [
+        {
+          id: "location-control-1",
+          forceId: "force-1",
+          locationId: "location-1",
+          relation: "控制",
+          detail: "依赖港务税卡住进出口。",
+        },
+      ],
+    },
+    metadata: {
+      schemaVersion: 1,
+      seededFrom: "test",
+    },
+  });
+
+  const payload = await buildWorldVisualizationPayload({
+    id: "world-3",
+    name: "黑门港",
+    worldType: "dieselpunk",
+    description: "停战后的灰色港口。",
+    background: null,
+    geography: null,
+    cultures: null,
+    magicSystem: null,
+    politics: null,
+    races: null,
+    religions: null,
+    technology: null,
+    conflicts: null,
+    history: null,
+    economy: null,
+    factions: null,
+    structureJson: JSON.stringify(structure),
+    bindingSupportJson: JSON.stringify(buildWorldBindingSupport(structure)),
+  });
+
+  assert.ok(payload.factionGraph.nodes.some((node) => node.label === "守港军"));
+  assert.ok(payload.factionGraph.nodes.some((node) => node.label === "黑市舰队"));
+  assert.ok(payload.factionGraph.edges.some((edge) => edge.relation === "对抗"));
+  assert.ok(payload.geographyMap.nodes.some((node) => node.label === "黑门港"));
 });

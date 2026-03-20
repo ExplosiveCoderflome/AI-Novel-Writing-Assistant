@@ -45,6 +45,8 @@ import {
   type StoryMacroNovelContext,
   toEditablePlan,
 } from "./storyMacroPlanService.shared";
+import { NovelWorldSliceService } from "../storyWorldSlice/NovelWorldSliceService";
+import { formatStoryWorldSlicePromptBlock } from "../storyWorldSlice/storyWorldSliceFormatting";
 
 interface LLMOptions {
   provider?: LLMProvider;
@@ -53,6 +55,8 @@ interface LLMOptions {
 }
 
 export class StoryMacroPlanService {
+  private readonly worldSliceService = new NovelWorldSliceService();
+
   private async getNovelContext(novelId: string): Promise<StoryMacroNovelContext> {
     const novel = await prisma.novel.findUnique({
       where: { id: novelId },
@@ -317,9 +321,17 @@ export class StoryMacroPlanService {
     if (!normalizedInput) {
       throw new Error("故事想法不能为空。");
     }
+    const worldSlice = await this.worldSliceService.ensureStoryWorldSlice(novelId, {
+      storyInput: normalizedInput,
+      builderMode: "story_macro",
+    });
+    const projectContext = formatProjectContext(
+      novel,
+      worldSlice ? formatStoryWorldSlicePromptBlock(worldSlice) : "",
+    );
     const generated = await this.invokeDecompositionModel(
       normalizedInput,
-      formatProjectContext(novel),
+      projectContext,
       options,
     );
     const locks = previousPlan?.lockedFields ?? {};
@@ -348,6 +360,10 @@ export class StoryMacroPlanService {
     if (plan.lockedFields[field]) {
       throw new Error("该字段已锁定，请先解锁后再重生成。");
     }
+    const worldSlice = await this.worldSliceService.ensureStoryWorldSlice(novelId, {
+      storyInput: plan.storyInput ?? undefined,
+      builderMode: "story_macro",
+    });
     const editablePlan = toEditablePlan(plan);
     const nextFieldValue = await this.invokeSingleFieldRegeneration(
       field,
@@ -355,7 +371,7 @@ export class StoryMacroPlanService {
       editablePlan,
       plan.lockedFields,
       options,
-      formatProjectContext(novel),
+      formatProjectContext(novel, worldSlice ? formatStoryWorldSlicePromptBlock(worldSlice) : ""),
     );
     const nextPlan = setEditablePlanFieldValue(editablePlan, field, nextFieldValue);
     const constraintEngine = isDecompositionComplete(nextPlan.decomposition)

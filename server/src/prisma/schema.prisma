@@ -258,6 +258,9 @@ model Novel {
   continuationBookAnalysisSections String?
   outline           String?
   structuredOutline String?
+  storyWorldSliceJson String?
+  storyWorldSliceOverridesJson String?
+  storyWorldSliceSchemaVersion Int @default(1)
   genreId           String?
   worldId           String?
   genre             NovelGenre? @relation(fields: [genreId], references: [id])
@@ -526,6 +529,9 @@ model World {
   layerStates        String?
   consistencyReport  String?
   overviewSummary    String?
+  structureJson      String?
+  bindingSupportJson String?
+  structureSchemaVersion Int @default(1)
   novels             Novel[]
   snapshots          WorldSnapshot[]
   deepeningQA        WorldDeepeningQA[]

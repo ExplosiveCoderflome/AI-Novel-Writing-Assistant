@@ -10,6 +10,12 @@ import { getLLM } from "../../llm/factory";
 import { ragServices } from "../rag";
 import { getRagQueryForChapter, novelReferenceService } from "./NovelReferenceService";
 import { NovelContinuationService } from "./NovelContinuationService";
+import { NovelWorldSliceService } from "./storyWorldSlice/NovelWorldSliceService";
+import { STORY_WORLD_SLICE_SCHEMA_VERSION } from "./storyWorldSlice/storyWorldSlicePersistence";
+import {
+  buildLegacyWorldContextFromWorld,
+  formatStoryWorldSlicePromptBlock,
+} from "./storyWorldSlice/storyWorldSliceFormatting";
 import { ChapterWritingGraph } from "./chapterWritingGraph";
 import { normalizeNovelBiblePayload } from "./novelBiblePersistence";
 import {
@@ -560,6 +566,7 @@ function estimateAffectedChapterCount(content: string, chapterTotal: number, cha
 const novelContinuationService = new NovelContinuationService();
 
 export class NovelCoreService {
+  private readonly storyWorldSliceService = new NovelWorldSliceService();
   private readonly chapterWritingGraph = new ChapterWritingGraph({
     toText,
     normalizeScore,
@@ -890,6 +897,7 @@ export class NovelCoreService {
       where: { id },
       select: {
         id: true,
+        worldId: true,
         writingMode: true,
         sourceNovelId: true,
         sourceKnowledgeDocumentId: true,
@@ -926,6 +934,8 @@ export class NovelCoreService {
 
     const { continuationBookAnalysisSections: _ignoreSectionPatch, ...restInput } = input;
     const serializedContinuationSections = serializeContinuationBookAnalysisSections(nextContinuationBookAnalysisSections);
+    const nextWorldId = input.worldId !== undefined ? input.worldId : existing.worldId;
+    const shouldResetWorldSlice = nextWorldId !== existing.worldId;
     const updated = await prisma.novel.update({
       where: { id },
       data: {
@@ -939,6 +949,13 @@ export class NovelCoreService {
           && normalizedNextContinuationBookAnalysisId
             ? serializedContinuationSections
             : null,
+        ...(shouldResetWorldSlice
+          ? {
+            storyWorldSliceJson: null,
+            storyWorldSliceOverridesJson: null,
+            storyWorldSliceSchemaVersion: STORY_WORLD_SLICE_SCHEMA_VERSION,
+          }
+          : {}),
       },
     });
     this.queueRagUpsert("novel", id);
@@ -1409,10 +1426,16 @@ currentGoal=${character.currentGoal ?? ""}`,
     if (!novel) {
       throw new Error("小说不存在");
     }
-    const [worldContext, referenceContext] = await Promise.all([
-      Promise.resolve(this.buildWorldContextFromNovel(novel)),
+    const [storyWorldSlice, referenceContext] = await Promise.all([
+      this.storyWorldSliceService.ensureStoryWorldSlice(novelId, {
+        storyInput: options.initialPrompt?.trim() || novel.description || "",
+        builderMode: "outline",
+      }),
       novelReferenceService.buildReferenceForStage(novelId, "outline"),
     ]);
+    const worldContext = storyWorldSlice
+      ? formatStoryWorldSlicePromptBlock(storyWorldSlice)
+      : this.buildWorldContextFromNovel(novel);
     const referenceBlock = referenceContext.trim()
       ? `\n\n参考资料（来自已有作品拆书分析，可借鉴但不必照搬）：\n${referenceContext}`
       : "";
@@ -1461,10 +1484,16 @@ ${worldContext}${referenceBlock}${initialPromptBlock}`,
     if (!novel.outline) {
       throw new Error("请先生成小说发展走向");
     }
-    const [worldContext, referenceContext] = await Promise.all([
-      Promise.resolve(this.buildWorldContextFromNovel(novel)),
+    const [storyWorldSlice, referenceContext] = await Promise.all([
+      this.storyWorldSliceService.ensureStoryWorldSlice(novelId, {
+        storyInput: novel.outline ?? novel.description ?? "",
+        builderMode: "structured_outline",
+      }),
       novelReferenceService.buildReferenceForStage(novelId, "structured_outline"),
     ]);
+    const worldContext = storyWorldSlice
+      ? formatStoryWorldSlicePromptBlock(storyWorldSlice)
+      : this.buildWorldContextFromNovel(novel);
     const referenceBlock = referenceContext.trim()
       ? `\n\n参考资料（来自已有作品拆书分析）：\n${referenceContext}`
       : "";
@@ -1675,10 +1704,16 @@ ${rawContent}`,
       throw new Error("小说不存在");
     }
     await this.ensureNovelCharacters(novelId, "生成作品圣经");
-    const [worldContext, referenceContext] = await Promise.all([
-      Promise.resolve(this.buildWorldContextFromNovel(novel)),
+    const [storyWorldSlice, referenceContext] = await Promise.all([
+      this.storyWorldSliceService.ensureStoryWorldSlice(novelId, {
+        storyInput: novel.outline ?? novel.description ?? "",
+        builderMode: "bible",
+      }),
       novelReferenceService.buildReferenceForStage(novelId, "bible"),
     ]);
+    const worldContext = storyWorldSlice
+      ? formatStoryWorldSlicePromptBlock(storyWorldSlice)
+      : this.buildWorldContextFromNovel(novel);
     const referenceBlock = referenceContext.trim()
       ? `\n\n参考资料（来自已有作品拆书分析）：\n${referenceContext}`
       : "";    const llm = await getLLM(options.provider ?? "deepseek", {
@@ -1745,10 +1780,16 @@ ${worldContext}${referenceBlock}`,
       throw new Error("小说不存在");
     }
     await this.ensureNovelCharacters(novelId, "生成剧情拍点");
-    const [worldContext, referenceContext] = await Promise.all([
-      Promise.resolve(this.buildWorldContextFromNovel(novel)),
+    const [storyWorldSlice, referenceContext] = await Promise.all([
+      this.storyWorldSliceService.ensureStoryWorldSlice(novelId, {
+        storyInput: novel.outline ?? novel.description ?? "",
+        builderMode: "beats",
+      }),
       novelReferenceService.buildReferenceForStage(novelId, "beats"),
     ]);
+    const worldContext = storyWorldSlice
+      ? formatStoryWorldSlicePromptBlock(storyWorldSlice)
+      : this.buildWorldContextFromNovel(novel);
     const referenceBlock = referenceContext.trim()
       ? `\n\n参考资料（来自已有作品拆书分析）：\n${referenceContext}`
       : "";    const llm = await getLLM(options.provider ?? "deepseek", {
@@ -2202,19 +2243,20 @@ ${ragContext || ""}
       factions?: string | null;
     } | null } | null,
   ): string {
-    const world = novel?.world;
+    return buildLegacyWorldContextFromWorld(novel?.world ?? null);
+    const world = novel?.world as NonNullable<NonNullable<typeof novel>["world"]>;
     if (!world) {
       return "世界上下文：暂无";
     }
     let axiomsText = "";
     if (world.axioms) {
       try {
-        const parsed = JSON.parse(world.axioms) as string[];
+        const parsed = JSON.parse(world.axioms ?? "[]") as string[];
         axiomsText = Array.isArray(parsed) && parsed.length > 0
           ? parsed.map((item) => `- ${item}`).join("\n")
-          : world.axioms;
+          : (world.axioms ?? "");
       } catch {
-        axiomsText = world.axioms;
+        axiomsText = world.axioms ?? "";
       }
     }
     return `世界上下文：
@@ -2237,7 +2279,7 @@ ${axiomsText}
   }
 
   private async buildContextText(novelId: string, chapterOrder: number): Promise<string> {
-    const [bible, summaries, facts, novel, styleReference, characters, recentChapters, decisions, stateContextBlock, chapterRow] = await Promise.all([
+    const [bible, summaries, facts, novel, styleReference, characters, recentChapters, decisions, stateContextBlock, chapterRow, storyWorldSlice] = await Promise.all([
       prisma.novelBible.findUnique({ where: { novelId } }),
       prisma.chapterSummary.findMany({
         where: {
@@ -2282,6 +2324,7 @@ ${axiomsText}
         where: { novelId, order: chapterOrder },
         select: { id: true },
       }),
+      this.storyWorldSliceService.ensureStoryWorldSlice(novelId, { builderMode: "runtime" }),
     ]);
 
     const bibleText = bible
@@ -2310,7 +2353,9 @@ ${axiomsText}
           .join("\n")}`
       : "最近章节正文片段：暂无";
 
-    const worldText = this.buildWorldContextFromNovel(novel);
+    const worldText = storyWorldSlice
+      ? formatStoryWorldSlicePromptBlock(storyWorldSlice)
+      : this.buildWorldContextFromNovel(novel);
     const outlineText = novel?.outline?.trim()
       ? `发展走向：\n${novel.outline.slice(0, 800)}`
       : "";

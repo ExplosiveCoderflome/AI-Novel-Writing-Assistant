@@ -16,6 +16,8 @@ export function buildExpansionAndDecompositionPrompt(storyInput: string, project
       "如果题材呈现悬疑 / 推理倾向，必须体现信息揭示节奏。",
       "如果题材呈现成长倾向，必须体现阶段性认知变化。",
       "不要无依据地扩展大量世界观，不要把设定说明写成主要内容。",
+      "如果项目上下文里包含『这本书会用到的世界设定』，必须优先使用其中的规则、组织、地点、冲突和边界；不要越出这个范围乱扩写。",
+      "如果故事想法与这些世界边界或禁配明显冲突，必须在 issues 中标记 conflict。",
       "如果信息不足，在 issues 中标记 missing_info；如果用户输入存在冲突，在 issues 中标记 conflict。",
       "输出必须是严格合法的 JSON 对象，不要输出解释文字。",
       "JSON 结构：",
@@ -72,6 +74,7 @@ export function buildFieldRegenerationPrompt(input: {
     system: [
       "你是小说故事引擎规划助手，只能重写一个指定字段，其他字段只是上下文。",
       "当前阶段位于角色创建之前，禁止输出具体角色姓名、详细人物设定和角色清单。",
+      "如果项目上下文包含『这本书会用到的世界设定』，重写时必须保持和其中规则、地点、势力、边界一致。",
       "输出必须是严格合法的 JSON 对象，不要输出解释。",
       `目标字段：${input.field}`,
       `输出格式：${fieldFormat}`,

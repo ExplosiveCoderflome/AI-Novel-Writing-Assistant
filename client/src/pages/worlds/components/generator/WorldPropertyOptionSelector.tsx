@@ -4,7 +4,9 @@ interface WorldPropertyOptionSelectorProps {
   options: WorldPropertyOption[];
   selectedIds: string[];
   details: Record<string, string>;
+  selectedChoiceIds: Record<string, string>;
   onToggle: (optionId: string, checked: boolean) => void;
+  onChoiceSelect: (optionId: string, choiceId: string) => void;
   onDetailChange: (optionId: string, detail: string) => void;
 }
 
@@ -21,13 +23,15 @@ export default function WorldPropertyOptionSelector({
   options,
   selectedIds,
   details,
+  selectedChoiceIds,
   onToggle,
+  onChoiceSelect,
   onDetailChange,
 }: WorldPropertyOptionSelectorProps) {
   if (options.length === 0) {
     return (
       <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-        当前没有拿到可用的前置世界属性。这不是理想状态，通常意味着上一步属性生成失败或返回结构异常，应返回阶段 1 重新生成。
+        当前还没有拿到可用的关键方向。通常说明上一步分析失败了，可以返回第 1 步重新生成。
       </div>
     );
   }
@@ -52,25 +56,53 @@ export default function WorldPropertyOptionSelector({
                     {WORLD_LAYER_LABELS[option.targetLayer]}
                   </span>
                   <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
-                    {option.source === "library" ? "素材库" : "AI 选项"}
+                    {option.source === "library" ? "素材库" : "系统建议"}
                   </span>
                 </div>
                 <div className="text-muted-foreground">{option.description}</div>
                 {option.reason ? (
                   <div className="text-xs text-muted-foreground">
-                    优先理由：{option.reason}
+                    为什么建议先定它：{option.reason}
                   </div>
                 ) : null}
               </div>
             </label>
 
             {checked ? (
-              <textarea
-                className="min-h-[88px] w-full rounded-md border p-2 text-sm"
-                placeholder="可选：补充你对这个属性的具体偏好，例如规则边界、势力关系、代价机制。"
-                value={details[option.id] ?? ""}
-                onChange={(event) => onDetailChange(option.id, event.target.value)}
-              />
+              <div className="space-y-3">
+                {option.choices && option.choices.length > 0 ? (
+                  <div className="space-y-2 rounded-md border border-dashed p-3">
+                    <div className="text-xs font-medium text-muted-foreground">先选一个方向</div>
+                    <div className="space-y-2">
+                      {option.choices.map((choice) => {
+                        const selected = selectedChoiceIds[option.id] === choice.id;
+                        return (
+                          <label key={choice.id} className="flex items-start gap-3 rounded-md border p-3">
+                            <input
+                              type="radio"
+                              name={`world-option-choice-${option.id}`}
+                              className="mt-1"
+                              checked={selected}
+                              onChange={() => onChoiceSelect(option.id, choice.id)}
+                            />
+                            <div className="space-y-1">
+                              <div className="font-medium">{choice.label}</div>
+                              <div className="text-xs text-muted-foreground">{choice.summary}</div>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+
+                <textarea
+                  className="min-h-[88px] w-full rounded-md border p-2 text-sm"
+                  placeholder="可选：补充你的偏好，比如希望保留什么、放大什么、限制什么。"
+                  value={details[option.id] ?? ""}
+                  onChange={(event) => onDetailChange(option.id, event.target.value)}
+                />
+              </div>
             ) : null}
           </div>
         );

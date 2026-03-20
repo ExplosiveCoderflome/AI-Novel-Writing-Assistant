@@ -1,7 +1,10 @@
 import { NovelPipelineService } from "./NovelPipelineService";
 import { NovelCoreService } from "./NovelCoreService";
+import { NovelWorldSliceService } from "./storyWorldSlice/NovelWorldSliceService";
 
 export class NovelService extends NovelPipelineService {
+  private readonly worldSliceService = new NovelWorldSliceService();
+
   getNovelState(...args: Parameters<NovelCoreService["getNovelState"]>) {
     return this.core.getNovelState(...args);
   }
@@ -48,5 +51,17 @@ export class NovelService extends NovelPipelineService {
 
   resolveAuditIssues(...args: Parameters<NovelCoreService["resolveAuditIssues"]>) {
     return this.core.resolveAuditIssues(...args);
+  }
+
+  getWorldSlice(...args: Parameters<NovelWorldSliceService["getWorldSliceView"]>) {
+    return this.worldSliceService.getWorldSliceView(...args);
+  }
+
+  refreshWorldSlice(...args: Parameters<NovelWorldSliceService["refreshWorldSlice"]>) {
+    return this.worldSliceService.refreshWorldSlice(...args);
+  }
+
+  updateWorldSliceOverrides(...args: Parameters<NovelWorldSliceService["updateWorldSliceOverrides"]>) {
+    return this.worldSliceService.updateWorldSliceOverrides(...args);
   }
 }

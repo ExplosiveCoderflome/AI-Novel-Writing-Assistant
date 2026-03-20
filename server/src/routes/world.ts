@@ -1,11 +1,11 @@
 import { Router } from "express";
 import type { RequestHandler } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
-import type { WorldLayerKey } from "@ai-novel/shared/types/world";
+import type { WorldLayerKey, WorldStructureSectionKey } from "@ai-novel/shared/types/world";
 import { z } from "zod";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
-import { streamToSSE } from "../llm/streaming";
+import { initSSE, streamToSSE, writeSSEFrame } from "../llm/streaming";
 import { featureFlags } from "../config/featureFlags";
 import { KnowledgeService } from "../services/knowledge/KnowledgeService";
 import { WorldService } from "../services/world/WorldService";
@@ -82,6 +82,8 @@ const createWorldSchema = z.object({
   selectedDimensions: z.string().optional(),
   selectedElements: z.string().optional(),
   knowledgeDocumentIds: z.array(z.string().trim().min(1)).optional(),
+  structure: z.unknown().optional(),
+  bindingSupport: z.unknown().optional(),
 });
 
 const updateWorldSchema = createWorldSchema.partial();
@@ -107,6 +109,10 @@ const inspirationSchema = z.object({
   mode: z.enum(["free", "reference", "random"]).optional(),
   worldType: z.string().optional(),
   knowledgeDocumentIds: z.array(z.string().trim().min(1)).optional(),
+  referenceMode: z.enum(["extract_base", "adapt_world", "tone_rebuild"]).optional(),
+  preserveElements: z.array(z.string().trim().min(1)).optional(),
+  allowedChanges: z.array(z.string().trim().min(1)).optional(),
+  forbiddenElements: z.array(z.string().trim().min(1)).optional(),
   refinementLevel: z.enum(["basic", "standard", "detailed"]).optional(),
   optionsCount: z.number().int().min(4).max(8).optional(),
   provider: providerSchema.optional(),
@@ -215,6 +221,27 @@ const libraryUseSchema = z.object({
     "economy",
     "factions",
   ]).optional(),
+  targetCollection: z.enum(["forces", "locations"]).optional(),
+});
+
+const structureSectionSchema = z.enum(["profile", "rules", "factions", "locations", "relations"]);
+
+const structureUpdateSchema = z.object({
+  structure: z.unknown(),
+  bindingSupport: z.unknown().optional(),
+});
+
+const structureBackfillSchema = z.object({
+  provider: providerSchema.optional(),
+  model: z.string().optional(),
+});
+
+const structureGenerateSchema = z.object({
+  section: structureSectionSchema,
+  structure: z.unknown().optional(),
+  bindingSupport: z.unknown().optional(),
+  provider: providerSchema.optional(),
+  model: z.string().optional(),
 });
 
 const snapshotCreateSchema = z.object({
@@ -382,6 +409,140 @@ router.get("/:id", validate({ params: worldIdSchema }), async (req, res, next) =
     next(error);
   }
 });
+
+router.post(
+  "/inspiration/analyze/stream",
+  requireWorldWizard,
+  validate({ body: inspirationSchema }),
+  async (req, res) => {
+    const runId = `world-inspiration-${Date.now()}`;
+    const disposeHeartbeat = initSSE(res);
+    const body = req.body as z.infer<typeof inspirationSchema>;
+    const isReferenceMode = body.mode === "reference";
+
+    try {
+      writeSSEFrame(res, {
+        type: "run_status",
+        runId,
+        status: "queued",
+        message: isReferenceMode ? "已开始分析参考作品" : "已开始分析世界灵感",
+      });
+
+      const data = await worldService.analyzeInspiration(
+        body,
+        (message) => {
+          writeSSEFrame(res, {
+            type: "run_status",
+            runId,
+            status: "running",
+            message,
+          });
+        },
+      );
+
+      writeSSEFrame(res, {
+        type: "run_status",
+        runId,
+        status: "succeeded",
+        message: isReferenceMode ? "原作锚点与架空方向已生成" : "概念卡与属性选项已生成",
+      });
+      writeSSEFrame(res, {
+        type: "done",
+        fullContent: JSON.stringify(data),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "世界灵感分析失败。";
+      writeSSEFrame(res, {
+        type: "run_status",
+        runId,
+        status: "failed",
+        message,
+      });
+      writeSSEFrame(res, {
+        type: "error",
+        error: message,
+      });
+    } finally {
+      disposeHeartbeat();
+      if (!res.writableEnded) {
+        res.end();
+      }
+    }
+  },
+);
+
+router.get("/:id/structure", requireWorldWizard, validate({ params: worldIdSchema }), async (req, res, next) => {
+  try {
+    const { id } = req.params as z.infer<typeof worldIdSchema>;
+    const data = await worldService.getStructure(id);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Structured world loaded.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put(
+  "/:id/structure",
+  requireWorldWizard,
+  validate({ params: worldIdSchema, body: structureUpdateSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof worldIdSchema>;
+      const data = await worldService.updateStructure(id, req.body as z.infer<typeof structureUpdateSchema>);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Structured world saved.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/structure/backfill",
+  requireWorldWizard,
+  validate({ params: worldIdSchema, body: structureBackfillSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof worldIdSchema>;
+      const data = await worldService.backfillStructure(id, req.body as z.infer<typeof structureBackfillSchema>);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Structured world backfilled.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/structure/generate",
+  requireWorldWizard,
+  validate({ params: worldIdSchema, body: structureGenerateSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof worldIdSchema>;
+      const data = await worldService.generateStructure(id, req.body as z.infer<typeof structureGenerateSchema> & {
+        section: WorldStructureSectionKey;
+      });
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Structure section generated.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 router.get("/:id/knowledge-documents", validate({ params: worldIdSchema }), async (req, res, next) => {
   try {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { storyWorldSliceSchema } from "./storyWorldSlice";
 
 const llmProviderSchema = z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]);
 const auditTypeSchema = z.enum(["continuity", "character", "plot"]);
@@ -140,6 +141,7 @@ export const generationContextPackageSchema = z.object({
   chapter: runtimeChapterSchema,
   plan: runtimePlanSchema.nullable(),
   stateSnapshot: runtimeStateSnapshotSchema.nullable(),
+  storyWorldSlice: storyWorldSliceSchema.nullable().optional(),
   characterRoster: z.array(runtimeCharacterSchema),
   creativeDecisions: z.array(runtimeCreativeDecisionSchema),
   openAuditIssues: z.array(runtimeAuditIssueSchema),
