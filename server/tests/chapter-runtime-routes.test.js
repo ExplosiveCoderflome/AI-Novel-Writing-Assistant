@@ -90,6 +90,10 @@ function buildRuntimePackage(novelId, chapterId) {
         humanBlock: "",
         antiCopyCorpus: [],
       },
+      styleContext: {
+        matchedBindings: [],
+        compiledBlocks: null,
+      },
     },
     draft: {
       content: "归档后的章节正文",
@@ -128,17 +132,21 @@ test("runtime chapter route emits runtime_package before done", async () => {
   const originalMethod = NovelService.prototype.createChapterRuntimeStream;
   const novelId = "novel-runtime-route";
   const chapterId = "chapter-runtime-route";
+  let capturedOptions = null;
 
-  NovelService.prototype.createChapterRuntimeStream = async () => ({
-    stream: buildStream(["第一段", "第二段"]),
-    onDone: async (fullContent) => ({
-      fullContent: `${fullContent}（归档）`,
-      frames: [{
-        type: "runtime_package",
-        package: buildRuntimePackage(novelId, chapterId),
-      }],
-    }),
-  });
+  NovelService.prototype.createChapterRuntimeStream = async (_novelId, _chapterId, options) => {
+    capturedOptions = options;
+    return {
+      stream: buildStream(["第一段", "第二段"]),
+      onDone: async (fullContent) => ({
+        fullContent: `${fullContent}（归档）`,
+        frames: [{
+          type: "runtime_package",
+          package: buildRuntimePackage(novelId, chapterId),
+        }],
+      }),
+    };
+  };
 
   const app = createApp();
   const server = http.createServer(app);
@@ -150,7 +158,9 @@ test("runtime chapter route emits runtime_package before done", async () => {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({}),
+      body: JSON.stringify({
+        taskStyleProfileId: "style-task-1",
+      }),
     });
     assert.equal(response.status, 200);
     const text = await response.text();
@@ -158,6 +168,7 @@ test("runtime chapter route emits runtime_package before done", async () => {
     assert.ok(text.includes("\"type\":\"done\""));
     assert.ok(text.includes("\"storyWorldSlice\""));
     assert.ok(text.indexOf("\"type\":\"runtime_package\"") < text.indexOf("\"type\":\"done\""));
+    assert.equal(capturedOptions?.taskStyleProfileId, "style-task-1");
   } finally {
     NovelService.prototype.createChapterRuntimeStream = originalMethod;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));

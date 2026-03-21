@@ -8,7 +8,11 @@ const { composeAssistantMessage } = require("../dist/agents/runtime/answerCompos
 const { setNovelSetupGuidanceLLMFactoryForTests } = require("../dist/agents/runtime/novelSetupGuidanceComposer.js");
 const { setNovelSetupIdeationLLMFactoryForTests } = require("../dist/agents/runtime/novelSetupIdeationComposer.js");
 const { buildCreativeHubTurnSummary } = require("../dist/creativeHub/creativeHubTurnSummary.js");
-const { deriveNextBindingsFromRunSteps } = require("../dist/creativeHub/creativeHubRuntimeHelpers.js");
+const {
+  deriveNextBindingsFromRunSteps,
+  describeBindings,
+  toBindings,
+} = require("../dist/creativeHub/creativeHubRuntimeHelpers.js");
 
 test("rejected pipeline approval falls back to preview only", () => {
   const result = buildAlternativePathFromRejectedApproval({
@@ -116,6 +120,16 @@ test("buildCreativeHubTurnSummary skips social opening turns", () => {
   });
 
   assert.equal(summary, null);
+});
+
+test("creative hub bindings preserve style profile references", () => {
+  const bindings = toBindings({
+    novelId: "novel-1",
+    styleProfileId: "style-1",
+  });
+
+  assert.equal(bindings.styleProfileId, "style-1");
+  assert.match(describeBindings(bindings), /style-1/);
 });
 
 test("composeAssistantMessage returns a light greeting for social openings", async () => {

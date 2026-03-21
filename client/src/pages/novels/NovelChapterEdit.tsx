@@ -244,6 +244,7 @@ export default function NovelChapterEdit() {
                   provider: llm.provider,
                   model: llm.model,
                   temperature: llm.temperature,
+                  taskStyleProfileId: selectedStyleProfileId || undefined,
                 })
               }
               disabled={isStreaming || !chapter}
@@ -367,6 +368,31 @@ export default function NovelChapterEdit() {
             ) : null}
           </div>
 
+          {runtimePackage?.styleReview?.report ? (
+            <div className="rounded-md border p-3 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <div className="font-medium">Runtime style review</div>
+                <span className="text-xs text-muted-foreground">
+                  risk {runtimePackage.styleReview.report.riskScore}
+                </span>
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {runtimePackage.styleReview.autoRewritten
+                  ? "This draft was auto-rewritten to better match the selected style."
+                  : "This draft was checked against the selected style and kept as-is."}
+              </div>
+              <div className="mt-2 text-xs text-muted-foreground">
+                {runtimePackage.styleReview.report.summary}
+              </div>
+              {runtimePackage.styleReview.report.violations.slice(0, 3).map((item, index) => (
+                <div key={`${item.ruleId}-${index}`} className="mt-2 rounded-md border bg-muted/20 p-2 text-xs">
+                  <div className="font-medium">{item.ruleName}</div>
+                  <div className="mt-1 text-muted-foreground">{item.reason}</div>
+                  <div className="mt-1 whitespace-pre-wrap">{item.excerpt}</div>
+                </div>
+              ))}
+            </div>
+          ) : null}
           <ChapterRuntimeAuditCard
             runtimePackage={runtimePackage}
             auditReports={chapterAuditReports}

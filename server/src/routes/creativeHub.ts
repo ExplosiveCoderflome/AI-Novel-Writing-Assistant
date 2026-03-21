@@ -24,6 +24,7 @@ const resourceBindingsSchema = z.object({
   taskId: z.string().trim().optional().nullable(),
   bookAnalysisId: z.string().trim().optional().nullable(),
   formulaId: z.string().trim().optional().nullable(),
+  styleProfileId: z.string().trim().optional().nullable(),
   baseCharacterId: z.string().trim().optional().nullable(),
   knowledgeDocumentIds: z.array(z.string().trim().min(1)).optional(),
 });

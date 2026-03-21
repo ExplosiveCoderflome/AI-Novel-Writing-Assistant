@@ -254,6 +254,7 @@ test("creative hub thread create and state routes return success payloads", asyn
         title: "测试线程",
         resourceBindings: {
           novelId: "novel_demo",
+          styleProfileId: "style_demo",
         },
       }),
     });
@@ -267,6 +268,7 @@ test("creative hub thread create and state routes return success payloads", asyn
     const statePayload = await stateResponse.json();
     assert.equal(statePayload.success, true);
     assert.equal(statePayload.data.thread.id, createPayload.data.id);
+    assert.equal(statePayload.data.thread.resourceBindings.styleProfileId, "style_demo");
     assert.ok(Array.isArray(statePayload.data.messages));
   } finally {
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));

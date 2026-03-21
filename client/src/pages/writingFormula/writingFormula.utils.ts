@@ -1,0 +1,18 @@
+export function prettyJson(value: unknown) {
+  return JSON.stringify(value ?? {}, null, 2);
+}
+
+export function parseJsonInput(value: string) {
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+export function normalizeCsv(value: string) {
+  return value.split(/[,\uFF0C]/).map((item) => item.trim()).filter(Boolean);
+}

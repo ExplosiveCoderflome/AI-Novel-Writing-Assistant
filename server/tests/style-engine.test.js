@@ -15,37 +15,83 @@ function listen(server) {
   });
 }
 
+function buildRule(id) {
+  return {
+    id,
+    key: `rule-${id}`,
+    name: `Rule ${id}`,
+    type: "forbidden",
+    severity: "high",
+    description: "禁止直接解释人物心理。",
+    detectPatterns: [],
+    rewriteSuggestion: "改成动作与对白。",
+    promptInstruction: "直接解释人物心理。",
+    autoRewrite: true,
+    enabled: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 test("StyleCompiler changes anti-ai tone by weight", () => {
   const compiler = new StyleCompiler();
   const baseInput = {
     styleProfile: {
-      narrativeRules: { summary: "以动作先于解释推进" },
+      narrativeRules: { summary: "动作先于解释" },
       characterRules: {},
       languageRules: {},
       rhythmRules: {},
     },
-    antiAiRules: [{
-      id: "rule-1",
-      key: "forbid-explicit-psychology",
-      name: "禁止解释型心理描写",
-      type: "forbidden",
-      severity: "high",
-      description: "禁止直接解释人物心理。",
-      detectPatterns: [],
-      rewriteSuggestion: "改成动作。",
-      promptInstruction: "直接解释人物心理。",
-      autoRewrite: true,
-      enabled: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }],
+    antiAiRules: [buildRule("rule-1")],
   };
 
   const strong = compiler.compile({ ...baseInput, weight: 0.9 });
   const medium = compiler.compile({ ...baseInput, weight: 0.5 });
 
   assert.match(strong.antiAi, /禁止/);
-  assert.match(medium.antiAi, /尽量不要/);
+  assert.match(medium.antiAi, /谨慎避免/);
+});
+
+test("StyleCompiler emits layered binding context and section-level strength", () => {
+  const compiler = new StyleCompiler();
+  const compiled = compiler.compile({
+    styleProfile: {
+      narrativeRules: { summary: "动作先行" },
+      characterRules: { emotionExpression: "克制外露" },
+      languageRules: {},
+      rhythmRules: {},
+    },
+    antiAiRules: [buildRule("rule-2")],
+    weight: 0.7,
+    bindingSummaries: [
+      {
+        styleProfileId: "style-novel",
+        styleProfileName: "底层写法",
+        targetType: "novel",
+        priority: 1,
+        weight: 0.6,
+      },
+      {
+        styleProfileId: "style-task",
+        styleProfileName: "临时任务覆盖",
+        targetType: "task",
+        priority: 999,
+        weight: 1,
+      },
+    ],
+    sectionWeights: {
+      narrativeRules: { summary: 1 },
+      characterRules: { emotionExpression: 0.6 },
+    },
+    antiAiRuleWeights: {
+      "rule-2": 1,
+    },
+  });
+
+  assert.match(compiled.context, /写法生效层级/);
+  assert.match(compiled.context, /本次生成 -> 临时任务覆盖/);
+  assert.match(compiled.style, /叙事\.summary：必须保持 动作先行/);
+  assert.match(compiled.character, /角色\.emotionExpression：可适度保留 克制外露/);
 });
 
 test("style engine routes return mocked payloads", async () => {
@@ -58,10 +104,10 @@ test("style engine routes return mocked payloads", async () => {
 
   const fakeProfile = {
     id: "style-1",
-    name: "底层循环现实流",
+    name: "现实流",
     description: "测试写法",
-    category: "现实流",
-    tags: ["口语化"],
+    category: "现实",
+    tags: ["口语"],
     applicableGenres: ["都市"],
     sourceType: "manual",
     sourceRefId: null,
@@ -99,7 +145,7 @@ test("style engine routes return mocked payloads", async () => {
       ruleName: "禁止解释型心理描写",
       ruleType: "forbidden",
       severity: "high",
-      excerpt: "他感到一阵烦躁",
+      excerpt: "他感到一阵疲惫。",
       reason: "直接解释心理",
       suggestion: "改成动作表达",
       canAutoRewrite: true,
@@ -144,7 +190,7 @@ test("style engine routes return mocked payloads", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         styleProfileId: fakeProfile.id,
-        content: "他感到一阵烦躁。",
+        content: "他感到一阵疲惫。",
       }),
     });
     assert.equal(detectResponse.status, 200);

@@ -6,6 +6,7 @@ export interface ProviderConfig {
   defaultModel: string;
   models: string[];
   envKey: string;
+  maxTokens?: number;
 }
 
 export const PROVIDERS: Record<LLMProvider, ProviderConfig> = {
@@ -15,6 +16,7 @@ export const PROVIDERS: Record<LLMProvider, ProviderConfig> = {
     defaultModel: "deepseek-chat",
     models: ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
     envKey: "DEEPSEEK_API_KEY",
+    maxTokens: 8192,
   },
   siliconflow: {
     name: "SiliconFlow",

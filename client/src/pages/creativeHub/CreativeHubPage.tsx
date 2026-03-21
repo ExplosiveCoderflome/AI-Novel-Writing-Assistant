@@ -36,6 +36,7 @@ function buildBindingsFromSearch(searchParams: URLSearchParams): CreativeHubReso
     taskId: searchParams.get("taskId")?.trim() || null,
     bookAnalysisId: searchParams.get("bookAnalysisId")?.trim() || null,
     formulaId: searchParams.get("formulaId")?.trim() || null,
+    styleProfileId: searchParams.get("styleProfileId")?.trim() || null,
     baseCharacterId: searchParams.get("baseCharacterId")?.trim() || null,
     knowledgeDocumentIds: knowledgeIds,
   };
@@ -50,6 +51,7 @@ function applyBindingsToSearchParams(searchParams: URLSearchParams, bindings: Cr
     "taskId",
     "bookAnalysisId",
     "formulaId",
+    "styleProfileId",
     "baseCharacterId",
   ] as const;
 
@@ -80,6 +82,7 @@ function sameBindings(a: CreativeHubResourceBinding, b: CreativeHubResourceBindi
     && (a.taskId ?? null) === (b.taskId ?? null)
     && (a.bookAnalysisId ?? null) === (b.bookAnalysisId ?? null)
     && (a.formulaId ?? null) === (b.formulaId ?? null)
+    && (a.styleProfileId ?? null) === (b.styleProfileId ?? null)
     && (a.baseCharacterId ?? null) === (b.baseCharacterId ?? null)
     && JSON.stringify(normalizeList(a.knowledgeDocumentIds)) === JSON.stringify(normalizeList(b.knowledgeDocumentIds));
 }
@@ -95,6 +98,7 @@ function buildAutoCreateThreadKey(bindings: CreativeHubResourceBinding, shouldCr
     taskId: bindings.taskId ?? null,
     bookAnalysisId: bindings.bookAnalysisId ?? null,
     formulaId: bindings.formulaId ?? null,
+    styleProfileId: bindings.styleProfileId ?? null,
     baseCharacterId: bindings.baseCharacterId ?? null,
     knowledgeDocumentIds: (bindings.knowledgeDocumentIds ?? []).filter(Boolean).slice().sort(),
   })}`;
@@ -317,18 +321,8 @@ export default function CreativeHubPage() {
     }
     await updateCreativeHubThread(activeThreadId, { resourceBindings: nextBindings });
     setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
+      const next = applyBindingsToSearchParams(prev, nextBindings);
       next.set("threadId", activeThreadId);
-      if (nextBindings.novelId) {
-        next.set("novelId", nextBindings.novelId);
-      } else {
-        next.delete("novelId");
-      }
-      if (nextBindings.chapterId) {
-        next.set("chapterId", nextBindings.chapterId);
-      } else {
-        next.delete("chapterId");
-      }
       return next;
     }, { replace: true });
     await queryClient.invalidateQueries({ queryKey: queryKeys.creativeHub.threads });
@@ -400,6 +394,7 @@ export default function CreativeHubPage() {
         {currentBindings.bookAnalysisId ? <Badge variant="outline">拆书 {currentBindings.bookAnalysisId}</Badge> : null}
         {currentBindings.formulaId ? <Badge variant="outline">公式 {currentBindings.formulaId}</Badge> : null}
         {currentBindings.baseCharacterId ? <Badge variant="outline">角色 {currentBindings.baseCharacterId}</Badge> : null}
+        {currentBindings.styleProfileId ? <Badge variant="outline">鍐欐硶 {currentBindings.styleProfileId}</Badge> : null}
         {latestTurnSummary?.currentStage ? <Badge variant="outline">{latestTurnSummary.currentStage}</Badge> : null}
         {currentBindings.knowledgeDocumentIds?.length ? (
           <Badge variant="outline">知识文档 {currentBindings.knowledgeDocumentIds.length} 份</Badge>
@@ -416,8 +411,11 @@ export default function CreativeHubPage() {
             activeThreadId={activeThreadId}
             onSelect={(threadId) => {
               setActiveThreadId(threadId);
+              const selectedThread = threads.find((thread) => thread.id === threadId);
               setSearchParams((prev) => {
-                const next = new URLSearchParams(prev);
+                const next = selectedThread
+                  ? applyBindingsToSearchParams(prev, selectedThread.resourceBindings)
+                  : new URLSearchParams(prev);
                 next.set("threadId", threadId);
                 return next;
               }, { replace: true });

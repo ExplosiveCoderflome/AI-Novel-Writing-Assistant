@@ -1,9 +1,15 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
 import type { StreamDonePayload } from "../../../llm/streaming";
-import type { ChapterRuntimePackage, GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
+import type {
+  ChapterRuntimePackage,
+  GenerationContextPackage,
+  RuntimeStyleDetectionReport,
+} from "@ai-novel/shared/types/chapterRuntime";
 import { prisma } from "../../../db/prisma";
 import { auditService } from "../../audit/AuditService";
 import { plannerService } from "../../planner/PlannerService";
+import { StyleDetectionService } from "../../styleEngine/StyleDetectionService";
+import { StyleRewriteService } from "../../styleEngine/StyleRewriteService";
 import { ChapterWritingGraph } from "../chapterWritingGraph";
 import { normalizeScore, ruleScore, toText } from "../novelP0Utils";
 import { ChapterArtifactSyncService } from "./ChapterArtifactSyncService";
@@ -21,9 +27,18 @@ interface ChapterRuntimeCoordinatorDeps {
   artifactSyncService?: Pick<ChapterArtifactSyncService, "saveDraftAndArtifacts">;
   auditService?: Pick<typeof auditService, "auditChapter">;
   plannerService?: Pick<typeof plannerService, "shouldTriggerReplanFromAudit">;
+  styleDetectionService?: Pick<StyleDetectionService, "check">;
+  styleRewriteService?: Pick<StyleRewriteService, "rewrite">;
   agentRuntime?: AgentRuntimeLike;
   ensureNovelCharacters?: (novelId: string, actionName: string, minCount?: number) => Promise<void>;
   validateRequest?: (input: ChapterRuntimeRequestInput) => ChapterRuntimeRequestInput;
+}
+
+interface StyleReviewResult {
+  report: RuntimeStyleDetectionReport | null;
+  autoRewritten: boolean;
+  originalContent: string | null;
+  finalContent: string;
 }
 
 export class ChapterRuntimeCoordinator {
@@ -70,6 +85,8 @@ export class ChapterRuntimeCoordinator {
       artifactSyncService,
       auditService: deps.auditService ?? auditService,
       plannerService: deps.plannerService ?? plannerService,
+      styleDetectionService: deps.styleDetectionService ?? new StyleDetectionService(),
+      styleRewriteService: deps.styleRewriteService ?? new StyleRewriteService(),
       agentRuntime: deps.agentRuntime,
       ensureNovelCharacters: deps.ensureNovelCharacters ?? this.ensureNovelCharacters,
       validateRequest: deps.validateRequest ?? ((input) => chapterRuntimeRequestSchema.parse(input)),
@@ -111,29 +128,47 @@ export class ChapterRuntimeCoordinator {
       stream: writerResult.stream,
       onDone: async (fullContent: string) => {
         const normalized = await writerResult.onDone(fullContent);
-        const finalContent = normalized?.finalContent ?? fullContent;
+        const generatedContent = normalized?.finalContent ?? fullContent;
+        const styleReview = await this.runStyleReview({
+          novelId,
+          chapterId,
+          request,
+          contextPackage: assembled.contextPackage,
+          content: generatedContent,
+        });
+
+        if (styleReview.autoRewritten) {
+          await this.deps.artifactSyncService.saveDraftAndArtifacts(
+            novelId,
+            chapterId,
+            styleReview.finalContent,
+            "repaired",
+          );
+        }
+
         const auditResult = await this.deps.auditService.auditChapter(novelId, chapterId, "full", {
           provider: request.provider,
           model: request.model,
           temperature: request.temperature,
-          content: finalContent,
+          content: styleReview.finalContent,
         });
         const runtimePackage = this.buildRuntimePackage({
           novelId,
           chapterId,
           request,
           contextPackage: assembled.contextPackage,
-          finalContent,
+          finalContent: styleReview.finalContent,
           auditResult,
+          styleReview,
           runId: traceRunId,
         });
 
-                if (traceRunId) {
-                  try {
-                    await agentRuntime.finishChapterGenRun(
-                      traceRunId,
-                      `chapter draft generated, ${finalContent.length} chars`,
-                      Date.now() - startMs,
+        if (traceRunId) {
+          try {
+            await agentRuntime.finishChapterGenRun(
+              traceRunId,
+              `chapter draft generated, ${styleReview.finalContent.length} chars`,
+              Date.now() - startMs,
             );
           } catch {
             // ignore trace failures
@@ -141,13 +176,96 @@ export class ChapterRuntimeCoordinator {
         }
 
         return {
-          fullContent: finalContent,
+          fullContent: styleReview.finalContent,
           frames: config.includeRuntimePackage
             ? [{ type: "runtime_package", package: runtimePackage }]
             : [],
         };
       },
     };
+  }
+
+  private async runStyleReview(input: {
+    novelId: string;
+    chapterId: string;
+    request: ChapterRuntimeRequestInput;
+    contextPackage: GenerationContextPackage;
+    content: string;
+  }): Promise<StyleReviewResult> {
+    if (!input.contextPackage.styleContext?.compiledBlocks) {
+      return {
+        report: null,
+        autoRewritten: false,
+        originalContent: null,
+        finalContent: input.content,
+      };
+    }
+
+    let report: RuntimeStyleDetectionReport | null = null;
+    try {
+      report = await this.deps.styleDetectionService.check({
+        content: input.content,
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        taskStyleProfileId: input.request.taskStyleProfileId,
+        provider: input.request.provider,
+        model: input.request.model,
+        temperature: 0.2,
+      });
+    } catch {
+      return {
+        report: null,
+        autoRewritten: false,
+        originalContent: null,
+        finalContent: input.content,
+      };
+    }
+
+    const rewritableIssues = report.violations.filter((item) => item.canAutoRewrite && item.suggestion.trim());
+    const shouldAutoRewrite = report.canAutoRewrite
+      && rewritableIssues.length > 0
+      && report.riskScore >= 35;
+
+    if (!shouldAutoRewrite) {
+      return {
+        report,
+        autoRewritten: false,
+        originalContent: null,
+        finalContent: input.content,
+      };
+    }
+
+    try {
+      const rewritten = await this.deps.styleRewriteService.rewrite({
+        content: input.content,
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        taskStyleProfileId: input.request.taskStyleProfileId,
+        issues: rewritableIssues.map((item) => ({
+          ruleName: item.ruleName,
+          excerpt: item.excerpt,
+          suggestion: item.suggestion,
+        })),
+        provider: input.request.provider,
+        model: input.request.model,
+        temperature: Math.min(input.request.temperature ?? 0.5, 0.7),
+      });
+      const finalContent = rewritten.content.trim() || input.content;
+      const autoRewritten = finalContent.trim() !== input.content.trim();
+      return {
+        report,
+        autoRewritten,
+        originalContent: autoRewritten ? input.content : null,
+        finalContent,
+      };
+    } catch {
+      return {
+        report,
+        autoRewritten: false,
+        originalContent: null,
+        finalContent: input.content,
+      };
+    }
   }
 
   private buildRuntimePackage(input: {
@@ -157,6 +275,7 @@ export class ChapterRuntimeCoordinator {
     contextPackage: GenerationContextPackage;
     finalContent: string;
     auditResult: Awaited<ReturnType<typeof auditService.auditChapter>>;
+    styleReview: StyleReviewResult;
     runId: string | null;
   }): ChapterRuntimePackage {
     const openIssues = input.auditResult.auditReports
@@ -188,7 +307,7 @@ export class ChapterRuntimeCoordinator {
       draft: {
         content: input.finalContent,
         wordCount: input.finalContent.trim().length,
-        generationState: "drafted",
+        generationState: input.styleReview.autoRewritten ? "repaired" : "drafted",
       },
       audit: {
         score: input.auditResult.score,
@@ -225,6 +344,11 @@ export class ChapterRuntimeCoordinator {
           ? "Blocking audit issues remain open after generation."
           : "No blocking audit issues were detected.",
         blockingIssueIds,
+      },
+      styleReview: {
+        report: input.styleReview.report,
+        autoRewritten: input.styleReview.autoRewritten,
+        originalContent: input.styleReview.originalContent,
       },
       meta: {
         provider: input.request.provider,

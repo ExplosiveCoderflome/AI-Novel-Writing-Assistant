@@ -91,6 +91,38 @@ function toLLMProvider(value: string): LLMProvider {
   return "deepseek";
 }
 
+function normalizeMaxTokens(provider: LLMProvider, maxTokens?: number): number | undefined {
+  if (typeof maxTokens !== "number" || !Number.isFinite(maxTokens)) {
+    return undefined;
+  }
+  const normalized = Math.floor(maxTokens);
+  if (normalized < 1) {
+    return undefined;
+  }
+  const providerLimit = PROVIDERS[provider].maxTokens;
+  if (typeof providerLimit === "number") {
+    return Math.min(normalized, providerLimit);
+  }
+  return normalized;
+}
+
+function applyOverrides(
+  base: ResolvedModel,
+  userOverride?: { provider?: LLMProvider; model?: string; temperature?: number; maxTokens?: number },
+): ResolvedModel {
+  const merged: ResolvedModel = {
+    ...base,
+    ...(userOverride?.provider != null && { provider: userOverride.provider }),
+    ...(userOverride?.model != null && { model: userOverride.model }),
+    ...(userOverride?.temperature != null && { temperature: userOverride.temperature }),
+    ...(userOverride?.maxTokens != null && { maxTokens: userOverride.maxTokens }),
+  };
+  return {
+    ...merged,
+    maxTokens: normalizeMaxTokens(merged.provider, merged.maxTokens),
+  };
+}
+
 function normalizeTaskType(taskType: TaskType): ModelRouteTaskType | "default" {
   const aliased = TASK_TYPE_ALIASES[taskType];
   if (aliased) {
@@ -117,31 +149,20 @@ export async function resolveModel(
       where: { taskType: normalizedTaskType },
     });
     if (row) {
+      const provider = toLLMProvider(row.provider);
       const resolved: ResolvedModel = {
-        provider: toLLMProvider(row.provider),
+        provider,
         model: row.model,
         temperature: row.temperature,
-        maxTokens: row.maxTokens ?? undefined,
+        maxTokens: normalizeMaxTokens(provider, row.maxTokens ?? undefined),
       };
-      return {
-        ...resolved,
-        ...(userOverride?.provider != null && { provider: userOverride.provider }),
-        ...(userOverride?.model != null && { model: userOverride.model }),
-        ...(userOverride?.temperature != null && { temperature: userOverride.temperature }),
-        ...(userOverride?.maxTokens != null && { maxTokens: userOverride.maxTokens }),
-      };
+      return applyOverrides(resolved, userOverride);
     }
   } catch {
     // table may not exist yet
   }
 
-  return {
-    ...base,
-    ...(userOverride?.provider != null && { provider: userOverride.provider }),
-    ...(userOverride?.model != null && { model: userOverride.model }),
-    ...(userOverride?.temperature != null && { temperature: userOverride.temperature }),
-    ...(userOverride?.maxTokens != null && { maxTokens: userOverride.maxTokens }),
-  };
+  return applyOverrides(base, userOverride);
 }
 
 export async function listModelRouteConfigs(): Promise<Array<{ taskType: string; provider: string; model: string; temperature: number; maxTokens: number | null }>> {

@@ -25,6 +25,14 @@ export class StyleRuntimeResolver {
           compiledBlocks: this.compiler.compile({
             styleProfile: profile,
             antiAiRules: profile.antiAiRules,
+            weight: 1,
+            bindingSummaries: [{
+              styleProfileId: profile.id,
+              styleProfileName: profile.name,
+              targetType: "task",
+              priority: 999,
+              weight: 1,
+            }],
           }),
         },
         antiAiRules: profile.antiAiRules,

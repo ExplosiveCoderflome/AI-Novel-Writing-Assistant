@@ -237,6 +237,12 @@ export const styleDetectionReportSchema = z.object({
   appliedRuleIds: z.array(z.string()),
 });
 
+export const runtimeStyleReviewSchema = z.object({
+  report: styleDetectionReportSchema.nullable(),
+  autoRewritten: z.boolean(),
+  originalContent: z.string().nullable().optional(),
+});
+
 export const chapterRuntimePackageSchema = z.object({
   novelId: z.string(),
   chapterId: z.string(),
@@ -257,6 +263,7 @@ export const chapterRuntimePackageSchema = z.object({
     reason: z.string(),
     blockingIssueIds: z.array(z.string()),
   }),
+  styleReview: runtimeStyleReviewSchema.optional(),
   meta: z.object({
     provider: z.string().optional(),
     model: z.string().optional(),
@@ -284,3 +291,4 @@ export type RuntimeAuditReport = z.infer<typeof runtimeAuditReportSchema>;
 export type ChapterRuntimePackage = z.infer<typeof chapterRuntimePackageSchema>;
 export type RuntimeStyleDetectionViolation = z.infer<typeof styleDetectionViolationSchema>;
 export type RuntimeStyleDetectionReport = z.infer<typeof styleDetectionReportSchema>;
+export type RuntimeStyleReview = z.infer<typeof runtimeStyleReviewSchema>;

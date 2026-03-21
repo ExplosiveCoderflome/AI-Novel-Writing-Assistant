@@ -2,13 +2,45 @@ import type { ResolvedStyleContext, StyleBinding, StyleProfile, StyleRuleSet } f
 import { prisma } from "../../db/prisma";
 import { StyleCompiler } from "./StyleCompiler";
 import { ensureStyleEngineSeedData } from "./StyleEngineSeedService";
-import { buildEmptyRuleSet, mapAntiAiRuleRow, mapStyleProfileRow, mergeRuleObjects } from "./helpers";
+import {
+  buildEmptyRuleSet,
+  clamp,
+  mapAntiAiRuleRow,
+  mapStyleProfileRow,
+  mergeRuleObjects,
+} from "./helpers";
 
 const TARGET_PRIORITY: Record<StyleBinding["targetType"], number> = {
   novel: 1,
   chapter: 2,
   task: 3,
 };
+
+type StyleSectionKey = keyof StyleRuleSet;
+type RuleWeightMap = Record<StyleSectionKey, Record<string, number>>;
+
+function buildEmptyRuleWeightMap(): RuleWeightMap {
+  return {
+    narrativeRules: {},
+    characterRules: {},
+    languageRules: {},
+    rhythmRules: {},
+  };
+}
+
+function assignRuleWeights(
+  target: RuleWeightMap,
+  section: StyleSectionKey,
+  rules: Record<string, unknown>,
+  weight: number,
+): void {
+  for (const [key, value] of Object.entries(rules)) {
+    if (value === undefined || value === null || value === "") {
+      continue;
+    }
+    target[section][key] = weight;
+  }
+}
 
 export class StyleBindingService {
   private readonly compiler = new StyleCompiler();
@@ -60,6 +92,7 @@ export class StyleBindingService {
         },
       },
     });
+
     return {
       id: row.id,
       styleProfileId: row.styleProfileId,
@@ -129,6 +162,7 @@ export class StyleBindingService {
           },
         },
       });
+
       if (profileRow) {
         matchedBindings.push({
           id: `task_${profileRow.id}`,
@@ -161,7 +195,7 @@ export class StyleBindingService {
     });
 
     const mergedRules = ordered.reduce<StyleRuleSet>((acc, binding) => {
-      const profile = binding.styleProfile as StyleProfile;
+      const profile = binding.styleProfile as StyleProfile | undefined;
       if (!profile) {
         return acc;
       }
@@ -173,19 +207,56 @@ export class StyleBindingService {
       };
     }, buildEmptyRuleSet());
 
-    const antiRulesById = new Map<string, ReturnType<typeof mapAntiAiRuleRow>>();
-    for (const binding of matchedBindings) {
+    const sectionWeights = ordered.reduce<RuleWeightMap>((acc, binding) => {
+      const profile = binding.styleProfile as StyleProfile | undefined;
+      if (!profile) {
+        return acc;
+      }
+      assignRuleWeights(acc, "narrativeRules", profile.narrativeRules, binding.weight);
+      assignRuleWeights(acc, "characterRules", profile.characterRules, binding.weight);
+      assignRuleWeights(acc, "languageRules", profile.languageRules, binding.weight);
+      assignRuleWeights(acc, "rhythmRules", profile.rhythmRules, binding.weight);
+      return acc;
+    }, buildEmptyRuleWeightMap());
+
+    const antiRulesById = new Map<string, { rule: ReturnType<typeof mapAntiAiRuleRow>; weight: number }>();
+    for (const binding of ordered) {
       for (const rule of binding.styleProfile?.antiAiRules ?? []) {
-        antiRulesById.set(rule.id, rule);
+        const existing = antiRulesById.get(rule.id);
+        if (!existing || binding.weight >= existing.weight) {
+          antiRulesById.set(rule.id, { rule, weight: binding.weight });
+        }
       }
     }
 
-    const strongestWeight = ordered.reduce((max, item) => Math.max(max, item.weight), 0.6);
+    const totalSpecificity = ordered.reduce((sum, item) => sum + TARGET_PRIORITY[item.targetType], 0);
+    const weightedStrength = ordered.reduce(
+      (sum, item) => sum + (item.weight * TARGET_PRIORITY[item.targetType]),
+      0,
+    );
+    const mergedWeight = clamp(
+      totalSpecificity > 0 ? weightedStrength / totalSpecificity : 1,
+      0.3,
+      1,
+    );
+
     const compiledBlocks = this.compiler.compile({
       styleProfile: mergedRules,
-      antiAiRules: Array.from(antiRulesById.values()),
-      weight: strongestWeight,
+      antiAiRules: Array.from(antiRulesById.values()).map((item) => item.rule),
+      weight: mergedWeight,
       appliedRuleIds: Array.from(antiRulesById.keys()),
+      bindingSummaries: ordered.map((binding) => ({
+        styleProfileId: binding.styleProfileId,
+        styleProfileName: binding.styleProfile?.name ?? null,
+        targetType: binding.targetType,
+        priority: binding.priority,
+        weight: binding.weight,
+      })),
+      sectionWeights,
+      antiAiRuleWeights: Array.from(antiRulesById.entries()).reduce<Record<string, number>>((acc, [ruleId, item]) => {
+        acc[ruleId] = item.weight;
+        return acc;
+      }, {}),
     });
 
     return {

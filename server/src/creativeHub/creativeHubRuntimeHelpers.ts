@@ -1,5 +1,10 @@
 import crypto from "node:crypto";
-import type { CreativeHubMessage, CreativeHubInterrupt, CreativeHubResourceBinding, CreativeHubThread } from "@ai-novel/shared/types/creativeHub";
+import type {
+  CreativeHubInterrupt,
+  CreativeHubMessage,
+  CreativeHubResourceBinding,
+  CreativeHubThread,
+} from "@ai-novel/shared/types/creativeHub";
 import type { AgentRunStatus } from "@ai-novel/shared/types/agent";
 
 export function toBindings(bindings?: CreativeHubResourceBinding): CreativeHubResourceBinding {
@@ -10,6 +15,7 @@ export function toBindings(bindings?: CreativeHubResourceBinding): CreativeHubRe
     taskId: bindings?.taskId ?? null,
     bookAnalysisId: bindings?.bookAnalysisId ?? null,
     formulaId: bindings?.formulaId ?? null,
+    styleProfileId: bindings?.styleProfileId ?? null,
     baseCharacterId: bindings?.baseCharacterId ?? null,
     knowledgeDocumentIds: bindings?.knowledgeDocumentIds ?? [],
   };
@@ -23,10 +29,12 @@ export function describeBindings(bindings: CreativeHubResourceBinding): string |
     bindings.taskId ? `任务ID=${bindings.taskId}` : null,
     bindings.bookAnalysisId ? `拆书分析ID=${bindings.bookAnalysisId}` : null,
     bindings.formulaId ? `写作公式ID=${bindings.formulaId}` : null,
+    bindings.styleProfileId ? `写法资产ID=${bindings.styleProfileId}` : null,
     bindings.baseCharacterId ? `基础角色ID=${bindings.baseCharacterId}` : null,
     bindings.knowledgeDocumentIds?.length ? `知识文档ID=${bindings.knowledgeDocumentIds.join(",")}` : null,
   ].filter((item): item is string => Boolean(item));
-  return parts.length > 0 ? parts.join("；") : null;
+
+  return parts.length > 0 ? parts.join("，") : null;
 }
 
 export function prependBindingMessage(
@@ -37,6 +45,7 @@ export function prependBindingMessage(
   if (!summary) {
     return messages;
   }
+
   return [
     {
       id: "creative_hub_binding_context",
@@ -87,6 +96,7 @@ export function appendAssistantMessage(
   if (!assistantOutput.trim()) {
     return messages;
   }
+
   return [
     ...messages,
     {
@@ -102,9 +112,12 @@ export function parseStepRecord(value: string | null | undefined): Record<string
   if (!value?.trim()) {
     return {};
   }
+
   try {
     const parsed = JSON.parse(value) as unknown;
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {};
   } catch {
     return {};
   }
@@ -120,27 +133,40 @@ export function deriveNextBindingsFromRunSteps(
   }>,
 ): CreativeHubResourceBinding {
   const nextBindings = toBindings(bindings);
+
   for (let index = steps.length - 1; index >= 0; index -= 1) {
     const step = steps[index];
     if (step.stepType !== "tool_result" || step.status !== "succeeded") {
       continue;
     }
+
     const input = parseStepRecord(step.inputJson);
     const output = parseStepRecord(step.outputJson);
     const tool = typeof input.tool === "string" ? input.tool : "";
-    if ((tool === "create_novel" || tool === "select_novel_workspace") && typeof output.novelId === "string" && output.novelId.trim()) {
+
+    if (
+      (tool === "create_novel" || tool === "select_novel_workspace")
+      && typeof output.novelId === "string"
+      && output.novelId.trim()
+    ) {
       const nextNovelId = output.novelId.trim();
       if (nextBindings.novelId !== nextNovelId) {
         nextBindings.chapterId = null;
       }
       nextBindings.novelId = nextNovelId;
     }
-    if ((tool === "generate_world_for_novel" || tool === "bind_world_to_novel") && typeof output.worldId === "string" && output.worldId.trim()) {
+
+    if (
+      (tool === "generate_world_for_novel" || tool === "bind_world_to_novel")
+      && typeof output.worldId === "string"
+      && output.worldId.trim()
+    ) {
       nextBindings.worldId = output.worldId.trim();
       if (typeof output.novelId === "string" && output.novelId.trim()) {
         nextBindings.novelId = output.novelId.trim();
       }
     }
+
     if (tool === "unbind_world_from_novel") {
       nextBindings.worldId = null;
       if (typeof output.novelId === "string" && output.novelId.trim()) {
@@ -148,6 +174,7 @@ export function deriveNextBindingsFromRunSteps(
       }
     }
   }
+
   return nextBindings;
 }
 
