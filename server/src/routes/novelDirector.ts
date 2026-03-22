@@ -1,0 +1,125 @@
+import { Router } from "express";
+import { z } from "zod";
+import type { ApiResponse } from "@ai-novel/shared/types/api";
+import {
+  DIRECTOR_CORRECTION_PRESETS,
+  type DirectorConfirmRequest,
+  type DirectorRefinementRequest,
+} from "@ai-novel/shared/types/novelDirector";
+import { validate } from "../middleware/validate";
+import { NovelDirectorService } from "../services/novel/director/NovelDirectorService";
+import { directorCandidateSchema } from "../services/novel/director/novelDirectorSchemas";
+
+const router = Router();
+const novelDirectorService = new NovelDirectorService();
+
+const correctionPresetValues = DIRECTOR_CORRECTION_PRESETS.map((item) => item.value) as [string, ...string[]];
+
+const llmOptionsSchema = z.object({
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]).optional(),
+  model: z.string().trim().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+});
+
+const projectContextSchema = z.object({
+  title: z.string().trim().optional(),
+  description: z.string().trim().optional(),
+  genreId: z.string().trim().optional(),
+  worldId: z.string().trim().optional(),
+  writingMode: z.enum(["original", "continuation"]).optional(),
+  projectMode: z.enum(["ai_led", "co_pilot", "draft_mode", "auto_pipeline"]).optional(),
+  narrativePov: z.enum(["first_person", "third_person", "mixed"]).optional(),
+  pacePreference: z.enum(["slow", "balanced", "fast"]).optional(),
+  styleTone: z.string().trim().optional(),
+  emotionIntensity: z.enum(["low", "medium", "high"]).optional(),
+  aiFreedom: z.enum(["low", "medium", "high"]).optional(),
+  defaultChapterLength: z.number().int().min(500).max(10000).optional(),
+  estimatedChapterCount: z.number().int().min(1).max(500).optional(),
+  projectStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).optional(),
+  storylineStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).optional(),
+  outlineStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).optional(),
+  resourceReadyScore: z.number().int().min(0).max(100).optional(),
+  sourceNovelId: z.string().trim().optional(),
+  sourceKnowledgeDocumentId: z.string().trim().optional(),
+  continuationBookAnalysisId: z.string().trim().optional(),
+  continuationBookAnalysisSections: z.array(z.enum([
+    "overview",
+    "plot_structure",
+    "timeline",
+    "character_system",
+    "worldbuilding",
+    "themes",
+    "style_technique",
+    "market_highlights",
+  ])).min(1).max(8).optional(),
+});
+
+const candidatesSchema = projectContextSchema.extend({
+  idea: z.string().trim().min(1),
+}).merge(llmOptionsSchema);
+
+const candidateBatchSchema = z.object({
+  id: z.string().trim().min(1),
+  round: z.number().int().min(1),
+  roundLabel: z.string().trim().min(1),
+  idea: z.string().trim().min(1),
+  refinementSummary: z.string().trim().nullable().optional(),
+  presets: z.array(z.enum(correctionPresetValues)).default([]),
+  candidates: z.array(directorCandidateSchema).min(1),
+  createdAt: z.string().trim().min(1),
+});
+
+const refineSchema = projectContextSchema.extend({
+  idea: z.string().trim().min(1),
+  previousBatches: z.array(candidateBatchSchema).min(1),
+  presets: z.array(z.enum(correctionPresetValues)).default([]),
+  feedback: z.string().trim().max(500).optional(),
+}).merge(llmOptionsSchema);
+
+const confirmSchema = projectContextSchema.extend({
+  idea: z.string().trim().min(1),
+  batchId: z.string().trim().optional(),
+  round: z.number().int().min(1).optional(),
+  candidate: directorCandidateSchema,
+}).merge(llmOptionsSchema);
+
+router.post("/candidates", validate({ body: candidatesSchema }), async (req, res, next) => {
+  try {
+    const data = await novelDirectorService.generateCandidates(req.body as z.infer<typeof candidatesSchema>);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Director candidates generated.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/refine", validate({ body: refineSchema }), async (req, res, next) => {
+  try {
+    const data = await novelDirectorService.refineCandidates(req.body as DirectorRefinementRequest);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Director candidates regenerated.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/confirm", validate({ body: confirmSchema }), async (req, res, next) => {
+  try {
+    const data = await novelDirectorService.confirmCandidate(req.body as DirectorConfirmRequest);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Director candidate confirmed.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+export default router;

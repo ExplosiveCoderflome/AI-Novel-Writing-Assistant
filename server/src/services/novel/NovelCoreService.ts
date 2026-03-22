@@ -11,6 +11,7 @@ import { ragServices } from "../rag";
 import { getRagQueryForChapter, novelReferenceService } from "./NovelReferenceService";
 import { NovelContinuationService } from "./NovelContinuationService";
 import { NovelWorldSliceService } from "./storyWorldSlice/NovelWorldSliceService";
+import { ChapterRuntimeCoordinator } from "./runtime/ChapterRuntimeCoordinator";
 import { STORY_WORLD_SLICE_SCHEMA_VERSION } from "./storyWorldSlice/storyWorldSlicePersistence";
 import {
   buildLegacyWorldContextFromWorld,
@@ -567,6 +568,7 @@ const novelContinuationService = new NovelContinuationService();
 
 export class NovelCoreService {
   private readonly storyWorldSliceService = new NovelWorldSliceService();
+  private readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator();
   private readonly chapterWritingGraph = new ChapterWritingGraph({
     toText,
     normalizeScore,
@@ -2905,7 +2907,6 @@ ${ragContext || ""}`,
       let completed = 0;
       for (const chapter of chapters) {
         await this.ensurePipelineNotCancelled(jobId);
-        let content = chapter.content ?? "";
         let final = { score: normalizeScore({}), issues: [] as ReviewIssue[] };
         let pass = false;
         await this.updateJobSafe(jobId, {
@@ -2918,42 +2919,37 @@ ${ragContext || ""}`,
           jobId,
           chapterId: chapter.id,
           order: chapter.order,
-          hasDraft: Boolean(content.trim()),
+          hasDraft: Boolean((chapter.content ?? "").trim()),
         });
 
-        const chapterPlanText = await plannerService
-          .ensureChapterPlan(novelId, chapter.id, options)
-          .then(() => plannerService.buildPlanPromptBlock(novelId, chapter.id))
-          .catch(() => "");
-        const chapterResult = await this.chapterWritingGraph.runPipelineChapter({
-          jobId,
+        const chapterResult = await this.chapterRuntimeCoordinator.runPipelineChapter(
           novelId,
-          novelTitle: novel.title,
-          chapter: {
-            id: chapter.id,
-            title: chapter.title,
-            order: chapter.order,
-            content,
-            expectation: [chapter.expectation?.trim(), chapterPlanText].filter(Boolean).join("\n\n"),
-          },
-          options: {
-            ...options,
+          chapter.id,
+          {
+            provider: options.provider,
+            model: options.model,
+            temperature: options.temperature,
             maxRetries,
+            autoRepair: options.autoRepair,
             qualityThreshold,
+            repairMode: options.repairMode,
           },
-          onCheckCancelled: () => this.ensurePipelineNotCancelled(jobId),
-          onStageChange: async (stage) => {
-            await this.updateJobSafe(jobId, {
-              heartbeatAt: new Date(),
-              currentStage: stage,
-              currentItemKey: chapter.id,
-              currentItemLabel: chapter.title,
-            });
+          {
+            onCheckCancelled: () => this.ensurePipelineNotCancelled(jobId),
+            onStageChange: async (stage) => {
+              await this.updateJobSafe(jobId, {
+                heartbeatAt: new Date(),
+                currentStage: stage,
+                currentItemKey: chapter.id,
+                currentItemLabel: chapter.title,
+              });
+            },
           },
-        });
+        );
         totalRetryCount += chapterResult.retryCountUsed;
         final = { score: chapterResult.score, issues: chapterResult.issues };
         pass = chapterResult.pass;
+        await this.createQualityReport(novelId, chapter.id, final.score, final.issues);
 
         if (!chapterResult.pass) {
           failedDetails.push(

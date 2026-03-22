@@ -13,3 +13,4 @@ export * from "./types/writingFormula";
 export * from "./types/styleEngine";
 export * from "./types/storyMacro";
 export * from "./types/title";
+export * from "./types/novelDirector";

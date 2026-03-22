@@ -20,6 +20,7 @@ import imagesRouter from "./routes/images";
 import knowledgeRouter from "./routes/knowledge";
 import llmRouter from "./routes/llm";
 import novelRouter from "./routes/novel";
+import novelDirectorRouter from "./routes/novelDirector";
 import novelDecisionsRouter from "./routes/novelDecisions";
 import novelChapterSummaryRouter from "./routes/novelChapterSummary";
 import novelExportRouter from "./routes/novelExport";
@@ -83,6 +84,7 @@ export function createApp() {
   app.use("/api/title-library", titleLibraryRouter);
   app.use("/api", styleEngineRouter);
   app.use("/api/novels", novelRouter);
+  app.use("/api/novels/director", novelDirectorRouter);
   app.use("/api/novels", novelDecisionsRouter);
   app.use("/api/novels", novelChapterSummaryRouter);
   app.use("/api/novels", novelExportRouter);

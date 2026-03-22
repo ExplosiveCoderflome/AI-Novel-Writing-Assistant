@@ -54,6 +54,7 @@ interface NovelBasicInfoFormProps {
   submitLabel: string;
   showPublicationStatus?: boolean;
   titleQuickFill?: ReactNode;
+  projectQuickStart?: ReactNode;
 }
 
 export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
@@ -72,6 +73,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
     submitLabel,
     showPublicationStatus = true,
     titleQuickFill,
+    projectQuickStart,
   } = props;
 
   const continuationSourceMissing = basicForm.writingMode === "continuation"
@@ -95,6 +97,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         <div className="mt-1 text-sm leading-6 text-muted-foreground">
           建议先完成标题、创作模式、项目模式、叙事视角，再补节奏、情绪和续写来源。这里的设置会直接影响后续主线规划、章节计划和正文生成。
         </div>
+        {projectQuickStart ? <div className="mt-3 flex justify-end">{projectQuickStart}</div> : null}
       </div>
 
       <SectionBlock

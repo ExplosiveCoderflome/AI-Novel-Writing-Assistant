@@ -7,6 +7,7 @@ import { createNovel } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { getWorldList } from "@/api/world";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import NovelAutoDirectorDialog from "./components/NovelAutoDirectorDialog";
 import NovelBasicInfoForm from "./components/NovelBasicInfoForm";
 import NovelCreateTitleQuickFill from "./components/titleWorkshop/NovelCreateTitleQuickFill";
 import { useNovelContinuationSources } from "./hooks/useNovelContinuationSources";
@@ -99,6 +100,12 @@ export default function NovelCreate() {
             isSubmitting={createNovelMutation.isPending}
             submitLabel="创建并进入项目"
             showPublicationStatus={false}
+            projectQuickStart={(
+              <NovelAutoDirectorDialog
+                basicForm={basicForm}
+                onConfirmed={(novelId) => navigate(`/novels/${novelId}/edit`)}
+              />
+            )}
             titleQuickFill={(
               <NovelCreateTitleQuickFill
                 basicForm={basicForm}

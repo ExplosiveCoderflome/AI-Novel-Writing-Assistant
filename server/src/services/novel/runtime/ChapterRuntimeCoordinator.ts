@@ -15,6 +15,13 @@ import { normalizeScore, ruleScore, toText } from "../novelP0Utils";
 import { ChapterArtifactSyncService } from "./ChapterArtifactSyncService";
 import { GenerationContextAssembler } from "./GenerationContextAssembler";
 import { chapterRuntimeRequestSchema, type ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
+import {
+  runPipelineChapterWithRuntime,
+  type AssembledRuntimeChapter,
+  type PipelineRuntimeHooks,
+  type PipelineRuntimeInput,
+  type PipelineRuntimeResult,
+} from "./chapterRuntimePipeline";
 
 interface AgentRuntimeLike {
   createChapterGenRun: (novelId: string, chapterId: string, chapterOrder: number) => Promise<string>;
@@ -39,6 +46,12 @@ interface StyleReviewResult {
   autoRewritten: boolean;
   originalContent: string | null;
   finalContent: string;
+}
+
+interface FinalizeChapterContentResult {
+  finalContent: string;
+  runtimePackage: ChapterRuntimePackage;
+  styleReview: StyleReviewResult;
 }
 
 export class ChapterRuntimeCoordinator {
@@ -88,7 +101,7 @@ export class ChapterRuntimeCoordinator {
       styleDetectionService: deps.styleDetectionService ?? new StyleDetectionService(),
       styleRewriteService: deps.styleRewriteService ?? new StyleRewriteService(),
       agentRuntime: deps.agentRuntime,
-      ensureNovelCharacters: deps.ensureNovelCharacters ?? this.ensureNovelCharacters,
+      ensureNovelCharacters: deps.ensureNovelCharacters ?? this.ensureNovelCharacters.bind(this),
       validateRequest: deps.validateRequest ?? ((input) => chapterRuntimeRequestSchema.parse(input)),
     };
   }
@@ -106,7 +119,7 @@ export class ChapterRuntimeCoordinator {
     await this.deps.ensureNovelCharacters(novelId, "generate chapter content");
 
     const assembled = await this.deps.assembler.assemble(novelId, chapterId, request);
-    const agentRuntime = this.deps.agentRuntime ?? require("../../../agents").agentRuntime as AgentRuntimeLike;
+    const agentRuntime = this.getAgentRuntime();
 
     let traceRunId: string | null = null;
     try {
@@ -129,60 +142,150 @@ export class ChapterRuntimeCoordinator {
       onDone: async (fullContent: string) => {
         const normalized = await writerResult.onDone(fullContent);
         const generatedContent = normalized?.finalContent ?? fullContent;
-        const styleReview = await this.runStyleReview({
+        const finalized = await this.finalizeChapterContent({
           novelId,
           chapterId,
           request,
           contextPackage: assembled.contextPackage,
           content: generatedContent,
-        });
-
-        if (styleReview.autoRewritten) {
-          await this.deps.artifactSyncService.saveDraftAndArtifacts(
-            novelId,
-            chapterId,
-            styleReview.finalContent,
-            "repaired",
-          );
-        }
-
-        const auditResult = await this.deps.auditService.auditChapter(novelId, chapterId, "full", {
-          provider: request.provider,
-          model: request.model,
-          temperature: request.temperature,
-          content: styleReview.finalContent,
-        });
-        const runtimePackage = this.buildRuntimePackage({
-          novelId,
-          chapterId,
-          request,
-          contextPackage: assembled.contextPackage,
-          finalContent: styleReview.finalContent,
-          auditResult,
-          styleReview,
           runId: traceRunId,
+          startMs,
         });
-
-        if (traceRunId) {
-          try {
-            await agentRuntime.finishChapterGenRun(
-              traceRunId,
-              `chapter draft generated, ${styleReview.finalContent.length} chars`,
-              Date.now() - startMs,
-            );
-          } catch {
-            // ignore trace failures
-          }
-        }
 
         return {
-          fullContent: styleReview.finalContent,
+          fullContent: finalized.finalContent,
           frames: config.includeRuntimePackage
-            ? [{ type: "runtime_package", package: runtimePackage }]
+            ? [{ type: "runtime_package", package: finalized.runtimePackage }]
             : [],
         };
       },
     };
+  }
+
+  async runPipelineChapter(
+    novelId: string,
+    chapterId: string,
+    options: PipelineRuntimeInput = {},
+    hooks: PipelineRuntimeHooks = {},
+  ): Promise<PipelineRuntimeResult> {
+    return runPipelineChapterWithRuntime(
+      {
+        validateRequest: this.deps.validateRequest,
+        ensureNovelCharacters: this.deps.ensureNovelCharacters,
+        assemble: (targetNovelId, targetChapterId, request) =>
+          this.deps.assembler.assemble(targetNovelId, targetChapterId, request) as Promise<AssembledRuntimeChapter>,
+        generateDraftFromWriter: (input) => this.generateDraftFromWriter(input),
+        saveDraftAndArtifacts: (targetNovelId, targetChapterId, content, generationState) =>
+          this.deps.artifactSyncService.saveDraftAndArtifacts(targetNovelId, targetChapterId, content, generationState),
+        finalizeChapterContent: async (input) => {
+          const finalized = await this.finalizeChapterContent(input);
+          return {
+            finalContent: finalized.finalContent,
+            runtimePackage: finalized.runtimePackage,
+          };
+        },
+        markChapterGenerationState: (targetChapterId, generationState) =>
+          this.markChapterGenerationState(targetChapterId, generationState),
+      },
+      novelId,
+      chapterId,
+      options,
+      hooks,
+    );
+  }
+
+  private getAgentRuntime(): AgentRuntimeLike {
+    return (this.deps.agentRuntime ?? require("../../../agents").agentRuntime) as AgentRuntimeLike;
+  }
+
+  private async generateDraftFromWriter(input: {
+    novelId: string;
+    chapterId: string;
+    request: ChapterRuntimeRequestInput;
+    assembled: AssembledRuntimeChapter;
+  }): Promise<string> {
+    const writerResult = await this.deps.chapterWritingGraph.createChapterStream({
+      novelId: input.novelId,
+      novelTitle: input.assembled.novel.title,
+      chapter: input.assembled.chapter,
+      contextPackage: input.assembled.contextPackage,
+      options: input.request,
+    });
+
+    let fullContent = "";
+    for await (const chunk of writerResult.stream) {
+      fullContent += toText(chunk.content);
+    }
+    const normalized = await writerResult.onDone(fullContent);
+    return normalized?.finalContent ?? fullContent;
+  }
+
+  private async finalizeChapterContent(input: {
+    novelId: string;
+    chapterId: string;
+    request: ChapterRuntimeRequestInput;
+    contextPackage: GenerationContextPackage;
+    content: string;
+    runId: string | null;
+    startMs: number | null;
+  }): Promise<FinalizeChapterContentResult> {
+    const styleReview = await this.runStyleReview({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      request: input.request,
+      contextPackage: input.contextPackage,
+      content: input.content,
+    });
+
+    if (styleReview.autoRewritten) {
+      await this.deps.artifactSyncService.saveDraftAndArtifacts(
+        input.novelId,
+        input.chapterId,
+        styleReview.finalContent,
+        "repaired",
+      );
+    }
+
+    const auditResult = await this.deps.auditService.auditChapter(input.novelId, input.chapterId, "full", {
+      provider: input.request.provider,
+      model: input.request.model,
+      temperature: input.request.temperature,
+      content: styleReview.finalContent,
+    });
+    const runtimePackage = this.buildRuntimePackage({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      request: input.request,
+      contextPackage: input.contextPackage,
+      finalContent: styleReview.finalContent,
+      auditResult,
+      styleReview,
+      runId: input.runId,
+    });
+
+    await this.finishTraceRun(input.runId, styleReview.finalContent.length, input.startMs);
+
+    return {
+      finalContent: styleReview.finalContent,
+      runtimePackage,
+      styleReview,
+    };
+  }
+
+  private async finishTraceRun(runId: string | null, contentLength: number, startMs: number | null): Promise<void> {
+    if (!runId || startMs == null) {
+      return;
+    }
+
+    try {
+      await this.getAgentRuntime().finishChapterGenRun(
+        runId,
+        `chapter draft generated, ${contentLength} chars`,
+        Date.now() - startMs,
+      );
+    } catch {
+      // Ignore trace failures so chapter generation still completes.
+    }
   }
 
   private async runStyleReview(input: {
@@ -295,10 +398,10 @@ export class ChapterRuntimeCoordinator {
         updatedAt: issue.updatedAt,
       }));
 
-    const hasBlockingIssues = openIssues.some((issue) => issue.severity === "high" || issue.severity === "critical");
     const blockingIssueIds = openIssues
       .filter((issue) => issue.severity === "high" || issue.severity === "critical")
       .map((issue) => issue.id);
+    const hasBlockingIssues = blockingIssueIds.length > 0;
 
     return {
       novelId: input.novelId,
@@ -358,6 +461,16 @@ export class ChapterRuntimeCoordinator {
         generatedAt: new Date().toISOString(),
       },
     };
+  }
+
+  private async markChapterGenerationState(
+    chapterId: string,
+    generationState: "reviewed" | "approved",
+  ): Promise<void> {
+    await prisma.chapter.update({
+      where: { id: chapterId },
+      data: { generationState },
+    });
   }
 
   private async ensureNovelCharacters(novelId: string, actionName: string, minCount = 1): Promise<void> {
