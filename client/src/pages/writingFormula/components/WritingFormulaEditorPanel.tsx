@@ -1,4 +1,4 @@
-import type { AntiAiRule, StyleProfile } from "@ai-novel/shared/types/styleEngine";
+import type { AntiAiRule, StyleProfile, StyleProfileFeature } from "@ai-novel/shared/types/styleEngine";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -8,6 +8,8 @@ interface WritingFormulaEditorState {
   category: string;
   tags: string;
   applicableGenres: string;
+  sourceContent: string;
+  extractedFeatures: StyleProfileFeature[];
   analysisMarkdown: string;
   narrativeRules: string;
   characterRules: string;
@@ -22,7 +24,10 @@ interface WritingFormulaEditorPanelProps {
   antiAiRules: AntiAiRule[];
   savePending: boolean;
   deletePending: boolean;
+  reextractPending: boolean;
   onEditorChange: (patch: Partial<WritingFormulaEditorState>) => void;
+  onToggleExtractedFeature: (featureId: string, checked: boolean) => void;
+  onReextractFeatures: () => void;
   onToggleAntiAiRule: (ruleId: string, checked: boolean) => void;
   onSave: () => void;
   onDelete: () => void;
@@ -35,7 +40,10 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
     antiAiRules,
     savePending,
     deletePending,
+    reextractPending,
     onEditorChange,
+    onToggleExtractedFeature,
+    onReextractFeatures,
     onToggleAntiAiRule,
     onSave,
     onDelete,
@@ -91,6 +99,62 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                 onChange={(event) => onEditorChange({ applicableGenres: event.target.value })}
               />
             </div>
+            {selectedProfile.sourceType === "from_text" || editor.sourceContent.trim() ? (
+              <div className="space-y-2">
+                <div className="text-sm font-medium">原文样本</div>
+                <textarea
+                  className="min-h-[140px] w-full rounded-md border p-2 text-sm"
+                  placeholder="这套写法资产提取时使用的原文样本"
+                  value={editor.sourceContent}
+                  onChange={(event) => onEditorChange({ sourceContent: event.target.value })}
+                />
+                <div className="text-xs text-muted-foreground">
+                  文本提取型写法会把原文样本一起保存，方便后续回看、比对和继续微调。
+                </div>
+              </div>
+            ) : null}
+            {selectedProfile.sourceType === "from_text" || editor.extractedFeatures.length > 0 ? (
+              <div className="rounded-md border p-3">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium">提取特征启用</div>
+                    <div className="text-xs text-muted-foreground">
+                      这里会展示文本里提取到的全部特征，按项勾选启用。
+                      {editor.extractedFeatures.length > 0 ? ` 当前共 ${editor.extractedFeatures.length} 项。` : ""}
+                    </div>
+                  </div>
+                  {editor.sourceContent.trim() ? (
+                    <Button size="sm" variant="outline" onClick={onReextractFeatures} disabled={reextractPending}>
+                      {reextractPending ? "重提取中..." : "重新提取特征"}
+                    </Button>
+                  ) : null}
+                </div>
+                {editor.extractedFeatures.length > 0 ? (
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {editor.extractedFeatures.map((feature) => (
+                      <label key={feature.id} className="flex items-start gap-2 rounded-md border p-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={feature.enabled}
+                          onChange={(event) => onToggleExtractedFeature(feature.id, event.target.checked)}
+                        />
+                        <span>
+                          <span className="font-medium">{feature.label}</span>
+                          <span className="ml-2 text-xs text-muted-foreground">[{feature.group}]</span>
+                          <span className="mt-1 block text-xs text-muted-foreground">{feature.description}</span>
+                          <span className="mt-1 block text-xs text-muted-foreground">证据：{feature.evidence}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    当前这条文本写法还没有生成可选特征条目，所以你现在看不到勾选项。
+                    可以点右上角的“重新提取特征”，重新从原文样本生成完整特征池。
+                  </div>
+                )}
+              </div>
+            ) : null}
             <textarea
               className="min-h-[90px] w-full rounded-md border p-2 text-sm"
               placeholder="AI 草稿 / 分析说明"

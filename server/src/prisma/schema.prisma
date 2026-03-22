@@ -658,6 +658,7 @@ model StyleProfile {
   sourceType         String
   sourceRefId        String?
   sourceContent      String?
+  extractedFeaturesJson String?
   analysisMarkdown   String?
   narrativeRulesJson String?
   characterRulesJson String?

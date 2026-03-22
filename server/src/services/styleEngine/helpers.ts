@@ -24,6 +24,17 @@ export function parseJsonArray(value?: string | null): string[] {
   }
 }
 
+export function parseJsonValue<T>(value: string | null | undefined, fallback: T): T {
+  if (!value) {
+    return fallback;
+  }
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 export function serializeJson(value: unknown): string {
   return JSON.stringify(value ?? null);
 }
@@ -104,6 +115,7 @@ export function mapStyleProfileRow(row: {
   sourceType: string;
   sourceRefId: string | null;
   sourceContent: string | null;
+  extractedFeaturesJson: string | null;
   analysisMarkdown: string | null;
   status: string;
   narrativeRulesJson: string | null;
@@ -140,6 +152,7 @@ export function mapStyleProfileRow(row: {
     sourceType: row.sourceType as StyleProfile["sourceType"],
     sourceRefId: row.sourceRefId,
     sourceContent: row.sourceContent,
+    extractedFeatures: parseJsonValue(row.extractedFeaturesJson, []),
     analysisMarkdown: row.analysisMarkdown,
     status: row.status as StyleProfile["status"],
     narrativeRules: parseJsonObject(row.narrativeRulesJson),

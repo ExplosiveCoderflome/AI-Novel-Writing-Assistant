@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AntiAiRule, StyleBinding } from "@ai-novel/shared/types/styleEngine";
+import type { AntiAiRule, StyleBinding, StyleProfileFeature } from "@ai-novel/shared/types/styleEngine";
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import { getNovelDetail, getNovelList } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import {
   createManualStyleProfile,
   createStyleBinding,
-  createStyleProfileFromTemplate,
   createStyleProfileFromText,
+  createStyleProfileFromTemplate,
   deleteStyleBinding,
   deleteStyleProfile,
   detectStyleIssues,
+  extractStyleFeaturesFromText,
   getAntiAiRules,
   getStyleBindings,
   getStyleProfiles,
@@ -25,7 +26,13 @@ import { useLLMStore } from "@/store/llmStore";
 import WritingFormulaEditorPanel from "./components/WritingFormulaEditorPanel";
 import WritingFormulaSidebar from "./components/WritingFormulaSidebar";
 import WritingFormulaWorkbenchPanel from "./components/WritingFormulaWorkbenchPanel";
-import { normalizeCsv, parseJsonInput, prettyJson } from "./writingFormula.utils";
+import {
+  buildProfileFeaturesFromDraft,
+  buildRuleSetFromExtractedFeatures,
+  normalizeCsv,
+  parseJsonInput,
+  prettyJson,
+} from "./writingFormula.utils";
 
 export default function WritingFormulaPage() {
   const llm = useLLMStore();
@@ -44,6 +51,8 @@ export default function WritingFormulaPage() {
     category: "",
     tags: "",
     applicableGenres: "",
+    sourceContent: "",
+    extractedFeatures: [] as StyleProfileFeature[],
     analysisMarkdown: "",
     narrativeRules: "{}",
     characterRules: "{}",
@@ -135,6 +144,8 @@ export default function WritingFormulaPage() {
       category: selectedProfile.category ?? "",
       tags: selectedProfile.tags.join(", "),
       applicableGenres: selectedProfile.applicableGenres.join(", "),
+      sourceContent: selectedProfile.sourceContent ?? "",
+      extractedFeatures: selectedProfile.extractedFeatures ?? [],
       analysisMarkdown: selectedProfile.analysisMarkdown ?? "",
       narrativeRules: prettyJson(selectedProfile.narrativeRules),
       characterRules: prettyJson(selectedProfile.characterRules),
@@ -180,7 +191,12 @@ export default function WritingFormulaPage() {
     onSuccess: async (response) => {
       if (response.data) {
         setSelectedProfileId(response.data.id);
-        setMessage("已从文本提取写法资产。");
+        const featureCount = response.data.extractedFeatures?.length ?? 0;
+        setMessage(
+          featureCount > 0
+            ? `已提取 ${featureCount} 项特征，可在编辑页的“提取特征启用”区域逐项勾选。`
+            : "已创建写法资产，但这次还没有生成可选特征条目。编辑页里可以直接重新提取特征。",
+        );
       }
       await refreshStyleData();
     },
@@ -197,6 +213,44 @@ export default function WritingFormulaPage() {
     },
   });
 
+  const reextractFeaturesMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedProfileId || !editor.sourceContent.trim()) {
+        throw new Error("请先准备原文样本。");
+      }
+      return extractStyleFeaturesFromText({
+        name: editor.name.trim() || selectedProfile?.name || "文本提取写法",
+        category: editor.category || undefined,
+        sourceText: editor.sourceContent,
+        provider: llm.provider,
+        model: llm.model,
+        temperature: llm.temperature,
+      });
+    },
+    onSuccess: (response) => {
+      const draft = response.data;
+      if (!draft) {
+        return;
+      }
+      const extractedFeatures = buildProfileFeaturesFromDraft(draft);
+      const ruleSet = buildRuleSetFromExtractedFeatures(extractedFeatures);
+      setEditor((prev) => ({
+        ...prev,
+        extractedFeatures,
+        analysisMarkdown: draft.summary || prev.analysisMarkdown,
+        narrativeRules: prettyJson(ruleSet.narrativeRules),
+        characterRules: prettyJson(ruleSet.characterRules),
+        languageRules: prettyJson(ruleSet.languageRules),
+        rhythmRules: prettyJson(ruleSet.rhythmRules),
+      }));
+      setMessage(
+        extractedFeatures.length > 0
+          ? `已重新提取 ${extractedFeatures.length} 项特征，勾选确认后记得保存。`
+          : "这次仍然没有生成可选特征条目，我已经把空状态保留在编辑页里了。",
+      );
+    },
+  });
+
   const saveProfileMutation = useMutation({
     mutationFn: async () => {
       if (!selectedProfileId) {
@@ -208,6 +262,8 @@ export default function WritingFormulaPage() {
         category: editor.category,
         tags: normalizeCsv(editor.tags),
         applicableGenres: normalizeCsv(editor.applicableGenres),
+        sourceContent: editor.sourceContent || undefined,
+        extractedFeatures: editor.extractedFeatures,
         analysisMarkdown: editor.analysisMarkdown,
         narrativeRules: parseJsonInput(editor.narrativeRules),
         characterRules: parseJsonInput(editor.characterRules),
@@ -353,10 +409,10 @@ export default function WritingFormulaPage() {
           createForm={createForm}
           onCreateFormChange={(patch) => setCreateForm((prev) => ({ ...prev, ...patch }))}
           onCreateManual={() => createManualMutation.mutate()}
-          onCreateFromText={() => createFromTextMutation.mutate()}
+          onExtractFromText={() => createFromTextMutation.mutate()}
           onCreateFromTemplate={(templateId) => createFromTemplateMutation.mutate(templateId)}
           createManualPending={createManualMutation.isPending}
-          createFromTextPending={createFromTextMutation.isPending}
+          extractFromTextPending={createFromTextMutation.isPending}
           createFromTemplatePending={createFromTemplateMutation.isPending}
           templates={templates}
           antiAiRules={antiAiRules}
@@ -373,7 +429,23 @@ export default function WritingFormulaPage() {
             antiAiRules={antiAiRules}
             savePending={saveProfileMutation.isPending}
             deletePending={deleteProfileMutation.isPending}
+            reextractPending={reextractFeaturesMutation.isPending}
             onEditorChange={(patch) => setEditor((prev) => ({ ...prev, ...patch }))}
+            onToggleExtractedFeature={(featureId, checked) => setEditor((prev) => {
+              const extractedFeatures = prev.extractedFeatures.map((feature) => (
+                feature.id === featureId ? { ...feature, enabled: checked } : feature
+              ));
+              const ruleSet = buildRuleSetFromExtractedFeatures(extractedFeatures);
+              return {
+                ...prev,
+                extractedFeatures,
+                narrativeRules: prettyJson(ruleSet.narrativeRules),
+                characterRules: prettyJson(ruleSet.characterRules),
+                languageRules: prettyJson(ruleSet.languageRules),
+                rhythmRules: prettyJson(ruleSet.rhythmRules),
+              };
+            })}
+            onReextractFeatures={() => reextractFeaturesMutation.mutate()}
             onToggleAntiAiRule={(ruleId, checked) => setEditor((prev) => ({
               ...prev,
               antiAiRuleIds: checked

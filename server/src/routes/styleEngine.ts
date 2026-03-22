@@ -19,7 +19,6 @@ const styleDetectionService = new StyleDetectionService();
 const styleRewriteService = new StyleRewriteService();
 const styleGenerationService = new StyleGenerationService();
 
-const providerSchema = z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]);
 const idSchema = z.object({ id: z.string().trim().min(1) });
 const bindingIdSchema = z.object({ id: z.string().trim().min(1) });
 const antiRuleIdSchema = z.object({ id: z.string().trim().min(1) });
@@ -33,6 +32,20 @@ const manualProfileSchema = z.object({
   sourceType: z.enum(["manual", "from_text", "from_book_analysis", "from_current_work"]).optional(),
   sourceRefId: z.string().trim().optional(),
   sourceContent: z.string().optional(),
+  extractedFeatures: z.array(z.object({
+    id: z.string().trim().min(1),
+    group: z.enum(["narrative", "language", "dialogue", "rhythm", "fingerprint"]),
+    label: z.string().trim().min(1),
+    description: z.string().trim().min(1),
+    evidence: z.string().trim().min(1),
+    importance: z.number().min(0).max(1),
+    imitationValue: z.number().min(0).max(1),
+    transferability: z.number().min(0).max(1),
+    fingerprintRisk: z.number().min(0).max(1),
+    enabled: z.boolean(),
+    keepRulePatch: z.record(z.string(), z.unknown()),
+    weakenRulePatch: z.record(z.string(), z.unknown()).optional(),
+  })).optional(),
   analysisMarkdown: z.string().optional(),
   narrativeRules: z.record(z.string(), z.unknown()).optional(),
   characterRules: z.record(z.string(), z.unknown()).optional(),
@@ -41,19 +54,10 @@ const manualProfileSchema = z.object({
   antiAiRuleIds: z.array(z.string().trim()).optional(),
 });
 
-const fromTextSchema = z.object({
-  name: z.string().trim().min(1),
-  sourceText: z.string().trim().min(1),
-  category: z.string().trim().optional(),
-  provider: providerSchema.optional(),
-  model: z.string().trim().optional(),
-  temperature: z.number().min(0).max(2).optional(),
-});
-
 const fromBookAnalysisSchema = z.object({
   bookAnalysisId: z.string().trim().min(1),
   name: z.string().trim().min(1),
-  provider: providerSchema.optional(),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]).optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
 });
@@ -101,7 +105,7 @@ const testWriteSchema = z.object({
   topic: z.string().trim().optional(),
   sourceText: z.string().optional(),
   targetLength: z.number().int().min(100).max(8000).optional(),
-  provider: providerSchema.optional(),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]).optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
 });
@@ -112,7 +116,7 @@ const detectionSchema = z.object({
   novelId: z.string().trim().optional(),
   chapterId: z.string().trim().optional(),
   taskStyleProfileId: z.string().trim().optional(),
-  provider: providerSchema.optional(),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]).optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
 });
@@ -128,7 +132,7 @@ const rewriteSchema = z.object({
     excerpt: z.string().trim().min(1),
     suggestion: z.string().trim().min(1),
   })).min(1),
-  provider: providerSchema.optional(),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]).optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
 });
@@ -138,7 +142,7 @@ const novelRecommendationParamsSchema = z.object({
 });
 
 const recommendationRequestSchema = z.object({
-  provider: providerSchema.optional(),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]).optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
 });
@@ -165,19 +169,6 @@ router.post("/style-profiles", validate({ body: manualProfileSchema }), async (r
       success: true,
       data,
       message: "创建写法资产成功。",
-    } satisfies ApiResponse<typeof data>);
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.post("/style-profiles/from-text", validate({ body: fromTextSchema }), async (req, res, next) => {
-  try {
-    const data = await styleProfileService.createFromText(req.body as z.infer<typeof fromTextSchema>);
-    res.status(201).json({
-      success: true,
-      data,
-      message: "从文本提取写法成功。",
     } satisfies ApiResponse<typeof data>);
   } catch (error) {
     next(error);
@@ -367,6 +358,21 @@ router.delete("/style-bindings/:id", validate({ params: bindingIdSchema }), asyn
     next(error);
   }
 });
+
+/*
+router.post("/style-profiles/from-extraction", validate({ body: fromExtractionSchema }), async (req, res, next) => {
+  try {
+    const data = await styleProfileService.createProfileFromExtraction(req.body as z.infer<typeof fromExtractionSchema>);
+    res.status(201).json({
+      success: true,
+      data,
+      message: "已按特征选择生成写法资产。",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+*/
 
 router.post("/style-recommendations/novels/:id", validate({
   params: novelRecommendationParamsSchema,

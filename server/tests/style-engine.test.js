@@ -97,6 +97,9 @@ test("StyleCompiler emits layered binding context and section-level strength", (
 test("style engine routes return mocked payloads", async () => {
   const originalMethods = {
     listProfiles: StyleProfileService.prototype.listProfiles,
+    extractFromText: StyleProfileService.prototype.extractFromText,
+    createFromText: StyleProfileService.prototype.createFromText,
+    createProfileFromExtraction: StyleProfileService.prototype.createProfileFromExtraction,
     createFromBookAnalysis: StyleProfileService.prototype.createFromBookAnalysis,
     createBinding: StyleBindingService.prototype.createBinding,
     check: StyleDetectionService.prototype.check,
@@ -112,6 +115,7 @@ test("style engine routes return mocked payloads", async () => {
     sourceType: "manual",
     sourceRefId: null,
     sourceContent: null,
+    extractedFeatures: [],
     analysisMarkdown: "分析",
     status: "active",
     narrativeRules: {},
@@ -122,8 +126,58 @@ test("style engine routes return mocked payloads", async () => {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
+  const fakeDraft = {
+    name: "现实流提取草稿",
+    description: "高保真特征池",
+    category: "现实",
+    tags: ["口语", "压迫感"],
+    applicableGenres: ["都市"],
+    analysisMarkdown: "提取到了完整特征。",
+    summary: "已提取全部特征，可按需保留。",
+    antiAiRuleKeys: ["rule-1"],
+    features: [{
+      id: "feature-1",
+      group: "language",
+      label: "口语化短句",
+      description: "语言更偏口语和短句推进。",
+      evidence: "他抬手骂了一句，后半句没说完。",
+      importance: 0.8,
+      imitationValue: 0.9,
+      transferability: 0.7,
+      fingerprintRisk: 0.4,
+      keepRulePatch: {
+        languageRules: {
+          register: "colloquial",
+        },
+      },
+      weakenRulePatch: {
+        languageRules: {
+          summary: "保留轻度口语感",
+        },
+      },
+    }],
+    presets: [{
+      key: "balanced",
+      label: "平衡保留",
+      summary: "默认平衡方案",
+      decisions: [{ featureId: "feature-1", decision: "keep" }],
+    }],
+  };
+
+  const fakeExtractedProfile = {
+    ...fakeProfile,
+    sourceType: "from_text",
+    sourceContent: "娴嬭瘯鏂囨湰鍐呭",
+    extractedFeatures: [{
+      ...fakeDraft.features[0],
+      enabled: true,
+    }],
+  };
 
   StyleProfileService.prototype.listProfiles = async () => [fakeProfile];
+  StyleProfileService.prototype.extractFromText = async () => fakeDraft;
+  StyleProfileService.prototype.createFromText = async () => fakeExtractedProfile;
+  StyleProfileService.prototype.createProfileFromExtraction = async () => fakeProfile;
   StyleProfileService.prototype.createFromBookAnalysis = async () => fakeProfile;
   StyleBindingService.prototype.createBinding = async () => ({
     id: "binding-1",
@@ -171,6 +225,38 @@ test("style engine routes return mocked payloads", async () => {
     assert.equal(fromAnalysisResponse.status, 201);
     assert.equal((await fromAnalysisResponse.json()).data.name, fakeProfile.name);
 
+    const extractionResponse = await fetch(`http://127.0.0.1:${port}/api/style-extractions/from-text`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "提取写法", sourceText: "测试文本内容" }),
+    });
+    assert.equal(extractionResponse.status, 200);
+    assert.equal((await extractionResponse.json()).data.features[0].id, "feature-1");
+
+    const fromTextResponse = await fetch(`http://127.0.0.1:${port}/api/style-profiles/from-text`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "鎻愬彇鍐欐硶", sourceText: "娴嬭瘯鏂囨湰鍐呭" }),
+    });
+    assert.equal(fromTextResponse.status, 201);
+    const fromTextPayload = await fromTextResponse.json();
+    assert.equal(fromTextPayload.data.sourceContent, "娴嬭瘯鏂囨湰鍐呭");
+    assert.equal(fromTextPayload.data.extractedFeatures[0].id, "feature-1");
+
+    const fromExtractionResponse = await fetch(`http://127.0.0.1:${port}/api/style-profiles/from-extraction`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "提取写法",
+        sourceText: "测试文本内容",
+        draft: fakeDraft,
+        presetKey: "balanced",
+        decisions: [{ featureId: "feature-1", decision: "keep" }],
+      }),
+    });
+    assert.equal(fromExtractionResponse.status, 201);
+    assert.equal((await fromExtractionResponse.json()).data.id, fakeProfile.id);
+
     const bindingResponse = await fetch(`http://127.0.0.1:${port}/api/style-bindings`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -198,6 +284,9 @@ test("style engine routes return mocked payloads", async () => {
   } finally {
     Object.assign(StyleProfileService.prototype, {
       listProfiles: originalMethods.listProfiles,
+      extractFromText: originalMethods.extractFromText,
+      createFromText: originalMethods.createFromText,
+      createProfileFromExtraction: originalMethods.createProfileFromExtraction,
       createFromBookAnalysis: originalMethods.createFromBookAnalysis,
     });
     Object.assign(StyleBindingService.prototype, {

@@ -3,6 +3,9 @@ import type {
   AntiAiRule,
   StyleBinding,
   StyleDetectionReport,
+  StyleExtractionDraft,
+  StyleFeatureDecision,
+  StyleProfileFeature,
   StyleProfile,
   StyleRecommendationResult,
   StyleTemplate,
@@ -45,6 +48,7 @@ export async function updateStyleProfile(id: string, payload: Partial<{
   applicableGenres: string[];
   sourceRefId: string;
   sourceContent: string;
+  extractedFeatures: StyleProfileFeature[];
   analysisMarkdown: string;
   narrativeRules: Record<string, unknown>;
   characterRules: Record<string, unknown>;
@@ -71,6 +75,33 @@ export async function createStyleProfileFromText(payload: {
   temperature?: number;
 }) {
   const { data } = await apiClient.post<ApiResponse<StyleProfile>>("/style-profiles/from-text", payload);
+  return data;
+}
+
+export async function extractStyleFeaturesFromText(payload: {
+  name: string;
+  sourceText: string;
+  category?: string;
+  provider?: string;
+  model?: string;
+  temperature?: number;
+}) {
+  const { data } = await apiClient.post<ApiResponse<StyleExtractionDraft>>("/style-extractions/from-text", payload);
+  return data;
+}
+
+export async function createStyleProfileFromExtraction(payload: {
+  name: string;
+  sourceText: string;
+  category?: string;
+  draft: StyleExtractionDraft;
+  presetKey?: "imitate" | "balanced" | "transfer";
+  decisions: Array<{
+    featureId: string;
+    decision: StyleFeatureDecision;
+  }>;
+}) {
+  const { data } = await apiClient.post<ApiResponse<StyleProfile>>("/style-profiles/from-extraction", payload);
   return data;
 }
 

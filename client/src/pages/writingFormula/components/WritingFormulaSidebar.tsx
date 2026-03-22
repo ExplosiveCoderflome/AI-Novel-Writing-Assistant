@@ -22,10 +22,10 @@ interface WritingFormulaSidebarProps {
   createForm: WritingFormulaCreateFormState;
   onCreateFormChange: (patch: Partial<WritingFormulaCreateFormState>) => void;
   onCreateManual: () => void;
-  onCreateFromText: () => void;
+  onExtractFromText: () => void;
   onCreateFromTemplate: (templateId: string) => void;
   createManualPending: boolean;
-  createFromTextPending: boolean;
+  extractFromTextPending: boolean;
   createFromTemplatePending: boolean;
   templates: StyleTemplate[];
   antiAiRules: AntiAiRule[];
@@ -40,10 +40,10 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
     createForm,
     onCreateFormChange,
     onCreateManual,
-    onCreateFromText,
+    onExtractFromText,
     onCreateFromTemplate,
     createManualPending,
-    createFromTextPending,
+    extractFromTextPending,
     createFromTemplatePending,
     templates,
     antiAiRules,
@@ -93,10 +93,10 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
             />
             <Button
               className="mt-2 w-full"
-              onClick={onCreateFromText}
-              disabled={!createForm.extractName.trim() || !createForm.extractSourceText.trim() || createFromTextPending}
+              onClick={onExtractFromText}
+              disabled={!createForm.extractName.trim() || !createForm.extractSourceText.trim() || extractFromTextPending}
             >
-              AI 提取写法
+              AI 提取特征
             </Button>
           </div>
         </CardContent>
