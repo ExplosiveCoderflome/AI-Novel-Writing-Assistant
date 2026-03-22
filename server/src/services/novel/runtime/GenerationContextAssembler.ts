@@ -2,6 +2,7 @@ import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRun
 import { prisma } from "../../../db/prisma";
 import { ragServices } from "../../rag";
 import { plannerService } from "../../planner/PlannerService";
+import { readPlanMetadata } from "../../planner/plannerPlanMetadata";
 import { stateService } from "../../state/StateService";
 import { getRagQueryForChapter, novelReferenceService } from "../NovelReferenceService";
 import { NovelContinuationService } from "../NovelContinuationService";
@@ -49,17 +50,24 @@ function mapPlan(plan: Awaited<ReturnType<typeof plannerService.getChapterPlan>>
   if (!plan) {
     return null;
   }
+  const metadata = readPlanMetadata(plan.rawPlanJson ?? null);
   return {
     id: plan.id,
     chapterId: plan.chapterId ?? null,
+    planRole: metadata.planRole,
+    phaseLabel: metadata.phaseLabel,
     title: plan.title,
     objective: plan.objective,
     participants: parseJsonStringArray(plan.participantsJson),
     reveals: parseJsonStringArray(plan.revealsJson),
     riskNotes: parseJsonStringArray(plan.riskNotesJson),
+    mustAdvance: metadata.mustAdvance,
+    mustPreserve: metadata.mustPreserve,
+    sourceIssueIds: metadata.sourceIssueIds,
+    replannedFromPlanId: metadata.replannedFromPlanId,
     hookTarget: plan.hookTarget ?? null,
     rawPlanJson: plan.rawPlanJson ?? null,
-    scenes: plan.scenes.map((scene) => ({
+    scenes: plan.scenes.map((scene: (typeof plan.scenes)[number]) => ({
       id: scene.id,
       sortOrder: scene.sortOrder,
       title: scene.title,

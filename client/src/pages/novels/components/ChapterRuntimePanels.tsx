@@ -27,11 +27,17 @@ function buildPlanView(runtimePackage: ChapterRuntimePackage | null, chapterPlan
   return {
     id: chapterPlan.id,
     chapterId: chapterPlan.chapterId ?? null,
+    planRole: chapterPlan.planRole ?? null,
+    phaseLabel: chapterPlan.phaseLabel ?? null,
     title: chapterPlan.title,
     objective: chapterPlan.objective,
     participants: parseStringArray(chapterPlan.participantsJson),
     reveals: parseStringArray(chapterPlan.revealsJson),
     riskNotes: parseStringArray(chapterPlan.riskNotesJson),
+    mustAdvance: parseStringArray(chapterPlan.mustAdvanceJson),
+    mustPreserve: parseStringArray(chapterPlan.mustPreserveJson),
+    sourceIssueIds: parseStringArray(chapterPlan.sourceIssueIdsJson),
+    replannedFromPlanId: chapterPlan.replannedFromPlanId ?? null,
     hookTarget: chapterPlan.hookTarget ?? null,
     rawPlanJson: chapterPlan.rawPlanJson ?? null,
     scenes: chapterPlan.scenes ?? [],
@@ -102,8 +108,25 @@ export function ChapterRuntimeContextCard(props: {
             <>
               <div className="text-muted-foreground">{plan.title}</div>
               <div>{plan.objective}</div>
+              {(plan.planRole || plan.phaseLabel) ? (
+                <div className="text-xs text-muted-foreground">
+                  {[plan.planRole ? `职责：${plan.planRole}` : "", plan.phaseLabel ? `阶段：${plan.phaseLabel}` : ""].filter(Boolean).join(" | ")}
+                </div>
+              ) : null}
               {plan.participants.length > 0 ? (
                 <div className="text-xs text-muted-foreground">参与角色：{plan.participants.join("、")}</div>
+              ) : null}
+              {plan.mustAdvance.length > 0 ? (
+                <div className="text-xs text-muted-foreground">本章必须推进：{plan.mustAdvance.join("；")}</div>
+              ) : null}
+              {plan.mustPreserve.length > 0 ? (
+                <div className="text-xs text-muted-foreground">本章必须保留：{plan.mustPreserve.join("；")}</div>
+              ) : null}
+              {plan.replannedFromPlanId ? (
+                <div className="text-xs text-muted-foreground">本章来自一次重规划调整。</div>
+              ) : null}
+              {plan.sourceIssueIds.length > 0 ? (
+                <div className="text-xs text-muted-foreground">本章参考了 {plan.sourceIssueIds.length} 条待处理审计问题。</div>
               ) : null}
               {plan.scenes.length > 0 ? (
                 <div className="space-y-1 rounded-md border p-2 text-xs">

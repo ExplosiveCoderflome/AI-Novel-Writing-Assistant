@@ -8,6 +8,7 @@ import { StyleBindingService } from "../services/styleEngine/StyleBindingService
 import { StyleDetectionService } from "../services/styleEngine/StyleDetectionService";
 import { StyleGenerationService } from "../services/styleEngine/StyleGenerationService";
 import { StyleProfileService } from "../services/styleEngine/StyleProfileService";
+import { styleRecommendationService } from "../services/styleEngine/StyleRecommendationService";
 import { StyleRewriteService } from "../services/styleEngine/StyleRewriteService";
 
 const router = Router();
@@ -127,6 +128,16 @@ const rewriteSchema = z.object({
     excerpt: z.string().trim().min(1),
     suggestion: z.string().trim().min(1),
   })).min(1),
+  provider: providerSchema.optional(),
+  model: z.string().trim().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+});
+
+const novelRecommendationParamsSchema = z.object({
+  id: z.string().trim().min(1),
+});
+
+const recommendationRequestSchema = z.object({
   provider: providerSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
@@ -352,6 +363,26 @@ router.delete("/style-bindings/:id", validate({ params: bindingIdSchema }), asyn
       success: true,
       message: "删除写法绑定成功。",
     } satisfies ApiResponse<null>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/style-recommendations/novels/:id", validate({
+  params: novelRecommendationParamsSchema,
+  body: recommendationRequestSchema,
+}), async (req, res, next) => {
+  try {
+    const { id } = req.params as z.infer<typeof novelRecommendationParamsSchema>;
+    const data = await styleRecommendationService.recommendForNovel({
+      novelId: id,
+      ...(req.body as z.infer<typeof recommendationRequestSchema>),
+    });
+    res.status(200).json({
+      success: true,
+      data,
+      message: "写法推荐已生成。",
+    } satisfies ApiResponse<typeof data>);
   } catch (error) {
     next(error);
   }

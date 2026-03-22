@@ -1,102 +1,43 @@
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import type { AuditReport } from "@ai-novel/shared/types/novel";
+import type { AuditReport, ReplanResult } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../db/prisma";
-import { getLLM } from "../../llm/factory";
-import { parseJSONObject, parseJsonStringArray, toText } from "../novel/novelP0Utils";
+import { parseJsonStringArray } from "../novel/novelP0Utils";
 import { stateService } from "../state/StateService";
+import {
+  buildDefaultPlanMetadata,
+  enrichStoryPlan,
+  normalizePlanMetadata,
+} from "./plannerPlanMetadata";
+import { persistStoryPlan } from "./plannerPersistence";
+import { invokePlannerLLM, type PlannerLlmOptions } from "./plannerLlm";
 
-interface PlannerOptions {
-  provider?: LLMProvider;
-  model?: string;
-  temperature?: number;
-}
+export { normalizePlannerOutput } from "./plannerOutputNormalization";
 
-interface PlannerOutput {
-  title?: string;
-  objective?: string;
-  participants?: string[];
-  reveals?: string[];
-  riskNotes?: string[];
-  hookTarget?: string;
-  scenes?: Array<{
-    title?: string;
-    objective?: string;
-    conflict?: string;
-    reveal?: string;
-    emotionBeat?: string;
-  }>;
-}
+interface PlannerOptions extends PlannerLlmOptions {}
 
 interface ReplanInput extends PlannerOptions {
   chapterId?: string;
   triggerType?: string;
+  sourceIssueIds?: string[];
+  windowSize?: number;
   reason: string;
 }
 
-function collectPlannerTextFragments(value: unknown): string[] {
-  if (typeof value === "string") {
-    const normalized = value.trim();
-    return normalized ? [normalized] : [];
-  }
-  if (typeof value === "number") {
-    return [String(value)];
-  }
-  if (Array.isArray(value)) {
-    return value.flatMap((item) => collectPlannerTextFragments(item));
-  }
-  if (value && typeof value === "object") {
-    return Object.values(value).flatMap((item) => collectPlannerTextFragments(item));
-  }
-  return [];
-}
-
-function toPlannerOptionalText(value: unknown, separator = "；"): string | null {
-  const parts = Array.from(new Set(collectPlannerTextFragments(value)));
-  return parts.length > 0 ? parts.join(separator) : null;
-}
-
-function toPlannerStringArray(value: unknown): string[] {
-  return Array.from(new Set(collectPlannerTextFragments(value)));
-}
-
-function normalizePlannerScenes(value: unknown): NonNullable<PlannerOutput["scenes"]> {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value.map((scene, index) => {
-    if (!scene || typeof scene !== "object") {
-      return {
-        title: toPlannerOptionalText(scene) ?? `Scene ${index + 1}`,
-      };
-    }
-    const record = scene as Record<string, unknown>;
-    return {
-      title: toPlannerOptionalText(record.title) ?? `Scene ${index + 1}`,
-      objective: toPlannerOptionalText(record.objective) ?? undefined,
-      conflict: toPlannerOptionalText(record.conflict) ?? undefined,
-      reveal: toPlannerOptionalText(record.reveal) ?? undefined,
-      emotionBeat: toPlannerOptionalText(record.emotionBeat) ?? undefined,
-    };
-  });
-}
-
-export function normalizePlannerOutput(output: unknown): PlannerOutput {
-  const record = output && typeof output === "object" ? output as Record<string, unknown> : {};
-  return {
-    title: toPlannerOptionalText(record.title) ?? undefined,
-    objective: toPlannerOptionalText(record.objective) ?? undefined,
-    participants: toPlannerStringArray(record.participants),
-    reveals: toPlannerStringArray(record.reveals),
-    riskNotes: toPlannerStringArray(record.riskNotes),
-    hookTarget: toPlannerOptionalText(record.hookTarget) ?? undefined,
-    scenes: normalizePlannerScenes(record.scenes),
+interface GenerateChapterPlanOptions extends PlannerOptions {
+  replanContext?: {
+    reason: string;
+    triggerType: string;
+    sourceIssueIds: string[];
+    windowIndex: number;
+    windowSize: number;
+    affectedChapterOrders: number[];
+    replannedFromPlanId: string | null;
   };
 }
 
 export class PlannerService {
   async getChapterPlan(novelId: string, chapterId: string) {
-    return prisma.storyPlan.findFirst({
+    const plan = await prisma.storyPlan.findFirst({
       where: { novelId, chapterId, level: "chapter" },
       include: {
         scenes: {
@@ -105,6 +46,37 @@ export class PlannerService {
       },
       orderBy: { updatedAt: "desc" },
     });
+    return plan ? enrichStoryPlan(plan as any) : null;
+  }
+
+  async getBookPlan(novelId: string) {
+    const plan = await prisma.storyPlan.findFirst({
+      where: { novelId, level: "book" },
+      include: {
+        scenes: {
+          orderBy: { sortOrder: "asc" },
+        },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+    return plan ? enrichStoryPlan(plan as any) : null;
+  }
+
+  async listArcPlans(novelId: string) {
+    const plans = await prisma.storyPlan.findMany({
+      where: { novelId, level: "arc" },
+      include: {
+        scenes: {
+          orderBy: { sortOrder: "asc" },
+        },
+      },
+      orderBy: [
+        { updatedAt: "desc" },
+        { createdAt: "desc" },
+      ],
+      take: 6,
+    });
+    return plans.map((plan) => enrichStoryPlan(plan as any));
   }
 
   async buildPlanPromptBlock(novelId: string, chapterId: string): Promise<string> {
@@ -116,14 +88,18 @@ export class PlannerService {
     const reveals = parseJsonStringArray(plan.revealsJson);
     const riskNotes = parseJsonStringArray(plan.riskNotesJson);
     const sceneLines = plan.scenes
-      .map((scene) => `${scene.sortOrder}. ${scene.title}${scene.objective ? ` | 目标:${scene.objective}` : ""}${scene.conflict ? ` | 冲突:${scene.conflict}` : ""}${scene.reveal ? ` | 揭露:${scene.reveal}` : ""}${scene.emotionBeat ? ` | 情绪:${scene.emotionBeat}` : ""}`)
+      .map((scene: (typeof plan.scenes)[number]) => `${scene.sortOrder}. ${scene.title}${scene.objective ? ` | 目标:${scene.objective}` : ""}${scene.conflict ? ` | 冲突:${scene.conflict}` : ""}${scene.reveal ? ` | 揭露:${scene.reveal}` : ""}${scene.emotionBeat ? ` | 情绪:${scene.emotionBeat}` : ""}`)
       .join("\n");
     return [
       `Plan title: ${plan.title}`,
+      plan.planRole ? `Plan role: ${plan.planRole}` : "",
+      plan.phaseLabel ? `Phase: ${plan.phaseLabel}` : "",
       `Objective: ${plan.objective}`,
       participants.length > 0 ? `Participants: ${participants.join("、")}` : "",
       reveals.length > 0 ? `Key reveals: ${reveals.join("；")}` : "",
       riskNotes.length > 0 ? `Risk notes: ${riskNotes.join("；")}` : "",
+      plan.mustAdvanceJson ? `Must advance: ${parseJsonStringArray(plan.mustAdvanceJson).join("；")}` : "",
+      plan.mustPreserveJson ? `Must preserve: ${parseJsonStringArray(plan.mustPreserveJson).join("；")}` : "",
       plan.hookTarget ? `Hook target: ${plan.hookTarget}` : "",
       sceneLines ? `Scenes:\n${sceneLines}` : "",
     ].filter(Boolean).join("\n");
@@ -149,7 +125,7 @@ export class PlannerService {
     if (!novel) {
       throw new Error("小说不存在。");
     }
-    const output = await this.invokePlanner({
+    const output = await invokePlannerLLM({
       options,
       scopeLabel: `全书规划：${novel.title}`,
       context: [
@@ -159,8 +135,10 @@ export class PlannerService {
         `剧情拍点：${novel.plotBeats.map((item) => `${item.chapterOrder ?? "-"} ${item.title} ${item.content}`).join("\n") || "无"}`,
       ].join("\n\n"),
       includeScenes: false,
+      planLevel: "book",
     });
-    return this.persistPlan({
+    const metadata = normalizePlanMetadata("book", output, buildDefaultPlanMetadata("book"));
+    return persistStoryPlan({
       novelId,
       level: "book",
       title: output.title || `${novel.title} 全书规划`,
@@ -170,6 +148,12 @@ export class PlannerService {
       riskNotes: output.riskNotes ?? [],
       hookTarget: output.hookTarget || null,
       scenes: [],
+      planRole: metadata.planRole,
+      phaseLabel: metadata.phaseLabel,
+      mustAdvance: metadata.mustAdvance,
+      mustPreserve: metadata.mustPreserve,
+      sourceIssueIds: metadata.sourceIssueIds,
+      replannedFromPlanId: metadata.replannedFromPlanId,
     });
   }
 
@@ -184,7 +168,7 @@ export class PlannerService {
     if (!novel) {
       throw new Error("小说不存在。");
     }
-    const output = await this.invokePlanner({
+    const output = await invokePlannerLLM({
       options,
       scopeLabel: `分段规划：${arcId}`,
       context: [
@@ -194,8 +178,10 @@ export class PlannerService {
         `现有章节：${novel.chapters.map((item) => `${item.order}.${item.title} ${item.expectation ?? ""}`).join("\n") || "无"}`,
       ].join("\n\n"),
       includeScenes: false,
+      planLevel: "arc",
     });
-    return this.persistPlan({
+    const metadata = normalizePlanMetadata("arc", output, buildDefaultPlanMetadata("arc"));
+    return persistStoryPlan({
       novelId,
       level: "arc",
       externalRef: arcId,
@@ -206,14 +192,27 @@ export class PlannerService {
       riskNotes: output.riskNotes ?? [],
       hookTarget: output.hookTarget || null,
       scenes: [],
+      planRole: metadata.planRole,
+      phaseLabel: metadata.phaseLabel,
+      mustAdvance: metadata.mustAdvance,
+      mustPreserve: metadata.mustPreserve,
+      sourceIssueIds: metadata.sourceIssueIds,
+      replannedFromPlanId: metadata.replannedFromPlanId,
     });
   }
 
-  async generateChapterPlan(novelId: string, chapterId: string, options: PlannerOptions = {}) {
-    const [novel, chapter, bible, plotBeats, summaries, characters] = await Promise.all([
+  async generateChapterPlan(novelId: string, chapterId: string, options: GenerateChapterPlanOptions = {}) {
+    const [novel, chapter, bible, plotBeats, summaries, characters, bookPlan, arcPlans, recentAuditReports, recentDecisions] = await Promise.all([
       prisma.novel.findUnique({
         where: { id: novelId },
-        select: { id: true, title: true, description: true, outline: true, structuredOutline: true },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          outline: true,
+          structuredOutline: true,
+          estimatedChapterCount: true,
+        },
       }),
       prisma.chapter.findFirst({
         where: { id: chapterId, novelId },
@@ -248,12 +247,55 @@ export class PlannerService {
         where: { novelId },
         select: { id: true, name: true, role: true, currentGoal: true, currentState: true },
       }),
+      this.getBookPlan(novelId),
+      this.listArcPlans(novelId),
+      prisma.auditReport.findMany({
+        where: { novelId },
+        orderBy: { createdAt: "desc" },
+        take: 4,
+        include: {
+          issues: {
+            where: { status: "open" },
+          },
+        },
+      }),
+      prisma.creativeDecision.findMany({
+        where: { novelId },
+        orderBy: { createdAt: "desc" },
+        take: 6,
+        select: {
+          category: true,
+          content: true,
+          importance: true,
+        },
+      }),
     ]);
     if (!novel || !chapter) {
       throw new Error("小说或章节不存在。");
     }
     const stateSnapshot = await stateService.getLatestSnapshotBeforeChapter(novelId, chapter.order);
-    const output = await this.invokePlanner({
+    const defaultMetadata = buildDefaultPlanMetadata("chapter", {
+      chapterOrder: chapter.order,
+      totalChapters: novel.estimatedChapterCount ?? null,
+      expectation: chapter.expectation ?? null,
+    });
+    const openAuditIssues = recentAuditReports.flatMap((report) => report.issues.map((issue) => (
+      `${issue.auditType}/${issue.severity}: ${issue.description} | 证据=${issue.evidence}`
+    )));
+    const replanContextBlock = options.replanContext
+      ? [
+          `重规划原因：${options.replanContext.reason}`,
+          `触发类型：${options.replanContext.triggerType}`,
+          `重规划窗口：第 ${options.replanContext.affectedChapterOrders.join("、")} 章`,
+          options.replanContext.sourceIssueIds.length > 0
+            ? `来源问题：${options.replanContext.sourceIssueIds.join("、")}`
+            : "",
+          options.replanContext.replannedFromPlanId
+            ? `上一版计划：${options.replanContext.replannedFromPlanId}`
+            : "",
+        ].filter(Boolean).join("\n")
+      : "无";
+    const output = await invokePlannerLLM({
       options,
       scopeLabel: `章节规划：第${chapter.order}章《${chapter.title}》`,
       context: [
@@ -264,14 +306,28 @@ export class PlannerService {
         `作品圣经：${bible?.rawContent ?? "无"}`,
         `主线大纲：${novel.outline ?? "无"}`,
         `结构化大纲：${novel.structuredOutline ?? "无"}`,
+        `全书规划：${bookPlan ? `${bookPlan.title} | ${bookPlan.objective}${bookPlan.phaseLabel ? ` | 阶段=${bookPlan.phaseLabel}` : ""}` : "无"}`,
+        `阶段规划：${arcPlans.length > 0 ? arcPlans.map((plan) => `${plan.externalRef ?? "-"} ${plan.title} | ${plan.objective}${plan.phaseLabel ? ` | 阶段=${plan.phaseLabel}` : ""}`).join("\n") : "无"}`,
         `角色：${characters.map((item) => `${item.id}|${item.name}|${item.role}|goal=${item.currentGoal ?? ""}|state=${item.currentState ?? ""}`).join("\n") || "无"}`,
         `最近章节摘要：${summaries.map((item) => `${item.summary}`).join("\n") || "无"}`,
         `剧情拍点：${plotBeats.map((item) => `${item.chapterOrder ?? "-"} ${item.title} ${item.content}`).join("\n") || "无"}`,
         `输入状态快照：${stateSnapshot?.summary ?? "无"}`,
+        `最近未解决审计问题：${openAuditIssues.join("\n") || "无"}`,
+        `最近创作决策：${recentDecisions.map((item) => `${item.category}/${item.importance}: ${item.content}`).join("\n") || "无"}`,
+        `默认结构职责建议：planRole=${defaultMetadata.planRole ?? "progress"} | phase=${defaultMetadata.phaseLabel ?? "无"}`,
+        `本章必须推进：${defaultMetadata.mustAdvance.join("；") || "无"}`,
+        `本章必须保留：${defaultMetadata.mustPreserve.join("；") || "无"}`,
+        `重规划输入：${replanContextBlock}`,
       ].join("\n\n"),
       includeScenes: true,
+      planLevel: "chapter",
     });
-    return this.persistPlan({
+    const metadata = normalizePlanMetadata("chapter", output, {
+      ...defaultMetadata,
+      sourceIssueIds: options.replanContext?.sourceIssueIds ?? [],
+      replannedFromPlanId: options.replanContext?.replannedFromPlanId ?? null,
+    });
+    return persistStoryPlan({
       novelId,
       chapterId: chapter.id,
       sourceStateSnapshotId: stateSnapshot?.id ?? null,
@@ -283,174 +339,111 @@ export class PlannerService {
       riskNotes: output.riskNotes ?? [],
       hookTarget: output.hookTarget || chapter.hook?.trim() || null,
       scenes: output.scenes ?? [],
+      planRole: metadata.planRole,
+      phaseLabel: metadata.phaseLabel,
+      mustAdvance: metadata.mustAdvance,
+      mustPreserve: metadata.mustPreserve,
+      sourceIssueIds: metadata.sourceIssueIds,
+      replannedFromPlanId: metadata.replannedFromPlanId,
     });
   }
 
-  async replan(novelId: string, input: ReplanInput) {
-    const chapterId = input.chapterId ?? (await prisma.chapter.findFirst({
-      where: { novelId },
-      orderBy: { order: "desc" },
-      select: { id: true },
-    }))?.id;
-    if (!chapterId) {
+  async replan(novelId: string, input: ReplanInput): Promise<ReplanResult> {
+    const targetChapter = input.chapterId
+      ? await prisma.chapter.findFirst({
+          where: { id: input.chapterId, novelId },
+          select: { id: true, order: true },
+        })
+      : await prisma.chapter.findFirst({
+          where: { novelId },
+          orderBy: { order: "desc" },
+          select: { id: true, order: true },
+        });
+    if (!targetChapter) {
       throw new Error("当前小说没有可重规划的章节。");
     }
-    const existingPlan = await this.getChapterPlan(novelId, chapterId);
-    const plan = await this.generateChapterPlan(novelId, chapterId, input);
-    if (!plan) {
+    const windowSize = Math.max(1, Math.min(input.windowSize ?? 3, 5));
+    const affectedChapters = await prisma.chapter.findMany({
+      where: {
+        novelId,
+        order: {
+          gte: targetChapter.order,
+          lte: targetChapter.order + windowSize - 1,
+        },
+      },
+      orderBy: { order: "asc" },
+      select: { id: true, order: true },
+    });
+    if (affectedChapters.length === 0) {
+      throw new Error("当前小说没有可重规划的章节。");
+    }
+
+    const generatedPlans = [];
+    const affectedOrders = affectedChapters.map((item) => item.order);
+
+    for (let index = 0; index < affectedChapters.length; index += 1) {
+      const chapter = affectedChapters[index];
+      const existingPlan = await this.getChapterPlan(novelId, chapter.id);
+      const plan = await this.generateChapterPlan(novelId, chapter.id, {
+        provider: input.provider,
+        model: input.model,
+        temperature: input.temperature,
+        replanContext: {
+          reason: input.reason,
+          triggerType: input.triggerType ?? "manual",
+          sourceIssueIds: input.sourceIssueIds ?? [],
+          windowIndex: index,
+          windowSize: affectedChapters.length,
+          affectedChapterOrders: affectedOrders,
+          replannedFromPlanId: existingPlan?.id ?? null,
+        },
+      });
+      generatedPlans.push(plan);
+    }
+
+    const primaryPlan = generatedPlans[0];
+    if (!primaryPlan) {
       throw new Error("章节规划生成失败。");
     }
-    await prisma.replanRun.create({
+    const runPayload = {
+      affectedChapterIds: affectedChapters.map((item) => item.id),
+      affectedChapterOrders: affectedOrders,
+      generatedPlanIds: generatedPlans.map((plan) => plan.id),
+      sourceIssueIds: input.sourceIssueIds ?? [],
+      triggerType: input.triggerType ?? "manual",
+      reason: input.reason,
+      windowSize: affectedChapters.length,
+    };
+
+    const run = await prisma.replanRun.create({
       data: {
         novelId,
-        chapterId,
-        sourcePlanId: existingPlan?.id ?? null,
+        chapterId: targetChapter.id,
+        sourcePlanId: primaryPlan.replannedFromPlanId ?? null,
         triggerType: input.triggerType ?? "manual",
         reason: input.reason,
-        outputSummary: `replanned:${plan.id}`,
+        outputSummary: JSON.stringify(runPayload),
       },
     });
-    return plan;
+    return {
+      primaryPlan,
+      generatedPlans,
+      affectedChapterIds: runPayload.affectedChapterIds,
+      affectedChapterOrders: runPayload.affectedChapterOrders,
+      sourceIssueIds: runPayload.sourceIssueIds,
+      triggerType: runPayload.triggerType,
+      reason: runPayload.reason,
+      windowSize: runPayload.windowSize,
+      run: {
+        id: run.id,
+        outputSummary: run.outputSummary ?? null,
+        createdAt: run.createdAt.toISOString(),
+      },
+    };
   }
 
   shouldTriggerReplanFromAudit(auditReports: AuditReport[]): boolean {
     return auditReports.some((report) => report.issues.some((issue) => issue.status === "open" && (issue.severity === "high" || issue.severity === "critical")));
-  }
-
-  private async invokePlanner(input: {
-    options: PlannerOptions;
-    scopeLabel: string;
-    context: string;
-    includeScenes: boolean;
-  }): Promise<PlannerOutput> {
-    const llm = await getLLM(input.options.provider, {
-      fallbackProvider: "deepseek",
-      model: input.options.model,
-      temperature: input.options.temperature ?? 0.4,
-      taskType: "planner",
-    });
-    const result = await llm.invoke([
-      new SystemMessage(
-        `你是小说策划。请严格输出 JSON，字段为 title, objective, participants, reveals, riskNotes, hookTarget, scenes。${input.includeScenes ? "scenes 必须是数组，每项含 title, objective, conflict, reveal, emotionBeat。" : "scenes 直接输出空数组。"} 不要输出解释。`,
-      ),
-      new HumanMessage(
-        `${input.scopeLabel}
-
-上下文：
-${input.context}
-
-要求：
-1. objective 必须明确本次规划的主推进目标。
-2. participants 只列关键参与角色名字。
-3. reveals 列关键揭露或推进的信息点。
-4. riskNotes 列容易跑偏的风险。
-5. hookTarget 列章节结尾要留下的钩子。
-6. 场景必须有顺序，能直接给写作器消费。`,
-      ),
-    ]);
-    return normalizePlannerOutput(parseJSONObject<PlannerOutput>(toText(result.content)));
-  }
-
-  private async persistPlan(input: {
-    novelId: string;
-    chapterId?: string;
-    sourceStateSnapshotId?: string | null;
-    level: "book" | "arc" | "chapter";
-    title: string;
-    objective: string;
-    participants: string[];
-    reveals: string[];
-    riskNotes: string[];
-    hookTarget: string | null;
-    scenes: Array<{
-      title?: string;
-      objective?: string;
-      conflict?: string;
-      reveal?: string;
-      emotionBeat?: string;
-    }>;
-    externalRef?: string;
-  }) {
-    const existing = input.level === "chapter" && input.chapterId
-      ? await prisma.storyPlan.findFirst({
-          where: { novelId: input.novelId, chapterId: input.chapterId, level: "chapter" },
-          select: { id: true },
-        })
-      : input.level === "arc" && input.externalRef
-        ? await prisma.storyPlan.findFirst({
-            where: { novelId: input.novelId, level: "arc", externalRef: input.externalRef },
-            select: { id: true },
-          })
-        : input.level === "book"
-          ? await prisma.storyPlan.findFirst({
-              where: { novelId: input.novelId, level: "book" },
-              select: { id: true },
-              orderBy: { updatedAt: "desc" },
-            })
-          : null;
-    const planId = await prisma.$transaction(async (tx) => {
-      const plan = existing
-        ? await tx.storyPlan.update({
-            where: { id: existing.id },
-            data: {
-              chapterId: input.chapterId ?? null,
-              sourceStateSnapshotId: input.sourceStateSnapshotId ?? null,
-              title: input.title,
-              objective: input.objective,
-              participantsJson: JSON.stringify(input.participants),
-              revealsJson: JSON.stringify(input.reveals),
-              riskNotesJson: JSON.stringify(input.riskNotes),
-              hookTarget: input.hookTarget,
-              externalRef: input.externalRef ?? null,
-              rawPlanJson: JSON.stringify(input),
-            },
-            select: { id: true },
-          })
-        : await tx.storyPlan.create({
-            data: {
-              novelId: input.novelId,
-              chapterId: input.chapterId ?? null,
-              sourceStateSnapshotId: input.sourceStateSnapshotId ?? null,
-              level: input.level,
-              title: input.title,
-              objective: input.objective,
-              participantsJson: JSON.stringify(input.participants),
-              revealsJson: JSON.stringify(input.reveals),
-              riskNotesJson: JSON.stringify(input.riskNotes),
-              hookTarget: input.hookTarget,
-              externalRef: input.externalRef ?? null,
-              rawPlanJson: JSON.stringify(input),
-            },
-            select: { id: true },
-          });
-      await tx.chapterPlanScene.deleteMany({ where: { planId: plan.id } });
-      if (input.scenes.length > 0) {
-        await tx.chapterPlanScene.createMany({
-          data: input.scenes.map((scene, index) => ({
-            planId: plan.id,
-            sortOrder: index + 1,
-            title: scene.title?.trim() || `Scene ${index + 1}`,
-            objective: scene.objective?.trim() || null,
-            conflict: scene.conflict?.trim() || null,
-            reveal: scene.reveal?.trim() || null,
-            emotionBeat: scene.emotionBeat?.trim() || null,
-          })),
-        });
-      }
-      return plan.id;
-    });
-    const persistedPlan = await prisma.storyPlan.findUnique({
-      where: { id: planId },
-      include: {
-        scenes: {
-          orderBy: { sortOrder: "asc" },
-        },
-      },
-    });
-    if (!persistedPlan) {
-      throw new Error("章节规划持久化失败。");
-    }
-    return persistedPlan;
   }
 }
 

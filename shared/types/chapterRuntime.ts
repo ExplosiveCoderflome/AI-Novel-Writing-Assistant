@@ -6,6 +6,7 @@ const auditTypeSchema = z.enum(["continuity", "character", "plot"]);
 const auditSeveritySchema = z.enum(["low", "medium", "high", "critical"]);
 const auditIssueStatusSchema = z.enum(["open", "resolved", "ignored"]);
 const chapterGenerationStateSchema = z.enum(["planned", "drafted", "reviewed", "repaired", "approved", "published"]);
+const storyPlanRoleSchema = z.enum(["setup", "progress", "pressure", "turn", "payoff", "cooldown"]);
 const styleBindingTargetTypeSchema = z.enum(["novel", "chapter", "task"]);
 const antiAiRuleTypeSchema = z.enum(["forbidden", "risk", "encourage"]);
 const antiAiSeveritySchema = z.enum(["low", "medium", "high"]);
@@ -40,11 +41,17 @@ export const runtimePlanSceneSchema = z.object({
 export const runtimePlanSchema = z.object({
   id: z.string(),
   chapterId: z.string().nullable().optional(),
+  planRole: storyPlanRoleSchema.nullable().optional(),
+  phaseLabel: z.string().nullable().optional(),
   title: z.string(),
   objective: z.string(),
   participants: z.array(z.string()),
   reveals: z.array(z.string()),
   riskNotes: z.array(z.string()),
+  mustAdvance: z.array(z.string()).default([]),
+  mustPreserve: z.array(z.string()).default([]),
+  sourceIssueIds: z.array(z.string()).default([]),
+  replannedFromPlanId: z.string().nullable().optional(),
   hookTarget: z.string().nullable().optional(),
   rawPlanJson: z.string().nullable().optional(),
   scenes: z.array(runtimePlanSceneSchema),

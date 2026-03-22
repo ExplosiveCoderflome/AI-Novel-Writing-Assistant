@@ -18,6 +18,7 @@ server/tmp/**/*.db-*
 server/tmp/**/*.sqlite
 server/tmp/**/*.sqlite*
 server/tmp/**/*.sqlite-*
+server/storage/
 server/src/prisma/dev.db
 server/src/prisma/dev.db-journal
 .history/

@@ -25,7 +25,7 @@ export default function WritingFormulaRulesPanel(props: WritingFormulaRulesPanel
   );
 
   return (
-    <div className="space-y-4 xl:min-h-0 xl:overflow-y-auto xl:pr-1">
+    <>
       <Card>
         <CardHeader>
           <CardTitle>反 AI 特征库</CardTitle>
@@ -86,6 +86,6 @@ export default function WritingFormulaRulesPanel(props: WritingFormulaRulesPanel
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

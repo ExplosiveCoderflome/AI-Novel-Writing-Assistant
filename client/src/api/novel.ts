@@ -26,6 +26,7 @@ import type {
   ProjectMode,
   ProjectProgressStatus,
   QualityScore,
+  ReplanResult,
   ReviewIssue,
   StoryPlan,
   StoryStateSnapshot,
@@ -645,12 +646,14 @@ export async function replanNovel(
     reason: string;
     chapterId?: string;
     triggerType?: string;
+    sourceIssueIds?: string[];
+    windowSize?: number;
     provider?: LLMProvider;
     model?: string;
     temperature?: number;
   },
 ) {
-  const { data } = await apiClient.post<ApiResponse<StoryPlan>>(`/novels/${id}/replan`, payload);
+  const { data } = await apiClient.post<ApiResponse<ReplanResult>>(`/novels/${id}/replan`, payload);
   return data;
 }
 

@@ -23,7 +23,6 @@ import {
 } from "@/api/styleEngine";
 import { useLLMStore } from "@/store/llmStore";
 import WritingFormulaEditorPanel from "./components/WritingFormulaEditorPanel";
-import WritingFormulaRulesPanel from "./components/WritingFormulaRulesPanel";
 import WritingFormulaSidebar from "./components/WritingFormulaSidebar";
 import WritingFormulaWorkbenchPanel from "./components/WritingFormulaWorkbenchPanel";
 import { normalizeCsv, parseJsonInput, prettyJson } from "./writingFormula.utils";
@@ -344,13 +343,7 @@ export default function WritingFormulaPage() {
             写法资产、模板、绑定、试写与反 AI 修正统一工作区。
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <WritingFormulaRulesPanel
-            antiAiRules={antiAiRules}
-            onToggleRule={(rule, enabled) => toggleRuleMutation.mutate({ rule, enabled })}
-          />
-          <OpenInCreativeHubButton bindings={{ styleProfileId: selectedProfileId || null }} label="写法资产发往创作中枢" />
-        </div>
+        <OpenInCreativeHubButton bindings={{ styleProfileId: selectedProfileId || null }} label="写法资产发往创作中枢" />
       </div>
 
       {message ? <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">{message}</div> : null}
@@ -366,9 +359,11 @@ export default function WritingFormulaPage() {
           createFromTextPending={createFromTextMutation.isPending}
           createFromTemplatePending={createFromTemplateMutation.isPending}
           templates={templates}
+          antiAiRules={antiAiRules}
           profiles={profiles}
           selectedProfileId={selectedProfileId}
           onSelectProfile={setSelectedProfileId}
+          onToggleRule={(rule, enabled) => toggleRuleMutation.mutate({ rule, enabled })}
         />
 
         <div className="space-y-4 xl:min-h-0 xl:overflow-y-auto xl:pr-1">

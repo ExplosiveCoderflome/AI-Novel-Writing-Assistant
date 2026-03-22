@@ -10,6 +10,7 @@ export type ProjectProgressStatus = "not_started" | "in_progress" | "completed" 
 
 export type StorylineVersionStatus = "draft" | "active" | "frozen";
 export type StoryPlanLevel = "book" | "arc" | "chapter";
+export type StoryPlanRole = "setup" | "progress" | "pressure" | "turn" | "payoff" | "cooldown";
 export type AuditType = "continuity" | "character" | "plot";
 export type AuditIssueStatus = "open" | "resolved" | "ignored";
 
@@ -409,11 +410,17 @@ export interface StoryPlan {
   parentId?: string | null;
   sourceStateSnapshotId?: string | null;
   level: StoryPlanLevel;
+  planRole?: StoryPlanRole | null;
+  phaseLabel?: string | null;
   title: string;
   objective: string;
   participantsJson?: string | null;
   revealsJson?: string | null;
   riskNotesJson?: string | null;
+  mustAdvanceJson?: string | null;
+  mustPreserveJson?: string | null;
+  sourceIssueIdsJson?: string | null;
+  replannedFromPlanId?: string | null;
   hookTarget?: string | null;
   status: string;
   externalRef?: string | null;
@@ -421,6 +428,22 @@ export interface StoryPlan {
   scenes: ChapterPlanScene[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ReplanResult {
+  primaryPlan: StoryPlan;
+  generatedPlans: StoryPlan[];
+  affectedChapterIds: string[];
+  affectedChapterOrders: number[];
+  sourceIssueIds: string[];
+  triggerType: string;
+  reason: string;
+  windowSize: number;
+  run: {
+    id: string;
+    outputSummary?: string | null;
+    createdAt: string;
+  } | null;
 }
 
 export interface AuditIssue {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { StyleProfile, StyleTemplate } from "@ai-novel/shared/types/styleEngine";
+import type { AntiAiRule, StyleProfile, StyleTemplate } from "@ai-novel/shared/types/styleEngine";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import WritingFormulaRulesPanel from "./WritingFormulaRulesPanel";
 
 export interface WritingFormulaCreateFormState {
   manualName: string;
@@ -27,9 +28,11 @@ interface WritingFormulaSidebarProps {
   createFromTextPending: boolean;
   createFromTemplatePending: boolean;
   templates: StyleTemplate[];
+  antiAiRules: AntiAiRule[];
   profiles: StyleProfile[];
   selectedProfileId: string;
   onSelectProfile: (profileId: string) => void;
+  onToggleRule: (rule: AntiAiRule, enabled: boolean) => void;
 }
 
 export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps) {
@@ -43,9 +46,11 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
     createFromTextPending,
     createFromTemplatePending,
     templates,
+    antiAiRules,
     profiles,
     selectedProfileId,
     onSelectProfile,
+    onToggleRule,
   } = props;
   const [templatesOpen, setTemplatesOpen] = useState(false);
 
@@ -96,6 +101,8 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
           </div>
         </CardContent>
       </Card>
+
+      <WritingFormulaRulesPanel antiAiRules={antiAiRules} onToggleRule={onToggleRule} />
 
       <Card>
         <CardHeader>

@@ -91,6 +91,20 @@ router.get("/assets", validate({ query: assetQuerySchema }), async (req, res, ne
   }
 });
 
+router.get("/assets/:assetId/file", validate({ params: assetParamsSchema }), async (req, res, next) => {
+  try {
+    const { assetId } = req.params as z.infer<typeof assetParamsSchema>;
+    const data = await imageGenerationService.getAssetFile(assetId);
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    if (data.mimeType) {
+      res.type(data.mimeType);
+    }
+    res.sendFile(data.localPath);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post("/assets/:assetId/set-primary", validate({ params: assetParamsSchema }), async (req, res, next) => {
   try {
     const { assetId } = req.params as z.infer<typeof assetParamsSchema>;

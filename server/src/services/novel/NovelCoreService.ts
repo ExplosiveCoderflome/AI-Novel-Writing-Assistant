@@ -2133,7 +2133,13 @@ ${ragContext || ""}
 
   async replanNovel(
     novelId: string,
-    input: { chapterId?: string; triggerType?: string; reason: string } & LLMGenerateOptions,
+    input: {
+      chapterId?: string;
+      triggerType?: string;
+      sourceIssueIds?: string[];
+      windowSize?: number;
+      reason: string;
+    } & LLMGenerateOptions,
   ) {
     return plannerService.replan(novelId, input);
   }

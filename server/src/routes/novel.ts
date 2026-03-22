@@ -280,6 +280,8 @@ const repairSchema = llmGenerateSchema.extend({
 const replanSchema = llmGenerateSchema.extend({
   chapterId: z.string().trim().optional(),
   triggerType: z.string().trim().optional(),
+  sourceIssueIds: z.array(z.string().trim().min(1)).optional(),
+  windowSize: z.number().int().min(1).max(5).optional(),
   reason: z.string().trim().min(1),
 });
 

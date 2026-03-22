@@ -3,104 +3,18 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
 import { generateImagesByProvider, isImageProviderSupported, resolveImageModel } from "./provider";
+import {
+  persistGeneratedImageAsset,
+  resolveLocalImageAssetFile,
+} from "./imageAssetStorage";
+import {
+  buildCharacterPrompt,
+  isMissingTableError,
+  normalizeImageGenerationError,
+  toImageAsset,
+  toImageTask,
+} from "./imageGenerationMappers";
 import type { ImageGenerationRequest } from "./types";
-
-function isMissingTableError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code?: string }).code === "P2021"
-  );
-}
-
-function normalizeError(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message.slice(0, 1000);
-  }
-  return "Unknown image generation error.";
-}
-
-function toImageTask(row: Awaited<ReturnType<typeof prisma.imageGenerationTask.findUnique>>): ImageGenerationTask {
-  if (!row) {
-    throw new AppError("Image task not found.", 404);
-  }
-  return {
-    id: row.id,
-    sceneType: row.sceneType,
-    baseCharacterId: row.baseCharacterId,
-    provider: row.provider,
-    model: row.model,
-    prompt: row.prompt,
-    negativePrompt: row.negativePrompt,
-    stylePreset: row.stylePreset,
-    size: row.size,
-    imageCount: row.imageCount,
-    seed: row.seed,
-    status: row.status,
-    progress: row.progress,
-    retryCount: row.retryCount,
-    maxRetries: row.maxRetries,
-    heartbeatAt: row.heartbeatAt?.toISOString() ?? null,
-    currentStage: row.currentStage,
-    currentItemKey: row.currentItemKey,
-    currentItemLabel: row.currentItemLabel,
-    cancelRequestedAt: row.cancelRequestedAt?.toISOString() ?? null,
-    error: row.error,
-    startedAt: row.startedAt?.toISOString() ?? null,
-    finishedAt: row.finishedAt?.toISOString() ?? null,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-  };
-}
-
-function toImageAsset(row: Awaited<ReturnType<typeof prisma.imageAsset.findUnique>>): ImageAsset {
-  if (!row) {
-    throw new AppError("Image asset not found.", 404);
-  }
-  return {
-    id: row.id,
-    taskId: row.taskId,
-    sceneType: row.sceneType,
-    baseCharacterId: row.baseCharacterId,
-    provider: row.provider,
-    model: row.model,
-    url: row.url,
-    mimeType: row.mimeType,
-    width: row.width,
-    height: row.height,
-    seed: row.seed,
-    prompt: row.prompt,
-    isPrimary: row.isPrimary,
-    sortOrder: row.sortOrder,
-    metadata: row.metadata,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-  };
-}
-
-function buildCharacterPrompt(
-  prompt: string,
-  stylePreset: string | undefined,
-  character: {
-    name: string;
-    role: string;
-    personality: string;
-    appearance: string | null;
-    background: string;
-  },
-): string {
-  const blocks = [
-    prompt.trim(),
-    stylePreset?.trim() ? `Style preset: ${stylePreset.trim()}` : "",
-    `Character name: ${character.name}`,
-    `Character role: ${character.role}`,
-    `Personality: ${character.personality}`,
-    `Appearance: ${character.appearance ?? "Not specified"}`,
-    `Background: ${character.background}`,
-  ];
-  return blocks.filter(Boolean).join("\n");
-}
 
 export class ImageGenerationService {
   private readonly queue: string[] = [];
@@ -262,6 +176,32 @@ export class ImageGenerationService {
     return toImageAsset(updated);
   }
 
+  async getAssetFile(assetId: string): Promise<{ localPath: string; mimeType: string | null }> {
+    const asset = await prisma.imageAsset.findUnique({
+      where: { id: assetId },
+      select: {
+        id: true,
+        url: true,
+        mimeType: true,
+        metadata: true,
+      },
+    });
+    if (!asset) {
+      throw new AppError("Image asset not found.", 404);
+    }
+
+    const { localPath } = await resolveLocalImageAssetFile({
+      assetId: asset.id,
+      url: asset.url,
+      metadata: asset.metadata,
+    });
+
+    return {
+      localPath,
+      mimeType: asset.mimeType ?? null,
+    };
+  }
+
   async resumePendingTasks(): Promise<void> {
     try {
       const rows = await prisma.imageGenerationTask.findMany({
@@ -413,6 +353,14 @@ export class ImageGenerationService {
         });
         for (let index = 0; index < result.images.length; index += 1) {
           const image = result.images[index];
+          const persisted = await persistGeneratedImageAsset({
+            taskId: task.id,
+            sceneType: "character",
+            baseCharacterId: task.baseCharacterId,
+            sortOrder: index,
+            url: image.url,
+            mimeType: image.mimeType ?? null,
+          });
           await tx.imageAsset.create({
             data: {
               taskId: task.id,
@@ -420,15 +368,20 @@ export class ImageGenerationService {
               baseCharacterId: task.baseCharacterId,
               provider: result.provider,
               model: result.model,
-              url: image.url,
-              mimeType: image.mimeType ?? null,
+              url: persisted.localPath,
+              mimeType: persisted.mimeType,
               width: image.width ?? null,
               height: image.height ?? null,
               seed: image.seed ?? null,
               prompt: task.prompt,
               isPrimary: !hasPrimary && index === 0,
               sortOrder: index,
-              metadata: image.metadata ? JSON.stringify(image.metadata) : null,
+              metadata: JSON.stringify({
+                ...(image.metadata ?? {}),
+                localPath: persisted.localPath,
+                relativePath: persisted.relativePath,
+                sourceUrl: persisted.sourceUrl,
+              }),
             },
           });
         }
@@ -452,7 +405,7 @@ export class ImageGenerationService {
         await this.markCancelled(task.id, task.progress);
         return;
       }
-      const errorMessage = normalizeError(error);
+      const errorMessage = normalizeImageGenerationError(error);
       const shouldRetry = task.retryCount < task.maxRetries;
       if (shouldRetry) {
         await prisma.imageGenerationTask.update({

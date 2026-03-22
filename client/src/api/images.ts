@@ -2,6 +2,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { ImageAsset, ImageGenerationTask } from "@ai-novel/shared/types/image";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { apiClient } from "./client";
+import { API_BASE_URL } from "@/lib/constants";
 
 export interface GenerateCharacterImagePayload {
   sceneType: "character";
@@ -37,4 +38,15 @@ export async function listImageAssets(params: { sceneType: "character"; sceneId:
 export async function setPrimaryImageAsset(assetId: string) {
   const { data } = await apiClient.post<ApiResponse<ImageAsset>>(`/images/assets/${assetId}/set-primary`);
   return data;
+}
+
+export function resolveImageAssetUrl(url: string): string {
+  if (!url.trim()) {
+    return url;
+  }
+  if (/^(https?:|data:|blob:)/i.test(url)) {
+    return url;
+  }
+  const apiOrigin = API_BASE_URL.replace(/\/api\/?$/i, "");
+  return `${apiOrigin}${url.startsWith("/") ? url : `/${url}`}`;
 }

@@ -4,6 +4,7 @@ import type {
   StyleBinding,
   StyleDetectionReport,
   StyleProfile,
+  StyleRecommendationResult,
   StyleTemplate,
 } from "@ai-novel/shared/types/styleEngine";
 import type { CompiledStylePromptBlocks } from "@ai-novel/shared/types/styleEngine";
@@ -157,6 +158,21 @@ export async function createStyleBinding(payload: {
 
 export async function deleteStyleBinding(id: string) {
   const { data } = await apiClient.delete<ApiResponse<null>>(`/style-bindings/${id}`);
+  return data;
+}
+
+export async function recommendStyleProfilesForNovel(
+  novelId: string,
+  payload?: {
+    provider?: string;
+    model?: string;
+    temperature?: number;
+  },
+) {
+  const { data } = await apiClient.post<ApiResponse<StyleRecommendationResult>>(
+    `/style-recommendations/novels/${novelId}`,
+    payload ?? {},
+  );
   return data;
 }
 

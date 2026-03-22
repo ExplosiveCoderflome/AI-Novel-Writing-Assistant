@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import type { ImageAsset } from "@ai-novel/shared/types/image";
+import { resolveImageAssetUrl } from "@/api/images";
 import type { BaseCharacter } from "@ai-novel/shared/types/novel";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -77,12 +78,15 @@ export function CharacterCard({
                   title="点击预览"
                 >
                   <img
-                    src={asset.url}
+                    src={resolveImageAssetUrl(asset.url)}
                     alt={`${character.name}-形象图`}
                     className="h-full w-full object-cover transition-transform duration-200 hover:scale-[1.02]"
                     loading="lazy"
                   />
                 </button>
+                <div className="text-[11px] leading-4 text-muted-foreground break-all">
+                  本地路径：{asset.localPath ?? "未落地本地文件"}
+                </div>
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-xs text-muted-foreground">{asset.isPrimary ? "主图" : "候选图"}</div>
                   <Button
@@ -113,13 +117,20 @@ export function CharacterCard({
             <DialogTitle>{previewAsset ? `${character.name} - 图片预览` : "图片预览"}</DialogTitle>
           </DialogHeader>
           {previewAsset ? (
+            <>
             <div className="flex max-h-[78vh] items-center justify-center overflow-auto rounded-md bg-muted/30 p-2">
               <img
-                src={previewAsset.url}
+                src={resolveImageAssetUrl(previewAsset.url)}
                 alt={`${character.name}-预览图`}
                 className="max-h-[72vh] w-auto max-w-full rounded-md object-contain"
               />
             </div>
+              {previewAsset.localPath ? (
+                <div className="text-xs text-muted-foreground break-all">
+                  本地路径：{previewAsset.localPath}
+                </div>
+              ) : null}
+            </>
           ) : null}
         </DialogContent>
       </Dialog>

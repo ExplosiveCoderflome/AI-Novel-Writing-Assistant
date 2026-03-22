@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import type { BasicTabProps } from "./NovelEditView.types";
 import NovelBasicInfoForm from "./NovelBasicInfoForm";
+import NovelStyleRecommendationCard from "./NovelStyleRecommendationCard";
 import NovelWorldUsageCard from "./NovelWorldUsageCard";
 import NovelTitleWorkshop from "./titleWorkshop/NovelTitleWorkshop";
 
@@ -53,6 +54,8 @@ export default function BasicInfoTab(props: BasicTabProps) {
           />
         </CardContent>
       </Card>
+
+      <NovelStyleRecommendationCard novelId={props.novelId} />
 
       <NovelWorldUsageCard
         view={props.worldSliceView}

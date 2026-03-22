@@ -38,6 +38,8 @@ export interface ImageAsset {
   provider: string;
   model: string;
   url: string;
+  localPath?: string | null;
+  sourceUrl?: string | null;
   mimeType?: string | null;
   width?: number | null;
   height?: number | null;

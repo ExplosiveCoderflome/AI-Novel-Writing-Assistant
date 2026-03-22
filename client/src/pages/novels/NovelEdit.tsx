@@ -361,13 +361,29 @@ export default function NovelEdit() {
       chapterId: selectedChapterId,
       reason: "manual_replan_from_chapter_tab",
       triggerType: "manual",
+      sourceIssueIds: openAuditIssueIds,
+      windowSize: 3,
       provider: llm.provider,
       model: llm.model,
       temperature: llm.temperature,
     }),
-    onSuccess: async () => {
-      setChapterOperationMessage("章节已完成重规划。");
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterPlan(id, selectedChapterId) });
+    onSuccess: async (response) => {
+      const affectedOrders = response.data?.affectedChapterOrders ?? [];
+      const affectedChapterIds = response.data?.affectedChapterIds ?? [];
+      setChapterOperationMessage(
+        affectedOrders.length > 0
+          ? `已重规划第 ${affectedOrders.join("、")} 章。`
+          : "章节已完成重规划。",
+      );
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(id) });
+      await Promise.all(
+        affectedChapterIds.map((chapterId) =>
+          queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterPlan(id, chapterId) })),
+      );
+      if (selectedChapterId) {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterPlan(id, selectedChapterId) });
+      }
     },
   });
 
