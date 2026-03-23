@@ -238,8 +238,10 @@ server/   Express + Prisma + Agent Runtime + Creative Hub
 shared/   前后端共享类型与协议
 images/   README 与产品预览截图
 scripts/  启动和辅助脚本
-docs/     补充设计文档
+docs/     设计文档、阶段检查点、模块计划与历史归档
 ```
+
+更细的文档分区说明可以看 [docs/README.md](./docs/README.md)。
 
 ### 当前系统关注点
 
