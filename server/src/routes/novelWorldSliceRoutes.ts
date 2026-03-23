@@ -9,7 +9,7 @@ import { validate } from "../middleware/validate";
 import { NovelService } from "../services/novel/NovelService";
 
 const llmGenerateSchema = z.object({
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]).optional(),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
 });

@@ -1,12 +1,11 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { prisma } from "../../db/prisma";
-import { getLLM } from "../../llm/factory";
+import { invokeStructuredLlm } from "../../llm/structuredInvoke";
 import { PROVIDERS } from "../../llm/providers";
 import { AppError } from "../../middleware/errorHandler";
-import { invokeWithJsonGuard } from "./bookAnalysis.llm";
 import { getBookAnalysisCacheSegmentVersion, getBookAnalysisNotesConcurrency } from "./bookAnalysis.config";
 import { runWithConcurrency } from "./bookAnalysis.concurrent";
+import { bookAnalysisRawOutputSchema } from "./bookAnalysisSchemas";
 import {
   formatCacheHitLabel,
   formatCacheLookupLabel,
@@ -19,7 +18,6 @@ import type { BookAnalysisProgressUpdate, SourceNote, SourceNotesResult } from "
 import {
   buildSourceSegments,
   compactExcerpt,
-  extractJSONObject,
   getNotesMaxTokens,
   normalizeMaxTokens,
   normalizeTemperature,
@@ -27,9 +25,6 @@ import {
   toEvidenceList,
   toStringList,
 } from "./bookAnalysis.utils";
-
-type LlmFactory = typeof getLLM;
-type InvokeJsonGuard = typeof invokeWithJsonGuard;
 
 interface GetOrBuildSourceNotesInput {
   analysisId?: string;
@@ -44,11 +39,6 @@ interface GetOrBuildSourceNotesInput {
 }
 
 export class BookAnalysisSourceCacheService {
-  constructor(
-    private readonly llmFactory: LlmFactory = getLLM,
-    private readonly invokeJson: InvokeJsonGuard = invokeWithJsonGuard,
-  ) {}
-
   async getOrBuildSourceNotes(input: GetOrBuildSourceNotesInput): Promise<SourceNotesResult> {
     const cacheIdentity = this.buildCacheIdentity(input.provider, input.model, input.temperature, input.sectionMaxTokens);
 
@@ -92,12 +82,6 @@ export class BookAnalysisSourceCacheService {
       throw new AppError("Knowledge document version content is empty.", 400);
     }
 
-    const llm = await this.llmFactory(input.provider, {
-      model: input.model,
-      temperature: cacheIdentity.temperature,
-      maxTokens: cacheIdentity.notesMaxTokens,
-    });
-
     const notes = new Array<SourceNote>(segments.length);
     let completedCount = 0;
 
@@ -111,9 +95,10 @@ export class BookAnalysisSourceCacheService {
       });
 
       notes[index] = await this.buildSingleSourceNote({
-        llm,
         provider: input.provider,
         model: input.model,
+        temperature: cacheIdentity.temperature,
+        maxTokens: cacheIdentity.notesMaxTokens,
         segment,
       });
 
@@ -187,16 +172,21 @@ export class BookAnalysisSourceCacheService {
   }
 
   private async buildSingleSourceNote(input: {
-    llm: Awaited<ReturnType<LlmFactory>>;
     provider: LLMProvider;
     model?: string;
+    temperature: number;
+    maxTokens: number;
     segment: { label: string; content: string };
   }): Promise<SourceNote> {
     try {
-      const result = await this.invokeJson(
-        input.llm,
-        [
-          new SystemMessage(`You are a book-analysis assistant. Output compact JSON only:
+      const parsed = await invokeStructuredLlm({
+        label: `book-analysis-source-note:${input.segment.label}`,
+        provider: input.provider,
+        model: input.model,
+        temperature: input.temperature,
+        maxTokens: input.maxTokens,
+        taskType: "planner",
+        systemPrompt: `You are a book-analysis assistant. Output compact JSON only:
 {
   "summary": "short summary in Chinese",
   "plotPoints": ["..."],
@@ -211,24 +201,25 @@ export class BookAnalysisSourceCacheService {
 Rules:
 - Use simplified Chinese for values.
 - Max 5 items per array.
-- Max 3 items in evidence.`),
-          new HumanMessage(`Segment title: ${input.segment.label}\n\nSegment content:\n${input.segment.content}`),
-        ],
-        input.provider,
-        input.model,
-      );
-      const parsed = safeParseJSON<Record<string, unknown>>(extractJSONObject(String(result.content)), {});
+- Max 3 items in evidence.`,
+        userPrompt: `Segment title: ${input.segment.label}\n\nSegment content:\n${input.segment.content}`,
+        schema: bookAnalysisRawOutputSchema,
+        maxRepairAttempts: 1,
+      });
+
+      const record = parsed as any as Record<string, unknown>;
       return {
         sourceLabel: input.segment.label,
-        summary: (typeof parsed.summary === "string" && parsed.summary.trim()) || compactExcerpt(input.segment.content, 120),
-        plotPoints: toStringList(parsed.plotPoints),
-        timelineEvents: toStringList(parsed.timelineEvents),
-        characters: toStringList(parsed.characters),
-        worldbuilding: toStringList(parsed.worldbuilding),
-        themes: toStringList(parsed.themes),
-        styleTechniques: toStringList(parsed.styleTechniques),
-        marketHighlights: toStringList(parsed.marketHighlights),
-        evidence: toEvidenceList(parsed.evidence, input.segment.label),
+        summary:
+          (typeof record.summary === "string" && record.summary.trim()) || compactExcerpt(input.segment.content, 120),
+        plotPoints: toStringList(record.plotPoints),
+        timelineEvents: toStringList(record.timelineEvents),
+        characters: toStringList(record.characters),
+        worldbuilding: toStringList(record.worldbuilding),
+        themes: toStringList(record.themes),
+        styleTechniques: toStringList(record.styleTechniques),
+        marketHighlights: toStringList(record.marketHighlights),
+        evidence: toEvidenceList(record.evidence, input.segment.label),
       };
     } catch {
       return {

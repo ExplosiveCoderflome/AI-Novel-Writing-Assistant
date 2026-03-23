@@ -2,18 +2,17 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { prisma } from "../../db/prisma";
 import { supportsForcedJsonOutput } from "../../llm/capabilities";
-import { getLLM } from "../../llm/factory";
+import { invokeStructuredLlm } from "../../llm/structuredInvoke";
 import { buildTitleGenerationMessages } from "./titlePromptBuilder";
 import {
   collectUniqueSuggestions,
   DEFAULT_TITLE_COUNT,
-  extractJsonPayload,
   hasEnoughStyleVariety,
   normalizeRequestedCount,
-  readMessageContent,
   toTrimmedString,
   type TitlePromptContext,
 } from "./titleGeneration.shared";
+import { titleGenerationRawOutputSchema } from "./titleSchemas";
 
 export interface TitleGenerationLLMOptions {
   provider?: LLMProvider;
@@ -41,13 +40,12 @@ function resolveRetryReason(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function parseModelTitles(rawText: string): unknown[] {
-  const parsed = JSON.parse(extractJsonPayload(rawText)) as unknown;
-  if (Array.isArray(parsed)) {
-    return parsed;
+function extractRawTitlesFromPayload(payload: unknown): unknown[] {
+  if (Array.isArray(payload)) {
+    return payload;
   }
-  if (parsed && typeof parsed === "object" && Array.isArray((parsed as { titles?: unknown }).titles)) {
-    return (parsed as { titles: unknown[] }).titles;
+  if (payload && typeof payload === "object" && Array.isArray((payload as { titles?: unknown }).titles)) {
+    return (payload as { titles: unknown[] }).titles;
   }
   throw new Error("模型输出缺少 titles 数组。");
 }
@@ -150,12 +148,6 @@ export class TitleGenerationService {
     const provider = llmOptions.provider ?? "deepseek";
     const forceJson = supportsForcedJsonOutput(provider, llmOptions.model);
     const count = normalizeRequestedCount(promptContext.count, DEFAULT_TITLE_COUNT);
-    const llm = await getLLM(provider, {
-      model: llmOptions.model,
-      temperature: llmOptions.temperature ?? 0.85,
-      maxTokens: llmOptions.maxTokens,
-      taskType: "planner",
-    });
 
     let lastError: unknown;
     let bestEffortTitles: TitleFactorySuggestion[] = [];
@@ -163,15 +155,34 @@ export class TitleGenerationService {
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
-        const result = await llm.invoke(buildTitleGenerationMessages({
-          ...promptContext,
-          count,
-        }, {
-          forceJson,
-          retryReason,
-        }));
-        const rawText = readMessageContent(result.content);
-        const rawTitles = parseModelTitles(rawText);
+        const messages = buildTitleGenerationMessages(
+          {
+            ...promptContext,
+            count,
+          },
+          {
+            forceJson,
+            retryReason,
+          },
+        );
+
+        const systemPrompt = toMessagePrompt(messages[0]);
+        const userPrompt = toMessagePrompt(messages[1]);
+
+        const payload = await invokeStructuredLlm({
+          label: `title:${attempt}:${promptContext.mode}`,
+          provider,
+          model: llmOptions.model,
+          temperature: llmOptions.temperature ?? 0.85,
+          maxTokens: llmOptions.maxTokens,
+          taskType: "planner",
+          systemPrompt,
+          userPrompt,
+          schema: titleGenerationRawOutputSchema,
+          maxRepairAttempts: 1,
+        });
+
+        const rawTitles = extractRawTitlesFromPayload(payload);
         const titles = collectUniqueSuggestions(rawTitles, count, blockedTitles);
 
         if (titles.length > bestEffortTitles.length) {
@@ -201,6 +212,24 @@ export class TitleGenerationService {
     }
     throw new Error("标题生成失败。");
   }
+}
+
+function toMessagePrompt(message: { content?: unknown }): string {
+  const content = message.content;
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((item) =>
+        typeof item === "string"
+          ? item
+          : typeof item === "object" && item && "text" in item
+            ? (item as { text?: unknown }).text
+            : "",
+      )
+      .filter((s): s is string => typeof s === "string")
+      .join("");
+  }
+  return JSON.stringify(content ?? "");
 }
 
 export const titleGenerationService = new TitleGenerationService();

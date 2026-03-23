@@ -1,9 +1,9 @@
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
-import { getLLM } from "../../llm/factory";
 import { ragServices } from "../rag";
 import type { RagOwnerType } from "../rag/types";
+import { invokeStructuredLlm } from "../../llm/structuredInvoke";
+import { chapterSummaryOutputSchema } from "./chapterSummarySchemas";
 
 interface LLMGenerateOptions {
   provider?: LLMProvider;
@@ -12,38 +12,6 @@ interface LLMGenerateOptions {
 }
 
 type FactCategory = "plot" | "character" | "world";
-
-function toText(content: unknown): string {
-  if (typeof content === "string") {
-    return content;
-  }
-  if (Array.isArray(content)) {
-    return content.map((item) => {
-      if (typeof item === "string") {
-        return item;
-      }
-      if (item && typeof item === "object" && "text" in item && typeof item.text === "string") {
-        return item.text;
-      }
-      return "";
-    }).join("");
-  }
-  return JSON.stringify(content ?? "");
-}
-
-function cleanJsonText(source: string): string {
-  return source.replace(/```json|```/gi, "").trim();
-}
-
-function extractJSONObject(source: string): string {
-  const text = cleanJsonText(source);
-  const first = text.indexOf("{");
-  const last = text.lastIndexOf("}");
-  if (first < 0 || last < 0 || first >= last) {
-    throw new Error("No valid JSON object found.");
-  }
-  return text.slice(first, last + 1);
-}
 
 function normalizeSummary(text: string): string {
   return text.replace(/\s+/g, " ").trim();
@@ -98,23 +66,21 @@ export class NovelChapterSummaryService {
 
     if (content) {
       try {
-        const llm = await getLLM(options.provider ?? "deepseek", {
+        const parsed = await invokeStructuredLlm({
+          label: `chapter-summary:${chapterId}`,
+          provider: options.provider,
           model: options.model,
           temperature: options.temperature ?? 0.3,
-        });
-        const result = await llm.invoke([
-          new SystemMessage(
+          taskType: "summary",
+          systemPrompt:
             "你是网络小说编辑。请基于章节正文生成中文摘要，只输出 JSON：{\"summary\":\"...\"}。要求：80-180字，聚焦关键事件、冲突推进、人物状态变化，不要杜撰信息。",
-          ),
-          new HumanMessage(
-            `小说：${chapter.novel.title}
+          userPrompt: `小说：${chapter.novel.title}
 章节：第${chapter.order}章《${chapter.title}》
 正文：
 ${content.slice(0, 7000)}`,
-          ),
-        ]);
-        const raw = toText(result.content);
-        const parsed = JSON.parse(extractJSONObject(raw)) as { summary?: string };
+          schema: chapterSummaryOutputSchema,
+          maxRepairAttempts: 1,
+        });
         summary = normalizeSummary(parsed.summary ?? "");
       } catch {
         summary = "";

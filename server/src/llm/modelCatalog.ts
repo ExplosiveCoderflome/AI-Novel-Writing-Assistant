@@ -26,6 +26,14 @@ function getProviderEnvBaseUrl(provider: LLMProvider): string | undefined {
       return process.env.ANTHROPIC_BASE_URL;
     case "grok":
       return process.env.XAI_BASE_URL;
+    case "kimi":
+      return process.env.KIMI_BASE_URL;
+    case "glm":
+      return process.env.GLM_BASE_URL;
+    case "qwen":
+      return process.env.QWEN_BASE_URL;
+    case "gemini":
+      return process.env.GEMINI_BASE_URL;
     default:
       return undefined;
   }

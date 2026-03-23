@@ -1,4 +1,4 @@
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { z } from "zod";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
   StoryDecomposition,
@@ -11,7 +11,7 @@ import type {
   StoryMacroState,
 } from "@ai-novel/shared/types/storyMacro";
 import { prisma } from "../../../db/prisma";
-import { getLLM } from "../../../llm/factory";
+import { invokeStructuredLlm } from "../../../llm/structuredInvoke";
 import {
   EMPTY_DECOMPOSITION,
   EMPTY_EXPANSION,
@@ -21,7 +21,6 @@ import {
   buildConstraintEngine as buildStoryConstraintEngine,
   buildExpansionAndDecompositionPrompt,
   buildFieldRegenerationPrompt,
-  extractJSONObject,
   getEditablePlanFieldValue,
   hasMeaningfulDecomposition,
   hasMeaningfulExpansion,
@@ -32,7 +31,6 @@ import {
   normalizeExpansion,
   normalizeIssues,
   setEditablePlanFieldValue,
-  toText,
 } from "./storyMacroPlanUtils";
 import {
   type PersistedPlanRow,
@@ -144,112 +142,23 @@ export class StoryMacroPlanService {
     return mapRowToPlan(row);
   }
 
-  private parseDecompositionResponse(rawContent: string) {
-    return STORY_MACRO_RESPONSE_SCHEMA.parse(JSON.parse(extractJSONObject(rawContent)));
-  }
-
-  private async repairDecompositionResponse(
-    storyInput: string,
-    projectContext: string,
-    rawContent: string,
-    options: LLMOptions,
-    reason: string,
-  ) {
-    const llm = await getLLM(options.provider, {
-      fallbackProvider: "deepseek",
-      model: options.model,
-      temperature: 0.1,
-      taskType: "planner",
-    });
-    const prompt = buildExpansionAndDecompositionPrompt(storyInput, projectContext);
-    const result = await llm.invoke([
-      new SystemMessage([
-        prompt.system,
-        "",
-        "你现在不是重新规划故事，而是 JSON 修复器。",
-        "请把用户提供的原始内容修复为严格合法的 JSON 对象。",
-        "优先保留原意，只修复括号、逗号、引号、数组格式和转义。",
-        "如果某个字段明显缺失或被截断，只做最小补全，并在 issues 中增加 missing_info。",
-        "不要输出解释文字，只能输出最终 JSON 对象。",
-      ].join("\n")),
-      new HumanMessage([
-        `项目上下文：\n${projectContext || "无"}`,
-        `原始故事想法：\n${storyInput}`,
-        `校验失败原因：${reason}`,
-        "请修复下面的内容：",
-        rawContent,
-      ].join("\n\n")),
-    ]);
-    return this.parseDecompositionResponse(toText(result.content));
-  }
-
-  private parseFieldRegenerationResponse(rawContent: string) {
-    return JSON.parse(extractJSONObject(rawContent)) as { value?: unknown };
-  }
-
-  private async repairFieldRegenerationResponse(
-    field: StoryMacroField,
-    rawContent: string,
-    options: LLMOptions,
-    reason: string,
-  ) {
-    const llm = await getLLM(options.provider, {
-      fallbackProvider: "deepseek",
-      model: options.model,
-      temperature: 0.1,
-      taskType: "planner",
-    });
-    const formatHint = field === "conflict_layers"
-      ? "{\"value\":{\"external\":\"...\",\"internal\":\"...\",\"relational\":\"...\"}}"
-      : (field === "major_payoffs" || field === "setpiece_seeds" || field === "constraints")
-        ? "{\"value\":[\"...\"]}"
-        : "{\"value\":\"...\"}";
-    const result = await llm.invoke([
-      new SystemMessage([
-        "你是 JSON 修复器。",
-        "请把用户提供的内容修复为严格合法的 JSON 对象，不要输出解释。",
-        `输出格式只能是 ${formatHint}。`,
-        `目标字段：${field}`,
-        "优先保留原意，只修复语法、括号、逗号、引号和数组结构。",
-      ].join("\n")),
-      new HumanMessage([
-        `校验失败原因：${reason}`,
-        "请修复下面的内容：",
-        rawContent,
-      ].join("\n\n")),
-    ]);
-    return this.parseFieldRegenerationResponse(toText(result.content));
-  }
-
   private async invokeDecompositionModel(
     storyInput: string,
     projectContext: string,
     options: LLMOptions,
   ): Promise<{ plan: StoryMacroEditablePlan; issues: StoryMacroIssue[] }> {
-    const llm = await getLLM(options.provider, {
-      fallbackProvider: "deepseek",
+    const prompt = buildExpansionAndDecompositionPrompt(storyInput, projectContext);
+    const parsed = await invokeStructuredLlm({
+      label: "story-macro-decomposition",
+      provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.3,
       taskType: "planner",
+      systemPrompt: prompt.system,
+      userPrompt: prompt.user,
+      schema: STORY_MACRO_RESPONSE_SCHEMA,
+      maxRepairAttempts: 1,
     });
-    const prompt = buildExpansionAndDecompositionPrompt(storyInput, projectContext);
-    const result = await llm.invoke([
-      new SystemMessage(prompt.system),
-      new HumanMessage(prompt.user),
-    ]);
-    const rawContent = toText(result.content);
-    let parsed: ReturnType<typeof STORY_MACRO_RESPONSE_SCHEMA.parse>;
-    try {
-      parsed = this.parseDecompositionResponse(rawContent);
-    } catch (error) {
-      parsed = await this.repairDecompositionResponse(
-        storyInput,
-        projectContext,
-        rawContent,
-        options,
-        error instanceof Error ? error.message : "invalid story macro decomposition json",
-      );
-    }
     return {
       plan: {
         expansion: normalizeExpansion(parsed.expansion),
@@ -268,12 +177,6 @@ export class StoryMacroPlanService {
     options: LLMOptions,
     projectContext: string,
   ): Promise<StoryMacroFieldValue> {
-    const llm = await getLLM(options.provider, {
-      fallbackProvider: "deepseek",
-      model: options.model,
-      temperature: options.temperature ?? 0.3,
-      taskType: "planner",
-    });
     const prompt = buildFieldRegenerationPrompt({
       field,
       storyInput,
@@ -283,22 +186,24 @@ export class StoryMacroPlanService {
       lockedFields,
       projectContext,
     });
-    const result = await llm.invoke([
-      new SystemMessage(prompt.system),
-      new HumanMessage(prompt.user),
-    ]);
-    const rawContent = toText(result.content);
-    let parsed: { value?: unknown };
-    try {
-      parsed = this.parseFieldRegenerationResponse(rawContent);
-    } catch (error) {
-      parsed = await this.repairFieldRegenerationResponse(
-        field,
-        rawContent,
-        options,
-        error instanceof Error ? error.message : `invalid ${field} regeneration json`,
-      );
-    }
+    const fieldRegenSchema = z
+      .object({
+        value: z.unknown().optional(),
+      })
+      .passthrough();
+
+    const parsed = await invokeStructuredLlm({
+      label: `story-macro-field-regeneration:${field}`,
+      provider: options.provider,
+      model: options.model,
+      temperature: options.temperature ?? 0.3,
+      taskType: "planner",
+      systemPrompt: prompt.system,
+      userPrompt: prompt.user,
+      schema: fieldRegenSchema,
+      maxRepairAttempts: 1,
+    });
+
     return normalizeRegeneratedFieldValue(field, parsed.value);
   }
 

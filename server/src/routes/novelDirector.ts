@@ -16,7 +16,7 @@ const novelDirectorService = new NovelDirectorService();
 const correctionPresetValues = DIRECTOR_CORRECTION_PRESETS.map((item) => item.value) as [string, ...string[]];
 
 const llmOptionsSchema = z.object({
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]).optional(),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
 });

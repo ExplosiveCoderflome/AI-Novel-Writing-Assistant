@@ -48,7 +48,7 @@ export const novelProductionToolDefinitions: Partial<
           novelId: resolveNovelId(context.novelId, input.novelId),
           description: input.description,
           worldType: input.worldType,
-          provider: context.provider,
+          provider: context.provider as any,
           model: context.model,
           temperature: context.temperature,
         }),
@@ -74,7 +74,7 @@ export const novelProductionToolDefinitions: Partial<
           genre: input.genre,
           styleTone: input.styleTone,
           narrativePov: input.narrativePov,
-          provider: context.provider,
+          provider: context.provider as any,
           model: context.model,
           temperature: context.temperature,
           count: input.count,
@@ -97,7 +97,7 @@ export const novelProductionToolDefinitions: Partial<
       return generateStoryBibleOutput.parse(
         await novelProductionService.generateStoryBible({
           novelId: resolveNovelId(context.novelId, input.novelId),
-          provider: context.provider,
+          provider: context.provider as any,
           model: context.model,
           temperature: context.temperature,
         }),
@@ -120,7 +120,7 @@ export const novelProductionToolDefinitions: Partial<
         await novelProductionService.generateNovelOutline({
           novelId: resolveNovelId(context.novelId, input.novelId),
           description: input.description,
-          provider: context.provider,
+          provider: context.provider as any,
           model: context.model,
           temperature: context.temperature,
         }),
@@ -143,7 +143,7 @@ export const novelProductionToolDefinitions: Partial<
         await novelProductionService.generateStructuredOutline({
           novelId: resolveNovelId(context.novelId, input.novelId),
           targetChapterCount: input.targetChapterCount,
-          provider: context.provider,
+          provider: context.provider as any,
           model: context.model,
           temperature: context.temperature,
         }),
@@ -203,7 +203,7 @@ export const novelProductionToolDefinitions: Partial<
           startOrder: input.startOrder,
           endOrder: input.endOrder,
           maxRetries: input.maxRetries,
-          provider: context.provider,
+          provider: context.provider as any,
           model: context.model,
           temperature: context.temperature,
           targetChapterCount: input.targetChapterCount,

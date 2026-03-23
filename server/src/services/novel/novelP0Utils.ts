@@ -41,6 +41,17 @@ export function parseJSONObject<T>(source: string): T {
   return JSON.parse(extractJSONObject(source)) as T;
 }
 
+export function safeParseJSON<T>(raw: string | null | undefined, fallback: T): T {
+  if (!raw?.trim()) {
+    return fallback;
+  }
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 export function clamp(score: number): number {
   if (!Number.isFinite(score)) {
     return 0;

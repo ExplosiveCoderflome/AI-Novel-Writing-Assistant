@@ -1,4 +1,3 @@
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { createHash } from "node:crypto";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
@@ -8,7 +7,7 @@ import type {
   StoryWorldSliceView,
 } from "@ai-novel/shared/types/storyWorldSlice";
 import { prisma } from "../../../db/prisma";
-import { getLLM } from "../../../llm/factory";
+import { invokeStructuredLlm } from "../../../llm/structuredInvoke";
 import {
   buildWorldBindingSupport,
   buildWorldStructureFromLegacySource,
@@ -22,6 +21,7 @@ import {
   STORY_WORLD_SLICE_SCHEMA_VERSION,
 } from "./storyWorldSlicePersistence";
 import { buildStoryWorldSlicePrompt } from "./storyWorldSlicePrompt";
+import { storyWorldSliceRawPayloadSchema } from "./worldSliceSchemas";
 
 interface EnsureStoryWorldSliceOptions {
   storyInput?: string;
@@ -33,44 +33,6 @@ interface RefreshStoryWorldSliceOptions extends EnsureStoryWorldSliceOptions {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
-}
-
-interface NovelWorldSliceDeps {
-  getLLM?: typeof getLLM;
-}
-
-function toText(content: unknown): string {
-  if (typeof content === "string") {
-    return content;
-  }
-  if (Array.isArray(content)) {
-    return content
-      .map((item) => {
-        if (typeof item === "string") {
-          return item;
-        }
-        if (item && typeof item === "object" && "text" in item && typeof item.text === "string") {
-          return item.text;
-        }
-        return "";
-      })
-      .join("");
-  }
-  return JSON.stringify(content ?? "");
-}
-
-function cleanJsonText(source: string): string {
-  return source.replace(/```json|```/gi, "").trim();
-}
-
-function extractJSONObject(source: string): string {
-  const text = cleanJsonText(source);
-  const first = text.indexOf("{");
-  const last = text.lastIndexOf("}");
-  if (first < 0 || last < 0 || first >= last) {
-    throw new Error("未检测到有效 JSON 对象。");
-  }
-  return text.slice(first, last + 1);
 }
 
 function buildStoryInputDigest(storyInput: string): string {
@@ -88,12 +50,6 @@ function normalizeOverrides(input: StoryWorldSliceOverrides): StoryWorldSliceOve
 }
 
 export class NovelWorldSliceService {
-  private readonly llmFactory: typeof getLLM;
-
-  constructor(deps: NovelWorldSliceDeps = {}) {
-    this.llmFactory = deps.getLLM ?? getLLM;
-  }
-
   private async getNovelContext(novelId: string) {
     const novel = await prisma.novel.findUnique({
       where: { id: novelId },
@@ -146,32 +102,6 @@ export class NovelWorldSliceService {
       || input.slice.metadata.storyInputDigest !== input.storyInputDigest;
   }
 
-  private async repairSliceOutput(
-    rawContent: string,
-    options: RefreshStoryWorldSliceOptions,
-    reason: string,
-  ): Promise<Record<string, unknown>> {
-    const llm = await this.llmFactory(undefined, {
-      fallbackProvider: "deepseek",
-      model: options.model,
-      temperature: 0.1,
-      taskType: "planner",
-    });
-    const result = await llm.invoke([
-      new SystemMessage([
-        "你是 JSON 修复器。",
-        "请把用户提供的内容修复为严格合法的 JSON 对象。",
-        "不要补充解释，只输出 JSON。",
-      ].join("\n")),
-      new HumanMessage([
-        `校验失败原因：${reason}`,
-        "请修复下面的内容：",
-        rawContent,
-      ].join("\n\n")),
-    ]);
-    return JSON.parse(extractJSONObject(toText(result.content))) as Record<string, unknown>;
-  }
-
   private async invokeSliceModel(input: {
     novel: Awaited<ReturnType<NovelWorldSliceService["getNovelContext"]>>;
     storyInput: string;
@@ -199,27 +129,17 @@ export class NovelWorldSliceService {
       overrides: input.overrides,
       builderMode: input.builderMode,
     });
-    const llm = await this.llmFactory(input.provider, {
-      fallbackProvider: "deepseek",
+    const parsed = await invokeStructuredLlm({
+      label: `story-world-slice:${input.novel.id}`,
+      provider: input.provider,
       model: input.model,
       temperature: input.temperature ?? 0.25,
       taskType: "planner",
+      systemPrompt: prompt.system,
+      userPrompt: prompt.user,
+      schema: storyWorldSliceRawPayloadSchema,
+      maxRepairAttempts: 1,
     });
-    const result = await llm.invoke([
-      new SystemMessage(prompt.system),
-      new HumanMessage(prompt.user),
-    ]);
-    const rawContent = toText(result.content);
-    let parsed: Record<string, unknown>;
-    try {
-      parsed = JSON.parse(extractJSONObject(rawContent)) as Record<string, unknown>;
-    } catch (error) {
-      parsed = await this.repairSliceOutput(
-        rawContent,
-        input,
-        error instanceof Error ? error.message : "invalid story world slice json",
-      );
-    }
 
     return normalizeStoryWorldSlice({
       raw: parsed,

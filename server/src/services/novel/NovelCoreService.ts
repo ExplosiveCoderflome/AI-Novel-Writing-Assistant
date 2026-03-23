@@ -6,6 +6,7 @@ import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { prisma } from "../../db/prisma";
 import { getLLM } from "../../llm/factory";
+import { invokeStructuredLlm } from "../../llm/structuredInvoke";
 import { ragServices } from "../rag";
 import { getRagQueryForChapter, novelReferenceService } from "./NovelReferenceService";
 import { NovelContinuationService } from "./NovelContinuationService";
@@ -28,9 +29,11 @@ import {
 import type { RagOwnerType } from "../rag/types";
 import { novelEventBus } from "../../events";
 import { auditService } from "../audit/AuditService";
+import { fullAuditOutputSchema } from "../audit/auditSchemas";
 import { plannerService } from "../planner/PlannerService";
 import { stateService } from "../state/StateService";
 import { titleGenerationService } from "../title/TitleGenerationService";
+import { characterEvolutionOutputSchema, characterWorldCheckOutputSchema } from "./novelCoreSchemas";
 
 interface PaginationInput {
   page: number;
@@ -1233,10 +1236,7 @@ export class NovelCoreService {
 
     if (!novel || !character) {
       throw new Error("小说或角色不存在");
-    }    const llm = await getLLM(options.provider ?? "deepseek", {
-      model: options.model,
-      temperature: options.temperature ?? 0.4,
-    });
+    }
 
     const timelineText = timelines.length > 0
       ? timelines
@@ -1257,9 +1257,13 @@ export class NovelCoreService {
       ragContext = "";
     }
 
-    const result = await llm.invoke([
-      new SystemMessage(
-        `你是小说角色发展编辑。请基于角色经历输出 JSON"
+    const parsed = await invokeStructuredLlm({
+      label: `character-evolve:${characterId}`,
+      provider: options.provider,
+      model: options.model,
+      temperature: options.temperature ?? 0.4,
+      taskType: "planner",
+      systemPrompt: `你是小说角色发展编辑。请基于角色经历输出 JSON"
 {
   "personality":"更新后的性格",
   "background":"更新后的背景信息（可选）",
@@ -1268,9 +1272,7 @@ export class NovelCoreService {
   "currentGoal":"角色当前目标"
 }
 仅输"JSON。`,
-      ),
-      new HumanMessage(
-        `小说${novel.title}
+      userPrompt: `小说${novel.title}
 作品圣经${novel.bible?.rawContent ?? "暂无"}
 角色${character.name}(${character.role})
 现有设定"
@@ -1284,16 +1286,9 @@ currentGoal=${character.currentGoal ?? "暂无"}
 ${timelineText}
 检索补充：
 ${ragContext || ""}`,
-      ),
-    ]);
-
-    const parsed = JSON.parse(extractJSONObject(toText(result.content))) as Partial<{
-      personality: string;
-      background: string;
-      development: string;
-      currentState: string;
-      currentGoal: string;
-    }>;
+      schema: characterEvolutionOutputSchema,
+      maxRepairAttempts: 1,
+    });
 
     const updated = await prisma.character.update({
       where: { id: characterId },
@@ -1346,22 +1341,21 @@ ${ragContext || ""}`,
     }
 
     const worldContext = this.buildWorldContextFromNovel(novel);
-    try {    const llm = await getLLM(options.provider ?? "deepseek", {
+    try {
+      const parsed = await invokeStructuredLlm({
+        label: `character-world-check:${characterId}`,
+        provider: options.provider,
         model: options.model,
         temperature: options.temperature ?? 0.2,
-      });
-      const result = await llm.invoke([
-        new SystemMessage(
-          `你是角色设定审计员。请输出 JSON"
+        taskType: "planner",
+        systemPrompt: `你是角色设定审计员。请输出 JSON"
 {
   "status":"pass|warn|error",
   "warnings":["..."],
   "issues":[{"severity":"warn|error","message":"...","suggestion":"..."}]
 }
 仅输"JSON。`,
-        ),
-        new HumanMessage(
-          `世界规则"
+        userPrompt: `世界规则"
 ${worldContext}
 
 角色设定"
@@ -1372,13 +1366,10 @@ background=${character.background ?? ""}
 development=${character.development ?? ""}
 currentState=${character.currentState ?? ""}
 currentGoal=${character.currentGoal ?? ""}`,
-        ),
-      ]);
-      const parsed = JSON.parse(extractJSONObject(toText(result.content))) as {
-        status?: "pass" | "warn" | "error";
-        warnings?: string[];
-        issues?: Array<{ severity: "warn" | "error"; message: string; suggestion?: string }>;
-      };
+        schema: characterWorldCheckOutputSchema,
+        maxRepairAttempts: 1,
+      });
+
       return {
         status: parsed.status ?? "pass",
         warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
@@ -2673,10 +2664,7 @@ Rewrite full chapter. Keep the same core events but change the opening style sig
         }],
       };
     }
-    try {    const llm = await getLLM(options.provider ?? "deepseek", {
-        model: options.model,
-        temperature: options.temperature ?? 0.1,
-      });
+    try {
       let ragContext = "";
       if (novelId) {
         try {
@@ -2692,20 +2680,29 @@ Rewrite full chapter. Keep the same core events but change the opening style sig
           ragContext = "";
         }
       }
-      const result = await llm.invoke([
-        new SystemMessage(
+
+      const parsed = await invokeStructuredLlm({
+        label: `review:${novelTitle}:${chapterTitle}`,
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature ?? 0.1,
+        taskType: "review",
+        systemPrompt:
           "你是网文审校专家。请输出 JSON：{\"score\":{\"coherence\":0-100,\"repetition\":0-100,\"pacing\":0-100,\"voice\":0-100,\"engagement\":0-100,\"overall\":0-100},\"issues\":[{\"severity\":\"low|medium|high|critical\",\"category\":\"coherence|repetition|pacing|voice|engagement|logic\",\"evidence\":\"...\",\"fixSuggestion\":\"...\"}]}",
-        ),
-        new HumanMessage(
-          `小说${novelTitle}
+        userPrompt: `小说${novelTitle}
 章节${chapterTitle}
 正文"
 ${content}
 检索补充：
 ${ragContext || ""}`,
-        ),
-      ]);
-      return parseReviewOutput(toText(result.content));
+        schema: fullAuditOutputSchema,
+        maxRepairAttempts: 1,
+      });
+
+      return {
+        score: normalizeScore(parsed.score ?? {}),
+        issues: Array.isArray(parsed.issues) ? parsed.issues : [],
+      };
     } catch {
       return { score: ruleScore(content), issues: [] };
     }

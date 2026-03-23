@@ -5,7 +5,7 @@ import { validate } from "../middleware/validate";
 import { StoryMacroPlanService } from "../services/novel/storyMacro/StoryMacroPlanService";
 
 const llmGenerateSchema = z.object({
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]).optional(),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
 });

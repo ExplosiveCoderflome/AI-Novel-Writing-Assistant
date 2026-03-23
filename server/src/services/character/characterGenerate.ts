@@ -3,8 +3,9 @@ import type { BaseMessage } from "@langchain/core/messages";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import { prisma } from "../../db/prisma";
-import { getLLM } from "../../llm/factory";
+import { invokeStructuredLlm } from "../../llm/structuredInvoke";
 import { buildReferenceContext } from "./characterGenerateReference";
+import { characterFinalPayloadSchema, characterSkeletonOutputSchema } from "./characterSchemas";
 
 const STORY_FUNCTION_VALUES = ["主角", "反派", "导师", "对照组", "配角"] as const;
 const GROWTH_STAGE_VALUES = ["起点", "受挫", "转折", "觉醒", "收束"] as const;
@@ -138,39 +139,35 @@ function buildConstraintsText(constraints: CharacterGenerateConstraints | null):
 }
 
 async function invokeJsonWithRetry(
-  llm: Awaited<ReturnType<typeof getLLM>>,
+  provider: LLMProvider,
+  model: string | undefined,
+  temperature: number,
   messages: BaseMessage[],
-  stageLabel: string,
+  stageLabel: "skeleton" | "final",
 ): Promise<JsonInvokeResult> {
-  let retried = false;
-  let rawText = "";
-  let errorMessage = "";
+  const systemPrompt = extractSystemPrompt(messages);
+  const userPrompt = extractUserPrompt(messages);
 
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const repairInstruction = new SystemMessage(
-      `你上一次在${stageLabel}阶段输出不符合 JSON 规范。请严格只输出合法 JSON，不要任何解释和 markdown。`,
-    );
-    const currentMessages = attempt === 0 ? messages : [...messages, repairInstruction];
-    try {
-      const result = await llm.invoke(currentMessages);
-      rawText = typeof result.content === "string" ? result.content : JSON.stringify(result.content);
-      const parsed = JSON.parse(extractJSONObject(rawText)) as Record<string, unknown>;
-      return { parsed, retried, rawText };
-    } catch (error) {
-      errorMessage = error instanceof Error ? error.message : `模型输出异常：${stageLabel}阶段无法解析。`;
-      if (attempt === 0) {
-        retried = true;
-        continue;
-      }
-    }
+  try {
+    const schema = (stageLabel === "skeleton" ? characterSkeletonOutputSchema : characterFinalPayloadSchema) as unknown as z.ZodType<
+      Record<string, unknown>
+    >;
+    const parsed = await invokeStructuredLlm({
+      label: `character:${stageLabel}`,
+      provider,
+      model,
+      temperature,
+      taskType: "planner",
+      systemPrompt,
+      userPrompt,
+      schema,
+      maxRepairAttempts: 1,
+    });
+    return { parsed: parsed as Record<string, unknown>, retried: false, rawText: "" };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : `模型输出异常：${stageLabel}阶段无法解析。`;
+    return { parsed: null, retried: false, rawText: "", errorMessage };
   }
-
-  return {
-    parsed: null,
-    retried,
-    rawText,
-    errorMessage,
-  };
 }
 
 function buildFallbackSkeleton(input: CharacterGenerateInput, constraints: CharacterGenerateConstraints | null): Record<string, unknown> {
@@ -339,10 +336,9 @@ export async function generateBaseCharacterFromAI(input: CharacterGenerateInput)
     bookAnalysisIds: input.bookAnalysisIds,
   });
 
-  const llm = await getLLM(input.provider ?? "deepseek", {
-    model: input.model,
-    temperature: 0.6,
-  });
+  const provider = input.provider ?? "deepseek";
+  const model = input.model;
+  const temperature = 0.6;
 
   const constraintsText = buildConstraintsText(constraints);
   const stageOneMessages: BaseMessage[] = [
@@ -394,7 +390,7 @@ ${referenceContext ? `Reference context:
 ${referenceContext}` : "Reference context: none"}`),
   ];
 
-  const stageOne = await invokeJsonWithRetry(llm, stageOneMessages, "skeleton");
+  const stageOne = await invokeJsonWithRetry(provider, model, temperature, stageOneMessages, "skeleton");
   if (stageOne.retried || !stageOne.parsed) {
     console.warn("[base-characters.generate] stage_one_retry_or_fallback", {
       retried: stageOne.retried,
@@ -438,7 +434,7 @@ ${referenceContext ? `Reference context:
 ${referenceContext}` : "Reference context: none"}`),
   ];
 
-  const stageTwo = await invokeJsonWithRetry(llm, stageTwoMessages, "final");
+  const stageTwo = await invokeJsonWithRetry(provider, model, temperature, stageTwoMessages, "final");
   if (stageTwo.retried || !stageTwo.parsed) {
     console.warn("[base-characters.generate] stage_two_retry_or_fallback", {
       retried: stageTwo.retried,
@@ -472,4 +468,14 @@ ${referenceContext}` : "Reference context: none"}`),
     data,
     outputAnomaly,
   };
+}
+
+function extractSystemPrompt(messages: BaseMessage[]): string {
+  const content = messages[0] ? (messages[0] as unknown as { content?: unknown }).content : "";
+  return typeof content === "string" ? content : JSON.stringify(content ?? "");
+}
+
+function extractUserPrompt(messages: BaseMessage[]): string {
+  const content = messages[1] ? (messages[1] as unknown as { content?: unknown }).content : "";
+  return typeof content === "string" ? content : JSON.stringify(content ?? "");
 }

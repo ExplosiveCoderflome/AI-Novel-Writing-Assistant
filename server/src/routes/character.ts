@@ -38,7 +38,7 @@ const generateSchema = z.object({
   description: z.string().trim().min(1),
   category: z.string().trim().min(1),
   genre: z.string().trim().optional(),
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]).optional(),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
   model: z.string().optional(),
   novelId: z.string().trim().min(1).optional(),
   knowledgeDocumentIds: z.array(z.string().trim().min(1)).max(5).optional(),

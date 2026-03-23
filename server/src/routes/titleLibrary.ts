@@ -9,7 +9,7 @@ import { TitleLibraryService } from "../services/title/TitleLibraryService";
 const router = Router();
 const titleLibraryService = new TitleLibraryService();
 
-const providerSchema = z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]);
+const providerSchema = z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]);
 
 const querySchema = z.object({
   page: z.coerce.number().int().min(1).optional(),

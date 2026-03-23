@@ -14,7 +14,7 @@ import { getProviderModels } from "../llm/modelCatalog";
 const router = Router();
 
 const llmTestSchema = z.object({
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]),
   apiKey: z.string().trim().optional(),
   model: z.string().trim().optional(),
 });

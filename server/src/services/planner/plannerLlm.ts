@@ -1,9 +1,8 @@
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { StoryPlanLevel } from "@ai-novel/shared/types/novel";
-import { getLLM } from "../../llm/factory";
-import { parseJSONObject, toText } from "../novel/novelP0Utils";
+import { invokeStructuredLlm } from "../../llm/structuredInvoke";
 import { normalizePlannerOutput, type PlannerOutput } from "./plannerOutputNormalization";
+import { plannerOutputSchema } from "./plannerSchemas";
 
 export interface PlannerLlmOptions {
   provider?: LLMProvider;
@@ -18,18 +17,11 @@ export async function invokePlannerLLM(input: {
   includeScenes: boolean;
   planLevel: StoryPlanLevel;
 }): Promise<PlannerOutput> {
-  const llm = await getLLM(input.options.provider, {
-    fallbackProvider: "deepseek",
-    model: input.options.model,
-    temperature: input.options.temperature ?? 0.4,
-    taskType: "planner",
-  });
-  const result = await llm.invoke([
-    new SystemMessage(
-      `你是小说策划。请严格输出 JSON，字段为 title, objective, participants, reveals, riskNotes, hookTarget, planRole, phaseLabel, mustAdvance, mustPreserve, scenes。level=${input.planLevel}。${input.includeScenes ? "scenes 必须是数组，每项含 title, objective, conflict, reveal, emotionBeat。" : "scenes 直接输出空数组。"} book/arc 可将 planRole 置空字符串；chapter 必须给出 planRole。不要输出解释。`,
-    ),
-    new HumanMessage(
-      `${input.scopeLabel}
+  const systemPrompt =
+    `你是小说策划。请严格输出 JSON，字段为 title, objective, participants, reveals, riskNotes, hookTarget, planRole, phaseLabel, mustAdvance, mustPreserve, scenes。level=${input.planLevel}。${input.includeScenes ? "scenes 必须是数组，每项含 title, objective, conflict, reveal, emotionBeat。" : "scenes 直接输出空数组。"} book/arc 可将 planRole 置空字符串；chapter 必须给出 planRole。不要输出解释。`;
+
+  const userPrompt =
+    `${input.scopeLabel}
 
 上下文：
 ${input.context}
@@ -44,8 +36,19 @@ ${input.context}
 7. phaseLabel 用一句短语概括当前阶段。
 8. mustAdvance 列本章必须推进的关键点。
 9. mustPreserve 列本章绝不能丢掉的连续性要求。
-10. 场景必须有顺序，能直接给写作器消费。`,
-    ),
-  ]);
-  return normalizePlannerOutput(parseJSONObject<PlannerOutput>(toText(result.content)));
+10. 场景必须有顺序，能直接给写作器消费。`;
+
+  const parsed = await invokeStructuredLlm({
+    label: `planner:${input.planLevel}`,
+    provider: input.options.provider,
+    model: input.options.model,
+    temperature: input.options.temperature ?? 0.4,
+    taskType: "planner",
+    systemPrompt,
+    userPrompt,
+    schema: plannerOutputSchema,
+    maxRepairAttempts: 1,
+  });
+
+  return normalizePlannerOutput(parsed);
 }

@@ -8,7 +8,7 @@ import { StyleProfileService } from "../services/styleEngine/StyleProfileService
 const router = Router();
 const styleProfileService = new StyleProfileService();
 
-const providerSchema = z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]);
+const providerSchema = z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]);
 
 const fromTextSchema = z.object({
   name: z.string().trim().min(1),

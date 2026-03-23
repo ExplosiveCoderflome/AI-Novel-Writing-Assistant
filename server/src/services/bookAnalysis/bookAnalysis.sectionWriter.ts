@@ -1,29 +1,18 @@
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { getLLM } from "../../llm/factory";
+import { invokeStructuredLlm } from "../../llm/structuredInvoke";
 import { SECTION_PROMPTS } from "./bookAnalysis.constants";
-import { invokeWithJsonGuard } from "./bookAnalysis.llm";
 import type { SectionGenerationResult, SourceNote } from "./bookAnalysis.types";
+import { bookAnalysisRawOutputSchema } from "./bookAnalysisSchemas";
 import {
-  extractJSONObject,
   getSectionTitle,
   normalizeMaxTokens,
   normalizeTemperature,
   renderNotesForPrompt,
-  safeParseJSON,
   toEvidenceList,
 } from "./bookAnalysis.utils";
 
-type LlmFactory = typeof getLLM;
-type InvokeJsonGuard = typeof invokeWithJsonGuard;
-
 export class BookAnalysisSectionWriter {
-  constructor(
-    private readonly llmFactory: LlmFactory = getLLM,
-    private readonly invokeJson: InvokeJsonGuard = invokeWithJsonGuard,
-  ) {}
-
   async generateSection(
     sectionKey: BookAnalysisSectionKey,
     notes: SourceNote[],
@@ -32,17 +21,17 @@ export class BookAnalysisSectionWriter {
     temperature?: number,
     maxTokens?: number,
   ): Promise<SectionGenerationResult> {
-    const llm = await this.llmFactory(provider, {
-      model,
-      temperature: normalizeTemperature(temperature),
-      maxTokens: normalizeMaxTokens(maxTokens),
-    });
     const prompt = SECTION_PROMPTS[sectionKey];
     const notesText = renderNotesForPrompt(notes);
-    const result = await this.invokeJson(
-      llm,
-      [
-        new SystemMessage(`You are a senior Chinese fiction analyst. Generate section "${getSectionTitle(sectionKey)}".
+    try {
+      const parsed = await invokeStructuredLlm({
+        label: `book-analysis-section:${sectionKey}`,
+        provider,
+        model,
+        temperature: normalizeTemperature(temperature),
+        maxTokens: normalizeMaxTokens(maxTokens),
+        taskType: "planner",
+        systemPrompt: `You are a senior Chinese fiction analyst. Generate section "${getSectionTitle(sectionKey)}".
 Return JSON only:
 {
   "markdown": "Markdown content",
@@ -53,21 +42,21 @@ Constraints:
 - Keep conclusions specific.
 - Evidence must be grounded in given notes.
 - Write markdown in Chinese.
-Extra focus: ${prompt}`),
-        new HumanMessage(`Section notes:\n${notesText}`),
-      ],
-      provider,
-      model,
-    );
-    try {
-      const parsed = safeParseJSON<Record<string, unknown>>(extractJSONObject(String(result.content)), {});
+Extra focus: ${prompt}`,
+        userPrompt: `Section notes:\n${notesText}`,
+        schema: bookAnalysisRawOutputSchema,
+        maxRepairAttempts: 1,
+      });
+
       const markdown =
-        (typeof parsed.markdown === "string" && parsed.markdown.trim()) || String(result.content).trim();
+        typeof (parsed as any).markdown === "string" && (parsed as any).markdown.trim()
+          ? (parsed as any).markdown.trim()
+          : JSON.stringify(parsed);
       const structuredData =
-        parsed.structuredData && typeof parsed.structuredData === "object"
-          ? (parsed.structuredData as Record<string, unknown>)
+        (parsed as any).structuredData && typeof (parsed as any).structuredData === "object"
+          ? ((parsed as any).structuredData as Record<string, unknown>)
           : null;
-      const evidence = toEvidenceList(parsed.evidence);
+      const evidence = toEvidenceList((parsed as any).evidence);
       return {
         markdown,
         structuredData,
@@ -75,7 +64,7 @@ Extra focus: ${prompt}`),
       };
     } catch {
       return {
-        markdown: String(result.content).trim(),
+        markdown: "",
         structuredData: null,
         evidence: [],
       };
@@ -92,39 +81,38 @@ Extra focus: ${prompt}`),
     temperature?: number;
     maxTokens?: number;
   }): Promise<string> {
-    const llm = await this.llmFactory(input.provider, {
-      model: input.model,
-      temperature: normalizeTemperature(input.temperature),
-      maxTokens: normalizeMaxTokens(input.maxTokens),
-    });
     const notesText = renderNotesForPrompt(input.notes);
-    const result = await this.invokeJson(
-      llm,
-      [
-        new SystemMessage(`You refine book-analysis drafts.
+    try {
+      const parsed = await invokeStructuredLlm({
+        label: `book-analysis-optimized-draft:${input.sectionKey}`,
+        provider: input.provider,
+        model: input.model,
+        temperature: normalizeTemperature(input.temperature),
+        maxTokens: normalizeMaxTokens(input.maxTokens),
+        taskType: "planner",
+        systemPrompt: `You refine book-analysis drafts.
 Keep section focus: ${getSectionTitle(input.sectionKey)}.
 Follow user instruction, preserve factual consistency with notes, and avoid unnecessary expansion.
-Return JSON only: {"optimizedDraft":"..."}`),
-        new HumanMessage(`User instruction:
+Return JSON only: {"optimizedDraft":"..."}`,
+        userPrompt: `User instruction:
 ${input.instruction}
 
 Current draft:
 ${input.currentDraft || "(empty)"}
 
 Section notes:
-${notesText}`),
-      ],
-      input.provider,
-      input.model,
-    );
-    try {
-      const parsed = safeParseJSON<Record<string, unknown>>(extractJSONObject(String(result.content)), {});
-      if (typeof parsed.optimizedDraft === "string" && parsed.optimizedDraft.trim()) {
-        return parsed.optimizedDraft.trim();
+${notesText}`,
+        schema: bookAnalysisRawOutputSchema,
+        maxRepairAttempts: 1,
+      });
+
+      if (typeof (parsed as any).optimizedDraft === "string" && (parsed as any).optimizedDraft.trim()) {
+        return (parsed as any).optimizedDraft.trim();
       }
-      return String(result.content).trim();
+
+      return JSON.stringify(parsed);
     } catch {
-      return String(result.content).trim();
+      return "";
     }
   }
 }

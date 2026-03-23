@@ -4,7 +4,7 @@ import type { ImageProviderGenerateInput, ImageProviderGenerateResult } from "./
 
 const SUPPORTED_IMAGE_PROVIDERS = new Set<LLMProvider>(["openai", "siliconflow", "grok"]);
 
-const IMAGE_DEFAULT_MODELS: Record<LLMProvider, string> = {
+const IMAGE_DEFAULT_MODELS: Partial<Record<LLMProvider, string>> = {
   deepseek: "deepseek-chat",
   siliconflow: "black-forest-labs/FLUX.1-schnell",
   openai: "gpt-image-1",
@@ -168,7 +168,11 @@ export function isImageProviderSupported(provider: LLMProvider): boolean {
 }
 
 export function resolveImageModel(provider: LLMProvider, model?: string): string {
-  return model?.trim() || getProviderEnvImageModel(provider) || IMAGE_DEFAULT_MODELS[provider];
+  const resolved = model?.trim() || getProviderEnvImageModel(provider) || IMAGE_DEFAULT_MODELS[provider];
+  if (!resolved) {
+    throw new Error(`No default image model configured for provider=${provider}.`);
+  }
+  return resolved;
 }
 
 export async function generateImagesByProvider(input: ImageProviderGenerateInput): Promise<ImageProviderGenerateResult> {

@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
@@ -18,7 +18,7 @@ import { getRagEmbeddingModelOptions } from "../services/settings/RagEmbeddingMo
 const router = Router();
 
 const providerSchema = z.object({
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]),
 });
 
 const upsertApiKeySchema = z.object({

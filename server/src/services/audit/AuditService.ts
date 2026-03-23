@@ -1,19 +1,17 @@
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { AuditReport, AuditType, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../db/prisma";
-import { getLLM } from "../../llm/factory";
 import { openConflictService } from "../state/OpenConflictService";
 import {
   normalizeAuditType,
   normalizeScore,
   normalizeSeverity,
-  parseJSONObject,
   parseLegacyReviewOutput,
   ruleScore,
-  toText,
 } from "../novel/novelP0Utils";
 import { ragServices } from "../rag";
+import { invokeStructuredLlm } from "../../llm/structuredInvoke";
+import { fullAuditOutputSchema } from "./auditSchemas";
 
 interface AuditOptions {
   provider?: LLMProvider;
@@ -182,12 +180,6 @@ export class AuditService {
     options: AuditOptions,
   ): Promise<FullAuditOutput> {
     try {
-      const llm = await getLLM(options.provider, {
-        fallbackProvider: "deepseek",
-        model: options.model,
-        temperature: options.temperature ?? 0.1,
-        taskType: "review",
-      });
       let ragContext = "";
       try {
         ragContext = await ragServices.hybridRetrievalService.buildContextBlock(
@@ -201,12 +193,15 @@ export class AuditService {
       } catch {
         ragContext = "";
       }
-      const result = await llm.invoke([
-        new SystemMessage(
+      return await invokeStructuredLlm({
+        label: `audit:${requestedTypes.join(",")}`,
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature ?? 0.1,
+        taskType: "review",
+        systemPrompt:
           "你是小说审计器。请严格输出 JSON，字段为 score, issues, auditReports。auditReports 只允许 continuity/character/plot。每个 issue 必须给 severity, code, description, evidence, fixSuggestion。",
-        ),
-        new HumanMessage(
-          `小说：${novelTitle}
+        userPrompt: `小说：${novelTitle}
 章节：${chapterTitle}
 审计范围：${requestedTypes.join(",")}
 
@@ -220,9 +215,8 @@ ${ragContext || "无"}
 1. score 维持兼容字段 coherence, repetition, pacing, voice, engagement, overall。
 2. issues 输出旧版兼容问题数组。
 3. auditReports 输出结构化审计结果，至少覆盖请求的类型。`,
-        ),
-      ]);
-      return parseJSONObject<FullAuditOutput>(toText(result.content));
+        schema: fullAuditOutputSchema,
+      });
     } catch {
       return parseLegacyReviewOutput(content);
     }

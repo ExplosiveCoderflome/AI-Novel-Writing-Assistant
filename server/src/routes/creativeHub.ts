@@ -60,7 +60,7 @@ const streamRunSchema = z.object({
   messages: z.array(creativeHubMessageSchema).default([]),
   checkpointId: z.string().trim().nullable().optional(),
   resourceBindings: resourceBindingsSchema.optional(),
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]).optional(),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().min(64).max(16384).optional(),
@@ -271,7 +271,7 @@ router.post("/threads/:threadId/runs/stream", validate({
         resourceBindings,
         parentCheckpointId,
         runSettings: {
-          provider: body.provider,
+          provider: body.provider as any,
           model: body.model,
           temperature: body.temperature,
           maxTokens: body.maxTokens,

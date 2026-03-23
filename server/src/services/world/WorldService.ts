@@ -1,4 +1,4 @@
-﻿import type { Prisma, World as PrismaWorld } from "@prisma/client";
+import type { Prisma, World as PrismaWorld } from "@prisma/client";
 import type { BaseMessageChunk } from "@langchain/core/messages";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
@@ -19,6 +19,7 @@ import {
 import { featureFlags } from "../../config/featureFlags";
 import { prisma } from "../../db/prisma";
 import { getLLM } from "../../llm/factory";
+import { invokeStructuredLlm } from "../../llm/structuredInvoke";
 import { createWorldBuildingGraph } from "../../graphs/worldBuildingGraph";
 import { getTemplateByKey, LAYER_FIELD_MAP, WORLD_LAYER_ORDER, WORLD_TEMPLATES } from "./worldTemplates";
 import { buildConsistencySummary, localizeConsistencyIssue } from "./worldConsistency";
@@ -35,6 +36,7 @@ import {
   parseWorldStructurePayload,
   WORLD_STRUCTURE_SCHEMA_VERSION,
 } from "./worldStructure";
+import { worldStructuredDataSchema } from "./worldSchemas";
 import { buildWorldVisualizationPayload } from "./worldVisualization";
 import { applyGeneratedWorldFields, buildWorldBlueprintPromptBlock } from "./worldGenerationBlueprint";
 import { generateWorldPropertyOptions } from "./worldPropertyOptions";
@@ -2176,14 +2178,7 @@ ragContext=${ragContext || "none"}`,
       throw new Error("World not found.");
     }
 
-    const llm = await getLLM(options.provider ?? "deepseek", {
-      model: options.model,
-      temperature: 0.2,
-      taskType: "planner",
-    });
-    const result = await llm.invoke([
-      new SystemMessage(
-        `你是世界结构化提取器。请根据输入文本提取世界结构，并且只能输出 JSON 对象。
+    const systemPrompt = `你是世界结构化提取器。请根据输入文本提取世界结构，并且只能输出 JSON 对象。
 JSON 结构必须为：
 {
   "profile": {"summary":"...","identity":"...","tone":"...","themes":["..."],"coreConflict":"..."},
@@ -2201,15 +2196,19 @@ JSON 结构必须为：
 2. 所有值必须使用简体中文。
 3. faction 是抽象阵营、立场或路线；force 是具体组织、圈层、公司、部门或网络。
 4. 像“社会压力机制”“行业运作规则”“人际法则”这类世界默认机制必须提取到 rules，不要写进 factions / forces。
-5. 不要输出解释，不要输出 Markdown，不要增加额外字段。`,
-      ),
-      new HumanMessage(buildWorldStructurePromptSource(world)),
-    ]);
+5. 不要输出解释，不要输出 Markdown，不要增加额外字段。`;
 
-    const rawStructure = safeParseJSON<unknown>(extractJSONObject(String(result.content)), null);
-    if (!rawStructure) {
-      throw new Error("AI failed to produce valid structured world JSON.");
-    }
+    const rawStructure = await invokeStructuredLlm({
+      label: `world-backfill:${worldId}`,
+      provider: options.provider,
+      model: options.model,
+      temperature: 0.2,
+      taskType: "planner",
+      systemPrompt,
+      userPrompt: buildWorldStructurePromptSource(world),
+      schema: worldStructuredDataSchema,
+      maxRepairAttempts: 1,
+    });
     const nextStructure = normalizeWorldStructuredData(rawStructure, buildWorldStructureFromLegacySource(world));
     nextStructure.metadata = {
       ...nextStructure.metadata,

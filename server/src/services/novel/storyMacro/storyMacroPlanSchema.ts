@@ -155,27 +155,6 @@ export function toText(content: unknown): string {
   return JSON.stringify(content ?? "");
 }
 
-export function extractJSONObject(source: string): string {
-  const cleaned = source.replace(/```json|```/gi, "").trim();
-  const first = cleaned.indexOf("{");
-  const last = cleaned.lastIndexOf("}");
-  if (first < 0 || last < 0 || first >= last) {
-    throw new Error("Story Macro Plan AI 输出中未检测到有效 JSON 对象。");
-  }
-  return cleaned.slice(first, last + 1);
-}
-
-export function safeParseJSON<T>(raw: string | null | undefined, fallback: T): T {
-  if (!raw?.trim()) {
-    return fallback;
-  }
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
-
 export function normalizeConflictLayers(value: unknown): StoryConflictLayers {
   if (isRecord(value)) {
     return {

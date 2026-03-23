@@ -36,7 +36,7 @@ const requireWorldVisualization: RequestHandler = (_req, res, next) => {
   } satisfies ApiResponse<null>);
 };
 
-const providerSchema = z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]);
+const providerSchema = z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]);
 
 const worldIdSchema = z.object({
   id: z.string().trim().min(1),

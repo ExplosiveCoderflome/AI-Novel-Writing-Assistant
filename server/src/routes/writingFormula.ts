@@ -18,7 +18,7 @@ const extractSchema = z.object({
   sourceText: z.string().trim().min(1),
   extractLevel: z.enum(["basic", "standard", "deep"]),
   focusAreas: z.array(z.string().trim().min(1)).min(1),
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]).optional(),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
   model: z.string().optional(),
 });
 
@@ -30,7 +30,7 @@ const applySchema = z
     sourceText: z.string().optional(),
     topic: z.string().optional(),
     targetLength: z.number().int().min(100).max(8000).optional(),
-    provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]).optional(),
+    provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
     model: z.string().optional(),
   })
   .refine((value) => value.formulaId || value.formulaContent, {

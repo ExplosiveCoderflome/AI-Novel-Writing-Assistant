@@ -1,4 +1,13 @@
-export type LLMProvider = "deepseek" | "siliconflow" | "openai" | "anthropic" | "grok";
+export type LLMProvider =
+  | "deepseek"
+  | "siliconflow"
+  | "openai"
+  | "anthropic"
+  | "grok"
+  | "kimi"
+  | "glm"
+  | "qwen"
+  | "gemini";
 
 export interface ModelConfig {
   provider: LLMProvider;

@@ -32,8 +32,9 @@ export const PROVIDERS: Record<LLMProvider, ProviderConfig> = {
   openai: {
     name: "OpenAI",
     baseURL: "https://api.openai.com/v1",
-    defaultModel: "gpt-4o-mini",
-    models: ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"],
+    // 仅支持 GPT-5.x（强制 JSON / structured outputs 也更稳定）
+    defaultModel: "gpt-5",
+    models: ["gpt-5", "gpt-5-mini"],
     envKey: "OPENAI_API_KEY",
   },
   anthropic: {
@@ -58,6 +59,37 @@ export const PROVIDERS: Record<LLMProvider, ProviderConfig> = {
       "grok-code-fast-1",
     ],
     envKey: "XAI_API_KEY",
+  },
+  // OpenAI-compatible 的厂商：只需要 baseURL / defaultModel / models 配好即可。
+  kimi: {
+    name: "Kimi",
+    baseURL: process.env.KIMI_BASE_URL ?? "https://api.moonshot.cn/v1",
+    defaultModel: process.env.KIMI_MODEL ?? "moonshot-v1-8k",
+    models: ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"],
+    envKey: "KIMI_API_KEY",
+  },
+  glm: {
+    name: "GLM",
+    baseURL: process.env.GLM_BASE_URL ?? "https://open.bigmodel.cn/api/paas/v4",
+    defaultModel: process.env.GLM_MODEL ?? "glm-4-flash",
+    models: ["glm-4-flash", "glm-4", "glm-4v"],
+    envKey: "GLM_API_KEY",
+  },
+  qwen: {
+    name: "Qwen",
+    // 常见 OpenAI-compatible 网关路径
+    baseURL: process.env.QWEN_BASE_URL ?? "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    defaultModel: process.env.QWEN_MODEL ?? "qwen-max",
+    models: ["qwen-max", "qwen-plus", "qwen-turbo"],
+    envKey: "QWEN_API_KEY",
+  },
+  gemini: {
+    name: "Gemini",
+    // Gemini 的 OpenAI-compatible endpoint
+    baseURL: process.env.GEMINI_BASE_URL ?? "https://generativelanguage.googleapis.com/v1beta/openai",
+    defaultModel: process.env.GEMINI_MODEL ?? "gemini-2.5-pro",
+    models: ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-pro-vision"],
+    envKey: "GEMINI_API_KEY",
   },
 };
 

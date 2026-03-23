@@ -14,7 +14,7 @@ const generateSchema = z.object({
   prompt: z.string().trim().min(1),
   negativePrompt: z.string().trim().optional(),
   stylePreset: z.string().trim().optional(),
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]).optional(),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
   model: z.string().trim().optional(),
   size: z.enum(IMAGE_SIZES).optional(),
   count: z.number().int().min(1).max(4).default(1),

@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type {
   BookSpec,
   DirectorCandidate,
@@ -14,10 +13,9 @@ import type {
 } from "@ai-novel/shared/types/novelDirector";
 import { DIRECTOR_CORRECTION_PRESETS } from "@ai-novel/shared/types/novelDirector";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
-import { getLLM } from "../../../llm/factory";
+import { invokeStructuredLlm } from "../../../llm/structuredInvoke";
 import { NovelContextService } from "../NovelContextService";
 import { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
-import { extractJSONObject, toText } from "../novelP0Utils";
 import {
   type DirectorCandidateResponse,
   directorCandidateResponseSchema,
@@ -32,7 +30,6 @@ import {
 import { persistDirectorBlueprint, toDirectorPlanDigest } from "./novelDirectorPersistence";
 
 type LLMOptions = Pick<DirectorCandidatesRequest, "provider" | "model" | "temperature">;
-type RecoveryMode = "regenerate";
 
 interface CandidateGenerationContext {
   idea: string;
@@ -149,14 +146,19 @@ export class NovelDirectorService {
       presets: context.presets,
       feedback: context.feedback,
     });
-    const parsed = await this.invokeStructuredJson(
-      prompt.system,
-      prompt.user,
-      context.options,
-      directorCandidateResponseSchema,
-      "director candidates",
-      "regenerate",
-    );
+    const requestedTemperature = context.options.temperature ?? 0.4;
+    const temperature = Math.min(requestedTemperature, 0.45);
+    const parsed = await invokeStructuredLlm({
+      label: "director candidates",
+      provider: context.options.provider,
+      model: context.options.model,
+      temperature,
+      taskType: "planner",
+      systemPrompt: prompt.system,
+      userPrompt: prompt.user,
+      schema: directorCandidateResponseSchema,
+      maxRepairAttempts: 1,
+    });
 
     const round = (context.batches.at(-1)?.round ?? 0) + 1;
     const batch: DirectorCandidateBatch = {
@@ -279,14 +281,19 @@ export class NovelDirectorService {
       storyMacroPlan,
       targetChapterCount: input.estimatedChapterCount ?? bookSpec.targetChapterCount,
     });
-    const parsed = await this.invokeStructuredJson(
-      prompt.system,
-      prompt.user,
-      input,
-      directorPlanBlueprintSchema,
-      "director blueprint",
-      "regenerate",
-    );
+    const requestedTemperature = input.temperature ?? 0.4;
+    const temperature = Math.min(requestedTemperature, 0.4);
+    const parsed = await invokeStructuredLlm({
+      label: "director blueprint",
+      provider: input.provider,
+      model: input.model,
+      temperature,
+      taskType: "planner",
+      systemPrompt: prompt.system,
+      userPrompt: prompt.user,
+      schema: directorPlanBlueprintSchema,
+      maxRepairAttempts: 1,
+    });
     return this.normalizeBlueprint(parsed);
   }
 
@@ -330,92 +337,6 @@ export class NovelDirectorService {
     };
   }
 
-  private async invokeStructuredJson<T>(
-    systemPrompt: string,
-    userPrompt: string,
-    options: LLMOptions,
-    schema: { parse: (value: unknown) => T },
-    label: string,
-    recoveryMode: RecoveryMode,
-  ): Promise<T> {
-    const llm = await getLLM(options.provider, {
-      fallbackProvider: "deepseek",
-      model: options.model,
-      temperature: this.getInvocationTemperature(label, options.temperature),
-      taskType: "planner",
-    });
-    const result = await llm.invoke([
-      new SystemMessage(systemPrompt),
-      new HumanMessage(userPrompt),
-    ]);
-    const rawContent = toText(result.content);
-    try {
-      return schema.parse(JSON.parse(extractJSONObject(rawContent)));
-    } catch (error) {
-      return this.recoverStructuredJson(
-        rawContent,
-        systemPrompt,
-        userPrompt,
-        options,
-        schema,
-        label,
-        recoveryMode,
-        error,
-      );
-    }
-  }
-
-  private async recoverStructuredJson<T>(
-    rawContent: string,
-    systemPrompt: string,
-    userPrompt: string,
-    options: LLMOptions,
-    schema: { parse: (value: unknown) => T },
-    label: string,
-    _recoveryMode: RecoveryMode,
-    error: unknown,
-  ): Promise<T> {
-    const llm = await getLLM(options.provider, {
-      fallbackProvider: "deepseek",
-      model: options.model,
-      temperature: 0.15,
-      taskType: "planner",
-    });
-    const prompt = buildDirectorRecoveryPrompt({
-      label,
-      schemaHint: this.getSchemaHint(label),
-      reason: error instanceof Error ? error.message : String(error),
-      systemPrompt,
-      userPrompt,
-      rawContent,
-    });
-    const result = await llm.invoke([
-      new SystemMessage(prompt.system),
-      new HumanMessage(prompt.user),
-    ]);
-    return schema.parse(JSON.parse(extractJSONObject(toText(result.content))));
-  }
-
-  private getSchemaHint(label: string): string {
-    if (label === "director candidates") {
-      return "{\"candidates\":[{\"workingTitle\":\"string\",\"logline\":\"string\",\"positioning\":\"string\",\"sellingPoint\":\"string\",\"coreConflict\":\"string\",\"protagonistPath\":\"string\",\"endingDirection\":\"string\",\"hookStrategy\":\"string\",\"progressionLoop\":\"string\",\"whyItFits\":\"string\",\"toneKeywords\":[\"string\",\"string\"],\"targetChapterCount\":24}]}";
-    }
-
-    if (label === "director blueprint") {
-      return "{\"bookPlan\":{\"title\":\"string\",\"objective\":\"string\",\"hookTarget\":\"string\",\"participants\":[],\"reveals\":[],\"riskNotes\":[]},\"arcs\":[{\"title\":\"string\",\"objective\":\"string\",\"summary\":\"string\",\"phaseLabel\":\"string\",\"hookTarget\":\"string\",\"participants\":[],\"reveals\":[],\"riskNotes\":[],\"chapters\":[{\"title\":\"string\",\"objective\":\"string\",\"expectation\":\"string\",\"planRole\":\"setup|progress|pressure|turn|payoff|cooldown\",\"hookTarget\":\"string\",\"participants\":[],\"reveals\":[],\"riskNotes\":[],\"scenes\":[{\"title\":\"string\",\"objective\":\"string\",\"conflict\":\"string\",\"reveal\":\"string\",\"emotionBeat\":\"string\"}]}]}]}";
-    }
-
-    return "{}";
-  }
-
-  private getInvocationTemperature(label: string, temperature: number | undefined): number {
-    const requested = temperature ?? 0.4;
-    if (label === "director candidates") {
-      return Math.min(requested, 0.45);
-    }
-    if (label === "director blueprint") {
-      return Math.min(requested, 0.4);
-    }
-    return requested;
-  }
+  // Director 侧 JSON 输出解析/修复统一由 invokeStructuredLlm 完成，
+  // 不再维护 extractJSONObject/JSON.parse 的重复逻辑。
 }

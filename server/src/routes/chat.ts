@@ -30,7 +30,7 @@ const chatSchema = z.object({
     .min(1),
   systemPrompt: z.string().optional(),
   agentMode: z.boolean().optional(),
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]).optional(),
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
   model: z.string().optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().min(64).max(16384).optional(),

@@ -1,11 +1,12 @@
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { World as PrismaWorld } from "@prisma/client";
 import type { WorldVisualizationPayload } from "@ai-novel/shared/types/world";
-import { getLLM } from "../../llm/factory";
+import { invokeStructuredLlm } from "../../llm/structuredInvoke";
 import {
   buildWorldBindingSupport,
   parseWorldStructurePayload,
 } from "./worldStructure";
+
+import { worldVisualizationDraftSchema } from "./worldVisualizationSchema";
 
 type FactionNodeType = "state" | "faction" | "race" | "organization" | "other";
 
@@ -584,14 +585,7 @@ async function tryBuildWorldVisualizationWithLLM(
   world: VisualizationSource,
 ): Promise<VisualizationDraft | null> {
   try {
-    const llm = await getLLM(undefined, {
-      fallbackProvider: "deepseek",
-      temperature: 0.2,
-      taskType: "planner",
-    });
-    const result = await llm.invoke([
-      new SystemMessage(
-        `你是世界观可视化抽取器。请严格输出 JSON 对象，结构为：
+    const systemPrompt = `你是世界观可视化抽取器。请严格输出 JSON 对象，结构为：
 {
   "factionGraph": {
     "nodes": [{"id":"faction-1","label":"...","type":"state|faction|race|organization|other"}],
@@ -608,11 +602,19 @@ async function tryBuildWorldVisualizationWithLLM(
 1. 只抽取文本里明确存在或强可推断的信息，不要编造。
 2. factionGraph 必须优先反映真实势力关系，不要用泛化的 interaction。
 3. 所有 label、relation、description、event 必须使用简体中文。
-4. 节点数量控制在 4-12 个，优先核心势力。`,
-      ),
-      new HumanMessage(buildVisualizationPrompt(world)),
-    ]);
-    return safeParseJSON<VisualizationDraft | null>(extractJSONObject(String(result.content)), null);
+4. 节点数量控制在 4-12 个，优先核心势力。`;
+
+    return await invokeStructuredLlm({
+      label: `world-visualization:${world.id}`,
+      provider: undefined,
+      model: undefined,
+      temperature: 0.2,
+      taskType: "planner",
+      systemPrompt,
+      userPrompt: buildVisualizationPrompt(world),
+      schema: worldVisualizationDraftSchema,
+      maxRepairAttempts: 1,
+    });
   } catch {
     return null;
   }

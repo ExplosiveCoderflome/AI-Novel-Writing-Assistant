@@ -1,5 +1,6 @@
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { getLLM } from "../../llm/factory";
+import { invokeStructuredLlm } from "../../llm/structuredInvoke";
+import { worldReferenceInspirationPayloadSchema } from "./worldReferenceSchema";
 import {
   createEmptyWorldReferenceSeedBundle,
   normalizeWorldReferenceSeedBundle,
@@ -44,28 +45,6 @@ export function buildReferenceModeLabel(mode: WorldReferenceMode): string {
     case "adapt_world":
     default:
       return "基于原作做架空改造";
-  }
-}
-
-function cleanJsonText(source: string): string {
-  return source.replace(/```json|```/gi, "").trim();
-}
-
-function extractJSONObject(source: string): string {
-  const text = cleanJsonText(source);
-  const first = text.indexOf("{");
-  const last = text.lastIndexOf("}");
-  if (first < 0 || last < 0 || first >= last) {
-    throw new Error("Missing JSON object.");
-  }
-  return text.slice(first, last + 1);
-}
-
-function safeParseJSON<T>(raw: string, fallback: T): T {
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
   }
 }
 
@@ -302,21 +281,26 @@ export async function generateReferenceInspirationAnalysis(
 3. 如果是“借用原作气质与结构重建”，重点是保留氛围、关系结构和生活质感，不要求保留全部具体事实。`;
 
   for (const prompt of [buildPrompt(input), retryPrompt]) {
-    const result = await input.llm.invoke([
-      new SystemMessage(systemPrompt),
-      new HumanMessage(prompt),
-    ]);
-
     try {
-      const parsed = safeParseJSON<Record<string, unknown>>(
-        extractJSONObject(String(result.content)),
-        {},
-      );
-      const anchors = normalizeAnchors(parsed.anchors);
+      const parsed = await invokeStructuredLlm({
+        label: `world-reference-inspiration:${input.referenceMode}`,
+        provider: undefined,
+        model: undefined,
+        temperature: 0.2,
+        taskType: "planner",
+        systemPrompt,
+        userPrompt: prompt,
+        schema: worldReferenceInspirationPayloadSchema,
+        maxRepairAttempts: 1,
+      });
+
+      const anchors = normalizeAnchors((parsed as any).anchors);
       const safeAnchors = anchors.length >= MIN_ANCHOR_COUNT ? anchors : buildFallbackAnchors(input);
-      const referenceSeeds = normalizeWorldReferenceSeedBundle(parsed.seedPackage ?? parsed.referenceSeeds);
+      const referenceSeeds = normalizeWorldReferenceSeedBundle(
+        (parsed as any).seedPackage ?? (parsed as any).referenceSeeds,
+      );
       return {
-        conceptCard: normalizeConceptCard(parsed.conceptCard, input, safeAnchors),
+        conceptCard: normalizeConceptCard((parsed as any).conceptCard, input, safeAnchors),
         anchors: safeAnchors,
         referenceSeeds,
       };

@@ -2,7 +2,8 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { BaseMessage } from "@langchain/core/messages";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { supportsForcedJsonOutput } from "../../llm/capabilities";
-import { getLLM } from "../../llm/factory";
+import { invokeStructuredLlm } from "../../llm/structuredInvoke";
+import { genreTreeNodeSchema } from "./genreSchemas";
 
 export interface GenreTreeDraft {
   name: string;
@@ -147,20 +148,28 @@ ${prompt.trim()}`),
 export async function generateGenreTreeDraft(input: GenerateGenreTreeInput): Promise<GenreTreeDraft> {
   const provider = input.provider ?? "deepseek";
   const forceJson = supportsForcedJsonOutput(provider, input.model);
-  const llm = await getLLM(input.provider, {
-    model: input.model,
-    temperature: input.temperature ?? 0.6,
-    maxTokens: input.maxTokens,
-    taskType: "planner",
-  });
 
   let lastError: unknown;
 
   for (const retry of [false, true]) {
     try {
-      const result = await llm.invoke(buildMessages(input.prompt, retry, forceJson));
-      const rawText = readMessageContent(result.content);
-      const parsed = JSON.parse(extractJsonObject(rawText)) as unknown;
+      const messages = buildMessages(input.prompt, retry, forceJson);
+      const systemPrompt = toMessagePrompt(messages[0]);
+      const userPrompt = toMessagePrompt(messages[1]);
+
+      const parsed = await invokeStructuredLlm({
+        label: `genre-tree:${retry ? "retry" : "init"}`,
+        provider: input.provider,
+        model: input.model,
+        temperature: input.temperature ?? 0.6,
+        maxTokens: input.maxTokens,
+        taskType: "planner",
+        systemPrompt,
+        userPrompt,
+        schema: genreTreeNodeSchema,
+        maxRepairAttempts: 1,
+      });
+
       return sanitizeGeneratedNode(parsed);
     } catch (error) {
       lastError = error;
@@ -171,4 +180,15 @@ export async function generateGenreTreeDraft(input: GenerateGenreTreeInput): Pro
     throw new Error(`类型树生成失败：${lastError.message}`);
   }
   throw new Error("类型树生成失败。");
+}
+
+function toMessagePrompt(message: BaseMessage): string {
+  const content = (message as unknown as { content?: unknown }).content;
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((item) => (typeof item === "string" ? item : typeof item === "object" && item && "text" in item ? (item as { text?: unknown }).text : ""))
+      .join("");
+  }
+  return JSON.stringify(content ?? "");
 }

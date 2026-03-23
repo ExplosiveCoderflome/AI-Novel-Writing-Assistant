@@ -7,7 +7,7 @@ import { bookAnalysisService } from "../services/bookAnalysis/BookAnalysisServic
 
 const router = Router();
 
-const providerSchema = z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok"]);
+const providerSchema = z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]);
 const bookAnalysisStatusSchema = z.enum(["draft", "queued", "running", "succeeded", "failed", "cancelled", "archived"]);
 const sectionKeySchema = z.enum([
   "overview",
