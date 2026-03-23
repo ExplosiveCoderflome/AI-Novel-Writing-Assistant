@@ -252,6 +252,27 @@ export interface StoryStateSnapshot {
   updatedAt: string;
 }
 
+export interface OpenConflict {
+  id: string;
+  novelId: string;
+  chapterId?: string | null;
+  sourceSnapshotId?: string | null;
+  sourceIssueId?: string | null;
+  sourceType: string;
+  conflictType: string;
+  conflictKey: string;
+  title: string;
+  summary: string;
+  severity: string;
+  status: string;
+  evidenceJson?: string | null;
+  affectedCharacterIdsJson?: string | null;
+  resolutionHint?: string | null;
+  lastSeenChapterOrder?: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface NovelBible {
   id: string;
   novelId: string;
@@ -444,6 +465,12 @@ export interface ReplanResult {
     outputSummary?: string | null;
     createdAt: string;
   } | null;
+}
+
+export interface ReplanRecommendation {
+  recommended: boolean;
+  reason: string;
+  blockingIssueIds: string[];
 }
 
 export interface AuditIssue {

@@ -2,6 +2,8 @@ import type {
   BaseCharacter,
   AuditReport,
   Chapter,
+  ReplanRecommendation,
+  ReplanResult,
   StoryPlan,
   StoryStateSnapshot,
   Character,
@@ -10,7 +12,6 @@ import type {
   PipelineJob,
   PlotBeat,
   QualityScore,
-  ReviewIssue,
   StorylineDiff,
   StorylineVersion,
 } from "@ai-novel/shared/types/novel";
@@ -27,6 +28,7 @@ import type {
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { StoryWorldSliceOverrides, StoryWorldSliceView } from "@ai-novel/shared/types/storyWorldSlice";
 import type { QuickCharacterCreatePayload } from "./characterPanel.utils";
+import type { ChapterReviewResult } from "../chapterPlanning.shared";
 import type { OutlineSyncChapter, StructuredSyncOptions, StructuredVolume } from "../novelEdit.utils";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 
@@ -228,11 +230,9 @@ export interface ChapterTabViewProps {
   onAddDescription: () => void;
   isReviewingChapter: boolean;
   isRepairingChapter: boolean;
-  reviewResult: {
-    score: QualityScore;
-    issues: ReviewIssue[];
-    auditReports?: AuditReport[];
-  } | null;
+  reviewResult: ChapterReviewResult | null;
+  replanRecommendation?: ReplanRecommendation | null;
+  lastReplanResult?: ReplanResult | null;
   chapterPlan?: StoryPlan | null;
   latestStateSnapshot?: StoryStateSnapshot | null;
   chapterAuditReports: AuditReport[];
@@ -298,10 +298,7 @@ export interface PipelineTabViewProps {
   isRepairing: boolean;
   onGenerateHook: () => void;
   isGeneratingHook: boolean;
-  reviewResult: {
-    score: QualityScore;
-    issues: ReviewIssue[];
-  } | null;
+  reviewResult: ChapterReviewResult | null;
   repairBeforeContent: string;
   repairAfterContent: string;
   repairStreamContent: string;

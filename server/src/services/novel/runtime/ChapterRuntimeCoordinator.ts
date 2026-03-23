@@ -8,6 +8,7 @@ import type {
 import { prisma } from "../../../db/prisma";
 import { auditService } from "../../audit/AuditService";
 import { plannerService } from "../../planner/PlannerService";
+import { openConflictService } from "../../state/OpenConflictService";
 import { StyleDetectionService } from "../../styleEngine/StyleDetectionService";
 import { StyleRewriteService } from "../../styleEngine/StyleRewriteService";
 import { ChapterWritingGraph } from "../chapterWritingGraph";
@@ -52,6 +53,45 @@ interface FinalizeChapterContentResult {
   finalContent: string;
   runtimePackage: ChapterRuntimePackage;
   styleReview: StyleReviewResult;
+}
+
+function parseStringArray(value: string | null | undefined): string[] {
+  if (!value?.trim()) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed)
+      ? parsed.map((item) => String(item ?? "").trim()).filter(Boolean)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function mapOpenConflictForRuntime(
+  conflict: Awaited<ReturnType<typeof openConflictService.listOpenConflicts>>[number],
+): GenerationContextPackage["openConflicts"][number] {
+  return {
+    id: conflict.id,
+    novelId: conflict.novelId,
+    chapterId: conflict.chapterId ?? null,
+    sourceSnapshotId: conflict.sourceSnapshotId ?? null,
+    sourceIssueId: conflict.sourceIssueId ?? null,
+    sourceType: conflict.sourceType,
+    conflictType: conflict.conflictType,
+    conflictKey: conflict.conflictKey,
+    title: conflict.title,
+    summary: conflict.summary,
+    severity: conflict.severity,
+    status: conflict.status,
+    evidence: parseStringArray(conflict.evidenceJson),
+    affectedCharacterIds: parseStringArray(conflict.affectedCharacterIdsJson),
+    resolutionHint: conflict.resolutionHint ?? null,
+    lastSeenChapterOrder: conflict.lastSeenChapterOrder ?? conflict.chapter?.order ?? null,
+    createdAt: conflict.createdAt.toISOString(),
+    updatedAt: conflict.updatedAt.toISOString(),
+  };
 }
 
 export class ChapterRuntimeCoordinator {
@@ -252,6 +292,11 @@ export class ChapterRuntimeCoordinator {
       temperature: input.request.temperature,
       content: styleReview.finalContent,
     });
+    const activeOpenConflicts = await openConflictService.listOpenConflicts(input.novelId, {
+      beforeChapterOrder: input.contextPackage.chapter.order,
+      includeCurrentChapter: true,
+      limit: 8,
+    });
     const runtimePackage = this.buildRuntimePackage({
       novelId: input.novelId,
       chapterId: input.chapterId,
@@ -259,6 +304,7 @@ export class ChapterRuntimeCoordinator {
       contextPackage: input.contextPackage,
       finalContent: styleReview.finalContent,
       auditResult,
+      activeOpenConflicts,
       styleReview,
       runId: input.runId,
     });
@@ -378,6 +424,7 @@ export class ChapterRuntimeCoordinator {
     contextPackage: GenerationContextPackage;
     finalContent: string;
     auditResult: Awaited<ReturnType<typeof auditService.auditChapter>>;
+    activeOpenConflicts: Awaited<ReturnType<typeof openConflictService.listOpenConflicts>>;
     styleReview: StyleReviewResult;
     runId: string | null;
   }): ChapterRuntimePackage {
@@ -406,7 +453,10 @@ export class ChapterRuntimeCoordinator {
     return {
       novelId: input.novelId,
       chapterId: input.chapterId,
-      context: input.contextPackage,
+      context: {
+        ...input.contextPackage,
+        openConflicts: input.activeOpenConflicts.map((item) => mapOpenConflictForRuntime(item)),
+      },
       draft: {
         content: input.finalContent,
         wordCount: input.finalContent.trim().length,

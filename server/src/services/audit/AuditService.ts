@@ -3,6 +3,7 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { AuditReport, AuditType, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../db/prisma";
 import { getLLM } from "../../llm/factory";
+import { openConflictService } from "../state/OpenConflictService";
 import {
   normalizeAuditType,
   normalizeScore,
@@ -113,6 +114,18 @@ export class AuditService {
       };
     });
     const persistedReports = await this.persistAuditReports(novelId, chapterId, score, auditReportsInput);
+    const chapterOrder = chapter.order;
+    const sourceSnapshot = await prisma.storyStateSnapshot.findFirst({
+      where: { novelId, sourceChapterId: chapterId },
+      select: { id: true },
+    });
+    await openConflictService.syncFromAuditReports({
+      novelId,
+      chapterId,
+      chapterOrder,
+      sourceSnapshotId: sourceSnapshot?.id ?? null,
+      auditReports: persistedReports,
+    });
     const issues = this.buildLegacyIssues(structured.issues ?? [], persistedReports);
     return {
       score,
@@ -153,6 +166,7 @@ export class AuditService {
       where: { id: { in: ownedIds } },
       data: { status: "resolved" },
     });
+    await openConflictService.resolveFromAuditIssueIds(novelId, ownedIds);
     return prisma.auditIssue.findMany({
       where: { id: { in: ownedIds } },
       orderBy: { updatedAt: "desc" },

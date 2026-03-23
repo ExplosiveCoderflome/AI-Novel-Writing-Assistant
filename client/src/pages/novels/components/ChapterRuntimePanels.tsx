@@ -1,7 +1,9 @@
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
-import type { AuditReport, StoryPlan, StoryStateSnapshot } from "@ai-novel/shared/types/novel";
+import type { AuditReport, ReplanRecommendation, ReplanResult, StoryPlan, StoryStateSnapshot } from "@ai-novel/shared/types/novel";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { buildReplanRecommendationFromAuditReports } from "../chapterPlanning.shared";
 
 function parseStringArray(value: string | null | undefined): string[] {
   if (!value?.trim()) {
@@ -56,6 +58,10 @@ function buildStateView(runtimePackage: ChapterRuntimePackage | null, stateSnaps
   return stateSnapshot;
 }
 
+function buildOpenConflictView(runtimePackage: ChapterRuntimePackage | null) {
+  return runtimePackage?.context.openConflicts ?? [];
+}
+
 function buildAuditView(runtimePackage: ChapterRuntimePackage | null, auditReports: AuditReport[] | undefined) {
   if (runtimePackage?.audit) {
     return runtimePackage.audit;
@@ -83,6 +89,33 @@ function buildAuditView(runtimePackage: ChapterRuntimePackage | null, auditRepor
   };
 }
 
+function buildReplanSummary(
+  runtimePackage: ChapterRuntimePackage | null,
+  auditReports: AuditReport[] | undefined,
+  replanRecommendation?: ReplanRecommendation | null,
+) {
+  if (runtimePackage?.replanRecommendation) {
+    return runtimePackage.replanRecommendation;
+  }
+  if (replanRecommendation) {
+    return replanRecommendation;
+  }
+  return buildReplanRecommendationFromAuditReports(auditReports);
+}
+
+function buildTriggerLabel(triggerType: string): string {
+  switch (triggerType) {
+    case "manual":
+      return "Manual";
+    case "auto_milestone":
+      return "Auto milestone";
+    case "before_pipeline":
+      return "Before pipeline";
+    default:
+      return triggerType.replace(/_/g, " ");
+  }
+}
+
 function SeverityBadge({ severity }: { severity: string }) {
   const variant = severity === "critical" || severity === "high" ? "default" : "secondary";
   return <Badge variant={variant}>{severity}</Badge>;
@@ -95,6 +128,7 @@ export function ChapterRuntimeContextCard(props: {
 }) {
   const plan = buildPlanView(props.runtimePackage, props.chapterPlan);
   const stateSnapshot = buildStateView(props.runtimePackage, props.stateSnapshot);
+  const openConflicts = buildOpenConflictView(props.runtimePackage);
 
   return (
     <Card>
@@ -170,6 +204,31 @@ export function ChapterRuntimeContextCard(props: {
             <div className="text-muted-foreground">暂无状态快照。</div>
           )}
         </div>
+
+        <div className="space-y-1">
+          <div className="font-medium">活跃冲突</div>
+          {openConflicts.length > 0 ? (
+            <div className="space-y-2">
+              {openConflicts.slice(0, 4).map((item) => (
+                <div key={item.id} className="rounded-md border p-2 text-xs">
+                  <div className="mb-1 flex items-center gap-2">
+                    <SeverityBadge severity={item.severity} />
+                    <span className="font-medium">{item.title}</span>
+                  </div>
+                  <div>{item.summary}</div>
+                  {typeof item.lastSeenChapterOrder === "number" ? (
+                    <div className="mt-1 text-muted-foreground">最近出现：第 {item.lastSeenChapterOrder} 章</div>
+                  ) : null}
+                  {item.resolutionHint ? (
+                    <div className="mt-1 text-muted-foreground">建议：{item.resolutionHint}</div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-muted-foreground">暂无活跃冲突。</div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
@@ -178,8 +237,17 @@ export function ChapterRuntimeContextCard(props: {
 export function ChapterRuntimeAuditCard(props: {
   runtimePackage: ChapterRuntimePackage | null;
   auditReports?: AuditReport[];
+  replanRecommendation?: ReplanRecommendation | null;
+  onReplan?: () => void;
+  isReplanning?: boolean;
+  lastReplanResult?: ReplanResult | null;
 }) {
   const audit = buildAuditView(props.runtimePackage, props.auditReports);
+  const replanSummary = buildReplanSummary(
+    props.runtimePackage,
+    props.auditReports,
+    props.replanRecommendation,
+  );
 
   return (
     <Card>
@@ -196,12 +264,45 @@ export function ChapterRuntimeAuditCard(props: {
         <div className="text-xs text-muted-foreground">
           审计报告 {audit.reports.length} 份，未解决问题 {audit.openIssues.length} 条。
         </div>
-        {props.runtimePackage?.replanRecommendation ? (
+        {replanSummary ? (
           <div className="rounded-md border p-2 text-xs">
-            <div className="font-medium">
-              Replan: {props.runtimePackage.replanRecommendation.recommended ? "Recommended" : "Not needed"}
+            <div className="flex items-center justify-between gap-2">
+              <div className="font-medium">
+                Replan: {replanSummary.recommended ? "Recommended" : "Not needed"}
+              </div>
+              {typeof props.onReplan === "function" ? (
+                <Button
+                  size="sm"
+                  variant={replanSummary.recommended ? "default" : "outline"}
+                  onClick={props.onReplan}
+                  disabled={props.isReplanning}
+                >
+                  {props.isReplanning ? "Replanning..." : replanSummary.recommended ? "Run Replan" : "Replan"}
+                </Button>
+              ) : null}
             </div>
-            <div className="text-muted-foreground">{props.runtimePackage.replanRecommendation.reason}</div>
+            <div className="text-muted-foreground">{replanSummary.reason}</div>
+            {replanSummary.blockingIssueIds.length > 0 ? (
+              <div className="mt-1 text-muted-foreground">
+                Blocking issues: {replanSummary.blockingIssueIds.length}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        {props.lastReplanResult ? (
+          <div className="rounded-md border bg-muted/20 p-2 text-xs">
+            <div className="font-medium">Last Replan</div>
+            <div className="mt-1 text-muted-foreground">
+              Chapters: {props.lastReplanResult.affectedChapterOrders.join(", ") || "n/a"}
+            </div>
+            <div className="text-muted-foreground">
+              Window: {props.lastReplanResult.windowSize} | Trigger: {buildTriggerLabel(props.lastReplanResult.triggerType)}
+            </div>
+            {props.lastReplanResult.sourceIssueIds.length > 0 ? (
+              <div className="text-muted-foreground">
+                Source issues: {props.lastReplanResult.sourceIssueIds.length}
+              </div>
+            ) : null}
           </div>
         ) : null}
         {audit.openIssues.length > 0 ? (

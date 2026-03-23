@@ -2,7 +2,7 @@ import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRun
 import { prisma } from "../../../db/prisma";
 import { ragServices } from "../../rag";
 import { plannerService } from "../../planner/PlannerService";
-import { readPlanMetadata } from "../../planner/plannerPlanMetadata";
+import { openConflictService } from "../../state/OpenConflictService";
 import { stateService } from "../../state/StateService";
 import { getRagQueryForChapter, novelReferenceService } from "../NovelReferenceService";
 import { NovelContinuationService } from "../NovelContinuationService";
@@ -14,6 +14,21 @@ import {
   formatStoryWorldSlicePromptBlock,
 } from "../storyWorldSlice/storyWorldSliceFormatting";
 import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
+import {
+  buildBibleText,
+  buildCharactersContextText,
+  buildDecisionsBlock,
+  buildFactText,
+  buildOpenConflictBlock,
+  buildOutlineText,
+  buildPreviousChaptersSummary,
+  buildRecentChapterContentText,
+  buildStyleBlock,
+  buildStyleEngineBlock,
+  buildSummaryText,
+  buildSupportingContextText,
+  parseJsonStringArraySafe,
+} from "./runtimeContextBlocks";
 
 const OPENING_COMPARE_LIMIT = 3;
 const OPENING_SLICE_LENGTH = 220;
@@ -50,21 +65,20 @@ function mapPlan(plan: Awaited<ReturnType<typeof plannerService.getChapterPlan>>
   if (!plan) {
     return null;
   }
-  const metadata = readPlanMetadata(plan.rawPlanJson ?? null);
   return {
     id: plan.id,
     chapterId: plan.chapterId ?? null,
-    planRole: metadata.planRole,
-    phaseLabel: metadata.phaseLabel,
+    planRole: plan.planRole ?? null,
+    phaseLabel: plan.phaseLabel ?? null,
     title: plan.title,
     objective: plan.objective,
     participants: parseJsonStringArray(plan.participantsJson),
     reveals: parseJsonStringArray(plan.revealsJson),
     riskNotes: parseJsonStringArray(plan.riskNotesJson),
-    mustAdvance: metadata.mustAdvance,
-    mustPreserve: metadata.mustPreserve,
-    sourceIssueIds: metadata.sourceIssueIds,
-    replannedFromPlanId: metadata.replannedFromPlanId,
+    mustAdvance: parseJsonStringArray(plan.mustAdvanceJson),
+    mustPreserve: parseJsonStringArray(plan.mustPreserveJson),
+    sourceIssueIds: parseJsonStringArray(plan.sourceIssueIdsJson),
+    replannedFromPlanId: plan.replannedFromPlanId ?? null,
     hookTarget: plan.hookTarget ?? null,
     rawPlanJson: plan.rawPlanJson ?? null,
     scenes: plan.scenes.map((scene: (typeof plan.scenes)[number]) => ({
@@ -81,7 +95,9 @@ function mapPlan(plan: Awaited<ReturnType<typeof plannerService.getChapterPlan>>
   };
 }
 
-function mapStateSnapshot(snapshot: Awaited<ReturnType<typeof stateService.getLatestSnapshotBeforeChapter>>): GenerationContextPackage["stateSnapshot"] {
+function mapStateSnapshot(
+  snapshot: Awaited<ReturnType<typeof stateService.getLatestSnapshotBeforeChapter>>,
+): GenerationContextPackage["stateSnapshot"] {
   if (!snapshot) {
     return null;
   }
@@ -121,6 +137,31 @@ function mapStateSnapshot(snapshot: Awaited<ReturnType<typeof stateService.getLa
   };
 }
 
+function mapOpenConflict(
+  conflict: Awaited<ReturnType<typeof openConflictService.listOpenConflicts>>[number],
+): GenerationContextPackage["openConflicts"][number] {
+  return {
+    id: conflict.id,
+    novelId: conflict.novelId,
+    chapterId: conflict.chapterId ?? null,
+    sourceSnapshotId: conflict.sourceSnapshotId ?? null,
+    sourceIssueId: conflict.sourceIssueId ?? null,
+    sourceType: conflict.sourceType,
+    conflictType: conflict.conflictType,
+    conflictKey: conflict.conflictKey,
+    title: conflict.title,
+    summary: conflict.summary,
+    severity: conflict.severity,
+    status: conflict.status,
+    evidence: parseJsonStringArraySafe(conflict.evidenceJson),
+    affectedCharacterIds: parseJsonStringArraySafe(conflict.affectedCharacterIdsJson),
+    resolutionHint: conflict.resolutionHint ?? null,
+    lastSeenChapterOrder: conflict.lastSeenChapterOrder ?? conflict.chapter?.order ?? null,
+    createdAt: conflict.createdAt.toISOString(),
+    updatedAt: conflict.updatedAt.toISOString(),
+  };
+}
+
 export class GenerationContextAssembler {
   private readonly continuationService = new NovelContinuationService();
   private readonly worldSliceService = new NovelWorldSliceService();
@@ -150,7 +191,22 @@ export class GenerationContextAssembler {
     }
 
     const ensuredPlan = await plannerService.ensureChapterPlan(novelId, chapterId, request);
-    const [storyWorldSlice, planPromptBlock, stateSnapshot, stateContextBlock, bible, summaries, facts, styleReference, recentChapters, decisions, openAuditIssues, continuationPack, styleContext] = await Promise.all([
+    const [
+      storyWorldSlice,
+      planPromptBlock,
+      stateSnapshot,
+      stateContextBlock,
+      bible,
+      summaries,
+      facts,
+      styleReference,
+      recentChapters,
+      decisions,
+      openAuditIssues,
+      openConflicts,
+      continuationPack,
+      styleContext,
+    ] = await Promise.all([
       this.worldSliceService.ensureStoryWorldSlice(novelId, { builderMode: "runtime" }),
       plannerService.buildPlanPromptBlock(novelId, chapterId),
       stateService.getLatestSnapshotBeforeChapter(novelId, chapter.order),
@@ -163,12 +219,12 @@ export class GenerationContextAssembler {
         },
         include: { chapter: true },
         orderBy: { chapter: { order: "desc" } },
-        take: 5,
+        take: 3,
       }),
       prisma.consistencyFact.findMany({
         where: { novelId },
         orderBy: { createdAt: "desc" },
-        take: 12,
+        take: 8,
       }),
       novelReferenceService.buildReferenceForStage(novelId, "chapter"),
       prisma.chapter.findMany({
@@ -178,7 +234,7 @@ export class GenerationContextAssembler {
           content: { not: null },
         },
         orderBy: { order: "desc" },
-        take: 2,
+        take: 1,
         select: { order: true, title: true, content: true },
       }),
       prisma.creativeDecision.findMany({
@@ -187,7 +243,7 @@ export class GenerationContextAssembler {
           OR: [{ expiresAt: null }, { expiresAt: { gte: chapter.order } }],
         },
         orderBy: [{ importance: "asc" }, { createdAt: "desc" }],
-        take: 20,
+        take: 12,
       }),
       prisma.auditIssue.findMany({
         where: {
@@ -201,6 +257,10 @@ export class GenerationContextAssembler {
         },
         orderBy: [{ createdAt: "desc" }],
       }),
+      openConflictService.listOpenConflicts(novelId, {
+        beforeChapterOrder: chapter.order,
+        limit: 8,
+      }),
       this.continuationService.buildChapterContextPack(novelId),
       this.styleBindingService.resolveForGeneration({
         novelId,
@@ -209,55 +269,33 @@ export class GenerationContextAssembler {
       }),
     ]);
 
-    const previousChaptersSummary = request.previousChaptersSummary?.length
-      ? request.previousChaptersSummary
-      : summaries.map((item) => `第${item.chapter.order}章《${item.chapter.title}》: ${item.summary}`);
+    const previousChaptersSummary = buildPreviousChaptersSummary(request.previousChaptersSummary, summaries);
+    const mappedOpenConflicts = openConflicts.map((item) => mapOpenConflict(item));
 
-    const summaryText = previousChaptersSummary.length > 0
-      ? `最近章节摘要：\n${previousChaptersSummary.join("\n")}`
-      : "最近章节摘要：暂无";
-    const factText = facts.length > 0
-      ? `最近关键事实：\n${facts.map((item) => `[${item.category}] ${item.content}`).join("\n")}`
-      : "最近关键事实：暂无";
-    const recentChapterContentText = recentChapters.length > 0
-      ? `最近章节正文片段（避免重复描写）：\n${recentChapters
-          .map((item) => {
-            const digest = (item.content ?? "").replace(/\s+/g, " ").trim().slice(0, 220);
-            return `${item.order}章《${item.title}》：${digest}`;
-          })
-          .filter((item) => item.trim().length > 0)
-          .join("\n")}`
-      : "最近章节正文片段：暂无";
-    const charactersContextText = novel.characters.length > 0
-      ? `角色设定：\n${novel.characters
-          .map((item) => `- ${item.name}(${item.role})${item.personality ? ` ${item.personality.slice(0, 80)}` : ""}`)
-          .join("\n")}`
-      : "";
-    const bibleText = bible
-      ? `作品圣经：
-主线承诺${bible.mainPromise ?? ""}
-核心设定${bible.coreSetting ?? ""}
-禁止冲突${bible.forbiddenRules ?? ""}
-角色成长弧${bible.characterArcs ?? ""}
-世界规则${bible.worldRules ?? ""}`
-      : "作品圣经：暂无";
-    const outlineText = novel.outline?.trim()
-      ? `发展走向：\n${novel.outline.slice(0, 800)}`
-      : "";
-    const styleBlock = styleReference.trim()
-      ? `文风参考（来自拆书分析）：\n${styleReference}`
-      : "";
-    const decisionsBlock = decisions.length > 0
-      ? `创作决策（请遵守）：\n${decisions.map((item) => `[${item.category}${item.importance === "critical" ? " 重要" : ""}] ${item.content}`).join("\n")}`
-      : "";
-    const styleEngineBlock = styleContext.compiledBlocks
-      ? [
-          "写法引擎约束：",
-          styleContext.compiledBlocks.style,
-          styleContext.compiledBlocks.character,
-          styleContext.compiledBlocks.antiAi,
-        ].filter(Boolean).join("\n\n")
-      : "";
+    const summaryText = buildSummaryText(previousChaptersSummary);
+    const factText = buildFactText(facts);
+    const recentChapterContentText = buildRecentChapterContentText(recentChapters);
+    const charactersContextText = buildCharactersContextText(
+      novel.characters.map((item) => ({
+        name: item.name,
+        role: item.role,
+        personality: item.personality ?? null,
+      })),
+    );
+    const bibleText = buildBibleText(bible
+      ? {
+          mainPromise: bible.mainPromise ?? null,
+          coreSetting: bible.coreSetting ?? null,
+          forbiddenRules: bible.forbiddenRules ?? null,
+          characterArcs: bible.characterArcs ?? null,
+          worldRules: bible.worldRules ?? null,
+        }
+      : null);
+    const outlineText = buildOutlineText(novel.outline ?? null);
+    const styleBlock = buildStyleBlock(styleReference);
+    const decisionsBlock = buildDecisionsBlock(decisions);
+    const styleEngineBlock = buildStyleEngineBlock(styleContext);
+    const openConflictBlock = buildOpenConflictBlock(mappedOpenConflicts);
 
     const ragQuery = getRagQueryForChapter(chapter.order, novel.title, novel.structuredOutline ?? null);
     let ragText = "";
@@ -270,6 +308,9 @@ export class GenerationContextAssembler {
       ragText = "";
     }
 
+    const worldBlock = storyWorldSlice
+      ? formatStoryWorldSlicePromptBlock(storyWorldSlice)
+      : buildWorldContextFromNovel(novel);
     const openingHint = await this.buildOpeningConstraintHint(novelId, chapter.order);
     const contextPackage: GenerationContextPackage = {
       chapter: {
@@ -278,26 +319,26 @@ export class GenerationContextAssembler {
         order: chapter.order,
         content: chapter.content ?? null,
         expectation: chapter.expectation ?? null,
-        supportingContextText: [
-          storyWorldSlice
-            ? formatStoryWorldSlicePromptBlock(storyWorldSlice)
-            : buildWorldContextFromNovel(novel),
+        supportingContextText: buildSupportingContextText({
+          worldBlock,
+          planPromptBlock,
+          stateContextBlock,
+          openConflictBlock,
+          decisionsBlock,
+          summaryText,
+          recentChapterContentText,
+          factText,
+          ragText,
+          bibleText,
           outlineText,
           charactersContextText,
-          bibleText,
-          summaryText,
-          factText,
-          recentChapterContentText,
-          ragText ? `语义检索补充：\n${ragText}` : "",
-          stateContextBlock,
-          planPromptBlock,
           styleBlock,
           styleEngineBlock,
-          decisionsBlock,
-        ].filter(Boolean).join("\n\n"),
+        }),
       },
       plan: mapPlan(ensuredPlan),
       stateSnapshot: mapStateSnapshot(stateSnapshot),
+      openConflicts: mappedOpenConflicts,
       storyWorldSlice,
       characterRoster: novel.characters.map((item) => ({
         id: item.id,

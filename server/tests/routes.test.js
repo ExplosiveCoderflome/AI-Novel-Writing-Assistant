@@ -18,6 +18,17 @@ function listen(server) {
   });
 }
 
+async function safeDeleteCreativeHubThread(threadId) {
+  if (!threadId) {
+    return;
+  }
+  try {
+    await creativeHubService.deleteThread(threadId);
+  } catch {
+    // Ignore cleanup failures in shared dev/test environments.
+  }
+}
+
 test("GET /api/llm/model-routes returns success payload", async () => {
   const app = createApp();
   const server = http.createServer(app);
@@ -244,6 +255,7 @@ test("creative hub thread create and state routes return success payloads", asyn
   const app = createApp();
   const server = http.createServer(app);
   const port = await listen(server);
+  let createdThreadId = null;
   try {
     const createResponse = await fetch(`http://127.0.0.1:${port}/api/creative-hub/threads`, {
       method: "POST",
@@ -262,6 +274,7 @@ test("creative hub thread create and state routes return success payloads", asyn
     const createPayload = await createResponse.json();
     assert.equal(createPayload.success, true);
     assert.ok(createPayload.data.id);
+    createdThreadId = createPayload.data.id;
 
     const stateResponse = await fetch(`http://127.0.0.1:${port}/api/creative-hub/threads/${createPayload.data.id}/state`);
     assert.equal(stateResponse.status, 200);
@@ -271,6 +284,7 @@ test("creative hub thread create and state routes return success payloads", asyn
     assert.equal(statePayload.data.thread.resourceBindings.styleProfileId, "style_demo");
     assert.ok(Array.isArray(statePayload.data.messages));
   } finally {
+    await safeDeleteCreativeHubThread(createdThreadId);
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });
@@ -368,6 +382,7 @@ test("creative hub stream route emits turn summary frames", async () => {
     assert.match(text, /"checkpointId":"cp_summary_test"/);
   } finally {
     creativeHubLangGraph.runThread = originalRunThread;
+    await safeDeleteCreativeHubThread(thread.id);
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });
@@ -416,6 +431,7 @@ test("creative hub state route exposes latest turn summary metadata", async () =
     assert.equal(payload.data.metadata.latestTurnSummary.runId, turnSummary.runId);
     assert.equal(payload.data.metadata.latestTurnSummary.currentStage, turnSummary.currentStage);
   } finally {
+    await safeDeleteCreativeHubThread(thread.id);
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });
@@ -425,10 +441,12 @@ test("creative hub interrupt route resumes via langgraph and updates thread stat
   const server = http.createServer(app);
   const port = await listen(server);
   const store = new AgentTraceStore();
+  let threadId = null;
   try {
     const thread = await creativeHubService.createThread({
       title: "审批线程",
     });
+    threadId = thread.id;
     const run = await store.createRun({
       sessionId: `creative_hub_${thread.id}`,
       goal: "审批恢复测试",
@@ -507,6 +525,7 @@ test("creative hub interrupt route resumes via langgraph and updates thread stat
     assert.ok(Array.isArray(payload.data.messages));
     assert.ok(payload.data.messages.some((item) => item.type === "ai"));
   } finally {
+    await safeDeleteCreativeHubThread(threadId);
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });

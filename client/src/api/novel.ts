@@ -26,6 +26,7 @@ import type {
   ProjectMode,
   ProjectProgressStatus,
   QualityScore,
+  ReplanRecommendation,
   ReplanResult,
   ReviewIssue,
   StoryPlan,
@@ -673,6 +674,7 @@ export async function auditNovelChapter(
       score: QualityScore;
       issues: ReviewIssue[];
       auditReports: AuditReport[];
+      replanRecommendation?: ReplanRecommendation;
     }>
   >(`/novels/${id}/chapters/${chapterId}/audit/${scope}`, payload ?? {});
   return data;

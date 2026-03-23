@@ -1,5 +1,5 @@
 import { useMutation, type QueryClient } from "@tanstack/react-query";
-import type { PipelineRepairMode, PipelineRunMode, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
+import type { PipelineRepairMode, PipelineRunMode } from "@ai-novel/shared/types/novel";
 import {
   createNovelChapter,
   deleteNovelChapter,
@@ -13,6 +13,7 @@ import {
 } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { buildNovelUpdatePayload, type NovelBasicFormState } from "../novelBasicInfo.shared";
+import type { ChapterReviewResult } from "../chapterPlanning.shared";
 import { buildStructuredOutlineSyncPlan, buildTaskSheetFromStructuredChapter, type OutlineSyncChapter, type StructuredSyncOptions, type StructuredVolume } from "../novelEdit.utils";
 
 interface LlmSettings {
@@ -58,7 +59,7 @@ interface UseNovelEditMutationsArgs {
   setCurrentJobId: (value: string) => void;
   setPipelineMessage: (value: string) => void;
   setStructuredMessage: (value: string) => void;
-  setReviewResult: (value: { score: QualityScore; issues: ReviewIssue[]; auditReports?: import("@ai-novel/shared/types/novel").AuditReport[] } | null) => void;
+  setReviewResult: (value: ChapterReviewResult | null) => void;
   queryClient: QueryClient;
   invalidateNovelDetail: () => Promise<void>;
 }

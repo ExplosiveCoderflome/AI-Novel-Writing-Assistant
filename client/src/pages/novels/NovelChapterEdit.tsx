@@ -15,6 +15,7 @@ import {
   getNovelDetail,
   getChapterTraces,
   listCreativeDecisions,
+  replanNovel,
   updateNovelChapter,
 } from "@/api/novel";
 import {
@@ -99,6 +100,10 @@ export default function NovelChapterEdit() {
   const chapterPlan = chapterPlanResponse?.data ?? null;
   const chapterStateSnapshot = chapterStateResponse?.data ?? null;
   const chapterAuditReports = chapterAuditResponse?.data ?? [];
+  const openAuditIssueIds = useMemo(
+    () => chapterAuditReports.flatMap((report) => report.issues.filter((issue) => issue.status === "open").map((issue) => issue.id)),
+    [chapterAuditReports],
+  );
 
   const { data: styleProfilesResponse } = useQuery({
     queryKey: queryKeys.styleEngine.profiles,
@@ -222,6 +227,28 @@ export default function NovelChapterEdit() {
       const next = response.data?.content ?? contentDraft;
       setStyleRewritePreview(next);
       setContentDraft(next);
+    },
+  });
+
+  const replanChapterMutation = useMutation({
+    mutationFn: () => replanNovel(id, {
+      chapterId,
+      reason: "manual_replan_from_chapter_editor",
+      triggerType: "manual",
+      sourceIssueIds: openAuditIssueIds,
+      windowSize: 3,
+      provider: llm.provider,
+      model: llm.model,
+      temperature: llm.temperature,
+    }),
+    onSuccess: async (response) => {
+      const affectedChapterIds = response.data?.affectedChapterIds ?? [];
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
+      await Promise.all(
+        affectedChapterIds.map((affectedChapterId) =>
+          queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterPlan(id, affectedChapterId) })),
+      );
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterPlan(id, chapterId) });
     },
   });
 
@@ -396,6 +423,9 @@ export default function NovelChapterEdit() {
           <ChapterRuntimeAuditCard
             runtimePackage={runtimePackage}
             auditReports={chapterAuditReports}
+            onReplan={() => replanChapterMutation.mutate()}
+            isReplanning={replanChapterMutation.isPending}
+            lastReplanResult={replanChapterMutation.data?.data ?? null}
           />
           <select
             className="w-full rounded-md border bg-background p-2 text-sm"

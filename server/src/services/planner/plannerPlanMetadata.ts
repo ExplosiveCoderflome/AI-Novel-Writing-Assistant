@@ -109,6 +109,20 @@ function buildDefaultMustPreserve(level: StoryPlanLevel): string[] {
   return [];
 }
 
+function parseStoredStringArray(value: string | null | undefined): string[] {
+  if (!value?.trim()) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed)
+      ? parsed.map((item) => String(item ?? "").trim()).filter(Boolean)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 export function buildDefaultPlanMetadata(level: StoryPlanLevel, input: ChapterPlanFallbackInput = {}): PlannerPlanMetadata {
   return {
     planRole: level === "chapter" ? buildDefaultChapterPlanRole(input) : null,
@@ -157,9 +171,43 @@ export function readPlanMetadata(rawPlanJson: string | null | undefined): Planne
   }
 }
 
-export function enrichStoryPlan<T extends StoryPlan>(plan: T): T {
+export function readPlanMetadataFromPlan(
+  plan: Pick<
+    StoryPlan,
+    "level"
+    | "planRole"
+    | "phaseLabel"
+    | "mustAdvanceJson"
+    | "mustPreserveJson"
+    | "sourceIssueIdsJson"
+    | "replannedFromPlanId"
+    | "rawPlanJson"
+  >,
+): PlannerPlanMetadata {
   const fallback = buildDefaultPlanMetadata(plan.level, {});
-  const metadata = normalizePlanMetadata(plan.level, parsePlanJson(plan.rawPlanJson), fallback);
+  const columnMetadata: PlannerPlanMetadata = {
+    planRole: plan.planRole ?? fallback.planRole,
+    phaseLabel: plan.phaseLabel ?? fallback.phaseLabel,
+    mustAdvance: parseStoredStringArray(plan.mustAdvanceJson).slice(0, 5),
+    mustPreserve: parseStoredStringArray(plan.mustPreserveJson).slice(0, 5),
+    sourceIssueIds: parseStoredStringArray(plan.sourceIssueIdsJson).slice(0, 12),
+    replannedFromPlanId: plan.replannedFromPlanId ?? fallback.replannedFromPlanId,
+  };
+
+  return normalizePlanMetadata(
+    plan.level,
+    parsePlanJson(plan.rawPlanJson),
+    {
+      ...columnMetadata,
+      mustAdvance: columnMetadata.mustAdvance.length > 0 ? columnMetadata.mustAdvance : fallback.mustAdvance,
+      mustPreserve: columnMetadata.mustPreserve.length > 0 ? columnMetadata.mustPreserve : fallback.mustPreserve,
+      sourceIssueIds: columnMetadata.sourceIssueIds.length > 0 ? columnMetadata.sourceIssueIds : fallback.sourceIssueIds,
+    },
+  );
+}
+
+export function enrichStoryPlan<T extends StoryPlan>(plan: T): T {
+  const metadata = readPlanMetadataFromPlan(plan);
   return {
     ...plan,
     planRole: metadata.planRole,

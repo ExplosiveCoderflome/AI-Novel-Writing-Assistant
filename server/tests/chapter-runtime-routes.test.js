@@ -52,6 +52,7 @@ function buildRuntimePackage(novelId, chapterId) {
         updatedAt: now,
       },
       stateSnapshot: null,
+      openConflicts: [],
       storyWorldSlice: {
         storyId: novelId,
         worldId: "world-1",

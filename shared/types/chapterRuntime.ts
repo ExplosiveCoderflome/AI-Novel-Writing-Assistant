@@ -124,6 +124,27 @@ export const runtimeForeshadowStateSchema = z.object({
   payoffChapterId: z.string().nullable().optional(),
 });
 
+export const runtimeOpenConflictSchema = z.object({
+  id: z.string(),
+  novelId: z.string(),
+  chapterId: z.string().nullable().optional(),
+  sourceSnapshotId: z.string().nullable().optional(),
+  sourceIssueId: z.string().nullable().optional(),
+  sourceType: z.string(),
+  conflictType: z.string(),
+  conflictKey: z.string(),
+  title: z.string(),
+  summary: z.string(),
+  severity: z.string(),
+  status: z.string(),
+  evidence: z.array(z.string()).default([]),
+  affectedCharacterIds: z.array(z.string()).default([]),
+  resolutionHint: z.string().nullable().optional(),
+  lastSeenChapterOrder: z.number().int().nullable().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
 export const runtimeStateSnapshotSchema = z.object({
   id: z.string(),
   novelId: z.string(),
@@ -193,6 +214,7 @@ export const generationContextPackageSchema = z.object({
   chapter: runtimeChapterSchema,
   plan: runtimePlanSchema.nullable(),
   stateSnapshot: runtimeStateSnapshotSchema.nullable(),
+  openConflicts: z.array(runtimeOpenConflictSchema),
   storyWorldSlice: storyWorldSliceSchema.nullable().optional(),
   characterRoster: z.array(runtimeCharacterSchema),
   creativeDecisions: z.array(runtimeCreativeDecisionSchema),
@@ -288,6 +310,7 @@ export type RuntimeCharacter = z.infer<typeof runtimeCharacterSchema>;
 export type RuntimeCreativeDecision = z.infer<typeof runtimeCreativeDecisionSchema>;
 export type RuntimeAuditIssue = z.infer<typeof runtimeAuditIssueSchema>;
 export type RuntimeStateSnapshot = z.infer<typeof runtimeStateSnapshotSchema>;
+export type RuntimeOpenConflict = z.infer<typeof runtimeOpenConflictSchema>;
 export type RuntimeContinuation = z.infer<typeof runtimeContinuationSchema>;
 export type RuntimeCompiledStylePromptBlocks = z.infer<typeof runtimeCompiledStylePromptBlocksSchema>;
 export type RuntimeStyleBinding = z.infer<typeof runtimeStyleBindingSchema>;

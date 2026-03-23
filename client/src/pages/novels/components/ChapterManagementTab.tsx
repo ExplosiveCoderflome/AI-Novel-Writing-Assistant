@@ -1,87 +1,16 @@
 import { useMemo, useState } from "react";
-import type { AuditReport, Chapter, QualityScore, ReviewIssue, StoryPlan, StoryStateSnapshot } from "@ai-novel/shared/types/novel";
+import type { Chapter } from "@ai-novel/shared/types/novel";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import StreamOutput from "@/components/common/StreamOutput";
+import { buildReplanRecommendationFromAuditReports } from "../chapterPlanning.shared";
+import { ChapterRuntimeAuditCard, ChapterRuntimeContextCard } from "./ChapterRuntimePanels";
+import type { ChapterTabViewProps } from "./NovelEditView.types";
 import WorldInjectionHint from "./WorldInjectionHint";
 
 type AssetTabKey = "content" | "taskSheet" | "sceneCards" | "quality" | "repair";
-
-interface ChapterManagementTabProps {
-  novelId: string;
-  worldInjectionSummary: string | null;
-  hasCharacters: boolean;
-  chapters: Chapter[];
-  selectedChapterId: string;
-  selectedChapter?: Chapter;
-  onSelectChapter: (chapterId: string) => void;
-  onGoToCharacterTab: () => void;
-  onCreateChapter: () => void;
-  isCreatingChapter: boolean;
-  chapterOperationMessage: string;
-  strategy: {
-    runMode: "fast" | "polish";
-    wordSize: "short" | "medium" | "long";
-    conflictLevel: number;
-    pace: "slow" | "balanced" | "fast";
-    aiFreedom: "low" | "medium" | "high";
-  };
-  onStrategyChange: (
-    field: "runMode" | "wordSize" | "conflictLevel" | "pace" | "aiFreedom",
-    value: string | number,
-  ) => void;
-  onApplyStrategy: () => void;
-  isApplyingStrategy: boolean;
-  onGenerateSelectedChapter: () => void;
-  onRewriteChapter: () => void;
-  onExpandChapter: () => void;
-  onCompressChapter: () => void;
-  onSummarizeChapter: () => void;
-  onGenerateTaskSheet: () => void;
-  onGenerateSceneCards: () => void;
-  onGenerateChapterPlan: () => void;
-  onReplanChapter: () => void;
-  onRunFullAudit: () => void;
-  onCheckContinuity: () => void;
-  onCheckCharacterConsistency: () => void;
-  onCheckPacing: () => void;
-  onAutoRepair: () => void;
-  onStrengthenConflict: () => void;
-  onEnhanceEmotion: () => void;
-  onUnifyStyle: () => void;
-  onAddDialogue: () => void;
-  onAddDescription: () => void;
-  isReviewingChapter: boolean;
-  isRepairingChapter: boolean;
-  reviewResult: {
-    score: QualityScore;
-    issues: ReviewIssue[];
-    auditReports?: AuditReport[];
-  } | null;
-  chapterPlan?: StoryPlan | null;
-  latestStateSnapshot?: StoryStateSnapshot | null;
-  chapterAuditReports: AuditReport[];
-  isGeneratingChapterPlan: boolean;
-  isReplanningChapter: boolean;
-  isRunningFullAudit: boolean;
-  chapterQualityReport?: {
-    coherence: number;
-    repetition: number;
-    pacing: number;
-    voice: number;
-    engagement: number;
-    overall: number;
-    issues?: string | null;
-  };
-  repairStreamContent: string;
-  isRepairStreaming: boolean;
-  onAbortRepair: () => void;
-  streamContent: string;
-  isStreaming: boolean;
-  onAbortStream: () => void;
-}
 
 function chapterStatusLabel(status?: Chapter["chapterStatus"] | null): string {
   switch (status) {
@@ -113,7 +42,7 @@ function parseRiskFlags(input: string | null | undefined): string[] {
     .slice(0, 4);
 }
 
-export default function ChapterManagementTab(props: ChapterManagementTabProps) {
+export default function ChapterManagementTab(props: ChapterTabViewProps) {
   const {
     novelId,
     worldInjectionSummary,
@@ -187,6 +116,10 @@ export default function ChapterManagementTab(props: ChapterManagementTabProps) {
       return [];
     }
   }, [chapterPlan?.participantsJson]);
+  const activeReplanRecommendation = useMemo(
+    () => props.replanRecommendation ?? buildReplanRecommendationFromAuditReports(chapterAuditReports),
+    [chapterAuditReports, props.replanRecommendation],
+  );
 
   return (
     <Card>
@@ -350,6 +283,22 @@ export default function ChapterManagementTab(props: ChapterManagementTabProps) {
                     <div className="font-medium">最新状态快照</div>
                     <div className="mt-1 text-muted-foreground">{latestStateSnapshot?.summary ?? "暂无状态快照"}</div>
                   </div>
+                </div>
+
+                <div className="mt-3 grid gap-3 xl:grid-cols-2">
+                  <ChapterRuntimeContextCard
+                    runtimePackage={null}
+                    chapterPlan={chapterPlan}
+                    stateSnapshot={latestStateSnapshot}
+                  />
+                  <ChapterRuntimeAuditCard
+                    runtimePackage={null}
+                    auditReports={chapterAuditReports}
+                    replanRecommendation={activeReplanRecommendation}
+                    onReplan={selectedChapter ? onReplanChapter : undefined}
+                    isReplanning={isReplanningChapter}
+                    lastReplanResult={props.lastReplanResult}
+                  />
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-2">

@@ -222,6 +222,15 @@ enum StoryPlanLevel {
   chapter
 }
 
+enum StoryPlanRole {
+  setup
+  progress
+  pressure
+  turn
+  payoff
+  cooldown
+}
+
 enum AuditType {
   continuity
   character
@@ -302,6 +311,7 @@ model Novel {
   qualityReports     QualityReport[]
   storyMacroPlan     StoryMacroPlan?
   storyStateSnapshots StoryStateSnapshot[]
+  openConflicts      OpenConflict[]
   storyPlans         StoryPlan[]
   replanRuns         ReplanRun[]
   auditReports       AuditReport[]
@@ -373,6 +383,7 @@ model Chapter {
   facts           ConsistencyFact[]
   qualityReports  QualityReport[]
   storyStateSnapshots StoryStateSnapshot[]
+  openConflicts      OpenConflict[]
   storyPlans      StoryPlan[]
   replanRuns      ReplanRun[]
   auditReports    AuditReport[]
@@ -1058,6 +1069,7 @@ model StoryStateSnapshot {
   relationStates RelationState[]
   informationStates InformationState[]
   foreshadowStates ForeshadowState[]
+  openConflicts   OpenConflict[]
   storyPlans     StoryPlan[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -1141,6 +1153,36 @@ model ForeshadowState {
   @@index([payoffChapterId])
 }
 
+model OpenConflict {
+  id                   String   @id @default(cuid())
+  novelId              String
+  chapterId            String?
+  sourceSnapshotId     String?
+  sourceIssueId        String?
+  sourceType           String
+  conflictType         String
+  conflictKey          String
+  title                String
+  summary              String
+  severity             String   @default("medium")
+  status               String   @default("open")
+  evidenceJson         String?
+  affectedCharacterIdsJson String?
+  resolutionHint       String?
+  lastSeenChapterOrder Int?
+  novel                Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter              Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  sourceSnapshot       StoryStateSnapshot? @relation(fields: [sourceSnapshotId], references: [id], onDelete: SetNull)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([novelId, chapterId, sourceType, conflictKey])
+  @@index([novelId, status, updatedAt])
+  @@index([chapterId, status])
+  @@index([sourceSnapshotId])
+  @@index([sourceIssueId])
+}
+
 model StoryPlan {
   id                   String   @id @default(cuid())
   novelId              String
@@ -1148,11 +1190,17 @@ model StoryPlan {
   parentId             String?
   sourceStateSnapshotId String?
   level                StoryPlanLevel
+  planRole             StoryPlanRole?
+  phaseLabel           String?
   title                String
   objective            String
   participantsJson     String?
   revealsJson          String?
   riskNotesJson        String?
+  mustAdvanceJson      String?
+  mustPreserveJson     String?
+  sourceIssueIdsJson   String?
+  replannedFromPlanId  String?
   hookTarget           String?
   status               String   @default("draft")
   externalRef          String?

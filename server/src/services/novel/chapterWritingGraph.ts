@@ -40,6 +40,7 @@ interface ChapterGraphDeps {
   normalizeScore: (value: Partial<QualityScore>) => QualityScore;
   ruleScore: (content: string) => QualityScore;
   isPass: (score: QualityScore) => boolean;
+  buildSupportingContextText?: (novelId: string, chapter: ChapterRef) => Promise<string>;
   buildContextText: (novelId: string, chapterOrder: number) => Promise<string>;
   buildOpeningConstraintHint: (novelId: string, chapterOrder: number) => Promise<string>;
   enforceOpeningDiversity: (
@@ -171,6 +172,24 @@ function buildStylePromptText(contextPackage?: GenerationContextPackage): string
 export class ChapterWritingGraph {
   constructor(private readonly deps: ChapterGraphDeps) {}
 
+  private async resolveContextText(
+    novelId: string,
+    chapter: ChapterRef,
+    contextPackage?: GenerationContextPackage,
+    previousChaptersSummary?: string[],
+  ): Promise<string> {
+    if (contextPackage?.chapter.supportingContextText) {
+      return contextPackage.chapter.supportingContextText;
+    }
+    if (previousChaptersSummary?.length) {
+      return previousChaptersSummary.join("\n");
+    }
+    if (this.deps.buildSupportingContextText) {
+      return this.deps.buildSupportingContextText(novelId, chapter);
+    }
+    return this.deps.buildContextText(novelId, chapter.order);
+  }
+
   private async plannerAndWriterNode(
     novelId: string,
     novelTitle: string,
@@ -183,7 +202,7 @@ export class ChapterWritingGraph {
       temperature: options.temperature ?? 0.8,
       taskType: options.taskType ?? "writer",
     });
-    const context = await this.deps.buildContextText(novelId, chapter.order);
+    const context = await this.resolveContextText(novelId, chapter);
     const openingHint = await this.deps.buildOpeningConstraintHint(novelId, chapter.order);
     const continuationPack = await continuationService.buildChapterContextPack(novelId);
     const plan = await llm.invoke([
@@ -320,9 +339,12 @@ ${JSON.stringify(issues, null, 2)}`,
     stream: AsyncIterable<BaseMessageChunk>;
     onDone: (fullContent: string) => Promise<{ finalContent: string } | void>;
   }> {
-    const context = input.contextPackage?.chapter.supportingContextText
-      || input.options.previousChaptersSummary?.join("\n")
-      || (await this.deps.buildContextText(input.novelId, input.chapter.order));
+    const context = await this.resolveContextText(
+      input.novelId,
+      input.chapter,
+      input.contextPackage,
+      input.options.previousChaptersSummary,
+    );
     const openingHint = input.contextPackage?.openingHint
       || await this.deps.buildOpeningConstraintHint(input.novelId, input.chapter.order);
     const continuationPack = (input.contextPackage?.continuation as ContinuationPack | undefined)

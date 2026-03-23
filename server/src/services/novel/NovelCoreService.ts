@@ -5,19 +5,18 @@ import type { AuditReport, QualityScore, ReviewIssue } from "@ai-novel/shared/ty
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { prisma } from "../../db/prisma";
-import { agentRuntime } from "../../agents";
 import { getLLM } from "../../llm/factory";
 import { ragServices } from "../rag";
 import { getRagQueryForChapter, novelReferenceService } from "./NovelReferenceService";
 import { NovelContinuationService } from "./NovelContinuationService";
 import { NovelWorldSliceService } from "./storyWorldSlice/NovelWorldSliceService";
 import { ChapterRuntimeCoordinator } from "./runtime/ChapterRuntimeCoordinator";
+import { GenerationContextAssembler } from "./runtime/GenerationContextAssembler";
 import { STORY_WORLD_SLICE_SCHEMA_VERSION } from "./storyWorldSlice/storyWorldSlicePersistence";
 import {
   buildLegacyWorldContextFromWorld,
   formatStoryWorldSlicePromptBlock,
 } from "./storyWorldSlice/storyWorldSliceFormatting";
-import { ChapterWritingGraph } from "./chapterWritingGraph";
 import { normalizeNovelBiblePayload } from "./novelBiblePersistence";
 import {
   buildStructuredOutlineRepairSystemPrompt,
@@ -569,33 +568,7 @@ const novelContinuationService = new NovelContinuationService();
 export class NovelCoreService {
   private readonly storyWorldSliceService = new NovelWorldSliceService();
   private readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator();
-  private readonly chapterWritingGraph = new ChapterWritingGraph({
-    toText,
-    normalizeScore,
-    ruleScore,
-    isPass,
-    buildContextText: (novelId, chapterOrder) => this.buildContextText(novelId, chapterOrder),
-    buildOpeningConstraintHint: (novelId, chapterOrder) => this.buildOpeningConstraintHint(novelId, chapterOrder),
-    enforceOpeningDiversity: (novelId, chapterOrder, chapterTitle, content, options) =>
-      this.enforceOpeningDiversity(novelId, chapterOrder, chapterTitle, content, options),
-    reviewChapterContent: (novelTitle, chapterTitle, content, options, novelId, chapterId) =>
-      this.reviewChapterWithAudit(novelTitle, chapterTitle, content, options, novelId, chapterId),
-    createQualityReport: (novelId, chapterId, score, issues) =>
-      this.createQualityReport(novelId, chapterId, score, issues),
-    syncAuditReports: (novelId, chapterId, auditReports) =>
-      this.syncAuditReports(novelId, chapterId, auditReports),
-    saveDraftAndArtifacts: async (novelId, chapterId, content, generationState) => {
-      await prisma.chapter.update({
-        where: { id: chapterId },
-        data: { content, generationState },
-      });
-      await this.syncChapterArtifacts(novelId, chapterId, content);
-    },
-    updateChapterGenerationState: (chapterId, generationState) =>
-      prisma.chapter.update({ where: { id: chapterId }, data: { generationState } }).then(() => undefined),
-    logInfo: logPipelineInfo,
-    logWarn: logPipelineWarn,
-  });
+  private readonly generationContextAssembler = new GenerationContextAssembler();
 
   private normalizeNovelOutput<T extends { continuationBookAnalysisSections?: string | null }>(
     novel: T,
@@ -1610,6 +1583,11 @@ ${rawContent}`,
   }
 
   async createChapterStream(novelId: string, chapterId: string, options: ChapterGenerateOptions = {}) {
+    return this.chapterRuntimeCoordinator.createChapterStream(novelId, chapterId, options, {
+      includeRuntimePackage: false,
+    });
+  }
+/*
     const [novel, chapter] = await Promise.all([
       prisma.novel.findUnique({ where: { id: novelId }, include: { characters: true } }),
       prisma.chapter.findFirst({ where: { id: chapterId, novelId } }),
@@ -1665,6 +1643,7 @@ ${rawContent}`,
     };
     return result;
   }
+*/
 
   async generateTitles(
     novelId: string,
@@ -2287,6 +2266,21 @@ ${axiomsText}
   }
 
   private async buildContextText(novelId: string, chapterOrder: number): Promise<string> {
+    const chapter = await prisma.chapter.findFirst({
+      where: { novelId, order: chapterOrder },
+      select: { id: true },
+    });
+    if (!chapter) {
+      return "";
+    }
+    try {
+      const assembled = await this.generationContextAssembler.assemble(novelId, chapter.id, {});
+      return assembled.contextPackage.chapter.supportingContextText;
+    } catch {
+      return "";
+    }
+  }
+/*
     const [bible, summaries, facts, novel, styleReference, characters, recentChapters, decisions, stateContextBlock, chapterRow, storyWorldSlice] = await Promise.all([
       prisma.novelBible.findUnique({ where: { novelId } }),
       prisma.chapterSummary.findMany({
@@ -2413,6 +2407,7 @@ ${axiomsText}
       .filter(Boolean)
       .join("\n\n");
   }
+*/
 
   private async buildOpeningConstraintHint(novelId: string, chapterOrder: number): Promise<string> {
     const recentChapters = await prisma.chapter.findMany({
