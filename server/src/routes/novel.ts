@@ -10,6 +10,7 @@ import { NovelService } from "../services/novel/NovelService";
 import { NovelDraftOptimizeService } from "../services/novel/NovelDraftOptimizeService";
 import { registerNovelChapterRoutes } from "./novelChapterRoutes";
 import { registerNovelChapterGenerationRoutes } from "./novelChapterGeneration";
+import { registerNovelCharacterPreparationRoutes } from "./novelCharacterPreparationRoutes";
 import { registerNovelPlanningRoutes } from "./novelPlanningRoutes";
 import { registerNovelProductionRoutes } from "./novelProductionRoutes";
 import { registerNovelReviewRoutes } from "./novelReviewRoutes";
@@ -198,9 +199,24 @@ const updateChapterSchema = z.object({
 const characterSchema = z.object({
   name: z.string().trim().min(1, "角色名称不能为空。"),
   role: z.string().trim().min(1, "角色定位不能为空。"),
+  castRole: z.enum(["protagonist", "antagonist", "ally", "foil", "mentor", "love_interest", "pressure_source", "catalyst"]).optional(),
+  storyFunction: z.string().optional(),
+  relationToProtagonist: z.string().optional(),
   personality: z.string().optional(),
   background: z.string().optional(),
   development: z.string().optional(),
+  outerGoal: z.string().optional(),
+  innerNeed: z.string().optional(),
+  fear: z.string().optional(),
+  wound: z.string().optional(),
+  misbelief: z.string().optional(),
+  secret: z.string().optional(),
+  moralLine: z.string().optional(),
+  firstImpression: z.string().optional(),
+  arcStart: z.string().optional(),
+  arcMidpoint: z.string().optional(),
+  arcClimax: z.string().optional(),
+  arcEnd: z.string().optional(),
   currentState: z.string().optional(),
   currentGoal: z.string().optional(),
   baseCharacterId: z.string().trim().optional(),
@@ -209,9 +225,24 @@ const characterSchema = z.object({
 const updateCharacterSchema = z.object({
   name: z.string().trim().min(1).optional(),
   role: z.string().trim().min(1).optional(),
+  castRole: z.enum(["protagonist", "antagonist", "ally", "foil", "mentor", "love_interest", "pressure_source", "catalyst"]).optional(),
+  storyFunction: z.string().optional(),
+  relationToProtagonist: z.string().optional(),
   personality: z.string().optional(),
   background: z.string().optional(),
   development: z.string().optional(),
+  outerGoal: z.string().optional(),
+  innerNeed: z.string().optional(),
+  fear: z.string().optional(),
+  wound: z.string().optional(),
+  misbelief: z.string().optional(),
+  secret: z.string().optional(),
+  moralLine: z.string().optional(),
+  firstImpression: z.string().optional(),
+  arcStart: z.string().optional(),
+  arcMidpoint: z.string().optional(),
+  arcClimax: z.string().optional(),
+  arcEnd: z.string().optional(),
   currentState: z.string().optional(),
   currentGoal: z.string().optional(),
   baseCharacterId: z.string().trim().optional(),
@@ -436,6 +467,12 @@ registerNovelSnapshotCharacterRoutes({
   characterTimelineSyncSchema,
   llmGenerateSchema,
   forwardBusinessError,
+});
+
+registerNovelCharacterPreparationRoutes({
+  router,
+  novelService,
+  idParamsSchema,
 });
 
 registerNovelStorylineRoutes({

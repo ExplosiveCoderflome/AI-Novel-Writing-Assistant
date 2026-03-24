@@ -52,6 +52,8 @@ export function getJsonCapability(provider: LLMProvider, model?: string): JsonCa
     kimi: {
       supportsJsonObject: true,
       supportsJsonSchema: false,
+      // Moonshot 稳定模型与 kimi-latest 支持 JSON mode，thinking 系列不走强制 JSON。
+      modelCondition: (m) => !m || !m.includes("thinking"),
     },
     glm: {
       supportsJsonObject: true,

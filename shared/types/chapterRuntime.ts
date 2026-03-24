@@ -1,17 +1,8 @@
 import { z } from "zod";
 import { storyWorldSliceSchema } from "./storyWorldSlice";
+import { LLM_PROVIDERS } from "./llm";
 
-const llmProviderSchema = z.enum([
-  "deepseek",
-  "siliconflow",
-  "openai",
-  "anthropic",
-  "grok",
-  "kimi",
-  "glm",
-  "qwen",
-  "gemini",
-]);
+const llmProviderSchema = z.enum(LLM_PROVIDERS);
 const auditTypeSchema = z.enum(["continuity", "character", "plot"]);
 const auditSeveritySchema = z.enum(["low", "medium", "high", "critical"]);
 const auditIssueStatusSchema = z.enum(["open", "resolved", "ignored"]);

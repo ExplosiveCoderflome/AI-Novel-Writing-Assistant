@@ -1,7 +1,7 @@
 import type { Character, CharacterTimeline } from "@ai-novel/shared/types/novel";
 
 const RELATION_POSITIVE_KEYWORDS = ["伙伴", "盟友", "信任", "守护", "亲密", "喜欢", "合作"];
-const RELATION_NEGATIVE_KEYWORDS = ["敌", "对立", "怀疑", "背叛", "利用", "冲突", "仇"];
+const RELATION_NEGATIVE_KEYWORDS = ["敌对", "对立", "怀疑", "背叛", "利用", "冲突", "压制"];
 const TREND_UP_KEYWORDS = ["升温", "缓和", "靠近", "修复", "合作加深", "信任增加"];
 const TREND_DOWN_KEYWORDS = ["恶化", "破裂", "紧张", "决裂", "冲突升级", "敌意加深"];
 
@@ -17,12 +17,7 @@ function joinSegments(segments: Array<string | null | undefined>): string {
 }
 
 function countHits(source: string, keywords: string[]): number {
-  return keywords.reduce((count, keyword) => {
-    if (!keyword) {
-      return count;
-    }
-    return source.includes(keyword) ? count + 1 : count;
-  }, 0);
+  return keywords.reduce((count, keyword) => (source.includes(keyword) ? count + 1 : count), 0);
 }
 
 export interface QuickCharacterCreatePayload {
@@ -68,7 +63,7 @@ export function buildCharacterProfileFromWizard(payload: QuickCharacterCreatePay
     payload.storyFunction ? `故事作用：${payload.storyFunction}` : "",
   ]);
   const development = joinSegments([
-    payload.storyFunction ? `角色成长主轴：围绕「${payload.storyFunction}」推进。` : "",
+    payload.storyFunction ? `角色成长主轴：围绕“${payload.storyFunction}”推进。` : "",
     keywordList.length > 0 ? `潜在冲突点：${keywordList.slice(0, 3).join("、")}` : "",
     keywordList.length > 0 ? `可埋伏笔点：${keywordList.slice(-2).join("、")}` : "",
     keywordList.length > 0 ? `说话风格建议：偏向${keywordList[0]}语气。` : "",
@@ -90,12 +85,12 @@ function inferCurrentRelation(source: string): string {
   const positiveHits = countHits(source, RELATION_POSITIVE_KEYWORDS);
   const negativeHits = countHits(source, RELATION_NEGATIVE_KEYWORDS);
   if (positiveHits > negativeHits) {
-    return "合作/亲近";
+    return "合作 / 亲近";
   }
   if (negativeHits > positiveHits) {
-    return "对立/紧张";
+    return "对立 / 紧张";
   }
-  return "复杂/待观察";
+  return "复杂 / 待观察";
 }
 
 function inferTrend(source: string): string {

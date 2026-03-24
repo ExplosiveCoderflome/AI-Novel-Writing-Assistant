@@ -1,9 +1,11 @@
 import { NovelPipelineService } from "./NovelPipelineService";
 import { NovelCoreService } from "./NovelCoreService";
 import { NovelWorldSliceService } from "./storyWorldSlice/NovelWorldSliceService";
+import { CharacterPreparationService } from "./characterPrep/CharacterPreparationService";
 
 export class NovelService extends NovelPipelineService {
   private readonly worldSliceService = new NovelWorldSliceService();
+  private readonly characterPreparationService = new CharacterPreparationService();
 
   getNovelState(...args: Parameters<NovelCoreService["getNovelState"]>) {
     return this.core.getNovelState(...args);
@@ -63,5 +65,21 @@ export class NovelService extends NovelPipelineService {
 
   updateWorldSliceOverrides(...args: Parameters<NovelWorldSliceService["updateWorldSliceOverrides"]>) {
     return this.worldSliceService.updateWorldSliceOverrides(...args);
+  }
+
+  listCharacterRelations(...args: Parameters<CharacterPreparationService["listCharacterRelations"]>) {
+    return this.characterPreparationService.listCharacterRelations(...args);
+  }
+
+  listCharacterCastOptions(...args: Parameters<CharacterPreparationService["listCharacterCastOptions"]>) {
+    return this.characterPreparationService.listCharacterCastOptions(...args);
+  }
+
+  generateCharacterCastOptions(...args: Parameters<CharacterPreparationService["generateCharacterCastOptions"]>) {
+    return this.characterPreparationService.generateCharacterCastOptions(...args);
+  }
+
+  applyCharacterCastOption(...args: Parameters<CharacterPreparationService["applyCharacterCastOption"]>) {
+    return this.characterPreparationService.applyCharacterCastOption(...args);
   }
 }

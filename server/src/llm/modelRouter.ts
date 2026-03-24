@@ -99,6 +99,10 @@ function normalizeMaxTokens(provider: LLMProvider, maxTokens?: number): number |
   if (normalized < 1) {
     return undefined;
   }
+  // Historical UI defaults persisted 4096 as a placeholder for "use provider defaults".
+  if (normalized === 4096) {
+    return undefined;
+  }
   const providerLimit = PROVIDERS[provider].maxTokens;
   if (typeof providerLimit === "number") {
     return Math.min(normalized, providerLimit);
@@ -171,11 +175,11 @@ export async function listModelRouteConfigs(): Promise<Array<{ taskType: string;
       orderBy: { taskType: "asc" },
     });
     return rows.map((r) => ({
+      provider: toLLMProvider(r.provider),
       taskType: r.taskType,
-      provider: r.provider,
       model: r.model,
       temperature: r.temperature,
-      maxTokens: r.maxTokens,
+      maxTokens: normalizeMaxTokens(toLLMProvider(r.provider), r.maxTokens ?? undefined) ?? null,
     }));
   } catch {
     return [];
@@ -187,20 +191,22 @@ export async function upsertModelRouteConfig(
   data: { provider: string; model: string; temperature?: number; maxTokens?: number | null },
 ): Promise<void> {
   const normalizedTaskType = normalizeTaskType(taskType as TaskType);
+  const provider = toLLMProvider(data.provider);
+  const normalizedMaxTokens = normalizeMaxTokens(provider, data.maxTokens ?? undefined) ?? null;
   await prisma.modelRouteConfig.upsert({
     where: { taskType: normalizedTaskType },
     create: {
       taskType: normalizedTaskType,
-      provider: data.provider,
+      provider,
       model: data.model,
       temperature: data.temperature ?? 0.7,
-      maxTokens: data.maxTokens ?? null,
+      maxTokens: normalizedMaxTokens,
     },
     update: {
-      provider: data.provider,
+      provider,
       model: data.model,
       temperature: data.temperature ?? 0.7,
-      maxTokens: data.maxTokens ?? null,
+      maxTokens: normalizedMaxTokens,
     },
   });
 }

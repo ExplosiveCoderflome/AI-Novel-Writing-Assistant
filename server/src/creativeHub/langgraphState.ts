@@ -9,9 +9,10 @@ import type {
   CreativeHubTurnSummary,
 } from "@ai-novel/shared/types/creativeHub";
 import type { FailureDiagnostic } from "@ai-novel/shared/types/agent";
+import type { LLMProvider } from "@ai-novel/shared/types/llm";
 
 export interface CreativeHubRunSettings {
-  provider?: "deepseek" | "siliconflow" | "openai" | "anthropic" | "grok";
+  provider?: LLMProvider;
   model?: string;
   temperature?: number;
   maxTokens?: number;

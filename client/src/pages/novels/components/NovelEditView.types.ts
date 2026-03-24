@@ -26,6 +26,7 @@ import type {
   StoryMacroState,
 } from "@ai-novel/shared/types/storyMacro";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { StoryWorldSliceOverrides, StoryWorldSliceView } from "@ai-novel/shared/types/storyWorldSlice";
 import type { QuickCharacterCreatePayload } from "./characterPanel.utils";
 import type { ChapterReviewResult } from "../chapterPlanning.shared";
@@ -320,6 +321,9 @@ export interface PipelineTabViewProps {
 }
 
 export interface CharacterTabViewProps {
+  novelId: string;
+  llmProvider?: LLMProvider;
+  llmModel?: string;
   characterMessage: string;
   quickCharacterForm: { name: string; role: string };
   onQuickCharacterFormChange: (field: "name" | "role", value: string) => void;

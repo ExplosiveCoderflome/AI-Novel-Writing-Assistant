@@ -9,9 +9,13 @@ export const providerModelMap: Record<LLMProvider, string[]> = {
     "Qwen/Qwen2.5-72B-Instruct",
     "deepseek-ai/DeepSeek-V3",
   ],
-  openai: ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"],
+  openai: ["gpt-5", "gpt-5-mini"],
   anthropic: ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022"],
   grok: ["grok-4", "grok-4-latest", "grok-4-1-fast-reasoning", "grok-3", "grok-code-fast-1"],
+  kimi: ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k", "kimi-latest"],
+  glm: ["glm-4.5-air", "glm-4.5", "glm-4.5-flash", "glm-4-flash-250414"],
+  qwen: ["qwen-plus", "qwen-max", "qwen3.5-plus", "qwen3-max"],
+  gemini: ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-flash-preview"],
 };
 
 function getDefaultModel(provider: LLMProvider): string {

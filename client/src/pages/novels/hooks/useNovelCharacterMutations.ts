@@ -63,6 +63,16 @@ interface UseNovelCharacterMutationsInput {
   setQuickCharacterForm: (updater: (prev: QuickCharacterFormState) => QuickCharacterFormState) => void;
 }
 
+async function invalidateCharacterViews(queryClient: QueryClient, novelId: string, selectedCharacterId?: string) {
+  await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) });
+  await queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterRelations(novelId) });
+  if (selectedCharacterId) {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.novels.characterTimeline(novelId, selectedCharacterId),
+    });
+  }
+}
+
 export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInput) {
   const {
     id,
@@ -93,9 +103,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       }),
     onSuccess: async (response) => {
       setCharacterMessage(response.message ?? `角色时间线同步完成，本次新增 ${response.data?.syncedCount ?? 0} 条。`);
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.novels.characterTimeline(id, selectedCharacterId || "none"),
-      });
+      await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
     },
   });
 
@@ -107,10 +115,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       }),
     onSuccess: async (response) => {
       setCharacterMessage(response.message ?? `全角色时间线同步完成，共新增 ${response.data?.syncedCount ?? 0} 条事件。`);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.novels.characterTimeline(id, selectedCharacterId || "none"),
-      });
+      await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
     },
   });
 
@@ -123,10 +128,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       }),
     onSuccess: async () => {
       setCharacterMessage("角色信息已按时间线完成演进更新。");
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.novels.characterTimeline(id, selectedCharacterId || "none"),
-      });
+      await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
     },
   });
 
@@ -146,8 +148,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       setCharacterMessage(`世界规则检查(${status}) ${warningText} ${issueText}`.trim());
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "世界规则检查失败。";
-      setCharacterMessage(message);
+      setCharacterMessage(error instanceof Error ? error.message : "世界规则检查失败。");
     },
   });
 
@@ -164,7 +165,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       }),
     onSuccess: async () => {
       setCharacterMessage("角色信息已保存。");
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
+      await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
     },
   });
 
@@ -187,11 +188,10 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       if (response.data?.id) {
         setSelectedCharacterId(response.data.id);
       }
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
+      await invalidateCharacterViews(queryClient, id, response.data?.id ?? selectedCharacterId ?? "none");
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "导入基础角色失败。";
-      setCharacterMessage(message);
+      setCharacterMessage(error instanceof Error ? error.message : "导入基础角色失败。");
     },
   });
 
@@ -203,6 +203,8 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       return createNovelCharacter(id, {
         name: nextName,
         role: nextRole,
+        relationToProtagonist: payload?.relationToProtagonist?.trim() || undefined,
+        storyFunction: payload?.storyFunction?.trim() || undefined,
         ...generatedProfile,
       });
     },
@@ -212,11 +214,10 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       if (response.data?.id) {
         setSelectedCharacterId(response.data.id);
       }
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
+      await invalidateCharacterViews(queryClient, id, response.data?.id ?? selectedCharacterId ?? "none");
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "角色创建失败。";
-      setCharacterMessage(message);
+      setCharacterMessage(error instanceof Error ? error.message : "角色创建失败。");
     },
   });
 
@@ -228,14 +229,10 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
         const fallback = characters.find((item) => item.id !== deletedCharacterId);
         setSelectedCharacterId(fallback?.id ?? "");
       }
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.novels.characterTimeline(id, deletedCharacterId),
-      });
+      await invalidateCharacterViews(queryClient, id, deletedCharacterId);
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "删除角色失败。";
-      setCharacterMessage(message);
+      setCharacterMessage(error instanceof Error ? error.message : "删除角色失败。");
     },
   });
 

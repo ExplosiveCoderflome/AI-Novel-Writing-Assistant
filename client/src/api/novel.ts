@@ -12,6 +12,9 @@ import type {
   ChapterStatus,
   CharacterTimeline,
   Character,
+  CharacterCastApplyResult,
+  CharacterCastOption,
+  CharacterRelation,
   CreativeDecision,
   EmotionIntensity,
   NarrativePov,
@@ -264,14 +267,63 @@ export async function getNovelCharacters(id: string) {
   return data;
 }
 
+export async function getCharacterRelations(id: string) {
+  const { data } = await apiClient.get<ApiResponse<CharacterRelation[]>>(`/novels/${id}/character-relations`);
+  return data;
+}
+
+export async function getCharacterCastOptions(id: string) {
+  const { data } = await apiClient.get<ApiResponse<CharacterCastOption[]>>(`/novels/${id}/character-prep/cast-options`);
+  return data;
+}
+
+export async function generateCharacterCastOptions(
+  id: string,
+  payload?: {
+    provider?: LLMProvider;
+    model?: string;
+    temperature?: number;
+    storyInput?: string;
+  },
+) {
+  const { data } = await apiClient.post<ApiResponse<CharacterCastOption[]>>(
+    `/novels/${id}/character-prep/cast-options/generate`,
+    payload ?? {},
+  );
+  return data;
+}
+
+export async function applyCharacterCastOption(id: string, optionId: string) {
+  const { data } = await apiClient.post<ApiResponse<CharacterCastApplyResult>>(
+    `/novels/${id}/character-prep/cast-options/${optionId}/apply`,
+    {},
+  );
+  return data;
+}
+
 export async function createNovelCharacter(
   id: string,
   payload: {
     name: string;
     role: string;
+    castRole?: string;
+    storyFunction?: string;
+    relationToProtagonist?: string;
     personality?: string;
     background?: string;
     development?: string;
+    outerGoal?: string;
+    innerNeed?: string;
+    fear?: string;
+    wound?: string;
+    misbelief?: string;
+    secret?: string;
+    moralLine?: string;
+    firstImpression?: string;
+    arcStart?: string;
+    arcMidpoint?: string;
+    arcClimax?: string;
+    arcEnd?: string;
     currentState?: string;
     currentGoal?: string;
     baseCharacterId?: string;
@@ -287,9 +339,24 @@ export async function updateNovelCharacter(
   payload: Partial<{
     name: string;
     role: string;
+    castRole: string;
+    storyFunction: string;
+    relationToProtagonist: string;
     personality: string;
     background: string;
     development: string;
+    outerGoal: string;
+    innerNeed: string;
+    fear: string;
+    wound: string;
+    misbelief: string;
+    secret: string;
+    moralLine: string;
+    firstImpression: string;
+    arcStart: string;
+    arcMidpoint: string;
+    arcClimax: string;
+    arcEnd: string;
     currentState: string;
     currentGoal: string;
     baseCharacterId: string;

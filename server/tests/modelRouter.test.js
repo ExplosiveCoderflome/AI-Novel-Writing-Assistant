@@ -43,3 +43,25 @@ test("resolveModel clamps explicit DeepSeek overrides as well", async () => {
     prisma.modelRouteConfig.findUnique = originalFindUnique;
   }
 });
+
+test("resolveModel treats legacy 4096 maxTokens as unset", async () => {
+  const originalFindUnique = prisma.modelRouteConfig.findUnique;
+
+  prisma.modelRouteConfig.findUnique = async () => ({
+    taskType: "planner",
+    provider: "deepseek",
+    model: "deepseek-chat",
+    temperature: 0.3,
+    maxTokens: 4096,
+  });
+
+  try {
+    const resolved = await resolveModel("planner");
+    assert.equal(resolved.provider, "deepseek");
+    assert.equal(resolved.model, "deepseek-chat");
+    assert.equal(resolved.temperature, 0.3);
+    assert.equal(resolved.maxTokens, undefined);
+  } finally {
+    prisma.modelRouteConfig.findUnique = originalFindUnique;
+  }
+});

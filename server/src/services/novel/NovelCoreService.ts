@@ -114,9 +114,24 @@ interface ChapterInput {
 interface CharacterInput {
   name: string;
   role: string;
+  castRole?: string;
+  storyFunction?: string;
+  relationToProtagonist?: string;
   personality?: string;
   background?: string;
   development?: string;
+  outerGoal?: string;
+  innerNeed?: string;
+  fear?: string;
+  wound?: string;
+  misbelief?: string;
+  secret?: string;
+  moralLine?: string;
+  firstImpression?: string;
+  arcStart?: string;
+  arcMidpoint?: string;
+  arcClimax?: string;
+  arcEnd?: string;
   currentState?: string;
   currentGoal?: string;
   baseCharacterId?: string;
@@ -3097,6 +3112,5 @@ ${ragContext || ""}`,
     return prisma.novel.findUnique({ where: { id: novelId } });
   }
 }
-
 
 

@@ -64,31 +64,31 @@ export const PROVIDERS: Record<LLMProvider, ProviderConfig> = {
   kimi: {
     name: "Kimi",
     baseURL: process.env.KIMI_BASE_URL ?? "https://api.moonshot.cn/v1",
-    defaultModel: process.env.KIMI_MODEL ?? "moonshot-v1-8k",
-    models: ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"],
+    defaultModel: process.env.KIMI_MODEL ?? "moonshot-v1-32k",
+    models: ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k", "kimi-latest"],
     envKey: "KIMI_API_KEY",
   },
   glm: {
     name: "GLM",
     baseURL: process.env.GLM_BASE_URL ?? "https://open.bigmodel.cn/api/paas/v4",
-    defaultModel: process.env.GLM_MODEL ?? "glm-4-flash",
-    models: ["glm-4-flash", "glm-4", "glm-4v"],
+    defaultModel: process.env.GLM_MODEL ?? "glm-4.5-air",
+    models: ["glm-4.5-air", "glm-4.5", "glm-4.5-flash", "glm-4-flash-250414"],
     envKey: "GLM_API_KEY",
   },
   qwen: {
     name: "Qwen",
     // 常见 OpenAI-compatible 网关路径
     baseURL: process.env.QWEN_BASE_URL ?? "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    defaultModel: process.env.QWEN_MODEL ?? "qwen-max",
-    models: ["qwen-max", "qwen-plus", "qwen-turbo"],
+    defaultModel: process.env.QWEN_MODEL ?? "qwen-plus",
+    models: ["qwen-plus", "qwen-max", "qwen3.5-plus", "qwen3-max"],
     envKey: "QWEN_API_KEY",
   },
   gemini: {
     name: "Gemini",
     // Gemini 的 OpenAI-compatible endpoint
     baseURL: process.env.GEMINI_BASE_URL ?? "https://generativelanguage.googleapis.com/v1beta/openai",
-    defaultModel: process.env.GEMINI_MODEL ?? "gemini-2.5-pro",
-    models: ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-pro-vision"],
+    defaultModel: process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
+    models: ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-flash-preview"],
     envKey: "GEMINI_API_KEY",
   },
 };

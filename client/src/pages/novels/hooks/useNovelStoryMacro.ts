@@ -8,6 +8,7 @@ import type {
   StoryMacroLocks,
   StoryMacroState,
 } from "@ai-novel/shared/types/storyMacro";
+import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   buildNovelStoryConstraintEngine,
@@ -58,7 +59,7 @@ const EMPTY_STATE: StoryMacroState = {
 interface UseNovelStoryMacroInput {
   novelId: string;
   llm: {
-    provider: "deepseek" | "siliconflow" | "openai" | "anthropic" | "grok";
+    provider: LLMProvider;
     model: string;
     temperature: number;
   };

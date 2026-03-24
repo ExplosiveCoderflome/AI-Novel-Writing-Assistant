@@ -1,5 +1,6 @@
 import { useMutation, type QueryClient } from "@tanstack/react-query";
 import type { PipelineRepairMode, PipelineRunMode } from "@ai-novel/shared/types/novel";
+import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import {
   createNovelChapter,
   deleteNovelChapter,
@@ -17,7 +18,7 @@ import type { ChapterReviewResult } from "../chapterPlanning.shared";
 import { buildStructuredOutlineSyncPlan, buildTaskSheetFromStructuredChapter, type OutlineSyncChapter, type StructuredSyncOptions, type StructuredVolume } from "../novelEdit.utils";
 
 interface LlmSettings {
-  provider?: "deepseek" | "siliconflow" | "openai" | "anthropic" | "grok";
+  provider?: LLMProvider;
   model?: string;
   temperature?: number;
 }

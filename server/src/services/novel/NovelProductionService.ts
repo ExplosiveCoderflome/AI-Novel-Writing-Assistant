@@ -1,10 +1,17 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
 import { getLLM } from "../../llm/factory";
 import { WorldService } from "../world/WorldService";
 import { NovelService } from "./NovelService";
 import { collectStream, extractJsonArray, parseStructuredOutline } from "./novelProductionHelpers";
 import { novelProductionStatusService, type ProductionStatusResult } from "./NovelProductionStatusService";
+
+interface NovelLlmOptions {
+  provider?: LLMProvider;
+  model?: string;
+  temperature?: number;
+}
 
 export class NovelProductionService {
   private readonly novelService = new NovelService();
@@ -15,10 +22,7 @@ export class NovelProductionService {
     novelId: string;
     description?: string;
     worldType?: string;
-    provider?: "deepseek" | "siliconflow" | "openai" | "anthropic" | "grok";
-    model?: string;
-    temperature?: number;
-  }) {
+  } & NovelLlmOptions) {
     const novel = await prisma.novel.findUnique({
       where: { id: input.novelId },
       include: {
@@ -94,11 +98,8 @@ export class NovelProductionService {
     genre?: string;
     styleTone?: string;
     narrativePov?: "first_person" | "third_person" | "mixed";
-    provider?: "deepseek" | "siliconflow" | "openai" | "anthropic" | "grok";
-    model?: string;
-    temperature?: number;
     count?: number;
-  }) {
+  } & NovelLlmOptions) {
     const novel = await prisma.novel.findUnique({
       where: { id: input.novelId },
       include: {
@@ -197,10 +198,7 @@ export class NovelProductionService {
 
   async generateStoryBible(input: {
     novelId: string;
-    provider?: "deepseek" | "siliconflow" | "openai" | "anthropic" | "grok";
-    model?: string;
-    temperature?: number;
-  }) {
+  } & NovelLlmOptions) {
     const { stream, onDone } = await this.novelService.createBibleStream(input.novelId, {
       provider: input.provider,
       model: input.model,
@@ -229,10 +227,7 @@ export class NovelProductionService {
   async generateNovelOutline(input: {
     novelId: string;
     description?: string;
-    provider?: "deepseek" | "siliconflow" | "openai" | "anthropic" | "grok";
-    model?: string;
-    temperature?: number;
-  }) {
+  } & NovelLlmOptions) {
     const { stream, onDone } = await this.novelService.createOutlineStream(input.novelId, {
       provider: input.provider,
       model: input.model,
@@ -252,10 +247,7 @@ export class NovelProductionService {
   async generateStructuredOutline(input: {
     novelId: string;
     targetChapterCount?: number;
-    provider?: "deepseek" | "siliconflow" | "openai" | "anthropic" | "grok";
-    model?: string;
-    temperature?: number;
-  }) {
+  } & NovelLlmOptions) {
     const targetChapterCount = input.targetChapterCount ?? 20;
     const { stream, onDone } = await this.novelService.createStructuredOutlineStream(input.novelId, {
       provider: input.provider,
@@ -348,11 +340,8 @@ export class NovelProductionService {
     startOrder?: number;
     endOrder?: number;
     maxRetries?: number;
-    provider?: "deepseek" | "siliconflow" | "openai" | "anthropic" | "grok";
-    model?: string;
-    temperature?: number;
     targetChapterCount?: number;
-  }) {
+  } & NovelLlmOptions) {
     const chapterCount = await prisma.chapter.count({
       where: { novelId: input.novelId },
     });

@@ -298,6 +298,8 @@ model Novel {
   continuationBookAnalysis BookAnalysis? @relation("NovelContinuationBookAnalysis", fields: [continuationBookAnalysisId], references: [id], onDelete: SetNull)
   chapters          Chapter[]
   characters        Character[]
+  characterRelations CharacterRelation[]
+  characterCastOptions CharacterCastOption[]
   characterTimelines CharacterTimeline[]
   bible             NovelBible?
   plotBeats         PlotBeat[]
@@ -399,9 +401,24 @@ model Character {
   id              String   @id @default(cuid())
   name            String
   role            String
+  castRole        String?
+  storyFunction   String?
+  relationToProtagonist String?
   personality     String?
   background      String?
   development     String?
+  outerGoal       String?
+  innerNeed       String?
+  fear            String?
+  wound           String?
+  misbelief       String?
+  secret          String?
+  moralLine       String?
+  firstImpression String?
+  arcStart        String?
+  arcMidpoint     String?
+  arcClimax       String?
+  arcEnd          String?
   currentState    String?
   currentGoal     String?
   lastEvolvedAt   DateTime?
@@ -412,11 +429,103 @@ model Character {
   stateEntries    CharacterState[]
   outgoingRelations RelationState[] @relation("RelationStateSource")
   incomingRelations RelationState[] @relation("RelationStateTarget")
+  outgoingCharacterRelations CharacterRelation[] @relation("CharacterRelationSource")
+  incomingCharacterRelations CharacterRelation[] @relation("CharacterRelationTarget")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@index([novelId])
   @@index([baseCharacterId])
+}
+
+model CharacterRelation {
+  id                String   @id @default(cuid())
+  novelId           String
+  sourceCharacterId String
+  targetCharacterId String
+  surfaceRelation   String
+  hiddenTension     String?
+  conflictSource    String?
+  secretAsymmetry   String?
+  dynamicLabel      String?
+  nextTurnPoint     String?
+  trustScore        Int?
+  conflictScore     Int?
+  intimacyScore     Int?
+  dependencyScore   Int?
+  evidence          String?
+  novel             Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  sourceCharacter   Character @relation("CharacterRelationSource", fields: [sourceCharacterId], references: [id], onDelete: Cascade)
+  targetCharacter   Character @relation("CharacterRelationTarget", fields: [targetCharacterId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([novelId, sourceCharacterId, targetCharacterId])
+  @@index([novelId, updatedAt])
+  @@index([sourceCharacterId])
+  @@index([targetCharacterId])
+}
+
+model CharacterCastOption {
+  id                String   @id @default(cuid())
+  novelId           String
+  title             String
+  summary           String
+  whyItWorks        String?
+  recommendedReason String?
+  status            String   @default("draft")
+  sourceStoryInput  String?
+  novel             Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  members           CharacterCastOptionMember[]
+  relations         CharacterCastOptionRelation[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([novelId, updatedAt])
+}
+
+model CharacterCastOptionMember {
+  id                    String   @id @default(cuid())
+  optionId              String
+  sortOrder             Int
+  name                  String
+  role                  String
+  castRole              String
+  relationToProtagonist String?
+  storyFunction         String
+  shortDescription      String?
+  outerGoal             String?
+  innerNeed             String?
+  fear                  String?
+  wound                 String?
+  misbelief             String?
+  secret                String?
+  moralLine             String?
+  firstImpression       String?
+  option                CharacterCastOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([optionId, sortOrder])
+}
+
+model CharacterCastOptionRelation {
+  id              String   @id @default(cuid())
+  optionId        String
+  sortOrder       Int
+  sourceName      String
+  targetName      String
+  surfaceRelation String
+  hiddenTension   String?
+  conflictSource  String?
+  secretAsymmetry String?
+  dynamicLabel    String?
+  nextTurnPoint   String?
+  option          CharacterCastOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([optionId, sortOrder])
 }
 
 model CharacterTimeline {

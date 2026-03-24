@@ -1,13 +1,16 @@
-export type LLMProvider =
-  | "deepseek"
-  | "siliconflow"
-  | "openai"
-  | "anthropic"
-  | "grok"
-  | "kimi"
-  | "glm"
-  | "qwen"
-  | "gemini";
+export const LLM_PROVIDERS = [
+  "deepseek",
+  "siliconflow",
+  "openai",
+  "anthropic",
+  "grok",
+  "kimi",
+  "glm",
+  "qwen",
+  "gemini",
+] as const;
+
+export type LLMProvider = typeof LLM_PROVIDERS[number];
 
 export interface ModelConfig {
   provider: LLMProvider;

@@ -38,6 +38,15 @@ import { imageGenerationService } from "./services/image/ImageGenerationService"
 import { ragServices } from "./services/rag";
 
 registerNovelEventHandlers(novelEventBus);
+morgan.token("error-message", (_req, res) => {
+  const response = res as typeof res & {
+    locals?: {
+      requestErrorMessage?: unknown;
+    };
+  };
+  const errorMessage = response.locals?.requestErrorMessage;
+  return typeof errorMessage === "string" ? errorMessage.trim() : "";
+});
 
 function parseEnvFlag(value: string | undefined, defaultValue: boolean): boolean {
   if (value === undefined) return defaultValue;
@@ -72,7 +81,16 @@ export function createApp() {
     }),
   );
   app.use(helmet());
-  app.use(morgan("dev"));
+  app.use(morgan((tokens, req, res) => {
+    const method = tokens.method(req, res) ?? "-";
+    const url = tokens.url(req, res) ?? "-";
+    const status = tokens.status(req, res) ?? "-";
+    const responseTime = tokens["response-time"](req, res) ?? "0";
+    const contentLength = tokens.res(req, res, "content-length") ?? "0";
+    const errorMessage = tokens["error-message"](req, res);
+    const errorSuffix = errorMessage ? ` | error: ${errorMessage}` : "";
+    return `${method} ${url} ${status} ${responseTime} ms - ${contentLength}${errorSuffix}`;
+  }));
   app.use(express.json({ limit: jsonBodyLimit }));
 
   app.use("/api/health", healthRouter);

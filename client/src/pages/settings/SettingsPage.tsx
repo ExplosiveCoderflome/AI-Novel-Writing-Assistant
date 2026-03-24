@@ -17,9 +17,12 @@ import {
   testLLMConnection,
 } from "@/api/settings";
 
+const MODEL_BADGE_COLLAPSE_COUNT = 8;
+
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const [editingProvider, setEditingProvider] = useState<LLMProvider | "">("");
+  const [expandedProviders, setExpandedProviders] = useState<Partial<Record<LLMProvider, boolean>>>({});
   const [form, setForm] = useState({
     key: "",
     model: "",
@@ -89,6 +92,13 @@ export default function SettingsPage() {
     () => ragSettings?.providers.find((item) => item.provider === ragSettings.embeddingProvider),
     [ragSettings],
   );
+  const isProviderExpanded = (provider: LLMProvider) => expandedProviders[provider] === true;
+  const toggleProviderExpanded = (provider: LLMProvider) => {
+    setExpandedProviders((prev) => ({
+      ...prev,
+      [provider]: !prev[provider],
+    }));
+  };
 
   return (
     <div className="space-y-4">
@@ -165,16 +175,32 @@ export default function SettingsPage() {
                 </Badge>
               </div>
               <div className="mb-2 text-xs text-muted-foreground">Current model: {item.currentModel}</div>
-              <div className="mb-3 flex flex-wrap gap-1">
-                {item.models.map((model) => (
-                  <Badge
-                    key={model}
-                    variant={model === item.currentModel ? "default" : "outline"}
-                    className={model === item.currentModel ? "bg-primary" : ""}
+              <div className="mb-3 space-y-2">
+                <div className="flex flex-wrap gap-1">
+                  {(isProviderExpanded(item.provider)
+                    ? item.models
+                    : item.models.slice(0, MODEL_BADGE_COLLAPSE_COUNT)
+                  ).map((model) => (
+                    <Badge
+                      key={model}
+                      variant={model === item.currentModel ? "default" : "outline"}
+                      className={model === item.currentModel ? "bg-primary" : ""}
+                    >
+                      {model}
+                    </Badge>
+                  ))}
+                </div>
+                {item.models.length > MODEL_BADGE_COLLAPSE_COUNT ? (
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-primary transition-opacity hover:opacity-80"
+                    onClick={() => toggleProviderExpanded(item.provider)}
                   >
-                    {model}
-                  </Badge>
-                ))}
+                    {isProviderExpanded(item.provider)
+                      ? `收起模型列表`
+                      : `展开全部 ${item.models.length} 个模型`}
+                  </button>
+                ) : null}
               </div>
               <div className="flex gap-2">
                 <Button

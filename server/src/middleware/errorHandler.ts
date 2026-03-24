@@ -14,6 +14,22 @@ export class AppError extends Error {
   }
 }
 
+function joinErrorParts(parts: Array<string | undefined>): string {
+  return parts.map((part) => part?.trim() ?? "").filter(Boolean).join(" | ");
+}
+
+function setRequestErrorMessage(
+  res: Response<ApiResponse<null>>,
+  error: string,
+  detail?: string,
+): void {
+  res.locals.requestErrorMessage = joinErrorParts([error, detail]);
+}
+
+function logServerError(req: Request, error: unknown): void {
+  console.error(`[error] ${req.method} ${req.originalUrl}`, error);
+}
+
 function collectErrorMessages(error: unknown, depth = 0): string[] {
   if (!error || depth > 4) {
     return [];
@@ -81,7 +97,7 @@ function formatUpstreamConnectionError(error: unknown): string | null {
 
 export function errorHandler(
   error: unknown,
-  _req: Request,
+  req: Request,
   res: Response<ApiResponse<null>>,
   _next: NextFunction,
 ): void {
@@ -91,6 +107,7 @@ export function errorHandler(
     && "type" in error
     && (error as { type?: string }).type === "entity.too.large"
   ) {
+    setRequestErrorMessage(res, "请求体过大，请缩短文本或分段上传。");
     res.status(413).json({
       success: false,
       error: "请求体过大，请缩短文本或分段上传。",
@@ -99,19 +116,26 @@ export function errorHandler(
   }
 
   if (error instanceof ZodError) {
+    const detail = error.issues.map((issue) => issue.message).join("; ");
+    setRequestErrorMessage(res, "请求参数校验失败。", detail);
     res.status(400).json({
       success: false,
       error: "请求参数校验失败。",
-      message: error.issues.map((issue) => issue.message).join("; "),
+      message: detail,
     });
     return;
   }
 
   if (error instanceof AppError) {
+    const detail = typeof error.details === "string" ? error.details : undefined;
+    setRequestErrorMessage(res, error.message, detail);
+    if (error.statusCode >= 500) {
+      logServerError(req, error);
+    }
     res.status(error.statusCode).json({
       success: false,
       error: error.message,
-      message: typeof error.details === "string" ? error.details : undefined,
+      message: detail,
     });
     return;
   }
@@ -119,6 +143,8 @@ export function errorHandler(
   const message = error instanceof Error ? error.message : "服务器发生未知错误。";
   const upstreamConnectionMessage = formatUpstreamConnectionError(error);
   if (upstreamConnectionMessage) {
+    setRequestErrorMessage(res, upstreamConnectionMessage);
+    logServerError(req, error);
     res.status(502).json({
       success: false,
       error: upstreamConnectionMessage,
@@ -126,6 +152,8 @@ export function errorHandler(
     return;
   }
 
+  setRequestErrorMessage(res, message);
+  logServerError(req, error);
   res.status(500).json({
     success: false,
     error: message,
