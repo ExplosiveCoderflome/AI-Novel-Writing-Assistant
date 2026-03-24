@@ -1,0 +1,3 @@
+const fs=require('fs'); 
+const files=['client/src/pages/novels/NovelEditPage.tsx','client/src/pages/novels/components/NovelCharacterPanel.tsx','client/src/pages/novels/hooks/useNovelEditInitialization.ts','client/src/pages/novels/hooks/useNovelEditMutations.ts']; 
+for(const p of files){if(!fs.existsSync(p))continue;const s=fs.readFileSync(p,'utf8').split(/\r?\n/);console.log('FILE '+p);for(const k of ['getNovelCharacters','charactersQuery','useQuery','selectedCharacterId','CharacterAssetWorkspace','NovelCharacterPanel']){for(let i=0;i<s.length;i++){if(s[i].includes(k)){console.log('---'+k+' @ '+(i+1));for(let j=Math.max(0,i-3);j<Math.min(s.length,i+12);j++)console.log((j+1)+':'+s[j]);break;}}}} 

@@ -149,6 +149,7 @@
 - Node.js `>= 20`
 - pnpm `>= 9.7`
 - 至少一组可用的 LLM API Key
+  也可以先把项目跑起来，再在页面里配置
 - 如果你要完整体验知识库 / RAG，再额外准备可用的 Qdrant
 
 ### 1. 安装依赖
@@ -159,21 +160,85 @@ pnpm install
 
 ### 2. 配置环境变量
 
-复制根目录的 `.env.example` 为 `.env`，至少补齐下面这些内容：
+这个仓库通过 pnpm workspace 分别启动前后端，所以环境变量也是按子包读取的：
 
-- 一个可用模型提供商，例如 `OPENAI_API_KEY`、`DEEPSEEK_API_KEY`、`SILICONFLOW_API_KEY` 或 `XAI_API_KEY`
-- 如果要使用知识库检索，补齐 `QDRANT_URL` 以及 embedding 相关配置
-- 默认数据库是本地 SQLite，不需要额外安装数据库服务
+- 服务端运行在 `server/` 工作目录，默认读取 `server/.env`
+- 前端运行在 `client/` 工作目录，默认读取 `client/.env` / `client/.env.local`
+- 根目录 `.env.example` 目前更适合当“总览参考”，不是 `pnpm dev` 默认读取的主入口
+
+#### 2.1 服务端环境变量
+
+先复制服务端示例文件：
+
+```bash
+# macOS / Linux
+cp server/.env.example server/.env
+
+# Windows PowerShell
+Copy-Item server/.env.example server/.env
+```
+
+最少建议先确认这些项目：
+
+- `DATABASE_URL`
+  默认就是本地 SQLite，可直接使用
+- `RAG_ENABLED`
+  如果你暂时不接知识库，建议先设为 `false`
+- `QDRANT_URL`、`QDRANT_API_KEY`
+  只有要启用 Qdrant / RAG 时才需要
+
+注意：
+
+- `OPENAI_API_KEY`、`DEEPSEEK_API_KEY`、`SILICONFLOW_API_KEY` 这类变量可以先留空
+- 项目启动后，也可以在页面中配置模型供应商和默认模型
+
+#### 2.2 前端环境变量
+
+大多数本地开发场景，其实不需要单独创建前端 env。
+
+因为前端开发模式下默认会把 API 指到：
+
+```text
+http(s)://当前页面 hostname:3000/api
+```
+
+只有在这些场景下，才建议创建 `client/.env`：
+
+- 前端和后端不在同一台机器
+- 你想把前端显式指向别的 API 地址
+- 你需要固定 `VITE_API_BASE_URL`
 
 示例：
 
 ```bash
 # macOS / Linux
-cp .env.example .env
+cp client/.env.example client/.env
 
 # Windows PowerShell
-Copy-Item .env.example .env
+Copy-Item client/.env.example client/.env
 ```
+
+内容通常只需要：
+
+```env
+VITE_API_BASE_URL=http://localhost:3000/api
+```
+
+#### 2.3 模型供应商并不一定要写死在 env
+
+当前项目已经支持在页面里配置模型相关设置：
+
+- `/settings`
+  配置供应商 API Key、默认模型、连通性测试
+- `/settings/model-routes`
+  给不同任务分配不同 provider / model
+- `/knowledge?tab=settings`
+  配置 Embedding provider、Embedding model、集合命名和自动重建策略
+
+所以环境变量里的 `OPENAI_MODEL`、`DEEPSEEK_MODEL`、`EMBEDDING_MODEL` 等，更适合当作：
+
+- 启动默认值
+- 数据库里还没保存设置时的回退值
 
 ### 3. 启动开发环境
 
@@ -189,17 +254,59 @@ pnpm dev
 
 首次启动服务端时，会自动执行 Prisma generate 和 `db push`。
 
-### 4. 可选初始化
+建议第一次启动后先做这几步：
+
+1. 打开 `http://localhost:5173/settings`，至少配置一组可用的模型供应商 API Key
+2. 打开 `http://localhost:5173/settings/model-routes`，检查各任务实际使用的模型路由
+3. 如果要启用知识库，打开 `http://localhost:5173/knowledge?tab=settings`，保存 Embedding / Collection 设置
+
+### 4. 如果你使用 Qdrant Cloud
+
+如果你只是先体验主流程，其实可以先跳过 Qdrant，直接在 `server/.env` 里设：
+
+```env
+RAG_ENABLED=false
+```
+
+如果你要启用 Qdrant Cloud，可以按下面的最小流程来：
+
+1. 到 [Qdrant Cloud](https://cloud.qdrant.io/) 注册账号。
+2. 在 `Clusters` 页面创建一个集群。
+   测试阶段用 Free cluster 就够了。
+3. 集群创建完成后，到集群详情页复制 Cluster URL。
+4. 在集群详情页的 `API Keys` 中创建并复制一个 Database API Key。
+   这个 key 创建后通常只展示一次，建议立即保存。
+5. 把它们写入 `server/.env`：
+
+```env
+QDRANT_URL=https://your-cluster.region.cloud.qdrant.io:6333
+QDRANT_API_KEY=your_database_api_key
+```
+
+6. 启动项目后，再去 `知识库 -> 向量设置` 页面选择 Embedding provider / model，并保存集合设置。
+
+对这个项目来说，`QDRANT_URL` 建议直接填 REST 地址，也就是带 `:6333` 的地址。
+
+如果你想手动验证连通性，可以用：
+
+```bash
+curl -X GET "https://your-cluster.region.cloud.qdrant.io:6333" \
+  --header "api-key: your_database_api_key"
+```
+
+你也可以把集群地址后面拼上 `:6333/dashboard` 打开 Qdrant Web UI。
+
+Qdrant 官方文档：
+
+- [Create a Cluster](https://qdrant.tech/documentation/cloud/create-cluster/)
+- [Database Authentication in Qdrant Managed Cloud](https://qdrant.tech/documentation/cloud/authentication/)
+- [Cloud Quickstart](https://qdrant.tech/documentation/cloud/quickstart-cloud/)
+
+### 5. 可选初始化
 
 ```bash
 pnpm db:seed
 pnpm db:studio
-```
-
-如果你只想先看主流程，不想先接 Qdrant，可以暂时关闭：
-
-```env
-RAG_ENABLED=false
 ```
 
 ## 常用命令
