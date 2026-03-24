@@ -130,6 +130,11 @@ export async function getNovelDetail(id: string) {
 export async function createNovel(payload: {
   title: string;
   description?: string;
+  targetAudience?: string;
+  bookSellingPoint?: string;
+  competingFeel?: string;
+  first30ChapterPromise?: string;
+  commercialTags?: string[];
   genreId?: string;
   worldId?: string;
   writingMode?: "original" | "continuation";
@@ -159,6 +164,11 @@ export async function updateNovel(
   payload: Partial<{
     title: string;
     description: string;
+    targetAudience: string | null;
+    bookSellingPoint: string | null;
+    competingFeel: string | null;
+    first30ChapterPromise: string | null;
+    commercialTags: string[] | null;
     status: "draft" | "published";
     writingMode: "original" | "continuation";
     projectMode: ProjectMode | null;

@@ -5,6 +5,7 @@ import type { BasicTabProps } from "./NovelEditView.types";
 import NovelBasicInfoForm from "./NovelBasicInfoForm";
 import NovelStyleRecommendationCard from "./NovelStyleRecommendationCard";
 import NovelWorldUsageCard from "./NovelWorldUsageCard";
+import { BookFramingQuickFillButton } from "./basicInfoForm/BookFramingQuickFillButton";
 import NovelTitleWorkshop from "./titleWorkshop/NovelTitleWorkshop";
 
 export default function BasicInfoTab(props: BasicTabProps) {
@@ -12,7 +13,7 @@ export default function BasicInfoTab(props: BasicTabProps) {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>基本信息</CardTitle>
+          <CardTitle>书级定位与基本信息</CardTitle>
         </CardHeader>
         <CardContent>
           <NovelBasicInfoForm
@@ -28,6 +29,13 @@ export default function BasicInfoTab(props: BasicTabProps) {
             onSubmit={props.onSave}
             isSubmitting={props.isSaving}
             submitLabel="保存基本信息"
+            framingQuickFill={(
+              <BookFramingQuickFillButton
+                basicForm={props.basicForm}
+                genreOptions={props.genreOptions}
+                onApplySuggestion={props.onFormChange}
+              />
+            )}
           />
         </CardContent>
       </Card>

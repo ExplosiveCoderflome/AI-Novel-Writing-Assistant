@@ -61,6 +61,11 @@ export class StoryMacroPlanService {
       select: {
         id: true,
         title: true,
+        targetAudience: true,
+        bookSellingPoint: true,
+        competingFeel: true,
+        first30ChapterPromise: true,
+        commercialTagsJson: true,
         styleTone: true,
         narrativePov: true,
         pacePreference: true,

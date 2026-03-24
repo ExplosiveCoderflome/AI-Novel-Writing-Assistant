@@ -53,6 +53,11 @@ export interface Novel {
   id: string;
   title: string;
   description?: string | null;
+  targetAudience?: string | null;
+  bookSellingPoint?: string | null;
+  competingFeel?: string | null;
+  first30ChapterPromise?: string | null;
+  commercialTags: string[];
   status: NovelStatus;
   writingMode: NovelWritingMode;
   projectMode?: ProjectMode | null;

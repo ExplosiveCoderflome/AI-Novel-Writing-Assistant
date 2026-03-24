@@ -1,8 +1,14 @@
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import { formatCommercialTagsInput, normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
 
 export interface NovelBasicFormState {
   title: string;
   description: string;
+  targetAudience: string;
+  bookSellingPoint: string;
+  competingFeel: string;
+  first30ChapterPromise: string;
+  commercialTagsText: string;
   genreId: string;
   worldId: string;
   status: "draft" | "published";
@@ -173,6 +179,11 @@ export const PROJECT_STATUS_OPTIONS: Array<{ value: NovelBasicFormState["project
 
 export const BASIC_INFO_FIELD_HINTS = {
   writingMode: "决定项目是从零开始，还是基于已有作品继续创作。它会直接影响后续优先使用哪些上下文来源。",
+  targetAudience: "说明这本书最主要写给谁看。不会写专业人群画像也没关系，按直觉描述即可。",
+  bookSellingPoint: "写清楚这本书最抓人的点，例如关系拉扯、逆袭爽点、悬念推进或设定新鲜感。",
+  competingFeel: "写成读者会联想到的阅读感，不是要求你模仿具体作品。",
+  first30ChapterPromise: "写清楚前 30 章一定要让读者看到什么、爽到什么、相信什么。",
+  commercialTagsText: "用逗号分隔 3-6 个标签即可，例如逆袭、强冲突、悬念拉满、职场博弈。",
   projectMode: "决定你和 AI 的协作方式。会影响后续哪些步骤自动推进、哪些步骤更依赖人工确认。",
   narrativePov: "决定章节生成默认采用哪种叙述视角，也会影响信息分发方式。",
   pacePreference: "决定章节规划时是偏铺垫还是偏推进，会影响场景密度和钩子强度。",
@@ -193,6 +204,11 @@ export function createDefaultNovelBasicFormState(): NovelBasicFormState {
   return {
     title: "",
     description: "",
+    targetAudience: "",
+    bookSellingPoint: "",
+    competingFeel: "",
+    first30ChapterPromise: "",
+    commercialTagsText: "",
     genreId: "",
     worldId: "",
     status: "draft",
@@ -262,9 +278,15 @@ export function patchNovelBasicForm(
 }
 
 export function buildNovelCreatePayload(basicForm: NovelBasicFormState) {
+  const commercialTags = normalizeCommercialTags(basicForm.commercialTagsText);
   return {
     title: basicForm.title.trim(),
     description: basicForm.description.trim() || undefined,
+    targetAudience: basicForm.targetAudience.trim() || undefined,
+    bookSellingPoint: basicForm.bookSellingPoint.trim() || undefined,
+    competingFeel: basicForm.competingFeel.trim() || undefined,
+    first30ChapterPromise: basicForm.first30ChapterPromise.trim() || undefined,
+    commercialTags: commercialTags.length > 0 ? commercialTags : undefined,
     genreId: basicForm.genreId || undefined,
     worldId: basicForm.worldId || undefined,
     writingMode: basicForm.writingMode,
@@ -306,9 +328,15 @@ export function buildNovelCreatePayload(basicForm: NovelBasicFormState) {
 }
 
 export function buildNovelUpdatePayload(basicForm: NovelBasicFormState) {
+  const commercialTags = normalizeCommercialTags(basicForm.commercialTagsText);
   return {
     title: basicForm.title,
     description: basicForm.description,
+    targetAudience: basicForm.targetAudience.trim() || null,
+    bookSellingPoint: basicForm.bookSellingPoint.trim() || null,
+    competingFeel: basicForm.competingFeel.trim() || null,
+    first30ChapterPromise: basicForm.first30ChapterPromise.trim() || null,
+    commercialTags: commercialTags.length > 0 ? commercialTags : null,
     genreId: basicForm.genreId || null,
     worldId: basicForm.worldId || null,
     status: basicForm.status,
@@ -349,3 +377,5 @@ export function buildNovelUpdatePayload(basicForm: NovelBasicFormState) {
         : null,
   };
 }
+
+export { formatCommercialTagsInput };

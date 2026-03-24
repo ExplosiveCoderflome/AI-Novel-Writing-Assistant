@@ -8,6 +8,7 @@ import type {
 import { z } from "zod";
 import { prisma } from "../../db/prisma";
 import { getLLM } from "../../llm/factory";
+import { buildBookFramingSummary } from "../novel/bookFraming";
 import { ensureStyleEngineSeedData } from "./StyleEngineSeedService";
 import { clamp, extractJsonObject, mapStyleProfileRow, toLlmText } from "./helpers";
 
@@ -93,6 +94,11 @@ function buildProfileSummary(profile: StyleProfile): string {
 function buildNovelSummary(novel: {
   title: string;
   description: string | null;
+  targetAudience: string | null;
+  bookSellingPoint: string | null;
+  competingFeel: string | null;
+  first30ChapterPromise: string | null;
+  commercialTagsJson: string | null;
   styleTone: string | null;
   narrativePov: string | null;
   pacePreference: string | null;
@@ -104,10 +110,12 @@ function buildNovelSummary(novel: {
   genre?: { name: string } | null;
   world?: { name: string; worldType: string | null } | null;
 }, chapterCount: number): string {
+  const bookFramingSummary = buildBookFramingSummary(novel);
   return [
     `标题：${novel.title}`,
     novel.genre?.name ? `题材：${novel.genre.name}` : "",
     novel.description?.trim() ? `简介：${truncateText(novel.description, 220)}` : "",
+    bookFramingSummary ? `书级 framing：\n${bookFramingSummary}` : "",
     novel.styleTone?.trim() ? `文风关键词：${novel.styleTone.trim()}` : "",
     novel.narrativePov ? `叙事视角：${novel.narrativePov}` : "",
     novel.pacePreference ? `节奏偏好：${novel.pacePreference}` : "",
@@ -210,10 +218,10 @@ export class StyleRecommendationService {
       "你是小说写法资产推荐器，服务对象是完全不会写作的小白用户。",
       "你的任务是从提供的写法资产列表中，挑出最适合当前小说的 2-3 套候选。",
       "只能从给定列表中选择，不允许杜撰新的写法资产 ID 或名称。",
-      "优先考虑：题材匹配、叙事视角匹配、节奏匹配、语言质感匹配、是否能帮助小白稳定写完整本书。",
+      "优先考虑：目标读者匹配、前 30 章承诺兑现能力、商业标签匹配、题材匹配、叙事视角匹配、节奏匹配、语言质感匹配、是否能帮助小白稳定写完整本书。",
       "输出必须是 JSON 对象，格式为：",
       "{\"summary\":\"...\",\"candidates\":[{\"styleProfileId\":\"...\",\"fitScore\":88,\"recommendationReason\":\"...\",\"caution\":\"...\"}]}",
-      "要求：fitScore 为 0-100 的整数；recommendationReason 说清楚为什么适合这本书；caution 可为空。",
+      "要求：fitScore 为 0-100 的整数；recommendationReason 必须说清楚为什么适合这本书的目标读者和前 30 章承诺；caution 可为空。",
       `请输出 ${targetCount} 个候选；如果确实只有 1 套明显合适，也至少给 1 个。`,
       "不要输出额外解释文字。",
     ].join("\n");

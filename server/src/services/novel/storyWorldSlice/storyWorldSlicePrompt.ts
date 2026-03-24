@@ -6,6 +6,7 @@ import type {
   WorldBindingSupport,
   WorldStructuredData,
 } from "@ai-novel/shared/types/world";
+import { buildBookFramingSummary } from "../bookFraming";
 
 function formatRules(structure: WorldStructuredData): string {
   if (structure.rules.axioms.length === 0) {
@@ -60,6 +61,11 @@ export function buildStoryWorldSlicePrompt(input: {
     id: string;
     title: string;
     description?: string | null;
+    targetAudience?: string | null;
+    bookSellingPoint?: string | null;
+    competingFeel?: string | null;
+    first30ChapterPromise?: string | null;
+    commercialTagsJson?: string | null;
     styleTone?: string | null;
     narrativePov?: string | null;
     pacePreference?: string | null;
@@ -72,11 +78,13 @@ export function buildStoryWorldSlicePrompt(input: {
   builderMode: StoryWorldSliceBuilderMode;
 }): { system: string; user: string } {
   const { novel, structure, bindingSupport, storyInput, overrides, builderMode } = input;
+  const bookFramingSummary = buildBookFramingSummary(novel);
   return {
     system: [
       "你是小说世界接入规划器。",
       "你的任务不是复述整个世界百科，而是把上游世界设定裁剪成『这本书会真正用到的世界设定』。",
       "必须优先保留：会实际影响这本书冲突、地点调度、规则约束、悬念来源和压力来源的部分。",
+      "裁剪时必须优先围绕目标读者、核心卖点、商业标签和前 30 章承诺决定保留什么世界内容。",
       "不要把所有世界设定都塞进结果。必须主动删掉和当前故事无关的设定。",
       "如果用户输入的故事想法与世界边界或禁止搭配明显冲突，必须在 storyScopeBoundary 和 forbiddenCombinations 中体现冲突风险。",
       "只允许输出严格 JSON，不要解释。",
@@ -102,6 +110,7 @@ export function buildStoryWorldSlicePrompt(input: {
     user: [
       `小说标题：${novel.title}`,
       novel.description?.trim() ? `小说简介：${novel.description.trim()}` : "",
+      bookFramingSummary ? `书级 framing：\n${bookFramingSummary}` : "",
       storyInput.trim() ? `当前故事想法：${storyInput.trim()}` : "当前故事想法：暂无，按小说已知简介和世界设定裁剪。",
       `当前用途：${builderMode}`,
       novel.styleTone ? `风格倾向：${novel.styleTone}` : "",

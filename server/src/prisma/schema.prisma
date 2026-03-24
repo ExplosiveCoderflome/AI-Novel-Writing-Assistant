@@ -265,6 +265,11 @@ model Novel {
   id                String      @id @default(cuid())
   title             String
   description       String?
+  targetAudience    String?
+  bookSellingPoint  String?
+  competingFeel     String?
+  first30ChapterPromise String?
+  commercialTagsJson String?
   status            String      @default("draft")
   writingMode       String      @default("original")
   projectMode       ProjectMode?

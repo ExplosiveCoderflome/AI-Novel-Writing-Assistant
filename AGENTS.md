@@ -35,7 +35,9 @@
 ## Architecture Rules
 
 - If a single source file becomes too long, it must be split into functional modules.
-- Hard threshold: when a source file exceeds 500 lines, refactoring and modularization are mandatory before continuing feature expansion.
+- Preferred threshold: keep a single source file around 600 lines.
+- Floating range: 500-700 lines is acceptable when module cohesion is still clear and the file is not becoming hard to maintain.
+- Hard threshold: when a source file exceeds 700 lines, refactoring and modularization are mandatory before continuing feature expansion.
 
 ## README Release Notes Workflow
 

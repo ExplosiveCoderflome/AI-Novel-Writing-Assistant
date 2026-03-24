@@ -1,4 +1,5 @@
 import type { StoryMacroField, StoryMacroFieldValue, StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
+import { buildBookFramingSummary } from "../bookFraming";
 import {
   EMPTY_DECOMPOSITION,
   EMPTY_EXPANSION,
@@ -12,6 +13,11 @@ import {
 export interface StoryMacroNovelContext {
   id: string;
   title: string;
+  targetAudience: string | null;
+  bookSellingPoint: string | null;
+  competingFeel: string | null;
+  first30ChapterPromise: string | null;
+  commercialTagsJson: string | null;
   styleTone: string | null;
   narrativePov: string | null;
   pacePreference: string | null;
@@ -21,9 +27,11 @@ export interface StoryMacroNovelContext {
 }
 
 export function formatProjectContext(novel: StoryMacroNovelContext, worldSliceContext = ""): string {
+  const bookFramingSummary = buildBookFramingSummary(novel);
   return [
     novel.title ? `项目标题：${novel.title}` : "",
     novel.genre?.name ? `预设题材：${novel.genre.name}` : "",
+    bookFramingSummary ? `书级 framing：\n${bookFramingSummary}` : "",
     novel.styleTone ? `风格倾向：${novel.styleTone}` : "",
     novel.narrativePov ? `叙事人称：${novel.narrativePov}` : "",
     novel.pacePreference ? `节奏偏好：${novel.pacePreference}` : "",

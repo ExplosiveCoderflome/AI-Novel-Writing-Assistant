@@ -7,6 +7,7 @@ const { creativeHubLangGraph } = require("../dist/creativeHub/CreativeHubLangGra
 const { creativeHubService } = require("../dist/creativeHub/CreativeHubService.js");
 const { llmConnectivityService } = require("../dist/llm/connectivity.js");
 const { NovelService } = require("../dist/services/novel/NovelService.js");
+const { NovelFramingSuggestionService } = require("../dist/services/novel/NovelFramingSuggestionService.js");
 const { ragServices } = require("../dist/services/rag/index.js");
 
 function listen(server) {
@@ -24,6 +25,19 @@ async function safeDeleteCreativeHubThread(threadId) {
   }
   try {
     await creativeHubService.deleteThread(threadId);
+  } catch {
+    // Ignore cleanup failures in shared dev/test environments.
+  }
+}
+
+async function safeDeleteNovel(port, novelId) {
+  if (!novelId) {
+    return;
+  }
+  try {
+    await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}`, {
+      method: "DELETE",
+    });
   } catch {
     // Ignore cleanup failures in shared dev/test environments.
   }
@@ -285,6 +299,106 @@ test("creative hub thread create and state routes return success payloads", asyn
     assert.ok(Array.isArray(statePayload.data.messages));
   } finally {
     await safeDeleteCreativeHubThread(createdThreadId);
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("novel routes preserve book framing fields through create-get-update cycle", async () => {
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  let novelId = null;
+
+  try {
+    const createResponse = await fetch(`http://127.0.0.1:${port}/api/novels`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        title: `book-framing-route-${Date.now()}`,
+        description: "测试书级 framing roundtrip。",
+        targetAudience: "爱看都市高压逆袭的读者",
+        bookSellingPoint: "每次现实困局都会撬动更大的利益链。",
+        competingFeel: "现实职场压迫感里带强反压。",
+        first30ChapterPromise: "前 30 章必须让核心对手浮出水面。",
+        commercialTags: ["逆袭", "强冲突", "职场博弈"],
+      }),
+    });
+    assert.equal(createResponse.status, 201);
+    const createPayload = await createResponse.json();
+    assert.equal(createPayload.success, true);
+    assert.equal(createPayload.data.targetAudience, "爱看都市高压逆袭的读者");
+    assert.deepEqual(createPayload.data.commercialTags, ["逆袭", "强冲突", "职场博弈"]);
+    novelId = createPayload.data.id;
+
+    const detailResponse = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}`);
+    assert.equal(detailResponse.status, 200);
+    const detailPayload = await detailResponse.json();
+    assert.equal(detailPayload.data.bookSellingPoint, "每次现实困局都会撬动更大的利益链。");
+    assert.equal(detailPayload.data.competingFeel, "现实职场压迫感里带强反压。");
+    assert.equal(detailPayload.data.first30ChapterPromise, "前 30 章必须让核心对手浮出水面。");
+
+    const updateResponse = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        targetAudience: "爱看现实强冲突和关系拉扯的读者",
+        first30ChapterPromise: "前 30 章必须让主角完成第一次强反压。",
+        competingFeel: null,
+        commercialTags: ["关系拉扯", "现实高压", "持续钩子"],
+      }),
+    });
+    assert.equal(updateResponse.status, 200);
+    const updatePayload = await updateResponse.json();
+    assert.equal(updatePayload.data.targetAudience, "爱看现实强冲突和关系拉扯的读者");
+    assert.equal(updatePayload.data.competingFeel, null);
+    assert.deepEqual(updatePayload.data.commercialTags, ["关系拉扯", "现实高压", "持续钩子"]);
+
+    const detailAfterUpdateResponse = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}`);
+    assert.equal(detailAfterUpdateResponse.status, 200);
+    const detailAfterUpdatePayload = await detailAfterUpdateResponse.json();
+    assert.equal(detailAfterUpdatePayload.data.first30ChapterPromise, "前 30 章必须让主角完成第一次强反压。");
+    assert.deepEqual(detailAfterUpdatePayload.data.commercialTags, ["关系拉扯", "现实高压", "持续钩子"]);
+  } finally {
+    await safeDeleteNovel(port, novelId);
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("POST /api/novels/framing/suggest returns book framing suggestion", async () => {
+  const originalSuggest = NovelFramingSuggestionService.prototype.suggest;
+  NovelFramingSuggestionService.prototype.suggest = async () => ({
+    targetAudience: "爱看高压逆袭和关系拉扯的读者",
+    commercialTags: ["逆袭", "强冲突", "持续钩子"],
+    competingFeel: "现实压力下的高密度反压阅读感",
+    bookSellingPoint: "主角每次解决困局都会撬动更大的利益链。",
+    first30ChapterPromise: "前 30 章必须让核心对手浮出水面并完成第一次强反压。",
+  });
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/novels/framing/suggest`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        title: "雾港审判局",
+        description: "一个被压制的基层调查员，在雾港权力体系里不断反压上位。",
+      }),
+    });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    assert.equal(payload.data.targetAudience, "爱看高压逆袭和关系拉扯的读者");
+    assert.deepEqual(payload.data.commercialTags, ["逆袭", "强冲突", "持续钩子"]);
+  } finally {
+    NovelFramingSuggestionService.prototype.suggest = originalSuggest;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });

@@ -75,9 +75,9 @@ export default function NovelWorldUsageCard(props: NovelWorldUsageCardProps) {
       <CardHeader className="space-y-3">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
-            <CardTitle>这本书会用到的世界设定</CardTitle>
+            <CardTitle>围绕这本书的世界边界</CardTitle>
             <div className="text-sm leading-6 text-muted-foreground">
-              系统会自动从已绑定的世界里裁出当前这本书真正会用到的组织、地点和规则。你通常只需要确认主舞台和少量必须保留项。
+              系统会结合这本书的目标读者、卖点和前期承诺，从已绑定世界里裁出真正会用到的组织、地点和规则。你通常只需要确认主舞台、前期必须保留项和不要越界的边界说明。
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -171,7 +171,7 @@ export default function NovelWorldUsageCard(props: NovelWorldUsageCardProps) {
             <div className="rounded-lg border border-border/70 px-4 py-4">
               <div className="text-sm font-medium text-foreground">如果你想手动指定，只改这几项就够了</div>
               <div className="mt-1 text-sm leading-6 text-muted-foreground">
-                主舞台 = 故事最常发生的地点。必须保留 = 无论系统怎么裁剪，都要强制带进来的组织、地点或规则。
+                主舞台 = 故事最常发生的地点。前期必须保留 = 无论系统怎么裁剪，都要强制带进来的组织、地点或规则。
               </div>
 
               <div className="mt-4 space-y-4">
@@ -191,7 +191,7 @@ export default function NovelWorldUsageCard(props: NovelWorldUsageCardProps) {
                 </div>
 
                 <div>
-                  <div className="text-sm font-medium text-foreground">必须保留的组织</div>
+                  <div className="text-sm font-medium text-foreground">前期必须保留的组织</div>
                   <div className="mt-2 grid gap-2">
                     {props.view?.availableForces.length ? props.view.availableForces.map((item) => (
                       <label key={item.id} className="flex items-start gap-3 rounded-md border border-border/60 px-3 py-2 text-sm">
@@ -211,7 +211,7 @@ export default function NovelWorldUsageCard(props: NovelWorldUsageCardProps) {
                 </div>
 
                 <div>
-                  <div className="text-sm font-medium text-foreground">必须保留的地点</div>
+                  <div className="text-sm font-medium text-foreground">前期必须保留的地点</div>
                   <div className="mt-2 grid gap-2">
                     {props.view?.availableLocations.length ? props.view.availableLocations.map((item) => (
                       <label key={item.id} className="flex items-start gap-3 rounded-md border border-border/60 px-3 py-2 text-sm">
@@ -231,7 +231,7 @@ export default function NovelWorldUsageCard(props: NovelWorldUsageCardProps) {
                 </div>
 
                 <div>
-                  <div className="text-sm font-medium text-foreground">必须保留的规则</div>
+                  <div className="text-sm font-medium text-foreground">前期必须保留的规则</div>
                   <div className="mt-2 grid gap-2">
                     {props.view?.availableRules.length ? props.view.availableRules.map((item) => (
                       <label key={item.id} className="flex items-start gap-3 rounded-md border border-border/60 px-3 py-2 text-sm">
@@ -252,7 +252,7 @@ export default function NovelWorldUsageCard(props: NovelWorldUsageCardProps) {
 
                 <div>
                   <label className="text-sm font-medium text-foreground" htmlFor="story-world-scope-note">
-                    额外说明
+                    前期不要越界的边界说明
                   </label>
                   <div className="mt-1 text-sm leading-6 text-muted-foreground">
                     如果你想补一句边界说明，比如“保留现实都市基底，不要转成玄幻升级文”，写在这里。

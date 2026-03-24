@@ -9,6 +9,7 @@ import { getWorldList } from "@/api/world";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import NovelAutoDirectorDialog from "./components/NovelAutoDirectorDialog";
 import NovelBasicInfoForm from "./components/NovelBasicInfoForm";
+import { BookFramingQuickFillButton } from "./components/basicInfoForm/BookFramingQuickFillButton";
 import NovelCreateTitleQuickFill from "./components/titleWorkshop/NovelCreateTitleQuickFill";
 import { useNovelContinuationSources } from "./hooks/useNovelContinuationSources";
 import {
@@ -31,6 +32,7 @@ export default function NovelCreate() {
     queryKey: queryKeys.genres.all,
     queryFn: getGenreTree,
   });
+  const genreOptions = flattenGenreTreeOptions(genreTreeQuery.data?.data ?? []);
 
   const {
     sourceBookAnalysesQuery,
@@ -82,13 +84,13 @@ export default function NovelCreate() {
         <CardHeader>
           <CardTitle>创建小说项目</CardTitle>
           <CardDescription>
-            先把项目的基本信息定义清楚。这里的设置会直接影响后续主线规划、章节计划和 AI 生成行为，创建后仍可继续调整。
+            先把这本书写给谁、靠什么吸引追读、前 30 章要兑现什么定义清楚。这里的设置会直接影响后续主线规划、世界边界、写法建议和 AI 生成行为，创建后仍可继续调整。
           </CardDescription>
         </CardHeader>
         <CardContent>
           <NovelBasicInfoForm
             basicForm={basicForm}
-            genreOptions={flattenGenreTreeOptions(genreTreeQuery.data?.data ?? [])}
+            genreOptions={genreOptions}
             worldOptions={worldListQuery.data?.data ?? []}
             sourceNovelOptions={sourceNovelOptions}
             sourceKnowledgeOptions={sourceKnowledgeOptions}
@@ -100,6 +102,13 @@ export default function NovelCreate() {
             isSubmitting={createNovelMutation.isPending}
             submitLabel="创建并进入项目"
             showPublicationStatus={false}
+            framingQuickFill={(
+              <BookFramingQuickFillButton
+                basicForm={basicForm}
+                genreOptions={genreOptions}
+                onApplySuggestion={(patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch))}
+              />
+            )}
             projectQuickStart={(
               <NovelAutoDirectorDialog
                 basicForm={basicForm}

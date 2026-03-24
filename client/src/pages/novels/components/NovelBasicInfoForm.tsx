@@ -21,6 +21,7 @@ import {
   SelectionCard,
   findOptionSummary,
 } from "./basicInfoForm/BasicInfoFormPrimitives";
+import { BookFramingSection } from "./basicInfoForm/BookFramingSection";
 import { ContinuationSourceSection } from "./basicInfoForm/ContinuationSourceSection";
 
 interface WorldOption {
@@ -54,6 +55,7 @@ interface NovelBasicInfoFormProps {
   submitLabel: string;
   showPublicationStatus?: boolean;
   titleQuickFill?: ReactNode;
+  framingQuickFill?: ReactNode;
   projectQuickStart?: ReactNode;
 }
 
@@ -73,6 +75,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
     submitLabel,
     showPublicationStatus = true,
     titleQuickFill,
+    framingQuickFill,
     projectQuickStart,
   } = props;
 
@@ -95,7 +98,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
       <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
         <div className="text-sm font-semibold text-foreground">填写建议</div>
         <div className="mt-1 text-sm leading-6 text-muted-foreground">
-          建议先完成标题、创作模式、项目模式、叙事视角，再补节奏、情绪和续写来源。这里的设置会直接影响后续主线规划、章节计划和正文生成。
+          建议先想清楚这本书写给谁、靠什么吸引人、前 30 章要兑现什么，再补创作模式、世界边界和写法确认。这里的设置会直接影响后续主线规划、卷章推进和正文生成。
         </div>
         {projectQuickStart ? <div className="mt-3 flex justify-end">{projectQuickStart}</div> : null}
       </div>
@@ -126,6 +129,12 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
             onChange={(event) => onFormChange({ description: event.target.value })}
           />
         </div>
+
+        <BookFramingSection
+          basicForm={basicForm}
+          onFormChange={onFormChange}
+          quickFill={framingQuickFill}
+        />
 
         <div className="space-y-2">
           <FieldLabel hint={BASIC_INFO_FIELD_HINTS.writingMode}>创作模式</FieldLabel>

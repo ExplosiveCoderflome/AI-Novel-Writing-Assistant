@@ -3,6 +3,7 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { AuditReport, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import { parseCommercialTagsJson, serializeCommercialTagsJson } from "@ai-novel/shared/types/novelFraming";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { prisma } from "../../db/prisma";
 import { getLLM } from "../../llm/factory";
@@ -43,6 +44,11 @@ interface PaginationInput {
 interface CreateNovelInput {
   title: string;
   description?: string;
+  targetAudience?: string;
+  bookSellingPoint?: string;
+  competingFeel?: string;
+  first30ChapterPromise?: string;
+  commercialTags?: string[];
   genreId?: string;
   worldId?: string;
   writingMode?: "original" | "continuation";
@@ -67,6 +73,11 @@ interface CreateNovelInput {
 interface UpdateNovelInput {
   title?: string;
   description?: string;
+  targetAudience?: string | null;
+  bookSellingPoint?: string | null;
+  competingFeel?: string | null;
+  first30ChapterPromise?: string | null;
+  commercialTags?: string[] | null;
   status?: "draft" | "published";
   writingMode?: "original" | "continuation";
   projectMode?: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline" | null;
@@ -534,6 +545,25 @@ function serializeContinuationBookAnalysisSections(
   return JSON.stringify(Array.from(new Set(normalized)));
 }
 
+function normalizeOptionalTextForCreate(value: string | null | undefined): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.trim();
+  return normalized || null;
+}
+
+function normalizeOptionalTextForUpdate(value: string | null | undefined): string | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === null) {
+    return null;
+  }
+  const normalized = value.trim();
+  return normalized || null;
+}
+
 function normalizeStorylineLines(content: string): string[] {
   return content
     .split(/\r?\n/)
@@ -588,13 +618,26 @@ export class NovelCoreService {
   private readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator();
   private readonly generationContextAssembler = new GenerationContextAssembler();
 
-  private normalizeNovelOutput<T extends { continuationBookAnalysisSections?: string | null }>(
+  private normalizeNovelOutput<T extends {
+    continuationBookAnalysisSections?: string | null;
+    commercialTagsJson?: string | null;
+  }>(
     novel: T,
-  ): Omit<T, "continuationBookAnalysisSections"> & { continuationBookAnalysisSections: BookAnalysisSectionKey[] | null } {
+  ): Omit<T, "continuationBookAnalysisSections" | "commercialTagsJson"> & {
+    continuationBookAnalysisSections: BookAnalysisSectionKey[] | null;
+    commercialTags: string[];
+  } {
+    const {
+      continuationBookAnalysisSections,
+      commercialTagsJson,
+      ...rest
+    } = novel;
     const parsedSections = parseContinuationBookAnalysisSections(novel.continuationBookAnalysisSections);
+    const commercialTags = parseCommercialTagsJson(commercialTagsJson);
     return {
-      ...novel,
+      ...rest,
       continuationBookAnalysisSections: parsedSections,
+      commercialTags,
     };
   }
 
@@ -633,6 +676,7 @@ export class NovelCoreService {
     const continuationBookAnalysisSections = serializeContinuationBookAnalysisSections(
       input.continuationBookAnalysisSections,
     );
+    const commercialTagsJson = serializeCommercialTagsJson(input.commercialTags);
     await novelContinuationService.validateWritingModeConfig({
       writingMode,
       sourceNovelId,
@@ -644,6 +688,11 @@ export class NovelCoreService {
       data: {
         title: input.title,
         description: input.description,
+        targetAudience: normalizeOptionalTextForCreate(input.targetAudience),
+        bookSellingPoint: normalizeOptionalTextForCreate(input.bookSellingPoint),
+        competingFeel: normalizeOptionalTextForCreate(input.competingFeel),
+        first30ChapterPromise: normalizeOptionalTextForCreate(input.first30ChapterPromise),
+        commercialTagsJson,
         genreId: input.genreId,
         worldId: input.worldId,
         writingMode,
@@ -925,8 +974,19 @@ export class NovelCoreService {
       continuationBookAnalysisId: normalizedNextContinuationBookAnalysisId,
     });
 
-    const { continuationBookAnalysisSections: _ignoreSectionPatch, ...restInput } = input;
+    const {
+      continuationBookAnalysisSections: _ignoreSectionPatch,
+      targetAudience: _ignoreTargetAudience,
+      bookSellingPoint: _ignoreBookSellingPoint,
+      competingFeel: _ignoreCompetingFeel,
+      first30ChapterPromise: _ignoreFirst30ChapterPromise,
+      commercialTags: _ignoreCommercialTags,
+      ...restInput
+    } = input;
     const serializedContinuationSections = serializeContinuationBookAnalysisSections(nextContinuationBookAnalysisSections);
+    const commercialTagsJson = input.commercialTags !== undefined
+      ? serializeCommercialTagsJson(input.commercialTags)
+      : undefined;
     const nextWorldId = input.worldId !== undefined ? input.worldId : existing.worldId;
     const shouldResetWorldSlice = nextWorldId !== existing.worldId;
     const updated = await prisma.novel.update({
@@ -936,6 +996,11 @@ export class NovelCoreService {
         sourceNovelId: nextWritingMode === "continuation" ? nextSourceNovelId : null,
         sourceKnowledgeDocumentId: nextWritingMode === "continuation" ? nextSourceKnowledgeDocumentId : null,
         continuationBookAnalysisId: normalizedNextContinuationBookAnalysisId,
+        targetAudience: normalizeOptionalTextForUpdate(input.targetAudience),
+        bookSellingPoint: normalizeOptionalTextForUpdate(input.bookSellingPoint),
+        competingFeel: normalizeOptionalTextForUpdate(input.competingFeel),
+        first30ChapterPromise: normalizeOptionalTextForUpdate(input.first30ChapterPromise),
+        commercialTagsJson,
         continuationBookAnalysisSections:
           nextWritingMode === "continuation"
           && (nextSourceNovelId || nextSourceKnowledgeDocumentId)
@@ -3109,8 +3174,7 @@ ${ragContext || ""}`,
         }
       }
     }
-    return prisma.novel.findUnique({ where: { id: novelId } });
+    const restored = await prisma.novel.findUnique({ where: { id: novelId } });
+    return restored ? this.normalizeNovelOutput(restored) : null;
   }
 }
-
-

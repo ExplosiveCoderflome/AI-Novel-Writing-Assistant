@@ -70,7 +70,7 @@ export default function NovelStyleRecommendationCard({ novelId }: NovelStyleReco
         <div className="space-y-1">
           <CardTitle>正文开写前的写法确认</CardTitle>
           <div className="text-sm leading-6 text-muted-foreground">
-            不在创建阶段强制你先挑写法。等这本书的方向初步明确后，再让系统帮你推荐更合适的写法资产。
+            不在创建阶段强制你先挑写法。等这本书的目标读者、卖点和前 30 章承诺初步明确后，再让系统帮你推荐更合适的写法资产。
           </div>
         </div>
         <Button asChild type="button" variant="outline">
@@ -110,7 +110,7 @@ export default function NovelStyleRecommendationCard({ novelId }: NovelStyleReco
 
             {!recommendation && !recommendMutation.isPending ? (
               <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                先让系统根据这本小说的题材、文风关键词、叙事视角和规划方向推荐 2-3 套候选写法，再决定是否采用。
+                先让系统根据这本小说的目标读者、前 30 章承诺、题材、文风关键词和叙事方向推荐 2-3 套候选写法，再决定是否采用。
               </div>
             ) : null}
 

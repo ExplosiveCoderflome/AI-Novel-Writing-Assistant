@@ -3,6 +3,7 @@ import type { BaseCharacter, Character } from "@ai-novel/shared/types/novel";
 import type { NovelDetailResponse } from "@/api/novel";
 import {
   DEFAULT_ESTIMATED_CHAPTER_COUNT,
+  formatCommercialTagsInput,
   type NovelBasicFormState,
 } from "../novelBasicInfo.shared";
 
@@ -91,6 +92,11 @@ export function useNovelEditInitialization({
     setBasicForm({
       title: detail.title,
       description: detail.description ?? "",
+      targetAudience: detail.targetAudience ?? "",
+      bookSellingPoint: detail.bookSellingPoint ?? "",
+      competingFeel: detail.competingFeel ?? "",
+      first30ChapterPromise: detail.first30ChapterPromise ?? "",
+      commercialTagsText: formatCommercialTagsInput(detail.commercialTags ?? []),
       genreId: detail.genreId ?? "",
       worldId: detail.worldId ?? "",
       status: detail.status,
