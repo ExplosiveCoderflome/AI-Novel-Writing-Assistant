@@ -53,14 +53,14 @@ export default function NovelEditView(props: NovelEditViewProps) {
     },
     {
       key: "outline",
-      label: "故事主线",
-      description: "明确主线承诺与阶段推进方向。",
+      label: "卷级工作台",
+      description: "明确每一卷的主承诺、升级方式和卷末高潮。",
       ready: outlineTab.draftText.trim().length > 0,
     },
     {
       key: "structured",
-      label: "生成规划",
-      description: "把主线拆成章节级的可执行规划。",
+      label: "卷纲/章纲",
+      description: "把卷级承诺拆成可同步到章节执行的章纲。",
       ready: structuredTab.draftText.trim().length > 0,
     },
     {

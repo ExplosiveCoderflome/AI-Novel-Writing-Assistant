@@ -1,117 +1,39 @@
-import { useMemo, useRef, useState } from "react";
-import type { StorylineDiff, StorylineVersion } from "@ai-novel/shared/types/novel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import LLMSelector from "@/components/common/LLMSelector";
-import StreamOutput from "@/components/common/StreamOutput";
 import WorldInjectionHint from "./WorldInjectionHint";
-import { parseStorylineStructuredView } from "./storylineView.utils";
+import type { OutlineTabViewProps } from "./NovelEditView.types";
 
-interface StorylineImpactResult {
-  novelId: string;
-  sourceVersion: number | null;
-  affectedCharacters: number;
-  affectedChapters: number;
-  changedLines: number;
-  requiresOutlineRebuild: boolean;
-  recommendations: {
-    shouldSyncOutline: boolean;
-    shouldRecheckCharacters: boolean;
-    suggestedStrategy: "rebuild_outline" | "incremental_sync";
-  };
-}
-
-interface OutlineTabProps {
-  worldInjectionSummary: string | null;
-  hasCharacters: boolean;
-  isGenerating: boolean;
-  streamContent: string;
-  onGenerate: () => void;
-  onStop: () => void;
-  onAbortStream: () => void;
-  onGoToCharacterTab: () => void;
-  generationPrompt: string;
-  onGenerationPromptChange: (next: string) => void;
-  draftText: string;
-  onDraftTextChange: (next: string) => void;
-  onSave: () => void;
-  isSaving: boolean;
-  optimizeInstruction: string;
-  onOptimizeInstructionChange: (next: string) => void;
-  onOptimizeFull: () => void;
-  onOptimizeSelection: (selectedText: string) => void;
-  isOptimizing: boolean;
-  optimizePreview: string;
-  onApplyOptimizePreview: () => void;
-  onCancelOptimizePreview: () => void;
-  storylineMessage: string;
-  storylineVersions: StorylineVersion[];
-  selectedVersionId: string;
-  onSelectedVersionChange: (id: string) => void;
-  onCreateDraftVersion: () => void;
-  isCreatingDraftVersion: boolean;
-  onLoadSelectedVersionToDraft: () => void;
-  onActivateVersion: () => void;
-  isActivatingVersion: boolean;
-  onFreezeVersion: () => void;
-  isFreezingVersion: boolean;
-  onLoadVersionDiff: () => void;
-  isLoadingVersionDiff: boolean;
-  diffResult: StorylineDiff | null;
-  onAnalyzeDraftImpact: () => void;
-  isAnalyzingDraftImpact: boolean;
-  onAnalyzeVersionImpact: () => void;
-  isAnalyzingVersionImpact: boolean;
-  impactResult: StorylineImpactResult | null;
-}
-
-function statusLabel(status: StorylineVersion["status"]): string {
-  if (status === "active") {
-    return "已生效";
-  }
-  if (status === "frozen") {
-    return "已冻结";
-  }
+function versionStatusLabel(status: "draft" | "active" | "frozen"): string {
+  if (status === "active") return "已生效";
+  if (status === "frozen") return "已冻结";
   return "草稿";
 }
 
-function statusVariant(status: StorylineVersion["status"]): "secondary" | "outline" | "default" {
-  if (status === "active") {
-    return "default";
-  }
-  if (status === "frozen") {
-    return "outline";
-  }
+function versionStatusVariant(status: "draft" | "active" | "frozen"): "secondary" | "outline" | "default" {
+  if (status === "active") return "default";
+  if (status === "frozen") return "outline";
   return "secondary";
 }
 
-export default function OutlineTab(props: OutlineTabProps) {
+export default function OutlineTab(props: OutlineTabViewProps) {
   const {
     worldInjectionSummary,
     hasCharacters,
     isGenerating,
-    streamContent,
     onGenerate,
-    onStop,
-    onAbortStream,
     onGoToCharacterTab,
-    generationPrompt,
-    onGenerationPromptChange,
     draftText,
-    onDraftTextChange,
+    volumes,
+    onVolumeFieldChange,
+    onOpenPayoffsChange,
+    onAddVolume,
+    onRemoveVolume,
+    onMoveVolume,
     onSave,
     isSaving,
-    optimizeInstruction,
-    onOptimizeInstructionChange,
-    onOptimizeFull,
-    onOptimizeSelection,
-    isOptimizing,
-    optimizePreview,
-    onApplyOptimizePreview,
-    onCancelOptimizePreview,
-    storylineMessage,
-    storylineVersions,
+    volumeMessage,
+    volumeVersions,
     selectedVersionId,
     onSelectedVersionChange,
     onCreateDraftVersion,
@@ -131,185 +53,149 @@ export default function OutlineTab(props: OutlineTabProps) {
     impactResult,
   } = props;
 
-  const [viewMode, setViewMode] = useState<"text" | "structured">("text");
-  const [selectedText, setSelectedText] = useState("");
-  const draftTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const selectedVersion = useMemo(
-    () => storylineVersions.find((item) => item.id === selectedVersionId),
-    [selectedVersionId, storylineVersions],
-  );
-  const structuredView = useMemo(() => parseStorylineStructuredView(draftText), [draftText]);
-
-  const collectSelectedText = () => {
-    const element = draftTextareaRef.current;
-    if (!element) {
-      return "";
-    }
-    const segment = element.value.slice(element.selectionStart, element.selectionEnd).trim();
-    setSelectedText(segment);
-    return segment;
-  };
+  const selectedVersion = volumeVersions.find((item) => item.id === selectedVersionId);
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>故事主线</CardTitle>
-        <LLMSelector />
+        <CardTitle>卷级工作台</CardTitle>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onAddVolume}>新增卷</Button>
+          <Button onClick={onGenerate} disabled={isGenerating || !hasCharacters}>
+            {isGenerating ? "生成中..." : "从宏观规划生成"}
+          </Button>
+          <Button variant="secondary" onClick={onSave} disabled={isSaving}>
+            {isSaving ? "保存中..." : "保存卷级方案"}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <WorldInjectionHint worldInjectionSummary={worldInjectionSummary} />
         {!hasCharacters ? (
           <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
-            <span>建议先为本小说添加至少 1 个角色，再生成主线草稿。</span>
+            <span>建议先补齐角色，再生成卷级方案。</span>
             <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>去角色管理</Button>
           </div>
         ) : null}
-        {storylineMessage ? <div className="text-xs text-muted-foreground">{storylineMessage}</div> : null}
+        {volumeMessage ? <div className="text-xs text-muted-foreground">{volumeMessage}</div> : null}
 
-        <div className="grid gap-4 xl:grid-cols-[1.55fr_1fr]">
+        <div className="grid gap-4 xl:grid-cols-[1.65fr_1fr]">
           <div className="space-y-3">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">主线输出</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground">
-                    生成提示词（可选）。每次点击“生成主线草稿”都会按提示重新生成，不会直接覆盖生效版。
-                  </div>
-                  <textarea
-                    className="min-h-[72px] w-full rounded-md border bg-background p-2 text-sm"
-                    placeholder="例如：偏悬疑节奏、前30章慢热成长、情感线保持克制。"
-                    value={generationPrompt}
-                    onChange={(event) => onGenerationPromptChange(event.target.value)}
-                  />
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={onGenerate} disabled={isGenerating}>生成主线草稿</Button>
-                  <Button variant="secondary" onClick={onStop} disabled={!isGenerating}>停止生成</Button>
-                </div>
-                <StreamOutput isStreaming={isGenerating} content={streamContent} onAbort={onAbortStream} />
-
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={viewMode === "text" ? "default" : "outline"}
-                    onClick={() => setViewMode("text")}
-                  >
-                    文本版
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={viewMode === "structured" ? "default" : "outline"}
-                    onClick={() => setViewMode("structured")}
-                  >
-                    结构版
-                  </Button>
-                </div>
-
-                {viewMode === "text" ? (
-                  <textarea
-                    ref={draftTextareaRef}
-                    className="min-h-[420px] w-full rounded-md border bg-background p-3 text-sm"
-                    placeholder="主线草稿会显示在这里，可继续编辑。"
-                    value={draftText}
-                    onSelect={collectSelectedText}
-                    onChange={(event) => onDraftTextChange(event.target.value)}
-                  />
-                ) : (
-                  <div className="grid gap-2 md:grid-cols-2">
-                    <div className="rounded-md border p-2 text-xs">
-                      <div className="text-muted-foreground">核心主题</div>
-                      <div>{structuredView.coreTheme}</div>
+            {volumes.length === 0 ? (
+              <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
+                当前还没有卷级方案。可以先点击“从宏观规划生成”，也可以手动新增第一卷。
+              </div>
+            ) : (
+              volumes.map((volume, index) => (
+                <Card key={volume.id}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">第{volume.sortOrder}卷</Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {volume.chapters.length > 0
+                            ? `章节 ${volume.chapters[0]?.chapterOrder}-${volume.chapters[volume.chapters.length - 1]?.chapterOrder}`
+                            : "未拆章"}
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => onMoveVolume(volume.id, -1)} disabled={index === 0}>上移</Button>
+                        <Button size="sm" variant="outline" onClick={() => onMoveVolume(volume.id, 1)} disabled={index === volumes.length - 1}>下移</Button>
+                        <Button size="sm" variant="outline" onClick={() => onRemoveVolume(volume.id)} disabled={volumes.length <= 1}>删除</Button>
+                      </div>
                     </div>
-                    <div className="rounded-md border p-2 text-xs">
-                      <div className="text-muted-foreground">主线目标</div>
-                      <div>{structuredView.mainGoal}</div>
-                    </div>
-                    <div className="rounded-md border p-2 text-xs">
-                      <div className="text-muted-foreground">前期推进</div>
-                      <div>{structuredView.earlyPhase}</div>
-                    </div>
-                    <div className="rounded-md border p-2 text-xs">
-                      <div className="text-muted-foreground">中期推进</div>
-                      <div>{structuredView.middlePhase}</div>
-                    </div>
-                    <div className="rounded-md border p-2 text-xs">
-                      <div className="text-muted-foreground">后期推进</div>
-                      <div>{structuredView.latePhase}</div>
-                    </div>
-                    <div className="rounded-md border p-2 text-xs">
-                      <div className="text-muted-foreground">成长路径</div>
-                      <div>{structuredView.growthCurve}</div>
-                    </div>
-                    <div className="rounded-md border p-2 text-xs">
-                      <div className="text-muted-foreground">情感线趋势</div>
-                      <div>{structuredView.emotionTrend}</div>
-                    </div>
-                    <div className="rounded-md border p-2 text-xs">
-                      <div className="text-muted-foreground">核心冲突</div>
-                      <div>{structuredView.coreConflicts}</div>
-                    </div>
-                    <div className="rounded-md border p-2 text-xs">
-                      <div className="text-muted-foreground">结局方向</div>
-                      <div>{structuredView.endingDirection}</div>
-                    </div>
-                    <div className="rounded-md border p-2 text-xs">
-                      <div className="text-muted-foreground">禁止事项</div>
-                      <div>{structuredView.forbiddenItems}</div>
-                    </div>
-                  </div>
-                )}
-                <Button onClick={onSave} disabled={isSaving}>{isSaving ? "保存中..." : "保存主线草稿"}</Button>
-              </CardContent>
-            </Card>
+                  </CardHeader>
+                  <CardContent className="grid gap-3 md:grid-cols-2">
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">卷标题</span>
+                      <input
+                        className="w-full rounded-md border bg-background p-2"
+                        value={volume.title}
+                        onChange={(event) => onVolumeFieldChange(volume.id, "title", event.target.value)}
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">卷摘要</span>
+                      <textarea
+                        className="min-h-[84px] w-full rounded-md border bg-background p-2"
+                        value={volume.summary ?? ""}
+                        onChange={(event) => onVolumeFieldChange(volume.id, "summary", event.target.value)}
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">主承诺</span>
+                      <textarea
+                        className="min-h-[84px] w-full rounded-md border bg-background p-2"
+                        value={volume.mainPromise ?? ""}
+                        onChange={(event) => onVolumeFieldChange(volume.id, "mainPromise", event.target.value)}
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">升级方式</span>
+                      <textarea
+                        className="min-h-[84px] w-full rounded-md border bg-background p-2"
+                        value={volume.escalationMode ?? ""}
+                        onChange={(event) => onVolumeFieldChange(volume.id, "escalationMode", event.target.value)}
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">主角变化</span>
+                      <textarea
+                        className="min-h-[84px] w-full rounded-md border bg-background p-2"
+                        value={volume.protagonistChange ?? ""}
+                        onChange={(event) => onVolumeFieldChange(volume.id, "protagonistChange", event.target.value)}
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">卷末高潮</span>
+                      <textarea
+                        className="min-h-[84px] w-full rounded-md border bg-background p-2"
+                        value={volume.climax ?? ""}
+                        onChange={(event) => onVolumeFieldChange(volume.id, "climax", event.target.value)}
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">下卷钩子</span>
+                      <textarea
+                        className="min-h-[84px] w-full rounded-md border bg-background p-2"
+                        value={volume.nextVolumeHook ?? ""}
+                        onChange={(event) => onVolumeFieldChange(volume.id, "nextVolumeHook", event.target.value)}
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">卷间重置点</span>
+                      <textarea
+                        className="min-h-[84px] w-full rounded-md border bg-background p-2"
+                        value={volume.resetPoint ?? ""}
+                        onChange={(event) => onVolumeFieldChange(volume.id, "resetPoint", event.target.value)}
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm md:col-span-2">
+                      <span className="text-xs text-muted-foreground">本卷未兑现事项</span>
+                      <textarea
+                        className="min-h-[84px] w-full rounded-md border bg-background p-2"
+                        placeholder="每行一个，或用中文逗号分隔。"
+                        value={volume.openPayoffs.join("\n")}
+                        onChange={(event) => onOpenPayoffsChange(volume.id, event.target.value)}
+                      />
+                    </label>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
 
           <div className="space-y-3">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">AI修正</CardTitle>
+                <CardTitle className="text-base">卷级文本预览</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2 text-sm">
+              <CardContent>
                 <textarea
-                  className="min-h-[90px] w-full rounded-md border bg-background p-2 text-sm"
-                  placeholder="输入修正指令，例如：增强中期冲突并提前埋情感线伏笔。"
-                  value={optimizeInstruction}
-                  onChange={(event) => onOptimizeInstructionChange(event.target.value)}
+                  className="min-h-[260px] w-full rounded-md border bg-muted/20 p-3 text-sm"
+                  readOnly
+                  value={draftText}
                 />
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={onOptimizeFull} disabled={isOptimizing || !draftText.trim()}>
-                    {isOptimizing ? "优化中..." : "优化全文"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      const currentSelection = collectSelectedText();
-                      if (!currentSelection) {
-                        return;
-                      }
-                      onOptimizeSelection(currentSelection);
-                    }}
-                    disabled={isOptimizing || !draftText.trim() || viewMode !== "text"}
-                  >
-                    优化选中文本
-                  </Button>
-                </div>
-                {viewMode === "text" ? (
-                  <div className="text-xs text-muted-foreground">
-                    当前选中：{selectedText ? `${selectedText.slice(0, 40)}${selectedText.length > 40 ? "..." : ""}` : "未选中"}
-                  </div>
-                ) : null}
-                {optimizePreview ? (
-                  <div className="space-y-2 rounded-md border p-2">
-                    <div className="text-xs text-muted-foreground">优化预览</div>
-                    <div className="max-h-36 overflow-auto whitespace-pre-wrap text-xs">{optimizePreview}</div>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={onApplyOptimizePreview}>应用预览</Button>
-                      <Button size="sm" variant="outline" onClick={onCancelOptimizePreview}>取消</Button>
-                    </div>
-                  </div>
-                ) : null}
               </CardContent>
             </Card>
 
@@ -318,16 +204,16 @@ export default function OutlineTab(props: OutlineTabProps) {
                 <CardTitle className="text-base">版本控制</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
-                {storylineVersions.length > 0 ? (
+                {volumeVersions.length > 0 ? (
                   <>
                     <select
                       className="w-full rounded-md border bg-background p-2 text-sm"
                       value={selectedVersionId}
                       onChange={(event) => onSelectedVersionChange(event.target.value)}
                     >
-                      {storylineVersions.map((version) => (
+                      {volumeVersions.map((version) => (
                         <option key={version.id} value={version.id}>
-                          V{version.version} · {statusLabel(version.status)}
+                          V{version.version} · {versionStatusLabel(version.status)}
                         </option>
                       ))}
                     </select>
@@ -335,24 +221,24 @@ export default function OutlineTab(props: OutlineTabProps) {
                       <div className="rounded-md border p-2">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">V{selectedVersion.version}</span>
-                          <Badge variant={statusVariant(selectedVersion.status)}>
-                            {statusLabel(selectedVersion.status)}
+                          <Badge variant={versionStatusVariant(selectedVersion.status)}>
+                            {versionStatusLabel(selectedVersion.status)}
                           </Badge>
                         </div>
                         <div className="text-xs text-muted-foreground">
                           创建时间：{new Date(selectedVersion.createdAt).toLocaleString()}
                         </div>
-                        <div className="mt-1 line-clamp-3 text-xs text-muted-foreground">
+                        <div className="mt-1 line-clamp-4 text-xs text-muted-foreground">
                           {selectedVersion.diffSummary || "暂无差异摘要"}
                         </div>
                       </div>
                     ) : null}
                   </>
                 ) : (
-                  <div className="text-xs text-muted-foreground">还没有主线版本，请先将草稿保存为版本。</div>
+                  <div className="text-xs text-muted-foreground">还没有卷级版本，请先保存草稿版本。</div>
                 )}
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={onCreateDraftVersion} disabled={isCreatingDraftVersion || !draftText.trim()}>
+                  <Button onClick={onCreateDraftVersion} disabled={isCreatingDraftVersion || volumes.length === 0}>
                     {isCreatingDraftVersion ? "保存中..." : "保存为草稿版本"}
                   </Button>
                   <Button variant="outline" onClick={onLoadSelectedVersionToDraft} disabled={!selectedVersionId}>
@@ -371,13 +257,21 @@ export default function OutlineTab(props: OutlineTabProps) {
                 {diffResult ? (
                   <div className="rounded-md border p-2 text-xs">
                     <div className="font-medium">
-                      差异预览 V{diffResult.version} · {statusLabel(diffResult.status)}
+                      差异预览 V{diffResult.version}
                     </div>
                     <div className="text-muted-foreground">
-                      影响角色 {diffResult.affectedCharacters} | 影响章节 {diffResult.affectedChapters} | 变更行数 {diffResult.changedLines}
+                      变更卷 {diffResult.changedVolumeCount} | 波及章节 {diffResult.changedChapterCount} | 变更行数 {diffResult.changedLines}
                     </div>
-                    <div className="mt-1 whitespace-pre-wrap text-muted-foreground">
-                      {diffResult.diffSummary || "暂无差异摘要"}
+                    <div className="mt-1 space-y-1">
+                      {diffResult.changedVolumes.map((volume) => (
+                        <div key={`${volume.sortOrder}-${volume.title}`} className="rounded border p-1.5">
+                          <div>第{volume.sortOrder}卷《{volume.title}》</div>
+                          <div className="text-muted-foreground">字段：{volume.changedFields.join("、")}</div>
+                          {volume.chapterOrders.length > 0 ? (
+                            <div className="text-muted-foreground">章节：{volume.chapterOrders.join("、")}</div>
+                          ) : null}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ) : null}
@@ -390,7 +284,7 @@ export default function OutlineTab(props: OutlineTabProps) {
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" onClick={onAnalyzeDraftImpact} disabled={isAnalyzingDraftImpact || !draftText.trim()}>
+                  <Button variant="outline" onClick={onAnalyzeDraftImpact} disabled={isAnalyzingDraftImpact || volumes.length === 0}>
                     {isAnalyzingDraftImpact ? "分析中..." : "分析当前草稿"}
                   </Button>
                   <Button variant="outline" onClick={onAnalyzeVersionImpact} disabled={isAnalyzingVersionImpact || !selectedVersionId}>
@@ -399,22 +293,21 @@ export default function OutlineTab(props: OutlineTabProps) {
                 </div>
                 {impactResult ? (
                   <div className="rounded-md border p-2 text-xs">
-                    <div className="font-medium">主线影响预览</div>
+                    <div className="font-medium">卷级影响预览</div>
                     <div className="text-muted-foreground">
-                      影响角色 {impactResult.affectedCharacters} | 影响章节 {impactResult.affectedChapters} | 变更行数 {impactResult.changedLines}
+                      影响卷 {impactResult.affectedVolumeCount} | 波及章节 {impactResult.affectedChapterCount} | 变更行数 {impactResult.changedLines}
                     </div>
                     <div className="text-muted-foreground">
-                      建议策略：{impactResult.recommendations.suggestedStrategy === "rebuild_outline" ? "重建大纲" : "增量同步"}
+                      需要同步章节：{impactResult.requiresChapterSync ? "是" : "否"} | 需要复核角色：{impactResult.requiresCharacterReview ? "是" : "否"}
                     </div>
-                    <div className="text-muted-foreground">
-                      同步章节大纲：{impactResult.recommendations.shouldSyncOutline ? "建议" : "可选"} | 人设复检：{impactResult.recommendations.shouldRecheckCharacters ? "建议" : "可选"}
-                    </div>
-                    <div className="text-muted-foreground">
-                      {impactResult.requiresOutlineRebuild ? "建议先查看差异后重建大纲。" : "可优先同步受影响章节。"}
-                    </div>
+                    {impactResult.recommendedActions.length > 0 ? (
+                      <div className="mt-1 text-muted-foreground">
+                        建议动作：{impactResult.recommendedActions.join("、")}
+                      </div>
+                    ) : null}
                   </div>
                 ) : (
-                  <div className="text-xs text-muted-foreground">生成主线草稿后先做影响分析，再决定是否设为生效版。</div>
+                  <div className="text-xs text-muted-foreground">建议在生效前先做卷级影响分析。</div>
                 )}
               </CardContent>
             </Card>

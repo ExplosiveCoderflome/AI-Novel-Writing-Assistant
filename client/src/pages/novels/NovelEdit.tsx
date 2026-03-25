@@ -2,12 +2,13 @@ import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
-import type { PipelineRepairMode, PipelineRunMode, ReviewIssue } from "@ai-novel/shared/types/novel";
+import type { PipelineRepairMode, PipelineRunMode, ReviewIssue, VolumePlan } from "@ai-novel/shared/types/novel";
 import NovelEditView from "./components/NovelEditView";
 import { getBaseCharacterList } from "@/api/character";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
 import {
   auditNovelChapter,
+  generateNovelVolumes,
   generateChapterPlan,
   getChapterAuditReports,
   getChapterPlan,
@@ -21,7 +22,7 @@ import { getWorldList } from "@/api/world";
 import { queryKeys } from "@/api/queryKeys";
 import { useSSE } from "@/hooks/useSSE";
 import { useLLMStore } from "@/store/llmStore";
-import { buildWorldInjectionSummary, parseStructuredVolumes, replaceFirstOccurrence, type OutlineSyncChapter } from "./novelEdit.utils";
+import { buildWorldInjectionSummary } from "./novelEdit.utils";
 import type { QuickCharacterCreatePayload } from "./components/characterPanel.utils";
 import type { ChapterExecutionStrategy } from "./chapterExecution.utils";
 import { useNovelCharacterMutations } from "./hooks/useNovelCharacterMutations";
@@ -31,30 +32,44 @@ import { useNovelEditMutations } from "./hooks/useNovelEditMutations";
 import { useNovelEditInitialization } from "./hooks/useNovelEditInitialization";
 import { useNovelWorldSlice } from "./hooks/useNovelWorldSlice";
 import { useNovelStoryMacro } from "./hooks/useNovelStoryMacro";
-import { useStorylineVersionControl } from "./hooks/useStorylineVersionControl";
+import { useVolumeVersionControl } from "./hooks/useVolumeVersionControl";
 import type { ChapterReviewResult } from "./chapterPlanning.shared";
 import {
   DEFAULT_ESTIMATED_CHAPTER_COUNT,
   createDefaultNovelBasicFormState,
   patchNovelBasicForm,
 } from "./novelBasicInfo.shared";
+import {
+  applyVolumeChapterBatch,
+  buildOutlinePreviewFromVolumes,
+  buildStructuredPreviewFromVolumes,
+  buildVolumeSyncPreview,
+  createEmptyChapter,
+  createEmptyVolume,
+  normalizeVolumeDraft,
+  type ExistingOutlineChapter,
+  type VolumeSyncOptions,
+} from "./volumePlan.utils";
 export default function NovelEdit() {
   const { id = "" } = useParams();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("basic");
   const [basicForm, setBasicForm] = useState(() => createDefaultNovelBasicFormState());
-  const [outlineText, setOutlineText] = useState("");
-  const [outlineGenerationPrompt, setOutlineGenerationPrompt] = useState("");
+  const [volumeDraft, setVolumeDraft] = useState<VolumePlan[]>([]);
+  const [volumeGenerationMessage, setVolumeGenerationMessage] = useState("");
   const [outlineOptimizeInstruction, setOutlineOptimizeInstruction] = useState("");
   const [outlineOptimizePreview, setOutlineOptimizePreview] = useState("");
   const [outlineOptimizeMode, setOutlineOptimizeMode] = useState<"full" | "selection">("full");
   const [outlineOptimizeSourceText, setOutlineOptimizeSourceText] = useState("");
-  const [structuredDraftText, setStructuredDraftText] = useState("");
   const [structuredOptimizeInstruction, setStructuredOptimizeInstruction] = useState("");
   const [structuredOptimizePreview, setStructuredOptimizePreview] = useState("");
   const [structuredOptimizeMode, setStructuredOptimizeMode] = useState<"full" | "selection">("full");
   const [structuredOptimizeSourceText, setStructuredOptimizeSourceText] = useState("");
+  const [volumeSyncOptions, setVolumeSyncOptions] = useState<VolumeSyncOptions>({
+    preserveContent: true,
+    applyDeletes: false,
+  });
   const [currentJobId, setCurrentJobId] = useState("");
   const [pipelineForm, setPipelineForm] = useState({
     startOrder: 1,
@@ -171,12 +186,20 @@ export default function NovelEdit() {
     },
   });
 
-  const structuredVolumes = useMemo(
-    () => parseStructuredVolumes(structuredDraftText),
-    [structuredDraftText],
+  const normalizedVolumeDraft = useMemo(
+    () => normalizeVolumeDraft(volumeDraft),
+    [volumeDraft],
+  );
+  const outlineText = useMemo(
+    () => buildOutlinePreviewFromVolumes(normalizedVolumeDraft),
+    [normalizedVolumeDraft],
+  );
+  const structuredDraftText = useMemo(
+    () => buildStructuredPreviewFromVolumes(normalizedVolumeDraft),
+    [normalizedVolumeDraft],
   );
   const chapters = useMemo(() => novelDetailQuery.data?.data?.chapters ?? [], [novelDetailQuery.data?.data?.chapters]);
-  const outlineSyncChapters = useMemo<OutlineSyncChapter[]>(
+  const outlineSyncChapters = useMemo<ExistingOutlineChapter[]>(
     () => chapters.map((chapter) => ({
       id: chapter.id,
       order: chapter.order,
@@ -190,6 +213,10 @@ export default function NovelEdit() {
       taskSheet: chapter.taskSheet ?? null,
     })),
     [chapters],
+  );
+  const volumeSyncPreview = useMemo(
+    () => buildVolumeSyncPreview(normalizedVolumeDraft, outlineSyncChapters, volumeSyncOptions),
+    [normalizedVolumeDraft, outlineSyncChapters, volumeSyncOptions],
   );
   const selectedChapter = useMemo(
     () => chapters.find((item) => item.id === selectedChapterId),
@@ -252,8 +279,7 @@ export default function NovelEdit() {
     sourceBookAnalysesLoading: sourceBookAnalysesQuery.isLoading,
     sourceBookAnalysesFetching: sourceBookAnalysesQuery.isFetching,
     setBasicForm,
-    setOutlineText,
-    setStructuredDraftText,
+    setVolumeDraft,
     setPipelineForm,
     setSelectedChapterId,
     setSelectedCharacterId,
@@ -273,13 +299,6 @@ export default function NovelEdit() {
     }
   };
 
-  const outlineSSE = useSSE({ onDone: (fullContent) => setOutlineText(fullContent) });
-  const structuredSSE = useSSE({
-    onDone: async (fullContent) => {
-      setStructuredDraftText(fullContent);
-      await invalidateNovelDetail();
-    },
-  });
   const chapterSSE = useSSE({ onDone: invalidateNovelDetail });
   const bibleSSE = useSSE({ onDone: invalidateNovelDetail });
   const beatsSSE = useSSE({ onDone: invalidateNovelDetail });
@@ -315,7 +334,7 @@ export default function NovelEdit() {
     setStructuredOptimizePreview,
     setStructuredOptimizeMode,
     setStructuredOptimizeSourceText,
-    structuredVolumes,
+    volumeDraft: normalizedVolumeDraft,
     llm,
     pipelineForm,
     selectedChapterId,
@@ -328,7 +347,21 @@ export default function NovelEdit() {
     setReviewResult,
     queryClient,
     invalidateNovelDetail,
-    chapters: outlineSyncChapters,
+  });
+
+  const generateVolumeMutation = useMutation({
+    mutationFn: () => generateNovelVolumes(id, {
+      provider: llm.provider,
+      model: llm.model,
+      temperature: llm.temperature,
+    }),
+    onSuccess: (response) => {
+      setVolumeDraft(response.data?.volumes ?? []);
+      setVolumeGenerationMessage(response.message ?? "卷级方案已生成。");
+    },
+    onError: (error) => {
+      setVolumeGenerationMessage(error instanceof Error ? error.message : "生成卷级方案失败。");
+    },
   });
 
   const generateChapterPlanMutation = useMutation({
@@ -414,8 +447,8 @@ export default function NovelEdit() {
   });
 
   const {
-    storylineMessage,
-    storylineVersions,
+    volumeMessage,
+    volumeVersions,
     selectedVersionId,
     setSelectedVersionId,
     diffResult,
@@ -427,13 +460,157 @@ export default function NovelEdit() {
     analyzeDraftImpactMutation,
     analyzeVersionImpactMutation,
     loadSelectedVersionToDraft,
-  } = useStorylineVersionControl({
+  } = useVolumeVersionControl({
     novelId: id,
-    draftText: outlineText,
-    setDraftText: setOutlineText,
+    draftVolumes: normalizedVolumeDraft,
+    setDraftVolumes: setVolumeDraft,
     queryClient,
     invalidateNovelDetail,
   });
+
+  const updateVolumeDraft = (updater: (prev: VolumePlan[]) => VolumePlan[]) => {
+    setVolumeDraft((prev) => normalizeVolumeDraft(updater(prev)));
+  };
+
+  const handleVolumeFieldChange = (
+    volumeId: string,
+    field: keyof Pick<VolumePlan, "title" | "summary" | "mainPromise" | "escalationMode" | "protagonistChange" | "climax" | "nextVolumeHook" | "resetPoint">,
+    value: string,
+  ) => {
+    updateVolumeDraft((prev) => prev.map((volume) => (
+      volume.id === volumeId ? { ...volume, [field]: value } : volume
+    )));
+  };
+
+  const handleOpenPayoffsChange = (volumeId: string, value: string) => {
+    const nextPayoffs = value
+      .split(/[\n,，;；、]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    updateVolumeDraft((prev) => prev.map((volume) => (
+      volume.id === volumeId ? { ...volume, openPayoffs: nextPayoffs } : volume
+    )));
+  };
+
+  const handleAddVolume = () => {
+    updateVolumeDraft((prev) => [
+      ...prev,
+      createEmptyVolume(prev.length + 1, prev.flatMap((volume) => volume.chapters).length + 1),
+    ]);
+  };
+
+  const handleRemoveVolume = (volumeId: string) => {
+    updateVolumeDraft((prev) => prev.filter((volume) => volume.id !== volumeId));
+  };
+
+  const handleMoveVolume = (volumeId: string, direction: -1 | 1) => {
+    updateVolumeDraft((prev) => {
+      const list = prev.slice();
+      const index = list.findIndex((volume) => volume.id === volumeId);
+      const targetIndex = index + direction;
+      if (index < 0 || targetIndex < 0 || targetIndex >= list.length) {
+        return prev;
+      }
+      const [item] = list.splice(index, 1);
+      list.splice(targetIndex, 0, item);
+      return list;
+    });
+  };
+
+  const handleChapterFieldChange = (
+    volumeId: string,
+    chapterId: string,
+    field: keyof Pick<VolumePlan["chapters"][number], "title" | "summary" | "purpose" | "mustAvoid" | "taskSheet">,
+    value: string,
+  ) => {
+    updateVolumeDraft((prev) => prev.map((volume) => (
+      volume.id !== volumeId
+        ? volume
+        : {
+          ...volume,
+          chapters: volume.chapters.map((chapter) => (
+            chapter.id === chapterId ? { ...chapter, [field]: value } : chapter
+          )),
+        }
+    )));
+  };
+
+  const handleChapterNumberChange = (
+    volumeId: string,
+    chapterId: string,
+    field: keyof Pick<VolumePlan["chapters"][number], "conflictLevel" | "revealLevel" | "targetWordCount">,
+    value: number | null,
+  ) => {
+    updateVolumeDraft((prev) => prev.map((volume) => (
+      volume.id !== volumeId
+        ? volume
+        : {
+          ...volume,
+          chapters: volume.chapters.map((chapter) => (
+            chapter.id === chapterId ? { ...chapter, [field]: value } : chapter
+          )),
+        }
+    )));
+  };
+
+  const handleChapterPayoffRefsChange = (volumeId: string, chapterId: string, value: string) => {
+    const nextRefs = value
+      .split(/[\n,，;；、]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    updateVolumeDraft((prev) => prev.map((volume) => (
+      volume.id !== volumeId
+        ? volume
+        : {
+          ...volume,
+          chapters: volume.chapters.map((chapter) => (
+            chapter.id === chapterId ? { ...chapter, payoffRefs: nextRefs } : chapter
+          )),
+        }
+    )));
+  };
+
+  const handleAddChapter = (volumeId: string) => {
+    updateVolumeDraft((prev) => prev.map((volume) => (
+      volume.id !== volumeId
+        ? volume
+        : {
+          ...volume,
+          chapters: [
+            ...volume.chapters,
+            createEmptyChapter(prev.flatMap((item) => item.chapters).length + 1),
+          ],
+        }
+    )));
+  };
+
+  const handleRemoveChapter = (volumeId: string, chapterId: string) => {
+    updateVolumeDraft((prev) => prev.map((volume) => (
+      volume.id !== volumeId
+        ? volume
+        : {
+          ...volume,
+          chapters: volume.chapters.filter((chapter) => chapter.id !== chapterId),
+        }
+    )));
+  };
+
+  const handleMoveChapter = (volumeId: string, chapterId: string, direction: -1 | 1) => {
+    updateVolumeDraft((prev) => prev.map((volume) => {
+      if (volume.id !== volumeId) {
+        return volume;
+      }
+      const chaptersInVolume = volume.chapters.slice();
+      const index = chaptersInVolume.findIndex((chapter) => chapter.id === chapterId);
+      const targetIndex = index + direction;
+      if (index < 0 || targetIndex < 0 || targetIndex >= chaptersInVolume.length) {
+        return volume;
+      }
+      const [item] = chaptersInVolume.splice(index, 1);
+      chaptersInVolume.splice(targetIndex, 0, item);
+      return { ...volume, chapters: chaptersInVolume };
+    }));
+  };
 
   const startOutlineGeneration = () => {
     if (!hasCharacters) {
@@ -443,17 +620,12 @@ export default function NovelEdit() {
       }
     }
     if (outlineText.trim()) {
-      const confirmed = window.confirm("将生成新的主线草稿。生成后建议先查看差异与影响分析，再设为生效版。是否继续？");
+      const confirmed = window.confirm("将生成新的卷级草稿。生成后建议先查看差异与影响分析，再设为生效版。是否继续？");
       if (!confirmed) {
         return;
       }
     }
-    void outlineSSE.start(`/novels/${id}/outline/generate`, {
-      provider: llm.provider,
-      model: llm.model,
-      temperature: llm.temperature,
-      initialPrompt: outlineGenerationPrompt.trim() || undefined,
-    });
+    generateVolumeMutation.mutate();
   };
 
   const goToCharacterTab = () => setActiveTab("character");
@@ -490,8 +662,63 @@ export default function NovelEdit() {
     onSaveWorldSliceOverrides: saveWorldSliceOverrides,
     isSaving: saveBasicMutation.isPending,
   };
-  const outlineTab = { worldInjectionSummary, hasCharacters, isGenerating: outlineSSE.isStreaming, streamContent: outlineSSE.content, onGenerate: startOutlineGeneration, onStop: outlineSSE.abort, onAbortStream: outlineSSE.abort, onGoToCharacterTab: goToCharacterTab, generationPrompt: outlineGenerationPrompt, onGenerationPromptChange: setOutlineGenerationPrompt, draftText: outlineText, onDraftTextChange: setOutlineText, onSave: () => saveOutlineMutation.mutate(), isSaving: saveOutlineMutation.isPending, optimizeInstruction: outlineOptimizeInstruction, onOptimizeInstructionChange: setOutlineOptimizeInstruction, onOptimizeFull: () => { setOutlineOptimizeMode("full"); setOutlineOptimizeSourceText(""); optimizeOutlineMutation.mutate({ mode: "full" }); }, onOptimizeSelection: (selectedText: string) => { setOutlineOptimizeMode("selection"); setOutlineOptimizeSourceText(selectedText); optimizeOutlineMutation.mutate({ mode: "selection", selectedText }); }, isOptimizing: optimizeOutlineMutation.isPending, optimizePreview: outlineOptimizePreview, onApplyOptimizePreview: () => { if (outlineOptimizeMode === "selection" && outlineOptimizeSourceText.trim()) { setOutlineText((prev) => replaceFirstOccurrence(prev, outlineOptimizeSourceText, outlineOptimizePreview)); } else { setOutlineText(outlineOptimizePreview); } setOutlineOptimizePreview(""); setOutlineOptimizeSourceText(""); setOutlineOptimizeMode("full"); }, onCancelOptimizePreview: () => { setOutlineOptimizePreview(""); setOutlineOptimizeSourceText(""); setOutlineOptimizeMode("full"); }, storylineMessage, storylineVersions, selectedVersionId, onSelectedVersionChange: setSelectedVersionId, onCreateDraftVersion: () => createDraftVersionMutation.mutate(), isCreatingDraftVersion: createDraftVersionMutation.isPending, onLoadSelectedVersionToDraft: loadSelectedVersionToDraft, onActivateVersion: () => activateVersionMutation.mutate(), isActivatingVersion: activateVersionMutation.isPending, onFreezeVersion: () => freezeVersionMutation.mutate(), isFreezingVersion: freezeVersionMutation.isPending, onLoadVersionDiff: () => diffMutation.mutate(), isLoadingVersionDiff: diffMutation.isPending, diffResult, onAnalyzeDraftImpact: () => analyzeDraftImpactMutation.mutate(), isAnalyzingDraftImpact: analyzeDraftImpactMutation.isPending, onAnalyzeVersionImpact: () => analyzeVersionImpactMutation.mutate(), isAnalyzingVersionImpact: analyzeVersionImpactMutation.isPending, impactResult };
-  const structuredTab = { worldInjectionSummary, hasCharacters, isGenerating: structuredSSE.isStreaming, streamContent: structuredSSE.content, onGenerate: () => void structuredSSE.start(`/novels/${id}/structured-outline/generate`, { provider: llm.provider, model: llm.model, totalChapters: basicForm.estimatedChapterCount }), onStop: structuredSSE.abort, onAbortStream: structuredSSE.abort, onGoToCharacterTab: goToCharacterTab, onApplySync: (options: { preserveContent: boolean; applyDeletes: boolean }) => syncStructuredChaptersMutation.mutate(options), isApplyingSync: syncStructuredChaptersMutation.isPending, syncMessage: structuredMessage, draftText: structuredDraftText, onDraftTextChange: setStructuredDraftText, onSave: () => saveStructuredMutation.mutate(), isSaving: saveStructuredMutation.isPending, optimizeInstruction: structuredOptimizeInstruction, onOptimizeInstructionChange: setStructuredOptimizeInstruction, onOptimizeFull: () => { setStructuredOptimizeMode("full"); setStructuredOptimizeSourceText(""); optimizeStructuredMutation.mutate({ mode: "full" }); }, onOptimizeSelection: (selectedText: string) => { setStructuredOptimizeMode("selection"); setStructuredOptimizeSourceText(selectedText); optimizeStructuredMutation.mutate({ mode: "selection", selectedText }); }, isOptimizing: optimizeStructuredMutation.isPending, optimizePreview: structuredOptimizePreview, onApplyOptimizePreview: () => { if (structuredOptimizeMode === "selection" && structuredOptimizeSourceText.trim()) { setStructuredDraftText((prev) => replaceFirstOccurrence(prev, structuredOptimizeSourceText, structuredOptimizePreview)); } else { setStructuredDraftText(structuredOptimizePreview); } setStructuredOptimizePreview(""); setStructuredOptimizeSourceText(""); setStructuredOptimizeMode("full"); }, onCancelOptimizePreview: () => { setStructuredOptimizePreview(""); setStructuredOptimizeSourceText(""); setStructuredOptimizeMode("full"); }, structuredVolumes, chapters: outlineSyncChapters };
+  const outlineTab = {
+    worldInjectionSummary,
+    hasCharacters,
+    isGenerating: generateVolumeMutation.isPending,
+    onGenerate: startOutlineGeneration,
+    onGoToCharacterTab: goToCharacterTab,
+    draftText: outlineText,
+    volumes: normalizedVolumeDraft,
+    onVolumeFieldChange: handleVolumeFieldChange,
+    onOpenPayoffsChange: handleOpenPayoffsChange,
+    onAddVolume: handleAddVolume,
+    onRemoveVolume: handleRemoveVolume,
+    onMoveVolume: handleMoveVolume,
+    onSave: () => saveOutlineMutation.mutate(),
+    isSaving: saveOutlineMutation.isPending,
+    volumeMessage: volumeGenerationMessage || volumeMessage,
+    volumeVersions,
+    selectedVersionId,
+    onSelectedVersionChange: setSelectedVersionId,
+    onCreateDraftVersion: () => createDraftVersionMutation.mutate(),
+    isCreatingDraftVersion: createDraftVersionMutation.isPending,
+    onLoadSelectedVersionToDraft: loadSelectedVersionToDraft,
+    onActivateVersion: () => activateVersionMutation.mutate(),
+    isActivatingVersion: activateVersionMutation.isPending,
+    onFreezeVersion: () => freezeVersionMutation.mutate(),
+    isFreezingVersion: freezeVersionMutation.isPending,
+    onLoadVersionDiff: () => diffMutation.mutate(),
+    isLoadingVersionDiff: diffMutation.isPending,
+    diffResult,
+    onAnalyzeDraftImpact: () => analyzeDraftImpactMutation.mutate(),
+    isAnalyzingDraftImpact: analyzeDraftImpactMutation.isPending,
+    onAnalyzeVersionImpact: () => analyzeVersionImpactMutation.mutate(),
+    isAnalyzingVersionImpact: analyzeVersionImpactMutation.isPending,
+    impactResult,
+  };
+  const structuredTab = {
+    ...outlineTab,
+    draftText: structuredDraftText,
+    syncPreview: volumeSyncPreview,
+    syncOptions: volumeSyncOptions,
+    onSyncOptionsChange: (patch: Partial<VolumeSyncOptions>) => setVolumeSyncOptions((prev) => ({ ...prev, ...patch })),
+    onApplySync: (options: { preserveContent: boolean; applyDeletes: boolean }) => syncStructuredChaptersMutation.mutate(options),
+    isApplyingSync: syncStructuredChaptersMutation.isPending,
+    syncMessage: structuredMessage,
+    chapters: outlineSyncChapters,
+    onChapterFieldChange: handleChapterFieldChange,
+    onChapterNumberChange: handleChapterNumberChange,
+    onChapterPayoffRefsChange: handleChapterPayoffRefsChange,
+    onAddChapter: handleAddChapter,
+    onRemoveChapter: handleRemoveChapter,
+    onMoveChapter: handleMoveChapter,
+    onApplyBatch: (patch: { conflictLevel?: number; targetWordCount?: number; generateTaskSheet?: boolean }) => {
+      setVolumeDraft((prev) => applyVolumeChapterBatch(prev, patch));
+    },
+    onSave: () => saveStructuredMutation.mutate(),
+    isSaving: saveStructuredMutation.isPending,
+  };
   const chapterTab = { novelId: id, worldInjectionSummary, hasCharacters, chapters, selectedChapterId, selectedChapter, onSelectChapter: setSelectedChapterId, onGoToCharacterTab: goToCharacterTab, onCreateChapter: () => createChapterMutation.mutate(), isCreatingChapter: createChapterMutation.isPending, chapterOperationMessage, strategy: chapterStrategy, onStrategyChange: (field: "runMode" | "wordSize" | "conflictLevel" | "pace" | "aiFreedom", value: string | number) => setChapterStrategy((prev) => ({ ...prev, [field]: value } as ChapterExecutionStrategy)), onApplyStrategy: chapterExecutionActions.applyStrategy, isApplyingStrategy: chapterExecutionActions.isPatchingChapter, onGenerateSelectedChapter: handleGenerateSelectedChapter, onRewriteChapter: chapterExecutionActions.rewriteChapter, onExpandChapter: chapterExecutionActions.expandChapter, onCompressChapter: chapterExecutionActions.compressChapter, onSummarizeChapter: chapterExecutionActions.summarizeChapter, onGenerateTaskSheet: chapterExecutionActions.generateTaskSheet, onGenerateSceneCards: chapterExecutionActions.generateSceneCards, onGenerateChapterPlan: () => generateChapterPlanMutation.mutate(), onReplanChapter: () => replanChapterMutation.mutate(), onRunFullAudit: () => fullAuditMutation.mutate(), onCheckContinuity: chapterExecutionActions.checkContinuity, onCheckCharacterConsistency: chapterExecutionActions.checkCharacterConsistency, onCheckPacing: chapterExecutionActions.checkPacing, onAutoRepair: chapterExecutionActions.autoRepair, onStrengthenConflict: chapterExecutionActions.strengthenConflict, onEnhanceEmotion: chapterExecutionActions.enhanceEmotion, onUnifyStyle: chapterExecutionActions.unifyStyle, onAddDialogue: chapterExecutionActions.addDialogue, onAddDescription: chapterExecutionActions.addDescription, isReviewingChapter: reviewMutation.isPending, isRepairingChapter: repairSSE.isStreaming, reviewResult, replanRecommendation: reviewResult?.replanRecommendation ?? null, lastReplanResult: replanChapterMutation.data?.data ?? null, chapterPlan, latestStateSnapshot, chapterAuditReports, isGeneratingChapterPlan: generateChapterPlanMutation.isPending, isReplanningChapter: replanChapterMutation.isPending, isRunningFullAudit: fullAuditMutation.isPending, chapterQualityReport, repairStreamContent: repairSSE.content, isRepairStreaming: repairSSE.isStreaming, onAbortRepair: repairSSE.abort, streamContent: chapterSSE.content, isStreaming: chapterSSE.isStreaming, onAbortStream: chapterSSE.abort };
   const pipelineTab = { novelId: id, worldInjectionSummary, hasCharacters, onGoToCharacterTab: goToCharacterTab, pipelineForm, onPipelineFormChange: (field: "startOrder" | "endOrder" | "maxRetries" | "runMode" | "autoReview" | "autoRepair" | "skipCompleted" | "qualityThreshold" | "repairMode", value: number | boolean | string) => setPipelineForm((prev) => ({ ...prev, [field]: value } as typeof prev)), maxOrder, onGenerateBible: () => void bibleSSE.start(`/novels/${id}/bible/generate`, { provider: llm.provider, model: llm.model, temperature: 0.6 }), onAbortBible: bibleSSE.abort, isBibleStreaming: bibleSSE.isStreaming, bibleStreamContent: bibleSSE.content, onGenerateBeats: () => void beatsSSE.start(`/novels/${id}/beats/generate`, { provider: llm.provider, model: llm.model, targetChapters: pipelineForm.endOrder }), onAbortBeats: beatsSSE.abort, isBeatsStreaming: beatsSSE.isStreaming, beatsStreamContent: beatsSSE.content, onRunPipeline: (patch?: Partial<typeof pipelineForm>) => runPipelineMutation.mutate(patch), isRunningPipeline: runPipelineMutation.isPending, pipelineMessage, pipelineJob: pipelineJobQuery.data?.data, chapters, selectedChapterId, onSelectedChapterChange: setSelectedChapterId, onReviewChapter: () => reviewMutation.mutate(), isReviewing: reviewMutation.isPending, onRepairChapter: () => { setRepairBeforeContent(selectedChapter?.content ?? ""); setRepairAfterContent(""); void repairSSE.start(`/novels/${id}/chapters/${selectedChapterId}/repair`, { provider: llm.provider, model: llm.model, reviewIssues: reviewResult?.issues ?? [], auditIssueIds: openAuditIssueIds }); }, isRepairing: repairSSE.isStreaming, onGenerateHook: () => hookMutation.mutate(), isGeneratingHook: hookMutation.isPending, reviewResult, repairBeforeContent, repairAfterContent, repairStreamContent: repairSSE.content, isRepairStreaming: repairSSE.isStreaming, onAbortRepair: repairSSE.abort, qualitySummary, chapterReports: qualityReportQuery.data?.data?.chapterReports ?? [], bible, plotBeats };
   const characterTab = { novelId: id, llmProvider: llm.provider, llmModel: llm.model, characterMessage, quickCharacterForm, onQuickCharacterFormChange: (field: "name" | "role", value: string) => setQuickCharacterForm((prev) => ({ ...prev, [field]: value })), onQuickCreateCharacter: (payload: QuickCharacterCreatePayload) => quickCreateCharacterMutation.mutate(payload), isQuickCreating: quickCreateCharacterMutation.isPending, characters, coreCharacterCount, baseCharacters, selectedBaseCharacterId, onSelectedBaseCharacterChange: setSelectedBaseCharacterId, selectedBaseCharacter, importedBaseCharacterIds, onImportBaseCharacter: () => importBaseCharacterMutation.mutate(), isImportingBaseCharacter: importBaseCharacterMutation.isPending, selectedCharacterId, onSelectedCharacterChange: setSelectedCharacterId, onDeleteCharacter: (characterId: string) => deleteCharacterMutation.mutate(characterId), isDeletingCharacter: deleteCharacterMutation.isPending, deletingCharacterId: deleteCharacterMutation.variables ?? "", onSyncTimeline: () => syncTimelineMutation.mutate(), isSyncingTimeline: syncTimelineMutation.isPending, onSyncAllTimeline: () => syncAllTimelineMutation.mutate(), isSyncingAllTimeline: syncAllTimelineMutation.isPending, onEvolveCharacter: () => evolveCharacterMutation.mutate(), isEvolvingCharacter: evolveCharacterMutation.isPending, onWorldCheck: () => worldCheckMutation.mutate(), isCheckingWorld: worldCheckMutation.isPending, selectedCharacter, characterForm, onCharacterFormChange: (field: "name" | "role" | "personality" | "background" | "development" | "currentState" | "currentGoal", value: string) => setCharacterForm((prev) => ({ ...prev, [field]: value })), onSaveCharacter: () => saveCharacterMutation.mutate(), isSavingCharacter: saveCharacterMutation.isPending, timelineEvents: characterTimelineQuery.data?.data ?? [] };

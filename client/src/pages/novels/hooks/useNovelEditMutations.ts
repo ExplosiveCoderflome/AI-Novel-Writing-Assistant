@@ -3,19 +3,20 @@ import type { PipelineRepairMode, PipelineRunMode } from "@ai-novel/shared/types
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import {
   createNovelChapter,
-  deleteNovelChapter,
   generateChapterHook,
   optimizeNovelOutlinePreview,
   optimizeNovelStructuredOutlinePreview,
   reviewNovelChapter,
   runNovelPipeline,
-  updateNovelChapter,
   updateNovel,
+  syncNovelVolumeChapters,
+  updateNovelVolumes,
 } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { buildNovelUpdatePayload, type NovelBasicFormState } from "../novelBasicInfo.shared";
 import type { ChapterReviewResult } from "../chapterPlanning.shared";
-import { buildStructuredOutlineSyncPlan, buildTaskSheetFromStructuredChapter, type OutlineSyncChapter, type StructuredSyncOptions, type StructuredVolume } from "../novelEdit.utils";
+import type { VolumePlan } from "@ai-novel/shared/types/novel";
+import type { StructuredSyncOptions } from "../novelEdit.utils";
 
 interface LlmSettings {
   provider?: LLMProvider;
@@ -49,8 +50,7 @@ interface UseNovelEditMutationsArgs {
   setStructuredOptimizePreview: (value: string) => void;
   setStructuredOptimizeMode: (value: "full" | "selection") => void;
   setStructuredOptimizeSourceText: (value: string) => void;
-  structuredVolumes: StructuredVolume[];
-  chapters: OutlineSyncChapter[];
+  volumeDraft: VolumePlan[];
   llm: LlmSettings;
   pipelineForm: PipelineFormState;
   selectedChapterId: string;
@@ -79,8 +79,7 @@ export function useNovelEditMutations({
   setStructuredOptimizePreview,
   setStructuredOptimizeMode,
   setStructuredOptimizeSourceText,
-  structuredVolumes,
-  chapters,
+  volumeDraft,
   llm,
   pipelineForm,
   selectedChapterId,
@@ -105,12 +104,12 @@ export function useNovelEditMutations({
   });
 
   const saveOutlineMutation = useMutation({
-    mutationFn: () => updateNovel(id, { outline: outlineText }),
+    mutationFn: () => updateNovelVolumes(id, { volumes: volumeDraft }),
     onSuccess: invalidateNovelDetail,
   });
 
   const saveStructuredMutation = useMutation({
-    mutationFn: () => updateNovel(id, { structuredOutline: structuredDraftText }),
+    mutationFn: () => updateNovelVolumes(id, { volumes: volumeDraft }),
     onSuccess: invalidateNovelDetail,
   });
 
@@ -151,49 +150,15 @@ export function useNovelEditMutations({
   });
 
   const syncStructuredChaptersMutation = useMutation({
-    mutationFn: async (options: StructuredSyncOptions) => {
-      const plan = buildStructuredOutlineSyncPlan(structuredVolumes, chapters, options);
-      if (plan.preview.createCount === 0 && plan.preview.updateCount === 0 && plan.preview.deleteCount === 0) {
-        return plan;
-      }
-
-      for (const chapter of plan.creates) {
-        await createNovelChapter(id, {
-          title: chapter.title,
-          order: chapter.order,
-          content: "",
-          expectation: chapter.summary,
-          targetWordCount: chapter.targetWordCount,
-          conflictLevel: chapter.conflictLevel,
-          revealLevel: chapter.revealLevel,
-          mustAvoid: chapter.mustAvoid,
-          taskSheet: chapter.taskSheet?.trim() || buildTaskSheetFromStructuredChapter(chapter),
-        });
-      }
-
-      for (const item of plan.updates) {
-        const taskSheet = item.chapter.taskSheet?.trim();
-        await updateNovelChapter(id, item.chapterId, {
-          title: item.chapter.title,
-          order: item.chapter.order,
-          expectation: item.chapter.summary,
-          targetWordCount: item.chapter.targetWordCount,
-          conflictLevel: item.chapter.conflictLevel,
-          revealLevel: item.chapter.revealLevel,
-          mustAvoid: item.chapter.mustAvoid,
-          taskSheet: taskSheet || buildTaskSheetFromStructuredChapter(item.chapter),
-          ...(item.clearContent ? { content: "" } : {}),
-        });
-      }
-
-      for (const item of plan.deletes) {
-        await deleteNovelChapter(id, item.chapterId);
-      }
-      return plan;
-    },
-    onSuccess: async (plan) => {
+    mutationFn: (options: StructuredSyncOptions) => syncNovelVolumeChapters(id, {
+      volumes: volumeDraft,
+      preserveContent: options.preserveContent,
+      applyDeletes: options.applyDeletes,
+    }),
+    onSuccess: async (response) => {
+      const preview = response.data;
       setStructuredMessage(
-        `同步完成：新增 ${plan.preview.createCount}，更新 ${plan.preview.updateCount}，删除 ${plan.preview.deleteCount}。`,
+        `同步完成：新增 ${preview?.createCount ?? 0}，更新 ${preview?.updateCount ?? 0}，删除 ${preview?.deleteCount ?? 0}。`,
       );
       await invalidateNovelDetail();
     },

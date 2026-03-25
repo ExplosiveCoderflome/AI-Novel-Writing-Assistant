@@ -509,7 +509,7 @@ const CONTINUATION_ANALYSIS_SECTION_KEYS: BookAnalysisSectionKey[] = [
 ];
 
 const CONTINUATION_ANALYSIS_SECTION_KEY_SET = new Set<BookAnalysisSectionKey>(CONTINUATION_ANALYSIS_SECTION_KEYS);
-const DEFAULT_ESTIMATED_CHAPTER_COUNT = 20;
+const DEFAULT_ESTIMATED_CHAPTER_COUNT = 80;
 
 function parseContinuationBookAnalysisSections(raw: string | null | undefined): BookAnalysisSectionKey[] | null {
   if (!raw?.trim()) {

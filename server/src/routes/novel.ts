@@ -15,6 +15,7 @@ import { registerNovelReviewRoutes } from "./novelReviewRoutes";
 import { registerNovelSnapshotCharacterRoutes } from "./novelSnapshotCharacterRoutes";
 import { registerNovelStoryMacroRoutes } from "./novelStoryMacroRoutes";
 import { registerNovelStorylineRoutes } from "./novelStorylineRoutes";
+import { registerNovelVolumeRoutes } from "./novelVolumeRoutes";
 import { registerNovelWorldSliceRoutes } from "./novelWorldSliceRoutes";
 
 const router = Router();
@@ -67,7 +68,16 @@ const storylineVersionParamsSchema = z.object({
   versionId: z.string().trim().min(1),
 });
 
+const volumeVersionParamsSchema = z.object({
+  id: z.string().trim().min(1),
+  versionId: z.string().trim().min(1),
+});
+
 const storylineDiffQuerySchema = z.object({
+  compareVersion: z.coerce.number().int().min(1).optional(),
+});
+
+const volumeDiffQuerySchema = z.object({
   compareVersion: z.coerce.number().int().min(1).optional(),
 });
 
@@ -80,6 +90,59 @@ const storylineDraftSchema = z.object({
 const storylineImpactSchema = z.object({
   versionId: z.string().trim().optional(),
   content: z.string().trim().optional(),
+});
+
+const volumeChapterSchema = z.object({
+  id: z.string().trim().optional(),
+  chapterOrder: z.number().int().min(1).optional(),
+  order: z.number().int().min(1).optional(),
+  title: z.string().trim().min(1),
+  summary: z.string().trim().min(1),
+  purpose: z.string().trim().nullable().optional(),
+  conflictLevel: z.number().int().min(0).max(100).nullable().optional(),
+  revealLevel: z.number().int().min(0).max(100).nullable().optional(),
+  targetWordCount: z.number().int().min(200).max(20000).nullable().optional(),
+  mustAvoid: z.string().trim().nullable().optional(),
+  taskSheet: z.string().trim().nullable().optional(),
+  payoffRefs: z.array(z.string().trim().min(1)).optional(),
+}).passthrough();
+
+const volumeSchema = z.object({
+  id: z.string().trim().optional(),
+  sortOrder: z.number().int().min(1).optional(),
+  title: z.string().trim().min(1),
+  summary: z.string().trim().nullable().optional(),
+  mainPromise: z.string().trim().nullable().optional(),
+  escalationMode: z.string().trim().nullable().optional(),
+  protagonistChange: z.string().trim().nullable().optional(),
+  climax: z.string().trim().nullable().optional(),
+  nextVolumeHook: z.string().trim().nullable().optional(),
+  resetPoint: z.string().trim().nullable().optional(),
+  openPayoffs: z.array(z.string().trim().min(1)).optional(),
+  status: z.string().trim().optional(),
+  sourceVersionId: z.string().trim().nullable().optional(),
+  chapters: z.array(volumeChapterSchema).default([]),
+}).passthrough();
+
+const volumeDocumentSchema = z.object({
+  volumes: z.array(volumeSchema).min(1),
+});
+
+const volumeDraftSchema = z.object({
+  volumes: z.array(volumeSchema).min(1).optional(),
+  diffSummary: z.string().trim().optional(),
+  baseVersion: z.number().int().min(1).optional(),
+});
+
+const volumeImpactSchema = z.object({
+  volumes: z.array(volumeSchema).min(1).optional(),
+  versionId: z.string().trim().optional(),
+});
+
+const volumeSyncSchema = z.object({
+  volumes: z.array(volumeSchema).min(1),
+  preserveContent: z.boolean().optional(),
+  applyDeletes: z.boolean().optional(),
 });
 
 const chapterSchema = z.object({
@@ -190,6 +253,10 @@ const llmGenerateSchema = z.object({
   provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
+});
+
+const volumeGenerateSchema = llmGenerateSchema.extend({
+  guidance: z.string().trim().max(4000).optional(),
 });
 
 const outlineGenerateSchema = llmGenerateSchema.extend({
@@ -303,6 +370,19 @@ registerNovelStorylineRoutes({
   storylineDiffQuerySchema,
   storylineDraftSchema,
   storylineImpactSchema,
+});
+
+registerNovelVolumeRoutes({
+  router,
+  novelService,
+  idParamsSchema,
+  volumeVersionParamsSchema,
+  volumeDiffQuerySchema,
+  volumeDocumentSchema,
+  volumeDraftSchema,
+  volumeImpactSchema,
+  volumeGenerateSchema,
+  volumeSyncSchema,
 });
 
 registerNovelStoryMacroRoutes({

@@ -12,8 +12,11 @@ import type {
   PipelineJob,
   PlotBeat,
   QualityScore,
-  StorylineDiff,
-  StorylineVersion,
+  VolumeImpactResult,
+  VolumePlan,
+  VolumePlanDiff,
+  VolumePlanVersion,
+  VolumeSyncPreview,
 } from "@ai-novel/shared/types/novel";
 import type {
   StoryConstraintEngine,
@@ -30,8 +33,9 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { StoryWorldSliceOverrides, StoryWorldSliceView } from "@ai-novel/shared/types/storyWorldSlice";
 import type { QuickCharacterCreatePayload } from "./characterPanel.utils";
 import type { ChapterReviewResult } from "../chapterPlanning.shared";
-import type { OutlineSyncChapter, StructuredSyncOptions, StructuredVolume } from "../novelEdit.utils";
+import type { StructuredSyncOptions } from "../novelEdit.utils";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
+import type { ExistingOutlineChapter } from "../volumePlan.utils";
 
 export interface BasicTabProps {
   novelId: string;
@@ -90,27 +94,19 @@ export interface OutlineTabViewProps {
   worldInjectionSummary: string | null;
   hasCharacters: boolean;
   isGenerating: boolean;
-  streamContent: string;
   onGenerate: () => void;
-  onStop: () => void;
-  onAbortStream: () => void;
   onGoToCharacterTab: () => void;
-  generationPrompt: string;
-  onGenerationPromptChange: (next: string) => void;
   draftText: string;
-  onDraftTextChange: (next: string) => void;
+  volumes: VolumePlan[];
+  onVolumeFieldChange: (volumeId: string, field: keyof Pick<VolumePlan, "title" | "summary" | "mainPromise" | "escalationMode" | "protagonistChange" | "climax" | "nextVolumeHook" | "resetPoint">, value: string) => void;
+  onOpenPayoffsChange: (volumeId: string, value: string) => void;
+  onAddVolume: () => void;
+  onRemoveVolume: (volumeId: string) => void;
+  onMoveVolume: (volumeId: string, direction: -1 | 1) => void;
   onSave: () => void;
   isSaving: boolean;
-  optimizeInstruction: string;
-  onOptimizeInstructionChange: (next: string) => void;
-  onOptimizeFull: () => void;
-  onOptimizeSelection: (selectedText: string) => void;
-  isOptimizing: boolean;
-  optimizePreview: string;
-  onApplyOptimizePreview: () => void;
-  onCancelOptimizePreview: () => void;
-  storylineMessage: string;
-  storylineVersions: StorylineVersion[];
+  volumeMessage: string;
+  volumeVersions: VolumePlanVersion[];
   selectedVersionId: string;
   onSelectedVersionChange: (id: string) => void;
   onCreateDraftVersion: () => void;
@@ -122,36 +118,18 @@ export interface OutlineTabViewProps {
   isFreezingVersion: boolean;
   onLoadVersionDiff: () => void;
   isLoadingVersionDiff: boolean;
-  diffResult: StorylineDiff | null;
+  diffResult: VolumePlanDiff | null;
   onAnalyzeDraftImpact: () => void;
   isAnalyzingDraftImpact: boolean;
   onAnalyzeVersionImpact: () => void;
   isAnalyzingVersionImpact: boolean;
-  impactResult: {
-    novelId: string;
-    sourceVersion: number | null;
-    affectedCharacters: number;
-    affectedChapters: number;
-    changedLines: number;
-    requiresOutlineRebuild: boolean;
-    recommendations: {
-      shouldSyncOutline: boolean;
-      shouldRecheckCharacters: boolean;
-      suggestedStrategy: "rebuild_outline" | "incremental_sync";
-    };
-  } | null;
+  impactResult: VolumeImpactResult | null;
 }
 
 export interface StructuredTabViewProps extends Omit<
   OutlineTabViewProps,
-  | "onGenerate"
-  | "onStop"
-  | "onSave"
-  | "isSaving"
-  | "generationPrompt"
-  | "onGenerationPromptChange"
-  | "storylineMessage"
-  | "storylineVersions"
+  | "volumeMessage"
+  | "volumeVersions"
   | "selectedVersionId"
   | "onSelectedVersionChange"
   | "onCreateDraftVersion"
@@ -170,19 +148,33 @@ export interface StructuredTabViewProps extends Omit<
   | "isAnalyzingVersionImpact"
   | "impactResult"
 > {
-  isGenerating: boolean;
-  streamContent: string;
-  onGenerate: () => void;
-  onStop: () => void;
+  draftText: string;
+  syncPreview: VolumeSyncPreview;
+  syncOptions: StructuredSyncOptions;
+  onSyncOptionsChange: (patch: Partial<StructuredSyncOptions>) => void;
   onApplySync: (options: StructuredSyncOptions) => void;
   isApplyingSync: boolean;
   syncMessage: string;
-  draftText: string;
-  onDraftTextChange: (next: string) => void;
+  chapters: ExistingOutlineChapter[];
+  onChapterFieldChange: (
+    volumeId: string,
+    chapterId: string,
+    field: keyof Pick<VolumePlan["chapters"][number], "title" | "summary" | "purpose" | "mustAvoid" | "taskSheet">,
+    value: string,
+  ) => void;
+  onChapterNumberChange: (
+    volumeId: string,
+    chapterId: string,
+    field: keyof Pick<VolumePlan["chapters"][number], "conflictLevel" | "revealLevel" | "targetWordCount">,
+    value: number | null,
+  ) => void;
+  onChapterPayoffRefsChange: (volumeId: string, chapterId: string, value: string) => void;
+  onAddChapter: (volumeId: string) => void;
+  onRemoveChapter: (volumeId: string, chapterId: string) => void;
+  onMoveChapter: (volumeId: string, chapterId: string, direction: -1 | 1) => void;
+  onApplyBatch: (patch: { conflictLevel?: number; targetWordCount?: number; generateTaskSheet?: boolean }) => void;
   onSave: () => void;
   isSaving: boolean;
-  structuredVolumes: StructuredVolume[];
-  chapters: OutlineSyncChapter[];
 }
 
 export interface ChapterTabViewProps {

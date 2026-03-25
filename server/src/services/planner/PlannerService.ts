@@ -3,6 +3,7 @@ import type { AuditReport, ReplanResult } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../db/prisma";
 import { parseJsonStringArray } from "../novel/novelP0Utils";
 import { stateService } from "../state/StateService";
+import { buildDerivedOutlineFromVolumes } from "../novel/volume/volumePlanUtils";
 import {
   buildDefaultPlanMetadata,
   enrichStoryPlan,
@@ -202,7 +203,7 @@ export class PlannerService {
   }
 
   async generateChapterPlan(novelId: string, chapterId: string, options: GenerateChapterPlanOptions = {}) {
-    const [novel, chapter, bible, plotBeats, summaries, characters, bookPlan, arcPlans, recentAuditReports, recentDecisions] = await Promise.all([
+    const [novel, chapter, bible, plotBeats, summaries, characters, bookPlan, arcPlans, volumePlans, recentAuditReports, recentDecisions] = await Promise.all([
       prisma.novel.findUnique({
         where: { id: novelId },
         select: {
@@ -249,6 +250,15 @@ export class PlannerService {
       }),
       this.getBookPlan(novelId),
       this.listArcPlans(novelId),
+      prisma.volumePlan.findMany({
+        where: { novelId },
+        orderBy: { sortOrder: "asc" },
+        include: {
+          chapters: {
+            orderBy: { chapterOrder: "asc" },
+          },
+        },
+      }),
       prisma.auditReport.findMany({
         where: { novelId },
         orderBy: { createdAt: "desc" },
@@ -273,6 +283,44 @@ export class PlannerService {
     if (!novel || !chapter) {
       throw new Error("小说或章节不存在。");
     }
+    const mappedVolumes = volumePlans.map((volume) => ({
+      id: volume.id,
+      novelId,
+      sortOrder: volume.sortOrder,
+      title: volume.title,
+      summary: volume.summary,
+      mainPromise: volume.mainPromise,
+      escalationMode: volume.escalationMode,
+      protagonistChange: volume.protagonistChange,
+      climax: volume.climax,
+      nextVolumeHook: volume.nextVolumeHook,
+      resetPoint: volume.resetPoint,
+      openPayoffs: volume.openPayoffsJson ? JSON.parse(volume.openPayoffsJson) as string[] : [],
+      status: volume.status,
+      sourceVersionId: volume.sourceVersionId,
+      chapters: volume.chapters.map((item) => ({
+        id: item.id,
+        volumeId: item.volumeId,
+        chapterOrder: item.chapterOrder,
+        title: item.title,
+        summary: item.summary,
+        purpose: item.purpose,
+        conflictLevel: item.conflictLevel,
+        revealLevel: item.revealLevel,
+        targetWordCount: item.targetWordCount,
+        mustAvoid: item.mustAvoid,
+        taskSheet: item.taskSheet,
+        payoffRefs: item.payoffRefsJson ? JSON.parse(item.payoffRefsJson) as string[] : [],
+        createdAt: item.createdAt.toISOString(),
+        updatedAt: item.updatedAt.toISOString(),
+      })),
+      createdAt: volume.createdAt.toISOString(),
+      updatedAt: volume.updatedAt.toISOString(),
+    }));
+    const volumeOutline = mappedVolumes.length > 0 ? buildDerivedOutlineFromVolumes(mappedVolumes) : "";
+    const volumeSummary = mappedVolumes.length > 0
+      ? mappedVolumes.map((volume) => `${volume.sortOrder}. ${volume.title} | ${volume.mainPromise ?? volume.summary ?? "无"}${volume.climax ? ` | 高潮=${volume.climax}` : ""}`).join("\n")
+      : "无";
     const stateSnapshot = await stateService.getLatestSnapshotBeforeChapter(novelId, chapter.order);
     const defaultMetadata = buildDefaultPlanMetadata("chapter", {
       chapterOrder: chapter.order,
@@ -304,8 +352,9 @@ export class PlannerService {
         `章节目标草稿：${chapter.expectation ?? "无"}`,
         `任务单：${chapter.taskSheet ?? "无"}`,
         `作品圣经：${bible?.rawContent ?? "无"}`,
-        `主线大纲：${novel.outline ?? "无"}`,
+        `主线大纲：${volumeOutline || novel.outline || "无"}`,
         `结构化大纲：${novel.structuredOutline ?? "无"}`,
+        `卷级工作台：${volumeSummary}`,
         `全书规划：${bookPlan ? `${bookPlan.title} | ${bookPlan.objective}${bookPlan.phaseLabel ? ` | 阶段=${bookPlan.phaseLabel}` : ""}` : "无"}`,
         `阶段规划：${arcPlans.length > 0 ? arcPlans.map((plan) => `${plan.externalRef ?? "-"} ${plan.title} | ${plan.objective}${plan.phaseLabel ? ` | 阶段=${plan.phaseLabel}` : ""}`).join("\n") : "无"}`,
         `角色：${characters.map((item) => `${item.id}|${item.name}|${item.role}|goal=${item.currentGoal ?? ""}|state=${item.currentState ?? ""}`).join("\n") || "无"}`,

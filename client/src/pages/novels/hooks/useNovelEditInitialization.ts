@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { BaseCharacter, Character } from "@ai-novel/shared/types/novel";
+import type { BaseCharacter, Character, VolumePlan } from "@ai-novel/shared/types/novel";
 import type { NovelDetailResponse } from "@/api/novel";
 import {
   DEFAULT_ESTIMATED_CHAPTER_COUNT,
@@ -43,8 +43,7 @@ interface UseNovelEditInitializationArgs {
   sourceBookAnalysesLoading: boolean;
   sourceBookAnalysesFetching: boolean;
   setBasicForm: (value: NovelBasicFormState | ((prev: NovelBasicFormState) => NovelBasicFormState)) => void;
-  setOutlineText: (value: string) => void;
-  setStructuredDraftText: (value: string) => void;
+  setVolumeDraft: (value: VolumePlan[]) => void;
   setPipelineForm: (value: PipelineFormState | ((prev: PipelineFormState) => PipelineFormState)) => void;
   setSelectedChapterId: (value: string) => void;
   setSelectedCharacterId: (value: string) => void;
@@ -76,8 +75,7 @@ export function useNovelEditInitialization({
   sourceBookAnalysesLoading,
   sourceBookAnalysesFetching,
   setBasicForm,
-  setOutlineText,
-  setStructuredDraftText,
+  setVolumeDraft,
   setPipelineForm,
   setSelectedChapterId,
   setSelectedCharacterId,
@@ -119,10 +117,10 @@ export function useNovelEditInitialization({
       continuationBookAnalysisId: detail.continuationBookAnalysisId ?? "",
       continuationBookAnalysisSections: detail.continuationBookAnalysisSections ?? [],
     });
-    setOutlineText(detail.outline ?? "");
-    setStructuredDraftText(detail.structuredOutline ?? "");
+    setVolumeDraft(detail.volumes ?? []);
     const recommendedEndOrder = Math.max(
       detail.estimatedChapterCount ?? DEFAULT_ESTIMATED_CHAPTER_COUNT,
+      detail.volumes?.flatMap((volume) => volume.chapters).length ?? 0,
       detail.chapters.length || 0,
       1,
     );
@@ -130,7 +128,7 @@ export function useNovelEditInitialization({
       ...prev,
       endOrder: Math.max(prev.endOrder, recommendedEndOrder),
     }));
-  }, [detail, setBasicForm, setOutlineText, setPipelineForm, setStructuredDraftText]);
+  }, [detail, setBasicForm, setPipelineForm, setVolumeDraft]);
 
   useEffect(() => {
     if (!selectedChapterId && chapters.length > 0) {

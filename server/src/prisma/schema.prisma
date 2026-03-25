@@ -152,6 +152,12 @@ enum StorylineVersionStatus {
   frozen
 }
 
+enum VolumePlanVersionStatus {
+  draft
+  active
+  frozen
+}
+
 enum ChapterStatus {
   unplanned
   pending_generation
@@ -315,6 +321,8 @@ model Novel {
   creativeDecisions  CreativeDecision[]
   novelSnapshots     NovelSnapshot[]
   storylineVersions  StorylineVersion[]
+  volumePlans        VolumePlan[]
+  volumePlanVersions VolumePlanVersion[]
   qualityReports     QualityReport[]
   storyMacroPlan     StoryMacroPlan?
   storyStateSnapshots StoryStateSnapshot[]
@@ -1133,6 +1141,69 @@ model StorylineVersion {
 
   @@unique([novelId, version])
   @@index([novelId, status, createdAt])
+}
+
+model VolumePlanVersion {
+  id          String                  @id @default(cuid())
+  novelId     String
+  version     Int
+  status      VolumePlanVersionStatus @default(draft)
+  contentJson String
+  diffSummary String?
+  novel       Novel                   @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  volumes     VolumePlan[]
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  @@unique([novelId, version])
+  @@index([novelId, status, createdAt])
+}
+
+model VolumePlan {
+  id                String             @id @default(cuid())
+  novelId           String
+  sortOrder         Int
+  title             String
+  summary           String?
+  mainPromise       String?
+  escalationMode    String?
+  protagonistChange String?
+  climax            String?
+  nextVolumeHook    String?
+  resetPoint        String?
+  openPayoffsJson   String?
+  status            String             @default("active")
+  sourceVersionId   String?
+  novel             Novel              @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  sourceVersion     VolumePlanVersion? @relation(fields: [sourceVersionId], references: [id], onDelete: SetNull)
+  chapters          VolumeChapterPlan[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([novelId, sortOrder])
+  @@index([novelId, status, sortOrder])
+  @@index([sourceVersionId])
+}
+
+model VolumeChapterPlan {
+  id              String     @id @default(cuid())
+  volumeId        String
+  chapterOrder    Int
+  title           String
+  summary         String
+  purpose         String?
+  conflictLevel   Int?
+  revealLevel     Int?
+  targetWordCount Int?
+  mustAvoid       String?
+  taskSheet       String?
+  payoffRefsJson  String?
+  volume          VolumePlan @relation(fields: [volumeId], references: [id], onDelete: Cascade)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@unique([volumeId, chapterOrder])
+  @@index([volumeId, chapterOrder])
 }
 
 model QualityReport {

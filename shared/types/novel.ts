@@ -9,6 +9,7 @@ export type AIFreedom = "low" | "medium" | "high";
 export type ProjectProgressStatus = "not_started" | "in_progress" | "completed" | "rework" | "blocked";
 
 export type StorylineVersionStatus = "draft" | "active" | "frozen";
+export type VolumePlanVersionStatus = "draft" | "active" | "frozen";
 export type StoryPlanLevel = "book" | "arc" | "chapter";
 export type StoryPlanRole = "setup" | "progress" | "pressure" | "turn" | "payoff" | "cooldown";
 export type AuditType = "continuity" | "character" | "plot";
@@ -78,6 +79,9 @@ export interface Novel {
   continuationBookAnalysisSections?: BookAnalysisSectionKey[] | null;
   outline?: string | null;
   structuredOutline?: string | null;
+  volumes?: VolumePlan[];
+  volumeSource?: "volume" | "legacy" | "empty";
+  activeVolumeVersionId?: string | null;
   genreId?: string | null;
   worldId?: string | null;
   createdAt: string;
@@ -578,6 +582,118 @@ export interface ReplanResult {
     outputSummary?: string | null;
     createdAt: string;
   } | null;
+}
+
+export interface VolumeChapterPlan {
+  id: string;
+  volumeId: string;
+  chapterOrder: number;
+  title: string;
+  summary: string;
+  purpose?: string | null;
+  conflictLevel?: number | null;
+  revealLevel?: number | null;
+  targetWordCount?: number | null;
+  mustAvoid?: string | null;
+  taskSheet?: string | null;
+  payoffRefs: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VolumePlan {
+  id: string;
+  novelId: string;
+  sortOrder: number;
+  title: string;
+  summary?: string | null;
+  mainPromise?: string | null;
+  escalationMode?: string | null;
+  protagonistChange?: string | null;
+  climax?: string | null;
+  nextVolumeHook?: string | null;
+  resetPoint?: string | null;
+  openPayoffs: string[];
+  status: string;
+  sourceVersionId?: string | null;
+  chapters: VolumeChapterPlan[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VolumePlanVersion {
+  id: string;
+  novelId: string;
+  version: number;
+  status: VolumePlanVersionStatus;
+  contentJson: string;
+  diffSummary?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VolumePlanDocument {
+  novelId: string;
+  volumes: VolumePlan[];
+  derivedOutline: string;
+  derivedStructuredOutline: string;
+  source: "volume" | "legacy" | "empty";
+  activeVersionId?: string | null;
+}
+
+export interface VolumePlanDiffVolume {
+  sortOrder: number;
+  title: string;
+  changedFields: string[];
+  chapterOrders: number[];
+}
+
+export interface VolumePlanDiff {
+  id: string;
+  novelId: string;
+  version: number;
+  status: VolumePlanVersionStatus;
+  diffSummary?: string | null;
+  changedLines: number;
+  changedVolumeCount: number;
+  changedChapterCount: number;
+  changedVolumes: VolumePlanDiffVolume[];
+  affectedChapterOrders: number[];
+}
+
+export interface VolumeImpactResult {
+  novelId: string;
+  sourceVersion: number | null;
+  changedLines: number;
+  affectedVolumeCount: number;
+  affectedChapterCount: number;
+  affectedVolumes: VolumePlanDiffVolume[];
+  requiresChapterSync: boolean;
+  requiresCharacterReview: boolean;
+  recommendedActions: string[];
+}
+
+export interface VolumeSyncPreviewItem {
+  action: "create" | "update" | "keep" | "delete" | "delete_candidate" | "move";
+  volumeTitle: string;
+  chapterOrder: number;
+  nextTitle: string;
+  previousTitle?: string | null;
+  hasContent: boolean;
+  changedFields: string[];
+}
+
+export interface VolumeSyncPreview {
+  createCount: number;
+  updateCount: number;
+  keepCount: number;
+  moveCount: number;
+  deleteCount: number;
+  deleteCandidateCount: number;
+  affectedGeneratedCount: number;
+  clearContentCount: number;
+  affectedVolumeCount: number;
+  items: VolumeSyncPreviewItem[];
 }
 
 export interface ReplanRecommendation {
