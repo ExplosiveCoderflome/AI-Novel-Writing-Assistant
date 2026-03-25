@@ -93,8 +93,10 @@ export interface StoryMacroTabProps {
 export interface OutlineTabViewProps {
   worldInjectionSummary: string | null;
   hasCharacters: boolean;
-  isGenerating: boolean;
-  onGenerate: () => void;
+  hasUnsavedVolumeDraft: boolean;
+  generationNotice: string;
+  isGeneratingBook: boolean;
+  onGenerateBook: () => void;
   onGoToCharacterTab: () => void;
   draftText: string;
   volumes: VolumePlan[];
@@ -149,6 +151,16 @@ export interface StructuredTabViewProps extends Omit<
   | "impactResult"
 > {
   draftText: string;
+  isGeneratingVolume: boolean;
+  onGenerateVolume: (volumeId: string) => void;
+  isGeneratingChapterDetail: boolean;
+  generatingChapterDetailMode: "purpose" | "boundary" | "task_sheet" | "";
+  generatingChapterDetailChapterId: string;
+  onGenerateChapterDetail: (
+    volumeId: string,
+    chapterId: string,
+    mode: "purpose" | "boundary" | "task_sheet",
+  ) => void;
   syncPreview: VolumeSyncPreview;
   syncOptions: StructuredSyncOptions;
   onSyncOptionsChange: (patch: Partial<StructuredSyncOptions>) => void;

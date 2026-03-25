@@ -22,7 +22,7 @@ function createLocalId(prefix: string): string {
   return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
 }
 
-export function createEmptyVolume(sortOrder: number, chapterStartOrder: number): VolumePlan {
+export function createEmptyVolume(sortOrder: number): VolumePlan {
   return {
     id: createLocalId("volume"),
     novelId: "",
@@ -38,7 +38,7 @@ export function createEmptyVolume(sortOrder: number, chapterStartOrder: number):
     openPayoffs: [],
     status: "active",
     sourceVersionId: null,
-    chapters: [createEmptyChapter(chapterStartOrder)],
+    chapters: [],
     createdAt: new Date(0).toISOString(),
     updatedAt: new Date(0).toISOString(),
   };

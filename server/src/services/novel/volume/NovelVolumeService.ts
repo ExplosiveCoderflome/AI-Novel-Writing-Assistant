@@ -12,7 +12,6 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
 import { novelEventBus } from "../../../events";
-import { invokeStructuredLlm } from "../../../llm/structuredInvoke";
 import { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import {
   buildDerivedOutlineFromVolumes,
@@ -26,44 +25,26 @@ import {
   normalizeVolumeDraftInput,
   type ExistingChapterRecord,
   type LegacyVolumeSource,
-  volumeGenerationSchema,
 } from "./volumePlanUtils";
-
-interface VolumeGenerateOptions {
-  provider?: LLMProvider;
-  model?: string;
-  temperature?: number;
-  guidance?: string;
-}
-
-interface VolumeDraftInput {
-  volumes?: unknown;
-  diffSummary?: string;
-  baseVersion?: number;
-}
-
-interface VolumeImpactInput {
-  volumes?: unknown;
-  versionId?: string;
-}
-
-interface VolumeSyncInput {
-  volumes: unknown;
-  preserveContent?: boolean;
-  applyDeletes?: boolean;
-}
-
-type DbClient = Prisma.TransactionClient | typeof prisma;
-
-type VolumeRow = Prisma.VolumePlanGetPayload<{
-  include: {
-    chapters: {
-      orderBy: { chapterOrder: "asc" };
-    };
-  };
-}>;
-
-type VolumeVersionRow = Prisma.VolumePlanVersionGetPayload<Record<string, never>>;
+import { normalizeVolumeDraftContextInput } from "./volumeDraftContext";
+import { generateVolumePlanDocument } from "./volumeGeneration";
+import {
+  type DbClient,
+  mapVersionRow,
+  mapVolumeRow,
+  type VolumeDraftInput,
+  type VolumeGenerateOptions,
+  type VolumeImpactInput,
+  type VolumeSyncInput,
+} from "./volumeModels";
+import {
+  activateStorylineVersionCompat,
+  analyzeStorylineImpactCompat,
+  createStorylineDraftCompat,
+  freezeStorylineVersionCompat,
+  getStorylineDiffCompat,
+  listStorylineVersionsCompat,
+} from "./volumeStorylineCompat";
 
 export class NovelVolumeService {
   private readonly storyMacroPlanService = new StoryMacroPlanService();
@@ -73,56 +54,6 @@ export class NovelVolumeService {
       type: "volume:updated",
       payload: { novelId },
     }).catch(() => {});
-  }
-
-  private mapVolumeRow(row: VolumeRow): VolumePlan {
-    return {
-      id: row.id,
-      novelId: row.novelId,
-      sortOrder: row.sortOrder,
-      title: row.title,
-      summary: row.summary,
-      mainPromise: row.mainPromise,
-      escalationMode: row.escalationMode,
-      protagonistChange: row.protagonistChange,
-      climax: row.climax,
-      nextVolumeHook: row.nextVolumeHook,
-      resetPoint: row.resetPoint,
-      openPayoffs: row.openPayoffsJson ? JSON.parse(row.openPayoffsJson) as string[] : [],
-      status: row.status,
-      sourceVersionId: row.sourceVersionId,
-      chapters: row.chapters.map((chapter) => ({
-        id: chapter.id,
-        volumeId: chapter.volumeId,
-        chapterOrder: chapter.chapterOrder,
-        title: chapter.title,
-        summary: chapter.summary,
-        purpose: chapter.purpose,
-        conflictLevel: chapter.conflictLevel,
-        revealLevel: chapter.revealLevel,
-        targetWordCount: chapter.targetWordCount,
-        mustAvoid: chapter.mustAvoid,
-        taskSheet: chapter.taskSheet,
-        payoffRefs: chapter.payoffRefsJson ? JSON.parse(chapter.payoffRefsJson) as string[] : [],
-        createdAt: chapter.createdAt.toISOString(),
-        updatedAt: chapter.updatedAt.toISOString(),
-      })),
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    };
-  }
-
-  private mapVersionRow(row: VolumeVersionRow): VolumePlanVersion {
-    return {
-      id: row.id,
-      novelId: row.novelId,
-      version: row.version,
-      status: row.status,
-      contentJson: row.contentJson,
-      diffSummary: row.diffSummary,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    };
   }
 
   private serializeVersionContent(novelId: string, volumes: VolumePlan[]): string {
@@ -174,7 +105,7 @@ export class NovelVolumeService {
       },
       orderBy: { sortOrder: "asc" },
     });
-    return rows.map((row) => this.mapVolumeRow(row));
+    return rows.map(mapVolumeRow);
   }
 
   private async getActiveVersionRow(novelId: string, db: DbClient = prisma) {
@@ -455,7 +386,7 @@ export class NovelVolumeService {
       where: { novelId },
       orderBy: [{ version: "desc" }],
     });
-    return rows.map((row) => this.mapVersionRow(row));
+    return rows.map(mapVersionRow);
   }
 
   async createVolumeDraft(novelId: string, input: VolumeDraftInput): Promise<VolumePlanVersion> {
@@ -489,7 +420,7 @@ export class NovelVolumeService {
         diffSummary,
       },
     });
-    return this.mapVersionRow(created);
+    return mapVersionRow(created);
   }
 
   async activateVolumeVersion(novelId: string, versionId: string): Promise<VolumePlanVersion> {
@@ -519,7 +450,7 @@ export class NovelVolumeService {
       throw new Error("卷级版本激活失败。");
     }
     this.emitVolumeUpdated(novelId);
-    return this.mapVersionRow(refreshed);
+    return mapVersionRow(refreshed);
   }
 
   async freezeVolumeVersion(novelId: string, versionId: string): Promise<VolumePlanVersion> {
@@ -534,7 +465,7 @@ export class NovelVolumeService {
       where: { id: target.id },
       data: { status: "frozen" },
     });
-    return this.mapVersionRow(row);
+    return mapVersionRow(row);
   }
 
   async getVolumeDiff(novelId: string, versionId: string, compareVersion?: number): Promise<VolumePlanDiff> {
@@ -678,209 +609,81 @@ export class NovelVolumeService {
   }
 
   async generateVolumes(novelId: string, options: VolumeGenerateOptions = {}): Promise<VolumePlanDocument> {
-    const workspace = await this.ensureVolumeWorkspace(novelId);
-    const [novel, storyMacroPlan] = await Promise.all([
-      prisma.novel.findUnique({
-        where: { id: novelId },
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          targetAudience: true,
-          bookSellingPoint: true,
-          competingFeel: true,
-          first30ChapterPromise: true,
-          commercialTagsJson: true,
-          estimatedChapterCount: true,
-          narrativePov: true,
-          pacePreference: true,
-          emotionIntensity: true,
-          genre: {
-            select: { name: true },
-          },
-          characters: {
-            orderBy: { createdAt: "asc" },
-            select: {
-              name: true,
-              role: true,
-              currentGoal: true,
-              currentState: true,
-            },
-          },
-        },
-      }),
-      this.storyMacroPlanService.getPlan(novelId).catch(() => null),
-    ]);
-    if (!novel) {
-      throw new Error("小说不存在。");
-    }
-
-    const targetChapterCount = Math.max(
-      novel.estimatedChapterCount ?? 0,
-      workspace.volumes.flatMap((volume) => volume.chapters).length,
-      12,
-    );
-    const suggestedVolumeCount = targetChapterCount <= 24 ? 1 : targetChapterCount <= 60 ? 3 : 4;
-    const commercialTags = (() => {
-      try {
-        return novel.commercialTagsJson ? JSON.parse(novel.commercialTagsJson) as string[] : [];
-      } catch {
-        return [];
-      }
-    })();
-
-    const prompt = [
-      `小说标题：${novel.title}`,
-      `题材：${novel.genre?.name ?? "未设置"}`,
-      `简介：${novel.description ?? "无"}`,
-      `目标读者：${novel.targetAudience ?? "无"}`,
-      `卖点：${novel.bookSellingPoint ?? "无"}`,
-      `竞品体感：${novel.competingFeel ?? "无"}`,
-      `前30章承诺：${novel.first30ChapterPromise ?? "无"}`,
-      `商业标签：${commercialTags.join("、") || "无"}`,
-      `叙事视角：${novel.narrativePov ?? "未设置"}`,
-      `节奏偏好：${novel.pacePreference ?? "未设置"}`,
-      `情绪强度：${novel.emotionIntensity ?? "未设置"}`,
-      `建议总章节数：${targetChapterCount}`,
-      `建议卷数：${suggestedVolumeCount}`,
-      `现有角色：${novel.characters.map((item) => `${item.name}|${item.role}|goal=${item.currentGoal ?? ""}|state=${item.currentState ?? ""}`).join("\n") || "无"}`,
-      `现有卷级方案：${buildDerivedOutlineFromVolumes(workspace.volumes) || "无"}`,
-      storyMacroPlan?.decomposition ? `故事拆解：${JSON.stringify(storyMacroPlan.decomposition)}` : "故事拆解：无",
-      storyMacroPlan?.constraintEngine ? `约束引擎：${JSON.stringify(storyMacroPlan.constraintEngine)}` : "约束引擎：无",
-      options.guidance?.trim() ? `额外指令：${options.guidance.trim()}` : "",
-    ].filter(Boolean).join("\n\n");
-
-    const generated = await invokeStructuredLlm({
-      label: `volume-plan:${novelId}`,
-      provider: options.provider,
-      model: options.model,
-      temperature: options.temperature ?? 0.35,
-      taskType: "planner",
-      systemPrompt: [
-        "你是长篇网文卷级规划器。",
-        "请输出严格 JSON，包含 volumes 数组。",
-        "每卷必须给出：title、mainPromise、escalationMode、protagonistChange、climax、nextVolumeHook、chapters。",
-        "章节必须覆盖连续 chapterOrder，章节摘要要明确可执行目标。",
-        "优先保证前30章承诺、商业卖点和阶段升级清晰。",
-      ].join("\n"),
-      userPrompt: prompt,
-      schema: volumeGenerationSchema,
-      maxRepairAttempts: 1,
-    });
-
-    const volumes = normalizeVolumeDraftInput(novelId, generated.volumes);
-    return {
-      novelId,
-      volumes,
-      derivedOutline: buildDerivedOutlineFromVolumes(volumes),
-      derivedStructuredOutline: buildDerivedStructuredOutlineFromVolumes(volumes),
-      source: "volume",
-      activeVersionId: workspace.activeVersionId,
+    const persistedWorkspace = await this.ensureVolumeWorkspace(novelId);
+    const workspace = {
+      ...persistedWorkspace,
+      volumes: options.draftVolumes
+        ? normalizeVolumeDraftContextInput(novelId, options.draftVolumes)
+        : persistedWorkspace.volumes,
     };
+    return generateVolumePlanDocument({
+      novelId,
+      workspace,
+      options,
+      storyMacroPlanService: this.storyMacroPlanService,
+    });
   }
 
   async listStorylineVersionsCompat(novelId: string): Promise<StorylineVersion[]> {
-    const versions = await this.listVolumeVersions(novelId);
-    return versions.map((version) => ({
-      id: version.id,
-      novelId: version.novelId,
-      version: version.version,
-      status: version.status,
-      content: buildDerivedOutlineFromVolumes(this.parseVersionContent(novelId, version.contentJson)),
-      diffSummary: version.diffSummary,
-      createdAt: version.createdAt,
-      updatedAt: version.updatedAt,
-    }));
+    return listStorylineVersionsCompat({
+      novelId,
+      listVolumeVersions: () => this.listVolumeVersions(novelId),
+      parseVersionContent: (contentJson) => this.parseVersionContent(novelId, contentJson),
+    });
   }
 
   async createStorylineDraftCompat(novelId: string, input: { content: string; diffSummary?: string; baseVersion?: number }) {
-    const legacySource = await this.getLegacySource(novelId);
-    const volumes = buildFallbackVolumesFromLegacy(novelId, {
-      ...legacySource,
-      outline: input.content,
-    });
-    const version = await this.createVolumeDraft(novelId, {
-      volumes,
-      diffSummary: input.diffSummary,
-      baseVersion: input.baseVersion,
-    });
-    return {
-      id: version.id,
-      novelId: version.novelId,
-      version: version.version,
-      status: version.status,
-      content: buildDerivedOutlineFromVolumes(volumes),
-      diffSummary: version.diffSummary,
-      createdAt: version.createdAt,
-      updatedAt: version.updatedAt,
-    } satisfies StorylineVersion;
+    return createStorylineDraftCompat(
+      {
+        novelId,
+        getLegacySource: () => this.getLegacySource(novelId),
+        createVolumeDraft: (draftInput) => this.createVolumeDraft(novelId, draftInput),
+      },
+      input,
+    );
   }
 
   async activateStorylineVersionCompat(novelId: string, versionId: string): Promise<StorylineVersion> {
-    const version = await this.activateVolumeVersion(novelId, versionId);
-    const content = buildDerivedOutlineFromVolumes(this.parseVersionContent(novelId, version.contentJson));
-    return {
-      id: version.id,
-      novelId: version.novelId,
-      version: version.version,
-      status: version.status,
-      content,
-      diffSummary: version.diffSummary,
-      createdAt: version.createdAt,
-      updatedAt: version.updatedAt,
-    };
+    return activateStorylineVersionCompat(
+      {
+        novelId,
+        activateVolumeVersion: (targetVersionId) => this.activateVolumeVersion(novelId, targetVersionId),
+        parseVersionContent: (contentJson) => this.parseVersionContent(novelId, contentJson),
+      },
+      versionId,
+    );
   }
 
   async freezeStorylineVersionCompat(novelId: string, versionId: string): Promise<StorylineVersion> {
-    const version = await this.freezeVolumeVersion(novelId, versionId);
-    const content = buildDerivedOutlineFromVolumes(this.parseVersionContent(novelId, version.contentJson));
-    return {
-      id: version.id,
-      novelId: version.novelId,
-      version: version.version,
-      status: version.status,
-      content,
-      diffSummary: version.diffSummary,
-      createdAt: version.createdAt,
-      updatedAt: version.updatedAt,
-    };
+    return freezeStorylineVersionCompat(
+      {
+        novelId,
+        freezeVolumeVersion: (targetVersionId) => this.freezeVolumeVersion(novelId, targetVersionId),
+        parseVersionContent: (contentJson) => this.parseVersionContent(novelId, contentJson),
+      },
+      versionId,
+    );
   }
 
   async getStorylineDiffCompat(novelId: string, versionId: string, compareVersion?: number): Promise<StorylineDiff> {
-    const diff = await this.getVolumeDiff(novelId, versionId, compareVersion);
-    return {
-      id: diff.id,
-      novelId: diff.novelId,
-      version: diff.version,
-      status: diff.status,
-      diffSummary: diff.diffSummary,
-      changedLines: diff.changedLines,
-      affectedCharacters: diff.changedVolumes.filter((volume) => volume.changedFields.includes("主角变化")).length,
-      affectedChapters: diff.changedChapterCount,
-    };
+    return getStorylineDiffCompat(
+      {
+        getVolumeDiff: (targetVersionId, targetCompareVersion) => this.getVolumeDiff(novelId, targetVersionId, targetCompareVersion),
+      },
+      novelId,
+      versionId,
+      compareVersion,
+    );
   }
 
   async analyzeStorylineImpactCompat(novelId: string, input: { content?: string; versionId?: string }) {
-    const result = input.content
-      ? await this.analyzeVolumeImpact(novelId, {
-        volumes: buildFallbackVolumesFromLegacy(novelId, {
-          ...(await this.getLegacySource(novelId)),
-          outline: input.content,
-        }),
-      })
-      : await this.analyzeVolumeImpact(novelId, { versionId: input.versionId });
-    return {
-      novelId: result.novelId,
-      sourceVersion: result.sourceVersion,
-      changedLines: result.changedLines,
-      affectedCharacters: result.requiresCharacterReview ? result.affectedVolumeCount : 0,
-      affectedChapters: result.affectedChapterCount,
-      requiresOutlineRebuild: result.requiresChapterSync,
-      recommendations: {
-        shouldSyncOutline: result.requiresChapterSync,
-        shouldRecheckCharacters: result.requiresCharacterReview,
-        suggestedStrategy: result.changedLines >= 12 ? "rebuild_outline" : "incremental_sync",
+    return analyzeStorylineImpactCompat(
+      {
+        novelId,
+        getLegacySource: () => this.getLegacySource(novelId),
+        analyzeVolumeImpact: (impactInput) => this.analyzeVolumeImpact(novelId, impactInput),
       },
-    };
+      input,
+    );
   }
 }

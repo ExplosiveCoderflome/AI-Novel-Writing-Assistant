@@ -258,6 +258,42 @@ const llmGenerateSchema = z.object({
 
 const volumeGenerateSchema = llmGenerateSchema.extend({
   guidance: z.string().trim().max(4000).optional(),
+  scope: z.enum(["book", "volume", "chapter_detail"]).optional(),
+  targetVolumeId: z.string().trim().min(1).optional(),
+  targetChapterId: z.string().trim().min(1).optional(),
+  detailMode: z.enum(["purpose", "boundary", "task_sheet"]).optional(),
+  estimatedChapterCount: z.number().int().min(1).max(500).optional(),
+  respectExistingVolumeCount: z.boolean().optional(),
+  draftVolumes: z.array(z.unknown()).min(1).optional(),
+}).superRefine((value, ctx) => {
+  if (value.scope === "volume" && !value.targetVolumeId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "按卷生成时必须提供目标卷。",
+      path: ["targetVolumeId"],
+    });
+  }
+  if (value.scope === "chapter_detail" && !value.targetVolumeId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "生成章节细化时必须提供目标卷。",
+      path: ["targetVolumeId"],
+    });
+  }
+  if (value.scope === "chapter_detail" && !value.targetChapterId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "生成章节细化时必须提供目标章节。",
+      path: ["targetChapterId"],
+    });
+  }
+  if (value.scope === "chapter_detail" && !value.detailMode) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "生成章节细化时必须提供生成类型。",
+      path: ["detailMode"],
+    });
+  }
 });
 
 const outlineGenerateSchema = llmGenerateSchema.extend({

@@ -8,7 +8,6 @@ import { getBaseCharacterList } from "@/api/character";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
 import {
   auditNovelChapter,
-  generateNovelVolumes,
   generateChapterPlan,
   getChapterAuditReports,
   getChapterPlan,
@@ -32,6 +31,7 @@ import { useNovelEditMutations } from "./hooks/useNovelEditMutations";
 import { useNovelEditInitialization } from "./hooks/useNovelEditInitialization";
 import { useNovelWorldSlice } from "./hooks/useNovelWorldSlice";
 import { useNovelStoryMacro } from "./hooks/useNovelStoryMacro";
+import { useNovelVolumePlanning } from "./hooks/useNovelVolumePlanning";
 import { useVolumeVersionControl } from "./hooks/useVolumeVersionControl";
 import type { ChapterReviewResult } from "./chapterPlanning.shared";
 import {
@@ -44,9 +44,6 @@ import {
   buildOutlinePreviewFromVolumes,
   buildStructuredPreviewFromVolumes,
   buildVolumeSyncPreview,
-  createEmptyChapter,
-  createEmptyVolume,
-  normalizeVolumeDraft,
   type ExistingOutlineChapter,
   type VolumeSyncOptions,
 } from "./volumePlan.utils";
@@ -186,18 +183,6 @@ export default function NovelEdit() {
     },
   });
 
-  const normalizedVolumeDraft = useMemo(
-    () => normalizeVolumeDraft(volumeDraft),
-    [volumeDraft],
-  );
-  const outlineText = useMemo(
-    () => buildOutlinePreviewFromVolumes(normalizedVolumeDraft),
-    [normalizedVolumeDraft],
-  );
-  const structuredDraftText = useMemo(
-    () => buildStructuredPreviewFromVolumes(normalizedVolumeDraft),
-    [normalizedVolumeDraft],
-  );
   const chapters = useMemo(() => novelDetailQuery.data?.data?.chapters ?? [], [novelDetailQuery.data?.data?.chapters]);
   const outlineSyncChapters = useMemo<ExistingOutlineChapter[]>(
     () => chapters.map((chapter) => ({
@@ -213,10 +198,6 @@ export default function NovelEdit() {
       taskSheet: chapter.taskSheet ?? null,
     })),
     [chapters],
-  );
-  const volumeSyncPreview = useMemo(
-    () => buildVolumeSyncPreview(normalizedVolumeDraft, outlineSyncChapters, volumeSyncOptions),
-    [normalizedVolumeDraft, outlineSyncChapters, volumeSyncOptions],
   );
   const selectedChapter = useMemo(
     () => chapters.find((item) => item.id === selectedChapterId),
@@ -241,6 +222,44 @@ export default function NovelEdit() {
     [characters],
   );
   const hasCharacters = characters.length > 0;
+  const {
+    normalizedVolumeDraft,
+    hasUnsavedVolumeDraft,
+    generationNotice,
+    isGeneratingBook,
+    isGeneratingVolume,
+    isGeneratingChapterDetail,
+    generatingChapterDetailMode,
+    generatingChapterDetailChapterId,
+    startBookGeneration,
+    startVolumeGeneration,
+    startChapterDetailGeneration,
+    handleVolumeFieldChange,
+    handleOpenPayoffsChange,
+    handleAddVolume,
+    handleRemoveVolume,
+    handleMoveVolume,
+    handleChapterFieldChange,
+    handleChapterNumberChange,
+    handleChapterPayoffRefsChange,
+    handleAddChapter,
+    handleRemoveChapter,
+    handleMoveChapter,
+  } = useNovelVolumePlanning({
+    novelId: id,
+    hasCharacters,
+    llm,
+    estimatedChapterCount: basicForm.estimatedChapterCount,
+    volumeDraft,
+    savedVolumes: novelDetailQuery.data?.data?.volumes ?? [],
+    setVolumeDraft,
+    setVolumeGenerationMessage,
+    setStructuredMessage,
+  });
+  const volumeSyncPreview = useMemo(
+    () => buildVolumeSyncPreview(normalizedVolumeDraft, outlineSyncChapters, volumeSyncOptions),
+    [normalizedVolumeDraft, outlineSyncChapters, volumeSyncOptions],
+  );
   const coreCharacterCount = useMemo(
     () => characters.filter((item) => /主角|反派/.test(item.role)).length,
     [characters],
@@ -286,6 +305,15 @@ export default function NovelEdit() {
     setSelectedBaseCharacterId,
     setCharacterForm,
   });
+
+  const outlineText = useMemo(
+    () => buildOutlinePreviewFromVolumes(normalizedVolumeDraft),
+    [normalizedVolumeDraft],
+  );
+  const structuredDraftText = useMemo(
+    () => buildStructuredPreviewFromVolumes(normalizedVolumeDraft),
+    [normalizedVolumeDraft],
+  );
 
   const invalidateNovelDetail = async () => {
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
@@ -350,21 +378,6 @@ export default function NovelEdit() {
     setReviewResult,
     queryClient,
     invalidateNovelDetail,
-  });
-
-  const generateVolumeMutation = useMutation({
-    mutationFn: () => generateNovelVolumes(id, {
-      provider: llm.provider,
-      model: llm.model,
-      temperature: llm.temperature,
-    }),
-    onSuccess: (response) => {
-      setVolumeDraft(response.data?.volumes ?? []);
-      setVolumeGenerationMessage(response.message ?? "卷级方案已生成。");
-    },
-    onError: (error) => {
-      setVolumeGenerationMessage(error instanceof Error ? error.message : "生成卷级方案失败。");
-    },
   });
 
   const generateChapterPlanMutation = useMutation({
@@ -471,166 +484,6 @@ export default function NovelEdit() {
     invalidateNovelDetail,
   });
 
-  const updateVolumeDraft = (updater: (prev: VolumePlan[]) => VolumePlan[]) => {
-    setVolumeDraft((prev) => normalizeVolumeDraft(updater(prev)));
-  };
-
-  const handleVolumeFieldChange = (
-    volumeId: string,
-    field: keyof Pick<VolumePlan, "title" | "summary" | "mainPromise" | "escalationMode" | "protagonistChange" | "climax" | "nextVolumeHook" | "resetPoint">,
-    value: string,
-  ) => {
-    updateVolumeDraft((prev) => prev.map((volume) => (
-      volume.id === volumeId ? { ...volume, [field]: value } : volume
-    )));
-  };
-
-  const handleOpenPayoffsChange = (volumeId: string, value: string) => {
-    const nextPayoffs = value
-      .split(/[\n,，;；、]/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-    updateVolumeDraft((prev) => prev.map((volume) => (
-      volume.id === volumeId ? { ...volume, openPayoffs: nextPayoffs } : volume
-    )));
-  };
-
-  const handleAddVolume = () => {
-    updateVolumeDraft((prev) => [
-      ...prev,
-      createEmptyVolume(prev.length + 1, prev.flatMap((volume) => volume.chapters).length + 1),
-    ]);
-  };
-
-  const handleRemoveVolume = (volumeId: string) => {
-    updateVolumeDraft((prev) => prev.filter((volume) => volume.id !== volumeId));
-  };
-
-  const handleMoveVolume = (volumeId: string, direction: -1 | 1) => {
-    updateVolumeDraft((prev) => {
-      const list = prev.slice();
-      const index = list.findIndex((volume) => volume.id === volumeId);
-      const targetIndex = index + direction;
-      if (index < 0 || targetIndex < 0 || targetIndex >= list.length) {
-        return prev;
-      }
-      const [item] = list.splice(index, 1);
-      list.splice(targetIndex, 0, item);
-      return list;
-    });
-  };
-
-  const handleChapterFieldChange = (
-    volumeId: string,
-    chapterId: string,
-    field: keyof Pick<VolumePlan["chapters"][number], "title" | "summary" | "purpose" | "mustAvoid" | "taskSheet">,
-    value: string,
-  ) => {
-    updateVolumeDraft((prev) => prev.map((volume) => (
-      volume.id !== volumeId
-        ? volume
-        : {
-          ...volume,
-          chapters: volume.chapters.map((chapter) => (
-            chapter.id === chapterId ? { ...chapter, [field]: value } : chapter
-          )),
-        }
-    )));
-  };
-
-  const handleChapterNumberChange = (
-    volumeId: string,
-    chapterId: string,
-    field: keyof Pick<VolumePlan["chapters"][number], "conflictLevel" | "revealLevel" | "targetWordCount">,
-    value: number | null,
-  ) => {
-    updateVolumeDraft((prev) => prev.map((volume) => (
-      volume.id !== volumeId
-        ? volume
-        : {
-          ...volume,
-          chapters: volume.chapters.map((chapter) => (
-            chapter.id === chapterId ? { ...chapter, [field]: value } : chapter
-          )),
-        }
-    )));
-  };
-
-  const handleChapterPayoffRefsChange = (volumeId: string, chapterId: string, value: string) => {
-    const nextRefs = value
-      .split(/[\n,，;；、]/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-    updateVolumeDraft((prev) => prev.map((volume) => (
-      volume.id !== volumeId
-        ? volume
-        : {
-          ...volume,
-          chapters: volume.chapters.map((chapter) => (
-            chapter.id === chapterId ? { ...chapter, payoffRefs: nextRefs } : chapter
-          )),
-        }
-    )));
-  };
-
-  const handleAddChapter = (volumeId: string) => {
-    updateVolumeDraft((prev) => prev.map((volume) => (
-      volume.id !== volumeId
-        ? volume
-        : {
-          ...volume,
-          chapters: [
-            ...volume.chapters,
-            createEmptyChapter(prev.flatMap((item) => item.chapters).length + 1),
-          ],
-        }
-    )));
-  };
-
-  const handleRemoveChapter = (volumeId: string, chapterId: string) => {
-    updateVolumeDraft((prev) => prev.map((volume) => (
-      volume.id !== volumeId
-        ? volume
-        : {
-          ...volume,
-          chapters: volume.chapters.filter((chapter) => chapter.id !== chapterId),
-        }
-    )));
-  };
-
-  const handleMoveChapter = (volumeId: string, chapterId: string, direction: -1 | 1) => {
-    updateVolumeDraft((prev) => prev.map((volume) => {
-      if (volume.id !== volumeId) {
-        return volume;
-      }
-      const chaptersInVolume = volume.chapters.slice();
-      const index = chaptersInVolume.findIndex((chapter) => chapter.id === chapterId);
-      const targetIndex = index + direction;
-      if (index < 0 || targetIndex < 0 || targetIndex >= chaptersInVolume.length) {
-        return volume;
-      }
-      const [item] = chaptersInVolume.splice(index, 1);
-      chaptersInVolume.splice(targetIndex, 0, item);
-      return { ...volume, chapters: chaptersInVolume };
-    }));
-  };
-
-  const startOutlineGeneration = () => {
-    if (!hasCharacters) {
-      const confirmed = window.confirm("当前小说还没有角色。继续生成发展走向会降低后续一致性，是否继续？");
-      if (!confirmed) {
-        return;
-      }
-    }
-    if (outlineText.trim()) {
-      const confirmed = window.confirm("将生成新的卷级草稿。生成后建议先查看差异与影响分析，再设为生效版。是否继续？");
-      if (!confirmed) {
-        return;
-      }
-    }
-    generateVolumeMutation.mutate();
-  };
-
   const goToCharacterTab = () => setActiveTab("character");
   const handleGenerateSelectedChapter = () => {
     if (!selectedChapter) {
@@ -668,8 +521,10 @@ export default function NovelEdit() {
   const outlineTab = {
     worldInjectionSummary,
     hasCharacters,
-    isGenerating: generateVolumeMutation.isPending,
-    onGenerate: startOutlineGeneration,
+    hasUnsavedVolumeDraft,
+    generationNotice,
+    isGeneratingBook,
+    onGenerateBook: startBookGeneration,
     onGoToCharacterTab: goToCharacterTab,
     draftText: outlineText,
     volumes: normalizedVolumeDraft,
@@ -703,6 +558,12 @@ export default function NovelEdit() {
   const structuredTab = {
     ...outlineTab,
     draftText: structuredDraftText,
+    isGeneratingVolume,
+    onGenerateVolume: startVolumeGeneration,
+    isGeneratingChapterDetail,
+    generatingChapterDetailMode,
+    generatingChapterDetailChapterId,
+    onGenerateChapterDetail: startChapterDetailGeneration,
     syncPreview: volumeSyncPreview,
     syncOptions: volumeSyncOptions,
     onSyncOptionsChange: (patch: Partial<VolumeSyncOptions>) => setVolumeSyncOptions((prev) => ({ ...prev, ...patch })),

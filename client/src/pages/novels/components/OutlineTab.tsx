@@ -20,8 +20,10 @@ export default function OutlineTab(props: OutlineTabViewProps) {
   const {
     worldInjectionSummary,
     hasCharacters,
-    isGenerating,
-    onGenerate,
+    hasUnsavedVolumeDraft,
+    generationNotice,
+    isGeneratingBook,
+    onGenerateBook,
     onGoToCharacterTab,
     draftText,
     volumes,
@@ -61,8 +63,8 @@ export default function OutlineTab(props: OutlineTabViewProps) {
         <CardTitle>卷级工作台</CardTitle>
         <div className="flex gap-2">
           <Button variant="outline" onClick={onAddVolume}>新增卷</Button>
-          <Button onClick={onGenerate} disabled={isGenerating || !hasCharacters}>
-            {isGenerating ? "生成中..." : "从宏观规划生成"}
+          <Button onClick={onGenerateBook} disabled={isGeneratingBook}>
+            {isGeneratingBook ? "生成中..." : volumes.length > 0 ? "重生成全书卷骨架" : "生成全书卷骨架"}
           </Button>
           <Button variant="secondary" onClick={onSave} disabled={isSaving}>
             {isSaving ? "保存中..." : "保存卷级方案"}
@@ -77,13 +79,17 @@ export default function OutlineTab(props: OutlineTabViewProps) {
             <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>去角色管理</Button>
           </div>
         ) : null}
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-border/70 bg-muted/20 p-2 text-xs text-muted-foreground">
+          <span>{generationNotice}</span>
+          {hasUnsavedVolumeDraft ? <Badge variant="secondary">含未保存草稿</Badge> : null}
+        </div>
         {volumeMessage ? <div className="text-xs text-muted-foreground">{volumeMessage}</div> : null}
 
         <div className="grid gap-4 xl:grid-cols-[1.65fr_1fr]">
           <div className="space-y-3">
             {volumes.length === 0 ? (
               <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-                当前还没有卷级方案。可以先点击“从宏观规划生成”，也可以手动新增第一卷。
+                当前还没有卷级方案。可以先点击“生成全书卷骨架”，这一步只生成卷级字段；章节列表需要后续按卷单独生成。
               </div>
             ) : (
               volumes.map((volume, index) => (
