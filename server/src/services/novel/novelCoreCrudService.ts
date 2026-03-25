@@ -1,5 +1,6 @@
 import { serializeCommercialTagsJson } from "@ai-novel/shared/types/novelFraming";
 import { prisma } from "../../db/prisma";
+import { AppError } from "../../middleware/errorHandler";
 import { NovelContinuationService } from "./NovelContinuationService";
 import { STORY_WORLD_SLICE_SCHEMA_VERSION } from "./storyWorldSlice/storyWorldSlicePersistence";
 import { syncChapterArtifacts } from "./novelChapterArtifacts";
@@ -19,6 +20,12 @@ import { queueRagDelete, queueRagUpsert } from "./novelCoreSupport";
 export class NovelCoreCrudService {
   private readonly novelContinuationService = new NovelContinuationService();
 
+  private validateStoryModeSelection(primaryStoryModeId?: string | null, secondaryStoryModeId?: string | null): void {
+    if (primaryStoryModeId && secondaryStoryModeId && primaryStoryModeId === secondaryStoryModeId) {
+      throw new AppError("主流派模式和副流派模式不能选择同一项。", 400);
+    }
+  }
+
   async listNovels({ page, limit }: PaginationInput) {
     const [items, total] = await Promise.all([
       prisma.novel.findMany({
@@ -27,6 +34,8 @@ export class NovelCoreCrudService {
         orderBy: { updatedAt: "desc" },
         include: {
           genre: true,
+          primaryStoryMode: true,
+          secondaryStoryMode: true,
           world: { select: { id: true, name: true, worldType: true } },
           bible: true,
           _count: { select: { chapters: true, characters: true, plotBeats: true } },
@@ -55,6 +64,7 @@ export class NovelCoreCrudService {
       input.continuationBookAnalysisSections,
     );
     const commercialTagsJson = serializeCommercialTagsJson(input.commercialTags);
+    this.validateStoryModeSelection(input.primaryStoryModeId, input.secondaryStoryModeId);
 
     await this.novelContinuationService.validateWritingModeConfig({
       writingMode,
@@ -73,6 +83,8 @@ export class NovelCoreCrudService {
         first30ChapterPromise: normalizeOptionalTextForCreate(input.first30ChapterPromise),
         commercialTagsJson,
         genreId: input.genreId,
+        primaryStoryModeId: input.primaryStoryModeId ?? null,
+        secondaryStoryModeId: input.secondaryStoryModeId ?? null,
         worldId: input.worldId,
         writingMode,
         projectMode: input.projectMode,
@@ -111,6 +123,8 @@ export class NovelCoreCrudService {
       where: { id },
       include: {
         genre: true,
+        primaryStoryMode: true,
+        secondaryStoryMode: true,
         world: true,
         bible: true,
         chapters: { orderBy: { order: "asc" }, include: { chapterSummary: true } },
@@ -135,6 +149,8 @@ export class NovelCoreCrudService {
         sourceKnowledgeDocumentId: true,
         continuationBookAnalysisId: true,
         continuationBookAnalysisSections: true,
+        primaryStoryModeId: true,
+        secondaryStoryModeId: true,
       },
     });
     if (!existing) {
@@ -152,10 +168,17 @@ export class NovelCoreCrudService {
     const nextContinuationBookAnalysisSections = input.continuationBookAnalysisSections !== undefined
       ? input.continuationBookAnalysisSections
       : parseContinuationBookAnalysisSections(existing.continuationBookAnalysisSections);
+    const nextPrimaryStoryModeId = input.primaryStoryModeId !== undefined
+      ? input.primaryStoryModeId
+      : existing.primaryStoryModeId;
+    const nextSecondaryStoryModeId = input.secondaryStoryModeId !== undefined
+      ? input.secondaryStoryModeId
+      : existing.secondaryStoryModeId;
     const normalizedNextContinuationBookAnalysisId =
       nextWritingMode === "continuation" && (nextSourceNovelId || nextSourceKnowledgeDocumentId)
         ? nextContinuationBookAnalysisId
         : null;
+    this.validateStoryModeSelection(nextPrimaryStoryModeId, nextSecondaryStoryModeId);
 
     await this.novelContinuationService.validateWritingModeConfig({
       novelId: id,
@@ -189,6 +212,8 @@ export class NovelCoreCrudService {
         sourceNovelId: nextWritingMode === "continuation" ? nextSourceNovelId : null,
         sourceKnowledgeDocumentId: nextWritingMode === "continuation" ? nextSourceKnowledgeDocumentId : null,
         continuationBookAnalysisId: normalizedNextContinuationBookAnalysisId,
+        primaryStoryModeId: nextPrimaryStoryModeId ?? null,
+        secondaryStoryModeId: nextSecondaryStoryModeId ?? null,
         targetAudience: normalizeOptionalTextForUpdate(input.targetAudience),
         bookSellingPoint: normalizeOptionalTextForUpdate(input.bookSellingPoint),
         competingFeel: normalizeOptionalTextForUpdate(input.competingFeel),
@@ -207,6 +232,10 @@ export class NovelCoreCrudService {
             storyWorldSliceSchemaVersion: STORY_WORLD_SLICE_SCHEMA_VERSION,
           }
           : {}),
+      },
+      include: {
+        primaryStoryMode: true,
+        secondaryStoryMode: true,
       },
     });
 

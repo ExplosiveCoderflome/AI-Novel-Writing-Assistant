@@ -3,7 +3,7 @@ import { storyWorldSliceSchema } from "./storyWorldSlice";
 import { LLM_PROVIDERS } from "./llm";
 
 const llmProviderSchema = z.enum(LLM_PROVIDERS);
-const auditTypeSchema = z.enum(["continuity", "character", "plot"]);
+const auditTypeSchema = z.enum(["continuity", "character", "plot", "mode_fit"]);
 const auditSeveritySchema = z.enum(["low", "medium", "high", "critical"]);
 const auditIssueStatusSchema = z.enum(["open", "resolved", "ignored"]);
 const chapterGenerationStateSchema = z.enum(["planned", "drafted", "reviewed", "repaired", "approved", "published"]);

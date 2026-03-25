@@ -123,7 +123,7 @@ export async function replanNovel(
 export async function auditNovelChapter(
   id: string,
   chapterId: string,
-  scope: "continuity" | "character" | "plot" | "full",
+  scope: "continuity" | "character" | "plot" | "mode_fit" | "full",
   payload?: {
     provider?: LLMProvider;
     model?: string;

@@ -1,4 +1,3 @@
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
   VolumeChapterPlan,
   VolumePlan,
@@ -19,57 +18,18 @@ import {
   createChapterTaskSheetSchema,
   createVolumeChapterListSchema,
 } from "./volumeGenerationSchemas";
-
-type ChapterDetailMode = "purpose" | "boundary" | "task_sheet";
-
-interface VolumeGenerateOptions {
-  provider?: LLMProvider;
-  model?: string;
-  temperature?: number;
-  guidance?: string;
-  scope?: "book" | "volume" | "chapter_detail";
-  targetVolumeId?: string;
-  targetChapterId?: string;
-  detailMode?: ChapterDetailMode;
-  estimatedChapterCount?: number;
-  respectExistingVolumeCount?: boolean;
-}
-
-interface VolumeWorkspace {
-  volumes: VolumePlan[];
-  activeVersionId: string | null;
-}
-
-interface VolumeGenerationNovel {
-  title: string;
-  description: string | null;
-  targetAudience: string | null;
-  bookSellingPoint: string | null;
-  competingFeel: string | null;
-  first30ChapterPromise: string | null;
-  commercialTagsJson: string | null;
-  estimatedChapterCount: number | null;
-  narrativePov: string | null;
-  pacePreference: string | null;
-  emotionIntensity: string | null;
-  genre: {
-    name: string;
-  } | null;
-  characters: Array<{
-    name: string;
-    role: string;
-    currentGoal: string | null;
-    currentState: string | null;
-  }>;
-}
-
-function parseCommercialTags(commercialTagsJson: string | null | undefined): string[] {
-  try {
-    return commercialTagsJson ? JSON.parse(commercialTagsJson) as string[] : [];
-  } catch {
-    return [];
-  }
-}
+import type {
+  ChapterDetailMode,
+  VolumeGenerateOptions,
+  VolumeGenerationNovel,
+  VolumeWorkspace,
+} from "./volumeGenerationPrompts";
+import {
+  buildBookSkeletonPrompt,
+  buildChapterDetailPrompt,
+  buildVolumeChapterListPrompt,
+} from "./volumeGenerationPrompts";
+import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 
 function serializePromptJson(value: unknown, maxLength = 2400): string {
   if (value == null) {
@@ -213,122 +173,6 @@ function allocateChapterBudgets(params: {
   }
 
   return budgets;
-}
-
-function buildBookSkeletonPrompt(params: {
-  novel: VolumeGenerationNovel;
-  workspace: VolumeWorkspace;
-  storyMacroPlan: Awaited<ReturnType<StoryMacroPlanService["getPlan"]>> | null;
-  guidance?: string;
-  chapterBudget: number;
-  targetVolumeCount: number;
-  chapterBudgets: number[];
-}): string {
-  const { novel, workspace, storyMacroPlan, guidance, chapterBudget, targetVolumeCount, chapterBudgets } = params;
-  const commercialTags = parseCommercialTags(novel.commercialTagsJson);
-  return [
-    "工作模式：全书卷骨架生成",
-    "这一步只做卷级骨架，不要拆章节列表。",
-    `小说标题：${novel.title}`,
-    `题材：${novel.genre?.name ?? "未设置"}`,
-    `简介：${novel.description ?? "无"}`,
-    `目标读者：${novel.targetAudience ?? "无"}`,
-    `卖点：${novel.bookSellingPoint ?? "无"}`,
-    `竞品体感：${novel.competingFeel ?? "无"}`,
-    `前30章承诺：${novel.first30ChapterPromise ?? "无"}`,
-    `商业标签：${commercialTags.join("、") || "无"}`,
-    `叙事视角：${novel.narrativePov ?? "未设置"}`,
-    `节奏偏好：${novel.pacePreference ?? "未设置"}`,
-    `情绪强度：${novel.emotionIntensity ?? "未设置"}`,
-    `全书章节预算：${chapterBudget}`,
-    `必须保持卷数：${targetVolumeCount}`,
-    `建议每卷章节预算：${chapterBudgets.map((count, index) => `第${index + 1}卷约 ${count} 章`).join("；")}`,
-    `角色上下文：${buildCharacterContext(novel)}`,
-    `当前卷骨架摘要：${buildCompactVolumeContext(workspace.volumes)}`,
-    storyMacroPlan?.decomposition ? `故事拆解：${serializePromptJson(storyMacroPlan.decomposition)}` : "故事拆解：无",
-    storyMacroPlan?.constraintEngine ? `约束引擎：${serializePromptJson(storyMacroPlan.constraintEngine)}` : "约束引擎：无",
-    guidance?.trim() ? `额外指令：${guidance.trim()}` : "",
-  ].filter(Boolean).join("\n\n");
-}
-
-function buildVolumeChapterListPrompt(params: {
-  novel: VolumeGenerationNovel;
-  workspace: VolumeWorkspace;
-  targetVolume: VolumePlan;
-  previousVolume?: VolumePlan;
-  nextVolume?: VolumePlan;
-  storyMacroPlan: Awaited<ReturnType<StoryMacroPlanService["getPlan"]>> | null;
-  guidance?: string;
-  chapterBudget: number;
-  targetChapterCount: number;
-}): string {
-  const { novel, workspace, targetVolume, previousVolume, nextVolume, storyMacroPlan, guidance, chapterBudget, targetChapterCount } = params;
-  const commercialTags = parseCommercialTags(novel.commercialTagsJson);
-  return [
-    "工作模式：单卷章节列表生成",
-    "这一步只生成章节标题和章节摘要，不要输出章节目标、执行边界、任务单。",
-    `小说标题：${novel.title}`,
-    `题材：${novel.genre?.name ?? "未设置"}`,
-    `简介：${novel.description ?? "无"}`,
-    `目标读者：${novel.targetAudience ?? "无"}`,
-    `卖点：${novel.bookSellingPoint ?? "无"}`,
-    `竞品体感：${novel.competingFeel ?? "无"}`,
-    `前30章承诺：${novel.first30ChapterPromise ?? "无"}`,
-    `商业标签：${commercialTags.join("、") || "无"}`,
-    `叙事视角：${novel.narrativePov ?? "未设置"}`,
-    `节奏偏好：${novel.pacePreference ?? "未设置"}`,
-    `情绪强度：${novel.emotionIntensity ?? "未设置"}`,
-    `角色上下文：${buildCharacterContext(novel)}`,
-    `全书章节预算：${chapterBudget}`,
-    `全书卷数：${Math.max(workspace.volumes.length, 1)}`,
-    `本次只允许输出第${targetVolume.sortOrder}卷，目标章节数：${targetChapterCount}`,
-    `上一卷摘要：${previousVolume ? buildCompactVolumeCard(previousVolume) : "无"}`,
-    `当前卷设定：${buildCompactVolumeCard(targetVolume)}`,
-    `当前卷现有章节列表：${buildCurrentVolumeChapterContext(targetVolume)}`,
-    `下一卷摘要：${nextVolume ? buildCompactVolumeCard(nextVolume) : "无"}`,
-    `全书卷骨架摘要：${buildCompactVolumeContext(workspace.volumes)}`,
-    storyMacroPlan?.decomposition ? `故事拆解：${serializePromptJson(storyMacroPlan.decomposition, 1800)}` : "故事拆解：无",
-    storyMacroPlan?.constraintEngine ? `约束引擎：${serializePromptJson(storyMacroPlan.constraintEngine, 1800)}` : "约束引擎：无",
-    guidance?.trim() ? `额外指令：${guidance.trim()}` : "",
-  ].filter(Boolean).join("\n\n");
-}
-
-function buildChapterDetailPrompt(params: {
-  novel: VolumeGenerationNovel;
-  workspace: VolumeWorkspace;
-  targetVolume: VolumePlan;
-  targetChapter: VolumeChapterPlan;
-  storyMacroPlan: Awaited<ReturnType<StoryMacroPlanService["getPlan"]>> | null;
-  guidance?: string;
-  detailMode: ChapterDetailMode;
-}): string {
-  const { novel, workspace, targetVolume, targetChapter, storyMacroPlan, guidance, detailMode } = params;
-  const commercialTags = parseCommercialTags(novel.commercialTagsJson);
-  const detailInstruction = detailMode === "purpose"
-    ? "请只生成这一章的章节目标，说明这章必须推进什么关系、冲突或信息兑现。"
-    : detailMode === "boundary"
-      ? "请只生成这一章的执行边界：冲突等级、揭露等级、目标字数、禁止事项、兑现关联。"
-      : "请只生成这一章的任务单，给写作执行阶段可直接照做的指令。";
-
-  return [
-    `工作模式：章节细化生成（${detailMode}）`,
-    detailInstruction,
-    `小说标题：${novel.title}`,
-    `题材：${novel.genre?.name ?? "未设置"}`,
-    `简介：${novel.description ?? "无"}`,
-    `目标读者：${novel.targetAudience ?? "无"}`,
-    `卖点：${novel.bookSellingPoint ?? "无"}`,
-    `竞品体感：${novel.competingFeel ?? "无"}`,
-    `前30章承诺：${novel.first30ChapterPromise ?? "无"}`,
-    `商业标签：${commercialTags.join("、") || "无"}`,
-    `角色上下文：${buildCharacterContext(novel)}`,
-    `当前卷设定：${buildCompactVolumeCard(targetVolume)}`,
-    `章节邻接上下文：${buildNeighborChapterContext(targetVolume, targetChapter.id)}`,
-    `全书卷骨架摘要：${buildCompactVolumeContext(workspace.volumes)}`,
-    storyMacroPlan?.decomposition ? `故事拆解：${serializePromptJson(storyMacroPlan.decomposition, 1800)}` : "故事拆解：无",
-    storyMacroPlan?.constraintEngine ? `约束引擎：${serializePromptJson(storyMacroPlan.constraintEngine, 1800)}` : "约束引擎：无",
-    guidance?.trim() ? `额外指令：${guidance.trim()}` : "",
-  ].filter(Boolean).join("\n\n");
 }
 
 function mergeBookSkeletonIntoWorkspace(params: {
@@ -597,20 +441,31 @@ async function generateChapterDetail(params: {
   const systemPrompt = detailMode === "purpose"
     ? [
       "你是资深网文编辑。",
-      "请输出严格 JSON，只填写这一章必须推进的目标。",
+      "请输出严格 JSON，只填写这一章修正后的章节目标。",
+      "优先基于已有草稿做修正、补强和收束；如果当前为空，再补出首版。",
       "目标要聚焦剧情推进、人物关系或信息兑现，不要写成复述摘要。",
+      "最终 JSON 只能使用字段名 purpose。",
+      "正确示例：{\"purpose\":\"本章必须推进……\"}",
+      "禁止使用“章节目标”之类的中文键名。",
     ].join("\n")
     : detailMode === "boundary"
       ? [
         "你是资深网文编辑。",
-        "请输出严格 JSON，只填写这一章的执行边界。",
+        "请输出严格 JSON，只填写这一章修正后的执行边界。",
+        "优先沿用已有边界草稿，修正空缺、模糊和不合理之处，不要无故推翻已经确定的方向。",
         "冲突等级和揭露等级用 0-100 的整数；目标字数给出适合本章节奏的建议；禁止事项要具体；兑现关联给出本章该碰到的伏笔或承诺。",
+        "最终 JSON 只能使用字段名 conflictLevel、revealLevel、targetWordCount、mustAvoid、payoffRefs。",
+        "禁止使用中文键名。",
       ].join("\n")
       : [
         "你是资深网文编辑。",
-      "请输出严格 JSON，只填写这一章的任务单。",
-      "任务单要能直接交给写作阶段执行，包含情绪、冲突、推进点和收尾要求。",
-    ].join("\n");
+        "请输出严格 JSON，只填写这一章修正后的任务单。",
+        "优先基于已有任务单做修正和补强；如果当前为空，再补出首版。",
+        "任务单要能直接交给写作阶段执行，包含情绪、冲突、推进点和收尾要求。",
+        "最终 JSON 只能使用字段名 taskSheet。",
+        "正确示例：{\"taskSheet\":\"……\"}",
+        "禁止使用“任务单”之类的中文键名。",
+      ].join("\n");
 
   const prompt = buildChapterDetailPrompt({
     novel,
@@ -674,8 +529,29 @@ export async function generateVolumePlanDocument(params: {
   storyMacroPlanService: Pick<StoryMacroPlanService, "getPlan">;
 }): Promise<VolumePlanDocument> {
   const { novelId, workspace, options = {}, storyMacroPlanService } = params;
-  const [novel, storyMacroPlan]: [
-    VolumeGenerationNovel | null,
+  const [rawNovel, storyMacroPlan]: [
+    (Omit<VolumeGenerationNovel, "storyModePromptBlock"> & {
+      primaryStoryMode: {
+        id: string;
+        name: string;
+        description: string | null;
+        template: string | null;
+        parentId: string | null;
+        profileJson: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+      } | null;
+      secondaryStoryMode: {
+        id: string;
+        name: string;
+        description: string | null;
+        template: string | null;
+        parentId: string | null;
+        profileJson: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+      } | null;
+    }) | null,
     Awaited<ReturnType<StoryMacroPlanService["getPlan"]>> | null,
   ] = await Promise.all([
     prisma.novel.findUnique({
@@ -692,6 +568,30 @@ export async function generateVolumePlanDocument(params: {
         narrativePov: true,
         pacePreference: true,
         emotionIntensity: true,
+        primaryStoryMode: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            template: true,
+            parentId: true,
+            profileJson: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+        secondaryStoryMode: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            template: true,
+            parentId: true,
+            profileJson: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
         genre: {
           select: { name: true },
         },
@@ -709,9 +609,17 @@ export async function generateVolumePlanDocument(params: {
     storyMacroPlanService.getPlan(novelId).catch(() => null),
   ]);
 
-  if (!novel) {
+  if (!rawNovel) {
     throw new Error("小说不存在。");
   }
+
+  const novel: VolumeGenerationNovel = {
+    ...rawNovel,
+    storyModePromptBlock: buildStoryModePromptBlock({
+      primary: rawNovel.primaryStoryMode ? normalizeStoryModeOutput(rawNovel.primaryStoryMode) : null,
+      secondary: rawNovel.secondaryStoryMode ? normalizeStoryModeOutput(rawNovel.secondaryStoryMode) : null,
+    }),
+  };
 
   const volumes = options.scope === "volume"
     ? await generateVolumeChapterList({
@@ -746,3 +654,4 @@ export async function generateVolumePlanDocument(params: {
     activeVersionId: workspace.activeVersionId,
   };
 }
+

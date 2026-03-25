@@ -1,4 +1,30 @@
 import type { BookAnalysisSectionKey } from "./bookAnalysis";
+import type { NovelStoryMode } from "./storyMode";
+export type {
+  BaseCharacter,
+  Character,
+  CharacterCastApplyResult,
+  CharacterCastOption,
+  CharacterCastOptionClearResult,
+  CharacterCastOptionDeleteResult,
+  CharacterCastOptionMember,
+  CharacterCastOptionRelation,
+  CharacterCastRole,
+  CharacterRelation,
+  CharacterTimeline,
+  SupplementalCharacterApplyResult,
+  SupplementalCharacterCandidate,
+  SupplementalCharacterGenerateInput,
+  SupplementalCharacterGenerationMode,
+  SupplementalCharacterGenerationResult,
+  SupplementalCharacterRelation,
+  SupplementalCharacterTargetCastRole,
+} from "./novelCharacter";
+export type {
+  NovelStoryMode,
+  StoryModeConflictCeiling,
+  StoryModeProfile,
+} from "./storyMode";
 export type NovelStatus = "draft" | "published";
 export type NovelWritingMode = "original" | "continuation";
 export type ProjectMode = "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
@@ -12,17 +38,8 @@ export type StorylineVersionStatus = "draft" | "active" | "frozen";
 export type VolumePlanVersionStatus = "draft" | "active" | "frozen";
 export type StoryPlanLevel = "book" | "arc" | "chapter";
 export type StoryPlanRole = "setup" | "progress" | "pressure" | "turn" | "payoff" | "cooldown";
-export type AuditType = "continuity" | "character" | "plot";
+export type AuditType = "continuity" | "character" | "plot" | "mode_fit";
 export type AuditIssueStatus = "open" | "resolved" | "ignored";
-export type CharacterCastRole =
-  | "protagonist"
-  | "antagonist"
-  | "ally"
-  | "foil"
-  | "mentor"
-  | "love_interest"
-  | "pressure_source"
-  | "catalyst";
 
 export type ChapterStatus =
   | "unplanned"
@@ -83,6 +100,8 @@ export interface Novel {
   volumeSource?: "volume" | "legacy" | "empty";
   activeVolumeVersionId?: string | null;
   genreId?: string | null;
+  primaryStoryModeId?: string | null;
+  secondaryStoryModeId?: string | null;
   worldId?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -110,54 +129,6 @@ export interface Chapter {
   hook?: string | null;
   expectation?: string | null;
   novelId: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Character {
-  id: string;
-  name: string;
-  role: string;
-  castRole?: CharacterCastRole | null;
-  storyFunction?: string | null;
-  relationToProtagonist?: string | null;
-  personality?: string | null;
-  background?: string | null;
-  development?: string | null;
-  outerGoal?: string | null;
-  innerNeed?: string | null;
-  fear?: string | null;
-  wound?: string | null;
-  misbelief?: string | null;
-  secret?: string | null;
-  moralLine?: string | null;
-  firstImpression?: string | null;
-  arcStart?: string | null;
-  arcMidpoint?: string | null;
-  arcClimax?: string | null;
-  arcEnd?: string | null;
-  currentState?: string | null;
-  currentGoal?: string | null;
-  lastEvolvedAt?: string | null;
-  novelId: string;
-  baseCharacterId?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface BaseCharacter {
-  id: string;
-  name: string;
-  role: string;
-  personality: string;
-  background: string;
-  development: string;
-  appearance?: string | null;
-  weaknesses?: string | null;
-  interests?: string | null;
-  keyEvents?: string | null;
-  tags: string;
-  category: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -285,90 +256,6 @@ export interface StoryStateSnapshot {
   updatedAt: string;
 }
 
-export interface CharacterRelation {
-  id: string;
-  novelId: string;
-  sourceCharacterId: string;
-  targetCharacterId: string;
-  sourceCharacterName?: string | null;
-  targetCharacterName?: string | null;
-  surfaceRelation: string;
-  hiddenTension?: string | null;
-  conflictSource?: string | null;
-  secretAsymmetry?: string | null;
-  dynamicLabel?: string | null;
-  nextTurnPoint?: string | null;
-  trustScore?: number | null;
-  conflictScore?: number | null;
-  intimacyScore?: number | null;
-  dependencyScore?: number | null;
-  evidence?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CharacterCastOptionMember {
-  id: string;
-  optionId: string;
-  sortOrder: number;
-  name: string;
-  role: string;
-  castRole: CharacterCastRole;
-  relationToProtagonist?: string | null;
-  storyFunction: string;
-  shortDescription?: string | null;
-  outerGoal?: string | null;
-  innerNeed?: string | null;
-  fear?: string | null;
-  wound?: string | null;
-  misbelief?: string | null;
-  secret?: string | null;
-  moralLine?: string | null;
-  firstImpression?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CharacterCastOptionRelation {
-  id: string;
-  optionId: string;
-  sortOrder: number;
-  sourceName: string;
-  targetName: string;
-  surfaceRelation: string;
-  hiddenTension?: string | null;
-  conflictSource?: string | null;
-  secretAsymmetry?: string | null;
-  dynamicLabel?: string | null;
-  nextTurnPoint?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CharacterCastOption {
-  id: string;
-  novelId: string;
-  title: string;
-  summary: string;
-  whyItWorks?: string | null;
-  recommendedReason?: string | null;
-  status: string;
-  sourceStoryInput?: string | null;
-  members: CharacterCastOptionMember[];
-  relations: CharacterCastOptionRelation[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CharacterCastApplyResult {
-  optionId: string;
-  createdCount: number;
-  updatedCount: number;
-  relationCount: number;
-  characterIds: string[];
-  primaryCharacterId?: string | null;
-}
-
 export interface OpenConflict {
   id: string;
   novelId: string;
@@ -466,19 +353,6 @@ export interface PipelineJob {
   payload?: string | null;
   startedAt?: string | null;
   finishedAt?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CharacterTimeline {
-  id: string;
-  novelId: string;
-  characterId: string;
-  chapterId?: string | null;
-  chapterOrder?: number | null;
-  title: string;
-  content: string;
-  source: string;
   createdAt: string;
   updatedAt: string;
 }

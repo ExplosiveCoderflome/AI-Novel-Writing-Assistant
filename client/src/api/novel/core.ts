@@ -45,6 +45,8 @@ export async function createNovel(payload: {
   first30ChapterPromise?: string;
   commercialTags?: string[];
   genreId?: string;
+  primaryStoryModeId?: string;
+  secondaryStoryModeId?: string;
   worldId?: string;
   writingMode?: "original" | "continuation";
   projectMode?: ProjectMode;
@@ -97,6 +99,8 @@ export async function updateNovel(
     continuationBookAnalysisId: string | null;
     continuationBookAnalysisSections: BookAnalysisSectionKey[] | null;
     genreId: string | null;
+    primaryStoryModeId: string | null;
+    secondaryStoryModeId: string | null;
     worldId: string | null;
     outline: string | null;
     structuredOutline: string | null;

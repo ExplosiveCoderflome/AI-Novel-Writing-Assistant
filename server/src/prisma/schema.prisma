@@ -241,6 +241,7 @@ enum AuditType {
   continuity
   character
   plot
+  mode_fit
 }
 
 enum AuditIssueStatus {
@@ -300,8 +301,12 @@ model Novel {
   storyWorldSliceOverridesJson String?
   storyWorldSliceSchemaVersion Int @default(1)
   genreId           String?
+  primaryStoryModeId String?
+  secondaryStoryModeId String?
   worldId           String?
   genre             NovelGenre? @relation(fields: [genreId], references: [id])
+  primaryStoryMode  NovelStoryMode? @relation("NovelPrimaryStoryMode", fields: [primaryStoryModeId], references: [id], onDelete: SetNull)
+  secondaryStoryMode NovelStoryMode? @relation("NovelSecondaryStoryMode", fields: [secondaryStoryModeId], references: [id], onDelete: SetNull)
   world             World?      @relation(fields: [worldId], references: [id], onDelete: SetNull)
   sourceNovel       Novel?      @relation("NovelContinuation", fields: [sourceNovelId], references: [id], onDelete: SetNull)
   continuationNovels Novel[]    @relation("NovelContinuation")
@@ -338,6 +343,8 @@ model Novel {
   updatedAt         DateTime    @updatedAt
 
   @@index([genreId])
+  @@index([primaryStoryModeId])
+  @@index([secondaryStoryModeId])
   @@index([worldId])
   @@index([writingMode])
   @@index([sourceNovelId])
@@ -762,6 +769,23 @@ model NovelGenre {
   novels      Novel[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+
+  @@index([parentId])
+}
+
+model NovelStoryMode {
+  id                String           @id @default(cuid())
+  name              String
+  description       String?
+  template          String?
+  profileJson       String
+  parentId          String?
+  parent            NovelStoryMode?  @relation("StoryModeChildren", fields: [parentId], references: [id], onDelete: SetNull)
+  children          NovelStoryMode[] @relation("StoryModeChildren")
+  primaryNovels     Novel[]          @relation("NovelPrimaryStoryMode")
+  secondaryNovels   Novel[]          @relation("NovelSecondaryStoryMode")
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   @@index([parentId])
 }

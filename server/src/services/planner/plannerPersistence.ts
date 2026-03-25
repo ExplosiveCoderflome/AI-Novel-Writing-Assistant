@@ -6,6 +6,7 @@ interface PersistPlanInput {
   chapterId?: string;
   sourceStateSnapshotId?: string | null;
   level: "book" | "arc" | "chapter";
+  status?: string | null;
   planRole?: string | null;
   phaseLabel?: string | null;
   title: string;
@@ -49,6 +50,7 @@ export async function persistStoryPlan(input: PersistPlanInput) {
 
   const serializedRawPlan = JSON.stringify({
     ...input,
+    status: input.status ?? "draft",
     mustAdvance: input.mustAdvance,
     mustPreserve: input.mustPreserve,
     sourceIssueIds: input.sourceIssueIds,
@@ -76,6 +78,7 @@ export async function persistStoryPlan(input: PersistPlanInput) {
             sourceIssueIdsJson: JSON.stringify(input.sourceIssueIds),
             replannedFromPlanId: input.replannedFromPlanId,
             hookTarget: input.hookTarget,
+            status: input.status ?? "draft",
             externalRef: input.externalRef ?? null,
             rawPlanJson: serializedRawPlan,
           } as any,
@@ -99,6 +102,7 @@ export async function persistStoryPlan(input: PersistPlanInput) {
             sourceIssueIdsJson: JSON.stringify(input.sourceIssueIds),
             replannedFromPlanId: input.replannedFromPlanId,
             hookTarget: input.hookTarget,
+            status: input.status ?? "draft",
             externalRef: input.externalRef ?? null,
             rawPlanJson: serializedRawPlan,
           } as any,

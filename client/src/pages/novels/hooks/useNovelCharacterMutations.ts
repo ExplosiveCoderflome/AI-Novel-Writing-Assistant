@@ -1,10 +1,12 @@
 import { useMutation, useQuery, type QueryClient } from "@tanstack/react-query";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import {
+  applySupplementalCharacter,
   checkCharacterAgainstWorld,
   createNovelCharacter,
   deleteNovelCharacter,
   evolveNovelCharacter,
+  generateSupplementalCharacters,
   getCharacterTimeline,
   syncAllCharacterTimeline,
   syncCharacterTimeline,
@@ -12,6 +14,10 @@ import {
 } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { buildCharacterProfileFromWizard, type QuickCharacterCreatePayload } from "../components/characterPanel.utils";
+import type {
+  SupplementalCharacterCandidate,
+  SupplementalCharacterGenerateInput,
+} from "@ai-novel/shared/types/novel";
 
 interface LLMState {
   provider?: LLMProvider;
@@ -238,6 +244,38 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
     },
   });
 
+  const generateSupplementalCharacterMutation = useMutation({
+    mutationFn: (payload: SupplementalCharacterGenerateInput) =>
+      generateSupplementalCharacters(id, {
+        ...payload,
+        provider: payload.provider ?? llm.provider,
+        model: payload.model ?? llm.model,
+        temperature: payload.temperature ?? 0.55,
+      }),
+    onError: (error) => {
+      setCharacterMessage(error instanceof Error ? error.message : "补充角色生成失败。");
+    },
+  });
+
+  const applySupplementalCharacterMutation = useMutation({
+    mutationFn: (candidate: SupplementalCharacterCandidate) => applySupplementalCharacter(id, candidate),
+    onSuccess: async (response) => {
+      const createdCharacterId = response.data?.character?.id ?? "";
+      const relationCount = response.data?.relationCount ?? 0;
+      setCharacterMessage(
+        response.message
+        ?? `补充角色已创建${relationCount > 0 ? `，并同步 ${relationCount} 条结构化关系` : ""}。`,
+      );
+      if (createdCharacterId) {
+        setSelectedCharacterId(createdCharacterId);
+      }
+      await invalidateCharacterViews(queryClient, id, createdCharacterId || selectedCharacterId || "none");
+    },
+    onError: (error) => {
+      setCharacterMessage(error instanceof Error ? error.message : "应用补充角色失败。");
+    },
+  });
+
   return {
     characterTimelineQuery,
     syncTimelineMutation,
@@ -248,5 +286,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
     importBaseCharacterMutation,
     quickCreateCharacterMutation,
     deleteCharacterMutation,
+    generateSupplementalCharacterMutation,
+    applySupplementalCharacterMutation,
   };
 }

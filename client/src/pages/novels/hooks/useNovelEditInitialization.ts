@@ -96,6 +96,8 @@ export function useNovelEditInitialization({
       first30ChapterPromise: detail.first30ChapterPromise ?? "",
       commercialTagsText: formatCommercialTagsInput(detail.commercialTags ?? []),
       genreId: detail.genreId ?? "",
+      primaryStoryModeId: detail.primaryStoryModeId ?? "",
+      secondaryStoryModeId: detail.secondaryStoryModeId ?? "",
       worldId: detail.worldId ?? "",
       status: detail.status,
       writingMode: detail.writingMode ?? "original",

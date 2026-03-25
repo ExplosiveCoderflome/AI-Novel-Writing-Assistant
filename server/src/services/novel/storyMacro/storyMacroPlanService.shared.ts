@@ -1,5 +1,7 @@
 import type { StoryMacroField, StoryMacroFieldValue, StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
+import type { NovelStoryMode } from "@ai-novel/shared/types/storyMode";
 import { buildBookFramingSummary } from "../bookFraming";
+import { buildStoryModePromptBlock } from "../../storyMode/storyModeProfile";
 import {
   EMPTY_DECOMPOSITION,
   EMPTY_EXPANSION,
@@ -24,14 +26,22 @@ export interface StoryMacroNovelContext {
   emotionIntensity: string | null;
   estimatedChapterCount: number | null;
   genre: { name: string } | null;
+  primaryStoryMode: NovelStoryMode | null;
+  secondaryStoryMode: NovelStoryMode | null;
 }
 
 export function formatProjectContext(novel: StoryMacroNovelContext, worldSliceContext = ""): string {
   const bookFramingSummary = buildBookFramingSummary(novel);
+  const storyModeBlock = buildStoryModePromptBlock({
+    primary: novel.primaryStoryMode,
+    secondary: novel.secondaryStoryMode,
+  });
+
   return [
     novel.title ? `项目标题：${novel.title}` : "",
     novel.genre?.name ? `预设题材：${novel.genre.name}` : "",
     bookFramingSummary ? `书级 framing：\n${bookFramingSummary}` : "",
+    storyModeBlock,
     novel.styleTone ? `风格倾向：${novel.styleTone}` : "",
     novel.narrativePov ? `叙事人称：${novel.narrativePov}` : "",
     novel.pacePreference ? `节奏偏好：${novel.pacePreference}` : "",

@@ -276,7 +276,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
                 <div className="mt-3 grid gap-2 md:grid-cols-2">
                   <div className="rounded-md border p-2 text-xs">
                     <div className="font-medium">章节计划</div>
-                    <div className="mt-1 text-muted-foreground">{chapterPlan?.objective ?? "暂无章节计划"}</div>
+                    <div className="mt-1 text-muted-foreground">{chapterPlan?.objective ?? selectedChapter.expectation ?? "暂无章节计划"}</div>
                     {planParticipants.length > 0 ? <div className="mt-1 text-muted-foreground">参与角色：{planParticipants.join("、")}</div> : null}
                   </div>
                   <div className="rounded-md border p-2 text-xs">

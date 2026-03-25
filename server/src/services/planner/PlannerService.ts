@@ -1,6 +1,7 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { AuditReport, ReplanResult } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../db/prisma";
+import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../storyMode/storyModeProfile";
 import { parseJsonStringArray } from "../novel/novelP0Utils";
 import { characterDynamicsQueryService } from "../novel/dynamics/CharacterDynamicsQueryService";
 import { stateService } from "../state/StateService";
@@ -37,10 +38,42 @@ interface GenerateChapterPlanOptions extends PlannerOptions {
   };
 }
 
+type PlannerStoryModeRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  template: string | null;
+  parentId: string | null;
+  profileJson: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+const plannerStoryModeSelect = {
+  id: true,
+  name: true,
+  description: true,
+  template: true,
+  parentId: true,
+  profileJson: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+function buildPlannerStoryModeBlock(input: {
+  primaryStoryMode?: PlannerStoryModeRow | null;
+  secondaryStoryMode?: PlannerStoryModeRow | null;
+}): string {
+  return buildStoryModePromptBlock({
+    primary: input.primaryStoryMode ? normalizeStoryModeOutput(input.primaryStoryMode) : null,
+    secondary: input.secondaryStoryMode ? normalizeStoryModeOutput(input.secondaryStoryMode) : null,
+  });
+}
+
 export class PlannerService {
   async getChapterPlan(novelId: string, chapterId: string) {
     const plan = await prisma.storyPlan.findFirst({
-      where: { novelId, chapterId, level: "chapter" },
+      where: { novelId, chapterId, level: "chapter", status: { not: "stale" } },
       include: {
         scenes: {
           orderBy: { sortOrder: "asc" },
@@ -122,13 +155,17 @@ export class PlannerService {
         bible: true,
         chapters: { orderBy: { order: "asc" }, select: { title: true, order: true, expectation: true } },
         plotBeats: { orderBy: { chapterOrder: "asc" }, take: 8 },
+        primaryStoryMode: { select: plannerStoryModeSelect },
+        secondaryStoryMode: { select: plannerStoryModeSelect },
       },
     });
     if (!novel) {
       throw new Error("小说不存在。");
     }
+    const storyModeBlock = buildPlannerStoryModeBlock(novel);
     const output = await invokePlannerLLM({
       options,
+      storyModeBlock,
       scopeLabel: `全书规划：${novel.title}`,
       context: [
         `简介：${novel.description ?? ""}`,
@@ -165,13 +202,17 @@ export class PlannerService {
       include: {
         bible: true,
         chapters: { orderBy: { order: "asc" }, select: { title: true, order: true, expectation: true } },
+        primaryStoryMode: { select: plannerStoryModeSelect },
+        secondaryStoryMode: { select: plannerStoryModeSelect },
       },
     });
     if (!novel) {
       throw new Error("小说不存在。");
     }
+    const storyModeBlock = buildPlannerStoryModeBlock(novel);
     const output = await invokePlannerLLM({
       options,
+      storyModeBlock,
       scopeLabel: `分段规划：${arcId}`,
       context: [
         `小说：${novel.title}`,
@@ -214,6 +255,8 @@ export class PlannerService {
           outline: true,
           structuredOutline: true,
           estimatedChapterCount: true,
+          primaryStoryMode: { select: plannerStoryModeSelect },
+          secondaryStoryMode: { select: plannerStoryModeSelect },
         },
       }),
       prisma.chapter.findFirst({
@@ -284,6 +327,7 @@ export class PlannerService {
     if (!novel || !chapter) {
       throw new Error("小说或章节不存在。");
     }
+    const storyModeBlock = buildPlannerStoryModeBlock(novel);
     const characterDynamicsDigest = await characterDynamicsQueryService.buildContextDigest(novelId, {
       chapterOrder: chapter.order,
     }).catch(() => "");
@@ -349,6 +393,7 @@ export class PlannerService {
       : "无";
     const output = await invokePlannerLLM({
       options,
+      storyModeBlock,
       scopeLabel: `章节规划：第${chapter.order}章《${chapter.title}》`,
       context: [
         `小说：${novel.title}`,

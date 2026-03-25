@@ -10,6 +10,7 @@ import { parseJsonStringArray } from "../novelP0Utils";
 import { StyleBindingService } from "../../styleEngine/StyleBindingService";
 import { NovelWorldSliceService } from "../storyWorldSlice/NovelWorldSliceService";
 import { characterDynamicsQueryService } from "../dynamics/CharacterDynamicsQueryService";
+import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import {
   buildLegacyWorldContextFromWorld,
   formatStoryWorldSlicePromptBlock,
@@ -180,7 +181,34 @@ export class GenerationContextAssembler {
     const [novel, chapter] = await Promise.all([
       prisma.novel.findUnique({
         where: { id: novelId },
-        include: { world: true, characters: true },
+        include: {
+          world: true,
+          characters: true,
+          primaryStoryMode: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              template: true,
+              parentId: true,
+              profileJson: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
+          secondaryStoryMode: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              template: true,
+              parentId: true,
+              profileJson: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
+        },
       }),
       prisma.chapter.findFirst({
         where: { id: chapterId, novelId },
@@ -320,6 +348,10 @@ export class GenerationContextAssembler {
     const worldBlock = storyWorldSlice
       ? formatStoryWorldSlicePromptBlock(storyWorldSlice)
       : buildWorldContextFromNovel(novel);
+    const storyModeBlock = buildStoryModePromptBlock({
+      primary: novel.primaryStoryMode ? normalizeStoryModeOutput(novel.primaryStoryMode) : null,
+      secondary: novel.secondaryStoryMode ? normalizeStoryModeOutput(novel.secondaryStoryMode) : null,
+    });
     const openingHint = await this.buildOpeningConstraintHint(novelId, chapter.order);
     const contextPackage: GenerationContextPackage = {
       chapter: {
@@ -330,6 +362,7 @@ export class GenerationContextAssembler {
         expectation: chapter.expectation ?? null,
         supportingContextText: buildSupportingContextText({
           worldBlock,
+          storyModeBlock,
           planPromptBlock,
           stateContextBlock,
           openConflictBlock,

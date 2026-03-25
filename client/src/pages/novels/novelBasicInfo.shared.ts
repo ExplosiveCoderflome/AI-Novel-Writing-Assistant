@@ -10,6 +10,8 @@ export interface NovelBasicFormState {
   first30ChapterPromise: string;
   commercialTagsText: string;
   genreId: string;
+  primaryStoryModeId: string;
+  secondaryStoryModeId: string;
   worldId: string;
   status: "draft" | "published";
   writingMode: "original" | "continuation";
@@ -194,6 +196,8 @@ export const BASIC_INFO_FIELD_HINTS = {
   resourceReadyScore: "用于标记当前设定、角色、主线资料是否充分。数值越高，越适合进入自动化生产阶段。",
   styleTone: "写几个关键词即可，例如冷峻、克制、黑色幽默。它会影响生成的语言风格。",
   genreId: "类型会影响规划、标题和卖点倾向，建议尽量尽早确定。",
+  primaryStoryModeId: "主流派模式会定义这本书靠什么推进、靠什么兑现，以及冲突边界和章节颗粒。后续规划和生成会优先服从它。",
+  secondaryStoryModeId: "副流派模式只负责补充风味，例如在治愈日常中叠加小店经营感，在无敌流中叠加马甲感，不能覆盖主模式的边界。",
   worldId: "如果绑定世界观，后续规划和章节生成会自动注入该世界设定。",
   status: "只是作品生命周期标记，不影响基础创作能力，但会影响列表和项目管理状态。",
   continuationSourceType: "续写时选择是引用站内小说，还是知识库里的文档版本。",
@@ -210,6 +214,8 @@ export function createDefaultNovelBasicFormState(): NovelBasicFormState {
     first30ChapterPromise: "",
     commercialTagsText: "",
     genreId: "",
+    primaryStoryModeId: "",
+    secondaryStoryModeId: "",
     worldId: "",
     status: "draft",
     writingMode: "original",
@@ -238,6 +244,13 @@ export function patchNovelBasicForm(
   patch: Partial<NovelBasicFormState>,
 ): NovelBasicFormState {
   const next = { ...previous, ...patch };
+  if (
+    next.primaryStoryModeId
+    && next.secondaryStoryModeId
+    && next.primaryStoryModeId === next.secondaryStoryModeId
+  ) {
+    next.secondaryStoryModeId = "";
+  }
   if (next.writingMode === "original") {
     next.sourceNovelId = "";
     next.sourceKnowledgeDocumentId = "";
@@ -288,6 +301,8 @@ export function buildNovelCreatePayload(basicForm: NovelBasicFormState) {
     first30ChapterPromise: basicForm.first30ChapterPromise.trim() || undefined,
     commercialTags: commercialTags.length > 0 ? commercialTags : undefined,
     genreId: basicForm.genreId || undefined,
+    primaryStoryModeId: basicForm.primaryStoryModeId || undefined,
+    secondaryStoryModeId: basicForm.secondaryStoryModeId || undefined,
     worldId: basicForm.worldId || undefined,
     writingMode: basicForm.writingMode,
     projectMode: basicForm.projectMode,
@@ -338,6 +353,8 @@ export function buildNovelUpdatePayload(basicForm: NovelBasicFormState) {
     first30ChapterPromise: basicForm.first30ChapterPromise.trim() || null,
     commercialTags: commercialTags.length > 0 ? commercialTags : null,
     genreId: basicForm.genreId || null,
+    primaryStoryModeId: basicForm.primaryStoryModeId || null,
+    secondaryStoryModeId: basicForm.secondaryStoryModeId || null,
     worldId: basicForm.worldId || null,
     status: basicForm.status,
     writingMode: basicForm.writingMode,

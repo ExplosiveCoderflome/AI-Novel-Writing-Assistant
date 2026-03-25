@@ -580,8 +580,16 @@ export class NovelVolumeService {
             revealLevel: item.chapter.revealLevel ?? null,
             mustAvoid: item.chapter.mustAvoid ?? null,
             taskSheet,
+            generationState: "planned",
+            chapterStatus: "unplanned",
             ...(item.clearContent ? { content: "" } : {}),
           },
+        });
+      }
+      if (plan.updates.length > 0) {
+        await tx.storyPlan.updateMany({
+          where: { novelId, level: "chapter", chapterId: { in: plan.updates.map((item) => item.chapterId) } },
+          data: { status: "stale" },
         });
       }
       for (const item of plan.deletes) {

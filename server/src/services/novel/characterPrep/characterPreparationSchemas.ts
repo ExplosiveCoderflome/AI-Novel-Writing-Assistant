@@ -1,5 +1,8 @@
 import { z } from "zod";
-import type { CharacterCastRole } from "@ai-novel/shared/types/novel";
+import type {
+  CharacterCastRole,
+  SupplementalCharacterGenerationMode,
+} from "@ai-novel/shared/types/novel";
 
 const nonEmptyString = z.string().trim().min(1);
 
@@ -13,8 +16,14 @@ const CHARACTER_CAST_ROLE_VALUES = [
   "pressure_source",
   "catalyst",
 ] as const satisfies CharacterCastRole[];
+const SUPPLEMENTAL_CHARACTER_GENERATION_MODE_VALUES = [
+  "linked",
+  "independent",
+  "auto",
+] as const satisfies SupplementalCharacterGenerationMode[];
 
 const characterCastRoleEnum = z.enum(CHARACTER_CAST_ROLE_VALUES);
+const supplementalCharacterGenerationModeEnum = z.enum(SUPPLEMENTAL_CHARACTER_GENERATION_MODE_VALUES);
 
 function normalizeCharacterCastRole(raw: string): CharacterCastRole {
   const value = raw.trim().toLowerCase();
@@ -105,5 +114,60 @@ export const characterCastOptionResponseSchema = z.object({
   options: z.array(characterCastOptionSchema).length(3),
 });
 
+export const supplementalCharacterRelationSchema = z.object({
+  sourceName: nonEmptyString,
+  targetName: nonEmptyString,
+  surfaceRelation: nonEmptyString,
+  hiddenTension: z.string().trim().optional().default(""),
+  conflictSource: z.string().trim().optional().default(""),
+  dynamicLabel: z.string().trim().optional().default(""),
+  nextTurnPoint: z.string().trim().optional().default(""),
+});
+
+export const supplementalCharacterCandidateSchema = z.object({
+  name: nonEmptyString,
+  role: nonEmptyString,
+  castRole: characterCastRoleSchema,
+  summary: nonEmptyString,
+  storyFunction: nonEmptyString,
+  relationToProtagonist: z.string().trim().optional().default(""),
+  personality: z.string().trim().optional().default(""),
+  background: z.string().trim().optional().default(""),
+  development: z.string().trim().optional().default(""),
+  outerGoal: z.string().trim().optional().default(""),
+  innerNeed: z.string().trim().optional().default(""),
+  fear: z.string().trim().optional().default(""),
+  wound: z.string().trim().optional().default(""),
+  misbelief: z.string().trim().optional().default(""),
+  secret: z.string().trim().optional().default(""),
+  moralLine: z.string().trim().optional().default(""),
+  firstImpression: z.string().trim().optional().default(""),
+  currentState: z.string().trim().optional().default(""),
+  currentGoal: z.string().trim().optional().default(""),
+  whyNow: z.string().trim().optional().default(""),
+  relations: z.array(supplementalCharacterRelationSchema).max(4).default([]),
+});
+
+export const supplementalCharacterGenerationInputSchema = z.object({
+  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
+  model: z.string().trim().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  mode: supplementalCharacterGenerationModeEnum.optional().default("auto"),
+  anchorCharacterIds: z.array(z.string().trim().min(1)).max(5).optional().default([]),
+  targetCastRole: z.union([characterCastRoleEnum, z.literal("auto")]).optional().default("auto"),
+  count: z.number().int().min(1).max(3).optional(),
+  userPrompt: z.string().trim().max(2000).optional(),
+});
+
+export const supplementalCharacterGenerationResponseSchema = z.object({
+  mode: supplementalCharacterGenerationModeEnum,
+  recommendedCount: z.number().int().min(1).max(3),
+  planningSummary: z.string().trim().optional().default(""),
+  candidates: z.array(supplementalCharacterCandidateSchema).min(1).max(3),
+});
+
 export type CharacterCastOptionParsed = z.infer<typeof characterCastOptionSchema>;
 export type CharacterCastOptionResponseParsed = z.infer<typeof characterCastOptionResponseSchema>;
+export type SupplementalCharacterCandidateParsed = z.infer<typeof supplementalCharacterCandidateSchema>;
+export type SupplementalCharacterGenerationInputParsed = z.infer<typeof supplementalCharacterGenerationInputSchema>;
+export type SupplementalCharacterGenerationResponseParsed = z.infer<typeof supplementalCharacterGenerationResponseSchema>;

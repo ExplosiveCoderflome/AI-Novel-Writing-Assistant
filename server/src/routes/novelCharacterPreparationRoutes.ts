@@ -3,6 +3,10 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { validate } from "../middleware/validate";
 import type { NovelService } from "../services/novel/NovelService";
+import {
+  supplementalCharacterCandidateSchema,
+  supplementalCharacterGenerationInputSchema,
+} from "../services/novel/characterPrep/characterPreparationSchemas";
 
 const optionParamsSchema = z.object({
   id: z.string().trim().min(1),
@@ -34,7 +38,7 @@ export function registerNovelCharacterPreparationRoutes(
       res.status(200).json({
         success: true,
         data,
-        message: "Character relations loaded.",
+        message: "角色关系列表已加载。",
       } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);
@@ -48,7 +52,7 @@ export function registerNovelCharacterPreparationRoutes(
       res.status(200).json({
         success: true,
         data,
-        message: "Character cast options loaded.",
+        message: "角色阵容方案已加载。",
       } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);
@@ -66,7 +70,7 @@ export function registerNovelCharacterPreparationRoutes(
         res.status(200).json({
           success: true,
           data,
-          message: "Character cast options generated.",
+          message: "角色阵容方案已生成。",
         } satisfies ApiResponse<typeof data>);
       } catch (error) {
         next(error);
@@ -84,11 +88,79 @@ export function registerNovelCharacterPreparationRoutes(
         res.status(200).json({
           success: true,
           data,
-          message: "Character cast option applied.",
+          message: "角色阵容方案已应用。",
         } satisfies ApiResponse<typeof data>);
       } catch (error) {
         next(error);
       }
     },
   );
+
+  router.post(
+    "/:id/character-prep/supplemental-characters/generate",
+    validate({ params: idParamsSchema, body: supplementalCharacterGenerationInputSchema }),
+    async (req, res, next) => {
+      try {
+        const { id } = req.params as z.infer<typeof idParamsSchema>;
+        const data = await novelService.generateSupplementalCharacters(id, req.body as z.infer<typeof supplementalCharacterGenerationInputSchema>);
+        res.status(200).json({
+          success: true,
+          data,
+          message: "补充角色候选已生成。",
+        } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.post(
+    "/:id/character-prep/supplemental-characters/apply",
+    validate({ params: idParamsSchema, body: supplementalCharacterCandidateSchema }),
+    async (req, res, next) => {
+      try {
+        const { id } = req.params as z.infer<typeof idParamsSchema>;
+        const data = await novelService.applySupplementalCharacter(id, req.body as z.infer<typeof supplementalCharacterCandidateSchema>);
+        res.status(200).json({
+          success: true,
+          data,
+          message: "补充角色已创建。",
+        } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.delete(
+    "/:id/character-prep/cast-options/:optionId",
+    validate({ params: optionParamsSchema }),
+    async (req, res, next) => {
+      try {
+        const { id, optionId } = req.params as z.infer<typeof optionParamsSchema>;
+        const data = await novelService.deleteCharacterCastOption(id, optionId);
+        res.status(200).json({
+          success: true,
+          data,
+          message: "角色阵容方案已删除。",
+        } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.delete("/:id/character-prep/cast-options", validate({ params: idParamsSchema }), async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const data = await novelService.clearCharacterCastOptions(id);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "角色阵容方案已清空。",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  });
 }

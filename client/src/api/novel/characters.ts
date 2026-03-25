@@ -3,9 +3,15 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
   Character,
   CharacterCastApplyResult,
+  CharacterCastOptionClearResult,
+  CharacterCastOptionDeleteResult,
   CharacterCastOption,
   CharacterRelation,
   CharacterTimeline,
+  SupplementalCharacterApplyResult,
+  SupplementalCharacterCandidate,
+  SupplementalCharacterGenerateInput,
+  SupplementalCharacterGenerationResult,
 } from "@ai-novel/shared/types/novel";
 import { apiClient } from "../client";
 
@@ -44,6 +50,36 @@ export async function applyCharacterCastOption(id: string, optionId: string) {
   const { data } = await apiClient.post<ApiResponse<CharacterCastApplyResult>>(
     `/novels/${id}/character-prep/cast-options/${optionId}/apply`,
     {},
+  );
+  return data;
+}
+
+export async function deleteCharacterCastOption(id: string, optionId: string) {
+  const { data } = await apiClient.delete<ApiResponse<CharacterCastOptionDeleteResult>>(
+    `/novels/${id}/character-prep/cast-options/${optionId}`,
+  );
+  return data;
+}
+
+export async function clearCharacterCastOptions(id: string) {
+  const { data } = await apiClient.delete<ApiResponse<CharacterCastOptionClearResult>>(
+    `/novels/${id}/character-prep/cast-options`,
+  );
+  return data;
+}
+
+export async function generateSupplementalCharacters(id: string, payload?: SupplementalCharacterGenerateInput) {
+  const { data } = await apiClient.post<ApiResponse<SupplementalCharacterGenerationResult>>(
+    `/novels/${id}/character-prep/supplemental-characters/generate`,
+    payload ?? {},
+  );
+  return data;
+}
+
+export async function applySupplementalCharacter(id: string, candidate: SupplementalCharacterCandidate) {
+  const { data } = await apiClient.post<ApiResponse<SupplementalCharacterApplyResult>>(
+    `/novels/${id}/character-prep/supplemental-characters/apply`,
+    candidate,
   );
   return data;
 }

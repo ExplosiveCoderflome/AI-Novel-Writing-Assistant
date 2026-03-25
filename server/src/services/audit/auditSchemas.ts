@@ -26,7 +26,7 @@ const auditIssueOutputSchema = z.object({
 });
 
 const auditReportOutputSchema = z.object({
-  auditType: z.enum(["continuity", "character", "plot"]).transform((v) => v as AuditType),
+  auditType: z.enum(["continuity", "character", "plot", "mode_fit"]).transform((v) => v as AuditType),
   overallScore: z.number().min(0).max(100).optional(),
   summary: z.string().trim().optional(),
   issues: z.array(auditIssueOutputSchema).optional().default([]),

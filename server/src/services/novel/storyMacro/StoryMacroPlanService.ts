@@ -12,6 +12,7 @@ import type {
 } from "@ai-novel/shared/types/storyMacro";
 import { prisma } from "../../../db/prisma";
 import { invokeStructuredLlm } from "../../../llm/structuredInvoke";
+import { normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import {
   EMPTY_DECOMPOSITION,
   EMPTY_EXPANSION,
@@ -76,12 +77,40 @@ export class StoryMacroPlanService {
             name: true,
           },
         },
+        primaryStoryMode: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            template: true,
+            parentId: true,
+            profileJson: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+        secondaryStoryMode: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            template: true,
+            parentId: true,
+            profileJson: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
       },
     });
     if (!novel) {
       throw new Error("小说不存在。");
     }
-    return novel;
+    return {
+      ...novel,
+      primaryStoryMode: novel.primaryStoryMode ? normalizeStoryModeOutput(novel.primaryStoryMode) : null,
+      secondaryStoryMode: novel.secondaryStoryMode ? normalizeStoryModeOutput(novel.secondaryStoryMode) : null,
+    };
   }
 
   private async getRow(novelId: string): Promise<PersistedPlanRow | null> {

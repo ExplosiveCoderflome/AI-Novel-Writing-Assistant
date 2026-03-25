@@ -1,5 +1,51 @@
 import { z } from "zod";
 
+function normalizeObjectAlias(raw: unknown, aliasMap: Record<string, string[]>): unknown {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return raw;
+  }
+  const record = raw as Record<string, unknown>;
+  const normalized: Record<string, unknown> = { ...record };
+
+  for (const [targetKey, aliases] of Object.entries(aliasMap)) {
+    if (normalized[targetKey] !== undefined && normalized[targetKey] !== null) {
+      continue;
+    }
+    const matchedAlias = aliases.find((alias) => record[alias] !== undefined && record[alias] !== null);
+    if (matchedAlias) {
+      normalized[targetKey] = record[matchedAlias];
+    }
+  }
+
+  return normalized;
+}
+
+function normalizeInteger(value: unknown): unknown {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.round(value);
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value.trim());
+    if (Number.isFinite(parsed)) {
+      return Math.round(parsed);
+    }
+  }
+  return value;
+}
+
+function normalizeStringArray(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    return value
+      .split(/[\n,，;；、|]/g)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return value;
+}
+
 const generatedVolumeSkeletonSchema = z.object({
   title: z.string().trim().min(1),
   summary: z.string().trim().optional().nullable(),
@@ -34,23 +80,52 @@ export function createVolumeChapterListSchema(exactChapterCount?: number) {
 }
 
 export function createChapterPurposeSchema() {
-  return z.object({
-    purpose: z.string().trim().min(1),
-  });
+  return z.preprocess(
+    (raw) => normalizeObjectAlias(raw, {
+      purpose: ["章节目标", "chapterGoal", "goal", "objective"],
+    }),
+    z.object({
+      purpose: z.string().trim().min(1),
+    }),
+  );
 }
 
 export function createChapterBoundarySchema() {
-  return z.object({
+  return z.preprocess((raw) => {
+    const normalized = normalizeObjectAlias(raw, {
+      conflictLevel: ["冲突等级", "conflict_level", "conflict"],
+      revealLevel: ["揭露等级", "reveal_level", "reveal"],
+      targetWordCount: ["目标字数", "target_word_count", "wordCount", "字数"],
+      mustAvoid: ["禁止事项", "避免事项", "must_avoid"],
+      payoffRefs: ["兑现关联", "payoff_refs", "payoffs", "关联兑现"],
+    });
+    if (!normalized || typeof normalized !== "object" || Array.isArray(normalized)) {
+      return normalized;
+    }
+    const record = normalized as Record<string, unknown>;
+    return {
+      ...record,
+      conflictLevel: normalizeInteger(record.conflictLevel),
+      revealLevel: normalizeInteger(record.revealLevel),
+      targetWordCount: normalizeInteger(record.targetWordCount),
+      payoffRefs: normalizeStringArray(record.payoffRefs),
+    };
+  }, z.object({
     conflictLevel: z.number().int().min(0).max(100),
     revealLevel: z.number().int().min(0).max(100),
     targetWordCount: z.number().int().min(200).max(20000),
     mustAvoid: z.string().trim().min(1),
     payoffRefs: z.array(z.string().trim().min(1)).default([]),
-  });
+  }));
 }
 
 export function createChapterTaskSheetSchema() {
-  return z.object({
-    taskSheet: z.string().trim().min(1),
-  });
+  return z.preprocess(
+    (raw) => normalizeObjectAlias(raw, {
+      taskSheet: ["任务单", "task_sheet", "writingTask", "执行任务单"],
+    }),
+    z.object({
+      taskSheet: z.string().trim().min(1),
+    }),
+  );
 }

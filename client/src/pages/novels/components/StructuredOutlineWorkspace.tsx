@@ -52,9 +52,11 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
     isGeneratingVolume,
     onGenerateVolume,
     isGeneratingChapterDetail,
+    isGeneratingChapterDetailBundle,
     generatingChapterDetailMode,
     generatingChapterDetailChapterId,
     onGenerateChapterDetail,
+    onGenerateChapterDetailBundle,
     onGoToCharacterTab,
     volumes,
     draftText,
@@ -110,6 +112,11 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
     (sum, chapter) => sum + (typeof chapter.targetWordCount === "number" ? chapter.targetWordCount : 0),
     0,
   ) ?? 0;
+  const isGeneratingCurrentChapterBundle = Boolean(
+    selectedChapter
+    && isGeneratingChapterDetailBundle
+    && generatingChapterDetailChapterId === selectedChapter.id,
+  );
   const currentVolumeActionLabel = hasChapterDraftContent(selectedVolume) ? "重写当前卷章节列表" : "生成当前卷章节列表";
 
   const handleApplySync = () => {
@@ -164,7 +171,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
       <CardHeader className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="space-y-1">
           <CardTitle>卷纲 / 章纲联动工作台</CardTitle>
-          <div className="text-sm text-muted-foreground">先定卷级骨架，再为当前卷生成章节列表，最后按需补章节目标、执行边界和任务单。</div>
+          <div className="text-sm text-muted-foreground">先定卷级骨架，再为当前卷生成章节列表，最后用一键 AI生成或单项 AI修正补齐章节细化。</div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={onGenerateBook} disabled={isGeneratingBook}>
@@ -202,7 +209,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
             <div className="mt-3 text-lg font-semibold text-foreground">
               {selectedChapter ? `正在打磨：第${selectedChapter.chapterOrder}章《${selectedChapter.title || "未命名章节"}》` : "先从左侧选中一章"}
             </div>
-            <div className="mt-2 text-sm leading-6 text-muted-foreground">先看卷承诺，再生成章节列表；章节目标、执行边界和任务单改成单独按需生成，避免一次塞太多上下文。</div>
+            <div className="mt-2 text-sm leading-6 text-muted-foreground">先看卷承诺，再生成章节列表；进入单章后可以一键补齐三块细化，也可以分别做 AI修正。</div>
           </div>
           <div className={cn("rounded-xl border p-3", changedChapterCount > 0 ? "border-amber-300/60 bg-amber-50/80" : "border-border/70 bg-background/80")}>
             <div className="text-xs text-muted-foreground">待同步改动</div>
@@ -325,11 +332,29 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                 <CardHeader className="pb-3">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2"><Badge variant="secondary">第{selectedChapter.chapterOrder}章</Badge><Badge variant="outline">卷内序号 {selectedChapterIndex + 1}</Badge></div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="secondary">第{selectedChapter.chapterOrder}章</Badge>
+                        <Badge variant="outline">卷内序号 {selectedChapterIndex + 1}</Badge>
+                      </div>
                       <CardTitle className="text-xl">{selectedChapter.title || `第${selectedChapter.chapterOrder}章`}</CardTitle>
-                      <div className="text-sm text-muted-foreground">这一步先稳住标题和摘要，再按需点按钮生成章节目标、执行边界和任务单。</div>
+                      <div className="text-sm text-muted-foreground">
+                        这一步先稳住标题和摘要。上方的“一键 AI生成”会一次补齐章节目标、执行边界和任务单；下面的小按钮会基于当前结果做 AI修正。
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => selectedChapterIndex > 0 && setSelectedChapterId(selectedVolume.chapters[selectedChapterIndex - 1]?.id ?? "")} disabled={selectedChapterIndex <= 0}>上一章</Button><Button size="sm" variant="outline" onClick={() => selectedChapterIndex >= 0 && selectedChapterIndex < selectedVolume.chapters.length - 1 && setSelectedChapterId(selectedVolume.chapters[selectedChapterIndex + 1]?.id ?? "")} disabled={selectedChapterIndex < 0 || selectedChapterIndex >= selectedVolume.chapters.length - 1}>下一章</Button><Button size="sm" variant="outline" onClick={() => onMoveChapter(selectedVolume.id, selectedChapter.id, -1)} disabled={selectedChapterIndex <= 0}>上移</Button><Button size="sm" variant="outline" onClick={() => onMoveChapter(selectedVolume.id, selectedChapter.id, 1)} disabled={selectedChapterIndex < 0 || selectedChapterIndex >= selectedVolume.chapters.length - 1}>下移</Button><Button size="sm" variant="outline" onClick={() => onRemoveChapter(selectedVolume.id, selectedChapter.id)} disabled={selectedVolume.chapters.length <= 1}>删除</Button></div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => onGenerateChapterDetailBundle(selectedVolume.id, selectedChapter.id)}
+                        disabled={isGeneratingChapterDetail}
+                      >
+                        {isGeneratingCurrentChapterBundle ? "整套生成中..." : "一键 AI生成"}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => selectedChapterIndex > 0 && setSelectedChapterId(selectedVolume.chapters[selectedChapterIndex - 1]?.id ?? "")} disabled={selectedChapterIndex <= 0}>上一章</Button>
+                      <Button size="sm" variant="outline" onClick={() => selectedChapterIndex >= 0 && selectedChapterIndex < selectedVolume.chapters.length - 1 && setSelectedChapterId(selectedVolume.chapters[selectedChapterIndex + 1]?.id ?? "")} disabled={selectedChapterIndex < 0 || selectedChapterIndex >= selectedVolume.chapters.length - 1}>下一章</Button>
+                      <Button size="sm" variant="outline" onClick={() => onMoveChapter(selectedVolume.id, selectedChapter.id, -1)} disabled={selectedChapterIndex <= 0}>上移</Button>
+                      <Button size="sm" variant="outline" onClick={() => onMoveChapter(selectedVolume.id, selectedChapter.id, 1)} disabled={selectedChapterIndex < 0 || selectedChapterIndex >= selectedVolume.chapters.length - 1}>下移</Button>
+                      <Button size="sm" variant="outline" onClick={() => onRemoveChapter(selectedVolume.id, selectedChapter.id)} disabled={selectedVolume.chapters.length <= 1}>删除</Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -346,7 +371,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                             onClick={() => onGenerateChapterDetail(selectedVolume.id, selectedChapter.id, "purpose")}
                             disabled={isGeneratingChapterDetail}
                           >
-                            {isGeneratingChapterDetail && generatingChapterDetailMode === "purpose" && generatingChapterDetailChapterId === selectedChapter.id ? "生成中..." : "AI生成"}
+                            {isGeneratingChapterDetail && generatingChapterDetailMode === "purpose" && generatingChapterDetailChapterId === selectedChapter.id ? "修正中..." : "AI修正"}
                           </Button>
                         </div>
                         <textarea className={cn(textareaClassName, "min-h-[132px]")} placeholder="这章必须推进什么关系、冲突或信息兑现。" value={selectedChapter.purpose ?? ""} onChange={(event) => onChapterFieldChange(selectedVolume.id, selectedChapter.id, "purpose", event.target.value)} />
@@ -361,7 +386,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                           onClick={() => onGenerateChapterDetail(selectedVolume.id, selectedChapter.id, "boundary")}
                           disabled={isGeneratingChapterDetail}
                         >
-                          {isGeneratingChapterDetail && generatingChapterDetailMode === "boundary" && generatingChapterDetailChapterId === selectedChapter.id ? "生成中..." : "AI生成"}
+                          {isGeneratingChapterDetail && generatingChapterDetailMode === "boundary" && generatingChapterDetailChapterId === selectedChapter.id ? "修正中..." : "AI修正"}
                         </Button>
                       </div>
                       <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-3">
@@ -377,14 +402,17 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                   </div>
                   <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
                     <div className="mb-3 flex items-start justify-between gap-3">
-                      <div><div className="text-sm font-medium text-foreground">任务单</div><div className="mt-1 text-xs text-muted-foreground">这是给章节执行阶段的明确指令，建议在摘要和目标稳定后再补充。</div></div>
+                      <div>
+                        <div className="text-sm font-medium text-foreground">任务单</div>
+                        <div className="mt-1 text-xs text-muted-foreground">这是给章节执行阶段的明确指令，建议在摘要和目标稳定后再补充。</div>
+                      </div>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => onGenerateChapterDetail(selectedVolume.id, selectedChapter.id, "task_sheet")}
                         disabled={isGeneratingChapterDetail}
                       >
-                        {isGeneratingChapterDetail && generatingChapterDetailMode === "task_sheet" && generatingChapterDetailChapterId === selectedChapter.id ? "生成中..." : "AI生成"}
+                        {isGeneratingChapterDetail && generatingChapterDetailMode === "task_sheet" && generatingChapterDetailChapterId === selectedChapter.id ? "修正中..." : "AI修正"}
                       </Button>
                     </div>
                     <textarea className={cn(textareaClassName, "min-h-[180px]")} value={selectedChapter.taskSheet ?? ""} onChange={(event) => onChapterFieldChange(selectedVolume.id, selectedChapter.id, "taskSheet", event.target.value)} />

@@ -20,6 +20,8 @@ type NovelSetupSource = {
   styleTone: string | null;
   emotionIntensity: "low" | "medium" | "high" | null;
   aiFreedom: "low" | "medium" | "high" | null;
+  primaryStoryMode: { name: string } | null;
+  secondaryStoryMode: { name: string } | null;
   defaultChapterLength: number | null;
   outline: string | null;
   structuredOutline: string | null;
@@ -153,6 +155,7 @@ function buildChecklist(novel: NovelSetupSource): CreativeHubNovelSetupChecklist
       ? "partial"
       : "missing";
   const directionSignals = [Boolean(novel.genre?.name), hasText(novel.styleTone)].filter(Boolean).length;
+  const storyModeSignals = [Boolean(novel.primaryStoryMode?.name), Boolean(novel.secondaryStoryMode?.name)].filter(Boolean).length;
   const narrativeSignals = [Boolean(novel.narrativePov), Boolean(novel.pacePreference)].filter(Boolean).length;
   const productionSignals = [
     Boolean(novel.projectMode),
@@ -227,6 +230,20 @@ function buildChecklist(novel: NovelSetupSource): CreativeHubNovelSetupChecklist
       requiredForProduction: true,
       recommendedAction: "请为当前小说明确题材标签和风格气质，说明它更偏热血、悬疑、治愈、黑暗还是轻松，并给出一句风格说明。",
       optionPrompt: "结合当前设定，为这本小说提供 3 套题材与风格组合备选，并说明各自适合的读者感受。",
+    }),
+    withStatus({
+      key: "story_mode",
+      label: "流派模式",
+      status: storyModeSignals >= 2 ? "ready" : storyModeSignals === 1 ? "partial" : "missing",
+      summary: storyModeSignals >= 2
+        ? "主副流派模式都已明确，后续规划有稳定控制轴。"
+        : storyModeSignals === 1
+          ? "已设置部分流派模式，但建议至少补齐主模式以稳定后续规划。"
+          : "还没有定义这本书靠什么推进、靠什么兑现以及冲突边界。",
+      currentValue: joinCurrentValues([novel.primaryStoryMode?.name ?? null, novel.secondaryStoryMode?.name ?? null]),
+      requiredForProduction: true,
+      recommendedAction: "请先确定当前小说的主流派模式，必要时再补充一个副流派模式。这样系统才能稳定约束后续的故事规划、角色设计和卷章生成。",
+      optionPrompt: "基于当前题材、卖点和前 30 章承诺，为这本小说提供 3 套主副流派模式组合建议，并说明各自的推进逻辑、读者奖励和冲突边界。",
     }),
     withStatus({
       key: "narrative",
@@ -362,6 +379,7 @@ function buildStage(checklist: CreativeHubNovelSetupChecklistItem[]): CreativeHu
   if (
     byKey.premise.status !== "missing"
     && byKey.direction.status !== "missing"
+    && byKey.story_mode.status !== "missing"
     && byKey.narrative.status !== "missing"
     && byKey.story_promise.status !== "missing"
   ) {
@@ -405,6 +423,11 @@ function buildNextStep(checklist: CreativeHubNovelSetupChecklistItem[], stage: C
       return {
         nextQuestion: "你想把这本书写成什么题材、什么气质？",
         recommendedAction: "基于当前书名和设定，先补齐这本书的题材类型和风格气质。",
+      };
+    case "story_mode":
+      return {
+        nextQuestion: "请先确认这本书靠什么推进、靠什么兑现，以及冲突的上限应该放在哪里？",
+        recommendedAction: "先补齐主流派模式，必要时再补一个副流派模式，让后续规划和生成不会越写越偏。",
       };
     case "narrative":
       return {
@@ -486,6 +509,16 @@ export class NovelSetupStatusService {
         styleTone: true,
         emotionIntensity: true,
         aiFreedom: true,
+        primaryStoryMode: {
+          select: {
+            name: true,
+          },
+        },
+        secondaryStoryMode: {
+          select: {
+            name: true,
+          },
+        },
         defaultChapterLength: true,
         outline: true,
         structuredOutline: true,

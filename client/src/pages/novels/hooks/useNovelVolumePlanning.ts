@@ -1,8 +1,10 @@
-import { useMemo, type Dispatch, type SetStateAction } from "react";
-import { useMutation } from "@tanstack/react-query";
-import type { VolumePlan } from "@ai-novel/shared/types/novel";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { ApiResponse } from "@ai-novel/shared/types/api";
+import type { VolumePlan, VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { generateNovelVolumes } from "@/api/novel";
+import { generateNovelVolumes, updateNovelVolumes, type NovelDetailResponse } from "@/api/novel";
+import { queryKeys } from "@/api/queryKeys";
 import {
   createEmptyChapter,
   createEmptyVolume,
@@ -10,6 +12,7 @@ import {
 } from "../volumePlan.utils";
 
 type ChapterDetailMode = "purpose" | "boundary" | "task_sheet";
+const CHAPTER_DETAIL_MODES: ChapterDetailMode[] = ["purpose", "boundary", "task_sheet"];
 
 interface LlmSettings {
   provider?: LLMProvider;
@@ -27,6 +30,31 @@ interface UseNovelVolumePlanningArgs {
   setVolumeDraft: Dispatch<SetStateAction<VolumePlan[]>>;
   setVolumeGenerationMessage: (value: string) => void;
   setStructuredMessage: (value: string) => void;
+}
+
+interface VolumeGenerationPayload {
+  scope: "book" | "volume" | "chapter_detail";
+  targetVolumeId?: string;
+  targetChapterId?: string;
+  detailMode?: ChapterDetailMode;
+  draftVolumesOverride?: VolumePlan[];
+  suppressSuccessMessage?: boolean;
+}
+
+interface GeneratedVolumeMutationResult {
+  generatedResponse: Awaited<ReturnType<typeof generateNovelVolumes>>;
+  persistedResponse: Awaited<ReturnType<typeof updateNovelVolumes>>;
+  nextVolumes: VolumePlan[];
+}
+
+class VolumeGenerationAutoSaveError extends Error {
+  nextVolumes: VolumePlan[];
+
+  constructor(message: string, nextVolumes: VolumePlan[]) {
+    super(message);
+    this.name = "VolumeGenerationAutoSaveError";
+    this.nextVolumes = nextVolumes;
+  }
 }
 
 function serializeVolumeDraft(volumes: VolumePlan[]): string {
@@ -72,6 +100,47 @@ function detailModeLabel(mode: ChapterDetailMode): string {
   return "任务单";
 }
 
+function hasChapterDetailDraft(
+  chapter: VolumePlan["chapters"][number],
+  mode: ChapterDetailMode,
+): boolean {
+  if (mode === "purpose") {
+    return Boolean(chapter.purpose?.trim());
+  }
+  if (mode === "boundary") {
+    return typeof chapter.conflictLevel === "number"
+      || typeof chapter.revealLevel === "number"
+      || typeof chapter.targetWordCount === "number"
+      || Boolean(chapter.mustAvoid?.trim())
+      || chapter.payoffRefs.length > 0;
+  }
+  return Boolean(chapter.taskSheet?.trim());
+}
+
+function hasAnyChapterDetailDraft(chapter: VolumePlan["chapters"][number]): boolean {
+  return CHAPTER_DETAIL_MODES.some((mode) => hasChapterDetailDraft(chapter, mode));
+}
+
+function mergeSavedVolumeDocumentIntoNovelDetail(
+  previous: ApiResponse<NovelDetailResponse> | undefined,
+  document: VolumePlanDocument,
+): ApiResponse<NovelDetailResponse> | undefined {
+  if (!previous?.data) {
+    return previous;
+  }
+  return {
+    ...previous,
+    data: {
+      ...previous.data,
+      outline: document.derivedOutline,
+      structuredOutline: document.derivedStructuredOutline,
+      volumes: document.volumes,
+      volumeSource: document.source,
+      activeVolumeVersionId: document.activeVersionId,
+    },
+  };
+}
+
 export function useNovelVolumePlanning({
   novelId,
   hasCharacters,
@@ -83,6 +152,7 @@ export function useNovelVolumePlanning({
   setVolumeGenerationMessage,
   setStructuredMessage,
 }: UseNovelVolumePlanningArgs) {
+  const queryClient = useQueryClient();
   const normalizedVolumeDraft = useMemo(
     () => normalizeVolumeDraft(volumeDraft),
     [volumeDraft],
@@ -100,49 +170,94 @@ export function useNovelVolumePlanning({
     setVolumeDraft((prev) => normalizeVolumeDraft(updater(prev)));
   };
 
+  const [isGeneratingChapterDetailBundle, setIsGeneratingChapterDetailBundle] = useState(false);
+  const [bundleGeneratingChapterId, setBundleGeneratingChapterId] = useState("");
+  const [bundleGeneratingMode, setBundleGeneratingMode] = useState<ChapterDetailMode | "">("");
+
+  const syncSavedVolumeDocumentToCache = (document: VolumePlanDocument) => {
+    queryClient.setQueryData<ApiResponse<NovelDetailResponse> | undefined>(
+      queryKeys.novels.detail(novelId),
+      (previous) => mergeSavedVolumeDocumentIntoNovelDetail(previous, document),
+    );
+    queryClient.setQueryData<ApiResponse<VolumePlanDocument>>(
+      queryKeys.novels.volumeWorkspace(novelId),
+      (previous) => ({
+        success: previous?.success ?? true,
+        message: previous?.message,
+        data: document,
+      }),
+    );
+  };
+
   const generateMutation = useMutation({
-    mutationFn: (payload: {
-      scope: "book" | "volume" | "chapter_detail";
-      targetVolumeId?: string;
-      targetChapterId?: string;
-      detailMode?: ChapterDetailMode;
-    }) => generateNovelVolumes(novelId, {
-      provider: llm.provider,
-      model: llm.model,
-      temperature: llm.temperature,
-      scope: payload.scope,
-      targetVolumeId: payload.targetVolumeId,
-      targetChapterId: payload.targetChapterId,
-      detailMode: payload.detailMode,
-      draftVolumes: normalizedVolumeDraft.length > 0 ? normalizedVolumeDraft : undefined,
-      estimatedChapterCount: typeof estimatedChapterCount === "number" && estimatedChapterCount > 0
-        ? estimatedChapterCount
-        : undefined,
-      respectExistingVolumeCount: normalizedVolumeDraft.length > 0,
-    }),
-    onSuccess: (response, payload) => {
-      setVolumeDraft(response.data?.volumes ?? []);
+    mutationFn: async (payload: VolumeGenerationPayload): Promise<GeneratedVolumeMutationResult> => {
+      const requestDraft = normalizeVolumeDraft(payload.draftVolumesOverride ?? normalizedVolumeDraft);
+      const generatedResponse = await generateNovelVolumes(novelId, {
+        provider: llm.provider,
+        model: llm.model,
+        temperature: llm.temperature,
+        scope: payload.scope,
+        targetVolumeId: payload.targetVolumeId,
+        targetChapterId: payload.targetChapterId,
+        detailMode: payload.detailMode,
+        draftVolumes: requestDraft.length > 0 ? requestDraft : undefined,
+        estimatedChapterCount: typeof estimatedChapterCount === "number" && estimatedChapterCount > 0
+          ? estimatedChapterCount
+          : undefined,
+        respectExistingVolumeCount: requestDraft.length > 0,
+      });
+      const nextVolumes = normalizeVolumeDraft(generatedResponse.data?.volumes ?? requestDraft);
+
+      try {
+        const persistedResponse = await updateNovelVolumes(novelId, { volumes: nextVolumes });
+        return {
+          generatedResponse,
+          persistedResponse,
+          nextVolumes,
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "AI 生成已完成，但自动保存失败。";
+        throw new VolumeGenerationAutoSaveError(message, nextVolumes);
+      }
+    },
+    onSuccess: (result, payload) => {
+      const nextVolumes = result.nextVolumes;
+      setVolumeDraft(nextVolumes);
+      if (result.persistedResponse.data) {
+        syncSavedVolumeDocumentToCache(result.persistedResponse.data);
+      }
+
+      if (payload.suppressSuccessMessage) {
+        return;
+      }
 
       if (payload.scope === "book") {
         const message = normalizedVolumeDraft.length > 0
-          ? `全书卷骨架已重生成，当前保留 ${normalizedVolumeDraft.length} 卷。章节列表请按卷单独生成。`
-          : "全书卷骨架已生成。下一步请按卷生成章节列表。";
+          ? `全书卷骨架已重生成并自动保存，当前保留 ${normalizedVolumeDraft.length} 卷。章节列表请按卷单独生成。`
+          : "全书卷骨架已生成并自动保存。下一步请按卷生成章节列表。";
         setVolumeGenerationMessage(message);
         setStructuredMessage(message);
         return;
       }
 
       if (payload.scope === "volume") {
-        const targetVolume = normalizedVolumeDraft.find((volume) => volume.id === payload.targetVolumeId);
-        setStructuredMessage(`已生成${targetVolume ? `《${targetVolume.title}》` : "当前卷"}的章节列表，本次只填写标题和摘要。`);
+        const targetVolume = nextVolumes.find((volume) => volume.id === payload.targetVolumeId);
+        setStructuredMessage(`已生成并自动保存${targetVolume ? `《${targetVolume.title}》` : "当前卷"}的章节列表，本次只填写标题和摘要。`);
         return;
       }
 
       const label = detailModeLabel(payload.detailMode ?? "purpose");
-      setStructuredMessage(`${label}已生成，你可以继续手动微调。`);
+      setStructuredMessage(`${label}已完成 AI修正并自动保存，你可以继续手动微调。`);
     },
     onError: (error, payload) => {
-      const message = error instanceof Error ? error.message : "卷级方案生成失败。";
+      if (error instanceof VolumeGenerationAutoSaveError) {
+        setVolumeDraft(error.nextVolumes);
+      }
+      const message = error instanceof VolumeGenerationAutoSaveError
+        ? `AI 生成已完成，但自动保存失败：${error.message}`
+        : error instanceof Error
+          ? error.message
+          : "卷级方案生成失败。";
       if (payload.scope === "book") {
         setVolumeGenerationMessage(message);
       }
@@ -221,8 +336,11 @@ export function useNovelVolumePlanning({
       return;
     }
     const confirmed = window.confirm([
-      `将为第${targetChapter.chapterOrder}章《${targetChapter.title}》生成${detailModeLabel(detailMode)}。`,
-      "本次只补当前章节这一块信息，不会改动本章摘要，也不会影响其他章节。",
+      `将基于当前内容为第${targetChapter.chapterOrder}章《${targetChapter.title}》AI修正${detailModeLabel(detailMode)}。`,
+      hasChapterDetailDraft(targetChapter, detailMode)
+        ? "会优先沿用当前已填写结果，只修正空缺、模糊和不够可执行的部分。"
+        : "当前这块还是空白，AI会先补出首版，再按现有标题和摘要收束。",
+      "不会改动本章标题和摘要，也不会影响其他章节。",
     ].join("\n\n"));
     if (!confirmed) {
       return;
@@ -233,6 +351,58 @@ export function useNovelVolumePlanning({
       targetChapterId: chapterId,
       detailMode,
     });
+  };
+
+  const startChapterDetailBundleGeneration = (volumeId: string, chapterId: string) => {
+    const targetVolume = normalizedVolumeDraft.find((volume) => volume.id === volumeId);
+    const targetChapter = targetVolume?.chapters.find((chapter) => chapter.id === chapterId);
+    if (!targetVolume || !targetChapter) {
+      setStructuredMessage("当前章节不存在，无法整套生成章节细化。");
+      return;
+    }
+    if (!ensureCharacterGuard()) {
+      return;
+    }
+    const confirmed = window.confirm([
+      `将为第${targetChapter.chapterOrder}章《${targetChapter.title}》一次生成章节目标、执行边界和任务单。`,
+      hasAnyChapterDetailDraft(targetChapter)
+        ? "会基于当前已填写内容逐项补齐并修正，不会改动标题和摘要。"
+        : "会根据当前标题和摘要一次补齐三块内容，不需要你逐个点击。",
+      "生成顺序为：章节目标 -> 执行边界 -> 任务单。",
+    ].join("\n\n"));
+    if (!confirmed) {
+      return;
+    }
+
+    void (async () => {
+      let workingDraft = normalizedVolumeDraft;
+      setIsGeneratingChapterDetailBundle(true);
+      setBundleGeneratingChapterId(chapterId);
+      setStructuredMessage(`正在为第${targetChapter.chapterOrder}章连续生成章节目标、执行边界和任务单...`);
+
+      try {
+        for (const mode of CHAPTER_DETAIL_MODES) {
+          setBundleGeneratingMode(mode);
+          const result = await generateMutation.mutateAsync({
+            scope: "chapter_detail",
+            targetVolumeId: volumeId,
+            targetChapterId: chapterId,
+            detailMode: mode,
+            draftVolumesOverride: workingDraft,
+            suppressSuccessMessage: true,
+          });
+          workingDraft = result.nextVolumes;
+          setVolumeDraft(workingDraft);
+        }
+        setStructuredMessage(`第${targetChapter.chapterOrder}章的章节目标、执行边界和任务单已补齐并自动保存。下面的小按钮会基于当前结果继续 AI修正。`);
+      } catch {
+        // onError 已统一处理提示
+      } finally {
+        setIsGeneratingChapterDetailBundle(false);
+        setBundleGeneratingChapterId("");
+        setBundleGeneratingMode("");
+      }
+    })();
   };
 
   const handleVolumeFieldChange = (
@@ -380,12 +550,18 @@ export function useNovelVolumePlanning({
     : normalizedVolumeDraft.length > 0
       ? `当前默认锁定 ${normalizedVolumeDraft.length} 卷。全书骨架不会自动生成章节列表，章节细化也需要单独触发。`
       : "先生成全书卷骨架，再按卷生成章节列表；章节目标、执行边界、任务单都改成按需生成。";
-  const generatingChapterDetailMode: ChapterDetailMode | "" = generateMutation.variables?.scope === "chapter_detail"
-    ? generateMutation.variables.detailMode ?? ""
-    : "";
-  const generatingChapterDetailChapterId = generateMutation.variables?.scope === "chapter_detail"
-    ? generateMutation.variables.targetChapterId ?? ""
-    : "";
+  const generatingChapterDetailMode: ChapterDetailMode | "" = isGeneratingChapterDetailBundle
+    ? bundleGeneratingMode
+    : generateMutation.variables?.scope === "chapter_detail"
+      ? generateMutation.variables.detailMode ?? ""
+      : "";
+  const generatingChapterDetailChapterId = isGeneratingChapterDetailBundle
+    ? bundleGeneratingChapterId
+    : generateMutation.variables?.scope === "chapter_detail"
+      ? generateMutation.variables.targetChapterId ?? ""
+      : "";
+  const isGeneratingChapterDetail = isGeneratingChapterDetailBundle
+    || (generateMutation.isPending && generateMutation.variables?.scope === "chapter_detail");
 
   return {
     normalizedVolumeDraft,
@@ -393,12 +569,14 @@ export function useNovelVolumePlanning({
     generationNotice,
     isGeneratingBook: generateMutation.isPending && generateMutation.variables?.scope === "book",
     isGeneratingVolume: generateMutation.isPending && generateMutation.variables?.scope === "volume",
-    isGeneratingChapterDetail: generateMutation.isPending && generateMutation.variables?.scope === "chapter_detail",
+    isGeneratingChapterDetail,
+    isGeneratingChapterDetailBundle,
     generatingChapterDetailMode,
     generatingChapterDetailChapterId,
     startBookGeneration,
     startVolumeGeneration: startVolumeChapterGeneration,
     startChapterDetailGeneration,
+    startChapterDetailBundleGeneration,
     handleVolumeFieldChange,
     handleOpenPayoffsChange,
     handleAddVolume,
@@ -412,3 +590,4 @@ export function useNovelVolumePlanning({
     handleMoveChapter,
   };
 }
+

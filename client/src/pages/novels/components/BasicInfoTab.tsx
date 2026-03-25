@@ -19,6 +19,7 @@ export default function BasicInfoTab(props: BasicTabProps) {
           <NovelBasicInfoForm
             basicForm={props.basicForm}
             genreOptions={props.genreOptions}
+            storyModeOptions={props.storyModeOptions}
             worldOptions={props.worldOptions}
             sourceNovelOptions={props.sourceNovelOptions}
             sourceKnowledgeOptions={props.sourceKnowledgeOptions}

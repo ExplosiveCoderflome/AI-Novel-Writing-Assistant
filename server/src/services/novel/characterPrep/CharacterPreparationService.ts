@@ -1,15 +1,23 @@
 import type {
   CharacterCastApplyResult,
   CharacterCastOption,
+  CharacterCastOptionClearResult,
+  CharacterCastOptionDeleteResult,
   CharacterCastRole,
   CharacterRelation,
+  SupplementalCharacterApplyResult,
+  SupplementalCharacterCandidate,
+  SupplementalCharacterGenerateInput,
+  SupplementalCharacterGenerationResult,
 } from "@ai-novel/shared/types/novel";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../../db/prisma";
 import { invokeStructuredLlm } from "../../../llm/structuredInvoke";
+import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import { NovelContextService } from "../NovelContextService";
 import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
 import { characterCastOptionResponseSchema } from "./characterPreparationSchemas";
+import { CharacterPreparationSupplementalService } from "./characterPreparationSupplemental";
 
 interface CharacterPrepOptions {
   provider?: LLMProvider;
@@ -62,6 +70,10 @@ const CHARACTER_CAST_OPTION_RESPONSE_TEMPLATE = `{
 export class CharacterPreparationService {
   private readonly novelContextService = new NovelContextService();
   private readonly characterDynamicsService = new CharacterDynamicsService();
+  private readonly supplementalService = new CharacterPreparationSupplementalService(
+    this.novelContextService,
+    this.characterDynamicsService,
+  );
 
   async listCharacterRelations(novelId: string): Promise<CharacterRelation[]> {
     const rows = await prisma.characterRelation.findMany({
@@ -162,6 +174,13 @@ export class CharacterPreparationService {
     }));
   }
 
+  async generateSupplementalCharacters(
+    novelId: string,
+    options: SupplementalCharacterGenerateInput = {},
+  ): Promise<SupplementalCharacterGenerationResult> {
+    return this.supplementalService.generateSupplementalCharacters(novelId, options);
+  }
+
   async generateCharacterCastOptions(
     novelId: string,
     options: CharacterPrepOptions = {},
@@ -194,6 +213,30 @@ export class CharacterPreparationService {
             constraintEngineJson: true,
           },
         },
+        primaryStoryMode: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            template: true,
+            parentId: true,
+            profileJson: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+        secondaryStoryMode: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            template: true,
+            parentId: true,
+            profileJson: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
       },
     });
 
@@ -205,11 +248,16 @@ export class CharacterPreparationService {
       || novel.storyMacroPlan?.storyInput?.trim()
       || novel.description?.trim()
       || "";
+    const storyModeBlock = buildStoryModePromptBlock({
+      primary: novel.primaryStoryMode ? normalizeStoryModeOutput(novel.primaryStoryMode) : null,
+      secondary: novel.secondaryStoryMode ? normalizeStoryModeOutput(novel.secondaryStoryMode) : null,
+    });
 
     const promptSections = [
       `Project title: ${novel.title}`,
       `Story input: ${storyInput || "No direct story input is available yet. Build from the genre, world, and current setup."}`,
       `Genre: ${novel.genre?.name ?? "Unspecified"}`,
+      storyModeBlock ? `Story modes:\n${storyModeBlock}` : "Story modes: none",
       `Style tone: ${novel.styleTone ?? "Unspecified"}`,
       `Narrative POV: ${novel.narrativePov ?? "Unspecified"}`,
       `Pacing preference: ${novel.pacePreference ?? "Unspecified"}`,
@@ -441,5 +489,64 @@ export class CharacterPreparationService {
       characterIds: uniqueCharacterIds,
       primaryCharacterId: characterIdByName.get(option.members[0]?.name ?? "") ?? null,
     };
+  }
+
+  async deleteCharacterCastOption(
+    novelId: string,
+    optionId: string,
+  ): Promise<CharacterCastOptionDeleteResult> {
+    const option = await prisma.characterCastOption.findFirst({
+      where: { id: optionId, novelId },
+      select: { id: true, status: true },
+    });
+
+    if (!option) {
+      throw new Error("Character cast option not found.");
+    }
+
+    await prisma.characterCastOption.delete({
+      where: { id: option.id },
+    });
+
+    const remainingOptionCount = await prisma.characterCastOption.count({
+      where: { novelId },
+    });
+
+    return {
+      deletedOptionId: option.id,
+      deletedAppliedOption: option.status === "applied",
+      remainingOptionCount,
+    };
+  }
+
+  async clearCharacterCastOptions(novelId: string): Promise<CharacterCastOptionClearResult> {
+    const options = await prisma.characterCastOption.findMany({
+      where: { novelId },
+      select: { status: true },
+    });
+
+    if (options.length === 0) {
+      return {
+        deletedCount: 0,
+        deletedAppliedCount: 0,
+        remainingOptionCount: 0,
+      };
+    }
+
+    const deletedAppliedCount = options.filter((option) => option.status === "applied").length;
+    await prisma.characterCastOption.deleteMany({ where: { novelId } });
+
+    return {
+      deletedCount: options.length,
+      deletedAppliedCount,
+      remainingOptionCount: 0,
+    };
+  }
+
+  async applySupplementalCharacter(
+    novelId: string,
+    candidate: SupplementalCharacterCandidate,
+  ): Promise<SupplementalCharacterApplyResult> {
+    return this.supplementalService.applySupplementalCharacter(novelId, candidate);
   }
 }

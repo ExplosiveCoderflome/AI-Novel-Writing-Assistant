@@ -14,29 +14,48 @@ export async function invokePlannerLLM(input: {
   options: PlannerLlmOptions;
   scopeLabel: string;
   context: string;
+  storyModeBlock?: string;
   includeScenes: boolean;
   planLevel: StoryPlanLevel;
 }): Promise<PlannerOutput> {
-  const systemPrompt =
-    `你是小说策划。请严格输出 JSON，字段为 title, objective, participants, reveals, riskNotes, hookTarget, planRole, phaseLabel, mustAdvance, mustPreserve, scenes。level=${input.planLevel}。${input.includeScenes ? "scenes 必须是数组，每项含 title, objective, conflict, reveal, emotionBeat。" : "scenes 直接输出空数组。"} book/arc 可将 planRole 置空字符串；chapter 必须给出 planRole。不要输出解释。`;
+  const context = [
+    input.storyModeBlock?.trim() || "",
+    input.context,
+  ].filter(Boolean).join("\n\n");
 
-  const userPrompt =
-    `${input.scopeLabel}
+  const systemPrompt = [
+    "You are a long-form novel planning assistant.",
+    "Return strict JSON only.",
+    "The response must contain the fields title, objective, participants, reveals, riskNotes, hookTarget, planRole, phaseLabel, mustAdvance, mustPreserve, and scenes.",
+    `planLevel=${input.planLevel}.`,
+    input.includeScenes
+      ? "scenes must be an array, and each item must include title, objective, conflict, reveal, and emotionBeat."
+      : "scenes must be an empty array.",
+    "For book and arc plans, planRole may be null or omitted.",
+    "For chapter plans, planRole must be one of setup, progress, pressure, turn, payoff, or cooldown.",
+    "mustAdvance and mustPreserve should be concise, concrete, and directly usable by downstream writing steps.",
+    "Do not output markdown fences or any explanation outside the JSON object.",
+  ].join(" ");
 
-上下文：
-${input.context}
-
-要求：
-1. objective 必须明确本次规划的主推进目标。
-2. participants 只列关键参与角色名字。
-3. reveals 列关键揭露或推进的信息点。
-4. riskNotes 列容易跑偏的风险。
-5. hookTarget 列章节结尾要留下的钩子。
-6. chapter 级规划必须补充 planRole（setup/progress/pressure/turn/payoff/cooldown）。
-7. phaseLabel 用一句短语概括当前阶段。
-8. mustAdvance 列本章必须推进的关键点。
-9. mustPreserve 列本章绝不能丢掉的连续性要求。
-10. 场景必须有顺序，能直接给写作器消费。`;
+  const userPrompt = [
+    input.scopeLabel,
+    "",
+    "Context:",
+    context,
+    "",
+    "Requirements:",
+    "1. objective must state the main progression target for this planning layer.",
+    "2. participants should list only the key involved characters or factions.",
+    "3. reveals should capture important information disclosures or structural turns.",
+    "4. riskNotes should explain where the story may drift, flatten, or violate constraints.",
+    "5. hookTarget should describe the lingering question, tension, or emotional carry-over.",
+    "6. phaseLabel should summarize the current phase in a short phrase.",
+    "7. mustAdvance should list the non-negotiable beats that must move forward.",
+    "8. mustPreserve should list continuity, tone, and constraint items that must not be broken.",
+    "9. When story mode constraints exist in the context, treat the primary mode as a hard constraint and the secondary mode only as a limited flavor layer.",
+    "10. Never raise conflict intensity beyond the declared story mode ceiling, and never rely on forbidden conflict forms.",
+    "11. If scenes are required, they must be ordered and immediately usable for downstream chapter writing.",
+  ].join("\n");
 
   const parsed = await invokeStructuredLlm({
     label: `planner:${input.planLevel}`,

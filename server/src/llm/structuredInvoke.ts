@@ -67,6 +67,8 @@ async function repairWithLlm<T>(input: StructuredInvokeInput<T>, rawContent: str
     "你是 JSON 修复器。",
     "你的任务是：只输出严格合法的 JSON 对象，且必须通过给定的结构校验。",
     "不要输出任何解释、Markdown 或额外字段。",
+    "如果校验错误提示某个字段缺失，必须直接使用错误路径里的字段名作为 JSON 键名，不要翻译成中文别名。",
+    "例如缺少 purpose / taskSheet / conflictLevel 时，最终 JSON 必须使用这些原字段名。",
   ].join("\n");
 
   const repairHuman = [

@@ -5,6 +5,7 @@ import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
 import { createNovel } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
+import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
 import { getWorldList } from "@/api/world";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import NovelAutoDirectorDialog from "./components/NovelAutoDirectorDialog";
@@ -33,6 +34,11 @@ export default function NovelCreate() {
     queryFn: getGenreTree,
   });
   const genreOptions = flattenGenreTreeOptions(genreTreeQuery.data?.data ?? []);
+  const storyModeTreeQuery = useQuery({
+    queryKey: queryKeys.storyModes.all,
+    queryFn: getStoryModeTree,
+  });
+  const storyModeOptions = flattenStoryModeTreeOptions(storyModeTreeQuery.data?.data ?? []);
 
   const {
     sourceBookAnalysesQuery,
@@ -91,6 +97,7 @@ export default function NovelCreate() {
           <NovelBasicInfoForm
             basicForm={basicForm}
             genreOptions={genreOptions}
+            storyModeOptions={storyModeOptions}
             worldOptions={worldListQuery.data?.data ?? []}
             sourceNovelOptions={sourceNovelOptions}
             sourceKnowledgeOptions={sourceKnowledgeOptions}

@@ -28,6 +28,7 @@ import ragRouter from "./routes/rag";
 import settingsRouter from "./routes/settings";
 import styleEngineRouter from "./routes/styleEngine";
 import styleEngineExtractionRouter from "./routes/styleEngineExtraction";
+import storyModeRouter from "./routes/storyMode";
 import tasksRouter from "./routes/tasks";
 import titleLibraryRouter from "./routes/titleLibrary";
 import worldRouter from "./routes/world";
@@ -98,6 +99,7 @@ export function createApp() {
   app.use("/api/agent-runs", agentRunsRouter);
   app.use("/api/book-analysis", bookAnalysisRouter);
   app.use("/api/genres", genreRouter);
+  app.use("/api/story-modes", storyModeRouter);
   app.use("/api/knowledge", knowledgeRouter);
   app.use("/api/llm", llmRouter);
   app.use("/api/title-library", titleLibraryRouter);

@@ -12,6 +12,9 @@ import type {
   PipelineJob,
   PlotBeat,
   QualityScore,
+  SupplementalCharacterCandidate,
+  SupplementalCharacterGenerateInput,
+  SupplementalCharacterGenerationResult,
   VolumeImpactResult,
   VolumePlan,
   VolumePlanDiff,
@@ -41,6 +44,17 @@ export interface BasicTabProps {
   novelId: string;
   basicForm: NovelBasicFormState;
   genreOptions: Array<{ id: string; label: string; path: string }>;
+  storyModeOptions: Array<{
+    id: string;
+    name: string;
+    label: string;
+    path: string;
+    description?: string | null;
+    profile: {
+      coreDrive: string;
+      readerReward: string;
+    };
+  }>;
   worldOptions: Array<{ id: string; name: string }>;
   sourceNovelOptions: Array<{ id: string; title: string }>;
   sourceKnowledgeOptions: Array<{ id: string; title: string }>;
@@ -154,12 +168,17 @@ export interface StructuredTabViewProps extends Omit<
   isGeneratingVolume: boolean;
   onGenerateVolume: (volumeId: string) => void;
   isGeneratingChapterDetail: boolean;
+  isGeneratingChapterDetailBundle: boolean;
   generatingChapterDetailMode: "purpose" | "boundary" | "task_sheet" | "";
   generatingChapterDetailChapterId: string;
   onGenerateChapterDetail: (
     volumeId: string,
     chapterId: string,
     mode: "purpose" | "boundary" | "task_sheet",
+  ) => void;
+  onGenerateChapterDetailBundle: (
+    volumeId: string,
+    chapterId: string,
   ) => void;
   syncPreview: VolumeSyncPreview;
   syncOptions: StructuredSyncOptions;
@@ -333,6 +352,16 @@ export interface CharacterTabViewProps {
   onQuickCharacterFormChange: (field: "name" | "role", value: string) => void;
   onQuickCreateCharacter: (payload: QuickCharacterCreatePayload) => void;
   isQuickCreating: boolean;
+  onGenerateSupplementalCharacters: (payload: SupplementalCharacterGenerateInput) => Promise<{
+    data?: SupplementalCharacterGenerationResult;
+    message?: string;
+  }>;
+  isGeneratingSupplementalCharacters: boolean;
+  onApplySupplementalCharacter: (candidate: SupplementalCharacterCandidate) => Promise<{
+    data?: { character?: Character; relationCount?: number };
+    message?: string;
+  }>;
+  isApplyingSupplementalCharacter: boolean;
   characters: Character[];
   coreCharacterCount: number;
   baseCharacters: BaseCharacter[];

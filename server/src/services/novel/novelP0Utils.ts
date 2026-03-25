@@ -165,8 +165,8 @@ export function normalizeSeverity(value: unknown): "low" | "medium" | "high" | "
   return "medium";
 }
 
-export function normalizeAuditType(value: unknown): "continuity" | "character" | "plot" {
-  if (value === "continuity" || value === "character" || value === "plot") {
+export function normalizeAuditType(value: unknown): "continuity" | "character" | "plot" | "mode_fit" {
+  if (value === "continuity" || value === "character" || value === "plot" || value === "mode_fit") {
     return value;
   }
   return "plot";

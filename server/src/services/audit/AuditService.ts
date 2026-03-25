@@ -1,6 +1,7 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { AuditReport, AuditType, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../db/prisma";
+import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../storyMode/storyModeProfile";
 import { openConflictService } from "../state/OpenConflictService";
 import {
   normalizeAuditType,
@@ -45,6 +46,7 @@ const LEGACY_CATEGORY_MAP: Record<AuditType, ReviewIssue["category"]> = {
   continuity: "coherence",
   character: "logic",
   plot: "pacing",
+  mode_fit: "coherence",
 };
 
 export class AuditService {
@@ -68,7 +70,7 @@ export class AuditService {
       throw new Error("章节不存在。");
     }
     const content = options.content ?? chapter.content ?? "";
-    const requestedTypes: AuditType[] = scope === "full" ? ["continuity", "character", "plot"] : [scope];
+    const requestedTypes: AuditType[] = scope === "full" ? ["continuity", "character", "plot", "mode_fit"] : [scope];
     if (!content.trim()) {
       const score = normalizeScore({});
       const reports = await this.persistAuditReports(novelId, chapterId, score, requestedTypes.map((type) => ({
@@ -181,6 +183,7 @@ export class AuditService {
   ): Promise<FullAuditOutput> {
     try {
       let ragContext = "";
+      let storyModeContext = "";
       try {
         ragContext = await ragServices.hybridRetrievalService.buildContextBlock(
           content,
@@ -193,6 +196,45 @@ export class AuditService {
       } catch {
         ragContext = "";
       }
+      try {
+        const novel = await prisma.novel.findUnique({
+          where: { id: novelId },
+          select: {
+            primaryStoryMode: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                template: true,
+                parentId: true,
+                profileJson: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
+            secondaryStoryMode: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                template: true,
+                parentId: true,
+                profileJson: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
+          },
+        });
+        if (novel) {
+          storyModeContext = buildStoryModePromptBlock({
+            primary: novel.primaryStoryMode ? normalizeStoryModeOutput(novel.primaryStoryMode) : null,
+            secondary: novel.secondaryStoryMode ? normalizeStoryModeOutput(novel.secondaryStoryMode) : null,
+          });
+        }
+      } catch {
+        storyModeContext = "";
+      }
       return await invokeStructuredLlm({
         label: `audit:${requestedTypes.join(",")}`,
         provider: options.provider,
@@ -200,10 +242,13 @@ export class AuditService {
         temperature: options.temperature ?? 0.1,
         taskType: "review",
         systemPrompt:
-          "你是小说审计器。请严格输出 JSON，字段为 score, issues, auditReports。auditReports 只允许 continuity/character/plot。每个 issue 必须给 severity, code, description, evidence, fixSuggestion。",
+          "You are a novel audit assistant. Return strict JSON only with score, issues, and auditReports. auditReports may only use continuity, character, plot, or mode_fit. Every issue must include severity, code, description, evidence, and fixSuggestion.",
         userPrompt: `小说：${novelTitle}
 章节：${chapterTitle}
 审计范围：${requestedTypes.join(",")}
+
+流派模式约束：
+${storyModeContext || "无"}
 
 正文：
 ${content}
@@ -214,7 +259,12 @@ ${ragContext || "无"}
 要求：
 1. score 维持兼容字段 coherence, repetition, pacing, voice, engagement, overall。
 2. issues 输出旧版兼容问题数组。
-3. auditReports 输出结构化审计结果，至少覆盖请求的类型。`,
+3. auditReports 输出结构化审计结果，至少覆盖请求的类型。
+4. continuity 检查事件、信息、状态、因果是否连贯。
+5. character 检查人物动机、反应、关系变化是否自洽。
+6. plot 检查推进是否有效、节奏是否失衡、钩子和兑现是否成立。
+7. mode_fit 必须检查本章是否违背主流派模式的核心驱动、读者奖励、冲突上限、禁止信号；副流派模式只能补充风味，不能推翻主模式边界。
+8. 如果没有明显问题，也要给出简短 summary，并在 auditReports 中保留对应类型。`,
         schema: fullAuditOutputSchema,
       });
     } catch {

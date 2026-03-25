@@ -20,6 +20,7 @@ export function buildPreviousChaptersSummary(
 
 export function buildSupportingContextText(input: {
   worldBlock: string;
+  storyModeBlock: string;
   planPromptBlock: string;
   stateContextBlock: string;
   openConflictBlock: string;
@@ -36,6 +37,7 @@ export function buildSupportingContextText(input: {
 }): string {
   return [
     input.worldBlock,
+    input.storyModeBlock,
     input.planPromptBlock,
     input.stateContextBlock,
     input.openConflictBlock,

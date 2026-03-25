@@ -201,6 +201,22 @@ export class NovelService extends NovelPipelineService {
     return this.characterPreparationService.applyCharacterCastOption(...args);
   }
 
+  generateSupplementalCharacters(...args: Parameters<CharacterPreparationService["generateSupplementalCharacters"]>) {
+    return this.characterPreparationService.generateSupplementalCharacters(...args);
+  }
+
+  applySupplementalCharacter(...args: Parameters<CharacterPreparationService["applySupplementalCharacter"]>) {
+    return this.characterPreparationService.applySupplementalCharacter(...args);
+  }
+
+  deleteCharacterCastOption(...args: Parameters<CharacterPreparationService["deleteCharacterCastOption"]>) {
+    return this.characterPreparationService.deleteCharacterCastOption(...args);
+  }
+
+  clearCharacterCastOptions(...args: Parameters<CharacterPreparationService["clearCharacterCastOptions"]>) {
+    return this.characterPreparationService.clearCharacterCastOptions(...args);
+  }
+
   async createCharacter(...args: Parameters<NovelCoreService["createCharacter"]>) {
     const [novelId] = args;
     const created = await this.core.createCharacter(...args);

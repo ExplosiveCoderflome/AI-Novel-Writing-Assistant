@@ -4,6 +4,7 @@ import type {
   Character,
   Novel,
   NovelBible,
+  NovelStoryMode,
   PlotBeat,
 } from "@ai-novel/shared/types/novel";
 
@@ -18,6 +19,8 @@ export interface NovelListResponse {
         id: string;
         name: string;
       } | null;
+      primaryStoryMode?: NovelStoryMode | null;
+      secondaryStoryMode?: NovelStoryMode | null;
       world?: {
         id: string;
         name: string;
@@ -40,6 +43,8 @@ export interface NovelDetailResponse extends Novel {
     id: string;
     name: string;
   } | null;
+  primaryStoryMode?: NovelStoryMode | null;
+  secondaryStoryMode?: NovelStoryMode | null;
   world?: {
     id: string;
     name: string;

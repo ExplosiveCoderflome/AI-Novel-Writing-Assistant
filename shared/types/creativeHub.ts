@@ -89,6 +89,7 @@ export type CreativeHubNovelSetupChecklistKey =
   | "premise"
   | "story_promise"
   | "direction"
+  | "story_mode"
   | "narrative"
   | "production_preferences"
   | "chapter_scale"

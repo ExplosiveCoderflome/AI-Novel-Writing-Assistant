@@ -70,10 +70,11 @@ interface RunPipelineChapterDeps {
 
 const QUALITY_THRESHOLD = { coherence: 80, repetition: 20, engagement: 75 };
 
-const AUDIT_CATEGORY_MAP: Record<"continuity" | "character" | "plot", ReviewIssue["category"]> = {
+const AUDIT_CATEGORY_MAP: Record<"continuity" | "character" | "plot" | "mode_fit", ReviewIssue["category"]> = {
   continuity: "coherence",
   character: "logic",
   plot: "pacing",
+  mode_fit: "coherence",
 };
 
 export async function runPipelineChapterWithRuntime(

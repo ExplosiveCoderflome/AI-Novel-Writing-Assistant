@@ -2,6 +2,7 @@ import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import { parseCommercialTagsJson } from "@ai-novel/shared/types/novelFraming";
+import { normalizeStoryModeOutput } from "../storyMode/storyModeProfile";
 
 export interface PaginationInput {
   page: number;
@@ -17,6 +18,8 @@ export interface CreateNovelInput {
   first30ChapterPromise?: string;
   commercialTags?: string[];
   genreId?: string;
+  primaryStoryModeId?: string;
+  secondaryStoryModeId?: string;
   worldId?: string;
   writingMode?: "original" | "continuation";
   projectMode?: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
@@ -64,6 +67,8 @@ export interface UpdateNovelInput {
   continuationBookAnalysisId?: string | null;
   continuationBookAnalysisSections?: BookAnalysisSectionKey[] | null;
   genreId?: string | null;
+  primaryStoryModeId?: string | null;
+  secondaryStoryModeId?: string | null;
   worldId?: string | null;
   outline?: string | null;
   structuredOutline?: string | null;
@@ -213,6 +218,26 @@ export const DEFAULT_ESTIMATED_CHAPTER_COUNT = 80;
 export function normalizeNovelOutput<T extends {
   continuationBookAnalysisSections?: string | null;
   commercialTagsJson?: string | null;
+  primaryStoryMode?: {
+    id: string;
+    name: string;
+    description?: string | null;
+    template?: string | null;
+    parentId?: string | null;
+    profileJson?: string | null;
+    createdAt: Date | string;
+    updatedAt: Date | string;
+  } | null;
+  secondaryStoryMode?: {
+    id: string;
+    name: string;
+    description?: string | null;
+    template?: string | null;
+    parentId?: string | null;
+    profileJson?: string | null;
+    createdAt: Date | string;
+    updatedAt: Date | string;
+  } | null;
 }>(
   novel: T,
 ): Omit<T, "continuationBookAnalysisSections" | "commercialTagsJson"> & {
@@ -228,6 +253,16 @@ export function normalizeNovelOutput<T extends {
     ...rest,
     continuationBookAnalysisSections: parseContinuationBookAnalysisSections(continuationBookAnalysisSections),
     commercialTags: parseCommercialTagsJson(commercialTagsJson),
+    ...(rest.primaryStoryMode !== undefined
+      ? {
+          primaryStoryMode: rest.primaryStoryMode ? normalizeStoryModeOutput(rest.primaryStoryMode) : null,
+        }
+      : {}),
+    ...(rest.secondaryStoryMode !== undefined
+      ? {
+          secondaryStoryMode: rest.secondaryStoryMode ? normalizeStoryModeOutput(rest.secondaryStoryMode) : null,
+        }
+      : {}),
   };
 }
 

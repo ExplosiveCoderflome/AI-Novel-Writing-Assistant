@@ -35,9 +35,22 @@ interface GenreOption {
   path: string;
 }
 
+interface StoryModeOption {
+  id: string;
+  name: string;
+  label: string;
+  path: string;
+  description?: string | null;
+  profile: {
+    coreDrive: string;
+    readerReward: string;
+  };
+}
+
 interface NovelBasicInfoFormProps {
   basicForm: NovelBasicFormState;
   genreOptions: GenreOption[];
+  storyModeOptions: StoryModeOption[];
   worldOptions: WorldOption[];
   sourceNovelOptions: Array<{ id: string; title: string }>;
   sourceKnowledgeOptions: Array<{ id: string; title: string }>;
@@ -63,6 +76,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
   const {
     basicForm,
     genreOptions,
+    storyModeOptions,
     worldOptions,
     sourceNovelOptions,
     sourceKnowledgeOptions,
@@ -92,6 +106,8 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
   const hasSelectedContinuationSource = basicForm.continuationSourceType === "novel"
     ? Boolean(basicForm.sourceNovelId)
     : Boolean(basicForm.sourceKnowledgeDocumentId);
+  const primaryStoryMode = storyModeOptions.find((item) => item.id === basicForm.primaryStoryModeId);
+  const secondaryStoryMode = storyModeOptions.find((item) => item.id === basicForm.secondaryStoryModeId);
 
   return (
     <div className="space-y-4">
@@ -220,6 +236,75 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
             <div className="text-xs text-muted-foreground">会作为大纲、拍点和流水线默认范围的参考，后续仍可调整。</div>
           </div>
         </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-2">
+            <FieldLabel htmlFor="basic-primary-story-mode" hint={BASIC_INFO_FIELD_HINTS.primaryStoryModeId}>
+              主流派模式
+            </FieldLabel>
+            <select
+              id="basic-primary-story-mode"
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={basicForm.primaryStoryModeId}
+              onChange={(event) => onFormChange({ primaryStoryModeId: event.target.value })}
+            >
+              <option value="">暂不设置主流派模式</option>
+              {storyModeOptions.map((storyMode) => (
+                <option key={storyMode.id} value={storyMode.id}>
+                  {storyMode.path}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <FieldLabel htmlFor="basic-secondary-story-mode" hint={BASIC_INFO_FIELD_HINTS.secondaryStoryModeId}>
+              副流派模式
+            </FieldLabel>
+            <select
+              id="basic-secondary-story-mode"
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={basicForm.secondaryStoryModeId}
+              onChange={(event) => onFormChange({ secondaryStoryModeId: event.target.value })}
+            >
+              <option value="">不叠加副流派模式</option>
+              {storyModeOptions.map((storyMode) => (
+                <option
+                  key={storyMode.id}
+                  value={storyMode.id}
+                  disabled={storyMode.id === basicForm.primaryStoryModeId}
+                >
+                  {storyMode.path}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {primaryStoryMode || secondaryStoryMode ? (
+          <div className="grid gap-3 md:grid-cols-2">
+            {primaryStoryMode ? (
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <div className="text-sm font-semibold text-foreground">主流派模式摘要</div>
+                <div className="mt-1 text-sm text-foreground">{primaryStoryMode.name}</div>
+                <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {primaryStoryMode.description || primaryStoryMode.profile.coreDrive}
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground">核心驱动：{primaryStoryMode.profile.coreDrive}</div>
+              </div>
+            ) : null}
+            {secondaryStoryMode ? (
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <div className="text-sm font-semibold text-foreground">副流派模式摘要</div>
+                <div className="mt-1 text-sm text-foreground">{secondaryStoryMode.name}</div>
+                <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {secondaryStoryMode.description || secondaryStoryMode.profile.coreDrive}
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground">补充读者奖励：{secondaryStoryMode.profile.readerReward}</div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </SectionBlock>
 
       <SectionBlock

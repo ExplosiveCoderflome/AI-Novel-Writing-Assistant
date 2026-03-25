@@ -235,7 +235,7 @@ export class NovelCoreService {
   async auditChapter(
     novelId: string,
     chapterId: string,
-    scope: "full" | "continuity" | "character" | "plot",
+    scope: "full" | "continuity" | "character" | "plot" | "mode_fit",
     options: ReviewOptions = {},
   ) {
     return this.reviewService.auditChapter(novelId, chapterId, scope, options);

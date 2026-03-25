@@ -13,6 +13,7 @@ import NovelEdit from "@/pages/novels/NovelEdit";
 import NovelList from "@/pages/novels/NovelList";
 import ModelRoutesPage from "@/pages/settings/ModelRoutesPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
+import StoryModeManagementPage from "@/pages/storyModes/StoryModeManagementPage";
 import TaskCenterPage from "@/pages/tasks/TaskCenterPage";
 import TitleStudioPage from "@/pages/titles/TitleStudioPage";
 import WorldGenerator from "@/pages/worlds/WorldGenerator";
@@ -39,6 +40,7 @@ const routes: RouteObject[] = [
       { path: "tasks", element: <TaskCenterPage /> },
       { path: "knowledge", element: <KnowledgePage /> },
       { path: "genres", element: <GenreManagementPage /> },
+      { path: "story-modes", element: <StoryModeManagementPage /> },
       { path: "titles", element: <TitleStudioPage /> },
       { path: "settings/model-routes", element: <ModelRoutesPage /> },
       { path: "settings", element: <SettingsPage /> },

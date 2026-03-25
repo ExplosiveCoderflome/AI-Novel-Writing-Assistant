@@ -62,6 +62,9 @@ export const queryKeys = {
   genres: {
     all: ["genres"] as const,
   },
+  storyModes: {
+    all: ["story-modes"] as const,
+  },
   titles: {
     all: ["titles"] as const,
     list: (params: string) => ["titles", "list", params] as const,

@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Character, CharacterCastRole } from "@ai-novel/shared/types/novel";
+import type { Character, CharacterCastOption, CharacterCastRole } from "@ai-novel/shared/types/novel";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   applyCharacterCastOption,
+  clearCharacterCastOptions,
+  deleteCharacterCastOption,
   generateCharacterCastOptions,
   getCharacterCastOptions,
   getCharacterRelations,
@@ -74,6 +76,44 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
     setIsPlannerExpanded(appliedOption == null);
   }, [appliedOption?.id]);
 
+  async function refreshCastOptions() {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCastOptions(novelId) });
+  }
+
+  async function refreshAppliedCharacterWorkspace() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCastOptions(novelId) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterRelations(novelId) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterDynamicsOverview(novelId) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCandidates(novelId) }),
+    ]);
+  }
+
+  function handleDeleteOption(option: CharacterCastOption) {
+    const confirmed = window.confirm(
+      option.status === "applied"
+        ? `确认删除方案「${option.title}」？这只会删除方案记录，不会回滚已同步的角色与关系。`
+        : `确认删除方案「${option.title}」？`,
+    );
+    if (!confirmed) {
+      return;
+    }
+    deleteMutation.mutate(option.id);
+  }
+
+  function handleRejectAll() {
+    const confirmed = window.confirm(
+      appliedOption
+        ? "确认清空当前所有阵容方案记录？已同步的角色与关系不会自动回滚。"
+        : `确认清空当前 ${castOptions.length} 套阵容方案？`,
+    );
+    if (!confirmed) {
+      return;
+    }
+    clearMutation.mutate();
+  }
+
   const filteredRelations = useMemo(() => {
     if (!selectedCharacter) {
       return relations.slice(0, 8);
@@ -94,7 +134,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
     onSuccess: async (response) => {
       setStatusMessage(response.message ?? "角色阵容方案已生成。");
       setIsPlannerExpanded(true);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCastOptions(novelId) });
+      await refreshCastOptions();
     },
     onError: (error) => {
       setStatusMessage(error instanceof Error ? error.message : "角色阵容方案生成失败。");
@@ -113,18 +153,52 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
         ?? `已同步 ${response.data?.createdCount ?? 0} 个新角色，更新 ${response.data?.updatedCount ?? 0} 个既有角色。`,
       );
       setIsPlannerExpanded(false);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCastOptions(novelId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterRelations(novelId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterDynamicsOverview(novelId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCandidates(novelId) }),
-      ]);
+      await refreshAppliedCharacterWorkspace();
     },
     onError: (error) => {
       setStatusMessage(error instanceof Error ? error.message : "角色阵容方案应用失败。");
     },
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: (optionId: string) => deleteCharacterCastOption(novelId, optionId),
+    onSuccess: async (response) => {
+      if (response.data?.deletedAppliedOption) {
+        setStatusMessage("方案记录已删除；之前已同步到角色库和关系网的数据不会自动回滚。");
+      } else {
+        setStatusMessage("这套阵容方案已删除。");
+      }
+      await refreshCastOptions();
+    },
+    onError: (error) => {
+      setStatusMessage(error instanceof Error ? error.message : "删除阵容方案失败。");
+    },
+  });
+
+  const clearMutation = useMutation({
+    mutationFn: () => clearCharacterCastOptions(novelId),
+    onSuccess: async (response) => {
+      const deletedCount = response.data?.deletedCount ?? 0;
+      const deletedAppliedCount = response.data?.deletedAppliedCount ?? 0;
+      if (deletedCount === 0) {
+        setStatusMessage("当前没有可清空的阵容方案。");
+      } else if (deletedAppliedCount > 0) {
+        setStatusMessage(`已清空 ${deletedCount} 套阵容方案记录；已同步的角色与关系不会自动回滚。`);
+      } else {
+        setStatusMessage(`已清空 ${deletedCount} 套阵容方案。`);
+      }
+      setIsPlannerExpanded(true);
+      await refreshCastOptions();
+    },
+    onError: (error) => {
+      setStatusMessage(error instanceof Error ? error.message : "清空阵容方案失败。");
+    },
+  });
+  const isWorking =
+    generateMutation.isPending
+    || applyMutation.isPending
+    || deleteMutation.isPending
+    || clearMutation.isPending;
 
   return (
     <div className="space-y-4">
@@ -186,11 +260,16 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                     onChange={(event) => setStoryInput(event.target.value)}
                   />
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
+                    <Button onClick={() => generateMutation.mutate()} disabled={isWorking}>
                       {generateMutation.isPending ? "生成中..." : "生成 3 套阵容"}
                     </Button>
+                    {castOptions.length > 0 ? (
+                      <Button variant="outline" onClick={handleRejectAll} disabled={isWorking}>
+                        {clearMutation.isPending ? "清空中..." : "都不喜欢"}
+                      </Button>
+                    ) : null}
                     {appliedOption ? (
-                      <Button variant="outline" onClick={() => setIsPlannerExpanded(false)}>
+                      <Button variant="outline" onClick={() => setIsPlannerExpanded(false)} disabled={isWorking}>
                         收起方案区
                       </Button>
                     ) : null}
@@ -227,18 +306,29 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                             </div>
                             <div className="text-xs leading-5 text-muted-foreground">{option.summary}</div>
                           </div>
-                          <Button
-                            size="sm"
-                            onClick={() => applyMutation.mutate(option.id)}
-                            disabled={applyMutation.isPending}
-                            variant={option.status === "applied" ? "outline" : "default"}
-                          >
-                            {option.status === "applied"
-                              ? "重新应用"
-                              : applyMutation.isPending
-                                ? "应用中..."
-                                : "应用这套阵容"}
-                          </Button>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => applyMutation.mutate(option.id)}
+                              disabled={isWorking}
+                              variant={option.status === "applied" ? "outline" : "default"}
+                            >
+                              {option.status === "applied"
+                                ? "重新应用"
+                                : applyMutation.isPending
+                                  ? "应用中..."
+                                  : "应用这套阵容"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-muted-foreground hover:text-destructive"
+                              onClick={() => handleDeleteOption(option)}
+                              disabled={isWorking}
+                            >
+                              {deleteMutation.isPending && deleteMutation.variables === option.id ? "删除中..." : "删除"}
+                            </Button>
+                          </div>
                         </div>
                         {option.recommendedReason ? (
                           <div className="mt-3 rounded-xl border border-amber-200/60 bg-amber-50/50 p-3 text-xs text-muted-foreground">
