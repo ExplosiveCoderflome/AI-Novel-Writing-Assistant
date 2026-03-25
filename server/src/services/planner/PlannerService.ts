@@ -2,6 +2,7 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { AuditReport, ReplanResult } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../db/prisma";
 import { parseJsonStringArray } from "../novel/novelP0Utils";
+import { characterDynamicsQueryService } from "../novel/dynamics/CharacterDynamicsQueryService";
 import { stateService } from "../state/StateService";
 import { buildDerivedOutlineFromVolumes } from "../novel/volume/volumePlanUtils";
 import {
@@ -283,6 +284,9 @@ export class PlannerService {
     if (!novel || !chapter) {
       throw new Error("小说或章节不存在。");
     }
+    const characterDynamicsDigest = await characterDynamicsQueryService.buildContextDigest(novelId, {
+      chapterOrder: chapter.order,
+    }).catch(() => "");
     const mappedVolumes = volumePlans.map((volume) => ({
       id: volume.id,
       novelId,
@@ -363,6 +367,7 @@ export class PlannerService {
         `输入状态快照：${stateSnapshot?.summary ?? "无"}`,
         `最近未解决审计问题：${openAuditIssues.join("\n") || "无"}`,
         `最近创作决策：${recentDecisions.map((item) => `${item.category}/${item.importance}: ${item.content}`).join("\n") || "无"}`,
+        `动态角色系统：${characterDynamicsDigest || "无"}`,
         `默认结构职责建议：planRole=${defaultMetadata.planRole ?? "progress"} | phase=${defaultMetadata.phaseLabel ?? "无"}`,
         `本章必须推进：${defaultMetadata.mustAdvance.join("；") || "无"}`,
         `本章必须保留：${defaultMetadata.mustPreserve.join("；") || "无"}`,

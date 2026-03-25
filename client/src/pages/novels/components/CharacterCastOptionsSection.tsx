@@ -117,6 +117,8 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCastOptions(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterRelations(novelId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterDynamicsOverview(novelId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCandidates(novelId) }),
       ]);
     },
     onError: (error) => {

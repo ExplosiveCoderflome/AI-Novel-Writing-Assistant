@@ -9,6 +9,7 @@ import { NovelContinuationService } from "../NovelContinuationService";
 import { parseJsonStringArray } from "../novelP0Utils";
 import { StyleBindingService } from "../../styleEngine/StyleBindingService";
 import { NovelWorldSliceService } from "../storyWorldSlice/NovelWorldSliceService";
+import { characterDynamicsQueryService } from "../dynamics/CharacterDynamicsQueryService";
 import {
   buildLegacyWorldContextFromWorld,
   formatStoryWorldSlicePromptBlock,
@@ -204,6 +205,7 @@ export class GenerationContextAssembler {
       decisions,
       openAuditIssues,
       openConflicts,
+      characterDynamics,
       continuationPack,
       styleContext,
     ] = await Promise.all([
@@ -261,6 +263,9 @@ export class GenerationContextAssembler {
         beforeChapterOrder: chapter.order,
         limit: 8,
       }),
+      characterDynamicsQueryService.getOverview(novelId, {
+        chapterOrder: chapter.order,
+      }).catch(() => null),
       this.continuationService.buildChapterContextPack(novelId),
       this.styleBindingService.resolveForGeneration({
         novelId,
@@ -282,6 +287,10 @@ export class GenerationContextAssembler {
         personality: item.personality ?? null,
       })),
     );
+    const characterDynamicsText = characterDynamics
+      ? characterDynamicsQueryService.formatContextDigest(characterDynamics)
+      : "";
+    const combinedCharacterContextText = [charactersContextText, characterDynamicsText].filter(Boolean).join("\n\n");
     const bibleText = buildBibleText(bible
       ? {
           mainPromise: bible.mainPromise ?? null,
@@ -331,7 +340,7 @@ export class GenerationContextAssembler {
           ragText,
           bibleText,
           outlineText,
-          charactersContextText,
+          charactersContextText: combinedCharacterContextText,
           styleBlock,
           styleEngineBlock,
         }),
@@ -340,6 +349,7 @@ export class GenerationContextAssembler {
       stateSnapshot: mapStateSnapshot(stateSnapshot),
       openConflicts: mappedOpenConflicts,
       storyWorldSlice,
+      characterDynamics,
       characterRoster: novel.characters.map((item) => ({
         id: item.id,
         name: item.name,

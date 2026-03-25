@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import CharacterAssetWorkspace from "./CharacterAssetWorkspace";
 import CharacterCastOptionsSection from "./CharacterCastOptionsSection";
+import CharacterDynamicsSection from "./CharacterDynamicsSection";
 import type { QuickCharacterCreatePayload } from "./characterPanel.utils";
 
 interface QuickCharacterFormState {
@@ -324,6 +325,13 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
         onSelectedCharacterChange={onSelectedCharacterChange}
         llmProvider={llmProvider}
         llmModel={llmModel}
+      />
+
+      <CharacterDynamicsSection
+        novelId={novelId}
+        selectedCharacter={selectedCharacter}
+        selectedCharacterId={selectedCharacterId}
+        onSelectedCharacterChange={onSelectedCharacterChange}
       />
 
       <CharacterAssetWorkspace

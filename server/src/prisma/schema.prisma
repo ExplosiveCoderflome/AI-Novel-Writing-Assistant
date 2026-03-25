@@ -312,6 +312,10 @@ model Novel {
   characterRelations CharacterRelation[]
   characterCastOptions CharacterCastOption[]
   characterTimelines CharacterTimeline[]
+  characterCandidates CharacterCandidate[]
+  characterVolumeAssignments CharacterVolumeAssignment[]
+  characterFactionTracks CharacterFactionTrack[]
+  characterRelationStages CharacterRelationStage[]
   bible             NovelBible?
   plotBeats         PlotBeat[]
   chapterSummaries  ChapterSummary[]
@@ -395,6 +399,9 @@ model Chapter {
   novel           Novel                  @relation(fields: [novelId], references: [id], onDelete: Cascade)
   chapterSummary  ChapterSummary?
   characterTimelines CharacterTimeline[]
+  characterCandidates CharacterCandidate[] @relation("CharacterCandidateSourceChapter")
+  characterFactionTracks CharacterFactionTrack[]
+  characterRelationStages CharacterRelationStage[] @relation("CharacterRelationStageChapter")
   facts           ConsistencyFact[]
   qualityReports  QualityReport[]
   storyStateSnapshots StoryStateSnapshot[]
@@ -439,6 +446,11 @@ model Character {
   novel           Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
   baseCharacterId String?
   timelines       CharacterTimeline[]
+  matchedCandidates CharacterCandidate[] @relation("CharacterCandidateMatchedCharacter")
+  volumeAssignments CharacterVolumeAssignment[]
+  factionTracks CharacterFactionTrack[]
+  outgoingRelationStages CharacterRelationStage[] @relation("CharacterRelationStageSource")
+  incomingRelationStages CharacterRelationStage[] @relation("CharacterRelationStageTarget")
   stateEntries    CharacterState[]
   outgoingRelations RelationState[] @relation("RelationStateSource")
   incomingRelations RelationState[] @relation("RelationStateTarget")
@@ -470,6 +482,7 @@ model CharacterRelation {
   novel             Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
   sourceCharacter   Character @relation("CharacterRelationSource", fields: [sourceCharacterId], references: [id], onDelete: Cascade)
   targetCharacter   Character @relation("CharacterRelationTarget", fields: [targetCharacterId], references: [id], onDelete: Cascade)
+  stages            CharacterRelationStage[]
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -558,6 +571,105 @@ model CharacterTimeline {
 
   @@index([novelId, characterId])
   @@index([characterId, chapterOrder])
+  @@index([chapterId])
+}
+
+model CharacterCandidate {
+  id                String     @id @default(cuid())
+  novelId           String
+  sourceChapterId   String?
+  proposedName      String
+  proposedRole      String?
+  summary           String?
+  evidenceJson      String?
+  matchedCharacterId String?
+  status            String     @default("pending")
+  confidence        Float?
+  novel             Novel      @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  sourceChapter     Chapter?   @relation("CharacterCandidateSourceChapter", fields: [sourceChapterId], references: [id], onDelete: SetNull)
+  matchedCharacter  Character? @relation("CharacterCandidateMatchedCharacter", fields: [matchedCharacterId], references: [id], onDelete: SetNull)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([novelId, status, updatedAt])
+  @@index([sourceChapterId])
+  @@index([matchedCharacterId])
+}
+
+model CharacterVolumeAssignment {
+  id                        String    @id @default(cuid())
+  novelId                   String
+  characterId               String
+  volumeId                  String
+  roleLabel                 String?
+  responsibility            String
+  appearanceExpectation     String?
+  plannedChapterOrdersJson  String?
+  isCore                    Boolean   @default(false)
+  absenceWarningThreshold   Int       @default(3)
+  absenceHighRiskThreshold  Int       @default(5)
+  novel                     Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  character                 Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  volume                    VolumePlan @relation(fields: [volumeId], references: [id], onDelete: Cascade)
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  @@unique([characterId, volumeId])
+  @@index([novelId, volumeId, isCore])
+  @@index([volumeId, characterId])
+}
+
+model CharacterFactionTrack {
+  id           String    @id @default(cuid())
+  novelId      String
+  characterId  String
+  volumeId      String?
+  chapterId     String?
+  chapterOrder  Int?
+  factionLabel  String
+  stanceLabel   String?
+  summary       String?
+  sourceType    String
+  confidence    Float?
+  novel         Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  character     Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  volume        VolumePlan? @relation(fields: [volumeId], references: [id], onDelete: SetNull)
+  chapter       Chapter?   @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([novelId, characterId, createdAt])
+  @@index([volumeId, characterId, createdAt])
+  @@index([chapterId, createdAt])
+}
+
+model CharacterRelationStage {
+  id                 String    @id @default(cuid())
+  novelId            String
+  relationId         String?
+  sourceCharacterId  String
+  targetCharacterId  String
+  volumeId           String?
+  chapterId          String?
+  chapterOrder       Int?
+  stageLabel         String
+  stageSummary       String
+  nextTurnPoint      String?
+  sourceType         String
+  confidence         Float?
+  isCurrent          Boolean   @default(true)
+  novel              Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  relation           CharacterRelation? @relation(fields: [relationId], references: [id], onDelete: SetNull)
+  sourceCharacter    Character @relation("CharacterRelationStageSource", fields: [sourceCharacterId], references: [id], onDelete: Cascade)
+  targetCharacter    Character @relation("CharacterRelationStageTarget", fields: [targetCharacterId], references: [id], onDelete: Cascade)
+  volume             VolumePlan? @relation(fields: [volumeId], references: [id], onDelete: SetNull)
+  chapter            Chapter?   @relation("CharacterRelationStageChapter", fields: [chapterId], references: [id], onDelete: SetNull)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@index([novelId, isCurrent, updatedAt])
+  @@index([sourceCharacterId, targetCharacterId, isCurrent])
+  @@index([relationId])
   @@index([chapterId])
 }
 
@@ -1177,6 +1289,9 @@ model VolumePlan {
   novel             Novel              @relation(fields: [novelId], references: [id], onDelete: Cascade)
   sourceVersion     VolumePlanVersion? @relation(fields: [sourceVersionId], references: [id], onDelete: SetNull)
   chapters          VolumeChapterPlan[]
+  characterAssignments CharacterVolumeAssignment[]
+  factionTracks     CharacterFactionTrack[]
+  relationStages    CharacterRelationStage[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 

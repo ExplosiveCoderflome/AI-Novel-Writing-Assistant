@@ -8,6 +8,7 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../../db/prisma";
 import { invokeStructuredLlm } from "../../../llm/structuredInvoke";
 import { NovelContextService } from "../NovelContextService";
+import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
 import { characterCastOptionResponseSchema } from "./characterPreparationSchemas";
 
 interface CharacterPrepOptions {
@@ -60,6 +61,7 @@ const CHARACTER_CAST_OPTION_RESPONSE_TEMPLATE = `{
 
 export class CharacterPreparationService {
   private readonly novelContextService = new NovelContextService();
+  private readonly characterDynamicsService = new CharacterDynamicsService();
 
   async listCharacterRelations(novelId: string): Promise<CharacterRelation[]> {
     const rows = await prisma.characterRelation.findMany({
@@ -426,6 +428,10 @@ export class CharacterPreparationService {
       where: { id: option.id },
       data: { status: "applied" },
     });
+
+    await this.characterDynamicsService.rebuildDynamics(novelId, {
+      sourceType: "cast_option_projection",
+    }).catch(() => null);
 
     return {
       optionId: option.id,

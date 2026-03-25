@@ -11,6 +11,7 @@ import type {
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
+import { novelEventBus } from "../../../events";
 import { invokeStructuredLlm } from "../../../llm/structuredInvoke";
 import { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import {
@@ -66,6 +67,13 @@ type VolumeVersionRow = Prisma.VolumePlanVersionGetPayload<Record<string, never>
 
 export class NovelVolumeService {
   private readonly storyMacroPlanService = new StoryMacroPlanService();
+
+  private emitVolumeUpdated(novelId: string): void {
+    void novelEventBus.emit({
+      type: "volume:updated",
+      payload: { novelId },
+    }).catch(() => {});
+  }
 
   private mapVolumeRow(row: VolumeRow): VolumePlan {
     return {
@@ -430,6 +438,7 @@ export class NovelVolumeService {
     await prisma.$transaction(async (tx) => {
       await this.persistActiveVolumes(tx, novelId, volumes, activeVersion?.id ?? null);
     });
+    this.emitVolumeUpdated(novelId);
     return {
       novelId,
       volumes,
@@ -509,6 +518,7 @@ export class NovelVolumeService {
     if (!refreshed) {
       throw new Error("卷级版本激活失败。");
     }
+    this.emitVolumeUpdated(novelId);
     return this.mapVersionRow(refreshed);
   }
 
@@ -650,11 +660,13 @@ export class NovelVolumeService {
       }
     });
 
+    this.emitVolumeUpdated(novelId);
     return plan.preview;
   }
 
   async migrateLegacyVolumes(novelId: string): Promise<VolumePlanDocument> {
     const workspace = await this.ensureVolumeWorkspace(novelId);
+    this.emitVolumeUpdated(novelId);
     return {
       novelId,
       volumes: workspace.volumes,

@@ -7,6 +7,7 @@ import { NovelDraftOptimizeService } from "../services/novel/NovelDraftOptimizeS
 import { registerNovelBaseRoutes } from "./novelBaseRoutes";
 import { registerNovelChapterRoutes } from "./novelChapterRoutes";
 import { registerNovelChapterGenerationRoutes } from "./novelChapterGeneration";
+import { registerNovelCharacterDynamicsRoutes } from "./novelCharacterDynamicsRoutes";
 import { registerNovelCharacterPreparationRoutes } from "./novelCharacterPreparationRoutes";
 import { registerNovelFramingRoutes } from "./novelFramingRoutes";
 import { registerNovelPlanningRoutes } from "./novelPlanningRoutes";
@@ -354,6 +355,12 @@ registerNovelSnapshotCharacterRoutes({
   characterTimelineSyncSchema,
   llmGenerateSchema,
   forwardBusinessError,
+});
+
+registerNovelCharacterDynamicsRoutes({
+  router,
+  novelService,
+  idParamsSchema,
 });
 
 registerNovelCharacterPreparationRoutes({

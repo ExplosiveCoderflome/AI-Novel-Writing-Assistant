@@ -1,5 +1,6 @@
 export * from "./types/api";
 export * from "./types/bookAnalysis";
+export * from "./types/characterDynamics";
 export * from "./types/chapterRuntime";
 export * from "./types/llm";
 export * from "./types/knowledge";

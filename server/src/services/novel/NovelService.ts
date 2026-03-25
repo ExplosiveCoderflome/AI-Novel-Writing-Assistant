@@ -3,11 +3,13 @@ import { NovelPipelineService } from "./NovelPipelineService";
 import { NovelCoreService } from "./NovelCoreService";
 import { NovelWorldSliceService } from "./storyWorldSlice/NovelWorldSliceService";
 import { CharacterPreparationService } from "./characterPrep/CharacterPreparationService";
+import { CharacterDynamicsService } from "./dynamics/CharacterDynamicsService";
 import { NovelVolumeService } from "./volume/NovelVolumeService";
 
 export class NovelService extends NovelPipelineService {
   private readonly worldSliceService = new NovelWorldSliceService();
   private readonly characterPreparationService = new CharacterPreparationService();
+  private readonly characterDynamicsService = new CharacterDynamicsService();
   private readonly volumeService = new NovelVolumeService();
 
   async getNovelById(id: string) {
@@ -197,6 +199,54 @@ export class NovelService extends NovelPipelineService {
 
   applyCharacterCastOption(...args: Parameters<CharacterPreparationService["applyCharacterCastOption"]>) {
     return this.characterPreparationService.applyCharacterCastOption(...args);
+  }
+
+  async createCharacter(...args: Parameters<NovelCoreService["createCharacter"]>) {
+    const [novelId] = args;
+    const created = await this.core.createCharacter(...args);
+    await this.characterDynamicsService.rebuildDynamics(novelId, { sourceType: "rebuild_projection" }).catch(() => null);
+    return created;
+  }
+
+  async updateCharacter(...args: Parameters<NovelCoreService["updateCharacter"]>) {
+    const [novelId] = args;
+    const updated = await this.core.updateCharacter(...args);
+    await this.characterDynamicsService.rebuildDynamics(novelId, { sourceType: "rebuild_projection" }).catch(() => null);
+    return updated;
+  }
+
+  async deleteCharacter(...args: Parameters<NovelCoreService["deleteCharacter"]>) {
+    const [novelId] = args;
+    await this.core.deleteCharacter(...args);
+    await this.characterDynamicsService.rebuildDynamics(novelId, { sourceType: "rebuild_projection" }).catch(() => null);
+  }
+
+  getCharacterDynamicsOverview(...args: Parameters<CharacterDynamicsService["getOverview"]>) {
+    return this.characterDynamicsService.getOverview(...args);
+  }
+
+  listCharacterCandidates(...args: Parameters<CharacterDynamicsService["listCandidates"]>) {
+    return this.characterDynamicsService.listCandidates(...args);
+  }
+
+  confirmCharacterCandidate(...args: Parameters<CharacterDynamicsService["confirmCandidate"]>) {
+    return this.characterDynamicsService.confirmCandidate(...args);
+  }
+
+  mergeCharacterCandidate(...args: Parameters<CharacterDynamicsService["mergeCandidate"]>) {
+    return this.characterDynamicsService.mergeCandidate(...args);
+  }
+
+  updateCharacterDynamicState(...args: Parameters<CharacterDynamicsService["updateCharacterDynamicState"]>) {
+    return this.characterDynamicsService.updateCharacterDynamicState(...args);
+  }
+
+  updateCharacterRelationStage(...args: Parameters<CharacterDynamicsService["updateRelationStage"]>) {
+    return this.characterDynamicsService.updateRelationStage(...args);
+  }
+
+  rebuildCharacterDynamics(...args: Parameters<CharacterDynamicsService["rebuildDynamics"]>) {
+    return this.characterDynamicsService.rebuildDynamics(...args);
   }
 
   async createNovelSnapshot(novelId: string, triggerType: "manual" | "auto_milestone" | "before_pipeline", label?: string) {

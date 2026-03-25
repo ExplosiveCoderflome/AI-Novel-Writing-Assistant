@@ -292,6 +292,9 @@ export default function NovelEdit() {
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(id) });
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.latestStateSnapshot(id) });
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(id) });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterDynamicsOverview(id) });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCandidates(id) });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterRelations(id) });
     if (selectedChapterId) {
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterPlan(id, selectedChapterId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterAuditReports(id, selectedChapterId) });

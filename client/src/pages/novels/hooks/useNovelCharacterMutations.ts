@@ -66,6 +66,8 @@ interface UseNovelCharacterMutationsInput {
 async function invalidateCharacterViews(queryClient: QueryClient, novelId: string, selectedCharacterId?: string) {
   await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) });
   await queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterRelations(novelId) });
+  await queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterDynamicsOverview(novelId) });
+  await queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCandidates(novelId) });
   if (selectedCharacterId) {
     await queryClient.invalidateQueries({
       queryKey: queryKeys.novels.characterTimeline(novelId, selectedCharacterId),
