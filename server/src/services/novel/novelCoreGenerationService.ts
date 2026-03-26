@@ -2,6 +2,7 @@ import type { BaseMessageChunk } from "@langchain/core/messages";
 import { prisma } from "../../db/prisma";
 import {
   runStructuredPrompt,
+  runTextPrompt,
   streamStructuredPrompt,
   streamTextPrompt,
 } from "../../prompting/core/promptRunner";
@@ -11,10 +12,12 @@ import {
   novelChapterHookPrompt,
   novelOutlinePrompt,
   novelStructuredOutlinePrompt,
+  novelStructuredOutlineRepairPrompt,
 } from "../../prompting/prompts/novel/coreGeneration.prompts";
 import { novelReferenceService } from "./NovelReferenceService";
 import { ChapterRuntimeCoordinator } from "./runtime/ChapterRuntimeCoordinator";
 import {
+  parseStrictStructuredOutline,
   stringifyStructuredOutline,
   toOutlineChapterRows,
 } from "./structuredOutline";
@@ -131,7 +134,7 @@ export class NovelCoreGenerationService {
       ?? novel.estimatedChapterCount
       ?? DEFAULT_ESTIMATED_CHAPTER_COUNT;
 
-    const streamed = await streamStructuredPrompt({
+    const streamed = await streamTextPrompt({
       asset: novelStructuredOutlinePrompt,
       promptInput: {
         charactersText,
@@ -149,9 +152,21 @@ export class NovelCoreGenerationService {
 
     return {
       stream: streamed.stream as AsyncIterable<BaseMessageChunk>,
-      onDone: async (_fullContent: string) => {
+      onDone: async (fullContent: string) => {
         const completed = await streamed.complete;
-        const normalized = completed.output;
+        const rawOutput = completed.output.trim() || fullContent;
+        let normalized: ReturnType<typeof parseStrictStructuredOutline>;
+        try {
+          normalized = parseStrictStructuredOutline(rawOutput, totalChapters);
+        } catch (error) {
+          const repaired = await this.repairStructuredOutlineOutput(
+            rawOutput,
+            totalChapters,
+            options,
+            error instanceof Error ? error.message : "invalid structured outline",
+          );
+          normalized = parseStrictStructuredOutline(repaired, totalChapters);
+        }
         const structuredOutline = stringifyStructuredOutline(normalized);
         await prisma.novel.update({ where: { id: novelId }, data: { structuredOutline } });
 
@@ -162,6 +177,28 @@ export class NovelCoreGenerationService {
         queueRagUpsert("novel", novelId);
       },
     };
+  }
+
+  private async repairStructuredOutlineOutput(
+    rawContent: string,
+    totalChapters: number,
+    options: StructuredOutlineGenerateOptions,
+    reason: string,
+  ): Promise<string> {
+    const result = await runTextPrompt({
+      asset: novelStructuredOutlineRepairPrompt,
+      promptInput: {
+        rawContent,
+        totalChapters,
+        reason,
+      },
+      options: {
+        provider: options.provider ?? "deepseek",
+        model: options.model,
+        temperature: 0.1,
+      },
+    });
+    return result.output;
   }
 
   private async syncChaptersFromOutline(

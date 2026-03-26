@@ -102,6 +102,10 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/novel/coreGeneration.prompts").novelStructuredOutlinePrompt as UnknownPromptAsset,
   },
   {
+    key: "novel.structuredOutline.repair@v1",
+    load: () => require("./prompts/novel/coreGeneration.prompts").novelStructuredOutlineRepairPrompt as UnknownPromptAsset,
+  },
+  {
     key: "novel.bible.generate@v1",
     load: () => require("./prompts/novel/coreGeneration.prompts").novelBiblePrompt as UnknownPromptAsset,
   },
