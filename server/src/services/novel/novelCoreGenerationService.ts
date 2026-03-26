@@ -1,13 +1,20 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { prisma } from "../../db/prisma";
-import { getLLM } from "../../llm/factory";
+import {
+  runStructuredPrompt,
+  streamStructuredPrompt,
+  streamTextPrompt,
+} from "../../prompting/core/promptRunner";
+import {
+  novelBeatPrompt,
+  novelBiblePrompt,
+  novelChapterHookPrompt,
+  novelOutlinePrompt,
+  novelStructuredOutlinePrompt,
+} from "../../prompting/prompts/novel/coreGeneration.prompts";
 import { novelReferenceService } from "./NovelReferenceService";
 import { ChapterRuntimeCoordinator } from "./runtime/ChapterRuntimeCoordinator";
 import {
-  buildStructuredOutlineRepairSystemPrompt,
-  buildStructuredOutlineSystemPrompt,
-  parseStrictStructuredOutline,
   stringifyStructuredOutline,
   toOutlineChapterRows,
 } from "./structuredOutline";
@@ -18,8 +25,6 @@ import { normalizeNovelBiblePayload } from "./novelBiblePersistence";
 import {
   ChapterGenerateOptions,
   DEFAULT_ESTIMATED_CHAPTER_COUNT,
-  extractJSONArray,
-  extractJSONObject,
   GenerateBeatOptions,
   HookGenerateOptions,
   LLMGenerateOptions,
@@ -28,7 +33,6 @@ import {
   OutlineGenerateOptions,
   StructuredOutlineGenerateOptions,
   TitleGenerateOptions,
-  toText,
   briefSummary,
 } from "./novelCoreShared";
 import { buildWorldContextFromNovel, ensureNovelCharacters, queueRagUpsert } from "./novelCoreSupport";
@@ -57,39 +61,37 @@ export class NovelCoreGenerationService {
     const worldContext = storyWorldSlice
       ? formatStoryWorldSlicePromptBlock(storyWorldSlice)
       : buildWorldContextFromNovel(novel);
-    const referenceBlock = referenceContext.trim()
-      ? `\n\n参考资料（来自已有作品拆书分析，可借鉴但不必照搬）：\n${referenceContext}`
-      : "";
     const charactersText = novel.characters.length > 0
       ? novel.characters
         .map((character) => `- ${character.name}（${character.role}）${character.personality ? `：${character.personality.slice(0, 80)}` : ""}`)
         .join("\n")
       : "暂无";
     const initialPrompt = options.initialPrompt?.trim() ?? "";
-    const initialPromptBlock = initialPrompt
-      ? `\n\n用户本次生成补充提示词（优先参考，不能违背角色和世界设定）：\n${initialPrompt.slice(0, 2000)}`
-      : "";
-
-    const llm = await getLLM(options.provider ?? "deepseek", {
-      model: options.model,
-      temperature: options.temperature ?? 0.7,
+    const streamed = await streamTextPrompt({
+      asset: novelOutlinePrompt,
+      promptInput: {
+        title: novel.title,
+        description: novel.description ?? "",
+        charactersText,
+        worldContext,
+        referenceContext: referenceContext.trim() || undefined,
+        initialPrompt: initialPrompt || undefined,
+      },
+      options: {
+        provider: options.provider ?? "deepseek",
+        model: options.model,
+        temperature: options.temperature ?? 0.7,
+      },
     });
-    const stream = await llm.stream([
-      new SystemMessage("你是一位专业的小说发展走向策划师，请严格基于给定角色设定输出完整发展走向，不得自行发明角色"),
-      new HumanMessage(
-        `小说标题：${novel.title}
-小说简介：${novel.description ?? ""}
-核心角色（必须使用这些角色，不得替换或忽略）：
-${charactersText}
-世界上下文：
-${worldContext}${referenceBlock}${initialPromptBlock}`,
-      ),
-    ]);
 
     return {
-      stream: stream as AsyncIterable<BaseMessageChunk>,
+      stream: streamed.stream as AsyncIterable<BaseMessageChunk>,
       onDone: async (fullContent: string) => {
-        await prisma.novel.update({ where: { id: novelId }, data: { outline: fullContent } });
+        const completed = await streamed.complete;
+        await prisma.novel.update({
+          where: { id: novelId },
+          data: { outline: completed.output.trim() || fullContent },
+        });
         queueRagUpsert("novel", novelId);
       },
     };
@@ -120,9 +122,6 @@ ${worldContext}${referenceBlock}${initialPromptBlock}`,
     const worldContext = storyWorldSlice
       ? formatStoryWorldSlicePromptBlock(storyWorldSlice)
       : buildWorldContextFromNovel(novel);
-    const referenceBlock = referenceContext.trim()
-      ? `\n\n参考资料（来自已有作品拆书分析）：\n${referenceContext}`
-      : "";
     const charactersText = novel.characters.length > 0
       ? novel.characters
         .map((character) => `- ${character.name}（${character.role}）${character.personality ? `：${character.personality.slice(0, 80)}` : ""}`)
@@ -132,44 +131,27 @@ ${worldContext}${referenceBlock}${initialPromptBlock}`,
       ?? novel.estimatedChapterCount
       ?? DEFAULT_ESTIMATED_CHAPTER_COUNT;
 
-    const llm = await getLLM(options.provider ?? "deepseek", {
-      model: options.model,
-      temperature: options.temperature ?? 0.2,
+    const streamed = await streamStructuredPrompt({
+      asset: novelStructuredOutlinePrompt,
+      promptInput: {
+        charactersText,
+        worldContext,
+        outline: novel.outline,
+        referenceContext: referenceContext.trim() || undefined,
+        totalChapters,
+      },
+      options: {
+        provider: options.provider ?? "deepseek",
+        model: options.model,
+        temperature: options.temperature ?? 0.2,
+      },
     });
-    const stream = await llm.stream([
-      new SystemMessage(buildStructuredOutlineSystemPrompt(totalChapters)),
-      new HumanMessage(
-        `核心角色（必须使用这些角色，不得替换或忽略）：
-${charactersText}
-世界上下文：
-${worldContext}
-基于下述发展走向，生成 ${totalChapters} 章规划：
-${novel.outline}${referenceBlock}
-
-输出规则：
-1. 只能输出 JSON 数组
-2. 每个对象只能包含 chapter/title/summary/key_events/roles
-3. chapter 必须从 1 开始连续编号
-4. key_events 和 roles 必须是非空字符串数组`,
-      ),
-    ]);
 
     return {
-      stream: stream as AsyncIterable<BaseMessageChunk>,
-      onDone: async (fullContent: string) => {
-        let normalized: ReturnType<typeof parseStrictStructuredOutline>;
-        try {
-          normalized = parseStrictStructuredOutline(fullContent, totalChapters);
-        } catch (error) {
-          const repaired = await this.repairStructuredOutlineOutput(
-            fullContent,
-            totalChapters,
-            options,
-            error instanceof Error ? error.message : "invalid structured outline",
-          );
-          normalized = parseStrictStructuredOutline(repaired, totalChapters);
-        }
-
+      stream: streamed.stream as AsyncIterable<BaseMessageChunk>,
+      onDone: async (_fullContent: string) => {
+        const completed = await streamed.complete;
+        const normalized = completed.output;
         const structuredOutline = stringifyStructuredOutline(normalized);
         await prisma.novel.update({ where: { id: novelId }, data: { structuredOutline } });
 
@@ -180,29 +162,6 @@ ${novel.outline}${referenceBlock}
         queueRagUpsert("novel", novelId);
       },
     };
-  }
-
-  private async repairStructuredOutlineOutput(
-    rawContent: string,
-    totalChapters: number,
-    options: StructuredOutlineGenerateOptions,
-    reason: string,
-  ): Promise<string> {
-    const llm = await getLLM(options.provider ?? "deepseek", {
-      model: options.model,
-      temperature: 0.1,
-    });
-    const result = await llm.invoke([
-      new SystemMessage(buildStructuredOutlineRepairSystemPrompt(totalChapters)),
-      new HumanMessage(
-        `请把下面内容修正为严格结构化 JSON 数组。
-校验失败原因：${reason}
-
-原始内容：
-${rawContent}`,
-      ),
-    ]);
-    return toText(result.content);
   }
 
   private async syncChaptersFromOutline(
@@ -269,41 +228,28 @@ ${rawContent}`,
     const worldContext = storyWorldSlice
       ? formatStoryWorldSlicePromptBlock(storyWorldSlice)
       : buildWorldContextFromNovel(novel);
-    const referenceBlock = referenceContext.trim()
-      ? `\n\n参考资料（来自已有作品拆书分析）：\n${referenceContext}`
-      : "";
-
-    const llm = await getLLM(options.provider ?? "deepseek", {
-      model: options.model,
-      temperature: options.temperature ?? 0.6,
+    const streamed = await streamStructuredPrompt({
+      asset: novelBiblePrompt,
+      promptInput: {
+        title: novel.title,
+        genreName: novel.genre?.name ?? "未分类",
+        description: novel.description ?? "",
+        charactersText: novel.characters.map((item) => `${item.name}（${item.role}）`).join("、") || "暂无",
+        worldContext,
+        referenceContext: referenceContext.trim() || undefined,
+      },
+      options: {
+        provider: options.provider ?? "deepseek",
+        model: options.model,
+        temperature: options.temperature ?? 0.6,
+      },
     });
-    const stream = await llm.stream([
-      new SystemMessage(
-        `你是网文总编，请输出作品圣经 JSON：
-{
-  "coreSetting":"核心设定",
-  "forbiddenRules":"禁止冲突规则",
-  "mainPromise":"主线承诺",
-  "characterArcs":"核心角色成长",
-  "worldRules":"世界运行规则"
-}
-仅输出 JSON。`,
-      ),
-      new HumanMessage(
-        `小说标题：${novel.title}
-类型：${novel.genre?.name ?? "未分类"}
-简介：${novel.description ?? ""}
-角色：${novel.characters.map((item) => `${item.name}（${item.role}）`).join("、") || "暂无"}
-世界上下文：
-${worldContext}${referenceBlock}`,
-      ),
-    ]);
 
     return {
-      stream: stream as AsyncIterable<BaseMessageChunk>,
-      onDone: async (fullContent: string) => {
-        const parsed = JSON.parse(extractJSONObject(fullContent)) as Record<string, unknown>;
-        const persisted = normalizeNovelBiblePayload(parsed, novel.title);
+      stream: streamed.stream as AsyncIterable<BaseMessageChunk>,
+      onDone: async (_fullContent: string) => {
+        const completed = await streamed.complete;
+        const persisted = normalizeNovelBiblePayload(completed.output as Record<string, unknown>, novel.title);
         await prisma.novelBible.upsert({
           where: { novelId },
           update: {
@@ -350,9 +296,6 @@ ${worldContext}${referenceBlock}`,
     const worldContext = storyWorldSlice
       ? formatStoryWorldSlicePromptBlock(storyWorldSlice)
       : buildWorldContextFromNovel(novel);
-    const referenceBlock = referenceContext.trim()
-      ? `\n\n参考资料（来自已有作品拆书分析）：\n${referenceContext}`
-      : "";
     const targetChapters = options.targetChapters
       ?? Math.max(
         novel.estimatedChapterCount ?? DEFAULT_ESTIMATED_CHAPTER_COUNT,
@@ -360,34 +303,28 @@ ${worldContext}${referenceBlock}`,
         1,
       );
 
-    const llm = await getLLM(options.provider ?? "deepseek", {
-      model: options.model,
-      temperature: options.temperature ?? 0.7,
+    const streamed = await streamStructuredPrompt({
+      asset: novelBeatPrompt,
+      promptInput: {
+        title: novel.title,
+        description: novel.description ?? "",
+        worldContext,
+        bibleRawContent: novel.bible?.rawContent ?? "暂无",
+        targetChapters,
+        referenceContext: referenceContext.trim() || undefined,
+      },
+      options: {
+        provider: options.provider ?? "deepseek",
+        model: options.model,
+        temperature: options.temperature ?? 0.7,
+      },
     });
-    const stream = await llm.stream([
-      new SystemMessage(
-        "你是网文剧情策划，请输出 JSON 数组，每项字段：chapterOrder/beatType/title/content/status",
-      ),
-      new HumanMessage(
-        `小说标题：${novel.title}
-小说简介：${novel.description ?? ""}
-世界上下文：${worldContext}
-作品圣经：${novel.bible?.rawContent ?? "暂无"}
-目标章节：${targetChapters}${referenceBlock}`,
-      ),
-    ]);
 
     return {
-      stream: stream as AsyncIterable<BaseMessageChunk>,
-      onDone: async (fullContent: string) => {
-        const beats = JSON.parse(extractJSONArray(fullContent)) as Array<{
-          chapterOrder?: number | string;
-          beatType?: string;
-          title?: string;
-          content?: string;
-          status?: string;
-        }>;
-        const normalizedBeats = beats.map((item, index) => ({
+      stream: streamed.stream as AsyncIterable<BaseMessageChunk>,
+      onDone: async (_fullContent: string) => {
+        const completed = await streamed.complete;
+        const normalizedBeats = completed.output.map((item, index) => ({
           novelId,
           chapterOrder: normalizeBeatOrder(item.chapterOrder, index + 1),
           beatType: String(item.beatType ?? "main").slice(0, 120),
@@ -414,21 +351,19 @@ ${worldContext}${referenceBlock}`,
       throw new Error("未找到可生成钩子的章节");
     }
 
-    const llm = await getLLM(options.provider ?? "deepseek", {
-      model: options.model,
-      temperature: options.temperature ?? 0.8,
+    const result = await runStructuredPrompt({
+      asset: novelChapterHookPrompt,
+      promptInput: {
+        title: chapter.title,
+        content: (chapter.content ?? "").slice(-1800),
+      },
+      options: {
+        provider: options.provider ?? "deepseek",
+        model: options.model,
+        temperature: options.temperature ?? 0.8,
+      },
     });
-    const result = await llm.invoke([
-      new SystemMessage(
-        "你是网文运营编辑。请输出 JSON：{\"hook\":\"章节末钩子\",\"nextExpectation\":\"下章期待点\"}",
-      ),
-      new HumanMessage(`章节标题：${chapter.title}\n章节内容：\n${(chapter.content ?? "").slice(-1800)}`),
-    ]);
-
-    const payload = JSON.parse(extractJSONObject(toText(result.content))) as {
-      hook?: string;
-      nextExpectation?: string;
-    };
+    const payload = result.output;
     const hook = payload.hook ?? "";
     const expectation = payload.nextExpectation ?? "";
 

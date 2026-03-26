@@ -1,10 +1,42 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
+  VolumeChapterPlan,
   VolumePlan,
   VolumePlanVersion,
 } from "@ai-novel/shared/types/novel";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
+
+export type ChapterDetailMode = "purpose" | "boundary" | "task_sheet";
+
+export interface VolumeWorkspace {
+  volumes: VolumePlan[];
+  activeVersionId: string | null;
+}
+
+export interface VolumeGenerationNovel {
+  title: string;
+  description: string | null;
+  targetAudience: string | null;
+  bookSellingPoint: string | null;
+  competingFeel: string | null;
+  first30ChapterPromise: string | null;
+  commercialTagsJson: string | null;
+  estimatedChapterCount: number | null;
+  narrativePov: string | null;
+  pacePreference: string | null;
+  emotionIntensity: string | null;
+  storyModePromptBlock?: string | null;
+  genre: {
+    name: string;
+  } | null;
+  characters: Array<{
+    name: string;
+    role: string;
+    currentGoal: string | null;
+    currentState: string | null;
+  }>;
+}
 
 export interface VolumeGenerateOptions {
   provider?: LLMProvider;

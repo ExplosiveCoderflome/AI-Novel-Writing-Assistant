@@ -22,15 +22,8 @@ import { NovelContextService } from "../NovelContextService";
 import { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import {
   type DirectorCandidateResponse,
-  directorCandidateResponseSchema,
   type DirectorPlanBlueprintParsed,
-  directorPlanBlueprintSchema,
 } from "./novelDirectorSchemas";
-import {
-  buildDirectorBlueprintPrompt,
-  buildDirectorCandidatePrompt,
-  buildDirectorRecoveryPrompt,
-} from "./novelDirectorPrompts";
 import { persistDirectorBlueprint, toDirectorPlanDigest } from "./novelDirectorPersistence";
 
 type LLMOptions = Pick<DirectorCandidatesRequest, "provider" | "model" | "temperature">;
