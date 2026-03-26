@@ -1,57 +1,15 @@
-import { z } from "zod";
 import { prisma } from "../../db/prisma";
 import { AgentToolError, type AgentToolName } from "../types";
 import type { AgentToolDefinition } from "./toolTypes";
-
-const listWritingFormulasInput = z.object({
-  limit: z.number().int().min(1).max(50).optional(),
-});
-
-const writingFormulaSummarySchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  genre: z.string().nullable(),
-  style: z.string().nullable(),
-  toneVoice: z.string().nullable(),
-  updatedAt: z.string(),
-});
-
-const listWritingFormulasOutput = z.object({
-  items: z.array(writingFormulaSummarySchema),
-  summary: z.string(),
-});
-
-const writingFormulaIdInput = z.object({
-  formulaId: z.string().trim().min(1),
-});
-
-const getWritingFormulaDetailOutput = z.object({
-  id: z.string(),
-  name: z.string(),
-  genre: z.string().nullable(),
-  style: z.string().nullable(),
-  toneVoice: z.string().nullable(),
-  formulaDescription: z.string().nullable(),
-  formulaSteps: z.string().nullable(),
-  applicationTips: z.string().nullable(),
-  updatedAt: z.string(),
-  summary: z.string(),
-});
-
-const explainFormulaMatchInput = z.object({
-  formulaId: z.string().trim().min(1),
-  novelId: z.string().trim().optional(),
-  chapterId: z.string().trim().optional(),
-  sampleText: z.string().trim().optional(),
-});
-
-const explainFormulaMatchOutput = z.object({
-  formulaId: z.string(),
-  basisType: z.enum(["sample_text", "chapter", "novel_outline", "formula_only"]),
-  matchedSignals: z.array(z.string()),
-  missingSignals: z.array(z.string()),
-  summary: z.string(),
-});
+import {
+  type ExplainFormulaMatchOutput,
+  explainFormulaMatchInputSchema,
+  explainFormulaMatchOutputSchema,
+  getWritingFormulaDetailOutputSchema,
+  listWritingFormulasInputSchema,
+  listWritingFormulasOutputSchema,
+  writingFormulaIdInputSchema,
+} from "./formulaToolSchemas";
 
 function collectFormulaSignals(row: {
   genre: string | null;
@@ -80,15 +38,15 @@ export const formulaToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "FormulaAgent",
     resourceScopes: ["writing_formula"],
-    inputSchema: listWritingFormulasInput,
-    outputSchema: listWritingFormulasOutput,
+    inputSchema: listWritingFormulasInputSchema,
+    outputSchema: listWritingFormulasOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = listWritingFormulasInput.parse(rawInput);
+      const input = listWritingFormulasInputSchema.parse(rawInput);
       const rows = await prisma.writingFormula.findMany({
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         take: input.limit ?? 20,
       });
-      return listWritingFormulasOutput.parse({
+      return listWritingFormulasOutputSchema.parse({
         items: rows.map((row) => ({
           id: row.id,
           name: row.name,
@@ -109,17 +67,17 @@ export const formulaToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "FormulaAgent",
     resourceScopes: ["writing_formula"],
-    inputSchema: writingFormulaIdInput,
-    outputSchema: getWritingFormulaDetailOutput,
+    inputSchema: writingFormulaIdInputSchema,
+    outputSchema: getWritingFormulaDetailOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = writingFormulaIdInput.parse(rawInput);
+      const input = writingFormulaIdInputSchema.parse(rawInput);
       const row = await prisma.writingFormula.findUnique({
         where: { id: input.formulaId },
       });
       if (!row) {
         throw new AgentToolError("NOT_FOUND", "Writing formula not found.");
       }
-      return getWritingFormulaDetailOutput.parse({
+      return getWritingFormulaDetailOutputSchema.parse({
         id: row.id,
         name: row.name,
         genre: row.genre ?? null,
@@ -141,10 +99,10 @@ export const formulaToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "FormulaAgent",
     resourceScopes: ["writing_formula", "novel", "chapter"],
-    inputSchema: explainFormulaMatchInput,
-    outputSchema: explainFormulaMatchOutput,
+    inputSchema: explainFormulaMatchInputSchema,
+    outputSchema: explainFormulaMatchOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = explainFormulaMatchInput.parse(rawInput);
+      const input = explainFormulaMatchInputSchema.parse(rawInput);
       const row = await prisma.writingFormula.findUnique({
         where: { id: input.formulaId },
       });
@@ -152,7 +110,7 @@ export const formulaToolDefinitions: Partial<
         throw new AgentToolError("NOT_FOUND", "Writing formula not found.");
       }
       let basisText = input.sampleText?.trim() ?? "";
-      let basisType: z.infer<typeof explainFormulaMatchOutput>["basisType"] = "formula_only";
+      let basisType: ExplainFormulaMatchOutput["basisType"] = "formula_only";
       if (!basisText && input.chapterId) {
         const chapter = await prisma.chapter.findUnique({
           where: { id: input.chapterId },
@@ -182,7 +140,7 @@ export const formulaToolDefinitions: Partial<
           ? `公式《${row.name}》与当前上下文命中了 ${matchedSignals.length} 条风格信号。`
           : `公式《${row.name}》已读取，但当前上下文未出现明确命中信号。`
         : `公式《${row.name}》已读取，但当前没有可用于比对的上下文文本。`;
-      return explainFormulaMatchOutput.parse({
+      return explainFormulaMatchOutputSchema.parse({
         formulaId: row.id,
         basisType,
         matchedSignals,

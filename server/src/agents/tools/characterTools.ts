@@ -1,48 +1,12 @@
-import { z } from "zod";
 import { prisma } from "../../db/prisma";
 import { AgentToolError, type AgentToolName } from "../types";
 import type { AgentToolDefinition } from "./toolTypes";
-
-const listBaseCharactersInput = z.object({
-  category: z.string().trim().optional(),
-  search: z.string().trim().optional(),
-  limit: z.number().int().min(1).max(50).optional(),
-});
-
-const baseCharacterSummarySchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  role: z.string(),
-  category: z.string(),
-  tags: z.string(),
-  updatedAt: z.string(),
-});
-
-const listBaseCharactersOutput = z.object({
-  items: z.array(baseCharacterSummarySchema),
-  summary: z.string(),
-});
-
-const baseCharacterIdInput = z.object({
-  characterId: z.string().trim().min(1),
-});
-
-const getBaseCharacterDetailOutput = z.object({
-  id: z.string(),
-  name: z.string(),
-  role: z.string(),
-  category: z.string(),
-  personality: z.string(),
-  background: z.string(),
-  development: z.string(),
-  appearance: z.string().nullable(),
-  weaknesses: z.string().nullable(),
-  interests: z.string().nullable(),
-  keyEvents: z.string().nullable(),
-  tags: z.string(),
-  updatedAt: z.string(),
-  summary: z.string(),
-});
+import {
+  baseCharacterIdInputSchema,
+  getBaseCharacterDetailOutputSchema,
+  listBaseCharactersInputSchema,
+  listBaseCharactersOutputSchema,
+} from "./characterToolSchemas";
 
 export const characterToolDefinitions: Partial<
   Record<AgentToolName, AgentToolDefinition<Record<string, unknown>, Record<string, unknown>>>
@@ -63,10 +27,10 @@ export const characterToolDefinitions: Partial<
       whenToUse: "用户想查看全局基础角色模板库。",
       whenNotToUse: "用户问的是当前小说里已经规划的角色状态。",
     },
-    inputSchema: listBaseCharactersInput,
-    outputSchema: listBaseCharactersOutput,
+    inputSchema: listBaseCharactersInputSchema,
+    outputSchema: listBaseCharactersOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = listBaseCharactersInput.parse(rawInput);
+      const input = listBaseCharactersInputSchema.parse(rawInput);
       const rows = await prisma.baseCharacter.findMany({
         where: {
           ...(input.category ? { category: input.category } : {}),
@@ -85,7 +49,7 @@ export const characterToolDefinitions: Partial<
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         take: input.limit ?? 20,
       });
-      return listBaseCharactersOutput.parse({
+      return listBaseCharactersOutputSchema.parse({
         items: rows.map((row) => ({
           id: row.id,
           name: row.name,
@@ -106,17 +70,17 @@ export const characterToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "CharacterAgent",
     resourceScopes: ["base_character"],
-    inputSchema: baseCharacterIdInput,
-    outputSchema: getBaseCharacterDetailOutput,
+    inputSchema: baseCharacterIdInputSchema,
+    outputSchema: getBaseCharacterDetailOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = baseCharacterIdInput.parse(rawInput);
+      const input = baseCharacterIdInputSchema.parse(rawInput);
       const row = await prisma.baseCharacter.findUnique({
         where: { id: input.characterId },
       });
       if (!row) {
         throw new AgentToolError("NOT_FOUND", "Base character not found.");
       }
-      return getBaseCharacterDetailOutput.parse({
+      return getBaseCharacterDetailOutputSchema.parse({
         id: row.id,
         name: row.name,
         role: row.role,

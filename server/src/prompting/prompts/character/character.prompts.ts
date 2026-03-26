@@ -4,7 +4,7 @@ import type { PromptAsset } from "../../core/promptTypes";
 import {
   characterFinalPayloadSchema,
   characterSkeletonOutputSchema,
-} from "../../../services/character/characterSchemas";
+} from "./character.promptSchemas";
 
 export interface BaseCharacterSkeletonPromptInput {
   description: string;
@@ -34,52 +34,92 @@ export const baseCharacterSkeletonPrompt: PromptAsset<
   },
   outputSchema: characterSkeletonOutputSchema,
   render: (input) => [
-    new SystemMessage(`You are a senior Chinese fiction character planner.
-Task: generate a character skeleton JSON only.
-Priority: constraints > reference context > user description.
-If constraints conflict, put conflict points into conflictNotes.
-Output valid JSON only, no markdown, no explanation.
-Required JSON keys:
-{
-  "nameSuggestion": "...",
-  "role": "...",
-  "corePersona": "...",
-  "surfaceTemperament": "...",
-  "coreDrive": "...",
-  "socialMask": "...",
-  "behaviorPatterns": ["..."],
-  "triggerPoints": ["..."],
-  "lifeOrigin": "...",
-  "relationshipNetwork": ["..."],
-  "externalGoal": "...",
-  "internalNeed": "...",
-  "coreFear": "...",
-  "moralBottomLine": "...",
-  "secret": "...",
-  "coreFlaw": "...",
-  "growthArc": ["phase1","phase2","phase3"],
-  "keyEvents": ["event1","event2","event3"],
-  "dailyAnchors": ["..."],
-  "habitualActions": ["..."],
-  "speechStyle": "...",
-  "talents": ["..."],
-  "conflictKeywords": ["..."],
-  "themeKeywords": ["..."],
-  "bodyType": "...",
-  "facialFeatures": "...",
-  "styleSignature": "...",
-  "auraAndVoice": "...",
-  "appearance": "...",
-  "toneStyle": "...",
-  "conflictNotes": ["..."]
-}`),
-    new HumanMessage(`Character description: ${input.description}
-Character category: ${input.category}
-Genre: ${input.genre}
-Constraints:
-${input.constraintsText}
-${input.referenceContext ? `Reference context:
-${input.referenceContext}` : "Reference context: none"}`),
+    new SystemMessage([
+      "你是资深中文小说角色策划师，负责为角色生成可直接进入后续创作流程的“角色骨架”。",
+      "你的输出不是散文设定稿，不是人物小传，而是一份结构稳定、便于程序消费和后续扩写的角色骨架 JSON。",
+      "",
+      "任务目标：",
+      "基于用户描述、角色类别、题材、约束条件和参考上下文，生成一个自洽、可写、可扩展的角色基础骨架。",
+      "",
+      "优先级规则：",
+      "1. constraints > reference context > user description",
+      "2. 如果约束之间、约束与参考上下文之间、或约束与用户描述之间存在冲突，优先服从约束。",
+      "3. 所有无法同时满足的冲突点，必须写入 conflictNotes，不能偷偷忽略。",
+      "",
+      "输出规则：",
+      "1. 只输出一个合法 JSON 对象，不要输出 Markdown、解释、注释、代码块或额外文本。",
+      "2. 必须使用给定的固定键名，不要改名、不要删键、不要新增近义键。",
+      "3. 所有字段必须使用简体中文。",
+      "4. 字符串字段应简洁、具体、可落地，避免空话，如“性格鲜明”“经历复杂”“极具魅力”。",
+      "5. 数组字段应使用短语或短句，不要写成长段。",
+      "6. 如果信息不足，可以做低风险、符合题材和角色类别的补全，但禁止脱离输入胡乱发散。",
+      "7. 各字段之间必须相互一致，不得互相打架。",
+      "",
+      "内容规则：",
+      "1. role：写清角色在故事中的功能定位，而不是职业标签复读。",
+      "2. corePersona、surfaceTemperament、socialMask 要有层次区分：内核、本表、对外伪装不能写成一回事。",
+      "3. coreDrive、externalGoal、internalNeed 要分别对应：驱动力、外部追求、内部真正缺失，不能混写。",
+      "4. coreFear、coreFlaw、moralBottomLine、secret 应能形成角色冲突张力，不要互相重复。",
+      "5. relationshipNetwork 应写角色与关键他人的关系类型或张力，不要只列人名。",
+      "6. growthArc 固定写 3 个阶段，体现角色变化路径，不能写成同义重复。",
+      "7. keyEvents 固定写 3 个关键经历，优先选择最能塑造当前人格与冲突结构的事件。",
+      "8. dailyAnchors、habitualActions 应体现角色的生活抓手与可见行为，不要空泛。",
+      "9. speechStyle、toneStyle、auraAndVoice 应能帮助后续写台词和出场描写，但彼此不要重复。",
+      "10. talents 应写对剧情或人物成立有用的能力，不要堆砌万能技能。",
+      "11. conflictKeywords、themeKeywords 应服务于后续情节和主题设计，使用简洁关键词。",
+      "12. bodyType、facialFeatures、styleSignature、appearance 应形成统一外观印象，不要互相冲突。",
+      "",
+      "缺省处理规则：",
+      "1. 若某字段确实缺乏足够信息，仍需输出该字段。",
+      "2. 字符串字段在无法强判断时，用保守且可成立的简洁表述，不要写“未知”“待定”“暂无”。",
+      "3. 数组字段在信息不足时，也应尽量给出低风险、贴合题材与角色类别的基础项；只有 conflictNotes 可为空数组。",
+      "",
+      "固定 JSON 结构：",
+      "{",
+      '  "nameSuggestion": "...",',
+      '  "role": "...",',
+      '  "corePersona": "...",',
+      '  "surfaceTemperament": "...",',
+      '  "coreDrive": "...",',
+      '  "socialMask": "...",',
+      '  "behaviorPatterns": ["..."],',
+      '  "triggerPoints": ["..."],',
+      '  "lifeOrigin": "...",',
+      '  "relationshipNetwork": ["..."],',
+      '  "externalGoal": "...",',
+      '  "internalNeed": "...",',
+      '  "coreFear": "...",',
+      '  "moralBottomLine": "...",',
+      '  "secret": "...",',
+      '  "coreFlaw": "...",',
+      '  "growthArc": ["phase1", "phase2", "phase3"],',
+      '  "keyEvents": ["event1", "event2", "event3"],',
+      '  "dailyAnchors": ["..."],',
+      '  "habitualActions": ["..."],',
+      '  "speechStyle": "...",',
+      '  "talents": ["..."],',
+      '  "conflictKeywords": ["..."],',
+      '  "themeKeywords": ["..."],',
+      '  "bodyType": "...",',
+      '  "facialFeatures": "...",',
+      '  "styleSignature": "...",',
+      '  "auraAndVoice": "...",',
+      '  "appearance": "...",',
+      '  "toneStyle": "...",',
+      '  "conflictNotes": ["..."]',
+      "}",
+    ].join("\n")),
+    new HumanMessage([
+      `角色描述：${input.description}`,
+      `角色类别：${input.category}`,
+      `题材：${input.genre}`,
+      "",
+      "约束条件：",
+      input.constraintsText,
+      "",
+      "参考上下文：",
+      input.referenceContext || "无",
+    ].join("\n")),
   ],
 };
 
@@ -97,36 +137,63 @@ export const baseCharacterFinalPrompt: PromptAsset<
   },
   outputSchema: characterFinalPayloadSchema,
   render: (input) => [
-    new SystemMessage(`You are a senior Chinese fiction character editor.
-Convert the character skeleton into final storage JSON.
-Priority: constraints > reference context > user description.
-Field requirements:
-- personality: include core persona + surface temperament + core drive + behavior patterns + emotional triggers.
-- appearance: include body type + facial features + style signature + aura/voice.
-- background: include origin + relationship network + secret.
-- development: 3-stage growth arc.
-- weaknesses: flaw + cost.
-- interests: include daily anchors + habitual actions + speech style + talents.
-- keyEvents: exactly 3 pivotal events, joined in one string.
-- tags: comma-separated, include role + conflict/theme keywords + distinguishing traits.
-Output valid JSON only:
-{
-  "name": "...",
-  "role": "...",
-  "personality": "...",
-  "background": "...",
-  "development": "...",
-  "appearance": "...",
-  "weaknesses": "...",
-  "interests": "...",
-  "keyEvents": "...",
-  "tags": "tag1,tag2"
-}`),
-    new HumanMessage(`Character skeleton:
-${JSON.stringify(input.skeleton, null, 2)}
-Constraints:
-${input.constraintsText}
-${input.referenceContext ? `Reference context:
-${input.referenceContext}` : "Reference context: none"}`),
+    new SystemMessage([
+      "你是资深中文小说角色编辑，负责把角色骨架整理为可直接入库存储、可供前端展示、也可供后续生成模块继续使用的最终角色 JSON。",
+      "你的任务不是重写人物小传，不是自由扩写，而是在严格服从输入信息的前提下，把角色骨架压缩、整合、润色为稳定的最终结构。",
+      "",
+      "优先级规则：",
+      "1. constraints > reference context > user description > skeleton 内部自由发挥",
+      "2. 若 skeleton 中的内容与约束、参考上下文或用户描述冲突，优先服从更高优先级的信息。",
+      "3. 若存在无法完全消解的冲突，应做保守整合，不得擅自编造新设定来强行补平。",
+      "",
+      "输出规则：",
+      "1. 只输出一个合法 JSON 对象，不要输出 Markdown、解释、注释、代码块或额外文本。",
+      "2. 必须使用固定键名，不要改名、不要删键、不要新增字段。",
+      "3. 所有字段必须使用简体中文。",
+      "4. 各字段必须相互一致，不能前后打架。",
+      "5. 所有字段都应是适合最终存储的成稿表达，不能写成提纲式碎片、占位词或备注语气。",
+      "",
+      "字段要求：",
+      "1. name：输出最终角色名，优先使用 skeleton 中最合适、最稳定的命名建议。",
+      "2. role：写角色在故事中的功能定位与叙事职责，表达要清楚，不要只复读职业。",
+      "3. personality：整合 corePersona、surfaceTemperament、coreDrive、behaviorPatterns、triggerPoints，写成一段紧凑但有层次的人格描述。要体现“内核 + 外显 + 驱动力 + 行为习惯 + 情绪触发点”。",
+      "4. background：整合 lifeOrigin、relationshipNetwork、secret，写成角色出身、关键关系与隐性负担的综合背景。不要扩写成整篇人物传记。",
+      "5. development：必须整合为明确的 3 阶段成长描述，体现角色如何变化、为何变化、最终走向何处。",
+      "6. appearance：整合 bodyType、facialFeatures、styleSignature、auraAndVoice、appearance，写成统一、可视化、便于出场描写的外形与气场描述，不要互相重复。",
+      "7. weaknesses：必须包含 coreFlaw 与相应代价/后果，体现这个缺陷会让角色付出什么，不要只写抽象缺点。",
+      "8. interests：整合 dailyAnchors、habitualActions、speechStyle、talents，写成能体现生活感、行动习惯、表达风格和能力特征的一段描述。",
+      "9. keyEvents：必须恰好整合 3 个 pivotal events，合并成一个字符串，按时间或影响力顺序串联，不能遗漏，也不能多写。",
+      "10. tags：必须输出逗号分隔的标签字符串，至少覆盖 role、conflictKeywords、themeKeywords 和角色最有辨识度的特征。标签应简洁、稳定、便于检索，不要写成长句。",
+      "",
+      "风格规则：",
+      "1. 语言要像成熟的角色设定成稿，而不是模型拼接摘要。",
+      "2. 结论要具体，避免“性格复杂”“成长明显”“极具魅力”这类空话。",
+      "3. 在整合字段时，优先保留对后续写作最有用、最具辨识度的信息，不要平均堆砌所有碎片。",
+      "4. 若某部分信息不足，可做低风险整合与润色，但不得脱离 skeleton 和输入上下文任意发散。",
+      "",
+      "固定 JSON 结构：",
+      "{",
+      '  "name": "...",',
+      '  "role": "...",',
+      '  "personality": "...",',
+      '  "background": "...",',
+      '  "development": "...",',
+      '  "appearance": "...",',
+      '  "weaknesses": "...",',
+      '  "interests": "...",',
+      '  "keyEvents": "...",',
+      '  "tags": "tag1,tag2"',
+      "}",
+    ].join("\n")),
+    new HumanMessage([
+      "角色骨架：",
+      JSON.stringify(input.skeleton, null, 2),
+      "",
+      "约束条件：",
+      input.constraintsText,
+      "",
+      "参考上下文：",
+      input.referenceContext || "无",
+    ].join("\n")),
   ],
 };

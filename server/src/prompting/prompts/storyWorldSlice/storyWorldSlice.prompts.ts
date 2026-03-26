@@ -1,8 +1,8 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
-import { storyWorldSliceRawPayloadSchema } from "../../../services/novel/storyWorldSlice/worldSliceSchemas";
 import { buildStoryWorldSlicePrompt } from "../../../services/novel/storyWorldSlice/storyWorldSlicePrompt";
+import { storyWorldSliceRawPayloadSchema } from "./storyWorldSlice.promptSchemas";
 
 export type StoryWorldSlicePromptInput = Parameters<typeof buildStoryWorldSlicePrompt>[0];
 

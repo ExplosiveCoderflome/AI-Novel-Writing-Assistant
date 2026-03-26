@@ -35,6 +35,11 @@ export interface CreateStoryModeTreeNodeInput {
   children?: CreateStoryModeTreeNodeInput[];
 }
 
+export interface CreateStoryModeChildrenInput {
+  parentId: string;
+  drafts: CreateStoryModeTreeNodeInput[];
+}
+
 export interface UpdateStoryModeInput {
   name?: string;
   description?: string | null;
@@ -56,6 +61,10 @@ function normalizeRequiredName(value: string): string {
   return trimmed;
 }
 
+function normalizeNameKey(value: string): string {
+  return value.trim().toLocaleLowerCase("zh-CN");
+}
+
 function normalizeDraft(input: CreateStoryModeTreeNodeInput): StoryModeTreeDraft {
   return {
     name: normalizeRequiredName(input.name),
@@ -73,7 +82,7 @@ function validateDraftSubtree(draft: StoryModeTreeDraft, depth = 1): void {
 
   const seen = new Set<string>();
   for (const child of draft.children) {
-    const key = child.name.trim().toLocaleLowerCase("zh-CN");
+    const key = normalizeNameKey(child.name);
     if (seen.has(key)) {
       throw new AppError(`同一层下存在重复的流派模式名称：${child.name}。`, 400);
     }
@@ -151,6 +160,51 @@ export class StoryModeService {
       await this.ensureSiblingNameUnique(tx, draft.name, parentId, undefined);
       const created = await this.createStoryModeNodeRecursive(tx, draft, parentId);
       return normalizeStoryModeOutput(created);
+    });
+  }
+
+  async createStoryModeChildren(input: CreateStoryModeChildrenInput) {
+    const parentId = normalizeOptionalText(input.parentId);
+    if (!parentId) {
+      throw new AppError("父级流派模式不能为空。", 400);
+    }
+
+    const drafts = (input.drafts ?? []).map((draft) => normalizeDraft(draft));
+    if (drafts.length === 0) {
+      throw new AppError("至少需要一个待创建的流派模式子类。", 400);
+    }
+
+    const batchNames = new Set<string>();
+    for (const draft of drafts) {
+      validateDraftSubtree(draft, 2);
+      const key = normalizeNameKey(draft.name);
+      if (batchNames.has(key)) {
+        throw new AppError(`待创建子类中存在重复名称：${draft.name}。`, 400);
+      }
+      batchNames.add(key);
+    }
+
+    return prisma.$transaction(async (tx) => {
+      await this.ensureParentCanAcceptChild(tx, parentId);
+
+      const existingSiblings = await tx.novelStoryMode.findMany({
+        where: { parentId },
+        select: { name: true },
+      });
+      const existingNames = new Set(existingSiblings.map((item) => normalizeNameKey(item.name)));
+
+      for (const draft of drafts) {
+        if (existingNames.has(normalizeNameKey(draft.name))) {
+          throw new AppError(`同一父级下已存在相同名称的流派模式：${draft.name}。`, 400);
+        }
+      }
+
+      const created = [];
+      for (const draft of drafts) {
+        const node = await this.createStoryModeNodeRecursive(tx, draft, parentId);
+        created.push(normalizeStoryModeOutput(node));
+      }
+      return created;
     });
   }
 

@@ -1,8 +1,7 @@
 import type { AuditReport, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { BaseMessageChunk } from "@langchain/core/messages";
 import { prisma } from "../../db/prisma";
-import { getLLM } from "../../llm/factory";
-import { preparePromptExecution, runStructuredPrompt } from "../../prompting/core/promptRunner";
+import { runStructuredPrompt, streamTextPrompt } from "../../prompting/core/promptRunner";
 import {
   chapterRepairPrompt,
   chapterReviewPrompt,
@@ -117,7 +116,7 @@ export class NovelCoreReviewService {
       ragContext = "";
     }
 
-    const prepared = preparePromptExecution({
+    const streamed = await streamTextPrompt({
       asset: chapterRepairPrompt,
       promptInput: {
         novelTitle: novel.title,
@@ -127,25 +126,25 @@ export class NovelCoreReviewService {
         issuesJson: JSON.stringify(issues, null, 2),
         ragContext: ragContext || "",
       },
+      options: {
+        provider: options.provider ?? "deepseek",
+        model: options.model,
+        temperature: options.temperature ?? 0.5,
+      },
     });
-    const llm = await getLLM(options.provider ?? "deepseek", {
-      model: options.model,
-      temperature: options.temperature ?? 0.5,
-      taskType: chapterRepairPrompt.taskType,
-      promptMeta: prepared.invocation,
-    });
-    const stream = await llm.stream(prepared.messages);
 
     return {
-      stream: stream as AsyncIterable<BaseMessageChunk>,
+      stream: streamed.stream as AsyncIterable<BaseMessageChunk>,
       onDone: async (fullContent: string) => {
+        const completed = await streamed.complete;
+        const repairedContent = completed.output.trim() || fullContent;
         await prisma.chapter.update({
           where: { id: chapterId },
-          data: { content: fullContent, generationState: "repaired" },
+          data: { content: repairedContent, generationState: "repaired" },
         });
-        await syncChapterArtifacts(novelId, chapterId, fullContent);
+        await syncChapterArtifacts(novelId, chapterId, repairedContent);
 
-        const review = await this.reviewChapter(novelId, chapterId, { ...options, content: fullContent });
+        const review = await this.reviewChapter(novelId, chapterId, { ...options, content: repairedContent });
         if (isPass(review.score)) {
           await prisma.chapter.update({ where: { id: chapterId }, data: { generationState: "approved" } });
           if (options.auditIssueIds?.length) {

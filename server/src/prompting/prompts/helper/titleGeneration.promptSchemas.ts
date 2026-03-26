@@ -8,4 +8,3 @@ export const titleGenerationRawOutputSchema = z.union([
     })
     .passthrough(),
 ]);
-

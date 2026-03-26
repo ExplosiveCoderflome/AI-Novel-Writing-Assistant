@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const genreTreeNodeSchema = z
+export const genreTreeDraftNodeSchema = z
   .object({
     name: z.string().trim().min(1),
     description: z.string().trim().optional(),
@@ -9,5 +9,4 @@ export const genreTreeNodeSchema = z
   })
   .passthrough();
 
-export type GenreTreeDraftNode = z.infer<typeof genreTreeNodeSchema>;
-
+export type GenreTreeDraftNode = z.infer<typeof genreTreeDraftNodeSchema>;

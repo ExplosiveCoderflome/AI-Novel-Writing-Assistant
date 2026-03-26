@@ -45,6 +45,14 @@ export async function createStoryModeTree(payload: {
   return data;
 }
 
+export async function createStoryModeChildren(payload: {
+  parentId: string;
+  drafts: StoryModeTreeDraft[];
+}) {
+  const { data } = await apiClient.post<ApiResponse<NovelStoryMode[]>>("/story-modes/batch-children", payload);
+  return data;
+}
+
 export async function updateStoryMode(
   id: string,
   payload: Partial<{
@@ -72,6 +80,19 @@ export async function generateStoryModeTree(payload: {
   maxTokens?: number;
 }) {
   const { data } = await apiClient.post<ApiResponse<StoryModeTreeDraft>>("/story-modes/generate", payload);
+  return data;
+}
+
+export async function generateStoryModeChild(payload: {
+  parentId: string;
+  prompt?: string;
+  count?: number;
+  provider?: LLMProvider;
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+}) {
+  const { data } = await apiClient.post<ApiResponse<StoryModeTreeDraft[]>>("/story-modes/generate-child", payload);
   return data;
 }
 

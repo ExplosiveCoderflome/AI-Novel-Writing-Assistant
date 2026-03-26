@@ -5,7 +5,7 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { TaskType } from "./modelRouter";
 import { getLLM } from "./factory";
 import { getJsonCapability } from "./capabilities";
-import { toText, extractJSONObject } from "../services/novel/novelP0Utils";
+import { toText, extractJSONValue } from "../services/novel/novelP0Utils";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
 
 export interface StructuredInvokeInput<T> {
@@ -23,9 +23,23 @@ export interface StructuredInvokeInput<T> {
   promptMeta?: PromptInvocationMeta;
 }
 
-interface StructuredInvokeResult<T> {
+export interface StructuredInvokeResult<T> {
   data: T;
   repairUsed: boolean;
+  repairAttempts: number;
+}
+
+export interface StructuredInvokeRawParseInput<T> {
+  rawContent: string;
+  schema: ZodType<T>;
+  provider?: LLMProvider;
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+  taskType?: TaskType;
+  label: string;
+  maxRepairAttempts?: number;
+  promptMeta?: PromptInvocationMeta;
 }
 
 function buildInvokeMessages<T>(input: StructuredInvokeInput<T>): BaseMessage[] {
@@ -72,7 +86,31 @@ function formatZodErrors(error: ZodError): string {
     .join("\n");
 }
 
-async function repairWithLlm<T>(input: StructuredInvokeInput<T>, rawContent: string, zodError: ZodError): Promise<T> {
+function schemaAllowsTopLevelArray<T>(schema: ZodType<T>): boolean {
+  const probe = schema.safeParse([]);
+  if (probe.success) {
+    return true;
+  }
+  return probe.error.issues.some((issue) => issue.path.length === 0 && issue.code !== "invalid_type");
+}
+
+export function shouldUseJsonObjectResponseFormat<T>(
+  provider: LLMProvider,
+  model: string | undefined,
+  schema: ZodType<T>,
+): boolean {
+  if (!getJsonCapability(provider, model).supportsJsonObject) {
+    return false;
+  }
+  return !schemaAllowsTopLevelArray(schema);
+}
+
+async function repairWithLlm<T>(
+  input: Pick<StructuredInvokeInput<T>, "provider" | "model" | "maxTokens" | "taskType" | "label" | "schema" | "promptMeta">,
+  rawContent: string,
+  validationError: string,
+  repairAttempt: number,
+): Promise<T> {
   const llm = await getLLM(input.provider, {
     fallbackProvider: "deepseek",
     model: input.model,
@@ -82,39 +120,112 @@ async function repairWithLlm<T>(input: StructuredInvokeInput<T>, rawContent: str
     promptMeta: input.promptMeta ? {
       ...input.promptMeta,
       repairUsed: true,
+      repairAttempts: repairAttempt,
     } : undefined,
   });
 
   const repairSystem = [
     "你是 JSON 修复器。",
-    "你的任务是：只输出严格合法的 JSON 对象，且必须通过给定的结构校验。",
+    "你的任务是：只输出严格合法的 JSON 值，且必须通过给定的结构校验。",
+    "最终输出可能是 JSON 对象，也可能是 JSON 数组；必须与目标结构一致。",
     "不要输出任何解释、Markdown 或额外字段。",
     "如果校验错误提示某个字段缺失，必须直接使用错误路径里的字段名作为 JSON 键名，不要翻译成中文别名。",
-    "例如缺少 purpose / taskSheet / conflictLevel 时，最终 JSON 必须使用这些原字段名。",
+    "如果目标结构顶层是数组，就直接输出数组本身，不要再外包一层对象。",
   ].join("\n");
 
   const repairHuman = [
     `校验失败：${input.label}`,
-    "Zod 校验错误：",
-    formatZodErrors(zodError),
+    validationError,
     "",
     "原始模型输出（可能包含多余文字/markdown/截断）：",
     rawContent,
     "",
-    "请修复后只输出最终 JSON 对象。",
+    "请修复后只输出最终 JSON。",
   ].join("\n");
 
   const result = await llm.invoke([new SystemMessage(repairSystem), new HumanMessage(repairHuman)]);
   const repairedRaw = toText(result.content);
 
   // repair 后仍然走同样的 extract + parse + safeParse
-  const extracted = extractJSONObject(repairedRaw);
+  const extracted = extractJSONValue(repairedRaw);
   const parsed = JSON.parse(extracted) as unknown;
   const final = input.schema.safeParse(parsed);
   if (!final.success) {
     throw new Error(`[${input.label}] JSON repair 后仍未通过 Schema 校验。错误：${formatZodErrors(final.error)}`);
   }
   return final.data;
+}
+
+export async function parseStructuredLlmRawContentDetailed<T>(
+  input: StructuredInvokeRawParseInput<T>,
+): Promise<StructuredInvokeResult<T>> {
+  let parsed: unknown;
+  let parseErrorMessage = "";
+  try {
+    parsed = JSON.parse(extractJSONValue(input.rawContent));
+  } catch (error) {
+    // 截断修复后再试一次
+    const fixed = tryFixTruncatedJson(input.rawContent);
+    try {
+      parsed = JSON.parse(extractJSONValue(fixed));
+    } catch (fixedError) {
+      parseErrorMessage = [
+        "JSON 解析失败：",
+        error instanceof Error ? error.message : String(error),
+        "截断修复后仍失败：",
+        fixedError instanceof Error ? fixedError.message : String(fixedError),
+      ].join("\n");
+      parsed = null;
+    }
+  }
+
+  const maxRepairAttempts = input.maxRepairAttempts ?? 1;
+  if (parseErrorMessage) {
+    for (let attempt = 1; attempt <= maxRepairAttempts; attempt += 1) {
+      try {
+        return {
+          data: await repairWithLlm(input, input.rawContent, parseErrorMessage, attempt),
+          repairUsed: true,
+          repairAttempts: attempt,
+        };
+      } catch (repairError) {
+        if (attempt >= maxRepairAttempts) {
+          throw repairError;
+        }
+      }
+    }
+    throw new Error(`[${input.label}] JSON 解析失败且修复未成功。`);
+  }
+
+  const first = input.schema.safeParse(parsed);
+  if (first.success) {
+    return {
+      data: first.data,
+      repairUsed: false,
+      repairAttempts: 0,
+    };
+  }
+
+  let zodError: ZodError = first.error;
+
+  for (let attempt = 1; attempt <= maxRepairAttempts; attempt += 1) {
+    try {
+      return {
+        data: await repairWithLlm(input, input.rawContent, `Zod 校验错误：\n${formatZodErrors(zodError)}`, attempt),
+        repairUsed: true,
+        repairAttempts: attempt,
+      };
+    } catch (error) {
+      if (attempt >= maxRepairAttempts) {
+        throw error;
+      }
+      if (error instanceof z.ZodError) {
+        zodError = error as ZodError;
+      }
+    }
+  }
+
+  throw new Error(`[${input.label}] LLM 输出经修复后仍未通过 Schema 校验。错误：${formatZodErrors(zodError)}`);
 }
 
 export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInput<T>): Promise<StructuredInvokeResult<T>> {
@@ -130,7 +241,7 @@ export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInpu
   const cap = getJsonCapability(input.provider ?? "deepseek", input.model);
 
   const invokeOptions: Record<string, unknown> = {};
-  if (cap.supportsJsonObject) {
+  if (cap.supportsJsonObject && shouldUseJsonObjectResponseFormat(input.provider ?? "deepseek", input.model, input.schema)) {
     invokeOptions.response_format = { type: "json_object" };
   }
 
@@ -138,36 +249,18 @@ export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInpu
   const result = await llm.invoke(messages, invokeOptions);
   const rawContent = toText(result.content);
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(extractJSONObject(rawContent));
-  } catch {
-    // 截断修复后再试一次
-    const fixed = tryFixTruncatedJson(rawContent);
-    parsed = JSON.parse(extractJSONObject(fixed));
-  }
-
-  const first = input.schema.safeParse(parsed);
-  if (first.success) {
-    return {
-      data: first.data,
-      repairUsed: false,
-    };
-  }
-
-  const maxRepairAttempts = input.maxRepairAttempts ?? 1;
-  let attempt = 0;
-  let zodError = first.error;
-
-  while (attempt < maxRepairAttempts) {
-    attempt += 1;
-    return {
-      data: await repairWithLlm(input, rawContent, zodError),
-      repairUsed: true,
-    };
-  }
-
-  throw new Error(`[${input.label}] LLM 输出经修复后仍未通过 Schema 校验。错误：${formatZodErrors(zodError)}`);
+  return parseStructuredLlmRawContentDetailed({
+    rawContent,
+    schema: input.schema,
+    provider: input.provider,
+    model: input.model,
+    temperature: input.temperature,
+    maxTokens: input.maxTokens,
+    taskType: input.taskType,
+    label: input.label,
+    maxRepairAttempts: input.maxRepairAttempts,
+    promptMeta: input.promptMeta,
+  });
 }
 
 export async function invokeStructuredLlm<T>(input: StructuredInvokeInput<T>): Promise<T> {

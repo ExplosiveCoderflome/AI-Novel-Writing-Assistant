@@ -1,192 +1,37 @@
-import type { WorldLayerKey, WorldStructureSectionKey } from "@ai-novel/shared/types/world";
-import type { WorldReferenceAnchor, WorldReferenceMode } from "@ai-novel/shared/types/worldWizard";
+import type { WorldReferenceMode } from "@ai-novel/shared/types/worldWizard";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
+import {
+  type WorldAxiomSuggestionPromptInput,
+  type WorldConsistencyPromptInput,
+  type WorldDeepeningQuestionsPromptInput,
+  type WorldImportExtractionPromptInput,
+  type WorldInspirationConceptCardLocalizationPromptInput,
+  type WorldInspirationConceptCardPromptInput,
+  type WorldLayerGenerationPromptInput,
+  type WorldLayerLocalizationPromptInput,
+  type WorldPropertyOptionsPromptInput,
+  type WorldReferenceInspirationPromptInput,
+  type WorldStructureBackfillPromptInput,
+  type WorldStructureSectionPromptInput,
+  type WorldVisualizationPromptInput,
+} from "./world.promptTypes";
+import {
+  worldAxiomSuggestionSchema,
+  worldConceptCardSchema,
+  worldConsistencyIssuesSchema,
+  worldDeepeningQuestionsSchema,
+  worldImportExtractionSchema,
+  worldLooseObjectSchema,
+  worldPropertyOptionsPayloadSchema,
+} from "./world.promptSchemas";
 import { worldReferenceInspirationPayloadSchema } from "../../../services/world/worldReferenceSchema";
 import { worldStructuredDataSchema, worldStructureSectionOutputSchema } from "../../../services/world/worldSchemas";
 import { worldVisualizationDraftSchema } from "../../../services/world/worldVisualizationSchema";
 import {
   buildStructureSectionInstructions,
 } from "../../../services/world/worldServiceShared";
-
-export interface WorldReferenceInspirationPromptInput {
-  userPrompt: string;
-  isRetry: boolean;
-}
-
-export interface WorldVisualizationPromptInput {
-  worldPromptSource: string;
-}
-
-export interface WorldStructureBackfillPromptInput {
-  promptSource: string;
-}
-
-export interface WorldStructureSectionPromptInput {
-  section: WorldStructureSectionKey;
-  promptSource: string;
-  currentStructure: unknown;
-  currentBindingSupport: unknown;
-}
-
-export interface WorldAxiomSuggestionPromptInput {
-  worldName: string;
-  worldType: string;
-  templateName: string;
-  templateDescription: string;
-  description: string;
-  blueprintPromptBlock: string;
-}
-
-export interface WorldInspirationConceptCardPromptInput {
-  mode: "free" | "reference" | "random";
-  worldTypeHint: string;
-  promptText: string;
-  extracted: boolean;
-  originalLength: number;
-  ragContext: string;
-  templateKeysText: string;
-}
-
-export interface WorldInspirationConceptCardLocalizationPromptInput {
-  conceptCardJson: string;
-}
-
-export interface WorldPropertyOptionsPromptInput {
-  referenceMode?: WorldReferenceMode | null;
-  retryStrict?: boolean;
-  optionsCount: number;
-  worldType: string;
-  templateName: string;
-  templateDescription: string;
-  classicElements: string[];
-  pitfalls: string[];
-  conceptSummary: string;
-  coreImagery: string[];
-  keywords: string[];
-  tone: string;
-  sourcePrompt: string;
-  ragContext?: string;
-  referenceAnchors?: WorldReferenceAnchor[];
-  preserveElements?: string[];
-  allowedChanges?: string[];
-  forbiddenElements?: string[];
-}
-
-export interface WorldDeepeningQuestionsPromptInput {
-  worldName: string;
-  description: string;
-  dataJson: string;
-  ragContext: string;
-}
-
-export interface WorldConsistencyPromptInput {
-  worldName: string;
-  axioms: string;
-  coreSettingsJson: string;
-  ragContext: string;
-}
-
-export interface WorldLayerGenerationPromptInput {
-  layerKey: WorldLayerKey;
-  targetFields: string[];
-  worldName: string;
-  worldType: string;
-  templateName: string;
-  templateDescription: string;
-  classicElements: string[];
-  pitfalls: string[];
-  axioms: string;
-  summary: string;
-  blueprintPromptBlock: string;
-  existingJson: string;
-  ragContext: string;
-}
-
-export interface WorldLayerLocalizationPromptInput {
-  layerKey: WorldLayerKey;
-  layerFields: string[];
-  sourcePayloadJson: string;
-}
-
-export interface WorldImportExtractionPromptInput {
-  content: string;
-}
-
-export const worldAxiomSuggestionSchema = z.array(z.string().trim()).max(5);
-export const worldConceptCardSchema = z.object({
-  worldType: z.string().trim().min(1),
-  templateKey: z.string().trim().min(1),
-  coreImagery: z.array(z.string().trim().min(1)),
-  tone: z.string().trim().min(1),
-  keywords: z.array(z.string().trim().min(1)),
-  summary: z.string().trim().min(1),
-}).passthrough();
-
-const worldPropertyChoiceSchema = z.object({
-  id: z.string().trim().optional(),
-  label: z.string().trim().min(1),
-  summary: z.string().trim().min(1),
-}).passthrough();
-
-const worldPropertyOptionSchema = z.object({
-  id: z.string().trim().optional(),
-  name: z.string().trim().min(1),
-  description: z.string().trim().min(1),
-  targetLayer: z.union([
-    z.enum(["foundation", "power", "society", "culture", "history", "conflict"]),
-    z.string().trim().min(1),
-  ]),
-  reason: z.string().trim().optional().nullable(),
-  choices: z.array(worldPropertyChoiceSchema).optional(),
-}).passthrough();
-
-export const worldPropertyOptionsPayloadSchema = z.object({
-  options: z.array(worldPropertyOptionSchema),
-}).passthrough();
-
-export const worldDeepeningQuestionsSchema = z.array(z.object({
-  priority: z.enum(["required", "recommended", "optional"]).optional(),
-  question: z.string().trim().optional(),
-  quickOptions: z.array(z.string().trim()).optional(),
-  targetLayer: z.union([
-    z.enum(["foundation", "power", "society", "culture", "history", "conflict"]),
-    z.string().trim().min(1),
-  ]).optional(),
-  targetField: z.string().trim().optional(),
-}).passthrough());
-
-export const worldConsistencyIssuesSchema = z.array(z.object({
-  severity: z.enum(["warn", "error"]).optional(),
-  code: z.string().trim().optional(),
-  message: z.string().trim().optional(),
-  detail: z.string().trim().optional(),
-  targetField: z.string().trim().optional(),
-}).passthrough());
-
-export const worldLooseObjectSchema = z.object({}).passthrough();
-
-export const worldImportExtractionSchema = z.object({
-  name: z.string().trim().optional(),
-  description: z.string().trim().optional().nullable(),
-  worldType: z.string().trim().optional().nullable(),
-  templateKey: z.string().trim().optional().nullable(),
-  axioms: z.union([z.string().trim(), z.array(z.string().trim())]).optional(),
-  background: z.string().trim().optional().nullable(),
-  geography: z.string().trim().optional().nullable(),
-  cultures: z.string().trim().optional().nullable(),
-  magicSystem: z.string().trim().optional().nullable(),
-  politics: z.string().trim().optional().nullable(),
-  races: z.string().trim().optional().nullable(),
-  religions: z.string().trim().optional().nullable(),
-  technology: z.string().trim().optional().nullable(),
-  conflicts: z.string().trim().optional().nullable(),
-  history: z.string().trim().optional().nullable(),
-  economy: z.string().trim().optional().nullable(),
-  factions: z.string().trim().optional().nullable(),
-  selectedElements: z.string().trim().optional().nullable(),
-}).passthrough();
 
 function buildReferenceModeLabel(mode: WorldReferenceMode | null | undefined): string {
   switch (mode) {
@@ -198,6 +43,51 @@ function buildReferenceModeLabel(mode: WorldReferenceMode | null | undefined): s
     default:
       return "基于原作做架空改造";
   }
+}
+
+function sanitizeLooseWorldObject(value: unknown, allowedKeys: string[], label: string): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} 必须返回 JSON 对象。`);
+  }
+
+  const record = value as Record<string, unknown>;
+  const normalizedAllowedKeys = new Set(allowedKeys.map((key) => key.trim()).filter(Boolean));
+  if (normalizedAllowedKeys.size === 0) {
+    throw new Error(`${label} 缺少允许字段配置。`);
+  }
+
+  const filteredEntries = Object.entries(record).filter(([key, fieldValue]) => {
+    if (!normalizedAllowedKeys.has(key)) {
+      return false;
+    }
+    return fieldValue != null;
+  });
+
+  if (filteredEntries.length === 0) {
+    throw new Error(`${label} 没有返回任何允许字段。`);
+  }
+
+  return Object.fromEntries(filteredEntries);
+}
+
+function normalizeWorldStructureSectionPayload(
+  value: z.infer<typeof worldStructureSectionOutputSchema>,
+  input: WorldStructureSectionPromptInput,
+): z.infer<typeof worldStructureSectionOutputSchema> {
+  const arraySections = new Set(["factions", "locations"]);
+  const shouldReturnArray = arraySections.has(input.section);
+
+  if (shouldReturnArray) {
+    if (!Array.isArray(value)) {
+      throw new Error(`world.structure.generate 在 section=${input.section} 时必须返回数组。`);
+    }
+    return value;
+  }
+
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`world.structure.generate 在 section=${input.section} 时必须返回对象。`);
+  }
+  return value;
 }
 
 export const worldReferenceInspirationPrompt: PromptAsset<
@@ -631,6 +521,11 @@ existing=${input.existingJson}
 ragContext=${input.ragContext || "none"}`,
     ),
   ],
+  postValidate: (output, input) => sanitizeLooseWorldObject(
+    output,
+    input.targetFields,
+    `world.layer.generate(${input.layerKey})`,
+  ),
 };
 
 export const worldLayerLocalizationPrompt: PromptAsset<
@@ -659,6 +554,11 @@ fields=${input.layerFields.join(",")}
 input=${input.sourcePayloadJson}`,
     ),
   ],
+  postValidate: (output, input) => sanitizeLooseWorldObject(
+    output,
+    input.layerFields,
+    `world.layer.localize(${input.layerKey})`,
+  ),
 };
 
 export const worldImportExtractionPrompt: PromptAsset<
@@ -757,6 +657,7 @@ ${buildStructureSectionInstructions(input.section)}
       ].join("\n\n"),
     ),
   ],
+  postValidate: (output, input) => normalizeWorldStructureSectionPayload(output, input),
 };
 
 export const worldAxiomSuggestionPrompt: PromptAsset<

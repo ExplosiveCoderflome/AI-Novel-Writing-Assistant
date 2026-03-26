@@ -1,7 +1,7 @@
 import type { PromptAsset } from "../../core/promptTypes";
 import type { TitlePromptContext } from "../../../services/title/titleGeneration.shared";
-import { titleGenerationRawOutputSchema } from "../../../services/title/titleSchemas";
 import { buildTitleGenerationMessages } from "../../../services/title/titlePromptBuilder";
+import { titleGenerationRawOutputSchema } from "./titleGeneration.promptSchemas";
 
 export interface TitleGenerationPromptInput {
   context: TitlePromptContext;

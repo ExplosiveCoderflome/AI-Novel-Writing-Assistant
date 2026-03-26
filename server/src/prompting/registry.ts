@@ -186,6 +186,10 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/storyMode/storyMode.prompts").storyModeTreePrompt as UnknownPromptAsset,
   },
   {
+    key: "storyMode.child.generate@v1",
+    load: () => require("./prompts/storyMode/storyMode.prompts").storyModeChildPrompt as UnknownPromptAsset,
+  },
+  {
     key: "storyWorldSlice.generate@v1",
     load: () => require("./prompts/storyWorldSlice/storyWorldSlice.prompts").storyWorldSlicePrompt as UnknownPromptAsset,
   },
@@ -216,6 +220,18 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
   {
     key: "world.reference.inspiration@v1",
     load: () => require("./prompts/world/world.prompts").worldReferenceInspirationPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "world.draft.generate@v1",
+    load: () => require("./prompts/world/worldDraft.prompts").worldDraftGenerationPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "world.draft.refine@v1",
+    load: () => require("./prompts/world/worldDraft.prompts").worldDraftRefinePrompt as UnknownPromptAsset,
+  },
+  {
+    key: "world.draft.refine_alternatives@v1",
+    load: () => require("./prompts/world/worldDraft.prompts").worldDraftRefineAlternativesPrompt as UnknownPromptAsset,
   },
   {
     key: "world.inspiration.concept_card@v1",

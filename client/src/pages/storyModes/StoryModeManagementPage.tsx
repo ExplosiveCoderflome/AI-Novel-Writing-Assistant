@@ -3,9 +3,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import type { StoryModeProfile } from "@ai-novel/shared/types/storyMode";
 import {
+  createStoryModeChildren,
   createStoryModeTree,
   deleteStoryMode,
   flattenStoryModeTreeOptions,
+  generateStoryModeChild,
   generateStoryModeTree,
   getStoryModeTree,
   updateStoryMode,
@@ -361,6 +363,10 @@ export default function StoryModeManagementPage() {
   const [editingStoryModeId, setEditingStoryModeId] = useState("");
   const [defaultParentId, setDefaultParentId] = useState("");
   const [generationPrompt, setGenerationPrompt] = useState("");
+  const [childDerivationCount, setChildDerivationCount] = useState(1);
+  const [generatedChildCandidates, setGeneratedChildCandidates] = useState<StoryModeTreeDraft[]>([]);
+  const [selectedGeneratedChildIndexes, setSelectedGeneratedChildIndexes] = useState<number[]>([]);
+  const [activeGeneratedChildIndex, setActiveGeneratedChildIndex] = useState<number | null>(null);
   const [createDraft, setCreateDraft] = useState<StoryModeTreeDraft>(createEmptyDraft());
   const [editState, setEditState] = useState<StoryModeDialogState>(toDialogState());
 
@@ -370,6 +376,7 @@ export default function StoryModeManagementPage() {
   });
 
   const storyModeTree = storyModeTreeQuery.data?.data ?? [];
+  const isCreatingChild = Boolean(defaultParentId);
   const totalStoryModes = useMemo(() => countStoryModes(storyModeTree), [storyModeTree]);
   const editingStoryMode = useMemo(
     () => (editingStoryModeId ? findStoryModeNode(storyModeTree, editingStoryModeId) : null),
@@ -390,6 +397,10 @@ export default function StoryModeManagementPage() {
     }
     setCreateDraft(createEmptyDraft());
     setGenerationPrompt("");
+    setChildDerivationCount(1);
+    setGeneratedChildCandidates([]);
+    setSelectedGeneratedChildIndexes([]);
+    setActiveGeneratedChildIndex(null);
   }, [createDialogOpen, defaultParentId]);
 
   useEffect(() => {
@@ -422,6 +433,38 @@ export default function StoryModeManagementPage() {
     },
   });
 
+  const createSelectedChildrenMutation = useMutation({
+    mutationFn: async () => {
+      if (!defaultParentId) {
+        throw new Error("父级流派模式不存在。");
+      }
+
+      const drafts = selectedGeneratedChildIndexes
+        .map((index) => generatedChildCandidates[index])
+        .filter((draft): draft is StoryModeTreeDraft => Boolean(draft))
+        .map((draft) => ({
+          ...cloneDraft(draft),
+          profile: normalizeProfileInput(draft.profile),
+          children: [],
+        }));
+
+      if (drafts.length === 0) {
+        throw new Error("请至少选择一个子类候选。");
+      }
+
+      return createStoryModeChildren({
+        parentId: defaultParentId,
+        drafts,
+      });
+    },
+    onSuccess: async (response) => {
+      await invalidate();
+      const savedCount = response.data?.length ?? selectedGeneratedChildIndexes.length;
+      toast.success(`已批量创建 ${savedCount} 个流派模式子类。`);
+      setCreateDialogOpen(false);
+    },
+  });
+
   const updateMutation = useMutation({
     mutationFn: () => {
       if (!editingStoryMode) {
@@ -450,19 +493,59 @@ export default function StoryModeManagementPage() {
   });
 
   const generateMutation = useMutation({
-    mutationFn: () => generateStoryModeTree({
-      prompt: generationPrompt.trim(),
-      provider: llm.provider,
-      model: llm.model,
-      temperature: llm.temperature,
-      maxTokens: llm.maxTokens,
-    }),
-    onSuccess: (response) => {
-      if (!response.data) {
+    mutationFn: async (): Promise<
+      | { kind: "child"; drafts: StoryModeTreeDraft[] }
+      | { kind: "tree"; draft: StoryModeTreeDraft | null }
+    > => {
+      if (isCreatingChild) {
+        const response = await generateStoryModeChild({
+          parentId: defaultParentId,
+          prompt: generationPrompt.trim() || undefined,
+          count: childDerivationCount,
+          provider: llm.provider,
+          model: llm.model,
+          temperature: llm.temperature,
+          maxTokens: llm.maxTokens,
+        });
+        return {
+          kind: "child",
+          drafts: response.data ?? [],
+        };
+      }
+
+      const response = await generateStoryModeTree({
+        prompt: generationPrompt.trim(),
+        provider: llm.provider,
+        model: llm.model,
+        temperature: llm.temperature,
+        maxTokens: llm.maxTokens,
+      });
+      return {
+        kind: "tree",
+        draft: response.data ?? null,
+      };
+    },
+    onSuccess: (result) => {
+      if (result.kind === "child") {
+        const candidates = result.drafts.map((item) => cloneDraft(item));
+        if (candidates.length === 0) {
+          return;
+        }
+        setGeneratedChildCandidates(candidates);
+        setSelectedGeneratedChildIndexes(candidates.map((_item, index) => index));
+        setActiveGeneratedChildIndex(0);
+        setCreateDraft(cloneDraft(candidates[0]));
+        toast.success(`AI 已生成 ${candidates.length} 个流派模式子类草稿。`);
         return;
       }
-      setCreateDraft(cloneDraft(response.data));
-      toast.success("AI 流派模式草稿已生成。");
+      setSelectedGeneratedChildIndexes([]);
+      setActiveGeneratedChildIndex(null);
+      if (!result.draft) {
+        return;
+      }
+      setGeneratedChildCandidates([]);
+      setCreateDraft(cloneDraft(result.draft));
+      toast.success("AI 流派模式树草稿已生成。");
     },
   });
 
@@ -474,6 +557,31 @@ export default function StoryModeManagementPage() {
   const handleCreateChild = (parentId: string) => {
     setDefaultParentId(parentId);
     setCreateDialogOpen(true);
+  };
+
+  const updateCreateDraft = (updater: (draft: StoryModeTreeDraft) => StoryModeTreeDraft) => {
+    setCreateDraft((prev) => {
+      const next = updater(prev);
+      if (isCreatingChild && activeGeneratedChildIndex !== null) {
+        setGeneratedChildCandidates((prevCandidates) => prevCandidates.map((candidate, index) => (
+          index === activeGeneratedChildIndex ? cloneDraft(next) : candidate
+        )));
+      }
+      return next;
+    });
+  };
+
+  const handleApplyGeneratedChild = (draft: StoryModeTreeDraft, index: number) => {
+    setActiveGeneratedChildIndex(index);
+    setCreateDraft(cloneDraft(draft));
+  };
+
+  const handleToggleGeneratedChildSelection = (index: number) => {
+    setSelectedGeneratedChildIndexes((prev) => (
+      prev.includes(index)
+        ? prev.filter((item) => item !== index)
+        : [...prev, index].sort((left, right) => left - right)
+    ));
   };
 
   const handleDelete = (node: StoryModeTreeNode) => {
@@ -501,9 +609,11 @@ export default function StoryModeManagementPage() {
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="max-h-[90vh] max-w-5xl overflow-auto">
           <DialogHeader>
-            <DialogTitle>新建流派模式</DialogTitle>
+            <DialogTitle>{isCreatingChild ? "新增流派模式子类" : "新建流派模式"}</DialogTitle>
             <DialogDescription>
-              先确定挂载位置，再手动填写 profile，或者先让 AI 生成一份两级树草稿。
+              {isCreatingChild
+                ? "当前会在指定父类下新增子类。你可以手动填写，也可以先让 AI 基于父类和现有兄弟节点生成多个子类候选，再多选批量保存。"
+                : "先确定挂载位置，再手动填写 profile，或者先让 AI 生成一份两级树草稿。"}
             </DialogDescription>
           </DialogHeader>
 
@@ -515,35 +625,114 @@ export default function StoryModeManagementPage() {
 
             <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
               <div className="space-y-1">
-                <div className="text-sm font-semibold text-foreground">AI 生成草稿</div>
+                <div className="text-sm font-semibold text-foreground">{isCreatingChild ? "AI 生成子类草稿" : "AI 生成草稿"}</div>
                 <div className="text-xs leading-5 text-muted-foreground">
-                  AI 会输出一个可直接编辑的流派模式树草稿，保存前仍然会校验 profile 结构。
+                  {isCreatingChild
+                    ? "AI 会基于当前父类和现有兄弟节点输出一个或多个子类节点草稿，不会再生成整棵树。补充方向可以留空。保存前仍然会校验 profile 结构。"
+                    : "AI 会输出一个可直接编辑的流派模式树草稿，保存前仍然会校验 profile 结构。"}
                 </div>
               </div>
               <LLMSelector />
+              {isCreatingChild ? (
+                <label className="space-y-2 text-sm">
+                  <span className="font-medium text-foreground">衍生数量</span>
+                  <select
+                    className="w-full rounded-md border bg-background p-2 text-sm"
+                    value={childDerivationCount}
+                    onChange={(event) => setChildDerivationCount(Number(event.target.value))}
+                  >
+                    <option value={1}>1 个</option>
+                    <option value={2}>2 个</option>
+                    <option value={3}>3 个</option>
+                    <option value={4}>4 个</option>
+                    <option value={5}>5 个</option>
+                  </select>
+                </label>
+              ) : null}
               <textarea
                 rows={4}
                 className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 value={generationPrompt}
                 onChange={(event) => setGenerationPrompt(event.target.value)}
+                placeholder={isCreatingChild
+                  ? "可选：补充你想偏向的子类方向。不填则 AI 会直接基于父类和现有兄弟节点衍生。"
+                  : "请输入你希望生成的流派模式树方向。"}
               />
               <div className="flex gap-2">
                 <Button
                   type="button"
                   onClick={() => generateMutation.mutate()}
-                  disabled={!generationPrompt.trim() || generateMutation.isPending}
+                  disabled={(!generationPrompt.trim() && !isCreatingChild) || generateMutation.isPending}
                 >
-                  {generateMutation.isPending ? "生成中..." : "生成流派模式草稿"}
+                  {generateMutation.isPending
+                    ? "生成中..."
+                    : isCreatingChild ? "生成子类草稿" : "生成流派模式草稿"}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setCreateDraft(createEmptyDraft())}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setActiveGeneratedChildIndex(null);
+                    setCreateDraft(createEmptyDraft());
+                  }}
+                >
                   重置草稿
                 </Button>
               </div>
+              {isCreatingChild && generatedChildCandidates.length > 0 ? (
+                <div className="space-y-2 rounded-lg border border-border/70 bg-background/60 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-medium text-foreground">已生成的子类候选</div>
+                    <div className="text-xs text-muted-foreground">
+                      已选 {selectedGeneratedChildIndexes.length} / {generatedChildCandidates.length}
+                    </div>
+                  </div>
+                  <div className="text-xs leading-5 text-muted-foreground">
+                    勾选后可批量保存；点击候选卡片会切换到下方表单进行单独编辑。
+                  </div>
+                  <div className="grid gap-2">
+                    {generatedChildCandidates.map((candidate, index) => (
+                      <div
+                        key={`${candidate.name}-${index}`}
+                        className={`rounded-lg border bg-background px-3 py-3 transition ${
+                          activeGeneratedChildIndex === index
+                            ? "border-primary/60 bg-primary/5"
+                            : "border-border/70"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            className="mt-1 h-4 w-4 rounded border-border"
+                            checked={selectedGeneratedChildIndexes.includes(index)}
+                            onChange={() => handleToggleGeneratedChildSelection(index)}
+                          />
+                          <button
+                            type="button"
+                            className="min-w-0 flex-1 text-left"
+                            onClick={() => handleApplyGeneratedChild(candidate, index)}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="text-sm font-medium text-foreground">{candidate.name}</div>
+                              <span className="text-xs text-muted-foreground">
+                                {activeGeneratedChildIndex === index ? "当前编辑" : `候选 ${index + 1}`}
+                              </span>
+                            </div>
+                            <div className="mt-1 text-sm text-muted-foreground">
+                              {candidate.description?.trim() || candidate.profile.coreDrive}
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <label className="space-y-2 text-sm">
               <span className="font-medium text-foreground">名称</span>
-              <Input value={createDraft.name} onChange={(event) => setCreateDraft((prev) => ({ ...prev, name: event.target.value }))} />
+              <Input value={createDraft.name} onChange={(event) => updateCreateDraft((prev) => ({ ...prev, name: event.target.value }))} />
             </label>
             <label className="space-y-2 text-sm">
               <span className="font-medium text-foreground">描述</span>
@@ -551,7 +740,7 @@ export default function StoryModeManagementPage() {
                 rows={3}
                 className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 value={createDraft.description ?? ""}
-                onChange={(event) => setCreateDraft((prev) => ({ ...prev, description: event.target.value }))}
+                onChange={(event) => updateCreateDraft((prev) => ({ ...prev, description: event.target.value }))}
               />
             </label>
             <label className="space-y-2 text-sm">
@@ -560,13 +749,13 @@ export default function StoryModeManagementPage() {
                 rows={3}
                 className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 value={createDraft.template ?? ""}
-                onChange={(event) => setCreateDraft((prev) => ({ ...prev, template: event.target.value }))}
+                onChange={(event) => updateCreateDraft((prev) => ({ ...prev, template: event.target.value }))}
               />
             </label>
 
             <StoryModeProfileFields
               value={createDraft.profile}
-              onChange={(profile) => setCreateDraft((prev) => ({ ...prev, profile }))}
+              onChange={(profile) => updateCreateDraft((prev) => ({ ...prev, profile }))}
             />
           </div>
 
@@ -574,8 +763,24 @@ export default function StoryModeManagementPage() {
             <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>
               取消
             </Button>
-            <Button type="button" onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !createDraft.name.trim()}>
-              {createMutation.isPending ? "保存中..." : "保存流派模式"}
+            {isCreatingChild && generatedChildCandidates.length > 0 ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => createSelectedChildrenMutation.mutate()}
+                disabled={createSelectedChildrenMutation.isPending || selectedGeneratedChildIndexes.length === 0}
+              >
+                {createSelectedChildrenMutation.isPending
+                  ? "批量保存中..."
+                  : `批量保存选中子类 (${selectedGeneratedChildIndexes.length})`}
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              onClick={() => createMutation.mutate()}
+              disabled={createMutation.isPending || createSelectedChildrenMutation.isPending || !createDraft.name.trim()}
+            >
+              {createMutation.isPending ? "保存中..." : isCreatingChild ? "保存当前子类" : "保存流派模式"}
             </Button>
           </DialogFooter>
         </DialogContent>

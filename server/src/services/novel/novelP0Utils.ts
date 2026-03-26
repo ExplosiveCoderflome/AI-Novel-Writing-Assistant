@@ -27,14 +27,64 @@ export function cleanJsonText(source: string): string {
   return source.replace(/```json|```/gi, "").trim();
 }
 
-export function extractJSONObject(source: string): string {
+export function extractJSONValue(source: string): string {
   const text = cleanJsonText(source);
-  const first = text.indexOf("{");
-  const last = text.lastIndexOf("}");
-  if (first < 0 || last < 0 || first >= last) {
+  const objectStart = text.indexOf("{");
+  const arrayStart = text.indexOf("[");
+  const start = objectStart < 0
+    ? arrayStart
+    : arrayStart < 0
+      ? objectStart
+      : Math.min(objectStart, arrayStart);
+
+  if (start < 0) {
+    throw new Error("未检测到有效 JSON 值。");
+  }
+
+  const opener = text[start];
+  const closer = opener === "{" ? "}" : "]";
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (char === "\"") {
+      inString = !inString;
+      continue;
+    }
+    if (inString) {
+      continue;
+    }
+    if (char === opener) {
+      depth += 1;
+      continue;
+    }
+    if (char === closer) {
+      depth -= 1;
+      if (depth === 0) {
+        return text.slice(start, index + 1);
+      }
+    }
+  }
+
+  throw new Error("未检测到完整 JSON 值。");
+}
+
+export function extractJSONObject(source: string): string {
+  const extracted = extractJSONValue(source);
+  if (!extracted.startsWith("{")) {
     throw new Error("未检测到有效 JSON 对象。");
   }
-  return text.slice(first, last + 1);
+  return extracted;
 }
 
 export function parseJSONObject<T>(source: string): T {

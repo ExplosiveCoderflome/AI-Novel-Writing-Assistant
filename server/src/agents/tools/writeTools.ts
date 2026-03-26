@@ -1,101 +1,24 @@
-import { z } from "zod";
 import { prisma } from "../../db/prisma";
 import type { AgentToolName } from "../types";
 import type { AgentToolDefinition } from "./toolTypes";
 import {
   buildPatchedContent,
-  dryRunField,
   getChapter,
   makeDiffSummary,
   novelService,
 } from "./shared";
-
-const diffChapterPatchInput = z.object({
-  novelId: z.string().trim().min(1),
-  chapterId: z.string().trim().min(1),
-  mode: z.enum(["append", "replace_segment", "full_replace"]).default("append"),
-  content: z.string().trim().min(1),
-  marker: z.string().trim().optional(),
-});
-const diffChapterPatchOutput = z.object({
-  novelId: z.string(),
-  chapterId: z.string(),
-  mode: z.enum(["append", "replace_segment", "full_replace"]),
-  beforeLength: z.number().int(),
-  afterLength: z.number().int(),
-  summary: z.string(),
-  beforePreview: z.string(),
-  afterPreview: z.string(),
-});
-
-const saveChapterDraftInput = z.object({
-  novelId: z.string().trim().min(1),
-  chapterId: z.string().trim().min(1),
-  content: z.string().trim().min(1),
-  title: z.string().trim().optional(),
-  dryRun: dryRunField,
-});
-const saveChapterDraftOutput = z.object({
-  novelId: z.string(),
-  chapterId: z.string(),
-  contentLength: z.number().int(),
-  updatedAt: z.string().nullable(),
-  dryRun: z.boolean(),
-  summary: z.string(),
-});
-
-const applyChapterPatchInput = z.object({
-  novelId: z.string().trim().min(1),
-  chapterId: z.string().trim().min(1),
-  mode: z.enum(["append", "replace_segment", "full_replace"]).default("append"),
-  content: z.string().trim().min(1),
-  marker: z.string().trim().optional(),
-  chapterIds: z.array(z.string().trim().min(1)).optional(),
-  worldRuleChange: z.boolean().optional(),
-  worldId: z.string().trim().optional(),
-  dryRun: dryRunField,
-});
-const applyChapterPatchOutput = z.object({
-  novelId: z.string(),
-  chapterId: z.string(),
-  mode: z.enum(["append", "replace_segment", "full_replace"]),
-  contentLength: z.number().int(),
-  updatedAt: z.string().nullable(),
-  dryRun: z.boolean(),
-  summary: z.string(),
-  beforePreview: z.string(),
-  afterPreview: z.string(),
-});
-
-const previewPipelineRunInput = z.object({
-  novelId: z.string().trim().min(1),
-  startOrder: z.number().int().min(1),
-  endOrder: z.number().int().min(1),
-});
-const previewPipelineRunOutput = z.object({
-  novelId: z.string(),
-  startOrder: z.number().int(),
-  endOrder: z.number().int(),
-  chapterCount: z.number().int(),
-  chapterIds: z.array(z.string()),
-});
-
-const queuePipelineRunInput = z.object({
-  novelId: z.string().trim().min(1),
-  startOrder: z.number().int().min(1),
-  endOrder: z.number().int().min(1),
-  maxRetries: z.number().int().min(0).max(5).optional(),
-  dryRun: dryRunField,
-});
-const queuePipelineRunOutput = z.object({
-  novelId: z.string(),
-  jobId: z.string().nullable(),
-  status: z.string(),
-  startOrder: z.number().int(),
-  endOrder: z.number().int(),
-  dryRun: z.boolean(),
-  summary: z.string(),
-});
+import {
+  applyChapterPatchInputSchema,
+  applyChapterPatchOutputSchema,
+  diffChapterPatchInputSchema,
+  diffChapterPatchOutputSchema,
+  previewPipelineRunInputSchema,
+  previewPipelineRunOutputSchema,
+  queuePipelineRunInputSchema,
+  queuePipelineRunOutputSchema,
+  saveChapterDraftInputSchema,
+  saveChapterDraftOutputSchema,
+} from "./writeToolSchemas";
 
 export const writeToolDefinitions: Partial<
   Record<AgentToolName, AgentToolDefinition<Record<string, unknown>, Record<string, unknown>>>
@@ -108,14 +31,14 @@ export const writeToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "NovelAgent",
     resourceScopes: ["novel", "chapter"],
-    inputSchema: diffChapterPatchInput,
-    outputSchema: diffChapterPatchOutput,
+    inputSchema: diffChapterPatchInputSchema,
+    outputSchema: diffChapterPatchOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = diffChapterPatchInput.parse(rawInput);
+      const input = diffChapterPatchInputSchema.parse(rawInput);
       const chapter = await getChapter(input.novelId, input.chapterId);
       const base = chapter.content ?? "";
       const patched = buildPatchedContent(base, input);
-      return diffChapterPatchOutput.parse({
+      return diffChapterPatchOutputSchema.parse({
         novelId: input.novelId,
         chapterId: input.chapterId,
         mode: input.mode,
@@ -131,13 +54,13 @@ export const writeToolDefinitions: Partial<
     riskLevel: "medium",
     domainAgent: "NovelAgent",
     resourceScopes: ["novel", "chapter"],
-    inputSchema: saveChapterDraftInput,
-    outputSchema: saveChapterDraftOutput,
+    inputSchema: saveChapterDraftInputSchema,
+    outputSchema: saveChapterDraftOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = saveChapterDraftInput.parse(rawInput);
+      const input = saveChapterDraftInputSchema.parse(rawInput);
       await getChapter(input.novelId, input.chapterId);
       if (input.dryRun) {
-        return saveChapterDraftOutput.parse({
+        return saveChapterDraftOutputSchema.parse({
           novelId: input.novelId,
           chapterId: input.chapterId,
           contentLength: input.content.length,
@@ -150,7 +73,7 @@ export const writeToolDefinitions: Partial<
         content: input.content,
         ...(input.title ? { title: input.title } : {}),
       });
-      return saveChapterDraftOutput.parse({
+      return saveChapterDraftOutputSchema.parse({
         novelId: input.novelId,
         chapterId: updated.id,
         contentLength: (updated.content ?? "").length,
@@ -169,16 +92,16 @@ export const writeToolDefinitions: Partial<
     domainAgent: "NovelAgent",
     resourceScopes: ["novel", "chapter", "world"],
     approvalRequired: true,
-    inputSchema: applyChapterPatchInput,
-    outputSchema: applyChapterPatchOutput,
+    inputSchema: applyChapterPatchInputSchema,
+    outputSchema: applyChapterPatchOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = applyChapterPatchInput.parse(rawInput);
+      const input = applyChapterPatchInputSchema.parse(rawInput);
       const chapter = await getChapter(input.novelId, input.chapterId);
       const before = chapter.content ?? "";
       const after = buildPatchedContent(before, input);
       const diff = makeDiffSummary(before, after);
       if (input.dryRun) {
-        return applyChapterPatchOutput.parse({
+        return applyChapterPatchOutputSchema.parse({
           novelId: input.novelId,
           chapterId: input.chapterId,
           mode: input.mode,
@@ -193,7 +116,7 @@ export const writeToolDefinitions: Partial<
       const updated = await novelService.updateChapter(input.novelId, input.chapterId, {
         content: after,
       });
-      return applyChapterPatchOutput.parse({
+      return applyChapterPatchOutputSchema.parse({
         novelId: input.novelId,
         chapterId: updated.id,
         mode: input.mode,
@@ -214,10 +137,10 @@ export const writeToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "NovelAgent",
     resourceScopes: ["novel", "chapter", "generation_job"],
-    inputSchema: previewPipelineRunInput,
-    outputSchema: previewPipelineRunOutput,
+    inputSchema: previewPipelineRunInputSchema,
+    outputSchema: previewPipelineRunOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = previewPipelineRunInput.parse(rawInput);
+      const input = previewPipelineRunInputSchema.parse(rawInput);
       if (input.startOrder > input.endOrder) {
         throw new Error("startOrder must be <= endOrder.");
       }
@@ -229,7 +152,7 @@ export const writeToolDefinitions: Partial<
         orderBy: { order: "asc" },
         select: { id: true },
       });
-      return previewPipelineRunOutput.parse({
+      return previewPipelineRunOutputSchema.parse({
         novelId: input.novelId,
         startOrder: input.startOrder,
         endOrder: input.endOrder,
@@ -247,15 +170,15 @@ export const writeToolDefinitions: Partial<
     domainAgent: "NovelAgent",
     resourceScopes: ["novel", "chapter", "generation_job", "task"],
     approvalRequired: true,
-    inputSchema: queuePipelineRunInput,
-    outputSchema: queuePipelineRunOutput,
+    inputSchema: queuePipelineRunInputSchema,
+    outputSchema: queuePipelineRunOutputSchema,
     execute: async (context, rawInput) => {
-      const input = queuePipelineRunInput.parse(rawInput);
+      const input = queuePipelineRunInputSchema.parse(rawInput);
       if (input.startOrder > input.endOrder) {
         throw new Error("startOrder must be <= endOrder.");
       }
       if (input.dryRun) {
-        return queuePipelineRunOutput.parse({
+        return queuePipelineRunOutputSchema.parse({
           novelId: input.novelId,
           jobId: null,
           status: "preview_only",
@@ -273,7 +196,7 @@ export const writeToolDefinitions: Partial<
         model: context.model,
         temperature: context.temperature,
       });
-      return queuePipelineRunOutput.parse({
+      return queuePipelineRunOutputSchema.parse({
         novelId: input.novelId,
         jobId: job.id,
         status: job.status,

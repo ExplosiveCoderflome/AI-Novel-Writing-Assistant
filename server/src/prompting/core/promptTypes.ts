@@ -1,4 +1,4 @@
-import type { BaseMessage } from "@langchain/core/messages";
+import type { BaseMessage, BaseMessageChunk } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ZodType } from "zod";
 import type { TaskType } from "../../llm/modelRouter";
@@ -28,6 +28,8 @@ export interface ContextPolicy {
 export interface PromptRenderContext {
   blocks: PromptContextBlock[];
   selectedBlockIds: string[];
+  droppedBlockIds: string[];
+  summarizedBlockIds: string[];
   estimatedInputTokens: number;
 }
 
@@ -36,8 +38,13 @@ export interface PromptInvocationMeta {
   promptVersion: string;
   taskType: TaskType;
   contextBlockIds: string[];
+  droppedContextBlockIds: string[];
+  summarizedContextBlockIds: string[];
   estimatedInputTokens: number;
   repairUsed: boolean;
+  repairAttempts: number;
+  semanticRetryUsed: boolean;
+  semanticRetryAttempts: number;
 }
 
 export interface PromptExecutionOptions {
@@ -60,6 +67,33 @@ export interface PromptRunResult<T> {
   context: PromptRenderContext;
 }
 
+export interface PromptStreamRunResult<T> {
+  stream: AsyncIterable<BaseMessageChunk>;
+  complete: Promise<PromptRunResult<T>>;
+  context: PromptRenderContext;
+  invocation: PromptInvocationMeta;
+}
+
+export interface PromptRepairPolicy {
+  maxAttempts: number;
+}
+
+export interface PromptSemanticRetryBuildInput<I, R> {
+  promptId: string;
+  promptVersion: string;
+  attempt: number;
+  promptInput: I;
+  context: PromptRenderContext;
+  baseMessages: BaseMessage[];
+  parsedOutput: R;
+  validationError: string;
+}
+
+export interface PromptSemanticRetryPolicy<I, R> {
+  maxAttempts: number;
+  buildMessages?: (input: PromptSemanticRetryBuildInput<I, R>) => BaseMessage[];
+}
+
 export interface PromptAsset<I, O, R = O> {
   id: string;
   version: string;
@@ -67,6 +101,8 @@ export interface PromptAsset<I, O, R = O> {
   mode: PromptMode;
   language: PromptLanguage;
   contextPolicy: ContextPolicy;
+  repairPolicy?: PromptRepairPolicy;
+  semanticRetryPolicy?: PromptSemanticRetryPolicy<I, R>;
   outputSchema?: ZodType<R>;
   render: (input: I, context: PromptRenderContext) => BaseMessage[];
   postValidate?: (output: R, input: I, context: PromptRenderContext) => O;

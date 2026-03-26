@@ -1,9 +1,5 @@
 import { z } from "zod";
-import { stringOrArraySchema } from "../../llm/schemaHelpers";
-
-// 角色生成分两阶段：
-// 1) skeleton：用于拼装最终角色的“半结构化骨架”
-// 2) final：用于入库的最终字符串字段
+import { stringOrArraySchema } from "../../../llm/schemaHelpers";
 
 export const characterSkeletonOutputSchema = z
   .object({
@@ -56,4 +52,3 @@ export const characterFinalPayloadSchema = z
     category: z.string().trim().optional(),
   })
   .passthrough();
-

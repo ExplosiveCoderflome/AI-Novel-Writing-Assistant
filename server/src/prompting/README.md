@@ -30,6 +30,11 @@
 - `outputSchema` 或 text 模式的 `postValidate`
 - `render()`
 
+可选但推荐同时评估：
+
+- `repairPolicy`：控制结构化 JSON/schema repair 次数
+- `semanticRetryPolicy`：控制 `postValidate` 失败后的统一语义重试次数
+
 ## Naming
 
 - 使用 `family.capability` 风格的 `id`
@@ -43,7 +48,14 @@
 
 - 结构化输出使用 `runStructuredPrompt`
 - 纯文本输出使用 `runTextPrompt`
+- 流式文本输出使用 `streamTextPrompt`
+- 流式结构化输出使用 `streamStructuredPrompt`
 - 调用方继续保留原 service 的 public method、数据库写入和返回 shape
+
+说明：
+
+- `repairPolicy` 负责 JSON 解析 / schema 校验失败后的 repair
+- `semanticRetryPolicy` 负责 JSON 已合法但 `postValidate` 未通过时的再生成
 
 ## Migration Default
 

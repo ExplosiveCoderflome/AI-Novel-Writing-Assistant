@@ -1,58 +1,13 @@
-import { z } from "zod";
 import { prisma } from "../../db/prisma";
 import { AgentToolError, type AgentToolName } from "../types";
 import type { AgentToolDefinition } from "./toolTypes";
-
-const listBookAnalysesInput = z.object({
-  documentId: z.string().trim().optional(),
-  status: z.enum(["draft", "queued", "running", "succeeded", "failed", "cancelled", "archived"]).optional(),
-  limit: z.number().int().min(1).max(50).optional(),
-});
-
-const bookAnalysisSummarySchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  documentId: z.string(),
-  documentTitle: z.string(),
-  status: z.string(),
-  progress: z.number(),
-  currentStage: z.string().nullable(),
-  lastError: z.string().nullable(),
-  updatedAt: z.string(),
-});
-
-const listBookAnalysesOutput = z.object({
-  items: z.array(bookAnalysisSummarySchema),
-  summary: z.string(),
-});
-
-const getBookAnalysisDetailInput = z.object({
-  analysisId: z.string().trim().min(1),
-});
-
-const getBookAnalysisDetailOutput = z.object({
-  id: z.string(),
-  title: z.string(),
-  documentId: z.string(),
-  documentTitle: z.string(),
-  status: z.string(),
-  summary: z.string().nullable(),
-  progress: z.number(),
-  currentStage: z.string().nullable(),
-  currentItemLabel: z.string().nullable(),
-  lastError: z.string().nullable(),
-  sectionCount: z.number().int(),
-  updatedAt: z.string(),
-});
-
-const getBookAnalysisFailureReasonOutput = z.object({
-  analysisId: z.string(),
-  status: z.string(),
-  failureSummary: z.string(),
-  failureDetails: z.string().nullable(),
-  recoveryHint: z.string(),
-  summary: z.string(),
-});
+import {
+  bookAnalysisIdInputSchema,
+  getBookAnalysisDetailOutputSchema,
+  getBookAnalysisFailureReasonOutputSchema,
+  listBookAnalysesInputSchema,
+  listBookAnalysesOutputSchema,
+} from "./bookAnalysisToolSchemas";
 
 export const bookAnalysisToolDefinitions: Partial<
   Record<AgentToolName, AgentToolDefinition<Record<string, unknown>, Record<string, unknown>>>
@@ -65,10 +20,10 @@ export const bookAnalysisToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "BookAnalysisAgent",
     resourceScopes: ["book_analysis", "knowledge_document", "task"],
-    inputSchema: listBookAnalysesInput,
-    outputSchema: listBookAnalysesOutput,
+    inputSchema: listBookAnalysesInputSchema,
+    outputSchema: listBookAnalysesOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = listBookAnalysesInput.parse(rawInput);
+      const input = listBookAnalysesInputSchema.parse(rawInput);
       const rows = await prisma.bookAnalysis.findMany({
         where: {
           ...(input.documentId ? { documentId: input.documentId } : {}),
@@ -85,7 +40,7 @@ export const bookAnalysisToolDefinitions: Partial<
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         take: input.limit ?? 20,
       });
-      return listBookAnalysesOutput.parse({
+      return listBookAnalysesOutputSchema.parse({
         items: rows.map((row) => ({
           id: row.id,
           title: row.title,
@@ -109,10 +64,10 @@ export const bookAnalysisToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "BookAnalysisAgent",
     resourceScopes: ["book_analysis", "knowledge_document"],
-    inputSchema: getBookAnalysisDetailInput,
-    outputSchema: getBookAnalysisDetailOutput,
+    inputSchema: bookAnalysisIdInputSchema,
+    outputSchema: getBookAnalysisDetailOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = getBookAnalysisDetailInput.parse(rawInput);
+      const input = bookAnalysisIdInputSchema.parse(rawInput);
       const row = await prisma.bookAnalysis.findUnique({
         where: { id: input.analysisId },
         include: {
@@ -130,7 +85,7 @@ export const bookAnalysisToolDefinitions: Partial<
       if (!row) {
         throw new AgentToolError("NOT_FOUND", "Book analysis not found.");
       }
-      return getBookAnalysisDetailOutput.parse({
+      return getBookAnalysisDetailOutputSchema.parse({
         id: row.id,
         title: row.title,
         documentId: row.documentId,
@@ -154,10 +109,10 @@ export const bookAnalysisToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "BookAnalysisAgent",
     resourceScopes: ["book_analysis", "task"],
-    inputSchema: getBookAnalysisDetailInput,
-    outputSchema: getBookAnalysisFailureReasonOutput,
+    inputSchema: bookAnalysisIdInputSchema,
+    outputSchema: getBookAnalysisFailureReasonOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = getBookAnalysisDetailInput.parse(rawInput);
+      const input = bookAnalysisIdInputSchema.parse(rawInput);
       const row = await prisma.bookAnalysis.findUnique({
         where: { id: input.analysisId },
       });
@@ -180,7 +135,7 @@ export const bookAnalysisToolDefinitions: Partial<
           : row.status === "queued"
             ? "建议检查队列压力和模型可用性，确认任务是否被调度。"
             : "当前无需恢复操作。";
-      return getBookAnalysisFailureReasonOutput.parse({
+      return getBookAnalysisFailureReasonOutputSchema.parse({
         analysisId: row.id,
         status: row.status,
         failureSummary,

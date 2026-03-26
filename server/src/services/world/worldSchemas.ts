@@ -1,22 +1,97 @@
 import { z } from "zod";
 
-// 由于 WorldService 内部对输出有较多“宽松归一化/补全”，这里的 Schema 主要用于：
-// 1) 保证顶层是 JSON object/array，避免把字符串当对象 parse 成功的静默错误
-// 2) 为关键层（profile/rules/factions/forces/locations/relations）提供结构提示，提升 repair 成功率
+const looseObjectSchema = z.record(z.string(), z.unknown());
+const looseStringArraySchema = z.array(z.string().trim().min(1)).default([]);
 
-export const worldStructuredDataSchema = z
-  .object({
-    profile: z.record(z.string(), z.unknown()).optional(),
-    rules: z.record(z.string(), z.unknown()).optional(),
-    factions: z.array(z.record(z.string(), z.unknown())).optional(),
-    forces: z.array(z.record(z.string(), z.unknown())).optional(),
-    locations: z.array(z.record(z.string(), z.unknown())).optional(),
-    relations: z.record(z.string(), z.unknown()).optional(),
-  })
-  .passthrough();
+const worldProfileSchema = z.object({
+  summary: z.string().trim().optional(),
+  identity: z.string().trim().optional(),
+  tone: z.string().trim().optional(),
+  themes: looseStringArraySchema.optional(),
+  coreConflict: z.string().trim().optional(),
+}).passthrough();
+
+const worldRuleSchema = z.object({
+  id: z.string().trim().min(1).optional(),
+  name: z.string().trim().min(1).optional(),
+  summary: z.string().trim().optional(),
+  cost: z.string().trim().optional(),
+  boundary: z.string().trim().optional(),
+  enforcement: z.string().trim().optional(),
+}).passthrough();
+
+const worldRulesSchema = z.object({
+  summary: z.string().trim().optional(),
+  axioms: z.array(worldRuleSchema).default([]),
+  taboo: looseStringArraySchema.optional(),
+  sharedConsequences: looseStringArraySchema.optional(),
+}).passthrough();
+
+const worldFactionSchema = z.object({
+  id: z.string().trim().min(1).optional(),
+  name: z.string().trim().min(1).optional(),
+  position: z.string().trim().optional(),
+  doctrine: z.string().trim().optional(),
+  goals: looseStringArraySchema.optional(),
+  methods: looseStringArraySchema.optional(),
+  representativeForceIds: looseStringArraySchema.optional(),
+}).passthrough();
+
+const worldForceSchema = z.object({
+  id: z.string().trim().min(1).optional(),
+  name: z.string().trim().min(1).optional(),
+  type: z.string().trim().optional(),
+  factionId: z.string().trim().optional(),
+  summary: z.string().trim().optional(),
+  baseOfPower: z.string().trim().optional(),
+  currentObjective: z.string().trim().optional(),
+  pressure: z.string().trim().optional(),
+  leader: z.string().trim().optional(),
+  narrativeRole: z.string().trim().optional(),
+}).passthrough();
+
+const worldLocationSchema = z.object({
+  id: z.string().trim().min(1).optional(),
+  name: z.string().trim().min(1).optional(),
+  terrain: z.string().trim().optional(),
+  summary: z.string().trim().optional(),
+  narrativeFunction: z.string().trim().optional(),
+  risk: z.string().trim().optional(),
+  entryConstraint: z.string().trim().optional(),
+  exitCost: z.string().trim().optional(),
+  controllingForceIds: looseStringArraySchema.optional(),
+}).passthrough();
+
+const worldForceRelationSchema = z.object({
+  id: z.string().trim().min(1).optional(),
+  sourceForceId: z.string().trim().optional(),
+  targetForceId: z.string().trim().optional(),
+  relation: z.string().trim().optional(),
+  tension: z.string().trim().optional(),
+  detail: z.string().trim().optional(),
+}).passthrough();
+
+const worldLocationControlSchema = z.object({
+  id: z.string().trim().min(1).optional(),
+  forceId: z.string().trim().optional(),
+  locationId: z.string().trim().optional(),
+  relation: z.string().trim().optional(),
+  detail: z.string().trim().optional(),
+}).passthrough();
+
+export const worldStructuredDataSchema = z.object({
+  profile: worldProfileSchema,
+  rules: worldRulesSchema,
+  factions: z.array(worldFactionSchema),
+  forces: z.array(worldForceSchema),
+  locations: z.array(worldLocationSchema),
+  relations: z.object({
+    forceRelations: z.array(worldForceRelationSchema).default([]),
+    locationControls: z.array(worldLocationControlSchema).default([]),
+  }).passthrough(),
+}).passthrough();
 
 export const worldStructureSectionOutputSchema = z.union([
-  z.record(z.string(), z.unknown()),
-  z.array(z.record(z.string(), z.unknown())),
+  looseObjectSchema,
+  z.array(looseObjectSchema),
 ]);
-

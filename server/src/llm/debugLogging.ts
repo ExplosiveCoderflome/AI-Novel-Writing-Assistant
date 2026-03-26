@@ -189,8 +189,17 @@ function buildHeader(method: "invoke" | "stream" | "batch", meta: LLMDebugMeta):
     chunks.push(`promptVersion=${meta.promptMeta.promptVersion}`);
     chunks.push(`estimatedInputTokens=${meta.promptMeta.estimatedInputTokens}`);
     chunks.push(`repairUsed=${meta.promptMeta.repairUsed}`);
+    chunks.push(`repairAttempts=${meta.promptMeta.repairAttempts}`);
+    chunks.push(`semanticRetryUsed=${meta.promptMeta.semanticRetryUsed}`);
+    chunks.push(`semanticRetryAttempts=${meta.promptMeta.semanticRetryAttempts}`);
     if (meta.promptMeta.contextBlockIds.length > 0) {
       chunks.push(`contextBlockIds=${meta.promptMeta.contextBlockIds.join(",")}`);
+    }
+    if (meta.promptMeta.droppedContextBlockIds.length > 0) {
+      chunks.push(`droppedContextBlockIds=${meta.promptMeta.droppedContextBlockIds.join(",")}`);
+    }
+    if (meta.promptMeta.summarizedContextBlockIds.length > 0) {
+      chunks.push(`summarizedContextBlockIds=${meta.promptMeta.summarizedContextBlockIds.join(",")}`);
     }
   }
   return chunks.join(" ");

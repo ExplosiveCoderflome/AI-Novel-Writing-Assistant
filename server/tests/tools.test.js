@@ -1,5 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const { listAgentToolDefinitions } = require("../dist/agents/toolRegistry.js");
 
 test("tool registry exposes chapter range and cross-domain tools", () => {
@@ -29,4 +31,29 @@ test("tool registry exposes chapter range and cross-domain tools", () => {
   assert.ok(tools.includes("list_tasks"));
   assert.ok(tools.includes("get_run_failure_reason"));
   assert.ok(tools.includes("explain_generation_blocker"));
+});
+
+test("agent tool definitions keep zod declarations in dedicated schema modules", () => {
+  const toolsDir = path.join(__dirname, "..", "src", "agents", "tools");
+  const violations = [];
+
+  for (const entry of fs.readdirSync(toolsDir, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith("Tools.ts")) {
+      continue;
+    }
+    const filePath = path.join(toolsDir, entry.name);
+    const lines = fs.readFileSync(filePath, "utf8").split(/\r?\n/g);
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index];
+      if (
+        line.includes('from "zod"')
+        || line.includes("from 'zod'")
+        || line.includes("z.")
+      ) {
+        violations.push(`${entry.name}:${index + 1}`);
+      }
+    }
+  }
+
+  assert.deepEqual(violations, []);
 });

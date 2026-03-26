@@ -18,6 +18,9 @@ export const plannerIntentPrompt: PromptAsset<PlannerInput, StructuredIntent, Re
   contextPolicy: {
     maxTokensBudget: 0,
   },
+  semanticRetryPolicy: {
+    maxAttempts: 1,
+  },
   outputSchema: z
     .record(z.string(), z.unknown())
     .refine((value) => !Array.isArray(value), { message: "Expected JSON object." }),

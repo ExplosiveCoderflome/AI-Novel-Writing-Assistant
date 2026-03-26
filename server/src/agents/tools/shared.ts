@@ -1,10 +1,8 @@
-import { z } from "zod";
 import { prisma } from "../../db/prisma";
 import { NovelService } from "../../services/novel/NovelService";
 import { AgentToolError } from "../types";
 
 export const novelService = new NovelService();
-export const dryRunField = z.boolean().optional();
 
 export async function getChapter(novelId: string, chapterId: string) {
   const chapter = await prisma.chapter.findFirst({

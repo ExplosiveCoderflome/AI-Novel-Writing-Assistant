@@ -1,7 +1,12 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
-import { styleDetectionPayloadSchema } from "../../../services/styleEngine/styleDetectionSchema";
+import {
+  styleDetectionPayloadSchema,
+  styleGeneratedProfileSchema,
+  styleProfileExtractionSchema,
+  styleRecommendationSchema,
+} from "./style.promptSchemas";
 
 export interface StyleDetectionPromptInput {
   styleRulesBlock: string;
@@ -9,16 +14,6 @@ export interface StyleDetectionPromptInput {
   antiRulesText: string;
   content: string;
 }
-
-export const styleRecommendationSchema = z.object({
-  summary: z.string().trim().min(1),
-  candidates: z.array(z.object({
-    styleProfileId: z.string().trim().min(1),
-    fitScore: z.number().int().min(0).max(100),
-    recommendationReason: z.string().trim().min(1),
-    caution: z.string().trim().optional().nullable(),
-  })).min(1).max(3),
-});
 
 export interface StyleRecommendationPromptInput {
   targetCount: number;
@@ -57,59 +52,6 @@ export interface StyleProfileFromBookAnalysisPromptInput {
   name: string;
   sourceText: string;
 }
-
-const styleRuleObjectSchema = z.object({}).passthrough();
-
-const styleFeatureSchema = z.object({
-  id: z.string().trim().min(1),
-  group: z.enum(["narrative", "language", "dialogue", "rhythm", "fingerprint"]),
-  label: z.string().trim().min(1),
-  description: z.string().trim().min(1),
-  evidence: z.string().trim().min(1),
-  importance: z.number(),
-  imitationValue: z.number(),
-  transferability: z.number(),
-  fingerprintRisk: z.number(),
-  keepRulePatch: styleRuleObjectSchema,
-  weakenRulePatch: styleRuleObjectSchema.optional(),
-}).passthrough();
-
-const stylePresetSchema = z.object({
-  key: z.enum(["imitate", "balanced", "transfer"]),
-  label: z.string().trim().min(1),
-  summary: z.string().trim().min(1),
-  decisions: z.array(z.object({
-    featureId: z.string().trim().min(1),
-    decision: z.enum(["keep", "weaken", "remove"]),
-  })),
-}).passthrough();
-
-export const styleProfileExtractionSchema = z.object({
-  name: z.string().trim().optional(),
-  description: z.string().trim().optional().nullable(),
-  category: z.string().trim().optional().nullable(),
-  tags: z.array(z.string().trim()).optional(),
-  applicableGenres: z.array(z.string().trim()).optional(),
-  analysisMarkdown: z.string().trim().optional().nullable(),
-  summary: z.string().trim().optional(),
-  antiAiRuleKeys: z.array(z.string().trim()).optional(),
-  features: z.array(styleFeatureSchema).optional(),
-  presets: z.array(stylePresetSchema).optional(),
-}).passthrough();
-
-export const styleGeneratedProfileSchema = z.object({
-  name: z.string().trim().optional(),
-  description: z.string().trim().optional().nullable(),
-  category: z.string().trim().optional().nullable(),
-  tags: z.array(z.string().trim()).optional(),
-  applicableGenres: z.array(z.string().trim()).optional(),
-  analysisMarkdown: z.string().trim().optional().nullable(),
-  antiAiRuleKeys: z.array(z.string().trim()).optional(),
-  narrativeRules: styleRuleObjectSchema.optional(),
-  characterRules: styleRuleObjectSchema.optional(),
-  languageRules: styleRuleObjectSchema.optional(),
-  rhythmRules: styleRuleObjectSchema.optional(),
-}).passthrough();
 
 export const styleDetectionPrompt: PromptAsset<
   StyleDetectionPromptInput,
@@ -157,6 +99,9 @@ export const styleRecommendationPrompt: PromptAsset<
   contextPolicy: {
     maxTokensBudget: 0,
   },
+  semanticRetryPolicy: {
+    maxAttempts: 1,
+  },
   outputSchema: styleRecommendationSchema,
   render: (input) => [
     new SystemMessage([
@@ -180,8 +125,15 @@ export const styleRecommendationPrompt: PromptAsset<
   ],
   postValidate: (output, input) => {
     const allowedIds = new Set(input.allowedProfileIds);
-    if (!(output.candidates ?? []).some((candidate) => allowedIds.has(candidate.styleProfileId))) {
-      throw new Error("写法推荐结果中没有有效候选。");
+    const candidates = output.candidates ?? [];
+    if (candidates.length === 0) {
+      throw new Error("写法推荐结果中没有候选。");
+    }
+    const invalidCandidateIds = candidates
+      .map((candidate) => candidate.styleProfileId)
+      .filter((id) => !allowedIds.has(id));
+    if (invalidCandidateIds.length > 0) {
+      throw new Error(`写法推荐结果包含非法候选：${invalidCandidateIds.join(", ")}`);
     }
     return output;
   },

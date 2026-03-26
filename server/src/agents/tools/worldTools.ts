@@ -1,89 +1,18 @@
-import { z } from "zod";
 import { prisma } from "../../db/prisma";
 import { AgentToolError, type AgentToolName } from "../types";
 import type { AgentToolDefinition } from "./toolTypes";
-
-const listWorldsInput = z.object({
-  limit: z.number().int().min(1).max(50).optional(),
-});
-
-const worldSummarySchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  worldType: z.string().nullable(),
-  status: z.string(),
-  version: z.number().int(),
-  overviewSummary: z.string().nullable(),
-  updatedAt: z.string(),
-});
-
-const listWorldsOutput = z.object({
-  items: z.array(worldSummarySchema),
-  summary: z.string(),
-});
-
-const worldIdInput = z.object({
-  worldId: z.string().trim().min(1),
-});
-
-const bindWorldToNovelInput = z.object({
-  novelId: z.string().trim().min(1),
-  worldId: z.string().trim().min(1).optional(),
-  worldName: z.string().trim().min(1).optional(),
-}).refine((input) => Boolean(input.worldId || input.worldName), {
-  message: "worldId or worldName is required.",
-});
-
-const unbindWorldFromNovelInput = z.object({
-  novelId: z.string().trim().min(1),
-});
-
-const getWorldDetailOutput = z.object({
-  id: z.string(),
-  name: z.string(),
-  worldType: z.string().nullable(),
-  status: z.string(),
-  version: z.number().int(),
-  overviewSummary: z.string().nullable(),
-  consistencyReport: z.string().nullable(),
-  novelCount: z.number().int(),
-  openIssueCount: z.number().int(),
-  summary: z.string(),
-});
-
-const bindWorldToNovelOutput = z.object({
-  novelId: z.string(),
-  novelTitle: z.string(),
-  worldId: z.string(),
-  worldName: z.string(),
-  summary: z.string(),
-});
-
-const unbindWorldFromNovelOutput = z.object({
-  novelId: z.string(),
-  novelTitle: z.string(),
-  previousWorldId: z.string().nullable(),
-  previousWorldName: z.string().nullable(),
-  worldId: z.string().nullable(),
-  worldName: z.string().nullable(),
-  summary: z.string(),
-});
-
-const explainWorldConflictInput = z.object({
-  worldId: z.string().trim().min(1),
-  issueId: z.string().trim().optional(),
-});
-
-const explainWorldConflictOutput = z.object({
-  worldId: z.string(),
-  issueId: z.string().nullable(),
-  issueCount: z.number().int(),
-  severity: z.string().nullable(),
-  failureSummary: z.string(),
-  failureDetails: z.string().nullable(),
-  recoveryHint: z.string(),
-  summary: z.string(),
-});
+import {
+  bindWorldToNovelInputSchema,
+  bindWorldToNovelOutputSchema,
+  explainWorldConflictInputSchema,
+  explainWorldConflictOutputSchema,
+  getWorldDetailOutputSchema,
+  listWorldsInputSchema,
+  listWorldsOutputSchema,
+  unbindWorldFromNovelInputSchema,
+  unbindWorldFromNovelOutputSchema,
+  worldIdInputSchema,
+} from "./worldToolSchemas";
 
 export const worldToolDefinitions: Partial<
   Record<AgentToolName, AgentToolDefinition<Record<string, unknown>, Record<string, unknown>>>
@@ -104,15 +33,15 @@ export const worldToolDefinitions: Partial<
       whenToUse: "用户想查看全局世界观资源。",
       whenNotToUse: "用户是在为当前小说绑定或检查某个具体世界观。",
     },
-    inputSchema: listWorldsInput,
-    outputSchema: listWorldsOutput,
+    inputSchema: listWorldsInputSchema,
+    outputSchema: listWorldsOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = listWorldsInput.parse(rawInput);
+      const input = listWorldsInputSchema.parse(rawInput);
       const rows = await prisma.world.findMany({
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         take: input.limit ?? 20,
       });
-      return listWorldsOutput.parse({
+      return listWorldsOutputSchema.parse({
         items: rows.map((row) => ({
           id: row.id,
           name: row.name,
@@ -142,10 +71,10 @@ export const worldToolDefinitions: Partial<
       whenToUse: "用户要把某个世界观绑定到当前小说。",
       whenNotToUse: "用户只是想查看世界观列表或详情。",
     },
-    inputSchema: bindWorldToNovelInput,
-    outputSchema: bindWorldToNovelOutput,
+    inputSchema: bindWorldToNovelInputSchema,
+    outputSchema: bindWorldToNovelOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = bindWorldToNovelInput.parse(rawInput);
+      const input = bindWorldToNovelInputSchema.parse(rawInput);
       const novel = await prisma.novel.findUnique({
         where: { id: input.novelId },
         select: {
@@ -192,7 +121,7 @@ export const worldToolDefinitions: Partial<
         },
       });
 
-      return bindWorldToNovelOutput.parse({
+      return bindWorldToNovelOutputSchema.parse({
         novelId: novel.id,
         novelTitle: novel.title,
         worldId: world.id,
@@ -217,10 +146,10 @@ export const worldToolDefinitions: Partial<
       whenToUse: "用户要取消当前小说已绑定的世界观，或明确表示先不用某个世界观。",
       whenNotToUse: "用户是在为当前小说指定一个新的世界观，或只是想查看世界观详情。",
     },
-    inputSchema: unbindWorldFromNovelInput,
-    outputSchema: unbindWorldFromNovelOutput,
+    inputSchema: unbindWorldFromNovelInputSchema,
+    outputSchema: unbindWorldFromNovelOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = unbindWorldFromNovelInput.parse(rawInput);
+      const input = unbindWorldFromNovelInputSchema.parse(rawInput);
       const novel = await prisma.novel.findUnique({
         where: { id: input.novelId },
         select: {
@@ -248,7 +177,7 @@ export const worldToolDefinitions: Partial<
         });
       }
 
-      return unbindWorldFromNovelOutput.parse({
+      return unbindWorldFromNovelOutputSchema.parse({
         novelId: novel.id,
         novelTitle: novel.title,
         previousWorldId: previousWorld?.id ?? null,
@@ -269,10 +198,10 @@ export const worldToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "WorldAgent",
     resourceScopes: ["world", "novel"],
-    inputSchema: worldIdInput,
-    outputSchema: getWorldDetailOutput,
+    inputSchema: worldIdInputSchema,
+    outputSchema: getWorldDetailOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = worldIdInput.parse(rawInput);
+      const input = worldIdInputSchema.parse(rawInput);
       const row = await prisma.world.findUnique({
         where: { id: input.worldId },
         include: {
@@ -288,7 +217,7 @@ export const worldToolDefinitions: Partial<
       if (!row) {
         throw new AgentToolError("NOT_FOUND", "World not found.");
       }
-      return getWorldDetailOutput.parse({
+      return getWorldDetailOutputSchema.parse({
         id: row.id,
         name: row.name,
         worldType: row.worldType ?? null,
@@ -310,10 +239,10 @@ export const worldToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "WorldAgent",
     resourceScopes: ["world"],
-    inputSchema: explainWorldConflictInput,
-    outputSchema: explainWorldConflictOutput,
+    inputSchema: explainWorldConflictInputSchema,
+    outputSchema: explainWorldConflictOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = explainWorldConflictInput.parse(rawInput);
+      const input = explainWorldConflictInputSchema.parse(rawInput);
       const world = await prisma.world.findUnique({
         where: { id: input.worldId },
         include: {
@@ -330,7 +259,7 @@ export const worldToolDefinitions: Partial<
       const failureSummary = issue
         ? `${issue.message}${issue.targetField ? `（字段: ${issue.targetField}）` : ""}`
         : "当前世界观没有未解决的一致性冲突。";
-      return explainWorldConflictOutput.parse({
+      return explainWorldConflictOutputSchema.parse({
         worldId: world.id,
         issueId: issue?.id ?? null,
         issueCount: world.consistencyIssues.length,

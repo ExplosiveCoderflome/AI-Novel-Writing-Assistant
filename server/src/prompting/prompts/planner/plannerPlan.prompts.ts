@@ -39,6 +39,9 @@ function buildPlannerPlanAsset(input: {
         "volume_summary",
       ],
     },
+    semanticRetryPolicy: input.planLevel === "chapter"
+      ? { maxAttempts: 1 }
+      : undefined,
     outputSchema: plannerOutputSchema,
     render: (promptInput, context) => {
       const contextText = context.blocks.map((block) => block.content).join("\n\n");

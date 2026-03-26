@@ -1,103 +1,20 @@
-import { z } from "zod";
 import { prisma } from "../../db/prisma";
 import { taskCenterService } from "../../services/task/TaskCenterService";
 import { buildTaskRecoveryHint, normalizeFailureSummary } from "../../services/task/taskSupport";
 import { AgentToolError, type AgentToolName } from "../types";
 import type { AgentToolDefinition } from "./toolTypes";
-
-const taskKindSchema = z.enum(["book_analysis", "novel_pipeline", "image_generation", "agent_run"]);
-const taskStatusSchema = z.enum(["queued", "running", "waiting_approval", "succeeded", "failed", "cancelled"]);
-
-const listTasksInput = z.object({
-  kind: taskKindSchema.optional(),
-  status: taskStatusSchema.optional(),
-  keyword: z.string().trim().optional(),
-  limit: z.number().int().min(1).max(50).optional(),
-});
-
-const taskSummarySchema = z.object({
-  id: z.string(),
-  kind: taskKindSchema,
-  title: z.string(),
-  status: taskStatusSchema,
-  progress: z.number(),
-  currentStage: z.string().nullable(),
-  ownerLabel: z.string(),
-  failureSummary: z.string().nullable(),
-  recoveryHint: z.string().nullable(),
-});
-
-const listTasksOutput = z.object({
-  items: z.array(taskSummarySchema),
-  summary: z.string(),
-});
-
-const taskIdentityInput = z.object({
-  kind: taskKindSchema,
-  id: z.string().trim().min(1),
-});
-
-const getTaskDetailOutput = z.object({
-  id: z.string(),
-  kind: taskKindSchema,
-  title: z.string(),
-  status: taskStatusSchema,
-  currentStage: z.string().nullable(),
-  ownerLabel: z.string(),
-  sourceRoute: z.string(),
-  failureSummary: z.string().nullable(),
-  failureDetails: z.string().nullable(),
-  recoveryHint: z.string().nullable(),
-  summary: z.string(),
-});
-
-const getTaskFailureReasonOutput = z.object({
-  kind: taskKindSchema,
-  id: z.string(),
-  status: taskStatusSchema,
-  failureSummary: z.string(),
-  failureDetails: z.string().nullable(),
-  recoveryHint: z.string(),
-  summary: z.string(),
-});
-
-const getRunFailureReasonInput = z.object({
-  runId: z.string().trim().min(1),
-});
-
-const getRunFailureReasonOutput = z.object({
-  runId: z.string(),
-  status: taskStatusSchema,
-  failureSummary: z.string(),
-  failureDetails: z.string().nullable(),
-  recoveryHint: z.string(),
-  lastFailedStep: z.string().nullable(),
-  summary: z.string(),
-});
-
-const taskMutationOutput = z.object({
-  kind: taskKindSchema,
-  id: z.string(),
-  status: taskStatusSchema,
-  summary: z.string(),
-});
-
-const explainGenerationBlockerInput = z.object({
-  novelId: z.string().trim().min(1),
-  chapterOrder: z.number().int().min(1).optional(),
-  runId: z.string().trim().optional(),
-});
-
-const explainGenerationBlockerOutput = z.object({
-  novelId: z.string(),
-  chapterOrder: z.number().int().nullable(),
-  blockerType: z.enum(["pipeline_failed", "pipeline_running", "pipeline_waiting", "agent_run", "none"]),
-  status: z.string().nullable(),
-  failureSummary: z.string(),
-  failureDetails: z.string().nullable(),
-  recoveryHint: z.string(),
-  summary: z.string(),
-});
+import {
+  explainGenerationBlockerInputSchema,
+  explainGenerationBlockerOutputSchema,
+  getRunFailureReasonInputSchema,
+  getRunFailureReasonOutputSchema,
+  getTaskDetailOutputSchema,
+  getTaskFailureReasonOutputSchema,
+  listTasksInputSchema,
+  listTasksOutputSchema,
+  taskIdentityInputSchema,
+  taskMutationOutputSchema,
+} from "./taskToolSchemas";
 
 export const taskToolDefinitions: Partial<
   Record<AgentToolName, AgentToolDefinition<Record<string, unknown>, Record<string, unknown>>>
@@ -118,12 +35,12 @@ export const taskToolDefinitions: Partial<
       whenToUse: "用户在查询任务中心、系统任务状态或任务列表。",
       whenNotToUse: "用户是在追问某本小说的生产进度，这更接近 query_novel_production_status。",
     },
-    inputSchema: listTasksInput,
-    outputSchema: listTasksOutput,
+    inputSchema: listTasksInputSchema,
+    outputSchema: listTasksOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = listTasksInput.parse(rawInput);
+      const input = listTasksInputSchema.parse(rawInput);
       const data = await taskCenterService.listTasks(input);
-      return listTasksOutput.parse({
+      return listTasksOutputSchema.parse({
         items: data.items.map((item) => ({
           id: item.id,
           kind: item.kind,
@@ -147,16 +64,16 @@ export const taskToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "Coordinator",
     resourceScopes: ["task", "agent_run", "generation_job"],
-    inputSchema: taskIdentityInput,
-    outputSchema: getTaskDetailOutput,
+    inputSchema: taskIdentityInputSchema,
+    outputSchema: getTaskDetailOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = taskIdentityInput.parse(rawInput);
+      const input = taskIdentityInputSchema.parse(rawInput);
       const detail = await taskCenterService.getTaskDetail(input.kind, input.id);
       if (!detail) {
         throw new AgentToolError("NOT_FOUND", "Task not found.");
       }
       const failureSummary = detail.failureSummary ?? detail.lastError ?? null;
-      return getTaskDetailOutput.parse({
+      return getTaskDetailOutputSchema.parse({
         id: detail.id,
         kind: detail.kind,
         title: detail.title,
@@ -179,10 +96,10 @@ export const taskToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "Coordinator",
     resourceScopes: ["task", "agent_run", "generation_job"],
-    inputSchema: taskIdentityInput,
-    outputSchema: getTaskFailureReasonOutput,
+    inputSchema: taskIdentityInputSchema,
+    outputSchema: getTaskFailureReasonOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = taskIdentityInput.parse(rawInput);
+      const input = taskIdentityInputSchema.parse(rawInput);
       const detail = await taskCenterService.getTaskDetail(input.kind, input.id);
       if (!detail) {
         throw new AgentToolError("NOT_FOUND", "Task not found.");
@@ -194,7 +111,7 @@ export const taskToolDefinitions: Partial<
           ? "任务失败，但没有记录明确错误。"
           : `任务当前状态为 ${detail.status}。`,
       );
-      return getTaskFailureReasonOutput.parse({
+      return getTaskFailureReasonOutputSchema.parse({
         kind: detail.kind,
         id: detail.id,
         status: detail.status,
@@ -213,10 +130,10 @@ export const taskToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "Coordinator",
     resourceScopes: ["agent_run", "task"],
-    inputSchema: getRunFailureReasonInput,
-    outputSchema: getRunFailureReasonOutput,
+    inputSchema: getRunFailureReasonInputSchema,
+    outputSchema: getRunFailureReasonOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = getRunFailureReasonInput.parse(rawInput);
+      const input = getRunFailureReasonInputSchema.parse(rawInput);
       const run = await prisma.agentRun.findUnique({
         where: { id: input.runId },
       });
@@ -238,7 +155,7 @@ export const taskToolDefinitions: Partial<
             ? "运行正在等待审批。"
             : `运行当前状态为 ${run.status}。`,
       );
-      return getRunFailureReasonOutput.parse({
+      return getRunFailureReasonOutputSchema.parse({
         runId: run.id,
         status: run.status,
         failureSummary,
@@ -257,12 +174,12 @@ export const taskToolDefinitions: Partial<
     riskLevel: "medium",
     domainAgent: "Coordinator",
     resourceScopes: ["task", "agent_run", "generation_job"],
-    inputSchema: taskIdentityInput,
-    outputSchema: taskMutationOutput,
+    inputSchema: taskIdentityInputSchema,
+    outputSchema: taskMutationOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = taskIdentityInput.parse(rawInput);
+      const input = taskIdentityInputSchema.parse(rawInput);
       const detail = await taskCenterService.retryTask(input.kind, input.id);
-      return taskMutationOutput.parse({
+      return taskMutationOutputSchema.parse({
         kind: detail.kind,
         id: detail.id,
         status: detail.status,
@@ -278,12 +195,12 @@ export const taskToolDefinitions: Partial<
     riskLevel: "medium",
     domainAgent: "Coordinator",
     resourceScopes: ["task", "agent_run", "generation_job"],
-    inputSchema: taskIdentityInput,
-    outputSchema: taskMutationOutput,
+    inputSchema: taskIdentityInputSchema,
+    outputSchema: taskMutationOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = taskIdentityInput.parse(rawInput);
+      const input = taskIdentityInputSchema.parse(rawInput);
       const detail = await taskCenterService.cancelTask(input.kind, input.id);
-      return taskMutationOutput.parse({
+      return taskMutationOutputSchema.parse({
         kind: detail.kind,
         id: detail.id,
         status: detail.status,
@@ -299,16 +216,16 @@ export const taskToolDefinitions: Partial<
     riskLevel: "low",
     domainAgent: "NovelAgent",
     resourceScopes: ["novel", "chapter", "generation_job", "task"],
-    inputSchema: explainGenerationBlockerInput,
-    outputSchema: explainGenerationBlockerOutput,
+    inputSchema: explainGenerationBlockerInputSchema,
+    outputSchema: explainGenerationBlockerOutputSchema,
     execute: async (_context, rawInput) => {
-      const input = explainGenerationBlockerInput.parse(rawInput);
+      const input = explainGenerationBlockerInputSchema.parse(rawInput);
       if (input.runId?.trim()) {
         const run = await prisma.agentRun.findUnique({
           where: { id: input.runId },
         });
         if (run && run.novelId === input.novelId && run.error?.trim()) {
-          return explainGenerationBlockerOutput.parse({
+          return explainGenerationBlockerOutputSchema.parse({
             novelId: input.novelId,
             chapterOrder: input.chapterOrder ?? null,
             blockerType: "agent_run",
@@ -335,7 +252,7 @@ export const taskToolDefinitions: Partial<
       });
 
       if (!job) {
-        return explainGenerationBlockerOutput.parse({
+        return explainGenerationBlockerOutputSchema.parse({
           novelId: input.novelId,
           chapterOrder: input.chapterOrder ?? null,
           blockerType: "none",
@@ -363,7 +280,7 @@ export const taskToolDefinitions: Partial<
             : job.status === "cancelled"
               ? "章节生成任务已取消。"
               : "最近一次章节生成任务已结束。";
-      return explainGenerationBlockerOutput.parse({
+      return explainGenerationBlockerOutputSchema.parse({
         novelId: input.novelId,
         chapterOrder: input.chapterOrder ?? null,
         blockerType,

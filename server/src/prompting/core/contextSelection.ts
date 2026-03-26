@@ -4,6 +4,7 @@ import type { ContextPolicy, PromptContextBlock } from "./promptTypes";
 export interface ContextSelectionResult {
   selectedBlocks: PromptContextBlock[];
   droppedBlockIds: string[];
+  summarizedBlockIds: string[];
   estimatedTokens: number;
 }
 
@@ -100,6 +101,7 @@ export function selectContextBlocks(blocks: PromptContextBlock[], policy: Contex
 
   const selectedBlocks: PromptContextBlock[] = [];
   const droppedBlockIds = [...deduped.droppedIds];
+  const summarizedBlockIds: string[] = [];
   let usedTokens = 0;
 
   const addBlock = (block: PromptContextBlock) => {
@@ -116,6 +118,9 @@ export function selectContextBlocks(blocks: PromptContextBlock[], policy: Contex
     const remaining = Math.max(0, policy.maxTokensBudget - usedTokens);
     const summarized = summarizeContextBlock(block, remaining);
     if (summarized && usedTokens + summarized.estimatedTokens <= policy.maxTokensBudget) {
+      if (summarized !== block && !summarizedBlockIds.includes(block.id)) {
+        summarizedBlockIds.push(block.id);
+      }
       addBlock(summarized);
       continue;
     }
@@ -132,6 +137,9 @@ export function selectContextBlocks(blocks: PromptContextBlock[], policy: Contex
     const remaining = Math.max(0, policy.maxTokensBudget - usedTokens);
     const summarized = summarizeContextBlock(block, remaining);
     if (summarized && usedTokens + summarized.estimatedTokens <= policy.maxTokensBudget) {
+      if (summarized !== block && !summarizedBlockIds.includes(block.id)) {
+        summarizedBlockIds.push(block.id);
+      }
       addBlock(summarized);
       continue;
     }
@@ -142,6 +150,7 @@ export function selectContextBlocks(blocks: PromptContextBlock[], policy: Contex
   return {
     selectedBlocks,
     droppedBlockIds,
+    summarizedBlockIds,
     estimatedTokens: usedTokens,
   };
 }

@@ -44,6 +44,9 @@ export const novelFramingSuggestionPrompt: PromptAsset<
   contextPolicy: {
     maxTokensBudget: 0,
   },
+  semanticRetryPolicy: {
+    maxAttempts: 1,
+  },
   outputSchema: novelFramingSuggestionSchema,
   render: (input) => [
     new SystemMessage([

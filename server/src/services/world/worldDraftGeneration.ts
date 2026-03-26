@@ -1,11 +1,15 @@
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { BaseMessageChunk } from "@langchain/core/messages";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { featureFlags } from "../../config/featureFlags";
 import { prisma } from "../../db/prisma";
 import { createWorldBuildingGraph } from "../../graphs/worldBuildingGraph";
 import { getLLM } from "../../llm/factory";
+import { streamStructuredPrompt, streamTextPrompt } from "../../prompting/core/promptRunner";
+import {
+  worldDraftGenerationPrompt,
+  worldDraftRefineAlternativesPrompt,
+  worldDraftRefinePrompt,
+} from "../../prompting/prompts/world/worldDraft.prompts";
 import {
   applyStructuredWorldToLegacyFields,
   buildWorldBindingSupport,
@@ -13,117 +17,17 @@ import {
   WORLD_STRUCTURE_SCHEMA_VERSION,
 } from "./worldStructure";
 import { normalizeGeneratedWorldPayload } from "./worldPersistence";
-import { WORLD_LAYER_ORDER } from "./worldTemplates";
+import {
+  type RefineMode,
+  type RefineWorldInput,
+  type WorldGenerateInput,
+  normalizeLayerStates,
+} from "./worldServiceShared";
 import type { RagOwnerType } from "../rag/types";
-
-type WorldTextField =
-  | "description"
-  | "background"
-  | "geography"
-  | "cultures"
-  | "magicSystem"
-  | "politics"
-  | "races"
-  | "religions"
-  | "technology"
-  | "conflicts"
-  | "history"
-  | "economy"
-  | "factions";
-
-type RefineMode = "replace" | "alternatives";
-type LayerStatus = "pending" | "generated" | "confirmed" | "stale";
-
-type LayerStateMap = Record<
-  (typeof WORLD_LAYER_ORDER)[number],
-  {
-    key: (typeof WORLD_LAYER_ORDER)[number];
-    status: LayerStatus;
-    updatedAt: string;
-  }
->;
-
-export interface WorldGenerateInput {
-  name: string;
-  description: string;
-  worldType: string;
-  complexity: "simple" | "standard" | "detailed";
-  dimensions: {
-    geography: boolean;
-    culture: boolean;
-    magicSystem: boolean;
-    technology: boolean;
-    history: boolean;
-  };
-  provider?: LLMProvider;
-  model?: string;
-}
-
-export interface RefineWorldInput {
-  attribute: WorldTextField;
-  currentValue: string;
-  refinementLevel: "light" | "deep";
-  mode?: RefineMode;
-  alternativesCount?: number;
-  provider?: LLMProvider;
-  model?: string;
-}
 
 interface WorldDraftCallbacks {
   createSnapshot: (worldId: string, label?: string) => Promise<unknown>;
   queueRagUpsert: (ownerType: RagOwnerType, ownerId: string) => void;
-}
-
-function cleanJsonText(source: string): string {
-  return source.replace(/```json|```/gi, "").trim();
-}
-
-function extractJSONObject(source: string): string {
-  const text = cleanJsonText(source);
-  const first = text.indexOf("{");
-  const last = text.lastIndexOf("}");
-  if (first === -1 || last === -1 || first >= last) {
-    throw new Error("Invalid JSON object.");
-  }
-  return text.slice(first, last + 1);
-}
-
-function safeParseJSON<T>(raw: string | null | undefined, fallback: T): T {
-  if (!raw) {
-    return fallback;
-  }
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-function nowISO(): string {
-  return new Date().toISOString();
-}
-
-function normalizeLayerStates(raw: string | null | undefined): LayerStateMap {
-  const fallback = WORLD_LAYER_ORDER.reduce((acc, key) => {
-    acc[key] = { key, status: "pending", updatedAt: nowISO() };
-    return acc;
-  }, {} as LayerStateMap);
-  const parsed = safeParseJSON<Partial<LayerStateMap>>(raw, {});
-
-  for (const key of WORLD_LAYER_ORDER) {
-    const existing = parsed[key];
-    fallback[key] = {
-      key,
-      status: existing?.status === "generated"
-        || existing?.status === "confirmed"
-        || existing?.status === "stale"
-        || existing?.status === "pending"
-        ? existing.status
-        : "pending",
-      updatedAt: existing?.updatedAt ?? fallback[key].updatedAt,
-    };
-  }
-  return fallback;
 }
 
 function createStaticChunkStream(content: string): AsyncIterable<BaseMessageChunk> {
@@ -136,14 +40,10 @@ function createStaticChunkStream(content: string): AsyncIterable<BaseMessageChun
 
 async function persistGeneratedWorld(
   input: WorldGenerateInput,
-  fullContent: string,
+  generatedPayload: Record<string, unknown>,
   callbacks: WorldDraftCallbacks,
 ) {
-  const parsed = safeParseJSON<Record<string, unknown>>(
-    extractJSONObject(fullContent),
-    {},
-  );
-  const normalized = normalizeGeneratedWorldPayload(parsed, input.description);
+  const normalized = normalizeGeneratedWorldPayload(generatedPayload, input.description);
   const seededStructure = buildWorldStructureSeedFromSource({
     id: "",
     name: input.name,
@@ -214,12 +114,11 @@ export async function createWorldDraftGenerateStream(
   input: WorldGenerateInput,
   callbacks: WorldDraftCallbacks,
 ) {
-  const llm = await getLLM(input.provider ?? "deepseek", {
-    model: input.model,
-    temperature: 0.7,
-  });
-
   if (featureFlags.worldGraphEnabled) {
+    const llm = await getLLM(input.provider ?? "deepseek", {
+      model: input.model,
+      temperature: 0.7,
+    });
     const graph = createWorldBuildingGraph(llm as BaseChatModel);
     const graphState = await graph.invoke({
       seed: input.description,
@@ -245,54 +144,39 @@ export async function createWorldDraftGenerateStream(
       conflicts: graphState.conflicts ?? "",
       economy: "",
       factions: "",
+      overviewSummary: graphState.description ?? input.description,
     };
     const payloadText = JSON.stringify(graphOutput, null, 2);
 
     return {
       stream: createStaticChunkStream(payloadText),
-      onDone: async (fullContent: string) => {
-        await persistGeneratedWorld(input, fullContent, callbacks);
+      onDone: async (_fullContent: string) => {
+        await persistGeneratedWorld(input, graphOutput, callbacks);
       },
     };
   }
 
-  const requirements: string[] = [];
-  if (input.dimensions.geography) {
-    requirements.push("geography：地形、气候、地标（至少 5 项）");
-  }
-  if (input.dimensions.culture) {
-    requirements.push("cultures/politics/races/religions：社会结构、政治秩序、种族关系、宗教观念");
-  }
-  if (input.dimensions.magicSystem) {
-    requirements.push("magicSystem：力量来源、等级体系、限制条件、代价机制");
-  }
-  if (input.dimensions.technology) {
-    requirements.push("technology：技术水平、标志性技术、社会影响");
-  }
-  if (input.dimensions.history) {
-    requirements.push("history：起源、重大事件、当前时代");
-  }
-
-  const stream = await llm.stream([
-    new SystemMessage(
-      `你是小说世界观设定助手。请生成世界观 JSON，只允许包含以下字段：
-description, background, geography, cultures, magicSystem, politics, races,
-religions, technology, history, conflicts, economy, factions。
-所有字段值必须使用简体中文。仅输出 JSON 对象，不要输出解释文字。`,
-    ),
-    new HumanMessage(
-      `世界名=${input.name}
-世界类型=${input.worldType}
-需求描述=${input.description}
-复杂度=${input.complexity}
-细化要求=${requirements.join("；")}`,
-    ),
-  ]);
+  const streamed = await streamStructuredPrompt({
+    asset: worldDraftGenerationPrompt,
+    promptInput: {
+      name: input.name,
+      description: input.description,
+      worldType: input.worldType,
+      complexity: input.complexity,
+      dimensions: input.dimensions,
+    },
+    options: {
+      provider: input.provider ?? "deepseek",
+      model: input.model,
+      temperature: 0.7,
+    },
+  });
 
   return {
-    stream: stream as AsyncIterable<BaseMessageChunk>,
-    onDone: async (fullContent: string) => {
-      await persistGeneratedWorld(input, fullContent, callbacks);
+    stream: streamed.stream as AsyncIterable<BaseMessageChunk>,
+    onDone: async (_fullContent: string) => {
+      const completed = await streamed.complete;
+      await persistGeneratedWorld(input, completed.output as Record<string, unknown>, callbacks);
     },
   };
 }
@@ -307,43 +191,55 @@ export async function createWorldDraftRefineStream(
     throw new Error("World not found.");
   }
 
-  const mode = input.mode ?? "replace";
-  const llm = await getLLM(input.provider ?? "deepseek", {
+  const mode: RefineMode = input.mode ?? "replace";
+  const count = Math.min(Math.max(input.alternativesCount ?? 3, 2), 3);
+  const options = {
+    provider: input.provider ?? "deepseek",
     model: input.model,
     temperature: input.refinementLevel === "deep" ? 0.8 : 0.5,
-  });
-  const count = Math.min(Math.max(input.alternativesCount ?? 3, 2), 3);
+  };
 
-  const stream = await llm.stream([
-    new SystemMessage(
-      mode === "alternatives"
-        ? "Generate alternatives as JSON array [{title,content}]. Output JSON only."
-        : "Refine the text while keeping setting consistency. Output plain text only.",
-    ),
-    new HumanMessage(
-      mode === "alternatives"
-        ? `world=${world.name}
-field=${input.attribute}
-depth=${input.refinementLevel}
-count=${count}
-current=${input.currentValue}`
-        : `world=${world.name}
-field=${input.attribute}
-depth=${input.refinementLevel}
-current=${input.currentValue}`,
-    ),
-  ]);
+  if (mode === "alternatives") {
+    const streamed = await streamStructuredPrompt({
+      asset: worldDraftRefineAlternativesPrompt,
+      promptInput: {
+        worldName: world.name,
+        attribute: input.attribute,
+        refinementLevel: input.refinementLevel,
+        currentValue: input.currentValue,
+        count,
+      },
+      options,
+    });
+
+    return {
+      stream: streamed.stream as AsyncIterable<BaseMessageChunk>,
+      onDone: async (_fullContent: string) => {
+        await streamed.complete;
+      },
+    };
+  }
+
+  const streamed = await streamTextPrompt({
+    asset: worldDraftRefinePrompt,
+    promptInput: {
+      worldName: world.name,
+      attribute: input.attribute,
+      refinementLevel: input.refinementLevel,
+      currentValue: input.currentValue,
+    },
+    options,
+  });
 
   return {
-    stream: stream as AsyncIterable<BaseMessageChunk>,
+    stream: streamed.stream as AsyncIterable<BaseMessageChunk>,
     onDone: async (fullContent: string) => {
-      if (mode === "alternatives") {
-        return;
-      }
+      const completed = await streamed.complete;
+      const refinedContent = completed.output.trim() || fullContent;
       await prisma.world.update({
         where: { id: worldId },
         data: {
-          [input.attribute]: fullContent,
+          [input.attribute]: refinedContent,
           version: { increment: 1 },
         },
       });
