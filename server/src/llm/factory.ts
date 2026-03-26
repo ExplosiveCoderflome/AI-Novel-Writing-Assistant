@@ -4,6 +4,7 @@ import { prisma } from "../db/prisma";
 import { attachLLMDebugLogging } from "./debugLogging";
 import { resolveModel, type TaskType } from "./modelRouter";
 import { PROVIDERS } from "./providers";
+import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
 
 interface LLMOptions {
   model?: string;
@@ -14,6 +15,7 @@ interface LLMOptions {
   fallbackProvider?: LLMProvider;
   /** 任务类型，用于模型路由；若提供则优先使用路由配置的 provider/model/temperature */
   taskType?: TaskType;
+  promptMeta?: PromptInvocationMeta;
 }
 
 interface ProviderSecret {
@@ -195,5 +197,6 @@ export async function getLLM(provider?: LLMProvider, options: LLMOptions = {}): 
     maxTokens: resolvedMaxTokens,
     taskType: options.taskType,
     baseURL,
+    promptMeta: options.promptMeta,
   });
 }

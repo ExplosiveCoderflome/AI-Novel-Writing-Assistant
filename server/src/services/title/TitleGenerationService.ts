@@ -2,8 +2,8 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { prisma } from "../../db/prisma";
 import { supportsForcedJsonOutput } from "../../llm/capabilities";
-import { invokeStructuredLlm } from "../../llm/structuredInvoke";
-import { buildTitleGenerationMessages } from "./titlePromptBuilder";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import { titleGenerationPrompt } from "../../prompting/prompts/helper/titleGeneration.prompt";
 import {
   collectUniqueSuggestions,
   DEFAULT_TITLE_COUNT,
@@ -12,7 +12,6 @@ import {
   toTrimmedString,
   type TitlePromptContext,
 } from "./titleGeneration.shared";
-import { titleGenerationRawOutputSchema } from "./titleSchemas";
 
 export interface TitleGenerationLLMOptions {
   provider?: LLMProvider;
@@ -155,34 +154,25 @@ export class TitleGenerationService {
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
-        const messages = buildTitleGenerationMessages(
-          {
-            ...promptContext,
-            count,
-          },
-          {
+        const payload = await runStructuredPrompt({
+          asset: titleGenerationPrompt,
+          promptInput: {
+            context: {
+              ...promptContext,
+              count,
+            },
             forceJson,
             retryReason,
           },
-        );
-
-        const systemPrompt = toMessagePrompt(messages[0]);
-        const userPrompt = toMessagePrompt(messages[1]);
-
-        const payload = await invokeStructuredLlm({
-          label: `title:${attempt}:${promptContext.mode}`,
-          provider,
-          model: llmOptions.model,
-          temperature: llmOptions.temperature ?? 0.85,
-          maxTokens: llmOptions.maxTokens,
-          taskType: "planner",
-          systemPrompt,
-          userPrompt,
-          schema: titleGenerationRawOutputSchema,
-          maxRepairAttempts: 1,
+          options: {
+            provider,
+            model: llmOptions.model,
+            temperature: llmOptions.temperature ?? 0.85,
+            maxTokens: llmOptions.maxTokens,
+          },
         });
 
-        const rawTitles = extractRawTitlesFromPayload(payload);
+        const rawTitles = extractRawTitlesFromPayload(payload.output);
         const titles = collectUniqueSuggestions(rawTitles, count, blockedTitles);
 
         if (titles.length > bestEffortTitles.length) {
@@ -212,24 +202,6 @@ export class TitleGenerationService {
     }
     throw new Error("标题生成失败。");
   }
-}
-
-function toMessagePrompt(message: { content?: unknown }): string {
-  const content = message.content;
-  if (typeof content === "string") return content;
-  if (Array.isArray(content)) {
-    return content
-      .map((item) =>
-        typeof item === "string"
-          ? item
-          : typeof item === "object" && item && "text" in item
-            ? (item as { text?: unknown }).text
-            : "",
-      )
-      .filter((s): s is string => typeof s === "string")
-      .join("");
-  }
-  return JSON.stringify(content ?? "");
 }
 
 export const titleGenerationService = new TitleGenerationService();

@@ -1,9 +1,8 @@
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { CompiledStylePromptBlocks } from "@ai-novel/shared/types/styleEngine";
-import { getLLM } from "../../llm/factory";
+import { runTextPrompt } from "../../prompting/core/promptRunner";
+import { styleGenerationPrompt } from "../../prompting/prompts/style/style.prompts";
 import { StyleRuntimeResolver } from "./StyleRuntimeResolver";
-import { toLlmText } from "./helpers";
 
 interface TestWriteInput {
   styleProfileId: string;
@@ -28,11 +27,6 @@ export class StyleGenerationService {
       throw new Error("该写法没有可执行规则。");
     }
 
-    const llm = await getLLM(input.provider ?? "deepseek", {
-      model: input.model,
-      temperature: input.temperature ?? 0.7,
-    });
-
     const targetLength = input.targetLength ?? 1200;
     const prompt = input.mode === "rewrite"
       ? `任务：请在不改变事件事实与顺序的前提下改写原文，使其符合当前写法。
@@ -44,20 +38,26 @@ ${input.sourceText ?? ""}`
 主题：
 ${input.topic ?? ""}`;
 
-    const result = await llm.invoke([
-      new SystemMessage([
-        "你是小说写作助手。请严格遵守以下写法约束。",
-        resolved.context.compiledBlocks.style,
-        resolved.context.compiledBlocks.character,
-        resolved.context.compiledBlocks.antiAi,
-        `输出要求：${input.mode === "rewrite" ? "直接输出改写后的正文，不解释修改原因。" : `直接输出正文，长度约 ${targetLength} 字。`}`,
-        resolved.context.compiledBlocks.selfCheck,
-      ].filter(Boolean).join("\n\n")),
-      new HumanMessage(prompt),
-    ]);
+    const result = await runTextPrompt({
+      asset: styleGenerationPrompt,
+      promptInput: {
+        styleBlock: resolved.context.compiledBlocks.style,
+        characterBlock: resolved.context.compiledBlocks.character,
+        antiAiBlock: resolved.context.compiledBlocks.antiAi,
+        selfCheckBlock: resolved.context.compiledBlocks.selfCheck,
+        mode: input.mode,
+        prompt,
+        targetLength,
+      },
+      options: {
+        provider: input.provider ?? "deepseek",
+        model: input.model,
+        temperature: input.temperature ?? 0.7,
+      },
+    });
 
     return {
-      output: toLlmText(result.content).trim(),
+      output: result.output.trim(),
       compiledBlocks: resolved.context.compiledBlocks,
     };
   }

@@ -13,7 +13,11 @@ import type {
 } from "@ai-novel/shared/types/novelDirector";
 import { DIRECTOR_CORRECTION_PRESETS } from "@ai-novel/shared/types/novelDirector";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
-import { invokeStructuredLlm } from "../../../llm/structuredInvoke";
+import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
+import {
+  directorBlueprintPrompt,
+  directorCandidatePrompt,
+} from "../../../prompting/prompts/novel/directorPlanning.prompts";
 import { NovelContextService } from "../NovelContextService";
 import { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import {
@@ -138,26 +142,23 @@ export class NovelDirectorService {
   }
 
   private async generateBatch(context: CandidateGenerationContext) {
-    const prompt = buildDirectorCandidatePrompt({
-      idea: context.idea,
-      context: context.request,
-      count: context.count,
-      batches: context.batches,
-      presets: context.presets,
-      feedback: context.feedback,
-    });
     const requestedTemperature = context.options.temperature ?? 0.4;
     const temperature = Math.min(requestedTemperature, 0.45);
-    const parsed = await invokeStructuredLlm({
-      label: "director candidates",
-      provider: context.options.provider,
-      model: context.options.model,
-      temperature,
-      taskType: "planner",
-      systemPrompt: prompt.system,
-      userPrompt: prompt.user,
-      schema: directorCandidateResponseSchema,
-      maxRepairAttempts: 1,
+    const parsed = await runStructuredPrompt({
+      asset: directorCandidatePrompt,
+      promptInput: {
+        idea: context.idea,
+        context: context.request,
+        count: context.count,
+        batches: context.batches,
+        presets: context.presets,
+        feedback: context.feedback,
+      },
+      options: {
+        provider: context.options.provider,
+        model: context.options.model,
+        temperature,
+      },
     });
 
     const round = (context.batches.at(-1)?.round ?? 0) + 1;
@@ -168,7 +169,7 @@ export class NovelDirectorService {
       idea: context.idea.trim(),
       refinementSummary: this.buildRefinementSummary(context.presets, context.feedback, round),
       presets: context.presets,
-      candidates: parsed.candidates.map((candidate, index) => this.normalizeCandidate(candidate, index)),
+      candidates: parsed.output.candidates.map((candidate, index) => this.normalizeCandidate(candidate, index)),
       createdAt: new Date().toISOString(),
     };
     return { batch };
@@ -274,27 +275,24 @@ export class NovelDirectorService {
     storyMacroPlan: StoryMacroPlan,
     storyInput: string,
   ): Promise<DirectorPlanBlueprint> {
-    const prompt = buildDirectorBlueprintPrompt({
-      idea: storyInput,
-      context: input,
-      candidate: input.candidate,
-      storyMacroPlan,
-      targetChapterCount: input.estimatedChapterCount ?? bookSpec.targetChapterCount,
-    });
     const requestedTemperature = input.temperature ?? 0.4;
     const temperature = Math.min(requestedTemperature, 0.4);
-    const parsed = await invokeStructuredLlm({
-      label: "director blueprint",
-      provider: input.provider,
-      model: input.model,
-      temperature,
-      taskType: "planner",
-      systemPrompt: prompt.system,
-      userPrompt: prompt.user,
-      schema: directorPlanBlueprintSchema,
-      maxRepairAttempts: 1,
+    const parsed = await runStructuredPrompt({
+      asset: directorBlueprintPrompt,
+      promptInput: {
+        idea: storyInput,
+        context: input,
+        candidate: input.candidate,
+        storyMacroPlan,
+        targetChapterCount: input.estimatedChapterCount ?? bookSpec.targetChapterCount,
+      },
+      options: {
+        provider: input.provider,
+        model: input.model,
+        temperature,
+      },
     });
-    return this.normalizeBlueprint(parsed);
+    return this.normalizeBlueprint(parsed.output);
   }
 
   private normalizeBlueprint(parsed: DirectorPlanBlueprintParsed): DirectorPlanBlueprint {

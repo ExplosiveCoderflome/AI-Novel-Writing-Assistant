@@ -7,7 +7,8 @@ import type {
   StoryWorldSliceView,
 } from "@ai-novel/shared/types/storyWorldSlice";
 import { prisma } from "../../../db/prisma";
-import { invokeStructuredLlm } from "../../../llm/structuredInvoke";
+import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
+import { storyWorldSlicePrompt } from "../../../prompting/prompts/storyWorldSlice/storyWorldSlice.prompts";
 import {
   buildWorldBindingSupport,
   buildWorldStructureFromLegacySource,
@@ -20,8 +21,6 @@ import {
   parseStoryWorldSliceOverrides,
   STORY_WORLD_SLICE_SCHEMA_VERSION,
 } from "./storyWorldSlicePersistence";
-import { buildStoryWorldSlicePrompt } from "./storyWorldSlicePrompt";
-import { storyWorldSliceRawPayloadSchema } from "./worldSliceSchemas";
 
 interface EnsureStoryWorldSliceOptions {
   storyInput?: string;
@@ -121,25 +120,23 @@ export class NovelWorldSliceService {
       ? parsedPayload.bindingSupport
       : buildWorldBindingSupport(structure);
     const storyInputDigest = buildStoryInputDigest(input.storyInput);
-    const prompt = buildStoryWorldSlicePrompt({
-      novel: input.novel,
-      structure,
-      bindingSupport,
-      storyInput: input.storyInput,
-      overrides: input.overrides,
-      builderMode: input.builderMode,
+    const result = await runStructuredPrompt({
+      asset: storyWorldSlicePrompt,
+      promptInput: {
+        novel: input.novel,
+        structure,
+        bindingSupport,
+        storyInput: input.storyInput,
+        overrides: input.overrides,
+        builderMode: input.builderMode,
+      },
+      options: {
+        provider: input.provider,
+        model: input.model,
+        temperature: input.temperature ?? 0.25,
+      },
     });
-    const parsed = await invokeStructuredLlm({
-      label: `story-world-slice:${input.novel.id}`,
-      provider: input.provider,
-      model: input.model,
-      temperature: input.temperature ?? 0.25,
-      taskType: "planner",
-      systemPrompt: prompt.system,
-      userPrompt: prompt.user,
-      schema: storyWorldSliceRawPayloadSchema,
-      maxRepairAttempts: 1,
-    });
+    const parsed = result.output;
 
     return normalizeStoryWorldSlice({
       raw: parsed,

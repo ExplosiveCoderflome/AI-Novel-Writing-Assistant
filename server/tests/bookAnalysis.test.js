@@ -45,25 +45,28 @@ test("BookAnalysisSourceCacheService persists notes and reuses cache hits", asyn
 
   const cacheRows = [];
   const callCounts = {
-    invokeStructuredLlm: 0,
+    invokeStructuredLlmDetailed: 0,
     upsert: 0,
   };
 
   // Stub structured LLM invocation used by BookAnalysisSourceCacheService.
   const structuredInvoke = require("../dist/llm/structuredInvoke.js");
-  const originalInvokeStructuredLlm = structuredInvoke.invokeStructuredLlm;
-  structuredInvoke.invokeStructuredLlm = async () => {
-    callCounts.invokeStructuredLlm += 1;
+  const originalInvokeStructuredLlmDetailed = structuredInvoke.invokeStructuredLlmDetailed;
+  structuredInvoke.invokeStructuredLlmDetailed = async () => {
+    callCounts.invokeStructuredLlmDetailed += 1;
     return {
-      summary: `摘要 ${callCounts.invokeStructuredLlm}`,
-      plotPoints: ["情节点"],
-      timelineEvents: ["时间点"],
-      characters: ["角色"],
-      worldbuilding: ["设定"],
-      themes: ["主题"],
-      styleTechniques: ["文风"],
-      marketHighlights: ["卖点"],
-      evidence: [{ label: "证据", excerpt: "片段摘录" }],
+      data: {
+        summary: `摘要 ${callCounts.invokeStructuredLlmDetailed}`,
+        plotPoints: ["情节点"],
+        timelineEvents: ["时间点"],
+        characters: ["角色"],
+        worldbuilding: ["设定"],
+        themes: ["主题"],
+        styleTechniques: ["文风"],
+        marketHighlights: ["卖点"],
+        evidence: [{ label: "证据", excerpt: "片段摘录" }],
+      },
+      repairUsed: false,
     };
   };
 
@@ -109,13 +112,13 @@ test("BookAnalysisSourceCacheService persists notes and reuses cache hits", asyn
     const first = await service.getOrBuildSourceNotes(baseInput);
     assert.equal(first.cacheHit, false);
     assert.equal(first.notes.length, 1);
-    assert.equal(callCounts.invokeStructuredLlm, 1);
+    assert.equal(callCounts.invokeStructuredLlmDetailed, 1);
     assert.equal(callCounts.upsert, 1);
 
     const second = await service.getOrBuildSourceNotes(baseInput);
     assert.equal(second.cacheHit, true);
     assert.equal(second.notes.length, 1);
-    assert.equal(callCounts.invokeStructuredLlm, 1);
+    assert.equal(callCounts.invokeStructuredLlmDetailed, 1);
     assert.equal(callCounts.upsert, 1);
     assert.equal(second.notes[0].summary, first.notes[0].summary);
 
@@ -124,7 +127,7 @@ test("BookAnalysisSourceCacheService persists notes and reuses cache hits", asyn
       model: "deepseek-reasoner",
     });
     assert.equal(changedModel.cacheHit, false);
-    assert.equal(callCounts.invokeStructuredLlm, 2);
+    assert.equal(callCounts.invokeStructuredLlmDetailed, 2);
     assert.equal(cacheRows.length, 2);
 
     const changedVersion = await service.getOrBuildSourceNotes({
@@ -132,12 +135,12 @@ test("BookAnalysisSourceCacheService persists notes and reuses cache hits", asyn
       documentVersionId: "version-2",
     });
     assert.equal(changedVersion.cacheHit, false);
-    assert.equal(callCounts.invokeStructuredLlm, 3);
+    assert.equal(callCounts.invokeStructuredLlmDetailed, 3);
     assert.equal(cacheRows.length, 3);
   } finally {
     prisma.bookAnalysisSourceCache.findUnique = original.findUnique;
     prisma.bookAnalysisSourceCache.upsert = original.upsert;
-    structuredInvoke.invokeStructuredLlm = originalInvokeStructuredLlm;
+    structuredInvoke.invokeStructuredLlmDetailed = originalInvokeStructuredLlmDetailed;
   }
 });
 

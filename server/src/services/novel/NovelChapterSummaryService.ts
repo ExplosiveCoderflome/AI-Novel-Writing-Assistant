@@ -2,8 +2,8 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
 import { ragServices } from "../rag";
 import type { RagOwnerType } from "../rag/types";
-import { invokeStructuredLlm } from "../../llm/structuredInvoke";
-import { chapterSummaryOutputSchema } from "./chapterSummarySchemas";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import { chapterSummaryPrompt } from "../../prompting/prompts/novel/review.prompts";
 
 interface LLMGenerateOptions {
   provider?: LLMProvider;
@@ -66,21 +66,21 @@ export class NovelChapterSummaryService {
 
     if (content) {
       try {
-        const parsed = await invokeStructuredLlm({
-          label: `chapter-summary:${chapterId}`,
-          provider: options.provider,
-          model: options.model,
-          temperature: options.temperature ?? 0.3,
-          taskType: "summary",
-          systemPrompt:
-            "你是网络小说编辑。请基于章节正文生成中文摘要，只输出 JSON：{\"summary\":\"...\"}。要求：80-180字，聚焦关键事件、冲突推进、人物状态变化，不要杜撰信息。",
-          userPrompt: `小说：${chapter.novel.title}
-章节：第${chapter.order}章《${chapter.title}》
-正文：
-${content.slice(0, 7000)}`,
-          schema: chapterSummaryOutputSchema,
-          maxRepairAttempts: 1,
+        const result = await runStructuredPrompt({
+          asset: chapterSummaryPrompt,
+          promptInput: {
+            novelTitle: chapter.novel.title,
+            chapterOrder: chapter.order,
+            chapterTitle: chapter.title,
+            content: content.slice(0, 7000),
+          },
+          options: {
+            provider: options.provider,
+            model: options.model,
+            temperature: options.temperature ?? 0.3,
+          },
         });
+        const parsed = result.output;
         summary = normalizeSummary(parsed.summary ?? "");
       } catch {
         summary = "";

@@ -1,11 +1,12 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import type { BaseMessage } from "@langchain/core/messages";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import { prisma } from "../../db/prisma";
-import { invokeStructuredLlm } from "../../llm/structuredInvoke";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import {
+  baseCharacterFinalPrompt,
+  baseCharacterSkeletonPrompt,
+} from "../../prompting/prompts/character/character.prompts";
 import { buildReferenceContext } from "./characterGenerateReference";
-import { characterFinalPayloadSchema, characterSkeletonOutputSchema } from "./characterSchemas";
 
 const STORY_FUNCTION_VALUES = ["主角", "反派", "导师", "对照组", "配角"] as const;
 const GROWTH_STAGE_VALUES = ["起点", "受挫", "转折", "觉醒", "收束"] as const;
@@ -63,16 +64,6 @@ interface FinalCharacterPayload {
 export interface GenerateBaseCharacterResult {
   data: CreatedBaseCharacter;
   outputAnomaly: boolean;
-}
-
-function extractJSONObject(source: string): string {
-  const normalized = source.replace(/```json|```/gi, "").trim();
-  const first = normalized.indexOf("{");
-  const last = normalized.lastIndexOf("}");
-  if (first === -1 || last === -1 || first >= last) {
-    throw new Error("模型输出异常：无法解析为合法 JSON。");
-  }
-  return normalized.slice(first, last + 1);
 }
 
 function toTrimmedText(value: unknown): string {
@@ -142,28 +133,52 @@ async function invokeJsonWithRetry(
   provider: LLMProvider,
   model: string | undefined,
   temperature: number,
-  messages: BaseMessage[],
+  promptInput:
+    | {
+        description: string;
+        category: string;
+        genre: string;
+        constraintsText: string;
+        referenceContext: string;
+      }
+    | {
+        skeleton: Record<string, unknown>;
+        constraintsText: string;
+        referenceContext: string;
+      },
   stageLabel: "skeleton" | "final",
 ): Promise<JsonInvokeResult> {
-  const systemPrompt = extractSystemPrompt(messages);
-  const userPrompt = extractUserPrompt(messages);
-
   try {
-    const schema = (stageLabel === "skeleton" ? characterSkeletonOutputSchema : characterFinalPayloadSchema) as unknown as z.ZodType<
-      Record<string, unknown>
-    >;
-    const parsed = await invokeStructuredLlm({
-      label: `character:${stageLabel}`,
-      provider,
-      model,
-      temperature,
-      taskType: "planner",
-      systemPrompt,
-      userPrompt,
-      schema,
-      maxRepairAttempts: 1,
-    });
-    return { parsed: parsed as Record<string, unknown>, retried: false, rawText: "" };
+    const result = stageLabel === "skeleton"
+      ? await runStructuredPrompt({
+        asset: baseCharacterSkeletonPrompt,
+        promptInput: promptInput as {
+          description: string;
+          category: string;
+          genre: string;
+          constraintsText: string;
+          referenceContext: string;
+        },
+        options: {
+          provider,
+          model,
+          temperature,
+        },
+      })
+      : await runStructuredPrompt({
+        asset: baseCharacterFinalPrompt,
+        promptInput: promptInput as {
+          skeleton: Record<string, unknown>;
+          constraintsText: string;
+          referenceContext: string;
+        },
+        options: {
+          provider,
+          model,
+          temperature,
+        },
+      });
+    return { parsed: result.output as Record<string, unknown>, retried: false, rawText: "" };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : `模型输出异常：${stageLabel}阶段无法解析。`;
     return { parsed: null, retried: false, rawText: "", errorMessage };
@@ -341,56 +356,13 @@ export async function generateBaseCharacterFromAI(input: CharacterGenerateInput)
   const temperature = 0.6;
 
   const constraintsText = buildConstraintsText(constraints);
-  const stageOneMessages: BaseMessage[] = [
-    new SystemMessage(`You are a senior Chinese fiction character planner.
-Task: generate a character skeleton JSON only.
-Priority: constraints > reference context > user description.
-If constraints conflict, put conflict points into conflictNotes.
-Output valid JSON only, no markdown, no explanation.
-Required JSON keys:
-{
-  "nameSuggestion": "...",
-  "role": "...",
-  "corePersona": "...",
-  "surfaceTemperament": "...",
-  "coreDrive": "...",
-  "socialMask": "...",
-  "behaviorPatterns": ["..."],
-  "triggerPoints": ["..."],
-  "lifeOrigin": "...",
-  "relationshipNetwork": ["..."],
-  "externalGoal": "...",
-  "internalNeed": "...",
-  "coreFear": "...",
-  "moralBottomLine": "...",
-  "secret": "...",
-  "coreFlaw": "...",
-  "growthArc": ["phase1","phase2","phase3"],
-  "keyEvents": ["event1","event2","event3"],
-  "dailyAnchors": ["..."],
-  "habitualActions": ["..."],
-  "speechStyle": "...",
-  "talents": ["..."],
-  "conflictKeywords": ["..."],
-  "themeKeywords": ["..."],
-  "bodyType": "...",
-  "facialFeatures": "...",
-  "styleSignature": "...",
-  "auraAndVoice": "...",
-  "appearance": "...",
-  "toneStyle": "...",
-  "conflictNotes": ["..."]
-}`),
-    new HumanMessage(`Character description: ${input.description}
-Character category: ${input.category}
-Genre: ${input.genre ?? "general"}
-Constraints:
-${constraintsText}
-${referenceContext ? `Reference context:
-${referenceContext}` : "Reference context: none"}`),
-  ];
-
-  const stageOne = await invokeJsonWithRetry(provider, model, temperature, stageOneMessages, "skeleton");
+  const stageOne = await invokeJsonWithRetry(provider, model, temperature, {
+    description: input.description,
+    category: input.category,
+    genre: input.genre ?? "general",
+    constraintsText,
+    referenceContext,
+  }, "skeleton");
   if (stageOne.retried || !stageOne.parsed) {
     console.warn("[base-characters.generate] stage_one_retry_or_fallback", {
       retried: stageOne.retried,
@@ -400,41 +372,11 @@ ${referenceContext}` : "Reference context: none"}`),
   }
 
   const skeleton = stageOne.parsed ?? buildFallbackSkeleton(input, constraints);
-  const stageTwoMessages: BaseMessage[] = [
-    new SystemMessage(`You are a senior Chinese fiction character editor.
-Convert the character skeleton into final storage JSON.
-Priority: constraints > reference context > user description.
-Field requirements:
-- personality: include core persona + surface temperament + core drive + behavior patterns + emotional triggers.
-- appearance: include body type + facial features + style signature + aura/voice.
-- background: include origin + relationship network + secret.
-- development: 3-stage growth arc.
-- weaknesses: flaw + cost.
-- interests: include daily anchors + habitual actions + speech style + talents.
-- keyEvents: exactly 3 pivotal events, joined in one string.
-- tags: comma-separated, include role + conflict/theme keywords + distinguishing traits.
-Output valid JSON only:
-{
-  "name": "...",
-  "role": "...",
-  "personality": "...",
-  "background": "...",
-  "development": "...",
-  "appearance": "...",
-  "weaknesses": "...",
-  "interests": "...",
-  "keyEvents": "...",
-  "tags": "tag1,tag2"
-}`),
-    new HumanMessage(`Character skeleton:
-${JSON.stringify(skeleton, null, 2)}
-Constraints:
-${constraintsText}
-${referenceContext ? `Reference context:
-${referenceContext}` : "Reference context: none"}`),
-  ];
-
-  const stageTwo = await invokeJsonWithRetry(provider, model, temperature, stageTwoMessages, "final");
+  const stageTwo = await invokeJsonWithRetry(provider, model, temperature, {
+    skeleton,
+    constraintsText,
+    referenceContext,
+  }, "final");
   if (stageTwo.retried || !stageTwo.parsed) {
     console.warn("[base-characters.generate] stage_two_retry_or_fallback", {
       retried: stageTwo.retried,
@@ -468,14 +410,4 @@ ${referenceContext}` : "Reference context: none"}`),
     data,
     outputAnomaly,
   };
-}
-
-function extractSystemPrompt(messages: BaseMessage[]): string {
-  const content = messages[0] ? (messages[0] as unknown as { content?: unknown }).content : "";
-  return typeof content === "string" ? content : JSON.stringify(content ?? "");
-}
-
-function extractUserPrompt(messages: BaseMessage[]): string {
-  const content = messages[1] ? (messages[1] as unknown as { content?: unknown }).content : "";
-  return typeof content === "string" ? content : JSON.stringify(content ?? "");
 }

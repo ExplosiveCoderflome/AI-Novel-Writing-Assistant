@@ -1,11 +1,11 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
-import { invokeStructuredLlm } from "../../llm/structuredInvoke";
 import { PROVIDERS } from "../../llm/providers";
 import { AppError } from "../../middleware/errorHandler";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import { bookAnalysisSourceNotePrompt } from "../../prompting/prompts/bookAnalysis/bookAnalysis.prompts";
 import { getBookAnalysisCacheSegmentVersion, getBookAnalysisNotesConcurrency } from "./bookAnalysis.config";
 import { runWithConcurrency } from "./bookAnalysis.concurrent";
-import { bookAnalysisRawOutputSchema } from "./bookAnalysisSchemas";
 import {
   formatCacheHitLabel,
   formatCacheLookupLabel,
@@ -179,33 +179,20 @@ export class BookAnalysisSourceCacheService {
     segment: { label: string; content: string };
   }): Promise<SourceNote> {
     try {
-      const parsed = await invokeStructuredLlm({
-        label: `book-analysis-source-note:${input.segment.label}`,
-        provider: input.provider,
-        model: input.model,
-        temperature: input.temperature,
-        maxTokens: input.maxTokens,
-        taskType: "planner",
-        systemPrompt: `You are a book-analysis assistant. Output compact JSON only:
-{
-  "summary": "short summary in Chinese",
-  "plotPoints": ["..."],
-  "timelineEvents": ["..."],
-  "characters": ["..."],
-  "worldbuilding": ["..."],
-  "themes": ["..."],
-  "styleTechniques": ["..."],
-  "marketHighlights": ["..."],
-  "evidence": [{"label": "...", "excerpt": "..."}]
-}
-Rules:
-- Use simplified Chinese for values.
-- Max 5 items per array.
-- Max 3 items in evidence.`,
-        userPrompt: `Segment title: ${input.segment.label}\n\nSegment content:\n${input.segment.content}`,
-        schema: bookAnalysisRawOutputSchema,
-        maxRepairAttempts: 1,
+      const result = await runStructuredPrompt({
+        asset: bookAnalysisSourceNotePrompt,
+        promptInput: {
+          segmentLabel: input.segment.label,
+          segmentContent: input.segment.content,
+        },
+        options: {
+          provider: input.provider,
+          model: input.model,
+          temperature: input.temperature,
+          maxTokens: input.maxTokens,
+        },
       });
+      const parsed = result.output;
 
       const record = parsed as any as Record<string, unknown>;
       return {

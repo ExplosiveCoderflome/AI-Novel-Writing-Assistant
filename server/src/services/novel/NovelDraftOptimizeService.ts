@@ -1,7 +1,10 @@
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
-import { getLLM } from "../../llm/factory";
+import { runTextPrompt } from "../../prompting/core/promptRunner";
+import {
+  novelDraftOptimizeFullPrompt,
+  novelDraftOptimizeSelectionPrompt,
+} from "../../prompting/prompts/novel/draftOptimize.prompts";
 
 interface DraftOptimizeInput {
   provider?: LLMProvider;
@@ -146,49 +149,30 @@ export class NovelDraftOptimizeService {
           .join("\n")
       : "暂无";
 
-    const llm = await getLLM(input.provider ?? "deepseek", {
-      model: input.model,
-      temperature: input.temperature ?? 0.4,
-    });
-
     if (input.mode === "selection") {
       const selectedText = input.selectedText?.trim();
       if (!selectedText) {
         throw new Error("选区优化模式下必须提供 selectedText。");
       }
       const selectionContext = buildSelectionContext(currentDraft, selectedText);
-      const rewrittenSelection = await llm.invoke([
-        new SystemMessage(
-          input.target === "structured_outline"
-            ? "你是严谨的 JSON 局部编辑器。任务是“只改写目标片段”。必须保持原有 JSON 语义、字段含义和层级结构。不要输出解释、不要代码块、不要新增片段外内容，只返回可直接替换原片段的文本。"
-            : "你是小说编辑，执行“局部改写”任务。只允许改写目标片段，不得扩写到其他段落。改写后必须与原片段主题、实体、事件关系保持一致；若是列表项，返回单条同类型列表项。不要输出解释或标题，只返回改写片段。",
-        ),
-        new HumanMessage(
-          `用户修正指令：
-${input.instruction}
-
-核心角色：
-${charactersText}
-
-世界上下文：
-${worldContext}
-
-片段前文（仅供理解，不可改写）：
-${selectionContext.before || "（无）"}
-
-片段后文（仅供理解，不可改写）：
-${selectionContext.after || "（无）"}
-
-待改写片段：
-${selectedText}
-
-输出要求：
-1. 只输出“待改写片段”的改写结果。
-2. 不要输出前文/后文，不要解释说明。
-3. 若与指令冲突，以“待改写片段的原始语义 + 用户修正指令”为最高优先级。`,
-        ),
-      ]);
-      const optimizedSelection = toText(rewrittenSelection.content).trim() || selectedText;
+      const rewrittenSelection = await runTextPrompt({
+        asset: novelDraftOptimizeSelectionPrompt,
+        promptInput: {
+          target: input.target,
+          instruction: input.instruction,
+          charactersText,
+          worldContext,
+          before: selectionContext.before,
+          after: selectionContext.after,
+          selectedText,
+        },
+        options: {
+          provider: input.provider ?? "deepseek",
+          model: input.model,
+          temperature: input.temperature ?? 0.4,
+        },
+      });
+      const optimizedSelection = rewrittenSelection.output.trim() || selectedText;
       return {
         optimizedDraft: optimizedSelection,
         mode: "selection",
@@ -196,28 +180,23 @@ ${selectedText}
       };
     }
 
-    const rewritten = await llm.invoke([
-      new SystemMessage(
-        input.target === "structured_outline"
-          ? "你是结构化小说大纲编辑器。基于用户指令优化 JSON 草稿。必须只返回 JSON 数组，不要附加解释文字。"
-          : "你是小说策划编辑。基于用户指令优化发展走向草稿，保持角色设定和世界规则一致。",
-      ),
-      new HumanMessage(
-        `用户修正指令：
-${input.instruction}
+    const rewritten = await runTextPrompt({
+      asset: novelDraftOptimizeFullPrompt,
+      promptInput: {
+        target: input.target,
+        instruction: input.instruction,
+        charactersText,
+        worldContext,
+        currentDraft,
+      },
+      options: {
+        provider: input.provider ?? "deepseek",
+        model: input.model,
+        temperature: input.temperature ?? 0.4,
+      },
+    });
 
-核心角色：
-${charactersText}
-
-世界上下文：
-${worldContext}
-
-当前草稿：
-${currentDraft}`,
-      ),
-    ]);
-
-    let optimizedDraft = toText(rewritten.content).trim() || currentDraft;
+    let optimizedDraft = rewritten.output.trim() || currentDraft;
     if (input.target === "structured_outline") {
       try {
         const jsonText = extractJSONArray(optimizedDraft);

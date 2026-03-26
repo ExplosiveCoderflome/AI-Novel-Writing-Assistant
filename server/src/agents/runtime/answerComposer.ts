@@ -1,4 +1,5 @@
-import { getLLM } from "../../llm/factory";
+import { runTextPrompt } from "../../prompting/core/promptRunner";
+import { runtimeFallbackAnswerPrompt } from "../../prompting/prompts/agent/runtime.prompts";
 import { listAgentToolDefinitions } from "../toolRegistry";
 import type { StructuredIntent, ToolCall, ToolExecutionContext } from "../types";
 import { isRecord, safeJson, type ToolExecutionResult } from "./runtimeHelpers";
@@ -503,54 +504,26 @@ async function composeFallbackAnswer(
   structuredIntent?: StructuredIntent,
 ): Promise<string> {
   try {
-    const llm = await getLLM(context.provider ?? "deepseek", {
-      model: context.model,
-      temperature: 0.2,
-      maxTokens: context.maxTokens,
-    });
     const toolList = listAgentToolDefinitions()
       .map((item) => `- ${item.name}: ${item.description}`)
       .join("\n");
-    const result = await llm.invoke([
-      {
-        role: "system",
-        content: [
-          "你是小说创作 Agent 的回答整理器。",
-          "只能使用工具结果中的明确事实回答，禁止补充未执行到的信息。",
-          "如果工具结果不足，不要生硬地终止；优先指出信息缺口，并给出一个追问或 2-3 个下一步选项。",
-          "以下是可用工具目录：",
-          toolList,
-        ].join("\n"),
+    const result = await runTextPrompt({
+      asset: runtimeFallbackAnswerPrompt,
+      promptInput: {
+        toolList,
+        goal,
+        structuredIntentJson: safeJson(structuredIntent ?? { intent: "unknown" }),
+        summary,
+        groundingFacts: buildGroundingFacts(results),
       },
-      {
-        role: "user",
-        content: [
-          `用户目标：${goal}`,
-          `结构化意图：${safeJson(structuredIntent ?? { intent: "unknown" })}`,
-          `执行摘要：${summary}`,
-          `工具事实：${buildGroundingFacts(results)}`,
-          "请返回简洁中文结果。",
-        ].join("\n\n"),
+      options: {
+        provider: context.provider ?? "deepseek",
+        model: context.model,
+        temperature: 0.2,
+        maxTokens: context.maxTokens,
       },
-    ]);
-    if (typeof result.content === "string") {
-      return result.content.trim() || "当前信息不足，无法继续";
-    }
-    if (Array.isArray(result.content)) {
-      const text = result.content
-        .map((item) => {
-          if (typeof item === "string") {
-            return item;
-          }
-          if (item && typeof item === "object" && "text" in item && typeof item.text === "string") {
-            return item.text;
-          }
-          return "";
-        })
-        .join("")
-        .trim();
-      return text || "当前信息不足，无法继续";
-    }
+    });
+    return result.output.trim() || "当前信息不足，无法继续";
   } catch {
     return summary || "当前信息不足，无法继续";
   }

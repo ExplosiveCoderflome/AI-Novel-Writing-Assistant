@@ -1,4 +1,6 @@
 import { getLLM } from "../../llm/factory";
+import { preparePromptExecution, runTextPrompt } from "../../prompting/core/promptRunner";
+import { runtimeSetupGuidancePrompt } from "../../prompting/prompts/agent/runtime.prompts";
 import type { StructuredIntent, ToolCall, ToolExecutionContext } from "../types";
 import type { ToolExecutionResult } from "./runtimeHelpers";
 import {
@@ -80,11 +82,6 @@ async function composeWarmGuidance(input: {
   structuredIntent?: StructuredIntent;
 }): Promise<string> {
   try {
-    const llm = await guidanceLLMFactory(input.context.provider ?? "deepseek", {
-      model: input.context.model,
-      temperature: Math.max(input.context.temperature ?? 0.7, 0.7),
-      maxTokens: Math.min(input.context.maxTokens ?? 384, 384),
-    });
     const sceneInstruction = input.scene === "create_missing_title"
       ? "用户刚表达想写一本小说，但还没有形成可创建的标题。"
       : input.scene === "produce_missing_title"
@@ -92,30 +89,42 @@ async function composeWarmGuidance(input: {
         : input.scene === "create_setup"
           ? "小说已经创建成功，现在要继续做开书初始化引导。"
           : "用户刚切换回一部小说的工作区，需要继续未完成的初始化。";
-    const result = await llm.invoke([
-      {
-        role: "system",
-        content: [
-          "你是小说创作中枢里的开书引导助手。",
-          "你的任务是根据已知事实，用更自然、亲切、简洁的中文把用户带到下一步，不要像表单提示或系统通知。",
-          "必须严格基于给定事实，不得虚构小说设定、进度、角色或用户偏好。",
-          "如果标题还没确定，不要假装小说已经创建；可以自然地邀请用户先给暂定标题，或者先讲题材、主角、冲突。",
-          "如果已有初始化状态，先轻轻承接当前进展，再围绕最优先的一项自然追问，不要原样复读“系统建议提问”或“系统建议动作”。",
-          "输出 2 到 4 句，不要用列表，不要使用“缺失项”“recommendedAction”“nextQuestion”这类内部术语。",
-          "最后一句尽量是便于用户直接回答的问题；如果用户暂时没想好，可以顺带给出“我也可以先给你几个方向”的柔和选项。",
-        ].join("\n"),
+    if (guidanceLLMFactory === getLLM) {
+      const result = await runTextPrompt({
+        asset: runtimeSetupGuidancePrompt,
+        promptInput: {
+          sceneInstruction,
+          goal: input.goal,
+          intentFacts: buildIntentFacts(input.structuredIntent),
+          knownFacts: input.facts,
+        },
+        options: {
+          provider: input.context.provider ?? "deepseek",
+          model: input.context.model,
+          temperature: Math.max(input.context.temperature ?? 0.7, 0.7),
+          maxTokens: Math.min(input.context.maxTokens ?? 384, 384),
+        },
+      });
+      return result.output.trim() || input.fallback;
+    }
+
+    const prepared = preparePromptExecution({
+      asset: runtimeSetupGuidancePrompt,
+      promptInput: {
+        sceneInstruction,
+        goal: input.goal,
+        intentFacts: buildIntentFacts(input.structuredIntent),
+        knownFacts: input.facts,
       },
-      {
-        role: "user",
-        content: [
-          `场景：${sceneInstruction}`,
-          `用户原始目标：${input.goal}`,
-          `结构化线索：${buildIntentFacts(input.structuredIntent)}`,
-          `已知事实：\n${input.facts}`,
-          "请生成现在要发给用户的下一条回复。",
-        ].join("\n\n"),
-      },
-    ]);
+    });
+    const llm = await guidanceLLMFactory(input.context.provider ?? "deepseek", {
+      model: input.context.model,
+      temperature: Math.max(input.context.temperature ?? 0.7, 0.7),
+      maxTokens: Math.min(input.context.maxTokens ?? 384, 384),
+      taskType: runtimeSetupGuidancePrompt.taskType,
+      promptMeta: prepared.invocation,
+    });
+    const result = await llm.invoke(prepared.messages);
     const text = extractTextFromContent(result.content);
     return text || input.fallback;
   } catch {

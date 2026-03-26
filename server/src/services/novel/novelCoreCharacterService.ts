@@ -1,7 +1,10 @@
-import { invokeStructuredLlm } from "../../llm/structuredInvoke";
 import { prisma } from "../../db/prisma";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import {
+  characterEvolutionPrompt,
+  characterWorldCheckPrompt,
+} from "../../prompting/prompts/novel/coreCharacter.prompts";
 import { ragServices } from "../rag";
-import { characterEvolutionOutputSchema, characterWorldCheckOutputSchema } from "./novelCoreSchemas";
 import { buildWorldContextFromNovel, queueRagDelete, queueRagUpsert } from "./novelCoreSupport";
 import {
   CharacterInput,
@@ -241,39 +244,28 @@ export class NovelCoreCharacterService {
       ragContext = "";
     }
 
-    const parsed = await invokeStructuredLlm({
-      label: `character-evolve:${characterId}`,
-      provider: options.provider,
-      model: options.model,
-      temperature: options.temperature ?? 0.4,
-      taskType: "planner",
-      systemPrompt: `你是小说角色发展编辑。请基于角色经历输出 JSON：
-{
-  "personality":"更新后的性格",
-  "background":"更新后的背景信息（可选）",
-  "development":"更新后的成长轨迹",
-  "currentState":"角色当前状态",
-  "currentGoal":"角色当前目标"
-}
-仅输出 JSON。`,
-      userPrompt: `小说：${novel.title}
-作品圣经：${novel.bible?.rawContent ?? "暂无"}
-角色：${character.name}（${character.role}）
-现有设定：
-personality=${character.personality ?? "暂无"}
-background=${character.background ?? "暂无"}
-development=${character.development ?? "暂无"}
-currentState=${character.currentState ?? "暂无"}
-currentGoal=${character.currentGoal ?? "暂无"}
-
-时间线事件：
-${timelineText}
-
-检索补充：
-${ragContext || ""}`,
-      schema: characterEvolutionOutputSchema,
-      maxRepairAttempts: 1,
+    const result = await runStructuredPrompt({
+      asset: characterEvolutionPrompt,
+      promptInput: {
+        novelTitle: novel.title,
+        bibleContent: novel.bible?.rawContent ?? "暂无",
+        characterName: character.name,
+        characterRole: character.role,
+        personality: character.personality ?? "暂无",
+        background: character.background ?? "暂无",
+        development: character.development ?? "暂无",
+        currentState: character.currentState ?? "暂无",
+        currentGoal: character.currentGoal ?? "暂无",
+        timelineText,
+        ragContext: ragContext || "",
+      },
+      options: {
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature ?? 0.4,
+      },
     });
+    const parsed = result.output;
 
     const updated = await prisma.character.update({
       where: { id: characterId },
@@ -327,33 +319,25 @@ ${ragContext || ""}`,
 
     const worldContext = buildWorldContextFromNovel(novel);
     try {
-      const parsed = await invokeStructuredLlm({
-        label: `character-world-check:${characterId}`,
-        provider: options.provider,
-        model: options.model,
-        temperature: options.temperature ?? 0.2,
-        taskType: "planner",
-        systemPrompt: `你是角色设定审计员。请输出 JSON：
-{
-  "status":"pass|warn|error",
-  "warnings":["..."],
-  "issues":[{"severity":"warn|error","message":"...","suggestion":"..."}]
-}
-仅输出 JSON。`,
-        userPrompt: `世界规则：
-${worldContext}
-
-角色设定：
-name=${character.name}
-role=${character.role}
-personality=${character.personality ?? ""}
-background=${character.background ?? ""}
-development=${character.development ?? ""}
-currentState=${character.currentState ?? ""}
-currentGoal=${character.currentGoal ?? ""}`,
-        schema: characterWorldCheckOutputSchema,
-        maxRepairAttempts: 1,
+      const result = await runStructuredPrompt({
+        asset: characterWorldCheckPrompt,
+        promptInput: {
+          worldContext,
+          characterName: character.name,
+          characterRole: character.role,
+          personality: character.personality ?? "",
+          background: character.background ?? "",
+          development: character.development ?? "",
+          currentState: character.currentState ?? "",
+          currentGoal: character.currentGoal ?? "",
+        },
+        options: {
+          provider: options.provider,
+          model: options.model,
+          temperature: options.temperature ?? 0.2,
+        },
       });
+      const parsed = result.output;
 
       return {
         status: parsed.status ?? "pass",

@@ -1,18 +1,19 @@
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { WorldConsistencyReport, WorldLayerKey } from "@ai-novel/shared/types/world";
 import { prisma } from "../../db/prisma";
-import { getLLM } from "../../llm/factory";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import {
+  worldConsistencyPrompt,
+  worldDeepeningQuestionsPrompt,
+} from "../../prompting/prompts/world/world.prompts";
 import { buildConsistencySummary, localizeConsistencyIssue } from "./worldConsistency";
 import {
   type DeepeningAnswerInput,
   type WorldTextField,
-  extractJSONArray,
   normalizeDeepeningTargetField,
   normalizeDeepeningTargetLayer,
   normalizeQuickOptionList,
   nowISO,
-  safeParseJSON,
 } from "./worldServiceShared";
 import { ragServices } from "../rag";
 
@@ -35,10 +36,6 @@ export async function createWorldDeepeningQuestions(
 ) {
   const world = await getRequiredWorld(worldId);
 
-  const llm = await getLLM(options.provider ?? "deepseek", {
-    model: options.model,
-    temperature: 0.6,
-  });
   let ragContext = "";
   try {
     ragContext = await ragServices.hybridRetrievalService.buildContextBlock(
@@ -52,24 +49,12 @@ export async function createWorldDeepeningQuestions(
   } catch {
     ragContext = "";
   }
-  const result = await llm.invoke([
-    new SystemMessage(
-      `Output JSON array with 2-3 items only, each item:
-{
-  "priority":"required|recommended|optional",
-  "question":"...",
-  "quickOptions":["...", "...", "..."],
-  "targetLayer":"foundation|power|society|culture|history|conflict",
-  "targetField":"..."
-}
-Rules:
-- quickOptions must have 2-4 concise candidate answers in Simplified Chinese.
-- Only output JSON array.`,
-    ),
-    new HumanMessage(
-      `name=${world.name}
-description=${world.description ?? "none"}
-data=${JSON.stringify({
+  const result = await runStructuredPrompt({
+    asset: worldDeepeningQuestionsPrompt,
+    promptInput: {
+      worldName: world.name,
+      description: world.description ?? "none",
+      dataJson: JSON.stringify({
         background: world.background,
         geography: world.geography,
         cultures: world.cultures,
@@ -81,20 +66,23 @@ data=${JSON.stringify({
         conflicts: world.conflicts,
         history: world.history,
         economy: world.economy,
-      })}
-ragContext=${ragContext || "none"}`,
-    ),
-  ]);
+      }),
+      ragContext,
+    },
+    options: {
+      provider: options.provider ?? "deepseek",
+      model: options.model,
+      temperature: 0.6,
+    },
+  });
 
-  const parsed = safeParseJSON<
-    Array<{
-      priority?: "required" | "recommended" | "optional";
-      question?: string;
-      quickOptions?: string[];
-      targetLayer?: WorldLayerKey;
-      targetField?: WorldTextField;
-    }>
-  >(extractJSONArray(String(result.content)), []);
+  const parsed = result.output as Array<{
+    priority?: "required" | "recommended" | "optional";
+    question?: string;
+    quickOptions?: string[];
+    targetLayer?: WorldLayerKey;
+    targetField?: WorldTextField;
+  }>;
 
   const normalized = parsed
     .filter((item) => item.question?.trim())
@@ -318,10 +306,6 @@ export async function checkWorldConsistency(
   }
 
   try {
-    const llm = await getLLM(options.provider ?? "deepseek", {
-      model: options.model,
-      temperature: 0.2,
-    });
     let ragContext = "";
     try {
       ragContext = await ragServices.hybridRetrievalService.buildContextBlock(
@@ -335,20 +319,12 @@ export async function checkWorldConsistency(
     } catch {
       ragContext = "";
     }
-    const result = await llm.invoke([
-      new SystemMessage(
-        `你是世界观一致性审校器。请只输出 JSON 数组。
-每项结构：
-{"severity":"warn|error","code":"...","message":"中文问题概述","detail":"中文详细说明","targetField":"description|background|geography|cultures|magicSystem|politics|races|religions|technology|conflicts|history|economy|factions"}
-要求：
-1. message 和 detail 必须使用简体中文。
-2. 只指出真正的冲突或明显风险，不要泛泛而谈。
-3. 如果没有问题，只输出 []。`,
-      ),
-      new HumanMessage(
-        `世界名：${world.name}
-世界公理：${world.axioms ?? "无"}
-核心设定：${JSON.stringify({
+    const result = await runStructuredPrompt({
+      asset: worldConsistencyPrompt,
+      promptInput: {
+        worldName: world.name,
+        axioms: world.axioms ?? "无",
+        coreSettingsJson: JSON.stringify({
           background: world.background,
           geography: world.geography,
           cultures: world.cultures,
@@ -361,13 +337,22 @@ export async function checkWorldConsistency(
           history: world.history,
           economy: world.economy,
           factions: world.factions,
-        })}
-检索补充：${ragContext || "无"}`,
-      ),
-    ]);
-    const llmIssues = safeParseJSON<
-      Array<{ severity?: "warn" | "error"; code?: string; message?: string; detail?: string; targetField?: string }>
-    >(extractJSONArray(String(result.content)), []);
+        }),
+        ragContext,
+      },
+      options: {
+        provider: options.provider ?? "deepseek",
+        model: options.model,
+        temperature: 0.2,
+      },
+    });
+    const llmIssues = result.output as Array<{
+      severity?: "warn" | "error";
+      code?: string;
+      message?: string;
+      detail?: string;
+      targetField?: string;
+    }>;
     for (const issue of llmIssues) {
       if (!issue.message?.trim()) {
         continue;

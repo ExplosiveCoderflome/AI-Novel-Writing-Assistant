@@ -1,7 +1,7 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { briefSummary, extractFacts } from "../novel/novelP0Utils";
-import { invokeStructuredLlm } from "../../llm/structuredInvoke";
-import { snapshotExtractionOutputSchema } from "./stateSchemas";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import { stateSnapshotPrompt } from "../../prompting/prompts/state/state.prompts";
 
 export interface StateServiceOptions {
   provider?: LLMProvider;
@@ -84,44 +84,27 @@ export async function extractSnapshotWithAI(input: StateSnapshotExtractionInput)
     ? `上一状态快照：${input.previousSnapshot.summary}`
     : "上一状态快照：无";
   try {
-    const parsed = await invokeStructuredLlm({
-      label: `state-snapshot:${input.novelId}:${input.chapter.id}`,
-      provider: input.options.provider,
-      model: input.options.model,
-      temperature: input.options.temperature ?? 0.2,
-      taskType: "summary",
-      systemPrompt:
-        "你是小说状态引擎。请严格输出 JSON，字段为 summary, characterStates, relationStates, informationStates, foreshadowStates。不要输出额外解释。",
-      userPrompt: `小说ID：${input.novelId}
-章节：第${input.chapter.order}章《${input.chapter.title}》
-章节目标：${input.chapter.expectation ?? "无"}
-角色清单：
-${input.characters.map((item) => `- ${item.id} | ${item.name} | ${item.role} | goal=${item.currentGoal ?? ""} | state=${item.currentState ?? ""}`).join("\n")}
-
-章节摘要：
-${input.summaryRow?.summary ?? briefSummary(input.content)}
-
-事实：
-${chapterFacts || "无"}
-
-角色时间线：
-${timelineBlock || "无"}
-
-${previousSummary}
-
-正文：
-${input.content}
-
-输出 JSON 规则：
-1. characterStates 中每个角色最多一条。
-2. relationStates 只保留本章实际变化的关系。
-3. informationStates 的 holderType 只能是 reader 或 character；status 只能是 known 或 misbelief。
-4. foreshadowStates 的 status 只能是 setup, hinted, pending_payoff, paid_off, failed。
-5. 如果不知道 characterId，可填 characterName；如果 holderType=character，可填 holderRefName。
-6. summary 必须简洁描述当前章节后的全局状态。`,
-      schema: snapshotExtractionOutputSchema,
-      maxRepairAttempts: 1,
+    const result = await runStructuredPrompt({
+      asset: stateSnapshotPrompt,
+      promptInput: {
+        novelId: input.novelId,
+        chapterOrder: input.chapter.order,
+        chapterTitle: input.chapter.title,
+        chapterGoal: input.chapter.expectation ?? "无",
+        charactersText: input.characters.map((item) => `- ${item.id} | ${item.name} | ${item.role} | goal=${item.currentGoal ?? ""} | state=${item.currentState ?? ""}`).join("\n"),
+        summaryText: input.summaryRow?.summary ?? briefSummary(input.content),
+        factsText: chapterFacts || "无",
+        timelineText: timelineBlock || "无",
+        previousSummary,
+        content: input.content,
+      },
+      options: {
+        provider: input.options.provider,
+        model: input.options.model,
+        temperature: input.options.temperature ?? 0.2,
+      },
     });
+    const parsed = result.output;
     return parsed as SnapshotExtractionOutput;
   } catch {
     return buildFallbackSnapshot(input);

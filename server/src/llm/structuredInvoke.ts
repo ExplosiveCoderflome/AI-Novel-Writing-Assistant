@@ -6,10 +6,12 @@ import type { TaskType } from "./modelRouter";
 import { getLLM } from "./factory";
 import { getJsonCapability } from "./capabilities";
 import { toText, extractJSONObject } from "../services/novel/novelP0Utils";
+import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
 
-interface StructuredInvokeInput<T> {
-  systemPrompt: string;
-  userPrompt: string;
+export interface StructuredInvokeInput<T> {
+  systemPrompt?: string;
+  userPrompt?: string;
+  messages?: BaseMessage[];
   schema: ZodType<T>;
   provider?: LLMProvider;
   model?: string;
@@ -18,6 +20,22 @@ interface StructuredInvokeInput<T> {
   taskType?: TaskType;
   label: string;
   maxRepairAttempts?: number; // 默认 1
+  promptMeta?: PromptInvocationMeta;
+}
+
+interface StructuredInvokeResult<T> {
+  data: T;
+  repairUsed: boolean;
+}
+
+function buildInvokeMessages<T>(input: StructuredInvokeInput<T>): BaseMessage[] {
+  if (Array.isArray(input.messages) && input.messages.length > 0) {
+    return input.messages;
+  }
+  if (typeof input.systemPrompt === "string" && typeof input.userPrompt === "string") {
+    return [new SystemMessage(input.systemPrompt), new HumanMessage(input.userPrompt)];
+  }
+  throw new Error(`[${input.label}] missing prompt messages.`);
 }
 
 function tryFixTruncatedJson(raw: string): string {
@@ -61,6 +79,10 @@ async function repairWithLlm<T>(input: StructuredInvokeInput<T>, rawContent: str
     temperature: 0.15,
     maxTokens: input.maxTokens,
     taskType: input.taskType ?? "planner",
+    promptMeta: input.promptMeta ? {
+      ...input.promptMeta,
+      repairUsed: true,
+    } : undefined,
   });
 
   const repairSystem = [
@@ -95,13 +117,14 @@ async function repairWithLlm<T>(input: StructuredInvokeInput<T>, rawContent: str
   return final.data;
 }
 
-export async function invokeStructuredLlm<T>(input: StructuredInvokeInput<T>): Promise<T> {
+export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInput<T>): Promise<StructuredInvokeResult<T>> {
   const llm = await getLLM(input.provider, {
     fallbackProvider: "deepseek",
     model: input.model,
     temperature: input.temperature ?? 0.3,
     maxTokens: input.maxTokens,
     taskType: input.taskType ?? "planner",
+    promptMeta: input.promptMeta,
   });
 
   const cap = getJsonCapability(input.provider ?? "deepseek", input.model);
@@ -111,7 +134,8 @@ export async function invokeStructuredLlm<T>(input: StructuredInvokeInput<T>): P
     invokeOptions.response_format = { type: "json_object" };
   }
 
-  const result = await llm.invoke([new SystemMessage(input.systemPrompt), new HumanMessage(input.userPrompt)], invokeOptions);
+  const messages = buildInvokeMessages(input);
+  const result = await llm.invoke(messages, invokeOptions);
   const rawContent = toText(result.content);
 
   let parsed: unknown;
@@ -125,7 +149,10 @@ export async function invokeStructuredLlm<T>(input: StructuredInvokeInput<T>): P
 
   const first = input.schema.safeParse(parsed);
   if (first.success) {
-    return first.data;
+    return {
+      data: first.data,
+      repairUsed: false,
+    };
   }
 
   const maxRepairAttempts = input.maxRepairAttempts ?? 1;
@@ -134,9 +161,17 @@ export async function invokeStructuredLlm<T>(input: StructuredInvokeInput<T>): P
 
   while (attempt < maxRepairAttempts) {
     attempt += 1;
-    return await repairWithLlm(input, rawContent, zodError);
+    return {
+      data: await repairWithLlm(input, rawContent, zodError),
+      repairUsed: true,
+    };
   }
 
   throw new Error(`[${input.label}] LLM 输出经修复后仍未通过 Schema 校验。错误：${formatZodErrors(zodError)}`);
+}
+
+export async function invokeStructuredLlm<T>(input: StructuredInvokeInput<T>): Promise<T> {
+  const result = await invokeStructuredLlmDetailed(input);
+  return result.data;
 }
 

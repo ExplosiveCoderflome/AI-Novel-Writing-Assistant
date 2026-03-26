@@ -1,6 +1,6 @@
-import type { getLLM } from "../../llm/factory";
-import { invokeStructuredLlm } from "../../llm/structuredInvoke";
-import { worldReferenceInspirationPayloadSchema } from "./worldReferenceSchema";
+import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import { worldReferenceInspirationPrompt } from "../../prompting/prompts/world/world.prompts";
 import {
   createEmptyWorldReferenceSeedBundle,
   normalizeWorldReferenceSeedBundle,
@@ -19,13 +19,14 @@ export interface ReferenceConceptCard {
 }
 
 interface GenerateReferenceInspirationInput {
-  llm: Awaited<ReturnType<typeof getLLM>>;
   sourceText: string;
   worldTypeHint?: string;
   referenceMode: WorldReferenceMode;
   preserveElements?: string[];
   allowedChanges?: string[];
   forbiddenElements?: string[];
+  provider?: LLMProvider;
+  model?: string;
 }
 
 interface ReferenceInspirationPayload {
@@ -193,86 +194,6 @@ function buildPrompt(input: GenerateReferenceInspirationInput): string {
 export async function generateReferenceInspirationAnalysis(
   input: GenerateReferenceInspirationInput,
 ): Promise<ReferenceInspirationPayload> {
-  const systemPrompt = `你是参考作品世界分析师。
-你的任务不是重新发明一套无关的新故事，而是从参考材料中提炼“可保留的世界基底”和“可用于架空改造的决策边界”。
-请严格输出 JSON 对象：
-{
-  "conceptCard": {
-    "worldType": "...",
-    "templateKey": "custom",
-    "coreImagery": ["..."],
-    "tone": "...",
-    "keywords": ["..."],
-    "summary": "..."
-  },
-  "anchors": [
-    {
-      "id": "anchor-1",
-      "label": "...",
-      "content": "..."
-    }
-  ],
-  "seedPackage": {
-    "rules": [
-      {
-        "id": "reference-rule-1",
-        "name": "...",
-        "summary": "...",
-        "cost": "...",
-        "boundary": "...",
-        "enforcement": "..."
-      }
-    ],
-    "factions": [
-      {
-        "id": "reference-faction-1",
-        "name": "...",
-        "position": "...",
-        "doctrine": "...",
-        "goals": ["..."],
-        "methods": ["..."],
-        "representativeForceIds": ["reference-force-1"]
-      }
-    ],
-    "forces": [
-      {
-        "id": "reference-force-1",
-        "name": "...",
-        "type": "...",
-        "factionId": "reference-faction-1",
-        "summary": "...",
-        "baseOfPower": "...",
-        "currentObjective": "...",
-        "pressure": "...",
-        "leader": "...",
-        "narrativeRole": "..."
-      }
-    ],
-    "locations": [
-      {
-        "id": "reference-location-1",
-        "name": "...",
-        "terrain": "...",
-        "summary": "...",
-        "narrativeFunction": "...",
-        "risk": "...",
-        "entryConstraint": "...",
-        "exitCost": "...",
-        "controllingForceIds": ["reference-force-1"]
-      }
-    ]
-  }
-}
-规则：
-1. 只输出 JSON，不要输出解释。
-2. templateKey 固定为 "custom"。
-3. anchors 必须提供 4-6 个，优先覆盖现实基底、城市地点结构、社会压力、行业生态、关系结构、世界边界。
-4. anchors 必须是世界层或世界-故事接口层，不要写具体剧情桥段、男女主感情推进、角色单独动机。
-5. summary 要说明这次参考模式下“哪些应保留、哪些可以改造”，而不是泛泛重写题材。
-6. seedPackage 用来提取“可以直接沿用的原作设定”，允许为空数组，但不要凭空编造。
-7. 优先提取世界规则、阵营立场、具体组织/势力、地点/场景这四类可复用内容。
-8. 所有文本使用简体中文。`;
-
   const retryPrompt = `${buildPrompt(input)}
 
 请注意：
@@ -282,17 +203,19 @@ export async function generateReferenceInspirationAnalysis(
 
   for (const prompt of [buildPrompt(input), retryPrompt]) {
     try {
-      const parsed = await invokeStructuredLlm({
-        label: `world-reference-inspiration:${input.referenceMode}`,
-        provider: undefined,
-        model: undefined,
-        temperature: 0.2,
-        taskType: "planner",
-        systemPrompt,
-        userPrompt: prompt,
-        schema: worldReferenceInspirationPayloadSchema,
-        maxRepairAttempts: 1,
+      const result = await runStructuredPrompt({
+        asset: worldReferenceInspirationPrompt,
+        promptInput: {
+          userPrompt: prompt,
+          isRetry: prompt === retryPrompt,
+        },
+        options: {
+          provider: input.provider ?? "deepseek",
+          model: input.model,
+          temperature: 0.2,
+        },
       });
+      const parsed = result.output;
 
       const anchors = normalizeAnchors((parsed as any).anchors);
       const safeAnchors = anchors.length >= MIN_ANCHOR_COUNT ? anchors : buildFallbackAnchors(input);

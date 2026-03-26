@@ -1,8 +1,8 @@
 import type { World as PrismaWorld } from "@prisma/client";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
-import { getLLM } from "../../llm/factory";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import { worldImportExtractionPrompt } from "../../prompting/prompts/world/world.prompts";
 import {
   applyStructuredWorldToLegacyFields,
   buildWorldBindingSupport,
@@ -308,20 +308,18 @@ export async function importWorldData(
   } else if (input.format === "markdown") {
     payload = parseMarkdownToWorld(input.content);
   } else {
-    const llm = await getLLM(input.provider ?? "deepseek", {
-      model: input.model,
-      temperature: 0.3,
+    const result = await runStructuredPrompt({
+      asset: worldImportExtractionPrompt,
+      promptInput: {
+        content: input.content,
+      },
+      options: {
+        provider: input.provider ?? "deepseek",
+        model: input.model,
+        temperature: 0.3,
+      },
     });
-    const result = await llm.invoke([
-      new SystemMessage(
-        `Extract world JSON with fields:
-name, description, worldType, background, geography, magicSystem,
-politics, cultures, races, religions, technology, history, economy, conflicts.
-Output JSON only.`,
-      ),
-      new HumanMessage(input.content),
-    ]);
-    payload = safeParseJSON<Partial<CreateWorldInput>>(extractJSONObject(String(result.content)), {});
+    payload = result.output as Partial<CreateWorldInput>;
   }
 
   const baseSource = {

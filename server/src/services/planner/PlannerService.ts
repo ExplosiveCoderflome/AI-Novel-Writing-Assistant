@@ -5,7 +5,6 @@ import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../storyMod
 import { parseJsonStringArray } from "../novel/novelP0Utils";
 import { characterDynamicsQueryService } from "../novel/dynamics/CharacterDynamicsQueryService";
 import { stateService } from "../state/StateService";
-import { buildDerivedOutlineFromVolumes } from "../novel/volume/volumePlanUtils";
 import {
   buildDefaultPlanMetadata,
   enrichStoryPlan,
@@ -13,6 +12,11 @@ import {
 } from "./plannerPlanMetadata";
 import { persistStoryPlan } from "./plannerPersistence";
 import { invokePlannerLLM, type PlannerLlmOptions } from "./plannerLlm";
+import {
+  buildArcPlanContextBlocks,
+  buildBookPlanContextBlocks,
+  buildChapterPlanContextBlocks,
+} from "./plannerContextBlocks";
 
 export { normalizePlannerOutput } from "./plannerOutputNormalization";
 
@@ -163,18 +167,19 @@ export class PlannerService {
       throw new Error("小说不存在。");
     }
     const storyModeBlock = buildPlannerStoryModeBlock(novel);
+    const contextBlocks = buildBookPlanContextBlocks({
+      novelTitle: novel.title,
+      description: novel.description,
+      bible: novel.bible?.rawContent ?? "无",
+      chapterDrafts: novel.chapters.map((item) => `${item.order}.${item.title} ${item.expectation ?? ""}`).join("\n") || "无",
+      plotBeats: novel.plotBeats.map((item) => `${item.chapterOrder ?? "-"} ${item.title} ${item.content}`).join("\n") || "无",
+      storyModeBlock,
+    });
     const output = await invokePlannerLLM({
       options,
-      storyModeBlock,
       scopeLabel: `全书规划：${novel.title}`,
-      context: [
-        `简介：${novel.description ?? ""}`,
-        `作品圣经：${novel.bible?.rawContent ?? "无"}`,
-        `章节草稿：${novel.chapters.map((item) => `${item.order}.${item.title} ${item.expectation ?? ""}`).join("\n") || "无"}`,
-        `剧情拍点：${novel.plotBeats.map((item) => `${item.chapterOrder ?? "-"} ${item.title} ${item.content}`).join("\n") || "无"}`,
-      ].join("\n\n"),
-      includeScenes: false,
       planLevel: "book",
+      contextBlocks,
     });
     const metadata = normalizePlanMetadata("book", output, buildDefaultPlanMetadata("book"));
     return persistStoryPlan({
@@ -210,18 +215,18 @@ export class PlannerService {
       throw new Error("小说不存在。");
     }
     const storyModeBlock = buildPlannerStoryModeBlock(novel);
+    const contextBlocks = buildArcPlanContextBlocks({
+      novelTitle: novel.title,
+      description: novel.description,
+      bible: novel.bible?.rawContent ?? "无",
+      chapters: novel.chapters.map((item) => `${item.order}.${item.title} ${item.expectation ?? ""}`).join("\n") || "无",
+      storyModeBlock,
+    });
     const output = await invokePlannerLLM({
       options,
-      storyModeBlock,
       scopeLabel: `分段规划：${arcId}`,
-      context: [
-        `小说：${novel.title}`,
-        `简介：${novel.description ?? ""}`,
-        `作品圣经：${novel.bible?.rawContent ?? "无"}`,
-        `现有章节：${novel.chapters.map((item) => `${item.order}.${item.title} ${item.expectation ?? ""}`).join("\n") || "无"}`,
-      ].join("\n\n"),
-      includeScenes: false,
       planLevel: "arc",
+      contextBlocks,
     });
     const metadata = normalizePlanMetadata("arc", output, buildDefaultPlanMetadata("arc"));
     return persistStoryPlan({
@@ -365,10 +370,6 @@ export class PlannerService {
       createdAt: volume.createdAt.toISOString(),
       updatedAt: volume.updatedAt.toISOString(),
     }));
-    const volumeOutline = mappedVolumes.length > 0 ? buildDerivedOutlineFromVolumes(mappedVolumes) : "";
-    const volumeSummary = mappedVolumes.length > 0
-      ? mappedVolumes.map((volume) => `${volume.sortOrder}. ${volume.title} | ${volume.mainPromise ?? volume.summary ?? "无"}${volume.climax ? ` | 高潮=${volume.climax}` : ""}`).join("\n")
-      : "无";
     const stateSnapshot = await stateService.getLatestSnapshotBeforeChapter(novelId, chapter.order);
     const defaultMetadata = buildDefaultPlanMetadata("chapter", {
       chapterOrder: chapter.order,
@@ -391,35 +392,51 @@ export class PlannerService {
             : "",
         ].filter(Boolean).join("\n")
       : "无";
+    const contextBlocks = buildChapterPlanContextBlocks({
+      novelTitle: novel.title,
+      description: novel.description,
+      chapterExpectation: chapter.expectation,
+      chapterTaskSheet: chapter.taskSheet,
+      bible: bible?.rawContent ?? "无",
+      outline: novel.outline,
+      structuredOutline: novel.structuredOutline,
+      mappedVolumes: mappedVolumes.map((volume) => ({
+        sortOrder: volume.sortOrder,
+        title: volume.title,
+        summary: volume.summary,
+        mainPromise: volume.mainPromise,
+        climax: volume.climax,
+        updatedAt: volume.updatedAt,
+        chapters: volume.chapters.map((item) => ({
+          chapterOrder: item.chapterOrder,
+          title: item.title,
+          summary: item.summary,
+        })),
+      })),
+      bookPlan: bookPlan ? `${bookPlan.title} | ${bookPlan.objective}${bookPlan.phaseLabel ? ` | 阶段=${bookPlan.phaseLabel}` : ""}` : "无",
+      arcPlans: arcPlans.length > 0
+        ? arcPlans.map((plan) => `${plan.externalRef ?? "-"} ${plan.title} | ${plan.objective}${plan.phaseLabel ? ` | 阶段=${plan.phaseLabel}` : ""}`).join("\n")
+        : "无",
+      characters: characters.map((item) => `${item.id}|${item.name}|${item.role}|goal=${item.currentGoal ?? ""}|state=${item.currentState ?? ""}`).join("\n") || "无",
+      recentSummaries: summaries.map((item) => `${item.summary}`).join("\n") || "无",
+      plotBeats: plotBeats.map((item) => `${item.chapterOrder ?? "-"} ${item.title} ${item.content}`).join("\n") || "无",
+      stateSnapshot: stateSnapshot?.summary ?? "无",
+      openAuditIssues: openAuditIssues.join("\n") || "无",
+      recentDecisions: recentDecisions.map((item) => `${item.category}/${item.importance}: ${item.content}`).join("\n") || "无",
+      characterDynamicsDigest: characterDynamicsDigest || "无",
+      defaultMetadata: [
+        `planRole=${defaultMetadata.planRole ?? "progress"} | phase=${defaultMetadata.phaseLabel ?? "无"}`,
+        `mustAdvance=${defaultMetadata.mustAdvance.join("；") || "无"}`,
+        `mustPreserve=${defaultMetadata.mustPreserve.join("；") || "无"}`,
+      ].join("\n"),
+      replanContext: replanContextBlock,
+      storyModeBlock,
+    });
     const output = await invokePlannerLLM({
       options,
-      storyModeBlock,
       scopeLabel: `章节规划：第${chapter.order}章《${chapter.title}》`,
-      context: [
-        `小说：${novel.title}`,
-        `简介：${novel.description ?? ""}`,
-        `章节目标草稿：${chapter.expectation ?? "无"}`,
-        `任务单：${chapter.taskSheet ?? "无"}`,
-        `作品圣经：${bible?.rawContent ?? "无"}`,
-        `主线大纲：${volumeOutline || novel.outline || "无"}`,
-        `结构化大纲：${novel.structuredOutline ?? "无"}`,
-        `卷级工作台：${volumeSummary}`,
-        `全书规划：${bookPlan ? `${bookPlan.title} | ${bookPlan.objective}${bookPlan.phaseLabel ? ` | 阶段=${bookPlan.phaseLabel}` : ""}` : "无"}`,
-        `阶段规划：${arcPlans.length > 0 ? arcPlans.map((plan) => `${plan.externalRef ?? "-"} ${plan.title} | ${plan.objective}${plan.phaseLabel ? ` | 阶段=${plan.phaseLabel}` : ""}`).join("\n") : "无"}`,
-        `角色：${characters.map((item) => `${item.id}|${item.name}|${item.role}|goal=${item.currentGoal ?? ""}|state=${item.currentState ?? ""}`).join("\n") || "无"}`,
-        `最近章节摘要：${summaries.map((item) => `${item.summary}`).join("\n") || "无"}`,
-        `剧情拍点：${plotBeats.map((item) => `${item.chapterOrder ?? "-"} ${item.title} ${item.content}`).join("\n") || "无"}`,
-        `输入状态快照：${stateSnapshot?.summary ?? "无"}`,
-        `最近未解决审计问题：${openAuditIssues.join("\n") || "无"}`,
-        `最近创作决策：${recentDecisions.map((item) => `${item.category}/${item.importance}: ${item.content}`).join("\n") || "无"}`,
-        `动态角色系统：${characterDynamicsDigest || "无"}`,
-        `默认结构职责建议：planRole=${defaultMetadata.planRole ?? "progress"} | phase=${defaultMetadata.phaseLabel ?? "无"}`,
-        `本章必须推进：${defaultMetadata.mustAdvance.join("；") || "无"}`,
-        `本章必须保留：${defaultMetadata.mustPreserve.join("；") || "无"}`,
-        `重规划输入：${replanContextBlock}`,
-      ].join("\n\n"),
-      includeScenes: true,
       planLevel: "chapter",
+      contextBlocks,
     });
     const metadata = normalizePlanMetadata("chapter", output, {
       ...defaultMetadata,

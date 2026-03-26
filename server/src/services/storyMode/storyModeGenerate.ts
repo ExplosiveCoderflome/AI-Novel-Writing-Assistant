@@ -1,7 +1,7 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { invokeStructuredLlm } from "../../llm/structuredInvoke";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import { storyModeTreePrompt } from "../../prompting/prompts/storyMode/storyMode.prompts";
 import { sanitizeStoryModeProfile } from "./storyModeProfile";
-import { storyModeDraftNodeSchema } from "./storyModeSchemas";
 
 export interface StoryModeTreeDraft {
   name: string;
@@ -68,27 +68,19 @@ function sanitizeGeneratedNode(value: unknown, depth = 1): StoryModeTreeDraft {
 }
 
 export async function generateStoryModeTreeDraft(input: GenerateStoryModeTreeInput): Promise<StoryModeTreeDraft> {
-  const parsed = await invokeStructuredLlm({
-    label: "story-mode-tree:init",
-    provider: input.provider,
-    model: input.model,
-    temperature: input.temperature ?? 0.45,
-    maxTokens: input.maxTokens,
-    taskType: "planner",
-    systemPrompt: [
-      "你是网络小说流派模式策划专家。",
-      "你的任务是根据用户描述，生成一个两级流派模式树。",
-      "顶层是流派模式父类，第二层是具体流派模式子类。",
-      "每个节点都必须输出 name、description、template、profile、children。",
-      "profile 必须严格包含：coreDrive, readerReward, progressionUnits, allowedConflictForms, forbiddenConflictForms, conflictCeiling, resolutionStyle, chapterUnit, volumeReward, mandatorySignals, antiSignals。",
-      "返回严格 JSON，不要输出 Markdown、解释或额外文本。",
-      "最多两级树，第二层 children 必须为空数组。",
-      "不得使用按流派名字写死的规则，必须把控制逻辑写进 profile 字段。",
-    ].join("\n"),
-    userPrompt: `请根据下面的创作方向生成流派模式树草稿：\n\n${input.prompt.trim()}`,
-    schema: storyModeDraftNodeSchema,
-    maxRepairAttempts: 1,
+  const result = await runStructuredPrompt({
+    asset: storyModeTreePrompt,
+    promptInput: {
+      prompt: input.prompt,
+    },
+    options: {
+      provider: input.provider,
+      model: input.model,
+      temperature: input.temperature ?? 0.45,
+      maxTokens: input.maxTokens,
+    },
   });
+  const parsed = result.output;
 
   return sanitizeGeneratedNode(parsed);
 }

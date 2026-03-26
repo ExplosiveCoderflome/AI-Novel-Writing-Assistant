@@ -1,6 +1,7 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ChatOpenAI } from "@langchain/openai";
 import type { TaskType } from "./modelRouter";
+import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
 
 const LLM_DEBUG_PATCHED = Symbol("LLM_DEBUG_PATCHED");
 const LOG_TRUE_VALUES = new Set(["1", "true", "on", "yes"]);
@@ -13,6 +14,7 @@ interface LLMDebugMeta {
   maxTokens?: number;
   taskType?: TaskType;
   baseURL?: string;
+  promptMeta?: PromptInvocationMeta;
 }
 
 interface MessageLogEntry {
@@ -181,6 +183,15 @@ function buildHeader(method: "invoke" | "stream" | "batch", meta: LLMDebugMeta):
   }
   if (meta.baseURL) {
     chunks.push(`baseURL=${meta.baseURL}`);
+  }
+  if (meta.promptMeta) {
+    chunks.push(`promptId=${meta.promptMeta.promptId}`);
+    chunks.push(`promptVersion=${meta.promptMeta.promptVersion}`);
+    chunks.push(`estimatedInputTokens=${meta.promptMeta.estimatedInputTokens}`);
+    chunks.push(`repairUsed=${meta.promptMeta.repairUsed}`);
+    if (meta.promptMeta.contextBlockIds.length > 0) {
+      chunks.push(`contextBlockIds=${meta.promptMeta.contextBlockIds.join(",")}`);
+    }
   }
   return chunks.join(" ");
 }

@@ -39,6 +39,20 @@
 - Floating range: 500-700 lines is acceptable when module cohesion is still clear and the file is not becoming hard to maintain.
 - Hard threshold: when a source file exceeds 700 lines, refactoring and modularization are mandatory before continuing feature expansion.
 
+## Prompt Governance
+
+- `server/src/prompting/` is the only allowed entrypoint for adding new product-level prompts.
+- Any new product-facing prompt must be implemented as a `PromptAsset` under `server/src/prompting/prompts/<family>/`.
+- Any new product-facing prompt must be registered in `server/src/prompting/registry.ts` with explicit `id`, `version`, `taskType`, `mode`, `contextPolicy`, and `outputSchema` when structured.
+- Do not add new business prompts by inlining `systemPrompt` / `userPrompt` inside service files and calling `invokeStructuredLlm`.
+- Do not add new business prompts by calling raw `getLLM()` from service code unless the flow is an approved exception below.
+- When touching an existing unregistered prompt path, default to migrating that prompt into `server/src/prompting/` instead of extending the old inline implementation.
+- Approved exceptions are limited to:
+  - JSON repair inside `server/src/llm/structuredInvoke.ts`
+  - connectivity / probe prompts such as `server/src/llm/connectivity.ts`
+  - phase-two flow adapters in `graphs/*`, `routes/chat.ts`, `services/novel/runtime/*`, and other stream bridge code explicitly kept outside the registry for now
+- For naming and registration workflow, follow `server/src/prompting/README.md`.
+
 ## README Release Notes Workflow
 
 - When the user asks to commit or push code, inspect the Git scope for that push and update `README.md` before the Git write step if the change set has clear user-facing impact.

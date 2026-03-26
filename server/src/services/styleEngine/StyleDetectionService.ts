@@ -1,8 +1,8 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { StyleDetectionReport } from "@ai-novel/shared/types/styleEngine";
-import { invokeStructuredLlm } from "../../llm/structuredInvoke";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import { styleDetectionPrompt } from "../../prompting/prompts/style/style.prompts";
 import { StyleRuntimeResolver } from "./StyleRuntimeResolver";
-import { styleDetectionPayloadSchema } from "./styleDetectionSchema";
 
 interface DetectionInput {
   content: string;
@@ -37,36 +37,21 @@ export class StyleDetectionService {
       };
     }
 
-    const systemPrompt = `你是小说写法检测器。请根据给定写法规则和反 AI 规则检查文本。
-只输出 JSON 对象，字段包括：
-riskScore, summary, canAutoRewrite, violations。
-violations 每项字段包括：
-ruleName, ruleType, severity, excerpt, reason, suggestion, canAutoRewrite。
-如果没有违规，violations 返回空数组。`;
-
-    const userPrompt = `当前写法规则：
-${resolved.context.compiledBlocks?.style ?? "无"}
-
-角色表达规则：
-${resolved.context.compiledBlocks?.character ?? "无"}
-
-反AI规则：
-${antiRules.map((rule) => `- [${rule.id}] ${rule.name} (${rule.type}/${rule.severity})：${rule.promptInstruction ?? rule.description}`).join("\n")}
-
-待检测文本：
-${input.content}`;
-
-    const parsed = await invokeStructuredLlm({
-      label: `style-detection:${input.chapterId ?? input.novelId ?? input.content.slice(0, 8)}`,
-      provider: input.provider,
-      model: input.model,
-      temperature: input.temperature ?? 0.2,
-      taskType: "planner",
-      systemPrompt,
-      userPrompt,
-      schema: styleDetectionPayloadSchema,
-      maxRepairAttempts: 1,
+    const result = await runStructuredPrompt({
+      asset: styleDetectionPrompt,
+      promptInput: {
+        styleRulesBlock: resolved.context.compiledBlocks?.style ?? "无",
+        characterRulesBlock: resolved.context.compiledBlocks?.character ?? "无",
+        antiRulesText: antiRules.map((rule) => `- [${rule.id}] ${rule.name} (${rule.type}/${rule.severity})：${rule.promptInstruction ?? rule.description}`).join("\n"),
+        content: input.content,
+      },
+      options: {
+        provider: input.provider,
+        model: input.model,
+        temperature: input.temperature ?? 0.2,
+      },
     });
+    const parsed = result.output;
     return {
       riskScore: Math.max(0, Math.min(100, Math.round(parsed.riskScore ?? 0))),
       summary: parsed.summary ?? "",

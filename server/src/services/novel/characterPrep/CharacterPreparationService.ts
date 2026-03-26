@@ -12,11 +12,11 @@ import type {
 } from "@ai-novel/shared/types/novel";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../../db/prisma";
-import { invokeStructuredLlm } from "../../../llm/structuredInvoke";
+import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
+import { characterCastOptionPrompt } from "../../../prompting/prompts/novel/characterPreparation.prompts";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import { NovelContextService } from "../NovelContextService";
 import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
-import { characterCastOptionResponseSchema } from "./characterPreparationSchemas";
 import { CharacterPreparationSupplementalService } from "./characterPreparationSupplemental";
 
 interface CharacterPrepOptions {
@@ -25,47 +25,6 @@ interface CharacterPrepOptions {
   temperature?: number;
   storyInput?: string;
 }
-
-const CHARACTER_CAST_OPTION_RESPONSE_TEMPLATE = `{
-  "options": [
-    {
-      "title": "string",
-      "summary": "string",
-      "whyItWorks": "string",
-      "recommendedReason": "string",
-      "members": [
-        {
-          "name": "string",
-          "role": "string",
-          "castRole": "protagonist",
-          "relationToProtagonist": "string",
-          "storyFunction": "string",
-          "shortDescription": "string",
-          "outerGoal": "string",
-          "innerNeed": "string",
-          "fear": "string",
-          "wound": "string",
-          "misbelief": "string",
-          "secret": "string",
-          "moralLine": "string",
-          "firstImpression": "string"
-        }
-      ],
-      "relations": [
-        {
-          "sourceName": "string",
-          "targetName": "string",
-          "surfaceRelation": "string",
-          "hiddenTension": "string",
-          "conflictSource": "string",
-          "secretAsymmetry": "string",
-          "dynamicLabel": "string",
-          "nextTurnPoint": "string"
-        }
-      ]
-    }
-  ]
-}`;
 
 export class CharacterPreparationService {
   private readonly novelContextService = new NovelContextService();
@@ -275,32 +234,18 @@ export class CharacterPreparationService {
       `Constraint engine: ${novel.storyMacroPlan?.constraintEngineJson ?? "None"}`,
     ];
 
-    const parsed = await invokeStructuredLlm({
-      label: `character-cast-options:${novelId}`,
-      provider: options.provider,
-      model: options.model,
-      temperature: options.temperature ?? 0.5,
-      taskType: "planner",
-      systemPrompt: [
-        "You are designing the long-form character system for a novel project.",
-        "Return strict JSON only.",
-        "Produce exactly 3 distinct cast options.",
-        "Each option must focus on protagonist desire, antagonist pressure, relationship tension, growth cost, and sustainable long-arc conflict.",
-        "Each option must contain 3-6 core characters and 2-12 high-value relationships.",
-        "Do not output shallow bio cards only. Include story function, relationship dynamics, and conflict pressure.",
-        "Allowed castRole values: protagonist, antagonist, ally, foil, mentor, love_interest, pressure_source, catalyst.",
-        "Use the exact JSON shape below and keep the exact English field names.",
-        CHARACTER_CAST_OPTION_RESPONSE_TEMPLATE,
-        "Do not translate field names into Chinese.",
-        "Do not rename keys like title, summary, members, relations, sourceName, or targetName.",
-        "Do not wrap each option inside another object such as {\"option\": {...}}.",
-        "Every option must include title, summary, members, and relations.",
-        "Optional text fields may be empty strings, but required fields must never be omitted.",
-      ].join("\n"),
-      userPrompt: promptSections.join("\n\n"),
-      schema: characterCastOptionResponseSchema,
-      maxRepairAttempts: 1,
+    const result = await runStructuredPrompt({
+      asset: characterCastOptionPrompt,
+      promptInput: {
+        promptSections,
+      },
+      options: {
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature ?? 0.5,
+      },
     });
+    const parsed = result.output;
 
     await prisma.$transaction(async (tx) => {
       await tx.characterCastOption.deleteMany({ where: { novelId } });

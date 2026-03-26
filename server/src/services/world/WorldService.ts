@@ -1,5 +1,4 @@
 import type { Prisma } from "@prisma/client";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
   WorldConsistencyReport,
@@ -9,8 +8,8 @@ import type {
   WorldVisualizationPayload,
 } from "@ai-novel/shared/types/world";
 import { prisma } from "../../db/prisma";
-import { getLLM } from "../../llm/factory";
-import { invokeStructuredLlm } from "../../llm/structuredInvoke";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import { worldAxiomSuggestionPrompt } from "../../prompting/prompts/world/world.prompts";
 import { getTemplateByKey, LAYER_FIELD_MAP, WORLD_LAYER_ORDER, WORLD_TEMPLATES } from "./worldTemplates";
 import { buildConsistencySummary, localizeConsistencyIssue } from "./worldConsistency";
 import {
@@ -25,7 +24,6 @@ import {
   parseWorldStructurePayload,
   WORLD_STRUCTURE_SCHEMA_VERSION,
 } from "./worldStructure";
-import { worldStructuredDataSchema } from "./worldSchemas";
 import { buildWorldVisualizationPayload } from "./worldVisualization";
 import { applyGeneratedWorldFields, buildWorldBlueprintPromptBlock } from "./worldGenerationBlueprint";
 import { createWorldDraftGenerateStream, createWorldDraftRefineStream } from "./worldDraftGeneration";
@@ -261,39 +259,25 @@ export class WorldService {
       throw new Error("World not found.");
     }
 
-    const llm = await getLLM(options.provider ?? "deepseek", {
-      model: options.model,
-      temperature: 0.5,
-    });
     const template = getTemplateByKey(world.templateKey);
     const blueprintPromptBlock = buildWorldBlueprintPromptBlock(world);
-    const result = await llm.invoke([
-      new SystemMessage(
-        `请生成 5 条世界核心公理。
-返回 JSON 数组，数组元素必须是字符串，全部使用简体中文。
-要求：
-1. 公理必须能约束后续世界生成，而不是空泛口号。
-2. 公理要能覆盖代价、秩序、冲突来源、边界条件等关键约束。
-3. 只输出 JSON 数组，不要输出解释。`,
-      ),
-      new HumanMessage(
-        `世界名=${world.name}
-世界类型=${world.worldType ?? "未知"}
-模板=${template.name}
-模板说明=${template.description}
-世界摘要=${world.description ?? "无"}
-蓝图约束：
-${blueprintPromptBlock}`,
-      ),
-    ]);
-
-    let parsedRaw: unknown = [];
-    try {
-      parsedRaw = safeParseJSON<unknown[]>(extractJSONArray(String(result.content)), []);
-    } catch {
-      parsedRaw = [];
-    }
-    const axioms = normalizeAxiomList(parsedRaw);
+    const result = await runStructuredPrompt({
+      asset: worldAxiomSuggestionPrompt,
+      promptInput: {
+        worldName: world.name,
+        worldType: world.worldType ?? "未知",
+        templateName: template.name,
+        templateDescription: template.description,
+        description: world.description ?? "无",
+        blueprintPromptBlock,
+      },
+      options: {
+        provider: options.provider ?? "deepseek",
+        model: options.model,
+        temperature: 0.5,
+      },
+    });
+    const axioms = normalizeAxiomList(result.output);
     return axioms.length > 0
       ? axioms
       : [
@@ -344,11 +328,11 @@ ${blueprintPromptBlock}`,
     if (!world) {
       throw new Error("World not found.");
     }
-    const llm = await getLLM(input.provider ?? "deepseek", {
+    const generated = await buildWorldLayerGeneration({
+      provider: input.provider ?? "deepseek",
       model: input.model,
       temperature: input.temperature ?? 0.7,
-    });
-    const generated = await buildWorldLayerGeneration(llm, world, layerKey);
+    }, world, layerKey);
 
     const states = normalizeLayerStates(world.layerStates);
     states[layerKey] = { key: layerKey, status: "generated", updatedAt: nowISO() };
@@ -379,11 +363,6 @@ ${blueprintPromptBlock}`,
       throw new Error("World not found.");
     }
 
-    const llm = await getLLM(input.provider ?? "deepseek", {
-      model: input.model,
-      temperature: input.temperature ?? 0.7,
-    });
-
     const generatedByLayer = WORLD_LAYER_ORDER.reduce((acc, layerKey) => {
       acc[layerKey] = {};
       return acc;
@@ -392,7 +371,11 @@ ${blueprintPromptBlock}`,
 
     let workingWorld = world;
     for (const layerKey of WORLD_LAYER_ORDER) {
-      const generatedLayer = await buildWorldLayerGeneration(llm, workingWorld, layerKey);
+      const generatedLayer = await buildWorldLayerGeneration({
+        provider: input.provider ?? "deepseek",
+        model: input.model,
+        temperature: input.temperature ?? 0.7,
+      }, workingWorld, layerKey);
       generatedByLayer[layerKey] = generatedLayer;
       Object.assign(mergedGenerated, generatedLayer);
       workingWorld = applyGeneratedWorldFields(workingWorld, generatedLayer);

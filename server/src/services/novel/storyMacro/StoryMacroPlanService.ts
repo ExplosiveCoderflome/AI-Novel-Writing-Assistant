@@ -1,4 +1,3 @@
-import { z } from "zod";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
   StoryDecomposition,
@@ -11,18 +10,18 @@ import type {
   StoryMacroState,
 } from "@ai-novel/shared/types/storyMacro";
 import { prisma } from "../../../db/prisma";
-import { invokeStructuredLlm } from "../../../llm/structuredInvoke";
+import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
+import {
+  storyMacroDecompositionPrompt,
+  storyMacroFieldRegenerationPrompt,
+} from "../../../prompting/prompts/novel/storyMacro.prompts";
 import { normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import {
   EMPTY_DECOMPOSITION,
   EMPTY_EXPANSION,
   EMPTY_STATE,
   type StoryMacroEditablePlan,
-  STORY_MACRO_RESPONSE_SCHEMA,
   buildConstraintEngine as buildStoryConstraintEngine,
-  buildExpansionAndDecompositionPrompt,
-  buildFieldRegenerationPrompt,
-  getEditablePlanFieldValue,
   hasMeaningfulDecomposition,
   hasMeaningfulExpansion,
   isDecompositionComplete,
@@ -181,25 +180,25 @@ export class StoryMacroPlanService {
     projectContext: string,
     options: LLMOptions,
   ): Promise<{ plan: StoryMacroEditablePlan; issues: StoryMacroIssue[] }> {
-    const prompt = buildExpansionAndDecompositionPrompt(storyInput, projectContext);
-    const parsed = await invokeStructuredLlm({
-      label: "story-macro-decomposition",
-      provider: options.provider,
-      model: options.model,
-      temperature: options.temperature ?? 0.3,
-      taskType: "planner",
-      systemPrompt: prompt.system,
-      userPrompt: prompt.user,
-      schema: STORY_MACRO_RESPONSE_SCHEMA,
-      maxRepairAttempts: 1,
+    const parsed = await runStructuredPrompt({
+      asset: storyMacroDecompositionPrompt,
+      promptInput: {
+        storyInput,
+        projectContext,
+      },
+      options: {
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature ?? 0.3,
+      },
     });
     return {
       plan: {
-        expansion: normalizeExpansion(parsed.expansion),
-        decomposition: normalizeDecomposition(parsed.decomposition),
-        constraints: normalizeConstraints(parsed.constraints),
+        expansion: normalizeExpansion(parsed.output.expansion),
+        decomposition: normalizeDecomposition(parsed.output.decomposition),
+        constraints: normalizeConstraints(parsed.output.constraints),
       },
-      issues: normalizeIssues(parsed.issues),
+      issues: normalizeIssues(parsed.output.issues),
     };
   }
 
@@ -211,34 +210,25 @@ export class StoryMacroPlanService {
     options: LLMOptions,
     projectContext: string,
   ): Promise<StoryMacroFieldValue> {
-    const prompt = buildFieldRegenerationPrompt({
-      field,
-      storyInput,
-      expansion: plan.expansion,
-      decomposition: plan.decomposition,
-      constraints: plan.constraints,
-      lockedFields,
-      projectContext,
-    });
-    const fieldRegenSchema = z
-      .object({
-        value: z.unknown().optional(),
-      })
-      .passthrough();
-
-    const parsed = await invokeStructuredLlm({
-      label: `story-macro-field-regeneration:${field}`,
-      provider: options.provider,
-      model: options.model,
-      temperature: options.temperature ?? 0.3,
-      taskType: "planner",
-      systemPrompt: prompt.system,
-      userPrompt: prompt.user,
-      schema: fieldRegenSchema,
-      maxRepairAttempts: 1,
+    const parsed = await runStructuredPrompt({
+      asset: storyMacroFieldRegenerationPrompt,
+      promptInput: {
+        field,
+        storyInput,
+        expansion: plan.expansion,
+        decomposition: plan.decomposition,
+        constraints: plan.constraints,
+        lockedFields,
+        projectContext,
+      },
+      options: {
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature ?? 0.3,
+      },
     });
 
-    return normalizeRegeneratedFieldValue(field, parsed.value);
+    return normalizeRegeneratedFieldValue(field, parsed.output.value);
   }
 
   async getPlan(novelId: string): Promise<StoryMacroPlan | null> {

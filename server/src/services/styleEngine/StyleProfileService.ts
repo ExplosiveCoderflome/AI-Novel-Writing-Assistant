@@ -1,10 +1,13 @@
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import type { StyleExtractionDraft, StyleFeatureDecision, StyleProfile, StyleProfileFeature, StyleRuleSet, StyleSourceType, StyleTemplate } from "@ai-novel/shared/types/styleEngine";
+import type { StyleExtractionDraft, StyleFeatureDecision, StyleProfile, StyleProfileFeature, StyleSourceType, StyleTemplate } from "@ai-novel/shared/types/styleEngine";
 import { prisma } from "../../db/prisma";
-import { getLLM } from "../../llm/factory";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import {
+  styleProfileExtractionPrompt,
+  styleProfileFromBookAnalysisPrompt,
+} from "../../prompting/prompts/style/style.prompts";
 import { ensureStyleEngineSeedData } from "./StyleEngineSeedService";
-import { mapStyleProfileRow, mapStyleTemplateRow, extractJsonObject, serializeJson, toLlmText } from "./helpers";
+import { mapStyleProfileRow, mapStyleTemplateRow, serializeJson } from "./helpers";
 import {
   buildExtractionAnalysisMarkdown,
   buildProfileFeatureAnalysisMarkdown,
@@ -39,17 +42,19 @@ interface LlmInput {
   temperature?: number;
 }
 
-interface GeneratedStylePayload extends StyleRuleSet {
+interface GeneratedStylePayload {
   name?: string;
-  description?: string;
-  category?: string;
+  description?: string | null;
+  category?: string | null;
   tags?: string[];
   applicableGenres?: string[];
-  analysisMarkdown?: string;
+  analysisMarkdown?: string | null;
   antiAiRuleKeys?: string[];
+  narrativeRules?: Record<string, unknown>;
+  characterRules?: Record<string, unknown>;
+  languageRules?: Record<string, unknown>;
+  rhythmRules?: Record<string, unknown>;
 }
-
-type GeneratedStyleExtractionPayload = StyleExtractionDraft;
 
 export class StyleProfileService {
   async listProfiles(): Promise<StyleProfile[]> {
@@ -250,25 +255,7 @@ export class StyleProfileService {
     category?: string;
   } & LlmInput): Promise<StyleExtractionDraft> {
     await ensureStyleEngineSeedData();
-    const generated = await this.generateStructuredExtraction(
-      `你是小说写法特征提取器。
-请从用户提供的文本里尽量完整提取“可用于仿写或写法迁移”的全部关键特征，并严格输出 JSON 对象。
-字段包括：
-name, description, category, tags, applicableGenres, analysisMarkdown, summary, antiAiRuleKeys, features, presets。
-要求：
-1. features 必须尽量覆盖叙事、语言、对话、节奏、指纹特征，不要为了安全而过度删减。
-2. 每个 feature 都必须提供 keepRulePatch；如果适合“弱化”，再提供 weakenRulePatch。
-3. importance / imitationValue / transferability / fingerprintRisk 都用 0-1 小数。
-4. presets 必须至少包含 imitate / balanced / transfer 三套建议。
-5. antiAiRuleKeys 只能推荐系统已有规则 key。
-6. 只输出 JSON，不要输出解释。`,
-      `写法名称：${input.name}
-建议分类：${input.category ?? "未指定"}
-
-原文：
-${input.sourceText}`,
-      input,
-    );
+    const generated = await this.generateStructuredExtraction(input);
     return normalizeStyleExtractionDraft(generated, input.name, input.category);
   }
 
@@ -329,21 +316,11 @@ ${input.sourceText}`,
     if (!sourceText) {
       throw new Error("拆书文风与技法小节为空，无法生成写法资产。");
     }
-    const generated = await this.generateStructuredStyle(
-      `请把拆书分析中的“文风与技法”转成可执行写法资产。输出 JSON，字段包括：
-name, description, category, tags, applicableGenres, analysisMarkdown,
-narrativeRules, characterRules, languageRules, rhythmRules, antiAiRuleKeys。
-要求：
-1. narrativeRules / characterRules / languageRules / rhythmRules 必须是结构化对象。
-2. antiAiRuleKeys 只能推荐系统已有规则 key。
-3. 不要输出解释文字，只输出 JSON 对象。`,
-      `拆书分析标题：${section.analysis.title}
-写法名称：${input.name}
-
-拆书中的文风与技法：
-${sourceText}`,
-      input,
-    );
+    const generated = await this.generateStructuredStyle({
+      analysisTitle: section.analysis.title,
+      name: input.name,
+      sourceText,
+    }, input);
     return this.persistGeneratedProfile({
       inputName: input.name,
       sourceType: "from_book_analysis",
@@ -353,48 +330,63 @@ ${sourceText}`,
     });
   }
 
-  private async generateStructuredStyle(systemPrompt: string, userPrompt: string, llmInput: LlmInput): Promise<GeneratedStylePayload> {
-    const result = await this.invokeJson<GeneratedStylePayload>(systemPrompt, userPrompt, llmInput);
-    return result;
+  private async generateStructuredStyle(
+    promptInput: {
+      analysisTitle: string;
+      name: string;
+      sourceText: string;
+    },
+    llmInput: LlmInput,
+  ): Promise<GeneratedStylePayload> {
+    const result = await runStructuredPrompt({
+      asset: styleProfileFromBookAnalysisPrompt,
+      promptInput,
+      options: {
+        provider: llmInput.provider ?? "deepseek",
+        model: llmInput.model,
+        temperature: llmInput.temperature ?? 0.5,
+      },
+    });
+    return result.output;
   }
 
-  private async generateStructuredExtraction(systemPrompt: string, userPrompt: string, llmInput: LlmInput): Promise<GeneratedStyleExtractionPayload> {
-    const initialResult = await this.invokeJson<GeneratedStyleExtractionPayload>(systemPrompt, userPrompt, llmInput);
-    if (this.hasUsableExtractionFeatures(initialResult)) {
-      return initialResult;
+  private async generateStructuredExtraction(input: {
+    name: string;
+    sourceText: string;
+    category?: string;
+  } & LlmInput): Promise<StyleExtractionDraft> {
+    const initialResult = await runStructuredPrompt({
+      asset: styleProfileExtractionPrompt,
+      promptInput: {
+        name: input.name,
+        category: input.category,
+        sourceText: input.sourceText,
+      },
+      options: {
+        provider: input.provider ?? "deepseek",
+        model: input.model,
+        temperature: input.temperature ?? 0.5,
+      },
+    });
+    if (this.hasUsableExtractionFeatures(initialResult.output)) {
+      return initialResult.output as StyleExtractionDraft;
     }
 
-    return this.invokeJson<GeneratedStyleExtractionPayload>(
-      [
-        systemPrompt,
-        "The previous response did not contain a usable features array.",
-        "Retry now and focus on returning a non-empty `features` array.",
-        "Each feature must include: id, group, label, description, evidence, importance, imitationValue, transferability, fingerprintRisk, keepRulePatch, optional weakenRulePatch.",
-        "If other fields are hard to infer, keep them brief, but do not omit `features`.",
-        "Output JSON only.",
-      ].join("\n"),
-      [
-        userPrompt,
-        "",
-        "Retry requirement:",
-        "- Return at least 8 features when the source text is long enough.",
-        "- Use the exact field name `features`.",
-        "- Allowed group values: narrative, language, dialogue, rhythm, fingerprint.",
-      ].join("\n"),
-      llmInput,
-    );
-  }
-
-  private async invokeJson<T>(systemPrompt: string, userPrompt: string, llmInput: LlmInput): Promise<T> {
-    const llm = await getLLM(llmInput.provider ?? "deepseek", {
-      model: llmInput.model,
-      temperature: llmInput.temperature ?? 0.5,
+    const retriedResult = await runStructuredPrompt({
+      asset: styleProfileExtractionPrompt,
+      promptInput: {
+        name: input.name,
+        category: input.category,
+        sourceText: input.sourceText,
+        retryForFeatures: true,
+      },
+      options: {
+        provider: input.provider ?? "deepseek",
+        model: input.model,
+        temperature: input.temperature ?? 0.5,
+      },
     });
-    const result = await llm.invoke([
-      new SystemMessage(systemPrompt),
-      new HumanMessage(userPrompt),
-    ]);
-    return extractJsonObject<T>(toLlmText(result.content));
+    return retriedResult.output as StyleExtractionDraft;
   }
 
   private async persistGeneratedProfile(input: {
@@ -407,14 +399,14 @@ ${sourceText}`,
     const antiAiRuleIds = await this.resolveAntiAiRuleIds(input.generated.antiAiRuleKeys ?? []);
     return this.createManualProfile({
       name: input.generated.name?.trim() || input.inputName,
-      description: input.generated.description,
-      category: input.generated.category,
+      description: input.generated.description ?? undefined,
+      category: input.generated.category ?? undefined,
       tags: input.generated.tags ?? [],
       applicableGenres: input.generated.applicableGenres ?? [],
       sourceType: input.sourceType,
       sourceRefId: input.sourceRefId,
       sourceContent: input.sourceContent,
-      analysisMarkdown: input.generated.analysisMarkdown,
+      analysisMarkdown: input.generated.analysisMarkdown ?? undefined,
       narrativeRules: input.generated.narrativeRules,
       characterRules: input.generated.characterRules,
       languageRules: input.generated.languageRules,

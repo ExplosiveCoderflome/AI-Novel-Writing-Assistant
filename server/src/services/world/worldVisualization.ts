@@ -1,12 +1,11 @@
 import type { World as PrismaWorld } from "@prisma/client";
 import type { WorldVisualizationPayload } from "@ai-novel/shared/types/world";
-import { invokeStructuredLlm } from "../../llm/structuredInvoke";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import { worldVisualizationPrompt } from "../../prompting/prompts/world/world.prompts";
 import {
   buildWorldBindingSupport,
   parseWorldStructurePayload,
 } from "./worldStructure";
-
-import { worldVisualizationDraftSchema } from "./worldVisualizationSchema";
 
 type FactionNodeType = "state" | "faction" | "race" | "organization" | "other";
 
@@ -585,36 +584,16 @@ async function tryBuildWorldVisualizationWithLLM(
   world: VisualizationSource,
 ): Promise<VisualizationDraft | null> {
   try {
-    const systemPrompt = `你是世界观可视化抽取器。请严格输出 JSON 对象，结构为：
-{
-  "factionGraph": {
-    "nodes": [{"id":"faction-1","label":"...","type":"state|faction|race|organization|other"}],
-    "edges": [{"source":"faction-1","target":"faction-2","relation":"同盟|合作|支援|对抗|敌对|统属|压制|贸易|竞争|中立|关联"}]
-  },
-  "powerTree": [{"level":"L1","description":"..."}],
-  "geographyMap": {
-    "nodes": [{"id":"geo-1","label":"..."}],
-    "edges": [{"source":"geo-1","target":"geo-2","relation":"相邻|通道|隔绝|控制"}]
-  },
-  "timeline": [{"year":"...","event":"..."}]
-}
-要求：
-1. 只抽取文本里明确存在或强可推断的信息，不要编造。
-2. factionGraph 必须优先反映真实势力关系，不要用泛化的 interaction。
-3. 所有 label、relation、description、event 必须使用简体中文。
-4. 节点数量控制在 4-12 个，优先核心势力。`;
-
-    return await invokeStructuredLlm({
-      label: `world-visualization:${world.id}`,
-      provider: undefined,
-      model: undefined,
-      temperature: 0.2,
-      taskType: "planner",
-      systemPrompt,
-      userPrompt: buildVisualizationPrompt(world),
-      schema: worldVisualizationDraftSchema,
-      maxRepairAttempts: 1,
+    const result = await runStructuredPrompt({
+      asset: worldVisualizationPrompt,
+      promptInput: {
+        worldPromptSource: buildVisualizationPrompt(world),
+      },
+      options: {
+        temperature: 0.2,
+      },
     });
+    return result.output;
   } catch {
     return null;
   }

@@ -1,12 +1,14 @@
 import type { AuditReport, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { BaseMessageChunk } from "@langchain/core/messages";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { prisma } from "../../db/prisma";
 import { getLLM } from "../../llm/factory";
-import { invokeStructuredLlm } from "../../llm/structuredInvoke";
+import { preparePromptExecution, runStructuredPrompt } from "../../prompting/core/promptRunner";
+import {
+  chapterRepairPrompt,
+  chapterReviewPrompt,
+} from "../../prompting/prompts/novel/review.prompts";
 import { ragServices } from "../rag";
 import { auditService } from "../audit/AuditService";
-import { fullAuditOutputSchema } from "../audit/auditSchemas";
 import { plannerService } from "../planner/PlannerService";
 import { stateService } from "../state/StateService";
 import { syncChapterArtifacts } from "./novelChapterArtifacts";
@@ -101,10 +103,6 @@ export class NovelCoreReviewService {
         fixSuggestion: item.fixSuggestion,
       }));
 
-    const llm = await getLLM(options.provider ?? "deepseek", {
-      model: options.model,
-      temperature: options.temperature ?? 0.5,
-    });
     let ragContext = "";
     try {
       ragContext = await ragServices.hybridRetrievalService.buildContextBlock(
@@ -119,24 +117,24 @@ export class NovelCoreReviewService {
       ragContext = "";
     }
 
-    const stream = await llm.stream([
-      new SystemMessage("你是资深网文编辑，请基于审校问题修复章节，保证主线和口吻一致"),
-      new HumanMessage(
-        `小说标题：${novel.title}
-作品圣经：${bible?.rawContent ?? "暂无"}
-章节标题：${chapter.title}
-原始正文：
-${chapter.content ?? ""}
-
-审校问题：
-${JSON.stringify(issues, null, 2)}
-
-检索补充：
-${ragContext || ""}
-
-请输出修复后的完整章节正文。`,
-      ),
-    ]);
+    const prepared = preparePromptExecution({
+      asset: chapterRepairPrompt,
+      promptInput: {
+        novelTitle: novel.title,
+        bibleContent: bible?.rawContent ?? "暂无",
+        chapterTitle: chapter.title,
+        chapterContent: chapter.content ?? "",
+        issuesJson: JSON.stringify(issues, null, 2),
+        ragContext: ragContext || "",
+      },
+    });
+    const llm = await getLLM(options.provider ?? "deepseek", {
+      model: options.model,
+      temperature: options.temperature ?? 0.5,
+      taskType: chapterRepairPrompt.taskType,
+      promptMeta: prepared.invocation,
+    });
+    const stream = await llm.stream(prepared.messages);
 
     return {
       stream: stream as AsyncIterable<BaseMessageChunk>,
@@ -287,24 +285,21 @@ ${ragContext || ""}
         }
       }
 
-      const parsed = await invokeStructuredLlm({
-        label: `review:${novelTitle}:${chapterTitle}`,
-        provider: options.provider,
-        model: options.model,
-        temperature: options.temperature ?? 0.1,
-        taskType: "review",
-        systemPrompt:
-          "你是网文审校专家。请输出 JSON：{\"score\":{\"coherence\":0-100,\"repetition\":0-100,\"pacing\":0-100,\"voice\":0-100,\"engagement\":0-100,\"overall\":0-100},\"issues\":[{\"severity\":\"low|medium|high|critical\",\"category\":\"coherence|repetition|pacing|voice|engagement|logic\",\"evidence\":\"...\",\"fixSuggestion\":\"...\"}]}",
-        userPrompt: `小说：${novelTitle}
-章节：${chapterTitle}
-正文：
-${content}
-
-检索补充：
-${ragContext || ""}`,
-        schema: fullAuditOutputSchema,
-        maxRepairAttempts: 1,
+      const result = await runStructuredPrompt({
+        asset: chapterReviewPrompt,
+        promptInput: {
+          novelTitle,
+          chapterTitle,
+          content,
+          ragContext: ragContext || "",
+        },
+        options: {
+          provider: options.provider,
+          model: options.model,
+          temperature: options.temperature ?? 0.1,
+        },
       });
+      const parsed = result.output;
 
       return {
         score: normalizeScore(parsed.score ?? {}),

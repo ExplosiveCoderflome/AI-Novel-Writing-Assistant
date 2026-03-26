@@ -1,7 +1,7 @@
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
-import { getLLM } from "../../llm/factory";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import { novelProductionCharactersPrompt } from "../../prompting/prompts/novel/production.prompts";
 import { WorldService } from "../world/WorldService";
 import { NovelService } from "./NovelService";
 import { collectStream, extractJsonArray, parseStructuredOutline } from "./novelProductionHelpers";
@@ -136,30 +136,28 @@ export class NovelProductionService {
       };
     }
 
-    const llm = await getLLM(input.provider ?? "deepseek", {
-      model: input.model,
-      temperature: input.temperature ?? 0.6,
-    });
     const desiredCount = Math.min(Math.max(input.count ?? 5, 3), 6);
-    const result = await llm.invoke([
-      new SystemMessage([
-        "你是小说角色设计师。",
-        `请为一部小说生成 ${desiredCount} 个核心角色，返回 JSON 数组。`,
-        "每个对象只能包含 name, role, personality, background, development, currentState, currentGoal。",
-        "所有字段必须使用简体中文。",
-        "不要输出解释。",
-      ].join("\n")),
-      new HumanMessage([
-        `小说标题：${novel.title}`,
-        `小说简介：${input.description?.trim() || novel.description?.trim() || "暂无"}`,
-        `题材：${input.genre?.trim() || "未指定"}`,
-        `叙事视角：${input.narrativePov ?? "未指定"}`,
-        `风格基调：${input.styleTone?.trim() || "未指定"}`,
-        `世界观：${novel.world ? `${novel.world.name}\n${novel.world.description ?? novel.world.background ?? ""}\n${novel.world.conflicts ?? ""}\n${novel.world.magicSystem ?? ""}` : "暂无已绑定世界观"}`,
-      ].join("\n\n")),
-    ]);
+    const result = await runStructuredPrompt({
+      asset: novelProductionCharactersPrompt,
+      promptInput: {
+        desiredCount,
+        title: novel.title,
+        description: input.description?.trim() || novel.description?.trim() || "暂无",
+        genre: input.genre?.trim() || "未指定",
+        narrativePov: input.narrativePov ?? "未指定",
+        styleTone: input.styleTone?.trim() || "未指定",
+        worldContext: novel.world
+          ? `${novel.world.name}\n${novel.world.description ?? novel.world.background ?? ""}\n${novel.world.conflicts ?? ""}\n${novel.world.magicSystem ?? ""}`
+          : "暂无已绑定世界观",
+      },
+      options: {
+        provider: input.provider ?? "deepseek",
+        model: input.model,
+        temperature: input.temperature ?? 0.6,
+      },
+    });
 
-    const parsed = JSON.parse(extractJsonArray(String(result.content))) as Array<Record<string, unknown>>;
+    const parsed = result.output as Array<Record<string, unknown>>;
     const uniqueNames = new Set<string>();
     const created: Array<{ id: string; name: string; role: string }> = [];
     for (const item of parsed) {

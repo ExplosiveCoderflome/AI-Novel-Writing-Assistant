@@ -4,7 +4,14 @@ import type {
   VolumePlanDocument,
 } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../../db/prisma";
-import { invokeStructuredLlm } from "../../../llm/structuredInvoke";
+import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
+import {
+  createVolumeChapterListPrompt,
+  createVolumeSkeletonPrompt,
+  volumeChapterBoundaryPrompt,
+  volumeChapterPurposePrompt,
+  volumeChapterTaskSheetPrompt,
+} from "../../../prompting/prompts/novel/volumePlanning.prompts";
 import type { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import {
   buildDerivedOutlineFromVolumes,
@@ -318,20 +325,9 @@ async function generateBookSkeleton(params: {
     chapterBudget,
     existingVolumes: workspace.volumes,
   });
-  const generated = await invokeStructuredLlm({
-    label: `volume-skeleton:${novelId}`,
-    provider: options.provider,
-    model: options.model,
-    temperature: options.temperature ?? 0.35,
-    taskType: "planner",
-    systemPrompt: [
-      "你是擅长长篇网文结构设计的总策划。",
-      `必须严格输出 ${targetVolumeCount} 卷，不能增减卷数。`,
-      "请输出严格 JSON，包含 volumes 数组。",
-      "每卷必须给出：title、mainPromise、escalationMode、protagonistChange、climax、nextVolumeHook。",
-      "禁止输出章节列表，这一步只做卷级骨架。",
-    ].join("\n"),
-    userPrompt: buildBookSkeletonPrompt({
+  const generated = await runStructuredPrompt({
+    asset: createVolumeSkeletonPrompt(targetVolumeCount),
+    promptInput: {
       novel,
       workspace,
       storyMacroPlan,
@@ -339,14 +335,17 @@ async function generateBookSkeleton(params: {
       chapterBudget,
       targetVolumeCount,
       chapterBudgets,
-    }),
-    schema: createBookVolumeSkeletonSchema(targetVolumeCount),
-    maxRepairAttempts: 1,
+    },
+    options: {
+      provider: options.provider,
+      model: options.model,
+      temperature: options.temperature ?? 0.35,
+    },
   });
   return mergeBookSkeletonIntoWorkspace({
     novelId,
     workspace,
-    generatedVolumes: generated.volumes,
+    generatedVolumes: generated.output.volumes,
   });
 }
 
@@ -377,20 +376,9 @@ async function generateVolumeChapterList(params: {
     ? targetVolume.chapters.length
     : chapterBudgets[targetIndex] ?? Math.max(3, Math.round(chapterBudget / Math.max(workspace.volumes.length, 1)));
 
-  const generated = await invokeStructuredLlm({
-    label: `volume-chapters:${novelId}:${targetVolume.sortOrder}`,
-    provider: options.provider,
-    model: options.model,
-    temperature: options.temperature ?? 0.35,
-    taskType: "planner",
-    systemPrompt: [
-      "你是擅长长篇网文章节拆分的章纲策划。",
-      `只允许为第${targetVolume.sortOrder}卷生成 ${targetChapterCount} 个章节。`,
-      "请输出严格 JSON，包含 chapters 数组。",
-      "每章只允许输出 title 和 summary。",
-      "禁止输出章节目标、执行边界、任务单。",
-    ].join("\n"),
-    userPrompt: buildVolumeChapterListPrompt({
+  const generated = await runStructuredPrompt({
+    asset: createVolumeChapterListPrompt(targetChapterCount),
+    promptInput: {
       novel,
       workspace,
       targetVolume,
@@ -400,16 +388,19 @@ async function generateVolumeChapterList(params: {
       guidance: options.guidance,
       chapterBudget,
       targetChapterCount,
-    }),
-    schema: createVolumeChapterListSchema(targetChapterCount),
-    maxRepairAttempts: 1,
+    },
+    options: {
+      provider: options.provider,
+      model: options.model,
+      temperature: options.temperature ?? 0.35,
+    },
   });
 
   return mergeVolumeChapterListIntoWorkspace({
     novelId,
     workspace,
     targetVolumeId,
-    generatedChapters: generated.chapters,
+    generatedChapters: generated.output.chapters,
   });
 }
 
@@ -438,36 +429,7 @@ async function generateChapterDetail(params: {
     throw new Error("目标章节不存在，无法生成章节细化。");
   }
 
-  const systemPrompt = detailMode === "purpose"
-    ? [
-      "你是资深网文编辑。",
-      "请输出严格 JSON，只填写这一章修正后的章节目标。",
-      "优先基于已有草稿做修正、补强和收束；如果当前为空，再补出首版。",
-      "目标要聚焦剧情推进、人物关系或信息兑现，不要写成复述摘要。",
-      "最终 JSON 只能使用字段名 purpose。",
-      "正确示例：{\"purpose\":\"本章必须推进……\"}",
-      "禁止使用“章节目标”之类的中文键名。",
-    ].join("\n")
-    : detailMode === "boundary"
-      ? [
-        "你是资深网文编辑。",
-        "请输出严格 JSON，只填写这一章修正后的执行边界。",
-        "优先沿用已有边界草稿，修正空缺、模糊和不合理之处，不要无故推翻已经确定的方向。",
-        "冲突等级和揭露等级用 0-100 的整数；目标字数给出适合本章节奏的建议；禁止事项要具体；兑现关联给出本章该碰到的伏笔或承诺。",
-        "最终 JSON 只能使用字段名 conflictLevel、revealLevel、targetWordCount、mustAvoid、payoffRefs。",
-        "禁止使用中文键名。",
-      ].join("\n")
-      : [
-        "你是资深网文编辑。",
-        "请输出严格 JSON，只填写这一章修正后的任务单。",
-        "优先基于已有任务单做修正和补强；如果当前为空，再补出首版。",
-        "任务单要能直接交给写作阶段执行，包含情绪、冲突、推进点和收尾要求。",
-        "最终 JSON 只能使用字段名 taskSheet。",
-        "正确示例：{\"taskSheet\":\"……\"}",
-        "禁止使用“任务单”之类的中文键名。",
-      ].join("\n");
-
-  const prompt = buildChapterDetailPrompt({
+  const promptInput = {
     novel,
     workspace,
     targetVolume,
@@ -475,41 +437,35 @@ async function generateChapterDetail(params: {
     storyMacroPlan,
     guidance: options.guidance,
     detailMode,
-  });
+  };
   const generated = detailMode === "purpose"
-    ? await invokeStructuredLlm({
-      label: `chapter-detail:${novelId}:${targetChapter.chapterOrder}:${detailMode}`,
-      provider: options.provider,
-      model: options.model,
-      temperature: options.temperature ?? 0.35,
-      taskType: "planner",
-      systemPrompt,
-      userPrompt: prompt,
-      schema: createChapterPurposeSchema(),
-      maxRepairAttempts: 1,
+    ? await runStructuredPrompt({
+      asset: volumeChapterPurposePrompt,
+      promptInput,
+      options: {
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature ?? 0.35,
+      },
     })
     : detailMode === "boundary"
-      ? await invokeStructuredLlm({
-        label: `chapter-detail:${novelId}:${targetChapter.chapterOrder}:${detailMode}`,
-        provider: options.provider,
-        model: options.model,
-        temperature: options.temperature ?? 0.35,
-        taskType: "planner",
-        systemPrompt,
-        userPrompt: prompt,
-        schema: createChapterBoundarySchema(),
-        maxRepairAttempts: 1,
+      ? await runStructuredPrompt({
+        asset: volumeChapterBoundaryPrompt,
+        promptInput,
+        options: {
+          provider: options.provider,
+          model: options.model,
+          temperature: options.temperature ?? 0.35,
+        },
       })
-      : await invokeStructuredLlm({
-        label: `chapter-detail:${novelId}:${targetChapter.chapterOrder}:${detailMode}`,
-        provider: options.provider,
-        model: options.model,
-        temperature: options.temperature ?? 0.35,
-        taskType: "planner",
-        systemPrompt,
-        userPrompt: prompt,
-        schema: createChapterTaskSheetSchema(),
-        maxRepairAttempts: 1,
+      : await runStructuredPrompt({
+        asset: volumeChapterTaskSheetPrompt,
+        promptInput,
+        options: {
+          provider: options.provider,
+          model: options.model,
+          temperature: options.temperature ?? 0.35,
+        },
       });
 
   return mergeChapterDetailIntoWorkspace({
@@ -518,7 +474,7 @@ async function generateChapterDetail(params: {
     targetVolumeId,
     targetChapterId,
     detailMode,
-    generatedDetail: generated as Record<string, unknown>,
+    generatedDetail: generated.output as Record<string, unknown>,
   });
 }
 

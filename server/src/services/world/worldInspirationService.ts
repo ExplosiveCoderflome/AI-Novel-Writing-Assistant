@@ -1,11 +1,14 @@
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import {
   createEmptyWorldReferenceSeedBundle,
   type WorldOptionRefinementLevel,
   type WorldReferenceMode,
 } from "@ai-novel/shared/types/worldWizard";
-import { getLLM } from "../../llm/factory";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import {
+  worldInspirationConceptCardLocalizationPrompt,
+  worldInspirationConceptCardPrompt,
+} from "../../prompting/prompts/world/world.prompts";
 import { getTemplateByKey, WORLD_TEMPLATES } from "./worldTemplates";
 import { generateWorldPropertyOptions } from "./worldPropertyOptions";
 import { generateReferenceInspirationAnalysis } from "./worldReferenceInspiration";
@@ -266,7 +269,7 @@ function needsChineseConceptTranslation(card: InspirationConceptCard): boolean {
 }
 
 async function translateConceptCardToChinese(
-  llm: Awaited<ReturnType<typeof getLLM>>,
+  options: { provider?: LLMProvider; model?: string },
   conceptCard: InspirationConceptCard,
 ): Promise<InspirationConceptCard> {
   if (!needsChineseConceptTranslation(conceptCard)) {
@@ -274,25 +277,18 @@ async function translateConceptCardToChinese(
   }
 
   try {
-    const result = await llm.invoke([
-      new SystemMessage(
-        `将输入的概念卡翻译并润色为简体中文，保持 JSON 结构不变：
-{
-  "worldType":"...",
-  "templateKey":"...",
-  "coreImagery":["..."],
-  "tone":"...",
-  "keywords":["..."],
-  "summary":"..."
-}
-仅输出 JSON。`,
-      ),
-      new HumanMessage(JSON.stringify(conceptCard)),
-    ]);
-    const parsed = safeParseJSON<Partial<InspirationConceptCard>>(
-      extractJSONObject(String(result.content)),
-      {},
-    );
+    const result = await runStructuredPrompt({
+      asset: worldInspirationConceptCardLocalizationPrompt,
+      promptInput: {
+        conceptCardJson: JSON.stringify(conceptCard),
+      },
+      options: {
+        provider: options.provider ?? "deepseek",
+        model: options.model,
+        temperature: 0.2,
+      },
+    });
+    const parsed = result.output as Partial<InspirationConceptCard>;
     const translatedCoreImagery = Array.isArray(parsed.coreImagery)
       ? parsed.coreImagery.map((item) => String(item).trim()).filter(Boolean)
       : conceptCard.coreImagery;
@@ -370,10 +366,6 @@ export async function analyzeWorldInspiration(
     inspirationSource = nextInput.input?.trim() || inspirationSource;
   }
 
-  const inspirationLlm = await getLLM(nextInput.provider ?? "deepseek", {
-    model: nextInput.model,
-    temperature: 0.7,
-  });
   const normalizedSource = seededPreparedSource ?? prepareInspirationSource(inspirationSource);
   const inspirationRagContext = "";
 
@@ -383,50 +375,48 @@ export async function analyzeWorldInspiration(
   if (nextInput.mode === "reference") {
     onProgress?.("正在提取原作世界锚点");
     const referenceAnalysis = await generateReferenceInspirationAnalysis({
-      llm: inspirationLlm,
       sourceText: normalizedSource.promptText,
       worldTypeHint: nextInput.worldType,
       referenceMode: nextInput.referenceMode ?? "adapt_world",
       preserveElements: Array.from(new Set((nextInput.preserveElements ?? []).map((item) => item.trim()).filter(Boolean))),
       allowedChanges: Array.from(new Set((nextInput.allowedChanges ?? []).map((item) => item.trim()).filter(Boolean))),
       forbiddenElements: Array.from(new Set((nextInput.forbiddenElements ?? []).map((item) => item.trim()).filter(Boolean))),
+      provider: nextInput.provider,
+      model: nextInput.model,
     });
-    resolvedConceptCard = await translateConceptCardToChinese(inspirationLlm, referenceAnalysis.conceptCard);
+    resolvedConceptCard = await translateConceptCardToChinese({
+      provider: nextInput.provider,
+      model: nextInput.model,
+    }, referenceAnalysis.conceptCard);
     referenceAnchors = referenceAnalysis.anchors;
     referenceSeeds = referenceAnalysis.referenceSeeds;
   } else if (!resolvedConceptCard) {
     onProgress?.("正在生成概念卡");
-    const templateKeys = WORLD_TEMPLATES.map((item) => item.key).join("|");
-    const conceptResult = await inspirationLlm.invoke([
-      new SystemMessage(
-        `请输出世界灵感概念卡 JSON，所有文本字段必须使用简体中文：
-{
-  "worldType":"...",
-  "templateKey":"${templateKeys}",
-  "coreImagery":["..."],
-  "tone":"...",
-  "keywords":["..."],
-  "summary":"3-5句中文摘要"
-}
-只输出 JSON，不要输出解释。`,
-      ),
-      new HumanMessage(
-        `模式=${nextInput.mode ?? "free"}
-世界类型提示=${nextInput.worldType ?? "无"}
-灵感文本=${normalizedSource.promptText}
-是否分段提取=${normalizedSource.extracted ? "是" : "否"}
-原文长度=${normalizedSource.originalLength} 字符
-可用世界观素材检索=${inspirationRagContext || "无"}`,
-      ),
-    ]);
-    const parsedConcept = safeParseJSON<{
+    const conceptResult = await runStructuredPrompt({
+      asset: worldInspirationConceptCardPrompt,
+      promptInput: {
+        mode: nextInput.mode ?? "free",
+        worldTypeHint: nextInput.worldType ?? "无",
+        promptText: normalizedSource.promptText,
+        extracted: normalizedSource.extracted,
+        originalLength: normalizedSource.originalLength,
+        ragContext: inspirationRagContext || "无",
+        templateKeysText: WORLD_TEMPLATES.map((item) => item.key).join("|"),
+      },
+      options: {
+        provider: nextInput.provider ?? "deepseek",
+        model: nextInput.model,
+        temperature: 0.7,
+      },
+    });
+    const parsedConcept = conceptResult.output as {
       worldType?: string;
       templateKey?: string;
       coreImagery?: string[];
       tone?: string;
       keywords?: string[];
       summary?: string;
-    }>(extractJSONObject(String(conceptResult.content)), {});
+    };
     const rawConceptCard: InspirationConceptCard = {
       worldType: parsedConcept.worldType ?? nextInput.worldType ?? "自定义",
       templateKey: parsedConcept.templateKey
@@ -437,7 +427,10 @@ export async function analyzeWorldInspiration(
       keywords: parsedConcept.keywords ?? [],
       summary: parsedConcept.summary ?? compactInspirationExcerpt(inspirationSource, 360),
     };
-    resolvedConceptCard = await translateConceptCardToChinese(inspirationLlm, rawConceptCard);
+    resolvedConceptCard = await translateConceptCardToChinese({
+      provider: nextInput.provider,
+      model: nextInput.model,
+    }, rawConceptCard);
   }
 
   const resolvedTemplate = getTemplateByKey(resolvedConceptCard.templateKey);
@@ -445,7 +438,8 @@ export async function analyzeWorldInspiration(
   try {
     onProgress?.(nextInput.mode === "reference" ? "正在生成架空改造决策" : "正在生成前置属性选项");
     generatedPropertyOptions = await generateWorldPropertyOptions({
-      llm: inspirationLlm,
+      provider: nextInput.provider,
+      model: nextInput.model,
       worldType: resolvedConceptCard.worldType || nextInput.worldType || resolvedTemplate.worldType,
       templateName: resolvedTemplate.name,
       templateDescription: resolvedTemplate.description,

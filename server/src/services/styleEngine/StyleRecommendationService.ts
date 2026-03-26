@@ -1,16 +1,15 @@
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
   StyleProfile,
   StyleRecommendationCandidate,
   StyleRecommendationResult,
 } from "@ai-novel/shared/types/styleEngine";
-import { z } from "zod";
 import { prisma } from "../../db/prisma";
-import { getLLM } from "../../llm/factory";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import { styleRecommendationPrompt } from "../../prompting/prompts/style/style.prompts";
 import { buildBookFramingSummary } from "../novel/bookFraming";
 import { ensureStyleEngineSeedData } from "./StyleEngineSeedService";
-import { clamp, extractJsonObject, mapStyleProfileRow, toLlmText } from "./helpers";
+import { clamp, mapStyleProfileRow } from "./helpers";
 
 interface RecommendForNovelInput {
   novelId: string;
@@ -19,15 +18,12 @@ interface RecommendForNovelInput {
   temperature?: number;
 }
 
-const recommendationSchema = z.object({
-  summary: z.string().trim().min(1),
-  candidates: z.array(z.object({
-    styleProfileId: z.string().trim().min(1),
-    fitScore: z.number().int().min(0).max(100),
-    recommendationReason: z.string().trim().min(1),
-    caution: z.string().trim().optional().nullable(),
-  })).min(1).max(3),
-});
+type RecommendationCandidateRecord = {
+  styleProfileId: string;
+  fitScore: number;
+  recommendationReason: string;
+  caution?: string | null;
+};
 
 function truncateText(value: string | null | undefined, maxLength = 220): string {
   const text = value?.replace(/\s+/g, " ").trim() ?? "";
@@ -130,7 +126,7 @@ function buildNovelSummary(novel: {
 }
 
 function mapRecommendationCandidate(
-  candidate: z.infer<typeof recommendationSchema>["candidates"][number],
+  candidate: RecommendationCandidateRecord,
   profile: StyleProfile,
 ): StyleRecommendationCandidate {
   return {
@@ -144,7 +140,7 @@ function mapRecommendationCandidate(
 }
 
 function dedupeCandidates(
-  parsed: z.infer<typeof recommendationSchema>,
+  parsed: { candidates: RecommendationCandidateRecord[] },
   profilesById: Map<string, StyleProfile>,
 ): StyleRecommendationResult["candidates"] {
   const seen = new Set<string>();
@@ -200,11 +196,6 @@ export class StyleRecommendationService {
       };
     }
 
-    const llm = await getLLM(input.provider, {
-      model: input.model,
-      temperature: Math.min(input.temperature ?? 0.3, 0.5),
-      taskType: "planner",
-    });
     const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
     const targetCount = profiles.length === 1 ? 1 : 2;
     const catalogText = profiles
@@ -214,38 +205,21 @@ export class StyleRecommendationService {
       .join("\n\n");
     const novelSummary = buildNovelSummary(novel, chapterCount);
 
-    const systemPrompt = [
-      "你是小说写法资产推荐器，服务对象是完全不会写作的小白用户。",
-      "你的任务是从提供的写法资产列表中，挑出最适合当前小说的 2-3 套候选。",
-      "只能从给定列表中选择，不允许杜撰新的写法资产 ID 或名称。",
-      "优先考虑：目标读者匹配、前 30 章承诺兑现能力、商业标签匹配、题材匹配、叙事视角匹配、节奏匹配、语言质感匹配、是否能帮助小白稳定写完整本书。",
-      "输出必须是 JSON 对象，格式为：",
-      "{\"summary\":\"...\",\"candidates\":[{\"styleProfileId\":\"...\",\"fitScore\":88,\"recommendationReason\":\"...\",\"caution\":\"...\"}]}",
-      "要求：fitScore 为 0-100 的整数；recommendationReason 必须说清楚为什么适合这本书的目标读者和前 30 章承诺；caution 可为空。",
-      `请输出 ${targetCount} 个候选；如果确实只有 1 套明显合适，也至少给 1 个。`,
-      "不要输出额外解释文字。",
-    ].join("\n");
-
-    const humanPrompt = [
-      "当前小说信息：",
-      novelSummary,
-      "",
-      "可选写法资产列表：",
-      catalogText,
-    ].join("\n");
-
-    const result = await llm.invoke([
-      new SystemMessage(systemPrompt),
-      new HumanMessage(humanPrompt),
-    ]);
-
-    const parsed = await this.parseRecommendationOutput({
-      rawContent: toLlmText(result.content),
-      profilesById,
-      llmInput: input,
-      catalogText,
-      novelSummary,
+    const result = await runStructuredPrompt({
+      asset: styleRecommendationPrompt,
+      promptInput: {
+        targetCount,
+        novelSummary,
+        catalogText,
+        allowedProfileIds: profiles.map((profile) => profile.id),
+      },
+      options: {
+        provider: input.provider,
+        model: input.model,
+        temperature: Math.min(input.temperature ?? 0.3, 0.5),
+      },
     });
+    const parsed = result.output;
 
     return {
       novelId: input.novelId,
@@ -253,55 +227,6 @@ export class StyleRecommendationService {
       candidates: dedupeCandidates(parsed, profilesById),
       recommendedAt: new Date().toISOString(),
     };
-  }
-
-  private async parseRecommendationOutput(input: {
-    rawContent: string;
-    profilesById: Map<string, StyleProfile>;
-    llmInput: RecommendForNovelInput;
-    catalogText: string;
-    novelSummary: string;
-  }): Promise<z.infer<typeof recommendationSchema>> {
-    const firstAttempt = recommendationSchema.safeParse(extractJsonObject(input.rawContent));
-    if (firstAttempt.success) {
-      const candidates = dedupeCandidates(firstAttempt.data, input.profilesById);
-      if (candidates.length > 0) {
-        return firstAttempt.data;
-      }
-    }
-
-    const llm = await getLLM(input.llmInput.provider, {
-      model: input.llmInput.model,
-      temperature: 0.2,
-      taskType: "planner",
-    });
-    const repairPrompt = [
-      "请修复下面这段写法推荐输出，使其变成合法 JSON。",
-      "要求：",
-      "1. 只能使用给定列表里的 styleProfileId。",
-      "2. 输出格式必须是 {summary, candidates[]}。",
-      "3. candidates 最多 3 个，且至少保留 1 个有效候选。",
-      "4. 不要输出额外解释，只输出 JSON 对象。",
-      "",
-      "小说信息：",
-      input.novelSummary,
-      "",
-      "可选写法资产列表：",
-      input.catalogText,
-      "",
-      "待修复原始输出：",
-      input.rawContent,
-    ].join("\n");
-    const repaired = await llm.invoke([
-      new SystemMessage("你是 JSON 修复器。"),
-      new HumanMessage(repairPrompt),
-    ]);
-    const repairedParsed = recommendationSchema.parse(extractJsonObject(toLlmText(repaired.content)));
-    const candidates = dedupeCandidates(repairedParsed, input.profilesById);
-    if (candidates.length === 0) {
-      throw new Error("写法推荐结果中没有有效候选。");
-    }
-    return repairedParsed;
   }
 }
 

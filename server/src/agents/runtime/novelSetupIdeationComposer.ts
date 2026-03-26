@@ -1,4 +1,6 @@
 import { getLLM } from "../../llm/factory";
+import { preparePromptExecution, runTextPrompt } from "../../prompting/core/promptRunner";
+import { runtimeSetupIdeationPrompt } from "../../prompting/prompts/agent/runtime.prompts";
 import type { StructuredIntent, ToolCall, ToolExecutionContext } from "../types";
 import { safeJson, type ToolExecutionResult } from "./runtimeHelpers";
 
@@ -141,35 +143,40 @@ export async function composeNovelSetupIdeationAnswer(
   const fallback = buildIdeationFallback(results, structuredIntent);
 
   try {
+    if (ideationLLMFactory === getLLM) {
+      const result = await runTextPrompt({
+        asset: runtimeSetupIdeationPrompt,
+        promptInput: {
+          goal,
+          structuredIntentJson: safeJson(structuredIntent ?? { intent: "ideate_novel_setup" }),
+          facts,
+        },
+        options: {
+          provider: context.provider ?? "deepseek",
+          model: context.model,
+          temperature: Math.max(context.temperature ?? 0.75, 0.75),
+          maxTokens: Math.min(context.maxTokens ?? 900, 900),
+        },
+      });
+      return result.output.trim() || fallback;
+    }
+
+    const prepared = preparePromptExecution({
+      asset: runtimeSetupIdeationPrompt,
+      promptInput: {
+        goal,
+        structuredIntentJson: safeJson(structuredIntent ?? { intent: "ideate_novel_setup" }),
+        facts,
+      },
+    });
     const llm = await ideationLLMFactory(context.provider ?? "deepseek", {
       model: context.model,
       temperature: Math.max(context.temperature ?? 0.75, 0.75),
       maxTokens: Math.min(context.maxTokens ?? 900, 900),
+      taskType: runtimeSetupIdeationPrompt.taskType,
+      promptMeta: prepared.invocation,
     });
-    const result = await llm.invoke([
-      {
-        role: "system",
-        content: [
-          "你是小说开书阶段的设定脑暴助手。",
-          "用户现在要基于当前小说工作区的已知信息，生成若干套可选方案。",
-          "必须优先使用给定事实；如果事实还不完整，也要围绕标题和已有线索给出暂定方案，不要回答“当前信息不足，无法继续”。",
-          "不要虚构成已经确定的事实。凡是你补足的方向，都要以“可以走这个方向 / 可选方案 / 暂定版本”的口吻表达。",
-          "如果已有世界规则、故事承诺、风格偏好或禁用规则，生成的方案必须与这些约束保持一致。",
-          "严格满足用户请求的数量和格式。如果用户要 3 套，就给 3 套。",
-          "每套方案之间要拉开差异，不要只是改几个词。",
-          "输出简洁中文，默认使用编号列表。最后补一句简短引导，方便用户直接选一版、混搭，或继续细化。",
-        ].join("\n"),
-      },
-      {
-        role: "user",
-        content: [
-          `用户当前请求：${goal}`,
-          `结构化意图：${safeJson(structuredIntent ?? { intent: "ideate_novel_setup" })}`,
-          `当前可用事实：\n${facts}`,
-          "请直接生成现在要发给用户的回答。",
-        ].join("\n\n"),
-      },
-    ]);
+    const result = await llm.invoke(prepared.messages);
     const text = extractTextFromContent(result.content);
     return text || fallback;
   } catch {

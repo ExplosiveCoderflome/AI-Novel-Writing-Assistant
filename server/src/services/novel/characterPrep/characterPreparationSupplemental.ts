@@ -7,58 +7,20 @@ import type {
   SupplementalCharacterGenerationResult,
 } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../../db/prisma";
-import { invokeStructuredLlm } from "../../../llm/structuredInvoke";
+import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
+import {
+  supplementalCharacterNormalizePrompt,
+  supplementalCharacterPrompt,
+} from "../../../prompting/prompts/novel/characterPreparation.prompts";
 import { NovelContextService } from "../NovelContextService";
 import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
 import {
   supplementalCharacterCandidateSchema,
-  supplementalCharacterGenerationResponseSchema,
   type SupplementalCharacterGenerationResponseParsed,
 } from "./characterPreparationSchemas";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 
 type CharacterRowForOutput = Awaited<ReturnType<typeof prisma.character.create>>;
-
-const SUPPLEMENTAL_CHARACTER_RESPONSE_TEMPLATE = `{
-  "mode": "linked",
-  "recommendedCount": 2,
-  "planningSummary": "string",
-  "candidates": [
-    {
-      "name": "string",
-      "role": "string",
-      "castRole": "ally",
-      "summary": "string",
-      "storyFunction": "string",
-      "relationToProtagonist": "string",
-      "personality": "string",
-      "background": "string",
-      "development": "string",
-      "outerGoal": "string",
-      "innerNeed": "string",
-      "fear": "string",
-      "wound": "string",
-      "misbelief": "string",
-      "secret": "string",
-      "moralLine": "string",
-      "firstImpression": "string",
-      "currentState": "string",
-      "currentGoal": "string",
-      "whyNow": "string",
-      "relations": [
-        {
-          "sourceName": "string",
-          "targetName": "string",
-          "surfaceRelation": "string",
-          "hiddenTension": "string",
-          "conflictSource": "string",
-          "dynamicLabel": "string",
-          "nextTurnPoint": "string"
-        }
-      ]
-    }
-  ]
-}`;
 
 const SUPPLEMENTAL_MODE_PROMPT_LABELS: Record<NonNullable<SupplementalCharacterGenerateInput["mode"]>, string> = {
   auto: "由 AI 自行判断最合适的补位方式",
@@ -183,25 +145,18 @@ async function normalizeSupplementalLanguage(
   options: SupplementalCharacterGenerateInput,
   parsed: SupplementalCharacterGenerationResponseParsed,
 ): Promise<SupplementalCharacterGenerationResponseParsed> {
-  return invokeStructuredLlm({
-    label: `supplemental-characters-zh-normalize:${novelId}`,
-    provider: options.provider,
-    model: options.model,
-    temperature: 0.2,
-    taskType: "planner",
-    systemPrompt: [
-      "你是中文小说角色策划编辑。",
-      "请把输入 JSON 中所有展示给用户的文本值改写成自然、流畅的简体中文。",
-      "必须保留原有 JSON 结构、字段名、数组长度和关系含义。",
-      "castRole 枚举值必须保持原样，不能翻译。",
-      "已有中文人名必须保持不变，不要改成英文。",
-      "禁止输出英文句子、英文角色描述、英文故事作用，除非是极短必要专有名词。",
-      "只输出合法 JSON。",
-    ].join("\n"),
-    userPrompt: `请把下面 JSON 中所有展示给用户的文本内容都改成简体中文，保持角色功能与关系含义不变：\n${JSON.stringify(parsed, null, 2)}`,
-    schema: supplementalCharacterGenerationResponseSchema,
-    maxRepairAttempts: 1,
+  const result = await runStructuredPrompt({
+    asset: supplementalCharacterNormalizePrompt,
+    promptInput: {
+      payloadJson: JSON.stringify(parsed, null, 2),
+    },
+    options: {
+      provider: options.provider,
+      model: options.model,
+      temperature: 0.2,
+    },
   });
+  return result.output;
 }
 
 export class CharacterPreparationSupplementalService {
@@ -380,32 +335,18 @@ export class CharacterPreparationSupplementalService {
       `禁止复用的角色名：\n${novel.characters.map((character) => character.name).join("、") || "无"}`,
     ];
 
-    const parsed = await invokeStructuredLlm({
-      label: `supplemental-characters:${novelId}`,
-      provider: options.provider,
-      model: options.model,
-      temperature: options.temperature ?? 0.55,
-      taskType: "planner",
-      systemPrompt: [
-        "你正在为长篇中文小说项目补充角色。",
-        "只返回严格 JSON。",
-        "你的任务是在不重建整套阵容的前提下，补足角色压力、情感张力、功能位或世界功能缺口。",
-        "如果 mode=linked，候选角色必须与选中的锚点角色形成可用的关系推进或冲突压力。",
-        "如果 mode=independent，可以没有强绑定关系，但仍必须承担明确故事作用。",
-        "如果 mode=auto，请自己判断更适合做关系补位还是独立补位，并把结论写回 response mode。",
-        "禁止复用 forbidden names 里的现有角色名。",
-        "凡是涉及当前角色网的 relations，只能使用已有角色名。",
-        "允许的 castRole 只有：protagonist, antagonist, ally, foil, mentor, love_interest, pressure_source, catalyst。",
-        "除 JSON 字段名与 castRole 枚举外，所有文本值都必须使用简体中文。",
-        "role、summary、storyFunction、relations 等字段禁止输出英文句子。",
-        "每个候选角色都必须可以直接落到小说里，而不是空泛标签。",
-        "下面模板里的英文字段名必须保持不变。",
-        SUPPLEMENTAL_CHARACTER_RESPONSE_TEMPLATE,
-      ].join("\n"),
-      userPrompt: promptSections.join("\n\n"),
-      schema: supplementalCharacterGenerationResponseSchema,
-      maxRepairAttempts: 1,
+    const result = await runStructuredPrompt({
+      asset: supplementalCharacterPrompt,
+      promptInput: {
+        promptSections,
+      },
+      options: {
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature ?? 0.55,
+      },
     });
+    const parsed = result.output;
     const normalizedParsed = shouldNormalizeSupplementalLanguage(parsed)
       ? await normalizeSupplementalLanguage(novelId, options, parsed).catch(() => parsed)
       : parsed;

@@ -1,28 +1,10 @@
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
-import { getLLM } from "../../llm/factory";
+import { runTextPrompt } from "../../prompting/core/promptRunner";
+import { novelContinuationRewritePrompt } from "../../prompting/prompts/novel/continuation.prompts";
 
 const CONTINUATION_SIMILARITY_THRESHOLD = 0.3;
 const CONTINUATION_NGRAM_SIZE = 5;
-
-function toText(content: unknown): string {
-  if (typeof content === "string") {
-    return content;
-  }
-  if (Array.isArray(content)) {
-    return content.map((item) => {
-      if (typeof item === "string") {
-        return item;
-      }
-      if (item && typeof item === "object" && "text" in item && typeof item.text === "string") {
-        return item.text;
-      }
-      return "";
-    }).join("");
-  }
-  return JSON.stringify(content ?? "");
-}
 
 function normalizeForSimilarity(text: string): string {
   return text
@@ -419,30 +401,21 @@ ${summaryBlock || "暂无"}`;
     }
 
     try {
-      const llm = await getLLM(input.provider ?? "deepseek", {
-        model: input.model,
-        temperature: input.temperature ?? 0.7,
+      const rewritten = await runTextPrompt({
+        asset: novelContinuationRewritePrompt,
+        promptInput: {
+          chapterTitle,
+          mostSimilarSnippet,
+          targetText,
+        },
+        options: {
+          provider: input.provider ?? "deepseek",
+          model: input.model,
+          temperature: input.temperature ?? 0.7,
+        },
       });
-      const rewritten = await llm.invoke([
-        new SystemMessage(
-          "你是续写重写编辑。输出必须是简体中文完整章节。保持角色关系和事件因果连续，但必须重构冲突路径、场景触发、动作链和句式表达，禁止复刻前作桥段与措辞。",
-        ),
-        new HumanMessage(
-          `章节标题：${chapterTitle}
-相似风险来源（仅用于避让，不可照抄）：
-${mostSimilarSnippet}
 
-当前章节全文：
-${targetText}
-
-请重写完整章节，要求：
-1. 保留本章核心推进方向与结尾钩子。
-2. 与前作高相似桥段保持明显区隔（冲突类型、推进顺序、关键动作不同）。
-3. 禁止输出解释，只输出重写后的正文。`,
-        ),
-      ]);
-
-      const rewrittenText = toText(rewritten.content).trim();
+      const rewrittenText = rewritten.output.trim();
       if (!rewrittenText) {
         return { content, rewritten: false, maxSimilarity };
       }

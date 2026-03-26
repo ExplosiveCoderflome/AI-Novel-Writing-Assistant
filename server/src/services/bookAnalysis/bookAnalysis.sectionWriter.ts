@@ -1,9 +1,12 @@
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { invokeStructuredLlm } from "../../llm/structuredInvoke";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import {
+  bookAnalysisOptimizedDraftPrompt,
+  bookAnalysisSectionPrompt,
+} from "../../prompting/prompts/bookAnalysis/bookAnalysis.prompts";
 import { SECTION_PROMPTS } from "./bookAnalysis.constants";
 import type { SectionGenerationResult, SourceNote } from "./bookAnalysis.types";
-import { bookAnalysisRawOutputSchema } from "./bookAnalysisSchemas";
 import {
   getSectionTitle,
   normalizeMaxTokens,
@@ -24,29 +27,22 @@ export class BookAnalysisSectionWriter {
     const prompt = SECTION_PROMPTS[sectionKey];
     const notesText = renderNotesForPrompt(notes);
     try {
-      const parsed = await invokeStructuredLlm({
-        label: `book-analysis-section:${sectionKey}`,
-        provider,
-        model,
-        temperature: normalizeTemperature(temperature),
-        maxTokens: normalizeMaxTokens(maxTokens),
-        taskType: "planner",
-        systemPrompt: `You are a senior Chinese fiction analyst. Generate section "${getSectionTitle(sectionKey)}".
-Return JSON only:
-{
-  "markdown": "Markdown content",
-  "structuredData": {},
-  "evidence": [{ "label": "...", "excerpt": "...", "sourceLabel": "..." }]
-}
-Constraints:
-- Keep conclusions specific.
-- Evidence must be grounded in given notes.
-- Write markdown in Chinese.
-Extra focus: ${prompt}`,
-        userPrompt: `Section notes:\n${notesText}`,
-        schema: bookAnalysisRawOutputSchema,
-        maxRepairAttempts: 1,
+      const result = await runStructuredPrompt({
+        asset: bookAnalysisSectionPrompt,
+        promptInput: {
+          sectionKey,
+          sectionTitle: getSectionTitle(sectionKey),
+          promptFocus: prompt,
+          notesText,
+        },
+        options: {
+          provider,
+          model,
+          temperature: normalizeTemperature(temperature),
+          maxTokens: normalizeMaxTokens(maxTokens),
+        },
       });
+      const parsed = result.output;
 
       const markdown =
         typeof (parsed as any).markdown === "string" && (parsed as any).markdown.trim()
@@ -83,28 +79,23 @@ Extra focus: ${prompt}`,
   }): Promise<string> {
     const notesText = renderNotesForPrompt(input.notes);
     try {
-      const parsed = await invokeStructuredLlm({
-        label: `book-analysis-optimized-draft:${input.sectionKey}`,
-        provider: input.provider,
-        model: input.model,
-        temperature: normalizeTemperature(input.temperature),
-        maxTokens: normalizeMaxTokens(input.maxTokens),
-        taskType: "planner",
-        systemPrompt: `You refine book-analysis drafts.
-Keep section focus: ${getSectionTitle(input.sectionKey)}.
-Follow user instruction, preserve factual consistency with notes, and avoid unnecessary expansion.
-Return JSON only: {"optimizedDraft":"..."}`,
-        userPrompt: `User instruction:
-${input.instruction}
-
-Current draft:
-${input.currentDraft || "(empty)"}
-
-Section notes:
-${notesText}`,
-        schema: bookAnalysisRawOutputSchema,
-        maxRepairAttempts: 1,
+      const result = await runStructuredPrompt({
+        asset: bookAnalysisOptimizedDraftPrompt,
+        promptInput: {
+          sectionKey: input.sectionKey,
+          sectionTitle: getSectionTitle(input.sectionKey),
+          instruction: input.instruction,
+          currentDraft: input.currentDraft,
+          notesText,
+        },
+        options: {
+          provider: input.provider,
+          model: input.model,
+          temperature: normalizeTemperature(input.temperature),
+          maxTokens: normalizeMaxTokens(input.maxTokens),
+        },
       });
+      const parsed = result.output;
 
       if (typeof (parsed as any).optimizedDraft === "string" && (parsed as any).optimizedDraft.trim()) {
         return (parsed as any).optimizedDraft.trim();
