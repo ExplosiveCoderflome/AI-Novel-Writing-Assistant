@@ -1,13 +1,23 @@
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
-import type { VolumePlan, VolumePlanDocument } from "@ai-novel/shared/types/novel";
+import type {
+  VolumeBeatSheet,
+  VolumeCritiqueReport,
+  VolumeGenerationScopeInput,
+  VolumePlan,
+  VolumePlanDocument,
+  VolumeRebalanceDecision,
+  VolumeStrategyPlan,
+} from "@ai-novel/shared/types/novel";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { generateNovelVolumes, updateNovelVolumes, type NovelDetailResponse } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import {
+  buildVolumePlanningReadiness,
   createEmptyChapter,
   createEmptyVolume,
+  findBeatSheet,
   normalizeVolumeDraft,
 } from "../volumePlan.utils";
 
@@ -26,14 +36,22 @@ interface UseNovelVolumePlanningArgs {
   llm: LlmSettings;
   estimatedChapterCount?: number | null;
   volumeDraft: VolumePlan[];
-  savedVolumes: VolumePlan[];
+  strategyPlan: VolumeStrategyPlan | null;
+  critiqueReport: VolumeCritiqueReport | null;
+  beatSheets: VolumeBeatSheet[];
+  rebalanceDecisions: VolumeRebalanceDecision[];
+  savedWorkspace?: VolumePlanDocument | null;
   setVolumeDraft: Dispatch<SetStateAction<VolumePlan[]>>;
+  setStrategyPlan: Dispatch<SetStateAction<VolumeStrategyPlan | null>>;
+  setCritiqueReport: Dispatch<SetStateAction<VolumeCritiqueReport | null>>;
+  setBeatSheets: Dispatch<SetStateAction<VolumeBeatSheet[]>>;
+  setRebalanceDecisions: Dispatch<SetStateAction<VolumeRebalanceDecision[]>>;
   setVolumeGenerationMessage: (value: string) => void;
   setStructuredMessage: (value: string) => void;
 }
 
 interface VolumeGenerationPayload {
-  scope: "book" | "volume" | "chapter_detail";
+  scope: VolumeGenerationScopeInput;
   targetVolumeId?: string;
   targetChapterId?: string;
   detailMode?: ChapterDetailMode;
@@ -44,16 +62,16 @@ interface VolumeGenerationPayload {
 interface GeneratedVolumeMutationResult {
   generatedResponse: Awaited<ReturnType<typeof generateNovelVolumes>>;
   persistedResponse: Awaited<ReturnType<typeof updateNovelVolumes>>;
-  nextVolumes: VolumePlan[];
+  nextDocument: VolumePlanDocument;
 }
 
 class VolumeGenerationAutoSaveError extends Error {
-  nextVolumes: VolumePlan[];
+  nextDocument: VolumePlanDocument;
 
-  constructor(message: string, nextVolumes: VolumePlan[]) {
+  constructor(message: string, nextDocument: VolumePlanDocument) {
     super(message);
     this.name = "VolumeGenerationAutoSaveError";
-    this.nextVolumes = nextVolumes;
+    this.nextDocument = nextDocument;
   }
 }
 
@@ -62,10 +80,15 @@ function serializeVolumeDraft(volumes: VolumePlan[]): string {
     sortOrder: volume.sortOrder,
     title: volume.title,
     summary: volume.summary ?? "",
+    openingHook: volume.openingHook ?? "",
     mainPromise: volume.mainPromise ?? "",
+    primaryPressureSource: volume.primaryPressureSource ?? "",
+    coreSellingPoint: volume.coreSellingPoint ?? "",
     escalationMode: volume.escalationMode ?? "",
     protagonistChange: volume.protagonistChange ?? "",
+    midVolumeRisk: volume.midVolumeRisk ?? "",
     climax: volume.climax ?? "",
+    payoffType: volume.payoffType ?? "",
     nextVolumeHook: volume.nextVolumeHook ?? "",
     resetPoint: volume.resetPoint ?? "",
     openPayoffs: volume.openPayoffs,
@@ -82,16 +105,6 @@ function serializeVolumeDraft(volumes: VolumePlan[]): string {
       payoffRefs: chapter.payoffRefs,
     })),
   })));
-}
-
-function hasMeaningfulChapterList(volume: VolumePlan | undefined): boolean {
-  if (!volume) {
-    return false;
-  }
-  return volume.chapters.some((chapter) => (
-    chapter.summary.trim().length > 0
-    || chapter.title.trim() !== `第${chapter.chapterOrder}章`
-  ));
 }
 
 function detailModeLabel(mode: ChapterDetailMode): string {
@@ -147,32 +160,45 @@ export function useNovelVolumePlanning({
   llm,
   estimatedChapterCount,
   volumeDraft,
-  savedVolumes,
+  strategyPlan,
+  critiqueReport,
+  beatSheets,
+  rebalanceDecisions,
+  savedWorkspace,
   setVolumeDraft,
+  setStrategyPlan,
+  setCritiqueReport,
+  setBeatSheets,
+  setRebalanceDecisions,
   setVolumeGenerationMessage,
   setStructuredMessage,
 }: UseNovelVolumePlanningArgs) {
   const queryClient = useQueryClient();
-  const normalizedVolumeDraft = useMemo(
-    () => normalizeVolumeDraft(volumeDraft),
-    [volumeDraft],
-  );
+  const normalizedVolumeDraft = useMemo(() => normalizeVolumeDraft(volumeDraft), [volumeDraft]);
   const normalizedSavedVolumes = useMemo(
-    () => normalizeVolumeDraft(savedVolumes),
-    [savedVolumes],
+    () => normalizeVolumeDraft(savedWorkspace?.volumes ?? []),
+    [savedWorkspace?.volumes],
   );
   const hasUnsavedVolumeDraft = useMemo(
     () => serializeVolumeDraft(normalizedVolumeDraft) !== serializeVolumeDraft(normalizedSavedVolumes),
     [normalizedSavedVolumes, normalizedVolumeDraft],
+  );
+  const readiness = useMemo(
+    () => buildVolumePlanningReadiness({ volumes: normalizedVolumeDraft, strategyPlan, beatSheets }),
+    [beatSheets, normalizedVolumeDraft, strategyPlan],
   );
 
   const updateVolumeDraft = (updater: (prev: VolumePlan[]) => VolumePlan[]) => {
     setVolumeDraft((prev) => normalizeVolumeDraft(updater(prev)));
   };
 
-  const [isGeneratingChapterDetailBundle, setIsGeneratingChapterDetailBundle] = useState(false);
-  const [bundleGeneratingChapterId, setBundleGeneratingChapterId] = useState("");
-  const [bundleGeneratingMode, setBundleGeneratingMode] = useState<ChapterDetailMode | "">("");
+  const applyWorkspaceDocument = (document: VolumePlanDocument) => {
+    setVolumeDraft(document.volumes);
+    setStrategyPlan(document.strategyPlan);
+    setCritiqueReport(document.critiqueReport);
+    setBeatSheets(document.beatSheets);
+    setRebalanceDecisions(document.rebalanceDecisions);
+  };
 
   const syncSavedVolumeDocumentToCache = (document: VolumePlanDocument) => {
     queryClient.setQueryData<ApiResponse<NovelDetailResponse> | undefined>(
@@ -181,13 +207,17 @@ export function useNovelVolumePlanning({
     );
     queryClient.setQueryData<ApiResponse<VolumePlanDocument>>(
       queryKeys.novels.volumeWorkspace(novelId),
-      (previous) => ({
-        success: previous?.success ?? true,
-        message: previous?.message,
+      () => ({
+        success: true,
+        message: "Volume workspace updated.",
         data: document,
       }),
     );
   };
+
+  const [isGeneratingChapterDetailBundle, setIsGeneratingChapterDetailBundle] = useState(false);
+  const [bundleGeneratingChapterId, setBundleGeneratingChapterId] = useState("");
+  const [bundleGeneratingMode, setBundleGeneratingMode] = useState<ChapterDetailMode | "">("");
 
   const generateMutation = useMutation({
     mutationFn: async (payload: VolumeGenerationPayload): Promise<GeneratedVolumeMutationResult> => {
@@ -201,28 +231,44 @@ export function useNovelVolumePlanning({
         targetChapterId: payload.targetChapterId,
         detailMode: payload.detailMode,
         draftVolumes: requestDraft.length > 0 ? requestDraft : undefined,
+        draftWorkspace: {
+          novelId,
+          workspaceVersion: "v2",
+          volumes: requestDraft,
+          strategyPlan,
+          critiqueReport,
+          beatSheets,
+          rebalanceDecisions,
+          readiness,
+          derivedOutline: "",
+          derivedStructuredOutline: "",
+          source: savedWorkspace?.source ?? "volume",
+          activeVersionId: savedWorkspace?.activeVersionId ?? null,
+        },
         estimatedChapterCount: typeof estimatedChapterCount === "number" && estimatedChapterCount > 0
           ? estimatedChapterCount
           : undefined,
         respectExistingVolumeCount: requestDraft.length > 0,
       });
-      const nextVolumes = normalizeVolumeDraft(generatedResponse.data?.volumes ?? requestDraft);
+      const nextDocument = generatedResponse.data;
+      if (!nextDocument) {
+        throw new Error("AI 没有返回卷工作区结果。");
+      }
 
       try {
-        const persistedResponse = await updateNovelVolumes(novelId, { volumes: nextVolumes });
+        const persistedResponse = await updateNovelVolumes(novelId, nextDocument);
         return {
           generatedResponse,
           persistedResponse,
-          nextVolumes,
+          nextDocument: persistedResponse.data ?? nextDocument,
         };
       } catch (error) {
         const message = error instanceof Error ? error.message : "AI 生成已完成，但自动保存失败。";
-        throw new VolumeGenerationAutoSaveError(message, nextVolumes);
+        throw new VolumeGenerationAutoSaveError(message, nextDocument);
       }
     },
     onSuccess: (result, payload) => {
-      const nextVolumes = result.nextVolumes;
-      setVolumeDraft(nextVolumes);
+      applyWorkspaceDocument(result.nextDocument);
       if (result.persistedResponse.data) {
         syncSavedVolumeDocumentToCache(result.persistedResponse.data);
       }
@@ -231,34 +277,49 @@ export function useNovelVolumePlanning({
         return;
       }
 
-      if (payload.scope === "book") {
-        const message = normalizedVolumeDraft.length > 0
-          ? `全书卷骨架已重生成并自动保存，当前保留 ${normalizedVolumeDraft.length} 卷。章节列表请按卷单独生成。`
-          : "全书卷骨架已生成并自动保存。下一步请按卷生成章节列表。";
+      if (payload.scope === "strategy") {
+        const message = "卷战略建议已生成并自动保存。下一步请先审查，再确认卷骨架。";
         setVolumeGenerationMessage(message);
         setStructuredMessage(message);
         return;
       }
-
-      if (payload.scope === "volume") {
-        const targetVolume = nextVolumes.find((volume) => volume.id === payload.targetVolumeId);
-        setStructuredMessage(`已生成并自动保存${targetVolume ? `《${targetVolume.title}》` : "当前卷"}的章节列表，本次只填写标题和摘要。`);
+      if (payload.scope === "strategy_critique") {
+        const message = "卷战略审稿已完成，问题和建议已写入右侧审稿区。";
+        setVolumeGenerationMessage(message);
+        return;
+      }
+      if (payload.scope === "skeleton" || payload.scope === "book") {
+        const message = "卷骨架已生成并自动保存。系统已清空旧节奏板，下一步请为当前卷生成节奏板。";
+        setVolumeGenerationMessage(message);
+        setStructuredMessage(message);
+        return;
+      }
+      if (payload.scope === "beat_sheet") {
+        setStructuredMessage("当前卷节奏板已生成并自动保存。现在可以继续拆当前卷章节列表。");
+        return;
+      }
+      if (payload.scope === "chapter_list" || payload.scope === "volume") {
+        setStructuredMessage("当前卷章节列表已生成并自动保存，相邻卷再平衡建议也已同步更新。");
+        return;
+      }
+      if (payload.scope === "rebalance") {
+        setStructuredMessage("相邻卷再平衡建议已更新。");
         return;
       }
 
       const label = detailModeLabel(payload.detailMode ?? "purpose");
-      setStructuredMessage(`${label}已完成 AI修正并自动保存，你可以继续手动微调。`);
+      setStructuredMessage(`${label}已完成 AI 修正并自动保存。`);
     },
     onError: (error, payload) => {
       if (error instanceof VolumeGenerationAutoSaveError) {
-        setVolumeDraft(error.nextVolumes);
+        applyWorkspaceDocument(error.nextDocument);
       }
       const message = error instanceof VolumeGenerationAutoSaveError
         ? `AI 生成已完成，但自动保存失败：${error.message}`
         : error instanceof Error
           ? error.message
           : "卷级方案生成失败。";
-      if (payload.scope === "book") {
+      if (payload.scope === "strategy" || payload.scope === "strategy_critique" || payload.scope === "skeleton" || payload.scope === "book") {
         setVolumeGenerationMessage(message);
       }
       setStructuredMessage(message);
@@ -272,51 +333,74 @@ export function useNovelVolumePlanning({
     return window.confirm("当前小说还没有角色。继续生成会降低后续一致性，是否继续？");
   };
 
-  const startBookGeneration = () => {
+  const startStrategyGeneration = () => {
     if (!ensureCharacterGuard()) {
       return;
     }
-    const volumeCount = normalizedVolumeDraft.length;
-    const confirmed = window.confirm(
-      volumeCount > 0
-        ? [
-          `将重写全书卷骨架，并默认保持当前 ${volumeCount} 卷。`,
-          "这一步不会生成章节列表，也不会自动补章节目标、执行边界和任务单。",
-          hasUnsavedVolumeDraft ? "本次会直接使用当前页面未保存草稿，不需要先保存。" : "本次会使用当前卷工作台作为生成上下文。",
-        ].join("\n\n")
-        : [
-          "将根据宏观规划初始化全书卷骨架。",
-          "这一步不会生成章节列表；章节列表需要后续按卷单独生成。",
-          hasUnsavedVolumeDraft ? "本次会优先使用当前页面草稿。" : "如果你刚改了项目设定，当前页面里的预计章节数也会参与本次生成。",
-        ].join("\n\n"),
-    );
+    const confirmed = window.confirm([
+      "将生成卷战略建议，帮助决定推荐卷数、硬规划卷数和各卷角色定位。",
+      "这一步不会直接生成卷骨架，也不会拆章节。",
+      hasUnsavedVolumeDraft ? "本次会直接使用当前页面未保存草稿作为参考。" : "本次会基于当前工作区状态生成建议。",
+    ].join("\n\n"));
     if (!confirmed) {
       return;
     }
-    generateMutation.mutate({ scope: "book" });
+    generateMutation.mutate({ scope: "strategy" });
   };
 
-  const startVolumeChapterGeneration = (volumeId: string) => {
+  const startStrategyCritique = () => {
+    if (!strategyPlan) {
+      setVolumeGenerationMessage("请先生成卷战略建议。");
+      return;
+    }
+    generateMutation.mutate({ scope: "strategy_critique" });
+  };
+
+  const startSkeletonGeneration = () => {
+    if (!ensureCharacterGuard()) {
+      return;
+    }
+    const confirmed = window.confirm([
+      "将根据当前卷战略建议生成或重生卷骨架。",
+      "这一步会清空已有节奏板和相邻卷再平衡建议，但不会直接删除章节正文。",
+      hasUnsavedVolumeDraft ? "本次会直接使用当前页面草稿作为卷骨架上下文。" : "本次会基于当前卷工作区继续推进。",
+    ].join("\n\n"));
+    if (!confirmed) {
+      return;
+    }
+    generateMutation.mutate({ scope: "skeleton" });
+  };
+
+  const startBeatSheetGeneration = (volumeId: string) => {
+    const targetVolume = normalizedVolumeDraft.find((volume) => volume.id === volumeId);
+    if (!targetVolume) {
+      setStructuredMessage("当前卷不存在，无法生成节奏板。");
+      return;
+    }
+    if (!ensureCharacterGuard()) {
+      return;
+    }
+    generateMutation.mutate({
+      scope: "beat_sheet",
+      targetVolumeId: volumeId,
+    });
+  };
+
+  const startChapterListGeneration = (volumeId: string) => {
     const targetVolume = normalizedVolumeDraft.find((volume) => volume.id === volumeId);
     if (!targetVolume) {
       setStructuredMessage("当前卷不存在，无法生成章节列表。");
       return;
     }
+    if (!findBeatSheet(beatSheets, volumeId)) {
+      setStructuredMessage("当前卷还没有节奏板，默认不能直接拆章节列表。");
+      return;
+    }
     if (!ensureCharacterGuard()) {
       return;
     }
-    const actionLabel = hasMeaningfulChapterList(targetVolume) ? "重写" : "生成";
-    const confirmed = window.confirm([
-      `将${actionLabel}第${targetVolume.sortOrder}卷《${targetVolume.title}》的章节列表。`,
-      "本次只会生成章节标题和章节摘要，不会自动补章节目标、执行边界和任务单。",
-      "只会修改当前卷，其他卷不会被重算。",
-      hasUnsavedVolumeDraft ? "本次会直接使用当前页面未保存草稿作为上下文。" : "本次会基于当前卷工作台生成。",
-    ].join("\n\n"));
-    if (!confirmed) {
-      return;
-    }
     generateMutation.mutate({
-      scope: "volume",
+      scope: "chapter_list",
       targetVolumeId: volumeId,
     });
   };
@@ -332,14 +416,18 @@ export function useNovelVolumePlanning({
       setStructuredMessage("当前章节不存在，无法生成细化信息。");
       return;
     }
+    if (!findBeatSheet(beatSheets, volumeId)) {
+      setStructuredMessage("请先生成当前卷节奏板，再细化章节。");
+      return;
+    }
     if (!ensureCharacterGuard()) {
       return;
     }
     const confirmed = window.confirm([
-      `将基于当前内容为第${targetChapter.chapterOrder}章《${targetChapter.title}》AI修正${detailModeLabel(detailMode)}。`,
+      `将基于当前内容为第${targetChapter.chapterOrder}章《${targetChapter.title}》AI 修正${detailModeLabel(detailMode)}。`,
       hasChapterDetailDraft(targetChapter, detailMode)
         ? "会优先沿用当前已填写结果，只修正空缺、模糊和不够可执行的部分。"
-        : "当前这块还是空白，AI会先补出首版，再按现有标题和摘要收束。",
+        : "当前这块还是空白，AI 会先补出首版，再按现有标题和摘要收束。",
       "不会改动本章标题和摘要，也不会影响其他章节。",
     ].join("\n\n"));
     if (!confirmed) {
@@ -360,17 +448,11 @@ export function useNovelVolumePlanning({
       setStructuredMessage("当前章节不存在，无法整套生成章节细化。");
       return;
     }
-    if (!ensureCharacterGuard()) {
+    if (!findBeatSheet(beatSheets, volumeId)) {
+      setStructuredMessage("请先生成当前卷节奏板，再做单章整套细化。");
       return;
     }
-    const confirmed = window.confirm([
-      `将为第${targetChapter.chapterOrder}章《${targetChapter.title}》一次生成章节目标、执行边界和任务单。`,
-      hasAnyChapterDetailDraft(targetChapter)
-        ? "会基于当前已填写内容逐项补齐并修正，不会改动标题和摘要。"
-        : "会根据当前标题和摘要一次补齐三块内容，不需要你逐个点击。",
-      "生成顺序为：章节目标 -> 执行边界 -> 任务单。",
-    ].join("\n\n"));
-    if (!confirmed) {
+    if (!ensureCharacterGuard()) {
       return;
     }
 
@@ -391,12 +473,12 @@ export function useNovelVolumePlanning({
             draftVolumesOverride: workingDraft,
             suppressSuccessMessage: true,
           });
-          workingDraft = result.nextVolumes;
-          setVolumeDraft(workingDraft);
+          workingDraft = result.nextDocument.volumes;
+          applyWorkspaceDocument(result.nextDocument);
         }
-        setStructuredMessage(`第${targetChapter.chapterOrder}章的章节目标、执行边界和任务单已补齐并自动保存。下面的小按钮会基于当前结果继续 AI修正。`);
+        setStructuredMessage(`第${targetChapter.chapterOrder}章的章节目标、执行边界和任务单已补齐并自动保存。`);
       } catch {
-        // onError 已统一处理提示
+        // onError handles message
       } finally {
         setIsGeneratingChapterDetailBundle(false);
         setBundleGeneratingChapterId("");
@@ -407,7 +489,7 @@ export function useNovelVolumePlanning({
 
   const handleVolumeFieldChange = (
     volumeId: string,
-    field: keyof Pick<VolumePlan, "title" | "summary" | "mainPromise" | "escalationMode" | "protagonistChange" | "climax" | "nextVolumeHook" | "resetPoint">,
+    field: keyof Pick<VolumePlan, "title" | "summary" | "openingHook" | "mainPromise" | "primaryPressureSource" | "coreSellingPoint" | "escalationMode" | "protagonistChange" | "midVolumeRisk" | "climax" | "payoffType" | "nextVolumeHook" | "resetPoint">,
     value: string,
   ) => {
     updateVolumeDraft((prev) => prev.map((volume) => (
@@ -426,10 +508,7 @@ export function useNovelVolumePlanning({
   };
 
   const handleAddVolume = () => {
-    updateVolumeDraft((prev) => [
-      ...prev,
-      createEmptyVolume(prev.length + 1),
-    ]);
+    updateVolumeDraft((prev) => [...prev, createEmptyVolume(prev.length + 1)]);
   };
 
   const handleRemoveVolume = (volumeId: string) => {
@@ -509,10 +588,7 @@ export function useNovelVolumePlanning({
         ? volume
         : {
           ...volume,
-          chapters: [
-            ...volume.chapters,
-            createEmptyChapter(prev.flatMap((item) => item.chapters).length + 1),
-          ],
+          chapters: [...volume.chapters, createEmptyChapter(prev.flatMap((item) => item.chapters).length + 1)],
         }
     )));
   };
@@ -545,11 +621,9 @@ export function useNovelVolumePlanning({
     }));
   };
 
-  const generationNotice = hasUnsavedVolumeDraft
-    ? "当前有未保存草稿。本次会直接使用页面最新草稿。全书骨架、章节列表、章节细化已拆成三步。"
-    : normalizedVolumeDraft.length > 0
-      ? `当前默认锁定 ${normalizedVolumeDraft.length} 卷。全书骨架不会自动生成章节列表，章节细化也需要单独触发。`
-      : "先生成全书卷骨架，再按卷生成章节列表；章节目标、执行边界、任务单都改成按需生成。";
+  const generationNotice = strategyPlan
+    ? "当前工作区已进入二期链路：先审卷战略，再确认卷骨架，之后按卷生成节奏板和章节列表。"
+    : "先生成卷战略建议，让系统帮你决定卷数和硬/软规划，再进入卷骨架。";
   const generatingChapterDetailMode: ChapterDetailMode | "" = isGeneratingChapterDetailBundle
     ? bundleGeneratingMode
     : generateMutation.variables?.scope === "chapter_detail"
@@ -567,14 +641,21 @@ export function useNovelVolumePlanning({
     normalizedVolumeDraft,
     hasUnsavedVolumeDraft,
     generationNotice,
-    isGeneratingBook: generateMutation.isPending && generateMutation.variables?.scope === "book",
-    isGeneratingVolume: generateMutation.isPending && generateMutation.variables?.scope === "volume",
+    readiness,
+    isGeneratingStrategy: generateMutation.isPending && generateMutation.variables?.scope === "strategy",
+    isCritiquingStrategy: generateMutation.isPending && generateMutation.variables?.scope === "strategy_critique",
+    isGeneratingSkeleton: generateMutation.isPending && (generateMutation.variables?.scope === "skeleton" || generateMutation.variables?.scope === "book"),
+    isGeneratingBeatSheet: generateMutation.isPending && generateMutation.variables?.scope === "beat_sheet",
+    isGeneratingChapterList: generateMutation.isPending && (generateMutation.variables?.scope === "chapter_list" || generateMutation.variables?.scope === "volume"),
     isGeneratingChapterDetail,
     isGeneratingChapterDetailBundle,
     generatingChapterDetailMode,
     generatingChapterDetailChapterId,
-    startBookGeneration,
-    startVolumeGeneration: startVolumeChapterGeneration,
+    startStrategyGeneration,
+    startStrategyCritique,
+    startSkeletonGeneration,
+    startBeatSheetGeneration,
+    startChapterListGeneration,
     startChapterDetailGeneration,
     startChapterDetailBundleGeneration,
     handleVolumeFieldChange,
@@ -590,4 +671,3 @@ export function useNovelVolumePlanning({
     handleMoveChapter,
   };
 }
-

@@ -16,9 +16,14 @@ import type {
   SupplementalCharacterGenerateInput,
   SupplementalCharacterGenerationResult,
   VolumeImpactResult,
+  VolumeBeatSheet,
   VolumePlan,
+  VolumePlanningReadiness,
   VolumePlanDiff,
   VolumePlanVersion,
+  VolumeRebalanceDecision,
+  VolumeStrategyPlan,
+  VolumeCritiqueReport,
   VolumeSyncPreview,
 } from "@ai-novel/shared/types/novel";
 import type {
@@ -109,12 +114,19 @@ export interface OutlineTabViewProps {
   hasCharacters: boolean;
   hasUnsavedVolumeDraft: boolean;
   generationNotice: string;
-  isGeneratingBook: boolean;
-  onGenerateBook: () => void;
+  readiness: VolumePlanningReadiness;
+  strategyPlan: VolumeStrategyPlan | null;
+  critiqueReport: VolumeCritiqueReport | null;
+  isGeneratingStrategy: boolean;
+  onGenerateStrategy: () => void;
+  isCritiquingStrategy: boolean;
+  onCritiqueStrategy: () => void;
+  isGeneratingSkeleton: boolean;
+  onGenerateSkeleton: () => void;
   onGoToCharacterTab: () => void;
   draftText: string;
   volumes: VolumePlan[];
-  onVolumeFieldChange: (volumeId: string, field: keyof Pick<VolumePlan, "title" | "summary" | "mainPromise" | "escalationMode" | "protagonistChange" | "climax" | "nextVolumeHook" | "resetPoint">, value: string) => void;
+  onVolumeFieldChange: (volumeId: string, field: keyof Pick<VolumePlan, "title" | "summary" | "openingHook" | "mainPromise" | "primaryPressureSource" | "coreSellingPoint" | "escalationMode" | "protagonistChange" | "midVolumeRisk" | "climax" | "payoffType" | "nextVolumeHook" | "resetPoint">, value: string) => void;
   onOpenPayoffsChange: (volumeId: string, value: string) => void;
   onAddVolume: () => void;
   onRemoveVolume: (volumeId: string) => void;
@@ -164,9 +176,13 @@ export interface StructuredTabViewProps extends Omit<
   | "isAnalyzingVersionImpact"
   | "impactResult"
 > {
+  beatSheets: VolumeBeatSheet[];
+  rebalanceDecisions: VolumeRebalanceDecision[];
   draftText: string;
-  isGeneratingVolume: boolean;
-  onGenerateVolume: (volumeId: string) => void;
+  isGeneratingBeatSheet: boolean;
+  onGenerateBeatSheet: (volumeId: string) => void;
+  isGeneratingChapterList: boolean;
+  onGenerateChapterList: (volumeId: string) => void;
   isGeneratingChapterDetail: boolean;
   isGeneratingChapterDetailBundle: boolean;
   generatingChapterDetailMode: "purpose" | "boundary" | "task_sheet" | "";

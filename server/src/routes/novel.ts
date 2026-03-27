@@ -113,10 +113,15 @@ const volumeSchema = z.object({
   sortOrder: z.number().int().min(1).optional(),
   title: z.string().trim().min(1),
   summary: z.string().trim().nullable().optional(),
+  openingHook: z.string().trim().nullable().optional(),
   mainPromise: z.string().trim().nullable().optional(),
+  primaryPressureSource: z.string().trim().nullable().optional(),
+  coreSellingPoint: z.string().trim().nullable().optional(),
   escalationMode: z.string().trim().nullable().optional(),
   protagonistChange: z.string().trim().nullable().optional(),
+  midVolumeRisk: z.string().trim().nullable().optional(),
   climax: z.string().trim().nullable().optional(),
+  payoffType: z.string().trim().nullable().optional(),
   nextVolumeHook: z.string().trim().nullable().optional(),
   resetPoint: z.string().trim().nullable().optional(),
   openPayoffs: z.array(z.string().trim().min(1)).optional(),
@@ -125,12 +130,85 @@ const volumeSchema = z.object({
   chapters: z.array(volumeChapterSchema).default([]),
 }).passthrough();
 
+const volumeStrategyVolumeSchema = z.object({
+  sortOrder: z.number().int().min(1),
+  planningMode: z.enum(["hard", "soft"]),
+  roleLabel: z.string().trim().min(1),
+  coreReward: z.string().trim().min(1),
+  escalationFocus: z.string().trim().min(1),
+  uncertaintyLevel: z.enum(["low", "medium", "high"]),
+});
+
+const volumeUncertaintySchema = z.object({
+  targetType: z.enum(["book", "volume", "beat_sheet", "chapter_list"]),
+  targetRef: z.string().trim().min(1),
+  level: z.enum(["low", "medium", "high"]),
+  reason: z.string().trim().min(1),
+});
+
+const volumeStrategyPlanSchema = z.object({
+  recommendedVolumeCount: z.number().int().min(1).max(12),
+  hardPlannedVolumeCount: z.number().int().min(1).max(12),
+  readerRewardLadder: z.string().trim().min(1),
+  escalationLadder: z.string().trim().min(1),
+  midpointShift: z.string().trim().min(1),
+  notes: z.string().trim().min(1),
+  volumes: z.array(volumeStrategyVolumeSchema).min(1).max(12),
+  uncertainties: z.array(volumeUncertaintySchema).max(12).default([]),
+});
+
+const volumeCritiqueIssueSchema = z.object({
+  targetRef: z.string().trim().min(1),
+  severity: z.enum(["low", "medium", "high"]),
+  title: z.string().trim().min(1),
+  detail: z.string().trim().min(1),
+});
+
+const volumeCritiqueReportSchema = z.object({
+  overallRisk: z.enum(["low", "medium", "high"]),
+  summary: z.string().trim().min(1),
+  issues: z.array(volumeCritiqueIssueSchema).max(12).default([]),
+  recommendedActions: z.array(z.string().trim().min(1)).max(8).default([]),
+});
+
+const volumeBeatSchema = z.object({
+  key: z.string().trim().min(1),
+  label: z.string().trim().min(1),
+  summary: z.string().trim().min(1),
+  chapterSpanHint: z.string().trim().min(1),
+  mustDeliver: z.array(z.string().trim().min(1)).min(1).max(6),
+});
+
+const volumeBeatSheetSchema = z.object({
+  volumeId: z.string().trim().min(1),
+  volumeSortOrder: z.number().int().min(1),
+  status: z.enum(["not_started", "generated", "revised"]),
+  beats: z.array(volumeBeatSchema).max(8),
+});
+
+const volumeRebalanceDecisionSchema = z.object({
+  anchorVolumeId: z.string().trim().min(1),
+  affectedVolumeId: z.string().trim().min(1),
+  direction: z.enum(["pull_forward", "push_back", "tighten_current", "expand_adjacent", "hold"]),
+  severity: z.enum(["low", "medium", "high"]),
+  summary: z.string().trim().min(1),
+  actions: z.array(z.string().trim().min(1)).min(1).max(5),
+});
+
 const volumeDocumentSchema = z.object({
   volumes: z.array(volumeSchema).min(1),
+  strategyPlan: volumeStrategyPlanSchema.nullish(),
+  critiqueReport: volumeCritiqueReportSchema.nullish(),
+  beatSheets: z.array(volumeBeatSheetSchema).optional(),
+  rebalanceDecisions: z.array(volumeRebalanceDecisionSchema).optional(),
 });
 
 const volumeDraftSchema = z.object({
   volumes: z.array(volumeSchema).min(1).optional(),
+  strategyPlan: volumeStrategyPlanSchema.nullish(),
+  critiqueReport: volumeCritiqueReportSchema.nullish(),
+  beatSheets: z.array(volumeBeatSheetSchema).optional(),
+  rebalanceDecisions: z.array(volumeRebalanceDecisionSchema).optional(),
   diffSummary: z.string().trim().optional(),
   baseVersion: z.number().int().min(1).optional(),
 });
@@ -258,15 +336,16 @@ const llmGenerateSchema = z.object({
 
 const volumeGenerateSchema = llmGenerateSchema.extend({
   guidance: z.string().trim().max(4000).optional(),
-  scope: z.enum(["book", "volume", "chapter_detail"]).optional(),
+  scope: z.enum(["strategy", "strategy_critique", "skeleton", "beat_sheet", "chapter_list", "chapter_detail", "rebalance", "book", "volume"]).optional(),
   targetVolumeId: z.string().trim().min(1).optional(),
   targetChapterId: z.string().trim().min(1).optional(),
   detailMode: z.enum(["purpose", "boundary", "task_sheet"]).optional(),
   estimatedChapterCount: z.number().int().min(1).max(500).optional(),
   respectExistingVolumeCount: z.boolean().optional(),
   draftVolumes: z.array(z.unknown()).min(1).optional(),
+  draftWorkspace: volumeDocumentSchema.optional(),
 }).superRefine((value, ctx) => {
-  if (value.scope === "volume" && !value.targetVolumeId) {
+  if ((value.scope === "volume" || value.scope === "beat_sheet" || value.scope === "chapter_list" || value.scope === "rebalance") && !value.targetVolumeId) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "按卷生成时必须提供目标卷。",

@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, type QueryClient } from "@tanstack/react-query";
 import type {
+  VolumeBeatSheet,
+  VolumeCritiqueReport,
   VolumeImpactResult,
   VolumePlan,
+  VolumePlanDocument,
   VolumePlanDiff,
   VolumePlanVersion,
+  VolumeRebalanceDecision,
+  VolumeStrategyPlan,
 } from "@ai-novel/shared/types/novel";
 import {
   activateVolumeVersion,
@@ -18,16 +23,24 @@ import { queryKeys } from "@/api/queryKeys";
 
 interface UseVolumeVersionControlArgs {
   novelId: string;
-  draftVolumes: VolumePlan[];
+  draftDocument: VolumePlanDocument;
   setDraftVolumes: (value: VolumePlan[]) => void;
+  setStrategyPlan: (value: VolumeStrategyPlan | null) => void;
+  setCritiqueReport: (value: VolumeCritiqueReport | null) => void;
+  setBeatSheets: (value: VolumeBeatSheet[]) => void;
+  setRebalanceDecisions: (value: VolumeRebalanceDecision[]) => void;
   queryClient: QueryClient;
   invalidateNovelDetail: () => Promise<void>;
 }
 
 export function useVolumeVersionControl({
   novelId,
-  draftVolumes,
+  draftDocument,
   setDraftVolumes,
+  setStrategyPlan,
+  setCritiqueReport,
+  setBeatSheets,
+  setRebalanceDecisions,
   queryClient,
   invalidateNovelDetail,
 }: UseVolumeVersionControlArgs) {
@@ -60,7 +73,7 @@ export function useVolumeVersionControl({
 
   const createDraftVersionMutation = useMutation({
     mutationFn: () => createVolumeDraft(novelId, {
-      volumes: draftVolumes,
+      ...draftDocument,
       baseVersion: selectedVersion?.version,
     }),
     onSuccess: async (response) => {
@@ -126,7 +139,7 @@ export function useVolumeVersionControl({
   });
 
   const analyzeDraftImpactMutation = useMutation({
-    mutationFn: () => analyzeVolumeImpact(novelId, { volumes: draftVolumes }),
+    mutationFn: () => analyzeVolumeImpact(novelId, { volumes: draftDocument.volumes }),
     onSuccess: (response) => {
       setImpactResult(response.data ?? null);
       setMessage(response.message ?? "卷级草稿影响分析完成。");
@@ -157,8 +170,12 @@ export function useVolumeVersionControl({
       return;
     }
     try {
-      const parsed = JSON.parse(selectedVersion.contentJson) as { volumes?: VolumePlan[] };
+      const parsed = JSON.parse(selectedVersion.contentJson) as Partial<VolumePlanDocument>;
       setDraftVolumes(parsed.volumes ?? []);
+      setStrategyPlan(parsed.strategyPlan ?? null);
+      setCritiqueReport(parsed.critiqueReport ?? null);
+      setBeatSheets(parsed.beatSheets ?? []);
+      setRebalanceDecisions(parsed.rebalanceDecisions ?? []);
       setMessage(`已加载 V${selectedVersion.version} 到当前卷级草稿。`);
     } catch {
       setMessage("读取卷级版本内容失败。");

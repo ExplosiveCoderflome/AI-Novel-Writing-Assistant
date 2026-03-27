@@ -1,8 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
-import type { PipelineRepairMode, PipelineRunMode, ReviewIssue, VolumePlan } from "@ai-novel/shared/types/novel";
+import type {
+  PipelineRepairMode,
+  PipelineRunMode,
+  ReviewIssue,
+  VolumeBeatSheet,
+  VolumeCritiqueReport,
+  VolumePlan,
+  VolumeRebalanceDecision,
+  VolumeStrategyPlan,
+} from "@ai-novel/shared/types/novel";
 import NovelEditView from "./components/NovelEditView";
 import { getBaseCharacterList } from "@/api/character";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
@@ -14,6 +23,7 @@ import {
   getLatestStateSnapshot,
   getNovelDetail,
   getNovelPipelineJob,
+  getNovelVolumeWorkspace,
   getNovelQualityReport,
   replanNovel,
 } from "@/api/novel";
@@ -42,6 +52,7 @@ import {
 } from "./novelBasicInfo.shared";
 import {
   applyVolumeChapterBatch,
+  buildVolumePlanningReadiness,
   buildOutlinePreviewFromVolumes,
   buildStructuredPreviewFromVolumes,
   buildVolumeSyncPreview,
@@ -55,6 +66,10 @@ export default function NovelEdit() {
   const [activeTab, setActiveTab] = useState("basic");
   const [basicForm, setBasicForm] = useState(() => createDefaultNovelBasicFormState());
   const [volumeDraft, setVolumeDraft] = useState<VolumePlan[]>([]);
+  const [volumeStrategyPlan, setVolumeStrategyPlan] = useState<VolumeStrategyPlan | null>(null);
+  const [volumeCritiqueReport, setVolumeCritiqueReport] = useState<VolumeCritiqueReport | null>(null);
+  const [volumeBeatSheets, setVolumeBeatSheets] = useState<VolumeBeatSheet[]>([]);
+  const [volumeRebalanceDecisions, setVolumeRebalanceDecisions] = useState<VolumeRebalanceDecision[]>([]);
   const [volumeGenerationMessage, setVolumeGenerationMessage] = useState("");
   const [outlineOptimizeInstruction, setOutlineOptimizeInstruction] = useState("");
   const [outlineOptimizePreview, setOutlineOptimizePreview] = useState("");
@@ -113,6 +128,11 @@ export default function NovelEdit() {
   const qualityReportQuery = useQuery({
     queryKey: queryKeys.novels.qualityReport(id),
     queryFn: () => getNovelQualityReport(id),
+    enabled: Boolean(id),
+  });
+  const volumeWorkspaceQuery = useQuery({
+    queryKey: queryKeys.novels.volumeWorkspace(id),
+    queryFn: () => getNovelVolumeWorkspace(id),
     enabled: Boolean(id),
   });
   const latestStateSnapshotQuery = useQuery({
@@ -227,18 +247,26 @@ export default function NovelEdit() {
     [characters],
   );
   const hasCharacters = characters.length > 0;
+  const savedVolumeWorkspace = volumeWorkspaceQuery.data?.data ?? null;
   const {
     normalizedVolumeDraft,
     hasUnsavedVolumeDraft,
     generationNotice,
-    isGeneratingBook,
-    isGeneratingVolume,
+    readiness,
+    isGeneratingStrategy,
+    isCritiquingStrategy,
+    isGeneratingSkeleton,
+    isGeneratingBeatSheet,
+    isGeneratingChapterList,
     isGeneratingChapterDetail,
     isGeneratingChapterDetailBundle,
     generatingChapterDetailMode,
     generatingChapterDetailChapterId,
-    startBookGeneration,
-    startVolumeGeneration,
+    startStrategyGeneration,
+    startStrategyCritique,
+    startSkeletonGeneration,
+    startBeatSheetGeneration,
+    startChapterListGeneration,
     startChapterDetailGeneration,
     startChapterDetailBundleGeneration,
     handleVolumeFieldChange,
@@ -258,8 +286,16 @@ export default function NovelEdit() {
     llm,
     estimatedChapterCount: basicForm.estimatedChapterCount,
     volumeDraft,
-    savedVolumes: novelDetailQuery.data?.data?.volumes ?? [],
+    strategyPlan: volumeStrategyPlan,
+    critiqueReport: volumeCritiqueReport,
+    beatSheets: volumeBeatSheets,
+    rebalanceDecisions: volumeRebalanceDecisions,
+    savedWorkspace: savedVolumeWorkspace,
     setVolumeDraft,
+    setStrategyPlan: setVolumeStrategyPlan,
+    setCritiqueReport: setVolumeCritiqueReport,
+    setBeatSheets: setVolumeBeatSheets,
+    setRebalanceDecisions: setVolumeRebalanceDecisions,
     setVolumeGenerationMessage,
     setStructuredMessage,
   });
@@ -313,6 +349,18 @@ export default function NovelEdit() {
     setCharacterForm,
   });
 
+  useEffect(() => {
+    const workspace = volumeWorkspaceQuery.data?.data;
+    if (!workspace) {
+      return;
+    }
+    setVolumeDraft(workspace.volumes ?? []);
+    setVolumeStrategyPlan(workspace.strategyPlan ?? null);
+    setVolumeCritiqueReport(workspace.critiqueReport ?? null);
+    setVolumeBeatSheets(workspace.beatSheets ?? []);
+    setVolumeRebalanceDecisions(workspace.rebalanceDecisions ?? []);
+  }, [volumeWorkspaceQuery.data?.data]);
+
   const outlineText = useMemo(
     () => buildOutlinePreviewFromVolumes(normalizedVolumeDraft),
     [normalizedVolumeDraft],
@@ -321,9 +369,39 @@ export default function NovelEdit() {
     () => buildStructuredPreviewFromVolumes(normalizedVolumeDraft),
     [normalizedVolumeDraft],
   );
+  const draftVolumeDocument = useMemo(() => ({
+    novelId: id,
+    workspaceVersion: "v2" as const,
+    volumes: normalizedVolumeDraft,
+    strategyPlan: volumeStrategyPlan,
+    critiqueReport: volumeCritiqueReport,
+    beatSheets: volumeBeatSheets,
+    rebalanceDecisions: volumeRebalanceDecisions,
+    readiness: buildVolumePlanningReadiness({
+      volumes: normalizedVolumeDraft,
+      strategyPlan: volumeStrategyPlan,
+      beatSheets: volumeBeatSheets,
+    }),
+    derivedOutline: outlineText,
+    derivedStructuredOutline: structuredDraftText,
+    source: savedVolumeWorkspace?.source ?? "volume",
+    activeVersionId: savedVolumeWorkspace?.activeVersionId ?? null,
+  }), [
+    id,
+    normalizedVolumeDraft,
+    outlineText,
+    savedVolumeWorkspace?.activeVersionId,
+    savedVolumeWorkspace?.source,
+    structuredDraftText,
+    volumeBeatSheets,
+    volumeCritiqueReport,
+    volumeRebalanceDecisions,
+    volumeStrategyPlan,
+  ]);
 
   const invalidateNovelDetail = async () => {
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.novels.volumeWorkspace(id) });
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(id) });
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.latestStateSnapshot(id) });
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(id) });
@@ -370,7 +448,7 @@ export default function NovelEdit() {
     setStructuredOptimizePreview,
     setStructuredOptimizeMode,
     setStructuredOptimizeSourceText,
-    volumeDraft: normalizedVolumeDraft,
+    volumeDocument: draftVolumeDocument,
     llm,
     pipelineForm,
     selectedChapterId,
@@ -485,8 +563,12 @@ export default function NovelEdit() {
     loadSelectedVersionToDraft,
   } = useVolumeVersionControl({
     novelId: id,
-    draftVolumes: normalizedVolumeDraft,
+    draftDocument: draftVolumeDocument,
     setDraftVolumes: setVolumeDraft,
+    setStrategyPlan: setVolumeStrategyPlan,
+    setCritiqueReport: setVolumeCritiqueReport,
+    setBeatSheets: setVolumeBeatSheets,
+    setRebalanceDecisions: setVolumeRebalanceDecisions,
     queryClient,
     invalidateNovelDetail,
   });
@@ -531,8 +613,15 @@ export default function NovelEdit() {
     hasCharacters,
     hasUnsavedVolumeDraft,
     generationNotice,
-    isGeneratingBook,
-    onGenerateBook: startBookGeneration,
+    readiness,
+    strategyPlan: volumeStrategyPlan,
+    critiqueReport: volumeCritiqueReport,
+    isGeneratingStrategy,
+    onGenerateStrategy: startStrategyGeneration,
+    isCritiquingStrategy,
+    onCritiqueStrategy: startStrategyCritique,
+    isGeneratingSkeleton,
+    onGenerateSkeleton: startSkeletonGeneration,
     onGoToCharacterTab: goToCharacterTab,
     draftText: outlineText,
     volumes: normalizedVolumeDraft,
@@ -565,9 +654,13 @@ export default function NovelEdit() {
   };
   const structuredTab = {
     ...outlineTab,
+    beatSheets: volumeBeatSheets,
+    rebalanceDecisions: volumeRebalanceDecisions,
     draftText: structuredDraftText,
-    isGeneratingVolume,
-    onGenerateVolume: startVolumeGeneration,
+    isGeneratingBeatSheet,
+    onGenerateBeatSheet: startBeatSheetGeneration,
+    isGeneratingChapterList,
+    onGenerateChapterList: startChapterListGeneration,
     isGeneratingChapterDetail,
     isGeneratingChapterDetailBundle,
     generatingChapterDetailMode,

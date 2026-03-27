@@ -36,6 +36,15 @@ export type ProjectProgressStatus = "not_started" | "in_progress" | "completed" 
 
 export type StorylineVersionStatus = "draft" | "active" | "frozen";
 export type VolumePlanVersionStatus = "draft" | "active" | "frozen";
+export type VolumeGenerationScope =
+  | "strategy"
+  | "strategy_critique"
+  | "skeleton"
+  | "beat_sheet"
+  | "chapter_list"
+  | "chapter_detail"
+  | "rebalance";
+export type VolumeGenerationScopeInput = VolumeGenerationScope | "book" | "volume";
 export type StoryPlanLevel = "book" | "arc" | "chapter";
 export type StoryPlanRole = "setup" | "progress" | "pressure" | "turn" | "payoff" | "cooldown";
 export type AuditType = "continuity" | "character" | "plot" | "mode_fit";
@@ -475,16 +484,107 @@ export interface VolumeChapterPlan {
   updatedAt: string;
 }
 
+export type VolumeStrategyPlanningMode = "hard" | "soft";
+export type VolumeUncertaintyLevel = "low" | "medium" | "high";
+export type VolumeBeatSheetStatus = "not_started" | "generated" | "revised";
+export type VolumeCritiqueRiskLevel = "low" | "medium" | "high";
+export type VolumeRebalanceSeverity = "low" | "medium" | "high";
+export type VolumeRebalanceDirection =
+  | "pull_forward"
+  | "push_back"
+  | "tighten_current"
+  | "expand_adjacent"
+  | "hold";
+export type VolumeUncertaintyTargetType = "book" | "volume" | "beat_sheet" | "chapter_list";
+
+export interface VolumeStrategyVolume {
+  sortOrder: number;
+  planningMode: VolumeStrategyPlanningMode;
+  roleLabel: string;
+  coreReward: string;
+  escalationFocus: string;
+  uncertaintyLevel: VolumeUncertaintyLevel;
+}
+
+export interface VolumeUncertaintyMarker {
+  targetType: VolumeUncertaintyTargetType;
+  targetRef: string;
+  level: VolumeUncertaintyLevel;
+  reason: string;
+}
+
+export interface VolumeStrategyPlan {
+  recommendedVolumeCount: number;
+  hardPlannedVolumeCount: number;
+  readerRewardLadder: string;
+  escalationLadder: string;
+  midpointShift: string;
+  notes: string;
+  volumes: VolumeStrategyVolume[];
+  uncertainties: VolumeUncertaintyMarker[];
+}
+
+export interface VolumeBeat {
+  key: string;
+  label: string;
+  summary: string;
+  chapterSpanHint: string;
+  mustDeliver: string[];
+}
+
+export interface VolumeBeatSheet {
+  volumeId: string;
+  volumeSortOrder: number;
+  status: VolumeBeatSheetStatus;
+  beats: VolumeBeat[];
+}
+
+export interface VolumeCritiqueIssue {
+  targetRef: string;
+  severity: VolumeCritiqueRiskLevel;
+  title: string;
+  detail: string;
+}
+
+export interface VolumeCritiqueReport {
+  overallRisk: VolumeCritiqueRiskLevel;
+  summary: string;
+  issues: VolumeCritiqueIssue[];
+  recommendedActions: string[];
+}
+
+export interface VolumePlanningReadiness {
+  canGenerateStrategy: boolean;
+  canGenerateSkeleton: boolean;
+  canGenerateBeatSheet: boolean;
+  canGenerateChapterList: boolean;
+  blockingReasons: string[];
+}
+
+export interface VolumeRebalanceDecision {
+  anchorVolumeId: string;
+  affectedVolumeId: string;
+  direction: VolumeRebalanceDirection;
+  severity: VolumeRebalanceSeverity;
+  summary: string;
+  actions: string[];
+}
+
 export interface VolumePlan {
   id: string;
   novelId: string;
   sortOrder: number;
   title: string;
   summary?: string | null;
+  openingHook?: string | null;
   mainPromise?: string | null;
+  primaryPressureSource?: string | null;
+  coreSellingPoint?: string | null;
   escalationMode?: string | null;
   protagonistChange?: string | null;
+  midVolumeRisk?: string | null;
   climax?: string | null;
+  payoffType?: string | null;
   nextVolumeHook?: string | null;
   resetPoint?: string | null;
   openPayoffs: string[];
@@ -508,11 +608,17 @@ export interface VolumePlanVersion {
 
 export interface VolumePlanDocument {
   novelId: string;
+  workspaceVersion: "v2";
   volumes: VolumePlan[];
+  strategyPlan: VolumeStrategyPlan | null;
+  critiqueReport: VolumeCritiqueReport | null;
+  beatSheets: VolumeBeatSheet[];
+  rebalanceDecisions: VolumeRebalanceDecision[];
+  readiness: VolumePlanningReadiness;
   derivedOutline: string;
   derivedStructuredOutline: string;
   source: "volume" | "legacy" | "empty";
-  activeVersionId?: string | null;
+  activeVersionId: string | null;
 }
 
 export interface VolumePlanDiffVolume {

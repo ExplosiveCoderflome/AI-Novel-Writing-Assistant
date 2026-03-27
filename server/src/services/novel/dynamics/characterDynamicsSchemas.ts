@@ -56,7 +56,7 @@ export const volumeDynamicsProjectionSchema = z.object({
     nextTurnPoint: z.string().trim().optional().nullable(),
     confidence: z.number().min(0).max(1).optional().nullable(),
   })).default([]),
-});
+}).strict();
 
 export const confirmCandidateInputSchema = z.object({
   role: z.string().trim().optional(),

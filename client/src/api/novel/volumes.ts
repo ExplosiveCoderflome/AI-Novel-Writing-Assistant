@@ -2,6 +2,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
   VolumeImpactResult,
+  VolumeGenerationScopeInput,
   VolumePlan,
   VolumePlanDiff,
   VolumePlanDocument,
@@ -17,7 +18,7 @@ export async function getNovelVolumeWorkspace(id: string) {
 
 export async function updateNovelVolumes(
   id: string,
-  payload: {
+  payload: Partial<VolumePlanDocument> & {
     volumes: VolumePlan[];
   },
 ) {
@@ -32,13 +33,14 @@ export async function generateNovelVolumes(
     model?: string;
     temperature?: number;
     guidance?: string;
-    scope?: "book" | "volume" | "chapter_detail";
+    scope?: VolumeGenerationScopeInput;
     targetVolumeId?: string;
     targetChapterId?: string;
     detailMode?: "purpose" | "boundary" | "task_sheet";
     estimatedChapterCount?: number;
     respectExistingVolumeCount?: boolean;
     draftVolumes?: VolumePlan[];
+    draftWorkspace?: Partial<VolumePlanDocument>;
   },
 ) {
   const { data } = await apiClient.post<ApiResponse<VolumePlanDocument>>(`/novels/${id}/volumes/generate`, payload ?? {});
@@ -52,7 +54,7 @@ export async function listVolumeVersions(id: string) {
 
 export async function createVolumeDraft(
   id: string,
-  payload: {
+  payload: Partial<VolumePlanDocument> & {
     volumes?: VolumePlan[];
     diffSummary?: string;
     baseVersion?: number;

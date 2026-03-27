@@ -6,6 +6,44 @@ import {
   volumeDynamicsProjectionSchema,
 } from "../../../services/novel/dynamics/characterDynamicsSchemas";
 
+const VOLUME_DYNAMICS_PROJECTION_TEMPLATE = `{
+  "summary": "string",
+  "assignments": [
+    {
+      "characterName": "string",
+      "volumeSortOrder": 1,
+      "roleLabel": "string or null",
+      "responsibility": "string",
+      "appearanceExpectation": "string or null",
+      "plannedChapterOrders": [1, 2],
+      "isCore": true,
+      "absenceWarningThreshold": 3,
+      "absenceHighRiskThreshold": 5
+    }
+  ],
+  "factionTracks": [
+    {
+      "characterName": "string",
+      "volumeSortOrder": 1,
+      "factionLabel": "string",
+      "stanceLabel": "string or null",
+      "summary": "string or null",
+      "confidence": 0.8
+    }
+  ],
+  "relationStages": [
+    {
+      "sourceCharacterName": "string",
+      "targetCharacterName": "string",
+      "volumeSortOrder": 1,
+      "stageLabel": "string",
+      "stageSummary": "string",
+      "nextTurnPoint": "string or null",
+      "confidence": 0.8
+    }
+  ]
+}`;
+
 export interface VolumeDynamicsProjectionPromptInput {
   novelTitle: string;
   description: string;
@@ -66,6 +104,7 @@ export const volumeDynamicsProjectionPrompt: PromptAsset<
       "3. 如果材料不足，必须做保守推断；优先使用低风险、可成立的安排，不要强行补全复杂动态。",
       "4. 各卷安排必须与分卷规划一致，不能脱离卷目标单独设计角色戏份。",
       "5. 角色动态必须体现长篇连载逻辑，而不是单章配角表或静态人物卡。",
+      "6. 顶层必须直接输出 summary / assignments / factionTracks / relationStages，不要包成 {\"volumeDynamicsProjection\": [...]}、{\"data\": ...} 或任何其他包装层。",
       "",
       "规划原则：",
       "1. 角色分配必须反映目标读者偏好、作品卖点、前30章承诺和后续长期追更动力。",
@@ -97,6 +136,9 @@ export const volumeDynamicsProjectionPrompt: PromptAsset<
       "2. 字符串字段必须具体、清楚、可执行，避免抽象套话，如“作用很大”“需要多出场”“关系复杂”。",
       "3. 数组字段使用简洁短语，不要写成长段说明。",
       "4. 各卷之间、各角色之间的分配必须相互一致，不得互相冲突。",
+      "",
+      "固定 JSON 结构如下：",
+      VOLUME_DYNAMICS_PROJECTION_TEMPLATE,
       "",
       "输出内容必须严格符合 volumeDynamicsProjectionSchema。",
     ].join("\n")),

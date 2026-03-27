@@ -112,6 +112,9 @@ export const characterCastOptionPrompt: PromptAsset<
   contextPolicy: {
     maxTokensBudget: 0,
   },
+  repairPolicy: {
+    maxAttempts: 2,
+  },
   outputSchema: characterCastOptionResponseSchema,
   render: (input) => [
     new SystemMessage([
@@ -144,6 +147,13 @@ export const characterCastOptionPrompt: PromptAsset<
       "2. 关系必须能体现真正的叙事价值，例如牵制、绑定、镜像、利用、依赖、对立、误解、压迫、诱导、救赎等。",
       "3. 关系不是人物名单连线图，必须体现动态 tension 和冲突压力。",
       "4. relations 应优先保留最能驱动主线、放大卖点、制造持续张力的关系，不要堆无效边。",
+      "",
+      "体积控制规则：",
+      "1. 默认每套方案优先输出 4 个角色；只有结构确有必要时才扩展到 5-6 个。",
+      "2. 默认每套方案优先输出 4-6 条关系；不要为了凑上限而堆无效边。",
+      "3. 除 summary、whyItWorks、recommendedReason 外，其余文本字段优先控制在 8-30 个汉字内，使用短句或短词组表达。",
+      "4. summary、whyItWorks、recommendedReason 也应尽量控制在 30-80 个汉字内，避免长段落。",
+      "5. 可选字段如没有高价值内容，直接输出空字符串，不要为了填满字段写空话。",
       "",
       "方案设计规则：",
       "1. 3 套方案之间必须明显不同，差异应体现在核心冲突结构、关系组织方式、主角成长代价、压力来源或卖点承载方式上。",

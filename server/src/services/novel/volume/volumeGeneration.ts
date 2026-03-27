@@ -518,7 +518,13 @@ export async function generateVolumePlanDocument(params: {
 
   return {
     novelId,
+    workspaceVersion: "v2",
     volumes,
+    strategyPlan: workspace.strategyPlan,
+    critiqueReport: workspace.critiqueReport,
+    beatSheets: workspace.beatSheets,
+    rebalanceDecisions: workspace.rebalanceDecisions,
+    readiness: workspace.readiness,
     derivedOutline: buildDerivedOutlineFromVolumes(volumes),
     derivedStructuredOutline: buildDerivedStructuredOutlineFromVolumes(volumes),
     source: "volume",

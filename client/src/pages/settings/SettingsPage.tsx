@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import SearchableSelect from "@/components/common/SearchableSelect";
 import { queryKeys } from "@/api/queryKeys";
 import {
   getAPIKeySettings,
@@ -265,21 +266,14 @@ export default function SettingsPage() {
             />
             <div className="space-y-1">
               <div className="text-xs text-muted-foreground">Available models</div>
-              <Select
+              <SearchableSelect
                 value={form.model}
                 onValueChange={(value) => setForm((prev) => ({ ...prev, model: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a model" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(editingConfig?.models ?? []).map((model) => (
-                    <SelectItem key={model} value={model}>
-                      {model}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                options={(editingConfig?.models ?? []).map((model) => ({ value: model }))}
+                placeholder="Select a model"
+                searchPlaceholder="Search models"
+                emptyText="No models available"
+              />
             </div>
             <div className="flex gap-2">
               <Button

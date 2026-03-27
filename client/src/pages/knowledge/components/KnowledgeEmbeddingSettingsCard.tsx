@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { EmbeddingProvider, RagEmbeddingModelStatus, RagProviderStatus } from "@/api/settings";
+import SearchableSelect from "@/components/common/SearchableSelect";
 
 export interface KnowledgeEmbeddingSettingsFormState {
   embeddingProvider: EmbeddingProvider;
@@ -126,18 +127,15 @@ export default function KnowledgeEmbeddingSettingsCard({
                 正在获取该供应商的 Embedding 模型列表...
               </div>
             ) : modelOptions.length > 0 ? (
-              <select
-                className="w-full rounded-md border bg-background p-2 text-sm"
+              <SearchableSelect
                 value={form.embeddingModel}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, embeddingModel: event.target.value }))}
-              >
-                {modelOptions.map((model) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(value) =>
+                  setForm((prev) => ({ ...prev, embeddingModel: value }))}
+                options={modelOptions.map((model) => ({ value: model }))}
+                placeholder="选择 Embedding 模型"
+                searchPlaceholder="搜索 Embedding 模型"
+                emptyText="没有匹配的 Embedding 模型"
+              />
             ) : null}
             <Input
               className={modelQuery.isLoading || modelOptions.length > 0 ? "hidden" : undefined}

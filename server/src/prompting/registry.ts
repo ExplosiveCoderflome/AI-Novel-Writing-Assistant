@@ -122,24 +122,40 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/helper/titleGeneration.prompt").titleGenerationPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.volume.skeleton@v1",
-    load: () => require("./prompts/novel/volumePlanning.prompts").createVolumeSkeletonPrompt(1) as UnknownPromptAsset,
+    key: "novel.volume.strategy@v1",
+    load: () => require("./prompts/novel/volume/strategy.prompts").createVolumeStrategyPrompt(12) as UnknownPromptAsset,
   },
   {
-    key: "novel.volume.chapter_list@v1",
-    load: () => require("./prompts/novel/volumePlanning.prompts").createVolumeChapterListPrompt(1) as UnknownPromptAsset,
+    key: "novel.volume.strategy.critique@v1",
+    load: () => require("./prompts/novel/volume/strategy.prompts").volumeStrategyCritiquePrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.volume.skeleton@v2",
+    load: () => require("./prompts/novel/volume/skeleton.prompts").createVolumeSkeletonPrompt(1) as UnknownPromptAsset,
+  },
+  {
+    key: "novel.volume.beat_sheet@v1",
+    load: () => require("./prompts/novel/volume/beatSheet.prompts").volumeBeatSheetPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.volume.chapter_list@v2",
+    load: () => require("./prompts/novel/volume/chapterList.prompts").createVolumeChapterListPrompt(1) as UnknownPromptAsset,
   },
   {
     key: "novel.volume.chapter_purpose@v1",
-    load: () => require("./prompts/novel/volumePlanning.prompts").volumeChapterPurposePrompt as UnknownPromptAsset,
+    load: () => require("./prompts/novel/volume/chapterDetail.prompts").volumeChapterPurposePrompt as UnknownPromptAsset,
   },
   {
     key: "novel.volume.chapter_boundary@v1",
-    load: () => require("./prompts/novel/volumePlanning.prompts").volumeChapterBoundaryPrompt as UnknownPromptAsset,
+    load: () => require("./prompts/novel/volume/chapterDetail.prompts").volumeChapterBoundaryPrompt as UnknownPromptAsset,
   },
   {
     key: "novel.volume.chapter_task_sheet@v1",
-    load: () => require("./prompts/novel/volumePlanning.prompts").volumeChapterTaskSheetPrompt as UnknownPromptAsset,
+    load: () => require("./prompts/novel/volume/chapterDetail.prompts").volumeChapterTaskSheetPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.volume.rebalance.adjacent@v1",
+    load: () => require("./prompts/novel/volume/rebalance.prompts").volumeRebalancePrompt as UnknownPromptAsset,
   },
   {
     key: "novel.characterDynamics.chapterExtract@v1",

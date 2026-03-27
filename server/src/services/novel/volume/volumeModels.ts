@@ -1,7 +1,14 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
+  VolumeBeatSheet,
   VolumeChapterPlan,
+  VolumeCritiqueReport,
+  VolumeGenerationScopeInput,
   VolumePlan,
+  VolumePlanDocument,
+  VolumePlanningReadiness,
+  VolumeRebalanceDecision,
+  VolumeStrategyPlan,
   VolumePlanVersion,
 } from "@ai-novel/shared/types/novel";
 import type { Prisma } from "@prisma/client";
@@ -10,7 +17,15 @@ import { prisma } from "../../../db/prisma";
 export type ChapterDetailMode = "purpose" | "boundary" | "task_sheet";
 
 export interface VolumeWorkspace {
+  novelId: string;
+  workspaceVersion: "v2";
   volumes: VolumePlan[];
+  strategyPlan: VolumeStrategyPlan | null;
+  critiqueReport: VolumeCritiqueReport | null;
+  beatSheets: VolumeBeatSheet[];
+  rebalanceDecisions: VolumeRebalanceDecision[];
+  readiness: VolumePlanningReadiness;
+  source: "volume" | "legacy" | "empty";
   activeVersionId: string | null;
 }
 
@@ -43,17 +58,22 @@ export interface VolumeGenerateOptions {
   model?: string;
   temperature?: number;
   guidance?: string;
-  scope?: "book" | "volume" | "chapter_detail";
+  scope?: VolumeGenerationScopeInput;
   targetVolumeId?: string;
   targetChapterId?: string;
   detailMode?: "purpose" | "boundary" | "task_sheet";
   estimatedChapterCount?: number;
   respectExistingVolumeCount?: boolean;
   draftVolumes?: unknown;
+  draftWorkspace?: unknown;
 }
 
 export interface VolumeDraftInput {
   volumes?: unknown;
+  strategyPlan?: VolumePlanDocument["strategyPlan"];
+  critiqueReport?: VolumePlanDocument["critiqueReport"];
+  beatSheets?: VolumePlanDocument["beatSheets"];
+  rebalanceDecisions?: VolumePlanDocument["rebalanceDecisions"];
   diffSummary?: string;
   baseVersion?: number;
 }
@@ -88,10 +108,15 @@ export function mapVolumeRow(row: VolumeRow): VolumePlan {
     sortOrder: row.sortOrder,
     title: row.title,
     summary: row.summary,
+    openingHook: null,
     mainPromise: row.mainPromise,
+    primaryPressureSource: null,
+    coreSellingPoint: null,
     escalationMode: row.escalationMode,
     protagonistChange: row.protagonistChange,
+    midVolumeRisk: null,
     climax: row.climax,
+    payoffType: null,
     nextVolumeHook: row.nextVolumeHook,
     resetPoint: row.resetPoint,
     openPayoffs: row.openPayoffsJson ? JSON.parse(row.openPayoffsJson) as string[] : [],

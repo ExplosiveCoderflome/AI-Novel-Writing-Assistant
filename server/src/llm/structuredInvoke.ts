@@ -77,6 +77,39 @@ function tryFixTruncatedJson(raw: string): string {
   return fixed;
 }
 
+function tryParseStructuredJsonValue(source: string): { parsed: unknown } | { error: string } {
+  try {
+    return {
+      parsed: JSON.parse(extractJSONValue(source)) as unknown,
+    };
+  } catch (error) {
+    const fixed = tryFixTruncatedJson(source);
+    if (fixed === source) {
+      return {
+        error: [
+          "JSON 解析失败：",
+          error instanceof Error ? error.message : String(error),
+        ].join("\n"),
+      };
+    }
+
+    try {
+      return {
+        parsed: JSON.parse(extractJSONValue(fixed)) as unknown,
+      };
+    } catch (fixedError) {
+      return {
+        error: [
+          "JSON 解析失败：",
+          error instanceof Error ? error.message : String(error),
+          "截断修复后仍失败：",
+          fixedError instanceof Error ? fixedError.message : String(fixedError),
+        ].join("\n"),
+      };
+    }
+  }
+}
+
 function formatZodErrors(error: ZodError): string {
   return error.issues
     .map((issue) => {
@@ -84,6 +117,22 @@ function formatZodErrors(error: ZodError): string {
       return `- ${path}: ${issue.message}`;
     })
     .join("\n");
+}
+
+function extractValidationPaths(validationError: string): string[] {
+  return Array.from(
+    new Set(
+      validationError
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.startsWith("- "))
+        .map((line) => {
+          const colonIndex = line.indexOf(":");
+          return colonIndex > 2 ? line.slice(2, colonIndex).trim() : "";
+        })
+        .filter(Boolean),
+    ),
+  );
 }
 
 function schemaAllowsTopLevelArray<T>(schema: ZodType<T>): boolean {
@@ -131,11 +180,19 @@ async function repairWithLlm<T>(
     "不要输出任何解释、Markdown 或额外字段。",
     "如果校验错误提示某个字段缺失，必须直接使用错误路径里的字段名作为 JSON 键名，不要翻译成中文别名。",
     "如果目标结构顶层是数组，就直接输出数组本身，不要再外包一层对象。",
+    "如果原始 JSON 多包了一层无关包装键，例如 data、result、output、xxxProjection、xxxList 等，必须去掉包装层，把真正目标结构提升到顶层。",
+    "如果缺失必填字符串字段，必须补出非空字符串；可根据原始 JSON 中已有内容做最小、保守、语义一致的补全，不能输出空字符串、null 或 undefined。",
   ].join("\n");
+
+  const validationPaths = extractValidationPaths(validationError);
 
   const repairHuman = [
     `校验失败：${input.label}`,
     validationError,
+    ...(validationPaths.length > 0 ? [
+      "",
+      `至少需要修复这些路径：${validationPaths.join(", ")}`,
+    ] : []),
     "",
     "原始模型输出（可能包含多余文字/markdown/截断）：",
     rawContent,
@@ -145,11 +202,12 @@ async function repairWithLlm<T>(
 
   const result = await llm.invoke([new SystemMessage(repairSystem), new HumanMessage(repairHuman)]);
   const repairedRaw = toText(result.content);
+  const repairParse = tryParseStructuredJsonValue(repairedRaw);
+  if ("error" in repairParse) {
+    throw new Error(`[${input.label}] JSON repair 后仍无法解析。错误：${repairParse.error}`);
+  }
 
-  // repair 后仍然走同样的 extract + parse + safeParse
-  const extracted = extractJSONValue(repairedRaw);
-  const parsed = JSON.parse(extracted) as unknown;
-  const final = input.schema.safeParse(parsed);
+  const final = input.schema.safeParse(repairParse.parsed);
   if (!final.success) {
     throw new Error(`[${input.label}] JSON repair 后仍未通过 Schema 校验。错误：${formatZodErrors(final.error)}`);
   }
@@ -159,25 +217,9 @@ async function repairWithLlm<T>(
 export async function parseStructuredLlmRawContentDetailed<T>(
   input: StructuredInvokeRawParseInput<T>,
 ): Promise<StructuredInvokeResult<T>> {
-  let parsed: unknown;
-  let parseErrorMessage = "";
-  try {
-    parsed = JSON.parse(extractJSONValue(input.rawContent));
-  } catch (error) {
-    // 截断修复后再试一次
-    const fixed = tryFixTruncatedJson(input.rawContent);
-    try {
-      parsed = JSON.parse(extractJSONValue(fixed));
-    } catch (fixedError) {
-      parseErrorMessage = [
-        "JSON 解析失败：",
-        error instanceof Error ? error.message : String(error),
-        "截断修复后仍失败：",
-        fixedError instanceof Error ? fixedError.message : String(fixedError),
-      ].join("\n");
-      parsed = null;
-    }
-  }
+  const initialParse = tryParseStructuredJsonValue(input.rawContent);
+  const parseErrorMessage = "error" in initialParse ? initialParse.error : "";
+  const parsed = "parsed" in initialParse ? initialParse.parsed : null;
 
   const maxRepairAttempts = input.maxRepairAttempts ?? 1;
   if (parseErrorMessage) {

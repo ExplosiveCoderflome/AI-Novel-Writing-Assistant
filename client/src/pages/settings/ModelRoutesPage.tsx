@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import SearchableSelect from "@/components/common/SearchableSelect";
 import { MODEL_ROUTE_LABELS } from "./modelRouteLabels";
 import type { ModelRouteTaskType } from "@ai-novel/shared/types/novel";
 
@@ -251,25 +252,14 @@ export default function ModelRoutesPage() {
 
                 <div className="space-y-1">
                   <div className="text-xs text-muted-foreground">模型</div>
-                  <Select
+                  <SearchableSelect
                     value={draft.model || undefined}
                     onValueChange={(value) => patchDraft(taskType, { model: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="选择模型" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {modelOptions.length > 0 ? modelOptions.map((model) => (
-                        <SelectItem key={model} value={model}>
-                          {model}
-                        </SelectItem>
-                      )) : (
-                        <SelectItem value="__empty__" disabled>
-                          当前服务商暂无可选模型
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
+                    options={modelOptions.map((model) => ({ value: model }))}
+                    placeholder="选择模型"
+                    searchPlaceholder="搜索模型"
+                    emptyText="当前服务商暂无可选模型"
+                  />
                 </div>
 
                 <div className="space-y-1">

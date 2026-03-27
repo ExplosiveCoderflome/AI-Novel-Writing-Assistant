@@ -1,5 +1,5 @@
 import { useMutation, type QueryClient } from "@tanstack/react-query";
-import type { PipelineRepairMode, PipelineRunMode } from "@ai-novel/shared/types/novel";
+import type { PipelineRepairMode, PipelineRunMode, VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import {
   createNovelChapter,
@@ -15,7 +15,6 @@ import {
 import { queryKeys } from "@/api/queryKeys";
 import { buildNovelUpdatePayload, type NovelBasicFormState } from "../novelBasicInfo.shared";
 import type { ChapterReviewResult } from "../chapterPlanning.shared";
-import type { VolumePlan } from "@ai-novel/shared/types/novel";
 import type { StructuredSyncOptions } from "../novelEdit.utils";
 
 interface LlmSettings {
@@ -50,7 +49,7 @@ interface UseNovelEditMutationsArgs {
   setStructuredOptimizePreview: (value: string) => void;
   setStructuredOptimizeMode: (value: "full" | "selection") => void;
   setStructuredOptimizeSourceText: (value: string) => void;
-  volumeDraft: VolumePlan[];
+  volumeDocument: VolumePlanDocument;
   llm: LlmSettings;
   pipelineForm: PipelineFormState;
   selectedChapterId: string;
@@ -79,7 +78,7 @@ export function useNovelEditMutations({
   setStructuredOptimizePreview,
   setStructuredOptimizeMode,
   setStructuredOptimizeSourceText,
-  volumeDraft,
+  volumeDocument,
   llm,
   pipelineForm,
   selectedChapterId,
@@ -104,12 +103,12 @@ export function useNovelEditMutations({
   });
 
   const saveOutlineMutation = useMutation({
-    mutationFn: () => updateNovelVolumes(id, { volumes: volumeDraft }),
+    mutationFn: () => updateNovelVolumes(id, volumeDocument),
     onSuccess: invalidateNovelDetail,
   });
 
   const saveStructuredMutation = useMutation({
-    mutationFn: () => updateNovelVolumes(id, { volumes: volumeDraft }),
+    mutationFn: () => updateNovelVolumes(id, volumeDocument),
     onSuccess: invalidateNovelDetail,
   });
 
@@ -151,7 +150,7 @@ export function useNovelEditMutations({
 
   const syncStructuredChaptersMutation = useMutation({
     mutationFn: (options: StructuredSyncOptions) => syncNovelVolumeChapters(id, {
-      volumes: volumeDraft,
+      volumes: volumeDocument.volumes,
       preserveContent: options.preserveContent,
       applyDeletes: options.applyDeletes,
     }),

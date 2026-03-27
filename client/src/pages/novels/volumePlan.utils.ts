@@ -1,4 +1,11 @@
-import type { VolumeChapterPlan, VolumePlan, VolumeSyncPreview } from "@ai-novel/shared/types/novel";
+import type {
+  VolumeBeatSheet,
+  VolumeChapterPlan,
+  VolumePlan,
+  VolumePlanningReadiness,
+  VolumeStrategyPlan,
+  VolumeSyncPreview,
+} from "@ai-novel/shared/types/novel";
 
 export interface ExistingOutlineChapter {
   id: string;
@@ -18,6 +25,35 @@ export interface VolumeSyncOptions {
   applyDeletes: boolean;
 }
 
+export function buildVolumePlanningReadiness(params: {
+  volumes: VolumePlan[];
+  strategyPlan: VolumeStrategyPlan | null;
+  beatSheets: VolumeBeatSheet[];
+}): VolumePlanningReadiness {
+  const { volumes, strategyPlan, beatSheets } = params;
+  const blockingReasons: string[] = [];
+  if (!strategyPlan) {
+    blockingReasons.push("请先生成卷战略建议，再确认卷骨架。");
+  }
+  if (volumes.length === 0) {
+    blockingReasons.push("当前还没有卷骨架。");
+  }
+  if (!beatSheets.some((sheet) => sheet.beats.length > 0)) {
+    blockingReasons.push("当前卷还没有节奏板，默认不能直接拆章节列表。");
+  }
+  return {
+    canGenerateStrategy: true,
+    canGenerateSkeleton: Boolean(strategyPlan),
+    canGenerateBeatSheet: volumes.length > 0,
+    canGenerateChapterList: beatSheets.some((sheet) => sheet.beats.length > 0),
+    blockingReasons,
+  };
+}
+
+export function findBeatSheet(beatSheets: VolumeBeatSheet[], volumeId: string): VolumeBeatSheet | null {
+  return beatSheets.find((sheet) => sheet.volumeId === volumeId && sheet.beats.length > 0) ?? null;
+}
+
 function createLocalId(prefix: string): string {
   return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
 }
@@ -29,10 +65,15 @@ export function createEmptyVolume(sortOrder: number): VolumePlan {
     sortOrder,
     title: `第${sortOrder}卷`,
     summary: "",
+    openingHook: "",
     mainPromise: "",
+    primaryPressureSource: "",
+    coreSellingPoint: "",
     escalationMode: "",
     protagonistChange: "",
+    midVolumeRisk: "",
     climax: "",
+    payoffType: "",
     nextVolumeHook: "",
     resetPoint: "",
     openPayoffs: [],
@@ -100,6 +141,11 @@ export function normalizeVolumeDraft(volumes: VolumePlan[]): VolumePlan[] {
         id: volumeId,
         sortOrder: volumeIndex + 1,
         openPayoffs: (volume.openPayoffs ?? []).filter((item) => item.trim()),
+        openingHook: volume.openingHook ?? "",
+        primaryPressureSource: volume.primaryPressureSource ?? "",
+        coreSellingPoint: volume.coreSellingPoint ?? "",
+        midVolumeRisk: volume.midVolumeRisk ?? "",
+        payoffType: volume.payoffType ?? "",
         chapters,
       };
     });
@@ -114,10 +160,15 @@ export function buildOutlinePreviewFromVolumes(volumes: VolumePlan[]): string {
       return [
         `【第${volume.sortOrder}卷】${volume.title}`,
         volume.summary?.trim() ? `卷摘要：${volume.summary.trim()}` : "",
+        volume.openingHook?.trim() ? `开卷抓手：${volume.openingHook.trim()}` : "",
         volume.mainPromise?.trim() ? `主承诺：${volume.mainPromise.trim()}` : "",
+        volume.primaryPressureSource?.trim() ? `主压迫源：${volume.primaryPressureSource.trim()}` : "",
+        volume.coreSellingPoint?.trim() ? `核心卖点：${volume.coreSellingPoint.trim()}` : "",
         volume.escalationMode?.trim() ? `升级方式：${volume.escalationMode.trim()}` : "",
         volume.protagonistChange?.trim() ? `主角变化：${volume.protagonistChange.trim()}` : "",
+        volume.midVolumeRisk?.trim() ? `中段风险：${volume.midVolumeRisk.trim()}` : "",
         volume.climax?.trim() ? `卷末高潮：${volume.climax.trim()}` : "",
+        volume.payoffType?.trim() ? `兑现类型：${volume.payoffType.trim()}` : "",
         volume.nextVolumeHook?.trim() ? `下卷钩子：${volume.nextVolumeHook.trim()}` : "",
         volume.resetPoint?.trim() ? `重置点：${volume.resetPoint.trim()}` : "",
         volume.openPayoffs.length > 0 ? `未兑现事项：${volume.openPayoffs.join("；")}` : "",
@@ -132,10 +183,15 @@ export function buildStructuredPreviewFromVolumes(volumes: VolumePlan[]): string
     volumes: normalizeVolumeDraft(volumes).map((volume) => ({
       volumeTitle: volume.title,
       summary: volume.summary || undefined,
+      openingHook: volume.openingHook || undefined,
       mainPromise: volume.mainPromise || undefined,
+      primaryPressureSource: volume.primaryPressureSource || undefined,
+      coreSellingPoint: volume.coreSellingPoint || undefined,
       escalationMode: volume.escalationMode || undefined,
       protagonistChange: volume.protagonistChange || undefined,
+      midVolumeRisk: volume.midVolumeRisk || undefined,
       climax: volume.climax || undefined,
+      payoffType: volume.payoffType || undefined,
       nextVolumeHook: volume.nextVolumeHook || undefined,
       resetPoint: volume.resetPoint || undefined,
       openPayoffs: volume.openPayoffs,

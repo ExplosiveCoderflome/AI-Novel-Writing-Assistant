@@ -53,14 +53,14 @@ export default function NovelEditView(props: NovelEditViewProps) {
     },
     {
       key: "outline",
-      label: "卷级工作台",
-      description: "明确每一卷的主承诺、升级方式和卷末高潮。",
+      label: "卷战略 / 卷骨架",
+      description: "先决定分卷策略，再确认每一卷的开卷抓手、压迫源和兑现方式。",
       ready: outlineTab.draftText.trim().length > 0,
     },
     {
       key: "structured",
-      label: "卷纲/章纲",
-      description: "把卷级承诺拆成可同步到章节执行的章纲。",
+      label: "节奏 / 拆章",
+      description: "先做当前卷节奏板，再拆当前卷章节列表并补齐单章细化。",
       ready: structuredTab.draftText.trim().length > 0,
     },
     {

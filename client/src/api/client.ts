@@ -1,6 +1,6 @@
 import axios, { AxiosError } from "axios";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
-import { API_BASE_URL } from "@/lib/constants";
+import { API_BASE_URL, API_TIMEOUT_MS } from "@/lib/constants";
 import { toast } from "@/components/ui/toast";
 
 export interface ApiHttpError extends Error {
@@ -16,7 +16,7 @@ declare module "axios" {
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 180000,
+  timeout: API_TIMEOUT_MS,
 });
 
 apiClient.interceptors.response.use(

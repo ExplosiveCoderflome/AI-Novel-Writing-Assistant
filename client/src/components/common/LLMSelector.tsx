@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getLLMProviders } from "@/api/settings";
 import { queryKeys } from "@/api/queryKeys";
 import { providerModelMap, useLLMStore } from "@/store/llmStore";
+import SearchableSelect from "./SearchableSelect";
 
 interface LLMSelectorValue {
   provider: LLMProvider;
@@ -199,18 +200,15 @@ export default function LLMSelector({
         </Select>
 
         {showModel ? (
-          <Select value={resolvedModel} onValueChange={onModelChange}>
-            <SelectTrigger className="w-[240px]">
-              <SelectValue placeholder="选择模型" />
-            </SelectTrigger>
-            <SelectContent>
-              {models.map((model) => (
-                <SelectItem key={model} value={model}>
-                  {model}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={resolvedModel}
+            onValueChange={onModelChange}
+            options={models.map((model) => ({ value: model }))}
+            placeholder="选择模型"
+            searchPlaceholder="搜索模型"
+            emptyText="没有匹配的模型"
+            className="w-[240px]"
+          />
         ) : null}
       </div>
 
