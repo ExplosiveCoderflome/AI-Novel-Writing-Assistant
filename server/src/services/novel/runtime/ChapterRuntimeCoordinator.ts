@@ -16,6 +16,7 @@ import { normalizeScore, ruleScore, toText } from "../novelP0Utils";
 import { ChapterArtifactSyncService } from "./ChapterArtifactSyncService";
 import { GenerationContextAssembler } from "./GenerationContextAssembler";
 import { chapterRuntimeRequestSchema, type ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
+import { buildChapterRepairContext } from "./chapterLayeredContext";
 import {
   runPipelineChapterWithRuntime,
   type AssembledRuntimeChapter,
@@ -291,6 +292,7 @@ export class ChapterRuntimeCoordinator {
       model: input.request.model,
       temperature: input.request.temperature,
       content: styleReview.finalContent,
+      contextPackage: input.contextPackage,
     });
     const activeOpenConflicts = await openConflictService.listOpenConflicts(input.novelId, {
       beforeChapterOrder: input.contextPackage.chapter.order,
@@ -449,6 +451,24 @@ export class ChapterRuntimeCoordinator {
       .filter((issue) => issue.severity === "high" || issue.severity === "critical")
       .map((issue) => issue.id);
     const hasBlockingIssues = blockingIssueIds.length > 0;
+    const chapterRepairContext = input.contextPackage.chapterWriteContext
+      ? buildChapterRepairContext({
+        writeContext: input.contextPackage.chapterWriteContext,
+        contextPackage: input.contextPackage,
+        issues: openIssues.map((issue) => ({
+          severity: issue.severity,
+          category: issue.auditType === "continuity"
+            ? "coherence"
+            : issue.auditType === "character"
+              ? "logic"
+              : issue.auditType === "plot"
+                ? "pacing"
+                : "coherence",
+          evidence: issue.evidence,
+          fixSuggestion: issue.fixSuggestion,
+        })),
+      })
+      : null;
 
     return {
       novelId: input.novelId,
@@ -456,6 +476,7 @@ export class ChapterRuntimeCoordinator {
       context: {
         ...input.contextPackage,
         openConflicts: input.activeOpenConflicts.map((item) => mapOpenConflictForRuntime(item)),
+        chapterRepairContext,
       },
       draft: {
         content: input.finalContent,

@@ -100,7 +100,7 @@ test("volume workspace v2 roundtrip keeps strategy, beat sheet and rebalance ass
     }],
     rebalanceDecisions: [{
       anchorVolumeId: "volume-1",
-      affectedVolumeId: "volume-2",
+      affectedVolumeId: "volume-1",
       direction: "push_back",
       severity: "medium",
       summary: "第二卷开局钩子可以后移一章。",
@@ -131,7 +131,7 @@ test("legacy volume version blob upgrades to v2 defaults", () => {
   assert.equal(reparsed.readiness.canGenerateStrategy, true);
 });
 
-test("mergeVolumeWorkspaceInput preserves v2 assets when only volumes are submitted", () => {
+test("mergeVolumeWorkspaceInput keeps strategy data but clears downstream assets after volume-level edits", () => {
   const current = buildVolumeWorkspaceDocument({
     novelId: "novel-1",
     volumes: [createBaseVolume()],
@@ -175,5 +175,169 @@ test("mergeVolumeWorkspaceInput preserves v2 assets when only volumes are submit
 
   assert.equal(merged.volumes[0].title, "第一卷（更新）");
   assert.equal(merged.strategyPlan?.recommendedVolumeCount, 2);
-  assert.equal(merged.beatSheets[0]?.beats[0]?.key, "climax");
+  assert.deepEqual(merged.beatSheets, []);
+  assert.deepEqual(merged.rebalanceDecisions, []);
+});
+
+test("buildVolumeWorkspaceDocument filters beat sheets and rebalance results that no longer point to active volumes", () => {
+  const document = buildVolumeWorkspaceDocument({
+    novelId: "novel-1",
+    volumes: [createBaseVolume()],
+    strategyPlan: {
+      recommendedVolumeCount: 1,
+      hardPlannedVolumeCount: 1,
+      readerRewardLadder: "先压迫后兑现。",
+      escalationLadder: "代价持续升级。",
+      midpointShift: "中盘身份反转。",
+      notes: "先锁当前卷。",
+      volumes: [{
+        sortOrder: 1,
+        planningMode: "hard",
+        roleLabel: "起势卷",
+        coreReward: "主线抓手成立",
+        escalationFocus: "危险升级",
+        uncertaintyLevel: "low",
+      }],
+      uncertainties: [],
+    },
+    beatSheets: [{
+      volumeId: "missing-volume",
+      volumeSortOrder: 9,
+      status: "generated",
+      beats: [{
+        key: "opening_hook",
+        label: "开卷抓手",
+        summary: "不存在的卷",
+        chapterSpanHint: "1-2章",
+        mustDeliver: ["无效数据"],
+      }],
+    }],
+    rebalanceDecisions: [{
+      anchorVolumeId: "missing-volume",
+      affectedVolumeId: "volume-1",
+      direction: "hold",
+      severity: "medium",
+      summary: "这条记录应该被过滤。",
+      actions: ["忽略"],
+    }],
+  });
+
+  assert.deepEqual(document.beatSheets, []);
+  assert.deepEqual(document.rebalanceDecisions, []);
+  assert.equal(document.readiness.canGenerateChapterList, false);
+});
+
+test("mergeVolumeWorkspaceInput clears beat sheets and rebalance advice after skeleton-level edits", () => {
+  const current = buildVolumeWorkspaceDocument({
+    novelId: "novel-1",
+    volumes: [createBaseVolume()],
+    strategyPlan: {
+      recommendedVolumeCount: 1,
+      hardPlannedVolumeCount: 1,
+      readerRewardLadder: "先压迫后兑现。",
+      escalationLadder: "代价持续升级。",
+      midpointShift: "中盘身份反转。",
+      notes: "先锁当前卷。",
+      volumes: [{
+        sortOrder: 1,
+        planningMode: "hard",
+        roleLabel: "起势卷",
+        coreReward: "主线抓手成立",
+        escalationFocus: "危险升级",
+        uncertaintyLevel: "low",
+      }],
+      uncertainties: [],
+    },
+    beatSheets: [{
+      volumeId: "volume-1",
+      volumeSortOrder: 1,
+      status: "generated",
+      beats: [{
+        key: "opening_hook",
+        label: "开卷抓手",
+        summary: "主角第一次被压制。",
+        chapterSpanHint: "1-2章",
+        mustDeliver: ["压迫感"],
+      }],
+    }],
+    rebalanceDecisions: [{
+      anchorVolumeId: "volume-1",
+      affectedVolumeId: "volume-1",
+      direction: "hold",
+      severity: "low",
+      summary: "暂不需要调整。",
+      actions: ["保持当前节奏。"],
+    }],
+  });
+
+  const merged = mergeVolumeWorkspaceInput("novel-1", current, {
+    volumes: [{
+      ...createBaseVolume(),
+      mainPromise: "新的卷承诺",
+    }],
+    beatSheets: current.beatSheets,
+    rebalanceDecisions: current.rebalanceDecisions,
+  });
+
+  assert.deepEqual(merged.beatSheets, []);
+  assert.deepEqual(merged.rebalanceDecisions, []);
+});
+
+test("mergeVolumeWorkspaceInput keeps beat sheets but clears rebalance advice after chapter-list edits", () => {
+  const current = buildVolumeWorkspaceDocument({
+    novelId: "novel-1",
+    volumes: [createBaseVolume()],
+    strategyPlan: {
+      recommendedVolumeCount: 1,
+      hardPlannedVolumeCount: 1,
+      readerRewardLadder: "先压迫后兑现。",
+      escalationLadder: "代价持续升级。",
+      midpointShift: "中盘身份反转。",
+      notes: "先锁当前卷。",
+      volumes: [{
+        sortOrder: 1,
+        planningMode: "hard",
+        roleLabel: "起势卷",
+        coreReward: "主线抓手成立",
+        escalationFocus: "危险升级",
+        uncertaintyLevel: "low",
+      }],
+      uncertainties: [],
+    },
+    beatSheets: [{
+      volumeId: "volume-1",
+      volumeSortOrder: 1,
+      status: "generated",
+      beats: [{
+        key: "opening_hook",
+        label: "开卷抓手",
+        summary: "主角第一次被压制。",
+        chapterSpanHint: "1-2章",
+        mustDeliver: ["压迫感"],
+      }],
+    }],
+    rebalanceDecisions: [{
+      anchorVolumeId: "volume-1",
+      affectedVolumeId: "volume-1",
+      direction: "hold",
+      severity: "low",
+      summary: "暂不需要调整。",
+      actions: ["保持当前节奏。"],
+    }],
+  });
+
+  const merged = mergeVolumeWorkspaceInput("novel-1", current, {
+    volumes: [{
+      ...createBaseVolume(),
+      chapters: [{
+        ...createBaseVolume().chapters[0],
+        summary: "新的章节摘要",
+      }],
+    }],
+    beatSheets: current.beatSheets,
+    rebalanceDecisions: current.rebalanceDecisions,
+  });
+
+  assert.equal(merged.beatSheets.length, 1);
+  assert.deepEqual(merged.rebalanceDecisions, []);
 });

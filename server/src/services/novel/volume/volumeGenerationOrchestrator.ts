@@ -22,6 +22,15 @@ import {
   createVolumeStrategyPrompt,
   volumeStrategyCritiquePrompt,
 } from "../../../prompting/prompts/novel/volume/strategy.prompts";
+import {
+  buildVolumeBeatSheetContextBlocks,
+  buildVolumeChapterDetailContextBlocks,
+  buildVolumeChapterListContextBlocks,
+  buildVolumeRebalanceContextBlocks,
+  buildVolumeSkeletonContextBlocks,
+  buildVolumeStrategyContextBlocks,
+  buildVolumeStrategyCritiqueContextBlocks,
+} from "../../../prompting/prompts/novel/volume/contextBlocks";
 import type { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import {
@@ -143,6 +152,9 @@ function assertScopeReadiness(
     return;
   }
   if (scope === "beat_sheet") {
+    if (!document.strategyPlan) {
+      throw new Error("请先生成卷战略建议，再生成当前卷节奏板。");
+    }
     getTargetVolume(document, targetVolumeId);
     return;
   }
@@ -154,7 +166,16 @@ function assertScopeReadiness(
     return;
   }
   if (scope === "rebalance") {
-    getTargetVolume(document, targetVolumeId);
+    const targetVolume = getTargetVolume(document, targetVolumeId);
+    if (!document.strategyPlan) {
+      throw new Error("请先生成卷战略建议，再生成相邻卷再平衡建议。");
+    }
+    if (!getBeatSheet(document, targetVolume.id)) {
+      throw new Error("请先生成当前卷节奏板，再生成相邻卷再平衡建议。");
+    }
+    if (targetVolume.chapters.length === 0) {
+      throw new Error("请先生成当前卷章节列表，再生成相邻卷再平衡建议。");
+    }
     return;
   }
   const targetVolume = getTargetVolume(document, targetVolumeId);
@@ -169,8 +190,8 @@ function mergeStrategyPlan(document: VolumePlanDocument, strategyPlan: VolumeStr
     volumes: document.volumes,
     strategyPlan,
     critiqueReport: null,
-    beatSheets: document.beatSheets,
-    rebalanceDecisions: document.rebalanceDecisions,
+    beatSheets: [],
+    rebalanceDecisions: [],
     source: "volume",
     activeVersionId: document.activeVersionId,
   });
@@ -498,6 +519,13 @@ async function generateStrategy(params: {
       guidance: options.guidance,
       suggestedVolumeCount,
     },
+    contextBlocks: buildVolumeStrategyContextBlocks({
+      novel,
+      workspace,
+      storyMacroPlan,
+      guidance: options.guidance,
+      suggestedVolumeCount,
+    }),
     options: {
       provider: options.provider,
       model: options.model,
@@ -527,6 +555,13 @@ async function generateStrategyCritique(params: {
       strategyPlan: document.strategyPlan,
       guidance: options.guidance,
     },
+    contextBlocks: buildVolumeStrategyCritiqueContextBlocks({
+      novel,
+      workspace,
+      storyMacroPlan,
+      strategyPlan: document.strategyPlan,
+      guidance: options.guidance,
+    }),
     options: {
       provider: options.provider,
       model: options.model,
@@ -559,6 +594,14 @@ async function generateSkeleton(params: {
       guidance: options.guidance,
       chapterBudget,
     },
+    contextBlocks: buildVolumeSkeletonContextBlocks({
+      novel,
+      workspace,
+      storyMacroPlan,
+      strategyPlan: document.strategyPlan,
+      guidance: options.guidance,
+      chapterBudget,
+    }),
     options: {
       provider: options.provider,
       model: options.model,
@@ -587,6 +630,14 @@ async function generateBeatSheet(params: {
       targetVolume,
       guidance: options.guidance,
     },
+    contextBlocks: buildVolumeBeatSheetContextBlocks({
+      novel,
+      workspace,
+      storyMacroPlan,
+      strategyPlan: document.strategyPlan,
+      targetVolume,
+      guidance: options.guidance,
+    }),
     options: {
       provider: options.provider,
       model: options.model,
@@ -614,11 +665,22 @@ async function generateRebalance(params: {
       novel,
       workspace,
       storyMacroPlan,
+      strategyPlan: document.strategyPlan,
       anchorVolume,
       previousVolume,
       nextVolume,
       guidance: options.guidance,
     },
+    contextBlocks: buildVolumeRebalanceContextBlocks({
+      novel,
+      workspace,
+      storyMacroPlan,
+      strategyPlan: document.strategyPlan,
+      anchorVolume,
+      previousVolume,
+      nextVolume,
+      guidance: options.guidance,
+    }),
     options: {
       provider: options.provider,
       model: options.model,
@@ -658,6 +720,7 @@ async function generateChapterList(params: {
       novel,
       workspace,
       storyMacroPlan,
+      strategyPlan: document.strategyPlan,
       targetVolume,
       targetBeatSheet,
       previousVolume: targetIndex > 0 ? document.volumes[targetIndex - 1] : undefined,
@@ -665,6 +728,18 @@ async function generateChapterList(params: {
       guidance: options.guidance,
       targetChapterCount,
     },
+    contextBlocks: buildVolumeChapterListContextBlocks({
+      novel,
+      workspace,
+      storyMacroPlan,
+      strategyPlan: document.strategyPlan,
+      targetVolume,
+      targetBeatSheet,
+      previousVolume: targetIndex > 0 ? document.volumes[targetIndex - 1] : undefined,
+      nextVolume: targetIndex < document.volumes.length - 1 ? document.volumes[targetIndex + 1] : undefined,
+      guidance: options.guidance,
+      targetChapterCount,
+    }),
     options: {
       provider: options.provider,
       model: options.model,
@@ -707,6 +782,7 @@ async function generateChapterDetail(params: {
     novel,
     workspace,
     storyMacroPlan,
+    strategyPlan: document.strategyPlan,
     targetVolume,
     targetBeatSheet: getBeatSheet(document, targetVolume.id),
     targetChapter,
@@ -717,6 +793,7 @@ async function generateChapterDetail(params: {
     ? await runStructuredPrompt({
       asset: volumeChapterPurposePrompt,
       promptInput,
+      contextBlocks: buildVolumeChapterDetailContextBlocks(promptInput),
       options: {
         provider: options.provider,
         model: options.model,
@@ -727,6 +804,7 @@ async function generateChapterDetail(params: {
       ? await runStructuredPrompt({
         asset: volumeChapterBoundaryPrompt,
         promptInput,
+        contextBlocks: buildVolumeChapterDetailContextBlocks(promptInput),
         options: {
           provider: options.provider,
           model: options.model,
@@ -736,6 +814,7 @@ async function generateChapterDetail(params: {
       : await runStructuredPrompt({
         asset: volumeChapterTaskSheetPrompt,
         promptInput,
+        contextBlocks: buildVolumeChapterDetailContextBlocks(promptInput),
         options: {
           provider: options.provider,
           model: options.model,

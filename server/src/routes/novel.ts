@@ -196,7 +196,7 @@ const volumeRebalanceDecisionSchema = z.object({
 });
 
 const volumeDocumentSchema = z.object({
-  volumes: z.array(volumeSchema).min(1),
+  volumes: z.array(volumeSchema).default([]),
   strategyPlan: volumeStrategyPlanSchema.nullish(),
   critiqueReport: volumeCritiqueReportSchema.nullish(),
   beatSheets: z.array(volumeBeatSheetSchema).optional(),
@@ -204,7 +204,7 @@ const volumeDocumentSchema = z.object({
 });
 
 const volumeDraftSchema = z.object({
-  volumes: z.array(volumeSchema).min(1).optional(),
+  volumes: z.array(volumeSchema).optional(),
   strategyPlan: volumeStrategyPlanSchema.nullish(),
   critiqueReport: volumeCritiqueReportSchema.nullish(),
   beatSheets: z.array(volumeBeatSheetSchema).optional(),
@@ -214,7 +214,7 @@ const volumeDraftSchema = z.object({
 });
 
 const volumeImpactSchema = z.object({
-  volumes: z.array(volumeSchema).min(1).optional(),
+  volumes: z.array(volumeSchema).optional(),
   versionId: z.string().trim().optional(),
 });
 
@@ -342,7 +342,7 @@ const volumeGenerateSchema = llmGenerateSchema.extend({
   detailMode: z.enum(["purpose", "boundary", "task_sheet"]).optional(),
   estimatedChapterCount: z.number().int().min(1).max(500).optional(),
   respectExistingVolumeCount: z.boolean().optional(),
-  draftVolumes: z.array(z.unknown()).min(1).optional(),
+  draftVolumes: z.array(z.unknown()).optional(),
   draftWorkspace: volumeDocumentSchema.optional(),
 }).superRefine((value, ctx) => {
   if ((value.scope === "volume" || value.scope === "beat_sheet" || value.scope === "chapter_list" || value.scope === "rebalance") && !value.targetVolumeId) {

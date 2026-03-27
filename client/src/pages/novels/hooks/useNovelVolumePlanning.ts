@@ -188,8 +188,20 @@ export function useNovelVolumePlanning({
     [beatSheets, normalizedVolumeDraft, strategyPlan],
   );
 
-  const updateVolumeDraft = (updater: (prev: VolumePlan[]) => VolumePlan[]) => {
+  const updateVolumeDraft = (
+    updater: (prev: VolumePlan[]) => VolumePlan[],
+    options: {
+      clearBeatSheets?: boolean;
+      clearRebalanceDecisions?: boolean;
+    } = {},
+  ) => {
     setVolumeDraft((prev) => normalizeVolumeDraft(updater(prev)));
+    if (options.clearBeatSheets) {
+      setBeatSheets([]);
+    }
+    if (options.clearRebalanceDecisions) {
+      setRebalanceDecisions([]);
+    }
   };
 
   const applyWorkspaceDocument = (document: VolumePlanDocument) => {
@@ -361,7 +373,7 @@ export function useNovelVolumePlanning({
       return;
     }
     const confirmed = window.confirm([
-      "将根据当前卷战略建议生成或重生卷骨架。",
+      "将根据当前卷战略建议生成或重生成全书卷骨架。",
       "这一步会清空已有节奏板和相邻卷再平衡建议，但不会直接删除章节正文。",
       hasUnsavedVolumeDraft ? "本次会直接使用当前页面草稿作为卷骨架上下文。" : "本次会基于当前卷工作区继续推进。",
     ].join("\n\n"));
@@ -375,6 +387,10 @@ export function useNovelVolumePlanning({
     const targetVolume = normalizedVolumeDraft.find((volume) => volume.id === volumeId);
     if (!targetVolume) {
       setStructuredMessage("当前卷不存在，无法生成节奏板。");
+      return;
+    }
+    if (!strategyPlan) {
+      setStructuredMessage("请先生成卷战略建议，再生成当前卷节奏板。");
       return;
     }
     if (!ensureCharacterGuard()) {
@@ -494,7 +510,10 @@ export function useNovelVolumePlanning({
   ) => {
     updateVolumeDraft((prev) => prev.map((volume) => (
       volume.id === volumeId ? { ...volume, [field]: value } : volume
-    )));
+    )), {
+      clearBeatSheets: true,
+      clearRebalanceDecisions: true,
+    });
   };
 
   const handleOpenPayoffsChange = (volumeId: string, value: string) => {
@@ -504,15 +523,24 @@ export function useNovelVolumePlanning({
       .filter(Boolean);
     updateVolumeDraft((prev) => prev.map((volume) => (
       volume.id === volumeId ? { ...volume, openPayoffs: nextPayoffs } : volume
-    )));
+    )), {
+      clearBeatSheets: true,
+      clearRebalanceDecisions: true,
+    });
   };
 
   const handleAddVolume = () => {
-    updateVolumeDraft((prev) => [...prev, createEmptyVolume(prev.length + 1)]);
+    updateVolumeDraft((prev) => [...prev, createEmptyVolume(prev.length + 1)], {
+      clearBeatSheets: true,
+      clearRebalanceDecisions: true,
+    });
   };
 
   const handleRemoveVolume = (volumeId: string) => {
-    updateVolumeDraft((prev) => prev.filter((volume) => volume.id !== volumeId));
+    updateVolumeDraft((prev) => prev.filter((volume) => volume.id !== volumeId), {
+      clearBeatSheets: true,
+      clearRebalanceDecisions: true,
+    });
   };
 
   const handleMoveVolume = (volumeId: string, direction: -1 | 1) => {
@@ -526,6 +554,9 @@ export function useNovelVolumePlanning({
       const [item] = list.splice(index, 1);
       list.splice(targetIndex, 0, item);
       return list;
+    }, {
+      clearBeatSheets: true,
+      clearRebalanceDecisions: true,
     });
   };
 
@@ -544,7 +575,9 @@ export function useNovelVolumePlanning({
             chapter.id === chapterId ? { ...chapter, [field]: value } : chapter
           )),
         }
-    )));
+    )), {
+      clearRebalanceDecisions: field === "title" || field === "summary",
+    });
   };
 
   const handleChapterNumberChange = (
@@ -562,7 +595,9 @@ export function useNovelVolumePlanning({
             chapter.id === chapterId ? { ...chapter, [field]: value } : chapter
           )),
         }
-    )));
+    )), {
+      clearRebalanceDecisions: true,
+    });
   };
 
   const handleChapterPayoffRefsChange = (volumeId: string, chapterId: string, value: string) => {
@@ -590,7 +625,9 @@ export function useNovelVolumePlanning({
           ...volume,
           chapters: [...volume.chapters, createEmptyChapter(prev.flatMap((item) => item.chapters).length + 1)],
         }
-    )));
+    )), {
+      clearRebalanceDecisions: true,
+    });
   };
 
   const handleRemoveChapter = (volumeId: string, chapterId: string) => {
@@ -601,7 +638,9 @@ export function useNovelVolumePlanning({
           ...volume,
           chapters: volume.chapters.filter((chapter) => chapter.id !== chapterId),
         }
-    )));
+    )), {
+      clearRebalanceDecisions: true,
+    });
   };
 
   const handleMoveChapter = (volumeId: string, chapterId: string, direction: -1 | 1) => {
@@ -618,7 +657,9 @@ export function useNovelVolumePlanning({
       const [item] = chaptersInVolume.splice(index, 1);
       chaptersInVolume.splice(targetIndex, 0, item);
       return { ...volume, chapters: chaptersInVolume };
-    }));
+    }), {
+      clearRebalanceDecisions: true,
+    });
   };
 
   const generationNotice = strategyPlan

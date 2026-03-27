@@ -19,6 +19,11 @@ import {
   ReviewOptions,
   ruleScore,
 } from "./novelCoreShared";
+import { GenerationContextAssembler } from "./runtime/GenerationContextAssembler";
+import {
+  buildChapterRepairContext,
+  buildChapterRepairContextBlocks,
+} from "./runtime/chapterLayeredContext";
 
 export async function createQualityReport(
   novelId: string,
@@ -116,6 +121,21 @@ export class NovelCoreReviewService {
       ragContext = "";
     }
 
+    let repairContextBlocks;
+    try {
+      const assembled = await new GenerationContextAssembler().assemble(novelId, chapterId, {});
+      if (assembled.contextPackage.chapterWriteContext) {
+        const chapterRepairContext = buildChapterRepairContext({
+          writeContext: assembled.contextPackage.chapterWriteContext,
+          contextPackage: assembled.contextPackage,
+          issues,
+        });
+        repairContextBlocks = buildChapterRepairContextBlocks(chapterRepairContext);
+      }
+    } catch {
+      repairContextBlocks = undefined;
+    }
+
     const streamed = await streamTextPrompt({
       asset: chapterRepairPrompt,
       promptInput: {
@@ -126,6 +146,7 @@ export class NovelCoreReviewService {
         issuesJson: JSON.stringify(issues, null, 2),
         ragContext: ragContext || "",
       },
+      contextBlocks: repairContextBlocks,
       options: {
         provider: options.provider ?? "deepseek",
         model: options.model,

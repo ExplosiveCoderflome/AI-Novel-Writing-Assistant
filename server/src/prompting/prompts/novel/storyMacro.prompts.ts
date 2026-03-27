@@ -7,7 +7,9 @@ import type {
   StoryMacroLocks,
 } from "@ai-novel/shared/types/storyMacro";
 import type { PromptAsset } from "../../core/promptTypes";
+import { renderSelectedContextBlocks } from "../../core/renderContextBlocks";
 import { STORY_MACRO_RESPONSE_SCHEMA } from "../../../services/novel/storyMacro/storyMacroPlanSchema";
+import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
 
 export interface StoryMacroDecompositionPromptInput {
   storyInput: string;
@@ -203,12 +205,17 @@ export const storyMacroDecompositionPrompt: PromptAsset<
   mode: "structured",
   language: "zh",
   contextPolicy: {
-    maxTokensBudget: 0,
+    maxTokensBudget: NOVEL_PROMPT_BUDGETS.storyMacroDecomposition,
+    requiredGroups: ["story_input"],
+    preferredGroups: ["project_context"],
   },
   outputSchema: STORY_MACRO_RESPONSE_SCHEMA,
-  render: (input) => {
+  render: (input, context) => {
     const prompt = buildExpansionAndDecompositionPrompt(input.storyInput, input.projectContext);
-    return [new SystemMessage(prompt.system), new HumanMessage(prompt.user)];
+    return [
+      new SystemMessage(prompt.system),
+      new HumanMessage(renderSelectedContextBlocks(context)),
+    ];
   },
 };
 
@@ -226,10 +233,12 @@ export const storyMacroFieldRegenerationPrompt: PromptAsset<
   mode: "structured",
   language: "zh",
   contextPolicy: {
-    maxTokensBudget: 0,
+    maxTokensBudget: NOVEL_PROMPT_BUDGETS.storyMacroFieldRegeneration,
+    requiredGroups: ["story_input", "target_field", "decomposition_summary", "constraints"],
+    preferredGroups: ["project_context", "expansion_summary", "locked_fields"],
   },
   outputSchema: storyMacroFieldRegenerationSchema,
-  render: (input) => {
+  render: (input, context) => {
     const prompt = buildFieldRegenerationPrompt({
       field: input.field,
       storyInput: input.storyInput,
@@ -239,6 +248,9 @@ export const storyMacroFieldRegenerationPrompt: PromptAsset<
       lockedFields: input.lockedFields,
       projectContext: input.projectContext,
     });
-    return [new SystemMessage(prompt.system), new HumanMessage(prompt.user)];
+    return [
+      new SystemMessage(prompt.system),
+      new HumanMessage(renderSelectedContextBlocks(context)),
+    ];
   },
 };

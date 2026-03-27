@@ -58,13 +58,15 @@ export const directorPlanBlueprintSchema = z.object({
       participants: z.array(nonEmptyString).max(8).default([]),
       reveals: z.array(nonEmptyString).max(8).default([]),
       riskNotes: z.array(nonEmptyString).max(8).default([]),
+      mustAdvance: z.array(nonEmptyString).max(8).default([]),
+      mustPreserve: z.array(nonEmptyString).max(8).default([]),
       scenes: z.array(z.object({
         title: nonEmptyString,
         objective: nonEmptyString,
         conflict: z.string().trim().optional().default(""),
         reveal: z.string().trim().optional().default(""),
         emotionBeat: z.string().trim().optional().default(""),
-      })).min(2).max(6),
+      })).max(6).default([]),
     })).min(2).max(20),
   })).min(2).max(6),
 });

@@ -44,8 +44,8 @@ export function buildVolumePlanningReadiness(params: {
   return {
     canGenerateStrategy: true,
     canGenerateSkeleton: Boolean(strategyPlan),
-    canGenerateBeatSheet: volumes.length > 0,
-    canGenerateChapterList: beatSheets.some((sheet) => sheet.beats.length > 0),
+    canGenerateBeatSheet: Boolean(strategyPlan) && volumes.length > 0,
+    canGenerateChapterList: Boolean(strategyPlan) && beatSheets.some((sheet) => sheet.beats.length > 0),
     blockingReasons,
   };
 }

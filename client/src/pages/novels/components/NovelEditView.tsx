@@ -13,6 +13,37 @@ import StoryMacroPlanTab from "./StoryMacroPlanTab";
 import VersionHistoryTab from "./VersionHistoryTab";
 import type { NovelEditViewProps } from "./NovelEditView.types";
 
+type OutlineVolume = NovelEditViewProps["outlineTab"]["volumes"][number];
+type VolumeChapter = OutlineVolume["chapters"][number];
+
+function hasVolumePlanContent(volume: OutlineVolume): boolean {
+  return [
+    volume.summary,
+    volume.openingHook,
+    volume.mainPromise,
+    volume.primaryPressureSource,
+    volume.coreSellingPoint,
+    volume.escalationMode,
+    volume.protagonistChange,
+    volume.midVolumeRisk,
+    volume.climax,
+    volume.payoffType,
+    volume.nextVolumeHook,
+    volume.resetPoint,
+  ].some((value) => Boolean(value?.trim())) || volume.openPayoffs.length > 0;
+}
+
+function hasChapterPlanContent(chapter: VolumeChapter): boolean {
+  return Boolean(chapter.summary?.trim())
+    || Boolean(chapter.purpose?.trim())
+    || Boolean(chapter.mustAvoid?.trim())
+    || Boolean(chapter.taskSheet?.trim())
+    || typeof chapter.conflictLevel === "number"
+    || typeof chapter.revealLevel === "number"
+    || typeof chapter.targetWordCount === "number"
+    || chapter.payoffRefs.length > 0;
+}
+
 export default function NovelEditView(props: NovelEditViewProps) {
   const { id, activeTab, onActiveTabChange, basicTab, storyMacroTab, outlineTab, structuredTab, chapterTab, pipelineTab, characterTab } = props;
   const [isKnowledgeBindingOpen, setIsKnowledgeBindingOpen] = useState(false);
@@ -32,48 +63,59 @@ export default function NovelEditView(props: NovelEditViewProps) {
 
   const tabOrder = ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline", "history"];
   const activeStageIndex = Math.max(0, tabOrder.indexOf(activeTab));
+  const basicReady = basicTab.basicForm.title.trim().length > 0;
+  const storyMacroReady = basicReady && storyMacroTab.constraintEngine !== null;
+  const characterReady = storyMacroReady && characterTab.characters.length > 0;
+  const outlineAssetReady = Boolean(outlineTab.strategyPlan)
+    || outlineTab.volumes.some((volume) => hasVolumePlanContent(volume));
+  const outlineReady = characterReady && outlineAssetReady;
+  const structuredAssetReady = structuredTab.beatSheets.some((sheet) => sheet.beats.length > 0)
+    || structuredTab.volumes.some((volume) => volume.chapters.some((chapter) => hasChapterPlanContent(chapter)));
+  const structuredReady = outlineReady && structuredAssetReady;
+  const chapterReady = structuredReady && generatedChapters > 0;
+  const pipelineReady = chapterReady && (pipelineTab.qualitySummary ? pipelineTab.qualitySummary.overall >= 75 : false);
   const stages = [
     {
       key: "basic",
       label: "项目设定",
       description: "定义作品身份、约束和 AI 协作方式。",
-      ready: basicTab.basicForm.title.trim().length > 0,
+      ready: basicReady,
     },
     {
       key: "story_macro",
       label: "故事宏观规划",
       description: "先把故事想法变成约束引擎，再进入角色和主线阶段。",
-      ready: storyMacroTab.constraintEngine !== null,
+      ready: storyMacroReady,
     },
     {
       key: "character",
       label: "角色准备",
       description: "补齐核心角色、关系和当前目标。",
-      ready: characterTab.characters.length > 0,
+      ready: characterReady,
     },
     {
       key: "outline",
       label: "卷战略 / 卷骨架",
       description: "先决定分卷策略，再确认每一卷的开卷抓手、压迫源和兑现方式。",
-      ready: outlineTab.draftText.trim().length > 0,
+      ready: outlineReady,
     },
     {
       key: "structured",
       label: "节奏 / 拆章",
       description: "先做当前卷节奏板，再拆当前卷章节列表并补齐单章细化。",
-      ready: structuredTab.draftText.trim().length > 0,
+      ready: structuredReady,
     },
     {
       key: "chapter",
       label: "章节执行",
       description: "生成章节、审计结果并处理修正。",
-      ready: generatedChapters > 0,
+      ready: chapterReady,
     },
     {
       key: "pipeline",
       label: "质量修复",
       description: "批量执行生产链并跟踪质量风险。",
-      ready: pipelineTab.qualitySummary ? pipelineTab.qualitySummary.overall >= 75 : false,
+      ready: pipelineReady,
     },
     {
       key: "history",

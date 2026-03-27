@@ -325,6 +325,96 @@ export const runtimeDynamicCharacterOverviewSchema = z.object({
   assignments: z.array(runtimeCharacterVolumeAssignmentSchema),
 });
 
+export const promptBudgetProfileSchema = z.object({
+  promptId: z.string(),
+  maxTokensBudget: z.number().int().positive(),
+  preferredGroups: z.array(z.string()).default([]),
+  dropOrder: z.array(z.string()).default([]),
+});
+
+export const bookContractContextSchema = z.object({
+  title: z.string(),
+  genre: z.string(),
+  targetAudience: z.string(),
+  sellingPoint: z.string(),
+  first30ChapterPromise: z.string(),
+  narrativePov: z.string(),
+  pacePreference: z.string(),
+  emotionIntensity: z.string(),
+  toneGuardrails: z.array(z.string()).default([]),
+  hardConstraints: z.array(z.string()).default([]),
+});
+
+export const macroConstraintContextSchema = z.object({
+  sellingPoint: z.string(),
+  coreConflict: z.string(),
+  mainHook: z.string(),
+  progressionLoop: z.string(),
+  growthPath: z.string(),
+  endingFlavor: z.string(),
+  hardConstraints: z.array(z.string()).default([]),
+});
+
+export const volumeWindowContextSchema = z.object({
+  volumeId: z.string().nullable().optional(),
+  sortOrder: z.number().int().nullable().optional(),
+  title: z.string(),
+  missionSummary: z.string(),
+  adjacentSummary: z.string(),
+  pendingPayoffs: z.array(z.string()).default([]),
+  softFutureSummary: z.string(),
+});
+
+export const chapterMissionContextSchema = z.object({
+  chapterId: z.string(),
+  chapterOrder: z.number().int(),
+  title: z.string(),
+  objective: z.string(),
+  expectation: z.string(),
+  planRole: storyPlanRoleSchema.nullable().optional(),
+  hookTarget: z.string(),
+  mustAdvance: z.array(z.string()).default([]),
+  mustPreserve: z.array(z.string()).default([]),
+  riskNotes: z.array(z.string()).default([]),
+});
+
+export const chapterWriteContextSchema = z.object({
+  bookContract: bookContractContextSchema,
+  macroConstraints: macroConstraintContextSchema.nullable(),
+  volumeWindow: volumeWindowContextSchema.nullable(),
+  chapterMission: chapterMissionContextSchema,
+  participants: z.array(runtimeCharacterSchema),
+  localStateSummary: z.string(),
+  openConflictSummaries: z.array(z.string()).default([]),
+  recentChapterSummaries: z.array(z.string()).default([]),
+  openingAntiRepeatHint: z.string(),
+  styleConstraints: z.array(z.string()).default([]),
+  continuationConstraints: z.array(z.string()).default([]),
+  ragFacts: z.array(z.string()).default([]),
+});
+
+export const chapterReviewContextSchema = chapterWriteContextSchema.extend({
+  structureObligations: z.array(z.string()).default([]),
+  worldRules: z.array(z.string()).default([]),
+  historicalIssues: z.array(z.string()).default([]),
+});
+
+export const chapterRepairIssueSchema = z.object({
+  severity: auditSeveritySchema,
+  category: z.string(),
+  evidence: z.string(),
+  fixSuggestion: z.string(),
+});
+
+export const chapterRepairContextSchema = z.object({
+  writeContext: chapterWriteContextSchema,
+  issues: z.array(chapterRepairIssueSchema).default([]),
+  structureObligations: z.array(z.string()).default([]),
+  worldRules: z.array(z.string()).default([]),
+  historicalIssues: z.array(z.string()).default([]),
+  allowedEditBoundaries: z.array(z.string()).default([]),
+});
+
 export const generationContextPackageSchema = z.object({
   chapter: runtimeChapterSchema,
   plan: runtimePlanSchema.nullable(),
@@ -339,6 +429,14 @@ export const generationContextPackageSchema = z.object({
   continuation: runtimeContinuationSchema,
   styleContext: runtimeStyleContextSchema.nullable().optional(),
   characterDynamics: runtimeDynamicCharacterOverviewSchema.nullable().optional(),
+  bookContract: bookContractContextSchema.nullable().optional(),
+  macroConstraints: macroConstraintContextSchema.nullable().optional(),
+  volumeWindow: volumeWindowContextSchema.nullable().optional(),
+  chapterMission: chapterMissionContextSchema.nullable().optional(),
+  chapterWriteContext: chapterWriteContextSchema.nullable().optional(),
+  chapterReviewContext: chapterReviewContextSchema.nullable().optional(),
+  chapterRepairContext: chapterRepairContextSchema.nullable().optional(),
+  promptBudgetProfiles: z.array(promptBudgetProfileSchema).default([]),
 });
 
 export const runtimeQualityScoreSchema = z.object({
@@ -438,6 +536,15 @@ export type RuntimeCharacterRelationStage = z.infer<typeof runtimeCharacterRelat
 export type RuntimeDynamicCharacterOverviewItem = z.infer<typeof runtimeDynamicCharacterOverviewItemSchema>;
 export type RuntimeDynamicCharacterCurrentVolume = z.infer<typeof runtimeDynamicCharacterCurrentVolumeSchema>;
 export type RuntimeDynamicCharacterOverview = z.infer<typeof runtimeDynamicCharacterOverviewSchema>;
+export type PromptBudgetProfile = z.infer<typeof promptBudgetProfileSchema>;
+export type BookContractContext = z.infer<typeof bookContractContextSchema>;
+export type MacroConstraintContext = z.infer<typeof macroConstraintContextSchema>;
+export type VolumeWindowContext = z.infer<typeof volumeWindowContextSchema>;
+export type ChapterMissionContext = z.infer<typeof chapterMissionContextSchema>;
+export type ChapterWriteContext = z.infer<typeof chapterWriteContextSchema>;
+export type ChapterReviewContext = z.infer<typeof chapterReviewContextSchema>;
+export type ChapterRepairIssue = z.infer<typeof chapterRepairIssueSchema>;
+export type ChapterRepairContext = z.infer<typeof chapterRepairContextSchema>;
 export type GenerationContextPackage = z.infer<typeof generationContextPackageSchema>;
 export type RuntimeQualityScore = z.infer<typeof runtimeQualityScoreSchema>;
 export type RuntimeAuditReport = z.infer<typeof runtimeAuditReportSchema>;

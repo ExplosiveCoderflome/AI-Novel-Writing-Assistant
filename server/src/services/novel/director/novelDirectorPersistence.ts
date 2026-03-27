@@ -100,6 +100,8 @@ export async function persistDirectorBlueprint(novelId: string, blueprint: Direc
             participantsJson: JSON.stringify(chapter.participants),
             revealsJson: JSON.stringify(chapter.reveals),
             riskNotesJson: JSON.stringify(chapter.riskNotes),
+            mustAdvanceJson: JSON.stringify(chapter.mustAdvance),
+            mustPreserveJson: JSON.stringify(chapter.mustPreserve),
             hookTarget: chapter.hookTarget ?? null,
             status: "seeded",
             rawPlanJson: JSON.stringify({
@@ -108,6 +110,7 @@ export async function persistDirectorBlueprint(novelId: string, blueprint: Direc
               phaseLabel: arc.phaseLabel,
               planRole: chapter.planRole,
               expectation: chapter.expectation,
+              chapterShell: true,
             }),
           },
           include: {

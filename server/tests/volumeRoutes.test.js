@@ -40,10 +40,12 @@ test("volume workspace routes expose v2 fields and accept new scopes plus legacy
   const originalMethods = {
     getVolumes: NovelService.prototype.getVolumes,
     generateVolumes: NovelService.prototype.generateVolumes,
+    updateVolumes: NovelService.prototype.updateVolumes,
   };
   const novelId = "novel-volume-route-test";
   NovelService.prototype.getVolumes = async () => createWorkspace(novelId);
   NovelService.prototype.generateVolumes = async () => createWorkspace(novelId);
+  NovelService.prototype.updateVolumes = async () => createWorkspace(novelId);
 
   const app = createApp();
   const server = http.createServer(app);
@@ -64,6 +66,27 @@ test("volume workspace routes expose v2 fields and accept new scopes plus legacy
       body: JSON.stringify({ scope: "strategy" }),
     });
     assert.equal(strategyResponse.status, 200);
+
+    const strategyWithEmptyWorkspaceResponse = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}/volumes/generate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        scope: "strategy",
+        draftWorkspace: createWorkspace(novelId),
+      }),
+    });
+    assert.equal(strategyWithEmptyWorkspaceResponse.status, 200);
+
+    const updateEmptyWorkspaceResponse = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}/volumes`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(createWorkspace(novelId)),
+    });
+    assert.equal(updateEmptyWorkspaceResponse.status, 200);
 
     const aliasResponse = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}/volumes/generate`, {
       method: "POST",

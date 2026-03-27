@@ -157,10 +157,13 @@ function normalizeBeatSheet(raw: unknown, volumes: VolumePlan[]): VolumeBeatShee
     return null;
   }
   const matchedVolume = volumes.find((volume) => volume.id === volumeId);
+  if (!matchedVolume) {
+    return null;
+  }
   const status = raw.status === "not_started" || raw.status === "revised" ? raw.status : "generated";
   return {
     volumeId,
-    volumeSortOrder: matchedVolume?.sortOrder ?? Math.max(1, normalizeInteger(raw.volumeSortOrder, 1)),
+    volumeSortOrder: matchedVolume.sortOrder,
     status,
     beats: Array.isArray(raw.beats)
       ? raw.beats
@@ -210,7 +213,7 @@ function normalizeCritiqueReport(raw: unknown): VolumeCritiqueReport | null {
   };
 }
 
-function normalizeRebalanceDecision(raw: unknown): VolumeRebalanceDecision | null {
+function normalizeRebalanceDecision(raw: unknown, validVolumeIds: Set<string>): VolumeRebalanceDecision | null {
   if (!isRecord(raw)) {
     return null;
   }
@@ -218,6 +221,9 @@ function normalizeRebalanceDecision(raw: unknown): VolumeRebalanceDecision | nul
   const affectedVolumeId = normalizeText(raw.affectedVolumeId);
   const summary = normalizeText(raw.summary);
   if (!anchorVolumeId || !affectedVolumeId || !summary) {
+    return null;
+  }
+  if (!validVolumeIds.has(anchorVolumeId) || !validVolumeIds.has(affectedVolumeId)) {
     return null;
   }
   const direction = raw.direction === "pull_forward"
@@ -236,6 +242,74 @@ function normalizeRebalanceDecision(raw: unknown): VolumeRebalanceDecision | nul
     summary,
     actions,
   };
+}
+
+function compareText(left: string | null | undefined, right: string | null | undefined): boolean {
+  return (left ?? "").trim() === (right ?? "").trim();
+}
+
+function compareStringArray(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  return left.every((item, index) => item.trim() === (right[index] ?? "").trim());
+}
+
+function compareStrategyPlan(left: VolumeStrategyPlan | null, right: VolumeStrategyPlan | null): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function hasVolumeLevelStructureChanged(currentVolumes: VolumePlan[], nextVolumes: VolumePlan[]): boolean {
+  if (currentVolumes.length !== nextVolumes.length) {
+    return true;
+  }
+
+  return currentVolumes.some((currentVolume, index) => {
+    const nextVolume = nextVolumes[index];
+    if (!nextVolume) {
+      return true;
+    }
+    return currentVolume.id !== nextVolume.id
+      || currentVolume.sortOrder !== nextVolume.sortOrder
+      || !compareText(currentVolume.title, nextVolume.title)
+      || !compareText(currentVolume.summary, nextVolume.summary)
+      || !compareText(currentVolume.openingHook, nextVolume.openingHook)
+      || !compareText(currentVolume.mainPromise, nextVolume.mainPromise)
+      || !compareText(currentVolume.primaryPressureSource, nextVolume.primaryPressureSource)
+      || !compareText(currentVolume.coreSellingPoint, nextVolume.coreSellingPoint)
+      || !compareText(currentVolume.escalationMode, nextVolume.escalationMode)
+      || !compareText(currentVolume.protagonistChange, nextVolume.protagonistChange)
+      || !compareText(currentVolume.midVolumeRisk, nextVolume.midVolumeRisk)
+      || !compareText(currentVolume.climax, nextVolume.climax)
+      || !compareText(currentVolume.payoffType, nextVolume.payoffType)
+      || !compareText(currentVolume.nextVolumeHook, nextVolume.nextVolumeHook)
+      || !compareText(currentVolume.resetPoint, nextVolume.resetPoint)
+      || !compareStringArray(currentVolume.openPayoffs, nextVolume.openPayoffs);
+  });
+}
+
+function hasChapterListChanged(currentVolumes: VolumePlan[], nextVolumes: VolumePlan[]): boolean {
+  if (currentVolumes.length !== nextVolumes.length) {
+    return true;
+  }
+
+  return currentVolumes.some((currentVolume, volumeIndex) => {
+    const nextVolume = nextVolumes[volumeIndex];
+    if (!nextVolume || currentVolume.chapters.length !== nextVolume.chapters.length) {
+      return true;
+    }
+
+    return currentVolume.chapters.some((currentChapter, chapterIndex) => {
+      const nextChapter = nextVolume.chapters[chapterIndex];
+      if (!nextChapter) {
+        return true;
+      }
+      return currentChapter.id !== nextChapter.id
+        || currentChapter.chapterOrder !== nextChapter.chapterOrder
+        || !compareText(currentChapter.title, nextChapter.title)
+        || !compareText(currentChapter.summary, nextChapter.summary);
+    });
+  });
 }
 
 export function buildVolumePlanningReadiness(input: {
@@ -257,8 +331,8 @@ export function buildVolumePlanningReadiness(input: {
   return {
     canGenerateStrategy: true,
     canGenerateSkeleton: Boolean(strategyPlan),
-    canGenerateBeatSheet: volumes.length > 0,
-    canGenerateChapterList: beatSheets.some((sheet) => sheet.beats.length > 0),
+    canGenerateBeatSheet: Boolean(strategyPlan) && volumes.length > 0,
+    canGenerateChapterList: Boolean(strategyPlan) && beatSheets.some((sheet) => sheet.beats.length > 0),
     blockingReasons,
   };
 }
@@ -274,13 +348,14 @@ export function buildVolumeWorkspaceDocument(params: {
   activeVersionId?: string | null;
 }): VolumePlanDocument {
   const volumes = normalizeVolumeDraftInput(params.novelId, params.volumes);
+  const volumeIds = new Set(volumes.map((volume) => volume.id));
   const strategyPlan = params.strategyPlan ?? null;
   const critiqueReport = params.critiqueReport ?? null;
   const beatSheets = (params.beatSheets ?? [])
     .map((sheet) => normalizeBeatSheet(sheet, volumes))
     .filter((item): item is VolumeBeatSheet => Boolean(item));
   const rebalanceDecisions = (params.rebalanceDecisions ?? [])
-    .map(normalizeRebalanceDecision)
+    .map((decision) => normalizeRebalanceDecision(decision, volumeIds))
     .filter((item): item is VolumeRebalanceDecision => Boolean(item));
   return {
     novelId: params.novelId,
@@ -320,6 +395,7 @@ export function normalizeVolumeWorkspaceDocument(
   }
   const record = isRecord(parsedRaw) ? parsedRaw : {};
   const volumes = normalizeVolumeDraftInput(novelId, Array.isArray(record.volumes) ? record.volumes : []);
+  const volumeIds = new Set(volumes.map((volume) => volume.id));
   const strategyPlan = normalizeStrategyPlan(record.strategyPlan, volumes.length);
   const critiqueReport = normalizeCritiqueReport(record.critiqueReport);
   const beatSheets = Array.isArray(record.beatSheets)
@@ -329,7 +405,7 @@ export function normalizeVolumeWorkspaceDocument(
     : [];
   const rebalanceDecisions = Array.isArray(record.rebalanceDecisions)
     ? record.rebalanceDecisions
-      .map(normalizeRebalanceDecision)
+      .map((item) => normalizeRebalanceDecision(item, volumeIds))
       .filter((item): item is VolumeRebalanceDecision => Boolean(item))
     : [];
   const source = record.source === "legacy" || record.source === "empty" || record.source === "volume"
@@ -354,14 +430,41 @@ export function mergeVolumeWorkspaceInput(
   input: unknown,
 ): VolumePlanDocument {
   const record = isRecord(input) ? input : {};
+  const nextVolumes = Array.isArray(record.volumes)
+    ? normalizeVolumeDraftInput(novelId, record.volumes)
+    : currentDocument.volumes;
+  const nextStrategyPlan = record.strategyPlan !== undefined
+    ? normalizeStrategyPlan(record.strategyPlan, nextVolumes.length)
+    : currentDocument.strategyPlan;
+  const strategyChanged = record.strategyPlan !== undefined
+    && !compareStrategyPlan(currentDocument.strategyPlan, nextStrategyPlan);
+  const volumeLevelStructureChanged = Array.isArray(record.volumes)
+    && hasVolumeLevelStructureChanged(currentDocument.volumes, nextVolumes);
+  const chapterListChanged = Array.isArray(record.volumes)
+    && hasChapterListChanged(currentDocument.volumes, nextVolumes);
+  const beatSheets = strategyChanged || volumeLevelStructureChanged
+    ? []
+    : record.beatSheets !== undefined
+      ? record.beatSheets
+      : currentDocument.beatSheets;
+  const rebalanceDecisions = strategyChanged || volumeLevelStructureChanged || chapterListChanged
+    ? []
+    : record.rebalanceDecisions !== undefined
+      ? record.rebalanceDecisions
+      : currentDocument.rebalanceDecisions;
+
   return normalizeVolumeWorkspaceDocument(novelId, {
     workspaceVersion: "v2",
     novelId,
-    volumes: Array.isArray(record.volumes) ? record.volumes : currentDocument.volumes,
-    strategyPlan: record.strategyPlan ?? currentDocument.strategyPlan,
-    critiqueReport: record.critiqueReport ?? currentDocument.critiqueReport,
-    beatSheets: record.beatSheets ?? currentDocument.beatSheets,
-    rebalanceDecisions: record.rebalanceDecisions ?? currentDocument.rebalanceDecisions,
+    volumes: nextVolumes,
+    strategyPlan: nextStrategyPlan,
+    critiqueReport: strategyChanged
+      ? null
+      : record.critiqueReport !== undefined
+        ? record.critiqueReport
+        : currentDocument.critiqueReport,
+    beatSheets,
+    rebalanceDecisions,
     source: currentDocument.source,
     activeVersionId: currentDocument.activeVersionId,
   }, {

@@ -20,12 +20,26 @@ function actionLabel(action: StructuredTabViewProps["syncPreview"]["items"][numb
   return "待删候选";
 }
 
+function hasChapterExecutionDetail(chapter: StructuredTabViewProps["volumes"][number]["chapters"][number]): boolean {
+  return Boolean(
+    chapter.purpose?.trim()
+    || chapter.taskSheet?.trim()
+    || chapter.mustAvoid?.trim()
+    || typeof chapter.conflictLevel === "number"
+    || typeof chapter.revealLevel === "number"
+    || typeof chapter.targetWordCount === "number"
+    || chapter.payoffRefs.length > 0,
+  );
+}
+
 export default function StructuredOutlineWorkspace(props: StructuredTabViewProps) {
   const {
     worldInjectionSummary,
     hasCharacters,
     hasUnsavedVolumeDraft,
     generationNotice,
+    readiness,
+    strategyPlan,
     beatSheets,
     rebalanceDecisions,
     isGeneratingBeatSheet,
@@ -75,6 +89,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
   const selectedChapterIndex = selectedVolume && selectedChapter
     ? selectedVolume.chapters.findIndex((chapter) => chapter.id === selectedChapter.id)
     : -1;
+  const selectedVolumeChapters = selectedVolume?.chapters ?? [];
   const locked = !selectedBeatSheet;
   const selectedRebalance = selectedVolume
     ? rebalanceDecisions.filter((decision) => decision.anchorVolumeId === selectedVolume.id)
@@ -115,7 +130,11 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
         <div className="flex flex-wrap gap-2">
           {selectedVolume ? (
             <>
-              <Button variant="outline" onClick={() => onGenerateBeatSheet(selectedVolume.id)} disabled={isGeneratingBeatSheet}>
+              <Button
+                variant="outline"
+                onClick={() => onGenerateBeatSheet(selectedVolume.id)}
+                disabled={isGeneratingBeatSheet || !readiness.canGenerateBeatSheet}
+              >
                 {isGeneratingBeatSheet ? "生成中..." : "生成当前卷节奏板"}
               </Button>
               <Button onClick={() => onGenerateChapterList(selectedVolume.id)} disabled={isGeneratingChapterList || locked}>
@@ -132,6 +151,11 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
           <span>{generationNotice}</span>
           {hasUnsavedVolumeDraft ? <Badge variant="secondary">含未保存草稿</Badge> : null}
         </div>
+        {!strategyPlan ? (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+            请先在上一阶段生成卷战略建议，再继续当前卷节奏板和拆章。
+          </div>
+        ) : null}
         {syncMessage ? <div className="text-xs text-muted-foreground">{syncMessage}</div> : null}
         {locked ? <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">当前卷还没有节奏板，章节列表生成已锁定。</div> : null}
 
@@ -187,6 +211,50 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                       <div className="mt-1 text-xs text-muted-foreground">动作：{decision.actions.join("；")}</div>
                     </div>
                   ))}
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {selectedVolume ? (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">当前卷章节列表</CardTitle>
+                  <div className="text-sm text-muted-foreground">先在这里选择要细化的章节，再补目标、边界和任务单。</div>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {selectedVolumeChapters.length > 0 ? (
+                    <div className="grid gap-2 md:grid-cols-2">
+                      {selectedVolumeChapters.map((chapter) => {
+                        const isSelected = selectedChapter?.id === chapter.id;
+                        return (
+                          <button
+                            key={chapter.id}
+                            type="button"
+                            onClick={() => setSelectedChapterId(chapter.id)}
+                            className={cn(
+                              "rounded-xl border p-3 text-left transition-colors",
+                              isSelected ? "border-primary/50 bg-primary/5" : "border-border/70 hover:border-primary/30",
+                            )}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <Badge variant={isSelected ? "default" : "outline"}>第{chapter.chapterOrder}章</Badge>
+                              {hasChapterExecutionDetail(chapter)
+                                ? <Badge variant="secondary">已细化</Badge>
+                                : <Badge variant="outline">待细化</Badge>}
+                            </div>
+                            <div className="mt-2 text-sm font-medium">{chapter.title || `第${chapter.chapterOrder}章`}</div>
+                            <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                              {chapter.summary?.trim() || "先补本章摘要，再继续细化。"}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                      当前卷还没有章节列表。先生成当前卷章节列表。
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ) : null}

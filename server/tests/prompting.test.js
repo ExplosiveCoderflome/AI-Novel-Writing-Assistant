@@ -5,6 +5,9 @@ const {
   createContextBlock,
 } = require("../dist/prompting/core/contextBudget.js");
 const {
+  NOVEL_PROMPT_BUDGETS,
+} = require("../dist/prompting/prompts/novel/promptBudgetProfiles.js");
+const {
   runStructuredPrompt,
   setPromptRunnerLLMFactoryForTests,
   setPromptRunnerStructuredInvokerForTests,
@@ -16,7 +19,6 @@ const {
 } = require("../dist/prompting/core/contextSelection.js");
 const {
   getRegisteredPromptAsset,
-  listRegisteredPromptAssets,
 } = require("../dist/prompting/registry.js");
 const {
   resolveWorkflow,
@@ -45,52 +47,216 @@ const {
   bookAnalysisSourceNotePrompt,
   bookAnalysisSectionPrompt,
 } = require("../dist/prompting/prompts/bookAnalysis/bookAnalysis.prompts.js");
+const {
+  sanitizeWriterContextBlocks,
+} = require("../dist/services/novel/runtime/chapterLayeredContext.js");
+const {
+  directorPlanBlueprintSchema,
+} = require("../dist/services/novel/director/novelDirectorSchemas.js");
 
 test("prompt registry exposes versioned planning assets", () => {
-  const assets = listRegisteredPromptAssets();
-  const keys = assets.map((asset) => `${asset.id}@${asset.version}`);
+  const keys = [
+    "planner.intent.parse@v1",
+    "agent.runtime.fallback_answer@v1",
+    "agent.runtime.setup_guidance@v1",
+    "agent.runtime.setup_ideation@v1",
+    "planner.chapter.plan@v1",
+    "novel.director.candidates@v1",
+    "novel.director.blueprint@v1",
+    "novel.story_macro.decomposition@v1",
+    "title.generation@v1",
+    "audit.chapter.full@v1",
+    "bookAnalysis.source.note@v1",
+    "character.base.skeleton@v1",
+    "novel.continuation.rewrite_similarity@v1",
+    "novel.draft_optimize.selection@v1",
+    "novel.draft_optimize.full@v1",
+    "novel.framing.suggest@v1",
+    "novel.production.characters@v1",
+    "state.snapshot.extract@v2",
+    "storyMode.child.generate@v1",
+    "storyMode.tree.generate@v1",
+    "storyWorldSlice.generate@v1",
+    "style.generate@v1",
+    "style.rewrite@v1",
+    "style.profile.extract@v1",
+    "style.recommendation@v1",
+    "novel.review.chapter@v1",
+    "novel.chapter.writer@v1",
+    "world.draft.generate@v1",
+    "world.draft.refine@v1",
+    "world.draft.refine_alternatives@v1",
+    "world.inspiration.concept_card@v1",
+    "world.inspiration.localize_concept_card@v1",
+    "world.property_options.generate@v1",
+    "world.deepening.questions@v1",
+    "world.consistency.check@v1",
+    "world.layer.generate@v1",
+    "world.layer.localize@v1",
+    "world.import.extract@v1",
+    "world.reference.inspiration@v1",
+    "world.structure.generate@v1",
+  ];
 
-  assert.ok(keys.includes("planner.intent.parse@v1"));
-  assert.ok(keys.includes("agent.runtime.fallback_answer@v1"));
-  assert.ok(keys.includes("agent.runtime.setup_guidance@v1"));
-  assert.ok(keys.includes("agent.runtime.setup_ideation@v1"));
-  assert.ok(keys.includes("planner.chapter.plan@v1"));
-  assert.ok(keys.includes("novel.director.candidates@v1"));
-  assert.ok(keys.includes("title.generation@v1"));
-  assert.ok(keys.includes("audit.chapter.full@v1"));
-  assert.ok(keys.includes("bookAnalysis.source.note@v1"));
-  assert.ok(keys.includes("character.base.skeleton@v1"));
-  assert.ok(keys.includes("novel.continuation.rewrite_similarity@v1"));
-  assert.ok(keys.includes("novel.draft_optimize.selection@v1"));
-  assert.ok(keys.includes("novel.draft_optimize.full@v1"));
-  assert.ok(keys.includes("novel.framing.suggest@v1"));
-  assert.ok(keys.includes("novel.production.characters@v1"));
-  assert.ok(keys.includes("state.snapshot.extract@v1"));
-  assert.ok(keys.includes("storyMode.child.generate@v1"));
-  assert.ok(keys.includes("storyMode.tree.generate@v1"));
-  assert.ok(keys.includes("storyWorldSlice.generate@v1"));
-  assert.ok(keys.includes("style.generate@v1"));
-  assert.ok(keys.includes("style.rewrite@v1"));
-  assert.ok(keys.includes("style.profile.extract@v1"));
-  assert.ok(keys.includes("style.recommendation@v1"));
-  assert.ok(keys.includes("novel.review.chapter@v1"));
-  assert.ok(keys.includes("world.draft.generate@v1"));
-  assert.ok(keys.includes("world.draft.refine@v1"));
-  assert.ok(keys.includes("world.draft.refine_alternatives@v1"));
-  assert.ok(keys.includes("world.inspiration.concept_card@v1"));
-  assert.ok(keys.includes("world.inspiration.localize_concept_card@v1"));
-  assert.ok(keys.includes("world.property_options.generate@v1"));
-  assert.ok(keys.includes("world.deepening.questions@v1"));
-  assert.ok(keys.includes("world.consistency.check@v1"));
-  assert.ok(keys.includes("world.layer.generate@v1"));
-  assert.ok(keys.includes("world.layer.localize@v1"));
-  assert.ok(keys.includes("world.import.extract@v1"));
-  assert.ok(keys.includes("world.reference.inspiration@v1"));
-  assert.ok(keys.includes("world.structure.generate@v1"));
+  for (const key of keys) {
+    const [id, version] = key.split("@");
+    assert.ok(getRegisteredPromptAsset(id, version), `missing prompt asset ${key}`);
+  }
 
   const chapterAsset = getRegisteredPromptAsset("planner.chapter.plan", "v1");
   assert.ok(chapterAsset);
   assert.equal(chapterAsset.taskType, "planner");
+});
+
+test("novel main-chain prompt assets declare explicit non-zero context budgets", () => {
+  const expectedBudgets = new Map([
+    ["novel.director.candidates@v1", NOVEL_PROMPT_BUDGETS.directorCandidates],
+    ["novel.director.blueprint@v1", NOVEL_PROMPT_BUDGETS.directorBlueprint],
+    ["novel.story_macro.decomposition@v1", NOVEL_PROMPT_BUDGETS.storyMacroDecomposition],
+    ["novel.story_macro.field_regeneration@v1", NOVEL_PROMPT_BUDGETS.storyMacroFieldRegeneration],
+    ["novel.volume.strategy@v1", NOVEL_PROMPT_BUDGETS.volumeStrategy],
+    ["novel.volume.strategy.critique@v1", NOVEL_PROMPT_BUDGETS.volumeStrategyCritique],
+    ["novel.volume.skeleton@v2", NOVEL_PROMPT_BUDGETS.volumeSkeleton],
+    ["novel.volume.beat_sheet@v1", NOVEL_PROMPT_BUDGETS.volumeBeatSheet],
+    ["novel.volume.chapter_list@v2", NOVEL_PROMPT_BUDGETS.volumeChapterList],
+    ["novel.volume.chapter_purpose@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
+    ["novel.volume.chapter_boundary@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
+    ["novel.volume.chapter_task_sheet@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
+    ["novel.volume.rebalance.adjacent@v1", NOVEL_PROMPT_BUDGETS.volumeRebalance],
+    ["novel.chapter.writer@v1", NOVEL_PROMPT_BUDGETS.chapterWriter],
+    ["novel.review.chapter@v1", NOVEL_PROMPT_BUDGETS.chapterReview],
+    ["novel.review.repair@v1", NOVEL_PROMPT_BUDGETS.chapterRepair],
+    ["audit.chapter.full@v1", NOVEL_PROMPT_BUDGETS.chapterReview],
+  ]);
+
+  for (const [key, budget] of expectedBudgets.entries()) {
+    const [id, version] = key.split("@");
+    const asset = getRegisteredPromptAsset(id, version);
+    assert.ok(asset, `missing prompt asset ${key}`);
+    assert.equal(asset.contextPolicy.maxTokensBudget, budget, `${key} budget mismatch`);
+    assert.ok(asset.contextPolicy.maxTokensBudget > 0, `${key} should not use zero budget`);
+  }
+});
+
+test("writer guard strips forbidden context groups before prompt execution", () => {
+  const sanitized = sanitizeWriterContextBlocks([
+    createContextBlock({
+      id: "chapter_mission",
+      group: "chapter_mission",
+      priority: 100,
+      required: true,
+      content: "Chapter mission\n- push the conflict",
+    }),
+    createContextBlock({
+      id: "full-outline",
+      group: "full_outline",
+      priority: 90,
+      content: "Entire outline dump",
+    }),
+    createContextBlock({
+      id: "anti-copy",
+      group: "anti_copy_corpus",
+      priority: 80,
+      content: "Long anti-copy corpus",
+    }),
+  ]);
+
+  assert.deepEqual(sanitized.allowedBlocks.map((block) => block.id), ["chapter_mission"]);
+  assert.deepEqual(sanitized.removedBlockIds, ["full-outline", "anti-copy"]);
+});
+
+test("director blueprint schema accepts chapter shells without scenes", () => {
+  const parsed = directorPlanBlueprintSchema.parse({
+    bookPlan: {
+      title: "霜轨档案",
+      objective: "让主角在第一部中确认失踪档案站背后的真相方向。",
+      hookTarget: "真相只是更大装置的入口。",
+      participants: ["主角位", "对立位"],
+      reveals: ["档案站仍在运行"],
+      riskNotes: ["不要过早解释终局机制"],
+    },
+    arcs: [
+      {
+        title: "第一幕",
+        objective: "建立困境和追查动机",
+        summary: "主角被卷入异常信号并决定追查。",
+        phaseLabel: "起局",
+        hookTarget: "确认信号不是幻觉",
+        participants: ["主角位"],
+        reveals: ["异常信号真实存在"],
+        riskNotes: ["开局不要信息过载"],
+        chapters: [
+          {
+            title: "失真信号",
+            objective: "让主角第一次接触异常现象并做出追查决定。",
+            expectation: "写清异常现象、选择代价和章节结尾的新悬念。",
+            planRole: "setup",
+            hookTarget: "有人提前到过现场",
+            participants: ["主角位"],
+            reveals: ["信号带有人工痕迹"],
+            riskNotes: ["不要直接解释来源"],
+            mustAdvance: ["主角决定追查"],
+            mustPreserve: ["异常来源仍未知"],
+            scenes: [],
+          },
+          {
+            title: "空轨车厢",
+            objective: "让主角接近第一处关键现场。",
+            expectation: "推进追查并提高危险感。",
+            planRole: "progress",
+            hookTarget: "车厢里残留第二个观察者痕迹",
+            participants: ["主角位", "观察位"],
+            reveals: ["现场被刻意清理过"],
+            riskNotes: ["不要把对立位过早曝光"],
+            mustAdvance: ["主角拿到关键线索"],
+            mustPreserve: ["对立位身份仍隐藏"],
+            scenes: [],
+          },
+        ],
+      },
+      {
+        title: "第二幕",
+        objective: "把调查升级为正面对抗",
+        summary: "主角开始意识到自己已被盯上。",
+        phaseLabel: "加压",
+        hookTarget: "对立位第一次反制",
+        participants: ["主角位", "对立位"],
+        reveals: ["追查对象会主动反击"],
+        riskNotes: ["不要让追查失去方向"],
+        chapters: [
+          {
+            title: "暗门回响",
+            objective: "让主角踏入更危险的封闭空间。",
+            expectation: "写出探索、反制和新的未知。",
+            planRole: "pressure",
+            hookTarget: "主角发现自己已被标记",
+            participants: ["主角位"],
+            reveals: ["异常装置与主角有关"],
+            riskNotes: ["不要解释装置全貌"],
+            mustAdvance: ["主角确认自己已被卷入局内"],
+            mustPreserve: ["终局真相仍远未揭晓"],
+            scenes: [],
+          },
+          {
+            title: "观测名单",
+            objective: "抛出对立位的阶段性压力。",
+            expectation: "让主角意识到时间窗口正在缩短。",
+            planRole: "turn",
+            hookTarget: "名单上出现主角的旧身份",
+            participants: ["主角位", "对立位"],
+            reveals: ["主角过去和档案站有关"],
+            riskNotes: ["不要一次说穿旧身份细节"],
+            mustAdvance: ["时间压力形成"],
+            mustPreserve: ["旧身份细节仍保留到后续"],
+            scenes: [],
+          },
+        ],
+      },
+    ],
+  });
+
+  assert.equal(parsed.arcs[0].chapters[0].scenes.length, 0);
+  assert.deepEqual(parsed.arcs[0].chapters[0].mustAdvance, ["主角决定追查"]);
 });
 
 test("context selection keeps the freshest structural source while preserving required status", () => {
@@ -570,7 +736,7 @@ test("runStructuredPrompt retries semantically after postValidate failure", asyn
     assert.equal(calls[0].promptMeta.semanticRetryAttempts, 0);
     assert.equal(calls[1].promptMeta.semanticRetryUsed, true);
     assert.equal(calls[1].promptMeta.semanticRetryAttempts, 1);
-    assert.match(String(calls[1].messages[calls[1].messages.length - 1].content), /Chapter planner output is missing objective/);
+    assert.match(String(calls[1].messages[calls[1].messages.length - 1].content), /Planner output is missing objective/);
     assert.match(String(calls[1].messages[calls[1].messages.length - 1].content), /上一次的 JSON 输出/);
     assert.equal(result.output.planRole, "progress");
     assert.equal(result.meta.invocation.repairUsed, true);
@@ -820,7 +986,7 @@ test("streamStructuredPrompt can recover with semantic retry after streamed outp
     assert.ok(retryCall);
     assert.equal(retryCall.promptMeta.semanticRetryUsed, true);
     assert.equal(retryCall.promptMeta.semanticRetryAttempts, 1);
-    assert.match(String(retryCall.messages[retryCall.messages.length - 1].content), /Chapter planner output is missing objective/);
+    assert.match(String(retryCall.messages[retryCall.messages.length - 1].content), /Planner output is missing objective/);
     assert.equal(completed.output.planRole, "progress");
     assert.equal(completed.meta.invocation.semanticRetryUsed, true);
     assert.equal(completed.meta.invocation.semanticRetryAttempts, 1);

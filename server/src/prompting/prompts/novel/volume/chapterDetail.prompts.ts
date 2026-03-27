@@ -1,59 +1,55 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { PromptAsset } from "../../../core/promptTypes";
+import { renderSelectedContextBlocks } from "../../../core/renderContextBlocks";
 import {
   createChapterBoundarySchema,
   createChapterPurposeSchema,
   createChapterTaskSheetSchema,
 } from "../../../../services/novel/volume/volumeGenerationSchemas";
-import {
-  buildBeatSheetContext,
-  buildChapterDetailDraft,
-  buildChapterNeighborContext,
-  buildCommonNovelContext,
-  buildCompactVolumeCard,
-  buildCompactVolumeContext,
-  buildStoryMacroContext,
-  type VolumeChapterDetailPromptInput,
-} from "./shared";
+import { type VolumeChapterDetailPromptInput } from "./shared";
+import { buildVolumeChapterDetailContextBlocks } from "./contextBlocks";
+import { NOVEL_PROMPT_BUDGETS } from "../promptBudgetProfiles";
 
 function createVolumeDetailSystemPrompt(detailMode: VolumeChapterDetailPromptInput["detailMode"]): string {
   if (detailMode === "purpose") {
     return [
-      "你是资深网文编辑，负责对单章目标进行修正和收束。",
-      "只输出严格 JSON，不要输出解释、Markdown 或额外文本。",
-      "最终 JSON 只能包含字段：purpose。",
-      "purpose 必须具体到这一章要推进什么，不要复述摘要。",
+      "你是资深网文章节编辑。",
+      "当前任务是收束单章 purpose。",
+      "只输出严格 JSON，且只包含 purpose 字段。",
+      "purpose 必须说明这一章要推进什么，不要复述摘要。",
     ].join("\n");
   }
   if (detailMode === "boundary") {
     return [
-      "你是资深网文编辑，负责为单章定义执行边界。",
-      "只输出严格 JSON，不要输出解释、Markdown 或额外文本。",
-      "最终 JSON 只能包含字段：conflictLevel、revealLevel、targetWordCount、mustAvoid、payoffRefs。",
-      "各字段必须和当前卷节奏板一致，不要引入额外剧情。",
+      "你是资深网文章节编辑。",
+      "当前任务是为单章定义执行边界。",
+      "只输出严格 JSON，且只包含 conflictLevel、revealLevel、targetWordCount、mustAvoid、payoffRefs。",
+      "各字段必须与当前卷节奏和相邻章节保持一致。",
     ].join("\n");
   }
   return [
-    "你是资深网文编辑，负责把单章任务单修正到可以直接交给正文生成。",
-    "只输出严格 JSON，不要输出解释、Markdown 或额外文本。",
-    "最终 JSON 只能包含字段：taskSheet。",
-    "任务单必须覆盖情绪基调、冲突对象、关键推进和收尾要求。",
+    "你是资深网文章节编辑。",
+    "当前任务是生成可直接交给正文生成器的 taskSheet。",
+    "只输出严格 JSON，且只包含 taskSheet 字段。",
+    "taskSheet 需要覆盖情绪基调、冲突对象、关键推进和收尾要求。",
   ].join("\n");
 }
 
-function buildChapterDetailPrompt(input: VolumeChapterDetailPromptInput): string {
+function buildChapterDetailPrompt(contextText: string, detailMode: VolumeChapterDetailPromptInput["detailMode"]): string {
   return [
-    `工作模式：章节细化（${input.detailMode}）`,
-    buildCommonNovelContext(input.novel),
-    `当前卷：${buildCompactVolumeCard(input.targetVolume)}`,
-    `当前卷节奏板：${buildBeatSheetContext(input.targetBeatSheet)}`,
-    `章节邻接上下文：${buildChapterNeighborContext(input.targetVolume, input.targetChapter.id)}`,
-    buildChapterDetailDraft(input.targetChapter, input.detailMode),
-    `全书卷骨架：${buildCompactVolumeContext(input.workspace.volumes)}`,
-    buildStoryMacroContext(input.storyMacroPlan),
-    input.guidance?.trim() ? `额外指令：${input.guidance.trim()}` : "",
-  ].filter(Boolean).join("\n\n");
+    `detail mode: ${detailMode}`,
+    "",
+    "chapter detail context:",
+    contextText,
+  ].join("\n");
 }
+
+const baseContextPolicy = {
+  maxTokensBudget: NOVEL_PROMPT_BUDGETS.volumeChapterDetail,
+  requiredGroups: ["book_contract", "target_volume", "chapter_neighbors", "chapter_detail_draft"],
+  preferredGroups: ["macro_constraints", "target_beat_sheet", "volume_window"],
+  dropOrder: ["volume_window"],
+};
 
 export const volumeChapterPurposePrompt: PromptAsset<
   VolumeChapterDetailPromptInput,
@@ -64,13 +60,11 @@ export const volumeChapterPurposePrompt: PromptAsset<
   taskType: "planner",
   mode: "structured",
   language: "zh",
-  contextPolicy: {
-    maxTokensBudget: 0,
-  },
+  contextPolicy: baseContextPolicy,
   outputSchema: createChapterPurposeSchema(),
-  render: (input) => [
+  render: (input, context) => [
     new SystemMessage(createVolumeDetailSystemPrompt("purpose")),
-    new HumanMessage(buildChapterDetailPrompt(input)),
+    new HumanMessage(buildChapterDetailPrompt(renderSelectedContextBlocks(context), input.detailMode)),
   ],
 };
 
@@ -83,13 +77,11 @@ export const volumeChapterBoundaryPrompt: PromptAsset<
   taskType: "planner",
   mode: "structured",
   language: "zh",
-  contextPolicy: {
-    maxTokensBudget: 0,
-  },
+  contextPolicy: baseContextPolicy,
   outputSchema: createChapterBoundarySchema(),
-  render: (input) => [
+  render: (input, context) => [
     new SystemMessage(createVolumeDetailSystemPrompt("boundary")),
-    new HumanMessage(buildChapterDetailPrompt(input)),
+    new HumanMessage(buildChapterDetailPrompt(renderSelectedContextBlocks(context), input.detailMode)),
   ],
 };
 
@@ -102,12 +94,12 @@ export const volumeChapterTaskSheetPrompt: PromptAsset<
   taskType: "planner",
   mode: "structured",
   language: "zh",
-  contextPolicy: {
-    maxTokensBudget: 0,
-  },
+  contextPolicy: baseContextPolicy,
   outputSchema: createChapterTaskSheetSchema(),
-  render: (input) => [
+  render: (input, context) => [
     new SystemMessage(createVolumeDetailSystemPrompt("task_sheet")),
-    new HumanMessage(buildChapterDetailPrompt(input)),
+    new HumanMessage(buildChapterDetailPrompt(renderSelectedContextBlocks(context), input.detailMode)),
   ],
 };
+
+export { buildVolumeChapterDetailContextBlocks };

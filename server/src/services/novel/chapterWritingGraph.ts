@@ -5,7 +5,13 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { AuditReport, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { TaskType } from "../../llm/modelRouter";
 import { getLLM } from "../../llm/factory";
+import { streamTextPrompt } from "../../prompting/core/promptRunner";
+import { chapterWriterPrompt } from "../../prompting/prompts/novel/chapterWriter.prompts";
 import { NovelContinuationService } from "./NovelContinuationService";
+import {
+  buildChapterWriterContextBlocks,
+  sanitizeWriterContextBlocks,
+} from "./runtime/chapterLayeredContext";
 
 export interface ChapterGraphLLMOptions {
   provider?: LLMProvider;
@@ -339,6 +345,59 @@ ${JSON.stringify(issues, null, 2)}`,
     stream: AsyncIterable<BaseMessageChunk>;
     onDone: (fullContent: string) => Promise<{ finalContent: string } | void>;
   }> {
+    const continuationPack = (input.contextPackage?.continuation as ContinuationPack | undefined)
+      ?? await continuationService.buildChapterContextPack(input.novelId);
+    const chapterWriteContext = input.contextPackage?.chapterWriteContext;
+
+    if (chapterWriteContext) {
+      const builtBlocks = buildChapterWriterContextBlocks(chapterWriteContext);
+      const sanitized = sanitizeWriterContextBlocks(builtBlocks);
+      if (sanitized.removedBlockIds.length > 0) {
+        this.deps.logWarn("Writer context blocks removed by guard", {
+          chapterOrder: input.chapter.order,
+          removedBlockIds: sanitized.removedBlockIds,
+        });
+      }
+
+      const streamed = await streamTextPrompt({
+        asset: chapterWriterPrompt,
+        promptInput: {
+          novelTitle: input.novelTitle,
+          chapterOrder: input.chapter.order,
+          chapterTitle: input.chapter.title,
+        },
+        contextBlocks: sanitized.allowedBlocks,
+        options: {
+          provider: input.options.provider,
+          model: input.options.model,
+          temperature: input.options.temperature ?? 0.8,
+          maxTokens: undefined,
+        },
+      });
+
+      return {
+        stream: streamed.stream as AsyncIterable<BaseMessageChunk>,
+        onDone: async (fullContent: string) => {
+          const completed = await streamed.complete.catch(() => null);
+          const rawContent = completed?.output ?? fullContent;
+          const normalized = await this.continuityNode(
+            input.novelId,
+            input.chapter,
+            rawContent,
+            input.options,
+            continuationPack,
+          );
+          await this.deps.saveDraftAndArtifacts(
+            input.novelId,
+            input.chapter.id,
+            normalized,
+            "drafted",
+          );
+          return { finalContent: normalized };
+        },
+      };
+    }
+
     const context = await this.resolveContextText(
       input.novelId,
       input.chapter,
@@ -347,8 +406,6 @@ ${JSON.stringify(issues, null, 2)}`,
     );
     const openingHint = input.contextPackage?.openingHint
       || await this.deps.buildOpeningConstraintHint(input.novelId, input.chapter.order);
-    const continuationPack = (input.contextPackage?.continuation as ContinuationPack | undefined)
-      ?? await continuationService.buildChapterContextPack(input.novelId);
     const chapterPlan = buildPlanText(input.contextPackage, input.chapter.expectation);
     const characterLines = buildCharacterLines(input.contextPackage, input.characterLines);
     const stylePrompt = buildStylePromptText(input.contextPackage);

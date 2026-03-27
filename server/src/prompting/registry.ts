@@ -190,6 +190,10 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/novel/review.prompts").chapterSummaryPrompt as UnknownPromptAsset,
   },
   {
+    key: "novel.chapter.writer@v1",
+    load: () => require("./prompts/novel/chapterWriter.prompts").chapterWriterPrompt as UnknownPromptAsset,
+  },
+  {
     key: "novel.review.chapter@v1",
     load: () => require("./prompts/novel/review.prompts").chapterReviewPrompt as UnknownPromptAsset,
   },
@@ -218,7 +222,7 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/novel/production.prompts").novelProductionCharactersPrompt as UnknownPromptAsset,
   },
   {
-    key: "state.snapshot.extract@v1",
+    key: "state.snapshot.extract@v2",
     load: () => require("./prompts/state/state.prompts").stateSnapshotPrompt as UnknownPromptAsset,
   },
   {

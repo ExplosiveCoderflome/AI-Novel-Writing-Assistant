@@ -151,6 +151,8 @@ export interface DirectorChapterSeed {
   participants: string[];
   reveals: string[];
   riskNotes: string[];
+  mustAdvance: string[];
+  mustPreserve: string[];
   scenes: DirectorPlanScene[];
 }
 

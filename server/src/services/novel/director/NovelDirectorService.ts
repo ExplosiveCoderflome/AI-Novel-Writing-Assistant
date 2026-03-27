@@ -15,6 +15,8 @@ import { DIRECTOR_CORRECTION_PRESETS } from "@ai-novel/shared/types/novelDirecto
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import {
+  buildDirectorBlueprintContextBlocks,
+  buildDirectorCandidateContextBlocks,
   directorBlueprintPrompt,
   directorCandidatePrompt,
 } from "../../../prompting/prompts/novel/directorPlanning.prompts";
@@ -147,6 +149,13 @@ export class NovelDirectorService {
         presets: context.presets,
         feedback: context.feedback,
       },
+      contextBlocks: buildDirectorCandidateContextBlocks({
+        idea: context.idea,
+        context: context.request,
+        latestBatch: context.batches.at(-1),
+        presets: context.presets,
+        feedback: context.feedback,
+      }),
       options: {
         provider: context.options.provider,
         model: context.options.model,
@@ -279,6 +288,13 @@ export class NovelDirectorService {
         storyMacroPlan,
         targetChapterCount: input.estimatedChapterCount ?? bookSpec.targetChapterCount,
       },
+      contextBlocks: buildDirectorBlueprintContextBlocks({
+        idea: storyInput,
+        context: input,
+        candidate: input.candidate,
+        storyMacroPlan,
+        targetChapterCount: input.estimatedChapterCount ?? bookSpec.targetChapterCount,
+      }),
       options: {
         provider: input.provider,
         model: input.model,
@@ -316,6 +332,8 @@ export class NovelDirectorService {
           participants: chapter.participants.map((item) => item.trim()).filter(Boolean),
           reveals: chapter.reveals.map((item) => item.trim()).filter(Boolean),
           riskNotes: chapter.riskNotes.map((item) => item.trim()).filter(Boolean),
+          mustAdvance: chapter.mustAdvance.map((item) => item.trim()).filter(Boolean),
+          mustPreserve: chapter.mustPreserve.map((item) => item.trim()).filter(Boolean),
           scenes: chapter.scenes.map((scene) => ({
             title: scene.title.trim(),
             objective: scene.objective.trim(),

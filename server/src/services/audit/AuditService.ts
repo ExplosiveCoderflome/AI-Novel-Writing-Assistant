@@ -1,5 +1,6 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { AuditReport, AuditType, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
+import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
 import { prisma } from "../../db/prisma";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../storyMode/storyModeProfile";
 import { openConflictService } from "../state/OpenConflictService";
@@ -13,12 +14,14 @@ import {
 import { ragServices } from "../rag";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { auditChapterPrompt } from "../../prompting/prompts/audit/audit.prompts";
+import { buildChapterReviewContextBlocks } from "../novel/runtime/chapterLayeredContext";
 
 interface AuditOptions {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
   content?: string;
+  contextPackage?: GenerationContextPackage;
 }
 
 interface AuditIssueOutput {
@@ -245,6 +248,9 @@ export class AuditService {
           content,
           ragContext,
         },
+        contextBlocks: options.contextPackage?.chapterReviewContext
+          ? buildChapterReviewContextBlocks(options.contextPackage.chapterReviewContext)
+          : undefined,
         options: {
           provider: options.provider,
           model: options.model,

@@ -86,7 +86,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
             {isCritiquingStrategy ? "审查中..." : "AI审查卷战略"}
           </Button>
           <Button onClick={onGenerateSkeleton} disabled={isGeneratingSkeleton || !readiness.canGenerateSkeleton}>
-            {isGeneratingSkeleton ? "生成中..." : volumes.length > 0 ? "重生成卷骨架" : "生成/确认卷骨架"}
+            {isGeneratingSkeleton ? "生成中..." : volumes.length > 0 ? "重生成全书卷骨架" : "生成全书卷骨架"}
           </Button>
           <Button variant="secondary" onClick={onSave} disabled={isSaving}>
             {isSaving ? "保存中..." : "保存卷工作区"}
@@ -204,7 +204,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
           <div className="space-y-3">
             {volumes.length === 0 ? (
               <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-                当前还没有卷骨架。先生成卷战略建议，再点击“生成/确认卷骨架”。
+                当前还没有卷骨架。先生成卷战略建议，再点击“生成全书卷骨架”。
               </div>
             ) : (
               volumes.map((volume, index) => (

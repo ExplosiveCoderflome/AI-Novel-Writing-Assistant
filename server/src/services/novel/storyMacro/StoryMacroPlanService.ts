@@ -15,6 +15,10 @@ import {
   storyMacroDecompositionPrompt,
   storyMacroFieldRegenerationPrompt,
 } from "../../../prompting/prompts/novel/storyMacro.prompts";
+import {
+  buildStoryMacroDecompositionContextBlocks,
+  buildStoryMacroFieldRegenerationContextBlocks,
+} from "../../../prompting/prompts/novel/planningContextBlocks";
 import { normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import {
   EMPTY_DECOMPOSITION,
@@ -186,6 +190,10 @@ export class StoryMacroPlanService {
         storyInput,
         projectContext,
       },
+      contextBlocks: buildStoryMacroDecompositionContextBlocks({
+        storyInput,
+        projectContext,
+      }),
       options: {
         provider: options.provider,
         model: options.model,
@@ -221,6 +229,17 @@ export class StoryMacroPlanService {
         lockedFields,
         projectContext,
       },
+      contextBlocks: buildStoryMacroFieldRegenerationContextBlocks({
+        field,
+        storyInput,
+        projectContext,
+        expansionSummary: JSON.stringify(plan.expansion ?? {}, null, 2),
+        decompositionSummary: JSON.stringify(plan.decomposition, null, 2),
+        constraints: plan.constraints,
+        lockedFields: Object.entries(lockedFields)
+          .filter(([, locked]) => locked)
+          .map(([key]) => key),
+      }),
       options: {
         provider: options.provider,
         model: options.model,

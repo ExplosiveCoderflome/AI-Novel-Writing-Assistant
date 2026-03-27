@@ -31,6 +31,15 @@ import {
   buildSupportingContextText,
   parseJsonStringArraySafe,
 } from "./runtimeContextBlocks";
+import { mapRowToPlan } from "../storyMacro/storyMacroPlanPersistence";
+import {
+  buildBookContractContext,
+  buildChapterReviewContext,
+  buildChapterWriteContext,
+  buildMacroConstraintContext,
+  buildVolumeWindowContext,
+  getRuntimePromptBudgetProfiles,
+} from "./chapterLayeredContext";
 
 const OPENING_COMPARE_LIMIT = 3;
 const OPENING_SLICE_LENGTH = 220;
@@ -164,6 +173,57 @@ function mapOpenConflict(
   };
 }
 
+function findVolumeWindowSeed(
+  volumeRows: Array<{
+    id: string;
+    sortOrder: number;
+    title: string;
+    summary: string | null;
+    mainPromise: string | null;
+    openPayoffsJson: string | null;
+    chapters: Array<{ chapterOrder: number }>;
+  }>,
+  chapterOrder: number,
+) {
+  const currentIndex = volumeRows.findIndex((volume) => (
+    volume.chapters.some((chapter) => chapter.chapterOrder === chapterOrder)
+  ));
+  if (currentIndex < 0) {
+    return {
+      currentVolume: null,
+      previousVolume: null,
+      nextVolume: null,
+      softFutureSummary: "",
+    };
+  }
+
+  const currentVolume = volumeRows[currentIndex];
+  const previousVolume = currentIndex > 0 ? volumeRows[currentIndex - 1] : null;
+  const nextVolume = currentIndex < volumeRows.length - 1 ? volumeRows[currentIndex + 1] : null;
+  const futureVolumes = volumeRows.slice(currentIndex + 1, currentIndex + 4);
+  return {
+    currentVolume: {
+      id: currentVolume.id,
+      sortOrder: currentVolume.sortOrder,
+      title: currentVolume.title,
+      summary: currentVolume.summary,
+      mainPromise: currentVolume.mainPromise,
+      openPayoffs: parseJsonStringArraySafe(currentVolume.openPayoffsJson),
+    },
+    previousVolume: previousVolume
+      ? { title: previousVolume.title, summary: previousVolume.summary }
+      : null,
+    nextVolume: nextVolume
+      ? { title: nextVolume.title, summary: nextVolume.summary }
+      : null,
+    softFutureSummary: futureVolumes.length > 0
+      ? futureVolumes
+        .map((volume) => `Volume ${volume.sortOrder} ${volume.title}: ${volume.mainPromise ?? volume.summary ?? "pending"}`)
+        .join("\n")
+      : "",
+  };
+}
+
 export class GenerationContextAssembler {
   private readonly continuationService = new NovelContinuationService();
   private readonly worldSliceService = new NovelWorldSliceService();
@@ -183,7 +243,20 @@ export class GenerationContextAssembler {
         where: { id: novelId },
         include: {
           world: true,
+          genre: {
+            select: { name: true },
+          },
           characters: true,
+          storyMacroPlan: true,
+          volumePlans: {
+            orderBy: { sortOrder: "asc" },
+            include: {
+              chapters: {
+                orderBy: { chapterOrder: "asc" },
+                select: { chapterOrder: true },
+              },
+            },
+          },
           primaryStoryMode: {
             select: {
               id: true,
@@ -304,6 +377,76 @@ export class GenerationContextAssembler {
 
     const previousChaptersSummary = buildPreviousChaptersSummary(request.previousChaptersSummary, summaries);
     const mappedOpenConflicts = openConflicts.map((item) => mapOpenConflict(item));
+    const storyMacroPlan = novel.storyMacroPlan ? mapRowToPlan(novel.storyMacroPlan) : null;
+    const volumeWindow = buildVolumeWindowContext(findVolumeWindowSeed(
+      novel.volumePlans.map((volume) => ({
+        id: volume.id,
+        sortOrder: volume.sortOrder,
+        title: volume.title,
+        summary: volume.summary,
+        mainPromise: volume.mainPromise,
+        openPayoffsJson: volume.openPayoffsJson,
+        chapters: volume.chapters,
+      })),
+      chapter.order,
+    ));
+    const bookContract = buildBookContractContext({
+      title: novel.title,
+      genre: novel.genre?.name ?? null,
+      targetAudience: novel.targetAudience,
+      sellingPoint: novel.bookSellingPoint,
+      first30ChapterPromise: novel.first30ChapterPromise,
+      narrativePov: novel.narrativePov,
+      pacePreference: novel.pacePreference,
+      emotionIntensity: novel.emotionIntensity,
+      toneGuardrails: novel.styleTone ? [novel.styleTone] : [],
+      hardConstraints: storyMacroPlan?.constraints ?? [],
+    });
+    const macroConstraints = buildMacroConstraintContext(storyMacroPlan);
+    const mappedPlan = mapPlan(ensuredPlan);
+    const mappedStateSnapshot = mapStateSnapshot(stateSnapshot);
+    const mappedCharacterRoster = novel.characters.map((item) => ({
+      id: item.id,
+      name: item.name,
+      role: item.role,
+      personality: item.personality ?? null,
+      currentState: item.currentState ?? null,
+      currentGoal: item.currentGoal ?? null,
+    }));
+    const mappedCreativeDecisions = decisions.map((item) => ({
+      id: item.id,
+      chapterId: item.chapterId ?? null,
+      category: item.category,
+      content: item.content,
+      importance: item.importance,
+      expiresAt: item.expiresAt ?? null,
+      sourceType: item.sourceType ?? null,
+      sourceRefId: item.sourceRefId ?? null,
+      createdAt: item.createdAt.toISOString(),
+      updatedAt: item.updatedAt.toISOString(),
+    }));
+    const mappedOpenAuditIssues = openAuditIssues.map((item) => ({
+      id: item.id,
+      reportId: item.reportId,
+      auditType: item.auditType as GenerationContextPackage["openAuditIssues"][number]["auditType"],
+      severity: item.severity as GenerationContextPackage["openAuditIssues"][number]["severity"],
+      code: item.code,
+      description: item.description,
+      evidence: item.evidence,
+      fixSuggestion: item.fixSuggestion,
+      status: item.status as GenerationContextPackage["openAuditIssues"][number]["status"],
+      createdAt: item.createdAt.toISOString(),
+      updatedAt: item.updatedAt.toISOString(),
+    }));
+    const runtimeContinuation = {
+      enabled: continuationPack.enabled,
+      sourceType: continuationPack.sourceType,
+      sourceId: continuationPack.sourceId,
+      sourceTitle: continuationPack.sourceTitle,
+      systemRule: continuationPack.systemRule,
+      humanBlock: continuationPack.humanBlock,
+      antiCopyCorpus: continuationPack.antiCopyCorpus,
+    } satisfies GenerationContextPackage["continuation"];
 
     const summaryText = buildSummaryText(previousChaptersSummary);
     const factText = buildFactText(facts);
@@ -353,6 +496,43 @@ export class GenerationContextAssembler {
       secondary: novel.secondaryStoryMode ? normalizeStoryModeOutput(novel.secondaryStoryMode) : null,
     });
     const openingHint = await this.buildOpeningConstraintHint(novelId, chapter.order);
+    const baseContextPackage: GenerationContextPackage = {
+      chapter: {
+        id: chapter.id,
+        title: chapter.title,
+        order: chapter.order,
+        content: chapter.content ?? null,
+        expectation: chapter.expectation ?? null,
+        supportingContextText: "",
+      },
+      plan: mappedPlan,
+      stateSnapshot: mappedStateSnapshot,
+      openConflicts: mappedOpenConflicts,
+      storyWorldSlice,
+      characterDynamics,
+      characterRoster: mappedCharacterRoster,
+      creativeDecisions: mappedCreativeDecisions,
+      openAuditIssues: mappedOpenAuditIssues,
+      previousChaptersSummary,
+      openingHint,
+      continuation: runtimeContinuation,
+      styleContext,
+      bookContract,
+      macroConstraints,
+      volumeWindow,
+      chapterMission: null,
+      chapterWriteContext: null,
+      chapterReviewContext: null,
+      chapterRepairContext: null,
+      promptBudgetProfiles: getRuntimePromptBudgetProfiles(),
+    };
+    const chapterWriteContext = buildChapterWriteContext({
+      bookContract,
+      macroConstraints,
+      volumeWindow,
+      contextPackage: baseContextPackage,
+    });
+    const chapterReviewContext = buildChapterReviewContext(chapterWriteContext, baseContextPackage);
     const contextPackage: GenerationContextPackage = {
       chapter: {
         id: chapter.id,
@@ -378,56 +558,26 @@ export class GenerationContextAssembler {
           styleEngineBlock,
         }),
       },
-      plan: mapPlan(ensuredPlan),
-      stateSnapshot: mapStateSnapshot(stateSnapshot),
+      plan: mappedPlan,
+      stateSnapshot: mappedStateSnapshot,
       openConflicts: mappedOpenConflicts,
       storyWorldSlice,
       characterDynamics,
-      characterRoster: novel.characters.map((item) => ({
-        id: item.id,
-        name: item.name,
-        role: item.role,
-        personality: item.personality ?? null,
-        currentState: item.currentState ?? null,
-        currentGoal: item.currentGoal ?? null,
-      })),
-      creativeDecisions: decisions.map((item) => ({
-        id: item.id,
-        chapterId: item.chapterId ?? null,
-        category: item.category,
-        content: item.content,
-        importance: item.importance,
-        expiresAt: item.expiresAt ?? null,
-        sourceType: item.sourceType ?? null,
-        sourceRefId: item.sourceRefId ?? null,
-        createdAt: item.createdAt.toISOString(),
-        updatedAt: item.updatedAt.toISOString(),
-      })),
-      openAuditIssues: openAuditIssues.map((item) => ({
-        id: item.id,
-        reportId: item.reportId,
-        auditType: item.auditType as GenerationContextPackage["openAuditIssues"][number]["auditType"],
-        severity: item.severity as GenerationContextPackage["openAuditIssues"][number]["severity"],
-        code: item.code,
-        description: item.description,
-        evidence: item.evidence,
-        fixSuggestion: item.fixSuggestion,
-        status: item.status as GenerationContextPackage["openAuditIssues"][number]["status"],
-        createdAt: item.createdAt.toISOString(),
-        updatedAt: item.updatedAt.toISOString(),
-      })),
+      characterRoster: mappedCharacterRoster,
+      creativeDecisions: mappedCreativeDecisions,
+      openAuditIssues: mappedOpenAuditIssues,
       previousChaptersSummary,
       openingHint,
-      continuation: {
-        enabled: continuationPack.enabled,
-        sourceType: continuationPack.sourceType,
-        sourceId: continuationPack.sourceId,
-        sourceTitle: continuationPack.sourceTitle,
-        systemRule: continuationPack.systemRule,
-        humanBlock: continuationPack.humanBlock,
-        antiCopyCorpus: continuationPack.antiCopyCorpus,
-      },
+      continuation: runtimeContinuation,
       styleContext,
+      bookContract,
+      macroConstraints,
+      volumeWindow,
+      chapterMission: chapterWriteContext.chapterMission,
+      chapterWriteContext,
+      chapterReviewContext,
+      chapterRepairContext: null,
+      promptBudgetProfiles: getRuntimePromptBudgetProfiles(),
     };
 
     return {
