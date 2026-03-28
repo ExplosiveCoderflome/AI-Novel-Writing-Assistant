@@ -11,7 +11,10 @@ export default function Navbar() {
     <header className="flex h-16 items-center justify-between border-b bg-background px-6">
       <div className="flex items-center gap-2">
         <PenSquare className="h-5 w-5" />
-        <span className="text-sm font-semibold">AI 小说写作助手</span>
+        <div className="flex flex-col leading-tight">
+          <span className="text-sm font-semibold">AI 小说创作工作台</span>
+          <span className="text-[11px] text-muted-foreground">AI Novel Production Engine</span>
+        </div>
       </div>
       {isHome ? (
         <Button asChild size="sm" variant="outline">
