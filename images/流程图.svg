@@ -1,0 +1,657 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1601" height="1048.5" id="mermaid-1774715763941" xmlns="http://www.w3.org/2000/svg" class="flowchart" style="max-width: 1601px;" viewBox="0 0 1601 1048.5" role="graphics-document document" aria-roledescription="flowchart-v2"><style>
+
+        /* Playful Doodle Style - Hand-drawn whimsical design */
+        
+        /* Flowchart nodes - Soft colors with hand-drawn borders */
+        .node rect, .node polygon {
+          fill: #ffdff6 !important;
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          rx: 20px !important;
+          ry: 20px !important;
+          filter: drop-shadow(4px 4px 0px rgba(0,0,0,0.2));
+        }
+        
+        .node circle {
+          fill: #ffdff6 !important;
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          filter: drop-shadow(3px 3px 0px rgba(0,0,0,0.15));
+        }
+        
+        .node .label {
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 600;
+          fill: #000000 !important;
+          font-size: 15px;
+        }
+        
+        /* Alternate node colors - Doodle style palette */
+        .node:nth-child(2n) rect,
+        .node:nth-child(2n) circle,
+        .node:nth-child(2n) polygon {
+          fill: #dff4ff !important;
+        }
+        
+        .node:nth-child(3n) rect,
+        .node:nth-child(3n) circle,
+        .node:nth-child(3n) polygon {
+          fill: #f0e7ff !important;
+        }
+        
+        .node:nth-child(5n) rect,
+        .node:nth-child(5n) circle,
+        .node:nth-child(5n) polygon {
+          fill: #fff4e6 !important;
+        }
+        
+        .node:nth-child(7n) rect,
+        .node:nth-child(7n) circle,
+        .node:nth-child(7n) polygon {
+          fill: #e7f9f5 !important;
+        }
+        
+        /* Connection lines - Hand-drawn style */
+        .edgePath .path {
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+        
+        .arrowheadPath {
+          fill: #000000 !important;
+          stroke: #000000 !important;
+          stroke-width: 2px !important;
+        }
+        
+        .edgeLabel {
+          color: #000000 !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-size: 14px;
+          font-weight: 600;
+        }
+        
+        .edgeLabel rect {
+          fill: #ffffff !important;
+          stroke: #000000 !important;
+          stroke-width: 2px !important;
+          rx: 12px !important;
+          filter: drop-shadow(2px 2px 0px rgba(0,0,0,0.1));
+        }
+        
+        /* Sequence Diagram - Doodle style */
+        .actor {
+          fill: #ffdff6 !important;
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          rx: 20px !important;
+          ry: 20px !important;
+          filter: drop-shadow(4px 4px 0px rgba(0,0,0,0.2));
+        }
+        
+        .actor:nth-child(2n) {
+          fill: #dff4ff !important;
+        }
+        
+        .actor:nth-child(3n) {
+          fill: #f0e7ff !important;
+        }
+        
+        .actor:nth-child(4n) {
+          fill: #fff4e6 !important;
+        }
+        
+        .actor text {
+          fill: #000000 !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 700;
+        }
+        
+        .actor-line, g line.actor-line, g path.actor-line {
+          stroke: #000000 !important;
+          stroke-width: 2px !important;
+          stroke-dasharray: 6 3 !important;
+        }
+        
+        .activation0, .activation1, .activation2 {
+          fill: #f0e7ff !important;
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          rx: 8px !important;
+          filter: drop-shadow(3px 3px 0px rgba(0,0,0,0.15));
+        }
+        
+        .messageLine0, .messageLine1 {
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          stroke-linecap: round;
+        }
+        
+        .messageText {
+          fill: #000000 !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 600;
+          font-size: 14px;
+        }
+        
+        #arrowhead path, .arrowheadPath {
+          fill: #000000 !important;
+          stroke: #000000 !important;
+        }
+        
+        /* Note boxes - Soft yellow */
+        .note {
+          fill: #fff4e6 !important;
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          rx: 15px !important;
+          ry: 15px !important;
+          filter: drop-shadow(4px 4px 0px rgba(0,0,0,0.2));
+        }
+        
+        .noteText {
+          fill: #000000 !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 600;
+        }
+        
+        /* Loop/Alt/Opt boxes - Soft purple */
+        .labelBox {
+          fill: #f0e7ff !important;
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          rx: 15px !important;
+          ry: 15px !important;
+          filter: drop-shadow(4px 4px 0px rgba(0,0,0,0.2));
+        }
+        
+        .labelText, .loopText {
+          fill: #000000 !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 700;
+        }
+        
+        .loopLine {
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          rx: 15px !important;
+        }
+        
+        /* Cluster/Subgraph styling - Soft blue */
+        .cluster rect {
+          fill: #dff4ff !important;
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          rx: 25px !important;
+          ry: 25px !important;
+          filter: drop-shadow(5px 5px 0px rgba(0,0,0,0.15));
+        }
+        
+        .cluster text {
+          fill: #000000 !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 700;
+        }
+        
+        /* State diagram */
+        .statediagram-state rect,
+        .statediagram-state .state-inner {
+          fill: #ffdff6 !important;
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          rx: 20px !important;
+          filter: drop-shadow(4px 4px 0px rgba(0,0,0,0.2));
+        }
+        
+        .statediagram-state:nth-child(2n) rect,
+        .statediagram-state:nth-child(2n) .state-inner {
+          fill: #dff4ff !important;
+        }
+        
+        .statediagram-state:nth-child(3n) rect,
+        .statediagram-state:nth-child(3n) .state-inner {
+          fill: #f0e7ff !important;
+        }
+        
+        .statediagram-state:nth-child(5n) rect,
+        .statediagram-state:nth-child(5n) .state-inner {
+          fill: #fff4e6 !important;
+        }
+        
+        .stateLabel text {
+          fill: #000000 !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 700;
+        }
+        
+        .transition {
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+        }
+        
+        /* Class Diagram */
+        .classGroup rect {
+          fill: #ffdff6 !important;
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          rx: 20px !important;
+          filter: drop-shadow(4px 4px 0px rgba(0,0,0,0.2));
+        }
+        
+        .classGroup:nth-child(2n) rect {
+          fill: #dff4ff !important;
+        }
+        
+        .classGroup:nth-child(3n) rect {
+          fill: #f0e7ff !important;
+        }
+        
+        .classGroup line {
+          stroke: #000000 !important;
+          stroke-width: 2px !important;
+        }
+        
+        .classLabel .label {
+          fill: #000000 !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 700;
+        }
+        
+        .classLabel .box {
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          rx: 20px !important;
+        }
+        
+        .relationshipLine {
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+        }
+        
+        .relationshipLabelBox {
+          fill: #ffffff !important;
+          stroke: #000000 !important;
+          stroke-width: 2px !important;
+          rx: 10px !important;
+        }
+        
+        /* ER Diagram */
+        .er.entityBox {
+          fill: #dff4ff !important;
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          rx: 20px !important;
+          filter: drop-shadow(4px 4px 0px rgba(0,0,0,0.2));
+        }
+        
+        .er.entityBox:nth-child(2n) {
+          fill: #ffdff6 !important;
+        }
+        
+        .er.entityBox:nth-child(3n) {
+          fill: #f0e7ff !important;
+        }
+        
+        .er.entityLabel,
+        .er.relationshipLabel {
+          fill: #000000 !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 700;
+        }
+        
+        .er .relationshipLine {
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+        }
+        
+        .er .relationshipLabelBox {
+          fill: #ffffff !important;
+          stroke: #000000 !important;
+          stroke-width: 2px !important;
+          rx: 10px !important;
+        }
+        
+        /* Gantt Chart */
+        .titleText {
+          fill: #000000 !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 700;
+          font-size: 20px;
+        }
+        
+        .grid .tick text {
+          fill: #000000 !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-size: 13px;
+        }
+        
+        .grid line {
+          stroke: #e0e0e0 !important;
+          stroke-width: 1px !important;
+          opacity: 0.5;
+        }
+        
+        .taskText {
+          fill: #000000 !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 600;
+        }
+        
+        .taskTextOutsideRight,
+        .taskTextOutsideLeft {
+          fill: #000000 !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 600;
+        }
+        
+        .task0, .task1, .task2, .task3 {
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          rx: 12px !important;
+        }
+        
+        .task0 {
+          fill: #ffdff6 !important;
+        }
+        
+        .task1 {
+          fill: #dff4ff !important;
+        }
+        
+        .task2 {
+          fill: #f0e7ff !important;
+        }
+        
+        .task3 {
+          fill: #fff4e6 !important;
+        }
+        
+        .section0, .section1, .section2, .section3 {
+          fill: #000000 !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 700;
+          font-size: 14px;
+        }
+        
+        .sectionTitle0, .sectionTitle1, .sectionTitle2, .sectionTitle3 {
+          fill: #ffffff !important;
+        }
+        
+        .done0, .done1, .done2, .done3 {
+          stroke: #22c55e !important;
+          stroke-width: 3px !important;
+          fill: #bbf7d0 !important;
+        }
+        
+        .active0, .active1, .active2, .active3 {
+          stroke: #3b82f6 !important;
+          stroke-width: 3px !important;
+          fill: #bfdbfe !important;
+        }
+        
+        .crit0, .crit1, .crit2, .crit3 {
+          stroke: #ef4444 !important;
+          stroke-width: 3px !important;
+          fill: #fecaca !important;
+        }
+        
+        .activeCrit0, .activeCrit1, .activeCrit2, .activeCrit3 {
+          stroke: #9333ea !important;
+          stroke-width: 3px !important;
+          fill: #e9d5ff !important;
+        }
+        
+        /* Pie Chart */
+        .pieCircle {
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+        }
+        
+        .pieTitleText {
+          fill: #000000 !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 700;
+          font-size: 20px;
+        }
+        
+        .slice {
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          filter: drop-shadow(2px 2px 0px rgba(0,0,0,0.1));
+        }
+        
+        .slice:nth-child(1) {
+          fill: #ffdff6 !important;
+        }
+        
+        .slice:nth-child(2) {
+          fill: #dff4ff !important;
+        }
+        
+        .slice:nth-child(3) {
+          fill: #f0e7ff !important;
+        }
+        
+        .slice:nth-child(4) {
+          fill: #fff4e6 !important;
+        }
+        
+        .slice:nth-child(5) {
+          fill: #e7f9f5 !important;
+        }
+        
+        .slice:nth-child(6) {
+          fill: #fef3c7 !important;
+        }
+        
+        .pieOuterCircle {
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          fill: none;
+        }
+        
+        .legend text {
+          fill: #000000 !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 600;
+          font-size: 14px;
+        }
+        
+        .legend rect {
+          stroke: #000000 !important;
+          stroke-width: 2px !important;
+          rx: 6px !important;
+        }
+        
+        /* Journey Diagram */
+        .journey-section {
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          fill: #f0e7ff !important;
+          rx: 15px !important;
+        }
+        
+        .task-section {
+          fill: #ffdff6 !important;
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          rx: 12px !important;
+        }
+        
+        .task-section:nth-child(2n) {
+          fill: #dff4ff !important;
+        }
+        
+        .task-section:nth-child(3n) {
+          fill: #fff4e6 !important;
+        }
+        
+        /* XYChart styles - Doodle theme colors */
+        .line-plot-0 path {
+          stroke: #ec4899 !important;
+          stroke-width: 4px !important;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+        
+        .line-plot-1 path {
+          stroke: #3b82f6 !important;
+          stroke-width: 4px !important;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+        
+        .line-plot-2 path {
+          stroke: #9333ea !important;
+          stroke-width: 4px !important;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+        
+        .bar-plot-0 rect {
+          fill: #fce7f3 !important;
+          stroke: #ec4899 !important;
+          stroke-width: 3px !important;
+          rx: 8px !important;
+        }
+        
+        .bar-plot-1 rect {
+          fill: #dbeafe !important;
+          stroke: #3b82f6 !important;
+          stroke-width: 3px !important;
+          rx: 8px !important;
+        }
+        
+        .bar-plot-2 rect {
+          fill: #f3e8ff !important;
+          stroke: #9333ea !important;
+          stroke-width: 3px !important;
+          rx: 8px !important;
+        }
+        
+        .ticks path {
+          stroke: #000000 !important;
+          stroke-width: 2px !important;
+        }
+        
+        .chart-title text {
+          fill: #000000 !important;
+          font-weight: 700 !important;
+          font-size: 20px !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+        }
+        
+        .left-axis .label text, .bottom-axis .label text {
+          fill: #000000 !important;
+          font-size: 14px !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 600;
+        }
+        
+        .left-axis .title text, .bottom-axis .title text {
+          fill: #000000 !important;
+          font-size: 16px !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 700;
+        }
+        
+        .legend text {
+          fill: #000000 !important;
+          font-size: 14px !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 600;
+        }
+        
+        .legend rect {
+          stroke: #000000 !important;
+          stroke-width: 2px !important;
+          rx: 6px !important;
+        }
+        
+        /* Git Graph */
+        .commit-id, .commit-msg, .branch-label {
+          fill: #000000 !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 600;
+        }
+        
+        .commit {
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+        }
+        
+        .commit0 {
+          fill: #ffdff6 !important;
+        }
+        
+        .commit1 {
+          fill: #dff4ff !important;
+        }
+        
+        .commit2 {
+          fill: #f0e7ff !important;
+        }
+        
+        .commit3 {
+          fill: #fff4e6 !important;
+        }
+        
+        .commit-highlight-outer {
+          fill: #fbbf24;
+          opacity: 0.3;
+        }
+        
+        .commit-highlight-inner {
+          fill: #fbbf24;
+          opacity: 0.5;
+          stroke: #f59e0b;
+        }
+        
+        .branch path {
+          stroke-width: 3px !important;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+        
+        .branch.branch0 {
+          stroke: #ec4899 !important;
+        }
+        
+        .branch.branch1 {
+          stroke: #3b82f6 !important;
+        }
+        
+        .branch.branch2 {
+          stroke: #9333ea !important;
+        }
+        
+        .branch.branch3 {
+          stroke: #f59e0b !important;
+        }
+        
+        /* Timeline */
+        .timeline-event {
+          fill: #ffdff6 !important;
+          stroke: #000000 !important;
+          stroke-width: 3px !important;
+          rx: 15px !important;
+          filter: drop-shadow(3px 3px 0px rgba(0,0,0,0.15));
+        }
+        
+        .timeline-event:nth-child(2n) {
+          fill: #dff4ff !important;
+        }
+        
+        .timeline-event:nth-child(3n) {
+          fill: #f0e7ff !important;
+        }
+        
+        .timeline-event-text {
+          fill: #000000 !important;
+          font-family: "Comic Neue", "Comic Sans MS", "Noto Sans SC", cursive, sans-serif;
+          font-weight: 600;
+        }
+      
+</style><style>#mermaid-1774715763941{font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-size:15px;fill:#000000;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#mermaid-1774715763941 .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#mermaid-1774715763941 .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#mermaid-1774715763941 .error-icon{fill:#f0e7ff;}#mermaid-1774715763941 .error-text{fill:#0f1800;stroke:#0f1800;}#mermaid-1774715763941 .edge-thickness-normal{stroke-width:1px;}#mermaid-1774715763941 .edge-thickness-thick{stroke-width:3.5px;}#mermaid-1774715763941 .edge-pattern-solid{stroke-dasharray:0;}#mermaid-1774715763941 .edge-thickness-invisible{stroke-width:0;fill:none;}#mermaid-1774715763941 .edge-pattern-dashed{stroke-dasharray:3;}#mermaid-1774715763941 .edge-pattern-dotted{stroke-dasharray:2;}#mermaid-1774715763941 .marker{fill:#000000;stroke:#000000;}#mermaid-1774715763941 .marker.cross{stroke:#000000;}#mermaid-1774715763941 svg{font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-size:15px;}#mermaid-1774715763941 p{margin:0;}#mermaid-1774715763941 .label{font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;color:#000000;}#mermaid-1774715763941 .cluster-label text{fill:#0f1800;}#mermaid-1774715763941 .cluster-label span{color:#0f1800;}#mermaid-1774715763941 .cluster-label span p{background-color:transparent;}#mermaid-1774715763941 .label text,#mermaid-1774715763941 span{fill:#000000;color:#000000;}#mermaid-1774715763941 .node rect,#mermaid-1774715763941 .node circle,#mermaid-1774715763941 .node ellipse,#mermaid-1774715763941 .node polygon,#mermaid-1774715763941 .node path{fill:#ffdff6;stroke:#000000;stroke-width:1px;}#mermaid-1774715763941 .rough-node .label text,#mermaid-1774715763941 .node .label text,#mermaid-1774715763941 .image-shape .label,#mermaid-1774715763941 .icon-shape .label{text-anchor:middle;}#mermaid-1774715763941 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#mermaid-1774715763941 .rough-node .label,#mermaid-1774715763941 .node .label,#mermaid-1774715763941 .image-shape .label,#mermaid-1774715763941 .icon-shape .label{text-align:center;}#mermaid-1774715763941 .node.clickable{cursor:pointer;}#mermaid-1774715763941 .root .anchor path{fill:#000000!important;stroke-width:0;stroke:#000000;}#mermaid-1774715763941 .arrowheadPath{fill:#001107;}#mermaid-1774715763941 .edgePath .path{stroke:#000000;stroke-width:2.0px;}#mermaid-1774715763941 .flowchart-link{stroke:#000000;fill:none;}#mermaid-1774715763941 .edgeLabel{background-color:#dff4ff;text-align:center;}#mermaid-1774715763941 .edgeLabel p{background-color:#dff4ff;}#mermaid-1774715763941 .edgeLabel rect{opacity:0.5;background-color:#dff4ff;fill:#dff4ff;}#mermaid-1774715763941 .labelBkg{background-color:rgba(223, 244, 255, 0.5);}#mermaid-1774715763941 .cluster rect{fill:#f0e7ff;stroke:hsl(262.5, 60%, 85.2941176471%);stroke-width:1px;}#mermaid-1774715763941 .cluster text{fill:#0f1800;}#mermaid-1774715763941 .cluster span{color:#0f1800;}#mermaid-1774715763941 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-size:12px;background:#f0e7ff;border:1px solid hsl(262.5, 60%, 85.2941176471%);border-radius:2px;pointer-events:none;z-index:100;}#mermaid-1774715763941 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#000000;}#mermaid-1774715763941 rect.text{fill:none;stroke-width:0;}#mermaid-1774715763941 .icon-shape,#mermaid-1774715763941 .image-shape{background-color:#dff4ff;text-align:center;}#mermaid-1774715763941 .icon-shape p,#mermaid-1774715763941 .image-shape p{background-color:#dff4ff;padding:2px;}#mermaid-1774715763941 .icon-shape rect,#mermaid-1774715763941 .image-shape rect{opacity:0.5;background-color:#dff4ff;fill:#dff4ff;}#mermaid-1774715763941 .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#mermaid-1774715763941 .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#mermaid-1774715763941 .node rect,#mermaid-1774715763941 .node polygon{fill:#ffdff6!important;stroke:#000000!important;stroke-width:3px!important;rx:20px!important;ry:20px!important;filter:drop-shadow(4px 4px 0px rgba(0,0,0,0.2));}#mermaid-1774715763941 .node circle{fill:#ffdff6!important;stroke:#000000!important;stroke-width:3px!important;filter:drop-shadow(3px 3px 0px rgba(0,0,0,0.15));}#mermaid-1774715763941 .node .label{font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:600;fill:#000000!important;font-size:15px;}#mermaid-1774715763941 .node:nth-child(2n) rect,#mermaid-1774715763941 .node:nth-child(2n) circle,#mermaid-1774715763941 .node:nth-child(2n) polygon{fill:#dff4ff!important;}#mermaid-1774715763941 .node:nth-child(3n) rect,#mermaid-1774715763941 .node:nth-child(3n) circle,#mermaid-1774715763941 .node:nth-child(3n) polygon{fill:#f0e7ff!important;}#mermaid-1774715763941 .node:nth-child(5n) rect,#mermaid-1774715763941 .node:nth-child(5n) circle,#mermaid-1774715763941 .node:nth-child(5n) polygon{fill:#fff4e6!important;}#mermaid-1774715763941 .node:nth-child(7n) rect,#mermaid-1774715763941 .node:nth-child(7n) circle,#mermaid-1774715763941 .node:nth-child(7n) polygon{fill:#e7f9f5!important;}#mermaid-1774715763941 .edgePath .path{stroke:#000000!important;stroke-width:3px!important;stroke-linecap:round;stroke-linejoin:round;}#mermaid-1774715763941 .arrowheadPath{fill:#000000!important;stroke:#000000!important;stroke-width:2px!important;}#mermaid-1774715763941 .edgeLabel{color:#000000!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-size:14px;font-weight:600;}#mermaid-1774715763941 .edgeLabel rect{fill:#ffffff!important;stroke:#000000!important;stroke-width:2px!important;rx:12px!important;filter:drop-shadow(2px 2px 0px rgba(0,0,0,0.1));}#mermaid-1774715763941 .actor{fill:#ffdff6!important;stroke:#000000!important;stroke-width:3px!important;rx:20px!important;ry:20px!important;filter:drop-shadow(4px 4px 0px rgba(0,0,0,0.2));}#mermaid-1774715763941 .actor:nth-child(2n){fill:#dff4ff!important;}#mermaid-1774715763941 .actor:nth-child(3n){fill:#f0e7ff!important;}#mermaid-1774715763941 .actor:nth-child(4n){fill:#fff4e6!important;}#mermaid-1774715763941 .actor text{fill:#000000!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:700;}#mermaid-1774715763941 .actor-line,#mermaid-1774715763941 g line.actor-line,#mermaid-1774715763941 g path.actor-line{stroke:#000000!important;stroke-width:2px!important;stroke-dasharray:6 3!important;}#mermaid-1774715763941 .activation0,#mermaid-1774715763941 .activation1,#mermaid-1774715763941 .activation2{fill:#f0e7ff!important;stroke:#000000!important;stroke-width:3px!important;rx:8px!important;filter:drop-shadow(3px 3px 0px rgba(0,0,0,0.15));}#mermaid-1774715763941 .messageLine0,#mermaid-1774715763941 .messageLine1{stroke:#000000!important;stroke-width:3px!important;stroke-linecap:round;}#mermaid-1774715763941 .messageText{fill:#000000!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:600;font-size:14px;}#mermaid-1774715763941 #arrowhead path,#mermaid-1774715763941 .arrowheadPath{fill:#000000!important;stroke:#000000!important;}#mermaid-1774715763941 .note{fill:#fff4e6!important;stroke:#000000!important;stroke-width:3px!important;rx:15px!important;ry:15px!important;filter:drop-shadow(4px 4px 0px rgba(0,0,0,0.2));}#mermaid-1774715763941 .noteText{fill:#000000!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:600;}#mermaid-1774715763941 .labelBox{fill:#f0e7ff!important;stroke:#000000!important;stroke-width:3px!important;rx:15px!important;ry:15px!important;filter:drop-shadow(4px 4px 0px rgba(0,0,0,0.2));}#mermaid-1774715763941 .labelText,#mermaid-1774715763941 .loopText{fill:#000000!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:700;}#mermaid-1774715763941 .loopLine{stroke:#000000!important;stroke-width:3px!important;rx:15px!important;}#mermaid-1774715763941 .cluster rect{fill:#dff4ff!important;stroke:#000000!important;stroke-width:3px!important;rx:25px!important;ry:25px!important;filter:drop-shadow(5px 5px 0px rgba(0,0,0,0.15));}#mermaid-1774715763941 .cluster text{fill:#000000!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:700;}#mermaid-1774715763941 .statediagram-state rect,#mermaid-1774715763941 .statediagram-state .state-inner{fill:#ffdff6!important;stroke:#000000!important;stroke-width:3px!important;rx:20px!important;filter:drop-shadow(4px 4px 0px rgba(0,0,0,0.2));}#mermaid-1774715763941 .statediagram-state:nth-child(2n) rect,#mermaid-1774715763941 .statediagram-state:nth-child(2n) .state-inner{fill:#dff4ff!important;}#mermaid-1774715763941 .statediagram-state:nth-child(3n) rect,#mermaid-1774715763941 .statediagram-state:nth-child(3n) .state-inner{fill:#f0e7ff!important;}#mermaid-1774715763941 .statediagram-state:nth-child(5n) rect,#mermaid-1774715763941 .statediagram-state:nth-child(5n) .state-inner{fill:#fff4e6!important;}#mermaid-1774715763941 .stateLabel text{fill:#000000!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:700;}#mermaid-1774715763941 .transition{stroke:#000000!important;stroke-width:3px!important;}#mermaid-1774715763941 .classGroup rect{fill:#ffdff6!important;stroke:#000000!important;stroke-width:3px!important;rx:20px!important;filter:drop-shadow(4px 4px 0px rgba(0,0,0,0.2));}#mermaid-1774715763941 .classGroup:nth-child(2n) rect{fill:#dff4ff!important;}#mermaid-1774715763941 .classGroup:nth-child(3n) rect{fill:#f0e7ff!important;}#mermaid-1774715763941 .classGroup line{stroke:#000000!important;stroke-width:2px!important;}#mermaid-1774715763941 .classLabel .label{fill:#000000!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:700;}#mermaid-1774715763941 .classLabel .box{stroke:#000000!important;stroke-width:3px!important;rx:20px!important;}#mermaid-1774715763941 .relationshipLine{stroke:#000000!important;stroke-width:3px!important;}#mermaid-1774715763941 .relationshipLabelBox{fill:#ffffff!important;stroke:#000000!important;stroke-width:2px!important;rx:10px!important;}#mermaid-1774715763941 .er.entityBox{fill:#dff4ff!important;stroke:#000000!important;stroke-width:3px!important;rx:20px!important;filter:drop-shadow(4px 4px 0px rgba(0,0,0,0.2));}#mermaid-1774715763941 .er.entityBox:nth-child(2n){fill:#ffdff6!important;}#mermaid-1774715763941 .er.entityBox:nth-child(3n){fill:#f0e7ff!important;}#mermaid-1774715763941 .er.entityLabel,#mermaid-1774715763941 .er.relationshipLabel{fill:#000000!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:700;}#mermaid-1774715763941 .er .relationshipLine{stroke:#000000!important;stroke-width:3px!important;}#mermaid-1774715763941 .er .relationshipLabelBox{fill:#ffffff!important;stroke:#000000!important;stroke-width:2px!important;rx:10px!important;}#mermaid-1774715763941 .titleText{fill:#000000!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:700;font-size:20px;}#mermaid-1774715763941 .grid .tick text{fill:#000000!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-size:13px;}#mermaid-1774715763941 .grid line{stroke:#e0e0e0!important;stroke-width:1px!important;opacity:0.5;}#mermaid-1774715763941 .taskText{fill:#000000!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:600;}#mermaid-1774715763941 .taskTextOutsideRight,#mermaid-1774715763941 .taskTextOutsideLeft{fill:#000000!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:600;}#mermaid-1774715763941 .task0,#mermaid-1774715763941 .task1,#mermaid-1774715763941 .task2,#mermaid-1774715763941 .task3{stroke:#000000!important;stroke-width:3px!important;rx:12px!important;}#mermaid-1774715763941 .task0{fill:#ffdff6!important;}#mermaid-1774715763941 .task1{fill:#dff4ff!important;}#mermaid-1774715763941 .task2{fill:#f0e7ff!important;}#mermaid-1774715763941 .task3{fill:#fff4e6!important;}#mermaid-1774715763941 .section0,#mermaid-1774715763941 .section1,#mermaid-1774715763941 .section2,#mermaid-1774715763941 .section3{fill:#000000!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:700;font-size:14px;}#mermaid-1774715763941 .sectionTitle0,#mermaid-1774715763941 .sectionTitle1,#mermaid-1774715763941 .sectionTitle2,#mermaid-1774715763941 .sectionTitle3{fill:#ffffff!important;}#mermaid-1774715763941 .done0,#mermaid-1774715763941 .done1,#mermaid-1774715763941 .done2,#mermaid-1774715763941 .done3{stroke:#22c55e!important;stroke-width:3px!important;fill:#bbf7d0!important;}#mermaid-1774715763941 .active0,#mermaid-1774715763941 .active1,#mermaid-1774715763941 .active2,#mermaid-1774715763941 .active3{stroke:#3b82f6!important;stroke-width:3px!important;fill:#bfdbfe!important;}#mermaid-1774715763941 .crit0,#mermaid-1774715763941 .crit1,#mermaid-1774715763941 .crit2,#mermaid-1774715763941 .crit3{stroke:#ef4444!important;stroke-width:3px!important;fill:#fecaca!important;}#mermaid-1774715763941 .activeCrit0,#mermaid-1774715763941 .activeCrit1,#mermaid-1774715763941 .activeCrit2,#mermaid-1774715763941 .activeCrit3{stroke:#9333ea!important;stroke-width:3px!important;fill:#e9d5ff!important;}#mermaid-1774715763941 .pieCircle{stroke:#000000!important;stroke-width:3px!important;}#mermaid-1774715763941 .pieTitleText{fill:#000000!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:700;font-size:20px;}#mermaid-1774715763941 .slice{stroke:#000000!important;stroke-width:3px!important;filter:drop-shadow(2px 2px 0px rgba(0,0,0,0.1));}#mermaid-1774715763941 .slice:nth-child(1){fill:#ffdff6!important;}#mermaid-1774715763941 .slice:nth-child(2){fill:#dff4ff!important;}#mermaid-1774715763941 .slice:nth-child(3){fill:#f0e7ff!important;}#mermaid-1774715763941 .slice:nth-child(4){fill:#fff4e6!important;}#mermaid-1774715763941 .slice:nth-child(5){fill:#e7f9f5!important;}#mermaid-1774715763941 .slice:nth-child(6){fill:#fef3c7!important;}#mermaid-1774715763941 .pieOuterCircle{stroke:#000000!important;stroke-width:3px!important;fill:none;}#mermaid-1774715763941 .legend text{fill:#000000!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:600;font-size:14px;}#mermaid-1774715763941 .legend rect{stroke:#000000!important;stroke-width:2px!important;rx:6px!important;}#mermaid-1774715763941 .journey-section{stroke:#000000!important;stroke-width:3px!important;fill:#f0e7ff!important;rx:15px!important;}#mermaid-1774715763941 .task-section{fill:#ffdff6!important;stroke:#000000!important;stroke-width:3px!important;rx:12px!important;}#mermaid-1774715763941 .task-section:nth-child(2n){fill:#dff4ff!important;}#mermaid-1774715763941 .task-section:nth-child(3n){fill:#fff4e6!important;}#mermaid-1774715763941 .line-plot-0 path{stroke:#ec4899!important;stroke-width:4px!important;stroke-linecap:round;stroke-linejoin:round;}#mermaid-1774715763941 .line-plot-1 path{stroke:#3b82f6!important;stroke-width:4px!important;stroke-linecap:round;stroke-linejoin:round;}#mermaid-1774715763941 .line-plot-2 path{stroke:#9333ea!important;stroke-width:4px!important;stroke-linecap:round;stroke-linejoin:round;}#mermaid-1774715763941 .bar-plot-0 rect{fill:#fce7f3!important;stroke:#ec4899!important;stroke-width:3px!important;rx:8px!important;}#mermaid-1774715763941 .bar-plot-1 rect{fill:#dbeafe!important;stroke:#3b82f6!important;stroke-width:3px!important;rx:8px!important;}#mermaid-1774715763941 .bar-plot-2 rect{fill:#f3e8ff!important;stroke:#9333ea!important;stroke-width:3px!important;rx:8px!important;}#mermaid-1774715763941 .ticks path{stroke:#000000!important;stroke-width:2px!important;}#mermaid-1774715763941 .chart-title text{fill:#000000!important;font-weight:700!important;font-size:20px!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;}#mermaid-1774715763941 .left-axis .label text,#mermaid-1774715763941 .bottom-axis .label text{fill:#000000!important;font-size:14px!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:600;}#mermaid-1774715763941 .left-axis .title text,#mermaid-1774715763941 .bottom-axis .title text{fill:#000000!important;font-size:16px!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:700;}#mermaid-1774715763941 .legend text{fill:#000000!important;font-size:14px!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:600;}#mermaid-1774715763941 .legend rect{stroke:#000000!important;stroke-width:2px!important;rx:6px!important;}#mermaid-1774715763941 .commit-id,#mermaid-1774715763941 .commit-msg,#mermaid-1774715763941 .branch-label{fill:#000000!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:600;}#mermaid-1774715763941 .commit{stroke:#000000!important;stroke-width:3px!important;}#mermaid-1774715763941 .commit0{fill:#ffdff6!important;}#mermaid-1774715763941 .commit1{fill:#dff4ff!important;}#mermaid-1774715763941 .commit2{fill:#f0e7ff!important;}#mermaid-1774715763941 .commit3{fill:#fff4e6!important;}#mermaid-1774715763941 .commit-highlight-outer{fill:#fbbf24;opacity:0.3;}#mermaid-1774715763941 .commit-highlight-inner{fill:#fbbf24;opacity:0.5;stroke:#f59e0b;}#mermaid-1774715763941 .branch path{stroke-width:3px!important;stroke-linecap:round;stroke-linejoin:round;}#mermaid-1774715763941 .branch.branch0{stroke:#ec4899!important;}#mermaid-1774715763941 .branch.branch1{stroke:#3b82f6!important;}#mermaid-1774715763941 .branch.branch2{stroke:#9333ea!important;}#mermaid-1774715763941 .branch.branch3{stroke:#f59e0b!important;}#mermaid-1774715763941 .timeline-event{fill:#ffdff6!important;stroke:#000000!important;stroke-width:3px!important;rx:15px!important;filter:drop-shadow(3px 3px 0px rgba(0,0,0,0.15));}#mermaid-1774715763941 .timeline-event:nth-child(2n){fill:#dff4ff!important;}#mermaid-1774715763941 .timeline-event:nth-child(3n){fill:#f0e7ff!important;}#mermaid-1774715763941 .timeline-event-text{fill:#000000!important;font-family:"Comic Neue","Comic Sans MS","Noto Sans SC",cursive,sans-serif;font-weight:600;}#mermaid-1774715763941 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker id="mermaid-1774715763941_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="mermaid-1774715763941_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="mermaid-1774715763941_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="mermaid-1774715763941_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="mermaid-1774715763941_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"/></marker><marker id="mermaid-1774715763941_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"/></marker><g class="root"><g class="clusters"><g class="cluster" id="support" data-look="classic"><rect style="" x="8" y="450.5" width="950" height="590"/><g class="cluster-label" transform="translate(423, 450.5)"><foreignObject width="120" height="22.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>支撑长篇稳定生成</p></span></div></foreignObject></g></g></g><g class="edgePaths"><path d="M1463,105.5L1463,109.667C1463,113.833,1463,122.167,1463,129.833C1463,137.5,1463,144.5,1463,148L1463,151.5" id="L_A_B_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_A_B_0" data-points="W3sieCI6MTQ2MywieSI6MTA1LjV9LHsieCI6MTQ2MywieSI6MTMwLjV9LHsieCI6MTQ2MywieSI6MTU1LjV9XQ==" marker-end="url(#mermaid-1774715763941_flowchart-v2-pointEnd)"/><path d="M1463,253L1463,257.167C1463,261.333,1463,269.667,1463,277.333C1463,285,1463,292,1463,295.5L1463,299" id="L_B_C_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_B_C_0" data-points="W3sieCI6MTQ2MywieSI6MjUzfSx7IngiOjE0NjMsInkiOjI3OH0seyJ4IjoxNDYzLCJ5IjozMDN9XQ==" marker-end="url(#mermaid-1774715763941_flowchart-v2-pointEnd)"/><path d="M1373.763,400.5L1366.136,404.667C1358.508,408.833,1343.254,417.167,1335.627,425.5C1328,433.833,1328,442.167,1328,449.833C1328,457.5,1328,464.5,1328,468L1328,471.5" id="L_C_D_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_C_D_0" data-points="W3sieCI6MTM3My43NjI3MTE4NjQ0MDY4LCJ5Ijo0MDAuNX0seyJ4IjoxMzI4LCJ5Ijo0MjUuNX0seyJ4IjoxMzI4LCJ5Ijo0NTAuNX0seyJ4IjoxMzI4LCJ5Ijo0NzUuNX1d" marker-end="url(#mermaid-1774715763941_flowchart-v2-pointEnd)"/><path d="M1273.466,573L1268.805,577.167C1264.144,581.333,1254.822,589.667,1244.911,597.611C1235,605.555,1224.501,613.109,1219.251,616.887L1214.001,620.664" id="L_D_E_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_D_E_0" data-points="W3sieCI6MTI3My40NjYxMDE2OTQ5MTUzLCJ5Ijo1NzN9LHsieCI6MTI0NS41LCJ5Ijo1OTh9LHsieCI6MTIxMC43NTQyMzcyODgxMzU1LCJ5Ijo2MjN9XQ==" marker-end="url(#mermaid-1774715763941_flowchart-v2-pointEnd)"/><path d="M138.297,918L135.331,913.833C132.364,909.667,126.432,901.333,123.466,884.875C120.5,868.417,120.5,843.833,120.5,819.25C120.5,794.667,120.5,770.083,268.585,747.111C416.67,724.138,712.84,702.776,860.925,692.095L1009.01,681.414" id="L_S1_E_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_S1_E_0" data-points="W3sieCI6MTM4LjI5NjYxMDE2OTQ5MTUyLCJ5Ijo5MTh9LHsieCI6MTIwLjUsInkiOjg5M30seyJ4IjoxMjAuNSwieSI6ODE5LjI1fSx7IngiOjEyMC41LCJ5Ijo3NDUuNX0seyJ4IjoxMDEzLCJ5Ijo2ODEuMTI2NTI4MTE3MzU5NH1d" marker-end="url(#mermaid-1774715763941_flowchart-v2-pointEnd)"/><path d="M348,573L348,577.167C348,581.333,348,589.667,458.17,604.053C568.339,618.44,788.678,638.881,898.848,649.101L1009.017,659.321" id="L_S2_E_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_S2_E_0" data-points="W3sieCI6MzQ4LCJ5Ijo1NzN9LHsieCI6MzQ4LCJ5Ijo1OTh9LHsieCI6MTAxMywieSI6NjU5LjY5MDI1MTU3MjMyN31d" marker-end="url(#mermaid-1774715763941_flowchart-v2-pointEnd)"/><path d="M658,573L658,577.167C658,581.333,658,589.667,716.508,602.73C775.015,615.794,892.03,633.587,950.538,642.484L1009.045,651.381" id="L_S3_E_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_S3_E_0" data-points="W3sieCI6NjU4LCJ5Ijo1NzN9LHsieCI6NjU4LCJ5Ijo1OTh9LHsieCI6MTAxMywieSI6NjUxLjk4MTk1ODc2Mjg4NjZ9XQ==" marker-end="url(#mermaid-1774715763941_flowchart-v2-pointEnd)"/><path d="M353,918.206L341.75,914.005C330.5,909.804,308,901.402,296.75,884.909C285.5,868.417,285.5,843.833,285.5,819.25C285.5,794.667,285.5,770.083,406.086,747.421C526.672,724.758,767.843,704.016,888.429,693.645L1009.015,683.274" id="L_S4_E_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_S4_E_0" data-points="W3sieCI6MzUzLCJ5Ijo5MTguMjA1Njk2MjAyNTMxNn0seyJ4IjoyODUuNSwieSI6ODkzfSx7IngiOjI4NS41LCJ5Ijo4MTkuMjV9LHsieCI6Mjg1LjUsInkiOjc0NS41fSx7IngiOjEwMTMsInkiOjY4Mi45MzA3NTgwMTc0OTI3fV0=" marker-end="url(#mermaid-1774715763941_flowchart-v2-pointEnd)"/><path d="M663,938.757L627.583,931.131C592.167,923.505,521.333,908.252,485.917,888.335C450.5,868.417,450.5,843.833,450.5,819.25C450.5,794.667,450.5,770.083,543.587,747.878C636.674,725.673,822.848,705.846,915.935,695.932L1009.022,686.018" id="L_S5_E_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_S5_E_0" data-points="W3sieCI6NjYzLCJ5Ijo5MzguNzU3Mjk5MjcwMDczfSx7IngiOjQ1MC41LCJ5Ijo4OTN9LHsieCI6NDUwLjUsInkiOjgxOS4yNX0seyJ4Ijo0NTAuNSwieSI6NzQ1LjV9LHsieCI6MTAxMywieSI6Njg1LjU5NDc2NTM0Mjk2MDN9XQ==" marker-end="url(#mermaid-1774715763941_flowchart-v2-pointEnd)"/><path d="M1143,720.5L1143,724.667C1143,728.833,1143,737.167,1170.686,748.139C1198.372,759.112,1253.744,772.725,1281.43,779.531L1309.116,786.337" id="L_E_F_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_E_F_0" data-points="W3sieCI6MTE0MywieSI6NzIwLjV9LHsieCI6MTE0MywieSI6NzQ1LjV9LHsieCI6MTMxMywieSI6Nzg3LjI5MTY2NjY2NjY2NjZ9XQ==" marker-end="url(#mermaid-1774715763941_flowchart-v2-pointEnd)"/><path d="M1476.051,770.5L1478.876,766.333C1481.701,762.167,1487.35,753.833,1490.175,737.375C1493,720.917,1493,696.333,1493,671.75C1493,647.167,1493,622.583,1493,598C1493,573.417,1493,548.833,1493,524.25C1493,499.667,1493,475.083,1493,458.625C1493,442.167,1493,433.833,1491.556,426.118C1490.113,418.402,1487.225,411.303,1485.781,407.754L1484.338,404.205" id="L_F_C_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_F_C_0" data-points="W3sieCI6MTQ3Ni4wNTA4NDc0NTc2MjcsInkiOjc3MC41fSx7IngiOjE0OTMsInkiOjc0NS41fSx7IngiOjE0OTMsInkiOjY3MS43NX0seyJ4IjoxNDkzLCJ5Ijo1OTh9LHsieCI6MTQ5MywieSI6NTI0LjI1fSx7IngiOjE0OTMsInkiOjQ1MC41fSx7IngiOjE0OTMsInkiOjQyNS41fSx7IngiOjE0ODIuODMwNTA4NDc0NTc2MiwieSI6NDAwLjV9XQ==" marker-end="url(#mermaid-1774715763941_flowchart-v2-pointEnd)"/><path d="M1414.907,770.5L1412.506,766.333C1410.105,762.167,1405.302,753.833,1402.901,737.375C1400.5,720.917,1400.5,696.333,1400.5,671.75C1400.5,647.167,1400.5,622.583,1396.871,606.6C1393.243,590.617,1385.985,583.235,1382.357,579.544L1378.728,575.852" id="L_F_D_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_F_D_0" data-points="W3sieCI6MTQxNC45MDY3Nzk2NjEwMTcsInkiOjc3MC41fSx7IngiOjE0MDAuNSwieSI6NzQ1LjV9LHsieCI6MTQwMC41LCJ5Ijo2NzEuNzV9LHsieCI6MTQwMC41LCJ5Ijo1OTh9LHsieCI6MTM3NS45MjM3Mjg4MTM1NTk0LCJ5Ijo1NzN9XQ==" marker-end="url(#mermaid-1774715763941_flowchart-v2-pointEnd)"/><path d="M1366.983,770.5L1360.486,766.333C1353.989,762.167,1340.994,753.833,1324.664,745.747C1308.335,737.66,1288.669,729.821,1278.836,725.901L1269.004,721.981" id="L_F_E_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_F_E_0" data-points="W3sieCI6MTM2Ni45ODMwNTA4NDc0NTc3LCJ5Ijo3NzAuNX0seyJ4IjoxMzI4LCJ5Ijo3NDUuNX0seyJ4IjoxMjY1LjI4ODEzNTU5MzIyMDQsInkiOjcyMC41fV0=" marker-end="url(#mermaid-1774715763941_flowchart-v2-pointEnd)"/><path d="M1313,830.053L1186.75,840.544C1060.5,851.035,808,872.018,640.321,890.497C472.643,908.976,389.785,924.952,348.356,932.939L306.928,940.927" id="L_F_S1_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_F_S1_0" data-points="W3sieCI6MTMxMywieSI6ODMwLjA1MjgxNjkwMTQwODV9LHsieCI6NTU1LjUsInkiOjg5M30seyJ4IjozMDMsInkiOjk0MS42ODQ2NDA1MjI4NzU4fV0=" marker-end="url(#mermaid-1774715763941_flowchart-v2-pointEnd)"/><path d="M1313,832.52L1214.25,842.6C1115.5,852.68,918,872.84,801.97,888.286C685.94,903.732,651.38,914.464,634.1,919.829L616.82,925.195" id="L_F_S4_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_F_S4_0" data-points="W3sieCI6MTMxMywieSI6ODMyLjUxOTg5NjE5Mzc3MTZ9LHsieCI6NzIwLjUsInkiOjg5M30seyJ4Ijo2MTMsInkiOjkyNi4zODE1Nzg5NDczNjg0fV0=" marker-end="url(#mermaid-1774715763941_flowchart-v2-pointEnd)"/><path d="M1313,836.447L1241.75,845.873C1170.5,855.298,1028,874.149,952.045,887.326C876.091,900.502,866.681,908.004,861.976,911.755L857.272,915.506" id="L_F_S5_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_F_S5_0" data-points="W3sieCI6MTMxMywieSI6ODM2LjQ0NzMwOTQxNzA0MDR9LHsieCI6ODg1LjUsInkiOjg5M30seyJ4Ijo4NTQuMTQ0MDY3Nzk2NjEwMiwieSI6OTE4fV0=" marker-end="url(#mermaid-1774715763941_flowchart-v2-pointEnd)"/><path d="M1156.22,720.5L1157.35,724.667C1158.48,728.833,1160.74,737.167,1160.426,744.882C1160.113,752.598,1157.225,759.697,1155.781,763.246L1154.338,766.795" id="L_E_G_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_E_G_0" data-points="W3sieCI6MTE1Ni4yMjAzMzg5ODMwNTA5LCJ5Ijo3MjAuNX0seyJ4IjoxMTYzLCJ5Ijo3NDUuNX0seyJ4IjoxMTUyLjgzMDUwODQ3NDU3NjIsInkiOjc3MC41fV0=" marker-end="url(#mermaid-1774715763941_flowchart-v2-pointEnd)"/></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_A_B_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_B_C_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_C_D_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_D_E_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S1_E_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S2_E_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S3_E_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S4_E_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S5_E_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_E_F_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_F_C_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_F_D_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_F_E_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_F_S1_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_F_S4_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_F_S5_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_E_G_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="flowchart-A-0" transform="translate(1463, 56.75)"><rect class="basic label-container" style="" x="-130" y="-48.75" width="260" height="97.5"/><g class="label" style="" transform="translate(-100, -33.75)"><rect/><foreignObject width="200" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel"><p>灵感入口<br />一句想法 / 一个题材 / 一个卖点</p></span></div></foreignObject></g></g><g class="node default" id="flowchart-B-1" transform="translate(1463, 204.25)"><rect class="basic label-container" style="" x="-130" y="-48.75" width="260" height="97.5"/><g class="label" style="" transform="translate(-100, -33.75)"><rect/><foreignObject width="200" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel"><p>开书定盘<br />题材定位 / 读者预期 / 前30章承诺 / 主副流派模式</p></span></div></foreignObject></g></g><g class="node default" id="flowchart-C-3" transform="translate(1463, 351.75)"><rect class="basic label-container" style="" x="-130" y="-48.75" width="260" height="97.5"/><g class="label" style="" transform="translate(-100, -33.75)"><rect/><foreignObject width="200" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel"><p>整本控制层<br />主线走向 / 长线兑现 / 核心冲突 / 结构边界</p></span></div></foreignObject></g></g><g class="node default" id="flowchart-D-5" transform="translate(1328, 524.25)"><rect class="basic label-container" style="" x="-130" y="-48.75" width="260" height="97.5"/><g class="label" style="" transform="translate(-100, -33.75)"><rect/><foreignObject width="200" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel"><p>卷级规划层<br />卷战略 / 卷骨架 / 节奏板 / 拆章</p></span></div></foreignObject></g></g><g class="node default" id="flowchart-E-7" transform="translate(1143, 671.75)"><rect class="basic label-container" style="" x="-130" y="-48.75" width="260" height="97.5"/><g class="label" style="" transform="translate(-100, -33.75)"><rect/><foreignObject width="200" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel"><p>单章执行层<br />章节目标 / 执行边界 / 任务单 / 正文生成</p></span></div></foreignObject></g></g><g class="node default" id="flowchart-S1-8" transform="translate(173, 966.75)"><rect class="basic label-container" style="" x="-130" y="-48.75" width="260" height="97.5"/><g class="label" style="" transform="translate(-100, -33.75)"><rect/><foreignObject width="200" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel"><p>角色系统<br />核心角色 / 关系阶段 / 卷级职责 / 缺席风险</p></span></div></foreignObject></g></g><g class="node default" id="flowchart-S2-9" transform="translate(348, 524.25)"><rect class="basic label-container" style="" x="-130" y="-48.75" width="260" height="97.5"/><g class="label" style="" transform="translate(-100, -33.75)"><rect/><foreignObject width="200" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel"><p>世界观与设定<br />世界边界 / 规则 / 切片 / 作品圣经</p></span></div></foreignObject></g></g><g class="node default" id="flowchart-S3-10" transform="translate(658, 524.25)"><rect class="basic label-container" style="" x="-130" y="-48.75" width="260" height="97.5"/><g class="label" style="" transform="translate(-100, -33.75)"><rect/><foreignObject width="200" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel"><p>写法与风格<br />写法资产 / 风格约束 / 试写 / 统一口径</p></span></div></foreignObject></g></g><g class="node default" id="flowchart-S4-11" transform="translate(483, 966.75)"><rect class="basic label-container" style="" x="-130" y="-48.75" width="260" height="97.5"/><g class="label" style="" transform="translate(-100, -33.75)"><rect/><foreignObject width="200" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel"><p>知识与参考<br />拆书结果 / 知识库文档 / 长期记忆回灌</p></span></div></foreignObject></g></g><g class="node default" id="flowchart-S5-12" transform="translate(793, 966.75)"><rect class="basic label-container" style="" x="-130" y="-48.75" width="260" height="97.5"/><g class="label" style="" transform="translate(-100, -33.75)"><rect/><foreignObject width="200" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel"><p>质量控制<br />审计 / 修复 / 重规划 / 再平衡</p></span></div></foreignObject></g></g><g class="node default" id="flowchart-F-24" transform="translate(1443, 819.25)"><rect class="basic label-container" style="" x="-130" y="-48.75" width="260" height="97.5"/><g class="label" style="" transform="translate(-100, -33.75)"><rect/><foreignObject width="200" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel"><p>结果回灌层<br />章节摘要 / 状态变化 / 角色推进 / 新冲突 / 新线索</p></span></div></foreignObject></g></g><g class="node default" id="flowchart-G-38" transform="translate(1133, 819.25)"><rect class="basic label-container" style="" x="-130" y="-48.75" width="260" height="97.5"/><g class="label" style="" transform="translate(-100, -33.75)"><rect/><foreignObject width="200" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel"><p>目标结果<br />能持续推进整本书，而不是只零散生成几章</p></span></div></foreignObject></g></g></g></g></g></svg>
