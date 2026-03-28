@@ -23,7 +23,7 @@ import { GenerationContextAssembler } from "./runtime/GenerationContextAssembler
 import {
   buildChapterRepairContext,
   buildChapterRepairContextBlocks,
-} from "./runtime/chapterLayeredContext";
+} from "../../prompting/prompts/novel/chapterLayeredContext";
 
 export async function createQualityReport(
   novelId: string,

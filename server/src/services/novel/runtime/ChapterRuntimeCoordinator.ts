@@ -16,7 +16,7 @@ import { normalizeScore, ruleScore, toText } from "../novelP0Utils";
 import { ChapterArtifactSyncService } from "./ChapterArtifactSyncService";
 import { GenerationContextAssembler } from "./GenerationContextAssembler";
 import { chapterRuntimeRequestSchema, type ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
-import { buildChapterRepairContext } from "./chapterLayeredContext";
+import { buildChapterRepairContext } from "../../../prompting/prompts/novel/chapterLayeredContext";
 import {
   runPipelineChapterWithRuntime,
   type AssembledRuntimeChapter,

@@ -39,7 +39,7 @@ import {
   buildMacroConstraintContext,
   buildVolumeWindowContext,
   getRuntimePromptBudgetProfiles,
-} from "./chapterLayeredContext";
+} from "../../../prompting/prompts/novel/chapterLayeredContext";
 
 const OPENING_COMPARE_LIMIT = 3;
 const OPENING_SLICE_LENGTH = 220;

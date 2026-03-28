@@ -176,6 +176,7 @@ export interface StructuredTabViewProps extends Omit<
   | "isAnalyzingVersionImpact"
   | "impactResult"
 > {
+  novelId: string;
   beatSheets: VolumeBeatSheet[];
   rebalanceDecisions: VolumeRebalanceDecision[];
   draftText: string;

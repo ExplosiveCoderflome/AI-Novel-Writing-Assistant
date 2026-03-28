@@ -653,6 +653,7 @@ export default function NovelEdit() {
     impactResult,
   };
   const structuredTab = {
+    novelId: id,
     ...outlineTab,
     beatSheets: volumeBeatSheets,
     rebalanceDecisions: volumeRebalanceDecisions,

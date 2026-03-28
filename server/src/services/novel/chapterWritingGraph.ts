@@ -6,12 +6,12 @@ import type { AuditReport, QualityScore, ReviewIssue } from "@ai-novel/shared/ty
 import type { TaskType } from "../../llm/modelRouter";
 import { getLLM } from "../../llm/factory";
 import { streamTextPrompt } from "../../prompting/core/promptRunner";
-import { chapterWriterPrompt } from "../../prompting/prompts/novel/chapterWriter.prompts";
-import { NovelContinuationService } from "./NovelContinuationService";
 import {
   buildChapterWriterContextBlocks,
   sanitizeWriterContextBlocks,
-} from "./runtime/chapterLayeredContext";
+} from "../../prompting/prompts/novel/chapterLayeredContext";
+import { chapterWriterPrompt } from "../../prompting/prompts/novel/chapterWriter.prompts";
+import { NovelContinuationService } from "./NovelContinuationService";
 
 export interface ChapterGraphLLMOptions {
   provider?: LLMProvider;

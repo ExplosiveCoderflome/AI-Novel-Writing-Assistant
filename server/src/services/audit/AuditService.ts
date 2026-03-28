@@ -14,7 +14,7 @@ import {
 import { ragServices } from "../rag";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { auditChapterPrompt } from "../../prompting/prompts/audit/audit.prompts";
-import { buildChapterReviewContextBlocks } from "../novel/runtime/chapterLayeredContext";
+import { buildChapterReviewContextBlocks } from "../../prompting/prompts/novel/chapterLayeredContext";
 
 interface AuditOptions {
   provider?: LLMProvider;

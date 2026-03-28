@@ -6,9 +6,11 @@ interface StreamOutputProps {
   isStreaming: boolean;
   content: string;
   onAbort?: () => void;
+  title?: string;
+  emptyText?: string;
 }
 
-export default function StreamOutput({ isStreaming, content, onAbort }: StreamOutputProps) {
+export default function StreamOutput({ isStreaming, content, onAbort, title = "AI 输出", emptyText = "等待流式输出..." }: StreamOutputProps) {
   const wordCount = content.trim().length;
 
   return (
@@ -19,7 +21,7 @@ export default function StreamOutput({ isStreaming, content, onAbort }: StreamOu
       transition={{ duration: 0.2 }}
     >
       <div className="mb-3 flex items-center justify-between gap-2">
-        <span className="text-sm font-medium">AI 输出</span>
+        <span className="text-sm font-medium">{title}</span>
         <div className="flex items-center gap-2">
           {isStreaming ? (
             <span className="text-xs text-muted-foreground">正在生成...</span>
@@ -34,7 +36,7 @@ export default function StreamOutput({ isStreaming, content, onAbort }: StreamOu
         </div>
       </div>
 
-      <MarkdownViewer content={content || "等待流式输出..."} />
+      <MarkdownViewer content={content || emptyText} />
     </motion.div>
   );
 }

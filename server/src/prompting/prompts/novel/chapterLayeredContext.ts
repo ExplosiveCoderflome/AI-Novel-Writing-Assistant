@@ -11,9 +11,9 @@ import type {
 } from "@ai-novel/shared/types/chapterRuntime";
 import type { ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
-import { createContextBlock } from "../../../prompting/core/contextBudget";
-import type { PromptContextBlock } from "../../../prompting/core/promptTypes";
-import { RUNTIME_PROMPT_BUDGET_PROFILES } from "../../../prompting/prompts/novel/promptBudgetProfiles";
+import { createContextBlock } from "../../core/contextBudget";
+import type { PromptContextBlock } from "../../core/promptTypes";
+import { RUNTIME_PROMPT_BUDGET_PROFILES } from "./promptBudgetProfiles";
 
 export const WRITER_FORBIDDEN_GROUPS = [
   "full_outline",

@@ -1,46 +1,27 @@
 import { useMemo, useState } from "react";
-import type { Chapter } from "@ai-novel/shared/types/novel";
-import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import StreamOutput from "@/components/common/StreamOutput";
 import { buildReplanRecommendationFromAuditReports } from "../chapterPlanning.shared";
-import { ChapterRuntimeAuditCard, ChapterRuntimeContextCard } from "./ChapterRuntimePanels";
 import type { ChapterTabViewProps } from "./NovelEditView.types";
 import WorldInjectionHint from "./WorldInjectionHint";
-
-type AssetTabKey = "content" | "taskSheet" | "sceneCards" | "quality" | "repair";
-
-function chapterStatusLabel(status?: Chapter["chapterStatus"] | null): string {
-  switch (status) {
-    case "unplanned":
-      return "未规划";
-    case "pending_generation":
-      return "待生成";
-    case "generating":
-      return "生成中";
-    case "pending_review":
-      return "待审校";
-    case "needs_repair":
-      return "需修复";
-    case "completed":
-      return "已完成";
-    default:
-      return "未设置";
-  }
-}
-
-function parseRiskFlags(input: string | null | undefined): string[] {
-  if (!input?.trim()) {
-    return [];
-  }
-  return input
-    .split(/[\n,，;；|]/g)
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0)
-    .slice(0, 4);
-}
+import ChapterExecutionActionPanel from "./ChapterExecutionActionPanel";
+import ChapterExecutionQueueCard from "./ChapterExecutionQueueCard";
+import ChapterExecutionResultPanel from "./ChapterExecutionResultPanel";
+import {
+  chapterMatchesQueueFilter,
+  chapterStatusLabel,
+  generationStateLabel,
+  hasText,
+  MetricBadge,
+  parseRiskFlags,
+  PrimaryActionButton,
+  RiskBadgeList,
+  shouldShowGenerationStateBadge,
+  type AssetTabKey,
+  type PrimaryAction,
+  type QueueFilterKey,
+} from "./chapterExecution.shared";
 
 export default function ChapterManagementTab(props: ChapterTabViewProps) {
   const {
@@ -97,6 +78,8 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
   } = props;
 
   const [assetTab, setAssetTab] = useState<AssetTabKey>("content");
+  const [queueFilter, setQueueFilter] = useState<QueueFilterKey>("all");
+
   const riskFlags = useMemo(() => parseRiskFlags(selectedChapter?.riskFlags), [selectedChapter?.riskFlags]);
   const openAuditIssues = useMemo(
     () => chapterAuditReports.flatMap((report) => report.issues.filter((issue) => issue.status === "open").map((issue) => ({
@@ -121,313 +104,290 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     [chapterAuditReports, props.replanRecommendation],
   );
 
+  const filteredChapters = useMemo(
+    () => chapters.filter((chapter) => chapterMatchesQueueFilter(chapter, queueFilter)),
+    [chapters, queueFilter],
+  );
+
+  const queueFilters = useMemo(
+    () => ([
+      { key: "all", label: "全部" },
+      { key: "setup", label: "待准备" },
+      { key: "draft", label: "待写作" },
+      { key: "review", label: "待修订" },
+      { key: "completed", label: "已完成" },
+    ] as const).map((item) => ({
+      ...item,
+      count: chapters.filter((chapter) => chapterMatchesQueueFilter(chapter, item.key)).length,
+    })),
+    [chapters],
+  );
+
+  const selectedChapterHasPlan = Boolean(
+    selectedChapter && (hasText(chapterPlan?.objective) || hasText(selectedChapter.expectation)),
+  );
+  const selectedChapterHasTaskSheet = hasText(selectedChapter?.taskSheet);
+  const selectedChapterHasSceneCards = hasText(selectedChapter?.sceneCards);
+  const selectedChapterHasContent = hasText(selectedChapter?.content);
+  const unresolvedIssueCount = openAuditIssues.length > 0 ? openAuditIssues.length : (reviewResult?.issues?.length ?? 0);
+  const qualityOverall = chapterQualityReport?.overall ?? selectedChapter?.qualityScore ?? null;
+
+  const primaryAction = useMemo<PrimaryAction | null>(() => {
+    if (!selectedChapter) {
+      return null;
+    }
+    if (isRepairStreaming) {
+      return {
+        label: "停止修复",
+        reason: "AI 正在修复当前章节，先等待结果，或在确实不满意时停止本次修复。",
+        variant: "outline",
+        onClick: onAbortRepair,
+      };
+    }
+    if (isStreaming) {
+      return {
+        label: "停止生成",
+        reason: "AI 正在写本章，先观察当前输出是否符合预期，再决定是否停止本次生成。",
+        variant: "outline",
+        onClick: onAbortStream,
+      };
+    }
+    if (!hasCharacters) {
+      return {
+        label: "去角色管理",
+        reason: "当前至少需要 1 个角色，章节生成和审校才能更稳定地识别参与者和关系变化。",
+        variant: "outline",
+        onClick: onGoToCharacterTab,
+      };
+    }
+    if (!selectedChapterHasPlan || selectedChapter.chapterStatus === "unplanned") {
+      return {
+        label: isGeneratingChapterPlan ? "规划中..." : "生成本章计划",
+        reason: "先补齐本章目标、冲突和出场角色，后续写正文会更稳。",
+        variant: "default",
+        onClick: onGenerateChapterPlan,
+        disabled: isGeneratingChapterPlan,
+      };
+    }
+    if (!selectedChapterHasContent || selectedChapter.chapterStatus === "pending_generation" || selectedChapter.chapterStatus === "generating") {
+      return {
+        label: "写本章",
+        reason: "这章已经具备基础规划，现在适合直接生成正文。",
+        variant: "default",
+        onClick: onGenerateSelectedChapter,
+      };
+    }
+    if (selectedChapter.chapterStatus === "needs_repair" || unresolvedIssueCount > 0) {
+      return {
+        label: isRepairingChapter ? "修复中..." : "修复本章问题",
+        reason: "当前章节还有待处理问题，建议先修复再继续润色。",
+        variant: "secondary",
+        onClick: onAutoRepair,
+        disabled: isRepairingChapter,
+      };
+    }
+    if (selectedChapter.chapterStatus === "pending_review" || selectedChapter.generationState === "drafted") {
+      return {
+        label: isRunningFullAudit ? "审计中..." : "运行完整审计",
+        reason: "正文已经写出一版了，先检查问题，再决定是修复还是重规划。",
+        variant: "default",
+        onClick: onRunFullAudit,
+        disabled: isRunningFullAudit,
+      };
+    }
+    if (activeReplanRecommendation?.recommended) {
+      return {
+        label: isReplanningChapter ? "调整中..." : "调整后续章节计划",
+        reason: activeReplanRecommendation.reason || "系统判断这章的问题可能已经影响后续章节。",
+        variant: "outline",
+        onClick: onReplanChapter,
+        disabled: isReplanningChapter,
+      };
+    }
+    return {
+      label: "打开编辑器",
+      reason: "当前章节已经进入可细修状态，可以转到编辑器做人工润色和确认。",
+      variant: "outline",
+      href: `/novels/${novelId}/chapters/${selectedChapter.id}`,
+    };
+  }, [
+    activeReplanRecommendation?.reason,
+    activeReplanRecommendation?.recommended,
+    hasCharacters,
+    isGeneratingChapterPlan,
+    isRepairStreaming,
+    isRepairingChapter,
+    isReplanningChapter,
+    isRunningFullAudit,
+    isStreaming,
+    novelId,
+    onAbortRepair,
+    onAbortStream,
+    onAutoRepair,
+    onGenerateChapterPlan,
+    onGenerateSelectedChapter,
+    onGoToCharacterTab,
+    onReplanChapter,
+    onRunFullAudit,
+    selectedChapter,
+    selectedChapterHasContent,
+    selectedChapterHasPlan,
+    unresolvedIssueCount,
+  ]);
+
   return (
     <Card>
       <CardHeader className="space-y-2">
         <div className="flex flex-row items-center justify-between">
-          <CardTitle>章节执行</CardTitle>
+          <div className="space-y-1">
+            <CardTitle>章节执行</CardTitle>
+            <div className="text-sm text-muted-foreground">把这页收回成真正的工作台：左侧选章，中间看当前结果，右侧执行 AI 动作。</div>
+          </div>
           <Button onClick={onCreateChapter} disabled={isCreatingChapter}>
             {isCreatingChapter ? "创建中..." : "新建章节"}
           </Button>
         </div>
-        <div className="rounded-md border p-2 text-xs">
-          <div className="mb-2 font-medium text-muted-foreground">生成策略条</div>
-          <div className="grid gap-2 md:grid-cols-6">
-            <div className="space-y-1">
-              <label htmlFor="chapter-strategy-run-mode" className="text-[11px] font-medium text-muted-foreground">运行模式</label>
-              <select
-                id="chapter-strategy-run-mode"
-                className="w-full rounded-md border bg-background p-1"
-                value={strategy.runMode}
-                onChange={(event) => onStrategyChange("runMode", event.target.value)}
-              >
-                <option value="fast">快速</option>
-                <option value="polish">精修</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="chapter-strategy-word-size" className="text-[11px] font-medium text-muted-foreground">篇幅</label>
-              <select
-                id="chapter-strategy-word-size"
-                className="w-full rounded-md border bg-background p-1"
-                value={strategy.wordSize}
-                onChange={(event) => onStrategyChange("wordSize", event.target.value)}
-              >
-                <option value="short">短</option>
-                <option value="medium">中</option>
-                <option value="long">长</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="chapter-strategy-conflict" className="text-[11px] font-medium text-muted-foreground">冲突强度</label>
-              <input
-                id="chapter-strategy-conflict"
-                className="w-full rounded-md border bg-background p-1"
-                type="number"
-                min={0}
-                max={100}
-                value={strategy.conflictLevel}
-                onChange={(event) => onStrategyChange("conflictLevel", Number(event.target.value || 0))}
-              />
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="chapter-strategy-pace" className="text-[11px] font-medium text-muted-foreground">节奏</label>
-              <select
-                id="chapter-strategy-pace"
-                className="w-full rounded-md border bg-background p-1"
-                value={strategy.pace}
-                onChange={(event) => onStrategyChange("pace", event.target.value)}
-              >
-                <option value="slow">慢</option>
-                <option value="balanced">中</option>
-                <option value="fast">快</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="chapter-strategy-ai-freedom" className="text-[11px] font-medium text-muted-foreground">AI 自由度</label>
-              <select
-                id="chapter-strategy-ai-freedom"
-                className="w-full rounded-md border bg-background p-1"
-                value={strategy.aiFreedom}
-                onChange={(event) => onStrategyChange("aiFreedom", event.target.value)}
-              >
-                <option value="low">低</option>
-                <option value="medium">中</option>
-                <option value="high">高</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <div className="text-[11px] font-medium text-muted-foreground">操作</div>
-              <Button className="w-full" size="sm" onClick={onApplyStrategy} disabled={isApplyingStrategy || !selectedChapter}>
-                {isApplyingStrategy ? "应用中..." : "应用策略"}
-              </Button>
-            </div>
-          </div>
-        </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-4">
         <WorldInjectionHint worldInjectionSummary={worldInjectionSummary} />
-        {chapterOperationMessage ? <div className="text-xs text-muted-foreground">{chapterOperationMessage}</div> : null}
+
+        {chapterOperationMessage ? (
+          <div className="rounded-md border border-border/70 bg-muted/20 p-3 text-xs text-muted-foreground">
+            {chapterOperationMessage}
+          </div>
+        ) : null}
+
         {!hasCharacters ? (
-          <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+          <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
             <span>请先添加至少 1 个角色，再生成章节内容。</span>
             <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>去角色管理</Button>
           </div>
         ) : null}
-        <div className="grid gap-3 xl:grid-cols-[300px_minmax(0,1fr)_340px]">
-          <div className="rounded-md border">
-            <div className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">
-              状态列表：{chapters.length}
-            </div>
-            <div className="max-h-[640px] space-y-2 overflow-y-auto p-2">
-              {chapters.length === 0 ? (
-                <div className="rounded-md border border-dashed p-4 text-xs text-muted-foreground">暂无章节。</div>
-              ) : (
-                chapters.map((chapter) => {
-                  const chapterRisks = parseRiskFlags(chapter.riskFlags);
-                  return (
-                    <button
-                      key={chapter.id}
-                      type="button"
-                      onClick={() => onSelectChapter(chapter.id)}
-                      className={`w-full rounded-md border p-2 text-left transition ${
-                        selectedChapterId === chapter.id ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
-                      }`}
-                    >
-                      <div className="text-sm font-medium">第{chapter.order}章：{chapter.title}</div>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <span>字数：{chapter.content?.length ?? 0}</span>
-                        <Badge variant="outline">{chapterStatusLabel(chapter.chapterStatus)}</Badge>
-                        {chapter.generationState ? <Badge variant="secondary">{chapter.generationState}</Badge> : null}
-                      </div>
-                      {chapterRisks.length > 0 ? (
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {chapterRisks.map((risk) => (
-                            <Badge key={`${chapter.id}-${risk}`} variant="secondary">{risk}</Badge>
-                          ))}
-                        </div>
-                      ) : null}
-                    </button>
-                  );
-                })
-              )}
-            </div>
+
+        {selectedChapter ? (
+          <Card>
+            <CardContent className="p-4 lg:p-5">
+              <div className="grid gap-4 lg:grid-cols-12">
+                <div className="min-w-0 space-y-3 lg:col-span-8">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">第{selectedChapter.order}章</Badge>
+                    <Badge variant="secondary">{chapterStatusLabel(selectedChapter.chapterStatus)}</Badge>
+                    {shouldShowGenerationStateBadge(selectedChapter.generationState) ? (
+                      <Badge variant="outline">{generationStateLabel(selectedChapter.generationState)}</Badge>
+                    ) : null}
+                    {typeof qualityOverall === "number" ? (
+                      <Badge variant={qualityOverall >= 85 ? "default" : qualityOverall >= 70 ? "outline" : "secondary"}>
+                        质量 {qualityOverall}
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <div>
+                    <div className="text-lg font-semibold text-foreground">第{selectedChapter.order}章：{selectedChapter.title || "未命名章节"}</div>
+                    <div className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
+                      {chapterPlan?.objective ?? selectedChapter.expectation ?? "这章还没有明确目标，建议先补章节计划。"}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    {planParticipants.length > 0 ? <span>参与角色：{planParticipants.join("、")}</span> : null}
+                    {latestStateSnapshot?.summary ? <span className="line-clamp-1">最新状态：{latestStateSnapshot.summary}</span> : null}
+                  </div>
+                  <RiskBadgeList risks={riskFlags} />
+                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                    <MetricBadge label="当前字数" value={String(selectedChapter.content?.length ?? 0)} />
+                    <MetricBadge label="目标字数" value={String(selectedChapter.targetWordCount ?? "-")} />
+                    <MetricBadge label="待处理问题" value={String(unresolvedIssueCount)} />
+                    <MetricBadge label="最近更新" value={selectedChapter.updatedAt ? new Date(selectedChapter.updatedAt).toLocaleString() : "暂无"} />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/70 bg-muted/20 p-4 lg:col-span-4">
+                  <div className="text-xs text-muted-foreground">推荐下一步</div>
+                  <div className="mt-1 text-base font-semibold text-foreground">{primaryAction?.label ?? "先选择一章"}</div>
+                  <div className="mt-1 text-sm leading-6 text-muted-foreground">{primaryAction?.reason ?? "左侧选择章节后，系统会给出建议动作。"}</div>
+                  <div className="mt-3">
+                    <PrimaryActionButton action={primaryAction} />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
+            左侧先选择一个章节，系统会根据当前状态推荐下一步动作。
+          </div>
+        )}
+
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+          <div className="w-full lg:w-[260px] lg:flex-none">
+            <ChapterExecutionQueueCard
+              chapters={filteredChapters}
+              selectedChapterId={selectedChapterId}
+              queueFilter={queueFilter}
+              queueFilters={queueFilters}
+              onQueueFilterChange={setQueueFilter}
+              onSelectChapter={onSelectChapter}
+            />
           </div>
 
-          <div className="space-y-3">
-            {selectedChapter ? (
-              <div className="rounded-md border p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="font-medium">第{selectedChapter.order}章：{selectedChapter.title}</div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>状态：{chapterStatusLabel(selectedChapter.chapterStatus)}</span>
-                    <span>字数：{selectedChapter.content?.length ?? 0}</span>
-                    <span>目标：{selectedChapter.targetWordCount ?? "-"}</span>
-                  </div>
-                </div>
-
-                <div className="mt-2 grid gap-2 md:grid-cols-2">
-                  <div className="rounded-md border p-2 text-xs text-muted-foreground">大纲版本：当前草稿</div>
-                  <div className="rounded-md border p-2 text-xs text-muted-foreground">
-                    上次生成：{selectedChapter.updatedAt ? new Date(selectedChapter.updatedAt).toLocaleString() : "暂无"}
-                  </div>
-                </div>
-
-                <div className="mt-3 grid gap-2 md:grid-cols-2">
-                  <div className="rounded-md border p-2 text-xs">
-                    <div className="font-medium">章节计划</div>
-                    <div className="mt-1 text-muted-foreground">{chapterPlan?.objective ?? selectedChapter.expectation ?? "暂无章节计划"}</div>
-                    {planParticipants.length > 0 ? <div className="mt-1 text-muted-foreground">参与角色：{planParticipants.join("、")}</div> : null}
-                  </div>
-                  <div className="rounded-md border p-2 text-xs">
-                    <div className="font-medium">最新状态快照</div>
-                    <div className="mt-1 text-muted-foreground">{latestStateSnapshot?.summary ?? "暂无状态快照"}</div>
-                  </div>
-                </div>
-
-                <div className="mt-3 grid gap-3 xl:grid-cols-2">
-                  <ChapterRuntimeContextCard
-                    runtimePackage={null}
-                    chapterPlan={chapterPlan}
-                    stateSnapshot={latestStateSnapshot}
-                  />
-                  <ChapterRuntimeAuditCard
-                    runtimePackage={null}
-                    auditReports={chapterAuditReports}
-                    replanRecommendation={activeReplanRecommendation}
-                    onReplan={selectedChapter ? onReplanChapter : undefined}
-                    isReplanning={isReplanningChapter}
-                    lastReplanResult={props.lastReplanResult}
-                  />
-                </div>
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button size="sm" variant={assetTab === "content" ? "default" : "outline"} onClick={() => setAssetTab("content")}>正文</Button>
-                  <Button size="sm" variant={assetTab === "taskSheet" ? "default" : "outline"} onClick={() => setAssetTab("taskSheet")}>任务单</Button>
-                  <Button size="sm" variant={assetTab === "sceneCards" ? "default" : "outline"} onClick={() => setAssetTab("sceneCards")}>场景拆解</Button>
-                  <Button size="sm" variant={assetTab === "quality" ? "default" : "outline"} onClick={() => setAssetTab("quality")}>质量报告</Button>
-                  <Button size="sm" variant={assetTab === "repair" ? "default" : "outline"} onClick={() => setAssetTab("repair")}>修复记录</Button>
-                </div>
-
-                <div className="mt-3 rounded-md border bg-muted/20 p-2 text-sm">
-                  {assetTab === "content" ? (
-                    <div className="max-h-[330px] overflow-y-auto whitespace-pre-wrap">
-                      {selectedChapter.content?.trim() || "当前章节尚未生成正文"}
-                    </div>
-                  ) : null}
-                  {assetTab === "taskSheet" ? (
-                    <div className="max-h-[330px] overflow-y-auto whitespace-pre-wrap">
-                      {selectedChapter.taskSheet?.trim() || selectedChapter.expectation?.trim() || "暂无任务单"}
-                    </div>
-                  ) : null}
-                  {assetTab === "sceneCards" ? (
-                    <div className="max-h-[330px] overflow-y-auto whitespace-pre-wrap">
-                      {selectedChapter.sceneCards?.trim() || "暂无场景拆解"}
-                    </div>
-                  ) : null}
-                  {assetTab === "quality" ? (
-                    <div className="space-y-1 text-xs">
-                      <div>overall: {chapterQualityReport?.overall ?? selectedChapter.qualityScore ?? "-"}</div>
-                      <div>coherence: {chapterQualityReport?.coherence ?? "-"}</div>
-                      <div>repetition: {chapterQualityReport?.repetition ?? "-"}</div>
-                      <div>pacing: {chapterQualityReport?.pacing ?? selectedChapter.pacingScore ?? "-"}</div>
-                      <div>voice: {chapterQualityReport?.voice ?? "-"}</div>
-                      <div>engagement: {chapterQualityReport?.engagement ?? "-"}</div>
-                      {reviewResult?.issues?.length ? (
-                        <div className="pt-1">
-                          <div className="font-medium">最近审校问题</div>
-                          {reviewResult.issues.slice(0, 5).map((item, index) => (
-                            <div key={`${item.category}-${index}`}>{item.category}: {item.fixSuggestion}</div>
-                          ))}
-                        </div>
-                      ) : null}
-                      {openAuditIssues.length > 0 ? (
-                        <div className="pt-1">
-                          <div className="font-medium">结构化审计问题</div>
-                          {openAuditIssues.slice(0, 6).map((item) => (
-                            <div key={item.id}>{item.auditType}: {item.fixSuggestion}</div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {assetTab === "repair" ? (
-                    <div className="max-h-[330px] overflow-y-auto whitespace-pre-wrap">
-                      {selectedChapter.repairHistory?.trim() || repairStreamContent || "暂无修复记录"}
-                    </div>
-                  ) : null}
-                </div>
-                {riskFlags.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {riskFlags.map((risk) => <Badge key={risk} variant="secondary">{risk}</Badge>)}
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-                请先在左侧选择一个章节查看资产。
-              </div>
-            )}
+          <div className="min-w-0 flex-1">
+            <ChapterExecutionResultPanel
+              novelId={novelId}
+              selectedChapter={selectedChapter}
+              assetTab={assetTab}
+              onAssetTabChange={setAssetTab}
+              chapterPlan={chapterPlan}
+              latestStateSnapshot={latestStateSnapshot}
+              chapterAuditReports={chapterAuditReports}
+              replanRecommendation={activeReplanRecommendation}
+              onReplanChapter={onReplanChapter}
+              isReplanningChapter={isReplanningChapter}
+              lastReplanResult={props.lastReplanResult}
+              chapterQualityReport={chapterQualityReport}
+              reviewResult={reviewResult}
+              openAuditIssues={openAuditIssues}
+              streamContent={streamContent}
+              isStreaming={isStreaming}
+              onAbortStream={onAbortStream}
+              repairStreamContent={repairStreamContent}
+              isRepairStreaming={isRepairStreaming}
+              onAbortRepair={onAbortRepair}
+            />
           </div>
 
-          <div className="space-y-3">
-            <div className="rounded-md border p-3">
-              <div className="text-sm font-medium">AI 操作面板</div>
-              <div className="mt-2 space-y-2">
-                <div className="text-xs text-muted-foreground">生成类</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button size="sm" variant="secondary" onClick={onGenerateSelectedChapter} disabled={!hasCharacters || !selectedChapter}>生成本章</Button>
-                  <Button size="sm" variant="secondary" onClick={onRewriteChapter} disabled={!hasCharacters || !selectedChapter}>重写本章</Button>
-                  <Button size="sm" variant="outline" onClick={onExpandChapter} disabled={!selectedChapter}>扩写本章</Button>
-                  <Button size="sm" variant="outline" onClick={onCompressChapter} disabled={!selectedChapter}>压缩本章</Button>
-                  <Button size="sm" variant="outline" onClick={onSummarizeChapter} disabled={!selectedChapter}>生成摘要</Button>
-                  <Button asChild size="sm" variant="outline" disabled={!selectedChapter}>
-                    <Link to={selectedChapter ? `/novels/${novelId}/chapters/${selectedChapter.id}` : "#"}>打开编辑器</Link>
-                  </Button>
-                </div>
-
-                <div className="pt-1 text-xs text-muted-foreground">资产类</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button size="sm" variant="outline" onClick={onGenerateTaskSheet} disabled={!selectedChapter}>生成任务单</Button>
-                  <Button size="sm" variant="outline" onClick={onGenerateSceneCards} disabled={!selectedChapter}>生成场景拆解</Button>
-                  <Button size="sm" variant="outline" onClick={onGenerateChapterPlan} disabled={!selectedChapter || isGeneratingChapterPlan}>
-                    {isGeneratingChapterPlan ? "规划中..." : "查看章节计划"}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={onReplanChapter} disabled={!selectedChapter || isReplanningChapter}>
-                    {isReplanningChapter ? "重规划中..." : "重新规划"}
-                  </Button>
-                </div>
-
-                <div className="pt-1 text-xs text-muted-foreground">质量类</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button size="sm" variant="outline" onClick={onCheckContinuity} disabled={!selectedChapter || isReviewingChapter}>
-                    {isReviewingChapter ? "检查中..." : "检查连续性"}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={onCheckCharacterConsistency} disabled={!selectedChapter || isReviewingChapter}>
-                    人设一致性
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={onCheckPacing} disabled={!selectedChapter || isReviewingChapter}>检查节奏</Button>
-                  <Button size="sm" variant="secondary" onClick={onAutoRepair} disabled={!selectedChapter || isRepairingChapter}>
-                    {isRepairingChapter ? "修复中..." : "自动修复问题"}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={onRunFullAudit} disabled={!selectedChapter || isRunningFullAudit}>
-                    {isRunningFullAudit ? "审计中..." : "运行完整审计"}
-                  </Button>
-                </div>
-
-                <div className="pt-1 text-xs text-muted-foreground">风格类</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button size="sm" variant="outline" onClick={onStrengthenConflict} disabled={!selectedChapter}>强化冲突</Button>
-                  <Button size="sm" variant="outline" onClick={onEnhanceEmotion} disabled={!selectedChapter}>增强情绪</Button>
-                  <Button size="sm" variant="outline" onClick={onUnifyStyle} disabled={!selectedChapter}>文风统一</Button>
-                  <Button size="sm" variant="outline" onClick={onAddDialogue} disabled={!selectedChapter}>增加对白</Button>
-                  <Button size="sm" variant="outline" onClick={onAddDescription} disabled={!selectedChapter}>增加描写</Button>
-                </div>
-              </div>
-            </div>
-
-            <StreamOutput content={streamContent} isStreaming={isStreaming} onAbort={onAbortStream} />
-            <StreamOutput content={repairStreamContent} isStreaming={isRepairStreaming} onAbort={onAbortRepair} />
+          <div className="w-full lg:w-[300px] lg:flex-none">
+            <ChapterExecutionActionPanel
+              novelId={novelId}
+              selectedChapter={selectedChapter}
+              hasCharacters={hasCharacters}
+              strategy={strategy}
+              onStrategyChange={onStrategyChange}
+              onApplyStrategy={onApplyStrategy}
+              isApplyingStrategy={isApplyingStrategy}
+              onGenerateSelectedChapter={onGenerateSelectedChapter}
+              onRewriteChapter={onRewriteChapter}
+              onExpandChapter={onExpandChapter}
+              onCompressChapter={onCompressChapter}
+              onSummarizeChapter={onSummarizeChapter}
+              onGenerateTaskSheet={onGenerateTaskSheet}
+              onGenerateSceneCards={onGenerateSceneCards}
+              onGenerateChapterPlan={onGenerateChapterPlan}
+              onReplanChapter={onReplanChapter}
+              onRunFullAudit={onRunFullAudit}
+              onCheckContinuity={onCheckContinuity}
+              onCheckCharacterConsistency={onCheckCharacterConsistency}
+              onCheckPacing={onCheckPacing}
+              onAutoRepair={onAutoRepair}
+              onStrengthenConflict={onStrengthenConflict}
+              onEnhanceEmotion={onEnhanceEmotion}
+              onUnifyStyle={onUnifyStyle}
+              onAddDialogue={onAddDialogue}
+              onAddDescription={onAddDescription}
+              isReviewingChapter={isReviewingChapter}
+              isRepairingChapter={isRepairingChapter}
+              isGeneratingChapterPlan={isGeneratingChapterPlan}
+              isReplanningChapter={isReplanningChapter}
+              isRunningFullAudit={isRunningFullAudit}
+            />
           </div>
         </div>
       </CardContent>
