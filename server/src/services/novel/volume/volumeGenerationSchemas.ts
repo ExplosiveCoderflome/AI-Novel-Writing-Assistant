@@ -46,6 +46,239 @@ function normalizeStringArray(value: unknown): unknown {
   return value;
 }
 
+function normalizeTextValue(value: unknown): string | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(Math.round(value));
+  }
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
+function normalizeVolumeReference(value: unknown): unknown {
+  const normalized = normalizeTextValue(value);
+  if (!normalized) {
+    return value;
+  }
+  const volumeMatch = normalized.match(/(?:volume|卷|第)?\s*(\d+)(?:\s*卷)?$/i);
+  return volumeMatch?.[1] ?? normalized;
+}
+
+function normalizeRebalanceSeverity(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (normalized === "high" || normalized === "medium" || normalized === "low") {
+    return normalized;
+  }
+  if (normalized === "urgent" || normalized === "critical") {
+    return "high";
+  }
+  if (normalized === "mid") {
+    return "medium";
+  }
+  if (normalized === "minor") {
+    return "low";
+  }
+  return value;
+}
+
+function normalizeRebalanceDirection(value: unknown, actions?: unknown): unknown {
+  const normalizedActions = normalizeStringArray(actions);
+  const normalizedActionList = Array.isArray(normalizedActions)
+    ? normalizedActions.map((item) => String(item).trim().toLowerCase()).filter(Boolean)
+    : [];
+
+  if (normalizedActionList.length === 1 && normalizedActionList[0] === "hold") {
+    return "hold";
+  }
+
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  switch (normalized) {
+    case "pull_forward":
+    case "pullforward":
+    case "backward":
+    case "back":
+      return "pull_forward";
+    case "push_back":
+    case "pushback":
+    case "forward":
+    case "next":
+      return "push_back";
+    case "tighten_current":
+    case "tighten":
+    case "compress_current":
+      return "tighten_current";
+    case "expand_adjacent":
+    case "expand":
+    case "expand_neighbor":
+    case "expand_neighbour":
+    case "adjacent":
+      return "expand_adjacent";
+    case "hold":
+    case "no_change":
+    case "none":
+    case "stable":
+      return "hold";
+    default:
+      return value;
+  }
+}
+
+function normalizeBeatPayload(raw: unknown): unknown {
+  const normalized = normalizeObjectAlias(raw, {
+    key: ["beatKey", "stageKey", "id"],
+    label: ["beatLabel", "stageLabel", "name", "title"],
+    summary: ["beatSummary", "description", "detail", "content", "摘要", "概要", "说明"],
+    chapterSpanHint: [
+      "chapterSpan",
+      "chapterRange",
+      "chapterWindow",
+      "chapterHint",
+      "spanHint",
+      "chapter_span_hint",
+      "章节范围",
+      "章数范围",
+    ],
+    mustDeliver: [
+      "deliverables",
+      "mustHit",
+      "mustLand",
+      "requiredPayoffs",
+      "requiredPoints",
+      "payoffs",
+      "deliver",
+      "must_deliver",
+      "关键兑现",
+      "必要兑现",
+    ],
+  });
+
+  if (!normalized || typeof normalized !== "object" || Array.isArray(normalized)) {
+    return normalized;
+  }
+
+  const record = normalized as Record<string, unknown>;
+  return {
+    ...record,
+    mustDeliver: normalizeStringArray(record.mustDeliver),
+  };
+}
+
+function normalizeBeatSheetPayload(raw: unknown): unknown {
+  if (Array.isArray(raw)) {
+    return { beats: raw };
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return raw;
+  }
+
+  const record = raw as Record<string, unknown>;
+  const candidates = [
+    record.beats,
+    record.items,
+    record.stages,
+    record.outline,
+    record.beatSheet,
+  ];
+
+  let beats = record.beats;
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      beats = candidate;
+      break;
+    }
+    if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+      const nestedBeats = (candidate as { beats?: unknown }).beats;
+      if (Array.isArray(nestedBeats)) {
+        beats = nestedBeats;
+        break;
+      }
+    }
+  }
+
+  return {
+    ...record,
+    beats,
+  };
+}
+
+function normalizeRebalanceDecisionPayload(raw: unknown): unknown {
+  const normalized = normalizeObjectAlias(raw, {
+    anchorVolumeId: ["anchorVolume", "anchorVolumeOrder", "anchorVolumeRef", "sourceVolumeId", "sourceVolumeOrder"],
+    affectedVolumeId: ["affectedVolume", "affectedVolumeOrder", "affectedVolumeRef", "adjacentVolumeId", "adjacentVolumeOrder", "targetVolumeId", "targetVolumeOrder", "neighborVolumeId", "neighborVolumeOrder"],
+    direction: ["rebalanceDirection", "adjustDirection", "moveDirection"],
+    severity: ["impactLevel", "priority", "risk"],
+    summary: ["reason", "detail", "explanation"],
+    actions: ["recommendedActions", "actionItems", "suggestedActions", "recommendations"],
+  });
+
+  if (!normalized || typeof normalized !== "object" || Array.isArray(normalized)) {
+    return normalized;
+  }
+
+  const record = normalized as Record<string, unknown>;
+  const normalizedDirection = normalizeRebalanceDirection(record.direction, record.actions);
+  const normalizedActions = normalizeStringArray(record.actions);
+  const fallbackActions = Array.isArray(normalizedActions) && normalizedActions.length > 0
+    ? normalizedActions
+    : normalizedDirection === "hold"
+      ? ["hold"]
+      : normalizedActions;
+  return {
+    ...record,
+    anchorVolumeId: normalizeVolumeReference(record.anchorVolumeId),
+    affectedVolumeId: normalizeVolumeReference(record.affectedVolumeId),
+    direction: normalizedDirection,
+    severity: normalizeRebalanceSeverity(record.severity),
+    actions: fallbackActions,
+  };
+}
+
+function normalizeRebalancePayload(raw: unknown): unknown {
+  if (Array.isArray(raw)) {
+    return { decisions: raw };
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return raw;
+  }
+
+  const record = raw as Record<string, unknown>;
+  const candidates = [
+    record.decisions,
+    record.items,
+    record.recommendations,
+    record.rebalanceDecisions,
+  ];
+
+  let decisions = record.decisions;
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      decisions = candidate;
+      break;
+    }
+    if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+      const nestedDecisions = (candidate as { decisions?: unknown }).decisions;
+      if (Array.isArray(nestedDecisions)) {
+        decisions = nestedDecisions;
+        break;
+      }
+    }
+  }
+
+  return {
+    ...record,
+    decisions,
+  };
+}
+
 const generatedVolumeSkeletonSchema = z.object({
   title: z.string().trim().min(1),
   summary: z.string().trim().optional().nullable(),
@@ -84,13 +317,13 @@ const generatedVolumeUncertaintySchema = z.object({
   reason: z.string().trim().min(1),
 });
 
-const generatedVolumeBeatSchema = z.object({
+const generatedVolumeBeatSchema = z.preprocess(normalizeBeatPayload, z.object({
   key: z.string().trim().min(1),
   label: z.string().trim().min(1),
   summary: z.string().trim().min(1),
   chapterSpanHint: z.string().trim().min(1),
   mustDeliver: z.array(z.string().trim().min(1)).min(1).max(6),
-});
+}));
 
 const generatedVolumeCritiqueIssueSchema = z.object({
   targetRef: z.string().trim().min(1),
@@ -99,14 +332,14 @@ const generatedVolumeCritiqueIssueSchema = z.object({
   detail: z.string().trim().min(1),
 });
 
-const generatedVolumeRebalanceDecisionSchema = z.object({
+const generatedVolumeRebalanceDecisionSchema = z.preprocess(normalizeRebalanceDecisionPayload, z.object({
   anchorVolumeId: z.string().trim().min(1),
   affectedVolumeId: z.string().trim().min(1),
   direction: z.enum(["pull_forward", "push_back", "tighten_current", "expand_adjacent", "hold"]),
   severity: z.enum(["low", "medium", "high"]),
   summary: z.string().trim().min(1),
   actions: z.array(z.string().trim().min(1)).min(1).max(5),
-});
+}));
 
 export function createBookVolumeSkeletonSchema(exactVolumeCount?: number) {
   return z.object({
@@ -183,15 +416,15 @@ export function createVolumeStrategyCritiqueSchema() {
 }
 
 export function createVolumeBeatSheetSchema() {
-  return z.object({
+  return z.preprocess(normalizeBeatSheetPayload, z.object({
     beats: z.array(generatedVolumeBeatSchema).min(5).max(8),
-  });
+  }));
 }
 
 export function createVolumeRebalanceSchema() {
-  return z.object({
+  return z.preprocess(normalizeRebalancePayload, z.object({
     decisions: z.array(generatedVolumeRebalanceDecisionSchema).max(4).default([]),
-  });
+  }));
 }
 
 export function createChapterPurposeSchema() {

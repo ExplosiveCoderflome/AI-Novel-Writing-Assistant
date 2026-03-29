@@ -51,8 +51,8 @@ const navGroups: NavGroup[] = [
   {
     title: "资产",
     items: [
-      { to: "/genres", label: "类型管理", icon: Tags },
-      { to: "/story-modes", label: "流派模式", icon: Workflow },
+      { to: "/genres", label: "题材基底库", icon: Tags },
+      { to: "/story-modes", label: "推进模式库", icon: Workflow },
       { to: "/titles", label: "标题工坊", icon: SquarePen },
       { to: "/knowledge", label: "知识库", icon: Database },
       { to: "/worlds", label: "世界观", icon: Globe2 },

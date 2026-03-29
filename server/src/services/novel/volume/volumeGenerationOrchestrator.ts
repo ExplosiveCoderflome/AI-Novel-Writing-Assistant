@@ -37,6 +37,7 @@ import {
   buildVolumeWorkspaceDocument,
 } from "./volumeWorkspaceDocument";
 import { normalizeVolumeDraftContextInput } from "./volumeDraftContext";
+import { inferRequiredChapterCountFromBeatSheet } from "./volumeBeatSheetChapterBudget";
 import type {
   ChapterDetailMode,
   VolumeGenerateOptions,
@@ -710,9 +711,11 @@ async function generateChapterList(params: {
     existingVolumes: document.volumes,
   });
   const targetIndex = document.volumes.findIndex((volume) => volume.id === targetVolume.id);
-  const targetChapterCount = targetVolume.chapters.length >= 3
+  const beatSheetRequiredChapterCount = inferRequiredChapterCountFromBeatSheet(targetBeatSheet);
+  const existingOrBudgetChapterCount = targetVolume.chapters.length >= 3
     ? targetVolume.chapters.length
     : chapterBudgets[targetIndex] ?? Math.max(3, Math.round(chapterBudget / Math.max(document.volumes.length, 1)));
+  const targetChapterCount = Math.max(existingOrBudgetChapterCount, beatSheetRequiredChapterCount);
 
   const generated = await runStructuredPrompt({
     asset: createVolumeChapterListPrompt(targetChapterCount),

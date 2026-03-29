@@ -62,6 +62,8 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     isReviewingChapter,
     isRepairingChapter,
     reviewResult,
+    replanRecommendation,
+    lastReplanResult,
     chapterPlan,
     latestStateSnapshot,
     chapterAuditReports,
@@ -71,9 +73,13 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     chapterQualityReport,
     repairStreamContent,
     isRepairStreaming,
+    repairStreamingChapterId,
+    repairStreamingChapterLabel,
     onAbortRepair,
     streamContent,
     isStreaming,
+    streamingChapterId,
+    streamingChapterLabel,
     onAbortStream,
   } = props;
 
@@ -100,8 +106,8 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     }
   }, [chapterPlan?.participantsJson]);
   const activeReplanRecommendation = useMemo(
-    () => props.replanRecommendation ?? buildReplanRecommendationFromAuditReports(chapterAuditReports),
-    [chapterAuditReports, props.replanRecommendation],
+    () => replanRecommendation ?? buildReplanRecommendationFromAuditReports(chapterAuditReports),
+    [chapterAuditReports, replanRecommendation],
   );
 
   const filteredChapters = useMemo(
@@ -114,7 +120,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
       { key: "all", label: "全部" },
       { key: "setup", label: "待准备" },
       { key: "draft", label: "待写作" },
-      { key: "review", label: "待修订" },
+      { key: "review", label: "待修整" },
       { key: "completed", label: "已完成" },
     ] as const).map((item) => ({
       ...item,
@@ -126,28 +132,28 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
   const selectedChapterHasPlan = Boolean(
     selectedChapter && (hasText(chapterPlan?.objective) || hasText(selectedChapter.expectation)),
   );
-  const selectedChapterHasTaskSheet = hasText(selectedChapter?.taskSheet);
-  const selectedChapterHasSceneCards = hasText(selectedChapter?.sceneCards);
   const selectedChapterHasContent = hasText(selectedChapter?.content);
   const unresolvedIssueCount = openAuditIssues.length > 0 ? openAuditIssues.length : (reviewResult?.issues?.length ?? 0);
   const qualityOverall = chapterQualityReport?.overall ?? selectedChapter?.qualityScore ?? null;
+  const selectedChapterStreaming = Boolean(selectedChapter && isStreaming && streamingChapterId === selectedChapter.id);
+  const selectedChapterRepairing = Boolean(selectedChapter && isRepairStreaming && repairStreamingChapterId === selectedChapter.id);
 
   const primaryAction = useMemo<PrimaryAction | null>(() => {
     if (!selectedChapter) {
       return null;
     }
-    if (isRepairStreaming) {
+    if (selectedChapterRepairing) {
       return {
         label: "停止修复",
-        reason: "AI 正在修复当前章节，先等待结果，或在确实不满意时停止本次修复。",
+        reason: "AI 正在修复当前章节，先观察输出是否符合预期，不满意时再停止这轮修复。",
         variant: "outline",
         onClick: onAbortRepair,
       };
     }
-    if (isStreaming) {
+    if (selectedChapterStreaming) {
       return {
         label: "停止生成",
-        reason: "AI 正在写本章，先观察当前输出是否符合预期，再决定是否停止本次生成。",
+        reason: "AI 正在写这一章，先在主正文区观察节奏和手感，再决定是否中止。",
         variant: "outline",
         onClick: onAbortStream,
       };
@@ -155,7 +161,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     if (!hasCharacters) {
       return {
         label: "去角色管理",
-        reason: "当前至少需要 1 个角色，章节生成和审校才能更稳定地识别参与者和关系变化。",
+        reason: "至少先补 1 个角色，章节生成和审校才能更稳定地识别参与者与关系变化。",
         variant: "outline",
         onClick: onGoToCharacterTab,
       };
@@ -163,7 +169,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     if (!selectedChapterHasPlan || selectedChapter.chapterStatus === "unplanned") {
       return {
         label: isGeneratingChapterPlan ? "规划中..." : "生成本章计划",
-        reason: "先补齐本章目标、冲突和出场角色，后续写正文会更稳。",
+        reason: "先补齐这一章的目标、冲突和出场角色，后续写正文会更稳。",
         variant: "default",
         onClick: onGenerateChapterPlan,
         disabled: isGeneratingChapterPlan,
@@ -180,7 +186,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     if (selectedChapter.chapterStatus === "needs_repair" || unresolvedIssueCount > 0) {
       return {
         label: isRepairingChapter ? "修复中..." : "修复本章问题",
-        reason: "当前章节还有待处理问题，建议先修复再继续润色。",
+        reason: "这一章还有待处理问题，建议先修复，再继续润色。",
         variant: "secondary",
         onClick: onAutoRepair,
         disabled: isRepairingChapter,
@@ -188,8 +194,8 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     }
     if (selectedChapter.chapterStatus === "pending_review" || selectedChapter.generationState === "drafted") {
       return {
-        label: isRunningFullAudit ? "审计中..." : "运行完整审计",
-        reason: "正文已经写出一版了，先检查问题，再决定是修复还是重规划。",
+        label: isRunningFullAudit ? "审校中..." : "运行完整审校",
+        reason: "正文已经写出一版了，先检查问题，再决定是修复还是调整后续章节。",
         variant: "default",
         onClick: onRunFullAudit,
         disabled: isRunningFullAudit,
@@ -198,15 +204,15 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     if (activeReplanRecommendation?.recommended) {
       return {
         label: isReplanningChapter ? "调整中..." : "调整后续章节计划",
-        reason: activeReplanRecommendation.reason || "系统判断这章的问题可能已经影响后续章节。",
+        reason: activeReplanRecommendation.reason || "系统判断这一章的问题已经开始影响后续章节，适合现在重排。",
         variant: "outline",
         onClick: onReplanChapter,
         disabled: isReplanningChapter,
       };
     }
     return {
-      label: "打开编辑器",
-      reason: "当前章节已经进入可细修状态，可以转到编辑器做人工润色和确认。",
+      label: "打开章节编辑器",
+      reason: "当前章节已经进入可精修状态，可以转到编辑器里做人工润色和确认。",
       variant: "outline",
       href: `/novels/${novelId}/chapters/${selectedChapter.id}`,
     };
@@ -215,11 +221,9 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     activeReplanRecommendation?.recommended,
     hasCharacters,
     isGeneratingChapterPlan,
-    isRepairStreaming,
     isRepairingChapter,
     isReplanningChapter,
     isRunningFullAudit,
-    isStreaming,
     novelId,
     onAbortRepair,
     onAbortStream,
@@ -232,46 +236,53 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     selectedChapter,
     selectedChapterHasContent,
     selectedChapterHasPlan,
+    selectedChapterRepairing,
+    selectedChapterStreaming,
     unresolvedIssueCount,
   ]);
 
   return (
-    <Card>
-      <CardHeader className="space-y-2">
-        <div className="flex flex-row items-center justify-between">
+    <Card className="overflow-hidden">
+      <CardHeader className="gap-3 border-b bg-gradient-to-b from-muted/25 via-background to-background">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="space-y-1">
             <CardTitle>章节执行</CardTitle>
-            <div className="text-sm text-muted-foreground">把这页收回成真正的工作台：左侧选章，中间看当前结果，右侧执行 AI 动作。</div>
+            <div className="text-sm leading-6 text-muted-foreground">
+              把这里收成真正的主工作台：左侧只管切章，中间完整承接正文，右侧专心放 AI 动作和策略。
+            </div>
           </div>
           <Button onClick={onCreateChapter} disabled={isCreatingChapter}>
             {isCreatingChapter ? "创建中..." : "新建章节"}
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+
+      <CardContent className="space-y-4 pt-5">
         <WorldInjectionHint worldInjectionSummary={worldInjectionSummary} />
 
         {chapterOperationMessage ? (
-          <div className="rounded-md border border-border/70 bg-muted/20 p-3 text-xs text-muted-foreground">
+          <div className="rounded-xl border border-border/70 bg-muted/20 p-3 text-xs leading-6 text-muted-foreground">
             {chapterOperationMessage}
           </div>
         ) : null}
 
         {!hasCharacters ? (
-          <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-            <span>请先添加至少 1 个角色，再生成章节内容。</span>
+          <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 md:flex-row md:items-center md:justify-between">
+            <span>请先添加至少 1 个角色，再生成章节内容。这样 AI 更容易识别出场者、关系变化和情节承接。</span>
             <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>去角色管理</Button>
           </div>
         ) : null}
 
         {selectedChapter ? (
-          <Card>
-            <CardContent className="p-4 lg:p-5">
-              <div className="grid gap-4 lg:grid-cols-12">
-                <div className="min-w-0 space-y-3 lg:col-span-8">
+          <Card className="overflow-hidden border-border/70">
+            <CardContent className="bg-gradient-to-br from-slate-50 via-background to-amber-50/40 p-5">
+              <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+                <div className="space-y-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="outline">第{selectedChapter.order}章</Badge>
                     <Badge variant="secondary">{chapterStatusLabel(selectedChapter.chapterStatus)}</Badge>
+                    {selectedChapterStreaming ? <Badge>当前写作中</Badge> : null}
+                    {selectedChapterRepairing ? <Badge variant="secondary">当前修复中</Badge> : null}
                     {shouldShowGenerationStateBadge(selectedChapter.generationState) ? (
                       <Badge variant="outline">{generationStateLabel(selectedChapter.generationState)}</Badge>
                     ) : null}
@@ -281,49 +292,65 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
                       </Badge>
                     ) : null}
                   </div>
+
                   <div>
-                    <div className="text-lg font-semibold text-foreground">第{selectedChapter.order}章：{selectedChapter.title || "未命名章节"}</div>
-                    <div className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
-                      {chapterPlan?.objective ?? selectedChapter.expectation ?? "这章还没有明确目标，建议先补章节计划。"}
+                    <div className="text-xl font-semibold text-foreground">
+                      {selectedChapter.title || "未命名章节"}
+                    </div>
+                    <div className="mt-2 max-w-4xl text-sm leading-7 text-muted-foreground">
+                      {chapterPlan?.objective ?? selectedChapter.expectation ?? "这一章还没有明确目标，建议先补章节计划。"}
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+
+                  <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                     {planParticipants.length > 0 ? <span>参与角色：{planParticipants.join("、")}</span> : null}
                     {latestStateSnapshot?.summary ? <span className="line-clamp-1">最新状态：{latestStateSnapshot.summary}</span> : null}
                   </div>
+
                   <RiskBadgeList risks={riskFlags} />
-                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <MetricBadge label="当前字数" value={String(selectedChapter.content?.length ?? 0)} />
                     <MetricBadge label="目标字数" value={String(selectedChapter.targetWordCount ?? "-")} />
                     <MetricBadge label="待处理问题" value={String(unresolvedIssueCount)} />
-                    <MetricBadge label="最近更新" value={selectedChapter.updatedAt ? new Date(selectedChapter.updatedAt).toLocaleString() : "暂无"} />
+                    <MetricBadge label="最近更新" value={selectedChapter.updatedAt ? new Date(selectedChapter.updatedAt).toLocaleString("zh-CN") : "暂无"} />
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-border/70 bg-muted/20 p-4 lg:col-span-4">
+                <div className="rounded-2xl border border-border/70 bg-background/85 p-4">
                   <div className="text-xs text-muted-foreground">推荐下一步</div>
-                  <div className="mt-1 text-base font-semibold text-foreground">{primaryAction?.label ?? "先选择一章"}</div>
-                  <div className="mt-1 text-sm leading-6 text-muted-foreground">{primaryAction?.reason ?? "左侧选择章节后，系统会给出建议动作。"}</div>
-                  <div className="mt-3">
+                  <div className="mt-2 text-lg font-semibold text-foreground">{primaryAction?.label ?? "先选择一个章节"}</div>
+                  <div className="mt-2 text-sm leading-7 text-muted-foreground">
+                    {primaryAction?.reason ?? "从左侧选择章节后，系统会根据当前状态推荐更合适的动作。"}
+                  </div>
+                  <div className="mt-4">
                     <PrimaryActionButton action={primaryAction} />
                   </div>
+                  {(isStreaming && streamingChapterLabel && streamingChapterId && streamingChapterId !== selectedChapter.id) || (isRepairStreaming && repairStreamingChapterLabel && repairStreamingChapterId && repairStreamingChapterId !== selectedChapter.id) ? (
+                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-6 text-amber-800">
+                      {isStreaming && streamingChapterLabel && streamingChapterId !== selectedChapter.id ? `${streamingChapterLabel} 仍在后台写作。` : ""}
+                      {isRepairStreaming && repairStreamingChapterLabel && repairStreamingChapterId !== selectedChapter.id ? `${isStreaming && streamingChapterLabel && streamingChapterId !== selectedChapter.id ? " " : ""}${repairStreamingChapterLabel} 仍在后台修复。` : ""}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </CardContent>
           </Card>
         ) : (
-          <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-            左侧先选择一个章节，系统会根据当前状态推荐下一步动作。
+          <div className="rounded-xl border border-dashed p-8 text-sm leading-7 text-muted-foreground">
+            先在左侧选择一个章节，系统会把当前章节的正文、建议动作和质量反馈集中到中间工作区。
           </div>
         )}
 
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-          <div className="w-full lg:w-[260px] lg:flex-none">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
+          <div className="w-full xl:w-[300px] xl:flex-none">
             <ChapterExecutionQueueCard
               chapters={filteredChapters}
               selectedChapterId={selectedChapterId}
               queueFilter={queueFilter}
               queueFilters={queueFilters}
+              streamingChapterId={streamingChapterId}
+              repairStreamingChapterId={repairStreamingChapterId}
               onQueueFilterChange={setQueueFilter}
               onSelectChapter={onSelectChapter}
             />
@@ -341,20 +368,24 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
               replanRecommendation={activeReplanRecommendation}
               onReplanChapter={onReplanChapter}
               isReplanningChapter={isReplanningChapter}
-              lastReplanResult={props.lastReplanResult}
+              lastReplanResult={lastReplanResult}
               chapterQualityReport={chapterQualityReport}
               reviewResult={reviewResult}
               openAuditIssues={openAuditIssues}
               streamContent={streamContent}
               isStreaming={isStreaming}
+              streamingChapterId={streamingChapterId}
+              streamingChapterLabel={streamingChapterLabel}
               onAbortStream={onAbortStream}
               repairStreamContent={repairStreamContent}
               isRepairStreaming={isRepairStreaming}
+              repairStreamingChapterId={repairStreamingChapterId}
+              repairStreamingChapterLabel={repairStreamingChapterLabel}
               onAbortRepair={onAbortRepair}
             />
           </div>
 
-          <div className="w-full lg:w-[300px] lg:flex-none">
+          <div className="w-full xl:w-[320px] xl:flex-none">
             <ChapterExecutionActionPanel
               novelId={novelId}
               selectedChapter={selectedChapter}

@@ -48,6 +48,19 @@ function parseBeatSpan(chapterSpanHint: string): { start: number; end: number } 
   return { start: numbers[0], end: numbers[numbers.length - 1] };
 }
 
+function getBeatSheetRequiredChapterCount(
+  beatSheet: ReturnType<typeof findBeatSheet>,
+): number {
+  if (!beatSheet) {
+    return 0;
+  }
+  return beatSheet.beats.reduce((maxValue, beat) => {
+    const span = parseBeatSpan(beat.chapterSpanHint);
+    const upperBound = span?.end ?? 0;
+    return upperBound > maxValue ? upperBound : maxValue;
+  }, 0);
+}
+
 function chapterMatchesBeat(chapter: StructuredChapter, beat: StructuredBeat): boolean {
   const span = parseBeatSpan(beat.chapterSpanHint);
   return span ? chapter.chapterOrder >= span.start && chapter.chapterOrder <= span.end : false;
@@ -173,6 +186,8 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
     ? null
     : selectedBeatSheet?.beats.find((beat) => beat.key === selectedBeatKey) ?? null;
   const selectedVolumeChapters = selectedVolume?.chapters ?? [];
+  const selectedVolumeRequiredChapterCount = getBeatSheetRequiredChapterCount(selectedBeatSheet);
+  const selectedVolumeNeedsChapterExpansion = selectedVolumeRequiredChapterCount > selectedVolumeChapters.length;
   const visibleChapters = selectedBeat
     ? selectedVolumeChapters.filter((chapter) => chapterMatchesBeat(chapter, selectedBeat))
     : selectedVolumeChapters;
@@ -489,6 +504,11 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                   <Badge variant="outline">显示 {visibleChapters.length}/{selectedVolumeChapters.length} 章</Badge>
                   <Badge variant="outline">{visibleRefinedChapterCount}/{Math.max(visibleChapters.length, 1)} 已细化</Badge>
                 </div>
+                {selectedVolumeNeedsChapterExpansion ? (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-800">
+                    当前卷目前只有 {selectedVolumeChapters.length} 章，但节奏板已经排到 {selectedVolumeRequiredChapterCount} 章。需要先重新生成当前卷章节列表，后半段节奏才会真正映射到章节。
+                  </div>
+                ) : null}
                 {selectedVolumeChapters.length > 0 ? (
                   <div className="min-h-0 space-y-2 overflow-y-auto pr-1">
                     {visibleChapters.map((chapter) => {
@@ -520,12 +540,22 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                     })}
                     {visibleChapters.length === 0 ? (
                       <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                        {selectedBeat && selectedVolumeNeedsChapterExpansion ? (
+                          <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-6 text-amber-800">
+                            当前节奏段是 {selectedBeat.chapterSpanHint}，但本卷目前只生成到 {selectedVolumeChapters.length} 章。请先重新生成当前卷章节列表，把这一卷补到至少 {selectedVolumeRequiredChapterCount} 章。
+                          </div>
+                        ) : null}
                         当前节奏段还没有映射到章节，先切回全部章节或重新调整节奏板。
                       </div>
                     ) : null}
                   </div>
                 ) : (
                   <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                    {selectedVolumeRequiredChapterCount > 0 ? (
+                      <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-6 text-amber-800">
+                        根据当前节奏板，这一卷至少需要 {selectedVolumeRequiredChapterCount} 章，才能把各个节奏段完整映射到章节。
+                      </div>
+                    ) : null}
                     当前卷还没有章节列表。先生成当前卷章节列表。
                   </div>
                 )}

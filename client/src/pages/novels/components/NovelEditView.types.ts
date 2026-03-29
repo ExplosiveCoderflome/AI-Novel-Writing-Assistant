@@ -291,9 +291,13 @@ export interface ChapterTabViewProps {
   };
   repairStreamContent: string;
   isRepairStreaming: boolean;
+  repairStreamingChapterId?: string | null;
+  repairStreamingChapterLabel?: string | null;
   onAbortRepair: () => void;
   streamContent: string;
   isStreaming: boolean;
+  streamingChapterId?: string | null;
+  streamingChapterLabel?: string | null;
   onAbortStream: () => void;
 }
 

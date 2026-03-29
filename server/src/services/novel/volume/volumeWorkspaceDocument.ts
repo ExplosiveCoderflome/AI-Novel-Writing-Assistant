@@ -24,6 +24,9 @@ function isRecord(value: unknown): value is JsonRecord {
 }
 
 function normalizeText(value: unknown): string | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(Math.round(value));
+  }
   if (typeof value !== "string") {
     return null;
   }
@@ -49,12 +52,72 @@ function normalizeInteger(value: unknown, fallback: number): number {
 }
 
 function normalizeStringArray(value: unknown): string[] {
+  if (typeof value === "string") {
+    return value
+      .split(/[\n,，；、]/g)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
   if (!Array.isArray(value)) {
     return [];
   }
   return value
     .map((item) => (typeof item === "string" ? item.trim() : ""))
     .filter(Boolean);
+}
+
+function resolveVolumeReference(volumes: VolumePlan[], value: unknown): string | null {
+  const normalized = normalizeText(value);
+  if (!normalized) {
+    return null;
+  }
+  const directMatch = volumes.find((volume) => volume.id === normalized);
+  if (directMatch) {
+    return directMatch.id;
+  }
+
+  const orderMatch = normalized.match(/(?:volume|卷|第)?\s*(\d+)(?:\s*卷)?$/i);
+  if (!orderMatch) {
+    return null;
+  }
+
+  const sortOrder = Number.parseInt(orderMatch[1], 10);
+  if (!Number.isFinite(sortOrder)) {
+    return null;
+  }
+  return volumes.find((volume) => volume.sortOrder === sortOrder)?.id ?? null;
+}
+
+function normalizeRebalanceDirection(value: unknown, actions: string[]): VolumeRebalanceDecision["direction"] {
+  if (actions.length === 1 && actions[0].toLowerCase() === "hold") {
+    return "hold";
+  }
+
+  const normalized = normalizeText(value)?.toLowerCase().replace(/[\s-]+/g, "_");
+  switch (normalized) {
+    case "pull_forward":
+    case "pullforward":
+    case "backward":
+    case "back":
+      return "pull_forward";
+    case "push_back":
+    case "pushback":
+    case "forward":
+    case "next":
+      return "push_back";
+    case "tighten_current":
+    case "tighten":
+    case "compress_current":
+      return "tighten_current";
+    case "expand_adjacent":
+    case "expand":
+    case "expand_neighbor":
+    case "expand_neighbour":
+    case "adjacent":
+      return "expand_adjacent";
+    default:
+      return "hold";
+  }
 }
 
 function normalizeStrategyVolume(raw: unknown, index: number): VolumeStrategyVolume | null {
@@ -213,34 +276,31 @@ function normalizeCritiqueReport(raw: unknown): VolumeCritiqueReport | null {
   };
 }
 
-function normalizeRebalanceDecision(raw: unknown, validVolumeIds: Set<string>): VolumeRebalanceDecision | null {
+function normalizeRebalanceDecision(raw: unknown, volumes: VolumePlan[]): VolumeRebalanceDecision | null {
   if (!isRecord(raw)) {
     return null;
   }
-  const anchorVolumeId = normalizeText(raw.anchorVolumeId);
-  const affectedVolumeId = normalizeText(raw.affectedVolumeId);
+  const anchorVolumeId = resolveVolumeReference(volumes, raw.anchorVolumeId);
+  const affectedVolumeId = resolveVolumeReference(volumes, raw.affectedVolumeId);
   const summary = normalizeText(raw.summary);
   if (!anchorVolumeId || !affectedVolumeId || !summary) {
     return null;
   }
-  if (!validVolumeIds.has(anchorVolumeId) || !validVolumeIds.has(affectedVolumeId)) {
-    return null;
-  }
-  const direction = raw.direction === "pull_forward"
-    || raw.direction === "push_back"
-    || raw.direction === "tighten_current"
-    || raw.direction === "expand_adjacent"
-    ? raw.direction
-    : "hold";
-  const severity = raw.severity === "low" || raw.severity === "high" ? raw.severity : "medium";
   const actions = normalizeStringArray(raw.actions);
+  const direction = normalizeRebalanceDirection(raw.direction, actions);
+  const rawSeverity = normalizeText(raw.severity)?.toLowerCase();
+  const severity = rawSeverity === "low" || rawSeverity === "minor"
+    ? "low"
+    : rawSeverity === "high" || rawSeverity === "critical" || rawSeverity === "urgent"
+      ? "high"
+      : "medium";
   return {
     anchorVolumeId,
     affectedVolumeId,
     direction,
     severity,
     summary,
-    actions,
+    actions: actions.length > 0 ? actions : direction === "hold" ? ["hold"] : [],
   };
 }
 
@@ -348,14 +408,13 @@ export function buildVolumeWorkspaceDocument(params: {
   activeVersionId?: string | null;
 }): VolumePlanDocument {
   const volumes = normalizeVolumeDraftInput(params.novelId, params.volumes);
-  const volumeIds = new Set(volumes.map((volume) => volume.id));
   const strategyPlan = params.strategyPlan ?? null;
   const critiqueReport = params.critiqueReport ?? null;
   const beatSheets = (params.beatSheets ?? [])
     .map((sheet) => normalizeBeatSheet(sheet, volumes))
     .filter((item): item is VolumeBeatSheet => Boolean(item));
   const rebalanceDecisions = (params.rebalanceDecisions ?? [])
-    .map((decision) => normalizeRebalanceDecision(decision, volumeIds))
+    .map((decision) => normalizeRebalanceDecision(decision, volumes))
     .filter((item): item is VolumeRebalanceDecision => Boolean(item));
   return {
     novelId: params.novelId,
@@ -395,7 +454,6 @@ export function normalizeVolumeWorkspaceDocument(
   }
   const record = isRecord(parsedRaw) ? parsedRaw : {};
   const volumes = normalizeVolumeDraftInput(novelId, Array.isArray(record.volumes) ? record.volumes : []);
-  const volumeIds = new Set(volumes.map((volume) => volume.id));
   const strategyPlan = normalizeStrategyPlan(record.strategyPlan, volumes.length);
   const critiqueReport = normalizeCritiqueReport(record.critiqueReport);
   const beatSheets = Array.isArray(record.beatSheets)
@@ -405,7 +463,7 @@ export function normalizeVolumeWorkspaceDocument(
     : [];
   const rebalanceDecisions = Array.isArray(record.rebalanceDecisions)
     ? record.rebalanceDecisions
-      .map((item) => normalizeRebalanceDecision(item, volumeIds))
+      .map((item) => normalizeRebalanceDecision(item, volumes))
       .filter((item): item is VolumeRebalanceDecision => Boolean(item))
     : [];
   const source = record.source === "legacy" || record.source === "empty" || record.source === "volume"

@@ -7,6 +7,8 @@ import { titleGenerationPrompt } from "../../prompting/prompts/helper/titleGener
 import {
   collectUniqueSuggestions,
   DEFAULT_TITLE_COUNT,
+  detectTitleSurfaceFrame,
+  hasEnoughStructuralVariety,
   hasEnoughStyleVariety,
   normalizeRequestedCount,
   toTrimmedString,
@@ -56,7 +58,7 @@ function buildNovelBrief(novel: {
 }): string {
   const parts = [
     novel.description?.trim() ? `作品简介：${novel.description.trim()}` : "",
-    novel.genre?.name ? `题材方向：${novel.genre.name}` : "",
+    novel.genre?.name ? `题材基底：${novel.genre.name}` : "",
     novel.genre?.description?.trim() ? `题材补充：${novel.genre.description.trim()}` : "",
   ].filter(Boolean);
 
@@ -64,6 +66,34 @@ function buildNovelBrief(novel: {
     return parts.join("\n");
   }
   return `项目标题：${novel.title}`;
+}
+
+function batchScore(titles: TitleFactorySuggestion[]): number {
+  if (titles.length === 0) {
+    return 0;
+  }
+
+  const styleCount = new Set(titles.map((item) => item.style)).size;
+  const frameCount = new Set(titles.map((item) => detectTitleSurfaceFrame(item.title))).size;
+  const totalClickRate = titles.reduce((sum, item) => sum + item.clickRate, 0);
+
+  return titles.length * 1000 + styleCount * 100 + frameCount * 100 + totalClickRate;
+}
+
+function isBetterBatch(current: TitleFactorySuggestion[], challenger: TitleFactorySuggestion[]): boolean {
+  return batchScore(challenger) > batchScore(current);
+}
+
+function ensureGenerationQuality(titles: TitleFactorySuggestion[], targetCount: number): void {
+  if (titles.length < targetCount) {
+    throw new Error(`标题数量不足，目标 ${targetCount} 个，实际仅有 ${titles.length} 个可用标题。`);
+  }
+  if (!hasEnoughStyleVariety(titles, targetCount)) {
+    throw new Error("标题风格分布过窄，未达到最低风格覆盖要求。");
+  }
+  if (!hasEnoughStructuralVariety(titles, targetCount)) {
+    throw new Error("标题句式框架过于集中，缺少足够的结构多样性。");
+  }
 }
 
 export class TitleGenerationService {
@@ -77,7 +107,7 @@ export class TitleGenerationService {
       throw new Error("自由标题工坊需要提供创作简报。");
     }
     if (mode === "adapt" && !referenceTitle) {
-      throw new Error("参考标题改编模式需要提供参考标题。");
+      throw new Error("参考标题改写模式需要提供参考标题。");
     }
 
     const genre = input.genreId
@@ -90,7 +120,7 @@ export class TitleGenerationService {
     return this.runGeneration({
       mode,
       count,
-      brief: brief || `请围绕参考标题「${referenceTitle}」做结构学习式改编，产出原创标题。`,
+      brief: brief || `请围绕参考标题《${referenceTitle}》做结构学习式改写，产出原创标题。`,
       referenceTitle,
       novelTitle: "",
       currentTitle: "",
@@ -104,7 +134,10 @@ export class TitleGenerationService {
     });
   }
 
-  async generateNovelTitles(novelId: string, input: GenerateNovelTitlesInput = {}): Promise<{ titles: TitleFactorySuggestion[] }> {
+  async generateNovelTitles(
+    novelId: string,
+    input: GenerateNovelTitlesInput = {},
+  ): Promise<{ titles: TitleFactorySuggestion[] }> {
     const novel = await prisma.novel.findUnique({
       where: { id: novelId },
       select: {
@@ -175,25 +208,24 @@ export class TitleGenerationService {
         const rawTitles = extractRawTitlesFromPayload(payload.output);
         const titles = collectUniqueSuggestions(rawTitles, count, blockedTitles);
 
-        if (titles.length > bestEffortTitles.length) {
+        if (isBetterBatch(bestEffortTitles, titles)) {
           bestEffortTitles = titles;
         }
 
-        if (titles.length < count) {
-          throw new Error(`标题数量不足，目标 ${count} 个，实际仅 ${titles.length} 个可用标题。`);
-        }
-        if (!hasEnoughStyleVariety(titles, count)) {
-          throw new Error("标题风格分布过窄，未达到最少风格覆盖要求。");
-        }
-
+        ensureGenerationQuality(titles, count);
         return { titles };
       } catch (error) {
         lastError = error;
-        retryReason = resolveRetryReason(error, "输出不符合 JSON 或标题质量要求");
+        retryReason = resolveRetryReason(error, "输出不符合 JSON 或标题质量要求。");
       }
     }
 
-    if (bestEffortTitles.length >= Math.max(5, Math.floor(count * 0.7))) {
+    const minimumAcceptableCount = Math.max(5, Math.floor(count * 0.8));
+    if (
+      bestEffortTitles.length >= minimumAcceptableCount
+      && hasEnoughStyleVariety(bestEffortTitles, bestEffortTitles.length)
+      && hasEnoughStructuralVariety(bestEffortTitles, bestEffortTitles.length)
+    ) {
       return { titles: bestEffortTitles };
     }
 

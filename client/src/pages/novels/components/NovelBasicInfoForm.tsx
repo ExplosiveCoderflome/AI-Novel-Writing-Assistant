@@ -166,16 +166,23 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
           </div>
         </div>
 
+        <div className="rounded-lg border bg-muted/20 p-3 text-sm leading-6 text-muted-foreground">
+          <div className="font-medium text-foreground">题材基底与推进模式的区别</div>
+          <div className="mt-1">
+            题材基底回答“这是什么书”，例如修仙、都市、历史架空；推进模式回答“这本书靠什么持续推进和兑现”，例如系统流、无敌流、种田流。
+          </div>
+        </div>
+
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="space-y-2">
-            <FieldLabel htmlFor="basic-genre" hint={BASIC_INFO_FIELD_HINTS.genreId}>作品类型</FieldLabel>
+            <FieldLabel htmlFor="basic-genre" hint={BASIC_INFO_FIELD_HINTS.genreId}>题材基底</FieldLabel>
             <select
               id="basic-genre"
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={basicForm.genreId}
               onChange={(event) => onFormChange({ genreId: event.target.value })}
             >
-              <option value="">暂不设置类型</option>
+              <option value="">暂不设置题材基底</option>
               {genreOptions.map((genre) => (
                 <option key={genre.id} value={genre.id}>
                   {genre.path}
@@ -240,7 +247,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-2">
             <FieldLabel htmlFor="basic-primary-story-mode" hint={BASIC_INFO_FIELD_HINTS.primaryStoryModeId}>
-              主流派模式
+              主推进模式
             </FieldLabel>
             <select
               id="basic-primary-story-mode"
@@ -248,7 +255,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               value={basicForm.primaryStoryModeId}
               onChange={(event) => onFormChange({ primaryStoryModeId: event.target.value })}
             >
-              <option value="">暂不设置主流派模式</option>
+              <option value="">暂不设置主推进模式</option>
               {storyModeOptions.map((storyMode) => (
                 <option key={storyMode.id} value={storyMode.id}>
                   {storyMode.path}
@@ -259,7 +266,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
 
           <div className="space-y-2">
             <FieldLabel htmlFor="basic-secondary-story-mode" hint={BASIC_INFO_FIELD_HINTS.secondaryStoryModeId}>
-              副流派模式
+              副推进模式
             </FieldLabel>
             <select
               id="basic-secondary-story-mode"
@@ -267,7 +274,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               value={basicForm.secondaryStoryModeId}
               onChange={(event) => onFormChange({ secondaryStoryModeId: event.target.value })}
             >
-              <option value="">不叠加副流派模式</option>
+              <option value="">不叠加副推进模式</option>
               {storyModeOptions.map((storyMode) => (
                 <option
                   key={storyMode.id}
@@ -285,7 +292,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
           <div className="grid gap-3 md:grid-cols-2">
             {primaryStoryMode ? (
               <div className="rounded-lg border bg-muted/20 p-3">
-                <div className="text-sm font-semibold text-foreground">主流派模式摘要</div>
+                <div className="text-sm font-semibold text-foreground">主推进模式摘要</div>
                 <div className="mt-1 text-sm text-foreground">{primaryStoryMode.name}</div>
                 <div className="mt-1 text-xs leading-5 text-muted-foreground">
                   {primaryStoryMode.description || primaryStoryMode.profile.coreDrive}
@@ -295,7 +302,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
             ) : null}
             {secondaryStoryMode ? (
               <div className="rounded-lg border bg-muted/20 p-3">
-                <div className="text-sm font-semibold text-foreground">副流派模式摘要</div>
+                <div className="text-sm font-semibold text-foreground">副推进模式摘要</div>
                 <div className="mt-1 text-sm text-foreground">{secondaryStoryMode.name}</div>
                 <div className="mt-1 text-xs leading-5 text-muted-foreground">
                   {secondaryStoryMode.description || secondaryStoryMode.profile.coreDrive}

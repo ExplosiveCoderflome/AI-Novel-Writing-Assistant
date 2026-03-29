@@ -69,7 +69,7 @@ export default function GenreCreateDialog({
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.genres.all });
-      toast.success("类型树已创建。");
+      toast.success("题材基底树已创建。");
       onOpenChange(false);
     },
   });
@@ -87,7 +87,7 @@ export default function GenreCreateDialog({
         return;
       }
       setDraft(cloneGenreDraft(response.data));
-      toast.success("AI 类型树已生成。");
+      toast.success("AI 题材基底树已生成。");
     },
   });
 
@@ -95,9 +95,9 @@ export default function GenreCreateDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-4xl overflow-auto">
         <DialogHeader>
-          <DialogTitle>新建类型树</DialogTitle>
+          <DialogTitle>新建题材基底树</DialogTitle>
           <DialogDescription>
-            先确定父级位置，再手动填写结构或让 AI 先生成一个草稿。
+            先确定父级位置，再手动填写结构或让 AI 先生成一个草稿。这里维护的是作品的题材基底，也就是“这是什么书”。
           </DialogDescription>
         </DialogHeader>
 
@@ -106,7 +106,7 @@ export default function GenreCreateDialog({
             <div className="space-y-1">
               <div className="text-sm font-semibold text-foreground">AI 生成</div>
               <div className="text-xs leading-5 text-muted-foreground">
-                适合先把大类、子类和下级类型一起打出来，再手动微调。
+                适合先把大类、子类和下级题材基底一起打出来，再手动微调。
               </div>
             </div>
             <LLMSelector />
@@ -123,7 +123,7 @@ export default function GenreCreateDialog({
                 onClick={() => generateMutation.mutate()}
                 disabled={generateMutation.isPending || !generationPrompt.trim()}
               >
-                {generateMutation.isPending ? "生成中..." : "生成类型树"}
+                {generateMutation.isPending ? "生成中..." : "生成题材基底树"}
               </Button>
               <Button
                 type="button"
@@ -137,7 +137,7 @@ export default function GenreCreateDialog({
 
           <div className="space-y-2">
             <label htmlFor="genre-parent" className="text-sm font-medium text-foreground">
-              父级类型
+              父级题材基底
             </label>
             <select
               id="genre-parent"
@@ -145,7 +145,7 @@ export default function GenreCreateDialog({
               value={parentId}
               onChange={(event) => setParentId(event.target.value)}
             >
-              <option value="">无父级，作为根类型创建</option>
+              <option value="">无父级，作为根题材基底创建</option>
               {parentOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.path}
@@ -162,7 +162,7 @@ export default function GenreCreateDialog({
             取消
           </Button>
           <Button type="button" onClick={() => createMutation.mutate()} disabled={!canSubmit || createMutation.isPending}>
-            {createMutation.isPending ? "保存中..." : "保存类型树"}
+            {createMutation.isPending ? "保存中..." : "保存题材基底树"}
           </Button>
         </DialogFooter>
       </DialogContent>

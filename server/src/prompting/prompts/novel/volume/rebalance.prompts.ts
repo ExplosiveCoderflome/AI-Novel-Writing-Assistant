@@ -26,9 +26,12 @@ export const volumeRebalancePrompt: PromptAsset<
     new SystemMessage([
       "你是网文连载结构调度助手。",
       "请根据当前卷变化，判断相邻卷是否需要再平衡。",
-      "只输出严格 JSON。",
+      "只输出严格 JSON，不要输出 markdown，不要解释。",
       "每条 decision 都必须包含 anchorVolumeId、affectedVolumeId、direction、severity、summary、actions。",
-      "如果相邻卷暂时不需要调整，可以使用 hold，但 summary 仍要说明原因。",
+      "anchorVolumeId 和 affectedVolumeId 一律使用卷序号字符串，例如 \"1\"、\"2\"，不要输出数据库 uuid，也不要输出数字类型。",
+      "direction 只能从以下枚举里选择一个：pull_forward、push_back、tighten_current、expand_adjacent、hold。",
+      "如果相邻卷暂时不需要调整，也可以输出 hold，但 summary 仍要说明原因。",
+      "最终 JSON 形状固定为：{\"decisions\":[{\"anchorVolumeId\":\"1\",\"affectedVolumeId\":\"2\",\"direction\":\"push_back\",\"severity\":\"medium\",\"summary\":\"...\",\"actions\":[\"...\"]}]}",
     ].join("\n")),
     new HumanMessage([
       "相邻卷再平衡上下文：",

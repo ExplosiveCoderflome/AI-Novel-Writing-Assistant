@@ -108,7 +108,7 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
           disabled={genreLoading || genreOptions.length === 0}
           onChange={(event) => onGenreChange(event.target.value)}
         >
-          <option value="">{genreLoading ? "正在加载类型..." : "请选择通用类型"}</option>
+          <option value="">{genreLoading ? "正在加载题材基底..." : "请选择题材基底"}</option>
           {genreOptions.map((genre) => (
             <option key={genre.id} value={genre.id}>
               {genre.path}
@@ -117,27 +117,27 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
         </select>
         {selectedGenre ? (
           <div className="rounded-md border p-3 text-xs text-muted-foreground space-y-1">
-            <div>当前类型路径：{selectedGenre.path}</div>
-            {selectedGenre.description?.trim() ? <div>类型说明：{selectedGenre.description.trim()}</div> : null}
+            <div>当前题材基底路径：{selectedGenre.path}</div>
+            {selectedGenre.description?.trim() ? <div>题材基底说明：{selectedGenre.description.trim()}</div> : null}
             {selectedGenre.template?.trim() ? (
-              <div className="whitespace-pre-wrap">类型模板：{selectedGenre.template.trim()}</div>
+              <div className="whitespace-pre-wrap">题材基底模板：{selectedGenre.template.trim()}</div>
             ) : null}
           </div>
         ) : null}
-        {genreLoading ? <div className="text-xs text-muted-foreground">正在加载通用类型树...</div> : null}
+        {genreLoading ? <div className="text-xs text-muted-foreground">正在加载题材基底树...</div> : null}
         {!genreLoading && genreOptions.length === 0 ? (
           <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground space-y-2">
-            <div>当前还没有可用类型。世界观向导会统一使用通用类型管理。</div>
+            <div>当前还没有可用题材基底。世界观向导会统一使用题材基底库。</div>
             <Button type="button" variant="outline" onClick={onOpenGenreManager}>
-              去类型管理
+              去题材基底库
             </Button>
           </div>
         ) : null}
         <div className="text-xs text-muted-foreground">
-          这里直接复用通用类型管理，不再使用模板内置类型列表作为入口。
+          这里直接复用题材基底库，不再使用模板内置类型列表作为入口。
         </div>
         <div className="text-xs text-muted-foreground">
-          先确定题材类型，再生成概念卡、前置属性和后续模板筛选。
+          先确定题材基底，再生成概念卡、前置属性和后续模板筛选。
         </div>
       </div>
 

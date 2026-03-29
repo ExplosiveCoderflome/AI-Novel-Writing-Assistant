@@ -17,6 +17,8 @@ interface ChapterExecutionQueueCardProps {
   selectedChapterId: string;
   queueFilter: QueueFilterKey;
   queueFilters: QueueFilterOption[];
+  streamingChapterId?: string | null;
+  repairStreamingChapterId?: string | null;
   onQueueFilterChange: (filter: QueueFilterKey) => void;
   onSelectChapter: (chapterId: string) => void;
 }
@@ -27,20 +29,27 @@ export default function ChapterExecutionQueueCard(props: ChapterExecutionQueueCa
     selectedChapterId,
     queueFilter,
     queueFilters,
+    streamingChapterId,
+    repairStreamingChapterId,
     onQueueFilterChange,
     onSelectChapter,
   } = props;
 
   return (
-    <Card className="self-start lg:sticky lg:top-4">
-      <CardHeader className="pb-3">
-        <div className="space-y-2">
-          <div>
-            <CardTitle className="text-base">章节导航</CardTitle>
-            <div className="text-sm text-muted-foreground">左侧只负责切章和切队列，不再挤占正文区。</div>
-          </div>
-          <div className="-mx-1 overflow-x-auto px-1 pb-1">
-            <div className="flex min-w-max gap-2">
+    <Card className="self-start overflow-hidden border-border/70 lg:sticky lg:top-4">
+      <CardHeader className="gap-3 border-b bg-gradient-to-b from-muted/30 to-background pb-4">
+        <div className="space-y-1">
+          <CardTitle className="text-base">章节队列</CardTitle>
+          <p className="text-sm leading-6 text-muted-foreground">
+            左侧只负责切章和查看推进状态，把正文阅读区完整留给中间的主写作面板。
+          </p>
+        </div>
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>当前可见 {chapters.length} 章</span>
+          <span>筛选：{queueFilters.find((item) => item.key === queueFilter)?.label ?? "全部"}</span>
+        </div>
+        <div className="-mx-1 overflow-x-auto px-1 pb-1">
+          <div className="flex min-w-max gap-2">
             {queueFilters.map((filter) => (
               <Button
                 key={filter.key}
@@ -52,63 +61,81 @@ export default function ChapterExecutionQueueCard(props: ChapterExecutionQueueCa
                 {filter.label} {filter.count}
               </Button>
             ))}
-            </div>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
-        <div className="max-h-[calc(100vh-240px)] space-y-2 overflow-y-auto pr-1">
+      <CardContent className="pt-4">
+        <div className="max-h-[calc(100vh-240px)] space-y-3 overflow-y-auto pr-1">
           {chapters.length === 0 ? (
-            <div className="rounded-md border border-dashed p-4 text-xs text-muted-foreground">
-              当前筛选下没有章节。
+            <div className="rounded-xl border border-dashed p-4 text-xs leading-6 text-muted-foreground">
+              当前筛选下还没有章节。
             </div>
           ) : (
             chapters.map((chapter) => {
               const chapterRisks = parseRiskFlags(chapter.riskFlags);
               const isSelected = selectedChapterId === chapter.id;
+              const isStreamingTarget = streamingChapterId === chapter.id;
+              const isRepairTarget = repairStreamingChapterId === chapter.id;
+
               return (
                 <button
                   key={chapter.id}
                   type="button"
                   onClick={() => onSelectChapter(chapter.id)}
-                  className={`w-full rounded-xl border p-3 text-left transition ${
+                  className={`w-full rounded-2xl border p-4 text-left transition ${
                     isSelected
                       ? "border-primary bg-primary/5 shadow-sm"
-                      : "border-border hover:border-primary/30 hover:bg-muted/40"
+                      : "border-border/70 bg-background hover:border-primary/30 hover:bg-muted/35"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-foreground">第{chapter.order}章：{chapter.title || "未命名章节"}</div>
-                      <div className="mt-1 line-clamp-1 text-xs leading-5 text-muted-foreground">
-                        {chapter.expectation || chapter.taskSheet || chapter.sceneCards || "这章还没有明确目标，适合先补章节计划。"}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-2">
+                      <div className="text-sm font-semibold leading-6 text-foreground">
+                        第{chapter.order}章 {chapter.title || "未命名章节"}
+                      </div>
+                      <div className="line-clamp-2 text-xs leading-6 text-muted-foreground">
+                        {chapter.expectation || chapter.taskSheet || chapter.sceneCards || "这一章还没有明确目标，适合先补章节计划。"}
                       </div>
                     </div>
                     <Badge
                       variant={isSelected ? "default" : "outline"}
-                      className="min-w-[54px] shrink-0 justify-center whitespace-nowrap rounded-full px-2 py-1 text-[11px]"
+                      className="min-w-[60px] shrink-0 justify-center rounded-full px-2 py-1 text-[11px]"
                     >
                       {chapterStatusLabel(chapter.chapterStatus)}
                     </Badge>
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <span>下一步：{chapterSuggestedActionLabel(chapter)}</span>
-                    <span>字数：{chapter.content?.length ?? 0}</span>
+
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {isStreamingTarget ? (
+                      <Badge className="rounded-full px-2 py-1 text-[11px]">写作中</Badge>
+                    ) : null}
+                    {isRepairTarget ? (
+                      <Badge variant="secondary" className="rounded-full px-2 py-1 text-[11px]">
+                        修复中
+                      </Badge>
+                    ) : null}
                     {shouldShowGenerationStateBadge(chapter.generationState) ? (
-                      <Badge variant="outline" className="shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[11px]">
+                      <Badge variant="outline" className="rounded-full px-2 py-1 text-[11px]">
                         {generationStateLabel(chapter.generationState)}
                       </Badge>
                     ) : null}
+                    {chapterRisks.slice(0, 2).map((risk) => (
+                      <Badge key={`${chapter.id}-${risk}`} variant="secondary" className="rounded-full px-2 py-1 text-[11px]">
+                        {risk}
+                      </Badge>
+                    ))}
                   </div>
-                  {chapterRisks.length > 0 ? (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {chapterRisks.slice(0, 2).map((risk) => (
-                        <Badge key={`${chapter.id}-${risk}`} variant="secondary" className="whitespace-nowrap rounded-full px-2 py-1 text-[11px]">
-                          {risk}
-                        </Badge>
-                      ))}
+
+                  <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-muted/25 p-3 text-[11px] text-muted-foreground">
+                    <div>
+                      <div>下一步</div>
+                      <div className="mt-1 font-medium text-foreground">{chapterSuggestedActionLabel(chapter)}</div>
                     </div>
-                  ) : null}
+                    <div>
+                      <div>当前字数</div>
+                      <div className="mt-1 font-medium text-foreground">{chapter.content?.length ?? 0}</div>
+                    </div>
+                  </div>
                 </button>
               );
             })

@@ -13,6 +13,31 @@ export interface TitlePromptContext {
   genreDescription: string;
 }
 
+type TitleSuggestionHookType =
+  | "identity_gap"
+  | "abnormal_situation"
+  | "power_mutation"
+  | "rule_hook"
+  | "direct_conflict"
+  | "high_concept";
+
+export type TitleSurfaceFrame =
+  | "contrast_then_self"
+  | "setting_then_self"
+  | "scenario_then_self"
+  | "self_split"
+  | "colon_split"
+  | "when_open"
+  | "setting_open"
+  | "self_open"
+  | "genre_open"
+  | "comma_split"
+  | "plain_statement";
+
+interface NormalizedTitleSuggestion extends TitleFactorySuggestion {
+  surfaceFrame: TitleSurfaceFrame;
+}
+
 const STYLE_ALIASES: Record<string, TitleSuggestionStyle> = {
   literary: "literary",
   narrative: "literary",
@@ -30,6 +55,24 @@ const STYLE_ALIASES: Record<string, TitleSuggestionStyle> = {
   worldbuilding: "high_concept",
   hook: "high_concept",
 };
+
+const HOOK_TYPE_TO_STYLE: Record<TitleSuggestionHookType, TitleSuggestionStyle> = {
+  identity_gap: "conflict",
+  abnormal_situation: "suspense",
+  power_mutation: "high_concept",
+  rule_hook: "suspense",
+  direct_conflict: "conflict",
+  high_concept: "high_concept",
+};
+
+const GENRE_OPENING_PATTERN =
+  /^(末日|丧尸|诡异|规则|全球|全民|深海|废土|星际|高武|修仙|历史|天灾|国运|灾变|怪谈)/u;
+const SELF_SPLIT_PATTERN = /^我.+[，,]/u;
+const SCENARIO_THEN_SELF_PATTERN =
+  /^[^，,：:]+[，,](我|我的|我能|我有|我靠|我用|我让|我把|我开局|我却|我直接|我只要)/u;
+const CONTRAST_THEN_SELF_PATTERN =
+  /^(别人|全网|所有人|世人|诸天|满朝|全校|全班|全服).+[，,](我|我的|我能|我有|我靠|我开局|我却|我直接)/u;
+const SETTING_THEN_SELF_PATTERN = /^在.+[，,](我|我的|我能|我有|我靠|我开局|我却|我直接)/u;
 
 export const DEFAULT_TITLE_COUNT = 12;
 export const MIN_TITLE_COUNT = 3;
@@ -92,15 +135,35 @@ export function clampClickRate(value: unknown): number {
   return Math.min(99, Math.max(35, Math.round(value)));
 }
 
-export function normalizeStyle(value: unknown): TitleSuggestionStyle {
+function normalizeHookType(value: unknown): TitleSuggestionHookType | null {
   const key = toTrimmedString(value).toLowerCase().replace(/[\s-]+/g, "_");
-  return STYLE_ALIASES[key] ?? "high_concept";
+  if (!key) {
+    return null;
+  }
+  if (Object.prototype.hasOwnProperty.call(HOOK_TYPE_TO_STYLE, key)) {
+    return key as TitleSuggestionHookType;
+  }
+  return null;
+}
+
+export function normalizeStyle(value: unknown, hookType?: unknown): TitleSuggestionStyle {
+  const key = toTrimmedString(value).toLowerCase().replace(/[\s-]+/g, "_");
+  if (key && STYLE_ALIASES[key]) {
+    return STYLE_ALIASES[key];
+  }
+
+  const normalizedHookType = normalizeHookType(hookType);
+  if (normalizedHookType) {
+    return HOOK_TYPE_TO_STYLE[normalizedHookType];
+  }
+
+  return "high_concept";
 }
 
 export function normalizeTitle(raw: string): string {
   return raw
-    .replace(/^[\d.\-、\s]+/u, "")
-    .replace(/^["'“”‘’《》【】]+|["'“”‘’《》【】]+$/gu, "")
+    .replace(/^[\d.\-\s、]+/u, "")
+    .replace(/^["'“”‘’《》〈〉「」『』【】]+|["'“”‘’《》〈〉「」『』【】]+$/gu, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -152,6 +215,51 @@ function jaccardSimilarity(left: Set<string>, right: Set<string>): number {
   return union === 0 ? 0 : intersection / union;
 }
 
+function canonicalizeTitleFrame(title: string): string {
+  return normalizeTitle(title)
+    .replace(/,/g, "，")
+    .replace(/:/g, "：");
+}
+
+export function detectTitleSurfaceFrame(title: string): TitleSurfaceFrame {
+  const normalized = canonicalizeTitleFrame(title);
+  if (!normalized) {
+    return "plain_statement";
+  }
+
+  if (CONTRAST_THEN_SELF_PATTERN.test(normalized)) {
+    return "contrast_then_self";
+  }
+  if (SETTING_THEN_SELF_PATTERN.test(normalized)) {
+    return "setting_then_self";
+  }
+  if (SELF_SPLIT_PATTERN.test(normalized)) {
+    return "self_split";
+  }
+  if (SCENARIO_THEN_SELF_PATTERN.test(normalized)) {
+    return "scenario_then_self";
+  }
+  if (normalized.includes("：")) {
+    return "colon_split";
+  }
+  if (/^当/u.test(normalized)) {
+    return "when_open";
+  }
+  if (/^在/u.test(normalized)) {
+    return "setting_open";
+  }
+  if (/^我/u.test(normalized)) {
+    return "self_open";
+  }
+  if (normalized.includes("，")) {
+    return "comma_split";
+  }
+  if (GENRE_OPENING_PATTERN.test(normalized)) {
+    return "genre_open";
+  }
+  return "plain_statement";
+}
+
 export function titleSimilarity(left: string, right: string): number {
   return jaccardSimilarity(buildBiGramSet(left), buildBiGramSet(right));
 }
@@ -171,7 +279,7 @@ export function isNearDuplicateTitle(left: string, right: string): boolean {
   return titleSimilarity(leftKey, rightKey) >= 0.78;
 }
 
-function sanitizeSuggestion(value: unknown): TitleFactorySuggestion | null {
+function sanitizeSuggestion(value: unknown): NormalizedTitleSuggestion | null {
   if (typeof value !== "object" || value === null) {
     return null;
   }
@@ -179,8 +287,11 @@ function sanitizeSuggestion(value: unknown): TitleFactorySuggestion | null {
   const record = value as {
     title?: unknown;
     clickRate?: unknown;
+    score?: unknown;
     style?: unknown;
+    hookType?: unknown;
     angle?: unknown;
+    coreSell?: unknown;
     reason?: unknown;
   };
 
@@ -192,11 +303,37 @@ function sanitizeSuggestion(value: unknown): TitleFactorySuggestion | null {
 
   return {
     title,
-    clickRate: clampClickRate(record.clickRate),
-    style: normalizeStyle(record.style),
-    angle: normalizeShortText(record.angle, 20),
+    clickRate: clampClickRate(record.clickRate ?? record.score),
+    style: normalizeStyle(record.style, record.hookType),
+    angle: normalizeShortText(record.angle ?? record.coreSell, 20),
     reason: normalizeShortText(record.reason, 72),
+    surfaceFrame: detectTitleSurfaceFrame(title),
   };
+}
+
+function maximumPatternShare(targetCount: number): number {
+  return Math.max(2, Math.ceil(targetCount * 0.4));
+}
+
+export function maximumFrameClusterSize(targetCount: number): number {
+  return maximumPatternShare(targetCount);
+}
+
+export function minimumStyleVariety(count: number): number {
+  return count >= 10 ? 4 : 3;
+}
+
+export function minimumStructuralVariety(count: number): number {
+  if (count >= 12) {
+    return 5;
+  }
+  if (count >= 8) {
+    return 4;
+  }
+  if (count >= 5) {
+    return 3;
+  }
+  return 2;
 }
 
 export function collectUniqueSuggestions(
@@ -205,33 +342,59 @@ export function collectUniqueSuggestions(
   blockedTitles: string[] = [],
 ): TitleFactorySuggestion[] {
   const blocked = blockedTitles.map((item) => normalizeTitle(item)).filter(Boolean);
-  const suggestions: TitleFactorySuggestion[] = [];
+  const suggestions: NormalizedTitleSuggestion[] = [];
+  const frameCounts = new Map<TitleSurfaceFrame, number>();
+  const maxPerFrame = maximumFrameClusterSize(count);
 
   for (const item of values) {
     const normalized = sanitizeSuggestion(item);
     if (!normalized) {
       continue;
     }
-    if (blocked.some((item) => isNearDuplicateTitle(item, normalized.title))) {
+    if (blocked.some((blockedTitle) => isNearDuplicateTitle(blockedTitle, normalized.title))) {
       continue;
     }
-    if (suggestions.some((item) => isNearDuplicateTitle(item.title, normalized.title))) {
+    if (suggestions.some((existing) => isNearDuplicateTitle(existing.title, normalized.title))) {
       continue;
     }
+
+    const currentFrameCount = frameCounts.get(normalized.surfaceFrame) ?? 0;
+    if (currentFrameCount >= maxPerFrame) {
+      continue;
+    }
+
     suggestions.push(normalized);
+    frameCounts.set(normalized.surfaceFrame, currentFrameCount + 1);
+
     if (suggestions.length >= count) {
       break;
     }
   }
 
-  return suggestions.sort((left, right) => right.clickRate - left.clickRate);
-}
-
-export function minimumStyleVariety(count: number): number {
-  return count >= 10 ? 4 : 3;
+  return suggestions
+    .sort((left, right) => right.clickRate - left.clickRate)
+    .map(({ surfaceFrame, ...suggestion }) => suggestion);
 }
 
 export function hasEnoughStyleVariety(items: TitleFactorySuggestion[], targetCount: number): boolean {
   const styles = new Set(items.map((item) => item.style));
   return styles.size >= minimumStyleVariety(targetCount);
+}
+
+export function hasEnoughStructuralVariety(items: TitleFactorySuggestion[], targetCount: number): boolean {
+  if (items.length === 0) {
+    return false;
+  }
+
+  const frameCounts = new Map<TitleSurfaceFrame, number>();
+  for (const item of items) {
+    const frame = detectTitleSurfaceFrame(item.title);
+    frameCounts.set(frame, (frameCounts.get(frame) ?? 0) + 1);
+  }
+
+  const uniqueFrameCount = frameCounts.size;
+  const dominantFrameCount = Math.max(...frameCounts.values());
+
+  return uniqueFrameCount >= minimumStructuralVariety(targetCount)
+    && dominantFrameCount <= maximumFrameClusterSize(targetCount);
 }

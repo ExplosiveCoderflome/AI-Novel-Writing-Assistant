@@ -51,7 +51,7 @@ export default function GenreEditDialog({
   const updateMutation = useMutation({
     mutationFn: () => {
       if (!genre) {
-        throw new Error("类型不存在。");
+        throw new Error("题材基底不存在。");
       }
       return updateGenre(genre.id, {
         name: name.trim(),
@@ -61,7 +61,7 @@ export default function GenreEditDialog({
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.genres.all });
-      toast.success("类型已更新。");
+      toast.success("题材基底已更新。");
       onOpenChange(false);
     },
   });
@@ -70,9 +70,9 @@ export default function GenreEditDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>编辑类型</DialogTitle>
+          <DialogTitle>编辑题材基底</DialogTitle>
           <DialogDescription>
-            可以修改名称、说明和挂载位置。子类型与已绑定小说会继续保留。
+            可以修改名称、说明和挂载位置。子节点与已绑定小说会继续保留。
           </DialogDescription>
         </DialogHeader>
 
@@ -93,13 +93,13 @@ export default function GenreEditDialog({
           </label>
 
           <label className="space-y-2 text-sm">
-            <span className="font-medium text-foreground">父级类型</span>
+            <span className="font-medium text-foreground">父级题材基底</span>
             <select
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={parentId}
               onChange={(event) => setParentId(event.target.value)}
             >
-              <option value="">无父级，作为根类型</option>
+              <option value="">无父级，作为根题材基底</option>
               {filteredParentOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.path}

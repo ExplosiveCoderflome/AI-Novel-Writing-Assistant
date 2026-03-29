@@ -79,7 +79,7 @@ function buildRequestPayload(
 
 function summarizeCurrentContext(basicForm: NovelBasicFormState): string[] {
   return [
-    basicForm.genreId ? `已选类型：${basicForm.genreId}` : "",
+    basicForm.genreId ? `已选题材基底：${basicForm.genreId}` : "",
     basicForm.worldId ? `已绑定世界观：${basicForm.worldId}` : "",
     `创作模式：${basicForm.writingMode}`,
     `项目模式：${basicForm.projectMode}`,

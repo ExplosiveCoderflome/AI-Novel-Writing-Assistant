@@ -311,7 +311,15 @@ export function useNovelVolumePlanning({
         return;
       }
       if (payload.scope === "chapter_list" || payload.scope === "volume") {
-        setStructuredMessage("当前卷章节列表已生成并自动保存，相邻卷再平衡建议也已同步更新。");
+        const updatedVolume = payload.targetVolumeId
+          ? result.nextDocument.volumes.find((volume) => volume.id === payload.targetVolumeId)
+          : undefined;
+        const updatedChapterCount = updatedVolume?.chapters.length ?? 0;
+        setStructuredMessage(
+          updatedChapterCount > 0
+            ? `当前卷章节列表已生成并自动保存，现已更新为 ${updatedChapterCount} 章，相邻卷再平衡建议也已同步更新。`
+            : "当前卷章节列表已生成并自动保存，相邻卷再平衡建议也已同步更新。",
+        );
         return;
       }
       if (payload.scope === "rebalance") {

@@ -428,7 +428,7 @@ export default function StoryModeManagementPage() {
     }),
     onSuccess: async () => {
       await invalidate();
-      toast.success("流派模式已创建。");
+      toast.success("推进模式已创建。");
       setCreateDialogOpen(false);
     },
   });
@@ -436,7 +436,7 @@ export default function StoryModeManagementPage() {
   const createSelectedChildrenMutation = useMutation({
     mutationFn: async () => {
       if (!defaultParentId) {
-        throw new Error("父级流派模式不存在。");
+        throw new Error("父级推进模式不存在。");
       }
 
       const drafts = selectedGeneratedChildIndexes
@@ -460,7 +460,7 @@ export default function StoryModeManagementPage() {
     onSuccess: async (response) => {
       await invalidate();
       const savedCount = response.data?.length ?? selectedGeneratedChildIndexes.length;
-      toast.success(`已批量创建 ${savedCount} 个流派模式子类。`);
+      toast.success(`已批量创建 ${savedCount} 个推进模式子类。`);
       setCreateDialogOpen(false);
     },
   });
@@ -468,7 +468,7 @@ export default function StoryModeManagementPage() {
   const updateMutation = useMutation({
     mutationFn: () => {
       if (!editingStoryMode) {
-        throw new Error("流派模式不存在。");
+        throw new Error("推进模式不存在。");
       }
       return updateStoryMode(editingStoryMode.id, {
         name: editState.name.trim(),
@@ -479,7 +479,7 @@ export default function StoryModeManagementPage() {
     },
     onSuccess: async () => {
       await invalidate();
-      toast.success("流派模式已更新。");
+      toast.success("推进模式已更新。");
       setEditingStoryModeId("");
     },
   });
@@ -488,7 +488,7 @@ export default function StoryModeManagementPage() {
     mutationFn: (id: string) => deleteStoryMode(id),
     onSuccess: async () => {
       await invalidate();
-      toast.success("流派模式已删除。");
+      toast.success("推进模式已删除。");
     },
   });
 
@@ -535,7 +535,7 @@ export default function StoryModeManagementPage() {
         setSelectedGeneratedChildIndexes(candidates.map((_item, index) => index));
         setActiveGeneratedChildIndex(0);
         setCreateDraft(cloneDraft(candidates[0]));
-        toast.success(`AI 已生成 ${candidates.length} 个流派模式子类草稿。`);
+        toast.success(`AI 已生成 ${candidates.length} 个推进模式子类草稿。`);
         return;
       }
       setSelectedGeneratedChildIndexes([]);
@@ -545,7 +545,7 @@ export default function StoryModeManagementPage() {
       }
       setGeneratedChildCandidates([]);
       setCreateDraft(cloneDraft(result.draft));
-      toast.success("AI 流派模式树草稿已生成。");
+      toast.success("AI 推进模式树草稿已生成。");
     },
   });
 
@@ -585,7 +585,7 @@ export default function StoryModeManagementPage() {
   };
 
   const handleDelete = (node: StoryModeTreeNode) => {
-    const confirmed = window.confirm(`确认删除流派模式「${node.name}」吗？此操作不可恢复。`);
+    const confirmed = window.confirm(`确认删除推进模式「${node.name}」吗？此操作不可恢复。`);
     if (!confirmed) {
       return;
     }
@@ -594,9 +594,9 @@ export default function StoryModeManagementPage() {
 
   const selectedParentLabel = useMemo(() => {
     if (!defaultParentId) {
-      return "作为根流派模式创建";
+      return "作为根推进模式创建";
     }
-    return parentOptions.find((item) => item.id === defaultParentId)?.path ?? "作为根流派模式创建";
+    return parentOptions.find((item) => item.id === defaultParentId)?.path ?? "作为根推进模式创建";
   }, [defaultParentId, parentOptions]);
 
   const editParentOptions = useMemo(
@@ -609,7 +609,7 @@ export default function StoryModeManagementPage() {
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="max-h-[90vh] max-w-5xl overflow-auto">
           <DialogHeader>
-            <DialogTitle>{isCreatingChild ? "新增流派模式子类" : "新建流派模式"}</DialogTitle>
+            <DialogTitle>{isCreatingChild ? "新增推进模式子类" : "新建推进模式"}</DialogTitle>
             <DialogDescription>
               {isCreatingChild
                 ? "当前会在指定父类下新增子类。你可以手动填写，也可以先让 AI 基于父类和现有兄弟节点生成多个子类候选，再多选批量保存。"
@@ -629,7 +629,7 @@ export default function StoryModeManagementPage() {
                 <div className="text-xs leading-5 text-muted-foreground">
                   {isCreatingChild
                     ? "AI 会基于当前父类和现有兄弟节点输出一个或多个子类节点草稿，不会再生成整棵树。补充方向可以留空。保存前仍然会校验 profile 结构。"
-                    : "AI 会输出一个可直接编辑的流派模式树草稿，保存前仍然会校验 profile 结构。"}
+                    : "AI 会输出一个可直接编辑的推进模式树草稿，保存前仍然会校验 profile 结构。"}
                 </div>
               </div>
               <LLMSelector />
@@ -656,7 +656,7 @@ export default function StoryModeManagementPage() {
                 onChange={(event) => setGenerationPrompt(event.target.value)}
                 placeholder={isCreatingChild
                   ? "可选：补充你想偏向的子类方向。不填则 AI 会直接基于父类和现有兄弟节点衍生。"
-                  : "请输入你希望生成的流派模式树方向。"}
+                  : "请输入你希望生成的推进模式树方向。"}
               />
               <div className="flex gap-2">
                 <Button
@@ -666,7 +666,7 @@ export default function StoryModeManagementPage() {
                 >
                   {generateMutation.isPending
                     ? "生成中..."
-                    : isCreatingChild ? "生成子类草稿" : "生成流派模式草稿"}
+                    : isCreatingChild ? "生成子类草稿" : "生成推进模式草稿"}
                 </Button>
                 <Button
                   type="button"
@@ -780,7 +780,7 @@ export default function StoryModeManagementPage() {
               onClick={() => createMutation.mutate()}
               disabled={createMutation.isPending || createSelectedChildrenMutation.isPending || !createDraft.name.trim()}
             >
-              {createMutation.isPending ? "保存中..." : isCreatingChild ? "保存当前子类" : "保存流派模式"}
+              {createMutation.isPending ? "保存中..." : isCreatingChild ? "保存当前子类" : "保存推进模式"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -789,7 +789,7 @@ export default function StoryModeManagementPage() {
       <Dialog open={Boolean(editingStoryMode)} onOpenChange={(open) => { if (!open) setEditingStoryModeId(""); }}>
         <DialogContent className="max-h-[90vh] max-w-4xl overflow-auto">
           <DialogHeader>
-            <DialogTitle>编辑流派模式</DialogTitle>
+            <DialogTitle>编辑推进模式</DialogTitle>
             <DialogDescription>
               可以修改名称、描述、模板和 profile。两级树限制仍会保留。
             </DialogDescription>
@@ -843,28 +843,28 @@ export default function StoryModeManagementPage() {
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div className="space-y-1">
-            <CardTitle>流派模式管理</CardTitle>
+            <CardTitle>推进模式库</CardTitle>
             <CardDescription>
-              这里维护独立于作品类型的“另一维度类型”，例如无敌流、种田流、搞笑流、治愈日常。它们会作为后续规划和生成的硬约束输入。
+              这里维护作品的推进模式，例如系统流、无敌流、种田流、治愈日常。它回答的是“这本书靠什么持续推进和兑现”，会作为后续规划和生成的硬约束输入。
             </CardDescription>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <div className="text-sm text-muted-foreground">当前流派模式数：{totalStoryModes}</div>
+            <div className="text-sm text-muted-foreground">当前推进模式数：{totalStoryModes}</div>
             <Button type="button" onClick={handleCreateRoot}>
-              新建流派模式树
+              新建推进模式树
             </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {storyModeTreeQuery.isLoading ? (
-            <div className="text-sm text-muted-foreground">正在加载流派模式树...</div>
+            <div className="text-sm text-muted-foreground">正在加载推进模式树...</div>
           ) : null}
 
           {!storyModeTreeQuery.isLoading && storyModeTree.length === 0 ? (
             <div className="rounded-xl border border-dashed p-6 text-center">
-              <div className="text-sm font-medium text-foreground">还没有任何流派模式</div>
+              <div className="text-sm font-medium text-foreground">还没有任何推进模式</div>
               <div className="mt-1 text-sm text-muted-foreground">
-                可以先手动建一个根流派模式，也可以直接让 AI 生成一份结构化草稿。
+                可以先手动建一个根推进模式，也可以直接让 AI 生成一份结构化草稿。
               </div>
               <div className="mt-4">
                 <Button type="button" onClick={handleCreateRoot}>

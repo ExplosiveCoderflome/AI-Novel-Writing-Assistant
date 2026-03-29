@@ -311,7 +311,7 @@ export default function NovelCreateTitleQuickFill({
                   <div className="text-sm font-medium text-foreground">从标题库快速选用</div>
                   <div className="text-xs leading-6 text-muted-foreground">
                     默认按点击率排序
-                    {basicForm.genreId ? "，并按当前作品类型过滤" : ""}
+                    {basicForm.genreId ? "，并按当前题材基底过滤" : ""}
                     。
                   </div>
                 </div>
