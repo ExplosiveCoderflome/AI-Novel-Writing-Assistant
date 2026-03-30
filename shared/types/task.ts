@@ -1,6 +1,10 @@
 import type { ResourceRef } from "./agent";
+import type {
+  NovelWorkflowCheckpoint,
+  NovelWorkflowResumeTarget,
+} from "./novelWorkflow";
 
-export type TaskKind = "book_analysis" | "novel_pipeline" | "knowledge_document" | "image_generation" | "agent_run";
+export type TaskKind = "book_analysis" | "novel_pipeline" | "knowledge_document" | "image_generation" | "agent_run" | "novel_workflow";
 
 export type TaskStatus = "queued" | "running" | "waiting_approval" | "succeeded" | "failed" | "cancelled";
 
@@ -29,6 +33,10 @@ export interface UnifiedTaskSummary {
   ownerId: string;
   ownerLabel: string;
   sourceRoute: string;
+  checkpointType?: NovelWorkflowCheckpoint | null;
+  checkpointSummary?: string | null;
+  resumeTarget?: NovelWorkflowResumeTarget | null;
+  nextActionLabel?: string | null;
   failureCode?: string | null;
   failureSummary?: string | null;
   recoveryHint?: string | null;

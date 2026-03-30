@@ -10,11 +10,13 @@ import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
 import type { PromptAsset } from "../../core/promptTypes";
 import { renderSelectedContextBlocks } from "../../core/renderContextBlocks";
 import {
+  buildDirectorBookContractContextBlocks,
   buildDirectorBlueprintContextBlocks,
   buildDirectorCandidateContextBlocks,
   formatProjectContext,
 } from "./planningContextBlocks";
 import {
+  directorBookContractSchema,
   directorCandidateResponseSchema,
   directorPlanBlueprintSchema,
 } from "../../../services/novel/director/novelDirectorSchemas";
@@ -34,6 +36,14 @@ export interface DirectorBlueprintPromptInput {
   context: DirectorProjectContextInput;
   candidate: DirectorCandidate;
   storyMacroPlan: StoryMacroPlan;
+  targetChapterCount: number;
+}
+
+export interface DirectorBookContractPromptInput {
+  idea: string;
+  context: DirectorProjectContextInput;
+  candidate: DirectorCandidate;
+  storyMacroPlan: StoryMacroPlan | null;
   targetChapterCount: number;
 }
 
@@ -94,6 +104,7 @@ export const directorCandidatePrompt: PromptAsset<DirectorCandidatePromptInput, 
       "",
       `必须精准输出 ${input.count} 套候选，且只输出严格 JSON。`,
       "每个候选必须包含：workingTitle、logline、positioning、sellingPoint、coreConflict、protagonistPath、endingDirection、hookStrategy、progressionLoop、whyItFits、toneKeywords、targetChapterCount。",
+      "workingTitle 必须是可读的暂定书名，适合封面展示，不要写成策划案口号、世界观概念短语或陈旧土味套壳名。",
       "候选之间必须有明显方向差异，不能只是换词或改名。",
       "每个候选都必须是“现在就能继续规划整本书”的方向，而不是模糊概念。",
     ].join("\n")),
@@ -155,7 +166,42 @@ export const directorBlueprintPrompt: PromptAsset<DirectorBlueprintPromptInput, 
   ],
 };
 
+export const directorBookContractPrompt: PromptAsset<
+  DirectorBookContractPromptInput,
+  typeof directorBookContractSchema._output
+> = {
+  id: "novel.director.book_contract",
+  version: "v1",
+  taskType: "planner",
+  mode: "structured",
+  language: "zh",
+  contextPolicy: {
+    maxTokensBudget: NOVEL_PROMPT_BUDGETS.directorBookContract,
+    requiredGroups: ["book_contract", "idea_seed"],
+    preferredGroups: ["project_context", "macro_constraints"],
+  },
+  outputSchema: directorBookContractSchema,
+  render: (input, context) => [
+    new SystemMessage([
+      "你是长篇网文总导演，负责把已确认的书级方向收束成一本书的 Book Contract。",
+      "服务对象是不懂写作流程的新手用户。",
+      "只输出严格 JSON，不要输出解释文本。",
+      "必须输出字段：readingPromise、protagonistFantasy、coreSellingPoint、chapter3Payoff、chapter10Payoff、chapter30Payoff、escalationLadder、relationshipMainline、absoluteRedLines。",
+      "chapter3Payoff、chapter10Payoff、chapter30Payoff 必须体现连载兑现节奏，而不是泛泛总结。",
+      "absoluteRedLines 必须是明确禁区，避免故事写歪。",
+    ].join("\n")),
+    new HumanMessage([
+      "分层上下文：",
+      renderSelectedContextBlocks(context),
+      "",
+      "目标章节总数：",
+      String(input.targetChapterCount),
+    ].join("\n")),
+  ],
+};
+
 export {
+  buildDirectorBookContractContextBlocks,
   buildDirectorBlueprintContextBlocks,
   buildDirectorCandidateContextBlocks,
 };

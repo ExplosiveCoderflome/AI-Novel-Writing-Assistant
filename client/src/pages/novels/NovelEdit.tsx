@@ -38,18 +38,23 @@ import type { ChapterExecutionStrategy } from "./chapterExecution.utils";
 import { useNovelCharacterMutations } from "./hooks/useNovelCharacterMutations";
 import { useChapterExecutionActions } from "./hooks/useChapterExecutionActions";
 import { useNovelContinuationSources } from "./hooks/useNovelContinuationSources";
+import { useNovelEditChapterRuntime } from "./hooks/useNovelEditChapterRuntime";
 import { useNovelEditMutations } from "./hooks/useNovelEditMutations";
 import { useNovelEditInitialization } from "./hooks/useNovelEditInitialization";
 import { useNovelWorldSlice } from "./hooks/useNovelWorldSlice";
 import { useNovelStoryMacro } from "./hooks/useNovelStoryMacro";
 import { useNovelVolumePlanning } from "./hooks/useNovelVolumePlanning";
 import { useVolumeVersionControl } from "./hooks/useVolumeVersionControl";
+import { useNovelEditWorkflow } from "./hooks/useNovelEditWorkflow";
+import { buildNovelEditPlanningTabs } from "./novelEditPlanningTabs";
 import type { ChapterReviewResult } from "./chapterPlanning.shared";
+import { syncNovelWorkflowStageSilently, workflowStageFromTab } from "./novelWorkflow.client";
 import {
   DEFAULT_ESTIMATED_CHAPTER_COUNT,
   createDefaultNovelBasicFormState,
   patchNovelBasicForm,
 } from "./novelBasicInfo.shared";
+import { useStructuredOutlineWorkspaceStore } from "./stores/useStructuredOutlineWorkspaceStore";
 import {
   applyVolumeChapterBatch,
   buildVolumePlanningReadiness,
@@ -63,7 +68,13 @@ export default function NovelEdit() {
   const { id = "" } = useParams();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("basic");
+  const {
+    activeTab,
+    setActiveTab,
+    selectedChapterId,
+    setSelectedChapterId,
+    selectedVolumeId,
+  } = useNovelEditWorkflow(id);
   const [basicForm, setBasicForm] = useState(() => createDefaultNovelBasicFormState());
   const [volumeDraft, setVolumeDraft] = useState<VolumePlan[]>([]);
   const [volumeStrategyPlan, setVolumeStrategyPlan] = useState<VolumeStrategyPlan | null>(null);
@@ -95,7 +106,6 @@ export default function NovelEdit() {
     qualityThreshold: 75,
     repairMode: "light_repair" as PipelineRepairMode,
   });
-  const [selectedChapterId, setSelectedChapterId] = useState("");
   const [reviewResult, setReviewResult] = useState<ChapterReviewResult | null>(null);
   const [pipelineMessage, setPipelineMessage] = useState("");
   const [structuredMessage, setStructuredMessage] = useState("");
@@ -363,6 +373,39 @@ export default function NovelEdit() {
     setVolumeRebalanceDecisions(workspace.rebalanceDecisions ?? []);
   }, [volumeWorkspaceQuery.data?.data]);
 
+  useEffect(() => {
+    if (!id) {
+      return;
+    }
+    useStructuredOutlineWorkspaceStore.getState().patchWorkspace(id, {
+      selectedVolumeId: selectedVolumeId || undefined,
+      selectedChapterId: selectedChapterId || undefined,
+    });
+  }, [id, selectedChapterId, selectedVolumeId]);
+
+  useEffect(() => {
+    if (!id) {
+      return;
+    }
+    const labels: Record<string, string> = {
+      basic: "项目设定已打开",
+      story_macro: "故事宏观规划已打开",
+      character: "角色准备已打开",
+      outline: "卷战略 / 卷骨架已打开",
+      structured: "节奏 / 拆章已打开",
+      chapter: selectedChapter ? `正在查看第${selectedChapter.order}章执行面板` : "章节执行已打开",
+      pipeline: "质量修复 / 流水线已打开",
+    };
+    void syncNovelWorkflowStageSilently({
+      novelId: id,
+      stage: workflowStageFromTab(activeTab),
+      itemLabel: labels[activeTab] ?? "小说主流程已打开",
+      chapterId: activeTab === "chapter" ? selectedChapterId || undefined : undefined,
+      volumeId: activeTab === "structured" || activeTab === "outline" ? selectedVolumeId || undefined : undefined,
+      status: "waiting_approval",
+    });
+  }, [activeTab, id, selectedChapter?.order, selectedChapterId, selectedVolumeId]);
+
   const outlineText = useMemo(
     () => buildOutlinePreviewFromVolumes(normalizedVolumeDraft),
     [normalizedVolumeDraft],
@@ -471,63 +514,6 @@ export default function NovelEdit() {
     invalidateNovelDetail,
   });
 
-  const generateChapterPlanMutation = useMutation({
-    mutationFn: () => generateChapterPlan(id, selectedChapterId, {
-      provider: llm.provider,
-      model: llm.model,
-      temperature: llm.temperature,
-    }),
-    onSuccess: async () => {
-      setChapterOperationMessage("章节计划已生成。");
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterPlan(id, selectedChapterId) });
-    },
-  });
-
-  const replanChapterMutation = useMutation({
-    mutationFn: () => replanNovel(id, {
-      chapterId: selectedChapterId,
-      reason: "manual_replan_from_chapter_tab",
-      triggerType: "manual",
-      sourceIssueIds: openAuditIssueIds,
-      windowSize: 3,
-      provider: llm.provider,
-      model: llm.model,
-      temperature: llm.temperature,
-    }),
-    onSuccess: async (response) => {
-      const affectedOrders = response.data?.affectedChapterOrders ?? [];
-      const affectedChapterIds = response.data?.affectedChapterIds ?? [];
-      setChapterOperationMessage(
-        affectedOrders.length > 0
-          ? `已重规划第 ${affectedOrders.join("、")} 章。`
-          : "章节已完成重规划。",
-      );
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(id) });
-      await Promise.all(
-        affectedChapterIds.map((chapterId) =>
-          queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterPlan(id, chapterId) })),
-      );
-      if (selectedChapterId) {
-        await queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterPlan(id, selectedChapterId) });
-      }
-    },
-  });
-
-  const fullAuditMutation = useMutation({
-    mutationFn: () => auditNovelChapter(id, selectedChapterId, "full", {
-      provider: llm.provider,
-      model: llm.model,
-      temperature: 0.1,
-    }),
-    onSuccess: async (response) => {
-      setReviewResult(response.data ?? null);
-      setChapterOperationMessage("完整审计已完成。");
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterAuditReports(id, selectedChapterId) });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(id) });
-    },
-  });
-
   const {
     characterTimelineQuery,
     syncTimelineMutation,
@@ -582,51 +568,36 @@ export default function NovelEdit() {
   });
 
   const goToCharacterTab = () => setActiveTab("character");
-  const handleGenerateSelectedChapter = () => {
-    if (!selectedChapter) {
-      return;
-    }
-    setActiveChapterStream({
-      chapterId: selectedChapter.id,
-      chapterLabel: `第${selectedChapter.order}章 ${selectedChapter.title || "未命名章节"}`,
-    });
-    void chapterSSE.start(`/novels/${id}/chapters/${selectedChapter.id}/generate`, {
-      provider: llm.provider,
-      model: llm.model,
-      previousChaptersSummary: [],
-    });
-  };
-  const handleAbortChapterStream = () => {
-    chapterSSE.abort();
-    setChapterOperationMessage("已停止当前章节生成，你可以保留当前输出继续查看，或重新发起本章写作。");
-  };
-  const handleAbortRepair = () => {
-    repairSSE.abort();
-    setActiveRepairStream(null);
-    setChapterOperationMessage("已停止当前章节修复，你可以先查看当前修复结果，再决定是否继续。");
-  };
-  const startChapterRepair = (issues: ReviewIssue[]) => {
-    if (!selectedChapterId) {
-      setChapterOperationMessage("请先选择章节。");
-      return;
-    }
-    setRepairBeforeContent(selectedChapter?.content ?? "");
-    setRepairAfterContent("");
-    setActiveRepairStream({
-      chapterId: selectedChapterId,
-      chapterLabel: selectedChapter ? `第${selectedChapter.order}章 ${selectedChapter.title || "未命名章节"}` : "当前章节",
-    });
-    void repairSSE.start(`/novels/${id}/chapters/${selectedChapterId}/repair`, {
-      provider: llm.provider,
-      model: llm.model,
-      reviewIssues: issues,
-      auditIssueIds: openAuditIssueIds,
-    });
-  };
-  const chapterExecutionActions = useChapterExecutionActions({ novelId: id, selectedChapterId, selectedChapter, strategy: chapterStrategy, reviewIssues: reviewResult?.issues ?? [], onGenerateChapter: handleGenerateSelectedChapter, onReviewChapter: () => reviewMutation.mutate(), onStartRepair: startChapterRepair, onMessage: setChapterOperationMessage, invalidateNovelDetail });
-
-  const basicTab = {
+  const {
+    generateChapterPlanMutation,
+    replanChapterMutation,
+    fullAuditMutation,
+    handleGenerateSelectedChapter,
+    handleAbortChapterStream,
+    handleAbortRepair,
+    chapterExecutionActions,
+  } = useNovelEditChapterRuntime({
     novelId: id,
+    llm,
+    selectedChapterId,
+    selectedChapter,
+    chapterStrategy,
+    reviewResult,
+    openAuditIssueIds,
+    queryClient,
+    invalidateNovelDetail,
+    setChapterOperationMessage,
+    setReviewResult,
+    setRepairBeforeContent,
+    setRepairAfterContent,
+    setActiveChapterStream,
+    setActiveRepairStream,
+    chapterSSE,
+    repairSSE,
+  });
+
+  const { basicTab, outlineTab, structuredTab } = buildNovelEditPlanningTabs({
+    id,
     basicForm,
     genreOptions: flattenGenreTreeOptions(genreTreeQuery.data?.data ?? []),
     storyModeOptions: flattenStoryModeTreeOptions(storyModeTreeQuery.data?.data ?? []),
@@ -640,13 +611,11 @@ export default function NovelEdit() {
     worldSliceMessage,
     isRefreshingWorldSlice,
     isSavingWorldSliceOverrides,
-    onFormChange: (patch: Partial<typeof basicForm>) => setBasicForm((prev) => patchNovelBasicForm(prev, patch)),
-    onSave: () => saveBasicMutation.mutate(),
+    onBasicFormChange: (patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch)),
+    onSaveBasic: () => saveBasicMutation.mutate(),
     onRefreshWorldSlice: refreshWorldSlice,
     onSaveWorldSliceOverrides: saveWorldSliceOverrides,
-    isSaving: saveBasicMutation.isPending,
-  };
-  const outlineTab = {
+    isSavingBasic: saveBasicMutation.isPending,
     worldInjectionSummary,
     hasCharacters,
     hasUnsavedVolumeDraft,
@@ -661,15 +630,16 @@ export default function NovelEdit() {
     isGeneratingSkeleton,
     onGenerateSkeleton: startSkeletonGeneration,
     onGoToCharacterTab: goToCharacterTab,
-    draftText: outlineText,
+    outlineText,
+    structuredDraftText,
     volumes: normalizedVolumeDraft,
     onVolumeFieldChange: handleVolumeFieldChange,
     onOpenPayoffsChange: handleOpenPayoffsChange,
     onAddVolume: handleAddVolume,
     onRemoveVolume: handleRemoveVolume,
     onMoveVolume: handleMoveVolume,
-    onSave: () => saveOutlineMutation.mutate(),
-    isSaving: saveOutlineMutation.isPending,
+    onSaveOutline: () => saveOutlineMutation.mutate(),
+    isSavingOutline: saveOutlineMutation.isPending,
     volumeMessage: volumeGenerationMessage || volumeMessage,
     volumeVersions,
     selectedVersionId,
@@ -689,13 +659,8 @@ export default function NovelEdit() {
     onAnalyzeVersionImpact: () => analyzeVersionImpactMutation.mutate(),
     isAnalyzingVersionImpact: analyzeVersionImpactMutation.isPending,
     impactResult,
-  };
-  const structuredTab = {
-    novelId: id,
-    ...outlineTab,
     beatSheets: volumeBeatSheets,
     rebalanceDecisions: volumeRebalanceDecisions,
-    draftText: structuredDraftText,
     isGeneratingBeatSheet,
     onGenerateBeatSheet: startBeatSheetGeneration,
     isGeneratingChapterList,
@@ -708,8 +673,8 @@ export default function NovelEdit() {
     onGenerateChapterDetailBundle: startChapterDetailBundleGeneration,
     syncPreview: volumeSyncPreview,
     syncOptions: volumeSyncOptions,
-    onSyncOptionsChange: (patch: Partial<VolumeSyncOptions>) => setVolumeSyncOptions((prev) => ({ ...prev, ...patch })),
-    onApplySync: (options: { preserveContent: boolean; applyDeletes: boolean }) => syncStructuredChaptersMutation.mutate(options),
+    onSyncOptionsChange: (patch) => setVolumeSyncOptions((prev) => ({ ...prev, ...patch })),
+    onApplySync: (options) => syncStructuredChaptersMutation.mutate(options),
     isApplyingSync: syncStructuredChaptersMutation.isPending,
     syncMessage: structuredMessage,
     chapters: outlineSyncChapters,
@@ -719,12 +684,12 @@ export default function NovelEdit() {
     onAddChapter: handleAddChapter,
     onRemoveChapter: handleRemoveChapter,
     onMoveChapter: handleMoveChapter,
-    onApplyBatch: (patch: { conflictLevel?: number; targetWordCount?: number; generateTaskSheet?: boolean }) => {
+    onApplyBatch: (patch) => {
       setVolumeDraft((prev) => applyVolumeChapterBatch(prev, patch));
     },
-    onSave: () => saveStructuredMutation.mutate(),
-    isSaving: saveStructuredMutation.isPending,
-  };
+    onSaveStructured: () => saveStructuredMutation.mutate(),
+    isSavingStructured: saveStructuredMutation.isPending,
+  });
   const chapterTab = { novelId: id, worldInjectionSummary, hasCharacters, chapters, selectedChapterId, selectedChapter, onSelectChapter: setSelectedChapterId, onGoToCharacterTab: goToCharacterTab, onCreateChapter: () => createChapterMutation.mutate(), isCreatingChapter: createChapterMutation.isPending, chapterOperationMessage, strategy: chapterStrategy, onStrategyChange: (field: "runMode" | "wordSize" | "conflictLevel" | "pace" | "aiFreedom", value: string | number) => setChapterStrategy((prev) => ({ ...prev, [field]: value } as ChapterExecutionStrategy)), onApplyStrategy: chapterExecutionActions.applyStrategy, isApplyingStrategy: chapterExecutionActions.isPatchingChapter, onGenerateSelectedChapter: handleGenerateSelectedChapter, onRewriteChapter: chapterExecutionActions.rewriteChapter, onExpandChapter: chapterExecutionActions.expandChapter, onCompressChapter: chapterExecutionActions.compressChapter, onSummarizeChapter: chapterExecutionActions.summarizeChapter, onGenerateTaskSheet: chapterExecutionActions.generateTaskSheet, onGenerateSceneCards: chapterExecutionActions.generateSceneCards, onGenerateChapterPlan: () => generateChapterPlanMutation.mutate(), onReplanChapter: () => replanChapterMutation.mutate(), onRunFullAudit: () => fullAuditMutation.mutate(), onCheckContinuity: chapterExecutionActions.checkContinuity, onCheckCharacterConsistency: chapterExecutionActions.checkCharacterConsistency, onCheckPacing: chapterExecutionActions.checkPacing, onAutoRepair: chapterExecutionActions.autoRepair, onStrengthenConflict: chapterExecutionActions.strengthenConflict, onEnhanceEmotion: chapterExecutionActions.enhanceEmotion, onUnifyStyle: chapterExecutionActions.unifyStyle, onAddDialogue: chapterExecutionActions.addDialogue, onAddDescription: chapterExecutionActions.addDescription, isReviewingChapter: reviewMutation.isPending, isRepairingChapter: repairSSE.isStreaming, reviewResult, replanRecommendation: reviewResult?.replanRecommendation ?? null, lastReplanResult: replanChapterMutation.data?.data ?? null, chapterPlan, latestStateSnapshot, chapterAuditReports, isGeneratingChapterPlan: generateChapterPlanMutation.isPending, isReplanningChapter: replanChapterMutation.isPending, isRunningFullAudit: fullAuditMutation.isPending, chapterQualityReport, repairStreamContent: repairSSE.content, isRepairStreaming: repairSSE.isStreaming, repairStreamingChapterId: activeRepairStream?.chapterId ?? null, repairStreamingChapterLabel: activeRepairStream?.chapterLabel ?? null, onAbortRepair: handleAbortRepair, streamContent: chapterSSE.content, isStreaming: chapterSSE.isStreaming, streamingChapterId: activeChapterStream?.chapterId ?? null, streamingChapterLabel: activeChapterStream?.chapterLabel ?? null, onAbortStream: handleAbortChapterStream };
   const pipelineTab = { novelId: id, worldInjectionSummary, hasCharacters, onGoToCharacterTab: goToCharacterTab, pipelineForm, onPipelineFormChange: (field: "startOrder" | "endOrder" | "maxRetries" | "runMode" | "autoReview" | "autoRepair" | "skipCompleted" | "qualityThreshold" | "repairMode", value: number | boolean | string) => setPipelineForm((prev) => ({ ...prev, [field]: value } as typeof prev)), maxOrder, onGenerateBible: () => void bibleSSE.start(`/novels/${id}/bible/generate`, { provider: llm.provider, model: llm.model, temperature: 0.6 }), onAbortBible: bibleSSE.abort, isBibleStreaming: bibleSSE.isStreaming, bibleStreamContent: bibleSSE.content, onGenerateBeats: () => void beatsSSE.start(`/novels/${id}/beats/generate`, { provider: llm.provider, model: llm.model, targetChapters: pipelineForm.endOrder }), onAbortBeats: beatsSSE.abort, isBeatsStreaming: beatsSSE.isStreaming, beatsStreamContent: beatsSSE.content, onRunPipeline: (patch?: Partial<typeof pipelineForm>) => runPipelineMutation.mutate(patch), isRunningPipeline: runPipelineMutation.isPending, pipelineMessage, pipelineJob: pipelineJobQuery.data?.data, chapters, selectedChapterId, onSelectedChapterChange: setSelectedChapterId, onReviewChapter: () => reviewMutation.mutate(), isReviewing: reviewMutation.isPending, onRepairChapter: () => { setRepairBeforeContent(selectedChapter?.content ?? ""); setRepairAfterContent(""); setActiveRepairStream(selectedChapter ? { chapterId: selectedChapter.id, chapterLabel: `第${selectedChapter.order}章 ${selectedChapter.title || "未命名章节"}` } : null); void repairSSE.start(`/novels/${id}/chapters/${selectedChapterId}/repair`, { provider: llm.provider, model: llm.model, reviewIssues: reviewResult?.issues ?? [], auditIssueIds: openAuditIssueIds }); }, isRepairing: repairSSE.isStreaming, onGenerateHook: () => hookMutation.mutate(), isGeneratingHook: hookMutation.isPending, reviewResult, repairBeforeContent, repairAfterContent, repairStreamContent: repairSSE.content, isRepairStreaming: repairSSE.isStreaming, onAbortRepair: handleAbortRepair, qualitySummary, chapterReports: qualityReportQuery.data?.data?.chapterReports ?? [], bible, plotBeats };
   const characterTab = { novelId: id, llmProvider: llm.provider, llmModel: llm.model, characterMessage, quickCharacterForm, onQuickCharacterFormChange: (field: "name" | "role", value: string) => setQuickCharacterForm((prev) => ({ ...prev, [field]: value })), onQuickCreateCharacter: (payload: QuickCharacterCreatePayload) => quickCreateCharacterMutation.mutate(payload), isQuickCreating: quickCreateCharacterMutation.isPending, onGenerateSupplementalCharacters: generateSupplementalCharacterMutation.mutateAsync, isGeneratingSupplementalCharacters: generateSupplementalCharacterMutation.isPending, onApplySupplementalCharacter: applySupplementalCharacterMutation.mutateAsync, isApplyingSupplementalCharacter: applySupplementalCharacterMutation.isPending, characters, coreCharacterCount, baseCharacters, selectedBaseCharacterId, onSelectedBaseCharacterChange: setSelectedBaseCharacterId, selectedBaseCharacter, importedBaseCharacterIds, onImportBaseCharacter: () => importBaseCharacterMutation.mutate(), isImportingBaseCharacter: importBaseCharacterMutation.isPending, selectedCharacterId, onSelectedCharacterChange: setSelectedCharacterId, onDeleteCharacter: (characterId: string) => deleteCharacterMutation.mutate(characterId), isDeletingCharacter: deleteCharacterMutation.isPending, deletingCharacterId: deleteCharacterMutation.variables ?? "", onSyncTimeline: () => syncTimelineMutation.mutate(), isSyncingTimeline: syncTimelineMutation.isPending, onSyncAllTimeline: () => syncAllTimelineMutation.mutate(), isSyncingAllTimeline: syncAllTimelineMutation.isPending, onEvolveCharacter: () => evolveCharacterMutation.mutate(), isEvolvingCharacter: evolveCharacterMutation.isPending, onWorldCheck: () => worldCheckMutation.mutate(), isCheckingWorld: worldCheckMutation.isPending, selectedCharacter, characterForm, onCharacterFormChange: (field: "name" | "role" | "personality" | "background" | "development" | "currentState" | "currentGoal", value: string) => setCharacterForm((prev) => ({ ...prev, [field]: value })), onSaveCharacter: () => saveCharacterMutation.mutate(), isSavingCharacter: saveCharacterMutation.isPending, timelineEvents: characterTimelineQuery.data?.data ?? [] };

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const nonEmptyString = z.string().trim().min(1);
+const titleStyleSchema = z.enum(["literary", "conflict", "suspense", "high_concept"]);
 
 const keywordArraySchema = z.union([
   z.array(nonEmptyString),
@@ -14,6 +15,13 @@ const keywordArraySchema = z.union([
 
 export const directorCandidateSchema = z.object({
   workingTitle: nonEmptyString,
+  titleOptions: z.array(z.object({
+    title: nonEmptyString,
+    clickRate: z.coerce.number().int().min(35).max(99),
+    style: titleStyleSchema,
+    angle: z.string().trim().max(20).nullable().optional(),
+    reason: z.string().trim().max(72).nullable().optional(),
+  })).max(4).optional().default([]),
   logline: nonEmptyString,
   positioning: nonEmptyString,
   sellingPoint: nonEmptyString,
@@ -29,6 +37,18 @@ export const directorCandidateSchema = z.object({
 
 export const directorCandidateResponseSchema = z.object({
   candidates: z.array(directorCandidateSchema).length(2),
+});
+
+export const directorBookContractSchema = z.object({
+  readingPromise: nonEmptyString,
+  protagonistFantasy: nonEmptyString,
+  coreSellingPoint: nonEmptyString,
+  chapter3Payoff: nonEmptyString,
+  chapter10Payoff: nonEmptyString,
+  chapter30Payoff: nonEmptyString,
+  escalationLadder: nonEmptyString,
+  relationshipMainline: nonEmptyString,
+  absoluteRedLines: z.array(nonEmptyString).min(2).max(6),
 });
 
 export const directorPlanBlueprintSchema = z.object({
@@ -72,4 +92,5 @@ export const directorPlanBlueprintSchema = z.object({
 });
 
 export type DirectorCandidateResponse = z.infer<typeof directorCandidateResponseSchema>;
+export type DirectorBookContractParsed = z.infer<typeof directorBookContractSchema>;
 export type DirectorPlanBlueprintParsed = z.infer<typeof directorPlanBlueprintSchema>;

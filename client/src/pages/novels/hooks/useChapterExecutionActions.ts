@@ -9,6 +9,7 @@ import {
   resolveTargetWordCount,
   type ChapterExecutionStrategy,
 } from "../chapterExecution.utils";
+import { syncNovelWorkflowStageSilently } from "../novelWorkflow.client";
 
 interface UseChapterExecutionActionsArgs {
   novelId: string;
@@ -50,6 +51,13 @@ export function useChapterExecutionActions({
     mutationFn: () => generateNovelChapterSummary(novelId, selectedChapterId),
     onSuccess: async () => {
       await invalidateNovelDetail();
+      await syncNovelWorkflowStageSilently({
+        novelId,
+        stage: "chapter_execution",
+        itemLabel: "章节摘要已生成",
+        chapterId: selectedChapterId || undefined,
+        status: "waiting_approval",
+      });
       onMessage("已通过 AI 生成本章摘要。");
     },
     onError: (error) => {
@@ -80,6 +88,13 @@ export function useChapterExecutionActions({
       taskSheet: buildChapterTaskSheet(chapter, strategy),
       chapterStatus: "pending_generation",
     });
+    void syncNovelWorkflowStageSilently({
+      novelId,
+      stage: "chapter_execution",
+      itemLabel: "章节执行策略已应用",
+      chapterId: chapter.id,
+      status: "waiting_approval",
+    });
     onMessage("生成策略已应用到当前章节。");
   };
 
@@ -92,6 +107,13 @@ export function useChapterExecutionActions({
       content: "",
       chapterStatus: "pending_generation",
       repairHistory: `${chapter.repairHistory ?? ""}\n[rewrite] ${new Date().toISOString()}`.trim(),
+    });
+    void syncNovelWorkflowStageSilently({
+      novelId,
+      stage: "chapter_execution",
+      itemLabel: "本章已重置并准备重写",
+      chapterId: chapter.id,
+      status: "waiting_approval",
     });
     onGenerateChapter();
     onMessage("已触发重写流程。");
@@ -128,6 +150,13 @@ export function useChapterExecutionActions({
     patchChapterMutation.mutate({
       taskSheet: buildChapterTaskSheet(chapter, strategy),
     });
+    void syncNovelWorkflowStageSilently({
+      novelId,
+      stage: "chapter_execution",
+      itemLabel: "章节任务单已刷新",
+      chapterId: chapter.id,
+      status: "waiting_approval",
+    });
     onMessage("已生成本章任务单。");
   };
 
@@ -138,6 +167,13 @@ export function useChapterExecutionActions({
     }
     patchChapterMutation.mutate({
       sceneCards: buildSceneCardsFromChapter(chapter),
+    });
+    void syncNovelWorkflowStageSilently({
+      novelId,
+      stage: "chapter_execution",
+      itemLabel: "场景拆解已生成",
+      chapterId: chapter.id,
+      status: "waiting_approval",
     });
     onMessage("已生成场景拆解。");
   };

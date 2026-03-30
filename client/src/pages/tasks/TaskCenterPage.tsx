@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TaskKind, TaskStatus } from "@ai-novel/shared/types/task";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import type { NovelWorkflowCheckpoint, NovelWorkflowResumeTarget } from "@ai-novel/shared/types/novelWorkflow";
+import { continueNovelWorkflow } from "@/api/novelWorkflow";
 import { archiveTask, cancelTask, getTaskDetail, listTasks, retryTask } from "@/api/tasks";
 import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +32,9 @@ function formatKind(kind: TaskKind): string {
   if (kind === "book_analysis") {
     return "拆书分析";
   }
+  if (kind === "novel_workflow") {
+    return "小说创作";
+  }
   if (kind === "novel_pipeline") {
     return "小说流水线";
   }
@@ -40,6 +45,59 @@ function formatKind(kind: TaskKind): string {
     return "Agent 运行";
   }
   return "图片生成";
+}
+
+function formatCheckpoint(checkpoint: NovelWorkflowCheckpoint | null | undefined): string {
+  if (checkpoint === "candidate_selection_required") {
+    return "等待确认书级方向";
+  }
+  if (checkpoint === "book_contract_ready") {
+    return "Book Contract 已就绪";
+  }
+  if (checkpoint === "volume_strategy_ready") {
+    return "卷战略已就绪";
+  }
+  if (checkpoint === "front10_ready") {
+    return "前 10 章可开写";
+  }
+  if (checkpoint === "chapter_batch_ready") {
+    return "章节批量资源已就绪";
+  }
+  if (checkpoint === "replan_required") {
+    return "需要重规划";
+  }
+  if (checkpoint === "workflow_completed") {
+    return "主流程完成";
+  }
+  return "暂无";
+}
+
+function formatResumeTarget(target: NovelWorkflowResumeTarget | null | undefined): string {
+  if (!target) {
+    return "暂无";
+  }
+  if (target.route === "/novels/create") {
+    return target.mode === "director" ? "创建页 / AI 自动导演" : "创建页";
+  }
+  if (target.stage === "story_macro") {
+    return "小说编辑页 / 故事宏观规划";
+  }
+  if (target.stage === "character") {
+    return "小说编辑页 / 角色准备";
+  }
+  if (target.stage === "outline") {
+    return "小说编辑页 / 卷战略";
+  }
+  if (target.stage === "structured") {
+    return "小说编辑页 / 节奏拆章";
+  }
+  if (target.stage === "chapter") {
+    return "小说编辑页 / 章节执行";
+  }
+  if (target.stage === "pipeline") {
+    return "小说编辑页 / 质量修复";
+  }
+  return "小说编辑页 / 项目设定";
 }
 
 function formatStatus(status: TaskStatus): string {
@@ -90,6 +148,7 @@ function serializeListParams(input: {
 }
 
 export default function TaskCenterPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [kind, setKind] = useState<TaskKind | "">("");
@@ -201,6 +260,25 @@ export default function TaskCenterPage() {
     },
   });
 
+  const continueWorkflowMutation = useMutation({
+    mutationFn: (taskId: string) => continueNovelWorkflow(taskId),
+    onSuccess: async (response) => {
+      await invalidateTaskQueries();
+      const task = response.data;
+      if (task?.kind && task.id) {
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("kind", task.kind);
+          next.set("id", task.id);
+          return next;
+        });
+        navigate(task.sourceRoute);
+        return;
+      }
+      toast.success("已恢复小说主流程。");
+    },
+  });
+
   const archiveMutation = useMutation({
     mutationFn: (payload: { kind: TaskKind; id: string }) => archiveTask(payload.kind, payload.id),
     onSuccess: async (_, payload) => {
@@ -270,6 +348,7 @@ export default function TaskCenterPage() {
             >
               <option value="">全部类型</option>
               <option value="book_analysis">拆书分析</option>
+              <option value="novel_workflow">小说创作</option>
               <option value="novel_pipeline">小说流水线</option>
               <option value="knowledge_document">知识库索引</option>
               <option value="image_generation">图片生成</option>
@@ -337,6 +416,11 @@ export default function TaskCenterPage() {
                   <div className="mt-1 text-xs text-muted-foreground">
                     阶段：{task.currentStage ?? "暂无"} | 当前项：{task.currentItemLabel ?? "暂无"}
                   </div>
+                  {task.kind === "novel_workflow" ? (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      检查点：{formatCheckpoint(task.checkpointType)} | 下一步：{task.nextActionLabel ?? "继续主流程"}
+                    </div>
+                  ) : null}
                   <div className="mt-1 text-xs text-muted-foreground">
                     最近心跳：{formatDate(task.heartbeatAt)} | 更新时间：{formatDate(task.updatedAt)}
                   </div>
@@ -371,6 +455,13 @@ export default function TaskCenterPage() {
                 <div className="space-y-1 text-muted-foreground">
                   <div>当前阶段：{selectedTask.currentStage ?? "暂无"}</div>
                   <div>当前项：{selectedTask.currentItemLabel ?? "暂无"}</div>
+                  {selectedTask.kind === "novel_workflow" ? (
+                    <>
+                      <div>最近检查点：{formatCheckpoint(selectedTask.checkpointType)}</div>
+                      <div>恢复目标页：{formatResumeTarget(selectedTask.resumeTarget)}</div>
+                      <div>下一步推荐：{selectedTask.nextActionLabel ?? "继续小说主流程"}</div>
+                    </>
+                  ) : null}
                   <div>最近心跳：{formatDate(selectedTask.heartbeatAt)}</div>
                   <div>开始时间：{formatDate(selectedTask.startedAt)}</div>
                   <div>结束时间：{formatDate(selectedTask.finishedAt)}</div>
@@ -381,7 +472,21 @@ export default function TaskCenterPage() {
                     {selectedTask.lastError}
                   </div>
                 ) : null}
+                {selectedTask.kind === "novel_workflow" && selectedTask.checkpointSummary ? (
+                  <div className="rounded-md border bg-muted/20 p-2 text-muted-foreground">
+                    {selectedTask.checkpointSummary}
+                  </div>
+                ) : null}
                 <div className="flex flex-wrap gap-2">
+                  {selectedTask.kind === "novel_workflow" && (selectedTask.status === "waiting_approval" || selectedTask.status === "queued" || selectedTask.status === "running") ? (
+                    <Button
+                      size="sm"
+                      onClick={() => continueWorkflowMutation.mutate(selectedTask.id)}
+                      disabled={continueWorkflowMutation.isPending}
+                    >
+                      继续
+                    </Button>
+                  ) : null}
                   {(selectedTask.status === "failed" || selectedTask.status === "cancelled") ? (
                     <Button
                       size="sm"
@@ -440,6 +545,18 @@ export default function TaskCenterPage() {
                     </div>
                   ))}
                 </div>
+                {selectedTask.kind === "novel_workflow" && Array.isArray(selectedTask.meta.milestones) && selectedTask.meta.milestones.length > 0 ? (
+                  <div className="space-y-2">
+                    <div className="font-medium">里程碑历史</div>
+                    {(selectedTask.meta.milestones as Array<{ checkpointType: NovelWorkflowCheckpoint; summary: string; createdAt: string }>).map((item) => (
+                      <div key={`${item.checkpointType}:${item.createdAt}`} className="rounded-md border p-2 text-muted-foreground">
+                        <div className="font-medium text-foreground">{formatCheckpoint(item.checkpointType)}</div>
+                        <div className="mt-1">{item.summary}</div>
+                        <div className="mt-1 text-xs">记录时间：{formatDate(item.createdAt)}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </>
             ) : (
               <div className="text-muted-foreground">请选择任务查看详情。</div>

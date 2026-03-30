@@ -111,11 +111,11 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
         <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
           <div className="text-xs text-muted-foreground">主推进动作</div>
           <div className="mt-3 grid gap-2">
-            <Button variant="outline" onClick={onGenerateChapterPlan} disabled={!selectedChapter || isGeneratingChapterPlan}>
-              {isGeneratingChapterPlan ? "正在生成章节计划..." : "生成本章计划"}
-            </Button>
             <Button variant="default" onClick={onGenerateSelectedChapter} disabled={!hasCharacters || !selectedChapter}>
               写本章
+            </Button>
+            <Button variant="outline" onClick={onGenerateChapterPlan} disabled={!selectedChapter || isGeneratingChapterPlan}>
+              {isGeneratingChapterPlan ? "正在刷新执行计划..." : "刷新执行计划"}
             </Button>
             <Button variant="outline" onClick={onRunFullAudit} disabled={!selectedChapter || isRunningFullAudit}>
               {isRunningFullAudit ? "正在运行完整审校..." : "运行完整审校"}
@@ -130,6 +130,9 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
             ) : (
               <Button variant="outline" disabled>打开章节编辑器</Button>
             )}
+          </div>
+          <div className="mt-3 text-xs leading-6 text-muted-foreground">
+            点击“写本章”时，如果这一章还没有最新执行计划，系统会先自动补齐再开始生成正文。
           </div>
         </div>
 

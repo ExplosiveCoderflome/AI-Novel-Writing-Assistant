@@ -56,6 +56,7 @@ const projectContextSchema = z.object({
 
 const candidatesSchema = projectContextSchema.extend({
   idea: z.string().trim().min(1),
+  workflowTaskId: z.string().trim().optional(),
 }).merge(llmOptionsSchema);
 
 const candidateBatchSchema = z.object({
@@ -74,6 +75,7 @@ const refineSchema = projectContextSchema.extend({
   previousBatches: z.array(candidateBatchSchema).min(1),
   presets: z.array(z.enum(correctionPresetValues)).default([]),
   feedback: z.string().trim().max(500).optional(),
+  workflowTaskId: z.string().trim().optional(),
 }).merge(llmOptionsSchema);
 
 const confirmSchema = projectContextSchema.extend({
@@ -81,6 +83,7 @@ const confirmSchema = projectContextSchema.extend({
   batchId: z.string().trim().optional(),
   round: z.number().int().min(1).optional(),
   candidate: directorCandidateSchema,
+  workflowTaskId: z.string().trim().optional(),
 }).merge(llmOptionsSchema);
 
 router.post("/candidates", validate({ body: candidatesSchema }), async (req, res, next) => {

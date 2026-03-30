@@ -8,7 +8,7 @@ import { taskCenterService } from "../services/task/TaskCenterService";
 
 const router = Router();
 
-const kindSchema = z.enum(["book_analysis", "novel_pipeline", "knowledge_document", "image_generation", "agent_run"]);
+const kindSchema = z.enum(["book_analysis", "novel_pipeline", "knowledge_document", "image_generation", "agent_run", "novel_workflow"]);
 const statusSchema = z.enum(["queued", "running", "waiting_approval", "succeeded", "failed", "cancelled"]);
 
 const listQuerySchema = z.object({

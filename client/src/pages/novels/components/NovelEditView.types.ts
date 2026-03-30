@@ -41,6 +41,7 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { StoryWorldSliceOverrides, StoryWorldSliceView } from "@ai-novel/shared/types/storyWorldSlice";
 import type { QuickCharacterCreatePayload } from "./characterPanel.utils";
 import type { ChapterReviewResult } from "../chapterPlanning.shared";
+import type { ChapterDetailBundleRequest } from "../chapterDetailPlanning.shared";
 import type { StructuredSyncOptions } from "../novelEdit.utils";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 import type { ExistingOutlineChapter } from "../volumePlan.utils";
@@ -195,7 +196,7 @@ export interface StructuredTabViewProps extends Omit<
   ) => void;
   onGenerateChapterDetailBundle: (
     volumeId: string,
-    chapterId: string,
+    request: ChapterDetailBundleRequest,
   ) => void;
   syncPreview: VolumeSyncPreview;
   syncOptions: StructuredSyncOptions;

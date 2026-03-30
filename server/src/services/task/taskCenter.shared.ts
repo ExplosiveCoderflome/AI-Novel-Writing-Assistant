@@ -5,7 +5,7 @@ import type {
 } from "@ai-novel/shared/types/task";
 
 export interface ListTasksFilters {
-  kind?: "book_analysis" | "novel_pipeline" | "knowledge_document" | "image_generation" | "agent_run";
+  kind?: "book_analysis" | "novel_pipeline" | "knowledge_document" | "image_generation" | "agent_run" | "novel_workflow";
   status?: TaskStatus;
   keyword?: string;
   limit?: number;
@@ -60,6 +60,17 @@ export const IMAGE_TASK_STEPS = [
   { key: "generating", label: "生成图片" },
   { key: "saving_assets", label: "保存素材" },
   { key: "finalizing", label: "收尾" },
+] as const;
+
+export const NOVEL_WORKFLOW_STAGE_STEPS = [
+  { key: "project_setup", label: "项目设定" },
+  { key: "auto_director", label: "自动导演" },
+  { key: "story_macro", label: "故事宏观规划" },
+  { key: "character_setup", label: "角色准备" },
+  { key: "volume_strategy", label: "卷战略 / 卷骨架" },
+  { key: "structured_outline", label: "节奏 / 拆章" },
+  { key: "chapter_execution", label: "章节执行" },
+  { key: "quality_repair", label: "质量修复" },
 ] as const;
 
 export function normalizeKeyword(value: string | undefined): string | undefined {

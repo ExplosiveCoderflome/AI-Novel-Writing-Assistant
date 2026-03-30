@@ -11,6 +11,8 @@ import type {
 import type { LLMProvider } from "./llm";
 import type { BookAnalysisSectionKey } from "./bookAnalysis";
 import type { StoryMacroPlan } from "./storyMacro";
+import type { BookContract, BookContractDraft } from "./novelWorkflow";
+import type { TitleFactorySuggestion } from "./title";
 
 export const DIRECTOR_CORRECTION_PRESETS = [
   {
@@ -62,6 +64,7 @@ export interface BookSpec {
 export interface DirectorCandidate {
   id: string;
   workingTitle: string;
+  titleOptions?: TitleFactorySuggestion[];
   logline: string;
   positioning: string;
   sellingPoint: string;
@@ -118,6 +121,7 @@ export interface DirectorProjectContextInput {
 
 export interface DirectorCandidatesRequest extends DirectorProjectContextInput, DirectorLLMOptions {
   idea: string;
+  workflowTaskId?: string;
 }
 
 export interface DirectorRefinementRequest extends DirectorProjectContextInput, DirectorLLMOptions {
@@ -125,6 +129,7 @@ export interface DirectorRefinementRequest extends DirectorProjectContextInput, 
   previousBatches: DirectorCandidateBatch[];
   presets?: DirectorCorrectionPreset[];
   feedback?: string;
+  workflowTaskId?: string;
 }
 
 export interface DirectorConfirmRequest extends DirectorProjectContextInput, DirectorLLMOptions {
@@ -132,6 +137,7 @@ export interface DirectorConfirmRequest extends DirectorProjectContextInput, Dir
   batchId?: string;
   round?: number;
   candidate: DirectorCandidate;
+  workflowTaskId?: string;
 }
 
 export interface DirectorPlanScene {
@@ -193,6 +199,7 @@ export interface DirectorPlanDigest {
 export interface DirectorConfirmResponse {
   novel: Novel;
   storyMacroPlan: StoryMacroPlan;
+  bookContract?: BookContract;
   bookSpec: BookSpec;
   batch: {
     id?: string;
@@ -200,6 +207,7 @@ export interface DirectorConfirmResponse {
   };
   createdChapterCount: number;
   createdArcCount: number;
+  workflowTaskId?: string;
   plans: {
     book: DirectorPlanDigest | null;
     arcs: DirectorPlanDigest[];
@@ -209,10 +217,12 @@ export interface DirectorConfirmResponse {
 
 export interface DirectorCandidatesResponse {
   batch: DirectorCandidateBatch;
+  workflowTaskId?: string;
 }
 
 export interface DirectorRefineResponse {
   batch: DirectorCandidateBatch;
+  workflowTaskId?: string;
 }
 
 export interface DirectorConfirmApiResponse extends DirectorConfirmResponse {
@@ -222,3 +232,5 @@ export interface DirectorConfirmApiResponse extends DirectorConfirmResponse {
     chapters: DirectorPlanDigest[];
   };
 }
+
+export interface DirectorBookContractDraft extends BookContractDraft {}

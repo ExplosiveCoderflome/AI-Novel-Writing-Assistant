@@ -20,6 +20,7 @@ import {
 } from "@/api/novelStoryMacro";
 import { queryKeys } from "@/api/queryKeys";
 import type { StoryMacroTabProps } from "../components/NovelEditView.types";
+import { syncNovelWorkflowStageSilently } from "../novelWorkflow.client";
 
 const EMPTY_CONFLICT_LAYERS: StoryConflictLayers = {
   external: "",
@@ -139,6 +140,12 @@ export function useNovelStoryMacro(input: UseNovelStoryMacroInput): {
       setConstraints(response.data?.constraints ?? []);
       setLockedFields(response.data?.lockedFields ?? {});
       setStoryState(response.data?.state ?? EMPTY_STATE);
+      await syncNovelWorkflowStageSilently({
+        novelId,
+        stage: "story_macro",
+        itemLabel: "故事引擎原型已生成",
+        status: "waiting_approval",
+      });
       await invalidatePlan();
     },
   });
@@ -151,6 +158,14 @@ export function useNovelStoryMacro(input: UseNovelStoryMacroInput): {
     }),
     onSuccess: async (response) => {
       setMessage(response.message ?? "约束引擎已构建。");
+      await syncNovelWorkflowStageSilently({
+        novelId,
+        stage: "story_macro",
+        itemLabel: "约束引擎已构建",
+        checkpointType: "book_contract_ready",
+        checkpointSummary: "故事宏观规划与约束引擎已具备进入下一步的条件。",
+        status: "waiting_approval",
+      });
       await invalidatePlan();
     },
   });
@@ -165,6 +180,12 @@ export function useNovelStoryMacro(input: UseNovelStoryMacroInput): {
     }),
     onSuccess: async (response) => {
       setMessage(response.message ?? "故事宏观规划已保存。");
+      await syncNovelWorkflowStageSilently({
+        novelId,
+        stage: "story_macro",
+        itemLabel: "故事宏观规划已保存",
+        status: "waiting_approval",
+      });
       await invalidatePlan();
     },
   });

@@ -129,8 +129,8 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     [chapters],
   );
 
-  const selectedChapterHasPlan = Boolean(
-    selectedChapter && (hasText(chapterPlan?.objective) || hasText(selectedChapter.expectation)),
+  const selectedChapterHasRuntimePlan = Boolean(
+    selectedChapter && hasText(chapterPlan?.objective),
   );
   const selectedChapterHasContent = hasText(selectedChapter?.content);
   const unresolvedIssueCount = openAuditIssues.length > 0 ? openAuditIssues.length : (reviewResult?.issues?.length ?? 0);
@@ -166,19 +166,19 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
         onClick: onGoToCharacterTab,
       };
     }
-    if (!selectedChapterHasPlan || selectedChapter.chapterStatus === "unplanned") {
-      return {
-        label: isGeneratingChapterPlan ? "规划中..." : "生成本章计划",
-        reason: "先补齐这一章的目标、冲突和出场角色，后续写正文会更稳。",
-        variant: "default",
-        onClick: onGenerateChapterPlan,
-        disabled: isGeneratingChapterPlan,
-      };
-    }
-    if (!selectedChapterHasContent || selectedChapter.chapterStatus === "pending_generation" || selectedChapter.chapterStatus === "generating") {
+    if (
+      !selectedChapterHasContent
+      || selectedChapter.chapterStatus === "unplanned"
+      || selectedChapter.chapterStatus === "pending_generation"
+      || selectedChapter.chapterStatus === "generating"
+    ) {
       return {
         label: "写本章",
-        reason: "这章已经具备基础规划，现在适合直接生成正文。",
+        reason: selectedChapterHasRuntimePlan
+          ? "这章已经具备执行计划，现在适合直接生成正文。"
+          : hasText(selectedChapter.expectation)
+            ? "系统会先根据当前章节细化和最新状态自动补齐执行计划，再开始写正文。"
+            : "系统会先为这一章自动补齐执行计划，再开始写正文。",
         variant: "default",
         onClick: onGenerateSelectedChapter,
       };
@@ -220,7 +220,6 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     activeReplanRecommendation?.reason,
     activeReplanRecommendation?.recommended,
     hasCharacters,
-    isGeneratingChapterPlan,
     isRepairingChapter,
     isReplanningChapter,
     isRunningFullAudit,
@@ -228,14 +227,13 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     onAbortRepair,
     onAbortStream,
     onAutoRepair,
-    onGenerateChapterPlan,
     onGenerateSelectedChapter,
     onGoToCharacterTab,
     onReplanChapter,
     onRunFullAudit,
     selectedChapter,
     selectedChapterHasContent,
-    selectedChapterHasPlan,
+    selectedChapterHasRuntimePlan,
     selectedChapterRepairing,
     selectedChapterStreaming,
     unresolvedIssueCount,
@@ -298,7 +296,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
                       {selectedChapter.title || "未命名章节"}
                     </div>
                     <div className="mt-2 max-w-4xl text-sm leading-7 text-muted-foreground">
-                      {chapterPlan?.objective ?? selectedChapter.expectation ?? "这一章还没有明确目标，建议先补章节计划。"}
+                      {chapterPlan?.objective ?? selectedChapter.expectation ?? "这一章还没有明确目标；开始写作时系统会先自动补齐执行计划。"}
                     </div>
                   </div>
 

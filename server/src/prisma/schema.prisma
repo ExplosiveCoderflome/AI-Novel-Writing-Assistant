@@ -190,6 +190,20 @@ enum AgentRunStatus {
   cancelled
 }
 
+enum NovelWorkflowLane {
+  manual_create
+  auto_director
+}
+
+enum NovelWorkflowTaskStatus {
+  queued
+  running
+  waiting_approval
+  succeeded
+  failed
+  cancelled
+}
+
 enum AgentStepType {
   planning
   tool_call
@@ -334,11 +348,13 @@ model Novel {
   volumePlanVersions VolumePlanVersion[]
   qualityReports     QualityReport[]
   storyMacroPlan     StoryMacroPlan?
+  bookContract       BookContract?
   storyStateSnapshots StoryStateSnapshot[]
   openConflicts      OpenConflict[]
   storyPlans         StoryPlan[]
   replanRuns         ReplanRun[]
   auditReports       AuditReport[]
+  workflowTasks      NovelWorkflowTask[]
   createdAt          DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
@@ -1379,6 +1395,54 @@ model StoryMacroPlan {
   novel                Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+}
+
+model BookContract {
+  id                   String   @id @default(cuid())
+  novelId              String   @unique
+  readingPromise       String
+  protagonistFantasy   String
+  coreSellingPoint     String
+  chapter3Payoff       String
+  chapter10Payoff      String
+  chapter30Payoff      String
+  escalationLadder     String
+  relationshipMainline String
+  absoluteRedLinesJson String
+  novel                Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model NovelWorkflowTask {
+  id                 String                  @id @default(cuid())
+  novelId            String?
+  lane               NovelWorkflowLane
+  title              String
+  status             NovelWorkflowTaskStatus @default(queued)
+  progress           Float                   @default(0)
+  currentStage       String?
+  currentItemKey     String?
+  currentItemLabel   String?
+  checkpointType     String?
+  checkpointSummary  String?
+  resumeTargetJson   String?
+  seedPayloadJson    String?
+  milestonesJson     String?
+  heartbeatAt        DateTime?
+  startedAt          DateTime?
+  finishedAt         DateTime?
+  cancelRequestedAt  DateTime?
+  attemptCount       Int                     @default(0)
+  maxAttempts        Int                     @default(3)
+  lastError          String?
+  novel              Novel?                  @relation(fields: [novelId], references: [id], onDelete: SetNull)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  @@index([novelId, status, updatedAt])
+  @@index([status, updatedAt])
+  @@index([lane, updatedAt])
 }
 
 model StoryStateSnapshot {

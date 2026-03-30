@@ -24,6 +24,7 @@ import novelDirectorRouter from "./routes/novelDirector";
 import novelDecisionsRouter from "./routes/novelDecisions";
 import novelChapterSummaryRouter from "./routes/novelChapterSummary";
 import novelExportRouter from "./routes/novelExport";
+import novelWorkflowsRouter from "./routes/novelWorkflows";
 import ragRouter from "./routes/rag";
 import settingsRouter from "./routes/settings";
 import styleEngineRouter from "./routes/styleEngine";
@@ -107,6 +108,7 @@ export function createApp() {
   app.use("/api", styleEngineExtractionRouter);
   app.use("/api/novels", novelRouter);
   app.use("/api/novels/director", novelDirectorRouter);
+  app.use("/api/novel-workflows", novelWorkflowsRouter);
   app.use("/api/novels", novelDecisionsRouter);
   app.use("/api/novels", novelChapterSummaryRouter);
   app.use("/api/novels", novelExportRouter);

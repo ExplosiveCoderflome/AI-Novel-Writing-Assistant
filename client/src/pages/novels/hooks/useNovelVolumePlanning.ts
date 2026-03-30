@@ -20,9 +20,18 @@ import {
   findBeatSheet,
   normalizeVolumeDraft,
 } from "../volumePlan.utils";
-
-type ChapterDetailMode = "purpose" | "boundary" | "task_sheet";
-const CHAPTER_DETAIL_MODES: ChapterDetailMode[] = ["purpose", "boundary", "task_sheet"];
+import {
+  detailModeLabel,
+  hasChapterDetailDraft,
+  type ChapterDetailBundleRequest,
+  type ChapterDetailMode,
+} from "../chapterDetailPlanning.shared";
+import {
+  buildChapterDetailBatchConfirmationMessage,
+  resolveChapterDetailBatch,
+  runChapterDetailBatchGeneration,
+} from "./useNovelVolumePlanning.chapterDetail";
+import { syncNovelWorkflowStageSilently } from "../novelWorkflow.client";
 
 interface LlmSettings {
   provider?: LLMProvider;
@@ -105,33 +114,6 @@ function serializeVolumeDraft(volumes: VolumePlan[]): string {
       payoffRefs: chapter.payoffRefs,
     })),
   })));
-}
-
-function detailModeLabel(mode: ChapterDetailMode): string {
-  if (mode === "purpose") return "章节目标";
-  if (mode === "boundary") return "执行边界";
-  return "任务单";
-}
-
-function hasChapterDetailDraft(
-  chapter: VolumePlan["chapters"][number],
-  mode: ChapterDetailMode,
-): boolean {
-  if (mode === "purpose") {
-    return Boolean(chapter.purpose?.trim());
-  }
-  if (mode === "boundary") {
-    return typeof chapter.conflictLevel === "number"
-      || typeof chapter.revealLevel === "number"
-      || typeof chapter.targetWordCount === "number"
-      || Boolean(chapter.mustAvoid?.trim())
-      || chapter.payoffRefs.length > 0;
-  }
-  return Boolean(chapter.taskSheet?.trim());
-}
-
-function hasAnyChapterDetailDraft(chapter: VolumePlan["chapters"][number]): boolean {
-  return CHAPTER_DETAIL_MODES.some((mode) => hasChapterDetailDraft(chapter, mode));
 }
 
 function mergeSavedVolumeDocumentIntoNovelDetail(
@@ -284,6 +266,39 @@ export function useNovelVolumePlanning({
       if (result.persistedResponse.data) {
         syncSavedVolumeDocumentToCache(result.persistedResponse.data);
       }
+
+      void syncNovelWorkflowStageSilently({
+        novelId,
+        stage: payload.scope === "strategy" || payload.scope === "strategy_critique" || payload.scope === "skeleton" || payload.scope === "book"
+          ? "volume_strategy"
+          : "structured_outline",
+        itemLabel: payload.scope === "strategy"
+          ? "卷战略建议已更新"
+          : payload.scope === "strategy_critique"
+            ? "卷战略审稿已更新"
+            : payload.scope === "skeleton" || payload.scope === "book"
+              ? "卷骨架已更新"
+              : payload.scope === "beat_sheet"
+                ? "当前卷节奏板已生成"
+                : payload.scope === "chapter_list" || payload.scope === "volume"
+                  ? "当前卷章节列表已生成"
+                  : payload.scope === "rebalance"
+                    ? "相邻卷再平衡建议已更新"
+                    : "章节细化已更新",
+        checkpointType: payload.scope === "skeleton" || payload.scope === "book"
+          ? "volume_strategy_ready"
+          : payload.scope === "chapter_list" || payload.scope === "volume"
+            ? "chapter_batch_ready"
+            : null,
+        checkpointSummary: payload.scope === "skeleton" || payload.scope === "book"
+          ? "卷战略与卷骨架已刷新，可以继续进入节奏拆章。"
+          : payload.scope === "chapter_list" || payload.scope === "volume"
+            ? "当前卷章节列表已准备完成，可继续细化并同步到章节执行。"
+            : undefined,
+        volumeId: payload.targetVolumeId,
+        chapterId: payload.targetChapterId,
+        status: "waiting_approval",
+      });
 
       if (payload.suppressSuccessMessage) {
         return;
@@ -465,50 +480,50 @@ export function useNovelVolumePlanning({
     });
   };
 
-  const startChapterDetailBundleGeneration = (volumeId: string, chapterId: string) => {
+  const startChapterDetailBundleGeneration = (
+    volumeId: string,
+    request: ChapterDetailBundleRequest,
+  ) => {
     const targetVolume = normalizedVolumeDraft.find((volume) => volume.id === volumeId);
-    const targetChapter = targetVolume?.chapters.find((chapter) => chapter.id === chapterId);
-    if (!targetVolume || !targetChapter) {
-      setStructuredMessage("当前章节不存在，无法整套生成章节细化。");
+    const batch = resolveChapterDetailBatch(targetVolume, request);
+    if (!targetVolume) {
+      setStructuredMessage("当前卷不存在，无法生成章节细化。");
+      return;
+    }
+    if (batch.targets.length === 0) {
+      setStructuredMessage(typeof request === "string" ? "当前章节不存在，无法整套生成章节细化。" : "当前范围内没有可细化章节。");
       return;
     }
     if (!findBeatSheet(beatSheets, volumeId)) {
-      setStructuredMessage("请先生成当前卷节奏板，再做单章整套细化。");
+      setStructuredMessage(batch.targets.length > 1 ? "请先生成当前卷节奏板，再做批量章节细化。" : "请先生成当前卷节奏板，再做单章整套细化。");
       return;
     }
     if (!ensureCharacterGuard()) {
       return;
     }
+    const confirmed = window.confirm(buildChapterDetailBatchConfirmationMessage(batch));
+    if (!confirmed) {
+      return;
+    }
 
-    void (async () => {
-      let workingDraft = normalizedVolumeDraft;
-      setIsGeneratingChapterDetailBundle(true);
-      setBundleGeneratingChapterId(chapterId);
-      setStructuredMessage(`正在为第${targetChapter.chapterOrder}章连续生成章节目标、执行边界和任务单...`);
-
-      try {
-        for (const mode of CHAPTER_DETAIL_MODES) {
-          setBundleGeneratingMode(mode);
-          const result = await generateMutation.mutateAsync({
-            scope: "chapter_detail",
-            targetVolumeId: volumeId,
-            targetChapterId: chapterId,
-            detailMode: mode,
-            draftVolumesOverride: workingDraft,
-            suppressSuccessMessage: true,
-          });
-          workingDraft = result.nextDocument.volumes;
-          applyWorkspaceDocument(result.nextDocument);
-        }
-        setStructuredMessage(`第${targetChapter.chapterOrder}章的章节目标、执行边界和任务单已补齐并自动保存。`);
-      } catch {
-        // onError handles message
-      } finally {
-        setIsGeneratingChapterDetailBundle(false);
-        setBundleGeneratingChapterId("");
-        setBundleGeneratingMode("");
-      }
-    })();
+    void runChapterDetailBatchGeneration({
+      initialDraft: normalizedVolumeDraft,
+      label: batch.label,
+      targetVolumeId: volumeId,
+      targets: batch.targets,
+      setIsGenerating: setIsGeneratingChapterDetailBundle,
+      setCurrentChapterId: setBundleGeneratingChapterId,
+      setCurrentMode: setBundleGeneratingMode,
+      setStructuredMessage,
+      generateChapterDetail: (payload) => generateMutation.mutateAsync({
+        scope: "chapter_detail",
+        targetVolumeId: payload.targetVolumeId,
+        targetChapterId: payload.targetChapterId,
+        detailMode: payload.detailMode,
+        draftVolumesOverride: payload.draftVolumesOverride,
+        suppressSuccessMessage: payload.suppressSuccessMessage,
+      }),
+    });
   };
 
   const handleVolumeFieldChange = (

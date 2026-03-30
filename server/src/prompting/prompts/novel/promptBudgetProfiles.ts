@@ -2,6 +2,7 @@ import type { PromptBudgetProfile } from "@ai-novel/shared/types/chapterRuntime"
 
 export const NOVEL_PROMPT_BUDGETS = {
   directorCandidates: 1200,
+  directorBookContract: 1400,
   directorBlueprint: 2400,
   storyMacroDecomposition: 1800,
   storyMacroFieldRegeneration: 1600,

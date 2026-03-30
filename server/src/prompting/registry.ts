@@ -82,6 +82,10 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/novel/directorPlanning.prompts").directorCandidatePrompt as UnknownPromptAsset,
   },
   {
+    key: "novel.director.book_contract@v1",
+    load: () => require("./prompts/novel/directorPlanning.prompts").directorBookContractPrompt as UnknownPromptAsset,
+  },
+  {
     key: "novel.director.blueprint@v1",
     load: () => require("./prompts/novel/directorPlanning.prompts").directorBlueprintPrompt as UnknownPromptAsset,
   },

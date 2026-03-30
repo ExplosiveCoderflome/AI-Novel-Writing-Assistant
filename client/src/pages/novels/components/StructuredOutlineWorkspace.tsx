@@ -2,18 +2,16 @@ import { useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   getStructuredOutlineWorkspaceDefaults,
   useStructuredOutlineWorkspaceStore,
 } from "../stores/useStructuredOutlineWorkspaceStore";
+import { hasChapterExecutionDetail } from "../chapterDetailPlanning.shared";
 import { findBeatSheet } from "../volumePlan.utils";
+import StructuredChapterDetailCard from "./StructuredChapterDetailCard";
 import WorldInjectionHint from "./WorldInjectionHint";
 import type { StructuredTabViewProps } from "./NovelEditView.types";
-
-const textareaClassName =
-  "w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 type StructuredVolume = StructuredTabViewProps["volumes"][number];
 type StructuredChapter = StructuredVolume["chapters"][number];
@@ -26,18 +24,6 @@ function actionLabel(action: StructuredTabViewProps["syncPreview"]["items"][numb
   if (action === "keep") return "保留";
   if (action === "delete") return "删除";
   return "待删候选";
-}
-
-function hasChapterExecutionDetail(chapter: StructuredChapter): boolean {
-  return Boolean(
-    chapter.purpose?.trim()
-    || chapter.taskSheet?.trim()
-    || chapter.mustAvoid?.trim()
-    || typeof chapter.conflictLevel === "number"
-    || typeof chapter.revealLevel === "number"
-    || typeof chapter.targetWordCount === "number"
-    || chapter.payoffRefs.length > 0,
-  );
 }
 
 function parseBeatSpan(chapterSpanHint: string): { start: number; end: number } | null {
@@ -563,183 +549,27 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
             </Card>
 
             <div className="space-y-4">
-              <Card>
-              <CardHeader className="pb-3">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <CardTitle className="text-base leading-none">当前章节细化</CardTitle>
-                      {selectedChapter ? (
-                        <>
-                          <Badge variant="outline">第{selectedChapter.chapterOrder}章</Badge>
-                          {selectedChapterBeat ? <Badge variant="secondary">{selectedChapterBeat.label}</Badge> : null}
-                          {hasChapterExecutionDetail(selectedChapter) ? <Badge variant="secondary">已细化</Badge> : <Badge variant="outline">待细化</Badge>}
-                        </>
-                      ) : null}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {selectedChapter
-                        ? "先补标题、摘要、目标和任务单；冲突等级、字数和边界控制已收进高级设置。"
-                        : "先在左侧章节导航中选中一章，再开始细化。"}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedVolume && selectedChapter ? (
-                      <Button
-                        size="sm"
-                        onClick={() => onGenerateChapterDetailBundle(selectedVolume.id, selectedChapter.id)}
-                        disabled={isGeneratingChapterDetail || locked}
-                      >
-                        {isGeneratingChapterDetailBundle && generatingChapterDetailChapterId === selectedChapter.id ? "整套生成中..." : "一键 AI生成"}
-                      </Button>
-                    ) : null}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => patchWorkspace(workspaceId, { showChapterAdvanced: !showChapterAdvanced })}
-                    >
-                      {showChapterAdvanced ? "收起高级设置" : "展开高级设置"}
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {selectedVolume && selectedChapter ? (
-                  <>
-                    <label className="space-y-2 text-sm">
-                      <span className="text-xs text-muted-foreground">章节标题</span>
-                      <Input
-                        value={selectedChapter.title}
-                        onChange={(event) => onChapterFieldChange(selectedVolume.id, selectedChapter.id, "title", event.target.value)}
-                      />
-                    </label>
-
-                    <label className="space-y-2 text-sm">
-                      <span className="text-xs text-muted-foreground">章节摘要</span>
-                      <textarea
-                        className={cn(textareaClassName, "min-h-[130px]")}
-                        value={selectedChapter.summary}
-                        onChange={(event) => onChapterFieldChange(selectedVolume.id, selectedChapter.id, "summary", event.target.value)}
-                      />
-                    </label>
-
-                    <label className="space-y-2 text-sm">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-muted-foreground">章节目标</span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => onGenerateChapterDetail(selectedVolume.id, selectedChapter.id, "purpose")}
-                          disabled={isGeneratingChapterDetail || locked}
-                        >
-                          {isGeneratingChapterDetail && generatingChapterDetailMode === "purpose" && generatingChapterDetailChapterId === selectedChapter.id ? "修正中..." : "AI修正"}
-                        </Button>
-                      </div>
-                      <textarea
-                        className={cn(textareaClassName, "min-h-[110px]")}
-                        value={selectedChapter.purpose ?? ""}
-                        onChange={(event) => onChapterFieldChange(selectedVolume.id, selectedChapter.id, "purpose", event.target.value)}
-                      />
-                    </label>
-
-                    <label className="space-y-2 text-sm">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-muted-foreground">任务单</span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => onGenerateChapterDetail(selectedVolume.id, selectedChapter.id, "task_sheet")}
-                          disabled={isGeneratingChapterDetail || locked}
-                        >
-                          {isGeneratingChapterDetail && generatingChapterDetailMode === "task_sheet" && generatingChapterDetailChapterId === selectedChapter.id ? "修正中..." : "AI修正"}
-                        </Button>
-                      </div>
-                      <textarea
-                        className={cn(textareaClassName, "min-h-[130px]")}
-                        value={selectedChapter.taskSheet ?? ""}
-                        onChange={(event) => onChapterFieldChange(selectedVolume.id, selectedChapter.id, "taskSheet", event.target.value)}
-                      />
-                    </label>
-
-                    {showChapterAdvanced ? (
-                      <div className="space-y-4 rounded-xl border border-border/70 bg-muted/20 p-4">
-                        <div className="text-sm font-medium">高级设置</div>
-                        <div className="grid gap-3 md:grid-cols-3">
-                          <label className="space-y-2 text-sm">
-                            <span className="text-xs text-muted-foreground">冲突等级</span>
-                            <Input
-                              type="number"
-                              min={0}
-                              max={100}
-                              value={selectedChapter.conflictLevel ?? ""}
-                              onChange={(event) => onChapterNumberChange(selectedVolume.id, selectedChapter.id, "conflictLevel", event.target.value ? Number(event.target.value) : null)}
-                            />
-                          </label>
-                          <label className="space-y-2 text-sm">
-                            <span className="text-xs text-muted-foreground">揭露等级</span>
-                            <Input
-                              type="number"
-                              min={0}
-                              max={100}
-                              value={selectedChapter.revealLevel ?? ""}
-                              onChange={(event) => onChapterNumberChange(selectedVolume.id, selectedChapter.id, "revealLevel", event.target.value ? Number(event.target.value) : null)}
-                            />
-                          </label>
-                          <label className="space-y-2 text-sm">
-                            <span className="text-xs text-muted-foreground">目标字数</span>
-                            <Input
-                              type="number"
-                              min={200}
-                              step={100}
-                              value={selectedChapter.targetWordCount ?? ""}
-                              onChange={(event) => onChapterNumberChange(selectedVolume.id, selectedChapter.id, "targetWordCount", event.target.value ? Number(event.target.value) : null)}
-                            />
-                          </label>
-                        </div>
-
-                        <label className="space-y-2 text-sm">
-                          <span className="text-xs text-muted-foreground">禁止事项</span>
-                          <textarea
-                            className={cn(textareaClassName, "min-h-[100px]")}
-                            value={selectedChapter.mustAvoid ?? ""}
-                            onChange={(event) => onChapterFieldChange(selectedVolume.id, selectedChapter.id, "mustAvoid", event.target.value)}
-                          />
-                        </label>
-
-                        <label className="space-y-2 text-sm">
-                          <span className="text-xs text-muted-foreground">兑现关联</span>
-                          <textarea
-                            className={cn(textareaClassName, "min-h-[100px]")}
-                            value={selectedChapter.payoffRefs.join("\n")}
-                            onChange={(event) => onChapterPayoffRefsChange(selectedVolume.id, selectedChapter.id, event.target.value)}
-                          />
-                        </label>
-
-                        <div className="flex flex-wrap gap-2">
-                          <Button size="sm" variant="outline" onClick={() => onMoveChapter(selectedVolume.id, selectedChapter.id, -1)} disabled={selectedChapterIndex <= 0}>
-                            上移
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => onMoveChapter(selectedVolume.id, selectedChapter.id, 1)} disabled={selectedChapterIndex < 0 || selectedChapterIndex >= selectedVolume.chapters.length - 1}>
-                            下移
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => onRemoveChapter(selectedVolume.id, selectedChapter.id)} disabled={selectedVolume.chapters.length <= 1}>
-                            删除
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
-                        冲突等级、揭露等级、字数、禁止事项和兑现关联已收进高级设置，避免一上来就把表单铺满。
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-                    先在左侧选择一个章节，再开始细化。
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              <StructuredChapterDetailCard
+                selectedVolume={selectedVolume}
+                selectedChapter={selectedChapter}
+                visibleChapters={visibleChapters}
+                selectedChapterBeatLabel={selectedChapterBeat?.label ?? null}
+                selectedChapterIndex={selectedChapterIndex}
+                showChapterAdvanced={showChapterAdvanced}
+                onToggleAdvanced={() => patchWorkspace(workspaceId, { showChapterAdvanced: !showChapterAdvanced })}
+                isGeneratingChapterDetail={isGeneratingChapterDetail}
+                isGeneratingChapterDetailBundle={isGeneratingChapterDetailBundle}
+                generatingChapterDetailMode={generatingChapterDetailMode}
+                generatingChapterDetailChapterId={generatingChapterDetailChapterId}
+                onGenerateChapterDetail={onGenerateChapterDetail}
+                onGenerateChapterDetailBundle={onGenerateChapterDetailBundle}
+                onChapterFieldChange={onChapterFieldChange}
+                onChapterNumberChange={onChapterNumberChange}
+                onChapterPayoffRefsChange={onChapterPayoffRefsChange}
+                onMoveChapter={onMoveChapter}
+                onRemoveChapter={onRemoveChapter}
+                locked={locked}
+              />
 
             <Card>
               <CardHeader className="pb-3">

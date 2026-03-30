@@ -16,6 +16,7 @@ import { queryKeys } from "@/api/queryKeys";
 import { buildNovelUpdatePayload, type NovelBasicFormState } from "../novelBasicInfo.shared";
 import type { ChapterReviewResult } from "../chapterPlanning.shared";
 import type { StructuredSyncOptions } from "../novelEdit.utils";
+import { syncNovelWorkflowStageSilently } from "../novelWorkflow.client";
 
 interface LlmSettings {
   provider?: LLMProvider;
@@ -95,6 +96,12 @@ export function useNovelEditMutations({
   const saveBasicMutation = useMutation({
     mutationFn: () => updateNovel(id, buildNovelUpdatePayload(basicForm)),
     onSuccess: async () => {
+      await syncNovelWorkflowStageSilently({
+        novelId: id,
+        stage: "project_setup",
+        itemLabel: "项目设定已保存",
+        status: "waiting_approval",
+      });
       await invalidateNovelDetail();
       if (!hasCharacters) {
         setActiveTab("character");
@@ -104,12 +111,30 @@ export function useNovelEditMutations({
 
   const saveOutlineMutation = useMutation({
     mutationFn: () => updateNovelVolumes(id, volumeDocument),
-    onSuccess: invalidateNovelDetail,
+    onSuccess: async () => {
+      await syncNovelWorkflowStageSilently({
+        novelId: id,
+        stage: "volume_strategy",
+        itemLabel: "卷战略 / 卷骨架已保存",
+        checkpointType: "volume_strategy_ready",
+        checkpointSummary: "当前卷战略与卷骨架已保存到工作区。",
+        status: "waiting_approval",
+      });
+      await invalidateNovelDetail();
+    },
   });
 
   const saveStructuredMutation = useMutation({
     mutationFn: () => updateNovelVolumes(id, volumeDocument),
-    onSuccess: invalidateNovelDetail,
+    onSuccess: async () => {
+      await syncNovelWorkflowStageSilently({
+        novelId: id,
+        stage: "structured_outline",
+        itemLabel: "节奏 / 拆章已保存",
+        status: "waiting_approval",
+      });
+      await invalidateNovelDetail();
+    },
   });
 
   const optimizeOutlineMutation = useMutation({
@@ -159,6 +184,14 @@ export function useNovelEditMutations({
       setStructuredMessage(
         `同步完成：新增 ${preview?.createCount ?? 0}，更新 ${preview?.updateCount ?? 0}，删除 ${preview?.deleteCount ?? 0}。`,
       );
+      await syncNovelWorkflowStageSilently({
+        novelId: id,
+        stage: "structured_outline",
+        itemLabel: "卷级拆章已同步到章节执行",
+        checkpointType: "chapter_batch_ready",
+        checkpointSummary: "章节列表、任务单和执行入口已同步，可继续进入章节执行。",
+        status: "waiting_approval",
+      });
       await invalidateNovelDetail();
     },
     onError: (error) => {
@@ -178,6 +211,13 @@ export function useNovelEditMutations({
       if (response.data?.id) {
         setSelectedChapterId(response.data.id);
       }
+      await syncNovelWorkflowStageSilently({
+        novelId: id,
+        stage: "chapter_execution",
+        itemLabel: "已创建新的章节执行项",
+        chapterId: response.data?.id,
+        status: "waiting_approval",
+      });
       await invalidateNovelDetail();
     },
   });
@@ -203,6 +243,12 @@ export function useNovelEditMutations({
         setCurrentJobId(response.data.id);
       }
       setPipelineMessage(response.message ?? "Pipeline started.");
+      await syncNovelWorkflowStageSilently({
+        novelId: id,
+        stage: "quality_repair",
+        itemLabel: "章节流水线运行中",
+        status: "running",
+      });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.pipelineJob(id, response.data?.id ?? "none") });
     },
   });
@@ -217,6 +263,12 @@ export function useNovelEditMutations({
     onSuccess: async (response) => {
       setReviewResult(response.data ?? null);
       setPipelineMessage("Chapter reviewed.");
+      await syncNovelWorkflowStageSilently({
+        novelId: id,
+        stage: "quality_repair",
+        itemLabel: "章节审校已完成",
+        status: "waiting_approval",
+      });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(id) });
     },
   });
@@ -231,6 +283,13 @@ export function useNovelEditMutations({
       }),
     onSuccess: async () => {
       setPipelineMessage("Chapter hook generated.");
+      await syncNovelWorkflowStageSilently({
+        novelId: id,
+        stage: "chapter_execution",
+        itemLabel: "章节钩子已生成",
+        chapterId: selectedChapterId || undefined,
+        status: "waiting_approval",
+      });
       await invalidateNovelDetail();
     },
   });

@@ -11,6 +11,7 @@ import { AgentRunTaskAdapter } from "./adapters/AgentRunTaskAdapter";
 import { BookTaskAdapter } from "./adapters/BookTaskAdapter";
 import { KnowledgeTaskAdapter } from "./adapters/KnowledgeTaskAdapter";
 import { ImageTaskAdapter } from "./adapters/ImageTaskAdapter";
+import { NovelWorkflowTaskAdapter } from "./adapters/NovelWorkflowTaskAdapter";
 import { PipelineTaskAdapter } from "./adapters/PipelineTaskAdapter";
 import {
   compareTaskSummary,
@@ -33,6 +34,8 @@ export class TaskCenterService {
 
   private readonly imageAdapter = new ImageTaskAdapter();
 
+  private readonly workflowAdapter = new NovelWorkflowTaskAdapter();
+
   private readonly agentAdapter = new AgentRunTaskAdapter();
 
   async listTasks(filters: ListTasksFilters = {}): Promise<UnifiedTaskListResponse> {
@@ -41,7 +44,7 @@ export class TaskCenterService {
     const keyword = normalizeKeyword(filters.keyword);
     const cursorPayload = parseCursor(filters.cursor);
 
-    const [bookTasks, novelTasks, knowledgeTasks, imageTasks, agentTasks] = await Promise.all([
+    const [bookTasks, novelTasks, knowledgeTasks, imageTasks, agentTasks, workflowTasks] = await Promise.all([
       filters.kind && filters.kind !== "book_analysis"
         ? Promise.resolve<UnifiedTaskSummary[]>([])
         : this.bookAdapter.list({ status: filters.status, keyword, take: sourceTake }),
@@ -57,9 +60,12 @@ export class TaskCenterService {
       filters.kind && filters.kind !== "agent_run"
         ? Promise.resolve<UnifiedTaskSummary[]>([])
         : this.agentAdapter.list({ status: filters.status, keyword, take: sourceTake }),
+      filters.kind && filters.kind !== "novel_workflow"
+        ? Promise.resolve<UnifiedTaskSummary[]>([])
+        : this.workflowAdapter.list({ status: filters.status, keyword, take: sourceTake }),
     ]);
 
-    const merged = [...bookTasks, ...novelTasks, ...knowledgeTasks, ...imageTasks, ...agentTasks].sort(compareTaskSummary);
+    const merged = [...bookTasks, ...novelTasks, ...knowledgeTasks, ...imageTasks, ...agentTasks, ...workflowTasks].sort(compareTaskSummary);
     const filteredByCursor = cursorPayload
       ? merged.filter((item) => isAfterCursor(item, cursorPayload))
       : merged;
@@ -85,6 +91,9 @@ export class TaskCenterService {
     if (kind === "agent_run") {
       return this.agentAdapter.detail(id);
     }
+    if (kind === "novel_workflow") {
+      return this.workflowAdapter.detail(id);
+    }
     return this.imageAdapter.detail(id);
   }
 
@@ -100,6 +109,9 @@ export class TaskCenterService {
     }
     if (kind === "agent_run") {
       return this.agentAdapter.retry(id);
+    }
+    if (kind === "novel_workflow") {
+      return this.workflowAdapter.retry(id);
     }
     if (kind === "image_generation") {
       return this.imageAdapter.retry(id);
@@ -120,6 +132,9 @@ export class TaskCenterService {
     if (kind === "agent_run") {
       return this.agentAdapter.cancel(id);
     }
+    if (kind === "novel_workflow") {
+      return this.workflowAdapter.cancel(id);
+    }
     if (kind === "image_generation") {
       return this.imageAdapter.cancel(id);
     }
@@ -138,6 +153,9 @@ export class TaskCenterService {
     }
     if (kind === "agent_run") {
       return this.agentAdapter.archive(id);
+    }
+    if (kind === "novel_workflow") {
+      return this.workflowAdapter.archive(id);
     }
     if (kind === "image_generation") {
       return this.imageAdapter.archive(id);
