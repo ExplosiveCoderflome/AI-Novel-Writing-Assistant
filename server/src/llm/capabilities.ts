@@ -9,8 +9,49 @@ export interface JsonCapability {
   supportsJsonSchema: boolean;
 }
 
+export interface ModelParameterCompatibility {
+  fixedTemperature?: number;
+}
+
 export function supportsForcedJsonOutput(provider: LLMProvider, model?: string): boolean {
   return getJsonCapability(provider, model).supportsJsonObject;
+}
+
+function isKimiFixedTemperatureModel(normalizedModel: string): boolean {
+  if (!normalizedModel || normalizedModel === "kimi-latest") {
+    return false;
+  }
+  // Moonshot 新的 K2 / K2.5 系列对 temperature 有固定要求，只接受 1。
+  return normalizedModel.startsWith("kimi-k2")
+    || normalizedModel.startsWith("kimi-2.5")
+    || (normalizedModel.startsWith("kimi-") && normalizedModel.includes("k2"))
+    || normalizedModel.includes("kimi2.5")
+    || normalizedModel.includes("kimi-2-5");
+}
+
+export function getModelParameterCompatibility(provider: LLMProvider, model?: string): ModelParameterCompatibility {
+  const normalizedModel = normalizeModel(model);
+
+  if (provider === "kimi" && isKimiFixedTemperatureModel(normalizedModel)) {
+    return {
+      fixedTemperature: 1,
+    };
+  }
+
+  return {};
+}
+
+export function resolveModelTemperature(
+  provider: LLMProvider,
+  model: string | undefined,
+  requestedTemperature: number | undefined,
+  fallbackTemperature = 0.7,
+): number {
+  const compatibility = getModelParameterCompatibility(provider, model);
+  if (typeof compatibility.fixedTemperature === "number") {
+    return compatibility.fixedTemperature;
+  }
+  return requestedTemperature ?? fallbackTemperature;
 }
 
 export function getJsonCapability(provider: LLMProvider, model?: string): JsonCapability {

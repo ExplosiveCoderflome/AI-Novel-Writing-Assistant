@@ -2,6 +2,7 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { ChatOpenAI } from "@langchain/openai";
 import { prisma } from "../db/prisma";
 import { attachLLMDebugLogging } from "./debugLogging";
+import { resolveModelTemperature } from "./capabilities";
 import { resolveModel, type TaskType } from "./modelRouter";
 import { PROVIDERS } from "./providers";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
@@ -178,12 +179,13 @@ export async function getLLM(provider?: LLMProvider, options: LLMOptions = {}): 
     options.baseURL ??
     getProviderEnvBaseUrl(resolvedProvider) ??
     providerConfig.baseURL;
+  const temperature = resolveModelTemperature(resolvedProvider, model, resolvedTemperature);
 
   const llm = new ChatOpenAI({
     apiKey,
     model,
     modelName: model,
-    temperature: resolvedTemperature ?? 0.7,
+    temperature,
     maxTokens: resolvedMaxTokens,
     configuration: {
       baseURL,
@@ -193,7 +195,7 @@ export async function getLLM(provider?: LLMProvider, options: LLMOptions = {}): 
   return attachLLMDebugLogging(llm, {
     provider: resolvedProvider,
     model,
-    temperature: resolvedTemperature ?? 0.7,
+    temperature,
     maxTokens: resolvedMaxTokens,
     taskType: options.taskType,
     baseURL,
