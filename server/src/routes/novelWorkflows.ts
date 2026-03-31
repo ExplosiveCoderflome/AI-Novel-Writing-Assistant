@@ -3,12 +3,14 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
+import { NovelDirectorService } from "../services/novel/director/NovelDirectorService";
 import { NovelWorkflowService } from "../services/novel/workflow/NovelWorkflowService";
 import { NovelWorkflowTaskAdapter } from "../services/task/adapters/NovelWorkflowTaskAdapter";
 
 const router = Router();
 const workflowService = new NovelWorkflowService();
 const workflowAdapter = new NovelWorkflowTaskAdapter();
+const novelDirectorService = new NovelDirectorService();
 
 const stageSchema = z.enum([
   "project_setup",
@@ -24,6 +26,7 @@ const stageSchema = z.enum([
 const checkpointSchema = z.enum([
   "candidate_selection_required",
   "book_contract_ready",
+  "character_setup_required",
   "volume_strategy_ready",
   "front10_ready",
   "chapter_batch_ready",
@@ -41,6 +44,10 @@ const bootstrapSchema = z.object({
 
 const continueParamsSchema = z.object({
   id: z.string().trim().min(1),
+});
+
+const novelParamsSchema = z.object({
+  novelId: z.string().trim().min(1),
 });
 
 const syncStageSchema = z.object({
@@ -73,10 +80,25 @@ router.post("/bootstrap", validate({ body: bootstrapSchema }), async (req, res, 
   }
 });
 
+router.get("/novels/:novelId/auto-director", validate({ params: novelParamsSchema }), async (req, res, next) => {
+  try {
+    const { novelId } = req.params as z.infer<typeof novelParamsSchema>;
+    const row = await workflowService.findLatestVisibleTaskByNovelId(novelId, "auto_director");
+    const data = row ? await workflowAdapter.detail(row.id) : null;
+    res.status(200).json({
+      success: true,
+      data,
+      message: data ? "Latest auto director task loaded." : "No auto director task found.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post("/:id/continue", validate({ params: continueParamsSchema }), async (req, res, next) => {
   try {
     const { id } = req.params as z.infer<typeof continueParamsSchema>;
-    await workflowService.continueTask(id);
+    await novelDirectorService.continueTask(id);
     const data = await workflowAdapter.detail(id);
     res.status(200).json({
       success: true,

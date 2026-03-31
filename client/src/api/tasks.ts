@@ -5,6 +5,7 @@ import type {
   UnifiedTaskDetail,
   UnifiedTaskListResponse,
 } from "@ai-novel/shared/types/task";
+import type { DirectorLLMOptions } from "@ai-novel/shared/types/novelDirector";
 import { apiClient, type ApiHttpError } from "./client";
 
 export async function listTasks(params?: {
@@ -39,8 +40,15 @@ export async function getTaskDetail(kind: TaskKind, id: string) {
   }
 }
 
-export async function retryTask(kind: TaskKind, id: string) {
-  const { data } = await apiClient.post<ApiResponse<UnifiedTaskDetail>>(`/tasks/${kind}/${id}/retry`, {});
+export async function retryTask(
+  kind: TaskKind,
+  id: string,
+  options?: {
+    llmOverride?: Pick<DirectorLLMOptions, "provider" | "model" | "temperature">;
+    resume?: boolean;
+  },
+) {
+  const { data } = await apiClient.post<ApiResponse<UnifiedTaskDetail>>(`/tasks/${kind}/${id}/retry`, options ?? {});
   return data;
 }
 

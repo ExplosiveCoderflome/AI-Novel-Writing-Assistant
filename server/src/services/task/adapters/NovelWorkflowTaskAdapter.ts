@@ -1,10 +1,16 @@
 import type {
   NovelWorkflowCheckpoint,
 } from "@ai-novel/shared/types/novelWorkflow";
+import type { DirectorLLMOptions } from "@ai-novel/shared/types/novelDirector";
 import type { TaskStatus, UnifiedTaskDetail, UnifiedTaskSummary } from "@ai-novel/shared/types/task";
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
+import { NovelDirectorService } from "../../novel/director/NovelDirectorService";
 import { NovelWorkflowService } from "../../novel/workflow/NovelWorkflowService";
+import {
+  getDirectorInputFromSeedPayload,
+  type DirectorWorkflowSeedPayload,
+} from "../../novel/director/novelDirectorHelpers";
 import {
   parseMilestones,
   parseResumeTarget,
@@ -29,6 +35,9 @@ function buildNextActionLabel(status: TaskStatus, checkpointType: NovelWorkflowC
     }
     if (checkpointType === "book_contract_ready") {
       return "查看 Book Contract";
+    }
+    if (checkpointType === "character_setup_required") {
+      return "去审核角色准备";
     }
     if (checkpointType === "volume_strategy_ready") {
       return "查看卷战略";
@@ -92,6 +101,7 @@ function mapSummary(row: {
     status: row.status as TaskStatus,
     progress: row.progress,
     currentStage: row.currentStage,
+    currentItemKey: row.currentItemKey,
     currentItemLabel: row.currentItemLabel,
     attemptCount: row.attemptCount,
     maxAttempts: row.maxAttempts,
@@ -135,6 +145,7 @@ function mapSummary(row: {
 
 export class NovelWorkflowTaskAdapter {
   private readonly workflowService = new NovelWorkflowService();
+  private readonly novelDirectorService = new NovelDirectorService();
 
   async list(input: {
     status?: TaskStatus;
@@ -208,9 +219,16 @@ export class NovelWorkflowTaskAdapter {
         };
       }
     }
+    const workflowSeedPayload = seedPayload as DirectorWorkflowSeedPayload | null;
+    const directorSession = workflowSeedPayload && typeof workflowSeedPayload.directorSession === "object"
+      ? workflowSeedPayload.directorSession
+      : null;
+    const directorInput = getDirectorInputFromSeedPayload(workflowSeedPayload);
 
     return {
       ...summary,
+      provider: directorInput?.provider ?? null,
+      model: directorInput?.model ?? null,
       startedAt: row.startedAt?.toISOString() ?? null,
       finishedAt: row.finishedAt?.toISOString() ?? null,
       retryCountLabel: `${row.attemptCount}/${row.maxAttempts}`,
@@ -219,6 +237,14 @@ export class NovelWorkflowTaskAdapter {
         checkpointType: row.checkpointType,
         checkpointSummary: row.checkpointSummary,
         resumeTarget,
+        directorSession,
+        llm: directorInput
+          ? {
+            provider: directorInput.provider ?? null,
+            model: directorInput.model ?? null,
+            temperature: directorInput.temperature ?? null,
+          }
+          : null,
         seedPayload,
         milestones,
         cancelRequestedAt: row.cancelRequestedAt?.toISOString() ?? null,
@@ -234,11 +260,26 @@ export class NovelWorkflowTaskAdapter {
     };
   }
 
-  async retry(id: string): Promise<UnifiedTaskDetail> {
+  async retry(input: {
+    id: string;
+    llmOverride?: Pick<DirectorLLMOptions, "provider" | "model" | "temperature">;
+    resume?: boolean;
+  }): Promise<UnifiedTaskDetail> {
+    const { id, llmOverride, resume } = input;
     if (await isTaskArchived("novel_workflow", id)) {
       throw new AppError("Task not found.", 404);
     }
+    const row = await this.workflowService.getTaskById(id);
+    if (!row) {
+      throw new AppError("Task not found.", 404);
+    }
+    if (row.lane === "auto_director" && llmOverride) {
+      await this.workflowService.applyAutoDirectorLlmOverride(id, llmOverride);
+    }
     await this.workflowService.retryTask(id);
+    if (row.lane === "auto_director" && resume) {
+      await this.novelDirectorService.continueTask(id);
+    }
     const detail = await this.detail(id);
     if (!detail) {
       throw new AppError("Task not found after retry.", 404);

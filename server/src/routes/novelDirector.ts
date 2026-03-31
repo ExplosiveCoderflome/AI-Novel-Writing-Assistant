@@ -6,6 +6,10 @@ import {
   type DirectorConfirmRequest,
   type DirectorRefinementRequest,
 } from "@ai-novel/shared/types/novelDirector";
+import {
+  BOOK_FRAMING_COMMERCIAL_TAG_MAX_LENGTH,
+  BOOK_FRAMING_MAX_COMMERCIAL_TAGS,
+} from "@ai-novel/shared/types/novelFraming";
 import { validate } from "../middleware/validate";
 import { NovelDirectorService } from "../services/novel/director/NovelDirectorService";
 import { directorCandidateSchema } from "../services/novel/director/novelDirectorSchemas";
@@ -19,11 +23,19 @@ const llmOptionsSchema = z.object({
   provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
+  runMode: z.enum(["auto_to_ready", "stage_review"]).optional(),
 });
 
 const projectContextSchema = z.object({
   title: z.string().trim().optional(),
   description: z.string().trim().optional(),
+  targetAudience: z.string().trim().optional(),
+  bookSellingPoint: z.string().trim().optional(),
+  competingFeel: z.string().trim().optional(),
+  first30ChapterPromise: z.string().trim().optional(),
+  commercialTags: z.array(z.string().trim().min(1).max(BOOK_FRAMING_COMMERCIAL_TAG_MAX_LENGTH))
+    .max(BOOK_FRAMING_MAX_COMMERCIAL_TAGS)
+    .optional(),
   genreId: z.string().trim().optional(),
   worldId: z.string().trim().optional(),
   writingMode: z.enum(["original", "continuation"]).optional(),

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { bootstrapNovelWorkflow } from "@/api/novelWorkflow";
 import { useSearchParams } from "react-router-dom";
@@ -19,22 +19,9 @@ function normalizeTab(value: string | null): string {
 
 export function useNovelEditWorkflow(novelId: string) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTabState, setActiveTabState] = useState(() => normalizeTab(searchParams.get("stage")));
-  const [selectedChapterIdState, setSelectedChapterIdState] = useState(() => searchParams.get("chapterId") ?? "");
 
   const workflowTaskId = searchParams.get("taskId") ?? "";
   const selectedVolumeId = searchParams.get("volumeId") ?? "";
-
-  useEffect(() => {
-    const nextTab = normalizeTab(searchParams.get("stage"));
-    if (nextTab !== activeTabState) {
-      setActiveTabState(nextTab);
-    }
-    const nextChapterId = searchParams.get("chapterId") ?? "";
-    if (nextChapterId !== selectedChapterIdState) {
-      setSelectedChapterIdState(nextChapterId);
-    }
-  }, [activeTabState, searchParams, selectedChapterIdState]);
 
   const bootstrapMutation = useMutation({
     mutationFn: () => bootstrapNovelWorkflow({
@@ -69,12 +56,17 @@ export function useNovelEditWorkflow(novelId: string) {
     bootstrapMutation.mutate();
   }, [novelId, workflowTaskId]);
 
-  const activeTab = useMemo(() => activeTabState, [activeTabState]);
-  const selectedChapterId = useMemo(() => selectedChapterIdState, [selectedChapterIdState]);
+  const activeTab = useMemo(
+    () => normalizeTab(searchParams.get("stage")),
+    [searchParams],
+  );
+  const selectedChapterId = useMemo(
+    () => searchParams.get("chapterId") ?? "",
+    [searchParams],
+  );
 
   const setActiveTab = (value: string) => {
     const nextTab = normalizeTab(value);
-    setActiveTabState(nextTab);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set("stage", nextTab);
@@ -83,7 +75,6 @@ export function useNovelEditWorkflow(novelId: string) {
   };
 
   const setSelectedChapterId = (value: string) => {
-    setSelectedChapterIdState(value);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (value) {

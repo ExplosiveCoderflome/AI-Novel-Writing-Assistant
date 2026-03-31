@@ -215,11 +215,17 @@ export default function NovelCreate() {
                     return next;
                   }, { replace: true });
                 }}
-                onConfirmed={(novelId, workflowTaskId) => {
+                onConfirmed={({ novelId, workflowTaskId, resumeTarget }) => {
                   const search = new URLSearchParams();
-                  search.set("stage", "chapter");
+                  search.set("stage", resumeTarget?.stage ?? "story_macro");
                   if (workflowTaskId) {
                     search.set("taskId", workflowTaskId);
+                  }
+                  if (resumeTarget?.chapterId) {
+                    search.set("chapterId", resumeTarget.chapterId);
+                  }
+                  if (resumeTarget?.volumeId) {
+                    search.set("volumeId", resumeTarget.volumeId);
                   }
                   navigate(`/novels/${novelId}/edit?${search.toString()}`);
                 }}

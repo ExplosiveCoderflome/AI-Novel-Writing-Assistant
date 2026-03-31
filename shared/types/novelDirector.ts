@@ -10,6 +10,7 @@ import type {
 } from "./novel";
 import type { LLMProvider } from "./llm";
 import type { BookAnalysisSectionKey } from "./bookAnalysis";
+import type { NovelWorkflowResumeTarget } from "./novelWorkflow";
 import type { StoryMacroPlan } from "./storyMacro";
 import type { BookContract, BookContractDraft } from "./novelWorkflow";
 import type { TitleFactorySuggestion } from "./title";
@@ -48,6 +49,39 @@ export const DIRECTOR_CORRECTION_PRESETS = [
 ] as const;
 
 export type DirectorCorrectionPreset = typeof DIRECTOR_CORRECTION_PRESETS[number]["value"];
+
+export const DIRECTOR_RUN_MODES = [
+  "auto_to_ready",
+  "stage_review",
+] as const;
+
+export type DirectorRunMode = typeof DIRECTOR_RUN_MODES[number];
+
+export const DIRECTOR_LOCK_SCOPES = [
+  "basic",
+  "story_macro",
+  "character",
+  "outline",
+  "structured",
+  "chapter",
+  "pipeline",
+] as const;
+
+export type DirectorLockScope = typeof DIRECTOR_LOCK_SCOPES[number];
+
+export interface DirectorSessionState {
+  runMode: DirectorRunMode;
+  isBackgroundRunning: boolean;
+  lockedScopes: DirectorLockScope[];
+  phase:
+    | "candidate_selection"
+    | "story_macro"
+    | "character_setup"
+    | "volume_strategy"
+    | "structured_outline"
+    | "front10_ready";
+  reviewScope?: DirectorLockScope | null;
+}
 
 export interface BookSpec {
   storyInput: string;
@@ -93,11 +127,17 @@ export interface DirectorLLMOptions {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
+  runMode?: DirectorRunMode;
 }
 
 export interface DirectorProjectContextInput {
   title?: string;
   description?: string;
+  targetAudience?: string;
+  bookSellingPoint?: string;
+  competingFeel?: string;
+  first30ChapterPromise?: string;
+  commercialTags?: string[];
   genreId?: string;
   worldId?: string;
   writingMode?: "original" | "continuation";
@@ -198,7 +238,7 @@ export interface DirectorPlanDigest {
 
 export interface DirectorConfirmResponse {
   novel: Novel;
-  storyMacroPlan: StoryMacroPlan;
+  storyMacroPlan: StoryMacroPlan | null;
   bookContract?: BookContract;
   bookSpec: BookSpec;
   batch: {
@@ -208,6 +248,8 @@ export interface DirectorConfirmResponse {
   createdChapterCount: number;
   createdArcCount: number;
   workflowTaskId?: string;
+  directorSession?: DirectorSessionState;
+  resumeTarget?: NovelWorkflowResumeTarget | null;
   plans: {
     book: DirectorPlanDigest | null;
     arcs: DirectorPlanDigest[];

@@ -5,6 +5,7 @@ import type {
   UnifiedTaskListResponse,
   UnifiedTaskSummary,
 } from "@ai-novel/shared/types/task";
+import type { DirectorLLMOptions } from "@ai-novel/shared/types/novelDirector";
 import { AppError } from "../../middleware/errorHandler";
 import { NovelService } from "../novel/NovelService";
 import { AgentRunTaskAdapter } from "./adapters/AgentRunTaskAdapter";
@@ -97,7 +98,14 @@ export class TaskCenterService {
     return this.imageAdapter.detail(id);
   }
 
-  async retryTask(kind: TaskKind, id: string): Promise<UnifiedTaskDetail> {
+  async retryTask(
+    kind: TaskKind,
+    id: string,
+    options?: {
+      llmOverride?: Pick<DirectorLLMOptions, "provider" | "model" | "temperature">;
+      resume?: boolean;
+    },
+  ): Promise<UnifiedTaskDetail> {
     if (kind === "book_analysis") {
       return this.bookAdapter.retry(id);
     }
@@ -111,7 +119,11 @@ export class TaskCenterService {
       return this.agentAdapter.retry(id);
     }
     if (kind === "novel_workflow") {
-      return this.workflowAdapter.retry(id);
+      return this.workflowAdapter.retry({
+        id,
+        llmOverride: options?.llmOverride,
+        resume: options?.resume,
+      });
     }
     if (kind === "image_generation") {
       return this.imageAdapter.retry(id);

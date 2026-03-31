@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import AITakeoverContainer from "@/components/workflow/AITakeoverContainer";
 import KnowledgeBindingPanel from "@/components/knowledge/KnowledgeBindingPanel";
 import NovelCharacterPanel from "./NovelCharacterPanel";
 import BasicInfoTab from "./BasicInfoTab";
@@ -45,7 +46,7 @@ function hasChapterPlanContent(chapter: VolumeChapter): boolean {
 }
 
 export default function NovelEditView(props: NovelEditViewProps) {
-  const { id, activeTab, onActiveTabChange, basicTab, storyMacroTab, outlineTab, structuredTab, chapterTab, pipelineTab, characterTab } = props;
+  const { id, activeTab, onActiveTabChange, basicTab, storyMacroTab, outlineTab, structuredTab, chapterTab, pipelineTab, characterTab, takeover } = props;
   const [isKnowledgeBindingOpen, setIsKnowledgeBindingOpen] = useState(false);
   const [isProjectOverviewOpen, setIsProjectOverviewOpen] = useState(false);
 
@@ -262,7 +263,24 @@ export default function NovelEditView(props: NovelEditViewProps) {
       </Card>
 
       <div className="space-y-4 pt-1">
-        {renderActivePanel()}
+        {takeover ? (
+          <AITakeoverContainer
+            mode={takeover.mode}
+            title={takeover.title}
+            description={takeover.description}
+            progress={takeover.progress}
+            currentAction={takeover.currentAction}
+            checkpointLabel={takeover.checkpointLabel}
+            taskId={takeover.taskId}
+            overlay={takeover.overlay}
+            overlayMessage={takeover.overlayMessage}
+            actions={takeover.actions}
+          >
+            {renderActivePanel()}
+          </AITakeoverContainer>
+        ) : (
+          renderActivePanel()
+        )}
       </div>
     </div>
   );

@@ -23,6 +23,7 @@ export interface UnifiedTaskSummary {
   status: TaskStatus;
   progress: number;
   currentStage?: string | null;
+  currentItemKey?: string | null;
   currentItemLabel?: string | null;
   attemptCount: number;
   maxAttempts: number;

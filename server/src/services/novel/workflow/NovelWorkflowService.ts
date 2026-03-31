@@ -8,6 +8,11 @@ import { prisma } from "../../../db/prisma";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
 import { AppError } from "../../../middleware/errorHandler";
 import { getArchivedTaskIdSet, isTaskArchived } from "../../task/taskArchive";
+import type { DirectorLLMOptions } from "@ai-novel/shared/types/novelDirector";
+import {
+  applyDirectorLlmOverride,
+  type DirectorWorkflowSeedPayload,
+} from "../director/novelDirectorHelpers";
 import {
   appendMilestone,
   buildNovelCreateResumeTarget,
@@ -16,6 +21,7 @@ import {
   mergeSeedPayload,
   NOVEL_WORKFLOW_STAGE_LABELS,
   NOVEL_WORKFLOW_STAGE_PROGRESS,
+  parseSeedPayload,
   parseResumeTarget,
   stringifyResumeTarget,
 } from "./novelWorkflow.shared";
@@ -63,9 +69,12 @@ function stageLabel(stage: NovelWorkflowStage): string {
 }
 
 export class NovelWorkflowService {
-  private async getVisibleRowsByNovelId(novelId: string) {
+  private async getVisibleRowsByNovelId(novelId: string, lane?: NovelWorkflowLane) {
     const rows = await prisma.novelWorkflowTask.findMany({
-      where: { novelId },
+      where: {
+        novelId,
+        ...(lane ? { lane } : {}),
+      },
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
       take: 10,
     });
@@ -79,6 +88,45 @@ export class NovelWorkflowService {
     }
     return prisma.novelWorkflowTask.findUnique({
       where: { id: taskId },
+    });
+  }
+
+  async findLatestVisibleTaskByNovelId(novelId: string, lane?: NovelWorkflowLane) {
+    const rows = await this.getVisibleRowsByNovelId(novelId, lane);
+    return rows[0] ?? null;
+  }
+
+  async findActiveTaskByNovelAndLane(novelId: string, lane: NovelWorkflowLane) {
+    const rows = await this.getVisibleRowsByNovelId(novelId, lane);
+    return rows.find((row) => ACTIVE_STATUSES.includes(row.status as (typeof ACTIVE_STATUSES)[number])) ?? null;
+  }
+
+  async getTaskById(taskId: string) {
+    return this.getVisibleRowById(taskId);
+  }
+
+  async applyAutoDirectorLlmOverride(
+    taskId: string,
+    llmOverride: Pick<DirectorLLMOptions, "provider" | "model" | "temperature">,
+  ) {
+    const existing = await this.getVisibleRowById(taskId);
+    if (!existing) {
+      throw new AppError("Workflow task not found.", 404);
+    }
+    if (existing.lane !== "auto_director") {
+      return existing;
+    }
+    const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(existing.seedPayloadJson);
+    const nextSeedPayload = applyDirectorLlmOverride(seedPayload, llmOverride);
+    if (!nextSeedPayload) {
+      throw new AppError("当前自动导演任务缺少可覆盖的模型上下文。", 400);
+    }
+    return prisma.novelWorkflowTask.update({
+      where: { id: taskId },
+      data: {
+        seedPayloadJson: JSON.stringify(nextSeedPayload),
+        heartbeatAt: new Date(),
+      },
     });
   }
 
@@ -99,10 +147,7 @@ export class NovelWorkflowService {
     volumeId?: string | null;
   }): NovelWorkflowResumeTarget {
     if (!input.novelId) {
-      return buildNovelCreateResumeTarget(
-        input.taskId,
-        input.lane === "auto_director" ? "director" : null,
-      );
+      return buildNovelCreateResumeTarget(input.taskId, input.lane === "auto_director" ? "director" : null);
     }
     return buildNovelEditResumeTarget({
       novelId: input.novelId,
@@ -185,7 +230,7 @@ export class NovelWorkflowService {
     }
 
     if (input.novelId?.trim()) {
-      const visibleRows = await this.getVisibleRowsByNovelId(input.novelId.trim());
+      const visibleRows = await this.getVisibleRowsByNovelId(input.novelId.trim(), input.lane);
       const active = visibleRows.find((row) => ACTIVE_STATUSES.includes(row.status as (typeof ACTIVE_STATUSES)[number]));
       if (active) {
         return active;
@@ -215,8 +260,12 @@ export class NovelWorkflowService {
         title: novelTitle ?? existing.title,
         progress: Math.max(existing.progress, defaultProgressForStage(stage)),
         currentStage: stageLabel(stage),
-        currentItemKey: stage,
-        currentItemLabel: stage === "project_setup" ? "小说项目已创建" : (existing.currentItemLabel ?? "已恢复小说主任务"),
+        currentItemKey: existing.lane === "auto_director"
+          ? (existing.currentItemKey ?? "novel_create")
+          : stage,
+        currentItemLabel: existing.lane === "auto_director"
+          ? (existing.currentItemLabel ?? "正在创建小说项目")
+          : (stage === "project_setup" ? "小说项目已创建" : (existing.currentItemLabel ?? "已恢复小说主任务")),
         resumeTargetJson: stringifyResumeTarget(this.buildResumeTarget({
           taskId,
           novelId,
@@ -232,6 +281,7 @@ export class NovelWorkflowService {
     stage: NovelWorkflowStage;
     itemLabel: string;
     itemKey?: string | null;
+    progress?: number;
   }) {
     const existing = await this.getVisibleRowById(taskId);
     if (!existing) {
@@ -247,7 +297,7 @@ export class NovelWorkflowService {
         currentStage: stageLabel(input.stage),
         currentItemKey: input.itemKey ?? input.stage,
         currentItemLabel: input.itemLabel,
-        progress: Math.max(existing.progress, defaultProgressForStage(input.stage)),
+        progress: Math.max(existing.progress, input.progress ?? defaultProgressForStage(input.stage)),
         lastError: null,
         cancelRequestedAt: null,
       },

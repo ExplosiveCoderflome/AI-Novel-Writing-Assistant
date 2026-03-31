@@ -13,6 +13,7 @@ export type NovelWorkflowStage =
 export type NovelWorkflowCheckpoint =
   | "candidate_selection_required"
   | "book_contract_ready"
+  | "character_setup_required"
   | "volume_strategy_ready"
   | "front10_ready"
   | "chapter_batch_ready"

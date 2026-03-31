@@ -425,6 +425,24 @@ export interface CharacterTabViewProps {
   timelineEvents: CharacterTimeline[];
 }
 
+export interface NovelEditTakeoverState {
+  mode: "loading" | "running" | "waiting" | "failed";
+  title: string;
+  description: string;
+  progress?: number | null;
+  currentAction?: string | null;
+  checkpointLabel?: string | null;
+  taskId?: string | null;
+  overlay?: boolean;
+  overlayMessage?: string | null;
+  actions?: Array<{
+    label: string;
+    onClick: () => void;
+    variant?: "default" | "outline" | "secondary" | "destructive";
+    disabled?: boolean;
+  }>;
+}
+
 export interface NovelEditViewProps {
   id: string;
   activeTab: string;
@@ -436,4 +454,5 @@ export interface NovelEditViewProps {
   chapterTab: ChapterTabViewProps;
   pipelineTab: PipelineTabViewProps;
   characterTab: CharacterTabViewProps;
+  takeover?: NovelEditTakeoverState | null;
 }

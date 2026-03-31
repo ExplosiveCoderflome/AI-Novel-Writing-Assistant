@@ -12,6 +12,7 @@ import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubB
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
+import { useLLMStore } from "@/store/llmStore";
 
 const ACTIVE_STATUSES = new Set<TaskStatus>(["queued", "running", "waiting_approval"]);
 const ANOMALY_STATUSES = new Set<TaskStatus>(["failed", "cancelled"]);
@@ -53,6 +54,9 @@ function formatCheckpoint(checkpoint: NovelWorkflowCheckpoint | null | undefined
   }
   if (checkpoint === "book_contract_ready") {
     return "Book Contract 已就绪";
+  }
+  if (checkpoint === "character_setup_required") {
+    return "角色准备待审核";
   }
   if (checkpoint === "volume_strategy_ready") {
     return "卷战略已就绪";
@@ -150,6 +154,7 @@ function serializeListParams(input: {
 export default function TaskCenterPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const llm = useLLMStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const [kind, setKind] = useState<TaskKind | "">("");
   const [status, setStatus] = useState<TaskStatus | "">("");
@@ -236,8 +241,20 @@ export default function TaskCenterPage() {
   };
 
   const retryMutation = useMutation({
-    mutationFn: (payload: { kind: TaskKind; id: string }) => retryTask(payload.kind, payload.id),
-    onSuccess: async (response) => {
+    mutationFn: (payload: {
+      kind: TaskKind;
+      id: string;
+      llmOverride?: {
+        provider?: typeof llm.provider;
+        model?: string;
+        temperature?: number;
+      };
+      resume?: boolean;
+    }) => retryTask(payload.kind, payload.id, {
+      llmOverride: payload.llmOverride,
+      resume: payload.resume,
+    }),
+    onSuccess: async (response, variables) => {
       const task = response.data;
       await invalidateTaskQueries();
       if (task) {
@@ -248,7 +265,11 @@ export default function TaskCenterPage() {
           return next;
         });
       }
-      toast.success("任务已重新入队");
+      toast.success(
+        variables.llmOverride
+          ? `已切换到 ${variables.llmOverride.provider ?? "当前提供商"} / ${variables.llmOverride.model ?? "当前模型"} 并重试任务`
+          : "任务已重新入队",
+      );
     },
   });
 
@@ -297,6 +318,16 @@ export default function TaskCenterPage() {
   });
 
   const selectedTask = detailQuery.data?.data;
+  const isAutoDirectorTask = Boolean(
+    selectedTask
+    && selectedTask.kind === "novel_workflow"
+    && selectedTask.meta.lane === "auto_director",
+  );
+  const isActiveAutoDirectorTask = Boolean(
+    selectedTask
+    && isAutoDirectorTask
+    && ACTIVE_STATUSES.has(selectedTask.status),
+  );
 
   return (
     <div className="space-y-4">
@@ -466,6 +497,12 @@ export default function TaskCenterPage() {
                   <div>开始时间：{formatDate(selectedTask.startedAt)}</div>
                   <div>结束时间：{formatDate(selectedTask.finishedAt)}</div>
                   <div>重试计数：{selectedTask.retryCountLabel}</div>
+                  {isAutoDirectorTask ? (
+                    <>
+                      <div>任务绑定模型：{selectedTask.provider ?? "暂无"} / {selectedTask.model ?? "暂无"}</div>
+                      <div>当前界面模型：{llm.provider} / {llm.model}</div>
+                    </>
+                  ) : null}
                 </div>
                 {selectedTask.lastError ? (
                   <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-destructive">
@@ -484,21 +521,45 @@ export default function TaskCenterPage() {
                       onClick={() => continueWorkflowMutation.mutate(selectedTask.id)}
                       disabled={continueWorkflowMutation.isPending}
                     >
-                      继续
+                      {isActiveAutoDirectorTask ? "查看进度" : "继续"}
                     </Button>
                   ) : null}
                   {(selectedTask.status === "failed" || selectedTask.status === "cancelled") ? (
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        retryMutation.mutate({
-                          kind: selectedTask.kind,
-                          id: selectedTask.id,
-                        })}
-                      disabled={retryMutation.isPending}
-                    >
-                      重试
-                    </Button>
+                    <>
+                      {isAutoDirectorTask ? (
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            retryMutation.mutate({
+                              kind: selectedTask.kind,
+                              id: selectedTask.id,
+                              llmOverride: {
+                                provider: llm.provider,
+                                model: llm.model,
+                                temperature: llm.temperature,
+                              },
+                              resume: true,
+                            })
+                          }
+                          disabled={retryMutation.isPending}
+                        >
+                          用当前模型重试
+                        </Button>
+                      ) : null}
+                      <Button
+                        size="sm"
+                        variant={isAutoDirectorTask ? "outline" : "default"}
+                        onClick={() =>
+                          retryMutation.mutate({
+                            kind: selectedTask.kind,
+                            id: selectedTask.id,
+                          })
+                        }
+                        disabled={retryMutation.isPending}
+                      >
+                        重试
+                      </Button>
+                    </>
                   ) : null}
                   {(selectedTask.status === "queued" || selectedTask.status === "running" || selectedTask.status === "waiting_approval") ? (
                     <Button

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { TaskKind, TaskStatus } from "@ai-novel/shared/types/task";
+import { LLM_PROVIDERS } from "@ai-novel/shared/types/llm";
 import { z } from "zod";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
@@ -22,6 +23,15 @@ const listQuerySchema = z.object({
 const taskParamsSchema = z.object({
   kind: kindSchema,
   id: z.string().trim().min(1),
+});
+
+const retryBodySchema = z.object({
+  llmOverride: z.object({
+    provider: z.enum(LLM_PROVIDERS).optional(),
+    model: z.string().trim().min(1).optional(),
+    temperature: z.number().finite().min(0).max(2).optional(),
+  }).optional(),
+  resume: z.boolean().optional(),
 });
 
 router.use(authMiddleware);
@@ -67,10 +77,14 @@ router.get("/:kind/:id", validate({ params: taskParamsSchema }), async (req, res
   }
 });
 
-router.post("/:kind/:id/retry", validate({ params: taskParamsSchema }), async (req, res, next) => {
+router.post("/:kind/:id/retry", validate({ params: taskParamsSchema, body: retryBodySchema }), async (req, res, next) => {
   try {
     const { kind, id } = req.params as z.infer<typeof taskParamsSchema>;
-    const data = await taskCenterService.retryTask(kind, id);
+    const body = req.body as z.infer<typeof retryBodySchema>;
+    const data = await taskCenterService.retryTask(kind, id, {
+      llmOverride: body.llmOverride,
+      resume: body.resume,
+    });
     res.status(200).json({
       success: true,
       data,

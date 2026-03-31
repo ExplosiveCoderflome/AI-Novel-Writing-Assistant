@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
+import type { DirectorLockScope, DirectorSessionState } from "@ai-novel/shared/types/novelDirector";
 import type {
   PipelineRepairMode,
   PipelineRunMode,
@@ -15,6 +16,7 @@ import type {
 import NovelEditView from "./components/NovelEditView";
 import { getBaseCharacterList } from "@/api/character";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
+import { continueNovelWorkflow, getActiveAutoDirectorTask } from "@/api/novelWorkflow";
 import {
   auditNovelChapter,
   generateChapterPlan,
@@ -30,6 +32,7 @@ import {
 import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
 import { getWorldList } from "@/api/world";
 import { queryKeys } from "@/api/queryKeys";
+import { toast } from "@/components/ui/toast";
 import { useSSE } from "@/hooks/useSSE";
 import { useLLMStore } from "@/store/llmStore";
 import { buildWorldInjectionSummary } from "./novelEdit.utils";
@@ -48,6 +51,7 @@ import { useVolumeVersionControl } from "./hooks/useVolumeVersionControl";
 import { useNovelEditWorkflow } from "./hooks/useNovelEditWorkflow";
 import { buildNovelEditPlanningTabs } from "./novelEditPlanningTabs";
 import type { ChapterReviewResult } from "./chapterPlanning.shared";
+import type { NovelEditTakeoverState } from "./components/NovelEditView.types";
 import { syncNovelWorkflowStageSilently, workflowStageFromTab } from "./novelWorkflow.client";
 import {
   DEFAULT_ESTIMATED_CHAPTER_COUNT,
@@ -64,8 +68,137 @@ import {
   type ExistingOutlineChapter,
   type VolumeSyncOptions,
 } from "./volumePlan.utils";
+
+function scopeFromTab(tab: string): DirectorLockScope | null {
+  if (tab === "basic") return "basic";
+  if (tab === "story_macro") return "story_macro";
+  if (tab === "character") return "character";
+  if (tab === "outline") return "outline";
+  if (tab === "structured") return "structured";
+  if (tab === "chapter") return "chapter";
+  if (tab === "pipeline") return "pipeline";
+  return null;
+}
+
+function tabFromScope(scope: DirectorLockScope | null | undefined): "basic" | "story_macro" | "character" | "outline" | "structured" | "chapter" | "pipeline" | null {
+  if (!scope) {
+    return null;
+  }
+  return scope;
+}
+
+function formatTakeoverCheckpoint(checkpoint: string | null | undefined): string {
+  if (checkpoint === "candidate_selection_required") {
+    return "等待确认书级方向";
+  }
+  if (checkpoint === "book_contract_ready") {
+    return "Book Contract 已就绪";
+  }
+  if (checkpoint === "character_setup_required") {
+    return "角色准备待审核";
+  }
+  if (checkpoint === "volume_strategy_ready") {
+    return "卷战略 / 卷骨架待审核";
+  }
+  if (checkpoint === "front10_ready") {
+    return "前 10 章可开写";
+  }
+  if (checkpoint === "chapter_batch_ready") {
+    return "章节资源已就绪";
+  }
+  if (checkpoint === "workflow_completed") {
+    return "主流程完成";
+  }
+  return "导演流程进行中";
+}
+
+function buildTakeoverTitle(input: {
+  mode: NovelEditTakeoverState["mode"];
+  novelTitle: string;
+  checkpointType: string | null | undefined;
+}): string {
+  if (input.mode === "waiting") {
+    if (input.checkpointType === "character_setup_required") {
+      return `《${input.novelTitle}》等待审核角色准备`;
+    }
+    if (input.checkpointType === "volume_strategy_ready") {
+      return `《${input.novelTitle}》等待审核卷战略 / 卷骨架`;
+    }
+    if (input.checkpointType === "front10_ready") {
+      return `《${input.novelTitle}》已完成自动导演交接`;
+    }
+  }
+  if (input.mode === "failed") {
+    return `《${input.novelTitle}》自动导演已中断`;
+  }
+  if (input.mode === "loading") {
+    return `《${input.novelTitle}》自动导演状态同步中`;
+  }
+  return `《${input.novelTitle}》正在自动导演`;
+}
+
+function buildTakeoverDescription(input: {
+  mode: NovelEditTakeoverState["mode"];
+  checkpointType: string | null | undefined;
+  reviewScope: DirectorLockScope | null | undefined;
+}): string {
+  if (input.mode === "waiting") {
+    if (input.checkpointType === "character_setup_required") {
+      return "角色准备已经生成。你可以先检查核心角色、关系和当前目标，确认后再继续自动导演。";
+    }
+    if (input.checkpointType === "volume_strategy_ready") {
+      return "当前可以审核并微调卷战略 / 卷骨架。确认后再继续自动生成第 1 卷节奏板、拆章和前 10 章细化。";
+    }
+    if (input.checkpointType === "front10_ready") {
+      return "自动导演已经完成第 1 卷开写准备，当前不再锁定编辑区，你可以直接进入章节执行。";
+    }
+    if (input.reviewScope) {
+      return "自动导演已到达审核点。请先检查当前阶段产物，再决定是否继续推进。";
+    }
+  }
+  if (input.mode === "failed") {
+    return "后台导演流程已中断。建议先去任务中心查看失败原因，再决定是否从最近检查点恢复。";
+  }
+  if (input.mode === "loading") {
+    return "正在同步当前自动导演状态与锁定范围。";
+  }
+  return "AI 正在后台接管这本书的开书流程。为避免和自动写入冲突，当前编辑区域会按阶段临时锁定。";
+}
+
+function buildTakeoverOverlayMessage(input: {
+  mode: NovelEditTakeoverState["mode"];
+  checkpointType: string | null | undefined;
+  reviewScope: DirectorLockScope | null | undefined;
+}): string {
+  if (input.mode === "waiting" && input.reviewScope) {
+    return `当前流程正在等待「${tabFromScope(input.reviewScope) === "outline" ? "卷战略 / 卷骨架" : tabFromScope(input.reviewScope) === "character" ? "角色准备" : "当前阶段"}」审核，后续区域暂不开放手动修改。`;
+  }
+  if (input.checkpointType === "front10_ready") {
+    return "自动导演已交接完成，当前区域可以自由编辑。";
+  }
+  return "AI 正在接管当前模块，暂时不建议手动修改，避免与后台导演结果发生冲突。";
+}
+
+function resolveDirectorConsistencyIssue(input: {
+  checkpointType: string | null | undefined;
+  characterCount: number;
+  chapterCount: number;
+}): "missing_characters" | "missing_chapters" | null {
+  if (input.checkpointType !== "front10_ready") {
+    return null;
+  }
+  if (input.characterCount === 0) {
+    return "missing_characters";
+  }
+  if (input.chapterCount === 0) {
+    return "missing_chapters";
+  }
+  return null;
+}
+
 export default function NovelEdit() {
   const { id = "" } = useParams();
+  const navigate = useNavigate();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const {
@@ -74,6 +207,7 @@ export default function NovelEdit() {
     selectedChapterId,
     setSelectedChapterId,
     selectedVolumeId,
+    workflowTaskId,
   } = useNovelEditWorkflow(id);
   const [basicForm, setBasicForm] = useState(() => createDefaultNovelBasicFormState());
   const [volumeDraft, setVolumeDraft] = useState<VolumePlan[]>([]);
@@ -151,6 +285,17 @@ export default function NovelEdit() {
     queryKey: queryKeys.novels.latestStateSnapshot(id),
     queryFn: () => getLatestStateSnapshot(id),
     enabled: Boolean(id),
+  });
+  const activeAutoDirectorTaskQuery = useQuery({
+    queryKey: queryKeys.novels.autoDirectorTask(id),
+    queryFn: () => getActiveAutoDirectorTask(id),
+    enabled: Boolean(id),
+    refetchInterval: (query) => {
+      const task = query.state.data?.data;
+      return task && (task.status === "queued" || task.status === "running" || task.status === "waiting_approval")
+        ? 2000
+        : false;
+    },
   });
   const chapterPlanQuery = useQuery({
     queryKey: queryKeys.novels.chapterPlan(id, selectedChapterId || "none"),
@@ -334,10 +479,171 @@ export default function NovelEdit() {
   const chapterPlan = chapterPlanQuery.data?.data ?? null;
   const latestStateSnapshot = latestStateSnapshotQuery.data?.data ?? null;
   const chapterAuditReports = chapterAuditReportsQuery.data?.data ?? [];
+  const activeAutoDirectorTask = activeAutoDirectorTaskQuery.data?.data ?? null;
+  const activeDirectorSession = useMemo(() => {
+    const raw = activeAutoDirectorTask?.meta.directorSession;
+    if (!raw || typeof raw !== "object") {
+      return null;
+    }
+    return raw as DirectorSessionState;
+  }, [activeAutoDirectorTask?.meta.directorSession]);
   const openAuditIssueIds = useMemo(
     () => chapterAuditReports.flatMap((report) => report.issues.filter((issue) => issue.status === "open").map((issue) => issue.id)),
     [chapterAuditReports],
   );
+  const continueAutoDirectorMutation = useMutation({
+    mutationFn: async () => {
+      if (!activeAutoDirectorTask?.id) {
+        throw new Error("当前没有可继续的自动导演任务。");
+      }
+      return continueNovelWorkflow(activeAutoDirectorTask.id);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTask(id) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.volumeWorkspace(id) });
+      await queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      toast.success("自动导演已继续在后台推进。");
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "继续自动导演失败。";
+      toast.error(message);
+    },
+  });
+  const takeover = useMemo<NovelEditTakeoverState | null>(() => {
+    const task = activeAutoDirectorTask;
+    if (!task) {
+      return null;
+    }
+    const consistencyIssue = resolveDirectorConsistencyIssue({
+      checkpointType: task.checkpointType,
+      characterCount: characters.length,
+      chapterCount: chapters.length,
+    });
+    const mode: NovelEditTakeoverState["mode"] = task.status === "failed" || task.status === "cancelled"
+      ? "failed"
+      : task.status === "queued" || task.status === "running"
+        ? "running"
+        : "waiting";
+    const novelTitle = novelDetailQuery.data?.data?.title?.trim() || task.title?.trim() || "当前项目";
+    const activeScope = scopeFromTab(activeTab);
+    const lockedScopes = activeDirectorSession?.lockedScopes ?? [];
+    const reviewScope = activeDirectorSession?.reviewScope ?? null;
+    const overlay = Boolean(
+      activeScope
+      && lockedScopes.includes(activeScope)
+      && reviewScope !== activeScope
+      && task.checkpointType !== "front10_ready",
+    );
+    const actions: NonNullable<NovelEditTakeoverState["actions"]> = [];
+    const reviewTab = tabFromScope(reviewScope);
+    if (mode === "waiting" && reviewTab && reviewTab !== activeTab && task.checkpointType !== "front10_ready") {
+      actions.push({
+        label: "去当前审核阶段",
+        onClick: () => setActiveTab(reviewTab),
+        variant: "outline",
+      });
+    }
+    if (mode === "waiting" && task.checkpointType !== "front10_ready") {
+      actions.push({
+        label: continueAutoDirectorMutation.isPending ? "继续中..." : "继续自动导演",
+        onClick: () => continueAutoDirectorMutation.mutate(),
+        variant: "default",
+        disabled: continueAutoDirectorMutation.isPending,
+      });
+    }
+    if (consistencyIssue) {
+      actions.push({
+        label: continueAutoDirectorMutation.isPending ? "修复中..." : "补齐导演产物",
+        onClick: () => continueAutoDirectorMutation.mutate(),
+        variant: "default",
+        disabled: continueAutoDirectorMutation.isPending,
+      });
+      if (consistencyIssue === "missing_characters") {
+        actions.push({
+          label: "去角色准备",
+          onClick: () => setActiveTab("character"),
+          variant: "outline",
+        });
+      }
+    } else if (task.checkpointType === "front10_ready") {
+      actions.push({
+        label: "进入章节执行",
+        onClick: () => {
+          if (task.resumeTarget?.chapterId) {
+            setSelectedChapterId(task.resumeTarget.chapterId);
+          }
+          setActiveTab("chapter");
+        },
+        variant: "default",
+      });
+    }
+    actions.push({
+      label: "任务中心",
+      onClick: () => {
+        const targetId = task.id || workflowTaskId;
+        if (targetId) {
+          navigate(`/tasks?kind=novel_workflow&id=${targetId}`);
+          return;
+        }
+        navigate("/tasks");
+      },
+      variant: mode === "running" ? "outline" : "secondary",
+    });
+
+    return {
+      mode,
+      title: consistencyIssue === "missing_characters"
+        ? `《${novelTitle}》导演产物未补齐角色准备`
+        : consistencyIssue === "missing_chapters"
+          ? `《${novelTitle}》导演产物未同步到章节执行区`
+          : buildTakeoverTitle({
+            mode,
+            novelTitle,
+            checkpointType: task.checkpointType,
+          }),
+      description: consistencyIssue === "missing_characters"
+        ? "任务记录显示已完成开书交接，但当前项目里还没有角色资产，所以角色准备和章节执行都不完整。可以直接补齐导演产物，系统会继续修复。"
+        : consistencyIssue === "missing_chapters"
+          ? "任务记录显示前几章已经可开写，但当前章节执行区还是空的，说明导演产物还没有完整落库。可以直接补齐导演产物继续修复。"
+          : buildTakeoverDescription({
+            mode,
+            checkpointType: task.checkpointType,
+            reviewScope,
+          }),
+      progress: task.progress,
+      currentAction: consistencyIssue === "missing_characters"
+        ? "检测到角色准备仍为空，当前导演结果需要继续补齐。"
+        : consistencyIssue === "missing_chapters"
+          ? "检测到章节执行区为空，当前导演结果需要继续同步章节资源。"
+          : task.currentItemLabel ?? null,
+      checkpointLabel: consistencyIssue
+        ? "导演产物待补齐"
+        : formatTakeoverCheckpoint(task.checkpointType),
+      taskId: task.id,
+      overlay: consistencyIssue ? false : overlay,
+      overlayMessage: !consistencyIssue && overlay
+        ? buildTakeoverOverlayMessage({
+          mode,
+          checkpointType: task.checkpointType,
+          reviewScope,
+        })
+        : null,
+      actions,
+    };
+  }, [
+    activeAutoDirectorTask,
+    activeDirectorSession,
+    activeTab,
+    chapters.length,
+    characters.length,
+    continueAutoDirectorMutation,
+    navigate,
+    novelDetailQuery.data?.data?.title,
+    setActiveTab,
+    setSelectedChapterId,
+    workflowTaskId,
+  ]);
 
   useNovelEditInitialization({
     detail: novelDetailQuery.data?.data,
@@ -694,5 +1000,19 @@ export default function NovelEdit() {
   const pipelineTab = { novelId: id, worldInjectionSummary, hasCharacters, onGoToCharacterTab: goToCharacterTab, pipelineForm, onPipelineFormChange: (field: "startOrder" | "endOrder" | "maxRetries" | "runMode" | "autoReview" | "autoRepair" | "skipCompleted" | "qualityThreshold" | "repairMode", value: number | boolean | string) => setPipelineForm((prev) => ({ ...prev, [field]: value } as typeof prev)), maxOrder, onGenerateBible: () => void bibleSSE.start(`/novels/${id}/bible/generate`, { provider: llm.provider, model: llm.model, temperature: 0.6 }), onAbortBible: bibleSSE.abort, isBibleStreaming: bibleSSE.isStreaming, bibleStreamContent: bibleSSE.content, onGenerateBeats: () => void beatsSSE.start(`/novels/${id}/beats/generate`, { provider: llm.provider, model: llm.model, targetChapters: pipelineForm.endOrder }), onAbortBeats: beatsSSE.abort, isBeatsStreaming: beatsSSE.isStreaming, beatsStreamContent: beatsSSE.content, onRunPipeline: (patch?: Partial<typeof pipelineForm>) => runPipelineMutation.mutate(patch), isRunningPipeline: runPipelineMutation.isPending, pipelineMessage, pipelineJob: pipelineJobQuery.data?.data, chapters, selectedChapterId, onSelectedChapterChange: setSelectedChapterId, onReviewChapter: () => reviewMutation.mutate(), isReviewing: reviewMutation.isPending, onRepairChapter: () => { setRepairBeforeContent(selectedChapter?.content ?? ""); setRepairAfterContent(""); setActiveRepairStream(selectedChapter ? { chapterId: selectedChapter.id, chapterLabel: `第${selectedChapter.order}章 ${selectedChapter.title || "未命名章节"}` } : null); void repairSSE.start(`/novels/${id}/chapters/${selectedChapterId}/repair`, { provider: llm.provider, model: llm.model, reviewIssues: reviewResult?.issues ?? [], auditIssueIds: openAuditIssueIds }); }, isRepairing: repairSSE.isStreaming, onGenerateHook: () => hookMutation.mutate(), isGeneratingHook: hookMutation.isPending, reviewResult, repairBeforeContent, repairAfterContent, repairStreamContent: repairSSE.content, isRepairStreaming: repairSSE.isStreaming, onAbortRepair: handleAbortRepair, qualitySummary, chapterReports: qualityReportQuery.data?.data?.chapterReports ?? [], bible, plotBeats };
   const characterTab = { novelId: id, llmProvider: llm.provider, llmModel: llm.model, characterMessage, quickCharacterForm, onQuickCharacterFormChange: (field: "name" | "role", value: string) => setQuickCharacterForm((prev) => ({ ...prev, [field]: value })), onQuickCreateCharacter: (payload: QuickCharacterCreatePayload) => quickCreateCharacterMutation.mutate(payload), isQuickCreating: quickCreateCharacterMutation.isPending, onGenerateSupplementalCharacters: generateSupplementalCharacterMutation.mutateAsync, isGeneratingSupplementalCharacters: generateSupplementalCharacterMutation.isPending, onApplySupplementalCharacter: applySupplementalCharacterMutation.mutateAsync, isApplyingSupplementalCharacter: applySupplementalCharacterMutation.isPending, characters, coreCharacterCount, baseCharacters, selectedBaseCharacterId, onSelectedBaseCharacterChange: setSelectedBaseCharacterId, selectedBaseCharacter, importedBaseCharacterIds, onImportBaseCharacter: () => importBaseCharacterMutation.mutate(), isImportingBaseCharacter: importBaseCharacterMutation.isPending, selectedCharacterId, onSelectedCharacterChange: setSelectedCharacterId, onDeleteCharacter: (characterId: string) => deleteCharacterMutation.mutate(characterId), isDeletingCharacter: deleteCharacterMutation.isPending, deletingCharacterId: deleteCharacterMutation.variables ?? "", onSyncTimeline: () => syncTimelineMutation.mutate(), isSyncingTimeline: syncTimelineMutation.isPending, onSyncAllTimeline: () => syncAllTimelineMutation.mutate(), isSyncingAllTimeline: syncAllTimelineMutation.isPending, onEvolveCharacter: () => evolveCharacterMutation.mutate(), isEvolvingCharacter: evolveCharacterMutation.isPending, onWorldCheck: () => worldCheckMutation.mutate(), isCheckingWorld: worldCheckMutation.isPending, selectedCharacter, characterForm, onCharacterFormChange: (field: "name" | "role" | "personality" | "background" | "development" | "currentState" | "currentGoal", value: string) => setCharacterForm((prev) => ({ ...prev, [field]: value })), onSaveCharacter: () => saveCharacterMutation.mutate(), isSavingCharacter: saveCharacterMutation.isPending, timelineEvents: characterTimelineQuery.data?.data ?? [] };
 
-  return <NovelEditView id={id} activeTab={activeTab} onActiveTabChange={setActiveTab} basicTab={basicTab} storyMacroTab={storyMacroTab} outlineTab={outlineTab} structuredTab={structuredTab} chapterTab={chapterTab} pipelineTab={pipelineTab} characterTab={characterTab} />;
+  return (
+    <NovelEditView
+      id={id}
+      activeTab={activeTab}
+      onActiveTabChange={setActiveTab}
+      basicTab={basicTab}
+      storyMacroTab={storyMacroTab}
+      outlineTab={outlineTab}
+      structuredTab={structuredTab}
+      chapterTab={chapterTab}
+      pipelineTab={pipelineTab}
+      characterTab={characterTab}
+      takeover={takeover}
+    />
+  );
 }

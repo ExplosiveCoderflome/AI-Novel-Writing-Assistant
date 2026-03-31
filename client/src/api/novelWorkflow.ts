@@ -22,6 +22,11 @@ export async function continueNovelWorkflow(taskId: string) {
   return data;
 }
 
+export async function getActiveAutoDirectorTask(novelId: string) {
+  const { data } = await apiClient.get<ApiResponse<UnifiedTaskDetail | null>>(`/novel-workflows/novels/${novelId}/auto-director`);
+  return data;
+}
+
 export async function syncNovelWorkflowStage(payload: {
   novelId: string;
   stage: NovelWorkflowStage;

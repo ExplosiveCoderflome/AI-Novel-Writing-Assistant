@@ -24,6 +24,7 @@ export const queryKeys = {
     creativeDecisions: (id: string) => ["novels", "creative-decisions", id] as const,
     storyMacro: (id: string) => ["novels", "story-macro", id] as const,
     storyMacroState: (id: string) => ["novels", "story-macro-state", id] as const,
+    autoDirectorTask: (id: string) => ["novels", "auto-director-task", id] as const,
     worldSlice: (id: string) => ["novels", "world-slice", id] as const,
     snapshots: (id: string) => ["novels", "snapshots", id] as const,
   },
