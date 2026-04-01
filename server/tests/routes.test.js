@@ -9,6 +9,8 @@ const { llmConnectivityService } = require("../dist/llm/connectivity.js");
 const { NovelService } = require("../dist/services/novel/NovelService.js");
 const { NovelFramingSuggestionService } = require("../dist/services/novel/NovelFramingSuggestionService.js");
 const { ragServices } = require("../dist/services/rag/index.js");
+const { providerBalanceService } = require("../dist/services/settings/ProviderBalanceService.js");
+const { prisma } = require("../dist/db/prisma.js");
 
 function listen(server) {
   return new Promise((resolve) => {
@@ -244,6 +246,110 @@ test("POST /api/llm/model-routes/connectivity returns per-task connectivity stat
     assert.equal(payload.data.statuses[0].ok, true);
   } finally {
     llmConnectivityService.testModelRoutes = originalTestModelRoutes;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("GET /api/settings/api-keys/balances returns provider balance statuses", async () => {
+  const originalListBalances = providerBalanceService.listBalances;
+  providerBalanceService.listBalances = async () => ([
+    {
+      provider: "deepseek",
+      status: "available",
+      supported: true,
+      canRefresh: true,
+      source: "provider_api",
+      currency: "CNY",
+      availableBalance: 88.5,
+      totalBalance: 88.5,
+      cashBalance: null,
+      voucherBalance: null,
+      chargeBalance: null,
+      toppedUpBalance: 80,
+      grantedBalance: 8.5,
+      fetchedAt: new Date().toISOString(),
+      message: "余额已刷新。",
+      error: null,
+    },
+    {
+      provider: "qwen",
+      status: "unsupported",
+      supported: false,
+      canRefresh: false,
+      source: "aliyun_account",
+      currency: null,
+      availableBalance: null,
+      totalBalance: null,
+      cashBalance: null,
+      voucherBalance: null,
+      chargeBalance: null,
+      toppedUpBalance: null,
+      grantedBalance: null,
+      fetchedAt: new Date().toISOString(),
+      message: "当前系统只保存 DashScope API Key。",
+      error: null,
+    },
+  ]);
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/settings/api-keys/balances`);
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    assert.equal(payload.data[0].provider, "deepseek");
+    assert.equal(payload.data[0].availableBalance, 88.5);
+    assert.equal(payload.data[1].provider, "qwen");
+    assert.equal(payload.data[1].status, "unsupported");
+  } finally {
+    providerBalanceService.listBalances = originalListBalances;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("POST /api/settings/api-keys/:provider/refresh-balance returns provider balance snapshot", async () => {
+  const originalFindUnique = prisma.aPIKey.findUnique;
+  const originalGetProviderBalance = providerBalanceService.getProviderBalance;
+  prisma.aPIKey.findUnique = async () => ({
+    provider: "deepseek",
+    key: "test-deepseek-key",
+  });
+  providerBalanceService.getProviderBalance = async () => ({
+    provider: "deepseek",
+    status: "available",
+    supported: true,
+    canRefresh: true,
+    source: "provider_api",
+    currency: "CNY",
+    availableBalance: 66.6,
+    totalBalance: 66.6,
+    cashBalance: null,
+    voucherBalance: null,
+    chargeBalance: null,
+    toppedUpBalance: 60,
+    grantedBalance: 6.6,
+    fetchedAt: new Date().toISOString(),
+    message: "余额已刷新。",
+    error: null,
+  });
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/settings/api-keys/deepseek/refresh-balance`, {
+      method: "POST",
+    });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    assert.equal(payload.data.provider, "deepseek");
+    assert.equal(payload.data.availableBalance, 66.6);
+  } finally {
+    prisma.aPIKey.findUnique = originalFindUnique;
+    providerBalanceService.getProviderBalance = originalGetProviderBalance;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });

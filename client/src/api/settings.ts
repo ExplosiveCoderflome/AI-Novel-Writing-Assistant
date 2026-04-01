@@ -15,6 +15,27 @@ export interface APIKeyStatus {
   isActive: boolean;
 }
 
+export type ProviderBalanceStatusKind = "available" | "missing_api_key" | "unsupported" | "error";
+
+export interface ProviderBalanceStatus {
+  provider: LLMProvider;
+  status: ProviderBalanceStatusKind;
+  supported: boolean;
+  canRefresh: boolean;
+  source: "provider_api" | "aliyun_account" | "none";
+  currency: string | null;
+  availableBalance: number | null;
+  totalBalance: number | null;
+  cashBalance: number | null;
+  voucherBalance: number | null;
+  chargeBalance: number | null;
+  toppedUpBalance: number | null;
+  grantedBalance: number | null;
+  fetchedAt: string;
+  message: string;
+  error: string | null;
+}
+
 export interface RagProviderStatus {
   provider: EmbeddingProvider;
   name: string;
@@ -76,6 +97,16 @@ export interface ModelRouteConnectivityResponse {
 
 export async function getAPIKeySettings() {
   const { data } = await apiClient.get<ApiResponse<APIKeyStatus[]>>("/settings/api-keys");
+  return data;
+}
+
+export async function getProviderBalances() {
+  const { data } = await apiClient.get<ApiResponse<ProviderBalanceStatus[]>>("/settings/api-keys/balances");
+  return data;
+}
+
+export async function refreshProviderBalance(provider: LLMProvider) {
+  const { data } = await apiClient.post<ApiResponse<ProviderBalanceStatus>>(`/settings/api-keys/${provider}/refresh-balance`);
   return data;
 }
 

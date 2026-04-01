@@ -12,13 +12,50 @@ import SearchableSelect from "@/components/common/SearchableSelect";
 import { queryKeys } from "@/api/queryKeys";
 import {
   getAPIKeySettings,
+  getProviderBalances,
   getRagSettings,
+  refreshProviderBalance,
   refreshProviderModelList,
   saveAPIKeySetting,
   testLLMConnection,
 } from "@/api/settings";
 
 const MODEL_BADGE_COLLAPSE_COUNT = 8;
+
+function formatBalanceAmount(amount: number | null | undefined, currency: string | null | undefined): string {
+  if (typeof amount !== "number" || Number.isNaN(amount)) {
+    return "-";
+  }
+  if (currency) {
+    try {
+      return new Intl.NumberFormat("zh-CN", {
+        style: "currency",
+        currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(amount);
+    } catch {
+      // Fall through to plain numeric output for unsupported currency codes.
+    }
+  }
+  return new Intl.NumberFormat("zh-CN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+function formatBalanceTime(value: string | null | undefined): string {
+  if (!value) {
+    return "-";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+  return date.toLocaleString("zh-CN", {
+    hour12: false,
+  });
+}
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
@@ -41,6 +78,11 @@ export default function SettingsPage() {
     queryFn: getRagSettings,
   });
 
+  const providerBalancesQuery = useQuery({
+    queryKey: queryKeys.settings.apiKeyBalances,
+    queryFn: getProviderBalances,
+  });
+
   const saveMutation = useMutation({
     mutationFn: (payload: { provider: LLMProvider; key: string; model?: string }) =>
       saveAPIKeySetting(payload.provider, {
@@ -52,6 +94,7 @@ export default function SettingsPage() {
       setForm({ key: "", model: "" });
       setActionResult(response.message ?? "Saved.");
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeys });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeyBalances });
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.rag });
     },
   });
@@ -83,7 +126,23 @@ export default function SettingsPage() {
     },
   });
 
+  const refreshBalanceMutation = useMutation({
+    mutationFn: (provider: LLMProvider) => refreshProviderBalance(provider),
+    onSuccess: async (response, provider) => {
+      const providerName = providerConfigs.find((item) => item.provider === provider)?.name ?? provider;
+      setActionResult(response.message ?? `${providerName} balance refreshed.`);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeyBalances });
+    },
+    onError: (error) => {
+      setActionResult(error instanceof Error ? error.message : "Failed to refresh balance.");
+    },
+  });
+
   const providerConfigs = useMemo(() => apiKeySettingsQuery.data?.data ?? [], [apiKeySettingsQuery.data?.data]);
+  const providerBalanceMap = useMemo(
+    () => new Map((providerBalancesQuery.data?.data ?? []).map((item) => [item.provider, item])),
+    [providerBalancesQuery.data?.data],
+  );
   const editingConfig = useMemo(
     () => providerConfigs.find((item) => item.provider === editingProvider),
     [providerConfigs, editingProvider],
@@ -166,6 +225,13 @@ export default function SettingsPage() {
                   : "border-border"
               }`}
             >
+              {(() => {
+                const balance = providerBalanceMap.get(item.provider);
+                const isBalanceRefreshing = refreshBalanceMutation.isPending && refreshBalanceMutation.variables === item.provider;
+                const isBalanceLoading = providerBalancesQuery.isLoading && !balance;
+                const canRefreshBalance = item.isConfigured && Boolean(balance?.canRefresh ?? (item.provider === "deepseek" || item.provider === "siliconflow" || item.provider === "kimi"));
+                return (
+                  <>
               <div className="mb-2 flex items-center justify-between">
                 <div className="font-medium">{item.name}</div>
                 <Badge
@@ -176,6 +242,39 @@ export default function SettingsPage() {
                 </Badge>
               </div>
               <div className="mb-2 text-xs text-muted-foreground">Current model: {item.currentModel}</div>
+              <div className="mb-3 rounded-md border border-dashed bg-background/60 p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div className="text-xs font-medium text-muted-foreground">余额</div>
+                  {balance?.status === "available" ? (
+                    <Badge variant="outline">最近刷新 {formatBalanceTime(balance.fetchedAt)}</Badge>
+                  ) : null}
+                </div>
+                {isBalanceLoading ? (
+                  <div className="text-sm text-muted-foreground">正在查询余额...</div>
+                ) : balance?.status === "available" ? (
+                  <div className="space-y-2">
+                    <div className="text-lg font-semibold">
+                      {formatBalanceAmount(balance.availableBalance, balance.currency)}
+                    </div>
+                    <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+                      {balance.cashBalance !== null ? <div>现金余额：{formatBalanceAmount(balance.cashBalance, balance.currency)}</div> : null}
+                      {balance.voucherBalance !== null ? <div>代金券余额：{formatBalanceAmount(balance.voucherBalance, balance.currency)}</div> : null}
+                      {balance.chargeBalance !== null ? <div>充值余额：{formatBalanceAmount(balance.chargeBalance, balance.currency)}</div> : null}
+                      {balance.toppedUpBalance !== null ? <div>充值金额：{formatBalanceAmount(balance.toppedUpBalance, balance.currency)}</div> : null}
+                      {balance.grantedBalance !== null ? <div>赠送额度：{formatBalanceAmount(balance.grantedBalance, balance.currency)}</div> : null}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">
+                      {balance?.error ?? balance?.message ?? (item.isConfigured ? "当前暂未获取余额信息。" : "请先配置 API Key。")}
+                    </div>
+                    {balance?.status === "unsupported" ? (
+                      <div className="text-xs text-muted-foreground">{balance.message}</div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
               <div className="mb-3 space-y-2">
                 <div className="flex flex-wrap gap-1">
                   {(isProviderExpanded(item.provider)
@@ -203,7 +302,7 @@ export default function SettingsPage() {
                   </button>
                 ) : null}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
                   onClick={() => {
@@ -244,7 +343,21 @@ export default function SettingsPage() {
                     ? "Refreshing..."
                     : "Refresh models"}
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setActionResult("");
+                    refreshBalanceMutation.mutate(item.provider);
+                  }}
+                  disabled={!canRefreshBalance || isBalanceRefreshing}
+                >
+                  {isBalanceRefreshing ? "Refreshing balance..." : "刷新余额"}
+                </Button>
               </div>
+                  </>
+                );
+              })()}
             </div>
           ))}
         </CardContent>

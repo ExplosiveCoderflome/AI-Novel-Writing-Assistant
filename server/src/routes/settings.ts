@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
+import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { PROVIDERS, SUPPORTED_PROVIDERS } from "../llm/providers";
@@ -14,6 +15,7 @@ import {
   saveRagEmbeddingSettings,
 } from "../services/settings/RagSettingsService";
 import { getRagEmbeddingModelOptions } from "../services/settings/RagEmbeddingModelService";
+import { providerBalanceService } from "../services/settings/ProviderBalanceService";
 
 const router = Router();
 
@@ -142,6 +144,26 @@ router.get("/api-keys", async (_req, res, next) => {
   }
 });
 
+router.get("/api-keys/balances", async (_req, res, next) => {
+  try {
+    const keys = await prisma.aPIKey.findMany({
+      select: {
+        provider: true,
+        key: true,
+      },
+    });
+    const keyMap = new Map(keys.map((item) => [item.provider as LLMProvider, item.key]));
+    const data = await providerBalanceService.listBalances(keyMap);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "获取厂商余额状态成功。",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.put(
   "/api-keys/:provider",
   validate({ params: providerSchema, body: upsertApiKeySchema }),
@@ -185,6 +207,33 @@ router.put(
         isActive: boolean;
         models: string[];
       }>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/api-keys/:provider/refresh-balance",
+  validate({ params: providerSchema }),
+  async (req, res, next) => {
+    try {
+      const { provider } = req.params as z.infer<typeof providerSchema>;
+      const keyConfig = await prisma.aPIKey.findUnique({
+        where: { provider },
+        select: {
+          key: true,
+        },
+      });
+      const data = await providerBalanceService.getProviderBalance({
+        provider,
+        apiKey: keyConfig?.key,
+      });
+      res.status(200).json({
+        success: true,
+        data,
+        message: data.status === "available" ? "余额刷新成功。" : data.message,
+      } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);
     }

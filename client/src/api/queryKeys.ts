@@ -25,6 +25,7 @@ export const queryKeys = {
     storyMacro: (id: string) => ["novels", "story-macro", id] as const,
     storyMacroState: (id: string) => ["novels", "story-macro-state", id] as const,
     autoDirectorTask: (id: string) => ["novels", "auto-director-task", id] as const,
+    autoDirectorTakeoverReadiness: (id: string) => ["novels", "auto-director-takeover-readiness", id] as const,
     worldSlice: (id: string) => ["novels", "world-slice", id] as const,
     snapshots: (id: string) => ["novels", "snapshots", id] as const,
   },
@@ -97,6 +98,7 @@ export const queryKeys = {
   },
   settings: {
     apiKeys: ["settings", "api-keys"] as const,
+    apiKeyBalances: ["settings", "api-key-balances"] as const,
     rag: ["settings", "rag"] as const,
     ragEmbeddingModels: (provider: string) => ["settings", "rag", "embedding-models", provider] as const,
     modelRoutes: ["settings", "model-routes"] as const,
