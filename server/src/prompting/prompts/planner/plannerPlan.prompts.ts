@@ -46,6 +46,32 @@ function buildPlannerPlanAsset(input: {
         ? { maxAttempts: 1 }
         : undefined,
     outputSchema: plannerOutputSchema,
+    structuredOutputHint: {
+      example: {
+        title: "示例标题",
+        objective: "示例目标",
+        participants: ["示例参与方"],
+        reveals: ["示例揭露"],
+        riskNotes: ["示例风险"],
+        hookTarget: "示例悬念",
+        planRole: input.planLevel === "chapter" ? "progress" : "",
+        phaseLabel: "示例阶段",
+        mustAdvance: ["示例推进项"],
+        mustPreserve: ["示例保留项"],
+        scenes: input.includeScenes
+          ? [{
+            title: "示例场景",
+            objective: "示例场景目标",
+            conflict: "示例冲突",
+            reveal: "示例变化",
+            emotionBeat: "示例情绪节拍",
+          }]
+          : [],
+      },
+      note: input.includeScenes
+        ? "当前层级必须返回可执行的 scenes 示例。"
+        : "当前层级的 scenes 必须保持为空数组。",
+    },
     render: (promptInput, context) => {
       const contextText = context.blocks.map((block) => block.content).join("\n\n");
 

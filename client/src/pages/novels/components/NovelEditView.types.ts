@@ -39,12 +39,14 @@ import type {
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { StoryWorldSliceOverrides, StoryWorldSliceView } from "@ai-novel/shared/types/storyWorldSlice";
+import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import type { QuickCharacterCreatePayload } from "./characterPanel.utils";
 import type { ChapterReviewResult } from "../chapterPlanning.shared";
 import type { ChapterDetailBundleRequest } from "../chapterDetailPlanning.shared";
 import type { StructuredSyncOptions } from "../novelEdit.utils";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 import type { ExistingOutlineChapter } from "../volumePlan.utils";
+import type { AITakeoverAction } from "@/components/workflow/AITakeoverContainer";
 
 export interface BasicTabProps {
   novelId: string;
@@ -443,6 +445,19 @@ export interface NovelEditTakeoverState {
   }>;
 }
 
+export interface NovelTaskDrawerState {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  task: UnifiedTaskDetail | null;
+  currentUiModel: {
+    provider: string;
+    model: string;
+    temperature: number;
+  };
+  actions: AITakeoverAction[];
+  onOpenFullTaskCenter: () => void;
+}
+
 export interface NovelEditViewProps {
   id: string;
   activeTab: string;
@@ -455,4 +470,5 @@ export interface NovelEditViewProps {
   pipelineTab: PipelineTabViewProps;
   characterTab: CharacterTabViewProps;
   takeover?: NovelEditTakeoverState | null;
+  taskDrawer?: NovelTaskDrawerState | null;
 }

@@ -11,6 +11,7 @@ import {
 import { toText } from "../../services/novel/novelP0Utils";
 import { hasRegisteredPromptAsset } from "../registry";
 import { selectContextBlocks } from "./contextSelection";
+import { appendStructuredOutputHintMessages } from "./structuredOutputHint";
 import type {
   PromptAsset,
   PromptExecutionOptions,
@@ -148,8 +149,14 @@ export function preparePromptExecution<I, O, R = O>(input: {
 } {
   assertRegistered(input.asset as PromptAsset<unknown, unknown, unknown>);
   const context = buildRenderContext(input.asset as PromptAsset<unknown, unknown, unknown>, input.contextBlocks ?? []);
+  const renderedMessages = input.asset.render(input.promptInput, context);
   return {
-    messages: input.asset.render(input.promptInput, context),
+    messages: appendStructuredOutputHintMessages({
+      asset: input.asset,
+      promptInput: input.promptInput,
+      context,
+      messages: renderedMessages,
+    }),
     context,
     invocation: buildPromptInvocationMeta(
       input.asset as PromptAsset<unknown, unknown, unknown>,

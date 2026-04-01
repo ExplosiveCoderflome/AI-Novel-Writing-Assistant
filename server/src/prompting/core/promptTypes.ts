@@ -94,6 +94,14 @@ export interface PromptSemanticRetryPolicy<I, R> {
   buildMessages?: (input: PromptSemanticRetryBuildInput<I, R>) => BaseMessage[];
 }
 
+export type PromptStructuredOutputExampleBuilder<I, R> = (input: I, context: PromptRenderContext) => unknown;
+
+export interface PromptStructuredOutputHint<I, R> {
+  mode?: "auto" | "off";
+  example?: unknown | PromptStructuredOutputExampleBuilder<I, R>;
+  note?: string | ((input: I, context: PromptRenderContext) => string | undefined);
+}
+
 export interface PromptAsset<I, O, R = O> {
   id: string;
   version: string;
@@ -104,6 +112,7 @@ export interface PromptAsset<I, O, R = O> {
   repairPolicy?: PromptRepairPolicy;
   semanticRetryPolicy?: PromptSemanticRetryPolicy<I, R>;
   outputSchema?: ZodType<R>;
+  structuredOutputHint?: PromptStructuredOutputHint<I, R>;
   render: (input: I, context: PromptRenderContext) => BaseMessage[];
   postValidate?: (output: R, input: I, context: PromptRenderContext) => O;
 }

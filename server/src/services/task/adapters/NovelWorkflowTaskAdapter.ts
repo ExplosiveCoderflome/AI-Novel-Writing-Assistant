@@ -26,7 +26,7 @@ import {
   getArchivedTaskIds,
   isTaskArchived,
 } from "../taskArchive";
-import { NOVEL_WORKFLOW_STAGE_STEPS, buildSteps } from "../taskCenter.shared";
+import { buildNovelWorkflowDetailSteps } from "../novelWorkflowDetailSteps";
 
 function buildNextActionLabel(status: TaskStatus, checkpointType: NovelWorkflowCheckpoint | null): string | null {
   if (status === "waiting_approval") {
@@ -249,13 +249,18 @@ export class NovelWorkflowTaskAdapter {
         milestones,
         cancelRequestedAt: row.cancelRequestedAt?.toISOString() ?? null,
       },
-      steps: buildSteps(
-        NOVEL_WORKFLOW_STAGE_STEPS,
-        summary.status,
-        row.currentItemKey,
-        summary.createdAt,
-        summary.updatedAt,
-      ),
+      steps: buildNovelWorkflowDetailSteps({
+        lane: row.lane,
+        novelId: row.novelId,
+        status: summary.status,
+        currentItemKey: row.currentItemKey,
+        checkpointType: row.checkpointType as NovelWorkflowCheckpoint | null,
+        directorSessionPhase: directorSession && typeof directorSession === "object"
+          ? (directorSession as { phase?: unknown }).phase
+          : null,
+        createdAt: summary.createdAt,
+        updatedAt: summary.updatedAt,
+      }),
       failureDetails: row.lastError,
     };
   }

@@ -32,6 +32,13 @@ export function formatProjectContext(input: DirectorProjectContextInput): string
   const lines = [
     input.title?.trim() ? `current title: ${input.title.trim()}` : "",
     input.description?.trim() ? `current description: ${input.description.trim()}` : "",
+    input.targetAudience?.trim() ? `target audience: ${input.targetAudience.trim()}` : "",
+    input.bookSellingPoint?.trim() ? `book selling point: ${input.bookSellingPoint.trim()}` : "",
+    input.competingFeel?.trim() ? `competing feel: ${input.competingFeel.trim()}` : "",
+    input.first30ChapterPromise?.trim() ? `first 30 chapter promise: ${input.first30ChapterPromise.trim()}` : "",
+    input.commercialTags && input.commercialTags.length > 0
+      ? `commercial tags: ${input.commercialTags.join(", ")}`
+      : "",
     input.genreId?.trim() ? `genre id: ${input.genreId.trim()}` : "",
     input.worldId?.trim() ? `world id: ${input.worldId.trim()}` : "",
     input.writingMode ? `writing mode: ${input.writingMode}` : "",

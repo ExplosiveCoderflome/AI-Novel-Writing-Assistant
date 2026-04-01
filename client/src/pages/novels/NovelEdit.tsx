@@ -17,6 +17,7 @@ import NovelEditView from "./components/NovelEditView";
 import { getBaseCharacterList } from "@/api/character";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
 import { continueNovelWorkflow, getActiveAutoDirectorTask } from "@/api/novelWorkflow";
+import { cancelTask, retryTask } from "@/api/tasks";
 import {
   auditNovelChapter,
   generateChapterPlan,
@@ -51,7 +52,7 @@ import { useVolumeVersionControl } from "./hooks/useVolumeVersionControl";
 import { useNovelEditWorkflow } from "./hooks/useNovelEditWorkflow";
 import { buildNovelEditPlanningTabs } from "./novelEditPlanningTabs";
 import type { ChapterReviewResult } from "./chapterPlanning.shared";
-import type { NovelEditTakeoverState } from "./components/NovelEditView.types";
+import type { NovelEditTakeoverState, NovelTaskDrawerState } from "./components/NovelEditView.types";
 import { syncNovelWorkflowStageSilently, workflowStageFromTab } from "./novelWorkflow.client";
 import {
   DEFAULT_ESTIMATED_CHAPTER_COUNT,
@@ -209,6 +210,8 @@ export default function NovelEdit() {
     selectedVolumeId,
     workflowTaskId,
   } = useNovelEditWorkflow(id);
+  const [isTaskDrawerOpen, setIsTaskDrawerOpen] = useState(false);
+  const [autoOpenedFailedTaskId, setAutoOpenedFailedTaskId] = useState("");
   const [basicForm, setBasicForm] = useState(() => createDefaultNovelBasicFormState());
   const [volumeDraft, setVolumeDraft] = useState<VolumePlan[]>([]);
   const [volumeStrategyPlan, setVolumeStrategyPlan] = useState<VolumeStrategyPlan | null>(null);
@@ -491,6 +494,23 @@ export default function NovelEdit() {
     () => chapterAuditReports.flatMap((report) => report.issues.filter((issue) => issue.status === "open").map((issue) => issue.id)),
     [chapterAuditReports],
   );
+  const openAutoDirectorTaskCenter = () => {
+    const targetId = activeAutoDirectorTask?.id || workflowTaskId;
+    if (targetId) {
+      navigate(`/tasks?kind=novel_workflow&id=${targetId}`);
+      return;
+    }
+    navigate("/tasks");
+  };
+  const invalidateAutoDirectorTaskState = async (taskId?: string) => {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTask(id) });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.novels.volumeWorkspace(id) });
+    if (taskId) {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail("novel_workflow", taskId) });
+    }
+    await queryClient.invalidateQueries({ queryKey: ["tasks"] });
+  };
   const continueAutoDirectorMutation = useMutation({
     mutationFn: async () => {
       if (!activeAutoDirectorTask?.id) {
@@ -510,6 +530,97 @@ export default function NovelEdit() {
       toast.error(message);
     },
   });
+  const consistencyIssue = useMemo(
+    () => resolveDirectorConsistencyIssue({
+      checkpointType: activeAutoDirectorTask?.checkpointType,
+      characterCount: characters.length,
+      chapterCount: chapters.length,
+    }),
+    [activeAutoDirectorTask?.checkpointType, chapters.length, characters.length],
+  );
+  const reviewScope = activeDirectorSession?.reviewScope ?? null;
+  const reviewTab = useMemo(() => tabFromScope(reviewScope), [reviewScope]);
+  const openReviewStage = () => {
+    if (!reviewTab) {
+      return;
+    }
+    setActiveTab(reviewTab);
+    setIsTaskDrawerOpen(false);
+  };
+  const openChapterExecution = () => {
+    if (activeAutoDirectorTask?.resumeTarget?.chapterId) {
+      setSelectedChapterId(activeAutoDirectorTask.resumeTarget.chapterId);
+    }
+    setActiveTab("chapter");
+    setIsTaskDrawerOpen(false);
+  };
+  const retryAutoDirectorWithCurrentModelMutation = useMutation({
+    mutationFn: async () => {
+      if (!activeAutoDirectorTask?.id) {
+        throw new Error("当前没有可重试的自动导演任务。");
+      }
+      return retryTask("novel_workflow", activeAutoDirectorTask.id, {
+        llmOverride: {
+          provider: llm.provider,
+          model: llm.model,
+          temperature: llm.temperature,
+        },
+        resume: true,
+      });
+    },
+    onSuccess: async () => {
+      await invalidateAutoDirectorTaskState(activeAutoDirectorTask?.id);
+      setIsTaskDrawerOpen(true);
+      toast.success(`已切换到 ${llm.provider} / ${llm.model} 并重新启动自动导演。`);
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "切换当前模型重试失败。";
+      toast.error(message);
+    },
+  });
+  const retryAutoDirectorWithTaskModelMutation = useMutation({
+    mutationFn: async () => {
+      if (!activeAutoDirectorTask?.id) {
+        throw new Error("当前没有可重试的自动导演任务。");
+      }
+      return retryTask("novel_workflow", activeAutoDirectorTask.id, { resume: true });
+    },
+    onSuccess: async () => {
+      await invalidateAutoDirectorTaskState(activeAutoDirectorTask?.id);
+      setIsTaskDrawerOpen(true);
+      toast.success("自动导演已按任务原模型重新启动。");
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "按原模型重试失败。";
+      toast.error(message);
+    },
+  });
+  const cancelAutoDirectorMutation = useMutation({
+    mutationFn: async () => {
+      if (!activeAutoDirectorTask?.id) {
+        throw new Error("当前没有可取消的自动导演任务。");
+      }
+      return cancelTask("novel_workflow", activeAutoDirectorTask.id);
+    },
+    onSuccess: async () => {
+      await invalidateAutoDirectorTaskState(activeAutoDirectorTask?.id);
+      toast.success("已提交自动导演取消请求。");
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "取消自动导演失败。";
+      toast.error(message);
+    },
+  });
+  useEffect(() => {
+    if (activeAutoDirectorTask?.status !== "failed") {
+      return;
+    }
+    if (!activeAutoDirectorTask.id || activeAutoDirectorTask.id === autoOpenedFailedTaskId) {
+      return;
+    }
+    setIsTaskDrawerOpen(true);
+    setAutoOpenedFailedTaskId(activeAutoDirectorTask.id);
+  }, [activeAutoDirectorTask?.id, activeAutoDirectorTask?.status, autoOpenedFailedTaskId]);
   const takeover = useMemo<NovelEditTakeoverState | null>(() => {
     const task = activeAutoDirectorTask;
     if (!task) {
@@ -580,14 +691,7 @@ export default function NovelEdit() {
     }
     actions.push({
       label: "任务中心",
-      onClick: () => {
-        const targetId = task.id || workflowTaskId;
-        if (targetId) {
-          navigate(`/tasks?kind=novel_workflow&id=${targetId}`);
-          return;
-        }
-        navigate("/tasks");
-      },
+      onClick: () => setIsTaskDrawerOpen(true),
       variant: mode === "running" ? "outline" : "secondary",
     });
 
@@ -643,6 +747,85 @@ export default function NovelEdit() {
     setActiveTab,
     setSelectedChapterId,
     workflowTaskId,
+  ]);
+  const taskDrawerActions = useMemo<NovelTaskDrawerState["actions"]>(() => {
+    const task = activeAutoDirectorTask;
+    if (!task) {
+      return [];
+    }
+    const actions: NovelTaskDrawerState["actions"] = [];
+    if (consistencyIssue) {
+      actions.push({
+        label: continueAutoDirectorMutation.isPending ? "补齐中..." : "补齐导演产物",
+        onClick: () => continueAutoDirectorMutation.mutate(),
+        variant: "default",
+        disabled: continueAutoDirectorMutation.isPending,
+      });
+      if (consistencyIssue === "missing_characters") {
+        actions.push({
+          label: "去角色准备",
+          onClick: () => {
+            setActiveTab("character");
+            setIsTaskDrawerOpen(false);
+          },
+          variant: "outline",
+        });
+      }
+    } else if (task.status === "waiting_approval" && reviewTab && task.checkpointType !== "front10_ready") {
+      actions.push({
+        label: "去当前审核阶段",
+        onClick: openReviewStage,
+        variant: "default",
+      });
+      actions.push({
+        label: continueAutoDirectorMutation.isPending ? "继续中..." : "继续自动导演",
+        onClick: () => continueAutoDirectorMutation.mutate(),
+        variant: "outline",
+        disabled: continueAutoDirectorMutation.isPending,
+      });
+    } else if (task.checkpointType === "front10_ready") {
+      actions.push({
+        label: "进入章节执行",
+        onClick: openChapterExecution,
+        variant: "default",
+      });
+    }
+
+    if (task.status === "failed" || task.status === "cancelled") {
+      actions.push({
+        label: retryAutoDirectorWithCurrentModelMutation.isPending ? "切换中..." : "用当前模型重试",
+        onClick: () => retryAutoDirectorWithCurrentModelMutation.mutate(),
+        variant: "default",
+        disabled: retryAutoDirectorWithCurrentModelMutation.isPending,
+      });
+      actions.push({
+        label: retryAutoDirectorWithTaskModelMutation.isPending ? "重试中..." : "用原模型重试",
+        onClick: () => retryAutoDirectorWithTaskModelMutation.mutate(),
+        variant: "outline",
+        disabled: retryAutoDirectorWithTaskModelMutation.isPending,
+      });
+    }
+
+    if (task.status === "queued" || task.status === "running" || task.status === "waiting_approval") {
+      actions.push({
+        label: cancelAutoDirectorMutation.isPending ? "取消中..." : "取消任务",
+        onClick: () => cancelAutoDirectorMutation.mutate(),
+        variant: "destructive",
+        disabled: cancelAutoDirectorMutation.isPending,
+      });
+    }
+    return actions;
+  }, [
+    activeAutoDirectorTask,
+    cancelAutoDirectorMutation,
+    consistencyIssue,
+    continueAutoDirectorMutation,
+    openReviewStage,
+    openChapterExecution,
+    retryAutoDirectorWithCurrentModelMutation,
+    retryAutoDirectorWithTaskModelMutation,
+    reviewTab,
+    setActiveTab,
   ]);
 
   useNovelEditInitialization({
@@ -1013,6 +1196,18 @@ export default function NovelEdit() {
       pipelineTab={pipelineTab}
       characterTab={characterTab}
       takeover={takeover}
+      taskDrawer={{
+        open: isTaskDrawerOpen,
+        onOpenChange: setIsTaskDrawerOpen,
+        task: activeAutoDirectorTask,
+        currentUiModel: {
+          provider: llm.provider,
+          model: llm.model,
+          temperature: llm.temperature,
+        },
+        actions: taskDrawerActions,
+        onOpenFullTaskCenter: openAutoDirectorTaskCenter,
+      }}
     />
   );
 }

@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import AITakeoverContainer from "@/components/workflow/AITakeoverContainer";
 import KnowledgeBindingPanel from "@/components/knowledge/KnowledgeBindingPanel";
+import NovelTaskDrawer from "./NovelTaskDrawer";
 import NovelCharacterPanel from "./NovelCharacterPanel";
 import BasicInfoTab from "./BasicInfoTab";
 import OutlineTab from "./OutlineTab";
@@ -46,7 +48,7 @@ function hasChapterPlanContent(chapter: VolumeChapter): boolean {
 }
 
 export default function NovelEditView(props: NovelEditViewProps) {
-  const { id, activeTab, onActiveTabChange, basicTab, storyMacroTab, outlineTab, structuredTab, chapterTab, pipelineTab, characterTab, takeover } = props;
+  const { id, activeTab, onActiveTabChange, basicTab, storyMacroTab, outlineTab, structuredTab, chapterTab, pipelineTab, characterTab, takeover, taskDrawer } = props;
   const [isKnowledgeBindingOpen, setIsKnowledgeBindingOpen] = useState(false);
   const [isProjectOverviewOpen, setIsProjectOverviewOpen] = useState(false);
 
@@ -127,6 +129,15 @@ export default function NovelEditView(props: NovelEditViewProps) {
   ];
   const completedStages = stages.filter((stage) => stage.ready).length;
   const progressPercent = Math.round((completedStages / Math.max(stages.length, 1)) * 100);
+  const taskAttentionLabel = taskDrawer?.task
+    ? taskDrawer.task.status === "failed"
+      ? "异常"
+      : taskDrawer.task.status === "waiting_approval"
+        ? "待审核"
+        : taskDrawer.task.status === "running" || taskDrawer.task.status === "queued"
+          ? "进行中"
+          : "最近任务"
+    : null;
 
   const renderActivePanel = () => {
     switch (activeTab) {
@@ -183,6 +194,13 @@ export default function NovelEditView(props: NovelEditViewProps) {
               <KnowledgeBindingPanel targetType="novel" targetId={id} title="参考知识" />
             </DialogContent>
           </Dialog>
+          <Button
+            variant={taskDrawer?.task?.status === "failed" ? "destructive" : "outline"}
+            onClick={() => taskDrawer?.onOpenChange(true)}
+          >
+            任务面板
+            {taskAttentionLabel ? <Badge variant="secondary">{taskAttentionLabel}</Badge> : null}
+          </Button>
         </div>
       ) : null}
 
@@ -282,6 +300,8 @@ export default function NovelEditView(props: NovelEditViewProps) {
           renderActivePanel()
         )}
       </div>
+
+      {taskDrawer ? <NovelTaskDrawer {...taskDrawer} /> : null}
     </div>
   );
 }
