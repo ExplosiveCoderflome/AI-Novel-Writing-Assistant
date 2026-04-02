@@ -1,6 +1,7 @@
 {
   "name": "ai-novel-writing-assistant-v2",
   "private": true,
+  "license": "MIT",
   "packageManager": "pnpm@9.7.0",
   "engines": {
     "node": ">=20.0.0",

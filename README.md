@@ -600,3 +600,6 @@ docs/     设计文档、阶段检查点、模块计划与历史归档
 ## 项目中所有代码都是AI编写
 ## 目标：只需要进行书名配置 和 点击确认按钮 即可生成（理想）小说
 # 
+## License
+
+This project is licensed under the MIT License. See [LICENSE](./LICENSE) for details.
