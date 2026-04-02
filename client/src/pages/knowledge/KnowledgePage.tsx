@@ -19,7 +19,7 @@ import {
   type RagJobSummary,
 } from "@/api/knowledge";
 import { getRagEmbeddingModels, getRagSettings, saveRagSettings } from "@/api/settings";
-import { TEXT_FILE_MAX_SIZE, isTxtFile, readTextFile } from "@/lib/textFile";
+import { isTxtFile, readTextFile } from "@/lib/textFile";
 import KnowledgeDocumentDetailDialog from "./components/KnowledgeDocumentDetailDialog";
 import KnowledgeDocumentsTab from "./components/KnowledgeDocumentsTab";
 import KnowledgeEmbeddingSettingsCard, { type KnowledgeEmbeddingSettingsFormState } from "./components/KnowledgeEmbeddingSettingsCard";
@@ -271,9 +271,6 @@ export default function KnowledgePage() {
     if (!isTxtFile(file)) {
       throw new Error("仅支持 .txt 文档。");
     }
-    if (file.size > TEXT_FILE_MAX_SIZE) {
-      throw new Error("文档过大，请上传 2MB 以内的 txt 文件。");
-    }
     const content = await readTextFile(file);
     if (!content) {
       throw new Error("文档内容为空或编码不受支持。");
@@ -291,9 +288,6 @@ export default function KnowledgePage() {
     }
     if (!isTxtFile(file)) {
       throw new Error("仅支持 .txt 文档。");
-    }
-    if (file.size > TEXT_FILE_MAX_SIZE) {
-      throw new Error("文档过大，请上传 2MB 以内的 txt 文件。");
     }
     const content = await readTextFile(file);
     if (!content) {
