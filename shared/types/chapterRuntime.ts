@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { storyWorldSliceSchema } from "./storyWorldSlice";
-import { LLM_PROVIDERS } from "./llm";
+import type { LLMProvider } from "./llm";
 
-const llmProviderSchema = z.enum(LLM_PROVIDERS);
+const llmProviderSchema = z.custom<LLMProvider>((value) => typeof value === "string" && value.trim().length > 0);
 const auditTypeSchema = z.enum(["continuity", "character", "plot", "mode_fit"]);
 const auditSeveritySchema = z.enum(["low", "medium", "high", "critical"]);
 const auditIssueStatusSchema = z.enum(["open", "resolved", "ignored"]);

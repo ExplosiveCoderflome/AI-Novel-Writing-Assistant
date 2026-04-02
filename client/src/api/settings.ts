@@ -7,10 +7,15 @@ export type EmbeddingProvider = Extract<LLMProvider, "openai" | "siliconflow">;
 
 export interface APIKeyStatus {
   provider: LLMProvider;
+  kind: "builtin" | "custom";
   name: string;
+  displayName?: string;
   currentModel: string;
+  currentBaseURL: string;
   models: string[];
   defaultModel: string;
+  defaultBaseURL: string;
+  requiresApiKey: boolean;
   isConfigured: boolean;
   isActive: boolean;
 }
@@ -158,19 +163,48 @@ export async function getRagEmbeddingModels(provider: EmbeddingProvider) {
 export async function saveAPIKeySetting(
   provider: LLMProvider,
   payload: {
-    key: string;
+    displayName?: string;
+    key?: string;
     model?: string;
+    baseURL?: string;
     isActive?: boolean;
   },
 ) {
   const { data } = await apiClient.put<
     ApiResponse<{
       provider: string;
+      displayName: string | null;
       model: string | null;
+      baseURL: string | null;
       isActive: boolean;
       models: string[];
     }>
   >(`/settings/api-keys/${provider}`, payload);
+  return data;
+}
+
+export async function createCustomProvider(payload: {
+  name: string;
+  key?: string;
+  model: string;
+  baseURL: string;
+  isActive?: boolean;
+}) {
+  const { data } = await apiClient.post<
+    ApiResponse<{
+      provider: string;
+      displayName: string | null;
+      model: string | null;
+      baseURL: string | null;
+      isActive: boolean;
+      models: string[];
+    }>
+  >("/settings/custom-providers", payload);
+  return data;
+}
+
+export async function deleteCustomProvider(provider: LLMProvider) {
+  const { data } = await apiClient.delete<ApiResponse<null>>(`/settings/custom-providers/${provider}`);
   return data;
 }
 
@@ -205,7 +239,7 @@ export async function saveModelRoute(payload: ModelRouteConfig) {
   return data;
 }
 
-export async function testLLMConnection(payload: { provider: LLMProvider; apiKey?: string; model?: string }) {
+export async function testLLMConnection(payload: { provider: LLMProvider; apiKey?: string; model?: string; baseURL?: string }) {
   const { data } = await apiClient.post<
     ApiResponse<{
       success: boolean;

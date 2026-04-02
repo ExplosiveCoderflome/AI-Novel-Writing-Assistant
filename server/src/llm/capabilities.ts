@@ -1,4 +1,8 @@
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import {
+  isBuiltinLLMProvider,
+  type BuiltinLLMProvider,
+  type LLMProvider,
+} from "@ai-novel/shared/types/llm";
 
 function normalizeModel(model: string | undefined): string {
   return (model ?? "").trim().toLowerCase();
@@ -60,7 +64,7 @@ export function getJsonCapability(provider: LLMProvider, model?: string): JsonCa
   // 注意：这里的“能力”只用于选择 response_format / prompt 约束强度；
   // 最终仍以 Zod 校验作为强约束。
   const jsonCapabilities: Record<
-    LLMProvider,
+    BuiltinLLMProvider,
     {
       supportsJsonObject: boolean;
       supportsJsonSchema: boolean;
@@ -110,9 +114,13 @@ export function getJsonCapability(provider: LLMProvider, model?: string): JsonCa
       // 如后续你发现只有部分 Gemini 模型支持 schema，可在这里加条件
       modelCondition: () => true,
     },
+    ollama: {
+      supportsJsonObject: false,
+      supportsJsonSchema: false,
+    },
   };
 
-  const cap = jsonCapabilities[provider];
+  const cap = isBuiltinLLMProvider(provider) ? jsonCapabilities[provider] : undefined;
   if (!cap) {
     return { supportsJsonObject: false, supportsJsonSchema: false };
   }

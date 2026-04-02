@@ -5,11 +5,12 @@ import {
   storyWorldSliceOverridesSchema,
 } from "@ai-novel/shared/types/storyWorldSlice";
 import { z } from "zod";
+import { llmProviderSchema } from "../llm/providerSchema";
 import { validate } from "../middleware/validate";
 import { NovelService } from "../services/novel/NovelService";
 
 const llmGenerateSchema = z.object({
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
+  provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
 });

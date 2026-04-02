@@ -15,6 +15,7 @@ import {
   BOOK_FRAMING_MAX_COMMERCIAL_TAGS,
 } from "@ai-novel/shared/types/novelFraming";
 import { validate } from "../middleware/validate";
+import { llmProviderSchema } from "../llm/providerSchema";
 import { NovelDirectorService } from "../services/novel/director/NovelDirectorService";
 import { directorCandidateSchema } from "../services/novel/director/novelDirectorSchemas";
 
@@ -25,7 +26,7 @@ const correctionPresetValues = DIRECTOR_CORRECTION_PRESETS.map((item) => item.va
 const takeoverStartPhaseValues = [...DIRECTOR_TAKEOVER_START_PHASES] as [string, ...string[]];
 
 const llmOptionsSchema = z.object({
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
+  provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
   runMode: z.enum(["auto_to_ready", "auto_to_execution", "stage_review"]).optional(),

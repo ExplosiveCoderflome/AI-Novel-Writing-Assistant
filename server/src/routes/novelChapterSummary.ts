@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
+import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { NovelChapterSummaryService } from "../services/novel/NovelChapterSummaryService";
@@ -14,7 +15,7 @@ const chapterParamsSchema = z.object({
 });
 
 const llmGenerateSchema = z.object({
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
+  provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
 });

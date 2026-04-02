@@ -1,8 +1,8 @@
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { TaskKind, TaskStatus } from "@ai-novel/shared/types/task";
-import { LLM_PROVIDERS } from "@ai-novel/shared/types/llm";
 import { z } from "zod";
+import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { taskCenterService } from "../services/task/TaskCenterService";
@@ -27,7 +27,7 @@ const taskParamsSchema = z.object({
 
 const retryBodySchema = z.object({
   llmOverride: z.object({
-    provider: z.enum(LLM_PROVIDERS).optional(),
+    provider: llmProviderSchema.optional(),
     model: z.string().trim().min(1).optional(),
     temperature: z.number().finite().min(0).max(2).optional(),
   }).optional(),

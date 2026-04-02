@@ -8,9 +8,15 @@ export const LLM_PROVIDERS = [
   "glm",
   "qwen",
   "gemini",
+  "ollama",
 ] as const;
 
-export type LLMProvider = typeof LLM_PROVIDERS[number];
+export type BuiltinLLMProvider = typeof LLM_PROVIDERS[number];
+export type LLMProvider = BuiltinLLMProvider | (string & {});
+
+export function isBuiltinLLMProvider(provider: string): provider is BuiltinLLMProvider {
+  return (LLM_PROVIDERS as readonly string[]).includes(provider);
+}
 
 export interface ModelConfig {
   provider: LLMProvider;

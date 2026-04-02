@@ -1,11 +1,18 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { ChatOpenAI } from "@langchain/openai";
 import { prisma } from "../db/prisma";
-import { attachLLMDebugLogging } from "./debugLogging";
-import { resolveModelTemperature } from "./capabilities";
-import { resolveModel, type TaskType } from "./modelRouter";
-import { PROVIDERS } from "./providers";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
+import { resolveModelTemperature } from "./capabilities";
+import { attachLLMDebugLogging } from "./debugLogging";
+import { resolveModel, type TaskType } from "./modelRouter";
+import {
+  getProviderEnvApiKey,
+  getProviderEnvModel,
+  isBuiltInProvider,
+  providerRequiresApiKey,
+  PROVIDERS,
+  resolveProviderBaseUrl,
+} from "./providers";
 
 interface LLMOptions {
   model?: string;
@@ -14,75 +21,69 @@ interface LLMOptions {
   baseURL?: string;
   maxTokens?: number;
   fallbackProvider?: LLMProvider;
-  /** 任务类型，用于模型路由；若提供则优先使用路由配置的 provider/model/temperature */
   taskType?: TaskType;
   promptMeta?: PromptInvocationMeta;
 }
 
-interface ProviderSecret {
-  key: string;
+export interface ProviderSecret {
+  key?: string;
   model?: string;
+  baseURL?: string;
+  displayName?: string;
+}
+
+export interface ResolvedLLMClientOptions {
+  provider: LLMProvider;
+  providerName: string;
+  model: string;
+  temperature: number;
+  apiKey?: string;
+  baseURL: string;
+  maxTokens?: number;
+  taskType?: TaskType;
+  promptMeta?: PromptInvocationMeta;
 }
 
 const providerSecrets = new Map<LLMProvider, ProviderSecret>();
 
-function getProviderEnvBaseUrl(provider: LLMProvider): string | undefined {
-  switch (provider) {
-    case "deepseek":
-      return process.env.DEEPSEEK_BASE_URL;
-    case "siliconflow":
-      return process.env.SILICONFLOW_BASE_URL;
-    case "openai":
-      return process.env.OPENAI_BASE_URL;
-    case "anthropic":
-      return process.env.ANTHROPIC_BASE_URL;
-    case "grok":
-      return process.env.XAI_BASE_URL;
-    case "kimi":
-      return process.env.KIMI_BASE_URL;
-    case "glm":
-      return process.env.GLM_BASE_URL;
-    case "qwen":
-      return process.env.QWEN_BASE_URL;
-    case "gemini":
-      return process.env.GEMINI_BASE_URL;
-    default:
-      return undefined;
-  }
-}
-
-function getProviderEnvModel(provider: LLMProvider): string | undefined {
-  switch (provider) {
-    case "deepseek":
-      return process.env.DEEPSEEK_MODEL;
-    case "siliconflow":
-      return process.env.SILICONFLOW_MODEL;
-    case "openai":
-      return process.env.OPENAI_MODEL;
-    case "anthropic":
-      return process.env.ANTHROPIC_MODEL;
-    case "grok":
-      return process.env.XAI_MODEL;
-    case "kimi":
-      return process.env.KIMI_MODEL;
-    case "glm":
-      return process.env.GLM_MODEL;
-    case "qwen":
-      return process.env.QWEN_MODEL;
-    case "gemini":
-      return process.env.GEMINI_MODEL;
-    default:
-      return undefined;
-  }
-}
-
 function isMissingTableError(error: unknown): boolean {
   return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code?: string }).code === "P2021"
+    typeof error === "object"
+    && error !== null
+    && "code" in error
+    && (error as { code?: string }).code === "P2021"
   );
+}
+
+function normalizeOptionalText(value: string | null | undefined): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
+function normalizeProviderSecret(secret: ProviderSecret): ProviderSecret {
+  return {
+    key: normalizeOptionalText(secret.key),
+    model: normalizeOptionalText(secret.model),
+    baseURL: normalizeOptionalText(secret.baseURL),
+    displayName: normalizeOptionalText(secret.displayName),
+  };
+}
+
+function toProviderSecret(item: {
+  key?: string | null;
+  model?: string | null;
+  baseURL?: string | null;
+  displayName?: string | null;
+}): ProviderSecret {
+  return normalizeProviderSecret({
+    key: item.key ?? undefined,
+    model: item.model ?? undefined,
+    baseURL: item.baseURL ?? undefined,
+    displayName: item.displayName ?? undefined,
+  });
 }
 
 export async function loadProviderApiKeys(): Promise<void> {
@@ -92,14 +93,7 @@ export async function loadProviderApiKeys(): Promise<void> {
     });
     providerSecrets.clear();
     for (const item of keys) {
-      const provider = item.provider as LLMProvider;
-      if (!(provider in PROVIDERS)) {
-        continue;
-      }
-      providerSecrets.set(provider, {
-        key: item.key,
-        model: item.model ?? undefined,
-      });
+      providerSecrets.set(item.provider as LLMProvider, toProviderSecret(item));
     }
   } catch (error) {
     if (isMissingTableError(error)) {
@@ -107,6 +101,14 @@ export async function loadProviderApiKeys(): Promise<void> {
     }
     throw error;
   }
+}
+
+export function setProviderSecretCache(provider: LLMProvider, secret: ProviderSecret | null): void {
+  if (!secret) {
+    providerSecrets.delete(provider);
+    return;
+  }
+  providerSecrets.set(provider, normalizeProviderSecret(secret));
 }
 
 async function resolveProviderSecret(provider: LLMProvider): Promise<ProviderSecret | undefined> {
@@ -121,10 +123,7 @@ async function resolveProviderSecret(provider: LLMProvider): Promise<ProviderSec
     if (!secret || !secret.isActive) {
       return undefined;
     }
-    const value: ProviderSecret = {
-      key: secret.key,
-      model: secret.model ?? undefined,
-    };
+    const value = toProviderSecret(secret);
     providerSecrets.set(provider, value);
     return value;
   } catch (error) {
@@ -135,9 +134,12 @@ async function resolveProviderSecret(provider: LLMProvider): Promise<ProviderSec
   }
 }
 
-export async function getLLM(provider?: LLMProvider, options: LLMOptions = {}): Promise<ChatOpenAI> {
+export async function resolveLLMClientOptions(
+  provider?: LLMProvider,
+  options: LLMOptions = {},
+): Promise<ResolvedLLMClientOptions> {
   let resolvedProvider = provider ?? options.fallbackProvider ?? "deepseek";
-  let resolvedModel: string | undefined = options.model;
+  let resolvedModel = normalizeOptionalText(options.model);
   let resolvedTemperature: number | undefined = options.temperature;
   let resolvedMaxTokens: number | undefined = options.maxTokens;
 
@@ -155,50 +157,81 @@ export async function getLLM(provider?: LLMProvider, options: LLMOptions = {}): 
       resolvedProvider = route.provider;
     }
     if (options.model == null && shouldUseRouteProvider) {
-      resolvedModel = route.model;
+      resolvedModel = normalizeOptionalText(route.model);
     }
-    if (options.temperature == null) resolvedTemperature = route.temperature;
-    if (options.maxTokens == null) resolvedMaxTokens = route.maxTokens;
+    if (options.temperature == null) {
+      resolvedTemperature = route.temperature;
+    }
+    if (options.maxTokens == null) {
+      resolvedMaxTokens = route.maxTokens;
+    }
   }
 
-  const providerConfig = PROVIDERS[resolvedProvider];
   const dbSecret = await resolveProviderSecret(resolvedProvider);
-  const apiKey = options.apiKey ?? dbSecret?.key ?? process.env[providerConfig.envKey];
+  const providerName = isBuiltInProvider(resolvedProvider)
+    ? PROVIDERS[resolvedProvider].name
+    : dbSecret?.displayName ?? resolvedProvider;
+  const apiKey = normalizeOptionalText(options.apiKey)
+    ?? dbSecret?.key
+    ?? getProviderEnvApiKey(resolvedProvider);
 
-  if (!apiKey) {
-    throw new Error(`未配置 ${providerConfig.name} 的 API Key。`);
+  if (!apiKey && providerRequiresApiKey(resolvedProvider)) {
+    throw new Error(`未配置 ${providerName} 的 API Key。`);
   }
 
-  const model =
-    resolvedModel ??
-    dbSecret?.model ??
-    getProviderEnvModel(resolvedProvider) ??
-    providerConfig.defaultModel;
+  const model = resolvedModel
+    ?? dbSecret?.model
+    ?? getProviderEnvModel(resolvedProvider)
+    ?? (isBuiltInProvider(resolvedProvider) ? PROVIDERS[resolvedProvider].defaultModel : undefined);
+  if (!model) {
+    throw new Error(`未配置 ${providerName} 的默认模型。`);
+  }
 
-  const baseURL =
-    options.baseURL ??
-    getProviderEnvBaseUrl(resolvedProvider) ??
-    providerConfig.baseURL;
+  const baseURL = resolveProviderBaseUrl(
+    resolvedProvider,
+    options.baseURL ?? dbSecret?.baseURL,
+    dbSecret?.baseURL,
+  );
+  if (!baseURL) {
+    throw new Error(`未配置 ${providerName} 的 API URL。`);
+  }
+
   const temperature = resolveModelTemperature(resolvedProvider, model, resolvedTemperature);
 
-  const llm = new ChatOpenAI({
-    apiKey,
+  return {
+    provider: resolvedProvider,
+    providerName,
     model,
-    modelName: model,
     temperature,
+    apiKey,
+    baseURL,
     maxTokens: resolvedMaxTokens,
+    taskType: options.taskType,
+    promptMeta: options.promptMeta,
+  };
+}
+
+export async function getLLM(provider?: LLMProvider, options: LLMOptions = {}): Promise<ChatOpenAI> {
+  const resolved = await resolveLLMClientOptions(provider, options);
+
+  const llm = new ChatOpenAI({
+    apiKey: resolved.apiKey ?? "ollama",
+    model: resolved.model,
+    modelName: resolved.model,
+    temperature: resolved.temperature,
+    maxTokens: resolved.maxTokens,
     configuration: {
-      baseURL,
+      baseURL: resolved.baseURL,
     },
   });
 
   return attachLLMDebugLogging(llm, {
-    provider: resolvedProvider,
-    model,
-    temperature,
-    maxTokens: resolvedMaxTokens,
-    taskType: options.taskType,
-    baseURL,
-    promptMeta: options.promptMeta,
+    provider: resolved.provider,
+    model: resolved.model,
+    temperature: resolved.temperature,
+    maxTokens: resolved.maxTokens,
+    taskType: resolved.taskType,
+    baseURL: resolved.baseURL,
+    promptMeta: resolved.promptMeta,
   });
 }

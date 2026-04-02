@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
+import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { characterGenerateConstraintsSchema, generateBaseCharacterFromAI } from "../services/character/characterGenerate";
@@ -38,7 +39,7 @@ const generateSchema = z.object({
   description: z.string().trim().min(1),
   category: z.string().trim().min(1),
   genre: z.string().trim().optional(),
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
+  provider: llmProviderSchema.optional(),
   model: z.string().optional(),
   novelId: z.string().trim().min(1).optional(),
   knowledgeDocumentIds: z.array(z.string().trim().min(1)).max(5).optional(),
