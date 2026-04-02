@@ -143,25 +143,26 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "border-r bg-muted/20 p-3 transition-[width] duration-200",
+        "relative flex h-[calc(100vh-4rem)] flex-col border-r bg-muted/20 p-3 transition-[width] duration-200",
         collapsed ? "w-[72px]" : "w-64",
       )}
     >
-      <div className={cn("mb-4 flex items-center", collapsed ? "justify-center" : "justify-end")}>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground"
-          onClick={onToggle}
-          aria-label={collapsed ? "展开导航栏" : "收起导航栏"}
-          title={collapsed ? "展开导航栏" : "收起导航栏"}
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </Button>
-      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className={cn(
+          "absolute left-full top-1/2 z-10 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-background shadow-md transition-colors",
+          "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+        )}
+        onClick={onToggle}
+        aria-label={collapsed ? "展开导航栏" : "收起导航栏"}
+        title={collapsed ? "展开导航栏" : "收起导航栏"}
+      >
+        {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+      </Button>
 
-      <nav className="space-y-4">
+      <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
         {navGroups.map((group) => (
           <div key={group.title} className="space-y-1">
             {!collapsed ? (
@@ -175,9 +176,15 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             {group.items.map((item) => {
               const Icon = item.icon;
               const isNovelEntry = item.to === "/novels";
+              const requiresExactMatch = item.to === "/settings";
 
               return (
-                <NavLink key={item.to} to={item.to} title={collapsed ? item.label : undefined}>
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={requiresExactMatch}
+                  title={collapsed ? item.label : undefined}
+                >
                   {({ isActive }) => (
                     <div
                       className={cn(

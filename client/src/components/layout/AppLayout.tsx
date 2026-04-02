@@ -18,9 +18,9 @@ export default function AppLayout() {
   }, [isSidebarCollapsed]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen overflow-hidden bg-background">
       <Navbar />
-      <div className="flex min-h-[calc(100vh-4rem)]">
+      <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
         <Sidebar
           collapsed={isSidebarCollapsed}
           onToggle={() => setIsSidebarCollapsed((current) => !current)}
