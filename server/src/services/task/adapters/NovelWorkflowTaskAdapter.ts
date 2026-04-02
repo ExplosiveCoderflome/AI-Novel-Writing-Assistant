@@ -27,40 +27,7 @@ import {
   isTaskArchived,
 } from "../taskArchive";
 import { buildNovelWorkflowDetailSteps } from "../novelWorkflowDetailSteps";
-
-function buildNextActionLabel(status: TaskStatus, checkpointType: NovelWorkflowCheckpoint | null): string | null {
-  if (status === "waiting_approval") {
-    if (checkpointType === "candidate_selection_required") {
-      return "继续确认书级方向";
-    }
-    if (checkpointType === "book_contract_ready") {
-      return "查看 Book Contract";
-    }
-    if (checkpointType === "character_setup_required") {
-      return "去审核角色准备";
-    }
-    if (checkpointType === "volume_strategy_ready") {
-      return "查看卷战略";
-    }
-    if (checkpointType === "front10_ready") {
-      return "进入前 10 章开写";
-    }
-    if (checkpointType === "chapter_batch_ready") {
-      return "继续章节执行";
-    }
-    if (checkpointType === "replan_required") {
-      return "处理重规划";
-    }
-    return "继续小说主流程";
-  }
-  if (status === "failed" || status === "cancelled") {
-    return "从最近检查点恢复";
-  }
-  if (status === "running" || status === "queued") {
-    return "查看当前进度";
-  }
-  return null;
-}
+import { buildNovelWorkflowNextActionLabel } from "../novelWorkflowTaskSummary";
 
 function buildOwnerLabel(row: {
   novel?: { title: string } | null;
@@ -115,7 +82,7 @@ function mapSummary(row: {
     checkpointType,
     checkpointSummary: row.checkpointSummary,
     resumeTarget,
-    nextActionLabel: buildNextActionLabel(row.status as TaskStatus, checkpointType),
+    nextActionLabel: buildNovelWorkflowNextActionLabel(row.status as TaskStatus, checkpointType),
     failureCode: row.status === "failed" ? "NOVEL_WORKFLOW_FAILED" : null,
     failureSummary: row.status === "failed"
       ? normalizeFailureSummary(row.lastError, "小说主流程中断，但没有记录明确错误。")

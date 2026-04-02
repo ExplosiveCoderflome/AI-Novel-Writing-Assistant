@@ -1,6 +1,9 @@
 import { serializeCommercialTagsJson } from "@ai-novel/shared/types/novelFraming";
+import type { NovelAutoDirectorTaskSummary } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
+import { mapNovelAutoDirectorTaskSummary } from "../task/novelWorkflowTaskSummary";
+import { getArchivedTaskIdSet } from "../task/taskArchive";
 import { NovelContinuationService } from "./NovelContinuationService";
 import { STORY_WORLD_SLICE_SCHEMA_VERSION } from "./storyWorldSlice/storyWorldSlicePersistence";
 import { syncChapterArtifacts } from "./novelChapterArtifacts";
@@ -45,13 +48,64 @@ export class NovelCoreCrudService {
       prisma.novel.count(),
     ]);
 
+    const latestAutoDirectorTaskByNovelId = await this.listLatestVisibleAutoDirectorTasksByNovelIds(
+      items.map((item) => item.id),
+    );
+
     return {
-      items: items.map((item) => normalizeNovelOutput(item)),
+      items: items.map((item) => ({
+        ...normalizeNovelOutput(item),
+        latestAutoDirectorTask: latestAutoDirectorTaskByNovelId.get(item.id) ?? null,
+      })),
       page,
       limit,
       total,
       totalPages: Math.max(1, Math.ceil(total / limit)),
     };
+  }
+
+  private async listLatestVisibleAutoDirectorTasksByNovelIds(
+    novelIds: string[],
+  ): Promise<Map<string, NovelAutoDirectorTaskSummary>> {
+    const uniqueNovelIds = Array.from(new Set(novelIds.filter((id) => id.trim().length > 0)));
+    if (uniqueNovelIds.length === 0) {
+      return new Map();
+    }
+
+    const rows = await prisma.novelWorkflowTask.findMany({
+      where: {
+        lane: "auto_director",
+        novelId: {
+          in: uniqueNovelIds,
+        },
+      },
+      select: {
+        id: true,
+        novelId: true,
+        status: true,
+        progress: true,
+        currentStage: true,
+        currentItemLabel: true,
+        checkpointType: true,
+        checkpointSummary: true,
+        updatedAt: true,
+      },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+    });
+
+    if (rows.length === 0) {
+      return new Map();
+    }
+
+    const archivedTaskIds = await getArchivedTaskIdSet("novel_workflow", rows.map((row) => row.id));
+    const taskByNovelId = new Map<string, NovelAutoDirectorTaskSummary>();
+    for (const row of rows) {
+      if (!row.novelId || archivedTaskIds.has(row.id) || taskByNovelId.has(row.novelId)) {
+        continue;
+      }
+      taskByNovelId.set(row.novelId, mapNovelAutoDirectorTaskSummary(row));
+    }
+    return taskByNovelId;
   }
 
   async createNovel(input: CreateNovelInput) {

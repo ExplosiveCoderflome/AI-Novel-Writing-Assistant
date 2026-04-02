@@ -1,6 +1,8 @@
 import type { BookAnalysisSectionKey } from "./bookAnalysis";
 import type { BookContract } from "./novelWorkflow";
+import type { NovelWorkflowCheckpoint } from "./novelWorkflow";
 import type { NovelStoryMode } from "./storyMode";
+import type { TaskStatus } from "./task";
 export type {
   BaseCharacter,
   Character,
@@ -68,6 +70,18 @@ export type PipelineRepairMode =
   | "continuity_only"
   | "character_only"
   | "ending_only";
+
+export interface NovelAutoDirectorTaskSummary {
+  id: string;
+  status: TaskStatus;
+  progress: number;
+  currentStage?: string | null;
+  currentItemLabel?: string | null;
+  checkpointType?: NovelWorkflowCheckpoint | null;
+  checkpointSummary?: string | null;
+  nextActionLabel?: string | null;
+  updatedAt: string;
+}
 
 export type ModelRouteTaskType =
   | "planner"

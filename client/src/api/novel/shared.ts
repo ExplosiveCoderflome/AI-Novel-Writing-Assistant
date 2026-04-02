@@ -3,6 +3,7 @@ import type {
   Chapter,
   Character,
   Novel,
+  NovelAutoDirectorTaskSummary,
   NovelBible,
   NovelStoryMode,
   PlotBeat,
@@ -26,6 +27,7 @@ export interface NovelListResponse {
         name: string;
         worldType?: string | null;
       } | null;
+      latestAutoDirectorTask?: NovelAutoDirectorTaskSummary | null;
     }
   >;
   page: number;

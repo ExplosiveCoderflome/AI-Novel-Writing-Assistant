@@ -775,6 +775,14 @@ export default function NovelEdit() {
         variant: mode === "running" ? "outline" : "default",
       });
     }
+    if (task.status === "queued" || task.status === "running" || task.status === "waiting_approval") {
+      actions.push({
+        label: cancelAutoDirectorMutation.isPending ? "停止中..." : "停止自动导演",
+        onClick: () => cancelAutoDirectorMutation.mutate(),
+        variant: "destructive",
+        disabled: cancelAutoDirectorMutation.isPending,
+      });
+    }
     actions.push({
       label: "任务中心",
       onClick: () => setIsTaskDrawerOpen(true),
@@ -827,6 +835,7 @@ export default function NovelEdit() {
     activeTab,
     chapters.length,
     characters.length,
+    cancelAutoDirectorMutation,
     continueAutoDirectorMutation,
     continueAutoExecutionMutation,
     navigate,
