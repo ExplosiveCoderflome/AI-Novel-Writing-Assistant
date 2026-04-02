@@ -4,6 +4,7 @@ import type {
   BaseCharacter,
   Character,
   CharacterCastRole,
+  CharacterGender,
   CharacterTimeline,
   SupplementalCharacterCandidate,
   SupplementalCharacterGenerateInput,
@@ -35,6 +36,7 @@ interface QuickCharacterFormState {
 interface CharacterFormState {
   name: string;
   role: string;
+  gender: CharacterGender;
   personality: string;
   background: string;
   development: string;
@@ -52,6 +54,12 @@ const CAST_ROLE_LABELS: Record<CharacterCastRole, string> = {
   pressure_source: "压力源",
   catalyst: "催化者",
 };
+const CHARACTER_GENDER_LABELS: Record<CharacterGender, string> = {
+  male: "男",
+  female: "女",
+  other: "其他",
+  unknown: "未知",
+};
 const SUPPLEMENTAL_MODE_LABELS: Record<SupplementalCharacterGenerationMode, string> = {
   auto: "AI 判断",
   linked: "关系补位",
@@ -63,6 +71,13 @@ function getCastRoleLabel(castRole?: CharacterCastRole | "auto" | null): string 
     return "AI 判断";
   }
   return CAST_ROLE_LABELS[castRole] ?? castRole;
+}
+
+function getCharacterGenderLabel(gender?: CharacterGender | null): string {
+  if (!gender) {
+    return "未知";
+  }
+  return CHARACTER_GENDER_LABELS[gender] ?? gender;
 }
 
 function getSupplementalRelationLabel(
@@ -582,6 +597,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                             <div className="font-medium">{candidate.name}</div>
                             <Badge variant="outline">{candidate.role}</Badge>
                             <Badge variant="secondary">{getCastRoleLabel(candidate.castRole)}</Badge>
+                            <Badge variant="outline">性别：{getCharacterGenderLabel(candidate.gender)}</Badge>
                           </div>
                           <div className="text-sm text-muted-foreground">{candidate.summary}</div>
                         </div>

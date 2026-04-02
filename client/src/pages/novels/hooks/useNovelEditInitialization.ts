@@ -22,6 +22,7 @@ interface PipelineFormState {
 interface CharacterFormState {
   name: string;
   role: string;
+  gender: "male" | "female" | "other" | "unknown";
   personality: string;
   background: string;
   development: string;
@@ -54,6 +55,7 @@ interface UseNovelEditInitializationArgs {
 const EMPTY_CHARACTER_FORM: CharacterFormState = {
   name: "",
   role: "",
+  gender: "unknown",
   personality: "",
   background: "",
   development: "",
@@ -186,6 +188,7 @@ export function useNovelEditInitialization({
     setCharacterForm({
       name: selectedCharacter.name ?? "",
       role: selectedCharacter.role ?? "",
+      gender: selectedCharacter.gender ?? "unknown",
       personality: selectedCharacter.personality ?? "",
       background: selectedCharacter.background ?? "",
       development: selectedCharacter.development ?? "",

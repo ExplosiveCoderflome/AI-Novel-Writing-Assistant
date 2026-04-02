@@ -49,6 +49,7 @@ const PROMPT_SCHEMA_SERVICE_IMPORT_DENYLIST = [
   "../../../services/styleEngine/styleDetectionSchema",
   "../../../services/genre/genreSchemas",
   "../../../services/storyMode/storyModeSchemas",
+  "../../../services/novel/characterPrep/characterPreparationSchemas",
 ];
 
 function listSourceFiles(directory) {

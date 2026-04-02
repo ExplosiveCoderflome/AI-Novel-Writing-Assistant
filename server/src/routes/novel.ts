@@ -267,6 +267,7 @@ const updateChapterSchema = z.object({
 const characterSchema = z.object({
   name: z.string().trim().min(1, "角色名称不能为空。"),
   role: z.string().trim().min(1, "角色定位不能为空。"),
+  gender: z.enum(["male", "female", "other", "unknown"]).optional(),
   castRole: z.enum(["protagonist", "antagonist", "ally", "foil", "mentor", "love_interest", "pressure_source", "catalyst"]).optional(),
   storyFunction: z.string().optional(),
   relationToProtagonist: z.string().optional(),
@@ -293,6 +294,7 @@ const characterSchema = z.object({
 const updateCharacterSchema = z.object({
   name: z.string().trim().min(1).optional(),
   role: z.string().trim().min(1).optional(),
+  gender: z.enum(["male", "female", "other", "unknown"]).optional(),
   castRole: z.enum(["protagonist", "antagonist", "ally", "foil", "mentor", "love_interest", "pressure_source", "catalyst"]).optional(),
   storyFunction: z.string().optional(),
   relationToProtagonist: z.string().optional(),

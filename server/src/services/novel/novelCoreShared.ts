@@ -97,6 +97,7 @@ export interface ChapterInput {
 export interface CharacterInput {
   name: string;
   role: string;
+  gender?: "male" | "female" | "other" | "unknown";
   castRole?: string;
   storyFunction?: string;
   relationToProtagonist?: string;

@@ -1,6 +1,7 @@
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import { CharacterPreparationService } from "../characterPrep/CharacterPreparationService";
+import { buildCharacterCastBlockedMessage } from "../characterPrep/characterCastQuality";
 import { NovelContextService } from "../NovelContextService";
 import { NovelVolumeService } from "../volume/NovelVolumeService";
 import { NovelWorkflowService } from "../workflow/NovelWorkflowService";
@@ -89,9 +90,32 @@ export async function runDirectorCharacterSetupPhase(input: {
     temperature: request.temperature,
     storyInput: buildStoryInput(request, toBookSpec(request.candidate, request.idea, request.estimatedChapterCount)),
   });
-  const targetOption = castOptions[0];
+  const storyInput = buildStoryInput(request, toBookSpec(request.candidate, request.idea, request.estimatedChapterCount));
+  const assessment = dependencies.characterPreparationService.assessCharacterCastOptions(castOptions, storyInput);
+  const targetOption = assessment.autoApplicableOptionId
+    ? castOptions.find((option) => option.id === assessment.autoApplicableOptionId) ?? null
+    : null;
   if (!targetOption) {
-    throw new Error("自动导演未能生成可用角色阵容。");
+    const blockedSession = buildDirectorSessionState({
+      runMode: request.runMode,
+      phase: "character_setup",
+      isBackgroundRunning: false,
+    });
+    await dependencies.workflowService.recordCheckpoint(taskId, {
+      stage: "character_setup",
+      checkpointType: "character_setup_required",
+      checkpointSummary: [
+        "角色阵容候选已生成，但当前自动质量闸未通过，不能直接自动应用。",
+        buildCharacterCastBlockedMessage(assessment),
+      ].join("\n"),
+      itemLabel: "等待审核角色准备",
+      progress: DIRECTOR_PROGRESS.characterSetup,
+      seedPayload: callbacks.buildDirectorSeedPayload(request, novelId, {
+        directorSession: blockedSession,
+        resumeTarget,
+      }),
+    });
+    return true;
   }
   await callbacks.markDirectorTaskRunning(
     taskId,

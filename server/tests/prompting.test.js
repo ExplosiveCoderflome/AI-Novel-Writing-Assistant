@@ -64,6 +64,11 @@ test("prompt registry exposes versioned planning assets", () => {
     "novel.director.candidates@v1",
     "novel.director.candidate_patch@v1",
     "novel.director.blueprint@v1",
+    "novel.character.castOptions@v2",
+    "novel.character.castOptions.repair@v1",
+    "novel.character.castOptions.zhNormalize@v1",
+    "novel.character.supplemental@v1",
+    "novel.character.supplemental.zhNormalize@v1",
     "novel.story_macro.decomposition@v1",
     "title.generation@v1",
     "audit.chapter.full@v1",
@@ -107,6 +112,49 @@ test("prompt registry exposes versioned planning assets", () => {
   const chapterAsset = getRegisteredPromptAsset("planner.chapter.plan", "v1");
   assert.ok(chapterAsset);
   assert.equal(chapterAsset.taskType, "planner");
+});
+
+test("character cast prompt hardens real-name constraints and required gender output", () => {
+  const asset = getRegisteredPromptAsset("novel.character.castOptions", "v2");
+  assert.ok(asset);
+
+  const messages = asset.render({
+    optionCount: 3,
+  }, {
+    blocks: [
+      createContextBlock({
+        id: "idea",
+        group: "idea_seed",
+        priority: 100,
+        required: true,
+        content: "打工人刘雪婷穿越到秦朝成为太监，最后发现自己竟然就是赵高。",
+      }),
+      createContextBlock({
+        id: "anchor",
+        group: "protagonist_anchor",
+        priority: 99,
+        required: true,
+        content: "主角当前身份：秦朝内廷太监。隐藏身份：赵高。",
+      }),
+      createContextBlock({
+        id: "policy",
+        group: "output_policy",
+        priority: 100,
+        required: true,
+        content: "name 不能写成功能位，每个角色都必须输出 gender。",
+      }),
+    ],
+    selectedBlockIds: ["idea", "anchor", "policy"],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+
+  assert.equal(messages.length, 2);
+  assert.match(String(messages[0].content), /绝对禁止把功能词写进 name/);
+  assert.match(String(messages[0].content), /每个角色都必须输出 gender/);
+  assert.match(String(messages[0].content), /历史、穿越、宫廷、官场/);
+  assert.match(String(messages[1].content), /storyFunction 负责写功能，name 不能写成功能位/);
 });
 
 test("novel main-chain prompt assets declare explicit non-zero context budgets", () => {

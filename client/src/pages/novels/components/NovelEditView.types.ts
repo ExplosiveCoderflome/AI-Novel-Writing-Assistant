@@ -414,6 +414,7 @@ export interface CharacterTabViewProps {
   characterForm: {
     name: string;
     role: string;
+    gender: "male" | "female" | "other" | "unknown";
     personality: string;
     background: string;
     development: string;
@@ -421,7 +422,7 @@ export interface CharacterTabViewProps {
     currentGoal: string;
   };
   onCharacterFormChange: (
-    field: "name" | "role" | "personality" | "background" | "development" | "currentState" | "currentGoal",
+    field: "name" | "role" | "gender" | "personality" | "background" | "development" | "currentState" | "currentGoal",
     value: string,
   ) => void;
   onSaveCharacter: () => void;

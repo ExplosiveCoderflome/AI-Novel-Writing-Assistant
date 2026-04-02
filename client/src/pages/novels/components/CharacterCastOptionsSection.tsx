@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Character, CharacterCastOption, CharacterCastRole } from "@ai-novel/shared/types/novel";
+import type { Character, CharacterCastOption, CharacterCastRole, CharacterGender } from "@ai-novel/shared/types/novel";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,11 +35,25 @@ const CAST_ROLE_LABELS: Record<CharacterCastRole, string> = {
   catalyst: "催化者",
 };
 
+const CHARACTER_GENDER_LABELS: Record<CharacterGender, string> = {
+  male: "男",
+  female: "女",
+  other: "其他",
+  unknown: "未知",
+};
+
 function getCastRoleLabel(castRole?: CharacterCastRole | null): string {
   if (!castRole) {
     return "未分类";
   }
   return CAST_ROLE_LABELS[castRole] ?? castRole;
+}
+
+function getCharacterGenderLabel(gender?: CharacterGender | null): string {
+  if (!gender) {
+    return "未知";
+  }
+  return CHARACTER_GENDER_LABELS[gender] ?? gender;
 }
 
 export default function CharacterCastOptionsSection(props: CharacterCastOptionsSectionProps) {
@@ -344,6 +358,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="font-medium">{member.name}</span>
                                 <Badge variant="outline">{getCastRoleLabel(member.castRole)}</Badge>
+                                <Badge variant="secondary">{getCharacterGenderLabel(member.gender)}</Badge>
                               </div>
                               <div className="mt-1 text-xs text-muted-foreground">{member.role}</div>
                               <div className="mt-2 text-xs text-muted-foreground">作用：{member.storyFunction}</div>

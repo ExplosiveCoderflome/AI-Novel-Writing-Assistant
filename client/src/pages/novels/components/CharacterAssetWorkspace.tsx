@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { Character, CharacterCastRole, CharacterTimeline } from "@ai-novel/shared/types/novel";
+import type { Character, CharacterCastRole, CharacterGender, CharacterTimeline } from "@ai-novel/shared/types/novel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { getLastAppearanceChapter } from "./characterPanel.utils";
 interface CharacterFormState {
   name: string;
   role: string;
+  gender: CharacterGender;
   personality: string;
   background: string;
   development: string;
@@ -48,11 +49,25 @@ const CAST_ROLE_LABELS: Record<CharacterCastRole, string> = {
   catalyst: "催化者",
 };
 
+const CHARACTER_GENDER_LABELS: Record<CharacterGender, string> = {
+  male: "男",
+  female: "女",
+  other: "其他",
+  unknown: "未知",
+};
+
 function getCastRoleLabel(castRole?: CharacterCastRole | null): string {
   if (!castRole) {
     return "未定义";
   }
   return CAST_ROLE_LABELS[castRole] ?? castRole;
+}
+
+function getCharacterGenderLabel(gender?: CharacterGender | null): string {
+  if (!gender) {
+    return "未知";
+  }
+  return CHARACTER_GENDER_LABELS[gender] ?? gender;
 }
 
 function getSecretStatus(selectedCharacter?: Character): string {
@@ -181,6 +196,7 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <div className="font-medium">{selectedCharacter.name}</div>
                   <Badge variant="outline">{getCastRoleLabel(selectedCharacter.castRole)}</Badge>
+                  <Badge variant="secondary">{getCharacterGenderLabel(selectedCharacter.gender)}</Badge>
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">身份：{selectedCharacter.role || "未定义"}</div>
                 <div className="text-xs text-muted-foreground">
@@ -230,6 +246,18 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
                     value={characterForm.role}
                     onChange={(event) => onCharacterFormChange("role", event.target.value)}
                   />
+                </div>
+                <div className="grid gap-2 md:grid-cols-2">
+                  <select
+                    className="w-full rounded-md border bg-background p-2 text-sm"
+                    value={characterForm.gender}
+                    onChange={(event) => onCharacterFormChange("gender", event.target.value)}
+                  >
+                    <option value="unknown">性别：未知</option>
+                    <option value="male">性别：男</option>
+                    <option value="female">性别：女</option>
+                    <option value="other">性别：其他</option>
+                  </select>
                 </div>
                 <div className="grid gap-2 md:grid-cols-2">
                   <Input

@@ -89,6 +89,7 @@ export async function createNovelCharacter(
   payload: {
     name: string;
     role: string;
+    gender?: "male" | "female" | "other" | "unknown";
     castRole?: string;
     storyFunction?: string;
     relationToProtagonist?: string;
@@ -122,6 +123,7 @@ export async function updateNovelCharacter(
   payload: Partial<{
     name: string;
     role: string;
+    gender: "male" | "female" | "other" | "unknown";
     castRole: string;
     storyFunction: string;
     relationToProtagonist: string;

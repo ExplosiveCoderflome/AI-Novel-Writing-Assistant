@@ -1,12 +1,13 @@
 import { z } from "zod";
 import type {
   CharacterCastRole,
+  CharacterGender,
   SupplementalCharacterGenerationMode,
 } from "@ai-novel/shared/types/novel";
 
 const nonEmptyString = z.string().trim().min(1);
 
-const CHARACTER_CAST_ROLE_VALUES = [
+export const CHARACTER_CAST_ROLE_VALUES = [
   "protagonist",
   "antagonist",
   "ally",
@@ -16,6 +17,14 @@ const CHARACTER_CAST_ROLE_VALUES = [
   "pressure_source",
   "catalyst",
 ] as const satisfies CharacterCastRole[];
+
+export const CHARACTER_GENDER_VALUES = [
+  "male",
+  "female",
+  "other",
+  "unknown",
+] as const satisfies CharacterGender[];
+
 const SUPPLEMENTAL_CHARACTER_GENERATION_MODE_VALUES = [
   "linked",
   "independent",
@@ -23,6 +32,7 @@ const SUPPLEMENTAL_CHARACTER_GENERATION_MODE_VALUES = [
 ] as const satisfies SupplementalCharacterGenerationMode[];
 
 const characterCastRoleEnum = z.enum(CHARACTER_CAST_ROLE_VALUES);
+const characterGenderEnum = z.enum(CHARACTER_GENDER_VALUES);
 const supplementalCharacterGenerationModeEnum = z.enum(SUPPLEMENTAL_CHARACTER_GENERATION_MODE_VALUES);
 
 function normalizeCharacterCastRole(raw: string): CharacterCastRole {
@@ -71,11 +81,46 @@ function normalizeCharacterCastRole(raw: string): CharacterCastRole {
   }
 }
 
+function normalizeCharacterGender(raw: string): CharacterGender {
+  const value = raw.trim().toLowerCase();
+  switch (value) {
+    case "male":
+    case "man":
+    case "boy":
+    case "m":
+    case "男":
+    case "男性":
+    case "公":
+      return "male";
+    case "female":
+    case "woman":
+    case "girl":
+    case "f":
+    case "女":
+    case "女性":
+    case "母":
+      return "female";
+    case "other":
+    case "non_binary":
+    case "nonbinary":
+    case "nb":
+    case "中性":
+    case "双性":
+    case "跨性别":
+    case "其他":
+      return "other";
+    default:
+      return "unknown";
+  }
+}
+
 export const characterCastRoleSchema = z.string().trim().transform(normalizeCharacterCastRole).pipe(characterCastRoleEnum);
+export const characterGenderSchema = z.string().trim().transform(normalizeCharacterGender).pipe(characterGenderEnum);
 
 export const characterCastOptionMemberSchema = z.object({
   name: nonEmptyString,
   role: nonEmptyString,
+  gender: characterGenderSchema,
   castRole: characterCastRoleSchema,
   relationToProtagonist: z.string().trim().optional().default(""),
   storyFunction: nonEmptyString,
@@ -127,6 +172,7 @@ export const supplementalCharacterRelationSchema = z.object({
 export const supplementalCharacterCandidateSchema = z.object({
   name: nonEmptyString,
   role: nonEmptyString,
+  gender: characterGenderSchema,
   castRole: characterCastRoleSchema,
   summary: nonEmptyString,
   storyFunction: nonEmptyString,

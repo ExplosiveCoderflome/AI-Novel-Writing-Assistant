@@ -174,8 +174,16 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/novel/characterDynamics.prompts").volumeDynamicsProjectionPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.character.castOptions@v1",
+    key: "novel.character.castOptions@v2",
     load: () => require("./prompts/novel/characterPreparation.prompts").characterCastOptionPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.character.castOptions.repair@v1",
+    load: () => require("./prompts/novel/characterPreparation.prompts").characterCastOptionRepairPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.character.castOptions.zhNormalize@v1",
+    load: () => require("./prompts/novel/characterPreparation.prompts").characterCastOptionNormalizePrompt as UnknownPromptAsset,
   },
   {
     key: "novel.character.supplemental@v1",

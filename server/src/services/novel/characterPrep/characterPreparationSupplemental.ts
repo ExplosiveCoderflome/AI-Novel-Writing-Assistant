@@ -1,5 +1,6 @@
 import type {
   Character,
+  CharacterGender,
   CharacterCastRole,
   SupplementalCharacterApplyResult,
   SupplementalCharacterCandidate,
@@ -8,6 +9,7 @@ import type {
 } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../../db/prisma";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
+import { buildSupplementalCharacterContextBlocks } from "../../../prompting/prompts/novel/characterPreparation.contextBlocks";
 import {
   supplementalCharacterNormalizePrompt,
   supplementalCharacterPrompt,
@@ -17,7 +19,7 @@ import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
 import {
   supplementalCharacterCandidateSchema,
   type SupplementalCharacterGenerationResponseParsed,
-} from "./characterPreparationSchemas";
+} from "../../../prompting/prompts/novel/characterPreparation.promptSchemas";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 
 type CharacterRowForOutput = Awaited<ReturnType<typeof prisma.character.create>>;
@@ -60,6 +62,7 @@ function serializeCharacter(row: CharacterRowForOutput): Character {
     id: row.id,
     name: row.name,
     role: row.role,
+    gender: row.gender as CharacterGender | null,
     castRole: row.castRole as CharacterCastRole | null,
     storyFunction: row.storyFunction,
     relationToProtagonist: row.relationToProtagonist,
@@ -228,6 +231,7 @@ export class CharacterPreparationSupplementalService {
             id: true,
             name: true,
             role: true,
+            gender: true,
             castRole: true,
             storyFunction: true,
             relationToProtagonist: true,
@@ -267,36 +271,34 @@ export class CharacterPreparationSupplementalService {
     const targetCountText = typeof options.count === "number"
       ? `本次必须生成 ${options.count} 个候选角色。`
       : "如果用户没有指定数量，请根据当前角色网络的缺口，自行判断更适合生成 1 个、2 个还是 3 个候选，并把建议数量写入 recommendedCount。";
-
-    const promptSections = [
-      storyModeBlock ? `Story modes:\n${storyModeBlock}` : "Story modes: none",
-      "输出要求：所有展示给用户的内容都必须使用自然、流畅的简体中文。",
-      `项目标题：${novel.title}`,
-      `补位模式：${mode}（${SUPPLEMENTAL_MODE_PROMPT_LABELS[mode]}）`,
-      `期望角色功能：${options.targetCastRole ?? "auto"}（${getCastRolePromptLabel(options.targetCastRole ?? "auto")}）`,
-      `用户额外说明：${toPromptFallback(options.userPrompt, "无")}`,
-      targetCountText,
-      `故事输入：${toPromptFallback(
+    const contextBlocks = buildSupplementalCharacterContextBlocks({
+      projectTitle: novel.title,
+      modeLabel: `${mode}（${SUPPLEMENTAL_MODE_PROMPT_LABELS[mode]}）`,
+      targetRoleLabel: `${options.targetCastRole ?? "auto"}（${getCastRolePromptLabel(options.targetCastRole ?? "auto")}）`,
+      requestedCountText: targetCountText,
+      userPrompt: toPromptFallback(options.userPrompt, "无"),
+      storyInput: toPromptFallback(
         novel.storyMacroPlan?.storyInput?.trim() || novel.description?.trim(),
         "暂无明确故事输入，请结合题材、世界观和已有角色自行推断补位方向。",
-      )}`,
-      `题材：${toPromptFallback(novel.genre?.name, "未指定")}`,
-      `风格基调：${toPromptFallback(novel.styleTone, "未指定")}`,
-      `叙事视角：${toPromptFallback(novel.narrativePov, "未指定")}`,
-      `节奏偏好：${toPromptFallback(novel.pacePreference, "未指定")}`,
-      `情绪强度：${toPromptFallback(novel.emotionIntensity, "未指定")}`,
-      `核心承诺：${toPromptFallback(novel.bible?.mainPromise, "暂无")}`,
-      `核心设定：${toPromptFallback(novel.bible?.coreSetting, "暂无")}`,
-      `角色弧线提示：${toPromptFallback(novel.bible?.characterArcs, "暂无")}`,
-      `世界规则：${toPromptFallback(novel.bible?.worldRules, "暂无")}`,
-      `世界舞台：${novel.world
+      ),
+      genreName: novel.genre?.name ?? "未指定",
+      storyModeBlock,
+      styleTone: novel.styleTone ?? "未指定",
+      narrativePov: novel.narrativePov ?? "未指定",
+      pacePreference: novel.pacePreference ?? "未指定",
+      emotionIntensity: novel.emotionIntensity ?? "未指定",
+      corePromise: novel.bible?.mainPromise ?? "暂无",
+      coreSetting: novel.bible?.coreSetting ?? "暂无",
+      characterArcs: novel.bible?.characterArcs ?? "暂无",
+      worldRules: novel.bible?.worldRules ?? "暂无",
+      worldStage: novel.world
         ? [novel.world.name, novel.world.description, novel.world.overviewSummary, novel.world.conflicts, novel.world.magicSystem]
           .filter((item) => typeof item === "string" && item.trim().length > 0)
           .join("\n")
-        : "当前还没有绑定世界观。"}`,
-      `宏观拆解：${toPromptFallback(novel.storyMacroPlan?.decompositionJson, "暂无")}`,
-      `约束引擎：${toPromptFallback(novel.storyMacroPlan?.constraintEngineJson, "暂无")}`,
-      `已有角色：\n${novel.characters.length > 0
+        : "当前还没有绑定世界观。",
+      storyDecomposition: novel.storyMacroPlan?.decompositionJson ?? "暂无",
+      constraintEngine: novel.storyMacroPlan?.constraintEngineJson ?? "暂无",
+      existingCharactersText: novel.characters.length > 0
         ? novel.characters
           .map((character) => [
             `${character.name} (${character.role})`,
@@ -308,8 +310,8 @@ export class CharacterPreparationSupplementalService {
             character.currentGoal ? `当前目标=${character.currentGoal}` : "",
           ].filter(Boolean).join(" | "))
           .join("\n")
-        : "当前还没有已创建角色。"}`,
-      `锚点角色：\n${anchorCharacters.length > 0
+        : "当前还没有已创建角色。",
+      anchorCharactersText: anchorCharacters.length > 0
         ? anchorCharacters
           .map((character) => [
             `${character.name} (${character.role})`,
@@ -319,8 +321,8 @@ export class CharacterPreparationSupplementalService {
             character.currentGoal ? `当前目标=${character.currentGoal}` : "",
           ].filter(Boolean).join(" | "))
           .join("\n")
-        : "当前没有明确选中的锚点角色。"}`,
-      `已知结构化关系：\n${relevantRelations.length > 0
+        : "当前没有明确选中的锚点角色。",
+      relationsText: relevantRelations.length > 0
         ? relevantRelations
           .map((relation) => [
             `${relation.sourceCharacter.name} -> ${relation.targetCharacter.name}`,
@@ -331,15 +333,14 @@ export class CharacterPreparationSupplementalService {
             relation.nextTurnPoint ? `下一步转折=${relation.nextTurnPoint}` : "",
           ].filter(Boolean).join(" | "))
           .join("\n")
-        : "暂无。"}`,
-      `禁止复用的角色名：\n${novel.characters.map((character) => character.name).join("、") || "无"}`,
-    ];
+        : "暂无。",
+      forbiddenNames: novel.characters.map((character) => character.name),
+    });
 
     const result = await runStructuredPrompt({
       asset: supplementalCharacterPrompt,
-      promptInput: {
-        promptSections,
-      },
+      promptInput: {},
+      contextBlocks,
       options: {
         provider: options.provider,
         model: options.model,
@@ -366,6 +367,7 @@ export class CharacterPreparationSupplementalService {
       candidates: normalizedCandidates.map((candidate) => ({
         name: candidate.name,
         role: candidate.role,
+        gender: candidate.gender,
         castRole: candidate.castRole,
         summary: candidate.summary,
         storyFunction: candidate.storyFunction,
@@ -415,6 +417,7 @@ export class CharacterPreparationSupplementalService {
     const created = await this.novelContextService.createCharacter(novelId, {
       name: parsedCandidate.name,
       role: parsedCandidate.role,
+      gender: parsedCandidate.gender,
       castRole: parsedCandidate.castRole,
       storyFunction: parsedCandidate.storyFunction,
       relationToProtagonist: toOptionalText(parsedCandidate.relationToProtagonist) ?? undefined,

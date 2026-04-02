@@ -338,7 +338,7 @@ export class NovelDirectorService {
     if (input.checkpointType === "character_setup_required") {
       const characters = await this.novelContextService.listCharacters(input.novelId);
       if (characters.length === 0) {
-        throw new Error("请先至少补齐 1 位角色，再继续自动导演。");
+        return "character_setup";
       }
       return "volume_strategy";
     }
