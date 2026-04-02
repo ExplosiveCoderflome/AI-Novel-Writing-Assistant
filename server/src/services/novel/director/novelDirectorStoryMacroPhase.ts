@@ -13,6 +13,7 @@ import {
   normalizeBookContract,
   toBookSpec,
 } from "./novelDirectorHelpers";
+import { runDirectorTrackedStep } from "./directorProgressTracker";
 import {
   DIRECTOR_PROGRESS,
   type DirectorProgressItemKey,
@@ -97,31 +98,41 @@ export async function runDirectorStoryMacroPhase(input: {
   const { taskId, novelId, request, dependencies, callbacks } = input;
   const bookSpec = toBookSpec(request.candidate, request.idea, request.estimatedChapterCount);
   const storyInput = buildStoryInput(request, bookSpec);
-  await callbacks.markDirectorTaskRunning(
+  const storyMacroPlan = await runDirectorTrackedStep({
     taskId,
-    "story_macro",
-    "story_macro",
-    "正在生成故事宏观规划",
-    DIRECTOR_PROGRESS.storyMacro,
-  );
-  const storyMacroPlan = await dependencies.storyMacroService.decompose(novelId, storyInput, request);
-  await callbacks.markDirectorTaskRunning(
+    stage: "story_macro",
+    itemKey: "story_macro",
+    itemLabel: "正在生成故事宏观规划",
+    progress: DIRECTOR_PROGRESS.storyMacro,
+    callbacks,
+    run: async () => dependencies.storyMacroService.decompose(novelId, storyInput, request),
+  });
+  const hydratedStoryMacroPlan = await runDirectorTrackedStep({
     taskId,
-    "story_macro",
-    "constraint_engine",
-    "正在构建约束引擎",
-    DIRECTOR_PROGRESS.constraintEngine,
-  );
-  const hydratedStoryMacroPlan = await ensureDirectorConstraintEngine(
-    dependencies.storyMacroService,
-    novelId,
-    storyMacroPlan,
-  );
-  const bookContractDraft = await generateDirectorBookContract({
-    request,
-    novelId,
-    storyMacroService: dependencies.storyMacroService,
-    storyMacroPlan: hydratedStoryMacroPlan,
+    stage: "story_macro",
+    itemKey: "constraint_engine",
+    itemLabel: "正在构建约束引擎",
+    progress: DIRECTOR_PROGRESS.constraintEngine,
+    callbacks,
+    run: async () => ensureDirectorConstraintEngine(
+      dependencies.storyMacroService,
+      novelId,
+      storyMacroPlan,
+    ),
+  });
+  const bookContractDraft = await runDirectorTrackedStep({
+    taskId,
+    stage: "story_macro",
+    itemKey: "book_contract",
+    itemLabel: "正在生成 Book Contract",
+    progress: DIRECTOR_PROGRESS.bookContract,
+    callbacks,
+    run: async () => generateDirectorBookContract({
+      request,
+      novelId,
+      storyMacroService: dependencies.storyMacroService,
+      storyMacroPlan: hydratedStoryMacroPlan,
+    }),
   });
   await dependencies.bookContractService.upsert(novelId, bookContractDraft);
 }

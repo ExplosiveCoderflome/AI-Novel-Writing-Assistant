@@ -4,6 +4,7 @@ import { CharacterPreparationService } from "../characterPrep/CharacterPreparati
 import { buildCharacterCastBlockedMessage } from "../characterPrep/characterCastQuality";
 import { NovelContextService } from "../NovelContextService";
 import { NovelVolumeService } from "../volume/NovelVolumeService";
+import type { VolumeGenerationPhaseEvent } from "../volume/volumeModels";
 import { NovelWorkflowService } from "../workflow/NovelWorkflowService";
 import { buildNovelEditResumeTarget } from "../workflow/novelWorkflow.shared";
 import {
@@ -19,6 +20,7 @@ import {
   DIRECTOR_PROGRESS,
   type DirectorProgressItemKey,
 } from "./novelDirectorProgress";
+import { runDirectorTrackedStep } from "./directorProgressTracker";
 
 type DirectorMutatingStage =
   | "auto_director"
@@ -49,6 +51,57 @@ interface DirectorPhaseCallbacks {
   ) => Promise<void>;
 }
 
+function buildStructuredOutlinePhaseUpdate(event: VolumeGenerationPhaseEvent): {
+  itemKey: DirectorProgressItemKey;
+  itemLabel: string;
+  progress: number;
+} | null {
+  if (event.scope === "beat_sheet") {
+    return {
+      itemKey: "beat_sheet",
+      itemLabel: event.phase === "load_context" ? "正在整理第 1 卷节奏板上下文" : "正在生成第 1 卷节奏板",
+      progress: DIRECTOR_PROGRESS.beatSheet,
+    };
+  }
+  if (event.scope === "chapter_list") {
+    return {
+      itemKey: "chapter_list",
+      itemLabel: event.phase === "load_context" ? "正在整理第 1 卷拆章上下文" : "正在生成第 1 卷章节列表",
+      progress: DIRECTOR_PROGRESS.chapterList,
+    };
+  }
+  if (event.scope === "rebalance") {
+    return {
+      itemKey: "chapter_list",
+      itemLabel: "正在校准第 1 卷与相邻卷衔接",
+      progress: 0.8,
+    };
+  }
+  return null;
+}
+
+function buildVolumeStrategyPhaseUpdate(event: VolumeGenerationPhaseEvent): {
+  itemKey: DirectorProgressItemKey;
+  itemLabel: string;
+  progress: number;
+} | null {
+  if (event.scope === "strategy") {
+    return {
+      itemKey: "volume_strategy",
+      itemLabel: event.phase === "load_context" ? "正在整理卷战略上下文" : "正在生成卷战略",
+      progress: DIRECTOR_PROGRESS.volumeStrategy,
+    };
+  }
+  if (event.scope === "skeleton") {
+    return {
+      itemKey: "volume_skeleton",
+      itemLabel: event.phase === "load_context" ? "正在整理卷骨架上下文" : "正在生成卷骨架",
+      progress: DIRECTOR_PROGRESS.volumeSkeleton,
+    };
+  }
+  return null;
+}
+
 export async function runDirectorCharacterSetupPhase(input: {
   taskId: string;
   novelId: string;
@@ -77,18 +130,19 @@ export async function runDirectorCharacterSetupPhase(input: {
       resumeTarget,
     }),
   });
-  await callbacks.markDirectorTaskRunning(
+  const castOptions = await runDirectorTrackedStep({
     taskId,
-    "character_setup",
-    "character_setup",
-    "正在生成角色阵容",
-    DIRECTOR_PROGRESS.characterSetup,
-  );
-  const castOptions = await dependencies.characterPreparationService.generateCharacterCastOptions(novelId, {
-    provider: request.provider,
-    model: request.model,
-    temperature: request.temperature,
-    storyInput: buildStoryInput(request, toBookSpec(request.candidate, request.idea, request.estimatedChapterCount)),
+    stage: "character_setup",
+    itemKey: "character_setup",
+    itemLabel: "正在生成角色阵容",
+    progress: DIRECTOR_PROGRESS.characterSetup,
+    callbacks,
+    run: async () => dependencies.characterPreparationService.generateCharacterCastOptions(novelId, {
+      provider: request.provider,
+      model: request.model,
+      temperature: request.temperature,
+      storyInput: buildStoryInput(request, toBookSpec(request.candidate, request.idea, request.estimatedChapterCount)),
+    }),
   });
   const storyInput = buildStoryInput(request, toBookSpec(request.candidate, request.idea, request.estimatedChapterCount));
   const assessment = dependencies.characterPreparationService.assessCharacterCastOptions(castOptions, storyInput);
@@ -117,14 +171,17 @@ export async function runDirectorCharacterSetupPhase(input: {
     });
     return true;
   }
-  await callbacks.markDirectorTaskRunning(
+  await runDirectorTrackedStep({
     taskId,
-    "character_setup",
-    "character_cast_apply",
-    `正在应用角色阵容「${targetOption.title}」`,
-    DIRECTOR_PROGRESS.characterSetupReady,
-  );
-  await dependencies.characterPreparationService.applyCharacterCastOption(novelId, targetOption.id);
+    stage: "character_setup",
+    itemKey: "character_cast_apply",
+    itemLabel: `正在应用角色阵容「${targetOption.title}」`,
+    progress: DIRECTOR_PROGRESS.characterSetupReady,
+    callbacks,
+    run: async () => {
+      await dependencies.characterPreparationService.applyCharacterCastOption(novelId, targetOption.id);
+    },
+  });
 
   if (normalizeDirectorRunMode(request.runMode) !== "stage_review") {
     return false;
@@ -177,34 +234,50 @@ export async function runDirectorVolumeStrategyPhase(input: {
       resumeTarget,
     }),
   });
-  await callbacks.markDirectorTaskRunning(
+  let workspace = await runDirectorTrackedStep({
     taskId,
-    "volume_strategy",
-    "volume_strategy",
-    "正在生成卷战略",
-    DIRECTOR_PROGRESS.volumeStrategy,
-  );
-  let workspace = await dependencies.volumeService.generateVolumes(novelId, {
-    provider: request.provider,
-    model: request.model,
-    temperature: request.temperature,
-    scope: "strategy",
-    estimatedChapterCount: request.estimatedChapterCount ?? toBookSpec(request.candidate, request.idea, request.estimatedChapterCount).targetChapterCount,
+    stage: "volume_strategy",
+    itemKey: "volume_strategy",
+    itemLabel: "正在生成卷战略",
+    progress: DIRECTOR_PROGRESS.volumeStrategy,
+    callbacks,
+    run: async ({ updateStatus }) => dependencies.volumeService.generateVolumes(novelId, {
+      provider: request.provider,
+      model: request.model,
+      temperature: request.temperature,
+      scope: "strategy",
+      estimatedChapterCount: request.estimatedChapterCount ?? toBookSpec(request.candidate, request.idea, request.estimatedChapterCount).targetChapterCount,
+      onPhaseStart: async (event) => {
+        const update = buildVolumeStrategyPhaseUpdate(event);
+        if (!update) {
+          return;
+        }
+        await updateStatus(update);
+      },
+    }),
   });
-  await callbacks.markDirectorTaskRunning(
+  workspace = await runDirectorTrackedStep({
     taskId,
-    "volume_strategy",
-    "volume_skeleton",
-    "正在生成卷骨架",
-    DIRECTOR_PROGRESS.volumeSkeleton,
-  );
-  workspace = await dependencies.volumeService.generateVolumes(novelId, {
-    provider: request.provider,
-    model: request.model,
-    temperature: request.temperature,
-    scope: "skeleton",
-    estimatedChapterCount: request.estimatedChapterCount ?? toBookSpec(request.candidate, request.idea, request.estimatedChapterCount).targetChapterCount,
-    draftWorkspace: workspace,
+    stage: "volume_strategy",
+    itemKey: "volume_skeleton",
+    itemLabel: "正在生成卷骨架",
+    progress: DIRECTOR_PROGRESS.volumeSkeleton,
+    callbacks,
+    run: async ({ updateStatus }) => dependencies.volumeService.generateVolumes(novelId, {
+      provider: request.provider,
+      model: request.model,
+      temperature: request.temperature,
+      scope: "skeleton",
+      estimatedChapterCount: request.estimatedChapterCount ?? toBookSpec(request.candidate, request.idea, request.estimatedChapterCount).targetChapterCount,
+      draftWorkspace: workspace,
+      onPhaseStart: async (event) => {
+        const update = buildVolumeStrategyPhaseUpdate(event);
+        if (!update) {
+          return;
+        }
+        await updateStatus(update);
+      },
+    }),
   });
   const persistedStrategyWorkspace = await dependencies.volumeService.updateVolumes(novelId, workspace);
 
@@ -267,35 +340,51 @@ export async function runDirectorStructuredOutlinePhase(input: {
     }),
   });
 
-  await callbacks.markDirectorTaskRunning(
+  let workspace = await runDirectorTrackedStep({
     taskId,
-    "structured_outline",
-    "beat_sheet",
-    "正在生成第 1 卷节奏板",
-    DIRECTOR_PROGRESS.beatSheet,
-  );
-  let workspace = await dependencies.volumeService.generateVolumes(novelId, {
-    provider: request.provider,
-    model: request.model,
-    temperature: request.temperature,
-    scope: "beat_sheet",
-    targetVolumeId: targetVolume.id,
-    draftWorkspace: baseWorkspace,
+    stage: "structured_outline",
+    itemKey: "beat_sheet",
+    itemLabel: "正在生成第 1 卷节奏板",
+    progress: DIRECTOR_PROGRESS.beatSheet,
+    callbacks,
+    run: async ({ updateStatus }) => dependencies.volumeService.generateVolumes(novelId, {
+      provider: request.provider,
+      model: request.model,
+      temperature: request.temperature,
+      scope: "beat_sheet",
+      targetVolumeId: targetVolume.id,
+      draftWorkspace: baseWorkspace,
+      onPhaseStart: async (event) => {
+        const update = buildStructuredOutlinePhaseUpdate(event);
+        if (!update) {
+          return;
+        }
+        await updateStatus(update);
+      },
+    }),
   });
-  await callbacks.markDirectorTaskRunning(
+  workspace = await runDirectorTrackedStep({
     taskId,
-    "structured_outline",
-    "chapter_list",
-    "正在生成第 1 卷章节列表",
-    DIRECTOR_PROGRESS.chapterList,
-  );
-  workspace = await dependencies.volumeService.generateVolumes(novelId, {
-    provider: request.provider,
-    model: request.model,
-    temperature: request.temperature,
-    scope: "chapter_list",
-    targetVolumeId: targetVolume.id,
-    draftWorkspace: workspace,
+    stage: "structured_outline",
+    itemKey: "chapter_list",
+    itemLabel: "正在生成第 1 卷章节列表",
+    progress: DIRECTOR_PROGRESS.chapterList,
+    callbacks,
+    run: async ({ updateStatus }) => dependencies.volumeService.generateVolumes(novelId, {
+      provider: request.provider,
+      model: request.model,
+      temperature: request.temperature,
+      scope: "chapter_list",
+      targetVolumeId: targetVolume.id,
+      draftWorkspace: workspace,
+      onPhaseStart: async (event) => {
+        const update = buildStructuredOutlinePhaseUpdate(event);
+        if (!update) {
+          return;
+        }
+        await updateStatus(update);
+      },
+    }),
   });
   await callbacks.markDirectorTaskRunning(
     taskId,

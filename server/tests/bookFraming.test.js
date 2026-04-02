@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { buildBookFramingSummary } = require("../dist/services/novel/bookFraming.js");
 const { formatProjectContext } = require("../dist/services/novel/storyMacro/storyMacroPlanService.shared.js");
-const { buildStoryWorldSlicePrompt } = require("../dist/services/novel/storyWorldSlice/storyWorldSlicePrompt.js");
+const { storyWorldSlicePrompt } = require("../dist/prompting/prompts/storyWorldSlice/storyWorldSlice.prompts.js");
 const { buildWorldBindingSupport } = require("../dist/services/world/worldStructure.js");
 
 function buildStructuredWorld() {
@@ -110,7 +110,7 @@ test("book framing summary flows into story macro context and world slice prompt
   assert.match(projectContext, /世界切片：现实都市基底/);
 
   const structure = buildStructuredWorld();
-  const prompt = buildStoryWorldSlicePrompt({
+  const rendered = storyWorldSlicePrompt.render({
     novel,
     structure,
     bindingSupport: buildWorldBindingSupport(structure),
@@ -124,6 +124,10 @@ test("book framing summary flows into story macro context and world slice prompt
     },
     builderMode: "manual_refresh",
   });
+  const prompt = {
+    system: typeof rendered[0]?.content === "string" ? rendered[0].content : String(rendered[0]?.content ?? ""),
+    user: typeof rendered[1]?.content === "string" ? rendered[1].content : String(rendered[1]?.content ?? ""),
+  };
 
   assert.match(prompt.user, /书级 framing/);
   assert.match(prompt.user, /目标读者：爱看都市高压逆袭和关系拉扯的读者/);
