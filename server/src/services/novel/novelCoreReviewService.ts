@@ -1,4 +1,5 @@
 import type { AuditReport, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
+import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { BaseMessageChunk } from "@langchain/core/messages";
 import { prisma } from "../../db/prisma";
 import { runStructuredPrompt, streamTextPrompt } from "../../prompting/core/promptRunner";
@@ -21,8 +22,8 @@ import {
 } from "./novelCoreShared";
 import { GenerationContextAssembler } from "./runtime/GenerationContextAssembler";
 import {
-  buildChapterRepairContext,
   buildChapterRepairContextBlocks,
+  withChapterRepairContext,
 } from "../../prompting/prompts/novel/chapterLayeredContext";
 
 export async function createQualityReport(
@@ -47,6 +48,8 @@ export async function createQualityReport(
 }
 
 export class NovelCoreReviewService {
+  private readonly generationContextAssembler = new GenerationContextAssembler();
+
   async reviewChapter(novelId: string, chapterId: string, options: ReviewOptions = {}) {
     const chapter = await prisma.chapter.findFirst({
       where: { id: chapterId, novelId },
@@ -121,20 +124,13 @@ export class NovelCoreReviewService {
       ragContext = "";
     }
 
-    let repairContextBlocks;
-    try {
-      const assembled = await new GenerationContextAssembler().assemble(novelId, chapterId, {});
-      if (assembled.contextPackage.chapterWriteContext) {
-        const chapterRepairContext = buildChapterRepairContext({
-          writeContext: assembled.contextPackage.chapterWriteContext,
-          contextPackage: assembled.contextPackage,
-          issues,
-        });
-        repairContextBlocks = buildChapterRepairContextBlocks(chapterRepairContext);
-      }
-    } catch {
-      repairContextBlocks = undefined;
-    }
+    const assembledContextPackage = await this.assembleAuditContextPackage(novelId, chapterId, options);
+    const repairContextPackage = assembledContextPackage
+      ? withChapterRepairContext(assembledContextPackage, issues)
+      : null;
+    const repairContextBlocks = repairContextPackage?.chapterRepairContext
+      ? buildChapterRepairContextBlocks(repairContextPackage.chapterRepairContext)
+      : undefined;
 
     const streamed = await streamTextPrompt({
       asset: chapterRepairPrompt,
@@ -227,7 +223,11 @@ export class NovelCoreReviewService {
     scope: "full" | "continuity" | "character" | "plot" | "mode_fit",
     options: ReviewOptions = {},
   ) {
-    return auditService.auditChapter(novelId, chapterId, scope, options);
+    const contextPackage = await this.assembleAuditContextPackage(novelId, chapterId, options);
+    return auditService.auditChapter(novelId, chapterId, scope, {
+      ...options,
+      contextPackage,
+    });
   }
 
   async listChapterAuditReports(novelId: string, chapterId: string) {
@@ -352,14 +352,33 @@ export class NovelCoreReviewService {
     }
 
     if (novelId && chapterId) {
+      const contextPackage = await this.assembleAuditContextPackage(novelId, chapterId, options);
       return auditService.auditChapter(novelId, chapterId, "full", {
         provider: options.provider,
         model: options.model,
         temperature: options.temperature,
         content,
+        contextPackage,
       });
     }
 
     return this.reviewChapterContent(novelTitle, chapterTitle, content, options, novelId);
+  }
+
+  private async assembleAuditContextPackage(
+    novelId: string,
+    chapterId: string,
+    options: ReviewOptions,
+  ): Promise<GenerationContextPackage | undefined> {
+    try {
+      const assembled = await this.generationContextAssembler.assemble(novelId, chapterId, {
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature,
+      });
+      return assembled.contextPackage;
+    } catch {
+      return undefined;
+    }
   }
 }

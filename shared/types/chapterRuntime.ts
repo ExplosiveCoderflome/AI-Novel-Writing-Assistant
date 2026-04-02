@@ -28,6 +28,7 @@ export const runtimeChapterSchema = z.object({
   order: z.number().int(),
   content: z.string().nullable().optional(),
   expectation: z.string().nullable().optional(),
+  targetWordCount: z.number().int().nullable().optional(),
   supportingContextText: z.string().default(""),
 });
 
@@ -371,11 +372,53 @@ export const chapterMissionContextSchema = z.object({
   title: z.string(),
   objective: z.string(),
   expectation: z.string(),
+  targetWordCount: z.number().int().nullable().optional(),
   planRole: storyPlanRoleSchema.nullable().optional(),
   hookTarget: z.string(),
   mustAdvance: z.array(z.string()).default([]),
   mustPreserve: z.array(z.string()).default([]),
   riskNotes: z.array(z.string()).default([]),
+});
+
+export const chapterCharacterBehaviorGuideSchema = z.object({
+  characterId: z.string(),
+  name: z.string(),
+  role: z.string(),
+  castRole: z.string().nullable().optional(),
+  volumeRoleLabel: z.string().nullable().optional(),
+  volumeResponsibility: z.string().nullable().optional(),
+  currentGoal: z.string().nullable().optional(),
+  currentState: z.string().nullable().optional(),
+  factionLabel: z.string().nullable().optional(),
+  stanceLabel: z.string().nullable().optional(),
+  relationStageLabels: z.array(z.string()).default([]),
+  relationRiskNotes: z.array(z.string()).default([]),
+  plannedChapterOrders: z.array(z.number().int()).default([]),
+  absenceRisk: dynamicCharacterRiskLevelSchema,
+  absenceSpan: z.number().int().nonnegative(),
+  isCoreInVolume: z.boolean(),
+  shouldPreferAppearance: z.boolean(),
+});
+
+export const chapterRelationStageGuideSchema = z.object({
+  relationId: z.string().nullable().optional(),
+  sourceCharacterId: z.string(),
+  sourceCharacterName: z.string(),
+  targetCharacterId: z.string(),
+  targetCharacterName: z.string(),
+  stageLabel: z.string(),
+  stageSummary: z.string(),
+  nextTurnPoint: z.string().nullable().optional(),
+  isCurrent: z.boolean(),
+});
+
+export const chapterCandidateGuardSchema = z.object({
+  id: z.string(),
+  proposedName: z.string(),
+  proposedRole: z.string().nullable().optional(),
+  summary: z.string().nullable().optional(),
+  evidence: z.array(z.string()).default([]),
+  sourceChapterOrder: z.number().int().nullable().optional(),
 });
 
 export const chapterWriteContextSchema = z.object({
@@ -384,6 +427,9 @@ export const chapterWriteContextSchema = z.object({
   volumeWindow: volumeWindowContextSchema.nullable(),
   chapterMission: chapterMissionContextSchema,
   participants: z.array(runtimeCharacterSchema),
+  characterBehaviorGuides: z.array(chapterCharacterBehaviorGuideSchema).default([]),
+  activeRelationStages: z.array(chapterRelationStageGuideSchema).default([]),
+  pendingCandidateGuards: z.array(chapterCandidateGuardSchema).default([]),
   localStateSummary: z.string(),
   openConflictSummaries: z.array(z.string()).default([]),
   recentChapterSummaries: z.array(z.string()).default([]),
@@ -541,6 +587,9 @@ export type BookContractContext = z.infer<typeof bookContractContextSchema>;
 export type MacroConstraintContext = z.infer<typeof macroConstraintContextSchema>;
 export type VolumeWindowContext = z.infer<typeof volumeWindowContextSchema>;
 export type ChapterMissionContext = z.infer<typeof chapterMissionContextSchema>;
+export type ChapterCharacterBehaviorGuide = z.infer<typeof chapterCharacterBehaviorGuideSchema>;
+export type ChapterRelationStageGuide = z.infer<typeof chapterRelationStageGuideSchema>;
+export type ChapterCandidateGuard = z.infer<typeof chapterCandidateGuardSchema>;
 export type ChapterWriteContext = z.infer<typeof chapterWriteContextSchema>;
 export type ChapterReviewContext = z.infer<typeof chapterReviewContextSchema>;
 export type ChapterRepairIssue = z.infer<typeof chapterRepairIssueSchema>;

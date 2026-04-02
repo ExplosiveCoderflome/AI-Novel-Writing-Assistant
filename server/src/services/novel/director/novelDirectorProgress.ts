@@ -1,4 +1,8 @@
 export const DIRECTOR_PROGRESS = {
+  candidateSeedAlignment: 0.03,
+  candidateProjectFraming: 0.06,
+  candidateDirectionBatch: 0.1,
+  candidateTitlePack: 0.14,
   novelCreate: 0.08,
   bookContract: 0.14,
   storyMacro: 0.22,
@@ -19,6 +23,10 @@ export const DIRECTOR_PROGRESS = {
 export const DIRECTOR_CHAPTER_DETAIL_MODES = ["purpose", "boundary", "task_sheet"] as const;
 
 export type DirectorProgressItemKey =
+  | "candidate_seed_alignment"
+  | "candidate_project_framing"
+  | "candidate_direction_batch"
+  | "candidate_title_pack"
   | "novel_create"
   | "book_contract"
   | "story_macro"

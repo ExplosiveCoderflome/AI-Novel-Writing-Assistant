@@ -37,6 +37,7 @@ export default function BasicInfoTab(props: BasicTabProps) {
                 onApplySuggestion={props.onFormChange}
               />
             )}
+            projectQuickStart={props.projectQuickStart}
           />
         </CardContent>
       </Card>

@@ -5,6 +5,7 @@ import type { TaskStatus, UnifiedTaskDetail } from "@ai-novel/shared/types/task"
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
 import {
+  DIRECTOR_CANDIDATE_SETUP_STEPS,
   DIRECTOR_CORRECTION_PRESETS,
   type DirectorCandidate,
   type DirectorCandidateBatch,
@@ -15,6 +16,8 @@ import { bootstrapNovelWorkflow } from "@/api/novelWorkflow";
 import {
   confirmDirectorCandidate,
   generateDirectorCandidates,
+  patchDirectorCandidate,
+  refineDirectorCandidateTitles,
   refineDirectorCandidates,
 } from "@/api/novelDirector";
 import { queryKeys } from "@/api/queryKeys";
@@ -55,6 +58,7 @@ interface NovelAutoDirectorDialogProps {
 type DirectorDialogMode = "candidate_selection" | "execution_progress" | "execution_failed";
 
 const ACTIVE_TASK_STATUSES = new Set<TaskStatus>(["queued", "running", "waiting_approval"]);
+const DIRECTOR_CANDIDATE_SETUP_STEP_KEYS = new Set<string>(DIRECTOR_CANDIDATE_SETUP_STEPS.map((step) => step.key));
 
 const RUN_MODE_OPTIONS: Array<{
   value: DirectorRunMode;
@@ -70,6 +74,11 @@ const RUN_MODE_OPTIONS: Array<{
     value: "auto_to_ready",
     label: "自动推进到可开写",
     description: "AI 会持续推进，直到第 1 卷前 10 章细化完成后再交接。",
+  },
+  {
+    value: "auto_to_execution",
+    label: "继续自动执行前 10 章",
+    description: "AI 会推进到第 1 卷前 10 章细化，并继续自动写作、审校和修复这一批章节。",
   },
 ];
 
@@ -196,6 +205,8 @@ export default function NovelAutoDirectorDialog({
   const [pendingTitleHint, setPendingTitleHint] = useState("");
   const [executionError, setExecutionError] = useState("");
   const [runMode, setRunMode] = useState<DirectorRunMode>("stage_review");
+  const [candidatePatchFeedbacks, setCandidatePatchFeedbacks] = useState<Record<string, string>>({});
+  const [titlePatchFeedbacks, setTitlePatchFeedbacks] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!workflowTaskIdProp || workflowTaskIdProp === workflowTaskId) {
@@ -229,7 +240,11 @@ export default function NovelAutoDirectorDialog({
     if (Array.isArray(seedPayload?.batches) && seedPayload.batches.length > 0) {
       setBatches(seedPayload.batches);
     }
-    if (seedPayload?.runMode === "auto_to_ready" || seedPayload?.runMode === "stage_review") {
+    if (
+      seedPayload?.runMode === "auto_to_ready"
+      || seedPayload?.runMode === "auto_to_execution"
+      || seedPayload?.runMode === "stage_review"
+    ) {
       setRunMode(seedPayload.runMode);
     }
     if (initialOpen) {
@@ -251,7 +266,7 @@ export default function NovelAutoDirectorDialog({
     retry: false,
     refetchInterval: (query) => {
       const task = query.state.data?.data;
-      return open && dialogMode === "execution_progress" && task && ACTIVE_TASK_STATUSES.has(task.status) ? 2000 : false;
+      return open && task && ACTIVE_TASK_STATUSES.has(task.status) ? 2000 : false;
     },
   });
 
@@ -264,9 +279,14 @@ export default function NovelAutoDirectorDialog({
     }
     return restoredTask?.id === workflowTaskId ? restoredTask : null;
   }, [directorTaskQuery.data?.data, restoredTask, workflowTaskId]);
+  const candidateSetupInProgress = Boolean(
+    directorTask
+    && ACTIVE_TASK_STATUSES.has(directorTask.status)
+    && DIRECTOR_CANDIDATE_SETUP_STEP_KEYS.has(directorTask.currentItemKey ?? ""),
+  );
   const hasActiveDirectorTask = Boolean(directorTask && ACTIVE_TASK_STATUSES.has(directorTask.status));
   const triggerLabel = hasActiveDirectorTask ? "查看导演进度" : "AI 自动导演创建";
-  const isBlockingExecutionView = dialogMode === "execution_progress" && hasActiveDirectorTask;
+  const isBlockingExecutionView = dialogMode === "execution_progress" && hasActiveDirectorTask && !candidateSetupInProgress;
 
   useEffect(() => {
     if (!directorTask) {
@@ -312,7 +332,23 @@ export default function NovelAutoDirectorDialog({
     return taskId;
   };
 
+  const applyUpdatedBatch = (batch: DirectorCandidateBatch, nextWorkflowTaskId?: string) => {
+    setBatches((prev) => (
+      prev.some((item) => item.id === batch.id)
+        ? prev.map((item) => (item.id === batch.id ? batch : item))
+        : [...prev, batch]
+    ));
+    if (nextWorkflowTaskId && nextWorkflowTaskId !== workflowTaskId) {
+      setWorkflowTaskId(nextWorkflowTaskId);
+      onWorkflowTaskChange?.(nextWorkflowTaskId);
+    }
+  };
+
   const generateMutation = useMutation({
+    onMutate: () => {
+      setDialogMode("execution_progress");
+      setExecutionError("");
+    },
     mutationFn: async () => {
       const currentWorkflowTaskId = await ensureWorkflowTask();
       const payload = buildRequestPayload(basicForm, idea, llm, runMode, currentWorkflowTaskId);
@@ -345,6 +381,82 @@ export default function NovelAutoDirectorDialog({
       setExecutionRequested(false);
       setExecutionError("");
       toast.success(`${batch.roundLabel} 已生成 ${batch.candidates.length} 套方案。`);
+    },
+    onError: (error) => {
+      setDialogMode("execution_failed");
+      setExecutionError(error instanceof Error ? error.message : "导演候选方案生成失败。");
+    },
+  });
+
+  const patchCandidateMutation = useMutation({
+    onMutate: () => {
+      setDialogMode("execution_progress");
+      setExecutionError("");
+    },
+    mutationFn: async (payload: { batchId: string; candidate: DirectorCandidate; feedback: string }) => {
+      const currentWorkflowTaskId = await ensureWorkflowTask();
+      const response = await patchDirectorCandidate({
+        ...buildRequestPayload(basicForm, idea, llm, runMode, currentWorkflowTaskId),
+        previousBatches: batches,
+        batchId: payload.batchId,
+        candidateId: payload.candidate.id,
+        feedback: payload.feedback.trim(),
+      });
+      return {
+        batch: response.data?.batch ?? null,
+        workflowTaskId: response.data?.workflowTaskId ?? currentWorkflowTaskId,
+        candidateId: payload.candidate.id,
+      };
+    },
+    onSuccess: ({ batch, workflowTaskId: nextWorkflowTaskId, candidateId }) => {
+      if (!batch) {
+        toast.error("定向修正失败，未返回更新后的方案。");
+        return;
+      }
+      applyUpdatedBatch(batch, nextWorkflowTaskId);
+      setCandidatePatchFeedbacks((prev) => ({ ...prev, [candidateId]: "" }));
+      setDialogMode("candidate_selection");
+      toast.success("已按你的意见修正这套方案。");
+    },
+    onError: (error) => {
+      setDialogMode("execution_failed");
+      setExecutionError(error instanceof Error ? error.message : "定向修正方案失败。");
+    },
+  });
+
+  const refineTitleMutation = useMutation({
+    onMutate: () => {
+      setDialogMode("execution_progress");
+      setExecutionError("");
+    },
+    mutationFn: async (payload: { batchId: string; candidate: DirectorCandidate; feedback: string }) => {
+      const currentWorkflowTaskId = await ensureWorkflowTask();
+      const response = await refineDirectorCandidateTitles({
+        ...buildRequestPayload(basicForm, idea, llm, runMode, currentWorkflowTaskId),
+        previousBatches: batches,
+        batchId: payload.batchId,
+        candidateId: payload.candidate.id,
+        feedback: payload.feedback.trim(),
+      });
+      return {
+        batch: response.data?.batch ?? null,
+        workflowTaskId: response.data?.workflowTaskId ?? currentWorkflowTaskId,
+        candidateId: payload.candidate.id,
+      };
+    },
+    onSuccess: ({ batch, workflowTaskId: nextWorkflowTaskId, candidateId }) => {
+      if (!batch) {
+        toast.error("标题组修正失败，未返回更新后的书名组。");
+        return;
+      }
+      applyUpdatedBatch(batch, nextWorkflowTaskId);
+      setTitlePatchFeedbacks((prev) => ({ ...prev, [candidateId]: "" }));
+      setDialogMode("candidate_selection");
+      toast.success("已重做这套方案的标题组。");
+    },
+    onError: (error) => {
+      setDialogMode("execution_failed");
+      setExecutionError(error instanceof Error ? error.message : "标题组修正失败。");
     },
   });
 
@@ -379,7 +491,9 @@ export default function NovelAutoDirectorDialog({
       toast.success(
         data.directorSession?.runMode === "stage_review"
           ? `已创建《${data.novel.title}》，自动导演会在关键阶段停下等你审核。`
-          : `已创建《${data.novel.title}》，自动导演会继续在后台推进到可开写。`,
+          : data.directorSession?.runMode === "auto_to_execution"
+            ? `已创建《${data.novel.title}》，自动导演会继续自动执行前 10 章。`
+            : `已创建《${data.novel.title}》，自动导演会继续在后台推进到可开写。`,
       );
       resetDialogState();
       onConfirmed({
@@ -446,6 +560,8 @@ export default function NovelAutoDirectorDialog({
     setPendingTitleHint("");
     setExecutionError("");
     setRunMode("stage_review");
+    setCandidatePatchFeedbacks({});
+    setTitlePatchFeedbacks({});
   };
 
   const canGenerate = idea.trim().length > 0 && !generateMutation.isPending;
@@ -539,7 +655,7 @@ export default function NovelAutoDirectorDialog({
             </DialogTitle>
             <DialogDescription>
               {dialogMode === "candidate_selection"
-                ? "先让 AI 给你 2 套整本方向，再由你做书级确认；如果都不满意，也可以继续说哪里不对，系统会按你的修正建议生成下一轮。"
+                ? "先让 AI 给你 2 套整本方向，再由你做书级确认；如果都不满意，可以继续生新一轮；如果你已经偏向某一套，也可以只修这套方案，或者只重做这套的标题组。"
                 : dialogMode === "execution_failed"
                   ? "导演长流程已中断，当前会优先展示失败摘要、最近里程碑和恢复入口。"
                   : "当前会实时显示导演主流程进度、当前动作和里程碑历史。"}
@@ -657,6 +773,39 @@ export default function NovelAutoDirectorDialog({
                                   <div className="mt-2 text-xs leading-5 text-muted-foreground">
                                     {titleOptions[0]?.reason?.trim() || "书名由标题工坊增强生成，可在这里切换当前方案名。"}
                                   </div>
+                                  <div className="mt-3 border-t pt-3">
+                                    <div className="text-xs font-medium text-foreground">AI 修正这组书名</div>
+                                    <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                                      适合“这组标题太土 / 太老派 / 不够都市 / 不够悬疑”这种定向修正。
+                                    </div>
+                                    <Input
+                                      className="mt-2"
+                                      value={titlePatchFeedbacks[candidate.id] ?? ""}
+                                      onChange={(event) => setTitlePatchFeedbacks((prev) => ({
+                                        ...prev,
+                                        [candidate.id]: event.target.value,
+                                      }))}
+                                      placeholder="例如：当前这组太土气了，想更偏都市冷感一点，别像旧式升级文。"
+                                    />
+                                    <div className="mt-2 flex justify-end">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={
+                                          refineTitleMutation.isPending
+                                          || !titlePatchFeedbacks[candidate.id]?.trim()
+                                        }
+                                        onClick={() => refineTitleMutation.mutate({
+                                          batchId: batch.id,
+                                          candidate,
+                                          feedback: titlePatchFeedbacks[candidate.id] ?? "",
+                                        })}
+                                      >
+                                        {refineTitleMutation.isPending ? "重做中..." : "AI 重做标题组"}
+                                      </Button>
+                                    </div>
+                                  </div>
                                 </div>
                                 <div className="rounded-md bg-muted/30 p-3 text-sm leading-6 text-foreground">
                                   <div className="font-medium">为什么推荐这套</div>
@@ -674,6 +823,39 @@ export default function NovelAutoDirectorDialog({
                                   {candidate.toneKeywords.map((keyword) => (
                                     <Badge key={keyword} variant="secondary">{keyword}</Badge>
                                   ))}
+                                </div>
+                                <div className="rounded-md border border-dashed p-3">
+                                  <div className="text-sm font-medium text-foreground">AI 微调这套方案</div>
+                                  <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                                    适合“我就偏向这套，但还有点偏差”的情况。AI 会保留这套主方向，只定向修正不对味的部分。
+                                  </div>
+                                  <Input
+                                    className="mt-3"
+                                    value={candidatePatchFeedbacks[candidate.id] ?? ""}
+                                    onChange={(event) => setCandidatePatchFeedbacks((prev) => ({
+                                      ...prev,
+                                      [candidate.id]: event.target.value,
+                                    }))}
+                                    placeholder="例如：保留这套，但更偏都市异能，主角更主动一点，别太像传统热血升级。"
+                                  />
+                                  <div className="mt-2 flex justify-end">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={
+                                        patchCandidateMutation.isPending
+                                        || !candidatePatchFeedbacks[candidate.id]?.trim()
+                                      }
+                                      onClick={() => patchCandidateMutation.mutate({
+                                        batchId: batch.id,
+                                        candidate,
+                                        feedback: candidatePatchFeedbacks[candidate.id] ?? "",
+                                      })}
+                                    >
+                                      {patchCandidateMutation.isPending ? "修正中..." : "AI 修这套方案"}
+                                    </Button>
+                                  </div>
                                 </div>
                               </div>
 

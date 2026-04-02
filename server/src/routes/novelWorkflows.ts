@@ -46,6 +46,10 @@ const continueParamsSchema = z.object({
   id: z.string().trim().min(1),
 });
 
+const continueBodySchema = z.object({
+  continuationMode: z.enum(["resume", "auto_execute_front10"]).optional(),
+});
+
 const novelParamsSchema = z.object({
   novelId: z.string().trim().min(1),
 });
@@ -95,10 +99,13 @@ router.get("/novels/:novelId/auto-director", validate({ params: novelParamsSchem
   }
 });
 
-router.post("/:id/continue", validate({ params: continueParamsSchema }), async (req, res, next) => {
+router.post("/:id/continue", validate({ params: continueParamsSchema, body: continueBodySchema }), async (req, res, next) => {
   try {
     const { id } = req.params as z.infer<typeof continueParamsSchema>;
-    await novelDirectorService.continueTask(id);
+    const body = req.body as z.infer<typeof continueBodySchema>;
+    await novelDirectorService.continueTask(id, {
+      continuationMode: body.continuationMode,
+    });
     const data = await workflowAdapter.detail(id);
     res.status(200).json({
       success: true,

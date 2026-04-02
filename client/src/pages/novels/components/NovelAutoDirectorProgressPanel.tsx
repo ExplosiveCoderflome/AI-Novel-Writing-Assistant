@@ -1,4 +1,7 @@
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
+import {
+  DIRECTOR_CANDIDATE_SETUP_STEPS,
+} from "@ai-novel/shared/types/novelDirector";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import AITakeoverContainer, { type AITakeoverMode } from "@/components/workflow/AITakeoverContainer";
 
@@ -15,15 +18,23 @@ interface NovelAutoDirectorProgressPanelProps {
 }
 
 type DirectorStepVisualStatus = "pending" | "running" | "completed" | "failed";
+type DirectorStepDefinition = {
+  key: string;
+  label: string;
+};
 
-const DIRECTOR_STEPS = [
+const DIRECTOR_EXECUTION_STEPS: DirectorStepDefinition[] = [
   { key: "novel_create", label: "创建项目" },
   { key: "book_contract", label: "Book Contract + 故事宏观规划" },
   { key: "character_setup", label: "角色准备" },
   { key: "volume_strategy", label: "卷战略 + 卷骨架" },
   { key: "beat_sheet", label: "第 1 卷节奏板 + 章节列表" },
   { key: "chapter_detail_bundle", label: "前 10 章细化" },
-] as const;
+];
+
+const DIRECTOR_CANDIDATE_SETUP_STEP_KEYS = new Set<string>(
+  DIRECTOR_CANDIDATE_SETUP_STEPS.map((step) => step.key),
+);
 
 function formatDate(value: string | null | undefined): string {
   if (!value) {
@@ -64,7 +75,11 @@ function formatCheckpoint(checkpoint: NovelWorkflowCheckpoint | null | undefined
   return "暂无";
 }
 
-function resolveDirectorStepIndex(task: UnifiedTaskDetail | null): number {
+function isCandidateSetupFlow(task: UnifiedTaskDetail | null): boolean {
+  return DIRECTOR_CANDIDATE_SETUP_STEP_KEYS.has(task?.currentItemKey ?? "");
+}
+
+function resolveDirectorExecutionStepIndex(task: UnifiedTaskDetail | null): number {
   const itemKey = task?.currentItemKey ?? "";
   if (
     task?.checkpointType === "front10_ready"
@@ -101,16 +116,25 @@ function resolveDirectorStepIndex(task: UnifiedTaskDetail | null): number {
   return 0;
 }
 
+function resolveCandidateSetupStepIndex(task: UnifiedTaskDetail | null): number {
+  const itemKey = task?.currentItemKey ?? "";
+  const foundIndex = DIRECTOR_CANDIDATE_SETUP_STEPS.findIndex((step) => step.key === itemKey);
+  return foundIndex >= 0 ? foundIndex : 0;
+}
+
 function resolveDirectorStepStatuses(
   task: UnifiedTaskDetail | null,
   mode: DirectorExecutionViewMode,
+  steps: ReadonlyArray<DirectorStepDefinition>,
 ): DirectorStepVisualStatus[] {
   if (task?.checkpointType === "front10_ready" || task?.status === "succeeded") {
-    return DIRECTOR_STEPS.map(() => "completed");
+    return steps.map(() => "completed");
   }
 
-  const currentIndex = resolveDirectorStepIndex(task);
-  return DIRECTOR_STEPS.map((_, index) => {
+  const currentIndex = isCandidateSetupFlow(task)
+    ? resolveCandidateSetupStepIndex(task)
+    : resolveDirectorExecutionStepIndex(task);
+  return steps.map((_, index) => {
     if (index < currentIndex) {
       return "completed";
     }
@@ -169,14 +193,17 @@ export default function NovelAutoDirectorProgressPanel({
   onBackgroundContinue,
   onOpenTaskCenter,
 }: NovelAutoDirectorProgressPanelProps) {
-  const progressPercent = Math.round((task?.progress ?? 0) * 100);
   const currentAction = task?.currentItemLabel?.trim()
     || (mode === "execution_failed" ? "导演任务执行中断" : "正在准备导演任务");
   const taskTitle = task?.title?.trim() || titleHint?.trim() || "新小说项目";
   const milestones = Array.isArray(task?.meta.milestones)
     ? task.meta.milestones as Array<{ checkpointType: NovelWorkflowCheckpoint; summary: string; createdAt: string }>
     : [];
-  const steps = resolveDirectorStepStatuses(task, mode);
+  const candidateSetupFlow = isCandidateSetupFlow(task);
+  const stepDefinitions = candidateSetupFlow
+    ? DIRECTOR_CANDIDATE_SETUP_STEPS
+    : DIRECTOR_EXECUTION_STEPS;
+  const steps = resolveDirectorStepStatuses(task, mode, stepDefinitions);
   const failureMessage = task?.lastError?.trim() || fallbackError?.trim() || "导演任务执行失败，但没有记录明确错误。";
   const containerMode: AITakeoverMode = mode === "execution_failed"
     ? "failed"
@@ -185,11 +212,19 @@ export default function NovelAutoDirectorProgressPanel({
       : task.status === "waiting_approval"
         ? "waiting"
         : "running";
-  const description = mode === "execution_failed"
-    ? "任务已经停在最近一步，你可以先去任务中心查看详情，再决定是否恢复。"
-    : task?.status === "waiting_approval"
-      ? "当前导演流程已经停在审核点，你可以先检查产物，再决定是否继续自动推进。"
-      : "可离开当前页面，任务会继续运行，并且可以在任务中心恢复查看。";
+  const description = candidateSetupFlow
+    ? (
+      mode === "execution_failed"
+        ? "候选方向生成链已中断，你可以先去任务中心查看详情，再决定是否重试。"
+        : "系统会先整理项目设定、对齐书级 framing，再生成两套书级方案和对应标题组。"
+    )
+    : (
+      mode === "execution_failed"
+        ? "任务已经停在最近一步，你可以先去任务中心查看详情，再决定是否恢复。"
+        : task?.status === "waiting_approval"
+          ? "当前导演流程已经停在审核点，你可以先检查产物，再决定是否继续自动推进。"
+          : "可离开当前页面，任务会继续运行，并且可以在任务中心恢复查看。"
+    );
   const actions = [
     ...(mode === "execution_progress" && task?.status !== "waiting_approval"
       ? [{
@@ -209,7 +244,11 @@ export default function NovelAutoDirectorProgressPanel({
     <div className="space-y-4">
       <AITakeoverContainer
         mode={containerMode}
-        title={mode === "execution_failed" ? "导演执行失败" : `正在导演《${taskTitle}》`}
+        title={mode === "execution_failed"
+          ? (candidateSetupFlow ? "候选方案生成失败" : "导演执行失败")
+          : candidateSetupFlow
+            ? "正在生成导演候选方案"
+            : `正在导演《${taskTitle}》`}
         description={description}
         progress={task ? task.progress : null}
         currentAction={currentAction}
@@ -217,8 +256,8 @@ export default function NovelAutoDirectorProgressPanel({
         taskId={taskId || task?.id}
         actions={actions}
       >
-        <div className="grid gap-3 md:grid-cols-6">
-          {DIRECTOR_STEPS.map((step, index) => (
+        <div className={`grid gap-3 ${candidateSetupFlow ? "md:grid-cols-4" : "md:grid-cols-6"}`}>
+          {stepDefinitions.map((step, index) => (
             <div key={step.key} className={`rounded-xl border p-3 ${stepClasses(steps[index] ?? "pending")}`}>
               <div className="flex items-center justify-between gap-2">
                 <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${stepBadgeClasses(steps[index] ?? "pending")}`}>

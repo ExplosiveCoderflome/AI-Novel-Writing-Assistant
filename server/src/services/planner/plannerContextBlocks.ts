@@ -38,6 +38,28 @@ function buildVolumeOutline(input: Array<{
     .join("\n\n");
 }
 
+function buildBookFramingText(input: {
+  targetAudience: string | null;
+  bookSellingPoint: string | null;
+  competingFeel: string | null;
+  first30ChapterPromise: string | null;
+  narrativePov?: string | null;
+  pacePreference?: string | null;
+  emotionIntensity?: string | null;
+  styleTone?: string | null;
+}): string {
+  return [
+    buildBlockContent("目标读者", input.targetAudience ?? "无"),
+    buildBlockContent("核心卖点", input.bookSellingPoint ?? "无"),
+    buildBlockContent("竞品/对标感受", input.competingFeel ?? "无"),
+    buildBlockContent("前30章承诺", input.first30ChapterPromise ?? "无"),
+    buildBlockContent("叙事视角", input.narrativePov ?? "无"),
+    buildBlockContent("节奏偏好", input.pacePreference ?? "无"),
+    buildBlockContent("情绪强度", input.emotionIntensity ?? "无"),
+    buildBlockContent("语气护栏", input.styleTone ?? "无"),
+  ].join("\n");
+}
+
 export function buildBookPlanContextBlocks(input: {
   novelTitle: string;
   description: string | null;
@@ -126,8 +148,17 @@ export function buildArcPlanContextBlocks(input: {
 export function buildChapterPlanContextBlocks(input: {
   novelTitle: string;
   description: string | null;
+  targetAudience: string | null;
+  bookSellingPoint: string | null;
+  competingFeel: string | null;
+  first30ChapterPromise: string | null;
+  narrativePov?: string | null;
+  pacePreference?: string | null;
+  emotionIntensity?: string | null;
+  styleTone?: string | null;
   chapterExpectation: string | null;
   chapterTaskSheet: string | null;
+  chapterTargetWordCount?: number | null;
   bible: string | null;
   outline: string | null;
   structuredOutline: string | null;
@@ -152,9 +183,14 @@ export function buildChapterPlanContextBlocks(input: {
   stateSnapshot: string;
   openAuditIssues: string;
   recentDecisions: string;
-  characterDynamicsDigest: string;
+  characterDynamicsSummary: string;
+  characterVolumeAssignments: string;
+  characterRelationStages: string;
+  characterCandidateGuards: string;
   defaultMetadata: string;
   replanContext: string;
+  storyMacroSummary: string;
+  currentVolumeWindow: string;
   storyModeBlock: string;
 }): PromptContextBlock[] {
   const volumeOutline = buildVolumeOutline(input.mappedVolumes);
@@ -180,12 +216,28 @@ export function buildChapterPlanContextBlocks(input: {
       ].join("\n"),
     }),
     createContextBlock({
+      id: "book_framing",
+      group: "book_framing",
+      priority: 99,
+      content: buildBookFramingText({
+        targetAudience: input.targetAudience,
+        bookSellingPoint: input.bookSellingPoint,
+        competingFeel: input.competingFeel,
+        first30ChapterPromise: input.first30ChapterPromise,
+        narrativePov: input.narrativePov,
+        pacePreference: input.pacePreference,
+        emotionIntensity: input.emotionIntensity,
+        styleTone: input.styleTone,
+      }),
+    }),
+    createContextBlock({
       id: "chapter_target",
       group: "chapter_target",
       priority: 100,
       required: true,
       content: [
         buildBlockContent("章节目标草稿", input.chapterExpectation ?? "无"),
+        buildBlockContent("章节目标字数", typeof input.chapterTargetWordCount === "number" ? `${input.chapterTargetWordCount} 字` : "无"),
         buildBlockContent("任务单", input.chapterTaskSheet ?? "无"),
         buildBlockContent("默认结构职责建议", input.defaultMetadata),
       ].join("\n"),
@@ -197,24 +249,35 @@ export function buildChapterPlanContextBlocks(input: {
       content: buildBlockContent("作品圣经", input.bible ?? "无"),
     }),
     createContextBlock({
-      id: "outline_source",
-      group: "outline_source",
+      id: "current_volume_window",
+      group: "current_volume_window",
+      priority: 97,
+      content: buildBlockContent("当前卷窗口", input.currentVolumeWindow || "无"),
+    }),
+    createContextBlock({
+      id: "story_macro",
+      group: "story_macro",
       priority: 96,
-      required: true,
-      conflictGroup: "structural_source",
-      freshness: volumeOutline ? 2 : 1,
-      content: [
-        buildBlockContent("主线大纲", input.outline ?? "无"),
-        buildBlockContent("结构化大纲", input.structuredOutline ?? "无"),
-      ].join("\n"),
+      content: buildBlockContent("故事宏观约束", input.storyMacroSummary || "无"),
     }),
     createContextBlock({
       id: "volume_summary",
       group: "volume_summary",
-      priority: 94,
-      conflictGroup: "structural_source",
+      priority: 95,
       freshness: input.mappedVolumes.length > 0 ? 3 : 0,
-      content: buildBlockContent("卷级工作台", volumeSummary),
+      content: [
+        buildBlockContent("卷级工作台摘要", volumeSummary),
+        volumeOutline ? buildBlockContent("卷级工作台展开", volumeOutline) : "",
+      ].filter(Boolean).join("\n"),
+    }),
+    createContextBlock({
+      id: "legacy_outline_source",
+      group: "legacy_outline_source",
+      priority: 58,
+      content: [
+        buildBlockContent("兼容性旧主线大纲（仅作迁移参考）", input.outline ?? "无"),
+        buildBlockContent("兼容性旧结构化大纲（仅作迁移参考）", input.structuredOutline ?? "无"),
+      ].join("\n"),
     }),
     createContextBlock({
       id: "book_plan",
@@ -266,10 +329,28 @@ export function buildChapterPlanContextBlocks(input: {
       content: buildBlockContent("最近创作决策", input.recentDecisions),
     }),
     createContextBlock({
-      id: "character_dynamics",
+      id: "character_dynamics_summary",
       group: "character_dynamics",
-      priority: 66,
-      content: buildBlockContent("动态角色系统", input.characterDynamicsDigest),
+      priority: 89,
+      content: buildBlockContent("动态角色系统总览", input.characterDynamicsSummary),
+    }),
+    createContextBlock({
+      id: "character_volume_assignments",
+      group: "character_dynamics",
+      priority: 88,
+      content: buildBlockContent("当前卷角色职责与缺席风险", input.characterVolumeAssignments),
+    }),
+    createContextBlock({
+      id: "character_relation_stages",
+      group: "character_dynamics",
+      priority: 87,
+      content: buildBlockContent("当前关系阶段", input.characterRelationStages),
+    }),
+    createContextBlock({
+      id: "character_candidate_guards",
+      group: "character_dynamics",
+      priority: 85,
+      content: buildBlockContent("待确认候选角色保护", input.characterCandidateGuards),
     }),
     createContextBlock({
       id: "replan_context",

@@ -12,11 +12,11 @@ import { openConflictService } from "../../state/OpenConflictService";
 import { StyleDetectionService } from "../../styleEngine/StyleDetectionService";
 import { StyleRewriteService } from "../../styleEngine/StyleRewriteService";
 import { ChapterWritingGraph } from "../chapterWritingGraph";
-import { normalizeScore, ruleScore, toText } from "../novelP0Utils";
+import { toText } from "../novelP0Utils";
 import { ChapterArtifactSyncService } from "./ChapterArtifactSyncService";
 import { GenerationContextAssembler } from "./GenerationContextAssembler";
 import { chapterRuntimeRequestSchema, type ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
-import { buildChapterRepairContext } from "../../../prompting/prompts/novel/chapterLayeredContext";
+import { withChapterRepairContext } from "../../../prompting/prompts/novel/chapterLayeredContext";
 import {
   runPipelineChapterWithRuntime,
   type AssembledRuntimeChapter,
@@ -105,22 +105,12 @@ export class ChapterRuntimeCoordinator {
     this.deps = {
       assembler: deps.assembler ?? new GenerationContextAssembler(),
       chapterWritingGraph: deps.chapterWritingGraph ?? new ChapterWritingGraph({
-        toText,
-        normalizeScore,
-        ruleScore,
-        isPass: (score) => score.coherence >= 80 && score.repetition <= 20 && score.engagement >= 75,
-        buildContextText: async () => "",
-        buildOpeningConstraintHint: async () => "Recent openings: none.",
         enforceOpeningDiversity: async (_novelId, _chapterOrder, _chapterTitle, content) => ({
           content,
           rewritten: false,
           maxSimilarity: 0,
         }),
-        reviewChapterContent: async () => ({ score: normalizeScore({}), issues: [], auditReports: [] }),
-        createQualityReport: async () => undefined,
-        syncAuditReports: async () => undefined,
         saveDraftAndArtifacts: (...args) => artifactSyncService.saveDraftAndArtifacts(...args),
-        updateChapterGenerationState: async () => undefined,
         logInfo: (message, meta) => {
           if (meta) {
             console.info(`[chapter-runtime] ${message}`, meta);
@@ -451,32 +441,28 @@ export class ChapterRuntimeCoordinator {
       .filter((issue) => issue.severity === "high" || issue.severity === "critical")
       .map((issue) => issue.id);
     const hasBlockingIssues = blockingIssueIds.length > 0;
-    const chapterRepairContext = input.contextPackage.chapterWriteContext
-      ? buildChapterRepairContext({
-        writeContext: input.contextPackage.chapterWriteContext,
-        contextPackage: input.contextPackage,
-        issues: openIssues.map((issue) => ({
-          severity: issue.severity,
-          category: issue.auditType === "continuity"
-            ? "coherence"
-            : issue.auditType === "character"
-              ? "logic"
-              : issue.auditType === "plot"
-                ? "pacing"
-                : "coherence",
-          evidence: issue.evidence,
-          fixSuggestion: issue.fixSuggestion,
-        })),
-      })
-      : null;
+    const repairContextPackage = withChapterRepairContext(
+      input.contextPackage,
+      openIssues.map((issue) => ({
+        severity: issue.severity,
+        category: issue.auditType === "continuity"
+          ? "coherence"
+          : issue.auditType === "character"
+            ? "logic"
+            : issue.auditType === "plot"
+              ? "pacing"
+              : "coherence",
+        evidence: issue.evidence,
+        fixSuggestion: issue.fixSuggestion,
+      })),
+    );
 
     return {
       novelId: input.novelId,
       chapterId: input.chapterId,
       context: {
-        ...input.contextPackage,
+        ...repairContextPackage,
         openConflicts: input.activeOpenConflicts.map((item) => mapOpenConflictForRuntime(item)),
-        chapterRepairContext,
       },
       draft: {
         content: input.finalContent,

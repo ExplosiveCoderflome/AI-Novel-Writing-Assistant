@@ -47,6 +47,7 @@ import type { StructuredSyncOptions } from "../novelEdit.utils";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 import type { ExistingOutlineChapter } from "../volumePlan.utils";
 import type { AITakeoverAction } from "@/components/workflow/AITakeoverContainer";
+import type { ReactNode } from "react";
 
 export interface BasicTabProps {
   novelId: string;
@@ -83,6 +84,7 @@ export interface BasicTabProps {
   onRefreshWorldSlice: () => void;
   onSaveWorldSliceOverrides: (patch: StoryWorldSliceOverrides) => void;
   isSaving: boolean;
+  projectQuickStart?: ReactNode;
 }
 
 export interface StoryMacroTabProps {

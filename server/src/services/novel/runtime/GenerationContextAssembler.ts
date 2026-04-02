@@ -34,6 +34,7 @@ import {
 import { mapRowToPlan } from "../storyMacro/storyMacroPlanPersistence";
 import {
   buildBookContractContext,
+  buildChapterRepairContextFromPackage,
   buildChapterReviewContext,
   buildChapterWriteContext,
   buildMacroConstraintContext,
@@ -235,7 +236,7 @@ export class GenerationContextAssembler {
     request: ChapterRuntimeRequestInput,
   ): Promise<{
     novel: { id: string; title: string };
-    chapter: { id: string; title: string; order: number; content: string | null; expectation: string | null };
+    chapter: { id: string; title: string; order: number; content: string | null; expectation: string | null; targetWordCount: number | null };
     contextPackage: GenerationContextPackage;
   }> {
     const [novel, chapter] = await Promise.all([
@@ -285,6 +286,14 @@ export class GenerationContextAssembler {
       }),
       prisma.chapter.findFirst({
         where: { id: chapterId, novelId },
+        select: {
+          id: true,
+          title: true,
+          order: true,
+          content: true,
+          expectation: true,
+          targetWordCount: true,
+        },
       }),
     ]);
 
@@ -503,6 +512,7 @@ export class GenerationContextAssembler {
         order: chapter.order,
         content: chapter.content ?? null,
         expectation: chapter.expectation ?? null,
+        targetWordCount: chapter.targetWordCount ?? null,
         supportingContextText: "",
       },
       plan: mappedPlan,
@@ -533,6 +543,13 @@ export class GenerationContextAssembler {
       contextPackage: baseContextPackage,
     });
     const chapterReviewContext = buildChapterReviewContext(chapterWriteContext, baseContextPackage);
+    const chapterRepairContext = buildChapterRepairContextFromPackage({
+      ...baseContextPackage,
+      chapterMission: chapterWriteContext.chapterMission,
+      chapterWriteContext,
+      chapterReviewContext,
+      chapterRepairContext: null,
+    }, []);
     const contextPackage: GenerationContextPackage = {
       chapter: {
         id: chapter.id,
@@ -540,6 +557,7 @@ export class GenerationContextAssembler {
         order: chapter.order,
         content: chapter.content ?? null,
         expectation: chapter.expectation ?? null,
+        targetWordCount: chapter.targetWordCount ?? null,
         supportingContextText: buildSupportingContextText({
           worldBlock,
           storyModeBlock,
@@ -576,7 +594,7 @@ export class GenerationContextAssembler {
       chapterMission: chapterWriteContext.chapterMission,
       chapterWriteContext,
       chapterReviewContext,
-      chapterRepairContext: null,
+      chapterRepairContext,
       promptBudgetProfiles: getRuntimePromptBudgetProfiles(),
     };
 
@@ -588,6 +606,7 @@ export class GenerationContextAssembler {
         order: chapter.order,
         content: chapter.content ?? null,
         expectation: chapter.expectation ?? null,
+        targetWordCount: chapter.targetWordCount ?? null,
       },
       contextPackage,
     };

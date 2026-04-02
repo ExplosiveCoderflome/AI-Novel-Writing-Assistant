@@ -10,10 +10,13 @@ export type CharacterCastRole =
   | "pressure_source"
   | "catalyst";
 
+export type CharacterGender = "male" | "female" | "other" | "unknown";
+
 export interface Character {
   id: string;
   name: string;
   role: string;
+  gender?: CharacterGender | null;
   castRole?: CharacterCastRole | null;
   storyFunction?: string | null;
   relationToProtagonist?: string | null;
@@ -86,6 +89,7 @@ export interface CharacterCastOptionMember {
   sortOrder: number;
   name: string;
   role: string;
+  gender: CharacterGender;
   castRole: CharacterCastRole;
   relationToProtagonist?: string | null;
   storyFunction: string;
@@ -181,6 +185,7 @@ export interface SupplementalCharacterRelation {
 export interface SupplementalCharacterCandidate {
   name: string;
   role: string;
+  gender: CharacterGender;
   castRole: CharacterCastRole;
   summary: string;
   storyFunction: string;

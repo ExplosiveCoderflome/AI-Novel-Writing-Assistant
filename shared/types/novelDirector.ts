@@ -4,6 +4,7 @@ import type {
   NarrativePov,
   Novel,
   PacePreference,
+  PipelineJobStatus,
   ProjectMode,
   ProjectProgressStatus,
   StoryPlanLevel,
@@ -50,12 +51,58 @@ export const DIRECTOR_CORRECTION_PRESETS = [
 
 export type DirectorCorrectionPreset = typeof DIRECTOR_CORRECTION_PRESETS[number]["value"];
 
+export const DIRECTOR_CANDIDATE_SETUP_STEPS = [
+  {
+    key: "candidate_seed_alignment",
+    label: "整理项目设定",
+    description: "先把灵感、题材、目标读者和章节规模压成稳定输入。",
+  },
+  {
+    key: "candidate_project_framing",
+    label: "对齐书级 framing",
+    description: "把书级卖点、前 30 章承诺和气质约束转成候选生成参考。",
+  },
+  {
+    key: "candidate_direction_batch",
+    label: "生成书级方案",
+    description: "产出当前可继续推进整本规划的候选方向。",
+  },
+  {
+    key: "candidate_title_pack",
+    label: "强化标题组",
+    description: "为每套候选补一组更适合封面展示和点击测试的书名。",
+  },
+] as const;
+
+export type DirectorCandidateSetupStepKey = typeof DIRECTOR_CANDIDATE_SETUP_STEPS[number]["key"];
+
 export const DIRECTOR_RUN_MODES = [
   "auto_to_ready",
+  "auto_to_execution",
   "stage_review",
 ] as const;
 
 export type DirectorRunMode = typeof DIRECTOR_RUN_MODES[number];
+
+export type DirectorContinuationMode = "resume" | "auto_execute_front10";
+
+export interface DirectorAutoExecutionState {
+  enabled: boolean;
+  startOrder?: number;
+  endOrder?: number;
+  totalChapterCount?: number;
+  pipelineJobId?: string | null;
+  pipelineStatus?: PipelineJobStatus | null;
+}
+
+export const DIRECTOR_TAKEOVER_START_PHASES = [
+  "story_macro",
+  "character_setup",
+  "volume_strategy",
+  "structured_outline",
+] as const;
+
+export type DirectorTakeoverStartPhase = typeof DIRECTOR_TAKEOVER_START_PHASES[number];
 
 export const DIRECTOR_LOCK_SCOPES = [
   "basic",
@@ -130,6 +177,44 @@ export interface DirectorLLMOptions {
   runMode?: DirectorRunMode;
 }
 
+export interface DirectorTakeoverStageReadiness {
+  phase: DirectorTakeoverStartPhase;
+  label: string;
+  description: string;
+  available: boolean;
+  recommended: boolean;
+  reason: string;
+}
+
+export interface DirectorTakeoverReadinessResponse {
+  novelId: string;
+  novelTitle: string;
+  hasActiveTask: boolean;
+  activeTaskId?: string | null;
+  snapshot: {
+    hasStoryMacroPlan: boolean;
+    hasBookContract: boolean;
+    characterCount: number;
+    chapterCount: number;
+    volumeCount: number;
+    firstVolumeChapterCount: number;
+  };
+  stages: DirectorTakeoverStageReadiness[];
+}
+
+export interface DirectorTakeoverRequest extends DirectorLLMOptions {
+  novelId: string;
+  startPhase: DirectorTakeoverStartPhase;
+}
+
+export interface DirectorTakeoverResponse {
+  novelId: string;
+  workflowTaskId: string;
+  startPhase: DirectorTakeoverStartPhase;
+  directorSession: DirectorSessionState;
+  resumeTarget?: NovelWorkflowResumeTarget | null;
+}
+
 export interface DirectorProjectContextInput {
   title?: string;
   description?: string;
@@ -169,6 +254,25 @@ export interface DirectorRefinementRequest extends DirectorProjectContextInput, 
   previousBatches: DirectorCandidateBatch[];
   presets?: DirectorCorrectionPreset[];
   feedback?: string;
+  workflowTaskId?: string;
+}
+
+export interface DirectorCandidatePatchRequest extends DirectorProjectContextInput, DirectorLLMOptions {
+  idea: string;
+  previousBatches: DirectorCandidateBatch[];
+  batchId: string;
+  candidateId: string;
+  presets?: DirectorCorrectionPreset[];
+  feedback: string;
+  workflowTaskId?: string;
+}
+
+export interface DirectorCandidateTitleRefineRequest extends DirectorProjectContextInput, DirectorLLMOptions {
+  idea: string;
+  previousBatches: DirectorCandidateBatch[];
+  batchId: string;
+  candidateId: string;
+  feedback: string;
   workflowTaskId?: string;
 }
 
@@ -264,6 +368,18 @@ export interface DirectorCandidatesResponse {
 
 export interface DirectorRefineResponse {
   batch: DirectorCandidateBatch;
+  workflowTaskId?: string;
+}
+
+export interface DirectorCandidatePatchResponse {
+  batch: DirectorCandidateBatch;
+  candidate: DirectorCandidate;
+  workflowTaskId?: string;
+}
+
+export interface DirectorCandidateTitleRefineResponse {
+  batch: DirectorCandidateBatch;
+  candidate: DirectorCandidate;
   workflowTaskId?: string;
 }
 

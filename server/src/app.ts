@@ -38,8 +38,11 @@ import { novelEventBus, registerNovelEventHandlers } from "./events";
 import { bookAnalysisService } from "./services/bookAnalysis/BookAnalysisService";
 import { imageGenerationService } from "./services/image/ImageGenerationService";
 import { ragServices } from "./services/rag";
+import { NovelWorkflowRuntimeService } from "./services/novel/workflow/NovelWorkflowRuntimeService";
 
 registerNovelEventHandlers(novelEventBus);
+const novelWorkflowRuntimeService = new NovelWorkflowRuntimeService();
+
 morgan.token("error-message", (_req, res) => {
   const response = res as typeof res & {
     locals?: {
@@ -167,6 +170,9 @@ async function bootstrap(): Promise<void> {
   });
   void imageGenerationService.resumePendingTasks().catch((error) => {
     console.warn("Failed to resume pending image generation tasks.", error);
+  });
+  void novelWorkflowRuntimeService.resumePendingAutoDirectorTasks().catch((error) => {
+    console.warn("Failed to resume pending auto director workflows.", error);
   });
 
   app.listen(port, host, () => {

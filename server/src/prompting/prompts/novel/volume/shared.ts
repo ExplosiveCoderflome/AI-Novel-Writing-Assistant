@@ -55,6 +55,7 @@ export interface VolumeChapterListPromptInput {
   nextVolume?: VolumePlan;
   guidance?: string;
   targetChapterCount: number;
+  retryReason?: string | null;
 }
 
 export interface VolumeChapterDetailPromptInput {

@@ -282,6 +282,13 @@ enum AntiAiSeverity {
   high
 }
 
+enum CharacterGender {
+  male
+  female
+  other
+  unknown
+}
+
 model Novel {
   id                String      @id @default(cuid())
   title             String
@@ -444,6 +451,7 @@ model Character {
   id              String   @id @default(cuid())
   name            String
   role            String
+  gender          CharacterGender @default(unknown)
   castRole        String?
   storyFunction   String?
   relationToProtagonist String?
@@ -539,6 +547,7 @@ model CharacterCastOptionMember {
   sortOrder             Int
   name                  String
   role                  String
+  gender                CharacterGender @default(unknown)
   castRole              String
   relationToProtagonist String?
   storyFunction         String

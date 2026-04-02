@@ -194,24 +194,17 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
               ) : null}
 
               <div className="rounded-[28px] border border-border/80 bg-gradient-to-br from-slate-50 via-background to-amber-50/40 p-5 shadow-sm">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant={isSelectedChapterStreaming ? "default" : "secondary"}>
-                        {isSelectedChapterStreaming ? "实时写作中" : "已保存版本"}
-                      </Badge>
-                      <Badge variant="outline">{chapterLabel}</Badge>
-                      <Badge variant="outline">当前展示 {contentPanelWordCount} 字</Badge>
-                    </div>
-                    <div>
-                      <div className="text-xl font-semibold text-foreground">{chapterTitle}</div>
-                      <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">{chapterObjective}</p>
-                    </div>
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={isSelectedChapterStreaming ? "default" : "secondary"}>
+                      {isSelectedChapterStreaming ? "实时写作中" : "已保存版本"}
+                    </Badge>
+                    <Badge variant="outline">{chapterLabel}</Badge>
+                    <Badge variant="outline">当前展示 {contentPanelWordCount} 字</Badge>
                   </div>
-                  <div className="grid min-w-[260px] gap-2 sm:grid-cols-3 xl:w-[340px] xl:grid-cols-1">
-                    <PanelHintCard title="任务单" content={selectedChapter.taskSheet?.trim() || "还没有任务单，适合先生成后再写作。"} />
-                    <PanelHintCard title="场景拆解" content={selectedChapter.sceneCards?.trim() || "还没有场景拆解，可以先让 AI 把场景序列拆出来。"} />
-                    <PanelHintCard title="最新状态" content={latestStateSnapshot?.summary || "当前没有可用状态摘要。"} />
+                  <div>
+                    <div className="text-xl font-semibold text-foreground">{chapterTitle}</div>
+                    <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">{chapterObjective}</p>
                   </div>
                 </div>
               </div>

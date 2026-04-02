@@ -34,6 +34,7 @@ interface BootstrapWorkflowInput {
   lane: NovelWorkflowLane;
   title?: string | null;
   seedPayload?: Record<string, unknown>;
+  forceNew?: boolean;
 }
 
 interface SyncWorkflowStageInput {
@@ -99,6 +100,24 @@ export class NovelWorkflowService {
   async findActiveTaskByNovelAndLane(novelId: string, lane: NovelWorkflowLane) {
     const rows = await this.getVisibleRowsByNovelId(novelId, lane);
     return rows.find((row) => ACTIVE_STATUSES.includes(row.status as (typeof ACTIVE_STATUSES)[number])) ?? null;
+  }
+
+  async listRecoverableAutoDirectorTasks() {
+    const rows = await prisma.novelWorkflowTask.findMany({
+      where: {
+        lane: "auto_director",
+        status: {
+          in: ["queued", "running"],
+        },
+      },
+      orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+    const archived = await getArchivedTaskIdSet("novel_workflow", rows.map((row) => row.id));
+    return rows.filter((row) => !archived.has(row.id));
   }
 
   async getTaskById(taskId: string) {
@@ -229,7 +248,7 @@ export class NovelWorkflowService {
       }
     }
 
-    if (input.novelId?.trim()) {
+    if (input.novelId?.trim() && input.forceNew !== true) {
       const visibleRows = await this.getVisibleRowsByNovelId(input.novelId.trim(), input.lane);
       const active = visibleRows.find((row) => ACTIVE_STATUSES.includes(row.status as (typeof ACTIVE_STATUSES)[number]));
       if (active) {
@@ -379,6 +398,23 @@ export class NovelWorkflowService {
       data: {
         heartbeatAt: new Date(),
         status: existing.status === "queued" ? "running" : existing.status,
+      },
+    });
+  }
+
+  async requeueTaskForRecovery(taskId: string, message: string) {
+    const existing = await this.getVisibleRowById(taskId);
+    if (!existing) {
+      throw new AppError("Task not found.", 404);
+    }
+    return prisma.novelWorkflowTask.update({
+      where: { id: taskId },
+      data: {
+        status: "queued",
+        finishedAt: null,
+        cancelRequestedAt: null,
+        heartbeatAt: null,
+        lastError: message.trim(),
       },
     });
   }

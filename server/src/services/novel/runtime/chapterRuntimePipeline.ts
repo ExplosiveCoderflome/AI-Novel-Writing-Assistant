@@ -1,9 +1,9 @@
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { ChapterRuntimePackage, GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
-import { getLLM } from "../../../llm/factory";
-import { toText } from "../novelP0Utils";
+import { runTextPrompt } from "../../../prompting/core/promptRunner";
+import { buildChapterRepairContextBlocks } from "../../../prompting/prompts/novel/chapterLayeredContext";
+import { chapterRepairPrompt } from "../../../prompting/prompts/novel/review.prompts";
 import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 
 export interface PipelineRuntimeHooks {
@@ -141,9 +141,11 @@ export async function runPipelineChapterWithRuntime(
 
     await hooks.onStageChange?.("repairing");
     content = await repairDraftContent({
+      novelTitle: assembled.novel.title,
       chapterTitle: assembled.chapter.title,
       content,
       issues: latestIssues,
+      runtimePackage: latestResult.runtimePackage,
       options: {
         provider: request.provider,
         model: request.model,
@@ -193,9 +195,11 @@ function toReviewIssues(runtimePackage: ChapterRuntimePackage): ReviewIssue[] {
 }
 
 async function repairDraftContent(input: {
+  novelTitle: string;
   chapterTitle: string;
   content: string;
   issues: ReviewIssue[];
+  runtimePackage: ChapterRuntimePackage;
   options: {
     provider?: LLMProvider;
     model?: string;
@@ -203,12 +207,6 @@ async function repairDraftContent(input: {
     repairMode?: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only";
   };
 }): Promise<string> {
-  const llm = await getLLM(input.options.provider, {
-    fallbackProvider: "deepseek",
-    model: input.options.model,
-    temperature: Math.min(input.options.temperature ?? 0.55, 0.65),
-    taskType: "repair",
-  });
   const issues = input.issues.length > 0
     ? input.issues
     : [{
@@ -218,26 +216,41 @@ async function repairDraftContent(input: {
         fixSuggestion: "Tighten continuity, sharpen conflict progression, and improve readability.",
       }];
   const modeHint = getRepairModeHint(input.options.repairMode);
-
-  const repaired = await llm.invoke([
-    new SystemMessage([
-      "你是网文章节修文编辑，请在保留已有剧情方向的前提下修正文案。",
-      "输出必须是修正后的完整正文，不要解释。",
-      "不要改变章节标题，不要新增无关主线角色。",
+  const repairContextBlocks = input.runtimePackage.context.chapterRepairContext
+    ? buildChapterRepairContextBlocks(input.runtimePackage.context.chapterRepairContext)
+    : undefined;
+  const repaired = await runTextPrompt({
+    asset: chapterRepairPrompt,
+    promptInput: {
+      novelTitle: input.novelTitle,
+      bibleContent: buildRepairBibleFallback(input.runtimePackage),
+      chapterTitle: input.chapterTitle,
+      chapterContent: input.content,
+      issuesJson: JSON.stringify(issues, null, 2),
+      ragContext: "",
       modeHint,
-    ].join("\n")),
-    new HumanMessage([
-      `章节标题：${input.chapterTitle}`,
-      "当前正文：",
-      input.content,
-      "待修复问题：",
-      issues.map((issue, index) => (
-        `${index + 1}. [${issue.severity}/${issue.category}] 证据：${issue.evidence}；修复建议：${issue.fixSuggestion}`
-      )).join("\n"),
-    ].join("\n\n")),
-  ]);
-  const nextContent = toText(repaired.content).trim();
+    },
+    contextBlocks: repairContextBlocks,
+    options: {
+      provider: input.options.provider,
+      model: input.options.model,
+      temperature: Math.min(input.options.temperature ?? 0.55, 0.65),
+    },
+  });
+  const nextContent = repaired.output.trim();
   return nextContent || input.content;
+}
+
+function buildRepairBibleFallback(runtimePackage: ChapterRuntimePackage): string {
+  const context = runtimePackage.context;
+  const fragments = [
+    context.bookContract?.sellingPoint ? `核心卖点：${context.bookContract.sellingPoint}` : "",
+    context.bookContract?.first30ChapterPromise ? `前30章承诺：${context.bookContract.first30ChapterPromise}` : "",
+    context.macroConstraints?.coreConflict ? `核心冲突：${context.macroConstraints.coreConflict}` : "",
+    context.macroConstraints?.progressionLoop ? `推进回路：${context.macroConstraints.progressionLoop}` : "",
+    context.volumeWindow?.missionSummary ? `当前卷使命：${context.volumeWindow.missionSummary}` : "",
+  ].filter(Boolean);
+  return fragments.join("\n") || "none";
 }
 
 function getRepairModeHint(

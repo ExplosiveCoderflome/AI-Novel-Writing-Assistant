@@ -8,6 +8,10 @@ import { NOVEL_WORKFLOW_STAGE_STEPS, buildSteps } from "./taskCenter.shared";
 const WORKFLOW_ITEM_STAGE_MAP: Partial<Record<string, NovelWorkflowStage>> = {
   project_setup: "project_setup",
   auto_director: "auto_director",
+  candidate_seed_alignment: "auto_director",
+  candidate_project_framing: "auto_director",
+  candidate_direction_batch: "auto_director",
+  candidate_title_pack: "auto_director",
   novel_create: "project_setup",
   book_contract: "story_macro",
   story_macro: "story_macro",

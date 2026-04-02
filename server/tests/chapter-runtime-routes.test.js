@@ -52,7 +52,26 @@ function buildRuntimePackage(novelId, chapterId) {
         updatedAt: now,
       },
       stateSnapshot: null,
-      openConflicts: [],
+      openConflicts: [{
+        id: "conflict-1",
+        novelId,
+        chapterId,
+        sourceSnapshotId: null,
+        sourceIssueId: null,
+        sourceType: "state",
+        conflictType: "plot",
+        conflictKey: "conflict:key",
+        title: "未解决冲突",
+        summary: "主角还没解决上一章留下的风险。",
+        severity: "medium",
+        status: "open",
+        evidence: ["上一章结尾留下追兵。"],
+        affectedCharacterIds: ["char-1"],
+        resolutionHint: "先处理追兵威胁。",
+        lastSeenChapterOrder: 1,
+        createdAt: now,
+        updatedAt: now,
+      }],
       storyWorldSlice: {
         storyId: novelId,
         worldId: "world-1",
@@ -94,6 +113,54 @@ function buildRuntimePackage(novelId, chapterId) {
       styleContext: {
         matchedBindings: [],
         compiledBlocks: null,
+      },
+      characterDynamics: {
+        novelId,
+        currentVolume: {
+          id: "volume-1",
+          title: "第一卷",
+          sortOrder: 1,
+          startChapterOrder: 1,
+          endChapterOrder: 10,
+          currentChapterOrder: 1,
+        },
+        summary: "第一卷当前角色阵容稳定，但仍有候选角色待确认。",
+        pendingCandidateCount: 1,
+        characters: [],
+        relations: [],
+        candidates: [],
+        factionTracks: [],
+        assignments: [],
+      },
+      bookContract: {
+        title: "测试小说",
+        genre: "都市",
+        targetAudience: "新手向男频读者",
+        sellingPoint: "高压开局与持续反压",
+        first30ChapterPromise: "前三十章稳定兑现压迫与反压回报",
+        narrativePov: "limited-third-person",
+        pacePreference: "fast",
+        emotionIntensity: "high",
+        toneGuardrails: ["不写空泛鸡汤"],
+        hardConstraints: ["主线必须持续升级"],
+      },
+      macroConstraints: {
+        sellingPoint: "高压开局与持续反压",
+        coreConflict: "主角在压迫中夺回主动权",
+        mainHook: "更大幕后势力逐步浮现",
+        progressionLoop: "每次反压都会引来更强反扑",
+        growthPath: "从被动求生到主动设局",
+        endingFlavor: "阶段性大胜但保留更大战场",
+        hardConstraints: ["不能跳过压迫链兑现"],
+      },
+      volumeWindow: {
+        volumeId: "volume-1",
+        sortOrder: 1,
+        title: "第一卷",
+        missionSummary: "建立压迫源并完成第一次反压",
+        adjacentSummary: "下一卷升级敌我盘面",
+        pendingPayoffs: ["伏笔A"],
+        softFutureSummary: "Volume 2 第二卷: 更高层势力正式下场",
       },
     },
     draft: {
@@ -168,6 +235,11 @@ test("runtime chapter route emits runtime_package before done", async () => {
     assert.ok(text.includes("\"type\":\"runtime_package\""));
     assert.ok(text.includes("\"type\":\"done\""));
     assert.ok(text.includes("\"storyWorldSlice\""));
+    assert.ok(text.includes("\"bookContract\""));
+    assert.ok(text.includes("\"macroConstraints\""));
+    assert.ok(text.includes("\"volumeWindow\""));
+    assert.ok(text.includes("\"characterDynamics\""));
+    assert.ok(text.includes("\"openConflicts\""));
     assert.ok(text.indexOf("\"type\":\"runtime_package\"") < text.indexOf("\"type\":\"done\""));
     assert.equal(capturedOptions?.taskStyleProfileId, "style-task-1");
   } finally {

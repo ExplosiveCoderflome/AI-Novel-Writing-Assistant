@@ -41,6 +41,7 @@ interface BuildNovelEditPlanningTabsInput {
   onRefreshWorldSlice: () => void;
   onSaveWorldSliceOverrides: (patch: StoryWorldSliceOverrides) => void;
   isSavingBasic: boolean;
+  projectQuickStart?: BasicTabProps["projectQuickStart"];
   worldInjectionSummary: string | null;
   hasCharacters: boolean;
   hasUnsavedVolumeDraft: boolean;
@@ -139,6 +140,7 @@ export function buildNovelEditPlanningTabs(input: BuildNovelEditPlanningTabsInpu
     onRefreshWorldSlice: input.onRefreshWorldSlice,
     onSaveWorldSliceOverrides: input.onSaveWorldSliceOverrides,
     isSaving: input.isSavingBasic,
+    projectQuickStart: input.projectQuickStart,
   };
 
   const outlineTab: OutlineTabViewProps = {

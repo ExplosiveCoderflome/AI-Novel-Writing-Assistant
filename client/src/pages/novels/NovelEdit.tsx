@@ -53,6 +53,7 @@ import { useNovelEditWorkflow } from "./hooks/useNovelEditWorkflow";
 import { buildNovelEditPlanningTabs } from "./novelEditPlanningTabs";
 import type { ChapterReviewResult } from "./chapterPlanning.shared";
 import type { NovelEditTakeoverState, NovelTaskDrawerState } from "./components/NovelEditView.types";
+import NovelExistingProjectTakeoverDialog from "./components/NovelExistingProjectTakeoverDialog";
 import { syncNovelWorkflowStageSilently, workflowStageFromTab } from "./novelWorkflow.client";
 import {
   DEFAULT_ESTIMATED_CHAPTER_COUNT,
@@ -105,7 +106,7 @@ function formatTakeoverCheckpoint(checkpoint: string | null | undefined): string
     return "前 10 章可开写";
   }
   if (checkpoint === "chapter_batch_ready") {
-    return "章节资源已就绪";
+    return "前 10 章自动执行已暂停";
   }
   if (checkpoint === "workflow_completed") {
     return "主流程完成";
@@ -118,6 +119,9 @@ function buildTakeoverTitle(input: {
   novelTitle: string;
   checkpointType: string | null | undefined;
 }): string {
+  if (input.mode === "running" && input.checkpointType === "front10_ready") {
+    return `《${input.novelTitle}》正在自动执行前 10 章`;
+  }
   if (input.mode === "waiting") {
     if (input.checkpointType === "character_setup_required") {
       return `《${input.novelTitle}》等待审核角色准备`;
@@ -130,6 +134,9 @@ function buildTakeoverTitle(input: {
     }
   }
   if (input.mode === "failed") {
+    if (input.checkpointType === "chapter_batch_ready") {
+      return `《${input.novelTitle}》前 10 章自动执行已暂停`;
+    }
     return `《${input.novelTitle}》自动导演已中断`;
   }
   if (input.mode === "loading") {
@@ -143,6 +150,9 @@ function buildTakeoverDescription(input: {
   checkpointType: string | null | undefined;
   reviewScope: DirectorLockScope | null | undefined;
 }): string {
+  if (input.mode === "running" && input.checkpointType === "front10_ready") {
+    return "AI 正在后台自动执行前 10 章，并会继续完成审校与修复。当前章节执行和质量修复区会临时锁定，避免与后台写入冲突。";
+  }
   if (input.mode === "waiting") {
     if (input.checkpointType === "character_setup_required") {
       return "角色准备已经生成。你可以先检查核心角色、关系和当前目标，确认后再继续自动导演。";
@@ -151,13 +161,16 @@ function buildTakeoverDescription(input: {
       return "当前可以审核并微调卷战略 / 卷骨架。确认后再继续自动生成第 1 卷节奏板、拆章和前 10 章细化。";
     }
     if (input.checkpointType === "front10_ready") {
-      return "自动导演已经完成第 1 卷开写准备，当前不再锁定编辑区，你可以直接进入章节执行。";
+      return "自动导演已经完成第 1 卷开写准备。你可以直接进入章节执行，也可以继续让 AI 自动执行前 10 章。";
     }
     if (input.reviewScope) {
       return "自动导演已到达审核点。请先检查当前阶段产物，再决定是否继续推进。";
     }
   }
   if (input.mode === "failed") {
+    if (input.checkpointType === "chapter_batch_ready") {
+      return "前 10 章自动执行已暂停。建议先查看任务中心或质量修复区，再决定是否继续自动执行。";
+    }
     return "后台导演流程已中断。建议先去任务中心查看失败原因，再决定是否从最近检查点恢复。";
   }
   if (input.mode === "loading") {
@@ -173,6 +186,9 @@ function buildTakeoverOverlayMessage(input: {
 }): string {
   if (input.mode === "waiting" && input.reviewScope) {
     return `当前流程正在等待「${tabFromScope(input.reviewScope) === "outline" ? "卷战略 / 卷骨架" : tabFromScope(input.reviewScope) === "character" ? "角色准备" : "当前阶段"}」审核，后续区域暂不开放手动修改。`;
+  }
+  if (input.mode === "running" && input.checkpointType === "front10_ready") {
+    return "AI 正在后台自动执行前 10 章。当前章节执行与质量修复区暂不建议手动修改，避免与批量写入冲突。";
   }
   if (input.checkpointType === "front10_ready") {
     return "自动导演已交接完成，当前区域可以自由编辑。";
@@ -530,6 +546,27 @@ export default function NovelEdit() {
       toast.error(message);
     },
   });
+  const continueAutoExecutionMutation = useMutation({
+    mutationFn: async () => {
+      if (!activeAutoDirectorTask?.id) {
+        throw new Error("当前没有可继续自动执行的自动导演任务。");
+      }
+      return continueNovelWorkflow(activeAutoDirectorTask.id, {
+        continuationMode: "auto_execute_front10",
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTask(id) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.volumeWorkspace(id) });
+      await queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      toast.success("自动导演已继续执行前 10 章，并会在后台自动审校与修复。");
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "继续自动执行前 10 章失败。";
+      toast.error(message);
+    },
+  });
   const consistencyIssue = useMemo(
     () => resolveDirectorConsistencyIssue({
       checkpointType: activeAutoDirectorTask?.checkpointType,
@@ -552,6 +589,13 @@ export default function NovelEdit() {
       setSelectedChapterId(activeAutoDirectorTask.resumeTarget.chapterId);
     }
     setActiveTab("chapter");
+    setIsTaskDrawerOpen(false);
+  };
+  const openQualityRepair = () => {
+    if (activeAutoDirectorTask?.resumeTarget?.chapterId) {
+      setSelectedChapterId(activeAutoDirectorTask.resumeTarget.chapterId);
+    }
+    setActiveTab("pipeline");
     setIsTaskDrawerOpen(false);
   };
   const retryAutoDirectorWithCurrentModelMutation = useMutation({
@@ -640,27 +684,68 @@ export default function NovelEdit() {
     const activeScope = scopeFromTab(activeTab);
     const lockedScopes = activeDirectorSession?.lockedScopes ?? [];
     const reviewScope = activeDirectorSession?.reviewScope ?? null;
+    const isFront10AutoExecutionRunning = Boolean(
+      mode === "running"
+      && task.checkpointType === "front10_ready"
+      && activeDirectorSession?.runMode === "auto_to_execution",
+    );
     const overlay = Boolean(
       activeScope
       && lockedScopes.includes(activeScope)
       && reviewScope !== activeScope
-      && task.checkpointType !== "front10_ready",
+      && (task.checkpointType !== "front10_ready" || isFront10AutoExecutionRunning),
     );
     const actions: NonNullable<NovelEditTakeoverState["actions"]> = [];
     const reviewTab = tabFromScope(reviewScope);
-    if (mode === "waiting" && reviewTab && reviewTab !== activeTab && task.checkpointType !== "front10_ready") {
+    if (
+      mode === "waiting"
+      && reviewTab
+      && reviewTab !== activeTab
+      && task.checkpointType !== "front10_ready"
+      && task.checkpointType !== "chapter_batch_ready"
+    ) {
       actions.push({
         label: "去当前审核阶段",
         onClick: () => setActiveTab(reviewTab),
         variant: "outline",
       });
     }
-    if (mode === "waiting" && task.checkpointType !== "front10_ready") {
+    if (mode === "waiting" && task.checkpointType === "front10_ready") {
+      actions.push({
+        label: continueAutoExecutionMutation.isPending ? "继续执行中..." : "继续自动执行前 10 章",
+        onClick: () => continueAutoExecutionMutation.mutate(),
+        variant: "default",
+        disabled: continueAutoExecutionMutation.isPending,
+      });
+      actions.push({
+        label: "进入章节执行",
+        onClick: () => {
+          if (task.resumeTarget?.chapterId) {
+            setSelectedChapterId(task.resumeTarget.chapterId);
+          }
+          setActiveTab("chapter");
+        },
+        variant: "outline",
+      });
+    } else if (mode === "waiting") {
       actions.push({
         label: continueAutoDirectorMutation.isPending ? "继续中..." : "继续自动导演",
         onClick: () => continueAutoDirectorMutation.mutate(),
         variant: "default",
         disabled: continueAutoDirectorMutation.isPending,
+      });
+    }
+    if (mode === "failed" && task.checkpointType === "chapter_batch_ready") {
+      actions.push({
+        label: continueAutoExecutionMutation.isPending ? "继续执行中..." : "继续自动执行前 10 章",
+        onClick: () => continueAutoExecutionMutation.mutate(),
+        variant: "default",
+        disabled: continueAutoExecutionMutation.isPending,
+      });
+      actions.push({
+        label: "打开质量修复",
+        onClick: openQualityRepair,
+        variant: "outline",
       });
     }
     if (consistencyIssue) {
@@ -677,7 +762,7 @@ export default function NovelEdit() {
           variant: "outline",
         });
       }
-    } else if (task.checkpointType === "front10_ready") {
+    } else if (task.checkpointType === "front10_ready" && mode !== "waiting") {
       actions.push({
         label: "进入章节执行",
         onClick: () => {
@@ -686,7 +771,7 @@ export default function NovelEdit() {
           }
           setActiveTab("chapter");
         },
-        variant: "default",
+        variant: mode === "running" ? "outline" : "default",
       });
     }
     actions.push({
@@ -742,8 +827,10 @@ export default function NovelEdit() {
     chapters.length,
     characters.length,
     continueAutoDirectorMutation,
+    continueAutoExecutionMutation,
     navigate,
     novelDetailQuery.data?.data?.title,
+    openQualityRepair,
     setActiveTab,
     setSelectedChapterId,
     workflowTaskId,
@@ -771,7 +858,24 @@ export default function NovelEdit() {
           variant: "outline",
         });
       }
-    } else if (task.status === "waiting_approval" && reviewTab && task.checkpointType !== "front10_ready") {
+    } else if (task.status === "waiting_approval" && task.checkpointType === "front10_ready") {
+      actions.push({
+        label: continueAutoExecutionMutation.isPending ? "继续执行中..." : "继续自动执行前 10 章",
+        onClick: () => continueAutoExecutionMutation.mutate(),
+        variant: "default",
+        disabled: continueAutoExecutionMutation.isPending,
+      });
+      actions.push({
+        label: "进入章节执行",
+        onClick: openChapterExecution,
+        variant: "outline",
+      });
+    } else if (
+      task.status === "waiting_approval"
+      && reviewTab
+      && task.checkpointType !== "front10_ready"
+      && task.checkpointType !== "chapter_batch_ready"
+    ) {
       actions.push({
         label: "去当前审核阶段",
         onClick: openReviewStage,
@@ -782,6 +886,18 @@ export default function NovelEdit() {
         onClick: () => continueAutoDirectorMutation.mutate(),
         variant: "outline",
         disabled: continueAutoDirectorMutation.isPending,
+      });
+    } else if ((task.status === "failed" || task.status === "cancelled") && task.checkpointType === "chapter_batch_ready") {
+      actions.push({
+        label: continueAutoExecutionMutation.isPending ? "继续执行中..." : "继续自动执行前 10 章",
+        onClick: () => continueAutoExecutionMutation.mutate(),
+        variant: "default",
+        disabled: continueAutoExecutionMutation.isPending,
+      });
+      actions.push({
+        label: "打开质量修复",
+        onClick: openQualityRepair,
+        variant: "outline",
       });
     } else if (task.checkpointType === "front10_ready") {
       actions.push({
@@ -820,8 +936,10 @@ export default function NovelEdit() {
     cancelAutoDirectorMutation,
     consistencyIssue,
     continueAutoDirectorMutation,
+    continueAutoExecutionMutation,
     openReviewStage,
     openChapterExecution,
+    openQualityRepair,
     retryAutoDirectorWithCurrentModelMutation,
     retryAutoDirectorWithTaskModelMutation,
     reviewTab,
@@ -1105,6 +1223,12 @@ export default function NovelEdit() {
     onRefreshWorldSlice: refreshWorldSlice,
     onSaveWorldSliceOverrides: saveWorldSliceOverrides,
     isSavingBasic: saveBasicMutation.isPending,
+    projectQuickStart: (
+      <NovelExistingProjectTakeoverDialog
+        novelId={id}
+        basicForm={basicForm}
+      />
+    ),
     worldInjectionSummary,
     hasCharacters,
     hasUnsavedVolumeDraft,

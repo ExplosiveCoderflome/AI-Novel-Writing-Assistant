@@ -8,6 +8,7 @@ export type {
   CharacterCastOption,
   CharacterCastOptionClearResult,
   CharacterCastOptionDeleteResult,
+  CharacterGender,
   CharacterCastOptionMember,
   CharacterCastOptionRelation,
   CharacterCastRole,

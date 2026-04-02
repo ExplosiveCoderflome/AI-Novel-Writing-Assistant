@@ -86,9 +86,15 @@ function buildStoryMacroPlan() {
 }
 
 test("novel director routes support candidates, refine and confirm flows", async () => {
+  const confirmCalls = [];
+  const takeoverCalls = [];
   const originalGenerate = NovelDirectorService.prototype.generateCandidates;
   const originalRefine = NovelDirectorService.prototype.refineCandidates;
+  const originalPatch = NovelDirectorService.prototype.patchCandidate;
+  const originalRefineTitles = NovelDirectorService.prototype.refineCandidateTitleOptions;
   const originalConfirm = NovelDirectorService.prototype.confirmCandidate;
+  const originalGetTakeoverReadiness = NovelDirectorService.prototype.getTakeoverReadiness;
+  const originalStartTakeover = NovelDirectorService.prototype.startTakeover;
 
   NovelDirectorService.prototype.generateCandidates = async function generateCandidatesMock() {
     return { batch: buildBatch(1) };
@@ -96,7 +102,34 @@ test("novel director routes support candidates, refine and confirm flows", async
   NovelDirectorService.prototype.refineCandidates = async function refineCandidatesMock() {
     return { batch: buildBatch(2) };
   };
-  NovelDirectorService.prototype.confirmCandidate = async function confirmCandidateMock() {
+  NovelDirectorService.prototype.patchCandidate = async function patchCandidateMock() {
+    const batch = buildBatch(2);
+    batch.candidates[0] = {
+      ...batch.candidates[0],
+      workingTitle: "Neon Bureau",
+      positioning: "Urban supernatural investigation with stronger city-pressure rhythm.",
+    };
+    return { batch, candidate: batch.candidates[0] };
+  };
+  NovelDirectorService.prototype.refineCandidateTitleOptions = async function refineTitlesMock() {
+    const batch = buildBatch(2);
+    batch.candidates[0] = {
+      ...batch.candidates[0],
+      workingTitle: "Neon Switchboard",
+      titleOptions: [
+        {
+          title: "Neon Switchboard",
+          clickRate: 79,
+          style: "high_concept",
+          angle: "新版主书名",
+          reason: "更偏都市冷感。",
+        },
+      ],
+    };
+    return { batch, candidate: batch.candidates[0] };
+  };
+  NovelDirectorService.prototype.confirmCandidate = async function confirmCandidateMock(input) {
+    confirmCalls.push(input);
     return {
       novel: {
         id: "novel_director_demo",
@@ -170,6 +203,77 @@ test("novel director routes support candidates, refine and confirm flows", async
       },
     };
   };
+  NovelDirectorService.prototype.getTakeoverReadiness = async function getTakeoverReadinessMock() {
+    return {
+      novelId: "novel_director_demo",
+      novelTitle: "Neon Archive",
+      hasActiveTask: false,
+      activeTaskId: null,
+      snapshot: {
+        hasStoryMacroPlan: true,
+        hasBookContract: true,
+        characterCount: 4,
+        chapterCount: 0,
+        volumeCount: 1,
+        firstVolumeChapterCount: 0,
+      },
+      stages: [
+        {
+          phase: "story_macro",
+          label: "从故事宏观规划开始",
+          description: "先补齐 Story Macro 和 Book Contract。",
+          available: true,
+          recommended: false,
+          reason: "当前书级信息足够。",
+        },
+        {
+          phase: "character_setup",
+          label: "从角色准备开始",
+          description: "沿用书级方向继续角色准备。",
+          available: true,
+          recommended: false,
+          reason: "书级方向资产已齐。",
+        },
+        {
+          phase: "volume_strategy",
+          label: "从卷战略开始",
+          description: "继续卷战略和卷骨架。",
+          available: true,
+          recommended: true,
+          reason: "角色资产已齐，可以从卷战略开始。",
+        },
+        {
+          phase: "structured_outline",
+          label: "从节奏 / 拆章开始",
+          description: "继续第 1 卷节奏与拆章。",
+          available: true,
+          recommended: false,
+          reason: "卷级资产已经存在。",
+        },
+      ],
+    };
+  };
+  NovelDirectorService.prototype.startTakeover = async function startTakeoverMock(input) {
+    takeoverCalls.push(input);
+    return {
+      novelId: "novel_director_demo",
+      workflowTaskId: "workflow_takeover_demo",
+      startPhase: "volume_strategy",
+      directorSession: {
+        runMode: input.runMode ?? "stage_review",
+        isBackgroundRunning: true,
+        lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
+        phase: "volume_strategy",
+        reviewScope: null,
+      },
+      resumeTarget: {
+        route: "/novels/:id/edit",
+        novelId: "novel_director_demo",
+        taskId: "workflow_takeover_demo",
+        stage: "outline",
+      },
+    };
+  };
 
   const app = createApp();
   const server = http.createServer(app);
@@ -218,6 +322,52 @@ test("novel director routes support candidates, refine and confirm flows", async
     assert.equal(refinePayload.success, true);
     assert.equal(refinePayload.data.batch.round, 2);
 
+    const patchResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/patch-candidate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        idea: "A college girl accidentally enters a supernatural organization.",
+        narrativePov: "third_person",
+        pacePreference: "balanced",
+        emotionIntensity: "medium",
+        aiFreedom: "medium",
+        projectMode: "ai_led",
+        writingMode: "original",
+        estimatedChapterCount: 30,
+        previousBatches: [buildBatch(1), buildBatch(2)],
+        batchId: "batch_2",
+        candidateId: "candidate_2_1",
+        feedback: "Keep this direction, but make it feel more urban and more investigative.",
+      }),
+    });
+    assert.equal(patchResponse.status, 200);
+    const patchPayload = await patchResponse.json();
+    assert.equal(patchPayload.success, true);
+    assert.equal(patchPayload.data.candidate.workingTitle, "Neon Bureau");
+
+    const refineTitlesResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/refine-titles`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        idea: "A college girl accidentally enters a supernatural organization.",
+        narrativePov: "third_person",
+        pacePreference: "balanced",
+        emotionIntensity: "medium",
+        aiFreedom: "medium",
+        projectMode: "ai_led",
+        writingMode: "original",
+        estimatedChapterCount: 30,
+        previousBatches: [buildBatch(1), buildBatch(2)],
+        batchId: "batch_2",
+        candidateId: "candidate_2_1",
+        feedback: "This title group is too old-school. Make it feel colder and more urban.",
+      }),
+    });
+    assert.equal(refineTitlesResponse.status, 200);
+    const refineTitlesPayload = await refineTitlesResponse.json();
+    assert.equal(refineTitlesPayload.success, true);
+    assert.equal(refineTitlesPayload.data.candidate.workingTitle, "Neon Switchboard");
+
     const confirmResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/confirm`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -230,6 +380,7 @@ test("novel director routes support candidates, refine and confirm flows", async
         projectMode: "ai_led",
         writingMode: "original",
         estimatedChapterCount: 30,
+        runMode: "auto_to_execution",
         batchId: "batch_2",
         round: 2,
         candidate: buildCandidate(),
@@ -241,10 +392,39 @@ test("novel director routes support candidates, refine and confirm flows", async
     assert.equal(confirmPayload.data.novel.id, "novel_director_demo");
     assert.equal(confirmPayload.data.createdChapterCount, 30);
     assert.equal(confirmPayload.data.bookSpec.targetChapterCount, 30);
+    assert.equal(confirmCalls.at(-1)?.runMode, "auto_to_execution");
+
+    const readinessResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/takeover-readiness/novel_director_demo`);
+    assert.equal(readinessResponse.status, 200);
+    const readinessPayload = await readinessResponse.json();
+    assert.equal(readinessPayload.success, true);
+    assert.equal(readinessPayload.data.snapshot.characterCount, 4);
+    assert.equal(readinessPayload.data.stages.find((item) => item.phase === "volume_strategy").recommended, true);
+
+    const takeoverResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/takeover`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        novelId: "novel_director_demo",
+        startPhase: "volume_strategy",
+        runMode: "auto_to_execution",
+      }),
+    });
+    assert.equal(takeoverResponse.status, 200);
+    const takeoverPayload = await takeoverResponse.json();
+    assert.equal(takeoverPayload.success, true);
+    assert.equal(takeoverPayload.data.workflowTaskId, "workflow_takeover_demo");
+    assert.equal(takeoverPayload.data.resumeTarget.stage, "outline");
+    assert.equal(takeoverPayload.data.directorSession.runMode, "auto_to_execution");
+    assert.equal(takeoverCalls.at(-1)?.runMode, "auto_to_execution");
   } finally {
     NovelDirectorService.prototype.generateCandidates = originalGenerate;
     NovelDirectorService.prototype.refineCandidates = originalRefine;
+    NovelDirectorService.prototype.patchCandidate = originalPatch;
+    NovelDirectorService.prototype.refineCandidateTitleOptions = originalRefineTitles;
     NovelDirectorService.prototype.confirmCandidate = originalConfirm;
+    NovelDirectorService.prototype.getTakeoverReadiness = originalGetTakeoverReadiness;
+    NovelDirectorService.prototype.startTakeover = originalStartTakeover;
     await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
   }
 });

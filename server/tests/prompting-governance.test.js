@@ -18,9 +18,7 @@ const INLINE_PROMPT_ALLOWED_FILES = new Set([
   "src/routes/chat.ts",
   "src/services/title/titlePromptBuilder.ts",
   "src/services/writingFormula/WritingFormulaService.ts",
-  "src/services/novel/chapterWritingGraph.ts",
   "src/services/novel/novelCoreGenerationService.ts",
-  "src/services/novel/runtime/chapterRuntimePipeline.ts",
 ]);
 
 const INLINE_PROMPT_ALLOWED_PREFIXES = [
@@ -31,9 +29,7 @@ const DIRECT_GET_LLM_ALLOWED_FILES = new Set([
   "src/routes/chat.ts",
   "src/services/writingFormula/WritingFormulaService.ts",
   "src/services/world/worldDraftGeneration.ts",
-  "src/services/novel/chapterWritingGraph.ts",
   "src/services/novel/novelCoreGenerationService.ts",
-  "src/services/novel/runtime/chapterRuntimePipeline.ts",
 ]);
 
 const SYSTEM_PROMPT_BUILDER_ALLOWED_FILES = new Set([

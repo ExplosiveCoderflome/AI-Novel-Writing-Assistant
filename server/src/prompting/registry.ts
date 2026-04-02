@@ -82,6 +82,10 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/novel/directorPlanning.prompts").directorCandidatePrompt as UnknownPromptAsset,
   },
   {
+    key: "novel.director.candidate_patch@v1",
+    load: () => require("./prompts/novel/directorPlanning.prompts").directorCandidatePatchPrompt as UnknownPromptAsset,
+  },
+  {
     key: "novel.director.book_contract@v1",
     load: () => require("./prompts/novel/directorPlanning.prompts").directorBookContractPrompt as UnknownPromptAsset,
   },
@@ -142,7 +146,7 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/novel/volume/beatSheet.prompts").volumeBeatSheetPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.volume.chapter_list@v2",
+    key: "novel.volume.chapter_list@v4",
     load: () => require("./prompts/novel/volume/chapterList.prompts").createVolumeChapterListPrompt(1) as UnknownPromptAsset,
   },
   {
@@ -194,7 +198,7 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/novel/review.prompts").chapterSummaryPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.chapter.writer@v1",
+    key: "novel.chapter.writer@v2",
     load: () => require("./prompts/novel/chapterWriter.prompts").chapterWriterPrompt as UnknownPromptAsset,
   },
   {

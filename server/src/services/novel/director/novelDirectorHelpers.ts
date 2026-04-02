@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type {
+  DirectorAutoExecutionState,
   BookSpec,
   DirectorCandidate,
   DirectorCandidateBatch,
@@ -35,6 +36,7 @@ export interface DirectorWorkflowSeedPayload extends Record<string, unknown> {
   directorInput?: DirectorConfirmRequest;
   directorSession?: DirectorSessionState;
   resumeTarget?: NovelWorkflowResumeTarget | null;
+  autoExecution?: DirectorAutoExecutionState;
 }
 
 export interface CandidateGenerationContext {
@@ -58,7 +60,13 @@ const DIRECTOR_ALL_MUTATING_SCOPES: DirectorLockScope[] = [
 ];
 
 export function normalizeDirectorRunMode(runMode: DirectorRunMode | undefined): DirectorRunMode {
-  return runMode === "stage_review" ? "stage_review" : "auto_to_ready";
+  if (runMode === "stage_review") {
+    return "stage_review";
+  }
+  if (runMode === "auto_to_execution") {
+    return "auto_to_execution";
+  }
+  return "auto_to_ready";
 }
 
 export function buildDirectorSessionState(input: {
@@ -99,6 +107,9 @@ function resolveDirectorLockedScopes(input: {
       return DIRECTOR_ALL_MUTATING_SCOPES;
     }
     if (input.phase === "front10_ready") {
+      if (input.runMode === "auto_to_execution") {
+        return ["chapter", "pipeline"];
+      }
       return [];
     }
     return DIRECTOR_ALL_MUTATING_SCOPES;
