@@ -1,8 +1,23 @@
 const net = require("net");
 
+const DEFAULT_HOSTS = ["127.0.0.1", "localhost", "::1"];
+
+function parseHosts(value) {
+  return String(value)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function formatEndpoint(host, port) {
+  return host.includes(":") ? `[${host}]:${port}` : `${host}:${port}`;
+}
+
 function parseArgs(argv) {
   const options = {
-    host: "127.0.0.1",
+    hosts: process.env.WAIT_FOR_PORT_HOSTS
+      ? parseHosts(process.env.WAIT_FOR_PORT_HOSTS)
+      : [...DEFAULT_HOSTS],
     port: 3000,
     timeoutMs: 120000,
     intervalMs: 500,
@@ -18,7 +33,7 @@ function parseArgs(argv) {
     }
 
     if (arg === "--host" && argv[index + 1]) {
-      options.host = argv[index + 1];
+      options.hosts = parseHosts(argv[index + 1]);
       index += 1;
       continue;
     }
@@ -46,7 +61,7 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-  console.log("Usage: node scripts/wait-for-port.cjs [--host 127.0.0.1] [--port 3000] [--timeout 120000] [--interval 500]");
+  console.log("Usage: node scripts/wait-for-port.cjs [--host 127.0.0.1,localhost,::1] [--port 3000] [--timeout 120000] [--interval 500]");
 }
 
 function wait(ms) {
@@ -81,22 +96,29 @@ async function main() {
     throw new Error(`Invalid port: ${options.port}`);
   }
 
+  if (!Array.isArray(options.hosts) || options.hosts.length === 0) {
+    throw new Error("At least one host is required.");
+  }
+
   const deadline = Date.now() + options.timeoutMs;
+  const endpoints = options.hosts.map((host) => formatEndpoint(host, options.port));
   console.log(
-    `[wait-for-port] Waiting for ${options.host}:${options.port} (timeout ${options.timeoutMs}ms)`,
+    `[wait-for-port] Waiting for ${endpoints.join(", ")} (timeout ${options.timeoutMs}ms)`,
   );
 
   while (Date.now() < deadline) {
-    if (await tryConnect(options.host, options.port)) {
-      console.log(`[wait-for-port] ${options.host}:${options.port} is ready.`);
-      return;
+    for (const host of options.hosts) {
+      if (await tryConnect(host, options.port)) {
+        console.log(`[wait-for-port] ${formatEndpoint(host, options.port)} is ready.`);
+        return;
+      }
     }
 
     await wait(options.intervalMs);
   }
 
   throw new Error(
-    `Timed out after ${options.timeoutMs}ms waiting for ${options.host}:${options.port}`,
+    `Timed out after ${options.timeoutMs}ms waiting for ${endpoints.join(", ")}`,
   );
 }
 
