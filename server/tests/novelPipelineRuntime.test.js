@@ -1,0 +1,58 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+
+const {
+  NovelPipelineRuntimeService,
+} = require("../dist/services/novel/NovelPipelineRuntimeService.js");
+
+test("resumePendingPipelineJobs resumes queued and running pipeline jobs after restart", async () => {
+  const calls = [];
+  const runtimeService = new NovelPipelineRuntimeService({
+    async listRecoverablePipelineJobs() {
+      return [
+        { id: "job-queued", status: "queued" },
+        { id: "job-running", status: "running" },
+      ];
+    },
+    async listStaleRecoverablePipelineJobs() {
+      return [];
+    },
+    async resumePipelineJob(jobId) {
+      calls.push(["resume", jobId]);
+    },
+    async markPipelineJobFailed(jobId, message) {
+      calls.push(["failed", jobId, message]);
+    },
+  });
+
+  await runtimeService.resumePendingPipelineJobs();
+
+  assert.deepEqual(calls, [
+    ["resume", "job-queued"],
+    ["resume", "job-running"],
+  ]);
+});
+
+test("recoverStalePipelineJobs marks failed when resume throws", async () => {
+  const calls = [];
+  const runtimeService = new NovelPipelineRuntimeService({
+    async listRecoverablePipelineJobs() {
+      return [];
+    },
+    async listStaleRecoverablePipelineJobs() {
+      return [{ id: "job-stale", status: "running" }];
+    },
+    async resumePipelineJob() {
+      throw new Error("缺少章节上下文");
+    },
+    async markPipelineJobFailed(jobId, message) {
+      calls.push([jobId, message]);
+    },
+  });
+
+  await runtimeService.recoverStalePipelineJobs(new Date("2026-04-03T00:00:00+08:00"), 60_000);
+
+  assert.deepEqual(calls, [
+    ["job-stale", "章节流水线任务心跳超时，正在尝试恢复。 恢复失败：缺少章节上下文"],
+  ]);
+});

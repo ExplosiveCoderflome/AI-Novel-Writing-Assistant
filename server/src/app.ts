@@ -38,10 +38,12 @@ import { novelEventBus, registerNovelEventHandlers } from "./events";
 import { bookAnalysisService } from "./services/bookAnalysis/BookAnalysisService";
 import { imageGenerationService } from "./services/image/ImageGenerationService";
 import { ragServices } from "./services/rag";
+import { NovelPipelineRuntimeService } from "./services/novel/NovelPipelineRuntimeService";
 import { NovelWorkflowRuntimeService } from "./services/novel/workflow/NovelWorkflowRuntimeService";
 
 registerNovelEventHandlers(novelEventBus);
 const novelWorkflowRuntimeService = new NovelWorkflowRuntimeService();
+const novelPipelineRuntimeService = new NovelPipelineRuntimeService();
 
 morgan.token("error-message", (_req, res) => {
   const response = res as typeof res & {
@@ -165,6 +167,7 @@ async function bootstrap(): Promise<void> {
   const host = process.env.HOST ?? (allowLan ? "0.0.0.0" : "localhost");
   ragServices.ragWorker.start();
   bookAnalysisService.startWatchdog();
+  novelPipelineRuntimeService.startWatchdog();
   void bookAnalysisService.resumePendingAnalyses().catch((error) => {
     console.warn("Failed to resume pending book analyses.", error);
   });
@@ -173,6 +176,9 @@ async function bootstrap(): Promise<void> {
   });
   void novelWorkflowRuntimeService.resumePendingAutoDirectorTasks().catch((error) => {
     console.warn("Failed to resume pending auto director workflows.", error);
+  });
+  void novelPipelineRuntimeService.resumePendingPipelineJobs().catch((error) => {
+    console.warn("Failed to resume pending novel pipeline jobs.", error);
   });
 
   app.listen(port, host, () => {
