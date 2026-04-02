@@ -36,3 +36,10 @@ export function collectDescendantIds(node: GenreTreeNode): string[] {
 export function countGenres(nodes: GenreTreeNode[]): number {
   return nodes.reduce((total, node) => total + 1 + countGenres(node.children), 0);
 }
+
+export function countGenreNovelBindingsInSubtree(node: GenreTreeNode): number {
+  return node.novelCount + node.children.reduce(
+    (total, child) => total + countGenreNovelBindingsInSubtree(child),
+    0,
+  );
+}

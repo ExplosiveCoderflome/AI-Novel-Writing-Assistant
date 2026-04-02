@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import type { StoryModeProfile } from "@ai-novel/shared/types/storyMode";
 import {
   createStoryModeChildren,
@@ -11,7 +10,6 @@ import {
   generateStoryModeTree,
   getStoryModeTree,
   updateStoryMode,
-  type StoryModeOption,
   type StoryModeTreeDraft,
   type StoryModeTreeNode,
 } from "@/api/storyMode";
@@ -30,6 +28,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { useLLMStore } from "@/store/llmStore";
+import StoryModeProfileFields from "./components/StoryModeProfileFields";
+import StoryModeTreeCard from "./components/StoryModeTreeCard";
 
 type StoryModeProfileDraft = StoryModeProfile;
 
@@ -97,17 +97,6 @@ function collectDescendantIds(node: StoryModeTreeNode): string[] {
   return node.children.flatMap((child) => [child.id, ...collectDescendantIds(child)]);
 }
 
-function linesToList(value: string): string[] {
-  return value
-    .split(/\r?\n/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function listToLines(value: string[]): string {
-  return value.join("\n");
-}
-
 function normalizeProfileInput(profile: StoryModeDialogState["profile"]): StoryModeProfile {
   return {
     coreDrive: profile.coreDrive.trim(),
@@ -131,229 +120,6 @@ function toDialogState(node?: StoryModeTreeNode | null): StoryModeDialogState {
     template: node?.template ?? "",
     profile: node?.profile ? { ...node.profile } : createEmptyProfile(),
   };
-}
-
-function StoryModeProfileFields(props: {
-  value: StoryModeProfileDraft;
-  onChange: (value: StoryModeProfileDraft) => void;
-}) {
-  const { value, onChange } = props;
-  const updateList = (field: keyof Pick<
-    StoryModeProfileDraft,
-    "progressionUnits" | "allowedConflictForms" | "forbiddenConflictForms" | "mandatorySignals" | "antiSignals"
-  >, text: string) => {
-    onChange({
-      ...value,
-      [field]: linesToList(text),
-    });
-  };
-
-  return (
-    <div className="grid gap-3">
-      <label className="space-y-2 text-sm">
-        <span className="font-medium text-foreground">核心驱动</span>
-        <textarea
-          rows={2}
-          className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-          value={value.coreDrive}
-          onChange={(event) => onChange({ ...value, coreDrive: event.target.value })}
-        />
-      </label>
-      <label className="space-y-2 text-sm">
-        <span className="font-medium text-foreground">读者奖励</span>
-        <textarea
-          rows={2}
-          className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-          value={value.readerReward}
-          onChange={(event) => onChange({ ...value, readerReward: event.target.value })}
-        />
-      </label>
-      <div className="grid gap-3 md:grid-cols-2">
-        <label className="space-y-2 text-sm">
-          <span className="font-medium text-foreground">章节推进单位</span>
-          <textarea
-            rows={4}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            value={listToLines(value.progressionUnits)}
-            onChange={(event) => updateList("progressionUnits", event.target.value)}
-          />
-        </label>
-        <label className="space-y-2 text-sm">
-          <span className="font-medium text-foreground">允许冲突形式</span>
-          <textarea
-            rows={4}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            value={listToLines(value.allowedConflictForms)}
-            onChange={(event) => updateList("allowedConflictForms", event.target.value)}
-          />
-        </label>
-        <label className="space-y-2 text-sm">
-          <span className="font-medium text-foreground">禁止冲突形式</span>
-          <textarea
-            rows={4}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            value={listToLines(value.forbiddenConflictForms)}
-            onChange={(event) => updateList("forbiddenConflictForms", event.target.value)}
-          />
-        </label>
-        <label className="space-y-2 text-sm">
-          <span className="font-medium text-foreground">冲突上限</span>
-          <select
-            className="w-full rounded-md border bg-background p-2 text-sm"
-            value={value.conflictCeiling}
-            onChange={(event) => onChange({ ...value, conflictCeiling: event.target.value as StoryModeProfile["conflictCeiling"] })}
-          >
-            <option value="low">low</option>
-            <option value="medium">medium</option>
-            <option value="high">high</option>
-          </select>
-        </label>
-      </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        <label className="space-y-2 text-sm">
-          <span className="font-medium text-foreground">化解方式</span>
-          <textarea
-            rows={2}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            value={value.resolutionStyle}
-            onChange={(event) => onChange({ ...value, resolutionStyle: event.target.value })}
-          />
-        </label>
-        <label className="space-y-2 text-sm">
-          <span className="font-medium text-foreground">章节颗粒</span>
-          <textarea
-            rows={2}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            value={value.chapterUnit}
-            onChange={(event) => onChange({ ...value, chapterUnit: event.target.value })}
-          />
-        </label>
-        <label className="space-y-2 text-sm">
-          <span className="font-medium text-foreground">卷末奖励</span>
-          <textarea
-            rows={2}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            value={value.volumeReward}
-            onChange={(event) => onChange({ ...value, volumeReward: event.target.value })}
-          />
-        </label>
-        <label className="space-y-2 text-sm">
-          <span className="font-medium text-foreground">必须出现的信号</span>
-          <textarea
-            rows={4}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            value={listToLines(value.mandatorySignals)}
-            onChange={(event) => updateList("mandatorySignals", event.target.value)}
-          />
-        </label>
-      </div>
-      <label className="space-y-2 text-sm">
-        <span className="font-medium text-foreground">必须避免的跑偏信号</span>
-        <textarea
-          rows={4}
-          className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-          value={listToLines(value.antiSignals)}
-          onChange={(event) => updateList("antiSignals", event.target.value)}
-        />
-      </label>
-    </div>
-  );
-}
-
-function StoryModeTreeCard(props: {
-  node: StoryModeTreeNode;
-  depth?: number;
-  onCreateChild: (parentId: string) => void;
-  onEdit: (storyModeId: string) => void;
-  onDelete: (node: StoryModeTreeNode) => void;
-  deletingId?: string;
-}) {
-  const { node, depth = 0, onCreateChild, onEdit, onDelete, deletingId } = props;
-  const [expanded, setExpanded] = useState(true);
-  const hasChildren = node.children.length > 0;
-  const deleteDisabled = node.childCount > 0 || node.novelCount > 0;
-
-  return (
-    <div className={depth > 0 ? "ml-4 border-l border-border/60 pl-4" : ""}>
-      <Card className="border-border/70 bg-background/80 p-4">
-        <div className="flex items-start gap-3">
-          <button
-            type="button"
-            className="mt-1 inline-flex h-6 w-6 items-center justify-center rounded-md border border-transparent text-muted-foreground transition hover:border-border hover:bg-muted/40"
-            onClick={() => {
-              if (hasChildren) {
-                setExpanded((value) => !value);
-              }
-            }}
-          >
-            {hasChildren ? (
-              expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
-            ) : (
-              <span className="h-4 w-4" />
-            )}
-          </button>
-
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="text-sm font-semibold text-foreground">{node.name}</div>
-              <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                小说 {node.novelCount}
-              </span>
-              <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                子类 {node.childCount}
-              </span>
-            </div>
-            <div className="text-sm leading-6 text-muted-foreground">
-              {node.description?.trim() || node.profile.coreDrive}
-            </div>
-            <div className="text-xs leading-5 text-muted-foreground">
-              核心驱动：{node.profile.coreDrive}
-            </div>
-          </div>
-
-          <div className="flex shrink-0 flex-wrap justify-end gap-1">
-            {depth === 0 ? (
-              <Button type="button" variant="ghost" size="sm" onClick={() => onCreateChild(node.id)}>
-                <Plus className="mr-1 h-4 w-4" />
-                新增子类
-              </Button>
-            ) : null}
-            <Button type="button" variant="ghost" size="sm" onClick={() => onEdit(node.id)}>
-              <Pencil className="mr-1 h-4 w-4" />
-              编辑
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive"
-              disabled={deleteDisabled || deletingId === node.id}
-              onClick={() => onDelete(node)}
-            >
-              <Trash2 className="mr-1 h-4 w-4" />
-              {deletingId === node.id ? "删除中..." : "删除"}
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {hasChildren && expanded ? (
-        <div className="mt-3 space-y-3">
-          {node.children.map((child) => (
-            <StoryModeTreeCard
-              key={child.id}
-              node={child}
-              depth={depth + 1}
-              onCreateChild={onCreateChild}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              deletingId={deletingId}
-            />
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
 }
 
 export default function StoryModeManagementPage() {
@@ -585,7 +351,11 @@ export default function StoryModeManagementPage() {
   };
 
   const handleDelete = (node: StoryModeTreeNode) => {
-    const confirmed = window.confirm(`确认删除推进模式「${node.name}」吗？此操作不可恢复。`);
+    const descendantCount = collectDescendantIds(node).length;
+    const message = descendantCount > 0
+      ? `确认删除推进模式「${node.name}」吗？这会同时删除其下 ${descendantCount} 个子类，此操作不可恢复。`
+      : `确认删除推进模式「${node.name}」吗？此操作不可恢复。`;
+    const confirmed = window.confirm(message);
     if (!confirmed) {
       return;
     }

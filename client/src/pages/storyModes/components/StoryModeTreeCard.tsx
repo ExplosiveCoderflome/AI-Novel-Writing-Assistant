@@ -1,30 +1,36 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
-import type { GenreTreeNode } from "@/api/genre";
+import type { StoryModeTreeNode } from "@/api/storyMode";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { countGenreNovelBindingsInSubtree } from "../genreManagement.shared";
 
-interface GenreTreeItemProps {
-  node: GenreTreeNode;
+function countNovelBindingsInSubtree(node: StoryModeTreeNode): number {
+  return node.novelCount + node.children.reduce(
+    (total, child) => total + countNovelBindingsInSubtree(child),
+    0,
+  );
+}
+
+interface StoryModeTreeCardProps {
+  node: StoryModeTreeNode;
   depth?: number;
   onCreateChild: (parentId: string) => void;
-  onEdit: (genreId: string) => void;
-  onDelete: (genre: GenreTreeNode) => void;
+  onEdit: (storyModeId: string) => void;
+  onDelete: (node: StoryModeTreeNode) => void;
   deletingId?: string;
 }
 
-export default function GenreTreeItem({
+export default function StoryModeTreeCard({
   node,
   depth = 0,
   onCreateChild,
   onEdit,
   onDelete,
   deletingId,
-}: GenreTreeItemProps) {
+}: StoryModeTreeCardProps) {
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.children.length > 0;
-  const boundNovelCount = countGenreNovelBindingsInSubtree(node);
+  const boundNovelCount = countNovelBindingsInSubtree(node);
   const deleteDisabled = boundNovelCount > 0;
 
   return (
@@ -39,7 +45,6 @@ export default function GenreTreeItem({
                 setExpanded((value) => !value);
               }
             }}
-            aria-label={expanded ? "折叠" : "展开"}
           >
             {hasChildren ? (
               expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
@@ -59,15 +64,20 @@ export default function GenreTreeItem({
               </span>
             </div>
             <div className="text-sm leading-6 text-muted-foreground">
-              {node.description?.trim() || "暂无描述。"}
+              {node.description?.trim() || node.profile.coreDrive}
+            </div>
+            <div className="text-xs leading-5 text-muted-foreground">
+              核心驱动：{node.profile.coreDrive}
             </div>
           </div>
 
           <div className="flex shrink-0 flex-wrap justify-end gap-1">
-            <Button type="button" variant="ghost" size="sm" onClick={() => onCreateChild(node.id)}>
-              <Plus className="mr-1 h-4 w-4" />
-              新增子类
-            </Button>
+            {depth === 0 ? (
+              <Button type="button" variant="ghost" size="sm" onClick={() => onCreateChild(node.id)}>
+                <Plus className="mr-1 h-4 w-4" />
+                新增子类
+              </Button>
+            ) : null}
             <Button type="button" variant="ghost" size="sm" onClick={() => onEdit(node.id)}>
               <Pencil className="mr-1 h-4 w-4" />
               编辑
@@ -78,7 +88,7 @@ export default function GenreTreeItem({
               size="sm"
               className="text-destructive hover:text-destructive"
               disabled={deleteDisabled || deletingId === node.id}
-              title={deleteDisabled ? "请先解绑当前分类或其子分类下的小说后再删除。" : undefined}
+              title={deleteDisabled ? "请先解绑当前推进模式或其子类下引用的小说后再删除。" : undefined}
               onClick={() => onDelete(node)}
             >
               <Trash2 className="mr-1 h-4 w-4" />
@@ -91,7 +101,7 @@ export default function GenreTreeItem({
       {hasChildren && expanded ? (
         <div className="mt-3 space-y-3">
           {node.children.map((child) => (
-            <GenreTreeItem
+            <StoryModeTreeCard
               key={child.id}
               node={child}
               depth={depth + 1}

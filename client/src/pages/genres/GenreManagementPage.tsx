@@ -52,7 +52,11 @@ export default function GenreManagementPage() {
   };
 
   const handleDelete = (genre: GenreTreeNode) => {
-    const confirmed = window.confirm(`确认删除题材基底「${genre.name}」？此操作不可恢复。`);
+    const descendantCount = collectDescendantIds(genre).length;
+    const message = descendantCount > 0
+      ? `确认删除题材基底「${genre.name}」？这会同时删除其下 ${descendantCount} 个子分类，此操作不可恢复。`
+      : `确认删除题材基底「${genre.name}」？此操作不可恢复。`;
+    const confirmed = window.confirm(message);
     if (!confirmed) {
       return;
     }
