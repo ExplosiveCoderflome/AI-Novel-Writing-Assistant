@@ -79,7 +79,7 @@ const modelRouteUpsertSchema = z.object({
   provider: z.string().trim().min(1),
   model: z.string().trim().min(1),
   temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.number().int().min(64).max(16384).optional(),
+  maxTokens: z.union([z.number().int().min(64).max(16384), z.null()]).optional(),
 });
 
 router.put(
