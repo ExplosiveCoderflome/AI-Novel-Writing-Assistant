@@ -13,6 +13,7 @@ interface KnowledgeOpsTabProps {
   enabledCount: number;
   disabledCount: number;
   ragHealth?: RagHealthStatus;
+  ragHealthNotice?: string;
   jobs: RagJobSummary[];
   failedJobs: RagJobSummary[];
 }
@@ -22,6 +23,7 @@ export default function KnowledgeOpsTab({
   enabledCount,
   disabledCount,
   ragHealth,
+  ragHealthNotice,
   jobs,
   failedJobs,
 }: KnowledgeOpsTabProps) {
@@ -50,6 +52,11 @@ export default function KnowledgeOpsTab({
             <CardTitle>健康状态</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
+            {ragHealthNotice ? (
+              <div className="rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                {ragHealthNotice}
+              </div>
+            ) : null}
             <div>
               Embedding：{ragHealth?.embedding.provider ?? "-"} / {ragHealth?.embedding.model ?? "-"} /{" "}
               {ragHealth?.embedding.ok ? "OK" : "FAIL"}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { KnowledgeDocumentStatus, KnowledgeRecallTestResult } from "@ai-novel/shared/types/knowledge";
 import { useSearchParams } from "react-router-dom";
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
@@ -16,6 +17,7 @@ import {
   reindexKnowledgeDocument,
   testKnowledgeDocumentRecall,
   updateKnowledgeDocumentStatus,
+  type RagHealthStatus,
   type RagJobSummary,
 } from "@/api/knowledge";
 import { getRagEmbeddingModels, getRagSettings, saveRagSettings } from "@/api/settings";
@@ -80,7 +82,10 @@ export default function KnowledgePage() {
 
   const ragHealthQuery = useQuery({
     queryKey: queryKeys.knowledge.ragHealth,
-    queryFn: getRagHealth,
+    queryFn: () => {
+      const previousHealth = queryClient.getQueryData<ApiResponse<RagHealthStatus>>(queryKeys.knowledge.ragHealth);
+      return getRagHealth(previousHealth?.data);
+    },
     enabled: activeTab === "ops",
   });
 
@@ -253,6 +258,11 @@ export default function KnowledgePage() {
   );
   const failedJobs = (ragJobsQuery.data?.data ?? []).filter((item) => item.status === "failed").slice(0, 5);
   const selectedDocument = detailQuery.data?.data;
+  const ragHealthNotice = ragHealthQuery.isError
+    ? (ragHealthQuery.error instanceof Error ? ragHealthQuery.error.message : "Failed to load RAG health status.")
+    : (ragHealthQuery.data?.message && ragHealthQuery.data.message !== "RAG health check passed."
+      ? ragHealthQuery.data.message
+      : undefined);
   const recallErrorMessage = recallTestMutation.isError
     ? (recallTestMutation.error instanceof Error ? recallTestMutation.error.message : "召回测试失败。")
     : null;
@@ -393,6 +403,7 @@ export default function KnowledgePage() {
             enabledCount={enabledCount}
             disabledCount={disabledCount}
             ragHealth={ragHealthQuery.data?.data}
+            ragHealthNotice={ragHealthNotice}
             jobs={ragJobsQuery.data?.data ?? []}
             failedJobs={failedJobs}
           />

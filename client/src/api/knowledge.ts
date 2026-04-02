@@ -60,6 +60,58 @@ export interface RagHealthStatus {
   ok: boolean;
 }
 
+function buildStaleRagHealthResponse(previousHealth?: RagHealthStatus): ApiResponse<RagHealthStatus> {
+  if (previousHealth) {
+    return {
+      success: false,
+      data: previousHealth,
+      message: "RAG health returned 304 Not Modified. Showing the last known status.",
+    };
+  }
+
+  return {
+    success: false,
+    data: {
+      embedding: {
+        ok: false,
+        provider: "-",
+        model: "-",
+        detail: "RAG health returned 304 Not Modified before any health payload was cached.",
+      },
+      qdrant: {
+        ok: false,
+        detail: "No cached Qdrant health status is available yet.",
+      },
+      ok: false,
+    },
+    message: "RAG health returned 304 Not Modified, but no cached health status was available.",
+  };
+}
+
+function buildUnavailableRagHealthResponse(rawResponse?: ApiResponse<RagHealthStatus>): ApiResponse<RagHealthStatus> {
+  if (rawResponse?.data) {
+    return rawResponse;
+  }
+
+  return {
+    success: false,
+    data: {
+      embedding: {
+        ok: false,
+        provider: "-",
+        model: "-",
+        detail: "RAG health check failed before embedding details were available.",
+      },
+      qdrant: {
+        ok: false,
+        detail: "RAG health check failed before Qdrant details were available.",
+      },
+      ok: false,
+    },
+    message: rawResponse?.message ?? rawResponse?.error ?? "RAG health check failed.",
+  };
+}
+
 export async function listKnowledgeDocuments(params?: {
   keyword?: string;
   status?: KnowledgeDocumentStatus;
@@ -160,7 +212,21 @@ export async function getRagJobs(params?: {
   return data;
 }
 
-export async function getRagHealth() {
-  const { data } = await apiClient.get<ApiResponse<RagHealthStatus>>("/rag/health");
-  return data;
+export async function getRagHealth(previousHealth?: RagHealthStatus) {
+  const response = await apiClient.get<ApiResponse<RagHealthStatus>>("/rag/health", {
+    validateStatus: (status) => (status >= 200 && status < 300) || status === 304 || status === 503,
+  });
+
+  if (response.status === 304) {
+    if (response.data?.data) {
+      return response.data;
+    }
+    return buildStaleRagHealthResponse(previousHealth);
+  }
+
+  if (response.status === 503) {
+    return buildUnavailableRagHealthResponse(response.data);
+  }
+
+  return response.data;
 }
