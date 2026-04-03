@@ -1,8 +1,6 @@
 import type { KeyboardEvent, MouseEvent } from "react";
 import { useMemo, useState } from "react";
-import type { NovelAutoDirectorTaskSummary, ProjectProgressStatus } from "@ai-novel/shared/types/novel";
-import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
-import type { TaskStatus } from "@ai-novel/shared/types/task";
+import type { ProjectProgressStatus } from "@ai-novel/shared/types/novel";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { continueNovelWorkflow } from "@/api/novelWorkflow";
@@ -11,13 +9,19 @@ import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  LIVE_TASK_STATUSES,
+  canContinueDirector,
+  canContinueFront10AutoExecution,
+  canEnterChapterExecution,
+  getTaskCenterLink,
+  getWorkflowBadge,
+  getWorkflowDescription,
+} from "@/lib/novelWorkflowTaskUi";
 import { toast } from "@/components/ui/toast";
 
 type StatusFilter = "all" | "draft" | "published";
 type WritingModeFilter = "all" | "original" | "continuation";
-type BadgeVariant = "default" | "outline" | "secondary" | "destructive";
-
-const LIVE_TASK_STATUSES = new Set<TaskStatus>(["queued", "running", "waiting_approval"]);
 
 function createDownload(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
@@ -44,140 +48,6 @@ function formatProgressStatus(status?: ProjectProgressStatus | null): string {
     return "受阻";
   }
   return "未开始";
-}
-
-function formatCheckpoint(checkpoint?: NovelWorkflowCheckpoint | null): string {
-  if (checkpoint === "candidate_selection_required") {
-    return "等待确认书级方向";
-  }
-  if (checkpoint === "book_contract_ready") {
-    return "Book Contract 已就绪";
-  }
-  if (checkpoint === "character_setup_required") {
-    return "角色准备待审核";
-  }
-  if (checkpoint === "volume_strategy_ready") {
-    return "卷战略待审核";
-  }
-  if (checkpoint === "front10_ready") {
-    return "前 10 章可开写";
-  }
-  if (checkpoint === "chapter_batch_ready") {
-    return "前 10 章自动执行已暂停";
-  }
-  if (checkpoint === "replan_required") {
-    return "等待重规划";
-  }
-  if (checkpoint === "workflow_completed") {
-    return "自动导演已完成";
-  }
-  return "自动导演";
-}
-
-function getWorkflowBadge(task?: NovelAutoDirectorTaskSummary | null): { label: string; variant: BadgeVariant } | null {
-  if (!task) {
-    return null;
-  }
-  if ((task.status === "queued" || task.status === "running") && task.checkpointType === "front10_ready") {
-    return {
-      label: "前 10 章自动执行中",
-      variant: "default",
-    };
-  }
-  if ((task.status === "failed" || task.status === "cancelled") && task.checkpointType === "chapter_batch_ready") {
-    return {
-      label: task.status === "failed" ? "前 10 章自动执行已暂停" : "前 10 章自动执行已取消",
-      variant: task.status === "failed" ? "destructive" : "outline",
-    };
-  }
-  if (task.status === "waiting_approval") {
-    return {
-      label: formatCheckpoint(task.checkpointType),
-      variant: "secondary",
-    };
-  }
-  if (task.status === "running") {
-    return {
-      label: "自动导演进行中",
-      variant: "default",
-    };
-  }
-  if (task.status === "queued") {
-    return {
-      label: "自动导演排队中",
-      variant: "secondary",
-    };
-  }
-  if (task.status === "failed") {
-    return {
-      label: "自动导演失败",
-      variant: "destructive",
-    };
-  }
-  if (task.status === "cancelled") {
-    return {
-      label: "自动导演已取消",
-      variant: "outline",
-    };
-  }
-  return {
-    label: task.checkpointType === "workflow_completed" ? "自动导演已完成" : formatCheckpoint(task.checkpointType),
-    variant: "outline",
-  };
-}
-
-function getWorkflowDescription(task?: NovelAutoDirectorTaskSummary | null): string | null {
-  if (!task) {
-    return null;
-  }
-  if ((task.status === "queued" || task.status === "running") && task.checkpointType === "front10_ready") {
-    return `AI 正在后台继续执行前 10 章，当前进度 ${Math.round(task.progress * 100)}%。`;
-  }
-  if ((task.status === "failed" || task.status === "cancelled") && task.checkpointType === "chapter_batch_ready") {
-    return "前 10 章自动执行在批量阶段暂停了，建议先查看任务，再决定是否继续自动执行。";
-  }
-  if (task.checkpointSummary?.trim()) {
-    return task.checkpointSummary.trim();
-  }
-  if (task.currentItemLabel?.trim()) {
-    return task.currentItemLabel.trim();
-  }
-  if (task.nextActionLabel?.trim()) {
-    return `下一步：${task.nextActionLabel.trim()}`;
-  }
-  return null;
-}
-
-function canContinueDirector(task?: NovelAutoDirectorTaskSummary | null): boolean {
-  return Boolean(
-    task
-      && task.status === "waiting_approval"
-      && task.checkpointType !== "front10_ready"
-      && task.checkpointType !== "chapter_batch_ready",
-  );
-}
-
-function canContinueFront10AutoExecution(task?: NovelAutoDirectorTaskSummary | null): boolean {
-  if (!task) {
-    return false;
-  }
-  if (task.status === "waiting_approval" && task.checkpointType === "front10_ready") {
-    return true;
-  }
-  return (task.status === "failed" || task.status === "cancelled") && task.checkpointType === "chapter_batch_ready";
-}
-
-function canEnterChapterExecution(task?: NovelAutoDirectorTaskSummary | null): boolean {
-  return Boolean(
-    task
-      && (task.checkpointType === "front10_ready"
-        || task.checkpointType === "chapter_batch_ready"
-        || task.checkpointType === "workflow_completed"),
-  );
-}
-
-function getTaskCenterLink(taskId: string): string {
-  return `/tasks?kind=novel_workflow&id=${taskId}`;
 }
 
 export default function NovelList() {
