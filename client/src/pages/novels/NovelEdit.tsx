@@ -1267,6 +1267,7 @@ export default function NovelEdit() {
     isGeneratingSkeleton,
     onGenerateSkeleton: startSkeletonGeneration,
     onGoToCharacterTab: goToCharacterTab,
+    latestStateSnapshot,
     outlineText,
     structuredDraftText,
     volumes: normalizedVolumeDraft,

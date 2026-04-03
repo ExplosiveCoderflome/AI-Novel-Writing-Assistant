@@ -64,6 +64,7 @@ interface BuildNovelEditPlanningTabsInput {
   isGeneratingSkeleton: boolean;
   onGenerateSkeleton: () => void;
   onGoToCharacterTab: () => void;
+  latestStateSnapshot?: OutlineTabViewProps["latestStateSnapshot"];
   outlineText: string;
   structuredDraftText: string;
   volumes: VolumePlan[];
@@ -173,6 +174,7 @@ export function buildNovelEditPlanningTabs(input: BuildNovelEditPlanningTabsInpu
     isGeneratingSkeleton: input.isGeneratingSkeleton,
     onGenerateSkeleton: input.onGenerateSkeleton,
     onGoToCharacterTab: input.onGoToCharacterTab,
+    latestStateSnapshot: input.latestStateSnapshot,
     draftText: input.outlineText,
     volumes: input.volumes,
     onVolumeFieldChange: input.onVolumeFieldChange,

@@ -137,6 +137,7 @@ export interface OutlineTabViewProps {
   isGeneratingSkeleton: boolean;
   onGenerateSkeleton: () => void;
   onGoToCharacterTab: () => void;
+  latestStateSnapshot?: StoryStateSnapshot | null;
   draftText: string;
   volumes: VolumePlan[];
   onVolumeFieldChange: (volumeId: string, field: keyof Pick<VolumePlan, "title" | "summary" | "openingHook" | "mainPromise" | "primaryPressureSource" | "coreSellingPoint" | "escalationMode" | "protagonistChange" | "midVolumeRisk" | "climax" | "payoffType" | "nextVolumeHook" | "resetPoint">, value: string) => void;
