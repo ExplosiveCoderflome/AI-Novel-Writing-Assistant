@@ -231,12 +231,12 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               id="basic-estimated-chapters"
               type="number"
               min={1}
-              max={500}
+              max={2000}
               value={basicForm.estimatedChapterCount}
               onChange={(event) => onFormChange({
                 estimatedChapterCount: Math.max(
                   1,
-                  Math.min(500, Number(event.target.value || 0) || DEFAULT_ESTIMATED_CHAPTER_COUNT),
+                  Math.min(2000, Number(event.target.value || 0) || DEFAULT_ESTIMATED_CHAPTER_COUNT),
                 ),
               })}
             />

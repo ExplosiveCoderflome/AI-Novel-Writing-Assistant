@@ -55,6 +55,13 @@ export default function OutlineTab(props: OutlineTabViewProps) {
     hasUnsavedVolumeDraft,
     generationNotice,
     readiness,
+    volumeCountGuidance,
+    customVolumeCountEnabled,
+    customVolumeCountInput,
+    onCustomVolumeCountEnabledChange,
+    onCustomVolumeCountInputChange,
+    onApplyCustomVolumeCount,
+    onRestoreSystemRecommendedVolumeCount,
     strategyPlan,
     critiqueReport,
     isGeneratingStrategy,
@@ -100,6 +107,11 @@ export default function OutlineTab(props: OutlineTabViewProps) {
   const nextOutlineAction = getNextOutlineAction(readiness);
   const outlineStageReady = completedReadinessCount === readinessSteps.length;
   const [selectedVolumeId, setSelectedVolumeId] = useState(volumes[0]?.id ?? "");
+  const volumeCountModeLabel = volumeCountGuidance.userPreferredVolumeCount != null
+    ? `当前固定 ${volumeCountGuidance.userPreferredVolumeCount} 卷`
+    : volumeCountGuidance.respectedExistingVolumeCount != null
+      ? `当前沿用草稿 ${volumeCountGuidance.respectedExistingVolumeCount} 卷`
+      : `当前按系统建议 ${volumeCountGuidance.systemRecommendedVolumeCount} 卷`;
 
   useEffect(() => {
     if (!volumes.some((volume) => volume.id === selectedVolumeId)) {
@@ -200,6 +212,79 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                   </div>
                 )}
                 {volumeMessage ? <div className="text-xs text-muted-foreground">{volumeMessage}</div> : null}
+              </CardContent>
+            </Card>
+
+            <Card className="self-start">
+              <CardHeader className="pb-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <CardTitle className="text-base">卷数建议</CardTitle>
+                  <Badge variant="outline">{volumeCountModeLabel}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                    <div className="text-xs text-muted-foreground">总章节预算</div>
+                    <div className="mt-1 text-lg font-semibold text-foreground">{volumeCountGuidance.chapterBudget} 章</div>
+                  </div>
+                  <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                    <div className="text-xs text-muted-foreground">推荐卷数区间</div>
+                    <div className="mt-1 text-lg font-semibold text-foreground">
+                      {volumeCountGuidance.allowedVolumeCountRange.min}-{volumeCountGuidance.allowedVolumeCountRange.max} 卷
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                    <div className="text-xs text-muted-foreground">系统建议卷数</div>
+                    <div className="mt-1 text-lg font-semibold text-foreground">{volumeCountGuidance.systemRecommendedVolumeCount} 卷</div>
+                  </div>
+                  <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                    <div className="text-xs text-muted-foreground">默认硬规划范围</div>
+                    <div className="mt-1 text-lg font-semibold text-foreground">
+                      {volumeCountGuidance.hardPlannedVolumeRange.min}-{volumeCountGuidance.hardPlannedVolumeRange.max} 卷
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/70 bg-muted/20 p-3 text-xs leading-6 text-muted-foreground">
+                  标准卷尺度按 {volumeCountGuidance.targetChapterRange.min}-{volumeCountGuidance.targetChapterRange.max} 章 / 卷设计，
+                  理想值约 {volumeCountGuidance.targetChapterRange.ideal} 章 / 卷。超长篇默认通过增加卷数来保持每卷的阶段感、升级节点和卷级回报，不再压成少数巨卷。
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant={customVolumeCountEnabled ? "default" : "outline"}
+                    onClick={() => onCustomVolumeCountEnabledChange(!customVolumeCountEnabled)}
+                  >
+                    {customVolumeCountEnabled ? "收起自定义卷数" : "自定义卷数"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={onRestoreSystemRecommendedVolumeCount}>
+                    恢复系统建议
+                  </Button>
+                </div>
+
+                {customVolumeCountEnabled ? (
+                  <div className="rounded-xl border border-border/70 p-3">
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,180px)_auto_auto] sm:items-end">
+                      <label className="space-y-1 text-sm">
+                        <span className="text-xs text-muted-foreground">固定卷数</span>
+                        <input
+                          type="number"
+                          min={volumeCountGuidance.allowedVolumeCountRange.min}
+                          max={volumeCountGuidance.allowedVolumeCountRange.max}
+                          className="w-full rounded-md border bg-background p-2"
+                          value={customVolumeCountInput}
+                          onChange={(event) => onCustomVolumeCountInputChange(event.target.value)}
+                        />
+                      </label>
+                      <Button size="sm" onClick={onApplyCustomVolumeCount}>应用固定卷数</Button>
+                      <div className="text-xs text-muted-foreground">
+                        允许范围：{volumeCountGuidance.allowedVolumeCountRange.min}-{volumeCountGuidance.allowedVolumeCountRange.max} 卷
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
 

@@ -45,6 +45,10 @@ import type {
   VolumeGenerationNovel,
   VolumeWorkspace,
 } from "./volumeModels";
+import {
+  MAX_VOLUME_COUNT,
+  buildVolumeCountGuidance,
+} from "@ai-novel/shared/types/volumePlanning";
 
 function normalizeScope(scope?: VolumeGenerationScopeInput): VolumeGenerationScope {
   if (scope === "book") {
@@ -68,12 +72,6 @@ function deriveChapterBudget(params: {
     workspace.volumes.flatMap((volume) => volume.chapters).length,
     12,
   );
-}
-
-function suggestVolumeCount(chapterBudget: number): number {
-  if (chapterBudget <= 24) return 1;
-  if (chapterBudget <= 60) return 3;
-  return 4;
 }
 
 async function notifyVolumeGenerationPhase(input: {
@@ -526,9 +524,13 @@ async function generateStrategy(params: {
 }): Promise<VolumePlanDocument> {
   const { document, novel, workspace, storyMacroPlan, options } = params;
   const chapterBudget = deriveChapterBudget({ novel, workspace, options });
-  const suggestedVolumeCount = workspace.volumes.length > 0 && options.respectExistingVolumeCount !== false
-    ? workspace.volumes.length
-    : suggestVolumeCount(chapterBudget);
+  const volumeCountGuidance = buildVolumeCountGuidance({
+    chapterBudget,
+    existingVolumeCount: workspace.volumes.length,
+    respectExistingVolumeCount: options.respectExistingVolumeCount,
+    userPreferredVolumeCount: options.userPreferredVolumeCount,
+    maxVolumeCount: MAX_VOLUME_COUNT,
+  });
   await notifyVolumeGenerationPhase({
     novelId: document.novelId,
     scope: "strategy",
@@ -537,20 +539,25 @@ async function generateStrategy(params: {
     options,
   });
   const generated = await runStructuredPrompt({
-    asset: createVolumeStrategyPrompt(12),
+    asset: createVolumeStrategyPrompt({
+      maxVolumeCount: MAX_VOLUME_COUNT,
+      allowedVolumeCountRange: volumeCountGuidance.allowedVolumeCountRange,
+      fixedRecommendedVolumeCount: volumeCountGuidance.userPreferredVolumeCount,
+      hardPlannedVolumeRange: volumeCountGuidance.hardPlannedVolumeRange,
+    }),
     promptInput: {
       novel,
       workspace,
       storyMacroPlan,
       guidance: options.guidance,
-      suggestedVolumeCount,
+      volumeCountGuidance,
     },
     contextBlocks: buildVolumeStrategyContextBlocks({
       novel,
       workspace,
       storyMacroPlan,
       guidance: options.guidance,
-      suggestedVolumeCount,
+      volumeCountGuidance,
     }),
     options: {
       provider: options.provider,
@@ -616,6 +623,13 @@ async function generateSkeleton(params: {
     throw new Error("请先生成卷战略建议。");
   }
   const chapterBudget = deriveChapterBudget({ novel, workspace, options });
+  const volumeCountGuidance = buildVolumeCountGuidance({
+    chapterBudget,
+    existingVolumeCount: workspace.volumes.length,
+    respectExistingVolumeCount: options.respectExistingVolumeCount,
+    userPreferredVolumeCount: options.userPreferredVolumeCount,
+    maxVolumeCount: MAX_VOLUME_COUNT,
+  });
   const targetVolumeCount = document.strategyPlan.recommendedVolumeCount;
   await notifyVolumeGenerationPhase({
     novelId: document.novelId,
@@ -632,6 +646,7 @@ async function generateSkeleton(params: {
       storyMacroPlan,
       strategyPlan: document.strategyPlan,
       guidance: options.guidance,
+      volumeCountGuidance,
       chapterBudget,
     },
     contextBlocks: buildVolumeSkeletonContextBlocks({
@@ -640,6 +655,7 @@ async function generateSkeleton(params: {
       storyMacroPlan,
       strategyPlan: document.strategyPlan,
       guidance: options.guidance,
+      volumeCountGuidance,
       chapterBudget,
     }),
     options: {

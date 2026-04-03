@@ -24,6 +24,7 @@ import type {
   VolumeRebalanceDecision,
   VolumeStrategyPlan,
   VolumeCritiqueReport,
+  VolumeCountGuidance,
   VolumeSyncPreview,
 } from "@ai-novel/shared/types/novel";
 import type {
@@ -120,6 +121,13 @@ export interface OutlineTabViewProps {
   hasUnsavedVolumeDraft: boolean;
   generationNotice: string;
   readiness: VolumePlanningReadiness;
+  volumeCountGuidance: VolumeCountGuidance;
+  customVolumeCountEnabled: boolean;
+  customVolumeCountInput: string;
+  onCustomVolumeCountEnabledChange: (enabled: boolean) => void;
+  onCustomVolumeCountInputChange: (value: string) => void;
+  onApplyCustomVolumeCount: () => void;
+  onRestoreSystemRecommendedVolumeCount: () => void;
   strategyPlan: VolumeStrategyPlan | null;
   critiqueReport: VolumeCritiqueReport | null;
   isGeneratingStrategy: boolean;

@@ -1,5 +1,6 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { PromptAsset } from "../../../core/promptTypes";
+import type { VolumeCountRange } from "@ai-novel/shared/types/novel";
 import { renderSelectedContextBlocks } from "../../../core/renderContextBlocks";
 import {
   createVolumeStrategyCritiqueSchema,
@@ -15,25 +16,50 @@ import {
 } from "./contextBlocks";
 import { NOVEL_PROMPT_BUDGETS } from "../promptBudgetProfiles";
 
+interface CreateVolumeStrategyPromptConfig {
+  maxVolumeCount?: number;
+  allowedVolumeCountRange?: VolumeCountRange | null;
+  fixedRecommendedVolumeCount?: number | null;
+  hardPlannedVolumeRange?: VolumeCountRange | null;
+}
+
 export function createVolumeStrategyPrompt(
-  maxVolumeCount = 12,
+  config: CreateVolumeStrategyPromptConfig = {},
 ): PromptAsset<
   VolumeStrategyPromptInput,
   ReturnType<typeof createVolumeStrategySchema>["_output"]
 > {
+  const maxVolumeCount = config.maxVolumeCount ?? 16;
+  const allowedVolumeCountRange = config.allowedVolumeCountRange ?? {
+    min: 1,
+    max: maxVolumeCount,
+  };
+  const fixedRecommendedVolumeCount = typeof config.fixedRecommendedVolumeCount === "number"
+    ? config.fixedRecommendedVolumeCount
+    : null;
+  const hardPlannedVolumeRange = config.hardPlannedVolumeRange ?? {
+    min: 1,
+    max: maxVolumeCount,
+  };
+
   return {
     id: "novel.volume.strategy",
-    version: "v1",
+    version: "v2",
     taskType: "planner",
     mode: "structured",
     language: "zh",
     contextPolicy: {
       maxTokensBudget: NOVEL_PROMPT_BUDGETS.volumeStrategy,
-      requiredGroups: ["book_contract", "suggested_volume_count"],
+      requiredGroups: ["book_contract", "volume_count_guidance"],
       preferredGroups: ["macro_constraints", "existing_volume_window", "guidance"],
       dropOrder: ["existing_volume_window"],
     },
-    outputSchema: createVolumeStrategySchema(maxVolumeCount),
+    outputSchema: createVolumeStrategySchema({
+      maxVolumeCount,
+      allowedVolumeCountRange,
+      fixedRecommendedVolumeCount,
+      hardPlannedVolumeRange,
+    }),
     render: (_input, context) => [
       new SystemMessage([
         "你是长篇网文分卷策略规划助手。",
@@ -45,10 +71,15 @@ export function createVolumeStrategyPrompt(
         "只输出严格 JSON，不要输出 Markdown、解释、注释或额外文本。",
         "",
         "【硬性要求】",
-        `recommendedVolumeCount 必须在 1-${maxVolumeCount} 之间，且等于 volumes.length。`,
-        "hardPlannedVolumeCount 必须在 1 到 recommendedVolumeCount 之间。",
+        fixedRecommendedVolumeCount == null
+          ? `recommendedVolumeCount 必须落在 ${allowedVolumeCountRange.min}-${allowedVolumeCountRange.max} 之间，且等于 volumes.length。`
+          : `recommendedVolumeCount 必须严格等于 ${fixedRecommendedVolumeCount}，且等于 volumes.length。`,
+        `hardPlannedVolumeCount 必须落在 ${hardPlannedVolumeRange.min}-${hardPlannedVolumeRange.max} 之间，且不能大于 recommendedVolumeCount。`,
         "前 hardPlannedVolumeCount 卷的 planningMode 必须是 hard，后续卷必须是 soft。",
         "如果 recommendedVolumeCount 较多，后半部分必须保留足够软规划空间，不能提前写死。",
+        "如果上下文给出了 user preferred volume count，必须严格采用，不得擅自改卷数。",
+        "如果没有固定卷数，必须在允许区间内决策，并优先贴近上下文中的 system recommended volume count。",
+        "超长篇必须避免把大量章节压成少数巨卷；不要让单卷粗到失去阶段感、回报节点和卷级工作台意义。",
         "",
         "【核心目标】",
         "1. strategy 必须优先服务连载追读动力，而不是一次性写死后半本。",
@@ -64,7 +95,7 @@ export function createVolumeStrategyPrompt(
         "5. 不要让 soft 卷变成空白占位，它们仍应保留明确阶段职责，只是不预先写死具体细节。",
         "",
         "【重点判断项】",
-        "1. 这本书适合短卷数强推进，还是较多卷数分阶段展开。",
+        "1. 这本书适合短卷数强推进，还是较多卷数分阶段展开，但决策必须尊重上下文给出的允许区间与固定卷数约束。",
         "2. 前几卷是否承担开书、立主卖点、第一阶段兑现、世界扩展、格局升级等关键任务，是否必须硬规划。",
         "3. 中后段是否存在较大弹性，适合保留软规划，以避免早期过度透支。",
         "4. 分卷数量是否与题材、主卖点密度、成长跨度、冲突层级和连载模式匹配。",
@@ -75,14 +106,18 @@ export function createVolumeStrategyPrompt(
         "3. hard 卷要更明确，soft 卷要保留方向但不写死细节。",
         "4. 不要脱离上下文臆造重大设定或额外主线。",
         "5. 在信息不足时，也要给出保守但完整的策略。",
+        "6. 如果 chapter budget 很大，默认应通过增加卷数来保持每卷的阶段颗粒度，而不是把超长篇压成几卷巨无霸。",
       ].join("\n")),
       new HumanMessage([
         "请基于以下上下文，输出整本书的分卷策略。",
         "",
         "【输出要求】",
         "- 只输出严格 JSON",
-        `- recommendedVolumeCount 必须在 1-${maxVolumeCount} 之间`,
+        fixedRecommendedVolumeCount == null
+          ? `- recommendedVolumeCount 必须落在 ${allowedVolumeCountRange.min}-${allowedVolumeCountRange.max} 之间`
+          : `- recommendedVolumeCount 必须严格等于 ${fixedRecommendedVolumeCount}`,
         "- volumes.length 必须等于 recommendedVolumeCount",
+        `- hardPlannedVolumeCount 必须落在 ${hardPlannedVolumeRange.min}-${hardPlannedVolumeRange.max} 之间`,
         "- 前 hardPlannedVolumeCount 卷必须为 hard，后续卷必须为 soft",
         "- 优先保证前期抓力、中期续航与后期可调度性",
         "",

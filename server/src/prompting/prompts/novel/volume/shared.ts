@@ -1,5 +1,6 @@
 import type {
   VolumeBeatSheet,
+  VolumeCountGuidance,
   VolumePlan,
   VolumeStrategyPlan,
 } from "@ai-novel/shared/types/novel";
@@ -15,7 +16,7 @@ export interface VolumeStrategyPromptInput {
   workspace: VolumeWorkspace;
   storyMacroPlan: StoryMacroPlan | null;
   guidance?: string;
-  suggestedVolumeCount: number;
+  volumeCountGuidance: VolumeCountGuidance;
 }
 
 export interface VolumeStrategyCritiquePromptInput {
@@ -32,6 +33,7 @@ export interface VolumeSkeletonPromptInput {
   storyMacroPlan: StoryMacroPlan | null;
   strategyPlan: VolumeStrategyPlan;
   guidance?: string;
+  volumeCountGuidance: VolumeCountGuidance;
   chapterBudget: number;
 }
 
@@ -240,6 +242,19 @@ export function buildStoryMacroContext(storyMacroPlan: StoryMacroPlan | null): s
     storyMacroPlan.decomposition?.ending_flavor ? `ending flavor: ${storyMacroPlan.decomposition.ending_flavor}` : "",
     storyMacroPlan.constraints.length > 0 ? `constraints: ${storyMacroPlan.constraints.join(" | ")}` : "",
   ].filter(Boolean).join("\n");
+}
+
+export function buildVolumeCountGuidanceContext(volumeCountGuidance: VolumeCountGuidance): string {
+  return [
+    `chapter budget: ${volumeCountGuidance.chapterBudget}`,
+    `target chapter range per volume: ${volumeCountGuidance.targetChapterRange.min}-${volumeCountGuidance.targetChapterRange.max} chapters (ideal ${volumeCountGuidance.targetChapterRange.ideal})`,
+    `allowed volume count range: ${volumeCountGuidance.allowedVolumeCountRange.min}-${volumeCountGuidance.allowedVolumeCountRange.max}`,
+    `system recommended volume count: ${volumeCountGuidance.systemRecommendedVolumeCount}`,
+    `active recommended volume count: ${volumeCountGuidance.recommendedVolumeCount}`,
+    `hard planned volume range: ${volumeCountGuidance.hardPlannedVolumeRange.min}-${volumeCountGuidance.hardPlannedVolumeRange.max}`,
+    `user preferred volume count: ${volumeCountGuidance.userPreferredVolumeCount ?? "none"}`,
+    `respected existing volume count: ${volumeCountGuidance.respectedExistingVolumeCount ?? "none"}`,
+  ].join("\n");
 }
 
 export function buildBeatSheetContext(beatSheet: VolumeBeatSheet | null | undefined): string {

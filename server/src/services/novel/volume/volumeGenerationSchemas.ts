@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { VolumeCountRange } from "@ai-novel/shared/types/novel";
+import { MAX_VOLUME_COUNT } from "@ai-novel/shared/types/volumePlanning";
 
 function normalizeObjectAlias(raw: unknown, aliasMap: Record<string, string[]>): unknown {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
@@ -345,7 +347,7 @@ export function createBookVolumeSkeletonSchema(exactVolumeCount?: number) {
   return z.object({
     volumes: typeof exactVolumeCount === "number"
       ? z.array(generatedVolumeSkeletonSchema).length(exactVolumeCount)
-      : z.array(generatedVolumeSkeletonSchema).min(1).max(12),
+      : z.array(generatedVolumeSkeletonSchema).min(1).max(MAX_VOLUME_COUNT),
   });
 }
 
@@ -357,10 +359,28 @@ export function createVolumeChapterListSchema(exactChapterCount?: number) {
   });
 }
 
-export function createVolumeStrategySchema(maxVolumeCount = 12) {
+export function createVolumeStrategySchema(config: {
+  maxVolumeCount?: number;
+  allowedVolumeCountRange?: VolumeCountRange | null;
+  fixedRecommendedVolumeCount?: number | null;
+  hardPlannedVolumeRange?: VolumeCountRange | null;
+} = {}) {
+  const maxVolumeCount = config.maxVolumeCount ?? MAX_VOLUME_COUNT;
+  const allowedVolumeCountRange = config.allowedVolumeCountRange ?? {
+    min: 1,
+    max: maxVolumeCount,
+  };
+  const fixedRecommendedVolumeCount = typeof config.fixedRecommendedVolumeCount === "number"
+    ? config.fixedRecommendedVolumeCount
+    : null;
+  const hardPlannedVolumeRange = config.hardPlannedVolumeRange ?? {
+    min: 1,
+    max: maxVolumeCount,
+  };
+
   return z.object({
-    recommendedVolumeCount: z.number().int().min(1).max(maxVolumeCount),
-    hardPlannedVolumeCount: z.number().int().min(1).max(maxVolumeCount),
+    recommendedVolumeCount: z.number().int().min(allowedVolumeCountRange.min).max(allowedVolumeCountRange.max),
+    hardPlannedVolumeCount: z.number().int().min(hardPlannedVolumeRange.min).max(hardPlannedVolumeRange.max),
     readerRewardLadder: z.string().trim().min(1),
     escalationLadder: z.string().trim().min(1),
     midpointShift: z.string().trim().min(1),
@@ -368,6 +388,14 @@ export function createVolumeStrategySchema(maxVolumeCount = 12) {
     volumes: z.array(generatedVolumeStrategyVolumeSchema).min(1).max(maxVolumeCount),
     uncertainties: z.array(generatedVolumeUncertaintySchema).max(maxVolumeCount).default([]),
   }).superRefine((value, ctx) => {
+    if (fixedRecommendedVolumeCount !== null && value.recommendedVolumeCount !== fixedRecommendedVolumeCount) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["recommendedVolumeCount"],
+        message: `recommendedVolumeCount 必须严格等于 ${fixedRecommendedVolumeCount}。`,
+      });
+    }
+
     if (value.hardPlannedVolumeCount > value.recommendedVolumeCount) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -410,7 +438,7 @@ export function createVolumeStrategyCritiqueSchema() {
   return z.object({
     overallRisk: z.enum(["low", "medium", "high"]),
     summary: z.string().trim().min(1),
-    issues: z.array(generatedVolumeCritiqueIssueSchema).max(12).default([]),
+    issues: z.array(generatedVolumeCritiqueIssueSchema).max(MAX_VOLUME_COUNT).default([]),
     recommendedActions: z.array(z.string().trim().min(1)).max(8).default([]),
   });
 }

@@ -514,6 +514,28 @@ export type VolumeRebalanceDirection =
   | "hold";
 export type VolumeUncertaintyTargetType = "book" | "volume" | "beat_sheet" | "chapter_list";
 
+export interface VolumeCountRange {
+  min: number;
+  max: number;
+}
+
+export interface VolumeChapterTargetRange {
+  min: number;
+  ideal: number;
+  max: number;
+}
+
+export interface VolumeCountGuidance {
+  chapterBudget: number;
+  targetChapterRange: VolumeChapterTargetRange;
+  allowedVolumeCountRange: VolumeCountRange;
+  recommendedVolumeCount: number;
+  systemRecommendedVolumeCount: number;
+  hardPlannedVolumeRange: VolumeCountRange;
+  userPreferredVolumeCount?: number | null;
+  respectedExistingVolumeCount?: number | null;
+}
+
 export interface VolumeStrategyVolume {
   sortOrder: number;
   planningMode: VolumeStrategyPlanningMode;

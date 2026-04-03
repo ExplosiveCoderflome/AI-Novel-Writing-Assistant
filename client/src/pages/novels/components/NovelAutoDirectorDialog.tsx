@@ -628,7 +628,9 @@ export default function NovelAutoDirectorDialog({
 
       <Dialog open={open} onOpenChange={handleDialogOpenChange}>
         <DialogContent
-          className={`max-h-[90vh] overflow-y-auto ${dialogMode === "candidate_selection" ? "max-w-6xl" : "max-w-4xl"}`}
+          className={`flex h-[min(92vh,980px)] w-[calc(100vw-1.5rem)] flex-col overflow-hidden p-0 ${
+            dialogMode === "candidate_selection" ? "max-w-6xl" : "max-w-4xl"
+          }`}
           onEscapeKeyDown={(event) => {
             if (isBlockingExecutionView) {
               event.preventDefault();
@@ -645,7 +647,7 @@ export default function NovelAutoDirectorDialog({
             }
           }}
         >
-          <DialogHeader>
+          <DialogHeader className="shrink-0 border-b px-6 pb-4 pr-12 pt-6">
             <DialogTitle>
               {dialogMode === "candidate_selection"
                 ? "AI 自动导演创建"
@@ -662,8 +664,9 @@ export default function NovelAutoDirectorDialog({
             </DialogDescription>
           </DialogHeader>
 
-          {dialogMode === "candidate_selection" ? (
-            <div className="space-y-4">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4">
+            {dialogMode === "candidate_selection" ? (
+              <div className="space-y-4">
               <div className="rounded-lg border bg-background/80 p-4">
                 <div className="text-sm font-medium text-foreground">你的起始想法</div>
                 <textarea
@@ -933,18 +936,19 @@ export default function NovelAutoDirectorDialog({
                   先给 AI 一句灵感，它会先产出第一批整本方向候选。
                 </div>
               )}
-            </div>
-          ) : (
-            <NovelAutoDirectorProgressPanel
-              mode={dialogMode}
-              task={directorTask}
-              taskId={workflowTaskId}
-              titleHint={pendingTitleHint}
-              fallbackError={executionError}
-              onBackgroundContinue={handleBackgroundContinue}
-              onOpenTaskCenter={handleOpenTaskCenter}
-            />
-          )}
+              </div>
+            ) : (
+              <NovelAutoDirectorProgressPanel
+                mode={dialogMode}
+                task={directorTask}
+                taskId={workflowTaskId}
+                titleHint={pendingTitleHint}
+                fallbackError={executionError}
+                onBackgroundContinue={handleBackgroundContinue}
+                onOpenTaskCenter={handleOpenTaskCenter}
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </>

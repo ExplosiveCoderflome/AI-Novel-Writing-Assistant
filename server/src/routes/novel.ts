@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { MAX_VOLUME_COUNT } from "@ai-novel/shared/types/volumePlanning";
 import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
 import { AppError } from "../middleware/errorHandler";
@@ -148,14 +149,14 @@ const volumeUncertaintySchema = z.object({
 });
 
 const volumeStrategyPlanSchema = z.object({
-  recommendedVolumeCount: z.number().int().min(1).max(12),
-  hardPlannedVolumeCount: z.number().int().min(1).max(12),
+  recommendedVolumeCount: z.number().int().min(1).max(MAX_VOLUME_COUNT),
+  hardPlannedVolumeCount: z.number().int().min(1).max(MAX_VOLUME_COUNT),
   readerRewardLadder: z.string().trim().min(1),
   escalationLadder: z.string().trim().min(1),
   midpointShift: z.string().trim().min(1),
   notes: z.string().trim().min(1),
-  volumes: z.array(volumeStrategyVolumeSchema).min(1).max(12),
-  uncertainties: z.array(volumeUncertaintySchema).max(12).default([]),
+  volumes: z.array(volumeStrategyVolumeSchema).min(1).max(MAX_VOLUME_COUNT),
+  uncertainties: z.array(volumeUncertaintySchema).max(MAX_VOLUME_COUNT).default([]),
 });
 
 const volumeCritiqueIssueSchema = z.object({
@@ -168,7 +169,7 @@ const volumeCritiqueIssueSchema = z.object({
 const volumeCritiqueReportSchema = z.object({
   overallRisk: z.enum(["low", "medium", "high"]),
   summary: z.string().trim().min(1),
-  issues: z.array(volumeCritiqueIssueSchema).max(12).default([]),
+  issues: z.array(volumeCritiqueIssueSchema).max(MAX_VOLUME_COUNT).default([]),
   recommendedActions: z.array(z.string().trim().min(1)).max(8).default([]),
 });
 
@@ -343,7 +344,8 @@ const volumeGenerateSchema = llmGenerateSchema.extend({
   targetVolumeId: z.string().trim().min(1).optional(),
   targetChapterId: z.string().trim().min(1).optional(),
   detailMode: z.enum(["purpose", "boundary", "task_sheet"]).optional(),
-  estimatedChapterCount: z.number().int().min(1).max(500).optional(),
+  estimatedChapterCount: z.number().int().min(1).max(2000).optional(),
+  userPreferredVolumeCount: z.number().int().min(1).max(MAX_VOLUME_COUNT).optional(),
   respectExistingVolumeCount: z.boolean().optional(),
   draftVolumes: z.array(z.unknown()).optional(),
   draftWorkspace: volumeDocumentSchema.optional(),
