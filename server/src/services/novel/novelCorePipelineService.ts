@@ -66,6 +66,25 @@ export class NovelCorePipelineService {
       where: {
         status: { in: ["queued", "running"] },
         finishedAt: null,
+        cancelRequestedAt: null,
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+      orderBy: [{ updatedAt: "asc" }, { createdAt: "asc" }],
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      status: row.status,
+    }));
+  }
+
+  async listPendingCancellationPipelineJobs(): Promise<Array<{ id: string; status: string }>> {
+    const rows = await prisma.generationJob.findMany({
+      where: {
+        finishedAt: null,
+        cancelRequestedAt: { not: null },
       },
       select: {
         id: true,
@@ -106,6 +125,18 @@ export class NovelCorePipelineService {
     await this.updateJobSafe(jobId, {
       status: "failed",
       error: message.trim(),
+      heartbeatAt: null,
+      currentStage: null,
+      currentItemKey: null,
+      currentItemLabel: null,
+      cancelRequestedAt: null,
+      finishedAt: new Date(),
+    });
+  }
+
+  async markPipelineJobCancelled(jobId: string): Promise<void> {
+    await this.updateJobSafe(jobId, {
+      status: "cancelled",
       heartbeatAt: null,
       currentStage: null,
       currentItemKey: null,
@@ -212,15 +243,16 @@ export class NovelCorePipelineService {
         totalCount: chapters.length,
         maxRetries: options.maxRetries ?? 2,
         currentStage: "queued",
-        payload: JSON.stringify({
+        payload: this.stringifyPipelinePayload({
           provider: options.provider ?? "deepseek",
           model: options.model ?? "",
           temperature: options.temperature ?? 0.8,
+          maxRetries: options.maxRetries ?? 2,
           runMode: options.runMode ?? "fast",
           autoReview: options.autoReview ?? true,
           autoRepair: options.autoRepair ?? true,
           skipCompleted: options.skipCompleted ?? true,
-          qualityThreshold: options.qualityThreshold ?? null,
+          qualityThreshold: options.qualityThreshold,
           repairMode: options.repairMode ?? "light_repair",
         }),
       },
@@ -253,6 +285,9 @@ export class NovelCorePipelineService {
     }
     if (job.status !== "failed" && job.status !== "cancelled") {
       throw new Error("仅失败或已取消的任务支持重试。");
+    }
+    if (job.status === "cancelled" && job.cancelRequestedAt && !job.finishedAt) {
+      throw new Error("任务仍在取消中，请等待取消完成后再重试。");
     }
 
     const payload = this.parsePipelinePayload(job.payload);
@@ -302,7 +337,7 @@ export class NovelCorePipelineService {
         status: "cancelled",
         cancelRequestedAt: new Date(),
         heartbeatAt: new Date(),
-        finishedAt: new Date(),
+        finishedAt: null,
       },
     });
   }
@@ -317,6 +352,7 @@ export class NovelCorePipelineService {
         provider: typeof parsed.provider === "string" ? (parsed.provider as PipelinePayload["provider"]) : undefined,
         model: typeof parsed.model === "string" ? parsed.model : undefined,
         temperature: typeof parsed.temperature === "number" ? parsed.temperature : undefined,
+        maxRetries: typeof parsed.maxRetries === "number" ? parsed.maxRetries : undefined,
         runMode: parsed.runMode === "polish" ? "polish" : parsed.runMode === "fast" ? "fast" : undefined,
         autoReview: typeof parsed.autoReview === "boolean" ? parsed.autoReview : undefined,
         autoRepair: typeof parsed.autoRepair === "boolean" ? parsed.autoRepair : undefined,
@@ -331,10 +367,32 @@ export class NovelCorePipelineService {
           || parsed.repairMode === "ending_only"
             ? parsed.repairMode
             : undefined,
+        failedDetails: Array.isArray(parsed.failedDetails)
+          ? parsed.failedDetails.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+          : undefined,
       };
     } catch {
       return {};
     }
+  }
+
+  private stringifyPipelinePayload(input: PipelinePayload): string {
+    const failedDetails = Array.isArray(input.failedDetails)
+      ? input.failedDetails.map((item) => item.trim()).filter(Boolean)
+      : [];
+    return JSON.stringify({
+      provider: input.provider ?? "deepseek",
+      model: input.model ?? "",
+      temperature: input.temperature ?? 0.8,
+      ...(typeof input.maxRetries === "number" ? { maxRetries: input.maxRetries } : {}),
+      runMode: input.runMode ?? "fast",
+      autoReview: input.autoReview ?? true,
+      autoRepair: input.autoRepair ?? true,
+      skipCompleted: input.skipCompleted ?? true,
+      qualityThreshold: input.qualityThreshold ?? null,
+      repairMode: input.repairMode ?? "light_repair",
+      ...(failedDetails.length > 0 ? { failedDetails } : {}),
+    });
   }
 
   private async ensurePipelineNotCancelled(jobId: string): Promise<void> {
@@ -363,6 +421,7 @@ export class NovelCorePipelineService {
     error?: string | null;
     startedAt?: Date | null;
     finishedAt?: Date | null;
+    payload?: string | null;
   }) {
     try {
       await prisma.generationJob.update({
@@ -398,10 +457,24 @@ export class NovelCorePipelineService {
         completedCount: true,
         totalCount: true,
         retryCount: true,
+        payload: true,
       },
     });
+    const persistedPayload = this.parsePipelinePayload(existingJob?.payload);
+    const runtimePayload: PipelinePayload = {
+      provider: persistedPayload.provider ?? options.provider ?? "deepseek",
+      model: persistedPayload.model ?? options.model ?? "",
+      temperature: persistedPayload.temperature ?? options.temperature ?? 0.8,
+      maxRetries: persistedPayload.maxRetries ?? options.maxRetries ?? 2,
+      runMode: persistedPayload.runMode ?? options.runMode ?? "fast",
+      autoReview: persistedPayload.autoReview ?? options.autoReview ?? true,
+      autoRepair: persistedPayload.autoRepair ?? options.autoRepair ?? true,
+      skipCompleted: persistedPayload.skipCompleted ?? options.skipCompleted ?? true,
+      qualityThreshold: persistedPayload.qualityThreshold ?? options.qualityThreshold,
+      repairMode: persistedPayload.repairMode ?? options.repairMode ?? "light_repair",
+    };
     let totalRetryCount = Math.max(existingJob?.retryCount ?? 0, 0);
-    const failedDetails: string[] = [];
+    const failedDetails = [...(persistedPayload.failedDetails ?? [])];
 
     try {
       await this.updateJobSafe(jobId, {
@@ -533,6 +606,10 @@ export class NovelCorePipelineService {
           progress: Number((completed / totalCount).toFixed(4)),
           retryCount: totalRetryCount,
           heartbeatAt: new Date(),
+          payload: this.stringifyPipelinePayload({
+            ...runtimePayload,
+            failedDetails,
+          }),
         });
         logPipelineInfo("任务进度更新", {
           jobId,
@@ -564,6 +641,10 @@ export class NovelCorePipelineService {
         currentItemLabel: null,
         cancelRequestedAt: null,
         finishedAt: new Date(),
+        payload: this.stringifyPipelinePayload({
+          ...runtimePayload,
+          failedDetails: finalStatus === "failed" ? failedDetails : [],
+        }),
       });
       logPipelineInfo("任务执行结束", {
         jobId,
@@ -584,6 +665,10 @@ export class NovelCorePipelineService {
           currentItemLabel: null,
           cancelRequestedAt: null,
           finishedAt: new Date(),
+          payload: this.stringifyPipelinePayload({
+            ...runtimePayload,
+            failedDetails,
+          }),
         });
         void novelEventBus.emit({
           type: "pipeline:completed",
@@ -596,6 +681,10 @@ export class NovelCorePipelineService {
         status: "failed",
         error: error instanceof Error ? error.message : "流水线执行失败",
         finishedAt: new Date(),
+        payload: this.stringifyPipelinePayload({
+          ...runtimePayload,
+          failedDetails,
+        }),
       });
       logPipelineError("任务执行异常", {
         jobId,

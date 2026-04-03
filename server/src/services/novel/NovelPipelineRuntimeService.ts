@@ -6,8 +6,10 @@ const DEFAULT_WATCHDOG_INTERVAL_MS = 60000;
 const DEFAULT_STALE_THRESHOLD_MS = 3 * 60 * 1000;
 
 interface PipelineRecoveryPort {
+  listPendingCancellationPipelineJobs(): Promise<Array<{ id: string; status: string }>>;
   listRecoverablePipelineJobs(): Promise<Array<{ id: string; status: string }>>;
   listStaleRecoverablePipelineJobs(cutoff: Date): Promise<Array<{ id: string; status: string }>>;
+  markPipelineJobCancelled(jobId: string): Promise<void>;
   markPipelineJobFailed(jobId: string, message: string): Promise<void>;
 }
 
@@ -28,6 +30,8 @@ export class NovelPipelineRuntimeService {
   ) {}
 
   async resumePendingPipelineJobs(): Promise<void> {
+    const pendingCancellationRows = await this.pipelineService.listPendingCancellationPipelineJobs();
+    await this.finalizeCancelledJobs(pendingCancellationRows);
     const rows = await this.pipelineService.listRecoverablePipelineJobs();
     await this.recoverJobs(rows, SERVER_RESTART_RECOVERY_MESSAGE);
   }
@@ -73,6 +77,17 @@ export class NovelPipelineRuntimeService {
       } catch (error) {
         const message = error instanceof Error ? error.message : "章节流水线任务恢复失败。";
         await this.pipelineService.markPipelineJobFailed(row.id, `${recoveryMessage} 恢复失败：${message}`);
+      }
+    }
+  }
+
+  private async finalizeCancelledJobs(rows: Array<{ id: string; status: string }>): Promise<void> {
+    for (const row of rows) {
+      try {
+        await this.pipelineService.markPipelineJobCancelled(row.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "章节流水线任务取消收尾失败。";
+        await this.pipelineService.markPipelineJobFailed(row.id, `${SERVER_RESTART_RECOVERY_MESSAGE} 取消收尾失败：${message}`);
       }
     }
   }
