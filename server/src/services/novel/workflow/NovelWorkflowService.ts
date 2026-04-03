@@ -25,6 +25,7 @@ import {
   parseResumeTarget,
   stringifyResumeTarget,
 } from "./novelWorkflow.shared";
+import { isHistoricalAutoDirectorRecoveryNotNeededFailure } from "./novelWorkflowRecoveryHeuristics";
 
 type WorkflowRow = Awaited<ReturnType<typeof prisma.novelWorkflowTask.findUnique>>;
 
@@ -91,7 +92,7 @@ function stageLabel(stage: NovelWorkflowStage): string {
 }
 
 export class NovelWorkflowService {
-  private async getVisibleRowsByNovelId(novelId: string, lane?: NovelWorkflowLane) {
+  private async getVisibleRowsByNovelIdRaw(novelId: string, lane?: NovelWorkflowLane) {
     const rows = await prisma.novelWorkflowTask.findMany({
       where: {
         novelId,
@@ -104,13 +105,36 @@ export class NovelWorkflowService {
     return rows.filter((row) => !archived.has(row.id));
   }
 
-  private async getVisibleRowById(taskId: string) {
+  private async getVisibleRowsByNovelId(novelId: string, lane?: NovelWorkflowLane) {
+    const rows = await this.getVisibleRowsByNovelIdRaw(novelId, lane);
+    const healed = await Promise.all(
+      rows.map((row) => this.healHistoricalAutoDirectorRecoveryFailure(row.id, row)),
+    );
+    if (!healed.some(Boolean)) {
+      return rows;
+    }
+    return this.getVisibleRowsByNovelIdRaw(novelId, lane);
+  }
+
+  private async getVisibleRowByIdRaw(taskId: string) {
     if (await isTaskArchived("novel_workflow", taskId)) {
       return null;
     }
     return prisma.novelWorkflowTask.findUnique({
       where: { id: taskId },
     });
+  }
+
+  private async getVisibleRowById(taskId: string) {
+    const existing = await this.getVisibleRowByIdRaw(taskId);
+    if (!existing) {
+      return null;
+    }
+    const healed = await this.healHistoricalAutoDirectorRecoveryFailure(taskId, existing);
+    if (!healed) {
+      return existing;
+    }
+    return this.getVisibleRowByIdRaw(taskId);
   }
 
   async findLatestVisibleTaskByNovelId(novelId: string, lane?: NovelWorkflowLane) {
@@ -143,6 +167,27 @@ export class NovelWorkflowService {
 
   async getTaskById(taskId: string) {
     return this.getVisibleRowById(taskId);
+  }
+
+  async healHistoricalAutoDirectorRecoveryFailure(
+    taskId: string,
+    row = null as {
+      lane?: string | null;
+      status?: string | null;
+      checkpointType?: string | null;
+      lastError?: string | null;
+    } | null,
+  ): Promise<boolean> {
+    const candidate = row ?? await this.getVisibleRowByIdRaw(taskId);
+    if (!candidate || !isHistoricalAutoDirectorRecoveryNotNeededFailure(candidate)) {
+      return false;
+    }
+    const existing = await this.getVisibleRowByIdRaw(taskId);
+    if (!existing) {
+      return false;
+    }
+    await this.restoreTaskToCheckpoint(taskId, existing);
+    return true;
   }
 
   async applyAutoDirectorLlmOverride(
@@ -409,8 +454,11 @@ export class NovelWorkflowService {
     });
   }
 
-  async restoreTaskToCheckpoint(taskId: string) {
-    const existing = await this.getVisibleRowById(taskId);
+  async restoreTaskToCheckpoint(
+    taskId: string,
+    row = null as Awaited<ReturnType<typeof prisma.novelWorkflowTask.findUnique>> | null,
+  ) {
+    const existing = row ?? await this.getVisibleRowByIdRaw(taskId);
     if (!existing || !existing.checkpointType) {
       return existing;
     }

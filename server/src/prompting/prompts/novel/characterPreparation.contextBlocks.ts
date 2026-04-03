@@ -48,6 +48,105 @@ function extractByPatterns(source: string, patterns: RegExp[]): string | null {
   return null;
 }
 
+const ABSTRACT_CURRENT_IDENTITY_PATTERNS = [
+  /活在.+中的人/u,
+  /困在.+中的人/u,
+  /站在.+中的人/u,
+  /陷在.+中的人/u,
+  /卷入.+中的人/u,
+  /走在.+中的人/u,
+  /藏在.+中的人/u,
+  /阴影/u,
+  /迷雾/u,
+  /漩涡/u,
+  /棋局/u,
+  /命运/u,
+  /秘密/u,
+  /真相/u,
+];
+
+function normalizeAnchorCandidate(value: string | null | undefined): string | null {
+  let normalized = toOptionalText(value);
+  if (!normalized) {
+    return null;
+  }
+
+  normalized = normalized
+    .replace(/^[“"'《〈【\[]+/u, "")
+    .replace(/[”"'》〉】\]]+$/u, "")
+    .trim();
+
+  let changed = true;
+  while (changed) {
+    const next = normalized
+      .replace(/^(?:了|又|还|仍然)\s*/u, "")
+      .replace(/^(?:一个|一名|一位|一介)\s*/u, "")
+      .replace(/^(?:那个|那位|这个|这位)\s*/u, "")
+      .replace(/^(?:真正的|历史上的|传说中的)\s*/u, "")
+      .trim();
+    changed = next !== normalized;
+    normalized = next;
+  }
+
+  return toOptionalText(normalized);
+}
+
+function collapseIdentityToHead(value: string): string {
+  const partsByDe = value.includes("的")
+    ? value.split("的").map((part) => part.trim()).filter(Boolean)
+    : [];
+  if (partsByDe.length >= 2) {
+    const tail = partsByDe.at(-1) ?? "";
+    if (tail.length >= 2 && tail.length <= 8) {
+      return tail;
+    }
+  }
+
+  const partsBySeparator = value
+    .split(/[\/、，,：:\s·]/u)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const tail = partsBySeparator.at(-1);
+  if (tail && tail.length >= 2 && tail.length <= 8) {
+    return tail;
+  }
+
+  return value;
+}
+
+function sanitizeCurrentIdentityAnchor(value: string | null | undefined): string | null {
+  const normalized = normalizeAnchorCandidate(value);
+  if (!normalized) {
+    return null;
+  }
+
+  const head = collapseIdentityToHead(normalized);
+  if (
+    head.length > 12
+    || /的人$/u.test(head)
+    || /[，。；：,.!?！？]/u.test(head)
+    || ABSTRACT_CURRENT_IDENTITY_PATTERNS.some((pattern) => pattern.test(head))
+  ) {
+    return null;
+  }
+
+  return head;
+}
+
+function sanitizeHiddenIdentityAnchor(value: string | null | undefined): string | null {
+  const normalized = normalizeAnchorCandidate(value);
+  if (!normalized) {
+    return null;
+  }
+
+  const head = collapseIdentityToHead(normalized);
+  if (head.length > 18 || /的人$/u.test(head)) {
+    return null;
+  }
+
+  return head;
+}
+
 export interface CharacterAnchorHints {
   currentIdentity: string | null;
   hiddenIdentity: string | null;
@@ -66,19 +165,19 @@ export function extractCharacterAnchorHints(storyInput: string): CharacterAnchor
     };
   }
 
-  const currentIdentity = extractByPatterns(normalized, [
+  const currentIdentity = sanitizeCurrentIdentityAnchor(extractByPatterns(normalized, [
     /成为([^，。；\n]+)/,
     /化身(?:成|为)([^，。；\n]+)/,
     /扮成([^，。；\n]+)/,
     /以([^，。；\n]+?)身份/,
-  ]);
-  const hiddenIdentity = extractByPatterns(normalized, [
+  ]));
+  const hiddenIdentity = sanitizeHiddenIdentityAnchor(extractByPatterns(normalized, [
     /竟然就是([^，。；\n]+)/,
     /其实就是([^，。；\n]+)/,
     /真实身份(?:是|竟是)([^，。；\n]+)/,
     /最后发现自己[^，。；\n]*就是([^，。；\n]+)/,
     /原来(?:他|她|自己)?就是([^，。；\n]+)/,
-  ]);
+  ]));
   const era = extractByPatterns(normalized, [
     /(秦朝|汉朝|唐朝|宋朝|元朝|明朝|清朝|战国|三国|春秋|隋朝|晋朝|南北朝)/,
     /(民国|晚清|先秦|大秦|大汉|大唐|大宋)/,
