@@ -7,14 +7,14 @@ const {
   resolveModelTemperature,
 } = require("../dist/llm/capabilities.js");
 
-test("supported providers include kimi, glm, qwen and gemini", () => {
-  for (const provider of ["kimi", "glm", "qwen", "gemini"]) {
+test("supported providers include kimi, glm, qwen, gemini and ollama", () => {
+  for (const provider of ["kimi", "glm", "qwen", "gemini", "ollama"]) {
     assert.ok(SUPPORTED_PROVIDERS.includes(provider), `${provider} should be available`);
   }
 });
 
 test("new provider defaults are present in their model fallback lists", () => {
-  for (const provider of ["kimi", "glm", "qwen", "gemini"]) {
+  for (const provider of ["kimi", "glm", "qwen", "gemini", "ollama"]) {
     assert.ok(
       PROVIDERS[provider].models.includes(PROVIDERS[provider].defaultModel),
       `${provider} default model should exist in fallback models`,
@@ -38,4 +38,10 @@ test("kimi k2 models force temperature 1 while moonshot models keep requested te
   assert.equal(resolveModelTemperature("kimi", "kimi-k2-turbo-preview", 0.4), 1);
   assert.equal(resolveModelTemperature("kimi", "moonshot-v1-32k", 0.4), 0.4);
   assert.equal(resolveModelTemperature("deepseek", "deepseek-chat", undefined), 0.7);
+});
+
+test("ollama does not advertise forced json mode", () => {
+  const capability = getJsonCapability("ollama", "llama3.2");
+  assert.equal(capability.supportsJsonObject, false);
+  assert.equal(capability.supportsJsonSchema, false);
 });

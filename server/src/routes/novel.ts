@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
 import { AppError } from "../middleware/errorHandler";
 import { NovelService } from "../services/novel/NovelService";
@@ -331,7 +332,7 @@ const characterTimelineSyncSchema = z.object({
 });
 
 const llmGenerateSchema = z.object({
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
+  provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
 });

@@ -1,5 +1,10 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { PROVIDERS } from "./providers";
+import {
+  isBuiltInProvider,
+  providerRequiresApiKey,
+  PROVIDERS,
+  resolveProviderBaseUrl,
+} from "./providers";
 
 interface ModelCacheItem {
   models: string[];
@@ -8,68 +13,51 @@ interface ModelCacheItem {
 
 interface GetProviderModelsOptions {
   apiKey?: string;
+  baseURL?: string;
   forceRefresh?: boolean;
+  allowAnonymous?: boolean;
+  fallbackModel?: string;
+  fallbackModels?: string[];
 }
 
 const MODEL_CACHE_TTL_MS = 30 * 60 * 1000;
-const modelCache = new Map<LLMProvider, ModelCacheItem>();
-
-function getProviderEnvBaseUrl(provider: LLMProvider): string | undefined {
-  switch (provider) {
-    case "deepseek":
-      return process.env.DEEPSEEK_BASE_URL;
-    case "siliconflow":
-      return process.env.SILICONFLOW_BASE_URL;
-    case "openai":
-      return process.env.OPENAI_BASE_URL;
-    case "anthropic":
-      return process.env.ANTHROPIC_BASE_URL;
-    case "grok":
-      return process.env.XAI_BASE_URL;
-    case "kimi":
-      return process.env.KIMI_BASE_URL;
-    case "glm":
-      return process.env.GLM_BASE_URL;
-    case "qwen":
-      return process.env.QWEN_BASE_URL;
-    case "gemini":
-      return process.env.GEMINI_BASE_URL;
-    default:
-      return undefined;
-  }
-}
-
-function normalizeBaseUrl(baseURL: string): string {
-  return baseURL.endsWith("/") ? baseURL.slice(0, -1) : baseURL;
-}
+const modelCache = new Map<string, ModelCacheItem>();
 
 function uniqueModels(models: string[]): string[] {
   return Array.from(new Set(models.map((item) => item.trim()).filter(Boolean)));
 }
 
-function getFallbackModels(provider: LLMProvider): string[] {
-  return uniqueModels(PROVIDERS[provider].models);
+function getFallbackModels(provider: LLMProvider, options: GetProviderModelsOptions = {}): string[] {
+  const builtInModels = isBuiltInProvider(provider) ? PROVIDERS[provider].models : [];
+  return uniqueModels([
+    ...builtInModels,
+    ...(options.fallbackModels ?? []),
+    options.fallbackModel ?? "",
+  ]);
 }
 
-function getCachedModels(provider: LLMProvider): string[] | undefined {
-  const item = modelCache.get(provider);
+function getCacheKey(provider: LLMProvider, baseURL?: string): string {
+  const resolvedBaseURL = resolveProviderBaseUrl(provider, baseURL, baseURL) ?? "";
+  return `${provider}::${resolvedBaseURL}`;
+}
+
+function getCachedModels(provider: LLMProvider, baseURL?: string): string[] | undefined {
+  const cacheKey = getCacheKey(provider, baseURL);
+  const item = modelCache.get(cacheKey);
   if (!item) {
     return undefined;
   }
   const expired = Date.now() - item.cachedAt > MODEL_CACHE_TTL_MS;
   if (expired) {
-    modelCache.delete(provider);
+    modelCache.delete(cacheKey);
     return undefined;
   }
   return item.models;
 }
 
-function setCachedModels(provider: LLMProvider, models: string[]): string[] {
+function setCachedModels(provider: LLMProvider, models: string[], baseURL?: string): string[] {
   const normalized = uniqueModels(models);
-  if (normalized.length === 0) {
-    return getFallbackModels(provider);
-  }
-  modelCache.set(provider, {
+  modelCache.set(getCacheKey(provider, baseURL), {
     models: normalized,
     cachedAt: Date.now(),
   });
@@ -97,26 +85,13 @@ function parseModelIds(payload: unknown): string[] {
     .filter(Boolean);
 }
 
-async function fetchProviderModels(provider: LLMProvider, apiKey: string): Promise<string[]> {
-  const baseURL = normalizeBaseUrl(getProviderEnvBaseUrl(provider) ?? PROVIDERS[provider].baseURL);
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-  };
-
-  if (provider === "anthropic") {
-    headers["x-api-key"] = apiKey;
-    headers["anthropic-version"] = process.env.ANTHROPIC_VERSION ?? "2023-06-01";
-  } else {
-    headers.Authorization = `Bearer ${apiKey}`;
-  }
-
+async function fetchJson(url: string, init: RequestInit): Promise<unknown> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10_000);
 
   try {
-    const response = await fetch(`${baseURL}/models`, {
-      method: "GET",
-      headers,
+    const response = await fetch(url, {
+      ...init,
       signal: controller.signal,
     });
 
@@ -125,38 +100,111 @@ async function fetchProviderModels(provider: LLMProvider, apiKey: string): Promi
       throw new Error(`拉取模型列表失败（${response.status}）：${detail || "未知错误"}`);
     }
 
-    const payload = (await response.json()) as unknown;
-    const models = parseModelIds(payload);
-    if (models.length === 0) {
-      throw new Error("模型列表为空。");
-    }
-    return models;
+    return response.json();
   } finally {
     clearTimeout(timer);
   }
+}
+
+function buildHeaders(provider: LLMProvider, apiKey?: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+  };
+
+  if (!apiKey) {
+    return headers;
+  }
+
+  if (provider === "anthropic") {
+    headers["x-api-key"] = apiKey;
+    headers["anthropic-version"] = process.env.ANTHROPIC_VERSION ?? "2023-06-01";
+    return headers;
+  }
+
+  headers.Authorization = `Bearer ${apiKey}`;
+  return headers;
+}
+
+async function fetchOllamaModels(baseURL: string): Promise<string[]> {
+  const nativeBaseURL = baseURL.endsWith("/v1") ? baseURL.slice(0, -3) : baseURL;
+
+  try {
+    const payload = await fetchJson(`${nativeBaseURL}/api/tags`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+    const models = parseModelIds(payload);
+    if (models.length > 0) {
+      return models;
+    }
+  } catch {
+    // Fall back to the OpenAI-compatible models endpoint.
+  }
+
+  const payload = await fetchJson(`${baseURL}/models`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+  const models = parseModelIds(payload);
+  if (models.length === 0) {
+    throw new Error("模型列表为空。");
+  }
+  return models;
+}
+
+async function fetchProviderModels(
+  provider: LLMProvider,
+  apiKey?: string,
+  customBaseURL?: string,
+): Promise<string[]> {
+  const baseURL = resolveProviderBaseUrl(provider, customBaseURL, customBaseURL);
+  if (!baseURL) {
+    throw new Error("未配置可用的 API URL。");
+  }
+  if (provider === "ollama") {
+    return fetchOllamaModels(baseURL);
+  }
+
+  const payload = await fetchJson(`${baseURL}/models`, {
+    method: "GET",
+    headers: buildHeaders(provider, apiKey),
+  });
+
+  const models = parseModelIds(payload);
+  if (models.length === 0) {
+    throw new Error("模型列表为空。");
+  }
+  return models;
 }
 
 export async function getProviderModels(
   provider: LLMProvider,
   options: GetProviderModelsOptions = {},
 ): Promise<string[]> {
-  const fallback = getFallbackModels(provider);
+  const fallback = getFallbackModels(provider, options);
   if (!options.forceRefresh) {
-    const cached = getCachedModels(provider);
+    const cached = getCachedModels(provider, options.baseURL);
     if (cached && cached.length > 0) {
       return cached;
     }
   }
 
-  if (!options.apiKey) {
+  const normalizedApiKey = options.apiKey?.trim();
+  const allowAnonymous = options.allowAnonymous ?? !providerRequiresApiKey(provider);
+  const canFetchRemotely = normalizedApiKey || allowAnonymous;
+  if (!canFetchRemotely) {
     return fallback;
   }
 
   try {
-    const models = await fetchProviderModels(provider, options.apiKey);
-    return setCachedModels(provider, models);
+    const models = await fetchProviderModels(provider, normalizedApiKey, options.baseURL);
+    return models.length > 0 ? setCachedModels(provider, models, options.baseURL) : fallback;
   } catch {
-    const cached = getCachedModels(provider);
+    const cached = getCachedModels(provider, options.baseURL);
     if (cached && cached.length > 0) {
       return cached;
     }
@@ -164,7 +212,11 @@ export async function getProviderModels(
   }
 }
 
-export async function refreshProviderModels(provider: LLMProvider, apiKey: string): Promise<string[]> {
-  const models = await fetchProviderModels(provider, apiKey);
-  return setCachedModels(provider, models);
+export async function refreshProviderModels(
+  provider: LLMProvider,
+  apiKey?: string,
+  baseURL?: string,
+): Promise<string[]> {
+  const models = await fetchProviderModels(provider, apiKey?.trim(), baseURL);
+  return setCachedModels(provider, models, baseURL);
 }

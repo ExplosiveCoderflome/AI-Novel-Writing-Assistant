@@ -8,6 +8,7 @@ import type {
 } from "@ai-novel/shared/types/creativeHub";
 import { creativeHubLangGraph } from "../creativeHub/CreativeHubLangGraph";
 import { creativeHubInterruptLangGraph } from "../creativeHub/CreativeHubInterruptLangGraph";
+import { llmProviderSchema } from "../llm/providerSchema";
 import {
   toBindings,
 } from "../creativeHub/creativeHubRuntimeHelpers";
@@ -60,7 +61,7 @@ const streamRunSchema = z.object({
   messages: z.array(creativeHubMessageSchema).default([]),
   checkpointId: z.string().trim().nullable().optional(),
   resourceBindings: resourceBindingsSchema.optional(),
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
+  provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().min(64).max(16384).optional(),

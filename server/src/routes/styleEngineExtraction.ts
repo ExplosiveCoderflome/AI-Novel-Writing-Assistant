@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
+import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { StyleProfileService } from "../services/styleEngine/StyleProfileService";
@@ -8,7 +9,7 @@ import { StyleProfileService } from "../services/styleEngine/StyleProfileService
 const router = Router();
 const styleProfileService = new StyleProfileService();
 
-const providerSchema = z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]);
+const providerSchema = llmProviderSchema;
 
 const fromTextSchema = z.object({
   name: z.string().trim().min(1),

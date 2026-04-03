@@ -260,6 +260,11 @@ export default function ModelRoutesPage() {
                     searchPlaceholder="搜索模型"
                     emptyText="当前服务商暂无可选模型"
                   />
+                  <Input
+                    value={draft.model}
+                    placeholder="也可以直接手动输入模型名"
+                    onChange={(event) => patchDraft(taskType, { model: event.target.value })}
+                  />
                 </div>
 
                 <div className="space-y-1">

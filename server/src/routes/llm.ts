@@ -1,39 +1,74 @@
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
+import { llmConnectivityService } from "../llm/connectivity";
+import { getProviderModels } from "../llm/modelCatalog";
+import { listModelRouteConfigs, MODEL_ROUTE_TASK_TYPES, upsertModelRouteConfig } from "../llm/modelRouter";
+import { llmProviderSchema } from "../llm/providerSchema";
+import { getProviderEnvApiKey, getProviderEnvModel, isBuiltInProvider, PROVIDERS } from "../llm/providers";
 import { authMiddleware } from "../middleware/auth";
 import { AppError } from "../middleware/errorHandler";
 import { validate } from "../middleware/validate";
-import { llmConnectivityService } from "../llm/connectivity";
-import { listModelRouteConfigs, MODEL_ROUTE_TASK_TYPES, upsertModelRouteConfig } from "../llm/modelRouter";
-import { PROVIDERS } from "../llm/providers";
-import { getProviderModels } from "../llm/modelCatalog";
 
 const router = Router();
 
 const llmTestSchema = z.object({
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]),
+  provider: llmProviderSchema,
   apiKey: z.string().trim().optional(),
   model: z.string().trim().optional(),
+  baseURL: z.string().trim().url("API URL 格式不正确。").optional(),
 });
 
 router.use(authMiddleware);
 
 router.get("/providers", async (_req, res, next) => {
   try {
-    const keys = await prisma.aPIKey.findMany();
+    const keys = await prisma.aPIKey.findMany({
+      orderBy: [{ createdAt: "asc" }],
+    });
     const keyMap = new Map(keys.map((item) => [item.provider, item]));
-    const entries = await Promise.all(
+
+    const builtInEntries = await Promise.all(
       Object.entries(PROVIDERS).map(async ([provider, config]) => {
-        const models = await getProviderModels(provider as LLMProvider, {
-          apiKey: keyMap.get(provider)?.key,
+        const keyConfig = keyMap.get(provider);
+        const currentModel = keyConfig?.model?.trim()
+          || getProviderEnvModel(provider)
+          || config.defaultModel;
+        const models = await getProviderModels(provider, {
+          apiKey: keyConfig?.key ?? getProviderEnvApiKey(provider),
+          baseURL: keyConfig?.baseURL ?? undefined,
+          fallbackModel: currentModel,
+          fallbackModels: [...config.models, currentModel],
         });
-        return [provider, { ...config, models }] as const;
+        return [provider, {
+          name: config.name,
+          defaultModel: currentModel,
+          models,
+        }] as const;
       }),
     );
-    const data = Object.fromEntries(entries);
+
+    const customEntries = await Promise.all(
+      keys
+        .filter((item) => !isBuiltInProvider(item.provider))
+        .map(async (item) => {
+          const currentModel = item.model?.trim() || "";
+          const models = await getProviderModels(item.provider, {
+            apiKey: item.key ?? undefined,
+            baseURL: item.baseURL ?? undefined,
+            fallbackModel: currentModel,
+            fallbackModels: [currentModel],
+          });
+          return [item.provider, {
+            name: item.displayName?.trim() || item.provider,
+            defaultModel: currentModel,
+            models,
+          }] as const;
+        }),
+    );
+
+    const data = Object.fromEntries([...builtInEntries, ...customEntries]);
     const response: ApiResponse<typeof data> = {
       success: true,
       data,
@@ -109,8 +144,8 @@ router.post(
   validate({ body: llmTestSchema }),
   async (req, res, next) => {
     try {
-      const { provider, apiKey, model } = req.body as z.infer<typeof llmTestSchema>;
-      const result = await llmConnectivityService.testConnection({ provider, apiKey, model });
+      const { provider, apiKey, model, baseURL } = req.body as z.infer<typeof llmTestSchema>;
+      const result = await llmConnectivityService.testConnection({ provider, apiKey, model, baseURL });
       if (!result.ok) {
         if (/API Key|未配置/.test(result.error ?? "")) {
           next(new AppError(result.error ?? "未配置可用的模型连接。", 400));

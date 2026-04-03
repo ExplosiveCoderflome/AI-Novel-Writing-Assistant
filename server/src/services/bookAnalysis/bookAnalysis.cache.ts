@@ -1,6 +1,6 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
-import { PROVIDERS } from "../../llm/providers";
+import { isBuiltInProvider, PROVIDERS } from "../../llm/providers";
 import { AppError } from "../../middleware/errorHandler";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { bookAnalysisSourceNotePrompt } from "../../prompting/prompts/bookAnalysis/bookAnalysis.prompts";
@@ -151,9 +151,14 @@ export class BookAnalysisSourceCacheService {
     temperature: number | undefined,
     sectionMaxTokens: number | undefined,
   ) {
+    const resolvedModel = requestedModel?.trim()
+      || (isBuiltInProvider(provider) ? PROVIDERS[provider].defaultModel : "");
+    if (!resolvedModel) {
+      throw new AppError("Custom provider requires an explicit model for book analysis.", 400);
+    }
     return {
       provider,
-      model: requestedModel?.trim() || PROVIDERS[provider].defaultModel,
+      model: resolvedModel,
       temperature: normalizeTemperature(temperature),
       notesMaxTokens: getNotesMaxTokens(normalizeMaxTokens(sectionMaxTokens)),
       segmentVersion: getBookAnalysisCacheSegmentVersion(),

@@ -1,8 +1,12 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import {
+  isBuiltinLLMProvider,
+  type BuiltinLLMProvider,
+  type LLMProvider,
+} from "@ai-novel/shared/types/llm";
 
-export const providerModelMap: Record<LLMProvider, string[]> = {
+export const providerModelMap: Record<BuiltinLLMProvider, string[]> = {
   deepseek: ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
   siliconflow: [
     "Qwen/Qwen2.5-7B-Instruct",
@@ -16,20 +20,23 @@ export const providerModelMap: Record<LLMProvider, string[]> = {
   glm: ["glm-4.5-air", "glm-4.5", "glm-4.5-flash", "glm-4-flash-250414"],
   qwen: ["qwen-plus", "qwen-max", "qwen3.5-plus", "qwen3-max"],
   gemini: ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-flash-preview"],
+  ollama: ["llama3.2", "qwen3:8b", "deepseek-r1:8b", "gpt-oss:20b"],
 };
 
+export function getProviderFallbackModels(provider: LLMProvider): string[] {
+  return isBuiltinLLMProvider(provider) ? providerModelMap[provider] : [];
+}
+
 function getDefaultModel(provider: LLMProvider): string {
-  return providerModelMap[provider][0];
+  return getProviderFallbackModels(provider)[0] ?? "";
 }
 
 function normalizeProvider(rawProvider: unknown): LLMProvider {
-  if (
-    typeof rawProvider === "string"
-    && Object.prototype.hasOwnProperty.call(providerModelMap, rawProvider)
-  ) {
-    return rawProvider as LLMProvider;
+  if (typeof rawProvider !== "string") {
+    return "deepseek";
   }
-  return "deepseek";
+  const trimmed = rawProvider.trim();
+  return trimmed || "deepseek";
 }
 
 function normalizeModel(model: unknown, provider: LLMProvider): string {

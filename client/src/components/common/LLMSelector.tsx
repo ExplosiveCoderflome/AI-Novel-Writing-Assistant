@@ -1,12 +1,12 @@
 import { useEffect, useMemo } from "react";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { useQuery } from "@tanstack/react-query";
+import { getLLMProviders } from "@/api/settings";
+import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getLLMProviders } from "@/api/settings";
-import { queryKeys } from "@/api/queryKeys";
-import { providerModelMap, useLLMStore } from "@/store/llmStore";
+import { getProviderFallbackModels, providerModelMap, useLLMStore } from "@/store/llmStore";
 import SearchableSelect from "./SearchableSelect";
 
 interface LLMSelectorValue {
@@ -50,7 +50,7 @@ function resolveModel(provider: LLMProvider, currentModel: string, models: strin
   if (normalizedCurrent) {
     return normalizedCurrent;
   }
-  return models[0] ?? providerModelMap[provider][0];
+  return models[0] ?? getProviderFallbackModels(provider)[0] ?? "";
 }
 
 function clampTemperature(value: number): number {
@@ -88,24 +88,30 @@ export default function LLMSelector({
   });
 
   const providerOptions = useMemo(() => {
-    const knownProviders = Object.keys(providerModelMap) as LLMProvider[];
-    if (!data || Object.keys(data).length === 0) {
-      return knownProviders;
-    }
-    const fromApi = Object.keys(data).filter(
-      (provider): provider is LLMProvider => provider in providerModelMap,
-    );
-    return fromApi.length > 0 ? fromApi : knownProviders;
-  }, [data]);
+    const builtInProviders = Object.keys(providerModelMap);
+    const apiProviders = data ? Object.keys(data) : [];
+    return Array.from(
+      new Set([currentValue.provider, ...apiProviders, ...builtInProviders].filter((provider) => {
+        return typeof provider === "string" && provider.trim().length > 0;
+      })),
+    ) as LLMProvider[];
+  }, [currentValue.provider, data]);
 
   const providerModelsMap = useMemo(() => {
-    const entries = (Object.keys(providerModelMap) as LLMProvider[]).map((provider) => {
+    const entries = providerOptions.map((provider) => {
       const providerData = data?.[provider] as ProviderResponse[string] | undefined;
       const fromApi = sanitizeModelList(providerData?.models);
-      return [provider, fromApi.length > 0 ? fromApi : sanitizeModelList(providerModelMap[provider])] as const;
+      const fallbackModels = getProviderFallbackModels(provider);
+      const mergedModels = fromApi.length > 0
+        ? fromApi
+        : sanitizeModelList([
+          providerData?.defaultModel ?? "",
+          ...fallbackModels,
+        ]);
+      return [provider, mergedModels] as const;
     });
-    return Object.fromEntries(entries) as Record<LLMProvider, string[]>;
-  }, [data]);
+    return Object.fromEntries(entries) as Record<string, string[]>;
+  }, [data, providerOptions]);
 
   const models = useMemo(() => {
     const providerModels = providerModelsMap[currentValue.provider] ?? [];
@@ -118,11 +124,15 @@ export default function LLMSelector({
 
   const resolvedModel = useMemo(
     () => resolveModel(currentValue.provider, currentValue.model, models),
-    [currentValue.provider, currentValue.model, models],
+    [currentValue.model, currentValue.provider, models],
   );
 
   const updateValue = (next: LLMSelectorValue) => {
-    const normalizedModel = resolveModel(next.provider, next.model, providerModelsMap[next.provider]);
+    const normalizedModel = resolveModel(
+      next.provider,
+      next.model,
+      providerModelsMap[next.provider] ?? getProviderFallbackModels(next.provider),
+    );
     const normalizedNext: LLMSelectorValue = {
       ...next,
       model: normalizedModel,
@@ -163,7 +173,7 @@ export default function LLMSelector({
 
   const onProviderChange = (provider: string) => {
     const typedProvider = provider as LLMProvider;
-    const nextModels = providerModelsMap[typedProvider];
+    const nextModels = providerModelsMap[typedProvider] ?? getProviderFallbackModels(typedProvider);
     const nextModel = resolveModel(typedProvider, currentValue.model, nextModels);
     updateValue({
       provider: typedProvider,
@@ -187,7 +197,7 @@ export default function LLMSelector({
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="secondary">模型</Badge>
         <Select value={currentValue.provider} onValueChange={onProviderChange}>
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="选择 Provider" />
           </SelectTrigger>
           <SelectContent>

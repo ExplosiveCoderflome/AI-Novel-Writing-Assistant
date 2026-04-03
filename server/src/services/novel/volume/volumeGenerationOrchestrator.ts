@@ -41,6 +41,7 @@ import { inferRequiredChapterCountFromBeatSheet } from "./volumeBeatSheetChapter
 import type {
   ChapterDetailMode,
   VolumeGenerateOptions,
+  VolumeGenerationPhase,
   VolumeGenerationNovel,
   VolumeWorkspace,
 } from "./volumeModels";
@@ -73,6 +74,23 @@ function suggestVolumeCount(chapterBudget: number): number {
   if (chapterBudget <= 24) return 1;
   if (chapterBudget <= 60) return 3;
   return 4;
+}
+
+async function notifyVolumeGenerationPhase(input: {
+  novelId: string;
+  scope: VolumeGenerationScope;
+  phase: VolumeGenerationPhase;
+  label: string;
+  options: VolumeGenerateOptions;
+}): Promise<void> {
+  console.info(
+    `[volume.generate] event=phase_start novelId=${input.novelId} scope=${input.scope} phase=${input.phase} label=${JSON.stringify(input.label)}`,
+  );
+  await input.options.onPhaseStart?.({
+    scope: input.scope,
+    phase: input.phase,
+    label: input.label,
+  });
 }
 
 function allocateChapterBudgets(params: {
@@ -511,6 +529,13 @@ async function generateStrategy(params: {
   const suggestedVolumeCount = workspace.volumes.length > 0 && options.respectExistingVolumeCount !== false
     ? workspace.volumes.length
     : suggestVolumeCount(chapterBudget);
+  await notifyVolumeGenerationPhase({
+    novelId: document.novelId,
+    scope: "strategy",
+    phase: "prompt",
+    label: "正在生成卷战略",
+    options,
+  });
   const generated = await runStructuredPrompt({
     asset: createVolumeStrategyPrompt(12),
     promptInput: {
@@ -547,6 +572,13 @@ async function generateStrategyCritique(params: {
   if (!document.strategyPlan) {
     throw new Error("请先生成卷战略建议。");
   }
+  await notifyVolumeGenerationPhase({
+    novelId: document.novelId,
+    scope: "strategy_critique",
+    phase: "prompt",
+    label: "正在评估卷战略",
+    options,
+  });
   const generated = await runStructuredPrompt({
     asset: volumeStrategyCritiquePrompt,
     promptInput: {
@@ -585,6 +617,13 @@ async function generateSkeleton(params: {
   }
   const chapterBudget = deriveChapterBudget({ novel, workspace, options });
   const targetVolumeCount = document.strategyPlan.recommendedVolumeCount;
+  await notifyVolumeGenerationPhase({
+    novelId: document.novelId,
+    scope: "skeleton",
+    phase: "prompt",
+    label: "正在生成卷骨架",
+    options,
+  });
   const generated = await runStructuredPrompt({
     asset: createVolumeSkeletonPrompt(targetVolumeCount),
     promptInput: {
@@ -621,6 +660,13 @@ async function generateBeatSheet(params: {
 }): Promise<VolumePlanDocument> {
   const { document, novel, workspace, storyMacroPlan, options } = params;
   const targetVolume = getTargetVolume(document, options.targetVolumeId);
+  await notifyVolumeGenerationPhase({
+    novelId: document.novelId,
+    scope: "beat_sheet",
+    phase: "prompt",
+    label: `正在生成第 ${targetVolume.sortOrder} 卷节奏板`,
+    options,
+  });
   const generated = await runStructuredPrompt({
     asset: volumeBeatSheetPrompt,
     promptInput: {
@@ -660,6 +706,13 @@ async function generateRebalance(params: {
   const anchorIndex = document.volumes.findIndex((volume) => volume.id === anchorVolume.id);
   const previousVolume = anchorIndex > 0 ? document.volumes[anchorIndex - 1] : undefined;
   const nextVolume = anchorIndex >= 0 && anchorIndex < document.volumes.length - 1 ? document.volumes[anchorIndex + 1] : undefined;
+  await notifyVolumeGenerationPhase({
+    novelId: document.novelId,
+    scope: "rebalance",
+    phase: "prompt",
+    label: `正在校准第 ${anchorVolume.sortOrder} 卷与相邻卷衔接`,
+    options,
+  });
   const generated = await runStructuredPrompt({
     asset: volumeRebalancePrompt,
     promptInput: {
@@ -717,6 +770,13 @@ async function generateChapterList(params: {
     : chapterBudgets[targetIndex] ?? Math.max(3, Math.round(chapterBudget / Math.max(document.volumes.length, 1)));
   const targetChapterCount = Math.max(existingOrBudgetChapterCount, beatSheetRequiredChapterCount);
 
+  await notifyVolumeGenerationPhase({
+    novelId: document.novelId,
+    scope: "chapter_list",
+    phase: "prompt",
+    label: `正在生成第 ${targetVolume.sortOrder} 卷章节列表`,
+    options,
+  });
   const generated = await runStructuredPrompt({
     asset: createVolumeChapterListPrompt(targetChapterCount),
     promptInput: {
@@ -792,6 +852,13 @@ async function generateChapterDetail(params: {
     guidance: options.guidance,
     detailMode,
   };
+  await notifyVolumeGenerationPhase({
+    novelId: document.novelId,
+    scope: "chapter_detail",
+    phase: "prompt",
+    label: `正在细化第 ${targetVolume.sortOrder} 卷第 ${targetChapter.chapterOrder} 章 · ${detailMode}`,
+    options,
+  });
   const generated = detailMode === "purpose"
     ? await runStructuredPrompt({
       asset: volumeChapterPurposePrompt,
@@ -855,6 +922,23 @@ export async function generateVolumePlanDocument(params: {
     activeVersionId: workspace.activeVersionId,
   });
   assertScopeReadiness(baseDocument, scope, options.targetVolumeId);
+  await notifyVolumeGenerationPhase({
+    novelId,
+    scope,
+    phase: "load_context",
+    label: scope === "chapter_list"
+      ? "正在整理拆章上下文"
+      : scope === "beat_sheet"
+        ? "正在整理节奏板上下文"
+        : scope === "skeleton"
+          ? "正在整理卷骨架上下文"
+          : scope === "strategy"
+            ? "正在整理卷战略上下文"
+            : scope === "rebalance"
+              ? "正在整理相邻卷衔接上下文"
+              : "正在整理卷规划上下文",
+    options,
+  });
   const { novel, storyMacroPlan } = await loadGenerationContext({
     novelId,
     workspace,

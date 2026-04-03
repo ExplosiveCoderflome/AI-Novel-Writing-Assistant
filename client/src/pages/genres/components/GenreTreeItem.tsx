@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import type { GenreTreeNode } from "@/api/genre";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { countGenreNovelBindingsInSubtree } from "../genreManagement.shared";
 
 interface GenreTreeItemProps {
   node: GenreTreeNode;
@@ -23,7 +24,8 @@ export default function GenreTreeItem({
 }: GenreTreeItemProps) {
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.children.length > 0;
-  const deleteDisabled = node.childCount > 0 || node.novelCount > 0;
+  const boundNovelCount = countGenreNovelBindingsInSubtree(node);
+  const deleteDisabled = boundNovelCount > 0;
 
   return (
     <div className={depth > 0 ? "ml-4 border-l border-border/60 pl-4" : ""}>
@@ -76,7 +78,7 @@ export default function GenreTreeItem({
               size="sm"
               className="text-destructive hover:text-destructive"
               disabled={deleteDisabled || deletingId === node.id}
-              title={deleteDisabled ? "请先清空子类型并解绑小说后再删除。" : undefined}
+              title={deleteDisabled ? "请先解绑当前分类或其子分类下的小说后再删除。" : undefined}
               onClick={() => onDelete(node)}
             >
               <Trash2 className="mr-1 h-4 w-4" />

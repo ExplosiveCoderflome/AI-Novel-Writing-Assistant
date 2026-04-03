@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
+import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { generateTitleIdeas } from "../services/title/titleGenerate";
@@ -9,7 +10,7 @@ import { TitleLibraryService } from "../services/title/TitleLibraryService";
 const router = Router();
 const titleLibraryService = new TitleLibraryService();
 
-const providerSchema = z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]);
+const providerSchema = llmProviderSchema;
 
 const querySchema = z.object({
   page: z.coerce.number().int().min(1).optional(),

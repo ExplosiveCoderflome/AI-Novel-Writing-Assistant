@@ -1051,8 +1051,10 @@ model TitleLibrary {
 model APIKey {
   id        String   @id @default(cuid())
   provider  String
-  key       String
+  displayName String?
+  key       String?
   model     String?
+  baseURL   String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

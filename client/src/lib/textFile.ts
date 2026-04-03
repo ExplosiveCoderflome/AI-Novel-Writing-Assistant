@@ -1,4 +1,3 @@
-export const TEXT_FILE_MAX_SIZE = 2 * 1024 * 1024;
 const TEXT_FILE_ENCODING_CANDIDATES = ["utf-8", "gb18030", "gbk", "big5", "utf-16le", "utf-16be"] as const;
 const SUSPICIOUS_MOJIBAKE_TOKENS = ["銆€", "锛", "鏈功", "涓€", "鍥犱负"] as const;
 

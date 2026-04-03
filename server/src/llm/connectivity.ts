@@ -1,9 +1,8 @@
 import { HumanMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ModelRouteTaskType } from "@ai-novel/shared/types/novel";
-import { getLLM } from "./factory";
+import { getLLM, resolveLLMClientOptions } from "./factory";
 import { MODEL_ROUTE_TASK_TYPES, resolveModel } from "./modelRouter";
-import { PROVIDERS } from "./providers";
 
 export interface LLMConnectivityStatus {
   provider: LLMProvider;
@@ -28,12 +27,20 @@ async function testConnection(input: {
   provider: LLMProvider;
   model?: string;
   apiKey?: string;
+  baseURL?: string;
 }): Promise<LLMConnectivityStatus> {
-  const model = input.model?.trim() || PROVIDERS[input.provider].defaultModel;
   try {
+    const resolved = await resolveLLMClientOptions(input.provider, {
+      apiKey: input.apiKey,
+      baseURL: input.baseURL,
+      model: input.model,
+      temperature: 0,
+      maxTokens: 16,
+    });
     const llm = await getLLM(input.provider, {
       apiKey: input.apiKey,
-      model,
+      baseURL: input.baseURL,
+      model: resolved.model,
       temperature: 0,
       maxTokens: 16,
     });
@@ -41,7 +48,7 @@ async function testConnection(input: {
     await llm.invoke([new HumanMessage("请只回复“ok”。")]);
     return {
       provider: input.provider,
-      model,
+      model: resolved.model,
       ok: true,
       latency: Date.now() - start,
       error: null,
@@ -49,7 +56,7 @@ async function testConnection(input: {
   } catch (error) {
     return {
       provider: input.provider,
-      model,
+      model: input.model?.trim() || "",
       ok: false,
       latency: null,
       error: toErrorMessage(error),

@@ -99,6 +99,40 @@ function sortTree(nodes: StoryModeTreeNode[]): StoryModeTreeNode[] {
   return nodes;
 }
 
+function collectSubtreeRows<T extends { id: string; parentId: string | null }>(
+  rows: T[],
+  rootId: string,
+): T[] {
+  const rowMap = new Map(rows.map((row) => [row.id, row]));
+  if (!rowMap.has(rootId)) {
+    return [];
+  }
+
+  const childrenByParent = new Map<string, T[]>();
+  for (const row of rows) {
+    if (!row.parentId) {
+      continue;
+    }
+    const siblings = childrenByParent.get(row.parentId) ?? [];
+    siblings.push(row);
+    childrenByParent.set(row.parentId, siblings);
+  }
+
+  const subtree: T[] = [];
+  const visit = (nodeId: string) => {
+    for (const child of childrenByParent.get(nodeId) ?? []) {
+      visit(child.id);
+    }
+    const current = rowMap.get(nodeId);
+    if (current) {
+      subtree.push(current);
+    }
+  };
+
+  visit(rootId);
+  return subtree;
+}
+
 export class StoryModeService {
   async listStoryModeTree(): Promise<StoryModeTreeNode[]> {
     const rows = await prisma.novelStoryMode.findMany({
@@ -263,12 +297,12 @@ export class StoryModeService {
 
   async deleteStoryMode(id: string): Promise<void> {
     await prisma.$transaction(async (tx) => {
-      const existing = await tx.novelStoryMode.findUnique({
-        where: { id },
-        include: {
+      const rows = await tx.novelStoryMode.findMany({
+        select: {
+          id: true,
+          parentId: true,
           _count: {
             select: {
-              children: true,
               primaryNovels: true,
               secondaryNovels: true,
             },
@@ -276,21 +310,25 @@ export class StoryModeService {
         },
       });
 
+      const existing = rows.find((row) => row.id === id);
       if (!existing) {
         throw new AppError("流派模式不存在。", 404);
       }
 
-      if (existing._count.children > 0) {
-        throw new AppError("当前流派模式下还有子节点，请先移动或删除子节点。", 400);
+      const subtree = collectSubtreeRows(rows, id);
+      const boundNovelCount = subtree.reduce(
+        (total, row) => total + row._count.primaryNovels + row._count.secondaryNovels,
+        0,
+      );
+      if (boundNovelCount > 0) {
+        throw new AppError("当前推进模式树已被小说引用，请先解绑相关小说后再删除。", 400);
       }
 
-      if (existing._count.primaryNovels + existing._count.secondaryNovels > 0) {
-        throw new AppError("当前流派模式已被小说引用，不能直接删除。", 400);
+      for (const row of subtree) {
+        await tx.novelStoryMode.delete({
+          where: { id: row.id },
+        });
       }
-
-      await tx.novelStoryMode.delete({
-        where: { id },
-      });
     });
   }
 

@@ -143,6 +143,31 @@ function schemaAllowsTopLevelArray<T>(schema: ZodType<T>): boolean {
   return probe.error.issues.some((issue) => issue.path.length === 0 && issue.code !== "invalid_type");
 }
 
+function logStructuredInvokeEvent(input: {
+  event: string;
+  label: string;
+  provider?: LLMProvider;
+  model?: string;
+  taskType?: TaskType;
+  latencyMs?: number;
+  rawChars?: number;
+  repairAttempt?: number;
+}): void {
+  console.info(
+    [
+      "[structured.invoke]",
+      `event=${input.event}`,
+      `label=${input.label}`,
+      `provider=${input.provider ?? "default"}`,
+      `model=${input.model ?? "default"}`,
+      `taskType=${input.taskType ?? "planner"}`,
+      typeof input.repairAttempt === "number" ? `repairAttempt=${input.repairAttempt}` : "",
+      typeof input.latencyMs === "number" ? `latencyMs=${input.latencyMs}` : "",
+      typeof input.rawChars === "number" ? `rawChars=${input.rawChars}` : "",
+    ].filter(Boolean).join(" "),
+  );
+}
+
 export function shouldUseJsonObjectResponseFormat<T>(
   provider: LLMProvider,
   model: string | undefined,
@@ -160,6 +185,14 @@ async function repairWithLlm<T>(
   validationError: string,
   repairAttempt: number,
 ): Promise<T> {
+  logStructuredInvokeEvent({
+    event: "repair_start",
+    label: input.label,
+    provider: input.provider,
+    model: input.model,
+    taskType: input.taskType,
+    repairAttempt,
+  });
   const llm = await getLLM(input.provider, {
     fallbackProvider: "deepseek",
     model: input.model,
@@ -200,8 +233,19 @@ async function repairWithLlm<T>(
     "请修复后只输出最终 JSON。",
   ].join("\n");
 
+  const startedAt = Date.now();
   const result = await llm.invoke([new SystemMessage(repairSystem), new HumanMessage(repairHuman)]);
   const repairedRaw = toText(result.content);
+  logStructuredInvokeEvent({
+    event: "repair_done",
+    label: input.label,
+    provider: input.provider,
+    model: input.model,
+    taskType: input.taskType,
+    repairAttempt,
+    latencyMs: Date.now() - startedAt,
+    rawChars: repairedRaw.length,
+  });
   const repairParse = tryParseStructuredJsonValue(repairedRaw);
   if ("error" in repairParse) {
     throw new Error(`[${input.label}] JSON repair 后仍无法解析。错误：${repairParse.error}`);
@@ -288,8 +332,25 @@ export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInpu
   }
 
   const messages = buildInvokeMessages(input);
+  logStructuredInvokeEvent({
+    event: "invoke_start",
+    label: input.label,
+    provider: input.provider,
+    model: input.model,
+    taskType: input.taskType,
+  });
+  const startedAt = Date.now();
   const result = await llm.invoke(messages, invokeOptions);
   const rawContent = toText(result.content);
+  logStructuredInvokeEvent({
+    event: "invoke_done",
+    label: input.label,
+    provider: input.provider,
+    model: input.model,
+    taskType: input.taskType,
+    latencyMs: Date.now() - startedAt,
+    rawChars: rawContent.length,
+  });
 
   return parseStructuredLlmRawContentDetailed({
     rawContent,
@@ -309,4 +370,3 @@ export async function invokeStructuredLlm<T>(input: StructuredInvokeInput<T>): P
   const result = await invokeStructuredLlmDetailed(input);
   return result.data;
 }
-

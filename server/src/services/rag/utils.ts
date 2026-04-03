@@ -7,12 +7,77 @@ export function normalizeRagText(source: string): string {
     .trim();
 }
 
-export function splitRagChunks(source: string, chunkSize: number, chunkOverlap: number): string[] {
+function containsCjk(text: string): boolean {
+  return /[\u3400-\u9FFF\uF900-\uFAFF]/.test(text);
+}
+
+function estimateSafeCharSize(text: string, chunkSize: number, maxTokens: number): number {
+  const estimatedTokens = estimateTokenCount(text);
+  if (estimatedTokens <= 0) {
+    return chunkSize;
+  }
+  const conservativeTokenBudget = Math.max(64, Math.floor(maxTokens * 0.85));
+  const charsPerToken = text.length / estimatedTokens;
+  const cappedCharsPerToken = containsCjk(text)
+    ? Math.max(1, Math.min(charsPerToken, 1.15))
+    : Math.max(1, Math.min(charsPerToken, 4));
+  return Math.max(120, Math.min(chunkSize, Math.floor(conservativeTokenBudget * cappedCharsPerToken)));
+}
+
+function splitChunkByTokenBudget(source: string, maxTokens: number, chunkOverlap: number): string[] {
   const normalized = normalizeRagText(source);
   if (!normalized) {
     return [];
   }
-  if (normalized.length <= chunkSize) {
+  if (estimateTokenCount(normalized) <= maxTokens) {
+    return [normalized];
+  }
+
+  const safeChunkSize = estimateSafeCharSize(normalized, normalized.length, maxTokens);
+  const safeOverlap = Math.max(0, Math.min(chunkOverlap, Math.floor(safeChunkSize / 4)));
+  const step = Math.max(1, safeChunkSize - safeOverlap);
+  const chunks: string[] = [];
+
+  for (let cursor = 0; cursor < normalized.length; cursor += step) {
+    const part = normalized.slice(cursor, cursor + safeChunkSize).trim();
+    if (!part) {
+      continue;
+    }
+    if (estimateTokenCount(part) <= maxTokens) {
+      chunks.push(part);
+    } else if (part.length >= normalized.length) {
+      const midpoint = Math.max(1, Math.floor(part.length / 2));
+      chunks.push(...splitChunkByTokenBudget(part.slice(0, midpoint), maxTokens, safeOverlap));
+      chunks.push(...splitChunkByTokenBudget(part.slice(midpoint), maxTokens, safeOverlap));
+    } else {
+      chunks.push(...splitChunkByTokenBudget(part, maxTokens, safeOverlap));
+    }
+    if (cursor + safeChunkSize >= normalized.length) {
+      break;
+    }
+  }
+
+  return chunks.filter(Boolean);
+}
+
+export function splitRagChunks(
+  source: string,
+  chunkSize: number,
+  chunkOverlap: number,
+  options?: { maxTokens?: number | null },
+): string[] {
+  const normalized = normalizeRagText(source);
+  if (!normalized) {
+    return [];
+  }
+  const maxTokens = typeof options?.maxTokens === "number" && options.maxTokens > 0
+    ? Math.floor(options.maxTokens)
+    : null;
+  const effectiveChunkSize = maxTokens
+    ? estimateSafeCharSize(normalized, chunkSize, maxTokens)
+    : chunkSize;
+
+  if (normalized.length <= effectiveChunkSize && (!maxTokens || estimateTokenCount(normalized) <= maxTokens)) {
     return [normalized];
   }
 
@@ -31,14 +96,18 @@ export function splitRagChunks(source: string, chunkSize: number, chunkOverlap: 
   let current = "";
 
   const pushLongUnit = (unit: string) => {
-    const step = Math.max(1, chunkSize - chunkOverlap);
+    const step = Math.max(1, effectiveChunkSize - chunkOverlap);
     for (let cursor = 0; cursor < unit.length; cursor += step) {
-      const part = unit.slice(cursor, cursor + chunkSize).trim();
+      const part = unit.slice(cursor, cursor + effectiveChunkSize).trim();
       if (!part) {
         continue;
       }
-      chunks.push(part);
-      if (cursor + chunkSize >= unit.length) {
+      if (maxTokens && estimateTokenCount(part) > maxTokens) {
+        chunks.push(...splitChunkByTokenBudget(part, maxTokens, chunkOverlap));
+      } else {
+        chunks.push(part);
+      }
+      if (cursor + effectiveChunkSize >= unit.length) {
         break;
       }
     }
@@ -49,7 +118,7 @@ export function splitRagChunks(source: string, chunkSize: number, chunkOverlap: 
       continue;
     }
     if (!current) {
-      if (unit.length <= chunkSize) {
+      if (unit.length <= effectiveChunkSize && (!maxTokens || estimateTokenCount(unit) <= maxTokens)) {
         current = unit;
       } else {
         pushLongUnit(unit);
@@ -58,13 +127,16 @@ export function splitRagChunks(source: string, chunkSize: number, chunkOverlap: 
     }
 
     const merged = `${current}\n${unit}`;
-    if (merged.length <= chunkSize) {
+    if (
+      merged.length <= effectiveChunkSize
+      && (!maxTokens || estimateTokenCount(merged) <= maxTokens)
+    ) {
       current = merged;
       continue;
     }
 
     chunks.push(current);
-    if (unit.length <= chunkSize) {
+    if (unit.length <= effectiveChunkSize && (!maxTokens || estimateTokenCount(unit) <= maxTokens)) {
       current = unit;
     } else {
       pushLongUnit(unit);
@@ -75,12 +147,22 @@ export function splitRagChunks(source: string, chunkSize: number, chunkOverlap: 
   if (current) {
     chunks.push(current);
   }
-  return chunks;
+  if (!maxTokens) {
+    return chunks;
+  }
+  return chunks.flatMap((chunk) => splitChunkByTokenBudget(chunk, maxTokens, chunkOverlap));
 }
 
 export function estimateTokenCount(text: string): number {
-  // Chinese-heavy text rough estimate.
-  return Math.max(1, Math.ceil(text.length / 1.8));
+  const normalized = normalizeRagText(text);
+  if (!normalized) {
+    return 0;
+  }
+  const cjkChars = (normalized.match(/[\u3400-\u9FFF\uF900-\uFAFF]/g) ?? []).length;
+  const nonCjkText = normalized.replace(/[\u3400-\u9FFF\uF900-\uFAFF]/g, "");
+  const compactAscii = nonCjkText.replace(/\s+/g, "");
+  const otherTokenEstimate = Math.ceil(compactAscii.length / 4);
+  return Math.max(1, cjkChars + otherTokenEstimate);
 }
 
 export function computeChunkHash(input: string): string {

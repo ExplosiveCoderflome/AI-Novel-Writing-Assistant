@@ -2,6 +2,7 @@ import type { TaskStatus, UnifiedTaskDetail, UnifiedTaskSummary } from "@ai-nove
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { NovelService } from "../../novel/NovelService";
+import { NovelWorkflowService } from "../../novel/workflow/NovelWorkflowService";
 import {
   buildTaskRecoveryHint,
   isArchivableTaskStatus,
@@ -19,6 +20,8 @@ import {
 } from "../taskCenter.shared";
 
 export class PipelineTaskAdapter {
+  private readonly workflowService = new NovelWorkflowService();
+
   constructor(private readonly novelService: NovelService) {}
 
   async list(input: {
@@ -210,11 +213,29 @@ export class PipelineTaskAdapter {
     }
 
     const job = await this.novelService.cancelPipelineJob(id);
+    await this.cancelLinkedAutoDirectorTask(job.id, job.novelId).catch(() => null);
     const detail = await this.detail(job.id);
     if (!detail) {
       throw new AppError("Task not found after cancellation.", 404);
     }
     return detail;
+  }
+
+  private async cancelLinkedAutoDirectorTask(pipelineJobId: string, novelId: string): Promise<void> {
+    const linkedWorkflow = await prisma.novelWorkflowTask.findFirst({
+      where: {
+        lane: "auto_director",
+        novelId,
+        status: { in: ["queued", "running", "waiting_approval"] },
+        seedPayloadJson: { contains: `"pipelineJobId":"${pipelineJobId}"` },
+      },
+      select: { id: true },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+    });
+    if (!linkedWorkflow) {
+      return;
+    }
+    await this.workflowService.cancelTask(linkedWorkflow.id);
   }
 
   async archive(id: string): Promise<UnifiedTaskDetail | null> {

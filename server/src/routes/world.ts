@@ -5,6 +5,7 @@ import type { WorldLayerKey, WorldStructureSectionKey } from "@ai-novel/shared/t
 import { z } from "zod";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
+import { llmProviderSchema } from "../llm/providerSchema";
 import { initSSE, streamToSSE, writeSSEFrame } from "../llm/streaming";
 import { featureFlags } from "../config/featureFlags";
 import { KnowledgeService } from "../services/knowledge/KnowledgeService";
@@ -36,7 +37,7 @@ const requireWorldVisualization: RequestHandler = (_req, res, next) => {
   } satisfies ApiResponse<null>);
 };
 
-const providerSchema = z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]);
+const providerSchema = llmProviderSchema;
 
 const worldIdSchema = z.object({
   id: z.string().trim().min(1),

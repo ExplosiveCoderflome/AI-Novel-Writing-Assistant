@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { KnowledgeDocumentStatus, KnowledgeRecallTestResult } from "@ai-novel/shared/types/knowledge";
 import { useSearchParams } from "react-router-dom";
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
@@ -16,10 +17,11 @@ import {
   reindexKnowledgeDocument,
   testKnowledgeDocumentRecall,
   updateKnowledgeDocumentStatus,
+  type RagHealthStatus,
   type RagJobSummary,
 } from "@/api/knowledge";
 import { getRagEmbeddingModels, getRagSettings, saveRagSettings } from "@/api/settings";
-import { TEXT_FILE_MAX_SIZE, isTxtFile, readTextFile } from "@/lib/textFile";
+import { isTxtFile, readTextFile } from "@/lib/textFile";
 import KnowledgeDocumentDetailDialog from "./components/KnowledgeDocumentDetailDialog";
 import KnowledgeDocumentsTab from "./components/KnowledgeDocumentsTab";
 import KnowledgeEmbeddingSettingsCard, { type KnowledgeEmbeddingSettingsFormState } from "./components/KnowledgeEmbeddingSettingsCard";
@@ -80,7 +82,10 @@ export default function KnowledgePage() {
 
   const ragHealthQuery = useQuery({
     queryKey: queryKeys.knowledge.ragHealth,
-    queryFn: getRagHealth,
+    queryFn: () => {
+      const previousHealth = queryClient.getQueryData<ApiResponse<RagHealthStatus>>(queryKeys.knowledge.ragHealth);
+      return getRagHealth(previousHealth?.data);
+    },
     enabled: activeTab === "ops",
   });
 
@@ -253,6 +258,11 @@ export default function KnowledgePage() {
   );
   const failedJobs = (ragJobsQuery.data?.data ?? []).filter((item) => item.status === "failed").slice(0, 5);
   const selectedDocument = detailQuery.data?.data;
+  const ragHealthNotice = ragHealthQuery.isError
+    ? (ragHealthQuery.error instanceof Error ? ragHealthQuery.error.message : "Failed to load RAG health status.")
+    : (ragHealthQuery.data?.message && ragHealthQuery.data.message !== "RAG health check passed."
+      ? ragHealthQuery.data.message
+      : undefined);
   const recallErrorMessage = recallTestMutation.isError
     ? (recallTestMutation.error instanceof Error ? recallTestMutation.error.message : "召回测试失败。")
     : null;
@@ -271,9 +281,6 @@ export default function KnowledgePage() {
     if (!isTxtFile(file)) {
       throw new Error("仅支持 .txt 文档。");
     }
-    if (file.size > TEXT_FILE_MAX_SIZE) {
-      throw new Error("文档过大，请上传 2MB 以内的 txt 文件。");
-    }
     const content = await readTextFile(file);
     if (!content) {
       throw new Error("文档内容为空或编码不受支持。");
@@ -291,9 +298,6 @@ export default function KnowledgePage() {
     }
     if (!isTxtFile(file)) {
       throw new Error("仅支持 .txt 文档。");
-    }
-    if (file.size > TEXT_FILE_MAX_SIZE) {
-      throw new Error("文档过大，请上传 2MB 以内的 txt 文件。");
     }
     const content = await readTextFile(file);
     if (!content) {
@@ -399,6 +403,7 @@ export default function KnowledgePage() {
             enabledCount={enabledCount}
             disabledCount={disabledCount}
             ragHealth={ragHealthQuery.data?.data}
+            ragHealthNotice={ragHealthNotice}
             jobs={ragJobsQuery.data?.data ?? []}
             failedJobs={failedJobs}
           />

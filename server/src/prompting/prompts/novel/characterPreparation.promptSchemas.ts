@@ -4,6 +4,7 @@ import type {
   CharacterGender,
   SupplementalCharacterGenerationMode,
 } from "@ai-novel/shared/types/novel";
+import { llmProviderSchema } from "../../../llm/providerSchema";
 
 const nonEmptyString = z.string().trim().min(1);
 
@@ -195,7 +196,7 @@ export const supplementalCharacterCandidateSchema = z.object({
 });
 
 export const supplementalCharacterGenerationInputSchema = z.object({
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
+  provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
   mode: supplementalCharacterGenerationModeEnum.optional().default("auto"),

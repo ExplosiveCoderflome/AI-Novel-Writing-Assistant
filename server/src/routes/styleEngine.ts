@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
+import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { AntiAiRuleService } from "../services/styleEngine/AntiAiRuleService";
@@ -57,7 +58,7 @@ const manualProfileSchema = z.object({
 const fromBookAnalysisSchema = z.object({
   bookAnalysisId: z.string().trim().min(1),
   name: z.string().trim().min(1),
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
+  provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
 });
@@ -105,7 +106,7 @@ const testWriteSchema = z.object({
   topic: z.string().trim().optional(),
   sourceText: z.string().optional(),
   targetLength: z.number().int().min(100).max(8000).optional(),
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
+  provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
 });
@@ -116,7 +117,7 @@ const detectionSchema = z.object({
   novelId: z.string().trim().optional(),
   chapterId: z.string().trim().optional(),
   taskStyleProfileId: z.string().trim().optional(),
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
+  provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
 });
@@ -132,7 +133,7 @@ const rewriteSchema = z.object({
     excerpt: z.string().trim().min(1),
     suggestion: z.string().trim().min(1),
   })).min(1),
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
+  provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
 });
@@ -142,7 +143,7 @@ const novelRecommendationParamsSchema = z.object({
 });
 
 const recommendationRequestSchema = z.object({
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
+  provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
 });

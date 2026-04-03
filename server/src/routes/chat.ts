@@ -5,6 +5,7 @@ import type { BaseMessageChunk } from "@langchain/core/messages";
 import { z } from "zod";
 import { agentRuntime } from "../agents";
 import { getLLM } from "../llm/factory";
+import { llmProviderSchema } from "../llm/providerSchema";
 import { initSSE, writeSSEFrame } from "../llm/streaming";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
@@ -30,7 +31,7 @@ const chatSchema = z.object({
     .min(1),
   systemPrompt: z.string().optional(),
   agentMode: z.boolean().optional(),
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
+  provider: llmProviderSchema.optional(),
   model: z.string().optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().min(64).max(16384).optional(),

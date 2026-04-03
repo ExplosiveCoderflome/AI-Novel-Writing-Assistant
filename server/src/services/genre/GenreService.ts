@@ -84,6 +84,40 @@ function sortTree(nodes: GenreTreeNode[]): GenreTreeNode[] {
   return nodes;
 }
 
+function collectSubtreeRows<T extends { id: string; parentId: string | null }>(
+  rows: T[],
+  rootId: string,
+): T[] {
+  const rowMap = new Map(rows.map((row) => [row.id, row]));
+  if (!rowMap.has(rootId)) {
+    return [];
+  }
+
+  const childrenByParent = new Map<string, T[]>();
+  for (const row of rows) {
+    if (!row.parentId) {
+      continue;
+    }
+    const siblings = childrenByParent.get(row.parentId) ?? [];
+    siblings.push(row);
+    childrenByParent.set(row.parentId, siblings);
+  }
+
+  const subtree: T[] = [];
+  const visit = (nodeId: string) => {
+    for (const child of childrenByParent.get(nodeId) ?? []) {
+      visit(child.id);
+    }
+    const current = rowMap.get(nodeId);
+    if (current) {
+      subtree.push(current);
+    }
+  };
+
+  visit(rootId);
+  return subtree;
+}
+
 export class GenreService {
   async listGenreTree(): Promise<GenreTreeNode[]> {
     const rows = await prisma.novelGenre.findMany({
@@ -196,33 +230,34 @@ export class GenreService {
 
   async deleteGenre(id: string): Promise<void> {
     await prisma.$transaction(async (tx) => {
-      const existing = await tx.novelGenre.findUnique({
-        where: { id },
-        include: {
+      const rows = await tx.novelGenre.findMany({
+        select: {
+          id: true,
+          parentId: true,
           _count: {
             select: {
-              children: true,
               novels: true,
             },
           },
         },
       });
 
+      const existing = rows.find((row) => row.id === id);
       if (!existing) {
         throw new AppError("类型不存在。", 404);
       }
 
-      if (existing._count.children > 0) {
-        throw new AppError("当前类型下还有子类型，请先迁移或删除子类型。", 400);
+      const subtree = collectSubtreeRows(rows, id);
+      const boundNovelCount = subtree.reduce((total, row) => total + row._count.novels, 0);
+      if (boundNovelCount > 0) {
+        throw new AppError("当前题材基底树已绑定小说，请先解绑相关小说后再删除。", 400);
       }
 
-      if (existing._count.novels > 0) {
-        throw new AppError("当前类型已绑定小说，不能直接删除。", 400);
+      for (const row of subtree) {
+        await tx.novelGenre.delete({
+          where: { id: row.id },
+        });
       }
-
-      await tx.novelGenre.delete({
-        where: { id },
-      });
     });
   }
 

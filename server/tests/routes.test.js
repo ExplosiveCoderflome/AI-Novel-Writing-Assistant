@@ -309,6 +309,230 @@ test("GET /api/settings/api-keys/balances returns provider balance statuses", as
   }
 });
 
+test("GET /api/settings/api-keys exposes ollama baseURL and optional-key metadata", async () => {
+  const originalFindMany = prisma.aPIKey.findMany;
+  prisma.aPIKey.findMany = async () => ([
+    {
+      id: "api-key-ollama",
+      provider: "ollama",
+      key: null,
+      model: "qwen3:8b",
+      baseURL: "http://127.0.0.1:11434/v1",
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ]);
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/settings/api-keys`);
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    const ollama = payload.data.find((item) => item.provider === "ollama");
+    assert.ok(ollama);
+    assert.equal(ollama.currentModel, "qwen3:8b");
+    assert.equal(ollama.currentBaseURL, "http://127.0.0.1:11434/v1");
+    assert.equal(ollama.requiresApiKey, false);
+    assert.equal(ollama.isConfigured, true);
+    assert.equal(ollama.isActive, true);
+  } finally {
+    prisma.aPIKey.findMany = originalFindMany;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("GET /api/settings/api-keys exposes custom OpenAI-compatible providers", async () => {
+  const originalFindMany = prisma.aPIKey.findMany;
+  prisma.aPIKey.findMany = async () => ([
+    {
+      id: "api-key-custom",
+      provider: "custom_storyhub",
+      displayName: "StoryHub Gateway",
+      key: "custom-key",
+      model: "story-model",
+      baseURL: "https://gateway.example.com/v1",
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ]);
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/settings/api-keys`);
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    const custom = payload.data.find((item) => item.provider === "custom_storyhub");
+    assert.ok(custom);
+    assert.equal(custom.kind, "custom");
+    assert.equal(custom.name, "StoryHub Gateway");
+    assert.equal(custom.displayName, "StoryHub Gateway");
+    assert.equal(custom.currentModel, "story-model");
+    assert.equal(custom.currentBaseURL, "https://gateway.example.com/v1");
+    assert.equal(custom.requiresApiKey, false);
+    assert.equal(custom.isConfigured, true);
+  } finally {
+    prisma.aPIKey.findMany = originalFindMany;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("PUT /api/settings/api-keys/ollama saves custom baseURL without requiring apiKey", async () => {
+  const originalFindUnique = prisma.aPIKey.findUnique;
+  const originalUpsert = prisma.aPIKey.upsert;
+  const originalFetch = global.fetch;
+  const httpFetch = originalFetch.bind(global);
+  prisma.aPIKey.findUnique = async () => null;
+  prisma.aPIKey.upsert = async ({ create }) => ({
+    id: "api-key-ollama",
+    provider: create.provider,
+    key: create.key,
+    model: create.model,
+    baseURL: create.baseURL,
+    isActive: create.isActive,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  global.fetch = async () => new Response(JSON.stringify({
+    models: [{ name: "qwen3:8b" }, { name: "llama3.2" }],
+  }), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await httpFetch(`http://127.0.0.1:${port}/api/settings/api-keys/ollama`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "qwen3:8b",
+        baseURL: "http://127.0.0.1:11434/v1",
+      }),
+    });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    assert.equal(payload.data.provider, "ollama");
+    assert.equal(payload.data.model, "qwen3:8b");
+    assert.equal(payload.data.baseURL, "http://127.0.0.1:11434/v1");
+    assert.ok(payload.data.models.includes("qwen3:8b"));
+  } finally {
+    prisma.aPIKey.findUnique = originalFindUnique;
+    prisma.aPIKey.upsert = originalUpsert;
+    global.fetch = originalFetch;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("POST /api/settings/custom-providers creates a custom provider entry", async () => {
+  const originalFindUnique = prisma.aPIKey.findUnique;
+  const originalCreate = prisma.aPIKey.create;
+  const originalFetch = global.fetch;
+  const httpFetch = originalFetch.bind(global);
+  prisma.aPIKey.findUnique = async () => null;
+  prisma.aPIKey.create = async ({ data }) => ({
+    id: "api-key-custom-created",
+    provider: data.provider,
+    displayName: data.displayName,
+    key: data.key,
+    model: data.model,
+    baseURL: data.baseURL,
+    isActive: data.isActive,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  global.fetch = async () => new Response(JSON.stringify({
+    data: [{ id: "story-model" }, { id: "story-model-pro" }],
+  }), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await httpFetch(`http://127.0.0.1:${port}/api/settings/custom-providers`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "StoryHub Gateway",
+        model: "story-model",
+        baseURL: "https://gateway.example.com/v1",
+      }),
+    });
+    assert.equal(response.status, 201);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    assert.equal(payload.data.displayName, "StoryHub Gateway");
+    assert.equal(payload.data.baseURL, "https://gateway.example.com/v1");
+    assert.ok(payload.data.provider.startsWith("custom_storyhub_gateway"));
+    assert.ok(payload.data.models.includes("story-model"));
+  } finally {
+    prisma.aPIKey.findUnique = originalFindUnique;
+    prisma.aPIKey.create = originalCreate;
+    global.fetch = originalFetch;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("DELETE /api/settings/custom-providers/:provider removes custom providers not in use", async () => {
+  const originalFindUnique = prisma.aPIKey.findUnique;
+  const originalFindFirst = prisma.modelRouteConfig.findFirst;
+  const originalDelete = prisma.aPIKey.delete;
+  prisma.aPIKey.findUnique = async () => ({
+    id: "api-key-custom-created",
+    provider: "custom_storyhub",
+    displayName: "StoryHub Gateway",
+    key: null,
+    model: "story-model",
+    baseURL: "https://gateway.example.com/v1",
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  prisma.modelRouteConfig.findFirst = async () => null;
+  prisma.aPIKey.delete = async () => ({
+    id: "api-key-custom-created",
+    provider: "custom_storyhub",
+  });
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/settings/custom-providers/custom_storyhub`, {
+      method: "DELETE",
+    });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+  } finally {
+    prisma.aPIKey.findUnique = originalFindUnique;
+    prisma.modelRouteConfig.findFirst = originalFindFirst;
+    prisma.aPIKey.delete = originalDelete;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
 test("POST /api/settings/api-keys/:provider/refresh-balance returns provider balance snapshot", async () => {
   const originalFindUnique = prisma.aPIKey.findUnique;
   const originalGetProviderBalance = providerBalanceService.getProviderBalance;
@@ -350,6 +574,48 @@ test("POST /api/settings/api-keys/:provider/refresh-balance returns provider bal
   } finally {
     prisma.aPIKey.findUnique = originalFindUnique;
     providerBalanceService.getProviderBalance = originalGetProviderBalance;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("POST /api/llm/test forwards custom baseURL for ollama without apiKey", async () => {
+  const originalTestConnection = llmConnectivityService.testConnection;
+  let receivedInput = null;
+  llmConnectivityService.testConnection = async (input) => {
+    receivedInput = input;
+    return {
+      provider: input.provider,
+      model: input.model ?? "qwen3:8b",
+      ok: true,
+      latency: 42,
+      error: null,
+    };
+  };
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/llm/test`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        provider: "ollama",
+        model: "qwen3:8b",
+        baseURL: "http://127.0.0.1:11434/v1",
+      }),
+    });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    assert.equal(payload.data.model, "qwen3:8b");
+    assert.equal(payload.data.latency, 42);
+    assert.equal(receivedInput.provider, "ollama");
+    assert.equal(receivedInput.baseURL, "http://127.0.0.1:11434/v1");
+  } finally {
+    llmConnectivityService.testConnection = originalTestConnection;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });

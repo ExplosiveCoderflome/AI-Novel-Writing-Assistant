@@ -196,6 +196,32 @@ function logPromptCompletion(input: {
   );
 }
 
+function logPromptEvent(input: {
+  event: string;
+  asset: PromptAsset<unknown, unknown, unknown>;
+  context: PromptRenderContext;
+  provider?: LLMProvider;
+  model?: string;
+  attempt?: number;
+  validationError?: string;
+}): void {
+  console.info(
+    [
+      "[prompt.runner]",
+      `event=${input.event}`,
+      `promptId=${input.asset.id}`,
+      `promptVersion=${input.asset.version}`,
+      `taskType=${input.asset.taskType}`,
+      `contextBlockIds=${input.context.selectedBlockIds.join(",") || "none"}`,
+      `estimatedInputTokens=${input.context.estimatedInputTokens}`,
+      `provider=${input.provider ?? "default"}`,
+      `model=${input.model ?? "default"}`,
+      typeof input.attempt === "number" ? `attempt=${input.attempt}` : "",
+      input.validationError ? `validationError=${JSON.stringify(input.validationError.slice(0, 240))}` : "",
+    ].filter(Boolean).join(" "),
+  );
+}
+
 function captureStreamOutput(rawStream: AsyncIterable<BaseMessageChunk>): {
   stream: AsyncIterable<BaseMessageChunk>;
   completedText: Promise<string>;
@@ -312,6 +338,15 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
       }
 
       semanticRetryAttempts += 1;
+      logPromptEvent({
+        event: "semantic_retry_start",
+        asset: asset as PromptAsset<unknown, unknown, unknown>,
+        context: input.context,
+        provider: input.options?.provider,
+        model: input.options?.model,
+        attempt: semanticRetryAttempts,
+        validationError: stringifyPromptError(error),
+      });
       currentMessages = buildSemanticRetryMessages({
         asset: input.asset,
         promptInput: input.promptInput,
@@ -340,6 +375,14 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
           semanticRetryAttempts,
         ),
       });
+      logPromptEvent({
+        event: "semantic_retry_done",
+        asset: asset as PromptAsset<unknown, unknown, unknown>,
+        context: input.context,
+        provider: input.options?.provider,
+        model: input.options?.model,
+        attempt: semanticRetryAttempts,
+      });
       totalRepairAttempts += currentResult.repairAttempts;
       repairUsed = repairUsed || currentResult.repairUsed;
     }
@@ -358,6 +401,13 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
 
   const outputSchema = input.asset.outputSchema;
   const prepared = preparePromptExecution(input);
+  logPromptEvent({
+    event: "started",
+    asset: input.asset as PromptAsset<unknown, unknown, unknown>,
+    context: prepared.context,
+    provider: input.options?.provider,
+    model: input.options?.model,
+  });
   const startedAt = Date.now();
   const result = await promptRunnerStructuredInvoker<R>({
     label: `${input.asset.id}@${input.asset.version}`,

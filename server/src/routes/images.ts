@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
+import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { imageGenerationService } from "../services/image/ImageGenerationService";
@@ -14,7 +15,7 @@ const generateSchema = z.object({
   prompt: z.string().trim().min(1),
   negativePrompt: z.string().trim().optional(),
   stylePreset: z.string().trim().optional(),
-  provider: z.enum(["deepseek", "siliconflow", "openai", "anthropic", "grok", "kimi", "glm", "qwen", "gemini"]).optional(),
+  provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   size: z.enum(IMAGE_SIZES).optional(),
   count: z.number().int().min(1).max(4).default(1),
