@@ -4,6 +4,8 @@ import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
 import { mapNovelAutoDirectorTaskSummary } from "../task/novelWorkflowTaskSummary";
 import { getArchivedTaskIdSet } from "../task/taskArchive";
+import { NovelWorkflowService } from "./workflow/NovelWorkflowService";
+import { isHistoricalAutoDirectorRecoveryNotNeededFailure } from "./workflow/novelWorkflowRecoveryHeuristics";
 import { NovelContinuationService } from "./NovelContinuationService";
 import { STORY_WORLD_SLICE_SCHEMA_VERSION } from "./storyWorldSlice/storyWorldSlicePersistence";
 import { syncChapterArtifacts } from "./novelChapterArtifacts";
@@ -22,6 +24,7 @@ import { queueRagDelete, queueRagUpsert } from "./novelCoreSupport";
 
 export class NovelCoreCrudService {
   private readonly novelContinuationService = new NovelContinuationService();
+  private readonly workflowService = new NovelWorkflowService();
 
   private validateStoryModeSelection(primaryStoryModeId?: string | null, secondaryStoryModeId?: string | null): void {
     if (primaryStoryModeId && secondaryStoryModeId && primaryStoryModeId === secondaryStoryModeId) {
@@ -66,6 +69,7 @@ export class NovelCoreCrudService {
 
   private async listLatestVisibleAutoDirectorTasksByNovelIds(
     novelIds: string[],
+    allowHealing = true,
   ): Promise<Map<string, NovelAutoDirectorTaskSummary>> {
     const uniqueNovelIds = Array.from(new Set(novelIds.filter((id) => id.trim().length > 0)));
     if (uniqueNovelIds.length === 0) {
@@ -82,12 +86,14 @@ export class NovelCoreCrudService {
       select: {
         id: true,
         novelId: true,
+        lane: true,
         status: true,
         progress: true,
         currentStage: true,
         currentItemLabel: true,
         checkpointType: true,
         checkpointSummary: true,
+        lastError: true,
         updatedAt: true,
       },
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
@@ -95,6 +101,19 @@ export class NovelCoreCrudService {
 
     if (rows.length === 0) {
       return new Map();
+    }
+
+    if (allowHealing) {
+      const healed = await Promise.all(
+        rows.map((row) => (
+          isHistoricalAutoDirectorRecoveryNotNeededFailure(row)
+            ? this.workflowService.healHistoricalAutoDirectorRecoveryFailure(row.id, row)
+            : Promise.resolve(false)
+        )),
+      );
+      if (healed.some(Boolean)) {
+        return this.listLatestVisibleAutoDirectorTasksByNovelIds(uniqueNovelIds, false);
+      }
     }
 
     const archivedTaskIds = await getArchivedTaskIdSet("novel_workflow", rows.map((row) => row.id));

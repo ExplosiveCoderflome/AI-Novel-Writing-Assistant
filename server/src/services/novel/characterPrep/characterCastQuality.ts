@@ -114,6 +114,36 @@ function normalizeComparableText(value: string | null | undefined): string {
     .toLowerCase();
 }
 
+function buildAnchorMatchCandidates(value: string | null | undefined): string[] {
+  const normalized = normalizeComparableText(value);
+  if (!normalized) {
+    return [];
+  }
+
+  const candidates = new Set<string>([normalized]);
+  if (normalized.includes("的")) {
+    const tail = normalized.split("的").at(-1)?.trim() ?? "";
+    if (tail.length >= 2) {
+      candidates.add(tail);
+    }
+  }
+  for (const size of [4, 3, 2]) {
+    if (normalized.length > size) {
+      candidates.add(normalized.slice(-size));
+    }
+  }
+
+  return [...candidates].filter((candidate) => candidate.length >= 2);
+}
+
+function textCorpusCarriesAnchor(textCorpus: string, anchor: string | null | undefined): boolean {
+  const normalizedCorpus = normalizeComparableText(textCorpus);
+  if (!normalizedCorpus) {
+    return false;
+  }
+  return buildAnchorMatchCandidates(anchor).some((candidate) => normalizedCorpus.includes(candidate));
+}
+
 function isAbstractSlotLikeName(name: string): boolean {
   const normalized = name.trim();
   if (!normalized) {
@@ -251,7 +281,7 @@ function buildOptionAssessment(
 
   const anchors = extractCharacterAnchorHints(storyInput);
   const textCorpus = buildOptionTextCorpus(option);
-  if (anchors.currentIdentity && !textCorpus.includes(anchors.currentIdentity)) {
+  if (anchors.currentIdentity && !textCorpusCarriesAnchor(textCorpus, anchors.currentIdentity)) {
     issues.push({
       code: "missing_current_identity_anchor",
       optionIndex,
@@ -259,7 +289,7 @@ function buildOptionAssessment(
       message: `这套阵容没有显式承接主角当前身份线索「${anchors.currentIdentity}」。`,
     });
   }
-  if (anchors.hiddenIdentity && !textCorpus.includes(anchors.hiddenIdentity)) {
+  if (anchors.hiddenIdentity && !textCorpusCarriesAnchor(textCorpus, anchors.hiddenIdentity)) {
     issues.push({
       code: "missing_hidden_identity_anchor",
       optionIndex,

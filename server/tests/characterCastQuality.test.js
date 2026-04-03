@@ -5,6 +5,9 @@ const {
   assessCharacterCastBatch,
   buildCharacterCastBlockedMessage,
 } = require("../dist/services/novel/characterPrep/characterCastQuality.js");
+const {
+  extractCharacterAnchorHints,
+} = require("../dist/prompting/prompts/novel/characterPreparation.contextBlocks.js");
 
 test("character cast quality gate blocks abstract slot names and missing hidden identity anchors", () => {
   const storyInput = "打工人刘雪婷穿越到秦朝成为太监，最后发现自己竟然就是赵高。";
@@ -179,6 +182,106 @@ test("character cast quality gate accepts concrete cast that carries identity an
           surfaceRelation: "上位者与近侍",
           hiddenTension: "她越靠近胡亥，越接近赵高命运",
           conflictSource: "近身侍奉带来的高压风险",
+          secretAsymmetry: "",
+          dynamicLabel: "高压依附",
+          nextTurnPoint: "刘雪婷第一次因胡亥卷入大案",
+        },
+      ],
+    },
+  ], storyInput);
+
+  assert.equal(assessment.autoApplicableOptionIndex, 0);
+  assert.equal(assessment.options[0].issues.length, 0);
+});
+
+test("character anchor extraction ignores abstract sentence fragments as current identity", () => {
+  const anchors = extractCharacterAnchorHints(
+    "身份重塑：她成为了一个活在阴影中的人，最后发现自己竟然就是赵高。",
+  );
+
+  assert.equal(anchors.currentIdentity, null);
+  assert.equal(anchors.hiddenIdentity, "赵高");
+});
+
+test("character cast quality gate does not block concrete cast on malformed abstract current-identity fragment", () => {
+  const storyInput = "身份重塑：她成为了一个活在阴影中的人，最后发现自己竟然就是赵高。";
+  const assessment = assessCharacterCastBatch([
+    {
+      id: "option_identity_fragment",
+      title: "身份重塑",
+      summary: "刘雪婷以秦宫太监身份求生，逐步逼近赵高真相。",
+      whyItWorks: "主角身份、制度压迫和隐藏真相都有人物承接。",
+      recommendedReason: "既能开篇求生，也能撑起长线身份反转。",
+      members: [
+        {
+          name: "刘雪婷",
+          role: "现代打工人 / 秦宫太监",
+          gender: "female",
+          castRole: "protagonist",
+          relationToProtagonist: "主角本人",
+          storyFunction: "在求生与权谋夹击中逼近赵高真相",
+          shortDescription: "被迫披着太监身份在秦宫内廷求生的现代女性",
+          outerGoal: "先活下来并站稳脚跟",
+          innerNeed: "搞清自己与赵高命运线为何重叠",
+          fear: "被权力机器吞没",
+          wound: "失去原本人生",
+          misbelief: "只要足够低头就能保命",
+          secret: "她身上的命运线最终指向赵高",
+          moralLine: "不愿靠滥杀无辜换取安全",
+          firstImpression: "谨慎、能忍、反应快",
+        },
+        {
+          name: "赵成",
+          role: "内廷老宦者",
+          gender: "male",
+          castRole: "mentor",
+          relationToProtagonist: "引路兼试探者",
+          storyFunction: "让主角看见秦宫的生存规则与权力链条",
+          shortDescription: "熟悉内廷暗规的老资格宦者",
+          outerGoal: "稳住自己在宫中的位置",
+          innerNeed: "找到可押注的活棋",
+          fear: "被更上层清洗",
+          wound: "",
+          misbelief: "",
+          secret: "知道部分与赵高有关的旧事",
+          moralLine: "",
+          firstImpression: "老辣克制",
+        },
+        {
+          name: "胡亥",
+          role: "危险皇子",
+          gender: "male",
+          castRole: "pressure_source",
+          relationToProtagonist: "能随时碾死她的权力对象",
+          storyFunction: "持续制造制度压力和生死风险",
+          shortDescription: "被内廷与权术包围的危险皇子",
+          outerGoal: "稳住继承局面",
+          innerNeed: "",
+          fear: "",
+          wound: "",
+          misbelief: "",
+          secret: "",
+          moralLine: "",
+          firstImpression: "阴晴难测",
+        },
+      ],
+      relations: [
+        {
+          sourceName: "刘雪婷",
+          targetName: "赵成",
+          surfaceRelation: "求生师徒",
+          hiddenTension: "双方都在互相利用",
+          conflictSource: "谁先交出底牌",
+          secretAsymmetry: "赵成知道更多赵高旧事",
+          dynamicLabel: "试探结盟",
+          nextTurnPoint: "赵成决定是否押注刘雪婷",
+        },
+        {
+          sourceName: "刘雪婷",
+          targetName: "胡亥",
+          surfaceRelation: "近侍与皇子",
+          hiddenTension: "她越靠近胡亥，越接近赵高命运",
+          conflictSource: "侍奉带来的高压风险",
           secretAsymmetry: "",
           dynamicLabel: "高压依附",
           nextTurnPoint: "刘雪婷第一次因胡亥卷入大案",

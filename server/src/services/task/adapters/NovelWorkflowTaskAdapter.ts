@@ -28,6 +28,7 @@ import {
 } from "../taskArchive";
 import { buildNovelWorkflowDetailSteps } from "../novelWorkflowDetailSteps";
 import { buildNovelWorkflowNextActionLabel } from "../novelWorkflowTaskSummary";
+import { isHistoricalAutoDirectorRecoveryNotNeededFailure } from "../../novel/workflow/novelWorkflowRecoveryHeuristics";
 
 function buildOwnerLabel(row: {
   novel?: { title: string } | null;
@@ -150,14 +151,54 @@ export class NovelWorkflowTaskAdapter {
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
       take: input.take,
     });
+    const healed = await Promise.all(
+      rows.map((row) => (
+        isHistoricalAutoDirectorRecoveryNotNeededFailure(row)
+          ? this.workflowService.healHistoricalAutoDirectorRecoveryFailure(row.id, row)
+          : Promise.resolve(false)
+      )),
+    );
+    const normalizedRows = healed.some(Boolean)
+      ? await prisma.novelWorkflowTask.findMany({
+        where: {
+          ...(archivedIds.length
+            ? {
+              id: {
+                notIn: archivedIds,
+              },
+            }
+            : {}),
+          ...(input.status ? { status: input.status } : {}),
+          ...(input.keyword
+            ? {
+              OR: [
+                { title: { contains: input.keyword } },
+                { id: { contains: input.keyword } },
+                { novel: { title: { contains: input.keyword } } },
+              ],
+            }
+            : {}),
+        },
+        include: {
+          novel: {
+            select: {
+              title: true,
+            },
+          },
+        },
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        take: input.take,
+      })
+      : rows;
 
-    return rows.map((row) => mapSummary(row));
+    return normalizedRows.map((row) => mapSummary(row));
   }
 
   async detail(id: string): Promise<UnifiedTaskDetail | null> {
     if (await isTaskArchived("novel_workflow", id)) {
       return null;
     }
+    await this.workflowService.healHistoricalAutoDirectorRecoveryFailure(id);
 
     const row = await prisma.novelWorkflowTask.findUnique({
       where: { id },

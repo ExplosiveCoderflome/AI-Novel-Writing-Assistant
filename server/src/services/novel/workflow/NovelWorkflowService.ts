@@ -25,6 +25,7 @@ import {
   parseResumeTarget,
   stringifyResumeTarget,
 } from "./novelWorkflow.shared";
+import { isHistoricalAutoDirectorRecoveryNotNeededFailure } from "./novelWorkflowRecoveryHeuristics";
 
 type WorkflowRow = Awaited<ReturnType<typeof prisma.novelWorkflowTask.findUnique>>;
 
@@ -50,6 +51,27 @@ interface SyncWorkflowStageInput {
 }
 
 const ACTIVE_STATUSES = ["queued", "running", "waiting_approval"] as const;
+const CHECKPOINT_STAGE_MAP: Record<NovelWorkflowCheckpoint, NovelWorkflowStage> = {
+  candidate_selection_required: "auto_director",
+  book_contract_ready: "story_macro",
+  character_setup_required: "character_setup",
+  volume_strategy_ready: "volume_strategy",
+  front10_ready: "chapter_execution",
+  chapter_batch_ready: "quality_repair",
+  replan_required: "quality_repair",
+  workflow_completed: "quality_repair",
+};
+
+const CHECKPOINT_ITEM_LABELS: Record<NovelWorkflowCheckpoint, string> = {
+  candidate_selection_required: "等待确认书级方向",
+  book_contract_ready: "Book Contract 已就绪",
+  character_setup_required: "等待审核角色准备",
+  volume_strategy_ready: "卷战略已就绪",
+  front10_ready: "前 10 章已可进入章节执行",
+  chapter_batch_ready: "前 10 章自动执行已暂停",
+  replan_required: "等待处理重规划建议",
+  workflow_completed: "小说主流程已完成",
+};
 
 function mapStageToTab(stage: NovelWorkflowStage): NovelWorkflowResumeTarget["stage"] {
   if (stage === "story_macro") return "story_macro";
@@ -70,7 +92,7 @@ function stageLabel(stage: NovelWorkflowStage): string {
 }
 
 export class NovelWorkflowService {
-  private async getVisibleRowsByNovelId(novelId: string, lane?: NovelWorkflowLane) {
+  private async getVisibleRowsByNovelIdRaw(novelId: string, lane?: NovelWorkflowLane) {
     const rows = await prisma.novelWorkflowTask.findMany({
       where: {
         novelId,
@@ -83,13 +105,36 @@ export class NovelWorkflowService {
     return rows.filter((row) => !archived.has(row.id));
   }
 
-  private async getVisibleRowById(taskId: string) {
+  private async getVisibleRowsByNovelId(novelId: string, lane?: NovelWorkflowLane) {
+    const rows = await this.getVisibleRowsByNovelIdRaw(novelId, lane);
+    const healed = await Promise.all(
+      rows.map((row) => this.healHistoricalAutoDirectorRecoveryFailure(row.id, row)),
+    );
+    if (!healed.some(Boolean)) {
+      return rows;
+    }
+    return this.getVisibleRowsByNovelIdRaw(novelId, lane);
+  }
+
+  private async getVisibleRowByIdRaw(taskId: string) {
     if (await isTaskArchived("novel_workflow", taskId)) {
       return null;
     }
     return prisma.novelWorkflowTask.findUnique({
       where: { id: taskId },
     });
+  }
+
+  private async getVisibleRowById(taskId: string) {
+    const existing = await this.getVisibleRowByIdRaw(taskId);
+    if (!existing) {
+      return null;
+    }
+    const healed = await this.healHistoricalAutoDirectorRecoveryFailure(taskId, existing);
+    if (!healed) {
+      return existing;
+    }
+    return this.getVisibleRowByIdRaw(taskId);
   }
 
   async findLatestVisibleTaskByNovelId(novelId: string, lane?: NovelWorkflowLane) {
@@ -122,6 +167,27 @@ export class NovelWorkflowService {
 
   async getTaskById(taskId: string) {
     return this.getVisibleRowById(taskId);
+  }
+
+  async healHistoricalAutoDirectorRecoveryFailure(
+    taskId: string,
+    row = null as {
+      lane?: string | null;
+      status?: string | null;
+      checkpointType?: string | null;
+      lastError?: string | null;
+    } | null,
+  ): Promise<boolean> {
+    const candidate = row ?? await this.getVisibleRowByIdRaw(taskId);
+    if (!candidate || !isHistoricalAutoDirectorRecoveryNotNeededFailure(candidate)) {
+      return false;
+    }
+    const existing = await this.getVisibleRowByIdRaw(taskId);
+    if (!existing) {
+      return false;
+    }
+    await this.restoreTaskToCheckpoint(taskId, existing);
+    return true;
   }
 
   async applyAutoDirectorLlmOverride(
@@ -384,6 +450,39 @@ export class NovelWorkflowService {
         finishedAt: null,
         cancelRequestedAt: null,
         heartbeatAt: new Date(),
+      },
+    });
+  }
+
+  async restoreTaskToCheckpoint(
+    taskId: string,
+    row = null as Awaited<ReturnType<typeof prisma.novelWorkflowTask.findUnique>> | null,
+  ) {
+    const existing = row ?? await this.getVisibleRowByIdRaw(taskId);
+    if (!existing || !existing.checkpointType) {
+      return existing;
+    }
+    const checkpointType = existing.checkpointType as NovelWorkflowCheckpoint;
+    const checkpointStage = CHECKPOINT_STAGE_MAP[checkpointType];
+    const resumeTarget = parseResumeTarget(existing.resumeTargetJson) ?? this.buildResumeTarget({
+      taskId,
+      novelId: existing.novelId,
+      lane: existing.lane,
+      stage: checkpointStage,
+    });
+    return prisma.novelWorkflowTask.update({
+      where: { id: taskId },
+      data: {
+        status: checkpointType === "workflow_completed" ? "succeeded" : "waiting_approval",
+        finishedAt: checkpointType === "workflow_completed" ? (existing.finishedAt ?? new Date()) : null,
+        cancelRequestedAt: null,
+        heartbeatAt: new Date(),
+        currentStage: stageLabel(checkpointStage),
+        currentItemKey: checkpointStage,
+        currentItemLabel: CHECKPOINT_ITEM_LABELS[checkpointType] ?? existing.currentItemLabel,
+        progress: Math.max(existing.progress, defaultProgressForStage(checkpointStage)),
+        resumeTargetJson: stringifyResumeTarget(resumeTarget),
+        lastError: null,
       },
     });
   }

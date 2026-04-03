@@ -65,6 +65,7 @@ import {
   loadDirectorTakeoverState,
   resolveDirectorRunningStateForPhase,
 } from "./novelDirectorTakeoverRuntime";
+import { DirectorRecoveryNotNeededError } from "./novelDirectorErrors";
 
 export class NovelDirectorService {
   private readonly novelContextService = new NovelContextService();
@@ -353,7 +354,7 @@ export class NovelDirectorService {
       if (assets.chapterCount === 0 || assets.firstVolumeChapterCount === 0) {
         return assets.volumeCount > 0 ? "structured_outline" : "volume_strategy";
       }
-      throw new Error("当前导演产物已经完整，无需继续自动导演。");
+      throw new DirectorRecoveryNotNeededError();
     }
     if (
       input.directorSessionPhase === "story_macro"

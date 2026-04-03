@@ -15,6 +15,7 @@ import { syncChapterArtifacts } from "./novelChapterArtifacts";
 import {
   isPass,
   LLMGenerateOptions,
+  logPipelineError,
   normalizeScore,
   RepairOptions,
   ReviewOptions,
@@ -25,6 +26,35 @@ import {
   buildChapterRepairContextBlocks,
   withChapterRepairContext,
 } from "../../prompting/prompts/novel/chapterLayeredContext";
+
+type AuditContextOperation = "review" | "audit" | "repair";
+
+class ChapterContextAssemblyError extends Error {
+  readonly code = "chapter_context_assembly_failed";
+  readonly novelId: string;
+  readonly chapterId: string;
+  readonly operation: AuditContextOperation;
+  readonly cause: unknown;
+
+  constructor(
+    novelId: string,
+    chapterId: string,
+    operation: AuditContextOperation,
+    cause: unknown,
+  ) {
+    const operationLabel = operation === "review"
+      ? "章节审阅"
+      : operation === "audit"
+        ? "章节审计"
+        : "章节修复";
+    super(`章节上下文装配失败，无法继续${operationLabel}。请先检查当前项目的卷级规划、章节计划和运行时资产是否完整后重试。`);
+    this.name = "ChapterContextAssemblyError";
+    this.novelId = novelId;
+    this.chapterId = chapterId;
+    this.operation = operation;
+    this.cause = cause;
+  }
+}
 
 export async function createQualityReport(
   novelId: string,
@@ -124,13 +154,21 @@ export class NovelCoreReviewService {
       ragContext = "";
     }
 
-    const assembledContextPackage = await this.assembleAuditContextPackage(novelId, chapterId, options);
-    const repairContextPackage = assembledContextPackage
-      ? withChapterRepairContext(assembledContextPackage, issues)
-      : null;
-    const repairContextBlocks = repairContextPackage?.chapterRepairContext
-      ? buildChapterRepairContextBlocks(repairContextPackage.chapterRepairContext)
-      : undefined;
+    const assembledContextPackage = await this.assembleAuditContextPackage(novelId, chapterId, options, "repair");
+    const repairContextPackage = withChapterRepairContext(assembledContextPackage, issues);
+    if (!repairContextPackage.chapterRepairContext) {
+      const error = new Error("chapterRepairContext missing after successful context assembly");
+      logPipelineError("Failed to derive repair context from assembled chapter context package.", {
+        novelId,
+        chapterId,
+        operation: "repair",
+        provider: options.provider ?? null,
+        model: options.model ?? null,
+        error: error.message,
+      });
+      throw new ChapterContextAssemblyError(novelId, chapterId, "repair", error);
+    }
+    const repairContextBlocks = buildChapterRepairContextBlocks(repairContextPackage.chapterRepairContext);
 
     const streamed = await streamTextPrompt({
       asset: chapterRepairPrompt,
@@ -223,7 +261,7 @@ export class NovelCoreReviewService {
     scope: "full" | "continuity" | "character" | "plot" | "mode_fit",
     options: ReviewOptions = {},
   ) {
-    const contextPackage = await this.assembleAuditContextPackage(novelId, chapterId, options);
+    const contextPackage = await this.assembleAuditContextPackage(novelId, chapterId, options, "audit");
     return auditService.auditChapter(novelId, chapterId, scope, {
       ...options,
       contextPackage,
@@ -352,7 +390,7 @@ export class NovelCoreReviewService {
     }
 
     if (novelId && chapterId) {
-      const contextPackage = await this.assembleAuditContextPackage(novelId, chapterId, options);
+      const contextPackage = await this.assembleAuditContextPackage(novelId, chapterId, options, "review");
       return auditService.auditChapter(novelId, chapterId, "full", {
         provider: options.provider,
         model: options.model,
@@ -369,7 +407,8 @@ export class NovelCoreReviewService {
     novelId: string,
     chapterId: string,
     options: ReviewOptions,
-  ): Promise<GenerationContextPackage | undefined> {
+    operation: AuditContextOperation,
+  ): Promise<GenerationContextPackage> {
     try {
       const assembled = await this.generationContextAssembler.assemble(novelId, chapterId, {
         provider: options.provider,
@@ -377,8 +416,16 @@ export class NovelCoreReviewService {
         temperature: options.temperature,
       });
       return assembled.contextPackage;
-    } catch {
-      return undefined;
+    } catch (error) {
+      logPipelineError("Failed to assemble chapter context package.", {
+        novelId,
+        chapterId,
+        operation,
+        provider: options.provider ?? null,
+        model: options.model ?? null,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new ChapterContextAssemblyError(novelId, chapterId, operation, error);
     }
   }
 }

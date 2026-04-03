@@ -7,6 +7,7 @@ const { auditService } = require("../dist/services/audit/AuditService.js");
 const { plannerService } = require("../dist/services/planner/PlannerService.js");
 const { GenerationContextAssembler } = require("../dist/services/novel/runtime/GenerationContextAssembler.js");
 const { NovelCoreReviewService } = require("../dist/services/novel/novelCoreReviewService.js");
+const novelCoreShared = require("../dist/services/novel/novelCoreShared.js");
 const { ragServices } = require("../dist/services/rag/index.js");
 
 function createAssembledContextPackage() {
@@ -326,5 +327,101 @@ test("repair stream builds prompt blocks from the assembled repair context packa
     promptRunner.streamTextPrompt = originalStreamTextPrompt;
     GenerationContextAssembler.prototype.assemble = originalAssemble;
     ragServices.hybridRetrievalService.buildContextBlock = originalBuildContextBlock;
+  }
+});
+
+test("manual review and manual audit fail loudly when chapter context assembly breaks", async () => {
+  const originalChapterFindFirst = prisma.chapter.findFirst;
+  const originalAuditChapter = auditService.auditChapter;
+  const originalAssemble = GenerationContextAssembler.prototype.assemble;
+  const originalLogPipelineError = novelCoreShared.logPipelineError;
+
+  const loggedFailures = [];
+  let auditCallCount = 0;
+  prisma.chapter.findFirst = async () => ({
+    id: "chapter-1",
+    title: "第1章",
+    content: "章节正文",
+    novel: { title: "测试小说" },
+  });
+  GenerationContextAssembler.prototype.assemble = async () => {
+    throw new Error("volume window missing");
+  };
+  auditService.auditChapter = async () => {
+    auditCallCount += 1;
+    return null;
+  };
+  novelCoreShared.logPipelineError = (message, meta) => {
+    loggedFailures.push({ message, meta });
+  };
+
+  try {
+    const service = new NovelCoreReviewService();
+    await assert.rejects(
+      service.reviewChapter("novel-1", "chapter-1", {}),
+      /章节上下文装配失败，无法继续章节审阅/,
+    );
+    await assert.rejects(
+      service.auditChapter("novel-1", "chapter-1", "plot", {}),
+      /章节上下文装配失败，无法继续章节审计/,
+    );
+    assert.equal(auditCallCount, 0);
+    assert.equal(loggedFailures.length, 2);
+    assert.deepEqual(
+      loggedFailures.map((entry) => entry.meta?.operation),
+      ["review", "audit"],
+    );
+  } finally {
+    prisma.chapter.findFirst = originalChapterFindFirst;
+    auditService.auditChapter = originalAuditChapter;
+    GenerationContextAssembler.prototype.assemble = originalAssemble;
+    novelCoreShared.logPipelineError = originalLogPipelineError;
+  }
+});
+
+test("repair stream fails loudly when chapter context assembly breaks", async () => {
+  const originalNovelFindUnique = prisma.novel.findUnique;
+  const originalChapterFindFirst = prisma.chapter.findFirst;
+  const originalBibleFindUnique = prisma.novelBible.findUnique;
+  const originalAssemble = GenerationContextAssembler.prototype.assemble;
+  const originalLogPipelineError = novelCoreShared.logPipelineError;
+
+  const loggedFailures = [];
+  prisma.novel.findUnique = async () => ({ id: "novel-1", title: "测试小说" });
+  prisma.chapter.findFirst = async () => ({
+    id: "chapter-1",
+    title: "第1章",
+    content: "章节正文",
+    novel: { title: "测试小说" },
+  });
+  prisma.novelBible.findUnique = async () => ({ rawContent: "作品圣经" });
+  GenerationContextAssembler.prototype.assemble = async () => {
+    throw new Error("legacy volume data missing");
+  };
+  novelCoreShared.logPipelineError = (message, meta) => {
+    loggedFailures.push({ message, meta });
+  };
+
+  try {
+    const service = new NovelCoreReviewService();
+    await assert.rejects(
+      service.createRepairStream("novel-1", "chapter-1", {
+        reviewIssues: [{
+          severity: "high",
+          category: "pacing",
+          evidence: "第一次反压没有实际落地。",
+          fixSuggestion: "让主角在本章拿到明确反压结果。",
+        }],
+      }),
+      /章节上下文装配失败，无法继续章节修复/,
+    );
+    assert.equal(loggedFailures.length, 1);
+    assert.equal(loggedFailures[0]?.meta?.operation, "repair");
+  } finally {
+    prisma.novel.findUnique = originalNovelFindUnique;
+    prisma.chapter.findFirst = originalChapterFindFirst;
+    prisma.novelBible.findUnique = originalBibleFindUnique;
+    GenerationContextAssembler.prototype.assemble = originalAssemble;
+    novelCoreShared.logPipelineError = originalLogPipelineError;
   }
 });
