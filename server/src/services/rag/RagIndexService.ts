@@ -4,6 +4,7 @@ import { ragConfig } from "../../config/rag";
 import { getRagEmbeddingSettings } from "../settings/RagSettingsService";
 import { EmbeddingService } from "./EmbeddingService";
 import { VectorStoreService } from "./VectorStoreService";
+import { resolveEmbeddingChunkTokenBudget } from "./embeddingModelLimits";
 import type { RagChunkCandidate, RagJobStatus, RagJobType, RagOwnerType, RagSourceDocument } from "./types";
 import { buildChunkId, computeChunkHash, estimateTokenCount, normalizeRagText, splitRagChunks } from "./utils";
 
@@ -466,10 +467,17 @@ export class RagIndexService {
     }
   }
 
-  private buildChunkCandidates(documents: RagSourceDocument[], embedProvider: string, embedModel: string): RagChunkCandidate[] {
+  private buildChunkCandidates(
+    documents: RagSourceDocument[],
+    embedProvider: string,
+    embedModel: string,
+    options?: { maxTokens?: number | null },
+  ): RagChunkCandidate[] {
     const candidates: RagChunkCandidate[] = [];
     for (const document of documents) {
-      const pieces = splitRagChunks(document.content, ragConfig.chunkSize, ragConfig.chunkOverlap);
+      const pieces = splitRagChunks(document.content, ragConfig.chunkSize, ragConfig.chunkOverlap, {
+        maxTokens: options?.maxTokens ?? null,
+      });
       for (let index = 0; index < pieces.length; index += 1) {
         const chunkText = pieces[index];
         const chunkHash = computeChunkHash(
@@ -572,8 +580,15 @@ export class RagIndexService {
       return { chunks: 0 };
     }
 
-    const docTexts = docs.map((item) => item.content);
-    const splitTexts = docTexts.flatMap((text) => splitRagChunks(text, ragConfig.chunkSize, ragConfig.chunkOverlap));
+    const embeddingSettings = await getRagEmbeddingSettings();
+    const embeddingTokenBudget = resolveEmbeddingChunkTokenBudget(
+      embeddingSettings.embeddingProvider,
+      embeddingSettings.embeddingModel,
+    );
+    const candidates = this.buildChunkCandidates(docs, embeddingSettings.embeddingProvider, embeddingSettings.embeddingModel, {
+      maxTokens: embeddingTokenBudget,
+    });
+    const splitTexts = candidates.map((item) => item.chunkText);
     await this.updateJobProgress(jobId, {
       stage: "chunking",
       label: "切分分块",
@@ -598,7 +613,10 @@ export class RagIndexService {
       });
     });
     await this.assertJobNotCancelled(jobId);
-    const candidates = this.buildChunkCandidates(docs, embedding.provider, embedding.model);
+    for (const candidate of candidates) {
+      candidate.embedProvider = embedding.provider;
+      candidate.embedModel = embedding.model;
+    }
     if (candidates.length === 0) {
       await this.updateJobProgress(jobId, {
         stage: "deleting_existing",

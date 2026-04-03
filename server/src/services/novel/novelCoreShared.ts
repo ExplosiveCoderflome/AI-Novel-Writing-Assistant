@@ -168,6 +168,7 @@ export interface PipelinePayload extends LLMGenerateOptions {
   skipCompleted?: boolean;
   qualityThreshold?: number;
   repairMode?: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only";
+  failedDetails?: string[];
 }
 
 export interface StorylineDraftInput {

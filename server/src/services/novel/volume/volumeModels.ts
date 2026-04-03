@@ -3,6 +3,7 @@ import type {
   VolumeBeatSheet,
   VolumeChapterPlan,
   VolumeCritiqueReport,
+  VolumeGenerationScope,
   VolumeGenerationScopeInput,
   VolumePlan,
   VolumePlanDocument,
@@ -15,6 +16,13 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
 
 export type ChapterDetailMode = "purpose" | "boundary" | "task_sheet";
+export type VolumeGenerationPhase = "load_context" | "prompt";
+
+export interface VolumeGenerationPhaseEvent {
+  scope: VolumeGenerationScope;
+  phase: VolumeGenerationPhase;
+  label: string;
+}
 
 export interface VolumeWorkspace {
   novelId: string;
@@ -66,6 +74,7 @@ export interface VolumeGenerateOptions {
   respectExistingVolumeCount?: boolean;
   draftVolumes?: unknown;
   draftWorkspace?: unknown;
+  onPhaseStart?: (event: VolumeGenerationPhaseEvent) => void | Promise<void>;
 }
 
 export interface VolumeDraftInput {

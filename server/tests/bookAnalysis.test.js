@@ -45,18 +45,17 @@ test("BookAnalysisSourceCacheService persists notes and reuses cache hits", asyn
 
   const cacheRows = [];
   const callCounts = {
-    invokeStructuredLlmDetailed: 0,
+    runStructuredPrompt: 0,
     upsert: 0,
   };
 
-  // Stub structured LLM invocation used by BookAnalysisSourceCacheService.
-  const structuredInvoke = require("../dist/llm/structuredInvoke.js");
-  const originalInvokeStructuredLlmDetailed = structuredInvoke.invokeStructuredLlmDetailed;
-  structuredInvoke.invokeStructuredLlmDetailed = async () => {
-    callCounts.invokeStructuredLlmDetailed += 1;
+  const promptRunner = require("../dist/prompting/core/promptRunner.js");
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  promptRunner.runStructuredPrompt = async () => {
+    callCounts.runStructuredPrompt += 1;
     return {
-      data: {
-        summary: `摘要 ${callCounts.invokeStructuredLlmDetailed}`,
+      output: {
+        summary: `摘要 ${callCounts.runStructuredPrompt}`,
         plotPoints: ["情节点"],
         timelineEvents: ["时间点"],
         characters: ["角色"],
@@ -112,13 +111,13 @@ test("BookAnalysisSourceCacheService persists notes and reuses cache hits", asyn
     const first = await service.getOrBuildSourceNotes(baseInput);
     assert.equal(first.cacheHit, false);
     assert.equal(first.notes.length, 1);
-    assert.equal(callCounts.invokeStructuredLlmDetailed, 1);
+    assert.equal(callCounts.runStructuredPrompt, 1);
     assert.equal(callCounts.upsert, 1);
 
     const second = await service.getOrBuildSourceNotes(baseInput);
     assert.equal(second.cacheHit, true);
     assert.equal(second.notes.length, 1);
-    assert.equal(callCounts.invokeStructuredLlmDetailed, 1);
+    assert.equal(callCounts.runStructuredPrompt, 1);
     assert.equal(callCounts.upsert, 1);
     assert.equal(second.notes[0].summary, first.notes[0].summary);
 
@@ -127,7 +126,7 @@ test("BookAnalysisSourceCacheService persists notes and reuses cache hits", asyn
       model: "deepseek-reasoner",
     });
     assert.equal(changedModel.cacheHit, false);
-    assert.equal(callCounts.invokeStructuredLlmDetailed, 2);
+    assert.equal(callCounts.runStructuredPrompt, 2);
     assert.equal(cacheRows.length, 2);
 
     const changedVersion = await service.getOrBuildSourceNotes({
@@ -135,12 +134,12 @@ test("BookAnalysisSourceCacheService persists notes and reuses cache hits", asyn
       documentVersionId: "version-2",
     });
     assert.equal(changedVersion.cacheHit, false);
-    assert.equal(callCounts.invokeStructuredLlmDetailed, 3);
+    assert.equal(callCounts.runStructuredPrompt, 3);
     assert.equal(cacheRows.length, 3);
   } finally {
     prisma.bookAnalysisSourceCache.findUnique = original.findUnique;
     prisma.bookAnalysisSourceCache.upsert = original.upsert;
-    structuredInvoke.invokeStructuredLlmDetailed = originalInvokeStructuredLlmDetailed;
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
   }
 });
 
