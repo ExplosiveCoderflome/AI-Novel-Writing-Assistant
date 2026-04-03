@@ -40,6 +40,9 @@ const {
   worldDraftRefineAlternativesPrompt,
 } = require("../dist/prompting/prompts/world/worldDraft.prompts.js");
 const {
+  createVolumeStrategyPrompt,
+} = require("../dist/prompting/prompts/novel/volume/strategy.prompts.js");
+const {
   storyModeChildPrompt,
   storyModeTreePrompt,
 } = require("../dist/prompting/prompts/storyMode/storyMode.prompts.js");
@@ -70,6 +73,9 @@ test("prompt registry exposes versioned planning assets", () => {
     "novel.character.supplemental@v1",
     "novel.character.supplemental.zhNormalize@v1",
     "novel.story_macro.decomposition@v1",
+    "novel.volume.strategy@v2",
+    "novel.volume.strategy.critique@v1",
+    "novel.volume.skeleton@v2",
     "title.generation@v1",
     "audit.chapter.full@v1",
     "bookAnalysis.source.note@v1",
@@ -157,6 +163,63 @@ test("character cast prompt hardens real-name constraints and required gender ou
   assert.match(String(messages[1].content), /storyFunction 负责写功能，name 不能写成功能位/);
 });
 
+test("volume strategy prompt renders volume count guidance and fixed-count constraints", () => {
+  const asset = createVolumeStrategyPrompt({
+    maxVolumeCount: 16,
+    allowedVolumeCountRange: { min: 8, max: 13 },
+    fixedRecommendedVolumeCount: 10,
+    hardPlannedVolumeRange: { min: 2, max: 4 },
+  });
+
+  const messages = asset.render({
+    volumeCountGuidance: {
+      chapterBudget: 500,
+      targetChapterRange: { min: 40, ideal: 55, max: 70 },
+      allowedVolumeCountRange: { min: 8, max: 13 },
+      recommendedVolumeCount: 10,
+      systemRecommendedVolumeCount: 9,
+      hardPlannedVolumeRange: { min: 2, max: 4 },
+      userPreferredVolumeCount: 10,
+      respectedExistingVolumeCount: null,
+    },
+  }, {
+    blocks: [
+      createContextBlock({
+        id: "book-contract",
+        group: "book_contract",
+        priority: 100,
+        required: true,
+        content: "book contract: 长篇历史权谋穿越文，必须持续提供阶段性升级与身份反差回报。",
+      }),
+      createContextBlock({
+        id: "guidance",
+        group: "volume_count_guidance",
+        priority: 99,
+        required: true,
+        content: [
+          "chapter budget: 500",
+          "allowed volume count range: 8-13",
+          "system recommended volume count: 9",
+          "active recommended volume count: 10",
+          "hard planned volume range: 2-4",
+          "user preferred volume count: 10",
+        ].join("\n"),
+      }),
+    ],
+    selectedBlockIds: ["book-contract", "guidance"],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+
+  assert.equal(messages.length, 2);
+  assert.match(String(messages[0].content), /recommendedVolumeCount 必须严格等于 10/);
+  assert.match(String(messages[0].content), /hardPlannedVolumeCount 必须落在 2-4 之间/);
+  assert.match(String(messages[0].content), /超长篇必须避免把大量章节压成少数巨卷/);
+  assert.match(String(messages[1].content), /allowed volume count range: 8-13/);
+  assert.match(String(messages[1].content), /user preferred volume count: 10/);
+});
+
 test("novel main-chain prompt assets declare explicit non-zero context budgets", () => {
   const expectedBudgets = new Map([
     ["novel.director.candidates@v1", NOVEL_PROMPT_BUDGETS.directorCandidates],
@@ -164,7 +227,7 @@ test("novel main-chain prompt assets declare explicit non-zero context budgets",
     ["novel.director.blueprint@v1", NOVEL_PROMPT_BUDGETS.directorBlueprint],
     ["novel.story_macro.decomposition@v1", NOVEL_PROMPT_BUDGETS.storyMacroDecomposition],
     ["novel.story_macro.field_regeneration@v1", NOVEL_PROMPT_BUDGETS.storyMacroFieldRegeneration],
-    ["novel.volume.strategy@v1", NOVEL_PROMPT_BUDGETS.volumeStrategy],
+    ["novel.volume.strategy@v2", NOVEL_PROMPT_BUDGETS.volumeStrategy],
     ["novel.volume.strategy.critique@v1", NOVEL_PROMPT_BUDGETS.volumeStrategyCritique],
     ["novel.volume.skeleton@v2", NOVEL_PROMPT_BUDGETS.volumeSkeleton],
     ["novel.volume.beat_sheet@v1", NOVEL_PROMPT_BUDGETS.volumeBeatSheet],

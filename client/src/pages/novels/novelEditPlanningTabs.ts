@@ -7,6 +7,7 @@ import type { NovelBasicFormState } from "./novelBasicInfo.shared";
 import type { VolumeSyncOptions } from "./volumePlan.utils";
 import type {
   VolumeBeatSheet,
+  VolumeCountGuidance,
   VolumeCritiqueReport,
   VolumeImpactResult,
   VolumePlan,
@@ -47,6 +48,13 @@ interface BuildNovelEditPlanningTabsInput {
   hasUnsavedVolumeDraft: boolean;
   generationNotice: string;
   readiness: VolumePlanningReadiness;
+  volumeCountGuidance: VolumeCountGuidance;
+  customVolumeCountEnabled: boolean;
+  customVolumeCountInput: string;
+  onCustomVolumeCountEnabledChange: (enabled: boolean) => void;
+  onCustomVolumeCountInputChange: (value: string) => void;
+  onApplyCustomVolumeCount: () => void;
+  onRestoreSystemRecommendedVolumeCount: () => void;
   strategyPlan: VolumeStrategyPlan | null;
   critiqueReport: VolumeCritiqueReport | null;
   isGeneratingStrategy: boolean;
@@ -56,6 +64,7 @@ interface BuildNovelEditPlanningTabsInput {
   isGeneratingSkeleton: boolean;
   onGenerateSkeleton: () => void;
   onGoToCharacterTab: () => void;
+  latestStateSnapshot?: OutlineTabViewProps["latestStateSnapshot"];
   outlineText: string;
   structuredDraftText: string;
   volumes: VolumePlan[];
@@ -149,6 +158,13 @@ export function buildNovelEditPlanningTabs(input: BuildNovelEditPlanningTabsInpu
     hasUnsavedVolumeDraft: input.hasUnsavedVolumeDraft,
     generationNotice: input.generationNotice,
     readiness: input.readiness,
+    volumeCountGuidance: input.volumeCountGuidance,
+    customVolumeCountEnabled: input.customVolumeCountEnabled,
+    customVolumeCountInput: input.customVolumeCountInput,
+    onCustomVolumeCountEnabledChange: input.onCustomVolumeCountEnabledChange,
+    onCustomVolumeCountInputChange: input.onCustomVolumeCountInputChange,
+    onApplyCustomVolumeCount: input.onApplyCustomVolumeCount,
+    onRestoreSystemRecommendedVolumeCount: input.onRestoreSystemRecommendedVolumeCount,
     strategyPlan: input.strategyPlan,
     critiqueReport: input.critiqueReport,
     isGeneratingStrategy: input.isGeneratingStrategy,
@@ -158,6 +174,7 @@ export function buildNovelEditPlanningTabs(input: BuildNovelEditPlanningTabsInpu
     isGeneratingSkeleton: input.isGeneratingSkeleton,
     onGenerateSkeleton: input.onGenerateSkeleton,
     onGoToCharacterTab: input.onGoToCharacterTab,
+    latestStateSnapshot: input.latestStateSnapshot,
     draftText: input.outlineText,
     volumes: input.volumes,
     onVolumeFieldChange: input.onVolumeFieldChange,

@@ -130,8 +130,8 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/helper/titleGeneration.prompt").titleGenerationPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.volume.strategy@v1",
-    load: () => require("./prompts/novel/volume/strategy.prompts").createVolumeStrategyPrompt(12) as UnknownPromptAsset,
+    key: "novel.volume.strategy@v2",
+    load: () => require("./prompts/novel/volume/strategy.prompts").createVolumeStrategyPrompt({ maxVolumeCount: 16 }) as UnknownPromptAsset,
   },
   {
     key: "novel.volume.strategy.critique@v1",

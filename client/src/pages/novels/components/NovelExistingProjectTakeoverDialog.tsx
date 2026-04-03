@@ -172,15 +172,16 @@ export default function NovelExistingProjectTakeoverDialog({
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
+        <DialogContent className="flex h-[min(90vh,860px)] w-[calc(100vw-1.5rem)] max-w-4xl flex-col overflow-hidden p-0">
+          <DialogHeader className="shrink-0 border-b px-6 pb-4 pr-12 pt-6">
             <DialogTitle>让 AI 从现有项目继续自动导演</DialogTitle>
             <DialogDescription>
               适合你已经手动填完基本信息，后续想让 AI 接手书级规划、角色、卷战略或第 1 卷拆章。
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4">
+            <div className="space-y-4">
             <div className="rounded-xl border bg-muted/15 p-4">
               <div className="text-sm font-medium text-foreground">当前项目信息会作为自动导演输入</div>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -345,6 +346,7 @@ export default function NovelExistingProjectTakeoverDialog({
                   )}
                 </>
               ) : null}
+            </div>
             </div>
           </div>
         </DialogContent>

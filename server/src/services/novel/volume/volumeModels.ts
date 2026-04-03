@@ -71,6 +71,7 @@ export interface VolumeGenerateOptions {
   targetChapterId?: string;
   detailMode?: "purpose" | "boundary" | "task_sheet";
   estimatedChapterCount?: number;
+  userPreferredVolumeCount?: number;
   respectExistingVolumeCount?: boolean;
   draftVolumes?: unknown;
   draftWorkspace?: unknown;

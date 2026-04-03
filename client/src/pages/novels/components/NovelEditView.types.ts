@@ -24,6 +24,7 @@ import type {
   VolumeRebalanceDecision,
   VolumeStrategyPlan,
   VolumeCritiqueReport,
+  VolumeCountGuidance,
   VolumeSyncPreview,
 } from "@ai-novel/shared/types/novel";
 import type {
@@ -120,6 +121,13 @@ export interface OutlineTabViewProps {
   hasUnsavedVolumeDraft: boolean;
   generationNotice: string;
   readiness: VolumePlanningReadiness;
+  volumeCountGuidance: VolumeCountGuidance;
+  customVolumeCountEnabled: boolean;
+  customVolumeCountInput: string;
+  onCustomVolumeCountEnabledChange: (enabled: boolean) => void;
+  onCustomVolumeCountInputChange: (value: string) => void;
+  onApplyCustomVolumeCount: () => void;
+  onRestoreSystemRecommendedVolumeCount: () => void;
   strategyPlan: VolumeStrategyPlan | null;
   critiqueReport: VolumeCritiqueReport | null;
   isGeneratingStrategy: boolean;
@@ -129,6 +137,7 @@ export interface OutlineTabViewProps {
   isGeneratingSkeleton: boolean;
   onGenerateSkeleton: () => void;
   onGoToCharacterTab: () => void;
+  latestStateSnapshot?: StoryStateSnapshot | null;
   draftText: string;
   volumes: VolumePlan[];
   onVolumeFieldChange: (volumeId: string, field: keyof Pick<VolumePlan, "title" | "summary" | "openingHook" | "mainPromise" | "primaryPressureSource" | "coreSellingPoint" | "escalationMode" | "protagonistChange" | "midVolumeRisk" | "climax" | "payoffType" | "nextVolumeHook" | "resetPoint">, value: string) => void;

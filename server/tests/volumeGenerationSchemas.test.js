@@ -88,13 +88,21 @@ function createVolume(sortOrder) {
 }
 
 test("volume strategy schema accepts a structurally aligned strategy plan", () => {
-  const schema = createVolumeStrategySchema(6);
+  const schema = createVolumeStrategySchema({
+    maxVolumeCount: 6,
+    allowedVolumeCountRange: { min: 1, max: 6 },
+    hardPlannedVolumeRange: { min: 1, max: 6 },
+  });
   const parsed = schema.safeParse(createValidStrategyPayload());
   assert.equal(parsed.success, true);
 });
 
 test("volume strategy schema rejects mismatched volume count and ordering rules", () => {
-  const schema = createVolumeStrategySchema(6);
+  const schema = createVolumeStrategySchema({
+    maxVolumeCount: 6,
+    allowedVolumeCountRange: { min: 1, max: 6 },
+    hardPlannedVolumeRange: { min: 1, max: 6 },
+  });
   const payload = createValidStrategyPayload();
   payload.recommendedVolumeCount = 4;
   payload.volumes[1].sortOrder = 3;
@@ -106,6 +114,59 @@ test("volume strategy schema rejects mismatched volume count and ordering rules"
   assert.ok(messages.some((message) => message.includes("volumes")));
   assert.ok(messages.some((message) => message.includes("sortOrder")));
   assert.ok(messages.some((message) => message.includes("规划模式")));
+});
+
+test("volume strategy schema rejects fixed recommended count mismatches", () => {
+  const schema = createVolumeStrategySchema({
+    maxVolumeCount: 16,
+    allowedVolumeCountRange: { min: 8, max: 13 },
+    fixedRecommendedVolumeCount: 10,
+    hardPlannedVolumeRange: { min: 2, max: 4 },
+  });
+  const payload = {
+    ...createValidStrategyPayload(),
+    recommendedVolumeCount: 9,
+    hardPlannedVolumeCount: 4,
+    volumes: Array.from({ length: 9 }, (_, index) => ({
+      sortOrder: index + 1,
+      planningMode: index < 4 ? "hard" : "soft",
+      roleLabel: `第${index + 1}卷职责`,
+      coreReward: `第${index + 1}卷核心回报`,
+      escalationFocus: `第${index + 1}卷升级焦点`,
+      uncertaintyLevel: index < 4 ? "low" : "medium",
+    })),
+  };
+
+  const parsed = schema.safeParse(payload);
+  assert.equal(parsed.success, false);
+  const messages = parsed.success ? [] : parsed.error.issues.map((issue) => issue.message);
+  assert.ok(messages.some((message) => message.includes("recommendedVolumeCount 必须严格等于 10")));
+});
+
+test("volume strategy schema rejects hard planned counts outside configured range", () => {
+  const schema = createVolumeStrategySchema({
+    maxVolumeCount: 16,
+    allowedVolumeCountRange: { min: 8, max: 13 },
+    hardPlannedVolumeRange: { min: 2, max: 4 },
+  });
+  const payload = {
+    ...createValidStrategyPayload(),
+    recommendedVolumeCount: 9,
+    hardPlannedVolumeCount: 5,
+    volumes: Array.from({ length: 9 }, (_, index) => ({
+      sortOrder: index + 1,
+      planningMode: index < 5 ? "hard" : "soft",
+      roleLabel: `第${index + 1}卷职责`,
+      coreReward: `第${index + 1}卷核心回报`,
+      escalationFocus: `第${index + 1}卷升级焦点`,
+      uncertaintyLevel: index < 5 ? "low" : "medium",
+    })),
+  };
+
+  const parsed = schema.safeParse(payload);
+  assert.equal(parsed.success, false);
+  const issues = parsed.success ? [] : parsed.error.issues;
+  assert.ok(issues.some((issue) => issue.path[0] === "hardPlannedVolumeCount"));
 });
 
 test("volume beat sheet schema normalizes alias fields and wrapped payloads", () => {

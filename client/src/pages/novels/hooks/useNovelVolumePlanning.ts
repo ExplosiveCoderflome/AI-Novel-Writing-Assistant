@@ -1,8 +1,10 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
+import { buildVolumeCountGuidance } from "@ai-novel/shared/types/volumePlanning";
 import type {
   VolumeBeatSheet,
+  VolumeCountGuidance,
   VolumeCritiqueReport,
   VolumeGenerationScopeInput,
   VolumePlan,
@@ -169,6 +171,37 @@ export function useNovelVolumePlanning({
     () => buildVolumePlanningReadiness({ volumes: normalizedVolumeDraft, strategyPlan, beatSheets }),
     [beatSheets, normalizedVolumeDraft, strategyPlan],
   );
+  const currentChapterCount = useMemo(
+    () => normalizedVolumeDraft.reduce((sum, volume) => sum + volume.chapters.length, 0),
+    [normalizedVolumeDraft],
+  );
+  const [customVolumeCountEnabled, setCustomVolumeCountEnabled] = useState(false);
+  const [customVolumeCountInput, setCustomVolumeCountInput] = useState("");
+  const [userPreferredVolumeCount, setUserPreferredVolumeCount] = useState<number | null>(null);
+  const [forceSystemRecommendedVolumeCount, setForceSystemRecommendedVolumeCount] = useState(false);
+  const volumeCountGuidance = useMemo<VolumeCountGuidance>(
+    () => buildVolumeCountGuidance({
+      chapterBudget: Math.max(estimatedChapterCount ?? 0, currentChapterCount, 12),
+      existingVolumeCount: normalizedVolumeDraft.length,
+      respectExistingVolumeCount: !forceSystemRecommendedVolumeCount && normalizedVolumeDraft.length > 0,
+      userPreferredVolumeCount,
+    }),
+    [currentChapterCount, estimatedChapterCount, forceSystemRecommendedVolumeCount, normalizedVolumeDraft.length, userPreferredVolumeCount],
+  );
+
+  useEffect(() => {
+    if (userPreferredVolumeCount != null) {
+      setCustomVolumeCountInput(String(userPreferredVolumeCount));
+      return;
+    }
+    if (!customVolumeCountEnabled) {
+      setCustomVolumeCountInput(String(volumeCountGuidance.recommendedVolumeCount));
+    }
+  }, [
+    customVolumeCountEnabled,
+    userPreferredVolumeCount,
+    volumeCountGuidance.recommendedVolumeCount,
+  ]);
 
   const updateVolumeDraft = (
     updater: (prev: VolumePlan[]) => VolumePlan[],
@@ -242,7 +275,8 @@ export function useNovelVolumePlanning({
         estimatedChapterCount: typeof estimatedChapterCount === "number" && estimatedChapterCount > 0
           ? estimatedChapterCount
           : undefined,
-        respectExistingVolumeCount: requestDraft.length > 0,
+        userPreferredVolumeCount: userPreferredVolumeCount ?? undefined,
+        respectExistingVolumeCount: !forceSystemRecommendedVolumeCount && requestDraft.length > 0,
       });
       const nextDocument = generatedResponse.data;
       if (!nextDocument) {
@@ -375,6 +409,13 @@ export function useNovelVolumePlanning({
     const confirmed = window.confirm([
       "将生成卷战略建议，帮助决定推荐卷数、硬规划卷数和各卷角色定位。",
       "这一步不会直接生成卷骨架，也不会拆章节。",
+      userPreferredVolumeCount != null
+        ? `本次将固定为 ${userPreferredVolumeCount} 卷生成分卷策略。`
+        : forceSystemRecommendedVolumeCount
+          ? `本次将按系统建议卷数生成（当前建议 ${volumeCountGuidance.systemRecommendedVolumeCount} 卷），不沿用现有草稿卷数。`
+          : volumeCountGuidance.respectedExistingVolumeCount != null
+            ? `本次会优先沿用当前草稿的 ${volumeCountGuidance.respectedExistingVolumeCount} 卷结构，同时保持在允许区间 ${volumeCountGuidance.allowedVolumeCountRange.min}-${volumeCountGuidance.allowedVolumeCountRange.max} 内。`
+            : `当前系统建议 ${volumeCountGuidance.systemRecommendedVolumeCount} 卷，允许区间 ${volumeCountGuidance.allowedVolumeCountRange.min}-${volumeCountGuidance.allowedVolumeCountRange.max} 卷。`,
       hasUnsavedVolumeDraft ? "本次会直接使用当前页面未保存草稿作为参考。" : "本次会基于当前工作区状态生成建议。",
     ].join("\n\n"));
     if (!confirmed) {
@@ -685,6 +726,36 @@ export function useNovelVolumePlanning({
     });
   };
 
+  const applyCustomVolumeCount = () => {
+    const parsed = Number.parseInt(customVolumeCountInput.trim(), 10);
+    if (!Number.isFinite(parsed)) {
+      setVolumeGenerationMessage("请先输入有效的固定卷数。");
+      return;
+    }
+    if (
+      parsed < volumeCountGuidance.allowedVolumeCountRange.min
+      || parsed > volumeCountGuidance.allowedVolumeCountRange.max
+    ) {
+      setVolumeGenerationMessage(
+        `固定卷数必须落在 ${volumeCountGuidance.allowedVolumeCountRange.min}-${volumeCountGuidance.allowedVolumeCountRange.max} 卷之间。`,
+      );
+      return;
+    }
+    setUserPreferredVolumeCount(parsed);
+    setForceSystemRecommendedVolumeCount(false);
+    setVolumeGenerationMessage(`当前已固定为 ${parsed} 卷。下次生成卷战略时会严格采用这个卷数。`);
+  };
+
+  const restoreSystemRecommendedVolumeCount = () => {
+    setUserPreferredVolumeCount(null);
+    setCustomVolumeCountEnabled(false);
+    setCustomVolumeCountInput(String(volumeCountGuidance.systemRecommendedVolumeCount));
+    setForceSystemRecommendedVolumeCount(true);
+    setVolumeGenerationMessage(
+      `已恢复系统建议卷数。下次生成卷战略时会优先采用系统建议 ${volumeCountGuidance.systemRecommendedVolumeCount} 卷。`,
+    );
+  };
+
   const generationNotice = strategyPlan
     ? "当前工作区已进入二期链路：先审卷战略，再确认卷骨架，之后按卷生成节奏板和章节列表。"
     : "先生成卷战略建议，让系统帮你决定卷数和硬/软规划，再进入卷骨架。";
@@ -706,6 +777,20 @@ export function useNovelVolumePlanning({
     hasUnsavedVolumeDraft,
     generationNotice,
     readiness,
+    volumeCountGuidance,
+    customVolumeCountEnabled,
+    customVolumeCountInput,
+    onCustomVolumeCountEnabledChange: (enabled: boolean) => {
+      setCustomVolumeCountEnabled(enabled);
+      if (enabled) {
+        setCustomVolumeCountInput((current) => current || String(volumeCountGuidance.recommendedVolumeCount));
+        return;
+      }
+      setUserPreferredVolumeCount(null);
+    },
+    onCustomVolumeCountInputChange: setCustomVolumeCountInput,
+    onApplyCustomVolumeCount: applyCustomVolumeCount,
+    onRestoreSystemRecommendedVolumeCount: restoreSystemRecommendedVolumeCount,
     isGeneratingStrategy: generateMutation.isPending && generateMutation.variables?.scope === "strategy",
     isCritiquingStrategy: generateMutation.isPending && generateMutation.variables?.scope === "strategy_critique",
     isGeneratingSkeleton: generateMutation.isPending && (generateMutation.variables?.scope === "skeleton" || generateMutation.variables?.scope === "book"),

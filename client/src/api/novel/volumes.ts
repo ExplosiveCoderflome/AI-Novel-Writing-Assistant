@@ -38,6 +38,7 @@ export async function generateNovelVolumes(
     targetChapterId?: string;
     detailMode?: "purpose" | "boundary" | "task_sheet";
     estimatedChapterCount?: number;
+    userPreferredVolumeCount?: number;
     respectExistingVolumeCount?: boolean;
     draftVolumes?: VolumePlan[];
     draftWorkspace?: Partial<VolumePlanDocument>;

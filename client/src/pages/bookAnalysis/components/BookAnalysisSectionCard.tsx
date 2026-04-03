@@ -1,7 +1,10 @@
+import { useState } from "react";
 import type { BookAnalysisSection } from "@ai-novel/shared/types/bookAnalysis";
+import MarkdownViewer from "@/components/common/MarkdownViewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { SectionDraft } from "../bookAnalysis.types";
 import { formatStatus } from "../bookAnalysis.utils";
 
@@ -35,6 +38,7 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
     onCancelOptimizePreview,
     onSave,
   } = props;
+  const [draftMode, setDraftMode] = useState<"view" | "edit">("view");
 
   const canRegenerate = canOperate && !draft.frozen && !isRegenerating;
   const canOptimize = canOperate && !draft.frozen && !isOptimizing && draft.optimizeInstruction.trim().length > 0;
@@ -80,13 +84,32 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
         ) : null}
 
         <div className="space-y-2">
-          <div className="text-sm font-medium">AI 草稿（可编辑）</div>
-          <textarea
-            className="min-h-[220px] w-full rounded-md border bg-background p-3 text-sm"
-            value={draft.editedContent}
-            onChange={(event) => onDraftChange(section, { editedContent: event.target.value })}
-            placeholder="在此直接编辑当前小节草稿。"
-          />
+          <Tabs value={draftMode} onValueChange={(value) => setDraftMode(value as "view" | "edit")} className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-sm font-medium">当前草稿</div>
+              <TabsList className="h-9">
+                <TabsTrigger value="view">查看模式</TabsTrigger>
+                <TabsTrigger value="edit">编辑模式</TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="view" className="mt-0">
+              <div className="min-h-[220px] rounded-md border bg-muted/20 p-4">
+                {draft.editedContent.trim() ? (
+                  <MarkdownViewer content={draft.editedContent} />
+                ) : (
+                  <div className="text-sm text-muted-foreground">当前小节还没有可展示的内容。</div>
+                )}
+              </div>
+            </TabsContent>
+            <TabsContent value="edit" className="mt-0">
+              <textarea
+                className="min-h-[220px] w-full rounded-md border bg-background p-3 text-sm"
+                value={draft.editedContent}
+                onChange={(event) => onDraftChange(section, { editedContent: event.target.value })}
+                placeholder="在此直接编辑当前小节草稿。"
+              />
+            </TabsContent>
+          </Tabs>
         </div>
 
         <div className="space-y-2 rounded-md border p-3">
@@ -111,9 +134,9 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
           {draft.optimizePreview.trim() ? (
             <div className="space-y-2">
               <div className="text-xs font-medium text-muted-foreground">优化预览</div>
-              <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap rounded-md border bg-muted/30 p-3 text-sm">
-                {draft.optimizePreview}
-              </pre>
+              <div className="max-h-[320px] overflow-auto rounded-md border bg-muted/20 p-4">
+                <MarkdownViewer content={draft.optimizePreview} />
+              </div>
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" onClick={() => onApplyOptimizePreview(section)}>
                   应用到当前草稿

@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import WorldInjectionHint from "./WorldInjectionHint";
+import VolumePayoffOverviewCard from "./VolumePayoffOverviewCard";
 import type { OutlineTabViewProps } from "./NovelEditView.types";
 
 function versionStatusLabel(status: "draft" | "active" | "frozen"): string {
@@ -55,6 +56,13 @@ export default function OutlineTab(props: OutlineTabViewProps) {
     hasUnsavedVolumeDraft,
     generationNotice,
     readiness,
+    volumeCountGuidance,
+    customVolumeCountEnabled,
+    customVolumeCountInput,
+    onCustomVolumeCountEnabledChange,
+    onCustomVolumeCountInputChange,
+    onApplyCustomVolumeCount,
+    onRestoreSystemRecommendedVolumeCount,
     strategyPlan,
     critiqueReport,
     isGeneratingStrategy,
@@ -64,6 +72,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
     isGeneratingSkeleton,
     onGenerateSkeleton,
     onGoToCharacterTab,
+    latestStateSnapshot,
     draftText,
     volumes,
     onVolumeFieldChange,
@@ -100,6 +109,11 @@ export default function OutlineTab(props: OutlineTabViewProps) {
   const nextOutlineAction = getNextOutlineAction(readiness);
   const outlineStageReady = completedReadinessCount === readinessSteps.length;
   const [selectedVolumeId, setSelectedVolumeId] = useState(volumes[0]?.id ?? "");
+  const volumeCountModeLabel = volumeCountGuidance.userPreferredVolumeCount != null
+    ? `当前固定 ${volumeCountGuidance.userPreferredVolumeCount} 卷`
+    : volumeCountGuidance.respectedExistingVolumeCount != null
+      ? `当前沿用草稿 ${volumeCountGuidance.respectedExistingVolumeCount} 卷`
+      : `当前按系统建议 ${volumeCountGuidance.systemRecommendedVolumeCount} 卷`;
 
   useEffect(() => {
     if (!volumes.some((volume) => volume.id === selectedVolumeId)) {
@@ -200,6 +214,79 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                   </div>
                 )}
                 {volumeMessage ? <div className="text-xs text-muted-foreground">{volumeMessage}</div> : null}
+              </CardContent>
+            </Card>
+
+            <Card className="self-start">
+              <CardHeader className="pb-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <CardTitle className="text-base">卷数建议</CardTitle>
+                  <Badge variant="outline">{volumeCountModeLabel}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                    <div className="text-xs text-muted-foreground">总章节预算</div>
+                    <div className="mt-1 text-lg font-semibold text-foreground">{volumeCountGuidance.chapterBudget} 章</div>
+                  </div>
+                  <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                    <div className="text-xs text-muted-foreground">推荐卷数区间</div>
+                    <div className="mt-1 text-lg font-semibold text-foreground">
+                      {volumeCountGuidance.allowedVolumeCountRange.min}-{volumeCountGuidance.allowedVolumeCountRange.max} 卷
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                    <div className="text-xs text-muted-foreground">系统建议卷数</div>
+                    <div className="mt-1 text-lg font-semibold text-foreground">{volumeCountGuidance.systemRecommendedVolumeCount} 卷</div>
+                  </div>
+                  <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                    <div className="text-xs text-muted-foreground">默认硬规划范围</div>
+                    <div className="mt-1 text-lg font-semibold text-foreground">
+                      {volumeCountGuidance.hardPlannedVolumeRange.min}-{volumeCountGuidance.hardPlannedVolumeRange.max} 卷
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/70 bg-muted/20 p-3 text-xs leading-6 text-muted-foreground">
+                  标准卷尺度按 {volumeCountGuidance.targetChapterRange.min}-{volumeCountGuidance.targetChapterRange.max} 章 / 卷设计，
+                  理想值约 {volumeCountGuidance.targetChapterRange.ideal} 章 / 卷。超长篇默认通过增加卷数来保持每卷的阶段感、升级节点和卷级回报，不再压成少数巨卷。
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant={customVolumeCountEnabled ? "default" : "outline"}
+                    onClick={() => onCustomVolumeCountEnabledChange(!customVolumeCountEnabled)}
+                  >
+                    {customVolumeCountEnabled ? "收起自定义卷数" : "自定义卷数"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={onRestoreSystemRecommendedVolumeCount}>
+                    恢复系统建议
+                  </Button>
+                </div>
+
+                {customVolumeCountEnabled ? (
+                  <div className="rounded-xl border border-border/70 p-3">
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,180px)_auto_auto] sm:items-end">
+                      <label className="space-y-1 text-sm">
+                        <span className="text-xs text-muted-foreground">固定卷数</span>
+                        <input
+                          type="number"
+                          min={volumeCountGuidance.allowedVolumeCountRange.min}
+                          max={volumeCountGuidance.allowedVolumeCountRange.max}
+                          className="w-full rounded-md border bg-background p-2"
+                          value={customVolumeCountInput}
+                          onChange={(event) => onCustomVolumeCountInputChange(event.target.value)}
+                        />
+                      </label>
+                      <Button size="sm" onClick={onApplyCustomVolumeCount}>应用固定卷数</Button>
+                      <div className="text-xs text-muted-foreground">
+                        允许范围：{volumeCountGuidance.allowedVolumeCountRange.min}-{volumeCountGuidance.allowedVolumeCountRange.max} 卷
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
 
@@ -433,89 +520,95 @@ export default function OutlineTab(props: OutlineTabViewProps) {
 
           <div className="space-y-3">
             {selectedVolume ? (
-              <Card key={selectedVolume.id}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">第{selectedVolume.sortOrder}卷</Badge>
-                    {selectedStrategyVolume ? (
-                      <Badge variant={selectedStrategyVolume.planningMode === "hard" ? "secondary" : "outline"}>
-                        {selectedStrategyVolume.planningMode === "hard" ? "硬规划" : "软规划"}
-                      </Badge>
-                    ) : null}
-                    {selectedStrategyVolume?.roleLabel ? <span className="text-sm text-muted-foreground">{selectedStrategyVolume.roleLabel}</span> : null}
-                    <span className="text-sm text-muted-foreground">
-                      {selectedVolume.chapters.length > 0
-                        ? `章节 ${selectedVolume.chapters[0]?.chapterOrder}-${selectedVolume.chapters[selectedVolume.chapters.length - 1]?.chapterOrder}`
-                        : "未拆章"}
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => onMoveVolume(selectedVolume.id, -1)} disabled={selectedVolume.sortOrder === 1}>上移</Button>
-                    <Button size="sm" variant="outline" onClick={() => onMoveVolume(selectedVolume.id, 1)} disabled={selectedVolume.sortOrder === volumes.length}>下移</Button>
-                    <Button size="sm" variant="outline" onClick={() => onRemoveVolume(selectedVolume.id)} disabled={volumes.length <= 1}>删除</Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="grid gap-3 md:grid-cols-2">
-                <label className="space-y-1 text-sm md:col-span-2">
-                  <span className="text-xs text-muted-foreground">卷标题</span>
-                  <input className="w-full rounded-md border bg-background p-2" value={selectedVolume.title} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "title", event.target.value)} />
-                </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">卷摘要</span>
-                  <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.summary ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "summary", event.target.value)} />
-                </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">开卷抓手</span>
-                  <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.openingHook ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "openingHook", event.target.value)} />
-                </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">主承诺</span>
-                  <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.mainPromise ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "mainPromise", event.target.value)} />
-                </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">主压迫源</span>
-                  <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.primaryPressureSource ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "primaryPressureSource", event.target.value)} />
-                </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">核心卖点</span>
-                  <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.coreSellingPoint ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "coreSellingPoint", event.target.value)} />
-                </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">升级方式</span>
-                  <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.escalationMode ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "escalationMode", event.target.value)} />
-                </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">主角变化</span>
-                  <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.protagonistChange ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "protagonistChange", event.target.value)} />
-                </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">中段风险</span>
-                  <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.midVolumeRisk ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "midVolumeRisk", event.target.value)} />
-                </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">卷末高潮</span>
-                  <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.climax ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "climax", event.target.value)} />
-                </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">兑现类型</span>
-                  <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.payoffType ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "payoffType", event.target.value)} />
-                </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">下卷钩子</span>
-                  <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.nextVolumeHook ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "nextVolumeHook", event.target.value)} />
-                </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">卷间重置点</span>
-                  <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.resetPoint ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "resetPoint", event.target.value)} />
-                </label>
-                <label className="space-y-1 text-sm md:col-span-2">
-                  <span className="text-xs text-muted-foreground">本卷未兑现事项</span>
-                  <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" placeholder="每行一个，或用中文逗号分隔。" value={selectedVolume.openPayoffs.join("\n")} onChange={(event) => onOpenPayoffsChange(selectedVolume.id, event.target.value)} />
-                </label>
-              </CardContent>
-            </Card>
+              <>
+                <VolumePayoffOverviewCard
+                  selectedVolume={selectedVolume}
+                  latestStateSnapshot={latestStateSnapshot}
+                />
+                <Card key={selectedVolume.id}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">第{selectedVolume.sortOrder}卷</Badge>
+                        {selectedStrategyVolume ? (
+                          <Badge variant={selectedStrategyVolume.planningMode === "hard" ? "secondary" : "outline"}>
+                            {selectedStrategyVolume.planningMode === "hard" ? "硬规划" : "软规划"}
+                          </Badge>
+                        ) : null}
+                        {selectedStrategyVolume?.roleLabel ? <span className="text-sm text-muted-foreground">{selectedStrategyVolume.roleLabel}</span> : null}
+                        <span className="text-sm text-muted-foreground">
+                          {selectedVolume.chapters.length > 0
+                            ? `章节 ${selectedVolume.chapters[0]?.chapterOrder}-${selectedVolume.chapters[selectedVolume.chapters.length - 1]?.chapterOrder}`
+                            : "未拆章"}
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => onMoveVolume(selectedVolume.id, -1)} disabled={selectedVolume.sortOrder === 1}>上移</Button>
+                        <Button size="sm" variant="outline" onClick={() => onMoveVolume(selectedVolume.id, 1)} disabled={selectedVolume.sortOrder === volumes.length}>下移</Button>
+                        <Button size="sm" variant="outline" onClick={() => onRemoveVolume(selectedVolume.id)} disabled={volumes.length <= 1}>删除</Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="grid gap-3 md:grid-cols-2">
+                    <label className="space-y-1 text-sm md:col-span-2">
+                      <span className="text-xs text-muted-foreground">卷标题</span>
+                      <input className="w-full rounded-md border bg-background p-2" value={selectedVolume.title} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "title", event.target.value)} />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">卷摘要</span>
+                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.summary ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "summary", event.target.value)} />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">开卷抓手</span>
+                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.openingHook ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "openingHook", event.target.value)} />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">主承诺</span>
+                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.mainPromise ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "mainPromise", event.target.value)} />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">主压迫源</span>
+                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.primaryPressureSource ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "primaryPressureSource", event.target.value)} />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">核心卖点</span>
+                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.coreSellingPoint ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "coreSellingPoint", event.target.value)} />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">升级方式</span>
+                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.escalationMode ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "escalationMode", event.target.value)} />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">主角变化</span>
+                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.protagonistChange ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "protagonistChange", event.target.value)} />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">中段风险</span>
+                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.midVolumeRisk ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "midVolumeRisk", event.target.value)} />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">卷末高潮</span>
+                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.climax ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "climax", event.target.value)} />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">兑现类型</span>
+                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.payoffType ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "payoffType", event.target.value)} />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">下卷钩子</span>
+                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.nextVolumeHook ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "nextVolumeHook", event.target.value)} />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span className="text-xs text-muted-foreground">卷间重置点</span>
+                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.resetPoint ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "resetPoint", event.target.value)} />
+                    </label>
+                    <label className="space-y-1 text-sm md:col-span-2">
+                      <span className="text-xs text-muted-foreground">本卷未兑现事项</span>
+                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" placeholder="每行一个，或用中文逗号分隔。" value={selectedVolume.openPayoffs.join("\n")} onChange={(event) => onOpenPayoffsChange(selectedVolume.id, event.target.value)} />
+                    </label>
+                  </CardContent>
+                </Card>
+              </>
             ) : (
               <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
                 左侧先选择一卷，或先生成全书卷骨架，再在这里编辑当前卷详情。
