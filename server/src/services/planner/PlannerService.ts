@@ -1,12 +1,11 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { AuditReport, ReplanResult } from "@ai-novel/shared/types/novel";
-import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
 import { prisma } from "../../db/prisma";
-import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../storyMode/storyModeProfile";
 import { parseJsonStringArray } from "../novel/novelP0Utils";
 import { characterDynamicsQueryService } from "../novel/dynamics/CharacterDynamicsQueryService";
 import { mapRowToPlan } from "../novel/storyMacro/storyMacroPlanPersistence";
 import { stateService } from "../state/StateService";
+import { StyleBindingService } from "../styleEngine/StyleBindingService";
 import {
   buildDefaultPlanMetadata,
   enrichStoryPlan,
@@ -19,6 +18,15 @@ import {
   buildBookPlanContextBlocks,
   buildChapterPlanContextBlocks,
 } from "./plannerContextBlocks";
+import {
+  buildCurrentVolumeWindowSummary,
+  buildPlannerCharacterDynamicsContext,
+  buildPlannerStoryModeBlock,
+  buildPlannerStyleEngineSummary,
+  buildStoryMacroSummary,
+  type PlannerMappedVolume,
+  type PlannerStoryModeRow,
+} from "./plannerContextHelpers";
 import { resolveChapterPlanParticipants } from "./plannerParticipantResolution";
 
 export { normalizePlannerOutput } from "./plannerOutputNormalization";
@@ -45,17 +53,6 @@ interface GenerateChapterPlanOptions extends PlannerOptions {
   };
 }
 
-type PlannerStoryModeRow = {
-  id: string;
-  name: string;
-  description: string | null;
-  template: string | null;
-  parentId: string | null;
-  profileJson: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
 const plannerStoryModeSelect = {
   id: true,
   name: true,
@@ -67,157 +64,9 @@ const plannerStoryModeSelect = {
   updatedAt: true,
 } as const;
 
-function buildPlannerStoryModeBlock(input: {
-  primaryStoryMode?: PlannerStoryModeRow | null;
-  secondaryStoryMode?: PlannerStoryModeRow | null;
-}): string {
-  return buildStoryModePromptBlock({
-    primary: input.primaryStoryMode ? normalizeStoryModeOutput(input.primaryStoryMode) : null,
-    secondary: input.secondaryStoryMode ? normalizeStoryModeOutput(input.secondaryStoryMode) : null,
-  });
-}
-
-type PlannerMappedVolume = {
-  sortOrder: number;
-  title: string;
-  summary: string | null;
-  mainPromise: string | null;
-  climax: string | null;
-  openPayoffs: string[];
-  updatedAt: string;
-  chapters: Array<{
-    chapterOrder: number;
-    title: string;
-    summary: string | null;
-  }>;
-};
-
-type PlannerCharacterDynamicsOverview = Awaited<ReturnType<typeof characterDynamicsQueryService.getOverview>>;
-
-function buildStoryMacroSummary(plan: StoryMacroPlan | null): string {
-  if (!plan) {
-    return "无";
-  }
-  const lines = [
-    plan.expansion?.expanded_premise ? `扩展 premise：${plan.expansion.expanded_premise}` : "",
-    plan.expansion?.protagonist_core ? `主角核心：${plan.expansion.protagonist_core}` : "",
-    plan.decomposition?.selling_point ? `卖点拆解：${plan.decomposition.selling_point}` : "",
-    plan.decomposition?.core_conflict ? `核心冲突：${plan.decomposition.core_conflict}` : "",
-    plan.decomposition?.main_hook ? `主钩子：${plan.decomposition.main_hook}` : "",
-    plan.decomposition?.progression_loop ? `推进回路：${plan.decomposition.progression_loop}` : "",
-    plan.decomposition?.growth_path ? `成长路径：${plan.decomposition.growth_path}` : "",
-    plan.decomposition?.major_payoffs?.length
-      ? `关键兑现：${plan.decomposition.major_payoffs.join("；")}`
-      : "",
-    plan.decomposition?.ending_flavor ? `结尾风味：${plan.decomposition.ending_flavor}` : "",
-    plan.constraints.length > 0 ? `硬约束：${plan.constraints.join("；")}` : "",
-    plan.constraintEngine?.phase_model?.length
-      ? `阶段模型：${plan.constraintEngine.phase_model.map((item) => `${item.name}:${item.goal}`).join(" | ")}`
-      : "",
-  ].filter(Boolean);
-  return lines.join("\n") || "无";
-}
-
-function buildCurrentVolumeWindowSummary(
-  volumes: PlannerMappedVolume[],
-  chapterOrder: number,
-): string {
-  if (volumes.length === 0) {
-    return "当前尚未建立卷级窗口，请先确认卷工作台。";
-  }
-  const currentIndex = volumes.findIndex((volume) => (
-    volume.chapters.some((chapter) => chapter.chapterOrder === chapterOrder)
-  ));
-  if (currentIndex < 0) {
-    return [
-      `当前章节：第${chapterOrder}章`,
-      "当前尚未绑定到任何卷结构，请先同步章节与卷窗口。",
-      `已有卷窗口：${volumes.map((volume) => `第${volume.sortOrder}卷《${volume.title}》`).join("；")}`,
-    ].join("\n");
-  }
-
-  const currentVolume = volumes[currentIndex];
-  const previousVolume = currentIndex > 0 ? volumes[currentIndex - 1] : null;
-  const nextVolume = currentIndex < volumes.length - 1 ? volumes[currentIndex + 1] : null;
-  const chapterOrders = currentVolume.chapters.map((chapter) => chapter.chapterOrder).sort((a, b) => a - b);
-  const chapterIndex = currentVolume.chapters
-    .slice()
-    .sort((left, right) => left.chapterOrder - right.chapterOrder)
-    .findIndex((chapter) => chapter.chapterOrder === chapterOrder);
-
-  return [
-    `当前章节：第${chapterOrder}章（卷内位置 ${chapterIndex + 1}/${currentVolume.chapters.length}）`,
-    `当前卷：第${currentVolume.sortOrder}卷《${currentVolume.title}》`,
-    `卷使命：${currentVolume.mainPromise ?? currentVolume.summary ?? "无"}`,
-    currentVolume.climax ? `卷末高潮：${currentVolume.climax}` : "",
-    chapterOrders.length > 0 ? `卷章节范围：${chapterOrders[0]}-${chapterOrders[chapterOrders.length - 1]}` : "",
-    currentVolume.openPayoffs.length > 0 ? `本卷待兑现事项：${currentVolume.openPayoffs.join("；")}` : "",
-    previousVolume
-      ? `上一卷承接：第${previousVolume.sortOrder}卷《${previousVolume.title}》 | ${previousVolume.mainPromise ?? previousVolume.summary ?? "无"}`
-      : "上一卷承接：无",
-    nextVolume
-      ? `下一卷预期：第${nextVolume.sortOrder}卷《${nextVolume.title}》 | ${nextVolume.mainPromise ?? nextVolume.summary ?? "无"}`
-      : "下一卷预期：无",
-  ].filter(Boolean).join("\n");
-}
-
-function buildPlannerCharacterDynamicsContext(overview: PlannerCharacterDynamicsOverview | null): {
-  summary: string;
-  volumeAssignments: string;
-  relationStages: string;
-  candidateGuards: string;
-} {
-  if (!overview) {
-    return {
-      summary: "无",
-      volumeAssignments: "无",
-      relationStages: "无",
-      candidateGuards: "无",
-    };
-  }
-
-  const highRiskCharacters = overview.characters
-    .filter((item) => item.absenceRisk === "high" || item.absenceRisk === "warn")
-    .slice(0, 4)
-    .map((item) => `${item.name}(${item.absenceRisk}, 缺席跨度=${item.absenceSpan})`);
-  const coreCharacters = overview.characters
-    .filter((item) => item.isCoreInVolume)
-    .slice(0, 6)
-    .map((item) => (
-      [
-        item.name,
-        item.volumeRoleLabel ? `卷级身份=${item.volumeRoleLabel}` : "",
-        item.volumeResponsibility ? `卷级职责=${item.volumeResponsibility}` : "",
-        item.plannedChapterOrders.length > 0 ? `计划章次=${item.plannedChapterOrders.join("、")}` : "",
-        item.absenceRisk !== "none" ? `缺席风险=${item.absenceRisk}(跨度=${item.absenceSpan})` : "",
-      ].filter(Boolean).join(" | ")
-    ));
-  const relationStages = overview.relations
-    .slice(0, 8)
-    .map((item) => (
-      `${item.sourceCharacterName} -> ${item.targetCharacterName}: ${item.stageLabel} | ${item.stageSummary}${item.nextTurnPoint ? ` | 下一步=${item.nextTurnPoint}` : ""}`
-    ));
-  const candidateGuards = overview.candidates
-    .slice(0, 4)
-    .map((item) => (
-      `${item.proposedName}${item.proposedRole ? `(${item.proposedRole})` : ""} | ${item.summary ?? "待确认候选"} | 来源章节=${item.sourceChapterOrder ?? "未知"} | 只读约束，未确认前禁止写入正式执行链`
-    ));
-
-  return {
-    summary: [
-      overview.summary,
-      overview.currentVolume ? `当前卷：${overview.currentVolume.title}` : "当前卷：未定位",
-      coreCharacters.length > 0 ? `当前卷核心角色：${coreCharacters.map((item) => item.split(" | ")[0]).join("、")}` : "当前卷核心角色：无",
-      highRiskCharacters.length > 0 ? `缺席高风险角色：${highRiskCharacters.join("；")}` : "缺席高风险角色：无",
-      overview.pendingCandidateCount > 0 ? `待确认候选：${overview.pendingCandidateCount} 个` : "待确认候选：无",
-    ].join("\n"),
-    volumeAssignments: coreCharacters.join("\n") || "无",
-    relationStages: relationStages.join("\n") || "无",
-    candidateGuards: candidateGuards.join("\n") || "无",
-  };
-}
-
 export class PlannerService {
+  private readonly styleBindingService = new StyleBindingService();
+
   async getChapterPlan(novelId: string, chapterId: string) {
     const plan = await prisma.storyPlan.findFirst({
       where: { novelId, chapterId, level: "chapter", status: { not: "stale" } },
@@ -298,8 +147,19 @@ export class PlannerService {
   async generateBookPlan(novelId: string, options: PlannerOptions = {}) {
     const novel = await prisma.novel.findUnique({
       where: { id: novelId },
-      include: {
-        bible: true,
+      select: {
+        title: true,
+        description: true,
+        targetAudience: true,
+        bookSellingPoint: true,
+        competingFeel: true,
+        first30ChapterPromise: true,
+        narrativePov: true,
+        pacePreference: true,
+        emotionIntensity: true,
+        styleTone: true,
+        bible: { select: { rawContent: true } },
+        genre: { select: { name: true } },
         chapters: { orderBy: { order: "asc" }, select: { title: true, order: true, expectation: true } },
         plotBeats: { orderBy: { chapterOrder: "asc" }, take: 8 },
         primaryStoryMode: { select: plannerStoryModeSelect },
@@ -310,13 +170,24 @@ export class PlannerService {
       throw new Error("小说不存在。");
     }
     const storyModeBlock = buildPlannerStoryModeBlock(novel);
+    const styleEngine = await this.resolvePlannerStyleEngineSummary(novelId);
     const contextBlocks = buildBookPlanContextBlocks({
       novelTitle: novel.title,
       description: novel.description,
+      genreName: novel.genre?.name ?? null,
+      targetAudience: novel.targetAudience,
+      bookSellingPoint: novel.bookSellingPoint,
+      competingFeel: novel.competingFeel,
+      first30ChapterPromise: novel.first30ChapterPromise,
+      narrativePov: novel.narrativePov,
+      pacePreference: novel.pacePreference,
+      emotionIntensity: novel.emotionIntensity,
+      styleTone: novel.styleTone,
       bible: novel.bible?.rawContent ?? "无",
       chapterDrafts: novel.chapters.map((item) => `${item.order}.${item.title} ${item.expectation ?? ""}`).join("\n") || "无",
       plotBeats: novel.plotBeats.map((item) => `${item.chapterOrder ?? "-"} ${item.title} ${item.content}`).join("\n") || "无",
       storyModeBlock,
+      styleEngine,
     });
     const output = await invokePlannerLLM({
       options,
@@ -347,8 +218,19 @@ export class PlannerService {
   async generateArcPlan(novelId: string, arcId: string, options: PlannerOptions = {}) {
     const novel = await prisma.novel.findUnique({
       where: { id: novelId },
-      include: {
-        bible: true,
+      select: {
+        title: true,
+        description: true,
+        targetAudience: true,
+        bookSellingPoint: true,
+        competingFeel: true,
+        first30ChapterPromise: true,
+        narrativePov: true,
+        pacePreference: true,
+        emotionIntensity: true,
+        styleTone: true,
+        bible: { select: { rawContent: true } },
+        genre: { select: { name: true } },
         chapters: { orderBy: { order: "asc" }, select: { title: true, order: true, expectation: true } },
         primaryStoryMode: { select: plannerStoryModeSelect },
         secondaryStoryMode: { select: plannerStoryModeSelect },
@@ -358,12 +240,23 @@ export class PlannerService {
       throw new Error("小说不存在。");
     }
     const storyModeBlock = buildPlannerStoryModeBlock(novel);
+    const styleEngine = await this.resolvePlannerStyleEngineSummary(novelId);
     const contextBlocks = buildArcPlanContextBlocks({
       novelTitle: novel.title,
       description: novel.description,
+      genreName: novel.genre?.name ?? null,
+      targetAudience: novel.targetAudience,
+      bookSellingPoint: novel.bookSellingPoint,
+      competingFeel: novel.competingFeel,
+      first30ChapterPromise: novel.first30ChapterPromise,
+      narrativePov: novel.narrativePov,
+      pacePreference: novel.pacePreference,
+      emotionIntensity: novel.emotionIntensity,
+      styleTone: novel.styleTone,
       bible: novel.bible?.rawContent ?? "无",
       chapters: novel.chapters.map((item) => `${item.order}.${item.title} ${item.expectation ?? ""}`).join("\n") || "无",
       storyModeBlock,
+      styleEngine,
     });
     const output = await invokePlannerLLM({
       options,
@@ -393,7 +286,7 @@ export class PlannerService {
   }
 
   async generateChapterPlan(novelId: string, chapterId: string, options: GenerateChapterPlanOptions = {}) {
-    const [novel, chapter, bible, plotBeats, summaries, characters, bookPlan, arcPlans, volumePlans, recentAuditReports, recentDecisions, storyMacroPlanRow] = await Promise.all([
+    const [novel, chapter, bible, plotBeats, summaries, characters, bookPlan, arcPlans, volumePlans, recentAuditReports, recentDecisions, storyMacroPlanRow, styleEngine] = await Promise.all([
       prisma.novel.findUnique({
         where: { id: novelId },
         select: {
@@ -403,6 +296,7 @@ export class PlannerService {
           outline: true,
           structuredOutline: true,
           estimatedChapterCount: true,
+          genre: { select: { name: true } },
           targetAudience: true,
           bookSellingPoint: true,
           competingFeel: true,
@@ -482,6 +376,7 @@ export class PlannerService {
       prisma.storyMacroPlan.findUnique({
         where: { novelId },
       }),
+      this.resolvePlannerStyleEngineSummary(novelId, chapterId),
     ]);
     if (!novel || !chapter) {
       throw new Error("小说或章节不存在。");
@@ -565,6 +460,7 @@ export class PlannerService {
     const contextBlocks = buildChapterPlanContextBlocks({
       novelTitle: novel.title,
       description: novel.description,
+      genreName: novel.genre?.name ?? null,
       targetAudience: novel.targetAudience,
       bookSellingPoint: novel.bookSellingPoint,
       competingFeel: novel.competingFeel,
@@ -577,6 +473,7 @@ export class PlannerService {
       chapterTaskSheet: chapter.taskSheet,
       chapterTargetWordCount: chapter.targetWordCount,
       bible: bible?.rawContent ?? "无",
+      styleEngine,
       outline: novel.outline,
       structuredOutline: novel.structuredOutline,
       mappedVolumes: plannerVolumes.map((volume) => ({
@@ -747,6 +644,15 @@ export class PlannerService {
 
   shouldTriggerReplanFromAudit(auditReports: AuditReport[]): boolean {
     return auditReports.some((report) => report.issues.some((issue) => issue.status === "open" && (issue.severity === "high" || issue.severity === "critical")));
+  }
+
+  private async resolvePlannerStyleEngineSummary(novelId: string, chapterId?: string): Promise<string> {
+    try {
+      const styleContext = await this.styleBindingService.resolveForGeneration({ novelId, chapterId });
+      return buildPlannerStyleEngineSummary(styleContext);
+    } catch {
+      return "无";
+    }
   }
 }
 

@@ -26,6 +26,7 @@ import {
   stringifyResumeTarget,
 } from "./novelWorkflow.shared";
 import { isHistoricalAutoDirectorRecoveryNotNeededFailure } from "./novelWorkflowRecoveryHeuristics";
+import { syncAutoDirectorChapterBatchCheckpoint } from "./novelWorkflowAutoDirectorReconciliation";
 
 type WorkflowRow = Awaited<ReturnType<typeof prisma.novelWorkflowTask.findUnique>>;
 
@@ -108,7 +109,7 @@ export class NovelWorkflowService {
   private async getVisibleRowsByNovelId(novelId: string, lane?: NovelWorkflowLane) {
     const rows = await this.getVisibleRowsByNovelIdRaw(novelId, lane);
     const healed = await Promise.all(
-      rows.map((row) => this.healHistoricalAutoDirectorRecoveryFailure(row.id, row)),
+      rows.map((row) => this.healAutoDirectorTaskState(row.id, row)),
     );
     if (!healed.some(Boolean)) {
       return rows;
@@ -130,7 +131,7 @@ export class NovelWorkflowService {
     if (!existing) {
       return null;
     }
-    const healed = await this.healHistoricalAutoDirectorRecoveryFailure(taskId, existing);
+    const healed = await this.healAutoDirectorTaskState(taskId, existing);
     if (!healed) {
       return existing;
     }
@@ -167,6 +168,23 @@ export class NovelWorkflowService {
 
   async getTaskById(taskId: string) {
     return this.getVisibleRowById(taskId);
+  }
+
+  async healAutoDirectorTaskState(
+    taskId: string,
+    row = null as Awaited<ReturnType<typeof prisma.novelWorkflowTask.findUnique>> | null,
+  ): Promise<boolean> {
+    const historicalHealed = await this.healHistoricalAutoDirectorRecoveryFailure(taskId, row);
+    const checkpointRow = historicalHealed
+      ? await this.getVisibleRowByIdRaw(taskId)
+      : (row ?? await this.getVisibleRowByIdRaw(taskId));
+    const checkpointHealed = checkpointRow
+      ? await syncAutoDirectorChapterBatchCheckpoint({
+        taskId,
+        row: checkpointRow,
+      })
+      : false;
+    return historicalHealed || checkpointHealed;
   }
 
   async healHistoricalAutoDirectorRecoveryFailure(

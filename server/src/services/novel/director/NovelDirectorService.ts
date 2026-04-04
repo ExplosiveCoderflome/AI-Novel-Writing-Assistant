@@ -55,12 +55,7 @@ import {
   buildDirectorTakeoverInput,
   buildDirectorTakeoverReadiness,
 } from "./novelDirectorTakeover";
-import {
-  buildDirectorAutoExecutionPipelineOptions,
-  resolveDirectorAutoExecutionRange,
-  resolveDirectorAutoExecutionWorkflowState,
-  type DirectorAutoExecutionRange,
-} from "./novelDirectorAutoExecution";
+import { NovelDirectorAutoExecutionRuntime } from "./novelDirectorAutoExecutionRuntime";
 import {
   loadDirectorTakeoverState,
   resolveDirectorRunningStateForPhase,
@@ -76,6 +71,12 @@ export class NovelDirectorService {
   private readonly volumeService = new NovelVolumeService();
   private readonly workflowService = new NovelWorkflowService();
   private readonly candidateStageService = new NovelDirectorCandidateStageService(this.workflowService);
+  private readonly autoExecutionRuntime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: this.novelContextService,
+    novelService: this.novelService,
+    workflowService: this.workflowService,
+    buildDirectorSeedPayload: (input, novelId, extra) => this.buildDirectorSeedPayload(input, novelId, extra),
+  });
 
   private scheduleBackgroundRun(taskId: string, runner: () => Promise<void>) {
     void Promise.resolve()
@@ -118,217 +119,6 @@ export class NovelDirectorService {
       firstVolumeId: firstVolume?.id ?? null,
       firstVolumeChapterCount: firstVolume?.chapters.length ?? 0,
     };
-  }
-
-  private async resolveAutoExecutionRange(novelId: string): Promise<DirectorAutoExecutionRange> {
-    const chapters = await this.novelContextService.listChapters(novelId);
-    const range = resolveDirectorAutoExecutionRange(chapters);
-    if (!range) {
-      throw new Error("当前还没有可自动执行的章节，请先完成前 10 章拆章同步。");
-    }
-    return range;
-  }
-
-  private async syncAutoExecutionTaskState(input: {
-    taskId: string;
-    novelId: string;
-    request: DirectorConfirmRequest;
-    range: DirectorAutoExecutionRange;
-    isBackgroundRunning: boolean;
-    pipelineJobId?: string | null;
-    pipelineStatus?: string | null;
-    resumeStage?: "chapter" | "pipeline";
-  }) {
-    const directorSession = buildDirectorSessionState({
-      runMode: input.request.runMode,
-      phase: "front10_ready",
-      isBackgroundRunning: input.isBackgroundRunning,
-    });
-    const resumeTarget = buildNovelEditResumeTarget({
-      novelId: input.novelId,
-      taskId: input.taskId,
-      stage: input.resumeStage ?? "pipeline",
-      chapterId: input.range.firstChapterId,
-    });
-    await this.workflowService.bootstrapTask({
-      workflowTaskId: input.taskId,
-      novelId: input.novelId,
-      lane: "auto_director",
-      title: input.request.candidate.workingTitle,
-      seedPayload: this.buildDirectorSeedPayload(input.request, input.novelId, {
-        directorSession,
-        resumeTarget,
-        autoExecution: {
-          enabled: true,
-          startOrder: input.range.startOrder,
-          endOrder: input.range.endOrder,
-          totalChapterCount: input.range.totalChapterCount,
-          pipelineJobId: input.pipelineJobId ?? null,
-          pipelineStatus: input.pipelineStatus ?? null,
-        },
-      }),
-    });
-  }
-
-  private async shouldStopAutoExecution(taskId: string, pipelineJobId?: string | null): Promise<boolean> {
-    const row = await this.workflowService.getTaskById(taskId);
-    if (!row || row.status !== "cancelled") {
-      return false;
-    }
-    if (pipelineJobId) {
-      await this.novelService.cancelPipelineJob(pipelineJobId).catch(() => null);
-    }
-    return true;
-  }
-
-  private async runAutoExecutionFromReady(input: {
-    taskId: string;
-    novelId: string;
-    request: DirectorConfirmRequest;
-    existingPipelineJobId?: string | null;
-  }): Promise<void> {
-    const range = await this.resolveAutoExecutionRange(input.novelId);
-    let pipelineJobId = input.existingPipelineJobId?.trim() || "";
-
-    try {
-      await this.syncAutoExecutionTaskState({
-        taskId: input.taskId,
-        novelId: input.novelId,
-        request: input.request,
-        range,
-        isBackgroundRunning: true,
-        pipelineJobId: pipelineJobId || null,
-        pipelineStatus: pipelineJobId ? "running" : "queued",
-      });
-      if (await this.shouldStopAutoExecution(input.taskId, pipelineJobId || null)) {
-        return;
-      }
-
-      if (pipelineJobId) {
-        const existingJob = await this.novelService.getPipelineJobById(pipelineJobId);
-        if (!existingJob || existingJob.status === "failed" || existingJob.status === "cancelled" || existingJob.status === "succeeded") {
-          pipelineJobId = "";
-        }
-      }
-
-      if (!pipelineJobId) {
-        await this.workflowService.markTaskRunning(input.taskId, {
-          stage: "chapter_execution",
-          itemKey: "chapter_execution",
-          itemLabel: `正在自动执行前 ${range.totalChapterCount} 章`,
-          progress: 0.93,
-        });
-        const job = await this.novelService.startPipelineJob(
-          input.novelId,
-          buildDirectorAutoExecutionPipelineOptions({
-            provider: input.request.provider,
-            model: input.request.model,
-            temperature: input.request.temperature,
-            startOrder: range.startOrder,
-            endOrder: range.endOrder,
-          }),
-        );
-        pipelineJobId = job.id;
-        await this.syncAutoExecutionTaskState({
-          taskId: input.taskId,
-          novelId: input.novelId,
-          request: input.request,
-          range,
-          isBackgroundRunning: true,
-          pipelineJobId,
-          pipelineStatus: job.status,
-        });
-      }
-
-      while (pipelineJobId) {
-        if (await this.shouldStopAutoExecution(input.taskId, pipelineJobId)) {
-          return;
-        }
-        const job = await this.novelService.getPipelineJobById(pipelineJobId);
-        if (!job) {
-          throw new Error("自动执行前 10 章时未能找到对应的批量任务。");
-        }
-        if (job.status === "queued" || job.status === "running") {
-          const runningState = resolveDirectorAutoExecutionWorkflowState(job, range);
-          await this.workflowService.markTaskRunning(input.taskId, runningState);
-          await this.syncAutoExecutionTaskState({
-            taskId: input.taskId,
-            novelId: input.novelId,
-            request: input.request,
-            range,
-            isBackgroundRunning: true,
-            pipelineJobId,
-            pipelineStatus: job.status,
-            resumeStage: "pipeline",
-          });
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-          continue;
-        }
-
-        if (job.status === "succeeded") {
-          await this.workflowService.recordCheckpoint(input.taskId, {
-            stage: "quality_repair",
-            checkpointType: "workflow_completed",
-            checkpointSummary: `《${input.request.candidate.workingTitle.trim() || input.request.title?.trim() || "当前项目"}》已自动完成前 ${range.totalChapterCount} 章章节执行与质量修复。`,
-            itemLabel: `前 ${range.totalChapterCount} 章自动执行完成`,
-            progress: 1,
-            chapterId: range.firstChapterId,
-            seedPayload: this.buildDirectorSeedPayload(input.request, input.novelId, {
-              directorSession: buildDirectorSessionState({
-                runMode: input.request.runMode,
-                phase: "front10_ready",
-                isBackgroundRunning: false,
-              }),
-              resumeTarget: buildNovelEditResumeTarget({
-                novelId: input.novelId,
-                taskId: input.taskId,
-                stage: "pipeline",
-                chapterId: range.firstChapterId,
-              }),
-              autoExecution: {
-                enabled: true,
-                startOrder: range.startOrder,
-                endOrder: range.endOrder,
-                totalChapterCount: range.totalChapterCount,
-                pipelineJobId,
-                pipelineStatus: job.status,
-              },
-            }),
-          });
-          return;
-        }
-
-        const failureMessage = job.error?.trim()
-          || (job.status === "cancelled"
-            ? "前 10 章自动执行已取消。"
-            : "前 10 章自动执行未能全部通过质量要求。");
-        await this.workflowService.markTaskFailed(input.taskId, failureMessage, {
-          stage: "quality_repair",
-          itemKey: "quality_repair",
-          itemLabel: `前 ${range.totalChapterCount} 章自动执行已暂停`,
-          checkpointType: "chapter_batch_ready",
-          checkpointSummary: `前 ${range.totalChapterCount} 章已进入自动执行，但当前批量任务未完全完成：${failureMessage}`,
-          chapterId: range.firstChapterId,
-          progress: 0.98,
-        });
-        await this.syncAutoExecutionTaskState({
-          taskId: input.taskId,
-          novelId: input.novelId,
-          request: input.request,
-          range,
-          isBackgroundRunning: false,
-          pipelineJobId,
-          pipelineStatus: job.status,
-          resumeStage: "pipeline",
-        });
-        return;
-      }
-    } catch (error) {
-      if (error instanceof Error && error.message === "DIRECTOR_AUTO_EXECUTION_CANCELLED") {
-        return;
-      }
-      throw error;
-    }
   }
 
   private async resolveResumePhase(input: {
@@ -401,11 +191,12 @@ export class NovelDirectorService {
       )
     );
     if (shouldContinueAutoExecution && (row.checkpointType === "front10_ready" || row.checkpointType === "chapter_batch_ready")) {
-      await this.runAutoExecutionFromReady({
+      await this.autoExecutionRuntime.runFromReady({
         taskId,
         novelId,
         request: directorInput,
         existingPipelineJobId: seedPayload.autoExecution?.pipelineJobId ?? null,
+        existingState: seedPayload.autoExecution ?? null,
       });
       return;
     }
@@ -776,7 +567,7 @@ export class NovelDirectorService {
       }
       await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, volumeWorkspace);
       if (normalizeDirectorRunMode(input.input.runMode) === "auto_to_execution") {
-        await this.runAutoExecutionFromReady({
+        await this.autoExecutionRuntime.runFromReady({
           taskId: input.taskId,
           novelId: input.novelId,
           request: input.input,
@@ -788,7 +579,7 @@ export class NovelDirectorService {
     const currentWorkspace = await this.volumeService.getVolumes(input.novelId);
     await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, currentWorkspace);
     if (normalizeDirectorRunMode(input.input.runMode) === "auto_to_execution") {
-      await this.runAutoExecutionFromReady({
+      await this.autoExecutionRuntime.runFromReady({
         taskId: input.taskId,
         novelId: input.novelId,
         request: input.input,

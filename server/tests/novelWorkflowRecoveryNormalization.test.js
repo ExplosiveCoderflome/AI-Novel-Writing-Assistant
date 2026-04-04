@@ -61,3 +61,85 @@ test("healHistoricalAutoDirectorRecoveryFailure restores legacy restart failures
     prisma.novelWorkflowTask.update = originals.update;
   }
 });
+
+test("healAutoDirectorTaskState also reconciles chapter batch checkpoints when task detail loads without a preloaded row", async () => {
+  const originals = {
+    findUnique: prisma.novelWorkflowTask.findUnique,
+    chapterFindMany: prisma.chapter.findMany,
+    update: prisma.novelWorkflowTask.update,
+  };
+
+  let currentRow = {
+    id: "task_batch_ready",
+    title: "示例项目",
+    novelId: "novel_demo",
+    lane: "auto_director",
+    status: "failed",
+    progress: 0.98,
+    currentStage: "质量修复",
+    currentItemKey: "quality_repair",
+    currentItemLabel: "前 3 章自动执行已暂停",
+    checkpointType: "chapter_batch_ready",
+    checkpointSummary: "旧摘要",
+    resumeTargetJson: null,
+    seedPayloadJson: JSON.stringify({
+      autoExecution: {
+        enabled: true,
+        firstChapterId: "chapter-1",
+        startOrder: 1,
+        endOrder: 3,
+        totalChapterCount: 3,
+        pipelineJobId: "job-3",
+        pipelineStatus: "failed",
+      },
+    }),
+    lastError: "前 10 章自动执行未能全部通过质量要求。",
+    finishedAt: new Date("2026-04-04T10:00:00.000Z"),
+    heartbeatAt: new Date("2026-04-04T10:00:00.000Z"),
+    cancelRequestedAt: null,
+    milestonesJson: null,
+  };
+
+  prisma.novelWorkflowTask.findUnique = async () => currentRow;
+  prisma.chapter.findMany = async () => [
+    { id: "chapter-1", order: 1, generationState: "approved" },
+    { id: "chapter-2", order: 2, generationState: "reviewed" },
+    { id: "chapter-3", order: 3, generationState: "approved" },
+  ];
+  prisma.novelWorkflowTask.update = async ({ data }) => {
+    currentRow = {
+      ...currentRow,
+      currentStage: data.currentStage ?? currentRow.currentStage,
+      currentItemKey: data.currentItemKey ?? currentRow.currentItemKey,
+      currentItemLabel: data.currentItemLabel ?? currentRow.currentItemLabel,
+      checkpointType: data.checkpointType ?? currentRow.checkpointType,
+      checkpointSummary: data.checkpointSummary ?? currentRow.checkpointSummary,
+      resumeTargetJson: data.resumeTargetJson ?? currentRow.resumeTargetJson,
+      seedPayloadJson: data.seedPayloadJson ?? currentRow.seedPayloadJson,
+      heartbeatAt: data.heartbeatAt ?? currentRow.heartbeatAt,
+      status: data.status ?? currentRow.status,
+      progress: data.progress ?? currentRow.progress,
+      finishedAt: data.finishedAt ?? currentRow.finishedAt,
+      cancelRequestedAt: data.cancelRequestedAt ?? currentRow.cancelRequestedAt,
+      lastError: Object.prototype.hasOwnProperty.call(data, "lastError")
+        ? data.lastError
+        : currentRow.lastError,
+      milestonesJson: data.milestonesJson ?? currentRow.milestonesJson,
+    };
+    return currentRow;
+  };
+
+  try {
+    const service = new NovelWorkflowService();
+    const healed = await service.healAutoDirectorTaskState("task_batch_ready");
+
+    assert.equal(healed, true);
+    assert.match(currentRow.checkpointSummary, /当前仍有 1 章待继续/);
+    assert.equal(JSON.parse(currentRow.resumeTargetJson).chapterId, "chapter-2");
+    assert.equal(JSON.parse(currentRow.seedPayloadJson).autoExecution.remainingChapterCount, 1);
+  } finally {
+    prisma.novelWorkflowTask.findUnique = originals.findUnique;
+    prisma.chapter.findMany = originals.chapterFindMany;
+    prisma.novelWorkflowTask.update = originals.update;
+  }
+});

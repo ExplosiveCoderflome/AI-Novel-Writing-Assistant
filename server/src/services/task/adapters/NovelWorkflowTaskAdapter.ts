@@ -28,7 +28,6 @@ import {
 } from "../taskArchive";
 import { buildNovelWorkflowDetailSteps } from "../novelWorkflowDetailSteps";
 import { buildNovelWorkflowNextActionLabel } from "../novelWorkflowTaskSummary";
-import { isHistoricalAutoDirectorRecoveryNotNeededFailure } from "../../novel/workflow/novelWorkflowRecoveryHeuristics";
 
 function buildOwnerLabel(row: {
   novel?: { title: string } | null;
@@ -152,11 +151,7 @@ export class NovelWorkflowTaskAdapter {
       take: input.take,
     });
     const healed = await Promise.all(
-      rows.map((row) => (
-        isHistoricalAutoDirectorRecoveryNotNeededFailure(row)
-          ? this.workflowService.healHistoricalAutoDirectorRecoveryFailure(row.id, row)
-          : Promise.resolve(false)
-      )),
+      rows.map((row) => this.workflowService.healAutoDirectorTaskState(row.id, row)),
     );
     const normalizedRows = healed.some(Boolean)
       ? await prisma.novelWorkflowTask.findMany({
@@ -198,7 +193,7 @@ export class NovelWorkflowTaskAdapter {
     if (await isTaskArchived("novel_workflow", id)) {
       return null;
     }
-    await this.workflowService.healHistoricalAutoDirectorRecoveryFailure(id);
+    await this.workflowService.healAutoDirectorTaskState(id);
 
     const row = await prisma.novelWorkflowTask.findUnique({
       where: { id },

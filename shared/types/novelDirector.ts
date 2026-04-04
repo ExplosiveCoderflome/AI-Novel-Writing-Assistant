@@ -88,9 +88,16 @@ export type DirectorContinuationMode = "resume" | "auto_execute_front10";
 
 export interface DirectorAutoExecutionState {
   enabled: boolean;
+  firstChapterId?: string | null;
   startOrder?: number;
   endOrder?: number;
   totalChapterCount?: number;
+  completedChapterCount?: number;
+  remainingChapterCount?: number;
+  remainingChapterIds?: string[];
+  remainingChapterOrders?: number[];
+  nextChapterId?: string | null;
+  nextChapterOrder?: number | null;
   pipelineJobId?: string | null;
   pipelineStatus?: PipelineJobStatus | null;
 }

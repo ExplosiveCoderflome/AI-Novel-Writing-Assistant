@@ -23,7 +23,7 @@ export function buildNovelWorkflowNextActionLabel(
       return "进入前 10 章开写";
     }
     if (checkpointType === "chapter_batch_ready") {
-      return "继续章节执行";
+      return "继续自动执行剩余章节";
     }
     if (checkpointType === "replan_required") {
       return "处理重规划";
@@ -31,6 +31,9 @@ export function buildNovelWorkflowNextActionLabel(
     return "继续小说主流程";
   }
   if (status === "failed" || status === "cancelled") {
+    if (checkpointType === "chapter_batch_ready") {
+      return "继续自动执行剩余章节";
+    }
     return "从最近检查点恢复";
   }
   if (status === "running" || status === "queued") {

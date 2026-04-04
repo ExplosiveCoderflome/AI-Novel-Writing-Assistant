@@ -8,6 +8,7 @@ function createInput() {
   return {
     novelTitle: "测试小说",
     description: "一个新手也能跟着写下去的都市反压故事。",
+    genreName: "都市异能",
     targetAudience: "新手向男频读者",
     bookSellingPoint: "高压开局与持续反压",
     competingFeel: "都市逆袭 + 强追读节奏",
@@ -20,6 +21,7 @@ function createInput() {
     chapterTaskSheet: "保留压迫感，不要抢跑解释幕后黑手",
     chapterTargetWordCount: 3000,
     bible: "主角必须靠主动布局而不是外挂碾压。",
+    styleEngine: "当前命中写法：冷峻现实派\n\n规划期写法约束：\n避免说教式总结\n多用动作和对话承载压迫感",
     outline: "旧大纲文本",
     structuredOutline: "{\"volumes\":[]}",
     mappedVolumes: [
@@ -72,7 +74,9 @@ test("chapter planner context prioritizes framing, story macro and current volum
   const byId = new Map(blocks.map((block) => [block.id, block]));
 
   assert.match(byId.get("book_framing").content, /目标读者：新手向男频读者/);
+  assert.match(byId.get("book_framing").content, /题材基底：都市异能/);
   assert.match(byId.get("book_framing").content, /前30章承诺：前三十章稳定兑现压迫与反压快感/);
+  assert.match(byId.get("style_engine").content, /当前命中写法：冷峻现实派/);
   assert.match(byId.get("story_macro").content, /核心冲突：主角在压迫中夺回主动权/);
   assert.match(byId.get("current_volume_window").content, /卷使命：建立压迫源并完成第一次反压/);
   assert.match(byId.get("chapter_target").content, /章节目标字数：3000 字/);

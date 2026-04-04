@@ -39,6 +39,7 @@ function buildVolumeOutline(input: Array<{
 }
 
 function buildBookFramingText(input: {
+  genreName?: string | null;
   targetAudience: string | null;
   bookSellingPoint: string | null;
   competingFeel: string | null;
@@ -49,6 +50,7 @@ function buildBookFramingText(input: {
   styleTone?: string | null;
 }): string {
   return [
+    buildBlockContent("题材基底", input.genreName ?? "无"),
     buildBlockContent("目标读者", input.targetAudience ?? "无"),
     buildBlockContent("核心卖点", input.bookSellingPoint ?? "无"),
     buildBlockContent("竞品/对标感受", input.competingFeel ?? "无"),
@@ -63,10 +65,20 @@ function buildBookFramingText(input: {
 export function buildBookPlanContextBlocks(input: {
   novelTitle: string;
   description: string | null;
+  genreName?: string | null;
+  targetAudience: string | null;
+  bookSellingPoint: string | null;
+  competingFeel: string | null;
+  first30ChapterPromise: string | null;
+  narrativePov?: string | null;
+  pacePreference?: string | null;
+  emotionIntensity?: string | null;
+  styleTone?: string | null;
   bible: string | null;
   chapterDrafts: string;
   plotBeats: string;
   storyModeBlock: string;
+  styleEngine?: string | null;
 }): PromptContextBlock[] {
   return [
     createContextBlock({
@@ -86,10 +98,32 @@ export function buildBookPlanContextBlocks(input: {
       ].join("\n"),
     }),
     createContextBlock({
+      id: "book_framing",
+      group: "book_framing",
+      priority: 99,
+      content: buildBookFramingText({
+        genreName: input.genreName,
+        targetAudience: input.targetAudience,
+        bookSellingPoint: input.bookSellingPoint,
+        competingFeel: input.competingFeel,
+        first30ChapterPromise: input.first30ChapterPromise,
+        narrativePov: input.narrativePov,
+        pacePreference: input.pacePreference,
+        emotionIntensity: input.emotionIntensity,
+        styleTone: input.styleTone,
+      }),
+    }),
+    createContextBlock({
       id: "book_bible",
       group: "book_bible",
       priority: 90,
       content: buildBlockContent("作品圣经", input.bible ?? "无"),
+    }),
+    createContextBlock({
+      id: "style_engine",
+      group: "style_engine",
+      priority: 89,
+      content: buildBlockContent("写法引擎约束", input.styleEngine ?? "无"),
     }),
     createContextBlock({
       id: "chapter_drafts",
@@ -109,9 +143,19 @@ export function buildBookPlanContextBlocks(input: {
 export function buildArcPlanContextBlocks(input: {
   novelTitle: string;
   description: string | null;
+  genreName?: string | null;
+  targetAudience: string | null;
+  bookSellingPoint: string | null;
+  competingFeel: string | null;
+  first30ChapterPromise: string | null;
+  narrativePov?: string | null;
+  pacePreference?: string | null;
+  emotionIntensity?: string | null;
+  styleTone?: string | null;
   bible: string | null;
   chapters: string;
   storyModeBlock: string;
+  styleEngine?: string | null;
 }): PromptContextBlock[] {
   return [
     createContextBlock({
@@ -131,10 +175,32 @@ export function buildArcPlanContextBlocks(input: {
       ].join("\n"),
     }),
     createContextBlock({
+      id: "book_framing",
+      group: "book_framing",
+      priority: 99,
+      content: buildBookFramingText({
+        genreName: input.genreName,
+        targetAudience: input.targetAudience,
+        bookSellingPoint: input.bookSellingPoint,
+        competingFeel: input.competingFeel,
+        first30ChapterPromise: input.first30ChapterPromise,
+        narrativePov: input.narrativePov,
+        pacePreference: input.pacePreference,
+        emotionIntensity: input.emotionIntensity,
+        styleTone: input.styleTone,
+      }),
+    }),
+    createContextBlock({
       id: "book_bible",
       group: "book_bible",
       priority: 90,
       content: buildBlockContent("作品圣经", input.bible ?? "无"),
+    }),
+    createContextBlock({
+      id: "style_engine",
+      group: "style_engine",
+      priority: 89,
+      content: buildBlockContent("写法引擎约束", input.styleEngine ?? "无"),
     }),
     createContextBlock({
       id: "chapter_drafts",
@@ -148,6 +214,7 @@ export function buildArcPlanContextBlocks(input: {
 export function buildChapterPlanContextBlocks(input: {
   novelTitle: string;
   description: string | null;
+  genreName?: string | null;
   targetAudience: string | null;
   bookSellingPoint: string | null;
   competingFeel: string | null;
@@ -160,6 +227,7 @@ export function buildChapterPlanContextBlocks(input: {
   chapterTaskSheet: string | null;
   chapterTargetWordCount?: number | null;
   bible: string | null;
+  styleEngine?: string | null;
   outline: string | null;
   structuredOutline: string | null;
   mappedVolumes: Array<{
@@ -220,6 +288,7 @@ export function buildChapterPlanContextBlocks(input: {
       group: "book_framing",
       priority: 99,
       content: buildBookFramingText({
+        genreName: input.genreName,
         targetAudience: input.targetAudience,
         bookSellingPoint: input.bookSellingPoint,
         competingFeel: input.competingFeel,
@@ -247,6 +316,12 @@ export function buildChapterPlanContextBlocks(input: {
       group: "book_bible",
       priority: 92,
       content: buildBlockContent("作品圣经", input.bible ?? "无"),
+    }),
+    createContextBlock({
+      id: "style_engine",
+      group: "style_engine",
+      priority: 91,
+      content: buildBlockContent("写法引擎约束", input.styleEngine ?? "无"),
     }),
     createContextBlock({
       id: "current_volume_window",
