@@ -53,6 +53,12 @@ export interface StyleProfileFromBookAnalysisPromptInput {
   sourceText: string;
 }
 
+export interface StyleProfileFromBriefPromptInput {
+  brief: string;
+  name?: string;
+  category?: string;
+}
+
 export const styleDetectionPrompt: PromptAsset<
   StyleDetectionPromptInput,
   z.infer<typeof styleDetectionPayloadSchema>
@@ -516,6 +522,75 @@ export const styleProfileFromBookAnalysisPrompt: PromptAsset<
       "",
       "拆书中的文风与技法：",
       input.sourceText,
+    ].join("\n")),
+  ],
+};
+
+export const styleProfileFromBriefPrompt: PromptAsset<
+  StyleProfileFromBriefPromptInput,
+  z.infer<typeof styleGeneratedProfileSchema>
+> = {
+  id: "style.profile.from_brief",
+  version: "v1",
+  taskType: "planner",
+  mode: "structured",
+  language: "zh",
+  contextPolicy: {
+    maxTokensBudget: 0,
+  },
+  outputSchema: styleGeneratedProfileSchema,
+  render: (input) => [
+    new SystemMessage([
+      "你是小说写法资产编辑器，服务对象是刚开始写小说、只知道自己想要什么感觉、但不会自己拆规则的小白作者。",
+      "你的任务是把用户一句话或几句话描述的“想要的写法感觉”，整理成一份可直接进入系统使用的“可执行写法资产 JSON”。",
+      "这不是读后感，不是模仿练习，也不是空泛风格点评，而是要给新手一套可以直接拿来改和继续细化的起步写法。",
+      "",
+      "只输出一个合法 JSON 对象，不要输出 Markdown、解释、注释、代码块或额外文本。",
+      "输出字段必须且只能包括：",
+      "name, description, category, tags, applicableGenres, analysisMarkdown, narrativeRules, characterRules, languageRules, rhythmRules, antiAiRuleKeys。",
+      "",
+      "全局硬规则：",
+      "1. 所有字段值必须使用简体中文，只有 antiAiRuleKeys 使用系统已有规则 key。",
+      "2. 输入可能很短、很模糊，甚至只是一句“像某部作品的写法”。你要做的是抽取可迁移的写作维度，而不是要求用户先懂术语。",
+      "3. 如果输入提到具体作品、作者或风格参照，只能提炼可迁移的写法特征，例如叙事克制度、对话张力、信息密度、节奏组织、现实摩擦感、思辨感等。",
+      "4. 严禁复刻具体剧情、人物名称、设定名词、标志性语句、名场面结构或其他容易构成直接模仿的可识别表达。",
+      "5. 允许做保守推断，但不要把模糊印象夸大成过度具体的规则。",
+      "6. 输出目标是“帮新手直接起步”，所以规则必须清楚、稳定、能执行，不要写成专家黑话。",
+      "",
+      "字段要求：",
+      "1. name：如果用户给了名称，就保留并轻微规范化；如果没给，就基于抽象后的写法本质起一个稳定、好懂的名字。不要直接沿用受保护作品标题做名称。",
+      "2. description：用简洁中文概括这套写法最核心的风格定位、读感和适用方向。",
+      "3. category：优先使用用户给的分类；如果没给，再保守归类为现实流、情绪流、悬疑流、爽文流、群像流等稳定名称。",
+      "4. tags：提取有区分度的短标签，优先体现叙事方式、语言质感、节奏倾向、关系张力、思辨强度和读感特征。",
+      "5. applicableGenres：只写真正适合迁移的题材，不要泛泛覆盖所有题材。",
+      "6. analysisMarkdown：写成结构化分析稿，说明这套写法的核心抓手、适用边界、翻车点和给新手的使用提醒。",
+      "",
+      "规则层要求：",
+      "1. narrativeRules / characterRules / languageRules / rhythmRules 必须是结构化对象，不能写成字符串或数组摘要。",
+      "2. 每组规则都必须体现“应该怎么写”“优先保留什么”“尽量避免什么”，让新手打开后就知道该怎么用。",
+      "3. narrativeRules 重点提取：推进方式、信息释放、视角组织、冲突组织、场景切换、章节收尾牵引。",
+      "4. characterRules 重点提取：人物表达克制度、情绪外露方式、台词承载、关系拉扯方式、行为逻辑显露方式。",
+      "5. languageRules 重点提取：句式长短、口语/书面倾向、修辞密度、解释冲动、抽象表达比例、语言锋利度。",
+      "6. rhythmRules 重点提取：段落密度、快慢切换、留白、压迫感、爆点布置、回收方式。",
+      "7. 规则必须具体、可执行，禁止出现“增强感染力”“更有代入感”“注意节奏”这类空话。",
+      "",
+      "antiAiRuleKeys 要求：",
+      "1. 只能推荐系统已有规则 key。",
+      "2. 只推荐与当前写法真正相关、能帮助维持风格并压制 AI 味的规则。",
+      "3. 不要为了凑数量乱填无关 key。",
+      "",
+      "质量要求：",
+      "1. 输出必须像一份可以马上保存到系统里的写法资产，而不是一句模糊建议。",
+      "2. 各字段之间必须一致，description、analysisMarkdown 与规则层不能互相打架。",
+      "3. 如果输入非常短，就做一个“小而稳”的起步版本，不要凭空生成大而虚的复杂系统。",
+      "4. 如果输入涉及现实思辨、哲理对话、克制表达等高级感觉，也要翻译成普通用户能直接照着写的规则，而不是抽象评价。",
+    ].join("\n")),
+    new HumanMessage([
+      `写法名称：${input.name?.trim() || "未指定，请你生成一个合适名称"}`,
+      `建议分类：${input.category?.trim() || "未指定"}`,
+      "",
+      "用户对想要写法的描述：",
+      input.brief,
     ].join("\n")),
   ],
 };

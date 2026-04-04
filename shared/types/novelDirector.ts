@@ -224,6 +224,8 @@ export interface DirectorProjectContextInput {
   first30ChapterPromise?: string;
   commercialTags?: string[];
   genreId?: string;
+  primaryStoryModeId?: string;
+  secondaryStoryModeId?: string;
   worldId?: string;
   writingMode?: "original" | "continuation";
   projectMode?: ProjectMode;

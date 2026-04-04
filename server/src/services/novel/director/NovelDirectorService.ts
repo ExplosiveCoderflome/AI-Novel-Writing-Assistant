@@ -629,6 +629,8 @@ export class NovelDirectorService {
         first30ChapterPromise: resolvedBookFraming.first30ChapterPromise,
         commercialTags: resolvedBookFraming.commercialTags,
         genreId: input.genreId?.trim() || undefined,
+        primaryStoryModeId: input.primaryStoryModeId?.trim() || undefined,
+        secondaryStoryModeId: input.secondaryStoryModeId?.trim() || undefined,
         worldId: input.worldId?.trim() || undefined,
         writingMode: input.writingMode,
         projectMode: input.projectMode,

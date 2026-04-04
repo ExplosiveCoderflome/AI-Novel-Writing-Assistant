@@ -2,6 +2,8 @@ import type { AntiAiRule, StyleProfile, StyleProfileFeature } from "@ai-novel/sh
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+const STARTER_STYLE_PROFILE_SOURCE_PREFIX = "starter-style-profile:";
+
 interface WritingFormulaEditorState {
   name: string;
   description: string;
@@ -66,6 +68,11 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
           <div className="text-sm text-muted-foreground">请选择一个写法资产。</div>
         ) : (
           <>
+            {selectedProfile.sourceRefId?.startsWith(STARTER_STYLE_PROFILE_SOURCE_PREFIX) ? (
+              <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                这是系统预置给你的起步写法。可以直接按自己的项目修改，不需要先复制一份再编辑。
+              </div>
+            ) : null}
             <div className="grid gap-3 md:grid-cols-2">
               <input
                 className="rounded-md border p-2 text-sm"

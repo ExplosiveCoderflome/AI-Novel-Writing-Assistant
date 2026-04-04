@@ -40,6 +40,8 @@ export function formatProjectContext(input: DirectorProjectContextInput): string
       ? `commercial tags: ${input.commercialTags.join(", ")}`
       : "",
     input.genreId?.trim() ? `genre id: ${input.genreId.trim()}` : "",
+    input.primaryStoryModeId?.trim() ? `primary story mode id: ${input.primaryStoryModeId.trim()}` : "",
+    input.secondaryStoryModeId?.trim() ? `secondary story mode id: ${input.secondaryStoryModeId.trim()}` : "",
     input.worldId?.trim() ? `world id: ${input.worldId.trim()}` : "",
     input.writingMode ? `writing mode: ${input.writingMode}` : "",
     input.projectMode ? `project mode: ${input.projectMode}` : "",

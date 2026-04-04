@@ -25,6 +25,9 @@ import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 interface NovelExistingProjectTakeoverDialogProps {
   novelId: string;
   basicForm: NovelBasicFormState;
+  genreOptions: Array<{ id: string; path: string; label: string }>;
+  storyModeOptions: Array<{ id: string; path: string; name: string }>;
+  worldOptions: Array<{ id: string; name: string }>;
 }
 
 const RUN_MODE_OPTIONS: Array<{
@@ -49,8 +52,19 @@ const RUN_MODE_OPTIONS: Array<{
   },
 ];
 
-function summarizeCurrentContext(basicForm: NovelBasicFormState): string[] {
+function summarizeCurrentContext(
+  basicForm: NovelBasicFormState,
+  genreOptions: Array<{ id: string; path: string; label: string }>,
+  storyModeOptions: Array<{ id: string; path: string; name: string }>,
+  worldOptions: Array<{ id: string; name: string }>,
+): string[] {
   const commercialTags = normalizeCommercialTags(basicForm.commercialTagsText);
+  const genrePath = genreOptions.find((item) => item.id === basicForm.genreId)?.path ?? basicForm.genreId;
+  const primaryStoryModePath = storyModeOptions.find((item) => item.id === basicForm.primaryStoryModeId)?.path
+    ?? basicForm.primaryStoryModeId;
+  const secondaryStoryModePath = storyModeOptions.find((item) => item.id === basicForm.secondaryStoryModeId)?.path
+    ?? basicForm.secondaryStoryModeId;
+  const worldName = worldOptions.find((item) => item.id === basicForm.worldId)?.name ?? basicForm.worldId;
   return [
     basicForm.description.trim() ? `概述：${basicForm.description.trim()}` : "",
     basicForm.targetAudience.trim() ? `目标读者：${basicForm.targetAudience.trim()}` : "",
@@ -58,8 +72,10 @@ function summarizeCurrentContext(basicForm: NovelBasicFormState): string[] {
     basicForm.competingFeel.trim() ? `对标气质：${basicForm.competingFeel.trim()}` : "",
     basicForm.first30ChapterPromise.trim() ? `前30章承诺：${basicForm.first30ChapterPromise.trim()}` : "",
     commercialTags.length > 0 ? `商业标签：${commercialTags.join(" / ")}` : "",
-    basicForm.genreId ? `题材基底：${basicForm.genreId}` : "",
-    basicForm.worldId ? `世界观：${basicForm.worldId}` : "",
+    genrePath ? `题材基底：${genrePath}` : "",
+    primaryStoryModePath ? `主推进模式：${primaryStoryModePath}` : "",
+    secondaryStoryModePath ? `副推进模式：${secondaryStoryModePath}` : "",
+    worldName ? `世界观：${worldName}` : "",
     `预计章节：${basicForm.estimatedChapterCount}`,
   ].filter(Boolean);
 }
@@ -88,6 +104,9 @@ function buildEditRoute(input: {
 export default function NovelExistingProjectTakeoverDialog({
   novelId,
   basicForm,
+  genreOptions,
+  storyModeOptions,
+  worldOptions,
 }: NovelExistingProjectTakeoverDialogProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -104,7 +123,10 @@ export default function NovelExistingProjectTakeoverDialog({
   });
 
   const readiness = readinessQuery.data?.data ?? null;
-  const contextLines = useMemo(() => summarizeCurrentContext(basicForm), [basicForm]);
+  const contextLines = useMemo(
+    () => summarizeCurrentContext(basicForm, genreOptions, storyModeOptions, worldOptions),
+    [basicForm, genreOptions, storyModeOptions, worldOptions],
+  );
   const selectedStage = readiness?.stages.find((item) => item.phase === selectedPhase) ?? null;
 
   useEffect(() => {

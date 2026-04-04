@@ -40,6 +40,10 @@ import { imageGenerationService } from "./services/image/ImageGenerationService"
 import { ragServices } from "./services/rag";
 import { NovelPipelineRuntimeService } from "./services/novel/NovelPipelineRuntimeService";
 import { NovelWorkflowRuntimeService } from "./services/novel/workflow/NovelWorkflowRuntimeService";
+import {
+  ensureSystemResourceStarterData,
+  hasSystemResourceBootstrapChanges,
+} from "./services/bootstrap/SystemResourceBootstrapService";
 
 registerNovelEventHandlers(novelEventBus);
 const novelWorkflowRuntimeService = new NovelWorkflowRuntimeService();
@@ -161,6 +165,11 @@ async function bootstrap(): Promise<void> {
     console.warn("数据库中的模型密钥加载失败，已回退到环境变量。", error);
   }
 
+  const systemResourceReport = await ensureSystemResourceStarterData();
+  if (hasSystemResourceBootstrapChanges(systemResourceReport)) {
+    console.log("[server] built-in creative resources bootstrapped.", systemResourceReport);
+  }
+
   const app = createApp();
   const port = Number(process.env.PORT ?? 3000);
   const allowLan = parseEnvFlag(process.env.ALLOW_LAN, process.env.NODE_ENV !== "production");
@@ -193,5 +202,8 @@ async function bootstrap(): Promise<void> {
 }
 
 if (require.main === module) {
-  void bootstrap();
+  void bootstrap().catch((error) => {
+    console.error("[server] bootstrap failed.", error);
+    process.exit(1);
+  });
 }

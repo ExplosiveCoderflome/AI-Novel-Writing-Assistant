@@ -12,6 +12,7 @@ import { getWorldList } from "@/api/world";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import NovelAutoDirectorDialog from "./components/NovelAutoDirectorDialog";
 import NovelBasicInfoForm from "./components/NovelBasicInfoForm";
+import NovelCreateResourceRecommendationCard from "./components/NovelCreateResourceRecommendationCard";
 import { BookFramingQuickFillButton } from "./components/basicInfoForm/BookFramingQuickFillButton";
 import NovelCreateTitleQuickFill from "./components/titleWorkshop/NovelCreateTitleQuickFill";
 import { useNovelContinuationSources } from "./hooks/useNovelContinuationSources";
@@ -200,12 +201,22 @@ export default function NovelCreate() {
                 onApplySuggestion={(patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch))}
               />
             )}
+            resourceRecommendation={(
+              <NovelCreateResourceRecommendationCard
+                basicForm={basicForm}
+                onApplySuggestion={(patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch))}
+              />
+            )}
             projectQuickStart={(
               <NovelAutoDirectorDialog
                 basicForm={basicForm}
+                genreOptions={genreOptions}
+                storyModeOptions={storyModeOptions}
+                worldOptions={worldListQuery.data?.data ?? []}
                 workflowTaskId={directorWorkflowTaskId}
                 restoredTask={restoredWorkflowTask}
                 initialOpen={workflowMode === "director"}
+                onBasicFormChange={(patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch))}
                 onWorkflowTaskChange={(taskId) => {
                   setDirectorWorkflowTaskId(taskId);
                   setSearchParams((prev) => {

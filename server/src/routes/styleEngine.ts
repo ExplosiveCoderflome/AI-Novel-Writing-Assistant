@@ -68,6 +68,15 @@ const fromTemplateSchema = z.object({
   name: z.string().trim().optional(),
 });
 
+const fromBriefSchema = z.object({
+  brief: z.string().trim().min(1),
+  name: z.string().trim().min(1).optional(),
+  category: z.string().trim().min(1).optional(),
+  provider: llmProviderSchema.optional(),
+  model: z.string().trim().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+});
+
 const antiAiRuleSchema = z.object({
   key: z.string().trim().min(1),
   name: z.string().trim().min(1),
@@ -196,6 +205,19 @@ router.post("/style-profiles/from-template", validate({ body: fromTemplateSchema
       success: true,
       data,
       message: "从模板创建写法成功。",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/style-profiles/from-brief", validate({ body: fromBriefSchema }), async (req, res, next) => {
+  try {
+    const data = await styleProfileService.createFromBrief(req.body as z.infer<typeof fromBriefSchema>);
+    res.status(201).json({
+      success: true,
+      data,
+      message: "AI 生成写法成功。",
     } satisfies ApiResponse<typeof data>);
   } catch (error) {
     next(error);

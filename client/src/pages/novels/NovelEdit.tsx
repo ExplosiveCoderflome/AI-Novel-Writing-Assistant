@@ -266,6 +266,7 @@ export default function NovelEdit() {
   const [chapterStrategy, setChapterStrategy] = useState<ChapterExecutionStrategy>({ runMode: "fast", wordSize: "medium", conflictLevel: 60, pace: "balanced", aiFreedom: "medium" });
   const [activeChapterStream, setActiveChapterStream] = useState<{ chapterId: string; chapterLabel: string } | null>(null);
   const [activeRepairStream, setActiveRepairStream] = useState<{ chapterId: string; chapterLabel: string } | null>(null);
+  const [isDirectorExitActionExpanded, setIsDirectorExitActionExpanded] = useState(false);
   const [characterMessage, setCharacterMessage] = useState("");
   const [repairBeforeContent, setRepairBeforeContent] = useState("");
   const [repairAfterContent, setRepairAfterContent] = useState("");
@@ -343,6 +344,11 @@ export default function NovelEdit() {
     queryKey: queryKeys.storyModes.all,
     queryFn: getStoryModeTree,
   });
+  const genreOptions = useMemo(() => flattenGenreTreeOptions(genreTreeQuery.data?.data ?? []), [genreTreeQuery.data?.data]);
+  const storyModeOptions = useMemo(
+    () => flattenStoryModeTreeOptions(storyModeTreeQuery.data?.data ?? []),
+    [storyModeTreeQuery.data?.data],
+  );
 
   const {
     sourceBookAnalysesQuery,
@@ -506,7 +512,10 @@ export default function NovelEdit() {
   const chapterPlan = chapterPlanQuery.data?.data ?? null;
   const latestStateSnapshot = latestStateSnapshotQuery.data?.data ?? null;
   const chapterAuditReports = chapterAuditReportsQuery.data?.data ?? [];
-  const activeAutoDirectorTask = activeAutoDirectorTaskQuery.data?.data ?? null;
+  const latestAutoDirectorTask = activeAutoDirectorTaskQuery.data?.data ?? null;
+  const activeAutoDirectorTask = latestAutoDirectorTask?.status === "cancelled"
+    ? null
+    : latestAutoDirectorTask;
   const activeDirectorSession = useMemo(() => {
     const raw = activeAutoDirectorTask?.meta.directorSession;
     if (!raw || typeof raw !== "object") {
@@ -655,6 +664,7 @@ export default function NovelEdit() {
       return cancelTask("novel_workflow", activeAutoDirectorTask.id);
     },
     onSuccess: async () => {
+      setIsDirectorExitActionExpanded(false);
       await invalidateAutoDirectorTaskState(activeAutoDirectorTask?.id);
       toast.success("已提交自动导演取消请求。");
     },
@@ -673,6 +683,19 @@ export default function NovelEdit() {
     setIsTaskDrawerOpen(true);
     setAutoOpenedFailedTaskId(activeAutoDirectorTask.id);
   }, [activeAutoDirectorTask?.id, activeAutoDirectorTask?.status, autoOpenedFailedTaskId]);
+  useEffect(() => {
+    if (!activeAutoDirectorTask) {
+      setIsDirectorExitActionExpanded(false);
+      return;
+    }
+    if (
+      activeAutoDirectorTask.status !== "queued"
+      && activeAutoDirectorTask.status !== "running"
+      && activeAutoDirectorTask.status !== "waiting_approval"
+    ) {
+      setIsDirectorExitActionExpanded(false);
+    }
+  }, [activeAutoDirectorTask]);
   const takeover = useMemo<NovelEditTakeoverState | null>(() => {
     const task = activeAutoDirectorTask;
     if (!task) {
@@ -783,12 +806,27 @@ export default function NovelEdit() {
       });
     }
     if (task.status === "queued" || task.status === "running" || task.status === "waiting_approval") {
-      actions.push({
-        label: cancelAutoDirectorMutation.isPending ? "停止中..." : "停止自动导演",
-        onClick: () => cancelAutoDirectorMutation.mutate(),
-        variant: "destructive",
-        disabled: cancelAutoDirectorMutation.isPending,
-      });
+      if (isDirectorExitActionExpanded) {
+        actions.push({
+          label: "继续导演",
+          onClick: () => setIsDirectorExitActionExpanded(false),
+          variant: "outline",
+          disabled: cancelAutoDirectorMutation.isPending,
+        });
+        actions.push({
+          label: cancelAutoDirectorMutation.isPending ? "退出中..." : "退出导演模式",
+          onClick: () => cancelAutoDirectorMutation.mutate(),
+          variant: "destructive",
+          disabled: cancelAutoDirectorMutation.isPending,
+        });
+      } else {
+        actions.push({
+          label: "停止导演模式",
+          onClick: () => setIsDirectorExitActionExpanded(true),
+          variant: "destructive",
+          disabled: cancelAutoDirectorMutation.isPending,
+        });
+      }
     }
     actions.push({
       label: "任务中心",
@@ -845,6 +883,7 @@ export default function NovelEdit() {
     cancelAutoDirectorMutation,
     continueAutoDirectorMutation,
     continueAutoExecutionMutation,
+    isDirectorExitActionExpanded,
     navigate,
     novelDetailQuery.data?.data?.title,
     openQualityRepair,
@@ -1223,8 +1262,8 @@ export default function NovelEdit() {
   const { basicTab, outlineTab, structuredTab } = buildNovelEditPlanningTabs({
     id,
     basicForm,
-    genreOptions: flattenGenreTreeOptions(genreTreeQuery.data?.data ?? []),
-    storyModeOptions: flattenStoryModeTreeOptions(storyModeTreeQuery.data?.data ?? []),
+    genreOptions,
+    storyModeOptions,
     worldOptions: worldListQuery.data?.data ?? [],
     sourceNovelOptions,
     sourceKnowledgeOptions,
@@ -1244,6 +1283,9 @@ export default function NovelEdit() {
       <NovelExistingProjectTakeoverDialog
         novelId={id}
         basicForm={basicForm}
+        genreOptions={genreOptions}
+        storyModeOptions={storyModeOptions}
+        worldOptions={worldListQuery.data?.data ?? []}
       />
     ),
     worldInjectionSummary,

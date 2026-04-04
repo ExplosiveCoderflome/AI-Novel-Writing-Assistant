@@ -2,8 +2,10 @@ import type { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { NOVEL_LIST_PAGE_LIMIT_DEFAULT, NOVEL_LIST_PAGE_LIMIT_MAX } from "@ai-novel/shared/types/pagination";
 import { z } from "zod";
+import { llmProviderSchema } from "../llm/providerSchema";
 import { validate } from "../middleware/validate";
 import { KnowledgeService } from "../services/knowledge/KnowledgeService";
+import { novelCreateResourceRecommendationService } from "../services/novel/NovelCreateResourceRecommendationService";
 import { NovelService } from "../services/novel/NovelService";
 
 const paginationSchema = z.object({
@@ -95,6 +97,41 @@ const knowledgeBindingsSchema = z.object({
   documentIds: z.array(z.string().trim().min(1)).default([]),
 });
 
+const createResourceRecommendationSchema = z.object({
+  title: z.string().trim().optional(),
+  description: z.string().trim().optional(),
+  targetAudience: z.string().trim().optional(),
+  bookSellingPoint: z.string().trim().optional(),
+  competingFeel: z.string().trim().optional(),
+  first30ChapterPromise: z.string().trim().optional(),
+  commercialTags: z.array(z.string().trim().min(1).max(20)).max(6).optional(),
+  genreId: z.string().trim().optional(),
+  primaryStoryModeId: z.string().trim().optional(),
+  secondaryStoryModeId: z.string().trim().optional(),
+  writingMode: z.enum(["original", "continuation"]).optional(),
+  projectMode: z.enum(["ai_led", "co_pilot", "draft_mode", "auto_pipeline"]).optional(),
+  narrativePov: z.enum(["first_person", "third_person", "mixed"]).optional(),
+  pacePreference: z.enum(["slow", "balanced", "fast"]).optional(),
+  styleTone: z.string().trim().optional(),
+  emotionIntensity: z.enum(["low", "medium", "high"]).optional(),
+  aiFreedom: z.enum(["low", "medium", "high"]).optional(),
+  provider: llmProviderSchema.optional(),
+  model: z.string().trim().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+}).refine(
+  (value) => [
+    value.title,
+    value.description,
+    value.targetAudience,
+    value.bookSellingPoint,
+    value.competingFeel,
+    value.first30ChapterPromise,
+    value.styleTone,
+    ...(value.commercialTags ?? []),
+  ].some((item) => typeof item === "string" && item.trim().length > 0),
+  { message: "至少提供一句话概述、卖点、读者定位或类似开书信息，系统才能推荐资源组合。" },
+);
+
 interface RegisterNovelBaseRoutesInput {
   router: Router;
 }
@@ -128,6 +165,21 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
         message: "创建小说成功。",
       };
       res.status(201).json(response);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/resource-recommendation", validate({ body: createResourceRecommendationSchema }), async (req, res, next) => {
+    try {
+      const data = await novelCreateResourceRecommendationService.recommend(
+        req.body as z.infer<typeof createResourceRecommendationSchema>,
+      );
+      res.status(200).json({
+        success: true,
+        data,
+        message: "AI 已生成开书资源推荐。",
+      } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);
     }

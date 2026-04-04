@@ -39,6 +39,8 @@ export async function loadDirectorTakeoverState(input: {
         first30ChapterPromise: true,
         commercialTagsJson: true,
         genreId: true,
+        primaryStoryModeId: true,
+        secondaryStoryModeId: true,
         worldId: true,
         writingMode: true,
         projectMode: true,

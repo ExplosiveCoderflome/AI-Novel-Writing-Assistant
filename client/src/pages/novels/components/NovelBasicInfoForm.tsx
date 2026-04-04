@@ -70,6 +70,7 @@ interface NovelBasicInfoFormProps {
   titleQuickFill?: ReactNode;
   framingQuickFill?: ReactNode;
   projectQuickStart?: ReactNode;
+  resourceRecommendation?: ReactNode;
 }
 
 export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
@@ -91,6 +92,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
     titleQuickFill,
     framingQuickFill,
     projectQuickStart,
+    resourceRecommendation,
   } = props;
 
   const continuationSourceMissing = basicForm.writingMode === "continuation"
@@ -172,6 +174,8 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
             题材基底回答“这是什么书”，例如修仙、都市、历史架空；推进模式回答“这本书靠什么持续推进和兑现”，例如系统流、无敌流、种田流。
           </div>
         </div>
+
+        {resourceRecommendation}
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="space-y-2">

@@ -2,6 +2,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
+import type { NovelCreateResourceRecommendation } from "@ai-novel/shared/types/novelResourceRecommendation";
 import type {
   AIFreedom,
   Chapter,
@@ -67,6 +68,35 @@ export async function createNovel(payload: {
   continuationBookAnalysisSections?: BookAnalysisSectionKey[];
 }) {
   const { data } = await apiClient.post<ApiResponse<Novel>>("/novels", payload);
+  return data;
+}
+
+export async function recommendNovelCreateResources(payload: {
+  title?: string;
+  description?: string;
+  targetAudience?: string;
+  bookSellingPoint?: string;
+  competingFeel?: string;
+  first30ChapterPromise?: string;
+  commercialTags?: string[];
+  genreId?: string;
+  primaryStoryModeId?: string;
+  secondaryStoryModeId?: string;
+  writingMode?: "original" | "continuation";
+  projectMode?: ProjectMode;
+  narrativePov?: NarrativePov;
+  pacePreference?: PacePreference;
+  styleTone?: string;
+  emotionIntensity?: EmotionIntensity;
+  aiFreedom?: AIFreedom;
+  provider?: LLMProvider;
+  model?: string;
+  temperature?: number;
+}) {
+  const { data } = await apiClient.post<ApiResponse<NovelCreateResourceRecommendation>>(
+    "/novels/resource-recommendation",
+    payload,
+  );
   return data;
 }
 

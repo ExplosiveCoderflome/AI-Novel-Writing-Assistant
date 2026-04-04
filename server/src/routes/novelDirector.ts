@@ -43,6 +43,8 @@ const projectContextSchema = z.object({
     .max(BOOK_FRAMING_MAX_COMMERCIAL_TAGS)
     .optional(),
   genreId: z.string().trim().optional(),
+  primaryStoryModeId: z.string().trim().optional(),
+  secondaryStoryModeId: z.string().trim().optional(),
   worldId: z.string().trim().optional(),
   writingMode: z.enum(["original", "continuation"]).optional(),
   projectMode: z.enum(["ai_led", "co_pilot", "draft_mode", "auto_pipeline"]).optional(),

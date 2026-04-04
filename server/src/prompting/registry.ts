@@ -238,6 +238,10 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/novel/production.prompts").novelProductionCharactersPrompt as UnknownPromptAsset,
   },
   {
+    key: "novel.create.resource_recommendation@v1",
+    load: () => require("./prompts/novel/resourceRecommendation.prompts").novelCreateResourceRecommendationPrompt as UnknownPromptAsset,
+  },
+  {
     key: "state.snapshot.extract@v2",
     load: () => require("./prompts/state/state.prompts").stateSnapshotPrompt as UnknownPromptAsset,
   },
@@ -276,6 +280,10 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
   {
     key: "style.profile.from_book_analysis@v1",
     load: () => require("./prompts/style/style.prompts").styleProfileFromBookAnalysisPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "style.profile.from_brief@v1",
+    load: () => require("./prompts/style/style.prompts").styleProfileFromBriefPrompt as UnknownPromptAsset,
   },
   {
     key: "world.reference.inspiration@v1",

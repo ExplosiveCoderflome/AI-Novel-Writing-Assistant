@@ -155,6 +155,8 @@ export function buildDirectorTakeoverInput(input: {
     first30ChapterPromise: input.novel.first30ChapterPromise?.trim() || undefined,
     commercialTags: input.novel.commercialTags.length > 0 ? input.novel.commercialTags : undefined,
     genreId: input.novel.genreId?.trim() || undefined,
+    primaryStoryModeId: input.novel.primaryStoryModeId?.trim() || undefined,
+    secondaryStoryModeId: input.novel.secondaryStoryModeId?.trim() || undefined,
     worldId: input.novel.worldId?.trim() || undefined,
     writingMode: input.novel.writingMode,
     projectMode: input.novel.projectMode,

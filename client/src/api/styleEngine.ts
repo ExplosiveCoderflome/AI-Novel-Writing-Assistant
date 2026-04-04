@@ -121,6 +121,18 @@ export async function createStyleProfileFromTemplate(payload: { templateId: stri
   return data;
 }
 
+export async function createStyleProfileFromBrief(payload: {
+  brief: string;
+  name?: string;
+  category?: string;
+  provider?: string;
+  model?: string;
+  temperature?: number;
+}) {
+  const { data } = await apiClient.post<ApiResponse<StyleProfile>>("/style-profiles/from-brief", payload);
+  return data;
+}
+
 export async function testWriteWithStyleProfile(
   id: string,
   payload: {

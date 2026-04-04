@@ -7,6 +7,7 @@ import { queryKeys } from "@/api/queryKeys";
 import {
   createManualStyleProfile,
   createStyleBinding,
+  createStyleProfileFromBrief,
   createStyleProfileFromText,
   createStyleProfileFromTemplate,
   deleteStyleBinding,
@@ -41,6 +42,9 @@ export default function WritingFormulaPage() {
   const [message, setMessage] = useState("");
   const [createForm, setCreateForm] = useState({
     manualName: "",
+    briefName: "",
+    briefCategory: "",
+    briefPrompt: "",
     extractName: "",
     extractCategory: "",
     extractSourceText: "",
@@ -208,6 +212,30 @@ export default function WritingFormulaPage() {
       if (response.data) {
         setSelectedProfileId(response.data.id);
         setMessage("已基于模板创建写法资产。");
+      }
+      await refreshStyleData();
+    },
+  });
+
+  const createFromBriefMutation = useMutation({
+    mutationFn: () => createStyleProfileFromBrief({
+      brief: createForm.briefPrompt,
+      name: createForm.briefName || undefined,
+      category: createForm.briefCategory || undefined,
+      provider: llm.provider,
+      model: llm.model,
+      temperature: llm.temperature,
+    }),
+    onSuccess: async (response) => {
+      if (response.data) {
+        setSelectedProfileId(response.data.id);
+        setCreateForm((prev) => ({
+          ...prev,
+          briefName: "",
+          briefCategory: "",
+          briefPrompt: "",
+        }));
+        setMessage("AI 已根据你的描述生成一套起步写法，可以直接继续微调。");
       }
       await refreshStyleData();
     },
@@ -396,7 +424,7 @@ export default function WritingFormulaPage() {
         <div>
           <h1 className="text-2xl font-semibold">写法引擎</h1>
           <p className="text-sm text-muted-foreground">
-            写法资产、模板、绑定、试写与反 AI 修正统一工作区。
+            先选一套预置写法或模板起步，再慢慢微调规则、绑定对象和试写结果。
           </p>
         </div>
         <OpenInCreativeHubButton bindings={{ styleProfileId: selectedProfileId || null }} label="写法资产发往创作中枢" />
@@ -409,9 +437,11 @@ export default function WritingFormulaPage() {
           createForm={createForm}
           onCreateFormChange={(patch) => setCreateForm((prev) => ({ ...prev, ...patch }))}
           onCreateManual={() => createManualMutation.mutate()}
+          onCreateFromBrief={() => createFromBriefMutation.mutate()}
           onExtractFromText={() => createFromTextMutation.mutate()}
           onCreateFromTemplate={(templateId) => createFromTemplateMutation.mutate(templateId)}
           createManualPending={createManualMutation.isPending}
+          createFromBriefPending={createFromBriefMutation.isPending}
           extractFromTextPending={createFromTextMutation.isPending}
           createFromTemplatePending={createFromTemplateMutation.isPending}
           templates={templates}

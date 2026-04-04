@@ -3,6 +3,7 @@ import type { StyleExtractionDraft, StyleFeatureDecision, StyleProfile, StylePro
 import { prisma } from "../../db/prisma";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import {
+  styleProfileFromBriefPrompt,
   styleProfileExtractionPrompt,
   styleProfileFromBookAnalysisPrompt,
 } from "../../prompting/prompts/style/style.prompts";
@@ -55,6 +56,8 @@ interface GeneratedStylePayload {
   languageRules?: Record<string, unknown>;
   rhythmRules?: Record<string, unknown>;
 }
+
+const AI_STYLE_BRIEF_SOURCE_PREFIX = "ai-style-brief:";
 
 export class StyleProfileService {
   async listProfiles(): Promise<StyleProfile[]> {
@@ -330,6 +333,26 @@ export class StyleProfileService {
     });
   }
 
+  async createFromBrief(input: {
+    brief: string;
+    name?: string;
+    category?: string;
+  } & LlmInput): Promise<StyleProfile> {
+    await ensureStyleEngineSeedData();
+    const generated = await this.generateStructuredStyleFromBrief({
+      brief: input.brief,
+      name: input.name?.trim() || undefined,
+      category: input.category?.trim() || undefined,
+    }, input);
+    return this.persistGeneratedProfile({
+      inputName: input.name?.trim() || generated.name?.trim() || "AI 生成写法",
+      sourceType: "manual",
+      sourceRefId: `${AI_STYLE_BRIEF_SOURCE_PREFIX}${Date.now()}`,
+      sourceContent: input.brief,
+      generated,
+    });
+  }
+
   private async generateStructuredStyle(
     promptInput: {
       analysisTitle: string;
@@ -345,6 +368,26 @@ export class StyleProfileService {
         provider: llmInput.provider ?? "deepseek",
         model: llmInput.model,
         temperature: llmInput.temperature ?? 0.5,
+      },
+    });
+    return result.output;
+  }
+
+  private async generateStructuredStyleFromBrief(
+    promptInput: {
+      brief: string;
+      name?: string;
+      category?: string;
+    },
+    llmInput: LlmInput,
+  ): Promise<GeneratedStylePayload> {
+    const result = await runStructuredPrompt({
+      asset: styleProfileFromBriefPrompt,
+      promptInput,
+      options: {
+        provider: llmInput.provider ?? "deepseek",
+        model: llmInput.model,
+        temperature: llmInput.temperature ?? 0.6,
       },
     });
     return result.output;

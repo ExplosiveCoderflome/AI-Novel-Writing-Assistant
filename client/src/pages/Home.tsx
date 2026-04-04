@@ -24,6 +24,8 @@ import { toast } from "@/components/ui/toast";
 
 const HOME_NOVEL_FETCH_LIMIT = 100;
 const HOME_RECENT_LIMIT = 6;
+const DIRECTOR_CREATE_LINK = "/novels/create?mode=director";
+const MANUAL_CREATE_LINK = "/novels/create";
 
 type HomeNovelItem = NovelListResponse["items"][number];
 
@@ -133,6 +135,7 @@ export default function Home() {
 
   const tasks = taskQuery.data?.data?.items ?? [];
   const allNovels = novelQuery.data?.data?.items ?? [];
+  const hasNovels = allNovels.length > 0;
 
   const liveWorkflowCount = useMemo(
     () => allNovels.filter((novel) => isLiveWorkflowTask(novel.latestAutoDirectorTask ?? null)).length,
@@ -302,6 +305,35 @@ export default function Home() {
         />
       </div>
 
+      <Card className="border-primary/30 bg-gradient-to-br from-primary/10 via-background to-primary/5 shadow-sm">
+        <CardHeader>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge>新手推荐</Badge>
+            <Badge variant="outline">低门槛开书</Badge>
+          </div>
+          <CardTitle>
+            {hasNovels ? "想快速开启下一本书？先交给 AI 自动导演。" : "第一次使用？先让 AI 自动导演带你开一本书。"}
+          </CardTitle>
+          <CardDescription>
+            你只需要提供一个模糊想法，AI 会先帮你生成方向方案、标题包和开书准备，并在关键阶段停下来等你确认，不需要你一开始就把结构全部想清楚。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            <span>适合还没想清楚题材、卖点和前 30 章承诺时使用</span>
+            <span>也适合先快速搭起一本可继续推进的新项目</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild size="lg">
+              <Link to={DIRECTOR_CREATE_LINK}>AI 自动导演开书</Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link to={MANUAL_CREATE_LINK}>手动创建小说</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>继续最近项目</CardTitle>
@@ -384,11 +416,16 @@ export default function Home() {
           ) : (
             <div className="space-y-3">
               <div className="text-sm text-muted-foreground">
-                你还没有开始小说项目，首页会在你创建第一本书后自动显示最合适的继续入口。
+                你还没有开始小说项目。第一次使用时，推荐直接走 AI 自动导演，它会先帮你搭好方向和开写准备。
               </div>
-              <Button asChild>
-                <Link to="/novels/create">开始创建小说</Link>
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild>
+                  <Link to={DIRECTOR_CREATE_LINK}>AI 自动导演开书</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link to={MANUAL_CREATE_LINK}>手动创建小说</Link>
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
@@ -397,11 +434,14 @@ export default function Home() {
       <Card>
         <CardHeader>
           <CardTitle>快捷操作</CardTitle>
-          <CardDescription>从首页直接进入高频入口。</CardDescription>
+          <CardDescription>把常用入口和新手最容易上手的开书方式放在一起。</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           <Button asChild>
-            <Link to="/novels/create">新建小说</Link>
+            <Link to={DIRECTOR_CREATE_LINK}>AI 自动导演开书</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to={MANUAL_CREATE_LINK}>手动创建小说</Link>
           </Button>
           <Button asChild variant="outline">
             <Link to="/book-analysis">新建拆书</Link>

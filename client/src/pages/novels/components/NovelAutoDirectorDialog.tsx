@@ -36,14 +36,19 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { useLLMStore } from "@/store/llmStore";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
+import NovelCreateResourceRecommendationCard from "./NovelCreateResourceRecommendationCard";
 import NovelAutoDirectorProgressPanel from "./NovelAutoDirectorProgressPanel";
 
 interface NovelAutoDirectorDialogProps {
   basicForm: NovelBasicFormState;
+  genreOptions: Array<{ id: string; path: string; label: string }>;
+  storyModeOptions: Array<{ id: string; path: string; name: string }>;
+  worldOptions: Array<{ id: string; name: string }>;
   workflowTaskId?: string;
   restoredTask?: UnifiedTaskDetail | null;
   initialOpen?: boolean;
   onWorkflowTaskChange?: (workflowTaskId: string) => void;
+  onBasicFormChange?: (patch: Partial<NovelBasicFormState>) => void;
   onConfirmed: (input: {
     novelId: string;
     workflowTaskId?: string;
@@ -110,6 +115,8 @@ function buildRequestPayload(
     first30ChapterPromise: basicForm.first30ChapterPromise.trim() || undefined,
     commercialTags: commercialTags.length > 0 ? commercialTags : undefined,
     genreId: basicForm.genreId || undefined,
+    primaryStoryModeId: basicForm.primaryStoryModeId || undefined,
+    secondaryStoryModeId: basicForm.secondaryStoryModeId || undefined,
     worldId: basicForm.worldId || undefined,
     writingMode: basicForm.writingMode,
     projectMode: basicForm.projectMode,
@@ -137,16 +144,29 @@ function buildRequestPayload(
   };
 }
 
-function summarizeCurrentContext(basicForm: NovelBasicFormState): string[] {
+function summarizeCurrentContext(
+  basicForm: NovelBasicFormState,
+  genreOptions: Array<{ id: string; path: string; label: string }>,
+  storyModeOptions: Array<{ id: string; path: string; name: string }>,
+  worldOptions: Array<{ id: string; name: string }>,
+): string[] {
   const commercialTags = normalizeCommercialTags(basicForm.commercialTagsText);
+  const genrePath = genreOptions.find((item) => item.id === basicForm.genreId)?.path ?? basicForm.genreId;
+  const primaryStoryModePath = storyModeOptions.find((item) => item.id === basicForm.primaryStoryModeId)?.path
+    ?? basicForm.primaryStoryModeId;
+  const secondaryStoryModePath = storyModeOptions.find((item) => item.id === basicForm.secondaryStoryModeId)?.path
+    ?? basicForm.secondaryStoryModeId;
+  const worldName = worldOptions.find((item) => item.id === basicForm.worldId)?.name ?? basicForm.worldId;
   return [
     basicForm.targetAudience.trim() ? `目标读者：${basicForm.targetAudience.trim()}` : "",
     basicForm.bookSellingPoint.trim() ? `书级卖点：${basicForm.bookSellingPoint.trim()}` : "",
     basicForm.competingFeel.trim() ? `对标气质：${basicForm.competingFeel.trim()}` : "",
     basicForm.first30ChapterPromise.trim() ? `前30章承诺：${basicForm.first30ChapterPromise.trim()}` : "",
     commercialTags.length > 0 ? `商业标签：${commercialTags.join(" / ")}` : "",
-    basicForm.genreId ? `已选题材基底：${basicForm.genreId}` : "",
-    basicForm.worldId ? `已绑定世界观：${basicForm.worldId}` : "",
+    genrePath ? `已选题材基底：${genrePath}` : "",
+    primaryStoryModePath ? `已选主推进模式：${primaryStoryModePath}` : "",
+    secondaryStoryModePath ? `已选副推进模式：${secondaryStoryModePath}` : "",
+    worldName ? `已绑定世界观：${worldName}` : "",
     `创作模式：${basicForm.writingMode}`,
     `项目模式：${basicForm.projectMode}`,
     `视角：${basicForm.narrativePov}`,
@@ -185,10 +205,14 @@ function resolveCandidateTitleOptions(candidate: DirectorCandidate): TitleFactor
 
 export default function NovelAutoDirectorDialog({
   basicForm,
+  genreOptions,
+  storyModeOptions,
+  worldOptions,
   workflowTaskId: workflowTaskIdProp,
   restoredTask,
   initialOpen = false,
   onWorkflowTaskChange,
+  onBasicFormChange,
   onConfirmed,
 }: NovelAutoDirectorDialogProps) {
   const navigate = useNavigate();
@@ -270,7 +294,10 @@ export default function NovelAutoDirectorDialog({
     },
   });
 
-  const currentContextLines = useMemo(() => summarizeCurrentContext(basicForm), [basicForm]);
+  const currentContextLines = useMemo(
+    () => summarizeCurrentContext(basicForm, genreOptions, storyModeOptions, worldOptions),
+    [basicForm, genreOptions, storyModeOptions, worldOptions],
+  );
   const latestBatch = batches.at(-1) ?? null;
   const directorTask = useMemo(() => {
     const loadedTask = directorTaskQuery.data?.data ?? null;
@@ -713,6 +740,14 @@ export default function NovelAutoDirectorDialog({
                     )}
                   </div>
                 </div>
+                {onBasicFormChange ? (
+                  <div className="mt-3">
+                    <NovelCreateResourceRecommendationCard
+                      basicForm={basicForm}
+                      onApplySuggestion={onBasicFormChange}
+                    />
+                  </div>
+                ) : null}
                 <div className="mt-4 flex justify-end">
                   <Button type="button" onClick={() => generateMutation.mutate()} disabled={!canGenerate}>
                     {generateMutation.isPending

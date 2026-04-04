@@ -22,6 +22,8 @@ import { toast } from "@/components/ui/toast";
 
 type StatusFilter = "all" | "draft" | "published";
 type WritingModeFilter = "all" | "original" | "continuation";
+const DIRECTOR_CREATE_LINK = "/novels/create?mode=director";
+const MANUAL_CREATE_LINK = "/novels/create";
 
 function createDownload(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
@@ -185,9 +187,14 @@ export default function NovelList() {
           </div>
         </div>
 
-        <Button asChild>
-          <Link to="/novels/create">创建新小说</Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild>
+            <Link to={DIRECTOR_CREATE_LINK}>AI 自动导演开书</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to={MANUAL_CREATE_LINK}>手动创建小说</Link>
+          </Button>
+        </div>
       </div>
 
       {novelListQuery.isPending ? (
@@ -226,10 +233,20 @@ export default function NovelList() {
             <CardTitle>{allNovels.length === 0 ? "暂无小说" : "暂无符合筛选条件的小说"}</CardTitle>
             <CardDescription>
               {allNovels.length === 0
-                ? "点击右上角“创建新小说”开始创作。"
+                ? "第一次使用时，推荐直接点右上角“AI 自动导演开书”，让系统先帮你搭好方向与开写准备。"
                 : "可以调整上方筛选条件，或直接创建新的小说项目。"}
             </CardDescription>
           </CardHeader>
+          {allNovels.length === 0 ? (
+            <CardContent className="flex flex-wrap gap-2">
+              <Button asChild>
+                <Link to={DIRECTOR_CREATE_LINK}>AI 自动导演开书</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to={MANUAL_CREATE_LINK}>手动创建小说</Link>
+              </Button>
+            </CardContent>
+          ) : null}
         </Card>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">

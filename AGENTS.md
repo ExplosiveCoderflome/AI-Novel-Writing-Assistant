@@ -55,5 +55,7 @@
 
 ## README Release Notes Workflow
 
+- Before any commit, push, or PR step in this repository, use the `commit-readme-progress` skill from `${CODEX_HOME:-~/.codex}/skills/commit-readme-progress` to inspect the Git scope, summarize the user-visible changes, and update `README.md` `## 最近进展` when applicable.
 - When the user asks to commit or push code, inspect the Git scope for that push and update `README.md` before the Git write step if the change set has clear user-facing impact.
+- If the current diff is purely internal and has no clear user-facing impact, state that explicitly and skip the README edit instead of forcing a release note.
 - Write the README release note from the user's perspective: describe capabilities, workflow improvements, and visible product behavior instead of file names, route names, service names, tests, or refactor details.
