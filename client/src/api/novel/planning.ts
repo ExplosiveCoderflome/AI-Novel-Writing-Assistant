@@ -3,6 +3,7 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
   AuditIssue,
   AuditReport,
+  PayoffLedgerResponse,
   QualityScore,
   ReplanRecommendation,
   ReplanResult,
@@ -40,6 +41,13 @@ export async function getNovelState(id: string) {
 
 export async function getLatestStateSnapshot(id: string) {
   const { data } = await apiClient.get<ApiResponse<StoryStateSnapshot | null>>(`/novels/${id}/state-snapshots/latest`);
+  return data;
+}
+
+export async function getNovelPayoffLedger(id: string, chapterOrder?: number) {
+  const { data } = await apiClient.get<ApiResponse<PayoffLedgerResponse>>(`/novels/${id}/payoff-ledger`, {
+    params: typeof chapterOrder === "number" ? { chapterOrder } : undefined,
+  });
   return data;
 }
 

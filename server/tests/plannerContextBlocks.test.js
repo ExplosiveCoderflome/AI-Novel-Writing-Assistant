@@ -63,6 +63,13 @@ function createInput() {
     characterCandidateGuards: "林策(情报商) | 待确认候选 | 来源章节=4 | 只读约束，未确认前禁止写入正式执行链",
     defaultMetadata: "planRole=pressure | phase=反压前夜\nmustAdvance=第一次反压\nmustPreserve=压迫感",
     replanContext: "无",
+    payoffLedgerSummary: [
+      "账本摘要：待兑现=2，紧急=1，逾期=1，已兑现=1",
+      "当前未兑现项：女二情报钥匙 | 需要先铺垫她带来的反压价值；黑市账户异常 | 主角要先确认账本有异动",
+      "当前逾期项：黑市账户异常 | 目标窗口已过，不能继续拖延",
+      "本章应触碰项：女二情报钥匙 | 窗口=5-6；黑市账户异常 | 窗口=4-5",
+      "最近一次已兑现项：第一次反压试探 | 已在第4章附近兑现",
+    ].join("\n"),
     storyMacroSummary: "核心冲突：主角在压迫中夺回主动权\n推进回路：每次反压都会引来更强反扑",
     currentVolumeWindow: "当前卷：第一卷\n卷使命：建立压迫源并完成第一次反压\n下一卷预期：敌我盘面升级",
     storyModeBlock: "故事模式：都市反压",
@@ -85,6 +92,8 @@ test("chapter planner context prioritizes framing, story macro and current volum
   assert.match(byId.get("character_volume_assignments").content, /卷级职责=完成第一次反压/);
   assert.match(byId.get("character_relation_stages").content, /互试探合作/);
   assert.match(byId.get("character_candidate_guards").content, /未确认前禁止写入正式执行链/);
+  assert.match(byId.get("payoff_ledger").content, /账本摘要：待兑现=2，紧急=1，逾期=1，已兑现=1/);
+  assert.match(byId.get("payoff_ledger").content, /当前逾期项：黑市账户异常/);
   assert.match(byId.get("legacy_outline_source").content, /兼容性旧主线大纲（仅作迁移参考）/);
   assert.equal(byId.get("legacy_outline_source").required, false);
   assert.ok(byId.get("book_framing").priority > byId.get("legacy_outline_source").priority);

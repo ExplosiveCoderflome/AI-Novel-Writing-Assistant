@@ -7,6 +7,7 @@ import type {
 } from "@ai-novel/shared/types/chapterRuntime";
 import { prisma } from "../../../db/prisma";
 import { auditService } from "../../audit/AuditService";
+import { buildSyntheticPayoffIssues } from "../../payoff/payoffLedgerShared";
 import { plannerService } from "../../planner/PlannerService";
 import { openConflictService } from "../../state/OpenConflictService";
 import { StyleDetectionService } from "../../styleEngine/StyleDetectionService";
@@ -420,6 +421,13 @@ export class ChapterRuntimeCoordinator {
     styleReview: StyleReviewResult;
     runId: string | null;
   }): ChapterRuntimePackage {
+    const syntheticPayoffIssues = buildSyntheticPayoffIssues(
+      [
+        ...input.contextPackage.ledgerPendingItems,
+        ...input.contextPackage.ledgerOverdueItems.filter((item) => !input.contextPackage.ledgerPendingItems.some((pending) => pending.ledgerKey === item.ledgerKey)),
+      ],
+      input.contextPackage.chapter.order,
+    );
     const openIssues = input.auditResult.auditReports
       .flatMap((report) => report.issues)
       .filter((issue) => issue.status === "open")
@@ -435,11 +443,29 @@ export class ChapterRuntimeCoordinator {
         status: issue.status,
         createdAt: issue.createdAt,
         updatedAt: issue.updatedAt,
-      }));
+      }))
+      .concat(syntheticPayoffIssues.map((issue) => ({
+        id: `payoff-ledger:${issue.ledgerKey}:${issue.code}`,
+        reportId: `payoff-ledger:${input.novelId}:${input.chapterId}`,
+        auditType: "plot" as const,
+        severity: issue.severity,
+        code: issue.code,
+        description: issue.description,
+        evidence: issue.evidence,
+        fixSuggestion: issue.fixSuggestion,
+        status: "open" as const,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })));
 
     const blockingIssueIds = openIssues
       .filter((issue) => issue.severity === "high" || issue.severity === "critical")
       .map((issue) => issue.id);
+    const blockingLedgerKeys = Array.from(new Set(
+      syntheticPayoffIssues
+        .filter((issue) => issue.severity === "high" || issue.severity === "critical")
+        .map((issue) => issue.ledgerKey),
+    ));
     const hasBlockingIssues = blockingIssueIds.length > 0;
     const repairContextPackage = withChapterRepairContext(
       input.contextPackage,
@@ -499,11 +525,17 @@ export class ChapterRuntimeCoordinator {
         hasBlockingIssues,
       },
       replanRecommendation: {
-        recommended: hasBlockingIssues || this.deps.plannerService.shouldTriggerReplanFromAudit(input.auditResult.auditReports),
-        reason: hasBlockingIssues
-          ? "Blocking audit issues remain open after generation."
-          : "No blocking audit issues were detected.",
+        recommended: hasBlockingIssues || this.deps.plannerService.shouldTriggerReplanFromAudit(
+          input.auditResult.auditReports,
+          input.contextPackage.ledgerSummary ?? null,
+        ),
+        reason: input.contextPackage.ledgerSummary?.overdueCount
+          ? "Overdue payoff ledger items require replan or explicit payoff handling."
+          : hasBlockingIssues
+            ? "Blocking audit issues remain open after generation."
+            : "No blocking audit issues were detected.",
         blockingIssueIds,
+        blockingLedgerKeys,
       },
       styleReview: {
         report: input.styleReview.report,

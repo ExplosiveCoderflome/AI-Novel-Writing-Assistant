@@ -48,7 +48,21 @@ function hasChapterPlanContent(chapter: VolumeChapter): boolean {
 }
 
 export default function NovelEditView(props: NovelEditViewProps) {
-  const { id, activeTab, onActiveTabChange, basicTab, storyMacroTab, outlineTab, structuredTab, chapterTab, pipelineTab, characterTab, takeover, taskDrawer } = props;
+  const {
+    id,
+    activeTab,
+    workflowCurrentTab,
+    onActiveTabChange,
+    basicTab,
+    storyMacroTab,
+    outlineTab,
+    structuredTab,
+    chapterTab,
+    pipelineTab,
+    characterTab,
+    takeover,
+    taskDrawer,
+  } = props;
   const [isKnowledgeBindingOpen, setIsKnowledgeBindingOpen] = useState(false);
   const [isProjectOverviewOpen, setIsProjectOverviewOpen] = useState(false);
 
@@ -66,6 +80,7 @@ export default function NovelEditView(props: NovelEditViewProps) {
 
   const tabOrder = ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline", "history"];
   const activeStageIndex = Math.max(0, tabOrder.indexOf(activeTab));
+  const workflowStageIndex = Math.max(-1, workflowCurrentTab ? tabOrder.indexOf(workflowCurrentTab) : -1);
   const basicReady = basicTab.basicForm.title.trim().length > 0;
   const storyMacroReady = basicReady && storyMacroTab.constraintEngine !== null;
   const characterReady = storyMacroReady && characterTab.characters.length > 0;
@@ -127,8 +142,12 @@ export default function NovelEditView(props: NovelEditViewProps) {
       ready: Boolean(id),
     },
   ];
-  const completedStages = stages.filter((stage) => stage.ready).length;
+  const isWorkflowStageReady = (index: number, stageReady: boolean) => (
+    stageReady || (workflowStageIndex >= 0 && index < workflowStageIndex)
+  );
+  const completedStages = stages.filter((stage, index) => isWorkflowStageReady(index, stage.ready)).length;
   const progressPercent = Math.round((completedStages / Math.max(stages.length, 1)) * 100);
+  const displayCurrentStageIndex = workflowStageIndex >= 0 ? workflowStageIndex : activeStageIndex;
   const taskAttentionLabel = taskDrawer?.task
     ? taskDrawer.task.status === "failed"
       ? "异常"
@@ -225,33 +244,34 @@ export default function NovelEditView(props: NovelEditViewProps) {
                 />
               </div>
               <div className="mt-2 text-xs text-muted-foreground">
-                当前阶段：{stages[activeStageIndex]?.label ?? "项目设定"}
+                当前阶段：{stages[displayCurrentStageIndex]?.label ?? "项目设定"}
               </div>
             </div>
           </div>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
           {stages.map((stage, index) => {
-            const isActive = index === activeStageIndex;
-            const isDone = stage.ready;
-            const statusLabel = isActive ? "当前阶段" : isDone ? "已就绪" : "待推进";
+            const isSelected = index === activeStageIndex;
+            const isWorkflowCurrent = index === workflowStageIndex;
+            const isDone = isWorkflowStageReady(index, stage.ready);
+            const statusLabel = isWorkflowCurrent ? "当前阶段" : isDone ? "已就绪" : "待推进";
             return (
               <button
                 key={stage.key}
                 type="button"
                 onClick={() => onActiveTabChange(stage.key)}
                 className={`rounded border px-3 py-2 text-left text-sm transition ${
-                  isActive
+                  isWorkflowCurrent
                     ? "border-sky-400/70 bg-sky-50 shadow-sm ring-1 ring-sky-200"
                     : isDone
                       ? "border-emerald-500/40 bg-emerald-500/10 hover:border-emerald-500/70"
                       : "border-border/70 bg-background hover:border-primary/30 hover:bg-muted/30"
-                }`}
+                } ${isSelected && !isWorkflowCurrent ? "ring-1 ring-primary/30" : ""}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span
                     className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
-                      isActive
+                      isWorkflowCurrent
                         ? "bg-sky-600 text-white"
                         : isDone
                           ? "bg-emerald-600 text-white"
@@ -262,7 +282,7 @@ export default function NovelEditView(props: NovelEditViewProps) {
                   </span>
                   <span
                     className={`rounded-full px-2 py-1 text-[11px] font-medium ${
-                      isActive
+                      isWorkflowCurrent
                         ? "bg-sky-100 text-sky-700"
                         : isDone
                           ? "bg-emerald-500/15 text-emerald-700"

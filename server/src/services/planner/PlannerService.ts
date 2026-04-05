@@ -1,8 +1,10 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { AuditReport, ReplanResult } from "@ai-novel/shared/types/novel";
+import type { PayoffLedgerSummary } from "@ai-novel/shared/types/payoffLedger";
 import { prisma } from "../../db/prisma";
 import { parseJsonStringArray } from "../novel/novelP0Utils";
 import { characterDynamicsQueryService } from "../novel/dynamics/CharacterDynamicsQueryService";
+import { payoffLedgerSyncService } from "../payoff/PayoffLedgerSyncService";
 import { mapRowToPlan } from "../novel/storyMacro/storyMacroPlanPersistence";
 import { stateService } from "../state/StateService";
 import { StyleBindingService } from "../styleEngine/StyleBindingService";
@@ -21,6 +23,7 @@ import {
 import {
   buildCurrentVolumeWindowSummary,
   buildPlannerCharacterDynamicsContext,
+  buildPlannerPayoffLedgerContext,
   buildPlannerStoryModeBlock,
   buildPlannerStyleEngineSummary,
   buildStoryMacroSummary,
@@ -383,6 +386,21 @@ export class PlannerService {
     }
     const storyModeBlock = buildPlannerStoryModeBlock(novel);
     const storyMacroPlan = storyMacroPlanRow ? mapRowToPlan(storyMacroPlanRow) : null;
+    const payoffLedger = await payoffLedgerSyncService.getPayoffLedger(novelId, {
+      chapterOrder: chapter.order,
+    }).catch(() => ({
+      summary: {
+        totalCount: 0,
+        pendingCount: 0,
+        urgentCount: 0,
+        overdueCount: 0,
+        paidOffCount: 0,
+        failedCount: 0,
+        updatedAt: null,
+      },
+      items: [],
+      updatedAt: null,
+    }));
     const characterDynamicsOverview = await characterDynamicsQueryService.getOverview(novelId, {
       chapterOrder: chapter.order,
     }).catch(() => null);
@@ -507,6 +525,7 @@ export class PlannerService {
       replanContext: replanContextBlock,
       storyMacroSummary: buildStoryMacroSummary(storyMacroPlan),
       currentVolumeWindow: buildCurrentVolumeWindowSummary(plannerVolumes, chapter.order),
+      payoffLedgerSummary: buildPlannerPayoffLedgerContext(payoffLedger, chapter.order),
       storyModeBlock,
     });
     const output = await invokePlannerLLM({
@@ -642,7 +661,10 @@ export class PlannerService {
     };
   }
 
-  shouldTriggerReplanFromAudit(auditReports: AuditReport[]): boolean {
+  shouldTriggerReplanFromAudit(auditReports: AuditReport[], ledgerSummary?: PayoffLedgerSummary | null): boolean {
+    if ((ledgerSummary?.overdueCount ?? 0) > 0) {
+      return true;
+    }
     return auditReports.some((report) => report.issues.some((issue) => issue.status === "open" && (issue.severity === "high" || issue.severity === "critical")));
   }
 

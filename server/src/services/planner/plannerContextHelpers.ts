@@ -1,5 +1,6 @@
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
 import type { ResolvedStyleContext } from "@ai-novel/shared/types/styleEngine";
+import type { PayoffLedgerResponse } from "@ai-novel/shared/types/payoffLedger";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../storyMode/storyModeProfile";
 import { characterDynamicsQueryService } from "../novel/dynamics/CharacterDynamicsQueryService";
 
@@ -207,4 +208,41 @@ export function buildPlannerStyleEngineSummary(styleContext: ResolvedStyleContex
     bindingLine,
     sections.length > 0 ? `规划期写法约束：\n${sections.join("\n")}` : "",
   ].filter(Boolean).join("\n\n") || "无";
+}
+
+export function buildPlannerPayoffLedgerContext(ledger: PayoffLedgerResponse, chapterOrder: number): string {
+  if (!ledger.items.length) {
+    return "无";
+  }
+
+  const pendingItems = ledger.items
+    .filter((item) => item.currentStatus === "setup" || item.currentStatus === "hinted" || item.currentStatus === "pending_payoff")
+    .slice(0, 6)
+    .map((item) => `${item.title} | ${item.summary}`);
+  const overdueItems = ledger.items
+    .filter((item) => item.currentStatus === "overdue")
+    .slice(0, 4)
+    .map((item) => `${item.title} | ${item.statusReason ?? item.summary}`);
+  const touchNowItems = ledger.items
+    .filter((item) => item.currentStatus !== "paid_off" && item.currentStatus !== "failed")
+    .filter((item) => (
+      (typeof item.targetStartChapterOrder === "number" && item.targetStartChapterOrder <= chapterOrder)
+      || (typeof item.targetEndChapterOrder === "number" && item.targetEndChapterOrder <= chapterOrder + 1)
+      || item.currentStatus === "overdue"
+    ))
+    .slice(0, 5)
+    .map((item) => `${item.title} | 窗口=${item.targetStartChapterOrder ?? "?"}-${item.targetEndChapterOrder ?? "?"}`);
+  const recentlyPaidOff = ledger.items
+    .filter((item) => item.currentStatus === "paid_off")
+    .sort((left, right) => (right.lastTouchedChapterOrder ?? 0) - (left.lastTouchedChapterOrder ?? 0))
+    .slice(0, 4)
+    .map((item) => `${item.title} | 已在第${item.lastTouchedChapterOrder ?? "?"}章附近兑现`);
+
+  return [
+    `账本摘要：待兑现=${ledger.summary.pendingCount}，紧急=${ledger.summary.urgentCount}，逾期=${ledger.summary.overdueCount}，已兑现=${ledger.summary.paidOffCount}`,
+    `当前未兑现项：${pendingItems.join("；") || "无"}`,
+    `当前逾期项：${overdueItems.join("；") || "无"}`,
+    `本章应触碰项：${touchNowItems.join("；") || "无"}`,
+    `最近一次已兑现项：${recentlyPaidOff.join("；") || "无"}`,
+  ].join("\n");
 }

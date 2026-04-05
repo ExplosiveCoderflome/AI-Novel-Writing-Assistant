@@ -11,6 +11,7 @@ import type {
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
 import { novelEventBus } from "../../../events";
+import { payoffLedgerSyncService } from "../../payoff/PayoffLedgerSyncService";
 import { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import {
   buildTaskSheetFromVolumeChapter,
@@ -58,6 +59,10 @@ export class NovelVolumeService {
       type: "volume:updated",
       payload: { novelId },
     }).catch(() => {});
+  }
+
+  private syncPayoffLedger(novelId: string): void {
+    void payoffLedgerSyncService.syncLedger(novelId).catch(() => null);
   }
 
   private parseVersionDocument(novelId: string, contentJson: string): VolumePlanDocument {
@@ -204,6 +209,7 @@ export class NovelVolumeService {
       return nextDocument;
     });
     this.emitVolumeUpdated(novelId);
+    this.syncPayoffLedger(novelId);
     return persistedDocument;
   }
 
@@ -286,6 +292,7 @@ export class NovelVolumeService {
       throw new Error("卷级版本激活失败。");
     }
     this.emitVolumeUpdated(novelId);
+    this.syncPayoffLedger(novelId);
     return mapVersionRow(refreshed);
   }
 
@@ -448,12 +455,14 @@ export class NovelVolumeService {
     });
 
     this.emitVolumeUpdated(novelId);
+    this.syncPayoffLedger(novelId);
     return plan.preview;
   }
 
   async migrateLegacyVolumes(novelId: string): Promise<VolumePlanDocument> {
     const workspace = await this.ensureVolumeWorkspace(novelId);
     this.emitVolumeUpdated(novelId);
+    this.syncPayoffLedger(novelId);
     return workspace;
   }
 

@@ -10,6 +10,8 @@ import { parseJsonStringArray } from "../novelP0Utils";
 import { StyleBindingService } from "../../styleEngine/StyleBindingService";
 import { NovelWorldSliceService } from "../storyWorldSlice/NovelWorldSliceService";
 import { characterDynamicsQueryService } from "../dynamics/CharacterDynamicsQueryService";
+import { payoffLedgerSyncService } from "../../payoff/PayoffLedgerSyncService";
+import { buildSyntheticPayoffIssues, classifyPayoffLedgerItems } from "../../payoff/payoffLedgerShared";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import {
   buildLegacyWorldContextFromWorld,
@@ -318,6 +320,7 @@ export class GenerationContextAssembler {
       characterDynamics,
       continuationPack,
       styleContext,
+      payoffLedger,
     ] = await Promise.all([
       this.worldSliceService.ensureStoryWorldSlice(novelId, { builderMode: "runtime" }),
       plannerService.buildPlanPromptBlock(novelId, chapterId),
@@ -382,8 +385,12 @@ export class GenerationContextAssembler {
         chapterId,
         taskStyleProfileId: request.taskStyleProfileId,
       }),
+      payoffLedgerSyncService.getPayoffLedger(novelId, {
+        chapterOrder: chapter.order,
+      }),
     ]);
 
+    const classifiedLedger = classifyPayoffLedgerItems(payoffLedger.items, chapter.order);
     const previousChaptersSummary = buildPreviousChaptersSummary(request.previousChaptersSummary, summaries);
     const mappedOpenConflicts = openConflicts.map((item) => mapOpenConflict(item));
     const storyMacroPlan = novel.storyMacroPlan ? mapRowToPlan(novel.storyMacroPlan) : null;
@@ -446,7 +453,21 @@ export class GenerationContextAssembler {
       status: item.status as GenerationContextPackage["openAuditIssues"][number]["status"],
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
-    }));
+    })).concat(
+      buildSyntheticPayoffIssues(payoffLedger.items, chapter.order).map((issue) => ({
+        id: `payoff-ledger:${issue.ledgerKey}:${issue.code}`,
+        reportId: `payoff-ledger:${novelId}:${chapterId}`,
+        auditType: "plot" as const,
+        severity: issue.severity,
+        code: issue.code,
+        description: issue.description,
+        evidence: issue.evidence,
+        fixSuggestion: issue.fixSuggestion,
+        status: "open" as const,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })),
+    );
     const runtimeContinuation = {
       enabled: continuationPack.enabled,
       sourceType: continuationPack.sourceType,
@@ -530,6 +551,10 @@ export class GenerationContextAssembler {
       bookContract,
       macroConstraints,
       volumeWindow,
+      ledgerPendingItems: classifiedLedger.pendingItems,
+      ledgerUrgentItems: classifiedLedger.urgentItems,
+      ledgerOverdueItems: classifiedLedger.overdueItems,
+      ledgerSummary: payoffLedger.summary,
       chapterMission: null,
       chapterWriteContext: null,
       chapterReviewContext: null,
@@ -591,6 +616,10 @@ export class GenerationContextAssembler {
       bookContract,
       macroConstraints,
       volumeWindow,
+      ledgerPendingItems: classifiedLedger.pendingItems,
+      ledgerUrgentItems: classifiedLedger.urgentItems,
+      ledgerOverdueItems: classifiedLedger.overdueItems,
+      ledgerSummary: payoffLedger.summary,
       chapterMission: chapterWriteContext.chapterMission,
       chapterWriteContext,
       chapterReviewContext,

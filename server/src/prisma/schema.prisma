@@ -264,6 +264,21 @@ enum AuditIssueStatus {
   ignored
 }
 
+enum PayoffLedgerScopeType {
+  book
+  volume
+  chapter
+}
+
+enum PayoffLedgerStatus {
+  setup
+  hinted
+  pending_payoff
+  paid_off
+  failed
+  overdue
+}
+
 enum StyleBindingTargetType {
   novel
   chapter
@@ -358,6 +373,7 @@ model Novel {
   bookContract       BookContract?
   storyStateSnapshots StoryStateSnapshot[]
   openConflicts      OpenConflict[]
+  payoffLedgerItems  PayoffLedgerItem[]
   storyPlans         StoryPlan[]
   replanRuns         ReplanRun[]
   auditReports       AuditReport[]
@@ -441,6 +457,9 @@ model Chapter {
   auditReports    AuditReport[]
   foreshadowSetupStates ForeshadowState[] @relation("ForeshadowSetupChapter")
   foreshadowPayoffStates ForeshadowState[] @relation("ForeshadowPayoffChapter")
+  payoffLedgerLastTouchedItems PayoffLedgerItem[] @relation("PayoffLedgerLastTouchedChapter")
+  payoffLedgerSetupItems PayoffLedgerItem[] @relation("PayoffLedgerSetupChapter")
+  payoffLedgerPayoffItems PayoffLedgerItem[] @relation("PayoffLedgerPayoffChapter")
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @updatedAt
 
@@ -1469,6 +1488,7 @@ model StoryStateSnapshot {
   informationStates InformationState[]
   foreshadowStates ForeshadowState[]
   openConflicts   OpenConflict[]
+  payoffLedgerItems PayoffLedgerItem[] @relation("PayoffLedgerLastSnapshot")
   storyPlans     StoryPlan[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -1580,6 +1600,44 @@ model OpenConflict {
   @@index([chapterId, status])
   @@index([sourceSnapshotId])
   @@index([sourceIssueId])
+}
+
+model PayoffLedgerItem {
+  id                    String                @id @default(cuid())
+  novelId               String
+  ledgerKey             String
+  title                 String
+  summary               String
+  scopeType             PayoffLedgerScopeType
+  currentStatus         PayoffLedgerStatus
+  targetStartChapterOrder Int?
+  targetEndChapterOrder Int?
+  firstSeenChapterOrder Int?
+  lastTouchedChapterOrder Int?
+  lastTouchedChapterId  String?
+  setupChapterId        String?
+  payoffChapterId       String?
+  lastSnapshotId        String?
+  sourceRefsJson        String?
+  evidenceJson          String?
+  riskSignalsJson       String?
+  statusReason          String?
+  confidence            Float?
+  novel                 Novel                 @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  lastTouchedChapter    Chapter?              @relation("PayoffLedgerLastTouchedChapter", fields: [lastTouchedChapterId], references: [id], onDelete: SetNull)
+  setupChapter          Chapter?              @relation("PayoffLedgerSetupChapter", fields: [setupChapterId], references: [id], onDelete: SetNull)
+  payoffChapter         Chapter?              @relation("PayoffLedgerPayoffChapter", fields: [payoffChapterId], references: [id], onDelete: SetNull)
+  lastSnapshot          StoryStateSnapshot?   @relation("PayoffLedgerLastSnapshot", fields: [lastSnapshotId], references: [id], onDelete: SetNull)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@unique([novelId, ledgerKey])
+  @@index([novelId, currentStatus, updatedAt])
+  @@index([novelId, targetEndChapterOrder])
+  @@index([lastTouchedChapterId])
+  @@index([setupChapterId])
+  @@index([payoffChapterId])
+  @@index([lastSnapshotId])
 }
 
 model StoryPlan {

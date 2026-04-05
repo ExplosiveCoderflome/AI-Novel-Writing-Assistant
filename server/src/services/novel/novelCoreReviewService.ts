@@ -9,6 +9,7 @@ import {
 } from "../../prompting/prompts/novel/review.prompts";
 import { ragServices } from "../rag";
 import { auditService } from "../audit/AuditService";
+import { payoffLedgerSyncService } from "../payoff/PayoffLedgerSyncService";
 import { plannerService } from "../planner/PlannerService";
 import { stateService } from "../state/StateService";
 import { syncChapterArtifacts } from "./novelChapterArtifacts";
@@ -305,6 +306,10 @@ export class NovelCoreReviewService {
     });
 
     return { novelId, summary, chapterReports: source, totalReports: reports.length };
+  }
+
+  async getPayoffLedger(novelId: string, chapterOrder?: number) {
+    return payoffLedgerSyncService.getPayoffLedger(novelId, { chapterOrder });
   }
 
   private async reviewChapterContent(

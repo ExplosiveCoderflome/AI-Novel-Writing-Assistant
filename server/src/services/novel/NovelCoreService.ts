@@ -253,6 +253,10 @@ export class NovelCoreService {
     return this.reviewService.getQualityReport(novelId);
   }
 
+  async getPayoffLedger(novelId: string, chapterOrder?: number) {
+    return this.reviewService.getPayoffLedger(novelId, chapterOrder);
+  }
+
   async generateChapterHook(novelId: string, options: HookGenerateOptions = {}) {
     return this.generationService.generateChapterHook(novelId, options);
   }

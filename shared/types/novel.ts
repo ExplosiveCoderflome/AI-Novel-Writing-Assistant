@@ -53,6 +53,14 @@ export type StoryPlanLevel = "book" | "arc" | "chapter";
 export type StoryPlanRole = "setup" | "progress" | "pressure" | "turn" | "payoff" | "cooldown";
 export type AuditType = "continuity" | "character" | "plot" | "mode_fit";
 export type AuditIssueStatus = "open" | "resolved" | "ignored";
+export type {
+  PayoffLedgerItem,
+  PayoffLedgerResponse,
+  PayoffLedgerScopeType,
+  PayoffLedgerSourceRef,
+  PayoffLedgerStatus,
+  PayoffLedgerSummary,
+} from "./payoffLedger";
 
 export type ChapterStatus =
   | "unplanned"
@@ -719,6 +727,7 @@ export interface ReplanRecommendation {
   recommended: boolean;
   reason: string;
   blockingIssueIds: string[];
+  blockingLedgerKeys?: string[];
 }
 
 export interface AuditIssue {

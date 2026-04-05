@@ -10,12 +10,14 @@ import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 interface NovelCreateResourceRecommendationCardProps {
   basicForm: NovelBasicFormState;
   onApplySuggestion: (patch: Partial<NovelBasicFormState>) => void;
+  contextHint?: string;
 }
 
-function buildRecommendationSignature(basicForm: NovelBasicFormState): string {
+function buildRecommendationSignature(basicForm: NovelBasicFormState, contextHint?: string): string {
   return JSON.stringify({
     title: basicForm.title.trim(),
     description: basicForm.description.trim(),
+    contextHint: contextHint?.trim() ?? "",
     targetAudience: basicForm.targetAudience.trim(),
     bookSellingPoint: basicForm.bookSellingPoint.trim(),
     competingFeel: basicForm.competingFeel.trim(),
@@ -34,8 +36,9 @@ function buildRecommendationSignature(basicForm: NovelBasicFormState): string {
   });
 }
 
-function hasRecommendationContext(basicForm: NovelBasicFormState): boolean {
+function hasRecommendationContext(basicForm: NovelBasicFormState, contextHint?: string): boolean {
   return [
+    contextHint ?? "",
     basicForm.title,
     basicForm.description,
     basicForm.targetAudience,
@@ -64,21 +67,22 @@ function matchesRecommendation(
 export default function NovelCreateResourceRecommendationCard(
   props: NovelCreateResourceRecommendationCardProps,
 ) {
-  const { basicForm, onApplySuggestion } = props;
+  const { basicForm, onApplySuggestion, contextHint = "" } = props;
   const llm = useLLMStore();
   const [recommendation, setRecommendation] = useState<NovelCreateResourceRecommendation | null>(null);
   const [message, setMessage] = useState("");
   const [recommendedSignature, setRecommendedSignature] = useState("");
 
-  const currentSignature = buildRecommendationSignature(basicForm);
-  const canRecommend = hasRecommendationContext(basicForm);
+  const trimmedContextHint = contextHint.trim();
+  const currentSignature = buildRecommendationSignature(basicForm, trimmedContextHint);
+  const canRecommend = hasRecommendationContext(basicForm, trimmedContextHint);
   const hasAppliedRecommendation = matchesRecommendation(basicForm, recommendation);
   const recommendationIsStale = Boolean(recommendation && recommendedSignature && recommendedSignature !== currentSignature);
 
   const recommendMutation = useMutation({
     mutationFn: () => recommendNovelCreateResources({
       title: basicForm.title || undefined,
-      description: basicForm.description || undefined,
+      description: basicForm.description || trimmedContextHint || undefined,
       targetAudience: basicForm.targetAudience || undefined,
       bookSellingPoint: basicForm.bookSellingPoint || undefined,
       competingFeel: basicForm.competingFeel || undefined,
@@ -136,7 +140,7 @@ export default function NovelCreateResourceRecommendationCard(
 
       {!canRecommend ? (
         <div className="mt-3 rounded-md border border-dashed bg-background/70 p-3 text-sm text-muted-foreground">
-          先补一句话概述、目标读者、卖点或前 30 章承诺中的任意一项，AI 才能更稳地判断你该从哪种题材和推进模式起步。
+          先补一句灵感、概述、目标读者、卖点或前 30 章承诺中的任意一项，AI 才能更稳地判断你该从哪种题材和推进模式起步。
         </div>
       ) : null}
 

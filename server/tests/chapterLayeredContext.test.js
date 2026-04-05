@@ -5,6 +5,7 @@ const {
   buildChapterWriteContext,
   buildChapterReviewContext,
   buildChapterRepairContext,
+  buildChapterWriterContextBlocks,
   buildChapterReviewContextBlocks,
   buildChapterRepairContextBlocks,
 } = require("../dist/prompting/prompts/novel/chapterLayeredContext.js");
@@ -240,6 +241,107 @@ function createContextPackage() {
       pendingPayoffs: ["伏笔A"],
       softFutureSummary: "第二卷会引出更高层势力。",
     },
+    ledgerPendingItems: [{
+      id: "ledger-1",
+      novelId: "novel-1",
+      ledgerKey: "intel-key",
+      title: "女二情报钥匙",
+      summary: "女二带来的情报必须转成第一次反压的具体动作。",
+      scopeType: "volume",
+      currentStatus: "pending_payoff",
+      targetStartChapterOrder: 5,
+      targetEndChapterOrder: 6,
+      firstSeenChapterOrder: 3,
+      lastTouchedChapterOrder: 4,
+      lastTouchedChapterId: "chapter-4",
+      setupChapterId: "chapter-3",
+      payoffChapterId: null,
+      lastSnapshotId: "snapshot-4",
+      sourceRefs: [],
+      evidence: [{
+        summary: "第四章已经说明女二手上掌握关键情报。",
+        chapterId: "chapter-4",
+        chapterOrder: 4,
+      }],
+      riskSignals: [],
+      statusReason: "本章需要把女二情报转成实际反压动作。",
+      confidence: 0.93,
+      createdAt: now,
+      updatedAt: now,
+    }],
+    ledgerUrgentItems: [{
+      id: "ledger-2",
+      novelId: "novel-1",
+      ledgerKey: "black-market-account",
+      title: "黑市账户异常",
+      summary: "黑市账户的异常波动必须在本章被主角明确触碰。",
+      scopeType: "chapter",
+      currentStatus: "setup",
+      targetStartChapterOrder: 5,
+      targetEndChapterOrder: 5,
+      firstSeenChapterOrder: 4,
+      lastTouchedChapterOrder: 4,
+      lastTouchedChapterId: "chapter-4",
+      setupChapterId: "chapter-4",
+      payoffChapterId: null,
+      lastSnapshotId: "snapshot-4",
+      sourceRefs: [],
+      evidence: [{
+        summary: "第四章提到账本上有一笔异常转账。",
+        chapterId: "chapter-4",
+        chapterOrder: 4,
+      }],
+      riskSignals: [{
+        code: "payoff_missing_progress",
+        severity: "medium",
+        summary: "已经进入应触碰窗口。",
+      }],
+      statusReason: "窗口已经压到第5章，不能继续只提不动。",
+      confidence: 0.88,
+      createdAt: now,
+      updatedAt: now,
+    }],
+    ledgerOverdueItems: [{
+      id: "ledger-3",
+      novelId: "novel-1",
+      ledgerKey: "missing-payoff",
+      title: "第一次反压收益",
+      summary: "读者承诺的第一次反压收益还没有真正兑现。",
+      scopeType: "volume",
+      currentStatus: "overdue",
+      targetStartChapterOrder: 4,
+      targetEndChapterOrder: 4,
+      firstSeenChapterOrder: 2,
+      lastTouchedChapterOrder: 4,
+      lastTouchedChapterId: "chapter-4",
+      setupChapterId: "chapter-2",
+      payoffChapterId: null,
+      lastSnapshotId: "snapshot-4",
+      sourceRefs: [],
+      evidence: [{
+        summary: "前四章一直在铺垫，但还没有形成读者可感知的收益。",
+        chapterId: "chapter-4",
+        chapterOrder: 4,
+      }],
+      riskSignals: [{
+        code: "payoff_overdue",
+        severity: "high",
+        summary: "已经超过目标窗口。",
+      }],
+      statusReason: "第4章承诺的反压收益仍未落地。",
+      confidence: 0.95,
+      createdAt: now,
+      updatedAt: now,
+    }],
+    ledgerSummary: {
+      totalCount: 3,
+      pendingCount: 1,
+      urgentCount: 1,
+      overdueCount: 1,
+      paidOffCount: 0,
+      failedCount: 0,
+      updatedAt: now,
+    },
     chapterMission: null,
     chapterWriteContext: null,
     chapterReviewContext: null,
@@ -273,19 +375,36 @@ test("chapter layered contexts carry volume mission, character duties and repair
   assert.ok(writeContext.characterBehaviorGuides.some((item) => item.absenceRisk === "high"));
   assert.ok(writeContext.pendingCandidateGuards.some((item) => item.proposedName === "林策"));
   assert.ok(writeContext.openConflictSummaries.some((item) => item.includes("第一次反压仍未落地")));
+  assert.equal(writeContext.ledgerSummary.overdueCount, 1);
   assert.equal(writeContext.chapterMission.targetWordCount, 3000);
   assert.ok(reviewContext.structureObligations.includes("volume mission: 建立压迫源并完成第一次反压"));
-  assert.ok(reviewContext.structureObligations.includes("pending payoff: 伏笔A"));
+  assert.ok(reviewContext.structureObligations.some((item) => item.includes("pending payoff: 女二情报钥匙")));
+  assert.ok(reviewContext.structureObligations.some((item) => item.includes("urgent payoff: 黑市账户异常")));
+  assert.ok(reviewContext.structureObligations.some((item) => item.includes("overdue payoff: 第一次反压收益")));
   assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("Pending character candidates remain read-only")));
   assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("女二")));
+  assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("urgent payoff thread: 黑市账户异常")));
+  assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("overdue payoff pressure: 第一次反压收益")));
 
+  const writerBlocks = buildChapterWriterContextBlocks(writeContext);
   const reviewBlocks = buildChapterReviewContextBlocks(reviewContext);
   const repairBlocks = buildChapterRepairContextBlocks(repairContext);
 
+  assert.ok(writerBlocks.some((block) => (
+    block.id === "payoff_ledger"
+    && /Payoff ledger summary: pending=1, urgent=1, overdue=1, paid_off=0/.test(block.content)
+    && /Canonical pending payoffs/.test(block.content)
+    && /Overdue payoffs/.test(block.content)
+  )));
   assert.ok(reviewBlocks.some((block) => (
     block.id === "character_dynamics"
     && /Character behavior guidance/.test(block.content)
     && /Pending candidate guardrails/.test(block.content)
+  )));
+  assert.ok(reviewBlocks.some((block) => (
+    block.id === "structure_obligations"
+    && /urgent payoff: 黑市账户异常/.test(block.content)
+    && /overdue payoff: 第一次反压收益/.test(block.content)
   )));
   assert.ok(reviewBlocks.some((block) => (
     block.id === "chapter_mission"

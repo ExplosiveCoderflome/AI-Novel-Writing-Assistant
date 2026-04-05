@@ -9,6 +9,7 @@ import type {
   Character,
   CharacterTimeline,
   NovelBible,
+  PayoffLedgerResponse,
   PipelineJob,
   PlotBeat,
   QualityScore,
@@ -138,6 +139,7 @@ export interface OutlineTabViewProps {
   onGenerateSkeleton: () => void;
   onGoToCharacterTab: () => void;
   latestStateSnapshot?: StoryStateSnapshot | null;
+  payoffLedger?: PayoffLedgerResponse | null;
   draftText: string;
   volumes: VolumePlan[];
   onVolumeFieldChange: (volumeId: string, field: keyof Pick<VolumePlan, "title" | "summary" | "openingHook" | "mainPromise" | "primaryPressureSource" | "coreSellingPoint" | "escalationMode" | "protagonistChange" | "midVolumeRisk" | "climax" | "payoffType" | "nextVolumeHook" | "resetPoint">, value: string) => void;
@@ -473,6 +475,7 @@ export interface NovelTaskDrawerState {
 export interface NovelEditViewProps {
   id: string;
   activeTab: string;
+  workflowCurrentTab?: string | null;
   onActiveTabChange: (value: string) => void;
   basicTab: BasicTabProps;
   storyMacroTab: StoryMacroTabProps;

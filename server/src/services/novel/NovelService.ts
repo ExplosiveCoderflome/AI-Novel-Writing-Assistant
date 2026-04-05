@@ -173,6 +173,10 @@ export class NovelService extends NovelPipelineService {
     return this.core.resolveAuditIssues(...args);
   }
 
+  getPayoffLedger(...args: Parameters<NovelCoreService["getPayoffLedger"]>) {
+    return this.core.getPayoffLedger(...args);
+  }
+
   getWorldSlice(...args: Parameters<NovelWorldSliceService["getWorldSliceView"]>) {
     return this.worldSliceService.getWorldSliceView(...args);
   }

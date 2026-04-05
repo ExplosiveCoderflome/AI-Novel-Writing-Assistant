@@ -13,6 +13,25 @@ import type { ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
 import { createContextBlock } from "../../core/contextBudget";
 import type { PromptContextBlock } from "../../core/promptTypes";
+import { buildDynamicCharacterGuidance, buildParticipants } from "./chapterLayeredContextCharacters";
+import {
+  buildCharacterGuidanceText,
+  buildLedgerItemLine,
+  buildParticipantText,
+  buildPendingCandidateGuardText,
+  buildRelationStageText,
+  compactText,
+  resolveTargetWordRange,
+  splitLines,
+  summarizeContinuationConstraints,
+  summarizeHistoricalIssues,
+  summarizeOpenConflicts,
+  summarizeStateSnapshot,
+  summarizeStyleConstraints,
+  summarizeWorldRules,
+  takeUnique,
+  toListBlock,
+} from "./chapterLayeredContextShared";
 import { RUNTIME_PROMPT_BUDGET_PROFILES } from "./promptBudgetProfiles";
 
 export const WRITER_FORBIDDEN_GROUPS = [
@@ -23,6 +42,8 @@ export const WRITER_FORBIDDEN_GROUPS = [
   "anti_copy_corpus",
   "raw_rag_dump",
 ] as const;
+
+export { resolveTargetWordRange } from "./chapterLayeredContextShared";
 
 type RuntimeVolumeSeed = {
   currentVolume?: {
@@ -43,332 +64,6 @@ type RuntimeVolumeSeed = {
   } | null;
   softFutureSummary?: string;
 };
-
-function compactText(value: string | null | undefined, fallback = ""): string {
-  return value?.replace(/\s+/g, " ").trim() || fallback;
-}
-
-function takeUnique(items: Array<string | null | undefined>, limit = items.length): string[] {
-  const seen = new Set<string>();
-  const results: string[] = [];
-  for (const item of items) {
-    const normalized = compactText(item);
-    if (!normalized || seen.has(normalized)) {
-      continue;
-    }
-    seen.add(normalized);
-    results.push(normalized);
-    if (results.length >= limit) {
-      break;
-    }
-  }
-  return results;
-}
-
-function splitLines(value: string | null | undefined, limit = 4): string[] {
-  return takeUnique(
-    (value ?? "")
-      .split(/\r?\n+/g)
-      .map((line) => line.replace(/^[-*\d.\s]+/, "").trim()),
-    limit,
-  );
-}
-
-function toListBlock(title: string, values: string[], emptyLabel = "none"): string {
-  if (values.length === 0) {
-    return `${title}: ${emptyLabel}`;
-  }
-  return [title, ...values.map((value) => `- ${value}`)].join("\n");
-}
-
-export function resolveTargetWordRange(targetWordCount: number | null | undefined): {
-  targetWordCount: number | null;
-  minWordCount: number | null;
-  maxWordCount: number | null;
-} {
-  if (!Number.isFinite(targetWordCount) || (targetWordCount ?? 0) <= 0) {
-    return {
-      targetWordCount: null,
-      minWordCount: null,
-      maxWordCount: null,
-    };
-  }
-  const normalizedTarget = Math.max(800, Math.round(targetWordCount as number));
-  return {
-    targetWordCount: normalizedTarget,
-    minWordCount: Math.max(800, Math.floor(normalizedTarget * 0.85)),
-    maxWordCount: Math.ceil(normalizedTarget * 1.15),
-  };
-}
-
-function summarizeStateSnapshot(contextPackage: GenerationContextPackage): string {
-  const fragments = takeUnique([
-    contextPackage.stateSnapshot?.summary,
-    ...contextPackage.stateSnapshot?.characterStates
-      .slice(0, 3)
-      .map((state) => {
-        const parts = takeUnique([
-          state.currentGoal ? `goal=${state.currentGoal}` : "",
-          state.emotion ? `emotion=${state.emotion}` : "",
-          state.summary,
-        ]);
-        if (parts.length === 0) {
-          return "";
-        }
-        return `${state.characterId}: ${parts.join(" | ")}`;
-      }) ?? [],
-    ...contextPackage.stateSnapshot?.informationStates
-      .slice(0, 2)
-      .map((info) => `${info.fact} (${info.status})`) ?? [],
-  ], 6);
-  return fragments.join("\n") || "No prior state snapshot.";
-}
-
-function summarizeOpenConflicts(contextPackage: GenerationContextPackage): string[] {
-  return contextPackage.openConflicts
-    .slice(0, 4)
-    .map((conflict) => {
-      const parts = takeUnique([
-        conflict.title,
-        conflict.summary,
-        conflict.resolutionHint ? `resolution hint: ${conflict.resolutionHint}` : "",
-      ], 3);
-      return parts.join(" | ");
-    })
-    .filter(Boolean);
-}
-
-function summarizeWorldRules(contextPackage: GenerationContextPackage): string[] {
-  const worldSlice = contextPackage.storyWorldSlice;
-  if (!worldSlice) {
-    return [];
-  }
-  return takeUnique([
-    worldSlice.coreWorldFrame,
-    ...worldSlice.appliedRules.slice(0, 3).map((rule) => `${rule.name}: ${rule.summary}`),
-    ...worldSlice.forbiddenCombinations.slice(0, 2),
-    worldSlice.storyScopeBoundary,
-  ], 6);
-}
-
-function summarizeHistoricalIssues(contextPackage: GenerationContextPackage): string[] {
-  return contextPackage.openAuditIssues
-    .slice(0, 4)
-    .map((issue) => `${issue.severity}/${issue.auditType}: ${issue.description}`)
-    .filter(Boolean);
-}
-
-function summarizeStyleConstraints(contextPackage: GenerationContextPackage): string[] {
-  const compiled = contextPackage.styleContext?.compiledBlocks;
-  if (!compiled) {
-    return [];
-  }
-  return takeUnique([
-    ...splitLines(compiled.style, 2),
-    ...splitLines(compiled.character, 2),
-    ...splitLines(compiled.antiAi, 2),
-    ...splitLines(compiled.selfCheck, 1),
-  ], 6);
-}
-
-function summarizeContinuationConstraints(contextPackage: GenerationContextPackage): string[] {
-  if (!contextPackage.continuation.enabled) {
-    return [];
-  }
-  return takeUnique([
-    compactText(contextPackage.continuation.systemRule),
-    ...splitLines(contextPackage.continuation.humanBlock, 3),
-  ], 4);
-}
-
-function absenceRiskRank(risk: "none" | "info" | "warn" | "high"): number {
-  return ["none", "info", "warn", "high"].indexOf(risk);
-}
-
-function buildDynamicCharacterGuidance(
-  contextPackage: GenerationContextPackage,
-): Pick<ChapterWriteContext, "characterBehaviorGuides" | "activeRelationStages" | "pendingCandidateGuards"> {
-  const overview = contextPackage.characterDynamics;
-  if (!overview) {
-    return {
-      characterBehaviorGuides: [],
-      activeRelationStages: [],
-      pendingCandidateGuards: [],
-    };
-  }
-
-  const currentChapterOrder = contextPackage.chapter.order;
-  const rosterById = new Map(contextPackage.characterRoster.map((character) => [character.id, character]));
-  const planParticipantNames = new Set((contextPackage.plan?.participants ?? []).map((item) => compactText(item)));
-  const conflictCharacterIds = new Set(
-    contextPackage.openConflicts.flatMap((conflict) => conflict.affectedCharacterIds ?? []),
-  );
-
-  const activeRelationStages = overview.relations
-    .slice(0, 8)
-    .map((relation) => ({
-      relationId: relation.relationId ?? null,
-      sourceCharacterId: relation.sourceCharacterId,
-      sourceCharacterName: compactText(relation.sourceCharacterName, relation.sourceCharacterId),
-      targetCharacterId: relation.targetCharacterId,
-      targetCharacterName: compactText(relation.targetCharacterName, relation.targetCharacterId),
-      stageLabel: compactText(relation.stageLabel),
-      stageSummary: compactText(relation.stageSummary),
-      nextTurnPoint: compactText(relation.nextTurnPoint, "") || null,
-      isCurrent: relation.isCurrent,
-    }));
-  const relationStageByCharacterId = new Map<string, typeof activeRelationStages>();
-  for (const relation of activeRelationStages) {
-    const sourceStages = relationStageByCharacterId.get(relation.sourceCharacterId) ?? [];
-    sourceStages.push(relation);
-    relationStageByCharacterId.set(relation.sourceCharacterId, sourceStages);
-
-    const targetStages = relationStageByCharacterId.get(relation.targetCharacterId) ?? [];
-    targetStages.push(relation);
-    relationStageByCharacterId.set(relation.targetCharacterId, targetStages);
-  }
-
-  const characterBehaviorGuides = overview.characters
-    .filter((item) => rosterById.has(item.characterId))
-    .map((item) => {
-      const roster = rosterById.get(item.characterId);
-      const relationStages = relationStageByCharacterId.get(item.characterId) ?? [];
-      const shouldPreferAppearance = item.isCoreInVolume && (
-        item.plannedChapterOrders.includes(currentChapterOrder)
-        || item.absenceRisk === "high"
-        || item.absenceRisk === "warn"
-      );
-      let score = 0;
-      if (item.isCoreInVolume) {
-        score += 40;
-      }
-      if (item.volumeResponsibility) {
-        score += 20;
-      }
-      if (item.plannedChapterOrders.includes(currentChapterOrder)) {
-        score += 25;
-      }
-      if (relationStages.length > 0) {
-        score += 24;
-      }
-      if (item.absenceRisk === "high") {
-        score += 30;
-      } else if (item.absenceRisk === "warn") {
-        score += 20;
-      } else if (item.absenceRisk === "info") {
-        score += 8;
-      }
-      if (planParticipantNames.has(item.name)) {
-        score += 16;
-      }
-      if (conflictCharacterIds.has(item.characterId)) {
-        score += 12;
-      }
-      if (item.currentGoal) {
-        score += 4;
-      }
-      return {
-        score,
-        guide: {
-          characterId: item.characterId,
-          name: item.name,
-          role: roster?.role ?? item.role,
-          castRole: item.castRole ?? null,
-          volumeRoleLabel: item.volumeRoleLabel ?? null,
-          volumeResponsibility: item.volumeResponsibility ?? null,
-          currentGoal: roster?.currentGoal ?? item.currentGoal ?? null,
-          currentState: roster?.currentState ?? item.currentState ?? null,
-          factionLabel: item.factionLabel ?? null,
-          stanceLabel: item.stanceLabel ?? null,
-          relationStageLabels: takeUnique(
-            relationStages.map((relation) => (
-              relation.nextTurnPoint
-                ? `${relation.stageLabel} -> ${relation.nextTurnPoint}`
-                : relation.stageLabel
-            )),
-            3,
-          ),
-          relationRiskNotes: takeUnique(
-            relationStages.map((relation) => (
-              `${relation.sourceCharacterName} / ${relation.targetCharacterName}: ${relation.stageSummary}${relation.nextTurnPoint ? ` | next=${relation.nextTurnPoint}` : ""}`
-            )),
-            3,
-          ),
-          plannedChapterOrders: item.plannedChapterOrders,
-          absenceRisk: item.absenceRisk,
-          absenceSpan: item.absenceSpan,
-          isCoreInVolume: item.isCoreInVolume,
-          shouldPreferAppearance,
-        },
-      };
-    })
-    .sort((left, right) => {
-      if (left.score !== right.score) {
-        return right.score - left.score;
-      }
-      if (left.guide.shouldPreferAppearance !== right.guide.shouldPreferAppearance) {
-        return left.guide.shouldPreferAppearance ? -1 : 1;
-      }
-      if (left.guide.isCoreInVolume !== right.guide.isCoreInVolume) {
-        return left.guide.isCoreInVolume ? -1 : 1;
-      }
-      if (left.guide.absenceRisk !== right.guide.absenceRisk) {
-        return absenceRiskRank(right.guide.absenceRisk) - absenceRiskRank(left.guide.absenceRisk);
-      }
-      return left.guide.name.localeCompare(right.guide.name, "zh-Hans-CN");
-    })
-    .slice(0, 8)
-    .map((item) => item.guide);
-
-  return {
-    characterBehaviorGuides,
-    activeRelationStages,
-    pendingCandidateGuards: overview.candidates
-      .slice(0, 4)
-      .map((candidate) => ({
-        id: candidate.id,
-        proposedName: compactText(candidate.proposedName),
-        proposedRole: compactText(candidate.proposedRole, "") || null,
-        summary: compactText(candidate.summary, "") || null,
-        evidence: takeUnique(candidate.evidence, 3),
-        sourceChapterOrder: candidate.sourceChapterOrder ?? null,
-      })),
-  };
-}
-
-function buildParticipants(
-  contextPackage: GenerationContextPackage,
-  characterBehaviorGuides: ChapterWriteContext["characterBehaviorGuides"] = [],
-): GenerationContextPackage["characterRoster"] {
-  const rosterById = new Map(contextPackage.characterRoster.map((character) => [character.id, character]));
-  const participantNames = new Set(contextPackage.plan?.participants ?? []);
-  const conflictCharacterIds = new Set(
-    contextPackage.openConflicts.flatMap((conflict) => conflict.affectedCharacterIds ?? []),
-  );
-  if (characterBehaviorGuides.length > 0) {
-    const selected = characterBehaviorGuides
-      .filter((guide) => (
-        guide.shouldPreferAppearance
-        || guide.isCoreInVolume
-        || guide.relationStageLabels.length > 0
-        || participantNames.has(guide.name)
-        || conflictCharacterIds.has(guide.characterId)
-      ))
-      .map((guide) => rosterById.get(guide.characterId))
-      .filter((character): character is NonNullable<typeof character> => Boolean(character));
-    if (selected.length > 0) {
-      return selected.slice(0, 6);
-    }
-  }
-
-  const selected = contextPackage.characterRoster.filter((character) => (
-    participantNames.has(character.name) || conflictCharacterIds.has(character.id)
-  ));
-  if (selected.length > 0) {
-    return selected.slice(0, 6);
-  }
-  return contextPackage.characterRoster.slice(0, 4);
-}
 
 export function buildBookContractContext(input: {
   title: string;
@@ -474,6 +169,10 @@ export function buildChapterWriteContext(input: {
     pendingCandidateGuards: dynamicCharacterGuidance.pendingCandidateGuards,
     localStateSummary: summarizeStateSnapshot(input.contextPackage),
     openConflictSummaries: summarizeOpenConflicts(input.contextPackage),
+    ledgerPendingItems: input.contextPackage.ledgerPendingItems,
+    ledgerUrgentItems: input.contextPackage.ledgerUrgentItems,
+    ledgerOverdueItems: input.contextPackage.ledgerOverdueItems,
+    ledgerSummary: input.contextPackage.ledgerSummary ?? null,
     recentChapterSummaries: takeUnique(input.contextPackage.previousChaptersSummary.slice(0, 3), 3),
     openingAntiRepeatHint: compactText(input.contextPackage.openingHint, "No recent opening guidance."),
     styleConstraints: summarizeStyleConstraints(input.contextPackage),
@@ -493,8 +192,10 @@ export function buildChapterReviewContext(
       ...writeContext.chapterMission.mustPreserve,
       writeContext.chapterMission.hookTarget ? `hook target: ${writeContext.chapterMission.hookTarget}` : "",
       writeContext.volumeWindow?.missionSummary ? `volume mission: ${writeContext.volumeWindow.missionSummary}` : "",
-      ...(writeContext.volumeWindow?.pendingPayoffs.map((item) => `pending payoff: ${item}`) ?? []),
-    ], 8),
+      ...writeContext.ledgerPendingItems.map((item) => buildLedgerItemLine(item, "pending payoff")),
+      ...writeContext.ledgerUrgentItems.map((item) => buildLedgerItemLine(item, "urgent payoff")),
+      ...writeContext.ledgerOverdueItems.map((item) => buildLedgerItemLine(item, "overdue payoff")),
+    ], 14),
     worldRules: summarizeWorldRules(contextPackage),
     historicalIssues: summarizeHistoricalIssues(contextPackage),
   };
@@ -519,8 +220,10 @@ export function buildChapterRepairContext(input: {
       input.writeContext.volumeWindow?.missionSummary
         ? `volume mission: ${input.writeContext.volumeWindow.missionSummary}`
         : "",
-      ...(input.writeContext.volumeWindow?.pendingPayoffs.map((item) => `pending payoff: ${item}`) ?? []),
-    ], 10),
+      ...input.writeContext.ledgerPendingItems.map((item) => buildLedgerItemLine(item, "pending payoff")),
+      ...input.writeContext.ledgerUrgentItems.map((item) => buildLedgerItemLine(item, "urgent payoff")),
+      ...input.writeContext.ledgerOverdueItems.map((item) => buildLedgerItemLine(item, "overdue payoff")),
+    ], 16),
     worldRules: summarizeWorldRules(input.contextPackage),
     historicalIssues: summarizeHistoricalIssues(input.contextPackage),
     allowedEditBoundaries: takeUnique([
@@ -529,7 +232,9 @@ export function buildChapterRepairContext(input: {
       input.writeContext.volumeWindow?.missionSummary
         ? `Keep the repair aligned with the current volume mission: ${input.writeContext.volumeWindow.missionSummary}`
         : "",
-      ...(input.writeContext.volumeWindow?.pendingPayoffs.map((item) => `Do not erase pending payoff setup: ${item}`) ?? []),
+      ...input.writeContext.ledgerPendingItems.map((item) => `Do not erase pending payoff setup: ${item.title}`),
+      ...input.writeContext.ledgerUrgentItems.map((item) => `This chapter must visibly touch the urgent payoff thread: ${item.title}`),
+      ...input.writeContext.ledgerOverdueItems.map((item) => `You must either兑现 or explicitly explain the overdue payoff pressure: ${item.title}`),
       input.writeContext.chapterMission.hookTarget
         ? `Preserve or strengthen the ending tension: ${input.writeContext.chapterMission.hookTarget}`
         : "",
@@ -543,88 +248,6 @@ export function buildChapterRepairContext(input: {
       ...input.writeContext.chapterMission.mustPreserve.map((item) => `must preserve: ${item}`),
     ], 12),
   };
-}
-
-function buildParticipantText(writeContext: ChapterWriteContext): string {
-  if (writeContext.participants.length === 0) {
-    return "Participants: none";
-  }
-  const guideByCharacterId = new Map(
-    writeContext.characterBehaviorGuides.map((guide) => [guide.characterId, guide]),
-  );
-  return [
-    "Participants:",
-    ...writeContext.participants.map((character) => {
-      const guide = guideByCharacterId.get(character.id);
-      const parts = takeUnique([
-        character.role,
-        guide?.volumeRoleLabel ? `volume role=${guide.volumeRoleLabel}` : "",
-        guide?.volumeResponsibility ? `volume duty=${guide.volumeResponsibility}` : "",
-        character.personality,
-        character.currentState ? `state=${character.currentState}` : "",
-        character.currentGoal ? `goal=${character.currentGoal}` : "",
-        guide?.relationStageLabels.length ? `relation=${guide.relationStageLabels.join(" / ")}` : "",
-        guide?.absenceRisk && guide.absenceRisk !== "none"
-          ? `absence risk=${guide.absenceRisk}(span=${guide.absenceSpan})`
-          : "",
-      ], 4);
-      return `- ${character.name}: ${parts.join(" | ")}`;
-    }),
-  ].join("\n");
-}
-
-function buildCharacterGuidanceText(writeContext: ChapterWriteContext): string {
-  if (writeContext.characterBehaviorGuides.length === 0) {
-    return "Character behavior guidance: none";
-  }
-  return [
-    "Character behavior guidance:",
-    ...writeContext.characterBehaviorGuides.map((guide) => {
-      const parts = takeUnique([
-        guide.isCoreInVolume ? "core in current volume" : "supporting in current volume",
-        guide.volumeRoleLabel ? `volume role=${guide.volumeRoleLabel}` : "",
-        guide.volumeResponsibility ? `duty=${guide.volumeResponsibility}` : "",
-        guide.currentGoal ? `goal=${guide.currentGoal}` : "",
-        guide.currentState ? `state=${guide.currentState}` : "",
-        guide.relationStageLabels.length ? `relation=${guide.relationStageLabels.join(" / ")}` : "",
-        guide.absenceRisk !== "none" ? `absence=${guide.absenceRisk}(span=${guide.absenceSpan})` : "",
-        guide.factionLabel ? `faction=${guide.factionLabel}` : "",
-        guide.stanceLabel ? `stance=${guide.stanceLabel}` : "",
-        guide.shouldPreferAppearance ? "prefer appearance in this chapter" : "",
-      ], 6);
-      return `- ${guide.name}: ${parts.join(" | ")}`;
-    }),
-  ].join("\n");
-}
-
-function buildRelationStageText(writeContext: ChapterWriteContext): string {
-  if (writeContext.activeRelationStages.length === 0) {
-    return "Active relationship stages: none";
-  }
-  return [
-    "Active relationship stages:",
-    ...writeContext.activeRelationStages.map((relation) => (
-      `- ${relation.sourceCharacterName} -> ${relation.targetCharacterName}: ${relation.stageLabel} | ${relation.stageSummary}${relation.nextTurnPoint ? ` | next=${relation.nextTurnPoint}` : ""}`
-    )),
-  ].join("\n");
-}
-
-function buildPendingCandidateGuardText(writeContext: ChapterWriteContext): string {
-  if (writeContext.pendingCandidateGuards.length === 0) {
-    return "Pending candidate guardrails: none";
-  }
-  return [
-    "Pending candidate guardrails (read-only, do not inject into generation):",
-    ...writeContext.pendingCandidateGuards.map((candidate) => {
-      const parts = takeUnique([
-        candidate.proposedRole ? `role=${candidate.proposedRole}` : "",
-        candidate.summary ?? "",
-        candidate.sourceChapterOrder != null ? `source chapter=${candidate.sourceChapterOrder}` : "",
-        ...candidate.evidence.slice(0, 2),
-      ], 4);
-      return `- ${candidate.proposedName}: ${parts.join(" | ")}`;
-    }),
-  ].join("\n");
 }
 
 export function sanitizeWriterContextBlocks(blocks: PromptContextBlock[]): {
@@ -677,6 +300,20 @@ export function buildChapterWriterContextBlocks(writeContext: ChapterWriteContex
             `Future window: ${writeContext.volumeWindow.softFutureSummary}`,
           ].filter(Boolean).join("\n")
         : "Current volume: none",
+    }),
+    createContextBlock({
+      id: "payoff_ledger",
+      group: "payoff_ledger",
+      priority: 95,
+      required: true,
+      content: [
+        writeContext.ledgerSummary
+          ? `Payoff ledger summary: pending=${writeContext.ledgerSummary.pendingCount}, urgent=${writeContext.ledgerSummary.urgentCount}, overdue=${writeContext.ledgerSummary.overdueCount}, paid_off=${writeContext.ledgerSummary.paidOffCount}`
+          : "Payoff ledger summary: none",
+        toListBlock("Canonical pending payoffs", writeContext.ledgerPendingItems.map((item) => buildLedgerItemLine(item, "pending"))),
+        toListBlock("Urgent payoffs", writeContext.ledgerUrgentItems.map((item) => buildLedgerItemLine(item, "urgent"))),
+        toListBlock("Overdue payoffs", writeContext.ledgerOverdueItems.map((item) => buildLedgerItemLine(item, "overdue"))),
+      ].join("\n"),
     }),
     createContextBlock({
       id: "participant_subset",

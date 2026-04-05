@@ -1,6 +1,6 @@
 # AI 长篇成书当前执行计划（小白用户导向）
 
-更新时间：2026-04-04  
+更新时间：2026-04-05  
 适用范围：当前 `AI-Novel-Writing-Assistant2` 代码库现状  
 目标用户：完全不懂写作、希望通过 AI 引导或全自动规划完成整本小说创作的用户  
 当前定位：强辅助型 AI 小说工作台  
@@ -19,7 +19,7 @@
 - 卷战略、卷骨架、卷内节奏板、当前卷拆章、章节细化
 - 统一 Prompt Registry、统一章节写作上下文、Planner、Runtime、审阅、修复
 - 状态快照、开放冲突、审计问题、重规划、任务中心、Creative Hub、模型路由
-- 伏笔 / 回收底座已经存在：卷级 `openPayoffs`、章节 `payoffRefs`、状态层 `foreshadowStates` 与基础冲突检测已落地
+- 伏笔 / 回收底座已经从散落字段推进到持久化账本阶段：卷级 `openPayoffs`、章节 `payoffRefs`、状态层 `foreshadowStates`、基础冲突检测与新的 `PayoffLedgerItem` 账本开始进入同一条消费链
 
 当前最重要的问题已经不是“还能再补什么写作按钮”，而是：
 
@@ -133,13 +133,18 @@ P0 的默认主链统一为：
 - planner / replan 已开始消费同一批前置资产，题材基底、书级 framing 与写法引擎约束不再只停留在创建期，而是进入全书规划、阶段规划、章节规划和重规划上下文
 - 自动导演在 `chapter_batch_ready` 之后已开始消费同一批结构化资产与剩余章节状态，暂停恢复、失败重试与质量修复后恢复不再只靠“重跑一遍”的粗粒度逻辑
 - 已用真实数据库副本完成一轮旧项目接管回归，确认自动导演在 `chapter_batch_ready` 之后可以按剩余章节数恢复，并在全部章节修复后自动收口为 `workflow_completed`
+- 持久化 `PayoffLedgerItem` 已落地，`major_payoffs / openPayoffs / payoffRefs / foreshadowStates / openConflicts` 开始通过 AI 结构化对账进入统一伏笔账本，而不是继续只散落在卷字段、章节字段和状态快照里
+- `payoffLedgerSyncPrompt + PayoffLedgerSyncService` 已接入卷工作台写入、状态快照落库、章节审计完成后三个同步触发点，旧账本项会保留历史并标记 stale，而不是静默删除
+- chapter runtime、review、repair、planner / replan 已开始消费统一账本视角，能够显式读到 `待兑现 / 紧急 / 逾期 / 已兑现`，并把 payoff 专项风险进一步推进到 `OpenConflict`、runtime package 和 `replanRecommendation`
+- 卷战略中的“伏笔回收概览”已开始复用 canonical 账本摘要与主列表，同时保留原始 `openPayoffs / payoffRefs / foreshadowStates` 作为来源参考视图
+- 已完成针对 payoff ledger 共享逻辑、章节写审修上下文与章节规划上下文的回归测试，并通过 server/client build 验证
 
 当前剩余问题：
 
-- 虽然 planner / replan 与自动导演后段恢复链已开始接入统一资产，但 runtime / review / repair 与真实 Prisma 链路下的一致性闭环仍未完全做实
-- 真实 Prisma 链路、新旧项目迁移链路、自动导演交接链路里，planner / runtime / review / repair / replan 的一致性仍缺持续抽样回归，当前仅补齐了自动导演后半段的一轮真实验证
+- 虽然 runtime / review / repair / planner / replan 已开始接入统一账本视角，但真实 Prisma 迁移链路下围绕 payoff ledger 的持续抽样回归仍不够，当前主要完成了构建验证和 targeted test
+- 真实 Prisma 链路、新旧项目迁移链路、自动导演交接链路里，planner / runtime / review / repair / replan 的一致性仍缺持续抽样回归；当前只补齐了自动导演后半段的一轮真实验证，以及 payoff ledger 的服务级 / 上下文级测试
 - 动态角色系统虽然已进入 planner，但在执行期角色筛选、repair 边界、缺席风险提示和 replan 判断中的行为驱动仍不够深
-- 批量执行、异常恢复、旧资产兼容路径下，书级 / 卷级 / 角色资产仍可能出现残余分叉
+- 批量执行、异常恢复、旧资产兼容路径下，书级 / 卷级 / 角色 / payoff ledger 资产仍可能出现残余分叉
 
 当前重点：
 
@@ -147,14 +152,14 @@ P0 的默认主链统一为：
 - 收掉手动创建、自动导演创建、现有项目接管三条入口在资产消费上的剩余差异
 - 继续减少 planner、runtime、审阅、repair、replan 在特殊入口和异常分支下的残余分叉，重点盯旧项目、批量执行、`chapter_batch_ready` 之后的继续执行 / 失败重试 / 质量修复恢复
 - 让动态角色系统进一步进入执行期行为判断，尤其是参与角色筛选、结构 obligations、修复边界和后续 replan 决策
-- 把卷级工作台、章节细化 bundle、动态角色系统继续压成同一套默认数据流，收掉剩余断点
+- 把卷级工作台、章节细化 bundle、动态角色系统和新的 payoff ledger 继续压成同一套默认数据流，收掉剩余断点
 
 完成标志：
 
 - 规划、审阅、修复、重规划、运行时上下文在真实链路中稳定共享同一套书级 / 卷级 / 角色资产，而不再只是在服务代码层接通
 - 手动审阅、runtime 审计、repair、replan 对同一章的判断依据在新旧项目与自动导演交接链路中保持一致
 - 动态角色系统稳定进入后续规划与执行判断，而不再主要靠 digest、角色页和 package 展示承担存在感
-- 卷级主线、卷纲 / 章纲联动、动态角色系统形成同一套默认数据流
+- 卷级主线、卷纲 / 章纲联动、动态角色系统与 payoff ledger 形成同一套默认数据流
 
 ### P0-C P0-0e 卷战略与节奏工作台二期收尾
 
@@ -178,8 +183,8 @@ P0 的默认主链统一为：
 - 把 `圣经 / 拍点` 从后置质检区前移为结构化规划资产
 - 并入卷级工作台旁边统一维护，而不是继续散落在旧兼容字段和后置工具中
 - 补齐按整卷生成、重排、同步的批处理能力
-- 基于已有 `openPayoffs / payoffRefs / foreshadowStates` 收敛成统一的“伏笔 / 回收”结构资产，而不是继续分散在卷字段、章节字段和状态快照里
-- 在卷级工作台提供默认“伏笔 / 回收”视图，优先展示 `已埋设 / 待回收 / 本卷需触碰 / 已回收 / 失效`，让新手不用手动翻章节
+- 继续把已落地的 `PayoffLedgerItem` 与 AI 对账链往卷级工作台主视图深化，而不是只在服务层和基础卡片里存在
+- 在卷级工作台把 canonical 账本视图继续收口为默认主视图，优先展示 `待兑现 / 紧急 / 逾期 / 已兑现 / 失效`，让新手不用手动翻章节
 - 伏笔节点和回收节点优先由 AI 结构化提取、归并和去重，人工只做确认和少量修正，不把维护成本转嫁给用户
 
 完成标志：
@@ -198,7 +203,7 @@ P0 的默认主链统一为：
 - 把 `P0-4 强记忆底座 v1` 与 `P0-5 叙事审计闭环 v1` 从“有底座和局部接线”推进到“默认闭环”
 - 让 `StoryStateSnapshot`、`OpenConflict`、`AuditIssue`、`replanRecommendation` 共同驱动续章生成
 - 补齐多章趋势验证，避免系统只会记录问题，不会主动纠偏
-- 让 `foreshadowStates` 与 `openPayoffs / payoffRefs` 在 runtime、审阅、repair、audit、replan 中共享同一套判断，能识别 `已铺未收 / 无铺硬收 / 回收延迟 / 状态倒退`
+- 让 `foreshadowStates`、`openPayoffs / payoffRefs` 与新的 payoff ledger 在 runtime、审阅、repair、audit、replan 中共享同一套判断，能识别 `已铺未收 / 无铺硬收 / 回收延迟 / 状态倒退`
 - 在续章前默认给出“当前最该回收的事项、可以继续压后的理由、继续拖延的风险”，而不是只沉淀原始状态
 
 完成标志：
@@ -207,7 +212,7 @@ P0 的默认主链统一为：
 - 系统可以在偏航场景下自动给出可执行的后续窗口重规划
 - 长篇连续写作的纠偏从“人工兜底”转为“系统闭环”
 - 系统会主动标出当前最该回收的事项、已超期未回收事项和疑似误回收事项，而不是只在底层状态中被动记录
-- 审计和 replan 能对伏笔 / 回收给出可执行建议，例如 `前移 / 后移 / 拆分 / 合并 / 作废`，而不只是指出“有问题”
+- 审计和 replan 能对伏笔 / 回收给出可执行建议，例如 `前移 / 后移 / 拆分 / 合并 / 作废`，而不只是指出“有问题”；当前已开始支持 payoff 专项问题码与 `blockingLedgerKeys`
 
 ### P0-F 新用户首启与快速开书入口收敛
 
@@ -330,7 +335,7 @@ P0 的默认主链统一为：
 
 - `圣经 / 拍点` 进入卷级工作台主视野
 - 补齐整卷生成、重排、同步能力
-- 把 `openPayoffs / payoffRefs / foreshadowStates` 收敛为统一的伏笔 / 回收资产与默认视图
+- 把 `openPayoffs / payoffRefs / foreshadowStates` 收敛为统一的 payoff ledger 与默认视图
 
 完成标志：
 
@@ -342,7 +347,7 @@ P0 的默认主链统一为：
 
 - 状态对象、开放冲突、审计问题、replan 共同驱动续章
 - 形成多章连续纠偏能力
-- 伏笔状态、未兑现事项、章节兑现关联共同驱动“下一章应该收什么、是否允许继续压后、偏航后如何重排”
+- 伏笔状态、未兑现事项、章节兑现关联与 payoff ledger 共同驱动“下一章应该收什么、是否允许继续压后、偏航后如何重排”
 
 完成标志：
 
@@ -370,7 +375,7 @@ P0 的默认主链统一为：
 - 章节规划默认结构源稳定来自 `书级 framing + story macro + current volume window + 卷级工作台`
 - 旧 `outline / structuredOutline` 只保留兼容性参考地位
 - `圣经 / 拍点` 开始以前置规划资产而不是后置质检资产的身份参与链路
-- 伏笔 / 回收不再只是散落字段，系统能在章节生成前清晰展示结构承诺、兑现缺口和当前卷必须处理的 payoff obligations
+- 伏笔 / 回收不再只是散落字段，系统能通过 payoff ledger 在章节生成前清晰展示结构承诺、兑现缺口和当前卷必须处理的 payoff obligations
 
 ### 卷级工作台验收
 
@@ -386,7 +391,7 @@ P0 的默认主链统一为：
 - `StoryStateSnapshot`、`OpenConflict`、`AuditIssue`、`ReplanDecision` 能稳定进入默认消费链
 - 章节偏航后系统能自动给出后续窗口重规划
 - 连续写作多章后，系统不会只沉淀状态而不消费状态
-- 系统能稳定识别 `setup -> pending_payoff -> paid_off / failed` 的状态迁移，并对 `已铺未收 / 无铺硬收 / 回收延迟 / 状态倒退` 给出明确处理建议
+- 系统能稳定识别 `setup -> pending_payoff -> paid_off / failed` 的状态迁移，并对 `已铺未收 / 无铺硬收 / 回收延迟 / 状态倒退` 给出明确处理建议；当前 payoff ledger 已开始进入这条默认链
 
 ### 用户结果验收
 

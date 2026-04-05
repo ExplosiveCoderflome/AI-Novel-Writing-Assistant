@@ -1,5 +1,6 @@
 import { prisma } from "../../db/prisma";
 import { stringifyStringArray } from "../novel/novelP0Utils";
+import { payoffLedgerSyncService } from "../payoff/PayoffLedgerSyncService";
 import { openConflictService } from "./OpenConflictService";
 import {
   extractSnapshotWithAI,
@@ -348,6 +349,10 @@ export class StateService {
         sourceSnapshotId: persistedSnapshot.id,
         trackedConflictKeys: detected.trackedConflictKeys,
         conflicts: detected.conflicts,
+      }).catch(() => null);
+      await payoffLedgerSyncService.syncLedger(input.novelId, {
+        chapterOrder: input.chapterOrder,
+        sourceChapterId: input.chapterId,
       }).catch(() => null);
     }
 

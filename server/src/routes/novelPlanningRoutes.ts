@@ -24,6 +24,9 @@ export function registerNovelPlanningRoutes(input: RegisterNovelPlanningRoutesIn
     llmGenerateSchema,
     replanSchema,
   } = input;
+  const payoffLedgerQuerySchema = z.object({
+    chapterOrder: z.coerce.number().int().positive().optional(),
+  });
 
   router.get("/:id/state", validate({ params: idParamsSchema }), async (req, res, next) => {
     try {
@@ -52,6 +55,25 @@ export function registerNovelPlanningRoutes(input: RegisterNovelPlanningRoutesIn
       next(error);
     }
   });
+
+  router.get(
+    "/:id/payoff-ledger",
+    validate({ params: idParamsSchema, query: payoffLedgerQuerySchema }),
+    async (req, res, next) => {
+      try {
+        const { id } = req.params as z.infer<typeof idParamsSchema>;
+        const { chapterOrder } = req.query as z.infer<typeof payoffLedgerQuerySchema>;
+        const data = await novelService.getPayoffLedger(id, chapterOrder);
+        res.status(200).json({
+          success: true,
+          data,
+          message: "Payoff ledger loaded.",
+        } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
 
   router.get(
     "/:id/chapters/:chapterId/state-snapshot",

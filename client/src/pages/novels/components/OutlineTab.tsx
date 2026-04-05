@@ -73,6 +73,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
     onGenerateSkeleton,
     onGoToCharacterTab,
     latestStateSnapshot,
+    payoffLedger,
     draftText,
     volumes,
     onVolumeFieldChange,
@@ -524,6 +525,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                 <VolumePayoffOverviewCard
                   selectedVolume={selectedVolume}
                   latestStateSnapshot={latestStateSnapshot}
+                  payoffLedger={payoffLedger}
                 />
                 <Card key={selectedVolume.id}>
                   <CardHeader className="pb-3">

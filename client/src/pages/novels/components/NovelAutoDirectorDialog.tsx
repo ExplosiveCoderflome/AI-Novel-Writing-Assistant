@@ -744,6 +744,7 @@ export default function NovelAutoDirectorDialog({
                   <div className="mt-3">
                     <NovelCreateResourceRecommendationCard
                       basicForm={basicForm}
+                      contextHint={idea}
                       onApplySuggestion={onBasicFormChange}
                     />
                   </div>

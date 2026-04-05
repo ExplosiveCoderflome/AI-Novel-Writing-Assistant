@@ -2,6 +2,7 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { AuditReport, AuditType, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
 import { prisma } from "../../db/prisma";
+import { payoffLedgerSyncService } from "../payoff/PayoffLedgerSyncService";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../storyMode/storyModeProfile";
 import { openConflictService } from "../state/OpenConflictService";
 import {
@@ -129,11 +130,24 @@ export class AuditService {
       sourceSnapshotId: sourceSnapshot?.id ?? null,
       auditReports: persistedReports,
     });
-    const issues = this.buildLegacyIssues(structured.issues ?? [], persistedReports);
+    const ledger = await payoffLedgerSyncService.syncLedger(novelId, {
+      chapterOrder,
+      sourceChapterId: chapterId,
+      provider: options.provider,
+      model: options.model,
+      temperature: options.temperature,
+    }).catch(() => null);
+    const syntheticPayoffReports = ledger
+      ? payoffLedgerSyncService.buildSyntheticAuditReports(novelId, chapterId, chapterOrder, ledger)
+      : [];
+    const mergedReports = syntheticPayoffReports.length > 0
+      ? [...persistedReports, ...syntheticPayoffReports]
+      : persistedReports;
+    const issues = this.buildLegacyIssues(structured.issues ?? [], mergedReports);
     return {
       score,
       issues,
-      auditReports: persistedReports,
+      auditReports: mergedReports,
     };
   }
 

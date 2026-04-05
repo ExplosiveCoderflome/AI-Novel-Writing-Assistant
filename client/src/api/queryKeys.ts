@@ -15,6 +15,7 @@ export const queryKeys = {
     qualityReport: (id: string) => ["novels", "quality-report", id] as const,
     state: (id: string) => ["novels", "state", id] as const,
     latestStateSnapshot: (id: string) => ["novels", "state-snapshots", id, "latest"] as const,
+    payoffLedger: (id: string, chapterOrder?: number) => ["novels", "payoff-ledger", id, chapterOrder ?? "latest"] as const,
     chapterStateSnapshot: (id: string, chapterId: string) => ["novels", "state-snapshots", id, chapterId] as const,
     chapterPlan: (id: string, chapterId: string) => ["novels", "chapter-plan", id, chapterId] as const,
     chapterAuditReports: (id: string, chapterId: string) => ["novels", "chapter-audit-reports", id, chapterId] as const,

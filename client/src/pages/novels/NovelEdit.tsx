@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
@@ -24,6 +24,7 @@ import {
   getChapterAuditReports,
   getChapterPlan,
   getLatestStateSnapshot,
+  getNovelPayoffLedger,
   getNovelDetail,
   getNovelPipelineJob,
   getNovelVolumeWorkspace,
@@ -87,6 +88,85 @@ function tabFromScope(scope: DirectorLockScope | null | undefined): "basic" | "s
     return null;
   }
   return scope;
+}
+
+function tabFromWorkflowStageName(stage: string | null | undefined): "basic" | "story_macro" | "character" | "outline" | "structured" | "chapter" | "pipeline" | null {
+  switch (stage) {
+    case "project_setup":
+      return "basic";
+    case "story_macro":
+      return "story_macro";
+    case "character_setup":
+      return "character";
+    case "volume_strategy":
+      return "outline";
+    case "structured_outline":
+      return "structured";
+    case "chapter_execution":
+      return "chapter";
+    case "quality_repair":
+      return "pipeline";
+    default:
+      return null;
+  }
+}
+
+function tabFromDirectorProgress(input: {
+  currentStage?: string | null;
+  currentItemKey?: string | null;
+  checkpointType?: string | null;
+  reviewScope?: DirectorLockScope | null;
+}): "basic" | "story_macro" | "character" | "outline" | "structured" | "chapter" | "pipeline" | null {
+  const reviewTab = tabFromScope(input.reviewScope);
+  if (reviewTab) {
+    return reviewTab;
+  }
+  switch (input.checkpointType) {
+    case "book_contract_ready":
+      return "story_macro";
+    case "character_setup_required":
+      return "character";
+    case "volume_strategy_ready":
+      return "outline";
+    case "front10_ready":
+      return "structured";
+    case "chapter_batch_ready":
+    case "workflow_completed":
+      return "pipeline";
+    default:
+      break;
+  }
+
+  switch (input.currentItemKey) {
+    case "novel_create":
+    case "project_setup":
+      return "basic";
+    case "book_contract":
+    case "story_macro":
+    case "constraint_engine":
+      return "story_macro";
+    case "character_setup":
+    case "character_cast_apply":
+      return "character";
+    case "volume_strategy":
+    case "volume_skeleton":
+      return "outline";
+    case "beat_sheet":
+    case "chapter_list":
+    case "chapter_sync":
+    case "chapter_detail_bundle":
+      return "structured";
+    case "chapter_execution":
+      return "chapter";
+    case "reviewing":
+    case "repairing":
+    case "quality_repair":
+      return "pipeline";
+    default:
+      break;
+  }
+
+  return tabFromWorkflowStageName(input.currentStage);
 }
 
 function formatTakeoverCheckpoint(checkpoint: string | null | undefined): string {
@@ -307,6 +387,15 @@ export default function NovelEdit() {
     queryFn: () => getLatestStateSnapshot(id),
     enabled: Boolean(id),
   });
+  const payoffLedgerChapterOrder = useMemo(() => {
+    const orders = novelDetailQuery.data?.data?.chapters?.map((chapter) => chapter.order) ?? [];
+    return orders.length > 0 ? Math.max(...orders) : undefined;
+  }, [novelDetailQuery.data?.data?.chapters]);
+  const payoffLedgerQuery = useQuery({
+    queryKey: queryKeys.novels.payoffLedger(id, payoffLedgerChapterOrder),
+    queryFn: () => getNovelPayoffLedger(id, payoffLedgerChapterOrder),
+    enabled: Boolean(id),
+  });
   const activeAutoDirectorTaskQuery = useQuery({
     queryKey: queryKeys.novels.autoDirectorTask(id),
     queryFn: () => getActiveAutoDirectorTask(id),
@@ -511,6 +600,7 @@ export default function NovelEdit() {
   const chapterQualityReport = useMemo(() => (qualityReportQuery.data?.data?.chapterReports ?? []).find((item) => item.chapterId === selectedChapterId), [qualityReportQuery.data?.data?.chapterReports, selectedChapterId]);
   const chapterPlan = chapterPlanQuery.data?.data ?? null;
   const latestStateSnapshot = latestStateSnapshotQuery.data?.data ?? null;
+  const payoffLedger = payoffLedgerQuery.data?.data ?? null;
   const chapterAuditReports = chapterAuditReportsQuery.data?.data ?? [];
   const latestAutoDirectorTask = activeAutoDirectorTaskQuery.data?.data ?? null;
   const activeAutoDirectorTask = latestAutoDirectorTask?.status === "cancelled"
@@ -523,6 +613,43 @@ export default function NovelEdit() {
     }
     return raw as DirectorSessionState;
   }, [activeAutoDirectorTask?.meta.directorSession]);
+  const workflowCurrentTab = useMemo(
+    () => tabFromDirectorProgress({
+      currentStage: activeAutoDirectorTask?.currentStage,
+      currentItemKey: activeAutoDirectorTask?.currentItemKey,
+      checkpointType: activeAutoDirectorTask?.checkpointType,
+      reviewScope: activeDirectorSession?.reviewScope ?? null,
+    }),
+    [
+      activeAutoDirectorTask?.checkpointType,
+      activeAutoDirectorTask?.currentItemKey,
+      activeAutoDirectorTask?.currentStage,
+      activeDirectorSession?.reviewScope,
+    ],
+  );
+  const autoDirectorRefreshSignatureRef = useRef("");
+  const activeAutoDirectorRefreshSignature = useMemo(() => {
+    if (!activeAutoDirectorTask) {
+      return "";
+    }
+    const milestoneCount = Array.isArray(activeAutoDirectorTask.meta?.milestones)
+      ? activeAutoDirectorTask.meta.milestones.length
+      : 0;
+    return [
+      activeAutoDirectorTask.status,
+      activeAutoDirectorTask.currentStage ?? "",
+      activeAutoDirectorTask.currentItemKey ?? "",
+      activeAutoDirectorTask.checkpointType ?? "",
+      milestoneCount,
+    ].join("|");
+  }, [
+    activeAutoDirectorTask,
+    activeAutoDirectorTask?.checkpointType,
+    activeAutoDirectorTask?.currentItemKey,
+    activeAutoDirectorTask?.currentStage,
+    activeAutoDirectorTask?.meta,
+    activeAutoDirectorTask?.status,
+  ]);
   const openAuditIssueIds = useMemo(
     () => chapterAuditReports.flatMap((report) => report.issues.filter((issue) => issue.status === "open").map((issue) => issue.id)),
     [chapterAuditReports],
@@ -1050,6 +1177,16 @@ export default function NovelEdit() {
     if (!id) {
       return;
     }
+    if (
+      activeAutoDirectorTask
+      && (
+        activeAutoDirectorTask.status === "queued"
+        || activeAutoDirectorTask.status === "running"
+        || activeAutoDirectorTask.status === "waiting_approval"
+      )
+    ) {
+      return;
+    }
     const labels: Record<string, string> = {
       basic: "项目设定已打开",
       story_macro: "故事宏观规划已打开",
@@ -1067,7 +1204,34 @@ export default function NovelEdit() {
       volumeId: activeTab === "structured" || activeTab === "outline" ? selectedVolumeId || undefined : undefined,
       status: "waiting_approval",
     });
-  }, [activeTab, id, selectedChapter?.order, selectedChapterId, selectedVolumeId]);
+  }, [activeAutoDirectorTask, activeTab, id, selectedChapter?.order, selectedChapterId, selectedVolumeId]);
+
+  useEffect(() => {
+    if (!id || !activeAutoDirectorTask || !activeAutoDirectorRefreshSignature) {
+      autoDirectorRefreshSignatureRef.current = activeAutoDirectorRefreshSignature;
+      return;
+    }
+    if (!autoDirectorRefreshSignatureRef.current) {
+      autoDirectorRefreshSignatureRef.current = activeAutoDirectorRefreshSignature;
+      return;
+    }
+    if (autoDirectorRefreshSignatureRef.current === activeAutoDirectorRefreshSignature) {
+      return;
+    }
+    autoDirectorRefreshSignatureRef.current = activeAutoDirectorRefreshSignature;
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.novels.storyMacro(id) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.novels.storyMacroState(id) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.novels.volumeWorkspace(id) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.novels.latestStateSnapshot(id) }),
+      queryClient.invalidateQueries({ queryKey: ["novels", "payoff-ledger", id] }),
+      queryClient.invalidateQueries({ queryKey: ["novels", "character-dynamics-overview", id] }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterRelations(id) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCandidates(id) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(id) }),
+    ]);
+  }, [activeAutoDirectorRefreshSignature, activeAutoDirectorTask, id, queryClient]);
 
   const outlineText = useMemo(
     () => buildOutlinePreviewFromVolumes(normalizedVolumeDraft),
@@ -1112,6 +1276,7 @@ export default function NovelEdit() {
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.volumeWorkspace(id) });
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(id) });
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.latestStateSnapshot(id) });
+    await queryClient.invalidateQueries({ queryKey: ["novels", "payoff-ledger", id] });
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(id) });
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterDynamicsOverview(id) });
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCandidates(id) });
@@ -1310,6 +1475,7 @@ export default function NovelEdit() {
     onGenerateSkeleton: startSkeletonGeneration,
     onGoToCharacterTab: goToCharacterTab,
     latestStateSnapshot,
+    payoffLedger,
     outlineText,
     structuredDraftText,
     volumes: normalizedVolumeDraft,
@@ -1378,6 +1544,7 @@ export default function NovelEdit() {
     <NovelEditView
       id={id}
       activeTab={activeTab}
+      workflowCurrentTab={workflowCurrentTab}
       onActiveTabChange={setActiveTab}
       basicTab={basicTab}
       storyMacroTab={storyMacroTab}

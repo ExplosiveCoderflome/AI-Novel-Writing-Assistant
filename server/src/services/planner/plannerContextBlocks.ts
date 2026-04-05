@@ -259,6 +259,7 @@ export function buildChapterPlanContextBlocks(input: {
   replanContext: string;
   storyMacroSummary: string;
   currentVolumeWindow: string;
+  payoffLedgerSummary: string;
   storyModeBlock: string;
 }): PromptContextBlock[] {
   const volumeOutline = buildVolumeOutline(input.mappedVolumes);
@@ -334,6 +335,12 @@ export function buildChapterPlanContextBlocks(input: {
       group: "story_macro",
       priority: 96,
       content: buildBlockContent("故事宏观约束", input.storyMacroSummary || "无"),
+    }),
+    createContextBlock({
+      id: "payoff_ledger",
+      group: "payoff_ledger",
+      priority: 95,
+      content: buildBlockContent("伏笔账本", input.payoffLedgerSummary || "无"),
     }),
     createContextBlock({
       id: "volume_summary",
