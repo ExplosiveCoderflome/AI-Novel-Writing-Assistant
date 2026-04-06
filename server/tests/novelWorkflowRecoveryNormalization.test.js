@@ -143,3 +143,101 @@ test("healAutoDirectorTaskState also reconciles chapter batch checkpoints when t
     prisma.novelWorkflowTask.update = originals.update;
   }
 });
+
+test("healAutoDirectorTaskState revives front10 auto execution tasks that only failed during restart recovery while pipeline is still running", async () => {
+  const originals = {
+    findUnique: prisma.novelWorkflowTask.findUnique,
+    generationJobFindUnique: prisma.generationJob.findUnique,
+    update: prisma.novelWorkflowTask.update,
+  };
+
+  let currentRow = {
+    id: "task_front10_restart",
+    title: "示例项目",
+    novelId: "novel_demo",
+    lane: "auto_director",
+    status: "failed",
+    progress: 0.9763,
+    currentStage: "章节执行",
+    currentItemKey: "chapter_execution",
+    currentItemLabel: "正在自动执行前 10 章 · 第 2/10 章 · 示例章节",
+    checkpointType: null,
+    checkpointSummary: null,
+    resumeTargetJson: null,
+    seedPayloadJson: JSON.stringify({
+      directorSession: {
+        runMode: "auto_to_execution",
+        phase: "front10_ready",
+        isBackgroundRunning: true,
+        lockedScopes: ["chapter", "pipeline"],
+        reviewScope: null,
+      },
+      autoExecution: {
+        enabled: true,
+        firstChapterId: "chapter-1",
+        startOrder: 1,
+        endOrder: 10,
+        totalChapterCount: 10,
+        nextChapterId: "chapter-2",
+        nextChapterOrder: 2,
+        pipelineJobId: "job-front10-running",
+        pipelineStatus: "running",
+      },
+    }),
+    lastError: "服务重启后恢复失败：当前检查点不支持继续自动导演。",
+    finishedAt: new Date("2026-04-05T12:33:35.000Z"),
+    heartbeatAt: new Date("2026-04-05T12:33:35.000Z"),
+    cancelRequestedAt: null,
+    milestonesJson: null,
+  };
+
+  prisma.novelWorkflowTask.findUnique = async () => currentRow;
+  prisma.generationJob.findUnique = async () => ({
+    id: "job-front10-running",
+    status: "running",
+    progress: 0.165,
+    currentStage: "reviewing",
+    currentItemLabel: "第 2/10 章 · 示例章节",
+  });
+  prisma.novelWorkflowTask.update = async ({ data }) => {
+    currentRow = {
+      ...currentRow,
+      status: data.status ?? currentRow.status,
+      progress: data.progress ?? currentRow.progress,
+      currentStage: data.currentStage ?? currentRow.currentStage,
+      currentItemKey: data.currentItemKey ?? currentRow.currentItemKey,
+      currentItemLabel: data.currentItemLabel ?? currentRow.currentItemLabel,
+      checkpointType: Object.prototype.hasOwnProperty.call(data, "checkpointType")
+        ? data.checkpointType
+        : currentRow.checkpointType,
+      checkpointSummary: Object.prototype.hasOwnProperty.call(data, "checkpointSummary")
+        ? data.checkpointSummary
+        : currentRow.checkpointSummary,
+      resumeTargetJson: data.resumeTargetJson ?? currentRow.resumeTargetJson,
+      heartbeatAt: data.heartbeatAt ?? currentRow.heartbeatAt,
+      finishedAt: data.finishedAt ?? currentRow.finishedAt,
+      cancelRequestedAt: data.cancelRequestedAt ?? currentRow.cancelRequestedAt,
+      lastError: Object.prototype.hasOwnProperty.call(data, "lastError")
+        ? data.lastError
+        : currentRow.lastError,
+    };
+    return currentRow;
+  };
+
+  try {
+    const service = new NovelWorkflowService();
+    const healed = await service.healAutoDirectorTaskState("task_front10_restart");
+
+    assert.equal(healed, true);
+    assert.equal(currentRow.status, "running");
+    assert.equal(currentRow.currentStage, "质量修复");
+    assert.match(currentRow.currentItemLabel, /正在自动审校前 10 章/);
+    assert.equal(currentRow.checkpointType, null);
+    assert.equal(currentRow.lastError, null);
+    assert.equal(JSON.parse(currentRow.resumeTargetJson).chapterId, "chapter-2");
+  } finally {
+    prisma.novelWorkflowTask.findUnique = originals.findUnique;
+    prisma.generationJob.findUnique = originals.generationJobFindUnique;
+    prisma.novelWorkflowTask.update = originals.update;
+  }
+});

@@ -9,6 +9,7 @@ import { isHistoricalAutoDirectorRecoveryNotNeededFailure } from "./workflow/nov
 import { NovelContinuationService } from "./NovelContinuationService";
 import { STORY_WORLD_SLICE_SCHEMA_VERSION } from "./storyWorldSlice/storyWorldSlicePersistence";
 import { syncChapterArtifacts } from "./novelChapterArtifacts";
+import { listNovelTokenUsageByNovelIds } from "./novelTokenUsageSummary";
 import {
   ChapterInput,
   CreateNovelInput,
@@ -54,11 +55,13 @@ export class NovelCoreCrudService {
     const latestAutoDirectorTaskByNovelId = await this.listLatestVisibleAutoDirectorTasksByNovelIds(
       items.map((item) => item.id),
     );
+    const tokenUsageByNovelId = await listNovelTokenUsageByNovelIds(items.map((item) => item.id));
 
     return {
       items: items.map((item) => ({
         ...normalizeNovelOutput(item),
         latestAutoDirectorTask: latestAutoDirectorTaskByNovelId.get(item.id) ?? null,
+        tokenUsage: tokenUsageByNovelId.get(item.id) ?? null,
       })),
       page,
       limit,

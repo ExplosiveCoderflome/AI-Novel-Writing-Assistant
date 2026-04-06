@@ -1187,6 +1187,11 @@ model GenerationJob {
   cancelRequestedAt DateTime?
   error          String?
   lastErrorType  String?
+  promptTokens   Int               @default(0)
+  completionTokens Int             @default(0)
+  totalTokens    Int               @default(0)
+  llmCallCount   Int               @default(0)
+  lastTokenRecordedAt DateTime?
   payload        String?
   startedAt      DateTime?
   finishedAt     DateTime?
@@ -1466,6 +1471,11 @@ model NovelWorkflowTask {
   attemptCount       Int                     @default(0)
   maxAttempts        Int                     @default(3)
   lastError          String?
+  promptTokens       Int                     @default(0)
+  completionTokens   Int                     @default(0)
+  totalTokens        Int                     @default(0)
+  llmCallCount       Int                     @default(0)
+  lastTokenRecordedAt DateTime?
   novel              Novel?                  @relation(fields: [novelId], references: [id], onDelete: SetNull)
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt

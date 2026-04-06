@@ -19,8 +19,6 @@ export interface AITakeoverContainerProps {
   currentAction?: string | null;
   checkpointLabel?: string | null;
   taskId?: string | null;
-  overlay?: boolean;
-  overlayMessage?: string | null;
   actions?: AITakeoverAction[];
   children?: ReactNode;
 }
@@ -72,8 +70,6 @@ export default function AITakeoverContainer({
   currentAction,
   checkpointLabel,
   taskId,
-  overlay = false,
-  overlayMessage,
   actions = [],
   children,
 }: AITakeoverContainerProps) {
@@ -138,26 +134,7 @@ export default function AITakeoverContainer({
         </div>
       ) : null}
 
-      {children ? (
-        <div className="relative">
-          {children}
-          {overlay ? (
-            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-background/72 backdrop-blur-[1px]">
-              <div className="max-w-md rounded-2xl border bg-background/95 px-5 py-4 text-center shadow-sm">
-                <div className="text-sm font-medium text-foreground">
-                  {overlayMessage?.trim() || (
-                    mode === "loading"
-                      ? "正在同步当前自动流程状态，请稍候。"
-                      : mode === "running"
-                        ? "AI 正在接管当前区域，暂时不建议手动修改。"
-                        : "当前区域暂时由流程状态控制。"
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+      {children ? <div>{children}</div> : null}
     </div>
   );
 }

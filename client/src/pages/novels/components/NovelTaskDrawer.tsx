@@ -79,6 +79,10 @@ function formatDate(value: string | null | undefined): string {
   return date.toLocaleString();
 }
 
+function formatTokenCount(value: number | null | undefined): string {
+  return new Intl.NumberFormat("zh-CN").format(Math.max(0, Math.round(value ?? 0)));
+}
+
 function formatStepStatus(status: "idle" | "running" | "succeeded" | "failed" | "cancelled"): string {
   if (status === "running") {
     return "进行中";
@@ -107,6 +111,7 @@ export default function NovelTaskDrawer({
     ? task.meta.milestones as Array<{ checkpointType: NovelWorkflowCheckpoint; summary: string; createdAt: string }>
     : [];
   const progressPercent = Math.max(0, Math.min(100, Math.round((task?.progress ?? 0) * 100)));
+  const tokenUsage = task?.tokenUsage ?? null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -207,6 +212,37 @@ export default function NovelTaskDrawer({
                     </div>
                   </div>
                 </div>
+              </section>
+
+              <section className="space-y-3">
+                <div className="text-sm font-medium text-foreground">Token 统计</div>
+                {tokenUsage ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border bg-background/80 p-3">
+                      <div className="text-xs text-muted-foreground">累计调用次数</div>
+                      <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.llmCallCount)}</div>
+                    </div>
+                    <div className="rounded-xl border bg-background/80 p-3">
+                      <div className="text-xs text-muted-foreground">累计总 Tokens</div>
+                      <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.totalTokens)}</div>
+                    </div>
+                    <div className="rounded-xl border bg-background/80 p-3">
+                      <div className="text-xs text-muted-foreground">输入 Tokens</div>
+                      <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.promptTokens)}</div>
+                    </div>
+                    <div className="rounded-xl border bg-background/80 p-3">
+                      <div className="text-xs text-muted-foreground">输出 Tokens</div>
+                      <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.completionTokens)}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        最近记录：{formatDate(tokenUsage.lastRecordedAt)}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
+                    当前任务还没有累计到可展示的 token 用量；一旦模型开始返回 usage，这里会自动刷新。
+                  </div>
+                )}
               </section>
 
               <section className="space-y-3">

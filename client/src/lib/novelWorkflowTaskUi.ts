@@ -41,7 +41,10 @@ export function getWorkflowBadge(task?: NovelAutoDirectorTaskSummary | null): {
   if (!task) {
     return null;
   }
-  if ((task.status === "queued" || task.status === "running") && task.checkpointType === "front10_ready") {
+  if (
+    (task.status === "queued" || task.status === "running")
+    && (task.checkpointType === "front10_ready" || task.checkpointType === "chapter_batch_ready")
+  ) {
     return {
       label: "前 10 章自动执行中",
       variant: "default",
@@ -93,7 +96,10 @@ export function getWorkflowDescription(task?: NovelAutoDirectorTaskSummary | nul
   if (!task) {
     return null;
   }
-  if ((task.status === "queued" || task.status === "running") && task.checkpointType === "front10_ready") {
+  if (
+    (task.status === "queued" || task.status === "running")
+    && (task.checkpointType === "front10_ready" || task.checkpointType === "chapter_batch_ready")
+  ) {
     return `AI 正在后台继续执行前 10 章，当前进度 ${Math.round(task.progress * 100)}%。`;
   }
   if ((task.status === "failed" || task.status === "cancelled") && task.checkpointType === "chapter_batch_ready") {

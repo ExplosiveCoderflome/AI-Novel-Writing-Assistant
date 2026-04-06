@@ -449,8 +449,6 @@ export interface NovelEditTakeoverState {
   currentAction?: string | null;
   checkpointLabel?: string | null;
   taskId?: string | null;
-  overlay?: boolean;
-  overlayMessage?: string | null;
   actions?: Array<{
     label: string;
     onClick: () => void;

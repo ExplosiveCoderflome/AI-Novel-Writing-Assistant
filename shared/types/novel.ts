@@ -2,7 +2,7 @@ import type { BookAnalysisSectionKey } from "./bookAnalysis";
 import type { BookContract } from "./novelWorkflow";
 import type { NovelWorkflowCheckpoint } from "./novelWorkflow";
 import type { NovelStoryMode } from "./storyMode";
-import type { TaskStatus } from "./task";
+import type { TaskStatus, TaskTokenUsageSummary } from "./task";
 export type {
   BaseCharacter,
   Character,
@@ -137,6 +137,7 @@ export interface Novel {
   primaryStoryModeId?: string | null;
   secondaryStoryModeId?: string | null;
   worldId?: string | null;
+  tokenUsage?: TaskTokenUsageSummary | null;
   createdAt: string;
   updatedAt: string;
 }

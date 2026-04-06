@@ -8,6 +8,7 @@ import {
   isArchivableTaskStatus,
   normalizeFailureSummary,
 } from "../taskSupport";
+import { toTaskTokenUsageSummary } from "../taskTokenUsageSummary";
 import {
   archiveTask as recordTaskArchive,
   getArchivedTaskIds,
@@ -87,6 +88,13 @@ export class PipelineTaskAdapter {
         ? normalizeFailureSummary(row.error, "章节流水线失败，但没有记录明确错误。")
         : row.error,
       recoveryHint: buildTaskRecoveryHint("novel_pipeline", row.status as TaskStatus),
+      tokenUsage: toTaskTokenUsageSummary({
+        promptTokens: row.promptTokens,
+        completionTokens: row.completionTokens,
+        totalTokens: row.totalTokens,
+        llmCallCount: row.llmCallCount,
+        lastTokenRecordedAt: row.lastTokenRecordedAt,
+      }),
       sourceResource: {
         type: "novel",
         id: row.novelId,
@@ -144,6 +152,13 @@ export class PipelineTaskAdapter {
         ? normalizeFailureSummary(row.error, "章节流水线失败，但没有记录明确错误。")
         : row.error,
       recoveryHint: buildTaskRecoveryHint("novel_pipeline", row.status as TaskStatus),
+      tokenUsage: toTaskTokenUsageSummary({
+        promptTokens: row.promptTokens,
+        completionTokens: row.completionTokens,
+        totalTokens: row.totalTokens,
+        llmCallCount: row.llmCallCount,
+        lastTokenRecordedAt: row.lastTokenRecordedAt,
+      }),
       sourceResource: {
         type: "novel",
         id: row.novelId,

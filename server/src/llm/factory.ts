@@ -4,6 +4,7 @@ import { prisma } from "../db/prisma";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
 import { resolveModelTemperature } from "./capabilities";
 import { attachLLMDebugLogging } from "./debugLogging";
+import { attachLLMUsageTracking } from "./usageTracking";
 import { resolveModel, type TaskType } from "./modelRouter";
 import {
   getProviderEnvApiKey,
@@ -225,7 +226,7 @@ export async function getLLM(provider?: LLMProvider, options: LLMOptions = {}): 
     },
   });
 
-  return attachLLMDebugLogging(llm, {
+  return attachLLMDebugLogging(attachLLMUsageTracking(llm), {
     provider: resolved.provider,
     model: resolved.model,
     temperature: resolved.temperature,

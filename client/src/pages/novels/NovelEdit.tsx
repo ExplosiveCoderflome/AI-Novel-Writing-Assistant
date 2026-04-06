@@ -199,7 +199,10 @@ function buildTakeoverTitle(input: {
   novelTitle: string;
   checkpointType: string | null | undefined;
 }): string {
-  if (input.mode === "running" && input.checkpointType === "front10_ready") {
+  if (
+    input.mode === "running"
+    && (input.checkpointType === "front10_ready" || input.checkpointType === "chapter_batch_ready")
+  ) {
     return `《${input.novelTitle}》正在自动执行前 10 章`;
   }
   if (input.mode === "waiting") {
@@ -230,8 +233,11 @@ function buildTakeoverDescription(input: {
   checkpointType: string | null | undefined;
   reviewScope: DirectorLockScope | null | undefined;
 }): string {
-  if (input.mode === "running" && input.checkpointType === "front10_ready") {
-    return "AI 正在后台自动执行前 10 章，并会继续完成审校与修复。当前章节执行和质量修复区会临时锁定，避免与后台写入冲突。";
+  if (
+    input.mode === "running"
+    && (input.checkpointType === "front10_ready" || input.checkpointType === "chapter_batch_ready")
+  ) {
+    return "AI 正在后台自动执行前 10 章，并会继续完成审校与修复。你仍可继续手动查看和编辑；如果同时修改当前章节，后续自动结果可能覆盖这部分内容。";
   }
   if (input.mode === "waiting") {
     if (input.checkpointType === "character_setup_required") {
@@ -254,26 +260,9 @@ function buildTakeoverDescription(input: {
     return "后台导演流程已中断。建议先去任务中心查看失败原因，再决定是否从最近检查点恢复。";
   }
   if (input.mode === "loading") {
-    return "正在同步当前自动导演状态与锁定范围。";
+    return "正在同步当前自动导演状态。";
   }
-  return "AI 正在后台接管这本书的开书流程。为避免和自动写入冲突，当前编辑区域会按阶段临时锁定。";
-}
-
-function buildTakeoverOverlayMessage(input: {
-  mode: NovelEditTakeoverState["mode"];
-  checkpointType: string | null | undefined;
-  reviewScope: DirectorLockScope | null | undefined;
-}): string {
-  if (input.mode === "waiting" && input.reviewScope) {
-    return `当前流程正在等待「${tabFromScope(input.reviewScope) === "outline" ? "卷战略 / 卷骨架" : tabFromScope(input.reviewScope) === "character" ? "角色准备" : "当前阶段"}」审核，后续区域暂不开放手动修改。`;
-  }
-  if (input.mode === "running" && input.checkpointType === "front10_ready") {
-    return "AI 正在后台自动执行前 10 章。当前章节执行与质量修复区暂不建议手动修改，避免与批量写入冲突。";
-  }
-  if (input.checkpointType === "front10_ready") {
-    return "自动导演已交接完成，当前区域可以自由编辑。";
-  }
-  return "AI 正在接管当前模块，暂时不建议手动修改，避免与后台导演结果发生冲突。";
+  return "AI 正在后台接管这本书的开书流程。你可以继续手动操作当前项目；如果与自动导演同时改同一块内容，以最新写入结果为准。";
 }
 
 function resolveDirectorConsistencyIssue(input: {
@@ -607,12 +596,22 @@ export default function NovelEdit() {
     ? null
     : latestAutoDirectorTask;
   const activeDirectorSession = useMemo(() => {
+    if (
+      !activeAutoDirectorTask
+      || (
+        activeAutoDirectorTask.status !== "queued"
+        && activeAutoDirectorTask.status !== "running"
+        && activeAutoDirectorTask.status !== "waiting_approval"
+      )
+    ) {
+      return null;
+    }
     const raw = activeAutoDirectorTask?.meta.directorSession;
     if (!raw || typeof raw !== "object") {
       return null;
     }
     return raw as DirectorSessionState;
-  }, [activeAutoDirectorTask?.meta.directorSession]);
+  }, [activeAutoDirectorTask]);
   const workflowCurrentTab = useMemo(
     () => tabFromDirectorProgress({
       currentStage: activeAutoDirectorTask?.currentStage,
@@ -839,20 +838,7 @@ export default function NovelEdit() {
         ? "running"
         : "waiting";
     const novelTitle = novelDetailQuery.data?.data?.title?.trim() || task.title?.trim() || "当前项目";
-    const activeScope = scopeFromTab(activeTab);
-    const lockedScopes = activeDirectorSession?.lockedScopes ?? [];
     const reviewScope = activeDirectorSession?.reviewScope ?? null;
-    const isFront10AutoExecutionRunning = Boolean(
-      mode === "running"
-      && task.checkpointType === "front10_ready"
-      && activeDirectorSession?.runMode === "auto_to_execution",
-    );
-    const overlay = Boolean(
-      activeScope
-      && lockedScopes.includes(activeScope)
-      && reviewScope !== activeScope
-      && (task.checkpointType !== "front10_ready" || isFront10AutoExecutionRunning),
-    );
     const actions: NonNullable<NovelEditTakeoverState["actions"]> = [];
     const reviewTab = tabFromScope(reviewScope);
     if (
@@ -986,19 +972,15 @@ export default function NovelEdit() {
         ? "检测到角色准备仍为空，当前导演结果需要继续补齐。"
         : consistencyIssue === "missing_chapters"
           ? "检测到章节执行区为空，当前导演结果需要继续同步章节资源。"
-          : task.currentItemLabel ?? null,
+          : mode === "running" && task.checkpointType === "chapter_batch_ready" && task.currentItemLabel?.includes("已暂停")
+            ? "正在继续自动执行前 10 章"
+            : task.currentItemLabel ?? null,
       checkpointLabel: consistencyIssue
         ? "导演产物待补齐"
-        : formatTakeoverCheckpoint(task.checkpointType),
+        : mode === "running" && task.checkpointType === "chapter_batch_ready"
+          ? "前 10 章自动执行中"
+          : formatTakeoverCheckpoint(task.checkpointType),
       taskId: task.id,
-      overlay: consistencyIssue ? false : overlay,
-      overlayMessage: !consistencyIssue && overlay
-        ? buildTakeoverOverlayMessage({
-          mode,
-          checkpointType: task.checkpointType,
-          reviewScope,
-        })
-        : null,
       actions,
     };
   }, [

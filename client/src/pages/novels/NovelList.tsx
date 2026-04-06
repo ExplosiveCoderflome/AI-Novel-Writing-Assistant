@@ -52,6 +52,13 @@ function formatProgressStatus(status?: ProjectProgressStatus | null): string {
   return "未开始";
 }
 
+function formatTokenCount(value?: number | null): string {
+  const normalized = typeof value === "number" && Number.isFinite(value)
+    ? Math.max(0, Math.round(value))
+    : 0;
+  return new Intl.NumberFormat("zh-CN").format(normalized);
+}
+
 export default function NovelList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -297,7 +304,9 @@ export default function NovelList() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="text-xs text-muted-foreground">
-                    章节数：{novel._count.chapters}，角色数：{novel._count.characters}
+                    章节数：{novel._count.chapters}，角色数：{novel._count.characters}，累计 Token：{formatTokenCount(
+                      novel.tokenUsage?.totalTokens,
+                    )}
                   </div>
 
                   {workflowTask ? (

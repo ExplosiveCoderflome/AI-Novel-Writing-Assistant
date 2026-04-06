@@ -1,6 +1,7 @@
 import {
   DIRECTOR_RUN_MODES,
 } from "@ai-novel/shared/types/novelDirector";
+import { runWithLlmUsageTracking } from "../../../llm/usageTracking";
 import type {
   DirectorContinuationMode,
   BookSpec,
@@ -80,11 +81,18 @@ export class NovelDirectorService {
 
   private scheduleBackgroundRun(taskId: string, runner: () => Promise<void>) {
     void Promise.resolve()
-      .then(runner)
+      .then(() => runWithLlmUsageTracking({ workflowTaskId: taskId }, runner))
       .catch(async (error) => {
         const message = error instanceof Error ? error.message : "自动导演后台任务执行失败。";
         await this.workflowService.markTaskFailed(taskId, message);
       });
+  }
+
+  private withWorkflowTaskUsage<T>(workflowTaskId: string | null | undefined, runner: () => Promise<T>): Promise<T> {
+    if (!workflowTaskId?.trim()) {
+      return runner();
+    }
+    return runWithLlmUsageTracking({ workflowTaskId: workflowTaskId.trim() }, runner);
   }
 
   private resolveDirectorEditStage(
@@ -183,21 +191,37 @@ export class NovelDirectorService {
       ? seedPayload.runMode as (typeof DIRECTOR_RUN_MODES)[number]
       : undefined;
     const runMode = normalizeDirectorRunMode(directorInput.runMode ?? fallbackRunMode);
+    const directorSessionPhase = seedPayload.directorSession?.phase;
     const shouldContinueAutoExecution = (
       input?.continuationMode === "auto_execute_front10"
       || (
         runMode === "auto_to_execution"
-        && (row.checkpointType === "front10_ready" || row.checkpointType === "chapter_batch_ready")
+        && (
+          row.checkpointType === "front10_ready"
+          || row.checkpointType === "chapter_batch_ready"
+          || directorSessionPhase === "front10_ready"
+        )
       )
     );
-    if (shouldContinueAutoExecution && (row.checkpointType === "front10_ready" || row.checkpointType === "chapter_batch_ready")) {
-      await this.autoExecutionRuntime.runFromReady({
+    if (
+      shouldContinueAutoExecution
+      && (
+        row.checkpointType === "front10_ready"
+        || row.checkpointType === "chapter_batch_ready"
+        || directorSessionPhase === "front10_ready"
+      )
+    ) {
+      const resumeCheckpointType = row.checkpointType === "chapter_batch_ready"
+        ? "chapter_batch_ready"
+        : "front10_ready";
+      await this.withWorkflowTaskUsage(taskId, () => this.autoExecutionRuntime.runFromReady({
         taskId,
         novelId,
         request: directorInput,
         existingPipelineJobId: seedPayload.autoExecution?.pipelineJobId ?? null,
         existingState: seedPayload.autoExecution ?? null,
-      });
+        resumeCheckpointType,
+      }));
       return;
     }
 
@@ -347,21 +371,24 @@ export class NovelDirectorService {
   }
 
   async generateCandidates(input: DirectorCandidatesRequest): Promise<DirectorCandidatesResponse> {
-    return this.candidateStageService.generateCandidates(input);
+    return this.withWorkflowTaskUsage(input.workflowTaskId, () => this.candidateStageService.generateCandidates(input));
   }
 
   async refineCandidates(input: DirectorRefinementRequest): Promise<DirectorRefineResponse> {
-    return this.candidateStageService.refineCandidates(input);
+    return this.withWorkflowTaskUsage(input.workflowTaskId, () => this.candidateStageService.refineCandidates(input));
   }
 
   async patchCandidate(input: DirectorCandidatePatchRequest): Promise<DirectorCandidatePatchResponse> {
-    return this.candidateStageService.patchCandidate(input);
+    return this.withWorkflowTaskUsage(input.workflowTaskId, () => this.candidateStageService.patchCandidate(input));
   }
 
   async refineCandidateTitleOptions(
     input: DirectorCandidateTitleRefineRequest,
   ): Promise<DirectorCandidateTitleRefineResponse> {
-    return this.candidateStageService.refineCandidateTitleOptions(input);
+    return this.withWorkflowTaskUsage(
+      input.workflowTaskId,
+      () => this.candidateStageService.refineCandidateTitleOptions(input),
+    );
   }
 
   async confirmCandidate(input: DirectorConfirmRequest): Promise<DirectorConfirmApiResponse> {
@@ -386,120 +413,122 @@ export class NovelDirectorService {
       }),
     });
 
-    const resolvedBookFraming = await resolveDirectorBookFraming({
-      context: input,
-      title,
-      description,
-      suggest: (suggestInput) => novelFramingSuggestionService.suggest({
-        ...suggestInput,
-        provider: input.provider,
-        model: input.model,
-        temperature: input.temperature,
-      }),
-    });
-    const directorInput: DirectorConfirmRequest = {
-      ...input,
-      ...resolvedBookFraming,
-      runMode,
-    };
-
     try {
-      await this.markDirectorTaskRunning(
-        workflowTask.id,
-        "auto_director",
-        "novel_create",
-        "正在创建小说项目",
-        DIRECTOR_PROGRESS.novelCreate,
-      );
-      const createdNovel = await this.novelContextService.createNovel({
-        title,
-        description,
-        targetAudience: resolvedBookFraming.targetAudience,
-        bookSellingPoint: resolvedBookFraming.bookSellingPoint,
-        competingFeel: resolvedBookFraming.competingFeel,
-        first30ChapterPromise: resolvedBookFraming.first30ChapterPromise,
-        commercialTags: resolvedBookFraming.commercialTags,
-        genreId: input.genreId?.trim() || undefined,
-        primaryStoryModeId: input.primaryStoryModeId?.trim() || undefined,
-        secondaryStoryModeId: input.secondaryStoryModeId?.trim() || undefined,
-        worldId: input.worldId?.trim() || undefined,
-        writingMode: input.writingMode,
-        projectMode: input.projectMode,
-        narrativePov: input.narrativePov,
-        pacePreference: input.pacePreference,
-        styleTone: input.styleTone?.trim() || undefined,
-        emotionIntensity: input.emotionIntensity,
-        aiFreedom: input.aiFreedom,
-        defaultChapterLength: input.defaultChapterLength,
-        estimatedChapterCount: input.estimatedChapterCount ?? bookSpec.targetChapterCount,
-        projectStatus: input.projectStatus,
-        storylineStatus: input.storylineStatus,
-        outlineStatus: input.outlineStatus,
-        resourceReadyScore: input.resourceReadyScore,
-        sourceNovelId: input.sourceNovelId ?? undefined,
-        sourceKnowledgeDocumentId: input.sourceKnowledgeDocumentId ?? undefined,
-        continuationBookAnalysisId: input.continuationBookAnalysisId ?? undefined,
-        continuationBookAnalysisSections: input.continuationBookAnalysisSections ?? undefined,
-      });
-      await this.workflowService.attachNovelToTask(workflowTask.id, createdNovel.id, "project_setup");
-      const directorSession = buildDirectorSessionState({
-        runMode,
-        phase: "story_macro",
-        isBackgroundRunning: true,
-      });
-      const resumeTarget = buildNovelEditResumeTarget({
-        novelId: createdNovel.id,
-        taskId: workflowTask.id,
-        stage: "story_macro",
-      });
-      await this.workflowService.bootstrapTask({
-        workflowTaskId: workflowTask.id,
-        novelId: createdNovel.id,
-        lane: "auto_director",
-        title,
-        seedPayload: this.buildDirectorSeedPayload(directorInput, createdNovel.id, {
+      return await this.withWorkflowTaskUsage(workflowTask.id, async () => {
+        const resolvedBookFraming = await resolveDirectorBookFraming({
+          context: input,
+          title,
+          description,
+          suggest: (suggestInput) => novelFramingSuggestionService.suggest({
+            ...suggestInput,
+            provider: input.provider,
+            model: input.model,
+            temperature: input.temperature,
+          }),
+        });
+        const directorInput: DirectorConfirmRequest = {
+          ...input,
+          ...resolvedBookFraming,
+          runMode,
+        };
+
+        await this.markDirectorTaskRunning(
+          workflowTask.id,
+          "auto_director",
+          "novel_create",
+          "正在创建小说项目",
+          DIRECTOR_PROGRESS.novelCreate,
+        );
+        const createdNovel = await this.novelContextService.createNovel({
+          title,
+          description,
+          targetAudience: resolvedBookFraming.targetAudience,
+          bookSellingPoint: resolvedBookFraming.bookSellingPoint,
+          competingFeel: resolvedBookFraming.competingFeel,
+          first30ChapterPromise: resolvedBookFraming.first30ChapterPromise,
+          commercialTags: resolvedBookFraming.commercialTags,
+          genreId: input.genreId?.trim() || undefined,
+          primaryStoryModeId: input.primaryStoryModeId?.trim() || undefined,
+          secondaryStoryModeId: input.secondaryStoryModeId?.trim() || undefined,
+          worldId: input.worldId?.trim() || undefined,
+          writingMode: input.writingMode,
+          projectMode: input.projectMode,
+          narrativePov: input.narrativePov,
+          pacePreference: input.pacePreference,
+          styleTone: input.styleTone?.trim() || undefined,
+          emotionIntensity: input.emotionIntensity,
+          aiFreedom: input.aiFreedom,
+          defaultChapterLength: input.defaultChapterLength,
+          estimatedChapterCount: input.estimatedChapterCount ?? bookSpec.targetChapterCount,
+          projectStatus: input.projectStatus,
+          storylineStatus: input.storylineStatus,
+          outlineStatus: input.outlineStatus,
+          resourceReadyScore: input.resourceReadyScore,
+          sourceNovelId: input.sourceNovelId ?? undefined,
+          sourceKnowledgeDocumentId: input.sourceKnowledgeDocumentId ?? undefined,
+          continuationBookAnalysisId: input.continuationBookAnalysisId ?? undefined,
+          continuationBookAnalysisSections: input.continuationBookAnalysisSections ?? undefined,
+        });
+        await this.workflowService.attachNovelToTask(workflowTask.id, createdNovel.id, "project_setup");
+        const directorSession = buildDirectorSessionState({
+          runMode,
+          phase: "story_macro",
+          isBackgroundRunning: true,
+        });
+        const resumeTarget = buildNovelEditResumeTarget({
+          novelId: createdNovel.id,
+          taskId: workflowTask.id,
+          stage: "story_macro",
+        });
+        await this.workflowService.bootstrapTask({
+          workflowTaskId: workflowTask.id,
+          novelId: createdNovel.id,
+          lane: "auto_director",
+          title,
+          seedPayload: this.buildDirectorSeedPayload(directorInput, createdNovel.id, {
+            directorSession,
+            resumeTarget,
+          }),
+        });
+        await this.markDirectorTaskRunning(
+          workflowTask.id,
+          "story_macro",
+          "book_contract",
+          "正在准备 Book Contract 与故事宏观规划",
+          DIRECTOR_PROGRESS.bookContract,
+        );
+        this.scheduleBackgroundRun(workflowTask.id, async () => {
+          await this.runDirectorPipeline({
+            taskId: workflowTask.id,
+            novelId: createdNovel.id,
+            input: directorInput,
+            startPhase: "story_macro",
+          });
+        });
+        const novel = await this.novelContextService.getNovelById(createdNovel.id) as unknown as DirectorConfirmApiResponse["novel"];
+        const seededPlanDigests = {
+          book: null,
+          arcs: [],
+          chapters: [],
+        };
+
+        return {
+          novel,
+          storyMacroPlan: null,
+          bookSpec,
+          batch: {
+            id: input.batchId,
+            round: input.round,
+          },
+          createdChapterCount: 0,
+          createdArcCount: 0,
+          workflowTaskId: workflowTask.id,
           directorSession,
           resumeTarget,
-        }),
+          plans: seededPlanDigests,
+          seededPlans: seededPlanDigests,
+        };
       });
-      await this.markDirectorTaskRunning(
-        workflowTask.id,
-        "story_macro",
-        "book_contract",
-        "正在准备 Book Contract 与故事宏观规划",
-        DIRECTOR_PROGRESS.bookContract,
-      );
-      this.scheduleBackgroundRun(workflowTask.id, async () => {
-        await this.runDirectorPipeline({
-          taskId: workflowTask.id,
-          novelId: createdNovel.id,
-          input: directorInput,
-          startPhase: "story_macro",
-        });
-      });
-      const novel = await this.novelContextService.getNovelById(createdNovel.id) as unknown as DirectorConfirmApiResponse["novel"];
-      const seededPlanDigests = {
-        book: null,
-        arcs: [],
-        chapters: [],
-      };
-
-      return {
-        novel,
-        storyMacroPlan: null,
-        bookSpec,
-        batch: {
-          id: input.batchId,
-          round: input.round,
-        },
-        createdChapterCount: 0,
-        createdArcCount: 0,
-        workflowTaskId: workflowTask.id,
-        directorSession,
-        resumeTarget,
-        plans: seededPlanDigests,
-        seededPlans: seededPlanDigests,
-      };
     } catch (error) {
       const message = error instanceof Error ? error.message : "自动导演确认链执行失败。";
       await this.workflowService.markTaskFailed(workflowTask.id, message);
@@ -571,6 +600,7 @@ export class NovelDirectorService {
           taskId: input.taskId,
           novelId: input.novelId,
           request: input.input,
+          resumeCheckpointType: "front10_ready",
         });
       }
       return;
@@ -583,6 +613,7 @@ export class NovelDirectorService {
         taskId: input.taskId,
         novelId: input.novelId,
         request: input.input,
+        resumeCheckpointType: "front10_ready",
       });
     }
   }

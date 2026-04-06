@@ -47,6 +47,10 @@ function formatDate(value: string | null | undefined): string {
   return date.toLocaleString();
 }
 
+function formatTokenCount(value: number | null | undefined): string {
+  return new Intl.NumberFormat("zh-CN").format(Math.max(0, Math.round(value ?? 0)));
+}
+
 function formatCheckpoint(checkpoint: NovelWorkflowCheckpoint | null | undefined): string {
   if (checkpoint === "candidate_selection_required") {
     return "等待确认书级方向";
@@ -83,6 +87,7 @@ function resolveDirectorExecutionStepIndex(task: UnifiedTaskDetail | null): numb
   const itemKey = task?.currentItemKey ?? "";
   if (
     task?.checkpointType === "front10_ready"
+    || (task?.status === "running" && task?.checkpointType === "chapter_batch_ready")
     || itemKey === "chapter_detail_bundle"
     || itemKey === "chapter_execution"
   ) {
@@ -193,8 +198,16 @@ export default function NovelAutoDirectorProgressPanel({
   onBackgroundContinue,
   onOpenTaskCenter,
 }: NovelAutoDirectorProgressPanelProps) {
-  const currentAction = task?.currentItemLabel?.trim()
-    || (mode === "execution_failed" ? "导演任务执行中断" : "正在准备导演任务");
+  const currentAction = (
+    task?.status === "running"
+    && task?.checkpointType === "chapter_batch_ready"
+    && task.currentItemLabel?.includes("已暂停")
+  )
+    ? "正在继续自动执行前 10 章"
+    : (
+      task?.currentItemLabel?.trim()
+      || (mode === "execution_failed" ? "导演任务执行中断" : "正在准备导演任务")
+    );
   const taskTitle = task?.title?.trim() || titleHint?.trim() || "新小说项目";
   const milestones = Array.isArray(task?.meta.milestones)
     ? task.meta.milestones as Array<{ checkpointType: NovelWorkflowCheckpoint; summary: string; createdAt: string }>
@@ -205,6 +218,7 @@ export default function NovelAutoDirectorProgressPanel({
     : DIRECTOR_EXECUTION_STEPS;
   const steps = resolveDirectorStepStatuses(task, mode, stepDefinitions);
   const failureMessage = task?.lastError?.trim() || fallbackError?.trim() || "导演任务执行失败，但没有记录明确错误。";
+  const tokenUsage = task?.tokenUsage ?? null;
   const containerMode: AITakeoverMode = mode === "execution_failed"
     ? "failed"
     : !task
@@ -269,6 +283,28 @@ export default function NovelAutoDirectorProgressPanel({
             </div>
           ))}
         </div>
+
+        {tokenUsage ? (
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            <div className="rounded-xl border bg-background/80 p-3">
+              <div className="text-xs text-muted-foreground">累计调用</div>
+              <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.llmCallCount)}</div>
+            </div>
+            <div className="rounded-xl border bg-background/80 p-3">
+              <div className="text-xs text-muted-foreground">输入 Tokens</div>
+              <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.promptTokens)}</div>
+            </div>
+            <div className="rounded-xl border bg-background/80 p-3">
+              <div className="text-xs text-muted-foreground">输出 Tokens</div>
+              <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.completionTokens)}</div>
+            </div>
+            <div className="rounded-xl border bg-background/80 p-3">
+              <div className="text-xs text-muted-foreground">累计总 Tokens</div>
+              <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.totalTokens)}</div>
+              <div className="mt-1 text-[11px] text-muted-foreground">最近记录：{formatDate(tokenUsage.lastRecordedAt)}</div>
+            </div>
+          </div>
+        ) : null}
 
         {mode === "execution_failed" ? (
           <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">

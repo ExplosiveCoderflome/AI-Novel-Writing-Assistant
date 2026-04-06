@@ -37,6 +37,7 @@ interface NovelDirectorAutoExecutionWorkflowPort {
     itemLabel: string;
     itemKey?: string | null;
     progress?: number;
+    clearCheckpoint?: boolean;
   }): Promise<unknown>;
   recordCheckpoint(taskId: string, input: {
     stage: "quality_repair";
@@ -220,6 +221,7 @@ export class NovelDirectorAutoExecutionRuntime {
     request: DirectorConfirmRequest;
     existingPipelineJobId?: string | null;
     existingState?: DirectorAutoExecutionState | null;
+    resumeCheckpointType?: "front10_ready" | "chapter_batch_ready" | null;
   }): Promise<void> {
     let pipelineJobId = input.existingPipelineJobId?.trim() || "";
     let { range, autoExecution } = await this.resolveRangeAndState({
@@ -273,6 +275,7 @@ export class NovelDirectorAutoExecutionRuntime {
           itemKey: "chapter_execution",
           itemLabel: `正在自动执行前 ${range.totalChapterCount} 章`,
           progress: 0.93,
+          clearCheckpoint: input.resumeCheckpointType === "chapter_batch_ready",
         });
         try {
           const job = await this.deps.novelService.startPipelineJob(
@@ -281,6 +284,7 @@ export class NovelDirectorAutoExecutionRuntime {
               provider: input.request.provider,
               model: input.request.model,
               temperature: input.request.temperature,
+              workflowTaskId: input.taskId,
               startOrder: range.startOrder,
               endOrder: range.endOrder,
             }),
@@ -334,7 +338,10 @@ export class NovelDirectorAutoExecutionRuntime {
         }
         if (job.status === "queued" || job.status === "running") {
           const runningState = resolveDirectorAutoExecutionWorkflowState(job, range);
-          await this.deps.workflowService.markTaskRunning(input.taskId, runningState);
+          await this.deps.workflowService.markTaskRunning(input.taskId, {
+            ...runningState,
+            clearCheckpoint: input.resumeCheckpointType === "chapter_batch_ready",
+          });
           ({ range, autoExecution } = await this.resolveRangeAndState({
             novelId: input.novelId,
             existingState: autoExecution,

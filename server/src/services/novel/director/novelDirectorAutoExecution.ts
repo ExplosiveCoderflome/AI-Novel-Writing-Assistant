@@ -122,6 +122,7 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
+  workflowTaskId?: string;
   startOrder: number;
   endOrder: number;
   runMode?: PipelineRunMode;
@@ -139,6 +140,7 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
     provider: input.provider,
     model: input.model,
     temperature: input.temperature,
+    workflowTaskId: input.workflowTaskId,
   };
 }
 

@@ -151,6 +151,7 @@ export interface TitleGenerateOptions extends LLMGenerateOptions {
 export interface PipelineRunOptions extends LLMGenerateOptions {
   startOrder: number;
   endOrder: number;
+  workflowTaskId?: string;
   maxRetries?: number;
   runMode?: "fast" | "polish";
   autoReview?: boolean;
@@ -161,6 +162,7 @@ export interface PipelineRunOptions extends LLMGenerateOptions {
 }
 
 export interface PipelinePayload extends LLMGenerateOptions {
+  workflowTaskId?: string;
   maxRetries?: number;
   runMode?: "fast" | "polish";
   autoReview?: boolean;

@@ -29,6 +29,10 @@ function formatDate(value: string | null | undefined): string {
   return date.toLocaleString();
 }
 
+function formatTokenCount(value: number | null | undefined): string {
+  return new Intl.NumberFormat("zh-CN").format(Math.max(0, Math.round(value ?? 0)));
+}
+
 function formatKind(kind: TaskKind): string {
   if (kind === "book_analysis") {
     return "拆书分析";
@@ -501,6 +505,15 @@ export default function TaskCenterPage() {
                     <>
                       <div>任务绑定模型：{selectedTask.provider ?? "暂无"} / {selectedTask.model ?? "暂无"}</div>
                       <div>当前界面模型：{llm.provider} / {llm.model}</div>
+                    </>
+                  ) : null}
+                  {selectedTask.tokenUsage ? (
+                    <>
+                      <div>累计调用：{formatTokenCount(selectedTask.tokenUsage.llmCallCount)}</div>
+                      <div>输入 Tokens：{formatTokenCount(selectedTask.tokenUsage.promptTokens)}</div>
+                      <div>输出 Tokens：{formatTokenCount(selectedTask.tokenUsage.completionTokens)}</div>
+                      <div>累计总 Tokens：{formatTokenCount(selectedTask.tokenUsage.totalTokens)}</div>
+                      <div>最近记录：{formatDate(selectedTask.tokenUsage.lastRecordedAt)}</div>
                     </>
                   ) : null}
                 </div>

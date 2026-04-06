@@ -96,6 +96,8 @@ export async function syncAutoDirectorChapterBatchCheckpoint(input: {
   if (
     !existing.novelId
     || existing.checkpointType !== "chapter_batch_ready"
+    || existing.status === "queued"
+    || existing.status === "running"
     || existing.status === "cancelled"
   ) {
     return false;

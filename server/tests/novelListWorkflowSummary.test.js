@@ -4,11 +4,13 @@ const assert = require("node:assert/strict");
 const { NovelCoreCrudService } = require("../dist/services/novel/novelCoreCrudService.js");
 const { prisma } = require("../dist/db/prisma.js");
 
-test("listNovels attaches latest visible auto director summary and skips archived tasks", async () => {
+test("listNovels attaches latest visible auto director summary, skips archived tasks, and exposes deduplicated token usage", async () => {
   const originals = {
     novelFindMany: prisma.novel.findMany,
     novelCount: prisma.novel.count,
     workflowFindMany: prisma.novelWorkflowTask.findMany,
+    workflowGroupBy: prisma.novelWorkflowTask.groupBy,
+    generationJobFindMany: prisma.generationJob.findMany,
     archiveFindMany: prisma.taskCenterArchive.findMany,
   };
 
@@ -136,6 +138,51 @@ test("listNovels attaches latest visible auto director summary and skips archive
     },
   ]);
 
+  prisma.novelWorkflowTask.groupBy = async () => ([
+    {
+      novelId: "novel_1",
+      _sum: {
+        promptTokens: 1200,
+        completionTokens: 600,
+        totalTokens: 1800,
+        llmCallCount: 4,
+      },
+      _max: {
+        lastTokenRecordedAt: new Date("2026-04-02T09:25:00.000Z"),
+      },
+    },
+  ]);
+
+  prisma.generationJob.findMany = async () => ([
+    {
+      novelId: "novel_1",
+      promptTokens: 300,
+      completionTokens: 200,
+      totalTokens: 500,
+      llmCallCount: 1,
+      lastTokenRecordedAt: new Date("2026-04-02T09:28:00.000Z"),
+      payload: JSON.stringify({ workflowTaskId: "task_visible" }),
+    },
+    {
+      novelId: "novel_1",
+      promptTokens: 90,
+      completionTokens: 60,
+      totalTokens: 150,
+      llmCallCount: 1,
+      lastTokenRecordedAt: new Date("2026-04-02T09:27:00.000Z"),
+      payload: JSON.stringify({ startOrder: 1, endOrder: 1 }),
+    },
+    {
+      novelId: "novel_2",
+      promptTokens: 40,
+      completionTokens: 20,
+      totalTokens: 60,
+      llmCallCount: 1,
+      lastTokenRecordedAt: new Date("2026-04-02T07:20:00.000Z"),
+      payload: null,
+    },
+  ]);
+
   prisma.taskCenterArchive.findMany = async () => ([
     {
       taskId: "task_archived",
@@ -151,11 +198,19 @@ test("listNovels attaches latest visible auto director summary and skips archive
     assert.equal(result.items[0].latestAutoDirectorTask.status, "running");
     assert.equal(result.items[0].latestAutoDirectorTask.currentItemLabel, "正在生成角色阵容");
     assert.equal(result.items[0].latestAutoDirectorTask.nextActionLabel, "查看当前进度");
+    assert.equal(result.items[0].tokenUsage.totalTokens, 1950);
+    assert.equal(result.items[0].tokenUsage.promptTokens, 1290);
+    assert.equal(result.items[0].tokenUsage.completionTokens, 660);
+    assert.equal(result.items[0].tokenUsage.llmCallCount, 5);
+    assert.equal(result.items[0].tokenUsage.lastRecordedAt, "2026-04-02T09:27:00.000Z");
     assert.equal(result.items[1].latestAutoDirectorTask, null);
+    assert.equal(result.items[1].tokenUsage.totalTokens, 60);
   } finally {
     prisma.novel.findMany = originals.novelFindMany;
     prisma.novel.count = originals.novelCount;
     prisma.novelWorkflowTask.findMany = originals.workflowFindMany;
+    prisma.novelWorkflowTask.groupBy = originals.workflowGroupBy;
+    prisma.generationJob.findMany = originals.generationJobFindMany;
     prisma.taskCenterArchive.findMany = originals.archiveFindMany;
   }
 });

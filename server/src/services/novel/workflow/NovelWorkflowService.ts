@@ -14,6 +14,10 @@ import {
   type DirectorWorkflowSeedPayload,
 } from "../director/novelDirectorHelpers";
 import {
+  resolveDirectorAutoExecutionRangeFromState,
+  resolveDirectorAutoExecutionWorkflowState,
+} from "../director/novelDirectorAutoExecution";
+import {
   appendMilestone,
   buildNovelCreateResumeTarget,
   buildNovelEditResumeTarget,
@@ -25,7 +29,10 @@ import {
   parseResumeTarget,
   stringifyResumeTarget,
 } from "./novelWorkflow.shared";
-import { isHistoricalAutoDirectorRecoveryNotNeededFailure } from "./novelWorkflowRecoveryHeuristics";
+import {
+  isHistoricalAutoDirectorFront10RecoveryUnsupportedFailure,
+  isHistoricalAutoDirectorRecoveryNotNeededFailure,
+} from "./novelWorkflowRecoveryHeuristics";
 import { syncAutoDirectorChapterBatchCheckpoint } from "./novelWorkflowAutoDirectorReconciliation";
 
 type WorkflowRow = Awaited<ReturnType<typeof prisma.novelWorkflowTask.findUnique>>;
@@ -175,7 +182,8 @@ export class NovelWorkflowService {
     row = null as Awaited<ReturnType<typeof prisma.novelWorkflowTask.findUnique>> | null,
   ): Promise<boolean> {
     const historicalHealed = await this.healHistoricalAutoDirectorRecoveryFailure(taskId, row);
-    const checkpointRow = historicalHealed
+    const front10Healed = await this.healHistoricalAutoDirectorFront10RecoveryFailure(taskId, row);
+    const checkpointRow = (historicalHealed || front10Healed)
       ? await this.getVisibleRowByIdRaw(taskId)
       : (row ?? await this.getVisibleRowByIdRaw(taskId));
     const checkpointHealed = checkpointRow
@@ -184,7 +192,7 @@ export class NovelWorkflowService {
         row: checkpointRow,
       })
       : false;
-    return historicalHealed || checkpointHealed;
+    return historicalHealed || front10Healed || checkpointHealed;
   }
 
   async healHistoricalAutoDirectorRecoveryFailure(
@@ -205,6 +213,91 @@ export class NovelWorkflowService {
       return false;
     }
     await this.restoreTaskToCheckpoint(taskId, existing);
+    return true;
+  }
+
+  async healHistoricalAutoDirectorFront10RecoveryFailure(
+    taskId: string,
+    row = null as {
+      lane?: string | null;
+      status?: string | null;
+      novelId?: string | null;
+      seedPayloadJson?: string | null;
+      checkpointType?: string | null;
+      progress?: number | null;
+      lastError?: string | null;
+    } | null,
+  ): Promise<boolean> {
+    const candidate = row ?? await this.getVisibleRowByIdRaw(taskId);
+    if (!candidate || !isHistoricalAutoDirectorFront10RecoveryUnsupportedFailure(candidate)) {
+      return false;
+    }
+
+    const existing = await this.getVisibleRowByIdRaw(taskId);
+    if (!existing) {
+      return false;
+    }
+
+    const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(existing.seedPayloadJson);
+    const directorSession = seedPayload?.directorSession;
+    const autoExecution = seedPayload?.autoExecution;
+    const pipelineJobId = autoExecution?.pipelineJobId?.trim();
+    if (
+      !existing.novelId
+      || !pipelineJobId
+      || directorSession?.phase !== "front10_ready"
+    ) {
+      return false;
+    }
+
+    const job = await prisma.generationJob.findUnique({
+      where: { id: pipelineJobId },
+      select: {
+        id: true,
+        status: true,
+        progress: true,
+        currentStage: true,
+        currentItemLabel: true,
+      },
+    });
+    if (!job || (job.status !== "queued" && job.status !== "running")) {
+      return false;
+    }
+
+    const range = resolveDirectorAutoExecutionRangeFromState(autoExecution);
+    if (!range) {
+      return false;
+    }
+
+    const runningState = resolveDirectorAutoExecutionWorkflowState({
+      progress: job.progress,
+      currentStage: job.currentStage,
+      currentItemLabel: job.currentItemLabel,
+    }, range);
+    const nextResumeTarget = buildNovelEditResumeTarget({
+      novelId: existing.novelId,
+      taskId,
+      stage: runningState.stage === "quality_repair" ? "pipeline" : "chapter",
+      chapterId: autoExecution?.nextChapterId ?? autoExecution?.firstChapterId ?? null,
+    });
+
+    await prisma.novelWorkflowTask.update({
+      where: { id: taskId },
+      data: {
+        status: job.status === "queued" ? "queued" : "running",
+        progress: Math.max(existing.progress ?? 0, runningState.progress ?? defaultProgressForStage(runningState.stage)),
+        currentStage: stageLabel(runningState.stage),
+        currentItemKey: runningState.itemKey,
+        currentItemLabel: runningState.itemLabel,
+        checkpointType: null,
+        checkpointSummary: null,
+        resumeTargetJson: stringifyResumeTarget(nextResumeTarget),
+        heartbeatAt: new Date(),
+        finishedAt: null,
+        cancelRequestedAt: null,
+        lastError: null,
+      },
+    });
     return true;
   }
 
@@ -385,6 +478,7 @@ export class NovelWorkflowService {
     itemLabel: string;
     itemKey?: string | null;
     progress?: number;
+    clearCheckpoint?: boolean;
   }) {
     const existing = await this.getVisibleRowById(taskId);
     if (!existing) {
@@ -401,6 +495,8 @@ export class NovelWorkflowService {
         currentItemKey: input.itemKey ?? input.stage,
         currentItemLabel: input.itemLabel,
         progress: Math.max(existing.progress, input.progress ?? defaultProgressForStage(input.stage)),
+        checkpointType: input.clearCheckpoint ? null : existing.checkpointType,
+        checkpointSummary: input.clearCheckpoint ? null : existing.checkpointSummary,
         lastError: null,
         cancelRequestedAt: null,
       },

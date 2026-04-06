@@ -21,6 +21,7 @@ import {
   isArchivableTaskStatus,
   normalizeFailureSummary,
 } from "../taskSupport";
+import { toTaskTokenUsageSummary } from "../taskTokenUsageSummary";
 import {
   archiveTask as recordTaskArchive,
   getArchivedTaskIds,
@@ -54,6 +55,11 @@ function mapSummary(row: {
   createdAt: Date;
   updatedAt: Date;
   heartbeatAt: Date | null;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  llmCallCount: number;
+  lastTokenRecordedAt: Date | null;
   novelId: string | null;
   novel?: { title: string } | null;
 }): UnifiedTaskSummary {
@@ -88,6 +94,13 @@ function mapSummary(row: {
       ? normalizeFailureSummary(row.lastError, "小说主流程中断，但没有记录明确错误。")
       : row.lastError,
     recoveryHint: buildTaskRecoveryHint("novel_workflow", row.status as TaskStatus),
+    tokenUsage: toTaskTokenUsageSummary({
+      promptTokens: row.promptTokens,
+      completionTokens: row.completionTokens,
+      totalTokens: row.totalTokens,
+      llmCallCount: row.llmCallCount,
+      lastTokenRecordedAt: row.lastTokenRecordedAt,
+    }),
     sourceResource: row.novelId
       ? {
         type: "novel",

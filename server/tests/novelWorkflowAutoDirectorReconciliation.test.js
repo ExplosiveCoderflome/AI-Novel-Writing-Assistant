@@ -129,3 +129,58 @@ test("syncAutoDirectorChapterBatchCheckpoint marks workflow completed once all r
     prisma.novelWorkflowTask.update = originals.workflowUpdate;
   }
 });
+
+test("syncAutoDirectorChapterBatchCheckpoint does not overwrite actively running resumed auto execution", async () => {
+  const originals = {
+    chapterFindMany: prisma.chapter.findMany,
+    workflowUpdate: prisma.novelWorkflowTask.update,
+  };
+  const calls = [];
+
+  prisma.chapter.findMany = async () => {
+    calls.push("chapterFindMany");
+    return [
+      { id: "chapter-1", order: 1, generationState: "reviewed" },
+      { id: "chapter-2", order: 2, generationState: "planned" },
+    ];
+  };
+  prisma.novelWorkflowTask.update = async ({ data }) => {
+    calls.push(data);
+    return data;
+  };
+
+  try {
+    const changed = await syncAutoDirectorChapterBatchCheckpoint({
+      taskId: "task-running-batch",
+      row: {
+        title: "示例项目",
+        novelId: "novel-1",
+        status: "running",
+        checkpointType: "chapter_batch_ready",
+        currentItemLabel: "正在自动执行前 2 章",
+        checkpointSummary: "旧摘要",
+        resumeTargetJson: null,
+        seedPayloadJson: JSON.stringify({
+          autoExecution: {
+            enabled: true,
+            firstChapterId: "chapter-1",
+            startOrder: 1,
+            endOrder: 2,
+            totalChapterCount: 2,
+            pipelineJobId: "job-running",
+            pipelineStatus: "running",
+          },
+        }),
+        lastError: null,
+        finishedAt: null,
+        milestonesJson: null,
+      },
+    });
+
+    assert.equal(changed, false);
+    assert.deepEqual(calls, []);
+  } finally {
+    prisma.chapter.findMany = originals.chapterFindMany;
+    prisma.novelWorkflowTask.update = originals.workflowUpdate;
+  }
+});

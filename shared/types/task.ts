@@ -8,6 +8,14 @@ export type TaskKind = "book_analysis" | "novel_pipeline" | "knowledge_document"
 
 export type TaskStatus = "queued" | "running" | "waiting_approval" | "succeeded" | "failed" | "cancelled";
 
+export interface TaskTokenUsageSummary {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  llmCallCount: number;
+  lastRecordedAt?: string | null;
+}
+
 export interface UnifiedTaskStep {
   key: string;
   label: string;
@@ -41,6 +49,7 @@ export interface UnifiedTaskSummary {
   failureCode?: string | null;
   failureSummary?: string | null;
   recoveryHint?: string | null;
+  tokenUsage?: TaskTokenUsageSummary | null;
   sourceResource?: ResourceRef | null;
   targetResources?: ResourceRef[];
 }
