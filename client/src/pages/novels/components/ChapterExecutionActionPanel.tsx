@@ -1,9 +1,16 @@
 import type { Chapter } from "@ai-novel/shared/types/novel";
 import { Link } from "react-router-dom";
+import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { chapterStatusLabel, chapterSuggestedActionLabel } from "./chapterExecution.shared";
+import {
+  chapterHasPreparationAssets,
+  chapterStatusLabel,
+  chapterSuggestedActionLabel,
+  PrimaryActionButton,
+  type PrimaryAction,
+} from "./chapterExecution.shared";
 
 interface ChapterExecutionActionPanelProps {
   novelId: string;
@@ -86,6 +93,58 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
   const selectedChapterLabel = selectedChapter
     ? `第${selectedChapter.order}章 ${selectedChapter.title || "未命名章节"}`
     : "请选择一个章节";
+  const primaryAction: PrimaryAction = !selectedChapter
+    ? {
+      label: "请先选择章节",
+      reason: "先从左侧选中当前要推进的一章，系统才知道下一步该帮你做什么。",
+      variant: "default",
+      disabled: true,
+    }
+    : selectedChapter.chapterStatus === "needs_repair"
+      ? {
+        label: "自动修复问题",
+        reason: "这一章已经暴露出问题，先修复再继续润色会更稳。",
+        variant: "default",
+        ai: true,
+        onClick: onAutoRepair,
+        disabled: isRepairingChapter,
+      }
+      : selectedChapter.chapterStatus === "pending_review" || selectedChapter.generationState === "drafted"
+        ? {
+          label: "运行完整审校",
+          reason: "正文已经出来了，先做完整审校，再决定是修复还是继续改写。",
+          variant: "default",
+          ai: true,
+          onClick: onRunFullAudit,
+          disabled: isRunningFullAudit,
+        }
+        : selectedChapter.chapterStatus === "unplanned" || !chapterHasPreparationAssets(selectedChapter)
+          ? {
+            label: "先生成执行计划",
+            reason: "这章还缺明确目标和任务单，先补执行计划更容易写顺。",
+            variant: "default",
+            ai: true,
+            onClick: onGenerateChapterPlan,
+            disabled: isGeneratingChapterPlan,
+          }
+          : !selectedChapter.content?.trim() || selectedChapter.chapterStatus === "pending_generation"
+            ? {
+              label: "写本章",
+              reason: "准备信息已经够用了，现在最值得做的是直接生成这一章的正文。",
+              variant: "default",
+              ai: true,
+              onClick: onGenerateSelectedChapter,
+              disabled: !hasCharacters,
+            }
+            : {
+              label: "打开章节编辑器",
+              reason: "这一章已经有正文，直接进入编辑器处理细修和恢复会更高效。",
+              variant: "default",
+              href: `/novels/${novelId}/chapters/${selectedChapter.id}`,
+            };
+  const showQuickEditorAction = Boolean(selectedChapter && primaryAction.label !== "打开章节编辑器");
+  const showQuickAuditAction = Boolean(selectedChapter && primaryAction.label !== "运行完整审校");
+  const showQuickRepairAction = Boolean(selectedChapter && primaryAction.label !== "自动修复问题");
 
   return (
     <Card className="self-start overflow-hidden border-border/70 lg:sticky lg:top-4">
@@ -93,7 +152,7 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
         <div className="space-y-1">
           <CardTitle className="text-base">AI 执行台</CardTitle>
           <p className="text-sm leading-6 text-muted-foreground">
-            右侧保留动作和策略，让你一边看正文，一边决定下一步是继续写、审校还是修复。
+            默认只保留当前最推荐的一步。其他动作还在，但都退到下面的折叠区，避免右侧按钮堆满。
           </p>
         </div>
         <div className="rounded-2xl border border-border/70 bg-background/90 p-3">
@@ -109,30 +168,30 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
       </CardHeader>
       <CardContent className="space-y-4 pt-4">
         <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
-          <div className="text-xs text-muted-foreground">主推进动作</div>
+          <div className="text-xs text-muted-foreground">当前最推荐动作</div>
+          <div className="mt-2 text-sm leading-6 text-foreground">{primaryAction.reason}</div>
+          <div className="mt-3">
+            <PrimaryActionButton action={primaryAction} />
+          </div>
           <div className="mt-3 grid gap-2">
-            <Button variant="default" onClick={onGenerateSelectedChapter} disabled={!hasCharacters || !selectedChapter}>
-              写本章
-            </Button>
-            <Button variant="outline" onClick={onGenerateChapterPlan} disabled={!selectedChapter || isGeneratingChapterPlan}>
-              {isGeneratingChapterPlan ? "正在刷新执行计划..." : "刷新执行计划"}
-            </Button>
-            <Button variant="outline" onClick={onRunFullAudit} disabled={!selectedChapter || isRunningFullAudit}>
-              {isRunningFullAudit ? "正在运行完整审校..." : "运行完整审校"}
-            </Button>
-            <Button variant="secondary" onClick={onAutoRepair} disabled={!selectedChapter || isRepairingChapter}>
-              {isRepairingChapter ? "正在修复中..." : "自动修复问题"}
-            </Button>
-            {selectedChapter ? (
+            {showQuickEditorAction ? (
               <Button asChild variant="outline">
-                <Link to={`/novels/${novelId}/chapters/${selectedChapter.id}`}>打开章节编辑器</Link>
+                <Link to={`/novels/${novelId}/chapters/${selectedChapter!.id}`}>打开章节编辑器</Link>
               </Button>
-            ) : (
-              <Button variant="outline" disabled>打开章节编辑器</Button>
-            )}
+            ) : null}
+            {showQuickAuditAction ? (
+              <AiButton variant="outline" onClick={onRunFullAudit} disabled={!selectedChapter || isRunningFullAudit}>
+                {isRunningFullAudit ? "正在运行完整审校..." : "运行完整审校"}
+              </AiButton>
+            ) : null}
+            {showQuickRepairAction ? (
+              <AiButton variant="secondary" onClick={onAutoRepair} disabled={!selectedChapter || isRepairingChapter}>
+                {isRepairingChapter ? "正在修复中..." : "自动修复问题"}
+              </AiButton>
+            ) : null}
           </div>
           <div className="mt-3 text-xs leading-6 text-muted-foreground">
-            点击“写本章”时，如果这一章还没有最新执行计划，系统会先自动补齐再开始生成正文。
+            如果你不确定该点什么，优先用这里的推荐动作。更细的补充能力都还在下方。
           </div>
         </div>
 
@@ -141,21 +200,21 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
             资产补全与专项检查
           </summary>
           <div className="mt-3 grid gap-2">
-            <Button size="sm" variant="outline" onClick={onGenerateTaskSheet} disabled={!selectedChapter}>生成任务单</Button>
-            <Button size="sm" variant="outline" onClick={onGenerateSceneCards} disabled={!selectedChapter}>生成场景拆解</Button>
-            <Button size="sm" variant="outline" onClick={onSummarizeChapter} disabled={!selectedChapter}>生成摘要</Button>
-            <Button size="sm" variant="outline" onClick={onReplanChapter} disabled={!selectedChapter || isReplanningChapter}>
+            <AiButton size="sm" variant="outline" onClick={onGenerateTaskSheet} disabled={!selectedChapter}>生成任务单</AiButton>
+            <AiButton size="sm" variant="outline" onClick={onGenerateSceneCards} disabled={!selectedChapter}>生成场景拆解</AiButton>
+            <AiButton size="sm" variant="outline" onClick={onSummarizeChapter} disabled={!selectedChapter}>生成摘要</AiButton>
+            <AiButton size="sm" variant="outline" onClick={onReplanChapter} disabled={!selectedChapter || isReplanningChapter}>
               {isReplanningChapter ? "正在调整后续计划..." : "调整后续章节计划"}
-            </Button>
-            <Button size="sm" variant="outline" onClick={onCheckContinuity} disabled={!selectedChapter || isReviewingChapter}>
+            </AiButton>
+            <AiButton size="sm" variant="outline" onClick={onCheckContinuity} disabled={!selectedChapter || isReviewingChapter}>
               {isReviewingChapter ? "正在检查中..." : "检查连续性"}
-            </Button>
-            <Button size="sm" variant="outline" onClick={onCheckCharacterConsistency} disabled={!selectedChapter || isReviewingChapter}>
+            </AiButton>
+            <AiButton size="sm" variant="outline" onClick={onCheckCharacterConsistency} disabled={!selectedChapter || isReviewingChapter}>
               检查人设一致性
-            </Button>
-            <Button size="sm" variant="outline" onClick={onCheckPacing} disabled={!selectedChapter || isReviewingChapter}>
+            </AiButton>
+            <AiButton size="sm" variant="outline" onClick={onCheckPacing} disabled={!selectedChapter || isReviewingChapter}>
               检查节奏
-            </Button>
+            </AiButton>
           </div>
         </details>
 
@@ -164,14 +223,14 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
             润色增强
           </summary>
           <div className="mt-3 grid gap-2">
-            <Button size="sm" variant="outline" onClick={onRewriteChapter} disabled={!hasCharacters || !selectedChapter}>重写本章</Button>
-            <Button size="sm" variant="outline" onClick={onExpandChapter} disabled={!selectedChapter}>扩写本章</Button>
-            <Button size="sm" variant="outline" onClick={onCompressChapter} disabled={!selectedChapter}>压缩本章</Button>
-            <Button size="sm" variant="outline" onClick={onStrengthenConflict} disabled={!selectedChapter}>强化冲突</Button>
-            <Button size="sm" variant="outline" onClick={onEnhanceEmotion} disabled={!selectedChapter}>增强情绪</Button>
-            <Button size="sm" variant="outline" onClick={onUnifyStyle} disabled={!selectedChapter}>统一文风</Button>
-            <Button size="sm" variant="outline" onClick={onAddDialogue} disabled={!selectedChapter}>增加对话</Button>
-            <Button size="sm" variant="outline" onClick={onAddDescription} disabled={!selectedChapter}>增加描写</Button>
+            <AiButton size="sm" variant="outline" onClick={onRewriteChapter} disabled={!hasCharacters || !selectedChapter}>重写本章</AiButton>
+            <AiButton size="sm" variant="outline" onClick={onExpandChapter} disabled={!selectedChapter}>扩写本章</AiButton>
+            <AiButton size="sm" variant="outline" onClick={onCompressChapter} disabled={!selectedChapter}>压缩本章</AiButton>
+            <AiButton size="sm" variant="outline" onClick={onStrengthenConflict} disabled={!selectedChapter}>强化冲突</AiButton>
+            <AiButton size="sm" variant="outline" onClick={onEnhanceEmotion} disabled={!selectedChapter}>增强情绪</AiButton>
+            <AiButton size="sm" variant="outline" onClick={onUnifyStyle} disabled={!selectedChapter}>统一文风</AiButton>
+            <AiButton size="sm" variant="outline" onClick={onAddDialogue} disabled={!selectedChapter}>增加对话</AiButton>
+            <AiButton size="sm" variant="outline" onClick={onAddDescription} disabled={!selectedChapter}>增加描写</AiButton>
           </div>
         </details>
 

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import CollapsibleSummary from "./CollapsibleSummary";
 import WorldInjectionHint from "./WorldInjectionHint";
 import VolumePayoffOverviewCard from "./VolumePayoffOverviewCard";
 import type { OutlineTabViewProps } from "./NovelEditView.types";
@@ -135,15 +137,15 @@ export default function OutlineTab(props: OutlineTabViewProps) {
           <div className="text-sm text-muted-foreground">先让系统帮你决定卷数和硬/软规划，再确认可继续拆节奏板的卷骨架。</div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={onGenerateStrategy} disabled={isGeneratingStrategy}>
+          <AiButton variant="outline" onClick={onGenerateStrategy} disabled={isGeneratingStrategy}>
             {isGeneratingStrategy ? "生成中..." : "生成卷战略建议"}
-          </Button>
-          <Button variant="outline" onClick={onCritiqueStrategy} disabled={isCritiquingStrategy || !strategyPlan}>
+          </AiButton>
+          <AiButton variant="outline" onClick={onCritiqueStrategy} disabled={isCritiquingStrategy || !strategyPlan}>
             {isCritiquingStrategy ? "审查中..." : "AI审查卷战略"}
-          </Button>
-          <Button onClick={onGenerateSkeleton} disabled={isGeneratingSkeleton || !readiness.canGenerateSkeleton}>
+          </AiButton>
+          <AiButton onClick={onGenerateSkeleton} disabled={isGeneratingSkeleton || !readiness.canGenerateSkeleton}>
             {isGeneratingSkeleton ? "生成中..." : volumes.length > 0 ? "重生成全书卷骨架" : "生成全书卷骨架"}
-          </Button>
+          </AiButton>
           <Button variant="secondary" onClick={onSave} disabled={isSaving}>
             {isSaving ? "保存中..." : "保存卷工作区"}
           </Button>
@@ -218,200 +220,221 @@ export default function OutlineTab(props: OutlineTabViewProps) {
               </CardContent>
             </Card>
 
-            <Card className="self-start">
-              <CardHeader className="pb-3">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <CardTitle className="text-base">卷数建议</CardTitle>
-                  <Badge variant="outline">{volumeCountModeLabel}</Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-                    <div className="text-xs text-muted-foreground">总章节预算</div>
-                    <div className="mt-1 text-lg font-semibold text-foreground">{volumeCountGuidance.chapterBudget} 章</div>
-                  </div>
-                  <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-                    <div className="text-xs text-muted-foreground">推荐卷数区间</div>
-                    <div className="mt-1 text-lg font-semibold text-foreground">
-                      {volumeCountGuidance.allowedVolumeCountRange.min}-{volumeCountGuidance.allowedVolumeCountRange.max} 卷
+            <details className="group rounded-2xl border border-border/70 bg-background/95 p-4">
+              <summary className="cursor-pointer list-none">
+                <CollapsibleSummary
+                  title="卷数建议与策略审查"
+                  description="这些属于辅助决策信息。首屏先看推荐下一步和当前卷，确实需要时再展开审查与卷数控制。"
+                  meta={<Badge variant="outline">{volumeCountModeLabel}</Badge>}
+                />
+              </summary>
+
+              <div className="mt-4 space-y-3">
+                <Card className="self-start">
+                  <CardHeader className="pb-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <CardTitle className="text-base">卷数建议</CardTitle>
+                      <Badge variant="outline">{volumeCountModeLabel}</Badge>
                     </div>
-                  </div>
-                  <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-                    <div className="text-xs text-muted-foreground">系统建议卷数</div>
-                    <div className="mt-1 text-lg font-semibold text-foreground">{volumeCountGuidance.systemRecommendedVolumeCount} 卷</div>
-                  </div>
-                  <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-                    <div className="text-xs text-muted-foreground">默认硬规划范围</div>
-                    <div className="mt-1 text-lg font-semibold text-foreground">
-                      {volumeCountGuidance.hardPlannedVolumeRange.min}-{volumeCountGuidance.hardPlannedVolumeRange.max} 卷
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-border/70 bg-muted/20 p-3 text-xs leading-6 text-muted-foreground">
-                  标准卷尺度按 {volumeCountGuidance.targetChapterRange.min}-{volumeCountGuidance.targetChapterRange.max} 章 / 卷设计，
-                  理想值约 {volumeCountGuidance.targetChapterRange.ideal} 章 / 卷。超长篇默认通过增加卷数来保持每卷的阶段感、升级节点和卷级回报，不再压成少数巨卷。
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant={customVolumeCountEnabled ? "default" : "outline"}
-                    onClick={() => onCustomVolumeCountEnabledChange(!customVolumeCountEnabled)}
-                  >
-                    {customVolumeCountEnabled ? "收起自定义卷数" : "自定义卷数"}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={onRestoreSystemRecommendedVolumeCount}>
-                    恢复系统建议
-                  </Button>
-                </div>
-
-                {customVolumeCountEnabled ? (
-                  <div className="rounded-xl border border-border/70 p-3">
-                    <div className="grid gap-3 sm:grid-cols-[minmax(0,180px)_auto_auto] sm:items-end">
-                      <label className="space-y-1 text-sm">
-                        <span className="text-xs text-muted-foreground">固定卷数</span>
-                        <input
-                          type="number"
-                          min={volumeCountGuidance.allowedVolumeCountRange.min}
-                          max={volumeCountGuidance.allowedVolumeCountRange.max}
-                          className="w-full rounded-md border bg-background p-2"
-                          value={customVolumeCountInput}
-                          onChange={(event) => onCustomVolumeCountInputChange(event.target.value)}
-                        />
-                      </label>
-                      <Button size="sm" onClick={onApplyCustomVolumeCount}>应用固定卷数</Button>
-                      <div className="text-xs text-muted-foreground">
-                        允许范围：{volumeCountGuidance.allowedVolumeCountRange.min}-{volumeCountGuidance.allowedVolumeCountRange.max} 卷
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                        <div className="text-xs text-muted-foreground">总章节预算</div>
+                        <div className="mt-1 text-lg font-semibold text-foreground">{volumeCountGuidance.chapterBudget} 章</div>
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                        <div className="text-xs text-muted-foreground">推荐卷数区间</div>
+                        <div className="mt-1 text-lg font-semibold text-foreground">
+                          {volumeCountGuidance.allowedVolumeCountRange.min}-{volumeCountGuidance.allowedVolumeCountRange.max} 卷
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                        <div className="text-xs text-muted-foreground">系统建议卷数</div>
+                        <div className="mt-1 text-lg font-semibold text-foreground">{volumeCountGuidance.systemRecommendedVolumeCount} 卷</div>
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                        <div className="text-xs text-muted-foreground">默认硬规划范围</div>
+                        <div className="mt-1 text-lg font-semibold text-foreground">
+                          {volumeCountGuidance.hardPlannedVolumeRange.min}-{volumeCountGuidance.hardPlannedVolumeRange.max} 卷
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ) : null}
-              </CardContent>
-            </Card>
 
-            {critiqueReport ? (
+                    <div className="rounded-xl border border-border/70 bg-muted/20 p-3 text-xs leading-6 text-muted-foreground">
+                      标准卷尺度按 {volumeCountGuidance.targetChapterRange.min}-{volumeCountGuidance.targetChapterRange.max} 章 / 卷设计，
+                      理想值约 {volumeCountGuidance.targetChapterRange.ideal} 章 / 卷。超长篇默认通过增加卷数来保持每卷的阶段感、升级节点和卷级回报，不再压成少数巨卷。
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant={customVolumeCountEnabled ? "default" : "outline"}
+                        onClick={() => onCustomVolumeCountEnabledChange(!customVolumeCountEnabled)}
+                      >
+                        {customVolumeCountEnabled ? "收起自定义卷数" : "自定义卷数"}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={onRestoreSystemRecommendedVolumeCount}>
+                        恢复系统建议
+                      </Button>
+                    </div>
+
+                    {customVolumeCountEnabled ? (
+                      <div className="rounded-xl border border-border/70 p-3">
+                        <div className="grid gap-3 sm:grid-cols-[minmax(0,180px)_auto_auto] sm:items-end">
+                          <label className="space-y-1 text-sm">
+                            <span className="text-xs text-muted-foreground">固定卷数</span>
+                            <input
+                              type="number"
+                              min={volumeCountGuidance.allowedVolumeCountRange.min}
+                              max={volumeCountGuidance.allowedVolumeCountRange.max}
+                              className="w-full rounded-md border bg-background p-2"
+                              value={customVolumeCountInput}
+                              onChange={(event) => onCustomVolumeCountInputChange(event.target.value)}
+                            />
+                          </label>
+                          <Button size="sm" onClick={onApplyCustomVolumeCount}>应用固定卷数</Button>
+                          <div className="text-xs text-muted-foreground">
+                            允许范围：{volumeCountGuidance.allowedVolumeCountRange.min}-{volumeCountGuidance.allowedVolumeCountRange.max} 卷
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+                  </CardContent>
+                </Card>
+
+                {critiqueReport ? (
+                  <Card className="self-start">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <CardTitle className="text-base">卷战略审稿</CardTitle>
+                        <Badge variant={critiqueReport.overallRisk === "high" ? "secondary" : critiqueReport.overallRisk === "medium" ? "outline" : "default"}>
+                          风险 {critiqueReport.overallRisk}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      <div className="rounded-md border p-3 text-xs text-muted-foreground">{critiqueReport.summary}</div>
+                      {critiqueReport.issues.length > 0 ? (
+                        <div className="space-y-2">
+                          {critiqueReport.issues.map((issue) => (
+                            <div key={`${issue.targetRef}-${issue.title}`} className="rounded-md border p-3 text-xs">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline">{issue.targetRef}</Badge>
+                                <Badge variant={issue.severity === "high" ? "secondary" : issue.severity === "medium" ? "outline" : "default"}>
+                                  {issue.severity}
+                                </Badge>
+                              </div>
+                              <div className="mt-2 font-medium">{issue.title}</div>
+                              <div className="mt-1 text-muted-foreground">{issue.detail}</div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                ) : null}
+              </div>
+            </details>
+          </div>
+
+          <details className="group rounded-2xl border border-border/70 bg-background/95 p-4">
+            <summary className="cursor-pointer list-none">
+              <CollapsibleSummary
+                title="派生文本、版本控制与影响分析"
+                description="这部分偏向收尾和对比，不是当前卷骨架编辑时必须一直盯着看的内容。"
+              />
+            </summary>
+
+            <div className="mt-4 space-y-3">
               <Card className="self-start">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <CardTitle className="text-base">卷战略审稿</CardTitle>
-                    <Badge variant={critiqueReport.overallRisk === "high" ? "secondary" : critiqueReport.overallRisk === "medium" ? "outline" : "default"}>
-                      风险 {critiqueReport.overallRisk}
-                    </Badge>
-                  </div>
+                <CardHeader>
+                  <CardTitle className="text-base">派生文本预览</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <div className="rounded-md border p-3 text-xs text-muted-foreground">{critiqueReport.summary}</div>
-                  {critiqueReport.issues.length > 0 ? (
-                    <div className="space-y-2">
-                      {critiqueReport.issues.map((issue) => (
-                        <div key={`${issue.targetRef}-${issue.title}`} className="rounded-md border p-3 text-xs">
+                <CardContent>
+                  <textarea className="min-h-[220px] w-full rounded-md border bg-muted/20 p-3 text-sm" readOnly value={draftText} />
+                </CardContent>
+              </Card>
+
+              <Card className="self-start">
+                <CardHeader>
+                  <CardTitle className="text-base">版本控制</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  {volumeVersions.length > 0 ? (
+                    <>
+                      <select className="w-full rounded-md border bg-background p-2 text-sm" value={selectedVersionId} onChange={(event) => onSelectedVersionChange(event.target.value)}>
+                        {volumeVersions.map((version) => (
+                          <option key={version.id} value={version.id}>
+                            V{version.version} · {versionStatusLabel(version.status)}
+                          </option>
+                        ))}
+                      </select>
+                      {selectedVersion ? (
+                        <div className="rounded-md border p-2">
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline">{issue.targetRef}</Badge>
-                            <Badge variant={issue.severity === "high" ? "secondary" : issue.severity === "medium" ? "outline" : "default"}>
-                              {issue.severity}
+                            <span className="font-medium">V{selectedVersion.version}</span>
+                            <Badge variant={versionStatusVariant(selectedVersion.status)}>
+                              {versionStatusLabel(selectedVersion.status)}
                             </Badge>
                           </div>
-                          <div className="mt-2 font-medium">{issue.title}</div>
-                          <div className="mt-1 text-muted-foreground">{issue.detail}</div>
+                          <div className="text-xs text-muted-foreground">创建时间：{new Date(selectedVersion.createdAt).toLocaleString()}</div>
+                          <div className="mt-1 line-clamp-4 text-xs text-muted-foreground">{selectedVersion.diffSummary || "暂无差异摘要"}</div>
                         </div>
-                      ))}
+                      ) : null}
+                    </>
+                  ) : (
+                    <div className="text-xs text-muted-foreground">还没有卷版本，请先保存草稿版本。</div>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={onCreateDraftVersion} disabled={isCreatingDraftVersion || volumes.length === 0}>
+                      {isCreatingDraftVersion ? "保存中..." : "保存为草稿版本"}
+                    </Button>
+                    <Button variant="outline" onClick={onLoadSelectedVersionToDraft} disabled={!selectedVersionId}>覆盖当前草稿</Button>
+                    <Button variant="secondary" onClick={onActivateVersion} disabled={isActivatingVersion || !selectedVersionId}>
+                      {isActivatingVersion ? "生效中..." : "设为生效版"}
+                    </Button>
+                    <Button variant="outline" onClick={onFreezeVersion} disabled={isFreezingVersion || !selectedVersionId}>
+                      {isFreezingVersion ? "冻结中..." : "冻结当前版本"}
+                    </Button>
+                    <Button variant="outline" onClick={onLoadVersionDiff} disabled={isLoadingVersionDiff || !selectedVersionId}>
+                      {isLoadingVersionDiff ? "加载中..." : "查看版本差异"}
+                    </Button>
+                  </div>
+                  {diffResult ? (
+                    <div className="rounded-md border p-2 text-xs">
+                      <div className="font-medium">差异预览 V{diffResult.version}</div>
+                      <div className="text-muted-foreground">变更卷 {diffResult.changedVolumeCount} | 波及章节 {diffResult.changedChapterCount} | 变更行数 {diffResult.changedLines}</div>
                     </div>
                   ) : null}
                 </CardContent>
               </Card>
-            ) : null}
-          </div>
 
-          <div className="space-y-3">
-            <Card className="self-start">
-              <CardHeader>
-                <CardTitle className="text-base">派生文本预览</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <textarea className="min-h-[220px] w-full rounded-md border bg-muted/20 p-3 text-sm" readOnly value={draftText} />
-              </CardContent>
-            </Card>
-
-            <Card className="self-start">
-              <CardHeader>
-                <CardTitle className="text-base">版本控制</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                {volumeVersions.length > 0 ? (
-                  <>
-                    <select className="w-full rounded-md border bg-background p-2 text-sm" value={selectedVersionId} onChange={(event) => onSelectedVersionChange(event.target.value)}>
-                      {volumeVersions.map((version) => (
-                        <option key={version.id} value={version.id}>
-                          V{version.version} · {versionStatusLabel(version.status)}
-                        </option>
-                      ))}
-                    </select>
-                    {selectedVersion ? (
-                      <div className="rounded-md border p-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">V{selectedVersion.version}</span>
-                          <Badge variant={versionStatusVariant(selectedVersion.status)}>
-                            {versionStatusLabel(selectedVersion.status)}
-                          </Badge>
-                        </div>
-                        <div className="text-xs text-muted-foreground">创建时间：{new Date(selectedVersion.createdAt).toLocaleString()}</div>
-                        <div className="mt-1 line-clamp-4 text-xs text-muted-foreground">{selectedVersion.diffSummary || "暂无差异摘要"}</div>
-                      </div>
-                    ) : null}
-                  </>
-                ) : (
-                  <div className="text-xs text-muted-foreground">还没有卷版本，请先保存草稿版本。</div>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={onCreateDraftVersion} disabled={isCreatingDraftVersion || volumes.length === 0}>
-                    {isCreatingDraftVersion ? "保存中..." : "保存为草稿版本"}
-                  </Button>
-                  <Button variant="outline" onClick={onLoadSelectedVersionToDraft} disabled={!selectedVersionId}>覆盖当前草稿</Button>
-                  <Button variant="secondary" onClick={onActivateVersion} disabled={isActivatingVersion || !selectedVersionId}>
-                    {isActivatingVersion ? "生效中..." : "设为生效版"}
-                  </Button>
-                  <Button variant="outline" onClick={onFreezeVersion} disabled={isFreezingVersion || !selectedVersionId}>
-                    {isFreezingVersion ? "冻结中..." : "冻结当前版本"}
-                  </Button>
-                  <Button variant="outline" onClick={onLoadVersionDiff} disabled={isLoadingVersionDiff || !selectedVersionId}>
-                    {isLoadingVersionDiff ? "加载中..." : "查看版本差异"}
-                  </Button>
-                </div>
-                {diffResult ? (
-                  <div className="rounded-md border p-2 text-xs">
-                    <div className="font-medium">差异预览 V{diffResult.version}</div>
-                    <div className="text-muted-foreground">变更卷 {diffResult.changedVolumeCount} | 波及章节 {diffResult.changedChapterCount} | 变更行数 {diffResult.changedLines}</div>
+              <Card className="self-start">
+                <CardHeader>
+                  <CardTitle className="text-base">影响分析</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <div className="flex flex-wrap gap-2">
+                    <AiButton variant="outline" onClick={onAnalyzeDraftImpact} disabled={isAnalyzingDraftImpact || volumes.length === 0}>
+                      {isAnalyzingDraftImpact ? "分析中..." : "分析当前草稿"}
+                    </AiButton>
+                    <AiButton variant="outline" onClick={onAnalyzeVersionImpact} disabled={isAnalyzingVersionImpact || !selectedVersionId}>
+                      {isAnalyzingVersionImpact ? "分析中..." : "分析当前版本"}
+                    </AiButton>
                   </div>
-                ) : null}
-              </CardContent>
-            </Card>
-
-            <Card className="self-start">
-              <CardHeader>
-                <CardTitle className="text-base">影响分析</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" onClick={onAnalyzeDraftImpact} disabled={isAnalyzingDraftImpact || volumes.length === 0}>
-                    {isAnalyzingDraftImpact ? "分析中..." : "分析当前草稿"}
-                  </Button>
-                  <Button variant="outline" onClick={onAnalyzeVersionImpact} disabled={isAnalyzingVersionImpact || !selectedVersionId}>
-                    {isAnalyzingVersionImpact ? "分析中..." : "分析当前版本"}
-                  </Button>
-                </div>
-                {impactResult ? (
-                  <div className="rounded-md border p-2 text-xs">
-                    <div className="font-medium">卷级影响预览</div>
-                    <div className="text-muted-foreground">影响卷 {impactResult.affectedVolumeCount} | 波及章节 {impactResult.affectedChapterCount} | 变更行数 {impactResult.changedLines}</div>
-                  </div>
-                ) : (
-                  <div className="text-xs text-muted-foreground">建议在生效前先做卷级影响分析。</div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                  {impactResult ? (
+                    <div className="rounded-md border p-2 text-xs">
+                      <div className="font-medium">卷级影响预览</div>
+                      <div className="text-muted-foreground">影响卷 {impactResult.affectedVolumeCount} | 波及章节 {impactResult.affectedChapterCount} | 变更行数 {impactResult.changedLines}</div>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground">建议在生效前先做卷级影响分析。</div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </details>
         </div>
 
         <Card>

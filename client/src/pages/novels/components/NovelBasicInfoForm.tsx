@@ -22,6 +22,7 @@ import {
   findOptionSummary,
 } from "./basicInfoForm/BasicInfoFormPrimitives";
 import { BookFramingSection } from "./basicInfoForm/BookFramingSection";
+import CollapsibleSummary from "./CollapsibleSummary";
 import { ContinuationSourceSection } from "./basicInfoForm/ContinuationSourceSection";
 
 interface WorldOption {
@@ -318,198 +319,233 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         ) : null}
       </SectionBlock>
 
-      <SectionBlock
-        title="叙事体验"
-        description="这些字段定义读者会如何感知这部作品，也会直接影响章节规划的语气、密度和推进方式。"
-      >
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-2">
-            <FieldLabel htmlFor="basic-pov" hint={BASIC_INFO_FIELD_HINTS.narrativePov}>叙事视角</FieldLabel>
-            <select
-              id="basic-pov"
-              className="w-full rounded-md border bg-background p-2 text-sm"
-              value={basicForm.narrativePov}
-              onChange={(event) => onFormChange({ narrativePov: event.target.value as NovelBasicFormState["narrativePov"] })}
-            >
-              {POV_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-            <div className="text-xs text-muted-foreground">{findOptionSummary(POV_OPTIONS, basicForm.narrativePov)}</div>
-          </div>
+      <details className="group rounded-xl border border-border/70 bg-background/95 p-4">
+        <summary className="cursor-pointer list-none">
+          <CollapsibleSummary
+            title="叙事体验与 AI 协作高级设置"
+            description="这部分会影响后续生成风格和 AI 自动化程度，但不是新手首屏必须立刻决定的内容。"
+          />
+        </summary>
 
-          <div className="space-y-2">
-            <FieldLabel htmlFor="basic-pace" hint={BASIC_INFO_FIELD_HINTS.pacePreference}>节奏偏好</FieldLabel>
-            <select
-              id="basic-pace"
-              className="w-full rounded-md border bg-background p-2 text-sm"
-              value={basicForm.pacePreference}
-              onChange={(event) => onFormChange({ pacePreference: event.target.value as NovelBasicFormState["pacePreference"] })}
-            >
-              {PACE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-            <div className="text-xs text-muted-foreground">{findOptionSummary(PACE_OPTIONS, basicForm.pacePreference)}</div>
-          </div>
+        <div className="mt-4 space-y-4">
+          <SectionBlock
+            title="叙事体验"
+            description="这些字段定义读者会如何感知这部作品，也会直接影响章节规划的语气、密度和推进方式。"
+          >
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <FieldLabel htmlFor="basic-pov" hint={BASIC_INFO_FIELD_HINTS.narrativePov}>叙事视角</FieldLabel>
+                <select
+                  id="basic-pov"
+                  className="w-full rounded-md border bg-background p-2 text-sm"
+                  value={basicForm.narrativePov}
+                  onChange={(event) => onFormChange({ narrativePov: event.target.value as NovelBasicFormState["narrativePov"] })}
+                >
+                  {POV_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+                <div className="text-xs text-muted-foreground">{findOptionSummary(POV_OPTIONS, basicForm.narrativePov)}</div>
+              </div>
 
-          <div className="space-y-2">
-            <FieldLabel htmlFor="basic-emotion" hint={BASIC_INFO_FIELD_HINTS.emotionIntensity}>情绪浓度</FieldLabel>
-            <select
-              id="basic-emotion"
-              className="w-full rounded-md border bg-background p-2 text-sm"
-              value={basicForm.emotionIntensity}
-              onChange={(event) => onFormChange({ emotionIntensity: event.target.value as NovelBasicFormState["emotionIntensity"] })}
-            >
-              {EMOTION_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-            <div className="text-xs text-muted-foreground">{findOptionSummary(EMOTION_OPTIONS, basicForm.emotionIntensity)}</div>
-          </div>
+              <div className="space-y-2">
+                <FieldLabel htmlFor="basic-pace" hint={BASIC_INFO_FIELD_HINTS.pacePreference}>节奏偏好</FieldLabel>
+                <select
+                  id="basic-pace"
+                  className="w-full rounded-md border bg-background p-2 text-sm"
+                  value={basicForm.pacePreference}
+                  onChange={(event) => onFormChange({ pacePreference: event.target.value as NovelBasicFormState["pacePreference"] })}
+                >
+                  {PACE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+                <div className="text-xs text-muted-foreground">{findOptionSummary(PACE_OPTIONS, basicForm.pacePreference)}</div>
+              </div>
 
-          <div className="space-y-2">
-            <FieldLabel htmlFor="basic-style-tone" hint={BASIC_INFO_FIELD_HINTS.styleTone}>文风关键词</FieldLabel>
-            <Input
-              id="basic-style-tone"
-              value={basicForm.styleTone}
-              placeholder="例如：冷峻、克制、黑色幽默"
-              onChange={(event) => onFormChange({ styleTone: event.target.value })}
-            />
-          </div>
-        </div>
-      </SectionBlock>
+              <div className="space-y-2">
+                <FieldLabel htmlFor="basic-emotion" hint={BASIC_INFO_FIELD_HINTS.emotionIntensity}>情绪浓度</FieldLabel>
+                <select
+                  id="basic-emotion"
+                  className="w-full rounded-md border bg-background p-2 text-sm"
+                  value={basicForm.emotionIntensity}
+                  onChange={(event) => onFormChange({ emotionIntensity: event.target.value as NovelBasicFormState["emotionIntensity"] })}
+                >
+                  {EMOTION_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+                <div className="text-xs text-muted-foreground">{findOptionSummary(EMOTION_OPTIONS, basicForm.emotionIntensity)}</div>
+              </div>
 
-      <SectionBlock
-        title="AI 协作方式"
-        description="这部分定义你和 AI 如何分工，以及系统后续可以自动推进到什么程度。"
-      >
-        <div className="space-y-2">
-          <FieldLabel hint={BASIC_INFO_FIELD_HINTS.projectMode}>项目模式</FieldLabel>
-          <div className="grid gap-3 md:grid-cols-2">
-            {PROJECT_MODE_OPTIONS.map((option) => (
-              <SelectionCard
-                key={option.value}
-                option={option}
-                selected={basicForm.projectMode === option.value}
-                onSelect={(value) => onFormChange({ projectMode: value })}
-              />
-            ))}
-          </div>
-        </div>
+              <div className="space-y-2">
+                <FieldLabel htmlFor="basic-style-tone" hint={BASIC_INFO_FIELD_HINTS.styleTone}>文风关键词</FieldLabel>
+                <Input
+                  id="basic-style-tone"
+                  value={basicForm.styleTone}
+                  placeholder="例如：冷峻、克制、黑色幽默"
+                  onChange={(event) => onFormChange({ styleTone: event.target.value })}
+                />
+              </div>
+            </div>
+          </SectionBlock>
 
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-2">
-            <FieldLabel htmlFor="basic-ai-freedom" hint={BASIC_INFO_FIELD_HINTS.aiFreedom}>AI 自由度</FieldLabel>
-            <select
-              id="basic-ai-freedom"
-              className="w-full rounded-md border bg-background p-2 text-sm"
-              value={basicForm.aiFreedom}
-              onChange={(event) => onFormChange({ aiFreedom: event.target.value as NovelBasicFormState["aiFreedom"] })}
-            >
-              {AI_FREEDOM_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-            <div className="text-xs text-muted-foreground">{findOptionSummary(AI_FREEDOM_OPTIONS, basicForm.aiFreedom)}</div>
-          </div>
-
-          <div className="space-y-2">
-            <FieldLabel htmlFor="basic-resource-score" hint={BASIC_INFO_FIELD_HINTS.resourceReadyScore}>
-              资源完备度
-            </FieldLabel>
-            <Input
-              id="basic-resource-score"
-              type="number"
-              min={0}
-              max={100}
-              value={basicForm.resourceReadyScore}
-              onChange={(event) => onFormChange({
-                resourceReadyScore: Math.max(0, Math.min(100, Number(event.target.value || 0))),
-              })}
-            />
-            <div className="text-xs text-muted-foreground">0 表示刚起步，100 表示设定、角色和规划都比较完备。</div>
-          </div>
-        </div>
-      </SectionBlock>
-
-      {basicForm.writingMode === "continuation" ? (
-        <ContinuationSourceSection
-          basicForm={basicForm}
-          sourceNovelOptions={sourceNovelOptions}
-          sourceKnowledgeOptions={sourceKnowledgeOptions}
-          sourceNovelBookAnalysisOptions={sourceNovelBookAnalysisOptions}
-          isLoadingSourceNovelBookAnalyses={isLoadingSourceNovelBookAnalyses}
-          availableBookAnalysisSections={availableBookAnalysisSections}
-          hasSelectedContinuationSource={hasSelectedContinuationSource}
-          onFormChange={onFormChange}
-        />
-      ) : null}
-
-      <SectionBlock
-        title="生产进度与状态"
-        description="这些状态主要服务于项目管理和后续流程判断，不是一次性填死，后续可以按阶段调整。"
-      >
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-2">
-            <FieldLabel htmlFor="basic-project-status">项目状态</FieldLabel>
-            <select
-              id="basic-project-status"
-              className="w-full rounded-md border bg-background p-2 text-sm"
-              value={basicForm.projectStatus}
-              onChange={(event) => onFormChange({ projectStatus: event.target.value as NovelBasicFormState["projectStatus"] })}
-            >
-              {PROJECT_STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <FieldLabel htmlFor="basic-storyline-status">主线状态</FieldLabel>
-            <select
-              id="basic-storyline-status"
-              className="w-full rounded-md border bg-background p-2 text-sm"
-              value={basicForm.storylineStatus}
-              onChange={(event) => onFormChange({ storylineStatus: event.target.value as NovelBasicFormState["storylineStatus"] })}
-            >
-              {PROJECT_STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <FieldLabel htmlFor="basic-outline-status">大纲状态</FieldLabel>
-            <select
-              id="basic-outline-status"
-              className="w-full rounded-md border bg-background p-2 text-sm"
-              value={basicForm.outlineStatus}
-              onChange={(event) => onFormChange({ outlineStatus: event.target.value as NovelBasicFormState["outlineStatus"] })}
-            >
-              {PROJECT_STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
-
-          {showPublicationStatus ? (
+          <SectionBlock
+            title="AI 协作方式"
+            description="这部分定义你和 AI 如何分工，以及系统后续可以自动推进到什么程度。"
+          >
             <div className="space-y-2">
-              <FieldLabel hint={BASIC_INFO_FIELD_HINTS.status}>发布状态</FieldLabel>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {PUBLICATION_STATUS_OPTIONS.map((option) => (
+              <FieldLabel hint={BASIC_INFO_FIELD_HINTS.projectMode}>项目模式</FieldLabel>
+              <div className="grid gap-3 md:grid-cols-2">
+                {PROJECT_MODE_OPTIONS.map((option) => (
                   <SelectionCard
                     key={option.value}
                     option={option}
-                    selected={basicForm.status === option.value}
-                    onSelect={(value) => onFormChange({ status: value })}
+                    selected={basicForm.projectMode === option.value}
+                    onSelect={(value) => onFormChange({ projectMode: value })}
                   />
                 ))}
               </div>
             </div>
-          ) : null}
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <FieldLabel htmlFor="basic-ai-freedom" hint={BASIC_INFO_FIELD_HINTS.aiFreedom}>AI 自由度</FieldLabel>
+                <select
+                  id="basic-ai-freedom"
+                  className="w-full rounded-md border bg-background p-2 text-sm"
+                  value={basicForm.aiFreedom}
+                  onChange={(event) => onFormChange({ aiFreedom: event.target.value as NovelBasicFormState["aiFreedom"] })}
+                >
+                  {AI_FREEDOM_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+                <div className="text-xs text-muted-foreground">{findOptionSummary(AI_FREEDOM_OPTIONS, basicForm.aiFreedom)}</div>
+              </div>
+
+              <div className="space-y-2">
+                <FieldLabel htmlFor="basic-resource-score" hint={BASIC_INFO_FIELD_HINTS.resourceReadyScore}>
+                  资源完备度
+                </FieldLabel>
+                <Input
+                  id="basic-resource-score"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={basicForm.resourceReadyScore}
+                  onChange={(event) => onFormChange({
+                    resourceReadyScore: Math.max(0, Math.min(100, Number(event.target.value || 0))),
+                  })}
+                />
+                <div className="text-xs text-muted-foreground">0 表示刚起步，100 表示设定、角色和规划都比较完备。</div>
+              </div>
+            </div>
+          </SectionBlock>
         </div>
-      </SectionBlock>
+      </details>
+
+      {basicForm.writingMode === "continuation" ? (
+        <details className="group rounded-xl border border-border/70 bg-background/95 p-4" open>
+          <summary className="cursor-pointer list-none">
+            <CollapsibleSummary
+              title="续写来源设置"
+              description="当前是续写模式，这部分是必填项，所以默认展开。"
+              collapsedLabel="展开设置"
+              expandedLabel="收起设置"
+            />
+          </summary>
+          <div className="mt-4">
+            <ContinuationSourceSection
+              basicForm={basicForm}
+              sourceNovelOptions={sourceNovelOptions}
+              sourceKnowledgeOptions={sourceKnowledgeOptions}
+              sourceNovelBookAnalysisOptions={sourceNovelBookAnalysisOptions}
+              isLoadingSourceNovelBookAnalyses={isLoadingSourceNovelBookAnalyses}
+              availableBookAnalysisSections={availableBookAnalysisSections}
+              hasSelectedContinuationSource={hasSelectedContinuationSource}
+              onFormChange={onFormChange}
+            />
+          </div>
+        </details>
+      ) : null}
+
+      <details className="group rounded-xl border border-border/70 bg-background/95 p-4">
+        <summary className="cursor-pointer list-none">
+          <CollapsibleSummary
+            title="项目状态与进度字段"
+            description="这些主要服务于项目管理和流程判断，不是首屏必须立即处理的内容。"
+            collapsedLabel="展开字段"
+            expandedLabel="收起字段"
+          />
+        </summary>
+        <div className="mt-4">
+          <SectionBlock
+            title="生产进度与状态"
+            description="这些状态主要服务于项目管理和后续流程判断，不是一次性填死，后续可以按阶段调整。"
+          >
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <FieldLabel htmlFor="basic-project-status">项目状态</FieldLabel>
+                <select
+                  id="basic-project-status"
+                  className="w-full rounded-md border bg-background p-2 text-sm"
+                  value={basicForm.projectStatus}
+                  onChange={(event) => onFormChange({ projectStatus: event.target.value as NovelBasicFormState["projectStatus"] })}
+                >
+                  {PROJECT_STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <FieldLabel htmlFor="basic-storyline-status">主线状态</FieldLabel>
+                <select
+                  id="basic-storyline-status"
+                  className="w-full rounded-md border bg-background p-2 text-sm"
+                  value={basicForm.storylineStatus}
+                  onChange={(event) => onFormChange({ storylineStatus: event.target.value as NovelBasicFormState["storylineStatus"] })}
+                >
+                  {PROJECT_STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <FieldLabel htmlFor="basic-outline-status">大纲状态</FieldLabel>
+                <select
+                  id="basic-outline-status"
+                  className="w-full rounded-md border bg-background p-2 text-sm"
+                  value={basicForm.outlineStatus}
+                  onChange={(event) => onFormChange({ outlineStatus: event.target.value as NovelBasicFormState["outlineStatus"] })}
+                >
+                  {PROJECT_STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {showPublicationStatus ? (
+                <div className="space-y-2">
+                  <FieldLabel hint={BASIC_INFO_FIELD_HINTS.status}>发布状态</FieldLabel>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {PUBLICATION_STATUS_OPTIONS.map((option) => (
+                      <SelectionCard
+                        key={option.value}
+                        option={option}
+                        selected={basicForm.status === option.value}
+                        onSelect={(value) => onFormChange({ status: value })}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </SectionBlock>
+        </div>
+      </details>
 
       {continuationSourceMissing ? (
         <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800">

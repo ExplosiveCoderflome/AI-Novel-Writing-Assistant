@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { Character, CharacterCastRole, CharacterGender, CharacterTimeline } from "@ai-novel/shared/types/novel";
+import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -293,20 +294,20 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
                   <Button size="sm" onClick={onSaveCharacter} disabled={isSavingCharacter}>
                     {isSavingCharacter ? "保存中..." : "保存角色资产"}
                   </Button>
-                  <Button size="sm" variant="outline" onClick={onSyncTimeline} disabled={isSyncingTimeline}>
+                  <AiButton size="sm" variant="outline" onClick={onSyncTimeline} disabled={isSyncingTimeline}>
                     {isSyncingTimeline ? "同步中..." : "同步角色时间线"}
-                  </Button>
-                  <Button
+                  </AiButton>
+                  <AiButton
                     size="sm"
                     variant="outline"
                     onClick={onSyncAllTimeline}
                     disabled={isSyncingAllTimeline}
                   >
                     {isSyncingAllTimeline ? "同步中..." : "同步全部角色时间线"}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={onWorldCheck} disabled={isCheckingWorld}>
+                  </AiButton>
+                  <AiButton size="sm" variant="outline" onClick={onWorldCheck} disabled={isCheckingWorld}>
                     {isCheckingWorld ? "检查中..." : "检查世界一致性"}
-                  </Button>
+                  </AiButton>
                 </div>
               </div>
             </details>

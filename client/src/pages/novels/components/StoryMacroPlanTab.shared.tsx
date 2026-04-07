@@ -1,4 +1,5 @@
 import type { StoryMacroField } from "@ai-novel/shared/types/storyMacro";
+import AiButton from "@/components/common/AiButton";
 import { Button } from "@/components/ui/button";
 
 export const ENGINE_TEXT_FIELDS: Array<{
@@ -55,14 +56,14 @@ export function FieldActions(props: {
       >
         {isLocked ? "已锁定" : "锁定"}
       </Button>
-      <Button
+      <AiButton
         size="sm"
         variant="outline"
         onClick={() => props.onRegenerateField(props.field)}
         disabled={props.regeneratingField === props.field || isLocked || !props.storyInput.trim()}
       >
         {props.regeneratingField === props.field ? "重生成中..." : "重生成"}
-      </Button>
+      </AiButton>
     </div>
   );
 }

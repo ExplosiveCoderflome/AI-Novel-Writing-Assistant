@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { StyleRecommendationResult } from "@ai-novel/shared/types/styleEngine";
 import { createStyleBinding, getStyleBindings, recommendStyleProfilesForNovel } from "@/api/styleEngine";
 import { queryKeys } from "@/api/queryKeys";
+import AiButton from "@/components/common/AiButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLLMStore } from "@/store/llmStore";
@@ -98,13 +99,13 @@ export default function NovelStyleRecommendationCard({ novelId }: NovelStyleReco
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-2">
-              <Button onClick={() => recommendMutation.mutate()} disabled={recommendMutation.isPending}>
+              <AiButton onClick={() => recommendMutation.mutate()} disabled={recommendMutation.isPending}>
                 {recommendMutation.isPending ? "正在推荐写法..." : "AI 推荐写法资产"}
-              </Button>
+              </AiButton>
               {recommendation ? (
-                <Button variant="secondary" onClick={() => recommendMutation.mutate()} disabled={recommendMutation.isPending}>
+                <AiButton variant="secondary" onClick={() => recommendMutation.mutate()} disabled={recommendMutation.isPending}>
                   重新推荐
-                </Button>
+                </AiButton>
               ) : null}
             </div>
 

@@ -16,6 +16,7 @@ import {
   listTitleLibrary,
 } from "@/api/title";
 import { queryKeys } from "@/api/queryKeys";
+import AiButton from "@/components/common/AiButton";
 import LLMSelector from "@/components/common/LLMSelector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -181,9 +182,9 @@ export default function NovelCreateTitleQuickFill({
   return (
     <>
       <div className="flex items-center justify-end">
-        <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <AiButton type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
           标题快速选填
-        </Button>
+        </AiButton>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -277,13 +278,13 @@ export default function NovelCreateTitleQuickFill({
                       className="w-[120px]"
                     />
                   </label>
-                  <Button
+                  <AiButton
                     type="button"
                     onClick={() => generateMutation.mutate()}
                     disabled={generateMutation.isPending || !hasGenerationContext}
                   >
                     {generateMutation.isPending ? "生成中..." : "生成标题候选"}
-                  </Button>
+                  </AiButton>
                 </div>
 
                 {!hasGenerationContext ? (

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Character, CharacterCastOption, CharacterCastRole, CharacterGender } from "@ai-novel/shared/types/novel";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -274,9 +275,9 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                     onChange={(event) => setStoryInput(event.target.value)}
                   />
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={() => generateMutation.mutate()} disabled={isWorking}>
+                    <AiButton onClick={() => generateMutation.mutate()} disabled={isWorking}>
                       {generateMutation.isPending ? "生成中..." : "生成 3 套阵容"}
-                    </Button>
+                    </AiButton>
                     {castOptions.length > 0 ? (
                       <Button variant="outline" onClick={handleRejectAll} disabled={isWorking}>
                         {clearMutation.isPending ? "清空中..." : "都不喜欢"}

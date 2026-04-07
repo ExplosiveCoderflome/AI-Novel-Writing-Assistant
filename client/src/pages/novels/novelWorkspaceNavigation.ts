@@ -40,6 +40,30 @@ export function isNovelWorkspaceFlowTab(value: string | null | undefined): value
   return NOVEL_WORKSPACE_FLOW_STEPS.some((item) => item.key === value);
 }
 
+export function getNovelWorkspaceFlowStepIndex(value: string | null | undefined): number {
+  const normalized = normalizeNovelWorkspaceTab(value);
+  if (!isNovelWorkspaceFlowTab(normalized)) {
+    return -1;
+  }
+  return NOVEL_WORKSPACE_FLOW_STEPS.findIndex((item) => item.key === normalized);
+}
+
+export function getPreviousNovelWorkspaceFlowTab(value: string | null | undefined): NovelWorkspaceFlowTab | null {
+  const currentIndex = getNovelWorkspaceFlowStepIndex(value);
+  if (currentIndex <= 0) {
+    return null;
+  }
+  return NOVEL_WORKSPACE_FLOW_STEPS[currentIndex - 1]?.key ?? null;
+}
+
+export function getNextNovelWorkspaceFlowTab(value: string | null | undefined): NovelWorkspaceFlowTab | null {
+  const currentIndex = getNovelWorkspaceFlowStepIndex(value);
+  if (currentIndex < 0 || currentIndex >= NOVEL_WORKSPACE_FLOW_STEPS.length - 1) {
+    return null;
+  }
+  return NOVEL_WORKSPACE_FLOW_STEPS[currentIndex + 1]?.key ?? null;
+}
+
 export function getNovelWorkspaceTabLabel(value: string | null | undefined): string {
   const normalized = normalizeNovelWorkspaceTab(value);
   return [...NOVEL_WORKSPACE_FLOW_STEPS, ...NOVEL_WORKSPACE_TOOL_TABS].find((item) => item.key === normalized)?.label ?? "项目设定";

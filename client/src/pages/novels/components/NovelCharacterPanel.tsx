@@ -12,6 +12,7 @@ import type {
   SupplementalCharacterGenerationResult,
 } from "@ai-novel/shared/types/novel";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,6 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import CharacterAssetWorkspace from "./CharacterAssetWorkspace";
 import CharacterCastOptionsSection from "./CharacterCastOptionsSection";
+import CollapsibleSummary from "./CollapsibleSummary";
 import CharacterDynamicsSection from "./CharacterDynamicsSection";
 import type { QuickCharacterCreatePayload } from "./characterPanel.utils";
 
@@ -321,16 +323,16 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
 
           <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/70 bg-background/70 p-3">
             <Button onClick={() => setIsCharacterEntryOpen(true)}>新增角色</Button>
-            <Button variant="outline" onClick={handleOpenSupplementalDialog}>
+            <AiButton variant="outline" onClick={handleOpenSupplementalDialog}>
               补充角色
-            </Button>
-            <Button
+            </AiButton>
+            <AiButton
               variant="secondary"
               onClick={onEvolveCharacter}
               disabled={isEvolvingCharacter || !selectedCharacterId}
             >
               {isEvolvingCharacter ? "补全中..." : "AI 补全当前角色"}
-            </Button>
+            </AiButton>
             <Badge variant="outline">低频入口：新增角色 / 导入角色 / 补充角色</Badge>
             <div className="text-xs text-muted-foreground">
               日常编辑建议直接在下方“角色资产工作台”里处理。
@@ -395,9 +397,9 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                 />
                 自动补齐性格、背景、成长弧和当前状态
               </label>
-              <Button onClick={handleQuickCreate} disabled={isQuickCreating || !quickCharacterForm.name.trim()}>
+              <AiButton onClick={handleQuickCreate} disabled={isQuickCreating || !quickCharacterForm.name.trim()}>
                 {isQuickCreating ? "生成中..." : "AI 生成角色卡"}
-              </Button>
+              </AiButton>
             </div>
 
             <div className="space-y-3 rounded-2xl border p-4">
@@ -554,12 +556,12 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Button
+                <AiButton
                   onClick={handleGenerateSupplementalCharacters}
                   disabled={isGeneratingSupplementalCharacters || (supplementalMode === "linked" && characters.length === 0)}
                 >
                   {isGeneratingSupplementalCharacters ? "生成中..." : "生成补充角色候选"}
-                </Button>
+                </AiButton>
                 <Badge variant="outline">数量不选时由 AI 自行判断</Badge>
                 <Badge variant="outline">关系角色会优先围绕现有角色补位</Badge>
               </div>
@@ -658,21 +660,32 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
         </DialogContent>
       </Dialog>
 
-      <CharacterCastOptionsSection
-        novelId={novelId}
-        characters={characters}
-        selectedCharacter={selectedCharacter}
-        onSelectedCharacterChange={onSelectedCharacterChange}
-        llmProvider={llmProvider}
-        llmModel={llmModel}
-      />
+      <details className="group rounded-2xl border border-border/70 bg-background/95 p-4">
+        <summary className="cursor-pointer list-none">
+          <CollapsibleSummary
+            title="角色阵容与关系诊断"
+            description="这些内容更适合在需要补位、查缺口或梳理关系时再展开。日常编辑先看下方角色资产工作台。"
+          />
+        </summary>
 
-      <CharacterDynamicsSection
-        novelId={novelId}
-        selectedCharacter={selectedCharacter}
-        selectedCharacterId={selectedCharacterId}
-        onSelectedCharacterChange={onSelectedCharacterChange}
-      />
+        <div className="mt-4 space-y-4">
+          <CharacterCastOptionsSection
+            novelId={novelId}
+            characters={characters}
+            selectedCharacter={selectedCharacter}
+            onSelectedCharacterChange={onSelectedCharacterChange}
+            llmProvider={llmProvider}
+            llmModel={llmModel}
+          />
+
+          <CharacterDynamicsSection
+            novelId={novelId}
+            selectedCharacter={selectedCharacter}
+            selectedCharacterId={selectedCharacterId}
+            onSelectedCharacterChange={onSelectedCharacterChange}
+          />
+        </div>
+      </details>
 
       <CharacterAssetWorkspace
         characters={characters}

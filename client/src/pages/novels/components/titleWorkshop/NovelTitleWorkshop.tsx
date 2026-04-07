@@ -4,6 +4,7 @@ import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { generateNovelTitles } from "@/api/novel";
 import { createTitleLibraryEntry } from "@/api/title";
 import { queryKeys } from "@/api/queryKeys";
+import AiButton from "@/components/common/AiButton";
 import LLMSelector from "@/components/common/LLMSelector";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -100,14 +101,14 @@ export default function NovelTitleWorkshop({
             {saveCurrentMutation.isPending ? "保存中..." : "保存当前标题"}
           </Button>
         </div>
-        <div className="mt-4 space-y-3">
-          <LLMSelector />
-          <div className="flex justify-end">
-            <Button type="button" onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
-              {generateMutation.isPending ? "生成中..." : "生成标题候选"}
-            </Button>
+          <div className="mt-4 space-y-3">
+            <LLMSelector />
+            <div className="flex justify-end">
+              <AiButton type="button" onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
+                {generateMutation.isPending ? "生成中..." : "生成标题候选"}
+              </AiButton>
+            </div>
           </div>
-        </div>
       </div>
 
       <TitleSuggestionList

@@ -1,5 +1,7 @@
 import type { Chapter } from "@ai-novel/shared/types/novel";
 import { Link } from "react-router-dom";
+import AiButton from "@/components/common/AiButton";
+import AiActionLabel from "@/components/common/AiActionLabel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -10,6 +12,7 @@ export type PrimaryAction = {
   label: string;
   reason: string;
   variant: "default" | "secondary" | "outline";
+  ai?: boolean;
   disabled?: boolean;
   onClick?: () => void;
   href?: string;
@@ -146,13 +149,21 @@ export function PrimaryActionButton(props: { action: PrimaryAction | null }) {
   if (action.href) {
     return (
       <Button asChild size="sm" variant={action.variant}>
-        <Link to={action.href}>{action.label}</Link>
+        <Link to={action.href}>
+          {action.ai ? <AiActionLabel>{action.label}</AiActionLabel> : action.label}
+        </Link>
       </Button>
     );
   }
   return (
-    <Button size="sm" variant={action.variant} onClick={action.onClick} disabled={action.disabled}>
-      {action.label}
-    </Button>
+    action.ai ? (
+      <AiButton size="sm" variant={action.variant} onClick={action.onClick} disabled={action.disabled}>
+        {action.label}
+      </AiButton>
+    ) : (
+      <Button size="sm" variant={action.variant} onClick={action.onClick} disabled={action.disabled}>
+        {action.label}
+      </Button>
+    )
   );
 }

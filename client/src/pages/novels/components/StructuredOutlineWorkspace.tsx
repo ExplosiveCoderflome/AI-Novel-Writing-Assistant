@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -367,13 +368,13 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                   <CardTitle className="text-base">当前卷节奏</CardTitle>
                   <div className="text-sm text-muted-foreground">先在这里定位当前卷推进区间，再到下面左侧章节导航里选当前要细化的章。</div>
                 </div>
-                <Button
+                <AiButton
                   variant="outline"
                   onClick={() => onGenerateBeatSheet(selectedVolume.id)}
                   disabled={isGeneratingBeatSheet || !readiness.canGenerateBeatSheet}
                 >
                   {isGeneratingBeatSheet ? "生成中..." : "生成当前卷节奏板"}
-                </Button>
+                </AiButton>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -473,12 +474,12 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button
+                    <AiButton
                       onClick={() => onGenerateChapterList(selectedVolume.id)}
                       disabled={isGeneratingChapterList || locked}
                     >
                       {isGeneratingChapterList ? "生成中..." : "生成当前卷章节列表"}
-                    </Button>
+                    </AiButton>
                     <Button size="sm" variant="outline" onClick={() => onAddChapter(selectedVolume.id)}>
                       新增章节
                     </Button>
@@ -607,7 +608,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                     <div className="flex flex-wrap gap-2">
                       <Button size="sm" variant="outline" onClick={() => onApplyBatch({ conflictLevel: 60 })}>统一冲突等级 60</Button>
                       <Button size="sm" variant="outline" onClick={() => onApplyBatch({ targetWordCount: 2500 })}>统一字数 2500</Button>
-                      <Button size="sm" onClick={() => onApplyBatch({ generateTaskSheet: true })}>批量补任务单</Button>
+                      <AiButton size="sm" onClick={() => onApplyBatch({ generateTaskSheet: true })}>批量补任务单</AiButton>
                       <Button onClick={() => onApplySync(syncOptions)} disabled={isApplyingSync}>
                         {isApplyingSync ? "同步中..." : "同步到章节执行"}
                       </Button>

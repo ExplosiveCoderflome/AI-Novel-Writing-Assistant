@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { formatCommercialTagsInput, type NovelBasicFormState } from "../../novelBasicInfo.shared";
 import { suggestBookFraming } from "@/api/novelFraming";
-import { Button } from "@/components/ui/button";
+import AiButton from "@/components/common/AiButton";
 import { toast } from "@/components/ui/toast";
 import { useLLMStore } from "@/store/llmStore";
 
@@ -83,7 +83,7 @@ export function BookFramingQuickFillButton(props: BookFramingQuickFillButtonProp
   };
 
   return (
-    <Button
+    <AiButton
       type="button"
       variant="outline"
       size="sm"
@@ -91,6 +91,6 @@ export function BookFramingQuickFillButton(props: BookFramingQuickFillButtonProp
       disabled={suggestionMutation.isPending}
     >
       {suggestionMutation.isPending ? "填写中..." : "帮我填写"}
-    </Button>
+    </AiButton>
   );
 }

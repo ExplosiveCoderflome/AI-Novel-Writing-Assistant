@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Character } from "@ai-novel/shared/types/novel";
+import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -154,14 +155,14 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">{overview?.currentVolume?.title ?? "未定位当前卷"}</Badge>
             <Badge variant="outline">{overview?.pendingCandidateCount ?? pendingCandidates.length} 个待确认候选</Badge>
-            <Button
+            <AiButton
               variant="outline"
               size="sm"
               onClick={() => rebuildMutation.mutate()}
               disabled={rebuildMutation.isPending}
             >
               {rebuildMutation.isPending ? "重建中..." : "重建动态角色"}
-            </Button>
+            </AiButton>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
