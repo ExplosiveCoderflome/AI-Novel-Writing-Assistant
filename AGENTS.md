@@ -59,3 +59,15 @@
 - When the user asks to commit or push code, inspect the Git scope for that push and update `README.md` before the Git write step if the change set has clear user-facing impact.
 - If the current diff is purely internal and has no clear user-facing impact, state that explicitly and skip the README edit instead of forcing a release note.
 - Write the README release note from the user's perspective: describe capabilities, workflow improvements, and visible product behavior instead of file names, route names, service names, tests, or refactor details.
+
+## Release Identification Rules
+
+- For now, this project continues to use `date-based` release/update identification. Do not introduce formal semantic version numbers unless the user explicitly decides to switch.
+- README `## 最近进展`, release summaries, and user-facing update records should continue to use the existing date-first format, for example: `### 2026-04-07`.
+- Keep the date as the primary update identifier until the product workflow, information architecture, and release cadence are stable enough to justify a formal versioning system.
+- If multiple user-visible updates are recorded on the same date, keep them under the same date heading and distinguish them by clear summary text instead of inventing temporary version numbers.
+
+### Future Versioning Transition
+
+- When the user later decides the product is stable enough for formal versions, versioning can transition from `date-only` to `version number + date`.
+- Until that explicit transition happens, do not add `v0.x.y`, tags, or release naming conventions into README, changelog, or other product-facing release notes by default.
