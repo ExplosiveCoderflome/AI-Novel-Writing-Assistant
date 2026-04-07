@@ -24,6 +24,7 @@ import { getKnowledgeDocument, listKnowledgeDocuments } from "@/api/knowledge";
 import { getNovelList } from "@/api/novel";
 import { createStyleProfileFromBookAnalysis } from "@/api/styleEngine";
 import { queryKeys } from "@/api/queryKeys";
+import { toast } from "@/components/ui/toast";
 import { useLLMStore } from "@/store/llmStore";
 import type { LLMConfigState, SectionDraft } from "../bookAnalysis.types";
 import { buildSectionDraft, createDownload, syncDrafts } from "../bookAnalysis.utils";
@@ -56,6 +57,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   const [draftAnalysisId, setDraftAnalysisId] = useState("");
   const [optimizingSectionKey, setOptimizingSectionKey] = useState<BookAnalysisSectionKey | null>(null);
   const [publishFeedback, setPublishFeedback] = useState("");
+  const [styleProfileFeedback, setStyleProfileFeedback] = useState("");
   const [lastPublishResult, setLastPublishResult] = useState<BookAnalysisPublishResult | null>(null);
 
   const listKey = useMemo(
@@ -292,9 +294,22 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       model: llmConfig.model || undefined,
       temperature: llmConfig.temperature,
     }),
-    onSuccess: async () => {
+    onMutate: () => {
+      setStyleProfileFeedback("正在根据拆书里的“文风与技法”生成写法资产，完成后会自动跳转到写法引擎。");
+    },
+    onSuccess: async (response) => {
+      const createdProfile = response.data;
+      if (!createdProfile) {
+        return;
+      }
+      setStyleProfileFeedback("");
+      toast.success("已从拆书生成写法，正在打开写法引擎。");
       await queryClient.invalidateQueries({ queryKey: queryKeys.styleEngine.profiles });
-      navigate("/style-engine");
+      navigate(`/style-engine?profileId=${createdProfile.id}&source=book-analysis`);
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "从拆书生成写法失败。";
+      setStyleProfileFeedback(message);
     },
   });
 
@@ -384,6 +399,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   useEffect(() => {
     setPublishFeedback("");
     setLastPublishResult(null);
+    setStyleProfileFeedback("");
   }, [selectedAnalysisId]);
 
   const selectDocument = (documentId: string) => {
@@ -550,6 +566,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     llmConfig,
     sectionDrafts,
     publishFeedback,
+    styleProfileFeedback,
     lastPublishResult,
     analyses,
     selectedAnalysis,
@@ -568,6 +585,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       optimizePreview: optimizePreviewMutation.isPending,
       saveSection: updateSectionMutation.isPending,
       publish: publishMutation.isPending,
+      createStyleProfile: createStyleProfileMutation.isPending,
     },
     setKeyword,
     setStatus,

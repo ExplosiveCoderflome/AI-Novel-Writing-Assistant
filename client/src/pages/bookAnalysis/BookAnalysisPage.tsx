@@ -47,6 +47,7 @@ export default function BookAnalysisPage() {
             novelOptions={workspace.novelOptions}
             selectedNovelId={workspace.selectedNovelId}
             publishFeedback={workspace.publishFeedback}
+            styleProfileFeedback={workspace.styleProfileFeedback}
             lastPublishResult={workspace.lastPublishResult}
             aggregatedEvidence={workspace.aggregatedEvidence}
             optimizingSectionKey={workspace.optimizingSectionKey}
@@ -58,6 +59,7 @@ export default function BookAnalysisPage() {
               optimizePreview: workspace.pending.optimizePreview,
               saveSection: workspace.pending.saveSection,
               publish: workspace.pending.publish,
+              createStyleProfile: workspace.pending.createStyleProfile,
             }}
             onSelectedNovelChange={workspace.setSelectedNovelId}
             onCopy={() => void workspace.copySelectedAnalysis()}

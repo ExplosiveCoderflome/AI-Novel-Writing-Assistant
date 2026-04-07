@@ -92,6 +92,7 @@ test("prompt registry exposes versioned planning assets", () => {
     "style.generate@v1",
     "style.rewrite@v1",
     "style.profile.extract@v1",
+    "style.profile.from_book_analysis@v2",
     "style.recommendation@v1",
     "novel.review.chapter@v1",
     "novel.chapter.writer@v2",

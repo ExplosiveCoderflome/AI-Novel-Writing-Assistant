@@ -25,6 +25,7 @@ export interface PendingState {
   optimizePreview: boolean;
   saveSection: boolean;
   publish: boolean;
+  createStyleProfile: boolean;
 }
 
 export interface BookAnalysisWorkspace {
@@ -38,6 +39,7 @@ export interface BookAnalysisWorkspace {
   llmConfig: LLMConfigState;
   sectionDrafts: Record<string, SectionDraft>;
   publishFeedback: string;
+  styleProfileFeedback: string;
   lastPublishResult: BookAnalysisPublishResult | null;
   analyses: BookAnalysis[];
   selectedAnalysis?: BookAnalysisDetail;

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AntiAiRule, StyleBinding, StyleProfileFeature } from "@ai-novel/shared/types/styleEngine";
+import { useSearchParams } from "react-router-dom";
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import { getNovelDetail, getNovelList } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
@@ -38,6 +39,7 @@ import {
 export default function WritingFormulaPage() {
   const llm = useLLMStore();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedProfileId, setSelectedProfileId] = useState("");
   const [message, setMessage] = useState("");
   const [createForm, setCreateForm] = useState({
@@ -125,12 +127,38 @@ export default function WritingFormulaPage() {
     () => profiles.find((item) => item.id === selectedProfileId) ?? null,
     [profiles, selectedProfileId],
   );
+  const incomingProfileId = searchParams.get("profileId") ?? "";
+  const incomingSource = searchParams.get("source") ?? "";
 
   useEffect(() => {
+    if (incomingProfileId) {
+      return;
+    }
     if (!selectedProfileId && profiles.length > 0) {
       setSelectedProfileId(profiles[0].id);
     }
-  }, [profiles, selectedProfileId]);
+  }, [incomingProfileId, profiles, selectedProfileId]);
+
+  useEffect(() => {
+    if (!incomingProfileId || profiles.length === 0) {
+      return;
+    }
+    const incomingProfile = profiles.find((item) => item.id === incomingProfileId);
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.delete("profileId");
+    nextSearchParams.delete("source");
+
+    if (!incomingProfile) {
+      setSearchParams(nextSearchParams, { replace: true });
+      return;
+    }
+
+    setSelectedProfileId(incomingProfile.id);
+    if (incomingSource === "book-analysis") {
+      setMessage(`已从拆书生成写法「${incomingProfile.name}」，可以继续编辑、绑定和试写。`);
+    }
+    setSearchParams(nextSearchParams, { replace: true });
+  }, [incomingProfileId, incomingSource, profiles, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!bindingForm.novelId && novelOptions.length > 0) {

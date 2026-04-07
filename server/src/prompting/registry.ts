@@ -282,7 +282,7 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/style/style.prompts").styleProfileExtractionPrompt as UnknownPromptAsset,
   },
   {
-    key: "style.profile.from_book_analysis@v1",
+    key: "style.profile.from_book_analysis@v2",
     load: () => require("./prompts/style/style.prompts").styleProfileFromBookAnalysisPrompt as UnknownPromptAsset,
   },
   {

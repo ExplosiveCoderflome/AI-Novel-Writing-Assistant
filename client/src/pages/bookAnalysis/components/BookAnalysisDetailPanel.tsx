@@ -22,6 +22,7 @@ interface PendingState {
   optimizePreview: boolean;
   saveSection: boolean;
   publish: boolean;
+  createStyleProfile: boolean;
 }
 
 interface BookAnalysisDetailPanelProps {
@@ -29,6 +30,7 @@ interface BookAnalysisDetailPanelProps {
   novelOptions: NovelOption[];
   selectedNovelId: string;
   publishFeedback: string;
+  styleProfileFeedback: string;
   lastPublishResult: BookAnalysisPublishResult | null;
   aggregatedEvidence: AggregatedEvidenceItem[];
   optimizingSectionKey: BookAnalysisSection["sectionKey"] | null;
@@ -55,6 +57,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
     novelOptions,
     selectedNovelId,
     publishFeedback,
+    styleProfileFeedback,
     lastPublishResult,
     aggregatedEvidence,
     optimizingSectionKey,
@@ -126,8 +129,13 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
               <Button size="sm" variant="outline" onClick={() => onDownload("json")}>
                 导出 JSON
               </Button>
-              <Button size="sm" variant="outline" onClick={onCreateStyleProfile}>
-                从拆书生成写法
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onCreateStyleProfile}
+                disabled={pending.createStyleProfile || selectedAnalysis.status === "archived"}
+              >
+                {pending.createStyleProfile ? "生成写法中..." : "从拆书生成写法"}
               </Button>
               <Button
                 size="sm"
@@ -144,6 +152,11 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
           {!selectedAnalysis.isCurrentVersion ? (
             <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
               该分析基于旧版源文档，当前激活文档版本为 v{selectedAnalysis.currentDocumentVersionNumber}。
+            </div>
+          ) : null}
+          {styleProfileFeedback ? (
+            <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">
+              {styleProfileFeedback}
             </div>
           ) : null}
           <div className="rounded-md border p-3 text-sm">
