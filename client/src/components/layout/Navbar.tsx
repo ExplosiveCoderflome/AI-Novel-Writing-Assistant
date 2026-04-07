@@ -3,9 +3,16 @@ import { Link, useLocation } from "react-router-dom";
 import LLMSelector from "@/components/common/LLMSelector";
 import { Button } from "@/components/ui/button";
 
-export default function Navbar() {
+interface NavbarProps {
+  workspaceNavMode?: "workspace" | "project";
+  onWorkspaceNavModeChange?: (mode: "workspace" | "project") => void;
+}
+
+export default function Navbar(props: NavbarProps) {
+  const { workspaceNavMode, onWorkspaceNavModeChange } = props;
   const location = useLocation();
   const isHome = location.pathname === "/";
+  const showWorkspaceToggle = Boolean(workspaceNavMode && onWorkspaceNavModeChange);
 
   return (
     <header className="flex h-16 items-center justify-between border-b bg-background px-6">
@@ -21,7 +28,19 @@ export default function Navbar() {
           <Link to="/settings/model-routes">模型设置</Link>
         </Button>
       ) : (
-        <LLMSelector />
+        <div className="flex items-center gap-3">
+          {showWorkspaceToggle ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => onWorkspaceNavModeChange?.(workspaceNavMode === "workspace" ? "project" : "workspace")}
+            >
+              {workspaceNavMode === "workspace" ? "项目导航" : "创作导航"}
+            </Button>
+          ) : null}
+          <LLMSelector />
+        </div>
       )}
     </header>
   );

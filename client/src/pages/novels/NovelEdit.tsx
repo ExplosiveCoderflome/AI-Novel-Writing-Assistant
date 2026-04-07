@@ -56,6 +56,7 @@ import type { ChapterReviewResult } from "./chapterPlanning.shared";
 import type { NovelEditTakeoverState, NovelTaskDrawerState } from "./components/NovelEditView.types";
 import NovelExistingProjectTakeoverDialog from "./components/NovelExistingProjectTakeoverDialog";
 import { syncNovelWorkflowStageSilently, workflowStageFromTab } from "./novelWorkflow.client";
+import { scopeFromWorkspaceTab, tabFromDirectorProgress, tabFromScope } from "./novelWorkspaceNavigation";
 import {
   DEFAULT_ESTIMATED_CHAPTER_COUNT,
   createDefaultNovelBasicFormState,
@@ -73,100 +74,7 @@ import {
 } from "./volumePlan.utils";
 
 function scopeFromTab(tab: string): DirectorLockScope | null {
-  if (tab === "basic") return "basic";
-  if (tab === "story_macro") return "story_macro";
-  if (tab === "character") return "character";
-  if (tab === "outline") return "outline";
-  if (tab === "structured") return "structured";
-  if (tab === "chapter") return "chapter";
-  if (tab === "pipeline") return "pipeline";
-  return null;
-}
-
-function tabFromScope(scope: DirectorLockScope | null | undefined): "basic" | "story_macro" | "character" | "outline" | "structured" | "chapter" | "pipeline" | null {
-  if (!scope) {
-    return null;
-  }
-  return scope;
-}
-
-function tabFromWorkflowStageName(stage: string | null | undefined): "basic" | "story_macro" | "character" | "outline" | "structured" | "chapter" | "pipeline" | null {
-  switch (stage) {
-    case "project_setup":
-      return "basic";
-    case "story_macro":
-      return "story_macro";
-    case "character_setup":
-      return "character";
-    case "volume_strategy":
-      return "outline";
-    case "structured_outline":
-      return "structured";
-    case "chapter_execution":
-      return "chapter";
-    case "quality_repair":
-      return "pipeline";
-    default:
-      return null;
-  }
-}
-
-function tabFromDirectorProgress(input: {
-  currentStage?: string | null;
-  currentItemKey?: string | null;
-  checkpointType?: string | null;
-  reviewScope?: DirectorLockScope | null;
-}): "basic" | "story_macro" | "character" | "outline" | "structured" | "chapter" | "pipeline" | null {
-  const reviewTab = tabFromScope(input.reviewScope);
-  if (reviewTab) {
-    return reviewTab;
-  }
-  switch (input.checkpointType) {
-    case "book_contract_ready":
-      return "story_macro";
-    case "character_setup_required":
-      return "character";
-    case "volume_strategy_ready":
-      return "outline";
-    case "front10_ready":
-      return "structured";
-    case "chapter_batch_ready":
-    case "workflow_completed":
-      return "pipeline";
-    default:
-      break;
-  }
-
-  switch (input.currentItemKey) {
-    case "novel_create":
-    case "project_setup":
-      return "basic";
-    case "book_contract":
-    case "story_macro":
-    case "constraint_engine":
-      return "story_macro";
-    case "character_setup":
-    case "character_cast_apply":
-      return "character";
-    case "volume_strategy":
-    case "volume_skeleton":
-      return "outline";
-    case "beat_sheet":
-    case "chapter_list":
-    case "chapter_sync":
-    case "chapter_detail_bundle":
-      return "structured";
-    case "chapter_execution":
-      return "chapter";
-    case "reviewing":
-    case "repairing":
-    case "quality_repair":
-      return "pipeline";
-    default:
-      break;
-  }
-
-  return tabFromWorkflowStageName(input.currentStage);
+  return scopeFromWorkspaceTab(tab);
 }
 
 function formatTakeoverCheckpoint(checkpoint: string | null | undefined): string {

@@ -1,21 +1,8 @@
 import { useEffect, useMemo } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { bootstrapNovelWorkflow } from "@/api/novelWorkflow";
 import { useSearchParams } from "react-router-dom";
-
-const VALID_TABS = new Set([
-  "basic",
-  "story_macro",
-  "character",
-  "outline",
-  "structured",
-  "chapter",
-  "pipeline",
-]);
-
-function normalizeTab(value: string | null): string {
-  return value && VALID_TABS.has(value) ? value : "basic";
-}
+import { bootstrapNovelWorkflow } from "@/api/novelWorkflow";
+import { normalizeNovelWorkspaceTab } from "../novelWorkspaceNavigation";
 
 export function useNovelEditWorkflow(novelId: string) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -30,7 +17,7 @@ export function useNovelEditWorkflow(novelId: string) {
       lane: "manual_create",
       seedPayload: {
         entry: "novel_edit",
-        stage: normalizeTab(searchParams.get("stage")),
+        stage: normalizeNovelWorkspaceTab(searchParams.get("stage")),
       },
     }),
     onSuccess: (response) => {
@@ -42,7 +29,7 @@ export function useNovelEditWorkflow(novelId: string) {
         const next = new URLSearchParams(prev);
         next.set("taskId", nextTaskId);
         if (!next.get("stage")) {
-          next.set("stage", normalizeTab(searchParams.get("stage")));
+          next.set("stage", normalizeNovelWorkspaceTab(searchParams.get("stage")));
         }
         return next;
       }, { replace: true });
@@ -57,7 +44,7 @@ export function useNovelEditWorkflow(novelId: string) {
   }, [novelId, workflowTaskId]);
 
   const activeTab = useMemo(
-    () => normalizeTab(searchParams.get("stage")),
+    () => normalizeNovelWorkspaceTab(searchParams.get("stage")),
     [searchParams],
   );
   const selectedChapterId = useMemo(
@@ -66,7 +53,7 @@ export function useNovelEditWorkflow(novelId: string) {
   );
 
   const setActiveTab = (value: string) => {
-    const nextTab = normalizeTab(value);
+    const nextTab = normalizeNovelWorkspaceTab(value);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set("stage", nextTab);
