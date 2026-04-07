@@ -141,14 +141,14 @@ export function RiskBadgeList(props: { risks: string[] }) {
   );
 }
 
-export function PrimaryActionButton(props: { action: PrimaryAction | null }) {
-  const { action } = props;
+export function PrimaryActionButton(props: { action: PrimaryAction | null; className?: string }) {
+  const { action, className } = props;
   if (!action) {
     return null;
   }
   if (action.href) {
     return (
-      <Button asChild size="sm" variant={action.variant}>
+      <Button asChild size="sm" variant={action.variant} className={className}>
         <Link to={action.href}>
           {action.ai ? <AiActionLabel>{action.label}</AiActionLabel> : action.label}
         </Link>
@@ -157,11 +157,11 @@ export function PrimaryActionButton(props: { action: PrimaryAction | null }) {
   }
   return (
     action.ai ? (
-      <AiButton size="sm" variant={action.variant} onClick={action.onClick} disabled={action.disabled}>
+      <AiButton size="sm" variant={action.variant} className={className} onClick={action.onClick} disabled={action.disabled}>
         {action.label}
       </AiButton>
     ) : (
-      <Button size="sm" variant={action.variant} onClick={action.onClick} disabled={action.disabled}>
+      <Button size="sm" variant={action.variant} className={className} onClick={action.onClick} disabled={action.disabled}>
         {action.label}
       </Button>
     )

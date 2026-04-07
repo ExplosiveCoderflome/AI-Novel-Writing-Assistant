@@ -171,21 +171,21 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
           <div className="text-xs text-muted-foreground">当前最推荐动作</div>
           <div className="mt-2 text-sm leading-6 text-foreground">{primaryAction.reason}</div>
           <div className="mt-3">
-            <PrimaryActionButton action={primaryAction} />
+            <PrimaryActionButton action={primaryAction} className="w-full" />
           </div>
           <div className="mt-3 grid gap-2">
             {showQuickEditorAction ? (
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" className="w-full">
                 <Link to={`/novels/${novelId}/chapters/${selectedChapter!.id}`}>打开章节编辑器</Link>
               </Button>
             ) : null}
             {showQuickAuditAction ? (
-              <AiButton variant="outline" onClick={onRunFullAudit} disabled={!selectedChapter || isRunningFullAudit}>
+              <AiButton className="w-full" variant="outline" onClick={onRunFullAudit} disabled={!selectedChapter || isRunningFullAudit}>
                 {isRunningFullAudit ? "正在运行完整审校..." : "运行完整审校"}
               </AiButton>
             ) : null}
             {showQuickRepairAction ? (
-              <AiButton variant="secondary" onClick={onAutoRepair} disabled={!selectedChapter || isRepairingChapter}>
+              <AiButton className="w-full" variant="secondary" onClick={onAutoRepair} disabled={!selectedChapter || isRepairingChapter}>
                 {isRepairingChapter ? "正在修复中..." : "自动修复问题"}
               </AiButton>
             ) : null}
