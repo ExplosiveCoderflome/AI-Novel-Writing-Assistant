@@ -171,6 +171,15 @@ export class NovelCoreService {
     return this.pipelineService.getPipelineJobById(jobId);
   }
 
+  async findActivePipelineJobForRange(
+    novelId: string,
+    startOrder: number,
+    endOrder: number,
+    preferredJobId?: string | null,
+  ) {
+    return this.pipelineService.findActivePipelineJobForRange(novelId, startOrder, endOrder, preferredJobId);
+  }
+
   async retryPipelineJob(jobId: string) {
     return this.pipelineService.retryPipelineJob(jobId);
   }

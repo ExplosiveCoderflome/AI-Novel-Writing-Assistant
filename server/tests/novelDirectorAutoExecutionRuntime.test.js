@@ -44,6 +44,9 @@ test("runFromReady completes immediately when repaired chapters leave no remaini
         calls.push(["startPipelineJob"]);
         throw new Error("should not start a new pipeline job");
       },
+      async findActivePipelineJobForRange() {
+        return null;
+      },
       async getPipelineJobById() {
         throw new Error("should not inspect a pipeline job");
       },
@@ -97,5 +100,91 @@ test("runFromReady completes immediately when repaired chapters leave no remaini
   assert.deepEqual(calls, [
     ["bootstrapTask", 0],
     ["recordCheckpoint", "task-auto-exec", "workflow_completed", "前 2 章自动执行完成", 0],
+  ]);
+});
+
+test("runFromReady reuses an existing active range job before starting a new pipeline", async () => {
+  const calls = [];
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        return [
+          { id: "chapter-1", order: 1, generationState: "draft" },
+          { id: "chapter-2", order: 2, generationState: "draft" },
+        ];
+      },
+    },
+    novelService: {
+      async startPipelineJob() {
+        calls.push(["startPipelineJob"]);
+        throw new Error("should not start a new pipeline job");
+      },
+      async findActivePipelineJobForRange(novelId, startOrder, endOrder, preferredJobId) {
+        calls.push(["findActivePipelineJobForRange", novelId, startOrder, endOrder, preferredJobId]);
+        return { id: "job-active", status: "running" };
+      },
+      async getPipelineJobById(jobId) {
+        calls.push(["getPipelineJobById", jobId]);
+        if (jobId === "job-active") {
+          return {
+            id: "job-active",
+            status: "succeeded",
+            progress: 1,
+            currentStage: null,
+            currentItemLabel: null,
+            error: null,
+          };
+        }
+        return null;
+      },
+      async cancelPipelineJob() {
+        calls.push(["cancelPipelineJob"]);
+      },
+    },
+    workflowService: {
+      async bootstrapTask(input) {
+        calls.push(["bootstrapTask", input.seedPayload.autoExecution.pipelineJobId, input.seedPayload.autoExecution.pipelineStatus]);
+      },
+      async getTaskById() {
+        return { status: "running" };
+      },
+      async markTaskRunning() {
+        calls.push(["markTaskRunning"]);
+      },
+      async recordCheckpoint(taskId, input) {
+        calls.push(["recordCheckpoint", taskId, input.seedPayload.autoExecution.pipelineJobId, input.seedPayload.autoExecution.pipelineStatus]);
+      },
+      async markTaskFailed() {
+        calls.push(["markTaskFailed"]);
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+  });
+
+  await runtime.runFromReady({
+    taskId: "task-auto-exec",
+    novelId: "novel-1",
+    request: buildRequest(),
+    existingState: {
+      enabled: true,
+      firstChapterId: "chapter-1",
+      startOrder: 1,
+      endOrder: 2,
+      totalChapterCount: 2,
+      pipelineJobId: "job-stale",
+      pipelineStatus: "queued",
+    },
+    existingPipelineJobId: "job-stale",
+  });
+
+  assert.deepEqual(calls, [
+    ["bootstrapTask", "job-stale", "running"],
+    ["getPipelineJobById", "job-stale"],
+    ["findActivePipelineJobForRange", "novel-1", 1, 2, null],
+    ["bootstrapTask", "job-active", "running"],
+    ["getPipelineJobById", "job-active"],
+    ["recordCheckpoint", "task-auto-exec", "job-active", "succeeded"],
   ]);
 });

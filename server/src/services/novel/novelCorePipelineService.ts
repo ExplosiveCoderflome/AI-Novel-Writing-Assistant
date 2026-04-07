@@ -13,6 +13,7 @@ import {
 } from "./novelCoreShared";
 import { ensureNovelCharacters } from "./novelCoreSupport";
 import { createQualityReport } from "./novelCoreReviewService";
+import { selectPrimaryPipelineJob } from "./pipelineJobDedup";
 
 const PIPELINE_ACTIVE_STAGES = ["queued", "generating_chapters", "reviewing", "repairing", "finalizing"] as const;
 const PIPELINE_HEARTBEAT_INTERVAL_MS = 15000;
@@ -60,7 +61,99 @@ export function buildPipelineCurrentItemLabel(input: {
 
 export class NovelCorePipelineService {
   private static readonly activeJobIds = new Set<string>();
+  private static readonly startLocks = new Set<string>();
   private readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator();
+
+  private buildRangeKey(novelId: string, startOrder: number, endOrder: number): string {
+    return `${novelId}:${startOrder}:${endOrder}`;
+  }
+
+  private async waitForStartLock(key: string): Promise<void> {
+    while (NovelCorePipelineService.startLocks.has(key)) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+
+  private async withStartLock<T>(key: string, runner: () => Promise<T>): Promise<T> {
+    await this.waitForStartLock(key);
+    NovelCorePipelineService.startLocks.add(key);
+    try {
+      return await runner();
+    } finally {
+      NovelCorePipelineService.startLocks.delete(key);
+    }
+  }
+
+  private async listActivePipelineJobsForRange(novelId: string, startOrder: number, endOrder: number) {
+    return prisma.generationJob.findMany({
+      where: {
+        novelId,
+        startOrder,
+        endOrder,
+        status: { in: ["queued", "running"] },
+      },
+      orderBy: [
+        { completedCount: "desc" },
+        { progress: "desc" },
+        { updatedAt: "desc" },
+        { createdAt: "asc" },
+      ],
+    });
+  }
+
+  private async reconcileActivePipelineJobsForRange(input: {
+    novelId: string;
+    startOrder: number;
+    endOrder: number;
+    preferredJobId?: string | null;
+  }) {
+    const jobs = await this.listActivePipelineJobsForRange(input.novelId, input.startOrder, input.endOrder);
+    if (jobs.length === 0) {
+      return null;
+    }
+
+    const primaryJob = selectPrimaryPipelineJob(jobs, input.preferredJobId);
+    const duplicateJobs = jobs.filter((job) => job.id !== primaryJob.id);
+
+    if (duplicateJobs.length > 0) {
+      const cancelledAt = new Date();
+      await prisma.generationJob.updateMany({
+        where: {
+          id: { in: duplicateJobs.map((job) => job.id) },
+          status: { in: ["queued", "running"] },
+        },
+        data: {
+          status: "cancelled",
+          error: `检测到同一本书相同章节区间存在重复流水线，已切换为主任务 ${primaryJob.id}。`,
+          cancelRequestedAt: cancelledAt,
+          heartbeatAt: cancelledAt,
+          finishedAt: cancelledAt,
+        },
+      });
+      logPipelineWarn("发现重复活跃批量任务，已取消重复项", {
+        novelId: input.novelId,
+        range: `${input.startOrder}-${input.endOrder}`,
+        primaryJobId: primaryJob.id,
+        cancelledJobIds: duplicateJobs.map((job) => job.id),
+      });
+    }
+
+    return primaryJob;
+  }
+
+  async findActivePipelineJobForRange(
+    novelId: string,
+    startOrder: number,
+    endOrder: number,
+    preferredJobId?: string | null,
+  ) {
+    return this.reconcileActivePipelineJobsForRange({
+      novelId,
+      startOrder,
+      endOrder,
+      preferredJobId,
+    });
+  }
 
   async listRecoverablePipelineJobs(): Promise<Array<{ id: string; status: string }>> {
     const rows = await prisma.generationJob.findMany({
@@ -191,84 +284,102 @@ export class NovelCorePipelineService {
   }
 
   async startPipelineJob(novelId: string, options: PipelineRunOptions) {
-    await ensureNovelCharacters(novelId, "启动批量章节流水");
+    const rangeKey = this.buildRangeKey(novelId, options.startOrder, options.endOrder);
+    return this.withStartLock(rangeKey, async () => {
+      await ensureNovelCharacters(novelId, "启动批量章节流水");
 
-    const chapterStats = await prisma.chapter.aggregate({
-      where: { novelId },
-      _min: { order: true },
-      _max: { order: true },
-      _count: { order: true },
-    });
-    if ((chapterStats._count.order ?? 0) === 0) {
-      throw new Error("当前小说还没有章节，请先创建章节后再启动流水线");
-    }
-
-    const chapters = await prisma.chapter.findMany({
-      where: {
-        novelId,
-        order: { gte: options.startOrder, lte: options.endOrder },
-        ...(options.skipCompleted
-          ? { generationState: { notIn: ["approved", "published"] as const } }
-          : {}),
-      },
-      orderBy: { order: "asc" },
-      select: { id: true },
-    });
-    if (chapters.length === 0) {
-      const minOrder = chapterStats._min.order ?? 1;
-      const maxOrder = chapterStats._max.order ?? 1;
-      throw new Error(`指定区间内没有可生成的章节。当前可用章节范围为 ${minOrder} 章到 ${maxOrder} 章。`);
-    }
-
-    logPipelineInfo("创建批量任务", {
-      novelId,
-      range: `${options.startOrder}-${options.endOrder}`,
-      matchedChapters: chapters.length,
-      availableRange: `${chapterStats._min.order ?? 1}-${chapterStats._max.order ?? 1}`,
-      maxRetries: options.maxRetries ?? 2,
-      provider: options.provider ?? "deepseek",
-      model: options.model ?? "",
-    });
-
-    const job = await prisma.generationJob.create({
-      data: {
+      const existingActiveJob = await this.reconcileActivePipelineJobsForRange({
         novelId,
         startOrder: options.startOrder,
         endOrder: options.endOrder,
-        runMode: options.runMode ?? "fast",
-        autoReview: options.autoReview ?? true,
-        autoRepair: options.autoRepair ?? true,
-        skipCompleted: options.skipCompleted ?? true,
-        qualityThreshold: options.qualityThreshold ?? null,
-        repairMode: options.repairMode ?? "light_repair",
-        status: "queued",
-        totalCount: chapters.length,
+      });
+      if (existingActiveJob) {
+        logPipelineWarn("检测到同区间已有活跃批量任务，复用现有任务", {
+          novelId,
+          range: `${options.startOrder}-${options.endOrder}`,
+          reusedJobId: existingActiveJob.id,
+        });
+        this.schedulePipelineExecution(existingActiveJob.id, novelId, options);
+        return existingActiveJob;
+      }
+
+      const chapterStats = await prisma.chapter.aggregate({
+        where: { novelId },
+        _min: { order: true },
+        _max: { order: true },
+        _count: { order: true },
+      });
+      if ((chapterStats._count.order ?? 0) === 0) {
+        throw new Error("当前小说还没有章节，请先创建章节后再启动流水线");
+      }
+
+      const chapters = await prisma.chapter.findMany({
+        where: {
+          novelId,
+          order: { gte: options.startOrder, lte: options.endOrder },
+          ...(options.skipCompleted
+            ? { generationState: { notIn: ["approved", "published"] as const } }
+            : {}),
+        },
+        orderBy: { order: "asc" },
+        select: { id: true },
+      });
+      if (chapters.length === 0) {
+        const minOrder = chapterStats._min.order ?? 1;
+        const maxOrder = chapterStats._max.order ?? 1;
+        throw new Error(`指定区间内没有可生成的章节。当前可用章节范围为 ${minOrder} 章到 ${maxOrder} 章。`);
+      }
+
+      logPipelineInfo("创建批量任务", {
+        novelId,
+        range: `${options.startOrder}-${options.endOrder}`,
+        matchedChapters: chapters.length,
+        availableRange: `${chapterStats._min.order ?? 1}-${chapterStats._max.order ?? 1}`,
         maxRetries: options.maxRetries ?? 2,
-        currentStage: "queued",
-        payload: this.stringifyPipelinePayload({
-          provider: options.provider ?? "deepseek",
-          model: options.model ?? "",
-          temperature: options.temperature ?? 0.8,
-          workflowTaskId: options.workflowTaskId?.trim() || undefined,
-          maxRetries: options.maxRetries ?? 2,
+        provider: options.provider ?? "deepseek",
+        model: options.model ?? "",
+      });
+
+      const job = await prisma.generationJob.create({
+        data: {
+          novelId,
+          startOrder: options.startOrder,
+          endOrder: options.endOrder,
           runMode: options.runMode ?? "fast",
           autoReview: options.autoReview ?? true,
           autoRepair: options.autoRepair ?? true,
           skipCompleted: options.skipCompleted ?? true,
-          qualityThreshold: options.qualityThreshold,
+          qualityThreshold: options.qualityThreshold ?? null,
           repairMode: options.repairMode ?? "light_repair",
-        }),
-      },
-    });
+          status: "queued",
+          totalCount: chapters.length,
+          maxRetries: options.maxRetries ?? 2,
+          currentStage: "queued",
+          payload: this.stringifyPipelinePayload({
+            provider: options.provider ?? "deepseek",
+            model: options.model ?? "",
+            temperature: options.temperature ?? 0.8,
+            workflowTaskId: options.workflowTaskId?.trim() || undefined,
+            maxRetries: options.maxRetries ?? 2,
+            runMode: options.runMode ?? "fast",
+            autoReview: options.autoReview ?? true,
+            autoRepair: options.autoRepair ?? true,
+            skipCompleted: options.skipCompleted ?? true,
+            qualityThreshold: options.qualityThreshold,
+            repairMode: options.repairMode ?? "light_repair",
+          }),
+        },
+      });
 
-    logPipelineInfo("批量任务已入队", {
-      jobId: job.id,
-      novelId,
-      totalCount: job.totalCount,
-    });
+      logPipelineInfo("批量任务已入队", {
+        jobId: job.id,
+        novelId,
+        totalCount: job.totalCount,
+      });
 
-    this.schedulePipelineExecution(job.id, novelId, options);
-    return job;
+      this.schedulePipelineExecution(job.id, novelId, options);
+      return job;
+    });
   }
 
   async getPipelineJob(novelId: string, jobId: string) {

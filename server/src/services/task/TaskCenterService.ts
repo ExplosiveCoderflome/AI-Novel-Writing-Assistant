@@ -14,6 +14,7 @@ import { KnowledgeTaskAdapter } from "./adapters/KnowledgeTaskAdapter";
 import { ImageTaskAdapter } from "./adapters/ImageTaskAdapter";
 import { NovelWorkflowTaskAdapter } from "./adapters/NovelWorkflowTaskAdapter";
 import { PipelineTaskAdapter } from "./adapters/PipelineTaskAdapter";
+import { collectWorkflowLinkedPipelineIds } from "./taskCenterVisibility";
 import {
   compareTaskSummary,
   isAfterCursor,
@@ -66,7 +67,15 @@ export class TaskCenterService {
         : this.workflowAdapter.list({ status: filters.status, keyword, take: sourceTake }),
     ]);
 
-    const merged = [...bookTasks, ...novelTasks, ...knowledgeTasks, ...imageTasks, ...agentTasks, ...workflowTasks].sort(compareTaskSummary);
+    const linkedPipelineIds = filters.kind === "novel_pipeline"
+      ? new Set<string>()
+      : collectWorkflowLinkedPipelineIds(workflowTasks);
+    const visibleNovelTasks = filters.kind === "novel_pipeline"
+      ? novelTasks
+      : novelTasks.filter((task) => !linkedPipelineIds.has(task.id));
+
+    const merged = [...bookTasks, ...visibleNovelTasks, ...knowledgeTasks, ...imageTasks, ...agentTasks, ...workflowTasks]
+      .sort(compareTaskSummary);
     const filteredByCursor = cursorPayload
       ? merged.filter((item) => isAfterCursor(item, cursorPayload))
       : merged;
