@@ -21,6 +21,8 @@ export interface SourceNote {
   themes: string[];
   styleTechniques: string[];
   marketHighlights: string[];
+  readerSignals: string[];
+  weaknessSignals: string[];
   evidence: BookAnalysisEvidenceItem[];
 }
 

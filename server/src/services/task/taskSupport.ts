@@ -1,7 +1,38 @@
 import type { TaskKind, TaskStatus } from "@ai-novel/shared/types/task";
+import {
+  extractStructuredOutputErrorCategory,
+} from "../../llm/structuredOutput";
+import { summarizeStructuredOutputFailure } from "../../llm/structuredInvoke";
 
 export function normalizeFailureSummary(summary?: string | null, fallback = "当前没有明确失败记录。"): string {
   return summary?.trim() || fallback;
+}
+
+export function resolveStructuredFailureSummary(summary?: string | null): {
+  failureCode: string | null;
+  failureSummary: string | null;
+} {
+  if (!summary?.trim()) {
+    return {
+      failureCode: null,
+      failureSummary: null,
+    };
+  }
+  const category = extractStructuredOutputErrorCategory(summary);
+  if (!category) {
+    return {
+      failureCode: null,
+      failureSummary: null,
+    };
+  }
+  const details = summarizeStructuredOutputFailure({
+    error: summary,
+    fallbackAvailable: false,
+  });
+  return {
+    failureCode: details.failureCode,
+    failureSummary: details.summary,
+  };
 }
 
 export function isArchivableTaskStatus(status: TaskStatus): boolean {
@@ -11,7 +42,7 @@ export function isArchivableTaskStatus(status: TaskStatus): boolean {
 export function buildTaskRecoveryHint(kind: TaskKind, status: TaskStatus): string {
   if (status === "failed") {
     if (kind === "knowledge_document") {
-      return "建议检查知识文档版本、分块结果、向量模型和共享 RAG 队列占用情况后再重试。";
+      return "建议检查知识文档版本、分块结构、向量模型和共享 RAG 队列占用情况后再重试。";
     }
     if (kind === "agent_run") {
       return "建议查看最后失败步骤、相关审批状态和对应资源上下文后再重试。";

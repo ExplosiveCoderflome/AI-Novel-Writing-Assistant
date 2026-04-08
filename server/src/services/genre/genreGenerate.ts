@@ -1,5 +1,6 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { supportsForcedJsonOutput } from "../../llm/capabilities";
+import { resolveLLMClientOptions } from "../../llm/factory";
+import { selectStructuredOutputStrategy } from "../../llm/structuredOutput";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { genreTreePrompt } from "../../prompting/prompts/genre/genre.prompts";
 
@@ -15,6 +16,21 @@ export interface GenerateGenreTreeInput {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+}
+
+async function shouldForceGenreJsonOutput(input: GenerateGenreTreeInput): Promise<boolean> {
+  const resolved = await resolveLLMClientOptions(input.provider ?? "deepseek", {
+    model: input.model,
+    temperature: input.temperature ?? 0.6,
+    maxTokens: input.maxTokens,
+    taskType: genreTreePrompt.taskType,
+    executionMode: "structured",
+  });
+  const profile = resolved.structuredProfile;
+  if (!profile || !genreTreePrompt.outputSchema) {
+    return false;
+  }
+  return selectStructuredOutputStrategy(profile, genreTreePrompt.outputSchema) !== "prompt_json";
 }
 
 function toTrimmedString(value: unknown): string {
@@ -73,8 +89,7 @@ function sanitizeGeneratedNode(value: unknown, depth = 1): GenreTreeDraft {
 }
 
 export async function generateGenreTreeDraft(input: GenerateGenreTreeInput): Promise<GenreTreeDraft> {
-  const provider = input.provider ?? "deepseek";
-  const forceJson = supportsForcedJsonOutput(provider, input.model);
+  const forceJson = await shouldForceGenreJsonOutput(input);
 
   let lastError: unknown;
 

@@ -13,6 +13,10 @@ import {
   mapPayoffLedgerRow,
   serializeLedgerJson,
 } from "./payoffLedgerShared";
+import {
+  createNovelChapterReferenceLookup,
+  normalizePayoffLedgerPromptChapterRefs,
+} from "./payoffLedgerChapterRefs";
 
 interface PayoffLedgerSyncOptions {
   provider?: LLMProvider;
@@ -365,17 +369,24 @@ export class PayoffLedgerSyncService {
       });
       const now = new Date();
       const outputByKey = new Map(result.output.items.map((item) => [item.ledgerKey, item]));
+      const chapterLookup = createNovelChapterReferenceLookup(await prisma.chapter.findMany({
+        where: { novelId },
+        select: {
+          id: true,
+          order: true,
+        },
+      }));
 
       await prisma.$transaction(async (tx) => {
         for (const item of result.output.items) {
           const previous = existingRows.find((row) => row.ledgerKey === item.ledgerKey);
-          const inferredLastTouchedChapterId = (
-            typeof chapterOrder === "number"
-            && item.lastTouchedChapterOrder === chapterOrder
-            && options.sourceChapterId
-          )
-            ? options.sourceChapterId
-            : previous?.lastTouchedChapterId ?? null;
+          const normalizedChapterRefs = normalizePayoffLedgerPromptChapterRefs({
+            item,
+            previous,
+            lookup: chapterLookup,
+            currentChapterOrder: chapterOrder,
+            sourceChapterId: options.sourceChapterId,
+          });
           const riskSignals = clearStaleRiskSignal(dedupeRiskSignals(item.riskSignals.map((signal) => ({
             code: signal.code,
             severity: signal.severity,
@@ -399,12 +410,12 @@ export class PayoffLedgerSyncService {
               targetEndChapterOrder: item.targetEndChapterOrder ?? null,
               firstSeenChapterOrder: item.firstSeenChapterOrder ?? null,
               lastTouchedChapterOrder: item.lastTouchedChapterOrder ?? null,
-              lastTouchedChapterId: inferredLastTouchedChapterId,
-              setupChapterId: item.setupChapterId ?? null,
-              payoffChapterId: item.payoffChapterId ?? null,
+              lastTouchedChapterId: normalizedChapterRefs.lastTouchedChapterId,
+              setupChapterId: normalizedChapterRefs.setupChapterId,
+              payoffChapterId: normalizedChapterRefs.payoffChapterId,
               lastSnapshotId: latestSnapshotId ?? previous?.lastSnapshotId ?? null,
-              sourceRefsJson: serializeLedgerJson(item.sourceRefs),
-              evidenceJson: serializeLedgerJson(item.evidence),
+              sourceRefsJson: serializeLedgerJson(normalizedChapterRefs.sourceRefs),
+              evidenceJson: serializeLedgerJson(normalizedChapterRefs.evidence),
               riskSignalsJson: serializeLedgerJson(riskSignals),
               statusReason: item.statusReason?.trim() || null,
               confidence: item.confidence ?? null,
@@ -419,12 +430,12 @@ export class PayoffLedgerSyncService {
               targetEndChapterOrder: item.targetEndChapterOrder ?? null,
               firstSeenChapterOrder: item.firstSeenChapterOrder ?? previous?.firstSeenChapterOrder ?? null,
               lastTouchedChapterOrder: item.lastTouchedChapterOrder ?? previous?.lastTouchedChapterOrder ?? null,
-              lastTouchedChapterId: inferredLastTouchedChapterId,
-              setupChapterId: item.setupChapterId ?? previous?.setupChapterId ?? null,
-              payoffChapterId: item.payoffChapterId ?? previous?.payoffChapterId ?? null,
+              lastTouchedChapterId: normalizedChapterRefs.lastTouchedChapterId,
+              setupChapterId: normalizedChapterRefs.setupChapterId,
+              payoffChapterId: normalizedChapterRefs.payoffChapterId,
               lastSnapshotId: latestSnapshotId ?? previous?.lastSnapshotId ?? null,
-              sourceRefsJson: serializeLedgerJson(item.sourceRefs),
-              evidenceJson: serializeLedgerJson(item.evidence),
+              sourceRefsJson: serializeLedgerJson(normalizedChapterRefs.sourceRefs),
+              evidenceJson: serializeLedgerJson(normalizedChapterRefs.evidence),
               riskSignalsJson: serializeLedgerJson(riskSignals),
               statusReason: item.statusReason?.trim() || null,
               confidence: item.confidence ?? null,

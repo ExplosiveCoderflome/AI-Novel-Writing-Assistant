@@ -517,6 +517,16 @@ export default function TaskCenterPage() {
                     </>
                   ) : null}
                 </div>
+                {selectedTask.failureCode || selectedTask.failureSummary ? (
+                  <div className="rounded-md border border-amber-300/50 bg-amber-50/70 p-2 text-amber-900">
+                    <div className="font-medium">
+                      {selectedTask.failureCode ?? "任务异常"}
+                    </div>
+                    {selectedTask.failureSummary ? (
+                      <div className="mt-1 text-sm">{selectedTask.failureSummary}</div>
+                    ) : null}
+                  </div>
+                ) : null}
                 {selectedTask.lastError ? (
                   <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-destructive">
                     {selectedTask.lastError}

@@ -104,6 +104,7 @@ export const queryKeys = {
     ragEmbeddingModels: (provider: string) => ["settings", "rag", "embedding-models", provider] as const,
     modelRoutes: ["settings", "model-routes"] as const,
     modelRouteConnectivity: ["settings", "model-route-connectivity"] as const,
+    structuredFallback: ["settings", "structured-fallback"] as const,
   },
   novelsKnowledge: {
     bindings: (id: string) => ["novels", "knowledge-documents", id] as const,

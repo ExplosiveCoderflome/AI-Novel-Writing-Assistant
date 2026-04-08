@@ -15,6 +15,8 @@ export const bookAnalysisSourceNoteOutputSchema = z.object({
   themes: z.array(z.string().trim().min(1)).max(5).default([]),
   styleTechniques: z.array(z.string().trim().min(1)).max(5).default([]),
   marketHighlights: z.array(z.string().trim().min(1)).max(5).default([]),
+  readerSignals: z.array(z.string().trim().min(1)).max(5).default([]),
+  weaknessSignals: z.array(z.string().trim().min(1)).max(5).default([]),
   evidence: z.array(evidenceItemSchema).max(3).default([]),
 }).passthrough();
 

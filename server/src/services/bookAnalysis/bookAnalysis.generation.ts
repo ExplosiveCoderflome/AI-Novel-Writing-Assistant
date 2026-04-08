@@ -26,6 +26,8 @@ class AnalysisCancelledError extends Error {
   }
 }
 
+const BOOK_ANALYSIS_HEARTBEAT_INTERVAL_MS = 20_000;
+
 export class BookAnalysisGenerationService {
   constructor(
     private readonly sourceCacheService = new BookAnalysisSourceCacheService(),
@@ -75,119 +77,121 @@ export class BookAnalysisGenerationService {
     const temperature = normalizeTemperature(analysis.temperature);
     const maxTokens = normalizeMaxTokens(analysis.maxTokens);
 
-    try {
-      const notes = await this.getSourceNotes({
-        analysisId,
-        documentVersionId: analysis.documentVersionId,
-        content: analysis.documentVersion.content,
-        provider,
-        model,
-        temperature,
-        sectionMaxTokens: maxTokens,
-      });
-
-      let completedSections = 0;
-      const errors: string[] = [];
-      let summary = analysis.summary;
-
-      await runWithConcurrency(activeSections, getBookAnalysisSectionConcurrency(), async (section, index) => {
-        await this.ensureNotCancelled(analysisId);
-        await this.updateAnalysisProgress(analysisId, {
-          stage: "generating_sections",
-          progress: getSectionStageProgress(completedSections, activeSections.length),
-          itemKey: section.sectionKey,
-          itemLabel: formatSectionProgressLabel(index + 1, activeSections.length, section.title),
+    await this.withAnalysisHeartbeat(analysisId, async () => {
+      try {
+        const notes = await this.getSourceNotes({
+          analysisId,
+          documentVersionId: analysis.documentVersionId,
+          content: analysis.documentVersion.content,
+          provider,
+          model,
+          temperature,
+          sectionMaxTokens: maxTokens,
         });
 
-        await prisma.bookAnalysisSection.update({
-          where: {
-            analysisId_sectionKey: {
-              analysisId,
-              sectionKey: section.sectionKey,
-            },
-          },
-          data: {
-            status: "running",
-          },
-        });
+        let completedSections = 0;
+        const errors: string[] = [];
+        let summary = analysis.summary;
 
-        try {
-          const generated = await this.sectionWriter.generateSection(
-            section.sectionKey as BookAnalysisSectionKey,
-            notes,
-            provider,
-            model,
-            temperature,
-            maxTokens,
-          );
-
-          await prisma.bookAnalysisSection.update({
-            where: {
-              analysisId_sectionKey: {
-                analysisId,
-                sectionKey: section.sectionKey,
-              },
-            },
-            data: {
-              status: "succeeded",
-              aiContent: generated.markdown,
-              structuredDataJson: encodeStructuredData(generated.structuredData),
-              evidenceJson: encodeEvidence(generated.evidence),
-            },
-          });
-
-          if (section.sectionKey === "overview") {
-            summary = buildAnalysisSummaryFromContent(generated.markdown);
-          }
-        } catch (error) {
-          if (error instanceof AnalysisCancelledError) {
-            throw error;
-          }
-          errors.push(`${section.title}: ${error instanceof Error ? error.message : "Unknown error"}`);
-          await prisma.bookAnalysisSection.update({
-            where: {
-              analysisId_sectionKey: {
-                analysisId,
-                sectionKey: section.sectionKey,
-              },
-            },
-            data: {
-              status: "failed",
-            },
-          });
-        } finally {
-          completedSections += 1;
+        await runWithConcurrency(activeSections, getBookAnalysisSectionConcurrency(), async (section, index) => {
+          await this.ensureNotCancelled(analysisId);
           await this.updateAnalysisProgress(analysisId, {
             stage: "generating_sections",
             progress: getSectionStageProgress(completedSections, activeSections.length),
             itemKey: section.sectionKey,
             itemLabel: formatSectionProgressLabel(index + 1, activeSections.length, section.title),
           });
-        }
-      });
 
-      await this.ensureNotCancelled(analysisId);
-      await prisma.bookAnalysis.update({
-        where: { id: analysisId },
-        data: {
-          status: errors.length > 0 ? "failed" : "succeeded",
-          progress: 1,
-          summary,
-          lastError: errors.length > 0 ? errors.join(" | ") : null,
-          heartbeatAt: null,
-          currentStage: null,
-          currentItemKey: null,
-          currentItemLabel: null,
-          cancelRequestedAt: null,
-        },
-      });
-    } catch (error) {
-      if (error instanceof AnalysisCancelledError) {
-        await this.markCancelled(analysisId);
-        return;
+          await prisma.bookAnalysisSection.update({
+            where: {
+              analysisId_sectionKey: {
+                analysisId,
+                sectionKey: section.sectionKey,
+              },
+            },
+            data: {
+              status: "running",
+            },
+          });
+
+          try {
+            const generated = await this.sectionWriter.generateSection(
+              section.sectionKey as BookAnalysisSectionKey,
+              notes,
+              provider,
+              model,
+              temperature,
+              maxTokens,
+            );
+
+            await prisma.bookAnalysisSection.update({
+              where: {
+                analysisId_sectionKey: {
+                  analysisId,
+                  sectionKey: section.sectionKey,
+                },
+              },
+              data: {
+                status: "succeeded",
+                aiContent: generated.markdown,
+                structuredDataJson: encodeStructuredData(generated.structuredData),
+                evidenceJson: encodeEvidence(generated.evidence),
+              },
+            });
+
+            if (section.sectionKey === "overview") {
+              summary = buildAnalysisSummaryFromContent(generated.markdown);
+            }
+          } catch (error) {
+            if (error instanceof AnalysisCancelledError) {
+              throw error;
+            }
+            errors.push(`${section.title}: ${error instanceof Error ? error.message : "Unknown error"}`);
+            await prisma.bookAnalysisSection.update({
+              where: {
+                analysisId_sectionKey: {
+                  analysisId,
+                  sectionKey: section.sectionKey,
+                },
+              },
+              data: {
+                status: "failed",
+              },
+            });
+          } finally {
+            completedSections += 1;
+            await this.updateAnalysisProgress(analysisId, {
+              stage: "generating_sections",
+              progress: getSectionStageProgress(completedSections, activeSections.length),
+              itemKey: section.sectionKey,
+              itemLabel: formatSectionProgressLabel(index + 1, activeSections.length, section.title),
+            });
+          }
+        });
+
+        await this.ensureNotCancelled(analysisId);
+        await prisma.bookAnalysis.update({
+          where: { id: analysisId },
+          data: {
+            status: errors.length > 0 ? "failed" : "succeeded",
+            progress: 1,
+            summary,
+            lastError: errors.length > 0 ? errors.join(" | ") : null,
+            heartbeatAt: null,
+            currentStage: null,
+            currentItemKey: null,
+            currentItemLabel: null,
+            cancelRequestedAt: null,
+          },
+        });
+      } catch (error) {
+        if (error instanceof AnalysisCancelledError) {
+          await this.markCancelled(analysisId);
+          return;
+        }
+        await this.markFailed(analysisId, error instanceof Error ? error.message : "Book analysis failed.");
       }
-      await this.markFailed(analysisId, error instanceof Error ? error.message : "Book analysis failed.");
-    }
+    });
   }
 
   async runSingleSection(analysisId: string, sectionKey: BookAnalysisSectionKey): Promise<void> {
@@ -229,106 +233,108 @@ export class BookAnalysisGenerationService {
       },
     });
 
-    try {
-      const notes = await this.getSourceNotes({
-        analysisId,
-        documentVersionId: analysis.documentVersionId,
-        content: analysis.documentVersion.content,
-        provider,
-        model,
-        temperature,
-        sectionMaxTokens: maxTokens,
-      });
+    await this.withAnalysisHeartbeat(analysisId, async () => {
+      try {
+        const notes = await this.getSourceNotes({
+          analysisId,
+          documentVersionId: analysis.documentVersionId,
+          content: analysis.documentVersion.content,
+          provider,
+          model,
+          temperature,
+          sectionMaxTokens: maxTokens,
+        });
 
-      await this.ensureNotCancelled(analysisId);
-      await this.updateAnalysisProgress(analysisId, {
-        stage: "generating_sections",
-        progress: getSectionStageProgress(0, 1),
-        itemKey: sectionKey,
-        itemLabel: formatSectionProgressLabel(1, 1, section.title),
-      });
+        await this.ensureNotCancelled(analysisId);
+        await this.updateAnalysisProgress(analysisId, {
+          stage: "generating_sections",
+          progress: getSectionStageProgress(0, 1),
+          itemKey: sectionKey,
+          itemLabel: formatSectionProgressLabel(1, 1, section.title),
+        });
 
-      await prisma.bookAnalysisSection.update({
-        where: {
-          analysisId_sectionKey: {
-            analysisId,
-            sectionKey,
+        await prisma.bookAnalysisSection.update({
+          where: {
+            analysisId_sectionKey: {
+              analysisId,
+              sectionKey,
+            },
           },
-        },
-        data: {
-          status: "running",
-        },
-      });
-
-      const generated = await this.sectionWriter.generateSection(sectionKey, notes, provider, model, temperature, maxTokens);
-
-      await prisma.bookAnalysisSection.update({
-        where: {
-          analysisId_sectionKey: {
-            analysisId,
-            sectionKey,
+          data: {
+            status: "running",
           },
-        },
-        data: {
-          status: "succeeded",
-          aiContent: generated.markdown,
-          structuredDataJson: encodeStructuredData(generated.structuredData),
-          evidenceJson: encodeEvidence(generated.evidence),
-        },
-      });
+        });
 
-      const sectionStatuses = await prisma.bookAnalysisSection.findMany({
-        where: { analysisId },
-        select: {
-          sectionKey: true,
-          status: true,
-          frozen: true,
-          editedContent: true,
-          aiContent: true,
-        },
-      });
-      const overview =
-        sectionKey === "overview"
-          ? generated.markdown
-          : getEffectiveContent(
-              sectionStatuses.find((item) => item.sectionKey === "overview") ?? {
-                aiContent: null,
-                editedContent: null,
-              },
-            );
+        const generated = await this.sectionWriter.generateSection(sectionKey, notes, provider, model, temperature, maxTokens);
 
-      await prisma.bookAnalysis.update({
-        where: { id: analysisId },
-        data: {
-          status: sectionStatuses.some((item) => !item.frozen && item.status === "failed") ? "failed" : "succeeded",
-          progress: 1,
-          summary: buildAnalysisSummaryFromContent(overview),
-          lastError: null,
-          heartbeatAt: null,
-          currentStage: null,
-          currentItemKey: null,
-          currentItemLabel: null,
-          cancelRequestedAt: null,
-        },
-      });
-    } catch (error) {
-      if (error instanceof AnalysisCancelledError) {
-        await this.markCancelled(analysisId);
-        return;
+        await prisma.bookAnalysisSection.update({
+          where: {
+            analysisId_sectionKey: {
+              analysisId,
+              sectionKey,
+            },
+          },
+          data: {
+            status: "succeeded",
+            aiContent: generated.markdown,
+            structuredDataJson: encodeStructuredData(generated.structuredData),
+            evidenceJson: encodeEvidence(generated.evidence),
+          },
+        });
+
+        const sectionStatuses = await prisma.bookAnalysisSection.findMany({
+          where: { analysisId },
+          select: {
+            sectionKey: true,
+            status: true,
+            frozen: true,
+            editedContent: true,
+            aiContent: true,
+          },
+        });
+        const overview =
+          sectionKey === "overview"
+            ? generated.markdown
+            : getEffectiveContent(
+                sectionStatuses.find((item) => item.sectionKey === "overview") ?? {
+                  aiContent: null,
+                  editedContent: null,
+                },
+              );
+
+        await prisma.bookAnalysis.update({
+          where: { id: analysisId },
+          data: {
+            status: sectionStatuses.some((item) => !item.frozen && item.status === "failed") ? "failed" : "succeeded",
+            progress: 1,
+            summary: buildAnalysisSummaryFromContent(overview),
+            lastError: null,
+            heartbeatAt: null,
+            currentStage: null,
+            currentItemKey: null,
+            currentItemLabel: null,
+            cancelRequestedAt: null,
+          },
+        });
+      } catch (error) {
+        if (error instanceof AnalysisCancelledError) {
+          await this.markCancelled(analysisId);
+          return;
+        }
+        await prisma.bookAnalysisSection.update({
+          where: {
+            analysisId_sectionKey: {
+              analysisId,
+              sectionKey,
+            },
+          },
+          data: {
+            status: "failed",
+          },
+        });
+        await this.markFailed(analysisId, error instanceof Error ? error.message : "Section regeneration failed.");
       }
-      await prisma.bookAnalysisSection.update({
-        where: {
-          analysisId_sectionKey: {
-            analysisId,
-            sectionKey,
-          },
-        },
-        data: {
-          status: "failed",
-        },
-      });
-      await this.markFailed(analysisId, error instanceof Error ? error.message : "Section regeneration failed.");
-    }
+    });
   }
 
   async optimizeSectionPreview(input: {
@@ -410,11 +416,40 @@ export class BookAnalysisGenerationService {
     await prisma.bookAnalysis.update({
       where: { id: analysisId },
       data: {
+        status: "running",
         progress: update.progress,
         heartbeatAt: new Date(),
         currentStage: update.stage,
         currentItemKey: update.itemKey ?? null,
         currentItemLabel: update.itemLabel ?? null,
+      },
+    });
+  }
+
+  private async withAnalysisHeartbeat<T>(analysisId: string, run: () => Promise<T>): Promise<T> {
+    const timer = setInterval(() => {
+      void this.touchAnalysisHeartbeat(analysisId).catch(() => {});
+    }, BOOK_ANALYSIS_HEARTBEAT_INTERVAL_MS);
+    timer.unref?.();
+
+    try {
+      return await run();
+    } finally {
+      clearInterval(timer);
+    }
+  }
+
+  private async touchAnalysisHeartbeat(analysisId: string): Promise<void> {
+    await prisma.bookAnalysis.updateMany({
+      where: {
+        id: analysisId,
+        status: {
+          in: ["queued", "running"],
+        },
+      },
+      data: {
+        status: "running",
+        heartbeatAt: new Date(),
       },
     });
   }

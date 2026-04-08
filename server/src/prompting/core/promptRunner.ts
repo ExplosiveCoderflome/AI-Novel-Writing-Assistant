@@ -1,13 +1,16 @@
 import { HumanMessage, type BaseMessage, type BaseMessageChunk } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { getJsonCapability } from "../../llm/capabilities";
 import { getLLM } from "../../llm/factory";
 import {
   invokeStructuredLlmDetailed,
   parseStructuredLlmRawContentDetailed,
-  shouldUseJsonObjectResponseFormat,
   type StructuredInvokeResult,
 } from "../../llm/structuredInvoke";
+import {
+  buildStructuredResponseFormat,
+  resolveStructuredOutputProfile,
+  selectStructuredOutputStrategy,
+} from "../../llm/structuredOutput";
 import { toText } from "../../services/novel/novelP0Utils";
 import { hasRegisteredPromptAsset } from "../registry";
 import { selectContextBlocks } from "./contextSelection";
@@ -553,13 +556,30 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
     maxTokens: input.options?.maxTokens,
     taskType: input.asset.taskType,
     promptMeta: prepared.invocation,
+    executionMode: "structured",
+    structuredStrategy: selectStructuredOutputStrategy(
+      resolveStructuredOutputProfile({
+        provider: input.options?.provider ?? "deepseek",
+        model: input.options?.model,
+        executionMode: "structured",
+      }),
+      outputSchema,
+    ),
   });
+  const profile = resolveStructuredOutputProfile({
+    provider: input.options?.provider ?? "deepseek",
+    model: input.options?.model,
+    executionMode: "structured",
+  });
+  const strategy = selectStructuredOutputStrategy(profile, outputSchema);
   const invokeOptions: Record<string, unknown> = {};
-  if (
-    getJsonCapability(input.options?.provider ?? "deepseek", input.options?.model).supportsJsonObject
-    && shouldUseJsonObjectResponseFormat(input.options?.provider ?? "deepseek", input.options?.model, outputSchema)
-  ) {
-    invokeOptions.response_format = { type: "json_object" };
+  const responseFormat = buildStructuredResponseFormat({
+    strategy,
+    schema: outputSchema,
+    label: `${input.asset.id}@${input.asset.version}`,
+  });
+  if (responseFormat) {
+    invokeOptions.response_format = responseFormat;
   }
   const rawStream = await llm.stream(prepared.messages, invokeOptions);
   const captured = captureStreamOutput(rawStream as AsyncIterable<BaseMessageChunk>);
@@ -578,6 +598,8 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
         label: `${input.asset.id}@${input.asset.version}`,
         maxRepairAttempts: resolveStructuredRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
         promptMeta: prepared.invocation,
+        strategy,
+        profile,
       });
       const resolved = await resolveStructuredOutput({
         asset: input.asset,

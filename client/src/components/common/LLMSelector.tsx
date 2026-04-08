@@ -1,12 +1,12 @@
 import { useEffect, useMemo } from "react";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { useQuery } from "@tanstack/react-query";
-import { getLLMProviders } from "@/api/settings";
+import { getAPIKeySettings, type APIKeyStatus } from "@/api/settings";
 import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getProviderFallbackModels, providerModelMap, useLLMStore } from "@/store/llmStore";
+import { useLLMStore } from "@/store/llmStore";
 import SearchableSelect from "./SearchableSelect";
 
 interface LLMSelectorValue {
@@ -23,15 +23,6 @@ interface LLMSelectorProps {
   showParameters?: boolean;
 }
 
-type ProviderResponse = Record<
-  string,
-  {
-    name: string;
-    models: string[];
-    defaultModel: string;
-  }
->;
-
 function sanitizeModelList(models: unknown): string[] {
   if (!Array.isArray(models)) {
     return [];
@@ -45,12 +36,12 @@ function sanitizeModelList(models: unknown): string[] {
   );
 }
 
-function resolveModel(provider: LLMProvider, currentModel: string, models: string[]): string {
+function resolveModel(currentModel: string, models: string[]): string {
   const normalizedCurrent = currentModel.trim();
   if (normalizedCurrent) {
     return normalizedCurrent;
   }
-  return models[0] ?? getProviderFallbackModels(provider)[0] ?? "";
+  return models[0] ?? "";
 }
 
 function clampTemperature(value: number): number {
@@ -59,6 +50,11 @@ function clampTemperature(value: number): number {
 
 function clampMaxTokens(value: number): number {
   return Math.min(32768, Math.max(256, Math.floor(value)));
+}
+
+function isRunnableProvider(config: APIKeyStatus): boolean {
+  const models = sanitizeModelList([config.currentModel, ...(config.models ?? [])]);
+  return config.isConfigured && config.isActive && models.length > 0;
 }
 
 export default function LLMSelector({
@@ -78,61 +74,59 @@ export default function LLMSelector({
   const resolvedTemperature = currentValue.temperature ?? store.temperature;
   const resolvedMaxTokens = currentValue.maxTokens ?? store.maxTokens;
 
-  const { data } = useQuery({
-    queryKey: queryKeys.llm.providers,
-    queryFn: async () => {
-      const response = await getLLMProviders();
-      return (response.data ?? {}) as ProviderResponse;
-    },
+  const apiKeySettingsQuery = useQuery({
+    queryKey: queryKeys.settings.apiKeys,
+    queryFn: getAPIKeySettings,
     staleTime: 5 * 60 * 1000,
   });
 
-  const providerOptions = useMemo(() => {
-    const builtInProviders = Object.keys(providerModelMap);
-    const apiProviders = data ? Object.keys(data) : [];
-    return Array.from(
-      new Set([currentValue.provider, ...apiProviders, ...builtInProviders].filter((provider) => {
-        return typeof provider === "string" && provider.trim().length > 0;
-      })),
-    ) as LLMProvider[];
-  }, [currentValue.provider, data]);
+  const providerConfigs = useMemo(
+    () => (apiKeySettingsQuery.data?.data ?? []).filter(isRunnableProvider),
+    [apiKeySettingsQuery.data?.data],
+  );
+
+  const providerOptions = useMemo(
+    () => providerConfigs.map((item) => item.provider),
+    [providerConfigs],
+  );
+
+  const providerNameMap = useMemo(
+    () => new Map(providerConfigs.map((item) => [item.provider, item.displayName ?? item.name])),
+    [providerConfigs],
+  );
 
   const providerModelsMap = useMemo(() => {
-    const entries = providerOptions.map((provider) => {
-      const providerData = data?.[provider] as ProviderResponse[string] | undefined;
-      const fromApi = sanitizeModelList(providerData?.models);
-      const fallbackModels = getProviderFallbackModels(provider);
-      const mergedModels = fromApi.length > 0
-        ? fromApi
-        : sanitizeModelList([
-          providerData?.defaultModel ?? "",
-          ...fallbackModels,
-        ]);
-      return [provider, mergedModels] as const;
-    });
+    const entries = providerConfigs.map((config) => (
+      [config.provider, sanitizeModelList([config.currentModel, ...config.models])] as const
+    ));
     return Object.fromEntries(entries) as Record<string, string[]>;
-  }, [data, providerOptions]);
+  }, [providerConfigs]);
+
+  const hasRunnableProviders = providerOptions.length > 0;
+
+  const effectiveProvider = useMemo(() => {
+    if (providerOptions.includes(currentValue.provider)) {
+      return currentValue.provider;
+    }
+    return providerOptions[0] ?? currentValue.provider;
+  }, [currentValue.provider, providerOptions]);
 
   const models = useMemo(() => {
-    const providerModels = providerModelsMap[currentValue.provider] ?? [];
+    const providerModels = providerModelsMap[effectiveProvider] ?? [];
     const currentModel = currentValue.model.trim();
     if (!currentModel || providerModels.includes(currentModel)) {
       return providerModels;
     }
     return [currentModel, ...providerModels];
-  }, [currentValue.model, currentValue.provider, providerModelsMap]);
+  }, [currentValue.model, effectiveProvider, providerModelsMap]);
 
   const resolvedModel = useMemo(
-    () => resolveModel(currentValue.provider, currentValue.model, models),
-    [currentValue.model, currentValue.provider, models],
+    () => resolveModel(currentValue.model, models),
+    [currentValue.model, models],
   );
 
   const updateValue = (next: LLMSelectorValue) => {
-    const normalizedModel = resolveModel(
-      next.provider,
-      next.model,
-      providerModelsMap[next.provider] ?? getProviderFallbackModels(next.provider),
-    );
+    const normalizedModel = resolveModel(next.model, providerModelsMap[next.provider] ?? []);
     const normalizedNext: LLMSelectorValue = {
       ...next,
       model: normalizedModel,
@@ -154,11 +148,14 @@ export default function LLMSelector({
   };
 
   useEffect(() => {
-    if (resolvedModel === currentValue.model) {
+    if (!hasRunnableProviders) {
+      return;
+    }
+    if (effectiveProvider === currentValue.provider && resolvedModel === currentValue.model) {
       return;
     }
     updateValue({
-      provider: currentValue.provider,
+      provider: effectiveProvider,
       model: resolvedModel,
       temperature: resolvedTemperature,
       maxTokens: resolvedMaxTokens,
@@ -166,6 +163,8 @@ export default function LLMSelector({
   }, [
     currentValue.model,
     currentValue.provider,
+    effectiveProvider,
+    hasRunnableProviders,
     resolvedMaxTokens,
     resolvedModel,
     resolvedTemperature,
@@ -173,8 +172,7 @@ export default function LLMSelector({
 
   const onProviderChange = (provider: string) => {
     const typedProvider = provider as LLMProvider;
-    const nextModels = providerModelsMap[typedProvider] ?? getProviderFallbackModels(typedProvider);
-    const nextModel = resolveModel(typedProvider, currentValue.model, nextModels);
+    const nextModel = resolveModel("", providerModelsMap[typedProvider] ?? []);
     updateValue({
       provider: typedProvider,
       model: nextModel,
@@ -185,7 +183,7 @@ export default function LLMSelector({
 
   const onModelChange = (model: string) => {
     updateValue({
-      provider: currentValue.provider,
+      provider: effectiveProvider,
       model,
       temperature: resolvedTemperature,
       maxTokens: resolvedMaxTokens,
@@ -196,14 +194,18 @@ export default function LLMSelector({
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="secondary">模型</Badge>
-        <Select value={currentValue.provider} onValueChange={onProviderChange}>
+        <Select
+          value={hasRunnableProviders ? effectiveProvider : undefined}
+          onValueChange={onProviderChange}
+          disabled={!hasRunnableProviders}
+        >
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="选择 Provider" />
+            <SelectValue placeholder={hasRunnableProviders ? "选择厂商" : "请先配置可用厂商"} />
           </SelectTrigger>
           <SelectContent>
             {providerOptions.map((provider) => (
               <SelectItem key={provider} value={provider}>
-                {data?.[provider]?.name ?? provider}
+                {providerNameMap.get(provider) ?? provider}
               </SelectItem>
             ))}
           </SelectContent>
@@ -214,13 +216,20 @@ export default function LLMSelector({
             value={resolvedModel}
             onValueChange={onModelChange}
             options={models.map((model) => ({ value: model }))}
-            placeholder="选择模型"
+            placeholder={hasRunnableProviders ? "选择模型" : "暂无可用模型"}
             searchPlaceholder="搜索模型"
-            emptyText="没有匹配的模型"
+            emptyText="没有可用模型"
             className="w-[240px]"
+            disabled={!hasRunnableProviders}
           />
         ) : null}
       </div>
+
+      {!hasRunnableProviders && !apiKeySettingsQuery.isLoading ? (
+        <div className="text-xs text-muted-foreground">
+          当前没有已配置且启用的模型厂商，请先到系统设置里完成 API Key 和模型配置。
+        </div>
+      ) : null}
 
       {showParameters ? (
         <div className="grid gap-2 md:grid-cols-2">
@@ -238,20 +247,21 @@ export default function LLMSelector({
                   return;
                 }
                 updateValue({
-                  provider: currentValue.provider,
-                  model: currentValue.model,
+                  provider: effectiveProvider,
+                  model: resolvedModel,
                   temperature: parsed,
                   maxTokens: resolvedMaxTokens,
                 });
               }}
               onBlur={() => {
                 updateValue({
-                  provider: currentValue.provider,
-                  model: currentValue.model,
+                  provider: effectiveProvider,
+                  model: resolvedModel,
                   temperature: clampTemperature(resolvedTemperature),
                   maxTokens: resolvedMaxTokens,
                 });
               }}
+              disabled={!hasRunnableProviders}
             />
           </label>
 
@@ -263,11 +273,12 @@ export default function LLMSelector({
               min={256}
               max={32768}
               value={resolvedMaxTokens ?? ""}
+              disabled={!hasRunnableProviders}
               onChange={(event) => {
                 if (!event.target.value.trim()) {
                   updateValue({
-                    provider: currentValue.provider,
-                    model: currentValue.model,
+                    provider: effectiveProvider,
+                    model: resolvedModel,
                     temperature: resolvedTemperature,
                     maxTokens: undefined,
                   });
@@ -278,8 +289,8 @@ export default function LLMSelector({
                   return;
                 }
                 updateValue({
-                  provider: currentValue.provider,
-                  model: currentValue.model,
+                  provider: effectiveProvider,
+                  model: resolvedModel,
                   temperature: resolvedTemperature,
                   maxTokens: parsed,
                 });
@@ -287,16 +298,16 @@ export default function LLMSelector({
               onBlur={() => {
                 if (resolvedMaxTokens === undefined) {
                   updateValue({
-                    provider: currentValue.provider,
-                    model: currentValue.model,
+                    provider: effectiveProvider,
+                    model: resolvedModel,
                     temperature: resolvedTemperature,
                     maxTokens: undefined,
                   });
                   return;
                 }
                 updateValue({
-                  provider: currentValue.provider,
-                  model: currentValue.model,
+                  provider: effectiveProvider,
+                  model: resolvedModel,
                   temperature: resolvedTemperature,
                   maxTokens: clampMaxTokens(resolvedMaxTokens),
                 });

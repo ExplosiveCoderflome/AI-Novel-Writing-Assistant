@@ -1,7 +1,8 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { prisma } from "../../db/prisma";
-import { supportsForcedJsonOutput } from "../../llm/capabilities";
+import { resolveLLMClientOptions } from "../../llm/factory";
+import { selectStructuredOutputStrategy } from "../../llm/structuredOutput";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { titleGenerationPrompt } from "../../prompting/prompts/helper/titleGeneration.prompt";
 import {
@@ -32,6 +33,21 @@ export interface GenerateTitleIdeasInput extends TitleGenerationLLMOptions {
 
 export interface GenerateNovelTitlesInput extends TitleGenerationLLMOptions {
   count?: number;
+}
+
+async function shouldForceTitleJsonOutput(input: TitleGenerationLLMOptions): Promise<boolean> {
+  const resolved = await resolveLLMClientOptions(input.provider ?? "deepseek", {
+    model: input.model,
+    temperature: input.temperature ?? 0.85,
+    maxTokens: input.maxTokens,
+    taskType: titleGenerationPrompt.taskType,
+    executionMode: "structured",
+  });
+  const profile = resolved.structuredProfile;
+  if (!profile || !titleGenerationPrompt.outputSchema) {
+    return false;
+  }
+  return selectStructuredOutputStrategy(profile, titleGenerationPrompt.outputSchema) !== "prompt_json";
 }
 
 function resolveRetryReason(error: unknown, fallback: string): string {
@@ -178,7 +194,7 @@ export class TitleGenerationService {
     blockedTitles: string[] = [],
   ): Promise<{ titles: TitleFactorySuggestion[] }> {
     const provider = llmOptions.provider ?? "deepseek";
-    const forceJson = supportsForcedJsonOutput(provider, llmOptions.model);
+    const forceJson = await shouldForceTitleJsonOutput(llmOptions);
     const count = normalizeRequestedCount(promptContext.count, DEFAULT_TITLE_COUNT);
 
     let lastError: unknown;

@@ -5,6 +5,8 @@ const { prisma } = require("../dist/db/prisma.js");
 const { BookAnalysisSourceCacheService } = require("../dist/services/bookAnalysis/bookAnalysis.cache.js");
 const { BookAnalysisGenerationService } = require("../dist/services/bookAnalysis/bookAnalysis.generation.js");
 const { BookAnalysisTaskQueue } = require("../dist/services/bookAnalysis/bookAnalysis.queue.js");
+const { resolveLiveBookAnalysisStatus } = require("../dist/services/bookAnalysis/bookAnalysis.status.js");
+const { buildSourceSegments } = require("../dist/services/bookAnalysis/bookAnalysis.utils.js");
 const { BookAnalysisWatchdogService } = require("../dist/services/bookAnalysis/BookAnalysisWatchdogService.js");
 
 function createDeferred() {
@@ -36,6 +38,61 @@ function matchCacheIdentity(row, key) {
     && row.notesMaxTokens === key.notesMaxTokens
     && row.segmentVersion === key.segmentVersion;
 }
+
+test("buildSourceSegments recognizes Chinese chapter headings before falling back to raw chunks", () => {
+  const content = [
+    "第一章 雪夜摸排",
+    "正文".repeat(80),
+    "",
+    "第二章 卧底试探",
+    "正文".repeat(80),
+    "",
+    "第三章 山场围猎",
+    "正文".repeat(80),
+  ].join("\n");
+
+  const segments = buildSourceSegments(content);
+
+  assert.equal(segments.length, 3);
+  assert.equal(segments[0].label, "第一章 雪夜摸排");
+  assert.equal(segments[1].label, "第二章 卧底试探");
+  assert.equal(segments[2].label, "第三章 山场围猎");
+});
+
+test("resolveLiveBookAnalysisStatus promotes queued rows with live runtime signals", () => {
+  assert.equal(
+    resolveLiveBookAnalysisStatus({
+      status: "queued",
+      currentStage: "generating_sections",
+      heartbeatAt: null,
+    }),
+    "running",
+  );
+  assert.equal(
+    resolveLiveBookAnalysisStatus({
+      status: "queued",
+      currentStage: null,
+      heartbeatAt: new Date("2026-04-08T13:25:06.000Z"),
+    }),
+    "running",
+  );
+  assert.equal(
+    resolveLiveBookAnalysisStatus({
+      status: "queued",
+      currentStage: null,
+      heartbeatAt: null,
+    }),
+    "queued",
+  );
+  assert.equal(
+    resolveLiveBookAnalysisStatus({
+      status: "failed",
+      currentStage: "generating_sections",
+      heartbeatAt: new Date("2026-04-08T13:25:06.000Z"),
+    }),
+    "failed",
+  );
+});
 
 test("BookAnalysisSourceCacheService persists notes and reuses cache hits", async () => {
   const original = {
@@ -136,6 +193,60 @@ test("BookAnalysisSourceCacheService persists notes and reuses cache hits", asyn
     assert.equal(changedVersion.cacheHit, false);
     assert.equal(callCounts.runStructuredPrompt, 3);
     assert.equal(cacheRows.length, 3);
+  } finally {
+    prisma.bookAnalysisSourceCache.findUnique = original.findUnique;
+    prisma.bookAnalysisSourceCache.upsert = original.upsert;
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});
+
+test("BookAnalysisSourceCacheService preserves reader and weakness signals from source-note output", async () => {
+  const original = {
+    findUnique: prisma.bookAnalysisSourceCache.findUnique,
+    upsert: prisma.bookAnalysisSourceCache.upsert,
+  };
+  const promptRunner = require("../dist/prompting/core/promptRunner.js");
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+
+  promptRunner.runStructuredPrompt = async () => ({
+    output: {
+      summary: "片段摘要",
+      plotPoints: ["杨子荣试探匪帮"],
+      timelineEvents: [],
+      characters: ["杨子荣潜伏"],
+      worldbuilding: ["威虎山匪帮语境"],
+      themes: ["忠诚与智斗"],
+      styleTechniques: ["悬念推进"],
+      marketHighlights: ["卧底冲突强"],
+      readerSignals: ["智斗爽点明确"],
+      weaknessSignals: ["对白口号感偏强"],
+      evidence: [{ label: "卧底试探", excerpt: "他必须压住情绪继续套话" }],
+    },
+    repairUsed: false,
+  });
+
+  prisma.bookAnalysisSourceCache.findUnique = async () => null;
+  prisma.bookAnalysisSourceCache.upsert = async ({ create }) => ({
+    id: "cache-1",
+    ...create,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  const service = new BookAnalysisSourceCacheService();
+
+  try {
+    const result = await service.getOrBuildSourceNotes({
+      documentVersionId: "version-reader-signals",
+      content: "正文".repeat(120),
+      provider: "deepseek",
+      model: "deepseek-chat",
+      temperature: 0.3,
+      sectionMaxTokens: 4800,
+    });
+
+    assert.deepEqual(result.notes[0].readerSignals, ["智斗爽点明确"]);
+    assert.deepEqual(result.notes[0].weaknessSignals, ["对白口号感偏强"]);
   } finally {
     prisma.bookAnalysisSourceCache.findUnique = original.findUnique;
     prisma.bookAnalysisSourceCache.upsert = original.upsert;
@@ -248,6 +359,7 @@ test("BookAnalysisGenerationService runSingleSection fetches reusable source not
     assert.equal(sectionCalls.length, 1);
     assert.ok(analysisUpdates.some((item) => item.data.currentStage === "loading_cache"));
     assert.ok(analysisUpdates.some((item) => item.data.currentStage === "generating_sections"));
+    assert.ok(analysisUpdates.some((item) => item.data.status === "running"));
     assert.ok(sectionUpdates.some((item) => item.data.status === "running"));
     assert.ok(sectionUpdates.some((item) => item.data.status === "succeeded"));
   } finally {
@@ -255,6 +367,124 @@ test("BookAnalysisGenerationService runSingleSection fetches reusable source not
     prisma.bookAnalysis.update = original.bookAnalysisUpdate;
     prisma.bookAnalysisSection.update = original.sectionUpdate;
     prisma.bookAnalysisSection.findMany = original.sectionFindMany;
+  }
+});
+
+test("BookAnalysisGenerationService keeps heartbeating during long section generation", async () => {
+  const original = {
+    bookAnalysisFindUnique: prisma.bookAnalysis.findUnique,
+    bookAnalysisUpdate: prisma.bookAnalysis.update,
+    bookAnalysisUpdateMany: prisma.bookAnalysis.updateMany,
+    sectionUpdate: prisma.bookAnalysisSection.update,
+    sectionFindMany: prisma.bookAnalysisSection.findMany,
+    setInterval: global.setInterval,
+    clearInterval: global.clearInterval,
+  };
+
+  const heartbeatUpdates = [];
+  let heartbeatTick = null;
+
+  global.setInterval = (fn) => {
+    heartbeatTick = fn;
+    return {
+      unref() {},
+    };
+  };
+  global.clearInterval = () => {};
+
+  prisma.bookAnalysis.findUnique = async (input) => {
+    if (input.include) {
+      return {
+        id: "analysis-1",
+        status: "queued",
+        summary: null,
+        progress: 0,
+        cancelRequestedAt: null,
+        documentVersionId: "version-1",
+        documentVersion: {
+          content: "book-analysis source content ".repeat(80),
+        },
+        provider: "deepseek",
+        model: "deepseek-chat",
+        temperature: 0.3,
+        maxTokens: 4800,
+        sections: [{
+          analysisId: "analysis-1",
+          sectionKey: "overview",
+          title: "Overview",
+          frozen: false,
+        }],
+      };
+    }
+    return {
+      status: "running",
+      cancelRequestedAt: null,
+    };
+  };
+
+  prisma.bookAnalysis.update = async (input) => input;
+  prisma.bookAnalysis.updateMany = async (input) => {
+    heartbeatUpdates.push(input);
+    return { count: 1 };
+  };
+  prisma.bookAnalysisSection.update = async (input) => input;
+  prisma.bookAnalysisSection.findMany = async () => ([{
+    sectionKey: "overview",
+    status: "succeeded",
+    frozen: false,
+    editedContent: null,
+    aiContent: "# Overview\n\nGenerated summary",
+  }]);
+
+  const service = new BookAnalysisGenerationService(
+    {
+      getOrBuildSourceNotes: async () => ({
+        notes: [{
+          sourceLabel: "segment-1",
+          summary: "cached summary",
+          plotPoints: [],
+          timelineEvents: [],
+          characters: [],
+          worldbuilding: [],
+          themes: [],
+          styleTechniques: [],
+          marketHighlights: [],
+          evidence: [],
+        }],
+        segmentCount: 1,
+        cacheHit: true,
+      }),
+    },
+    {
+      generateSection: async () => {
+        assert.ok(heartbeatTick, "heartbeat timer should be registered before section generation");
+        heartbeatTick();
+        return {
+          markdown: "# Overview\n\nGenerated summary",
+          structuredData: { ok: true },
+          evidence: [],
+        };
+      },
+      generateOptimizedDraft: async () => {
+        throw new Error("optimize should not be used in heartbeat test");
+      },
+    },
+  );
+
+  try {
+    await service.runSingleSection("analysis-1", "overview");
+    assert.ok(heartbeatUpdates.length >= 1);
+    assert.equal(heartbeatUpdates[0].where.id, "analysis-1");
+    assert.equal(heartbeatUpdates[0].data.status, "running");
+    assert.ok(heartbeatUpdates[0].data.heartbeatAt instanceof Date);
+  } finally {
+    prisma.bookAnalysis.findUnique = original.bookAnalysisFindUnique;
+    prisma.bookAnalysis.update = original.bookAnalysisUpdate;
+    prisma.bookAnalysis.updateMany = original.bookAnalysisUpdateMany;
+    prisma.bookAnalysisSection.update = original.sectionUpdate;
+    prisma.bookAnalysisSection.findMany = original.sectionFindMany;
+    global.setInterval = original.setInterval;
+    global.clearInterval = original.clearInterval;
   }
 });
 

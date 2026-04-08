@@ -6,6 +6,7 @@ const { AgentTraceStore } = require("../dist/agents/traceStore.js");
 const { creativeHubLangGraph } = require("../dist/creativeHub/CreativeHubLangGraph.js");
 const { creativeHubService } = require("../dist/creativeHub/CreativeHubService.js");
 const { llmConnectivityService } = require("../dist/llm/connectivity.js");
+const structuredFallbackSettings = require("../dist/llm/structuredFallbackSettings.js");
 const { NovelService } = require("../dist/services/novel/NovelService.js");
 const { NovelFramingSuggestionService } = require("../dist/services/novel/NovelFramingSuggestionService.js");
 const { ragServices } = require("../dist/services/rag/index.js");
@@ -229,6 +230,24 @@ test("POST /api/llm/model-routes/connectivity returns per-task connectivity stat
       ok: true,
       latency: 128,
       error: null,
+      plain: {
+        ok: true,
+        latency: 128,
+        error: null,
+      },
+      structured: {
+        ok: true,
+        latency: 140,
+        error: null,
+        strategy: "prompt_json",
+        reasoningForcedOff: true,
+        fallbackAvailable: true,
+        fallbackUsed: false,
+        errorCategory: null,
+        nativeJsonObject: false,
+        nativeJsonSchema: false,
+        profileFamily: "custom_openai_compatible",
+      },
     }],
   });
 
@@ -244,8 +263,78 @@ test("POST /api/llm/model-routes/connectivity returns per-task connectivity stat
     assert.equal(payload.success, true);
     assert.equal(payload.data.statuses[0].taskType, "repair");
     assert.equal(payload.data.statuses[0].ok, true);
+    assert.equal(payload.data.statuses[0].plain.ok, true);
+    assert.equal(payload.data.statuses[0].structured.strategy, "prompt_json");
+    assert.equal(payload.data.statuses[0].structured.reasoningForcedOff, true);
   } finally {
     llmConnectivityService.testModelRoutes = originalTestModelRoutes;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("GET and PUT /api/llm/structured-fallback expose the global fallback configuration", async () => {
+  const originalGetStructuredFallbackSettings = structuredFallbackSettings.getStructuredFallbackSettings;
+  const originalSaveStructuredFallbackSettings = structuredFallbackSettings.saveStructuredFallbackSettings;
+  let savedPayload = null;
+
+  structuredFallbackSettings.getStructuredFallbackSettings = async () => ({
+    enabled: false,
+    provider: "deepseek",
+    model: "deepseek-chat",
+    temperature: 0.2,
+    maxTokens: null,
+  });
+  structuredFallbackSettings.saveStructuredFallbackSettings = async (input) => {
+    savedPayload = input;
+    return {
+      enabled: true,
+      provider: "openai",
+      model: "gpt-4o-mini",
+      temperature: 0.15,
+      maxTokens: 2048,
+    };
+  };
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const getResponse = await fetch(`http://127.0.0.1:${port}/api/llm/structured-fallback`);
+    assert.equal(getResponse.status, 200);
+    const getPayload = await getResponse.json();
+    assert.equal(getPayload.success, true);
+    assert.equal(getPayload.data.enabled, false);
+    assert.equal(getPayload.data.provider, "deepseek");
+
+    const putResponse = await fetch(`http://127.0.0.1:${port}/api/llm/structured-fallback`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        enabled: true,
+        provider: "openai",
+        model: "gpt-4o-mini",
+        temperature: 0.15,
+        maxTokens: 2048,
+      }),
+    });
+    assert.equal(putResponse.status, 200);
+    const putPayload = await putResponse.json();
+    assert.equal(putPayload.success, true);
+    assert.deepEqual(savedPayload, {
+      enabled: true,
+      provider: "openai",
+      model: "gpt-4o-mini",
+      temperature: 0.15,
+      maxTokens: 2048,
+    });
+    assert.equal(putPayload.data.enabled, true);
+    assert.equal(putPayload.data.provider, "openai");
+    assert.equal(putPayload.data.maxTokens, 2048);
+  } finally {
+    structuredFallbackSettings.getStructuredFallbackSettings = originalGetStructuredFallbackSettings;
+    structuredFallbackSettings.saveStructuredFallbackSettings = originalSaveStructuredFallbackSettings;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });
@@ -659,6 +748,12 @@ test("POST /api/llm/test forwards custom baseURL for ollama without apiKey", asy
       ok: true,
       latency: 42,
       error: null,
+      plain: {
+        ok: true,
+        latency: 42,
+        error: null,
+      },
+      structured: null,
     };
   };
 
@@ -682,8 +777,67 @@ test("POST /api/llm/test forwards custom baseURL for ollama without apiKey", asy
     assert.equal(payload.success, true);
     assert.equal(payload.data.model, "qwen3:8b");
     assert.equal(payload.data.latency, 42);
+    assert.equal(payload.data.plain.ok, true);
+    assert.equal(payload.data.structured, null);
     assert.equal(receivedInput.provider, "ollama");
     assert.equal(receivedInput.baseURL, "http://127.0.0.1:11434/v1");
+  } finally {
+    llmConnectivityService.testConnection = originalTestConnection;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("POST /api/llm/test returns structured probe diagnostics when requested", async () => {
+  const originalTestConnection = llmConnectivityService.testConnection;
+  llmConnectivityService.testConnection = async (input) => {
+    assert.equal(input.probeMode, "structured");
+    return {
+      provider: input.provider,
+      model: input.model ?? "gpt-4o-mini",
+      ok: true,
+      latency: 188,
+      error: null,
+      plain: null,
+      structured: {
+        ok: true,
+        latency: 188,
+        error: null,
+        strategy: "json_schema",
+        reasoningForcedOff: false,
+        fallbackAvailable: true,
+        fallbackUsed: false,
+        errorCategory: null,
+        nativeJsonObject: true,
+        nativeJsonSchema: true,
+        profileFamily: "openai",
+      },
+    };
+  };
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/llm/test`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        provider: "openai",
+        apiKey: "test-key",
+        model: "gpt-4o-mini",
+        baseURL: "https://api.openai.com/v1",
+        probeMode: "structured",
+      }),
+    });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    assert.equal(payload.data.plain, null);
+    assert.equal(payload.data.structured.ok, true);
+    assert.equal(payload.data.structured.strategy, "json_schema");
+    assert.equal(payload.data.structured.fallbackAvailable, true);
   } finally {
     llmConnectivityService.testConnection = originalTestConnection;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));

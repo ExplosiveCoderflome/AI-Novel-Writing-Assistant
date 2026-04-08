@@ -210,6 +210,8 @@ export function buildSourceSegments(content: string): SourceSegment[] {
 export function renderNotesForPrompt(notes: SourceNote[]): string {
   return notes
     .map((note) => {
+      const readerSignals = note.readerSignals ?? [];
+      const weaknessSignals = note.weaknessSignals ?? [];
       const sections = [
         `## ${note.sourceLabel}`,
         `摘要：${note.summary}`,
@@ -220,6 +222,8 @@ export function renderNotesForPrompt(notes: SourceNote[]): string {
         `主题信息：${note.themes.join("；") || "无"}`,
         `文风技法：${note.styleTechniques.join("；") || "无"}`,
         `商业卖点：${note.marketHighlights.join("；") || "无"}`,
+        `读者信号：${readerSignals.join("；") || "无"}`,
+        `短板信号：${weaknessSignals.join("；") || "无"}`,
         note.evidence.length > 0
           ? `证据摘录：\n${note.evidence.map((item) => `- ${item.label}：${item.excerpt}`).join("\n")}`
           : "证据摘录：无",

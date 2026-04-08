@@ -6,10 +6,12 @@ import type {
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { bookAnalysisService } from "../../bookAnalysis/BookAnalysisService";
+import { resolveLiveBookAnalysisStatus } from "../../bookAnalysis/bookAnalysis.status";
 import {
   buildTaskRecoveryHint,
   isArchivableTaskStatus,
   normalizeFailureSummary,
+  resolveStructuredFailureSummary,
 } from "../taskSupport";
 import {
   archiveTask as recordTaskArchive,
@@ -67,10 +69,16 @@ export class BookTaskAdapter {
 
     const summaries: UnifiedTaskSummary[] = [];
     for (const row of rows) {
-      const mappedStatus = mapBookStatusToTaskStatus(row.status);
+      const normalizedStatus = resolveLiveBookAnalysisStatus({
+        status: row.status,
+        currentStage: row.currentStage,
+        heartbeatAt: row.heartbeatAt,
+      });
+      const mappedStatus = mapBookStatusToTaskStatus(normalizedStatus);
       if (!mappedStatus) {
         continue;
       }
+      const structuredFailure = resolveStructuredFailureSummary(row.lastError);
       summaries.push({
         id: row.id,
         kind: "book_analysis",
@@ -88,9 +96,11 @@ export class BookTaskAdapter {
         ownerId: row.documentId,
         ownerLabel: row.document.title,
         sourceRoute: `/book-analysis?analysisId=${row.id}&documentId=${row.documentId}`,
-        failureCode: row.status === "failed" ? "BOOK_ANALYSIS_FAILED" : null,
-        failureSummary: row.status === "failed"
-          ? normalizeFailureSummary(row.lastError, "拆书任务失败，但没有记录明确错误。")
+        failureCode: normalizedStatus === "failed"
+          ? (structuredFailure.failureCode ?? "BOOK_ANALYSIS_FAILED")
+          : null,
+        failureSummary: normalizedStatus === "failed"
+          ? (structuredFailure.failureSummary ?? normalizeFailureSummary(row.lastError, "拆书任务失败，但没有记录明确错误。"))
           : row.lastError,
         recoveryHint: buildTaskRecoveryHint("book_analysis", mappedStatus),
         sourceResource: {
@@ -129,10 +139,16 @@ export class BookTaskAdapter {
     if (!row) {
       return null;
     }
-    const status = mapBookStatusToTaskStatus(row.status);
+    const normalizedStatus = resolveLiveBookAnalysisStatus({
+      status: row.status,
+      currentStage: row.currentStage,
+      heartbeatAt: row.heartbeatAt,
+    });
+    const status = mapBookStatusToTaskStatus(normalizedStatus);
     if (!status) {
       return null;
     }
+    const structuredFailure = resolveStructuredFailureSummary(row.lastError);
     const summary: UnifiedTaskSummary = {
       id: row.id,
       kind: "book_analysis",
@@ -150,9 +166,11 @@ export class BookTaskAdapter {
       ownerId: row.documentId,
       ownerLabel: row.document.title,
       sourceRoute: `/book-analysis?analysisId=${row.id}&documentId=${row.documentId}`,
-      failureCode: row.status === "failed" ? "BOOK_ANALYSIS_FAILED" : null,
-      failureSummary: row.status === "failed"
-        ? normalizeFailureSummary(row.lastError, "拆书任务失败，但没有记录明确错误。")
+      failureCode: normalizedStatus === "failed"
+        ? (structuredFailure.failureCode ?? "BOOK_ANALYSIS_FAILED")
+        : null,
+      failureSummary: normalizedStatus === "failed"
+        ? (structuredFailure.failureSummary ?? normalizeFailureSummary(row.lastError, "拆书任务失败，但没有记录明确错误。"))
         : row.lastError,
       recoveryHint: buildTaskRecoveryHint("book_analysis", status),
       sourceResource: {
@@ -173,7 +191,7 @@ export class BookTaskAdapter {
       provider: row.provider,
       model: row.model,
       startedAt: row.lastRunAt?.toISOString() ?? null,
-      finishedAt: row.status === "running" || row.status === "queued" ? null : row.updatedAt.toISOString(),
+      finishedAt: normalizedStatus === "running" || normalizedStatus === "queued" ? null : row.updatedAt.toISOString(),
       retryCountLabel: `${row.attemptCount}/${row.maxAttempts}`,
       meta: {
         documentId: row.documentId,

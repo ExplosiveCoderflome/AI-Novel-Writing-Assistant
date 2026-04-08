@@ -3,6 +3,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { llmConnectivityService } from "../llm/connectivity";
+import { getStructuredFallbackSettings, saveStructuredFallbackSettings } from "../llm/structuredFallbackSettings";
 import { getProviderModels } from "../llm/modelCatalog";
 import { listModelRouteConfigs, MODEL_ROUTE_TASK_TYPES, upsertModelRouteConfig } from "../llm/modelRouter";
 import { llmProviderSchema } from "../llm/providerSchema";
@@ -18,6 +19,15 @@ const llmTestSchema = z.object({
   apiKey: z.string().trim().optional(),
   model: z.string().trim().optional(),
   baseURL: z.string().trim().url("API URL 格式不正确。").optional(),
+  probeMode: z.enum(["plain", "structured", "both"]).optional(),
+});
+
+const structuredFallbackSchema = z.object({
+  enabled: z.boolean().optional(),
+  provider: z.string().trim().min(1).optional(),
+  model: z.string().trim().min(1).optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  maxTokens: z.union([z.number().int().min(64).max(32768), z.null()]).optional(),
 });
 
 router.use(authMiddleware);
@@ -109,6 +119,40 @@ router.post("/model-routes/connectivity", async (_req, res, next) => {
   }
 });
 
+router.get("/structured-fallback", async (_req, res, next) => {
+  try {
+    const data = await getStructuredFallbackSettings();
+    res.status(200).json({
+      success: true,
+      data,
+      message: "结构化备用模型配置已加载。",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put(
+  "/structured-fallback",
+  validate({ body: structuredFallbackSchema }),
+  async (req, res, next) => {
+    try {
+      const body = req.body as z.infer<typeof structuredFallbackSchema>;
+      if ((body.enabled ?? false) && (!body.provider || !body.model)) {
+        throw new AppError("启用结构化备用模型时，provider 和 model 不能为空。", 400);
+      }
+      const data = await saveStructuredFallbackSettings(body);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "结构化备用模型配置已更新。",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 const modelRouteUpsertSchema = z.object({
   taskType: z.string().trim().min(1),
   provider: z.string().trim().min(1),
@@ -144,9 +188,15 @@ router.post(
   validate({ body: llmTestSchema }),
   async (req, res, next) => {
     try {
-      const { provider, apiKey, model, baseURL } = req.body as z.infer<typeof llmTestSchema>;
-      const result = await llmConnectivityService.testConnection({ provider, apiKey, model, baseURL });
-      if (!result.ok) {
+      const { provider, apiKey, model, baseURL, probeMode } = req.body as z.infer<typeof llmTestSchema>;
+      const result = await llmConnectivityService.testConnection({ provider, apiKey, model, baseURL, probeMode });
+      const shouldFail =
+        probeMode === "structured"
+          ? result.structured?.ok === false
+          : probeMode === "plain"
+            ? result.plain?.ok === false
+            : result.plain?.ok === false && result.structured?.ok === false;
+      if (shouldFail) {
         if (/API Key|未配置/.test(result.error ?? "")) {
           next(new AppError(result.error ?? "未配置可用的模型连接。", 400));
           return;
@@ -154,14 +204,22 @@ router.post(
         next(new AppError(result.error ?? "模型连通性测试失败。", 400));
         return;
       }
-      const response: ApiResponse<{ success: boolean; model: string; latency: number }> = {
+      const response: ApiResponse<{
+        success: boolean;
+        model: string;
+        latency: number;
+        plain: typeof result.plain;
+        structured: typeof result.structured;
+      }> = {
         success: true,
         data: {
-          success: result.ok,
+          success: result.ok || result.structured?.ok === true,
           model: result.model,
           latency: result.latency ?? 0,
+          plain: result.plain,
+          structured: result.structured,
         },
-        message: "模型连通性测试成功。",
+        message: "模型连通性与结构化兼容性测试已完成。",
       };
       res.status(200).json(response);
     } catch (error) {

@@ -211,6 +211,8 @@ export class BookAnalysisSourceCacheService {
         themes: toStringList(record.themes),
         styleTechniques: toStringList(record.styleTechniques),
         marketHighlights: toStringList(record.marketHighlights),
+        readerSignals: toStringList(record.readerSignals),
+        weaknessSignals: toStringList(record.weaknessSignals),
         evidence: toEvidenceList(record.evidence, input.segment.label),
       };
     } catch {
@@ -224,6 +226,8 @@ export class BookAnalysisSourceCacheService {
         themes: [],
         styleTechniques: [],
         marketHighlights: [],
+        readerSignals: [],
+        weaknessSignals: [],
         evidence: [],
       };
     }

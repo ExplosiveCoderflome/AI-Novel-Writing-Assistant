@@ -1,5 +1,6 @@
 import type { BookAnalysis, BookAnalysisSection, BookAnalysisSectionKey, BookAnalysisStatus } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import { resolveLiveBookAnalysisStatus } from "./bookAnalysis.status";
 import { decodeEvidence, decodeStructuredData } from "./bookAnalysis.utils";
 
 export interface AnalysisRowForSerialize {
@@ -67,7 +68,11 @@ export function serializeAnalysisRow(row: AnalysisRowForSerialize): BookAnalysis
     currentDocumentVersionNumber: row.document.activeVersionNumber,
     isCurrentVersion: row.document.activeVersionId === row.documentVersionId,
     title: row.title,
-    status: row.status,
+    status: resolveLiveBookAnalysisStatus({
+      status: row.status,
+      currentStage: row.currentStage,
+      heartbeatAt: row.heartbeatAt,
+    }),
     summary: row.summary,
     provider: (row.provider as LLMProvider | null) ?? null,
     model: row.model,

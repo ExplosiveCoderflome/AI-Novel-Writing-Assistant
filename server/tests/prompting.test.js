@@ -682,7 +682,7 @@ test("story mode child prompt post validator rejects duplicate sibling names and
   }));
 });
 
-test("book analysis source note prompt enforces grounded Chinese extraction", () => {
+test.skip("book analysis source note prompt enforces grounded Chinese extraction", () => {
   const messages = bookAnalysisSourceNotePrompt.render({
     segmentLabel: "片段 1",
     segmentContent: "主角在雨夜第一次见到反派组织的信使。",
@@ -700,7 +700,7 @@ test("book analysis source note prompt enforces grounded Chinese extraction", ()
   assert.match(String(messages[0].content), /evidence：提供最多3条证据/);
 });
 
-test("book analysis section prompt includes section-specific structuredData contract", () => {
+test.skip("book analysis section prompt includes section-specific structuredData contract", () => {
   const messages = bookAnalysisSectionPrompt.render({
     sectionKey: "overview",
     sectionTitle: "拆书总览",
@@ -718,6 +718,49 @@ test("book analysis section prompt includes section-specific structuredData cont
   assert.match(String(messages[0].content), /oneLinePositioning/);
   assert.match(String(messages[0].content), /genreTags/);
   assert.match(String(messages[0].content), /若依据不足，必须明确承认“材料不足”/);
+  assert.match(String(messages[0].content), /evidence 只保留最能支撑结论的 3-8 条证据/);
+});
+
+test("book analysis source note prompt exposes reader and weakness signal extraction", () => {
+  const messages = bookAnalysisSourceNotePrompt.render({
+    segmentLabel: "片段 1",
+    segmentContent: "主角在雨夜第一次见到反派组织的信使。",
+  }, {
+    blocks: [],
+    selectedBlockIds: [],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+
+  assert.equal(messages.length, 2);
+  assert.match(String(messages[0].content), /只提取片段里明确存在或可做低风险归纳的信息/);
+  assert.match(String(messages[0].content), /禁止补写原文没有直接体现的人物深层动机、隐藏因果、作者意图、整书级结论或过强市场判断/);
+  assert.match(String(messages[0].content), /"readerSignals": \["\.\.\."\]/);
+  assert.match(String(messages[0].content), /"weaknessSignals": \["\.\.\."\]/);
+  assert.match(String(messages[0].content), /evidence：提供最多 3 条证据/);
+});
+
+test("book analysis overview prompt encourages low-risk synthesis with direct section structure", () => {
+  const messages = bookAnalysisSectionPrompt.render({
+    sectionKey: "overview",
+    sectionTitle: "拆书总览",
+    promptFocus: "覆盖：一句话定位、题材标签、卖点标签、目标读者、整体优势、整体短板。",
+    notesText: "## 片段 1\n摘要：主角在底层逆袭。",
+  }, {
+    blocks: [],
+    selectedBlockIds: [],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+
+  assert.equal(messages.length, 2);
+  assert.match(String(messages[0].content), /oneLinePositioning/);
+  assert.match(String(messages[0].content), /genreTags/);
+  assert.match(String(messages[0].content), /## 一句话定位/);
+  assert.match(String(messages[0].content), /不要写成“总体判断 \/ 重点分析 \/ 保留判断或局限说明”这种审计报告结构/);
+  assert.match(String(messages[0].content), /允许基于多条 notes 做低风险综合判断/);
   assert.match(String(messages[0].content), /evidence 只保留最能支撑结论的 3-8 条证据/);
 });
 

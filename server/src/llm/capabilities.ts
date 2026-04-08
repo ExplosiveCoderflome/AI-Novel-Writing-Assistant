@@ -3,6 +3,10 @@ import {
   type BuiltinLLMProvider,
   type LLMProvider,
 } from "@ai-novel/shared/types/llm";
+import {
+  canUseForcedJsonOutput,
+  resolveStructuredOutputProfile,
+} from "./structuredOutput";
 
 function normalizeModel(model: string | undefined): string {
   return (model ?? "").trim().toLowerCase();
@@ -19,8 +23,13 @@ export interface ModelParameterCompatibility {
   maximumTemperature?: number;
 }
 
-export function supportsForcedJsonOutput(provider: LLMProvider, model?: string): boolean {
-  return getJsonCapability(provider, model).supportsJsonObject;
+export function supportsForcedJsonOutput(provider: LLMProvider, model?: string, baseURL?: string): boolean {
+  return canUseForcedJsonOutput(resolveStructuredOutputProfile({
+    provider,
+    model,
+    baseURL,
+    executionMode: "structured",
+  }));
 }
 
 function isKimiFixedTemperatureModel(normalizedModel: string): boolean {
@@ -74,7 +83,20 @@ export function resolveModelTemperature(
   return resolvedTemperature;
 }
 
-export function getJsonCapability(provider: LLMProvider, model?: string): JsonCapability {
+export function getJsonCapability(provider: LLMProvider, model?: string, baseURL?: string): JsonCapability {
+  const profile = resolveStructuredOutputProfile({
+    provider,
+    model,
+    baseURL,
+    executionMode: "structured",
+  });
+  if (profile.family !== "default" || !isBuiltinLLMProvider(provider)) {
+    return {
+      supportsJsonObject: profile.nativeJsonObject,
+      supportsJsonSchema: profile.nativeJsonSchema,
+    };
+  }
+
   const normalizedModel = normalizeModel(model);
 
   // 注意：这里的“能力”只用于选择 response_format / prompt 约束强度；

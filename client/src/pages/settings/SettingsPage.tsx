@@ -174,11 +174,28 @@ export default function SettingsPage() {
   });
 
   const testMutation = useMutation({
-    mutationFn: (payload: { provider: LLMProvider; apiKey?: string; model?: string; baseURL?: string }) =>
-      testLLMConnection(payload),
+    mutationFn: (payload: {
+      provider: LLMProvider;
+      apiKey?: string;
+      model?: string;
+      baseURL?: string;
+      probeMode?: "plain" | "structured" | "both";
+    }) => testLLMConnection(payload),
     onSuccess: (response) => {
       const latency = response.data?.latency ?? 0;
-      setTestResult(`连接成功，延迟 ${latency}ms`);
+      const plain = response.data?.plain;
+      const structured = response.data?.structured;
+      const plainText = plain
+        ? plain.ok
+          ? `普通连通正常${plain.latency != null ? ` (${plain.latency}ms)` : ""}`
+          : `普通连通失败${plain.error ? `：${plain.error}` : ""}`
+        : "普通连通未检测";
+      const structuredText = structured
+        ? structured.ok
+          ? `结构化正常${structured.strategy ? `，策略 ${structured.strategy}` : ""}${structured.reasoningForcedOff ? "，已强制关闭 thinking" : ""}`
+          : `结构化失败${structured.errorCategory ? `，分类 ${structured.errorCategory}` : ""}${structured.error ? `：${structured.error}` : ""}`
+        : "结构化未检测";
+      setTestResult(`连接成功，总耗时 ${latency}ms · ${plainText} · ${structuredText}`);
     },
     onError: (error) => {
       setTestResult(error instanceof Error ? error.message : "连接测试失败。");
@@ -634,6 +651,7 @@ export default function SettingsPage() {
                     apiKey: form.key.trim() ? form.key : undefined,
                     model: form.model.trim() || undefined,
                     baseURL: form.baseURL.trim() ? form.baseURL : undefined,
+                    probeMode: "both",
                   })
                 }
                 disabled={testMutation.isPending || !form.model.trim() || !form.baseURL.trim()}

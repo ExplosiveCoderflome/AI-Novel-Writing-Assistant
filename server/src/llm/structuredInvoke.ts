@@ -3,8 +3,21 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { TaskType } from "./modelRouter";
-import { getLLM } from "./factory";
-import { getJsonCapability } from "./capabilities";
+import { createLLMFromResolvedOptions, getLLM, resolveLLMClientOptions } from "./factory";
+import {
+  buildStructuredResponseFormat,
+  classifyStructuredOutputFailure,
+  extractStructuredOutputErrorCategory,
+  resolveStructuredOutputProfile,
+  schemaAllowsTopLevelArray,
+  selectStructuredOutputStrategy,
+  StructuredOutputError,
+  type StructuredOutputDiagnostics,
+  type StructuredOutputErrorCategory,
+  type StructuredOutputProfile,
+  type StructuredOutputStrategy,
+} from "./structuredOutput";
+import { getStructuredFallbackSettings } from "./structuredFallbackSettings";
 import { toText, extractJSONValue } from "../services/novel/novelP0Utils";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
 
@@ -15,18 +28,22 @@ export interface StructuredInvokeInput<T> {
   schema: ZodType<T>;
   provider?: LLMProvider;
   model?: string;
+  apiKey?: string;
+  baseURL?: string;
   temperature?: number;
   maxTokens?: number;
   taskType?: TaskType;
   label: string;
-  maxRepairAttempts?: number; // 默认 1
+  maxRepairAttempts?: number;
   promptMeta?: PromptInvocationMeta;
+  disableFallbackModel?: boolean;
 }
 
 export interface StructuredInvokeResult<T> {
   data: T;
   repairUsed: boolean;
   repairAttempts: number;
+  diagnostics: StructuredOutputDiagnostics;
 }
 
 export interface StructuredInvokeRawParseInput<T> {
@@ -34,12 +51,29 @@ export interface StructuredInvokeRawParseInput<T> {
   schema: ZodType<T>;
   provider?: LLMProvider;
   model?: string;
+  apiKey?: string;
+  baseURL?: string;
   temperature?: number;
   maxTokens?: number;
   taskType?: TaskType;
   label: string;
   maxRepairAttempts?: number;
   promptMeta?: PromptInvocationMeta;
+  strategy: StructuredOutputStrategy;
+  profile: StructuredOutputProfile;
+  fallbackAvailable?: boolean;
+  fallbackUsed?: boolean;
+  reasoningForcedOff?: boolean;
+}
+
+interface StructuredAttemptTarget {
+  provider: LLMProvider;
+  model: string;
+  apiKey?: string;
+  baseURL?: string;
+  temperature: number;
+  maxTokens?: number;
+  profile: StructuredOutputProfile;
 }
 
 function buildInvokeMessages<T>(input: StructuredInvokeInput<T>): BaseMessage[] {
@@ -56,18 +90,13 @@ function tryFixTruncatedJson(raw: string): string {
   const text = raw.trim();
   if (!text) return text;
 
-  // 简单的括号/方括号补全：用于模型输出被截断时提升成功率。
   const count = (re: RegExp) => (text.match(re) ?? []).length;
   const openBraces = count(/{/g);
   const closeBraces = count(/}/g);
   const openBrackets = count(/\[/g);
   const closeBrackets = count(/]/g);
 
-  let fixed = text;
-
-  // 去掉可能的末尾多余逗号（降低修复难度）
-  fixed = fixed.replace(/,\s*$/g, "");
-
+  let fixed = text.replace(/,\s*$/g, "");
   if (openBrackets > closeBrackets) {
     fixed += "]".repeat(openBrackets - closeBrackets);
   }
@@ -135,12 +164,22 @@ function extractValidationPaths(validationError: string): string[] {
   );
 }
 
-function schemaAllowsTopLevelArray<T>(schema: ZodType<T>): boolean {
-  const probe = schema.safeParse([]);
-  if (probe.success) {
-    return true;
-  }
-  return probe.error.issues.some((issue) => issue.path.length === 0 && issue.code !== "invalid_type");
+function buildDiagnostics(input: {
+  strategy: StructuredOutputStrategy;
+  profile: StructuredOutputProfile;
+  reasoningForcedOff?: boolean;
+  fallbackAvailable?: boolean;
+  fallbackUsed?: boolean;
+  errorCategory?: StructuredOutputErrorCategory | null;
+}): StructuredOutputDiagnostics {
+  return {
+    strategy: input.strategy,
+    profile: input.profile,
+    reasoningForcedOff: input.reasoningForcedOff ?? false,
+    fallbackAvailable: input.fallbackAvailable ?? false,
+    fallbackUsed: input.fallbackUsed ?? false,
+    errorCategory: input.errorCategory ?? null,
+  };
 }
 
 function logStructuredInvokeEvent(input: {
@@ -152,6 +191,10 @@ function logStructuredInvokeEvent(input: {
   latencyMs?: number;
   rawChars?: number;
   repairAttempt?: number;
+  strategy?: StructuredOutputStrategy;
+  errorCategory?: StructuredOutputErrorCategory | null;
+  fallbackUsed?: boolean;
+  reasoningForcedOff?: boolean;
 }): void {
   console.info(
     [
@@ -161,26 +204,100 @@ function logStructuredInvokeEvent(input: {
       `provider=${input.provider ?? "default"}`,
       `model=${input.model ?? "default"}`,
       `taskType=${input.taskType ?? "planner"}`,
+      input.strategy ? `strategy=${input.strategy}` : "",
+      input.errorCategory ? `errorCategory=${input.errorCategory}` : "",
       typeof input.repairAttempt === "number" ? `repairAttempt=${input.repairAttempt}` : "",
       typeof input.latencyMs === "number" ? `latencyMs=${input.latencyMs}` : "",
       typeof input.rawChars === "number" ? `rawChars=${input.rawChars}` : "",
+      input.fallbackUsed ? "fallbackUsed=true" : "",
+      input.reasoningForcedOff ? "reasoningForcedOff=true" : "",
     ].filter(Boolean).join(" "),
   );
 }
 
-export function shouldUseJsonObjectResponseFormat<T>(
-  provider: LLMProvider,
-  model: string | undefined,
-  schema: ZodType<T>,
-): boolean {
-  if (!getJsonCapability(provider, model).supportsJsonObject) {
-    return false;
+function buildStructuredError(input: {
+  message: string;
+  category: StructuredOutputErrorCategory;
+  strategy: StructuredOutputStrategy;
+  profile: StructuredOutputProfile;
+  reasoningForcedOff?: boolean;
+  fallbackAvailable?: boolean;
+  fallbackUsed?: boolean;
+}): StructuredOutputError {
+  return new StructuredOutputError({
+    message: input.message,
+    category: input.category,
+    diagnostics: buildDiagnostics({
+      strategy: input.strategy,
+      profile: input.profile,
+      reasoningForcedOff: input.reasoningForcedOff,
+      fallbackAvailable: input.fallbackAvailable,
+      fallbackUsed: input.fallbackUsed,
+      errorCategory: input.category,
+    }),
+  });
+}
+
+function wrapStructuredInvokeError(input: {
+  label: string;
+  error: unknown;
+  strategy: StructuredOutputStrategy;
+  profile: StructuredOutputProfile;
+  rawContent?: string;
+  reasoningForcedOff?: boolean;
+  fallbackAvailable?: boolean;
+  fallbackUsed?: boolean;
+}): StructuredOutputError {
+  if (input.error instanceof StructuredOutputError) {
+    return input.error;
   }
-  return !schemaAllowsTopLevelArray(schema);
+  const category = classifyStructuredOutputFailure({
+    error: input.error,
+    rawContent: input.rawContent,
+  });
+  const message = input.error instanceof Error
+    ? input.error.message
+    : typeof input.error === "string"
+      ? input.error
+      : `[${input.label}] Structured output failed.`;
+  return buildStructuredError({
+    message,
+    category,
+    strategy: input.strategy,
+    profile: input.profile,
+    reasoningForcedOff: input.reasoningForcedOff,
+    fallbackAvailable: input.fallbackAvailable,
+    fallbackUsed: input.fallbackUsed,
+  });
+}
+
+function buildStrategySequence<T>(
+  profile: StructuredOutputProfile,
+  schema: ZodType<T>,
+): StructuredOutputStrategy[] {
+  const first = selectStructuredOutputStrategy(profile, schema);
+  const sequence: StructuredOutputStrategy[] = [first];
+  if (first === "json_schema" && profile.nativeJsonObject) {
+    sequence.push("json_object");
+  }
+  if (first !== "prompt_json") {
+    sequence.push("prompt_json");
+  }
+  return Array.from(new Set(sequence));
+}
+
+function computeAttemptTemperature(baseTemperature: number, strategyIndex: number): number {
+  if (strategyIndex === 0) {
+    return baseTemperature;
+  }
+  return Math.min(baseTemperature, 0.2);
 }
 
 async function repairWithLlm<T>(
-  input: Pick<StructuredInvokeInput<T>, "provider" | "model" | "maxTokens" | "taskType" | "label" | "schema" | "promptMeta">,
+  input: Pick<
+    StructuredInvokeInput<T>,
+    "provider" | "model" | "apiKey" | "baseURL" | "maxTokens" | "taskType" | "label" | "schema" | "promptMeta"
+  >,
   rawContent: string,
   validationError: string,
   repairAttempt: number,
@@ -192,9 +309,12 @@ async function repairWithLlm<T>(
     model: input.model,
     taskType: input.taskType,
     repairAttempt,
+    strategy: "prompt_json",
   });
   const llm = await getLLM(input.provider, {
     fallbackProvider: "deepseek",
+    apiKey: input.apiKey,
+    baseURL: input.baseURL,
     model: input.model,
     temperature: 0.15,
     maxTokens: input.maxTokens,
@@ -204,11 +324,13 @@ async function repairWithLlm<T>(
       repairUsed: true,
       repairAttempts: repairAttempt,
     } : undefined,
+    executionMode: "structured",
+    structuredStrategy: "prompt_json",
   });
 
   const repairSystem = [
     "你是 JSON 修复器。",
-    "你的任务是：只输出严格合法的 JSON 值，且必须通过给定的结构校验。",
+    "你的任务是：只输出严格合法的 JSON 值，并且必须通过给定的结构校验。",
     "最终输出可能是 JSON 对象，也可能是 JSON 数组；必须与目标结构一致。",
     "不要输出任何解释、Markdown 或额外字段。",
     "如果校验错误提示某个字段缺失，必须直接使用错误路径里的字段名作为 JSON 键名，不要翻译成中文别名。",
@@ -227,7 +349,7 @@ async function repairWithLlm<T>(
       `至少需要修复这些路径：${validationPaths.join(", ")}`,
     ] : []),
     "",
-    "原始模型输出（可能包含多余文字/markdown/截断）：",
+    "原始模型输出（可能包含多余文本、markdown 或截断）：",
     rawContent,
     "",
     "请修复后只输出最终 JSON。",
@@ -245,6 +367,7 @@ async function repairWithLlm<T>(
     repairAttempt,
     latencyMs: Date.now() - startedAt,
     rawChars: repairedRaw.length,
+    strategy: "prompt_json",
   });
   const repairParse = tryParseStructuredJsonValue(repairedRaw);
   if ("error" in repairParse) {
@@ -258,9 +381,31 @@ async function repairWithLlm<T>(
   return final.data;
 }
 
+export function shouldUseJsonObjectResponseFormat<T>(
+  provider: LLMProvider,
+  model: string | undefined,
+  schema: ZodType<T>,
+  baseURL?: string,
+): boolean {
+  const profile = resolveStructuredOutputProfile({
+    provider,
+    model,
+    baseURL,
+    executionMode: "structured",
+  });
+  return selectStructuredOutputStrategy(profile, schema) === "json_object";
+}
+
 export async function parseStructuredLlmRawContentDetailed<T>(
   input: StructuredInvokeRawParseInput<T>,
 ): Promise<StructuredInvokeResult<T>> {
+  const diagnostics = buildDiagnostics({
+    strategy: input.strategy,
+    profile: input.profile,
+    reasoningForcedOff: input.reasoningForcedOff,
+    fallbackAvailable: input.fallbackAvailable,
+    fallbackUsed: input.fallbackUsed,
+  });
   const initialParse = tryParseStructuredJsonValue(input.rawContent);
   const parseErrorMessage = "error" in initialParse ? initialParse.error : "";
   const parsed = "parsed" in initialParse ? initialParse.parsed : null;
@@ -273,14 +418,25 @@ export async function parseStructuredLlmRawContentDetailed<T>(
           data: await repairWithLlm(input, input.rawContent, parseErrorMessage, attempt),
           repairUsed: true,
           repairAttempts: attempt,
+          diagnostics,
         };
       } catch (repairError) {
         if (attempt >= maxRepairAttempts) {
-          throw repairError;
+          throw buildStructuredError({
+            message: `[${input.label}] JSON 解析失败且修复未成功。错误：${repairError instanceof Error ? repairError.message : String(repairError)}`,
+            category: classifyStructuredOutputFailure({
+              error: repairError,
+              rawContent: input.rawContent,
+            }),
+            strategy: input.strategy,
+            profile: input.profile,
+            reasoningForcedOff: input.reasoningForcedOff,
+            fallbackAvailable: input.fallbackAvailable,
+            fallbackUsed: input.fallbackUsed,
+          });
         }
       }
     }
-    throw new Error(`[${input.label}] JSON 解析失败且修复未成功。`);
   }
 
   const first = input.schema.safeParse(parsed);
@@ -289,21 +445,30 @@ export async function parseStructuredLlmRawContentDetailed<T>(
       data: first.data,
       repairUsed: false,
       repairAttempts: 0,
+      diagnostics,
     };
   }
 
   let zodError: ZodError = first.error;
-
   for (let attempt = 1; attempt <= maxRepairAttempts; attempt += 1) {
     try {
       return {
         data: await repairWithLlm(input, input.rawContent, `Zod 校验错误：\n${formatZodErrors(zodError)}`, attempt),
         repairUsed: true,
         repairAttempts: attempt,
+        diagnostics,
       };
     } catch (error) {
       if (attempt >= maxRepairAttempts) {
-        throw error;
+        throw buildStructuredError({
+          message: `[${input.label}] LLM 输出经修复后仍未通过 Schema 校验。错误：${error instanceof Error ? error.message : String(error)}`,
+          category: "schema_mismatch",
+          strategy: input.strategy,
+          profile: input.profile,
+          reasoningForcedOff: input.reasoningForcedOff,
+          fallbackAvailable: input.fallbackAvailable,
+          fallbackUsed: input.fallbackUsed,
+        });
       }
       if (error instanceof z.ZodError) {
         zodError = error as ZodError;
@@ -311,62 +476,293 @@ export async function parseStructuredLlmRawContentDetailed<T>(
     }
   }
 
-  throw new Error(`[${input.label}] LLM 输出经修复后仍未通过 Schema 校验。错误：${formatZodErrors(zodError)}`);
+  throw buildStructuredError({
+    message: `[${input.label}] LLM 输出经修复后仍未通过 Schema 校验。错误：${formatZodErrors(zodError)}`,
+    category: "schema_mismatch",
+    strategy: input.strategy,
+    profile: input.profile,
+    reasoningForcedOff: input.reasoningForcedOff,
+    fallbackAvailable: input.fallbackAvailable,
+    fallbackUsed: input.fallbackUsed,
+  });
 }
 
-export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInput<T>): Promise<StructuredInvokeResult<T>> {
-  const llm = await getLLM(input.provider, {
+async function resolveAttemptTarget(input: {
+  provider?: LLMProvider;
+  model?: string;
+  apiKey?: string;
+  baseURL?: string;
+  temperature?: number;
+  maxTokens?: number;
+  taskType?: TaskType;
+}): Promise<StructuredAttemptTarget> {
+  const resolved = await resolveLLMClientOptions(input.provider, {
     fallbackProvider: "deepseek",
-    model: input.model,
-    temperature: input.temperature ?? 0.3,
-    maxTokens: input.maxTokens,
-    taskType: input.taskType ?? "planner",
-    promptMeta: input.promptMeta,
-  });
-
-  const cap = getJsonCapability(input.provider ?? "deepseek", input.model);
-
-  const invokeOptions: Record<string, unknown> = {};
-  if (cap.supportsJsonObject && shouldUseJsonObjectResponseFormat(input.provider ?? "deepseek", input.model, input.schema)) {
-    invokeOptions.response_format = { type: "json_object" };
-  }
-
-  const messages = buildInvokeMessages(input);
-  logStructuredInvokeEvent({
-    event: "invoke_start",
-    label: input.label,
-    provider: input.provider,
-    model: input.model,
-    taskType: input.taskType,
-  });
-  const startedAt = Date.now();
-  const result = await llm.invoke(messages, invokeOptions);
-  const rawContent = toText(result.content);
-  logStructuredInvokeEvent({
-    event: "invoke_done",
-    label: input.label,
-    provider: input.provider,
-    model: input.model,
-    taskType: input.taskType,
-    latencyMs: Date.now() - startedAt,
-    rawChars: rawContent.length,
-  });
-
-  return parseStructuredLlmRawContentDetailed({
-    rawContent,
-    schema: input.schema,
-    provider: input.provider,
+    apiKey: input.apiKey,
+    baseURL: input.baseURL,
     model: input.model,
     temperature: input.temperature,
     maxTokens: input.maxTokens,
-    taskType: input.taskType,
-    label: input.label,
-    maxRepairAttempts: input.maxRepairAttempts,
-    promptMeta: input.promptMeta,
+    taskType: input.taskType ?? "planner",
+    executionMode: "plain",
   });
+  return {
+    provider: resolved.provider,
+    model: resolved.model,
+    apiKey: input.apiKey,
+    baseURL: resolved.baseURL,
+    temperature: resolved.temperature,
+    maxTokens: resolved.maxTokens,
+    profile: resolveStructuredOutputProfile({
+      provider: resolved.provider,
+      model: resolved.model,
+      baseURL: resolved.baseURL,
+      executionMode: "structured",
+    }),
+  };
+}
+
+async function invokeStructuredAttempt<T>(input: {
+  baseInput: StructuredInvokeInput<T>;
+  target: StructuredAttemptTarget;
+  strategy: StructuredOutputStrategy;
+  strategyIndex: number;
+  fallbackAvailable: boolean;
+  fallbackUsed: boolean;
+}): Promise<StructuredInvokeResult<T>> {
+  const attemptTemperature = computeAttemptTemperature(input.target.temperature, input.strategyIndex);
+  const resolved = await resolveLLMClientOptions(input.target.provider, {
+    fallbackProvider: "deepseek",
+    apiKey: input.target.apiKey,
+    baseURL: input.target.baseURL,
+    model: input.target.model,
+    temperature: attemptTemperature,
+    maxTokens: input.target.maxTokens,
+    taskType: input.baseInput.taskType ?? "planner",
+    promptMeta: input.baseInput.promptMeta,
+    executionMode: "structured",
+    structuredStrategy: input.strategy,
+  });
+  const llm = createLLMFromResolvedOptions(resolved);
+  const invokeOptions: Record<string, unknown> = {};
+  const responseFormat = buildStructuredResponseFormat({
+    strategy: input.strategy,
+    schema: input.baseInput.schema,
+    label: input.baseInput.label,
+  });
+  if (responseFormat) {
+    invokeOptions.response_format = responseFormat;
+  }
+
+  const messages = buildInvokeMessages(input.baseInput);
+  logStructuredInvokeEvent({
+    event: "invoke_start",
+    label: input.baseInput.label,
+    provider: resolved.provider,
+    model: resolved.model,
+    taskType: input.baseInput.taskType,
+    strategy: input.strategy,
+    fallbackUsed: input.fallbackUsed,
+    reasoningForcedOff: resolved.reasoningForcedOff,
+  });
+  const startedAt = Date.now();
+  try {
+    const result = await llm.invoke(messages, invokeOptions);
+    const rawContent = toText(result.content);
+    logStructuredInvokeEvent({
+      event: "invoke_done",
+      label: input.baseInput.label,
+      provider: resolved.provider,
+      model: resolved.model,
+      taskType: input.baseInput.taskType,
+      latencyMs: Date.now() - startedAt,
+      rawChars: rawContent.length,
+      strategy: input.strategy,
+      fallbackUsed: input.fallbackUsed,
+      reasoningForcedOff: resolved.reasoningForcedOff,
+    });
+    return parseStructuredLlmRawContentDetailed({
+      rawContent,
+      schema: input.baseInput.schema,
+      provider: resolved.provider,
+      model: resolved.model,
+      apiKey: input.target.apiKey,
+      baseURL: resolved.baseURL,
+      temperature: resolved.temperature,
+      maxTokens: resolved.maxTokens,
+      taskType: input.baseInput.taskType,
+      label: input.baseInput.label,
+      maxRepairAttempts: input.baseInput.maxRepairAttempts,
+      promptMeta: input.baseInput.promptMeta,
+      strategy: input.strategy,
+      profile: resolved.structuredProfile ?? input.target.profile,
+      fallbackAvailable: input.fallbackAvailable,
+      fallbackUsed: input.fallbackUsed,
+      reasoningForcedOff: resolved.reasoningForcedOff,
+    });
+  } catch (error) {
+    const category = error instanceof StructuredOutputError
+      ? error.category
+      : classifyStructuredOutputFailure({ error });
+    logStructuredInvokeEvent({
+      event: "invoke_error",
+      label: input.baseInput.label,
+      provider: resolved.provider,
+      model: resolved.model,
+      taskType: input.baseInput.taskType,
+      latencyMs: Date.now() - startedAt,
+      strategy: input.strategy,
+      errorCategory: category,
+      fallbackUsed: input.fallbackUsed,
+      reasoningForcedOff: resolved.reasoningForcedOff,
+    });
+    throw wrapStructuredInvokeError({
+      label: input.baseInput.label,
+      error,
+      strategy: input.strategy,
+      profile: resolved.structuredProfile ?? input.target.profile,
+      reasoningForcedOff: resolved.reasoningForcedOff,
+      fallbackAvailable: input.fallbackAvailable,
+      fallbackUsed: input.fallbackUsed,
+    });
+  }
+}
+
+async function tryStructuredStrategies<T>(input: {
+  baseInput: StructuredInvokeInput<T>;
+  target: StructuredAttemptTarget;
+  fallbackAvailable: boolean;
+  fallbackUsed: boolean;
+}): Promise<StructuredInvokeResult<T>> {
+  const sequence = buildStrategySequence(input.target.profile, input.baseInput.schema);
+  let lastError: StructuredOutputError | null = null;
+  for (let index = 0; index < sequence.length; index += 1) {
+    const strategy = sequence[index]!;
+    try {
+      return await invokeStructuredAttempt({
+        baseInput: input.baseInput,
+        target: input.target,
+        strategy,
+        strategyIndex: index,
+        fallbackAvailable: input.fallbackAvailable,
+        fallbackUsed: input.fallbackUsed,
+      });
+    } catch (error) {
+      lastError = wrapStructuredInvokeError({
+        label: input.baseInput.label,
+        error,
+        strategy,
+        profile: input.target.profile,
+        fallbackAvailable: input.fallbackAvailable,
+        fallbackUsed: input.fallbackUsed,
+      });
+      if (lastError.category === "schema_mismatch" && strategy === "prompt_json") {
+        break;
+      }
+    }
+  }
+  throw lastError ?? buildStructuredError({
+    message: `[${input.baseInput.label}] Structured output failed.`,
+    category: "transport_error",
+    strategy: selectStructuredOutputStrategy(input.target.profile, input.baseInput.schema),
+    profile: input.target.profile,
+    fallbackAvailable: input.fallbackAvailable,
+    fallbackUsed: input.fallbackUsed,
+  });
+}
+
+export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInput<T>): Promise<StructuredInvokeResult<T>> {
+  const primaryTarget = await resolveAttemptTarget({
+    provider: input.provider,
+    model: input.model,
+    apiKey: input.apiKey,
+    baseURL: input.baseURL,
+    temperature: input.temperature ?? 0.3,
+    maxTokens: input.maxTokens,
+    taskType: input.taskType ?? "planner",
+  });
+  const fallbackSettings = input.disableFallbackModel ? null : await getStructuredFallbackSettings();
+  const fallbackEnabled = Boolean(
+    fallbackSettings?.enabled
+    && fallbackSettings.model.trim().length > 0
+    && !(
+      fallbackSettings.provider === primaryTarget.provider
+      && fallbackSettings.model === primaryTarget.model
+    ),
+  );
+
+  try {
+    return await tryStructuredStrategies({
+      baseInput: input,
+      target: primaryTarget,
+      fallbackAvailable: fallbackEnabled,
+      fallbackUsed: false,
+    });
+  } catch (primaryError) {
+    if (!fallbackEnabled || !fallbackSettings) {
+      throw primaryError;
+    }
+
+    const fallbackTarget = await resolveAttemptTarget({
+      provider: fallbackSettings.provider,
+      model: fallbackSettings.model,
+      temperature: fallbackSettings.temperature,
+      maxTokens: fallbackSettings.maxTokens ?? undefined,
+      taskType: input.taskType ?? "planner",
+    });
+    try {
+      return await tryStructuredStrategies({
+        baseInput: {
+          ...input,
+          provider: fallbackTarget.provider,
+          model: fallbackTarget.model,
+          temperature: fallbackTarget.temperature,
+          maxTokens: fallbackTarget.maxTokens,
+          disableFallbackModel: true,
+        },
+        target: fallbackTarget,
+        fallbackAvailable: true,
+        fallbackUsed: true,
+      });
+    } catch (fallbackError) {
+      throw fallbackError instanceof StructuredOutputError
+        ? fallbackError
+        : primaryError;
+    }
+  }
 }
 
 export async function invokeStructuredLlm<T>(input: StructuredInvokeInput<T>): Promise<T> {
   const result = await invokeStructuredLlmDetailed(input);
   return result.data;
 }
+
+export function summarizeStructuredOutputFailure(input: {
+  error: unknown;
+  fallbackAvailable?: boolean;
+}): {
+  category: StructuredOutputErrorCategory;
+  failureCode: string;
+  summary: string;
+} {
+  const message = input.error instanceof Error ? input.error.message : String(input.error ?? "");
+  const category = input.error instanceof StructuredOutputError
+    ? input.error.category
+    : extractStructuredOutputErrorCategory(message) ?? classifyStructuredOutputFailure({ error: input.error });
+  const suffix = input.fallbackAvailable ? "，可考虑启用结构化备用模型。" : "。";
+  const summaryMap: Record<StructuredOutputErrorCategory, string> = {
+    unsupported_native_json: `当前模型端点不兼容原生 JSON 输出${suffix}`,
+    thinking_pollution: `当前模型的思考内容污染了结构化输出${suffix}`,
+    incomplete_json: `模型输出的 JSON 被截断或不完整${suffix}`,
+    malformed_json: `模型输出的 JSON 格式不稳定${suffix}`,
+    schema_mismatch: `模型输出未满足目标结构要求${suffix}`,
+    transport_error: `结构化调用过程发生传输或服务端错误${suffix}`,
+  };
+  return {
+    category,
+    failureCode: `STRUCTURED_OUTPUT_${category.toUpperCase()}`,
+    summary: summaryMap[category],
+  };
+}
+
+export { schemaAllowsTopLevelArray };
