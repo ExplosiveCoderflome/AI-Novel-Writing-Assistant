@@ -1075,6 +1075,7 @@ model APIKey {
   model     String?
   baseURL   String?
   isActive  Boolean  @default(true)
+  reasoningEnabled Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

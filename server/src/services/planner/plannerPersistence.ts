@@ -29,6 +29,65 @@ interface PersistPlanInput {
   externalRef?: string;
 }
 
+function sanitizePlanText(value?: string | null): string {
+  return (value ?? "").trim();
+}
+
+function buildPlanTaskSheet(input: PersistPlanInput): string | undefined {
+  const lines: string[] = [];
+  const objective = sanitizePlanText(input.objective);
+  const hookTarget = sanitizePlanText(input.hookTarget);
+  const participants = input.participants.map((item) => sanitizePlanText(item)).filter(Boolean);
+  const mustAdvance = input.mustAdvance.map((item) => sanitizePlanText(item)).filter(Boolean);
+  const mustPreserve = input.mustPreserve.map((item) => sanitizePlanText(item)).filter(Boolean);
+  const riskNotes = input.riskNotes.map((item) => sanitizePlanText(item)).filter(Boolean);
+
+  if (objective) {
+    lines.push(`章节目标：${objective}`);
+  }
+  if (participants.length > 0) {
+    lines.push(`关键角色：${participants.join("、")}`);
+  }
+  if (mustAdvance.length > 0) {
+    lines.push("必须推进：");
+    lines.push(...mustAdvance.map((item) => `- ${item}`));
+  }
+  if (mustPreserve.length > 0) {
+    lines.push("必须保留：");
+    lines.push(...mustPreserve.map((item) => `- ${item}`));
+  }
+  if (riskNotes.length > 0) {
+    lines.push("风险提醒：");
+    lines.push(...riskNotes.map((item) => `- ${item}`));
+  }
+  if (hookTarget) {
+    lines.push(`收尾钩子：${hookTarget}`);
+  }
+
+  return lines.length > 0 ? lines.join("\n") : undefined;
+}
+
+function buildPlanSceneCards(input: PersistPlanInput): string | undefined {
+  const blocks = input.scenes
+    .map((scene, index) => {
+      const title = sanitizePlanText(scene.title) || `Scene ${index + 1}`;
+      const objective = sanitizePlanText(scene.objective);
+      const conflict = sanitizePlanText(scene.conflict);
+      const reveal = sanitizePlanText(scene.reveal);
+      const emotionBeat = sanitizePlanText(scene.emotionBeat);
+      return [
+        `场景${index + 1}：${title}`,
+        objective ? `目标：${objective}` : "",
+        conflict ? `冲突：${conflict}` : "",
+        reveal ? `揭示：${reveal}` : "",
+        emotionBeat ? `情绪：${emotionBeat}` : "",
+      ].filter(Boolean).join("\n");
+    })
+    .filter(Boolean);
+
+  return blocks.length > 0 ? blocks.join("\n\n") : undefined;
+}
+
 export async function persistStoryPlan(input: PersistPlanInput) {
   const existing = input.level === "chapter" && input.chapterId
     ? await prisma.storyPlan.findFirst({
@@ -123,6 +182,33 @@ export async function persistStoryPlan(input: PersistPlanInput) {
         })),
       });
     }
+
+    if (input.level === "chapter" && input.chapterId) {
+      const chapter = await tx.chapter.findUnique({
+        where: { id: input.chapterId },
+        select: {
+          content: true,
+          chapterStatus: true,
+        },
+      });
+      if (chapter) {
+        const hasContent = Boolean(chapter.content?.trim());
+        const nextChapterStatus = !hasContent && (!chapter.chapterStatus || chapter.chapterStatus === "unplanned")
+          ? "pending_generation"
+          : undefined;
+        await tx.chapter.update({
+          where: { id: input.chapterId },
+          data: {
+            expectation: sanitizePlanText(input.objective) || undefined,
+            taskSheet: buildPlanTaskSheet(input),
+            sceneCards: buildPlanSceneCards(input),
+            hook: sanitizePlanText(input.hookTarget) || undefined,
+            chapterStatus: nextChapterStatus,
+          },
+        });
+      }
+    }
+
     return plan.id;
   });
 

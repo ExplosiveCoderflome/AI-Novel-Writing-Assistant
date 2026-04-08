@@ -34,14 +34,14 @@ async function testConnection(input: {
       apiKey: input.apiKey,
       baseURL: input.baseURL,
       model: input.model,
-      temperature: 0,
+      temperature: 0.1,
       maxTokens: 16,
     });
     const llm = await getLLM(input.provider, {
       apiKey: input.apiKey,
       baseURL: input.baseURL,
       model: resolved.model,
-      temperature: 0,
+      temperature: 0.1,
       maxTokens: 16,
     });
     const start = Date.now();

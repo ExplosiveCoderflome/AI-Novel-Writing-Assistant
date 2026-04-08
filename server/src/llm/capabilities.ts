@@ -15,6 +15,8 @@ export interface JsonCapability {
 
 export interface ModelParameterCompatibility {
   fixedTemperature?: number;
+  minimumTemperature?: number;
+  maximumTemperature?: number;
 }
 
 export function supportsForcedJsonOutput(provider: LLMProvider, model?: string): boolean {
@@ -42,6 +44,13 @@ export function getModelParameterCompatibility(provider: LLMProvider, model?: st
     };
   }
 
+  if (provider === "minimax") {
+    return {
+      minimumTemperature: 0.01,
+      maximumTemperature: 1,
+    };
+  }
+
   return {};
 }
 
@@ -55,7 +64,14 @@ export function resolveModelTemperature(
   if (typeof compatibility.fixedTemperature === "number") {
     return compatibility.fixedTemperature;
   }
-  return requestedTemperature ?? fallbackTemperature;
+  let resolvedTemperature = requestedTemperature ?? fallbackTemperature;
+  if (typeof compatibility.minimumTemperature === "number") {
+    resolvedTemperature = Math.max(compatibility.minimumTemperature, resolvedTemperature);
+  }
+  if (typeof compatibility.maximumTemperature === "number") {
+    resolvedTemperature = Math.min(compatibility.maximumTemperature, resolvedTemperature);
+  }
+  return resolvedTemperature;
 }
 
 export function getJsonCapability(provider: LLMProvider, model?: string): JsonCapability {
@@ -99,6 +115,10 @@ export function getJsonCapability(provider: LLMProvider, model?: string): JsonCa
       supportsJsonSchema: false,
       // Moonshot 稳定模型与 kimi-latest 支持 JSON mode，thinking 系列不走强制 JSON。
       modelCondition: (m) => !m || !m.includes("thinking"),
+    },
+    minimax: {
+      supportsJsonObject: false,
+      supportsJsonSchema: false,
     },
     glm: {
       supportsJsonObject: true,

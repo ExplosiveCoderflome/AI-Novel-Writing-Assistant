@@ -319,6 +319,7 @@ test("GET /api/settings/api-keys exposes ollama baseURL and optional-key metadat
       model: "qwen3:8b",
       baseURL: "http://127.0.0.1:11434/v1",
       isActive: true,
+      reasoningEnabled: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -339,6 +340,7 @@ test("GET /api/settings/api-keys exposes ollama baseURL and optional-key metadat
     assert.equal(ollama.requiresApiKey, false);
     assert.equal(ollama.isConfigured, true);
     assert.equal(ollama.isActive, true);
+    assert.equal(ollama.reasoningEnabled, false);
   } finally {
     prisma.aPIKey.findMany = originalFindMany;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -356,6 +358,7 @@ test("GET /api/settings/api-keys exposes custom OpenAI-compatible providers", as
       model: "story-model",
       baseURL: "https://gateway.example.com/v1",
       isActive: true,
+      reasoningEnabled: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -378,6 +381,7 @@ test("GET /api/settings/api-keys exposes custom OpenAI-compatible providers", as
     assert.equal(custom.currentBaseURL, "https://gateway.example.com/v1");
     assert.equal(custom.requiresApiKey, false);
     assert.equal(custom.isConfigured, true);
+    assert.equal(custom.reasoningEnabled, true);
   } finally {
     prisma.aPIKey.findMany = originalFindMany;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -397,6 +401,7 @@ test("PUT /api/settings/api-keys/ollama saves custom baseURL without requiring a
     model: create.model,
     baseURL: create.baseURL,
     isActive: create.isActive,
+    reasoningEnabled: create.reasoningEnabled,
     createdAt: new Date(),
     updatedAt: new Date(),
   });
@@ -429,7 +434,72 @@ test("PUT /api/settings/api-keys/ollama saves custom baseURL without requiring a
     assert.equal(payload.data.provider, "ollama");
     assert.equal(payload.data.model, "qwen3:8b");
     assert.equal(payload.data.baseURL, "http://127.0.0.1:11434/v1");
+    assert.equal(payload.data.reasoningEnabled, true);
     assert.ok(payload.data.models.includes("qwen3:8b"));
+  } finally {
+    prisma.aPIKey.findUnique = originalFindUnique;
+    prisma.aPIKey.upsert = originalUpsert;
+    global.fetch = originalFetch;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("PUT /api/settings/api-keys/minimax updates reasoning toggle", async () => {
+  const originalFindUnique = prisma.aPIKey.findUnique;
+  const originalUpsert = prisma.aPIKey.upsert;
+  const originalFetch = global.fetch;
+  const httpFetch = originalFetch.bind(global);
+
+  prisma.aPIKey.findUnique = async () => ({
+    id: "api-key-minimax",
+    provider: "minimax",
+    key: "test-minimax-key",
+    model: "MiniMax-M2.7",
+    baseURL: "https://api.minimax.io/v1",
+    isActive: true,
+    reasoningEnabled: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  prisma.aPIKey.upsert = async ({ update }) => ({
+    id: "api-key-minimax",
+    provider: "minimax",
+    displayName: null,
+    key: "test-minimax-key",
+    model: "MiniMax-M2.7",
+    baseURL: "https://api.minimax.io/v1",
+    isActive: true,
+    reasoningEnabled: update.reasoningEnabled,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  global.fetch = async () => new Response(JSON.stringify({
+    data: [{ id: "MiniMax-M2.7" }, { id: "MiniMax-M2.7-highspeed" }],
+  }), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await httpFetch(`http://127.0.0.1:${port}/api/settings/api-keys/minimax`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        reasoningEnabled: false,
+      }),
+    });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    assert.equal(payload.data.provider, "minimax");
+    assert.equal(payload.data.reasoningEnabled, false);
   } finally {
     prisma.aPIKey.findUnique = originalFindUnique;
     prisma.aPIKey.upsert = originalUpsert;

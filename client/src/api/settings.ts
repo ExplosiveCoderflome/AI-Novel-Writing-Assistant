@@ -18,6 +18,7 @@ export interface APIKeyStatus {
   requiresApiKey: boolean;
   isConfigured: boolean;
   isActive: boolean;
+  reasoningEnabled: boolean;
 }
 
 export type ProviderBalanceStatusKind = "available" | "missing_api_key" | "unsupported" | "error";
@@ -168,6 +169,7 @@ export async function saveAPIKeySetting(
     model?: string;
     baseURL?: string;
     isActive?: boolean;
+    reasoningEnabled?: boolean;
   },
 ) {
   const { data } = await apiClient.put<
@@ -177,6 +179,7 @@ export async function saveAPIKeySetting(
       model: string | null;
       baseURL: string | null;
       isActive: boolean;
+      reasoningEnabled: boolean;
       models: string[];
     }>
   >(`/settings/api-keys/${provider}`, payload);
@@ -189,6 +192,7 @@ export async function createCustomProvider(payload: {
   model: string;
   baseURL: string;
   isActive?: boolean;
+  reasoningEnabled?: boolean;
 }) {
   const { data } = await apiClient.post<
     ApiResponse<{
@@ -197,6 +201,7 @@ export async function createCustomProvider(payload: {
       model: string | null;
       baseURL: string | null;
       isActive: boolean;
+      reasoningEnabled: boolean;
       models: string[];
     }>
   >("/settings/custom-providers", payload);

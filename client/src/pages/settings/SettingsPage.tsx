@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 
 const MODEL_BADGE_COLLAPSE_COUNT = 8;
 
@@ -197,6 +198,21 @@ export default function SettingsPage() {
     },
   });
 
+  const toggleReasoningMutation = useMutation({
+    mutationFn: (payload: { provider: LLMProvider; reasoningEnabled: boolean }) =>
+      saveAPIKeySetting(payload.provider, {
+        reasoningEnabled: payload.reasoningEnabled,
+      }),
+    onSuccess: async (_response, variables) => {
+      const providerName = providerConfigs.find((item) => item.provider === variables.provider)?.name ?? variables.provider;
+      setActionResult(`${providerName} 思考功能已${variables.reasoningEnabled ? "开启" : "关闭"}。`);
+      await invalidateProviderQueries();
+    },
+    onError: (error) => {
+      setActionResult(error instanceof Error ? error.message : "更新思考开关失败。");
+    },
+  });
+
   const refreshBalanceMutation = useMutation({
     mutationFn: (provider: LLMProvider) => refreshProviderBalance(provider),
     onSuccess: async (response, provider) => {
@@ -331,6 +347,8 @@ export default function SettingsPage() {
             const isBalanceRefreshing = refreshBalanceMutation.isPending && refreshBalanceMutation.variables === item.provider;
             const isBalanceLoading = providerBalancesQuery.isLoading && !balance;
             const refreshBalanceEnabled = canRefreshBalance(item.provider, item.kind, item.isConfigured);
+            const isReasoningUpdating = toggleReasoningMutation.isPending
+              && toggleReasoningMutation.variables?.provider === item.provider;
             return (
               <div
                 key={item.provider}
@@ -354,6 +372,30 @@ export default function SettingsPage() {
                 </div>
                 <div className="mb-2 text-xs text-muted-foreground">Current model: {item.currentModel || "-"}</div>
                 <div className="mb-2 text-xs text-muted-foreground">API URL: {item.currentBaseURL || "-"}</div>
+                <div className="mb-3 flex items-center justify-between rounded-md border bg-background/60 px-3 py-2">
+                  <div className="space-y-1">
+                    <div className="text-xs font-medium text-muted-foreground">思考功能</div>
+                    <div className="text-xs text-muted-foreground">
+                      {item.reasoningEnabled
+                        ? "当前会返回并展示模型思考内容。"
+                        : "当前会隐藏思考内容；MiniMax 会自动启用分离与清洗，避免 <think> 泄漏到正文。"}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{item.reasoningEnabled ? "已开启" : "已关闭"}</span>
+                    <Switch
+                      checked={item.reasoningEnabled}
+                      disabled={isReasoningUpdating}
+                      onCheckedChange={(checked) => {
+                        setActionResult("");
+                        toggleReasoningMutation.mutate({
+                          provider: item.provider,
+                          reasoningEnabled: checked,
+                        });
+                      }}
+                    />
+                  </div>
+                </div>
                 <div className="mb-3 rounded-md border border-dashed bg-background/60 p-3">
                   {item.kind === "custom" ? (
                     <div className="space-y-1">

@@ -39,6 +39,7 @@ const upsertApiKeySchema = z.object({
   model: z.string().trim().optional(),
   baseURL: z.union([z.string().trim().url("API URL 格式不正确。"), z.literal("")]).optional(),
   isActive: z.boolean().optional(),
+  reasoningEnabled: z.boolean().optional(),
 });
 
 const createCustomProviderSchema = z.object({
@@ -47,6 +48,7 @@ const createCustomProviderSchema = z.object({
   model: z.string().trim().min(1, "默认模型不能为空。"),
   baseURL: z.string().trim().url("API URL 格式不正确。"),
   isActive: z.boolean().optional(),
+  reasoningEnabled: z.boolean().optional(),
 });
 
 const ragSettingsSchema = z.object({
@@ -73,6 +75,16 @@ function normalizeOptionalText(value: string | null | undefined): string | undef
   const trimmed = value.trim();
   return trimmed || undefined;
 }
+
+type APIKeyRecordLike = {
+  provider: string;
+  displayName: string | null;
+  key: string | null;
+  model: string | null;
+  baseURL: string | null;
+  isActive: boolean;
+  reasoningEnabled?: boolean | null;
+};
 
 function buildCustomProviderId(name: string): string {
   const normalized = name
@@ -107,6 +119,7 @@ async function buildBuiltInProviderStatus(
     model?: string | null;
     baseURL?: string | null;
     isActive?: boolean;
+    reasoningEnabled?: boolean | null;
   },
 ) {
   const savedKey = normalizeOptionalText(item?.key);
@@ -140,6 +153,7 @@ async function buildBuiltInProviderStatus(
     requiresApiKey,
     isConfigured,
     isActive: item?.isActive ?? isConfigured,
+    reasoningEnabled: item?.reasoningEnabled ?? true,
   };
 }
 
@@ -150,6 +164,7 @@ async function buildCustomProviderStatus(item: {
   model: string | null;
   baseURL: string | null;
   isActive: boolean;
+  reasoningEnabled?: boolean | null;
 }) {
   const currentModel = normalizeOptionalText(item.model) ?? "";
   const currentBaseURL = normalizeOptionalText(item.baseURL) ?? "";
@@ -172,6 +187,7 @@ async function buildCustomProviderStatus(item: {
     requiresApiKey: false,
     isConfigured: Boolean(currentModel && currentBaseURL),
     isActive: item.isActive,
+    reasoningEnabled: item.reasoningEnabled ?? true,
   };
 }
 
@@ -276,21 +292,24 @@ router.post(
     try {
       const body = req.body as z.infer<typeof createCustomProviderSchema>;
       const provider = await ensureUniqueCustomProviderId(body.name);
+      const createData = {
+        provider,
+        displayName: body.name.trim(),
+        key: normalizeOptionalText(body.key) ?? null,
+        model: body.model.trim(),
+        baseURL: body.baseURL.trim(),
+        isActive: body.isActive ?? true,
+        reasoningEnabled: body.reasoningEnabled ?? true,
+      } as Record<string, unknown>;
       const data = await prisma.aPIKey.create({
-        data: {
-          provider,
-          displayName: body.name.trim(),
-          key: normalizeOptionalText(body.key) ?? null,
-          model: body.model.trim(),
-          baseURL: body.baseURL.trim(),
-          isActive: body.isActive ?? true,
-        },
-      });
+        data: createData as never,
+      }) as APIKeyRecordLike;
       setProviderSecretCache(provider, data.isActive ? {
         displayName: data.displayName ?? undefined,
         key: data.key ?? undefined,
         model: data.model ?? undefined,
         baseURL: data.baseURL ?? undefined,
+        reasoningEnabled: data.reasoningEnabled ?? true,
       } : null);
       let models = getFallbackModels(provider, data.model ?? undefined);
       let message = "自定义厂商创建成功。";
@@ -307,6 +326,7 @@ router.post(
           model: data.model,
           baseURL: data.baseURL,
           isActive: data.isActive,
+          reasoningEnabled: data.reasoningEnabled ?? true,
           models,
         },
         message,
@@ -316,6 +336,7 @@ router.post(
         model: string | null;
         baseURL: string | null;
         isActive: boolean;
+        reasoningEnabled: boolean;
         models: string[];
       }>);
     } catch (error) {
@@ -400,20 +421,22 @@ router.put(
       const existing = await prisma.aPIKey.findUnique({
         where: { provider },
       });
+      const existingRecord = existing as APIKeyRecordLike | null;
       if (!isBuiltInProvider(provider) && !existing) {
         throw new AppError("自定义厂商不存在。", 404);
       }
 
-      const nextKey = normalizeOptionalText(body.key) ?? normalizeOptionalText(existing?.key);
+      const nextKey = normalizeOptionalText(body.key) ?? normalizeOptionalText(existingRecord?.key);
       const envKey = getProviderEnvApiKey(provider);
       const effectiveKey = nextKey ?? envKey;
-      const nextModel = normalizeOptionalText(body.model) ?? normalizeOptionalText(existing?.model);
+      const nextModel = normalizeOptionalText(body.model) ?? normalizeOptionalText(existingRecord?.model);
       const nextBaseURL = body.baseURL !== undefined
         ? normalizeOptionalText(body.baseURL)
-        : normalizeOptionalText(existing?.baseURL);
+        : normalizeOptionalText(existingRecord?.baseURL);
       const nextDisplayName = !isBuiltInProvider(provider)
-        ? normalizeOptionalText(body.displayName) ?? normalizeOptionalText(existing?.displayName) ?? provider
+        ? normalizeOptionalText(body.displayName) ?? normalizeOptionalText(existingRecord?.displayName) ?? provider
         : undefined;
+      const nextReasoningEnabled = body.reasoningEnabled ?? existingRecord?.reasoningEnabled ?? true;
       const requiresApiKey = providerRequiresApiKey(provider);
 
       if (requiresApiKey && !effectiveKey) {
@@ -426,39 +449,43 @@ router.put(
         throw new AppError("自定义厂商的 API URL 不能为空。", 400);
       }
 
-      const data = isBuiltInProvider(provider)
+      const data = (isBuiltInProvider(provider)
         ? await prisma.aPIKey.upsert({
           where: { provider },
-          update: {
+          update: ({
             key: nextKey ?? null,
             model: nextModel ?? null,
             baseURL: nextBaseURL ?? null,
             isActive: body.isActive ?? true,
-          },
-          create: {
+            reasoningEnabled: nextReasoningEnabled,
+          } as Record<string, unknown>) as never,
+          create: ({
             provider,
             key: nextKey ?? null,
             model: nextModel ?? null,
             baseURL: nextBaseURL ?? null,
             isActive: body.isActive ?? true,
-          },
+            reasoningEnabled: nextReasoningEnabled,
+          } as Record<string, unknown>) as never,
         })
         : await prisma.aPIKey.update({
           where: { provider },
-          data: {
+          data: ({
             displayName: nextDisplayName,
             key: nextKey ?? null,
             model: nextModel ?? null,
             baseURL: nextBaseURL ?? null,
-            isActive: body.isActive ?? existing?.isActive ?? true,
-          },
-        });
+            isActive: body.isActive ?? existingRecord?.isActive ?? true,
+            reasoningEnabled: nextReasoningEnabled,
+          } as Record<string, unknown>) as never,
+        })) as APIKeyRecordLike;
 
       setProviderSecretCache(provider, data.isActive ? {
         displayName: data.displayName ?? undefined,
         key: data.key ?? undefined,
         model: data.model ?? undefined,
         baseURL: data.baseURL ?? undefined,
+        reasoningEnabled: data.reasoningEnabled ?? true,
       } : null);
 
       let models = getFallbackModels(provider, data.model ?? undefined);
@@ -476,6 +503,7 @@ router.put(
           model: data.model,
           baseURL: data.baseURL,
           isActive: data.isActive,
+          reasoningEnabled: data.reasoningEnabled ?? true,
           models,
         },
         message,
@@ -485,6 +513,7 @@ router.put(
         model: string | null;
         baseURL: string | null;
         isActive: boolean;
+        reasoningEnabled: boolean;
         models: string[];
       }>);
     } catch (error) {

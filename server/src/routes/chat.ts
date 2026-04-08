@@ -4,8 +4,15 @@ import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages
 import type { BaseMessageChunk } from "@langchain/core/messages";
 import { z } from "zod";
 import { agentRuntime } from "../agents";
-import { getLLM } from "../llm/factory";
+import { createLLMFromResolvedOptions, resolveLLMClientOptions } from "../llm/factory";
 import { llmProviderSchema } from "../llm/providerSchema";
+import {
+  ThinkTagStreamFilter,
+  diffAccumulatedText,
+  extractMiniMaxRawStreamData,
+  extractReasoningTextFromChunk,
+  isMiniMaxCompatibleProvider,
+} from "../llm/reasoning";
 import { initSSE, writeSSEFrame } from "../llm/streaming";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
@@ -150,11 +157,12 @@ router.post("/", validate({ body: chatSchema }), async (req, res, next) => {
       return;
     }
 
-    const llm = await getLLM(body.provider ?? "deepseek", {
+    const resolvedLLM = await resolveLLMClientOptions(body.provider ?? "deepseek", {
       model: body.model,
       temperature: body.temperature ?? 0.7,
       maxTokens: body.maxTokens,
     });
+    const llm = createLLMFromResolvedOptions(resolvedLLM);
 
     const recentMessages = body.messages.slice(-20);
     const systemPrompt =
@@ -226,6 +234,14 @@ router.post("/", validate({ body: chatSchema }), async (req, res, next) => {
     const stream = await llm.stream(messages);
     const disposeHeartbeat = initSSE(res);
     let fullContent = "";
+    const isMiniMaxStream = isMiniMaxCompatibleProvider(
+      resolvedLLM.provider,
+      resolvedLLM.baseURL,
+      resolvedLLM.model,
+    );
+    const thinkFilter = isMiniMaxStream ? new ThinkTagStreamFilter() : null;
+    let miniMaxContentBuffer = "";
+    let miniMaxReasoningBuffer = "";
 
     try {
       for await (const chunk of stream) {
@@ -233,18 +249,53 @@ router.post("/", validate({ body: chatSchema }), async (req, res, next) => {
           break;
         }
 
-        const reasoningContent = (chunk.additional_kwargs as { reasoning_content?: string })
-          ?.reasoning_content;
-        if (reasoningContent) {
+        let reasoningContent = "";
+        let text = chunkToText(chunk.content);
+
+        if (isMiniMaxStream) {
+          const rawResponse = (chunk.additional_kwargs as { __raw_response?: unknown } | undefined)
+            ?.__raw_response;
+          const rawStreamData = extractMiniMaxRawStreamData(rawResponse);
+
+          const normalizedContent = diffAccumulatedText(miniMaxContentBuffer, rawStreamData.contentBuffer);
+          miniMaxContentBuffer = normalizedContent.nextBuffer;
+          if (normalizedContent.delta) {
+            text = normalizedContent.delta;
+          }
+
+          const normalizedReasoning = diffAccumulatedText(miniMaxReasoningBuffer, rawStreamData.reasoningBuffer);
+          miniMaxReasoningBuffer = normalizedReasoning.nextBuffer;
+          reasoningContent = normalizedReasoning.delta;
+        }
+
+        if (!reasoningContent) {
+          reasoningContent = extractReasoningTextFromChunk(chunk);
+        }
+        if (reasoningContent && resolvedLLM.reasoningEnabled) {
           writeSSEFrame(res, { type: "reasoning", content: reasoningContent });
         }
 
-        const text = chunkToText(chunk.content);
-        if (!text) {
+        const filteredChunk = thinkFilter ? thinkFilter.push(text) : { text, reasoning: "" };
+        if (filteredChunk.reasoning && resolvedLLM.reasoningEnabled) {
+          writeSSEFrame(res, { type: "reasoning", content: filteredChunk.reasoning });
+        }
+
+        if (!filteredChunk.text) {
           continue;
         }
-        fullContent += text;
-        writeSSEFrame(res, { type: "chunk", content: text });
+        fullContent += filteredChunk.text;
+        writeSSEFrame(res, { type: "chunk", content: filteredChunk.text });
+      }
+
+      if (thinkFilter) {
+        const flushedChunk = thinkFilter.flush();
+        if (flushedChunk.reasoning && resolvedLLM.reasoningEnabled) {
+          writeSSEFrame(res, { type: "reasoning", content: flushedChunk.reasoning });
+        }
+        if (flushedChunk.text) {
+          fullContent += flushedChunk.text;
+          writeSSEFrame(res, { type: "chunk", content: flushedChunk.text });
+        }
       }
 
       writeSSEFrame(res, { type: "done", fullContent });

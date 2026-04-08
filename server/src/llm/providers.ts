@@ -86,6 +86,23 @@ export const PROVIDERS: Record<BuiltinLLMProvider, ProviderConfig> = {
     envBaseURLKey: "KIMI_BASE_URL",
     envModelKey: "KIMI_MODEL",
   },
+  minimax: {
+    name: "MiniMax",
+    baseURL: "https://api.minimax.io/v1",
+    defaultModel: "MiniMax-M2.7",
+    models: [
+      "MiniMax-M2.7",
+      "MiniMax-M2.7-highspeed",
+      "MiniMax-M2.5",
+      "MiniMax-M2.5-highspeed",
+      "MiniMax-M2.1",
+      "MiniMax-M2.1-highspeed",
+      "MiniMax-M2",
+    ],
+    envKey: "MINIMAX_API_KEY",
+    envBaseURLKey: "MINIMAX_BASE_URL",
+    envModelKey: "MINIMAX_MODEL",
+  },
   glm: {
     name: "GLM",
     baseURL: "https://open.bigmodel.cn/api/paas/v4",

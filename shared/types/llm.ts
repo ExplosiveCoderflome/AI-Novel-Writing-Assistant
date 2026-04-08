@@ -5,6 +5,7 @@ export const LLM_PROVIDERS = [
   "anthropic",
   "grok",
   "kimi",
+  "minimax",
   "glm",
   "qwen",
   "gemini",
