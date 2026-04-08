@@ -58,6 +58,14 @@ import NovelExistingProjectTakeoverDialog from "./components/NovelExistingProjec
 import { syncNovelWorkflowStageSilently, workflowStageFromTab } from "./novelWorkflow.client";
 import { scopeFromWorkspaceTab, tabFromDirectorProgress, tabFromScope } from "./novelWorkspaceNavigation";
 import {
+  buildContinueAutoExecutionActionLabel,
+  buildContinueAutoExecutionToast,
+  buildTakeoverDescription,
+  buildTakeoverTitle,
+  formatTakeoverCheckpoint,
+  resolveAutoExecutionScopeLabel,
+} from "./novelEditTakeover.shared";
+import {
   DEFAULT_ESTIMATED_CHAPTER_COUNT,
   createDefaultNovelBasicFormState,
   patchNovelBasicForm,
@@ -75,102 +83,6 @@ import {
 
 function scopeFromTab(tab: string): DirectorLockScope | null {
   return scopeFromWorkspaceTab(tab);
-}
-
-function formatTakeoverCheckpoint(checkpoint: string | null | undefined): string {
-  if (checkpoint === "candidate_selection_required") {
-    return "等待确认书级方向";
-  }
-  if (checkpoint === "book_contract_ready") {
-    return "Book Contract 已就绪";
-  }
-  if (checkpoint === "character_setup_required") {
-    return "角色准备待审核";
-  }
-  if (checkpoint === "volume_strategy_ready") {
-    return "卷战略 / 卷骨架待审核";
-  }
-  if (checkpoint === "front10_ready") {
-    return "前 10 章可开写";
-  }
-  if (checkpoint === "chapter_batch_ready") {
-    return "前 10 章自动执行已暂停";
-  }
-  if (checkpoint === "workflow_completed") {
-    return "主流程完成";
-  }
-  return "导演流程进行中";
-}
-
-function buildTakeoverTitle(input: {
-  mode: NovelEditTakeoverState["mode"];
-  novelTitle: string;
-  checkpointType: string | null | undefined;
-}): string {
-  if (
-    input.mode === "running"
-    && (input.checkpointType === "front10_ready" || input.checkpointType === "chapter_batch_ready")
-  ) {
-    return `《${input.novelTitle}》正在自动执行前 10 章`;
-  }
-  if (input.mode === "waiting") {
-    if (input.checkpointType === "character_setup_required") {
-      return `《${input.novelTitle}》等待审核角色准备`;
-    }
-    if (input.checkpointType === "volume_strategy_ready") {
-      return `《${input.novelTitle}》等待审核卷战略 / 卷骨架`;
-    }
-    if (input.checkpointType === "front10_ready") {
-      return `《${input.novelTitle}》已完成自动导演交接`;
-    }
-  }
-  if (input.mode === "failed") {
-    if (input.checkpointType === "chapter_batch_ready") {
-      return `《${input.novelTitle}》前 10 章自动执行已暂停`;
-    }
-    return `《${input.novelTitle}》自动导演已中断`;
-  }
-  if (input.mode === "loading") {
-    return `《${input.novelTitle}》自动导演状态同步中`;
-  }
-  return `《${input.novelTitle}》正在自动导演`;
-}
-
-function buildTakeoverDescription(input: {
-  mode: NovelEditTakeoverState["mode"];
-  checkpointType: string | null | undefined;
-  reviewScope: DirectorLockScope | null | undefined;
-}): string {
-  if (
-    input.mode === "running"
-    && (input.checkpointType === "front10_ready" || input.checkpointType === "chapter_batch_ready")
-  ) {
-    return "AI 正在后台自动执行前 10 章，并会继续完成审校与修复。你仍可继续手动查看和编辑；如果同时修改当前章节，后续自动结果可能覆盖这部分内容。";
-  }
-  if (input.mode === "waiting") {
-    if (input.checkpointType === "character_setup_required") {
-      return "角色准备已经生成。你可以先检查核心角色、关系和当前目标，确认后再继续自动导演。";
-    }
-    if (input.checkpointType === "volume_strategy_ready") {
-      return "当前可以审核并微调卷战略 / 卷骨架。确认后再继续自动生成第 1 卷节奏板、拆章和前 10 章细化。";
-    }
-    if (input.checkpointType === "front10_ready") {
-      return "自动导演已经完成第 1 卷开写准备。你可以直接进入章节执行，也可以继续让 AI 自动执行前 10 章。";
-    }
-    if (input.reviewScope) {
-      return "自动导演已到达审核点。请先检查当前阶段产物，再决定是否继续推进。";
-    }
-  }
-  if (input.mode === "failed") {
-    if (input.checkpointType === "chapter_batch_ready") {
-      return "前 10 章自动执行已暂停。建议先查看任务中心或质量修复区，再决定是否继续自动执行。";
-    }
-    return "后台导演流程已中断。建议先去任务中心查看失败原因，再决定是否从最近检查点恢复。";
-  }
-  if (input.mode === "loading") {
-    return "正在同步当前自动导演状态。";
-  }
-  return "AI 正在后台接管这本书的开书流程。你可以继续手动操作当前项目；如果与自动导演同时改同一块内容，以最新写入结果为准。";
 }
 
 function resolveDirectorConsistencyIssue(input: {
@@ -520,6 +432,7 @@ export default function NovelEdit() {
     }
     return raw as DirectorSessionState;
   }, [activeAutoDirectorTask]);
+  const activeAutoExecutionScopeLabel = resolveAutoExecutionScopeLabel(activeAutoDirectorTask);
   const workflowCurrentTab = useMemo(
     () => tabFromDirectorProgress({
       currentStage: activeAutoDirectorTask?.currentStage,
@@ -611,10 +524,10 @@ export default function NovelEdit() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.volumeWorkspace(id) });
       await queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      toast.success("自动导演已继续执行前 10 章，并会在后台自动审校与修复。");
+      toast.success(buildContinueAutoExecutionToast(activeAutoExecutionScopeLabel));
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "继续自动执行前 10 章失败。";
+      const message = error instanceof Error ? error.message : `继续自动执行${activeAutoExecutionScopeLabel}失败。`;
       toast.error(message);
     },
   });
@@ -747,6 +660,7 @@ export default function NovelEdit() {
         : "waiting";
     const novelTitle = novelDetailQuery.data?.data?.title?.trim() || task.title?.trim() || "当前项目";
     const reviewScope = activeDirectorSession?.reviewScope ?? null;
+    const autoExecutionScopeLabel = resolveAutoExecutionScopeLabel(task);
     const actions: NonNullable<NovelEditTakeoverState["actions"]> = [];
     const reviewTab = tabFromScope(reviewScope);
     if (
@@ -764,7 +678,7 @@ export default function NovelEdit() {
     }
     if (mode === "waiting" && task.checkpointType === "front10_ready") {
       actions.push({
-        label: continueAutoExecutionMutation.isPending ? "继续执行中..." : "继续自动执行前 10 章",
+        label: buildContinueAutoExecutionActionLabel(autoExecutionScopeLabel, continueAutoExecutionMutation.isPending),
         onClick: () => continueAutoExecutionMutation.mutate(),
         variant: "default",
         disabled: continueAutoExecutionMutation.isPending,
@@ -789,7 +703,7 @@ export default function NovelEdit() {
     }
     if (mode === "failed" && task.checkpointType === "chapter_batch_ready") {
       actions.push({
-        label: continueAutoExecutionMutation.isPending ? "继续执行中..." : "继续自动执行前 10 章",
+        label: buildContinueAutoExecutionActionLabel(autoExecutionScopeLabel, continueAutoExecutionMutation.isPending),
         onClick: () => continueAutoExecutionMutation.mutate(),
         variant: "default",
         disabled: continueAutoExecutionMutation.isPending,
@@ -865,6 +779,7 @@ export default function NovelEdit() {
             mode,
             novelTitle,
             checkpointType: task.checkpointType,
+            scopeLabel: autoExecutionScopeLabel,
           }),
       description: consistencyIssue === "missing_characters"
         ? "任务记录显示已完成开书交接，但当前项目里还没有角色资产，所以角色准备和章节执行都不完整。可以直接补齐导演产物，系统会继续修复。"
@@ -874,6 +789,7 @@ export default function NovelEdit() {
             mode,
             checkpointType: task.checkpointType,
             reviewScope,
+            scopeLabel: autoExecutionScopeLabel,
           }),
       progress: task.progress,
       currentAction: consistencyIssue === "missing_characters"
@@ -881,13 +797,13 @@ export default function NovelEdit() {
         : consistencyIssue === "missing_chapters"
           ? "检测到章节执行区为空，当前导演结果需要继续同步章节资源。"
           : mode === "running" && task.checkpointType === "chapter_batch_ready" && task.currentItemLabel?.includes("已暂停")
-            ? "正在继续自动执行前 10 章"
+            ? `正在继续自动执行${autoExecutionScopeLabel}`
             : task.currentItemLabel ?? null,
       checkpointLabel: consistencyIssue
         ? "导演产物待补齐"
         : mode === "running" && task.checkpointType === "chapter_batch_ready"
-          ? "前 10 章自动执行中"
-          : formatTakeoverCheckpoint(task.checkpointType),
+          ? `${autoExecutionScopeLabel}自动执行中`
+          : formatTakeoverCheckpoint(task.checkpointType, task),
       taskId: task.id,
       actions,
     };
@@ -932,8 +848,9 @@ export default function NovelEdit() {
         });
       }
     } else if (task.status === "waiting_approval" && task.checkpointType === "front10_ready") {
+      const autoExecutionScopeLabel = resolveAutoExecutionScopeLabel(task);
       actions.push({
-        label: continueAutoExecutionMutation.isPending ? "继续执行中..." : "继续自动执行前 10 章",
+        label: buildContinueAutoExecutionActionLabel(autoExecutionScopeLabel, continueAutoExecutionMutation.isPending),
         onClick: () => continueAutoExecutionMutation.mutate(),
         variant: "default",
         disabled: continueAutoExecutionMutation.isPending,
@@ -961,8 +878,9 @@ export default function NovelEdit() {
         disabled: continueAutoDirectorMutation.isPending,
       });
     } else if ((task.status === "failed" || task.status === "cancelled") && task.checkpointType === "chapter_batch_ready") {
+      const autoExecutionScopeLabel = resolveAutoExecutionScopeLabel(task);
       actions.push({
-        label: continueAutoExecutionMutation.isPending ? "继续执行中..." : "继续自动执行前 10 章",
+        label: buildContinueAutoExecutionActionLabel(autoExecutionScopeLabel, continueAutoExecutionMutation.isPending),
         onClick: () => continueAutoExecutionMutation.mutate(),
         variant: "default",
         disabled: continueAutoExecutionMutation.isPending,

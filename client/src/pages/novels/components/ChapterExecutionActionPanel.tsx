@@ -109,7 +109,12 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
         onClick: onAutoRepair,
         disabled: isRepairingChapter,
       }
-      : selectedChapter.chapterStatus === "pending_review" || selectedChapter.generationState === "drafted"
+    : (
+      (selectedChapter.chapterStatus === "pending_review"
+        && selectedChapter.generationState !== "reviewed"
+        && selectedChapter.generationState !== "approved")
+      || selectedChapter.generationState === "drafted"
+    )
         ? {
           label: "运行完整审校",
           reason: "正文已经出来了，先做完整审校，再决定是修复还是继续改写。",

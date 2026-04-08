@@ -12,6 +12,7 @@ import {
   buildDirectorAutoExecutionCompletedSummary,
   buildDirectorAutoExecutionPausedLabel,
   buildDirectorAutoExecutionPausedSummary,
+  buildDirectorAutoExecutionScopeLabelFromState,
   buildDirectorAutoExecutionPipelineOptions,
   buildDirectorAutoExecutionState,
   resolveDirectorAutoExecutionRange,
@@ -117,13 +118,17 @@ export class NovelDirectorAutoExecutionRuntime {
     const range = resolveDirectorAutoExecutionRangeFromState(input.existingState)
       ?? resolveDirectorAutoExecutionRange(chapters);
     if (!range) {
-      throw new Error("当前还没有可自动执行的章节，请先完成前 10 章拆章同步。");
+      throw new Error("当前还没有可自动执行的章节，请先完成目标范围的拆章同步。");
     }
     return {
       range,
       autoExecution: buildDirectorAutoExecutionState({
         range,
         chapters,
+        plan: input.existingState,
+        scopeLabel: input.existingState?.scopeLabel ?? null,
+        volumeTitle: input.existingState?.volumeTitle ?? null,
+        preparedVolumeIds: input.existingState?.preparedVolumeIds ?? [],
         pipelineJobId: input.pipelineJobId ?? input.existingState?.pipelineJobId ?? null,
         pipelineStatus: input.pipelineStatus ?? input.existingState?.pipelineStatus ?? null,
       }),
@@ -193,9 +198,11 @@ export class NovelDirectorAutoExecutionRuntime {
       checkpointType: "workflow_completed",
       checkpointSummary: buildDirectorAutoExecutionCompletedSummary({
         title: input.request.candidate.workingTitle.trim() || input.request.title?.trim() || "当前项目",
-        totalChapterCount: input.range.totalChapterCount,
+        scopeLabel: buildDirectorAutoExecutionScopeLabelFromState(completedState, input.range.totalChapterCount),
       }),
-      itemLabel: buildDirectorAutoExecutionCompletedLabel(input.range.totalChapterCount),
+      itemLabel: buildDirectorAutoExecutionCompletedLabel(
+        buildDirectorAutoExecutionScopeLabelFromState(completedState, input.range.totalChapterCount),
+      ),
       progress: 1,
       chapterId: completedState.firstChapterId ?? input.range.firstChapterId,
       seedPayload: this.deps.buildDirectorSeedPayload(input.request, input.novelId, {
@@ -273,7 +280,7 @@ export class NovelDirectorAutoExecutionRuntime {
         await this.deps.workflowService.markTaskRunning(input.taskId, {
           stage: "chapter_execution",
           itemKey: "chapter_execution",
-          itemLabel: `正在自动执行前 ${range.totalChapterCount} 章`,
+          itemLabel: `正在自动执行${buildDirectorAutoExecutionScopeLabelFromState(autoExecution, range.totalChapterCount)}`,
           progress: 0.93,
           clearCheckpoint: input.resumeCheckpointType === "chapter_batch_ready",
         });
@@ -334,10 +341,10 @@ export class NovelDirectorAutoExecutionRuntime {
         }
         const job = await this.deps.novelService.getPipelineJobById(pipelineJobId);
         if (!job) {
-          throw new Error("自动执行前 10 章时未能找到对应的批量任务。");
+          throw new Error("自动执行章节批次时未能找到对应的批量任务。");
         }
         if (job.status === "queued" || job.status === "running") {
-          const runningState = resolveDirectorAutoExecutionWorkflowState(job, range);
+          const runningState = resolveDirectorAutoExecutionWorkflowState(job, range, autoExecution);
           await this.deps.workflowService.markTaskRunning(input.taskId, {
             ...runningState,
             clearCheckpoint: input.resumeCheckpointType === "chapter_batch_ready",
@@ -381,17 +388,18 @@ export class NovelDirectorAutoExecutionRuntime {
           return;
         }
 
+        const scopeLabel = buildDirectorAutoExecutionScopeLabelFromState(autoExecution, range.totalChapterCount);
         const failureMessage = job.error?.trim()
           || (job.status === "cancelled"
-            ? "前 10 章自动执行已取消。"
-            : "前 10 章自动执行未能全部通过质量要求。");
+            ? `${scopeLabel}自动执行已取消。`
+            : `${scopeLabel}自动执行未能全部通过质量要求。`);
         await this.deps.workflowService.markTaskFailed(input.taskId, failureMessage, {
           stage: "quality_repair",
           itemKey: "quality_repair",
           itemLabel: buildDirectorAutoExecutionPausedLabel(autoExecution),
           checkpointType: "chapter_batch_ready",
           checkpointSummary: buildDirectorAutoExecutionPausedSummary({
-            totalChapterCount: range.totalChapterCount,
+            scopeLabel,
             remainingChapterCount: autoExecution.remainingChapterCount ?? 0,
             nextChapterOrder: autoExecution.nextChapterOrder ?? null,
             failureMessage,

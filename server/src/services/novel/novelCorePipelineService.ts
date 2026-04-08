@@ -52,10 +52,11 @@ export function buildPipelineStageProgress(input: {
 export function buildPipelineCurrentItemLabel(input: {
   completedCount: number;
   totalCount: number;
+  chapterOrder: number;
   title: string;
 }): string {
   const currentIndex = Math.min(input.totalCount, Math.max(1, input.completedCount + 1));
-  return `第 ${currentIndex}/${input.totalCount} 章 · ${input.title.trim()}`;
+  return `第 ${input.chapterOrder} 章 · ${input.title.trim()} · 批次 ${currentIndex}/${input.totalCount}`;
 }
 
 export class NovelCorePipelineService {
@@ -534,6 +535,7 @@ export class NovelCorePipelineService {
           const currentItemLabel = buildPipelineCurrentItemLabel({
             completedCount: completed,
             totalCount,
+            chapterOrder: chapter.order,
             title: chapter.title,
           });
           let activeStage: PipelineActiveStage = "generating_chapters";

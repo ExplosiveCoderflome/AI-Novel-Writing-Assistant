@@ -20,7 +20,7 @@ export function buildNovelWorkflowNextActionLabel(
       return "查看卷战略";
     }
     if (checkpointType === "front10_ready") {
-      return "进入前 10 章开写";
+      return "进入已准备章节";
     }
     if (checkpointType === "chapter_batch_ready") {
       return "继续自动执行剩余章节";

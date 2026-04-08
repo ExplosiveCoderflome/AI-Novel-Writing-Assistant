@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
 import type {
+  DirectorAutoExecutionPlan,
   DirectorRunMode,
   DirectorTakeoverStartPhase,
 } from "@ai-novel/shared/types/novelDirector";
@@ -21,6 +22,12 @@ import {
 import { toast } from "@/components/ui/toast";
 import { useLLMStore } from "@/store/llmStore";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
+import {
+  DirectorAutoExecutionPlanFields,
+  buildDirectorAutoExecutionPlanFromDraft,
+  buildDirectorAutoExecutionPlanLabel,
+  createDefaultDirectorAutoExecutionDraftState,
+} from "./directorAutoExecutionPlan.shared";
 
 interface NovelExistingProjectTakeoverDialogProps {
   novelId: string;
@@ -43,12 +50,12 @@ const RUN_MODE_OPTIONS: Array<{
   {
     value: "auto_to_ready",
     label: "直接推进到可开写",
-    description: "AI 会持续推进到第 1 卷前 10 章细化完成后再交接。",
+    description: "AI 会持续推进到章节执行资源准备好后再交接。",
   },
   {
     value: "auto_to_execution",
-    label: "继续自动执行前 10 章",
-    description: "AI 会推进到第 1 卷前 10 章细化，并继续自动写作、审校和修复这一批章节。",
+    label: "继续自动执行章节批次",
+    description: "默认执行前 10 章，也可以改成指定章节范围或按卷执行。",
   },
 ];
 
@@ -114,6 +121,7 @@ export default function NovelExistingProjectTakeoverDialog({
   const [open, setOpen] = useState(false);
   const [runMode, setRunMode] = useState<DirectorRunMode>("stage_review");
   const [selectedPhase, setSelectedPhase] = useState<DirectorTakeoverStartPhase>("story_macro");
+  const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState());
 
   const readinessQuery = useQuery({
     queryKey: queryKeys.novels.autoDirectorTakeoverReadiness(novelId),
@@ -128,6 +136,9 @@ export default function NovelExistingProjectTakeoverDialog({
     [basicForm, genreOptions, storyModeOptions, worldOptions],
   );
   const selectedStage = readiness?.stages.find((item) => item.phase === selectedPhase) ?? null;
+  const autoExecutionPlan: DirectorAutoExecutionPlan | undefined = runMode === "auto_to_execution"
+    ? buildDirectorAutoExecutionPlanFromDraft(autoExecutionDraft)
+    : undefined;
 
   useEffect(() => {
     if (!readiness) {
@@ -155,6 +166,7 @@ export default function NovelExistingProjectTakeoverDialog({
       model: llm.model,
       temperature: llm.temperature,
       runMode,
+      autoExecutionPlan,
     }),
     onSuccess: async (response) => {
       const data = response.data;
@@ -170,7 +182,7 @@ export default function NovelExistingProjectTakeoverDialog({
         runMode === "stage_review"
           ? "自动导演已接管当前项目，会在关键阶段停下等你审核。"
           : runMode === "auto_to_execution"
-            ? "自动导演已接管当前项目，会继续自动执行前 10 章。"
+            ? `自动导演已接管当前项目，会继续自动执行${buildDirectorAutoExecutionPlanLabel(autoExecutionPlan)}。`
             : "自动导演已接管当前项目，会持续推进到可开写阶段。",
       );
       navigate(buildEditRoute({
@@ -198,7 +210,7 @@ export default function NovelExistingProjectTakeoverDialog({
           <DialogHeader className="shrink-0 border-b px-6 pb-4 pr-12 pt-6">
             <DialogTitle>让 AI 从现有项目继续自动导演</DialogTitle>
             <DialogDescription>
-              适合你已经手动填完基本信息，后续想让 AI 接手书级规划、角色、卷战略或第 1 卷拆章。
+              适合你已经手动填完基本信息，后续想让 AI 接手书级规划、角色、卷战略和章节批量执行。
             </DialogDescription>
           </DialogHeader>
 
@@ -246,6 +258,12 @@ export default function NovelExistingProjectTakeoverDialog({
                   );
                 })}
               </div>
+              {runMode === "auto_to_execution" ? (
+                <DirectorAutoExecutionPlanFields
+                  draft={autoExecutionDraft}
+                  onChange={(patch) => setAutoExecutionDraft((prev) => ({ ...prev, ...patch }))}
+                />
+              ) : null}
             </div>
 
             <div className="rounded-xl border bg-background/80 p-4">

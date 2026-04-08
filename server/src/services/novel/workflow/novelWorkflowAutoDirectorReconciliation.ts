@@ -6,6 +6,7 @@ import {
   buildDirectorAutoExecutionCompletedSummary,
   buildDirectorAutoExecutionPausedLabel,
   buildDirectorAutoExecutionPausedSummary,
+  buildDirectorAutoExecutionScopeLabelFromState,
   buildDirectorAutoExecutionState,
   resolveDirectorAutoExecutionRangeFromState,
   type DirectorAutoExecutionChapterRef,
@@ -51,9 +52,11 @@ export function reconcileAutoDirectorChapterBatchState(input: {
       checkpointType: "workflow_completed",
       checkpointSummary: buildDirectorAutoExecutionCompletedSummary({
         title: input.title,
-        totalChapterCount: range.totalChapterCount,
+        scopeLabel: buildDirectorAutoExecutionScopeLabelFromState(autoExecution, range.totalChapterCount),
       }),
-      itemLabel: buildDirectorAutoExecutionCompletedLabel(range.totalChapterCount),
+      itemLabel: buildDirectorAutoExecutionCompletedLabel(
+        buildDirectorAutoExecutionScopeLabelFromState(autoExecution, range.totalChapterCount),
+      ),
       chapterId: autoExecution.firstChapterId ?? range.firstChapterId,
       progress: 1,
     };
@@ -65,7 +68,7 @@ export function reconcileAutoDirectorChapterBatchState(input: {
     autoExecution,
     checkpointType: "chapter_batch_ready",
     checkpointSummary: buildDirectorAutoExecutionPausedSummary({
-      totalChapterCount: range.totalChapterCount,
+      scopeLabel: buildDirectorAutoExecutionScopeLabelFromState(autoExecution, range.totalChapterCount),
       remainingChapterCount: autoExecution.remainingChapterCount ?? 0,
       nextChapterOrder: autoExecution.nextChapterOrder ?? null,
       failureMessage,

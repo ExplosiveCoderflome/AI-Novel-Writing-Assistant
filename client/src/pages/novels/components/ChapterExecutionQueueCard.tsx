@@ -3,8 +3,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  chapterStatusDescription,
   chapterStatusLabel,
   chapterSuggestedActionLabel,
+  generationStateDescription,
   generationStateLabel,
   parseRiskFlags,
   shouldShowGenerationStateBadge,
@@ -102,6 +104,8 @@ export default function ChapterExecutionQueueCard(props: ChapterExecutionQueueCa
                     <Badge
                       variant={isSelected ? "default" : "outline"}
                       className="min-w-[60px] shrink-0 justify-center rounded-full px-2 py-1 text-[11px]"
+                      title={chapterStatusDescription(chapter.chapterStatus)}
+                      aria-label={chapterStatusDescription(chapter.chapterStatus)}
                     >
                       {chapterStatusLabel(chapter.chapterStatus)}
                     </Badge>
@@ -119,7 +123,12 @@ export default function ChapterExecutionQueueCard(props: ChapterExecutionQueueCa
                       </Badge>
                     ) : null}
                     {shouldShowGenerationStateBadge(chapter.generationState) ? (
-                      <Badge variant="outline" className="rounded-full px-2 py-1 text-[11px]">
+                      <Badge
+                        variant="outline"
+                        className="rounded-full px-2 py-1 text-[11px]"
+                        title={generationStateDescription(chapter.generationState)}
+                        aria-label={generationStateDescription(chapter.generationState)}
+                      >
                         {generationStateLabel(chapter.generationState)}
                       </Badge>
                     ) : null}

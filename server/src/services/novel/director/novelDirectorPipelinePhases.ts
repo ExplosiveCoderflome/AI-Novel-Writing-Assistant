@@ -20,6 +20,11 @@ import {
   DIRECTOR_PROGRESS,
   type DirectorProgressItemKey,
 } from "./novelDirectorProgress";
+import {
+  buildDirectorAutoExecutionScopeLabel,
+  buildDirectorAutoExecutionState,
+  normalizeDirectorAutoExecutionPlan,
+} from "./novelDirectorAutoExecution";
 import { runDirectorTrackedStep } from "./directorProgressTracker";
 
 type DirectorMutatingStage =
@@ -59,21 +64,21 @@ function buildStructuredOutlinePhaseUpdate(event: VolumeGenerationPhaseEvent): {
   if (event.scope === "beat_sheet") {
     return {
       itemKey: "beat_sheet",
-      itemLabel: event.phase === "load_context" ? "正在整理第 1 卷节奏板上下文" : "正在生成第 1 卷节奏板",
+      itemLabel: event.label.trim() || (event.phase === "load_context" ? "正在整理节奏板上下文" : "正在生成节奏板"),
       progress: DIRECTOR_PROGRESS.beatSheet,
     };
   }
   if (event.scope === "chapter_list") {
     return {
       itemKey: "chapter_list",
-      itemLabel: event.phase === "load_context" ? "正在整理第 1 卷拆章上下文" : "正在生成第 1 卷章节列表",
+      itemLabel: event.label.trim() || (event.phase === "load_context" ? "正在整理拆章上下文" : "正在生成章节列表"),
       progress: DIRECTOR_PROGRESS.chapterList,
     };
   }
   if (event.scope === "rebalance") {
     return {
       itemKey: "chapter_list",
-      itemLabel: "正在校准第 1 卷与相邻卷衔接",
+      itemLabel: event.label.trim() || "正在校准相邻卷衔接",
       progress: 0.8,
     };
   }
@@ -100,6 +105,54 @@ function buildVolumeStrategyPhaseUpdate(event: VolumeGenerationPhaseEvent): {
     };
   }
   return null;
+}
+
+interface PreparedOutlineChapterRef {
+  id: string;
+  volumeId: string;
+  volumeOrder: number;
+  volumeTitle: string;
+  chapterOrder: number;
+  title: string;
+}
+
+function flattenPreparedOutlineChapters(workspace: VolumePlanDocument): PreparedOutlineChapterRef[] {
+  return workspace.volumes
+    .slice()
+    .sort((left, right) => left.sortOrder - right.sortOrder)
+    .flatMap((volume) => volume.chapters
+      .slice()
+      .sort((left, right) => left.chapterOrder - right.chapterOrder)
+      .map((chapter) => ({
+        id: chapter.id,
+        volumeId: volume.id,
+        volumeOrder: volume.sortOrder,
+        volumeTitle: volume.title,
+        chapterOrder: chapter.chapterOrder,
+        title: chapter.title,
+      })));
+}
+
+function selectPreparedOutlineChapters(
+  workspace: VolumePlanDocument,
+  request: DirectorConfirmRequest,
+): PreparedOutlineChapterRef[] {
+  const plan = normalizeDirectorAutoExecutionPlan(
+    normalizeDirectorRunMode(request.runMode) === "auto_to_execution"
+      ? request.autoExecutionPlan
+      : undefined,
+  );
+  const prepared = flattenPreparedOutlineChapters(workspace);
+  if (plan.mode === "volume") {
+    return prepared.filter((chapter) => chapter.volumeOrder === plan.volumeOrder);
+  }
+  if (plan.mode === "chapter_range") {
+    return prepared.filter((chapter) => (
+      chapter.chapterOrder >= (plan.startOrder ?? 1)
+      && chapter.chapterOrder <= (plan.endOrder ?? plan.startOrder ?? 1)
+    ));
+  }
+  return prepared.slice(0, 10);
 }
 
 export async function runDirectorCharacterSetupPhase(input: {
@@ -313,9 +366,20 @@ export async function runDirectorStructuredOutlinePhase(input: {
   callbacks: DirectorPhaseCallbacks;
 }): Promise<void> {
   const { taskId, novelId, request, baseWorkspace, dependencies, callbacks } = input;
-  const targetVolume = baseWorkspace.volumes[0];
-  if (!targetVolume) {
+  const firstVolume = baseWorkspace.volumes[0];
+  if (!firstVolume) {
     throw new Error("自动导演未能生成可用卷骨架。");
+  }
+  const detailPlan = normalizeDirectorAutoExecutionPlan(
+    normalizeDirectorRunMode(request.runMode) === "auto_to_execution"
+      ? request.autoExecutionPlan
+      : undefined,
+  );
+  const sortedVolumes = baseWorkspace.volumes
+    .slice()
+    .sort((left, right) => left.sortOrder - right.sortOrder);
+  if (detailPlan.mode === "volume" && (detailPlan.volumeOrder ?? 1) > sortedVolumes.length) {
+    throw new Error(`当前卷规划只有 ${sortedVolumes.length} 卷，不能直接自动执行第 ${detailPlan.volumeOrder} 卷。`);
   }
 
   const directorSession = buildDirectorSessionState({
@@ -327,7 +391,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
     novelId,
     taskId,
     stage: "structured",
-    volumeId: targetVolume.id,
+    volumeId: firstVolume.id,
   });
   await dependencies.workflowService.bootstrapTask({
     workflowTaskId: taskId,
@@ -340,57 +404,84 @@ export async function runDirectorStructuredOutlinePhase(input: {
     }),
   });
 
-  let workspace = await runDirectorTrackedStep({
-    taskId,
-    stage: "structured_outline",
-    itemKey: "beat_sheet",
-    itemLabel: "正在生成第 1 卷节奏板",
-    progress: DIRECTOR_PROGRESS.beatSheet,
-    callbacks,
-    run: async ({ updateStatus }) => dependencies.volumeService.generateVolumes(novelId, {
-      provider: request.provider,
-      model: request.model,
-      temperature: request.temperature,
-      scope: "beat_sheet",
-      targetVolumeId: targetVolume.id,
-      draftWorkspace: baseWorkspace,
-      onPhaseStart: async (event) => {
-        const update = buildStructuredOutlinePhaseUpdate(event);
-        if (!update) {
-          return;
-        }
-        await updateStatus(update);
-      },
-    }),
-  });
-  workspace = await runDirectorTrackedStep({
-    taskId,
-    stage: "structured_outline",
-    itemKey: "chapter_list",
-    itemLabel: "正在生成第 1 卷章节列表",
-    progress: DIRECTOR_PROGRESS.chapterList,
-    callbacks,
-    run: async ({ updateStatus }) => dependencies.volumeService.generateVolumes(novelId, {
-      provider: request.provider,
-      model: request.model,
-      temperature: request.temperature,
-      scope: "chapter_list",
-      targetVolumeId: targetVolume.id,
-      draftWorkspace: workspace,
-      onPhaseStart: async (event) => {
-        const update = buildStructuredOutlinePhaseUpdate(event);
-        if (!update) {
-          return;
-        }
-        await updateStatus(update);
-      },
-    }),
-  });
+  let workspace = baseWorkspace;
+  const preparedVolumeIds: string[] = [];
+  let maxPreparedChapterOrder = 0;
+
+  for (const volume of sortedVolumes) {
+    if (detailPlan.mode === "front10" && preparedVolumeIds.length > 0) {
+      break;
+    }
+    if (detailPlan.mode === "volume" && volume.sortOrder > (detailPlan.volumeOrder ?? 1)) {
+      break;
+    }
+    if (detailPlan.mode === "chapter_range" && maxPreparedChapterOrder >= (detailPlan.endOrder ?? 1)) {
+      break;
+    }
+
+    workspace = await runDirectorTrackedStep({
+      taskId,
+      stage: "structured_outline",
+      itemKey: "beat_sheet",
+      itemLabel: `正在生成第 ${volume.sortOrder} 卷节奏板`,
+      progress: DIRECTOR_PROGRESS.beatSheet,
+      callbacks,
+      run: async ({ updateStatus }) => dependencies.volumeService.generateVolumes(novelId, {
+        provider: request.provider,
+        model: request.model,
+        temperature: request.temperature,
+        scope: "beat_sheet",
+        targetVolumeId: volume.id,
+        draftWorkspace: workspace,
+        onPhaseStart: async (event) => {
+          const update = buildStructuredOutlinePhaseUpdate(event);
+          if (!update) {
+            return;
+          }
+          await updateStatus(update);
+        },
+      }),
+    });
+    workspace = await runDirectorTrackedStep({
+      taskId,
+      stage: "structured_outline",
+      itemKey: "chapter_list",
+      itemLabel: `正在生成第 ${volume.sortOrder} 卷章节列表`,
+      progress: DIRECTOR_PROGRESS.chapterList,
+      callbacks,
+      run: async ({ updateStatus }) => dependencies.volumeService.generateVolumes(novelId, {
+        provider: request.provider,
+        model: request.model,
+        temperature: request.temperature,
+        scope: "chapter_list",
+        targetVolumeId: volume.id,
+        draftWorkspace: workspace,
+        onPhaseStart: async (event) => {
+          const update = buildStructuredOutlinePhaseUpdate(event);
+          if (!update) {
+            return;
+          }
+          await updateStatus(update);
+        },
+      }),
+    });
+    preparedVolumeIds.push(volume.id);
+    maxPreparedChapterOrder = Math.max(
+      0,
+      ...flattenPreparedOutlineChapters(workspace).map((chapter) => chapter.chapterOrder),
+    );
+  }
+  if (detailPlan.mode === "chapter_range" && maxPreparedChapterOrder < (detailPlan.endOrder ?? 1)) {
+    throw new Error(
+      `当前已生成的章节规划最多只覆盖到第 ${maxPreparedChapterOrder} 章，不能直接自动执行第 ${detailPlan.startOrder}-${detailPlan.endOrder} 章。`,
+    );
+  }
+
   await callbacks.markDirectorTaskRunning(
     taskId,
     "structured_outline",
     "chapter_sync",
-    "正在同步第 1 卷章节到执行区",
+    "正在同步已准备章节到执行区",
     DIRECTOR_PROGRESS.chapterSync,
   );
   let persistedOutlineWorkspace = await dependencies.volumeService.updateVolumes(novelId, workspace);
@@ -400,29 +491,25 @@ export async function runDirectorStructuredOutlinePhase(input: {
     applyDeletes: false,
   });
 
-  const refreshedTargetVolume = persistedOutlineWorkspace.volumes.find((volume) => volume.id === targetVolume.id)
-    ?? persistedOutlineWorkspace.volumes[0];
-  if (!refreshedTargetVolume) {
-    throw new Error("自动导演未能生成第 1 卷章节列表。");
+  const selectedChapters = selectPreparedOutlineChapters(persistedOutlineWorkspace, request);
+  if (selectedChapters.length === 0) {
+    throw new Error("自动导演未能准备出可执行的章节范围。");
   }
-  if (refreshedTargetVolume.chapters.length === 0) {
-    throw new Error("自动导演未能生成可同步的章节列表，当前不能进入章节执行。");
-  }
-
-  const frontTenChapters = refreshedTargetVolume.chapters
-    .slice()
-    .sort((left, right) => left.chapterOrder - right.chapterOrder)
-    .slice(0, 10);
-  const totalDetailSteps = frontTenChapters.length * DIRECTOR_CHAPTER_DETAIL_MODES.length;
+  const autoExecutionScopeLabel = buildDirectorAutoExecutionScopeLabel(
+    detailPlan,
+    selectedChapters.length,
+    detailPlan.mode === "volume" ? selectedChapters[0]?.volumeTitle ?? null : null,
+  );
+  const totalDetailSteps = selectedChapters.length * DIRECTOR_CHAPTER_DETAIL_MODES.length;
   let completedDetailSteps = 0;
 
-  for (const [chapterIndex, chapter] of frontTenChapters.entries()) {
+  for (const [chapterIndex, chapter] of selectedChapters.entries()) {
     for (const detailMode of DIRECTOR_CHAPTER_DETAIL_MODES) {
       await callbacks.markDirectorTaskRunning(
         taskId,
         "structured_outline",
         "chapter_detail_bundle",
-        buildChapterDetailBundleLabel(chapterIndex + 1, frontTenChapters.length, detailMode),
+        buildChapterDetailBundleLabel(chapterIndex + 1, selectedChapters.length, detailMode),
         buildChapterDetailBundleProgress(completedDetailSteps, totalDetailSteps),
       );
       workspace = await dependencies.volumeService.generateVolumes(novelId, {
@@ -430,7 +517,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
         model: request.model,
         temperature: request.temperature,
         scope: "chapter_detail",
-        targetVolumeId: refreshedTargetVolume.id,
+        targetVolumeId: chapter.volumeId,
         targetChapterId: chapter.id,
         detailMode,
         draftWorkspace: persistedOutlineWorkspace,
@@ -444,7 +531,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
     taskId,
     "structured_outline",
     "chapter_detail_bundle",
-    `前 ${frontTenChapters.length} 章细化已完成，正在同步章节执行资源`,
+    `${autoExecutionScopeLabel}细化已完成，正在同步章节执行资源`,
     DIRECTOR_PROGRESS.chapterDetailDone,
   );
   persistedOutlineWorkspace = await dependencies.volumeService.updateVolumes(novelId, persistedOutlineWorkspace);
@@ -464,6 +551,25 @@ export async function runDirectorStructuredOutlinePhase(input: {
     outlineStatus: "in_progress",
   });
 
+  const selectedChapterOrders = selectedChapters.map((chapter) => chapter.chapterOrder).sort((left, right) => left - right);
+  const autoExecutionState = buildDirectorAutoExecutionState({
+    range: {
+      startOrder: selectedChapterOrders[0] ?? 1,
+      endOrder: selectedChapterOrders[selectedChapterOrders.length - 1] ?? selectedChapterOrders[0] ?? 1,
+      totalChapterCount: selectedChapters.length,
+      firstChapterId: selectedChapters[0]?.id ?? null,
+    },
+    chapters: persistedChapters.map((chapter) => ({
+      id: chapter.id,
+      order: chapter.order,
+      generationState: chapter.generationState ?? null,
+    })),
+    plan: detailPlan,
+    scopeLabel: autoExecutionScopeLabel,
+    volumeTitle: detailPlan.mode === "volume" ? selectedChapters[0]?.volumeTitle ?? null : null,
+    preparedVolumeIds,
+  });
+
   const pausedSession = buildDirectorSessionState({
     runMode: request.runMode,
     phase: "front10_ready",
@@ -473,20 +579,21 @@ export async function runDirectorStructuredOutlinePhase(input: {
     novelId,
     taskId,
     stage: "chapter",
-    volumeId: refreshedTargetVolume.id,
-    chapterId: frontTenChapters[0]?.id ?? null,
+    volumeId: selectedChapters[0]?.volumeId ?? firstVolume.id,
+    chapterId: selectedChapters[0]?.id ?? null,
   });
   await dependencies.workflowService.recordCheckpoint(taskId, {
     stage: "chapter_execution",
     checkpointType: "front10_ready",
-    checkpointSummary: `《${request.candidate.workingTitle.trim() || request.title?.trim() || "当前项目"}》已生成第 1 卷节奏板，并准备好前 ${frontTenChapters.length} 章细化。`,
-    itemLabel: `前 ${frontTenChapters.length} 章已可进入章节执行`,
-    volumeId: refreshedTargetVolume.id,
-    chapterId: frontTenChapters[0]?.id ?? null,
+    checkpointSummary: `《${request.candidate.workingTitle.trim() || request.title?.trim() || "当前项目"}》已准备好${autoExecutionScopeLabel}的章节执行资源。`,
+    itemLabel: `${autoExecutionScopeLabel}已可进入章节执行`,
+    volumeId: selectedChapters[0]?.volumeId ?? firstVolume.id,
+    chapterId: selectedChapters[0]?.id ?? null,
     progress: DIRECTOR_PROGRESS.front10Ready,
     seedPayload: callbacks.buildDirectorSeedPayload(request, novelId, {
       directorSession: pausedSession,
       resumeTarget: chapterResumeTarget,
+      autoExecution: autoExecutionState,
     }),
   });
 }

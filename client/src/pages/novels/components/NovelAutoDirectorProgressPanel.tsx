@@ -29,7 +29,7 @@ const DIRECTOR_EXECUTION_STEPS: DirectorStepDefinition[] = [
   { key: "character_setup", label: "角色准备" },
   { key: "volume_strategy", label: "卷战略 + 卷骨架" },
   { key: "beat_sheet", label: "第 1 卷节奏板 + 章节列表" },
-  { key: "chapter_detail_bundle", label: "前 10 章细化" },
+  { key: "chapter_detail_bundle", label: "章节批量细化" },
 ];
 
 const DIRECTOR_CANDIDATE_SETUP_STEP_KEYS = new Set<string>(
@@ -51,7 +51,25 @@ function formatTokenCount(value: number | null | undefined): string {
   return new Intl.NumberFormat("zh-CN").format(Math.max(0, Math.round(value ?? 0)));
 }
 
-function formatCheckpoint(checkpoint: NovelWorkflowCheckpoint | null | undefined): string {
+function resolveAutoExecutionScopeLabel(task: UnifiedTaskDetail | null): string {
+  const seedPayload = (task?.meta.seedPayload ?? null) as {
+    autoExecution?: {
+      scopeLabel?: string | null;
+      totalChapterCount?: number | null;
+    } | null;
+  } | null;
+  const scopeLabel = seedPayload?.autoExecution?.scopeLabel?.trim();
+  if (scopeLabel) {
+    return scopeLabel;
+  }
+  const fallbackCount = Math.max(1, Math.round(seedPayload?.autoExecution?.totalChapterCount ?? 10));
+  return `前 ${fallbackCount} 章`;
+}
+
+function formatCheckpoint(
+  checkpoint: NovelWorkflowCheckpoint | null | undefined,
+  task: UnifiedTaskDetail | null,
+): string {
   if (checkpoint === "candidate_selection_required") {
     return "等待确认书级方向";
   }
@@ -65,10 +83,10 @@ function formatCheckpoint(checkpoint: NovelWorkflowCheckpoint | null | undefined
     return "卷战略已就绪";
   }
   if (checkpoint === "front10_ready") {
-    return "前 10 章可开写";
+    return `${resolveAutoExecutionScopeLabel(task)}可开写`;
   }
   if (checkpoint === "chapter_batch_ready") {
-    return "章节批量资源已就绪";
+    return `${resolveAutoExecutionScopeLabel(task)}自动执行已暂停`;
   }
   if (checkpoint === "replan_required") {
     return "需要重规划";
@@ -203,7 +221,7 @@ export default function NovelAutoDirectorProgressPanel({
     && task?.checkpointType === "chapter_batch_ready"
     && task.currentItemLabel?.includes("已暂停")
   )
-    ? "正在继续自动执行前 10 章"
+    ? `正在继续自动执行${resolveAutoExecutionScopeLabel(task)}`
     : (
       task?.currentItemLabel?.trim()
       || (mode === "execution_failed" ? "导演任务执行中断" : "正在准备导演任务")
@@ -266,7 +284,7 @@ export default function NovelAutoDirectorProgressPanel({
         description={description}
         progress={task ? task.progress : null}
         currentAction={currentAction}
-        checkpointLabel={formatCheckpoint(task?.checkpointType)}
+        checkpointLabel={formatCheckpoint(task?.checkpointType, task)}
         taskId={taskId || task?.id}
         actions={actions}
       >
@@ -326,7 +344,7 @@ export default function NovelAutoDirectorProgressPanel({
               .reverse()
               .map((item) => (
                 <div key={`${item.checkpointType}:${item.createdAt}`} className="rounded-lg border bg-muted/15 p-3">
-                  <div className="font-medium text-foreground">{formatCheckpoint(item.checkpointType)}</div>
+                  <div className="font-medium text-foreground">{formatCheckpoint(item.checkpointType, task)}</div>
                   <div className="mt-1 text-sm text-muted-foreground">{item.summary}</div>
                   <div className="mt-1 text-xs text-muted-foreground">记录时间：{formatDate(item.createdAt)}</div>
                 </div>

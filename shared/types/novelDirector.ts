@@ -84,10 +84,28 @@ export const DIRECTOR_RUN_MODES = [
 
 export type DirectorRunMode = typeof DIRECTOR_RUN_MODES[number];
 
+export const DIRECTOR_AUTO_EXECUTION_MODES = [
+  "front10",
+  "chapter_range",
+  "volume",
+] as const;
+
+export type DirectorAutoExecutionMode = typeof DIRECTOR_AUTO_EXECUTION_MODES[number];
+
+export interface DirectorAutoExecutionPlan {
+  mode: DirectorAutoExecutionMode;
+  startOrder?: number;
+  endOrder?: number;
+  volumeOrder?: number;
+}
+
 export type DirectorContinuationMode = "resume" | "auto_execute_front10";
 
-export interface DirectorAutoExecutionState {
+export interface DirectorAutoExecutionState extends DirectorAutoExecutionPlan {
   enabled: boolean;
+  scopeLabel?: string | null;
+  volumeTitle?: string | null;
+  preparedVolumeIds?: string[];
   firstChapterId?: string | null;
   startOrder?: number;
   endOrder?: number;
@@ -212,6 +230,7 @@ export interface DirectorTakeoverReadinessResponse {
 export interface DirectorTakeoverRequest extends DirectorLLMOptions {
   novelId: string;
   startPhase: DirectorTakeoverStartPhase;
+  autoExecutionPlan?: DirectorAutoExecutionPlan;
 }
 
 export interface DirectorTakeoverResponse {
@@ -291,6 +310,7 @@ export interface DirectorConfirmRequest extends DirectorProjectContextInput, Dir
   round?: number;
   candidate: DirectorCandidate;
   workflowTaskId?: string;
+  autoExecutionPlan?: DirectorAutoExecutionPlan;
 }
 
 export interface DirectorPlanScene {

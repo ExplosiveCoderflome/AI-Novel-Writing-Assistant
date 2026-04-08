@@ -327,6 +327,7 @@ export class NovelDirectorService {
       seedPayload: this.buildDirectorSeedPayload(
         {
           ...directorInput,
+          autoExecutionPlan: input.autoExecutionPlan,
           provider: input.provider ?? directorInput.provider,
           model: input.model?.trim() || directorInput.model,
           temperature: typeof input.temperature === "number" ? input.temperature : directorInput.temperature,
@@ -350,6 +351,7 @@ export class NovelDirectorService {
         novelId: input.novelId,
         input: {
           ...directorInput,
+          autoExecutionPlan: input.autoExecutionPlan,
           provider: input.provider ?? directorInput.provider,
           model: input.model?.trim() || directorInput.model,
           temperature: typeof input.temperature === "number" ? input.temperature : directorInput.temperature,

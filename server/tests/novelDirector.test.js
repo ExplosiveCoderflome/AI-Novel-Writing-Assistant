@@ -381,6 +381,11 @@ test("novel director routes support candidates, refine and confirm flows", async
         writingMode: "original",
         estimatedChapterCount: 30,
         runMode: "auto_to_execution",
+        autoExecutionPlan: {
+          mode: "chapter_range",
+          startOrder: 11,
+          endOrder: 20,
+        },
         batchId: "batch_2",
         round: 2,
         candidate: buildCandidate(),
@@ -393,6 +398,11 @@ test("novel director routes support candidates, refine and confirm flows", async
     assert.equal(confirmPayload.data.createdChapterCount, 30);
     assert.equal(confirmPayload.data.bookSpec.targetChapterCount, 30);
     assert.equal(confirmCalls.at(-1)?.runMode, "auto_to_execution");
+    assert.deepEqual(confirmCalls.at(-1)?.autoExecutionPlan, {
+      mode: "chapter_range",
+      startOrder: 11,
+      endOrder: 20,
+    });
 
     const readinessResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/takeover-readiness/novel_director_demo`);
     assert.equal(readinessResponse.status, 200);
@@ -408,6 +418,10 @@ test("novel director routes support candidates, refine and confirm flows", async
         novelId: "novel_director_demo",
         startPhase: "volume_strategy",
         runMode: "auto_to_execution",
+        autoExecutionPlan: {
+          mode: "volume",
+          volumeOrder: 2,
+        },
       }),
     });
     assert.equal(takeoverResponse.status, 200);
@@ -417,6 +431,10 @@ test("novel director routes support candidates, refine and confirm flows", async
     assert.equal(takeoverPayload.data.resumeTarget.stage, "outline");
     assert.equal(takeoverPayload.data.directorSession.runMode, "auto_to_execution");
     assert.equal(takeoverCalls.at(-1)?.runMode, "auto_to_execution");
+    assert.deepEqual(takeoverCalls.at(-1)?.autoExecutionPlan, {
+      mode: "volume",
+      volumeOrder: 2,
+    });
   } finally {
     NovelDirectorService.prototype.generateCandidates = originalGenerate;
     NovelDirectorService.prototype.refineCandidates = originalRefine;

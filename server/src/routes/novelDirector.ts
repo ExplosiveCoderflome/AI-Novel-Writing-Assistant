@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import {
   DIRECTOR_CORRECTION_PRESETS,
+  DIRECTOR_AUTO_EXECUTION_MODES,
   type DirectorCandidatePatchRequest,
   type DirectorCandidateTitleRefineRequest,
   type DirectorConfirmRequest,
@@ -24,6 +25,7 @@ const novelDirectorService = new NovelDirectorService();
 
 const correctionPresetValues = DIRECTOR_CORRECTION_PRESETS.map((item) => item.value) as [string, ...string[]];
 const takeoverStartPhaseValues = [...DIRECTOR_TAKEOVER_START_PHASES] as [string, ...string[]];
+const autoExecutionModeValues = [...DIRECTOR_AUTO_EXECUTION_MODES] as [string, ...string[]];
 
 const llmOptionsSchema = z.object({
   provider: llmProviderSchema.optional(),
@@ -31,6 +33,13 @@ const llmOptionsSchema = z.object({
   temperature: z.number().min(0).max(2).optional(),
   runMode: z.enum(["auto_to_ready", "auto_to_execution", "stage_review"]).optional(),
 });
+
+const autoExecutionPlanSchema = z.object({
+  mode: z.enum(autoExecutionModeValues),
+  startOrder: z.number().int().min(1).optional(),
+  endOrder: z.number().int().min(1).optional(),
+  volumeOrder: z.number().int().min(1).optional(),
+}).optional();
 
 const projectContextSchema = z.object({
   title: z.string().trim().optional(),
@@ -123,6 +132,7 @@ const confirmSchema = projectContextSchema.extend({
   round: z.number().int().min(1).optional(),
   candidate: directorCandidateSchema,
   workflowTaskId: z.string().trim().optional(),
+  autoExecutionPlan: autoExecutionPlanSchema,
 }).merge(llmOptionsSchema);
 
 const takeoverParamsSchema = z.object({
@@ -132,6 +142,7 @@ const takeoverParamsSchema = z.object({
 const takeoverSchema = z.object({
   novelId: z.string().trim().min(1),
   startPhase: z.enum(takeoverStartPhaseValues),
+  autoExecutionPlan: autoExecutionPlanSchema,
 }).merge(llmOptionsSchema);
 
 router.post("/candidates", validate({ body: candidatesSchema }), async (req, res, next) => {

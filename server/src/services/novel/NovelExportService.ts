@@ -33,6 +33,24 @@ function safeFileNamePart(input: string): string {
   return cleaned || "novel";
 }
 
+function padTimeUnit(value: number): string {
+  return String(Math.max(0, Math.floor(value))).padStart(2, "0");
+}
+
+function buildExportTimestamp(input: Date = new Date()): string {
+  return [
+    input.getFullYear(),
+    padTimeUnit(input.getMonth() + 1),
+    padTimeUnit(input.getDate()),
+  ].join("")
+    + "-"
+    + [
+      padTimeUnit(input.getHours()),
+      padTimeUnit(input.getMinutes()),
+      padTimeUnit(input.getSeconds()),
+    ].join("");
+}
+
 function buildTxtContent(novel: NovelRecord): string {
   const lines: string[] = [];
   lines.push(`《${novel.title}》`);
@@ -113,16 +131,17 @@ export class NovelExportService {
     }
 
     const fileTitle = safeFileNamePart(novel.title);
+    const exportTimestamp = buildExportTimestamp();
     if (format === "markdown") {
       return {
-        fileName: `${fileTitle}.md`,
+        fileName: `${fileTitle}-${exportTimestamp}.md`,
         contentType: "text/markdown; charset=utf-8",
         content: buildMarkdownContent(novel),
       };
     }
 
     return {
-      fileName: `${fileTitle}.txt`,
+      fileName: `${fileTitle}-${exportTimestamp}.txt`,
       contentType: "text/plain; charset=utf-8",
       content: buildTxtContent(novel),
     };

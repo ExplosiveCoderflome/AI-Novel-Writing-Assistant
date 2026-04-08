@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  buildDirectorAutoExecutionScopeLabel,
   buildDirectorAutoExecutionPipelineOptions,
   resolveDirectorAutoExecutionRange,
   resolveDirectorAutoExecutionWorkflowState,
@@ -46,6 +47,19 @@ test("buildDirectorAutoExecutionPipelineOptions uses front10-safe defaults", () 
   assert.equal(options.skipCompleted, true);
   assert.equal(options.qualityThreshold, 75);
   assert.equal(options.repairMode, "light_repair");
+});
+
+test("buildDirectorAutoExecutionScopeLabel supports chapter ranges and volume labels", () => {
+  assert.equal(buildDirectorAutoExecutionScopeLabel({
+    mode: "chapter_range",
+    startOrder: 11,
+    endOrder: 20,
+  }), "第 11-20 章");
+
+  assert.equal(buildDirectorAutoExecutionScopeLabel({
+    mode: "volume",
+    volumeOrder: 2,
+  }, null, "中段反扑卷"), "第 2 卷 · 中段反扑卷");
 });
 
 test("resolveDirectorAutoExecutionWorkflowState maps review and repair into quality repair stage", () => {

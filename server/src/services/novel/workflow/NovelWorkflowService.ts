@@ -75,8 +75,8 @@ const CHECKPOINT_ITEM_LABELS: Record<NovelWorkflowCheckpoint, string> = {
   book_contract_ready: "Book Contract 已就绪",
   character_setup_required: "等待审核角色准备",
   volume_strategy_ready: "卷战略已就绪",
-  front10_ready: "前 10 章已可进入章节执行",
-  chapter_batch_ready: "前 10 章自动执行已暂停",
+  front10_ready: "已准备章节可进入执行",
+  chapter_batch_ready: "自动执行已暂停",
   replan_required: "等待处理重规划建议",
   workflow_completed: "小说主流程已完成",
 };
@@ -273,7 +273,7 @@ export class NovelWorkflowService {
       progress: job.progress,
       currentStage: job.currentStage,
       currentItemLabel: job.currentItemLabel,
-    }, range);
+    }, range, autoExecution);
     const nextResumeTarget = buildNovelEditResumeTarget({
       novelId: existing.novelId,
       taskId,
