@@ -6,6 +6,7 @@ import type {
   StoryPlan,
   StoryStateSnapshot,
 } from "@ai-novel/shared/types/novel";
+import type { SSEFrame } from "@ai-novel/shared/types/api";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,11 +47,13 @@ interface ChapterExecutionResultPanelProps {
   isStreaming: boolean;
   streamingChapterId?: string | null;
   streamingChapterLabel?: string | null;
+  chapterRunStatus?: Extract<SSEFrame, { type: "run_status" }> | null;
   onAbortStream: () => void;
   repairStreamContent: string;
   isRepairStreaming: boolean;
   repairStreamingChapterId?: string | null;
   repairStreamingChapterLabel?: string | null;
+  repairRunStatus?: Extract<SSEFrame, { type: "run_status" }> | null;
   onAbortRepair: () => void;
 }
 
@@ -92,11 +95,13 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
     isStreaming,
     streamingChapterId,
     streamingChapterLabel,
+    chapterRunStatus,
     onAbortStream,
     repairStreamContent,
     isRepairStreaming,
     repairStreamingChapterId,
     repairStreamingChapterLabel,
+    repairRunStatus,
     onAbortRepair,
   } = props;
 
@@ -115,10 +120,15 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
   const hasSavedChapterContent = hasText(savedChapterContent);
 
   const isSelectedChapterStreaming = isStreaming && streamingChapterId === selectedChapter.id;
+  const isSelectedChapterFinalizing = isSelectedChapterStreaming && chapterRunStatus?.phase === "finalizing";
   const visibleLiveWritingOutput = streamingChapterId === selectedChapter.id ? streamContent : "";
   const hasVisibleLiveWritingOutput = hasText(visibleLiveWritingOutput);
   const useLiveWritingPanel = isSelectedChapterStreaming || (!hasSavedChapterContent && hasVisibleLiveWritingOutput);
-  const contentPanelTitle = useLiveWritingPanel ? "实时写作稿" : "已保存正文";
+  const contentPanelTitle = isSelectedChapterFinalizing
+    ? "章节收尾中"
+    : useLiveWritingPanel
+      ? "实时写作稿"
+      : "已保存正文";
   const contentPanelContent = useLiveWritingPanel
     ? visibleLiveWritingOutput
     : hasSavedChapterContent
@@ -129,6 +139,7 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
   const contentPanelWordCount = contentPanelContent.trim().length;
 
   const isSelectedChapterRepairStreaming = isRepairStreaming && repairStreamingChapterId === selectedChapter.id;
+  const isSelectedChapterRepairFinalizing = isSelectedChapterRepairStreaming && repairRunStatus?.phase === "finalizing";
   const visibleRepairStreamContent = repairStreamingChapterId === selectedChapter.id ? repairStreamContent : "";
   const hasVisibleRepairOutput = hasText(visibleRepairStreamContent);
 
@@ -148,7 +159,11 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline">{chapterLabel}</Badge>
                 <Badge variant={isSelectedChapterStreaming ? "default" : "secondary"}>
-                  {isSelectedChapterStreaming ? "正在实时写作" : "章节结果工作台"}
+                  {isSelectedChapterFinalizing
+                    ? "正在收尾处理"
+                    : isSelectedChapterStreaming
+                      ? "正在实时写作"
+                      : "章节结果工作台"}
                 </Badge>
                 {typeof qualityOverall === "number" ? (
                   <Badge variant={qualityOverall >= 85 ? "default" : qualityOverall >= 70 ? "outline" : "secondary"}>
@@ -189,7 +204,11 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant={isSelectedChapterStreaming ? "default" : "secondary"}>
-                  {isSelectedChapterStreaming ? "实时写作中" : "已保存版本"}
+                  {isSelectedChapterFinalizing
+                    ? "收尾处理中"
+                    : isSelectedChapterStreaming
+                      ? "实时写作中"
+                      : "已保存版本"}
                 </Badge>
                 <Badge variant="outline">{chapterLabel}</Badge>
                 <Badge variant="outline">当前展示 {contentPanelWordCount} 字</Badge>
@@ -206,14 +225,16 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
               <div>
                 <div className="text-sm font-semibold text-foreground">{contentPanelTitle}</div>
                 <div className="mt-1 text-xs leading-6 text-muted-foreground">
-                  {isSelectedChapterStreaming
-                    ? "AI 正在持续输出这一章的正文，先在这里观察节奏和手感，不满意时可以随时停止。"
-                    : "正文固定显示在主区域，任务单、质量反馈和修复记录都收进下面的详情区。"}
+                  {isSelectedChapterFinalizing
+                    ? (chapterRunStatus?.message ?? "正文已经输出完成，系统正在保存草稿、执行审计并同步章节状态。")
+                    : isSelectedChapterStreaming
+                      ? "AI 正在持续输出这一章的正文，先在这里观察节奏和手感，不满意时可以随时停止。"
+                      : "正文固定显示在主区域，任务单、质量反馈和修复记录都收进下面的详情区。"}
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-muted-foreground">字数 {contentPanelWordCount}</span>
-                {isSelectedChapterStreaming ? (
+                {isSelectedChapterStreaming && !isSelectedChapterFinalizing ? (
                   <Button size="sm" variant="secondary" onClick={onAbortStream}>
                     停止生成
                   </Button>
@@ -338,10 +359,12 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
                   {(isSelectedChapterRepairStreaming || hasVisibleRepairOutput) ? (
                     <StreamOutput
                       title="问题修复输出"
-                      emptyText="等待修复输出..."
+                      emptyText={isSelectedChapterRepairFinalizing
+                        ? (repairRunStatus?.message ?? "修复文本已经输出完成，系统正在保存并复审。")
+                        : "等待修复输出..."}
                       content={visibleRepairStreamContent}
                       isStreaming={isSelectedChapterRepairStreaming}
-                      onAbort={onAbortRepair}
+                      onAbort={isSelectedChapterRepairFinalizing ? undefined : onAbortRepair}
                     />
                   ) : null}
 

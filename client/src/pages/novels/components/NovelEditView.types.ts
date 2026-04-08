@@ -49,6 +49,7 @@ import type { StructuredSyncOptions } from "../novelEdit.utils";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 import type { ExistingOutlineChapter } from "../volumePlan.utils";
 import type { AITakeoverAction } from "@/components/workflow/AITakeoverContainer";
+import type { SSEFrame } from "@ai-novel/shared/types/api";
 import type { ReactNode } from "react";
 
 export interface BasicTabProps {
@@ -309,11 +310,13 @@ export interface ChapterTabViewProps {
   isRepairStreaming: boolean;
   repairStreamingChapterId?: string | null;
   repairStreamingChapterLabel?: string | null;
+  repairRunStatus?: Extract<SSEFrame, { type: "run_status" }> | null;
   onAbortRepair: () => void;
   streamContent: string;
   isStreaming: boolean;
   streamingChapterId?: string | null;
   streamingChapterLabel?: string | null;
+  chapterRunStatus?: Extract<SSEFrame, { type: "run_status" }> | null;
   onAbortStream: () => void;
 }
 

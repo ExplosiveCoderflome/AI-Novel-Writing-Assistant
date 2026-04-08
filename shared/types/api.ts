@@ -19,7 +19,13 @@ export type SSEFrame =
   | { type: "approval_required"; runId: string; approvalId: string; summary: string; targetType: string; targetId: string }
   | { type: "approval_resolved"; runId: string; approvalId: string; action: "approved" | "rejected"; note?: string }
   | { type: "runtime_package"; package: ChapterRuntimePackage }
-  | { type: "run_status"; runId: string; status: "queued" | "running" | "waiting_approval" | "succeeded" | "failed" | "cancelled"; message?: string };
+  | {
+    type: "run_status";
+    runId: string;
+    status: "queued" | "running" | "waiting_approval" | "succeeded" | "failed" | "cancelled";
+    phase?: "streaming" | "finalizing" | "completed";
+    message?: string;
+  };
 
 export type CreativeHubStreamFrame =
   | { event: "messages/partial"; data: CreativeHubMessage[] }

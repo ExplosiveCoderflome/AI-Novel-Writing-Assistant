@@ -121,6 +121,7 @@ export function useNovelEditChapterRuntime({
     if (!selectedChapter) {
       return;
     }
+    setChapterOperationMessage("正在生成本章正文...");
     setActiveChapterStream({
       chapterId: selectedChapter.id,
       chapterLabel: `第${selectedChapter.order}章 ${selectedChapter.title || "未命名章节"}`,
@@ -148,6 +149,7 @@ export function useNovelEditChapterRuntime({
       setChapterOperationMessage("请先选择章节。");
       return;
     }
+    setChapterOperationMessage("正在生成修复稿...");
     setRepairBeforeContent(selectedChapter?.content ?? "");
     setRepairAfterContent("");
     setActiveRepairStream({

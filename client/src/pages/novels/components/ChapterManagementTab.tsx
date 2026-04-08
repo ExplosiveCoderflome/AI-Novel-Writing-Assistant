@@ -65,11 +65,13 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     isRepairStreaming,
     repairStreamingChapterId,
     repairStreamingChapterLabel,
+    repairRunStatus,
     onAbortRepair,
     streamContent,
     isStreaming,
     streamingChapterId,
     streamingChapterLabel,
+    chapterRunStatus,
     onAbortStream,
   } = props;
 
@@ -147,6 +149,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
               queueFilter={queueFilter}
               queueFilters={queueFilters}
               streamingChapterId={streamingChapterId}
+              streamingPhase={streamingChapterId ? (chapterRunStatus?.phase ?? "streaming") : null}
               repairStreamingChapterId={repairStreamingChapterId}
               onQueueFilterChange={setQueueFilter}
               onSelectChapter={onSelectChapter}
@@ -173,11 +176,13 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
               isStreaming={isStreaming}
               streamingChapterId={streamingChapterId}
               streamingChapterLabel={streamingChapterLabel}
+              chapterRunStatus={chapterRunStatus}
               onAbortStream={onAbortStream}
               repairStreamContent={repairStreamContent}
               isRepairStreaming={isRepairStreaming}
               repairStreamingChapterId={repairStreamingChapterId}
               repairStreamingChapterLabel={repairStreamingChapterLabel}
+              repairRunStatus={repairRunStatus}
               onAbortRepair={onAbortRepair}
             />
           </div>

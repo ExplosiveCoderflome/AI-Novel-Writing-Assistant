@@ -7,7 +7,7 @@ interface UseSSEOptions {
   headers?: Record<string, string>;
   onReasoning?: (content: string) => void;
   onDone?: (fullContent: string) => void | Promise<void>;
-  onRunStatus?: (payload: { runId: string; status: string; message?: string }) => void;
+  onRunStatus?: (payload: { runId: string; status: string; phase?: "streaming" | "finalizing" | "completed"; message?: string }) => void;
 }
 
 export function useSSE(options?: UseSSEOptions) {

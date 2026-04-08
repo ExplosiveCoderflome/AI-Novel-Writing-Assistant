@@ -1,6 +1,7 @@
 import type { AuditReport, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { BaseMessageChunk } from "@langchain/core/messages";
+import type { StreamDoneHelpers } from "../../llm/streaming";
 import { prisma } from "../../db/prisma";
 import { runStructuredPrompt, streamTextPrompt } from "../../prompting/core/promptRunner";
 import {
@@ -99,7 +100,13 @@ export class NovelCoreReviewService {
       chapterId,
     );
 
-    await prisma.chapter.update({ where: { id: chapterId }, data: { generationState: "reviewed" } });
+    await prisma.chapter.update({
+      where: { id: chapterId },
+      data: {
+        generationState: "reviewed",
+        chapterStatus: isPass(review.score) ? "completed" : "needs_repair",
+      },
+    });
     await createQualityReport(novelId, chapterId, review.score, review.issues);
     if ((review.auditReports?.length ?? 0) > 0 && plannerService.shouldTriggerReplanFromAudit(review.auditReports ?? [])) {
       await plannerService.replan(novelId, {
@@ -191,7 +198,15 @@ export class NovelCoreReviewService {
 
     return {
       stream: streamed.stream as AsyncIterable<BaseMessageChunk>,
-      onDone: async (fullContent: string) => {
+      onDone: async (fullContent: string, helpers: StreamDoneHelpers) => {
+        const runId = `chapter-repair:${chapterId}`;
+        helpers.writeFrame({
+          type: "run_status",
+          runId,
+          status: "running",
+          phase: "finalizing",
+          message: "修复稿已生成，正在保存正文并重新审校。",
+        });
         const completed = await streamed.complete;
         const repairedContent = completed.output.trim() || fullContent;
         await prisma.chapter.update({
@@ -207,6 +222,15 @@ export class NovelCoreReviewService {
             await auditService.resolveIssues(novelId, options.auditIssueIds).catch(() => null);
           }
         }
+        helpers.writeFrame({
+          type: "run_status",
+          runId,
+          status: "succeeded",
+          phase: "completed",
+          message: isPass(review.score)
+            ? "章节修复已完成，本章已达到可继续推进状态。"
+            : "修复稿已保存，但仍有问题待继续处理。",
+        });
       },
     };
   }

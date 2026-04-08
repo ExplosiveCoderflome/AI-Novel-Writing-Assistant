@@ -1,5 +1,5 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
-import type { StreamDonePayload } from "../../../llm/streaming";
+import type { StreamDoneHelpers, StreamDonePayload, WritableSSEFrame } from "../../../llm/streaming";
 import type {
   ChapterRuntimePackage,
   GenerationContextPackage,
@@ -145,7 +145,7 @@ export class ChapterRuntimeCoordinator {
     config: { includeRuntimePackage: boolean } = { includeRuntimePackage: false },
   ): Promise<{
     stream: AsyncIterable<BaseMessageChunk>;
-    onDone: (fullContent: string) => Promise<void | StreamDonePayload>;
+    onDone: (fullContent: string, helpers: StreamDoneHelpers) => Promise<void | StreamDonePayload>;
   }> {
     const request = this.deps.validateRequest(options);
     await this.deps.ensureNovelCharacters(novelId, "generate chapter content");
@@ -171,9 +171,24 @@ export class ChapterRuntimeCoordinator {
 
     return {
       stream: writerResult.stream,
-      onDone: async (fullContent: string) => {
+      onDone: async (fullContent: string, helpers: StreamDoneHelpers) => {
+        const runStatusId = traceRunId ?? `chapter-runtime:${chapterId}`;
+        this.emitRunStatus(helpers, {
+          type: "run_status",
+          runId: runStatusId,
+          status: "running",
+          phase: "finalizing",
+          message: "正文已生成，正在整理章节文本并保存草稿。",
+        });
         const normalized = await writerResult.onDone(fullContent);
         const generatedContent = normalized?.finalContent ?? fullContent;
+        this.emitRunStatus(helpers, {
+          type: "run_status",
+          runId: runStatusId,
+          status: "running",
+          phase: "finalizing",
+          message: "正在执行风格检查、剧情审计并同步章节状态。",
+        });
         const finalized = await this.finalizeChapterContent({
           novelId,
           chapterId,
@@ -182,6 +197,15 @@ export class ChapterRuntimeCoordinator {
           content: generatedContent,
           runId: traceRunId,
           startMs,
+        });
+        this.emitRunStatus(helpers, {
+          type: "run_status",
+          runId: runStatusId,
+          status: "succeeded",
+          phase: "completed",
+          message: finalized.runtimePackage.audit.hasBlockingIssues
+            ? "章节已保存，但检测到待修复问题。"
+            : "章节已保存，可继续审校。",
         });
 
         return {
@@ -301,6 +325,10 @@ export class ChapterRuntimeCoordinator {
       styleReview,
       runId: input.runId,
     });
+    await this.markGeneratedChapterStatus(
+      input.chapterId,
+      runtimePackage.audit.hasBlockingIssues ? "needs_repair" : "pending_review",
+    );
 
     await this.finishTraceRun(input.runId, styleReview.finalContent.length, input.startMs);
 
@@ -560,6 +588,23 @@ export class ChapterRuntimeCoordinator {
       where: { id: chapterId },
       data: { generationState },
     });
+  }
+
+  private async markGeneratedChapterStatus(
+    chapterId: string,
+    chapterStatus: "pending_review" | "needs_repair",
+  ): Promise<void> {
+    await prisma.chapter.update({
+      where: { id: chapterId },
+      data: { chapterStatus },
+    });
+  }
+
+  private emitRunStatus(
+    helpers: StreamDoneHelpers | undefined,
+    payload: Extract<WritableSSEFrame, { type: "run_status" }>,
+  ): void {
+    helpers?.writeFrame(payload);
   }
 
   private async ensureNovelCharacters(novelId: string, actionName: string, minCount = 1): Promise<void> {

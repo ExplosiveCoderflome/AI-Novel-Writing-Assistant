@@ -255,10 +255,19 @@ test("legacy generate route keeps chunk and done without runtime_package", async
 
   NovelService.prototype.createChapterStream = async () => ({
     stream: buildStream(["旧链路正文"]),
-    onDone: async (fullContent) => ({
+    onDone: async (fullContent, helpers) => {
+      helpers.writeFrame({
+        type: "run_status",
+        runId: "chapter-runtime:legacy",
+        status: "running",
+        phase: "finalizing",
+        message: "正在保存草稿并同步章节状态。",
+      });
+      return ({
       fullContent,
       frames: [],
-    }),
+      });
+    },
   });
 
   const app = createApp();
@@ -276,8 +285,10 @@ test("legacy generate route keeps chunk and done without runtime_package", async
     assert.equal(response.status, 200);
     const text = await response.text();
     assert.ok(text.includes("\"type\":\"chunk\""));
+    assert.ok(text.includes("\"type\":\"run_status\""));
     assert.ok(text.includes("\"type\":\"done\""));
     assert.ok(!text.includes("\"type\":\"runtime_package\""));
+    assert.ok(text.indexOf("\"type\":\"run_status\"") < text.indexOf("\"type\":\"done\""));
   } finally {
     NovelService.prototype.createChapterStream = originalMethod;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));

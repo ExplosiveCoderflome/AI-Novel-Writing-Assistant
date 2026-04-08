@@ -25,6 +25,10 @@ export interface StreamDonePayload {
   frames?: WritableSSEFrame[];
 }
 
+export interface StreamDoneHelpers {
+  writeFrame: (payload: WritableSSEFrame) => void;
+}
+
 export function writeSSEFrame(res: Response, payload: WritableSSEFrame): void {
   if (res.writableEnded) {
     return;
@@ -70,7 +74,10 @@ export function initSSE(res: Response): () => void {
 export async function streamToSSE(
   res: Response,
   stream: AsyncIterable<BaseMessageChunk>,
-  onDone?: (fullContent: string) => void | StreamDonePayload | Promise<void | StreamDonePayload>,
+  onDone?: (
+    fullContent: string,
+    helpers: StreamDoneHelpers,
+  ) => void | StreamDonePayload | Promise<void | StreamDonePayload>,
 ): Promise<void> {
   const disposeHeartbeat = initSSE(res);
   let fullContent = "";
@@ -88,7 +95,9 @@ export async function streamToSSE(
       writeSSEFrame(res, { type: "chunk", content: text });
     }
 
-    const donePayload = await onDone?.(fullContent);
+    const donePayload = await onDone?.(fullContent, {
+      writeFrame: (payload) => writeSSEFrame(res, payload),
+    });
     if (donePayload?.frames?.length) {
       for (const frame of donePayload.frames) {
         writeSSEFrame(res, frame);

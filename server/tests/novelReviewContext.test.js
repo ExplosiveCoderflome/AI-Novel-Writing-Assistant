@@ -65,6 +65,10 @@ function createAssembledContextPackage() {
       antiCopyCorpus: [],
     },
     styleContext: null,
+    ledgerPendingItems: [],
+    ledgerUrgentItems: [],
+    ledgerOverdueItems: [],
+    ledgerSummary: null,
     characterDynamics: {
       novelId: "novel-1",
       currentVolume: {
@@ -198,6 +202,10 @@ function createAssembledContextPackage() {
       }],
       activeRelationStages: [],
       pendingCandidateGuards: [],
+      ledgerPendingItems: [],
+      ledgerUrgentItems: [],
+      ledgerOverdueItems: [],
+      ledgerSummary: null,
       localStateSummary: "主角刚被压住。",
       openConflictSummaries: ["第一次反压尚未开始。"],
       recentChapterSummaries: [],
@@ -223,13 +231,17 @@ test("manual review and manual audit pass assembled chapter review context into 
   const originalAssemble = GenerationContextAssembler.prototype.assemble;
 
   const auditCalls = [];
+  const chapterUpdateCalls = [];
   prisma.chapter.findFirst = async () => ({
     id: "chapter-1",
     title: "第1章",
     content: "章节正文",
     novel: { title: "测试小说" },
   });
-  prisma.chapter.update = async () => null;
+  prisma.chapter.update = async (payload) => {
+    chapterUpdateCalls.push(payload);
+    return null;
+  };
   prisma.qualityReport.create = async () => null;
   plannerService.shouldTriggerReplanFromAudit = () => false;
   GenerationContextAssembler.prototype.assemble = async () => ({
@@ -261,6 +273,13 @@ test("manual review and manual audit pass assembled chapter review context into 
       ["full", "shared-review-context"],
       ["plot", "shared-review-context"],
     ]);
+    assert.deepEqual(chapterUpdateCalls[0], {
+      where: { id: "chapter-1" },
+      data: {
+        generationState: "reviewed",
+        chapterStatus: "completed",
+      },
+    });
   } finally {
     prisma.chapter.findFirst = originalChapterFindFirst;
     prisma.chapter.update = originalChapterUpdate;

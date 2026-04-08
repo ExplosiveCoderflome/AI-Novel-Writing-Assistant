@@ -18,6 +18,7 @@ interface ChapterExecutionQueueCardProps {
   queueFilter: QueueFilterKey;
   queueFilters: QueueFilterOption[];
   streamingChapterId?: string | null;
+  streamingPhase?: "streaming" | "finalizing" | "completed" | null;
   repairStreamingChapterId?: string | null;
   onQueueFilterChange: (filter: QueueFilterKey) => void;
   onSelectChapter: (chapterId: string) => void;
@@ -30,6 +31,7 @@ export default function ChapterExecutionQueueCard(props: ChapterExecutionQueueCa
     queueFilter,
     queueFilters,
     streamingChapterId,
+    streamingPhase,
     repairStreamingChapterId,
     onQueueFilterChange,
     onSelectChapter,
@@ -107,7 +109,9 @@ export default function ChapterExecutionQueueCard(props: ChapterExecutionQueueCa
 
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {isStreamingTarget ? (
-                      <Badge className="rounded-full px-2 py-1 text-[11px]">写作中</Badge>
+                      <Badge className="rounded-full px-2 py-1 text-[11px]">
+                        {streamingPhase === "finalizing" ? "收尾中" : "写作中"}
+                      </Badge>
                     ) : null}
                     {isRepairTarget ? (
                       <Badge variant="secondary" className="rounded-full px-2 py-1 text-[11px]">
