@@ -8,6 +8,7 @@ import {
   isArchivableTaskStatus,
   normalizeFailureSummary,
 } from "../taskSupport";
+import { buildAgentRunTaskCenterVisibilityWhere } from "../taskVisibility";
 import {
   archiveTask as recordTaskArchive,
   getArchivedTaskIds,
@@ -107,6 +108,7 @@ export class AgentRunTaskAdapter {
             ],
           }
           : {}),
+        ...buildAgentRunTaskCenterVisibilityWhere(),
       },
       include: {
         steps: {

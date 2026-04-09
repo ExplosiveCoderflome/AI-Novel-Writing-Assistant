@@ -82,7 +82,11 @@ export default function NovelList() {
   });
 
   const downloadNovelMutation = useMutation({
-    mutationFn: (novelId: string) => downloadNovelExport(novelId, "txt"),
+    mutationFn: (input: { novelId: string; novelTitle: string }) => downloadNovelExport(
+      input.novelId,
+      "txt",
+      input.novelTitle,
+    ),
     onSuccess: ({ blob, fileName }) => {
       createDownload(blob, fileName);
       toast.success("导出已开始。");
@@ -264,7 +268,7 @@ export default function NovelList() {
             const isWorkflowPending = continueWorkflowMutation.isPending
               && continueWorkflowMutation.variables?.taskId === workflowTask?.id;
             const isDownloadPending = downloadNovelMutation.isPending
-              && downloadNovelMutation.variables === novel.id;
+              && downloadNovelMutation.variables?.novelId === novel.id;
             const isDeletePending = deleteNovelMutation.isPending
               && deleteNovelMutation.variables === novel.id;
 
@@ -401,7 +405,10 @@ export default function NovelList() {
                       variant="outline"
                       onClick={(event) => {
                         stopCardClick(event);
-                        downloadNovelMutation.mutate(novel.id);
+                        downloadNovelMutation.mutate({
+                          novelId: novel.id,
+                          novelTitle: novel.title,
+                        });
                       }}
                       disabled={isDownloadPending}
                     >

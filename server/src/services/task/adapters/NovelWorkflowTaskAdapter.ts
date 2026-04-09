@@ -8,7 +8,7 @@ import { AppError } from "../../../middleware/errorHandler";
 import { NovelDirectorService } from "../../novel/director/NovelDirectorService";
 import { NovelWorkflowService } from "../../novel/workflow/NovelWorkflowService";
 import {
-  getDirectorInputFromSeedPayload,
+  getDirectorLlmOptionsFromSeedPayload,
   type DirectorWorkflowSeedPayload,
 } from "../../novel/director/novelDirectorHelpers";
 import {
@@ -239,12 +239,12 @@ export class NovelWorkflowTaskAdapter {
     const directorSession = workflowSeedPayload && typeof workflowSeedPayload.directorSession === "object"
       ? workflowSeedPayload.directorSession
       : null;
-    const directorInput = getDirectorInputFromSeedPayload(workflowSeedPayload);
+    const boundLlm = getDirectorLlmOptionsFromSeedPayload(workflowSeedPayload);
 
     return {
       ...summary,
-      provider: directorInput?.provider ?? null,
-      model: directorInput?.model ?? null,
+      provider: boundLlm?.provider ?? null,
+      model: boundLlm?.model ?? null,
       startedAt: row.startedAt?.toISOString() ?? null,
       finishedAt: row.finishedAt?.toISOString() ?? null,
       retryCountLabel: `${row.attemptCount}/${row.maxAttempts}`,
@@ -254,11 +254,11 @@ export class NovelWorkflowTaskAdapter {
         checkpointSummary: row.checkpointSummary,
         resumeTarget,
         directorSession,
-        llm: directorInput
+        llm: boundLlm
           ? {
-            provider: directorInput.provider ?? null,
-            model: directorInput.model ?? null,
-            temperature: directorInput.temperature ?? null,
+            provider: boundLlm.provider ?? null,
+            model: boundLlm.model ?? null,
+            temperature: boundLlm.temperature ?? null,
           }
           : null,
         seedPayload,

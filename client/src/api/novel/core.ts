@@ -16,6 +16,7 @@ import type {
 } from "@ai-novel/shared/types/novel";
 import { apiClient } from "../client";
 import {
+  buildNovelExportFallbackFileName,
   extractFileName,
   type NovelDetailResponse,
   type NovelListResponse,
@@ -172,12 +173,16 @@ export async function listNovelChapterSummaries(id: string) {
   return summaries;
 }
 
-export async function downloadNovelExport(id: string, format: "txt" | "markdown" = "txt") {
+export async function downloadNovelExport(
+  id: string,
+  format: "txt" | "markdown" = "txt",
+  novelTitle?: string,
+) {
   const response = await apiClient.get<Blob>(`/novels/${id}/export`, {
     params: { format },
     responseType: "blob",
   });
-  const fallback = format === "markdown" ? `novel-${id}.md` : `novel-${id}.txt`;
+  const fallback = buildNovelExportFallbackFileName(novelTitle || id, format);
   return {
     blob: response.data,
     fileName: extractFileName(response.headers["content-disposition"], fallback),

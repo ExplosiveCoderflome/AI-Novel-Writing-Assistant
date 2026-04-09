@@ -5,6 +5,7 @@ import { runWithLlmUsageTracking } from "../../../llm/usageTracking";
 import type {
   DirectorContinuationMode,
   BookSpec,
+  DirectorCandidateBatch,
   DirectorCandidatePatchRequest,
   DirectorCandidatePatchResponse,
   DirectorCandidateTitleRefineRequest,
@@ -37,6 +38,7 @@ import {
   buildDirectorSessionState,
   buildWorkflowSeedPayload,
   getDirectorInputFromSeedPayload,
+  getDirectorLlmOptionsFromSeedPayload,
   type DirectorWorkflowSeedPayload,
   normalizeDirectorRunMode,
   toBookSpec,
@@ -165,6 +167,218 @@ export class NovelDirectorService {
     throw new Error("当前检查点不支持继续自动导演。");
   }
 
+  private isCandidateSelectionTask(input: {
+    checkpointType: string | null;
+    currentItemKey?: string | null;
+    seedPayload: DirectorWorkflowSeedPayload;
+  }): boolean {
+    if (input.checkpointType === "candidate_selection_required") {
+      return true;
+    }
+    if (input.seedPayload.candidateStage) {
+      return true;
+    }
+    if (input.seedPayload.directorSession?.phase === "candidate_selection") {
+      return true;
+    }
+    return typeof input.currentItemKey === "string" && input.currentItemKey.startsWith("candidate_");
+  }
+
+  private buildCandidateStageBaseRequest(
+    taskId: string,
+    seedPayload: DirectorWorkflowSeedPayload,
+  ): DirectorCandidatesRequest | null {
+    const readText = (value: unknown): string | undefined => (
+      typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined
+    );
+    const idea = readText(seedPayload.idea);
+    if (!idea) {
+      return null;
+    }
+    const llm = getDirectorLlmOptionsFromSeedPayload(seedPayload);
+    const runMode = typeof seedPayload.runMode === "string"
+      && (DIRECTOR_RUN_MODES as readonly string[]).includes(seedPayload.runMode)
+      ? seedPayload.runMode as (typeof DIRECTOR_RUN_MODES)[number]
+      : undefined;
+    const commercialTags = Array.isArray(seedPayload.commercialTags)
+      ? seedPayload.commercialTags.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      : undefined;
+    const continuationBookAnalysisSections = Array.isArray(seedPayload.continuationBookAnalysisSections)
+      ? seedPayload.continuationBookAnalysisSections.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      : undefined;
+    return {
+      workflowTaskId: taskId,
+      idea,
+      title: readText(seedPayload.title),
+      description: readText(seedPayload.description),
+      targetAudience: readText(seedPayload.targetAudience),
+      bookSellingPoint: readText(seedPayload.bookSellingPoint),
+      competingFeel: readText(seedPayload.competingFeel),
+      first30ChapterPromise: readText(seedPayload.first30ChapterPromise),
+      commercialTags,
+      genreId: readText(seedPayload.genreId),
+      primaryStoryModeId: readText(seedPayload.primaryStoryModeId),
+      secondaryStoryModeId: readText(seedPayload.secondaryStoryModeId),
+      worldId: readText(seedPayload.worldId),
+      writingMode: seedPayload.writingMode === "continuation" ? "continuation" : "original",
+      projectMode: seedPayload.projectMode === "ai_led"
+        || seedPayload.projectMode === "co_pilot"
+        || seedPayload.projectMode === "draft_mode"
+        || seedPayload.projectMode === "auto_pipeline"
+        ? seedPayload.projectMode
+        : undefined,
+      narrativePov: seedPayload.narrativePov === "first_person"
+        || seedPayload.narrativePov === "third_person"
+        || seedPayload.narrativePov === "mixed"
+        ? seedPayload.narrativePov
+        : undefined,
+      pacePreference: seedPayload.pacePreference === "slow"
+        || seedPayload.pacePreference === "balanced"
+        || seedPayload.pacePreference === "fast"
+        ? seedPayload.pacePreference
+        : undefined,
+      styleTone: readText(seedPayload.styleTone),
+      emotionIntensity: seedPayload.emotionIntensity === "low"
+        || seedPayload.emotionIntensity === "medium"
+        || seedPayload.emotionIntensity === "high"
+        ? seedPayload.emotionIntensity
+        : undefined,
+      aiFreedom: seedPayload.aiFreedom === "low"
+        || seedPayload.aiFreedom === "medium"
+        || seedPayload.aiFreedom === "high"
+        ? seedPayload.aiFreedom
+        : undefined,
+      defaultChapterLength: typeof seedPayload.defaultChapterLength === "number"
+        ? seedPayload.defaultChapterLength
+        : undefined,
+      estimatedChapterCount: typeof seedPayload.estimatedChapterCount === "number"
+        ? seedPayload.estimatedChapterCount
+        : undefined,
+      projectStatus: seedPayload.projectStatus === "not_started"
+        || seedPayload.projectStatus === "in_progress"
+        || seedPayload.projectStatus === "completed"
+        || seedPayload.projectStatus === "rework"
+        || seedPayload.projectStatus === "blocked"
+        ? seedPayload.projectStatus
+        : undefined,
+      storylineStatus: seedPayload.storylineStatus === "not_started"
+        || seedPayload.storylineStatus === "in_progress"
+        || seedPayload.storylineStatus === "completed"
+        || seedPayload.storylineStatus === "rework"
+        || seedPayload.storylineStatus === "blocked"
+        ? seedPayload.storylineStatus
+        : undefined,
+      outlineStatus: seedPayload.outlineStatus === "not_started"
+        || seedPayload.outlineStatus === "in_progress"
+        || seedPayload.outlineStatus === "completed"
+        || seedPayload.outlineStatus === "rework"
+        || seedPayload.outlineStatus === "blocked"
+        ? seedPayload.outlineStatus
+        : undefined,
+      resourceReadyScore: typeof seedPayload.resourceReadyScore === "number"
+        ? seedPayload.resourceReadyScore
+        : undefined,
+      sourceNovelId: readText(seedPayload.sourceNovelId),
+      sourceKnowledgeDocumentId: readText(seedPayload.sourceKnowledgeDocumentId),
+      continuationBookAnalysisId: readText(seedPayload.continuationBookAnalysisId),
+      continuationBookAnalysisSections: continuationBookAnalysisSections as DirectorCandidatesRequest["continuationBookAnalysisSections"],
+      provider: llm?.provider,
+      model: llm?.model,
+      temperature: llm?.temperature,
+      runMode,
+    };
+  }
+
+  private async continueCandidateStageTask(
+    taskId: string,
+    input: {
+      status: string;
+      checkpointType: string | null;
+      currentItemKey?: string | null;
+      seedPayload: DirectorWorkflowSeedPayload;
+    },
+  ): Promise<boolean> {
+    if (!this.isCandidateSelectionTask({
+      checkpointType: input.checkpointType,
+      currentItemKey: input.currentItemKey,
+      seedPayload: input.seedPayload,
+    })) {
+      return false;
+    }
+    if (input.checkpointType === "candidate_selection_required" || input.status === "waiting_approval") {
+      return true;
+    }
+    const baseRequest = this.buildCandidateStageBaseRequest(taskId, input.seedPayload);
+    if (!baseRequest) {
+      throw new Error("自动导演候选阶段任务缺少恢复所需上下文。");
+    }
+    const candidateStage = input.seedPayload.candidateStage;
+    const previousBatches = Array.isArray(input.seedPayload.batches)
+      ? input.seedPayload.batches as DirectorCandidateBatch[]
+      : [];
+    const feedback = candidateStage?.feedback?.trim();
+    const mode = candidateStage?.mode ?? (previousBatches.length === 0 ? "generate" : "refine");
+    if (!mode) {
+      throw new Error("自动导演候选阶段任务缺少恢复模式。");
+    }
+
+    this.scheduleBackgroundRun(taskId, async () => {
+      if (mode === "generate") {
+        await this.candidateStageService.generateCandidates(baseRequest);
+        return;
+      }
+      if (previousBatches.length === 0) {
+        throw new Error("自动导演候选阶段任务缺少候选批次上下文。");
+      }
+      if (mode === "refine") {
+        await this.candidateStageService.refineCandidates({
+          ...baseRequest,
+          previousBatches,
+          presets: candidateStage?.presets ?? [],
+          feedback,
+        });
+        return;
+      }
+      if (!candidateStage?.batchId || !candidateStage?.candidateId || !feedback) {
+        throw new Error("自动导演候选阶段任务缺少定向修正所需上下文。");
+      }
+      if (mode === "patch_candidate") {
+        await this.candidateStageService.patchCandidate({
+          ...baseRequest,
+          previousBatches,
+          batchId: candidateStage.batchId,
+          candidateId: candidateStage.candidateId,
+          presets: candidateStage.presets ?? [],
+          feedback,
+        });
+        return;
+      }
+      await this.candidateStageService.refineCandidateTitleOptions({
+        ...baseRequest,
+        previousBatches,
+        batchId: candidateStage.batchId,
+        candidateId: candidateStage.candidateId,
+        feedback,
+      });
+    });
+    return true;
+  }
+
+  private async runCandidateStageWithFailureHandling<T>(
+    workflowTaskId: string | null | undefined,
+    runner: () => Promise<T>,
+  ): Promise<T> {
+    try {
+      return await this.withWorkflowTaskUsage(workflowTaskId, runner);
+    } catch (error) {
+      if (workflowTaskId?.trim()) {
+        const message = error instanceof Error ? error.message : "自动导演候选阶段执行失败。";
+        await this.workflowService.markTaskFailed(workflowTaskId.trim(), message);
+      }
+      throw error;
+    }
+  }
+
   async continueTask(taskId: string, input?: {
     continuationMode?: DirectorContinuationMode;
   }): Promise<void> {
@@ -183,6 +397,15 @@ export class NovelDirectorService {
     const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(row.seedPayloadJson) ?? {};
     const directorInput = getDirectorInputFromSeedPayload(seedPayload);
     const novelId = row.novelId ?? seedPayload.novelId ?? null;
+    const resumedCandidateStage = await this.continueCandidateStageTask(taskId, {
+      status: row.status,
+      checkpointType: row.checkpointType,
+      currentItemKey: row.currentItemKey,
+      seedPayload,
+    });
+    if (resumedCandidateStage) {
+      return;
+    }
     if (!directorInput || !novelId) {
       throw new Error("自动导演任务缺少恢复所需上下文。");
     }
@@ -373,21 +596,30 @@ export class NovelDirectorService {
   }
 
   async generateCandidates(input: DirectorCandidatesRequest): Promise<DirectorCandidatesResponse> {
-    return this.withWorkflowTaskUsage(input.workflowTaskId, () => this.candidateStageService.generateCandidates(input));
+    return this.runCandidateStageWithFailureHandling(
+      input.workflowTaskId,
+      () => this.candidateStageService.generateCandidates(input),
+    );
   }
 
   async refineCandidates(input: DirectorRefinementRequest): Promise<DirectorRefineResponse> {
-    return this.withWorkflowTaskUsage(input.workflowTaskId, () => this.candidateStageService.refineCandidates(input));
+    return this.runCandidateStageWithFailureHandling(
+      input.workflowTaskId,
+      () => this.candidateStageService.refineCandidates(input),
+    );
   }
 
   async patchCandidate(input: DirectorCandidatePatchRequest): Promise<DirectorCandidatePatchResponse> {
-    return this.withWorkflowTaskUsage(input.workflowTaskId, () => this.candidateStageService.patchCandidate(input));
+    return this.runCandidateStageWithFailureHandling(
+      input.workflowTaskId,
+      () => this.candidateStageService.patchCandidate(input),
+    );
   }
 
   async refineCandidateTitleOptions(
     input: DirectorCandidateTitleRefineRequest,
   ): Promise<DirectorCandidateTitleRefineResponse> {
-    return this.withWorkflowTaskUsage(
+    return this.runCandidateStageWithFailureHandling(
       input.workflowTaskId,
       () => this.candidateStageService.refineCandidateTitleOptions(input),
     );

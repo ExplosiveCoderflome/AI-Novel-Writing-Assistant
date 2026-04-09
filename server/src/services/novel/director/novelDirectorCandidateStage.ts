@@ -223,7 +223,12 @@ export class NovelDirectorCandidateStageService {
         workflowTaskId: input.workflowTaskId,
         lane: "auto_director",
         title: input.title ?? null,
-        seedPayload: buildWorkflowSeedPayload(input),
+        seedPayload: buildWorkflowSeedPayload(input, {
+          batches: [],
+          candidateStage: {
+            mode: "generate",
+          },
+        }),
       });
     }
 
@@ -259,12 +264,18 @@ export class NovelDirectorCandidateStageService {
       title: input.title ?? null,
       seedPayload: buildWorkflowSeedPayload(input, {
         batches: [result.batch],
+        candidateStage: {
+          mode: "generate",
+        },
       }),
     });
     await this.workflowService.recordCandidateSelectionRequired(workflowTask.id, {
       summary: `${result.batch.roundLabel} 已生成 ${result.batch.candidates.length} 套书级方向，并完成每套书名组。`,
       seedPayload: buildWorkflowSeedPayload(input, {
         batches: [result.batch],
+        candidateStage: {
+          mode: "generate",
+        },
       }),
     });
     return {
@@ -281,6 +292,11 @@ export class NovelDirectorCandidateStageService {
         title: input.title ?? null,
         seedPayload: buildWorkflowSeedPayload(input, {
           batches: input.previousBatches,
+          candidateStage: {
+            mode: "refine",
+            presets: input.presets ?? [],
+            feedback: input.feedback?.trim() || null,
+          },
         }),
       });
     }
@@ -319,12 +335,22 @@ export class NovelDirectorCandidateStageService {
       title: input.title ?? null,
       seedPayload: buildWorkflowSeedPayload(input, {
         batches: nextBatches,
+        candidateStage: {
+          mode: "refine",
+          presets: input.presets ?? [],
+          feedback: input.feedback?.trim() || null,
+        },
       }),
     });
     await this.workflowService.recordCandidateSelectionRequired(workflowTask.id, {
       summary: `${result.batch.roundLabel} 已根据修正意见生成 ${result.batch.candidates.length} 套新方向，并完成标题组增强。`,
       seedPayload: buildWorkflowSeedPayload(input, {
         batches: nextBatches,
+        candidateStage: {
+          mode: "refine",
+          presets: input.presets ?? [],
+          feedback: input.feedback?.trim() || null,
+        },
       }),
     });
     return {
@@ -334,6 +360,24 @@ export class NovelDirectorCandidateStageService {
   }
 
   async patchCandidate(input: DirectorCandidatePatchRequest): Promise<DirectorCandidatePatchResponse> {
+    if (input.workflowTaskId?.trim()) {
+      await this.workflowService.bootstrapTask({
+        workflowTaskId: input.workflowTaskId,
+        lane: "auto_director",
+        title: input.title ?? null,
+        seedPayload: buildWorkflowSeedPayload(input, {
+          batches: input.previousBatches,
+          candidateStage: {
+            mode: "patch_candidate",
+            presets: input.presets ?? [],
+            feedback: input.feedback.trim(),
+            batchId: input.batchId,
+            candidateId: input.candidateId,
+          },
+        }),
+      });
+    }
+
     const targetBatch = findTargetBatch(input.previousBatches, input.batchId);
     const targetCandidate = findTargetCandidate(targetBatch, input.candidateId);
 
@@ -413,12 +457,26 @@ export class NovelDirectorCandidateStageService {
       title: input.title ?? null,
       seedPayload: buildWorkflowSeedPayload(input, {
         batches: nextBatches,
+        candidateStage: {
+          mode: "patch_candidate",
+          presets: input.presets ?? [],
+          feedback: input.feedback.trim(),
+          batchId: input.batchId,
+          candidateId: input.candidateId,
+        },
       }),
     });
     await this.workflowService.recordCandidateSelectionRequired(workflowTask.id, {
       summary: `已按你的意见定向修正《${targetCandidate.workingTitle}》。`,
       seedPayload: buildWorkflowSeedPayload(input, {
         batches: nextBatches,
+        candidateStage: {
+          mode: "patch_candidate",
+          presets: input.presets ?? [],
+          feedback: input.feedback.trim(),
+          batchId: input.batchId,
+          candidateId: input.candidateId,
+        },
       }),
     });
     return {
@@ -429,6 +487,23 @@ export class NovelDirectorCandidateStageService {
   }
 
   async refineCandidateTitleOptions(input: DirectorCandidateTitleRefineRequest): Promise<DirectorCandidateTitleRefineResponse> {
+    if (input.workflowTaskId?.trim()) {
+      await this.workflowService.bootstrapTask({
+        workflowTaskId: input.workflowTaskId,
+        lane: "auto_director",
+        title: input.title ?? null,
+        seedPayload: buildWorkflowSeedPayload(input, {
+          batches: input.previousBatches,
+          candidateStage: {
+            mode: "refine_titles",
+            feedback: input.feedback.trim(),
+            batchId: input.batchId,
+            candidateId: input.candidateId,
+          },
+        }),
+      });
+    }
+
     const targetBatch = findTargetBatch(input.previousBatches, input.batchId);
     const targetCandidate = findTargetCandidate(targetBatch, input.candidateId);
 
@@ -480,12 +555,24 @@ export class NovelDirectorCandidateStageService {
       title: input.title ?? null,
       seedPayload: buildWorkflowSeedPayload(input, {
         batches: nextBatches,
+        candidateStage: {
+          mode: "refine_titles",
+          feedback: input.feedback.trim(),
+          batchId: input.batchId,
+          candidateId: input.candidateId,
+        },
       }),
     });
     await this.workflowService.recordCandidateSelectionRequired(workflowTask.id, {
       summary: `已按你的意见重做《${targetCandidate.workingTitle}》的标题组。`,
       seedPayload: buildWorkflowSeedPayload(input, {
         batches: nextBatches,
+        candidateStage: {
+          mode: "refine_titles",
+          feedback: input.feedback.trim(),
+          batchId: input.batchId,
+          candidateId: input.candidateId,
+        },
       }),
     });
     return {

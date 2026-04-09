@@ -86,3 +86,37 @@ export function extractFileName(contentDisposition: string | undefined, fallback
     return match[1];
   }
 }
+
+function sanitizeFileNamePart(input: string | null | undefined): string {
+  const cleaned = (input ?? "")
+    .replace(/[\\/:*?"<>|]/g, "_")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned || "novel";
+}
+
+function padTimeUnit(value: number): string {
+  return String(Math.max(0, Math.floor(value))).padStart(2, "0");
+}
+
+export function buildExportTimestamp(input: Date = new Date()): string {
+  return [
+    input.getFullYear(),
+    padTimeUnit(input.getMonth() + 1),
+    padTimeUnit(input.getDate()),
+  ].join("")
+    + "-"
+    + [
+      padTimeUnit(input.getHours()),
+      padTimeUnit(input.getMinutes()),
+      padTimeUnit(input.getSeconds()),
+    ].join("");
+}
+
+export function buildNovelExportFallbackFileName(
+  title: string | null | undefined,
+  format: "txt" | "markdown",
+): string {
+  const extension = format === "markdown" ? "md" : "txt";
+  return `${sanitizeFileNamePart(title)}-${buildExportTimestamp()}.${extension}`;
+}

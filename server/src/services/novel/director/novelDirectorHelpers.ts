@@ -26,8 +26,27 @@ import type {
 
 export type LLMOptions = Pick<DirectorCandidatesRequest, "provider" | "model" | "temperature">;
 
+export type DirectorCandidateStageMode =
+  | "generate"
+  | "refine"
+  | "patch_candidate"
+  | "refine_titles";
+
+export interface DirectorCandidateStageState {
+  mode: DirectorCandidateStageMode;
+  presets?: DirectorCorrectionPreset[];
+  feedback?: string | null;
+  batchId?: string | null;
+  candidateId?: string | null;
+}
+
 export interface DirectorWorkflowSeedPayload extends Record<string, unknown> {
   novelId?: string | null;
+  provider?: DirectorLLMOptions["provider"] | null;
+  model?: string | null;
+  temperature?: number | null;
+  batches?: DirectorCandidateBatch[];
+  candidateStage?: DirectorCandidateStageState | null;
   candidate?: DirectorCandidate;
   batch?: {
     id?: string;
@@ -336,7 +355,7 @@ export function normalizeBookContract(parsed: DirectorBookContractParsed): BookC
 }
 
 export function buildWorkflowSeedPayload(
-  input: DirectorProjectContextInput & Pick<DirectorLLMOptions, "runMode"> & { idea: string },
+  input: DirectorProjectContextInput & Pick<DirectorLLMOptions, "provider" | "model" | "temperature" | "runMode"> & { idea: string },
   extra?: Record<string, unknown>,
 ): Record<string, unknown> {
   const basicForm = {
@@ -388,6 +407,9 @@ export function buildWorkflowSeedPayload(
     styleTone: basicForm.styleTone || null,
     emotionIntensity: basicForm.emotionIntensity,
     aiFreedom: basicForm.aiFreedom,
+    provider: input.provider ?? null,
+    model: input.model?.trim() || null,
+    temperature: typeof input.temperature === "number" ? input.temperature : null,
     runMode: input.runMode ?? "auto_to_ready",
     estimatedChapterCount: basicForm.estimatedChapterCount,
     idea: input.idea.trim(),
@@ -406,6 +428,30 @@ export function getDirectorInputFromSeedPayload(
   return directorInput as DirectorConfirmRequest;
 }
 
+export function getDirectorLlmOptionsFromSeedPayload(
+  seedPayload: DirectorWorkflowSeedPayload | null | undefined,
+): Pick<DirectorLLMOptions, "provider" | "model" | "temperature"> | null {
+  if (!seedPayload) {
+    return null;
+  }
+  const directorInput = getDirectorInputFromSeedPayload(seedPayload);
+  const provider = seedPayload.provider ?? directorInput?.provider ?? undefined;
+  const model = typeof seedPayload.model === "string"
+    ? (seedPayload.model.trim() || undefined)
+    : (directorInput?.model?.trim() || undefined);
+  const temperature = typeof seedPayload.temperature === "number"
+    ? seedPayload.temperature
+    : directorInput?.temperature;
+  if (!provider && !model && typeof temperature !== "number") {
+    return null;
+  }
+  return {
+    provider,
+    model,
+    temperature,
+  };
+}
+
 export function applyDirectorLlmOverride(
   seedPayload: DirectorWorkflowSeedPayload | null | undefined,
   llmOverride: Pick<DirectorLLMOptions, "provider" | "model" | "temperature">,
@@ -414,18 +460,26 @@ export function applyDirectorLlmOverride(
     return null;
   }
   const directorInput = getDirectorInputFromSeedPayload(seedPayload);
-  if (!directorInput) {
-    return null;
-  }
+  const nextModel = llmOverride.model?.trim()
+    || (typeof seedPayload.model === "string" ? seedPayload.model.trim() : directorInput?.model?.trim() || null);
+  const nextTemperature = typeof llmOverride.temperature === "number"
+    ? llmOverride.temperature
+    : (typeof seedPayload.temperature === "number" ? seedPayload.temperature : directorInput?.temperature ?? null);
+  const nextProvider = llmOverride.provider ?? seedPayload.provider ?? directorInput?.provider ?? null;
   return {
     ...seedPayload,
-    directorInput: {
-      ...directorInput,
-      provider: llmOverride.provider ?? directorInput.provider,
-      model: llmOverride.model?.trim() || directorInput.model,
-      temperature: typeof llmOverride.temperature === "number"
-        ? llmOverride.temperature
-        : directorInput.temperature,
-    },
+    provider: nextProvider,
+    model: nextModel,
+    temperature: nextTemperature,
+    directorInput: directorInput
+      ? {
+        ...directorInput,
+        provider: nextProvider ?? directorInput.provider,
+        model: nextModel || directorInput.model,
+        temperature: typeof nextTemperature === "number"
+          ? nextTemperature
+          : directorInput.temperature,
+      }
+      : undefined,
   };
 }
