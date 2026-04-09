@@ -10,6 +10,7 @@ export class NovelPipelineService extends NovelReviewService {
       options.endOrder,
     );
     if (existing) {
+      await this.core.resumePipelineJob(existing.id);
       return existing;
     }
     await this.core.createNovelSnapshot(novelId, "before_pipeline", `before-pipeline-${Date.now()}`);
@@ -26,6 +27,10 @@ export class NovelPipelineService extends NovelReviewService {
 
   findActivePipelineJobForRange(...args: Parameters<NovelCoreService["findActivePipelineJobForRange"]>) {
     return this.core.findActivePipelineJobForRange(...args);
+  }
+
+  resumePipelineJob(...args: Parameters<NovelCoreService["resumePipelineJob"]>) {
+    return this.core.resumePipelineJob(...args);
   }
 
   retryPipelineJob(...args: Parameters<NovelCoreService["retryPipelineJob"]>) {
