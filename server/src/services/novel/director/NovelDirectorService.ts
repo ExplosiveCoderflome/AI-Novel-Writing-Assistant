@@ -385,7 +385,7 @@ export class NovelDirectorService {
   async continueTask(taskId: string, input?: {
     continuationMode?: DirectorContinuationMode;
   }): Promise<void> {
-    const row = await this.workflowService.getTaskById(taskId);
+    const row = await this.workflowService.getTaskByIdWithoutHealing(taskId);
     if (!row) {
       throw new Error("自动导演任务不存在。");
     }

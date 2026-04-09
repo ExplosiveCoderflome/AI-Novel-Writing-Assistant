@@ -225,6 +225,10 @@ export class NovelWorkflowService {
     return this.getVisibleRowById(taskId);
   }
 
+  async getTaskByIdWithoutHealing(taskId: string) {
+    return this.getVisibleRowByIdRaw(taskId);
+  }
+
   async healAutoDirectorTaskState(
     taskId: string,
     row = null as {

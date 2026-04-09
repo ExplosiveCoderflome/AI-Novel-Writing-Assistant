@@ -667,6 +667,24 @@ P2 重点解决：
 本区块由 `$task-md-sync` 自动维护，用于同步开发计划与实现进度。
 
 <!-- task-md-sync:start -->
+<!-- task-md-sync:item:task-8f0fdf4e01:start -->
+### 自动导演候选阶段恢复卡死修复
+- 标识：`task-8f0fdf4e01`
+- 状态：已完成
+- 最近更新：2026-04-09 23:20
+- 概要：修复自动导演候选阶段在 retry/continue 与服务重启恢复后被错误标记为 running 但未真正恢复执行的问题。
+
+计划清单：
+- [ ] 确认候选阶段任务卡死的复现链与状态修正逻辑冲突点
+- [ ] 调整自动导演 continue 读取逻辑，避免被读取时修正提前改写状态
+- [ ] 补最小回归验证，确认 retry/continue 与恢复链可重新拉起候选生成
+
+进度记录：
+- 2026-04-09 23:19 [开发中] 已定位到 queued 候选任务在读取时被提升为 running，导致 continue 提前返回。
+- 2026-04-09 23:20 [已完成] 已定位并修复 queued 候选任务在读取时被提升为 running，导致 continue 提前返回的回归。
+- 2026-04-09 23:20 [已完成] 已通过 @ai-novel/server typecheck、novelDirectorRetry.test.js、novelWorkflowRuntime.test.js。
+<!-- task-md-sync:item:task-8f0fdf4e01:end -->
+
 <!-- task-md-sync:item:task-9029968563:start -->
 ### 世界观删除入口
 - 标识：`task-9029968563`

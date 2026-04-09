@@ -120,11 +120,30 @@ test("generateCandidates marks workflow task failed when candidate-stage generat
 test("continueTask resumes queued candidate-stage tasks before novel creation", async () => {
   const service = new NovelDirectorService();
   const originalGetTaskById = service.workflowService.getTaskById;
+  const originalGetTaskByIdWithoutHealing = service.workflowService.getTaskByIdWithoutHealing;
   const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
   const originalGenerate = service.candidateStageService.generateCandidates;
   const resumed = [];
 
   service.workflowService.getTaskById = async () => ({
+    id: "task_candidate_resume",
+    lane: "auto_director",
+    status: "running",
+    novelId: null,
+    checkpointType: null,
+    currentItemKey: "candidate_direction_batch",
+    seedPayloadJson: JSON.stringify({
+      idea: "A courier discovers a hidden rule-bound city underworld.",
+      provider: "custom_coding_plan",
+      model: "kimi-k2.5",
+      temperature: 0.8,
+      runMode: "auto_to_ready",
+      candidateStage: {
+        mode: "generate",
+      },
+    }),
+  });
+  service.workflowService.getTaskByIdWithoutHealing = async () => ({
     id: "task_candidate_resume",
     lane: "auto_director",
     status: "queued",
@@ -160,6 +179,7 @@ test("continueTask resumes queued candidate-stage tasks before novel creation", 
     assert.equal(resumed[0].temperature, 0.8);
   } finally {
     service.workflowService.getTaskById = originalGetTaskById;
+    service.workflowService.getTaskByIdWithoutHealing = originalGetTaskByIdWithoutHealing;
     service.scheduleBackgroundRun = originalScheduleBackgroundRun;
     service.candidateStageService.generateCandidates = originalGenerate;
   }
