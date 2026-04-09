@@ -1,11 +1,12 @@
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getWorldList } from "@/api/world";
+import { deleteWorld, getWorldList } from "@/api/world";
 import { queryKeys } from "@/api/queryKeys";
 import { featureFlags } from "@/config/featureFlags";
+import { toast } from "@/components/ui/toast";
 
 function extractStructuredPreview(raw: string): string | null {
   const text = raw.trim();
@@ -103,12 +104,32 @@ function buildStructuredWorldPreview(structureJson: string | null | undefined): 
 }
 
 export default function WorldList() {
+  const queryClient = useQueryClient();
   const worldListQuery = useQuery({
     queryKey: queryKeys.worlds.all,
     queryFn: getWorldList,
   });
 
+  const deleteWorldMutation = useMutation({
+    mutationFn: (id: string) => deleteWorld(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all });
+      toast.success("世界观已删除。");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "删除世界观失败。");
+    },
+  });
+
   const worlds = worldListQuery.data?.data ?? [];
+
+  const handleDelete = (worldId: string, worldName: string) => {
+    const confirmed = window.confirm(`确认删除世界观「${worldName}」？此操作不可恢复。`);
+    if (!confirmed) {
+      return;
+    }
+    deleteWorldMutation.mutate(worldId);
+  };
 
   return (
     <div className="space-y-4">
@@ -159,6 +180,14 @@ export default function WorldList() {
                         <Link to={`/worlds/${world.id}/workspace`}>进入工作台</Link>
                       </Button>
                     ) : null}
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleDelete(world.id, world.name)}
+                      disabled={deleteWorldMutation.isPending && deleteWorldMutation.variables === world.id}
+                    >
+                      {deleteWorldMutation.isPending && deleteWorldMutation.variables === world.id ? "删除中..." : "删除"}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

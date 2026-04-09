@@ -127,7 +127,7 @@ export function registerNovelStoryMacroRoutes(input: RegisterNovelStoryMacroRout
         res.status(200).json({
           success: true,
           data,
-          message: "Story decomposition completed.",
+          message: "故事引擎原型已生成。",
         } satisfies ApiResponse<typeof data>);
       } catch (error) {
         next(error);
@@ -145,7 +145,7 @@ export function registerNovelStoryMacroRoutes(input: RegisterNovelStoryMacroRout
         res.status(200).json({
           success: true,
           data,
-          message: "Story constraint engine built.",
+          message: "约束引擎已构建。",
         } satisfies ApiResponse<typeof data>);
       } catch (error) {
         next(error);
@@ -163,7 +163,7 @@ export function registerNovelStoryMacroRoutes(input: RegisterNovelStoryMacroRout
         res.status(200).json({
           success: true,
           data,
-          message: "Story macro plan updated.",
+          message: "故事宏观规划已保存。",
         } satisfies ApiResponse<typeof data>);
       } catch (error) {
         next(error);
@@ -181,7 +181,7 @@ export function registerNovelStoryMacroRoutes(input: RegisterNovelStoryMacroRout
         res.status(200).json({
           success: true,
           data,
-          message: "Story macro field regenerated.",
+          message: "字段已重生成。",
         } satisfies ApiResponse<typeof data>);
       } catch (error) {
         next(error);
@@ -196,7 +196,7 @@ export function registerNovelStoryMacroRoutes(input: RegisterNovelStoryMacroRout
       res.status(200).json({
         success: true,
         data,
-        message: "Story macro state loaded.",
+        message: "故事宏观规划状态已加载。",
       } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);
@@ -213,7 +213,7 @@ export function registerNovelStoryMacroRoutes(input: RegisterNovelStoryMacroRout
         res.status(200).json({
           success: true,
           data,
-          message: "Story macro state updated.",
+          message: "故事宏观规划状态已更新。",
         } satisfies ApiResponse<typeof data>);
       } catch (error) {
         next(error);

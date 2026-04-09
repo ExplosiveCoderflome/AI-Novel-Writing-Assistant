@@ -1,13 +1,15 @@
 import { useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import LLMSelector from "@/components/common/LLMSelector";
 import KnowledgeBindingPanel from "@/components/knowledge/KnowledgeBindingPanel";
 import {
   answerWorldDeepeningQuestions,
   backfillWorldStructure,
+  deleteWorld,
   checkWorldConsistency,
   confirmWorldLayer,
   createWorldLibraryItem,
@@ -33,6 +35,7 @@ import {
   useWorldLibraryItem,
 } from "@/api/world";
 import { queryKeys } from "@/api/queryKeys";
+import { toast } from "@/components/ui/toast";
 import { useLLMStore } from "@/store/llmStore";
 import { useSSE } from "@/hooks/useSSE";
 import { featureFlags } from "@/config/featureFlags";
@@ -54,6 +57,7 @@ import {
 } from "./components/workspace/worldWorkspaceShared";
 
 export default function WorldWorkspace() {
+  const navigate = useNavigate();
   const { id = "" } = useParams();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
@@ -262,6 +266,17 @@ export default function WorldWorkspace() {
       await invalidateWorld();
     },
   });
+  const deleteWorldMutation = useMutation({
+    mutationFn: (worldId: string) => deleteWorld(worldId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all });
+      toast.success("世界观已删除。");
+      navigate("/worlds", { replace: true });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "删除世界观失败。");
+    },
+  });
 
   const refineSSE = useSSE({ onDone: invalidateWorld });
 
@@ -272,12 +287,33 @@ export default function WorldWorkspace() {
     }
   };
 
+  const handleDelete = () => {
+    if (!id || !world) {
+      return;
+    }
+    const confirmed = window.confirm(`确认删除世界观「${world.name}」？此操作不可恢复。`);
+    if (!confirmed) {
+      return;
+    }
+    deleteWorldMutation.mutate(id);
+  };
+
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>世界工作台：{world?.name ?? "加载中..."} {world?.version ? `(v${world.version})` : ""}</CardTitle>
-          <LLMSelector />
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <LLMSelector />
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDelete}
+              disabled={!id || !world || deleteWorldMutation.isPending}
+            >
+              {deleteWorldMutation.isPending ? "删除中..." : "删除世界观"}
+            </Button>
+          </div>
         </CardHeader>
       </Card>
 
