@@ -24,18 +24,28 @@ apiClient.interceptors.response.use(
   (error: AxiosError<ApiResponse<unknown>>) => {
     const status = error.response?.status;
     const backendError = error.response?.data?.error;
+    const backendMessage = error.response?.data?.message;
     const silentErrorStatuses = error.config?.silentErrorStatuses ?? [];
-    let message = backendError ?? error.message ?? "请求失败。";
+    let title = backendError ?? error.message ?? "请求失败。";
+    let description = backendMessage && backendMessage !== backendError ? backendMessage : undefined;
 
     if (!status) {
-      message = "网络连接失败，请检查网络后重试。";
+      title = "网络连接失败，请检查网络后重试。";
+      description = undefined;
     } else if (status >= 500) {
-      message = backendError ?? "服务器错误，请稍后重试。";
+      title = backendError ?? "服务器错误，请稍后重试。";
+      description = backendMessage && backendMessage !== title ? backendMessage : undefined;
     }
 
     if (!status || !silentErrorStatuses.includes(status)) {
-      toast.error(message);
+      if (description) {
+        toast.error(title, { description });
+      } else {
+        toast.error(title);
+      }
     }
+
+    const message = description ? `${title} ${description}` : title;
 
     const normalizedError = new Error(
       message,

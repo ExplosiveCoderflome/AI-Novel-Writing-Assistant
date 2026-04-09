@@ -12,11 +12,16 @@ import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubB
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
+import { canContinueFront10AutoExecution } from "@/lib/novelWorkflowTaskUi";
 import { useLLMStore } from "@/store/llmStore";
 
 const ACTIVE_STATUSES = new Set<TaskStatus>(["queued", "running", "waiting_approval"]);
 const ANOMALY_STATUSES = new Set<TaskStatus>(["failed", "cancelled"]);
 const ARCHIVABLE_STATUSES = new Set<TaskStatus>(["succeeded", "failed", "cancelled"]);
+
+function getTaskListPriority(status: TaskStatus): number {
+  return status === "failed" ? 0 : 1;
+}
 
 function formatDate(value: string | null | undefined): string {
   if (!value) {
@@ -186,7 +191,17 @@ export default function TaskCenterPage() {
 
   const allRows = listQuery.data?.data?.items ?? [];
   const visibleRows = useMemo(
-    () => (onlyAnomaly ? allRows.filter((item) => ANOMALY_STATUSES.has(item.status)) : allRows),
+    () =>
+      (onlyAnomaly ? allRows.filter((item) => ANOMALY_STATUSES.has(item.status)) : allRows)
+        .map((item, index) => ({ item, index }))
+        .sort((left, right) => {
+          const priorityDiff = getTaskListPriority(left.item.status) - getTaskListPriority(right.item.status);
+          if (priorityDiff !== 0) {
+            return priorityDiff;
+          }
+          return left.index - right.index;
+        })
+        .map(({ item }) => item),
     [allRows, onlyAnomaly],
   );
 
@@ -286,10 +301,17 @@ export default function TaskCenterPage() {
   });
 
   const continueWorkflowMutation = useMutation({
-    mutationFn: (taskId: string) => continueNovelWorkflow(taskId),
-    onSuccess: async (response) => {
+    mutationFn: (payload: { taskId: string; mode?: "auto_execute_front10" }) => continueNovelWorkflow(
+      payload.taskId,
+      payload.mode ? { continuationMode: payload.mode } : undefined,
+    ),
+    onSuccess: async (response, variables) => {
       await invalidateTaskQueries();
       const task = response.data;
+      if (variables.mode === "auto_execute_front10") {
+        toast.success("已继续自动执行前 10 章。");
+        return;
+      }
       if (task?.kind && task.id) {
         setSearchParams((prev) => {
           const next = new URLSearchParams(prev);
@@ -331,6 +353,11 @@ export default function TaskCenterPage() {
     selectedTask
     && isAutoDirectorTask
     && ACTIVE_STATUSES.has(selectedTask.status),
+  );
+  const canResumeFront10AutoExecution = Boolean(
+    selectedTask
+    && selectedTask.kind === "novel_workflow"
+    && canContinueFront10AutoExecution(selectedTask),
   );
 
   return (
@@ -442,24 +469,34 @@ export default function TaskCenterPage() {
                   }}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="font-medium">{task.title}</div>
-                    <Badge variant={toStatusVariant(task.status)}>{formatStatus(task.status)}</Badge>
-                  </div>
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    {formatKind(task.kind)} | 进度 {Math.round(task.progress * 100)}%
-                  </div>
+                  <div className="font-medium">{task.title}</div>
+                  <Badge variant={toStatusVariant(task.status)}>{formatStatus(task.status)}</Badge>
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground">
+                  {formatKind(task.kind)} | 进度 {Math.round(task.progress * 100)}%
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  阶段：{task.currentStage ?? "暂无"} | 当前项：{task.currentItemLabel ?? "暂无"}
+                </div>
+                {task.displayStatus || task.lastHealthyStage ? (
                   <div className="mt-1 text-xs text-muted-foreground">
-                    阶段：{task.currentStage ?? "暂无"} | 当前项：{task.currentItemLabel ?? "暂无"}
+                    状态：{task.displayStatus ?? formatStatus(task.status)} | 最近健康阶段：{task.lastHealthyStage ?? "暂无"}
                   </div>
-                  {task.kind === "novel_workflow" ? (
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      检查点：{formatCheckpoint(task.checkpointType)} | 下一步：{task.nextActionLabel ?? "继续主流程"}
-                    </div>
-                  ) : null}
+                ) : null}
+                {task.kind === "novel_workflow" ? (
                   <div className="mt-1 text-xs text-muted-foreground">
-                    最近心跳：{formatDate(task.heartbeatAt)} | 更新时间：{formatDate(task.updatedAt)}
+                    检查点：{formatCheckpoint(task.checkpointType)} | 建议继续：{task.resumeAction ?? task.nextActionLabel ?? "继续主流程"}
                   </div>
-                </button>
+                ) : null}
+                {task.blockingReason ? (
+                  <div className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                    原因：{task.blockingReason}
+                  </div>
+                ) : null}
+                <div className="mt-1 text-xs text-muted-foreground">
+                  最近心跳：{formatDate(task.heartbeatAt)} | 更新时间：{formatDate(task.updatedAt)}
+                </div>
+              </button>
               );
             })}
             {visibleRows.length === 0 ? (
@@ -488,14 +525,19 @@ export default function TaskCenterPage() {
                   <Badge variant="outline">进度 {Math.round(selectedTask.progress * 100)}%</Badge>
                 </div>
                 <div className="space-y-1 text-muted-foreground">
+                  <div>展示状态：{selectedTask.displayStatus ?? formatStatus(selectedTask.status)}</div>
                   <div>当前阶段：{selectedTask.currentStage ?? "暂无"}</div>
                   <div>当前项：{selectedTask.currentItemLabel ?? "暂无"}</div>
                   {selectedTask.kind === "novel_workflow" ? (
                     <>
                       <div>最近检查点：{formatCheckpoint(selectedTask.checkpointType)}</div>
                       <div>恢复目标页：{formatResumeTarget(selectedTask.resumeTarget)}</div>
-                      <div>下一步推荐：{selectedTask.nextActionLabel ?? "继续小说主流程"}</div>
+                      <div>建议继续：{selectedTask.resumeAction ?? selectedTask.nextActionLabel ?? "继续小说主流程"}</div>
+                      <div>最近健康阶段：{selectedTask.lastHealthyStage ?? "暂无"}</div>
                     </>
+                  ) : null}
+                  {selectedTask.blockingReason ? (
+                    <div>阻塞原因：{selectedTask.blockingReason}</div>
                   ) : null}
                   <div>最近心跳：{formatDate(selectedTask.heartbeatAt)}</div>
                   <div>开始时间：{formatDate(selectedTask.startedAt)}</div>
@@ -538,13 +580,31 @@ export default function TaskCenterPage() {
                   </div>
                 ) : null}
                 <div className="flex flex-wrap gap-2">
-                  {selectedTask.kind === "novel_workflow" && (selectedTask.status === "waiting_approval" || selectedTask.status === "queued" || selectedTask.status === "running") ? (
+                  {canResumeFront10AutoExecution ? (
                     <Button
                       size="sm"
-                      onClick={() => continueWorkflowMutation.mutate(selectedTask.id)}
+                      onClick={() =>
+                        continueWorkflowMutation.mutate({
+                          taskId: selectedTask.id,
+                          mode: "auto_execute_front10",
+                        })}
                       disabled={continueWorkflowMutation.isPending}
                     >
-                      {isActiveAutoDirectorTask ? "查看进度" : "继续"}
+                      {selectedTask.resumeAction ?? "继续自动执行前 10 章"}
+                    </Button>
+                  ) : null}
+                  {selectedTask.kind === "novel_workflow"
+                  && !canResumeFront10AutoExecution
+                  && (selectedTask.status === "waiting_approval" || selectedTask.status === "queued" || selectedTask.status === "running") ? (
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        continueWorkflowMutation.mutate({
+                          taskId: selectedTask.id,
+                        })}
+                      disabled={continueWorkflowMutation.isPending}
+                    >
+                      {selectedTask.resumeAction ?? (isActiveAutoDirectorTask ? "查看进度" : "继续")}
                     </Button>
                   ) : null}
                   {(selectedTask.status === "failed" || selectedTask.status === "cancelled") ? (

@@ -85,6 +85,10 @@ export interface NovelAutoDirectorTaskSummary {
   progress: number;
   currentStage?: string | null;
   currentItemLabel?: string | null;
+  displayStatus?: string | null;
+  blockingReason?: string | null;
+  resumeAction?: string | null;
+  lastHealthyStage?: string | null;
   checkpointType?: NovelWorkflowCheckpoint | null;
   checkpointSummary?: string | null;
   nextActionLabel?: string | null;

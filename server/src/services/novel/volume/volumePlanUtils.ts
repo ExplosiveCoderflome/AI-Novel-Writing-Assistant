@@ -18,6 +18,8 @@ export interface ExistingChapterRecord {
   order: number;
   title: string;
   content?: string | null;
+  generationState?: Chapter["generationState"] | null;
+  chapterStatus?: Chapter["chapterStatus"] | null;
   expectation?: string | null;
   targetWordCount?: number | null;
   conflictLevel?: number | null;
@@ -36,6 +38,9 @@ export interface VolumeSyncPlan {
     chapterId: string;
     chapter: VolumeChapterPlan;
     clearContent: boolean;
+    preserveWorkflowState: boolean;
+    existingGenerationState?: Chapter["generationState"] | null;
+    existingChapterStatus?: Chapter["chapterStatus"] | null;
   }>;
   deletes: Array<{
     chapterId: string;
@@ -764,6 +769,9 @@ export function buildVolumeSyncPlan(
       chapterId: existing.id,
       chapter,
       clearContent: hasContent && !options.preserveContent,
+      preserveWorkflowState: hasContent && options.preserveContent,
+      existingGenerationState: existing.generationState ?? null,
+      existingChapterStatus: existing.chapterStatus ?? null,
     });
     items.push({
       action,

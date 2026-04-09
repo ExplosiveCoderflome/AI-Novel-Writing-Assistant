@@ -5,7 +5,6 @@ import { AppError } from "../../middleware/errorHandler";
 import { mapNovelAutoDirectorTaskSummary } from "../task/novelWorkflowTaskSummary";
 import { getArchivedTaskIdSet } from "../task/taskArchive";
 import { NovelWorkflowService } from "./workflow/NovelWorkflowService";
-import { isHistoricalAutoDirectorRecoveryNotNeededFailure } from "./workflow/novelWorkflowRecoveryHeuristics";
 import { NovelContinuationService } from "./NovelContinuationService";
 import { STORY_WORLD_SLICE_SCHEMA_VERSION } from "./storyWorldSlice/storyWorldSlicePersistence";
 import { syncChapterArtifacts } from "./novelChapterArtifacts";
@@ -93,10 +92,17 @@ export class NovelCoreCrudService {
         status: true,
         progress: true,
         currentStage: true,
+        currentItemKey: true,
         currentItemLabel: true,
         checkpointType: true,
         checkpointSummary: true,
+        resumeTargetJson: true,
+        seedPayloadJson: true,
         lastError: true,
+        heartbeatAt: true,
+        finishedAt: true,
+        milestonesJson: true,
+        title: true,
         updatedAt: true,
       },
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
@@ -108,11 +114,7 @@ export class NovelCoreCrudService {
 
     if (allowHealing) {
       const healed = await Promise.all(
-        rows.map((row) => (
-          isHistoricalAutoDirectorRecoveryNotNeededFailure(row)
-            ? this.workflowService.healHistoricalAutoDirectorRecoveryFailure(row.id, row)
-            : Promise.resolve(false)
-        )),
+        rows.map((row) => this.workflowService.healAutoDirectorTaskState(row.id, row)),
       );
       if (healed.some(Boolean)) {
         return this.listLatestVisibleAutoDirectorTasksByNovelIds(uniqueNovelIds, false);

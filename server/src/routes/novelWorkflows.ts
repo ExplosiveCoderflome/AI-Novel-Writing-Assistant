@@ -87,7 +87,8 @@ router.post("/bootstrap", validate({ body: bootstrapSchema }), async (req, res, 
 router.get("/novels/:novelId/auto-director", validate({ params: novelParamsSchema }), async (req, res, next) => {
   try {
     const { novelId } = req.params as z.infer<typeof novelParamsSchema>;
-    const row = await workflowService.findLatestVisibleTaskByNovelId(novelId, "auto_director");
+    const row = await workflowService.findActiveTaskByNovelAndLane(novelId, "auto_director")
+      ?? await workflowService.findLatestVisibleTaskByNovelId(novelId, "auto_director");
     const data = row ? await workflowAdapter.detail(row.id) : null;
     res.status(200).json({
       success: true,

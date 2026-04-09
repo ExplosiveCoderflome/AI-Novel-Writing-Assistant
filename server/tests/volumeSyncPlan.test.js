@@ -73,6 +73,8 @@ test("buildVolumeSyncPlan preserves generated content when preserveContent=true 
       order: 1,
       title: "第1章",
       content: "已有正文",
+      generationState: "approved",
+      chapterStatus: "completed",
       expectation: "旧摘要",
       targetWordCount: 2600,
       conflictLevel: 50,
@@ -104,6 +106,9 @@ test("buildVolumeSyncPlan preserves generated content when preserveContent=true 
   assert.equal(plan.preview.deleteCandidateCount, 1);
   assert.equal(plan.preview.clearContentCount, 0);
   assert.equal(plan.updates[0].clearContent, false);
+  assert.equal(plan.updates[0].preserveWorkflowState, true);
+  assert.equal(plan.updates[0].existingGenerationState, "approved");
+  assert.equal(plan.updates[0].existingChapterStatus, "completed");
   assert.ok(plan.preview.items.some((item) => item.action === "delete_candidate"));
   assert.ok(plan.preview.items.some((item) => item.changedFields.includes("任务单")));
 });
@@ -133,6 +138,8 @@ test("buildVolumeSyncPlan clears content on moved generated chapters when preser
       order: 1,
       title: "旧第1章",
       content: "已有正文",
+      generationState: "approved",
+      chapterStatus: "completed",
       expectation: "旧摘要",
       targetWordCount: 2600,
       conflictLevel: 50,
@@ -164,6 +171,7 @@ test("buildVolumeSyncPlan clears content on moved generated chapters when preser
   assert.equal(plan.preview.clearContentCount, 1);
   assert.equal(plan.updates[0].chapterId, "chapter-1");
   assert.equal(plan.updates[0].clearContent, true);
+  assert.equal(plan.updates[0].preserveWorkflowState, false);
   assert.equal(plan.deletes[0].chapterId, "chapter-2");
 });
 

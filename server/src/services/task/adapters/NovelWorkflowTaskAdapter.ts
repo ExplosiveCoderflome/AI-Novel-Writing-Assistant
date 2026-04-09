@@ -12,6 +12,7 @@ import {
   getDirectorLlmOptionsFromSeedPayload,
   type DirectorWorkflowSeedPayload,
 } from "../../novel/director/novelDirectorHelpers";
+import { isAutoDirectorRecoveryInProgress } from "../../novel/workflow/novelWorkflowRecoveryHeuristics";
 import {
   parseMilestones,
   parseResumeTarget,
@@ -29,6 +30,7 @@ import {
   isTaskArchived,
 } from "../taskArchive";
 import { buildNovelWorkflowDetailSteps } from "../novelWorkflowDetailSteps";
+import { buildWorkflowExplainability } from "../novelWorkflowExplainability";
 import { buildNovelWorkflowNextActionLabel } from "../novelWorkflowTaskSummary";
 
 function buildOwnerLabel(row: {
@@ -84,6 +86,12 @@ function mapSummary(row: {
   novel?: { title: string } | null;
   seedPayloadJson?: string | null;
 }): UnifiedTaskSummary {
+  const status = row.status as TaskStatus;
+  const isRecoveryInProgress = isAutoDirectorRecoveryInProgress({
+    status,
+    lastError: row.lastError,
+  });
+  const lastError = isRecoveryInProgress ? null : row.lastError;
   const resumeTarget = parseResumeTarget(row.resumeTargetJson);
   const sourceRoute = resumeTargetToRoute(resumeTarget);
   const ownerLabel = buildOwnerLabel(row);
@@ -103,18 +111,29 @@ function mapSummary(row: {
       route: `/novels/${row.novelId}/edit`,
     });
   }
+  const explainability = buildWorkflowExplainability({
+    status,
+    currentStage: row.currentStage,
+    currentItemKey: row.currentItemKey,
+    checkpointType,
+    lastError: row.lastError,
+  });
   return {
     id: row.id,
     kind: "novel_workflow",
     title: row.title,
-    status: row.status as TaskStatus,
+    status,
     progress: row.progress,
     currentStage: row.currentStage,
     currentItemKey: row.currentItemKey,
     currentItemLabel: row.currentItemLabel,
+    displayStatus: explainability.displayStatus,
+    blockingReason: explainability.blockingReason,
+    resumeAction: explainability.resumeAction,
+    lastHealthyStage: explainability.lastHealthyStage,
     attemptCount: row.attemptCount,
     maxAttempts: row.maxAttempts,
-    lastError: row.lastError,
+    lastError,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     heartbeatAt: row.heartbeatAt?.toISOString() ?? null,
@@ -124,12 +143,12 @@ function mapSummary(row: {
     checkpointType,
     checkpointSummary: row.checkpointSummary,
     resumeTarget,
-    nextActionLabel: buildNovelWorkflowNextActionLabel(row.status as TaskStatus, checkpointType),
-    failureCode: row.status === "failed" ? "NOVEL_WORKFLOW_FAILED" : null,
-    failureSummary: row.status === "failed"
-      ? normalizeFailureSummary(row.lastError, "小说主流程中断，但没有记录明确错误。")
-      : row.lastError,
-    recoveryHint: buildTaskRecoveryHint("novel_workflow", row.status as TaskStatus),
+    nextActionLabel: buildNovelWorkflowNextActionLabel(status, checkpointType),
+    failureCode: status === "failed" ? "NOVEL_WORKFLOW_FAILED" : null,
+    failureSummary: status === "failed"
+      ? normalizeFailureSummary(lastError, "小说主流程中断，但没有记录明确错误。")
+      : null,
+    recoveryHint: buildTaskRecoveryHint("novel_workflow", status),
     tokenUsage: toTaskTokenUsageSummary({
       promptTokens: row.promptTokens,
       completionTokens: row.completionTokens,
@@ -173,6 +192,7 @@ export class NovelWorkflowTaskAdapter {
             },
           }
           : {}),
+        lane: "auto_director",
         ...(input.status ? { status: input.status } : {}),
         ...(input.keyword
           ? {
@@ -207,6 +227,7 @@ export class NovelWorkflowTaskAdapter {
               },
             }
             : {}),
+          lane: "auto_director",
           ...(input.status ? { status: input.status } : {}),
           ...(input.keyword
             ? {

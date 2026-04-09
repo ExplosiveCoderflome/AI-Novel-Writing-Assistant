@@ -213,7 +213,7 @@ export default function Home() {
           }}
           disabled={isWorkflowPending}
         >
-          {isWorkflowPending ? "继续执行中..." : "继续自动执行前 10 章"}
+          {isWorkflowPending ? "继续执行中..." : (task?.resumeAction ?? "继续自动执行前 10 章")}
         </Button>
       );
     }
@@ -233,7 +233,7 @@ export default function Home() {
           }}
           disabled={isWorkflowPending}
         >
-          {isWorkflowPending ? "继续中..." : "继续导演"}
+          {isWorkflowPending ? "继续中..." : (task?.resumeAction ?? "继续导演")}
         </Button>
       );
     }
@@ -397,6 +397,9 @@ export default function Home() {
                     {primaryNovel.latestAutoDirectorTask?.currentStage ? (
                       <span>当前阶段：{primaryNovel.latestAutoDirectorTask.currentStage}</span>
                     ) : null}
+                    {primaryNovel.latestAutoDirectorTask?.lastHealthyStage ? (
+                      <span>最近健康阶段：{primaryNovel.latestAutoDirectorTask.lastHealthyStage}</span>
+                    ) : null}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -534,6 +537,9 @@ export default function Home() {
                         <span>角色数：{novel._count.characters}</span>
                         {workflowTask?.currentStage ? (
                           <span>阶段：{workflowTask.currentStage}</span>
+                        ) : null}
+                        {workflowTask?.lastHealthyStage ? (
+                          <span>最近健康阶段：{workflowTask.lastHealthyStage}</span>
                         ) : null}
                       </div>
 

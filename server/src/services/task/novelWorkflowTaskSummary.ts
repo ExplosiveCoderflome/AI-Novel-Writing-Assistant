@@ -1,45 +1,20 @@
 import type { NovelAutoDirectorTaskSummary } from "@ai-novel/shared/types/novel";
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
+import { buildWorkflowExplainability, buildWorkflowResumeAction } from "./novelWorkflowExplainability";
 
 export function buildNovelWorkflowNextActionLabel(
   status: TaskStatus,
   checkpointType: NovelWorkflowCheckpoint | null,
 ): string | null {
-  if (status === "waiting_approval") {
-    if (checkpointType === "candidate_selection_required") {
-      return "继续确认书级方向";
-    }
-    if (checkpointType === "book_contract_ready") {
-      return "查看 Book Contract";
-    }
-    if (checkpointType === "character_setup_required") {
-      return "去审核角色准备";
-    }
-    if (checkpointType === "volume_strategy_ready") {
-      return "查看卷战略";
-    }
-    if (checkpointType === "front10_ready") {
-      return "进入已准备章节";
-    }
-    if (checkpointType === "chapter_batch_ready") {
-      return "继续自动执行剩余章节";
-    }
-    if (checkpointType === "replan_required") {
-      return "处理重规划";
-    }
-    return "继续小说主流程";
+  const resumeAction = buildWorkflowResumeAction(status, checkpointType);
+  if (!resumeAction) {
+    return null;
   }
-  if (status === "failed" || status === "cancelled") {
-    if (checkpointType === "chapter_batch_ready") {
-      return "继续自动执行剩余章节";
-    }
-    return "从最近检查点恢复";
+  if (status === "waiting_approval" && checkpointType === "front10_ready") {
+    return "进入已准备章节";
   }
-  if (status === "running" || status === "queued") {
-    return "查看当前进度";
-  }
-  return null;
+  return resumeAction;
 }
 
 interface NovelWorkflowListSummaryRow {
@@ -47,9 +22,11 @@ interface NovelWorkflowListSummaryRow {
   status: string;
   progress: number;
   currentStage: string | null;
+  currentItemKey: string | null;
   currentItemLabel: string | null;
   checkpointType: string | null;
   checkpointSummary: string | null;
+  lastError: string | null;
   updatedAt: Date;
 }
 
@@ -58,12 +35,23 @@ export function mapNovelAutoDirectorTaskSummary(
 ): NovelAutoDirectorTaskSummary {
   const checkpointType = row.checkpointType as NovelWorkflowCheckpoint | null;
   const status = row.status as TaskStatus;
+  const explainability = buildWorkflowExplainability({
+    status,
+    currentStage: row.currentStage,
+    currentItemKey: row.currentItemKey,
+    checkpointType,
+    lastError: row.lastError,
+  });
   return {
     id: row.id,
     status,
     progress: row.progress,
     currentStage: row.currentStage,
     currentItemLabel: row.currentItemLabel,
+    displayStatus: explainability.displayStatus,
+    blockingReason: explainability.blockingReason,
+    resumeAction: explainability.resumeAction,
+    lastHealthyStage: explainability.lastHealthyStage,
     checkpointType,
     checkpointSummary: row.checkpointSummary,
     nextActionLabel: buildNovelWorkflowNextActionLabel(status, checkpointType),

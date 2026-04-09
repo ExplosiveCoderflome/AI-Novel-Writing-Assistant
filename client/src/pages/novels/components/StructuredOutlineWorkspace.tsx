@@ -8,7 +8,10 @@ import {
   getStructuredOutlineWorkspaceDefaults,
   useStructuredOutlineWorkspaceStore,
 } from "../stores/useStructuredOutlineWorkspaceStore";
-import { hasChapterExecutionDetail } from "../chapterDetailPlanning.shared";
+import {
+  getChapterExecutionDetailStatus,
+  hasChapterExecutionDetail,
+} from "../chapterDetailPlanning.shared";
 import { findBeatSheet } from "../volumePlan.utils";
 import StructuredChapterDetailCard from "./StructuredChapterDetailCard";
 import WorldInjectionHint from "./WorldInjectionHint";
@@ -77,6 +80,17 @@ function getWorkspaceGuidance(params: {
       : `已聚焦到「${selectedBeat.label}」，当前显示 ${visibleChapterCount} 章，接下来在左侧选择要细化的章节。`;
   }
   return `当前展示本卷全部 ${totalChapterCount} 章。建议先点一个节奏段，让系统把对应章节收束出来，再开始细化。`;
+}
+
+function renderChapterDetailStatusBadge(chapter: StructuredChapter) {
+  const status = getChapterExecutionDetailStatus(chapter);
+  if (status === "complete") {
+    return <Badge variant="secondary">已细化</Badge>;
+  }
+  if (status === "partial") {
+    return <Badge>细化中</Badge>;
+  }
+  return <Badge variant="outline">待细化</Badge>;
 }
 
 export default function StructuredOutlineWorkspace(props: StructuredTabViewProps) {
@@ -516,7 +530,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                               <Badge variant={isSelected ? "default" : "outline"}>第{chapter.chapterOrder}章</Badge>
                               {chapterBeat ? <Badge variant="secondary">{chapterBeat.label}</Badge> : null}
                             </div>
-                            {hasChapterExecutionDetail(chapter) ? <Badge variant="secondary">已细化</Badge> : <Badge variant="outline">待细化</Badge>}
+                            {renderChapterDetailStatusBadge(chapter)}
                           </div>
                           <div className="mt-2 text-sm font-medium">{chapter.title || `第${chapter.chapterOrder}章`}</div>
                           <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">

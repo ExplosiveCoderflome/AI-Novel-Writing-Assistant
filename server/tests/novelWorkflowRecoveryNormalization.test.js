@@ -54,7 +54,7 @@ test("healHistoricalAutoDirectorRecoveryFailure restores legacy restart failures
 
     assert.equal(currentRow.status, "waiting_approval");
     assert.equal(currentRow.currentStage, "章节执行");
-    assert.equal(currentRow.currentItemLabel, "前 10 章已可进入章节执行");
+    assert.equal(currentRow.currentItemLabel, "已准备章节可进入执行");
     assert.equal(currentRow.lastError, null);
   } finally {
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
@@ -238,6 +238,81 @@ test("healAutoDirectorTaskState revives front10 auto execution tasks that only f
   } finally {
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
     prisma.generationJob.findUnique = originals.generationJobFindUnique;
+    prisma.novelWorkflowTask.update = originals.update;
+  }
+});
+
+test("healAutoDirectorTaskState promotes advanced queued auto director tasks back to running and clears stale candidate checkpoints", async () => {
+  const originals = {
+    findUnique: prisma.novelWorkflowTask.findUnique,
+    update: prisma.novelWorkflowTask.update,
+  };
+
+  let currentRow = {
+    id: "task_stale_queued",
+    title: "示例项目",
+    novelId: "novel_demo",
+    lane: "auto_director",
+    status: "queued",
+    progress: 0.8458,
+    currentStage: "节奏 / 拆章",
+    currentItemKey: "chapter_list",
+    currentItemLabel: "正在生成第 1 卷章节列表",
+    checkpointType: "candidate_selection_required",
+    checkpointSummary: "第 1 轮 已生成 2 套书级方向，并完成每套书名组。",
+    resumeTargetJson: null,
+    seedPayloadJson: JSON.stringify({
+      directorSession: {
+        runMode: "auto_to_ready",
+        phase: "structured_outline",
+        isBackgroundRunning: true,
+        lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
+        reviewScope: null,
+      },
+    }),
+    lastError: null,
+    finishedAt: null,
+    heartbeatAt: null,
+    cancelRequestedAt: null,
+    milestonesJson: null,
+  };
+
+  prisma.novelWorkflowTask.findUnique = async () => currentRow;
+  prisma.novelWorkflowTask.update = async ({ data }) => {
+    currentRow = {
+      ...currentRow,
+      status: data.status ?? currentRow.status,
+      checkpointType: Object.prototype.hasOwnProperty.call(data, "checkpointType")
+        ? data.checkpointType
+        : currentRow.checkpointType,
+      checkpointSummary: Object.prototype.hasOwnProperty.call(data, "checkpointSummary")
+        ? data.checkpointSummary
+        : currentRow.checkpointSummary,
+      heartbeatAt: data.heartbeatAt ?? currentRow.heartbeatAt,
+      finishedAt: Object.prototype.hasOwnProperty.call(data, "finishedAt")
+        ? data.finishedAt
+        : currentRow.finishedAt,
+      cancelRequestedAt: Object.prototype.hasOwnProperty.call(data, "cancelRequestedAt")
+        ? data.cancelRequestedAt
+        : currentRow.cancelRequestedAt,
+      lastError: Object.prototype.hasOwnProperty.call(data, "lastError")
+        ? data.lastError
+        : currentRow.lastError,
+    };
+    return currentRow;
+  };
+
+  try {
+    const service = new NovelWorkflowService();
+    const healed = await service.healAutoDirectorTaskState("task_stale_queued");
+
+    assert.equal(healed, true);
+    assert.equal(currentRow.status, "running");
+    assert.equal(currentRow.checkpointType, null);
+    assert.equal(currentRow.checkpointSummary, null);
+    assert.ok(currentRow.heartbeatAt instanceof Date);
+  } finally {
+    prisma.novelWorkflowTask.findUnique = originals.findUnique;
     prisma.novelWorkflowTask.update = originals.update;
   }
 });

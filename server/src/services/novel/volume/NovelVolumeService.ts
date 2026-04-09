@@ -374,6 +374,8 @@ export class NovelVolumeService {
         order: true,
         title: true,
         content: true,
+        generationState: true,
+        chapterStatus: true,
         expectation: true,
         targetWordCount: true,
         conflictLevel: true,
@@ -435,8 +437,12 @@ export class NovelVolumeService {
             revealLevel: item.chapter.revealLevel ?? null,
             mustAvoid: item.chapter.mustAvoid ?? null,
             taskSheet,
-            generationState: "planned",
-            chapterStatus: "unplanned",
+            ...(!item.preserveWorkflowState
+              ? {
+                generationState: "planned",
+                chapterStatus: "unplanned",
+              }
+              : {}),
             ...(item.clearContent ? { content: "" } : {}),
           },
         });

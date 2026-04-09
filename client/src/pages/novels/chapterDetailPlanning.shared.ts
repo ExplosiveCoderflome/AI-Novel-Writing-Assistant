@@ -2,6 +2,7 @@ import type { VolumePlan } from "@ai-novel/shared/types/novel";
 
 export type StructuredVolumeChapter = VolumePlan["chapters"][number];
 export type ChapterDetailMode = "purpose" | "boundary" | "task_sheet";
+export type ChapterExecutionDetailStatus = "empty" | "partial" | "complete";
 
 export const CHAPTER_DETAIL_MODES: ChapterDetailMode[] = ["purpose", "boundary", "task_sheet"];
 
@@ -39,10 +40,22 @@ export function hasAnyChapterDetailDraft(chapter: StructuredVolumeChapter): bool
   return CHAPTER_DETAIL_MODES.some((mode) => hasChapterDetailDraft(chapter, mode));
 }
 
+export function hasCompleteChapterDetailDraft(chapter: StructuredVolumeChapter): boolean {
+  return CHAPTER_DETAIL_MODES.every((mode) => hasChapterDetailDraft(chapter, mode));
+}
+
+export function getChapterExecutionDetailStatus(
+  chapter: StructuredVolumeChapter,
+): ChapterExecutionDetailStatus {
+  if (hasCompleteChapterDetailDraft(chapter)) {
+    return "complete";
+  }
+  if (hasAnyChapterDetailDraft(chapter)) {
+    return "partial";
+  }
+  return "empty";
+}
+
 export function hasChapterExecutionDetail(chapter: StructuredVolumeChapter): boolean {
-  return Boolean(
-    chapter.title?.trim()
-    || chapter.summary?.trim()
-    || hasAnyChapterDetailDraft(chapter),
-  );
+  return getChapterExecutionDetailStatus(chapter) === "complete";
 }

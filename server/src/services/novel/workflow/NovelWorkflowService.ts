@@ -81,6 +81,54 @@ const CHECKPOINT_ITEM_LABELS: Record<NovelWorkflowCheckpoint, string> = {
   workflow_completed: "小说主流程已完成",
 };
 
+interface ChapterBatchCheckpointRow {
+  title: string;
+  novelId: string | null;
+  status: string;
+  checkpointType: string | null;
+  currentItemLabel: string | null;
+  checkpointSummary: string | null;
+  resumeTargetJson: string | null;
+  seedPayloadJson: string | null;
+  lastError: string | null;
+  finishedAt: Date | null;
+  milestonesJson: string | null;
+}
+
+function isQueuedWorkflowItemKey(itemKey: string | null | undefined): boolean {
+  return itemKey === "project_setup" || itemKey === "auto_director" || !itemKey;
+}
+
+function isCandidateSelectionItemKey(itemKey: string | null | undefined): boolean {
+  return itemKey === "auto_director" || itemKey?.startsWith("candidate_") === true;
+}
+
+function isChapterBatchCheckpointRow(
+  row: ChapterBatchCheckpointRow | {
+    title?: string | null;
+    novelId?: string | null;
+    status?: string | null;
+    checkpointType?: string | null;
+    currentItemLabel?: string | null;
+    checkpointSummary?: string | null;
+    resumeTargetJson?: string | null;
+    seedPayloadJson?: string | null;
+    lastError?: string | null;
+    finishedAt?: Date | null;
+    milestonesJson?: string | null;
+  } | null,
+): row is ChapterBatchCheckpointRow {
+  return Boolean(
+    row
+    && typeof row.title === "string"
+    && typeof row.status === "string"
+    && Object.prototype.hasOwnProperty.call(row, "resumeTargetJson")
+    && Object.prototype.hasOwnProperty.call(row, "seedPayloadJson")
+    && Object.prototype.hasOwnProperty.call(row, "finishedAt")
+    && Object.prototype.hasOwnProperty.call(row, "milestonesJson"),
+  );
+}
+
 function mapStageToTab(stage: NovelWorkflowStage): NovelWorkflowResumeTarget["stage"] {
   if (stage === "story_macro") return "story_macro";
   if (stage === "character_setup") return "character";
@@ -179,20 +227,81 @@ export class NovelWorkflowService {
 
   async healAutoDirectorTaskState(
     taskId: string,
-    row = null as Awaited<ReturnType<typeof prisma.novelWorkflowTask.findUnique>> | null,
+    row = null as {
+      title?: string | null;
+      novelId?: string | null;
+      lane?: string | null;
+      status?: string | null;
+      progress?: number | null;
+      currentStage?: string | null;
+      currentItemKey?: string | null;
+      currentItemLabel?: string | null;
+      checkpointType?: string | null;
+      checkpointSummary?: string | null;
+      resumeTargetJson?: string | null;
+      seedPayloadJson?: string | null;
+      heartbeatAt?: Date | null;
+      finishedAt?: Date | null;
+      milestonesJson?: string | null;
+      lastError?: string | null;
+    } | null,
   ): Promise<boolean> {
+    const queuedHealed = await this.healStaleAutoDirectorQueuedProgress(taskId, row);
     const historicalHealed = await this.healHistoricalAutoDirectorRecoveryFailure(taskId, row);
     const front10Healed = await this.healHistoricalAutoDirectorFront10RecoveryFailure(taskId, row);
-    const checkpointRow = (historicalHealed || front10Healed)
+    const checkpointRow = (queuedHealed || historicalHealed || front10Healed)
       ? await this.getVisibleRowByIdRaw(taskId)
       : (row ?? await this.getVisibleRowByIdRaw(taskId));
-    const checkpointHealed = checkpointRow
+    const checkpointHealed = isChapterBatchCheckpointRow(checkpointRow)
       ? await syncAutoDirectorChapterBatchCheckpoint({
         taskId,
         row: checkpointRow,
       })
       : false;
-    return historicalHealed || front10Healed || checkpointHealed;
+    return queuedHealed || historicalHealed || front10Healed || checkpointHealed;
+  }
+
+  async healStaleAutoDirectorQueuedProgress(
+    taskId: string,
+    row = null as {
+      lane?: string | null;
+      status?: string | null;
+      currentItemKey?: string | null;
+      checkpointType?: string | null;
+      checkpointSummary?: string | null;
+      heartbeatAt?: Date | null;
+      lastError?: string | null;
+    } | null,
+  ): Promise<boolean> {
+    const candidate = row ?? await this.getVisibleRowByIdRaw(taskId);
+    if (!candidate || candidate.lane !== "auto_director") {
+      return false;
+    }
+
+    const shouldPromoteToRunning = candidate.status === "queued"
+      && !isQueuedWorkflowItemKey(candidate.currentItemKey);
+    const hasStaleCandidateCheckpoint = candidate.checkpointType === "candidate_selection_required"
+      && !isCandidateSelectionItemKey(candidate.currentItemKey);
+
+    if (!shouldPromoteToRunning && !hasStaleCandidateCheckpoint) {
+      return false;
+    }
+
+    await prisma.novelWorkflowTask.update({
+      where: { id: taskId },
+      data: {
+        status: shouldPromoteToRunning ? "running" : undefined,
+        checkpointType: hasStaleCandidateCheckpoint ? null : undefined,
+        checkpointSummary: hasStaleCandidateCheckpoint ? null : undefined,
+        heartbeatAt: candidate.heartbeatAt ?? new Date(),
+        finishedAt: shouldPromoteToRunning ? null : undefined,
+        cancelRequestedAt: shouldPromoteToRunning ? null : undefined,
+        lastError: shouldPromoteToRunning && candidate.lastError?.includes("恢复失败")
+          ? null
+          : undefined,
+      },
+    });
+    return true;
   }
 
   async healHistoricalAutoDirectorRecoveryFailure(

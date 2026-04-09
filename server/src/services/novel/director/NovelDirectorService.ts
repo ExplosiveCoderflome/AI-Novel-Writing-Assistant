@@ -172,7 +172,10 @@ export class NovelDirectorService {
     currentItemKey?: string | null;
     seedPayload: DirectorWorkflowSeedPayload;
   }): boolean {
-    if (input.checkpointType === "candidate_selection_required") {
+    const currentItemKey = input.currentItemKey?.trim() || null;
+    const isCandidateStageItem = currentItemKey === "auto_director"
+      || (currentItemKey?.startsWith("candidate_") ?? false);
+    if (input.checkpointType === "candidate_selection_required" && (isCandidateStageItem || !currentItemKey)) {
       return true;
     }
     if (input.seedPayload.candidateStage) {
@@ -181,7 +184,7 @@ export class NovelDirectorService {
     if (input.seedPayload.directorSession?.phase === "candidate_selection") {
       return true;
     }
-    return typeof input.currentItemKey === "string" && input.currentItemKey.startsWith("candidate_");
+    return isCandidateStageItem;
   }
 
   private buildCandidateStageBaseRequest(

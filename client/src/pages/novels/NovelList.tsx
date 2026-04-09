@@ -330,6 +330,16 @@ export default function NovelList() {
                       <div className="mt-2 text-xs text-muted-foreground">
                         当前阶段：{workflowTask.currentStage ?? "自动导演"}{workflowTask.currentItemLabel ? ` · ${workflowTask.currentItemLabel}` : ""}
                       </div>
+                      {workflowTask.lastHealthyStage ? (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          最近健康阶段：{workflowTask.lastHealthyStage}
+                        </div>
+                      ) : null}
+                      {workflowTask.resumeAction ? (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          建议继续：{workflowTask.resumeAction}
+                        </div>
+                      ) : null}
                     </div>
                   ) : (
                     <div className="rounded-xl border border-dashed bg-muted/10 p-3 text-xs text-muted-foreground">
@@ -366,7 +376,7 @@ export default function NovelList() {
                         }}
                         disabled={isWorkflowPending}
                       >
-                        {isWorkflowPending ? "继续执行中..." : "继续自动执行前 10 章"}
+                        {isWorkflowPending ? "继续执行中..." : (workflowTask?.resumeAction ?? "继续自动执行前 10 章")}
                       </Button>
                     ) : canContinueDirector(workflowTask) ? (
                       <Button
@@ -382,7 +392,7 @@ export default function NovelList() {
                         }}
                         disabled={isWorkflowPending}
                       >
-                        {isWorkflowPending ? "继续中..." : "继续导演"}
+                        {isWorkflowPending ? "继续中..." : (workflowTask?.resumeAction ?? "继续导演")}
                       </Button>
                     ) : canEnterChapterExecution(workflowTask) ? (
                       <Button asChild size="sm">

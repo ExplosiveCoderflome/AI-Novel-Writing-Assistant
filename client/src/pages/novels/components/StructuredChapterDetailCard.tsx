@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
-  hasChapterExecutionDetail,
+  getChapterExecutionDetailStatus,
   type ChapterDetailBatchSelection,
 } from "../chapterDetailPlanning.shared";
 import type { StructuredTabViewProps } from "./NovelEditView.types";
@@ -22,6 +22,18 @@ interface BatchPlan {
   count: number;
   hint: string;
   request: ChapterDetailBatchSelection;
+}
+
+function renderChapterDetailStatusBadge(
+  status: ReturnType<typeof getChapterExecutionDetailStatus>,
+) {
+  if (status === "complete") {
+    return <Badge variant="secondary">已细化</Badge>;
+  }
+  if (status === "partial") {
+    return <Badge>细化中</Badge>;
+  }
+  return <Badge variant="outline">待细化</Badge>;
 }
 
 interface StructuredChapterDetailCardProps {
@@ -77,6 +89,7 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
   const hasVisibleBatch = visibleChapters.length > 1 && visibleChapters.length < volumeChapters.length;
   const hasVolumeBatch = volumeChapters.length > 1;
   const hasCountBatch = remainingChapters.length > 1;
+  const chapterDetailStatus = selectedChapter ? getChapterExecutionDetailStatus(selectedChapter) : "empty";
 
   useEffect(() => {
     if (hasCountBatch) {
@@ -172,7 +185,7 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
                 <>
                   <Badge variant="outline">第{selectedChapter.chapterOrder}章</Badge>
                   {selectedChapterBeatLabel ? <Badge variant="secondary">{selectedChapterBeatLabel}</Badge> : null}
-                  {hasChapterExecutionDetail(selectedChapter) ? <Badge variant="secondary">已细化</Badge> : <Badge variant="outline">待细化</Badge>}
+                  {renderChapterDetailStatusBadge(chapterDetailStatus)}
                 </>
               ) : null}
             </div>
