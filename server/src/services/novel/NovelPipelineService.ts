@@ -3,7 +3,16 @@ import { NovelReviewService } from "./NovelReviewService";
 
 export class NovelPipelineService extends NovelReviewService {
   async startPipelineJob(...args: Parameters<NovelCoreService["startPipelineJob"]>) {
-    const [novelId] = args;
+    const [novelId, options] = args;
+    const existing = await this.core.findActivePipelineJobForRange(
+      novelId,
+      options.startOrder,
+      options.endOrder,
+    );
+    if (existing) {
+      await this.core.resumePipelineJob(existing.id);
+      return existing;
+    }
     await this.core.createNovelSnapshot(novelId, "before_pipeline", `before-pipeline-${Date.now()}`);
     return this.core.startPipelineJob(...args);
   }
@@ -14,6 +23,14 @@ export class NovelPipelineService extends NovelReviewService {
 
   getPipelineJobById(...args: Parameters<NovelCoreService["getPipelineJobById"]>) {
     return this.core.getPipelineJobById(...args);
+  }
+
+  findActivePipelineJobForRange(...args: Parameters<NovelCoreService["findActivePipelineJobForRange"]>) {
+    return this.core.findActivePipelineJobForRange(...args);
+  }
+
+  resumePipelineJob(...args: Parameters<NovelCoreService["resumePipelineJob"]>) {
+    return this.core.resumePipelineJob(...args);
   }
 
   retryPipelineJob(...args: Parameters<NovelCoreService["retryPipelineJob"]>) {

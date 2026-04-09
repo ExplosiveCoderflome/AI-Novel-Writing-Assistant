@@ -2,6 +2,7 @@ import type {
   NovelWorkflowCheckpoint,
 } from "@ai-novel/shared/types/novelWorkflow";
 import type { DirectorLLMOptions } from "@ai-novel/shared/types/novelDirector";
+import type { ResourceRef } from "@ai-novel/shared/types/agent";
 import type { TaskStatus, UnifiedTaskDetail, UnifiedTaskSummary } from "@ai-novel/shared/types/task";
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
@@ -37,6 +38,25 @@ function buildOwnerLabel(row: {
   return row.novel?.title?.trim() || row.title.trim() || "小说主任务";
 }
 
+function parseLinkedPipelineJobId(seedPayloadJson?: string | null): string | null {
+  if (!seedPayloadJson?.trim()) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(seedPayloadJson) as {
+      autoExecution?: {
+        pipelineJobId?: unknown;
+      };
+    };
+    return typeof parsed.autoExecution?.pipelineJobId === "string"
+      && parsed.autoExecution.pipelineJobId.trim()
+      ? parsed.autoExecution.pipelineJobId.trim()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function mapSummary(row: {
   id: string;
   title: string;
@@ -62,11 +82,27 @@ function mapSummary(row: {
   lastTokenRecordedAt: Date | null;
   novelId: string | null;
   novel?: { title: string } | null;
+  seedPayloadJson?: string | null;
 }): UnifiedTaskSummary {
   const resumeTarget = parseResumeTarget(row.resumeTargetJson);
   const sourceRoute = resumeTargetToRoute(resumeTarget);
   const ownerLabel = buildOwnerLabel(row);
   const checkpointType = row.checkpointType as NovelWorkflowCheckpoint | null;
+  const linkedPipelineJobId = parseLinkedPipelineJobId(row.seedPayloadJson);
+  const targetResources: ResourceRef[] = [{
+    type: "task",
+    id: row.id,
+    label: row.title,
+    route: sourceRoute,
+  }];
+  if (linkedPipelineJobId && row.novelId) {
+    targetResources.push({
+      type: "generation_job" as const,
+      id: linkedPipelineJobId,
+      label: "章节流水线",
+      route: `/novels/${row.novelId}/edit`,
+    });
+  }
   return {
     id: row.id,
     kind: "novel_workflow",
@@ -114,12 +150,7 @@ function mapSummary(row: {
         label: row.title,
         route: sourceRoute,
       },
-    targetResources: [{
-      type: "task",
-      id: row.id,
-      label: row.title,
-      route: sourceRoute,
-    }],
+    targetResources,
   };
 }
 
@@ -199,7 +230,19 @@ export class NovelWorkflowTaskAdapter {
       })
       : rows;
 
-    return normalizedRows.map((row) => mapSummary(row));
+    const visibleRows = normalizedRows.filter((row) => {
+      if (row.lane !== "manual_create" || !row.novelId) {
+        return true;
+      }
+      return !normalizedRows.some((candidate) =>
+        candidate.id !== row.id
+        && candidate.novelId === row.novelId
+        && candidate.lane === "auto_director"
+        && ["queued", "running", "waiting_approval", "succeeded"].includes(candidate.status)
+        && candidate.updatedAt >= row.updatedAt);
+    });
+
+    return visibleRows.map((row) => mapSummary(row));
   }
 
   async detail(id: string): Promise<UnifiedTaskDetail | null> {

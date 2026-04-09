@@ -76,6 +76,12 @@ interface NovelDirectorAutoExecutionNovelPort {
     qualityThreshold: number;
     repairMode: "light_repair";
   }): Promise<{ id: string; status: PipelineJobStatus }>;
+  findActivePipelineJobForRange(
+    novelId: string,
+    startOrder: number,
+    endOrder: number,
+    preferredJobId?: string | null,
+  ): Promise<{ id: string; status: PipelineJobStatus } | null>;
   getPipelineJobById(jobId: string): Promise<{
     id: string;
     status: PipelineJobStatus;
@@ -89,7 +95,10 @@ interface NovelDirectorAutoExecutionNovelPort {
 
 interface NovelDirectorAutoExecutionRuntimeDeps {
   novelContextService: Pick<NovelDirectorAutoExecutionNovelPort, "listChapters">;
-  novelService: Pick<NovelDirectorAutoExecutionNovelPort, "startPipelineJob" | "getPipelineJobById" | "cancelPipelineJob">;
+  novelService: Pick<
+    NovelDirectorAutoExecutionNovelPort,
+    "startPipelineJob" | "findActivePipelineJobForRange" | "getPipelineJobById" | "cancelPipelineJob"
+  >;
   workflowService: NovelDirectorAutoExecutionWorkflowPort;
   buildDirectorSeedPayload: (
     input: DirectorConfirmRequest,
@@ -256,6 +265,30 @@ export class NovelDirectorAutoExecutionRuntime {
         if (!existingJob || ["failed", "cancelled", "succeeded"].includes(existingJob.status)) {
           pipelineJobId = "";
         }
+      }
+
+      const activeRangeJob = await this.deps.novelService.findActivePipelineJobForRange(
+        input.novelId,
+        range.startOrder,
+        range.endOrder,
+        pipelineJobId || null,
+      );
+      if (activeRangeJob) {
+        pipelineJobId = activeRangeJob.id;
+        ({ range, autoExecution } = await this.resolveRangeAndState({
+          novelId: input.novelId,
+          existingState: autoExecution,
+          pipelineJobId,
+          pipelineStatus: activeRangeJob.status,
+        }));
+        await this.syncAutoExecutionTaskState({
+          taskId: input.taskId,
+          novelId: input.novelId,
+          request: input.request,
+          range,
+          autoExecution,
+          isBackgroundRunning: true,
+        });
       }
 
       if (!pipelineJobId) {
