@@ -14,7 +14,9 @@ import {
 } from "../../novel/director/novelDirectorHelpers";
 import { isAutoDirectorRecoveryInProgress } from "../../novel/workflow/novelWorkflowRecoveryHeuristics";
 import {
+  buildNovelCreateResumeTarget,
   parseMilestones,
+  parseSeedPayload,
   parseResumeTarget,
   resumeTargetToRoute,
 } from "../../novel/workflow/novelWorkflow.shared";
@@ -59,6 +61,38 @@ function parseLinkedPipelineJobId(seedPayloadJson?: string | null): string | nul
   }
 }
 
+function hasCandidateSelectionPhase(seedPayloadJson?: string | null): boolean {
+  const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(seedPayloadJson);
+  if (!seedPayload) {
+    return false;
+  }
+  if (seedPayload.candidateStage) {
+    return true;
+  }
+  const phase = seedPayload.directorSession && typeof seedPayload.directorSession === "object"
+    ? (seedPayload.directorSession as { phase?: unknown }).phase
+    : null;
+  return phase === "candidate_selection";
+}
+
+export function normalizeWorkflowResumeTargetForCandidateSelection(input: {
+  id: string;
+  checkpointType: string | null;
+  currentItemKey: string | null;
+  resumeTargetJson: string | null;
+  seedPayloadJson?: string | null;
+}) {
+  const parsed = parseResumeTarget(input.resumeTargetJson);
+  const isCandidateSelectionTask = input.checkpointType === "candidate_selection_required"
+    || input.currentItemKey === "auto_director"
+    || input.currentItemKey?.startsWith("candidate_") === true
+    || hasCandidateSelectionPhase(input.seedPayloadJson);
+  if (!isCandidateSelectionTask) {
+    return parsed;
+  }
+  return buildNovelCreateResumeTarget(input.id, "director");
+}
+
 function mapSummary(row: {
   id: string;
   title: string;
@@ -92,7 +126,13 @@ function mapSummary(row: {
     lastError: row.lastError,
   });
   const lastError = isRecoveryInProgress ? null : row.lastError;
-  const resumeTarget = parseResumeTarget(row.resumeTargetJson);
+  const resumeTarget = normalizeWorkflowResumeTargetForCandidateSelection({
+    id: row.id,
+    checkpointType: row.checkpointType,
+    currentItemKey: row.currentItemKey,
+    resumeTargetJson: row.resumeTargetJson,
+    seedPayloadJson: row.seedPayloadJson,
+  });
   const sourceRoute = resumeTargetToRoute(resumeTarget);
   const ownerLabel = buildOwnerLabel(row);
   const checkpointType = row.checkpointType as NovelWorkflowCheckpoint | null;
@@ -287,7 +327,13 @@ export class NovelWorkflowTaskAdapter {
     }
 
     const summary = mapSummary(row);
-    const resumeTarget = parseResumeTarget(row.resumeTargetJson);
+    const resumeTarget = normalizeWorkflowResumeTargetForCandidateSelection({
+      id: row.id,
+      checkpointType: row.checkpointType,
+      currentItemKey: row.currentItemKey,
+      resumeTargetJson: row.resumeTargetJson,
+      seedPayloadJson: row.seedPayloadJson,
+    });
     const milestones = parseMilestones(row.milestonesJson);
     let seedPayload: Record<string, unknown> | null = null;
     if (row.seedPayloadJson?.trim()) {

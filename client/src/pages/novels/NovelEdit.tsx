@@ -57,6 +57,7 @@ import type { NovelEditTakeoverState, NovelTaskDrawerState } from "./components/
 import NovelExistingProjectTakeoverDialog from "./components/NovelExistingProjectTakeoverDialog";
 import { syncNovelWorkflowStageSilently, workflowStageFromTab } from "./novelWorkflow.client";
 import { scopeFromWorkspaceTab, tabFromDirectorProgress, tabFromScope } from "./novelWorkspaceNavigation";
+import { getCandidateSelectionLink } from "@/lib/novelWorkflowTaskUi";
 import {
   buildContinueAutoExecutionActionLabel,
   buildContinueAutoExecutionToast,
@@ -548,6 +549,12 @@ export default function NovelEdit() {
     setActiveTab(reviewTab);
     setIsTaskDrawerOpen(false);
   };
+  const openCandidateSelection = () => {
+    if (!activeAutoDirectorTask?.id) {
+      return;
+    }
+    navigate(getCandidateSelectionLink(activeAutoDirectorTask.id));
+  };
   const openChapterExecution = () => {
     if (activeAutoDirectorTask?.resumeTarget?.chapterId) {
       setSelectedChapterId(activeAutoDirectorTask.resumeTarget.chapterId);
@@ -664,6 +671,15 @@ export default function NovelEdit() {
     const actions: NonNullable<NovelEditTakeoverState["actions"]> = [];
     const reviewTab = tabFromScope(reviewScope);
     if (
+      mode === "waiting"
+      && task.checkpointType === "candidate_selection_required"
+    ) {
+      actions.push({
+        label: "去确认书级方向",
+        onClick: openCandidateSelection,
+        variant: "default",
+      });
+    } else if (
       mode === "waiting"
       && reviewTab
       && reviewTab !== activeTab
@@ -819,6 +835,7 @@ export default function NovelEdit() {
     isDirectorExitActionExpanded,
     navigate,
     novelDetailQuery.data?.data?.title,
+    openCandidateSelection,
     openQualityRepair,
     setActiveTab,
     setSelectedChapterId,
@@ -859,6 +876,12 @@ export default function NovelEdit() {
         label: "进入章节执行",
         onClick: openChapterExecution,
         variant: "outline",
+      });
+    } else if (task.status === "waiting_approval" && task.checkpointType === "candidate_selection_required") {
+      actions.push({
+        label: "去确认书级方向",
+        onClick: openCandidateSelection,
+        variant: "default",
       });
     } else if (
       task.status === "waiting_approval"
@@ -928,6 +951,7 @@ export default function NovelEdit() {
     consistencyIssue,
     continueAutoDirectorMutation,
     continueAutoExecutionMutation,
+    openCandidateSelection,
     openReviewStage,
     openChapterExecution,
     openQualityRepair,

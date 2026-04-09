@@ -4,6 +4,12 @@ import type { TaskStatus } from "@ai-novel/shared/types/task";
 
 export type WorkflowBadgeVariant = "default" | "outline" | "secondary" | "destructive";
 
+type WorkflowTaskLike = {
+  id: string;
+  status: TaskStatus;
+  checkpointType?: NovelWorkflowCheckpoint | null;
+};
+
 export const LIVE_TASK_STATUSES = new Set<TaskStatus>(["queued", "running", "waiting_approval"]);
 
 export function formatWorkflowCheckpoint(checkpoint?: NovelWorkflowCheckpoint | null): string {
@@ -128,9 +134,14 @@ export function canContinueDirector(task?: NovelAutoDirectorTaskSummary | null):
   return Boolean(
     task
       && task.status === "waiting_approval"
+      && task.checkpointType !== "candidate_selection_required"
       && task.checkpointType !== "front10_ready"
       && task.checkpointType !== "chapter_batch_ready",
   );
+}
+
+export function requiresCandidateSelection(task?: Pick<WorkflowTaskLike, "status" | "checkpointType"> | null): boolean {
+  return Boolean(task && task.status === "waiting_approval" && task.checkpointType === "candidate_selection_required");
 }
 
 export function canContinueFront10AutoExecution(task?: NovelAutoDirectorTaskSummary | null): boolean {
@@ -167,4 +178,11 @@ export function isWorkflowActionRequired(task?: NovelAutoDirectorTaskSummary | n
 
 export function getTaskCenterLink(taskId: string): string {
   return `/tasks?kind=novel_workflow&id=${taskId}`;
+}
+
+export function getCandidateSelectionLink(taskId: string): string {
+  const searchParams = new URLSearchParams();
+  searchParams.set("workflowTaskId", taskId);
+  searchParams.set("mode", "director");
+  return `/novels/create?${searchParams.toString()}`;
 }

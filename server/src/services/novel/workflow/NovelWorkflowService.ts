@@ -103,6 +103,39 @@ function isCandidateSelectionItemKey(itemKey: string | null | undefined): boolea
   return itemKey === "auto_director" || itemKey?.startsWith("candidate_") === true;
 }
 
+function hasCandidateSelectionPhase(seedPayloadJson: string | null | undefined): boolean {
+  const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(seedPayloadJson);
+  if (!seedPayload) {
+    return false;
+  }
+  if (seedPayload.candidateStage) {
+    return true;
+  }
+  const phase = seedPayload.directorSession && typeof seedPayload.directorSession === "object"
+    ? (seedPayload.directorSession as { phase?: unknown }).phase
+    : null;
+  return phase === "candidate_selection";
+}
+
+function isPreNovelAutoDirectorCandidateTask(row: {
+  lane?: string | null;
+  novelId?: string | null;
+  checkpointType?: string | null;
+  currentItemKey?: string | null;
+  seedPayloadJson?: string | null;
+} | null): boolean {
+  return Boolean(
+    row
+    && row.lane === "auto_director"
+    && !row.novelId
+    && (
+      row.checkpointType === "candidate_selection_required"
+      || isCandidateSelectionItemKey(row.currentItemKey)
+      || hasCandidateSelectionPhase(row.seedPayloadJson)
+    ),
+  );
+}
+
 function isChapterBatchCheckpointRow(
   row: ChapterBatchCheckpointRow | {
     title?: string | null;
@@ -513,6 +546,9 @@ export class NovelWorkflowService {
       const existing = await this.getVisibleRowById(input.workflowTaskId.trim());
       if (existing) {
         if (input.novelId?.trim() && existing.novelId !== input.novelId.trim()) {
+          if (isPreNovelAutoDirectorCandidateTask(existing)) {
+            return existing;
+          }
           const attached = await this.attachNovelToTask(existing.id, input.novelId.trim());
           if (input.seedPayload) {
             return prisma.novelWorkflowTask.update({
@@ -691,12 +727,16 @@ export class NovelWorkflowService {
     }
     const checkpointType = existing.checkpointType as NovelWorkflowCheckpoint;
     const checkpointStage = CHECKPOINT_STAGE_MAP[checkpointType];
-    const resumeTarget = parseResumeTarget(existing.resumeTargetJson) ?? this.buildResumeTarget({
-      taskId,
-      novelId: existing.novelId,
-      lane: existing.lane,
-      stage: checkpointStage,
-    });
+    const resumeTarget = checkpointType === "candidate_selection_required"
+      ? buildNovelCreateResumeTarget(taskId, "director")
+      : (
+        parseResumeTarget(existing.resumeTargetJson) ?? this.buildResumeTarget({
+          taskId,
+          novelId: existing.novelId,
+          lane: existing.lane,
+          stage: checkpointStage,
+        })
+      );
     return prisma.novelWorkflowTask.update({
       where: { id: taskId },
       data: {
@@ -753,12 +793,6 @@ export class NovelWorkflowService {
     if (!existing) {
       throw new AppError("Workflow task not found.", 404);
     }
-    const resumeTarget = this.buildResumeTarget({
-      taskId,
-      novelId: existing.novelId,
-      lane: existing.lane,
-      stage: "auto_director",
-    });
     return prisma.novelWorkflowTask.update({
       where: { id: taskId },
       data: {
@@ -768,15 +802,7 @@ export class NovelWorkflowService {
         currentItemLabel: "等待确认书级方向",
         checkpointType: "candidate_selection_required",
         checkpointSummary: input.summary,
-        resumeTargetJson: stringifyResumeTarget(
-          existing.novelId
-            ? buildNovelEditResumeTarget({
-              novelId: existing.novelId,
-              taskId,
-              stage: "basic",
-            })
-            : buildNovelCreateResumeTarget(taskId, "director"),
-        ),
+        resumeTargetJson: stringifyResumeTarget(buildNovelCreateResumeTarget(taskId, "director")),
         progress: Math.max(existing.progress, defaultProgressForStage("auto_director")),
         heartbeatAt: new Date(),
         seedPayloadJson: input.seedPayload

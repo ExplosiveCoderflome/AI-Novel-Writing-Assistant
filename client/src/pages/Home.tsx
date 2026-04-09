@@ -14,11 +14,13 @@ import {
   canContinueDirector,
   canContinueFront10AutoExecution,
   canEnterChapterExecution,
+  getCandidateSelectionLink,
   getTaskCenterLink,
   getWorkflowBadge,
   getWorkflowDescription,
   isLiveWorkflowTask,
   isWorkflowActionRequired,
+  requiresCandidateSelection,
 } from "@/lib/novelWorkflowTaskUi";
 import { toast } from "@/components/ui/toast";
 
@@ -45,19 +47,22 @@ function getNovelPriorityScore(novel: HomeNovelItem): number {
   if (canContinueFront10AutoExecution(task)) {
     return 0;
   }
-  if (canContinueDirector(task)) {
+  if (requiresCandidateSelection(task)) {
     return 1;
   }
-  if (task?.status === "running" || task?.status === "queued") {
+  if (canContinueDirector(task)) {
     return 2;
   }
-  if (canEnterChapterExecution(task)) {
+  if (task?.status === "running" || task?.status === "queued") {
     return 3;
   }
-  if (task?.status === "failed" || task?.status === "cancelled") {
+  if (canEnterChapterExecution(task)) {
     return 4;
   }
-  return 5;
+  if (task?.status === "failed" || task?.status === "cancelled") {
+    return 5;
+  }
+  return 6;
 }
 
 function getNovelLeadSummary(novel: HomeNovelItem): string {
@@ -234,6 +239,19 @@ export default function Home() {
           disabled={isWorkflowPending}
         >
           {isWorkflowPending ? "继续中..." : (task?.resumeAction ?? "继续导演")}
+        </Button>
+      );
+    }
+
+    if (requiresCandidateSelection(task)) {
+      return (
+        <Button asChild size={size}>
+          <Link
+            to={getCandidateSelectionLink(task!.id)}
+            onClick={stopPropagation ? stopCardClick : undefined}
+          >
+            {task!.resumeAction ?? "继续确认书级方向"}
+          </Link>
         </Button>
       );
     }

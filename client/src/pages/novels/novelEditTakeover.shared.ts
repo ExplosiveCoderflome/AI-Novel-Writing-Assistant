@@ -58,6 +58,9 @@ export function buildTakeoverTitle(input: {
     return `《${input.novelTitle}》正在自动执行${input.scopeLabel}`;
   }
   if (input.mode === "waiting") {
+    if (input.checkpointType === "candidate_selection_required") {
+      return `《${input.novelTitle}》等待确认书级方向`;
+    }
     if (input.checkpointType === "character_setup_required") {
       return `《${input.novelTitle}》等待审核角色准备`;
     }
@@ -93,6 +96,9 @@ export function buildTakeoverDescription(input: {
     return `AI 正在后台自动执行${input.scopeLabel}，并会继续完成审校与修复。你仍可继续手动查看和编辑；如果同时修改当前章节，后续自动结果可能覆盖这部分内容。`;
   }
   if (input.mode === "waiting") {
+    if (input.checkpointType === "candidate_selection_required") {
+      return "书级方向候选已经生成。请先回到书级方向确认页选定或修正方案，自动导演才能继续推进后续主链。";
+    }
     if (input.checkpointType === "character_setup_required") {
       return "角色准备已经生成。你可以先检查核心角色、关系和当前目标，确认后再继续自动导演。";
     }

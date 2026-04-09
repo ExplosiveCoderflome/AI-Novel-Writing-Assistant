@@ -14,9 +14,11 @@ import {
   canContinueDirector,
   canContinueFront10AutoExecution,
   canEnterChapterExecution,
+  getCandidateSelectionLink,
   getTaskCenterLink,
   getWorkflowBadge,
   getWorkflowDescription,
+  requiresCandidateSelection,
 } from "@/lib/novelWorkflowTaskUi";
 import { toast } from "@/components/ui/toast";
 
@@ -393,6 +395,12 @@ export default function NovelList() {
                         disabled={isWorkflowPending}
                       >
                         {isWorkflowPending ? "继续中..." : (workflowTask?.resumeAction ?? "继续导演")}
+                      </Button>
+                    ) : requiresCandidateSelection(workflowTask) ? (
+                      <Button asChild size="sm">
+                        <Link to={getCandidateSelectionLink(workflowTask!.id)} onClick={stopCardClick}>
+                          {workflowTask!.resumeAction ?? "继续确认书级方向"}
+                        </Link>
                       </Button>
                     ) : canEnterChapterExecution(workflowTask) ? (
                       <Button asChild size="sm">

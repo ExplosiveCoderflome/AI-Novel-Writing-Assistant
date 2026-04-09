@@ -12,7 +12,7 @@ import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubB
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
-import { canContinueFront10AutoExecution } from "@/lib/novelWorkflowTaskUi";
+import { canContinueFront10AutoExecution, getCandidateSelectionLink, requiresCandidateSelection } from "@/lib/novelWorkflowTaskUi";
 import { useLLMStore } from "@/store/llmStore";
 
 const ACTIVE_STATUSES = new Set<TaskStatus>(["queued", "running", "waiting_approval"]);
@@ -359,6 +359,11 @@ export default function TaskCenterPage() {
     && selectedTask.kind === "novel_workflow"
     && canContinueFront10AutoExecution(selectedTask),
   );
+  const needsCandidateSelection = Boolean(
+    selectedTask
+    && selectedTask.kind === "novel_workflow"
+    && requiresCandidateSelection(selectedTask),
+  );
 
   return (
     <div className="space-y-4">
@@ -580,6 +585,14 @@ export default function TaskCenterPage() {
                   </div>
                 ) : null}
                 <div className="flex flex-wrap gap-2">
+                  {needsCandidateSelection ? (
+                    <Button
+                      size="sm"
+                      onClick={() => navigate(getCandidateSelectionLink(selectedTask.id))}
+                    >
+                      {selectedTask.resumeAction ?? "继续确认书级方向"}
+                    </Button>
+                  ) : null}
                   {canResumeFront10AutoExecution ? (
                     <Button
                       size="sm"
@@ -594,6 +607,7 @@ export default function TaskCenterPage() {
                     </Button>
                   ) : null}
                   {selectedTask.kind === "novel_workflow"
+                  && !needsCandidateSelection
                   && !canResumeFront10AutoExecution
                   && (selectedTask.status === "waiting_approval" || selectedTask.status === "queued" || selectedTask.status === "running") ? (
                     <Button
