@@ -224,6 +224,7 @@ export interface ChapterEditorCandidate {
 export interface ChapterEditorRewritePreviewRequest {
   operation: ChapterEditorOperation;
   customInstruction?: string;
+  contentSnapshot: string;
   targetRange: ChapterEditorTargetRange;
   context: ChapterEditorContextWindow;
   chapterContext: ChapterEditorContextSummary;

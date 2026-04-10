@@ -22,17 +22,17 @@ test("NovelChapterEditorService returns preview candidates and passes constraint
         findUnique: async () => ({
           world: null,
           characters: [{
-            name: "林渊",
-            role: "主角",
-            currentState: "强撑镇定",
-            currentGoal: "先稳住局面",
+            name: "Lin Zhou",
+            role: "lead",
+            currentState: "holding steady",
+            currentGoal: "stabilize the scene",
           }],
           chapters: [{
             id: "chapter-1",
-            title: "测试章节",
+            title: "Test Chapter",
             order: 7,
-            content: "原段内容。\n后文承接。",
-            expectation: "推进冲突",
+            content: "alpha\n\nbeta",
+            expectation: "push conflict forward",
           }],
         }),
       },
@@ -42,15 +42,15 @@ test("NovelChapterEditorService returns preview candidates and passes constraint
       return {
         output: {
           candidates: [{
-            label: "更自然",
-            content: "改写版本一。",
-            summary: "保留原意并让表达更自然。",
-            semanticTags: ["优化表达", "贴近语气"],
+            label: "More natural",
+            content: "alpha revised",
+            summary: "Keep the original intent and make it read more naturally.",
+            semanticTags: ["polish", "voice"],
           }, {
-            label: "更克制",
-            content: "改写版本二。",
-            summary: "压缩修饰并保持推进。",
-            semanticTags: ["精简压缩", "保留信息"],
+            label: "More restrained",
+            content: "alpha compressed",
+            summary: "Compress modifiers and keep the scene moving.",
+            semanticTags: ["compress", "retain_info"],
           }],
         },
       };
@@ -59,21 +59,22 @@ test("NovelChapterEditorService returns preview candidates and passes constraint
 
   const result = await service.previewRewrite("novel-1", "chapter-1", {
     operation: "polish",
+    contentSnapshot: "alpha\n\nbeta",
     targetRange: {
       from: 0,
       to: 5,
-      text: "原段内容。",
+      text: "alpha",
     },
     context: {
       beforeParagraphs: [],
-      afterParagraphs: ["后文承接。"],
+      afterParagraphs: ["beta"],
     },
     chapterContext: {
-      goalSummary: "推进冲突",
-      chapterSummary: "主角准备接住下一轮压力。",
-      styleSummary: "第三人称近距离，语气克制。",
-      characterStateSummary: "林渊还在强撑镇定。",
-      worldConstraintSummary: "不能新增超出当前都市规则的设定。",
+      goalSummary: "push conflict forward",
+      chapterSummary: "the lead braces for the next hit",
+      styleSummary: "tight third-person limited, restrained tone",
+      characterStateSummary: "Lin Zhou is still holding steady",
+      worldConstraintSummary: "do not introduce any new setting rules",
     },
     constraints: {
       keepFacts: true,
@@ -87,11 +88,11 @@ test("NovelChapterEditorService returns preview candidates and passes constraint
   });
 
   assert.equal(result.operation, "polish");
-  assert.equal(result.targetRange.text, "原段内容。");
+  assert.equal(result.targetRange.text, "alpha");
   assert.equal(result.candidates.length, 2);
   assert.ok(result.activeCandidateId);
   assert.ok(result.candidates[0].diffChunks.some((chunk) => chunk.type !== "equal"));
-  assert.equal(capturedPromptInput.selectedText, "原段内容。");
+  assert.equal(capturedPromptInput.selectedText, "alpha");
   assert.ok(capturedPromptInput.constraintsText.includes("保留现有剧情事实"));
   assert.ok(capturedPromptInput.constraintsText.includes("保持当前人称与叙事视角"));
 });
@@ -105,10 +106,10 @@ test("NovelChapterEditorService rejects empty or mismatched selections with expl
           characters: [],
           chapters: [{
             id: "chapter-1",
-            title: "测试章节",
+            title: "Test Chapter",
             order: 1,
-            content: "原段内容。",
-            expectation: "推进冲突",
+            content: "alpha",
+            expectation: "push conflict forward",
           }],
         }),
       },
@@ -116,11 +117,11 @@ test("NovelChapterEditorService rejects empty or mismatched selections with expl
     async () => ({
       output: {
         candidates: [{
-          label: "更自然",
-          content: "改写版本一。",
+          label: "More natural",
+          content: "alpha revised",
         }, {
-          label: "更克制",
-          content: "改写版本二。",
+          label: "More restrained",
+          content: "alpha compressed",
         }],
       },
     }),
@@ -129,10 +130,11 @@ test("NovelChapterEditorService rejects empty or mismatched selections with expl
   await assert.rejects(
     () => service.previewRewrite("novel-1", "chapter-1", {
       operation: "polish",
+      contentSnapshot: "alpha",
       targetRange: {
         from: 0,
         to: 5,
-        text: "不是当前正文",
+        text: "not-current-text",
       },
       context: {
         beforeParagraphs: [],
@@ -146,8 +148,63 @@ test("NovelChapterEditorService rejects empty or mismatched selections with expl
         preserveCoreInfo: true,
       },
     }),
-    /选中文本已发生变化，请重新选择后再试/,
+    /选中文本已发生变化，请重新选择后再试。/,
   );
+});
+
+test("NovelChapterEditorService accepts selections based on the editor content snapshot", async () => {
+  const service = new NovelChapterEditorService(
+    {
+      novel: {
+        findUnique: async () => ({
+          world: null,
+          characters: [],
+          chapters: [{
+            id: "chapter-1",
+            title: "Test Chapter",
+            order: 1,
+            content: "line one\nline two\nline three",
+            expectation: "push conflict forward",
+          }],
+        }),
+      },
+    },
+    async () => ({
+      output: {
+        candidates: [{
+          label: "More natural",
+          content: "paragraph revised",
+        }, {
+          label: "More restrained",
+          content: "paragraph compressed",
+        }],
+      },
+    }),
+  );
+
+  const result = await service.previewRewrite("novel-1", "chapter-1", {
+    operation: "polish",
+    contentSnapshot: "line one line two\n\nline three",
+    targetRange: {
+      from: 0,
+      to: 17,
+      text: "line one line two",
+    },
+    context: {
+      beforeParagraphs: [],
+      afterParagraphs: ["line three"],
+    },
+    chapterContext: {},
+    constraints: {
+      keepFacts: true,
+      keepPov: true,
+      noUnauthorizedSetting: true,
+      preserveCoreInfo: true,
+    },
+  });
+
+  assert.equal(result.targetRange.text, "line one line two");
+  assert.equal(result.candidates.length, 2);
 });
 
 test("POST /api/novels/:id/chapters/:chapterId/editor/rewrite-preview returns preview payload", async () => {
@@ -158,23 +215,23 @@ test("POST /api/novels/:id/chapters/:chapterId/editor/rewrite-preview returns pr
     targetRange: payload.targetRange,
     candidates: [{
       id: "candidate-1",
-      label: "更自然",
-      content: "改写版本一。",
-      summary: "保留原意并让表达更自然。",
-      semanticTags: ["优化表达"],
+      label: "More natural",
+      content: "alpha revised",
+      summary: "Keep the original intent and make it read more naturally.",
+      semanticTags: ["polish"],
       diffChunks: [
-        { id: "chunk-1", type: "delete", text: "原段内容。" },
-        { id: "chunk-2", type: "insert", text: "改写版本一。" },
+        { id: "chunk-1", type: "delete", text: "alpha" },
+        { id: "chunk-2", type: "insert", text: "alpha revised" },
       ],
     }, {
       id: "candidate-2",
-      label: "更克制",
-      content: "改写版本二。",
-      summary: "压缩修饰并保持推进。",
-      semanticTags: ["精简压缩"],
+      label: "More restrained",
+      content: "alpha compressed",
+      summary: "Compress modifiers and keep the scene moving.",
+      semanticTags: ["compress"],
       diffChunks: [
-        { id: "chunk-1", type: "delete", text: "原段内容。" },
-        { id: "chunk-2", type: "insert", text: "改写版本二。" },
+        { id: "chunk-1", type: "delete", text: "alpha" },
+        { id: "chunk-2", type: "insert", text: "alpha compressed" },
       ],
     }],
     activeCandidateId: "candidate-1",
@@ -192,17 +249,18 @@ test("POST /api/novels/:id/chapters/:chapterId/editor/rewrite-preview returns pr
       },
       body: JSON.stringify({
         operation: "polish",
+        contentSnapshot: "alpha\n\nbeta",
         targetRange: {
           from: 0,
           to: 5,
-          text: "原段内容。",
+          text: "alpha",
         },
         context: {
           beforeParagraphs: [],
-          afterParagraphs: ["后文承接。"],
+          afterParagraphs: ["beta"],
         },
         chapterContext: {
-          goalSummary: "推进冲突",
+          goalSummary: "push conflict forward",
         },
         constraints: {
           keepFacts: true,
@@ -218,9 +276,9 @@ test("POST /api/novels/:id/chapters/:chapterId/editor/rewrite-preview returns pr
     assert.equal(payload.success, true);
     assert.equal(payload.data.sessionId, "session-1");
     assert.equal(payload.data.candidates.length, 2);
-    assert.equal(payload.data.targetRange.text, "原段内容。");
+    assert.equal(payload.data.targetRange.text, "alpha");
   } finally {
     NovelService.prototype.previewChapterRewrite = originalMethod;
-    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
   }
 });

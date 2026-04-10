@@ -117,7 +117,8 @@ export class NovelChapterEditorService {
       throw new Error("章节不存在。");
     }
 
-    const content = ensureNonEmptyText(chapter.content);
+    const persistedContent = ensureNonEmptyText(chapter.content);
+    const content = ensureNonEmptyText(input.contentSnapshot || persistedContent);
     if (!content.trim()) {
       throw new Error("当前章节正文为空，无法发起局部改写。");
     }

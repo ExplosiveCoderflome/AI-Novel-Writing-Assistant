@@ -6,6 +6,14 @@ import { queryKeys } from "@/api/queryKeys";
 import ChapterEditorShell from "./components/chapterEditor/ChapterEditorShell";
 import { buildWorldInjectionSummary } from "./novelEdit.utils";
 
+function PageStateCard(props: { message: string }) {
+  return (
+    <div className="rounded-3xl border border-border/70 bg-background p-10 text-center text-sm text-muted-foreground shadow-sm">
+      {props.message}
+    </div>
+  );
+}
+
 export default function NovelChapterEdit() {
   const { id = "", chapterId = "" } = useParams();
   const navigate = useNavigate();
@@ -43,22 +51,41 @@ export default function NovelChapterEdit() {
   const styleSummary = useMemo(
     () => [
       detail?.styleTone?.trim(),
-      detail?.narrativePov ? `视角：${detail.narrativePov}` : null,
-      detail?.pacePreference ? `节奏：${detail.pacePreference}` : null,
-      detail?.emotionIntensity ? `情绪强度：${detail.emotionIntensity}` : null,
+      detail?.narrativePov ? `视角: ${detail.narrativePov}` : null,
+      detail?.pacePreference ? `节奏: ${detail.pacePreference}` : null,
+      detail?.emotionIntensity ? `情绪强度: ${detail.emotionIntensity}` : null,
     ].filter((item): item is string => Boolean(item && item.trim())).join(" · ") || null,
     [detail?.emotionIntensity, detail?.narrativePov, detail?.pacePreference, detail?.styleTone],
   );
 
-  return (
-    <div className="space-y-4">
-      <div className="rounded-3xl border border-border/70 bg-gradient-to-r from-slate-50 via-background to-emerald-50/40 p-5 shadow-sm">
-        <div className="text-sm leading-7 text-muted-foreground">
-          独立章节页现在复用同一套沉浸式章节编辑器壳层，主轴只保留正文编辑、局部 AI 改写和待确认 diff。
-        </div>
+  if (novelDetailQuery.isLoading && !detail) {
+    return (
+      <div className="flex h-full min-h-0 flex-col gap-4">
+        <PageStateCard message="正在加载章节编辑器..." />
       </div>
+    );
+  }
 
+  if (novelDetailQuery.isError) {
+    return (
+      <div className="flex h-full min-h-0 flex-col gap-4">
+        <PageStateCard message="章节数据加载失败，请刷新后重试。" />
+      </div>
+    );
+  }
+
+  if (!chapter) {
+    return (
+      <div className="flex h-full min-h-0 flex-col gap-4">
+        <PageStateCard message="没有找到对应章节，可能已被删除或当前链接不完整。" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-4">
       <ChapterEditorShell
+        key={`${chapter.id}:${chapter.updatedAt}`}
         novelId={id}
         chapter={chapter}
         chapterPlan={chapterPlanQuery.data?.data ?? null}

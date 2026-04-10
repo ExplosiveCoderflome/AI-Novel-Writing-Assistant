@@ -37,6 +37,11 @@ import { syncAutoDirectorChapterBatchCheckpoint } from "./novelWorkflowAutoDirec
 
 type WorkflowRow = Awaited<ReturnType<typeof prisma.novelWorkflowTask.findUnique>>;
 
+interface AutoDirectorNovelCreationClaim {
+  status: "claimed" | "attached" | "in_progress";
+  task: WorkflowRow;
+}
+
 interface BootstrapWorkflowInput {
   workflowTaskId?: string | null;
   novelId?: string | null;
@@ -620,6 +625,73 @@ export class NovelWorkflowService {
         heartbeatAt: new Date(),
       },
     });
+  }
+
+  async claimAutoDirectorNovelCreation(taskId: string, input: {
+    itemLabel: string;
+    progress: number;
+  }): Promise<AutoDirectorNovelCreationClaim> {
+    const existing = await this.getVisibleRowByIdRaw(taskId);
+    if (!existing) {
+      throw new AppError("Workflow task not found.", 404);
+    }
+    if (existing.lane !== "auto_director") {
+      throw new AppError("Only auto director workflow tasks can claim novel creation.", 400);
+    }
+    if (existing.novelId) {
+      return {
+        status: "attached",
+        task: existing,
+      };
+    }
+
+    const now = new Date();
+    const claimed = await prisma.novelWorkflowTask.updateMany({
+      where: {
+        id: taskId,
+        lane: "auto_director",
+        novelId: null,
+        OR: [
+          { currentItemKey: null },
+          { currentItemKey: "auto_director" },
+          { currentItemKey: { startsWith: "candidate_" } },
+          {
+            status: {
+              in: ["failed", "cancelled"],
+            },
+          },
+        ],
+      },
+      data: {
+        status: "running",
+        startedAt: existing.startedAt ?? now,
+        finishedAt: null,
+        heartbeatAt: now,
+        progress: Math.max(existing.progress ?? 0, input.progress),
+        currentStage: stageLabel("auto_director"),
+        currentItemKey: "novel_create",
+        currentItemLabel: input.itemLabel,
+        checkpointType: null,
+        checkpointSummary: null,
+        lastError: null,
+        cancelRequestedAt: null,
+      },
+    });
+
+    const latest = await this.getVisibleRowByIdRaw(taskId);
+    if (!latest) {
+      throw new AppError("Workflow task not found.", 404);
+    }
+    if (latest.novelId) {
+      return {
+        status: "attached",
+        task: latest,
+      };
+    }
+    return {
+      status: claimed.count > 0 ? "claimed" : "in_progress",
+      task: latest,
+    };
   }
 
   async markTaskRunning(taskId: string, input: {

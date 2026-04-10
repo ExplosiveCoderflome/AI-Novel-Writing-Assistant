@@ -450,6 +450,7 @@ const draftOptimizeSchema = llmGenerateSchema.extend({
 const rewritePreviewSchema = z.object({
   operation: z.enum(["polish", "expand", "compress", "emotion", "conflict", "custom"]),
   customInstruction: z.string().trim().max(400).optional(),
+  contentSnapshot: z.string(),
   targetRange: z.object({
     from: z.number().int().min(0),
     to: z.number().int().min(1),

@@ -43,11 +43,6 @@ const RUN_MODE_OPTIONS: Array<{
   description: string;
 }> = [
   {
-    value: "stage_review",
-    label: "按重要阶段审核",
-    description: "推荐。AI 到关键产物就停下，等你确认后再继续。",
-  },
-  {
     value: "auto_to_ready",
     label: "直接推进到可开写",
     description: "AI 会持续推进到章节执行资源准备好后再交接。",
@@ -58,6 +53,8 @@ const RUN_MODE_OPTIONS: Array<{
     description: "默认执行前 10 章，也可以改成指定章节范围或按卷执行。",
   },
 ];
+
+const DEFAULT_VISIBLE_RUN_MODE: DirectorRunMode = "auto_to_ready";
 
 function summarizeCurrentContext(
   basicForm: NovelBasicFormState,
@@ -119,7 +116,7 @@ export default function NovelExistingProjectTakeoverDialog({
   const queryClient = useQueryClient();
   const llm = useLLMStore();
   const [open, setOpen] = useState(false);
-  const [runMode, setRunMode] = useState<DirectorRunMode>("stage_review");
+  const [runMode, setRunMode] = useState<DirectorRunMode>(DEFAULT_VISIBLE_RUN_MODE);
   const [selectedPhase, setSelectedPhase] = useState<DirectorTakeoverStartPhase>("story_macro");
   const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState());
 

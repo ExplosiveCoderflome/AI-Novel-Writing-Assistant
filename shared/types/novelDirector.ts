@@ -195,6 +195,13 @@ export interface DirectorCandidateBatch {
   createdAt: string;
 }
 
+export interface DirectorTaskSeedPayloadSnapshot {
+  idea?: string;
+  batches?: DirectorCandidateBatch[];
+  runMode?: DirectorRunMode;
+  autoExecutionPlan?: DirectorAutoExecutionPlan;
+}
+
 export interface DirectorLLMOptions {
   provider?: LLMProvider;
   model?: string;
@@ -421,3 +428,38 @@ export interface DirectorConfirmApiResponse extends DirectorConfirmResponse {
 }
 
 export interface DirectorBookContractDraft extends BookContractDraft {}
+
+export function extractDirectorTaskSeedPayload(
+  seedPayload: unknown,
+): DirectorTaskSeedPayloadSnapshot | null {
+  if (!seedPayload || typeof seedPayload !== "object") {
+    return null;
+  }
+  return seedPayload as DirectorTaskSeedPayloadSnapshot;
+}
+
+export function extractDirectorTaskSeedPayloadFromMeta(
+  meta: Record<string, unknown> | null | undefined,
+): DirectorTaskSeedPayloadSnapshot | null {
+  if (!meta || typeof meta !== "object") {
+    return null;
+  }
+  return extractDirectorTaskSeedPayload((meta as { seedPayload?: unknown }).seedPayload);
+}
+
+export function mergeDirectorCandidateBatches(
+  currentBatches: DirectorCandidateBatch[],
+  incomingBatches: DirectorCandidateBatch[],
+): DirectorCandidateBatch[] {
+  if (incomingBatches.length === 0) {
+    return currentBatches;
+  }
+  if (currentBatches.length === 0) {
+    return incomingBatches;
+  }
+  const existingIds = new Set(currentBatches.map((batch) => batch.id));
+  const missingBatches = incomingBatches.filter((batch) => !existingIds.has(batch.id));
+  return missingBatches.length > 0
+    ? [...currentBatches, ...missingBatches]
+    : currentBatches;
+}

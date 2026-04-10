@@ -31,6 +31,7 @@ import { NovelWorkflowService } from "../workflow/NovelWorkflowService";
 import {
   buildNovelEditResumeTarget,
   parseSeedPayload,
+  parseResumeTarget,
 } from "../workflow/novelWorkflow.shared";
 import { NovelDirectorCandidateStageService } from "./novelDirectorCandidateStage";
 import { resolveDirectorBookFraming } from "./novelDirectorFraming";
@@ -64,6 +65,15 @@ import {
   resolveDirectorRunningStateForPhase,
 } from "./novelDirectorTakeoverRuntime";
 import { DirectorRecoveryNotNeededError } from "./novelDirectorErrors";
+
+type WorkflowTaskSnapshot = Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>;
+
+const DIRECTOR_CONFIRM_DUPLICATE_WAIT_MS = 150;
+const DIRECTOR_CONFIRM_DUPLICATE_ATTEMPTS = 20;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export class NovelDirectorService {
   private readonly novelContextService = new NovelContextService();
@@ -650,6 +660,28 @@ export class NovelDirectorService {
       }),
     });
 
+    if (workflowTask.novelId) {
+      return this.buildExistingConfirmResponse(workflowTask, input, bookSpec);
+    }
+
+    const novelCreationClaim = await this.workflowService.claimAutoDirectorNovelCreation(workflowTask.id, {
+      itemLabel: "正在创建小说项目",
+      progress: DIRECTOR_PROGRESS.novelCreate,
+    });
+    if (novelCreationClaim.status === "attached") {
+      return this.buildExistingConfirmResponse(novelCreationClaim.task, input, bookSpec);
+    }
+    if (novelCreationClaim.status === "in_progress") {
+      const existingTask = await this.waitForExistingConfirmedNovel(workflowTask.id);
+      if (existingTask?.novelId) {
+        return this.buildExistingConfirmResponse(existingTask, input, bookSpec);
+      }
+      if (existingTask?.status === "failed" || existingTask?.status === "cancelled") {
+        throw new Error(existingTask.lastError?.trim() || "当前导演建书流程已中断，请重新尝试。");
+      }
+      throw new Error("当前导演方案正在创建小说，请勿重复提交。");
+    }
+
     try {
       return await this.withWorkflowTaskUsage(workflowTask.id, async () => {
         const resolvedBookFraming = await resolveDirectorBookFraming({
@@ -771,6 +803,64 @@ export class NovelDirectorService {
       await this.workflowService.markTaskFailed(workflowTask.id, message);
       throw error;
     }
+  }
+
+  private async buildExistingConfirmResponse(
+    task: WorkflowTaskSnapshot,
+    input: DirectorConfirmRequest,
+    bookSpec: BookSpec,
+  ): Promise<DirectorConfirmApiResponse> {
+    if (!task?.novelId) {
+      throw new Error("自动导演确认链缺少已创建的小说项目。");
+    }
+    const novel = await this.novelContextService.getNovelById(task.novelId) as unknown as DirectorConfirmApiResponse["novel"];
+    if (!novel) {
+      throw new Error("自动导演确认链未能读取已创建的小说项目。");
+    }
+    const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(task.seedPayloadJson) ?? {};
+    const directorSession = seedPayload.directorSession ?? buildDirectorSessionState({
+      runMode: normalizeDirectorRunMode(input.runMode),
+      phase: "story_macro",
+      isBackgroundRunning: true,
+    });
+    const resumeTarget = parseResumeTarget(task.resumeTargetJson) ?? buildNovelEditResumeTarget({
+      novelId: task.novelId,
+      taskId: task.id,
+      stage: "story_macro",
+    });
+    const seededPlanDigests = {
+      book: null,
+      arcs: [],
+      chapters: [],
+    };
+
+    return {
+      novel,
+      storyMacroPlan: null,
+      bookSpec,
+      batch: {
+        id: input.batchId,
+        round: input.round,
+      },
+      createdChapterCount: 0,
+      createdArcCount: 0,
+      workflowTaskId: task.id,
+      directorSession,
+      resumeTarget,
+      plans: seededPlanDigests,
+      seededPlans: seededPlanDigests,
+    };
+  }
+
+  private async waitForExistingConfirmedNovel(taskId: string): Promise<WorkflowTaskSnapshot> {
+    for (let attempt = 0; attempt < DIRECTOR_CONFIRM_DUPLICATE_ATTEMPTS; attempt += 1) {
+      const task = await this.workflowService.getTaskByIdWithoutHealing(taskId);
+      if (!task || task.novelId || task.status === "failed" || task.status === "cancelled") {
+        return task;
+      }
+      await sleep(DIRECTOR_CONFIRM_DUPLICATE_WAIT_MS);
+    }
+    return this.workflowService.getTaskByIdWithoutHealing(taskId);
   }
 
   private buildDirectorSeedPayload(

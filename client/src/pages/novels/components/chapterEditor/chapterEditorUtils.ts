@@ -23,10 +23,35 @@ export function countEditorWords(text: string): number {
   return normalizeEditorText(text).replace(/\s+/g, "").length;
 }
 
+function normalizeParagraphText(text: string): string {
+  return normalizeEditorText(text)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function splitParagraphs(text: string): string[] {
+  const normalized = normalizeEditorText(text).trim();
+  if (!normalized) {
+    return [];
+  }
+
+  return normalized
+    .split(/\n{2,}/)
+    .map((paragraph) => normalizeParagraphText(paragraph))
+    .filter((paragraph) => paragraph.length > 0);
+}
+
+export function normalizeChapterContent(text: string): string {
+  const paragraphs = splitParagraphs(text);
+  return paragraphs.length > 0 ? paragraphs.join("\n\n") : "";
+}
+
 export function toPlateValue(text: string): Value {
-  const normalized = normalizeEditorText(text);
-  const lines = normalized.split("\n");
-  const paragraphs = lines.map((line) => ({
+  const paragraphs = splitParagraphs(text).map((line) => ({
     type: "p",
     children: [{ text: line }],
   }));
@@ -44,7 +69,126 @@ function nodeToText(node: Descendant): string {
 }
 
 export function toPlainText(value: Value): string {
-  return (value as Descendant[]).map((node) => nodeToText(node)).join("\n");
+  const paragraphs = (value as Descendant[])
+    .map((node) => nodeToText(node))
+    .map((paragraph) => normalizeParagraphText(paragraph))
+    .filter((paragraph) => paragraph.length > 0);
+
+  return paragraphs.length > 0 ? paragraphs.join("\n\n") : "";
+}
+
+type EditorPointLike = {
+  path: number[];
+  offset: number;
+};
+
+type EditorSelectionLike = {
+  anchor: EditorPointLike;
+  focus: EditorPointLike;
+};
+
+function comparePaths(left: number[], right: number[]): number {
+  const length = Math.min(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    if (left[index] !== right[index]) {
+      return left[index] - right[index];
+    }
+  }
+  return left.length - right.length;
+}
+
+function comparePoints(left: EditorPointLike, right: EditorPointLike): number {
+  const pathDiff = comparePaths(left.path, right.path);
+  if (pathDiff !== 0) {
+    return pathDiff;
+  }
+  return left.offset - right.offset;
+}
+
+function getNodeTextLength(node: Descendant): number {
+  return nodeToText(node).length;
+}
+
+function getOffsetWithinParagraph(node: Descendant, path: number[], depth: number, leafOffset: number): number | null {
+  if ("text" in node && typeof node.text === "string") {
+    return depth === path.length ? Math.max(0, Math.min(leafOffset, node.text.length)) : null;
+  }
+
+  if (!("children" in node) || !Array.isArray(node.children)) {
+    return null;
+  }
+
+  const childIndex = path[depth];
+  if (typeof childIndex !== "number") {
+    return null;
+  }
+
+  let total = 0;
+  for (let index = 0; index < node.children.length; index += 1) {
+    const child = node.children[index] as Descendant;
+    if (index < childIndex) {
+      total += getNodeTextLength(child);
+      continue;
+    }
+    if (index === childIndex) {
+      const nestedOffset = getOffsetWithinParagraph(child, path, depth + 1, leafOffset);
+      return nestedOffset === null ? null : total + nestedOffset;
+    }
+    break;
+  }
+
+  return null;
+}
+
+function getAbsoluteOffsetFromPoint(value: Value, point: EditorPointLike): number | null {
+  const nodes = value as Descendant[];
+  const paragraphIndex = point.path[0];
+  if (typeof paragraphIndex !== "number" || paragraphIndex < 0 || paragraphIndex >= nodes.length) {
+    return null;
+  }
+
+  let total = 0;
+  for (let index = 0; index < paragraphIndex; index += 1) {
+    total += normalizeParagraphText(nodeToText(nodes[index])).length + 2;
+  }
+
+  const paragraph = nodes[paragraphIndex];
+  const paragraphOffset = getOffsetWithinParagraph(paragraph, point.path, 1, point.offset);
+  if (paragraphOffset === null) {
+    return null;
+  }
+
+  return total + paragraphOffset;
+}
+
+export function buildSelectionRangeFromValue(
+  value: Value,
+  selection: EditorSelectionLike | null | undefined,
+): ChapterEditorSelectionRange | null {
+  if (!selection) {
+    return null;
+  }
+
+  const start = comparePoints(selection.anchor, selection.focus) <= 0 ? selection.anchor : selection.focus;
+  const end = start === selection.anchor ? selection.focus : selection.anchor;
+
+  const from = getAbsoluteOffsetFromPoint(value, start);
+  const to = getAbsoluteOffsetFromPoint(value, end);
+  const content = toPlainText(value);
+  if (from === null || to === null || to <= from || to > content.length) {
+    return null;
+  }
+
+  const text = content.slice(from, to);
+  if (!text.trim()) {
+    return null;
+  }
+
+  return {
+    from,
+    to,
+    text,
+  };
 }
 
 export function normalizeValuePayload(payload: unknown): Value {
@@ -78,30 +222,34 @@ type ParagraphWindow = {
 };
 
 export function getParagraphWindow(content: string, selection: ChapterEditorSelectionRange): ParagraphWindow {
-  const normalized = normalizeEditorText(content);
-  const paragraphs: Array<{ text: string; start: number; end: number }> = [];
-  const matcher = /[^\n]+/g;
-  let match: RegExpExecArray | null;
-  while ((match = matcher.exec(normalized)) !== null) {
-    paragraphs.push({
-      text: match[0],
-      start: match.index,
-      end: match.index + match[0].length,
+  const paragraphs = splitParagraphs(content);
+  const paragraphRanges: Array<{ text: string; start: number; end: number }> = [];
+  let cursor = 0;
+
+  for (const text of paragraphs) {
+    const start = cursor;
+    const end = start + text.length;
+    paragraphRanges.push({
+      text,
+      start,
+      end,
     });
+    cursor = end + 2;
   }
 
-  if (paragraphs.length === 0) {
+  if (paragraphRanges.length === 0) {
     return { beforeParagraphs: [], afterParagraphs: [] };
   }
 
-  const startIndex = paragraphs.findIndex((paragraph) => selection.from >= paragraph.start && selection.from <= paragraph.end);
-  const endIndex = paragraphs.findIndex((paragraph) => selection.to >= paragraph.start && selection.to <= paragraph.end);
-  const resolvedStart = startIndex >= 0 ? startIndex : Math.max(0, paragraphs.findIndex((paragraph) => paragraph.end >= selection.from));
+  const startIndex = paragraphRanges.findIndex((paragraph) => selection.from >= paragraph.start && selection.from <= paragraph.end);
+  const endIndex = paragraphRanges.findIndex((paragraph) => selection.to >= paragraph.start && selection.to <= paragraph.end);
+  const fallbackStartIndex = paragraphRanges.findIndex((paragraph) => paragraph.end >= selection.from);
+  const resolvedStart = startIndex >= 0 ? startIndex : fallbackStartIndex >= 0 ? fallbackStartIndex : 0;
   const resolvedEnd = endIndex >= 0 ? endIndex : resolvedStart;
 
   return {
-    beforeParagraphs: paragraphs.slice(Math.max(0, resolvedStart - 3), resolvedStart).map((paragraph) => paragraph.text),
-    afterParagraphs: paragraphs.slice(resolvedEnd + 1, resolvedEnd + 3).map((paragraph) => paragraph.text),
+    beforeParagraphs: paragraphRanges.slice(Math.max(0, resolvedStart - 3), resolvedStart).map((paragraph) => paragraph.text),
+    afterParagraphs: paragraphRanges.slice(resolvedEnd + 1, resolvedEnd + 3).map((paragraph) => paragraph.text),
   };
 }
 
@@ -143,9 +291,11 @@ export function buildChapterSummary(fallbackSummary?: string | null, content?: s
 
 export function buildRewritePreviewRequest(input: ChapterEditorRequestBuilderInput) {
   const contextWindow = getParagraphWindow(input.content, input.selection);
+  const contentSnapshot = normalizeChapterContent(input.content);
   return {
     operation: input.operation,
     customInstruction: input.customInstruction?.trim() || undefined,
+    contentSnapshot,
     targetRange: {
       from: input.selection.from,
       to: input.selection.to,

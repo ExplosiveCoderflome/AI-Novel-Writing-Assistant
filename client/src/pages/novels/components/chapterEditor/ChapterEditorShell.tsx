@@ -23,6 +23,7 @@ import {
   buildRewritePreviewRequest,
   countEditorWords,
   getSaveStatusLabel,
+  normalizeChapterContent,
 } from "./chapterEditorUtils";
 
 const EMPTY_SESSION: ChapterEditorSessionState = {
@@ -36,7 +37,7 @@ const EMPTY_SESSION: ChapterEditorSessionState = {
   candidates: [],
   activeCandidateId: null,
   status: "idle",
-  viewMode: "inline",
+  viewMode: "block",
 };
 
 export default function ChapterEditorShell(props: ChapterEditorShellProps) {
@@ -61,9 +62,10 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const lastPreviewRequestRef = useRef<ReturnType<typeof buildRewritePreviewRequest> | null>(null);
+  const normalizedChapterContent = useMemo(() => normalizeChapterContent(chapter?.content ?? ""), [chapter?.content]);
 
-  const [contentDraft, setContentDraft] = useState(chapter?.content ?? "");
-  const [savedContent, setSavedContent] = useState(chapter?.content ?? "");
+  const [contentDraft, setContentDraft] = useState(normalizedChapterContent);
+  const [savedContent, setSavedContent] = useState(normalizedChapterContent);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [selection, setSelection] = useState<ChapterEditorSelectionRange | null>(null);
   const [selectionToolbarPosition, setSelectionToolbarPosition] = useState<SelectionToolbarPosition | null>(null);
@@ -71,7 +73,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const [isContextOpen, setIsContextOpen] = useState(false);
 
   useEffect(() => {
-    const nextContent = chapter?.content ?? "";
+    const nextContent = normalizedChapterContent;
     setContentDraft(nextContent);
     setSavedContent(nextContent);
     setSaveStatus("idle");
@@ -79,7 +81,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     setSelectionToolbarPosition(null);
     setSession(EMPTY_SESSION);
     lastPreviewRequestRef.current = null;
-  }, [chapter?.id, chapter?.content]);
+  }, [chapter?.id, normalizedChapterContent]);
 
   const isDirty = contentDraft !== savedContent;
   const wordCount = useMemo(() => countEditorWords(contentDraft), [contentDraft]);
@@ -174,7 +176,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       setSession({
         ...data,
         status: "ready",
-        viewMode: "inline",
+        viewMode: "block",
         operationLabel: CHAPTER_EDITOR_OPERATION_LABELS[request.operation],
         customInstruction: request.customInstruction,
         errorMessage: undefined,
@@ -256,13 +258,23 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   };
 
   const headerSaveLabel = getSaveStatusLabel(saveStatus, isDirty);
-  const previewPayload = session.status === "ready" && activeCandidate
+  const previewPayload = session.status === "loading" && session.targetRange.text
     ? {
+      mode: "loading" as const,
       from: session.targetRange.from,
       to: session.targetRange.to,
-      diffChunks: activeCandidate.diffChunks,
+      originalText: session.targetRange.text,
     }
-    : null;
+    : session.status === "ready" && activeCandidate
+      ? {
+        mode: session.viewMode,
+        from: session.targetRange.from,
+        to: session.targetRange.to,
+        diffChunks: activeCandidate.diffChunks,
+        originalText: session.targetRange.text,
+        candidateText: activeCandidate.content,
+      }
+      : null;
 
   if (!chapter) {
     return (
@@ -272,9 +284,11 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     );
   }
 
+  const gridClassName = "xl:grid-cols-[280px_minmax(0,1fr)_360px]";
+
   return (
-    <div className="space-y-4">
-      <div className="rounded-3xl border border-border/70 bg-background px-4 py-4 shadow-sm">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <div className="shrink-0 rounded-3xl border border-border/70 bg-background px-4 py-4 shadow-sm">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -322,74 +336,77 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
         </div>
       </div>
 
-      <div className={`grid gap-4 ${session.status === "idle" ? "xl:grid-cols-[280px_minmax(0,1fr)]" : "xl:grid-cols-[280px_minmax(0,1fr)_360px]"}`}>
-        <div className="space-y-4">
-          <div className="rounded-3xl border border-border/70 bg-background p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="text-sm font-medium text-foreground">章节上下文</div>
-              <span className="text-xs text-muted-foreground">轻侧区</span>
+      <div className={`grid min-h-0 flex-1 gap-4 overflow-hidden ${gridClassName}`}>
+        <div className="min-h-0 overflow-hidden">
+          <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+            <div className="shrink-0 rounded-3xl border border-border/70 bg-background p-4 shadow-sm">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="text-sm font-medium text-foreground">章节上下文</div>
+                <span className="text-xs text-muted-foreground">轻侧区</span>
+              </div>
+
+              {isContextOpen ? (
+                <div className="space-y-4 text-sm leading-6">
+                  <div>
+                    <div className="mb-1 font-medium text-foreground">本章目标</div>
+                    <div className="text-muted-foreground">{goalSummary || "暂无"}</div>
+                  </div>
+                  <div>
+                    <div className="mb-1 font-medium text-foreground">本章摘要</div>
+                    <div className="whitespace-pre-wrap text-muted-foreground">{derivedChapterSummary || "暂无"}</div>
+                  </div>
+                  <div>
+                    <div className="mb-1 font-medium text-foreground">角色状态</div>
+                    <div className="whitespace-pre-wrap text-muted-foreground">{characterStateSummary || "暂无"}</div>
+                  </div>
+                  <div>
+                    <div className="mb-1 font-medium text-foreground">上下文摘要</div>
+                    <div className="whitespace-pre-wrap text-muted-foreground">{worldInjectionSummary || "暂无"}</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm leading-6 text-muted-foreground">
+                  保持正文居中。需要时再展开本章目标、角色状态和世界约束。
+                </div>
+              )}
             </div>
 
-            {isContextOpen ? (
-              <div className="space-y-4 text-sm leading-6">
-                <div>
-                  <div className="mb-1 font-medium text-foreground">本章目标</div>
-                  <div className="text-muted-foreground">{goalSummary || "暂无"}</div>
-                </div>
-                <div>
-                  <div className="mb-1 font-medium text-foreground">本章摘要</div>
-                  <div className="text-muted-foreground whitespace-pre-wrap">{derivedChapterSummary || "暂无"}</div>
-                </div>
-                <div>
-                  <div className="mb-1 font-medium text-foreground">角色状态</div>
-                  <div className="text-muted-foreground whitespace-pre-wrap">{characterStateSummary || "暂无"}</div>
-                </div>
-                <div>
-                  <div className="mb-1 font-medium text-foreground">上下文摘要</div>
-                  <div className="text-muted-foreground whitespace-pre-wrap">{worldInjectionSummary || "暂无"}</div>
-                </div>
+            <div className="shrink-0 rounded-3xl border border-border/70 bg-background p-4 shadow-sm">
+              <div className="mb-3 text-sm font-medium text-foreground">问题与入口</div>
+              <div className="space-y-3 text-sm leading-6 text-muted-foreground">
+                <div>当前开放问题：{openAuditIssues.length}</div>
+                {openAuditIssues.slice(0, 3).map((issue) => (
+                  <div key={issue.id} className="rounded-2xl bg-muted/15 p-3">
+                    <div className="font-medium text-foreground">{issue.auditType} · {issue.code}</div>
+                    <div>{issue.evidence}</div>
+                  </div>
+                ))}
               </div>
-            ) : (
-              <div className="text-sm leading-6 text-muted-foreground">
-                保持正文中心。需要时再展开本章目标、角色状态和世界约束。
+              <div className="mt-4 flex flex-wrap gap-2">
+                {onRunFullAudit ? (
+                  <Button size="sm" variant="outline" onClick={onRunFullAudit} disabled={isRunningFullAudit}>
+                    {isRunningFullAudit ? "审校中..." : "运行审校"}
+                  </Button>
+                ) : null}
+                {onGenerateChapterPlan ? (
+                  <Button size="sm" variant="outline" onClick={onGenerateChapterPlan} disabled={isGeneratingChapterPlan}>
+                    {isGeneratingChapterPlan ? "生成中..." : "章节计划"}
+                  </Button>
+                ) : null}
+                {onReplanChapter ? (
+                  <Button size="sm" variant="outline" onClick={onReplanChapter} disabled={isReplanningChapter}>
+                    {isReplanningChapter ? "重规划中..." : "重新规划"}
+                  </Button>
+                ) : null}
               </div>
-            )}
-          </div>
-
-          <div className="rounded-3xl border border-border/70 bg-background p-4 shadow-sm">
-            <div className="mb-3 text-sm font-medium text-foreground">问题与入口</div>
-            <div className="space-y-3 text-sm leading-6 text-muted-foreground">
-              <div>当前开放问题：{openAuditIssues.length}</div>
-              {openAuditIssues.slice(0, 3).map((issue) => (
-                <div key={issue.id} className="rounded-2xl bg-muted/15 p-3">
-                  <div className="font-medium text-foreground">{issue.auditType} · {issue.code}</div>
-                  <div>{issue.evidence}</div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {onRunFullAudit ? (
-                <Button size="sm" variant="outline" onClick={onRunFullAudit} disabled={isRunningFullAudit}>
-                  {isRunningFullAudit ? "审校中..." : "运行审校"}
-                </Button>
-              ) : null}
-              {onGenerateChapterPlan ? (
-                <Button size="sm" variant="outline" onClick={onGenerateChapterPlan} disabled={isGeneratingChapterPlan}>
-                  {isGeneratingChapterPlan ? "生成中..." : "章节计划"}
-                </Button>
-              ) : null}
-              {onReplanChapter ? (
-                <Button size="sm" variant="outline" onClick={onReplanChapter} disabled={isReplanningChapter}>
-                  {isReplanningChapter ? "重规划中..." : "重新规划"}
-                </Button>
-              ) : null}
             </div>
           </div>
         </div>
 
-        <div className="relative">
+        <div className="relative min-h-0 overflow-hidden">
           <ChapterTextEditor
             value={contentDraft}
+            readOnly={session.status !== "idle"}
             onChange={(next) => {
               setContentDraft(next);
               setSaveStatus("idle");
@@ -408,7 +425,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
           />
         </div>
 
-        {session.status !== "idle" ? (
+        <div className="min-h-0 overflow-hidden">
           <AIDiffPanel
             session={session}
             activeCandidate={activeCandidate}
@@ -419,7 +436,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             onReject={handleReject}
             onRegenerate={handleRegenerate}
           />
-        ) : null}
+        </div>
       </div>
     </div>
   );
