@@ -38,6 +38,7 @@ const DASHSCOPE_HOST_PATTERN = /(?:^|\.)dashscope\.aliyuncs\.com$/i;
 const MODELSCOPE_HOST_PATTERN = /(?:^|\.)modelscope\.cn$/i;
 const OPENAI_HOST_PATTERN = /(?:^|\.)api\.openai\.com$/i;
 const GEMINI_HOST_PATTERN = /(?:^|\.)generativelanguage\.googleapis\.com$/i;
+const MOONSHOT_HOST_PATTERN = /(?:^|\.)api\.moonshot\.cn$/i;
 const DEEPSEEK_HOST_PATTERN = /(?:^|\.)api\.deepseek\.com$/i;
 const GLM_HOST_PATTERN = /(?:^|\.)open\.bigmodel\.cn$/i;
 const GROK_HOST_PATTERN = /(?:^|\.)api\.x\.ai$/i;
@@ -113,6 +114,14 @@ export function resolveStructuredOutputProfile(input: {
       nativeJsonSchema: true,
       nativeJsonObject: true,
       preferredStructuredStrategy: "json_schema",
+    });
+  }
+  if (input.provider === "kimi" || MOONSHOT_HOST_PATTERN.test(host)) {
+    const supportsJsonObject = !model.includes("thinking");
+    return buildProfile({
+      family: "kimi",
+      nativeJsonObject: supportsJsonObject,
+      preferredStructuredStrategy: supportsJsonObject ? "json_object" : "prompt_json",
     });
   }
   if (input.provider === "deepseek" || DEEPSEEK_HOST_PATTERN.test(host)) {

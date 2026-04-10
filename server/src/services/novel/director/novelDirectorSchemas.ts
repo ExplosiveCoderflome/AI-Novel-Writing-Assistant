@@ -94,7 +94,9 @@ export const directorBookContractSchema = z.object({
   chapter30Payoff: nonEmptyString,
   escalationLadder: nonEmptyString,
   relationshipMainline: nonEmptyString,
-  absoluteRedLines: z.array(nonEmptyString).min(2).max(6),
+  // Raw structured output tolerates overflow here so model-specific variance
+  // can be normalized into the product-facing 6-item cap after parsing.
+  absoluteRedLines: z.array(nonEmptyString).min(2),
 });
 
 export const directorPlanBlueprintSchema = z.object({

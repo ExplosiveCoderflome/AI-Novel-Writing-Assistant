@@ -76,6 +76,26 @@ test("structured output profiles distinguish official, ModelScope Qwen and unkno
   assert.equal(openaiProfile.nativeJsonSchema, true);
   assert.equal(selectStructuredOutputStrategy(openaiProfile, schema), "json_schema");
 
+  const kimiProfile = resolveStructuredOutputProfile({
+    provider: "kimi",
+    model: "kimi-k2.5",
+    baseURL: "https://api.moonshot.cn/v1",
+    executionMode: "structured",
+  });
+  assert.equal(kimiProfile.family, "kimi");
+  assert.equal(kimiProfile.nativeJsonObject, true);
+  assert.equal(selectStructuredOutputStrategy(kimiProfile, schema), "json_object");
+
+  const kimiThinkingProfile = resolveStructuredOutputProfile({
+    provider: "kimi",
+    model: "kimi-k2-thinking-turbo",
+    baseURL: "https://api.moonshot.cn/v1",
+    executionMode: "structured",
+  });
+  assert.equal(kimiThinkingProfile.family, "kimi");
+  assert.equal(kimiThinkingProfile.nativeJsonObject, false);
+  assert.equal(selectStructuredOutputStrategy(kimiThinkingProfile, schema), "prompt_json");
+
   const modelscopeProfile = resolveStructuredOutputProfile({
     provider: "custom_modelscope",
     model: "Qwen/Qwen3.5-397B-A17B",

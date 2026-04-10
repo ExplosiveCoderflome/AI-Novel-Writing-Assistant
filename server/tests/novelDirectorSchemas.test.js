@@ -2,8 +2,12 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   directorCandidateResponseSchema,
+  directorBookContractSchema,
   normalizeDirectorTitleSuggestionStyle,
 } = require("../dist/services/novel/director/novelDirectorSchemas.js");
+const {
+  normalizeBookContract,
+} = require("../dist/services/novel/director/novelDirectorHelpers.js");
 
 test("normalizeDirectorTitleSuggestionStyle handles common variants", () => {
   assert.equal(normalizeDirectorTitleSuggestionStyle("high-concept"), "high_concept");
@@ -58,4 +62,38 @@ test("directorCandidateResponseSchema accepts normalized titleOptions.style", ()
   });
   assert.equal(parsed.candidates[0].titleOptions[0].style, "high_concept");
   assert.equal(parsed.candidates[1].titleOptions[0].style, "suspense");
+});
+
+test("directorBookContractSchema tolerates overflow red lines and normalization trims them to six", () => {
+  const parsed = directorBookContractSchema.parse({
+    readingPromise: "持续提供追读满足感",
+    protagonistFantasy: "主角掌握独家优势",
+    coreSellingPoint: "垃圾堆侦探美学",
+    chapter3Payoff: "前三章完成机械遗骸发现",
+    chapter10Payoff: "第十章完成首次反制",
+    chapter30Payoff: "第三十章完成中段认知翻转",
+    escalationLadder: "解码越深，代价越高",
+    relationshipMainline: "临时盟友与背叛风险持续拉扯",
+    absoluteRedLines: [
+      "禁区 1",
+      "禁区 2",
+      "禁区 3",
+      "禁区 4",
+      "禁区 5",
+      "禁区 6",
+      "禁区 7",
+      "禁区 2",
+    ],
+  });
+
+  const normalized = normalizeBookContract(parsed);
+  assert.equal(parsed.absoluteRedLines.length, 8);
+  assert.deepEqual(normalized.absoluteRedLines, [
+    "禁区 1",
+    "禁区 2",
+    "禁区 3",
+    "禁区 4",
+    "禁区 5",
+    "禁区 6",
+  ]);
 });

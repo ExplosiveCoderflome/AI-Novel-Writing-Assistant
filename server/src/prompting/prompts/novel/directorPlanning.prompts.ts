@@ -350,6 +350,25 @@ export const directorBookContractPrompt: PromptAsset<
     preferredGroups: ["project_context", "macro_constraints"],
   },
   outputSchema: directorBookContractSchema,
+  structuredOutputHint: {
+    mode: "auto",
+    note: "absoluteRedLines 必须输出 2 到 6 条，超过 6 条时先合并相近禁区再输出。",
+    example: {
+      readingPromise: "示例：持续提供哪一种追读满足感。",
+      protagonistFantasy: "示例：主角视角下最核心的代入爽点。",
+      coreSellingPoint: "示例：整本书最不可替代的核心卖点。",
+      chapter3Payoff: "示例：前 3 章必须兑现的抓手。",
+      chapter10Payoff: "示例：第 10 章左右的阶段回报。",
+      chapter30Payoff: "示例：第 30 章左右的中段承诺兑现。",
+      escalationLadder: "示例：整本书的升级阶梯。",
+      relationshipMainline: "示例：长期驱动推进的核心关系线。",
+      absoluteRedLines: [
+        "示例禁区 1",
+        "示例禁区 2",
+        "示例禁区 3",
+      ],
+    },
+  },
   render: (input, context) => [
     new SystemMessage([
       "你是长篇网文总导演，负责把已确认的书级方向收束成一本书的 Book Contract。",
