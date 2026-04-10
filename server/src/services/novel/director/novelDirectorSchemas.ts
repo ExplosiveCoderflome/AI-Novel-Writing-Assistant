@@ -1,7 +1,53 @@
 import { z } from "zod";
 
 const nonEmptyString = z.string().trim().min(1);
-const titleStyleSchema = z.enum(["literary", "conflict", "suspense", "high_concept"]);
+
+const TITLE_STYLE_VALUES = ["literary", "conflict", "suspense", "high_concept"] as const;
+export type DirectorTitleSuggestionStyle = (typeof TITLE_STYLE_VALUES)[number];
+
+/**
+ * 将模型或 JSON 修复层可能输出的变体（大小写、连字符、少量中文标签）归一成合法枚举。
+ * 无法识别时退回 literary，避免整段工作流因单一枚举失败而中断。
+ */
+export function normalizeDirectorTitleSuggestionStyle(raw: unknown): DirectorTitleSuggestionStyle {
+  if (raw === null || raw === undefined) {
+    return "literary";
+  }
+  const normalized = String(raw)
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_")
+    .replace(/_+/g, "_");
+
+  if (normalized.length === 0) {
+    return "literary";
+  }
+
+  const zhToStyle: Record<string, DirectorTitleSuggestionStyle> = {
+    文学: "literary",
+    文艺: "literary",
+    冲突: "conflict",
+    对抗: "conflict",
+    悬念: "suspense",
+    悬疑: "suspense",
+    高概念: "high_concept",
+  };
+  const fromZh = zhToStyle[normalized];
+  if (fromZh) {
+    return fromZh;
+  }
+
+  if ((TITLE_STYLE_VALUES as readonly string[]).includes(normalized)) {
+    return normalized as DirectorTitleSuggestionStyle;
+  }
+
+  return "literary";
+}
+
+const titleStyleSchema = z.preprocess(
+  normalizeDirectorTitleSuggestionStyle,
+  z.enum(TITLE_STYLE_VALUES),
+);
 
 const keywordArraySchema = z.union([
   z.array(nonEmptyString),
