@@ -35,6 +35,14 @@ const config: Config = {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
         },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
@@ -44,6 +52,20 @@ const config: Config = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      spacing: {
+        "card-padding": "var(--space-6)",
+        "section-gap": "var(--space-8)",
+      },
+      transitionDuration: {
+        150: "150ms",
+        200: "200ms",
+        300: "300ms",
+      },
+      transitionTimingFunction: {
+        hover: "cubic-bezier(0.4, 0, 0.2, 1)",
+        "ease-out": "cubic-bezier(0, 0, 0.2, 1)",
+        "ease-in-out": "cubic-bezier(0.4, 0, 0.2, 1)",
       },
     },
   },
