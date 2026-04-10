@@ -5,12 +5,14 @@ import { NovelWorldSliceService } from "./storyWorldSlice/NovelWorldSliceService
 import { CharacterPreparationService } from "./characterPrep/CharacterPreparationService";
 import { CharacterDynamicsService } from "./dynamics/CharacterDynamicsService";
 import { NovelVolumeService } from "./volume/NovelVolumeService";
+import { NovelChapterEditorService } from "./chapterEditor/NovelChapterEditorService";
 
 export class NovelService extends NovelPipelineService {
   private readonly worldSliceService = new NovelWorldSliceService();
   private readonly characterPreparationService = new CharacterPreparationService();
   private readonly characterDynamicsService = new CharacterDynamicsService();
   private readonly volumeService = new NovelVolumeService();
+  private readonly chapterEditorService = new NovelChapterEditorService();
 
   async getNovelById(id: string) {
     const novel = await this.core.getNovelById(id);
@@ -123,6 +125,10 @@ export class NovelService extends NovelPipelineService {
 
   analyzeStorylineImpact(...args: Parameters<NovelCoreService["analyzeStorylineImpact"]>) {
     return this.volumeService.analyzeStorylineImpactCompat(...args);
+  }
+
+  previewChapterRewrite(...args: Parameters<NovelChapterEditorService["previewRewrite"]>) {
+    return this.chapterEditorService.previewRewrite(...args);
   }
 
   getNovelState(...args: Parameters<NovelCoreService["getNovelState"]>) {

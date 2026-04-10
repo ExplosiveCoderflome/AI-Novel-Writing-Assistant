@@ -646,6 +646,41 @@ P2 重点解决：
 
 ---
 
+### P0-G Chapter Editor V2（正文中心的章节内闭环）
+
+本轮范围：
+
+- 仅实现 `Phase 1 + Phase 2 MVP`。
+- 不进入 `Phase 3/4`，暂不做问题修复 preview、光标续写、语义 diff、局部接受。
+
+当前状态：
+
+- 已完成首版“正文中心的局部 AI 精修编辑器”主闭环。
+- 章节编辑能力已经迁移到独立 `NovelChapterEdit`，工作台页 `ChapterManagementTab` 只保留“打开章节编辑器”入口和原章节执行逻辑。
+- 后端已补齐章节编辑专用 preview contract、PromptAsset 与 route，接受候选时会先创建 novel snapshot 再落正文。
+
+最近更新：
+
+- `2026-04-10`：完成 `rewrite-preview` 后端链路、共享章节编辑器壳层、Plate 正文编辑、选区浮动工具条、候选 diff 抽屉、接受前自动快照，并同步计划进度。
+
+已完成：
+
+- 共享编辑器壳层：新增 `ChapterEditorShell`，统一承接顶部轻控制条、左侧轻上下文、中央正文编辑、右侧按需 diff 面板，实际落点在独立 `NovelChapterEdit`。
+- 双入口关系：`NovelEdit -> ChapterManagementTab` 继续作为工作台入口，`NovelChapterEdit` 作为独立正文编辑页承载本轮精修闭环。
+- Plate 底座：正文编辑从旧 `textarea` 切到 Plate，支持正文编辑、选区监听、保存状态、字数统计。
+- 选区 AI 改写闭环：首版支持 `优化表达 / 扩写 / 精简 / 强化情绪 / 强化冲突 / 自定义指令` 六类意图。
+- 候选与 diff：新接口固定返回 `2-3` 个候选版本，前端支持 inline diff、候选切换、拒绝、再生成、接受。
+- 安全回退：接受候选时先调用现有 `createNovelSnapshot`，label 采用 `chapter-editor:{chapterOrder}:{operation}:{timestamp}`，再调用 `updateNovelChapter`。
+- Prompt 治理：新增 `novel.chapter_editor.rewrite_candidates@v1`，已注册到 `server/src/prompting/registry.ts`，未在 service 内内联业务 prompt。
+- 验证：已通过 `pnpm typecheck`、`pnpm --filter @ai-novel/client build`、`server/tests/chapterEditorPreview.test.js`、`server/tests/prompting-governance.test.js`。
+
+下一步：
+
+- Phase 3：把章节问题列表升级为“定位 -> 建议 -> diff -> 接受 -> 关闭”的问题修复闭环，并补章节内版本抽屉。
+- Phase 4：补光标续写、块级 diff / 语义 diff、局部接受和更细粒度回滚。
+- 前端测试：当前仓库还没有独立的 client test runner，本轮先以 typecheck/build 为准；后续需要补章节编辑器交互测试基座。
+- 详细方案与进度记录：`docs/plans/chapter-editor-v2-plan.md`、`docs/checkpoints/chapter-editor-v2-progress.md`
+
 ## 11. 最终结论
 
 当前版本最重要的架构转向，不是继续堆叠更多写作工具，而是完成下面这条身份升级：

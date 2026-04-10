@@ -7,6 +7,7 @@ import { AppError } from "../middleware/errorHandler";
 import { NovelService } from "../services/novel/NovelService";
 import { NovelDraftOptimizeService } from "../services/novel/NovelDraftOptimizeService";
 import { registerNovelBaseRoutes } from "./novelBaseRoutes";
+import { registerNovelChapterEditorRoutes } from "./novelChapterEditorRoutes";
 import { registerNovelChapterRoutes } from "./novelChapterRoutes";
 import { registerNovelChapterGenerationRoutes } from "./novelChapterGeneration";
 import { registerNovelCharacterDynamicsRoutes } from "./novelCharacterDynamicsRoutes";
@@ -446,6 +447,39 @@ const draftOptimizeSchema = llmGenerateSchema.extend({
   selectedText: z.string().trim().optional(),
 });
 
+const rewritePreviewSchema = z.object({
+  operation: z.enum(["polish", "expand", "compress", "emotion", "conflict", "custom"]),
+  customInstruction: z.string().trim().max(400).optional(),
+  targetRange: z.object({
+    from: z.number().int().min(0),
+    to: z.number().int().min(1),
+    text: z.string().trim().min(1),
+  }).refine((value) => value.to > value.from, {
+    message: "选区结束位置必须大于开始位置。",
+    path: ["to"],
+  }),
+  context: z.object({
+    beforeParagraphs: z.array(z.string()).max(3),
+    afterParagraphs: z.array(z.string()).max(2),
+  }),
+  chapterContext: z.object({
+    goalSummary: z.string().trim().max(1000).optional(),
+    chapterSummary: z.string().trim().max(1200).optional(),
+    styleSummary: z.string().trim().max(1000).optional(),
+    characterStateSummary: z.string().trim().max(1200).optional(),
+    worldConstraintSummary: z.string().trim().max(1200).optional(),
+  }),
+  constraints: z.object({
+    keepFacts: z.boolean(),
+    keepPov: z.boolean(),
+    noUnauthorizedSetting: z.boolean(),
+    preserveCoreInfo: z.boolean(),
+  }),
+  provider: llmProviderSchema.optional(),
+  model: z.string().trim().max(120).optional(),
+  temperature: z.number().min(0).max(2).optional(),
+});
+
 router.use(authMiddleware);
 
 registerNovelBaseRoutes({
@@ -463,6 +497,14 @@ registerNovelChapterRoutes({
   chapterParamsSchema,
   chapterSchema,
   updateChapterSchema,
+});
+
+registerNovelChapterEditorRoutes({
+  router,
+  novelService,
+  chapterParamsSchema,
+  rewritePreviewSchema,
+  forwardBusinessError,
 });
 
 registerNovelSnapshotCharacterRoutes({

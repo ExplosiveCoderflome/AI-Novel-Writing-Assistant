@@ -1,6 +1,8 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type {
   Chapter,
+  ChapterEditorRewritePreviewRequest,
+  ChapterEditorRewritePreviewResponse,
   ChapterStatus,
 } from "@ai-novel/shared/types/novel";
 import { apiClient } from "../client";
@@ -71,6 +73,18 @@ export async function deleteNovelChapter(id: string, chapterId: string) {
 export async function getChapterTraces(novelId: string, chapterId: string) {
   const { data } = await apiClient.get<ApiResponse<import("@ai-novel/shared/types/agent").AgentRun[]>>(
     `/novels/${novelId}/chapters/${chapterId}/traces`,
+  );
+  return data;
+}
+
+export async function previewChapterRewrite(
+  novelId: string,
+  chapterId: string,
+  payload: ChapterEditorRewritePreviewRequest,
+) {
+  const { data } = await apiClient.post<ApiResponse<ChapterEditorRewritePreviewResponse>>(
+    `/novels/${novelId}/chapters/${chapterId}/editor/rewrite-preview`,
+    payload,
   );
   return data;
 }

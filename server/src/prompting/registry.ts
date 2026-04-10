@@ -210,6 +210,10 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/novel/chapterWriter.prompts").chapterWriterPrompt as UnknownPromptAsset,
   },
   {
+    key: "novel.chapter_editor.rewrite_candidates@v1",
+    load: () => require("./prompts/novel/chapterEditor/rewriteCandidates.prompts").chapterEditorRewriteCandidatesPrompt as UnknownPromptAsset,
+  },
+  {
     key: "novel.review.chapter@v1",
     load: () => require("./prompts/novel/review.prompts").chapterReviewPrompt as UnknownPromptAsset,
   },

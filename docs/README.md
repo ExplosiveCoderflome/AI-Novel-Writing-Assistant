@@ -19,6 +19,7 @@
 
 用于记录阶段性检查点、架构迁移里程碑、进度审计和对照说明。
 
+- [Chapter Editor V2 Progress](./checkpoints/chapter-editor-v2-progress.md)
 - [LLM Schema Refactor Checkpoint](./checkpoints/llm-schema-refactor-checkpoint.md)
 - [Progress Audit](./checkpoints/progress-audit.md)
 
@@ -28,6 +29,7 @@
 
 - [Assistant UI Plan](./plans/assistant-ui-plan.md)
 - [Knowledge Module Plan](./plans/knowledge-module-plan.md)
+- [Chapter Editor V2 Plan](./plans/chapter-editor-v2-plan.md)
 
 ### `docs/design`
 

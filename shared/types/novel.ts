@@ -172,6 +172,75 @@ export interface Chapter {
   updatedAt: string;
 }
 
+export type ChapterEditorOperation =
+  | "polish"
+  | "expand"
+  | "compress"
+  | "emotion"
+  | "conflict"
+  | "custom";
+
+export interface ChapterEditorTargetRange {
+  from: number;
+  to: number;
+  text: string;
+}
+
+export interface ChapterEditorContextWindow {
+  beforeParagraphs: string[];
+  afterParagraphs: string[];
+}
+
+export interface ChapterEditorContextSummary {
+  goalSummary?: string | null;
+  chapterSummary?: string | null;
+  styleSummary?: string | null;
+  characterStateSummary?: string | null;
+  worldConstraintSummary?: string | null;
+}
+
+export interface ChapterEditorRewriteConstraints {
+  keepFacts: boolean;
+  keepPov: boolean;
+  noUnauthorizedSetting: boolean;
+  preserveCoreInfo: boolean;
+}
+
+export interface ChapterEditorDiffChunk {
+  id: string;
+  type: "equal" | "insert" | "delete";
+  text: string;
+}
+
+export interface ChapterEditorCandidate {
+  id: string;
+  label: string;
+  content: string;
+  summary?: string | null;
+  diffChunks: ChapterEditorDiffChunk[];
+  semanticTags?: string[];
+}
+
+export interface ChapterEditorRewritePreviewRequest {
+  operation: ChapterEditorOperation;
+  customInstruction?: string;
+  targetRange: ChapterEditorTargetRange;
+  context: ChapterEditorContextWindow;
+  chapterContext: ChapterEditorContextSummary;
+  constraints: ChapterEditorRewriteConstraints;
+  provider?: import("./llm").LLMProvider;
+  model?: string;
+  temperature?: number;
+}
+
+export interface ChapterEditorRewritePreviewResponse {
+  sessionId: string;
+  operation: ChapterEditorOperation;
+  targetRange: ChapterEditorTargetRange;
+  candidates: ChapterEditorCandidate[];
+  activeCandidateId: string | null;
+}
+
 export interface NovelGenre {
   id: string;
   name: string;
