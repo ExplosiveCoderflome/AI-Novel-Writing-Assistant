@@ -184,3 +184,90 @@ test("continueTask resumes queued candidate-stage tasks before novel creation", 
     service.candidateStageService.generateCandidates = originalGenerate;
   }
 });
+
+test("continueTask ignores stale candidate-stage state after the workflow has entered story macro", async () => {
+  const service = new NovelDirectorService();
+  const originalGetTaskByIdWithoutHealing = service.workflowService.getTaskByIdWithoutHealing;
+  const originalBootstrapTask = service.workflowService.bootstrapTask;
+  const originalMarkTaskRunning = service.workflowService.markTaskRunning;
+  const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
+  const originalGenerate = service.candidateStageService.generateCandidates;
+  const originalRunDirectorPipeline = service.runDirectorPipeline;
+  const bootstrapCalls = [];
+  const runningCalls = [];
+  const scheduledRuns = [];
+  const pipelineRuns = [];
+  let candidateResumeCount = 0;
+
+  service.workflowService.getTaskByIdWithoutHealing = async () => ({
+    id: "task_story_macro_resume",
+    lane: "auto_director",
+    status: "queued",
+    novelId: "novel_story_macro_resume",
+    checkpointType: null,
+    currentItemKey: "story_macro",
+    seedPayloadJson: JSON.stringify({
+      idea: "A courier discovers a hidden rule-bound city underworld.",
+      provider: "custom_coding_plan",
+      model: "kimi-k2.5",
+      temperature: 0.8,
+      runMode: "auto_to_ready",
+      candidateStage: {
+        mode: "generate",
+      },
+      directorInput: buildDirectorInput({
+        workflowTaskId: "task_story_macro_resume",
+      }),
+      directorSession: {
+        runMode: "auto_to_ready",
+        phase: "story_macro",
+        isBackgroundRunning: true,
+        lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
+        reviewScope: null,
+      },
+    }),
+  });
+  service.workflowService.bootstrapTask = async (input) => {
+    bootstrapCalls.push(input);
+    return {
+      id: "task_story_macro_resume",
+    };
+  };
+  service.workflowService.markTaskRunning = async (taskId, input) => {
+    runningCalls.push({ taskId, ...input });
+    return null;
+  };
+  service.scheduleBackgroundRun = (taskId, runner) => {
+    scheduledRuns.push(taskId);
+    void runner();
+  };
+  service.candidateStageService.generateCandidates = async () => {
+    candidateResumeCount += 1;
+    return { batch: { id: "batch_should_not_resume" } };
+  };
+  service.runDirectorPipeline = async (input) => {
+    pipelineRuns.push(input);
+  };
+
+  try {
+    await service.continueTask("task_story_macro_resume");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(candidateResumeCount, 0);
+    assert.equal(bootstrapCalls.length, 1);
+    assert.equal(bootstrapCalls[0].novelId, "novel_story_macro_resume");
+    assert.equal(bootstrapCalls[0].seedPayload.candidateStage, null);
+    assert.equal(runningCalls.length, 1);
+    assert.equal(runningCalls[0].stage, "story_macro");
+    assert.equal(runningCalls[0].itemKey, "book_contract");
+    assert.equal(scheduledRuns.length, 1);
+    assert.equal(pipelineRuns.length, 1);
+    assert.equal(pipelineRuns[0].startPhase, "story_macro");
+  } finally {
+    service.workflowService.getTaskByIdWithoutHealing = originalGetTaskByIdWithoutHealing;
+    service.workflowService.bootstrapTask = originalBootstrapTask;
+    service.workflowService.markTaskRunning = originalMarkTaskRunning;
+    service.scheduleBackgroundRun = originalScheduleBackgroundRun;
+    service.candidateStageService.generateCandidates = originalGenerate;
+    service.runDirectorPipeline = originalRunDirectorPipeline;
+  }
+});

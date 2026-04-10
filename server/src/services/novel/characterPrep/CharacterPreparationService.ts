@@ -13,9 +13,7 @@ import type {
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../../db/prisma";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
-import {
-  buildCharacterCastContextBlocks,
-} from "../../../prompting/prompts/novel/characterPreparation.contextBlocks";
+import { buildCharacterCastContextBlocks } from "../../../prompting/prompts/novel/characterPreparation.contextBlocks";
 import {
   characterCastOptionNormalizePrompt,
   characterCastOptionPrompt,

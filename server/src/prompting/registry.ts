@@ -186,6 +186,18 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/novel/characterPreparation.prompts").characterCastOptionNormalizePrompt as UnknownPromptAsset,
   },
   {
+    key: "novel.character.castAuto@v1",
+    load: () => require("./prompts/novel/characterPreparation.prompts").characterCastAutoPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.character.castAuto.repair@v1",
+    load: () => require("./prompts/novel/characterPreparation.prompts").characterCastAutoRepairPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.character.castAuto.zhNormalize@v1",
+    load: () => require("./prompts/novel/characterPreparation.prompts").characterCastAutoNormalizePrompt as UnknownPromptAsset,
+  },
+  {
     key: "novel.character.supplemental@v1",
     load: () => require("./prompts/novel/characterPreparation.prompts").supplementalCharacterPrompt as UnknownPromptAsset,
   },

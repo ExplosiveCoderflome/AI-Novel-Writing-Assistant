@@ -22,6 +22,7 @@ import type {
 } from "@ai-novel/shared/types/novelDirector";
 import { BookContractService } from "../BookContractService";
 import { CharacterPreparationService } from "../characterPrep/CharacterPreparationService";
+import { generateAutoCharacterCastDraft, persistCharacterCastOptionsDraft } from "../characterPrep/characterCastGeneration";
 import { NovelContextService } from "../NovelContextService";
 import { NovelService } from "../NovelService";
 import { novelFramingSuggestionService } from "../NovelFramingSuggestionService";
@@ -178,21 +179,36 @@ export class NovelDirectorService {
   }
 
   private isCandidateSelectionTask(input: {
+    novelId?: string | null;
     checkpointType: string | null;
     currentItemKey?: string | null;
     seedPayload: DirectorWorkflowSeedPayload;
   }): boolean {
+    if (input.novelId?.trim()) {
+      return false;
+    }
+
     const currentItemKey = input.currentItemKey?.trim() || null;
     const isCandidateStageItem = currentItemKey === "auto_director"
       || (currentItemKey?.startsWith("candidate_") ?? false);
+    const directorSessionPhase = input.seedPayload.directorSession?.phase;
+
+    if (directorSessionPhase && directorSessionPhase !== "candidate_selection") {
+      return false;
+    }
+
+    if (currentItemKey && !isCandidateStageItem && input.checkpointType !== "candidate_selection_required") {
+      return false;
+    }
+
     if (input.checkpointType === "candidate_selection_required" && (isCandidateStageItem || !currentItemKey)) {
       return true;
     }
-    if (input.seedPayload.candidateStage) {
+    if (directorSessionPhase === "candidate_selection") {
       return true;
     }
-    if (input.seedPayload.directorSession?.phase === "candidate_selection") {
-      return true;
+    if (input.seedPayload.candidateStage) {
+      return !currentItemKey || isCandidateStageItem;
     }
     return isCandidateStageItem;
   }
@@ -305,6 +321,7 @@ export class NovelDirectorService {
   private async continueCandidateStageTask(
     taskId: string,
     input: {
+      novelId?: string | null;
       status: string;
       checkpointType: string | null;
       currentItemKey?: string | null;
@@ -312,6 +329,7 @@ export class NovelDirectorService {
     },
   ): Promise<boolean> {
     if (!this.isCandidateSelectionTask({
+      novelId: input.novelId,
       checkpointType: input.checkpointType,
       currentItemKey: input.currentItemKey,
       seedPayload: input.seedPayload,
@@ -411,6 +429,7 @@ export class NovelDirectorService {
     const directorInput = getDirectorInputFromSeedPayload(seedPayload);
     const novelId = row.novelId ?? seedPayload.novelId ?? null;
     const resumedCandidateStage = await this.continueCandidateStageTask(taskId, {
+      novelId,
       status: row.status,
       checkpointType: row.checkpointType,
       currentItemKey: row.currentItemKey,
@@ -482,14 +501,7 @@ export class NovelDirectorService {
       novelId,
       lane: "auto_director",
       title: directorInput.candidate.workingTitle,
-      seedPayload: buildWorkflowSeedPayload(directorInput, {
-        novelId,
-        candidate: directorInput.candidate,
-        batch: {
-          id: directorInput.batchId,
-          round: directorInput.round,
-        },
-        directorInput,
+      seedPayload: this.buildDirectorSeedPayload(directorInput, novelId, {
         directorSession,
         resumeTarget,
       }),
@@ -868,6 +880,22 @@ export class NovelDirectorService {
     novelId: string | null,
     extra?: Record<string, unknown>,
   ) {
+    const directorSessionPhase = extra?.directorSession
+      && typeof extra.directorSession === "object"
+      && "phase" in extra.directorSession
+      ? (extra.directorSession as { phase?: unknown }).phase
+      : null;
+    const shouldClearCandidateStage = Boolean(novelId)
+      || (
+        typeof directorSessionPhase === "string"
+        && directorSessionPhase !== "candidate_selection"
+      );
+    const nextCandidateStage = shouldClearCandidateStage
+      ? null
+      : (Object.prototype.hasOwnProperty.call(extra ?? {}, "candidateStage")
+          ? (extra as { candidateStage?: unknown }).candidateStage
+          : undefined);
+
     return buildWorkflowSeedPayload(input, {
       novelId,
       candidate: input.candidate,
@@ -877,6 +905,7 @@ export class NovelDirectorService {
       },
       directorInput: input,
       ...extra,
+      candidateStage: nextCandidateStage,
     });
   }
 
@@ -966,6 +995,33 @@ export class NovelDirectorService {
     });
   }
 
+  private buildDirectorCharacterPreparationService() {
+    return {
+      generateAutoCharacterCastOption: async (targetNovelId: string, options: {
+        provider?: DirectorConfirmRequest["provider"];
+        model?: string;
+        temperature?: number;
+        storyInput?: string;
+      }) => {
+        const generated = await generateAutoCharacterCastDraft(targetNovelId, options);
+        await persistCharacterCastOptionsDraft(targetNovelId, generated.storyInput, {
+          options: [generated.parsed.option],
+        });
+        const [persistedOption] = await this.characterPreparationService.listCharacterCastOptions(targetNovelId);
+        if (!persistedOption) {
+          throw new Error("Auto director character cast option was not persisted.");
+        }
+        return persistedOption;
+      },
+      assessCharacterCastOptions: (...args: Parameters<CharacterPreparationService["assessCharacterCastOptions"]>) => (
+        this.characterPreparationService.assessCharacterCastOptions(...args)
+      ),
+      applyCharacterCastOption: (...args: Parameters<CharacterPreparationService["applyCharacterCastOption"]>) => (
+        this.characterPreparationService.applyCharacterCastOption(...args)
+      ),
+    };
+  }
+
   private async runCharacterSetupPhase(
     taskId: string,
     novelId: string,
@@ -978,7 +1034,7 @@ export class NovelDirectorService {
       dependencies: {
         workflowService: this.workflowService,
         novelContextService: this.novelContextService,
-        characterPreparationService: this.characterPreparationService,
+        characterPreparationService: this.buildDirectorCharacterPreparationService(),
         volumeService: this.volumeService,
       },
       callbacks: {
@@ -1002,7 +1058,7 @@ export class NovelDirectorService {
       dependencies: {
         workflowService: this.workflowService,
         novelContextService: this.novelContextService,
-        characterPreparationService: this.characterPreparationService,
+        characterPreparationService: this.buildDirectorCharacterPreparationService(),
         volumeService: this.volumeService,
       },
       callbacks: {
@@ -1028,7 +1084,7 @@ export class NovelDirectorService {
       dependencies: {
         workflowService: this.workflowService,
         novelContextService: this.novelContextService,
-        characterPreparationService: this.characterPreparationService,
+        characterPreparationService: this.buildDirectorCharacterPreparationService(),
         volumeService: this.volumeService,
       },
       callbacks: {

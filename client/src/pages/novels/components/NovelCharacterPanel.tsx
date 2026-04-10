@@ -25,9 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import CharacterAssetWorkspace from "./CharacterAssetWorkspace";
-import CharacterCastOptionsSection from "./CharacterCastOptionsSection";
-import CollapsibleSummary from "./CollapsibleSummary";
-import CharacterDynamicsSection from "./CharacterDynamicsSection";
+import CharacterDiagnosticsSection from "./CharacterDiagnosticsSection";
 import type { QuickCharacterCreatePayload } from "./characterPanel.utils";
 
 interface QuickCharacterFormState {
@@ -660,32 +658,15 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
         </DialogContent>
       </Dialog>
 
-      <details className="group rounded-2xl border border-border/70 bg-background/95 p-4">
-        <summary className="cursor-pointer list-none">
-          <CollapsibleSummary
-            title="角色阵容与关系诊断"
-            description="这些内容更适合在需要补位、查缺口或梳理关系时再展开。日常编辑先看下方角色资产工作台。"
-          />
-        </summary>
-
-        <div className="mt-4 space-y-4">
-          <CharacterCastOptionsSection
-            novelId={novelId}
-            characters={characters}
-            selectedCharacter={selectedCharacter}
-            onSelectedCharacterChange={onSelectedCharacterChange}
-            llmProvider={llmProvider}
-            llmModel={llmModel}
-          />
-
-          <CharacterDynamicsSection
-            novelId={novelId}
-            selectedCharacter={selectedCharacter}
-            selectedCharacterId={selectedCharacterId}
-            onSelectedCharacterChange={onSelectedCharacterChange}
-          />
-        </div>
-      </details>
+      <CharacterDiagnosticsSection
+        novelId={novelId}
+        characters={characters}
+        selectedCharacter={selectedCharacter}
+        selectedCharacterId={selectedCharacterId}
+        onSelectedCharacterChange={onSelectedCharacterChange}
+        llmProvider={llmProvider}
+        llmModel={llmModel}
+      />
 
       <CharacterAssetWorkspace
         characters={characters}

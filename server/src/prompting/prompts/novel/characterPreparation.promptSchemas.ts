@@ -160,6 +160,10 @@ export const characterCastOptionResponseSchema = z.object({
   options: z.array(characterCastOptionSchema).length(3),
 });
 
+export const characterCastAutoResponseSchema = z.object({
+  option: characterCastOptionSchema,
+});
+
 export const supplementalCharacterRelationSchema = z.object({
   sourceName: nonEmptyString,
   targetName: nonEmptyString,
@@ -215,6 +219,7 @@ export const supplementalCharacterGenerationResponseSchema = z.object({
 
 export type CharacterCastOptionParsed = z.infer<typeof characterCastOptionSchema>;
 export type CharacterCastOptionResponseParsed = z.infer<typeof characterCastOptionResponseSchema>;
+export type CharacterCastAutoResponseParsed = z.infer<typeof characterCastAutoResponseSchema>;
 export type SupplementalCharacterCandidateParsed = z.infer<typeof supplementalCharacterCandidateSchema>;
 export type SupplementalCharacterGenerationInputParsed = z.infer<typeof supplementalCharacterGenerationInputSchema>;
 export type SupplementalCharacterGenerationResponseParsed = z.infer<typeof supplementalCharacterGenerationResponseSchema>;

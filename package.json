@@ -14,8 +14,10 @@
   ],
   "scripts": {
     "dev": "concurrently \"pnpm dev:shared\" \"pnpm dev:server\" \"pnpm dev:client:wait\"",
+    "dev:log": "node scripts/run-with-log.cjs --name dev -- pnpm dev",
     "dev:shared": "pnpm --filter @ai-novel/shared dev",
     "dev:server": "pnpm --filter @ai-novel/server dev",
+    "dev:server:log": "node scripts/run-with-log.cjs --name server -- pnpm --filter @ai-novel/server dev",
     "dev:client": "pnpm --filter @ai-novel/client dev",
     "dev:client:wait": "node scripts/wait-for-port.cjs --port 3000 && pnpm dev:client",
     "db:migrate": "pnpm --filter @ai-novel/server db:migrate",

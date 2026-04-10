@@ -17,6 +17,7 @@ import {
   type StructuredOutputProfile,
   type StructuredOutputStrategy,
 } from "./structuredOutput";
+import { relaxGeneratedContentSchema } from "./generatedContentSchema";
 import { getStructuredFallbackSettings } from "./structuredFallbackSettings";
 import { toText, extractJSONValue } from "../services/novel/novelP0Utils";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
@@ -399,6 +400,7 @@ export function shouldUseJsonObjectResponseFormat<T>(
 export async function parseStructuredLlmRawContentDetailed<T>(
   input: StructuredInvokeRawParseInput<T>,
 ): Promise<StructuredInvokeResult<T>> {
+  const runtimeSchema = relaxGeneratedContentSchema(input.schema);
   const diagnostics = buildDiagnostics({
     strategy: input.strategy,
     profile: input.profile,
@@ -415,7 +417,10 @@ export async function parseStructuredLlmRawContentDetailed<T>(
     for (let attempt = 1; attempt <= maxRepairAttempts; attempt += 1) {
       try {
         return {
-          data: await repairWithLlm(input, input.rawContent, parseErrorMessage, attempt),
+          data: await repairWithLlm({
+            ...input,
+            schema: runtimeSchema,
+          }, input.rawContent, parseErrorMessage, attempt),
           repairUsed: true,
           repairAttempts: attempt,
           diagnostics,
@@ -439,7 +444,7 @@ export async function parseStructuredLlmRawContentDetailed<T>(
     }
   }
 
-  const first = input.schema.safeParse(parsed);
+  const first = runtimeSchema.safeParse(parsed);
   if (first.success) {
     return {
       data: first.data,
@@ -453,7 +458,10 @@ export async function parseStructuredLlmRawContentDetailed<T>(
   for (let attempt = 1; attempt <= maxRepairAttempts; attempt += 1) {
     try {
       return {
-        data: await repairWithLlm(input, input.rawContent, `Zod 校验错误：\n${formatZodErrors(zodError)}`, attempt),
+        data: await repairWithLlm({
+          ...input,
+          schema: runtimeSchema,
+        }, input.rawContent, `Zod 校验错误：\n${formatZodErrors(zodError)}`, attempt),
         repairUsed: true,
         repairAttempts: attempt,
         diagnostics,

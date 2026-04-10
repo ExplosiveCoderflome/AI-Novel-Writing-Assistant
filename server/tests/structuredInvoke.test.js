@@ -4,7 +4,7 @@ const { z } = require("zod");
 
 const factory = require("../dist/llm/factory.js");
 const structuredFallbackSettings = require("../dist/llm/structuredFallbackSettings.js");
-const { resolveStructuredOutputProfile } = require("../dist/llm/structuredOutput.js");
+const { buildStructuredResponseFormat, resolveStructuredOutputProfile } = require("../dist/llm/structuredOutput.js");
 const structuredInvoke = require("../dist/llm/structuredInvoke.js");
 
 test("parseStructuredLlmRawContentDetailed recovers when repair output is truncated but completable", async () => {
@@ -213,4 +213,56 @@ test("invokeStructuredLlmDetailed switches to the configured fallback model afte
     factory.createLLMFromResolvedOptions = originalCreateLLM;
     structuredFallbackSettings.getStructuredFallbackSettings = originalGetFallbackSettings;
   }
+});
+
+test("parseStructuredLlmRawContentDetailed ignores generated string length limits while preserving trim normalization", async () => {
+  const result = await structuredInvoke.parseStructuredLlmRawContentDetailed({
+    rawContent: JSON.stringify({
+      summary: "  short  ",
+      hook: "toolongvalue",
+      code: "  abcd  ",
+    }),
+    schema: z.object({
+      summary: z.string().trim().min(10),
+      hook: z.string().max(5),
+      code: z.string().trim().length(3),
+    }),
+    provider: "deepseek",
+    model: "deepseek-chat",
+    label: "structured.invoke.length.relaxed",
+    maxRepairAttempts: 0,
+    strategy: "prompt_json",
+    profile: resolveStructuredOutputProfile({
+      provider: "deepseek",
+      model: "deepseek-chat",
+      executionMode: "structured",
+    }),
+  });
+
+  assert.deepEqual(result.data, {
+    summary: "short",
+    hook: "toolongvalue",
+    code: "abcd",
+  });
+  assert.equal(result.repairUsed, false);
+  assert.equal(result.repairAttempts, 0);
+});
+
+test("buildStructuredResponseFormat keeps string length limits in json schema sent to the model", () => {
+  const responseFormat = buildStructuredResponseFormat({
+    strategy: "json_schema",
+    schema: z.object({
+      summary: z.string().trim().min(10).max(50),
+      items: z.array(z.object({
+        code: z.string().length(3),
+      })).max(4),
+    }),
+    label: "structured.invoke.length.schema",
+  });
+
+  const serializedSchema = JSON.stringify(responseFormat?.json_schema?.schema ?? {});
+
+  assert.equal(serializedSchema.includes("minLength"), true);
+  assert.equal(serializedSchema.includes("maxLength"), true);
+  assert.equal(serializedSchema.includes("maxItems"), true);
 });

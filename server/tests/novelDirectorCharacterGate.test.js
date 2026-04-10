@@ -41,6 +41,7 @@ function buildRequest(runMode = "auto_to_ready") {
 test("director character phase pauses at review checkpoint when cast quality gate fails", async () => {
   const workflowCalls = [];
   let applyCalls = 0;
+  let autoGenerateCalls = 0;
 
   const invalidCastOptions = [
     {
@@ -93,7 +94,10 @@ test("director character phase pauses at review checkpoint when cast quality gat
       novelContextService: {},
       volumeService: {},
       characterPreparationService: {
-        generateCharacterCastOptions: async () => invalidCastOptions,
+        generateAutoCharacterCastOption: async () => {
+          autoGenerateCalls += 1;
+          return invalidCastOptions[0];
+        },
         assessCharacterCastOptions: () => ({
           options: [
             {
@@ -130,6 +134,7 @@ test("director character phase pauses at review checkpoint when cast quality gat
 
   assert.equal(paused, true);
   assert.equal(applyCalls, 0);
+  assert.equal(autoGenerateCalls, 1);
   const checkpointCall = workflowCalls.find((call) => call.type === "checkpoint");
   assert.ok(checkpointCall);
   assert.equal(checkpointCall.payload.checkpointType, "character_setup_required");

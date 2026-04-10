@@ -1,6 +1,6 @@
-import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
+import type { CharacterCastOption, VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
-import { CharacterPreparationService } from "../characterPrep/CharacterPreparationService";
+import type { CharacterPreparationService } from "../characterPrep/CharacterPreparationService";
 import { buildCharacterCastBlockedMessage } from "../characterPrep/characterCastQuality";
 import { NovelContextService } from "../NovelContextService";
 import { NovelVolumeService } from "../volume/NovelVolumeService";
@@ -37,7 +37,22 @@ type DirectorMutatingStage =
 interface DirectorPhaseDependencies {
   workflowService: NovelWorkflowService;
   novelContextService: NovelContextService;
-  characterPreparationService: CharacterPreparationService;
+  characterPreparationService: {
+    generateAutoCharacterCastOption: (novelId: string, input: {
+      provider?: DirectorConfirmRequest["provider"];
+      model?: string;
+      temperature?: number;
+      storyInput?: string;
+    }) => Promise<CharacterCastOption>;
+    assessCharacterCastOptions: (
+      castOptions: CharacterCastOption[],
+      storyInput: string,
+    ) => ReturnType<CharacterPreparationService["assessCharacterCastOptions"]>;
+    applyCharacterCastOption: (
+      novelId: string,
+      optionId: string,
+    ) => ReturnType<CharacterPreparationService["applyCharacterCastOption"]>;
+  };
   volumeService: NovelVolumeService;
 }
 
@@ -183,26 +198,23 @@ export async function runDirectorCharacterSetupPhase(input: {
       resumeTarget,
     }),
   });
-  const castOptions = await runDirectorTrackedStep({
+  const storyInput = buildStoryInput(request, toBookSpec(request.candidate, request.idea, request.estimatedChapterCount));
+  const targetOption = await runDirectorTrackedStep({
     taskId,
     stage: "character_setup",
     itemKey: "character_setup",
     itemLabel: "正在生成角色阵容",
     progress: DIRECTOR_PROGRESS.characterSetup,
     callbacks,
-    run: async () => dependencies.characterPreparationService.generateCharacterCastOptions(novelId, {
+    run: async () => dependencies.characterPreparationService.generateAutoCharacterCastOption(novelId, {
       provider: request.provider,
       model: request.model,
       temperature: request.temperature,
-      storyInput: buildStoryInput(request, toBookSpec(request.candidate, request.idea, request.estimatedChapterCount)),
+      storyInput,
     }),
   });
-  const storyInput = buildStoryInput(request, toBookSpec(request.candidate, request.idea, request.estimatedChapterCount));
-  const assessment = dependencies.characterPreparationService.assessCharacterCastOptions(castOptions, storyInput);
-  const targetOption = assessment.autoApplicableOptionId
-    ? castOptions.find((option) => option.id === assessment.autoApplicableOptionId) ?? null
-    : null;
-  if (!targetOption) {
+  const assessment = dependencies.characterPreparationService.assessCharacterCastOptions([targetOption], storyInput);
+  if (assessment.autoApplicableOptionId !== targetOption.id) {
     const blockedSession = buildDirectorSessionState({
       runMode: request.runMode,
       phase: "character_setup",
