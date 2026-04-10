@@ -387,6 +387,10 @@ export interface PipelineJob {
   currentItemKey?: string | null;
   currentItemLabel?: string | null;
   cancelRequestedAt?: string | null;
+  displayStatus?: string | null;
+  noticeCode?: string | null;
+  noticeSummary?: string | null;
+  qualityAlertDetails?: string[];
   error?: string | null;
   lastErrorType?: string | null;
   payload?: string | null;

@@ -564,6 +564,16 @@ export default function TaskCenterPage() {
                     </>
                   ) : null}
                 </div>
+                {selectedTask.noticeCode || selectedTask.noticeSummary ? (
+                  <div className="rounded-md border border-amber-300/50 bg-amber-50/70 p-2 text-amber-900">
+                    <div className="font-medium">
+                      {selectedTask.noticeCode ?? "结果提醒"}
+                    </div>
+                    {selectedTask.noticeSummary ? (
+                      <div className="mt-1 text-sm">{selectedTask.noticeSummary}</div>
+                    ) : null}
+                  </div>
+                ) : null}
                 {selectedTask.failureCode || selectedTask.failureSummary ? (
                   <div className="rounded-md border border-amber-300/50 bg-amber-50/70 p-2 text-amber-900">
                     <div className="font-medium">

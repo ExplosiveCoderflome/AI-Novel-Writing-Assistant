@@ -2,6 +2,10 @@ import type { TaskStatus, UnifiedTaskDetail, UnifiedTaskSummary } from "@ai-nove
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { NovelService } from "../../novel/NovelService";
+import {
+  getPipelineQualityNotice,
+  parsePipelinePayload,
+} from "../../novel/pipelineJobState";
 import { NovelWorkflowService } from "../../novel/workflow/NovelWorkflowService";
 import {
   buildTaskRecoveryHint,
@@ -20,10 +24,96 @@ import {
   toLegacyTaskStatus,
 } from "../taskCenter.shared";
 
+type PipelineRow = {
+  id: string;
+  novelId: string;
+  startOrder: number;
+  endOrder: number;
+  status: string;
+  progress: number;
+  currentStage: string | null;
+  currentItemLabel: string | null;
+  retryCount: number;
+  maxRetries: number;
+  error: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  heartbeatAt: Date | null;
+  payload: string | null;
+  lastErrorType: string | null;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  llmCallCount: number;
+  lastTokenRecordedAt: Date | null;
+  startedAt?: Date | null;
+  finishedAt?: Date | null;
+  cancelRequestedAt?: Date | null;
+  completedCount?: number;
+  totalCount?: number;
+  novel: {
+    id: string;
+    title: string;
+  };
+};
+
 export class PipelineTaskAdapter {
   private readonly workflowService = new NovelWorkflowService();
 
   constructor(private readonly novelService: NovelService) {}
+
+  private toSummary(row: PipelineRow): UnifiedTaskSummary {
+    const payload = parsePipelinePayload(row.payload);
+    const notice = row.status === "succeeded"
+      ? getPipelineQualityNotice(payload.qualityAlertDetails)
+      : getPipelineQualityNotice(undefined);
+
+    return {
+      id: row.id,
+      kind: "novel_pipeline",
+      title: `${row.novel.title} (${row.startOrder}-${row.endOrder}章)`,
+      status: row.status as TaskStatus,
+      progress: row.progress,
+      currentStage: row.currentStage,
+      currentItemLabel: row.currentItemLabel,
+      displayStatus: notice.displayStatus,
+      attemptCount: row.retryCount,
+      maxAttempts: row.maxRetries,
+      lastError: row.error,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+      heartbeatAt: row.heartbeatAt?.toISOString() ?? null,
+      ownerId: row.novelId,
+      ownerLabel: row.novel.title,
+      sourceRoute: `/novels/${row.novelId}/edit`,
+      noticeCode: notice.noticeCode,
+      noticeSummary: notice.noticeSummary,
+      failureCode: row.lastErrorType ?? (row.status === "failed" ? "PIPELINE_FAILED" : null),
+      failureSummary: row.status === "failed"
+        ? normalizeFailureSummary(row.error, "章节流水线失败，但没有记录明确错误。")
+        : null,
+      recoveryHint: buildTaskRecoveryHint("novel_pipeline", row.status as TaskStatus),
+      tokenUsage: toTaskTokenUsageSummary({
+        promptTokens: row.promptTokens,
+        completionTokens: row.completionTokens,
+        totalTokens: row.totalTokens,
+        llmCallCount: row.llmCallCount,
+        lastTokenRecordedAt: row.lastTokenRecordedAt,
+      }),
+      sourceResource: {
+        type: "novel",
+        id: row.novelId,
+        label: row.novel.title,
+        route: `/novels/${row.novelId}/edit`,
+      },
+      targetResources: [{
+        type: "generation_job",
+        id: row.id,
+        label: `${row.startOrder}-${row.endOrder}章流水线`,
+        route: `/novels/${row.novelId}/edit`,
+      }],
+    };
+  }
 
   async list(input: {
     status?: TaskStatus;
@@ -66,48 +156,7 @@ export class PipelineTaskAdapter {
       take: input.take,
     });
 
-    return rows.map((row) => ({
-      id: row.id,
-      kind: "novel_pipeline",
-      title: `${row.novel.title} (${row.startOrder}-${row.endOrder}章)`,
-      status: row.status as TaskStatus,
-      progress: row.progress,
-      currentStage: row.currentStage,
-      currentItemLabel: row.currentItemLabel,
-      attemptCount: row.retryCount,
-      maxAttempts: row.maxRetries,
-      lastError: row.error,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-      heartbeatAt: row.heartbeatAt?.toISOString() ?? null,
-      ownerId: row.novelId,
-      ownerLabel: row.novel.title,
-      sourceRoute: `/novels/${row.novelId}/edit`,
-      failureCode: row.lastErrorType ?? (row.status === "failed" ? "PIPELINE_FAILED" : null),
-      failureSummary: row.status === "failed"
-        ? normalizeFailureSummary(row.error, "章节流水线失败，但没有记录明确错误。")
-        : row.error,
-      recoveryHint: buildTaskRecoveryHint("novel_pipeline", row.status as TaskStatus),
-      tokenUsage: toTaskTokenUsageSummary({
-        promptTokens: row.promptTokens,
-        completionTokens: row.completionTokens,
-        totalTokens: row.totalTokens,
-        llmCallCount: row.llmCallCount,
-        lastTokenRecordedAt: row.lastTokenRecordedAt,
-      }),
-      sourceResource: {
-        type: "novel",
-        id: row.novelId,
-        label: row.novel.title,
-        route: `/novels/${row.novelId}/edit`,
-      },
-      targetResources: [{
-        type: "generation_job",
-        id: row.id,
-        label: `${row.startOrder}-${row.endOrder}章流水线`,
-        route: `/novels/${row.novelId}/edit`,
-      }],
-    }));
+    return rows.map((row) => this.toSummary(row));
   }
 
   async detail(id: string): Promise<UnifiedTaskDetail | null> {
@@ -130,62 +179,13 @@ export class PipelineTaskAdapter {
       return null;
     }
 
-    const summary: UnifiedTaskSummary = {
-      id: row.id,
-      kind: "novel_pipeline",
-      title: `${row.novel.title} (${row.startOrder}-${row.endOrder}章)`,
-      status: row.status as TaskStatus,
-      progress: row.progress,
-      currentStage: row.currentStage,
-      currentItemLabel: row.currentItemLabel,
-      attemptCount: row.retryCount,
-      maxAttempts: row.maxRetries,
-      lastError: row.error,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-      heartbeatAt: row.heartbeatAt?.toISOString() ?? null,
-      ownerId: row.novelId,
-      ownerLabel: row.novel.title,
-      sourceRoute: `/novels/${row.novelId}/edit`,
-      failureCode: row.lastErrorType ?? (row.status === "failed" ? "PIPELINE_FAILED" : null),
-      failureSummary: row.status === "failed"
-        ? normalizeFailureSummary(row.error, "章节流水线失败，但没有记录明确错误。")
-        : row.error,
-      recoveryHint: buildTaskRecoveryHint("novel_pipeline", row.status as TaskStatus),
-      tokenUsage: toTaskTokenUsageSummary({
-        promptTokens: row.promptTokens,
-        completionTokens: row.completionTokens,
-        totalTokens: row.totalTokens,
-        llmCallCount: row.llmCallCount,
-        lastTokenRecordedAt: row.lastTokenRecordedAt,
-      }),
-      sourceResource: {
-        type: "novel",
-        id: row.novelId,
-        label: row.novel.title,
-        route: `/novels/${row.novelId}/edit`,
-      },
-      targetResources: [{
-        type: "generation_job",
-        id: row.id,
-        label: `${row.startOrder}-${row.endOrder}章流水线`,
-        route: `/novels/${row.novelId}/edit`,
-      }],
-    };
-
-    let payload: Record<string, unknown> = {};
-    if (row.payload?.trim()) {
-      try {
-        payload = JSON.parse(row.payload) as Record<string, unknown>;
-      } catch {
-        payload = { rawPayload: row.payload };
-      }
-    }
+    const summary = this.toSummary(row);
+    const payload = parsePipelinePayload(row.payload);
 
     return {
       ...summary,
-      provider: typeof payload.provider === "string" ? payload.provider : null,
-      model: typeof payload.model === "string" ? payload.model : null,
+      provider: payload.provider ?? null,
+      model: payload.model ?? null,
       startedAt: row.startedAt?.toISOString() ?? null,
       finishedAt: row.finishedAt?.toISOString() ?? null,
       retryCountLabel: `${row.retryCount}/${row.maxRetries}`,

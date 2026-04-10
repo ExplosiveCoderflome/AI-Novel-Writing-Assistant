@@ -151,6 +151,9 @@ export function canContinueFront10AutoExecution(task?: NovelAutoDirectorTaskSumm
   if (task.status === "waiting_approval" && task.checkpointType === "front10_ready") {
     return true;
   }
+  if (task.status === "waiting_approval" && task.checkpointType === "chapter_batch_ready") {
+    return true;
+  }
   return (task.status === "failed" || task.status === "cancelled") && task.checkpointType === "chapter_batch_ready";
 }
 

@@ -42,7 +42,7 @@ interface NovelDirectorAutoExecutionWorkflowPort {
   }): Promise<unknown>;
   recordCheckpoint(taskId: string, input: {
     stage: "quality_repair";
-    checkpointType: "workflow_completed";
+    checkpointType: "workflow_completed" | "chapter_batch_ready";
     checkpointSummary: string;
     itemLabel: string;
     progress?: number;
@@ -88,6 +88,7 @@ interface NovelDirectorAutoExecutionNovelPort {
     progress: number;
     currentStage?: string | null;
     currentItemLabel?: string | null;
+    noticeSummary?: string | null;
     error?: string | null;
   } | null>;
   cancelPipelineJob(jobId: string): Promise<unknown>;
@@ -407,6 +408,56 @@ export class NovelDirectorAutoExecutionRuntime {
           pipelineJobId,
           pipelineStatus: job.status,
         }));
+
+        if (job.status === "succeeded" && job.noticeSummary?.trim()) {
+          const scopeLabel = buildDirectorAutoExecutionScopeLabelFromState(autoExecution, range.totalChapterCount);
+          const pauseMessage = job.noticeSummary.trim();
+          await this.deps.workflowService.recordCheckpoint(input.taskId, {
+            stage: "quality_repair",
+            checkpointType: "chapter_batch_ready",
+            itemLabel: buildDirectorAutoExecutionPausedLabel(autoExecution),
+            checkpointSummary: buildDirectorAutoExecutionPausedSummary({
+              scopeLabel,
+              remainingChapterCount: autoExecution.remainingChapterCount ?? 0,
+              nextChapterOrder: autoExecution.nextChapterOrder ?? null,
+              failureMessage: pauseMessage,
+            }),
+            chapterId: autoExecution.nextChapterId ?? range.firstChapterId,
+            progress: 0.98,
+            seedPayload: this.deps.buildDirectorSeedPayload(input.request, input.novelId, {
+              directorSession: buildDirectorSessionState({
+                runMode: input.request.runMode,
+                phase: "front10_ready",
+                isBackgroundRunning: false,
+              }),
+              resumeTarget: buildNovelEditResumeTarget({
+                novelId: input.novelId,
+                taskId: input.taskId,
+                stage: "pipeline",
+                chapterId: autoExecution.nextChapterId ?? range.firstChapterId,
+              }),
+              autoExecution: {
+                ...autoExecution,
+                pipelineJobId,
+                pipelineStatus: job.status,
+              },
+            }),
+          });
+          await this.syncAutoExecutionTaskState({
+            taskId: input.taskId,
+            novelId: input.novelId,
+            request: input.request,
+            range,
+            autoExecution: {
+              ...autoExecution,
+              pipelineJobId,
+              pipelineStatus: job.status,
+            },
+            isBackgroundRunning: false,
+            resumeStage: "pipeline",
+          });
+          return;
+        }
 
         if (job.status === "succeeded" || (autoExecution.remainingChapterCount ?? 0) === 0) {
           await this.recordCompletedCheckpoint({

@@ -38,6 +38,12 @@
 - [World Management v2](./design/world-management-v2.md)
 - [World Story Interface v1](./design/world-story-interface-v1.md)
 
+### `docs/releases`
+
+用于放完整的用户可见版本更新说明与发布历史；根 `README.md` 只保留最新一次更新，本目录负责承接完整历史。
+
+- [Release Notes](./releases/release-notes.md)
+
 ### `docs/archive`
 
 用于放历史初始化方案、已不再作为主执行依据但仍需要保留的资料。
@@ -50,6 +56,7 @@
 - 计划类文档优先放到 `docs/plans/`。
 - 架构调整、进度校验、迁移检查点优先放到 `docs/checkpoints/`。
 - 模块设计、数据模型、交互机制优先放到 `docs/design/`。
+- 用户可见版本更新历史优先放到 `docs/releases/`。
 - 已废弃但需要留档的方案放到 `docs/archive/`。
 
 ## 维护约束
@@ -57,3 +64,4 @@
 - 新增文档时，先判断是否真的需要留在根目录；默认答案应当是“不需要”。
 - 文档迁移后，如根 `README.md` 或其他入口文档里有引用，应同步更新路径。
 - `TASK.md` 负责“当前主路线与优先级”，不替代设计文档；设计细节应沉到 `docs/`。
+- 根 `README.md` 的更新说明只保留最新一次；完整历史统一维护在 `docs/releases/release-notes.md`。

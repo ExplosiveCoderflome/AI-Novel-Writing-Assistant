@@ -7,7 +7,7 @@ const {
 
 function buildRequest() {
   return {
-    idea: "一个普通人被卷入命运谜局",
+    idea: "一个普通人被卷入命运迷局",
     candidate: {
       id: "candidate-1",
       workingTitle: "命运谜局",
@@ -19,7 +19,7 @@ function buildRequest() {
       protagonistPath: "从被动卷入到主动破局",
       endingDirection: "主角以代价换来新秩序",
       hookStrategy: "用反常事件做开局钩子",
-      progressionLoop: "调查推进、反噬升级、关系重排",
+      progressionLoop: "调查推进、反噬升级、关系重组",
       whyItFits: "适合自动导演快速启动",
       toneKeywords: ["悬疑", "压迫感"],
       targetChapterCount: 80,
@@ -97,10 +97,11 @@ test("runFromReady completes immediately when repaired chapters leave no remaini
     },
   });
 
-  assert.deepEqual(calls, [
-    ["bootstrapTask", 0],
-    ["recordCheckpoint", "task-auto-exec", "workflow_completed", "前 2 章自动执行完成", 0],
-  ]);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0], ["bootstrapTask", 0]);
+  assert.deepEqual(calls[1].slice(0, 3), ["recordCheckpoint", "task-auto-exec", "workflow_completed"]);
+  assert.match(String(calls[1][3]), /前 ?2 章自动执行完成/);
+  assert.equal(calls[1][4], 0);
 });
 
 test("runFromReady reuses an existing active range job before starting a new pipeline", async () => {
@@ -187,4 +188,96 @@ test("runFromReady reuses an existing active range job before starting a new pip
     ["getPipelineJobById", "job-active"],
     ["recordCheckpoint", "task-auto-exec", "job-active", "succeeded"],
   ]);
+});
+
+test("runFromReady records a normal checkpoint when pipeline completes with quality notices", async () => {
+  const calls = [];
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        return [
+          { id: "chapter-1", order: 1, generationState: "reviewed" },
+          { id: "chapter-2", order: 2, generationState: "approved" },
+        ];
+      },
+    },
+    novelService: {
+      async startPipelineJob() {
+        calls.push(["startPipelineJob"]);
+        return { id: "job-quality", status: "queued" };
+      },
+      async findActivePipelineJobForRange() {
+        return null;
+      },
+      async getPipelineJobById(jobId) {
+        calls.push(["getPipelineJobById", jobId]);
+        return {
+          id: "job-quality",
+          status: "succeeded",
+          progress: 1,
+          currentStage: null,
+          currentItemLabel: null,
+          noticeSummary: "以下章节未达到质量阈值：第 1 章",
+          error: null,
+        };
+      },
+      async cancelPipelineJob() {
+        calls.push(["cancelPipelineJob"]);
+      },
+    },
+    workflowService: {
+      async bootstrapTask(input) {
+        calls.push(["bootstrapTask", input.seedPayload.autoExecution.pipelineStatus]);
+      },
+      async getTaskById() {
+        return { status: "running" };
+      },
+      async markTaskRunning() {
+        calls.push(["markTaskRunning"]);
+      },
+      async recordCheckpoint(taskId, input) {
+        calls.push([
+          "recordCheckpoint",
+          taskId,
+          input.checkpointType,
+          input.checkpointSummary,
+          input.seedPayload.autoExecution.pipelineStatus,
+        ]);
+      },
+      async markTaskFailed() {
+        calls.push(["markTaskFailed"]);
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+  });
+
+  await runtime.runFromReady({
+    taskId: "task-auto-exec",
+    novelId: "novel-1",
+    request: buildRequest(),
+    existingState: {
+      enabled: true,
+      firstChapterId: "chapter-1",
+      startOrder: 1,
+      endOrder: 2,
+      totalChapterCount: 2,
+      pipelineJobId: null,
+      pipelineStatus: null,
+    },
+  });
+
+  assert.equal(calls.length, 7);
+  assert.deepEqual(calls[0], ["bootstrapTask", "queued"]);
+  assert.deepEqual(calls[1], ["markTaskRunning"]);
+  assert.deepEqual(calls[2], ["startPipelineJob"]);
+  assert.deepEqual(calls[3], ["bootstrapTask", "queued"]);
+  assert.deepEqual(calls[4], ["getPipelineJobById", "job-quality"]);
+  assert.equal(calls[5][0], "recordCheckpoint");
+  assert.equal(calls[5][1], "task-auto-exec");
+  assert.equal(calls[5][2], "chapter_batch_ready");
+  assert.ok(String(calls[5][3]).length > 0);
+  assert.equal(calls[5][4], "succeeded");
+  assert.deepEqual(calls[6], ["bootstrapTask", "succeeded"]);
 });

@@ -50,6 +50,8 @@ export interface UnifiedTaskSummary {
   checkpointSummary?: string | null;
   resumeTarget?: NovelWorkflowResumeTarget | null;
   nextActionLabel?: string | null;
+  noticeCode?: string | null;
+  noticeSummary?: string | null;
   failureCode?: string | null;
   failureSummary?: string | null;
   recoveryHint?: string | null;

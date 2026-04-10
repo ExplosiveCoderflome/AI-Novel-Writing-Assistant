@@ -38,14 +38,14 @@ test("retryPipelineJob rejects jobs that are still cancelling", async () => {
     const service = new NovelCorePipelineService();
     await assert.rejects(
       () => service.retryPipelineJob("job-1"),
-      /任务仍在取消中，请等待取消完成后再重试/,
+      /任务仍在取消中/,
     );
   } finally {
     prisma.generationJob.findUnique = originalFindUnique;
   }
 });
 
-test("executePipeline preserves persisted failed details across resume", async () => {
+test("executePipeline preserves persisted quality alerts across resume", async () => {
   const original = {
     generationFindUnique: prisma.generationJob.findUnique,
     generationUpdate: prisma.generationJob.update,
@@ -132,9 +132,9 @@ test("executePipeline preserves persisted failed details across resume", async (
     });
 
     const finalUpdate = updates[updates.length - 1];
-    assert.equal(finalUpdate.data.status, "failed");
-    assert.match(finalUpdate.data.error, /以下章节未达标：1章/);
-    assert.match(finalUpdate.data.payload, /failedDetails/);
+    assert.equal(finalUpdate.data.status, "succeeded");
+    assert.equal(finalUpdate.data.error, null);
+    assert.match(finalUpdate.data.payload, /qualityAlertDetails/);
     assert.match(finalUpdate.data.payload, /1章/);
   } finally {
     prisma.generationJob.findUnique = original.generationFindUnique;

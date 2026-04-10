@@ -55,17 +55,21 @@
 
 ## README Release Notes Workflow
 
-- Before any commit, push, or PR step in this repository, use the `commit-readme-progress` skill from `${CODEX_HOME:-~/.codex}/skills/commit-readme-progress` to inspect the Git scope, summarize the user-visible changes, and update `README.md` `## 最近进展` when applicable.
-- When the user asks to commit or push code, inspect the Git scope for that push and update `README.md` before the Git write step if the change set has clear user-facing impact.
-- If the current diff is purely internal and has no clear user-facing impact, state that explicitly and skip the README edit instead of forcing a release note.
-- Write the README release note from the user's perspective: describe capabilities, workflow improvements, and visible product behavior instead of file names, route names, service names, tests, or refactor details.
+- Before any commit, push, or PR step in this repository, use the `readme-release-updater` skill from `${CODEX_HOME:-~/.codex}/skills/readme-release-updater` to inspect the Git scope, summarize the user-visible changes, update `docs/releases/release-notes.md`, and refresh `README.md` `## 最新更新` when applicable.
+- When the user asks to commit or push code, inspect the Git scope for that push and update `docs/releases/release-notes.md` first, then sync `README.md` before the Git write step if the change set has clear user-facing impact.
+- `docs/releases/release-notes.md` is the complete user-facing update history and should preserve older entries.
+- `README.md` is only the latest update surface and must keep a link to `docs/releases/release-notes.md`; do not let `README.md` accumulate multiple historical date blocks.
+- When a new update is recorded, keep full history in `docs/releases/release-notes.md` and make `README.md` show only the newest merged date block plus the history link.
+- If multiple user-visible updates are recorded on the same date, merge them under the same date heading in `docs/releases/release-notes.md`; `README.md` should keep only that date's latest merged summary.
+- If the current diff is purely internal and has no clear user-facing impact, state that explicitly and skip both release-note updates instead of forcing a noisy entry.
+- Write both release-note surfaces from the user's perspective: describe capabilities, workflow improvements, and visible product behavior instead of file names, route names, service names, tests, or refactor details.
 
 ## Release Identification Rules
 
 - For now, this project continues to use `date-based` release/update identification. Do not introduce formal semantic version numbers unless the user explicitly decides to switch.
-- README `## 最近进展`, release summaries, and user-facing update records should continue to use the existing date-first format, for example: `### 2026-04-07`.
+- `docs/releases/release-notes.md`, `README.md` `## 最新更新`, release summaries, and other user-facing update records should continue to use the existing date-first format, for example: `### 2026-04-07`.
 - Keep the date as the primary update identifier until the product workflow, information architecture, and release cadence are stable enough to justify a formal versioning system.
-- If multiple user-visible updates are recorded on the same date, keep them under the same date heading and distinguish them by clear summary text instead of inventing temporary version numbers.
+- If multiple user-visible updates are recorded on the same date, keep them under the same date heading in `docs/releases/release-notes.md` and distinguish them by clear summary text instead of inventing temporary version numbers.
 
 ### Future Versioning Transition
 
