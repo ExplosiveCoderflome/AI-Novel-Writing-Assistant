@@ -1,4 +1,5 @@
 import type { Chapter } from "@ai-novel/shared/types/novel";
+import { parseChapterScenePlan } from "@ai-novel/shared/types/chapterLengthControl";
 import { Link } from "react-router-dom";
 import AiButton from "@/components/common/AiButton";
 import AiActionLabel from "@/components/common/AiActionLabel";
@@ -121,6 +122,32 @@ export function hasText(input: string | null | undefined): boolean {
 
 export function chapterHasPreparationAssets(chapter: Chapter): boolean {
   return hasText(chapter.expectation) || hasText(chapter.taskSheet) || hasText(chapter.sceneCards);
+}
+
+export function parseChapterScenePlanForDisplay(chapter: Chapter) {
+  return parseChapterScenePlan(chapter.sceneCards, {
+    targetWordCount: chapter.targetWordCount ?? undefined,
+  });
+}
+
+export function resolveChapterQueuePreview(chapter: Chapter): string {
+  if (hasText(chapter.expectation)) {
+    return chapter.expectation!.trim();
+  }
+  if (hasText(chapter.taskSheet)) {
+    return chapter.taskSheet!.trim();
+  }
+  const scenePlan = parseChapterScenePlanForDisplay(chapter);
+  if (scenePlan) {
+    const firstScene = scenePlan.scenes[0];
+    return firstScene
+      ? `${firstScene.title} · ${firstScene.purpose}`
+      : "这一章已生成场景预算合同。";
+  }
+  if (hasText(chapter.sceneCards)) {
+    return "这章存在旧版场景拆解，建议重新生成。";
+  }
+  return "这一章还没有明确目标，适合先补章节计划。";
 }
 
 export function chapterSuggestedActionLabel(chapter: Chapter): string {

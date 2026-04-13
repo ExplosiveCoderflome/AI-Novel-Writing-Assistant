@@ -8,13 +8,17 @@ import {
   getStructuredOutlineWorkspaceDefaults,
   useStructuredOutlineWorkspaceStore,
 } from "../stores/useStructuredOutlineWorkspaceStore";
-import {
-  getChapterExecutionDetailStatus,
-  hasChapterExecutionDetail,
-} from "../chapterDetailPlanning.shared";
+import { hasChapterExecutionDetail } from "../chapterDetailPlanning.shared";
 import { findBeatSheet } from "../volumePlan.utils";
+import StructuredBeatSheetCard from "./StructuredBeatSheetCard";
+import StructuredChapterListCard from "./StructuredChapterListCard";
 import StructuredChapterDetailCard from "./StructuredChapterDetailCard";
 import WorldInjectionHint from "./WorldInjectionHint";
+import {
+  chapterMatchesBeat,
+  findChapterBeat,
+  getBeatSheetRequiredChapterCount,
+} from "./structuredOutlineWorkspace.shared";
 import type { StructuredTabViewProps } from "./NovelEditView.types";
 
 type StructuredVolume = StructuredTabViewProps["volumes"][number];
@@ -28,39 +32,6 @@ function actionLabel(action: StructuredTabViewProps["syncPreview"]["items"][numb
   if (action === "keep") return "保留";
   if (action === "delete") return "删除";
   return "待删候选";
-}
-
-function parseBeatSpan(chapterSpanHint: string): { start: number; end: number } | null {
-  const numbers = Array.from(chapterSpanHint.matchAll(/\d+/g), (match) => Number(match[0]));
-  if (numbers.length === 0 || numbers.some((value) => Number.isNaN(value))) {
-    return null;
-  }
-  return { start: numbers[0], end: numbers[numbers.length - 1] };
-}
-
-function getBeatSheetRequiredChapterCount(
-  beatSheet: ReturnType<typeof findBeatSheet>,
-): number {
-  if (!beatSheet) {
-    return 0;
-  }
-  return beatSheet.beats.reduce((maxValue, beat) => {
-    const span = parseBeatSpan(beat.chapterSpanHint);
-    const upperBound = span?.end ?? 0;
-    return upperBound > maxValue ? upperBound : maxValue;
-  }, 0);
-}
-
-function chapterMatchesBeat(chapter: StructuredChapter, beat: StructuredBeat): boolean {
-  const span = parseBeatSpan(beat.chapterSpanHint);
-  return span ? chapter.chapterOrder >= span.start && chapter.chapterOrder <= span.end : false;
-}
-
-function findChapterBeat(
-  chapter: StructuredChapter,
-  beatSheet: ReturnType<typeof findBeatSheet>,
-): StructuredBeat | null {
-  return beatSheet?.beats.find((beat) => chapterMatchesBeat(chapter, beat)) ?? null;
 }
 
 function getWorkspaceGuidance(params: {
@@ -80,17 +51,6 @@ function getWorkspaceGuidance(params: {
       : `已聚焦到「${selectedBeat.label}」，当前显示 ${visibleChapterCount} 章，接下来在左侧选择要细化的章节。`;
   }
   return `当前展示本卷全部 ${totalChapterCount} 章。建议先点一个节奏段，让系统把对应章节收束出来，再开始细化。`;
-}
-
-function renderChapterDetailStatusBadge(chapter: StructuredChapter) {
-  const status = getChapterExecutionDetailStatus(chapter);
-  if (status === "complete") {
-    return <Badge variant="secondary">已细化</Badge>;
-  }
-  if (status === "partial") {
-    return <Badge>细化中</Badge>;
-  }
-  return <Badge variant="outline">待细化</Badge>;
 }
 
 export default function StructuredOutlineWorkspace(props: StructuredTabViewProps) {
@@ -375,195 +335,38 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
         ) : null}
 
         <div className="space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <CardTitle className="text-base">当前卷节奏</CardTitle>
-                  <div className="text-sm text-muted-foreground">先在这里定位当前卷推进区间，再到下面左侧章节导航里选当前要细化的章。</div>
-                </div>
-                <AiButton
-                  variant="outline"
-                  onClick={() => onGenerateBeatSheet(selectedVolume.id)}
-                  disabled={isGeneratingBeatSheet || !readiness.canGenerateBeatSheet}
-                >
-                  {isGeneratingBeatSheet ? "生成中..." : "生成当前卷节奏板"}
-                </AiButton>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {selectedBeatSheet ? (
-                <>
-                  <div className="space-y-2">
-                    <button
-                      type="button"
-                      onClick={() => patchWorkspace(workspaceId, { selectedBeatKey: "all" })}
-                      className={cn(
-                        "w-full rounded-xl border p-3 text-left transition-colors",
-                        selectedBeatKey === "all" ? "border-primary/50 bg-primary/5" : "border-border/70 hover:border-primary/30",
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant={selectedBeatKey === "all" ? "default" : "outline"}>全部章节</Badge>
-                          <span className="text-xs text-muted-foreground">默认总览</span>
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          {selectedVolumeChapters.length}章 · {refinedChapterCount}章已细化
-                        </span>
-                      </div>
-                      <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                        不限定节奏段，先整体浏览本卷章节分布，再决定聚焦哪个节奏区间。
-                      </div>
-                    </button>
-
-                    {selectedBeatSheet.beats.map((beat) => {
-                      const beatChapters = selectedVolumeChapters.filter((chapter) => chapterMatchesBeat(chapter, beat));
-                      const beatDone = beatChapters.filter((chapter) => hasChapterExecutionDetail(chapter)).length;
-                      const active = selectedBeatKey === beat.key;
-                      return (
-                        <button
-                          key={beat.key}
-                          type="button"
-                          onClick={() => patchWorkspace(workspaceId, { selectedBeatKey: active ? "all" : beat.key })}
-                          className={cn(
-                            "w-full rounded-xl border p-3 text-left transition-colors",
-                            active ? "border-primary/50 bg-primary/5" : "border-border/70 hover:border-primary/30",
-                          )}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Badge variant={active ? "default" : "outline"}>{beat.label}</Badge>
-                              <Badge variant="secondary">{beat.chapterSpanHint}</Badge>
-                            </div>
-                            <span className="text-xs text-muted-foreground">{beatChapters.length}章 · {beatDone}章已细化</span>
-                          </div>
-                          <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">{beat.summary}</div>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
-                    {selectedBeat ? (
-                      <div className="space-y-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge>{selectedBeat.label}</Badge>
-                          <Badge variant="secondary">{selectedBeat.chapterSpanHint}</Badge>
-                          <Badge variant="outline">{visibleChapters.length}章</Badge>
-                        </div>
-                        <div className="text-sm">{selectedBeat.summary}</div>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedBeat.mustDeliver.map((item) => (
-                            <Badge key={item} variant="outline">{item}</Badge>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-2 text-sm text-muted-foreground">
-                        <div className="font-medium text-foreground">当前未限定节奏段</div>
-                        <div>先整体浏览本卷章节，再点击一个节奏段，把下面左侧章节导航收束到对应范围。</div>
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                  先为当前卷生成节奏板。
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
-            <Card className="flex min-h-0 flex-col overflow-hidden xl:sticky xl:top-4 xl:max-h-[calc(100vh-8rem)]">
-              <CardHeader className="pb-3">
-                <div className="space-y-3">
-                  <div>
-                    <CardTitle className="text-base leading-none">当前卷章节列表</CardTitle>
-                    <div className="text-sm text-muted-foreground">
-                      {selectedBeat
-                        ? `左侧作为章节导航，当前只显示「${selectedBeat.label}」对应章节。`
-                        : "左侧作为章节导航，默认显示当前卷全部章节。"}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <AiButton
-                      onClick={() => onGenerateChapterList(selectedVolume.id)}
-                      disabled={isGeneratingChapterList || locked}
-                    >
-                      {isGeneratingChapterList ? "生成中..." : "生成当前卷章节列表"}
-                    </AiButton>
-                    <Button size="sm" variant="outline" onClick={() => onAddChapter(selectedVolume.id)}>
-                      新增章节
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden pt-0">
-                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <Badge variant="outline">显示 {visibleChapters.length}/{selectedVolumeChapters.length} 章</Badge>
-                  <Badge variant="outline">{visibleRefinedChapterCount}/{Math.max(visibleChapters.length, 1)} 已细化</Badge>
-                </div>
-                {selectedVolumeNeedsChapterExpansion ? (
-                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-800">
-                    当前卷目前只有 {selectedVolumeChapters.length} 章，但节奏板已经排到 {selectedVolumeRequiredChapterCount} 章。需要先重新生成当前卷章节列表，后半段节奏才会真正映射到章节。
-                  </div>
-                ) : null}
-                {selectedVolumeChapters.length > 0 ? (
-                  <div className="min-h-0 space-y-2 overflow-y-auto pr-1">
-                    {visibleChapters.map((chapter) => {
-                      const isSelected = selectedChapter?.id === chapter.id;
-                      const chapterBeat = findChapterBeat(chapter, selectedBeatSheet);
-                      return (
-                        <button
-                          key={chapter.id}
-                          type="button"
-                          onClick={() => patchWorkspace(workspaceId, { selectedChapterId: chapter.id })}
-                          className={cn(
-                            "w-full rounded-xl border p-3 text-left transition-colors",
-                            isSelected ? "border-primary/50 bg-primary/5 shadow-sm" : "border-border/70 hover:border-primary/30",
-                          )}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Badge variant={isSelected ? "default" : "outline"}>第{chapter.chapterOrder}章</Badge>
-                              {chapterBeat ? <Badge variant="secondary">{chapterBeat.label}</Badge> : null}
-                            </div>
-                            {renderChapterDetailStatusBadge(chapter)}
-                          </div>
-                          <div className="mt-2 text-sm font-medium">{chapter.title || `第${chapter.chapterOrder}章`}</div>
-                          <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                            {chapter.summary?.trim() || "先补本章摘要，再继续细化。"}
-                          </div>
-                        </button>
-                      );
-                    })}
-                    {visibleChapters.length === 0 ? (
-                      <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                        {selectedBeat && selectedVolumeNeedsChapterExpansion ? (
-                          <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-6 text-amber-800">
-                            当前节奏段是 {selectedBeat.chapterSpanHint}，但本卷目前只生成到 {selectedVolumeChapters.length} 章。请先重新生成当前卷章节列表，把这一卷补到至少 {selectedVolumeRequiredChapterCount} 章。
-                          </div>
-                        ) : null}
-                        当前节奏段还没有映射到章节，先切回全部章节或重新调整节奏板。
-                      </div>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                    {selectedVolumeRequiredChapterCount > 0 ? (
-                      <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-6 text-amber-800">
-                        根据当前节奏板，这一卷至少需要 {selectedVolumeRequiredChapterCount} 章，才能把各个节奏段完整映射到章节。
-                      </div>
-                    ) : null}
-                    当前卷还没有章节列表。先生成当前卷章节列表。
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <div className="space-y-4">
+          <StructuredBeatSheetCard
+            selectedVolume={selectedVolume}
+            selectedVolumeChapters={selectedVolumeChapters}
+            selectedBeatSheet={selectedBeatSheet}
+            selectedBeat={selectedBeat}
+            visibleChapters={visibleChapters}
+            refinedChapterCount={refinedChapterCount}
+            visibleRefinedChapterCount={visibleRefinedChapterCount}
+            readiness={readiness}
+            isGeneratingBeatSheet={isGeneratingBeatSheet}
+            onGenerateBeatSheet={onGenerateBeatSheet}
+            chapterListPanel={(
+              <StructuredChapterListCard
+                selectedVolume={selectedVolume}
+                selectedBeat={selectedBeat}
+                selectedBeatKey={selectedBeatKey}
+                selectedBeatSheet={selectedBeatSheet}
+                selectedVolumeChapters={selectedVolumeChapters}
+                visibleChapters={visibleChapters}
+                selectedChapter={selectedChapter}
+                visibleRefinedChapterCount={visibleRefinedChapterCount}
+                selectedVolumeRequiredChapterCount={selectedVolumeRequiredChapterCount}
+                selectedVolumeNeedsChapterExpansion={selectedVolumeNeedsChapterExpansion}
+                isGeneratingChapterList={isGeneratingChapterList}
+                locked={locked}
+                onGenerateChapterList={onGenerateChapterList}
+                onAddChapter={onAddChapter}
+                onSelectBeatKey={(beatKey) => patchWorkspace(workspaceId, { selectedBeatKey: beatKey })}
+                onSelectChapter={(chapterId) => patchWorkspace(workspaceId, { selectedChapterId: chapterId })}
+              />
+            )}
+            chapterDetailPanel={(
               <StructuredChapterDetailCard
                 selectedVolume={selectedVolume}
                 selectedChapter={selectedChapter}
@@ -585,7 +388,10 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                 onRemoveChapter={onRemoveChapter}
                 locked={locked}
               />
+            )}
+          />
 
+          <div className="space-y-4">
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -681,8 +487,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
               </CardContent>
             </Card>
           </div>
-        </div>
-      </div>
+          </div>
       </CardContent>
     </Card>
   );

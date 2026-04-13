@@ -46,7 +46,7 @@ interface RunPipelineChapterDeps {
     chapterId: string;
     request: ChapterRuntimeRequestInput;
     assembled: AssembledRuntimeChapter;
-  }) => Promise<string>;
+  }) => Promise<{ content: string; lengthControl?: ChapterRuntimePackage["lengthControl"] }>;
   saveDraftAndArtifacts: (
     novelId: string,
     chapterId: string,
@@ -59,6 +59,7 @@ interface RunPipelineChapterDeps {
     request: ChapterRuntimeRequestInput;
     contextPackage: GenerationContextPackage;
     content: string;
+    lengthControl?: ChapterRuntimePackage["lengthControl"];
     runId: string | null;
     startMs: number | null;
   }) => Promise<FinalizedRuntimeResult>;
@@ -100,17 +101,20 @@ export async function runPipelineChapterWithRuntime(
   let latestResult: FinalizedRuntimeResult | null = null;
   let latestIssues: ReviewIssue[] = [];
   let pass = false;
+  let latestLengthControl: ChapterRuntimePackage["lengthControl"] | undefined;
 
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     await hooks.onCheckCancelled?.();
     if (!content.trim()) {
       await hooks.onStageChange?.("generating_chapters");
-      content = await deps.generateDraftFromWriter({
+      const generatedDraft = await deps.generateDraftFromWriter({
         novelId,
         chapterId,
         request,
         assembled,
       });
+      content = generatedDraft.content;
+      latestLengthControl = generatedDraft.lengthControl;
     } else if (attempt === 0) {
       await deps.saveDraftAndArtifacts(novelId, chapterId, content, "drafted");
     }
@@ -122,6 +126,7 @@ export async function runPipelineChapterWithRuntime(
       request,
       contextPackage: assembled.contextPackage,
       content,
+      lengthControl: latestLengthControl,
       runId: null,
       startMs: null,
     });
@@ -215,7 +220,10 @@ async function repairDraftContent(input: {
         evidence: "Pipeline quality threshold not met.",
         fixSuggestion: "Tighten continuity, sharpen conflict progression, and improve readability.",
       }];
-  const modeHint = getRepairModeHint(input.options.repairMode);
+  const modeHint = getRepairModeHint(
+    input.options.repairMode,
+    input.runtimePackage.audit.openIssues.map((issue) => issue.code),
+  );
   const repairContextBlocks = input.runtimePackage.context.chapterRepairContext
     ? buildChapterRepairContextBlocks(input.runtimePackage.context.chapterRepairContext)
     : undefined;
@@ -255,7 +263,17 @@ function buildRepairBibleFallback(runtimePackage: ChapterRuntimePackage): string
 
 function getRepairModeHint(
   repairMode: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only" | undefined,
+  issueCodes: string[] = [],
 ): string {
+  if (issueCodes.includes("LENGTH_OVER_HARD_MAX")) {
+    return "compress_chapter_for_length：整章压缩重复表达、解释段和无效回合，保留核心推进与结尾压力。";
+  }
+  if (issueCodes.includes("LENGTH_OVER_SOFT_MAX")) {
+    return "compress_tail_for_length：优先回收尾段冗余展开，保留结尾 hook 和关键冲突。";
+  }
+  if (issueCodes.includes("LENGTH_UNDER_SOFT_MIN")) {
+    return "extend_for_length：只补最后的义务场景或结尾 hook，增加有效推进，不要回顾性凑字数。";
+  }
   switch (repairMode) {
     case "continuity_only":
       return "优先修连续性、时间线和事件承接，不做大幅风格重写。";

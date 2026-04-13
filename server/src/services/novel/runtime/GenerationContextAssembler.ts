@@ -238,7 +238,7 @@ export class GenerationContextAssembler {
     request: ChapterRuntimeRequestInput,
   ): Promise<{
     novel: { id: string; title: string };
-    chapter: { id: string; title: string; order: number; content: string | null; expectation: string | null; targetWordCount: number | null };
+    chapter: { id: string; title: string; order: number; content: string | null; expectation: string | null; targetWordCount: number | null; sceneCards: string | null };
     contextPackage: GenerationContextPackage;
   }> {
     const [novel, chapter] = await Promise.all([
@@ -295,6 +295,7 @@ export class GenerationContextAssembler {
           content: true,
           expectation: true,
           targetWordCount: true,
+          sceneCards: true,
         },
       }),
     ]);
@@ -534,6 +535,7 @@ export class GenerationContextAssembler {
         content: chapter.content ?? null,
         expectation: chapter.expectation ?? null,
         targetWordCount: chapter.targetWordCount ?? null,
+        sceneCards: chapter.sceneCards ?? null,
         supportingContextText: "",
       },
       plan: mappedPlan,
@@ -583,6 +585,7 @@ export class GenerationContextAssembler {
         content: chapter.content ?? null,
         expectation: chapter.expectation ?? null,
         targetWordCount: chapter.targetWordCount ?? null,
+        sceneCards: chapter.sceneCards ?? null,
         supportingContextText: buildSupportingContextText({
           worldBlock,
           storyModeBlock,
@@ -636,6 +639,7 @@ export class GenerationContextAssembler {
         content: chapter.content ?? null,
         expectation: chapter.expectation ?? null,
         targetWordCount: chapter.targetWordCount ?? null,
+        sceneCards: chapter.sceneCards ?? null,
       },
       contextPackage,
     };

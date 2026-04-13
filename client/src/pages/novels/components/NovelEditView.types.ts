@@ -40,6 +40,7 @@ import type {
 } from "@ai-novel/shared/types/storyMacro";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { StoryWorldSliceOverrides, StoryWorldSliceView } from "@ai-novel/shared/types/storyWorldSlice";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import type { QuickCharacterCreatePayload } from "./characterPanel.utils";
@@ -286,6 +287,12 @@ export interface ChapterTabViewProps {
   onUnifyStyle: () => void;
   onAddDialogue: () => void;
   onAddDescription: () => void;
+  isGeneratingTaskSheet: boolean;
+  isGeneratingSceneCards: boolean;
+  isSummarizingChapter: boolean;
+  reviewActionKind?: "full_audit" | "continuity" | "character_consistency" | "pacing" | null;
+  repairActionKind?: "autoRepair" | "expand" | "compress" | "strengthenConflict" | "enhanceEmotion" | "unifyStyle" | "addDialogue" | "addDescription" | null;
+  generationActionKind?: "rewrite" | null;
   isReviewingChapter: boolean;
   isRepairingChapter: boolean;
   reviewResult: ChapterReviewResult | null;
@@ -306,6 +313,7 @@ export interface ChapterTabViewProps {
     overall: number;
     issues?: string | null;
   };
+  chapterRuntimePackage?: ChapterRuntimePackage | null;
   repairStreamContent: string;
   isRepairStreaming: boolean;
   repairStreamingChapterId?: string | null;

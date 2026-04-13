@@ -88,3 +88,19 @@ export async function previewChapterRewrite(
   );
   return data;
 }
+
+export async function generateChapterExecutionContract(
+  novelId: string,
+  chapterId: string,
+  payload: Partial<{
+    provider: import("@ai-novel/shared/types/llm").LLMProvider;
+    model: string;
+    temperature: number;
+  }> = {},
+) {
+  const { data } = await apiClient.post<ApiResponse<Chapter>>(
+    `/novels/${novelId}/chapters/${chapterId}/execution-contract`,
+    payload,
+  );
+  return data;
+}

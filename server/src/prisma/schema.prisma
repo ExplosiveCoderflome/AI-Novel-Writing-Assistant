@@ -1388,6 +1388,7 @@ model VolumeChapterPlan {
   targetWordCount Int?
   mustAvoid       String?
   taskSheet       String?
+  sceneCards      String?
   payoffRefsJson  String?
   volume          VolumePlan @relation(fields: [volumeId], references: [id], onDelete: Cascade)
   createdAt       DateTime   @default(now())

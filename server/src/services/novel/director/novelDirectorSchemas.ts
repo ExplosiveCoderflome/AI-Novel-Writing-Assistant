@@ -59,6 +59,22 @@ const keywordArraySchema = z.union([
   return Array.from(new Set(list)).slice(0, 4);
 }).pipe(z.array(nonEmptyString).min(2).max(4));
 
+const chapterCountSchema = z.preprocess((value) => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(12, Math.min(120, Math.round(value)));
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed && /^-?\d+(\.\d+)?$/.test(trimmed)) {
+      const parsed = Number(trimmed);
+      if (Number.isFinite(parsed)) {
+        return Math.max(12, Math.min(120, Math.round(parsed)));
+      }
+    }
+  }
+  return value;
+}, z.number().int().min(12).max(120));
+
 export const directorCandidateSchema = z.object({
   workingTitle: nonEmptyString,
   titleOptions: z.array(z.object({
@@ -78,7 +94,7 @@ export const directorCandidateSchema = z.object({
   progressionLoop: nonEmptyString,
   whyItFits: nonEmptyString,
   toneKeywords: keywordArraySchema,
-  targetChapterCount: z.coerce.number().int().min(12).max(120),
+  targetChapterCount: chapterCountSchema,
 });
 
 export const directorCandidateResponseSchema = z.object({

@@ -9,8 +9,8 @@ import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import {
-  LIVE_TASK_STATUSES,
   canContinueDirector,
   canContinueFront10AutoExecution,
   canEnterChapterExecution,
@@ -18,9 +18,11 @@ import {
   getTaskCenterLink,
   getWorkflowBadge,
   getWorkflowDescription,
+  isWorkflowRunningInBackground,
   requiresCandidateSelection,
 } from "@/lib/novelWorkflowTaskUi";
 import { toast } from "@/components/ui/toast";
+import NovelWorkflowRunningIndicator from "./components/NovelWorkflowRunningIndicator";
 
 type StatusFilter = "all" | "draft" | "published";
 type WritingModeFilter = "all" | "original" | "continuation";
@@ -267,6 +269,7 @@ export default function NovelList() {
             const workflowTask = novel.latestAutoDirectorTask ?? null;
             const workflowBadge = getWorkflowBadge(workflowTask);
             const workflowDescription = getWorkflowDescription(workflowTask);
+            const isWorkflowRunning = isWorkflowRunningInBackground(workflowTask);
             const isWorkflowPending = continueWorkflowMutation.isPending
               && continueWorkflowMutation.variables?.taskId === workflowTask?.id;
             const isDownloadPending = downloadNovelMutation.isPending
@@ -316,18 +319,32 @@ export default function NovelList() {
                   </div>
 
                   {workflowTask ? (
-                    <div className="rounded-xl border bg-muted/20 p-3">
+                    <div
+                      className={cn(
+                        "rounded-xl border p-3 transition-colors",
+                        isWorkflowRunning
+                          ? "border-primary/20 bg-primary/[0.04] shadow-sm"
+                          : "bg-muted/20",
+                      )}
+                    >
                       <div className="flex flex-wrap items-center gap-2">
                         {workflowBadge ? (
                           <Badge variant={workflowBadge.variant}>{workflowBadge.label}</Badge>
                         ) : null}
                         <Badge variant="outline">进度 {Math.round(workflowTask.progress * 100)}%</Badge>
-                        {LIVE_TASK_STATUSES.has(workflowTask.status) ? (
+                        {isWorkflowRunning ? (
                           <Badge variant="outline">后台运行中</Badge>
                         ) : null}
                       </div>
                       {workflowDescription ? (
                         <div className="mt-2 text-sm text-muted-foreground">{workflowDescription}</div>
+                      ) : null}
+                      {isWorkflowRunning ? (
+                        <NovelWorkflowRunningIndicator
+                          className="mt-3"
+                          progress={workflowTask.progress}
+                          label={workflowTask.currentItemLabel?.trim() || "AI 正在后台持续推进"}
+                        />
                       ) : null}
                       <div className="mt-2 text-xs text-muted-foreground">
                         当前阶段：{workflowTask.currentStage ?? "自动导演"}{workflowTask.currentItemLabel ? ` · ${workflowTask.currentItemLabel}` : ""}

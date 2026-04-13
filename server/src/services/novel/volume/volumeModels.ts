@@ -144,6 +144,7 @@ export function mapVolumeRow(row: VolumeRow): VolumePlan {
       targetWordCount: chapter.targetWordCount,
       mustAvoid: chapter.mustAvoid,
       taskSheet: chapter.taskSheet,
+      sceneCards: chapter.sceneCards,
       payoffRefs: chapter.payoffRefsJson ? JSON.parse(chapter.payoffRefsJson) as string[] : [],
       createdAt: chapter.createdAt.toISOString(),
       updatedAt: chapter.updatedAt.toISOString(),

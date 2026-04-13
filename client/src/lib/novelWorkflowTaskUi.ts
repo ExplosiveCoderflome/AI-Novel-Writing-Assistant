@@ -11,6 +11,7 @@ type WorkflowTaskLike = {
 };
 
 export const LIVE_TASK_STATUSES = new Set<TaskStatus>(["queued", "running", "waiting_approval"]);
+export const BACKGROUND_RUNNING_TASK_STATUSES = new Set<TaskStatus>(["running"]);
 
 export function formatWorkflowCheckpoint(checkpoint?: NovelWorkflowCheckpoint | null): string {
   if (checkpoint === "candidate_selection_required") {
@@ -168,6 +169,10 @@ export function canEnterChapterExecution(task?: NovelAutoDirectorTaskSummary | n
 
 export function isLiveWorkflowTask(task?: NovelAutoDirectorTaskSummary | null): boolean {
   return Boolean(task && LIVE_TASK_STATUSES.has(task.status));
+}
+
+export function isWorkflowRunningInBackground(task?: NovelAutoDirectorTaskSummary | null): boolean {
+  return Boolean(task && BACKGROUND_RUNNING_TASK_STATUSES.has(task.status));
 }
 
 export function isWorkflowActionRequired(task?: NovelAutoDirectorTaskSummary | null): boolean {

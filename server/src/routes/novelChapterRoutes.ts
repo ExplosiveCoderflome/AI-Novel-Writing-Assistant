@@ -12,6 +12,7 @@ interface RegisterNovelChapterRoutesInput {
   chapterParamsSchema: z.ZodType<{ id: string; chapterId: string }>;
   chapterSchema: z.ZodTypeAny;
   updateChapterSchema: z.ZodTypeAny;
+  chapterExecutionContractSchema: z.ZodTypeAny;
 }
 
 export function registerNovelChapterRoutes(input: RegisterNovelChapterRoutesInput): void {
@@ -22,6 +23,7 @@ export function registerNovelChapterRoutes(input: RegisterNovelChapterRoutesInpu
     chapterParamsSchema,
     chapterSchema,
     updateChapterSchema,
+    chapterExecutionContractSchema,
   } = input;
 
   router.get("/:id/chapters", validate({ params: idParamsSchema }), async (req, res, next) => {
@@ -102,6 +104,24 @@ export function registerNovelChapterRoutes(input: RegisterNovelChapterRoutesInpu
           success: true,
           data,
           message: "Chapter traces loaded.",
+        } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.post(
+    "/:id/chapters/:chapterId/execution-contract",
+    validate({ params: chapterParamsSchema, body: chapterExecutionContractSchema }),
+    async (req, res, next) => {
+      try {
+        const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
+        const data = await novelService.ensureChapterExecutionContract(id, chapterId, req.body as any);
+        res.status(200).json({
+          success: true,
+          data,
+          message: "Chapter execution contract generated.",
         } satisfies ApiResponse<typeof data>);
       } catch (error) {
         next(error);

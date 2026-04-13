@@ -7,6 +7,7 @@ import type {
   StoryStateSnapshot,
 } from "@ai-novel/shared/types/novel";
 import type { SSEFrame } from "@ai-novel/shared/types/api";
+import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,8 +16,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MarkdownViewer from "@/components/common/MarkdownViewer";
 import StreamOutput from "@/components/common/StreamOutput";
 import CollapsibleSummary from "./CollapsibleSummary";
-import { ChapterRuntimeAuditCard, ChapterRuntimeContextCard } from "./ChapterRuntimePanels";
-import { hasText, type AssetTabKey, MetricBadge } from "./chapterExecution.shared";
+import {
+  ChapterRuntimeAuditCard,
+  ChapterRuntimeContextCard,
+  ChapterRuntimeLengthCard,
+} from "./ChapterRuntimePanels";
+import {
+  hasText,
+  parseChapterScenePlanForDisplay,
+  type AssetTabKey,
+  MetricBadge,
+} from "./chapterExecution.shared";
 
 interface ChapterExecutionResultPanelProps {
   novelId: string;
@@ -39,6 +49,7 @@ interface ChapterExecutionResultPanelProps {
     overall: number;
     issues?: string | null;
   };
+  chapterRuntimePackage?: ChapterRuntimePackage | null;
   reviewResult: {
     issues?: Array<{ category: string; fixSuggestion: string }>;
   } | null;
@@ -89,6 +100,7 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
     isReplanningChapter,
     lastReplanResult,
     chapterQualityReport,
+    chapterRuntimePackage,
     reviewResult,
     openAuditIssues,
     streamContent,
@@ -115,7 +127,10 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
 
   const chapterLabel = `第${selectedChapter.order}章`;
   const chapterTitle = selectedChapter.title || "未命名章节";
+  const runtimePackage = chapterRuntimePackage?.chapterId === selectedChapter.id ? chapterRuntimePackage : null;
+  const lengthControl = runtimePackage?.lengthControl ?? null;
   const chapterObjective = chapterPlan?.objective ?? selectedChapter.expectation ?? "这一章还没有明确目标，建议先补章节计划。";
+  const scenePlan = parseChapterScenePlanForDisplay(selectedChapter);
   const savedChapterContent = selectedChapter.content?.trim() ?? "";
   const hasSavedChapterContent = hasText(savedChapterContent);
 
@@ -184,10 +199,24 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
             </Button>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className={`grid gap-3 md:grid-cols-2 ${lengthControl ? "xl:grid-cols-5" : "xl:grid-cols-4"}`}>
             <MetricBadge label="当前字数" value={String(contentPanelWordCount || selectedChapter.content?.length || 0)} hint="主面板正在展示的正文长度" />
             <MetricBadge label="章节目标" value={targetWordCount ? `${targetWordCount} 字` : "未设定"} hint="用于判断当前篇幅是否足够" />
+            {lengthControl ? (
+              <MetricBadge
+                label="预算区间"
+                value={`${lengthControl.softMinWordCount}-${lengthControl.softMaxWordCount}`}
+                hint={`硬上限 ${lengthControl.hardMaxWordCount} 字`}
+              />
+            ) : null}
             <MetricBadge label="待处理问题" value={String(openAuditIssues.length || reviewResult?.issues?.length || 0)} hint="未修复的问题越少，越适合进入精修" />
+            {lengthControl ? (
+              <MetricBadge
+                label="控字模式"
+                value={lengthControl.wordControlMode === "prompt_only" ? "自然优先" : lengthControl.wordControlMode === "balanced" ? "标准控字" : "混合控字"}
+                hint={`偏差 ${Math.round(lengthControl.variance * 100)}%`}
+              />
+            ) : null}
             <MetricBadge label="最近更新" value={selectedChapter.updatedAt ? new Date(selectedChapter.updatedAt).toLocaleString("zh-CN") : "暂无"} hint="帮助判断这一章是否需要重新检查" />
           </div>
         </CardHeader>
@@ -255,6 +284,22 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
             </div>
           </div>
 
+          {lengthControl ? (
+            <div className="rounded-2xl border border-border/70 bg-muted/15 p-4 text-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline">scene {lengthControl.generatedSceneCount}/{lengthControl.plannedSceneCount}</Badge>
+                <Badge variant="secondary">硬停 {lengthControl.hardStopsTriggered} 次</Badge>
+                {lengthControl.closingPhaseTriggered ? <Badge variant="default">已进入收尾区</Badge> : null}
+                {lengthControl.overlengthRepairApplied ? <Badge variant="outline">已触发超长修整</Badge> : null}
+              </div>
+              <div className="mt-2 text-xs leading-6 text-muted-foreground">
+                {lengthControl.lengthRepairPath.length > 0
+                  ? `本次长度修整路径：${lengthControl.lengthRepairPath.join(" -> ")}`
+                  : "本次写作未触发额外长度修整。"}
+              </div>
+            </div>
+          ) : null}
+
           <details className="group rounded-2xl border border-border/70 bg-background/95 p-4">
             <summary className="cursor-pointer list-none">
               <CollapsibleSummary
@@ -293,15 +338,56 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
                       <PanelHintCard title="最新状态" content={latestStateSnapshot?.summary || "暂无状态摘要。"} />
                     </div>
                   </div>
+                  <ChapterRuntimeContextCard
+                    runtimePackage={runtimePackage}
+                    chapterPlan={chapterPlan}
+                    stateSnapshot={latestStateSnapshot}
+                  />
                 </TabsContent>
 
                 <TabsContent value="sceneCards" className="space-y-4">
-                  <div className="rounded-2xl border bg-muted/20 p-5">
-                    <div className="text-xs text-muted-foreground">场景拆解</div>
-                    <div className="mt-3 whitespace-pre-wrap text-sm leading-7">
-                      {selectedChapter.sceneCards?.trim() || "暂无场景拆解。"}
+                  <ChapterRuntimeLengthCard runtimePackage={runtimePackage} />
+                  {scenePlan ? (
+                    <div className="space-y-3">
+                      <div className="rounded-2xl border bg-muted/20 p-5">
+                        <div className="text-xs text-muted-foreground">场景预算合同</div>
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                          <MetricBadge label="章节目标" value={`${scenePlan.targetWordCount} 字`} />
+                          <MetricBadge label="场景数" value={String(scenePlan.scenes.length)} />
+                        </div>
+                      </div>
+                      {scenePlan.scenes.map((scene, index) => (
+                        <div key={scene.key} className="rounded-2xl border bg-background p-5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline">场景 {index + 1}</Badge>
+                            <Badge variant="secondary">{scene.targetWordCount} 字</Badge>
+                          </div>
+                          <div className="mt-3 text-base font-semibold text-foreground">{scene.title}</div>
+                          <div className="mt-2 text-sm leading-7 text-muted-foreground">{scene.purpose}</div>
+                          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                            <PanelHintCard title="必须推进" content={scene.mustAdvance.join("；") || "无"} />
+                            <PanelHintCard title="必须保留" content={scene.mustPreserve.join("；") || "无"} />
+                            <PanelHintCard title="起始状态" content={scene.entryState} />
+                            <PanelHintCard title="结束状态" content={scene.exitState} />
+                          </div>
+                          {scene.forbiddenExpansion.length > 0 ? (
+                            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-sm leading-7 text-amber-900">
+                              禁止展开：{scene.forbiddenExpansion.join("；")}
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
                     </div>
-                  </div>
+                  ) : (
+                    <div className="rounded-2xl border bg-muted/20 p-5">
+                      <div className="text-xs text-muted-foreground">场景拆解</div>
+                      <div className="mt-3 whitespace-pre-wrap text-sm leading-7">
+                        {selectedChapter.sceneCards?.trim()
+                          ? "当前是旧版场景拆解文本，建议重新生成章节执行合同。"
+                          : "暂无场景拆解。"}
+                      </div>
+                    </div>
+                  )}
                   <PanelHintCard title="本章目标" content={chapterObjective} />
                 </TabsContent>
 
@@ -345,6 +431,22 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
                     ) : (
                       <div className="mt-3 text-xs leading-6 text-muted-foreground">当前没有结构化审计问题。</div>
                     )}
+                  </div>
+
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    <ChapterRuntimeAuditCard
+                      runtimePackage={runtimePackage}
+                      auditReports={chapterAuditReports}
+                      replanRecommendation={replanRecommendation}
+                      onReplan={onReplanChapter}
+                      isReplanning={isReplanningChapter}
+                      lastReplanResult={lastReplanResult}
+                    />
+                    <ChapterRuntimeContextCard
+                      runtimePackage={runtimePackage}
+                      chapterPlan={chapterPlan}
+                      stateSnapshot={latestStateSnapshot}
+                    />
                   </div>
                 </TabsContent>
 

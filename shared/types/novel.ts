@@ -29,6 +29,11 @@ export type {
   StoryModeConflictCeiling,
   StoryModeProfile,
 } from "./storyMode";
+export type {
+  ChapterSceneCard,
+  ChapterScenePlan,
+  LengthBudgetContract,
+} from "./chapterLengthControl";
 export type NovelStatus = "draft" | "published";
 export type NovelWritingMode = "original" | "continuation";
 export type ProjectMode = "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
@@ -583,6 +588,7 @@ export interface VolumeChapterPlan {
   targetWordCount?: number | null;
   mustAvoid?: string | null;
   taskSheet?: string | null;
+  sceneCards?: string | null;
   payoffRefs: string[];
   createdAt: string;
   updatedAt: string;

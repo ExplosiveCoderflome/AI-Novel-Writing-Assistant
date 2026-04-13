@@ -1,3 +1,5 @@
+import { formatChapterDetailModeLabel } from "../volume/chapterDetailModeLabel";
+
 export const DIRECTOR_PROGRESS = {
   candidateSeedAlignment: 0.03,
   candidateProjectFraming: 0.06,
@@ -55,5 +57,5 @@ export function buildChapterDetailBundleLabel(
   totalChapters: number,
   detailMode: (typeof DIRECTOR_CHAPTER_DETAIL_MODES)[number],
 ): string {
-  return `正在细化第 ${chapterIndex}/${totalChapters} 章 · ${detailMode}`;
+  return `正在细化第 ${chapterIndex}/${totalChapters} 章 · ${formatChapterDetailModeLabel(detailMode)}`;
 }

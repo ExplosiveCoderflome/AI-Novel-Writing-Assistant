@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { chapterSceneCardSchema } from "@ai-novel/shared/types/chapterLengthControl";
 import type { VolumeCountRange } from "@ai-novel/shared/types/novel";
 import { MAX_VOLUME_COUNT } from "@ai-novel/shared/types/volumePlanning";
 
@@ -281,6 +282,48 @@ function normalizeRebalancePayload(raw: unknown): unknown {
   };
 }
 
+function normalizeSceneCardPayload(raw: unknown): unknown {
+  const normalized = normalizeObjectAlias(raw, {
+    key: ["sceneKey", "id"],
+    title: ["sceneTitle", "label", "name"],
+    purpose: ["objective", "goal", "summary"],
+    mustAdvance: ["mustAdvanceItems", "advanceItems", "deliverables"],
+    mustPreserve: ["mustPreserveItems", "preserveItems", "guardrails"],
+    entryState: ["startState", "sceneEntry", "openingState"],
+    exitState: ["endState", "sceneExit", "closingState"],
+    forbiddenExpansion: ["forbiddenExpansions", "mustAvoid", "forbidden"],
+    targetWordCount: ["target_word_count", "targetWords", "wordCount", "budget", "字数"],
+  });
+  if (!normalized || typeof normalized !== "object" || Array.isArray(normalized)) {
+    return normalized;
+  }
+  const record = normalized as Record<string, unknown>;
+  return {
+    ...record,
+    mustAdvance: normalizeStringArray(record.mustAdvance),
+    mustPreserve: normalizeStringArray(record.mustPreserve),
+    forbiddenExpansion: normalizeStringArray(record.forbiddenExpansion),
+    targetWordCount: normalizeInteger(record.targetWordCount),
+  };
+}
+
+function normalizeScenePlanPayload(raw: unknown): unknown {
+  const normalized = normalizeObjectAlias(raw, {
+    taskSheet: ["任务单", "task_sheet", "writingTask", "执行任务单"],
+    sceneCards: ["scenePlan", "scenes", "scene_cards", "sceneCardList"],
+  });
+  if (!normalized || typeof normalized !== "object" || Array.isArray(normalized)) {
+    return normalized;
+  }
+  const record = normalized as Record<string, unknown>;
+  return {
+    ...record,
+    sceneCards: Array.isArray(record.sceneCards)
+      ? record.sceneCards.map((item) => normalizeSceneCardPayload(item))
+      : record.sceneCards,
+  };
+}
+
 const generatedVolumeSkeletonSchema = z.object({
   title: z.string().trim().min(1),
   summary: z.string().trim().optional().nullable(),
@@ -496,12 +539,8 @@ export function createChapterBoundarySchema() {
 }
 
 export function createChapterTaskSheetSchema() {
-  return z.preprocess(
-    (raw) => normalizeObjectAlias(raw, {
-      taskSheet: ["任务单", "task_sheet", "writingTask", "执行任务单"],
-    }),
-    z.object({
-      taskSheet: z.string().trim().min(1),
-    }),
-  );
+  return z.preprocess(normalizeScenePlanPayload, z.object({
+    taskSheet: z.string().trim().min(1),
+    sceneCards: z.array(z.preprocess(normalizeSceneCardPayload, chapterSceneCardSchema)).min(1),
+  }));
 }

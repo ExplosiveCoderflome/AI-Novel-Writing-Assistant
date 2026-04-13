@@ -2,6 +2,7 @@ import type {
   ChapterWriteContext,
   GenerationContextPackage,
 } from "@ai-novel/shared/types/chapterRuntime";
+import { resolveLengthBudgetContract } from "@ai-novel/shared/types/chapterLengthControl";
 
 export function compactText(value: string | null | undefined, fallback = ""): string {
   return value?.replace(/\s+/g, " ").trim() || fallback;
@@ -45,18 +46,18 @@ export function resolveTargetWordRange(targetWordCount: number | null | undefine
   minWordCount: number | null;
   maxWordCount: number | null;
 } {
-  if (!Number.isFinite(targetWordCount) || (targetWordCount ?? 0) <= 0) {
+  const budget = resolveLengthBudgetContract(targetWordCount);
+  if (!budget) {
     return {
       targetWordCount: null,
       minWordCount: null,
       maxWordCount: null,
     };
   }
-  const normalizedTarget = Math.max(800, Math.round(targetWordCount as number));
   return {
-    targetWordCount: normalizedTarget,
-    minWordCount: Math.max(800, Math.floor(normalizedTarget * 0.85)),
-    maxWordCount: Math.ceil(normalizedTarget * 1.15),
+    targetWordCount: budget.targetWordCount,
+    minWordCount: budget.softMinWordCount,
+    maxWordCount: budget.softMaxWordCount,
   };
 }
 

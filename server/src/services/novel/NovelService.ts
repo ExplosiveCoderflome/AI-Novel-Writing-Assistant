@@ -71,6 +71,10 @@ export class NovelService extends NovelPipelineService {
     return this.volumeService.syncVolumeChapters(...args);
   }
 
+  ensureChapterExecutionContract(...args: Parameters<NovelVolumeService["ensureChapterExecutionContract"]>) {
+    return this.volumeService.ensureChapterExecutionContract(...args);
+  }
+
   migrateLegacyVolumes(...args: Parameters<NovelVolumeService["migrateLegacyVolumes"]>) {
     return this.volumeService.migrateLegacyVolumes(...args);
   }

@@ -49,6 +49,12 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     onUnifyStyle,
     onAddDialogue,
     onAddDescription,
+    isGeneratingTaskSheet,
+    isGeneratingSceneCards,
+    isSummarizingChapter,
+    reviewActionKind,
+    repairActionKind,
+    generationActionKind,
     isReviewingChapter,
     isRepairingChapter,
     reviewResult,
@@ -61,6 +67,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     isReplanningChapter,
     isRunningFullAudit,
     chapterQualityReport,
+    chapterRuntimePackage,
     repairStreamContent,
     isRepairStreaming,
     repairStreamingChapterId,
@@ -170,6 +177,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
               isReplanningChapter={isReplanningChapter}
               lastReplanResult={lastReplanResult}
               chapterQualityReport={chapterQualityReport}
+              chapterRuntimePackage={chapterRuntimePackage}
               reviewResult={reviewResult}
               openAuditIssues={openAuditIssues}
               streamContent={streamContent}
@@ -215,11 +223,20 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
               onUnifyStyle={onUnifyStyle}
               onAddDialogue={onAddDialogue}
               onAddDescription={onAddDescription}
+              isGeneratingTaskSheet={isGeneratingTaskSheet}
+              isGeneratingSceneCards={isGeneratingSceneCards}
+              isSummarizingChapter={isSummarizingChapter}
+              reviewActionKind={reviewActionKind}
+              repairActionKind={repairActionKind}
+              generationActionKind={generationActionKind}
               isReviewingChapter={isReviewingChapter}
               isRepairingChapter={isRepairingChapter}
               isGeneratingChapterPlan={isGeneratingChapterPlan}
               isReplanningChapter={isReplanningChapter}
               isRunningFullAudit={isRunningFullAudit}
+              isStreaming={isStreaming}
+              streamingChapterId={streamingChapterId}
+              repairStreamingChapterId={repairStreamingChapterId}
             />
           </div>
         </div>

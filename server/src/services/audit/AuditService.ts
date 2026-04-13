@@ -1,6 +1,6 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { AuditReport, AuditType, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
-import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
+import type { ChapterRuntimePackage, GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
 import { prisma } from "../../db/prisma";
 import { payoffLedgerSyncService } from "../payoff/PayoffLedgerSyncService";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../storyMode/storyModeProfile";
@@ -23,6 +23,7 @@ interface AuditOptions {
   temperature?: number;
   content?: string;
   contextPackage?: GenerationContextPackage;
+  lengthControl?: ChapterRuntimePackage["lengthControl"];
 }
 
 interface AuditIssueOutput {
@@ -52,6 +53,10 @@ const LEGACY_CATEGORY_MAP: Record<AuditType, ReviewIssue["category"]> = {
   plot: "pacing",
   mode_fit: "coherence",
 };
+
+function countChapterCharacters(content: string): number {
+  return content.replace(/\s+/g, "").trim().length;
+}
 
 export class AuditService {
   async auditChapter(
@@ -140,9 +145,18 @@ export class AuditService {
     const syntheticPayoffReports = ledger
       ? payoffLedgerSyncService.buildSyntheticAuditReports(novelId, chapterId, chapterOrder, ledger)
       : [];
-    const mergedReports = syntheticPayoffReports.length > 0
-      ? [...persistedReports, ...syntheticPayoffReports]
-      : persistedReports;
+    const syntheticLengthReports = this.buildSyntheticLengthAuditReports(
+      novelId,
+      chapterId,
+      content,
+      options.contextPackage ?? null,
+      options.lengthControl,
+    );
+    const mergedReports = [
+      ...persistedReports,
+      ...syntheticPayoffReports,
+      ...syntheticLengthReports,
+    ];
     const issues = this.buildLegacyIssues(structured.issues ?? [], mergedReports);
     return {
       score,
@@ -275,6 +289,117 @@ export class AuditService {
     } catch {
       return parseLegacyReviewOutput(content);
     }
+  }
+
+  private buildSyntheticLengthAuditReports(
+    novelId: string,
+    chapterId: string,
+    content: string,
+    contextPackage: GenerationContextPackage | null,
+    lengthControl?: ChapterRuntimePackage["lengthControl"],
+  ): AuditReport[] {
+    const budget = contextPackage?.chapterWriteContext?.lengthBudget ?? null;
+    if (!budget) {
+      return [];
+    }
+    if (!lengthControl || lengthControl.wordControlMode === "prompt_only") {
+      return [];
+    }
+
+    const finalWordCount = countChapterCharacters(content);
+    const issues: AuditReport["issues"] = [];
+    const reportId = `length-control:${novelId}:${chapterId}`;
+    const now = new Date().toISOString();
+
+    if (finalWordCount < budget.softMinWordCount) {
+      issues.push({
+        id: `${reportId}:under-soft-min`,
+        reportId,
+        auditType: "plot",
+        severity: "high",
+        code: "LENGTH_UNDER_SOFT_MIN",
+        description: "章节正文低于软下限，当前篇幅不足以稳定承接本章职责。",
+        evidence: `final=${finalWordCount}, softMin=${budget.softMinWordCount}, target=${budget.targetWordCount}`,
+        fixSuggestion: "优先补写最后一个义务场景或结尾 hook，增加有效推进而不是回顾性填充。",
+        status: "open",
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    if (finalWordCount > budget.softMaxWordCount) {
+      issues.push({
+        id: `${reportId}:over-soft-max`,
+        reportId,
+        auditType: "plot",
+        severity: finalWordCount > budget.hardMaxWordCount ? "high" : "medium",
+        code: "LENGTH_OVER_SOFT_MAX",
+        description: "章节正文超过软上限，当前节奏已出现明显篇幅漂移。",
+        evidence: `final=${finalWordCount}, softMax=${budget.softMaxWordCount}, target=${budget.targetWordCount}`,
+        fixSuggestion: "优先压缩尾段低信息量描写、重复反应和解释段，保留关键推进与结尾压力。",
+        status: "open",
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    if (finalWordCount > budget.hardMaxWordCount) {
+      issues.push({
+        id: `${reportId}:over-hard-max`,
+        reportId,
+        auditType: "plot",
+        severity: "critical",
+        code: "LENGTH_OVER_HARD_MAX",
+        description: "章节正文超过硬上限，当前长度已经失控。",
+        evidence: `final=${finalWordCount}, hardMax=${budget.hardMaxWordCount}, target=${budget.targetWordCount}`,
+        fixSuggestion: "执行整章压缩，删除重复段落和无效回合，必要时回收最后两个场景的冗余展开。",
+        status: "open",
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    const driftResults = lengthControl?.sceneResults.filter((scene) => {
+      const upperBound = Math.ceil(scene.targetWordCount * 1.2);
+      const lowerBound = Math.floor(scene.targetWordCount * 0.8);
+      return scene.actualWordCount > upperBound || scene.actualWordCount < lowerBound;
+    }) ?? [];
+    if (driftResults.length > 0) {
+      const driftSummary = driftResults
+        .slice(0, 3)
+        .map((scene) => `${scene.sceneTitle} actual=${scene.actualWordCount} target=${scene.targetWordCount}`)
+        .join(" | ");
+      issues.push({
+        id: `${reportId}:scene-budget-drift`,
+        reportId,
+        auditType: "plot",
+        severity: "medium",
+        code: "SCENE_BUDGET_DRIFT",
+        description: "部分场景明显偏离预算，说明章节节奏控制还不稳定。",
+        evidence: driftSummary,
+        fixSuggestion: "回收超预算场景的重复描写，或给明显不足的收尾场景补足必要推进。",
+        status: "open",
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    if (issues.length === 0) {
+      return [];
+    }
+
+    return [{
+      id: reportId,
+      novelId,
+      chapterId,
+      auditType: "plot",
+      overallScore: null,
+      summary: "系统根据章节长度预算补充了篇幅与场景节奏风险。",
+      legacyScoreJson: null,
+      issues,
+      createdAt: now,
+      updatedAt: now,
+    }];
   }
 
   private buildLegacyIssues(structuredIssues: ReviewIssue[], auditReports: AuditReport[]): ReviewIssue[] {
