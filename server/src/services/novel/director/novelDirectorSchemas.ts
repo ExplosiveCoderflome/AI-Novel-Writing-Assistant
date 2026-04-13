@@ -76,6 +76,7 @@ const chapterCountSchema = z.preprocess((value) => {
 }, z.number().int().min(12).max(120));
 
 export const directorCandidateSchema = z.object({
+  id: nonEmptyString.optional(),
   workingTitle: nonEmptyString,
   titleOptions: z.array(z.object({
     title: nonEmptyString,
@@ -95,6 +96,10 @@ export const directorCandidateSchema = z.object({
   whyItFits: nonEmptyString,
   toneKeywords: keywordArraySchema,
   targetChapterCount: chapterCountSchema,
+});
+
+export const directorPersistedCandidateSchema = directorCandidateSchema.extend({
+  id: nonEmptyString,
 });
 
 export const directorCandidateResponseSchema = z.object({

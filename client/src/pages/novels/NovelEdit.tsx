@@ -36,6 +36,7 @@ import { getWorldList } from "@/api/world";
 import { queryKeys } from "@/api/queryKeys";
 import { toast } from "@/components/ui/toast";
 import { useSSE } from "@/hooks/useSSE";
+import { useDirectorChapterTitleRepair } from "@/hooks/useDirectorChapterTitleRepair";
 import { useLLMStore } from "@/store/llmStore";
 import { buildWorldInjectionSummary } from "./novelEdit.utils";
 import type { QuickCharacterCreatePayload } from "./components/characterPanel.utils";
@@ -57,6 +58,7 @@ import type { NovelEditTakeoverState, NovelTaskDrawerState } from "./components/
 import NovelExistingProjectTakeoverDialog from "./components/NovelExistingProjectTakeoverDialog";
 import { syncNovelWorkflowStageSilently, workflowStageFromTab } from "./novelWorkflow.client";
 import { scopeFromWorkspaceTab, tabFromDirectorProgress, tabFromScope } from "./novelWorkspaceNavigation";
+import { resolveChapterTitleWarning } from "@/lib/directorTaskNotice";
 import { getCandidateSelectionLink } from "@/lib/novelWorkflowTaskUi";
 import {
   buildContinueAutoExecutionActionLabel,
@@ -114,6 +116,7 @@ export default function NovelEdit() {
     selectedChapterId,
     setSelectedChapterId,
     selectedVolumeId,
+    setSelectedVolumeId,
     workflowTaskId,
   } = useNovelEditWorkflow(id);
   const [isTaskDrawerOpen, setIsTaskDrawerOpen] = useState(false);
@@ -434,6 +437,10 @@ export default function NovelEdit() {
     return raw as DirectorSessionState;
   }, [activeAutoDirectorTask]);
   const activeAutoExecutionScopeLabel = resolveAutoExecutionScopeLabel(activeAutoDirectorTask);
+  const activeChapterTitleWarning = useMemo(
+    () => resolveChapterTitleWarning(activeAutoDirectorTask),
+    [activeAutoDirectorTask],
+  );
   const workflowCurrentTab = useMemo(
     () => tabFromDirectorProgress({
       currentStage: activeAutoDirectorTask?.currentStage,
@@ -569,6 +576,28 @@ export default function NovelEdit() {
     setActiveTab("pipeline");
     setIsTaskDrawerOpen(false);
   };
+  const openChapterTitleRepair = (showToast = false) => {
+    const targetVolumeId = activeChapterTitleWarning?.volumeId ?? activeAutoDirectorTask?.resumeTarget?.volumeId ?? "";
+    setActiveTab("structured");
+    setSelectedVolumeId(targetVolumeId);
+    setSelectedChapterId("");
+    useStructuredOutlineWorkspaceStore.getState().patchWorkspace(id, {
+      selectedVolumeId: targetVolumeId || undefined,
+      selectedChapterId: "",
+      selectedBeatKey: "all",
+    });
+    setIsTaskDrawerOpen(false);
+    if (!showToast) {
+      return;
+    }
+    toast.success(targetVolumeId ? "已定位到当前卷拆章，可直接修复标题。" : "已切到节奏 / 拆章，可直接修复标题。");
+  };
+  const chapterTitleRepairMutation = useDirectorChapterTitleRepair({
+    navigateOnSuccess: false,
+    onAfterStart: () => {
+      openChapterTitleRepair(false);
+    },
+  });
   const retryAutoDirectorWithCurrentModelMutation = useMutation({
     mutationFn: async () => {
       if (!activeAutoDirectorTask?.id) {
@@ -669,6 +698,22 @@ export default function NovelEdit() {
     const reviewScope = activeDirectorSession?.reviewScope ?? null;
     const autoExecutionScopeLabel = resolveAutoExecutionScopeLabel(task);
     const actions: NonNullable<NovelEditTakeoverState["actions"]> = [];
+    if (activeChapterTitleWarning) {
+      actions.push({
+        label: chapterTitleRepairMutation.isPending && chapterTitleRepairMutation.pendingTaskId === task.id
+          ? "AI 修复中..."
+          : activeChapterTitleWarning.label,
+        onClick: () => {
+          if (hasUnsavedVolumeDraft) {
+            toast.error("当前拆章工作区还有未保存修改，请先保存工作区，再发起 AI 修复标题。");
+            return;
+          }
+          chapterTitleRepairMutation.startRepair(task);
+        },
+        variant: mode === "failed" ? "default" : "outline",
+        disabled: chapterTitleRepairMutation.isPending,
+      });
+    }
     const reviewTab = tabFromScope(reviewScope);
     if (
       mode === "waiting"
@@ -825,15 +870,17 @@ export default function NovelEdit() {
     };
   }, [
     activeAutoDirectorTask,
+    activeChapterTitleWarning,
     activeDirectorSession,
     activeTab,
     chapters.length,
+    chapterTitleRepairMutation,
     characters.length,
     cancelAutoDirectorMutation,
     continueAutoDirectorMutation,
     continueAutoExecutionMutation,
+    hasUnsavedVolumeDraft,
     isDirectorExitActionExpanded,
-    navigate,
     novelDetailQuery.data?.data?.title,
     openCandidateSelection,
     openQualityRepair,
@@ -847,6 +894,22 @@ export default function NovelEdit() {
       return [];
     }
     const actions: NovelTaskDrawerState["actions"] = [];
+    if (activeChapterTitleWarning) {
+      actions.push({
+        label: chapterTitleRepairMutation.isPending && chapterTitleRepairMutation.pendingTaskId === task.id
+          ? "AI 修复中..."
+          : activeChapterTitleWarning.label,
+        onClick: () => {
+          if (hasUnsavedVolumeDraft) {
+            toast.error("当前拆章工作区还有未保存修改，请先保存工作区，再发起 AI 修复标题。");
+            return;
+          }
+          chapterTitleRepairMutation.startRepair(task);
+        },
+        variant: "default",
+        disabled: chapterTitleRepairMutation.isPending,
+      });
+    }
     if (consistencyIssue) {
       actions.push({
         label: continueAutoDirectorMutation.isPending ? "补齐中..." : "补齐导演产物",
@@ -947,10 +1010,13 @@ export default function NovelEdit() {
     return actions;
   }, [
     activeAutoDirectorTask,
+    activeChapterTitleWarning,
     cancelAutoDirectorMutation,
+    chapterTitleRepairMutation,
     consistencyIssue,
     continueAutoDirectorMutation,
     continueAutoExecutionMutation,
+    hasUnsavedVolumeDraft,
     openCandidateSelection,
     openReviewStage,
     openChapterExecution,

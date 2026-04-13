@@ -18,7 +18,7 @@ import {
 import { validate } from "../middleware/validate";
 import { llmProviderSchema } from "../llm/providerSchema";
 import { NovelDirectorService } from "../services/novel/director/NovelDirectorService";
-import { directorCandidateSchema } from "../services/novel/director/novelDirectorSchemas";
+import { directorPersistedCandidateSchema } from "../services/novel/director/novelDirectorSchemas";
 
 const router = Router();
 const novelDirectorService = new NovelDirectorService();
@@ -95,7 +95,7 @@ const candidateBatchSchema = z.object({
   idea: z.string().trim().min(1),
   refinementSummary: z.string().trim().nullable().optional(),
   presets: z.array(z.enum(correctionPresetValues)).default([]),
-  candidates: z.array(directorCandidateSchema).min(1),
+  candidates: z.array(directorPersistedCandidateSchema).min(1),
   createdAt: z.string().trim().min(1),
 });
 
@@ -130,7 +130,7 @@ const confirmSchema = projectContextSchema.extend({
   idea: z.string().trim().min(1),
   batchId: z.string().trim().optional(),
   round: z.number().int().min(1).optional(),
-  candidate: directorCandidateSchema,
+  candidate: directorPersistedCandidateSchema,
   workflowTaskId: z.string().trim().optional(),
   autoExecutionPlan: autoExecutionPlanSchema,
 }).merge(llmOptionsSchema);

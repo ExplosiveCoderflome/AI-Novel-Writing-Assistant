@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { DirectorTaskNotice } from "@ai-novel/shared/types/novelDirector";
-import type { TaskKind, TaskStatus, UnifiedTaskDetail } from "@ai-novel/shared/types/task";
+import type { TaskKind, TaskStatus } from "@ai-novel/shared/types/task";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { NovelWorkflowCheckpoint, NovelWorkflowResumeTarget } from "@ai-novel/shared/types/novelWorkflow";
 import { continueNovelWorkflow } from "@/api/novelWorkflow";
@@ -14,6 +13,13 @@ import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubB
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
+import { useDirectorChapterTitleRepair } from "@/hooks/useDirectorChapterTitleRepair";
+import {
+  buildTaskNoticeRoute,
+  isChapterTitleDiversitySummary,
+  parseDirectorTaskNotice,
+  resolveChapterTitleWarning,
+} from "@/lib/directorTaskNotice";
 import { canContinueFront10AutoExecution, getCandidateSelectionLink, requiresCandidateSelection } from "@/lib/novelWorkflowTaskUi";
 import { useLLMStore } from "@/store/llmStore";
 
@@ -160,71 +166,6 @@ function serializeListParams(input: {
     status: input.status || null,
     keyword: input.keyword.trim() || null,
   });
-}
-
-function parseDirectorTaskNotice(meta: Record<string, unknown> | null | undefined): DirectorTaskNotice | null {
-  const raw = meta && typeof meta === "object" ? (meta as { taskNotice?: unknown }).taskNotice : null;
-  if (!raw || typeof raw !== "object") {
-    return null;
-  }
-  const notice = raw as DirectorTaskNotice;
-  if (typeof notice.code !== "string" || !notice.code.trim()) {
-    return null;
-  }
-  if (typeof notice.summary !== "string" || !notice.summary.trim()) {
-    return null;
-  }
-  return {
-    code: notice.code.trim(),
-    summary: notice.summary.trim(),
-    action: notice.action && typeof notice.action === "object"
-      ? {
-        type: notice.action.type === "open_structured_outline" ? "open_structured_outline" : "open_structured_outline",
-        label: typeof notice.action.label === "string" && notice.action.label.trim()
-          ? notice.action.label.trim()
-          : "打开当前卷拆章",
-        volumeId: typeof notice.action.volumeId === "string" && notice.action.volumeId.trim()
-          ? notice.action.volumeId.trim()
-          : null,
-      }
-      : null,
-  };
-}
-
-function isChapterTitleDiversitySummary(value: string | null | undefined): boolean {
-  const normalized = value?.trim();
-  if (!normalized) {
-    return false;
-  }
-  return normalized.includes("章节标题结构过于集中")
-    || normalized.includes("相邻章节标题结构过于重复")
-    || normalized.includes("章节标题出现重复");
-}
-
-function buildStructuredOutlineRoute(task: UnifiedTaskDetail, volumeId?: string | null): string | null {
-  const novelId = task.sourceResource?.type === "novel"
-    ? task.sourceResource.id
-    : null;
-  if (!novelId) {
-    return null;
-  }
-  const search = new URLSearchParams();
-  search.set("stage", "structured");
-  search.set("taskId", task.id);
-  if (typeof volumeId === "string" && volumeId.trim()) {
-    search.set("volumeId", volumeId.trim());
-  }
-  return `/novels/${novelId}/edit?${search.toString()}`;
-}
-
-function buildTaskNoticeRoute(task: UnifiedTaskDetail, notice: DirectorTaskNotice | null): string | null {
-  if (!notice?.action || notice.action.type !== "open_structured_outline") {
-    return null;
-  }
-  return buildStructuredOutlineRoute(
-    task,
-    notice.action.volumeId ?? task.resumeTarget?.volumeId ?? null,
-  );
 }
 
 export default function TaskCenterPage() {
@@ -444,21 +385,18 @@ export default function TaskCenterPage() {
     () => (selectedTask ? buildTaskNoticeRoute(selectedTask, selectedTaskNotice) : null),
     [selectedTask, selectedTaskNotice],
   );
-  const selectedTaskFailureRepairRoute = useMemo(() => {
-    if (!selectedTask || !isAutoDirectorTask) {
-      return null;
-    }
-    if (
-      selectedTask.failureCode !== "NOVEL_WORKFLOW_FAILED"
-      && !isChapterTitleDiversitySummary(selectedTask.failureSummary)
-    ) {
-      return null;
-    }
-    if (!isChapterTitleDiversitySummary(selectedTask.failureSummary)) {
-      return null;
-    }
-    return buildStructuredOutlineRoute(selectedTask, selectedTask.resumeTarget?.volumeId ?? null);
-  }, [isAutoDirectorTask, selectedTask]);
+  const selectedTaskChapterTitleWarning = useMemo(
+    () => (isAutoDirectorTask ? resolveChapterTitleWarning(selectedTask ?? null) : null),
+    [isAutoDirectorTask, selectedTask],
+  );
+  const chapterTitleRepairMutation = useDirectorChapterTitleRepair();
+  const selectedTaskFailureRepairRoute = selectedTaskChapterTitleWarning?.route ?? null;
+  const selectedTaskHasChapterTitleFailure = Boolean(
+    selectedTask
+    && isChapterTitleDiversitySummary(
+      selectedTask.failureSummary ?? selectedTask.lastError ?? null,
+    ),
+  );
   const canRetryWithSelectedModel = Boolean(retryOverride.provider && retryOverride.model.trim());
 
   useEffect(() => {
@@ -671,19 +609,28 @@ export default function TaskCenterPage() {
                 {selectedTask.noticeCode || selectedTask.noticeSummary ? (
                   <div className="rounded-md border border-amber-300/50 bg-amber-50/70 p-2 text-amber-900">
                     <div className="font-medium">
-                      {selectedTask.noticeCode ?? "结果提醒"}
+                      {selectedTaskChapterTitleWarning ? "当前提醒" : (selectedTask.noticeCode ?? "结果提醒")}
                     </div>
                     {selectedTask.noticeSummary ? (
                       <div className="mt-1 text-sm">{selectedTask.noticeSummary}</div>
                     ) : null}
-                    {selectedTaskNoticeRoute ? (
+                    {selectedTaskChapterTitleWarning || selectedTaskNoticeRoute ? (
                       <div className="mt-2 flex flex-wrap gap-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => navigate(selectedTaskNoticeRoute)}
+                          onClick={() => {
+                            if (selectedTaskChapterTitleWarning) {
+                              chapterTitleRepairMutation.startRepair(selectedTask ?? null);
+                              return;
+                            }
+                            if (selectedTaskNoticeRoute) {
+                              navigate(selectedTaskNoticeRoute);
+                            }
+                          }}
+                          disabled={chapterTitleRepairMutation.isPending}
                         >
-                          {selectedTaskNotice?.action?.label ?? "打开当前卷拆章"}
+                          {selectedTaskChapterTitleWarning?.label ?? selectedTaskNotice?.action?.label ?? "打开当前卷拆章"}
                         </Button>
                       </div>
                     ) : null}
@@ -692,25 +639,34 @@ export default function TaskCenterPage() {
                 {selectedTask.failureCode || selectedTask.failureSummary ? (
                   <div className="rounded-md border border-amber-300/50 bg-amber-50/70 p-2 text-amber-900">
                     <div className="font-medium">
-                      {selectedTask.failureCode ?? "任务异常"}
+                      {selectedTaskHasChapterTitleFailure ? "当前提醒" : (selectedTask.failureCode ?? "任务异常")}
                     </div>
                     {selectedTask.failureSummary ? (
                       <div className="mt-1 text-sm">{selectedTask.failureSummary}</div>
                     ) : null}
-                    {selectedTaskFailureRepairRoute ? (
+                    {selectedTaskChapterTitleWarning || selectedTaskFailureRepairRoute ? (
                       <div className="mt-2 flex flex-wrap gap-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => navigate(selectedTaskFailureRepairRoute)}
+                          onClick={() => {
+                            if (selectedTaskChapterTitleWarning) {
+                              chapterTitleRepairMutation.startRepair(selectedTask ?? null);
+                              return;
+                            }
+                            if (selectedTaskFailureRepairRoute) {
+                              navigate(selectedTaskFailureRepairRoute);
+                            }
+                          }}
+                          disabled={chapterTitleRepairMutation.isPending}
                         >
-                          打开当前卷拆章
+                          {selectedTaskChapterTitleWarning?.label ?? "快速修复章节标题"}
                         </Button>
                       </div>
                     ) : null}
                   </div>
                 ) : null}
-                {selectedTask.lastError ? (
+                {selectedTask.lastError && !selectedTaskHasChapterTitleFailure ? (
                   <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-destructive">
                     {selectedTask.lastError}
                   </div>

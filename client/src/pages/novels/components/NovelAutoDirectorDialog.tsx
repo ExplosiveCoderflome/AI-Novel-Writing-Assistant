@@ -31,6 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
+import { isChapterTitleDiversitySummary } from "@/lib/directorTaskNotice";
 import { useLLMStore } from "@/store/llmStore";
 import {
   patchNovelBasicForm,
@@ -204,12 +205,20 @@ export default function NovelAutoDirectorDialog({
     if (!directorTask) {
       return;
     }
+    const hasChapterTitleWarning = isChapterTitleDiversitySummary(
+      directorTask.failureSummary ?? directorTask.lastError ?? null,
+    );
     if (directorTask.checkpointType === "candidate_selection_required" && !executionRequested) {
       setDialogMode("candidate_selection");
       setExecutionError("");
       return;
     }
     if (directorTask.status === "failed" || directorTask.status === "cancelled") {
+      if (hasChapterTitleWarning) {
+        setDialogMode("execution_progress");
+        setExecutionError("");
+        return;
+      }
       setDialogMode("execution_failed");
       setExecutionError(directorTask.lastError ?? "");
       return;

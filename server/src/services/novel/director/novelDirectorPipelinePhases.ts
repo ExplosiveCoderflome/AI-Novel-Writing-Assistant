@@ -183,7 +183,7 @@ function buildChapterTitleNotice(input: {
     summary: input.issue,
     action: {
       type: "open_structured_outline",
-      label: "打开当前卷拆章",
+      label: "快速修复章节标题",
       volumeId: input.volume.id,
     },
   };

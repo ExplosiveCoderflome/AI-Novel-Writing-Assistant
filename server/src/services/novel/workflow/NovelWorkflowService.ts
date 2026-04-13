@@ -29,11 +29,13 @@ import {
   parseResumeTarget,
   stringifyResumeTarget,
 } from "./novelWorkflow.shared";
+import { isChapterTitleDiversityIssue } from "../volume/chapterTitleDiversity";
 import {
   isHistoricalAutoDirectorFront10RecoveryUnsupportedFailure,
   isHistoricalAutoDirectorRecoveryNotNeededFailure,
 } from "./novelWorkflowRecoveryHeuristics";
 import { syncAutoDirectorChapterBatchCheckpoint } from "./novelWorkflowAutoDirectorReconciliation";
+import { repairAutoDirectorCandidateSeedPayload } from "./novelWorkflowCandidateSeedRepair";
 
 type WorkflowRow = Awaited<ReturnType<typeof prisma.novelWorkflowTask.findUnique>>;
 
@@ -85,6 +87,21 @@ const CHECKPOINT_ITEM_LABELS: Record<NovelWorkflowCheckpoint, string> = {
   replan_required: "等待处理重规划建议",
   workflow_completed: "小说主流程已完成",
 };
+
+function buildChapterTitleDiversityTaskNotice(input: {
+  issue: string;
+  volumeId?: string | null;
+}) {
+  return {
+    code: "CHAPTER_TITLE_DIVERSITY",
+    summary: input.issue.trim(),
+    action: {
+      type: "open_structured_outline" as const,
+      label: "快速修复章节标题",
+      volumeId: input.volumeId?.trim() || null,
+    },
+  };
+}
 
 interface ChapterBatchCheckpointRow {
   title: string;
@@ -267,6 +284,57 @@ export class NovelWorkflowService {
     return this.getVisibleRowByIdRaw(taskId);
   }
 
+  async healBrokenAutoDirectorCandidateSeedPayload(
+    taskId: string,
+    row = null as {
+      lane?: string | null;
+      novelId?: string | null;
+      status?: string | null;
+      currentItemKey?: string | null;
+      checkpointType?: string | null;
+      checkpointSummary?: string | null;
+      resumeTargetJson?: string | null;
+      seedPayloadJson?: string | null;
+    } | null,
+  ): Promise<boolean> {
+    const candidate = row ?? await this.getVisibleRowByIdRaw(taskId);
+    if (!candidate || candidate.lane !== "auto_director") {
+      return false;
+    }
+
+    const repaired = repairAutoDirectorCandidateSeedPayload(candidate.seedPayloadJson);
+    if (!repaired) {
+      return false;
+    }
+
+    const shouldRestoreCandidateSelection = repaired.staleTargetedCandidate
+      && isPreNovelAutoDirectorCandidateTask(candidate);
+    await prisma.novelWorkflowTask.update({
+      where: { id: taskId },
+      data: {
+        seedPayloadJson: repaired.seedPayloadJson,
+        heartbeatAt: new Date(),
+        status: shouldRestoreCandidateSelection ? "waiting_approval" : undefined,
+        currentStage: shouldRestoreCandidateSelection ? stageLabel("auto_director") : undefined,
+        currentItemKey: shouldRestoreCandidateSelection ? "auto_director" : undefined,
+        currentItemLabel: shouldRestoreCandidateSelection
+          ? CHECKPOINT_ITEM_LABELS.candidate_selection_required
+          : undefined,
+        checkpointType: shouldRestoreCandidateSelection ? "candidate_selection_required" : undefined,
+        checkpointSummary: shouldRestoreCandidateSelection
+          ? (candidate.checkpointSummary ?? "候选方案已恢复，请重新确认或继续微调。")
+          : undefined,
+        resumeTargetJson: shouldRestoreCandidateSelection
+          ? stringifyResumeTarget(buildNovelCreateResumeTarget(taskId, "director"))
+          : undefined,
+        lastError: shouldRestoreCandidateSelection ? null : undefined,
+        finishedAt: shouldRestoreCandidateSelection ? null : undefined,
+        cancelRequestedAt: shouldRestoreCandidateSelection ? null : undefined,
+      },
+    });
+    return true;
+  }
+
   async healAutoDirectorTaskState(
     taskId: string,
     row = null as {
@@ -288,19 +356,22 @@ export class NovelWorkflowService {
       lastError?: string | null;
     } | null,
   ): Promise<boolean> {
-    const queuedHealed = await this.healStaleAutoDirectorQueuedProgress(taskId, row);
-    const historicalHealed = await this.healHistoricalAutoDirectorRecoveryFailure(taskId, row);
-    const front10Healed = await this.healHistoricalAutoDirectorFront10RecoveryFailure(taskId, row);
-    const checkpointRow = (queuedHealed || historicalHealed || front10Healed)
+    const brokenSeedHealed = await this.healBrokenAutoDirectorCandidateSeedPayload(taskId, row);
+    const normalizedRow = brokenSeedHealed ? await this.getVisibleRowByIdRaw(taskId) : row;
+    const queuedHealed = await this.healStaleAutoDirectorQueuedProgress(taskId, normalizedRow);
+    const historicalHealed = await this.healHistoricalAutoDirectorRecoveryFailure(taskId, normalizedRow);
+    const front10Healed = await this.healHistoricalAutoDirectorFront10RecoveryFailure(taskId, normalizedRow);
+    const titleDiversityHealed = await this.healChapterTitleDiversitySoftFailure(taskId, normalizedRow);
+    const checkpointRow = (brokenSeedHealed || queuedHealed || historicalHealed || front10Healed || titleDiversityHealed)
       ? await this.getVisibleRowByIdRaw(taskId)
-      : (row ?? await this.getVisibleRowByIdRaw(taskId));
+      : (normalizedRow ?? await this.getVisibleRowByIdRaw(taskId));
     const checkpointHealed = isChapterBatchCheckpointRow(checkpointRow)
       ? await syncAutoDirectorChapterBatchCheckpoint({
         taskId,
         row: checkpointRow,
       })
       : false;
-    return queuedHealed || historicalHealed || front10Healed || checkpointHealed;
+    return brokenSeedHealed || queuedHealed || historicalHealed || front10Healed || titleDiversityHealed || checkpointHealed;
   }
 
   async healStaleAutoDirectorQueuedProgress(
@@ -443,6 +514,70 @@ export class NovelWorkflowService {
         checkpointType: null,
         checkpointSummary: null,
         resumeTargetJson: stringifyResumeTarget(nextResumeTarget),
+        heartbeatAt: new Date(),
+        finishedAt: null,
+        cancelRequestedAt: null,
+        lastError: null,
+      },
+    });
+    return true;
+  }
+
+  async healChapterTitleDiversitySoftFailure(
+    taskId: string,
+    row = null as {
+      lane?: string | null;
+      novelId?: string | null;
+      status?: string | null;
+      currentItemKey?: string | null;
+      currentItemLabel?: string | null;
+      resumeTargetJson?: string | null;
+      seedPayloadJson?: string | null;
+      lastError?: string | null;
+    } | null,
+  ): Promise<boolean> {
+    const candidate = row ?? await this.getVisibleRowByIdRaw(taskId);
+    const issue = candidate?.lastError?.trim() || "";
+    if (
+      !candidate
+      || candidate.lane !== "auto_director"
+      || candidate.status !== "failed"
+      || !isChapterTitleDiversityIssue(issue)
+    ) {
+      return false;
+    }
+
+    const existing = await this.getVisibleRowByIdRaw(taskId);
+    if (!existing) {
+      return false;
+    }
+
+    const resumeTarget = parseResumeTarget(existing.resumeTargetJson);
+    const notice = buildChapterTitleDiversityTaskNotice({
+      issue,
+      volumeId: resumeTarget?.volumeId ?? null,
+    });
+    const nextResumeTarget = resumeTarget ?? this.buildResumeTarget({
+      taskId,
+      novelId: existing.novelId,
+      lane: existing.lane,
+      stage: "structured_outline",
+      volumeId: notice.action.volumeId,
+    });
+
+    await prisma.novelWorkflowTask.update({
+      where: { id: taskId },
+      data: {
+        status: "waiting_approval",
+        currentStage: stageLabel("structured_outline"),
+        currentItemKey: existing.currentItemKey ?? "chapter_list",
+        currentItemLabel: existing.currentItemLabel?.trim() || "章节列表已生成，但标题结构仍需分散",
+        checkpointType: null,
+        checkpointSummary: null,
+        resumeTargetJson: stringifyResumeTarget(nextResumeTarget),
+        seedPayloadJson: mergeSeedPayload(existing.seedPayloadJson, {
+          taskNotice: notice,
+        }),
         heartbeatAt: new Date(),
         finishedAt: null,
         cancelRequestedAt: null,
@@ -719,6 +854,56 @@ export class NovelWorkflowService {
         progress: Math.max(existing.progress, input.progress ?? defaultProgressForStage(input.stage)),
         checkpointType: input.clearCheckpoint ? null : existing.checkpointType,
         checkpointSummary: input.clearCheckpoint ? null : existing.checkpointSummary,
+        seedPayloadJson: input.seedPayload
+          ? mergeSeedPayload(existing.seedPayloadJson, input.seedPayload)
+          : existing.seedPayloadJson,
+        lastError: null,
+        cancelRequestedAt: null,
+      },
+    });
+  }
+
+  async markTaskWaitingApproval(taskId: string, input: {
+    stage: NovelWorkflowStage;
+    itemLabel: string;
+    itemKey?: string | null;
+    progress?: number;
+    clearCheckpoint?: boolean;
+    checkpointType?: NovelWorkflowCheckpoint | null;
+    checkpointSummary?: string | null;
+    chapterId?: string | null;
+    volumeId?: string | null;
+    seedPayload?: Record<string, unknown>;
+  }) {
+    const existing = await this.getVisibleRowById(taskId);
+    if (!existing) {
+      throw new AppError("Workflow task not found.", 404);
+    }
+    const resumeTarget = this.buildResumeTarget({
+      taskId,
+      novelId: existing.novelId,
+      lane: existing.lane,
+      stage: input.stage,
+      chapterId: input.chapterId,
+      volumeId: input.volumeId,
+    });
+    return prisma.novelWorkflowTask.update({
+      where: { id: taskId },
+      data: {
+        status: "waiting_approval",
+        finishedAt: null,
+        heartbeatAt: new Date(),
+        currentStage: stageLabel(input.stage),
+        currentItemKey: input.itemKey ?? input.stage,
+        currentItemLabel: input.itemLabel,
+        progress: Math.max(existing.progress, input.progress ?? defaultProgressForStage(input.stage)),
+        checkpointType: input.clearCheckpoint
+          ? null
+          : (input.checkpointType ?? existing.checkpointType),
+        checkpointSummary: input.clearCheckpoint
+          ? null
+          : (input.checkpointSummary ?? existing.checkpointSummary),
+        resumeTargetJson: stringifyResumeTarget(resumeTarget),
         seedPayloadJson: input.seedPayload
           ? mergeSeedPayload(existing.seedPayloadJson, input.seedPayload)
           : existing.seedPayloadJson,

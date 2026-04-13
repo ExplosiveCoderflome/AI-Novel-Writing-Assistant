@@ -73,12 +73,25 @@ export function useNovelEditWorkflow(novelId: string) {
     }, { replace: true });
   };
 
+  const setSelectedVolumeId = (value: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value) {
+        next.set("volumeId", value);
+      } else {
+        next.delete("volumeId");
+      }
+      return next;
+    }, { replace: true });
+  };
+
   return {
     activeTab,
     setActiveTab,
     selectedChapterId,
     setSelectedChapterId,
-    workflowTaskId,
     selectedVolumeId,
+    setSelectedVolumeId,
+    workflowTaskId,
   };
 }

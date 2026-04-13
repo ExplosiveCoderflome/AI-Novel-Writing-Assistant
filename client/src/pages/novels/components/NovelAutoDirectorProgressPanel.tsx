@@ -3,7 +3,13 @@ import {
   DIRECTOR_CANDIDATE_SETUP_STEPS,
 } from "@ai-novel/shared/types/novelDirector";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
+import { Button } from "@/components/ui/button";
 import AITakeoverContainer, { type AITakeoverMode } from "@/components/workflow/AITakeoverContainer";
+import {
+  isChapterTitleDiversitySummary,
+  resolveChapterTitleWarning,
+} from "@/lib/directorTaskNotice";
+import { useDirectorChapterTitleRepair } from "@/hooks/useDirectorChapterTitleRepair";
 
 type DirectorExecutionViewMode = "execution_progress" | "execution_failed";
 
@@ -221,6 +227,19 @@ export default function NovelAutoDirectorProgressPanel({
   onBackgroundContinue,
   onOpenTaskCenter,
 }: NovelAutoDirectorProgressPanelProps) {
+  const taskChapterTitleWarning = resolveChapterTitleWarning(task);
+  const chapterTitleRepairMutation = useDirectorChapterTitleRepair();
+  const fallbackChapterTitleWarning = !taskChapterTitleWarning && isChapterTitleDiversitySummary(fallbackError)
+    ? {
+      summary: fallbackError?.trim() ?? "",
+      route: null,
+      label: "快速修复章节标题",
+    }
+    : null;
+  const chapterTitleWarning = taskChapterTitleWarning ?? fallbackChapterTitleWarning;
+  const visualMode: DirectorExecutionViewMode = mode === "execution_failed" && !chapterTitleWarning
+    ? "execution_failed"
+    : "execution_progress";
   const currentAction = (
     task?.status === "running"
     && task?.checkpointType === "chapter_batch_ready"
@@ -229,7 +248,9 @@ export default function NovelAutoDirectorProgressPanel({
     ? `正在继续自动执行${resolveAutoExecutionScopeLabel(task)}`
     : (
       task?.currentItemLabel?.trim()
-      || (mode === "execution_failed" ? "导演任务执行中断" : "正在准备导演任务")
+      || (visualMode === "execution_failed"
+        ? "导演任务执行中断"
+        : (chapterTitleWarning ? "章节列表已生成，等待修复标题结构" : "正在准备导演任务"))
     );
   const workflowTitle = task?.title?.trim() || "";
   const hintedTitle = titleHint?.trim() || "";
@@ -245,31 +266,33 @@ export default function NovelAutoDirectorProgressPanel({
   const stepDefinitions = candidateSetupFlow
     ? DIRECTOR_CANDIDATE_SETUP_STEPS
     : DIRECTOR_EXECUTION_STEPS;
-  const steps = resolveDirectorStepStatuses(task, mode, stepDefinitions);
+  const steps = resolveDirectorStepStatuses(task, visualMode, stepDefinitions);
   const failureMessage = task?.lastError?.trim() || fallbackError?.trim() || "导演任务执行失败，但没有记录明确错误。";
   const tokenUsage = task?.tokenUsage ?? null;
-  const containerMode: AITakeoverMode = mode === "execution_failed"
+  const containerMode: AITakeoverMode = visualMode === "execution_failed"
     ? "failed"
     : !task
       ? "loading"
-      : task.status === "waiting_approval"
+      : (task.status === "waiting_approval" || chapterTitleWarning)
         ? "waiting"
         : "running";
   const description = candidateSetupFlow
     ? (
-      mode === "execution_failed"
+      visualMode === "execution_failed"
         ? "候选方向生成链已中断，你可以先去任务中心查看详情，再决定是否重试。"
         : "系统会先整理项目设定、对齐书级 framing，再生成两套书级方案和对应标题组。"
     )
     : (
-      mode === "execution_failed"
+      visualMode === "execution_failed"
         ? "任务已经停在最近一步，你可以先去任务中心查看详情，再决定是否恢复。"
-        : task?.status === "waiting_approval"
-          ? "当前导演流程已经停在审核点，你可以先检查产物，再决定是否继续自动推进。"
-          : "可离开当前页面，任务会继续运行，并且可以在任务中心恢复查看。"
+        : chapterTitleWarning
+          ? "章节列表已经保留，这是一条可直接处理的结构提醒。你可以快速修复标题，再决定是否继续后续导演流程。"
+          : task?.status === "waiting_approval"
+            ? "当前导演流程已经停在审核点，你可以先检查产物，再决定是否继续自动推进。"
+            : "可离开当前页面，任务会继续运行，并且可以在任务中心恢复查看。"
     );
   const actions = [
-    ...(mode === "execution_progress" && task?.status !== "waiting_approval"
+    ...(visualMode === "execution_progress" && task?.status !== "waiting_approval" && !chapterTitleWarning
       ? [{
         label: "后台继续",
         onClick: onBackgroundContinue,
@@ -287,7 +310,7 @@ export default function NovelAutoDirectorProgressPanel({
     <div className="space-y-4">
       <AITakeoverContainer
         mode={containerMode}
-        title={mode === "execution_failed"
+        title={visualMode === "execution_failed"
           ? (candidateSetupFlow ? "候选方案生成失败" : "导演执行失败")
           : candidateSetupFlow
             ? "正在生成导演候选方案"
@@ -335,7 +358,35 @@ export default function NovelAutoDirectorProgressPanel({
           </div>
         ) : null}
 
-        {mode === "execution_failed" ? (
+        {chapterTitleWarning ? (
+          <div className="mt-4 rounded-xl border border-amber-300/60 bg-amber-50/80 p-4 text-sm text-amber-950">
+            <div className="font-medium">当前提醒</div>
+            <div className="mt-1">{chapterTitleWarning.summary}</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {task && chapterTitleWarning ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    chapterTitleRepairMutation.startRepair(task);
+                  }}
+                  disabled={chapterTitleRepairMutation.isPending}
+                >
+                  {chapterTitleRepairMutation.isPending && chapterTitleRepairMutation.pendingTaskId === task.id
+                    ? "AI 修复中..."
+                    : chapterTitleWarning.label}
+                </Button>
+              ) : null}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onOpenTaskCenter}
+              >
+                去任务中心查看
+              </Button>
+            </div>
+          </div>
+        ) : visualMode === "execution_failed" ? (
           <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
             <div className="font-medium">失败摘要</div>
             <div className="mt-1">{failureMessage}</div>

@@ -316,3 +316,230 @@ test("healAutoDirectorTaskState promotes advanced queued auto director tasks bac
     prisma.novelWorkflowTask.update = originals.update;
   }
 });
+
+test("healAutoDirectorTaskState repairs broken candidate seed payloads and restores candidate selection tasks", async () => {
+  const originals = {
+    findUnique: prisma.novelWorkflowTask.findUnique,
+    update: prisma.novelWorkflowTask.update,
+  };
+
+  let currentRow = {
+    id: "task_candidate_seed_repair",
+    title: "示例项目",
+    novelId: null,
+    lane: "auto_director",
+    status: "failed",
+    progress: 0.15,
+    currentStage: "AI 自动导演",
+    currentItemKey: "auto_director",
+    currentItemLabel: "等待确认书级方向",
+    checkpointType: "candidate_selection_required",
+    checkpointSummary: "第 1 轮已生成 2 套书级方向，并完成每套书名组。",
+    resumeTargetJson: null,
+    seedPayloadJson: JSON.stringify({
+      directorSession: {
+        runMode: "auto_to_ready",
+        phase: "candidate_selection",
+        isBackgroundRunning: false,
+        lockedScopes: ["basic"],
+        reviewScope: null,
+      },
+      candidateStage: {
+        mode: "patch_candidate",
+        batchId: "batch-1",
+        candidateId: "candidate-missing",
+        feedback: "只压缩铺垫",
+      },
+      batches: [{
+        id: "batch-1",
+        round: 1,
+        roundLabel: "第 1 轮",
+        idea: "示例灵感",
+        refinementSummary: null,
+        presets: [],
+        candidates: [
+          {
+            workingTitle: "方案一",
+            titleOptions: [],
+            logline: "logline 1",
+            positioning: "positioning 1",
+            sellingPoint: "selling 1",
+            coreConflict: "conflict 1",
+            protagonistPath: "path 1",
+            endingDirection: "ending 1",
+            hookStrategy: "hook 1",
+            progressionLoop: "loop 1",
+            whyItFits: "fit 1",
+            toneKeywords: ["a", "b"],
+            targetChapterCount: 30,
+          },
+          {
+            workingTitle: "方案二",
+            titleOptions: [],
+            logline: "logline 2",
+            positioning: "positioning 2",
+            sellingPoint: "selling 2",
+            coreConflict: "conflict 2",
+            protagonistPath: "path 2",
+            endingDirection: "ending 2",
+            hookStrategy: "hook 2",
+            progressionLoop: "loop 2",
+            whyItFits: "fit 2",
+            toneKeywords: ["c", "d"],
+            targetChapterCount: 32,
+          },
+        ],
+        createdAt: "2026-04-14T00:00:00.000Z",
+      }],
+    }),
+    lastError: "目标方案不存在。",
+    finishedAt: new Date("2026-04-14T00:12:09.000Z"),
+    heartbeatAt: new Date("2026-04-14T00:12:09.000Z"),
+    cancelRequestedAt: null,
+    milestonesJson: null,
+  };
+
+  prisma.novelWorkflowTask.findUnique = async () => currentRow;
+  prisma.novelWorkflowTask.update = async ({ data }) => {
+    currentRow = {
+      ...currentRow,
+      status: data.status ?? currentRow.status,
+      currentStage: data.currentStage ?? currentRow.currentStage,
+      currentItemKey: data.currentItemKey ?? currentRow.currentItemKey,
+      currentItemLabel: data.currentItemLabel ?? currentRow.currentItemLabel,
+      checkpointType: Object.prototype.hasOwnProperty.call(data, "checkpointType")
+        ? data.checkpointType
+        : currentRow.checkpointType,
+      checkpointSummary: Object.prototype.hasOwnProperty.call(data, "checkpointSummary")
+        ? data.checkpointSummary
+        : currentRow.checkpointSummary,
+      resumeTargetJson: data.resumeTargetJson ?? currentRow.resumeTargetJson,
+      seedPayloadJson: data.seedPayloadJson ?? currentRow.seedPayloadJson,
+      heartbeatAt: data.heartbeatAt ?? currentRow.heartbeatAt,
+      finishedAt: Object.prototype.hasOwnProperty.call(data, "finishedAt")
+        ? data.finishedAt
+        : currentRow.finishedAt,
+      cancelRequestedAt: Object.prototype.hasOwnProperty.call(data, "cancelRequestedAt")
+        ? data.cancelRequestedAt
+        : currentRow.cancelRequestedAt,
+      lastError: Object.prototype.hasOwnProperty.call(data, "lastError")
+        ? data.lastError
+        : currentRow.lastError,
+    };
+    return currentRow;
+  };
+
+  try {
+    const service = new NovelWorkflowService();
+    const healed = await service.healAutoDirectorTaskState("task_candidate_seed_repair");
+
+    assert.equal(healed, true);
+    assert.equal(currentRow.status, "waiting_approval");
+    assert.equal(currentRow.currentItemKey, "auto_director");
+    assert.equal(currentRow.checkpointType, "candidate_selection_required");
+    assert.equal(currentRow.lastError, null);
+    assert.equal(currentRow.finishedAt, null);
+
+    const resumeTarget = JSON.parse(currentRow.resumeTargetJson);
+    assert.equal(resumeTarget.route, "/novels/create");
+    assert.equal(resumeTarget.mode, "director");
+
+    const seedPayload = JSON.parse(currentRow.seedPayloadJson);
+    assert.equal(seedPayload.candidateStage, null);
+    assert.equal(seedPayload.batches[0].candidates.length, 2);
+    assert.ok(seedPayload.batches[0].candidates.every((candidate) => typeof candidate.id === "string" && candidate.id.length > 0));
+  } finally {
+    prisma.novelWorkflowTask.findUnique = originals.findUnique;
+    prisma.novelWorkflowTask.update = originals.update;
+  }
+});
+
+test("healAutoDirectorTaskState degrades chapter title diversity failures into warning checkpoints", async () => {
+  const originals = {
+    findUnique: prisma.novelWorkflowTask.findUnique,
+    update: prisma.novelWorkflowTask.update,
+  };
+
+  let currentRow = {
+    id: "task_title_diversity",
+    title: "示例项目",
+    novelId: "novel_demo",
+    lane: "auto_director",
+    status: "failed",
+    progress: 0.84,
+    currentStage: "节奏 / 拆章",
+    currentItemKey: "chapter_list",
+    currentItemLabel: "正在生成第 1 卷章节列表",
+    checkpointType: null,
+    checkpointSummary: null,
+    resumeTargetJson: JSON.stringify({
+      route: "/novels/novel_demo/edit",
+      stage: "structured",
+      novelId: "novel_demo",
+      taskId: "task_title_diversity",
+      volumeId: "volume-1",
+      chapterId: null,
+    }),
+    seedPayloadJson: JSON.stringify({
+      directorSession: {
+        runMode: "auto_to_ready",
+        phase: "structured_outline",
+        isBackgroundRunning: false,
+        lockedScopes: ["basic", "story_macro", "character", "outline", "structured"],
+        reviewScope: null,
+      },
+    }),
+    lastError: "章节标题结构过于集中：38/40 个标题都落在 A，B / 四字动作，四字结果 骨架上。请把标题改得更分散。",
+    finishedAt: new Date("2026-04-13T12:00:00.000Z"),
+    heartbeatAt: new Date("2026-04-13T12:00:00.000Z"),
+    cancelRequestedAt: null,
+    milestonesJson: null,
+  };
+
+  prisma.novelWorkflowTask.findUnique = async () => currentRow;
+  prisma.novelWorkflowTask.update = async ({ data }) => {
+    currentRow = {
+      ...currentRow,
+      status: data.status ?? currentRow.status,
+      currentStage: data.currentStage ?? currentRow.currentStage,
+      currentItemKey: data.currentItemKey ?? currentRow.currentItemKey,
+      currentItemLabel: data.currentItemLabel ?? currentRow.currentItemLabel,
+      checkpointType: Object.prototype.hasOwnProperty.call(data, "checkpointType")
+        ? data.checkpointType
+        : currentRow.checkpointType,
+      checkpointSummary: Object.prototype.hasOwnProperty.call(data, "checkpointSummary")
+        ? data.checkpointSummary
+        : currentRow.checkpointSummary,
+      resumeTargetJson: data.resumeTargetJson ?? currentRow.resumeTargetJson,
+      seedPayloadJson: data.seedPayloadJson ?? currentRow.seedPayloadJson,
+      heartbeatAt: data.heartbeatAt ?? currentRow.heartbeatAt,
+      finishedAt: Object.prototype.hasOwnProperty.call(data, "finishedAt")
+        ? data.finishedAt
+        : currentRow.finishedAt,
+      cancelRequestedAt: Object.prototype.hasOwnProperty.call(data, "cancelRequestedAt")
+        ? data.cancelRequestedAt
+        : currentRow.cancelRequestedAt,
+      lastError: Object.prototype.hasOwnProperty.call(data, "lastError")
+        ? data.lastError
+        : currentRow.lastError,
+    };
+    return currentRow;
+  };
+
+  try {
+    const service = new NovelWorkflowService();
+    const healed = await service.healAutoDirectorTaskState("task_title_diversity");
+
+    assert.equal(healed, true);
+    assert.equal(currentRow.status, "waiting_approval");
+    assert.equal(currentRow.currentItemKey, "chapter_list");
+    assert.equal(currentRow.lastError, null);
+    const seedPayload = JSON.parse(currentRow.seedPayloadJson);
+    assert.equal(seedPayload.taskNotice.code, "CHAPTER_TITLE_DIVERSITY");
+    assert.equal(seedPayload.taskNotice.action.label, "快速修复章节标题");
+    assert.equal(seedPayload.taskNotice.action.volumeId, "volume-1");
+  } finally {
+    prisma.novelWorkflowTask.findUnique = originals.findUnique;
+    prisma.novelWorkflowTask.update = originals.update;
+  }
+});

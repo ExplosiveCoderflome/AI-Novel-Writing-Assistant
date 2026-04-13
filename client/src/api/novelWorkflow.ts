@@ -25,6 +25,16 @@ export async function continueNovelWorkflow(taskId: string, payload?: {
   return data;
 }
 
+export async function repairNovelWorkflowChapterTitles(taskId: string, payload?: {
+  volumeId?: string;
+}) {
+  const { data } = await apiClient.post<ApiResponse<UnifiedTaskDetail | null>>(
+    `/novel-workflows/${taskId}/repair-chapter-titles`,
+    payload ?? {},
+  );
+  return data;
+}
+
 export async function getActiveAutoDirectorTask(novelId: string) {
   const { data } = await apiClient.get<ApiResponse<UnifiedTaskDetail | null>>(`/novel-workflows/novels/${novelId}/auto-director`);
   return data;
