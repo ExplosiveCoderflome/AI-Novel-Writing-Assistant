@@ -20,6 +20,7 @@
 用于记录阶段性检查点、架构迁移里程碑、进度审计和对照说明。
 
 - [Chapter Editor V2 Progress](./checkpoints/chapter-editor-v2-progress.md)
+- [Auto Director Progress Audit](./checkpoints/auto-director-progress-audit.md)
 - [LLM Schema Refactor Checkpoint](./checkpoints/llm-schema-refactor-checkpoint.md)
 - [Progress Audit](./checkpoints/progress-audit.md)
 
