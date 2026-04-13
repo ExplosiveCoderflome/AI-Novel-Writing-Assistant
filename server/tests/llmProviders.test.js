@@ -111,6 +111,32 @@ test("structured output profiles distinguish official, ModelScope Qwen and unkno
     { supportsJsonSchema: false, supportsJsonObject: false },
   );
 
+  const qwenMixedProfile = resolveStructuredOutputProfile({
+    provider: "qwen",
+    model: "qwen3.6-plus",
+    baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    executionMode: "structured",
+  });
+  assert.equal(qwenMixedProfile.family, "dashscope_qwen");
+  assert.equal(qwenMixedProfile.nativeJsonObject, true);
+  assert.equal(qwenMixedProfile.requiresNonThinkingForStructured, true);
+  assert.equal(qwenMixedProfile.supportsReasoningToggle, true);
+  assert.equal(qwenMixedProfile.omitMaxTokensForNativeStructured, true);
+  assert.equal(selectStructuredOutputStrategy(qwenMixedProfile, schema), "json_object");
+
+  const qwenThinkingProfile = resolveStructuredOutputProfile({
+    provider: "qwen",
+    model: "qwen3-235b-a22b-thinking-2507",
+    baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    executionMode: "structured",
+  });
+  assert.equal(qwenThinkingProfile.family, "dashscope_qwen");
+  assert.equal(qwenThinkingProfile.nativeJsonObject, false);
+  assert.equal(qwenThinkingProfile.requiresNonThinkingForStructured, false);
+  assert.equal(qwenThinkingProfile.supportsReasoningToggle, false);
+  assert.equal(qwenThinkingProfile.omitMaxTokensForNativeStructured, false);
+  assert.equal(selectStructuredOutputStrategy(qwenThinkingProfile, schema), "prompt_json");
+
   const customProfile = resolveStructuredOutputProfile({
     provider: "custom_gateway",
     model: "gpt-4o-mini",
@@ -156,6 +182,20 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     assert.equal(qwen.reasoningForcedOff, true);
     assert.equal(qwen.modelKwargs?.enable_thinking, false);
     assert.equal(qwen.maxTokens, undefined);
+
+    const qwenThinking = await resolveLLMClientOptions("qwen", {
+      apiKey: "test-key",
+      model: "qwen3-235b-a22b-thinking-2507",
+      baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      executionMode: "structured",
+      structuredStrategy: "prompt_json",
+      maxTokens: 20000,
+    });
+    assert.equal(qwenThinking.structuredProfile?.family, "dashscope_qwen");
+    assert.equal(qwenThinking.reasoningEnabled, true);
+    assert.equal(qwenThinking.reasoningForcedOff, false);
+    assert.equal(qwenThinking.modelKwargs?.enable_thinking, undefined);
+    assert.equal(qwenThinking.maxTokens, 8192);
   } finally {
     setProviderSecretCache("custom_modelscope", null);
   }

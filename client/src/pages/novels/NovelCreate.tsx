@@ -211,8 +211,6 @@ export default function NovelCreate() {
               <NovelAutoDirectorDialog
                 basicForm={basicForm}
                 genreOptions={genreOptions}
-                storyModeOptions={storyModeOptions}
-                worldOptions={worldListQuery.data?.data ?? []}
                 workflowTaskId={directorWorkflowTaskId}
                 restoredTask={restoredWorkflowTask}
                 initialOpen={workflowMode === "director"}

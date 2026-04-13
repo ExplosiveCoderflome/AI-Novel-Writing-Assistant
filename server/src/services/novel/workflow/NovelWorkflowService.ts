@@ -700,6 +700,7 @@ export class NovelWorkflowService {
     itemKey?: string | null;
     progress?: number;
     clearCheckpoint?: boolean;
+    seedPayload?: Record<string, unknown>;
   }) {
     const existing = await this.getVisibleRowById(taskId);
     if (!existing) {
@@ -718,6 +719,9 @@ export class NovelWorkflowService {
         progress: Math.max(existing.progress, input.progress ?? defaultProgressForStage(input.stage)),
         checkpointType: input.clearCheckpoint ? null : existing.checkpointType,
         checkpointSummary: input.clearCheckpoint ? null : existing.checkpointSummary,
+        seedPayloadJson: input.seedPayload
+          ? mergeSeedPayload(existing.seedPayloadJson, input.seedPayload)
+          : existing.seedPayloadJson,
         lastError: null,
         cancelRequestedAt: null,
       },

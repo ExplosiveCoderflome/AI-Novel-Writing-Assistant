@@ -36,6 +36,11 @@ const DIRECTOR_CANDIDATE_SETUP_STEP_KEYS = new Set<string>(
   DIRECTOR_CANDIDATE_SETUP_STEPS.map((step) => step.key),
 );
 
+const AUTO_DIRECTOR_PLACEHOLDER_TITLES = new Set([
+  "AI 自动导演小说",
+  "小说流程任务",
+]);
+
 function formatDate(value: string | null | undefined): string {
   if (!value) {
     return "暂无";
@@ -226,7 +231,13 @@ export default function NovelAutoDirectorProgressPanel({
       task?.currentItemLabel?.trim()
       || (mode === "execution_failed" ? "导演任务执行中断" : "正在准备导演任务")
     );
-  const taskTitle = task?.title?.trim() || titleHint?.trim() || "新小说项目";
+  const workflowTitle = task?.title?.trim() || "";
+  const hintedTitle = titleHint?.trim() || "";
+  const taskTitle = (
+    hintedTitle && (!workflowTitle || AUTO_DIRECTOR_PLACEHOLDER_TITLES.has(workflowTitle))
+      ? hintedTitle
+      : workflowTitle || hintedTitle || "新小说项目"
+  );
   const milestones = Array.isArray(task?.meta.milestones)
     ? task.meta.milestones as Array<{ checkpointType: NovelWorkflowCheckpoint; summary: string; createdAt: string }>
     : [];

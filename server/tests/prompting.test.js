@@ -95,7 +95,7 @@ test("prompt registry exposes versioned planning assets", () => {
     "style.profile.from_book_analysis@v2",
     "style.recommendation@v1",
     "novel.review.chapter@v1",
-    "novel.chapter.writer@v2",
+    "novel.chapter.writer@v4",
     "world.draft.generate@v1",
     "world.draft.refine@v1",
     "world.draft.refine_alternatives@v1",
@@ -235,9 +235,9 @@ test("novel main-chain prompt assets declare explicit non-zero context budgets",
     ["novel.volume.chapter_list@v4", NOVEL_PROMPT_BUDGETS.volumeChapterList],
     ["novel.volume.chapter_purpose@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.chapter_boundary@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
-    ["novel.volume.chapter_task_sheet@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
+    ["novel.volume.chapter_task_sheet@v2", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.rebalance.adjacent@v1", NOVEL_PROMPT_BUDGETS.volumeRebalance],
-    ["novel.chapter.writer@v2", NOVEL_PROMPT_BUDGETS.chapterWriter],
+    ["novel.chapter.writer@v4", NOVEL_PROMPT_BUDGETS.chapterWriter],
     ["novel.review.chapter@v1", NOVEL_PROMPT_BUDGETS.chapterReview],
     ["novel.review.repair@v1", NOVEL_PROMPT_BUDGETS.chapterRepair],
     ["audit.chapter.full@v1", NOVEL_PROMPT_BUDGETS.chapterReview],
@@ -280,7 +280,7 @@ test("writer guard strips forbidden context groups before prompt execution", () 
 });
 
 test("chapter writer prompt carries explicit target length and continuation instructions", () => {
-  const asset = getRegisteredPromptAsset("novel.chapter.writer", "v2");
+  const asset = getRegisteredPromptAsset("novel.chapter.writer", "v4");
   assert.ok(asset);
 
   const draftMessages = asset.render({

@@ -124,3 +124,37 @@ test("volume chapter list prompt retries semantically when titles are structural
     setPromptRunnerStructuredInvokerForTests();
   }
 });
+
+test("volume chapter list prompt degrades title diversity failure to warning after semantic retries are exhausted", async () => {
+  const calls = [];
+
+  setPromptRunnerStructuredInvokerForTests(async (input) => {
+    calls.push(input);
+    return {
+      data: {
+        chapters: [
+          { title: "签下合同，甜蜜同居", summary: "主角暂时稳住住处问题，同时把关系线推进到新阶段。" },
+          { title: "房租超支，紧急筹钱", summary: "现实压力突然压上来，逼着主角立刻行动。" },
+          { title: "林晓求职，首战告败", summary: "主角第一次外出求职受挫，确认局面没有想象中轻松。" },
+          { title: "苏雨追梦，画室坚守", summary: "配角线同步抬升，让现实理想冲突进一步显形。" },
+        ],
+      },
+      repairUsed: false,
+      repairAttempts: 0,
+    };
+  });
+
+  try {
+    const result = await runStructuredPrompt({
+      asset: createVolumeChapterListPrompt(4),
+      promptInput: {
+        targetChapterCount: 4,
+      },
+    });
+
+    assert.equal(calls.length, 3);
+    assert.equal(result.output.chapters[0].title, "签下合同，甜蜜同居");
+  } finally {
+    setPromptRunnerStructuredInvokerForTests();
+  }
+});

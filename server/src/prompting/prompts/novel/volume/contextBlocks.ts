@@ -171,6 +171,13 @@ export function buildVolumeBeatSheetContextBlocks(input: VolumeBeatSheetPromptIn
       content: `Target volume:\n${buildCompactVolumeCard(input.targetVolume)}`,
     }),
     createContextBlock({
+      id: "target_chapter_count",
+      group: "target_chapter_count",
+      priority: 96,
+      required: true,
+      content: `Target chapter count: ${input.targetChapterCount}`,
+    }),
+    createContextBlock({
       id: "volume_window",
       group: "volume_window",
       priority: 88,

@@ -16,6 +16,7 @@ interface BookFramingQuickFillButtonProps {
   basicForm: NovelBasicFormState;
   genreOptions: GenreOption[];
   onApplySuggestion: (patch: Partial<NovelBasicFormState>) => void;
+  descriptionOverride?: string;
 }
 
 function hasExistingFramingContent(basicForm: NovelBasicFormState): boolean {
@@ -29,8 +30,9 @@ function hasExistingFramingContent(basicForm: NovelBasicFormState): boolean {
 }
 
 export function BookFramingQuickFillButton(props: BookFramingQuickFillButtonProps) {
-  const { basicForm, genreOptions, onApplySuggestion } = props;
+  const { basicForm, genreOptions, onApplySuggestion, descriptionOverride } = props;
   const llm = useLLMStore();
+  const effectiveDescription = basicForm.description.trim() || descriptionOverride?.trim() || "";
   const selectedGenreLabel = useMemo(
     () => genreOptions.find((item) => item.id === basicForm.genreId)?.path
       ?? genreOptions.find((item) => item.id === basicForm.genreId)?.label
@@ -41,7 +43,7 @@ export function BookFramingQuickFillButton(props: BookFramingQuickFillButtonProp
   const suggestionMutation = useMutation({
     mutationFn: () => suggestBookFraming({
       title: basicForm.title.trim() || undefined,
-      description: basicForm.description.trim() || undefined,
+      description: effectiveDescription || undefined,
       genreLabel: selectedGenreLabel || undefined,
       styleTone: basicForm.styleTone.trim() || undefined,
       provider: llm.provider,
@@ -69,7 +71,7 @@ export function BookFramingQuickFillButton(props: BookFramingQuickFillButtonProp
   });
 
   const handleGenerate = () => {
-    if (!basicForm.title.trim() && !basicForm.description.trim()) {
+    if (!basicForm.title.trim() && !effectiveDescription) {
       toast.error("请先填写书名或一句话概述，再让 AI 帮你填写。");
       return;
     }

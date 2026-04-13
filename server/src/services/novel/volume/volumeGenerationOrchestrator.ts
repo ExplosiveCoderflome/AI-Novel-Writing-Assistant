@@ -28,7 +28,10 @@ import {
 } from "../../../prompting/prompts/novel/volume/strategy.prompts";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import type { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
-import { inferRequiredChapterCountFromBeatSheet } from "./volumeBeatSheetChapterBudget";
+import {
+  inferRequiredChapterCountFromBeatSheet,
+  resolveTargetChapterCount,
+} from "./volumeBeatSheetChapterBudget";
 import { normalizeVolumeDraftContextInput } from "./volumeDraftContext";
 import {
   allocateChapterBudgets,
@@ -323,6 +326,16 @@ async function generateBeatSheet(params: {
 }): Promise<VolumePlanDocument> {
   const { document, novel, workspace, storyMacroPlan, options } = params;
   const targetVolume = getTargetVolume(document, options.targetVolumeId);
+  const chapterBudget = deriveChapterBudget({ novel, workspace, options });
+  const chapterBudgets = allocateChapterBudgets({
+    volumeCount: Math.max(document.volumes.length, 1),
+    chapterBudget,
+    existingVolumes: document.volumes,
+  });
+  const targetIndex = document.volumes.findIndex((volume) => volume.id === targetVolume.id);
+  const targetChapterCount = targetVolume.chapters.length >= 3
+    ? targetVolume.chapters.length
+    : chapterBudgets[targetIndex] ?? Math.max(3, Math.round(chapterBudget / Math.max(document.volumes.length, 1)));
   await notifyVolumeGenerationPhase({
     novelId: document.novelId,
     scope: "beat_sheet",
@@ -338,6 +351,7 @@ async function generateBeatSheet(params: {
       storyMacroPlan,
       strategyPlan: document.strategyPlan,
       targetVolume,
+      targetChapterCount,
       guidance: options.guidance,
     },
     contextBlocks: buildVolumeBeatSheetContextBlocks({
@@ -346,6 +360,7 @@ async function generateBeatSheet(params: {
       storyMacroPlan,
       strategyPlan: document.strategyPlan,
       targetVolume,
+      targetChapterCount,
       guidance: options.guidance,
     }),
     options: {
@@ -428,10 +443,20 @@ async function generateChapterList(params: {
   });
   const targetIndex = document.volumes.findIndex((volume) => volume.id === targetVolume.id);
   const beatSheetRequiredChapterCount = inferRequiredChapterCountFromBeatSheet(targetBeatSheet);
-  const existingOrBudgetChapterCount = targetVolume.chapters.length >= 3
+  const budgetedTargetChapterCount = targetVolume.chapters.length >= 3
     ? targetVolume.chapters.length
     : chapterBudgets[targetIndex] ?? Math.max(3, Math.round(chapterBudget / Math.max(document.volumes.length, 1)));
-  const targetChapterCount = Math.max(existingOrBudgetChapterCount, beatSheetRequiredChapterCount);
+  const resolvedTargetChapterCount = resolveTargetChapterCount({
+    budgetedChapterCount: budgetedTargetChapterCount,
+    beatSheetRequiredChapterCount,
+  });
+  const targetChapterCount = resolvedTargetChapterCount.targetChapterCount;
+
+  if (!resolvedTargetChapterCount.beatSheetCountAccepted && beatSheetRequiredChapterCount > 0) {
+    console.warn(
+      `[volume.generate] event=beat_sheet_chapter_span_guard novelId=${document.novelId} volumeId=${targetVolume.id} budgeted=${budgetedTargetChapterCount} inferred=${beatSheetRequiredChapterCount} maxTrusted=${resolvedTargetChapterCount.maxTrustedChapterCount} using=${targetChapterCount}`,
+    );
+  }
 
   await notifyVolumeGenerationPhase({
     novelId: document.novelId,

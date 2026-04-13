@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const {
   getBeatSheetChapterSpanUpperBound,
   inferRequiredChapterCountFromBeatSheet,
+  resolveTargetChapterCount,
 } = require("../dist/services/novel/volume/volumeBeatSheetChapterBudget.js");
 
 test("getBeatSheetChapterSpanUpperBound returns the upper bound for chapter ranges", () => {
@@ -26,4 +27,26 @@ test("inferRequiredChapterCountFromBeatSheet uses the farthest beat span end", (
   assert.equal(inferRequiredChapterCountFromBeatSheet(beatSheet), 30);
   assert.equal(inferRequiredChapterCountFromBeatSheet({ beats: [] }), 0);
   assert.equal(inferRequiredChapterCountFromBeatSheet(null), 0);
+});
+
+test("resolveTargetChapterCount accepts small beat-sheet drift above the budget", () => {
+  const resolved = resolveTargetChapterCount({
+    budgetedChapterCount: 40,
+    beatSheetRequiredChapterCount: 46,
+  });
+
+  assert.equal(resolved.targetChapterCount, 46);
+  assert.equal(resolved.beatSheetCountAccepted, true);
+  assert.equal(resolved.maxTrustedChapterCount, 50);
+});
+
+test("resolveTargetChapterCount ignores implausible beat-sheet chapter counts", () => {
+  const resolved = resolveTargetChapterCount({
+    budgetedChapterCount: 62,
+    beatSheetRequiredChapterCount: 250,
+  });
+
+  assert.equal(resolved.targetChapterCount, 62);
+  assert.equal(resolved.beatSheetCountAccepted, false);
+  assert.equal(resolved.maxTrustedChapterCount, 78);
 });

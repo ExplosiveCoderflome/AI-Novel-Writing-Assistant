@@ -13,6 +13,9 @@ const {
   volumeBeatSheetPrompt,
 } = require("../dist/prompting/prompts/novel/volume/beatSheet.prompts.js");
 const {
+  buildVolumeBeatSheetContextBlocks,
+} = require("../dist/prompting/prompts/novel/volume/contextBlocks.js");
+const {
   volumeRebalancePrompt,
 } = require("../dist/prompting/prompts/novel/volume/rebalance.prompts.js");
 
@@ -253,6 +256,7 @@ test("volume beat sheet prompt render includes explicit JSON field contract", ()
     storyMacroPlan: null,
     strategyPlan: null,
     targetVolume: createVolume(1),
+    targetChapterCount: 18,
   }, {
     blocks: [],
     selectedBlockIds: [],
@@ -267,6 +271,38 @@ test("volume beat sheet prompt render includes explicit JSON field contract", ()
   assert.match(systemPrompt, /"chapterSpanHint"/);
   assert.match(systemPrompt, /"mustDeliver"/);
   assert.match(systemPrompt, /5-8/);
+  assert.match(systemPrompt, /Current volume target chapter count: 18/);
+  assert.match(systemPrompt, /volume-local numbering only/);
+});
+
+test("volume beat sheet context blocks include the current volume chapter target", () => {
+  const blocks = buildVolumeBeatSheetContextBlocks({
+    novel: { characters: [] },
+    workspace: {
+      volumes: [],
+      strategyPlan: null,
+      critiqueReport: null,
+      beatSheets: [],
+      rebalanceDecisions: [],
+      readiness: {
+        canGenerateStrategy: true,
+        canGenerateSkeleton: false,
+        canGenerateBeatSheet: false,
+        canGenerateChapterList: false,
+        blockingReasons: [],
+      },
+      derivedOutline: "",
+      derivedStructuredOutline: "",
+      source: "empty",
+      activeVersionId: null,
+    },
+    storyMacroPlan: null,
+    strategyPlan: null,
+    targetVolume: createVolume(1),
+    targetChapterCount: 18,
+  });
+
+  assert.ok(blocks.some((block) => block.group === "target_chapter_count" && block.content.includes("Target chapter count: 18")));
 });
 
 test("volume rebalance schema normalizes wrapped arrays, numeric refs, and direction aliases", () => {

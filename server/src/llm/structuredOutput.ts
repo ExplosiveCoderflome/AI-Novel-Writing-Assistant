@@ -33,7 +33,6 @@ export interface StructuredOutputDiagnostics {
 }
 
 const QWEN_FAMILY_PATTERN = /(?:^|[/:_-])qwen(?:\d+(?:\.\d+)?)?/i;
-const QWEN_35_PATTERN = /qwen3(?:\.\d+)?|qwen3\.5|397b-a17b/i;
 const DASHSCOPE_HOST_PATTERN = /(?:^|\.)dashscope\.aliyuncs\.com$/i;
 const MODELSCOPE_HOST_PATTERN = /(?:^|\.)modelscope\.cn$/i;
 const OPENAI_HOST_PATTERN = /(?:^|\.)api\.openai\.com$/i;
@@ -64,8 +63,60 @@ function isQwenFamily(model: string): boolean {
   return QWEN_FAMILY_PATTERN.test(model);
 }
 
-function isQwen35Family(model: string): boolean {
-  return QWEN_35_PATTERN.test(model);
+function normalizeModelId(model: string): string {
+  const normalized = normalizeText(model);
+  if (!normalized) {
+    return "";
+  }
+  const parts = normalized.split("/").filter(Boolean);
+  return parts.length > 0 ? parts[parts.length - 1] ?? normalized : normalized;
+}
+
+function isQwenThinkingOnlyModel(model: string): boolean {
+  const normalizedModel = normalizeModelId(model);
+  if (!normalizedModel) {
+    return false;
+  }
+  return normalizedModel.startsWith("qwq") || normalizedModel.includes("thinking");
+}
+
+function supportsDashScopeQwenNativeStructuredOutput(model: string): boolean {
+  const normalizedModel = normalizeModelId(model);
+  if (!normalizedModel || isQwenThinkingOnlyModel(normalizedModel)) {
+    return false;
+  }
+  if (normalizedModel.startsWith("qwen3")) {
+    return true;
+  }
+  if (normalizedModel.startsWith("qwen-plus")) {
+    return true;
+  }
+  if (normalizedModel.startsWith("qwen-flash")) {
+    return true;
+  }
+  if (normalizedModel.startsWith("qwen-turbo")) {
+    return true;
+  }
+  if (normalizedModel.startsWith("qwen-max")) {
+    return true;
+  }
+  if (normalizedModel.startsWith("qwen-long")) {
+    return true;
+  }
+  return normalizedModel.startsWith("qwen2.5")
+    && !normalizedModel.includes("math")
+    && !normalizedModel.includes("coder");
+}
+
+function isQwenMixedThinkingModel(model: string): boolean {
+  const normalizedModel = normalizeModelId(model);
+  if (!normalizedModel || isQwenThinkingOnlyModel(normalizedModel)) {
+    return false;
+  }
+  return normalizedModel.startsWith("qwen3")
+    || normalizedModel.startsWith("qwen-plus")
+    || normalizedModel.startsWith("qwen-flash")
+    || normalizedModel.startsWith("qwen-turbo");
 }
 
 function supportsNativeJson(profile: StructuredOutputProfile): boolean {
@@ -96,7 +147,9 @@ export function resolveStructuredOutputProfile(input: {
   const host = extractHost(input.baseURL);
   const customProvider = !isBuiltInProvider(input.provider);
   const qwenFamily = isQwenFamily(model);
-  const qwen35Family = isQwen35Family(model);
+  const qwenMixedThinkingModel = isQwenMixedThinkingModel(model);
+  const qwenThinkingOnlyModel = isQwenThinkingOnlyModel(model);
+  const qwenNativeStructuredModel = supportsDashScopeQwenNativeStructuredOutput(model);
   const isDashScopeQwen = input.provider === "qwen" || DASHSCOPE_HOST_PATTERN.test(host);
   const isModelScopeQwen = MODELSCOPE_HOST_PATTERN.test(host) || provider.includes("modelscope");
 
@@ -155,20 +208,20 @@ export function resolveStructuredOutputProfile(input: {
   if (isDashScopeQwen || (input.provider === "qwen" && qwenFamily)) {
     return buildProfile({
       family: "dashscope_qwen",
-      nativeJsonObject: true,
-      preferredStructuredStrategy: "json_object",
-      requiresNonThinkingForStructured: qwen35Family,
-      supportsReasoningToggle: qwen35Family,
-      omitMaxTokensForNativeStructured: qwen35Family,
-      safeStructuredMaxTokens: qwen35Family ? 8192 : undefined,
+      nativeJsonObject: qwenNativeStructuredModel,
+      preferredStructuredStrategy: qwenNativeStructuredModel ? "json_object" : "prompt_json",
+      requiresNonThinkingForStructured: qwenMixedThinkingModel,
+      supportsReasoningToggle: qwenMixedThinkingModel,
+      omitMaxTokensForNativeStructured: qwenNativeStructuredModel,
+      safeStructuredMaxTokens: qwenNativeStructuredModel ? undefined : 8192,
     });
   }
   if (isModelScopeQwen && qwenFamily) {
     return buildProfile({
       family: "modelscope_qwen",
       preferredStructuredStrategy: "prompt_json",
-      requiresNonThinkingForStructured: true,
-      supportsReasoningToggle: true,
+      requiresNonThinkingForStructured: qwenMixedThinkingModel && !qwenThinkingOnlyModel,
+      supportsReasoningToggle: qwenMixedThinkingModel && !qwenThinkingOnlyModel,
       safeStructuredMaxTokens: 8192,
     });
   }

@@ -43,6 +43,7 @@ export interface VolumeBeatSheetPromptInput {
   storyMacroPlan: StoryMacroPlan | null;
   strategyPlan: VolumeStrategyPlan | null;
   targetVolume: VolumePlan;
+  targetChapterCount: number;
   guidance?: string;
 }
 

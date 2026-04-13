@@ -102,11 +102,19 @@ export default function StructuredBeatSheetCard(props: StructuredBeatSheetCardPr
                     <div className="space-y-2">
                       <div className="text-sm font-medium text-foreground">本段必须交付</div>
                       {selectedBeat.mustDeliver.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {selectedBeat.mustDeliver.map((item) => (
-                            <Badge key={item} variant="outline">{item}</Badge>
+                        <ol className="space-y-2 rounded-xl border border-border/70 bg-background/90 p-4">
+                          {selectedBeat.mustDeliver.map((item, index) => (
+                            <li
+                              key={`${selectedBeat.key}-deliverable-${index}`}
+                              className="flex items-start gap-3 text-sm text-foreground"
+                            >
+                              <span className="mt-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/10 px-1.5 text-xs font-semibold text-primary">
+                                {index + 1}
+                              </span>
+                              <span className="leading-6">{item}</span>
+                            </li>
                           ))}
-                        </div>
+                        </ol>
                       ) : (
                         <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
                           这段还没有明确交付项，建议回到节奏生成结果里补充更具体的兑现目标。

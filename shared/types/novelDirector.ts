@@ -195,11 +195,24 @@ export interface DirectorCandidateBatch {
   createdAt: string;
 }
 
+export interface DirectorTaskNoticeAction {
+  type: "open_structured_outline";
+  label: string;
+  volumeId?: string | null;
+}
+
+export interface DirectorTaskNotice {
+  code: string;
+  summary: string;
+  action?: DirectorTaskNoticeAction | null;
+}
+
 export interface DirectorTaskSeedPayloadSnapshot {
   idea?: string;
   batches?: DirectorCandidateBatch[];
   runMode?: DirectorRunMode;
   autoExecutionPlan?: DirectorAutoExecutionPlan;
+  taskNotice?: DirectorTaskNotice | null;
 }
 
 export interface DirectorLLMOptions {

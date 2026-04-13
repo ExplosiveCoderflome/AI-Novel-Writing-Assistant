@@ -3,7 +3,6 @@ import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import {
   CHAPTER_HEADING_REGEX,
   CHUNK_OVERLAP_CHARS,
-  DEFAULT_ANALYSIS_MAX_TOKENS,
   DEFAULT_ANALYSIS_TEMPERATURE,
   MAX_ANALYSIS_MAX_TOKENS,
   MAX_SEGMENT_CHARS,
@@ -13,6 +12,7 @@ import {
   MIN_SEGMENT_BODY_LENGTH,
   MIN_SEGMENT_CHARS,
   TARGET_SEGMENT_CHARS,
+  UNLIMITED_NOTES_MAX_TOKENS_CACHE_KEY,
 } from "./bookAnalysis.constants";
 import type { SourceNote, SourceSegment } from "./bookAnalysis.types";
 
@@ -57,15 +57,22 @@ export function normalizeTemperature(value: number | null | undefined): number {
   return Math.min(2, Math.max(0, Number(value)));
 }
 
-export function normalizeMaxTokens(value: number | null | undefined): number {
+export function normalizeMaxTokens(value: number | null | undefined): number | undefined {
   if (!Number.isFinite(value)) {
-    return DEFAULT_ANALYSIS_MAX_TOKENS;
+    return undefined;
   }
   return Math.min(MAX_ANALYSIS_MAX_TOKENS, Math.max(MIN_ANALYSIS_MAX_TOKENS, Math.floor(Number(value))));
 }
 
-export function getNotesMaxTokens(sectionMaxTokens: number): number {
+export function getNotesMaxTokens(sectionMaxTokens: number | undefined): number | undefined {
+  if (typeof sectionMaxTokens !== "number" || !Number.isFinite(sectionMaxTokens)) {
+    return undefined;
+  }
   return Math.max(1200, Math.min(10_000, Math.floor(sectionMaxTokens * 0.6)));
+}
+
+export function getNotesMaxTokensCacheKey(sectionMaxTokens: number | undefined): number {
+  return getNotesMaxTokens(sectionMaxTokens) ?? UNLIMITED_NOTES_MAX_TOKENS_CACHE_KEY;
 }
 
 function normalizeText(source: string): string {

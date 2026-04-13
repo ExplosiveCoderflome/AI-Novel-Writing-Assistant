@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { TaskKind, TaskStatus } from "@ai-novel/shared/types/task";
+import type { DirectorTaskNotice } from "@ai-novel/shared/types/novelDirector";
+import type { TaskKind, TaskStatus, UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { NovelWorkflowCheckpoint, NovelWorkflowResumeTarget } from "@ai-novel/shared/types/novelWorkflow";
 import { continueNovelWorkflow } from "@/api/novelWorkflow";
 import { archiveTask, cancelTask, getTaskDetail, listTasks, retryTask } from "@/api/tasks";
 import { queryKeys } from "@/api/queryKeys";
+import LLMSelector, { type LLMSelectorValue } from "@/components/common/LLMSelector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
@@ -160,6 +162,71 @@ function serializeListParams(input: {
   });
 }
 
+function parseDirectorTaskNotice(meta: Record<string, unknown> | null | undefined): DirectorTaskNotice | null {
+  const raw = meta && typeof meta === "object" ? (meta as { taskNotice?: unknown }).taskNotice : null;
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+  const notice = raw as DirectorTaskNotice;
+  if (typeof notice.code !== "string" || !notice.code.trim()) {
+    return null;
+  }
+  if (typeof notice.summary !== "string" || !notice.summary.trim()) {
+    return null;
+  }
+  return {
+    code: notice.code.trim(),
+    summary: notice.summary.trim(),
+    action: notice.action && typeof notice.action === "object"
+      ? {
+        type: notice.action.type === "open_structured_outline" ? "open_structured_outline" : "open_structured_outline",
+        label: typeof notice.action.label === "string" && notice.action.label.trim()
+          ? notice.action.label.trim()
+          : "打开当前卷拆章",
+        volumeId: typeof notice.action.volumeId === "string" && notice.action.volumeId.trim()
+          ? notice.action.volumeId.trim()
+          : null,
+      }
+      : null,
+  };
+}
+
+function isChapterTitleDiversitySummary(value: string | null | undefined): boolean {
+  const normalized = value?.trim();
+  if (!normalized) {
+    return false;
+  }
+  return normalized.includes("章节标题结构过于集中")
+    || normalized.includes("相邻章节标题结构过于重复")
+    || normalized.includes("章节标题出现重复");
+}
+
+function buildStructuredOutlineRoute(task: UnifiedTaskDetail, volumeId?: string | null): string | null {
+  const novelId = task.sourceResource?.type === "novel"
+    ? task.sourceResource.id
+    : null;
+  if (!novelId) {
+    return null;
+  }
+  const search = new URLSearchParams();
+  search.set("stage", "structured");
+  search.set("taskId", task.id);
+  if (typeof volumeId === "string" && volumeId.trim()) {
+    search.set("volumeId", volumeId.trim());
+  }
+  return `/novels/${novelId}/edit?${search.toString()}`;
+}
+
+function buildTaskNoticeRoute(task: UnifiedTaskDetail, notice: DirectorTaskNotice | null): string | null {
+  if (!notice?.action || notice.action.type !== "open_structured_outline") {
+    return null;
+  }
+  return buildStructuredOutlineRoute(
+    task,
+    notice.action.volumeId ?? task.resumeTarget?.volumeId ?? null,
+  );
+}
+
 export default function TaskCenterPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -169,6 +236,11 @@ export default function TaskCenterPage() {
   const [status, setStatus] = useState<TaskStatus | "">("");
   const [keyword, setKeyword] = useState("");
   const [onlyAnomaly, setOnlyAnomaly] = useState(false);
+  const [retryOverride, setRetryOverride] = useState<LLMSelectorValue>({
+    provider: llm.provider,
+    model: llm.model,
+    temperature: llm.temperature,
+  });
 
   const selectedKind = (searchParams.get("kind") as TaskKind | null) ?? null;
   const selectedId = searchParams.get("id");
@@ -364,6 +436,38 @@ export default function TaskCenterPage() {
     && selectedTask.kind === "novel_workflow"
     && requiresCandidateSelection(selectedTask),
   );
+  const selectedTaskNotice = useMemo(
+    () => parseDirectorTaskNotice(selectedTask?.meta),
+    [selectedTask?.meta],
+  );
+  const selectedTaskNoticeRoute = useMemo(
+    () => (selectedTask ? buildTaskNoticeRoute(selectedTask, selectedTaskNotice) : null),
+    [selectedTask, selectedTaskNotice],
+  );
+  const selectedTaskFailureRepairRoute = useMemo(() => {
+    if (!selectedTask || !isAutoDirectorTask) {
+      return null;
+    }
+    if (
+      selectedTask.failureCode !== "NOVEL_WORKFLOW_FAILED"
+      && !isChapterTitleDiversitySummary(selectedTask.failureSummary)
+    ) {
+      return null;
+    }
+    if (!isChapterTitleDiversitySummary(selectedTask.failureSummary)) {
+      return null;
+    }
+    return buildStructuredOutlineRoute(selectedTask, selectedTask.resumeTarget?.volumeId ?? null);
+  }, [isAutoDirectorTask, selectedTask]);
+  const canRetryWithSelectedModel = Boolean(retryOverride.provider && retryOverride.model.trim());
+
+  useEffect(() => {
+    setRetryOverride({
+      provider: llm.provider,
+      model: llm.model,
+      temperature: llm.temperature,
+    });
+  }, [llm.model, llm.provider, llm.temperature, selectedTask?.id]);
 
   return (
     <div className="space-y-4">
@@ -572,6 +676,17 @@ export default function TaskCenterPage() {
                     {selectedTask.noticeSummary ? (
                       <div className="mt-1 text-sm">{selectedTask.noticeSummary}</div>
                     ) : null}
+                    {selectedTaskNoticeRoute ? (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate(selectedTaskNoticeRoute)}
+                        >
+                          {selectedTaskNotice?.action?.label ?? "打开当前卷拆章"}
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
                 {selectedTask.failureCode || selectedTask.failureSummary ? (
@@ -581,6 +696,17 @@ export default function TaskCenterPage() {
                     </div>
                     {selectedTask.failureSummary ? (
                       <div className="mt-1 text-sm">{selectedTask.failureSummary}</div>
+                    ) : null}
+                    {selectedTaskFailureRepairRoute ? (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate(selectedTaskFailureRepairRoute)}
+                        >
+                          打开当前卷拆章
+                        </Button>
+                      </div>
                     ) : null}
                   </div>
                 ) : null}
@@ -592,6 +718,40 @@ export default function TaskCenterPage() {
                 {selectedTask.kind === "novel_workflow" && selectedTask.checkpointSummary ? (
                   <div className="rounded-md border bg-muted/20 p-2 text-muted-foreground">
                     {selectedTask.checkpointSummary}
+                  </div>
+                ) : null}
+                {(selectedTask.status === "failed" || selectedTask.status === "cancelled") && isAutoDirectorTask ? (
+                  <div className="rounded-md border bg-muted/20 p-3">
+                    <div className="text-xs text-muted-foreground">使用其他模型重试</div>
+                    <div className="mt-2 flex flex-col gap-2">
+                      <LLMSelector
+                        value={retryOverride}
+                        onChange={setRetryOverride}
+                        compact
+                        showBadge={false}
+                        showHelperText={false}
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            retryMutation.mutate({
+                              kind: selectedTask.kind,
+                              id: selectedTask.id,
+                              llmOverride: {
+                                provider: retryOverride.provider,
+                                model: retryOverride.model,
+                                temperature: retryOverride.temperature,
+                              },
+                              resume: true,
+                            })
+                          }
+                          disabled={retryMutation.isPending || !canRetryWithSelectedModel}
+                        >
+                          使用所选模型重试
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 ) : null}
                 <div className="flex flex-wrap gap-2">
@@ -633,26 +793,6 @@ export default function TaskCenterPage() {
                   ) : null}
                   {(selectedTask.status === "failed" || selectedTask.status === "cancelled") ? (
                     <>
-                      {isAutoDirectorTask ? (
-                        <Button
-                          size="sm"
-                          onClick={() =>
-                            retryMutation.mutate({
-                              kind: selectedTask.kind,
-                              id: selectedTask.id,
-                              llmOverride: {
-                                provider: llm.provider,
-                                model: llm.model,
-                                temperature: llm.temperature,
-                              },
-                              resume: true,
-                            })
-                          }
-                          disabled={retryMutation.isPending}
-                        >
-                          用当前模型重试
-                        </Button>
-                      ) : null}
                       <Button
                         size="sm"
                         variant={isAutoDirectorTask ? "outline" : "default"}
@@ -664,7 +804,7 @@ export default function TaskCenterPage() {
                         }
                         disabled={retryMutation.isPending}
                       >
-                        重试
+                        {isAutoDirectorTask ? "按任务原模型重试" : "重试"}
                       </Button>
                     </>
                   ) : null}

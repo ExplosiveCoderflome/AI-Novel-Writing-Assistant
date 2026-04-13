@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { useLLMStore } from "@/store/llmStore";
 import SearchableSelect from "./SearchableSelect";
 
-interface LLMSelectorValue {
+export interface LLMSelectorValue {
   provider: LLMProvider;
   model: string;
   temperature?: number;

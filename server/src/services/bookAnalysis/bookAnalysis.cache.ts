@@ -18,6 +18,7 @@ import type { BookAnalysisProgressUpdate, SourceNote, SourceNotesResult } from "
 import {
   buildSourceSegments,
   compactExcerpt,
+  getNotesMaxTokensCacheKey,
   getNotesMaxTokens,
   normalizeMaxTokens,
   normalizeTemperature,
@@ -98,7 +99,7 @@ export class BookAnalysisSourceCacheService {
         provider: input.provider,
         model: input.model,
         temperature: cacheIdentity.temperature,
-        maxTokens: cacheIdentity.notesMaxTokens,
+        maxTokens: cacheIdentity.requestMaxTokens,
         segment,
       });
 
@@ -151,6 +152,8 @@ export class BookAnalysisSourceCacheService {
     temperature: number | undefined,
     sectionMaxTokens: number | undefined,
   ) {
+    const normalizedSectionMaxTokens = normalizeMaxTokens(sectionMaxTokens);
+    const requestMaxTokens = getNotesMaxTokens(normalizedSectionMaxTokens);
     const resolvedModel = requestedModel?.trim()
       || (isBuiltInProvider(provider) ? PROVIDERS[provider].defaultModel : "");
     if (!resolvedModel) {
@@ -160,7 +163,8 @@ export class BookAnalysisSourceCacheService {
       provider,
       model: resolvedModel,
       temperature: normalizeTemperature(temperature),
-      notesMaxTokens: getNotesMaxTokens(normalizeMaxTokens(sectionMaxTokens)),
+      notesMaxTokens: getNotesMaxTokensCacheKey(normalizedSectionMaxTokens),
+      requestMaxTokens,
       segmentVersion: getBookAnalysisCacheSegmentVersion(),
     };
   }
@@ -180,7 +184,7 @@ export class BookAnalysisSourceCacheService {
     provider: LLMProvider;
     model?: string;
     temperature: number;
-    maxTokens: number;
+    maxTokens?: number;
     segment: { label: string; content: string };
   }): Promise<SourceNote> {
     try {
