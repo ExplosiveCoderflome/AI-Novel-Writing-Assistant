@@ -1,0 +1,368 @@
+import type {
+  AuditReport,
+  Chapter,
+  ReplanRecommendation,
+  ReplanResult,
+  StoryPlan,
+  StoryStateSnapshot,
+} from "@ai-novel/shared/types/novel";
+import { Link } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import MarkdownViewer from "@/components/common/MarkdownViewer";
+import StreamOutput from "@/components/common/StreamOutput";
+import { ChapterRuntimeAuditCard, ChapterRuntimeContextCard } from "./ChapterRuntimePanels";
+import { hasText, type AssetTabKey, MetricBadge } from "./chapterExecution.shared";
+
+interface ChapterExecutionResultPanelProps {
+  novelId: string;
+  selectedChapter: Chapter | undefined;
+  assetTab: AssetTabKey;
+  onAssetTabChange: (tab: AssetTabKey) => void;
+  chapterPlan?: StoryPlan | null;
+  latestStateSnapshot?: StoryStateSnapshot | null;
+  chapterAuditReports: AuditReport[];
+  replanRecommendation?: ReplanRecommendation | null;
+  onReplanChapter: () => void;
+  isReplanningChapter: boolean;
+  lastReplanResult?: ReplanResult | null;
+  chapterQualityReport?: {
+    coherence: number;
+    repetition: number;
+    pacing: number;
+    voice: number;
+    engagement: number;
+    overall: number;
+    issues?: string | null;
+  };
+  reviewResult: {
+    issues?: Array<{ category: string; fixSuggestion: string }>;
+  } | null;
+  openAuditIssues: Array<{ id: string; auditType: string; fixSuggestion: string }>;
+  streamContent: string;
+  isStreaming: boolean;
+  streamingChapterId?: string | null;
+  streamingChapterLabel?: string | null;
+  onAbortStream: () => void;
+  repairStreamContent: string;
+  isRepairStreaming: boolean;
+  repairStreamingChapterId?: string | null;
+  repairStreamingChapterLabel?: string | null;
+  onAbortRepair: () => void;
+}
+
+function PanelHintCard(props: { title: string; content: string }) {
+  return (
+    <div className="rounded-2xl border border-border/70 bg-background/90 p-4">
+      <div className="text-xs text-muted-foreground">{props.title}</div>
+      <div className="mt-2 text-sm leading-7 text-foreground">{props.content}</div>
+    </div>
+  );
+}
+
+function WorkspaceNotice(props: { title: string; description: string }) {
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50/90 p-4 text-sm text-amber-900">
+      <div className="font-medium">{props.title}</div>
+      <div className="mt-1 leading-6 text-amber-800">{props.description}</div>
+    </div>
+  );
+}
+
+export default function ChapterExecutionResultPanel(props: ChapterExecutionResultPanelProps) {
+  const {
+    novelId,
+    selectedChapter,
+    assetTab,
+    onAssetTabChange,
+    chapterPlan,
+    latestStateSnapshot,
+    chapterAuditReports,
+    replanRecommendation,
+    onReplanChapter,
+    isReplanningChapter,
+    lastReplanResult,
+    chapterQualityReport,
+    reviewResult,
+    openAuditIssues,
+    streamContent,
+    isStreaming,
+    streamingChapterId,
+    streamingChapterLabel,
+    onAbortStream,
+    repairStreamContent,
+    isRepairStreaming,
+    repairStreamingChapterId,
+    repairStreamingChapterLabel,
+    onAbortRepair,
+  } = props;
+
+  if (!selectedChapter) {
+    return (
+      <div className="rounded-xl border border-dashed p-8 text-sm leading-7 text-muted-foreground">
+        先从左侧选中一个章节，这里会变成当前章节的主写作区，集中展示正文、任务单、质量反馈和修复记录。
+      </div>
+    );
+  }
+
+  const chapterLabel = `第${selectedChapter.order}章`;
+  const chapterTitle = selectedChapter.title || "未命名章节";
+  const chapterObjective = chapterPlan?.objective ?? selectedChapter.expectation ?? "这一章还没有明确目标，建议先补章节计划。";
+  const savedChapterContent = selectedChapter.content?.trim() ?? "";
+  const hasSavedChapterContent = hasText(savedChapterContent);
+
+  const isSelectedChapterStreaming = isStreaming && streamingChapterId === selectedChapter.id;
+  const visibleLiveWritingOutput = streamingChapterId === selectedChapter.id ? streamContent : "";
+  const hasVisibleLiveWritingOutput = hasText(visibleLiveWritingOutput);
+  const useLiveWritingPanel = isSelectedChapterStreaming || (!hasSavedChapterContent && hasVisibleLiveWritingOutput);
+  const contentPanelTitle = useLiveWritingPanel ? "实时写作稿" : "已保存正文";
+  const contentPanelContent = useLiveWritingPanel
+    ? visibleLiveWritingOutput
+    : hasSavedChapterContent
+      ? savedChapterContent
+      : hasVisibleLiveWritingOutput
+        ? visibleLiveWritingOutput
+        : "";
+  const contentPanelWordCount = contentPanelContent.trim().length;
+
+  const isSelectedChapterRepairStreaming = isRepairStreaming && repairStreamingChapterId === selectedChapter.id;
+  const visibleRepairStreamContent = repairStreamingChapterId === selectedChapter.id ? repairStreamContent : "";
+  const hasVisibleRepairOutput = hasText(visibleRepairStreamContent);
+
+  const writingInOtherChapter = isStreaming && streamingChapterId && streamingChapterId !== selectedChapter.id;
+  const repairingOtherChapter = isRepairStreaming && repairStreamingChapterId && repairStreamingChapterId !== selectedChapter.id;
+
+  const targetWordCount = selectedChapter.targetWordCount ?? null;
+  const qualityOverall = chapterQualityReport?.overall ?? selectedChapter.qualityScore ?? null;
+
+  return (
+    <div className="space-y-4">
+      <Card className="overflow-hidden border-border/70">
+        <CardHeader className="gap-4 border-b bg-gradient-to-b from-muted/30 via-background to-background pb-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline">{chapterLabel}</Badge>
+                <Badge variant={isSelectedChapterStreaming ? "default" : "secondary"}>
+                  {isSelectedChapterStreaming ? "正在实时写作" : "章节结果工作台"}
+                </Badge>
+                {typeof qualityOverall === "number" ? (
+                  <Badge variant={qualityOverall >= 85 ? "default" : qualityOverall >= 70 ? "outline" : "secondary"}>
+                    质量 {qualityOverall}
+                  </Badge>
+                ) : null}
+                {targetWordCount ? <Badge variant="outline">目标 {targetWordCount} 字</Badge> : null}
+              </div>
+              <div>
+                <CardTitle className="text-lg">{chapterTitle}</CardTitle>
+                <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">
+                  这里是当前章节的主写作区，正文会稳定占据中心位置，任务单、质量报告和修复记录退到次级标签里，避免正文被操作区挤压。
+                </p>
+              </div>
+            </div>
+            <Button asChild size="sm" variant="outline">
+              <Link to={`/novels/${novelId}/chapters/${selectedChapter.id}`}>打开章节编辑器</Link>
+            </Button>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <MetricBadge label="当前字数" value={String(contentPanelWordCount || selectedChapter.content?.length || 0)} hint="主面板正在展示的正文长度" />
+            <MetricBadge label="章节目标" value={targetWordCount ? `${targetWordCount} 字` : "未设定"} hint="用于判断当前篇幅是否足够" />
+            <MetricBadge label="待处理问题" value={String(openAuditIssues.length || reviewResult?.issues?.length || 0)} hint="未修复的问题越少，越适合进入精修" />
+            <MetricBadge label="最近更新" value={selectedChapter.updatedAt ? new Date(selectedChapter.updatedAt).toLocaleString("zh-CN") : "暂无"} hint="帮助判断这一章是否需要重新检查" />
+          </div>
+        </CardHeader>
+
+        <CardContent className="pt-5">
+          <Tabs value={assetTab} onValueChange={(value) => onAssetTabChange(value as AssetTabKey)}>
+            <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-2xl bg-muted/50 p-1.5">
+              <TabsTrigger value="content" className="rounded-xl">正文主稿</TabsTrigger>
+              <TabsTrigger value="taskSheet" className="rounded-xl">任务单</TabsTrigger>
+              <TabsTrigger value="sceneCards" className="rounded-xl">场景拆解</TabsTrigger>
+              <TabsTrigger value="quality" className="rounded-xl">质量报告</TabsTrigger>
+              <TabsTrigger value="repair" className="rounded-xl">修复记录</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="content" className="space-y-4">
+              {writingInOtherChapter ? (
+                <WorkspaceNotice
+                  title="还有其他章节正在后台写作"
+                  description={`${streamingChapterLabel ?? "另一章"} 仍在生成中。切到这一章后不会再把那一章的流式正文带过来，返回对应章节即可继续查看实时输出。`}
+                />
+              ) : null}
+
+              <div className="rounded-[28px] border border-border/80 bg-gradient-to-br from-slate-50 via-background to-amber-50/40 p-5 shadow-sm">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={isSelectedChapterStreaming ? "default" : "secondary"}>
+                      {isSelectedChapterStreaming ? "实时写作中" : "已保存版本"}
+                    </Badge>
+                    <Badge variant="outline">{chapterLabel}</Badge>
+                    <Badge variant="outline">当前展示 {contentPanelWordCount} 字</Badge>
+                  </div>
+                  <div>
+                    <div className="text-xl font-semibold text-foreground">{chapterTitle}</div>
+                    <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">{chapterObjective}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-[28px] border border-border/80 bg-background shadow-sm">
+                <div className="flex flex-col gap-3 border-b bg-muted/20 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-foreground">{contentPanelTitle}</div>
+                    <div className="mt-1 text-xs leading-6 text-muted-foreground">
+                      {isSelectedChapterStreaming
+                        ? "AI 正在持续输出这一章的正文，先在这里观察节奏和手感，不满意时可以随时停止。"
+                        : "这里默认展示当前章节最新的可读正文，避免主写作区被次级资产挤占。"}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-muted-foreground">字数 {contentPanelWordCount}</span>
+                    {isSelectedChapterStreaming ? (
+                      <Button size="sm" variant="secondary" onClick={onAbortStream}>
+                        停止生成
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="max-h-[760px] overflow-y-auto px-6 py-6 lg:px-10">
+                  {contentPanelContent ? (
+                    <article className="mx-auto max-w-4xl text-[15px] leading-8 text-foreground">
+                      <MarkdownViewer content={contentPanelContent} />
+                    </article>
+                  ) : (
+                    <div className="mx-auto max-w-3xl rounded-3xl border border-dashed bg-muted/15 p-8 text-sm leading-7 text-muted-foreground">
+                      当前章节还没有正文。建议先补章节计划或任务单，然后从右侧直接执行“写本章”。
+                    </div>
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="taskSheet" className="space-y-4">
+              <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+                <div className="rounded-2xl border bg-muted/20 p-5">
+                  <div className="text-xs text-muted-foreground">本章任务单</div>
+                  <div className="mt-3 whitespace-pre-wrap text-sm leading-7">
+                    {selectedChapter.taskSheet?.trim() || "暂无任务单。你可以先让 AI 生成任务单，再回来继续写这章。"}
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <PanelHintCard title="章节目标" content={chapterObjective} />
+                  <PanelHintCard title="最新状态" content={latestStateSnapshot?.summary || "暂无状态摘要。"} />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="sceneCards" className="space-y-4">
+              <div className="rounded-2xl border bg-muted/20 p-5">
+                <div className="text-xs text-muted-foreground">场景拆解</div>
+                <div className="mt-3 whitespace-pre-wrap text-sm leading-7">
+                  {selectedChapter.sceneCards?.trim() || "暂无场景拆解。"}
+                </div>
+              </div>
+              <PanelHintCard title="本章目标" content={chapterObjective} />
+            </TabsContent>
+
+            <TabsContent value="quality" className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <MetricBadge label="总体" value={String(chapterQualityReport?.overall ?? selectedChapter.qualityScore ?? "-")} />
+                <MetricBadge label="连贯性" value={String(chapterQualityReport?.coherence ?? "-")} />
+                <MetricBadge label="重复度" value={String(chapterQualityReport?.repetition ?? "-")} />
+                <MetricBadge label="节奏" value={String(chapterQualityReport?.pacing ?? selectedChapter.pacingScore ?? "-")} />
+                <MetricBadge label="文风" value={String(chapterQualityReport?.voice ?? "-")} />
+                <MetricBadge label="吸引力" value={String(chapterQualityReport?.engagement ?? "-")} />
+              </div>
+
+              <div className="rounded-2xl border p-5 text-sm">
+                <div className="font-semibold text-foreground">最近审校问题</div>
+                {reviewResult?.issues?.length ? (
+                  <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+                    {reviewResult.issues.slice(0, 5).map((item, index) => (
+                      <div key={`${item.category}-${index}`} className="rounded-xl border p-3">
+                        <div className="font-medium text-foreground">{item.category}</div>
+                        <div className="mt-1 leading-6">{item.fixSuggestion}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-3 text-xs leading-6 text-muted-foreground">当前没有最近审校问题。</div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border p-5 text-sm">
+                <div className="font-semibold text-foreground">结构化审计问题</div>
+                {openAuditIssues.length > 0 ? (
+                  <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+                    {openAuditIssues.slice(0, 6).map((item) => (
+                      <div key={item.id} className="rounded-xl border p-3">
+                        <div className="font-medium text-foreground">{item.auditType}</div>
+                        <div className="mt-1 leading-6">{item.fixSuggestion}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-3 text-xs leading-6 text-muted-foreground">当前没有结构化审计问题。</div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="repair" className="space-y-4">
+              {repairingOtherChapter ? (
+                <WorkspaceNotice
+                  title="还有其他章节正在后台修复"
+                  description={`${repairStreamingChapterLabel ?? "另一章"} 仍在修复中。当前章节不会再显示那一章的修复流，返回对应章节即可继续查看。`}
+                />
+              ) : null}
+
+              {(isSelectedChapterRepairStreaming || hasVisibleRepairOutput) ? (
+                <StreamOutput
+                  title="问题修复输出"
+                  emptyText="等待修复输出..."
+                  content={visibleRepairStreamContent}
+                  isStreaming={isSelectedChapterRepairStreaming}
+                  onAbort={onAbortRepair}
+                />
+              ) : null}
+
+              <div className="rounded-2xl border bg-muted/20 p-5">
+                <div className="text-xs text-muted-foreground">修复记录</div>
+                <div className="mt-3 max-h-[420px] overflow-y-auto whitespace-pre-wrap text-sm leading-7">
+                  {selectedChapter.repairHistory?.trim() || "暂无修复记录。"}
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      <Tabs defaultValue="context">
+        <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-2xl bg-muted/50 p-1.5">
+          <TabsTrigger value="context" className="rounded-xl">本章目标与上下文</TabsTrigger>
+          <TabsTrigger value="audit" className="rounded-xl">当前问题与修复建议</TabsTrigger>
+        </TabsList>
+        <TabsContent value="context" className="pt-2">
+          <ChapterRuntimeContextCard
+            runtimePackage={null}
+            chapterPlan={chapterPlan}
+            stateSnapshot={latestStateSnapshot}
+          />
+        </TabsContent>
+        <TabsContent value="audit" className="pt-2">
+          <ChapterRuntimeAuditCard
+            runtimePackage={null}
+            auditReports={chapterAuditReports}
+            replanRecommendation={replanRecommendation}
+            onReplan={onReplanChapter}
+            isReplanning={isReplanningChapter}
+            lastReplanResult={lastReplanResult}
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

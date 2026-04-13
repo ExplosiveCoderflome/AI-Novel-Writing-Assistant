@@ -1,0 +1,64 @@
+{
+  "appid": "ai-novel-writing-assistant",
+  "name": "AI 小说写作助手",
+  "version": "1.0.0",
+  "description": "面向长篇小说创作的 AI Native 开源系统，用 Agent、世界观、写法引擎、RAG 和整本生产工作流，帮助新手从一句灵感走到完整小说。",
+  "author": "AI Novel Team",
+  "homepage": "https://github.com/YuFaVision/AI-Novel-Writing-Assistant",
+  "icon": "icon.png",
+  "exec": {
+    "start": "sh start.sh",
+    "stop": "pkill -f pnpm"
+  },
+  "dependencies": {
+    "nodejs": "18.0.0"
+  },
+  "ports": [
+    {
+      "containerPort": 3000,
+      "hostPort": 3000,
+      "protocol": "tcp"
+    },
+    {
+      "containerPort": 5173,
+      "hostPort": 5173,
+      "protocol": "tcp"
+    }
+  ],
+  "volumes": [
+    {
+      "name": "data",
+      "path": "/app/server/data",
+      "type": "persistent"
+    },
+    {
+      "name": "database",
+      "path": "/app/server/dev.db",
+      "type": "persistent"
+    }
+  ],
+  "environment": [
+    {
+      "name": "PORT",
+      "value": "3000"
+    },
+    {
+      "name": "HOST",
+      "value": "0.0.0.0"
+    },
+    {
+      "name": "ALLOW_LAN",
+      "value": "true"
+    },
+    {
+      "name": "CORS_ORIGIN",
+      "value": "http://localhost:5173,http://127.0.0.1:5173,https://aibook.kklin.cc.cd"
+    },
+    {
+      "name": "DATABASE_URL",
+      "value": "file:./dev.db"
+    }
+  ],
+  "categories": ["productivity", "ai", "writing"],
+  "tags": ["ai", "novel", "writing", "productivity"]
+}

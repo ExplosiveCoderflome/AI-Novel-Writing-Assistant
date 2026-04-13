@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  ai-novel-writing-assistant:
+    image: node:18
+    container_name: ai-novel-writing-assistant
+    ports:
+      - "3000:3000"
+      - "5173:5173"
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+      - ALLOW_LAN=true
+      - CORS_ORIGIN=http://localhost:5173,http://127.0.0.1:5173,https://aibook.kklin.cc.cd
+      - DATABASE_URL=file:./dev.db
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - SILICONFLOW_API_KEY=${SILICONFLOW_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - XAI_API_KEY=${XAI_API_KEY}
+      - KIMI_API_KEY=${KIMI_API_KEY}
+      - GLM_API_KEY=${GLM_API_KEY}
+      - QWEN_API_KEY=${QWEN_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - LONGCAT_API_KEY=${LONGCAT_API_KEY}
+    volumes:
+      - ./app:/app
+      - ./data:/app/server/data
+      - ./dev.db:/app/server/dev.db
+    restart: unless-stopped
+    command: sh -c "cd /app && npm install -g pnpm && pnpm install && pnpm build && pnpm dev"
+
+volumes:
+  app:
+  data:
+  devdb:

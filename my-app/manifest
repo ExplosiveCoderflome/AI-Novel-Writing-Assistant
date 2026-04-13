@@ -1,0 +1,10 @@
+appname               = my-app
+version               = 1.0.0
+display_name          = display-name
+desc                  = app-description
+arch                  = x86_64
+source                = thirdparty
+maintainer            = your-name
+distributor           = your-name
+desktop_uidir         = ui
+desktop_applaunchname = my-app.Application

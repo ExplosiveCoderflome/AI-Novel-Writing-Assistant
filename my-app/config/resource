@@ -1,0 +1,28 @@
+{
+    "data-share":
+    {
+        "shares":
+        [
+            {
+                "name": "my-app",
+                "permission":
+                {
+                    "rw":
+                    [
+                        "my-app"
+                    ]
+                }
+            },
+            {
+                "name": "my-app/data",
+                "permission":
+                {
+                    "rw":
+                    [
+                        "my-app"
+                    ]
+                }
+            }
+        ]
+    }
+}

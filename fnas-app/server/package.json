@@ -1,0 +1,56 @@
+{
+  "name": "@ai-novel/server",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "prisma": {
+    "seed": "ts-node-dev --transpile-only src/db/seed.ts"
+  },
+  "scripts": {
+    "dev": "pnpm prisma:generate && pnpm prisma:push && ts-node-dev --respawn --transpile-only src/app.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/app.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "pnpm --filter @ai-novel/shared build && pnpm run build && node --test tests/**/*.test.js",
+    "test:planner": "pnpm --filter @ai-novel/shared build && pnpm run build && node --test tests/planner.test.js",
+    "test:tools": "pnpm --filter @ai-novel/shared build && pnpm run build && node --test tests/tools.test.js",
+    "test:runtime": "pnpm --filter @ai-novel/shared build && pnpm run build && node --test tests/runtime.test.js",
+    "test:routes": "pnpm --filter @ai-novel/shared build && pnpm run build && node --test tests/routes.test.js",
+    "test:book-analysis": "pnpm --filter @ai-novel/shared build && pnpm run build && node --test tests/bookAnalysis.test.js",
+    "prisma": "prisma",
+    "prisma:generate": "prisma generate --schema src/prisma/schema.prisma",
+    "prisma:push": "prisma db push --schema src/prisma/schema.prisma",
+    "prisma:deploy": "prisma migrate deploy --schema src/prisma/schema.prisma",
+    "prisma:migrate": "prisma migrate dev --name init --schema src/prisma/schema.prisma",
+    "db:migrate": "pnpm prisma:migrate",
+    "db:seed": "prisma db seed --schema src/prisma/schema.prisma",
+    "db:studio": "prisma studio --schema src/prisma/schema.prisma",
+    "db:restore": "node scripts/restore-dev-data.cjs"
+  },
+  "dependencies": {
+    "@ai-novel/shared": "workspace:*",
+    "@langchain/community": "^1.1.21",
+    "@langchain/core": "^1.1.29",
+    "@langchain/langgraph": "^1.2.0",
+    "@langchain/openai": "^1.2.11",
+    "@prisma/adapter-better-sqlite3": "^7.4.2",
+    "@prisma/client": "^7.4.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "helmet": "^8.1.0",
+    "langchain": "^1.2.28",
+    "morgan": "^1.10.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^25.3.3",
+    "prisma": "^7.4.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.3"
+  }
+}

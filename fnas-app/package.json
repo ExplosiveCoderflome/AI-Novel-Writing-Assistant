@@ -1,0 +1,41 @@
+{
+  "name": "ai-novel-writing-assistant-v2",
+  "private": true,
+  "license": "MIT",
+  "packageManager": "pnpm@9.7.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.7.0"
+  },
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"pnpm dev:shared\" \"pnpm dev:server\" \"pnpm dev:client:wait\"",
+    "dev:shared": "pnpm --filter @ai-novel/shared dev",
+    "dev:server": "pnpm --filter @ai-novel/server dev",
+    "dev:client": "pnpm --filter @ai-novel/client dev",
+    "dev:client:wait": "node scripts/wait-for-port.cjs --port 3000 && pnpm dev:client",
+    "db:migrate": "pnpm --filter @ai-novel/server db:migrate",
+    "db:restore": "pnpm --filter @ai-novel/server db:restore",
+    "db:seed": "pnpm --filter @ai-novel/server db:seed",
+    "db:studio": "pnpm --filter @ai-novel/server db:studio",
+    "build": "pnpm --filter @ai-novel/shared build && pnpm --filter @ai-novel/server build && pnpm --filter @ai-novel/client build",
+    "typecheck": "pnpm --filter @ai-novel/shared build && pnpm --filter @ai-novel/server typecheck && pnpm --filter @ai-novel/client typecheck",
+    "lint": "pnpm --filter @ai-novel/shared lint && pnpm --filter @ai-novel/server lint && pnpm --filter @ai-novel/client lint"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "better-sqlite3",
+      "esbuild",
+      "prisma"
+    ]
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "typescript": "^5.9.3"
+  }
+}
