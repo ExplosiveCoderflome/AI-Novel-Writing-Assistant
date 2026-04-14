@@ -8,6 +8,10 @@ import type {
   DirectorAutoExecutionPlan,
   DirectorAutoExecutionState,
 } from "@ai-novel/shared/types/novelDirector";
+import {
+  buildPipelineBackgroundActivityLabels,
+  parsePipelinePayload,
+} from "../pipelineJobState";
 export interface DirectorAutoExecutionRange {
   startOrder: number;
   endOrder: number;
@@ -24,6 +28,8 @@ export interface DirectorAutoExecutionChapterRef {
 export function normalizeDirectorAutoExecutionPlan(
   plan: DirectorAutoExecutionPlan | null | undefined,
 ): DirectorAutoExecutionPlan {
+  const autoReview = plan?.autoReview ?? true;
+  const autoRepair = autoReview ? (plan?.autoRepair ?? true) : false;
   if (plan?.mode === "chapter_range") {
     const startOrder = Math.max(1, Math.round(plan.startOrder ?? 1));
     const endOrder = Math.max(startOrder, Math.round(plan.endOrder ?? startOrder));
@@ -31,16 +37,22 @@ export function normalizeDirectorAutoExecutionPlan(
       mode: "chapter_range",
       startOrder,
       endOrder,
+      autoReview,
+      autoRepair,
     };
   }
   if (plan?.mode === "volume") {
     return {
       mode: "volume",
       volumeOrder: Math.max(1, Math.round(plan.volumeOrder ?? 1)),
+      autoReview,
+      autoRepair,
     };
   }
   return {
     mode: "front10",
+    autoReview,
+    autoRepair,
   };
 }
 
@@ -134,6 +146,8 @@ export function buildDirectorAutoExecutionState(input: {
   return {
     enabled: true,
     mode: plan.mode,
+    autoReview: plan.autoReview ?? true,
+    autoRepair: plan.autoReview === false ? false : (plan.autoRepair ?? true),
     scopeLabel: input.scopeLabel?.trim() || buildDirectorAutoExecutionScopeLabel(plan, totalChapterCount, input.volumeTitle),
     volumeOrder: plan.mode === "volume" ? plan.volumeOrder : undefined,
     volumeTitle: input.volumeTitle ?? null,
@@ -179,8 +193,18 @@ export function buildDirectorAutoExecutionCompletedLabel(scopeLabel: string): st
 export function buildDirectorAutoExecutionCompletedSummary(input: {
   title: string;
   scopeLabel: string;
+  autoReview?: boolean;
+  autoRepair?: boolean;
 }): string {
-  return `《${input.title.trim() || "当前项目"}》已自动完成${input.scopeLabel}的章节执行与质量修复。`;
+  const completedScope = input.scopeLabel;
+  const title = input.title.trim() || "当前项目";
+  if (input.autoReview === false) {
+    return `《${title}》已自动完成${completedScope}的章节执行，正文生成后未额外执行自动审核或修复。`;
+  }
+  if (input.autoRepair === false) {
+    return `《${title}》已自动完成${completedScope}的章节执行与自动审核，未开启自动修复。`;
+  }
+  return `《${title}》已自动完成${completedScope}的章节执行、自动审核与修复。`;
 }
 
 export function buildDirectorAutoExecutionPipelineOptions(input: {
@@ -191,14 +215,17 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
   startOrder: number;
   endOrder: number;
   runMode?: PipelineRunMode;
+  autoReview?: boolean;
+  autoRepair?: boolean;
 }) {
+  const autoReview = input.autoReview ?? true;
   return {
     startOrder: input.startOrder,
     endOrder: input.endOrder,
     maxRetries: 2,
     runMode: input.runMode ?? "fast",
-    autoReview: true,
-    autoRepair: true,
+    autoReview,
+    autoRepair: autoReview ? (input.autoRepair ?? true) : false,
     skipCompleted: true,
     qualityThreshold: 75,
     repairMode: "light_repair" as const,
@@ -214,6 +241,7 @@ export function resolveDirectorAutoExecutionWorkflowState(
     progress: number;
     currentStage?: string | null;
     currentItemLabel?: string | null;
+    payload?: string | null;
   },
   range: DirectorAutoExecutionRange,
   state?: DirectorAutoExecutionState | null,
@@ -226,12 +254,16 @@ export function resolveDirectorAutoExecutionWorkflowState(
   const chapterLabel = job.currentItemLabel?.trim()
     ? ` · ${job.currentItemLabel.trim()}`
     : "";
+  const backgroundLabels = buildPipelineBackgroundActivityLabels(parsePipelinePayload(job.payload).backgroundSync);
+  const activityLabel = backgroundLabels.length > 0
+    ? ` · ${backgroundLabels.join(" / ")}`
+    : "";
   const scopeLabel = buildDirectorAutoExecutionScopeLabelFromState(state, range.totalChapterCount);
   if (job.currentStage === "reviewing") {
     return {
       stage: "quality_repair",
       itemKey: "quality_repair",
-      itemLabel: `正在自动审校${scopeLabel}${chapterLabel}`,
+      itemLabel: `正在自动审校${scopeLabel}${chapterLabel}${activityLabel}`,
       progress: Number((0.965 + ((job.progress ?? 0) * 0.02)).toFixed(4)),
     };
   }
@@ -239,14 +271,14 @@ export function resolveDirectorAutoExecutionWorkflowState(
     return {
       stage: "quality_repair",
       itemKey: "quality_repair",
-      itemLabel: `正在自动修复${scopeLabel}${chapterLabel}`,
+      itemLabel: `正在自动修复${scopeLabel}${chapterLabel}${activityLabel}`,
       progress: Number((0.975 + ((job.progress ?? 0) * 0.015)).toFixed(4)),
     };
   }
   return {
     stage: "chapter_execution",
     itemKey: "chapter_execution",
-    itemLabel: `正在自动执行${scopeLabel}${chapterLabel}`,
+    itemLabel: `正在自动执行${scopeLabel}${chapterLabel}${activityLabel}`,
     progress: Number((0.93 + ((job.progress ?? 0) * 0.035)).toFixed(4)),
   };
 }

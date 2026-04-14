@@ -11,9 +11,16 @@ import { getArchivedTaskIdSet, isTaskArchived } from "../../task/taskArchive";
 import type { DirectorLLMOptions } from "@ai-novel/shared/types/novelDirector";
 import {
   applyDirectorLlmOverride,
+  normalizeDirectorRunMode,
   type DirectorWorkflowSeedPayload,
 } from "../director/novelDirectorHelpers";
 import {
+  buildChapterDetailBundleLabel,
+  buildChapterDetailBundleProgress,
+} from "../director/novelDirectorProgress";
+import {
+  buildDirectorAutoExecutionScopeLabel,
+  normalizeDirectorAutoExecutionPlan,
   resolveDirectorAutoExecutionRangeFromState,
   resolveDirectorAutoExecutionWorkflowState,
 } from "../director/novelDirectorAutoExecution";
@@ -202,6 +209,48 @@ function stageLabel(stage: NovelWorkflowStage): string {
   return NOVEL_WORKFLOW_STAGE_LABELS[stage] ?? stage;
 }
 
+function isTaskCancellationRequested(row: {
+  status?: string | null;
+  cancelRequestedAt?: Date | null;
+} | null | undefined): boolean {
+  return Boolean(row && (row.status === "cancelled" || row.cancelRequestedAt));
+}
+
+function isStructuredOutlineItemKey(itemKey: string | null | undefined): boolean {
+  return itemKey === "beat_sheet"
+    || itemKey === "chapter_list"
+    || itemKey === "chapter_sync"
+    || itemKey === "chapter_detail_bundle";
+}
+
+function hasVolumeChapterBoundaryDraft(chapter: {
+  conflictLevel?: number | null;
+  revealLevel?: number | null;
+  targetWordCount?: number | null;
+  mustAvoid?: string | null;
+  payoffRefsJson?: string | null;
+}): boolean {
+  return typeof chapter.conflictLevel === "number"
+    || typeof chapter.revealLevel === "number"
+    || typeof chapter.targetWordCount === "number"
+    || Boolean(chapter.mustAvoid?.trim())
+    || Boolean(chapter.payoffRefsJson?.trim());
+}
+
+function hasCompleteVolumeChapterDetail(chapter: {
+  purpose?: string | null;
+  conflictLevel?: number | null;
+  revealLevel?: number | null;
+  targetWordCount?: number | null;
+  mustAvoid?: string | null;
+  payoffRefsJson?: string | null;
+  taskSheet?: string | null;
+}): boolean {
+  return Boolean(chapter.purpose?.trim())
+    && hasVolumeChapterBoundaryDraft(chapter)
+    && Boolean(chapter.taskSheet?.trim());
+}
+
 export class NovelWorkflowService {
   private async getVisibleRowsByNovelIdRaw(novelId: string, lane?: NovelWorkflowLane) {
     const rows = await prisma.novelWorkflowTask.findMany({
@@ -284,6 +333,82 @@ export class NovelWorkflowService {
     return this.getVisibleRowByIdRaw(taskId);
   }
 
+  private async resolveStructuredOutlineTaskProgress(input: {
+    novelId: string;
+    seedPayloadJson?: string | null;
+  }): Promise<{
+    totalChapterCount: number;
+    completedChapterCount: number;
+    nextChapterIndex: number | null;
+    scopeLabel: string;
+  } | null> {
+    const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(input.seedPayloadJson);
+    const runMode = normalizeDirectorRunMode(
+      seedPayload?.directorInput?.runMode
+      ?? seedPayload?.runMode,
+    );
+    const plan = normalizeDirectorAutoExecutionPlan(
+      runMode === "auto_to_execution"
+        ? (seedPayload?.autoExecutionPlan ?? seedPayload?.directorInput?.autoExecutionPlan)
+        : undefined,
+    );
+
+    const volumes = await prisma.volumePlan.findMany({
+      where: { novelId: input.novelId },
+      orderBy: { sortOrder: "asc" },
+      include: {
+        chapters: {
+          orderBy: { chapterOrder: "asc" },
+          select: {
+            id: true,
+            chapterOrder: true,
+            purpose: true,
+            conflictLevel: true,
+            revealLevel: true,
+            targetWordCount: true,
+            mustAvoid: true,
+            taskSheet: true,
+            payoffRefsJson: true,
+          },
+        },
+      },
+    });
+
+    const prepared = volumes.flatMap((volume) => volume.chapters.map((chapter) => ({
+      id: chapter.id,
+      volumeOrder: volume.sortOrder,
+      volumeTitle: volume.title,
+      chapterOrder: chapter.chapterOrder,
+      isComplete: hasCompleteVolumeChapterDetail(chapter),
+    })));
+
+    const selected = plan.mode === "volume"
+      ? prepared.filter((chapter) => chapter.volumeOrder === plan.volumeOrder)
+      : plan.mode === "chapter_range"
+        ? prepared.filter((chapter) => (
+          chapter.chapterOrder >= (plan.startOrder ?? 1)
+          && chapter.chapterOrder <= (plan.endOrder ?? plan.startOrder ?? 1)
+        ))
+        : prepared.slice(0, 10);
+
+    if (selected.length === 0) {
+      return null;
+    }
+
+    const completedChapterCount = selected.filter((chapter) => chapter.isComplete).length;
+    const nextIncomplete = selected.findIndex((chapter) => !chapter.isComplete);
+    return {
+      totalChapterCount: selected.length,
+      completedChapterCount,
+      nextChapterIndex: nextIncomplete >= 0 ? nextIncomplete : null,
+      scopeLabel: buildDirectorAutoExecutionScopeLabel(
+        plan,
+        selected.length,
+        plan.mode === "volume" ? selected[0]?.volumeTitle ?? null : null,
+      ),
+    };
+  }
+
   async healBrokenAutoDirectorCandidateSeedPayload(
     taskId: string,
     row = null as {
@@ -349,29 +474,37 @@ export class NovelWorkflowService {
       checkpointType?: string | null;
       checkpointSummary?: string | null;
       resumeTargetJson?: string | null;
-      seedPayloadJson?: string | null;
-      heartbeatAt?: Date | null;
-      finishedAt?: Date | null;
-      milestonesJson?: string | null;
-      lastError?: string | null;
-    } | null,
-  ): Promise<boolean> {
-    const brokenSeedHealed = await this.healBrokenAutoDirectorCandidateSeedPayload(taskId, row);
-    const normalizedRow = brokenSeedHealed ? await this.getVisibleRowByIdRaw(taskId) : row;
-    const queuedHealed = await this.healStaleAutoDirectorQueuedProgress(taskId, normalizedRow);
-    const historicalHealed = await this.healHistoricalAutoDirectorRecoveryFailure(taskId, normalizedRow);
-    const front10Healed = await this.healHistoricalAutoDirectorFront10RecoveryFailure(taskId, normalizedRow);
-    const titleDiversityHealed = await this.healChapterTitleDiversitySoftFailure(taskId, normalizedRow);
-    const checkpointRow = (brokenSeedHealed || queuedHealed || historicalHealed || front10Healed || titleDiversityHealed)
-      ? await this.getVisibleRowByIdRaw(taskId)
-      : (normalizedRow ?? await this.getVisibleRowByIdRaw(taskId));
+        seedPayloadJson?: string | null;
+        heartbeatAt?: Date | null;
+        finishedAt?: Date | null;
+        milestonesJson?: string | null;
+        lastError?: string | null;
+        cancelRequestedAt?: Date | null;
+      } | null,
+    ): Promise<boolean> {
+      if (isTaskCancellationRequested(row)) {
+        return false;
+      }
+      const brokenSeedHealed = await this.healBrokenAutoDirectorCandidateSeedPayload(taskId, row);
+      const normalizedRow = brokenSeedHealed ? await this.getVisibleRowByIdRaw(taskId) : row;
+      if (isTaskCancellationRequested(normalizedRow)) {
+        return false;
+      }
+      const queuedHealed = await this.healStaleAutoDirectorQueuedProgress(taskId, normalizedRow);
+      const historicalHealed = await this.healHistoricalAutoDirectorRecoveryFailure(taskId, normalizedRow);
+      const front10Healed = await this.healHistoricalAutoDirectorFront10RecoveryFailure(taskId, normalizedRow);
+      const titleDiversityHealed = await this.healChapterTitleDiversitySoftFailure(taskId, normalizedRow);
+      const structuredOutlineHealed = await this.healStaleAutoDirectorStructuredOutlineProgress(taskId, normalizedRow);
+      const checkpointRow = (brokenSeedHealed || queuedHealed || historicalHealed || front10Healed || titleDiversityHealed || structuredOutlineHealed)
+        ? await this.getVisibleRowByIdRaw(taskId)
+        : (normalizedRow ?? await this.getVisibleRowByIdRaw(taskId));
     const checkpointHealed = isChapterBatchCheckpointRow(checkpointRow)
       ? await syncAutoDirectorChapterBatchCheckpoint({
         taskId,
         row: checkpointRow,
       })
       : false;
-    return brokenSeedHealed || queuedHealed || historicalHealed || front10Healed || titleDiversityHealed || checkpointHealed;
+    return brokenSeedHealed || queuedHealed || historicalHealed || front10Healed || titleDiversityHealed || structuredOutlineHealed || checkpointHealed;
   }
 
   async healStaleAutoDirectorQueuedProgress(
@@ -384,10 +517,11 @@ export class NovelWorkflowService {
       checkpointSummary?: string | null;
       heartbeatAt?: Date | null;
       lastError?: string | null;
+      cancelRequestedAt?: Date | null;
     } | null,
   ): Promise<boolean> {
     const candidate = row ?? await this.getVisibleRowByIdRaw(taskId);
-    if (!candidate || candidate.lane !== "auto_director") {
+    if (!candidate || candidate.lane !== "auto_director" || isTaskCancellationRequested(candidate)) {
       return false;
     }
 
@@ -480,6 +614,7 @@ export class NovelWorkflowService {
         progress: true,
         currentStage: true,
         currentItemLabel: true,
+        payload: true,
       },
     });
     if (!job || (job.status !== "queued" && job.status !== "running")) {
@@ -495,6 +630,7 @@ export class NovelWorkflowService {
       progress: job.progress,
       currentStage: job.currentStage,
       currentItemLabel: job.currentItemLabel,
+      payload: job.payload,
     }, range, autoExecution);
     const nextResumeTarget = buildNovelEditResumeTarget({
       novelId: existing.novelId,
@@ -582,6 +718,77 @@ export class NovelWorkflowService {
         finishedAt: null,
         cancelRequestedAt: null,
         lastError: null,
+      },
+    });
+    return true;
+  }
+
+  async healStaleAutoDirectorStructuredOutlineProgress(
+    taskId: string,
+    row = null as {
+      novelId?: string | null;
+      lane?: string | null;
+      status?: string | null;
+      currentStage?: string | null;
+      currentItemKey?: string | null;
+      currentItemLabel?: string | null;
+      checkpointType?: string | null;
+      progress?: number | null;
+      seedPayloadJson?: string | null;
+      cancelRequestedAt?: Date | null;
+    } | null,
+  ): Promise<boolean> {
+    const candidate = row ?? await this.getVisibleRowByIdRaw(taskId);
+    if (
+      !candidate
+      || candidate.lane !== "auto_director"
+      || !candidate.novelId
+      || candidate.status !== "running"
+      || candidate.checkpointType
+      || isTaskCancellationRequested(candidate)
+      || (!isStructuredOutlineItemKey(candidate.currentItemKey) && candidate.currentStage !== stageLabel("structured_outline"))
+    ) {
+      return false;
+    }
+
+    const progressState = await this.resolveStructuredOutlineTaskProgress({
+      novelId: candidate.novelId,
+      seedPayloadJson: candidate.seedPayloadJson,
+    });
+    if (!progressState || progressState.completedChapterCount <= 0) {
+      return false;
+    }
+
+    const totalDetailSteps = progressState.totalChapterCount * 3;
+    const completedDetailSteps = progressState.completedChapterCount * 3;
+    const nextLabel = progressState.nextChapterIndex == null
+      ? `${progressState.scopeLabel}细化已完成，正在整理执行资源`
+      : buildChapterDetailBundleLabel(
+        progressState.nextChapterIndex + 1,
+        progressState.totalChapterCount,
+        "purpose",
+      );
+    const nextProgress = progressState.nextChapterIndex == null
+      ? 0.92
+      : buildChapterDetailBundleProgress(completedDetailSteps, totalDetailSteps);
+
+    if (
+      candidate.currentItemKey === "chapter_detail_bundle"
+      && candidate.currentItemLabel === nextLabel
+      && typeof candidate.progress === "number"
+      && Math.abs(candidate.progress - nextProgress) < 0.0001
+    ) {
+      return false;
+    }
+
+    await prisma.novelWorkflowTask.update({
+      where: { id: taskId },
+      data: {
+        currentStage: stageLabel("structured_outline"),
+        currentItemKey: "chapter_detail_bundle",
+        currentItemLabel: nextLabel,
+        progress: Math.max(candidate.progress ?? 0, nextProgress),
+        heartbeatAt: new Date(),
       },
     });
     return true;
@@ -841,6 +1048,9 @@ export class NovelWorkflowService {
     if (!existing) {
       throw new AppError("Workflow task not found.", 404);
     }
+    if (isTaskCancellationRequested(existing)) {
+      throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
+    }
     return prisma.novelWorkflowTask.update({
       where: { id: taskId },
       data: {
@@ -878,6 +1088,9 @@ export class NovelWorkflowService {
     const existing = await this.getVisibleRowById(taskId);
     if (!existing) {
       throw new AppError("Workflow task not found.", 404);
+    }
+    if (isTaskCancellationRequested(existing)) {
+      throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
     }
     const resumeTarget = this.buildResumeTarget({
       taskId,
@@ -1020,6 +1233,9 @@ export class NovelWorkflowService {
     if (!existing) {
       throw new AppError("Task not found.", 404);
     }
+    if (isTaskCancellationRequested(existing)) {
+      throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
+    }
     return prisma.novelWorkflowTask.update({
       where: { id: taskId },
       data: {
@@ -1054,6 +1270,9 @@ export class NovelWorkflowService {
     if (!existing) {
       throw new AppError("Workflow task not found.", 404);
     }
+    if (isTaskCancellationRequested(existing)) {
+      throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
+    }
     return prisma.novelWorkflowTask.update({
       where: { id: taskId },
       data: {
@@ -1087,6 +1306,9 @@ export class NovelWorkflowService {
     const existing = await this.getVisibleRowById(taskId);
     if (!existing) {
       throw new AppError("Workflow task not found.", 404);
+    }
+    if (isTaskCancellationRequested(existing)) {
+      throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
     }
     const resumeTarget = this.buildResumeTarget({
       taskId,

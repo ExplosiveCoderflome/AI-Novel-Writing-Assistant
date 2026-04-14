@@ -12,6 +12,7 @@ import {
   SUMMARY_FIELDS,
   textareaClassName,
 } from "./StoryMacroPlanTab.shared";
+import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
 
 const EMPTY_CONFLICT_LAYERS: StoryConflictLayers = {
   external: "",
@@ -33,6 +34,11 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
 
   return (
     <div className="space-y-4">
+      <DirectorTakeoverEntryPanel
+        title="从故事宏观规划接管"
+        description="AI 会先判断 Story Macro / Book Contract 是否已经具备，再决定继续补缺失内容还是按你的选择重跑当前步。"
+        entry={props.directorTakeoverEntry}
+      />
       <Card>
         <CardHeader>
           <CardTitle>故事宏观规划</CardTitle>

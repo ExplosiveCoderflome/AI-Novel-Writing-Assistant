@@ -13,16 +13,18 @@ export interface PipelineRuntimeHooks {
 
 export interface PipelineRuntimeInput extends ChapterRuntimeRequestInput {
   maxRetries?: number;
+  autoReview?: boolean;
   autoRepair?: boolean;
   qualityThreshold?: number;
   repairMode?: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only";
 }
 
 export interface PipelineRuntimeResult {
+  reviewExecuted: boolean;
   pass: boolean;
   score: QualityScore;
   issues: ReviewIssue[];
-  runtimePackage: ChapterRuntimePackage;
+  runtimePackage: ChapterRuntimePackage | null;
   retryCountUsed: number;
 }
 
@@ -87,6 +89,7 @@ export async function runPipelineChapterWithRuntime(
 ): Promise<PipelineRuntimeResult> {
   const {
     maxRetries = 2,
+    autoReview = true,
     autoRepair = true,
     qualityThreshold = 75,
     repairMode = "light_repair",
@@ -117,6 +120,25 @@ export async function runPipelineChapterWithRuntime(
       latestLengthControl = generatedDraft.lengthControl;
     } else if (attempt === 0) {
       await deps.saveDraftAndArtifacts(novelId, chapterId, content, "drafted");
+    }
+
+    if (!autoReview) {
+      await deps.markChapterGenerationState(chapterId, "approved");
+      return {
+        reviewExecuted: false,
+        pass: true,
+        score: {
+          coherence: 100,
+          pacing: 100,
+          repetition: 0,
+          engagement: 100,
+          voice: 100,
+          overall: 100,
+        },
+        issues: [],
+        runtimePackage: null,
+        retryCountUsed,
+      };
     }
 
     await hooks.onStageChange?.("reviewing");
@@ -167,6 +189,7 @@ export async function runPipelineChapterWithRuntime(
   }
 
   return {
+    reviewExecuted: true,
     pass,
     score: latestResult.runtimePackage.audit.score,
     issues: latestIssues,

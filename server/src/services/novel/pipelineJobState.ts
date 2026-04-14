@@ -1,5 +1,10 @@
 import type { PipelineJobStatus } from "@ai-novel/shared/types/novel";
-import type { PipelinePayload } from "./novelCoreShared";
+import type {
+  PipelineBackgroundSyncActivity,
+  PipelineBackgroundSyncKind,
+  PipelineBackgroundSyncState,
+  PipelinePayload,
+} from "./novelCoreShared";
 
 const PIPELINE_ACTIVE_STAGES = ["queued", "generating_chapters", "reviewing", "repairing", "finalizing"] as const;
 const PIPELINE_STAGE_PROGRESS = {
@@ -24,6 +29,7 @@ export interface PipelineJobDecorations {
   noticeCode: string | null;
   noticeSummary: string | null;
   qualityAlertDetails: string[];
+  backgroundActivityLabels: string[];
 }
 
 export type DecoratedPipelineJob<T extends PipelineJobLike> = T & PipelineJobDecorations;
@@ -37,6 +43,74 @@ function normalizeStringList(value: unknown): string[] | undefined {
     .map((item) => item.trim())
     .filter(Boolean);
   return normalized.length > 0 ? normalized : undefined;
+}
+
+const PIPELINE_BACKGROUND_ACTIVITY_LABELS: Record<PipelineBackgroundSyncKind, string> = {
+  character_dynamics: "角色成长中",
+  state_snapshot: "状态同步中",
+  payoff_ledger: "伏笔回填中",
+};
+
+function normalizePipelineBackgroundActivity(value: unknown): PipelineBackgroundSyncActivity | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const raw = value as Record<string, unknown>;
+  const kind = raw.kind;
+  const status = raw.status;
+  if (
+    (kind !== "character_dynamics" && kind !== "state_snapshot" && kind !== "payoff_ledger")
+    || (status !== "running" && status !== "failed")
+  ) {
+    return null;
+  }
+  const updatedAt = typeof raw.updatedAt === "string" && raw.updatedAt.trim()
+    ? raw.updatedAt.trim()
+    : new Date(0).toISOString();
+  return {
+    kind,
+    status,
+    chapterId: typeof raw.chapterId === "string" ? raw.chapterId : "",
+    chapterOrder: typeof raw.chapterOrder === "number" ? raw.chapterOrder : undefined,
+    chapterTitle: typeof raw.chapterTitle === "string" && raw.chapterTitle.trim() ? raw.chapterTitle.trim() : undefined,
+    updatedAt,
+    error: typeof raw.error === "string" && raw.error.trim() ? raw.error.trim() : null,
+  };
+}
+
+function normalizePipelineBackgroundSync(value: unknown): PipelineBackgroundSyncState | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+  const raw = value as Record<string, unknown>;
+  const activities = Array.isArray(raw.activities)
+    ? raw.activities
+      .map((item) => normalizePipelineBackgroundActivity(item))
+      .filter((item): item is PipelineBackgroundSyncActivity => Boolean(item))
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    : [];
+  return activities.length > 0 ? { activities } : undefined;
+}
+
+export function buildPipelineBackgroundActivityLabels(
+  backgroundSync: PipelineBackgroundSyncState | null | undefined,
+): string[] {
+  const activities = backgroundSync?.activities ?? [];
+  if (activities.length === 0) {
+    return [];
+  }
+  const labels = new Set<string>();
+  for (const activity of activities) {
+    if (activity.status !== "running") {
+      continue;
+    }
+    const baseLabel = PIPELINE_BACKGROUND_ACTIVITY_LABELS[activity.kind];
+    if (!baseLabel) {
+      continue;
+    }
+    labels.add(typeof activity.chapterOrder === "number" ? `${baseLabel}(第${activity.chapterOrder}章)` : baseLabel);
+  }
+  return Array.from(labels);
 }
 
 function clampPipelineProgress(value: number, stage: PipelineActiveStage): number {
@@ -102,6 +176,7 @@ export function parsePipelinePayload(payload: string | null | undefined): Pipeli
           ? parsed.repairMode
           : undefined,
       qualityAlertDetails: normalizeStringList(parsed.qualityAlertDetails ?? parsed.failedDetails),
+      backgroundSync: normalizePipelineBackgroundSync(parsed.backgroundSync),
     };
   } catch {
     return {};
@@ -110,6 +185,7 @@ export function parsePipelinePayload(payload: string | null | undefined): Pipeli
 
 export function stringifyPipelinePayload(input: PipelinePayload): string {
   const qualityAlertDetails = normalizeStringList(input.qualityAlertDetails) ?? [];
+  const backgroundSync = normalizePipelineBackgroundSync(input.backgroundSync);
   return JSON.stringify({
     provider: input.provider ?? "deepseek",
     model: input.model ?? "",
@@ -123,6 +199,7 @@ export function stringifyPipelinePayload(input: PipelinePayload): string {
     qualityThreshold: input.qualityThreshold ?? null,
     repairMode: input.repairMode ?? "light_repair",
     ...(qualityAlertDetails.length > 0 ? { qualityAlertDetails } : {}),
+    ...(backgroundSync?.activities?.length ? { backgroundSync } : {}),
   });
 }
 
@@ -134,6 +211,7 @@ export function getPipelineQualityNotice(details: string[] | undefined): Pipelin
       noticeCode: null,
       noticeSummary: null,
       qualityAlertDetails: [],
+      backgroundActivityLabels: [],
     };
   }
   return {
@@ -141,6 +219,7 @@ export function getPipelineQualityNotice(details: string[] | undefined): Pipelin
     noticeCode: PIPELINE_QUALITY_NOTICE_CODE,
     noticeSummary: `以下章节未达到质量阈值，结果已保留，可继续复查或重跑：${qualityAlertDetails.join("；")}`,
     qualityAlertDetails,
+    backgroundActivityLabels: [],
   };
 }
 
@@ -153,12 +232,15 @@ export function decoratePipelineJob<T extends PipelineJobLike>(job: T): Decorate
       noticeCode: null,
       noticeSummary: null,
       qualityAlertDetails: payload.qualityAlertDetails ?? [],
+      backgroundActivityLabels: [],
     };
+  const backgroundActivityLabels = buildPipelineBackgroundActivityLabels(payload.backgroundSync);
   return {
     ...job,
     displayStatus: notice.displayStatus,
     noticeCode: notice.noticeCode,
     noticeSummary: notice.noticeSummary,
     qualityAlertDetails: notice.qualityAlertDetails,
+    backgroundActivityLabels,
   };
 }

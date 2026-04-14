@@ -2,10 +2,13 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ChatOpenAI } from "@langchain/openai";
 import type { TaskType } from "./modelRouter";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
+import { appendLlmSessionLog } from "./sessionLogFile";
 
 const LLM_DEBUG_PATCHED = Symbol("LLM_DEBUG_PATCHED");
 const LOG_TRUE_VALUES = new Set(["1", "true", "on", "yes"]);
 const LOG_FALSE_VALUES = new Set(["0", "false", "off", "no"]);
+
+let logSequence = 0;
 
 interface LLMDebugMeta {
   provider: LLMProvider;
@@ -129,7 +132,7 @@ function serializeMessages(messages: unknown[]): MessageLogEntry[] {
   });
 }
 
-function serializeLLMInput(input: unknown): MessageLogEntry[] | string {
+function serializeSingleLLMInput(input: unknown): MessageLogEntry[] | string {
   if (Array.isArray(input)) {
     return serializeMessages(input);
   }
@@ -166,6 +169,140 @@ function serializeLLMInput(input: unknown): MessageLogEntry[] | string {
   }
 
   return safeStringify(input);
+}
+
+function formatSerializedPayload(payload: MessageLogEntry[] | string): string {
+  if (!Array.isArray(payload)) {
+    return payload;
+  }
+
+  return payload.map((entry, index) => {
+    return `----- ${index + 1}. ${entry.role} -----\n${entry.content}`;
+  }).join("\n");
+}
+
+function serializeLLMInputForJson(method: "invoke" | "stream" | "batch", input: unknown): unknown {
+  if (method !== "batch" || !Array.isArray(input)) {
+    return serializeSingleLLMInput(input);
+  }
+
+  return input.map((entry, index) => ({
+    index,
+    payload: serializeSingleLLMInput(entry),
+  }));
+}
+
+function serializeLLMInput(method: "invoke" | "stream" | "batch", input: unknown): string {
+  if (method !== "batch" || !Array.isArray(input)) {
+    return formatSerializedPayload(serializeSingleLLMInput(input));
+  }
+
+  return input.map((entry, index) => {
+    return [
+      `===== batch_input_${index + 1} =====`,
+      formatSerializedPayload(serializeSingleLLMInput(entry)),
+    ].join("\n");
+  }).join("\n");
+}
+
+function buildMetadataSections(value: unknown, label: string): string[] {
+  if (value == null) {
+    return [];
+  }
+  if (Array.isArray(value) && value.length === 0) {
+    return [];
+  }
+  if (typeof value === "object" && value !== null && Object.keys(value as Record<string, unknown>).length === 0) {
+    return [];
+  }
+  return [`----- ${label} -----\n${safeStringify(value)}`];
+}
+
+function serializeSingleLLMOutputForJson(output: unknown, fallbackRole: string): unknown {
+  if (typeof output === "string") {
+    return output;
+  }
+
+  if (!output || typeof output !== "object") {
+    return safeStringify(output);
+  }
+
+  const record = output as {
+    content?: unknown;
+    response_metadata?: unknown;
+    usage_metadata?: unknown;
+    tool_calls?: unknown;
+    invalid_tool_calls?: unknown;
+    additional_kwargs?: unknown;
+  };
+
+  return {
+    role: detectMessageRole(output, fallbackRole),
+    content: stringifyContent(record.content),
+    responseMetadata: record.response_metadata,
+    usageMetadata: record.usage_metadata,
+    toolCalls: record.tool_calls,
+    invalidToolCalls: record.invalid_tool_calls,
+    additionalKwargs: record.additional_kwargs,
+  };
+}
+
+function serializeSingleLLMOutput(output: unknown, fallbackRole: string): string {
+  if (typeof output === "string") {
+    return output;
+  }
+
+  if (!output || typeof output !== "object") {
+    return safeStringify(output);
+  }
+
+  const record = output as {
+    content?: unknown;
+    response_metadata?: unknown;
+    usage_metadata?: unknown;
+    tool_calls?: unknown;
+    invalid_tool_calls?: unknown;
+    additional_kwargs?: unknown;
+  };
+  const sections: string[] = [];
+
+  if ("content" in record) {
+    sections.push(
+      `----- ${detectMessageRole(output, fallbackRole)} -----\n${stringifyContent(record.content)}`,
+    );
+  }
+
+  sections.push(...buildMetadataSections(record.response_metadata, "response_metadata"));
+  sections.push(...buildMetadataSections(record.usage_metadata, "usage_metadata"));
+  sections.push(...buildMetadataSections(record.tool_calls, "tool_calls"));
+  sections.push(...buildMetadataSections(record.invalid_tool_calls, "invalid_tool_calls"));
+  sections.push(...buildMetadataSections(record.additional_kwargs, "additional_kwargs"));
+
+  return sections.length > 0 ? sections.join("\n") : safeStringify(output);
+}
+
+function serializeLLMOutputForJson(method: "invoke" | "stream" | "batch", output: unknown): unknown {
+  if (method !== "batch" || !Array.isArray(output)) {
+    return serializeSingleLLMOutputForJson(output, "assistant");
+  }
+
+  return output.map((entry, index) => ({
+    index,
+    payload: serializeSingleLLMOutputForJson(entry, `assistant_${index + 1}`),
+  }));
+}
+
+function serializeLLMOutput(method: "invoke" | "stream" | "batch", output: unknown): string {
+  if (method !== "batch" || !Array.isArray(output)) {
+    return serializeSingleLLMOutput(output, "assistant");
+  }
+
+  return output.map((entry, index) => {
+    return [
+      `===== batch_output_${index + 1} =====`,
+      serializeSingleLLMOutput(entry, `assistant_${index + 1}`),
+    ].join("\n");
+  }).join("\n");
 }
 
 function buildHeader(method: "invoke" | "stream" | "batch", meta: LLMDebugMeta): string {
@@ -205,22 +342,140 @@ function buildHeader(method: "invoke" | "stream" | "batch", meta: LLMDebugMeta):
   return chunks.join(" ");
 }
 
-function buildLogText(method: "invoke" | "stream" | "batch", input: unknown, meta: LLMDebugMeta): string {
-  const header = buildHeader(method, meta);
-  const payload = serializeLLMInput(input);
-  if (!Array.isArray(payload)) {
-    return `${header}\n${payload}`;
-  }
-
-  const body = payload.map((entry, index) => {
-    return `----- ${index + 1}. ${entry.role} -----\n${entry.content}`;
-  }).join("\n");
-
-  return `${header}\n${body}`;
+function buildRequestLogText(method: "invoke" | "stream" | "batch", input: unknown, meta: LLMDebugMeta): string {
+  return `${buildHeader(method, meta)}\n${serializeLLMInput(method, input)}`;
 }
 
-function logLLMRequest(method: "invoke" | "stream" | "batch", input: unknown, meta: LLMDebugMeta): void {
-  console.info(buildLogText(method, input, meta));
+function nextRequestId(method: "invoke" | "stream" | "batch"): string {
+  logSequence += 1;
+  return `${method}-${Date.now()}-${logSequence}`;
+}
+
+function buildFileLogBlock(input: {
+  requestId: string;
+  event: "request" | "response" | "error";
+  method: "invoke" | "stream" | "batch";
+  meta: LLMDebugMeta;
+  payload?: unknown;
+  latencyMs?: number;
+  error?: unknown;
+}): Record<string, unknown> {
+  return {
+    timestamp: new Date().toISOString(),
+    event: input.event,
+    requestId: input.requestId,
+    method: input.method,
+    provider: input.meta.provider,
+    model: input.meta.model,
+    temperature: input.meta.temperature,
+    maxTokens: input.meta.maxTokens ?? null,
+    taskType: input.meta.taskType ?? null,
+    baseURL: input.meta.baseURL ?? null,
+    promptMeta: input.meta.promptMeta ?? null,
+    latencyMs: input.latencyMs ?? null,
+    payload: input.payload ?? null,
+    error: input.error ?? null,
+  };
+}
+
+function logLlmFileBlock(input: {
+  requestId: string;
+  event: "request" | "response" | "error";
+  method: "invoke" | "stream" | "batch";
+  meta: LLMDebugMeta;
+  payload?: unknown;
+  latencyMs?: number;
+  error?: unknown;
+}): void {
+  appendLlmSessionLog(buildFileLogBlock(input));
+}
+
+function logLLMRequest(method: "invoke" | "stream" | "batch", input: unknown, meta: LLMDebugMeta, requestId: string): void {
+  const rendered = buildRequestLogText(method, input, meta);
+  console.info(rendered);
+  logLlmFileBlock({
+    requestId,
+    event: "request",
+    method,
+    meta,
+    payload: serializeLLMInputForJson(method, input),
+  });
+}
+
+function logLLMResponse(method: "invoke" | "stream" | "batch", output: unknown, meta: LLMDebugMeta, requestId: string, latencyMs: number): void {
+  const renderedOutput = serializeLLMOutput(method, output);
+  console.info(
+    [
+      "[llm.debug]",
+      `event=${method}_response`,
+      `requestId=${requestId}`,
+      `provider=${meta.provider}`,
+      `model=${meta.model}`,
+      `latencyMs=${latencyMs}`,
+      `outputChars=${renderedOutput.length}`,
+    ].join(" "),
+  );
+  logLlmFileBlock({
+    requestId,
+    event: "response",
+    method,
+    meta,
+    payload: serializeLLMOutputForJson(method, output),
+    latencyMs,
+  });
+}
+
+function logLLMError(method: "invoke" | "stream" | "batch", error: unknown, meta: LLMDebugMeta, requestId: string, latencyMs: number): void {
+  const message = error instanceof Error ? error.message : String(error);
+  console.warn(
+    [
+      "[llm.debug]",
+      `event=${method}_error`,
+      `requestId=${requestId}`,
+      `provider=${meta.provider}`,
+      `model=${meta.model}`,
+      `latencyMs=${latencyMs}`,
+      `message=${JSON.stringify(message)}`,
+    ].join(" "),
+  );
+  logLlmFileBlock({
+    requestId,
+    event: "error",
+    method,
+    meta,
+    latencyMs,
+    error: error instanceof Error
+      ? { name: error.name, message: error.message, stack: error.stack ?? null }
+      : { message },
+  });
+}
+
+function wrapLoggedStream(stream: AsyncIterable<unknown>, meta: LLMDebugMeta, requestId: string, startedAt: number): AsyncIterable<unknown> {
+  return {
+    async *[Symbol.asyncIterator]() {
+      const chunks: string[] = [];
+      try {
+        for await (const chunk of stream) {
+          if (chunk && typeof chunk === "object" && "content" in (chunk as Record<string, unknown>)) {
+            chunks.push(stringifyContent((chunk as { content?: unknown }).content));
+          } else {
+            chunks.push(safeStringify(chunk));
+          }
+          yield chunk;
+        }
+        logLLMResponse(
+          "stream",
+          { content: chunks.join("") },
+          meta,
+          requestId,
+          Date.now() - startedAt,
+        );
+      } catch (error) {
+        logLLMError("stream", error, meta, requestId, Date.now() - startedAt);
+        throw error;
+      }
+    },
+  };
 }
 
 export function attachLLMDebugLogging(llm: ChatOpenAI, meta: LLMDebugMeta): ChatOpenAI {
@@ -238,18 +493,44 @@ export function attachLLMDebugLogging(llm: ChatOpenAI, meta: LLMDebugMeta): Chat
   const originalBatch = llm.batch.bind(llm);
 
   patchable.invoke = (async (...args: Parameters<ChatOpenAI["invoke"]>) => {
-    logLLMRequest("invoke", args[0], meta);
-    return originalInvoke(...args);
+    const requestId = nextRequestId("invoke");
+    const startedAt = Date.now();
+    logLLMRequest("invoke", args[0], meta, requestId);
+    try {
+      const result = await originalInvoke(...args);
+      logLLMResponse("invoke", result, meta, requestId, Date.now() - startedAt);
+      return result;
+    } catch (error) {
+      logLLMError("invoke", error, meta, requestId, Date.now() - startedAt);
+      throw error;
+    }
   }) as ChatOpenAI["invoke"];
 
   patchable.stream = (async (...args: Parameters<ChatOpenAI["stream"]>) => {
-    logLLMRequest("stream", args[0], meta);
-    return originalStream(...args);
+    const requestId = nextRequestId("stream");
+    const startedAt = Date.now();
+    logLLMRequest("stream", args[0], meta, requestId);
+    try {
+      const stream = await originalStream(...args);
+      return wrapLoggedStream(stream as AsyncIterable<unknown>, meta, requestId, startedAt) as Awaited<ReturnType<ChatOpenAI["stream"]>>;
+    } catch (error) {
+      logLLMError("stream", error, meta, requestId, Date.now() - startedAt);
+      throw error;
+    }
   }) as ChatOpenAI["stream"];
 
   patchable.batch = (async (...args: Parameters<ChatOpenAI["batch"]>) => {
-    logLLMRequest("batch", args[0], meta);
-    return originalBatch(...args);
+    const requestId = nextRequestId("batch");
+    const startedAt = Date.now();
+    logLLMRequest("batch", args[0], meta, requestId);
+    try {
+      const result = await originalBatch(...args);
+      logLLMResponse("batch", result, meta, requestId, Date.now() - startedAt);
+      return result;
+    } catch (error) {
+      logLLMError("batch", error, meta, requestId, Date.now() - startedAt);
+      throw error;
+    }
   }) as ChatOpenAI["batch"];
 
   Object.defineProperty(patchable, LLM_DEBUG_PATCHED, {

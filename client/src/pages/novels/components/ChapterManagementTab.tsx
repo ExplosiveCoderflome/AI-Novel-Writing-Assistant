@@ -12,6 +12,7 @@ import {
   type AssetTabKey,
   type QueueFilterKey,
 } from "./chapterExecution.shared";
+import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
 
 export default function ChapterManagementTab(props: ChapterTabViewProps) {
   const {
@@ -80,6 +81,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     streamingChapterLabel,
     chapterRunStatus,
     onAbortStream,
+    directorTakeoverEntry,
   } = props;
 
   const [assetTab, setAssetTab] = useState<AssetTabKey>("content");
@@ -117,7 +119,13 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
   );
 
   return (
-    <Card className="overflow-hidden">
+    <div className="space-y-4">
+      <DirectorTakeoverEntryPanel
+        title="从章节执行接管"
+        description="AI 会先判断当前是否有活动批次、检查点或可执行章节范围，再决定恢复当前批次还是按你的选择新开批次。"
+        entry={directorTakeoverEntry}
+      />
+      <Card className="overflow-hidden">
       <CardHeader className="gap-3 border-b bg-gradient-to-b from-muted/25 via-background to-background">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="space-y-1">
@@ -186,6 +194,8 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
               streamingChapterLabel={streamingChapterLabel}
               chapterRunStatus={chapterRunStatus}
               onAbortStream={onAbortStream}
+              onRunFullAudit={onRunFullAudit}
+              isRunningFullAudit={isRunningFullAudit}
               repairStreamContent={repairStreamContent}
               isRepairStreaming={isRepairStreaming}
               repairStreamingChapterId={repairStreamingChapterId}
@@ -241,6 +251,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
           </div>
         </div>
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 }

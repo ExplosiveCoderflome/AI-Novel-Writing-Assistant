@@ -49,6 +49,18 @@ test("buildDirectorAutoExecutionPipelineOptions uses front10-safe defaults", () 
   assert.equal(options.repairMode, "light_repair");
 });
 
+test("buildDirectorAutoExecutionPipelineOptions respects review and repair toggles", () => {
+  const options = buildDirectorAutoExecutionPipelineOptions({
+    startOrder: 11,
+    endOrder: 20,
+    autoReview: false,
+    autoRepair: true,
+  });
+
+  assert.equal(options.autoReview, false);
+  assert.equal(options.autoRepair, false);
+});
+
 test("buildDirectorAutoExecutionScopeLabel supports chapter ranges and volume labels", () => {
   assert.equal(buildDirectorAutoExecutionScopeLabel({
     mode: "chapter_range",

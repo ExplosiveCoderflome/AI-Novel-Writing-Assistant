@@ -11,7 +11,7 @@ import type {
 } from "./novel";
 import type { LLMProvider } from "./llm";
 import type { BookAnalysisSectionKey } from "./bookAnalysis";
-import type { NovelWorkflowResumeTarget } from "./novelWorkflow";
+import type { NovelWorkflowResumeTarget, NovelWorkflowStage } from "./novelWorkflow";
 import type { StoryMacroPlan } from "./storyMacro";
 import type { BookContract, BookContractDraft } from "./novelWorkflow";
 import type { TitleFactorySuggestion } from "./title";
@@ -97,6 +97,8 @@ export interface DirectorAutoExecutionPlan {
   startOrder?: number;
   endOrder?: number;
   volumeOrder?: number;
+  autoReview?: boolean;
+  autoRepair?: boolean;
 }
 
 export type DirectorContinuationMode = "resume" | "auto_execute_front10";
@@ -128,6 +130,25 @@ export const DIRECTOR_TAKEOVER_START_PHASES = [
 ] as const;
 
 export type DirectorTakeoverStartPhase = typeof DIRECTOR_TAKEOVER_START_PHASES[number];
+
+export const DIRECTOR_TAKEOVER_ENTRY_STEPS = [
+  "basic",
+  "story_macro",
+  "character",
+  "outline",
+  "structured",
+  "chapter",
+  "pipeline",
+] as const;
+
+export type DirectorTakeoverEntryStep = typeof DIRECTOR_TAKEOVER_ENTRY_STEPS[number];
+
+export const DIRECTOR_TAKEOVER_STRATEGIES = [
+  "continue_existing",
+  "restart_current_step",
+] as const;
+
+export type DirectorTakeoverStrategy = typeof DIRECTOR_TAKEOVER_STRATEGIES[number];
 
 export const DIRECTOR_LOCK_SCOPES = [
   "basic",
@@ -231,6 +252,57 @@ export interface DirectorTakeoverStageReadiness {
   reason: string;
 }
 
+export interface DirectorTakeoverPreview {
+  strategy: DirectorTakeoverStrategy;
+  summary: string;
+  effectSummary: string;
+  effectiveStep: DirectorTakeoverEntryStep;
+  effectiveStage: NovelWorkflowStage;
+  skipSteps: DirectorTakeoverEntryStep[];
+  continueStep?: DirectorTakeoverEntryStep | null;
+  restartStep?: DirectorTakeoverEntryStep | null;
+  usesCurrentBatch?: boolean;
+  impactNotes: string[];
+}
+
+export interface DirectorTakeoverEntryReadiness {
+  step: DirectorTakeoverEntryStep;
+  label: string;
+  description: string;
+  available: boolean;
+  recommended: boolean;
+  status: "missing" | "partial" | "ready" | "complete" | "blocked";
+  reason: string;
+  previews: DirectorTakeoverPreview[];
+}
+
+export interface DirectorTakeoverPipelineJobSnapshot {
+  id: string;
+  status: PipelineJobStatus;
+  currentStage?: string | null;
+  currentItemLabel?: string | null;
+  completedCount: number;
+  totalCount: number;
+  startOrder: number;
+  endOrder: number;
+}
+
+export interface DirectorTakeoverCheckpointSnapshot {
+  checkpointType: "front10_ready" | "chapter_batch_ready" | null;
+  checkpointSummary?: string | null;
+  chapterId?: string | null;
+  chapterOrder?: number | null;
+  volumeId?: string | null;
+}
+
+export interface DirectorTakeoverExecutableRangeSnapshot {
+  startOrder: number;
+  endOrder: number;
+  totalChapterCount: number;
+  nextChapterId?: string | null;
+  nextChapterOrder?: number | null;
+}
+
 export interface DirectorTakeoverReadinessResponse {
   novelId: string;
   novelTitle: string;
@@ -242,14 +314,26 @@ export interface DirectorTakeoverReadinessResponse {
     characterCount: number;
     chapterCount: number;
     volumeCount: number;
+    firstVolumeId?: string | null;
     firstVolumeChapterCount: number;
+    firstVolumeBeatSheetReady?: boolean;
+    firstVolumePreparedChapterCount?: number;
+    generatedChapterCount?: number;
+    approvedChapterCount?: number;
+    pendingRepairChapterCount?: number;
   };
   stages: DirectorTakeoverStageReadiness[];
+  entrySteps: DirectorTakeoverEntryReadiness[];
+  activePipelineJob?: DirectorTakeoverPipelineJobSnapshot | null;
+  latestCheckpoint?: DirectorTakeoverCheckpointSnapshot | null;
+  executableRange?: DirectorTakeoverExecutableRangeSnapshot | null;
 }
 
 export interface DirectorTakeoverRequest extends DirectorLLMOptions {
   novelId: string;
-  startPhase: DirectorTakeoverStartPhase;
+  startPhase?: DirectorTakeoverStartPhase;
+  entryStep?: DirectorTakeoverEntryStep;
+  strategy?: DirectorTakeoverStrategy;
   autoExecutionPlan?: DirectorAutoExecutionPlan;
 }
 
@@ -257,6 +341,9 @@ export interface DirectorTakeoverResponse {
   novelId: string;
   workflowTaskId: string;
   startPhase: DirectorTakeoverStartPhase;
+  entryStep: DirectorTakeoverEntryStep;
+  strategy: DirectorTakeoverStrategy;
+  effectiveStage: NovelWorkflowStage;
   directorSession: DirectorSessionState;
   resumeTarget?: NovelWorkflowResumeTarget | null;
 }

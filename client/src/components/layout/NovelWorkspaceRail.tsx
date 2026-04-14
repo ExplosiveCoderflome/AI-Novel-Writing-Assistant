@@ -16,6 +16,7 @@ import { getActiveAutoDirectorTask } from "@/api/novelWorkflow";
 import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { extractWorkflowActivityTags } from "@/lib/novelWorkflowActivityTags";
 import { cn } from "@/lib/utils";
 import {
   getNovelWorkspaceTabLabel,
@@ -200,6 +201,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
         ? `等待处理：${getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}`
         : activeTask.currentItemLabel || `AI 正在推进 ${getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}`
     : "当前没有后台导演任务，可以直接继续手动创作。";
+  const cockpitActivityTags = extractWorkflowActivityTags(activeTask?.currentItemLabel);
   const cockpitVariant = activeTask?.status === "failed"
     ? "destructive"
     : activeTask?.status === "running" || activeTask?.status === "queued"
@@ -379,6 +381,13 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
               <div className="mt-2 text-xs leading-5 text-muted-foreground">
                 {cockpitSummary}
               </div>
+              {cockpitActivityTags.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {cockpitActivityTags.map((tag) => (
+                    <Badge key={tag} variant="secondary">{tag}</Badge>
+                  ))}
+                </div>
+              ) : null}
               <div className="mt-3 flex gap-2">
                 <Button type="button" size="sm" className="flex-1" onClick={openTaskCenter}>
                   任务中心

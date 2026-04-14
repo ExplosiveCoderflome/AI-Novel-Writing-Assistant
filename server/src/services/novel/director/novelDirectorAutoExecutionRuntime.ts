@@ -10,6 +10,7 @@ import { buildDirectorSessionState } from "./novelDirectorHelpers";
 import {
   buildDirectorAutoExecutionCompletedLabel,
   buildDirectorAutoExecutionCompletedSummary,
+  normalizeDirectorAutoExecutionPlan,
   buildDirectorAutoExecutionPausedLabel,
   buildDirectorAutoExecutionPausedSummary,
   buildDirectorAutoExecutionScopeLabelFromState,
@@ -88,6 +89,7 @@ interface NovelDirectorAutoExecutionNovelPort {
     progress: number;
     currentStage?: string | null;
     currentItemLabel?: string | null;
+    payload?: string | null;
     noticeSummary?: string | null;
     error?: string | null;
   } | null>;
@@ -114,6 +116,43 @@ function isNoChaptersToGenerateError(error: unknown): boolean {
 
 export class NovelDirectorAutoExecutionRuntime {
   constructor(private readonly deps: NovelDirectorAutoExecutionRuntimeDeps) {}
+
+  private buildRequestedAutoExecutionState(input: {
+    request: DirectorConfirmRequest;
+    existingState?: DirectorAutoExecutionState | null;
+    existingPipelineJobId?: string | null;
+  }): DirectorAutoExecutionState | null {
+    const requestedPlan = normalizeDirectorAutoExecutionPlan(input.request.autoExecutionPlan);
+    if (!input.existingState) {
+      return {
+        enabled: true,
+        mode: requestedPlan.mode,
+        startOrder: requestedPlan.startOrder,
+        endOrder: requestedPlan.endOrder,
+        volumeOrder: requestedPlan.volumeOrder,
+        autoReview: requestedPlan.autoReview,
+        autoRepair: requestedPlan.autoRepair,
+        pipelineJobId: input.existingPipelineJobId?.trim() || null,
+        pipelineStatus: input.existingPipelineJobId ? "running" : null,
+      };
+    }
+
+    const keepPipelineBinding = Boolean(input.existingPipelineJobId?.trim());
+    return {
+      ...input.existingState,
+      mode: requestedPlan.mode,
+      startOrder: requestedPlan.startOrder,
+      endOrder: requestedPlan.endOrder,
+      volumeOrder: requestedPlan.volumeOrder,
+      autoReview: requestedPlan.autoReview,
+      autoRepair: requestedPlan.autoRepair,
+      scopeLabel: null,
+      pipelineJobId: keepPipelineBinding
+        ? (input.existingPipelineJobId?.trim() || input.existingState.pipelineJobId || null)
+        : null,
+      pipelineStatus: keepPipelineBinding ? (input.existingState.pipelineStatus ?? "running") : null,
+    };
+  }
 
   private async resolveRangeAndState(input: {
     novelId: string;
@@ -209,6 +248,8 @@ export class NovelDirectorAutoExecutionRuntime {
       checkpointSummary: buildDirectorAutoExecutionCompletedSummary({
         title: input.request.candidate.workingTitle.trim() || input.request.title?.trim() || "当前项目",
         scopeLabel: buildDirectorAutoExecutionScopeLabelFromState(completedState, input.range.totalChapterCount),
+        autoReview: completedState.autoReview,
+        autoRepair: completedState.autoRepair,
       }),
       itemLabel: buildDirectorAutoExecutionCompletedLabel(
         buildDirectorAutoExecutionScopeLabelFromState(completedState, input.range.totalChapterCount),
@@ -239,11 +280,17 @@ export class NovelDirectorAutoExecutionRuntime {
     existingPipelineJobId?: string | null;
     existingState?: DirectorAutoExecutionState | null;
     resumeCheckpointType?: "front10_ready" | "chapter_batch_ready" | null;
+    resumeStage?: AutoExecutionResumeStage;
   }): Promise<void> {
     let pipelineJobId = input.existingPipelineJobId?.trim() || "";
+    const requestedExecutionState = this.buildRequestedAutoExecutionState({
+      request: input.request,
+      existingState: input.existingState,
+      existingPipelineJobId: pipelineJobId || null,
+    });
     let { range, autoExecution } = await this.resolveRangeAndState({
       novelId: input.novelId,
-      existingState: input.existingState,
+      existingState: requestedExecutionState,
       pipelineJobId: pipelineJobId || null,
       pipelineStatus: pipelineJobId ? "running" : "queued",
     });
@@ -256,6 +303,7 @@ export class NovelDirectorAutoExecutionRuntime {
         range,
         autoExecution,
         isBackgroundRunning: true,
+        resumeStage: input.resumeStage,
       });
       if (await this.shouldStopAutoExecution(input.taskId, pipelineJobId || null)) {
         return;
@@ -289,6 +337,7 @@ export class NovelDirectorAutoExecutionRuntime {
           range,
           autoExecution,
           isBackgroundRunning: true,
+          resumeStage: input.resumeStage,
         });
       }
 
@@ -328,6 +377,8 @@ export class NovelDirectorAutoExecutionRuntime {
               workflowTaskId: input.taskId,
               startOrder: range.startOrder,
               endOrder: range.endOrder,
+              autoReview: autoExecution.autoReview,
+              autoRepair: autoExecution.autoRepair,
             }),
           );
           pipelineJobId = job.id;
@@ -366,6 +417,7 @@ export class NovelDirectorAutoExecutionRuntime {
           range,
           autoExecution,
           isBackgroundRunning: true,
+          resumeStage: input.resumeStage,
         });
       }
 

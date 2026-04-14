@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type {
+  DirectorAutoExecutionPlan,
   DirectorAutoExecutionState,
   BookSpec,
   DirectorCandidate,
@@ -46,6 +47,8 @@ export interface DirectorWorkflowSeedPayload extends Record<string, unknown> {
   provider?: DirectorLLMOptions["provider"] | null;
   model?: string | null;
   temperature?: number | null;
+  runMode?: DirectorRunMode;
+  autoExecutionPlan?: DirectorAutoExecutionPlan;
   batches?: DirectorCandidateBatch[];
   candidateStage?: DirectorCandidateStageState | null;
   candidate?: DirectorCandidate;

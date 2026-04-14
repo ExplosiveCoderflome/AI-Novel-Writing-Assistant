@@ -108,6 +108,8 @@ async function main() {
   const baseName = `${isoLike}-${options.name}`;
   const logPath = path.join(sessionDir, `${baseName}.log`);
   const metaPath = path.join(sessionDir, `${baseName}.meta.json`);
+  const llmLogPath = path.join(sessionDir, `${baseName}.llm.jsonl`);
+  const llmRepairLogPath = path.join(sessionDir, `${baseName}.llm-repair.jsonl`);
   const logStream = fs.createWriteStream(logPath, { flags: "a" });
 
   const meta = {
@@ -117,6 +119,8 @@ async function main() {
     command: options.commandArgs,
     logPath,
     metaPath,
+    llmLogPath,
+    llmRepairLogPath,
   };
   writeMeta(metaPath, meta);
 
@@ -127,7 +131,17 @@ async function main() {
 
   const child = spawn(options.commandArgs[0], options.commandArgs.slice(1), {
     cwd: process.cwd(),
-    env: process.env,
+    env: {
+      ...process.env,
+      RUN_WITH_LOG_DIR: sessionDir,
+      RUN_WITH_LOG_DATE: datePart,
+      RUN_WITH_LOG_NAME: options.name,
+      RUN_WITH_LOG_BASE_NAME: baseName,
+      RUN_WITH_LOG_PATH: logPath,
+      RUN_WITH_LOG_META_PATH: metaPath,
+      RUN_WITH_LOG_LLM_PATH: llmLogPath,
+      RUN_WITH_LOG_LLM_REPAIR_PATH: llmRepairLogPath,
+    },
     shell: process.platform === "win32",
     stdio: ["inherit", "pipe", "pipe"],
   });

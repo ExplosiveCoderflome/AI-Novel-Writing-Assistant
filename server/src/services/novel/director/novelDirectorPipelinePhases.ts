@@ -174,6 +174,39 @@ function selectPreparedOutlineChapters(
   return prepared.slice(0, 10);
 }
 
+function findPreparedOutlineChapterDetail(
+  workspace: VolumePlanDocument,
+  target: PreparedOutlineChapterRef,
+): VolumePlanDocument["volumes"][number]["chapters"][number] | null {
+  const volume = workspace.volumes.find((item) => item.id === target.volumeId);
+  if (!volume) {
+    return null;
+  }
+  return volume.chapters.find((chapter) => chapter.id === target.id) ?? null;
+}
+
+function hasPreparedOutlineChapterBoundary(chapter: VolumePlanDocument["volumes"][number]["chapters"][number] | null): boolean {
+  if (!chapter) {
+    return false;
+  }
+  return typeof chapter.conflictLevel === "number"
+    || typeof chapter.revealLevel === "number"
+    || typeof chapter.targetWordCount === "number"
+    || Boolean(chapter.mustAvoid?.trim())
+    || chapter.payoffRefs.length > 0;
+}
+
+function hasPreparedOutlineChapterExecutionDetail(
+  chapter: VolumePlanDocument["volumes"][number]["chapters"][number] | null,
+): boolean {
+  if (!chapter) {
+    return false;
+  }
+  return Boolean(chapter.purpose?.trim())
+    && hasPreparedOutlineChapterBoundary(chapter)
+    && Boolean(chapter.taskSheet?.trim());
+}
+
 function buildChapterTitleNotice(input: {
   volume: VolumePlanDocument["volumes"][number];
   issue: string;
@@ -552,9 +585,16 @@ export async function runDirectorStructuredOutlinePhase(input: {
     detailPlan.mode === "volume" ? selectedChapters[0]?.volumeTitle ?? null : null,
   );
   const totalDetailSteps = selectedChapters.length * DIRECTOR_CHAPTER_DETAIL_MODES.length;
-  let completedDetailSteps = 0;
+  let completedDetailSteps = selectedChapters.reduce((count, chapter) => (
+    hasPreparedOutlineChapterExecutionDetail(findPreparedOutlineChapterDetail(persistedOutlineWorkspace, chapter))
+      ? count + DIRECTOR_CHAPTER_DETAIL_MODES.length
+      : count
+  ), 0);
 
   for (const [chapterIndex, chapter] of selectedChapters.entries()) {
+    if (hasPreparedOutlineChapterExecutionDetail(findPreparedOutlineChapterDetail(persistedOutlineWorkspace, chapter))) {
+      continue;
+    }
     for (const detailMode of DIRECTOR_CHAPTER_DETAIL_MODES) {
       await callbacks.markDirectorTaskRunning(
         taskId,
@@ -576,6 +616,13 @@ export async function runDirectorStructuredOutlinePhase(input: {
       persistedOutlineWorkspace = workspace;
       completedDetailSteps += 1;
     }
+
+    persistedOutlineWorkspace = await dependencies.volumeService.updateVolumes(novelId, persistedOutlineWorkspace);
+    await dependencies.volumeService.syncVolumeChapters(novelId, {
+      volumes: persistedOutlineWorkspace.volumes,
+      preserveContent: true,
+      applyDeletes: false,
+    });
   }
 
   await callbacks.markDirectorTaskRunning(
@@ -585,12 +632,6 @@ export async function runDirectorStructuredOutlinePhase(input: {
     `${autoExecutionScopeLabel}细化已完成，正在同步章节执行资源`,
     DIRECTOR_PROGRESS.chapterDetailDone,
   );
-  persistedOutlineWorkspace = await dependencies.volumeService.updateVolumes(novelId, persistedOutlineWorkspace);
-  await dependencies.volumeService.syncVolumeChapters(novelId, {
-    volumes: persistedOutlineWorkspace.volumes,
-    preserveContent: true,
-    applyDeletes: false,
-  });
   const persistedChapters = await dependencies.novelContextService.listChapters(novelId);
   if (persistedChapters.length === 0) {
     throw new Error("自动导演已生成拆章结果，但章节资源没有成功同步到执行区。");

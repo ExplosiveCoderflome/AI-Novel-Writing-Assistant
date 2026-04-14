@@ -1,6 +1,7 @@
 import {
   DIRECTOR_RUN_MODES,
 } from "@ai-novel/shared/types/novelDirector";
+import { AppError } from "../../../middleware/errorHandler";
 import { runWithLlmUsageTracking } from "../../../llm/usageTracking";
 import type {
   DirectorContinuationMode,
@@ -57,7 +58,6 @@ import {
   type DirectorProgressItemKey,
 } from "./novelDirectorProgress";
 import {
-  assertDirectorTakeoverPhaseAvailable,
   buildDirectorTakeoverInput,
   buildDirectorTakeoverReadiness,
 } from "./novelDirectorTakeover";
@@ -68,6 +68,7 @@ import {
 } from "./novelDirectorTakeoverRuntime";
 import { DirectorRecoveryNotNeededError } from "./novelDirectorErrors";
 import { repairDirectorChapterTitles } from "./novelDirectorChapterTitleRepair";
+import { startDirectorTakeoverExecution } from "./novelDirectorTakeoverExecution";
 
 type WorkflowTaskSnapshot = Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>;
 
@@ -76,6 +77,12 @@ const DIRECTOR_CONFIRM_DUPLICATE_ATTEMPTS = 20;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isWorkflowTaskCancelledError(error: unknown): boolean {
+  return error instanceof AppError
+    && error.statusCode === 409
+    && error.message === "WORKFLOW_TASK_CANCELLED";
 }
 
 export class NovelDirectorService {
@@ -98,6 +105,9 @@ export class NovelDirectorService {
     void Promise.resolve()
       .then(() => runWithLlmUsageTracking({ workflowTaskId: taskId }, runner))
       .catch(async (error) => {
+        if (isWorkflowTaskCancelledError(error)) {
+          return;
+        }
         const message = error instanceof Error ? error.message : "自动导演后台任务执行失败。";
         await this.workflowService.markTaskFailed(taskId, message);
       });
@@ -621,13 +631,18 @@ export class NovelDirectorService {
       novelId,
       getStoryMacroPlan: (targetNovelId) => this.storyMacroService.getPlan(targetNovelId),
       getDirectorAssetSnapshot: (targetNovelId) => this.getDirectorAssetSnapshot(targetNovelId),
+      getVolumeWorkspace: (targetNovelId) => this.volumeService.getVolumes(targetNovelId),
       findActiveAutoDirectorTask: (targetNovelId) => this.workflowService.findActiveTaskByNovelAndLane(targetNovelId, "auto_director"),
+      findLatestAutoDirectorTask: (targetNovelId) => this.workflowService.findLatestVisibleTaskByNovelId(targetNovelId, "auto_director"),
     });
     return buildDirectorTakeoverReadiness({
       novel: takeoverState.novel,
       snapshot: takeoverState.snapshot,
       hasActiveTask: takeoverState.hasActiveTask,
       activeTaskId: takeoverState.activeTaskId,
+      activePipelineJob: takeoverState.activePipelineJob,
+      latestCheckpoint: takeoverState.latestCheckpoint,
+      executableRange: takeoverState.executableRange,
     });
   }
 
@@ -636,19 +651,13 @@ export class NovelDirectorService {
       novelId: input.novelId,
       getStoryMacroPlan: (targetNovelId) => this.storyMacroService.getPlan(targetNovelId),
       getDirectorAssetSnapshot: (targetNovelId) => this.getDirectorAssetSnapshot(targetNovelId),
+      getVolumeWorkspace: (targetNovelId) => this.volumeService.getVolumes(targetNovelId),
       findActiveAutoDirectorTask: (targetNovelId) => this.workflowService.findActiveTaskByNovelAndLane(targetNovelId, "auto_director"),
+      findLatestAutoDirectorTask: (targetNovelId) => this.workflowService.findLatestVisibleTaskByNovelId(targetNovelId, "auto_director"),
     });
     if (takeoverState.hasActiveTask) {
       throw new Error("当前已有自动导演任务在运行或等待审核，请先继续或取消当前任务。");
     }
-
-    const readiness = buildDirectorTakeoverReadiness({
-      novel: takeoverState.novel,
-      snapshot: takeoverState.snapshot,
-      hasActiveTask: false,
-      activeTaskId: null,
-    });
-    assertDirectorTakeoverPhaseAvailable(readiness, input.startPhase);
 
     const directorInput = buildDirectorTakeoverInput({
       novel: takeoverState.novel,
@@ -656,67 +665,22 @@ export class NovelDirectorService {
       bookContract: takeoverState.bookContract,
       runMode: input.runMode,
     });
-    const directorSession = buildDirectorSessionState({
-      runMode: directorInput.runMode,
-      phase: input.startPhase,
-      isBackgroundRunning: true,
-    });
-    const resumeTarget = buildNovelEditResumeTarget({
-      novelId: input.novelId,
-      stage: this.resolveDirectorEditStage(input.startPhase),
-      volumeId: input.startPhase === "structured_outline" ? takeoverState.snapshot.firstVolumeId : null,
-    });
-    const workflowTask = await this.workflowService.bootstrapTask({
-      novelId: input.novelId,
-      lane: "auto_director",
-      title: takeoverState.novel.title,
-      forceNew: true,
-      seedPayload: this.buildDirectorSeedPayload(
-        {
-          ...directorInput,
-          autoExecutionPlan: input.autoExecutionPlan,
-          provider: input.provider ?? directorInput.provider,
-          model: input.model?.trim() || directorInput.model,
-          temperature: typeof input.temperature === "number" ? input.temperature : directorInput.temperature,
-        },
-        input.novelId,
-        {
-          directorSession,
-          resumeTarget,
-          takeover: {
-            source: "existing_novel",
-            startPhase: input.startPhase,
-          },
-        },
-      ),
-    });
-    const runningState = resolveDirectorRunningStateForPhase(input.startPhase);
-    await this.workflowService.markTaskRunning(workflowTask.id, runningState);
-    this.scheduleBackgroundRun(workflowTask.id, async () => {
-      await this.runDirectorPipeline({
-        taskId: workflowTask.id,
-        novelId: input.novelId,
-        input: {
-          ...directorInput,
-          autoExecutionPlan: input.autoExecutionPlan,
-          provider: input.provider ?? directorInput.provider,
-          model: input.model?.trim() || directorInput.model,
-          temperature: typeof input.temperature === "number" ? input.temperature : directorInput.temperature,
-        },
-        startPhase: input.startPhase,
-      });
-    });
-
-    return {
-      novelId: input.novelId,
-      workflowTaskId: workflowTask.id,
-      startPhase: input.startPhase,
-      directorSession,
-      resumeTarget: {
-        ...resumeTarget,
-        taskId: workflowTask.id,
+    return startDirectorTakeoverExecution({
+      request: input,
+      takeoverState,
+      directorInput: {
+        ...directorInput,
+        autoExecutionPlan: input.autoExecutionPlan,
+        provider: input.provider ?? directorInput.provider,
+        model: input.model?.trim() || directorInput.model,
+        temperature: typeof input.temperature === "number" ? input.temperature : directorInput.temperature,
       },
-    };
+      workflowService: this.workflowService,
+      autoExecutionRuntime: this.autoExecutionRuntime,
+      buildDirectorSeedPayload: (request, novelId, extra) => this.buildDirectorSeedPayload(request, novelId, extra),
+      scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, runner),
+      runDirectorPipeline: (payload) => this.runDirectorPipeline(payload),
+    });
   }
 
   async generateCandidates(input: DirectorCandidatesRequest): Promise<DirectorCandidatesResponse> {

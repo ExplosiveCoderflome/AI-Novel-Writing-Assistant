@@ -7,6 +7,7 @@ export interface StateServiceOptions {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
+  skipPayoffLedgerSync?: boolean;
 }
 
 interface CharacterStateOutput {
@@ -35,8 +36,8 @@ interface RelationStateOutput {
 
 interface InformationStateOutput {
   holderType?: string;
-  holderRefId?: string;
-  holderRefName?: string;
+  holderRefId?: string | null;
+  holderRefName?: string | null;
   fact?: string;
   status?: string;
   summary?: string;
@@ -47,7 +48,7 @@ interface ForeshadowStateOutput {
   summary?: string;
   status?: string;
   setupChapterId?: string;
-  payoffChapterId?: string;
+  payoffChapterId?: string | null;
 }
 
 export interface SnapshotExtractionOutput {

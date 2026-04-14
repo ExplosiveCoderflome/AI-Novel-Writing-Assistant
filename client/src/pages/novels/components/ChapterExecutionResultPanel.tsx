@@ -8,6 +8,7 @@ import type {
 } from "@ai-novel/shared/types/novel";
 import type { SSEFrame } from "@ai-novel/shared/types/api";
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import {
 import {
   hasText,
   parseChapterScenePlanForDisplay,
+  resolveDisplayedChapterStatus,
   type AssetTabKey,
   MetricBadge,
 } from "./chapterExecution.shared";
@@ -60,6 +62,8 @@ interface ChapterExecutionResultPanelProps {
   streamingChapterLabel?: string | null;
   chapterRunStatus?: Extract<SSEFrame, { type: "run_status" }> | null;
   onAbortStream: () => void;
+  onRunFullAudit: () => void;
+  isRunningFullAudit: boolean;
   repairStreamContent: string;
   isRepairStreaming: boolean;
   repairStreamingChapterId?: string | null;
@@ -109,6 +113,8 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
     streamingChapterLabel,
     chapterRunStatus,
     onAbortStream,
+    onRunFullAudit,
+    isRunningFullAudit,
     repairStreamContent,
     isRepairStreaming,
     repairStreamingChapterId,
@@ -164,6 +170,37 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
   const targetWordCount = selectedChapter.targetWordCount ?? null;
   const qualityOverall = chapterQualityReport?.overall ?? selectedChapter.qualityScore ?? null;
   const detailTab = assetTab === "content" ? "taskSheet" : assetTab;
+  const contentViewportRef = useRef<HTMLDivElement | null>(null);
+  const detailSectionRef = useRef<HTMLDetailsElement | null>(null);
+  const [isDetailSectionOpen, setIsDetailSectionOpen] = useState(false);
+  const displayedStatus = resolveDisplayedChapterStatus(selectedChapter);
+  const needsAuditPrompt = displayedStatus === "pending_review"
+    && selectedChapter.generationState !== "reviewed"
+    && selectedChapter.generationState !== "approved";
+  const needsConfirmationPrompt = displayedStatus === "pending_review"
+    && (selectedChapter.generationState === "reviewed" || selectedChapter.generationState === "approved");
+
+  useEffect(() => {
+    if (!isSelectedChapterStreaming && !isSelectedChapterFinalizing) {
+      return;
+    }
+    const viewport = contentViewportRef.current;
+    if (!viewport) {
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      viewport.scrollTop = viewport.scrollHeight;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [contentPanelContent, isSelectedChapterFinalizing, isSelectedChapterStreaming, selectedChapter.id]);
+
+  const openQualityPanel = () => {
+    setIsDetailSectionOpen(true);
+    onAssetTabChange("quality");
+    window.requestAnimationFrame(() => {
+      detailSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -263,6 +300,16 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-muted-foreground">字数 {contentPanelWordCount}</span>
+                {needsAuditPrompt ? (
+                  <Button size="sm" onClick={onRunFullAudit} disabled={isRunningFullAudit}>
+                    {isRunningFullAudit ? "审校中..." : "去审校"}
+                  </Button>
+                ) : null}
+                {needsConfirmationPrompt ? (
+                  <Button size="sm" variant="outline" onClick={openQualityPanel}>
+                    去确认
+                  </Button>
+                ) : null}
                 {isSelectedChapterStreaming && !isSelectedChapterFinalizing ? (
                   <Button size="sm" variant="secondary" onClick={onAbortStream}>
                     停止生成
@@ -271,7 +318,7 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
               </div>
             </div>
 
-            <div className="max-h-[760px] overflow-y-auto px-6 py-6 lg:px-10">
+            <div ref={contentViewportRef} className="max-h-[760px] overflow-y-auto px-6 py-6 lg:px-10">
               {contentPanelContent ? (
                 <article className="mx-auto max-w-4xl text-[15px] leading-8 text-foreground">
                   <MarkdownViewer content={contentPanelContent} />
@@ -300,7 +347,12 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
             </div>
           ) : null}
 
-          <details className="group rounded-2xl border border-border/70 bg-background/95 p-4">
+          <details
+            ref={detailSectionRef}
+            className="group rounded-2xl border border-border/70 bg-background/95 p-4"
+            open={isDetailSectionOpen}
+            onToggle={(event) => setIsDetailSectionOpen((event.currentTarget as HTMLDetailsElement).open)}
+          >
             <summary className="cursor-pointer list-none">
               <CollapsibleSummary
                 title="章节详情区"

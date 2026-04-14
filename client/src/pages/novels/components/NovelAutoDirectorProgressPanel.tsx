@@ -3,12 +3,14 @@ import {
   DIRECTOR_CANDIDATE_SETUP_STEPS,
 } from "@ai-novel/shared/types/novelDirector";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import AITakeoverContainer, { type AITakeoverMode } from "@/components/workflow/AITakeoverContainer";
 import {
   isChapterTitleDiversitySummary,
   resolveChapterTitleWarning,
 } from "@/lib/directorTaskNotice";
+import { extractWorkflowActivityTags } from "@/lib/novelWorkflowActivityTags";
 import { useDirectorChapterTitleRepair } from "@/hooks/useDirectorChapterTitleRepair";
 
 type DirectorExecutionViewMode = "execution_progress" | "execution_failed";
@@ -252,6 +254,7 @@ export default function NovelAutoDirectorProgressPanel({
         ? "导演任务执行中断"
         : (chapterTitleWarning ? "章节列表已生成，等待修复标题结构" : "正在准备导演任务"))
     );
+  const activityTags = extractWorkflowActivityTags(task?.currentItemLabel);
   const workflowTitle = task?.title?.trim() || "";
   const hintedTitle = titleHint?.trim() || "";
   const taskTitle = (
@@ -335,6 +338,17 @@ export default function NovelAutoDirectorProgressPanel({
             </div>
           ))}
         </div>
+
+        {activityTags.length > 0 ? (
+          <div className="mt-4 rounded-xl border bg-background/80 p-3">
+            <div className="text-xs font-medium text-muted-foreground">后台附属分析</div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {activityTags.map((tag) => (
+                <Badge key={tag} variant="secondary">{tag}</Badge>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {tokenUsage ? (
           <div className="mt-4 grid gap-3 md:grid-cols-4">

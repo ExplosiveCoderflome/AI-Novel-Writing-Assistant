@@ -35,9 +35,9 @@ function buildBatch(round = 1) {
   return {
     id: `batch_${round}`,
     round,
-    roundLabel: `第 ${round} 轮`,
+    roundLabel: `Round ${round}`,
     idea: "A college girl accidentally enters a supernatural organization.",
-    refinementSummary: round === 1 ? null : "预设修正：冲突更强",
+    refinementSummary: round === 1 ? null : "Push the conflict harder.",
     presets: round === 1 ? [] : ["stronger_conflict"],
     candidates: [
       buildCandidate(`candidate_${round}_1`, "Neon Archive"),
@@ -85,7 +85,141 @@ function buildStoryMacroPlan() {
   };
 }
 
-test("novel director routes support candidates, refine and confirm flows", async () => {
+function buildTakeoverReadiness() {
+  return {
+    novelId: "novel_director_demo",
+    novelTitle: "Neon Archive",
+    hasActiveTask: false,
+    activeTaskId: null,
+    snapshot: {
+      hasStoryMacroPlan: true,
+      hasBookContract: true,
+      characterCount: 4,
+      chapterCount: 0,
+      volumeCount: 1,
+      firstVolumeId: "volume_1",
+      firstVolumeChapterCount: 0,
+      firstVolumeBeatSheetReady: true,
+      firstVolumePreparedChapterCount: 0,
+      generatedChapterCount: 0,
+      approvedChapterCount: 0,
+      pendingRepairChapterCount: 0,
+    },
+    activePipelineJob: null,
+    latestCheckpoint: {
+      checkpointType: "front10_ready",
+      stage: "chapter_execution",
+      volumeId: "volume_1",
+      chapterId: null,
+    },
+    executableRange: {
+      startOrder: 1,
+      endOrder: 10,
+      nextChapterOrder: 1,
+      nextChapterId: null,
+      remainingChapterCount: 10,
+    },
+    entrySteps: [
+      {
+        step: "basic",
+        label: "从项目设定开始",
+        description: "先检查当前项目基础资产，再接管后续导演流程。",
+        available: true,
+        recommended: false,
+        status: "complete",
+        reason: "当前项目基础信息足够。",
+        previews: [],
+      },
+      {
+        step: "story_macro",
+        label: "从故事宏观规划开始",
+        description: "先补齐 Story Macro 和 Book Contract。",
+        available: true,
+        recommended: false,
+        status: "complete",
+        reason: "当前书级信息足够。",
+        previews: [],
+      },
+      {
+        step: "character",
+        label: "从角色准备开始",
+        description: "沿用书级方向继续角色准备。",
+        available: true,
+        recommended: false,
+        status: "complete",
+        reason: "书级方向资产已齐。",
+        previews: [],
+      },
+      {
+        step: "outline",
+        label: "从卷战略开始",
+        description: "继续卷战略和卷骨架。",
+        available: true,
+        recommended: true,
+        status: "ready",
+        reason: "角色资产已齐，可以从卷战略开始。",
+        previews: [
+          {
+            strategy: "continue_existing",
+            summary: "继续已有进度，接着补卷战略。",
+            effectSummary: "会复用现有书级规划与角色资产，只补卷战略和卷骨架。",
+            effectiveStep: "outline",
+            effectiveStage: "volume_strategy",
+            skipSteps: ["basic", "story_macro", "character"],
+            continueStep: "outline",
+            restartStep: null,
+            usesCurrentBatch: false,
+            impactNotes: [],
+          },
+          {
+            strategy: "restart_current_step",
+            summary: "重新生成当前步，从卷战略重跑。",
+            effectSummary: "会重跑卷战略与卷骨架，保留前置书级规划与角色。",
+            effectiveStep: "outline",
+            effectiveStage: "volume_strategy",
+            skipSteps: ["basic", "story_macro", "character"],
+            continueStep: null,
+            restartStep: "outline",
+            usesCurrentBatch: false,
+            impactNotes: ["不会清空已有正文。"],
+          },
+        ],
+      },
+      {
+        step: "structured",
+        label: "从节奏 / 拆章开始",
+        description: "继续第 1 卷节奏与拆章。",
+        available: true,
+        recommended: false,
+        status: "partial",
+        reason: "卷级资产已经存在。",
+        previews: [],
+      },
+      {
+        step: "chapter",
+        label: "从章节执行开始",
+        description: "优先恢复当前章节批次或准备好的章节范围。",
+        available: true,
+        recommended: false,
+        status: "ready",
+        reason: "前 10 章已具备可执行范围。",
+        previews: [],
+      },
+      {
+        step: "pipeline",
+        label: "从质量修复开始",
+        description: "优先恢复当前修复批次或待修章节。",
+        available: true,
+        recommended: false,
+        status: "ready",
+        reason: "存在可恢复的修复检查点。",
+        previews: [],
+      },
+    ],
+  };
+}
+
+test("novel director routes support candidates, refine and takeover flows", async () => {
   const confirmCalls = [];
   const patchCalls = [];
   const refineTitleCalls = [];
@@ -125,8 +259,8 @@ test("novel director routes support candidates, refine and confirm flows", async
           title: "Neon Switchboard",
           clickRate: 79,
           style: "high_concept",
-          angle: "新版主书名",
-          reason: "更偏都市冷感。",
+          angle: "new main title",
+          reason: "Feels colder and more urban.",
         },
       ],
     };
@@ -208,73 +342,29 @@ test("novel director routes support candidates, refine and confirm flows", async
     };
   };
   NovelDirectorService.prototype.getTakeoverReadiness = async function getTakeoverReadinessMock() {
-    return {
-      novelId: "novel_director_demo",
-      novelTitle: "Neon Archive",
-      hasActiveTask: false,
-      activeTaskId: null,
-      snapshot: {
-        hasStoryMacroPlan: true,
-        hasBookContract: true,
-        characterCount: 4,
-        chapterCount: 0,
-        volumeCount: 1,
-        firstVolumeChapterCount: 0,
-      },
-      stages: [
-        {
-          phase: "story_macro",
-          label: "从故事宏观规划开始",
-          description: "先补齐 Story Macro 和 Book Contract。",
-          available: true,
-          recommended: false,
-          reason: "当前书级信息足够。",
-        },
-        {
-          phase: "character_setup",
-          label: "从角色准备开始",
-          description: "沿用书级方向继续角色准备。",
-          available: true,
-          recommended: false,
-          reason: "书级方向资产已齐。",
-        },
-        {
-          phase: "volume_strategy",
-          label: "从卷战略开始",
-          description: "继续卷战略和卷骨架。",
-          available: true,
-          recommended: true,
-          reason: "角色资产已齐，可以从卷战略开始。",
-        },
-        {
-          phase: "structured_outline",
-          label: "从节奏 / 拆章开始",
-          description: "继续第 1 卷节奏与拆章。",
-          available: true,
-          recommended: false,
-          reason: "卷级资产已经存在。",
-        },
-      ],
-    };
+    return buildTakeoverReadiness();
   };
   NovelDirectorService.prototype.startTakeover = async function startTakeoverMock(input) {
     takeoverCalls.push(input);
     return {
       novelId: "novel_director_demo",
       workflowTaskId: "workflow_takeover_demo",
-      startPhase: "volume_strategy",
+      startPhase: input.startPhase ?? "volume_strategy",
+      entryStep: input.entryStep ?? "outline",
+      strategy: input.strategy ?? (input.startPhase ? "restart_current_step" : "continue_existing"),
+      effectiveStage: input.entryStep === "pipeline" ? "quality_repair" : "volume_strategy",
       directorSession: {
         runMode: input.runMode ?? "stage_review",
         isBackgroundRunning: true,
         lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
-        phase: "volume_strategy",
+        phase: input.entryStep === "pipeline" ? "front10_ready" : "volume_strategy",
         reviewScope: null,
       },
       resumeTarget: {
         route: "/novels/:id/edit",
         novelId: "novel_director_demo",
         taskId: "workflow_takeover_demo",
-        stage: "outline",
+        stage: input.entryStep === "pipeline" ? "pipeline" : "outline",
       },
     };
   };
@@ -415,14 +505,16 @@ test("novel director routes support candidates, refine and confirm flows", async
     const readinessPayload = await readinessResponse.json();
     assert.equal(readinessPayload.success, true);
     assert.equal(readinessPayload.data.snapshot.characterCount, 4);
-    assert.equal(readinessPayload.data.stages.find((item) => item.phase === "volume_strategy").recommended, true);
+    assert.equal(readinessPayload.data.entrySteps.find((item) => item.step === "outline").recommended, true);
+    assert.equal(readinessPayload.data.latestCheckpoint.checkpointType, "front10_ready");
 
     const takeoverResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/takeover`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         novelId: "novel_director_demo",
-        startPhase: "volume_strategy",
+        entryStep: "pipeline",
+        strategy: "continue_existing",
         runMode: "auto_to_execution",
         autoExecutionPlan: {
           mode: "volume",
@@ -434,13 +526,30 @@ test("novel director routes support candidates, refine and confirm flows", async
     const takeoverPayload = await takeoverResponse.json();
     assert.equal(takeoverPayload.success, true);
     assert.equal(takeoverPayload.data.workflowTaskId, "workflow_takeover_demo");
-    assert.equal(takeoverPayload.data.resumeTarget.stage, "outline");
+    assert.equal(takeoverPayload.data.resumeTarget.stage, "pipeline");
+    assert.equal(takeoverPayload.data.entryStep, "pipeline");
+    assert.equal(takeoverPayload.data.strategy, "continue_existing");
     assert.equal(takeoverPayload.data.directorSession.runMode, "auto_to_execution");
-    assert.equal(takeoverCalls.at(-1)?.runMode, "auto_to_execution");
+    assert.equal(takeoverCalls.at(-1)?.entryStep, "pipeline");
+    assert.equal(takeoverCalls.at(-1)?.strategy, "continue_existing");
     assert.deepEqual(takeoverCalls.at(-1)?.autoExecutionPlan, {
       mode: "volume",
       volumeOrder: 2,
     });
+
+    const legacyTakeoverResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/takeover`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        novelId: "novel_director_demo",
+        startPhase: "volume_strategy",
+      }),
+    });
+    assert.equal(legacyTakeoverResponse.status, 200);
+    const legacyTakeoverPayload = await legacyTakeoverResponse.json();
+    assert.equal(legacyTakeoverPayload.success, true);
+    assert.equal(legacyTakeoverPayload.data.startPhase, "volume_strategy");
+    assert.equal(takeoverCalls.at(-1)?.startPhase, "volume_strategy");
   } finally {
     NovelDirectorService.prototype.generateCandidates = originalGenerate;
     NovelDirectorService.prototype.refineCandidates = originalRefine;

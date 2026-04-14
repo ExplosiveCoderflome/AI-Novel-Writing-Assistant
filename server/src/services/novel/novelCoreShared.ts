@@ -161,6 +161,24 @@ export interface PipelineRunOptions extends LLMGenerateOptions {
   repairMode?: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only";
 }
 
+export type PipelineBackgroundSyncKind = "character_dynamics" | "state_snapshot" | "payoff_ledger";
+
+export type PipelineBackgroundSyncStatus = "running" | "failed";
+
+export interface PipelineBackgroundSyncActivity {
+  kind: PipelineBackgroundSyncKind;
+  status: PipelineBackgroundSyncStatus;
+  chapterId: string;
+  chapterOrder?: number;
+  chapterTitle?: string;
+  updatedAt: string;
+  error?: string | null;
+}
+
+export interface PipelineBackgroundSyncState {
+  activities?: PipelineBackgroundSyncActivity[];
+}
+
 export interface PipelinePayload extends LLMGenerateOptions {
   workflowTaskId?: string;
   maxRetries?: number;
@@ -171,6 +189,7 @@ export interface PipelinePayload extends LLMGenerateOptions {
   qualityThreshold?: number;
   repairMode?: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only";
   qualityAlertDetails?: string[];
+  backgroundSync?: PipelineBackgroundSyncState;
 }
 
 export interface StorylineDraftInput {

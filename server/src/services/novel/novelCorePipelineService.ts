@@ -561,8 +561,16 @@ export class NovelCorePipelineService {
         });
 
         const totalCount = Math.max(existingJob?.totalCount ?? 0, chapters.length, 1);
-        let completed = Math.min(Math.max(existingJob?.completedCount ?? 0, 0), chapters.length);
-        const chaptersToProcess = chapters.slice(completed);
+        const storedCompleted = Math.min(Math.max(existingJob?.completedCount ?? 0, 0), totalCount);
+        const filteredCompletedCount = runtimePayload.skipCompleted
+          ? Math.max(0, totalCount - chapters.length)
+          : 0;
+        const remainingStartIndex = Math.min(
+          Math.max(0, storedCompleted - filteredCompletedCount),
+          chapters.length,
+        );
+        let completed = storedCompleted;
+        const chaptersToProcess = chapters.slice(remainingStartIndex);
 
         for (const chapter of chaptersToProcess) {
           await this.ensurePipelineNotCancelled(jobId);
@@ -621,6 +629,7 @@ export class NovelCorePipelineService {
               model: options.model,
               temperature: options.temperature,
               maxRetries,
+              autoReview: options.autoReview,
               autoRepair: options.autoRepair,
               qualityThreshold,
               repairMode: options.repairMode,
@@ -637,9 +646,11 @@ export class NovelCorePipelineService {
 
           totalRetryCount += chapterResult.retryCountUsed;
           final = { score: chapterResult.score, issues: chapterResult.issues };
-          await createQualityReport(novelId, chapter.id, final.score, final.issues);
+          if (chapterResult.reviewExecuted) {
+            await createQualityReport(novelId, chapter.id, final.score, final.issues);
+          }
 
-          if (!chapterResult.pass) {
+          if (chapterResult.reviewExecuted && !chapterResult.pass) {
             qualityAlertDetails.push(
               `第${chapter.order}章（coherence=${final.score.coherence}, repetition=${final.score.repetition}, engagement=${final.score.engagement}）`,
             );

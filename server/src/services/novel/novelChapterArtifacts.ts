@@ -1,8 +1,7 @@
-import { novelEventBus } from "../../events";
 import { prisma } from "../../db/prisma";
-import { stateService } from "../state/StateService";
 import { briefSummary, extractCharacterEventLines, extractFacts } from "./novelCoreShared";
 import { queueRagUpsert } from "./novelCoreSupport";
+import { chapterArtifactBackgroundSyncService } from "./runtime/ChapterArtifactBackgroundSyncService";
 
 export async function syncCharacterTimelineForChapter(novelId: string, chapterId: string, content: string) {
   const [chapter, characters] = await Promise.all([
@@ -116,7 +115,7 @@ export async function syncChapterArtifacts(novelId: string, chapterId: string, c
   });
 
   await syncCharacterTimelineForChapter(novelId, chapterId, content);
-  await stateService.syncChapterState(novelId, chapterId, content).catch(() => null);
+  chapterArtifactBackgroundSyncService.scheduleChapterSync(novelId, chapterId, content);
 
   queueRagUpsert("chapter", chapterId);
   queueRagUpsert("chapter_summary", chapterId);
@@ -130,14 +129,4 @@ export async function syncChapterArtifacts(novelId: string, chapterId: string, c
     queueRagUpsert("consistency_fact", fact.id);
   }
 
-  const chapterRow = await prisma.chapter.findFirst({
-    where: { id: chapterId, novelId },
-    select: { order: true },
-  });
-  if (chapterRow) {
-    void novelEventBus.emit({
-      type: "chapter:drafted",
-      payload: { novelId, chapterId, chapterOrder: chapterRow.order },
-    }).catch(() => {});
-  }
 }

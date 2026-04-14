@@ -16,3 +16,22 @@ export function isDirectorRecoveryNotNeededError(error: unknown): error is Direc
       && candidate?.code === "director_recovery_not_needed"
     );
 }
+
+export class DirectorTaskCancelledError extends Error {
+  readonly code = "director_task_cancelled";
+
+  constructor(message = "当前自动导演任务已取消。") {
+    super(message);
+    this.name = "DirectorTaskCancelledError";
+  }
+}
+
+export function isDirectorTaskCancelledError(error: unknown): error is DirectorTaskCancelledError {
+  const candidate = error as { code?: unknown } | null;
+  return error instanceof DirectorTaskCancelledError
+    || (
+      Boolean(error)
+      && typeof error === "object"
+      && candidate?.code === "director_task_cancelled"
+    );
+}

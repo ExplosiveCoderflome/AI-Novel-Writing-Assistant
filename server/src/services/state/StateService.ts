@@ -21,6 +21,75 @@ function normalizeStatus(value: unknown, fallback: string): string {
   return text || fallback;
 }
 
+interface StateChapterReference {
+  id: string;
+  order: number;
+  title: string;
+}
+
+const INVALID_CHAPTER_REFERENCE_VALUES = new Set([
+  "null",
+  "undefined",
+  "none",
+  "n/a",
+  "na",
+  "unknown",
+  "unknown_chapter_id",
+  "placeholder_chapter_id",
+  "placeholder_setup_chapter_id",
+  "placeholder_payoff_chapter_id",
+]);
+
+function normalizeChapterReferenceText(value: unknown): string {
+  return String(value ?? "").trim();
+}
+
+function findChapterIdByReference(
+  value: unknown,
+  chapters: StateChapterReference[],
+): string | null {
+  const raw = normalizeChapterReferenceText(value);
+  if (!raw) {
+    return null;
+  }
+
+  const normalized = raw.toLowerCase();
+  if (INVALID_CHAPTER_REFERENCE_VALUES.has(normalized)) {
+    return null;
+  }
+
+  const directMatch = chapters.find((chapter) => chapter.id === raw || chapter.title === raw);
+  if (directMatch) {
+    return directMatch.id;
+  }
+
+  const orderMatch = raw.match(/^第?\s*(\d+)\s*章?$/);
+  if (orderMatch) {
+    const order = Number(orderMatch[1]);
+    return chapters.find((chapter) => chapter.order === order)?.id ?? null;
+  }
+
+  if (/^\d+$/.test(raw)) {
+    const order = Number(raw);
+    return chapters.find((chapter) => chapter.order === order)?.id ?? null;
+  }
+
+  return null;
+}
+
+export function resolveSnapshotChapterReference(input: {
+  value: unknown;
+  chapters: StateChapterReference[];
+  currentChapterId: string;
+  fallbackToCurrentChapter?: boolean;
+}): string | null {
+  const resolved = findChapterIdByReference(input.value, input.chapters);
+  if (resolved) {
+    return resolved;
+  }
+  return input.fallbackToCurrentChapter ? input.currentChapterId : null;
+}
+
 export class StateService {
   async getNovelState(novelId: string) {
     return this.getLatestSnapshot(novelId);
@@ -100,10 +169,14 @@ export class StateService {
   }
 
   async syncChapterState(novelId: string, chapterId: string, content: string, options: StateServiceOptions = {}) {
-    const [chapter, characters, summaryRow, factRows, timelineRows] = await Promise.all([
+    const [chapter, chapters, characters, summaryRow, factRows, timelineRows] = await Promise.all([
       prisma.chapter.findFirst({
         where: { id: chapterId, novelId },
         select: { id: true, title: true, order: true, expectation: true },
+      }),
+      prisma.chapter.findMany({
+        where: { novelId },
+        select: { id: true, order: true, title: true },
       }),
       prisma.character.findMany({
         where: { novelId },
@@ -141,9 +214,11 @@ export class StateService {
       novelId,
       chapterId,
       chapterOrder: chapter.order,
+      chapters,
       characters,
       previousSnapshot,
       extracted,
+      skipPayoffLedgerSync: options.skipPayoffLedgerSync === true,
     });
   }
 
@@ -169,9 +244,11 @@ export class StateService {
     novelId: string;
     chapterId: string;
     chapterOrder: number;
+    chapters: StateChapterReference[];
     characters: Array<{ id: string; name: string }>;
     previousSnapshot: Awaited<ReturnType<StateService["getLatestSnapshotBeforeChapter"]>>;
     extracted: SnapshotExtractionOutput;
+    skipPayoffLedgerSync?: boolean;
   }) {
     const characterMap = new Map<string, string>();
     for (const character of input.characters) {
@@ -245,8 +322,18 @@ export class StateService {
           title: item.title.trim(),
           summary: item.summary?.trim() || null,
           status: normalizeStatus(item.status, "setup"),
-          setupChapterId: item.setupChapterId?.trim() || input.chapterId,
-          payoffChapterId: item.payoffChapterId?.trim() || null,
+          setupChapterId: resolveSnapshotChapterReference({
+            value: item.setupChapterId,
+            chapters: input.chapters,
+            currentChapterId: input.chapterId,
+            fallbackToCurrentChapter: true,
+          }),
+          payoffChapterId: resolveSnapshotChapterReference({
+            value: item.payoffChapterId,
+            chapters: input.chapters,
+            currentChapterId: input.chapterId,
+            fallbackToCurrentChapter: false,
+          }),
         };
       })
       .filter((item): item is NonNullable<typeof item> => Boolean(item));
@@ -350,10 +437,12 @@ export class StateService {
         trackedConflictKeys: detected.trackedConflictKeys,
         conflicts: detected.conflicts,
       }).catch(() => null);
-      await payoffLedgerSyncService.syncLedger(input.novelId, {
-        chapterOrder: input.chapterOrder,
-        sourceChapterId: input.chapterId,
-      }).catch(() => null);
+      if (!input.skipPayoffLedgerSync) {
+        await payoffLedgerSyncService.syncLedger(input.novelId, {
+          chapterOrder: input.chapterOrder,
+          sourceChapterId: input.chapterId,
+        }).catch(() => null);
+      }
     }
 
     return persistedSnapshot;

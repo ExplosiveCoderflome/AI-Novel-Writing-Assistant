@@ -89,6 +89,7 @@ export interface BasicTabProps {
   onSaveWorldSliceOverrides: (patch: StoryWorldSliceOverrides) => void;
   isSaving: boolean;
   projectQuickStart?: ReactNode;
+  directorTakeoverEntry?: ReactNode;
 }
 
 export interface StoryMacroTabProps {
@@ -116,6 +117,7 @@ export interface StoryMacroTabProps {
   isBuilding: boolean;
   isSaving: boolean;
   isSavingState: boolean;
+  directorTakeoverEntry?: ReactNode;
 }
 
 export interface OutlineTabViewProps {
@@ -170,6 +172,7 @@ export interface OutlineTabViewProps {
   onAnalyzeVersionImpact: () => void;
   isAnalyzingVersionImpact: boolean;
   impactResult: VolumeImpactResult | null;
+  directorTakeoverEntry?: ReactNode;
 }
 
 export interface StructuredTabViewProps extends Omit<
@@ -195,6 +198,7 @@ export interface StructuredTabViewProps extends Omit<
   | "impactResult"
 > {
   novelId: string;
+  directorTakeoverEntry?: ReactNode;
   beatSheets: VolumeBeatSheet[];
   rebalanceDecisions: VolumeRebalanceDecision[];
   draftText: string;
@@ -326,6 +330,7 @@ export interface ChapterTabViewProps {
   streamingChapterLabel?: string | null;
   chapterRunStatus?: Extract<SSEFrame, { type: "run_status" }> | null;
   onAbortStream: () => void;
+  directorTakeoverEntry?: ReactNode;
 }
 
 export interface PipelineTabViewProps {
@@ -389,6 +394,7 @@ export interface PipelineTabViewProps {
   }>;
   bible?: NovelBible | null;
   plotBeats: PlotBeat[];
+  directorTakeoverEntry?: ReactNode;
 }
 
 export interface CharacterTabViewProps {
@@ -450,6 +456,7 @@ export interface CharacterTabViewProps {
   onSaveCharacter: () => void;
   isSavingCharacter: boolean;
   timelineEvents: CharacterTimeline[];
+  directorTakeoverEntry?: ReactNode;
 }
 
 export interface NovelEditTakeoverState {
@@ -495,4 +502,5 @@ export interface NovelEditViewProps {
   characterTab: CharacterTabViewProps;
   takeover?: NovelEditTakeoverState | null;
   taskDrawer?: NovelTaskDrawerState | null;
+  activeStepTakeoverEntry?: ReactNode;
 }

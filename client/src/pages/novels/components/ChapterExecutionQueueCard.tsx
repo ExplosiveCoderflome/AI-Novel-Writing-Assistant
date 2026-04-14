@@ -6,11 +6,9 @@ import {
   chapterStatusDescription,
   chapterStatusLabel,
   chapterSuggestedActionLabel,
-  generationStateDescription,
-  generationStateLabel,
   parseRiskFlags,
   resolveChapterQueuePreview,
-  shouldShowGenerationStateBadge,
+  resolveDisplayedChapterStatus,
   type QueueFilterKey,
   type QueueFilterOption,
 } from "./chapterExecution.shared";
@@ -81,6 +79,7 @@ export default function ChapterExecutionQueueCard(props: ChapterExecutionQueueCa
               const isSelected = selectedChapterId === chapter.id;
               const isStreamingTarget = streamingChapterId === chapter.id;
               const isRepairTarget = repairStreamingChapterId === chapter.id;
+              const displayedStatus = resolveDisplayedChapterStatus(chapter);
 
               return (
                 <button
@@ -105,10 +104,10 @@ export default function ChapterExecutionQueueCard(props: ChapterExecutionQueueCa
                     <Badge
                       variant={isSelected ? "default" : "outline"}
                       className="min-w-[60px] shrink-0 justify-center rounded-full px-2 py-1 text-[11px]"
-                      title={chapterStatusDescription(chapter.chapterStatus)}
-                      aria-label={chapterStatusDescription(chapter.chapterStatus)}
+                      title={chapterStatusDescription(displayedStatus)}
+                      aria-label={chapterStatusDescription(displayedStatus)}
                     >
-                      {chapterStatusLabel(chapter.chapterStatus)}
+                      {chapterStatusLabel(displayedStatus)}
                     </Badge>
                   </div>
 
@@ -121,16 +120,6 @@ export default function ChapterExecutionQueueCard(props: ChapterExecutionQueueCa
                     {isRepairTarget ? (
                       <Badge variant="secondary" className="rounded-full px-2 py-1 text-[11px]">
                         修复中
-                      </Badge>
-                    ) : null}
-                    {shouldShowGenerationStateBadge(chapter.generationState) ? (
-                      <Badge
-                        variant="outline"
-                        className="rounded-full px-2 py-1 text-[11px]"
-                        title={generationStateDescription(chapter.generationState)}
-                        aria-label={generationStateDescription(chapter.generationState)}
-                      >
-                        {generationStateLabel(chapter.generationState)}
                       </Badge>
                     ) : null}
                     {chapterRisks.slice(0, 2).map((risk) => (

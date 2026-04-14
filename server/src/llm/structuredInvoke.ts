@@ -19,6 +19,7 @@ import {
 } from "./structuredOutput";
 import { relaxGeneratedContentSchema } from "./generatedContentSchema";
 import { getStructuredFallbackSettings } from "./structuredFallbackSettings";
+import { logStructuredRepairSession } from "./repairLogging";
 import { toText, extractJSONValue } from "../services/novel/novelP0Utils";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
 
@@ -356,30 +357,76 @@ async function repairWithLlm<T>(
     "请修复后只输出最终 JSON。",
   ].join("\n");
 
-  const startedAt = Date.now();
-  const result = await llm.invoke([new SystemMessage(repairSystem), new HumanMessage(repairHuman)]);
-  const repairedRaw = toText(result.content);
-  logStructuredInvokeEvent({
-    event: "repair_done",
+  logStructuredRepairSession({
+    event: "repair_start",
     label: input.label,
+    repairAttempt,
     provider: input.provider,
     model: input.model,
     taskType: input.taskType,
-    repairAttempt,
-    latencyMs: Date.now() - startedAt,
-    rawChars: repairedRaw.length,
-    strategy: "prompt_json",
+    promptMeta: input.promptMeta,
+    validationError,
+    repairSystem,
+    repairHuman,
   });
-  const repairParse = tryParseStructuredJsonValue(repairedRaw);
-  if ("error" in repairParse) {
-    throw new Error(`[${input.label}] JSON repair 后仍无法解析。错误：${repairParse.error}`);
-  }
 
-  const final = input.schema.safeParse(repairParse.parsed);
-  if (!final.success) {
-    throw new Error(`[${input.label}] JSON repair 后仍未通过 Schema 校验。错误：${formatZodErrors(final.error)}`);
+  const startedAt = Date.now();
+  try {
+    const result = await llm.invoke([new SystemMessage(repairSystem), new HumanMessage(repairHuman)]);
+    const repairedRaw = toText(result.content);
+    const latencyMs = Date.now() - startedAt;
+    logStructuredInvokeEvent({
+      event: "repair_done",
+      label: input.label,
+      provider: input.provider,
+      model: input.model,
+      taskType: input.taskType,
+      repairAttempt,
+      latencyMs,
+      rawChars: repairedRaw.length,
+      strategy: "prompt_json",
+    });
+    logStructuredRepairSession({
+      event: "repair_done",
+      label: input.label,
+      repairAttempt,
+      provider: input.provider,
+      model: input.model,
+      taskType: input.taskType,
+      promptMeta: input.promptMeta,
+      validationError,
+      repairSystem,
+      repairHuman,
+      rawOutput: repairedRaw,
+      latencyMs,
+    });
+    const repairParse = tryParseStructuredJsonValue(repairedRaw);
+    if ("error" in repairParse) {
+      throw new Error(`[${input.label}] JSON repair 后仍无法解析。错误：${repairParse.error}`);
+    }
+
+    const final = input.schema.safeParse(repairParse.parsed);
+    if (!final.success) {
+      throw new Error(`[${input.label}] JSON repair 后仍未通过 Schema 校验。错误：${formatZodErrors(final.error)}`);
+    }
+    return final.data;
+  } catch (error) {
+    logStructuredRepairSession({
+      event: "repair_error",
+      label: input.label,
+      repairAttempt,
+      provider: input.provider,
+      model: input.model,
+      taskType: input.taskType,
+      promptMeta: input.promptMeta,
+      validationError,
+      repairSystem,
+      repairHuman,
+      latencyMs: Date.now() - startedAt,
+      error,
+    });
+    throw error;
   }
-  return final.data;
 }
 
 export function shouldUseJsonObjectResponseFormat<T>(

@@ -1334,6 +1334,21 @@ export default function NovelEdit() {
     repairSSE,
   });
 
+  const renderTakeoverEntry = (
+    step: "basic" | "story_macro" | "character" | "outline" | "structured" | "chapter" | "pipeline",
+    variant: "default" | "outline" | "secondary" = "default",
+  ) => (
+    <NovelExistingProjectTakeoverDialog
+      novelId={id}
+      basicForm={basicForm}
+      genreOptions={genreOptions}
+      storyModeOptions={storyModeOptions}
+      worldOptions={worldListQuery.data?.data ?? []}
+      triggerVariant={variant}
+      defaultEntryStep={step}
+    />
+  );
+
   const { basicTab, outlineTab, structuredTab } = buildNovelEditPlanningTabs({
     id,
     basicForm,
@@ -1354,15 +1369,11 @@ export default function NovelEdit() {
     onRefreshWorldSlice: refreshWorldSlice,
     onSaveWorldSliceOverrides: saveWorldSliceOverrides,
     isSavingBasic: saveBasicMutation.isPending,
-    projectQuickStart: (
-      <NovelExistingProjectTakeoverDialog
-        novelId={id}
-        basicForm={basicForm}
-        genreOptions={genreOptions}
-        storyModeOptions={storyModeOptions}
-        worldOptions={worldListQuery.data?.data ?? []}
-      />
-    ),
+    projectQuickStart: undefined,
+    basicDirectorTakeoverEntry: undefined,
+    storyMacroDirectorTakeoverEntry: undefined,
+    outlineDirectorTakeoverEntry: undefined,
+    structuredDirectorTakeoverEntry: undefined,
     worldInjectionSummary,
     hasCharacters,
     hasUnsavedVolumeDraft,
@@ -1513,9 +1524,26 @@ export default function NovelEdit() {
     streamingChapterLabel: activeChapterStream?.chapterLabel ?? null,
     chapterRunStatus: chapterSSE.latestRun,
     onAbortStream: handleAbortChapterStream,
+    directorTakeoverEntry: undefined,
   };
   const pipelineTab = { novelId: id, worldInjectionSummary, hasCharacters, onGoToCharacterTab: goToCharacterTab, pipelineForm, onPipelineFormChange: (field: "startOrder" | "endOrder" | "maxRetries" | "runMode" | "autoReview" | "autoRepair" | "skipCompleted" | "qualityThreshold" | "repairMode", value: number | boolean | string) => setPipelineForm((prev) => ({ ...prev, [field]: value } as typeof prev)), maxOrder, onGenerateBible: () => void bibleSSE.start(`/novels/${id}/bible/generate`, { provider: llm.provider, model: llm.model, temperature: 0.6 }), onAbortBible: bibleSSE.abort, isBibleStreaming: bibleSSE.isStreaming, bibleStreamContent: bibleSSE.content, onGenerateBeats: () => void beatsSSE.start(`/novels/${id}/beats/generate`, { provider: llm.provider, model: llm.model, targetChapters: pipelineForm.endOrder }), onAbortBeats: beatsSSE.abort, isBeatsStreaming: beatsSSE.isStreaming, beatsStreamContent: beatsSSE.content, onRunPipeline: (patch?: Partial<typeof pipelineForm>) => runPipelineMutation.mutate(patch), isRunningPipeline: runPipelineMutation.isPending, pipelineMessage, pipelineJob: pipelineJobQuery.data?.data, chapters, selectedChapterId, onSelectedChapterChange: setSelectedChapterId, onReviewChapter: () => reviewMutation.mutate(), isReviewing: reviewMutation.isPending, onRepairChapter: () => { setRepairBeforeContent(selectedChapter?.content ?? ""); setRepairAfterContent(""); setActiveRepairStream(selectedChapter ? { chapterId: selectedChapter.id, chapterLabel: `第${selectedChapter.order}章 ${selectedChapter.title || "未命名章节"}` } : null); void repairSSE.start(`/novels/${id}/chapters/${selectedChapterId}/repair`, { provider: llm.provider, model: llm.model, reviewIssues: reviewResult?.issues ?? [], auditIssueIds: openAuditIssueIds }); }, isRepairing: repairSSE.isStreaming, onGenerateHook: () => hookMutation.mutate(), isGeneratingHook: hookMutation.isPending, reviewResult, repairBeforeContent, repairAfterContent, repairStreamContent: repairSSE.content, isRepairStreaming: repairSSE.isStreaming, onAbortRepair: handleAbortRepair, qualitySummary, chapterReports: qualityReportQuery.data?.data?.chapterReports ?? [], bible, plotBeats };
   const characterTab = { novelId: id, llmProvider: llm.provider, llmModel: llm.model, characterMessage, quickCharacterForm, onQuickCharacterFormChange: (field: "name" | "role", value: string) => setQuickCharacterForm((prev) => ({ ...prev, [field]: value })), onQuickCreateCharacter: (payload: QuickCharacterCreatePayload) => quickCreateCharacterMutation.mutate(payload), isQuickCreating: quickCreateCharacterMutation.isPending, onGenerateSupplementalCharacters: generateSupplementalCharacterMutation.mutateAsync, isGeneratingSupplementalCharacters: generateSupplementalCharacterMutation.isPending, onApplySupplementalCharacter: applySupplementalCharacterMutation.mutateAsync, isApplyingSupplementalCharacter: applySupplementalCharacterMutation.isPending, characters, coreCharacterCount, baseCharacters, selectedBaseCharacterId, onSelectedBaseCharacterChange: setSelectedBaseCharacterId, selectedBaseCharacter, importedBaseCharacterIds, onImportBaseCharacter: () => importBaseCharacterMutation.mutate(), isImportingBaseCharacter: importBaseCharacterMutation.isPending, selectedCharacterId, onSelectedCharacterChange: setSelectedCharacterId, onDeleteCharacter: (characterId: string) => deleteCharacterMutation.mutate(characterId), isDeletingCharacter: deleteCharacterMutation.isPending, deletingCharacterId: deleteCharacterMutation.variables ?? "", onSyncTimeline: () => syncTimelineMutation.mutate(), isSyncingTimeline: syncTimelineMutation.isPending, onSyncAllTimeline: () => syncAllTimelineMutation.mutate(), isSyncingAllTimeline: syncAllTimelineMutation.isPending, onEvolveCharacter: () => evolveCharacterMutation.mutate(), isEvolvingCharacter: evolveCharacterMutation.isPending, onWorldCheck: () => worldCheckMutation.mutate(), isCheckingWorld: worldCheckMutation.isPending, selectedCharacter, characterForm, onCharacterFormChange: (field: "name" | "role" | "gender" | "personality" | "background" | "development" | "currentState" | "currentGoal", value: string) => setCharacterForm((prev) => ({ ...prev, [field]: value })), onSaveCharacter: () => saveCharacterMutation.mutate(), isSavingCharacter: saveCharacterMutation.isPending, timelineEvents: characterTimelineQuery.data?.data ?? [] };
+
+  const activeStepTakeoverEntry = renderTakeoverEntry(
+    activeTab === "story_macro"
+      ? "story_macro"
+      : activeTab === "character"
+        ? "character"
+        : activeTab === "outline"
+          ? "outline"
+          : activeTab === "structured"
+            ? "structured"
+            : activeTab === "chapter"
+              ? "chapter"
+              : activeTab === "pipeline"
+                ? "pipeline"
+                : "basic",
+  );
 
   return (
     <NovelEditView
@@ -1531,6 +1559,7 @@ export default function NovelEdit() {
       pipelineTab={pipelineTab}
       characterTab={characterTab}
       takeover={takeover}
+      activeStepTakeoverEntry={activeStepTakeoverEntry}
       taskDrawer={{
         open: isTaskDrawerOpen,
         onOpenChange: setIsTaskDrawerOpen,
