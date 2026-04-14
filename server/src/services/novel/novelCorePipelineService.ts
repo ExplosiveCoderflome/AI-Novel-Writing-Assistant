@@ -1,4 +1,5 @@
 import type { ReviewIssue } from "@ai-novel/shared/types/novel";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma";
 import { novelEventBus } from "../../events";
 import { runWithLlmUsageTracking } from "../../llm/usageTracking";
@@ -19,6 +20,17 @@ import { buildPipelineCurrentItemLabel, buildPipelineStageProgress, decoratePipe
 export { buildPipelineCurrentItemLabel, buildPipelineStageProgress } from "./pipelineJobState";
 
 const PIPELINE_HEARTBEAT_INTERVAL_MS = 15000;
+
+function buildSkipCompletedChapterWhere(): Prisma.ChapterWhereInput {
+  return {
+    NOT: {
+      OR: [
+        { generationState: { in: ["approved", "published"] } },
+        { chapterStatus: { in: ["pending_review", "completed"] } },
+      ],
+    },
+  };
+}
 
 export class NovelCorePipelineService {
   private static readonly activeJobIds = new Set<string>();
@@ -286,7 +298,7 @@ export class NovelCorePipelineService {
           novelId,
           order: { gte: options.startOrder, lte: options.endOrder },
           ...(options.skipCompleted
-            ? { generationState: { notIn: ["approved", "published"] as const } }
+            ? buildSkipCompletedChapterWhere()
             : {}),
         },
         orderBy: { order: "asc" },
@@ -303,7 +315,7 @@ export class NovelCorePipelineService {
         range: `${options.startOrder}-${options.endOrder}`,
         matchedChapters: chapters.length,
         availableRange: `${chapterStats._min.order ?? 1}-${chapterStats._max.order ?? 1}`,
-        maxRetries: options.maxRetries ?? 2,
+        maxRetries: options.maxRetries ?? 1,
         provider: options.provider ?? "deepseek",
         model: options.model ?? "",
       });
@@ -321,14 +333,14 @@ export class NovelCorePipelineService {
           repairMode: options.repairMode ?? "light_repair",
           status: "queued",
           totalCount: chapters.length,
-          maxRetries: options.maxRetries ?? 2,
+          maxRetries: options.maxRetries ?? 1,
           currentStage: "queued",
           payload: this.stringifyPipelinePayload({
             provider: options.provider ?? "deepseek",
             model: options.model ?? "",
             temperature: options.temperature ?? 0.8,
             workflowTaskId: options.workflowTaskId?.trim() || undefined,
-            maxRetries: options.maxRetries ?? 2,
+            maxRetries: options.maxRetries ?? 1,
             runMode: options.runMode ?? "fast",
             autoReview: options.autoReview ?? true,
             autoRepair: options.autoRepair ?? true,
@@ -489,7 +501,7 @@ export class NovelCorePipelineService {
   }
 
   private async executePipeline(jobId: string, novelId: string, options: PipelineRunOptions) {
-    const maxRetries = options.maxRetries ?? 2;
+    const maxRetries = options.maxRetries ?? 1;
     const qualityThreshold = options.qualityThreshold ?? 75;
     const existingJob = await prisma.generationJob.findUnique({
       where: { id: jobId },
@@ -507,7 +519,7 @@ export class NovelCorePipelineService {
       model: persistedPayload.model ?? options.model ?? "",
       temperature: persistedPayload.temperature ?? options.temperature ?? 0.8,
       workflowTaskId: persistedPayload.workflowTaskId ?? options.workflowTaskId,
-      maxRetries: persistedPayload.maxRetries ?? options.maxRetries ?? 2,
+      maxRetries: persistedPayload.maxRetries ?? options.maxRetries ?? 1,
       runMode: persistedPayload.runMode ?? options.runMode ?? "fast",
       autoReview: persistedPayload.autoReview ?? options.autoReview ?? true,
       autoRepair: persistedPayload.autoRepair ?? options.autoRepair ?? true,
@@ -543,7 +555,7 @@ export class NovelCorePipelineService {
               novelId,
               order: { gte: options.startOrder, lte: options.endOrder },
               ...(options.skipCompleted
-                ? { generationState: { notIn: ["approved", "published"] as const } }
+                ? buildSkipCompletedChapterWhere()
                 : {}),
             },
             orderBy: { order: "asc" },

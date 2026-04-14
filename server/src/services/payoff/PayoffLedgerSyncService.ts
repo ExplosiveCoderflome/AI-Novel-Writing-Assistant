@@ -177,12 +177,12 @@ export class PayoffLedgerSyncService {
           status: "open",
         },
         orderBy: [{ updatedAt: "desc" }],
-        take: 12,
+        take: 8,
       }),
       prisma.auditReport.findMany({
         where: { novelId, auditType: "plot" },
         orderBy: [{ createdAt: "desc" }],
-        take: 6,
+        take: 4,
         include: {
           issues: {
             where: { status: "open" },
@@ -225,7 +225,7 @@ export class PayoffLedgerSyncService {
           if (openPayoffs.length === 0) {
             return "";
           }
-          return `【第${volume.sortOrder}卷 ${volume.title}】\n- ${openPayoffs.join("\n- ")}`;
+          return `【第${volume.sortOrder}卷 ${volume.title}】 ${openPayoffs.map((item) => compactText(item, "无")).join("；")}`;
         }).filter(Boolean).join("\n\n") || "无"
       : "无";
 
@@ -234,7 +234,7 @@ export class PayoffLedgerSyncService {
       if (refs.length === 0) {
         return "";
       }
-      return `第${chapter.chapterOrder}章《${chapter.title}》\n- ${refs.join("\n- ")}`;
+      return `第${chapter.chapterOrder}章《${chapter.title}》 | ${refs.map((item) => compactText(item, "无")).join("；")}`;
     })).filter(Boolean).join("\n\n") || "无";
 
     const foreshadowStatesText = snapshot?.foreshadowStates.length
@@ -254,15 +254,15 @@ export class PayoffLedgerSyncService {
           const conflict = normalizeConflict(row);
           return [
             `${conflict.conflictType}/${conflict.severity}：${conflict.title}`,
-            conflict.summary,
-            conflict.resolutionHint ? `修复建议：${conflict.resolutionHint}` : "",
+            compactText(conflict.summary),
+            conflict.resolutionHint ? `修复建议：${compactText(conflict.resolutionHint)}` : "",
           ].filter(Boolean).join(" | ");
         }).join("\n")
       : "无";
 
     const payoffAuditIssuesText = recentAuditReports.length > 0
       ? recentAuditReports.flatMap((report) => report.issues.map((issue) => (
-        `${issue.code} (${issue.severity})：${issue.description} | 证据：${issue.evidence}`
+        `${issue.code} (${issue.severity})：${compactText(issue.description)} | 证据：${compactText(issue.evidence)}`
       ))).join("\n") || "无"
       : "无";
 

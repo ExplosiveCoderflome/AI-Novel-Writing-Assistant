@@ -21,7 +21,7 @@ export const stateSnapshotPrompt: PromptAsset<
   z.infer<typeof snapshotExtractionOutputSchema>
 > = {
   id: "state.snapshot.extract",
-  version: "v2",
+  version: "v3",
   taskType: "summary",
   mode: "structured",
   language: "zh",
@@ -62,6 +62,7 @@ export const stateSnapshotPrompt: PromptAsset<
       "2. 关系变化必须具体，例如试探升级、合作建立、信任破裂、依赖加深、敌意公开化等。",
       "3. 不要记录普通互动，不要重复旧状态。",
       "4. 若关系没有实质推进或退化，就不要输出。",
+      "5. 如果 targetCharacterId 不明确，可以省略或返回 null；优先保证 targetCharacterName 正确，不要编造角色 ID。",
       "",
       "informationStates 规则：",
       "1. holderType 只能是 reader 或 character。",
@@ -73,7 +74,7 @@ export const stateSnapshotPrompt: PromptAsset<
       "foreshadowStates 规则：",
       "1. status 只能是 setup, hinted, pending_payoff, paid_off, failed。",
       "2. 只记录本章中被明确建立、推进、等待兑现、已兑现或失效的伏笔。",
-      "3. setupChapterId / payoffChapterId 只有在材料里明确出现可稳定使用的章节 ID 时才填写，否则可以省略。",
+      "3. setupChapterId / payoffChapterId 只有在材料里明确出现可稳定使用的章节 ID 时才填写，否则可以省略或返回 null，不要编造 chapter_1 之类的占位 ID。",
       "4. 不要把普通悬念、日常提及或模糊气氛误判为伏笔。",
       "5. paid_off 和 failed 必须有明确依据，不要滥用。",
       "",
@@ -112,7 +113,9 @@ export const stateSnapshotPrompt: PromptAsset<
       "3. informationStates 的 holderType 只能是 reader 或 character；status 只能是 known 或 misbelief。",
       "4. foreshadowStates 的 status 只能是 setup, hinted, pending_payoff, paid_off, failed。",
       "5. 如果不知道 characterId，可填 characterName；如果 holderType=character，可填 holderRefName。",
-      "6. summary 必须简洁描述当前章节后的全局状态。",
+      "6. relationStates 里如果不知道 targetCharacterId，可以省略或写 null，但必须尽量保留 targetCharacterName。",
+      "7. setupChapterId / payoffChapterId 只有在明确知道真实章节 ID 时才填写，否则省略或写 null。",
+      "8. summary 必须简洁描述当前章节后的全局状态。",
     ].join("\n")),
   ],
 };

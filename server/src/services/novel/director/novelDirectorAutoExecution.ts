@@ -23,6 +23,7 @@ export interface DirectorAutoExecutionChapterRef {
   id: string;
   order: number;
   generationState?: ChapterGenerationState | null;
+  chapterStatus?: "unplanned" | "pending_generation" | "generating" | "pending_review" | "needs_repair" | "completed" | null;
 }
 
 export function normalizeDirectorAutoExecutionPlan(
@@ -122,8 +123,23 @@ export function resolveDirectorAutoExecutionRangeFromState(
   };
 }
 
-function isDirectorAutoExecutionChapterCompleted(generationState?: ChapterGenerationState | null): boolean {
-  return generationState === "approved" || generationState === "published";
+function isDirectorAutoExecutionChapterCompleted(chapter: DirectorAutoExecutionChapterRef): boolean {
+  return chapter.generationState === "approved"
+    || chapter.generationState === "published"
+    || chapter.chapterStatus === "completed";
+}
+
+function isDirectorAutoExecutionChapterProcessed(chapter: DirectorAutoExecutionChapterRef): boolean {
+  if (isDirectorAutoExecutionChapterCompleted(chapter)) {
+    return true;
+  }
+  if (chapter.chapterStatus === "needs_repair") {
+    return false;
+  }
+  if (chapter.chapterStatus === "pending_review") {
+    return true;
+  }
+  return chapter.generationState === "reviewed" || chapter.generationState === "repaired";
 }
 
 export function buildDirectorAutoExecutionState(input: {
@@ -140,8 +156,8 @@ export function buildDirectorAutoExecutionState(input: {
   const selected = input.chapters
     .filter((chapter) => chapter.order >= input.range.startOrder && chapter.order <= input.range.endOrder)
     .sort((left, right) => left.order - right.order);
-  const completed = selected.filter((chapter) => isDirectorAutoExecutionChapterCompleted(chapter.generationState));
-  const remaining = selected.filter((chapter) => !isDirectorAutoExecutionChapterCompleted(chapter.generationState));
+  const completed = selected.filter((chapter) => isDirectorAutoExecutionChapterProcessed(chapter));
+  const remaining = selected.filter((chapter) => !isDirectorAutoExecutionChapterProcessed(chapter));
   const totalChapterCount = selected.length > 0 ? selected.length : input.range.totalChapterCount;
   return {
     enabled: true,
@@ -222,7 +238,7 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
   return {
     startOrder: input.startOrder,
     endOrder: input.endOrder,
-    maxRetries: 2,
+    maxRetries: 1,
     runMode: input.runMode ?? "fast",
     autoReview,
     autoRepair: autoReview ? (input.autoRepair ?? true) : false,

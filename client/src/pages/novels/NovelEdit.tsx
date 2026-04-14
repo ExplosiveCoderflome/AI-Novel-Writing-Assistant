@@ -144,7 +144,7 @@ export default function NovelEdit() {
   const [pipelineForm, setPipelineForm] = useState({
     startOrder: 1,
     endOrder: DEFAULT_ESTIMATED_CHAPTER_COUNT,
-    maxRetries: 2,
+    maxRetries: 1,
     runMode: "fast" as PipelineRunMode,
     autoReview: true,
     autoRepair: true,

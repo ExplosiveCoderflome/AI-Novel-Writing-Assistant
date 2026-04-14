@@ -88,7 +88,7 @@ export async function runPipelineChapterWithRuntime(
   hooks: PipelineRuntimeHooks = {},
 ): Promise<PipelineRuntimeResult> {
   const {
-    maxRetries = 2,
+    maxRetries = 1,
     autoReview = true,
     autoRepair = true,
     qualityThreshold = 75,

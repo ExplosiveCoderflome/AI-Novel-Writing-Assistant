@@ -553,6 +553,7 @@ export class PlannerService {
       level: "chapter",
       title: output.title || chapter.title,
       objective: output.objective || chapter.expectation?.trim() || `推进第${chapter.order}章主线。`,
+      targetWordCount: chapter.targetWordCount,
       participants: resolvedParticipants,
       reveals: output.reveals ?? [],
       riskNotes: output.riskNotes ?? [],

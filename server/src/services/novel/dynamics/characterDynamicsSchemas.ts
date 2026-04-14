@@ -27,7 +27,6 @@ export const chapterDynamicExtractionSchema = z.object({
 });
 
 export const volumeDynamicsProjectionSchema = z.object({
-  summary: z.string().trim().min(1),
   assignments: z.array(z.object({
     characterName: z.string().trim().min(1),
     volumeSortOrder: z.number().int().min(1),

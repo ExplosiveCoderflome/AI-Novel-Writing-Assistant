@@ -170,7 +170,7 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/novel/characterDynamics.prompts").chapterDynamicsExtractionPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.characterDynamics.volumeProjection@v1",
+    key: "novel.characterDynamics.volumeProjection@v2",
     load: () => require("./prompts/novel/characterDynamics.prompts").volumeDynamicsProjectionPrompt as UnknownPromptAsset,
   },
   {
@@ -258,11 +258,11 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/novel/resourceRecommendation.prompts").novelCreateResourceRecommendationPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.payoff_ledger.sync@v2",
+    key: "novel.payoff_ledger.sync@v4",
     load: () => require("./prompts/payoff/payoffLedgerSync.prompts").payoffLedgerSyncPrompt as UnknownPromptAsset,
   },
   {
-    key: "state.snapshot.extract@v2",
+    key: "state.snapshot.extract@v3",
     load: () => require("./prompts/state/state.prompts").stateSnapshotPrompt as UnknownPromptAsset,
   },
   {

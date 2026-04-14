@@ -3,6 +3,7 @@ import type { PromptContextBlock } from "../../../core/promptTypes";
 import {
   buildBeatSheetContext,
   buildChapterDetailDraft,
+  buildRecentChapterExecutionContext,
   buildChapterNeighborContext,
   buildCommonNovelContext,
   buildCompactVolumeCard,
@@ -288,6 +289,12 @@ export function buildVolumeChapterDetailContextBlocks(input: VolumeChapterDetail
       priority: 98,
       required: true,
       content: `Chapter neighbors:\n${buildChapterNeighborContext(input.targetVolume, input.targetChapter.id)}`,
+    }),
+    createContextBlock({
+      id: "recent_execution_contracts",
+      group: "recent_execution_contracts",
+      priority: 97,
+      content: `Recent execution contracts:\n${buildRecentChapterExecutionContext(input.targetVolume, input.targetChapter.id)}`,
     }),
     createContextBlock({
       id: "chapter_detail_draft",

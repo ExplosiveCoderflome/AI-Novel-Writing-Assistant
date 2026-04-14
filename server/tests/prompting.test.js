@@ -36,6 +36,9 @@ const {
   styleRewritePrompt,
 } = require("../dist/prompting/prompts/style/style.prompts.js");
 const {
+  chapterWriterPrompt,
+} = require("../dist/prompting/prompts/novel/chapterWriter.prompts.js");
+const {
   worldDraftGenerationPrompt,
   worldDraftRefineAlternativesPrompt,
 } = require("../dist/prompting/prompts/world/worldDraft.prompts.js");
@@ -53,6 +56,9 @@ const {
 const {
   sanitizeWriterContextBlocks,
 } = require("../dist/prompting/prompts/novel/chapterLayeredContext.js");
+const {
+  buildSceneContractBlock,
+} = require("../dist/services/novel/chapterWritingGraphShared.js");
 const {
   directorPlanBlueprintSchema,
 } = require("../dist/services/novel/director/novelDirectorSchemas.js");
@@ -85,7 +91,7 @@ test("prompt registry exposes versioned planning assets", () => {
     "novel.draft_optimize.full@v1",
     "novel.framing.suggest@v1",
     "novel.production.characters@v1",
-    "state.snapshot.extract@v2",
+    "state.snapshot.extract@v3",
     "storyMode.child.generate@v1",
     "storyMode.tree.generate@v1",
     "storyWorldSlice.generate@v1",
@@ -219,6 +225,92 @@ test("volume strategy prompt renders volume count guidance and fixed-count const
   assert.match(String(messages[0].content), /超长篇必须避免把大量章节压成少数巨卷/);
   assert.match(String(messages[1].content), /allowed volume count range: 8-13/);
   assert.match(String(messages[1].content), /user preferred volume count: 10/);
+});
+
+test("chapter writer prompt omits scene length budget hints in scene mode", () => {
+  const messages = chapterWriterPrompt.render({
+    novelTitle: "测试小说",
+    chapterOrder: 1,
+    chapterTitle: "起势",
+    mode: "draft",
+    wordControlMode: "prompt_only",
+    sceneIndex: 1,
+    sceneCount: 3,
+    sceneTitle: "街头起势",
+    scenePurpose: "建立当前局面与第一轮冲突。",
+    roundIndex: 1,
+    maxRounds: 1,
+    isFinalRound: true,
+    closingPhase: true,
+    entryState: "主角还在被动。",
+    exitState: "主角确认反击窗口存在。",
+    forbiddenExpansion: ["不要提前解决主线"],
+  }, {
+    blocks: [
+      createContextBlock({
+        id: "chapter-mission",
+        group: "chapter_mission",
+        priority: 100,
+        required: true,
+        content: "本章职责：完成第一次有效求生，并留下更大的外部压力。",
+      }),
+    ],
+    selectedBlockIds: ["chapter-mission"],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+
+  const systemContent = String(messages[0].content);
+  assert.match(systemContent, /场景标题：街头起势/);
+  assert.doesNotMatch(systemContent, /当前场景目标：约/);
+  assert.doesNotMatch(systemContent, /当前场景剩余预算：约/);
+  assert.doesNotMatch(systemContent, /整章目标：约/);
+  assert.doesNotMatch(systemContent, /本轮建议新增：约/);
+  assert.doesNotMatch(systemContent, /本轮硬上限：约/);
+});
+
+test("scene contract block omits direct length budget metadata", () => {
+  const block = buildSceneContractBlock({
+    scene: {
+      key: "scene_1",
+      title: "街头求生",
+      purpose: "先让主角看见现实危险。",
+      mustAdvance: ["风险落地"],
+      mustPreserve: ["压迫感"],
+      entryState: "主角刚到汴京，毫无依靠。",
+      exitState: "主角找到暂时的破局方向。",
+      forbiddenExpansion: ["不要提前引出后续大反派"],
+      targetWordCount: 900,
+    },
+    sceneIndex: 1,
+    sceneCount: 3,
+    roundPlan: {
+      mode: "prompt_only",
+      roundIndex: 1,
+      maxRounds: 1,
+      roundsLeft: 1,
+      sceneTargetWordCount: 900,
+      sceneMinWordCount: 765,
+      sceneMaxWordCount: 1035,
+      currentSceneWordCount: 0,
+      currentChapterWordCount: 0,
+      remainingSceneWordCount: 900,
+      remainingChapterWordCount: 3000,
+      suggestedRoundWordCount: 900,
+      hardRoundWordLimit: null,
+      isFinalRound: true,
+      closingPhase: true,
+    },
+  });
+
+  assert.doesNotMatch(block.content, /Scene target length:/);
+  assert.doesNotMatch(block.content, /Remaining chapter budget before this scene:/);
+  assert.doesNotMatch(block.content, /Current scene draft length:/);
+  assert.doesNotMatch(block.content, /Suggested current round length:/);
+  assert.doesNotMatch(block.content, /Current round hard limit:/);
+  assert.match(block.content, /Entry state:/);
+  assert.match(block.content, /Exit state:/);
 });
 
 test("novel main-chain prompt assets declare explicit non-zero context budgets", () => {

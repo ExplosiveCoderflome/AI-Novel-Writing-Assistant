@@ -161,6 +161,7 @@ export class ChapterRuntimeCoordinator {
   }> {
     const request = this.deps.validateRequest(options);
     await this.deps.ensureNovelCharacters(novelId, "generate chapter content");
+    await this.markChapterStatus(chapterId, "generating");
 
     const assembled = await this.deps.assembler.assemble(novelId, chapterId, request);
     const agentRuntime = this.getAgentRuntime();
@@ -238,6 +239,7 @@ export class ChapterRuntimeCoordinator {
     hooks: PipelineRuntimeHooks = {},
   ): Promise<PipelineRuntimeResult> {
     const request = this.deps.validateRequest(options);
+    await this.markChapterStatus(chapterId, "generating");
     return runPipelineChapterWithRuntime(
       {
         validateRequest: () => request,
@@ -266,6 +268,23 @@ export class ChapterRuntimeCoordinator {
 
   private getAgentRuntime(): AgentRuntimeLike {
     return (this.deps.agentRuntime ?? require("../../../agents").agentRuntime) as AgentRuntimeLike;
+  }
+
+  private async bestEffortEnsureChapterExecutionContract(
+    novelId: string,
+    chapterId: string,
+    request: ChapterRuntimeRequestInput,
+  ): Promise<void> {
+    try {
+      await this.deps.ensureChapterExecutionContract(novelId, chapterId, request);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "unknown error";
+      console.warn("[chapter-runtime] execution contract refresh skipped", {
+        novelId,
+        chapterId,
+        error: message,
+      });
+    }
   }
 
   private async generateDraftFromWriter(input: {
@@ -345,7 +364,7 @@ export class ChapterRuntimeCoordinator {
       styleReview,
       runId: input.runId,
     });
-    await this.markGeneratedChapterStatus(
+    await this.markChapterStatus(
       input.chapterId,
       runtimePackage.audit.hasBlockingIssues ? "needs_repair" : "pending_review",
     );
@@ -612,9 +631,9 @@ export class ChapterRuntimeCoordinator {
     });
   }
 
-  private async markGeneratedChapterStatus(
+  private async markChapterStatus(
     chapterId: string,
-    chapterStatus: "pending_review" | "needs_repair",
+    chapterStatus: "generating" | "pending_review" | "needs_repair",
   ): Promise<void> {
     await prisma.chapter.update({
       where: { id: chapterId },

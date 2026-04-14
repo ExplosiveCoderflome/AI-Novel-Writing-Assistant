@@ -116,6 +116,7 @@ export async function syncAutoDirectorChapterBatchCheckpoint(input: {
       id: true,
       order: true,
       generationState: true,
+      chapterStatus: true,
     },
   });
   const reconciliation = reconcileAutoDirectorChapterBatchState({

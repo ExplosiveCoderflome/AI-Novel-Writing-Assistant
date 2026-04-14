@@ -16,6 +16,7 @@ export class ChapterArtifactSyncService {
       data: {
         content,
         generationState,
+        chapterStatus: "generating",
       },
     });
     await this.syncChapterArtifacts(novelId, chapterId, content);

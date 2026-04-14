@@ -14,9 +14,9 @@ const characterStateOutputSchema = z.object({
 });
 
 const relationStateOutputSchema = z.object({
-  sourceCharacterId: z.string().trim().optional(),
+  sourceCharacterId: z.string().trim().nullable().optional(),
   sourceCharacterName: z.string().trim().optional(),
-  targetCharacterId: z.string().trim().optional(),
+  targetCharacterId: z.string().trim().nullable().optional(),
   targetCharacterName: z.string().trim().optional(),
   trustScore: z.number().optional(),
   intimacyScore: z.number().optional(),
@@ -38,7 +38,7 @@ const foreshadowStateOutputSchema = z.object({
   title: z.string().trim().optional(),
   summary: z.string().trim().optional(),
   status: z.enum(["setup", "hinted", "pending_payoff", "paid_off", "failed"]).optional(),
-  setupChapterId: z.string().trim().optional(),
+  setupChapterId: z.string().trim().nullable().optional(),
   payoffChapterId: z.string().trim().nullable().optional(),
 });
 
@@ -51,4 +51,3 @@ export const snapshotExtractionOutputSchema = z.object({
 });
 
 export type SnapshotExtractionOutputSchema = z.infer<typeof snapshotExtractionOutputSchema> & Partial<SnapshotExtractionOutput>;
-

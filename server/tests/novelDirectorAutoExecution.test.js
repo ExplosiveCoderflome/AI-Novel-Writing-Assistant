@@ -42,6 +42,7 @@ test("buildDirectorAutoExecutionPipelineOptions uses front10-safe defaults", () 
   });
 
   assert.equal(options.runMode, "fast");
+  assert.equal(options.maxRetries, 1);
   assert.equal(options.autoReview, true);
   assert.equal(options.autoRepair, true);
   assert.equal(options.skipCompleted, true);

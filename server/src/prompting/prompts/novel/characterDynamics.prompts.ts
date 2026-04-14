@@ -7,14 +7,12 @@ import {
 } from "../../../services/novel/dynamics/characterDynamicsSchemas";
 
 const VOLUME_DYNAMICS_PROJECTION_TEMPLATE = `{
-  "summary": "string",
   "assignments": [
     {
       "characterName": "string",
       "volumeSortOrder": 1,
       "roleLabel": "string or null",
       "responsibility": "string",
-      "appearanceExpectation": "string or null",
       "plannedChapterOrders": [1, 2],
       "isCore": true,
       "absenceWarningThreshold": 3,
@@ -27,8 +25,7 @@ const VOLUME_DYNAMICS_PROJECTION_TEMPLATE = `{
       "volumeSortOrder": 1,
       "factionLabel": "string",
       "stanceLabel": "string or null",
-      "summary": "string or null",
-      "confidence": 0.8
+      "summary": "string or null"
     }
   ],
   "relationStages": [
@@ -37,9 +34,7 @@ const VOLUME_DYNAMICS_PROJECTION_TEMPLATE = `{
       "targetCharacterName": "string",
       "volumeSortOrder": 1,
       "stageLabel": "string",
-      "stageSummary": "string",
-      "nextTurnPoint": "string or null",
-      "confidence": 0.8
+      "stageSummary": "string"
     }
   ]
 }`;
@@ -76,7 +71,7 @@ export const volumeDynamicsProjectionPrompt: PromptAsset<
   z.infer<typeof volumeDynamicsProjectionSchema>
 > = {
   id: "novel.characterDynamics.volumeProjection",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -87,16 +82,15 @@ export const volumeDynamicsProjectionPrompt: PromptAsset<
   render: (input) => [
     new SystemMessage([
       "你是长篇中文网文的角色动态系统规划师。",
-      "你的任务是基于小说定位、卖点、前30章承诺、现有角色名单、关系结构和分卷规划，为整部作品生成“分卷角色动态投射”结果。",
+      "你的任务是基于小说定位、卖点、前30章承诺、现有角色名单、关系结构和给定分卷规划范围，生成紧凑、可执行的“分卷角色动态投射”结果。",
       "",
       "只输出一个合法 JSON 对象，不要输出 Markdown、解释、注释、代码块或额外文本。",
       "",
       "任务目标：",
-      "1. 对每一卷判断哪些已有角色应成为核心角色。",
+      "1. 对输入里每一卷判断哪些已有角色应成为核心角色。",
       "2. 明确每个核心角色在该卷必须承担什么叙事职责。",
-      "3. 判断他们应以什么频率出现，以及为何需要保持该频率。",
-      "4. 明确他们代表的阵营压力、关系阶段与动态作用。",
-      "5. 整体结果必须服务于目标读者、核心卖点和前30章承诺的持续兑现。",
+      "3. 只在确有必要时补充阵营压力和关系阶段信息。",
+      "4. 整体结果必须服务于目标读者、核心卖点和前30章承诺的持续兑现。",
       "",
       "全局硬规则：",
       "1. 只能使用 known roster 中已经存在的角色名称，禁止新增角色、禁止改名、禁止使用模糊指代替代具体角色。",
@@ -104,7 +98,7 @@ export const volumeDynamicsProjectionPrompt: PromptAsset<
       "3. 如果材料不足，必须做保守推断；优先使用低风险、可成立的安排，不要强行补全复杂动态。",
       "4. 各卷安排必须与分卷规划一致，不能脱离卷目标单独设计角色戏份。",
       "5. 角色动态必须体现长篇连载逻辑，而不是单章配角表或静态人物卡。",
-      "6. 顶层必须直接输出 summary / assignments / factionTracks / relationStages，不要包成 {\"volumeDynamicsProjection\": [...]}、{\"data\": ...} 或任何其他包装层。",
+      "6. 顶层必须直接输出 assignments / factionTracks / relationStages，不要包成 {\"volumeDynamicsProjection\": [...]}、{\"data\": ...} 或任何其他包装层。",
       "",
       "规划原则：",
       "1. 角色分配必须反映目标读者偏好、作品卖点、前30章承诺和后续长期追更动力。",
@@ -131,11 +125,19 @@ export const volumeDynamicsProjectionPrompt: PromptAsset<
       "2. 只有在有充分叙事理由时，才可偏离该默认值。",
       "3. 若偏离默认阈值，必须确保该偏离与角色在该卷的承担强度一致，而不是随意设定。",
       "",
+      "压缩输出规则：",
+      "1. 只输出系统后续真正需要消费的最小结果，不要写总述性 summary。",
+      "2. plannedChapterOrders 只有在角色需要稀疏、锚点式出场安排时才填写；如果角色在整卷持续高频出现，请省略该字段，让系统自行套用默认章序。",
+      "3. appearanceExpectation 不是必填，拿不准时直接省略，不要为了完整性补空泛描述。",
+      "4. factionTracks 和 relationStages 只保留确实会影响写作决策的记录，不要为了凑完整度把每卷每人都写一遍。",
+      "5. 不要输出 confidence；nextTurnPoint 只有在缺少它会影响下一阶段安排时才可补充。",
+      "",
       "风格规则：",
       "1. 全部内容使用简体中文。",
       "2. 字符串字段必须具体、清楚、可执行，避免抽象套话，如“作用很大”“需要多出场”“关系复杂”。",
       "3. 数组字段使用简洁短语，不要写成长段说明。",
       "4. 各卷之间、各角色之间的分配必须相互一致，不得互相冲突。",
+      "5. 所有字符串都应短而具体，避免重复解释同一件事。",
       "",
       "固定 JSON 结构如下：",
       VOLUME_DYNAMICS_PROJECTION_TEMPLATE,

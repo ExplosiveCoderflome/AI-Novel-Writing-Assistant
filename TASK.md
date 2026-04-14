@@ -702,6 +702,79 @@ P2 重点解决：
 本区块由 `$task-md-sync` 自动维护，用于同步开发计划与实现进度。
 
 <!-- task-md-sync:start -->
+<!-- task-md-sync:item:task-7c41b2e0d3:start -->
+### 章节正文恢复整章生成
+- 标识：`task-7c41b2e0d3`
+- 状态：已完成
+- 最近更新：2026-04-14 23:22
+- 概要：回退章节正文主链路，不再按 `sceneCards` 拆场景生成，也不在生成前自动刷新章节执行合同，让“重写本章”和普通正文生成统一恢复为整章一次性写作。
+
+计划清单：
+- [x] 确认重写本章与普通生成的统一入口，定位场景驱动接入点
+- [x] 回退正文主生成到整章一次性写作，并移除生成前自动执行合同刷新
+- [x] 更新最小回归测试，确认 `createChapterStream` 不再触发执行合同刷新
+
+进度记录：
+- 2026-04-14 23:12 [开发中] 已确认重写本章仍走统一 `/generate` 入口，当前额外耗时主要来自场景驱动与生成前执行合同刷新。
+- 2026-04-14 23:22 [已完成] 已回退正文主链路到整章一次性写作，并通过 `@ai-novel/shared build`、`@ai-novel/server build` 与 `chapterRuntimeCoordinator.test.js` 定向验证。
+<!-- task-md-sync:item:task-7c41b2e0d3:end -->
+
+<!-- task-md-sync:item:task-4f8a2d7c11:start -->
+### 场景写作去字数提示
+- 标识：`task-4f8a2d7c11`
+- 状态：已完成
+- 最近更新：2026-04-14 21:36
+- 概要：移除场景正文写作阶段直接传给 LLM 的场景/章节字数预算提示，保留场景职责、进入/退出状态与内部流式执行机制，降低场景被统一预算话术牵引成同质节奏的风险。
+
+计划清单：
+- [x] 梳理场景写作 prompt、场景合同块和续写摘录里的长度提示入口
+- [x] 移除场景 prompt 中的场景预算、章节预算和分轮新增/硬上限提示
+- [x] 补充回归测试，确认场景 prompt 与场景合同块不再暴露直接长度预算
+
+进度记录：
+- 2026-04-14 21:24 [开发中] 已确认场景流会把场景预算、章节预算和轮次预算同时暴露给 LLM，上下文语气容易重复。
+- 2026-04-14 21:31 [开发中] 已移除场景 prompt、场景合同块和场景续写摘录中的直接长度提示，保留场景职责与轮次状态语义。
+- 2026-04-14 21:36 [已完成] 已通过 `@ai-novel/server build` 与 `prompting`、`sceneBudgetRuntime` 定向测试。
+<!-- task-md-sync:item:task-4f8a2d7c11:end -->
+
+<!-- task-md-sync:item:task-1d9c5b7e21:start -->
+### 章节审校单次修复止损
+- 标识：`task-1d9c5b7e21`
+- 状态：已完成
+- 最近更新：2026-04-14 21:10
+- 概要：将章节流水线的默认审校重试收敛为“初审失败后最多修一次，再复审一次，失败即停”，减少章节在审校/修复阶段反复循环。
+
+计划清单：
+- [x] 梳理当前章节审校与修复重试链路
+- [x] 将默认重试预算从 2 调整为 1，覆盖自动导演、批量流水线和编辑页默认值
+- [x] 补充最小回归测试，确认不会进入第三轮审校
+
+进度记录：
+- 2026-04-14 21:04 [开发中] 已确认当前重复来自默认 `maxRetries=2`，导致“审校 -> 修复 -> 审校 -> 修复 -> 审校”。
+- 2026-04-14 21:08 [开发中] 已将自动导演、章节流水线和编辑页默认重试预算统一收敛为 1。
+- 2026-04-14 21:10 [已完成] 已通过 `@ai-novel/server build`、`@ai-novel/client typecheck` 与 `chapterRuntimePipeline`、`novelDirectorAutoExecution` 定向测试。
+<!-- task-md-sync:item:task-1d9c5b7e21:end -->
+
+<!-- task-md-sync:item:task-6e2c3f1b9a:start -->
+### 正文场景合同主链路接通
+- 标识：`task-6e2c3f1b9a`
+- 状态：已完成
+- 最近更新：2026-04-14 20:34
+- 概要：让正文生成主链路在写作前自动刷新章节执行合同，改为优先消费 canonical `sceneCards` 按场景写作，并避免 planner 用不可解析的文本场景卡覆盖运行时合同。
+
+计划清单：
+- [x] 检查正文生成、planner 持久化与节奏板细化链路，确认 `sceneCards` 在进入正文前的丢失点
+- [x] 调整 planner 持久化格式，仅在可形成 canonical 场景合同时写入 `sceneCards`
+- [x] 让正文生成主入口在组装上下文前自动刷新章节执行合同
+- [x] 将正文主写作链路切到已有的按场景流式生成实现，并回传章节长度控制结果
+- [x] 补充最小回归测试，覆盖 canonical sceneCards、执行合同刷新与失败降级
+
+进度记录：
+- 2026-04-14 19:58 [开发中] 已确认重复放大点不在节奏板本身，而在 planner 覆写 `sceneCards` 与正文主链路未接场景流。
+- 2026-04-14 20:16 [开发中] 已接入执行合同预刷新与按场景写作主路径，同时把 planner 的 `sceneCards` 持久化改为 canonical JSON。
+- 2026-04-14 20:34 [已完成] 已通过 `@ai-novel/shared build`、`@ai-novel/server build`、`@ai-novel/server typecheck` 与 `chapterLengthControl`、`plannerPersistence`、`chapterRuntimeCoordinator` 定向测试。
+<!-- task-md-sync:item:task-6e2c3f1b9a:end -->
+
 <!-- task-md-sync:item:task-8f0fdf4e01:start -->
 ### 自动导演候选阶段恢复卡死修复
 - 标识：`task-8f0fdf4e01`

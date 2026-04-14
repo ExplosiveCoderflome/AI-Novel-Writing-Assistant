@@ -5,6 +5,41 @@ import { renderSelectedContextBlocks } from "../../core/renderContextBlocks";
 import { fullAuditOutputSchema } from "../../../services/audit/auditSchemas";
 import { NOVEL_PROMPT_BUDGETS } from "../novel/promptBudgetProfiles";
 
+const AUDIT_CHAPTER_EXAMPLE = {
+  score: {
+    coherence: 82,
+    repetition: 76,
+    pacing: 79,
+    voice: 84,
+    engagement: 81,
+    overall: 80,
+  },
+  issues: [
+    {
+      severity: "medium",
+      category: "pacing",
+      evidence: "中段连续两段都在解释处境，但没有新增推进。",
+      fixSuggestion: "压缩第二段解释，把信息并入前一段动作或对话里。",
+    },
+  ],
+  auditReports: [
+    {
+      auditType: "plot",
+      overallScore: 78,
+      summary: "主线推进存在，但中段阻力升级还不够明确。",
+      issues: [
+        {
+          severity: "medium",
+          code: "plot_escalation_soft",
+          description: "主线冲突已出现，但代价抬升不足。",
+          evidence: "帮派威胁出现后，主角很快脱身，压力没有持续停留。",
+          fixSuggestion: "补一个无法立刻摆脱的代价或后续追踪后果。",
+        },
+      ],
+    },
+  ],
+};
+
 export interface AuditChapterPromptInput {
   novelTitle: string;
   chapterTitle: string;
@@ -33,6 +68,10 @@ export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<ty
       "participant_subset",
       "open_conflicts",
     ],
+  },
+  structuredOutputHint: {
+    example: AUDIT_CHAPTER_EXAMPLE,
+    note: "severity 只能是 low/medium/high/critical；issues.category 只能是 coherence/repetition/pacing/voice/engagement/logic。不要输出中文枚举或自定义等级。",
   },
   outputSchema: fullAuditOutputSchema,
   render: (input, context) => [

@@ -1,5 +1,14 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
-import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
+import {
+  parseChapterScenePlan,
+  type ChapterScenePlan,
+} from "@ai-novel/shared/types/chapterLengthControl";
+import type {
+  ChapterRuntimePackage,
+  GenerationContextPackage,
+  RuntimeLengthControl,
+  RuntimeSceneGenerationResult,
+} from "@ai-novel/shared/types/chapterRuntime";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { TaskType } from "../../llm/modelRouter";
 import { createContextBlock } from "../../prompting/core/contextBudget";
@@ -10,7 +19,9 @@ import {
   sanitizeWriterContextBlocks,
 } from "../../prompting/prompts/novel/chapterLayeredContext";
 import { chapterWriterPrompt } from "../../prompting/prompts/novel/chapterWriter.prompts";
+import { createChapterSceneStream } from "./chapterSceneStreaming";
 import { NovelContinuationService } from "./NovelContinuationService";
+import { joinSceneContents } from "./chapterWritingGraphShared";
 
 export interface ChapterGraphLLMOptions {
   provider?: LLMProvider;
@@ -95,6 +106,81 @@ function buildDraftContinuationBlock(content: string, targetWordCount: number, m
     "Current draft tail (continue after this):",
     excerpt || "none",
   ].join("\n");
+}
+
+function createChunkQueue() {
+  const items: BaseMessageChunk[] = [];
+  const waiters: Array<{
+    resolve: (value: IteratorResult<BaseMessageChunk>) => void;
+    reject: (reason?: unknown) => void;
+  }> = [];
+  let closed = false;
+  let failure: unknown = null;
+
+  function push(item: BaseMessageChunk): void {
+    if (closed) {
+      return;
+    }
+    const waiter = waiters.shift();
+    if (waiter) {
+      waiter.resolve({ value: item, done: false });
+      return;
+    }
+    items.push(item);
+  }
+
+  function end(): void {
+    if (closed) {
+      return;
+    }
+    closed = true;
+    while (waiters.length > 0) {
+      waiters.shift()!.resolve({ value: undefined, done: true });
+    }
+  }
+
+  function fail(error: unknown): void {
+    if (closed) {
+      return;
+    }
+    closed = true;
+    failure = error;
+    while (waiters.length > 0) {
+      waiters.shift()!.reject(error);
+    }
+  }
+
+  return {
+    stream: {
+      async *[Symbol.asyncIterator](): AsyncIterator<BaseMessageChunk> {
+        while (true) {
+          if (items.length > 0) {
+            yield items.shift()!;
+            continue;
+          }
+          if (closed) {
+            if (failure) {
+              throw failure;
+            }
+            return;
+          }
+          const next = await new Promise<IteratorResult<BaseMessageChunk>>((resolve, reject) => {
+            waiters.push({ resolve, reject });
+          });
+          if (next.done) {
+            if (failure) {
+              throw failure;
+            }
+            return;
+          }
+          yield next.value;
+        }
+      },
+    },
+    push,
+    end,
+    fail,
+  };
 }
 
 export class ChapterWritingGraph {
@@ -223,9 +309,129 @@ export class ChapterWritingGraph {
     return merged;
   }
 
+  private resolveScenePlan(input: {
+    chapter: ChapterRef;
+    contextPackage: GenerationContextPackage;
+  }): ChapterScenePlan | null {
+    return parseChapterScenePlan(input.contextPackage.chapter.sceneCards, {
+      targetWordCount: input.contextPackage.chapter.targetWordCount
+        ?? input.chapter.targetWordCount
+        ?? input.contextPackage.chapterWriteContext?.chapterMission.targetWordCount
+        ?? null,
+    });
+  }
+
+  private buildSceneLengthControl(input: {
+    scenePlan: ChapterScenePlan;
+    content: string;
+    sceneResults: RuntimeSceneGenerationResult[];
+  }): RuntimeLengthControl {
+    const modeSet = new Set(input.sceneResults.map((scene) => scene.wordControlMode));
+    const resolvedMode = modeSet.size === 0
+      ? "prompt_only"
+      : modeSet.size === 1
+        ? input.sceneResults[0]!.wordControlMode
+        : "hybrid";
+    const finalWordCount = countChapterCharacters(input.content);
+    return {
+      targetWordCount: input.scenePlan.lengthBudget.targetWordCount,
+      softMinWordCount: input.scenePlan.lengthBudget.softMinWordCount,
+      softMaxWordCount: input.scenePlan.lengthBudget.softMaxWordCount,
+      hardMaxWordCount: input.scenePlan.lengthBudget.hardMaxWordCount,
+      finalWordCount,
+      variance: finalWordCount - input.scenePlan.lengthBudget.targetWordCount,
+      wordControlMode: resolvedMode,
+      plannedSceneCount: input.scenePlan.scenes.length,
+      generatedSceneCount: input.sceneResults.filter((scene) => scene.actualWordCount > 0).length,
+      sceneResults: input.sceneResults,
+      closingPhaseTriggered: input.sceneResults.some((scene) => scene.closingPhaseTriggered),
+      hardStopsTriggered: input.sceneResults.reduce((sum, scene) => sum + scene.hardStopCount, 0),
+      lengthRepairPath: ["scene_contract_generation"],
+      overlengthRepairApplied: false,
+    };
+  }
+
+  private createSceneChapterStream(input: {
+    novelTitle: string;
+    chapter: ChapterRef;
+    contextPackage: GenerationContextPackage;
+    options: ChapterGraphGenerateOptions;
+    scenePlan: ChapterScenePlan;
+  }): {
+    stream: AsyncIterable<BaseMessageChunk>;
+    complete: Promise<{ content: string; lengthControl: RuntimeLengthControl }>;
+  } {
+    const queue = createChunkQueue();
+    const complete = new Promise<{ content: string; lengthControl: RuntimeLengthControl }>((resolve, reject) => {
+      void (async () => {
+        try {
+          const sceneContents: string[] = [];
+          const sceneResults: RuntimeSceneGenerationResult[] = [];
+          for (let index = 0; index < input.scenePlan.scenes.length; index += 1) {
+            const scene = input.scenePlan.scenes[index]!;
+            const beforeLength = countChapterCharacters(joinSceneContents(sceneContents));
+            const sceneStream = createChapterSceneStream({
+              novelTitle: input.novelTitle,
+              chapter: input.chapter,
+              contextPackage: input.contextPackage,
+              scene,
+              sceneIndex: index + 1,
+              sceneCount: input.scenePlan.scenes.length,
+              chapterTargetWordCount: input.scenePlan.targetWordCount,
+              currentChapterContent: joinSceneContents(sceneContents),
+              options: input.options,
+              logWarn: this.deps.logWarn,
+            });
+            for await (const chunk of sceneStream.stream) {
+              queue.push(chunk);
+            }
+            const sceneOutput = await sceneStream.complete;
+            if (sceneOutput.sceneContent.trim()) {
+              sceneContents.push(sceneOutput.sceneContent);
+            }
+            const afterLength = countChapterCharacters(joinSceneContents(sceneContents));
+            sceneResults.push({
+              sceneKey: scene.key,
+              sceneTitle: scene.title,
+              sceneIndex: index + 1,
+              targetWordCount: scene.targetWordCount,
+              beforeLength,
+              afterLength,
+              actualWordCount: sceneOutput.actualWordCount,
+              sceneStatus: sceneOutput.sceneStatus,
+              wordControlMode: sceneOutput.wordControlMode,
+              roundCount: sceneOutput.roundResults.length,
+              hardStopCount: sceneOutput.hardStopCount,
+              closingPhaseTriggered: sceneOutput.closingPhaseTriggered,
+              roundResults: sceneOutput.roundResults,
+            });
+          }
+
+          const content = joinSceneContents(sceneContents);
+          resolve({
+            content,
+            lengthControl: this.buildSceneLengthControl({
+              scenePlan: input.scenePlan,
+              content,
+              sceneResults,
+            }),
+          });
+          queue.end();
+        } catch (error) {
+          reject(error);
+          queue.fail(error);
+        }
+      })();
+    });
+    return {
+      stream: queue.stream,
+      complete,
+    };
+  }
+
   async createChapterStream(input: ChapterStreamInput): Promise<{
     stream: AsyncIterable<BaseMessageChunk>;
-    onDone: (fullContent: string) => Promise<{ finalContent: string; lengthControl?: undefined } | void>;
+    onDone: (fullContent: string) => Promise<{ finalContent: string; lengthControl?: ChapterRuntimePackage["lengthControl"] } | void>;
   }> {
     const continuationPack = (input.contextPackage?.continuation as ContinuationPack | undefined)
       ?? await continuationService.buildChapterContextPack(input.novelId);
@@ -234,6 +440,8 @@ export class ChapterWritingGraph {
       throw new Error("Chapter runtime context is required before chapter generation.");
     }
     const contextPackage = input.contextPackage;
+    // Scene-driven generation is currently disabled. Even if sceneCards exist,
+    // chapter writing should run as a single whole-chapter pass.
 
     const targetRange = resolveTargetWordRange(chapterWriteContext.chapterMission.targetWordCount);
     const builtBlocks = buildChapterWriterContextBlocks(chapterWriteContext);
