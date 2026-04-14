@@ -1,1 +1,0 @@
-ALTER TABLE "APIKey" ADD COLUMN "displayName" TEXT;

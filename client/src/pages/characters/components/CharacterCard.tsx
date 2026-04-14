@@ -85,7 +85,7 @@ export function CharacterCard({
                   />
                 </button>
                 <div className="text-[11px] leading-4 text-muted-foreground break-all">
-                  本地路径：{asset.localPath ?? "未落地本地文件"}
+                  存储方式：{asset.url.startsWith("/api/images/assets/") ? "已托管" : "远程链接"}
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-xs text-muted-foreground">{asset.isPrimary ? "主图" : "候选图"}</div>
@@ -125,11 +125,9 @@ export function CharacterCard({
                 className="max-h-[72vh] w-auto max-w-full rounded-md object-contain"
               />
             </div>
-              {previewAsset.localPath ? (
-                <div className="text-xs text-muted-foreground break-all">
-                  本地路径：{previewAsset.localPath}
-                </div>
-              ) : null}
+              <div className="text-xs text-muted-foreground break-all">
+                存储方式：{previewAsset.url.startsWith("/api/images/assets/") ? "已托管" : "远程链接"}
+              </div>
             </>
           ) : null}
         </DialogContent>

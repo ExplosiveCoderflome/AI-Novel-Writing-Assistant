@@ -21,7 +21,6 @@
     "dev:client": "pnpm --filter @ai-novel/client dev",
     "dev:client:wait": "node scripts/wait-for-port.cjs --port 3000 && pnpm dev:client",
     "db:migrate": "pnpm --filter @ai-novel/server db:migrate",
-    "db:restore": "pnpm --filter @ai-novel/server db:restore",
     "db:seed": "pnpm --filter @ai-novel/server db:seed",
     "db:studio": "pnpm --filter @ai-novel/server db:studio",
     "build": "pnpm --filter @ai-novel/shared build && pnpm --filter @ai-novel/server build && pnpm --filter @ai-novel/client build",
@@ -31,7 +30,6 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "@prisma/engines",
-      "better-sqlite3",
       "esbuild",
       "prisma"
     ]

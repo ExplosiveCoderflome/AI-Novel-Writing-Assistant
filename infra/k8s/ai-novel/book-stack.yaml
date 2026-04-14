@@ -1,0 +1,331 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-novel-api-config
+  namespace: etl
+  labels:
+    app.kubernetes.io/name: ai-novel
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: ai-novel
+    app.kubernetes.io/managed-by: trellis
+    app.kubernetes.io/instance: ai-novel
+    app.kubernetes.io/environment: production
+data:
+  NODE_ENV: production
+  HOST: 0.0.0.0
+  PORT: "3000"
+  CORS_ORIGIN: https://book.luckydcms.com
+  RAG_ENABLED: "false"
+  IMAGE_STORAGE_DRIVER: s3
+  IMAGE_STORAGE_ROOT: storage/generated-images
+  IMAGE_STORAGE_S3_REGION: us-east-1
+  IMAGE_STORAGE_S3_FORCE_PATH_STYLE: "true"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ai-novel-generated-images
+  namespace: etl
+  labels:
+    app.kubernetes.io/name: ai-novel
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: ai-novel
+    app.kubernetes.io/instance: ai-novel
+    app.kubernetes.io/environment: production
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-novel-api
+  namespace: etl
+  labels:
+    app.kubernetes.io/name: ai-novel
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: ai-novel
+    app.kubernetes.io/instance: ai-novel
+    app.kubernetes.io/environment: production
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ai-novel
+      app.kubernetes.io/component: api
+      app.kubernetes.io/instance: ai-novel
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ai-novel
+        app.kubernetes.io/component: api
+        app.kubernetes.io/part-of: ai-novel
+        app.kubernetes.io/instance: ai-novel
+        app.kubernetes.io/environment: production
+    spec:
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: harbor-registry
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      initContainers:
+        - name: migrate
+          image: hub.luckydcms.com/library/ai-novel-api:e0a20ae-20260412-183900
+          imagePullPolicy: IfNotPresent
+          command: ["node", "/app/server/node_modules/prisma/build/index.js", "migrate", "deploy", "--config", "/app/server/prisma.config.ts"]
+          envFrom:
+            - configMapRef:
+                name: ai-novel-api-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: gelsang-play-secrets
+                  key: DATABASE_URL
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+      containers:
+        - name: api
+          image: hub.luckydcms.com/library/ai-novel-api:e0a20ae-20260412-183900
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: ai-novel-api-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: gelsang-play-secrets
+                  key: DATABASE_URL
+            - name: IMAGE_STORAGE_S3_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: gelsang-secrets
+                  key: MINIO_ENDPOINT
+            - name: IMAGE_STORAGE_S3_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: gelsang-secrets
+                  key: MINIO_BUCKET
+            - name: IMAGE_STORAGE_S3_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: gelsang-secrets
+                  key: MINIO_ACCESS_KEY
+            - name: IMAGE_STORAGE_S3_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gelsang-secrets
+                  key: MINIO_SECRET_KEY
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+          volumeMounts:
+            - name: generated-images
+              mountPath: /app/storage/generated-images
+      volumes:
+        - name: generated-images
+          persistentVolumeClaim:
+            claimName: ai-novel-generated-images
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-novel-api
+  namespace: etl
+  labels:
+    app.kubernetes.io/name: ai-novel
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: ai-novel
+    app.kubernetes.io/instance: ai-novel
+    app.kubernetes.io/environment: production
+spec:
+  selector:
+    app.kubernetes.io/name: ai-novel
+    app.kubernetes.io/component: api
+    app.kubernetes.io/instance: ai-novel
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-novel-web
+  namespace: etl
+  labels:
+    app.kubernetes.io/name: ai-novel
+    app.kubernetes.io/component: web
+    app.kubernetes.io/part-of: ai-novel
+    app.kubernetes.io/instance: ai-novel
+    app.kubernetes.io/environment: production
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ai-novel
+      app.kubernetes.io/component: web
+      app.kubernetes.io/instance: ai-novel
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ai-novel
+        app.kubernetes.io/component: web
+        app.kubernetes.io/part-of: ai-novel
+        app.kubernetes.io/instance: ai-novel
+        app.kubernetes.io/environment: production
+    spec:
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: harbor-registry
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: web
+          image: hub.luckydcms.com/library/ai-novel-web:e0a20ae-20260412-175913
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 101
+            runAsGroup: 101
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-novel-web
+  namespace: etl
+  labels:
+    app.kubernetes.io/name: ai-novel
+    app.kubernetes.io/component: web
+    app.kubernetes.io/part-of: ai-novel
+    app.kubernetes.io/instance: ai-novel
+    app.kubernetes.io/environment: production
+spec:
+  selector:
+    app.kubernetes.io/name: ai-novel
+    app.kubernetes.io/component: web
+    app.kubernetes.io/instance: ai-novel
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-novel
+  namespace: etl
+  labels:
+    app.kubernetes.io/name: ai-novel
+    app.kubernetes.io/component: ingress
+    app.kubernetes.io/part-of: ai-novel
+    app.kubernetes.io/instance: ai-novel
+    app.kubernetes.io/environment: production
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 20m
+spec:
+  ingressClassName: lucky
+  rules:
+    - host: book.luckydcms.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-novel-api
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-novel-web
+                port:
+                  name: http

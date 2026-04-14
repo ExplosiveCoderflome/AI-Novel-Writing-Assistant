@@ -1,21 +1,78 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { randomBytes } = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const childProcess = require("node:child_process");
+const { URL } = require("node:url");
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 const serverRoot = path.resolve(repoRoot, "server");
-const seedDatabasePath = path.resolve(serverRoot, "dev.db");
+const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const postgresDatabaseUrl = resolvePostgresDatabaseUrl();
+const skipReason = postgresDatabaseUrl
+  ? undefined
+  : "TEST_POSTGRES_DATABASE_URL or postgres DATABASE_URL is not set";
 
-function setupTempSqliteDatabase(tempDir) {
-  if (!fs.existsSync(seedDatabasePath)) {
-    throw new Error(`seed database not found: ${seedDatabasePath}`);
+function resolvePostgresDatabaseUrl() {
+  const candidates = [process.env.TEST_POSTGRES_DATABASE_URL, process.env.DATABASE_URL];
+  for (const candidate of candidates) {
+    if (candidate && /^postgres(?:ql)?:\/\//i.test(candidate)) {
+      return candidate;
+    }
   }
-  const databasePath = path.join(tempDir, "p0b-real-chain.db");
-  fs.copyFileSync(seedDatabasePath, databasePath);
-  const databaseUrl = `file:${databasePath.replace(/\\/g, "/")}`;
-  return databaseUrl;
+  return null;
+}
+
+function buildAdminDatabaseUrl(databaseUrl) {
+  const url = new URL(databaseUrl);
+  url.searchParams.delete("schema");
+  return url.toString();
+}
+
+function buildSchemaDatabaseUrl(databaseUrl, schemaName) {
+  const url = new URL(databaseUrl);
+  url.searchParams.set("schema", schemaName);
+  return url.toString();
+}
+
+function execPrisma(args, envOverrides, input) {
+  return childProcess.execFileSync(
+    pnpmCommand,
+    ["--filter", "@ai-novel/server", "exec", "prisma", ...args],
+    {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        ...envOverrides,
+      },
+      input,
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "pipe"],
+    },
+  );
+}
+
+function withIsolatedSchema(run) {
+  if (!postgresDatabaseUrl) {
+    throw new Error("postgres database URL is not configured");
+  }
+
+  const schemaName = `p0b_${randomBytes(8).toString("hex")}`;
+  const adminDatabaseUrl = buildAdminDatabaseUrl(postgresDatabaseUrl);
+  const databaseUrl = buildSchemaDatabaseUrl(postgresDatabaseUrl, schemaName);
+  let schemaCreated = false;
+
+  try {
+    execPrisma(["db", "execute", "--stdin"], { DATABASE_URL: adminDatabaseUrl }, `CREATE SCHEMA IF NOT EXISTS "${schemaName}";`);
+    schemaCreated = true;
+    execPrisma(["migrate", "deploy", "--schema", "src/prisma/schema.prisma"], { DATABASE_URL: databaseUrl });
+    return run(databaseUrl);
+  } finally {
+    if (schemaCreated) {
+      execPrisma(["db", "execute", "--stdin"], { DATABASE_URL: adminDatabaseUrl }, `DROP SCHEMA IF EXISTS "${schemaName}" CASCADE;`);
+    }
+  }
 }
 
 function writeChildScript(tempDir) {
@@ -279,29 +336,30 @@ main().catch((error) => {
 }
 
 function runScenario(scenario) {
-  const tempRoot = path.join(serverRoot, ".tmp");
-  fs.mkdirSync(tempRoot, { recursive: true });
-  const tempDir = fs.mkdtempSync(path.join(tempRoot, "p0b-"));
-  try {
-    const databaseUrl = setupTempSqliteDatabase(tempDir);
-    const scriptPath = writeChildScript(tempDir);
-    const stdout = childProcess.execFileSync(process.execPath, [scriptPath], {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        DATABASE_URL: databaseUrl,
-        P0B_SCENARIO: scenario,
-      },
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    return JSON.parse(stdout.trim());
-  } finally {
-    fs.rmSync(tempDir, { recursive: true, force: true });
-  }
+  return withIsolatedSchema((databaseUrl) => {
+    const tempRoot = path.join(serverRoot, ".tmp");
+    fs.mkdirSync(tempRoot, { recursive: true });
+    const tempDir = fs.mkdtempSync(path.join(tempRoot, "p0b-"));
+    try {
+      const scriptPath = writeChildScript(tempDir);
+      const stdout = childProcess.execFileSync(process.execPath, [scriptPath], {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          DATABASE_URL: databaseUrl,
+          P0B_SCENARIO: scenario,
+        },
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      return JSON.parse(stdout.trim());
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 }
 
-test("legacy project migration feeds shared review context through manual audit on a real sqlite chain", () => {
+test("legacy project migration feeds shared review context through manual audit on a real postgres chain", { skip: skipReason }, () => {
   const result = runScenario("legacy");
 
   assert.equal(result.scenario, "legacy");
@@ -313,7 +371,7 @@ test("legacy project migration feeds shared review context through manual audit 
   assert.ok(result.participantNames.includes("刘雪婷"));
 });
 
-test("volume workspace projects feed the same shared review context through manual audit on a real sqlite chain", () => {
+test("volume workspace projects feed the same shared review context through manual audit on a real postgres chain", { skip: skipReason }, () => {
   const result = runScenario("volume");
 
   assert.equal(result.scenario, "volume");

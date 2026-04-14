@@ -5,7 +5,7 @@ import { AppError } from "../../middleware/errorHandler";
 import { generateImagesByProvider, isImageProviderSupported, resolveImageModel } from "./provider";
 import {
   persistGeneratedImageAsset,
-  resolveLocalImageAssetFile,
+  resolveImageAssetFile,
 } from "./imageAssetStorage";
 import {
   buildCharacterPrompt,
@@ -176,7 +176,7 @@ export class ImageGenerationService {
     return toImageAsset(updated);
   }
 
-  async getAssetFile(assetId: string): Promise<{ localPath: string; mimeType: string | null }> {
+  async getAssetFile(assetId: string): Promise<{ localPath?: string; stream?: NodeJS.ReadableStream; mimeType: string | null }> {
     const asset = await prisma.imageAsset.findUnique({
       where: { id: assetId },
       select: {
@@ -190,16 +190,12 @@ export class ImageGenerationService {
       throw new AppError("Image asset not found.", 404);
     }
 
-    const { localPath } = await resolveLocalImageAssetFile({
+    return resolveImageAssetFile({
       assetId: asset.id,
       url: asset.url,
+      mimeType: asset.mimeType ?? null,
       metadata: asset.metadata,
     });
-
-    return {
-      localPath,
-      mimeType: asset.mimeType ?? null,
-    };
   }
 
   async resumePendingTasks(): Promise<void> {
@@ -368,7 +364,7 @@ export class ImageGenerationService {
               baseCharacterId: task.baseCharacterId,
               provider: result.provider,
               model: result.model,
-              url: persisted.localPath,
+              url: persisted.persistedUrl,
               mimeType: persisted.mimeType,
               width: image.width ?? null,
               height: image.height ?? null,
@@ -381,6 +377,8 @@ export class ImageGenerationService {
                 localPath: persisted.localPath,
                 relativePath: persisted.relativePath,
                 sourceUrl: persisted.sourceUrl,
+                storageKey: persisted.storageKey,
+                storageDriver: persisted.storageDriver,
               }),
             },
           });

@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const http = require("node:http");
+const { Readable } = require("node:stream");
 const { createApp } = require("../dist/app.js");
 const { AgentTraceStore } = require("../dist/agents/traceStore.js");
 const { creativeHubLangGraph } = require("../dist/creativeHub/CreativeHubLangGraph.js");
@@ -12,6 +13,8 @@ const { NovelFramingSuggestionService } = require("../dist/services/novel/NovelF
 const { ragServices } = require("../dist/services/rag/index.js");
 const { providerBalanceService } = require("../dist/services/settings/ProviderBalanceService.js");
 const { prisma } = require("../dist/db/prisma.js");
+const { AppError } = require("../dist/middleware/errorHandler.js");
+const { imageGenerationService } = require("../dist/services/image/ImageGenerationService.js");
 
 function listen(server) {
   return new Promise((resolve) => {
@@ -840,6 +843,47 @@ test("POST /api/llm/test returns structured probe diagnostics when requested", a
     assert.equal(payload.data.structured.fallbackAvailable, true);
   } finally {
     llmConnectivityService.testConnection = originalTestConnection;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("GET /api/images/assets/:assetId/file streams bytes for stored assets", async () => {
+  const originalGetAssetFile = imageGenerationService.getAssetFile;
+  imageGenerationService.getAssetFile = async () => ({
+    stream: Readable.from([Buffer.from("png-binary-data")]),
+    mimeType: "image/png",
+  });
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/images/assets/asset-1/file`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("cross-origin-resource-policy"), "cross-origin");
+    assert.match(response.headers.get("content-type") ?? "", /image\/png/);
+    const body = Buffer.from(await response.arrayBuffer());
+    assert.deepEqual(body, Buffer.from("png-binary-data"));
+  } finally {
+    imageGenerationService.getAssetFile = originalGetAssetFile;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("GET /api/images/assets/:assetId/file returns 404 when asset backing file is missing", async () => {
+  const originalGetAssetFile = imageGenerationService.getAssetFile;
+  imageGenerationService.getAssetFile = async () => {
+    throw new AppError("Image asset not found.", 404);
+  };
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/images/assets/missing/file`);
+    assert.equal(response.status, 404);
+  } finally {
+    imageGenerationService.getAssetFile = originalGetAssetFile;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });

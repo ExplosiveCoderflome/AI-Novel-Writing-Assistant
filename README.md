@@ -90,7 +90,7 @@
 
 - 已经支持 OpenAI、DeepSeek、SiliconFlow、xAI 等多提供商配置，规划、正文、审阅这些链路可以按路由拆开配。
 - 前后端已经完成 Monorepo 拆分，适合本地持续开发，也比较适合继续往 Prompt Registry、Workflow Registry 和 Runtime 这条路上扩。
-- 默认使用 SQLite 就能把主链先跑起来；如果你要完整体验知识库 / RAG，再按需接 Qdrant 就行，不需要一上来就把所有基础设施堆满。
+- 默认使用 PostgreSQL 作为主数据库；如果你要完整体验知识库 / RAG，再按需接 Qdrant 就行，不需要一上来就把所有基础设施堆满。
 
 
 ## 典型使用路径
@@ -324,7 +324,7 @@ Copy-Item server/.env.example server/.env
 最少建议先确认这些项目：
 
 - `DATABASE_URL`
-  默认就是本地 SQLite，可直接使用
+  需要指向可用的 PostgreSQL 实例
 - `RAG_ENABLED`
   如果你暂时不接知识库，建议先设为 `false`
 - `QDRANT_URL`、`QDRANT_API_KEY`
@@ -400,7 +400,7 @@ pnpm dev
 ```
 
 如果你已经复制好了 `server/.env` 和 `client/.env`，默认就是直接运行这一条。
-不需要在首次启动前手动再执行 `prisma generate`、`prisma db push` 或 `pnpm db:migrate`。
+不需要在首次启动前手动再执行 `prisma generate`、`prisma migrate deploy` 或 `pnpm db:migrate`。
 
 默认情况下：
 
@@ -408,7 +408,7 @@ pnpm dev
 - 后端：`http://localhost:3000`
 - API：`http://localhost:3000/api`
 
-首次启动服务端时，会自动执行 Prisma generate 和 `db push`。
+首次启动服务端时，会自动执行 Prisma generate 和 `migrate deploy`。
 只有在你自己修改了 Prisma schema，或者要处理正式迁移流程时，才需要手动使用 Prisma / 数据库相关命令。
 
 建议第一次启动后先做这几步：
@@ -493,7 +493,7 @@ pnpm --filter @ai-novel/server test:book-analysis
 | 前端 | React 19、Vite、React Router、TanStack Query、Plate |
 | 后端 | Express 5、Prisma、Zod |
 | AI 编排 | LangChain、LangGraph |
-| 数据库 | SQLite |
+| 数据库 | PostgreSQL |
 | RAG | Qdrant |
 | 工程形态 | pnpm workspace Monorepo |
 

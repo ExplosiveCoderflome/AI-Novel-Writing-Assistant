@@ -100,7 +100,16 @@ router.get("/assets/:assetId/file", validate({ params: assetParamsSchema }), asy
     if (data.mimeType) {
       res.type(data.mimeType);
     }
-    res.sendFile(data.localPath);
+    if (data.localPath) {
+      res.sendFile(data.localPath);
+      return;
+    }
+    if (data.stream) {
+      data.stream.on("error", next);
+      data.stream.pipe(res);
+      return;
+    }
+    next(new Error("Image asset returned no readable payload."));
   } catch (error) {
     next(error);
   }
