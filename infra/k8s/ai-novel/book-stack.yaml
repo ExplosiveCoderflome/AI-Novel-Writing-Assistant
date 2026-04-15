@@ -78,7 +78,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       initContainers:
         - name: migrate
-          image: hub.luckydcms.com/library/ai-novel-api:f575d0eaddfd-20260415-013808
+          image: hub.luckydcms.com/library/ai-novel-api:5be76e8031b3-20260415-155033
           imagePullPolicy: IfNotPresent
           command: ["node", "/app/server/node_modules/prisma/build/index.js", "migrate", "deploy", "--config", "/app/server/prisma.config.ts"]
           envFrom:
@@ -100,7 +100,7 @@ spec:
             runAsGroup: 1000
       containers:
         - name: api
-          image: hub.luckydcms.com/library/ai-novel-api:f575d0eaddfd-20260415-013808
+          image: hub.luckydcms.com/library/ai-novel-api:5be76e8031b3-20260415-155033
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
@@ -237,7 +237,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: web
-          image: hub.luckydcms.com/library/ai-novel-web:f575d0eaddfd-20260415-013808
+          image: hub.luckydcms.com/library/ai-novel-web:5be76e8031b3-20260415-155033
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
