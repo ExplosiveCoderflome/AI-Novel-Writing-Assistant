@@ -39,6 +39,14 @@
 - Floating range: 500-700 lines is acceptable when module cohesion is still clear and the file is not becoming hard to maintain.
 - Hard threshold: when a source file exceeds 700 lines, refactoring and modularization are mandatory before continuing feature expansion.
 
+## Development Branch Workflow
+
+- When developing a new feature that may affect the end-to-end product flow, default workflow, shared contracts, or other major system links, do not develop directly on `main`.
+- In these cases, first create or switch to a dedicated `dev` branch for that feature, complete implementation and functional verification there, and merge back to `main` only after the feature is tested and stable enough.
+- After the feature branch has been successfully merged back into `main`, clean up that development branch so old feature branches do not accumulate indefinitely.
+- This rule applies in particular to changes that touch cross-stage workflows, shared runtime/prompting/context contracts, automatic director chains, chapter execution chains, data migration behavior, or other changes that can impact the overall chain.
+- Small isolated fixes, copy changes, low-risk UI polish, or documentation-only updates can still be handled without requiring a separate feature `dev` branch unless the user explicitly asks otherwise.
+
 ## Prompt Governance
 
 - `server/src/prompting/` is the only allowed entrypoint for adding new product-level prompts.

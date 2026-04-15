@@ -32,7 +32,7 @@
 
 - `waiting_approval` 的基础展示语义已不再是主阻塞：当前界面已按 live / checkpoint 处理，后续重点转为补齐 `displayStatus / blockingReason / resumeAction / lastHealthyStage`
 - `auto_to_ready` 单检查点语义已基本成立，且当前系统已超出旧方案进入 `auto_to_execution`；不再把“只跑到 front10_ready”本身当作新的主待办
-- 当前最值得优先推进的稳定性收口集中在：章节细化硬门禁、结构化 `taskSheet` 与 `artifactHealth`、阶段级模型路由与 fallback、默认 `patch_first` 修复、任务状态可解释性
+- 当前最值得优先推进的稳定性收口集中在：章节细化可用性门禁、轻量 `taskSheet` 执行摘要与非阻塞 `artifactHealth`、阶段级模型路由与 fallback、默认 `patch_first` 修复、任务状态可解释性
 
 当前唯一主线仍然是 `P0`：
 
@@ -150,11 +150,12 @@ P0 的默认主链统一为：
 - 虽然 runtime / review / repair / planner / replan 已开始接入统一账本视角，但真实 Prisma 迁移链路下围绕 payoff ledger 的持续抽样回归仍不够，当前主要完成了构建验证和 targeted test
 - 真实 Prisma 链路、新旧项目迁移链路、自动导演交接链路里，planner / runtime / review / repair / replan 的一致性仍缺持续抽样回归；当前只补齐了自动导演后半段的一轮真实验证，以及 payoff ledger 的服务级 / 上下文级测试
 - 章节细化虽然已有结构校验与字段别名兼容，但 `purpose / taskSheet` 仍偏“非空即过”，坏文本和低可用产物仍可能进入同步与后续消费
-- `taskSheet` 仍是单文本字段，缺少内部结构化表示与 `artifactHealth`；`front10_ready` 仍更接近“细化已生成”而不是“细化健康通过”
+- `taskSheet` 仍是单文本字段，当前更适合继续收口为“轻量执行摘要”而不是重型分段合同；`artifactHealth` 也更适合作为诊断与提醒，而不是新的正文生成阻塞点
 - 模型路由仍以 `planner / writer / review / repair` 为粗粒度，尚未升级到小说生产阶段级主路由与 fallback 链
 - 章节 repair 已共用统一上下文，但默认仍缺 `patch_first` 策略与“局部修补优先、整章重写升级触发”的明确合同
 - 动态角色系统虽然已进入 planner，但在执行期角色筛选、repair 边界、缺席风险提示和 replan 判断中的行为驱动仍不够深
 - 批量执行、异常恢复、旧资产兼容路径下，书级 / 卷级 / 角色 / payoff ledger 资产仍可能出现残余分叉
+- 章节正文默认已经回退为整章一次性生成；`sceneCards` 与执行合同刷新不再适合作为正文热路径的默认硬依赖，但仍可保留为细化、诊断、局部修复和可解释性辅助资产
 
 当前重点：
 
@@ -162,7 +163,8 @@ P0 的默认主链统一为：
 - 收掉手动创建、自动导演创建、现有项目接管三条入口在资产消费上的剩余差异
 - 继续减少 planner、runtime、审阅、repair、replan 在特殊入口和异常分支下的残余分叉，重点盯旧项目、批量执行、`chapter_batch_ready` 之后的继续执行 / 失败重试 / 质量修复恢复
 - 为 `purpose / boundary / taskSheet` 增加 schema + 语义可用性双门禁，优先拦截纯数字、标题回显、缺少推进目标、缺少结尾要求等坏细化产物
-- 把 `taskSheet` 升级为“内部结构化 + 外部兼容文本”，并给章节细化补 `artifactHealth / artifactHealthSummary`，把 `front10_ready` 放行收口到“前置细化健康通过”
+- 把 `taskSheet` 收口为“轻量执行摘要”，优先稳定 `推进目标 / 必保事项 / 结尾要求 / 风险提示` 这类高价值字段；`sceneCards` 退回辅助资产，不再把分段合同刷新与按场景正文生成放进默认热路径
+- 给章节细化补 `artifactHealth / artifactHealthSummary`，但默认只用于诊断、提醒与任务可解释性，不把它抬成新的正文生成阻塞链；`front10_ready` 继续以“细化可用且健康基本通过”为目标，而不是追求重型合同完备
 - 将模型路由从粗粒度任务类型推进到小说阶段级路由与 fallback，优先覆盖 `chapter_purpose / chapter_boundary / chapter_task_sheet / chapter_write / chapter_review / chapter_patch`
 - 把章节 repair 的默认策略收口为 `patch_first`，只在跨段大面积损坏或用户明确要求时升级为整章重写
 - 为自动导演和任务中心补齐 `displayStatus / blockingReason / resumeAction / lastHealthyStage` 这类可解释状态合同，减少“看得到进度但不知道为什么停”的黑盒感
@@ -340,7 +342,7 @@ P0 的默认主链统一为：
 ### 第一阶段：先收口已经开始落地的资产消费与新手主链
 
 - `P0-B` 已落地资产的更深消费
-- `章节细化硬门禁 / taskSheet 结构化 / artifactHealth`
+- `章节细化可用性门禁 / 轻量 taskSheet / 非阻塞 artifactHealth`
 - `阶段级模型路由与 fallback`
 - `P0-F` 新用户首启与快速开书入口收敛
 - `P0-G` 拆书工作台与渐进式拆书收口
@@ -436,6 +438,7 @@ P0 的默认主链统一为：
 - 章节规划默认结构源稳定来自 `书级 framing + story macro + current volume window + 卷级工作台`
 - 旧 `outline / structuredOutline` 只保留兼容性参考地位
 - `purpose / boundary / taskSheet` 不仅结构合法，而且通过可用性门禁；坏细化产物不会误入 `front10_ready`
+- 正文默认走整章一次性生成；`sceneCards` 与执行合同刷新只作为辅助资产、诊断或局部修复能力存在，不再作为默认写作前硬依赖
 - `圣经 / 拍点` 开始以前置规划资产而不是后置质检资产的身份参与链路
 - 伏笔 / 回收不再只是散落字段，系统能通过 payoff ledger 在章节生成前清晰展示结构承诺、兑现缺口和当前卷必须处理的 payoff obligations
 
@@ -758,9 +761,9 @@ P2 重点解决：
 <!-- task-md-sync:item:task-6e2c3f1b9a:start -->
 ### 正文场景合同主链路接通
 - 标识：`task-6e2c3f1b9a`
-- 状态：已完成
+- 状态：已归档（后续已回退，不再作为当前默认方向）
 - 最近更新：2026-04-14 20:34
-- 概要：让正文生成主链路在写作前自动刷新章节执行合同，改为优先消费 canonical `sceneCards` 按场景写作，并避免 planner 用不可解析的文本场景卡覆盖运行时合同。
+- 概要：该任务曾尝试让正文生成主链路在写作前自动刷新章节执行合同，并优先消费 canonical `sceneCards` 按场景写作；后续已确认这条路径会显著拖慢正文生成，因此已被“恢复整章一次性生成”替代，不再作为当前默认主链。
 
 计划清单：
 - [x] 检查正文生成、planner 持久化与节奏板细化链路，确认 `sceneCards` 在进入正文前的丢失点

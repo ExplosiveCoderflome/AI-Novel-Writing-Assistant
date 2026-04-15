@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +14,6 @@ import {
 import KnowledgeBindingPanel from "@/components/knowledge/KnowledgeBindingPanel";
 import AITakeoverContainer from "@/components/workflow/AITakeoverContainer";
 import ChapterManagementTab from "./ChapterManagementTab";
-import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
 import NovelCharacterPanel from "./NovelCharacterPanel";
 import NovelTaskDrawer from "./NovelTaskDrawer";
 import OutlineTab from "./OutlineTab";
@@ -91,6 +91,8 @@ export default function NovelEditView(props: NovelEditViewProps) {
   const progressLabel = stepIndex >= 0
     ? `第 ${stepIndex + 1} 步 / 共 ${NOVEL_WORKSPACE_FLOW_STEPS.length} 步`
     : null;
+  const isTakeoverLoading = takeover?.mode === "loading";
+  const hideTakeoverEntry = takeover?.mode === "running" || takeover?.mode === "waiting";
 
   const renderActivePanel = () => {
     switch (activeTab) {
@@ -136,14 +138,16 @@ export default function NovelEditView(props: NovelEditViewProps) {
               </>
             ) : null}
           </div>
-
-          <DirectorTakeoverEntryPanel
-            title="让 AI 从当前步骤继续接管"
-            description="退出导演模式后，不需要回到项目起点。直接从当前页面重新进入自动导演，并明确选择继续已有进度还是重跑当前步。"
-            entry={activeStepTakeoverEntry}
-          />
-
           <div className="flex flex-wrap items-center justify-end gap-2">
+            {!hideTakeoverEntry ? (
+              isTakeoverLoading ? (
+                <Button type="button" size="sm" disabled>
+                  <Loader2 className="animate-spin" />
+                  AI 自动导演接管
+                </Button>
+              ) : activeStepTakeoverEntry
+            ) : null}
+
             <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline">导出</Button>
