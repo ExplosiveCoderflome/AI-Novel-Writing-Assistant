@@ -2,6 +2,8 @@ ARG NODE_IMAGE=node:20-bookworm-slim
 FROM ${NODE_IMAGE} AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=${PNPM_HOME}:${PATH}
+ENV NODE_ENV=development
+USER root
 RUN apt-get update \
     && apt-get install -y --no-install-recommends python3 make g++ \
     && rm -rf /var/lib/apt/lists/* \
@@ -9,6 +11,7 @@ RUN apt-get update \
 
 FROM base AS deps
 WORKDIR /app
+RUN rm -rf /app/* /app/.[!.]* /app/..?* || true
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY client/package.json ./client/package.json
 COPY server/package.json ./server/package.json
@@ -23,13 +26,26 @@ RUN pnpm --filter @ai-novel/shared build \
     && pnpm --filter @ai-novel/server prisma:generate \
     && pnpm --filter @ai-novel/server build
 
+FROM base AS prod-deps
+WORKDIR /app
+RUN rm -rf /app/* /app/.[!.]* /app/..?* || true
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+COPY client/package.json ./client/package.json
+COPY server/package.json ./server/package.json
+COPY shared/package.json ./shared/package.json
+COPY server/src/prisma/schema.prisma ./server/src/prisma/schema.prisma
+RUN pnpm install --frozen-lockfile --prod \
+    && pnpm --filter @ai-novel/server prisma:generate
+
 ARG NODE_IMAGE
 FROM ${NODE_IMAGE} AS runtime
+USER root
 WORKDIR /app
 ENV NODE_ENV=production
+RUN rm -rf /app/* /app/.[!.]* /app/..?* || true
 COPY --from=build --chown=node:node /app/package.json ./package.json
 COPY --from=build --chown=node:node /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
-COPY --from=build --chown=node:node /app/node_modules ./node_modules
+COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/server ./server
 COPY --from=build --chown=node:node /app/shared ./shared
 RUN mkdir -p /app/storage/generated-images /app/node_modules/.bin \

@@ -42,6 +42,7 @@
     "helmet": "^8.1.0",
     "langchain": "^1.2.28",
     "morgan": "^1.10.1",
+    "prisma": "^7.4.2",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -49,7 +50,6 @@
     "@types/express": "^5.0.6",
     "@types/morgan": "^1.9.10",
     "@types/node": "^25.3.3",
-    "prisma": "^7.4.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3"
   }

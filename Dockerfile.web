@@ -3,10 +3,13 @@ ARG NGINX_IMAGE=nginxinc/nginx-unprivileged:1.27-alpine
 FROM ${NODE_IMAGE} AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=${PNPM_HOME}:${PATH}
+ENV NODE_ENV=development
+USER root
 RUN corepack enable
 
 FROM base AS deps
 WORKDIR /app
+RUN rm -rf /app/* /app/.[!.]* /app/..?* || true
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY client/package.json ./client/package.json
 COPY server/package.json ./server/package.json
@@ -23,6 +26,9 @@ RUN pnpm --filter @ai-novel/shared build \
     && pnpm --filter @ai-novel/client build
 
 FROM ${NGINX_IMAGE} AS runtime
+USER root
+RUN rm -rf /usr/share/nginx/html/*
 COPY --from=build --chown=101:101 /app/client/dist/ /usr/share/nginx/html/
 COPY --chown=101:101 infra/nginx/ai-novel-web.conf /etc/nginx/conf.d/default.conf
+USER 101
 EXPOSE 8080
