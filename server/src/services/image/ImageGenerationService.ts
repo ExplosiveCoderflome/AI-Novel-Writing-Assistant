@@ -39,7 +39,9 @@ export class ImageGenerationService {
     }
 
     const model = resolveImageModel(provider, input.model);
-    const prompt = buildCharacterPrompt(input.prompt, input.stylePreset, character);
+    const prompt = input.promptMode === "direct"
+      ? input.prompt.trim()
+      : buildCharacterPrompt(input.prompt, input.stylePreset, character);
     const task = await prisma.imageGenerationTask.create({
       data: {
         sceneType: "character",

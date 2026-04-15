@@ -62,6 +62,10 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/character/character.prompts").baseCharacterFinalPrompt as UnknownPromptAsset,
   },
   {
+    key: "image.character.prompt_optimize@v1",
+    load: () => require("./prompts/image/image.prompts").imageCharacterPromptOptimizePrompt as UnknownPromptAsset,
+  },
+  {
     key: "genre.tree.generate@v1",
     load: () => require("./prompts/genre/genre.prompts").genreTreePrompt as UnknownPromptAsset,
   },

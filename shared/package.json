@@ -10,6 +10,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./imagePrompt": {
+      "types": "./dist/imagePrompt.d.ts",
+      "default": "./dist/imagePrompt.js"
+    },
     "./types/*": {
       "types": "./dist/types/*.d.ts",
       "default": "./dist/types/*.js"

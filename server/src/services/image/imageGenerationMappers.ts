@@ -1,4 +1,5 @@
 import path from "node:path";
+import { buildCharacterImagePrompt } from "@ai-novel/shared/imagePrompt";
 import type { ImageAsset, ImageGenerationTask } from "@ai-novel/shared/types/image";
 import { AppError } from "../../middleware/errorHandler";
 import { buildImageAssetPublicUrl, parseImageAssetMetadata } from "./imageAssetStorage";
@@ -137,14 +138,9 @@ export function buildCharacterPrompt(
     background: string;
   },
 ): string {
-  const blocks = [
-    prompt.trim(),
-    stylePreset?.trim() ? `Style preset: ${stylePreset.trim()}` : "",
-    `Character name: ${character.name}`,
-    `Character role: ${character.role}`,
-    `Personality: ${character.personality}`,
-    `Appearance: ${character.appearance ?? "Not specified"}`,
-    `Background: ${character.background}`,
-  ];
-  return blocks.filter(Boolean).join("\n");
+  return buildCharacterImagePrompt({
+    prompt,
+    stylePreset,
+    character,
+  });
 }
