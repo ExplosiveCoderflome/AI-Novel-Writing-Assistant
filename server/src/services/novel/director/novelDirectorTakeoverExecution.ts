@@ -66,6 +66,12 @@ interface StartDirectorTakeoverExecutionInput {
     input: DirectorConfirmRequest;
     startPhase: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline";
   }) => Promise<void>;
+  prepareRestartStep?: (input: {
+    request: DirectorTakeoverRequest;
+    takeoverState: DirectorTakeoverLoadedState;
+    directorInput: DirectorConfirmRequest;
+    plan: DirectorTakeoverResolvedPlan;
+  }) => Promise<void>;
 }
 
 function startPhaseToEntryStep(startPhase: NonNullable<DirectorTakeoverRequest["startPhase"]>): DirectorTakeoverEntryStep {
@@ -163,6 +169,15 @@ export async function startDirectorTakeoverExecution(
     phase: plan.executionMode === "phase" ? plan.phase ?? plan.startPhase : "front10_ready",
     isBackgroundRunning: true,
   });
+
+  if (selection.strategy === "restart_current_step") {
+    await input.prepareRestartStep?.({
+      request: input.request,
+      takeoverState: input.takeoverState,
+      directorInput: input.directorInput,
+      plan,
+    });
+  }
 
   const initialResumeTarget = buildResumeTargetFromPlan({
     novelId: input.request.novelId,

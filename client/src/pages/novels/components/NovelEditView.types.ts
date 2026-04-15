@@ -40,9 +40,11 @@ import type {
 } from "@ai-novel/shared/types/storyMacro";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { NovelExportDownloadFormat } from "@ai-novel/shared/types/novelExport";
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { StoryWorldSliceOverrides, StoryWorldSliceView } from "@ai-novel/shared/types/storyWorldSlice";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
+import type { ChapterExecutionBackgroundActivity } from "./chapterExecution.shared";
 import type { QuickCharacterCreatePayload } from "./characterPanel.utils";
 import type { ChapterReviewResult } from "../chapterPlanning.shared";
 import type { ChapterDetailBundleRequest } from "../chapterDetailPlanning.shared";
@@ -304,7 +306,9 @@ export interface ChapterTabViewProps {
   lastReplanResult?: ReplanResult | null;
   chapterPlan?: StoryPlan | null;
   latestStateSnapshot?: StoryStateSnapshot | null;
+  chapterStateSnapshot?: StoryStateSnapshot | null;
   chapterAuditReports: AuditReport[];
+  backgroundSyncActivities?: ChapterExecutionBackgroundActivity[];
   isGeneratingChapterPlan: boolean;
   isReplanningChapter: boolean;
   isRunningFullAudit: boolean;
@@ -493,6 +497,15 @@ export interface NovelEditViewProps {
   activeTab: string;
   workflowCurrentTab?: string | null;
   onActiveTabChange: (value: string) => void;
+  exportControls: {
+    canExportCurrentStep: boolean;
+    isExportingCurrentMarkdown: boolean;
+    isExportingCurrentJson: boolean;
+    isExportingFullMarkdown: boolean;
+    isExportingFullJson: boolean;
+    onExportCurrent: (format: NovelExportDownloadFormat) => void;
+    onExportFull: (format: NovelExportDownloadFormat) => void;
+  };
   basicTab: BasicTabProps;
   storyMacroTab: StoryMacroTabProps;
   outlineTab: OutlineTabViewProps;

@@ -569,8 +569,8 @@ export function resolveDirectorTakeoverPlan(input: DirectorTakeoverDecisionInput
       strategy: input.strategy,
       effectiveStep: "story_macro",
       summary: "重新生成当前步，从故事宏观规划重跑。",
-      effectSummary: "会重跑 Story Macro 与 Book Contract，并沿后续导演链继续推进。",
-      impactNotes: ["不会删除现有章节正文，但书级规划资产会被刷新。"],
+      effectSummary: "会先清空 Story Macro 与 Book Contract，再从故事宏观规划重跑。",
+      impactNotes: ["会刷新当前书级规划资产。", "不会删除已写正文。"],
     });
   }
   if (input.entryStep === "character") {
@@ -582,8 +582,8 @@ export function resolveDirectorTakeoverPlan(input: DirectorTakeoverDecisionInput
       strategy: input.strategy,
       effectiveStep: "character",
       summary: "重新生成当前步，从角色准备重跑。",
-      effectSummary: "会重跑角色阵容生成与应用，但保留前置书级规划。",
-      impactNotes: ["不会清空已有正文。"],
+      effectSummary: "会先清空当前角色阵容、关系和角色准备候选，再重跑角色准备。",
+      impactNotes: ["保留前置书级规划。", "不会清空已有正文。"],
     });
   }
   if (input.entryStep === "outline") {
@@ -595,8 +595,8 @@ export function resolveDirectorTakeoverPlan(input: DirectorTakeoverDecisionInput
       strategy: input.strategy,
       effectiveStep: "outline",
       summary: "重新生成当前步，从卷战略重跑。",
-      effectSummary: "会重跑卷战略与卷骨架，保留前置书级规划与角色。",
-      impactNotes: ["不会清空已有正文。"],
+      effectSummary: "会先清空当前卷战略与卷骨架，再从卷战略重跑。",
+      impactNotes: ["保留前置书级规划与角色。", "不会清空已有正文。"],
     });
   }
   if (input.entryStep === "structured") {
@@ -608,8 +608,8 @@ export function resolveDirectorTakeoverPlan(input: DirectorTakeoverDecisionInput
       strategy: input.strategy,
       effectiveStep: "structured",
       summary: "重新生成当前步，从节奏 / 拆章重跑。",
-      effectSummary: "会重跑当前卷节奏板、章节列表和章节细化资源。",
-      impactNotes: ["保留正文，不会删章节。"],
+      effectSummary: "会先清空当前卷的节奏板、章节列表和章节细化资源，再重跑这一阶段。",
+      impactNotes: ["会清空当前卷尚未开写的拆章产物。", "不会删除已写正文。"],
     });
   }
   if (!structuredReady && !executable) {
@@ -624,9 +624,13 @@ export function resolveDirectorTakeoverPlan(input: DirectorTakeoverDecisionInput
     effectiveStep: input.entryStep === "pipeline" ? "pipeline" : "chapter",
     usesCurrentBatch: false,
     latestCheckpoint: input.latestCheckpoint,
-    summary: "重新生成当前步，按当前范围新开章节批次。",
-    effectSummary: "会保留现有规划与正文，只对当前执行范围新开一条章节批次。",
-    impactNotes: ["不会清空已有正文。", "不会删除章节。"],
+    summary: input.entryStep === "pipeline" ? "重新生成当前步，清空当前质量修复结果后重跑。" : "重新生成当前步，清空当前章节批次后重跑。",
+    effectSummary: input.entryStep === "pipeline"
+      ? "会先清空当前质量修复结果与通过状态，再对现有正文重新审校 / 修复。"
+      : "会先清空当前章节执行范围的正文草稿、审校状态和派生摘要，再重新生成这一批。",
+    impactNotes: input.entryStep === "pipeline"
+      ? ["保留当前章节正文。", "会重新进入自动审校与修复。"]
+      : ["会清空当前批次正文草稿。", "保留前置规划和章节结构。"],
   });
 }
 

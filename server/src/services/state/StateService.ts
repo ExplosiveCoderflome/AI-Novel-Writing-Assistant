@@ -44,6 +44,11 @@ function normalizeChapterReferenceText(value: unknown): string {
   return String(value ?? "").trim();
 }
 
+function isPlaceholderChapterReference(raw: string): boolean {
+  const normalized = raw.trim().toLowerCase();
+  return /^chapter_\d+$/.test(normalized);
+}
+
 function findChapterIdByReference(
   value: unknown,
   chapters: StateChapterReference[],
@@ -54,7 +59,7 @@ function findChapterIdByReference(
   }
 
   const normalized = raw.toLowerCase();
-  if (INVALID_CHAPTER_REFERENCE_VALUES.has(normalized)) {
+  if (INVALID_CHAPTER_REFERENCE_VALUES.has(normalized) || isPlaceholderChapterReference(raw)) {
     return null;
   }
 

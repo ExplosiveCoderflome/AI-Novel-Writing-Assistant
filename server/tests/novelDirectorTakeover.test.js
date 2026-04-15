@@ -64,7 +64,7 @@ test("continue_existing from story macro only fills missing character step", () 
   assert.equal(plan.startPhase, "character_setup");
 });
 
-test("restart_current_step on pipeline opens a new repair batch without clearing正文", () => {
+test("restart_current_step on pipeline clears repair outputs before rerun", () => {
   const plan = resolveDirectorTakeoverPlan({
     entryStep: "pipeline",
     strategy: "restart_current_step",
@@ -88,5 +88,6 @@ test("restart_current_step on pipeline opens a new repair batch without clearing
   assert.equal(plan.effectiveStep, "pipeline");
   assert.equal(plan.effectiveStage, "quality_repair");
   assert.equal(plan.usesCurrentBatch, false);
-  assert.match(plan.effectSummary, /保留现有规划与正文|浼氫繚鐣/);
+  assert.match(plan.effectSummary, /清空当前质量修复结果|重新审校/);
+  assert.deepEqual(plan.impactNotes, ["保留当前章节正文。", "会重新进入自动审校与修复。"]);
 });

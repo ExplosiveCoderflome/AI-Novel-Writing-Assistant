@@ -63,7 +63,9 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     lastReplanResult,
     chapterPlan,
     latestStateSnapshot,
+    chapterStateSnapshot,
     chapterAuditReports,
+    backgroundSyncActivities,
     isGeneratingChapterPlan,
     isReplanningChapter,
     isRunningFullAudit,
@@ -246,6 +248,13 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
               isRunningFullAudit={isRunningFullAudit}
               isStreaming={isStreaming}
               streamingChapterId={streamingChapterId}
+              chapterAuditReports={chapterAuditReports}
+              chapterRuntimePackage={chapterRuntimePackage}
+              latestStateSnapshot={latestStateSnapshot}
+              chapterStateSnapshot={chapterStateSnapshot}
+              backgroundSyncActivities={backgroundSyncActivities}
+              chapterRunStatus={chapterRunStatus}
+              repairRunStatus={repairRunStatus}
               repairStreamingChapterId={repairStreamingChapterId}
             />
           </div>

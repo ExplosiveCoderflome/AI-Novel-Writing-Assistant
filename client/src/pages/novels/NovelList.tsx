@@ -89,6 +89,7 @@ export default function NovelList() {
     mutationFn: (input: { novelId: string; novelTitle: string }) => downloadNovelExport(
       input.novelId,
       "txt",
+      "full",
       input.novelTitle,
     ),
     onSuccess: ({ blob, fileName }) => {

@@ -35,6 +35,7 @@ export default function NovelEditView(props: NovelEditViewProps) {
     id,
     activeTab,
     workflowCurrentTab,
+    exportControls,
     basicTab,
     storyMacroTab,
     outlineTab,
@@ -48,6 +49,7 @@ export default function NovelEditView(props: NovelEditViewProps) {
   } = props;
 
   const [isProjectToolsOpen, setIsProjectToolsOpen] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
 
   const totalChapters = chapterTab.chapters.length;
   const generatedChapters = chapterTab.chapters.filter((item) => Boolean(item.content?.trim())).length;
@@ -142,6 +144,64 @@ export default function NovelEditView(props: NovelEditViewProps) {
           />
 
           <div className="flex flex-wrap items-center justify-end gap-2">
+            <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">导出</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>导出项目内容</DialogTitle>
+                  <DialogDescription>
+                    当前步骤会按你正在查看的工作台导出；整本书会把项目设定、故事规划、角色、卷规划、拆章、章节和质量修复资产一起导出。
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">当前步骤：{currentStepLabel}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => exportControls.onExportCurrent("markdown")}
+                        disabled={!exportControls.canExportCurrentStep || exportControls.isExportingCurrentMarkdown}
+                      >
+                        {exportControls.isExportingCurrentMarkdown ? "导出中..." : "Markdown"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => exportControls.onExportCurrent("json")}
+                        disabled={!exportControls.canExportCurrentStep || exportControls.isExportingCurrentJson}
+                      >
+                        {exportControls.isExportingCurrentJson ? "导出中..." : "JSON"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">整本书</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => exportControls.onExportFull("markdown")}
+                        disabled={exportControls.isExportingFullMarkdown}
+                      >
+                        {exportControls.isExportingFullMarkdown ? "导出中..." : "Markdown"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => exportControls.onExportFull("json")}
+                        disabled={exportControls.isExportingFullJson}
+                      >
+                        {exportControls.isExportingFullJson ? "导出中..." : "JSON"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             <Dialog open={isProjectToolsOpen} onOpenChange={setIsProjectToolsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline">项目工具</Button>

@@ -37,6 +37,22 @@ test("resolveSnapshotChapterReference falls back to current chapter for invalid 
   assert.equal(resolved, "chapter-2");
 });
 
+test("resolveSnapshotChapterReference treats chapter_1 placeholders as missing refs", () => {
+  const chapters = [
+    { id: "chapter-1", order: 1, title: "重生归来" },
+    { id: "chapter-2", order: 2, title: "决心用医术逆袭" },
+  ];
+
+  const resolved = resolveSnapshotChapterReference({
+    value: "chapter_1",
+    chapters,
+    currentChapterId: "chapter-2",
+    fallbackToCurrentChapter: true,
+  });
+
+  assert.equal(resolved, "chapter-2");
+});
+
 test("resolveSnapshotChapterReference drops invalid payoff refs instead of returning placeholders", () => {
   const chapters = [
     { id: "chapter-1", order: 1, title: "重生归来" },

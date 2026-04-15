@@ -62,7 +62,7 @@ const STRATEGY_OPTIONS: Array<{ value: DirectorTakeoverStrategy; label: string; 
   {
     value: "restart_current_step",
     label: "重新生成当前步",
-    description: "只重跑当前步骤，不清空已有正文和章节。",
+    description: "先清空当前步骤产出，再按该步骤重新生成。",
   },
 ];
 

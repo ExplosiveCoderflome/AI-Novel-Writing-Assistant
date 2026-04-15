@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import type { DirectorLockScope, DirectorSessionState } from "@ai-novel/shared/types/novelDirector";
+import type { NovelExportDownloadFormat, NovelExportScope } from "@ai-novel/shared/types/novelExport";
 import type {
   PipelineRepairMode,
   PipelineRunMode,
@@ -23,9 +24,11 @@ import {
   generateChapterPlan,
   getChapterAuditReports,
   getChapterPlan,
+  getChapterStateSnapshot,
   getLatestStateSnapshot,
   getNovelPayoffLedger,
   getNovelDetail,
+  downloadNovelExport,
   getNovelPipelineJob,
   getNovelVolumeWorkspace,
   getNovelQualityReport,
@@ -40,6 +43,7 @@ import { useDirectorChapterTitleRepair } from "@/hooks/useDirectorChapterTitleRe
 import { useLLMStore } from "@/store/llmStore";
 import { buildWorldInjectionSummary } from "./novelEdit.utils";
 import type { QuickCharacterCreatePayload } from "./components/characterPanel.utils";
+import type { ChapterExecutionBackgroundActivity } from "./components/chapterExecution.shared";
 import type { ChapterExecutionStrategy } from "./chapterExecution.utils";
 import { useNovelCharacterMutations } from "./hooks/useNovelCharacterMutations";
 import { useChapterExecutionActions } from "./hooks/useChapterExecutionActions";
@@ -57,7 +61,7 @@ import type { ChapterReviewResult } from "./chapterPlanning.shared";
 import type { NovelEditTakeoverState, NovelTaskDrawerState } from "./components/NovelEditView.types";
 import NovelExistingProjectTakeoverDialog from "./components/NovelExistingProjectTakeoverDialog";
 import { syncNovelWorkflowStageSilently, workflowStageFromTab } from "./novelWorkflow.client";
-import { scopeFromWorkspaceTab, tabFromDirectorProgress, tabFromScope } from "./novelWorkspaceNavigation";
+import { isNovelWorkspaceFlowTab, scopeFromWorkspaceTab, tabFromDirectorProgress, tabFromScope } from "./novelWorkspaceNavigation";
 import { resolveChapterTitleWarning } from "@/lib/directorTaskNotice";
 import { getCandidateSelectionLink } from "@/lib/novelWorkflowTaskUi";
 import {
@@ -68,6 +72,69 @@ import {
   formatTakeoverCheckpoint,
   resolveAutoExecutionScopeLabel,
 } from "./novelEditTakeover.shared";
+
+function parsePipelineBackgroundActivities(payload: string | null | undefined): ChapterExecutionBackgroundActivity[] {
+  if (!payload?.trim()) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(payload) as {
+      backgroundSync?: {
+        activities?: Array<{
+          kind?: unknown;
+          status?: unknown;
+          chapterId?: unknown;
+          chapterOrder?: unknown;
+          chapterTitle?: unknown;
+          updatedAt?: unknown;
+          error?: unknown;
+        }>;
+      };
+    };
+    return (parsed.backgroundSync?.activities ?? [])
+      .flatMap((item) => {
+        if (!item || typeof item !== "object") {
+          return [];
+        }
+        const kind = item.kind;
+        const status = item.status;
+        if (
+          (kind !== "character_dynamics" && kind !== "state_snapshot" && kind !== "payoff_ledger")
+          || (status !== "running" && status !== "failed")
+          || typeof item.chapterId !== "string"
+          || !item.chapterId.trim()
+          || typeof item.updatedAt !== "string"
+          || !item.updatedAt.trim()
+        ) {
+          return [];
+        }
+        const activity: ChapterExecutionBackgroundActivity = {
+          kind,
+          status,
+          chapterId: item.chapterId.trim(),
+          chapterOrder: typeof item.chapterOrder === "number" ? item.chapterOrder : undefined,
+          chapterTitle: typeof item.chapterTitle === "string" && item.chapterTitle.trim() ? item.chapterTitle.trim() : undefined,
+          updatedAt: item.updatedAt.trim(),
+          error: typeof item.error === "string" && item.error.trim() ? item.error.trim() : null,
+        };
+        return [activity];
+      })
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  } catch {
+    return [];
+  }
+}
+
+function createDownload(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
 import {
   DEFAULT_ESTIMATED_CHAPTER_COUNT,
   createDefaultNovelBasicFormState,
@@ -200,6 +267,11 @@ export default function NovelEdit() {
     queryFn: () => getLatestStateSnapshot(id),
     enabled: Boolean(id),
   });
+  const chapterStateSnapshotQuery = useQuery({
+    queryKey: queryKeys.novels.chapterStateSnapshot(id, selectedChapterId || "none"),
+    queryFn: () => getChapterStateSnapshot(id, selectedChapterId),
+    enabled: Boolean(id && selectedChapterId),
+  });
   const payoffLedgerChapterOrder = useMemo(() => {
     const orders = novelDetailQuery.data?.data?.chapters?.map((chapter) => chapter.order) ?? [];
     return orders.length > 0 ? Math.max(...orders) : undefined;
@@ -292,6 +364,27 @@ export default function NovelEdit() {
       return false;
     },
   });
+  const exportNovelMutation = useMutation({
+    mutationFn: async (input: {
+      format: NovelExportDownloadFormat;
+      scope: NovelExportScope;
+      novelTitle: string;
+    }) => {
+      const exported = await downloadNovelExport(id, input.format, input.scope, input.novelTitle);
+      return {
+        ...exported,
+        scope: input.scope,
+        format: input.format,
+      };
+    },
+    onSuccess: ({ blob, fileName, scope }) => {
+      createDownload(blob, fileName);
+      toast.success(scope === "full" ? "整本书导出已开始。" : "当前步骤导出已开始。");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "导出失败。");
+    },
+  });
 
   const chapters = useMemo(() => novelDetailQuery.data?.data?.chapters ?? [], [novelDetailQuery.data?.data?.chapters]);
   const outlineSyncChapters = useMemo<ExistingOutlineChapter[]>(
@@ -323,6 +416,11 @@ export default function NovelEdit() {
     () => baseCharacters.find((item) => item.id === selectedBaseCharacterId),
     [baseCharacters, selectedBaseCharacterId],
   );
+  const exportNovelTitle = useMemo(
+    () => basicForm.title.trim() || novelDetailQuery.data?.data?.title?.trim() || id,
+    [basicForm.title, novelDetailQuery.data?.data?.title, id],
+  );
+  const currentExportScope = isNovelWorkspaceFlowTab(activeTab) ? activeTab : null;
   const importedBaseCharacterIds = useMemo(
     () => new Set(
       characters
@@ -413,8 +511,13 @@ export default function NovelEdit() {
   const chapterQualityReport = useMemo(() => (qualityReportQuery.data?.data?.chapterReports ?? []).find((item) => item.chapterId === selectedChapterId), [qualityReportQuery.data?.data?.chapterReports, selectedChapterId]);
   const chapterPlan = chapterPlanQuery.data?.data ?? null;
   const latestStateSnapshot = latestStateSnapshotQuery.data?.data ?? null;
+  const chapterStateSnapshot = chapterStateSnapshotQuery.data?.data ?? null;
   const payoffLedger = payoffLedgerQuery.data?.data ?? null;
   const chapterAuditReports = chapterAuditReportsQuery.data?.data ?? [];
+  const pipelineBackgroundActivities = useMemo(
+    () => parsePipelineBackgroundActivities(pipelineJobQuery.data?.data?.payload ?? null),
+    [pipelineJobQuery.data?.data?.payload],
+  );
   const latestAutoDirectorTask = activeAutoDirectorTaskQuery.data?.data ?? null;
   const activeAutoDirectorTask = latestAutoDirectorTask?.status === "cancelled"
     ? null
@@ -1506,7 +1609,9 @@ export default function NovelEdit() {
     lastReplanResult: replanChapterMutation.data?.data ?? null,
     chapterPlan,
     latestStateSnapshot,
+    chapterStateSnapshot,
     chapterAuditReports,
+    backgroundSyncActivities: pipelineBackgroundActivities,
     isGeneratingChapterPlan: generateChapterPlanMutation.isPending,
     isReplanningChapter: replanChapterMutation.isPending,
     isRunningFullAudit: fullAuditMutation.isPending && reviewActionKind === "full_audit",
@@ -1544,6 +1649,19 @@ export default function NovelEdit() {
                 ? "pipeline"
                 : "basic",
   );
+  const exportVariables = exportNovelMutation.variables;
+  const isExportingCurrentMarkdown = exportNovelMutation.isPending
+    && exportVariables?.scope === currentExportScope
+    && exportVariables?.format === "markdown";
+  const isExportingCurrentJson = exportNovelMutation.isPending
+    && exportVariables?.scope === currentExportScope
+    && exportVariables?.format === "json";
+  const isExportingFullMarkdown = exportNovelMutation.isPending
+    && exportVariables?.scope === "full"
+    && exportVariables?.format === "markdown";
+  const isExportingFullJson = exportNovelMutation.isPending
+    && exportVariables?.scope === "full"
+    && exportVariables?.format === "json";
 
   return (
     <NovelEditView
@@ -1551,6 +1669,30 @@ export default function NovelEdit() {
       activeTab={activeTab}
       workflowCurrentTab={workflowCurrentTab}
       onActiveTabChange={setActiveTab}
+      exportControls={{
+        canExportCurrentStep: Boolean(currentExportScope),
+        isExportingCurrentMarkdown,
+        isExportingCurrentJson,
+        isExportingFullMarkdown,
+        isExportingFullJson,
+        onExportCurrent: (format) => {
+          if (!currentExportScope) {
+            return;
+          }
+          exportNovelMutation.mutate({
+            format,
+            scope: currentExportScope,
+            novelTitle: exportNovelTitle,
+          });
+        },
+        onExportFull: (format) => {
+          exportNovelMutation.mutate({
+            format,
+            scope: "full",
+            novelTitle: exportNovelTitle,
+          });
+        },
+      }}
       basicTab={basicTab}
       storyMacroTab={storyMacroTab}
       outlineTab={outlineTab}

@@ -69,6 +69,7 @@ import {
 import { DirectorRecoveryNotNeededError } from "./novelDirectorErrors";
 import { repairDirectorChapterTitles } from "./novelDirectorChapterTitleRepair";
 import { startDirectorTakeoverExecution } from "./novelDirectorTakeoverExecution";
+import { resetDirectorTakeoverCurrentStep } from "./novelDirectorTakeoverReset";
 
 type WorkflowTaskSnapshot = Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>;
 
@@ -680,6 +681,18 @@ export class NovelDirectorService {
       buildDirectorSeedPayload: (request, novelId, extra) => this.buildDirectorSeedPayload(request, novelId, extra),
       scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, runner),
       runDirectorPipeline: (payload) => this.runDirectorPipeline(payload),
+      prepareRestartStep: async ({ plan, takeoverState: currentTakeoverState, directorInput }) => {
+        await resetDirectorTakeoverCurrentStep({
+          novelId: input.novelId,
+          plan,
+          takeoverState: currentTakeoverState,
+          deps: {
+            getVolumeWorkspace: (targetNovelId) => this.volumeService.getVolumes(targetNovelId),
+            updateVolumeWorkspace: (targetNovelId, payload) => this.volumeService.updateVolumes(targetNovelId, payload),
+            cancelPipelineJob: (jobId) => this.novelService.cancelPipelineJob(jobId),
+          },
+        });
+      },
     });
   }
 

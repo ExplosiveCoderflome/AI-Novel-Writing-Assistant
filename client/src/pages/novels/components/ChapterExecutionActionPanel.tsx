@@ -1,15 +1,20 @@
-import type { Chapter } from "@ai-novel/shared/types/novel";
+import type { SSEFrame } from "@ai-novel/shared/types/api";
+import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
+import type { AuditReport, Chapter, StoryStateSnapshot } from "@ai-novel/shared/types/novel";
 import { Link } from "react-router-dom";
 import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import ChapterExecutionStatusFlow from "./ChapterExecutionStatusFlow";
 import {
   chapterHasPreparationAssets,
   chapterStatusLabel,
   chapterSuggestedActionLabel,
   PrimaryActionButton,
   type PrimaryAction,
+  type ChapterExecutionBackgroundActivity,
+  resolveChapterExecutionFlow,
 } from "./chapterExecution.shared";
 
 interface ChapterExecutionActionPanelProps {
@@ -62,6 +67,13 @@ interface ChapterExecutionActionPanelProps {
   isStreaming: boolean;
   streamingChapterId?: string | null;
   repairStreamingChapterId?: string | null;
+  chapterAuditReports: AuditReport[];
+  chapterRuntimePackage?: ChapterRuntimePackage | null;
+  latestStateSnapshot?: StoryStateSnapshot | null;
+  chapterStateSnapshot?: StoryStateSnapshot | null;
+  backgroundSyncActivities?: ChapterExecutionBackgroundActivity[];
+  chapterRunStatus?: Extract<SSEFrame, { type: "run_status" }> | null;
+  repairRunStatus?: Extract<SSEFrame, { type: "run_status" }> | null;
 }
 
 function resolvePrimaryAction(params: {
@@ -199,11 +211,19 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
     isStreaming,
     streamingChapterId,
     repairStreamingChapterId,
+    chapterAuditReports,
+    chapterRuntimePackage,
+    latestStateSnapshot,
+    chapterStateSnapshot,
+    backgroundSyncActivities,
+    chapterRunStatus,
+    repairRunStatus,
   } = props;
 
   const isSelectedChapterStreaming = Boolean(selectedChapter && isStreaming && streamingChapterId === selectedChapter.id);
   const isSelectedChapterRepairing = Boolean(selectedChapter && isRepairingChapter && repairStreamingChapterId === selectedChapter.id);
   const isExecutionContractPending = isGeneratingTaskSheet || isGeneratingSceneCards;
+  const runtimePackage = chapterRuntimePackage?.chapterId === selectedChapter?.id ? chapterRuntimePackage : null;
 
   const selectedChapterLabel = selectedChapter
     ? `第${selectedChapter.order}章 ${selectedChapter.title || "未命名章节"}`
@@ -221,6 +241,21 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
     onRunFullAudit,
     onAutoRepair,
     onGenerateSelectedChapter,
+  });
+  const executionFlow = resolveChapterExecutionFlow({
+    selectedChapter,
+    chapterAuditReports,
+    chapterRuntimePackage: runtimePackage,
+    chapterStateSnapshot,
+    latestStateSnapshot,
+    chapterRunStatus,
+    repairRunStatus,
+    isStreaming,
+    streamingChapterId,
+    isRepairStreaming: isRepairingChapter,
+    repairStreamingChapterId,
+    isRunningFullAudit,
+    backgroundActivities: backgroundSyncActivities,
   });
 
   const showQuickEditorAction = Boolean(selectedChapter && primaryAction.label !== "打开章节编辑器");
@@ -246,6 +281,11 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
             </div>
           ) : null}
         </div>
+        <ChapterExecutionStatusFlow
+          stages={executionFlow.stages}
+          currentStageKey={executionFlow.currentStage.key}
+          currentStageNote={executionFlow.currentStage.note}
+        />
       </CardHeader>
 
       <CardContent className="space-y-4 pt-4">

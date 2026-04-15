@@ -68,7 +68,9 @@ test("volume chapter list prompt render hardens title diversity rules", () => {
   }, EMPTY_CONTEXT);
 
   assert.equal(messages.length, 2);
-  assert.match(String(messages[0].content), /不能大面积重复“X的Y \/ X中的Y \/ 在X中Y”/);
+  assert.match(String(messages[0].content), /最终必须严格输出 6 章/);
+  assert.match(String(messages[0].content), /chapters\.length 必须等于 6/);
+  assert.match(String(messages[0].content), /不能大量重复“X的Y \/ X中的Y \/ 在X中Y”/);
   assert.match(String(messages[0].content), /A，B \/ 四字动作，四字结果/);
   assert.match(String(messages[0].content), /章名结构过于集中/);
 });
@@ -118,6 +120,7 @@ test("volume chapter list prompt retries semantically when titles are structural
     assert.equal(calls.length, 2);
     assert.equal(calls[1].promptMeta.semanticRetryUsed, true);
     assert.equal(calls[1].promptMeta.semanticRetryAttempts, 1);
+    assert.match(String(calls[1].messages[calls[1].messages.length - 1].content), /必须保留原有章节位数/);
     assert.match(String(calls[1].messages[calls[1].messages.length - 1].content), /A，B \/ 四字动作，四字结果/);
     assert.equal(result.output.chapters[0].title, "夜探旧温室");
   } finally {
