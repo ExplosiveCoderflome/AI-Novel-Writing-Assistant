@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  chapterScenePlanSchema,
+  lengthBudgetContractSchema,
+} from "./chapterLengthControl";
 import { storyWorldSliceSchema } from "./storyWorldSlice";
 import type { LLMProvider } from "./llm";
 
@@ -31,6 +35,7 @@ export const runtimeChapterSchema = z.object({
   content: z.string().nullable().optional(),
   expectation: z.string().nullable().optional(),
   targetWordCount: z.number().int().nullable().optional(),
+  sceneCards: z.string().nullable().optional(),
   supportingContextText: z.string().default(""),
 });
 
@@ -486,6 +491,8 @@ export const chapterWriteContextSchema = z.object({
   macroConstraints: macroConstraintContextSchema.nullable(),
   volumeWindow: volumeWindowContextSchema.nullable(),
   chapterMission: chapterMissionContextSchema,
+  lengthBudget: lengthBudgetContractSchema.nullable(),
+  scenePlan: chapterScenePlanSchema.nullable().optional(),
   participants: z.array(runtimeCharacterSchema),
   characterBehaviorGuides: z.array(chapterCharacterBehaviorGuideSchema).default([]),
   activeRelationStages: z.array(chapterRelationStageGuideSchema).default([]),
@@ -600,6 +607,54 @@ export const runtimeStyleReviewSchema = z.object({
   originalContent: z.string().nullable().optional(),
 });
 
+export const runtimeSceneGenerationResultSchema = z.object({
+  sceneKey: z.string(),
+  sceneTitle: z.string(),
+  sceneIndex: z.number().int().min(1),
+  targetWordCount: z.number().int().positive(),
+  beforeLength: z.number().int().nonnegative(),
+  afterLength: z.number().int().nonnegative(),
+  actualWordCount: z.number().int().nonnegative(),
+  sceneStatus: z.string(),
+});
+
+export const runtimeSceneRoundResultSchema = z.object({
+  roundIndex: z.number().int().min(1),
+  suggestedWordCount: z.number().int().nonnegative().nullable().optional(),
+  hardWordLimit: z.number().int().positive().nullable().optional(),
+  actualWordCount: z.number().int().nonnegative(),
+  isFinalRound: z.boolean(),
+  closingPhase: z.boolean(),
+  hardStopTriggered: z.boolean().default(false),
+  trimmedAtSentenceBoundary: z.boolean().default(false),
+  stopReason: z.string(),
+});
+
+export const runtimeSceneGenerationWithRoundsSchema = runtimeSceneGenerationResultSchema.extend({
+  wordControlMode: z.enum(["prompt_only", "balanced"]).default("balanced"),
+  roundCount: z.number().int().nonnegative().default(0),
+  hardStopCount: z.number().int().nonnegative().default(0),
+  closingPhaseTriggered: z.boolean().default(false),
+  roundResults: z.array(runtimeSceneRoundResultSchema).default([]),
+});
+
+export const runtimeLengthControlSchema = z.object({
+  targetWordCount: z.number().int().positive(),
+  softMinWordCount: z.number().int().positive(),
+  softMaxWordCount: z.number().int().positive(),
+  hardMaxWordCount: z.number().int().positive(),
+  finalWordCount: z.number().int().nonnegative(),
+  variance: z.number(),
+  wordControlMode: z.enum(["prompt_only", "balanced", "hybrid"]).default("hybrid"),
+  plannedSceneCount: z.number().int().nonnegative(),
+  generatedSceneCount: z.number().int().nonnegative(),
+  sceneResults: z.array(runtimeSceneGenerationWithRoundsSchema).default([]),
+  closingPhaseTriggered: z.boolean().default(false),
+  hardStopsTriggered: z.number().int().nonnegative().default(0),
+  lengthRepairPath: z.array(z.string()).default([]),
+  overlengthRepairApplied: z.boolean(),
+});
+
 export const chapterRuntimePackageSchema = z.object({
   novelId: z.string(),
   chapterId: z.string(),
@@ -621,6 +676,7 @@ export const chapterRuntimePackageSchema = z.object({
     blockingIssueIds: z.array(z.string()),
     blockingLedgerKeys: z.array(z.string()).default([]),
   }),
+  lengthControl: runtimeLengthControlSchema.optional(),
   styleReview: runtimeStyleReviewSchema.optional(),
   meta: z.object({
     provider: z.string().optional(),
@@ -675,3 +731,6 @@ export type ChapterRuntimePackage = z.infer<typeof chapterRuntimePackageSchema>;
 export type RuntimeStyleDetectionViolation = z.infer<typeof styleDetectionViolationSchema>;
 export type RuntimeStyleDetectionReport = z.infer<typeof styleDetectionReportSchema>;
 export type RuntimeStyleReview = z.infer<typeof runtimeStyleReviewSchema>;
+export type RuntimeSceneGenerationResult = z.infer<typeof runtimeSceneGenerationWithRoundsSchema>;
+export type RuntimeSceneRoundResult = z.infer<typeof runtimeSceneRoundResultSchema>;
+export type RuntimeLengthControl = z.infer<typeof runtimeLengthControlSchema>;

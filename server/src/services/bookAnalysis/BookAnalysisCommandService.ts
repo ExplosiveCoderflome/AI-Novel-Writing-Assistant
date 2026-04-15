@@ -90,7 +90,7 @@ export class BookAnalysisCommandService {
           provider: input.provider ?? "deepseek",
           model: input.model?.trim() || null,
           temperature,
-          maxTokens,
+          maxTokens: maxTokens ?? null,
           progress: 0,
           lastError: null,
           attemptCount: 0,

@@ -1,10 +1,14 @@
 import type { CharacterCastOption, VolumePlanDocument } from "@ai-novel/shared/types/novel";
-import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
+import type {
+  DirectorConfirmRequest,
+  DirectorTaskNotice,
+} from "@ai-novel/shared/types/novelDirector";
 import type { CharacterPreparationService } from "../characterPrep/CharacterPreparationService";
 import { buildCharacterCastBlockedMessage } from "../characterPrep/characterCastQuality";
 import { NovelContextService } from "../NovelContextService";
 import { NovelVolumeService } from "../volume/NovelVolumeService";
 import type { VolumeGenerationPhaseEvent } from "../volume/volumeModels";
+import { getChapterTitleDiversityIssue } from "../volume/chapterTitleDiversity";
 import { NovelWorkflowService } from "../workflow/NovelWorkflowService";
 import { buildNovelEditResumeTarget } from "../workflow/novelWorkflow.shared";
 import {
@@ -168,6 +172,21 @@ function selectPreparedOutlineChapters(
     ));
   }
   return prepared.slice(0, 10);
+}
+
+function buildChapterTitleNotice(input: {
+  volume: VolumePlanDocument["volumes"][number];
+  issue: string;
+}): DirectorTaskNotice {
+  return {
+    code: "CHAPTER_TITLE_DIVERSITY",
+    summary: input.issue,
+    action: {
+      type: "open_structured_outline",
+      label: "快速修复章节标题",
+      volumeId: input.volume.id,
+    },
+  };
 }
 
 export async function runDirectorCharacterSetupPhase(input: {
@@ -476,6 +495,26 @@ export async function runDirectorStructuredOutlinePhase(input: {
           await updateStatus(update);
         },
       }),
+    });
+    const preparedVolume = workspace.volumes.find((item) => item.id === volume.id);
+    const titleDiversityIssue = preparedVolume
+      ? getChapterTitleDiversityIssue(preparedVolume.chapters.map((chapter) => chapter.title))
+      : null;
+    await dependencies.workflowService.markTaskRunning(taskId, {
+      stage: "structured_outline",
+      itemKey: "chapter_list",
+      itemLabel: titleDiversityIssue
+        ? `第 ${volume.sortOrder} 卷章节列表已生成，但标题结构仍需分散`
+        : `第 ${volume.sortOrder} 卷章节列表已生成`,
+      progress: DIRECTOR_PROGRESS.chapterList,
+      seedPayload: {
+        taskNotice: titleDiversityIssue
+          ? buildChapterTitleNotice({
+            volume: preparedVolume ?? volume,
+            issue: titleDiversityIssue,
+          })
+          : null,
+      },
     });
     preparedVolumeIds.push(volume.id);
     maxPreparedChapterOrder = Math.max(

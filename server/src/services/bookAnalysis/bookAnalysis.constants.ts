@@ -10,9 +10,9 @@ export const TARGET_SEGMENT_CHARS = 10_000;
 export const MAX_SEGMENT_CHARS = 16_000;
 export const CHUNK_OVERLAP_CHARS = 400;
 export const DEFAULT_ANALYSIS_TEMPERATURE = 0.3;
-export const DEFAULT_ANALYSIS_MAX_TOKENS = 4_800;
 export const MIN_ANALYSIS_MAX_TOKENS = 256;
 export const MAX_ANALYSIS_MAX_TOKENS = 32_768;
+export const UNLIMITED_NOTES_MAX_TOKENS_CACHE_KEY = 0;
 
 export const SECTION_PROMPTS: Record<BookAnalysisSectionKey, string> = {
   overview: "请输出拆书总览，覆盖：一句话定位、题材标签、卖点标签、目标读者、整体优势、整体短板，并优先做基于整书笔记的低风险综合判断。",

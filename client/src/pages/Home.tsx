@@ -18,7 +18,7 @@ import {
   getTaskCenterLink,
   getWorkflowBadge,
   getWorkflowDescription,
-  isLiveWorkflowTask,
+  isWorkflowRunningInBackground,
   isWorkflowActionRequired,
   requiresCandidateSelection,
 } from "@/lib/novelWorkflowTaskUi";
@@ -143,7 +143,7 @@ export default function Home() {
   const hasNovels = allNovels.length > 0;
 
   const liveWorkflowCount = useMemo(
-    () => allNovels.filter((novel) => isLiveWorkflowTask(novel.latestAutoDirectorTask ?? null)).length,
+    () => allNovels.filter((novel) => isWorkflowRunningInBackground(novel.latestAutoDirectorTask ?? null)).length,
     [allNovels],
   );
   const actionRequiredCount = useMemo(

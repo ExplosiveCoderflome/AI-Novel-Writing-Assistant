@@ -19,3 +19,38 @@ export function inferRequiredChapterCountFromBeatSheet(
     return upperBound > maxValue ? upperBound : maxValue;
   }, 0);
 }
+
+export function resolveTargetChapterCount(input: {
+  budgetedChapterCount: number;
+  beatSheetRequiredChapterCount: number;
+}): {
+  targetChapterCount: number;
+  beatSheetCountAccepted: boolean;
+  maxTrustedChapterCount: number;
+} {
+  const budgetedChapterCount = Math.max(3, Math.round(input.budgetedChapterCount || 0));
+  const beatSheetRequiredChapterCount = Math.max(0, Math.round(input.beatSheetRequiredChapterCount || 0));
+  const maxTrustedChapterCount = budgetedChapterCount + Math.max(6, Math.ceil(budgetedChapterCount * 0.25));
+
+  if (beatSheetRequiredChapterCount === 0) {
+    return {
+      targetChapterCount: budgetedChapterCount,
+      beatSheetCountAccepted: false,
+      maxTrustedChapterCount,
+    };
+  }
+
+  if (beatSheetRequiredChapterCount > maxTrustedChapterCount) {
+    return {
+      targetChapterCount: budgetedChapterCount,
+      beatSheetCountAccepted: false,
+      maxTrustedChapterCount,
+    };
+  }
+
+  return {
+    targetChapterCount: Math.max(budgetedChapterCount, beatSheetRequiredChapterCount),
+    beatSheetCountAccepted: true,
+    maxTrustedChapterCount,
+  };
+}

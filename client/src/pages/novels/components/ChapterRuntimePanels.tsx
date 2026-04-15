@@ -116,9 +116,118 @@ function buildTriggerLabel(triggerType: string): string {
   }
 }
 
+function buildWordControlModeLabel(mode: "prompt_only" | "balanced" | "hybrid" | string): string {
+  switch (mode) {
+    case "prompt_only":
+      return "自然优先";
+    case "balanced":
+      return "标准控字";
+    case "hybrid":
+      return "混合控字";
+    default:
+      return mode;
+  }
+}
+
+function formatVariance(value: number): string {
+  const percentage = Math.round(value * 100);
+  return `${percentage > 0 ? "+" : ""}${percentage}%`;
+}
+
 function SeverityBadge({ severity }: { severity: string }) {
   const variant = severity === "critical" || severity === "high" ? "default" : "secondary";
   return <Badge variant={variant}>{severity}</Badge>;
+}
+
+export function ChapterRuntimeLengthCard(props: {
+  runtimePackage: ChapterRuntimePackage | null;
+}) {
+  const lengthControl = props.runtimePackage?.lengthControl ?? null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">长度控制与执行回放</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm">
+        {lengthControl ? (
+          <>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-muted-foreground">控制模式</div>
+                <div className="mt-1 font-medium">{buildWordControlModeLabel(lengthControl.wordControlMode)}</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {lengthControl.closingPhaseTriggered ? "已进入收尾区" : "仍按常规推进"}
+                </div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-muted-foreground">目标与结果</div>
+                <div className="mt-1 font-medium">{lengthControl.finalWordCount} / {lengthControl.targetWordCount} 字</div>
+                <div className="mt-1 text-xs text-muted-foreground">偏差 {formatVariance(lengthControl.variance)}</div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-muted-foreground">预算区间</div>
+                <div className="mt-1 font-medium">{lengthControl.softMinWordCount} - {lengthControl.softMaxWordCount} 字</div>
+                <div className="mt-1 text-xs text-muted-foreground">硬上限 {lengthControl.hardMaxWordCount} 字</div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-muted-foreground">执行信号</div>
+                <div className="mt-1 font-medium">硬停 {lengthControl.hardStopsTriggered} 次</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  scene {lengthControl.generatedSceneCount}/{lengthControl.plannedSceneCount}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-md border p-3 text-xs text-muted-foreground">
+              <div className="font-medium text-foreground">长度修整路径</div>
+              <div className="mt-1">
+                {lengthControl.lengthRepairPath.length > 0
+                  ? lengthControl.lengthRepairPath.join(" -> ")
+                  : "本次未触发额外长度修整。"}
+              </div>
+              <div className="mt-1">
+                {lengthControl.overlengthRepairApplied ? "本次触发过超长修整。" : "本次未触发超长修整。"}
+              </div>
+            </div>
+
+            {lengthControl.sceneResults.length > 0 ? (
+              <div className="space-y-2">
+                {lengthControl.sceneResults.map((scene, index) => (
+                  <div key={`${scene.sceneIndex}-${index}`} className="rounded-md border p-3 text-xs">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline">Scene {scene.sceneIndex}</Badge>
+                      <Badge variant="secondary">{scene.actualWordCount} 字</Badge>
+                      <Badge variant="outline">{buildWordControlModeLabel(scene.wordControlMode)}</Badge>
+                      <Badge variant={scene.sceneStatus === "compressed" ? "default" : "outline"}>{scene.sceneStatus}</Badge>
+                    </div>
+                    <div className="mt-2 text-muted-foreground">
+                      轮次 {scene.roundCount}，硬停 {scene.hardStopCount} 次
+                      {scene.closingPhaseTriggered ? "，包含收尾区控制" : ""}
+                    </div>
+                    {scene.roundResults.length > 0 ? (
+                      <div className="mt-2 space-y-1 rounded-md border bg-muted/15 p-2">
+                        {scene.roundResults.map((round) => (
+                          <div key={`${scene.sceneIndex}-${round.roundIndex}`} className="text-muted-foreground">
+                            第 {round.roundIndex} 轮：建议 {round.suggestedWordCount ?? "-"} 字，实际 {round.actualWordCount} 字，
+                            {round.isFinalRound ? "最终轮" : "中间轮"}，
+                            {round.hardStopTriggered ? "触发硬停" : "自然结束"}
+                            {round.trimmedAtSentenceBoundary ? "，按句边界截断" : ""}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <div className="text-muted-foreground">当前还没有长度控制回放。生成本章后，这里会显示预算执行结果。</div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 export function ChapterRuntimeContextCard(props: {

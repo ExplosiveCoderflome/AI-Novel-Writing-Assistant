@@ -6,6 +6,7 @@ import { authMiddleware } from "../middleware/auth";
 import { AppError } from "../middleware/errorHandler";
 import { NovelService } from "../services/novel/NovelService";
 import { NovelDraftOptimizeService } from "../services/novel/NovelDraftOptimizeService";
+import { chapterRuntimeRequestSchema } from "../services/novel/runtime/chapterRuntimeSchema";
 import { registerNovelBaseRoutes } from "./novelBaseRoutes";
 import { registerNovelChapterEditorRoutes } from "./novelChapterEditorRoutes";
 import { registerNovelChapterRoutes } from "./novelChapterRoutes";
@@ -108,6 +109,7 @@ const volumeChapterSchema = z.object({
   targetWordCount: z.number().int().min(200).max(20000).nullable().optional(),
   mustAvoid: z.string().trim().nullable().optional(),
   taskSheet: z.string().trim().nullable().optional(),
+  sceneCards: z.string().trim().nullable().optional(),
   payoffRefs: z.array(z.string().trim().min(1)).optional(),
 }).passthrough();
 
@@ -498,6 +500,7 @@ registerNovelChapterRoutes({
   chapterParamsSchema,
   chapterSchema,
   updateChapterSchema,
+  chapterExecutionContractSchema: chapterRuntimeRequestSchema,
 });
 
 registerNovelChapterEditorRoutes({

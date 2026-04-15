@@ -313,7 +313,7 @@ export function useNovelVolumePlanning({
             : payload.scope === "skeleton" || payload.scope === "book"
               ? "卷骨架已更新"
               : payload.scope === "beat_sheet"
-                ? "当前卷节奏板已生成"
+                ? "当前卷节奏板已更新"
                 : payload.scope === "chapter_list" || payload.scope === "volume"
                   ? "当前卷章节列表已生成"
                   : payload.scope === "rebalance"
@@ -356,7 +356,7 @@ export function useNovelVolumePlanning({
         return;
       }
       if (payload.scope === "beat_sheet") {
-        setStructuredMessage("当前卷节奏板已生成并自动保存。现在可以继续拆当前卷章节列表。");
+        setStructuredMessage("当前卷节奏板已更新并自动保存。现在可以继续拆当前卷章节列表。");
         return;
       }
       if (payload.scope === "chapter_list" || payload.scope === "volume") {
@@ -459,6 +459,17 @@ export function useNovelVolumePlanning({
     }
     if (!ensureCharacterGuard()) {
       return;
+    }
+    const existingBeatSheet = findBeatSheet(beatSheets, volumeId);
+    if (existingBeatSheet) {
+      const confirmed = window.confirm([
+        `将重新生成「${targetVolume.title?.trim() || `第${targetVolume.sortOrder}卷`}」的节奏板。`,
+        "这一步会覆盖当前卷现有节奏段与交付项。",
+        "已有章节列表和章节细化资产不会被直接删除，但如果新节奏区间发生变化，建议随后检查章节列表是否仍然匹配。",
+      ].join("\n\n"));
+      if (!confirmed) {
+        return;
+      }
     }
     generateMutation.mutate({
       scope: "beat_sheet",

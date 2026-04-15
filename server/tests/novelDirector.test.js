@@ -87,6 +87,8 @@ function buildStoryMacroPlan() {
 
 test("novel director routes support candidates, refine and confirm flows", async () => {
   const confirmCalls = [];
+  const patchCalls = [];
+  const refineTitleCalls = [];
   const takeoverCalls = [];
   const originalGenerate = NovelDirectorService.prototype.generateCandidates;
   const originalRefine = NovelDirectorService.prototype.refineCandidates;
@@ -102,7 +104,8 @@ test("novel director routes support candidates, refine and confirm flows", async
   NovelDirectorService.prototype.refineCandidates = async function refineCandidatesMock() {
     return { batch: buildBatch(2) };
   };
-  NovelDirectorService.prototype.patchCandidate = async function patchCandidateMock() {
+  NovelDirectorService.prototype.patchCandidate = async function patchCandidateMock(input) {
+    patchCalls.push(input);
     const batch = buildBatch(2);
     batch.candidates[0] = {
       ...batch.candidates[0],
@@ -111,7 +114,8 @@ test("novel director routes support candidates, refine and confirm flows", async
     };
     return { batch, candidate: batch.candidates[0] };
   };
-  NovelDirectorService.prototype.refineCandidateTitleOptions = async function refineTitlesMock() {
+  NovelDirectorService.prototype.refineCandidateTitleOptions = async function refineTitlesMock(input) {
+    refineTitleCalls.push(input);
     const batch = buildBatch(2);
     batch.candidates[0] = {
       ...batch.candidates[0],
@@ -344,6 +348,7 @@ test("novel director routes support candidates, refine and confirm flows", async
     const patchPayload = await patchResponse.json();
     assert.equal(patchPayload.success, true);
     assert.equal(patchPayload.data.candidate.workingTitle, "Neon Bureau");
+    assert.equal(patchCalls[0].previousBatches[1].candidates[0].id, "candidate_2_1");
 
     const refineTitlesResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/refine-titles`, {
       method: "POST",
@@ -367,6 +372,7 @@ test("novel director routes support candidates, refine and confirm flows", async
     const refineTitlesPayload = await refineTitlesResponse.json();
     assert.equal(refineTitlesPayload.success, true);
     assert.equal(refineTitlesPayload.data.candidate.workingTitle, "Neon Switchboard");
+    assert.equal(refineTitleCalls[0].previousBatches[1].candidates[0].id, "candidate_2_1");
 
     const confirmResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/confirm`, {
       method: "POST",

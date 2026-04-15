@@ -8,6 +8,25 @@ export interface ChapterWriterPromptInput {
   chapterOrder: number;
   chapterTitle: string;
   mode?: "draft" | "continue";
+  wordControlMode?: "prompt_only" | "balanced" | null;
+  sceneIndex?: number | null;
+  sceneCount?: number | null;
+  sceneTitle?: string | null;
+  scenePurpose?: string | null;
+  sceneTargetWordCount?: number | null;
+  sceneCurrentWordCount?: number | null;
+  sceneRemainingWordCount?: number | null;
+  chapterTargetWordCount?: number | null;
+  remainingChapterBudget?: number | null;
+  roundIndex?: number | null;
+  maxRounds?: number | null;
+  suggestedRoundWordCount?: number | null;
+  hardRoundWordLimit?: number | null;
+  isFinalRound?: boolean | null;
+  closingPhase?: boolean | null;
+  entryState?: string | null;
+  exitState?: string | null;
+  forbiddenExpansion?: string[] | null;
   targetWordCount?: number | null;
   minWordCount?: number | null;
   maxWordCount?: number | null;
@@ -16,7 +35,7 @@ export interface ChapterWriterPromptInput {
 
 export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, string> = {
   id: "novel.chapter.writer",
-  version: "v2",
+  version: "v4",
   taskType: "writer",
   mode: "text",
   language: "zh",
@@ -52,6 +71,41 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
           "禁止靠重复回顾、空泛心理独白、无信息量描写硬凑字数。",
         ].filter(Boolean).join("\n")
       : "若上下文给出目标长度，必须尽量贴近，不得明显过短。";
+    const sceneBlock = [
+      typeof input.sceneIndex === "number" && typeof input.sceneCount === "number"
+        ? `当前只允许写第 ${input.sceneIndex}/${input.sceneCount} 个场景。`
+        : "",
+      input.sceneTitle ? `场景标题：${input.sceneTitle}` : "",
+      input.scenePurpose ? `场景职责：${input.scenePurpose}` : "",
+      typeof input.sceneTargetWordCount === "number" ? `当前场景目标：约 ${input.sceneTargetWordCount} 字。` : "",
+      typeof input.sceneCurrentWordCount === "number" ? `当前场景已写：约 ${input.sceneCurrentWordCount} 字。` : "",
+      typeof input.sceneRemainingWordCount === "number" ? `当前场景剩余预算：约 ${Math.max(0, input.sceneRemainingWordCount)} 字。` : "",
+      typeof input.chapterTargetWordCount === "number" ? `整章目标：约 ${input.chapterTargetWordCount} 字。` : "",
+      typeof input.remainingChapterBudget === "number" ? `当前剩余章节预算：约 ${input.remainingChapterBudget} 字。` : "",
+      typeof input.roundIndex === "number" && typeof input.maxRounds === "number"
+        ? `当前写作轮次：第 ${input.roundIndex}/${input.maxRounds} 轮。`
+        : "",
+      typeof input.suggestedRoundWordCount === "number"
+        ? `本轮建议新增：约 ${input.suggestedRoundWordCount} 字。`
+        : "",
+      typeof input.hardRoundWordLimit === "number"
+        ? `本轮硬上限：约 ${input.hardRoundWordLimit} 字，接近上限时应主动停在自然句边界。`
+        : "",
+      typeof input.isFinalRound === "boolean"
+        ? input.isFinalRound
+          ? "当前是该场景的最后一轮，允许自然收束，但仍必须完成场景退出状态。"
+          : "当前不是最后一轮，优先推进当前场景，不要一次性把后续预算全部写光。"
+        : "",
+      typeof input.closingPhase === "boolean"
+        ? input.closingPhase
+          ? "当前已进入收尾区：禁止再开新支线、新核心冲突和大段背景说明，只能回收当前场景职责并保留下一步压力。"
+          : "当前仍处于推进区：允许继续推进事件，但不能抢跑后续场景职责。"
+        : "",
+      input.wordControlMode ? `控字数模式：${input.wordControlMode}` : "",
+      input.entryState ? `起始状态：${input.entryState}` : "",
+      input.exitState ? `结束后必须达到：${input.exitState}` : "",
+      input.forbiddenExpansion?.length ? `本场景禁止展开：${input.forbiddenExpansion.join("；")}` : "",
+    ].filter(Boolean).join("\n");
     const continuationBlock = mode === "continue"
       ? [
           "当前任务不是从头重写，而是在已有正文基础上继续补写。",
@@ -78,6 +132,7 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
       "4. 不得写成总结、复盘、解释性段落为主的章节，正文必须以“正在发生”的内容为主。",
       "",
       "【结构要求】",
+      sceneBlock ? "0. 必须只完成当前场景职责，不得提前写后续场景内容。" : "",
       "1. 开头必须迅速进入当前情境，不得长时间铺垫背景或复述上一章。",
       "2. 中段必须出现推进、变化或对抗，不能平铺直叙维持同一状态。",
       "3. 本章至少出现一次明确的“状态变化”（信息反转、局面升级、关系变化、风险上升或计划转向）。",
@@ -93,6 +148,9 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
       "2. 允许短回调，但不得大段复述已发生事件，不得复制上下文原句。",
       "3. 必须延续当前人物状态与局面，不得让角色行为失去动机或连续性。",
       continuationBlock ? continuationBlock : "",
+      input.wordControlMode === "balanced"
+        ? "4. 如果上下文给出了本轮建议字数与硬上限，必须优先遵守；非最后一轮不要贪写，不要试图一次完成整章。"
+        : "",
       "",
       "【表达要求】",
       "1. 使用简体中文，语言自然流畅，适合网文阅读节奏。",
@@ -102,6 +160,9 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
       "",
       "【风格与续写约束】",
       "如果存在 style constraints 或 continuation constraints，必须优先满足，视为强约束。",
+      sceneBlock ? "" : "",
+      sceneBlock ? "【当前场景合同】" : "",
+      sceneBlock || "",
       "",
       "【禁止事项】",
       "禁止引入未铺垫的重大转折。",
@@ -113,6 +174,7 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
       `小说：${input.novelTitle}`,
       `章节：第 ${input.chapterOrder} 章 ${input.chapterTitle}`,
       mode === "continue" ? "任务模式：补写当前章节，补足篇幅并完成未兑现的本章职责。" : "任务模式：完整生成本章正文。",
+      sceneBlock ? "写作范围：只写当前场景，不要越界到下一个场景。" : "",
       "",
       "【写作上下文】",
       renderSelectedContextBlocks(context),

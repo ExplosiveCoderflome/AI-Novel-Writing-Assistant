@@ -19,6 +19,13 @@ type GuidanceLLMFactory = typeof getLLM;
 
 let guidanceLLMFactory: GuidanceLLMFactory = getLLM;
 
+function resolveGuidanceMaxTokens(maxTokens: number | undefined): number | undefined {
+  if (typeof maxTokens !== "number" || !Number.isFinite(maxTokens)) {
+    return undefined;
+  }
+  return Math.min(Math.floor(maxTokens), 8000);
+}
+
 function truncateFact(value: string, max = 160): string {
   const normalized = value.replace(/\s+/g, " ").trim();
   if (!normalized) {
@@ -82,6 +89,7 @@ async function composeWarmGuidance(input: {
   structuredIntent?: StructuredIntent;
 }): Promise<string> {
   try {
+    const resolvedMaxTokens = resolveGuidanceMaxTokens(input.context.maxTokens);
     const sceneInstruction = input.scene === "create_missing_title"
       ? "用户刚表达想写一本小说，但还没有形成可创建的标题。"
       : input.scene === "produce_missing_title"
@@ -102,7 +110,7 @@ async function composeWarmGuidance(input: {
           provider: input.context.provider ?? "deepseek",
           model: input.context.model,
           temperature: Math.max(input.context.temperature ?? 0.7, 0.7),
-          maxTokens: Math.min(input.context.maxTokens ?? 384, 384),
+          maxTokens: resolvedMaxTokens,
         },
       });
       return result.output.trim() || input.fallback;
@@ -120,7 +128,7 @@ async function composeWarmGuidance(input: {
     const llm = await guidanceLLMFactory(input.context.provider ?? "deepseek", {
       model: input.context.model,
       temperature: Math.max(input.context.temperature ?? 0.7, 0.7),
-      maxTokens: Math.min(input.context.maxTokens ?? 384, 384),
+      maxTokens: resolvedMaxTokens,
       taskType: runtimeSetupGuidancePrompt.taskType,
       promptMeta: prepared.invocation,
     });

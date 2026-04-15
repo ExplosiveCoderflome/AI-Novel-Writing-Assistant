@@ -8,6 +8,13 @@ type IdeationLLMFactory = typeof getLLM;
 
 let ideationLLMFactory: IdeationLLMFactory = getLLM;
 
+function resolveIdeationMaxTokens(maxTokens: number | undefined): number | undefined {
+  if (typeof maxTokens !== "number" || !Number.isFinite(maxTokens)) {
+    return undefined;
+  }
+  return Math.min(Math.floor(maxTokens), 8000);
+}
+
 function truncateFact(value: string, max = 220): string {
   const normalized = value.replace(/\s+/g, " ").trim();
   if (!normalized) {
@@ -143,6 +150,7 @@ export async function composeNovelSetupIdeationAnswer(
   const fallback = buildIdeationFallback(results, structuredIntent);
 
   try {
+    const resolvedMaxTokens = resolveIdeationMaxTokens(context.maxTokens);
     if (ideationLLMFactory === getLLM) {
       const result = await runTextPrompt({
         asset: runtimeSetupIdeationPrompt,
@@ -155,7 +163,7 @@ export async function composeNovelSetupIdeationAnswer(
           provider: context.provider ?? "deepseek",
           model: context.model,
           temperature: Math.max(context.temperature ?? 0.75, 0.75),
-          maxTokens: Math.min(context.maxTokens ?? 900, 900),
+          maxTokens: resolvedMaxTokens,
         },
       });
       return result.output.trim() || fallback;
@@ -172,7 +180,7 @@ export async function composeNovelSetupIdeationAnswer(
     const llm = await ideationLLMFactory(context.provider ?? "deepseek", {
       model: context.model,
       temperature: Math.max(context.temperature ?? 0.75, 0.75),
-      maxTokens: Math.min(context.maxTokens ?? 900, 900),
+      maxTokens: resolvedMaxTokens,
       taskType: runtimeSetupIdeationPrompt.taskType,
       promptMeta: prepared.invocation,
     });

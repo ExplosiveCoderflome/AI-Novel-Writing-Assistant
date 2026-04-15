@@ -18,6 +18,7 @@ import { ChapterArtifactSyncService } from "./ChapterArtifactSyncService";
 import { GenerationContextAssembler } from "./GenerationContextAssembler";
 import { chapterRuntimeRequestSchema, type ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import { withChapterRepairContext } from "../../../prompting/prompts/novel/chapterLayeredContext";
+import { NovelVolumeService } from "../volume/NovelVolumeService";
 import {
   runPipelineChapterWithRuntime,
   type AssembledRuntimeChapter,
@@ -41,6 +42,11 @@ interface ChapterRuntimeCoordinatorDeps {
   styleRewriteService?: Pick<StyleRewriteService, "rewrite">;
   agentRuntime?: AgentRuntimeLike;
   ensureNovelCharacters?: (novelId: string, actionName: string, minCount?: number) => Promise<void>;
+  ensureChapterExecutionContract?: (
+    novelId: string,
+    chapterId: string,
+    options: ChapterRuntimeRequestInput,
+  ) => Promise<unknown>;
   validateRequest?: (input: ChapterRuntimeRequestInput) => ChapterRuntimeRequestInput;
 }
 
@@ -69,6 +75,10 @@ function parseStringArray(value: string | null | undefined): string[] {
   } catch {
     return [];
   }
+}
+
+function countChapterCharacters(content: string): number {
+  return content.replace(/\s+/g, "").trim().length;
 }
 
 function mapOpenConflictForRuntime(
@@ -134,6 +144,8 @@ export class ChapterRuntimeCoordinator {
       styleRewriteService: deps.styleRewriteService ?? new StyleRewriteService(),
       agentRuntime: deps.agentRuntime,
       ensureNovelCharacters: deps.ensureNovelCharacters ?? this.ensureNovelCharacters.bind(this),
+      ensureChapterExecutionContract: deps.ensureChapterExecutionContract
+        ?? ((novelId, chapterId, options) => new NovelVolumeService().ensureChapterExecutionContract(novelId, chapterId, options)),
       validateRequest: deps.validateRequest ?? ((input) => chapterRuntimeRequestSchema.parse(input)),
     };
   }
@@ -149,6 +161,7 @@ export class ChapterRuntimeCoordinator {
   }> {
     const request = this.deps.validateRequest(options);
     await this.deps.ensureNovelCharacters(novelId, "generate chapter content");
+    await this.deps.ensureChapterExecutionContract(novelId, chapterId, request);
 
     const assembled = await this.deps.assembler.assemble(novelId, chapterId, request);
     const agentRuntime = this.getAgentRuntime();
@@ -195,6 +208,7 @@ export class ChapterRuntimeCoordinator {
           request,
           contextPackage: assembled.contextPackage,
           content: generatedContent,
+          lengthControl: normalized?.lengthControl,
           runId: traceRunId,
           startMs,
         });
@@ -224,9 +238,11 @@ export class ChapterRuntimeCoordinator {
     options: PipelineRuntimeInput = {},
     hooks: PipelineRuntimeHooks = {},
   ): Promise<PipelineRuntimeResult> {
+    const request = this.deps.validateRequest(options);
+    await this.deps.ensureChapterExecutionContract(novelId, chapterId, request);
     return runPipelineChapterWithRuntime(
       {
-        validateRequest: this.deps.validateRequest,
+        validateRequest: () => request,
         ensureNovelCharacters: this.deps.ensureNovelCharacters,
         assemble: (targetNovelId, targetChapterId, request) =>
           this.deps.assembler.assemble(targetNovelId, targetChapterId, request) as Promise<AssembledRuntimeChapter>,
@@ -259,7 +275,7 @@ export class ChapterRuntimeCoordinator {
     chapterId: string;
     request: ChapterRuntimeRequestInput;
     assembled: AssembledRuntimeChapter;
-  }): Promise<string> {
+  }): Promise<{ content: string; lengthControl?: ChapterRuntimePackage["lengthControl"] }> {
     const writerResult = await this.deps.chapterWritingGraph.createChapterStream({
       novelId: input.novelId,
       novelTitle: input.assembled.novel.title,
@@ -273,7 +289,10 @@ export class ChapterRuntimeCoordinator {
       fullContent += toText(chunk.content);
     }
     const normalized = await writerResult.onDone(fullContent);
-    return normalized?.finalContent ?? fullContent;
+    return {
+      content: normalized?.finalContent ?? fullContent,
+      lengthControl: normalized?.lengthControl,
+    };
   }
 
   private async finalizeChapterContent(input: {
@@ -282,6 +301,7 @@ export class ChapterRuntimeCoordinator {
     request: ChapterRuntimeRequestInput;
     contextPackage: GenerationContextPackage;
     content: string;
+    lengthControl?: ChapterRuntimePackage["lengthControl"];
     runId: string | null;
     startMs: number | null;
   }): Promise<FinalizeChapterContentResult> {
@@ -308,6 +328,7 @@ export class ChapterRuntimeCoordinator {
       temperature: input.request.temperature,
       content: styleReview.finalContent,
       contextPackage: input.contextPackage,
+      lengthControl: input.lengthControl,
     });
     const activeOpenConflicts = await openConflictService.listOpenConflicts(input.novelId, {
       beforeChapterOrder: input.contextPackage.chapter.order,
@@ -320,6 +341,7 @@ export class ChapterRuntimeCoordinator {
       request: input.request,
       contextPackage: input.contextPackage,
       finalContent: styleReview.finalContent,
+      lengthControl: input.lengthControl,
       auditResult,
       activeOpenConflicts,
       styleReview,
@@ -444,6 +466,7 @@ export class ChapterRuntimeCoordinator {
     request: ChapterRuntimeRequestInput;
     contextPackage: GenerationContextPackage;
     finalContent: string;
+    lengthControl?: ChapterRuntimePackage["lengthControl"];
     auditResult: Awaited<ReturnType<typeof auditService.auditChapter>>;
     activeOpenConflicts: Awaited<ReturnType<typeof openConflictService.listOpenConflicts>>;
     styleReview: StyleReviewResult;
@@ -520,7 +543,7 @@ export class ChapterRuntimeCoordinator {
       },
       draft: {
         content: input.finalContent,
-        wordCount: input.finalContent.trim().length,
+        wordCount: countChapterCharacters(input.finalContent),
         generationState: input.styleReview.autoRewritten ? "repaired" : "drafted",
       },
       audit: {
@@ -565,6 +588,7 @@ export class ChapterRuntimeCoordinator {
         blockingIssueIds,
         blockingLedgerKeys,
       },
+      lengthControl: input.lengthControl,
       styleReview: {
         report: input.styleReview.report,
         autoRewritten: input.styleReview.autoRewritten,

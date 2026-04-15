@@ -6,10 +6,11 @@ import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { useLLMStore } from "@/store/llmStore";
 import SearchableSelect from "./SearchableSelect";
 
-interface LLMSelectorValue {
+export interface LLMSelectorValue {
   provider: LLMProvider;
   model: string;
   temperature?: number;
@@ -21,6 +22,10 @@ interface LLMSelectorProps {
   onChange?: (value: LLMSelectorValue) => void;
   showModel?: boolean;
   showParameters?: boolean;
+  compact?: boolean;
+  showBadge?: boolean;
+  showHelperText?: boolean;
+  className?: string;
 }
 
 function sanitizeModelList(models: unknown): string[] {
@@ -62,6 +67,10 @@ export default function LLMSelector({
   onChange,
   showModel = true,
   showParameters = false,
+  compact = false,
+  showBadge = true,
+  showHelperText = true,
+  className,
 }: LLMSelectorProps) {
   const store = useLLMStore();
   const currentValue = value ?? {
@@ -191,15 +200,15 @@ export default function LLMSelector({
   };
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="secondary">模型</Badge>
+    <div className={cn("space-y-2", compact && "space-y-1", className)}>
+      <div className={cn("flex items-center gap-2", compact ? "flex-nowrap gap-1.5" : "flex-wrap")}>
+        {showBadge ? <Badge variant="secondary">模型</Badge> : null}
         <Select
           value={hasRunnableProviders ? effectiveProvider : undefined}
           onValueChange={onProviderChange}
           disabled={!hasRunnableProviders}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className={cn(compact ? "h-9 w-[148px] lg:w-[164px]" : "w-[180px]")}>
             <SelectValue placeholder={hasRunnableProviders ? "选择厂商" : "请先配置可用厂商"} />
           </SelectTrigger>
           <SelectContent>
@@ -219,13 +228,14 @@ export default function LLMSelector({
             placeholder={hasRunnableProviders ? "选择模型" : "暂无可用模型"}
             searchPlaceholder="搜索模型"
             emptyText="没有可用模型"
-            className="w-[240px]"
+            className={cn(compact ? "w-[184px] lg:w-[220px]" : "w-[240px]")}
+            triggerClassName={compact ? "h-9 px-2.5" : undefined}
             disabled={!hasRunnableProviders}
           />
         ) : null}
       </div>
 
-      {!hasRunnableProviders && !apiKeySettingsQuery.isLoading ? (
+      {showHelperText && !hasRunnableProviders && !apiKeySettingsQuery.isLoading ? (
         <div className="text-xs text-muted-foreground">
           当前没有已配置且启用的模型厂商，请先到系统设置里完成 API Key 和模型配置。
         </div>

@@ -144,6 +144,16 @@ export function getChapterTitleDiversityIssue(titles: string[]): string | null {
   return null;
 }
 
+export function isChapterTitleDiversityIssue(message: string | null | undefined): boolean {
+  const normalized = message?.trim();
+  if (!normalized) {
+    return false;
+  }
+  return normalized.includes("章节标题结构过于集中")
+    || normalized.includes("相邻章节标题结构过于重复")
+    || normalized.includes("章节标题出现重复");
+}
+
 export function assertChapterTitleDiversity(titles: string[]): void {
   const issue = getChapterTitleDiversityIssue(titles);
   if (issue) {

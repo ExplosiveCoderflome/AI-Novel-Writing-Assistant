@@ -12,6 +12,7 @@ import type {
   DirectorProjectContextInput,
   DirectorRunMode,
   DirectorSessionState,
+  DirectorTaskNotice,
 } from "@ai-novel/shared/types/novelDirector";
 import { DIRECTOR_CORRECTION_PRESETS } from "@ai-novel/shared/types/novelDirector";
 import type { BookContractDraft } from "@ai-novel/shared/types/novelWorkflow";
@@ -56,6 +57,7 @@ export interface DirectorWorkflowSeedPayload extends Record<string, unknown> {
   directorSession?: DirectorSessionState;
   resumeTarget?: NovelWorkflowResumeTarget | null;
   autoExecution?: DirectorAutoExecutionState;
+  taskNotice?: DirectorTaskNotice | null;
 }
 
 export interface CandidateGenerationContext {

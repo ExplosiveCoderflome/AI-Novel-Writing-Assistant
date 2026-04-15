@@ -2,7 +2,10 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { PromptAsset } from "../../../core/promptTypes";
 import { renderSelectedContextBlocks } from "../../../core/renderContextBlocks";
 import { createVolumeChapterListSchema } from "../../../../services/novel/volume/volumeGenerationSchemas";
-import { assertChapterTitleDiversity } from "../../../../services/novel/volume/chapterTitleDiversity";
+import {
+  assertChapterTitleDiversity,
+  isChapterTitleDiversityIssue,
+} from "../../../../services/novel/volume/chapterTitleDiversity";
 import { type VolumeChapterListPromptInput } from "./shared";
 import { buildVolumeChapterListContextBlocks } from "./contextBlocks";
 import { NOVEL_PROMPT_BUDGETS } from "../promptBudgetProfiles";
@@ -68,6 +71,12 @@ export function createVolumeChapterListPrompt(
       ],
     },
     outputSchema: createVolumeChapterListSchema(targetChapterCount),
+    postValidateFailureRecovery: ({ rawOutput, validationError }) => {
+      if (isChapterTitleDiversityIssue(validationError)) {
+        return rawOutput;
+      }
+      throw new Error(validationError);
+    },
     render: (input, context) => [
       new SystemMessage([
         "你是网文章节拆分规划助手。",

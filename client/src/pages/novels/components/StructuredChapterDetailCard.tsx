@@ -192,7 +192,7 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
             <div className="text-sm text-muted-foreground">
               {selectedChapter
                 ? "先补标题、摘要、目标和任务单；写本章时如果执行计划缺失，系统会自动基于这里补齐运行时规划。"
-                : "先在左侧章节导航中选中一章，再开始细化。"}
+                : "先在左侧章节列表中选中一章，再开始细化。"}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">

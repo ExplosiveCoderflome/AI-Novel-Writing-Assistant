@@ -9,6 +9,10 @@ import type {
   PromptBudgetProfile,
   VolumeWindowContext,
 } from "@ai-novel/shared/types/chapterRuntime";
+import {
+  parseChapterScenePlan,
+  resolveLengthBudgetContract,
+} from "@ai-novel/shared/types/chapterLengthControl";
 import type { ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
 import { createContextBlock } from "../../core/contextBudget";
@@ -158,11 +162,16 @@ export function buildChapterWriteContext(input: {
   contextPackage: GenerationContextPackage;
 }): ChapterWriteContext {
   const dynamicCharacterGuidance = buildDynamicCharacterGuidance(input.contextPackage);
+  const scenePlan = parseChapterScenePlan(input.contextPackage.chapter.sceneCards, {
+    targetWordCount: input.contextPackage.chapter.targetWordCount ?? undefined,
+  });
   return {
     bookContract: input.bookContract,
     macroConstraints: input.macroConstraints,
     volumeWindow: input.volumeWindow,
     chapterMission: buildChapterMissionContext(input.contextPackage),
+    lengthBudget: resolveLengthBudgetContract(input.contextPackage.chapter.targetWordCount),
+    scenePlan,
     participants: buildParticipants(input.contextPackage, dynamicCharacterGuidance.characterBehaviorGuides),
     characterBehaviorGuides: dynamicCharacterGuidance.characterBehaviorGuides,
     activeRelationStages: dynamicCharacterGuidance.activeRelationStages,
@@ -314,6 +323,18 @@ export function buildChapterWriterContextBlocks(writeContext: ChapterWriteContex
         toListBlock("Urgent payoffs", writeContext.ledgerUrgentItems.map((item) => buildLedgerItemLine(item, "urgent"))),
         toListBlock("Overdue payoffs", writeContext.ledgerOverdueItems.map((item) => buildLedgerItemLine(item, "overdue"))),
       ].join("\n"),
+    }),
+    createContextBlock({
+      id: "scene_plan",
+      group: "scene_plan",
+      priority: 94,
+      required: Boolean(writeContext.scenePlan),
+      content: writeContext.scenePlan
+        ? [
+            `Scene count: ${writeContext.scenePlan.scenes.length}`,
+            ...writeContext.scenePlan.scenes.map((scene, index) => `${index + 1}. ${scene.title} [${scene.targetWordCount}] ${scene.purpose}`),
+          ].join("\n")
+        : "",
     }),
     createContextBlock({
       id: "participant_subset",

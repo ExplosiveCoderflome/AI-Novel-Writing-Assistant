@@ -146,6 +146,7 @@ export async function persistActiveVolumeWorkspace(
             targetWordCount: chapter.targetWordCount ?? null,
             mustAvoid: chapter.mustAvoid ?? null,
             taskSheet: chapter.taskSheet ?? null,
+            sceneCards: chapter.sceneCards ?? null,
             payoffRefsJson: JSON.stringify(chapter.payoffRefs),
           })),
         },

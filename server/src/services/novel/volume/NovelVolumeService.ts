@@ -8,6 +8,10 @@ import type {
   VolumePlanVersion,
   VolumeSyncPreview,
 } from "@ai-novel/shared/types/novel";
+import {
+  parseChapterScenePlan,
+  serializeChapterScenePlan,
+} from "@ai-novel/shared/types/chapterLengthControl";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
 import { novelEventBus } from "../../../events";
@@ -96,6 +100,7 @@ export class NovelVolumeService {
               revealLevel: true,
               mustAvoid: true,
               taskSheet: true,
+              sceneCards: true,
             },
           },
         },
@@ -130,6 +135,26 @@ export class NovelVolumeService {
       novelId,
       getLegacySource: () => this.getLegacySource(novelId),
     });
+  }
+
+  private findVolumeChapterMatch(
+    workspace: VolumePlanDocument,
+    chapter: {
+      order: number;
+      title: string;
+    },
+  ): { volumeId: string; volumeChapterId: string } {
+    for (const volume of workspace.volumes) {
+      const matchedChapter = volume.chapters.find((item) => item.chapterOrder === chapter.order)
+        ?? volume.chapters.find((item) => item.title.trim() === chapter.title.trim());
+      if (matchedChapter) {
+        return {
+          volumeId: volume.id,
+          volumeChapterId: matchedChapter.id,
+        };
+      }
+    }
+    throw new Error("当前章节未映射到卷规划章节，无法生成执行合同。");
   }
 
   private async ensureActiveVersionRecord(
@@ -382,6 +407,7 @@ export class NovelVolumeService {
         revealLevel: true,
         mustAvoid: true,
         taskSheet: true,
+        sceneCards: true,
       },
     });
     const plan = buildVolumeSyncPlan(
@@ -421,6 +447,7 @@ export class NovelVolumeService {
             revealLevel: item.chapter.revealLevel ?? null,
             mustAvoid: item.chapter.mustAvoid ?? null,
             taskSheet,
+            sceneCards: item.chapter.sceneCards ?? null,
           },
         });
       }
@@ -437,6 +464,7 @@ export class NovelVolumeService {
             revealLevel: item.chapter.revealLevel ?? null,
             mustAvoid: item.chapter.mustAvoid ?? null,
             taskSheet,
+            sceneCards: item.chapter.sceneCards ?? null,
             ...(!item.preserveWorkflowState
               ? {
                 generationState: "planned",
@@ -463,6 +491,118 @@ export class NovelVolumeService {
     this.emitVolumeUpdated(novelId);
     this.syncPayoffLedger(novelId);
     return plan.preview;
+  }
+
+  async ensureChapterExecutionContract(
+    novelId: string,
+    chapterId: string,
+    options: Pick<VolumeGenerateOptions, "provider" | "model" | "temperature" | "guidance"> = {},
+  ) {
+    const chapter = await prisma.chapter.findFirst({
+      where: { id: chapterId, novelId },
+      select: {
+        id: true,
+        novelId: true,
+        title: true,
+        order: true,
+        targetWordCount: true,
+        conflictLevel: true,
+        revealLevel: true,
+        mustAvoid: true,
+        taskSheet: true,
+        sceneCards: true,
+        content: true,
+        expectation: true,
+        chapterStatus: true,
+        generationState: true,
+        repairHistory: true,
+        qualityScore: true,
+        continuityScore: true,
+        characterScore: true,
+        pacingScore: true,
+        riskFlags: true,
+        hook: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    if (!chapter) {
+      throw new Error("章节不存在。");
+    }
+
+    const existingScenePlan = parseChapterScenePlan(chapter.sceneCards, {
+      targetWordCount: chapter.targetWordCount ?? undefined,
+    });
+    if (chapter.taskSheet?.trim() && existingScenePlan) {
+      return chapter;
+    }
+
+    const workspace = await this.ensureVolumeWorkspace(novelId);
+    const matched = this.findVolumeChapterMatch(workspace, {
+      order: chapter.order,
+      title: chapter.title,
+    });
+    const generatedDocument = await generateVolumePlanDocument({
+      novelId,
+      workspace,
+      options: {
+        ...options,
+        scope: "chapter_detail",
+        detailMode: "task_sheet",
+        targetVolumeId: matched.volumeId,
+        targetChapterId: matched.volumeChapterId,
+      },
+      storyMacroPlanService: this.storyMacroPlanService,
+    });
+
+    const targetVolume = generatedDocument.volumes.find((volume) => volume.id === matched.volumeId);
+    const targetChapter = targetVolume?.chapters.find((item) => item.id === matched.volumeChapterId);
+    if (!targetChapter?.taskSheet?.trim() || !targetChapter.sceneCards?.trim()) {
+      throw new Error("AI 未返回完整的章节执行合同。");
+    }
+    const taskSheet = targetChapter.taskSheet.trim();
+    const scenePlan = parseChapterScenePlan(targetChapter.sceneCards, {
+      targetWordCount: targetChapter.targetWordCount ?? chapter.targetWordCount ?? undefined,
+    });
+    if (!scenePlan) {
+      throw new Error("章节执行合同中的场景预算无效。");
+    }
+
+    const persistedChapter = await prisma.$transaction(async (tx) => {
+      const { versionId } = await this.ensureActiveVersionRecord(
+        tx,
+        novelId,
+        generatedDocument,
+        `刷新第${chapter.order}章执行合同。`,
+      );
+      const persistedDocument = {
+        ...generatedDocument,
+        activeVersionId: versionId,
+        source: "volume" as const,
+      };
+      await tx.volumePlanVersion.update({
+        where: { id: versionId },
+        data: {
+          contentJson: serializeVolumeWorkspaceDocument(persistedDocument),
+        },
+      });
+      await persistActiveVolumeWorkspace(tx, novelId, persistedDocument, versionId);
+      return tx.chapter.update({
+        where: { id: chapterId },
+        data: {
+          targetWordCount: targetChapter.targetWordCount ?? chapter.targetWordCount ?? null,
+          conflictLevel: targetChapter.conflictLevel ?? chapter.conflictLevel ?? null,
+          revealLevel: targetChapter.revealLevel ?? chapter.revealLevel ?? null,
+          mustAvoid: targetChapter.mustAvoid ?? chapter.mustAvoid ?? null,
+          taskSheet,
+          sceneCards: serializeChapterScenePlan(scenePlan),
+        },
+      });
+    });
+
+    this.emitVolumeUpdated(novelId);
+    this.syncPayoffLedger(novelId);
+    return persistedChapter;
   }
 
   async migrateLegacyVolumes(novelId: string): Promise<VolumePlanDocument> {

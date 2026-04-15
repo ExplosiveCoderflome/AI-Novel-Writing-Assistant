@@ -1,7 +1,10 @@
 import type {
   NovelWorkflowCheckpoint,
 } from "@ai-novel/shared/types/novelWorkflow";
-import type { DirectorLLMOptions } from "@ai-novel/shared/types/novelDirector";
+import type {
+  DirectorLLMOptions,
+  DirectorTaskNotice,
+} from "@ai-novel/shared/types/novelDirector";
 import type { ResourceRef } from "@ai-novel/shared/types/agent";
 import type { TaskStatus, UnifiedTaskDetail, UnifiedTaskSummary } from "@ai-novel/shared/types/task";
 import { prisma } from "../../../db/prisma";
@@ -59,6 +62,34 @@ function parseLinkedPipelineJobId(seedPayloadJson?: string | null): string | nul
   } catch {
     return null;
   }
+}
+
+function parseTaskNotice(seedPayloadJson?: string | null): DirectorTaskNotice | null {
+  const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(seedPayloadJson);
+  const notice = seedPayload?.taskNotice;
+  if (!notice || typeof notice !== "object") {
+    return null;
+  }
+  if (typeof notice.code !== "string" || !notice.code.trim()) {
+    return null;
+  }
+  if (typeof notice.summary !== "string" || !notice.summary.trim()) {
+    return null;
+  }
+  const action = notice.action && typeof notice.action === "object"
+    ? notice.action
+    : null;
+  return {
+    code: notice.code.trim(),
+    summary: notice.summary.trim(),
+    action: action && typeof action.type === "string" && typeof action.label === "string"
+      ? {
+        type: action.type === "open_structured_outline" ? "open_structured_outline" : "open_structured_outline",
+        label: action.label.trim() || "打开当前卷拆章",
+        volumeId: typeof action.volumeId === "string" && action.volumeId.trim() ? action.volumeId.trim() : null,
+      }
+      : null,
+  };
 }
 
 function hasCandidateSelectionPhase(seedPayloadJson?: string | null): boolean {
@@ -137,6 +168,7 @@ function mapSummary(row: {
   const ownerLabel = buildOwnerLabel(row);
   const checkpointType = row.checkpointType as NovelWorkflowCheckpoint | null;
   const linkedPipelineJobId = parseLinkedPipelineJobId(row.seedPayloadJson);
+  const taskNotice = parseTaskNotice(row.seedPayloadJson);
   const targetResources: ResourceRef[] = [{
     type: "task",
     id: row.id,
@@ -184,6 +216,8 @@ function mapSummary(row: {
     checkpointSummary: row.checkpointSummary,
     resumeTarget,
     nextActionLabel: buildNovelWorkflowNextActionLabel(status, checkpointType),
+    noticeCode: taskNotice?.code ?? null,
+    noticeSummary: taskNotice?.summary ?? null,
     failureCode: status === "failed" ? "NOVEL_WORKFLOW_FAILED" : null,
     failureSummary: status === "failed"
       ? normalizeFailureSummary(lastError, "小说主流程中断，但没有记录明确错误。")
@@ -371,6 +405,7 @@ export class NovelWorkflowTaskAdapter {
             temperature: boundLlm.temperature ?? null,
           }
           : null,
+        taskNotice: parseTaskNotice(row.seedPayloadJson),
         seedPayload,
         milestones,
         cancelRequestedAt: row.cancelRequestedAt?.toISOString() ?? null,

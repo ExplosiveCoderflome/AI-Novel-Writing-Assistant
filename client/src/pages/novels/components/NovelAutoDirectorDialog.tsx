@@ -2,18 +2,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import type { TaskStatus, UnifiedTaskDetail } from "@ai-novel/shared/types/task";
-import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
-import { normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
 import {
   DIRECTOR_CANDIDATE_SETUP_STEPS,
-  DIRECTOR_CORRECTION_PRESETS,
   extractDirectorTaskSeedPayloadFromMeta,
   mergeDirectorCandidateBatches,
   type DirectorCandidate,
   type DirectorCandidateBatch,
   type DirectorAutoExecutionPlan,
-  type DirectorRunMode,
   type DirectorCorrectionPreset,
+  type DirectorRunMode,
 } from "@ai-novel/shared/types/novelDirector";
 import { bootstrapNovelWorkflow } from "@/api/novelWorkflow";
 import {
@@ -25,8 +22,6 @@ import {
 } from "@/api/novelDirector";
 import { queryKeys } from "@/api/queryKeys";
 import { getTaskDetail } from "@/api/tasks";
-import LLMSelector from "@/components/common/LLMSelector";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,25 +30,32 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
+import { isChapterTitleDiversitySummary } from "@/lib/directorTaskNotice";
 import { useLLMStore } from "@/store/llmStore";
-import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 import {
-  DirectorAutoExecutionPlanFields,
+  patchNovelBasicForm,
+  type NovelBasicFormState,
+} from "../novelBasicInfo.shared";
+import {
   buildDirectorAutoExecutionPlanFromDraft,
   buildDirectorAutoExecutionPlanLabel,
   createDefaultDirectorAutoExecutionDraftState,
   normalizeDirectorAutoExecutionDraftState,
 } from "./directorAutoExecutionPlan.shared";
-import NovelCreateResourceRecommendationCard from "./NovelCreateResourceRecommendationCard";
+import {
+  buildAutoDirectorRequestPayload,
+  buildInitialIdea,
+  DEFAULT_VISIBLE_RUN_MODE,
+  RUN_MODE_OPTIONS,
+} from "./NovelAutoDirectorDialog.shared";
+import NovelAutoDirectorCandidateBatches from "./NovelAutoDirectorCandidateBatches";
 import NovelAutoDirectorProgressPanel from "./NovelAutoDirectorProgressPanel";
+import NovelAutoDirectorSetupPanel from "./NovelAutoDirectorSetupPanel";
 
 interface NovelAutoDirectorDialogProps {
   basicForm: NovelBasicFormState;
   genreOptions: Array<{ id: string; path: string; label: string }>;
-  storyModeOptions: Array<{ id: string; path: string; name: string }>;
-  worldOptions: Array<{ id: string; name: string }>;
   workflowTaskId?: string;
   restoredTask?: UnifiedTaskDetail | null;
   initialOpen?: boolean;
@@ -75,146 +77,9 @@ type DirectorDialogMode = "candidate_selection" | "execution_progress" | "execut
 const ACTIVE_TASK_STATUSES = new Set<TaskStatus>(["queued", "running", "waiting_approval"]);
 const DIRECTOR_CANDIDATE_SETUP_STEP_KEYS = new Set<string>(DIRECTOR_CANDIDATE_SETUP_STEPS.map((step) => step.key));
 
-const RUN_MODE_OPTIONS: Array<{
-  value: DirectorRunMode;
-  label: string;
-  description: string;
-}> = [
-  {
-    value: "auto_to_ready",
-    label: "自动推进到可开写",
-    description: "AI 会持续推进，直到章节执行资源准备好后再交接。",
-  },
-  {
-    value: "auto_to_execution",
-    label: "继续自动执行章节批次",
-    description: "默认执行前 10 章，也可以改成指定章节范围或按卷执行。",
-  },
-];
-
-const DEFAULT_VISIBLE_RUN_MODE: DirectorRunMode = "auto_to_ready";
-
-function buildInitialIdea(basicForm: NovelBasicFormState): string {
-  const lines = [
-    basicForm.description.trim(),
-    basicForm.title.trim() ? `我想写一本暂名为《${basicForm.title.trim()}》的小说。` : "",
-    basicForm.styleTone.trim() ? `文风希望偏 ${basicForm.styleTone.trim()}。` : "",
-  ].filter(Boolean);
-  return lines.join("\n");
-}
-
-function buildRequestPayload(
-  basicForm: NovelBasicFormState,
-  idea: string,
-  llm: ReturnType<typeof useLLMStore.getState>,
-  runMode: DirectorRunMode,
-  workflowTaskId?: string,
-) {
-  const commercialTags = normalizeCommercialTags(basicForm.commercialTagsText);
-  return {
-    idea: idea.trim(),
-    workflowTaskId: workflowTaskId || undefined,
-    title: basicForm.title.trim() || undefined,
-    description: basicForm.description.trim() || undefined,
-    targetAudience: basicForm.targetAudience.trim() || undefined,
-    bookSellingPoint: basicForm.bookSellingPoint.trim() || undefined,
-    competingFeel: basicForm.competingFeel.trim() || undefined,
-    first30ChapterPromise: basicForm.first30ChapterPromise.trim() || undefined,
-    commercialTags: commercialTags.length > 0 ? commercialTags : undefined,
-    genreId: basicForm.genreId || undefined,
-    primaryStoryModeId: basicForm.primaryStoryModeId || undefined,
-    secondaryStoryModeId: basicForm.secondaryStoryModeId || undefined,
-    worldId: basicForm.worldId || undefined,
-    writingMode: basicForm.writingMode,
-    projectMode: basicForm.projectMode,
-    narrativePov: basicForm.narrativePov,
-    pacePreference: basicForm.pacePreference,
-    styleTone: basicForm.styleTone.trim() || undefined,
-    emotionIntensity: basicForm.emotionIntensity,
-    aiFreedom: basicForm.aiFreedom,
-    defaultChapterLength: basicForm.defaultChapterLength,
-    estimatedChapterCount: basicForm.estimatedChapterCount,
-    projectStatus: basicForm.projectStatus,
-    storylineStatus: basicForm.storylineStatus,
-    outlineStatus: basicForm.outlineStatus,
-    resourceReadyScore: basicForm.resourceReadyScore,
-    sourceNovelId: basicForm.sourceNovelId || undefined,
-    sourceKnowledgeDocumentId: basicForm.sourceKnowledgeDocumentId || undefined,
-    continuationBookAnalysisId: basicForm.continuationBookAnalysisId || undefined,
-    continuationBookAnalysisSections: basicForm.continuationBookAnalysisSections.length > 0
-      ? basicForm.continuationBookAnalysisSections
-      : undefined,
-    provider: llm.provider,
-    model: llm.model,
-    temperature: llm.temperature,
-    runMode,
-  };
-}
-
-function summarizeCurrentContext(
-  basicForm: NovelBasicFormState,
-  genreOptions: Array<{ id: string; path: string; label: string }>,
-  storyModeOptions: Array<{ id: string; path: string; name: string }>,
-  worldOptions: Array<{ id: string; name: string }>,
-): string[] {
-  const commercialTags = normalizeCommercialTags(basicForm.commercialTagsText);
-  const genrePath = genreOptions.find((item) => item.id === basicForm.genreId)?.path ?? basicForm.genreId;
-  const primaryStoryModePath = storyModeOptions.find((item) => item.id === basicForm.primaryStoryModeId)?.path
-    ?? basicForm.primaryStoryModeId;
-  const secondaryStoryModePath = storyModeOptions.find((item) => item.id === basicForm.secondaryStoryModeId)?.path
-    ?? basicForm.secondaryStoryModeId;
-  const worldName = worldOptions.find((item) => item.id === basicForm.worldId)?.name ?? basicForm.worldId;
-  return [
-    basicForm.targetAudience.trim() ? `目标读者：${basicForm.targetAudience.trim()}` : "",
-    basicForm.bookSellingPoint.trim() ? `书级卖点：${basicForm.bookSellingPoint.trim()}` : "",
-    basicForm.competingFeel.trim() ? `对标气质：${basicForm.competingFeel.trim()}` : "",
-    basicForm.first30ChapterPromise.trim() ? `前30章承诺：${basicForm.first30ChapterPromise.trim()}` : "",
-    commercialTags.length > 0 ? `商业标签：${commercialTags.join(" / ")}` : "",
-    genrePath ? `已选题材基底：${genrePath}` : "",
-    primaryStoryModePath ? `已选主推进模式：${primaryStoryModePath}` : "",
-    secondaryStoryModePath ? `已选副推进模式：${secondaryStoryModePath}` : "",
-    worldName ? `已绑定世界观：${worldName}` : "",
-    `创作模式：${basicForm.writingMode}`,
-    `项目模式：${basicForm.projectMode}`,
-    `视角：${basicForm.narrativePov}`,
-    `节奏：${basicForm.pacePreference}`,
-    `情绪：${basicForm.emotionIntensity}`,
-    basicForm.styleTone.trim() ? `文风：${basicForm.styleTone.trim()}` : "",
-    `预计章节：${basicForm.estimatedChapterCount}`,
-  ].filter(Boolean);
-}
-
-function renderCandidateDetails(candidate: DirectorCandidate) {
-  return [
-    { label: "作品定位", value: candidate.positioning },
-    { label: "核心卖点", value: candidate.sellingPoint },
-    { label: "主线冲突", value: candidate.coreConflict },
-    { label: "主角路径", value: candidate.protagonistPath },
-    { label: "主钩子", value: candidate.hookStrategy },
-    { label: "推进循环", value: candidate.progressionLoop },
-    { label: "结局方向", value: candidate.endingDirection },
-    { label: "章节规模", value: `约 ${candidate.targetChapterCount} 章` },
-  ];
-}
-
-function resolveCandidateTitleOptions(candidate: DirectorCandidate): TitleFactorySuggestion[] {
-  if (Array.isArray(candidate.titleOptions) && candidate.titleOptions.length > 0) {
-    return candidate.titleOptions;
-  }
-  return [{
-    title: candidate.workingTitle,
-    clickRate: 60,
-    style: "high_concept",
-    angle: "当前方案书名",
-    reason: "当前沿用导演候选书名。",
-  }];
-}
-
 export default function NovelAutoDirectorDialog({
   basicForm,
   genreOptions,
-  storyModeOptions,
-  worldOptions,
   workflowTaskId: workflowTaskIdProp,
   restoredTask,
   initialOpen = false,
@@ -284,12 +149,20 @@ export default function NovelAutoDirectorDialog({
     }
   }, [initialOpen, restoredTask, workflowTaskId]);
 
+  const directorBasicForm = useMemo(
+    () => patchNovelBasicForm(basicForm, {
+      writingMode: "original",
+      projectMode: "ai_led",
+    }),
+    [basicForm],
+  );
+
   useEffect(() => {
     if (!open || idea.trim()) {
       return;
     }
-    setIdea(buildInitialIdea(basicForm));
-  }, [basicForm, idea, open]);
+    setIdea(buildInitialIdea(directorBasicForm));
+  }, [directorBasicForm, idea, open]);
 
   const directorTaskQuery = useQuery({
     queryKey: queryKeys.tasks.detail("novel_workflow", workflowTaskId || "none"),
@@ -302,10 +175,6 @@ export default function NovelAutoDirectorDialog({
     },
   });
 
-  const currentContextLines = useMemo(
-    () => summarizeCurrentContext(basicForm, genreOptions, storyModeOptions, worldOptions),
-    [basicForm, genreOptions, storyModeOptions, worldOptions],
-  );
   const latestBatch = batches.at(-1) ?? null;
   const directorTask = useMemo(() => {
     const loadedTask = directorTaskQuery.data?.data ?? null;
@@ -336,12 +205,20 @@ export default function NovelAutoDirectorDialog({
     if (!directorTask) {
       return;
     }
+    const hasChapterTitleWarning = isChapterTitleDiversitySummary(
+      directorTask.failureSummary ?? directorTask.lastError ?? null,
+    );
     if (directorTask.checkpointType === "candidate_selection_required" && !executionRequested) {
       setDialogMode("candidate_selection");
       setExecutionError("");
       return;
     }
     if (directorTask.status === "failed" || directorTask.status === "cancelled") {
+      if (hasChapterTitleWarning) {
+        setDialogMode("execution_progress");
+        setExecutionError("");
+        return;
+      }
       setDialogMode("execution_failed");
       setExecutionError(directorTask.lastError ?? "");
       return;
@@ -358,20 +235,21 @@ export default function NovelAutoDirectorDialog({
     if (workflowTaskId) {
       return workflowTaskId;
     }
-      const autoExecutionPlan = runMode === "auto_to_execution"
-        ? buildDirectorAutoExecutionPlanFromDraft(autoExecutionDraft)
-        : undefined;
-      const response = await bootstrapNovelWorkflow({
-        lane: "auto_director",
-        title: basicForm.title.trim() || undefined,
-        seedPayload: {
-          basicForm,
-          idea,
-          batches,
-          runMode,
-          autoExecutionPlan,
-        },
-      });
+
+    const autoExecutionPlan = runMode === "auto_to_execution"
+      ? buildDirectorAutoExecutionPlanFromDraft(autoExecutionDraft)
+      : undefined;
+    const response = await bootstrapNovelWorkflow({
+      lane: "auto_director",
+      title: directorBasicForm.title.trim() || undefined,
+      seedPayload: {
+        basicForm: directorBasicForm,
+        idea,
+        batches,
+        runMode,
+        autoExecutionPlan,
+      },
+    });
     const taskId = response.data?.id ?? "";
     if (taskId) {
       setWorkflowTaskId(taskId);
@@ -399,7 +277,7 @@ export default function NovelAutoDirectorDialog({
     },
     mutationFn: async () => {
       const currentWorkflowTaskId = await ensureWorkflowTask();
-      const payload = buildRequestPayload(basicForm, idea, llm, runMode, currentWorkflowTaskId);
+      const payload = buildAutoDirectorRequestPayload(directorBasicForm, idea, llm, runMode, currentWorkflowTaskId);
       const response = batches.length === 0
         ? await generateDirectorCandidates(payload)
         : await refineDirectorCandidates({
@@ -444,7 +322,7 @@ export default function NovelAutoDirectorDialog({
     mutationFn: async (payload: { batchId: string; candidate: DirectorCandidate; feedback: string }) => {
       const currentWorkflowTaskId = await ensureWorkflowTask();
       const response = await patchDirectorCandidate({
-        ...buildRequestPayload(basicForm, idea, llm, runMode, currentWorkflowTaskId),
+        ...buildAutoDirectorRequestPayload(directorBasicForm, idea, llm, runMode, currentWorkflowTaskId),
         previousBatches: batches,
         batchId: payload.batchId,
         candidateId: payload.candidate.id,
@@ -480,7 +358,7 @@ export default function NovelAutoDirectorDialog({
     mutationFn: async (payload: { batchId: string; candidate: DirectorCandidate; feedback: string }) => {
       const currentWorkflowTaskId = await ensureWorkflowTask();
       const response = await refineDirectorCandidateTitles({
-        ...buildRequestPayload(basicForm, idea, llm, runMode, currentWorkflowTaskId),
+        ...buildAutoDirectorRequestPayload(directorBasicForm, idea, llm, runMode, currentWorkflowTaskId),
         previousBatches: batches,
         batchId: payload.batchId,
         candidateId: payload.candidate.id,
@@ -511,11 +389,11 @@ export default function NovelAutoDirectorDialog({
   const confirmMutation = useMutation({
     mutationFn: async (payload: { candidate: DirectorCandidate; workflowTaskId?: string }) => {
       const currentWorkflowTaskId = payload.workflowTaskId || await ensureWorkflowTask();
-      const autoExecutionPlan = runMode === "auto_to_execution"
+      const autoExecutionPlan: DirectorAutoExecutionPlan | undefined = runMode === "auto_to_execution"
         ? buildDirectorAutoExecutionPlanFromDraft(autoExecutionDraft)
         : undefined;
       const response = await confirmDirectorCandidate({
-        ...buildRequestPayload(basicForm, idea, llm, runMode, currentWorkflowTaskId),
+        ...buildAutoDirectorRequestPayload(directorBasicForm, idea, llm, runMode, currentWorkflowTaskId),
         batchId: latestBatch?.id,
         round: latestBatch?.round,
         candidate: payload.candidate,
@@ -541,13 +419,9 @@ export default function NovelAutoDirectorDialog({
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.all });
       await queryClient.invalidateQueries({ queryKey: ["tasks"] });
       toast.success(
-        data.directorSession?.runMode === "stage_review"
-          ? `已创建《${data.novel.title}》，自动导演会在关键阶段停下等你审核。`
-          : data.directorSession?.runMode === "auto_to_execution"
-            ? `已创建《${data.novel.title}》，自动导演会继续自动执行${
-              buildDirectorAutoExecutionPlanLabel(buildDirectorAutoExecutionPlanFromDraft(autoExecutionDraft))
-            }。`
-            : `已创建《${data.novel.title}》，自动导演会继续在后台推进到可开写。`,
+        data.directorSession?.runMode === "auto_to_execution"
+          ? `已创建《${data.novel.title}》，自动导演会继续自动执行${buildDirectorAutoExecutionPlanLabel(buildDirectorAutoExecutionPlanFromDraft(autoExecutionDraft))}。`
+          : `已创建《${data.novel.title}》，自动导演会继续在后台推进到可开写。`,
       );
       resetDialogState();
       onConfirmed({
@@ -579,7 +453,7 @@ export default function NovelAutoDirectorDialog({
     ));
   };
 
-  const applyCandidateTitleOption = (batchId: string, candidateId: string, option: TitleFactorySuggestion) => {
+  const applyCandidateTitleOption = (batchId: string, candidateId: string, option: { title: string }) => {
     setBatches((prev) => prev.map((batch) => {
       if (batch.id !== batchId) {
         return batch;
@@ -590,7 +464,7 @@ export default function NovelAutoDirectorDialog({
           if (candidate.id !== candidateId) {
             return candidate;
           }
-          const titleOptions = resolveCandidateTitleOptions(candidate);
+          const titleOptions = Array.isArray(candidate.titleOptions) ? candidate.titleOptions : [];
           const selectedIndex = titleOptions.findIndex((item) => item.title === option.title);
           const reorderedTitleOptions = selectedIndex <= 0
             ? titleOptions
@@ -623,6 +497,7 @@ export default function NovelAutoDirectorDialog({
   };
 
   const canGenerate = idea.trim().length > 0 && !generateMutation.isPending;
+
   const handleConfirmCandidate = async (candidate: DirectorCandidate) => {
     if (confirmSubmitLockedRef.current || confirmMutation.isPending) {
       return;
@@ -653,10 +528,12 @@ export default function NovelAutoDirectorDialog({
       toast.error(message);
     }
   };
+
   const handleBackgroundContinue = () => {
     setOpen(false);
     toast.success("导演任务会继续在后台运行，可在任务中心恢复查看。");
   };
+
   const handleOpenTaskCenter = () => {
     setOpen(false);
     if (workflowTaskId) {
@@ -665,6 +542,7 @@ export default function NovelAutoDirectorDialog({
     }
     navigate("/tasks");
   };
+
   const handleDialogOpenChange = (next: boolean) => {
     if (next) {
       if (workflowTaskId) {
@@ -720,9 +598,9 @@ export default function NovelAutoDirectorDialog({
             </DialogTitle>
             <DialogDescription>
               {dialogMode === "candidate_selection"
-                ? "先让 AI 给你 2 套整本方向，再由你做书级确认；如果都不满意，可以继续生新一轮；如果你已经偏向某一套，也可以只修这套方案，或者只重做这套的标题组。"
+                ? "先补导演起始设置，再让 AI 给你 2 套整本书方向。你可以继续重生新批次，也可以只修某一套方案或它的标题组。"
                 : dialogMode === "execution_failed"
-                  ? "导演长流程已中断，当前会优先展示失败摘要、最近里程碑和恢复入口。"
+                  ? "导演长流程已中断，当前会优先显示失败摘要、最近里程碑和恢复入口。"
                   : "当前会实时显示导演主流程进度、当前动作和里程碑历史。"}
             </DialogDescription>
           </DialogHeader>
@@ -730,290 +608,57 @@ export default function NovelAutoDirectorDialog({
           <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4">
             {dialogMode === "candidate_selection" ? (
               <div className="space-y-4">
-              <div className="rounded-lg border bg-background/80 p-4">
-                <div className="text-sm font-medium text-foreground">你的起始想法</div>
-                <textarea
-                  className="mt-2 min-h-[128px] w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                  value={idea}
-                  onChange={(event) => setIdea(event.target.value)}
-                  placeholder="例如：普通女大学生误入异能组织，一边上学打工，一边调查父亲失踪真相。"
+                <NovelAutoDirectorSetupPanel
+                  basicForm={directorBasicForm}
+                  genreOptions={genreOptions}
+                  idea={idea}
+                  onIdeaChange={setIdea}
+                  runMode={runMode}
+                  runModeOptions={RUN_MODE_OPTIONS}
+                  onRunModeChange={setRunMode}
+                  autoExecutionDraft={autoExecutionDraft}
+                  onAutoExecutionDraftChange={(patch) => setAutoExecutionDraft((prev) => ({ ...prev, ...patch }))}
+                  onBasicFormChange={onBasicFormChange}
+                  canGenerate={canGenerate}
+                  isGenerating={generateMutation.isPending}
+                  batchCount={batches.length}
+                  onGenerate={() => generateMutation.mutate()}
                 />
-                <div className="mt-3">
-                  <LLMSelector />
-                </div>
-                <div className="mt-3 rounded-md border bg-muted/20 p-3">
-                  <div className="text-xs font-medium text-foreground">自动导演运行方式</div>
-                  <div className="mt-3 grid gap-3 md:grid-cols-2">
-                    {RUN_MODE_OPTIONS.map((option) => {
-                      const active = option.value === runMode;
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          className={`rounded-xl border px-3 py-3 text-left transition ${
-                            active
-                              ? "border-primary bg-primary/10 shadow-sm"
-                              : "border-border bg-background hover:border-primary/40"
-                          }`}
-                          onClick={() => setRunMode(option.value)}
-                        >
-                          <div className="text-sm font-medium text-foreground">{option.label}</div>
-                          <div className="mt-1 text-xs leading-5 text-muted-foreground">{option.description}</div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {runMode === "auto_to_execution" ? (
-                    <DirectorAutoExecutionPlanFields
-                      draft={autoExecutionDraft}
-                      onChange={(patch) => setAutoExecutionDraft((prev) => ({ ...prev, ...patch }))}
-                    />
-                  ) : null}
-                </div>
-                <div className="mt-3 rounded-md border bg-muted/20 p-3">
-                  <div className="text-xs font-medium text-foreground">当前会一起参与判断的创建页信息</div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {currentContextLines.length > 0 ? currentContextLines.map((line) => (
-                      <Badge key={line} variant="secondary">{line}</Badge>
-                    )) : (
-                      <span className="text-xs text-muted-foreground">
-                        目前主要依赖你的灵感描述，也可以回创建页先补类型、文风或章节规模。
-                      </span>
-                    )}
-                  </div>
-                </div>
-                {onBasicFormChange ? (
-                  <div className="mt-3">
-                    <NovelCreateResourceRecommendationCard
-                      basicForm={basicForm}
-                      contextHint={idea}
-                      onApplySuggestion={onBasicFormChange}
-                    />
-                  </div>
-                ) : null}
-                <div className="mt-4 flex justify-end">
-                  <Button type="button" onClick={() => generateMutation.mutate()} disabled={!canGenerate}>
-                    {generateMutation.isPending
-                      ? "生成中..."
-                      : batches.length === 0
-                        ? "生成第一批方案"
-                        : "按修正建议继续生成"}
-                  </Button>
-                </div>
-              </div>
 
-              {batches.length > 0 ? (
-                <div className="space-y-4">
-                  {batches.map((batch) => (
-                    <section key={batch.id} className="rounded-xl border p-4">
-                      <div className="flex flex-col gap-2 border-b pb-3 md:flex-row md:items-center md:justify-between">
-                        <div>
-                          <div className="text-base font-semibold text-foreground">{batch.roundLabel}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {batch.refinementSummary?.trim() || "初始方案"}
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {batch.presets.map((preset) => {
-                            const meta = DIRECTOR_CORRECTION_PRESETS.find((item) => item.value === preset);
-                            return meta ? <Badge key={preset} variant="outline">{meta.label}</Badge> : null;
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="mt-4 grid gap-4 xl:grid-cols-2">
-                        {batch.candidates.map((candidate) => {
-                          const titleOptions = resolveCandidateTitleOptions(candidate);
-                          return (
-                            <article key={candidate.id} className="rounded-xl border bg-background p-4 shadow-sm">
-                              <div className="space-y-2">
-                                <div className="text-lg font-semibold text-foreground">{candidate.workingTitle}</div>
-                                <div className="text-sm leading-6 text-muted-foreground">{candidate.logline}</div>
-                                <div className="rounded-md border bg-muted/20 p-3">
-                                  <div className="text-sm font-medium text-foreground">书名候选</div>
-                                  <div className="mt-2 flex flex-wrap gap-2">
-                                    {titleOptions.map((option) => {
-                                      const active = option.title === candidate.workingTitle;
-                                      return (
-                                        <button
-                                          key={`${candidate.id}-${option.title}`}
-                                          type="button"
-                                          className={`rounded-full border px-3 py-1.5 text-left text-xs transition ${
-                                            active
-                                              ? "border-primary bg-primary/10 text-primary"
-                                              : "border-border bg-background text-foreground hover:border-primary/40"
-                                          }`}
-                                          onClick={() => applyCandidateTitleOption(batch.id, candidate.id, option)}
-                                        >
-                                          <span className="font-medium">{option.title}</span>
-                                          <span className="ml-2 text-muted-foreground">预估 {option.clickRate}</span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                  <div className="mt-2 text-xs leading-5 text-muted-foreground">
-                                    {titleOptions[0]?.reason?.trim() || "书名由标题工坊增强生成，可在这里切换当前方案名。"}
-                                  </div>
-                                  <div className="mt-3 border-t pt-3">
-                                    <div className="text-xs font-medium text-foreground">AI 修正这组书名</div>
-                                    <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                                      适合“这组标题太土 / 太老派 / 不够都市 / 不够悬疑”这种定向修正。
-                                    </div>
-                                    <Input
-                                      className="mt-2"
-                                      value={titlePatchFeedbacks[candidate.id] ?? ""}
-                                      onChange={(event) => setTitlePatchFeedbacks((prev) => ({
-                                        ...prev,
-                                        [candidate.id]: event.target.value,
-                                      }))}
-                                      placeholder="例如：当前这组太土气了，想更偏都市冷感一点，别像旧式升级文。"
-                                    />
-                                    <div className="mt-2 flex justify-end">
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={
-                                          refineTitleMutation.isPending
-                                          || !titlePatchFeedbacks[candidate.id]?.trim()
-                                        }
-                                        onClick={() => refineTitleMutation.mutate({
-                                          batchId: batch.id,
-                                          candidate,
-                                          feedback: titlePatchFeedbacks[candidate.id] ?? "",
-                                        })}
-                                      >
-                                        {refineTitleMutation.isPending ? "重做中..." : "AI 重做标题组"}
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="rounded-md bg-muted/30 p-3 text-sm leading-6 text-foreground">
-                                  <div className="font-medium">为什么推荐这套</div>
-                                  <div className="mt-1 text-muted-foreground">{candidate.whyItFits}</div>
-                                </div>
-                                <div className="grid gap-2 text-sm">
-                                  {renderCandidateDetails(candidate).map((item) => (
-                                    <div key={item.label}>
-                                      <span className="font-medium text-foreground">{item.label}：</span>
-                                      <span className="text-muted-foreground">{item.value}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                  {candidate.toneKeywords.map((keyword) => (
-                                    <Badge key={keyword} variant="secondary">{keyword}</Badge>
-                                  ))}
-                                </div>
-                                <div className="rounded-md border border-dashed p-3">
-                                  <div className="text-sm font-medium text-foreground">AI 微调这套方案</div>
-                                  <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                                    适合“我就偏向这套，但还有点偏差”的情况。AI 会保留这套主方向，只定向修正不对味的部分。
-                                  </div>
-                                  <Input
-                                    className="mt-3"
-                                    value={candidatePatchFeedbacks[candidate.id] ?? ""}
-                                    onChange={(event) => setCandidatePatchFeedbacks((prev) => ({
-                                      ...prev,
-                                      [candidate.id]: event.target.value,
-                                    }))}
-                                    placeholder="例如：保留这套，但更偏都市异能，主角更主动一点，别太像传统热血升级。"
-                                  />
-                                  <div className="mt-2 flex justify-end">
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      disabled={
-                                        patchCandidateMutation.isPending
-                                        || !candidatePatchFeedbacks[candidate.id]?.trim()
-                                      }
-                                      onClick={() => patchCandidateMutation.mutate({
-                                        batchId: batch.id,
-                                        candidate,
-                                        feedback: candidatePatchFeedbacks[candidate.id] ?? "",
-                                      })}
-                                    >
-                                      {patchCandidateMutation.isPending ? "修正中..." : "AI 修这套方案"}
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="mt-4 flex justify-end">
-                                <Button
-                                  type="button"
-                                  onClick={() => void handleConfirmCandidate(candidate)}
-                                  disabled={confirmMutation.isPending}
-                                >
-                                  {confirmMutation.isPending
-                                    ? "正在进入导演流程..."
-                                    : "选用这套并创建项目"}
-                                </Button>
-                              </div>
-                            </article>
-                          );
-                        })}
-                      </div>
-                    </section>
-                  ))}
-
-                  <section className="rounded-xl border border-dashed p-4">
-                    <div className="text-base font-semibold text-foreground">继续修正并生成下一轮</div>
-                    <div className="mt-1 text-sm text-muted-foreground">
-                      如果这几套还不够对味，可以点几个方向，再补一句你真正想要的感觉。系统会保留上一轮，
-                      再给你一轮新的方案。
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {DIRECTOR_CORRECTION_PRESETS.map((preset) => {
-                        const active = selectedPresets.includes(preset.value);
-                        return (
-                          <button
-                            key={preset.value}
-                            type="button"
-                            className={`rounded-full border px-3 py-1.5 text-sm transition ${
-                              active
-                                ? "border-primary bg-primary text-primary-foreground"
-                                : "border-border bg-background text-foreground hover:border-primary/40"
-                            }`}
-                            onClick={() => togglePreset(preset.value)}
-                          >
-                            {preset.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="mt-4 space-y-2">
-                      <label htmlFor="director-refine-feedback" className="text-sm font-medium text-foreground">
-                        再补一句修正建议
-                      </label>
-                      <Input
-                        id="director-refine-feedback"
-                        value={feedback}
-                        onChange={(event) => setFeedback(event.target.value)}
-                        placeholder="例如：我想要女频成长感更强一点，别太像纯爽文，也不要太黑。"
-                      />
-                    </div>
-
-                    <div className="mt-4 flex justify-end">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => generateMutation.mutate()}
-                        disabled={generateMutation.isPending || !idea.trim()}
-                      >
-                        {generateMutation.isPending ? "生成中..." : "带修正建议继续生成"}
-                      </Button>
-                    </div>
-                  </section>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-                  先给 AI 一句灵感，它会先产出第一批整本方向候选。
-                </div>
-              )}
+                <NovelAutoDirectorCandidateBatches
+                  batches={batches}
+                  selectedPresets={selectedPresets}
+                  feedback={feedback}
+                  onFeedbackChange={setFeedback}
+                  onTogglePreset={togglePreset}
+                  candidatePatchFeedbacks={candidatePatchFeedbacks}
+                  onCandidatePatchFeedbackChange={(candidateId, value) => setCandidatePatchFeedbacks((prev) => ({
+                    ...prev,
+                    [candidateId]: value,
+                  }))}
+                  titlePatchFeedbacks={titlePatchFeedbacks}
+                  onTitlePatchFeedbackChange={(candidateId, value) => setTitlePatchFeedbacks((prev) => ({
+                    ...prev,
+                    [candidateId]: value,
+                  }))}
+                  isGenerating={generateMutation.isPending}
+                  isPatchingCandidate={patchCandidateMutation.isPending}
+                  isRefiningTitle={refineTitleMutation.isPending}
+                  isConfirming={confirmMutation.isPending}
+                  onApplyCandidateTitleOption={applyCandidateTitleOption}
+                  onPatchCandidate={(batchId, candidate, nextFeedback) => patchCandidateMutation.mutate({
+                    batchId,
+                    candidate,
+                    feedback: nextFeedback,
+                  })}
+                  onRefineTitle={(batchId, candidate, nextFeedback) => refineTitleMutation.mutate({
+                    batchId,
+                    candidate,
+                    feedback: nextFeedback,
+                  })}
+                  onConfirmCandidate={handleConfirmCandidate}
+                  onGenerateNext={() => generateMutation.mutate()}
+                />
               </div>
             ) : (
               <NovelAutoDirectorProgressPanel

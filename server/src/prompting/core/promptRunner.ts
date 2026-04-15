@@ -337,6 +337,34 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
       };
     } catch (error) {
       if (semanticRetryAttempts >= maxSemanticRetryAttempts) {
+        if (input.asset.postValidateFailureRecovery) {
+          logPromptEvent({
+            event: "semantic_retry_recovered",
+            asset: asset as PromptAsset<unknown, unknown, unknown>,
+            context: input.context,
+            provider: input.options?.provider,
+            model: input.options?.model,
+            attempt: semanticRetryAttempts,
+            validationError: stringifyPromptError(error),
+          });
+          return {
+            output: input.asset.postValidateFailureRecovery({
+              promptInput: input.promptInput,
+              context: input.context,
+              rawOutput: currentResult.data,
+              validationError: stringifyPromptError(error),
+              semanticRetryAttempts,
+            }),
+            invocation: buildPromptInvocationMeta(
+              asset,
+              input.context,
+              repairUsed,
+              totalRepairAttempts,
+              semanticRetryAttempts > 0,
+              semanticRetryAttempts,
+            ),
+          };
+        }
         throw error;
       }
 

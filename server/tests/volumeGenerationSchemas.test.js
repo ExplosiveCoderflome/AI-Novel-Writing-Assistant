@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  createChapterTaskSheetSchema,
   createVolumeBeatSheetSchema,
   createVolumeRebalanceSchema,
   createVolumeStrategySchema,
@@ -11,6 +12,9 @@ const {
 const {
   volumeBeatSheetPrompt,
 } = require("../dist/prompting/prompts/novel/volume/beatSheet.prompts.js");
+const {
+  buildVolumeBeatSheetContextBlocks,
+} = require("../dist/prompting/prompts/novel/volume/contextBlocks.js");
 const {
   volumeRebalancePrompt,
 } = require("../dist/prompting/prompts/novel/volume/rebalance.prompts.js");
@@ -252,6 +256,7 @@ test("volume beat sheet prompt render includes explicit JSON field contract", ()
     storyMacroPlan: null,
     strategyPlan: null,
     targetVolume: createVolume(1),
+    targetChapterCount: 18,
   }, {
     blocks: [],
     selectedBlockIds: [],
@@ -266,6 +271,38 @@ test("volume beat sheet prompt render includes explicit JSON field contract", ()
   assert.match(systemPrompt, /"chapterSpanHint"/);
   assert.match(systemPrompt, /"mustDeliver"/);
   assert.match(systemPrompt, /5-8/);
+  assert.match(systemPrompt, /Current volume target chapter count: 18/);
+  assert.match(systemPrompt, /volume-local numbering only/);
+});
+
+test("volume beat sheet context blocks include the current volume chapter target", () => {
+  const blocks = buildVolumeBeatSheetContextBlocks({
+    novel: { characters: [] },
+    workspace: {
+      volumes: [],
+      strategyPlan: null,
+      critiqueReport: null,
+      beatSheets: [],
+      rebalanceDecisions: [],
+      readiness: {
+        canGenerateStrategy: true,
+        canGenerateSkeleton: false,
+        canGenerateBeatSheet: false,
+        canGenerateChapterList: false,
+        blockingReasons: [],
+      },
+      derivedOutline: "",
+      derivedStructuredOutline: "",
+      source: "empty",
+      activeVersionId: null,
+    },
+    storyMacroPlan: null,
+    strategyPlan: null,
+    targetVolume: createVolume(1),
+    targetChapterCount: 18,
+  });
+
+  assert.ok(blocks.some((block) => block.group === "target_chapter_count" && block.content.includes("Target chapter count: 18")));
 });
 
 test("volume rebalance schema normalizes wrapped arrays, numeric refs, and direction aliases", () => {
@@ -363,4 +400,53 @@ test("volume rebalance prompt render explains order-based id contract and enum d
   assert.match(systemPrompt, /卷序号字符串/);
   assert.match(systemPrompt, /pull_forward、push_back、tighten_current、expand_adjacent、hold/);
   assert.match(systemPrompt, /"decisions"/);
+});
+
+test("chapter task sheet schema parses taskSheet plus aliased scene cards", () => {
+  const schema = createChapterTaskSheetSchema();
+  const parsed = schema.parse({
+    task_sheet: "本章先让主角接住情报，再完成第一次明确反压，最后留下更大威胁。",
+    scenes: [
+      {
+        sceneKey: "intel_handover",
+        sceneTitle: "接住情报",
+        objective: "让女二把关键情报送到主角手里。",
+        mustAdvanceItems: "情报到手,反压起点成立",
+        mustPreserveItems: ["女二仍有保留", "压迫感不能消失"],
+        startState: "主角被压制，情报链还断着。",
+        endState: "主角确认反压切入口已经成立。",
+        forbidden: "不要提前揭露幕后黑手",
+        wordCount: "900",
+      },
+      {
+        id: "first_counterattack",
+        label: "第一次反压",
+        goal: "把情报转成看得见的反压收益。",
+        deliverables: ["明确收益", "敌方被迫应对"],
+        preserveItems: "资源差距仍在,主角不算完全翻盘",
+        openingState: "主角刚拿到情报，准备落子。",
+        closingState: "主角拿到阶段性主动权，但代价同步抬高。",
+        mustAvoid: ["不要洗白敌方", "不要直接大决战"],
+        budget: 1200,
+      },
+      {
+        key: "end_hook",
+        title: "尾段钩子",
+        purpose: "把新的更大威胁钉到章末。",
+        mustAdvance: ["新的威胁出现"],
+        mustPreserve: ["本章反压收益仍然有效"],
+        entryState: "主角刚完成第一次反压。",
+        exitState: "读者明确知道下一章压力会更高。",
+        forbiddenExpansion: ["不要展开下章战斗"],
+        targetWordCount: 800,
+      },
+    ],
+  });
+
+  assert.equal(parsed.taskSheet.includes("第一次明确反压"), true);
+  assert.equal(parsed.sceneCards.length, 3);
+  assert.equal(parsed.sceneCards[0].title, "接住情报");
+  assert.deepEqual(parsed.sceneCards[1].mustAdvance, ["明确收益", "敌方被迫应对"]);
+  assert.deepEqual(parsed.sceneCards[1].forbiddenExpansion, ["不要洗白敌方", "不要直接大决战"]);
+  assert.equal(parsed.sceneCards[2].targetWordCount, 800);
 });

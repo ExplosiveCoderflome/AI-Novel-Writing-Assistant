@@ -17,7 +17,7 @@ export const volumeBeatSheetPrompt: PromptAsset<
   language: "zh",
   contextPolicy: {
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.volumeBeatSheet,
-    requiredGroups: ["book_contract", "target_volume"],
+    requiredGroups: ["book_contract", "target_volume", "target_chapter_count"],
     preferredGroups: ["macro_constraints", "strategy_context", "volume_window"],
     dropOrder: ["soft_future_summary"],
   },
@@ -25,7 +25,7 @@ export const volumeBeatSheetPrompt: PromptAsset<
     maxAttempts: 2,
   },
   outputSchema: createVolumeBeatSheetSchema(),
-  render: (_input, context) => [
+  render: (input, context) => [
     new SystemMessage([
       "你是网文单卷节奏规划助手。",
       "你的任务不是写章节目录，也不是扩写剧情梗概，而是把“卷骨架”转成可供后续拆章使用的 beat sheet。",
@@ -74,6 +74,8 @@ export const volumeBeatSheetPrompt: PromptAsset<
       "",
       "【建议 key】",
       "建议优先使用稳定英文标识，例如：open_hook / first_escalation / midpoint_turn / pressure_lock / climax / end_hook。",
+      `Current volume target chapter count: ${input.targetChapterCount}.`,
+      `chapterSpanHint must use volume-local numbering only, start from 1 inside the current volume, and never exceed ${input.targetChapterCount}. Never use whole-book absolute chapter numbers.`,
     ].join("\n")),
     new HumanMessage([
       "请基于以下上下文，为当前目标卷生成单卷 beat sheet。",
@@ -85,6 +87,9 @@ export const volumeBeatSheetPrompt: PromptAsset<
       "- 优先保证与卷骨架承接关系清晰、节奏职责明确、后续可拆章",
       "",
       "【当前卷节奏板上下文】",
+      `- Current volume target chapter count: ${input.targetChapterCount}`,
+      "- chapterSpanHint must stay within this volume only; do not use whole-book absolute chapter numbers",
+      "",
       renderSelectedContextBlocks(context),
     ].join("\n")),
   ],

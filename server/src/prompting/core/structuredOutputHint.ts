@@ -18,7 +18,6 @@ type AnySchema = z.ZodType<unknown>;
 
 function tryUnwrapSchema(schema: AnySchema): AnySchema | null {
   const candidate = schema as AnySchema & {
-    unwrap?: () => AnySchema;
     removeDefault?: () => AnySchema;
     _def?: {
       innerType?: AnySchema;
@@ -28,9 +27,6 @@ function tryUnwrapSchema(schema: AnySchema): AnySchema | null {
     };
   };
 
-  if (typeof candidate.unwrap === "function") {
-    return candidate.unwrap();
-  }
   if (typeof candidate.removeDefault === "function") {
     return candidate.removeDefault();
   }

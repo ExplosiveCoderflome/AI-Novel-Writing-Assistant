@@ -29,9 +29,11 @@ function createVolumeDetailSystemPrompt(detailMode: VolumeChapterDetailPromptInp
   }
   return [
     "你是资深网文章节编辑。",
-    "当前任务是生成可直接交给正文生成器的 taskSheet。",
-    "只输出严格 JSON，且只包含 taskSheet 字段。",
-    "taskSheet 需要覆盖情绪基调、冲突对象、关键推进和收尾要求。",
+    "当前任务是生成可直接交给正文生成器的章节执行合同。",
+    "只输出严格 JSON，且只包含 taskSheet、sceneCards 两个字段。",
+    "taskSheet 是给用户读的简洁执行摘要，需要覆盖情绪基调、冲突对象、关键推进和收尾要求。",
+    "sceneCards 必须是 3-8 个场景卡数组，每个场景卡都必须包含 key、title、purpose、mustAdvance、mustPreserve、entryState、exitState、forbiddenExpansion、targetWordCount。",
+    "sceneCards 必须完整覆盖整章推进和结尾 hook，不要把整章压成一个场景。",
   ].join("\n");
 }
 
@@ -90,7 +92,7 @@ export const volumeChapterTaskSheetPrompt: PromptAsset<
   ReturnType<typeof createChapterTaskSheetSchema>["_output"]
 > = {
   id: "novel.volume.chapter_task_sheet",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",

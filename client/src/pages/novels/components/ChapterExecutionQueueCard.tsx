@@ -9,6 +9,7 @@ import {
   generationStateDescription,
   generationStateLabel,
   parseRiskFlags,
+  resolveChapterQueuePreview,
   shouldShowGenerationStateBadge,
   type QueueFilterKey,
   type QueueFilterOption,
@@ -98,7 +99,7 @@ export default function ChapterExecutionQueueCard(props: ChapterExecutionQueueCa
                         第{chapter.order}章 {chapter.title || "未命名章节"}
                       </div>
                       <div className="line-clamp-2 text-xs leading-6 text-muted-foreground">
-                        {chapter.expectation || chapter.taskSheet || chapter.sceneCards || "这一章还没有明确目标，适合先补章节计划。"}
+                        {resolveChapterQueuePreview(chapter)}
                       </div>
                     </div>
                     <Badge

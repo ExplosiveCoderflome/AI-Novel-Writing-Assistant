@@ -63,6 +63,7 @@ function normalizeChapterInput(raw: unknown, fallbackOrder: number): Omit<Volume
     targetWordCount: normalizeNullableNumber(record.targetWordCount),
     mustAvoid: normalizeText(record.mustAvoid),
     taskSheet: normalizeText(record.taskSheet),
+    sceneCards: normalizeText(record.sceneCards),
     payoffRefs: normalizeStringArray(record.payoffRefs),
     createdAt: new Date(0).toISOString(),
     updatedAt: new Date(0).toISOString(),

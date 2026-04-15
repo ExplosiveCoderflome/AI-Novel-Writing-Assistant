@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useMutation, type QueryClient } from "@tanstack/react-query";
 import type { ReviewIssue, Chapter, StoryStateSnapshot, StoryPlan } from "@ai-novel/shared/types/novel";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
@@ -38,6 +39,13 @@ interface UseNovelEditChapterRuntimeArgs {
   repairSSE: StreamHandle;
 }
 
+export type ChapterReviewActionKind =
+  | "full_audit"
+  | "continuity"
+  | "character_consistency"
+  | "pacing"
+  | null;
+
 export function useNovelEditChapterRuntime({
   novelId,
   llm,
@@ -57,6 +65,8 @@ export function useNovelEditChapterRuntime({
   chapterSSE,
   repairSSE,
 }: UseNovelEditChapterRuntimeArgs) {
+  const [reviewActionKind, setReviewActionKind] = useState<ChapterReviewActionKind>(null);
+
   const generateChapterPlanMutation = useMutation({
     mutationFn: () => generateChapterPlan(novelId, selectedChapterId, {
       provider: llm.provider,
@@ -111,11 +121,19 @@ export function useNovelEditChapterRuntime({
     }),
     onSuccess: async (response) => {
       setReviewResult(response.data ?? null);
-      setChapterOperationMessage("完整审计已完成。");
+      setChapterOperationMessage("完整审校已完成。");
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterAuditReports(novelId, selectedChapterId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(novelId) });
     },
+    onSettled: () => {
+      setReviewActionKind(null);
+    },
   });
+
+  const runChapterReview = (kind: Exclude<ChapterReviewActionKind, null>) => {
+    setReviewActionKind(kind);
+    fullAuditMutation.mutate();
+  };
 
   const handleGenerateSelectedChapter = () => {
     if (!selectedChapter) {
@@ -171,9 +189,11 @@ export function useNovelEditChapterRuntime({
     strategy: chapterStrategy,
     reviewIssues: reviewResult?.issues ?? [],
     onGenerateChapter: handleGenerateSelectedChapter,
-    onReviewChapter: () => fullAuditMutation.mutate(),
+    onReviewChapter: runChapterReview,
     onStartRepair: startChapterRepair,
     onMessage: setChapterOperationMessage,
+    isGeneratingChapter: chapterSSE.isStreaming,
+    isRepairingChapter: repairSSE.isStreaming,
     invalidateNovelDetail,
   });
 
@@ -181,6 +201,8 @@ export function useNovelEditChapterRuntime({
     generateChapterPlanMutation,
     replanChapterMutation,
     fullAuditMutation,
+    reviewActionKind,
+    runChapterReview,
     handleGenerateSelectedChapter,
     handleAbortChapterStream,
     handleAbortRepair,

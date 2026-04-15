@@ -18,7 +18,7 @@ export class NovelGenerationService extends NovelArtifactService {
   createChapterStream(...args: Parameters<NovelCoreService["createChapterStream"]>) {
     const [novelId, chapterId, options] = args;
     return this.chapterRuntimeCoordinator.createChapterStream(novelId, chapterId, options, {
-      includeRuntimePackage: false,
+      includeRuntimePackage: true,
     });
   }
 
