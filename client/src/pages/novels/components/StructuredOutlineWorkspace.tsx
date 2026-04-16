@@ -68,6 +68,9 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
     isGeneratingBeatSheet,
     onGenerateBeatSheet,
     isGeneratingChapterList,
+    generatingChapterListVolumeId,
+    generatingChapterListBeatKey,
+    generatingChapterListMode,
     onGenerateChapterList,
     isGeneratingChapterDetail,
     isGeneratingChapterDetailBundle,
@@ -151,7 +154,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
   const selectedVolumeRequiredChapterCount = getBeatSheetRequiredChapterCount(selectedBeatSheet);
   const selectedVolumeNeedsChapterExpansion = selectedVolumeRequiredChapterCount > selectedVolumeChapters.length;
   const visibleChapters = selectedBeat
-    ? selectedVolumeChapters.filter((chapter) => chapterMatchesBeat(chapter, selectedBeat))
+    ? selectedVolumeChapters.filter((chapter) => chapterMatchesBeat(chapter, selectedBeat, selectedVolumeChapters))
     : selectedVolumeChapters;
   const selectedChapter = visibleChapters.find((chapter) => chapter.id === selectedChapterId)
     ?? selectedVolumeChapters.find((chapter) => chapter.id === selectedChapterId)
@@ -161,7 +164,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
   const selectedChapterIndex = selectedVolume && selectedChapter
     ? selectedVolume.chapters.findIndex((chapter) => chapter.id === selectedChapter.id)
     : -1;
-  const selectedChapterBeat = selectedChapter ? findChapterBeat(selectedChapter, selectedBeatSheet) : null;
+  const selectedChapterBeat = selectedChapter ? findChapterBeat(selectedChapter, selectedBeatSheet, selectedVolumeChapters) : null;
   const selectedRebalance = selectedVolume
     ? rebalanceDecisions.filter((decision) => decision.anchorVolumeId === selectedVolume.id)
     : [];
@@ -374,6 +377,9 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                 selectedVolumeRequiredChapterCount={selectedVolumeRequiredChapterCount}
                 selectedVolumeNeedsChapterExpansion={selectedVolumeNeedsChapterExpansion}
                 isGeneratingChapterList={isGeneratingChapterList}
+                generatingChapterListVolumeId={generatingChapterListVolumeId}
+                generatingChapterListBeatKey={generatingChapterListBeatKey}
+                generatingChapterListMode={generatingChapterListMode}
                 locked={locked}
                 onGenerateChapterList={onGenerateChapterList}
                 onAddChapter={onAddChapter}

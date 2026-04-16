@@ -175,6 +175,36 @@ function normalizeBeatPayload(raw: unknown): unknown {
   };
 }
 
+function normalizeChapterListItemPayload(raw: unknown): unknown {
+  return normalizeObjectAlias(raw, {
+    title: ["chapterTitle", "name"],
+    summary: ["description", "content", "outline"],
+    beatKey: ["beat", "beat_key", "stageKey", "stage_key"],
+  });
+}
+
+function normalizeChapterBeatBlockPayload(raw: unknown): unknown {
+  const normalized = normalizeObjectAlias(raw, {
+    beatKey: ["beat", "beat_key", "stageKey", "stage_key"],
+    beatLabel: ["label", "beat", "beat_label", "stageLabel", "stage_label", "name", "title"],
+    chapterCount: ["count", "chapter_count", "chapterTotal", "chapter_total"],
+    chapters: ["items", "chapterList", "chapter_list"],
+  });
+
+  if (!normalized || typeof normalized !== "object" || Array.isArray(normalized)) {
+    return normalized;
+  }
+
+  const record = normalized as Record<string, unknown>;
+  return {
+    ...record,
+    chapterCount: normalizeInteger(record.chapterCount),
+    chapters: Array.isArray(record.chapters)
+      ? record.chapters.map((item) => normalizeChapterListItemPayload(item))
+      : record.chapters,
+  };
+}
+
 function normalizeBeatSheetPayload(raw: unknown): unknown {
   if (Array.isArray(raw)) {
     return { beats: raw };
@@ -346,6 +376,12 @@ const generatedChapterListItemSchema = z.object({
   summary: z.string().trim().min(1),
 });
 
+const generatedChapterBeatBlockItemSchema = z.preprocess(normalizeChapterListItemPayload, z.object({
+  title: z.string().trim().min(1),
+  summary: z.string().trim().min(1),
+  beatKey: z.string().trim().min(1),
+}));
+
 const generatedVolumeStrategyVolumeSchema = z.object({
   sortOrder: z.number().int().min(1),
   planningMode: z.enum(["hard", "soft"]),
@@ -400,6 +436,55 @@ export function createVolumeChapterListSchema(exactChapterCount?: number) {
       ? z.array(generatedChapterListItemSchema).length(exactChapterCount)
       : z.array(generatedChapterListItemSchema).min(1).max(80),
   });
+}
+
+export function createVolumeChapterBeatBlockSchema(config: {
+  exactChapterCount?: number;
+  expectedBeatKey?: string;
+  expectedBeatLabel?: string | null;
+} = {}) {
+  const { exactChapterCount, expectedBeatKey, expectedBeatLabel } = config;
+  return z.preprocess(normalizeChapterBeatBlockPayload, z.object({
+    beatKey: z.string().trim().min(1),
+    beatLabel: z.string().trim().min(1),
+    chapterCount: z.number().int().min(1),
+    chapters: typeof exactChapterCount === "number"
+      ? z.array(generatedChapterBeatBlockItemSchema).length(exactChapterCount)
+      : z.array(generatedChapterBeatBlockItemSchema).min(1).max(24),
+  }).superRefine((value, ctx) => {
+    if (value.chapterCount !== value.chapters.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["chapterCount"],
+        message: "chapterCount 必须与 chapters.length 完全一致。",
+      });
+    }
+    if (expectedBeatKey && value.beatKey !== expectedBeatKey) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["beatKey"],
+        message: `beatKey 必须严格等于 ${expectedBeatKey}。`,
+      });
+    }
+    if (expectedBeatLabel && value.beatLabel !== expectedBeatLabel) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["beatLabel"],
+        message: `beatLabel 必须严格等于 ${expectedBeatLabel}。`,
+      });
+    }
+    if (expectedBeatKey) {
+      value.chapters.forEach((chapter, index) => {
+        if (chapter.beatKey !== expectedBeatKey) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["chapters", index, "beatKey"],
+            message: `第 ${index + 1} 条章节的 beatKey 必须严格等于 ${expectedBeatKey}。`,
+          });
+        }
+      });
+    }
+  }));
 }
 
 export function createVolumeStrategySchema(config: {

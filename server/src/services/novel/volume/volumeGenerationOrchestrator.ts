@@ -6,7 +6,6 @@ import type {
 import { prisma } from "../../../db/prisma";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import { volumeBeatSheetPrompt } from "../../../prompting/prompts/novel/volume/beatSheet.prompts";
-import { createVolumeChapterListPrompt } from "../../../prompting/prompts/novel/volume/chapterList.prompts";
 import {
   volumeChapterBoundaryPrompt,
   volumeChapterPurposePrompt,
@@ -14,7 +13,6 @@ import {
 import {
   buildVolumeBeatSheetContextBlocks,
   buildVolumeChapterDetailContextBlocks,
-  buildVolumeChapterListContextBlocks,
   buildVolumeRebalanceContextBlocks,
   buildVolumeSkeletonContextBlocks,
   buildVolumeStrategyContextBlocks,
@@ -32,6 +30,7 @@ import {
   inferRequiredChapterCountFromBeatSheet,
   resolveTargetChapterCount,
 } from "./volumeBeatSheetChapterBudget";
+import { generateBeatChunkedChapterList } from "./volumeChapterListGeneration";
 import { normalizeVolumeDraftContextInput } from "./volumeDraftContext";
 import {
   allocateChapterBudgets,
@@ -43,7 +42,6 @@ import {
   getTargetVolume,
   mergeBeatSheet,
   mergeChapterDetail,
-  mergeChapterList,
   mergeCritiqueReport,
   mergeRebalance,
   mergeSkeleton,
@@ -431,81 +429,24 @@ async function generateChapterList(params: {
 }): Promise<VolumePlanDocument> {
   const { document, novel, workspace, storyMacroPlan, options } = params;
   const targetVolume = getTargetVolume(document, options.targetVolumeId);
-  const targetBeatSheet = getBeatSheet(document, targetVolume.id);
-  if (!targetBeatSheet) {
-    throw new Error("当前卷还没有节奏板，不能直接拆章节列表。");
-  }
-  const chapterBudget = deriveChapterBudget({ novel, workspace, options });
-  const chapterBudgets = allocateChapterBudgets({
-    volumeCount: Math.max(document.volumes.length, 1),
-    chapterBudget,
-    existingVolumes: document.volumes,
-  });
-  const targetIndex = document.volumes.findIndex((volume) => volume.id === targetVolume.id);
-  const beatSheetRequiredChapterCount = inferRequiredChapterCountFromBeatSheet(targetBeatSheet);
-  const budgetedTargetChapterCount = targetVolume.chapters.length >= 3
-    ? targetVolume.chapters.length
-    : chapterBudgets[targetIndex] ?? Math.max(3, Math.round(chapterBudget / Math.max(document.volumes.length, 1)));
-  const resolvedTargetChapterCount = resolveTargetChapterCount({
-    budgetedChapterCount: budgetedTargetChapterCount,
-    beatSheetRequiredChapterCount,
-  });
-  const targetChapterCount = resolvedTargetChapterCount.targetChapterCount;
-
-  if (!resolvedTargetChapterCount.beatSheetCountAccepted && beatSheetRequiredChapterCount > 0) {
-    console.warn(
-      `[volume.generate] event=beat_sheet_chapter_span_guard novelId=${document.novelId} volumeId=${targetVolume.id} budgeted=${budgetedTargetChapterCount} inferred=${beatSheetRequiredChapterCount} maxTrusted=${resolvedTargetChapterCount.maxTrustedChapterCount} using=${targetChapterCount}`,
-    );
-  }
-
-  await notifyVolumeGenerationPhase({
-    novelId: document.novelId,
-    scope: "chapter_list",
-    phase: "prompt",
-    label: `正在生成第 ${targetVolume.sortOrder} 卷章节列表`,
+  const { mergedDocument, mergedWorkspace } = await generateBeatChunkedChapterList({
+    document,
+    novel,
+    workspace,
+    storyMacroPlan,
     options,
-  });
-  const generated = await runStructuredPrompt({
-    asset: createVolumeChapterListPrompt(targetChapterCount),
-    promptInput: {
-      novel,
-      workspace,
-      storyMacroPlan,
-      strategyPlan: document.strategyPlan,
-      targetVolume,
-      targetBeatSheet,
-      previousVolume: targetIndex > 0 ? document.volumes[targetIndex - 1] : undefined,
-      nextVolume: targetIndex < document.volumes.length - 1 ? document.volumes[targetIndex + 1] : undefined,
-      guidance: options.guidance,
-      targetChapterCount,
-    },
-    contextBlocks: buildVolumeChapterListContextBlocks({
-      novel,
-      workspace,
-      storyMacroPlan,
-      strategyPlan: document.strategyPlan,
-      targetVolume,
-      targetBeatSheet,
-      previousVolume: targetIndex > 0 ? document.volumes[targetIndex - 1] : undefined,
-      nextVolume: targetIndex < document.volumes.length - 1 ? document.volumes[targetIndex + 1] : undefined,
-      guidance: options.guidance,
-      targetChapterCount,
+    notifyPhase: async (label) => notifyVolumeGenerationPhase({
+      novelId: document.novelId,
+      scope: "chapter_list",
+      phase: "prompt",
+      label,
+      options,
     }),
-    options: {
-      provider: options.provider,
-      model: options.model,
-      temperature: options.temperature ?? 0.35,
-    },
   });
-
-  const mergedDocument = mergeChapterList(document, targetVolume.id, generated.output.chapters);
   return generateRebalance({
     document: mergedDocument,
     novel,
-    workspace: {
-      ...workspace,
-      ...mergedDocument,
-    },
+    workspace: mergedWorkspace,
     storyMacroPlan,
     options: {
       ...options,

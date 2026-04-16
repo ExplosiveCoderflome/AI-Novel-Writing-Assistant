@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const {
   createChapterTaskSheetSchema,
   createVolumeBeatSheetSchema,
+  createVolumeChapterBeatBlockSchema,
   createVolumeRebalanceSchema,
   createVolumeStrategySchema,
 } = require("../dist/services/novel/volume/volumeGenerationSchemas.js");
@@ -230,6 +231,85 @@ test("volume beat sheet schema normalizes alias fields and wrapped payloads", ()
   assert.deepEqual(parsed.beats[0].mustDeliver, ["压迫感", "主角处境", "首个异常信号"]);
   assert.equal(parsed.beats[1].key, "first_escalation");
   assert.equal(parsed.beats[2].label, "中段转向");
+});
+
+test("volume chapter beat block schema normalizes beat aliases and enforces beat ownership", () => {
+  const schema = createVolumeChapterBeatBlockSchema({
+    exactChapterCount: 2,
+    expectedBeatKey: "open_hook",
+    expectedBeatLabel: "开卷抓手",
+  });
+  const parsed = schema.parse({
+    beat: "open_hook",
+    label: "开卷抓手",
+    count: 2,
+    items: [
+      {
+        chapterTitle: "第一束异常光",
+        description: "主角第一次看见危险信号，把卷内压迫落到眼前。",
+        beat: "open_hook",
+      },
+      {
+        name: "封锁线内侧",
+        content: "主角被迫进入更危险的区域，让本卷生存承诺正式成立。",
+        beat_key: "open_hook",
+      },
+    ],
+  });
+
+  assert.equal(parsed.beatKey, "open_hook");
+  assert.equal(parsed.beatLabel, "开卷抓手");
+  assert.equal(parsed.chapterCount, 2);
+  assert.equal(parsed.chapters[1].beatKey, "open_hook");
+});
+
+test("volume workspace document preserves chapter beat keys", () => {
+  const document = buildVolumeWorkspaceDocument({
+    novelId: "novel-1",
+    volumes: [
+      {
+        ...createVolume(1),
+        chapters: [
+          {
+            id: "chapter-1",
+            volumeId: "volume-1",
+            chapterOrder: 1,
+            beatKey: "open_hook",
+            title: "第一束异常光",
+            summary: "主角第一次看见危险信号。",
+            purpose: null,
+            conflictLevel: null,
+            revealLevel: null,
+            targetWordCount: null,
+            mustAvoid: null,
+            taskSheet: null,
+            sceneCards: null,
+            payoffRefs: [],
+            createdAt: new Date(0).toISOString(),
+            updatedAt: new Date(0).toISOString(),
+          },
+        ],
+      },
+    ],
+    beatSheets: [
+      {
+        volumeId: "volume-1",
+        volumeSortOrder: 1,
+        status: "generated",
+        beats: [
+          {
+            key: "open_hook",
+            label: "开卷抓手",
+            summary: "先把局势危险钉死。",
+            chapterSpanHint: "1章",
+            mustDeliver: ["压迫感"],
+          },
+        ],
+      },
+    ],
+  });
+
+  assert.equal(document.volumes[0].chapters[0].beatKey, "open_hook");
 });
 
 test("volume beat sheet prompt render includes explicit JSON field contract", () => {

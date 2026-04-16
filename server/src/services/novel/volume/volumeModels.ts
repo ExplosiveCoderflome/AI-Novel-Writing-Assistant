@@ -1,5 +1,6 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
+  VolumeChapterListGenerationMode,
   VolumeBeatSheet,
   VolumeChapterPlan,
   VolumeCritiqueReport,
@@ -67,7 +68,9 @@ export interface VolumeGenerateOptions {
   temperature?: number;
   guidance?: string;
   scope?: VolumeGenerationScopeInput;
+  generationMode?: VolumeChapterListGenerationMode;
   targetVolumeId?: string;
+  targetBeatKey?: string;
   targetChapterId?: string;
   detailMode?: "purpose" | "boundary" | "task_sheet";
   estimatedChapterCount?: number;
@@ -136,6 +139,7 @@ export function mapVolumeRow(row: VolumeRow): VolumePlan {
       id: chapter.id,
       volumeId: chapter.volumeId,
       chapterOrder: chapter.chapterOrder,
+      beatKey: null,
       title: chapter.title,
       summary: chapter.summary,
       purpose: chapter.purpose,

@@ -1,4 +1,5 @@
 import type {
+  VolumeBeat,
   VolumeBeatSheet,
   VolumeCountGuidance,
   VolumePlan,
@@ -55,10 +56,18 @@ export interface VolumeChapterListPromptInput {
   strategyPlan: VolumeStrategyPlan | null;
   targetVolume: VolumePlan;
   targetBeatSheet: VolumeBeatSheet;
+  targetBeat: VolumeBeat;
+  previousBeat?: VolumeBeat | null;
+  nextBeat?: VolumeBeat | null;
   previousVolume?: VolumePlan;
   nextVolume?: VolumePlan;
   guidance?: string;
-  targetChapterCount: number;
+  targetBeatChapterCount: number;
+  targetChapterStartOrder: number;
+  targetChapterEndOrder: number;
+  nextAvailableChapterOrder: number;
+  previousBeatChapterSummary?: string | null;
+  preservedBeatChapterSummary?: string | null;
   retryReason?: string | null;
 }
 
@@ -271,6 +280,49 @@ export function buildBeatSheetContext(beatSheet: VolumeBeatSheet | null | undefi
       `must deliver: ${beat.mustDeliver.join(" | ")}`,
     ].join("\n"))
     .join("\n\n");
+}
+
+export function buildBeatCard(beat: VolumeBeat | null | undefined): string {
+  if (!beat) {
+    return "none";
+  }
+  return [
+    `${beat.label} (${beat.key})`,
+    `summary: ${beat.summary}`,
+    `chapter span hint: ${beat.chapterSpanHint}`,
+    `must deliver: ${beat.mustDeliver.join(" | ") || "none"}`,
+  ].join("\n");
+}
+
+export function buildBeatContextWindow(params: {
+  previousBeat?: VolumeBeat | null;
+  nextBeat?: VolumeBeat | null;
+}): string {
+  const lines = [
+    params.previousBeat ? `previous beat:\n${buildBeatCard(params.previousBeat)}` : "",
+    params.nextBeat ? `next beat:\n${buildBeatCard(params.nextBeat)}` : "",
+  ].filter(Boolean);
+  return lines.join("\n\n") || "none";
+}
+
+export function buildBeatChapterRangeContext(input: {
+  targetBeat: VolumeBeat;
+  targetBeatChapterCount: number;
+  targetChapterStartOrder: number;
+  targetChapterEndOrder: number;
+  nextAvailableChapterOrder: number;
+}): string {
+  return [
+    `current beat: ${input.targetBeat.label} (${input.targetBeat.key})`,
+    `chapter slot range in current volume: ${input.targetChapterStartOrder}-${input.targetChapterEndOrder}`,
+    `target chapter count for this beat: ${input.targetBeatChapterCount}`,
+    `next available chapter slot before generation: ${input.nextAvailableChapterOrder}`,
+  ].join("\n");
+}
+
+export function buildBeatChapterSummary(summary: string | null | undefined): string {
+  const normalized = summary?.trim();
+  return normalized ? normalized : "none";
 }
 
 export function buildChapterNeighborContext(volume: VolumePlan, chapterId: string): string {

@@ -1,6 +1,7 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
+  VolumeChapterListGenerationMode,
   VolumeImpactResult,
   VolumeGenerationScopeInput,
   VolumePlan,
@@ -34,7 +35,9 @@ export async function generateNovelVolumes(
     temperature?: number;
     guidance?: string;
     scope?: VolumeGenerationScopeInput;
+    generationMode?: VolumeChapterListGenerationMode;
     targetVolumeId?: string;
+    targetBeatKey?: string;
     targetChapterId?: string;
     detailMode?: "purpose" | "boundary" | "task_sheet";
     estimatedChapterCount?: number;

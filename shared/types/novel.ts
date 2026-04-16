@@ -54,6 +54,7 @@ export type VolumeGenerationScope =
   | "chapter_detail"
   | "rebalance";
 export type VolumeGenerationScopeInput = VolumeGenerationScope | "book" | "volume";
+export type VolumeChapterListGenerationMode = "full_volume" | "single_beat";
 export type StoryPlanLevel = "book" | "arc" | "chapter";
 export type StoryPlanRole = "setup" | "progress" | "pressure" | "turn" | "payoff" | "cooldown";
 export type AuditType = "continuity" | "character" | "plot" | "mode_fit";
@@ -585,6 +586,7 @@ export interface VolumeChapterPlan {
   id: string;
   volumeId: string;
   chapterOrder: number;
+  beatKey?: string | null;
   title: string;
   summary: string;
   purpose?: string | null;

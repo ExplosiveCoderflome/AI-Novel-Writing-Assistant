@@ -40,6 +40,7 @@ const volumeChapterInputSchema = z.object({
   id: z.string().trim().min(1).optional(),
   chapterOrder: z.number().int().min(1).optional(),
   order: z.number().int().min(1).optional(),
+  beatKey: z.string().trim().nullable().optional(),
   title: z.string().trim().min(1),
   summary: z.string().trim().min(1),
   purpose: z.string().trim().nullable().optional(),
@@ -93,6 +94,7 @@ export const volumeGenerationSchema = z.object({
       chapters: z.array(
         z.object({
           chapterOrder: z.number().int().min(1),
+          beatKey: z.string().trim().nullable().optional(),
           title: z.string().trim().min(1),
           summary: z.string().trim().min(1),
           purpose: z.string().trim().optional().nullable(),
@@ -202,6 +204,7 @@ function sanitizeVolumeChapter(
     id: chapter.id?.trim() || createLocalId(`${novelId}-chapter`),
     volumeId,
     chapterOrder: chapter.chapterOrder ?? chapter.order ?? index + 1,
+    beatKey: normalizeText(chapter.beatKey),
     title: chapter.title.trim(),
     summary: chapter.summary.trim(),
     purpose: normalizeText(chapter.purpose),
@@ -273,6 +276,7 @@ function normalizeLegacyChapter(raw: unknown, index: number): VolumeChapterPlan 
   const chapterOrder = parsePositiveInteger(raw.chapterOrder ?? raw.order ?? raw.chapter ?? raw.chapterNo ?? raw.index) ?? index + 1;
   const title = pickFirstString(raw, ["title", "chapterTitle", "name", "chapterName"]) ?? `第${chapterOrder}章`;
   const summary = pickFirstString(raw, ["summary", "outline", "description", "content"]) ?? "";
+  const beatKey = pickFirstString(raw, ["beatKey", "beat_key"]);
   const purpose = pickFirstString(raw, ["purpose", "goal", "chapterGoal"]);
   const mustAvoid = pickFirstString(raw, ["mustAvoid", "must_avoid", "forbidden"]);
   const taskSheet = pickFirstString(raw, ["taskSheet", "task_sheet"]);
@@ -284,6 +288,7 @@ function normalizeLegacyChapter(raw: unknown, index: number): VolumeChapterPlan 
     id: createLocalId("legacy-chapter"),
     volumeId: "",
     chapterOrder,
+    beatKey,
     title,
     summary,
     purpose,
@@ -467,6 +472,7 @@ function buildFallbackVolumeSkeleton(source: LegacyVolumeSource): VolumePlan[] {
         id: createLocalId("legacy-chapter"),
         volumeId,
         chapterOrder: chapter.order,
+        beatKey: null,
         title: chapter.title,
         summary: chapter.expectation?.trim() || "",
         purpose: chapter.expectation?.trim() || null,
@@ -583,6 +589,7 @@ export function buildDerivedStructuredOutlineFromVolumes(volumes: VolumePlan[]):
           .sort((a, b) => a.chapterOrder - b.chapterOrder)
           .map((chapter) => ({
             order: chapter.chapterOrder,
+            beat_key: chapter.beatKey ?? undefined,
             title: chapter.title,
             summary: chapter.summary,
             purpose: chapter.purpose ?? undefined,

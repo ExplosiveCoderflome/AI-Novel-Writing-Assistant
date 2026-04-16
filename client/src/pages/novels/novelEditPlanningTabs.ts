@@ -104,7 +104,10 @@ interface BuildNovelEditPlanningTabsInput {
   isGeneratingBeatSheet: boolean;
   onGenerateBeatSheet: (volumeId: string) => void;
   isGeneratingChapterList: boolean;
-  onGenerateChapterList: (volumeId: string) => void;
+  generatingChapterListVolumeId: string;
+  generatingChapterListBeatKey: string;
+  generatingChapterListMode: StructuredTabViewProps["generatingChapterListMode"];
+  onGenerateChapterList: StructuredTabViewProps["onGenerateChapterList"];
   isGeneratingChapterDetail: boolean;
   isGeneratingChapterDetailBundle: boolean;
   generatingChapterDetailMode: StructuredTabViewProps["generatingChapterDetailMode"];
@@ -223,6 +226,9 @@ export function buildNovelEditPlanningTabs(input: BuildNovelEditPlanningTabsInpu
     isGeneratingBeatSheet: input.isGeneratingBeatSheet,
     onGenerateBeatSheet: input.onGenerateBeatSheet,
     isGeneratingChapterList: input.isGeneratingChapterList,
+    generatingChapterListVolumeId: input.generatingChapterListVolumeId,
+    generatingChapterListBeatKey: input.generatingChapterListBeatKey,
+    generatingChapterListMode: input.generatingChapterListMode,
     onGenerateChapterList: input.onGenerateChapterList,
     isGeneratingChapterDetail: input.isGeneratingChapterDetail,
     isGeneratingChapterDetailBundle: input.isGeneratingChapterDetailBundle,

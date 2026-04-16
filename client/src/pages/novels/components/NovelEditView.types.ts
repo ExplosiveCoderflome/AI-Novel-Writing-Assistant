@@ -18,6 +18,7 @@ import type {
   SupplementalCharacterGenerationResult,
   VolumeImpactResult,
   VolumeBeatSheet,
+  VolumeChapterListGenerationMode,
   VolumePlan,
   VolumePlanningReadiness,
   VolumePlanDiff,
@@ -54,6 +55,11 @@ import type { ExistingOutlineChapter } from "../volumePlan.utils";
 import type { AITakeoverAction } from "@/components/workflow/AITakeoverContainer";
 import type { SSEFrame } from "@ai-novel/shared/types/api";
 import type { ReactNode } from "react";
+
+export interface StructuredChapterListGenerationRequest {
+  generationMode?: VolumeChapterListGenerationMode;
+  targetBeatKey?: string;
+}
 
 export interface BasicTabProps {
   novelId: string;
@@ -207,7 +213,10 @@ export interface StructuredTabViewProps extends Omit<
   isGeneratingBeatSheet: boolean;
   onGenerateBeatSheet: (volumeId: string) => void;
   isGeneratingChapterList: boolean;
-  onGenerateChapterList: (volumeId: string) => void;
+  generatingChapterListVolumeId: string;
+  generatingChapterListBeatKey: string;
+  generatingChapterListMode: VolumeChapterListGenerationMode | null;
+  onGenerateChapterList: (volumeId: string, request?: StructuredChapterListGenerationRequest) => void;
   isGeneratingChapterDetail: boolean;
   isGeneratingChapterDetailBundle: boolean;
   generatingChapterDetailMode: "purpose" | "boundary" | "task_sheet" | "";

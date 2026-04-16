@@ -55,6 +55,7 @@ function normalizeChapterInput(raw: unknown, fallbackOrder: number): Omit<Volume
   return {
     id: normalizeText(record.id) ?? createLocalId("generation-chapter"),
     inputOrder,
+    beatKey: normalizeText(record.beatKey),
     title: normalizeText(record.title) ?? `第${inputOrder}章`,
     summary: normalizeText(record.summary) ?? normalizeText(record.purpose) ?? "待生成章节摘要",
     purpose: normalizeText(record.purpose),

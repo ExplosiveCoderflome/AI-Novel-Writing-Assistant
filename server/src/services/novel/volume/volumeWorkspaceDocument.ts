@@ -366,6 +366,7 @@ function hasChapterListChanged(currentVolumes: VolumePlan[], nextVolumes: Volume
       }
       return currentChapter.id !== nextChapter.id
         || currentChapter.chapterOrder !== nextChapter.chapterOrder
+        || (currentChapter.beatKey ?? null) !== (nextChapter.beatKey ?? null)
         || !compareText(currentChapter.title, nextChapter.title)
         || !compareText(currentChapter.summary, nextChapter.summary);
     });

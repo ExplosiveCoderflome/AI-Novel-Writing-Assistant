@@ -101,6 +101,7 @@ const volumeChapterSchema = z.object({
   id: z.string().trim().optional(),
   chapterOrder: z.number().int().min(1).optional(),
   order: z.number().int().min(1).optional(),
+  beatKey: z.string().trim().nullable().optional(),
   title: z.string().trim().min(1),
   summary: z.string().trim().min(1),
   purpose: z.string().trim().nullable().optional(),
@@ -344,7 +345,9 @@ const llmGenerateSchema = z.object({
 const volumeGenerateSchema = llmGenerateSchema.extend({
   guidance: z.string().trim().max(4000).optional(),
   scope: z.enum(["strategy", "strategy_critique", "skeleton", "beat_sheet", "chapter_list", "chapter_detail", "rebalance", "book", "volume"]).optional(),
+  generationMode: z.enum(["full_volume", "single_beat"]).optional(),
   targetVolumeId: z.string().trim().min(1).optional(),
+  targetBeatKey: z.string().trim().min(1).optional(),
   targetChapterId: z.string().trim().min(1).optional(),
   detailMode: z.enum(["purpose", "boundary", "task_sheet"]).optional(),
   estimatedChapterCount: z.number().int().min(1).max(2000).optional(),
@@ -358,6 +361,13 @@ const volumeGenerateSchema = llmGenerateSchema.extend({
       code: z.ZodIssueCode.custom,
       message: "按卷生成时必须提供目标卷。",
       path: ["targetVolumeId"],
+    });
+  }
+  if (value.scope === "chapter_list" && value.generationMode === "single_beat" && !value.targetBeatKey) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "按节奏段重生章节标题时必须提供目标节奏段。",
+      path: ["targetBeatKey"],
     });
   }
   if (value.scope === "chapter_detail" && !value.targetVolumeId) {

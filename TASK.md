@@ -829,6 +829,24 @@ P2 重点解决：
 本区块由 `$task-md-sync` 自动维护，用于同步开发计划与实现进度。
 
 <!-- task-md-sync:start -->
+<!-- task-md-sync:item:task-2f4c88b71e:start -->
+### 按卷节奏分块生成章节标题
+- 标识：`task-2f4c88b71e`
+- 状态：已完成
+- 最近更新：2026-04-17 01:12
+- 概要：将当前整卷一次性章节标题/摘要生成改为按卷节奏 beat 分块生成，并支持节奏段局部重生与章节 `beatKey` 显式绑定。
+
+计划清单：
+- [x] 扩展章节列表生成合同，新增 `generationMode`、`targetBeatKey` 和章节 `beatKey` 显式绑定
+- [x] 重构 `chapter_list` 编排为按 beat 分块生成、块级校验与整卷合并
+- [x] 在节奏 / 拆章工作区增加节奏段局部重生入口，并优先按 `beatKey` 归组章节
+- [x] 补充服务端、prompt、前端与工作流回归测试
+
+进度记录：
+- 2026-04-16 23:55 [开发中] 已确认实现范围仅覆盖章节标题/摘要链路，准备开始落地 shared contract、server orchestrator 与工作区局部重生入口。
+- 2026-04-17 01:12 [已完成] 已落地 beat-by-beat 章节块生成、`single_beat` 局部重生、章节 `beatKey` canonical 写回、前端 beat-aware 分组与局部重生按钮，并通过 `pnpm --filter @ai-novel/server build`、`pnpm --filter @ai-novel/client build` 与定向服务端测试。
+<!-- task-md-sync:item:task-2f4c88b71e:end -->
+
 <!-- task-md-sync:item:task-7c41b2e0d3:start -->
 ### 章节正文恢复整章生成
 - 标识：`task-7c41b2e0d3`

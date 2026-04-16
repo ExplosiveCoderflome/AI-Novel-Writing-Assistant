@@ -1,6 +1,10 @@
 import { createContextBlock } from "../../../core/contextBudget";
 import type { PromptContextBlock } from "../../../core/promptTypes";
 import {
+  buildBeatCard,
+  buildBeatChapterRangeContext,
+  buildBeatChapterSummary,
+  buildBeatContextWindow,
   buildBeatSheetContext,
   buildChapterDetailDraft,
   buildRecentChapterExecutionContext,
@@ -223,11 +227,29 @@ export function buildVolumeChapterListContextBlocks(input: VolumeChapterListProm
       content: `Target volume:\n${buildCompactVolumeCard(input.targetVolume)}`,
     }),
     createContextBlock({
-      id: "target_beat_sheet",
-      group: "target_beat_sheet",
+      id: "target_beat_contract",
+      group: "target_beat_contract",
       priority: 98,
       required: true,
-      content: `Target beat sheet:\n${buildBeatSheetContext(input.targetBeatSheet)}`,
+      content: [
+        `Target beat:\n${buildBeatCard(input.targetBeat)}`,
+        `Beat chapter contract:\n${buildBeatChapterRangeContext({
+          targetBeat: input.targetBeat,
+          targetBeatChapterCount: input.targetBeatChapterCount,
+          targetChapterStartOrder: input.targetChapterStartOrder,
+          targetChapterEndOrder: input.targetChapterEndOrder,
+          nextAvailableChapterOrder: input.nextAvailableChapterOrder,
+        })}`,
+      ].join("\n\n"),
+    }),
+    createContextBlock({
+      id: "beat_context_window",
+      group: "beat_context_window",
+      priority: 90,
+      content: `Adjacent beat window:\n${buildBeatContextWindow({
+        previousBeat: input.previousBeat,
+        nextBeat: input.nextBeat,
+      })}`,
     }),
     createContextBlock({
       id: "adjacent_volumes",
@@ -239,17 +261,22 @@ export function buildVolumeChapterListContextBlocks(input: VolumeChapterListProm
       ].filter(Boolean).join("\n\n") || "Adjacent volumes: none",
     }),
     createContextBlock({
+      id: "previous_beat_chapters",
+      group: "previous_beat_chapters",
+      priority: 86,
+      content: `Previous generated beat summary:\n${buildBeatChapterSummary(input.previousBeatChapterSummary)}`,
+    }),
+    createContextBlock({
+      id: "preserved_beat_chapters",
+      group: "preserved_beat_chapters",
+      priority: 84,
+      content: `Locked existing beat summary:\n${buildBeatChapterSummary(input.preservedBeatChapterSummary)}`,
+    }),
+    createContextBlock({
       id: "soft_future_summary",
       group: "soft_future_summary",
       priority: 74,
       content: `Future soft summary:\n${buildSoftFutureVolumeSummary(input.workspace.volumes, input.targetVolume.id)}`,
-    }),
-    createContextBlock({
-      id: "target_chapter_count",
-      group: "target_chapter_count",
-      priority: 96,
-      required: true,
-      content: `Target chapter count: ${input.targetChapterCount}`,
     }),
     guidanceBlock(input.guidance),
   ].filter((block): block is PromptContextBlock => Boolean(block));
