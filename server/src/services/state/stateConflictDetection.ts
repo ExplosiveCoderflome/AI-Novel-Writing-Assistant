@@ -280,8 +280,9 @@ export function detectStateDiffConflicts(input: DetectStateDiffConflictsInput): 
     }
 
     const setupMissingKey = `foreshadow_missing_setup:${foreshadowKey}`;
+    const normalizedForeshadowStatus = normalizeText(currentState.status).toLowerCase();
     const currentRank = rankForeshadowStatus(currentState.status);
-    if (currentRank >= 3) {
+    if (currentRank >= 3 && normalizedForeshadowStatus !== "pending_payoff") {
       trackedConflictKeys.add(setupMissingKey);
       if (!previousState && !normalizeText(currentState.setupChapterId)) {
         conflicts.set(setupMissingKey, {

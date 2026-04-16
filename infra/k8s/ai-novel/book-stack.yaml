@@ -15,11 +15,32 @@ data:
   HOST: 0.0.0.0
   PORT: "3000"
   CORS_ORIGIN: https://book.luckydcms.com
-  RAG_ENABLED: "false"
+  RAG_ENABLED: "true"
+  EMBEDDING_PROVIDER: siliconflow
+  EMBEDDING_MODEL: BAAI/bge-m3
+  QDRANT_URL: http://ai-novel-qdrant:6333
   IMAGE_STORAGE_DRIVER: s3
   IMAGE_STORAGE_ROOT: storage/generated-images
   IMAGE_STORAGE_S3_REGION: us-east-1
   IMAGE_STORAGE_S3_FORCE_PATH_STYLE: "true"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ai-novel-qdrant-storage
+  namespace: etl
+  labels:
+    app.kubernetes.io/name: ai-novel
+    app.kubernetes.io/component: qdrant
+    app.kubernetes.io/part-of: ai-novel
+    app.kubernetes.io/instance: ai-novel
+    app.kubernetes.io/environment: production
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -61,6 +82,8 @@ spec:
       app.kubernetes.io/instance: ai-novel
   template:
     metadata:
+      annotations:
+        ai-novel/config-revision: "2026-04-16-rag-enable-1"
       labels:
         app.kubernetes.io/name: ai-novel
         app.kubernetes.io/component: api
@@ -106,6 +129,8 @@ spec:
             - configMapRef:
                 name: ai-novel-api-config
           env:
+            - name: RAG_CONFIG_VERSION
+              value: "2026-04-16-rag-enable-1"
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
@@ -131,6 +156,11 @@ spec:
                 secretKeyRef:
                   name: ai-novel-minio-secrets
                   key: MINIO_SECRET_KEY
+            - name: SILICONFLOW_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ai-novel-rag-secrets
+                  key: SILICONFLOW_API_KEY
           ports:
             - name: http
               containerPort: 3000
@@ -201,6 +231,148 @@ spec:
       port: 3000
       targetPort: http
       protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-novel-qdrant
+  namespace: etl
+  labels:
+    app.kubernetes.io/name: ai-novel
+    app.kubernetes.io/component: qdrant
+    app.kubernetes.io/part-of: ai-novel
+    app.kubernetes.io/instance: ai-novel
+    app.kubernetes.io/environment: production
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ai-novel
+      app.kubernetes.io/component: qdrant
+      app.kubernetes.io/instance: ai-novel
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ai-novel
+        app.kubernetes.io/component: qdrant
+        app.kubernetes.io/part-of: ai-novel
+        app.kubernetes.io/instance: ai-novel
+        app.kubernetes.io/environment: production
+    spec:
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: harbor-registry
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: qdrant
+          image: hub.luckydcms.com/library/ai-novel-qdrant:v1.15.4-20260416-amd64
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 6333
+              protocol: TCP
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: false
+            runAsUser: 0
+            runAsGroup: 0
+          volumeMounts:
+            - name: qdrant-storage
+              mountPath: /qdrant/storage
+      volumes:
+        - name: qdrant-storage
+          persistentVolumeClaim:
+            claimName: ai-novel-qdrant-storage
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-novel-qdrant
+  namespace: etl
+  labels:
+    app.kubernetes.io/name: ai-novel
+    app.kubernetes.io/component: qdrant
+    app.kubernetes.io/part-of: ai-novel
+    app.kubernetes.io/instance: ai-novel
+    app.kubernetes.io/environment: production
+spec:
+  selector:
+    app.kubernetes.io/name: ai-novel
+    app.kubernetes.io/component: qdrant
+    app.kubernetes.io/instance: ai-novel
+  ports:
+    - name: http
+      port: 6333
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ai-novel-qdrant-ingress
+  namespace: etl
+  labels:
+    app.kubernetes.io/name: ai-novel
+    app.kubernetes.io/component: qdrant
+    app.kubernetes.io/part-of: ai-novel
+    app.kubernetes.io/instance: ai-novel
+    app.kubernetes.io/environment: production
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ai-novel
+      app.kubernetes.io/component: qdrant
+      app.kubernetes.io/instance: ai-novel
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ai-novel
+              app.kubernetes.io/component: api
+              app.kubernetes.io/instance: ai-novel
+      ports:
+        - protocol: TCP
+          port: 6333
 ---
 apiVersion: apps/v1
 kind: Deployment

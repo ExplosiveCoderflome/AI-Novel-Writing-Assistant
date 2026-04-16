@@ -181,12 +181,95 @@ test("runFromReady reuses an existing active range job before starting a new pip
   });
 
   assert.deepEqual(calls, [
-    ["bootstrapTask", "job-stale", "running"],
     ["getPipelineJobById", "job-stale"],
+    ["bootstrapTask", null, "queued"],
     ["findActivePipelineJobForRange", "novel-1", 1, 2, null],
     ["bootstrapTask", "job-active", "running"],
     ["getPipelineJobById", "job-active"],
     ["recordCheckpoint", "task-auto-exec", "job-active", "succeeded"],
+  ]);
+});
+
+test("runFromReady ignores a persisted pipeline job that does not belong to the current novel", async () => {
+  const calls = [];
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        return [
+          { id: "chapter-1", order: 1, generationState: "draft" },
+          { id: "chapter-2", order: 2, generationState: "draft" },
+        ];
+      },
+    },
+    novelService: {
+      async startPipelineJob() {
+        calls.push(["startPipelineJob"]);
+        throw new Error("should not start a new pipeline job");
+      },
+      async findActivePipelineJobForRange() {
+        calls.push(["findActivePipelineJobForRange"]);
+        return null;
+      },
+      async getPipelineJob(novelId, jobId) {
+        calls.push(["getPipelineJob", novelId, jobId]);
+        return null;
+      },
+      async getPipelineJobById(jobId) {
+        calls.push(["getPipelineJobById", jobId]);
+        return {
+          id: jobId,
+          status: "running",
+          progress: 0.4,
+          currentStage: "drafting",
+          currentItemLabel: "foreign job",
+          error: null,
+        };
+      },
+      async cancelPipelineJob(jobId) {
+        calls.push(["cancelPipelineJob", jobId]);
+      },
+    },
+    workflowService: {
+      async bootstrapTask(input) {
+        calls.push(["bootstrapTask", input.seedPayload.autoExecution.pipelineJobId, input.seedPayload.autoExecution.pipelineStatus]);
+      },
+      async getTaskById() {
+        return { status: "cancelled" };
+      },
+      async markTaskRunning() {
+        calls.push(["markTaskRunning"]);
+      },
+      async recordCheckpoint() {
+        calls.push(["recordCheckpoint"]);
+      },
+      async markTaskFailed() {
+        calls.push(["markTaskFailed"]);
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+  });
+
+  await runtime.runFromReady({
+    taskId: "task-auto-exec",
+    novelId: "novel-1",
+    request: buildRequest(),
+    existingState: {
+      enabled: true,
+      firstChapterId: "chapter-1",
+      startOrder: 1,
+      endOrder: 2,
+      totalChapterCount: 2,
+      pipelineJobId: "job-foreign",
+      pipelineStatus: "running",
+    },
+    existingPipelineJobId: "job-foreign",
+  });
+
+  assert.deepEqual(calls, [
+    ["getPipelineJob", "novel-1", "job-foreign"],
+    ["bootstrapTask", null, "queued"],
   ]);
 });
 

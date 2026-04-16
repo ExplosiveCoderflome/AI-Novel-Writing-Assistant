@@ -82,6 +82,15 @@ interface NovelDirectorAutoExecutionNovelPort {
     endOrder: number,
     preferredJobId?: string | null,
   ): Promise<{ id: string; status: PipelineJobStatus } | null>;
+  getPipelineJob?(novelId: string, jobId: string): Promise<{
+    id: string;
+    status: PipelineJobStatus;
+    progress: number;
+    currentStage?: string | null;
+    currentItemLabel?: string | null;
+    noticeSummary?: string | null;
+    error?: string | null;
+  } | null>;
   getPipelineJobById(jobId: string): Promise<{
     id: string;
     status: PipelineJobStatus;
@@ -98,7 +107,7 @@ interface NovelDirectorAutoExecutionRuntimeDeps {
   novelContextService: Pick<NovelDirectorAutoExecutionNovelPort, "listChapters">;
   novelService: Pick<
     NovelDirectorAutoExecutionNovelPort,
-    "startPipelineJob" | "findActivePipelineJobForRange" | "getPipelineJobById" | "cancelPipelineJob"
+    "startPipelineJob" | "findActivePipelineJobForRange" | "getPipelineJob" | "getPipelineJobById" | "cancelPipelineJob"
   >;
   workflowService: NovelDirectorAutoExecutionWorkflowPort;
   buildDirectorSeedPayload: (
@@ -130,6 +139,8 @@ export class NovelDirectorAutoExecutionRuntime {
     if (!range) {
       throw new Error("当前还没有可自动执行的章节，请先完成目标范围的拆章同步。");
     }
+    const hasPipelineJobId = Object.prototype.hasOwnProperty.call(input, "pipelineJobId");
+    const hasPipelineStatus = Object.prototype.hasOwnProperty.call(input, "pipelineStatus");
     return {
       range,
       autoExecution: buildDirectorAutoExecutionState({
@@ -139,8 +150,12 @@ export class NovelDirectorAutoExecutionRuntime {
         scopeLabel: input.existingState?.scopeLabel ?? null,
         volumeTitle: input.existingState?.volumeTitle ?? null,
         preparedVolumeIds: input.existingState?.preparedVolumeIds ?? [],
-        pipelineJobId: input.pipelineJobId ?? input.existingState?.pipelineJobId ?? null,
-        pipelineStatus: input.pipelineStatus ?? input.existingState?.pipelineStatus ?? null,
+        pipelineJobId: hasPipelineJobId
+          ? (input.pipelineJobId ?? null)
+          : (input.existingState?.pipelineJobId ?? null),
+        pipelineStatus: hasPipelineStatus
+          ? (input.pipelineStatus ?? null)
+          : (input.existingState?.pipelineStatus ?? null),
       }),
     };
   }
@@ -241,11 +256,23 @@ export class NovelDirectorAutoExecutionRuntime {
     resumeCheckpointType?: "front10_ready" | "chapter_batch_ready" | null;
   }): Promise<void> {
     let pipelineJobId = input.existingPipelineJobId?.trim() || "";
+    let pipelineStatus: PipelineJobStatus | null = pipelineJobId ? "running" : "queued";
+    if (pipelineJobId) {
+      const existingJob = this.deps.novelService.getPipelineJob
+        ? await this.deps.novelService.getPipelineJob(input.novelId, pipelineJobId)
+        : await this.deps.novelService.getPipelineJobById(pipelineJobId);
+      if (!existingJob || ["failed", "cancelled", "succeeded"].includes(existingJob.status)) {
+        pipelineJobId = "";
+        pipelineStatus = "queued";
+      } else {
+        pipelineStatus = existingJob.status;
+      }
+    }
     let { range, autoExecution } = await this.resolveRangeAndState({
       novelId: input.novelId,
       existingState: input.existingState,
       pipelineJobId: pipelineJobId || null,
-      pipelineStatus: pipelineJobId ? "running" : "queued",
+      pipelineStatus,
     });
 
     try {
@@ -259,13 +286,6 @@ export class NovelDirectorAutoExecutionRuntime {
       });
       if (await this.shouldStopAutoExecution(input.taskId, pipelineJobId || null)) {
         return;
-      }
-
-      if (pipelineJobId) {
-        const existingJob = await this.deps.novelService.getPipelineJobById(pipelineJobId);
-        if (!existingJob || ["failed", "cancelled", "succeeded"].includes(existingJob.status)) {
-          pipelineJobId = "";
-        }
       }
 
       const activeRangeJob = await this.deps.novelService.findActivePipelineJobForRange(

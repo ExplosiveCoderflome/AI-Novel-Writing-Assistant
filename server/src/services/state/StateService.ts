@@ -1,6 +1,11 @@
 import { prisma } from "../../db/prisma";
 import { stringifyStringArray } from "../novel/novelP0Utils";
 import { payoffLedgerSyncService } from "../payoff/PayoffLedgerSyncService";
+import {
+  createNovelChapterReferenceLookup,
+  resolveNovelChapterId,
+  type NovelChapterReferenceLookup,
+} from "../payoff/payoffLedgerChapterRefs";
 import { openConflictService } from "./OpenConflictService";
 import {
   extractSnapshotWithAI,
@@ -19,6 +24,15 @@ function clampStateScore(value: unknown): number | null {
 function normalizeStatus(value: unknown, fallback: string): string {
   const text = String(value ?? "").trim();
   return text || fallback;
+}
+
+async function buildChapterReferenceLookup(novelId: string): Promise<NovelChapterReferenceLookup> {
+  const chapters = await prisma.chapter.findMany({
+    where: { novelId },
+    select: { id: true, order: true },
+    orderBy: { order: "asc" },
+  });
+  return createNovelChapterReferenceLookup(chapters);
 }
 
 export class StateService {
@@ -99,7 +113,13 @@ export class StateService {
     ].filter(Boolean).join("\n\n");
   }
 
-  async syncChapterState(novelId: string, chapterId: string, content: string, options: StateServiceOptions = {}) {
+  async syncChapterState(
+    novelId: string,
+    chapterId: string,
+    content: string,
+    options: StateServiceOptions = {},
+    chapterLookup?: NovelChapterReferenceLookup,
+  ) {
     const [chapter, characters, summaryRow, factRows, timelineRows] = await Promise.all([
       prisma.chapter.findFirst({
         where: { id: chapterId, novelId },
@@ -144,6 +164,7 @@ export class StateService {
       characters,
       previousSnapshot,
       extracted,
+      chapterLookup: chapterLookup ?? await buildChapterReferenceLookup(novelId),
     });
   }
 
@@ -153,13 +174,14 @@ export class StateService {
       select: { id: true, content: true, order: true },
       orderBy: { order: "asc" },
     });
+    const chapterLookup = createNovelChapterReferenceLookup(chapters);
     await prisma.storyStateSnapshot.deleteMany({ where: { novelId } });
     const rebuilt = [];
     for (const chapter of chapters) {
       if (!chapter.content?.trim()) {
         continue;
       }
-      const snapshot = await this.syncChapterState(novelId, chapter.id, chapter.content, options);
+      const snapshot = await this.syncChapterState(novelId, chapter.id, chapter.content, options, chapterLookup);
       rebuilt.push(snapshot);
     }
     return rebuilt;
@@ -172,6 +194,7 @@ export class StateService {
     characters: Array<{ id: string; name: string }>;
     previousSnapshot: Awaited<ReturnType<StateService["getLatestSnapshotBeforeChapter"]>>;
     extracted: SnapshotExtractionOutput;
+    chapterLookup: NovelChapterReferenceLookup;
   }) {
     const characterMap = new Map<string, string>();
     for (const character of input.characters) {
@@ -241,12 +264,19 @@ export class StateService {
         if (!item.title?.trim()) {
           return null;
         }
+        const status = normalizeStatus(item.status, "setup");
+        const fallbackSetupChapterId = status === "setup" ? input.chapterId : null;
         return {
           title: item.title.trim(),
           summary: item.summary?.trim() || null,
-          status: normalizeStatus(item.status, "setup"),
-          setupChapterId: item.setupChapterId?.trim() || input.chapterId,
-          payoffChapterId: item.payoffChapterId?.trim() || null,
+          status,
+          setupChapterId: resolveNovelChapterId({
+            rawChapterId: item.setupChapterId ?? null,
+            fallbackChapterId: fallbackSetupChapterId,
+          }, input.chapterLookup) ?? fallbackSetupChapterId,
+          payoffChapterId: resolveNovelChapterId({
+            rawChapterId: item.payoffChapterId ?? null,
+          }, input.chapterLookup),
         };
       })
       .filter((item): item is NonNullable<typeof item> => Boolean(item));
