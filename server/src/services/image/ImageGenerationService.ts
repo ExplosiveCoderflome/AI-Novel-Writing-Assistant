@@ -361,6 +361,25 @@ export class ImageGenerationService {
         },
       });
 
+      const persistedImages: Array<{
+        image: (typeof result.images)[number];
+        persisted: Awaited<ReturnType<typeof persistGeneratedImageAsset>>;
+      }> = [];
+      for (let index = 0; index < result.images.length; index += 1) {
+        await this.ensureNotCancelled(task.id);
+        const image = result.images[index];
+        const persisted = await persistGeneratedImageAsset({
+          taskId: task.id,
+          sceneType: "character",
+          baseCharacterId: task.baseCharacterId,
+          sortOrder: index,
+          url: image.url,
+          mimeType: image.mimeType ?? null,
+        });
+        persistedImages.push({ image, persisted });
+      }
+
+      await this.ensureNotCancelled(task.id);
       await prisma.$transaction(async (tx) => {
         const hasPrimary = await tx.imageAsset.findFirst({
           where: {
@@ -370,16 +389,8 @@ export class ImageGenerationService {
           },
           select: { id: true },
         });
-        for (let index = 0; index < result.images.length; index += 1) {
-          const image = result.images[index];
-          const persisted = await persistGeneratedImageAsset({
-            taskId: task.id,
-            sceneType: "character",
-            baseCharacterId: task.baseCharacterId,
-            sortOrder: index,
-            url: image.url,
-            mimeType: image.mimeType ?? null,
-          });
+        for (let index = 0; index < persistedImages.length; index += 1) {
+          const { image, persisted } = persistedImages[index];
           await tx.imageAsset.create({
             data: {
               taskId: task.id,
