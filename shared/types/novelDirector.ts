@@ -108,6 +108,8 @@ export interface DirectorAutoExecutionState extends DirectorAutoExecutionPlan {
   scopeLabel?: string | null;
   volumeTitle?: string | null;
   preparedVolumeIds?: string[];
+  skippedChapterIds?: string[];
+  skippedChapterOrders?: number[];
   firstChapterId?: string | null;
   startOrder?: number;
   endOrder?: number;
@@ -288,7 +290,7 @@ export interface DirectorTakeoverPipelineJobSnapshot {
 }
 
 export interface DirectorTakeoverCheckpointSnapshot {
-  checkpointType: "front10_ready" | "chapter_batch_ready" | null;
+  checkpointType: "front10_ready" | "chapter_batch_ready" | "replan_required" | null;
   checkpointSummary?: string | null;
   chapterId?: string | null;
   chapterOrder?: number | null;

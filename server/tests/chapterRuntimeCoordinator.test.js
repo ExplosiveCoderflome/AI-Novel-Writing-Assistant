@@ -24,6 +24,9 @@ function createAssembledChapter() {
         targetWordCount: 3000,
         sceneCards: null,
       },
+      nextAction: "write_chapter",
+      pendingReviewProposalCount: 0,
+      openAuditIssues: [],
       chapterWriteContext: {
         chapterMission: {
           targetWordCount: 3000,
@@ -132,4 +135,33 @@ test("createChapterStream does not touch execution contract refresh even if the 
   } finally {
     console.warn = originalWarn;
   }
+});
+
+test("createChapterStream blocks when state-driven decision requires review first", async () => {
+  const assembled = createAssembledChapter();
+  assembled.contextPackage.nextAction = "hold_for_review";
+  assembled.contextPackage.pendingReviewProposalCount = 2;
+  assembled.contextPackage.openAuditIssues = [{
+    description: "pending review issue",
+  }];
+
+  const coordinator = new ChapterRuntimeCoordinator({
+    validateRequest: (input) => input,
+    ensureNovelCharacters: async () => undefined,
+    assembler: {
+      assemble: async () => assembled,
+    },
+    chapterWritingGraph: {
+      createChapterStream: async () => {
+        throw new Error("writer should not run");
+      },
+    },
+    agentRuntime: createAgentRuntime(),
+  });
+  coordinator.markChapterStatus = async () => undefined;
+
+  await assert.rejects(
+    () => coordinator.createChapterStream("novel-1", "chapter-1", {}),
+    /blocked until review is resolved/i,
+  );
 });

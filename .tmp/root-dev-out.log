@@ -1,0 +1,283 @@
+
+> ai-novel-writing-assistant-v2@ dev D:\code\AI-Novel-Writing-Assistant-v2
+> node scripts/run-with-log.cjs --name dev -- pnpm dev:raw
+
+[run-with-log] writing log to D:\code\AI-Novel-Writing-Assistant-v2\.logs\2026-04-16\2026-04-16T10-52-43-dev.log
+
+> ai-novel-writing-assistant-v2@ dev:raw D:\code\AI-Novel-Writing-Assistant-v2
+> concurrently "pnpm dev:shared" "pnpm dev:server" "pnpm dev:client:wait"
+
+[0] 
+[0] > ai-novel-writing-assistant-v2@ dev:shared D:\code\AI-Novel-Writing-Assistant-v2
+[0] > pnpm --filter @ai-novel/shared dev
+[0] 
+[2] 
+[2] > ai-novel-writing-assistant-v2@ dev:client:wait D:\code\AI-Novel-Writing-Assistant-v2
+[2] > node scripts/wait-for-port.cjs --port 3000 && pnpm dev:client
+[2] 
+[1] 
+[1] > ai-novel-writing-assistant-v2@ dev:server D:\code\AI-Novel-Writing-Assistant-v2
+[1] > pnpm --filter @ai-novel/server dev
+[1] 
+[2] [wait-for-port] Waiting for 127.0.0.1:3000, localhost:3000, [::1]:3000 (timeout 120000ms)
+[2] [wait-for-port] 127.0.0.1:3000 is ready.
+[1] 
+[1] > @ai-novel/server@0.1.0 dev D:\code\AI-Novel-Writing-Assistant-v2\server
+[1] > node scripts/ensure-dev-prisma.cjs && ts-node-dev --respawn --transpile-only src/app.ts
+[1] 
+[0] 
+[0] > @ai-novel/shared@0.1.0 dev D:\code\AI-Novel-Writing-Assistant-v2\shared
+[0] > tsc -p tsconfig.json --watch --preserveWatchOutput
+[0] 
+[2] 
+[2] > ai-novel-writing-assistant-v2@ dev:client D:\code\AI-Novel-Writing-Assistant-v2
+[2] > pnpm --filter @ai-novel/client dev
+[2] 
+[1] [dev-prisma] schema unchanged, skipping prisma generate/push.
+[0] 
+[0] 10:53:07 - Starting compilation in watch mode...
+[0] 
+[2] 
+[2] > @ai-novel/client@0.1.0 dev D:\code\AI-Novel-Writing-Assistant-v2\client
+[2] > vite
+[2] 
+[0] 
+[0] 10:53:10 - Found 0 errors. Watching for file changes.
+[1] [INFO] 10:53:19 ts-node-dev ver. 2.0.0 (using ts-node ver. 10.9.2, typescript ver. 5.9.3)
+[2] Port 5173 is in use, trying another one...
+[2] 
+[2]   [32m[1mVITE[22m v7.3.1[39m  [2mready in [0m[1m1559[22m[2m[0m ms[22m
+[2] 
+[2]   [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5174[22m/[39m
+[2]   [32m➜[39m  [1mNetwork[22m: [36mhttp://28.0.0.1:[1m5174[22m/[39m
+[2]   [32m➜[39m  [1mNetwork[22m: [36mhttp://100.65.246.59:[1m5174[22m/[39m
+[2]   [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.0.86:[1m5174[22m/[39m
+[2]   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.24.144.1:[1m5174[22m/[39m
+[1] [RAG][Worker] Worker started. { pollMs: 2500, maxAttempts: 5, retryBaseMs: 5000 }
+[1] [server] listening on http://localhost:3000
+[1] [server] LAN: http://28.0.0.1:3000
+[0] 
+[0] 11:53:00 - File change detected. Starting incremental compilation...
+[0] 
+[0] 
+[0] 11:53:00 - Found 0 errors. Watching for file changes.
+[0] 
+[0] 11:53:01 - File change detected. Starting incremental compilation...
+[0] 
+[0] 
+[0] 11:53:01 - Found 0 errors. Watching for file changes.
+[0] 
+[0] 11:53:06 - File change detected. Starting incremental compilation...
+[0] 
+[0] 
+[0] 11:53:07 - Found 0 errors. Watching for file changes.
+[0] 
+[0] 11:54:04 - File change detected. Starting incremental compilation...
+[0] 
+[0] 
+[0] 11:54:04 - Found 0 errors. Watching for file changes.
+[1] [INFO] 11:54:06 Restarting: D:\code\AI-Novel-Writing-Assistant-v2\shared\dist\imagePrompt.js has been modified
+[1] [RAG][Worker] Worker started. { pollMs: 2500, maxAttempts: 5, retryBaseMs: 5000 }
+[1] [server] listening on http://localhost:3000
+[1] [server] LAN: http://28.0.0.1:3000
+[1] GET /api/tasks/overview 304 53.038 ms - 0
+[1] GET /api/knowledge/documents 304 9.455 ms - 0
+[1] GET /api/tasks/recovery-candidates 304 56.385 ms - 0
+[1] GET /api/tasks/overview 304 12.466 ms - 0
+[1] GET /api/novels?page=1&limit=100 304 65.026 ms - 0
+[1] GET /api/settings/api-keys 200 2720.680 ms - 15453
+[1] GET /api/tasks/overview 304 11.682 ms - 0
+[1] GET /api/tasks/overview 304 11.428 ms - 0
+[1] GET /api/tasks/overview 304 15.447 ms - 0
+[1] GET /api/tasks/overview 304 12.585 ms - 0
+[1] GET /api/tasks?limit=80 200 827.102 ms - 108742
+[1] GET /api/tasks/novel_workflow/cmnzqldbh005m5kv1j2ignqt5 200 20.547 ms - 29183
+[1] GET /api/tasks/overview 304 11.537 ms - 0
+[1] GET /api/tasks?limit=80 304 39.759 ms - 0
+[1] GET /api/tasks/overview 304 12.265 ms - 0
+[1] GET /api/book-analysis 200 5.237 ms - 2520
+[1] GET /api/knowledge/documents 304 2.697 ms - 0
+[1] GET /api/novels?page=1&limit=100 304 45.578 ms - 0
+[1] GET /api/book-analysis/cmnr0pekg005xxov1siicpiw2 200 94.172 ms - 58786
+[1] GET /api/book-analysis 304 2.477 ms - 0
+[1] GET /api/knowledge/documents/cmmilsa9l00058wv14si10p3i 200 259.074 ms - 2126892
+[1] GET /api/tasks/overview 304 11.530 ms - 0
+[1] GET /api/creative-hub/threads 304 3.158 ms - 0
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/state 200 67.918 ms - 2901
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/history 200 11.039 ms - 2844
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/state 304 3.310 ms - 0
+[1] GET /api/tasks/overview 304 11.189 ms - 0
+[1] GET /api/novels?page=1&limit=100 304 40.862 ms - 0
+[1] GET /api/tasks/overview 304 11.282 ms - 0
+[1] GET /api/tasks/overview 200 11.047 ms - 183
+[1] GET /api/settings/api-keys 200 8.120 ms - 15453
+[1] GET /api/tasks/overview 200 14.774 ms - 183
+[1] GET /api/knowledge/documents 200 3.775 ms - 1310
+[1] GET /api/tasks/recovery-candidates 200 23.133 ms - 949
+[1] GET /api/tasks/overview 200 14.545 ms - 183
+[1] GET /api/novels?page=1&limit=100 200 37.090 ms - 950151
+[1] GET /api/tasks/overview 200 11.334 ms - 183
+[1] GET /api/settings/api-keys 200 4.874 ms - 15453
+[1] GET /api/tasks/overview 200 12.700 ms - 183
+[1] GET /api/knowledge/documents 200 2.345 ms - 1310
+[1] GET /api/tasks/recovery-candidates 200 22.624 ms - 949
+[1] GET /api/tasks/overview 200 11.349 ms - 183
+[1] GET /api/novels?page=1&limit=100 200 39.639 ms - 950151
+[1] GET /api/tasks/overview 200 10.952 ms - 183
+[1] GET /api/tasks/overview 200 10.765 ms - 183
+[1] GET /api/tasks/overview 200 17.900 ms - 183
+[1] GET /api/tasks/overview 200 15.384 ms - 183
+[1] GET /api/tasks/overview 200 11.021 ms - 183
+[1] GET /api/tasks/overview 200 10.798 ms - 183
+[1] GET /api/tasks/overview 200 10.749 ms - 183
+[1] GET /api/tasks/overview 200 11.260 ms - 183
+[1] GET /api/tasks/overview 200 11.274 ms - 183
+[1] GET /api/tasks/overview 200 13.135 ms - 183
+[1] GET /api/creative-hub/threads 200 1.605 ms - 520
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/state 200 4.109 ms - 2901
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/history 200 1.481 ms - 2844
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/state 200 3.925 ms - 2901
+[1] GET /api/book-analysis 200 3.144 ms - 2520
+[1] GET /api/knowledge/documents 200 2.533 ms - 1310
+[1] GET /api/novels?page=1&limit=100 200 39.592 ms - 950151
+[1] GET /api/book-analysis/cmnr0pekg005xxov1siicpiw2 200 5.838 ms - 58786
+[1] GET /api/tasks?limit=80 200 38.053 ms - 108742
+[1] GET /api/tasks/novel_workflow/cmnzqldbh005m5kv1j2ignqt5 200 16.357 ms - 29183
+[1] GET /api/tasks/overview 200 10.727 ms - 183
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/state 200 3.628 ms - 2901
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/history 200 1.387 ms - 2844
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/state 200 3.060 ms - 2901
+[1] GET /api/book-analysis 200 2.563 ms - 2520
+[1] GET /api/knowledge/documents 200 2.582 ms - 1310
+[1] GET /api/novels?page=1&limit=100 200 36.915 ms - 950151
+[1] GET /api/book-analysis/cmnr0pekg005xxov1siicpiw2 200 5.030 ms - 58786
+[1] GET /api/tasks?limit=80 200 36.472 ms - 108742
+[1] GET /api/tasks/overview 200 11.758 ms - 183
+[1] GET /api/tasks/novel_workflow/cmnzqldbh005m5kv1j2ignqt5 200 14.734 ms - 29183
+[1] GET /api/tasks?limit=80 200 40.661 ms - 108742
+[1] GET /api/tasks/overview 200 11.791 ms - 183
+[1] GET /api/tasks?limit=80 200 56.745 ms - 108742
+[1] GET /api/tasks/overview 200 23.368 ms - 183
+[1] GET /api/tasks?limit=80 200 34.460 ms - 108742
+[1] GET /api/tasks/overview 200 12.224 ms - 183
+[1] GET /api/tasks?limit=80 200 34.449 ms - 108742
+[1] GET /api/tasks/novel_workflow/cmngv72es0026u8v1tovedqpb 200 12.618 ms - 9897
+[1] GET /api/tasks/overview 200 10.993 ms - 183
+[1] GET /api/tasks/novel_pipeline/cmnwvnfms0001jsv13xs4e445 200 3.112 ms - 2452
+[1] GET /api/tasks/novel_workflow/cmngv72es0026u8v1tovedqpb 200 13.110 ms - 9897
+[1] GET /api/tasks/novel_workflow/cmnzqldbh005m5kv1j2ignqt5 200 15.014 ms - 29183
+[1] GET /api/tasks?limit=80 200 36.387 ms - 108742
+[1] GET /api/tasks/overview 200 13.363 ms - 183
+[1] GET /api/tasks?limit=80 200 39.484 ms - 108742
+[1] GET /api/tasks/overview 200 10.513 ms - 183
+[1] GET /api/creative-hub/threads 200 1.608 ms - 520
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/state 200 6.585 ms - 2901
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/history 200 2.406 ms - 2844
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/state 200 4.966 ms - 2901
+[1] GET /api/tasks/overview 200 15.561 ms - 183
+[1] GET /api/book-analysis 200 3.064 ms - 2520
+[1] GET /api/knowledge/documents 200 2.958 ms - 1310
+[1] GET /api/novels?page=1&limit=100 200 39.351 ms - 950151
+[1] GET /api/book-analysis/cmnr0pekg005xxov1siicpiw2 200 5.686 ms - 58786
+[1] GET /api/book-analysis 200 2.804 ms - 2520
+[1] GET /api/knowledge/documents/cmmilsa9l00058wv14si10p3i 200 36.709 ms - 2126892
+[1] GET /api/tasks/overview 200 11.448 ms - 183
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/state 200 5.287 ms - 2901
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/history 200 1.788 ms - 2844
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/state 200 3.010 ms - 2901
+[1] GET /api/novels?page=1&limit=100 200 35.734 ms - 950151
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/state 200 3.834 ms - 2901
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/history 200 1.503 ms - 2844
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/state 200 3.193 ms - 2901
+[1] GET /api/tasks/overview 200 10.783 ms - 183
+[1] GET /api/style-profiles 200 98.022 ms - 32342
+[1] GET /api/style-templates 200 2.649 ms - 11727
+[1] GET /api/anti-ai-rules 200 11.459 ms - 6708
+[1] GET /api/novels?page=1&limit=100 200 43.686 ms - 950151
+[1] GET /api/style-bindings 200 8.715 ms - 6741
+[1] GET /api/novels/cmnzqrbw9008n5kv1sfele17k 200 240.689 ms - 49063
+[1] GET /api/style-bindings?styleProfileId=cmnoiy9p10001g4v1hf9z1dv4 200 23.555 ms - 66
+[1] GET /api/tasks/overview 200 10.854 ms - 183
+[1] GET /api/worlds 200 158.966 ms - 194496
+[1] GET /api/knowledge/documents 200 2.837 ms - 1310
+[1] GET /api/rag/jobs?limit=30 200 6.084 ms - 9739
+[1] GET /api/genres 200 120.571 ms - 29336
+[1] GET /api/novels?page=1&limit=100 200 35.331 ms - 950151
+[1] GET /api/tasks/overview 200 10.971 ms - 183
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/state 200 3.527 ms - 2901
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/history 200 1.284 ms - 2844
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/state 200 3.221 ms - 2901
+[1] GET /api/novels?page=1&limit=100 200 33.881 ms - 950151
+[1] GET /api/tasks/overview 200 10.962 ms - 183
+[1] GET /api/title-library?page=1&pageSize=8&sort=clickRate 200 6.385 ms - 2519
+[1] GET /api/worlds 200 5.911 ms - 194496
+[1] GET /api/genres 200 3.260 ms - 29336
+[1] GET /api/story-modes 200 199.502 ms - 75261
+[1] GET /api/novels?page=1&limit=100 200 34.385 ms - 950151
+[1] GET /api/knowledge/documents?status=enabled 200 3.351 ms - 1310
+[1] GET /api/tasks/overview 200 11.911 ms - 183
+[1] GET /api/tasks/overview 200 11.000 ms - 183
+[1] GET /api/tasks/overview 200 10.389 ms - 183
+[1] GET /api/tasks/overview 200 10.628 ms - 183
+[1] GET /api/tasks/overview 200 10.915 ms - 183
+[1] GET /api/tasks/overview 200 24.103 ms - 183
+[1] GET /api/tasks/overview 200 10.659 ms - 183
+[1] GET /api/tasks/overview 200 20.212 ms - 183
+[1] GET /api/tasks/overview 200 10.613 ms - 183
+[1] GET /api/tasks/overview 200 11.692 ms - 183
+[1] GET /api/tasks/overview 200 10.830 ms - 183
+[1] GET /api/creative-hub/threads 200 1.650 ms - 520
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/state 200 4.768 ms - 2901
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/history 200 1.579 ms - 2844
+[1] GET /api/creative-hub/threads/cmn2vkina000k8ov1s2oescav/state 200 3.351 ms - 2901
+[1] GET /api/tasks/overview 200 10.835 ms - 183
+[1] GET /api/book-analysis 200 2.650 ms - 2520
+[1] GET /api/knowledge/documents 200 2.452 ms - 1310
+[1] GET /api/novels?page=1&limit=100 200 35.890 ms - 950151
+[1] GET /api/book-analysis/cmnr0pekg005xxov1siicpiw2 200 5.264 ms - 58786
+[1] GET /api/tasks?limit=80 200 42.815 ms - 108742
+[1] GET /api/tasks/novel_workflow/cmnzqldbh005m5kv1j2ignqt5 200 17.412 ms - 29183
+[1] GET /api/tasks/overview 200 10.485 ms - 183
+[1] GET /api/novels?page=1&limit=100 200 39.226 ms - 950151
+[1] GET /api/style-bindings?targetType=novel&targetId=cmnzqrbw9008n5kv1sfele17k 200 18.394 ms - 66
+[1] GET /api/novels/cmnzqrbw9008n5kv1sfele17k 200 12.009 ms - 49063
+[1] GET /api/novels/cmnzqrbw9008n5kv1sfele17k/quality-report 200 56.847 ms - 209
+[1] GET /api/novels/cmnzqrbw9008n5kv1sfele17k/volumes 200 5.794 ms - 38030
+[1] GET /api/novels/cmnzqrbw9008n5kv1sfele17k/payoff-ledger 200 94.080 ms - 4866
+[1] GET /api/base-characters 200 2.936 ms - 9456
+[1] GET /api/worlds 200 6.332 ms - 194496
+[1] GET /api/novels/cmnzqrbw9008n5kv1sfele17k/state-snapshots/latest 200 15.884 ms - 70
+[1] GET /api/novel-workflows/novels/cmnzqrbw9008n5kv1sfele17k/auto-director 200 21.163 ms - 29204
+[1] GET /api/genres 200 3.320 ms - 29336
+[1] GET /api/story-modes 200 8.460 ms - 75261
+[1] GET /api/novels?page=1&limit=100 200 34.840 ms - 950151
+[1] GET /api/knowledge/documents?status=enabled 200 2.325 ms - 1310
+[1] GET /api/novels/cmnzqrbw9008n5kv1sfele17k/story-macro 200 103.884 ms - 29049
+[1] GET /api/novels/cmnzqrbw9008n5kv1sfele17k/world-slice 200 5.524 ms - 363
+[1] GET /api/novels/cmnzqrbw9008n5kv1sfele17k/volumes/versions 200 6.454 ms - 39243
+[1] POST /api/novel-workflows/sync-stage 200 358.595 ms - 3112
+[1] POST /api/novel-workflows/sync-stage 200 158.895 ms - 3112
+[1] GET /api/novels/cmnzqrbw9008n5kv1sfele17k/characters/cmnzre5ye00ls5kv14ve8voes/timeline 200 24.519 ms - 65
+[1] POST /api/novel-workflows/bootstrap 200 15.234 ms - 3105
+[1] POST /api/novel-workflows/bootstrap 200 14.018 ms - 3105
+[1] GET /api/style-bindings?targetType=novel&targetId=cmnzqrbw9008n5kv1sfele17k 200 2.800 ms - 66
+[1] POST /api/novel-workflows/sync-stage 200 133.742 ms - 3112
+[1] POST /api/novel-workflows/bootstrap 200 157.233 ms - 3105
+[1] GET /api/knowledge/documents 200 2.550 ms - 1310
+[1] GET /api/novels/cmnzqrbw9008n5kv1sfele17k/knowledge-documents 200 20.022 ms - 72
+[1] ^C
+[0] ^C��ֹ������������(Y/N)? 
+[1] ��ֹ������������(Y/N)? 
+[2]  ELIFECYCLE  Command failed with exit code 3221225786.
+[0] D:\code\AI-Novel-Writing-Assistant-v2\shared:
+[0]  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @ai-novel/shared@0.1.0 dev: `tsc -p tsconfig.json --watch --preserveWatchOutput`
+[0] Exit status 3221225786
+[1] D:\code\AI-Novel-Writing-Assistant-v2\server:
+[1]  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @ai-novel/server@0.1.0 dev: `node scripts/ensure-dev-prisma.cjs && ts-node-dev --respawn --transpile-only src/app.ts`
+[1] Exit status 3221225786
+[2]  ELIFECYCLE  Command failed with exit code 1.
+[1]  ELIFECYCLE  Command failed with exit code 3221225786.
+[0]  ELIFECYCLE  Command failed with exit code 1.
+[1] pnpm dev:server exited with code 3221225786
+[2] pnpm dev:client:wait exited with code 3221225786
+[0] pnpm dev:shared exited with code 3221225786

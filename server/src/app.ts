@@ -36,17 +36,15 @@ import worldRouter from "./routes/world";
 import writingFormulaRouter from "./routes/writingFormula";
 import { novelEventBus, registerNovelEventHandlers } from "./events";
 import { bookAnalysisService } from "./services/bookAnalysis/BookAnalysisService";
-import { imageGenerationService } from "./services/image/ImageGenerationService";
 import { ragServices } from "./services/rag";
 import { NovelPipelineRuntimeService } from "./services/novel/NovelPipelineRuntimeService";
-import { NovelWorkflowRuntimeService } from "./services/novel/workflow/NovelWorkflowRuntimeService";
+import { recoveryTaskService } from "./services/task/RecoveryTaskService";
 import {
   ensureSystemResourceStarterData,
   hasSystemResourceBootstrapChanges,
 } from "./services/bootstrap/SystemResourceBootstrapService";
 
 registerNovelEventHandlers(novelEventBus);
-const novelWorkflowRuntimeService = new NovelWorkflowRuntimeService();
 const novelPipelineRuntimeService = new NovelPipelineRuntimeService();
 
 morgan.token("error-message", (_req, res) => {
@@ -159,36 +157,12 @@ function getLanIp(): string | null {
 }
 
 async function bootstrap(): Promise<void> {
-  try {
-    await loadProviderApiKeys();
-  } catch (error) {
-    console.warn("数据库中的模型密钥加载失败，已回退到环境变量。", error);
-  }
-
-  const systemResourceReport = await ensureSystemResourceStarterData();
-  if (hasSystemResourceBootstrapChanges(systemResourceReport)) {
-    console.log("[server] built-in creative resources bootstrapped.", systemResourceReport);
-  }
-
   const app = createApp();
   const port = Number(process.env.PORT ?? 3000);
   const allowLan = parseEnvFlag(process.env.ALLOW_LAN, process.env.NODE_ENV !== "production");
   const host = process.env.HOST ?? (allowLan ? "0.0.0.0" : "localhost");
   ragServices.ragWorker.start();
-  bookAnalysisService.startWatchdog();
-  novelPipelineRuntimeService.startWatchdog();
-  void bookAnalysisService.resumePendingAnalyses().catch((error) => {
-    console.warn("Failed to resume pending book analyses.", error);
-  });
-  void imageGenerationService.resumePendingTasks().catch((error) => {
-    console.warn("Failed to resume pending image generation tasks.", error);
-  });
-  void novelWorkflowRuntimeService.resumePendingAutoDirectorTasks().catch((error) => {
-    console.warn("Failed to resume pending auto director workflows.", error);
-  });
-  void novelPipelineRuntimeService.resumePendingPipelineJobs().catch((error) => {
-    console.warn("Failed to resume pending novel pipeline jobs.", error);
-  });
+  const recoveryInitialization = recoveryTaskService.initializePendingRecoveries();
 
   app.listen(port, host, () => {
     console.log(`[server] listening on http://localhost:${port}`);
@@ -198,6 +172,31 @@ async function bootstrap(): Promise<void> {
         console.log(`[server] LAN: http://${lanIp}:${port}`);
       }
     }
+
+    void loadProviderApiKeys().catch((error) => {
+      console.warn("数据库中的模型密钥加载失败，已回退到环境变量。", error);
+    });
+
+    void ensureSystemResourceStarterData()
+      .then((systemResourceReport) => {
+        if (hasSystemResourceBootstrapChanges(systemResourceReport)) {
+          console.log("[server] built-in creative resources bootstrapped.", systemResourceReport);
+        }
+      })
+      .catch((error) => {
+        console.warn("Failed to bootstrap built-in creative resources.", error);
+      });
+
+    void recoveryInitialization
+      .then(() => {
+        bookAnalysisService.startWatchdog();
+        novelPipelineRuntimeService.startWatchdog();
+      })
+      .catch((error) => {
+        console.warn("Failed to prepare pending recovery candidates.", error);
+        bookAnalysisService.startWatchdog();
+        novelPipelineRuntimeService.startWatchdog();
+      });
   });
 }
 

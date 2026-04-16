@@ -12,6 +12,11 @@ import {
   buildPipelineBackgroundActivityLabels,
   parsePipelinePayload,
 } from "../pipelineJobState";
+import { buildPipelineExecutionControlPolicy } from "../production/ChapterExecutionStageRunner";
+import {
+  buildSkippableAutoExecutionReviewCheckpointSummary,
+  isSkippableAutoExecutionReviewFailure,
+} from "./novelDirectorAutoExecutionFailure";
 export interface DirectorAutoExecutionRange {
   startOrder: number;
   endOrder: number;
@@ -153,11 +158,15 @@ export function buildDirectorAutoExecutionState(input: {
   pipelineStatus?: PipelineJobStatus | null;
 }): DirectorAutoExecutionState {
   const plan = normalizeDirectorAutoExecutionPlan(input.plan);
+  const skippedChapterIds = new Set((input.plan as DirectorAutoExecutionState | null | undefined)?.skippedChapterIds ?? []);
+  const skippedChapterOrders = new Set((input.plan as DirectorAutoExecutionState | null | undefined)?.skippedChapterOrders ?? []);
   const selected = input.chapters
     .filter((chapter) => chapter.order >= input.range.startOrder && chapter.order <= input.range.endOrder)
     .sort((left, right) => left.order - right.order);
-  const completed = selected.filter((chapter) => isDirectorAutoExecutionChapterProcessed(chapter));
-  const remaining = selected.filter((chapter) => !isDirectorAutoExecutionChapterProcessed(chapter));
+  const skipped = selected.filter((chapter) => skippedChapterIds.has(chapter.id) || skippedChapterOrders.has(chapter.order));
+  const actionable = selected.filter((chapter) => !skippedChapterIds.has(chapter.id) && !skippedChapterOrders.has(chapter.order));
+  const completed = actionable.filter((chapter) => isDirectorAutoExecutionChapterProcessed(chapter));
+  const remaining = actionable.filter((chapter) => !isDirectorAutoExecutionChapterProcessed(chapter));
   const totalChapterCount = selected.length > 0 ? selected.length : input.range.totalChapterCount;
   return {
     enabled: true,
@@ -168,11 +177,13 @@ export function buildDirectorAutoExecutionState(input: {
     volumeOrder: plan.mode === "volume" ? plan.volumeOrder : undefined,
     volumeTitle: input.volumeTitle ?? null,
     preparedVolumeIds: input.preparedVolumeIds ?? [],
+    skippedChapterIds: skipped.map((chapter) => chapter.id),
+    skippedChapterOrders: skipped.map((chapter) => chapter.order),
     firstChapterId: selected[0]?.id ?? input.range.firstChapterId,
     startOrder: input.range.startOrder,
     endOrder: input.range.endOrder,
     totalChapterCount,
-    completedChapterCount: completed.length,
+    completedChapterCount: completed.length + skipped.length,
     remainingChapterCount: remaining.length,
     remainingChapterIds: remaining.map((chapter) => chapter.id),
     remainingChapterOrders: remaining.map((chapter) => chapter.order),
@@ -193,6 +204,15 @@ export function buildDirectorAutoExecutionPausedSummary(input: {
   nextChapterOrder?: number | null;
   failureMessage: string;
 }): string {
+  if (isSkippableAutoExecutionReviewFailure(input.failureMessage)) {
+    return buildSkippableAutoExecutionReviewCheckpointSummary({
+      scopeLabel: input.scopeLabel,
+      autoExecution: {
+        remainingChapterCount: input.remainingChapterCount,
+        nextChapterOrder: input.nextChapterOrder ?? null,
+      },
+    });
+  }
   const remainingSummary = input.remainingChapterCount > 0
     ? `当前仍有 ${input.remainingChapterCount} 章待继续`
     : "当前批次已无待继续章节";
@@ -238,6 +258,7 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
   return {
     startOrder: input.startOrder,
     endOrder: input.endOrder,
+    controlPolicy: buildPipelineExecutionControlPolicy("director_start"),
     maxRetries: 1,
     runMode: input.runMode ?? "fast",
     autoReview,

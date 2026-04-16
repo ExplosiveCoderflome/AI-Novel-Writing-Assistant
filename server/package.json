@@ -7,7 +7,7 @@
     "seed": "ts-node-dev --transpile-only src/db/seed.ts"
   },
   "scripts": {
-    "dev": "pnpm prisma:generate && pnpm prisma:push && ts-node-dev --respawn --transpile-only src/app.ts",
+    "dev": "node scripts/ensure-dev-prisma.cjs && ts-node-dev --respawn --transpile-only src/app.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/app.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",

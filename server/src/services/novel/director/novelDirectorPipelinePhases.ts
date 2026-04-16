@@ -41,6 +41,9 @@ type DirectorMutatingStage =
 interface DirectorPhaseDependencies {
   workflowService: NovelWorkflowService;
   novelContextService: NovelContextService;
+  characterDynamicsService: {
+    rebuildDynamics: (novelId: string, options?: { sourceType?: string }) => Promise<unknown>;
+  };
   characterPreparationService: {
     generateAutoCharacterCastOption: (novelId: string, input: {
       provider?: DirectorConfirmRequest["provider"];
@@ -573,6 +576,16 @@ export async function runDirectorStructuredOutlinePhase(input: {
     volumes: persistedOutlineWorkspace.volumes,
     preserveContent: true,
     applyDeletes: false,
+  });
+  await callbacks.markDirectorTaskRunning(
+    taskId,
+    "structured_outline",
+    "chapter_sync",
+    "正在同步角色卷级职责与计划出场",
+    DIRECTOR_PROGRESS.chapterSync,
+  );
+  await dependencies.characterDynamicsService.rebuildDynamics(novelId, {
+    sourceType: "rebuild_projection",
   });
 
   const selectedChapters = selectPreparedOutlineChapters(persistedOutlineWorkspace, request);

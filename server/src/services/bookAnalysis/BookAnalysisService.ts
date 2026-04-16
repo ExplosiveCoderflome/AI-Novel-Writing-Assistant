@@ -17,12 +17,16 @@ class BookAnalysisServiceFacade {
     this.commandService.startWatchdog();
   }
 
-  resumePendingAnalyses(): Promise<void> {
-    return this.commandService.resumePendingAnalyses();
+  markPendingAnalysesForManualRecovery(): Promise<void> {
+    return this.commandService.markPendingAnalysesForManualRecovery();
   }
 
   recoverTimedOutAnalyses(): Promise<void> {
     return this.commandService.recoverTimedOutAnalyses();
+  }
+
+  resumePendingAnalysis(analysisId: string): Promise<BookAnalysisDetail> {
+    return this.commandService.resumePendingAnalysis(analysisId);
   }
 
   listAnalyses(filters: {

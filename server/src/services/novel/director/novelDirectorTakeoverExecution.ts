@@ -43,7 +43,7 @@ interface TakeoverExecutionAutoRuntimePort {
     request: DirectorConfirmRequest;
     existingPipelineJobId?: string | null;
     existingState?: DirectorAutoExecutionState | null;
-    resumeCheckpointType?: "front10_ready" | "chapter_batch_ready" | null;
+    resumeCheckpointType?: "front10_ready" | "chapter_batch_ready" | "replan_required" | null;
     resumeStage?: "chapter" | "pipeline";
   }): Promise<void>;
 }

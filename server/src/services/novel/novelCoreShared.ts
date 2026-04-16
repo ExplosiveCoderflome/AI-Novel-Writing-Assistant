@@ -121,6 +121,8 @@ export interface CharacterInput {
   baseCharacterId?: string;
 }
 
+import type { NovelControlPolicy } from "@ai-novel/shared/types/canonicalState";
+
 export interface LLMGenerateOptions {
   provider?: LLMProvider;
   model?: string;
@@ -151,6 +153,7 @@ export interface TitleGenerateOptions extends LLMGenerateOptions {
 export interface PipelineRunOptions extends LLMGenerateOptions {
   startOrder: number;
   endOrder: number;
+  controlPolicy?: NovelControlPolicy;
   workflowTaskId?: string;
   maxRetries?: number;
   runMode?: "fast" | "polish";
@@ -161,7 +164,7 @@ export interface PipelineRunOptions extends LLMGenerateOptions {
   repairMode?: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only";
 }
 
-export type PipelineBackgroundSyncKind = "character_dynamics" | "state_snapshot" | "payoff_ledger";
+export type PipelineBackgroundSyncKind = "character_dynamics" | "state_snapshot" | "payoff_ledger" | "canonical_state";
 
 export type PipelineBackgroundSyncStatus = "running" | "failed";
 
@@ -180,6 +183,7 @@ export interface PipelineBackgroundSyncState {
 }
 
 export interface PipelinePayload extends LLMGenerateOptions {
+  controlPolicy?: NovelControlPolicy;
   workflowTaskId?: string;
   maxRetries?: number;
   runMode?: "fast" | "polish";
@@ -189,6 +193,7 @@ export interface PipelinePayload extends LLMGenerateOptions {
   qualityThreshold?: number;
   repairMode?: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only";
   qualityAlertDetails?: string[];
+  replanAlertDetails?: string[];
   backgroundSync?: PipelineBackgroundSyncState;
 }
 

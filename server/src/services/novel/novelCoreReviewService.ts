@@ -108,11 +108,17 @@ export class NovelCoreReviewService {
       },
     });
     await createQualityReport(novelId, chapterId, review.score, review.issues);
-    if ((review.auditReports?.length ?? 0) > 0 && plannerService.shouldTriggerReplanFromAudit(review.auditReports ?? [])) {
+    const replanRecommendation = plannerService.buildReplanRecommendation({
+      auditReports: review.auditReports ?? [],
+      ledgerSummary: review.contextPackage?.ledgerSummary ?? null,
+      contextPackage: review.contextPackage ?? null,
+    });
+    if ((review.auditReports?.length ?? 0) > 0 && replanRecommendation.recommended) {
       await plannerService.replan(novelId, {
         chapterId,
         triggerType: "audit_failure",
-        reason: "High-severity audit issues require plan rebuild.",
+        reason: replanRecommendation.triggerReason || replanRecommendation.reason,
+        sourceIssueIds: replanRecommendation.blockingIssueIds,
         provider: options.provider,
         model: options.model,
         temperature: options.temperature,
@@ -404,7 +410,12 @@ export class NovelCoreReviewService {
     options: ReviewOptions = {},
     novelId?: string,
     chapterId?: string,
-  ): Promise<{ score: QualityScore; issues: ReviewIssue[]; auditReports?: AuditReport[] }> {
+  ): Promise<{
+    score: QualityScore;
+    issues: ReviewIssue[];
+    auditReports?: AuditReport[];
+    contextPackage?: GenerationContextPackage;
+  }> {
     if (!content.trim()) {
       return {
         score: normalizeScore({}),
@@ -420,13 +431,17 @@ export class NovelCoreReviewService {
 
     if (novelId && chapterId) {
       const contextPackage = await this.assembleAuditContextPackage(novelId, chapterId, options, "review");
-      return auditService.auditChapter(novelId, chapterId, "full", {
+      const auditResult = await auditService.auditChapter(novelId, chapterId, "full", {
         provider: options.provider,
         model: options.model,
         temperature: options.temperature,
         content,
         contextPackage,
       });
+      return {
+        ...auditResult,
+        contextPackage,
+      };
     }
 
     return this.reviewChapterContent(novelTitle, chapterTitle, content, options, novelId);

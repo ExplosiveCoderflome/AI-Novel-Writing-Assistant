@@ -62,6 +62,31 @@ export function resolveTargetWordRange(targetWordCount: number | null | undefine
 }
 
 export function summarizeStateSnapshot(contextPackage: GenerationContextPackage): string {
+  if (contextPackage.canonicalState) {
+    const snapshot = contextPackage.canonicalState;
+    const fragments = takeUnique([
+      snapshot.narrative.currentChapterGoal,
+      ...snapshot.characters
+        .slice(0, 3)
+        .map((state) => {
+          const parts = takeUnique([
+            state.currentGoal ? `goal=${state.currentGoal}` : "",
+            state.currentState ? `state=${state.currentState}` : "",
+            state.emotion ? `emotion=${state.emotion}` : "",
+            state.summary,
+          ]);
+          if (parts.length === 0) {
+            return "";
+          }
+          return `${state.name}: ${parts.join(" | ")}`;
+        }),
+      ...snapshot.narrative.publicKnowledge
+        .slice(0, 2)
+        .map((fact) => `${fact} (reader)`),
+    ], 6);
+    return fragments.join("\n") || "No prior canonical state snapshot.";
+  }
+
   const fragments = takeUnique([
     contextPackage.stateSnapshot?.summary,
     ...contextPackage.stateSnapshot?.characterStates
@@ -85,6 +110,20 @@ export function summarizeStateSnapshot(contextPackage: GenerationContextPackage)
 }
 
 export function summarizeOpenConflicts(contextPackage: GenerationContextPackage): string[] {
+  if (contextPackage.canonicalState) {
+    return contextPackage.canonicalState.narrative.openConflicts
+      .slice(0, 4)
+      .map((conflict) => {
+        const parts = takeUnique([
+          conflict.title,
+          conflict.summary,
+          conflict.resolutionHint ? `resolution hint: ${conflict.resolutionHint}` : "",
+        ], 3);
+        return parts.join(" | ");
+      })
+      .filter(Boolean);
+  }
+
   return contextPackage.openConflicts
     .slice(0, 4)
     .map((conflict) => {
@@ -99,6 +138,16 @@ export function summarizeOpenConflicts(contextPackage: GenerationContextPackage)
 }
 
 export function summarizeWorldRules(contextPackage: GenerationContextPackage): string[] {
+  if (contextPackage.canonicalState?.worldState) {
+    const world = contextPackage.canonicalState.worldState;
+    return takeUnique([
+      world.summary,
+      ...world.rules.slice(0, 3),
+      ...world.tabooRules.slice(0, 2),
+      world.currentSituation,
+    ], 6);
+  }
+
   const worldSlice = contextPackage.storyWorldSlice;
   if (!worldSlice) {
     return [];

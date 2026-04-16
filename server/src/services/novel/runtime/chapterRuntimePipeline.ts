@@ -118,6 +118,7 @@ export async function runPipelineChapterWithRuntime(
       });
       content = generatedDraft.content;
       latestLengthControl = generatedDraft.lengthControl;
+      await deps.saveDraftAndArtifacts(novelId, chapterId, content, "drafted");
     } else if (attempt === 0) {
       await deps.saveDraftAndArtifacts(novelId, chapterId, content, "drafted");
     }

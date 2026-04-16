@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { matchPath, Outlet, useLocation } from "react-router-dom";
+import AppRouteFallback from "./AppRouteFallback";
 import Navbar from "./Navbar";
 import NovelWorkspaceRail from "./NovelWorkspaceRail";
 import Sidebar from "./Sidebar";
+import TaskRecoveryDialog from "./TaskRecoveryDialog";
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "ai-novel.sidebar.collapsed";
 const WORKSPACE_RAIL_COLLAPSED_STORAGE_KEY = "ai-novel.workspace-rail.collapsed";
@@ -74,9 +76,12 @@ export default function AppLayout() {
           />
         )}
         <main className="h-[calc(100vh-4rem)] flex-1 overflow-y-auto p-6">
-          <Outlet />
+          <Suspense fallback={<AppRouteFallback />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
+      <TaskRecoveryDialog />
     </div>
   );
 }

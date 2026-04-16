@@ -570,6 +570,7 @@ export default function NovelEdit() {
       activeAutoDirectorTask.status,
       activeAutoDirectorTask.currentStage ?? "",
       activeAutoDirectorTask.currentItemKey ?? "",
+      activeAutoDirectorTask.currentItemLabel ?? "",
       activeAutoDirectorTask.checkpointType ?? "",
       milestoneCount,
     ].join("|");
@@ -577,6 +578,7 @@ export default function NovelEdit() {
     activeAutoDirectorTask,
     activeAutoDirectorTask?.checkpointType,
     activeAutoDirectorTask?.currentItemKey,
+    activeAutoDirectorTask?.currentItemLabel,
     activeAutoDirectorTask?.currentStage,
     activeAutoDirectorTask?.meta,
     activeAutoDirectorTask?.status,

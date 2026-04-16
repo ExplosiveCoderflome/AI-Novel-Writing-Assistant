@@ -314,6 +314,7 @@ export class NovelWorkflowService {
         status: {
           in: ["queued", "running"],
         },
+        pendingManualRecovery: false,
       },
       orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
       select: {
@@ -1178,12 +1179,13 @@ export class NovelWorkflowService {
     if (!existing) {
       throw new AppError("Task not found.", 404);
     }
-    return prisma.novelWorkflowTask.update({
-      where: { id: taskId },
-      data: {
-        status: existing.checkpointType ? "waiting_approval" : "queued",
-        attemptCount: existing.attemptCount + 1,
-        lastError: null,
+      return prisma.novelWorkflowTask.update({
+        where: { id: taskId },
+        data: {
+          status: existing.checkpointType ? "waiting_approval" : "queued",
+          pendingManualRecovery: false,
+          attemptCount: existing.attemptCount + 1,
+          lastError: null,
         finishedAt: null,
         cancelRequestedAt: null,
         heartbeatAt: new Date(),
@@ -1213,9 +1215,10 @@ export class NovelWorkflowService {
       );
     return prisma.novelWorkflowTask.update({
       where: { id: taskId },
-      data: {
-        status: checkpointType === "workflow_completed" ? "succeeded" : "waiting_approval",
-        finishedAt: checkpointType === "workflow_completed" ? (existing.finishedAt ?? new Date()) : null,
+        data: {
+          status: checkpointType === "workflow_completed" ? "succeeded" : "waiting_approval",
+          pendingManualRecovery: false,
+          finishedAt: checkpointType === "workflow_completed" ? (existing.finishedAt ?? new Date()) : null,
         cancelRequestedAt: null,
         heartbeatAt: new Date(),
         currentStage: stageLabel(checkpointStage),
@@ -1236,13 +1239,14 @@ export class NovelWorkflowService {
     if (isTaskCancellationRequested(existing)) {
       throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
     }
-    return prisma.novelWorkflowTask.update({
-      where: { id: taskId },
-      data: {
-        heartbeatAt: new Date(),
-        status: existing.status === "queued" ? "running" : existing.status,
-      },
-    });
+      return prisma.novelWorkflowTask.update({
+        where: { id: taskId },
+        data: {
+          heartbeatAt: new Date(),
+          pendingManualRecovery: false,
+          status: existing.status === "queued" ? "running" : existing.status,
+        },
+      });
   }
 
   async requeueTaskForRecovery(taskId: string, message: string) {
@@ -1250,13 +1254,14 @@ export class NovelWorkflowService {
     if (!existing) {
       throw new AppError("Task not found.", 404);
     }
-    return prisma.novelWorkflowTask.update({
-      where: { id: taskId },
-      data: {
-        status: "queued",
-        finishedAt: null,
-        cancelRequestedAt: null,
-        heartbeatAt: null,
+      return prisma.novelWorkflowTask.update({
+        where: { id: taskId },
+        data: {
+          status: "queued",
+          pendingManualRecovery: true,
+          finishedAt: null,
+          cancelRequestedAt: null,
+          heartbeatAt: null,
         lastError: message.trim(),
       },
     });

@@ -99,3 +99,41 @@ test("recoverStalePipelineJobs marks failed when resume throws", async () => {
     ["job-stale", "章节流水线任务心跳超时，正在尝试恢复。 恢复失败：缺少章节上下文"],
   ]);
 });
+
+test("markPendingPipelineJobsForManualRecovery settles cancellations and marks recoverable jobs", async () => {
+  const calls = [];
+  const runtimeService = new NovelPipelineRuntimeService({
+    async listPendingCancellationPipelineJobs() {
+      return [{ id: "job-cancelling", status: "cancelled" }];
+    },
+    async listRecoverablePipelineJobs() {
+      return [
+        { id: "job-queued", status: "queued" },
+        { id: "job-running", status: "running" },
+      ];
+    },
+    async listStaleRecoverablePipelineJobs() {
+      return [];
+    },
+    async markPipelineJobCancelled(jobId) {
+      calls.push(["cancelled", jobId]);
+    },
+    async markPipelineJobPendingManualRecovery(jobId, message) {
+      calls.push(["pending", jobId, message]);
+    },
+    async resumePipelineJob(jobId) {
+      calls.push(["resume", jobId]);
+    },
+    async markPipelineJobFailed(jobId, message) {
+      calls.push(["failed", jobId, message]);
+    },
+  });
+
+  await runtimeService.markPendingPipelineJobsForManualRecovery();
+
+  assert.deepEqual(calls, [
+    ["cancelled", "job-cancelling"],
+    ["pending", "job-queued", "服务重启后任务已暂停，等待手动恢复。"],
+    ["pending", "job-running", "服务重启后任务已暂停，等待手动恢复。"],
+  ]);
+});

@@ -66,7 +66,7 @@ export interface DirectorTakeoverResolvedPlan {
   restartStep?: DirectorTakeoverEntryStep | null;
   executionMode: "phase" | "auto_execution";
   phase?: DirectorTakeoverStartPhase;
-  resumeCheckpointType?: "front10_ready" | "chapter_batch_ready" | null;
+  resumeCheckpointType?: "front10_ready" | "chapter_batch_ready" | "replan_required" | null;
 }
 
 const DIRECTOR_TAKEOVER_STAGE_META: Record<
@@ -298,6 +298,7 @@ function hasExecutableRange(input: {
     input.executableRange
     || input.latestCheckpoint?.checkpointType === "front10_ready"
     || input.latestCheckpoint?.checkpointType === "chapter_batch_ready"
+    || input.latestCheckpoint?.checkpointType === "replan_required"
     || input.activePipelineJob,
   );
 }
@@ -317,6 +318,7 @@ function hasPendingRepairContext(input: {
   return Boolean(
     isRepairingPipelineJob(input.activePipelineJob)
     || input.latestCheckpoint?.checkpointType === "chapter_batch_ready"
+    || input.latestCheckpoint?.checkpointType === "replan_required"
     || (input.snapshot.pendingRepairChapterCount ?? 0) > 0,
   );
 }
@@ -856,8 +858,10 @@ function buildEntryReason(input: {
   if (input.activePipelineJob) {
     return "检测到活动中的质量修复批次，继续模式会优先恢复当前批次。";
   }
-  if (input.latestCheckpoint?.checkpointType === "chapter_batch_ready") {
-    return "检测到最近的章节批次检查点，继续模式会优先恢复待修章节。";
+  if (input.latestCheckpoint?.checkpointType === "chapter_batch_ready" || input.latestCheckpoint?.checkpointType === "replan_required") {
+    return input.latestCheckpoint.checkpointType === "replan_required"
+      ? "检测到最近的重规划检查点，继续模式会优先恢复待处理的重规划与后续批次。"
+      : "检测到最近的章节批次检查点，继续模式会优先恢复待修章节。";
   }
   return "当前可以从质量修复接管。";
 }

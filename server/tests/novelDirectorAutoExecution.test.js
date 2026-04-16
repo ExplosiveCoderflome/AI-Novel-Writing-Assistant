@@ -48,6 +48,8 @@ test("buildDirectorAutoExecutionPipelineOptions uses front10-safe defaults", () 
   assert.equal(options.skipCompleted, true);
   assert.equal(options.qualityThreshold, 75);
   assert.equal(options.repairMode, "light_repair");
+  assert.equal(options.controlPolicy?.kickoffMode, "director_start");
+  assert.equal(options.controlPolicy?.advanceMode, "auto_to_execution");
 });
 
 test("buildDirectorAutoExecutionPipelineOptions respects review and repair toggles", () => {

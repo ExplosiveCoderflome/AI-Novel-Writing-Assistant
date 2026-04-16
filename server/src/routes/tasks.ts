@@ -5,6 +5,7 @@ import { z } from "zod";
 import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
+import { recoveryTaskService } from "../services/task/RecoveryTaskService";
 import { taskCenterService } from "../services/task/TaskCenterService";
 
 const router = Router();
@@ -34,7 +35,67 @@ const retryBodySchema = z.object({
   resume: z.boolean().optional(),
 });
 
+const recoveryTaskKindSchema = z.enum(["book_analysis", "novel_pipeline", "image_generation", "novel_workflow"]);
+
+const recoveryTaskParamsSchema = z.object({
+  kind: recoveryTaskKindSchema,
+  id: z.string().trim().min(1),
+});
+
 router.use(authMiddleware);
+
+router.get("/overview", async (_req, res, next) => {
+  try {
+    const data = await taskCenterService.getOverview();
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Task overview loaded.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/recovery-candidates", async (_req, res, next) => {
+  try {
+    const data = await recoveryTaskService.listRecoveryCandidates();
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Recovery candidates loaded.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/recovery-candidates/resume-all", async (_req, res, next) => {
+  try {
+    const resumed = await recoveryTaskService.resumeAllRecoveryCandidates();
+    res.status(200).json({
+      success: true,
+      data: { resumed },
+      message: "Recovery candidates resumed.",
+    } satisfies ApiResponse<{ resumed: typeof resumed }>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/recovery-candidates/:kind/:id/resume", validate({ params: recoveryTaskParamsSchema }), async (req, res, next) => {
+  try {
+    const { kind, id } = req.params as z.infer<typeof recoveryTaskParamsSchema>;
+    await recoveryTaskService.resumeRecoveryCandidate(kind, id);
+    res.status(200).json({
+      success: true,
+      data: { kind, id },
+      message: "Recovery candidate resumed.",
+    } satisfies ApiResponse<{ kind: typeof kind; id: string }>);
+  } catch (error) {
+    next(error);
+  }
+});
 
 router.get("/", validate({ query: listQuerySchema }), async (req, res, next) => {
   try {

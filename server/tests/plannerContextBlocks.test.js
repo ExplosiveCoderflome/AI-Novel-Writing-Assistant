@@ -61,6 +61,15 @@ function createInput() {
     characterVolumeAssignments: "主角 | 卷级身份=破局者 | 卷级职责=完成第一次反压 | 计划章次=5\n女二 | 卷级身份=暗线持钥者 | 卷级职责=补足情报链 | 缺席风险=high(跨度=3)",
     characterRelationStages: "主角 -> 女二: 互试探合作 | 双方仍在试探底线 | 下一步=交换关键情报",
     characterCandidateGuards: "林策(情报商) | 待确认候选 | 来源章节=4 | 只读约束，未确认前禁止写入正式执行链",
+    stateDrivenDirective: "recommended_next_action=write_chapter\npending_state_review=0\nopen_audit_issues=1",
+    stateDrivenGoal: [
+      "章节状态目标：把反压推进到可见收益",
+      "应推进冲突：第一次反压必须落地",
+      "应推进关系：主角: 互试探合作",
+      "应触碰 payoff：女二情报钥匙",
+      "禁止提前泄露：幕后黑手身份",
+      "最近关键事件：主角确认账本异常",
+    ].join("\n"),
     defaultMetadata: "planRole=pressure | phase=反压前夜\nmustAdvance=第一次反压\nmustPreserve=压迫感",
     replanContext: "无",
     payoffLedgerSummary: [
@@ -92,6 +101,8 @@ test("chapter planner context prioritizes framing, story macro and current volum
   assert.match(byId.get("character_volume_assignments").content, /卷级职责=完成第一次反压/);
   assert.match(byId.get("character_relation_stages").content, /互试探合作/);
   assert.match(byId.get("character_candidate_guards").content, /未确认前禁止写入正式执行链/);
+  assert.match(byId.get("chapter_target").content, /recommended_next_action=write_chapter/);
+  assert.match(byId.get("state_driven_goal").content, /禁止提前泄露：幕后黑手身份/);
   assert.match(byId.get("payoff_ledger").content, /账本摘要：待兑现=2，紧急=1，逾期=1，已兑现=1/);
   assert.match(byId.get("payoff_ledger").content, /当前逾期项：黑市账户异常/);
   assert.match(byId.get("legacy_outline_source").content, /兼容性旧主线大纲（仅作迁移参考）/);

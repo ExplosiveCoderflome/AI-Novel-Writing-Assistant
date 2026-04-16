@@ -84,8 +84,10 @@ export const queryKeys = {
     assets: (sceneType: "character", sceneId: string) => ["images", "assets", sceneType, sceneId] as const,
   },
   tasks: {
+    overview: ["tasks", "overview"] as const,
     list: (params: string) => ["tasks", "list", params] as const,
     detail: (kind: string, id: string) => ["tasks", "detail", kind, id] as const,
+    recoveryCandidates: ["tasks", "recovery-candidates"] as const,
   },
   agentRuns: {
     list: (params: string) => ["agent-runs", "list", params] as const,

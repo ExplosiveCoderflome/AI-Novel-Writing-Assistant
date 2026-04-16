@@ -21,7 +21,7 @@ import {
 import { NavLink } from "react-router-dom";
 import { listKnowledgeDocuments } from "@/api/knowledge";
 import { queryKeys } from "@/api/queryKeys";
-import { listTasks } from "@/api/tasks";
+import { getTaskOverview } from "@/api/tasks";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -76,11 +76,11 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const taskQuery = useQuery({
-    queryKey: queryKeys.tasks.list("sidebar"),
-    queryFn: () => listTasks({ limit: 80 }),
+    queryKey: queryKeys.tasks.overview,
+    queryFn: getTaskOverview,
     refetchInterval: (query) => {
-      const rows = query.state.data?.data?.items ?? [];
-      return rows.some((item) => item.status === "queued" || item.status === "running") ? 4000 : false;
+      const overview = query.state.data?.data;
+      return (overview?.queuedCount ?? 0) > 0 || (overview?.runningCount ?? 0) > 0 ? 4000 : false;
     },
   });
 
@@ -90,9 +90,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     staleTime: 30_000,
   });
 
-  const tasks = taskQuery.data?.data?.items ?? [];
-  const runningTaskCount = tasks.filter((item) => item.status === "running").length;
-  const failedTaskCount = tasks.filter((item) => item.status === "failed").length;
+  const runningTaskCount = taskQuery.data?.data?.runningCount ?? 0;
+  const failedTaskCount = taskQuery.data?.data?.failedCount ?? 0;
   const knowledgeDocuments = knowledgeQuery.data?.data ?? [];
   const failedIndexCount = knowledgeDocuments.filter((item) => item.latestIndexStatus === "failed").length;
 

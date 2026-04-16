@@ -2,6 +2,7 @@ import { prisma } from "../../../db/prisma";
 import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
 import { payoffLedgerSyncService } from "../../payoff/PayoffLedgerSyncService";
 import { stateService } from "../../state/StateService";
+import { stateCommitService } from "../state/StateCommitService";
 import {
   parsePipelinePayload,
   stringifyPipelinePayload,
@@ -65,6 +66,16 @@ export class ChapterArtifactBackgroundSyncService {
       await payoffLedgerSyncService.syncLedger(novelId, {
         chapterOrder: chapter.order,
         sourceChapterId: chapterId,
+      });
+    });
+
+    await this.runTrackedActivity(novelId, context, "canonical_state", async () => {
+      await stateCommitService.proposeAndCommit({
+        novelId,
+        chapterId,
+        chapterOrder: chapter.order,
+        sourceType: "chapter_background_sync",
+        sourceStage: "chapter_execution",
       });
     });
   }

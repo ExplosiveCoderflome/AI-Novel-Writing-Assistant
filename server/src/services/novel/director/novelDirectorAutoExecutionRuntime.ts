@@ -2,9 +2,8 @@ import type {
   DirectorAutoExecutionState,
   DirectorConfirmRequest,
 } from "@ai-novel/shared/types/novelDirector";
-import type {
-  PipelineJobStatus,
-} from "@ai-novel/shared/types/novel";
+import type { NovelControlPolicy } from "@ai-novel/shared/types/canonicalState";
+import type { PipelineJobStatus } from "@ai-novel/shared/types/novel";
 import { buildNovelEditResumeTarget } from "../workflow/novelWorkflow.shared";
 import { buildDirectorSessionState } from "./novelDirectorHelpers";
 import {
@@ -22,6 +21,8 @@ import {
   type DirectorAutoExecutionChapterRef,
   type DirectorAutoExecutionRange,
 } from "./novelDirectorAutoExecution";
+import { isSkippableAutoExecutionReviewFailure } from "./novelDirectorAutoExecutionFailure";
+import { PIPELINE_REPLAN_NOTICE_CODE } from "../pipelineJobState";
 
 type AutoExecutionResumeStage = "chapter" | "pipeline";
 
@@ -43,7 +44,7 @@ interface NovelDirectorAutoExecutionWorkflowPort {
   }): Promise<unknown>;
   recordCheckpoint(taskId: string, input: {
     stage: "quality_repair";
-    checkpointType: "workflow_completed" | "chapter_batch_ready";
+    checkpointType: "workflow_completed" | "chapter_batch_ready" | "replan_required";
     checkpointSummary: string;
     itemLabel: string;
     progress?: number;
@@ -54,7 +55,7 @@ interface NovelDirectorAutoExecutionWorkflowPort {
     stage?: "quality_repair";
     itemKey?: string | null;
     itemLabel?: string;
-    checkpointType?: "chapter_batch_ready";
+    checkpointType?: "chapter_batch_ready" | "replan_required";
     checkpointSummary?: string | null;
     chapterId?: string | null;
     progress?: number;
@@ -69,6 +70,7 @@ interface NovelDirectorAutoExecutionNovelPort {
     temperature?: number;
     startOrder: number;
     endOrder: number;
+    controlPolicy?: NovelControlPolicy;
     maxRetries: number;
     runMode: "fast" | "polish";
     autoReview: boolean;
@@ -83,12 +85,13 @@ interface NovelDirectorAutoExecutionNovelPort {
     endOrder: number,
     preferredJobId?: string | null,
   ): Promise<{ id: string; status: PipelineJobStatus } | null>;
-  getPipelineJobById(jobId: string): Promise<{
+    getPipelineJobById(jobId: string): Promise<{
     id: string;
     status: PipelineJobStatus;
     progress: number;
     currentStage?: string | null;
     currentItemLabel?: string | null;
+    noticeCode?: string | null;
     payload?: string | null;
     noticeSummary?: string | null;
     error?: string | null;
@@ -116,6 +119,49 @@ function isNoChaptersToGenerateError(error: unknown): boolean {
 
 export class NovelDirectorAutoExecutionRuntime {
   constructor(private readonly deps: NovelDirectorAutoExecutionRuntimeDeps) {}
+
+  private applyReviewSkipOverride(input: {
+    existingState?: DirectorAutoExecutionState | null;
+    previousFailureMessage?: string | null;
+    allowSkipReviewBlockedChapter?: boolean;
+  }): DirectorAutoExecutionState | null {
+    if (
+      !input.allowSkipReviewBlockedChapter
+      || !input.existingState
+      || !isSkippableAutoExecutionReviewFailure(input.previousFailureMessage)
+    ) {
+      return input.existingState ?? null;
+    }
+
+    const nextChapterId = input.existingState.nextChapterId?.trim() || null;
+    const nextChapterOrder = typeof input.existingState.nextChapterOrder === "number"
+      ? input.existingState.nextChapterOrder
+      : null;
+    if (!nextChapterId && nextChapterOrder == null) {
+      return input.existingState;
+    }
+
+    const skippedChapterIds = Array.from(new Set(
+      [
+        ...(input.existingState.skippedChapterIds ?? []),
+        ...(nextChapterId ? [nextChapterId] : []),
+      ].filter((value): value is string => typeof value === "string" && value.trim().length > 0),
+    ));
+    const skippedChapterOrders = Array.from(new Set(
+      [
+        ...(input.existingState.skippedChapterOrders ?? []),
+        ...(typeof nextChapterOrder === "number" ? [nextChapterOrder] : []),
+      ].filter((value): value is number => typeof value === "number" && Number.isFinite(value)),
+    )).sort((left, right) => left - right);
+
+    return {
+      ...input.existingState,
+      skippedChapterIds,
+      skippedChapterOrders,
+      pipelineJobId: null,
+      pipelineStatus: null,
+    };
+  }
 
   private buildRequestedAutoExecutionState(input: {
     request: DirectorConfirmRequest;
@@ -279,13 +325,26 @@ export class NovelDirectorAutoExecutionRuntime {
     request: DirectorConfirmRequest;
     existingPipelineJobId?: string | null;
     existingState?: DirectorAutoExecutionState | null;
-    resumeCheckpointType?: "front10_ready" | "chapter_batch_ready" | null;
+    resumeCheckpointType?: "front10_ready" | "chapter_batch_ready" | "replan_required" | null;
     resumeStage?: AutoExecutionResumeStage;
+    previousFailureMessage?: string | null;
+    allowSkipReviewBlockedChapter?: boolean;
   }): Promise<void> {
-    let pipelineJobId = input.existingPipelineJobId?.trim() || "";
+    const shouldSkipReviewBlockedChapter = Boolean(
+      input.allowSkipReviewBlockedChapter
+      && isSkippableAutoExecutionReviewFailure(input.previousFailureMessage),
+    );
+    let pipelineJobId = shouldSkipReviewBlockedChapter
+      ? ""
+      : (input.existingPipelineJobId?.trim() || "");
+    const existingState = this.applyReviewSkipOverride({
+      existingState: input.existingState,
+      previousFailureMessage: input.previousFailureMessage,
+      allowSkipReviewBlockedChapter: input.allowSkipReviewBlockedChapter,
+    });
     const requestedExecutionState = this.buildRequestedAutoExecutionState({
       request: input.request,
-      existingState: input.existingState,
+      existingState,
       existingPipelineJobId: pipelineJobId || null,
     });
     let { range, autoExecution } = await this.resolveRangeAndState({
@@ -318,8 +377,8 @@ export class NovelDirectorAutoExecutionRuntime {
 
       const activeRangeJob = await this.deps.novelService.findActivePipelineJobForRange(
         input.novelId,
-        range.startOrder,
-        range.endOrder,
+        autoExecution.nextChapterOrder ?? range.startOrder,
+        autoExecution.remainingChapterOrders?.[autoExecution.remainingChapterOrders.length - 1] ?? range.endOrder,
         pipelineJobId || null,
       );
       if (activeRangeJob) {
@@ -375,8 +434,8 @@ export class NovelDirectorAutoExecutionRuntime {
               model: input.request.model,
               temperature: input.request.temperature,
               workflowTaskId: input.taskId,
-              startOrder: range.startOrder,
-              endOrder: range.endOrder,
+              startOrder: autoExecution.nextChapterOrder ?? range.startOrder,
+              endOrder: autoExecution.remainingChapterOrders?.[autoExecution.remainingChapterOrders.length - 1] ?? range.endOrder,
               autoReview: autoExecution.autoReview,
               autoRepair: autoExecution.autoRepair,
             }),
@@ -433,7 +492,7 @@ export class NovelDirectorAutoExecutionRuntime {
           const runningState = resolveDirectorAutoExecutionWorkflowState(job, range, autoExecution);
           await this.deps.workflowService.markTaskRunning(input.taskId, {
             ...runningState,
-            clearCheckpoint: input.resumeCheckpointType === "chapter_batch_ready",
+            clearCheckpoint: input.resumeCheckpointType === "chapter_batch_ready" || input.resumeCheckpointType === "replan_required",
           });
           ({ range, autoExecution } = await this.resolveRangeAndState({
             novelId: input.novelId,
@@ -464,10 +523,16 @@ export class NovelDirectorAutoExecutionRuntime {
         if (job.status === "succeeded" && job.noticeSummary?.trim()) {
           const scopeLabel = buildDirectorAutoExecutionScopeLabelFromState(autoExecution, range.totalChapterCount);
           const pauseMessage = job.noticeSummary.trim();
+          const checkpointType = job.noticeCode === PIPELINE_REPLAN_NOTICE_CODE
+            ? "replan_required"
+            : "chapter_batch_ready";
+          const itemLabel = checkpointType === "replan_required"
+            ? `${scopeLabel}等待处理重规划建议`
+            : buildDirectorAutoExecutionPausedLabel(autoExecution);
           await this.deps.workflowService.recordCheckpoint(input.taskId, {
             stage: "quality_repair",
-            checkpointType: "chapter_batch_ready",
-            itemLabel: buildDirectorAutoExecutionPausedLabel(autoExecution),
+            checkpointType,
+            itemLabel,
             checkpointSummary: buildDirectorAutoExecutionPausedSummary({
               scopeLabel,
               remainingChapterCount: autoExecution.remainingChapterCount ?? 0,

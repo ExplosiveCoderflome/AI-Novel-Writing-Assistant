@@ -256,6 +256,8 @@ export function buildChapterPlanContextBlocks(input: {
   characterRelationStages: string;
   characterCandidateGuards: string;
   defaultMetadata: string;
+  stateDrivenDirective: string;
+  stateDrivenGoal: string;
   replanContext: string;
   storyMacroSummary: string;
   currentVolumeWindow: string;
@@ -309,6 +311,7 @@ export function buildChapterPlanContextBlocks(input: {
         buildBlockContent("章节目标草稿", input.chapterExpectation ?? "无"),
         buildBlockContent("章节目标字数", typeof input.chapterTargetWordCount === "number" ? `${input.chapterTargetWordCount} 字` : "无"),
         buildBlockContent("任务单", input.chapterTaskSheet ?? "无"),
+        buildBlockContent("状态驱动决策", input.stateDrivenDirective),
         buildBlockContent("默认结构职责建议", input.defaultMetadata),
       ].join("\n"),
     }),
@@ -390,6 +393,15 @@ export function buildChapterPlanContextBlocks(input: {
       group: "plot_beats",
       priority: 68,
       content: buildBlockContent("剧情拍点", input.plotBeats),
+    }),
+    createContextBlock({
+      id: "state_driven_goal",
+      group: "state_driven_goal",
+      priority: 98,
+      required: true,
+      content: [
+        buildBlockContent("状态驱动目标", input.stateDrivenGoal),
+      ].join("\n"),
     }),
     createContextBlock({
       id: "state_snapshot",

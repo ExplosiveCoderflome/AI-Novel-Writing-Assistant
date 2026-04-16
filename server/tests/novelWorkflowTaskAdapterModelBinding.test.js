@@ -217,3 +217,77 @@ test("task center list treats restart recovery note as running recovery instead 
     adapter.workflowService.healAutoDirectorTaskState = originalHeal;
   }
 });
+
+test("task detail treats review-blocked auto execution as skippable continuation", async () => {
+  const originals = {
+    findUnique: prisma.novelWorkflowTask.findUnique,
+  };
+
+  prisma.novelWorkflowTask.findUnique = async () => ({
+    id: "task_review_blocked",
+    title: "AI 自动导演",
+    lane: "auto_director",
+    status: "failed",
+    progress: 0.98,
+    currentStage: "质量修复",
+    currentItemKey: "quality_repair",
+    currentItemLabel: "前 10 章自动执行已暂停",
+    checkpointType: "chapter_batch_ready",
+    checkpointSummary: "前 10 章已进入自动执行，但当前批量任务未完全完成：Chapter generation is blocked until review is resolved.",
+    resumeTargetJson: null,
+    attemptCount: 1,
+    maxAttempts: 3,
+    lastError: "Chapter generation is blocked until review is resolved. 4 pending state proposal(s)",
+    createdAt: new Date("2026-04-16T10:00:00.000Z"),
+    updatedAt: new Date("2026-04-16T10:05:00.000Z"),
+    heartbeatAt: new Date("2026-04-16T10:05:00.000Z"),
+    promptTokens: 1000,
+    completionTokens: 500,
+    totalTokens: 1500,
+    llmCallCount: 2,
+    lastTokenRecordedAt: new Date("2026-04-16T10:05:00.000Z"),
+    novelId: "novel_demo",
+    novel: {
+      title: "示例小说",
+    },
+    startedAt: new Date("2026-04-16T10:00:00.000Z"),
+    finishedAt: new Date("2026-04-16T10:05:00.000Z"),
+    cancelRequestedAt: null,
+    milestonesJson: null,
+    seedPayloadJson: JSON.stringify({
+      provider: "deepseek",
+      model: "deepseek-chat",
+      autoExecution: {
+        enabled: true,
+        mode: "front10",
+        scopeLabel: "前 10 章",
+        startOrder: 1,
+        endOrder: 10,
+        totalChapterCount: 10,
+        remainingChapterCount: 9,
+        nextChapterOrder: 2,
+        nextChapterId: "chapter-2",
+      },
+    }),
+  });
+
+  const adapter = new NovelWorkflowTaskAdapter();
+  const originalHeal = adapter.workflowService.healAutoDirectorTaskState;
+  adapter.workflowService.healAutoDirectorTaskState = async () => false;
+
+  try {
+    const detail = await adapter.detail("task_review_blocked");
+    assert.ok(detail);
+    assert.equal(detail.lastError, null);
+    assert.equal(detail.failureCode, null);
+    assert.match(String(detail.failureSummary), /允许跳过当前章继续执行/);
+    assert.match(String(detail.failureSummary), /第 2 章继续/);
+    assert.match(String(detail.blockingReason), /第 2 章继续/);
+    assert.match(String(detail.checkpointSummary), /当前仍有 9 章待继续/);
+    assert.doesNotMatch(String(detail.checkpointSummary), /Chapter generation is blocked until review is resolved/);
+    assert.match(String(detail.recoveryHint), /继续自动执行前 10 章/);
+  } finally {
+    prisma.novelWorkflowTask.findUnique = originals.findUnique;
+    adapter.workflowService.healAutoDirectorTaskState = originalHeal;
+  }
+});

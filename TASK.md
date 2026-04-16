@@ -1,6 +1,6 @@
 # AI 长篇成书当前执行计划（小白用户导向）
 
-更新时间：2026-04-10
+更新时间：2026-04-16
 适用范围：当前 `AI-Novel-Writing-Assistant2` 代码库现状  
 目标用户：完全不懂写作、希望通过 AI 引导或全自动规划完成整本小说创作的用户  
 当前定位：强辅助型 AI 小说工作台  
@@ -32,7 +32,7 @@
 
 - `waiting_approval` 的基础展示语义已不再是主阻塞：当前界面已按 live / checkpoint 处理，后续重点转为补齐 `displayStatus / blockingReason / resumeAction / lastHealthyStage`
 - `auto_to_ready` 单检查点语义已基本成立，且当前系统已超出旧方案进入 `auto_to_execution`；不再把“只跑到 front10_ready”本身当作新的主待办
-- 当前最值得优先推进的稳定性收口集中在：章节细化可用性门禁、轻量 `taskSheet` 执行摘要与非阻塞 `artifactHealth`、阶段级模型路由与 fallback、默认 `patch_first` 修复、任务状态可解释性
+- 当前最值得优先推进的稳定性收口集中在：章节细化可用性门禁、轻量 `taskSheet` 执行摘要与非阻塞 `artifactHealth`、阶段级模型路由与 fallback、默认 `patch_first` 修复、任务状态可解释性，以及 `统一状态源 + 状态驱动生成 + 手动/导演共线` 的主链收口
 
 当前唯一主线仍然是 `P0`：
 
@@ -233,6 +233,130 @@ P0 的默认主链统一为：
 - 长篇连续写作的纠偏从“人工兜底”转为“系统闭环”
 - 系统会主动标出当前最该回收的事项、已超期未回收事项和疑似误回收事项，而不是只在底层状态中被动记录
 - 审计和 replan 能对伏笔 / 回收给出可执行建议，例如 `前移 / 后移 / 拆分 / 合并 / 作废`，而不只是指出“有问题”；当前已开始支持 payoff 专项问题码与 `blockingLedgerKeys`
+
+### P0-E1 统一状态源、状态驱动生成与手动/导演共线
+
+需求背景：
+
+- 当前系统已经不是单 prompt 写作工具，而是 `书级 framing -> story macro -> character -> volume -> chapter mission -> writer -> audit -> replan` 的多层系统
+- 当前最危险的问题不是单次生成差，而是同一本书在不同模块眼里已经不是同一本书：角色、世界、冲突、伏笔、已公开信息、当前任务目标会发生状态分叉
+- 自动导演与手动主链当前仍有残余分叉，尤其体现在前半段资产模型、知识消费方式、状态理解和章节执行前置依据上
+- 因此需要同时推进三件事：
+  - 建立统一状态源，避免 planner / writer / audit / repair 各自维护一份“事实”
+  - 把章节推进改成状态驱动，而不是简单堆资料驱动
+  - 把手动起步、自动导演起步、现有项目接管收口到同一主生产线
+
+统一方案：
+
+- 保留 `手动起步`、`自动导演起步`、`接管现有项目` 三种入口，但三者都收口到同一条 `NovelProductionOrchestrator`
+- 不做一个新的“大 JSON 真源”，继续复用现有正式资产表作为分域真源，在其上建立统一读取层与受控写回层
+- 统一状态主干至少覆盖五层：
+  - `Book Contract State`
+  - `World State`
+  - `Character Runtime State`
+  - `Narrative State`
+  - `Timeline / Event State`
+- 所有长期有效的新事实一律走同一条链：
+  - `章节/阶段执行 -> 提取候选变更 -> 校验 -> 保守提交 -> 记录版本 -> 刷新下游上下文`
+- 章节生成改成三层状态驱动：
+  - `任务状态驱动`：先判断当前正确动作是写、修、重规划还是等待审核
+  - `上下文状态驱动`：只给当前任务必要的局部状态
+  - `输出目标状态驱动`：每次生成前先声明这一步应该推动哪些状态变化
+
+本轮实施计划：
+
+- `P0`：先落地状态主干，不推翻旧表结构
+  - 新增 `CanonicalStateService`、`StateCommitService`、`StateVersionLog`
+  - 章节完成后接入 `ChapterFactExtractor -> StateCommitService`
+  - runtime / review / repair 开始共享 `canonicalState`
+- `P1`：把章节主链改成状态驱动
+  - 落 `GenerationDecisionEngine`
+  - 让 `chapter mission / writer / audit / repair / replan` 共享 `StateGoal / ChapterStateGoal`
+- `P2`：收口手动 / 导演 / 接管三条入口
+  - 新增 `NovelProductionOrchestrator`
+  - 让三种入口只在 `controlPolicy` 上不同，不再各跑一套主链
+- `P3`：收口前端解释性
+  - 明确展示 `当前阶段 / 当前状态 / 当前下一动作 / 为什么停`
+
+当前已完成：
+
+- 已新增统一状态合同与共享类型：
+  - `shared/types/canonicalState.ts`
+  - `shared/types/chapterRuntime.ts` 已把 `canonicalState` 纳入 `GenerationContextPackage`
+- 已新增状态持久化模型与迁移文件：
+  - `CanonicalStateVersion`
+  - `StateChangeProposal`
+  - 对应 Prisma schema 与 migration 已写好
+- 已新增统一状态主干服务：
+  - `CanonicalStateService`
+  - `ChapterFactExtractor`
+  - `StateCommitService`
+  - `StateVersionLog`
+- 已把章节后台同步链接到统一状态提交：
+  - 章节现有 `state_snapshot / payoff_ledger / character_dynamics` 之后，新增 `canonical_state` 同步阶段
+- 已把章节 runtime 上下文优先切到 canonical state：
+  - `GenerationContextAssembler` 现在会装配 `contextPackage.canonicalState`
+  - `stateSnapshot / openConflicts / ledger` 已优先由 canonical snapshot 派生
+  - `chapterLayeredContextShared` 已优先从 canonical state 摘要状态、冲突与世界规则
+- 已补状态驱动与统一编排的骨架服务：
+  - `GenerationDecisionEngine`
+  - `ContextAssemblyService`
+  - `NovelProductionOrchestrator`
+- 已把章节主链接上状态驱动最小闭环：
+  - `GenerationContextAssembler` 会先通过 `ContextAssemblyService` 产出 `nextAction / ChapterStateGoal / protectedSecrets / pendingReviewProposalCount`
+  - `chapterLayeredContext` 的 mission、writer、review、repair 上下文已开始显式消费这组状态目标
+  - `ChapterRuntimeCoordinator` 会在实际写章前拦截 `hold_for_review`，避免待审核状态继续生成正文
+- 已把章节执行入口开始收口到统一编排器：
+  - 手动单章生成 `NovelGenerationService.createChapterStream` 已改为通过 `NovelProductionOrchestrator -> chapter_execution`
+  - 批量章节执行 `NovelPipelineService.startPipelineJob` 已改为通过同一 `chapter_execution` stage runner
+  - 自动导演后半段发起批量章节执行时，已开始通过 `controlPolicy.kickoffMode = director_start` 标记为导演入口
+- 已把章节准备与重规划入口开始收口到统一编排器：
+  - 手动 `generateChapterPlan` 已改为通过 `NovelProductionOrchestrator -> chapter_preparation`
+  - 手动 `replanNovel` 已改为通过 `NovelProductionOrchestrator -> quality_repair`
+  - `chapter_preparation / quality_repair` 已分别有可执行 stage runner，而不再只有空壳 stage 名
+- 已把 planner 内部上下文开始切到统一状态主干：
+  - `PlannerService.generateChapterPlan` 现在会通过 `ContextAssemblyService` 读取 canonical snapshot、`nextAction`、`ChapterStateGoal`、`protectedSecrets`
+  - planner prompt 已新增状态驱动块，不再只看旧 `stateSnapshot` 摘要
+  - 章节计划落账时，`mustAdvance / mustPreserve / riskNotes` 已开始并入状态目标、payoff 目标和保护性秘密边界
+- 已完成最小验证：
+  - `@ai-novel/shared build`
+  - `@ai-novel/server prisma:generate`
+  - `@ai-novel/server build`
+  - 定向测试已覆盖 canonical state 摘要优先级、保守提交分类、基础状态驱动决策、手动单章共线、导演后半段 control policy 透传、`hold_for_review` 阻断写章、手动章节计划生成共线、手动重规划共线、planner 状态驱动上下文块
+
+当前未完成：
+
+- 真实数据库尚未正式执行这轮 migration；当前只完成了 schema、migration 文件与 prisma generate
+- `NovelProductionOrchestrator` 目前已接通 `chapter_preparation / chapter_execution / quality_repair`，但书级前半段阶段（`story_macro / book_contract / character_prep / volume_planning`）和接管入口还没有正式并线
+- `GenerationDecisionEngine`、`ContextAssemblyService` 已落地，且 `chapter mission / writer / audit / repair` 已开始消费 `ChapterStateGoal`，但 `replan` 和更前面的规划阶段还没有全量切过去
+- `replanNovel` 虽然已走统一编排器入口，且内部会复用新的 `generateChapterPlan`，但 `PlannerService.replan` 的窗口决策、触发理由整形、章节选择策略仍未完全改成 canonical/state-driven 主判断
+- `StateCommitService` 当前采取保守提交：
+  - 低风险的 `character_state_update / event_record / payoff_progression / conflict_update` 已能提交与版本落账
+  - `relation_state_update / information_disclosure / world_rule_change / book_contract_change` 仍停留在 `pending_review`
+- 自动导演前半段还没有完全复用 canonical state 与同一组参考知识消费链，导演链与手动主链仍有剩余分叉
+- 前端还没有把 `当前阶段 / 当前状态 / 当前下一动作 / pending_review` 显式展示出来
+
+下一步重点：
+
+- 优先做真实 Prisma 链路抽样回归，确认 `migration -> 章节写入 -> 候选变更 -> 状态版本` 在旧项目、批量执行、自动导演恢复链上稳定
+- 继续把 `PlannerService.replan` 的窗口决策与触发理由正式接到 `ContextAssemblyService / CanonicalStateService / ChapterStateGoal`，让“为什么要重规划、该改哪几章”也走统一状态判断
+- 继续把书级阶段与入口收口到 `NovelProductionOrchestrator`：
+  - 先收 `story_macro / book_contract`
+  - 再收 `character_prep / volume_planning`
+  - 最后处理 `takeover_start`
+- 让自动导演前半段开始复用 canonical state 与统一参考知识消费，先收掉“导演规划依据”和“手动规划依据”的分叉
+- 在任务中心与编辑页补 `displayStatus / blockingReason / resumeAction / lastHealthyStage / pendingReviewCount`
+
+完成标志：
+
+- planner / writer / audit / repair / replan 对同一章读取到同一份正式状态，不再各自拼一套事实
+- 章节里出现长期有效新事实后，系统能稳定区分：
+  - 可以自动提交的正式变化
+  - 需要人工/审校确认的高风险变化
+  - 明确拒绝写回的脏状态
+- “写下一章”前，系统能先判断应该 `write / repair / replan / hold_for_review`，而不是无条件直接写
+- 手动起步、自动导演起步、接管现有项目三条入口进入章节执行时共享同一套状态与上下文依据
+- 用户能在界面上看懂当前为什么停、现在依据什么状态、继续后会推进什么
 
 ### P0-F 新用户首启与快速开书入口收敛
 

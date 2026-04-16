@@ -197,8 +197,8 @@ test("runFromReady records a normal checkpoint when pipeline completes with qual
     novelContextService: {
       async listChapters() {
         return [
-          { id: "chapter-1", order: 1, generationState: "reviewed" },
-          { id: "chapter-2", order: 2, generationState: "approved" },
+          { id: "chapter-1", order: 1, generationState: "planned" },
+          { id: "chapter-2", order: 2, generationState: "planned" },
         ];
       },
     },
@@ -281,6 +281,91 @@ test("runFromReady records a normal checkpoint when pipeline completes with qual
   assert.ok(String(calls[5][3]).length > 0);
   assert.equal(calls[5][4], "succeeded");
   assert.deepEqual(calls[6], ["bootstrapTask", "succeeded"]);
+});
+
+test("runFromReady records replan_required when pipeline completes with replan notice", async () => {
+  const calls = [];
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        return [
+          { id: "chapter-1", order: 1, generationState: "planned" },
+          { id: "chapter-2", order: 2, generationState: "planned" },
+        ];
+      },
+    },
+    novelService: {
+      async startPipelineJob() {
+        calls.push(["startPipelineJob"]);
+        return { id: "job-replan", status: "queued" };
+      },
+      async findActivePipelineJobForRange() {
+        return null;
+      },
+      async getPipelineJobById(jobId) {
+        calls.push(["getPipelineJobById", jobId]);
+        return {
+          id: "job-replan",
+          status: "succeeded",
+          progress: 1,
+          currentStage: null,
+          currentItemLabel: null,
+          noticeCode: "PIPELINE_REPLAN_REQUIRED",
+          noticeSummary: "State-driven replan is required before continuing: 第2章需要重规划",
+          error: null,
+        };
+      },
+      async cancelPipelineJob() {
+        calls.push(["cancelPipelineJob"]);
+      },
+    },
+    workflowService: {
+      async bootstrapTask(input) {
+        calls.push(["bootstrapTask", input.seedPayload.autoExecution.pipelineStatus]);
+      },
+      async getTaskById() {
+        return { status: "running" };
+      },
+      async markTaskRunning() {
+        calls.push(["markTaskRunning"]);
+      },
+      async recordCheckpoint(taskId, input) {
+        calls.push([
+          "recordCheckpoint",
+          taskId,
+          input.checkpointType,
+          input.itemLabel,
+          input.checkpointSummary,
+        ]);
+      },
+      async markTaskFailed() {
+        calls.push(["markTaskFailed"]);
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+  });
+
+  await runtime.runFromReady({
+    taskId: "task-auto-exec",
+    novelId: "novel-1",
+    request: buildRequest(),
+    existingState: {
+      enabled: true,
+      firstChapterId: "chapter-1",
+      startOrder: 1,
+      endOrder: 2,
+      totalChapterCount: 2,
+      pipelineJobId: null,
+      pipelineStatus: null,
+    },
+  });
+
+  assert.equal(calls[5][0], "recordCheckpoint");
+  assert.equal(calls[5][2], "replan_required");
+  assert.match(String(calls[5][3]), /等待处理重规划建议/);
+  assert.match(String(calls[5][4]), /replan/i);
 });
 
 test("runFromReady uses the latest auto-execution review toggles instead of stale saved state when starting a new batch", async () => {
@@ -378,4 +463,104 @@ test("runFromReady uses the latest auto-execution review toggles instead of stal
   assert.deepEqual(calls[3], ["bootstrapTask", false, false]);
   assert.deepEqual(calls[4], ["getPipelineJobById", "job-no-review"]);
   assert.deepEqual(calls[5], ["recordCheckpoint", "task-auto-exec", false, false]);
+});
+
+test("runFromReady skips the current review-blocked chapter when continuing explicit auto execution", async () => {
+  const calls = [];
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        return [
+          { id: "chapter-1", order: 1, generationState: "reviewed", chapterStatus: "needs_repair" },
+          { id: "chapter-2", order: 2, generationState: "planned" },
+          { id: "chapter-3", order: 3, generationState: "planned" },
+        ];
+      },
+    },
+    novelService: {
+      async startPipelineJob(_novelId, options) {
+        calls.push([
+          "startPipelineJob",
+          options.startOrder,
+          options.endOrder,
+        ]);
+        return { id: "job-skip-review", status: "queued" };
+      },
+      async findActivePipelineJobForRange(_novelId, startOrder, endOrder, preferredJobId) {
+        calls.push(["findActivePipelineJobForRange", startOrder, endOrder, preferredJobId]);
+        return null;
+      },
+      async getPipelineJobById(jobId) {
+        calls.push(["getPipelineJobById", jobId]);
+        return {
+          id: jobId,
+          status: "succeeded",
+          progress: 1,
+          currentStage: null,
+          currentItemLabel: null,
+          noticeSummary: null,
+          error: null,
+        };
+      },
+      async cancelPipelineJob() {
+        calls.push(["cancelPipelineJob"]);
+      },
+    },
+    workflowService: {
+      async bootstrapTask(input) {
+        calls.push([
+          "bootstrapTask",
+          input.seedPayload.autoExecution?.nextChapterOrder ?? null,
+          input.seedPayload.autoExecution?.skippedChapterOrders ?? [],
+        ]);
+      },
+      async getTaskById() {
+        return { status: "running" };
+      },
+      async markTaskRunning() {
+        calls.push(["markTaskRunning"]);
+      },
+      async recordCheckpoint(taskId, input) {
+        calls.push([
+          "recordCheckpoint",
+          taskId,
+          input.seedPayload.autoExecution?.skippedChapterOrders ?? [],
+        ]);
+      },
+      async markTaskFailed() {
+        calls.push(["markTaskFailed"]);
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+  });
+
+  await runtime.runFromReady({
+    taskId: "task-auto-exec",
+    novelId: "novel-1",
+    request: buildRequest(),
+    existingState: {
+      enabled: true,
+      mode: "front10",
+      firstChapterId: "chapter-1",
+      startOrder: 1,
+      endOrder: 3,
+      totalChapterCount: 3,
+      nextChapterId: "chapter-1",
+      nextChapterOrder: 1,
+      pipelineJobId: "job-failed",
+      pipelineStatus: "failed",
+    },
+    previousFailureMessage: "Chapter generation is blocked until review is resolved. 4 pending state proposal(s)",
+    allowSkipReviewBlockedChapter: true,
+  });
+
+  assert.deepEqual(calls[0], ["bootstrapTask", 2, [1]]);
+  assert.deepEqual(calls[1], ["findActivePipelineJobForRange", 2, 3, null]);
+  assert.deepEqual(calls[2], ["markTaskRunning"]);
+  assert.deepEqual(calls[3], ["startPipelineJob", 2, 3]);
+  assert.deepEqual(calls[4], ["bootstrapTask", 2, [1]]);
+  assert.deepEqual(calls[5], ["getPipelineJobById", "job-skip-review"]);
+  assert.deepEqual(calls[6], ["recordCheckpoint", "task-auto-exec", [1]]);
 });

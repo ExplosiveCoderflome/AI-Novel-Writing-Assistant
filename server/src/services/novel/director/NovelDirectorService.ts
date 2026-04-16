@@ -24,6 +24,7 @@ import type {
 import { BookContractService } from "../BookContractService";
 import { CharacterPreparationService } from "../characterPrep/CharacterPreparationService";
 import { generateAutoCharacterCastDraft, persistCharacterCastOptionsDraft } from "../characterPrep/characterCastGeneration";
+import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
 import { NovelContextService } from "../NovelContextService";
 import { NovelService } from "../NovelService";
 import { novelFramingSuggestionService } from "../NovelFramingSuggestionService";
@@ -92,6 +93,7 @@ export class NovelDirectorService {
   private readonly storyMacroService = new StoryMacroPlanService();
   private readonly bookContractService = new BookContractService();
   private readonly novelService = new NovelService();
+  private readonly characterDynamicsService = new CharacterDynamicsService();
   private readonly volumeService = new NovelVolumeService();
   private readonly workflowService = new NovelWorkflowService();
   private readonly candidateStageService = new NovelDirectorCandidateStageService(this.workflowService);
@@ -479,8 +481,8 @@ export class NovelDirectorService {
         || directorSessionPhase === "front10_ready"
       )
     ) {
-      const resumeCheckpointType = row.checkpointType === "chapter_batch_ready"
-        ? "chapter_batch_ready"
+      const resumeCheckpointType = row.checkpointType === "chapter_batch_ready" || row.checkpointType === "replan_required"
+        ? row.checkpointType
         : "front10_ready";
       await this.withWorkflowTaskUsage(taskId, () => this.autoExecutionRuntime.runFromReady({
         taskId,
@@ -489,6 +491,8 @@ export class NovelDirectorService {
         existingPipelineJobId: seedPayload.autoExecution?.pipelineJobId ?? null,
         existingState: seedPayload.autoExecution ?? null,
         resumeCheckpointType,
+        previousFailureMessage: row.lastError ?? null,
+        allowSkipReviewBlockedChapter: input?.continuationMode === "auto_execute_front10",
       }));
       return;
     }
@@ -1110,6 +1114,7 @@ export class NovelDirectorService {
       dependencies: {
         workflowService: this.workflowService,
         novelContextService: this.novelContextService,
+        characterDynamicsService: this.characterDynamicsService,
         characterPreparationService: this.buildDirectorCharacterPreparationService(),
         volumeService: this.volumeService,
       },
@@ -1134,6 +1139,7 @@ export class NovelDirectorService {
       dependencies: {
         workflowService: this.workflowService,
         novelContextService: this.novelContextService,
+        characterDynamicsService: this.characterDynamicsService,
         characterPreparationService: this.buildDirectorCharacterPreparationService(),
         volumeService: this.volumeService,
       },
@@ -1160,6 +1166,7 @@ export class NovelDirectorService {
       dependencies: {
         workflowService: this.workflowService,
         novelContextService: this.novelContextService,
+        characterDynamicsService: this.characterDynamicsService,
         characterPreparationService: this.buildDirectorCharacterPreparationService(),
         volumeService: this.volumeService,
       },

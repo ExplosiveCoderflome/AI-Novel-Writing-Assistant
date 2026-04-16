@@ -565,10 +565,15 @@ export interface ReplanResult {
   generatedPlans: StoryPlan[];
   affectedChapterIds: string[];
   affectedChapterOrders: number[];
+  anchorChapterOrder?: number | null;
   sourceIssueIds: string[];
   triggerType: string;
   reason: string;
+  triggerReason?: string;
+  windowReason?: string;
+  whyTheseChapters?: string;
   windowSize: number;
+  blockingLedgerKeys?: string[];
   run: {
     id: string;
     outputSummary?: string | null;
@@ -813,6 +818,11 @@ export interface ReplanRecommendation {
   reason: string;
   blockingIssueIds: string[];
   blockingLedgerKeys?: string[];
+  affectedChapterOrders?: number[];
+  anchorChapterOrder?: number | null;
+  triggerReason?: string;
+  windowReason?: string;
+  whyTheseChapters?: string;
 }
 
 export interface AuditIssue {

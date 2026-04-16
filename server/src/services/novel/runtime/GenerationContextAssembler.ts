@@ -2,8 +2,6 @@ import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRun
 import { prisma } from "../../../db/prisma";
 import { ragServices } from "../../rag";
 import { plannerService } from "../../planner/PlannerService";
-import { openConflictService } from "../../state/OpenConflictService";
-import { stateService } from "../../state/StateService";
 import { getRagQueryForChapter, novelReferenceService } from "../NovelReferenceService";
 import { NovelContinuationService } from "../NovelContinuationService";
 import { parseJsonStringArray } from "../novelP0Utils";
@@ -11,8 +9,15 @@ import { StyleBindingService } from "../../styleEngine/StyleBindingService";
 import { NovelWorldSliceService } from "../storyWorldSlice/NovelWorldSliceService";
 import { characterDynamicsQueryService } from "../dynamics/CharacterDynamicsQueryService";
 import { payoffLedgerSyncService } from "../../payoff/PayoffLedgerSyncService";
-import { buildSyntheticPayoffIssues, classifyPayoffLedgerItems } from "../../payoff/payoffLedgerShared";
+import { buildSyntheticPayoffIssues } from "../../payoff/payoffLedgerShared";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
+import {
+  buildRuntimeLedgerFromCanonical,
+  buildRuntimeOpenConflictsFromCanonical,
+  buildRuntimeStateSnapshotFromCanonical,
+  buildStateContextBlockFromCanonical,
+} from "../state/CanonicalStateService";
+import { contextAssemblyService } from "../production/ContextAssemblyService";
 import {
   buildLegacyWorldContextFromWorld,
   formatStoryWorldSlicePromptBlock,
@@ -106,73 +111,6 @@ function mapPlan(plan: Awaited<ReturnType<typeof plannerService.getChapterPlan>>
     })),
     createdAt: plan.createdAt.toISOString(),
     updatedAt: plan.updatedAt.toISOString(),
-  };
-}
-
-function mapStateSnapshot(
-  snapshot: Awaited<ReturnType<typeof stateService.getLatestSnapshotBeforeChapter>>,
-): GenerationContextPackage["stateSnapshot"] {
-  if (!snapshot) {
-    return null;
-  }
-  return {
-    id: snapshot.id,
-    novelId: snapshot.novelId,
-    sourceChapterId: snapshot.sourceChapterId ?? null,
-    summary: snapshot.summary ?? null,
-    rawStateJson: snapshot.rawStateJson ?? null,
-    characterStates: snapshot.characterStates.map((item) => ({
-      characterId: item.characterId,
-      currentGoal: item.currentGoal ?? null,
-      emotion: item.emotion ?? null,
-      summary: item.summary ?? null,
-    })),
-    relationStates: snapshot.relationStates.map((item) => ({
-      sourceCharacterId: item.sourceCharacterId,
-      targetCharacterId: item.targetCharacterId,
-      summary: item.summary ?? null,
-    })),
-    informationStates: snapshot.informationStates.map((item) => ({
-      holderType: item.holderType,
-      holderRefId: item.holderRefId ?? null,
-      fact: item.fact,
-      status: item.status,
-      summary: item.summary ?? null,
-    })),
-    foreshadowStates: snapshot.foreshadowStates.map((item) => ({
-      title: item.title,
-      summary: item.summary ?? null,
-      status: item.status,
-      setupChapterId: item.setupChapterId ?? null,
-      payoffChapterId: item.payoffChapterId ?? null,
-    })),
-    createdAt: snapshot.createdAt.toISOString(),
-    updatedAt: snapshot.updatedAt.toISOString(),
-  };
-}
-
-function mapOpenConflict(
-  conflict: Awaited<ReturnType<typeof openConflictService.listOpenConflicts>>[number],
-): GenerationContextPackage["openConflicts"][number] {
-  return {
-    id: conflict.id,
-    novelId: conflict.novelId,
-    chapterId: conflict.chapterId ?? null,
-    sourceSnapshotId: conflict.sourceSnapshotId ?? null,
-    sourceIssueId: conflict.sourceIssueId ?? null,
-    sourceType: conflict.sourceType,
-    conflictType: conflict.conflictType,
-    conflictKey: conflict.conflictKey,
-    title: conflict.title,
-    summary: conflict.summary,
-    severity: conflict.severity,
-    status: conflict.status,
-    evidence: parseJsonStringArraySafe(conflict.evidenceJson),
-    affectedCharacterIds: parseJsonStringArraySafe(conflict.affectedCharacterIdsJson),
-    resolutionHint: conflict.resolutionHint ?? null,
-    lastSeenChapterOrder: conflict.lastSeenChapterOrder ?? conflict.chapter?.order ?? null,
-    createdAt: conflict.createdAt.toISOString(),
-    updatedAt: conflict.updatedAt.toISOString(),
   };
 }
 
@@ -305,19 +243,23 @@ export class GenerationContextAssembler {
     }
 
     const ensuredPlan = await plannerService.ensureChapterPlan(novelId, chapterId, request);
+    const pendingReviewProposalCountPromise = prisma.stateChangeProposal.count({
+      where: {
+        novelId,
+        status: "pending_review",
+      },
+    });
     const [
       storyWorldSlice,
       planPromptBlock,
-      stateSnapshot,
-      stateContextBlock,
+      pendingReviewProposalCount,
+      openAuditIssues,
       bible,
       summaries,
       facts,
       styleReference,
       recentChapters,
       decisions,
-      openAuditIssues,
-      openConflicts,
       characterDynamics,
       continuationPack,
       styleContext,
@@ -325,8 +267,19 @@ export class GenerationContextAssembler {
     ] = await Promise.all([
       this.worldSliceService.ensureStoryWorldSlice(novelId, { builderMode: "runtime" }),
       plannerService.buildPlanPromptBlock(novelId, chapterId),
-      stateService.getLatestSnapshotBeforeChapter(novelId, chapter.order),
-      stateService.buildStateContextBlock(novelId, chapter.order),
+      pendingReviewProposalCountPromise,
+      prisma.auditIssue.findMany({
+        where: {
+          status: "open",
+          report: {
+            is: {
+              novelId,
+              chapterId,
+            },
+          },
+        },
+        orderBy: [{ createdAt: "desc" }],
+      }),
       prisma.novelBible.findUnique({ where: { novelId } }),
       prisma.chapterSummary.findMany({
         where: {
@@ -361,22 +314,6 @@ export class GenerationContextAssembler {
         orderBy: [{ importance: "asc" }, { createdAt: "desc" }],
         take: 12,
       }),
-      prisma.auditIssue.findMany({
-        where: {
-          status: "open",
-          report: {
-            is: {
-              novelId,
-              chapterId,
-            },
-          },
-        },
-        orderBy: [{ createdAt: "desc" }],
-      }),
-      openConflictService.listOpenConflicts(novelId, {
-        beforeChapterOrder: chapter.order,
-        limit: 8,
-      }),
       characterDynamicsQueryService.getOverview(novelId, {
         chapterOrder: chapter.order,
       }).catch(() => null),
@@ -391,9 +328,20 @@ export class GenerationContextAssembler {
       }),
     ]);
 
-    const classifiedLedger = classifyPayoffLedgerItems(payoffLedger.items, chapter.order);
+    const resolvedStateDrivenContext = await contextAssemblyService.build({
+      novelId,
+      chapterId,
+      chapterOrder: chapter.order,
+      includeCurrentChapterState: false,
+      pendingReviewProposalCount,
+      openAuditIssueCount: openAuditIssues.length,
+      hasRepairableDraft: Boolean(chapter.content?.trim()),
+    });
+    const canonicalState = resolvedStateDrivenContext.snapshot;
+
+    const canonicalLedger = buildRuntimeLedgerFromCanonical(canonicalState);
     const previousChaptersSummary = buildPreviousChaptersSummary(request.previousChaptersSummary, summaries);
-    const mappedOpenConflicts = openConflicts.map((item) => mapOpenConflict(item));
+    const mappedOpenConflicts = buildRuntimeOpenConflictsFromCanonical(canonicalState);
     const storyMacroPlan = novel.storyMacroPlan ? mapRowToPlan(novel.storyMacroPlan) : null;
     const volumeWindow = buildVolumeWindowContext(findVolumeWindowSeed(
       novel.volumePlans.map((volume) => ({
@@ -408,28 +356,38 @@ export class GenerationContextAssembler {
       chapter.order,
     ));
     const bookContract = buildBookContractContext({
-      title: novel.title,
-      genre: novel.genre?.name ?? null,
-      targetAudience: novel.targetAudience,
-      sellingPoint: novel.bookSellingPoint,
-      first30ChapterPromise: novel.first30ChapterPromise,
+      title: canonicalState.bookContract.title,
+      genre: canonicalState.bookContract.genre ?? null,
+      targetAudience: canonicalState.bookContract.targetAudience ?? novel.targetAudience,
+      sellingPoint: canonicalState.bookContract.sellingPoint ?? novel.bookSellingPoint,
+      first30ChapterPromise: canonicalState.bookContract.first30ChapterPromise ?? novel.first30ChapterPromise,
       narrativePov: novel.narrativePov,
       pacePreference: novel.pacePreference,
       emotionIntensity: novel.emotionIntensity,
-      toneGuardrails: novel.styleTone ? [novel.styleTone] : [],
-      hardConstraints: storyMacroPlan?.constraints ?? [],
+      toneGuardrails: canonicalState.bookContract.toneGuardrails.length > 0
+        ? canonicalState.bookContract.toneGuardrails
+        : novel.styleTone ? [novel.styleTone] : [],
+      hardConstraints: canonicalState.bookContract.hardConstraints.length > 0
+        ? canonicalState.bookContract.hardConstraints
+        : storyMacroPlan?.constraints ?? [],
     });
     const macroConstraints = buildMacroConstraintContext(storyMacroPlan);
     const mappedPlan = mapPlan(ensuredPlan);
-    const mappedStateSnapshot = mapStateSnapshot(stateSnapshot);
-    const mappedCharacterRoster = novel.characters.map((item) => ({
-      id: item.id,
-      name: item.name,
-      role: item.role,
-      personality: item.personality ?? null,
-      currentState: item.currentState ?? null,
-      currentGoal: item.currentGoal ?? null,
-    }));
+    const mappedStateSnapshot = buildRuntimeStateSnapshotFromCanonical(canonicalState);
+    const canonicalCharacterMap = new Map(
+      canonicalState.characters.map((item) => [item.characterId, item]),
+    );
+    const mappedCharacterRoster = novel.characters.map((item) => {
+      const canonicalCharacter = canonicalCharacterMap.get(item.id);
+      return {
+        id: item.id,
+        name: item.name,
+        role: item.role,
+        personality: item.personality ?? null,
+        currentState: canonicalCharacter?.currentState ?? item.currentState ?? null,
+        currentGoal: canonicalCharacter?.currentGoal ?? item.currentGoal ?? null,
+      };
+    });
     const mappedCreativeDecisions = decisions.map((item) => ({
       id: item.id,
       chapterId: item.chapterId ?? null,
@@ -507,6 +465,7 @@ export class GenerationContextAssembler {
     const decisionsBlock = buildDecisionsBlock(decisions);
     const styleEngineBlock = buildStyleEngineBlock(styleContext);
     const openConflictBlock = buildOpenConflictBlock(mappedOpenConflicts);
+    const stateContextBlock = buildStateContextBlockFromCanonical(canonicalState);
 
     const ragQuery = getRagQueryForChapter(chapter.order, novel.title, novel.structuredOutline ?? null);
     let ragText = "";
@@ -539,6 +498,11 @@ export class GenerationContextAssembler {
         supportingContextText: "",
       },
       plan: mappedPlan,
+      canonicalState,
+      nextAction: resolvedStateDrivenContext.nextAction,
+      chapterStateGoal: resolvedStateDrivenContext.chapterStateGoal,
+      protectedSecrets: resolvedStateDrivenContext.protectedSecrets,
+      pendingReviewProposalCount,
       stateSnapshot: mappedStateSnapshot,
       openConflicts: mappedOpenConflicts,
       storyWorldSlice,
@@ -553,10 +517,10 @@ export class GenerationContextAssembler {
       bookContract,
       macroConstraints,
       volumeWindow,
-      ledgerPendingItems: classifiedLedger.pendingItems,
-      ledgerUrgentItems: classifiedLedger.urgentItems,
-      ledgerOverdueItems: classifiedLedger.overdueItems,
-      ledgerSummary: payoffLedger.summary,
+      ledgerPendingItems: canonicalLedger.ledgerPendingItems,
+      ledgerUrgentItems: canonicalLedger.ledgerUrgentItems,
+      ledgerOverdueItems: canonicalLedger.ledgerOverdueItems,
+      ledgerSummary: canonicalLedger.ledgerSummary,
       chapterMission: null,
       chapterWriteContext: null,
       chapterReviewContext: null,
@@ -605,6 +569,11 @@ export class GenerationContextAssembler {
         }),
       },
       plan: mappedPlan,
+      canonicalState,
+      nextAction: resolvedStateDrivenContext.nextAction,
+      chapterStateGoal: resolvedStateDrivenContext.chapterStateGoal,
+      protectedSecrets: resolvedStateDrivenContext.protectedSecrets,
+      pendingReviewProposalCount,
       stateSnapshot: mappedStateSnapshot,
       openConflicts: mappedOpenConflicts,
       storyWorldSlice,
@@ -619,10 +588,10 @@ export class GenerationContextAssembler {
       bookContract,
       macroConstraints,
       volumeWindow,
-      ledgerPendingItems: classifiedLedger.pendingItems,
-      ledgerUrgentItems: classifiedLedger.urgentItems,
-      ledgerOverdueItems: classifiedLedger.overdueItems,
-      ledgerSummary: payoffLedger.summary,
+      ledgerPendingItems: canonicalLedger.ledgerPendingItems,
+      ledgerUrgentItems: canonicalLedger.ledgerUrgentItems,
+      ledgerOverdueItems: canonicalLedger.ledgerOverdueItems,
+      ledgerSummary: canonicalLedger.ledgerSummary,
       chapterMission: chapterWriteContext.chapterMission,
       chapterWriteContext,
       chapterReviewContext,

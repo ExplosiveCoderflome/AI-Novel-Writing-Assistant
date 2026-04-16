@@ -66,6 +66,7 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
 
   const syncedSnapshots = [];
   let lastSyncedWorkspace = clone(baseWorkspace);
+  const rebuildCalls = [];
 
   const volumeService = {
     generateVolumes: async (_novelId, options) => {
@@ -116,6 +117,11 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
       })),
       updateNovel: async () => undefined,
     },
+    characterDynamicsService: {
+      rebuildDynamics: async (novelId, options) => {
+        rebuildCalls.push({ novelId, options });
+      },
+    },
     characterPreparationService: {},
     volumeService,
   };
@@ -146,6 +152,10 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
   });
 
   assert.equal(syncedSnapshots.length, 3);
+  assert.deepEqual(rebuildCalls, [{
+    novelId: "novel-demo",
+    options: { sourceType: "rebuild_projection" },
+  }]);
 
   const firstDetailSync = syncedSnapshots[1][0].chapters;
   assert.equal(firstDetailSync[0].purpose, "Chapter 1 purpose");
@@ -212,6 +222,7 @@ test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter
 
   const generatedTargets = [];
   let lastSyncedWorkspace = clone(baseWorkspace);
+  const rebuildCalls = [];
   const volumeService = {
     generateVolumes: async (_novelId, options) => {
       if (options.scope !== "chapter_detail") {
@@ -258,6 +269,11 @@ test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter
       })),
       updateNovel: async () => undefined,
     },
+    characterDynamicsService: {
+      rebuildDynamics: async (novelId, options) => {
+        rebuildCalls.push({ novelId, options });
+      },
+    },
     characterPreparationService: {},
     volumeService,
   };
@@ -292,4 +308,8 @@ test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter
     "chapter-2:boundary",
     "chapter-2:task_sheet",
   ]);
+  assert.deepEqual(rebuildCalls, [{
+    novelId: "novel-demo",
+    options: { sourceType: "rebuild_projection" },
+  }]);
 });

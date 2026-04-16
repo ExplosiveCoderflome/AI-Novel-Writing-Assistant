@@ -38,6 +38,7 @@ function createRuntimePackage(overallScore) {
 test("runPipelineChapterWithRuntime skips review and repair when autoReview is disabled", async () => {
   const stages = [];
   const generationStates = [];
+  const savedDrafts = [];
   let finalizeCalled = false;
 
   const result = await runPipelineChapterWithRuntime(
@@ -62,7 +63,9 @@ test("runPipelineChapterWithRuntime skips review and repair when autoReview is d
       async generateDraftFromWriter() {
         return { content: "生成后的正文" };
       },
-      async saveDraftAndArtifacts() {},
+      async saveDraftAndArtifacts(_novelId, _chapterId, content, generationState) {
+        savedDrafts.push({ content, generationState });
+      },
       async finalizeChapterContent() {
         finalizeCalled = true;
         throw new Error("should not finalize");
@@ -86,6 +89,10 @@ test("runPipelineChapterWithRuntime skips review and repair when autoReview is d
 
   assert.equal(finalizeCalled, false);
   assert.deepEqual(stages, ["generating_chapters"]);
+  assert.deepEqual(savedDrafts, [{
+    content: "生成后的正文",
+    generationState: "drafted",
+  }]);
   assert.deepEqual(generationStates, ["approved"]);
   assert.equal(result.reviewExecuted, false);
   assert.equal(result.pass, true);
@@ -171,10 +178,16 @@ test("runPipelineChapterWithRuntime defaults to a single repair pass before stop
     assert.equal(result.retryCountUsed, 1);
     assert.equal(result.pass, false);
     assert.deepEqual(generationStates, ["reviewed", "reviewed"]);
-    assert.deepEqual(savedDrafts, [{
-      content: "修后正文",
-      generationState: "repaired",
-    }]);
+    assert.deepEqual(savedDrafts, [
+      {
+        content: "生成后的正文",
+        generationState: "drafted",
+      },
+      {
+        content: "修后正文",
+        generationState: "repaired",
+      },
+    ]);
   } finally {
     promptRunner.runTextPrompt = originalRunTextPrompt;
   }

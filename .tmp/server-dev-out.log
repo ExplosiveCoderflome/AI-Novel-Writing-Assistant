@@ -1,0 +1,15 @@
+
+> @ai-novel/server@0.1.0 dev D:\code\AI-Novel-Writing-Assistant-v2\server
+> node scripts/ensure-dev-prisma.cjs && ts-node-dev --respawn --transpile-only src/app.ts
+
+[dev-prisma] running prisma generate...
+
+✔ Generated Prisma Client (v7.4.2) to .\..\node_modules\.pnpm\@prisma+client@7.4.2_prisma_49b4b128965f74ea9bbd7586bc0c7d7a\node_modules\@prisma\client in 1.77s
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+
+[INFO] 10:50:57 ts-node-dev ver. 2.0.0 (using ts-node ver. 10.9.2, typescript ver. 5.9.3)
+[RAG][Worker] Worker started. { pollMs: 2500, maxAttempts: 5, retryBaseMs: 5000 }
+[server] listening on http://localhost:3000
+[server] LAN: http://28.0.0.1:3000

@@ -49,4 +49,11 @@ export class NovelWorkflowRuntimeService {
       }
     }
   }
+
+  async markPendingAutoDirectorTasksForManualRecovery(): Promise<void> {
+    const rows = await this.workflowService.listRecoverableAutoDirectorTasks();
+    for (const row of rows) {
+      await this.workflowService.requeueTaskForRecovery(row.id, "服务重启后任务已暂停，等待手动恢复。");
+    }
+  }
 }

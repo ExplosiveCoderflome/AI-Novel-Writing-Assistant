@@ -15,7 +15,15 @@ const PIPELINE_STAGE_PROGRESS = {
   finalizing: 0.98,
 } as const;
 
+const PIPELINE_BACKGROUND_ACTIVITY_LABELS: Record<PipelineBackgroundSyncKind, string> = {
+  character_dynamics: "character dynamics syncing",
+  state_snapshot: "state snapshot syncing",
+  payoff_ledger: "payoff ledger syncing",
+  canonical_state: "canonical state syncing",
+};
+
 export const PIPELINE_QUALITY_NOTICE_CODE = "PIPELINE_QUALITY_REVIEW";
+export const PIPELINE_REPLAN_NOTICE_CODE = "PIPELINE_REPLAN_REQUIRED";
 
 export type PipelineActiveStage = (typeof PIPELINE_ACTIVE_STAGES)[number];
 
@@ -45,12 +53,6 @@ function normalizeStringList(value: unknown): string[] | undefined {
   return normalized.length > 0 ? normalized : undefined;
 }
 
-const PIPELINE_BACKGROUND_ACTIVITY_LABELS: Record<PipelineBackgroundSyncKind, string> = {
-  character_dynamics: "角色成长中",
-  state_snapshot: "状态同步中",
-  payoff_ledger: "伏笔回填中",
-};
-
 function normalizePipelineBackgroundActivity(value: unknown): PipelineBackgroundSyncActivity | null {
   if (!value || typeof value !== "object") {
     return null;
@@ -59,21 +61,27 @@ function normalizePipelineBackgroundActivity(value: unknown): PipelineBackground
   const kind = raw.kind;
   const status = raw.status;
   if (
-    (kind !== "character_dynamics" && kind !== "state_snapshot" && kind !== "payoff_ledger")
+    (
+      kind !== "character_dynamics"
+      && kind !== "state_snapshot"
+      && kind !== "payoff_ledger"
+      && kind !== "canonical_state"
+    )
     || (status !== "running" && status !== "failed")
   ) {
     return null;
   }
-  const updatedAt = typeof raw.updatedAt === "string" && raw.updatedAt.trim()
-    ? raw.updatedAt.trim()
-    : new Date(0).toISOString();
   return {
     kind,
     status,
     chapterId: typeof raw.chapterId === "string" ? raw.chapterId : "",
     chapterOrder: typeof raw.chapterOrder === "number" ? raw.chapterOrder : undefined,
-    chapterTitle: typeof raw.chapterTitle === "string" && raw.chapterTitle.trim() ? raw.chapterTitle.trim() : undefined,
-    updatedAt,
+    chapterTitle: typeof raw.chapterTitle === "string" && raw.chapterTitle.trim()
+      ? raw.chapterTitle.trim()
+      : undefined,
+    updatedAt: typeof raw.updatedAt === "string" && raw.updatedAt.trim()
+      ? raw.updatedAt.trim()
+      : new Date(0).toISOString(),
     error: typeof raw.error === "string" && raw.error.trim() ? raw.error.trim() : null,
   };
 }
@@ -108,7 +116,11 @@ export function buildPipelineBackgroundActivityLabels(
     if (!baseLabel) {
       continue;
     }
-    labels.add(typeof activity.chapterOrder === "number" ? `${baseLabel}(第${activity.chapterOrder}章)` : baseLabel);
+    labels.add(
+      typeof activity.chapterOrder === "number"
+        ? `${baseLabel} (chapter ${activity.chapterOrder})`
+        : baseLabel,
+    );
   }
   return Array.from(labels);
 }
@@ -132,8 +144,10 @@ export function buildPipelineStageProgress(input: {
   }
   const completedBase = Math.max(0, input.completedCount) / input.totalCount;
   const stageFraction = PIPELINE_STAGE_PROGRESS[input.stage] ?? 0;
-  return clampPipelineProgress((Math.max(0, input.completedCount) + stageFraction) / input.totalCount, input.stage)
-    || Number(completedBase.toFixed(4));
+  return clampPipelineProgress(
+    (Math.max(0, input.completedCount) + stageFraction) / input.totalCount,
+    input.stage,
+  ) || Number(completedBase.toFixed(4));
 }
 
 export function buildPipelineCurrentItemLabel(input: {
@@ -176,6 +190,7 @@ export function parsePipelinePayload(payload: string | null | undefined): Pipeli
           ? parsed.repairMode
           : undefined,
       qualityAlertDetails: normalizeStringList(parsed.qualityAlertDetails ?? parsed.failedDetails),
+      replanAlertDetails: normalizeStringList(parsed.replanAlertDetails),
       backgroundSync: normalizePipelineBackgroundSync(parsed.backgroundSync),
     };
   } catch {
@@ -185,6 +200,7 @@ export function parsePipelinePayload(payload: string | null | undefined): Pipeli
 
 export function stringifyPipelinePayload(input: PipelinePayload): string {
   const qualityAlertDetails = normalizeStringList(input.qualityAlertDetails) ?? [];
+  const replanAlertDetails = normalizeStringList(input.replanAlertDetails) ?? [];
   const backgroundSync = normalizePipelineBackgroundSync(input.backgroundSync);
   return JSON.stringify({
     provider: input.provider ?? "deepseek",
@@ -199,6 +215,7 @@ export function stringifyPipelinePayload(input: PipelinePayload): string {
     qualityThreshold: input.qualityThreshold ?? null,
     repairMode: input.repairMode ?? "light_repair",
     ...(qualityAlertDetails.length > 0 ? { qualityAlertDetails } : {}),
+    ...(replanAlertDetails.length > 0 ? { replanAlertDetails } : {}),
     ...(backgroundSync?.activities?.length ? { backgroundSync } : {}),
   });
 }
@@ -215,10 +232,30 @@ export function getPipelineQualityNotice(details: string[] | undefined): Pipelin
     };
   }
   return {
-    displayStatus: "已完成，部分章节低于质量阈值",
+    displayStatus: "Completed with quality alerts",
     noticeCode: PIPELINE_QUALITY_NOTICE_CODE,
-    noticeSummary: `以下章节未达到质量阈值，结果已保留，可继续复查或重跑：${qualityAlertDetails.join("；")}`,
+    noticeSummary: `Some chapters finished below the configured quality threshold: ${qualityAlertDetails.join("; ")}`,
     qualityAlertDetails,
+    backgroundActivityLabels: [],
+  };
+}
+
+export function getPipelineReplanNotice(details: string[] | undefined): PipelineJobDecorations {
+  const replanAlertDetails = normalizeStringList(details) ?? [];
+  if (replanAlertDetails.length === 0) {
+    return {
+      displayStatus: null,
+      noticeCode: null,
+      noticeSummary: null,
+      qualityAlertDetails: [],
+      backgroundActivityLabels: [],
+    };
+  }
+  return {
+    displayStatus: "Completed with replan required",
+    noticeCode: PIPELINE_REPLAN_NOTICE_CODE,
+    noticeSummary: `State-driven replan is required before continuing: ${replanAlertDetails.join("; ")}`,
+    qualityAlertDetails: [],
     backgroundActivityLabels: [],
   };
 }
@@ -226,7 +263,9 @@ export function getPipelineQualityNotice(details: string[] | undefined): Pipelin
 export function decoratePipelineJob<T extends PipelineJobLike>(job: T): DecoratedPipelineJob<T> {
   const payload = parsePipelinePayload(job.payload);
   const notice = job.status === "succeeded"
-    ? getPipelineQualityNotice(payload.qualityAlertDetails)
+    ? (getPipelineReplanNotice(payload.replanAlertDetails).noticeCode
+      ? getPipelineReplanNotice(payload.replanAlertDetails)
+      : getPipelineQualityNotice(payload.qualityAlertDetails))
     : {
       displayStatus: null,
       noticeCode: null,
@@ -234,13 +273,12 @@ export function decoratePipelineJob<T extends PipelineJobLike>(job: T): Decorate
       qualityAlertDetails: payload.qualityAlertDetails ?? [],
       backgroundActivityLabels: [],
     };
-  const backgroundActivityLabels = buildPipelineBackgroundActivityLabels(payload.backgroundSync);
   return {
     ...job,
     displayStatus: notice.displayStatus,
     noticeCode: notice.noticeCode,
     noticeSummary: notice.noticeSummary,
     qualityAlertDetails: notice.qualityAlertDetails,
-    backgroundActivityLabels,
+    backgroundActivityLabels: buildPipelineBackgroundActivityLabels(payload.backgroundSync),
   };
 }

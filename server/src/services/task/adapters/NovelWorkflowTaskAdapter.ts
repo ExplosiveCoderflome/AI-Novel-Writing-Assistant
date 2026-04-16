@@ -2,6 +2,7 @@ import type {
   NovelWorkflowCheckpoint,
 } from "@ai-novel/shared/types/novelWorkflow";
 import type {
+  DirectorAutoExecutionState,
   DirectorLLMOptions,
   DirectorTaskNotice,
 } from "@ai-novel/shared/types/novelDirector";
@@ -10,6 +11,13 @@ import type { TaskStatus, UnifiedTaskDetail, UnifiedTaskSummary } from "@ai-nove
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { NovelDirectorService } from "../../novel/director/NovelDirectorService";
+import {
+  buildSkippableAutoExecutionReviewBlockingReason,
+  buildSkippableAutoExecutionReviewCheckpointSummary,
+  buildSkippableAutoExecutionReviewFailureSummary,
+  buildSkippableAutoExecutionReviewRecoveryHint,
+  isSkippableAutoExecutionReviewFailure,
+} from "../../novel/director/novelDirectorAutoExecutionFailure";
 import { NovelWorkflowService } from "../../novel/workflow/NovelWorkflowService";
 import {
   getDirectorLlmOptionsFromSeedPayload,
@@ -106,6 +114,14 @@ function hasCandidateSelectionPhase(seedPayloadJson?: string | null): boolean {
   return phase === "candidate_selection";
 }
 
+function parseAutoExecutionState(seedPayloadJson?: string | null): DirectorAutoExecutionState | null {
+  const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(seedPayloadJson);
+  if (!seedPayload?.autoExecution || typeof seedPayload.autoExecution !== "object") {
+    return null;
+  }
+  return seedPayload.autoExecution as DirectorAutoExecutionState;
+}
+
 export function normalizeWorkflowResumeTargetForCandidateSelection(input: {
   id: string;
   checkpointType: string | null;
@@ -152,11 +168,16 @@ function mapSummary(row: {
   seedPayloadJson?: string | null;
 }): UnifiedTaskSummary {
   const status = row.status as TaskStatus;
+  const checkpointType = row.checkpointType as NovelWorkflowCheckpoint | null;
+  const autoExecution = parseAutoExecutionState(row.seedPayloadJson);
   const isRecoveryInProgress = isAutoDirectorRecoveryInProgress({
     status,
     lastError: row.lastError,
   });
-  const lastError = isRecoveryInProgress ? null : row.lastError;
+  const isSkippableReviewBlockedFailure = status === "failed"
+    && checkpointType === "chapter_batch_ready"
+    && isSkippableAutoExecutionReviewFailure(row.lastError);
+  const lastError = (isRecoveryInProgress || isSkippableReviewBlockedFailure) ? null : row.lastError;
   const resumeTarget = normalizeWorkflowResumeTargetForCandidateSelection({
     id: row.id,
     checkpointType: row.checkpointType,
@@ -166,7 +187,6 @@ function mapSummary(row: {
   });
   const sourceRoute = resumeTargetToRoute(resumeTarget);
   const ownerLabel = buildOwnerLabel(row);
-  const checkpointType = row.checkpointType as NovelWorkflowCheckpoint | null;
   const linkedPipelineJobId = parseLinkedPipelineJobId(row.seedPayloadJson);
   const taskNotice = parseTaskNotice(row.seedPayloadJson);
   const targetResources: ResourceRef[] = [{
@@ -190,6 +210,23 @@ function mapSummary(row: {
     checkpointType,
     lastError: row.lastError,
   });
+  const blockingReason = isSkippableReviewBlockedFailure
+    ? buildSkippableAutoExecutionReviewBlockingReason(autoExecution)
+    : explainability.blockingReason;
+  const checkpointSummary = isSkippableReviewBlockedFailure
+    ? buildSkippableAutoExecutionReviewCheckpointSummary({
+      scopeLabel: autoExecution?.scopeLabel?.trim() || "前 10 章",
+      autoExecution,
+    })
+    : row.checkpointSummary;
+  const failureSummary = status === "failed"
+    ? (isSkippableReviewBlockedFailure
+      ? buildSkippableAutoExecutionReviewFailureSummary(autoExecution)
+      : normalizeFailureSummary(lastError, "Novel workflow stopped without a recorded error."))
+    : null;
+  const recoveryHint = isSkippableReviewBlockedFailure
+    ? buildSkippableAutoExecutionReviewRecoveryHint(autoExecution)
+    : buildTaskRecoveryHint("novel_workflow", status);
   return {
     id: row.id,
     kind: "novel_workflow",
@@ -200,7 +237,7 @@ function mapSummary(row: {
     currentItemKey: row.currentItemKey,
     currentItemLabel: row.currentItemLabel,
     displayStatus: explainability.displayStatus,
-    blockingReason: explainability.blockingReason,
+    blockingReason,
     resumeAction: explainability.resumeAction,
     lastHealthyStage: explainability.lastHealthyStage,
     attemptCount: row.attemptCount,
@@ -213,16 +250,14 @@ function mapSummary(row: {
     ownerLabel,
     sourceRoute,
     checkpointType,
-    checkpointSummary: row.checkpointSummary,
+    checkpointSummary,
     resumeTarget,
     nextActionLabel: buildNovelWorkflowNextActionLabel(status, checkpointType),
     noticeCode: taskNotice?.code ?? null,
     noticeSummary: taskNotice?.summary ?? null,
-    failureCode: status === "failed" ? "NOVEL_WORKFLOW_FAILED" : null,
-    failureSummary: status === "failed"
-      ? normalizeFailureSummary(lastError, "小说主流程中断，但没有记录明确错误。")
-      : null,
-    recoveryHint: buildTaskRecoveryHint("novel_workflow", status),
+    failureCode: status === "failed" && !isSkippableReviewBlockedFailure ? "NOVEL_WORKFLOW_FAILED" : null,
+    failureSummary,
+    recoveryHint,
     tokenUsage: toTaskTokenUsageSummary({
       promptTokens: row.promptTokens,
       completionTokens: row.completionTokens,
