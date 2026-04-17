@@ -271,3 +271,166 @@ test("continueTask ignores stale candidate-stage state after the workflow has en
     service.runDirectorPipeline = originalRunDirectorPipeline;
   }
 });
+
+test("continueTask resumes auto-director tasks that are still marked running after manual-recovery pause", async () => {
+  const service = new NovelDirectorService();
+  const originalContinueCandidateStageTask = service.continueCandidateStageTask;
+  const originalGetTaskByIdWithoutHealing = service.workflowService.getTaskByIdWithoutHealing;
+  const originalBootstrapTask = service.workflowService.bootstrapTask;
+  const originalMarkTaskRunning = service.workflowService.markTaskRunning;
+  const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
+  const originalRunDirectorPipeline = service.runDirectorPipeline;
+  const bootstrapCalls = [];
+  const runningCalls = [];
+  const scheduledRuns = [];
+  const pipelineRuns = [];
+
+  service.continueCandidateStageTask = async () => false;
+  service.workflowService.getTaskByIdWithoutHealing = async () => ({
+    id: "task_recovery_resume",
+    lane: "auto_director",
+    status: "running",
+    pendingManualRecovery: true,
+    novelId: "novel_recovery_resume",
+    checkpointType: null,
+    currentItemKey: "chapter_detail_bundle",
+    seedPayloadJson: JSON.stringify({
+      directorInput: buildDirectorInput({
+        workflowTaskId: "task_recovery_resume",
+      }),
+      directorSession: {
+        runMode: "auto_to_execution",
+        phase: "structured_outline",
+        isBackgroundRunning: false,
+        lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
+        reviewScope: null,
+      },
+    }),
+  });
+  service.workflowService.bootstrapTask = async (input) => {
+    bootstrapCalls.push(input);
+    return { id: "task_recovery_resume" };
+  };
+  service.workflowService.markTaskRunning = async (taskId, input) => {
+    runningCalls.push({ taskId, ...input });
+    return null;
+  };
+  service.scheduleBackgroundRun = (taskId, runner) => {
+    scheduledRuns.push(taskId);
+    void runner();
+  };
+  service.runDirectorPipeline = async (input) => {
+    pipelineRuns.push(input);
+  };
+
+  try {
+    await service.continueTask("task_recovery_resume");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(bootstrapCalls.length, 1);
+    assert.equal(runningCalls.length, 1);
+    assert.equal(runningCalls[0].stage, "structured_outline");
+    assert.equal(scheduledRuns.length, 1);
+    assert.equal(pipelineRuns.length, 1);
+    assert.equal(pipelineRuns[0].startPhase, "structured_outline");
+  } finally {
+    service.continueCandidateStageTask = originalContinueCandidateStageTask;
+    service.workflowService.getTaskByIdWithoutHealing = originalGetTaskByIdWithoutHealing;
+    service.workflowService.bootstrapTask = originalBootstrapTask;
+    service.workflowService.markTaskRunning = originalMarkTaskRunning;
+    service.scheduleBackgroundRun = originalScheduleBackgroundRun;
+    service.runDirectorPipeline = originalRunDirectorPipeline;
+  }
+});
+
+test("continueTask resumes auto execution in the background instead of blocking the request", async () => {
+  const service = new NovelDirectorService();
+  const originalContinueCandidateStageTask = service.continueCandidateStageTask;
+  const originalGetTaskByIdWithoutHealing = service.workflowService.getTaskByIdWithoutHealing;
+  const originalMarkTaskRunning = service.workflowService.markTaskRunning;
+  const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
+  const originalRunFromReady = service.autoExecutionRuntime.runFromReady;
+  const runningCalls = [];
+  const scheduledRuns = [];
+  const runtimeCalls = [];
+
+  service.continueCandidateStageTask = async () => false;
+  service.workflowService.getTaskByIdWithoutHealing = async () => ({
+    id: "task_auto_execution_resume",
+    lane: "auto_director",
+    status: "failed",
+    pendingManualRecovery: false,
+    novelId: "novel_auto_execution_resume",
+    checkpointType: "chapter_batch_ready",
+    currentItemKey: "quality_repair",
+    resumeTargetJson: JSON.stringify({
+      stage: "pipeline",
+      chapterId: "chapter_2",
+    }),
+    lastError: "Chapter generation is blocked until review is resolved.",
+    seedPayloadJson: JSON.stringify({
+      directorInput: buildDirectorInput({
+        workflowTaskId: "task_auto_execution_resume",
+        runMode: "auto_to_execution",
+      }),
+      directorSession: {
+        runMode: "auto_to_execution",
+        phase: "front10_ready",
+        isBackgroundRunning: false,
+        lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
+        reviewScope: null,
+      },
+      autoExecution: {
+        enabled: true,
+        mode: "chapter_range",
+        scopeLabel: "第 2-10 章",
+        startOrder: 2,
+        endOrder: 10,
+        totalChapterCount: 9,
+        nextChapterId: "chapter_2",
+        nextChapterOrder: 2,
+        remainingChapterCount: 9,
+        remainingChapterIds: ["chapter_2"],
+        remainingChapterOrders: [2, 3, 4, 5, 6, 7, 8, 9, 10],
+        pipelineJobId: "pipeline_existing",
+        pipelineStatus: "failed",
+      },
+    }),
+  });
+  service.workflowService.markTaskRunning = async (taskId, input) => {
+    runningCalls.push({ taskId, ...input });
+    return null;
+  };
+  service.scheduleBackgroundRun = (taskId, runner) => {
+    scheduledRuns.push({ taskId, runner });
+  };
+  service.autoExecutionRuntime.runFromReady = async (input) => {
+    runtimeCalls.push(input);
+  };
+
+  try {
+    await service.continueTask("task_auto_execution_resume", {
+      continuationMode: "auto_execute_range",
+    });
+    assert.equal(runningCalls.length, 1);
+    assert.equal(runningCalls[0].taskId, "task_auto_execution_resume");
+    assert.equal(runningCalls[0].stage, "chapter_execution");
+    assert.equal(runningCalls[0].itemKey, "chapter_execution");
+    assert.equal(runningCalls[0].clearCheckpoint, true);
+    assert.equal(scheduledRuns.length, 1);
+    assert.equal(runtimeCalls.length, 0);
+
+    await scheduledRuns[0].runner();
+
+    assert.equal(runtimeCalls.length, 1);
+    assert.equal(runtimeCalls[0].taskId, "task_auto_execution_resume");
+    assert.equal(runtimeCalls[0].novelId, "novel_auto_execution_resume");
+    assert.equal(runtimeCalls[0].resumeCheckpointType, "chapter_batch_ready");
+    assert.equal(runtimeCalls[0].allowSkipReviewBlockedChapter, true);
+  } finally {
+    service.continueCandidateStageTask = originalContinueCandidateStageTask;
+    service.workflowService.getTaskByIdWithoutHealing = originalGetTaskByIdWithoutHealing;
+    service.workflowService.markTaskRunning = originalMarkTaskRunning;
+    service.scheduleBackgroundRun = originalScheduleBackgroundRun;
+    service.autoExecutionRuntime.runFromReady = originalRunFromReady;
+  }
+});

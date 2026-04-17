@@ -11,7 +11,7 @@ interface SelectionAIFloatingToolbarProps {
   onRunOperation: (operation: ChapterEditorOperation, customInstruction?: string) => void;
 }
 
-const PRIMARY_OPERATIONS: ChapterEditorOperation[] = ["polish", "expand", "compress", "emotion", "conflict"];
+const SECONDARY_OPERATIONS: ChapterEditorOperation[] = ["expand", "compress", "emotion", "conflict"];
 
 export default function SelectionAIFloatingToolbar(props: SelectionAIFloatingToolbarProps) {
   const { visible, position, disabled = false, onRunOperation } = props;
@@ -35,7 +35,15 @@ export default function SelectionAIFloatingToolbar(props: SelectionAIFloatingToo
       style={{ top: position.top, left: position.left }}
     >
       <div className="flex flex-wrap gap-2">
-        {PRIMARY_OPERATIONS.map((operation) => (
+        <Button
+          size="sm"
+          disabled={disabled}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => onRunOperation("polish")}
+        >
+          AI 优化这段
+        </Button>
+        {SECONDARY_OPERATIONS.map((operation) => (
           <Button
             key={operation}
             size="sm"
@@ -54,7 +62,7 @@ export default function SelectionAIFloatingToolbar(props: SelectionAIFloatingToo
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => setIsCustomOpen((current) => !current)}
         >
-          {CHAPTER_EDITOR_OPERATION_LABELS.custom}
+          告诉 AI 怎么改
         </Button>
       </div>
 
@@ -62,7 +70,7 @@ export default function SelectionAIFloatingToolbar(props: SelectionAIFloatingToo
         <div className="mt-2 space-y-2 rounded-xl border border-border/70 bg-muted/20 p-2">
           <textarea
             className="min-h-[96px] w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none"
-            placeholder="例如：让这段更压抑一点，保留原信息但节奏更快。"
+            placeholder="例如：让这段更压抑一点，保留原信息，但把节奏压得更紧。"
             value={customInstruction}
             onChange={(event) => setCustomInstruction(event.target.value)}
           />

@@ -5,6 +5,7 @@ export type ChapterTitleSurfaceFrame =
   | "question_hook"
   | "plain_statement";
 
+const ENABLE_CHAPTER_TITLE_DIVERSITY_VALIDATION = false;
 const CHAPTER_TITLE_OF_PHRASE_PATTERN = /^[^，,：:？?的\s]{1,18}的[^，,：:？?的\s]{1,18}$/u;
 
 function normalizeChapterTitle(title: string): string {
@@ -62,6 +63,9 @@ function formatFrameLabel(frame: ChapterTitleSurfaceFrame): string {
 }
 
 export function getChapterTitleDiversityIssue(titles: string[]): string | null {
+  if (!ENABLE_CHAPTER_TITLE_DIVERSITY_VALIDATION) {
+    return null;
+  }
   const normalizedTitles = titles.map(normalizeChapterTitle).filter(Boolean);
   if (normalizedTitles.length <= 1) {
     return null;
@@ -145,6 +149,9 @@ export function getChapterTitleDiversityIssue(titles: string[]): string | null {
 }
 
 export function isChapterTitleDiversityIssue(message: string | null | undefined): boolean {
+  if (!ENABLE_CHAPTER_TITLE_DIVERSITY_VALIDATION) {
+    return false;
+  }
   const normalized = message?.trim();
   if (!normalized) {
     return false;

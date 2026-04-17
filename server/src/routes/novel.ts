@@ -493,6 +493,64 @@ const rewritePreviewSchema = z.object({
   temperature: z.number().min(0).max(2).optional(),
 });
 
+const aiRevisionPreviewSchema = z.object({
+  source: z.enum(["preset", "freeform"]),
+  scope: z.enum(["selection", "chapter"]),
+  presetOperation: z.enum(["polish", "expand", "compress", "emotion", "conflict", "custom"]).optional(),
+  instruction: z.string().trim().max(800).optional(),
+  contentSnapshot: z.string(),
+  selection: z.object({
+    from: z.number().int().min(0),
+    to: z.number().int().min(1),
+    text: z.string().trim().min(1),
+  }).refine((value) => value.to > value.from, {
+    message: "选区结束位置必须大于开始位置。",
+    path: ["to"],
+  }).optional(),
+  context: z.object({
+    beforeParagraphs: z.array(z.string()).max(3),
+    afterParagraphs: z.array(z.string()).max(2),
+  }).optional(),
+  constraints: z.object({
+    keepFacts: z.boolean(),
+    keepPov: z.boolean(),
+    noUnauthorizedSetting: z.boolean(),
+    preserveCoreInfo: z.boolean(),
+  }),
+  provider: llmProviderSchema.optional(),
+  model: z.string().trim().max(120).optional(),
+  temperature: z.number().min(0).max(2).optional(),
+}).superRefine((value, ctx) => {
+  if (value.source === "preset" && !value.presetOperation) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["presetOperation"],
+      message: "预设操作模式必须提供 presetOperation。",
+    });
+  }
+  if (value.source === "freeform" && !value.instruction?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["instruction"],
+      message: "自然语言修正模式必须提供 instruction。",
+    });
+  }
+  if (value.scope === "selection" && !value.selection) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["selection"],
+      message: "片段修正必须提供 selection。",
+    });
+  }
+  if (value.scope === "selection" && !value.context) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["context"],
+      message: "片段修正必须提供上下文窗口。",
+    });
+  }
+});
+
 router.use(authMiddleware);
 
 registerNovelBaseRoutes({
@@ -518,6 +576,7 @@ registerNovelChapterEditorRoutes({
   novelService,
   chapterParamsSchema,
   rewritePreviewSchema,
+  aiRevisionPreviewSchema,
   forwardBusinessError,
 });
 

@@ -1,5 +1,5 @@
 import type { Descendant, Value } from "platejs";
-import type { ChapterEditorOperation, StoryPlan, StoryStateSnapshot } from "@ai-novel/shared/types/novel";
+import type { ChapterEditorOperation } from "@ai-novel/shared/types/novel";
 import type {
   ChapterEditorRequestBuilderInput,
   ChapterEditorSelectionRange,
@@ -210,9 +210,23 @@ export function buildToolbarPosition(container: HTMLElement, range: Range): Sele
   if (!rangeRect.width && !rangeRect.height) {
     return null;
   }
+
+  const TOOLBAR_WIDTH = 320;
+  const TOOLBAR_HEIGHT = 116;
+  const EDGE_PADDING = 12;
+  const VERTICAL_GAP = 10;
+  const preferredLeft = rangeRect.left - containerRect.left + rangeRect.width / 2 - TOOLBAR_WIDTH / 2;
+  const maxLeft = Math.max(EDGE_PADDING, containerRect.width - TOOLBAR_WIDTH - EDGE_PADDING);
+  const left = Math.max(EDGE_PADDING, Math.min(preferredLeft, maxLeft));
+
+  const topAbove = rangeRect.top - containerRect.top - TOOLBAR_HEIGHT - VERTICAL_GAP;
+  const topBelow = rangeRect.bottom - containerRect.top + VERTICAL_GAP;
+  const maxTop = Math.max(EDGE_PADDING, containerRect.height - TOOLBAR_HEIGHT - EDGE_PADDING);
+  const preferredTop = topAbove >= EDGE_PADDING ? topAbove : topBelow;
+
   return {
-    top: rangeRect.top - containerRect.top - 44,
-    left: Math.max(12, Math.min(rangeRect.left - containerRect.left, containerRect.width - 220)),
+    top: Math.max(EDGE_PADDING, Math.min(preferredTop, maxTop)),
+    left,
   };
 }
 
@@ -258,57 +272,53 @@ export function applyCandidateToContent(content: string, selection: ChapterEdito
   return `${normalized.slice(0, selection.from)}${replacement}${normalized.slice(selection.to)}`;
 }
 
-export function buildCharacterStateSummary(snapshot?: StoryStateSnapshot | null): string | null {
-  if (!snapshot || snapshot.characterStates.length === 0) {
+export function getParagraphIndicesForRange(content: string, selection: Pick<ChapterEditorSelectionRange, "from" | "to">) {
+  const paragraphs = splitParagraphs(content);
+  const paragraphRanges: Array<{ start: number; end: number }> = [];
+  let cursor = 0;
+
+  for (const text of paragraphs) {
+    const start = cursor;
+    const end = start + text.length;
+    paragraphRanges.push({ start, end });
+    cursor = end + 2;
+  }
+
+  if (paragraphRanges.length === 0) {
     return null;
   }
-  return snapshot.characterStates
-    .slice(0, 6)
-    .map((state) => {
-      const parts = [
-        state.summary?.trim(),
-        state.currentGoal?.trim(),
-        state.emotion?.trim(),
-      ].filter(Boolean);
-      return parts.length > 0 ? `- ${parts.join(" / ")}` : null;
-    })
-    .filter((item): item is string => Boolean(item))
-    .join("\n");
-}
 
-export function buildGoalSummary(chapterPlan?: StoryPlan | null, fallback?: string | null): string | null {
-  return chapterPlan?.objective?.trim() || fallback?.trim() || null;
-}
-
-export function buildChapterSummary(fallbackSummary?: string | null, content?: string | null): string | null {
-  const explicit = fallbackSummary?.trim();
-  if (explicit) {
-    return explicit;
+  const startIndex = paragraphRanges.findIndex((paragraph) => selection.from >= paragraph.start && selection.from <= paragraph.end);
+  const endIndex = paragraphRanges.findIndex((paragraph) => selection.to >= paragraph.start && selection.to <= paragraph.end);
+  const resolvedStart = startIndex >= 0 ? startIndex : paragraphRanges.findIndex((paragraph) => paragraph.end >= selection.from);
+  const resolvedEnd = endIndex >= 0 ? endIndex : resolvedStart;
+  if (resolvedStart < 0 || resolvedEnd < 0) {
+    return null;
   }
-  const snippet = normalizeEditorText(content ?? "").trim().slice(0, 180);
-  return snippet || null;
+
+  return {
+    startIndex: resolvedStart,
+    endIndex: resolvedEnd,
+  };
 }
 
-export function buildRewritePreviewRequest(input: ChapterEditorRequestBuilderInput) {
-  const contextWindow = getParagraphWindow(input.content, input.selection);
+export function buildAiRevisionRequest(input: ChapterEditorRequestBuilderInput) {
   const contentSnapshot = normalizeChapterContent(input.content);
+  const selection = input.scope === "selection" ? input.selection ?? null : null;
   return {
-    operation: input.operation,
-    customInstruction: input.customInstruction?.trim() || undefined,
+    source: input.source,
+    scope: input.scope,
+    presetOperation: input.presetOperation,
+    instruction: input.instruction?.trim() || undefined,
     contentSnapshot,
-    targetRange: {
-      from: input.selection.from,
-      to: input.selection.to,
-      text: input.selection.text,
-    },
-    context: contextWindow,
-    chapterContext: {
-      goalSummary: input.goalSummary?.trim() || undefined,
-      chapterSummary: input.chapterSummary?.trim() || undefined,
-      styleSummary: input.styleSummary?.trim() || undefined,
-      characterStateSummary: input.characterStateSummary?.trim() || undefined,
-      worldConstraintSummary: input.worldConstraintSummary?.trim() || undefined,
-    },
+    selection: selection
+      ? {
+        from: selection.from,
+        to: selection.to,
+        text: selection.text,
+      }
+      : undefined,
+    context: selection ? getParagraphWindow(contentSnapshot, selection) : undefined,
     constraints: {
       keepFacts: true,
       keepPov: true,

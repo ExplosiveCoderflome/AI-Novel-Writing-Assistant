@@ -2,7 +2,6 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { PromptAsset } from "../../../core/promptTypes";
 import { renderSelectedContextBlocks } from "../../../core/renderContextBlocks";
 import { createVolumeChapterBeatBlockSchema } from "../../../../services/novel/volume/volumeGenerationSchemas";
-import { assertChapterTitleDiversity } from "../../../../services/novel/volume/chapterTitleDiversity";
 import { type VolumeChapterListPromptInput } from "./shared";
 import { buildVolumeChapterListContextBlocks } from "./contextBlocks";
 import { NOVEL_PROMPT_BUDGETS } from "../promptBudgetProfiles";
@@ -70,7 +69,7 @@ export function createVolumeChapterListPrompt(
 
   return {
     id: "novel.volume.chapter_list",
-    version: "v6",
+    version: "v7",
     taskType: "planner",
     mode: "structured",
     language: "zh",
@@ -144,10 +143,13 @@ export function createVolumeChapterListPrompt(
         "",
         "标题要求：",
         "1. 每章 title 必须像真实网文章名，优先体现推进动作、冲突压迫、异常发现、局面变化、阶段兑现或关系异动。",
-        "2. 必须做表层结构分散，不能大量重复“X的Y / X中的Y / 在X中Y”。",
-        "3. 也不能让大部分标题都塌成“A，B / 四字动作，四字结果”并列模板。",
-        "4. 相邻章节标题不能连续套用同一语法骨架。",
-        "5. 标题要有推进感与可读性，避免空泛文学化、抽象抒情化或模板味过重。",
+        "2. 在开始写 chapters 之前，先在脑内完成一次“标题句法配比规划”，再按配比输出，不要边想边重复套模板。",
+        "3. 同一批标题必须主动混用动作推进型、冲突压迫型、异常发现型、结果兑现型、决断转向型、问题钩子型等不同句法。",
+        "4. 若当前节奏段有 6 章及以上：任何单一表层骨架都不要超过一半；“X的Y / X中的Y / 在X中Y”这类骨架最多只占约三成。",
+        "5. 明确避免让大部分标题继续塌成“A，B / 四字动作，四字结果”并列模板。",
+        "6. 相邻章节标题不要连续 3 章以上套用同一语法骨架。",
+        "7. 标题要有推进感与可读性，避免空泛文学化、抽象抒情化或模板味过重。",
+        "8. 生成前先自检一遍：是否出现过多“的字结构”、过多逗号并列结构、或连续多章同骨架；若出现，先改再输出。",
         "",
         "摘要要求：",
         "1. 每章 summary 必须写清本章具体推进了什么，以及它在当前目标 beat 中承担什么作用。",
@@ -178,6 +180,7 @@ export function createVolumeChapterListPrompt(
         `- chapterCount 与 chapters.length 必须严格等于 ${targetChapterCount}`,
         "- 每章只能包含 title、summary、beatKey",
         "- 不得生成任何相邻 beat 的章节",
+        "- 先在脑内规划标题骨架配比，再输出完整章节块",
         "- 优先保证章节推进感、节奏承接与标题结构分散",
         "",
         "当前卷拆章上下文：",
@@ -199,7 +202,6 @@ export function createVolumeChapterListPrompt(
           throw new Error(`第 ${index + 1} 条章节的 beatKey 必须严格等于 ${targetBeatKey}。`);
         }
       });
-      assertChapterTitleDiversity(output.chapters.map((chapter) => chapter.title));
       return output;
     },
   };

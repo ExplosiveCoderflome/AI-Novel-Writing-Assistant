@@ -636,6 +636,20 @@ export function useNovelVolumePlanning({
   const generatingChapterListBeatKey = generateMutation.isPending && generateMutation.variables?.scope === "chapter_list" && generateMutation.variables.generationMode === "single_beat" ? generateMutation.variables.targetBeatKey ?? "" : "";
   const generatingChapterListMode = generateMutation.isPending && (generateMutation.variables?.scope === "chapter_list" || generateMutation.variables?.scope === "volume") ? generateMutation.variables.generationMode ?? "full_volume" : null;
 
+  useEffect(() => {
+    if (!novelId || !generateMutation.isPending) {
+      return;
+    }
+    const scope = generateMutation.variables?.scope;
+    if (scope !== "beat_sheet" && scope !== "chapter_list" && scope !== "volume") {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.novels.volumeWorkspace(novelId) });
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [generateMutation.isPending, generateMutation.variables?.scope, novelId, queryClient]);
+
   return {
     normalizedVolumeDraft,
     hasUnsavedVolumeDraft,

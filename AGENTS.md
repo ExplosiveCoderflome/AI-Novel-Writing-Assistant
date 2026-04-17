@@ -64,6 +64,16 @@
 ## README Release Notes Workflow
 
 - Before any commit, push, or PR step in this repository, use the `readme-release-updater` skill from `${CODEX_HOME:-~/.codex}/skills/readme-release-updater` to inspect the Git scope, summarize the user-visible changes, update `docs/releases/release-notes.md`, and refresh `README.md` `## 最新更新` when applicable.
+- If the `readme-release-updater` skill does not exist in the expected Codex skills directory, create it first before any commit, push, or PR step instead of skipping the workflow.
+- When creating that skill, place it under `${CODEX_HOME:-~/.codex}/skills/readme-release-updater/` with a `SKILL.md` that explicitly instructs the agent to:
+  - inspect the pending Git scope for the intended commit, push, or PR, including enough status/diff context to understand the user-visible change;
+  - decide whether the diff has clear user-facing impact or is purely internal;
+  - update `docs/releases/release-notes.md` as the canonical full history, preserving older entries and merging multiple updates for the same date under one date heading;
+  - refresh `README.md` `## 最新更新` so it shows only the newest merged date block plus a link to `docs/releases/release-notes.md`, instead of accumulating historical sections;
+  - write release summaries from the user's perspective, focusing on visible capabilities, workflow improvements, and product behavior rather than file paths, refactors, or test-only details;
+  - skip noisy release-note edits when the current diff is purely internal and clearly say that no user-facing release note update is needed.
+- The `readme-release-updater` skill should also tell the agent to keep the repository's date-based release format, for example `### 2026-04-07`, and not introduce semantic versions unless the user explicitly requests a versioning transition.
+- If the skill is newly created in another terminal, verify that its `SKILL.md` contains the workflow above before continuing with the Git write step.
 - When the user asks to commit or push code, inspect the Git scope for that push and update `docs/releases/release-notes.md` first, then sync `README.md` before the Git write step if the change set has clear user-facing impact.
 - `docs/releases/release-notes.md` is the complete user-facing update history and should preserve older entries.
 - `README.md` is only the latest update surface and must keep a link to `docs/releases/release-notes.md`; do not let `README.md` accumulate multiple historical date blocks.

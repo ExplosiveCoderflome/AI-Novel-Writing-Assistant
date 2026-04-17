@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  createChapterBoundarySchema,
   createChapterTaskSheetSchema,
   createVolumeBeatSheetSchema,
   createVolumeChapterBeatBlockSchema,
@@ -261,6 +262,29 @@ test("volume chapter beat block schema normalizes beat aliases and enforces beat
   assert.equal(parsed.beatLabel, "开卷抓手");
   assert.equal(parsed.chapterCount, 2);
   assert.equal(parsed.chapters[1].beatKey, "open_hook");
+});
+
+test("chapter boundary schema normalizes structured boundary aliases", () => {
+  const schema = createChapterBoundarySchema();
+  const parsed = schema.parse({
+    独占事件: "第一次正式提取碎银。",
+    本章结束状态: "程秩已经意识到钱能拿，但暂时不敢花。",
+    下章入口状态: "程秩带着藏银压力进入下一章继续观察人和事。",
+    冲突等级: "82",
+    reveal_level: 41,
+    字数: "3200",
+    避免事项: "不要直接把后续请缨节点提前写掉。",
+    关联兑现: "第一笔资源,财富风险认知",
+  });
+
+  assert.equal(parsed.exclusiveEvent, "第一次正式提取碎银。");
+  assert.equal(parsed.endingState, "程秩已经意识到钱能拿，但暂时不敢花。");
+  assert.equal(parsed.nextChapterEntryState, "程秩带着藏银压力进入下一章继续观察人和事。");
+  assert.equal(parsed.conflictLevel, 82);
+  assert.equal(parsed.revealLevel, 41);
+  assert.equal(parsed.targetWordCount, 3200);
+  assert.equal(parsed.mustAvoid, "不要直接把后续请缨节点提前写掉。");
+  assert.deepEqual(parsed.payoffRefs, ["第一笔资源", "财富风险认知"]);
 });
 
 test("volume workspace document preserves chapter beat keys", () => {

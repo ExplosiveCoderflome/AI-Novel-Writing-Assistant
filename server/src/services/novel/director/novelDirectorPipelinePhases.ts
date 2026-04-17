@@ -107,6 +107,14 @@ function buildStructuredOutlinePhaseUpdate(event: VolumeGenerationPhaseEvent): {
   return null;
 }
 
+async function persistStructuredOutlineVolumeSnapshot(input: {
+  novelId: string;
+  workspace: VolumePlanDocument;
+  dependencies: Pick<DirectorPhaseDependencies, "volumeService">;
+}): Promise<VolumePlanDocument> {
+  return input.dependencies.volumeService.updateVolumes(input.novelId, input.workspace);
+}
+
 function buildVolumeStrategyPhaseUpdate(event: VolumeGenerationPhaseEvent): {
   itemKey: DirectorProgressItemKey;
   itemLabel: string;
@@ -509,6 +517,11 @@ export async function runDirectorStructuredOutlinePhase(input: {
         },
       }),
     });
+    workspace = await persistStructuredOutlineVolumeSnapshot({
+      novelId,
+      workspace,
+      dependencies,
+    });
     workspace = await runDirectorTrackedStep({
       taskId,
       stage: "structured_outline",
@@ -530,7 +543,15 @@ export async function runDirectorStructuredOutlinePhase(input: {
           }
           await updateStatus(update);
         },
+        onIntermediateDocument: async (event) => {
+          workspace = event.document;
+        },
       }),
+    });
+    workspace = await persistStructuredOutlineVolumeSnapshot({
+      novelId,
+      workspace,
+      dependencies,
     });
     const preparedVolume = workspace.volumes.find((item) => item.id === volume.id);
     const titleDiversityIssue = preparedVolume

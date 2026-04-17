@@ -10,12 +10,14 @@ import { novelProductionOrchestrator } from "./production/NovelProductionOrchest
 import { registerQualityRepairStageRunner } from "./production/QualityRepairStageRunner";
 import { NovelVolumeService } from "./volume/NovelVolumeService";
 import { NovelChapterEditorService } from "./chapterEditor/NovelChapterEditorService";
+import { ChapterEditorWorkspaceService } from "./chapterEditor/ChapterEditorWorkspaceService";
 
 export class NovelService extends NovelPipelineService {
   private readonly worldSliceService = new NovelWorldSliceService();
   private readonly characterPreparationService = new CharacterPreparationService();
   private readonly characterDynamicsService = new CharacterDynamicsService();
   private readonly volumeService = new NovelVolumeService();
+  private readonly chapterEditorWorkspaceService = new ChapterEditorWorkspaceService();
   private readonly chapterEditorService = new NovelChapterEditorService();
 
   constructor() {
@@ -147,6 +149,14 @@ export class NovelService extends NovelPipelineService {
 
   previewChapterRewrite(...args: Parameters<NovelChapterEditorService["previewRewrite"]>) {
     return this.chapterEditorService.previewRewrite(...args);
+  }
+
+  previewChapterAiRevision(...args: Parameters<NovelChapterEditorService["previewAiRevision"]>) {
+    return this.chapterEditorService.previewAiRevision(...args);
+  }
+
+  getChapterEditorWorkspace(...args: Parameters<ChapterEditorWorkspaceService["getWorkspace"]>) {
+    return this.chapterEditorWorkspaceService.getWorkspace(...args);
   }
 
   getNovelState(...args: Parameters<NovelCoreService["getNovelState"]>) {

@@ -1,6 +1,6 @@
 # AI 长篇成书当前执行计划（小白用户导向）
 
-更新时间：2026-04-16
+更新时间：2026-04-17
 适用范围：当前 `AI-Novel-Writing-Assistant2` 代码库现状  
 目标用户：完全不懂写作、希望通过 AI 引导或全自动规划完成整本小说创作的用户  
 当前定位：强辅助型 AI 小说工作台  
@@ -30,9 +30,9 @@
 
 本轮同步结论：
 
-- `waiting_approval` 的基础展示语义已不再是主阻塞：当前界面已按 live / checkpoint 处理，后续重点转为补齐 `displayStatus / blockingReason / resumeAction / lastHealthyStage`
+- 任务状态可解释性的基础合同已进入主链：`displayStatus / blockingReason / resumeAction / lastHealthyStage` 已接入自动导演任务摘要、任务中心、首页与小说列表，后续重点转为补齐 `pendingReviewCount / nextAction` 这类更细粒度状态
 - `auto_to_ready` 单检查点语义已基本成立，且当前系统已超出旧方案进入 `auto_to_execution`；不再把“只跑到 front10_ready”本身当作新的主待办
-- 当前最值得优先推进的稳定性收口集中在：章节细化可用性门禁、轻量 `taskSheet` 执行摘要与非阻塞 `artifactHealth`、阶段级模型路由与 fallback、默认 `patch_first` 修复、任务状态可解释性，以及 `统一状态源 + 状态驱动生成 + 手动/导演共线` 的主链收口
+- 当前最值得优先推进的稳定性收口集中在：章节细化可用性门禁、轻量 `taskSheet` 执行摘要与非阻塞 `artifactHealth`、阶段级模型路由与 fallback、默认 `patch_first` 修复，以及 `统一状态源 + 状态驱动生成 + 手动/导演共线` 向书级前半段和真实数据链路继续收口
 
 当前唯一主线仍然是 `P0`：
 
@@ -58,6 +58,10 @@
 - runtime package 与统一章节 `contextPackage` 已接入 planner / runtime / review / audit / repair 主入口
 - 动态角色系统已进入 planner 结构化上下文，不再只停留在 digest / package 展示层
 - 自动导演工作流已补上服务重启恢复链，并已超出原 `v1` 计划落到 `auto_to_execution` 与现有项目接管
+- 统一状态主干的章节后半段已落地：`CanonicalStateService / StateCommitService / GenerationDecisionEngine / NovelProductionOrchestrator` 已接入 `chapter_preparation / chapter_execution / quality_repair`
+- 任务状态可解释性已接入任务中心、首页、小说列表与恢复弹窗，不再只停留在后台状态字段
+- 当前卷章节标题/摘要已改为按 beat 分块生成，并支持 `single_beat` 局部重生与章节 `beatKey` 绑定
+- 章节正文默认主链已回退为整章一次性生成；场景字数提示和多轮审校重试止损已同步收口
 
 归档规则：
 
@@ -99,6 +103,20 @@ P0 的默认主链统一为：
 ---
 
 ## 4. 当前活跃计划（P0）
+
+### 当前未完成待做清单（按优先级）
+
+- `P0-E1 / P0-A`：在真实 Prisma 链路完成 `migration -> 章节写入 -> 候选变更 -> 状态版本` 抽样回归，覆盖旧项目、批量执行、自动导演恢复链
+- `P0-E1`：继续把 `story_macro / book_contract / character_prep / volume_planning / takeover_start` 收口到 `NovelProductionOrchestrator`
+- `P0-E1 / P0-E`：把 `PlannerService.replan` 的窗口决策、触发理由、章节选择正式切到 canonical/state-driven 主判断
+- `P0-B`：为 `purpose / boundary / taskSheet` 增加 schema + 语义可用性双门禁，拦截坏细化产物进入同步和执行链
+- `P0-B`：把 `taskSheet` 收口为轻量执行摘要，并补 `artifactHealth / artifactHealthSummary` 诊断合同，但保持非阻塞
+- `P0-B`：补章节 repair 的 `patch_first` 默认策略，并把动态角色系统继续推进到执行期角色筛选、修复边界与 replan 判断
+- `P0-B`：把模型路由从 `planner / writer / review / repair` 粗粒度推进到小说生产阶段级路由与 fallback
+- `P0-C / P0-D`：继续把 `critique / rebalance / uncertainty / canonical payoff ledger` 接成卷级工作台默认消费链，并让卷级账本视图成为主视图
+- `P0-F`：把首页、创建页、空状态统一收敛为“AI 自动导演推荐入口 + 手动高级入口”，并在关键节点只保留一个推荐下一步
+- `P0-G`：为拆书任务补齐 `scope / pause / resume / coverage` 合同，形成“前 N 片段试跑 -> 扩范围继续”的渐进式流程
+- `task-3b8c9c2f4a`：落实 LLM JSON 修复链路优化，包括预修复、错误分类、失败提示与定向回归测试
 
 ### P0-A 真实 Prisma 数据端到端验收（暂缓单列）
 
@@ -278,51 +296,13 @@ P0 的默认主链统一为：
 - `P3`：收口前端解释性
   - 明确展示 `当前阶段 / 当前状态 / 当前下一动作 / 为什么停`
 
-当前已完成：
+已归档进展：
 
-- 已新增统一状态合同与共享类型：
-  - `shared/types/canonicalState.ts`
-  - `shared/types/chapterRuntime.ts` 已把 `canonicalState` 纳入 `GenerationContextPackage`
-- 已新增状态持久化模型与迁移文件：
-  - `CanonicalStateVersion`
-  - `StateChangeProposal`
-  - 对应 Prisma schema 与 migration 已写好
-- 已新增统一状态主干服务：
-  - `CanonicalStateService`
-  - `ChapterFactExtractor`
-  - `StateCommitService`
-  - `StateVersionLog`
-- 已把章节后台同步链接到统一状态提交：
-  - 章节现有 `state_snapshot / payoff_ledger / character_dynamics` 之后，新增 `canonical_state` 同步阶段
-- 已把章节 runtime 上下文优先切到 canonical state：
-  - `GenerationContextAssembler` 现在会装配 `contextPackage.canonicalState`
-  - `stateSnapshot / openConflicts / ledger` 已优先由 canonical snapshot 派生
-  - `chapterLayeredContextShared` 已优先从 canonical state 摘要状态、冲突与世界规则
-- 已补状态驱动与统一编排的骨架服务：
-  - `GenerationDecisionEngine`
-  - `ContextAssemblyService`
-  - `NovelProductionOrchestrator`
-- 已把章节主链接上状态驱动最小闭环：
-  - `GenerationContextAssembler` 会先通过 `ContextAssemblyService` 产出 `nextAction / ChapterStateGoal / protectedSecrets / pendingReviewProposalCount`
-  - `chapterLayeredContext` 的 mission、writer、review、repair 上下文已开始显式消费这组状态目标
-  - `ChapterRuntimeCoordinator` 会在实际写章前拦截 `hold_for_review`，避免待审核状态继续生成正文
-- 已把章节执行入口开始收口到统一编排器：
-  - 手动单章生成 `NovelGenerationService.createChapterStream` 已改为通过 `NovelProductionOrchestrator -> chapter_execution`
-  - 批量章节执行 `NovelPipelineService.startPipelineJob` 已改为通过同一 `chapter_execution` stage runner
-  - 自动导演后半段发起批量章节执行时，已开始通过 `controlPolicy.kickoffMode = director_start` 标记为导演入口
-- 已把章节准备与重规划入口开始收口到统一编排器：
-  - 手动 `generateChapterPlan` 已改为通过 `NovelProductionOrchestrator -> chapter_preparation`
-  - 手动 `replanNovel` 已改为通过 `NovelProductionOrchestrator -> quality_repair`
-  - `chapter_preparation / quality_repair` 已分别有可执行 stage runner，而不再只有空壳 stage 名
-- 已把 planner 内部上下文开始切到统一状态主干：
-  - `PlannerService.generateChapterPlan` 现在会通过 `ContextAssemblyService` 读取 canonical snapshot、`nextAction`、`ChapterStateGoal`、`protectedSecrets`
-  - planner prompt 已新增状态驱动块，不再只看旧 `stateSnapshot` 摘要
-  - 章节计划落账时，`mustAdvance / mustPreserve / riskNotes` 已开始并入状态目标、payoff 目标和保护性秘密边界
-- 已完成最小验证：
-  - `@ai-novel/shared build`
-  - `@ai-novel/server prisma:generate`
-  - `@ai-novel/server build`
-  - 定向测试已覆盖 canonical state 摘要优先级、保守提交分类、基础状态驱动决策、手动单章共线、导演后半段 control policy 透传、`hold_for_review` 阻断写章、手动章节计划生成共线、手动重规划共线、planner 状态驱动上下文块
+- 统一状态合同、状态持久化模型、`CanonicalStateService / ChapterFactExtractor / StateCommitService / StateVersionLog` 已落地
+- 章节后台同步、runtime 上下文、planner 上下文已经开始优先消费 canonical state
+- `GenerationDecisionEngine / ContextAssemblyService / NovelProductionOrchestrator` 已把章节后半段主链接入最小状态驱动闭环
+- 手动单章生成、批量章节执行、手动章节规划、手动重规划已经开始通过统一编排器共线
+- 定向 build / prisma generate / server 测试已覆盖最小状态驱动闭环；更细的真实链路验证转入下面的未完成项继续推进
 
 当前未完成：
 
@@ -827,6 +807,10 @@ P2 重点解决：
 ## Codex 开发同步（自动维护）
 
 本区块由 `$task-md-sync` 自动维护，用于同步开发计划与实现进度。
+使用约定：
+
+- 已完成项以第 `2` 节归档摘要为准，不再把本区块里的完成任务当作当前 backlog。
+- 当前直接待做事项以第 `4` 节“当前未完成待做清单”为准；本区块主要保留开发流水记录与仍未完成的任务条目。
 
 <!-- task-md-sync:start -->
 <!-- task-md-sync:item:task-2f4c88b71e:start -->

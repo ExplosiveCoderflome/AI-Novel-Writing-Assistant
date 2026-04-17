@@ -9,9 +9,6 @@ import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import { createVolumeChapterListPrompt } from "../../../prompting/prompts/novel/volume/chapterList.prompts";
 import { buildVolumeChapterListContextBlocks } from "../../../prompting/prompts/novel/volume/contextBlocks";
 import {
-  assertChapterTitleDiversity,
-} from "./chapterTitleDiversity";
-import {
   inferRequiredChapterCountFromBeatSheet,
   resolveTargetChapterCount,
 } from "./volumeBeatSheetChapterBudget";
@@ -28,6 +25,7 @@ import {
 import type {
   VolumeGenerateOptions,
   VolumeGenerationNovel,
+  VolumeIntermediateDocumentEvent,
   VolumeWorkspace,
 } from "./volumeModels";
 
@@ -136,8 +134,6 @@ function assertMergedVolumeChapterList(params: {
       throw new Error(`当前卷节奏段「${beat.label}」应有 ${expectedChapterCount} 章，实际只有 ${matchedChapters.length} 章。`);
     }
   }
-
-  assertChapterTitleDiversity(sortedChapters.map((chapter) => chapter.title));
 }
 
 async function generateBeatChapterBlock(params: {
@@ -203,6 +199,7 @@ export async function generateBeatChunkedChapterList(params: {
   storyMacroPlan: StoryMacroPlanResult;
   options: VolumeGenerateOptions;
   notifyPhase: (label: string) => Promise<void>;
+  notifyIntermediateDocument?: (event: VolumeIntermediateDocumentEvent) => void | Promise<void>;
 }): Promise<{
   mergedDocument: VolumePlanDocument;
   mergedWorkspace: VolumeWorkspace;
@@ -284,6 +281,27 @@ export async function generateBeatChunkedChapterList(params: {
         : null,
     });
     generatedBlocks.push(generatedBlock);
+
+    if (params.notifyIntermediateDocument) {
+      const partialDocument = mergeChapterList(
+        document,
+        targetVolume.id,
+        targetBeatSheet,
+        generatedBlocks,
+        {
+          generationMode,
+          targetBeatKey: options.targetBeatKey,
+        },
+      );
+      await params.notifyIntermediateDocument({
+        scope: "chapter_list",
+        document: partialDocument,
+        isFinal: false,
+        targetVolumeId: targetVolume.id,
+        targetBeatKey: beatPlan.beat.key,
+        generationMode,
+      });
+    }
   }
 
   const mergedDocument = mergeChapterList(

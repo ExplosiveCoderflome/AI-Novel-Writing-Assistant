@@ -442,8 +442,9 @@ async function generateChapterList(params: {
       label,
       options,
     }),
+    notifyIntermediateDocument: options.onIntermediateDocument,
   });
-  return generateRebalance({
+  const rebalancedDocument = await generateRebalance({
     document: mergedDocument,
     novel,
     workspace: mergedWorkspace,
@@ -454,6 +455,15 @@ async function generateChapterList(params: {
       targetVolumeId: targetVolume.id,
     },
   });
+  await options.onIntermediateDocument?.({
+    scope: "chapter_list",
+    document: rebalancedDocument,
+    isFinal: true,
+    targetVolumeId: targetVolume.id,
+    targetBeatKey: options.targetBeatKey,
+    generationMode: options.generationMode,
+  });
+  return rebalancedDocument;
 }
 
 async function generateChapterDetail(params: {

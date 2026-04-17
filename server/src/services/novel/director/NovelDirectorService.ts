@@ -81,6 +81,37 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function mergeResumeTargets(
+  primary: ReturnType<typeof parseResumeTarget>,
+  fallback: ReturnType<typeof parseResumeTarget>,
+) {
+  if (!primary) {
+    return fallback;
+  }
+  if (!fallback) {
+    return primary;
+  }
+  return {
+    ...fallback,
+    ...primary,
+    stage: primary.stage === "basic" && fallback.stage !== "basic"
+      ? fallback.stage
+      : primary.stage,
+    chapterId: primary.chapterId ?? fallback.chapterId ?? null,
+    volumeId: primary.volumeId ?? fallback.volumeId ?? null,
+  };
+}
+
+function parseResumeTargetLike(value: unknown) {
+  if (typeof value === "string") {
+    return parseResumeTarget(value);
+  }
+  if (value && typeof value === "object") {
+    return value as NonNullable<ReturnType<typeof parseResumeTarget>>;
+  }
+  return null;
+}
+
 function isWorkflowTaskCancelledError(error: unknown): boolean {
   return error instanceof AppError
     && error.statusCode === 409
@@ -436,7 +467,7 @@ export class NovelDirectorService {
       await this.workflowService.continueTask(taskId);
       return;
     }
-    if (row.status === "running") {
+    if (row.status === "running" && !row.pendingManualRecovery) {
       return;
     }
 
@@ -463,7 +494,8 @@ export class NovelDirectorService {
     const runMode = normalizeDirectorRunMode(directorInput.runMode ?? fallbackRunMode);
     const directorSessionPhase = seedPayload.directorSession?.phase;
     const shouldContinueAutoExecution = (
-      input?.continuationMode === "auto_execute_front10"
+      input?.continuationMode === "auto_execute_range"
+      || input?.continuationMode === "auto_execute_front10"
       || (
         runMode === "auto_to_execution"
         && (
@@ -484,16 +516,48 @@ export class NovelDirectorService {
       const resumeCheckpointType = row.checkpointType === "chapter_batch_ready" || row.checkpointType === "replan_required"
         ? row.checkpointType
         : "front10_ready";
-      await this.withWorkflowTaskUsage(taskId, () => this.autoExecutionRuntime.runFromReady({
-        taskId,
-        novelId,
-        request: directorInput,
-        existingPipelineJobId: seedPayload.autoExecution?.pipelineJobId ?? null,
-        existingState: seedPayload.autoExecution ?? null,
-        resumeCheckpointType,
-        previousFailureMessage: row.lastError ?? null,
-        allowSkipReviewBlockedChapter: input?.continuationMode === "auto_execute_front10",
-      }));
+      const resumedChapterId = (
+        parseResumeTargetLike(row.resumeTargetJson)?.chapterId
+        ?? parseResumeTargetLike(seedPayload.resumeTarget)?.chapterId
+        ?? seedPayload.autoExecution?.nextChapterId
+        ?? null
+      );
+      await this.workflowService.markTaskRunning(taskId, {
+        stage: resumeCheckpointType === "replan_required" ? "quality_repair" : "chapter_execution",
+        itemKey: resumeCheckpointType === "replan_required" ? "quality_repair" : "chapter_execution",
+        itemLabel: resumeCheckpointType === "replan_required"
+          ? "正在恢复当前质量修复批次"
+          : "正在恢复当前章节批次",
+        progress: resumeCheckpointType === "replan_required" ? 0.975 : 0.93,
+        clearCheckpoint: resumeCheckpointType === "chapter_batch_ready" || resumeCheckpointType === "replan_required",
+        seedPayload: this.buildDirectorSeedPayload(directorInput, novelId, {
+          directorSession: buildDirectorSessionState({
+            runMode: directorInput.runMode,
+            phase: "front10_ready",
+            isBackgroundRunning: true,
+          }),
+          resumeTarget: buildNovelEditResumeTarget({
+            novelId,
+            taskId,
+            stage: "pipeline",
+            chapterId: resumedChapterId,
+          }),
+          autoExecution: seedPayload.autoExecution ?? null,
+        }),
+      });
+      this.scheduleBackgroundRun(taskId, async () => {
+        await this.autoExecutionRuntime.runFromReady({
+          taskId,
+          novelId,
+          request: directorInput,
+          existingPipelineJobId: seedPayload.autoExecution?.pipelineJobId ?? null,
+          existingState: seedPayload.autoExecution ?? null,
+          resumeCheckpointType,
+          previousFailureMessage: row.lastError ?? null,
+          allowSkipReviewBlockedChapter: input?.continuationMode === "auto_execute_range"
+            || input?.continuationMode === "auto_execute_front10",
+        });
+      });
       return;
     }
 
@@ -563,7 +627,10 @@ export class NovelDirectorService {
     }
 
     const requestedVolumeId = input?.volumeId?.trim() || null;
-    const resumeTarget = parseResumeTarget(row.resumeTargetJson);
+    const resumeTarget = mergeResumeTargets(
+      parseResumeTarget(row.resumeTargetJson),
+      parseResumeTargetLike(seedPayload.resumeTarget),
+    );
     const targetVolumeId = requestedVolumeId
       || notice?.action?.volumeId?.trim()
       || resumeTarget?.volumeId?.trim()

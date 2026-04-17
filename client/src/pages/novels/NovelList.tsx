@@ -22,6 +22,7 @@ import {
   requiresCandidateSelection,
 } from "@/lib/novelWorkflowTaskUi";
 import { toast } from "@/components/ui/toast";
+import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 import NovelWorkflowRunningIndicator from "./components/NovelWorkflowRunningIndicator";
 
 type StatusFilter = "all" | "draft" | "published";
@@ -104,21 +105,28 @@ export default function NovelList() {
   const continueWorkflowMutation = useMutation({
     mutationFn: async (input: {
       taskId: string;
-      mode?: "auto_execute_front10";
+      mode?: "auto_execute_range";
     }) => continueNovelWorkflow(input.taskId, input.mode ? { continuationMode: input.mode } : undefined),
-    onSuccess: async (_response, input) => {
+    onSuccess: async (response, input) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.all }),
         queryClient.invalidateQueries({ queryKey: ["tasks"] }),
       ]);
-      toast.success(input.mode === "auto_execute_front10" ? "已继续自动执行前 10 章。" : "自动导演已继续推进。");
+      const feedback = resolveWorkflowContinuationFeedback(response.data, {
+        mode: input.mode,
+      });
+      if (feedback.tone === "error") {
+        toast.error(feedback.message);
+        return;
+      }
+      toast.success(feedback.message);
     },
     onError: (error, input) => {
       toast.error(
         error instanceof Error
           ? error.message
-          : input.mode === "auto_execute_front10"
-            ? "继续自动执行前 10 章失败。"
+          : input.mode === "auto_execute_range"
+            ? "继续自动执行当前章节范围失败。"
             : "继续自动导演失败。",
       );
     },
@@ -391,12 +399,12 @@ export default function NovelList() {
                           }
                           continueWorkflowMutation.mutate({
                             taskId: workflowTask.id,
-                            mode: "auto_execute_front10",
+                            mode: "auto_execute_range",
                           });
                         }}
                         disabled={isWorkflowPending}
                       >
-                        {isWorkflowPending ? "继续执行中..." : (workflowTask?.resumeAction ?? "继续自动执行前 10 章")}
+                        {isWorkflowPending ? "继续执行中..." : (workflowTask?.resumeAction ?? `继续自动执行${workflowTask?.executionScopeLabel ?? "当前章节范围"}`)}
                       </Button>
                     ) : canContinueDirector(workflowTask) ? (
                       <Button

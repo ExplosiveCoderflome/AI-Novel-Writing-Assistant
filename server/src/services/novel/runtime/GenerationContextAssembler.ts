@@ -52,6 +52,17 @@ import {
 const OPENING_COMPARE_LIMIT = 3;
 const OPENING_SLICE_LENGTH = 220;
 
+export function buildBlockingPendingReviewProposalWhere(novelId: string, chapterId: string) {
+  return {
+    novelId,
+    status: "pending_review" as const,
+    OR: [
+      { chapterId },
+      { chapterId: null },
+    ],
+  };
+}
+
 function extractOpening(content: string, maxLength = OPENING_SLICE_LENGTH): string {
   return content.replace(/\s+/g, " ").trim().slice(0, maxLength);
 }
@@ -244,10 +255,7 @@ export class GenerationContextAssembler {
 
     const ensuredPlan = await plannerService.ensureChapterPlan(novelId, chapterId, request);
     const pendingReviewProposalCountPromise = prisma.stateChangeProposal.count({
-      where: {
-        novelId,
-        status: "pending_review",
-      },
+      where: buildBlockingPendingReviewProposalWhere(novelId, chapterId),
     });
     const [
       storyWorldSlice,

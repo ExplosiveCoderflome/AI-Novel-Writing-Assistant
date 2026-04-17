@@ -10,6 +10,7 @@ interface RegisterNovelChapterEditorRoutesInput {
   novelService: NovelService;
   chapterParamsSchema: z.ZodType<{ id: string; chapterId: string }>;
   rewritePreviewSchema: z.ZodTypeAny;
+  aiRevisionPreviewSchema: z.ZodTypeAny;
   forwardBusinessError: (error: unknown, next: (err?: unknown) => void) => boolean;
 }
 
@@ -19,8 +20,73 @@ export function registerNovelChapterEditorRoutes(input: RegisterNovelChapterEdit
     novelService,
     chapterParamsSchema,
     rewritePreviewSchema,
+    aiRevisionPreviewSchema,
     forwardBusinessError,
   } = input;
+
+  router.get(
+    "/:id/chapters/:chapterId/editor/workspace",
+    validate({ params: chapterParamsSchema }),
+    async (req, res, next) => {
+      try {
+        const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
+        const data = await novelService.getChapterEditorWorkspace(id, chapterId);
+        res.status(200).json({
+          success: true,
+          data,
+          message: "Chapter editor workspace loaded.",
+        } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        if (forwardBusinessError(error, next)) {
+          return;
+        }
+        if (error instanceof Error && ["小说不存在。", "章节不存在。"].includes(error.message)) {
+          next(new AppError(error.message, 400));
+          return;
+        }
+        next(error);
+      }
+    },
+  );
+
+  router.post(
+    "/:id/chapters/:chapterId/editor/ai-revision-preview",
+    validate({ params: chapterParamsSchema, body: aiRevisionPreviewSchema }),
+    async (req, res, next) => {
+      try {
+        const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
+        const data = await novelService.previewChapterAiRevision(id, chapterId, req.body as any);
+        res.status(200).json({
+          success: true,
+          data,
+          message: "Chapter editor AI revision preview generated.",
+        } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        if (forwardBusinessError(error, next)) {
+          return;
+        }
+        if (
+          error instanceof Error
+          && [
+            "小说不存在。",
+            "章节不存在。",
+            "当前章节正文为空，无法发起 AI 修正。",
+            "片段修正需要先选中正文内容。",
+            "选区范围无效，请重新选择后再试。",
+            "选中文本不能为空。",
+            "选中文本已发生变化，请重新选择后再试。",
+            "请先写下你希望 AI 如何修改。",
+            "AI 未返回足够的候选版本，请重试。",
+          ].includes(error.message)
+            || (error instanceof Error && error.message.includes("整章修正当前限制为"))
+        ) {
+          next(new AppError(error.message, 400));
+          return;
+        }
+        next(error);
+      }
+    },
+  );
 
   router.post(
     "/:id/chapters/:chapterId/editor/rewrite-preview",

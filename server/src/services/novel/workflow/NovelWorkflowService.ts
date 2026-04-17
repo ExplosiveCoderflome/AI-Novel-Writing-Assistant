@@ -110,6 +110,38 @@ function buildChapterTitleDiversityTaskNotice(input: {
   };
 }
 
+function parseSeedResumeTarget(seedPayloadJson: string | null | undefined) {
+  const seedPayload = parseSeedPayload<{ resumeTarget?: unknown }>(seedPayloadJson);
+  if (typeof seedPayload?.resumeTarget === "string") {
+    return parseResumeTarget(seedPayload.resumeTarget);
+  }
+  if (seedPayload?.resumeTarget && typeof seedPayload.resumeTarget === "object") {
+    return seedPayload.resumeTarget as NonNullable<ReturnType<typeof parseResumeTarget>>;
+  }
+  return null;
+}
+
+function mergeResumeTargets(
+  primary: ReturnType<typeof parseResumeTarget>,
+  fallback: ReturnType<typeof parseResumeTarget>,
+) {
+  if (!primary) {
+    return fallback;
+  }
+  if (!fallback) {
+    return primary;
+  }
+  return {
+    ...fallback,
+    ...primary,
+    stage: primary.stage === "basic" && fallback.stage !== "basic"
+      ? fallback.stage
+      : primary.stage,
+    chapterId: primary.chapterId ?? fallback.chapterId ?? null,
+    volumeId: primary.volumeId ?? fallback.volumeId ?? null,
+  };
+}
+
 interface ChapterBatchCheckpointRow {
   title: string;
   novelId: string | null;
@@ -689,18 +721,25 @@ export class NovelWorkflowService {
       return false;
     }
 
-    const resumeTarget = parseResumeTarget(existing.resumeTargetJson);
+    const resumeTarget = mergeResumeTargets(
+      parseResumeTarget(existing.resumeTargetJson),
+      parseSeedResumeTarget(existing.seedPayloadJson),
+    );
     const notice = buildChapterTitleDiversityTaskNotice({
       issue,
       volumeId: resumeTarget?.volumeId ?? null,
     });
-    const nextResumeTarget = resumeTarget ?? this.buildResumeTarget({
-      taskId,
-      novelId: existing.novelId,
-      lane: existing.lane,
-      stage: "structured_outline",
-      volumeId: notice.action.volumeId,
-    });
+    const nextResumeTarget = (resumeTarget && resumeTarget.stage !== "basic")
+      ? {
+        ...resumeTarget,
+        volumeId: resumeTarget.volumeId ?? notice.action.volumeId ?? null,
+      }
+      : buildNovelEditResumeTarget({
+        novelId: existing.novelId ?? resumeTarget?.novelId ?? "",
+        taskId,
+        stage: "structured",
+        volumeId: resumeTarget?.volumeId ?? notice.action.volumeId ?? null,
+      });
 
     await prisma.novelWorkflowTask.update({
       where: { id: taskId },
@@ -708,7 +747,7 @@ export class NovelWorkflowService {
         status: "waiting_approval",
         currentStage: stageLabel("structured_outline"),
         currentItemKey: existing.currentItemKey ?? "chapter_list",
-        currentItemLabel: existing.currentItemLabel?.trim() || "章节列表已生成，但标题结构仍需分散",
+        currentItemLabel: "章节列表已生成，但标题结构仍需分散",
         checkpointType: null,
         checkpointSummary: null,
         resumeTargetJson: stringifyResumeTarget(nextResumeTarget),
@@ -1059,6 +1098,7 @@ export class NovelWorkflowService {
         startedAt: existing.startedAt ?? new Date(),
         finishedAt: null,
         heartbeatAt: new Date(),
+        pendingManualRecovery: false,
         currentStage: stageLabel(input.stage),
         currentItemKey: input.itemKey ?? input.stage,
         currentItemLabel: input.itemLabel,

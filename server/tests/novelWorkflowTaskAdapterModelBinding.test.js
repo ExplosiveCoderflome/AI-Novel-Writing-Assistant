@@ -218,6 +218,71 @@ test("task center list treats restart recovery note as running recovery instead 
   }
 });
 
+test("task center list surfaces actual auto execution range in explainability fields", async () => {
+  const originals = {
+    findMany: prisma.novelWorkflowTask.findMany,
+  };
+
+  prisma.novelWorkflowTask.findMany = async () => ([
+    {
+      id: "task_range_ready",
+      title: "AI 自动导演",
+      lane: "auto_director",
+      status: "waiting_approval",
+      progress: 0.92,
+      currentStage: "章节执行",
+      currentItemKey: "chapter_execution",
+      currentItemLabel: "第 11-20 章已准备完成",
+      checkpointType: "front10_ready",
+      checkpointSummary: "第 11-20 章细化已准备完成。",
+      resumeTargetJson: null,
+      attemptCount: 1,
+      maxAttempts: 3,
+      lastError: null,
+      createdAt: new Date("2026-04-17T09:00:00.000Z"),
+      updatedAt: new Date("2026-04-17T09:08:53.000Z"),
+      heartbeatAt: new Date("2026-04-17T09:08:53.000Z"),
+      promptTokens: 1000,
+      completionTokens: 500,
+      totalTokens: 1500,
+      llmCallCount: 2,
+      lastTokenRecordedAt: new Date("2026-04-17T09:08:53.000Z"),
+      novelId: "novel_demo",
+      novel: {
+        title: "示例小说",
+      },
+      seedPayloadJson: JSON.stringify({
+        autoExecution: {
+          enabled: true,
+          mode: "chapter_range",
+          scopeLabel: "第 11-20 章",
+          startOrder: 11,
+          endOrder: 20,
+        },
+      }),
+    },
+  ]);
+
+  const adapter = new NovelWorkflowTaskAdapter();
+  const originalHeal = adapter.workflowService.healAutoDirectorTaskState;
+  adapter.workflowService.healAutoDirectorTaskState = async () => false;
+
+  try {
+    const list = await adapter.list({
+      take: 10,
+    });
+
+    assert.equal(list.length, 1);
+    assert.equal(list[0].executionScopeLabel, "第 11-20 章");
+    assert.equal(list[0].displayStatus, "第 11-20 章已可进入章节执行");
+    assert.equal(list[0].resumeAction, "继续自动执行第 11-20 章");
+    assert.match(String(list[0].blockingReason), /第 11-20 章细化已准备完成/);
+  } finally {
+    prisma.novelWorkflowTask.findMany = originals.findMany;
+    adapter.workflowService.healAutoDirectorTaskState = originalHeal;
+  }
+});
+
 test("task detail treats review-blocked auto execution as skippable continuation", async () => {
   const originals = {
     findUnique: prisma.novelWorkflowTask.findUnique,

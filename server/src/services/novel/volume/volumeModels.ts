@@ -25,6 +25,15 @@ export interface VolumeGenerationPhaseEvent {
   label: string;
 }
 
+export interface VolumeIntermediateDocumentEvent {
+  scope: VolumeGenerationScope;
+  document: VolumePlanDocument;
+  isFinal: boolean;
+  targetVolumeId?: string;
+  targetBeatKey?: string;
+  generationMode?: VolumeChapterListGenerationMode;
+}
+
 export interface VolumeWorkspace {
   novelId: string;
   workspaceVersion: "v2";
@@ -79,6 +88,7 @@ export interface VolumeGenerateOptions {
   draftVolumes?: unknown;
   draftWorkspace?: unknown;
   onPhaseStart?: (event: VolumeGenerationPhaseEvent) => void | Promise<void>;
+  onIntermediateDocument?: (event: VolumeIntermediateDocumentEvent) => void | Promise<void>;
 }
 
 export interface VolumeDraftInput {
@@ -143,6 +153,9 @@ export function mapVolumeRow(row: VolumeRow): VolumePlan {
       title: chapter.title,
       summary: chapter.summary,
       purpose: chapter.purpose,
+      exclusiveEvent: null,
+      endingState: null,
+      nextChapterEntryState: null,
       conflictLevel: chapter.conflictLevel,
       revealLevel: chapter.revealLevel,
       targetWordCount: chapter.targetWordCount,

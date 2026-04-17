@@ -75,6 +75,11 @@ function parseLinkedPipelineJobId(seedPayloadJson?: string | null): string | nul
 function parseTaskNotice(seedPayloadJson?: string | null): DirectorTaskNotice | null {
   const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(seedPayloadJson);
   const notice = seedPayload?.taskNotice;
+  const seedResumeTarget = typeof seedPayload?.resumeTarget === "string"
+    ? parseResumeTarget(seedPayload.resumeTarget)
+    : (seedPayload?.resumeTarget && typeof seedPayload.resumeTarget === "object"
+      ? seedPayload.resumeTarget as NonNullable<ReturnType<typeof parseResumeTarget>>
+      : null);
   if (!notice || typeof notice !== "object") {
     return null;
   }
@@ -94,9 +99,32 @@ function parseTaskNotice(seedPayloadJson?: string | null): DirectorTaskNotice | 
       ? {
         type: action.type === "open_structured_outline" ? "open_structured_outline" : "open_structured_outline",
         label: action.label.trim() || "打开当前卷拆章",
-        volumeId: typeof action.volumeId === "string" && action.volumeId.trim() ? action.volumeId.trim() : null,
+        volumeId: typeof action.volumeId === "string" && action.volumeId.trim()
+          ? action.volumeId.trim()
+          : (seedResumeTarget?.volumeId?.trim() || null),
       }
       : null,
+  };
+}
+
+function mergeResumeTargets(
+  primary: ReturnType<typeof parseResumeTarget>,
+  fallback: ReturnType<typeof parseResumeTarget>,
+) {
+  if (!primary) {
+    return fallback;
+  }
+  if (!fallback) {
+    return primary;
+  }
+  return {
+    ...fallback,
+    ...primary,
+    stage: primary.stage === "basic" && fallback.stage !== "basic"
+      ? fallback.stage
+      : primary.stage,
+    chapterId: primary.chapterId ?? fallback.chapterId ?? null,
+    volumeId: primary.volumeId ?? fallback.volumeId ?? null,
   };
 }
 
@@ -129,7 +157,15 @@ export function normalizeWorkflowResumeTargetForCandidateSelection(input: {
   resumeTargetJson: string | null;
   seedPayloadJson?: string | null;
 }) {
-  const parsed = parseResumeTarget(input.resumeTargetJson);
+  const seedResumeTarget = parseSeedPayload<DirectorWorkflowSeedPayload>(input.seedPayloadJson)?.resumeTarget;
+  const parsed = mergeResumeTargets(
+    parseResumeTarget(input.resumeTargetJson),
+    typeof seedResumeTarget === "string"
+      ? parseResumeTarget(seedResumeTarget)
+      : (seedResumeTarget && typeof seedResumeTarget === "object"
+        ? seedResumeTarget as NonNullable<ReturnType<typeof parseResumeTarget>>
+        : null),
+  );
   const isCandidateSelectionTask = input.checkpointType === "candidate_selection_required"
     || input.currentItemKey === "auto_director"
     || input.currentItemKey?.startsWith("candidate_") === true
@@ -209,6 +245,7 @@ function mapSummary(row: {
     currentItemKey: row.currentItemKey,
     checkpointType,
     lastError: row.lastError,
+    executionScopeLabel: autoExecution?.scopeLabel ?? null,
   });
   const blockingReason = isSkippableReviewBlockedFailure
     ? buildSkippableAutoExecutionReviewBlockingReason(autoExecution)
@@ -236,6 +273,7 @@ function mapSummary(row: {
     currentStage: row.currentStage,
     currentItemKey: row.currentItemKey,
     currentItemLabel: row.currentItemLabel,
+    executionScopeLabel: autoExecution?.scopeLabel?.trim() || null,
     displayStatus: explainability.displayStatus,
     blockingReason,
     resumeAction: explainability.resumeAction,
@@ -252,7 +290,7 @@ function mapSummary(row: {
     checkpointType,
     checkpointSummary,
     resumeTarget,
-    nextActionLabel: buildNovelWorkflowNextActionLabel(status, checkpointType),
+    nextActionLabel: buildNovelWorkflowNextActionLabel(status, checkpointType, autoExecution?.scopeLabel ?? null),
     noticeCode: taskNotice?.code ?? null,
     noticeSummary: taskNotice?.summary ?? null,
     failureCode: status === "failed" && !isSkippableReviewBlockedFailure ? "NOVEL_WORKFLOW_FAILED" : null,

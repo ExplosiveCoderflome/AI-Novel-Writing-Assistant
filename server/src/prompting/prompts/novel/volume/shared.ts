@@ -334,9 +334,13 @@ export function buildChapterNeighborContext(volume: VolumePlan, chapterId: strin
   const current = volume.chapters[index];
   const next = index < volume.chapters.length - 1 ? volume.chapters[index + 1] : null;
   return [
-    previous ? `previous chapter: ${previous.chapterOrder} ${previous.title} | ${previous.summary || "none"}` : "",
-    `current chapter: ${current.chapterOrder} ${current.title} | ${current.summary || "none"}`,
-    next ? `next chapter: ${next.chapterOrder} ${next.title} | ${next.summary || "none"}` : "",
+    previous
+      ? `previous chapter: ${previous.chapterOrder} ${previous.title} | ${previous.summary || "none"} | exclusiveEvent=${previous.exclusiveEvent || "none"} | endingState=${previous.endingState || "none"} | nextEntry=${previous.nextChapterEntryState || "none"}`
+      : "",
+    `current chapter: ${current.chapterOrder} ${current.title} | ${current.summary || "none"} | exclusiveEvent=${current.exclusiveEvent || "none"} | endingState=${current.endingState || "none"} | nextEntry=${current.nextChapterEntryState || "none"}`,
+    next
+      ? `next chapter: ${next.chapterOrder} ${next.title} | ${next.summary || "none"} | exclusiveEvent=${next.exclusiveEvent || "none"} | endingState=${next.endingState || "none"} | nextEntry=${next.nextChapterEntryState || "none"}`
+      : "",
   ].filter(Boolean).join("\n");
 }
 
@@ -413,6 +417,9 @@ export function buildChapterDetailDraft(
   }
   if (detailMode === "boundary") {
     return [
+      `exclusive event: ${chapter.exclusiveEvent?.trim() || "none"}`,
+      `ending state: ${chapter.endingState?.trim() || "none"}`,
+      `next chapter entry state: ${chapter.nextChapterEntryState?.trim() || "none"}`,
       `conflict level: ${typeof chapter.conflictLevel === "number" ? chapter.conflictLevel : "none"}`,
       `reveal level: ${typeof chapter.revealLevel === "number" ? chapter.revealLevel : "none"}`,
       `target word count: ${typeof chapter.targetWordCount === "number" ? chapter.targetWordCount : "none"}`,
@@ -420,5 +427,18 @@ export function buildChapterDetailDraft(
       `payoff refs: ${chapter.payoffRefs.join(" | ") || "none"}`,
     ].join("\n");
   }
-  return `current task sheet draft: ${chapter.taskSheet?.trim() || "none"}`;
+  return [
+    `current chapter title: ${chapter.title.trim() || "none"}`,
+    `current chapter summary: ${chapter.summary?.trim() || "none"}`,
+    `current purpose draft: ${chapter.purpose?.trim() || "none"}`,
+    `exclusive event: ${chapter.exclusiveEvent?.trim() || "none"}`,
+    `ending state: ${chapter.endingState?.trim() || "none"}`,
+    `next chapter entry state: ${chapter.nextChapterEntryState?.trim() || "none"}`,
+    `conflict level: ${typeof chapter.conflictLevel === "number" ? chapter.conflictLevel : "none"}`,
+    `reveal level: ${typeof chapter.revealLevel === "number" ? chapter.revealLevel : "none"}`,
+    `target word count: ${typeof chapter.targetWordCount === "number" ? chapter.targetWordCount : "none"}`,
+    `must avoid: ${chapter.mustAvoid?.trim() || "none"}`,
+    `payoff refs: ${chapter.payoffRefs.join(" | ") || "none"}`,
+    `current task sheet draft: ${chapter.taskSheet?.trim() || "none"}`,
+  ].join("\n");
 }

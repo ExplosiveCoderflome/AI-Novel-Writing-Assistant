@@ -17,6 +17,9 @@ export interface ExistingChapterRecord {
   generationState?: Chapter["generationState"] | null;
   chapterStatus?: Chapter["chapterStatus"] | null;
   expectation?: string | null;
+  exclusiveEvent?: string | null;
+  endingState?: string | null;
+  nextChapterEntryState?: string | null;
   targetWordCount?: number | null;
   conflictLevel?: number | null;
   revealLevel?: number | null;
@@ -59,6 +62,15 @@ function compareStringArray(a: string[], b: string[]): boolean {
   return a.join("\n") === b.join("\n");
 }
 
+function normalizeStringArray(value: string[] | null | undefined): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean);
+}
+
 function flattenVolumeChapters(volumes: VolumePlan[]) {
   return volumes
     .slice()
@@ -81,6 +93,9 @@ function getChapterChangedFields(existing: ExistingChapterRecord, chapter: Volum
   const changed: string[] = action === "move" ? ["章节顺序"] : [];
   if (!compareText(existing.title, chapter.title)) changed.push("标题");
   if (!compareText(existing.expectation, chapter.summary)) changed.push("摘要");
+  if (!compareText(existing.exclusiveEvent, chapter.exclusiveEvent)) changed.push("独占事件");
+  if (!compareText(existing.endingState, chapter.endingState)) changed.push("章末状态");
+  if (!compareText(existing.nextChapterEntryState, chapter.nextChapterEntryState)) changed.push("下章起始状态");
   if (!compareNumber(existing.targetWordCount, chapter.targetWordCount)) changed.push("目标字数");
   if (!compareNumber(existing.conflictLevel, chapter.conflictLevel)) changed.push("冲突等级");
   if (!compareNumber(existing.revealLevel, chapter.revealLevel)) changed.push("揭露等级");
@@ -123,9 +138,52 @@ function buildVolumeOutlineSnapshot(volumes: VolumePlan[]): string {
     .join("\n\n");
 }
 
+function buildPayoffLedgerSignalSnapshot(volumes: VolumePlan[]) {
+  return volumes
+    .slice()
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((volume) => {
+      const openPayoffs = normalizeStringArray(volume.openPayoffs);
+      const payoffRefChapters = volume.chapters
+        .slice()
+        .sort((a, b) => a.chapterOrder - b.chapterOrder)
+        .map((chapter) => ({
+          chapterOrder: chapter.chapterOrder,
+          payoffRefs: normalizeStringArray(chapter.payoffRefs),
+        }))
+        .filter((chapter) => chapter.payoffRefs.length > 0);
+      const shouldTrackVolumeWindow = openPayoffs.length > 0 || payoffRefChapters.length > 0;
+      if (!shouldTrackVolumeWindow) {
+        return null;
+      }
+      return {
+        sortOrder: volume.sortOrder,
+        openPayoffs,
+        chapterOrders: volume.chapters
+          .slice()
+          .sort((a, b) => a.chapterOrder - b.chapterOrder)
+          .map((chapter) => chapter.chapterOrder),
+        payoffRefChapters,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
+}
+
+export function hasPayoffLedgerSourceSignals(volumes: VolumePlan[]): boolean {
+  return buildPayoffLedgerSignalSnapshot(volumes).length > 0;
+}
+
+export function hasPayoffLedgerRelevantPlanChanges(beforeVolumes: VolumePlan[], afterVolumes: VolumePlan[]): boolean {
+  return JSON.stringify(buildPayoffLedgerSignalSnapshot(beforeVolumes))
+    !== JSON.stringify(buildPayoffLedgerSignalSnapshot(afterVolumes));
+}
+
 export function buildTaskSheetFromVolumeChapter(chapter: VolumeChapterPlan): string {
   const lines = [
     `章节目标：${chapter.purpose || chapter.summary || "推进主线"}`,
+    chapter.exclusiveEvent ? `独占事件：${chapter.exclusiveEvent}` : "",
+    chapter.endingState ? `章末状态：${chapter.endingState}` : "",
+    chapter.nextChapterEntryState ? `下章起始状态：${chapter.nextChapterEntryState}` : "",
     typeof chapter.conflictLevel === "number" ? `冲突等级：${chapter.conflictLevel}` : "",
     typeof chapter.revealLevel === "number" ? `揭露等级：${chapter.revealLevel}` : "",
     typeof chapter.targetWordCount === "number" ? `目标字数：${chapter.targetWordCount}` : "",
@@ -338,6 +396,9 @@ function collectVolumeChangedFields(beforeVolume: VolumePlan | undefined, afterV
       order: beforeChapter.chapterOrder,
       title: beforeChapter.title,
       expectation: beforeChapter.summary,
+      exclusiveEvent: beforeChapter.exclusiveEvent,
+      endingState: beforeChapter.endingState,
+      nextChapterEntryState: beforeChapter.nextChapterEntryState,
       targetWordCount: beforeChapter.targetWordCount,
       conflictLevel: beforeChapter.conflictLevel,
       revealLevel: beforeChapter.revealLevel,
@@ -389,6 +450,9 @@ export function buildVolumeDiff(
             order: beforeChapter.chapterOrder,
             title: beforeChapter.title,
             expectation: beforeChapter.summary,
+            exclusiveEvent: beforeChapter.exclusiveEvent,
+            endingState: beforeChapter.endingState,
+            nextChapterEntryState: beforeChapter.nextChapterEntryState,
             targetWordCount: beforeChapter.targetWordCount,
             conflictLevel: beforeChapter.conflictLevel,
             revealLevel: beforeChapter.revealLevel,

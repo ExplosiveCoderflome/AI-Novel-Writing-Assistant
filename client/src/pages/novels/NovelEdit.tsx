@@ -63,10 +63,10 @@ import NovelExistingProjectTakeoverDialog from "./components/NovelExistingProjec
 import { syncNovelWorkflowStageSilently, workflowStageFromTab } from "./novelWorkflow.client";
 import { isNovelWorkspaceFlowTab, scopeFromWorkspaceTab, tabFromDirectorProgress, tabFromScope } from "./novelWorkspaceNavigation";
 import { resolveChapterTitleWarning } from "@/lib/directorTaskNotice";
+import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 import { getCandidateSelectionLink } from "@/lib/novelWorkflowTaskUi";
 import {
   buildContinueAutoExecutionActionLabel,
-  buildContinueAutoExecutionToast,
   buildTakeoverDescription,
   buildTakeoverTitle,
   formatTakeoverCheckpoint,
@@ -614,12 +614,17 @@ export default function NovelEdit() {
       }
       return continueNovelWorkflow(activeAutoDirectorTask.id);
     },
-    onSuccess: async () => {
+    onSuccess: async (response) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTask(id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.volumeWorkspace(id) });
       await queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      toast.success("自动导演已继续在后台推进。");
+      const feedback = resolveWorkflowContinuationFeedback(response.data);
+      if (feedback.tone === "error") {
+        toast.error(feedback.message);
+        return;
+      }
+      toast.success(feedback.message);
     },
     onError: (error) => {
       const message = error instanceof Error ? error.message : "继续自动导演失败。";
@@ -632,15 +637,23 @@ export default function NovelEdit() {
         throw new Error("当前没有可继续自动执行的自动导演任务。");
       }
       return continueNovelWorkflow(activeAutoDirectorTask.id, {
-        continuationMode: "auto_execute_front10",
+        continuationMode: "auto_execute_range",
       });
     },
-    onSuccess: async () => {
+    onSuccess: async (response) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTask(id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.volumeWorkspace(id) });
       await queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      toast.success(buildContinueAutoExecutionToast(activeAutoExecutionScopeLabel));
+      const feedback = resolveWorkflowContinuationFeedback(response.data, {
+        mode: "auto_execute_range",
+        scopeLabel: activeAutoExecutionScopeLabel,
+      });
+      if (feedback.tone === "error") {
+        toast.error(feedback.message);
+        return;
+      }
+      toast.success(feedback.message);
     },
     onError: (error) => {
       const message = error instanceof Error ? error.message : `继续自动执行${activeAutoExecutionScopeLabel}失败。`;
@@ -1238,6 +1251,23 @@ export default function NovelEdit() {
       queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(id) }),
     ]);
   }, [activeAutoDirectorRefreshSignature, activeAutoDirectorTask, id, queryClient]);
+
+  useEffect(() => {
+    if (!id || !activeAutoDirectorTask) {
+      return;
+    }
+    if (
+      activeAutoDirectorTask.status !== "queued"
+      && activeAutoDirectorTask.status !== "running"
+      && activeAutoDirectorTask.status !== "waiting_approval"
+    ) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.novels.volumeWorkspace(id) });
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [activeAutoDirectorTask, id, queryClient]);
 
   const outlineText = useMemo(
     () => buildOutlinePreviewFromVolumes(normalizedVolumeDraft),

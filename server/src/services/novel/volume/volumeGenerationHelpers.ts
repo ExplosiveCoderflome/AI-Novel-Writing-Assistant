@@ -414,6 +414,9 @@ export function mergeChapterList(
           title: chapter.title,
           summary: chapter.summary,
           purpose: existingChapter?.purpose ?? null,
+          exclusiveEvent: existingChapter?.exclusiveEvent ?? null,
+          endingState: existingChapter?.endingState ?? null,
+          nextChapterEntryState: existingChapter?.nextChapterEntryState ?? null,
           conflictLevel: existingChapter?.conflictLevel ?? null,
           revealLevel: existingChapter?.revealLevel ?? null,
           targetWordCount: existingChapter?.targetWordCount ?? null,
@@ -492,6 +495,11 @@ export function mergeChapterDetail(params: {
         if (detailMode === "boundary") {
           return {
             ...chapter,
+            exclusiveEvent: typeof generatedDetail.exclusiveEvent === "string" ? generatedDetail.exclusiveEvent : chapter.exclusiveEvent,
+            endingState: typeof generatedDetail.endingState === "string" ? generatedDetail.endingState : chapter.endingState,
+            nextChapterEntryState: typeof generatedDetail.nextChapterEntryState === "string"
+              ? generatedDetail.nextChapterEntryState
+              : chapter.nextChapterEntryState,
             conflictLevel: typeof generatedDetail.conflictLevel === "number" ? generatedDetail.conflictLevel : chapter.conflictLevel,
             revealLevel: typeof generatedDetail.revealLevel === "number" ? generatedDetail.revealLevel : chapter.revealLevel,
             targetWordCount: typeof generatedDetail.targetWordCount === "number" ? generatedDetail.targetWordCount : chapter.targetWordCount,

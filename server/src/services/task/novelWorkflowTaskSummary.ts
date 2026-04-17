@@ -2,12 +2,15 @@ import type { NovelAutoDirectorTaskSummary } from "@ai-novel/shared/types/novel"
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
 import { buildWorkflowExplainability, buildWorkflowResumeAction } from "./novelWorkflowExplainability";
+import type { DirectorWorkflowSeedPayload } from "../novel/director/novelDirectorHelpers";
+import { parseSeedPayload } from "../novel/workflow/novelWorkflow.shared";
 
 export function buildNovelWorkflowNextActionLabel(
   status: TaskStatus,
   checkpointType: NovelWorkflowCheckpoint | null,
+  executionScopeLabel?: string | null,
 ): string | null {
-  const resumeAction = buildWorkflowResumeAction(status, checkpointType);
+  const resumeAction = buildWorkflowResumeAction(status, checkpointType, executionScopeLabel);
   if (!resumeAction) {
     return null;
   }
@@ -28,6 +31,7 @@ interface NovelWorkflowListSummaryRow {
   checkpointSummary: string | null;
   lastError: string | null;
   updatedAt: Date;
+  seedPayloadJson?: string | null;
 }
 
 export function mapNovelAutoDirectorTaskSummary(
@@ -35,12 +39,15 @@ export function mapNovelAutoDirectorTaskSummary(
 ): NovelAutoDirectorTaskSummary {
   const checkpointType = row.checkpointType as NovelWorkflowCheckpoint | null;
   const status = row.status as TaskStatus;
+  const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(row.seedPayloadJson);
+  const executionScopeLabel = seedPayload?.autoExecution?.scopeLabel?.trim() || null;
   const explainability = buildWorkflowExplainability({
     status,
     currentStage: row.currentStage,
     currentItemKey: row.currentItemKey,
     checkpointType,
     lastError: row.lastError,
+    executionScopeLabel,
   });
   return {
     id: row.id,
@@ -48,13 +55,14 @@ export function mapNovelAutoDirectorTaskSummary(
     progress: row.progress,
     currentStage: row.currentStage,
     currentItemLabel: row.currentItemLabel,
+    executionScopeLabel,
     displayStatus: explainability.displayStatus,
     blockingReason: explainability.blockingReason,
     resumeAction: explainability.resumeAction,
     lastHealthyStage: explainability.lastHealthyStage,
     checkpointType,
     checkpointSummary: row.checkpointSummary,
-    nextActionLabel: buildNovelWorkflowNextActionLabel(status, checkpointType),
+    nextActionLabel: buildNovelWorkflowNextActionLabel(status, checkpointType, executionScopeLabel),
     updatedAt: row.updatedAt.toISOString(),
   };
 }

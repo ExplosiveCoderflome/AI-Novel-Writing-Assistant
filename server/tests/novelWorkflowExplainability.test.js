@@ -28,9 +28,24 @@ test("workflow explainability exposes recovery guidance for failed chapter batch
   });
 
   assert.equal(result.displayStatus, "前 10 章自动执行已暂停");
-  assert.equal(result.resumeAction, "继续自动执行剩余章节");
+  assert.equal(result.resumeAction, "继续自动执行前 10 章");
   assert.equal(result.lastHealthyStage, "章节执行");
   assert.match(result.blockingReason, /批量阶段中断/);
+});
+
+test("workflow explainability uses actual chapter range scope instead of hardcoded front10 copy", () => {
+  const result = buildWorkflowExplainability({
+    status: "waiting_approval",
+    currentStage: "章节执行",
+    currentItemKey: "chapter_execution",
+    checkpointType: "front10_ready",
+    executionScopeLabel: "第 11-20 章",
+    lastError: null,
+  });
+
+  assert.equal(result.displayStatus, "第 11-20 章已可进入章节执行");
+  assert.equal(result.resumeAction, "继续自动执行第 11-20 章");
+  assert.match(result.blockingReason, /第 11-20 章细化已准备完成/);
 });
 
 test("workflow explainability treats restart recovery as running recovery instead of failure", () => {

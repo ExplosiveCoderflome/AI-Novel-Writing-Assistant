@@ -101,7 +101,7 @@ export interface DirectorAutoExecutionPlan {
   autoRepair?: boolean;
 }
 
-export type DirectorContinuationMode = "resume" | "auto_execute_front10";
+export type DirectorContinuationMode = "resume" | "auto_execute_range" | "auto_execute_front10";
 
 export interface DirectorAutoExecutionState extends DirectorAutoExecutionPlan {
   enabled: boolean;

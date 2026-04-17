@@ -22,6 +22,10 @@ function buildRepairStatusLabel(input: {
   return `正在 AI 修复第 ${input.volumeOrder} 卷章节标题`;
 }
 
+function hasTargetBeatSheet(workspace: Awaited<ReturnType<NovelVolumeService["getVolumes"]>>, volumeId: string): boolean {
+  return workspace.beatSheets.some((item) => item.volumeId === volumeId && item.beats.length > 0);
+}
+
 export async function repairDirectorChapterTitles(input: {
   taskId: string;
   novelId: string;
@@ -47,13 +51,33 @@ export async function repairDirectorChapterTitles(input: {
     stage: "structured",
     volumeId: targetVolume.id,
   });
+  let workingWorkspace = currentWorkspace;
+  if (!hasTargetBeatSheet(workingWorkspace, targetVolume.id)) {
+    workingWorkspace = await input.volumeService.generateVolumes(input.novelId, {
+      provider: input.request.provider,
+      model: input.request.model,
+      temperature: input.request.temperature,
+      scope: "beat_sheet",
+      targetVolumeId: targetVolume.id,
+      draftWorkspace: workingWorkspace,
+      onPhaseStart: async (event) => {
+        await input.workflowService.markTaskRunning(input.taskId, {
+          stage: "structured_outline",
+          itemKey: "beat_sheet",
+          itemLabel: event.label.trim() || `正在补齐第 ${targetVolume.sortOrder} 卷节奏板`,
+          progress: DIRECTOR_PROGRESS.beatSheet,
+        });
+      },
+    });
+  }
+
   const repairedWorkspace = await input.volumeService.generateVolumes(input.novelId, {
     provider: input.request.provider,
     model: input.request.model,
     temperature: input.request.temperature,
     scope: "chapter_list",
     targetVolumeId: targetVolume.id,
-    draftWorkspace: currentWorkspace,
+    draftWorkspace: workingWorkspace,
     onPhaseStart: async (event) => {
       await input.workflowService.markTaskRunning(input.taskId, {
         stage: "structured_outline",

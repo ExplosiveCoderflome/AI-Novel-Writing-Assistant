@@ -19,6 +19,8 @@ import { payoffLedgerSyncService } from "../../payoff/PayoffLedgerSyncService";
 import { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import {
   buildTaskSheetFromVolumeChapter,
+  hasPayoffLedgerRelevantPlanChanges,
+  hasPayoffLedgerSourceSignals,
   buildVolumeDiff,
   buildVolumeDiffSummary,
   buildVolumeImpactResult,
@@ -67,6 +69,40 @@ export class NovelVolumeService {
 
   private syncPayoffLedger(novelId: string): void {
     void payoffLedgerSyncService.syncLedger(novelId).catch(() => null);
+  }
+
+  private async persistWorkspaceDocument(
+    novelId: string,
+    document: VolumePlanDocument,
+    options: {
+      emitEvent?: boolean;
+      syncPayoffLedger?: boolean;
+    } = {},
+  ): Promise<VolumePlanDocument> {
+    const persistedDocument = await prisma.$transaction(async (tx) => {
+      const { versionId } = await this.ensureActiveVersionRecord(tx, novelId, document);
+      const nextDocument = {
+        ...document,
+        activeVersionId: versionId,
+        source: "volume" as const,
+      };
+      await tx.volumePlanVersion.update({
+        where: { id: versionId },
+        data: {
+          contentJson: serializeVolumeWorkspaceDocument(nextDocument),
+        },
+      });
+      await persistActiveVolumeWorkspace(tx, novelId, nextDocument, versionId);
+      return nextDocument;
+    });
+
+    if (options.emitEvent !== false) {
+      this.emitVolumeUpdated(novelId);
+    }
+    if (options.syncPayoffLedger !== false) {
+      this.syncPayoffLedger(novelId);
+    }
+    return persistedDocument;
   }
 
   private parseVersionDocument(novelId: string, contentJson: string): VolumePlanDocument {
@@ -217,25 +253,9 @@ export class NovelVolumeService {
   async updateVolumes(novelId: string, input: unknown): Promise<VolumePlanDocument> {
     const currentDocument = await this.ensureVolumeWorkspace(novelId);
     const mergedDocument = mergeVolumeWorkspaceInput(novelId, currentDocument, input);
-    const persistedDocument = await prisma.$transaction(async (tx) => {
-      const { versionId } = await this.ensureActiveVersionRecord(tx, novelId, mergedDocument);
-      const nextDocument = {
-        ...mergedDocument,
-        activeVersionId: versionId,
-        source: "volume" as const,
-      };
-      await tx.volumePlanVersion.update({
-        where: { id: versionId },
-        data: {
-          contentJson: serializeVolumeWorkspaceDocument(nextDocument),
-        },
-      });
-      await persistActiveVolumeWorkspace(tx, novelId, nextDocument, versionId);
-      return nextDocument;
+    return this.persistWorkspaceDocument(novelId, mergedDocument, {
+      syncPayoffLedger: hasPayoffLedgerRelevantPlanChanges(currentDocument.volumes, mergedDocument.volumes),
     });
-    this.emitVolumeUpdated(novelId);
-    this.syncPayoffLedger(novelId);
-    return persistedDocument;
   }
 
   async listVolumeVersions(novelId: string): Promise<VolumePlanVersion[]> {
@@ -283,6 +303,7 @@ export class NovelVolumeService {
   }
 
   async activateVolumeVersion(novelId: string, versionId: string): Promise<VolumePlanVersion> {
+    const currentDocument = await this.ensureVolumeWorkspace(novelId);
     const target = await prisma.volumePlanVersion.findFirst({
       where: { id: versionId, novelId },
     });
@@ -316,8 +337,11 @@ export class NovelVolumeService {
     if (!refreshed) {
       throw new Error("卷级版本激活失败。");
     }
+    const shouldSyncPayoffLedger = hasPayoffLedgerRelevantPlanChanges(currentDocument.volumes, document.volumes);
     this.emitVolumeUpdated(novelId);
-    this.syncPayoffLedger(novelId);
+    if (shouldSyncPayoffLedger) {
+      this.syncPayoffLedger(novelId);
+    }
     return mapVersionRow(refreshed);
   }
 
@@ -391,6 +415,7 @@ export class NovelVolumeService {
   async syncVolumeChapters(novelId: string, input: VolumeSyncInput): Promise<VolumeSyncPreview> {
     const workspace = await this.ensureVolumeWorkspace(novelId);
     const mergedDocument = mergeVolumeWorkspaceInput(novelId, workspace, { volumes: input.volumes });
+    const shouldSyncPayoffLedger = hasPayoffLedgerRelevantPlanChanges(workspace.volumes, mergedDocument.volumes);
     const existingChapters = await prisma.chapter.findMany({
       where: { novelId },
       orderBy: { order: "asc" },
@@ -489,7 +514,9 @@ export class NovelVolumeService {
     });
 
     this.emitVolumeUpdated(novelId);
-    this.syncPayoffLedger(novelId);
+    if (shouldSyncPayoffLedger) {
+      this.syncPayoffLedger(novelId);
+    }
     return plan.preview;
   }
 
@@ -601,14 +628,16 @@ export class NovelVolumeService {
     });
 
     this.emitVolumeUpdated(novelId);
-    this.syncPayoffLedger(novelId);
+    // Task sheet / scene card refresh should not re-run payoff ledger sync.
     return persistedChapter;
   }
 
   async migrateLegacyVolumes(novelId: string): Promise<VolumePlanDocument> {
     const workspace = await this.ensureVolumeWorkspace(novelId);
     this.emitVolumeUpdated(novelId);
-    this.syncPayoffLedger(novelId);
+    if (workspace.source === "legacy" && hasPayoffLedgerSourceSignals(workspace.volumes)) {
+      this.syncPayoffLedger(novelId);
+    }
     return workspace;
   }
 
@@ -622,7 +651,25 @@ export class NovelVolumeService {
     return generateVolumePlanDocument({
       novelId,
       workspace,
-      options,
+      options: {
+        ...options,
+        onIntermediateDocument: (
+          options.onIntermediateDocument
+          || options.scope === "chapter_list"
+          || options.scope === "volume"
+        )
+          ? async (event) => {
+            const persistedDocument = await this.persistWorkspaceDocument(novelId, event.document, {
+              emitEvent: false,
+              syncPayoffLedger: false,
+            });
+            await options.onIntermediateDocument?.({
+              ...event,
+              document: persistedDocument,
+            });
+          }
+          : undefined,
+      },
       storyMacroPlanService: this.storyMacroPlanService,
     });
   }

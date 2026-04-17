@@ -33,6 +33,7 @@ export interface UnifiedTaskSummary {
   currentStage?: string | null;
   currentItemKey?: string | null;
   currentItemLabel?: string | null;
+  executionScopeLabel?: string | null;
   displayStatus?: string | null;
   blockingReason?: string | null;
   resumeAction?: string | null;

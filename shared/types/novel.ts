@@ -91,6 +91,7 @@ export interface NovelAutoDirectorTaskSummary {
   progress: number;
   currentStage?: string | null;
   currentItemLabel?: string | null;
+  executionScopeLabel?: string | null;
   displayStatus?: string | null;
   blockingReason?: string | null;
   resumeAction?: string | null;
@@ -185,6 +186,8 @@ export type ChapterEditorOperation =
   | "emotion"
   | "conflict"
   | "custom";
+export type ChapterEditorRevisionSource = "preset" | "freeform";
+export type ChapterEditorRevisionScope = "selection" | "chapter";
 
 export interface ChapterEditorTargetRange {
   from: number;
@@ -223,8 +226,99 @@ export interface ChapterEditorCandidate {
   label: string;
   content: string;
   summary?: string | null;
+  rationale?: string | null;
+  riskNotes?: string[];
   diffChunks: ChapterEditorDiffChunk[];
   semanticTags?: string[];
+}
+
+export interface ChapterEditorMacroContext {
+  chapterRoleInVolume: string;
+  volumeTitle: string;
+  volumePositionLabel: string;
+  volumePhaseLabel: string;
+  paceDirective: string;
+  chapterMission: string;
+  previousChapterBridge: string;
+  nextChapterBridge: string;
+  activePlotThreads: string[];
+  characterStateSummary: string;
+  worldConstraintSummary: string;
+  mustKeepConstraints: string[];
+}
+
+export interface ChapterEditorDiagnosticCard {
+  id: string;
+  title: string;
+  problemSummary: string;
+  whyItMatters: string;
+  recommendedAction: ChapterEditorOperation;
+  recommendedScope: ChapterEditorRevisionScope;
+  anchorRange?: Pick<ChapterEditorTargetRange, "from" | "to"> | null;
+  paragraphLabel?: string | null;
+  severity: "low" | "medium" | "high" | "critical";
+  sourceTags: string[];
+}
+
+export interface ChapterEditorRecommendedTask {
+  title: string;
+  summary: string;
+  recommendedAction: ChapterEditorOperation;
+  recommendedScope: ChapterEditorRevisionScope;
+  anchorRange?: Pick<ChapterEditorTargetRange, "from" | "to"> | null;
+  paragraphLabel?: string | null;
+}
+
+export interface ChapterEditorWorkspaceResponse {
+  chapterMeta: {
+    chapterId: string;
+    order: number;
+    title: string;
+    wordCount: number;
+    openIssueCount: number;
+    styleSummary?: string | null;
+    updatedAt: string;
+  };
+  macroContext: ChapterEditorMacroContext;
+  diagnosticCards: ChapterEditorDiagnosticCard[];
+  recommendedTask: ChapterEditorRecommendedTask | null;
+  refreshReason: string;
+}
+
+export interface ChapterEditorAiRevisionIntent {
+  editGoal: string;
+  toneShift: string;
+  paceAdjustment: string;
+  conflictAdjustment: string;
+  emotionAdjustment: string;
+  mustPreserve: string[];
+  mustAvoid: string[];
+  strength: "light" | "medium" | "strong";
+  reasoningSummary: string;
+}
+
+export interface ChapterEditorAiRevisionRequest {
+  source: ChapterEditorRevisionSource;
+  scope: ChapterEditorRevisionScope;
+  presetOperation?: ChapterEditorOperation;
+  instruction?: string;
+  contentSnapshot: string;
+  selection?: ChapterEditorTargetRange;
+  context?: ChapterEditorContextWindow;
+  constraints: ChapterEditorRewriteConstraints;
+  provider?: import("./llm").LLMProvider;
+  model?: string;
+  temperature?: number;
+}
+
+export interface ChapterEditorAiRevisionResponse {
+  sessionId: string;
+  scope: ChapterEditorRevisionScope;
+  resolvedIntent: ChapterEditorAiRevisionIntent;
+  targetRange: ChapterEditorTargetRange;
+  macroAlignmentNote?: string | null;
+  candidates: ChapterEditorCandidate[];
+  activeCandidateId: string | null;
 }
 
 export interface ChapterEditorRewritePreviewRequest {
@@ -590,6 +684,9 @@ export interface VolumeChapterPlan {
   title: string;
   summary: string;
   purpose?: string | null;
+  exclusiveEvent?: string | null;
+  endingState?: string | null;
+  nextChapterEntryState?: string | null;
   conflictLevel?: number | null;
   revealLevel?: number | null;
   targetWordCount?: number | null;
