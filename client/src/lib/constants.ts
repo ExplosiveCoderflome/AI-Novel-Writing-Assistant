@@ -1,4 +1,11 @@
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+type AppRuntimeMode = "web" | "desktop";
+
+interface ClientRuntimeConfig {
+  mode?: AppRuntimeMode;
+  apiBaseUrl?: string;
+  apiTimeoutMs?: number | string;
+}
 
 function isLoopbackHost(hostname: string | null | undefined): boolean {
   return Boolean(hostname) && LOOPBACK_HOSTS.has(String(hostname).toLowerCase());
@@ -8,8 +15,20 @@ function trimTrailingSlash(value: string): string {
   return value.endsWith("/") ? value.slice(0, -1) : value;
 }
 
+function resolveRuntimeConfig(): ClientRuntimeConfig {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  return window.__AI_NOVEL_RUNTIME__ ?? {};
+}
+
+const runtimeConfig = resolveRuntimeConfig();
+
+export const APP_RUNTIME: AppRuntimeMode = runtimeConfig.mode === "desktop" ? "desktop" : "web";
+
 function resolveApiBaseUrl(): string {
-  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+  const configuredBaseUrl = runtimeConfig.apiBaseUrl?.trim() || import.meta.env.VITE_API_BASE_URL?.trim();
   if (!import.meta.env.DEV || typeof window === "undefined") {
     return configuredBaseUrl || "http://localhost:3000/api";
   }
@@ -39,7 +58,7 @@ export const API_BASE_URL = resolveApiBaseUrl();
 
 const DEFAULT_API_TIMEOUT_MS = 10 * 60 * 1000;
 
-function parseApiTimeoutMs(rawValue: string | undefined): number {
+function parseApiTimeoutMs(rawValue: string | number | undefined): number {
   const parsed = Number(rawValue);
   if (!Number.isFinite(parsed) || parsed < 1000) {
     return DEFAULT_API_TIMEOUT_MS;
@@ -47,4 +66,4 @@ function parseApiTimeoutMs(rawValue: string | undefined): number {
   return Math.floor(parsed);
 }
 
-export const API_TIMEOUT_MS = parseApiTimeoutMs(import.meta.env.VITE_API_TIMEOUT_MS);
+export const API_TIMEOUT_MS = parseApiTimeoutMs(runtimeConfig.apiTimeoutMs ?? import.meta.env.VITE_API_TIMEOUT_MS);

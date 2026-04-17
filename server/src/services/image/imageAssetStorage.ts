@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { AppError } from "../../middleware/errorHandler";
+import { resolveGeneratedImagesRoot } from "../../runtime/appPaths";
 
 interface ParsedAssetMetadata {
   localPath: string | null;
@@ -25,8 +26,6 @@ interface PersistedGeneratedImage {
   sourceUrl: string | null;
   mimeType: string;
 }
-
-const DEFAULT_STORAGE_ROOT = path.resolve(process.cwd(), "storage", "generated-images");
 
 const MIME_EXTENSION_MAP: Record<string, string> = {
   "image/png": "png",
@@ -126,7 +125,7 @@ export function parseImageAssetMetadata(metadata: string | null | undefined): Pa
 }
 
 export async function persistGeneratedImageAsset(input: PersistGeneratedImageInput): Promise<PersistedGeneratedImage> {
-  const storageRoot = input.storageRoot ?? DEFAULT_STORAGE_ROOT;
+  const storageRoot = input.storageRoot ?? resolveGeneratedImagesRoot();
   const image = await readImageBuffer({
     url: input.url,
     mimeType: input.mimeType,

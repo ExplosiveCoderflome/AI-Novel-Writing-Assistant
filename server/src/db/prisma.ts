@@ -1,6 +1,7 @@
 import path from "node:path";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient } from "@prisma/client";
+import { resolveDatabaseFilePath } from "../runtime/appPaths";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -14,9 +15,7 @@ function resolveDatabaseUrl(databaseUrl?: string): string {
   }
 
   const filePath = fallbackUrl.slice("file:".length) || "./dev.db";
-  const resolvedFilePath = path.isAbsolute(filePath)
-    ? filePath
-    : path.resolve(__dirname, "../../", filePath);
+  const resolvedFilePath = path.isAbsolute(filePath) ? filePath : resolveDatabaseFilePath(filePath);
 
   return `file:${resolvedFilePath}`;
 }

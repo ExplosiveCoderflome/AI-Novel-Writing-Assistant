@@ -1,0 +1,20 @@
+{
+  "name": "@ai-novel/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "pnpm run build && electron dist/main.js",
+    "start": "electron dist/main.js"
+  },
+  "dependencies": {
+    "electron": "^35.7.5"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "typescript": "^5.9.3"
+  }
+}

@@ -8,6 +8,7 @@ const dbPath = path.join(rootDir, "dev.db");
 const generatedClientPath = path.join(rootDir, "node_modules", "@prisma", "client", "index.js");
 const stampPath = path.join(rootDir, ".tmp", "prisma-dev-prepare.json");
 const prismaCliPath = path.join(rootDir, "node_modules", "prisma", "build", "index.js");
+const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
 function readJson(filePath) {
   try {
@@ -27,7 +28,48 @@ function runPrisma(args) {
   }
 }
 
+function resolveBetterSqlite3Dir() {
+  const adapterEntryPath = require.resolve("@prisma/adapter-better-sqlite3", {
+    paths: [rootDir],
+  });
+  const adapterDir = path.dirname(adapterEntryPath);
+  const betterSqlitePkgPath = require.resolve("better-sqlite3/package.json", {
+    paths: [adapterDir],
+  });
+  return path.dirname(betterSqlitePkgPath);
+}
+
+function ensureBetterSqlite3Binding() {
+  let betterSqlite3Dir;
+  try {
+    betterSqlite3Dir = resolveBetterSqlite3Dir();
+  } catch (error) {
+    console.warn("[dev-prisma] unable to resolve better-sqlite3 package.", error);
+    return;
+  }
+
+  const bindingCandidates = [
+    path.join(betterSqlite3Dir, "build", "Release", "better_sqlite3.node"),
+    path.join(betterSqlite3Dir, "build", "Debug", "better_sqlite3.node"),
+  ];
+  const hasBinding = bindingCandidates.some((candidate) => fs.existsSync(candidate));
+  if (hasBinding) {
+    return;
+  }
+
+  console.log("[dev-prisma] better-sqlite3 binding missing, running package install...");
+  const result = spawnSync(pnpmCommand, ["--dir", betterSqlite3Dir, "run", "install"], {
+    cwd: rootDir,
+    stdio: "inherit",
+  });
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+}
+
 function main() {
+  ensureBetterSqlite3Binding();
+
   const schemaStat = fs.statSync(schemaPath);
   const stamp = readJson(stampPath);
   const schemaMtimeMs = schemaStat.mtimeMs;

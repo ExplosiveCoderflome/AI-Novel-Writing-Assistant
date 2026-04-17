@@ -9,6 +9,7 @@
   },
   "workspaces": [
     "client",
+    "desktop",
     "server",
     "shared"
   ],
@@ -21,18 +22,23 @@
     "dev:server:log": "node scripts/run-with-log.cjs --name server -- pnpm --filter @ai-novel/server dev",
     "dev:client": "pnpm --filter @ai-novel/client dev",
     "dev:client:wait": "node scripts/wait-for-port.cjs --port 3000 && pnpm dev:client",
+    "dev:desktop:shell": "node scripts/wait-for-port.cjs --port 3000 && node scripts/wait-for-port.cjs --port 5173 && pnpm --filter @ai-novel/desktop dev",
+    "dev:desktop": "node scripts/run-with-log.cjs --name desktop-dev -- pnpm dev:desktop:raw",
+    "dev:desktop:raw": "concurrently \"pnpm dev:shared\" \"pnpm dev:server\" \"pnpm dev:client:wait\" \"pnpm dev:desktop:shell\"",
     "db:migrate": "pnpm --filter @ai-novel/server db:migrate",
     "db:restore": "pnpm --filter @ai-novel/server db:restore",
     "db:seed": "pnpm --filter @ai-novel/server db:seed",
     "db:studio": "pnpm --filter @ai-novel/server db:studio",
     "build": "pnpm --filter @ai-novel/shared build && pnpm --filter @ai-novel/server build && pnpm --filter @ai-novel/client build",
-    "typecheck": "pnpm --filter @ai-novel/shared build && pnpm --filter @ai-novel/server typecheck && pnpm --filter @ai-novel/client typecheck",
+    "build:desktop": "pnpm --filter @ai-novel/desktop build",
+    "typecheck": "pnpm --filter @ai-novel/shared build && pnpm --filter @ai-novel/server typecheck && pnpm --filter @ai-novel/client typecheck && pnpm --filter @ai-novel/desktop typecheck",
     "lint": "pnpm --filter @ai-novel/shared lint && pnpm --filter @ai-novel/server lint && pnpm --filter @ai-novel/client lint"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
       "@prisma/engines",
       "better-sqlite3",
+      "electron",
       "esbuild",
       "prisma"
     ]
