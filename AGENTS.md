@@ -47,6 +47,21 @@
 - This rule applies in particular to changes that touch cross-stage workflows, shared runtime/prompting/context contracts, automatic director chains, chapter execution chains, data migration behavior, or other changes that can impact the overall chain.
 - Small isolated fixes, copy changes, low-risk UI polish, or documentation-only updates can still be handled without requiring a separate feature `dev` branch unless the user explicitly asks otherwise.
 
+### Temporary Desktop Branch Policy
+
+- Until desktopization work is completed and `desktop-dev` has been merged back into `main`, treat `desktop-dev` as the long-lived integration branch for desktop-related development.
+- During this temporary phase, `main` remains the stable branch for already verified work, small isolated fixes, documentation changes, and low-risk updates that do not need to wait for desktopization to finish.
+- Do not merge every new `main` commit into `desktop-dev` immediately by default. Sync in batches when it is actually useful, instead of creating unnecessary merge noise.
+- You must sync `main` into `desktop-dev` when any of the following is true:
+  - `main` changed shared contracts, shared runtime/state logic, build/dependency setup, or any other code that `desktop-dev` also depends on;
+  - a new `desktop-dev` work slice is about to start and it should build on the latest stable base;
+  - `desktop-dev` is about to enter integration testing, release verification, or merge-back into `main`;
+  - `desktop-dev` has drifted far enough from `main` that conflict risk is starting to rise.
+- If `main` only contains clearly unrelated small fixes, copy edits, or other low-risk changes that do not affect desktopization, it is acceptable to delay the sync and merge them into `desktop-dev` later as a batch.
+- If a new change is expected to affect both the normal web flow and the ongoing desktopization work, prefer implementing it on a dedicated short-lived feature branch or directly on `desktop-dev`, instead of landing it on `main` first and forcing immediate back-merges.
+- When syncing `main` into `desktop-dev`, prefer `merge` if the branch is shared by multiple collaborators. Only use `rebase` when the branch is effectively single-owner and history rewriting will not disrupt anyone else.
+- Once desktopization has been completed, merged into `main`, and the `desktop-dev` branch has been retired, this temporary policy should be considered expired and the repository should fall back to the normal feature-branch workflow above.
+
 ## Prompt Governance
 
 - `server/src/prompting/` is the only allowed entrypoint for adding new product-level prompts.

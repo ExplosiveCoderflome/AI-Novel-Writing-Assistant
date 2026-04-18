@@ -374,6 +374,7 @@ export function mergeChapterList(
   options: {
     generationMode?: VolumeChapterListGenerationMode;
     targetBeatKey?: string;
+    resumeFromBeatKey?: string | null;
   } = {},
 ): VolumePlanDocument {
   const mergedVolumes = document.volumes.map((volume) => {
@@ -389,14 +390,20 @@ export function mergeChapterList(
       generatedBlocks.map((block) => [block.beatKey, block]),
     );
     const generationMode = options.generationMode ?? "full_volume";
+    const resumeBeatKey = options.resumeFromBeatKey?.trim() || null;
+    const resumeBeatIndex = resumeBeatKey
+      ? targetBeatSheet.beats.findIndex((beat) => beat.key === resumeBeatKey)
+      : -1;
     const nextChapters: VolumeChapterPlan[] = [];
 
-    for (const beat of targetBeatSheet.beats) {
+    for (const [beatIndex, beat] of targetBeatSheet.beats.entries()) {
       const existingBeatChapters = existingGroups.get(beat.key) ?? [];
       const generatedBlock = generatedBlocksByBeatKey.get(beat.key);
 
       if (!generatedBlock) {
-        if (generationMode === "single_beat") {
+        const shouldPreserveExistingBeat = generationMode === "single_beat"
+          || (generationMode === "full_volume" && resumeBeatIndex >= 0 && beatIndex < resumeBeatIndex);
+        if (shouldPreserveExistingBeat) {
           nextChapters.push(
             ...existingBeatChapters.map((chapter) => cloneExistingChapterWithBeatKey(chapter, beat.key)),
           );

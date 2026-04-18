@@ -17,6 +17,7 @@ import {
 import {
   buildChapterDetailBundleLabel,
   buildChapterDetailBundleProgress,
+  DIRECTOR_PROGRESS,
 } from "../director/novelDirectorProgress";
 import {
   buildDirectorAutoExecutionScopeLabel,
@@ -24,6 +25,8 @@ import {
   resolveDirectorAutoExecutionRangeFromState,
   resolveDirectorAutoExecutionWorkflowState,
 } from "../director/novelDirectorAutoExecution";
+import { NovelVolumeService } from "../volume/NovelVolumeService";
+import { resolveStructuredOutlineRecoveryCursor } from "../director/novelDirectorStructuredOutlineRecovery";
 import {
   appendMilestone,
   buildNovelCreateResumeTarget,
@@ -255,35 +258,9 @@ function isStructuredOutlineItemKey(itemKey: string | null | undefined): boolean
     || itemKey === "chapter_detail_bundle";
 }
 
-function hasVolumeChapterBoundaryDraft(chapter: {
-  conflictLevel?: number | null;
-  revealLevel?: number | null;
-  targetWordCount?: number | null;
-  mustAvoid?: string | null;
-  payoffRefsJson?: string | null;
-}): boolean {
-  return typeof chapter.conflictLevel === "number"
-    || typeof chapter.revealLevel === "number"
-    || typeof chapter.targetWordCount === "number"
-    || Boolean(chapter.mustAvoid?.trim())
-    || Boolean(chapter.payoffRefsJson?.trim());
-}
-
-function hasCompleteVolumeChapterDetail(chapter: {
-  purpose?: string | null;
-  conflictLevel?: number | null;
-  revealLevel?: number | null;
-  targetWordCount?: number | null;
-  mustAvoid?: string | null;
-  payoffRefsJson?: string | null;
-  taskSheet?: string | null;
-}): boolean {
-  return Boolean(chapter.purpose?.trim())
-    && hasVolumeChapterBoundaryDraft(chapter)
-    && Boolean(chapter.taskSheet?.trim());
-}
-
 export class NovelWorkflowService {
+  private readonly volumeService = new NovelVolumeService();
+
   private async getVisibleRowsByNovelIdRaw(novelId: string, lane?: NovelWorkflowLane) {
     const rows = await prisma.novelWorkflowTask.findMany({
       where: {
@@ -370,10 +347,13 @@ export class NovelWorkflowService {
     novelId: string;
     seedPayloadJson?: string | null;
   }): Promise<{
-    totalChapterCount: number;
-    completedChapterCount: number;
-    nextChapterIndex: number | null;
+    step: "beat_sheet" | "chapter_list" | "chapter_detail_bundle" | "chapter_sync" | "completed";
+    currentItemKey: "beat_sheet" | "chapter_list" | "chapter_detail_bundle" | "chapter_sync";
+    currentItemLabel: string;
+    progress: number;
     scopeLabel: string;
+    volumeId: string | null;
+    chapterId: string | null;
   } | null> {
     const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(input.seedPayloadJson);
     const runMode = normalizeDirectorRunMode(
@@ -386,59 +366,72 @@ export class NovelWorkflowService {
         : undefined,
     );
 
-    const volumes = await prisma.volumePlan.findMany({
-      where: { novelId: input.novelId },
-      orderBy: { sortOrder: "asc" },
-      include: {
-        chapters: {
-          orderBy: { chapterOrder: "asc" },
-          select: {
-            id: true,
-            chapterOrder: true,
-            purpose: true,
-            conflictLevel: true,
-            revealLevel: true,
-            targetWordCount: true,
-            mustAvoid: true,
-            taskSheet: true,
-            payoffRefsJson: true,
-          },
-        },
-      },
+    const workspace = await this.volumeService.getVolumes(input.novelId).catch(() => null);
+    if (!workspace) {
+      return null;
+    }
+    const recoveryCursor = resolveStructuredOutlineRecoveryCursor({
+      workspace,
+      plan,
     });
-
-    const prepared = volumes.flatMap((volume) => volume.chapters.map((chapter) => ({
-      id: chapter.id,
-      volumeOrder: volume.sortOrder,
-      volumeTitle: volume.title,
-      chapterOrder: chapter.chapterOrder,
-      isComplete: hasCompleteVolumeChapterDetail(chapter),
-    })));
-
-    const selected = plan.mode === "volume"
-      ? prepared.filter((chapter) => chapter.volumeOrder === plan.volumeOrder)
-      : plan.mode === "chapter_range"
-        ? prepared.filter((chapter) => (
-          chapter.chapterOrder >= (plan.startOrder ?? 1)
-          && chapter.chapterOrder <= (plan.endOrder ?? plan.startOrder ?? 1)
-        ))
-        : prepared.slice(0, 10);
-
-    if (selected.length === 0) {
+    if (recoveryCursor.step === "completed") {
       return null;
     }
 
-    const completedChapterCount = selected.filter((chapter) => chapter.isComplete).length;
-    const nextIncomplete = selected.findIndex((chapter) => !chapter.isComplete);
+    if (recoveryCursor.step === "beat_sheet") {
+      return {
+        step: "beat_sheet",
+        currentItemKey: "beat_sheet",
+        currentItemLabel: `正在生成第 ${recoveryCursor.volumeOrder} 卷节奏板`,
+        progress: DIRECTOR_PROGRESS.beatSheet,
+        scopeLabel: recoveryCursor.scopeLabel,
+        volumeId: recoveryCursor.volumeId,
+        chapterId: null,
+      };
+    }
+
+    if (recoveryCursor.step === "chapter_list") {
+      const targetLabel = recoveryCursor.beatLabel?.trim()
+        ? `正在生成第 ${recoveryCursor.volumeOrder} 卷节奏段：${recoveryCursor.beatLabel.trim()}`
+        : `正在生成第 ${recoveryCursor.volumeOrder} 卷章节列表`;
+      return {
+        step: "chapter_list",
+        currentItemKey: "chapter_list",
+        currentItemLabel: targetLabel,
+        progress: DIRECTOR_PROGRESS.chapterList,
+        scopeLabel: recoveryCursor.scopeLabel,
+        volumeId: recoveryCursor.volumeId,
+        chapterId: null,
+      };
+    }
+
+    if (recoveryCursor.step === "chapter_sync") {
+      return {
+        step: "chapter_sync",
+        currentItemKey: "chapter_sync",
+        currentItemLabel: `${recoveryCursor.scopeLabel}细化已完成，正在同步章节执行资源`,
+        progress: DIRECTOR_PROGRESS.chapterDetailDone,
+        scopeLabel: recoveryCursor.scopeLabel,
+        volumeId: recoveryCursor.selectedChapters[0]?.volumeId ?? null,
+        chapterId: recoveryCursor.selectedChapters[0]?.id ?? null,
+      };
+    }
+
     return {
-      totalChapterCount: selected.length,
-      completedChapterCount,
-      nextChapterIndex: nextIncomplete >= 0 ? nextIncomplete : null,
-      scopeLabel: buildDirectorAutoExecutionScopeLabel(
-        plan,
-        selected.length,
-        plan.mode === "volume" ? selected[0]?.volumeTitle ?? null : null,
+      step: "chapter_detail_bundle",
+      currentItemKey: "chapter_detail_bundle",
+      currentItemLabel: buildChapterDetailBundleLabel(
+        (recoveryCursor.nextChapterIndex ?? 0) + 1,
+        recoveryCursor.totalChapterCount,
+        recoveryCursor.detailMode ?? "purpose",
       ),
+      progress: buildChapterDetailBundleProgress(
+        recoveryCursor.completedDetailSteps,
+        recoveryCursor.totalDetailSteps,
+      ),
+      scopeLabel: recoveryCursor.scopeLabel,
+      volumeId: recoveryCursor.volumeId,
+      chapterId: recoveryCursor.chapterId,
     };
   }
 
@@ -795,28 +788,15 @@ export class NovelWorkflowService {
       novelId: candidate.novelId,
       seedPayloadJson: candidate.seedPayloadJson,
     });
-    if (!progressState || progressState.completedChapterCount <= 0) {
+    if (!progressState) {
       return false;
     }
 
-    const totalDetailSteps = progressState.totalChapterCount * 3;
-    const completedDetailSteps = progressState.completedChapterCount * 3;
-    const nextLabel = progressState.nextChapterIndex == null
-      ? `${progressState.scopeLabel}细化已完成，正在整理执行资源`
-      : buildChapterDetailBundleLabel(
-        progressState.nextChapterIndex + 1,
-        progressState.totalChapterCount,
-        "purpose",
-      );
-    const nextProgress = progressState.nextChapterIndex == null
-      ? 0.92
-      : buildChapterDetailBundleProgress(completedDetailSteps, totalDetailSteps);
-
     if (
-      candidate.currentItemKey === "chapter_detail_bundle"
-      && candidate.currentItemLabel === nextLabel
+      candidate.currentItemKey === progressState.currentItemKey
+      && candidate.currentItemLabel === progressState.currentItemLabel
       && typeof candidate.progress === "number"
-      && Math.abs(candidate.progress - nextProgress) < 0.0001
+      && Math.abs(candidate.progress - progressState.progress) < 0.0001
     ) {
       return false;
     }
@@ -825,9 +805,17 @@ export class NovelWorkflowService {
       where: { id: taskId },
       data: {
         currentStage: stageLabel("structured_outline"),
-        currentItemKey: "chapter_detail_bundle",
-        currentItemLabel: nextLabel,
-        progress: Math.max(candidate.progress ?? 0, nextProgress),
+        currentItemKey: progressState.currentItemKey,
+        currentItemLabel: progressState.currentItemLabel,
+        progress: Math.max(candidate.progress ?? 0, progressState.progress),
+        resumeTargetJson: stringifyResumeTarget(this.buildResumeTarget({
+          taskId,
+          novelId: candidate.novelId,
+          lane: "auto_director",
+          stage: "structured_outline",
+          chapterId: progressState.chapterId,
+          volumeId: progressState.volumeId,
+        })),
         heartbeatAt: new Date(),
       },
     });
@@ -1082,6 +1070,8 @@ export class NovelWorkflowService {
     itemKey?: string | null;
     progress?: number;
     clearCheckpoint?: boolean;
+    chapterId?: string | null;
+    volumeId?: string | null;
     seedPayload?: Record<string, unknown>;
   }) {
     const existing = await this.getVisibleRowById(taskId);
@@ -1091,6 +1081,14 @@ export class NovelWorkflowService {
     if (isTaskCancellationRequested(existing)) {
       throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
     }
+    const resumeTarget = this.buildResumeTarget({
+      taskId,
+      novelId: existing.novelId,
+      lane: existing.lane,
+      stage: input.stage,
+      chapterId: input.chapterId,
+      volumeId: input.volumeId,
+    });
     return prisma.novelWorkflowTask.update({
       where: { id: taskId },
       data: {
@@ -1105,6 +1103,7 @@ export class NovelWorkflowService {
         progress: Math.max(existing.progress, input.progress ?? defaultProgressForStage(input.stage)),
         checkpointType: input.clearCheckpoint ? null : existing.checkpointType,
         checkpointSummary: input.clearCheckpoint ? null : existing.checkpointSummary,
+        resumeTargetJson: stringifyResumeTarget(resumeTarget),
         seedPayloadJson: input.seedPayload
           ? mergeSeedPayload(existing.seedPayloadJson, input.seedPayload)
           : existing.seedPayloadJson,
