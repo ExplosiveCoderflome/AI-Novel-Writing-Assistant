@@ -38,7 +38,7 @@ export class ImageGenerationService {
       throw new AppError("Base character not found.", 404);
     }
 
-    const model = resolveImageModel(provider, input.model);
+    const model = await resolveImageModel(provider, input.model);
     const prompt = input.promptMode === "direct"
       ? input.prompt.trim()
       : buildCharacterPrompt(input.prompt, input.stylePreset, character);

@@ -1,66 +1,24 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
+import { getProviderEnvApiKey, getProviderEnvBaseUrl, PROVIDERS } from "../../llm/providers";
+import {
+  getDefaultImageModel,
+  getProviderImageModel,
+  supportsImageModelSettings,
+} from "../settings/ProviderImageSettingsService";
 import type { ImageProviderGenerateInput, ImageProviderGenerateResult } from "./types";
-
-const SUPPORTED_IMAGE_PROVIDERS = new Set<LLMProvider>(["openai", "siliconflow", "grok"]);
-
-const IMAGE_DEFAULT_MODELS: Partial<Record<LLMProvider, string>> = {
-  deepseek: "deepseek-chat",
-  siliconflow: "black-forest-labs/FLUX.1-schnell",
-  openai: "gpt-image-1",
-  anthropic: "claude-3-5-sonnet-20241022",
-  grok: "grok-imagine-image",
-};
-
-function getProviderEnvBaseUrl(provider: LLMProvider): string | undefined {
-  switch (provider) {
-    case "deepseek":
-      return process.env.DEEPSEEK_BASE_URL;
-    case "siliconflow":
-      return process.env.SILICONFLOW_BASE_URL;
-    case "openai":
-      return process.env.OPENAI_BASE_URL;
-    case "anthropic":
-      return process.env.ANTHROPIC_BASE_URL;
-    case "grok":
-      return process.env.XAI_BASE_URL;
-    default:
-      return undefined;
-  }
-}
-
-function getProviderEnvImageModel(provider: LLMProvider): string | undefined {
-  switch (provider) {
-    case "siliconflow":
-      return process.env.SILICONFLOW_IMAGE_MODEL;
-    case "openai":
-      return process.env.OPENAI_IMAGE_MODEL;
-    case "grok":
-      return process.env.XAI_IMAGE_MODEL;
-    default:
-      return undefined;
-  }
-}
-
-function getProviderEnvKey(provider: LLMProvider): string | undefined {
-  switch (provider) {
-    case "deepseek":
-      return process.env.DEEPSEEK_API_KEY;
-    case "siliconflow":
-      return process.env.SILICONFLOW_API_KEY;
-    case "openai":
-      return process.env.OPENAI_API_KEY;
-    case "anthropic":
-      return process.env.ANTHROPIC_API_KEY;
-    case "grok":
-      return process.env.XAI_API_KEY;
-    default:
-      return undefined;
-  }
-}
 
 function normalizeBaseUrl(value: string): string {
   return value.endsWith("/") ? value.slice(0, -1) : value;
+}
+
+function isMissingTableError(error: unknown): boolean {
+  return (
+    typeof error === "object"
+    && error !== null
+    && "code" in error
+    && (error as { code?: string }).code === "P2021"
+  );
 }
 
 interface ProviderSecret {
@@ -80,25 +38,35 @@ function mapSizeToAspectRatio(size: string): string | undefined {
 }
 
 async function resolveProviderSecret(provider: LLMProvider): Promise<ProviderSecret> {
-  const config = await prisma.aPIKey.findUnique({
-    where: { provider },
-  });
-  const apiKey = config?.isActive ? config.key : undefined;
-  const fallbackApiKey = getProviderEnvKey(provider);
-  const finalApiKey = apiKey ?? fallbackApiKey;
+  let savedApiKey: string | undefined;
+  let savedBaseURL: string | undefined;
+
+  try {
+    const config = await prisma.aPIKey.findUnique({
+      where: { provider },
+    });
+    if (config?.isActive) {
+      savedApiKey = config.key?.trim() || undefined;
+      savedBaseURL = config.baseURL?.trim() || undefined;
+    }
+  } catch (error) {
+    if (!isMissingTableError(error)) {
+      throw error;
+    }
+  }
+
+  const finalApiKey = savedApiKey ?? getProviderEnvApiKey(provider);
   if (!finalApiKey) {
     throw new Error(`Provider ${provider} API key is not configured.`);
   }
-  const baseURL = normalizeBaseUrl(
-    getProviderEnvBaseUrl(provider)
-      ?? (
-        provider === "openai"
-          ? "https://api.openai.com/v1"
-          : provider === "grok"
-            ? "https://api.x.ai/v1"
-            : "https://api.siliconflow.cn/v1"
-      ),
-  );
+
+  const defaultBaseURL = provider === "grok"
+    ? "https://api.x.ai/v1"
+    : provider === "openai"
+      ? "https://api.openai.com/v1"
+      : PROVIDERS.siliconflow.baseURL;
+
+  const baseURL = normalizeBaseUrl(savedBaseURL ?? getProviderEnvBaseUrl(provider) ?? defaultBaseURL);
   return { apiKey: finalApiKey, baseURL };
 }
 
@@ -164,11 +132,13 @@ function buildPrompt(prompt: string, negativePrompt?: string): string {
 }
 
 export function isImageProviderSupported(provider: LLMProvider): boolean {
-  return SUPPORTED_IMAGE_PROVIDERS.has(provider);
+  return supportsImageModelSettings(provider);
 }
 
-export function resolveImageModel(provider: LLMProvider, model?: string): string {
-  const resolved = model?.trim() || getProviderEnvImageModel(provider) || IMAGE_DEFAULT_MODELS[provider];
+export async function resolveImageModel(provider: LLMProvider, model?: string): Promise<string> {
+  const resolved = model?.trim()
+    || await getProviderImageModel(provider)
+    || getDefaultImageModel(provider);
   if (!resolved) {
     throw new Error(`No default image model configured for provider=${provider}.`);
   }

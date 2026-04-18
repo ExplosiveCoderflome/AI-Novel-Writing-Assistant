@@ -2,6 +2,14 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 
 export type EmbeddingProvider = "openai" | "siliconflow";
 
+function normalizeOptionalText(value: string | undefined): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
 function isEnabled(rawValue: string | undefined, defaultValue: boolean): boolean {
   if (!rawValue) {
     return defaultValue;
@@ -27,6 +35,24 @@ export function asEmbeddingProvider(rawValue: string | undefined): EmbeddingProv
   return "openai";
 }
 
+function resolveEmbeddingProviderFromEnv(): EmbeddingProvider {
+  if (normalizeOptionalText(process.env.EMBEDDING_PROVIDER)) {
+    return asEmbeddingProvider(process.env.EMBEDDING_PROVIDER);
+  }
+  if (normalizeOptionalText(process.env.SILICONFLOW_EMBEDDING_MODEL)) {
+    return "siliconflow";
+  }
+  return "openai";
+}
+
+function resolveEmbeddingModelFromEnv(provider: EmbeddingProvider): string {
+  return normalizeOptionalText(process.env.EMBEDDING_MODEL)
+    ?? (provider === "siliconflow"
+      ? normalizeOptionalText(process.env.SILICONFLOW_EMBEDDING_MODEL)
+      : normalizeOptionalText(process.env.OPENAI_EMBEDDING_MODEL))
+    ?? "text-embedding-3-small";
+}
+
 export interface RagContextScope {
   tenantId?: string;
   novelId?: string;
@@ -34,12 +60,14 @@ export interface RagContextScope {
   ownerTypes?: string[];
 }
 
+const embeddingProvider = resolveEmbeddingProviderFromEnv();
+
 export const ragConfig = {
   enabled: isEnabled(process.env.RAG_ENABLED, true),
   verboseLog: isEnabled(process.env.RAG_VERBOSE_LOG, false),
   defaultTenantId: process.env.RAG_DEFAULT_TENANT ?? "default",
-  embeddingProvider: asEmbeddingProvider(process.env.EMBEDDING_PROVIDER),
-  embeddingModel: process.env.EMBEDDING_MODEL ?? "text-embedding-3-small",
+  embeddingProvider,
+  embeddingModel: resolveEmbeddingModelFromEnv(embeddingProvider),
   embeddingVersion: asInt(process.env.EMBEDDING_VERSION, 1, 1, 100),
   embeddingBatchSize: asInt(process.env.EMBEDDING_BATCH_SIZE, 64, 1, 256),
   embeddingTimeoutMs: asInt(process.env.RAG_EMBEDDING_TIMEOUT_MS ?? process.env.RAG_HTTP_TIMEOUT_MS, 30000, 5000, 300000),

@@ -11,14 +11,18 @@ export interface APIKeyStatus {
   name: string;
   displayName?: string;
   currentModel: string;
+  currentImageModel: string | null;
   currentBaseURL: string;
   models: string[];
+  imageModels: string[];
   defaultModel: string;
+  defaultImageModel: string | null;
   defaultBaseURL: string;
   requiresApiKey: boolean;
   isConfigured: boolean;
   isActive: boolean;
   reasoningEnabled: boolean;
+  supportsImageGeneration: boolean;
 }
 
 export type ProviderBalanceStatusKind = "available" | "missing_api_key" | "unsupported" | "error";
@@ -71,6 +75,20 @@ export interface RagSettingsStatus {
   embeddingTimeoutMs: number;
   embeddingMaxRetries: number;
   embeddingRetryBaseMs: number;
+  enabled: boolean;
+  qdrantUrl: string;
+  qdrantApiKeyConfigured: boolean;
+  qdrantTimeoutMs: number;
+  qdrantUpsertMaxBytes: number;
+  chunkSize: number;
+  chunkOverlap: number;
+  vectorCandidates: number;
+  keywordCandidates: number;
+  finalTopK: number;
+  workerPollMs: number;
+  workerMaxAttempts: number;
+  workerRetryBaseMs: number;
+  httpTimeoutMs: number;
   suggestedCollectionName: string;
   reindexQueuedCount?: number;
   providers: RagProviderStatus[];
@@ -158,6 +176,21 @@ export async function saveRagSettings(payload: {
   embeddingTimeoutMs: number;
   embeddingMaxRetries: number;
   embeddingRetryBaseMs: number;
+  enabled: boolean;
+  qdrantUrl: string;
+  qdrantApiKey?: string;
+  clearQdrantApiKey?: boolean;
+  qdrantTimeoutMs: number;
+  qdrantUpsertMaxBytes: number;
+  chunkSize: number;
+  chunkOverlap: number;
+  vectorCandidates: number;
+  keywordCandidates: number;
+  finalTopK: number;
+  workerPollMs: number;
+  workerMaxAttempts: number;
+  workerRetryBaseMs: number;
+  httpTimeoutMs: number;
 }) {
   const { data } = await apiClient.put<
     ApiResponse<
@@ -174,6 +207,20 @@ export async function saveRagSettings(payload: {
         | "embeddingTimeoutMs"
         | "embeddingMaxRetries"
         | "embeddingRetryBaseMs"
+        | "enabled"
+        | "qdrantUrl"
+        | "qdrantApiKeyConfigured"
+        | "qdrantTimeoutMs"
+        | "qdrantUpsertMaxBytes"
+        | "chunkSize"
+        | "chunkOverlap"
+        | "vectorCandidates"
+        | "keywordCandidates"
+        | "finalTopK"
+        | "workerPollMs"
+        | "workerMaxAttempts"
+        | "workerRetryBaseMs"
+        | "httpTimeoutMs"
         | "suggestedCollectionName"
         | "reindexQueuedCount"
       >
@@ -193,6 +240,7 @@ export async function saveAPIKeySetting(
     displayName?: string;
     key?: string;
     model?: string;
+    imageModel?: string;
     baseURL?: string;
     isActive?: boolean;
     reasoningEnabled?: boolean;
@@ -203,10 +251,13 @@ export async function saveAPIKeySetting(
       provider: string;
       displayName: string | null;
       model: string | null;
+      imageModel: string | null;
       baseURL: string | null;
       isActive: boolean;
       reasoningEnabled: boolean;
       models: string[];
+      imageModels: string[];
+      supportsImageGeneration: boolean;
     }>
   >(`/settings/api-keys/${provider}`, payload);
   return data;

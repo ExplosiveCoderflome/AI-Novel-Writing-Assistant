@@ -43,6 +43,7 @@ import {
   ensureSystemResourceStarterData,
   hasSystemResourceBootstrapChanges,
 } from "./services/bootstrap/SystemResourceBootstrapService";
+import { initializeRagSettingsCompatibility } from "./services/settings/RagCompatibilityBootstrapService";
 
 registerNovelEventHandlers(novelEventBus);
 const novelPipelineRuntimeService = new NovelPipelineRuntimeService();
@@ -157,6 +158,7 @@ function getLanIp(): string | null {
 }
 
 async function bootstrap(): Promise<void> {
+  const ragCompatibilityReport = await initializeRagSettingsCompatibility();
   const app = createApp();
   const port = Number(process.env.PORT ?? 3000);
   const allowLan = parseEnvFlag(process.env.ALLOW_LAN, process.env.NODE_ENV !== "production");
@@ -176,6 +178,13 @@ async function bootstrap(): Promise<void> {
     void loadProviderApiKeys().catch((error) => {
       console.warn("数据库中的模型密钥加载失败，已回退到环境变量。", error);
     });
+
+    if (
+      ragCompatibilityReport.importedSettingKeys.length > 0
+      || ragCompatibilityReport.importedProviderRecords.length > 0
+    ) {
+      console.log("[server] imported legacy RAG env settings.", ragCompatibilityReport);
+    }
 
     void ensureSystemResourceStarterData()
       .then((systemResourceReport) => {
