@@ -24,6 +24,7 @@ const IMAGE_STATUS_TEXT: Record<string, string> = {
 };
 
 type ImagePromptMode = "character_chain" | "direct";
+type DirectPromptSource = "optimized" | "manual";
 
 interface CharacterImageDialogProps {
   open: boolean;
@@ -41,7 +42,8 @@ export function CharacterImageDialog({
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [sourcePrompt, setSourcePrompt] = useState("");
   const [promptMode, setPromptMode] = useState<ImagePromptMode>("character_chain");
-  const [optimizedPrompt, setOptimizedPrompt] = useState("");
+  const [directPrompt, setDirectPrompt] = useState("");
+  const [directPromptSource, setDirectPromptSource] = useState<DirectPromptSource | null>(null);
   const [optimizedPromptLanguage, setOptimizedPromptLanguage] = useState<ImagePromptOutputLanguage>("zh");
   const [imageForm, setImageForm] = useState({
     stylePreset: "写实人像",
@@ -58,7 +60,8 @@ export function CharacterImageDialog({
     setActiveTaskId(null);
     setSourcePrompt(buildDefaultCharacterImageSourceDescription(character));
     setPromptMode("character_chain");
-    setOptimizedPrompt("");
+    setDirectPrompt("");
+    setDirectPromptSource(null);
     setOptimizedPromptLanguage("zh");
   }, [open, character]);
 
@@ -74,25 +77,42 @@ export function CharacterImageDialog({
   }, [character, imageForm.stylePreset, sourcePrompt]);
 
   const finalPromptPreview = promptMode === "direct"
-    ? optimizedPrompt.trim()
+    ? directPrompt
     : originalPromptPreview.trim();
+  const hasDirectPrompt = directPrompt.trim().length > 0;
 
-  const clearOptimizedPrompt = () => {
+  const currentSendModeLabel = promptMode === "direct"
+    ? (directPromptSource === "optimized" ? "AI优化 Prompt" : "手动编辑 Prompt")
+    : "原链路 Prompt";
+  const currentSendModeClass = promptMode === "direct"
+    ? (directPromptSource === "optimized"
+      ? "rounded-full bg-emerald-50 px-3 py-1 text-emerald-700"
+      : "rounded-full bg-amber-50 px-3 py-1 text-amber-700")
+    : "rounded-full bg-slate-100 px-3 py-1 text-slate-700";
+
+  const activateDirectPrompt = (value: string, source: DirectPromptSource) => {
+    setDirectPrompt(value);
+    setPromptMode("direct");
+    setDirectPromptSource(source);
+  };
+
+  const restoreOriginalChainPrompt = () => {
     setPromptMode("character_chain");
-    setOptimizedPrompt("");
+    setDirectPrompt("");
+    setDirectPromptSource(null);
   };
 
   const updateSourcePrompt = (value: string) => {
     setSourcePrompt(value);
-    if (promptMode === "direct" || optimizedPrompt.trim()) {
-      clearOptimizedPrompt();
+    if (directPromptSource === "optimized") {
+      restoreOriginalChainPrompt();
     }
   };
 
   const updateStylePreset = (value: string) => {
     setImageForm((prev) => ({ ...prev, stylePreset: value }));
-    if (promptMode === "direct" || optimizedPrompt.trim()) {
-      clearOptimizedPrompt();
+    if (directPromptSource === "optimized") {
+      restoreOriginalChainPrompt();
     }
   };
 
@@ -137,8 +157,7 @@ export function CharacterImageDialog({
       });
     },
     onSuccess: (response) => {
-      setOptimizedPrompt(response.data?.prompt?.trim() ?? "");
-      setPromptMode("direct");
+      activateDirectPrompt(response.data?.prompt?.trim() ?? "", "optimized");
     },
   });
 
@@ -150,7 +169,7 @@ export function CharacterImageDialog({
       return generateCharacterImages({
         sceneType: "character",
         sceneId: character.id,
-        prompt: promptMode === "direct" ? optimizedPrompt.trim() : sourcePrompt,
+        prompt: promptMode === "direct" ? directPrompt.trim() : sourcePrompt,
         promptMode,
         stylePreset: imageForm.stylePreset,
         negativePrompt: imageForm.negativePrompt,
@@ -186,17 +205,18 @@ export function CharacterImageDialog({
             {character ? `：${character.name}` : ""}
           </DialogTitle>
         </DialogHeader>
+
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
           <section className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/65 p-4">
             <div className="space-y-1">
               <div className="text-sm font-semibold text-slate-900">角色描述 / AI优化输入</div>
               <div className="text-xs leading-5 text-slate-500">
-              这里写角色描述；点击“AI优化Prompt”后，会把这段描述整理成图片生成专用 prompt。
+                这里填写角色描述。点击“AI优化Prompt”后，会把这段描述整理成图片生成专用 prompt。
               </div>
             </div>
             <textarea
               className="min-h-[190px] max-h-[38vh] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-              placeholder="输入角色描述（越具体越好）"
+              placeholder="输入角色描述，越具体越好。"
               value={sourcePrompt}
               onChange={(event) => updateSourcePrompt(event.target.value)}
             />
@@ -243,8 +263,8 @@ export function CharacterImageDialog({
                     type="button"
                     variant="ghost"
                     className="whitespace-nowrap rounded-xl px-4 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    onClick={clearOptimizedPrompt}
-                    disabled={promptMode !== "direct" && !optimizedPrompt.trim()}
+                    onClick={restoreOriginalChainPrompt}
+                    disabled={promptMode !== "direct" && !hasDirectPrompt}
                   >
                     恢复原链路
                   </Button>
@@ -252,15 +272,7 @@ export function CharacterImageDialog({
 
                 <div className="flex flex-wrap items-center gap-2 text-sm xl:justify-end">
                   <span className="text-slate-500">当前发送模式</span>
-                  <span
-                    className={
-                      promptMode === "direct"
-                        ? "rounded-full bg-emerald-50 px-3 py-1 text-emerald-700"
-                        : "rounded-full bg-slate-100 px-3 py-1 text-slate-700"
-                    }
-                  >
-                    {promptMode === "direct" ? "AI优化 Prompt" : "原链路 Prompt"}
-                  </span>
+                  <span className={currentSendModeClass}>{currentSendModeLabel}</span>
                 </div>
               </div>
             </div>
@@ -270,17 +282,14 @@ export function CharacterImageDialog({
             <div className="space-y-1">
               <div className="text-sm font-semibold text-slate-900">最终发送 Prompt 预览</div>
               <div className="text-xs leading-5 text-slate-500">
-              已把原链路会用到的完整提示词都展示在这里；AI优化后，这里会切换为优化结果。
+                这里展示最终会发送给图像模型的 prompt。你可以直接手动编辑；AI 优化后，也可以继续在这里修改。
               </div>
             </div>
             <textarea
               className="min-h-[240px] max-h-[42vh] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
               value={finalPromptPreview}
-              readOnly={promptMode !== "direct"}
               onChange={(event) => {
-                if (promptMode === "direct") {
-                  setOptimizedPrompt(event.target.value);
-                }
+                activateDirectPrompt(event.target.value, "manual");
               }}
             />
           </section>
@@ -288,16 +297,17 @@ export function CharacterImageDialog({
           <div className="grid gap-2 md:grid-cols-2">
             <input
               className="rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-              placeholder="风格预设（如：电影感写实）"
+              placeholder="风格预设，例如：电影感写实"
               value={imageForm.stylePreset}
               onChange={(event) => updateStylePreset(event.target.value)}
             />
             <input
               className="rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-              placeholder="负向提示词（避免出现）"
+              placeholder="负向提示词，例如：低清晰度、畸形、多余肢体、文字水印"
               value={imageForm.negativePrompt}
               onChange={(event) => setImageForm((prev) => ({ ...prev, negativePrompt: event.target.value }))}
             />
+
             <label className="space-y-1 text-sm">
               <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">模型厂商</div>
               <select
@@ -314,6 +324,7 @@ export function CharacterImageDialog({
                 <option value="siliconflow">SiliconFlow</option>
               </select>
             </label>
+
             <label className="space-y-1 text-sm">
               <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">尺寸</div>
               <select
@@ -332,6 +343,7 @@ export function CharacterImageDialog({
                 <option value="1536x1024">1536x1024</option>
               </select>
             </label>
+
             <label className="space-y-1 text-sm md:col-span-2">
               <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">生成张数</div>
               <select

@@ -59,6 +59,22 @@ export default function KnowledgePage() {
     embeddingTimeoutMs: 30000,
     embeddingMaxRetries: 2,
     embeddingRetryBaseMs: 500,
+    enabled: true,
+    qdrantUrl: "http://127.0.0.1:6333",
+    qdrantApiKey: "",
+    qdrantApiKeyConfigured: false,
+    clearQdrantApiKey: false,
+    qdrantTimeoutMs: 30000,
+    qdrantUpsertMaxBytes: 24 * 1024 * 1024,
+    chunkSize: 800,
+    chunkOverlap: 120,
+    vectorCandidates: 40,
+    keywordCandidates: 40,
+    finalTopK: 8,
+    workerPollMs: 2500,
+    workerMaxAttempts: 5,
+    workerRetryBaseMs: 5000,
+    httpTimeoutMs: 30000,
   });
 
   const activeTab = normalizeTab(searchParams.get("tab"));
@@ -128,6 +144,22 @@ export default function KnowledgePage() {
       embeddingTimeoutMs: data.embeddingTimeoutMs,
       embeddingMaxRetries: data.embeddingMaxRetries,
       embeddingRetryBaseMs: data.embeddingRetryBaseMs,
+      enabled: data.enabled,
+      qdrantUrl: data.qdrantUrl,
+      qdrantApiKey: "",
+      qdrantApiKeyConfigured: data.qdrantApiKeyConfigured,
+      clearQdrantApiKey: false,
+      qdrantTimeoutMs: data.qdrantTimeoutMs,
+      qdrantUpsertMaxBytes: data.qdrantUpsertMaxBytes,
+      chunkSize: data.chunkSize,
+      chunkOverlap: data.chunkOverlap,
+      vectorCandidates: data.vectorCandidates,
+      keywordCandidates: data.keywordCandidates,
+      finalTopK: data.finalTopK,
+      workerPollMs: data.workerPollMs,
+      workerMaxAttempts: data.workerMaxAttempts,
+      workerRetryBaseMs: data.workerRetryBaseMs,
+      httpTimeoutMs: data.httpTimeoutMs,
     });
   }, [ragSettingsQuery.data?.data]);
 
@@ -173,6 +205,22 @@ export default function KnowledgePage() {
           embeddingTimeoutMs: data.embeddingTimeoutMs,
           embeddingMaxRetries: data.embeddingMaxRetries,
           embeddingRetryBaseMs: data.embeddingRetryBaseMs,
+          enabled: data.enabled,
+          qdrantUrl: data.qdrantUrl,
+          qdrantApiKey: "",
+          qdrantApiKeyConfigured: data.qdrantApiKeyConfigured,
+          clearQdrantApiKey: false,
+          qdrantTimeoutMs: data.qdrantTimeoutMs,
+          qdrantUpsertMaxBytes: data.qdrantUpsertMaxBytes,
+          chunkSize: data.chunkSize,
+          chunkOverlap: data.chunkOverlap,
+          vectorCandidates: data.vectorCandidates,
+          keywordCandidates: data.keywordCandidates,
+          finalTopK: data.finalTopK,
+          workerPollMs: data.workerPollMs,
+          workerMaxAttempts: data.workerMaxAttempts,
+          workerRetryBaseMs: data.workerRetryBaseMs,
+          httpTimeoutMs: data.httpTimeoutMs,
         }));
       }
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.rag });
@@ -259,7 +307,7 @@ export default function KnowledgePage() {
   const failedJobs = (ragJobsQuery.data?.data ?? []).filter((item) => item.status === "failed").slice(0, 5);
   const selectedDocument = detailQuery.data?.data;
   const ragHealthNotice = ragHealthQuery.isError
-    ? (ragHealthQuery.error instanceof Error ? ragHealthQuery.error.message : "Failed to load RAG health status.")
+    ? (ragHealthQuery.error instanceof Error ? ragHealthQuery.error.message : "加载 RAG 健康状态失败。")
     : (ragHealthQuery.data?.message && ragHealthQuery.data.message !== "RAG health check passed."
       ? ragHealthQuery.data.message
       : undefined);
@@ -279,11 +327,11 @@ export default function KnowledgePage() {
 
   const handleUpload = async (file: File) => {
     if (!isTxtFile(file)) {
-      throw new Error("仅支持 .txt 文档。");
+      throw new Error("仅支持 .txt 文件。");
     }
     const content = await readTextFile(file);
     if (!content) {
-      throw new Error("文档内容为空或编码不受支持。");
+      throw new Error("文件内容为空，或编码格式暂不支持。");
     }
     await createKnowledgeDocument({
       title: uploadTitle.trim() || undefined,
@@ -297,11 +345,11 @@ export default function KnowledgePage() {
       return;
     }
     if (!isTxtFile(file)) {
-      throw new Error("仅支持 .txt 文档。");
+      throw new Error("仅支持 .txt 文件。");
     }
     const content = await readTextFile(file);
     if (!content) {
-      throw new Error("文档内容为空或编码不受支持。");
+      throw new Error("文件内容为空，或编码格式暂不支持。");
     }
     await createKnowledgeDocumentVersion(selectedDocumentId, {
       fileName: file.name,
@@ -345,6 +393,21 @@ export default function KnowledgePage() {
       embeddingTimeoutMs: ragForm.embeddingTimeoutMs,
       embeddingMaxRetries: ragForm.embeddingMaxRetries,
       embeddingRetryBaseMs: ragForm.embeddingRetryBaseMs,
+      enabled: ragForm.enabled,
+      qdrantUrl: ragForm.qdrantUrl.trim(),
+      qdrantApiKey: ragForm.qdrantApiKey.trim() || undefined,
+      clearQdrantApiKey: ragForm.clearQdrantApiKey,
+      qdrantTimeoutMs: ragForm.qdrantTimeoutMs,
+      qdrantUpsertMaxBytes: ragForm.qdrantUpsertMaxBytes,
+      chunkSize: ragForm.chunkSize,
+      chunkOverlap: ragForm.chunkOverlap,
+      vectorCandidates: ragForm.vectorCandidates,
+      keywordCandidates: ragForm.keywordCandidates,
+      finalTopK: ragForm.finalTopK,
+      workerPollMs: ragForm.workerPollMs,
+      workerMaxAttempts: ragForm.workerMaxAttempts,
+      workerRetryBaseMs: ragForm.workerRetryBaseMs,
+      httpTimeoutMs: ragForm.httpTimeoutMs,
     });
   };
 
@@ -364,7 +427,7 @@ export default function KnowledgePage() {
       <div className="flex justify-end">
         <OpenInCreativeHubButton
           bindings={{ knowledgeDocumentIds: selectedDocumentId ? [selectedDocumentId] : [] }}
-          label="知识库发送到创作中枢"
+          label="发送到创作中枢"
         />
       </div>
 
@@ -374,9 +437,9 @@ export default function KnowledgePage() {
         className="space-y-4"
       >
         <TabsList>
-          <TabsTrigger value="documents">文档库</TabsTrigger>
-          <TabsTrigger value="ops">任务与健康</TabsTrigger>
-          <TabsTrigger value="settings">向量设置</TabsTrigger>
+          <TabsTrigger value="documents">文档</TabsTrigger>
+          <TabsTrigger value="ops">运行状态</TabsTrigger>
+          <TabsTrigger value="settings">检索设置</TabsTrigger>
         </TabsList>
 
         <TabsContent value="documents">

@@ -44,6 +44,7 @@ import {
   ensureSystemResourceStarterData,
   hasSystemResourceBootstrapChanges,
 } from "./services/bootstrap/SystemResourceBootstrapService";
+import { initializeRagSettingsCompatibility } from "./services/settings/RagCompatibilityBootstrapService";
 
 registerNovelEventHandlers(novelEventBus);
 const novelPipelineRuntimeService = new NovelPipelineRuntimeService();
@@ -234,6 +235,14 @@ function initializeBackgroundServices(): void {
 }
 
 export async function startServer(options?: ServerStartOptions): Promise<StartedServer> {
+  const ragCompatibilityReport = await initializeRagSettingsCompatibility();
+  if (
+    ragCompatibilityReport.importedSettingKeys.length > 0
+    || ragCompatibilityReport.importedProviderRecords.length > 0
+  ) {
+    console.log("[server] imported legacy RAG env settings.", ragCompatibilityReport);
+  }
+
   const app = createApp();
   const { host, port, allowLan } = resolveServerStartOptions(options);
   initializeBackgroundServices();

@@ -68,6 +68,7 @@ export default function SettingsPage() {
     displayName: "",
     key: "",
     model: "",
+    imageModel: "",
     baseURL: "",
   });
   const [testResult, setTestResult] = useState("");
@@ -103,6 +104,7 @@ export default function SettingsPage() {
       displayName: "",
       key: "",
       model: "",
+      imageModel: "",
       baseURL: "",
     });
     setTestResult("");
@@ -125,12 +127,14 @@ export default function SettingsPage() {
       displayName?: string;
       key?: string;
       model?: string;
+      imageModel?: string;
       baseURL?: string;
     }) =>
       saveAPIKeySetting(payload.provider, {
         displayName: payload.displayName,
         key: payload.key,
         model: payload.model,
+        imageModel: payload.imageModel,
         baseURL: payload.baseURL,
       }),
     onSuccess: async (response) => {
@@ -251,6 +255,9 @@ export default function SettingsPage() {
     () => ragSettings?.providers.find((item) => item.provider === ragSettings.embeddingProvider),
     [ragSettings],
   );
+  const modelOptions = editingConfig?.models ?? [];
+  const canSelectListedModels = !isCreatingCustomProvider && modelOptions.length > 0;
+  const primaryModelLabel = isCustomDialog ? "Default model name" : "Model name";
 
   const isProviderExpanded = (provider: string) => expandedProviders[provider] === true;
   const toggleProviderExpanded = (provider: string) => {
@@ -271,6 +278,7 @@ export default function SettingsPage() {
       displayName: config.displayName ?? config.name,
       key: "",
       model: config.currentModel,
+      imageModel: config.currentImageModel ?? config.defaultImageModel ?? "",
       baseURL: config.currentBaseURL,
     });
     setTestResult("");
@@ -284,6 +292,7 @@ export default function SettingsPage() {
       displayName: "",
       key: "",
       model: "",
+      imageModel: "",
       baseURL: "",
     });
     setTestResult("");
@@ -388,6 +397,11 @@ export default function SettingsPage() {
                   </Badge>
                 </div>
                 <div className="mb-2 text-xs text-muted-foreground">Current model: {item.currentModel || "-"}</div>
+                {item.supportsImageGeneration ? (
+                  <div className="mb-2 text-xs text-muted-foreground">
+                    Image model: {item.currentImageModel || item.defaultImageModel || "-"}
+                  </div>
+                ) : null}
                 <div className="mb-2 text-xs text-muted-foreground">API URL: {item.currentBaseURL || "-"}</div>
                 <div className="mb-3 flex items-center justify-between rounded-md border bg-background/60 px-3 py-2">
                   <div className="space-y-1">
@@ -578,23 +592,67 @@ export default function SettingsPage() {
               onChange={(event) => setForm((prev) => ({ ...prev, key: event.target.value }))}
             />
 
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">Available models</div>
-              <SearchableSelect
-                value={form.model}
-                onValueChange={(value) => setForm((prev) => ({ ...prev, model: value }))}
-                options={(editingConfig?.models ?? []).map((model) => ({ value: model }))}
-                placeholder="Select a model"
-                searchPlaceholder="Search models"
-                emptyText="No models available"
-              />
-            </div>
+            {canSelectListedModels ? (
+              <div className="space-y-1">
+                <div className="text-xs text-muted-foreground">Available models</div>
+                <SearchableSelect
+                  value={form.model}
+                  onValueChange={(value) => setForm((prev) => ({ ...prev, model: value }))}
+                  options={modelOptions.map((model) => ({ value: model }))}
+                  placeholder="Select a model"
+                  searchPlaceholder="Search models"
+                  emptyText="No models available"
+                />
+              </div>
+            ) : null}
 
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">{primaryModelLabel}</div>
+              {isCreatingCustomProvider ? (
+                <div className="text-xs text-muted-foreground">
+                  New custom providers do not have a model list yet. Enter one working default model name first,
+                  then save and use "Refresh models" on the provider card afterwards.
+                </div>
+              ) : editingConfig?.kind === "custom" && !canSelectListedModels ? (
+                <div className="text-xs text-muted-foreground">
+                  No remote model list is available yet. You can keep editing the default model name manually and
+                  refresh the model list later from the provider card.
+                </div>
+              ) : (
+                <div className="text-xs text-muted-foreground">
+                  You can also type a model name manually if it is not listed above.
+                </div>
+              )}
+            </div>
             <Input
               value={form.model}
               placeholder="也可以直接手动输入模型名"
               onChange={(event) => setForm((prev) => ({ ...prev, model: event.target.value }))}
             />
+
+            {editingConfig?.supportsImageGeneration ? (
+              <div className="space-y-3 rounded-md border bg-muted/20 p-3">
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">Image model</div>
+                  <SearchableSelect
+                    value={form.imageModel}
+                    onValueChange={(value) => setForm((prev) => ({ ...prev, imageModel: value }))}
+                    options={(editingConfig.imageModels ?? []).map((model) => ({ value: model }))}
+                    placeholder="Select an image model"
+                    searchPlaceholder="Search image models"
+                    emptyText="No image models available"
+                  />
+                </div>
+                <Input
+                  value={form.imageModel}
+                  placeholder={editingConfig.defaultImageModel ?? "Enter image model"}
+                  onChange={(event) => setForm((prev) => ({ ...prev, imageModel: event.target.value }))}
+                />
+                <div className="text-xs text-muted-foreground">
+                  Used by the built-in image generation flow for this provider.
+                </div>
+              </div>
+            ) : null}
 
             <div className="space-y-1">
               <div className="text-xs text-muted-foreground">API URL</div>
@@ -628,6 +686,9 @@ export default function SettingsPage() {
                     displayName: isCustomDialog ? form.displayName.trim() || undefined : undefined,
                     key: form.key.trim() ? form.key : undefined,
                     model: form.model.trim() || undefined,
+                    imageModel: editingConfig?.supportsImageGeneration
+                      ? (form.imageModel.trim() || undefined)
+                      : undefined,
                     baseURL: form.baseURL,
                   });
                 }}
@@ -640,7 +701,11 @@ export default function SettingsPage() {
                   || (!isCustomDialog && editingConfig?.requiresApiKey !== false && !form.key.trim() && !editingConfig?.isConfigured)
                 }
               >
-                {saveMutation.isPending || createCustomProviderMutation.isPending ? "Saving..." : "Save"}
+                {saveMutation.isPending || createCustomProviderMutation.isPending
+                  ? "Saving..."
+                  : isCreatingCustomProvider
+                    ? "Create provider"
+                    : "Save"}
               </Button>
 
               <Button
