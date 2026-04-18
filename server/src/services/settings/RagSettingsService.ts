@@ -1,19 +1,26 @@
 import { prisma } from "../../db/prisma";
 import { ragConfig, asEmbeddingProvider, type EmbeddingProvider } from "../../config/rag";
-import { PROVIDERS } from "../../llm/providers";
-
-const EMBEDDING_PROVIDER_KEY = "rag.embeddingProvider";
-const EMBEDDING_MODEL_KEY = "rag.embeddingModel";
-const EMBEDDING_COLLECTION_MODE_KEY = "rag.embeddingCollectionMode";
-const EMBEDDING_COLLECTION_NAME_KEY = "rag.embeddingCollectionName";
-const EMBEDDING_COLLECTION_TAG_KEY = "rag.embeddingCollectionTag";
-const EMBEDDING_AUTO_REINDEX_KEY = "rag.embeddingAutoReindexOnChange";
-const EMBEDDING_BATCH_SIZE_KEY = "rag.embeddingBatchSize";
-const EMBEDDING_TIMEOUT_MS_KEY = "rag.embeddingTimeoutMs";
-const EMBEDDING_MAX_RETRIES_KEY = "rag.embeddingMaxRetries";
-const EMBEDDING_RETRY_BASE_MS_KEY = "rag.embeddingRetryBaseMs";
-
-const DEFAULT_COLLECTION_NAME = "ai_novel_chunks_v1";
+import { getProviderEnvApiKey, PROVIDERS } from "../../llm/providers";
+import {
+  getLegacyProviderEmbeddingModelEnv,
+  isMissingTableError,
+  normalizeOptionalText,
+  shouldPreserveLegacyQdrantCollection,
+} from "./ragLegacyCompatibility";
+import {
+  DEFAULT_RAG_COLLECTION_NAME,
+  RAG_EMBEDDING_AUTO_REINDEX_KEY,
+  RAG_EMBEDDING_BATCH_SIZE_KEY,
+  RAG_EMBEDDING_COLLECTION_MODE_KEY,
+  RAG_EMBEDDING_COLLECTION_NAME_KEY,
+  RAG_EMBEDDING_COLLECTION_TAG_KEY,
+  RAG_EMBEDDING_MAX_RETRIES_KEY,
+  RAG_EMBEDDING_MODEL_KEY,
+  RAG_EMBEDDING_PROVIDER_KEY,
+  RAG_EMBEDDING_RETRY_BASE_MS_KEY,
+  RAG_EMBEDDING_SETTING_KEYS,
+  RAG_EMBEDDING_TIMEOUT_MS_KEY,
+} from "./ragSettingKeys";
 
 export type RagEmbeddingCollectionMode = "auto" | "manual";
 
@@ -60,18 +67,12 @@ export interface SaveRagEmbeddingSettingsResult {
   shouldReindex: boolean;
 }
 
-function isMissingTableError(error: unknown): boolean {
-  return (
-    typeof error === "object"
-    && error !== null
-    && "code" in error
-    && (error as { code?: string }).code === "P2021"
-  );
-}
-
-function normalizeEmbeddingModel(value: string | undefined): string {
+function normalizeEmbeddingModel(value: string | undefined, provider: EmbeddingProvider = ragConfig.embeddingProvider): string {
   const normalized = value?.trim();
-  return normalized && normalized.length > 0 ? normalized : ragConfig.embeddingModel;
+  if (normalized && normalized.length > 0) {
+    return normalized;
+  }
+  return getLegacyProviderEmbeddingModelEnv(provider) ?? ragConfig.embeddingModel;
 }
 
 function normalizeCollectionMode(value: string | undefined, fallback: RagEmbeddingCollectionMode): RagEmbeddingCollectionMode {
@@ -114,7 +115,7 @@ function normalizeCollectionTag(value: string | undefined): string {
 }
 
 function normalizeCollectionName(value: string | undefined, fallback: string): string {
-  return slugifySegment(value ?? fallback, slugifySegment(fallback, DEFAULT_COLLECTION_NAME)).slice(0, 120);
+  return slugifySegment(value ?? fallback, slugifySegment(fallback, DEFAULT_RAG_COLLECTION_NAME)).slice(0, 120);
 }
 
 function buildAutoCollectionName(
@@ -131,11 +132,7 @@ function buildAutoCollectionName(
     tag,
     `v${ragConfig.embeddingVersion}`,
   ].join("_");
-  return normalizeCollectionName(name, DEFAULT_COLLECTION_NAME);
-}
-
-function getDefaultCollectionMode(): RagEmbeddingCollectionMode {
-  return ragConfig.qdrantCollection === DEFAULT_COLLECTION_NAME ? "auto" : "manual";
+  return normalizeCollectionName(name, DEFAULT_RAG_COLLECTION_NAME);
 }
 
 function applyRagRuntimeSettings(settings: RagEmbeddingSettings): RagEmbeddingSettings {
@@ -149,19 +146,22 @@ function applyRagRuntimeSettings(settings: RagEmbeddingSettings): RagEmbeddingSe
   return settings;
 }
 
-function getDefaultSettings(): RagEmbeddingSettings {
+async function getDefaultSettings(): Promise<RagEmbeddingSettings> {
   const collectionTag = normalizeCollectionTag("kb");
   const suggestedCollectionName = buildAutoCollectionName(
     ragConfig.embeddingProvider,
-    normalizeEmbeddingModel(ragConfig.embeddingModel),
+    normalizeEmbeddingModel(ragConfig.embeddingModel, ragConfig.embeddingProvider),
     collectionTag,
   );
+  const shouldPreserveLegacyCollection = await shouldPreserveLegacyQdrantCollection();
   return {
     embeddingProvider: ragConfig.embeddingProvider,
-    embeddingModel: normalizeEmbeddingModel(ragConfig.embeddingModel),
+    embeddingModel: normalizeEmbeddingModel(ragConfig.embeddingModel, ragConfig.embeddingProvider),
     collectionVersion: ragConfig.embeddingVersion,
-    collectionMode: getDefaultCollectionMode(),
-    collectionName: normalizeCollectionName(ragConfig.qdrantCollection, DEFAULT_COLLECTION_NAME),
+    collectionMode: shouldPreserveLegacyCollection || ragConfig.qdrantCollection !== DEFAULT_RAG_COLLECTION_NAME
+      ? "manual"
+      : "auto",
+    collectionName: normalizeCollectionName(ragConfig.qdrantCollection, DEFAULT_RAG_COLLECTION_NAME),
     collectionTag,
     autoReindexOnChange: true,
     embeddingBatchSize: clampInt(ragConfig.embeddingBatchSize, 64, 1, 256),
@@ -177,33 +177,25 @@ export async function getRagEmbeddingSettings(): Promise<RagEmbeddingSettings> {
     const records = await prisma.appSetting.findMany({
       where: {
         key: {
-          in: [
-            EMBEDDING_PROVIDER_KEY,
-            EMBEDDING_MODEL_KEY,
-            EMBEDDING_COLLECTION_MODE_KEY,
-            EMBEDDING_COLLECTION_NAME_KEY,
-            EMBEDDING_COLLECTION_TAG_KEY,
-            EMBEDDING_AUTO_REINDEX_KEY,
-            EMBEDDING_BATCH_SIZE_KEY,
-            EMBEDDING_TIMEOUT_MS_KEY,
-            EMBEDDING_MAX_RETRIES_KEY,
-            EMBEDDING_RETRY_BASE_MS_KEY,
-          ],
+          in: [...RAG_EMBEDDING_SETTING_KEYS],
         },
       },
     });
     const valueMap = new Map(records.map((item) => [item.key, item.value]));
-    const defaults = getDefaultSettings();
-    const embeddingProvider = asEmbeddingProvider(valueMap.get(EMBEDDING_PROVIDER_KEY) ?? defaults.embeddingProvider);
-    const embeddingModel = normalizeEmbeddingModel(valueMap.get(EMBEDDING_MODEL_KEY) ?? defaults.embeddingModel);
+    const defaults = await getDefaultSettings();
+    const embeddingProvider = asEmbeddingProvider(valueMap.get(RAG_EMBEDDING_PROVIDER_KEY) ?? defaults.embeddingProvider);
+    const embeddingModel = normalizeEmbeddingModel(
+      valueMap.get(RAG_EMBEDDING_MODEL_KEY) ?? defaults.embeddingModel,
+      embeddingProvider,
+    );
     const collectionMode = normalizeCollectionMode(
-      valueMap.get(EMBEDDING_COLLECTION_MODE_KEY),
+      valueMap.get(RAG_EMBEDDING_COLLECTION_MODE_KEY),
       defaults.collectionMode,
     );
-    const collectionTag = normalizeCollectionTag(valueMap.get(EMBEDDING_COLLECTION_TAG_KEY) ?? defaults.collectionTag);
+    const collectionTag = normalizeCollectionTag(valueMap.get(RAG_EMBEDDING_COLLECTION_TAG_KEY) ?? defaults.collectionTag);
     const suggestedCollectionName = buildAutoCollectionName(embeddingProvider, embeddingModel, collectionTag);
     const collectionName = normalizeCollectionName(
-      valueMap.get(EMBEDDING_COLLECTION_NAME_KEY)
+      valueMap.get(RAG_EMBEDDING_COLLECTION_NAME_KEY)
         ?? (collectionMode === "auto" ? suggestedCollectionName : defaults.collectionName),
       defaults.collectionName,
     );
@@ -214,27 +206,27 @@ export async function getRagEmbeddingSettings(): Promise<RagEmbeddingSettings> {
       collectionMode,
       collectionName,
       collectionTag,
-      autoReindexOnChange: toBoolean(valueMap.get(EMBEDDING_AUTO_REINDEX_KEY), defaults.autoReindexOnChange),
+      autoReindexOnChange: toBoolean(valueMap.get(RAG_EMBEDDING_AUTO_REINDEX_KEY), defaults.autoReindexOnChange),
       embeddingBatchSize: clampInt(
-        Number(valueMap.get(EMBEDDING_BATCH_SIZE_KEY)),
+        Number(valueMap.get(RAG_EMBEDDING_BATCH_SIZE_KEY)),
         defaults.embeddingBatchSize,
         1,
         256,
       ),
       embeddingTimeoutMs: clampInt(
-        Number(valueMap.get(EMBEDDING_TIMEOUT_MS_KEY)),
+        Number(valueMap.get(RAG_EMBEDDING_TIMEOUT_MS_KEY)),
         defaults.embeddingTimeoutMs,
         5000,
         300000,
       ),
       embeddingMaxRetries: clampInt(
-        Number(valueMap.get(EMBEDDING_MAX_RETRIES_KEY)),
+        Number(valueMap.get(RAG_EMBEDDING_MAX_RETRIES_KEY)),
         defaults.embeddingMaxRetries,
         0,
         8,
       ),
       embeddingRetryBaseMs: clampInt(
-        Number(valueMap.get(EMBEDDING_RETRY_BASE_MS_KEY)),
+        Number(valueMap.get(RAG_EMBEDDING_RETRY_BASE_MS_KEY)),
         defaults.embeddingRetryBaseMs,
         100,
         10000,
@@ -243,7 +235,7 @@ export async function getRagEmbeddingSettings(): Promise<RagEmbeddingSettings> {
     });
   } catch (error) {
     if (isMissingTableError(error)) {
-      return applyRagRuntimeSettings(getDefaultSettings());
+      return applyRagRuntimeSettings(await getDefaultSettings());
     }
     throw error;
   }
@@ -252,7 +244,7 @@ export async function getRagEmbeddingSettings(): Promise<RagEmbeddingSettings> {
 export async function saveRagEmbeddingSettings(input: RagEmbeddingSettingsInput): Promise<SaveRagEmbeddingSettingsResult> {
   const previous = await getRagEmbeddingSettings();
   const embeddingProvider = asEmbeddingProvider(input.embeddingProvider);
-  const embeddingModel = normalizeEmbeddingModel(input.embeddingModel);
+  const embeddingModel = normalizeEmbeddingModel(input.embeddingModel, embeddingProvider);
   const collectionMode = normalizeCollectionMode(input.collectionMode, previous.collectionMode);
   const collectionTag = normalizeCollectionTag(input.collectionTag || previous.collectionTag);
   const suggestedCollectionName = buildAutoCollectionName(embeddingProvider, embeddingModel, collectionTag);
@@ -295,54 +287,54 @@ export async function saveRagEmbeddingSettings(input: RagEmbeddingSettingsInput)
   try {
     await prisma.$transaction([
       prisma.appSetting.upsert({
-        where: { key: EMBEDDING_PROVIDER_KEY },
+        where: { key: RAG_EMBEDDING_PROVIDER_KEY },
         update: { value: data.embeddingProvider },
-        create: { key: EMBEDDING_PROVIDER_KEY, value: data.embeddingProvider },
+        create: { key: RAG_EMBEDDING_PROVIDER_KEY, value: data.embeddingProvider },
       }),
       prisma.appSetting.upsert({
-        where: { key: EMBEDDING_MODEL_KEY },
+        where: { key: RAG_EMBEDDING_MODEL_KEY },
         update: { value: data.embeddingModel },
-        create: { key: EMBEDDING_MODEL_KEY, value: data.embeddingModel },
+        create: { key: RAG_EMBEDDING_MODEL_KEY, value: data.embeddingModel },
       }),
       prisma.appSetting.upsert({
-        where: { key: EMBEDDING_COLLECTION_MODE_KEY },
+        where: { key: RAG_EMBEDDING_COLLECTION_MODE_KEY },
         update: { value: data.collectionMode },
-        create: { key: EMBEDDING_COLLECTION_MODE_KEY, value: data.collectionMode },
+        create: { key: RAG_EMBEDDING_COLLECTION_MODE_KEY, value: data.collectionMode },
       }),
       prisma.appSetting.upsert({
-        where: { key: EMBEDDING_COLLECTION_NAME_KEY },
+        where: { key: RAG_EMBEDDING_COLLECTION_NAME_KEY },
         update: { value: data.collectionName },
-        create: { key: EMBEDDING_COLLECTION_NAME_KEY, value: data.collectionName },
+        create: { key: RAG_EMBEDDING_COLLECTION_NAME_KEY, value: data.collectionName },
       }),
       prisma.appSetting.upsert({
-        where: { key: EMBEDDING_COLLECTION_TAG_KEY },
+        where: { key: RAG_EMBEDDING_COLLECTION_TAG_KEY },
         update: { value: data.collectionTag },
-        create: { key: EMBEDDING_COLLECTION_TAG_KEY, value: data.collectionTag },
+        create: { key: RAG_EMBEDDING_COLLECTION_TAG_KEY, value: data.collectionTag },
       }),
       prisma.appSetting.upsert({
-        where: { key: EMBEDDING_AUTO_REINDEX_KEY },
+        where: { key: RAG_EMBEDDING_AUTO_REINDEX_KEY },
         update: { value: String(data.autoReindexOnChange) },
-        create: { key: EMBEDDING_AUTO_REINDEX_KEY, value: String(data.autoReindexOnChange) },
+        create: { key: RAG_EMBEDDING_AUTO_REINDEX_KEY, value: String(data.autoReindexOnChange) },
       }),
       prisma.appSetting.upsert({
-        where: { key: EMBEDDING_BATCH_SIZE_KEY },
+        where: { key: RAG_EMBEDDING_BATCH_SIZE_KEY },
         update: { value: String(data.embeddingBatchSize) },
-        create: { key: EMBEDDING_BATCH_SIZE_KEY, value: String(data.embeddingBatchSize) },
+        create: { key: RAG_EMBEDDING_BATCH_SIZE_KEY, value: String(data.embeddingBatchSize) },
       }),
       prisma.appSetting.upsert({
-        where: { key: EMBEDDING_TIMEOUT_MS_KEY },
+        where: { key: RAG_EMBEDDING_TIMEOUT_MS_KEY },
         update: { value: String(data.embeddingTimeoutMs) },
-        create: { key: EMBEDDING_TIMEOUT_MS_KEY, value: String(data.embeddingTimeoutMs) },
+        create: { key: RAG_EMBEDDING_TIMEOUT_MS_KEY, value: String(data.embeddingTimeoutMs) },
       }),
       prisma.appSetting.upsert({
-        where: { key: EMBEDDING_MAX_RETRIES_KEY },
+        where: { key: RAG_EMBEDDING_MAX_RETRIES_KEY },
         update: { value: String(data.embeddingMaxRetries) },
-        create: { key: EMBEDDING_MAX_RETRIES_KEY, value: String(data.embeddingMaxRetries) },
+        create: { key: RAG_EMBEDDING_MAX_RETRIES_KEY, value: String(data.embeddingMaxRetries) },
       }),
       prisma.appSetting.upsert({
-        where: { key: EMBEDDING_RETRY_BASE_MS_KEY },
+        where: { key: RAG_EMBEDDING_RETRY_BASE_MS_KEY },
         update: { value: String(data.embeddingRetryBaseMs) },
-        create: { key: EMBEDDING_RETRY_BASE_MS_KEY, value: String(data.embeddingRetryBaseMs) },
+        create: { key: RAG_EMBEDDING_RETRY_BASE_MS_KEY, value: String(data.embeddingRetryBaseMs) },
       }),
     ]);
     return {
@@ -368,21 +360,37 @@ export async function saveRagEmbeddingSettings(input: RagEmbeddingSettingsInput)
 
 export async function getRagEmbeddingProviders(): Promise<RagEmbeddingProviderStatus[]> {
   const providers: EmbeddingProvider[] = ["openai", "siliconflow"];
-  const items = await prisma.aPIKey.findMany({
-    where: {
-      provider: {
-        in: providers,
+  try {
+    const items = await prisma.aPIKey.findMany({
+      where: {
+        provider: {
+          in: providers,
+        },
       },
-    },
-  });
-  const itemMap = new Map(items.map((item) => [item.provider, item]));
-  return providers.map((provider) => {
-    const item = itemMap.get(provider);
-    return {
-      provider,
-      name: PROVIDERS[provider].name,
-      isConfigured: Boolean(item?.key),
-      isActive: item?.isActive ?? false,
-    };
-  });
+    });
+    const itemMap = new Map(items.map((item) => [item.provider, item]));
+    return providers.map((provider) => {
+      const item = itemMap.get(provider);
+      const envApiKey = normalizeOptionalText(getProviderEnvApiKey(provider));
+      return {
+        provider,
+        name: PROVIDERS[provider].name,
+        isConfigured: Boolean(normalizeOptionalText(item?.key) ?? envApiKey),
+        isActive: item?.isActive ?? Boolean(envApiKey),
+      };
+    });
+  } catch (error) {
+    if (isMissingTableError(error)) {
+      return providers.map((provider) => {
+        const envApiKey = normalizeOptionalText(getProviderEnvApiKey(provider));
+        return {
+          provider,
+          name: PROVIDERS[provider].name,
+          isConfigured: Boolean(envApiKey),
+          isActive: Boolean(envApiKey),
+        };
+      });
+    }
+    throw error;
+  }
 }
