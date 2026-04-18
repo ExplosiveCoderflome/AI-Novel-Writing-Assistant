@@ -140,6 +140,20 @@ router.get("/assets/:assetId/file", validate({ params: assetParamsSchema }), asy
   }
 });
 
+router.delete("/assets/:assetId", validate({ params: assetParamsSchema }), async (req, res, next) => {
+  try {
+    const { assetId } = req.params as z.infer<typeof assetParamsSchema>;
+    const data = await imageGenerationService.deleteAsset(assetId);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Image asset deleted.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post("/assets/:assetId/set-primary", validate({ params: assetParamsSchema }), async (req, res, next) => {
   try {
     const { assetId } = req.params as z.infer<typeof assetParamsSchema>;

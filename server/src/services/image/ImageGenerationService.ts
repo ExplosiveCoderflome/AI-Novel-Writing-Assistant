@@ -5,6 +5,7 @@ import { AppError } from "../../middleware/errorHandler";
 import { generateImagesByProvider, isImageProviderSupported, resolveImageModel } from "./provider";
 import {
   persistGeneratedImageAsset,
+  removeLocalImageAssetFile,
   resolveLocalImageAssetFile,
 } from "./imageAssetStorage";
 import {
@@ -177,6 +178,54 @@ export class ImageGenerationService {
     });
     const updated = await prisma.imageAsset.findUnique({ where: { id: asset.id } });
     return toImageAsset(updated);
+  }
+
+  async deleteAsset(assetId: string): Promise<ImageAsset> {
+    const asset = await prisma.imageAsset.findUnique({
+      where: { id: assetId },
+    });
+    if (!asset) {
+      throw new AppError("Image asset not found.", 404);
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.imageAsset.delete({
+        where: { id: asset.id },
+      });
+
+      if (!asset.isPrimary || !asset.baseCharacterId) {
+        return;
+      }
+
+      const replacement = await tx.imageAsset.findFirst({
+        where: {
+          sceneType: asset.sceneType as "character",
+          baseCharacterId: asset.baseCharacterId,
+        },
+        orderBy: [{ createdAt: "desc" }],
+      });
+
+      if (!replacement) {
+        return;
+      }
+
+      await tx.imageAsset.update({
+        where: { id: replacement.id },
+        data: { isPrimary: true },
+      });
+    });
+
+    try {
+      await removeLocalImageAssetFile({
+        assetId: asset.id,
+        url: asset.url,
+        metadata: asset.metadata,
+      });
+    } catch (error) {
+      console.warn(`[image] failed to remove local asset file for ${asset.id}.`, error);
+    }
+
+    return toImageAsset(asset);
   }
 
   async getAssetFile(assetId: string): Promise<{ localPath: string; mimeType: string | null }> {

@@ -3,7 +3,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/rea
 import type { ImageAsset } from "@ai-novel/shared/types/image";
 import type { BaseCharacter } from "@ai-novel/shared/types/novel";
 import { deleteBaseCharacter, getBaseCharacterList, updateBaseCharacter } from "@/api/character";
-import { listImageAssets, setPrimaryImageAsset } from "@/api/images";
+import { deleteImageAsset, listImageAssets, setPrimaryImageAsset } from "@/api/images";
 import { queryKeys } from "@/api/queryKeys";
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +46,19 @@ export default function CharacterLibrary() {
 
   const setPrimaryMutation = useMutation({
     mutationFn: (assetId: string) => setPrimaryImageAsset(assetId),
+    onSuccess: async (response) => {
+      const baseCharacterId = response.data?.baseCharacterId;
+      if (!baseCharacterId) {
+        return;
+      }
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.images.assets("character", baseCharacterId),
+      });
+    },
+  });
+
+  const deleteAssetMutation = useMutation({
+    mutationFn: (assetId: string) => deleteImageAsset(assetId),
     onSuccess: async (response) => {
       const baseCharacterId = response.data?.baseCharacterId;
       if (!baseCharacterId) {
@@ -177,9 +190,11 @@ export default function CharacterLibrary() {
               assetsLoading={imageAssetQueries[index]?.isLoading}
               onGenerateImage={() => openImageDialog(character)}
               onSetPrimary={(assetId) => setPrimaryMutation.mutate(assetId)}
+              onDeleteAsset={(asset) => deleteAssetMutation.mutateAsync(asset.id).then(() => undefined)}
               onEdit={() => openEditDialog(character)}
               onDelete={() => handleDeleteCharacter(character)}
               settingPrimary={setPrimaryMutation.isPending}
+              deletingAssetId={deleteAssetMutation.variables ?? null}
               deleting={deleteMutation.isPending && deleteMutation.variables === character.id}
               extraActions={(
                 <OpenInCreativeHubButton

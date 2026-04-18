@@ -60,6 +60,11 @@ export async function setPrimaryImageAsset(assetId: string) {
   return data;
 }
 
+export async function deleteImageAsset(assetId: string) {
+  const { data } = await apiClient.delete<ApiResponse<ImageAsset>>(`/images/assets/${assetId}`);
+  return data;
+}
+
 export function resolveImageAssetUrl(url: string): string {
   if (!url.trim()) {
     return url;
