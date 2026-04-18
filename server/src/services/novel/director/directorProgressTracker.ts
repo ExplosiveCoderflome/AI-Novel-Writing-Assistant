@@ -14,6 +14,10 @@ interface DirectorTrackedCallbacks {
     itemKey: DirectorProgressItemKey,
     itemLabel: string,
     progress: number,
+    options?: {
+      chapterId?: string | null;
+      volumeId?: string | null;
+    },
   ) => Promise<void>;
 }
 
@@ -45,6 +49,8 @@ export async function runDirectorTrackedStep<T>(input: {
   progress: number;
   callbacks: DirectorTrackedCallbacks;
   heartbeatMs?: number;
+  chapterId?: string | null;
+  volumeId?: string | null;
   run: (helpers: {
     updateLabel: (nextLabel: string) => Promise<void>;
     updateStatus: (nextStatus: {
@@ -76,6 +82,10 @@ export async function runDirectorTrackedStep<T>(input: {
       currentItemKey,
       currentLabel,
       currentProgress,
+      {
+        chapterId: input.chapterId ?? null,
+        volumeId: input.volumeId ?? null,
+      },
     );
   };
 
@@ -100,6 +110,10 @@ export async function runDirectorTrackedStep<T>(input: {
       currentItemKey,
       `${currentLabel}（已等待 ${elapsed}）`,
       currentProgress,
+      {
+        chapterId: input.chapterId ?? null,
+        volumeId: input.volumeId ?? null,
+      },
     ).catch((error) => {
       console.warn(
         `[director.step] event=heartbeat_failed taskId=${input.taskId} stage=${input.stage} itemKey=${currentItemKey} error=${JSON.stringify(stringifyError(error))}`,

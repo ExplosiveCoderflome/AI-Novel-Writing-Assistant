@@ -1,6 +1,10 @@
 import type {
+  VolumeBeatSheet,
   VolumeCountGuidance,
+  VolumeCritiqueReport,
   VolumePlan,
+  VolumePlanDocument,
+  VolumeRebalanceDecision,
   VolumeStrategyPlan,
 } from "@ai-novel/shared/types/novel";
 import { normalizeVolumeDraft } from "../volumePlan.utils";
@@ -36,6 +40,56 @@ export function serializeVolumeDraftSnapshot(volumes: VolumePlan[]): string {
       payoffRefs: chapter.payoffRefs,
     })),
   })));
+}
+
+function serializeBeatSheetsSnapshot(beatSheets: VolumeBeatSheet[]): Array<{
+  volumeId: string;
+  volumeSortOrder: number;
+  status: string;
+  beats: VolumeBeatSheet["beats"];
+}> {
+  return beatSheets
+    .slice()
+    .sort((left, right) => (
+      left.volumeSortOrder - right.volumeSortOrder
+      || left.volumeId.localeCompare(right.volumeId)
+    ))
+    .map((sheet) => ({
+      volumeId: sheet.volumeId,
+      volumeSortOrder: sheet.volumeSortOrder,
+      status: sheet.status,
+      beats: sheet.beats.map((beat) => ({
+        key: beat.key,
+        label: beat.label,
+        summary: beat.summary,
+        chapterSpanHint: beat.chapterSpanHint,
+        mustDeliver: [...beat.mustDeliver],
+      })),
+    }));
+}
+
+function serializeRebalanceDecisionsSnapshot(
+  rebalanceDecisions: VolumeRebalanceDecision[],
+): VolumeRebalanceDecision[] {
+  return rebalanceDecisions
+    .slice()
+    .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+}
+
+export function serializeVolumeWorkspaceSnapshot(input: {
+  volumes?: VolumePlan[] | null;
+  strategyPlan?: VolumeStrategyPlan | null;
+  critiqueReport?: VolumeCritiqueReport | null;
+  beatSheets?: VolumeBeatSheet[] | null;
+  rebalanceDecisions?: VolumeRebalanceDecision[] | null;
+} | VolumePlanDocument | null | undefined): string {
+  return JSON.stringify({
+    volumes: serializeVolumeDraftSnapshot(input?.volumes ?? []),
+    strategyPlan: input?.strategyPlan ?? null,
+    critiqueReport: input?.critiqueReport ?? null,
+    beatSheets: serializeBeatSheetsSnapshot(input?.beatSheets ?? []),
+    rebalanceDecisions: serializeRebalanceDecisionsSnapshot(input?.rebalanceDecisions ?? []),
+  });
 }
 
 export function resolveCustomVolumeCountInput(

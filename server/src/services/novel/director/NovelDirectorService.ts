@@ -1062,12 +1062,18 @@ export class NovelDirectorService {
     itemKey: DirectorProgressItemKey,
     itemLabel: string,
     progress: number,
+    options?: {
+      chapterId?: string | null;
+      volumeId?: string | null;
+    },
   ) {
     await this.workflowService.markTaskRunning(taskId, {
       stage,
       itemKey,
       itemLabel,
       progress,
+      chapterId: options?.chapterId,
+      volumeId: options?.volumeId,
     });
   }
 

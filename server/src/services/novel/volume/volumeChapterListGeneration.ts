@@ -38,6 +38,13 @@ interface BeatGenerationPlan {
   chapterEndOrder: number;
 }
 
+interface FullVolumeResumeState {
+  resumeBeatIndex: number;
+  resumeBeatKey: string | null;
+  preservedBeatBlocks: GeneratedVolumeChapterBlock[];
+  isAlreadyComplete: boolean;
+}
+
 function buildBeatGenerationPlans(beatSheet: VolumeBeatSheet): BeatGenerationPlan[] {
   let nextChapterOrder = 1;
   return beatSheet.beats.map((beat) => {
@@ -51,6 +58,37 @@ function buildBeatGenerationPlans(beatSheet: VolumeBeatSheet): BeatGenerationPla
     nextChapterOrder = plan.chapterEndOrder + 1;
     return plan;
   });
+}
+
+function resolveFullVolumeResumeState(params: {
+  beatPlans: BeatGenerationPlan[];
+  existingBeatBlocks: GeneratedVolumeChapterBlock[];
+}): FullVolumeResumeState {
+  let resumeBeatIndex = params.beatPlans.length;
+  for (const [index, beatPlan] of params.beatPlans.entries()) {
+    const existingBlock = params.existingBeatBlocks[index];
+    if (existingBlock && existingBlock.chapters.length === beatPlan.chapterCount) {
+      continue;
+    }
+    resumeBeatIndex = index;
+    break;
+  }
+
+  if (resumeBeatIndex >= params.beatPlans.length) {
+    return {
+      resumeBeatIndex,
+      resumeBeatKey: null,
+      preservedBeatBlocks: params.existingBeatBlocks.slice(),
+      isAlreadyComplete: true,
+    };
+  }
+
+  return {
+    resumeBeatIndex,
+    resumeBeatKey: params.beatPlans[resumeBeatIndex]?.beat.key ?? null,
+    preservedBeatBlocks: params.existingBeatBlocks.slice(0, resumeBeatIndex),
+    isAlreadyComplete: false,
+  };
 }
 
 function summarizeBeatBlocks(blocks: GeneratedVolumeChapterBlock[]): string {
@@ -98,10 +136,11 @@ function buildPreviousBeatSummary(params: {
   generationMode: "full_volume" | "single_beat";
   generatedBlocks: GeneratedVolumeChapterBlock[];
   existingBeatBlocks: GeneratedVolumeChapterBlock[];
+  preservedBeatBlocks?: GeneratedVolumeChapterBlock[];
   targetBeatIndex: number;
 }): string {
   if (params.generationMode === "full_volume") {
-    return summarizeBeatBlocks(params.generatedBlocks);
+    return summarizeBeatBlocks([...(params.preservedBeatBlocks ?? []), ...params.generatedBlocks]);
   }
   return summarizeBeatBlocks(params.existingBeatBlocks.slice(0, params.targetBeatIndex));
 }
@@ -236,6 +275,12 @@ export async function generateBeatChunkedChapterList(params: {
     volume: targetVolume,
     beatSheet: targetBeatSheet,
   });
+  const fullVolumeResumeState = generationMode === "full_volume"
+    ? resolveFullVolumeResumeState({
+      beatPlans,
+      existingBeatBlocks,
+    })
+    : null;
   const targetBeatIndex = generationMode === "single_beat"
     ? beatPlans.findIndex((plan) => plan.beat.key === options.targetBeatKey)
     : -1;
@@ -246,7 +291,17 @@ export async function generateBeatChunkedChapterList(params: {
   const generatedBlocks: GeneratedVolumeChapterBlock[] = [];
   const plansToRun = generationMode === "single_beat"
     ? [beatPlans[targetBeatIndex]]
-    : beatPlans;
+    : beatPlans.slice(fullVolumeResumeState?.resumeBeatIndex ?? 0);
+
+  if (generationMode === "full_volume" && fullVolumeResumeState?.isAlreadyComplete) {
+    return {
+      mergedDocument: document,
+      mergedWorkspace: {
+        ...workspace,
+        ...document,
+      },
+    };
+  }
 
   for (const beatPlan of plansToRun) {
     await params.notifyPhase(
@@ -271,6 +326,7 @@ export async function generateBeatChunkedChapterList(params: {
         generationMode,
         generatedBlocks,
         existingBeatBlocks,
+        preservedBeatBlocks: fullVolumeResumeState?.preservedBeatBlocks,
         targetBeatIndex: currentBeatIndex,
       }),
       preservedBeatChapterSummary: generationMode === "single_beat"
@@ -291,6 +347,7 @@ export async function generateBeatChunkedChapterList(params: {
         {
           generationMode,
           targetBeatKey: options.targetBeatKey,
+          resumeFromBeatKey: fullVolumeResumeState?.resumeBeatKey,
         },
       );
       await params.notifyIntermediateDocument({
@@ -312,6 +369,7 @@ export async function generateBeatChunkedChapterList(params: {
     {
       generationMode,
       targetBeatKey: options.targetBeatKey,
+      resumeFromBeatKey: fullVolumeResumeState?.resumeBeatKey,
     },
   );
   const mergedVolume = mergedDocument.volumes.find((volume) => volume.id === targetVolume.id);

@@ -12,7 +12,12 @@ import type {
   VolumeStrategyPlan,
 } from "@ai-novel/shared/types/novel";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { generateNovelVolumes, updateNovelVolumes, type NovelDetailResponse } from "@/api/novel";
+import {
+  generateNovelVolumes,
+  getNovelVolumeWorkspace,
+  updateNovelVolumes,
+  type NovelDetailResponse,
+} from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import {
   buildVolumePlanningReadiness,
@@ -57,6 +62,7 @@ import {
   buildGenerationNotice,
   resolveCustomVolumeCountInput,
   serializeVolumeDraftSnapshot,
+  serializeVolumeWorkspaceSnapshot,
 } from "./useNovelVolumePlanning.utils";
 import { syncNovelWorkflowStageSilently } from "../novelWorkflow.client";
 
@@ -90,6 +96,10 @@ interface GeneratedVolumeMutationResult {
   generatedResponse: Awaited<ReturnType<typeof generateNovelVolumes>>;
   persistedResponse: Awaited<ReturnType<typeof updateNovelVolumes>>;
   nextDocument: VolumePlanDocument;
+}
+
+interface VolumeGenerationMutationContext {
+  persistedWorkspaceSnapshotBefore: string;
 }
 
 class VolumeGenerationAutoSaveError extends Error {
@@ -226,11 +236,28 @@ export function useNovelVolumePlanning({
     );
   };
 
+  const hydratePersistedWorkspace = (document: VolumePlanDocument) => {
+    applyWorkspaceDocument(document);
+    syncSavedVolumeDocumentToCache(document);
+  };
+
   const [isGeneratingChapterDetailBundle, setIsGeneratingChapterDetailBundle] = useState(false);
   const [bundleGeneratingChapterId, setBundleGeneratingChapterId] = useState("");
   const [bundleGeneratingMode, setBundleGeneratingMode] = useState<ChapterDetailMode | "">("");
 
-  const generateMutation = useMutation({
+  const generateMutation = useMutation<
+    GeneratedVolumeMutationResult,
+    Error,
+    VolumeGenerationPayload,
+    VolumeGenerationMutationContext
+  >({
+    onMutate: (): VolumeGenerationMutationContext => ({
+      persistedWorkspaceSnapshotBefore: serializeVolumeWorkspaceSnapshot(
+        queryClient.getQueryData<ApiResponse<VolumePlanDocument>>(queryKeys.novels.volumeWorkspace(novelId))?.data
+        ?? savedWorkspace
+        ?? null,
+      ),
+    }),
     mutationFn: async (payload: VolumeGenerationPayload): Promise<GeneratedVolumeMutationResult> => {
       const requestDraft = normalizeVolumeDraft(payload.draftVolumesOverride ?? normalizedVolumeDraft);
       const generatedResponse = await generateNovelVolumes(novelId, {
@@ -366,15 +393,38 @@ export function useNovelVolumePlanning({
       const label = detailModeLabel(payload.detailMode ?? "purpose");
       setStructuredMessage(`${label}已完成 AI 修正并自动保存。`);
     },
-    onError: (error, payload) => {
+    onError: async (error, payload, context) => {
       if (error instanceof VolumeGenerationAutoSaveError) {
         applyWorkspaceDocument(error.nextDocument);
       }
-      const message = error instanceof VolumeGenerationAutoSaveError
+      const fallbackMessage = error instanceof VolumeGenerationAutoSaveError
         ? `AI 生成已完成，但自动保存失败：${error.message}`
         : error instanceof Error
           ? error.message
           : "卷级方案生成失败。";
+      const shouldTryRecoverPersistedWorkspace = !(error instanceof VolumeGenerationAutoSaveError)
+        && (payload.scope === "beat_sheet" || payload.scope === "chapter_list" || payload.scope === "volume");
+      let recoveredMessage: string | null = null;
+
+      if (shouldTryRecoverPersistedWorkspace) {
+        try {
+          const latestWorkspaceResponse = await getNovelVolumeWorkspace(novelId);
+          const latestWorkspace = latestWorkspaceResponse.data ?? null;
+          if (latestWorkspace) {
+            const persistedWorkspaceSnapshotAfter = serializeVolumeWorkspaceSnapshot(latestWorkspace);
+            if (persistedWorkspaceSnapshotAfter !== context?.persistedWorkspaceSnapshotBefore) {
+              hydratePersistedWorkspace(latestWorkspace);
+              recoveredMessage = payload.scope === "chapter_list" || payload.scope === "volume"
+                ? "已恢复到最近自动保存进度，可继续从未完成节奏段推进。"
+                : "已恢复到最近自动保存进度，可继续当前卷生成。";
+            }
+          }
+        } catch {
+          // Ignore recovery fetch failures and keep the original local draft untouched.
+        }
+      }
+
+      const message = recoveredMessage ?? fallbackMessage;
       if (payload.scope === "strategy" || payload.scope === "strategy_critique" || payload.scope === "skeleton" || payload.scope === "book") {
         setVolumeGenerationMessage(message);
       }
