@@ -1,8 +1,11 @@
 const fs = require("node:fs");
+const { createRequire } = require("node:module");
 const path = require("node:path");
-const asar = require("@electron/asar");
 
 const desktopDir = path.resolve(__dirname, "..");
+const electronBuilderPackageJson = require.resolve("electron-builder/package.json", { paths: [desktopDir] });
+const electronBuilderRequire = createRequire(electronBuilderPackageJson);
+const asar = electronBuilderRequire("@electron/asar");
 const buildDir = path.join(desktopDir, "build");
 const appDir = path.join(buildDir, "app");
 const unpackedDir = path.join(buildDir, "dist", "win-unpacked");
