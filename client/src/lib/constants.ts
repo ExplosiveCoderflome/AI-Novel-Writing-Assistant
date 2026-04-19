@@ -10,11 +10,12 @@ function trimTrailingSlash(value: string): string {
 
 function resolveApiBaseUrl(): string {
   const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+  const apiPort = import.meta.env.VITE_API_PORT?.trim() || "3001";
   if (!import.meta.env.DEV || typeof window === "undefined") {
-    return configuredBaseUrl || "http://localhost:3000/api";
+    return configuredBaseUrl || `http://localhost:${apiPort}/api`;
   }
 
-  const inferredBaseUrl = `${window.location.protocol}//${window.location.hostname}:3000/api`;
+  const inferredBaseUrl = `${window.location.protocol}//${window.location.hostname}:${apiPort}/api`;
   if (!configuredBaseUrl) {
     return inferredBaseUrl;
   }
@@ -26,7 +27,7 @@ function resolveApiBaseUrl(): string {
     }
     parsed.hostname = window.location.hostname;
     if (!parsed.port) {
-      parsed.port = "3000";
+      parsed.port = import.meta.env.VITE_API_PORT?.trim() || "3001";
     }
     return trimTrailingSlash(parsed.toString());
   } catch {

@@ -63,6 +63,7 @@ export default defineConfig({
     },
   },
   server: {
-    host: true, // 允许局域网访问（监听 0.0.0.0）
+    port: Number(process.env.VITE_DEV_PORT) || 5174,
+    host: true,
   },
 });
