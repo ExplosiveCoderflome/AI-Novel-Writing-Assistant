@@ -1,4 +1,5 @@
 const fs = require("node:fs");
+const { createRequire } = require("node:module");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
@@ -12,9 +13,18 @@ const nsisUtilPatched =
 const appFileCopierOriginal = 'const pmApproaches = [await packager.getPackageManager(), node_module_collector_1.PM.TRAVERSAL];';
 const appFileCopierPatched =
   'const pmApproaches = process.env.AI_NOVEL_EB_FORCE_TRAVERSAL === "true" ? [node_module_collector_1.PM.TRAVERSAL] : [await packager.getPackageManager(), node_module_collector_1.PM.TRAVERSAL];';
+const electronBuilderPackageJson = require.resolve("electron-builder/package.json", { paths: [desktopDir, repoRoot] });
+const electronBuilderRequire = createRequire(electronBuilderPackageJson);
 
 function resolveModule(request) {
-  return require.resolve(request, { paths: [desktopDir, repoRoot] });
+  try {
+    return require.resolve(request, { paths: [desktopDir, repoRoot] });
+  } catch (error) {
+    if (error && error.code === "MODULE_NOT_FOUND") {
+      return electronBuilderRequire.resolve(request);
+    }
+    throw error;
+  }
 }
 
 function patchFileInPlace(moduleRequest, originalSource, patchedSource, description) {
