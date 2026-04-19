@@ -18,8 +18,8 @@ function parseArgs(argv) {
     hosts: process.env.WAIT_FOR_PORT_HOSTS
       ? parseHosts(process.env.WAIT_FOR_PORT_HOSTS)
       : [...DEFAULT_HOSTS],
-    port: 3000,
-    timeoutMs: 120000,
+    port: Number(process.env.SERVER_PORT) || 3001,
+    timeoutMs: 300000,
     intervalMs: 500,
     help: false,
   };
@@ -61,7 +61,7 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-  console.log("Usage: node scripts/wait-for-port.cjs [--host 127.0.0.1,localhost,::1] [--port 3000] [--timeout 120000] [--interval 500]");
+  console.log("Usage: node scripts/wait-for-port.cjs [--host 127.0.0.1,localhost,::1] [--port 3001] [--timeout 300000] [--interval 500]");
 }
 
 function wait(ms) {
