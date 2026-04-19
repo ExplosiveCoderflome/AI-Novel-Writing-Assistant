@@ -2,7 +2,7 @@
   "name": "@ai-novel/server",
   "version": "0.1.0",
   "private": true,
-  "license": "MIT",
+  "license": "Apache-2.0",
   "prisma": {
     "seed": "ts-node-dev --transpile-only src/db/seed.ts"
   },
