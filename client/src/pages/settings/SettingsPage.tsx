@@ -21,6 +21,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import DesktopLegacyDataImportCard from "@/components/layout/DesktopLegacyDataImportCard";
+import DesktopUpdateCard from "@/components/layout/DesktopUpdateCard";
 
 const MODEL_BADGE_COLLAPSE_COUNT = 8;
 
@@ -309,6 +311,9 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-4">
+      <DesktopUpdateCard />
+      <DesktopLegacyDataImportCard forceVisible />
+
       <Card>
         <CardHeader>
           <CardTitle>Embedding Settings Moved</CardTitle>

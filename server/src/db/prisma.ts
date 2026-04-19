@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient } from "@prisma/client";
@@ -16,6 +17,7 @@ function resolveDatabaseUrl(databaseUrl?: string): string {
 
   const filePath = fallbackUrl.slice("file:".length) || "./dev.db";
   const resolvedFilePath = path.isAbsolute(filePath) ? filePath : resolveDatabaseFilePath(filePath);
+  fs.mkdirSync(path.dirname(resolvedFilePath), { recursive: true });
 
   return `file:${resolvedFilePath}`;
 }

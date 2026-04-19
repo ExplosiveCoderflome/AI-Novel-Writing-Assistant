@@ -6,6 +6,7 @@ import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
+import { ensureRuntimeDatabaseReady } from "./db/runtimeMigrations";
 import { errorHandler } from "./middleware/errorHandler";
 import { loadProviderApiKeys } from "./llm/factory";
 import astrologyRouter from "./routes/astrology";
@@ -235,6 +236,8 @@ function initializeBackgroundServices(): void {
 }
 
 export async function startServer(options?: ServerStartOptions): Promise<StartedServer> {
+  await ensureRuntimeDatabaseReady();
+
   const ragCompatibilityReport = await initializeRagSettingsCompatibility();
   if (
     ragCompatibilityReport.importedSettingKeys.length > 0

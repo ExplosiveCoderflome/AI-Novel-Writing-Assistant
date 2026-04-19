@@ -1,7 +1,7 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { ChatOpenAI } from "@langchain/openai";
-import { prisma } from "../db/prisma";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
+import { secretStore } from "../services/settings/secretStore";
 import { resolveModelTemperature } from "./capabilities";
 import { attachLLMDebugLogging } from "./debugLogging";
 import { resolveProviderReasoningBehavior } from "./reasoning";
@@ -116,9 +116,7 @@ function toProviderSecret(item: {
 
 export async function loadProviderApiKeys(): Promise<void> {
   try {
-    const keys = await prisma.aPIKey.findMany({
-      where: { isActive: true },
-    });
+    const keys = await secretStore.listProviders({ onlyActive: true });
     providerSecrets.clear();
     for (const item of keys) {
       providerSecrets.set(item.provider as LLMProvider, toProviderSecret(item));
@@ -145,9 +143,7 @@ async function resolveProviderSecret(provider: LLMProvider): Promise<ProviderSec
     return cached;
   }
   try {
-    const secret = await prisma.aPIKey.findUnique({
-      where: { provider },
-    });
+    const secret = await secretStore.getProvider(provider);
     if (!secret || !secret.isActive) {
       return undefined;
     }

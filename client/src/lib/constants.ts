@@ -5,6 +5,10 @@ interface ClientRuntimeConfig {
   mode?: AppRuntimeMode;
   apiBaseUrl?: string;
   apiTimeoutMs?: number | string;
+  isPackaged?: boolean;
+  appVersion?: string;
+  isPortable?: boolean;
+  updateChannel?: string;
 }
 
 function isLoopbackHost(hostname: string | null | undefined): boolean {
@@ -26,11 +30,19 @@ function resolveRuntimeConfig(): ClientRuntimeConfig {
 const runtimeConfig = resolveRuntimeConfig();
 
 export const APP_RUNTIME: AppRuntimeMode = runtimeConfig.mode === "desktop" ? "desktop" : "web";
+export const APP_RUNTIME_IS_PACKAGED = runtimeConfig.isPackaged === true;
+export const APP_VERSION = runtimeConfig.appVersion?.trim() || "0.0.0";
+export const APP_RUNTIME_IS_PORTABLE = runtimeConfig.isPortable === true;
+export const APP_UPDATE_CHANNEL = runtimeConfig.updateChannel?.trim() || "beta";
 
 function resolveApiBaseUrl(): string {
   const configuredBaseUrl = runtimeConfig.apiBaseUrl?.trim() || import.meta.env.VITE_API_BASE_URL?.trim();
   if (!import.meta.env.DEV || typeof window === "undefined") {
     return configuredBaseUrl || "http://localhost:3000/api";
+  }
+
+  if (APP_RUNTIME === "web" && !configuredBaseUrl) {
+    return "/api";
   }
 
   const inferredBaseUrl = `${window.location.protocol}//${window.location.hostname}:3000/api`;
