@@ -64,12 +64,18 @@ function ensurePatchedElectronBuilder() {
 function resolveShortNsisTemplateDir() {
   const installerTemplate = resolveModule("app-builder-lib/templates/nsis/installer.nsi");
   const templatesDir = path.dirname(installerTemplate);
+  const mirroredTemplatesRoot = path.join(desktopDir, "build", "electron-builder-templates");
+  const mirroredNsisTemplatesDir = path.join(mirroredTemplatesRoot, "nsis");
 
   if (!fs.existsSync(templatesDir)) {
     throw new Error(`NSIS template directory was not found at ${templatesDir}.`);
   }
 
-  return templatesDir;
+  fs.rmSync(mirroredNsisTemplatesDir, { recursive: true, force: true });
+  fs.mkdirSync(mirroredTemplatesRoot, { recursive: true });
+  fs.cpSync(templatesDir, mirroredNsisTemplatesDir, { recursive: true, force: true });
+
+  return mirroredNsisTemplatesDir;
 }
 
 function firstNonEmpty(...values) {
