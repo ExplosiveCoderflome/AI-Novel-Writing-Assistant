@@ -1,6 +1,11 @@
 import { NovelService } from "../../services/novel/NovelService";
 import { CharacterDynamicsService } from "../../services/novel/dynamics/CharacterDynamicsService";
 import type { EventBus } from "../EventBus";
+import type { VolumeUpdateReason } from "../types";
+
+function shouldRebuildCharacterDynamics(reason: VolumeUpdateReason): boolean {
+  return reason !== "chapter_execution_contract_refined";
+}
 
 export function registerNovelEventHandlers(eventBus: EventBus): void {
   eventBus.on("chapter:drafted", async (event) => {
@@ -17,6 +22,9 @@ export function registerNovelEventHandlers(eventBus: EventBus): void {
 
   eventBus.on("volume:updated", async (event) => {
     if (event.type !== "volume:updated") {
+      return;
+    }
+    if (!shouldRebuildCharacterDynamics(event.payload.reason)) {
       return;
     }
     const characterDynamicsService = new CharacterDynamicsService();

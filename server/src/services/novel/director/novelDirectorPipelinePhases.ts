@@ -549,7 +549,10 @@ export async function runDirectorStructuredOutlinePhase(input: {
         detailMode: targetDetailMode,
         draftWorkspace: workspace,
       });
-      workspace = await dependencies.volumeService.updateVolumes(novelId, workspace);
+      workspace = await dependencies.volumeService.updateVolumesWithOptions(novelId, workspace, {
+        volumeUpdateReason: "chapter_execution_contract_refined",
+        syncPayoffLedger: false,
+      });
       continue;
     }
 
@@ -579,21 +582,17 @@ export async function runDirectorStructuredOutlinePhase(input: {
     "正在同步已准备章节到执行区",
     DIRECTOR_PROGRESS.chapterSync,
   );
-  let persistedOutlineWorkspace = await dependencies.volumeService.updateVolumes(novelId, workspace);
-  await dependencies.volumeService.syncVolumeChapters(novelId, {
+  let persistedOutlineWorkspace = await dependencies.volumeService.updateVolumesWithOptions(novelId, workspace, {
+    volumeUpdateReason: "chapter_execution_contract_refined",
+    syncPayoffLedger: false,
+  });
+  await dependencies.volumeService.syncVolumeChaptersWithOptions(novelId, {
     volumes: persistedOutlineWorkspace.volumes,
     preserveContent: true,
     applyDeletes: false,
-  });
-  await callbacks.markDirectorTaskRunning(
-    taskId,
-    "structured_outline",
-    "chapter_sync",
-    "正在同步角色卷级职责与计划出场",
-    DIRECTOR_PROGRESS.chapterSync,
-  );
-  await dependencies.characterDynamicsService.rebuildDynamics(novelId, {
-    sourceType: "rebuild_projection",
+  }, {
+    emitEvent: false,
+    syncPayoffLedger: false,
   });
 
   const syncCursor = resolveStructuredOutlineRecoveryCursor({

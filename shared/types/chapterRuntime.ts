@@ -24,6 +24,8 @@ const antiAiRuleTypeSchema = z.enum(["forbidden", "risk", "encourage"]);
 const antiAiSeveritySchema = z.enum(["low", "medium", "high"]);
 const characterCandidateStatusSchema = z.enum(["pending", "confirmed", "merged", "rejected"]);
 const dynamicCharacterRiskLevelSchema = z.enum(["none", "info", "warn", "high"]);
+const auditModeSchema = z.enum(["light", "full", "repair_only"]);
+const contextBlockTierSchema = z.enum(["hard_required", "situational", "optional"]);
 
 export const chapterRuntimeRequestSchema = z.object({
   provider: llmProviderSchema.optional(),
@@ -403,6 +405,27 @@ export const promptBudgetProfileSchema = z.object({
   dropOrder: z.array(z.string()).default([]),
 });
 
+export const contextGatingDecisionSchema = z.object({
+  blockId: z.string(),
+  tier: contextBlockTierSchema,
+  included: z.boolean(),
+  reason: z.string().optional(),
+});
+
+export const chapterChangeFlagsSchema = z.object({
+  introducedPayoff: z.boolean().default(false),
+  payoffResolutionSignal: z.boolean().default(false),
+  relationshipShiftSignal: z.boolean().default(false),
+  majorStateShiftSignal: z.boolean().default(false),
+});
+
+export const tokenBudgetPolicySchema = z.object({
+  chapterBudgetProfile: z.string().default("balanced"),
+  stageTokenCap: z.record(z.string(), z.number().int().positive()).default({}),
+  retryCap: z.record(z.string(), z.number().int().nonnegative()).default({}),
+  auditMode: auditModeSchema.default("light"),
+});
+
 export const bookContractContextSchema = z.object({
   title: z.string(),
   genre: z.string(),
@@ -570,6 +593,9 @@ export const generationContextPackageSchema = z.object({
   chapterWriteContext: chapterWriteContextSchema.nullable().optional(),
   chapterReviewContext: chapterReviewContextSchema.nullable().optional(),
   chapterRepairContext: chapterRepairContextSchema.nullable().optional(),
+  contextGatingDecisions: z.array(contextGatingDecisionSchema).default([]),
+  chapterChangeFlags: chapterChangeFlagsSchema.optional(),
+  tokenBudgetPolicy: tokenBudgetPolicySchema.optional(),
   promptBudgetProfiles: z.array(promptBudgetProfileSchema).default([]),
 });
 
@@ -734,6 +760,11 @@ export type RuntimeDynamicCharacterOverviewItem = z.infer<typeof runtimeDynamicC
 export type RuntimeDynamicCharacterCurrentVolume = z.infer<typeof runtimeDynamicCharacterCurrentVolumeSchema>;
 export type RuntimeDynamicCharacterOverview = z.infer<typeof runtimeDynamicCharacterOverviewSchema>;
 export type PromptBudgetProfile = z.infer<typeof promptBudgetProfileSchema>;
+export type AuditMode = z.infer<typeof auditModeSchema>;
+export type ContextBlockTier = z.infer<typeof contextBlockTierSchema>;
+export type ContextGatingDecision = z.infer<typeof contextGatingDecisionSchema>;
+export type ChapterChangeFlags = z.infer<typeof chapterChangeFlagsSchema>;
+export type TokenBudgetPolicy = z.infer<typeof tokenBudgetPolicySchema>;
 export type BookContractContext = z.infer<typeof bookContractContextSchema>;
 export type MacroConstraintContext = z.infer<typeof macroConstraintContextSchema>;
 export type VolumeWindowContext = z.infer<typeof volumeWindowContextSchema>;

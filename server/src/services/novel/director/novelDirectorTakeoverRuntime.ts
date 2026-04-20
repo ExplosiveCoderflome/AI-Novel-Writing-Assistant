@@ -13,6 +13,7 @@ import { normalizeNovelOutput } from "../novelCoreShared";
 import { DIRECTOR_PROGRESS } from "./novelDirectorProgress";
 import { parseSeedPayload } from "../workflow/novelWorkflow.shared";
 import { resolveDirectorAutoExecutionRangeFromState } from "./novelDirectorAutoExecution";
+import { resolveStructuredOutlineRecoveryCursor } from "./novelDirectorStructuredOutlineRecovery";
 
 export interface DirectorTakeoverLoadedState {
   novel: DirectorTakeoverNovelContext;
@@ -26,6 +27,20 @@ export interface DirectorTakeoverLoadedState {
   latestCheckpoint: DirectorTakeoverCheckpointSnapshot | null;
   executableRange: DirectorTakeoverExecutableRangeSnapshot | null;
   latestAutoExecutionState: DirectorWorkflowSeedPayload["autoExecution"] | null;
+}
+
+interface TakeoverChapterRow {
+  id: string;
+  order: number;
+  generationState: string | null;
+  chapterStatus: string | null;
+  content: string | null;
+  targetWordCount: number | null;
+  conflictLevel: number | null;
+  revealLevel: number | null;
+  mustAvoid: string | null;
+  taskSheet: string | null;
+  sceneCards: string | null;
 }
 
 function hasPreparedOutlineChapterBoundary(
@@ -52,35 +67,54 @@ function hasPreparedOutlineChapterExecutionDetail(
     && Boolean(chapter.taskSheet?.trim());
 }
 
-function buildPreparedRangeFromWorkspace(
-  workspace: VolumePlanDocument | null,
-  chapterStates: Array<{ id: string; order: number; generationState: string | null }>,
+function hasSyncedExecutionChapterDetail(chapter: TakeoverChapterRow): boolean {
+  return Boolean(chapter.taskSheet?.trim())
+    && (
+      Boolean(chapter.sceneCards?.trim())
+      || typeof chapter.targetWordCount === "number"
+      || typeof chapter.conflictLevel === "number"
+      || typeof chapter.revealLevel === "number"
+      || Boolean(chapter.mustAvoid?.trim())
+    );
+}
+
+function buildPreparedRangeFromSyncedChapters(
+  chapterRows: TakeoverChapterRow[],
+  expectedOrders: number[],
 ): DirectorTakeoverExecutableRangeSnapshot | null {
-  const firstVolume = workspace?.volumes[0];
-  if (!firstVolume) {
+  const normalizedExpectedOrders = Array.from(
+    new Set(
+      expectedOrders
+        .filter((order) => Number.isFinite(order))
+        .map((order) => Math.max(1, Math.round(order))),
+    ),
+  ).sort((left, right) => left - right);
+  if (normalizedExpectedOrders.length === 0) {
     return null;
   }
 
-  const prepared = firstVolume.chapters
-    .filter((chapter) => hasPreparedOutlineChapterExecutionDetail(chapter))
-    .sort((left, right) => left.chapterOrder - right.chapterOrder)
-    .slice(0, 10);
-  if (prepared.length === 0) {
+  const preparedByOrder = new Map(
+    chapterRows
+      .filter((chapter) => hasSyncedExecutionChapterDetail(chapter))
+      .map((chapter) => [chapter.order, chapter] as const),
+  );
+  const prepared = normalizedExpectedOrders
+    .map((order) => preparedByOrder.get(order) ?? null)
+    .filter((chapter): chapter is TakeoverChapterRow => Boolean(chapter));
+  if (prepared.length !== normalizedExpectedOrders.length) {
     return null;
   }
 
-  const chapterStateMap = new Map(chapterStates.map((chapter) => [chapter.id, chapter]));
   const nextPending = prepared.find((chapter) => {
-    const state = chapterStateMap.get(chapter.id)?.generationState ?? null;
-    return state !== "approved" && state !== "published";
+    return chapter.generationState !== "approved" && chapter.generationState !== "published";
   }) ?? null;
 
   return {
-    startOrder: prepared[0].chapterOrder,
-    endOrder: prepared[prepared.length - 1].chapterOrder,
+    startOrder: prepared[0].order,
+    endOrder: prepared[prepared.length - 1].order,
     totalChapterCount: prepared.length,
     nextChapterId: nextPending?.id ?? null,
-    nextChapterOrder: nextPending?.chapterOrder ?? null,
+    nextChapterOrder: nextPending?.order ?? null,
   };
 }
 
@@ -193,6 +227,12 @@ export async function loadDirectorTakeoverState(input: {
         generationState: true,
         chapterStatus: true,
         content: true,
+        targetWordCount: true,
+        conflictLevel: true,
+        revealLevel: true,
+        mustAvoid: true,
+        taskSheet: true,
+        sceneCards: true,
       },
     }),
     prisma.generationJob.findFirst({
@@ -236,6 +276,12 @@ export async function loadDirectorTakeoverState(input: {
     return chapter.generationState !== "approved" && chapter.generationState !== "published";
   }).length;
   const latestSeedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(latestTask?.seedPayloadJson) ?? null;
+  const structuredOutlineCursor = workspace
+    ? resolveStructuredOutlineRecoveryCursor({
+        workspace,
+        plan: latestSeedPayload?.autoExecutionPlan ?? latestSeedPayload?.autoExecution ?? null,
+      })
+    : null;
   const chapterOrderMap = new Map(chapterRows.map((chapter) => [chapter.id, chapter.order]));
   const activePipelineSnapshot = activePipelineJob
     ? {
@@ -255,6 +301,13 @@ export async function loadDirectorTakeoverState(input: {
   });
 
   const executableRangeFromState = resolveDirectorAutoExecutionRangeFromState(latestSeedPayload?.autoExecution);
+  const executableRangeFromSyncedChapters = structuredOutlineCursor
+    && (structuredOutlineCursor.step === "chapter_sync" || structuredOutlineCursor.step === "completed")
+    ? buildPreparedRangeFromSyncedChapters(
+        chapterRows as TakeoverChapterRow[],
+        structuredOutlineCursor.selectedChapters.map((chapter) => chapter.chapterOrder),
+      )
+    : null;
   const executableRange = executableRangeFromState
     ? {
         startOrder: executableRangeFromState.startOrder,
@@ -263,7 +316,7 @@ export async function loadDirectorTakeoverState(input: {
         nextChapterId: latestSeedPayload?.autoExecution?.nextChapterId ?? null,
         nextChapterOrder: latestSeedPayload?.autoExecution?.nextChapterOrder ?? null,
       }
-    : buildPreparedRangeFromWorkspace(workspace, chapterRows);
+    : executableRangeFromSyncedChapters;
 
   return {
     novel,
@@ -276,6 +329,7 @@ export async function loadDirectorTakeoverState(input: {
       firstVolumeId: assets.firstVolumeId,
       firstVolumeBeatSheetReady,
       firstVolumePreparedChapterCount,
+      structuredOutlineRecoveryStep: structuredOutlineCursor?.step ?? null,
       generatedChapterCount,
       approvedChapterCount,
       pendingRepairChapterCount,

@@ -54,11 +54,18 @@ function buildPromptInvocationMeta(
   repairAttempts: number,
   semanticRetryUsed: boolean,
   semanticRetryAttempts: number,
+  options?: PromptExecutionOptions,
 ): PromptInvocationMeta {
   return {
     promptId: asset.id,
     promptVersion: asset.version,
     taskType: asset.taskType,
+    novelId: options?.novelId,
+    chapterId: options?.chapterId,
+    stage: options?.stage,
+    sceneIndex: options?.sceneIndex,
+    roundIndex: options?.roundIndex,
+    triggerReason: options?.triggerReason,
     contextBlockIds: context.selectedBlockIds,
     droppedContextBlockIds: context.droppedBlockIds,
     summarizedContextBlockIds: context.summarizedBlockIds,
@@ -145,6 +152,7 @@ export function preparePromptExecution<I, O, R = O>(input: {
   asset: PromptAsset<I, O, R>;
   promptInput: I;
   contextBlocks?: Parameters<typeof selectContextBlocks>[0];
+  options?: PromptExecutionOptions;
 }): {
   messages: ReturnType<PromptAsset<I, O, R>["render"]>;
   context: PromptRenderContext;
@@ -168,6 +176,7 @@ export function preparePromptExecution<I, O, R = O>(input: {
       0,
       false,
       0,
+      input.options,
     ),
   };
 }
@@ -184,6 +193,12 @@ function logPromptCompletion(input: {
       `promptId=${input.meta.promptId}`,
       `promptVersion=${input.meta.promptVersion}`,
       `taskType=${input.meta.taskType}`,
+      input.meta.novelId ? `novelId=${input.meta.novelId}` : "",
+      input.meta.chapterId ? `chapterId=${input.meta.chapterId}` : "",
+      input.meta.stage ? `stage=${input.meta.stage}` : "",
+      typeof input.meta.sceneIndex === "number" ? `sceneIndex=${input.meta.sceneIndex}` : "",
+      typeof input.meta.roundIndex === "number" ? `roundIndex=${input.meta.roundIndex}` : "",
+      input.meta.triggerReason ? `triggerReason=${JSON.stringify(input.meta.triggerReason)}` : "",
       `contextBlockIds=${input.meta.contextBlockIds.join(",") || "none"}`,
       `droppedContextBlockIds=${input.meta.droppedContextBlockIds.join(",") || "none"}`,
       `summarizedContextBlockIds=${input.meta.summarizedContextBlockIds.join(",") || "none"}`,
@@ -333,6 +348,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
           totalRepairAttempts,
           semanticRetryAttempts > 0,
           semanticRetryAttempts,
+          input.options,
         ),
       };
     } catch (error) {
@@ -362,6 +378,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
               totalRepairAttempts,
               semanticRetryAttempts > 0,
               semanticRetryAttempts,
+              input.options,
             ),
           };
         }
@@ -404,6 +421,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
           totalRepairAttempts,
           true,
           semanticRetryAttempts,
+          input.options,
         ),
       });
       logPromptEvent({
@@ -510,6 +528,7 @@ export async function runTextPrompt<I>(input: {
       0,
       false,
       0,
+      input.options,
     ),
   });
 }
@@ -557,6 +576,7 @@ export async function streamTextPrompt<I>(input: {
         0,
         false,
         0,
+        input.options,
       ),
     })),
     context: prepared.context,

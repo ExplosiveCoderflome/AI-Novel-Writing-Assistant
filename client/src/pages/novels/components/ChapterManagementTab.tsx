@@ -198,6 +198,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
               onAbortStream={onAbortStream}
               onRunFullAudit={onRunFullAudit}
               isRunningFullAudit={isRunningFullAudit}
+              onAutoRepair={onAutoRepair}
               repairStreamContent={repairStreamContent}
               isRepairStreaming={isRepairStreaming}
               repairStreamingChapterId={repairStreamingChapterId}

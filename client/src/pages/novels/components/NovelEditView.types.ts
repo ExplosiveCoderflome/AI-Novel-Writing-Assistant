@@ -473,7 +473,7 @@ export interface CharacterTabViewProps {
 }
 
 export interface NovelEditTakeoverState {
-  mode: "loading" | "running" | "waiting" | "failed";
+  mode: "loading" | "running" | "waiting" | "action_required" | "failed";
   title: string;
   description: string;
   progress?: number | null;

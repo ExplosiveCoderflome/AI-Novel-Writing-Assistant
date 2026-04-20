@@ -36,6 +36,7 @@ export interface DirectorTakeoverAssetSnapshot {
   firstVolumeChapterCount: number;
   firstVolumeBeatSheetReady?: boolean;
   firstVolumePreparedChapterCount?: number;
+  structuredOutlineRecoveryStep?: "beat_sheet" | "chapter_list" | "chapter_detail_bundle" | "chapter_sync" | "completed" | null;
   generatedChapterCount?: number;
   approvedChapterCount?: number;
   pendingRepairChapterCount?: number;
@@ -279,7 +280,11 @@ function isOutlineReady(snapshot: DirectorTakeoverAssetSnapshot): boolean {
 }
 
 function isStructuredReady(snapshot: DirectorTakeoverAssetSnapshot): boolean {
-  return Boolean(snapshot.firstVolumeBeatSheetReady) && (snapshot.firstVolumePreparedChapterCount ?? 0) > 0;
+  return snapshot.structuredOutlineRecoveryStep === "completed";
+}
+
+function isStructuredSyncPending(snapshot: DirectorTakeoverAssetSnapshot): boolean {
+  return snapshot.structuredOutlineRecoveryStep === "chapter_sync";
 }
 
 function hasAnyStructuredAsset(snapshot: DirectorTakeoverAssetSnapshot): boolean {
@@ -386,13 +391,13 @@ function resolveContinueTargetStep(input: {
   const storyReady = isStoryMacroReady(input.snapshot);
   const characterReady = isCharacterReady(input.snapshot);
   const outlineReady = isOutlineReady(input.snapshot);
-  const structuredReady = isStructuredReady(input.snapshot);
+  const structuredExecutionReady = hasExecutableRange(input);
 
   if (input.entryStep === "basic") {
     if (!storyReady) return "story_macro";
     if (!characterReady) return "character";
     if (!outlineReady) return "outline";
-    if (!structuredReady) return "structured";
+    if (!structuredExecutionReady) return "structured";
     return resolveExecutionContinuationStep({
       ...input,
       preferPipeline: false,
@@ -411,7 +416,7 @@ function resolveContinueTargetStep(input: {
     return resolveContinueTargetStep({ ...input, entryStep: "structured" });
   }
   if (input.entryStep === "structured") {
-    if (!structuredReady) return "structured";
+    if (!structuredExecutionReady) return "structured";
     return resolveExecutionContinuationStep({
       ...input,
       preferPipeline: false,
@@ -421,12 +426,12 @@ function resolveContinueTargetStep(input: {
     return resolveExecutionContinuationStep({
       ...input,
       preferPipeline: false,
-    }) ?? (structuredReady ? "chapter" : "structured");
+    }) ?? "structured";
   }
   return resolveExecutionContinuationStep({
     ...input,
     preferPipeline: true,
-  }) ?? (structuredReady ? "chapter" : "structured");
+  }) ?? "structured";
 }
 
 function buildPhasePlan(input: {
@@ -492,7 +497,6 @@ export function resolveDirectorTakeoverPlan(input: DirectorTakeoverDecisionInput
   const storyReady = isStoryMacroReady(input.snapshot);
   const characterReady = isCharacterReady(input.snapshot);
   const outlineReady = isOutlineReady(input.snapshot);
-  const structuredReady = isStructuredReady(input.snapshot);
   const executable = hasExecutableRange(input);
   const pendingRepair = hasPendingRepairContext(input);
 
@@ -534,11 +538,11 @@ export function resolveDirectorTakeoverPlan(input: DirectorTakeoverDecisionInput
         strategy: input.strategy,
         effectiveStep,
         summary: "继续已有进度，接着补节奏 / 拆章。",
-        effectSummary: "会复用已完成的卷战略，只补当前卷节奏板、章节列表和章节细化资源。",
+        effectSummary: "会复用已完成的卷战略，只补当前卷节奏板、章节列表、章节细化或同步步骤。",
         impactNotes: ["保留已有正文，不会批量删章节。"],
       });
     }
-    if (!structuredReady && !executable) {
+    if (!executable) {
       throw new Error("当前还没有可继续的章节执行范围，请先补齐节奏 / 拆章资源。");
     }
     if (effectiveStep === "pipeline") {
@@ -614,7 +618,7 @@ export function resolveDirectorTakeoverPlan(input: DirectorTakeoverDecisionInput
       impactNotes: ["会清空当前卷尚未开写的拆章产物。", "不会删除已写正文。"],
     });
   }
-  if (!structuredReady && !executable) {
+  if (!executable) {
     throw new Error("当前还没有可执行的章节范围，不能直接新开章节批次。");
   }
   if (input.entryStep === "pipeline" && !pendingRepair && !executable) {
@@ -793,17 +797,25 @@ function buildEntryStepStatus(input: {
   }
   if (input.step === "structured") {
     if (!isStoryMacroReady(snapshot) || !isCharacterReady(snapshot) || !isOutlineReady(snapshot)) return "blocked";
-    if (isStructuredReady(snapshot)) return "complete";
+    if (hasExecutableRange(input)) return "complete";
+    if (isStructuredSyncPending(snapshot)) return "partial";
+    if (isStructuredReady(snapshot)) return "partial";
     if (hasAnyStructuredAsset(snapshot)) return "partial";
     return "missing";
   }
   if (input.step === "chapter") {
-    if (!isStructuredReady(snapshot) && !hasExecutableRange(input)) return "blocked";
+    if (!hasExecutableRange(input)) return "blocked";
     if (input.activePipelineJob) return "partial";
     if (hasExecutableRange(input)) return "ready";
     return "missing";
   }
-  if (!isStructuredReady(snapshot) && !hasExecutableRange(input)) return "blocked";
+  if (
+    !hasExecutableRange(input)
+    && !hasPendingRepairContext(input)
+    && (snapshot.approvedChapterCount ?? 0) <= 0
+  ) {
+    return "blocked";
+  }
   if (input.activePipelineJob || hasPendingRepairContext(input)) return "ready";
   if ((snapshot.approvedChapterCount ?? 0) > 0) return "complete";
   return "missing";
@@ -842,11 +854,20 @@ function buildEntryReason(input: {
   if (input.step === "structured") {
     return input.status === "blocked"
       ? "需要先具备卷战略，才能直接从节奏 / 拆章接管。"
-      : input.status === "complete"
-        ? "当前卷节奏板和章节细化已具备，继续模式会直接转入章节执行准备。"
-        : "当前可以从节奏 / 拆章继续。";
+      : hasExecutableRange(input)
+        ? "当前卷节奏板、章节细化和执行区资源已具备，继续模式会直接转入章节执行。"
+        : input.snapshot.structuredOutlineRecoveryStep === "chapter_sync"
+          ? "当前卷节奏板和章节细化已具备，但还没同步到章节执行区，继续模式会先完成同步。"
+          : input.snapshot.structuredOutlineRecoveryStep === "chapter_detail_bundle"
+            ? "当前卷已有部分章节细化资源，继续模式会从未完成的章节细化继续。"
+            : input.snapshot.firstVolumeBeatSheetReady
+              ? "当前卷已有节奏板或章节列表基础，继续模式会补齐剩余拆章步骤。"
+              : "当前可以从节奏 / 拆章继续。";
   }
   if (input.step === "chapter") {
+    if (!hasExecutableRange(input)) {
+      return "需要先完成节奏 / 拆章同步，把章节资源写入执行区后，才能从章节执行接管。";
+    }
     if (input.activePipelineJob) {
       return "检测到活动中的章节批次，继续模式会优先恢复当前批次。";
     }

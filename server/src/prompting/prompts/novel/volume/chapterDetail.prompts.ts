@@ -3,6 +3,7 @@ import type { PromptAsset } from "../../../core/promptTypes";
 import { renderSelectedContextBlocks } from "../../../core/renderContextBlocks";
 import {
   createChapterBoundarySchema,
+  createChapterExecutionContractSchema,
   createChapterPurposeSchema,
   createChapterTaskSheetSchema,
 } from "../../../../services/novel/volume/volumeGenerationSchemas";
@@ -278,6 +279,32 @@ function createVolumeDetailSystemPrompt(detailMode: VolumeChapterDetailPromptInp
   ].join("\n");
 }
 
+function createExecutionContractSystemPromptGarbledBackup(): string {
+  return [
+    "浣犳槸璧勬繁缃戞枃绔犺妭缂栬緫銆?",
+    "褰撳墠浠诲姟鏄竴娆℃€х敓鎴愬彲鐩存帴浜ょ粰鍐欎綔鍣ㄧ殑绔犺妭鎵ц鍚堝悓銆?",
+    "鍙緭鍑轰弗鏍?JSON锛屽繀椤诲悓鏃跺寘鍚?purpose銆乪xclusiveEvent銆乪ndingState銆乶extChapterEntryState銆乧onflictLevel銆乺evealLevel銆乼argetWordCount銆乵ustAvoid銆乸ayoffRefs銆乼askSheet銆乻ceneCards銆?",
+    "purpose 鐢ㄤ竴鍙ヨ瘽璇存槑鏈珷鍒板簳瑕佹帹杩涗粈涔堬紝涓嶈鍐欐垚鎽樿澶嶈堪銆?",
+    "exclusiveEvent / endingState / nextChapterEntryState 绛夊瓧娈典笉鍙己澶憋紝瀹冧滑鏄珷鑺傜殑纭竟鐣屽悎鍚屻€?",
+    "taskSheet 鏄粰姝ｆ枃鍐欎綔鍣ㄧ殑绠€娲佹墽琛屾寚浠わ紝sceneCards 鏄?3-8 涓満鏅崱鐨勬墽琛屾媶瑙ｃ€?",
+    "taskSheet 鍜?sceneCards 鍙兘鎵ц褰撳墠绔犵殑鍚堝悓锛屼笉寰楁彁鍓嶅崰鐢ㄧ浉閭荤珷鐨勪竴娆℃€т簨浠讹紝涔熶笉寰楅噸鍐欎笂涓€绔犲凡缁忓畬鎴愮殑閲岀▼纰戙€?",
+    "濡傛灉鏈€杩戠珷鑺傚凡缁忚繛缁娇鐢ㄧ浉鍚屽紑鍦恒€佺浉鍚屾帹杩涜矾鏁版垨鍚岀被閽╁瓙锛屾湰绔犲繀椤婚€氳繃 sceneCards 涓诲姩鍋氬嚭宸紓鍖栥€?",
+  ].join("\n");
+}
+
+function createExecutionContractSystemPrompt(): string {
+  return [
+    "你是资深网文章节编辑。",
+    "当前任务是一次性生成可直接交给写作器的章节执行合同。",
+    "只输出严格 JSON，必须同时包含 purpose、exclusiveEvent、endingState、nextChapterEntryState、conflictLevel、revealLevel、targetWordCount、mustAvoid、payoffRefs、taskSheet、sceneCards。",
+    "purpose 用一句话说明本章到底要推进什么，不要写成摘要复述。",
+    "exclusiveEvent / endingState / nextChapterEntryState 等字段不可缺失，它们是章节的硬边界合同。",
+    "taskSheet 是给正文写作器的简洁执行指令，sceneCards 是 3-8 个场景卡的执行拆解。",
+    "taskSheet 和 sceneCards 只能执行当前章的合同，不得提前占用相邻章的一次性事件，也不得重写上一章已经完成的里程碑。",
+    "如果最近章节已经连续使用相同开场、相同推进路数或同类钩子，本章必须通过 sceneCards 主动做出差异化。",
+  ].join("\n");
+}
+
 function buildChapterDetailPrompt(contextText: string, detailMode: VolumeChapterDetailPromptInput["detailMode"]): string {
   return [
     `detail mode: ${detailMode}`,
@@ -351,6 +378,31 @@ export const volumeChapterTaskSheetPrompt: PromptAsset<
     new HumanMessage(buildChapterDetailPrompt(renderSelectedContextBlocks(context), input.detailMode)),
   ],
   postValidate: (output, input) => validateAdjacentChapterBoundary(output, input),
+};
+
+export const volumeChapterExecutionContractPrompt: PromptAsset<
+  VolumeChapterDetailPromptInput,
+  ReturnType<typeof createChapterExecutionContractSchema>["_output"]
+> = {
+  id: "novel.volume.chapter_execution_contract",
+  version: "v1",
+  taskType: "planner",
+  mode: "structured",
+  language: "zh",
+  contextPolicy: baseContextPolicy,
+  semanticRetryPolicy: {
+    maxAttempts: 2,
+  },
+  outputSchema: createChapterExecutionContractSchema(),
+  render: (input, context) => [
+    new SystemMessage(createExecutionContractSystemPrompt()),
+    new HumanMessage(buildChapterDetailPrompt(renderSelectedContextBlocks(context), input.detailMode)),
+  ],
+  postValidate: (output, input) => {
+    validateBoundaryContract(output, input);
+    validateAdjacentChapterBoundary(output, input);
+    return output;
+  },
 };
 
 export { buildVolumeChapterDetailContextBlocks };

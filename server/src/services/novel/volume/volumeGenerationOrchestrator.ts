@@ -508,6 +508,10 @@ async function generateChapterDetail(params: {
         provider: options.provider,
         model: options.model,
         temperature: options.temperature ?? 0.35,
+        novelId: document.novelId,
+        chapterId: targetChapter.id,
+        stage: "chapter_detail_purpose",
+        triggerReason: "chapter_detail_generation",
       },
     })
     : detailMode === "boundary"
@@ -519,6 +523,10 @@ async function generateChapterDetail(params: {
           provider: options.provider,
           model: options.model,
           temperature: options.temperature ?? 0.35,
+          novelId: document.novelId,
+          chapterId: targetChapter.id,
+          stage: "chapter_detail_boundary",
+          triggerReason: "chapter_detail_generation",
         },
       })
       : {

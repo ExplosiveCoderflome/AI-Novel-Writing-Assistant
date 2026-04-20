@@ -18,6 +18,7 @@ export const NOVEL_PROMPT_BUDGETS = {
   chapterEditorWorkspaceDiagnosis: 1400,
   chapterEditorUserIntent: 900,
   chapterEditorRewrite: 1400,
+  chapterLightAudit: 900,
   chapterReview: 2600,
   chapterRepair: 1600,
   chapterSummary: 1000,
@@ -41,6 +42,21 @@ export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
       "style_constraints",
       "continuation_constraints",
       "opening_constraints",
+    ],
+  },
+  {
+    promptId: "audit.chapter.light",
+    maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterLightAudit,
+    preferredGroups: [
+      "chapter_mission",
+      "structure_obligations",
+      "local_state",
+    ],
+    dropOrder: [
+      "recent_chapters",
+      "participant_subset",
+      "historical_issues",
+      "world_rules",
     ],
   },
   {

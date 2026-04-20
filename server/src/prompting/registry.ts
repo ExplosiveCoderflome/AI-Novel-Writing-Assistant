@@ -42,6 +42,10 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/audit/audit.prompts").auditChapterPrompt as UnknownPromptAsset,
   },
   {
+    key: "audit.chapter.light@v1",
+    load: () => require("./prompts/audit/audit.prompts").auditChapterLightPrompt as UnknownPromptAsset,
+  },
+  {
     key: "bookAnalysis.source.note@v1",
     load: () => require("./prompts/bookAnalysis/bookAnalysis.prompts").bookAnalysisSourceNotePrompt as UnknownPromptAsset,
   },
@@ -164,6 +168,10 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
   {
     key: "novel.volume.chapter_task_sheet@v2",
     load: () => require("./prompts/novel/volume/chapterDetail.prompts").volumeChapterTaskSheetPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.volume.chapter_execution_contract@v1",
+    load: () => require("./prompts/novel/volume/chapterDetail.prompts").volumeChapterExecutionContractPrompt as UnknownPromptAsset,
   },
   {
     key: "novel.volume.rebalance.adjacent@v1",

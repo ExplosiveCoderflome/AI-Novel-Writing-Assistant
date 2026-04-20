@@ -423,7 +423,7 @@ export class NovelWorkflowService {
       currentItemLabel: buildChapterDetailBundleLabel(
         (recoveryCursor.nextChapterIndex ?? 0) + 1,
         recoveryCursor.totalChapterCount,
-        recoveryCursor.detailMode ?? "purpose",
+        recoveryCursor.detailMode ?? "task_sheet",
       ),
       progress: buildChapterDetailBundleProgress(
         recoveryCursor.completedDetailSteps,

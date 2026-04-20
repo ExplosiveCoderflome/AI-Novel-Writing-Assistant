@@ -291,6 +291,10 @@ export class ChapterWritingGraph {
         provider: input.options.provider,
         model: input.options.model,
         temperature: input.options.temperature ?? 0.8,
+        novelId: input.novelId,
+        chapterId: input.chapter.id,
+        stage: "writer_extend",
+        triggerReason: "length_recovery",
       },
     });
     const appended = completion.output.trim();
@@ -352,6 +356,7 @@ export class ChapterWritingGraph {
   }
 
   private createSceneChapterStream(input: {
+    novelId: string;
     novelTitle: string;
     chapter: ChapterRef;
     contextPackage: GenerationContextPackage;
@@ -371,6 +376,7 @@ export class ChapterWritingGraph {
             const scene = input.scenePlan.scenes[index]!;
             const beforeLength = countChapterCharacters(joinSceneContents(sceneContents));
             const sceneStream = createChapterSceneStream({
+              novelId: input.novelId,
               novelTitle: input.novelTitle,
               chapter: input.chapter,
               contextPackage: input.contextPackage,
@@ -470,6 +476,10 @@ export class ChapterWritingGraph {
         model: input.options.model,
         temperature: input.options.temperature ?? 0.8,
         maxTokens: undefined,
+        novelId: input.novelId,
+        chapterId: input.chapter.id,
+        stage: "writer_draft",
+        triggerReason: "chapter_initial_draft",
       },
     });
 
