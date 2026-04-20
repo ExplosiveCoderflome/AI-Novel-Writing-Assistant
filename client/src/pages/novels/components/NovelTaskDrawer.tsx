@@ -43,7 +43,8 @@ function toStatusVariant(status: TaskStatus): "default" | "outline" | "secondary
   return "outline";
 }
 
-function formatCheckpoint(checkpoint: NovelWorkflowCheckpoint | null | undefined): string {
+function formatCheckpoint(checkpoint: NovelWorkflowCheckpoint | null | undefined, scopeLabel?: string | null): string {
+  const resolvedScopeLabel = scopeLabel?.trim() || "前 10 章";
   if (checkpoint === "candidate_selection_required") {
     return "等待确认书级方向";
   }
@@ -57,10 +58,10 @@ function formatCheckpoint(checkpoint: NovelWorkflowCheckpoint | null | undefined
     return "卷战略 / 卷骨架待审核";
   }
   if (checkpoint === "front10_ready") {
-    return "前 10 章可开写";
+    return `${resolvedScopeLabel}可开写`;
   }
   if (checkpoint === "chapter_batch_ready") {
-    return "章节资源已就绪";
+    return `${resolvedScopeLabel}自动执行已暂停`;
   }
   if (checkpoint === "workflow_completed") {
     return "主流程完成";
@@ -143,7 +144,7 @@ export default function NovelTaskDrawer({
                   </div>
                   <div className="rounded-xl border bg-background/80 p-3">
                     <div className="text-xs text-muted-foreground">最近检查点</div>
-                    <div className="mt-1 text-sm font-medium text-foreground">{formatCheckpoint(task.checkpointType)}</div>
+                    <div className="mt-1 text-sm font-medium text-foreground">{formatCheckpoint(task.checkpointType, task.executionScopeLabel)}</div>
                   </div>
                   <div className="rounded-xl border bg-background/80 p-3">
                     <div className="text-xs text-muted-foreground">最近心跳</div>

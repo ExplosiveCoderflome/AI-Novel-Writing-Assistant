@@ -86,13 +86,16 @@ export function resolveChapterTitleWarning(task: StructuredOutlineTaskLike | nul
   if (!task) {
     return null;
   }
+  const seedResumeTarget = task.meta && typeof task.meta === "object"
+    ? (task.meta as { seedPayload?: { resumeTarget?: { volumeId?: string | null } | null } | null }).seedPayload?.resumeTarget
+    : null;
   const taskNotice = parseDirectorTaskNotice(task.meta);
   if (taskNotice && isChapterTitleDiversitySummary(taskNotice.summary)) {
     return {
       summary: taskNotice.summary,
       route: buildTaskNoticeRoute(task, taskNotice),
       label: taskNotice.action?.label ?? "快速修复章节标题",
-      volumeId: taskNotice.action?.volumeId ?? task.resumeTarget?.volumeId ?? null,
+      volumeId: taskNotice.action?.volumeId ?? task.resumeTarget?.volumeId ?? seedResumeTarget?.volumeId ?? null,
     };
   }
   if (!isChapterTitleDiversitySummary(task.failureSummary)) {
@@ -100,8 +103,8 @@ export function resolveChapterTitleWarning(task: StructuredOutlineTaskLike | nul
   }
   return {
     summary: task.failureSummary?.trim() ?? "",
-    route: buildStructuredOutlineRoute(task, task.resumeTarget?.volumeId ?? null),
+    route: buildStructuredOutlineRoute(task, task.resumeTarget?.volumeId ?? seedResumeTarget?.volumeId ?? null),
     label: "快速修复章节标题",
-    volumeId: task.resumeTarget?.volumeId ?? null,
+    volumeId: task.resumeTarget?.volumeId ?? seedResumeTarget?.volumeId ?? null,
   };
 }

@@ -6,6 +6,8 @@ import type {
   VolumePlan,
 } from "@ai-novel/shared/types/novel";
 export {
+  hasPayoffLedgerRelevantPlanChanges,
+  hasPayoffLedgerSourceSignals,
   buildTaskSheetFromVolumeChapter,
   buildVolumeDiff,
   buildVolumeDiffSummary,
@@ -40,9 +42,13 @@ const volumeChapterInputSchema = z.object({
   id: z.string().trim().min(1).optional(),
   chapterOrder: z.number().int().min(1).optional(),
   order: z.number().int().min(1).optional(),
+  beatKey: z.string().trim().nullable().optional(),
   title: z.string().trim().min(1),
   summary: z.string().trim().min(1),
   purpose: z.string().trim().nullable().optional(),
+  exclusiveEvent: z.string().trim().nullable().optional(),
+  endingState: z.string().trim().nullable().optional(),
+  nextChapterEntryState: z.string().trim().nullable().optional(),
   conflictLevel: z.number().int().min(0).max(100).nullable().optional(),
   revealLevel: z.number().int().min(0).max(100).nullable().optional(),
   targetWordCount: z.number().int().min(200).max(20000).nullable().optional(),
@@ -93,9 +99,13 @@ export const volumeGenerationSchema = z.object({
       chapters: z.array(
         z.object({
           chapterOrder: z.number().int().min(1),
+          beatKey: z.string().trim().nullable().optional(),
           title: z.string().trim().min(1),
           summary: z.string().trim().min(1),
           purpose: z.string().trim().optional().nullable(),
+          exclusiveEvent: z.string().trim().optional().nullable(),
+          endingState: z.string().trim().optional().nullable(),
+          nextChapterEntryState: z.string().trim().optional().nullable(),
           conflictLevel: z.number().int().min(0).max(100).optional().nullable(),
           revealLevel: z.number().int().min(0).max(100).optional().nullable(),
           targetWordCount: z.number().int().min(200).max(20000).optional().nullable(),
@@ -202,9 +212,13 @@ function sanitizeVolumeChapter(
     id: chapter.id?.trim() || createLocalId(`${novelId}-chapter`),
     volumeId,
     chapterOrder: chapter.chapterOrder ?? chapter.order ?? index + 1,
+    beatKey: normalizeText(chapter.beatKey),
     title: chapter.title.trim(),
     summary: chapter.summary.trim(),
     purpose: normalizeText(chapter.purpose),
+    exclusiveEvent: normalizeText(chapter.exclusiveEvent),
+    endingState: normalizeText(chapter.endingState),
+    nextChapterEntryState: normalizeText(chapter.nextChapterEntryState),
     conflictLevel: normalizeNullableNumber(chapter.conflictLevel),
     revealLevel: normalizeNullableNumber(chapter.revealLevel),
     targetWordCount: normalizeNullableNumber(chapter.targetWordCount),
@@ -273,7 +287,11 @@ function normalizeLegacyChapter(raw: unknown, index: number): VolumeChapterPlan 
   const chapterOrder = parsePositiveInteger(raw.chapterOrder ?? raw.order ?? raw.chapter ?? raw.chapterNo ?? raw.index) ?? index + 1;
   const title = pickFirstString(raw, ["title", "chapterTitle", "name", "chapterName"]) ?? `第${chapterOrder}章`;
   const summary = pickFirstString(raw, ["summary", "outline", "description", "content"]) ?? "";
+  const beatKey = pickFirstString(raw, ["beatKey", "beat_key"]);
   const purpose = pickFirstString(raw, ["purpose", "goal", "chapterGoal"]);
+  const exclusiveEvent = pickFirstString(raw, ["exclusiveEvent", "exclusive_event", "chapterExclusiveEvent", "独占事件"]);
+  const endingState = pickFirstString(raw, ["endingState", "ending_state", "chapterEndingState", "章末状态"]);
+  const nextChapterEntryState = pickFirstString(raw, ["nextChapterEntryState", "next_chapter_entry_state", "nextEntryState", "下章起始状态"]);
   const mustAvoid = pickFirstString(raw, ["mustAvoid", "must_avoid", "forbidden"]);
   const taskSheet = pickFirstString(raw, ["taskSheet", "task_sheet"]);
   const sceneCards = pickFirstString(raw, ["sceneCards", "scene_cards"]);
@@ -284,9 +302,13 @@ function normalizeLegacyChapter(raw: unknown, index: number): VolumeChapterPlan 
     id: createLocalId("legacy-chapter"),
     volumeId: "",
     chapterOrder,
+    beatKey,
     title,
     summary,
     purpose,
+    exclusiveEvent,
+    endingState,
+    nextChapterEntryState,
     conflictLevel: parseScore(raw.conflictLevel ?? raw.conflict_level),
     revealLevel: parseScore(raw.revealLevel ?? raw.reveal_level),
     targetWordCount: parsePositiveInteger(raw.targetWordCount ?? raw.target_word_count ?? raw.wordCount),
@@ -467,9 +489,13 @@ function buildFallbackVolumeSkeleton(source: LegacyVolumeSource): VolumePlan[] {
         id: createLocalId("legacy-chapter"),
         volumeId,
         chapterOrder: chapter.order,
+        beatKey: null,
         title: chapter.title,
         summary: chapter.expectation?.trim() || "",
         purpose: chapter.expectation?.trim() || null,
+        exclusiveEvent: null,
+        endingState: null,
+        nextChapterEntryState: null,
         conflictLevel: chapter.conflictLevel ?? null,
         revealLevel: chapter.revealLevel ?? null,
         targetWordCount: chapter.targetWordCount ?? null,
@@ -583,9 +609,13 @@ export function buildDerivedStructuredOutlineFromVolumes(volumes: VolumePlan[]):
           .sort((a, b) => a.chapterOrder - b.chapterOrder)
           .map((chapter) => ({
             order: chapter.chapterOrder,
+            beat_key: chapter.beatKey ?? undefined,
             title: chapter.title,
             summary: chapter.summary,
             purpose: chapter.purpose ?? undefined,
+            exclusive_event: chapter.exclusiveEvent ?? undefined,
+            ending_state: chapter.endingState ?? undefined,
+            next_chapter_entry_state: chapter.nextChapterEntryState ?? undefined,
             conflict_level: chapter.conflictLevel ?? undefined,
             reveal_level: chapter.revealLevel ?? undefined,
             target_word_count: chapter.targetWordCount ?? undefined,

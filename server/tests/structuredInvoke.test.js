@@ -248,6 +248,67 @@ test("parseStructuredLlmRawContentDetailed ignores generated string length limit
   assert.equal(result.repairAttempts, 0);
 });
 
+test("parseStructuredLlmRawContentDetailed trims oversized arrays to exact schema length without invoking repair", async () => {
+  const result = await structuredInvoke.parseStructuredLlmRawContentDetailed({
+    rawContent: JSON.stringify({
+      chapters: [
+        { title: "a" },
+        { title: "b" },
+        { title: "c" },
+      ],
+    }),
+    schema: z.object({
+      chapters: z.array(z.object({
+        title: z.string(),
+      })).length(2),
+    }),
+    provider: "deepseek",
+    model: "deepseek-chat",
+    label: "structured.invoke.array.trim",
+    maxRepairAttempts: 0,
+    strategy: "prompt_json",
+    profile: resolveStructuredOutputProfile({
+      provider: "deepseek",
+      model: "deepseek-chat",
+      executionMode: "structured",
+    }),
+  });
+
+  assert.deepEqual(result.data, {
+    chapters: [
+      { title: "a" },
+      { title: "b" },
+    ],
+  });
+  assert.equal(result.repairUsed, false);
+  assert.equal(result.repairAttempts, 0);
+});
+
+test("parseStructuredLlmRawContentDetailed does not invent missing array items when output is undersized", async () => {
+  await assert.rejects(() => structuredInvoke.parseStructuredLlmRawContentDetailed({
+    rawContent: JSON.stringify({
+      chapters: [
+        { title: "a" },
+      ],
+    }),
+    schema: z.object({
+      chapters: z.array(z.object({
+        title: z.string(),
+      })).length(2),
+    }),
+    provider: "deepseek",
+    model: "deepseek-chat",
+    label: "structured.invoke.array.undersized",
+    maxRepairAttempts: 0,
+    strategy: "prompt_json",
+    profile: resolveStructuredOutputProfile({
+      provider: "deepseek",
+      model: "deepseek-chat",
+      executionMode: "structured",
+    }),
+  }), /STRUCTURED_OUTPUT:schema_mismatch/i);
+});
+
 test("buildStructuredResponseFormat keeps string length limits in json schema sent to the model", () => {
   const responseFormat = buildStructuredResponseFormat({
     strategy: "json_schema",

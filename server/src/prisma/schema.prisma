@@ -372,6 +372,8 @@ model Novel {
   storyMacroPlan     StoryMacroPlan?
   bookContract       BookContract?
   storyStateSnapshots StoryStateSnapshot[]
+  canonicalStateVersions CanonicalStateVersion[]
+  stateChangeProposals StateChangeProposal[]
   openConflicts      OpenConflict[]
   payoffLedgerItems  PayoffLedgerItem[]
   storyPlans         StoryPlan[]
@@ -451,6 +453,8 @@ model Chapter {
   facts           ConsistencyFact[]
   qualityReports  QualityReport[]
   storyStateSnapshots StoryStateSnapshot[]
+  canonicalStateVersions CanonicalStateVersion[]
+  stateChangeProposals StateChangeProposal[]
   openConflicts      OpenConflict[]
   storyPlans      StoryPlan[]
   replanRuns      ReplanRun[]
@@ -759,6 +763,7 @@ model ImageGenerationTask {
   progress        Float             @default(0)
   retryCount      Int               @default(0)
   maxRetries      Int               @default(2)
+  pendingManualRecovery Boolean     @default(false)
   heartbeatAt     DateTime?
   currentStage    String?
   currentItemKey  String?
@@ -1181,6 +1186,7 @@ model GenerationJob {
   totalCount     Int               @default(0)
   retryCount     Int               @default(0)
   maxRetries     Int               @default(2)
+  pendingManualRecovery Boolean    @default(false)
   heartbeatAt    DateTime?
   currentStage   String?
   currentItemKey String?
@@ -1466,6 +1472,7 @@ model NovelWorkflowTask {
   resumeTargetJson   String?
   seedPayloadJson    String?
   milestonesJson     String?
+  pendingManualRecovery Boolean              @default(false)
   heartbeatAt        DateTime?
   startedAt          DateTime?
   finishedAt         DateTime?
@@ -1652,6 +1659,53 @@ model PayoffLedgerItem {
   @@index([lastSnapshotId])
 }
 
+model CanonicalStateVersion {
+  id                     String   @id @default(cuid())
+  novelId                String
+  chapterId              String?
+  sourceType             String
+  sourceStage            String?
+  version                Int
+  summary                String
+  snapshotJson           String
+  acceptedProposalIdsJson String?
+  novel                  Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter                Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  committedProposals     StateChangeProposal[] @relation("CommittedStateChangeVersion")
+  createdAt              DateTime @default(now())
+
+  @@unique([novelId, version])
+  @@index([novelId, createdAt])
+  @@index([chapterId])
+}
+
+model StateChangeProposal {
+  id                   String   @id @default(cuid())
+  novelId              String
+  chapterId            String?
+  sourceSnapshotId     String?
+  sourceType           String
+  sourceStage          String?
+  proposalType         String
+  riskLevel            String
+  status               String   @default("validated")
+  summary              String
+  payloadJson          String
+  evidenceJson         String?
+  validationNotesJson  String?
+  committedVersionId   String?
+  novel                Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter              Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  committedVersion     CanonicalStateVersion? @relation("CommittedStateChangeVersion", fields: [committedVersionId], references: [id], onDelete: SetNull)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([novelId, createdAt])
+  @@index([chapterId, createdAt])
+  @@index([status, riskLevel, createdAt])
+  @@index([committedVersionId])
+}
+
 model StoryPlan {
   id                   String   @id @default(cuid())
   novelId              String
@@ -1824,6 +1878,7 @@ model BookAnalysis {
   temperature                 Float?
   maxTokens                   Int?
   progress                    Float              @default(0)
+  pendingManualRecovery       Boolean            @default(false)
   heartbeatAt                 DateTime?
   currentStage                String?
   currentItemKey              String?

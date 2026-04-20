@@ -43,6 +43,25 @@ export default defineConfig({
       "@": path.resolve(__dirname, "src"),
     },
   },
+  build: {
+    chunkSizeWarningLimit: 1400,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) {
+            return undefined;
+          }
+          if (id.includes("@assistant-ui") || id.includes("@langchain/langgraph-sdk")) {
+            return "assistant-ui";
+          }
+          if (id.includes("platejs") || id.includes("@platejs")) {
+            return "plate-editor";
+          }
+          return "vendor";
+        },
+      },
+    },
+  },
   server: {
     host: true, // 允许局域网访问（监听 0.0.0.0）
   },

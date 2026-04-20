@@ -9,10 +9,16 @@ import { BookFramingQuickFillButton } from "./basicInfoForm/BookFramingQuickFill
 import CollapsibleSummary from "./CollapsibleSummary";
 import NovelCreateTitleQuickFill from "./titleWorkshop/NovelCreateTitleQuickFill";
 import NovelTitleWorkshop from "./titleWorkshop/NovelTitleWorkshop";
+import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
 
 export default function BasicInfoTab(props: BasicTabProps) {
   return (
     <div className="space-y-4">
+      <DirectorTakeoverEntryPanel
+        title="让 AI 从当前项目继续接管"
+        description="如果你已经填过基础信息，可以直接从当前步骤开始自动接管，并选择继续已有进度或重跑当前步。"
+        entry={props.directorTakeoverEntry}
+      />
       <Card>
         <CardHeader>
           <CardTitle>书级定位与基本信息</CardTitle>

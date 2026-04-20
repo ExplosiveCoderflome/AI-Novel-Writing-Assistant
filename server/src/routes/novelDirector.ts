@@ -4,10 +4,12 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import {
   DIRECTOR_CORRECTION_PRESETS,
   DIRECTOR_AUTO_EXECUTION_MODES,
+  DIRECTOR_TAKEOVER_ENTRY_STEPS,
   type DirectorCandidatePatchRequest,
   type DirectorCandidateTitleRefineRequest,
   type DirectorConfirmRequest,
   type DirectorRefinementRequest,
+  DIRECTOR_TAKEOVER_STRATEGIES,
   DIRECTOR_TAKEOVER_START_PHASES,
   type DirectorTakeoverRequest,
 } from "@ai-novel/shared/types/novelDirector";
@@ -25,6 +27,8 @@ const novelDirectorService = new NovelDirectorService();
 
 const correctionPresetValues = DIRECTOR_CORRECTION_PRESETS.map((item) => item.value) as [string, ...string[]];
 const takeoverStartPhaseValues = [...DIRECTOR_TAKEOVER_START_PHASES] as [string, ...string[]];
+const takeoverEntryStepValues = [...DIRECTOR_TAKEOVER_ENTRY_STEPS] as [string, ...string[]];
+const takeoverStrategyValues = [...DIRECTOR_TAKEOVER_STRATEGIES] as [string, ...string[]];
 const autoExecutionModeValues = [...DIRECTOR_AUTO_EXECUTION_MODES] as [string, ...string[]];
 
 const llmOptionsSchema = z.object({
@@ -39,6 +43,8 @@ const autoExecutionPlanSchema = z.object({
   startOrder: z.number().int().min(1).optional(),
   endOrder: z.number().int().min(1).optional(),
   volumeOrder: z.number().int().min(1).optional(),
+  autoReview: z.boolean().optional(),
+  autoRepair: z.boolean().optional(),
 }).optional();
 
 const projectContextSchema = z.object({
@@ -141,7 +147,9 @@ const takeoverParamsSchema = z.object({
 
 const takeoverSchema = z.object({
   novelId: z.string().trim().min(1),
-  startPhase: z.enum(takeoverStartPhaseValues),
+  startPhase: z.enum(takeoverStartPhaseValues).optional(),
+  entryStep: z.enum(takeoverEntryStepValues).optional(),
+  strategy: z.enum(takeoverStrategyValues).optional(),
   autoExecutionPlan: autoExecutionPlanSchema,
 }).merge(llmOptionsSchema);
 

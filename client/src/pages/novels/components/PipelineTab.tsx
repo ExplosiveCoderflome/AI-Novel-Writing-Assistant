@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { Chapter, NovelBible, PipelineJob, PlotBeat, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
@@ -9,11 +10,13 @@ import StreamOutput from "@/components/common/StreamOutput";
 import CollapsibleSummary from "./CollapsibleSummary";
 import WorldInjectionHint from "./WorldInjectionHint";
 import { getLowScoreChapterRange, getPipelineStageState, PIPELINE_STAGE_ITEMS } from "./pipelineTab.utils";
+import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
 
 interface PipelineTabProps {
   novelId: string;
   worldInjectionSummary: string | null;
   hasCharacters: boolean;
+  directorTakeoverEntry?: ReactNode;
   onGoToCharacterTab: () => void;
   pipelineForm: {
     startOrder: number;
@@ -134,6 +137,7 @@ export default function PipelineTab(props: PipelineTabProps) {
     chapterReports,
     bible,
     plotBeats,
+    directorTakeoverEntry,
   } = props;
 
   const lowScoreRange = getLowScoreChapterRange(chapters, chapterReports, pipelineForm.qualityThreshold);
@@ -162,6 +166,11 @@ export default function PipelineTab(props: PipelineTabProps) {
 
   return (
     <div className="space-y-4">
+      <DirectorTakeoverEntryPanel
+        title="从质量修复接管"
+        description="AI 会优先判断当前是否有活动中的章节批次或待修检查点，再决定恢复当前修复还是新开批次。"
+        entry={directorTakeoverEntry}
+      />
       <Card>
         <CardHeader>
           <CardTitle>批量生成与质检</CardTitle>

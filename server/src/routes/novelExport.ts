@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { NOVEL_EXPORT_FORMAT_VALUES, NOVEL_EXPORT_SCOPE_VALUES } from "@ai-novel/shared/types/novelExport";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { novelExportService } from "../services/novel/NovelExportService";
@@ -11,7 +12,8 @@ const idParamsSchema = z.object({
 });
 
 const exportQuerySchema = z.object({
-  format: z.enum(["txt", "markdown"]).default("txt"),
+  format: z.enum(NOVEL_EXPORT_FORMAT_VALUES).default("txt"),
+  scope: z.enum(NOVEL_EXPORT_SCOPE_VALUES).default("full"),
 });
 
 router.use(authMiddleware);
@@ -22,8 +24,8 @@ router.get(
   async (req, res, next) => {
     try {
       const { id } = req.params as z.infer<typeof idParamsSchema>;
-      const { format } = exportQuerySchema.parse(req.query);
-      const data = await novelExportService.buildExportContent(id, format);
+      const { format, scope } = exportQuerySchema.parse(req.query);
+      const data = await novelExportService.buildExportContent(id, format, scope);
       res.setHeader("Content-Type", data.contentType);
       res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(data.fileName)}"`);
       res.status(200).send(data.content);

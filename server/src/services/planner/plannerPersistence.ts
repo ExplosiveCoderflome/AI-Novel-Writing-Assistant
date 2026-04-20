@@ -1,3 +1,7 @@
+import {
+  normalizeChapterScenePlan,
+  serializeChapterScenePlan,
+} from "@ai-novel/shared/types/chapterLengthControl";
 import { prisma } from "../../db/prisma";
 import { enrichStoryPlan } from "./plannerPlanMetadata";
 
@@ -11,6 +15,7 @@ interface PersistPlanInput {
   phaseLabel?: string | null;
   title: string;
   objective: string;
+  targetWordCount?: number | null;
   participants: string[];
   reveals: string[];
   riskNotes: string[];
@@ -68,24 +73,43 @@ function buildPlanTaskSheet(input: PersistPlanInput): string | undefined {
 }
 
 function buildPlanSceneCards(input: PersistPlanInput): string | undefined {
-  const blocks = input.scenes
-    .map((scene, index) => {
-      const title = sanitizePlanText(scene.title) || `Scene ${index + 1}`;
-      const objective = sanitizePlanText(scene.objective);
-      const conflict = sanitizePlanText(scene.conflict);
-      const reveal = sanitizePlanText(scene.reveal);
-      const emotionBeat = sanitizePlanText(scene.emotionBeat);
-      return [
-        `场景${index + 1}：${title}`,
-        objective ? `目标：${objective}` : "",
-        conflict ? `冲突：${conflict}` : "",
-        reveal ? `揭示：${reveal}` : "",
-        emotionBeat ? `情绪：${emotionBeat}` : "",
-      ].filter(Boolean).join("\n");
-    })
-    .filter(Boolean);
+  if (input.scenes.length < 3 || input.scenes.length > 8) {
+    return undefined;
+  }
 
-  return blocks.length > 0 ? blocks.join("\n\n") : undefined;
+  const targetWordCount = Math.max(
+    Math.round(input.targetWordCount ?? 0),
+    input.scenes.length * 600,
+  );
+
+  const rawSceneCards = input.scenes.map((scene, index) => {
+    const title = sanitizePlanText(scene.title) || `Scene ${index + 1}`;
+    const objective = sanitizePlanText(scene.objective);
+    const conflict = sanitizePlanText(scene.conflict);
+    const reveal = sanitizePlanText(scene.reveal);
+    const emotionBeat = sanitizePlanText(scene.emotionBeat);
+    const previousScene = index > 0 ? input.scenes[index - 1] : null;
+    const entryState = index === 0
+      ? sanitizePlanText(input.objective) || `进入${input.title}`
+      : sanitizePlanText(previousScene?.reveal)
+        || sanitizePlanText(previousScene?.objective)
+        || `承接上一场进入${title}`;
+    const exitState = reveal || emotionBeat || objective || `完成${title}`;
+    return {
+      key: `plan_scene_${index + 1}`,
+      title,
+      purpose: objective || reveal || title,
+      mustAdvance: [objective, reveal, conflict].filter(Boolean),
+      mustPreserve: input.mustPreserve.slice(0, 3).map((item) => sanitizePlanText(item)).filter(Boolean),
+      entryState,
+      exitState,
+      forbiddenExpansion: [],
+      targetWordCount: Math.max(240, Math.round(targetWordCount / input.scenes.length)),
+    };
+  });
+
+  const normalized = normalizeChapterScenePlan(rawSceneCards, targetWordCount);
+  return serializeChapterScenePlan(normalized);
 }
 
 export async function persistStoryPlan(input: PersistPlanInput) {

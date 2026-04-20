@@ -32,7 +32,7 @@ export default function AIDiffPanel(props: AIDiffPanelProps) {
       ? "正在生成候选版本"
       : session.status === "error"
         ? session.errorMessage || "生成失败"
-        : session.operationLabel || "查看待确认改写";
+        : session.requestLabel || "查看待确认改写";
 
   return (
     <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm xl:min-h-0">
@@ -64,7 +64,7 @@ export default function AIDiffPanel(props: AIDiffPanelProps) {
 
         {session.status === "ready" ? (
           <div className="flex flex-wrap gap-2">
-            {session.candidates.map((candidate) => (
+            {(session.candidates ?? []).map((candidate) => (
               <Button
                 key={candidate.id}
                 size="sm"

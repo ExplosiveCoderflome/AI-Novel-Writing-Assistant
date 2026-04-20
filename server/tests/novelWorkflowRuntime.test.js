@@ -97,3 +97,32 @@ test("resumePendingAutoDirectorTasks restores checkpoint instead of failing when
     ["restore", "task-front10"],
   ]);
 });
+
+test("markPendingAutoDirectorTasksForManualRecovery only marks tasks without continuing them", async () => {
+  const calls = [];
+  const runtimeService = new NovelWorkflowRuntimeService(
+    {
+      async listRecoverableAutoDirectorTasks() {
+        return [
+          { id: "task-queued", status: "queued" },
+          { id: "task-running", status: "running" },
+        ];
+      },
+      async requeueTaskForRecovery(taskId, message) {
+        calls.push(["requeue", taskId, message]);
+      },
+    },
+    {
+      async continueTask(taskId) {
+        calls.push(["continue", taskId]);
+      },
+    },
+  );
+
+  await runtimeService.markPendingAutoDirectorTasksForManualRecovery();
+
+  assert.deepEqual(calls, [
+    ["requeue", "task-queued", "服务重启后任务已暂停，等待手动恢复。"],
+    ["requeue", "task-running", "服务重启后任务已暂停，等待手动恢复。"],
+  ]);
+});

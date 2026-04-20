@@ -37,12 +37,44 @@ export class BookAnalysisCommandService {
     this.watchdogService.startWatchdog();
   }
 
-  async resumePendingAnalyses(): Promise<void> {
-    await this.watchdogService.resumePendingAnalyses();
+  async markPendingAnalysesForManualRecovery(): Promise<void> {
+    await this.watchdogService.markPendingAnalysesForManualRecovery();
   }
 
   async recoverTimedOutAnalyses(): Promise<void> {
     await this.watchdogService.recoverTimedOutAnalyses();
+  }
+
+  async resumePendingAnalysis(analysisId: string): Promise<BookAnalysisDetail> {
+    const analysis = await prisma.bookAnalysis.findUnique({
+      where: { id: analysisId },
+      select: {
+        status: true,
+      },
+    });
+    if (!analysis) {
+      throw new AppError("Book analysis not found.", 404);
+    }
+    if (analysis.status !== "queued" && analysis.status !== "running") {
+      throw new AppError("Only queued or running analyses can be resumed.", 400);
+    }
+
+    await prisma.bookAnalysis.update({
+      where: { id: analysisId },
+      data: {
+        status: "queued",
+        pendingManualRecovery: false,
+        heartbeatAt: null,
+        cancelRequestedAt: null,
+      },
+    });
+    this.enqueueTask({ analysisId, kind: "full" });
+
+    const detail = await this.queryService.getAnalysisById(analysisId);
+    if (!detail) {
+      throw new AppError("Book analysis not found after resume.", 500);
+    }
+    return detail;
   }
 
   async createAnalysis(input: {
@@ -198,6 +230,7 @@ export class BookAnalysisCommandService {
         where: { id: analysisId },
         data: {
           status: "queued",
+          pendingManualRecovery: false,
           progress: 0,
           lastError: null,
           heartbeatAt: null,
@@ -313,6 +346,7 @@ export class BookAnalysisCommandService {
         where: { id: analysisId },
         data: {
           status: "queued",
+          pendingManualRecovery: false,
           lastError: null,
           heartbeatAt: null,
           currentStage: null,

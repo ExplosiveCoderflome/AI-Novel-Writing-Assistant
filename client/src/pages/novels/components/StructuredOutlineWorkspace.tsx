@@ -56,6 +56,7 @@ function getWorkspaceGuidance(params: {
 export default function StructuredOutlineWorkspace(props: StructuredTabViewProps) {
   const {
     novelId,
+    directorTakeoverEntry,
     worldInjectionSummary,
     hasCharacters,
     hasUnsavedVolumeDraft,
@@ -67,6 +68,9 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
     isGeneratingBeatSheet,
     onGenerateBeatSheet,
     isGeneratingChapterList,
+    generatingChapterListVolumeId,
+    generatingChapterListBeatKey,
+    generatingChapterListMode,
     onGenerateChapterList,
     isGeneratingChapterDetail,
     isGeneratingChapterDetailBundle,
@@ -150,7 +154,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
   const selectedVolumeRequiredChapterCount = getBeatSheetRequiredChapterCount(selectedBeatSheet);
   const selectedVolumeNeedsChapterExpansion = selectedVolumeRequiredChapterCount > selectedVolumeChapters.length;
   const visibleChapters = selectedBeat
-    ? selectedVolumeChapters.filter((chapter) => chapterMatchesBeat(chapter, selectedBeat))
+    ? selectedVolumeChapters.filter((chapter) => chapterMatchesBeat(chapter, selectedBeat, selectedVolumeChapters))
     : selectedVolumeChapters;
   const selectedChapter = visibleChapters.find((chapter) => chapter.id === selectedChapterId)
     ?? selectedVolumeChapters.find((chapter) => chapter.id === selectedChapterId)
@@ -160,7 +164,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
   const selectedChapterIndex = selectedVolume && selectedChapter
     ? selectedVolume.chapters.findIndex((chapter) => chapter.id === selectedChapter.id)
     : -1;
-  const selectedChapterBeat = selectedChapter ? findChapterBeat(selectedChapter, selectedBeatSheet) : null;
+  const selectedChapterBeat = selectedChapter ? findChapterBeat(selectedChapter, selectedBeatSheet, selectedVolumeChapters) : null;
   const selectedRebalance = selectedVolume
     ? rebalanceDecisions.filter((decision) => decision.anchorVolumeId === selectedVolume.id)
     : [];
@@ -229,6 +233,20 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
       </CardHeader>
       <CardContent className="space-y-4">
         <WorldInjectionHint worldInjectionSummary={worldInjectionSummary} />
+
+        {directorTakeoverEntry ? (
+          <div className="flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <div className="text-sm font-medium text-foreground">想让 AI 继续接管当前项目？</div>
+              <div className="text-sm text-muted-foreground">
+                不用回到项目设定，直接在这里重新进入自动导演，让 AI 继续推进节奏拆章或后续自动执行。
+              </div>
+            </div>
+            <div className="shrink-0">
+              {directorTakeoverEntry}
+            </div>
+          </div>
+        ) : null}
 
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-border/70 bg-muted/20 p-3 text-xs text-muted-foreground">
           <span>{generationNotice}</span>
@@ -359,6 +377,9 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                 selectedVolumeRequiredChapterCount={selectedVolumeRequiredChapterCount}
                 selectedVolumeNeedsChapterExpansion={selectedVolumeNeedsChapterExpansion}
                 isGeneratingChapterList={isGeneratingChapterList}
+                generatingChapterListVolumeId={generatingChapterListVolumeId}
+                generatingChapterListBeatKey={generatingChapterListBeatKey}
+                generatingChapterListMode={generatingChapterListMode}
                 locked={locked}
                 onGenerateChapterList={onGenerateChapterList}
                 onAddChapter={onAddChapter}

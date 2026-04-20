@@ -9,6 +9,7 @@ import {
 export interface ChapterEditorRewriteCandidatesPromptInput {
   operation: "polish" | "expand" | "compress" | "emotion" | "conflict" | "custom";
   operationLabel: string;
+  scope: "selection" | "chapter";
   customInstruction?: string;
   selectedText: string;
   beforeParagraphs: string[];
@@ -18,6 +19,8 @@ export interface ChapterEditorRewriteCandidatesPromptInput {
   styleSummary?: string | null;
   characterStateSummary?: string | null;
   worldConstraintSummary?: string | null;
+  macroContextSummary: string;
+  resolvedIntentSummary: string;
   constraintsText: string;
 }
 
@@ -31,7 +34,7 @@ export const chapterEditorRewriteCandidatesPrompt: PromptAsset<
   ChapterEditorRewriteCandidatesParsed
 > = {
   id: "novel.chapter_editor.rewrite_candidates",
-  version: "v1",
+  version: "v2",
   taskType: "writer",
   mode: "structured",
   language: "zh",
@@ -64,12 +67,20 @@ export const chapterEditorRewriteCandidatesPrompt: PromptAsset<
       "候选要求：",
       "1. 返回 2 到 3 个候选。",
       "2. 每个候选都必须是完整可替换的片段文本。",
+      "3. rationale 用一句话说明这版主要改法。",
+      "4. riskNotes 列出 0 到 3 条需要用户注意的风险。",
+      "5. macroAlignmentNote 用一句话说明这些候选如何服务本章/本卷目标。",
+      "6. label 要短，适合在编辑器里做候选切换。",
+      "7. summary 用一句话概括主要改动。",
+      "8. semanticTags 只保留 2 到 4 个高价值标签，例如“增强情绪”“压缩重复”“补足动作细节”。",
+      "",
+      "改写范围：",
+      "1. selection 表示只改写选中片段。",
+      "2. chapter 表示改写整章，但依旧要保持章节事实、主线和卷内定位。",
       "3. 候选要形成清晰差异，例如更自然、更克制、更强化情绪，但都要可用。",
-      "4. label 要短，适合在编辑器里做候选切换。",
-      "5. summary 用一句话概括主要改动。",
-      "6. semanticTags 只保留 2 到 4 个高价值标签，例如“增强情绪”“压缩重复”“补足动作细节”。",
       "",
       `本次改写意图：${input.operationLabel}`,
+      `改写范围：${input.scope === "selection" ? "选中片段" : "整章"}`,
       input.customInstruction?.trim()
         ? `用户补充要求：${input.customInstruction.trim()}`
         : "用户补充要求：无",
@@ -84,6 +95,10 @@ export const chapterEditorRewriteCandidatesPrompt: PromptAsset<
       renderOptionalBlock("【角色状态】", input.characterStateSummary),
       "",
       renderOptionalBlock("【世界与设定约束】", input.worldConstraintSummary),
+      "",
+      renderOptionalBlock("【宏观定位】", input.macroContextSummary),
+      "",
+      renderOptionalBlock("【已解析的修改目标】", input.resolvedIntentSummary),
       "",
       "【改写硬约束】",
       input.constraintsText,

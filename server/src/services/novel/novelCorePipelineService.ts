@@ -1,4 +1,5 @@
 import type { ReviewIssue } from "@ai-novel/shared/types/novel";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma";
 import { novelEventBus } from "../../events";
 import { runWithLlmUsageTracking } from "../../llm/usageTracking";
@@ -19,6 +20,17 @@ import { buildPipelineCurrentItemLabel, buildPipelineStageProgress, decoratePipe
 export { buildPipelineCurrentItemLabel, buildPipelineStageProgress } from "./pipelineJobState";
 
 const PIPELINE_HEARTBEAT_INTERVAL_MS = 15000;
+
+function buildSkipCompletedChapterWhere(): Prisma.ChapterWhereInput {
+  return {
+    NOT: {
+      OR: [
+        { generationState: { in: ["approved", "published"] } },
+        { chapterStatus: { in: ["pending_review", "completed"] } },
+      ],
+    },
+  };
+}
 
 export class NovelCorePipelineService {
   private static readonly activeJobIds = new Set<string>();
@@ -59,6 +71,7 @@ export class NovelCorePipelineService {
         startOrder,
         endOrder,
         status: { in: ["queued", "running"] },
+        pendingManualRecovery: false,
       },
       orderBy: [
         { completedCount: "desc" },
@@ -127,6 +140,7 @@ export class NovelCorePipelineService {
     const rows = await prisma.generationJob.findMany({
       where: {
         status: { in: ["queued", "running"] },
+        pendingManualRecovery: false,
         finishedAt: null,
         cancelRequestedAt: null,
       },
@@ -164,6 +178,7 @@ export class NovelCorePipelineService {
     const rows = await prisma.generationJob.findMany({
       where: {
         status: { in: ["queued", "running"] },
+        pendingManualRecovery: false,
         finishedAt: null,
         cancelRequestedAt: null,
         OR: [
@@ -208,6 +223,20 @@ export class NovelCorePipelineService {
     });
   }
 
+  async markPipelineJobPendingManualRecovery(jobId: string, message: string): Promise<void> {
+    await this.updateJobSafe(jobId, {
+      status: "queued",
+      error: message.trim(),
+      pendingManualRecovery: true,
+      heartbeatAt: null,
+      currentStage: "queued",
+      currentItemKey: null,
+      currentItemLabel: null,
+      cancelRequestedAt: null,
+      finishedAt: null,
+    });
+  }
+
   async resumePipelineJob(jobId: string): Promise<void> {
     const job = await prisma.generationJob.findUnique({
       where: { id: jobId },
@@ -230,11 +259,17 @@ export class NovelCorePipelineService {
     if (!job) {
       throw new Error("章节流水线任务不存在。");
     }
-    if (job.status !== "queued" && job.status !== "running") {
-      return;
-    }
-    const payload = this.parsePipelinePayload(job.payload);
-    this.schedulePipelineExecution(job.id, job.novelId, {
+      if (job.status !== "queued" && job.status !== "running") {
+        return;
+      }
+      await this.updateJobSafe(job.id, {
+        status: "queued",
+        pendingManualRecovery: false,
+        heartbeatAt: null,
+        cancelRequestedAt: null,
+      });
+      const payload = this.parsePipelinePayload(job.payload);
+      this.schedulePipelineExecution(job.id, job.novelId, {
       startOrder: job.startOrder,
       endOrder: job.endOrder,
       workflowTaskId: payload.workflowTaskId,
@@ -286,7 +321,7 @@ export class NovelCorePipelineService {
           novelId,
           order: { gte: options.startOrder, lte: options.endOrder },
           ...(options.skipCompleted
-            ? { generationState: { notIn: ["approved", "published"] as const } }
+            ? buildSkipCompletedChapterWhere()
             : {}),
         },
         orderBy: { order: "asc" },
@@ -303,7 +338,7 @@ export class NovelCorePipelineService {
         range: `${options.startOrder}-${options.endOrder}`,
         matchedChapters: chapters.length,
         availableRange: `${chapterStats._min.order ?? 1}-${chapterStats._max.order ?? 1}`,
-        maxRetries: options.maxRetries ?? 2,
+        maxRetries: options.maxRetries ?? 1,
         provider: options.provider ?? "deepseek",
         model: options.model ?? "",
       });
@@ -320,15 +355,16 @@ export class NovelCorePipelineService {
           qualityThreshold: options.qualityThreshold ?? null,
           repairMode: options.repairMode ?? "light_repair",
           status: "queued",
+          pendingManualRecovery: false,
           totalCount: chapters.length,
-          maxRetries: options.maxRetries ?? 2,
+          maxRetries: options.maxRetries ?? 1,
           currentStage: "queued",
           payload: this.stringifyPipelinePayload({
             provider: options.provider ?? "deepseek",
             model: options.model ?? "",
             temperature: options.temperature ?? 0.8,
             workflowTaskId: options.workflowTaskId?.trim() || undefined,
-            maxRetries: options.maxRetries ?? 2,
+            maxRetries: options.maxRetries ?? 1,
             runMode: options.runMode ?? "fast",
             autoReview: options.autoReview ?? true,
             autoRepair: options.autoRepair ?? true,
@@ -454,6 +490,7 @@ export class NovelCorePipelineService {
     progress?: number;
     completedCount?: number;
     retryCount?: number;
+    pendingManualRecovery?: boolean;
     heartbeatAt?: Date | null;
     currentStage?: string | null;
     currentItemKey?: string | null;
@@ -489,7 +526,7 @@ export class NovelCorePipelineService {
   }
 
   private async executePipeline(jobId: string, novelId: string, options: PipelineRunOptions) {
-    const maxRetries = options.maxRetries ?? 2;
+    const maxRetries = options.maxRetries ?? 1;
     const qualityThreshold = options.qualityThreshold ?? 75;
     const existingJob = await prisma.generationJob.findUnique({
       where: { id: jobId },
@@ -507,7 +544,7 @@ export class NovelCorePipelineService {
       model: persistedPayload.model ?? options.model ?? "",
       temperature: persistedPayload.temperature ?? options.temperature ?? 0.8,
       workflowTaskId: persistedPayload.workflowTaskId ?? options.workflowTaskId,
-      maxRetries: persistedPayload.maxRetries ?? options.maxRetries ?? 2,
+      maxRetries: persistedPayload.maxRetries ?? options.maxRetries ?? 1,
       runMode: persistedPayload.runMode ?? options.runMode ?? "fast",
       autoReview: persistedPayload.autoReview ?? options.autoReview ?? true,
       autoRepair: persistedPayload.autoRepair ?? options.autoRepair ?? true,
@@ -517,6 +554,7 @@ export class NovelCorePipelineService {
     };
     let totalRetryCount = Math.max(existingJob?.retryCount ?? 0, 0);
     const qualityAlertDetails = [...(persistedPayload.qualityAlertDetails ?? [])];
+    const replanAlertDetails = [...(persistedPayload.replanAlertDetails ?? [])];
 
     try {
       await runWithLlmUsageTracking({
@@ -525,6 +563,7 @@ export class NovelCorePipelineService {
       }, async () => {
         await this.updateJobSafe(jobId, {
           status: "running",
+          pendingManualRecovery: false,
           startedAt: existingJob?.startedAt ?? new Date(),
           heartbeatAt: new Date(),
           currentStage: "generating_chapters",
@@ -543,7 +582,7 @@ export class NovelCorePipelineService {
               novelId,
               order: { gte: options.startOrder, lte: options.endOrder },
               ...(options.skipCompleted
-                ? { generationState: { notIn: ["approved", "published"] as const } }
+                ? buildSkipCompletedChapterWhere()
                 : {}),
             },
             orderBy: { order: "asc" },
@@ -561,8 +600,16 @@ export class NovelCorePipelineService {
         });
 
         const totalCount = Math.max(existingJob?.totalCount ?? 0, chapters.length, 1);
-        let completed = Math.min(Math.max(existingJob?.completedCount ?? 0, 0), chapters.length);
-        const chaptersToProcess = chapters.slice(completed);
+        const storedCompleted = Math.min(Math.max(existingJob?.completedCount ?? 0, 0), totalCount);
+        const filteredCompletedCount = runtimePayload.skipCompleted
+          ? Math.max(0, totalCount - chapters.length)
+          : 0;
+        const remainingStartIndex = Math.min(
+          Math.max(0, storedCompleted - filteredCompletedCount),
+          chapters.length,
+        );
+        let completed = storedCompleted;
+        const chaptersToProcess = chapters.slice(remainingStartIndex);
 
         for (const chapter of chaptersToProcess) {
           await this.ensurePipelineNotCancelled(jobId);
@@ -621,6 +668,7 @@ export class NovelCorePipelineService {
               model: options.model,
               temperature: options.temperature,
               maxRetries,
+              autoReview: options.autoReview,
               autoRepair: options.autoRepair,
               qualityThreshold,
               repairMode: options.repairMode,
@@ -637,9 +685,11 @@ export class NovelCorePipelineService {
 
           totalRetryCount += chapterResult.retryCountUsed;
           final = { score: chapterResult.score, issues: chapterResult.issues };
-          await createQualityReport(novelId, chapter.id, final.score, final.issues);
+          if (chapterResult.reviewExecuted) {
+            await createQualityReport(novelId, chapter.id, final.score, final.issues);
+          }
 
-          if (!chapterResult.pass) {
+          if (chapterResult.reviewExecuted && !chapterResult.pass) {
             qualityAlertDetails.push(
               `第${chapter.order}章（coherence=${final.score.coherence}, repetition=${final.score.repetition}, engagement=${final.score.engagement}）`,
             );
@@ -648,6 +698,16 @@ export class NovelCorePipelineService {
               order: chapter.order,
               score: final.score,
             });
+          }
+
+          const replanRecommendation = chapterResult.runtimePackage?.replanRecommendation;
+          if (replanRecommendation?.recommended) {
+            const impactedOrders = replanRecommendation.affectedChapterOrders?.length
+              ? `影响章节=${replanRecommendation.affectedChapterOrders.join(",")}`
+              : `锚点章节=${replanRecommendation.anchorChapterOrder ?? chapter.order}`;
+            replanAlertDetails.push(
+              `第${chapter.order}章需要重规划（${impactedOrders}；原因=${replanRecommendation.triggerReason ?? replanRecommendation.reason}）`,
+            );
           }
 
           completed += 1;
@@ -659,6 +719,7 @@ export class NovelCorePipelineService {
             payload: this.stringifyPipelinePayload({
               ...runtimePayload,
               qualityAlertDetails,
+              replanAlertDetails,
             }),
           });
           logPipelineInfo("任务进度更新", {
@@ -694,6 +755,7 @@ export class NovelCorePipelineService {
           payload: this.stringifyPipelinePayload({
             ...runtimePayload,
             qualityAlertDetails,
+            replanAlertDetails,
           }),
         });
         logPipelineInfo("任务执行结束", {
@@ -719,6 +781,7 @@ export class NovelCorePipelineService {
           payload: this.stringifyPipelinePayload({
             ...runtimePayload,
             qualityAlertDetails,
+            replanAlertDetails,
           }),
         });
         void novelEventBus.emit({
@@ -736,6 +799,7 @@ export class NovelCorePipelineService {
         payload: this.stringifyPipelinePayload({
           ...runtimePayload,
           qualityAlertDetails,
+          replanAlertDetails,
         }),
       });
       logPipelineError("任务执行异常", {

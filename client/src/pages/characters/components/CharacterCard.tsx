@@ -11,9 +11,11 @@ interface CharacterCardProps {
   assetsLoading?: boolean;
   onGenerateImage: () => void;
   onSetPrimary: (assetId: string) => void;
+  onDeleteAsset: (asset: ImageAsset) => Promise<void>;
   onEdit: () => void;
   onDelete: () => void;
   settingPrimary?: boolean;
+  deletingAssetIds?: string[];
   deleting?: boolean;
   extraActions?: ReactNode;
 }
@@ -24,13 +26,28 @@ export function CharacterCard({
   assetsLoading,
   onGenerateImage,
   onSetPrimary,
+  onDeleteAsset,
   onEdit,
   onDelete,
   settingPrimary,
+  deletingAssetIds,
   deleting,
   extraActions,
 }: CharacterCardProps) {
   const [previewAsset, setPreviewAsset] = useState<ImageAsset | null>(null);
+
+  const handleDeleteAsset = async (asset: ImageAsset) => {
+    const confirmed = window.confirm("确认删除这张形象图？此操作不可恢复。");
+    if (!confirmed) {
+      return;
+    }
+    try {
+      await onDeleteAsset(asset);
+      setPreviewAsset((current) => (current?.id === asset.id ? null : current));
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "删除图片失败，请稍后重试。");
+    }
+  };
 
   return (
     <div className="space-y-3 rounded-md border p-3">
@@ -89,14 +106,24 @@ export function CharacterCard({
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-xs text-muted-foreground">{asset.isPrimary ? "主图" : "候选图"}</div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={asset.isPrimary || settingPrimary}
-                    onClick={() => onSetPrimary(asset.id)}
-                  >
-                    设为主图
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={asset.isPrimary || settingPrimary || deletingAssetIds?.includes(asset.id)}
+                      onClick={() => onSetPrimary(asset.id)}
+                    >
+                      设为主图
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={deletingAssetIds?.includes(asset.id)}
+                      onClick={() => void handleDeleteAsset(asset)}
+                    >
+                      {deletingAssetIds?.includes(asset.id) ? "删除中..." : "删除"}
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -118,15 +145,38 @@ export function CharacterCard({
           </DialogHeader>
           {previewAsset ? (
             <>
-            <div className="flex max-h-[78vh] items-center justify-center overflow-auto rounded-md bg-muted/30 p-2">
-              <img
-                src={resolveImageAssetUrl(previewAsset.url)}
-                alt={`${character.name}-预览图`}
-                className="max-h-[72vh] w-auto max-w-full rounded-md object-contain"
-              />
-            </div>
+              <div className="flex max-h-[78vh] items-center justify-center overflow-auto rounded-md bg-muted/30 p-2">
+                <img
+                  src={resolveImageAssetUrl(previewAsset.url)}
+                  alt={`${character.name}-预览图`}
+                  className="max-h-[72vh] w-auto max-w-full rounded-md object-contain"
+                />
+              </div>
               <div className="text-xs text-muted-foreground break-all">
                 存储方式：{previewAsset.url.startsWith("/api/images/assets/") ? "已托管" : "远程链接"}
+              </div>
+              {previewAsset.localPath ? (
+                <div className="text-xs text-muted-foreground break-all">
+                  本地路径：{previewAsset.localPath}
+                </div>
+              ) : null}
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={previewAsset.isPrimary || settingPrimary || deletingAssetIds?.includes(previewAsset.id)}
+                  onClick={() => onSetPrimary(previewAsset.id)}
+                >
+                  设为主图
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={deletingAssetIds?.includes(previewAsset.id)}
+                  onClick={() => void handleDeleteAsset(previewAsset)}
+                >
+                  {deletingAssetIds?.includes(previewAsset.id) ? "删除中..." : "删除图片"}
+                </Button>
               </div>
             </>
           ) : null}

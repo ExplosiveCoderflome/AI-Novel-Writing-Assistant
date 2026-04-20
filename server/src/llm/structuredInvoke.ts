@@ -19,6 +19,7 @@ import {
 } from "./structuredOutput";
 import { relaxGeneratedContentSchema } from "./generatedContentSchema";
 import { getStructuredFallbackSettings } from "./structuredFallbackSettings";
+import { logStructuredRepairSession } from "./repairLogging";
 import { toText, extractJSONValue } from "../services/novel/novelP0Utils";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
 
@@ -163,6 +164,156 @@ function extractValidationPaths(validationError: string): string[] {
         .filter(Boolean),
     ),
   );
+}
+
+interface ArrayLengthRepairHint {
+  path: Array<string | number>;
+  exactLength: number;
+  direction: "expand" | "trim";
+}
+
+function parseIssuePath(pathText: string): Array<string | number> {
+  if (!pathText || pathText === "(root)") {
+    return [];
+  }
+  return pathText.split(".").map((segment) => (/^\d+$/.test(segment) ? Number(segment) : segment));
+}
+
+function formatIssuePath(path: Array<string | number>): string {
+  return path.length > 0 ? path.join(".") : "(root)";
+}
+
+function normalizeIssuePath(path: readonly PropertyKey[]): Array<string | number> {
+  return path.flatMap((segment) => {
+    if (typeof segment === "string" || typeof segment === "number") {
+      return [segment];
+    }
+    return [];
+  });
+}
+
+function extractArrayLengthRepairHints(validationError: string): ArrayLengthRepairHint[] {
+  const hints: ArrayLengthRepairHint[] = [];
+  const seen = new Set<string>();
+
+  for (const rawLine of validationError.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line.startsWith("- ")) {
+      continue;
+    }
+    const colonIndex = line.indexOf(":");
+    if (colonIndex <= 2) {
+      continue;
+    }
+    const pathText = line.slice(2, colonIndex).trim();
+    const message = line.slice(colonIndex + 1).trim();
+    const tooBig = message.match(/Too big: expected array to have <=(\d+) items/i);
+    const tooSmall = message.match(/Too small: expected array to have >=(\d+) items/i);
+    const match = tooBig ?? tooSmall;
+    if (!match) {
+      continue;
+    }
+
+    const exactLength = Number(match[1]);
+    if (!Number.isInteger(exactLength) || exactLength < 0) {
+      continue;
+    }
+
+    const path = parseIssuePath(pathText);
+    const direction: ArrayLengthRepairHint["direction"] = tooBig ? "trim" : "expand";
+    const key = `${direction}:${formatIssuePath(path)}:${exactLength}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    hints.push({
+      path,
+      exactLength,
+      direction,
+    });
+  }
+
+  return hints;
+}
+
+function cloneJsonValue<T>(value: T): T {
+  return value === undefined ? value : JSON.parse(JSON.stringify(value)) as T;
+}
+
+function getValueAtPath(root: unknown, path: Array<string | number>): unknown {
+  let current = root;
+  for (const segment of path) {
+    if (Array.isArray(current) && typeof segment === "number") {
+      current = current[segment];
+      continue;
+    }
+    if (current && typeof current === "object" && !Array.isArray(current)) {
+      current = (current as Record<string, unknown>)[String(segment)];
+      continue;
+    }
+    return undefined;
+  }
+  return current;
+}
+
+function setValueAtPath(root: unknown, path: Array<string | number>, nextValue: unknown): unknown {
+  if (path.length === 0) {
+    return nextValue;
+  }
+
+  const parentPath = path.slice(0, -1);
+  const leaf = path[path.length - 1]!;
+  const parent = getValueAtPath(root, parentPath);
+  if (Array.isArray(parent) && typeof leaf === "number") {
+    parent[leaf] = nextValue;
+  } else if (parent && typeof parent === "object" && !Array.isArray(parent)) {
+    (parent as Record<string, unknown>)[String(leaf)] = nextValue;
+  }
+  return root;
+}
+
+function normalizeOversizedArrays<T>(
+  parsed: unknown,
+  error: ZodError,
+  schema: ZodType<T>,
+): { data: T; trimmedPaths: string[] } | null {
+  let normalized = cloneJsonValue(parsed);
+  const trimmedPaths: string[] = [];
+
+  for (const issue of error.issues) {
+    if (issue.code !== "too_big" || !issue.message.toLowerCase().includes("array")) {
+      continue;
+    }
+    const maximum = typeof (issue as { maximum?: unknown }).maximum === "number"
+      ? (issue as { maximum: number }).maximum
+      : null;
+    if (!Number.isInteger(maximum) || maximum === null || maximum < 0) {
+      continue;
+    }
+
+    const issuePath = normalizeIssuePath(issue.path);
+    const currentValue = getValueAtPath(normalized, issuePath);
+    if (!Array.isArray(currentValue) || currentValue.length <= maximum) {
+      continue;
+    }
+
+    normalized = setValueAtPath(normalized, issuePath, currentValue.slice(0, maximum));
+    trimmedPaths.push(formatIssuePath(issuePath));
+  }
+
+  if (trimmedPaths.length === 0) {
+    return null;
+  }
+
+  const final = schema.safeParse(normalized);
+  if (!final.success) {
+    return null;
+  }
+
+  return {
+    data: final.data,
+    trimmedPaths,
+  };
 }
 
 function buildDiagnostics(input: {
@@ -336,11 +487,15 @@ async function repairWithLlm<T>(
     "不要输出任何解释、Markdown 或额外字段。",
     "如果校验错误提示某个字段缺失，必须直接使用错误路径里的字段名作为 JSON 键名，不要翻译成中文别名。",
     "如果目标结构顶层是数组，就直接输出数组本身，不要再外包一层对象。",
+    "如果某个字段要求是数组，就必须输出 JSON 数组；即使只有一个元素，也不能压成字符串、数字或对象。",
+    "如果数组元素应为对象，就必须输出对象数组，例如 [{...}]；不能写成逗号拼接字符串。",
     "如果原始 JSON 多包了一层无关包装键，例如 data、result、output、xxxProjection、xxxList 等，必须去掉包装层，把真正目标结构提升到顶层。",
     "如果缺失必填字符串字段，必须补出非空字符串；可根据原始 JSON 中已有内容做最小、保守、语义一致的补全，不能输出空字符串、null 或 undefined。",
+    "如果校验错误指出某个数组数量过多或过少，必须把该路径的数组长度修正到错误里要求的精确数量，不能停留在接近正确的数量。",
   ].join("\n");
 
   const validationPaths = extractValidationPaths(validationError);
+  const arrayLengthHints = extractArrayLengthRepairHints(validationError);
 
   const repairHuman = [
     `校验失败：${input.label}`,
@@ -349,6 +504,13 @@ async function repairWithLlm<T>(
       "",
       `至少需要修复这些路径：${validationPaths.join(", ")}`,
     ] : []),
+    ...(arrayLengthHints.length > 0 ? [
+      "",
+      "数组长度硬约束：",
+      ...arrayLengthHints.map((hint) => hint.direction === "trim"
+        ? `- ${formatIssuePath(hint.path)} 必须最终恰好保留 ${hint.exactLength} 项；如果当前超过该数量，按原顺序裁掉多余项。`
+        : `- ${formatIssuePath(hint.path)} 必须最终补足到恰好 ${hint.exactLength} 项；如果当前不足，按原顺序保留已有项并补齐缺失项。`),
+    ] : []),
     "",
     "原始模型输出（可能包含多余文本、markdown 或截断）：",
     rawContent,
@@ -356,30 +518,89 @@ async function repairWithLlm<T>(
     "请修复后只输出最终 JSON。",
   ].join("\n");
 
-  const startedAt = Date.now();
-  const result = await llm.invoke([new SystemMessage(repairSystem), new HumanMessage(repairHuman)]);
-  const repairedRaw = toText(result.content);
-  logStructuredInvokeEvent({
-    event: "repair_done",
+  logStructuredRepairSession({
+    event: "repair_start",
     label: input.label,
+    repairAttempt,
     provider: input.provider,
     model: input.model,
     taskType: input.taskType,
-    repairAttempt,
-    latencyMs: Date.now() - startedAt,
-    rawChars: repairedRaw.length,
-    strategy: "prompt_json",
+    promptMeta: input.promptMeta,
+    validationError,
+    repairSystem,
+    repairHuman,
   });
-  const repairParse = tryParseStructuredJsonValue(repairedRaw);
-  if ("error" in repairParse) {
-    throw new Error(`[${input.label}] JSON repair 后仍无法解析。错误：${repairParse.error}`);
-  }
 
-  const final = input.schema.safeParse(repairParse.parsed);
-  if (!final.success) {
-    throw new Error(`[${input.label}] JSON repair 后仍未通过 Schema 校验。错误：${formatZodErrors(final.error)}`);
+  const startedAt = Date.now();
+  try {
+    const result = await llm.invoke([new SystemMessage(repairSystem), new HumanMessage(repairHuman)]);
+    const repairedRaw = toText(result.content);
+    const latencyMs = Date.now() - startedAt;
+    logStructuredInvokeEvent({
+      event: "repair_done",
+      label: input.label,
+      provider: input.provider,
+      model: input.model,
+      taskType: input.taskType,
+      repairAttempt,
+      latencyMs,
+      rawChars: repairedRaw.length,
+      strategy: "prompt_json",
+    });
+    logStructuredRepairSession({
+      event: "repair_done",
+      label: input.label,
+      repairAttempt,
+      provider: input.provider,
+      model: input.model,
+      taskType: input.taskType,
+      promptMeta: input.promptMeta,
+      validationError,
+      repairSystem,
+      repairHuman,
+      rawOutput: repairedRaw,
+      latencyMs,
+    });
+    const repairParse = tryParseStructuredJsonValue(repairedRaw);
+    if ("error" in repairParse) {
+      throw new Error(`[${input.label}] JSON repair 后仍无法解析。错误：${repairParse.error}`);
+    }
+
+    const final = input.schema.safeParse(repairParse.parsed);
+    if (!final.success) {
+      const normalized = normalizeOversizedArrays(repairParse.parsed, final.error, input.schema);
+      if (normalized) {
+        logStructuredInvokeEvent({
+          event: "repair_normalized",
+          label: input.label,
+          provider: input.provider,
+          model: input.model,
+          taskType: input.taskType,
+          repairAttempt,
+          strategy: "prompt_json",
+        });
+        return normalized.data;
+      }
+      throw new Error(`[${input.label}] JSON repair 后仍未通过 Schema 校验。错误：${formatZodErrors(final.error)}`);
+    }
+    return final.data;
+  } catch (error) {
+    logStructuredRepairSession({
+      event: "repair_error",
+      label: input.label,
+      repairAttempt,
+      provider: input.provider,
+      model: input.model,
+      taskType: input.taskType,
+      promptMeta: input.promptMeta,
+      validationError,
+      repairSystem,
+      repairHuman,
+      latencyMs: Date.now() - startedAt,
+      error,
+    });
+    throw error;
   }
-  return final.data;
 }
 
 export function shouldUseJsonObjectResponseFormat<T>(
@@ -448,6 +669,26 @@ export async function parseStructuredLlmRawContentDetailed<T>(
   if (first.success) {
     return {
       data: first.data,
+      repairUsed: false,
+      repairAttempts: 0,
+      diagnostics,
+    };
+  }
+
+  const normalizedInitial = normalizeOversizedArrays(parsed, first.error, runtimeSchema);
+  if (normalizedInitial) {
+    logStructuredInvokeEvent({
+      event: "normalized",
+      label: input.label,
+      provider: input.provider,
+      model: input.model,
+      taskType: input.taskType,
+      strategy: input.strategy,
+      fallbackUsed: input.fallbackUsed,
+      reasoningForcedOff: input.reasoningForcedOff,
+    });
+    return {
+      data: normalizedInitial.data,
       repairUsed: false,
       repairAttempts: 0,
       diagnostics,

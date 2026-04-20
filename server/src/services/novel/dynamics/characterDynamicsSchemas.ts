@@ -1,5 +1,75 @@
 import { z } from "zod";
 
+function normalizeOptionalConfidence(value: unknown): unknown {
+  if (value == null || typeof value === "number") {
+    return value;
+  }
+  if (typeof value !== "string") {
+    return value;
+  }
+  const normalized = value.trim();
+  if (!normalized) {
+    return undefined;
+  }
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : value;
+}
+
+function normalizeThresholdValue(value: unknown): unknown {
+  if (value == null) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    if (!normalized) {
+      return undefined;
+    }
+    const parsed = Number(normalized);
+    if (!Number.isFinite(parsed)) {
+      return value;
+    }
+    return Math.min(parsed, 12);
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.min(value, 12);
+  }
+  return value;
+}
+
+const normalizedConfidenceSchema = z.preprocess(
+  normalizeOptionalConfidence,
+  z.number().min(0).max(1).optional().nullable(),
+);
+
+const normalizedVolumeThresholdSchema = z.preprocess(
+  normalizeThresholdValue,
+  z.number().int().min(1).max(12).optional().nullable(),
+);
+
+const volumeProjectionAssignmentSchema = z.object({
+  characterName: z.string().trim().min(1),
+  volumeSortOrder: z.number().int().min(1),
+  roleLabel: z.string().trim().optional().nullable(),
+  responsibility: z.string().trim().min(1),
+  appearanceExpectation: z.string().trim().optional().nullable(),
+  plannedChapterOrders: z.array(z.number().int().min(1)).default([]),
+  isCore: z.boolean().default(false),
+  absenceWarningThreshold: normalizedVolumeThresholdSchema,
+  absenceHighRiskThreshold: normalizedVolumeThresholdSchema,
+}).superRefine((value, ctx) => {
+  if (
+    value.absenceWarningThreshold != null
+    && value.absenceHighRiskThreshold != null
+    && value.absenceHighRiskThreshold < value.absenceWarningThreshold
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["absenceHighRiskThreshold"],
+      message: "absenceHighRiskThreshold must be greater than or equal to absenceWarningThreshold",
+    });
+  }
+});
+
 export const chapterDynamicExtractionSchema = z.object({
   candidates: z.array(z.object({
     proposedName: z.string().trim().min(1),
@@ -7,14 +77,14 @@ export const chapterDynamicExtractionSchema = z.object({
     summary: z.string().trim().optional().nullable(),
     evidence: z.array(z.string().trim().min(1)).max(4).default([]),
     matchedCharacterName: z.string().trim().optional().nullable(),
-    confidence: z.number().min(0).max(1).optional().nullable(),
+    confidence: normalizedConfidenceSchema,
   })).default([]),
   factionUpdates: z.array(z.object({
     characterName: z.string().trim().min(1),
     factionLabel: z.string().trim().min(1),
     stanceLabel: z.string().trim().optional().nullable(),
     summary: z.string().trim().optional().nullable(),
-    confidence: z.number().min(0).max(1).optional().nullable(),
+    confidence: normalizedConfidenceSchema,
   })).default([]),
   relationStages: z.array(z.object({
     sourceCharacterName: z.string().trim().min(1),
@@ -22,30 +92,19 @@ export const chapterDynamicExtractionSchema = z.object({
     stageLabel: z.string().trim().min(1),
     stageSummary: z.string().trim().min(1),
     nextTurnPoint: z.string().trim().optional().nullable(),
-    confidence: z.number().min(0).max(1).optional().nullable(),
+    confidence: normalizedConfidenceSchema,
   })).default([]),
 });
 
 export const volumeDynamicsProjectionSchema = z.object({
-  summary: z.string().trim().min(1),
-  assignments: z.array(z.object({
-    characterName: z.string().trim().min(1),
-    volumeSortOrder: z.number().int().min(1),
-    roleLabel: z.string().trim().optional().nullable(),
-    responsibility: z.string().trim().min(1),
-    appearanceExpectation: z.string().trim().optional().nullable(),
-    plannedChapterOrders: z.array(z.number().int().min(1)).default([]),
-    isCore: z.boolean().default(false),
-    absenceWarningThreshold: z.number().int().min(1).max(12).optional().nullable(),
-    absenceHighRiskThreshold: z.number().int().min(1).max(12).optional().nullable(),
-  })).default([]),
+  assignments: z.array(volumeProjectionAssignmentSchema).default([]),
   factionTracks: z.array(z.object({
     characterName: z.string().trim().min(1),
     volumeSortOrder: z.number().int().min(1).optional().nullable(),
     factionLabel: z.string().trim().min(1),
     stanceLabel: z.string().trim().optional().nullable(),
     summary: z.string().trim().optional().nullable(),
-    confidence: z.number().min(0).max(1).optional().nullable(),
+    confidence: normalizedConfidenceSchema,
   })).default([]),
   relationStages: z.array(z.object({
     sourceCharacterName: z.string().trim().min(1),
@@ -54,7 +113,7 @@ export const volumeDynamicsProjectionSchema = z.object({
     stageLabel: z.string().trim().min(1),
     stageSummary: z.string().trim().min(1),
     nextTurnPoint: z.string().trim().optional().nullable(),
-    confidence: z.number().min(0).max(1).optional().nullable(),
+    confidence: normalizedConfidenceSchema,
   })).default([]),
 }).strict();
 

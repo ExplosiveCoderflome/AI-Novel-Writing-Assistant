@@ -13,6 +13,7 @@ interface WorkflowExplainabilityInput {
   currentItemKey?: string | null;
   checkpointType?: NovelWorkflowCheckpoint | null;
   lastError?: string | null;
+  executionScopeLabel?: string | null;
 }
 
 export interface WorkflowExplainabilitySummary {
@@ -79,6 +80,39 @@ const CHECKPOINT_LAST_HEALTHY_STAGE: Record<NovelWorkflowCheckpoint, NovelWorkfl
   workflow_completed: "quality_repair",
 };
 
+function getExecutionScopeLabel(input: WorkflowExplainabilityInput, fallback = "前 10 章"): string {
+  return input.executionScopeLabel?.trim() || fallback;
+}
+
+function buildAutoExecutionPreparedStatus(input: WorkflowExplainabilityInput): string {
+  return `${getExecutionScopeLabel(input)}已可进入章节执行`;
+}
+
+function buildAutoExecutionRunningStatus(input: WorkflowExplainabilityInput): string {
+  return `${getExecutionScopeLabel(input)}自动执行中`;
+}
+
+function buildAutoExecutionPausedStatus(input: WorkflowExplainabilityInput): string {
+  return `${getExecutionScopeLabel(input)}自动执行已暂停`;
+}
+
+function buildAutoExecutionCancelledStatus(input: WorkflowExplainabilityInput): string {
+  return `${getExecutionScopeLabel(input)}自动执行已取消`;
+}
+
+function buildAutoExecutionResumeAction(input: WorkflowExplainabilityInput): string {
+  return `继续自动执行${getExecutionScopeLabel(input)}`;
+}
+
+function buildAutoExecutionPreparedReason(input: WorkflowExplainabilityInput): string {
+  const scopeLabel = getExecutionScopeLabel(input);
+  return `${scopeLabel}细化已准备完成，你可以进入章节执行，或继续让系统自动执行${scopeLabel}。`;
+}
+
+function buildAutoExecutionPausedReason(input: WorkflowExplainabilityInput): string {
+  return `${getExecutionScopeLabel(input)}自动执行在批量阶段暂停了，建议先看结果，再决定是否继续自动执行当前范围。`;
+}
+
 function getStageLabel(stage: NovelWorkflowStage | null | undefined): string | null {
   return stage ? (NOVEL_WORKFLOW_STAGE_LABELS[stage] ?? stage) : null;
 }
@@ -108,7 +142,9 @@ function getCurrentStageLabel(input: WorkflowExplainabilityInput): string | null
 export function buildWorkflowResumeAction(
   status: TaskStatus,
   checkpointType: NovelWorkflowCheckpoint | null,
+  executionScopeLabel?: string | null,
 ): string | null {
+  const explainabilityInput = { status, checkpointType, executionScopeLabel } satisfies WorkflowExplainabilityInput;
   if (status === "waiting_approval") {
     if (checkpointType === "candidate_selection_required") {
       return "继续确认书级方向";
@@ -123,10 +159,10 @@ export function buildWorkflowResumeAction(
       return "查看卷战略";
     }
     if (checkpointType === "front10_ready") {
-      return "继续自动执行前 10 章";
+      return buildAutoExecutionResumeAction(explainabilityInput);
     }
     if (checkpointType === "chapter_batch_ready") {
-      return "继续自动执行剩余章节";
+      return buildAutoExecutionResumeAction(explainabilityInput);
     }
     if (checkpointType === "replan_required") {
       return "处理重规划";
@@ -138,10 +174,10 @@ export function buildWorkflowResumeAction(
   }
   if (status === "failed" || status === "cancelled") {
     if (checkpointType === "front10_ready") {
-      return "继续自动执行前 10 章";
+      return buildAutoExecutionResumeAction(explainabilityInput);
     }
     if (checkpointType === "chapter_batch_ready") {
-      return "继续自动执行剩余章节";
+      return buildAutoExecutionResumeAction(explainabilityInput);
     }
     if (checkpointType === "workflow_completed") {
       return "进入章节执行";
@@ -168,9 +204,15 @@ function buildDisplayStatus(input: WorkflowExplainabilityInput): string | null {
     (input.status === "queued" || input.status === "running")
     && (input.checkpointType === "front10_ready" || input.checkpointType === "chapter_batch_ready")
   ) {
-    return "前 10 章自动执行中";
+    return buildAutoExecutionRunningStatus(input);
   }
   if (input.status === "waiting_approval") {
+    if (input.checkpointType === "front10_ready") {
+      return buildAutoExecutionPreparedStatus(input);
+    }
+    if (input.checkpointType === "chapter_batch_ready") {
+      return buildAutoExecutionPausedStatus(input);
+    }
     return input.checkpointType
       ? CHECKPOINT_DISPLAY_STATUS[input.checkpointType]
       : "等待继续小说主流程";
@@ -186,13 +228,13 @@ function buildDisplayStatus(input: WorkflowExplainabilityInput): string | null {
   }
   if (input.status === "failed") {
     if (input.checkpointType === "chapter_batch_ready") {
-      return "前 10 章自动执行已暂停";
+      return buildAutoExecutionPausedStatus(input);
     }
     return "自动导演执行失败";
   }
   if (input.status === "cancelled") {
     if (input.checkpointType === "chapter_batch_ready") {
-      return "前 10 章自动执行已取消";
+      return buildAutoExecutionCancelledStatus(input);
     }
     return "自动导演已取消";
   }
@@ -213,19 +255,25 @@ function buildBlockingReason(input: WorkflowExplainabilityInput): string | null 
     return "任务已进入队列，正在等待工作线程和模型资源可用。";
   }
   if (input.status === "waiting_approval") {
+    if (input.checkpointType === "front10_ready") {
+      return buildAutoExecutionPreparedReason(input);
+    }
+    if (input.checkpointType === "chapter_batch_ready") {
+      return buildAutoExecutionPausedReason(input);
+    }
     return input.checkpointType
       ? CHECKPOINT_BLOCKING_REASON[input.checkpointType]
       : "当前流程已停在安全检查点，处理完当前阶段后才能继续。";
   }
   if (input.status === "failed") {
     if (input.checkpointType === "chapter_batch_ready") {
-      return "前 10 章自动执行在批量阶段中断了，建议从最近健康阶段继续恢复。";
+      return `${getExecutionScopeLabel(input)}自动执行在批量阶段中断了，建议从最近健康阶段继续恢复。`;
     }
     return normalizeFailureSummary(input.lastError, "当前阶段执行失败，建议从最近检查点恢复。");
   }
   if (input.status === "cancelled") {
     if (input.checkpointType === "chapter_batch_ready") {
-      return "前 10 章自动执行已取消，如需继续可从最近健康阶段恢复。";
+      return `${getExecutionScopeLabel(input)}自动执行已取消，如需继续可从最近健康阶段恢复。`;
     }
     return "任务已取消，如仍需继续，可从最近检查点恢复。";
   }
@@ -236,7 +284,7 @@ export function buildWorkflowExplainability(input: WorkflowExplainabilityInput):
   return {
     displayStatus: buildDisplayStatus(input),
     blockingReason: buildBlockingReason(input),
-    resumeAction: buildWorkflowResumeAction(input.status, input.checkpointType ?? null),
+    resumeAction: buildWorkflowResumeAction(input.status, input.checkpointType ?? null, input.executionScopeLabel),
     lastHealthyStage: getLastHealthyStage(input),
   };
 }

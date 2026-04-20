@@ -156,7 +156,6 @@ export function buildChapterSceneWriterBlocks(input: {
   sceneIndex: number;
   sceneCount: number;
   currentContent: string;
-  remainingChapterBudget: number;
   roundPlan?: SceneRoundPlan | null;
 }) {
   const writeContext = input.contextPackage.chapterWriteContext;
@@ -170,7 +169,6 @@ export function buildChapterSceneWriterBlocks(input: {
       scene: input.scene,
       sceneIndex: input.sceneIndex,
       sceneCount: input.sceneCount,
-      remainingChapterBudget: input.remainingChapterBudget,
       roundPlan: input.roundPlan,
     }),
     input.currentContent.trim()
@@ -181,8 +179,6 @@ export function buildChapterSceneWriterBlocks(input: {
         required: true,
         content: buildDraftContinuationBlock(
           input.currentContent,
-          sceneRange.targetWordCount,
-          sceneRange.minWordCount,
         ),
       })
       : null,
@@ -314,7 +310,6 @@ async function runSceneStreaming(input: ChapterSceneStreamInput, emitChunk: (chu
       sceneIndex: input.sceneIndex,
       sceneCount: input.sceneCount,
       currentContent: chapterDraft,
-      remainingChapterBudget: roundPlan.remainingChapterWordCount,
       roundPlan,
     });
     if (writerBlocks.removedBlockIds.length > 0) {
@@ -335,23 +330,13 @@ async function runSceneStreaming(input: ChapterSceneStreamInput, emitChunk: (chu
         sceneCount: input.sceneCount,
         sceneTitle: input.scene.title,
         scenePurpose: input.scene.purpose,
-        sceneTargetWordCount: input.scene.targetWordCount,
-        sceneCurrentWordCount: roundPlan.currentSceneWordCount,
-        sceneRemainingWordCount: roundPlan.remainingSceneWordCount,
-        chapterTargetWordCount: input.chapterTargetWordCount,
-        remainingChapterBudget: roundPlan.remainingChapterWordCount,
         roundIndex: roundPlan.roundIndex,
         maxRounds: roundPlan.maxRounds,
-        suggestedRoundWordCount: roundPlan.suggestedRoundWordCount,
-        hardRoundWordLimit: roundPlan.hardRoundWordLimit,
         isFinalRound: roundPlan.isFinalRound,
         closingPhase: roundPlan.closingPhase,
         entryState: input.scene.entryState,
         exitState: input.scene.exitState,
         forbiddenExpansion: input.scene.forbiddenExpansion,
-        targetWordCount: input.scene.targetWordCount,
-        minWordCount: writerBlocks.sceneRange.minWordCount,
-        maxWordCount: writerBlocks.sceneRange.maxWordCount,
       },
       contextBlocks: writerBlocks.allowedBlocks,
       options: {

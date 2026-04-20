@@ -39,6 +39,29 @@
 - Floating range: 500-700 lines is acceptable when module cohesion is still clear and the file is not becoming hard to maintain.
 - Hard threshold: when a source file exceeds 700 lines, refactoring and modularization are mandatory before continuing feature expansion.
 
+## Development Branch Workflow
+
+- When developing a new feature that may affect the end-to-end product flow, default workflow, shared contracts, or other major system links, do not develop directly on `main`.
+- In these cases, first create or switch to a dedicated `dev` branch for that feature, complete implementation and functional verification there, and merge back to `main` only after the feature is tested and stable enough.
+- After the feature branch has been successfully merged back into `main`, clean up that development branch so old feature branches do not accumulate indefinitely.
+- This rule applies in particular to changes that touch cross-stage workflows, shared runtime/prompting/context contracts, automatic director chains, chapter execution chains, data migration behavior, or other changes that can impact the overall chain.
+- Small isolated fixes, copy changes, low-risk UI polish, or documentation-only updates can still be handled without requiring a separate feature `dev` branch unless the user explicitly asks otherwise.
+
+### Temporary Desktop Branch Policy
+
+- Until desktopization work is completed and `desktop-dev` has been merged back into `main`, treat `desktop-dev` as the long-lived integration branch for desktop-related development.
+- During this temporary phase, `main` remains the stable branch for already verified work, small isolated fixes, documentation changes, and low-risk updates that do not need to wait for desktopization to finish.
+- Do not merge every new `main` commit into `desktop-dev` immediately by default. Sync in batches when it is actually useful, instead of creating unnecessary merge noise.
+- You must sync `main` into `desktop-dev` when any of the following is true:
+  - `main` changed shared contracts, shared runtime/state logic, build/dependency setup, or any other code that `desktop-dev` also depends on;
+  - a new `desktop-dev` work slice is about to start and it should build on the latest stable base;
+  - `desktop-dev` is about to enter integration testing, release verification, or merge-back into `main`;
+  - `desktop-dev` has drifted far enough from `main` that conflict risk is starting to rise.
+- If `main` only contains clearly unrelated small fixes, copy edits, or other low-risk changes that do not affect desktopization, it is acceptable to delay the sync and merge them into `desktop-dev` later as a batch.
+- If a new change is expected to affect both the normal web flow and the ongoing desktopization work, prefer implementing it on a dedicated short-lived feature branch or directly on `desktop-dev`, instead of landing it on `main` first and forcing immediate back-merges.
+- When syncing `main` into `desktop-dev`, prefer `merge` if the branch is shared by multiple collaborators. Only use `rebase` when the branch is effectively single-owner and history rewriting will not disrupt anyone else.
+- Once desktopization has been completed, merged into `main`, and the `desktop-dev` branch has been retired, this temporary policy should be considered expired and the repository should fall back to the normal feature-branch workflow above.
+
 ## Prompt Governance
 
 - `server/src/prompting/` is the only allowed entrypoint for adding new product-level prompts.
@@ -56,6 +79,16 @@
 ## README Release Notes Workflow
 
 - Before any commit, push, or PR step in this repository, use the `readme-release-updater` skill from `${CODEX_HOME:-~/.codex}/skills/readme-release-updater` to inspect the Git scope, summarize the user-visible changes, update `docs/releases/release-notes.md`, and refresh `README.md` `## 最新更新` when applicable.
+- If the `readme-release-updater` skill does not exist in the expected Codex skills directory, create it first before any commit, push, or PR step instead of skipping the workflow.
+- When creating that skill, place it under `${CODEX_HOME:-~/.codex}/skills/readme-release-updater/` with a `SKILL.md` that explicitly instructs the agent to:
+  - inspect the pending Git scope for the intended commit, push, or PR, including enough status/diff context to understand the user-visible change;
+  - decide whether the diff has clear user-facing impact or is purely internal;
+  - update `docs/releases/release-notes.md` as the canonical full history, preserving older entries and merging multiple updates for the same date under one date heading;
+  - refresh `README.md` `## 最新更新` so it shows only the newest merged date block plus a link to `docs/releases/release-notes.md`, instead of accumulating historical sections;
+  - write release summaries from the user's perspective, focusing on visible capabilities, workflow improvements, and product behavior rather than file paths, refactors, or test-only details;
+  - skip noisy release-note edits when the current diff is purely internal and clearly say that no user-facing release note update is needed.
+- The `readme-release-updater` skill should also tell the agent to keep the repository's date-based release format, for example `### 2026-04-07`, and not introduce semantic versions unless the user explicitly requests a versioning transition.
+- If the skill is newly created in another terminal, verify that its `SKILL.md` contains the workflow above before continuing with the Git write step.
 - When the user asks to commit or push code, inspect the Git scope for that push and update `docs/releases/release-notes.md` first, then sync `README.md` before the Git write step if the change set has clear user-facing impact.
 - `docs/releases/release-notes.md` is the complete user-facing update history and should preserve older entries.
 - `README.md` is only the latest update surface and must keep a link to `docs/releases/release-notes.md`; do not let `README.md` accumulate multiple historical date blocks.

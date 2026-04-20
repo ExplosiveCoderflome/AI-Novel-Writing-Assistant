@@ -86,6 +86,18 @@ function createContextPackage() {
       createdAt: now,
       updatedAt: now,
     },
+    nextAction: "write_chapter",
+    chapterStateGoal: {
+      chapterId: "chapter-5",
+      chapterOrder: 5,
+      summary: "Push the counterattack into a visible gain.",
+      targetConflicts: ["The first counterattack must land."],
+      targetRelationships: ["Protagonist: tentative alliance"],
+      targetPayoffs: ["First payoff after securing the key intel."],
+      protectedSecrets: ["Hidden mastermind identity"],
+    },
+    protectedSecrets: ["Hidden mastermind identity"],
+    pendingReviewProposalCount: 0,
     stateSnapshot: {
       id: "snapshot-4",
       novelId: "novel-1",
@@ -421,9 +433,11 @@ test("chapter layered contexts carry volume mission, character duties and repair
   assert.ok(writeContext.openConflictSummaries.some((item) => item.includes("第一次反压仍未落地")));
   assert.equal(writeContext.ledgerSummary.overdueCount, 1);
   assert.equal(writeContext.chapterMission.targetWordCount, 3000);
+  assert.equal(writeContext.nextAction, "write_chapter");
   assert.equal(writeContext.lengthBudget.targetWordCount, 3000);
   assert.equal(writeContext.scenePlan.scenes.length, 3);
   assert.equal(writeContext.scenePlan.scenes[1].title, "第一次反压");
+  assert.ok(writeContext.chapterStateGoal.summary.includes("visible gain"));
   assert.ok(reviewContext.structureObligations.includes("volume mission: 建立压迫源并完成第一次反压"));
   assert.ok(reviewContext.structureObligations.some((item) => item.includes("pending payoff: 女二情报钥匙")));
   assert.ok(reviewContext.structureObligations.some((item) => item.includes("urgent payoff: 黑市账户异常")));
@@ -461,8 +475,14 @@ test("chapter layered contexts carry volume mission, character duties and repair
   assert.ok(reviewBlocks.some((block) => (
     block.id === "chapter_mission"
     && /Target length: around 3000 Chinese characters/.test(block.content)
+    && /State-driven next action: write_chapter/.test(block.content)
     && /2550-3450/.test(block.content)
+  )));
+  assert.ok(writerBlocks.some((block) => (
+    block.id === "state_goal"
+    && /Protected secrets/.test(block.content)
   )));
   assert.ok(repairBlocks.some((block) => block.id === "structure_obligations" && /volume mission/.test(block.content)));
   assert.ok(repairBlocks.some((block) => block.id === "repair_boundaries" && /read-only/.test(block.content)));
+  assert.ok(repairBlocks.some((block) => block.id === "repair_boundaries" && /do not disclose/.test(block.content)));
 });

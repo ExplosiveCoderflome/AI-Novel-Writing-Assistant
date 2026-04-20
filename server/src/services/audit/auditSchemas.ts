@@ -10,9 +10,23 @@ const qualityScorePartialSchema = z.object({
   overall: z.number().min(0).max(100).optional(),
 });
 
+function normalizeReviewIssueCategory(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "plot") {
+    return "logic";
+  }
+  return normalized;
+}
+
 export const reviewIssueSchema = z.object({
   severity: z.enum(["low", "medium", "high", "critical"]),
-  category: z.enum(["coherence", "repetition", "pacing", "voice", "engagement", "logic"]),
+  category: z.preprocess(
+    normalizeReviewIssueCategory,
+    z.enum(["coherence", "repetition", "pacing", "voice", "engagement", "logic"]),
+  ),
   evidence: z.string().trim().min(1),
   fixSuggestion: z.string().trim().min(1),
 });

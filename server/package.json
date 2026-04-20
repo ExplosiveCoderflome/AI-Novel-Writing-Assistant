@@ -2,12 +2,12 @@
   "name": "@ai-novel/server",
   "version": "0.1.0",
   "private": true,
-  "license": "MIT",
+  "license": "Apache-2.0",
   "prisma": {
     "seed": "ts-node-dev --transpile-only src/db/seed.ts"
   },
   "scripts": {
-    "dev": "pnpm prisma:generate && pnpm prisma:deploy && ts-node-dev --respawn --transpile-only src/app.ts",
+    "dev": "node scripts/ensure-dev-prisma.cjs && ts-node-dev --respawn --transpile-only src/app.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/app.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",

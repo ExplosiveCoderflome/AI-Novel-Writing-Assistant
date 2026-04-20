@@ -1,7 +1,42 @@
 import { z } from "zod";
 
+function normalizePayoffSourceRefKind(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const normalized = value.trim();
+  if (normalized === "chapter_payoff") {
+    return "chapter_payoff_ref";
+  }
+  if (normalized === "volume_open") {
+    return "volume_open_payoff";
+  }
+  return normalized;
+}
+
+function normalizeOptionalConfidence(value: unknown): unknown {
+  if (value == null) {
+    return value;
+  }
+  if (typeof value === "number") {
+    return value;
+  }
+  if (typeof value !== "string") {
+    return value;
+  }
+  const normalized = value.trim();
+  if (!normalized) {
+    return undefined;
+  }
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 export const payoffLedgerSyncSourceRefSchema = z.object({
-  kind: z.enum(["major_payoff", "volume_open_payoff", "chapter_payoff_ref", "foreshadow_state", "open_conflict", "audit_issue"]),
+  kind: z.preprocess(
+    normalizePayoffSourceRefKind,
+    z.enum(["major_payoff", "volume_open_payoff", "chapter_payoff_ref", "foreshadow_state", "open_conflict", "audit_issue"]),
+  ),
   refId: z.string().trim().optional().nullable(),
   refLabel: z.string().trim().min(1),
   chapterId: z.string().trim().optional().nullable(),
@@ -36,11 +71,11 @@ export const payoffLedgerSyncItemSchema = z.object({
   setupChapterOrder: z.number().int().optional().nullable(),
   payoffChapterId: z.string().trim().optional().nullable(),
   payoffChapterOrder: z.number().int().optional().nullable(),
-  sourceRefs: z.array(payoffLedgerSyncSourceRefSchema).default([]),
-  evidence: z.array(payoffLedgerSyncEvidenceSchema).default([]),
-  riskSignals: z.array(payoffLedgerSyncRiskSignalSchema).default([]),
+  sourceRefs: z.array(payoffLedgerSyncSourceRefSchema).default([]).transform((items) => items.slice(0, 2)),
+  evidence: z.array(payoffLedgerSyncEvidenceSchema).default([]).transform((items) => items.slice(0, 1)),
+  riskSignals: z.array(payoffLedgerSyncRiskSignalSchema).default([]).transform((items) => items.slice(0, 2)),
   statusReason: z.string().trim().optional().nullable(),
-  confidence: z.number().min(0).max(1).optional().nullable(),
+  confidence: z.preprocess(normalizeOptionalConfidence, z.number().min(0).max(1).optional().nullable()),
 });
 
 export const payoffLedgerSyncOutputSchema = z.object({

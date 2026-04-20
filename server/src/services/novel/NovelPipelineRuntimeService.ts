@@ -11,6 +11,7 @@ interface PipelineRecoveryPort {
   listStaleRecoverablePipelineJobs(cutoff: Date): Promise<Array<{ id: string; status: string }>>;
   markPipelineJobCancelled(jobId: string): Promise<void>;
   markPipelineJobFailed(jobId: string, message: string): Promise<void>;
+  markPipelineJobPendingManualRecovery(jobId: string, message: string): Promise<void>;
 }
 
 interface PipelineResumePort {
@@ -34,6 +35,15 @@ export class NovelPipelineRuntimeService {
     await this.finalizeCancelledJobs(pendingCancellationRows);
     const rows = await this.pipelineService.listRecoverablePipelineJobs();
     await this.recoverJobs(rows, SERVER_RESTART_RECOVERY_MESSAGE);
+  }
+
+  async markPendingPipelineJobsForManualRecovery(): Promise<void> {
+    const pendingCancellationRows = await this.pipelineService.listPendingCancellationPipelineJobs();
+    await this.finalizeCancelledJobs(pendingCancellationRows);
+    const rows = await this.pipelineService.listRecoverablePipelineJobs();
+    for (const row of rows) {
+      await this.pipelineService.markPipelineJobPendingManualRecovery(row.id, "服务重启后任务已暂停，等待手动恢复。");
+    }
   }
 
   async recoverStalePipelineJobs(now = new Date(), staleThresholdMs = DEFAULT_STALE_THRESHOLD_MS): Promise<void> {

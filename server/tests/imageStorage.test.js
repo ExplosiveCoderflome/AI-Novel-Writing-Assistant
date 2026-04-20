@@ -234,3 +234,132 @@ test("resolveImageAssetFile reads s3-backed bytes when object exists", async () 
     }
   }
 });
+
+test("removeStoredImageAssetFile deletes s3-backed objects using metadata storage key", async () => {
+  const originalDriver = process.env.IMAGE_STORAGE_DRIVER;
+  const originalBucket = process.env.IMAGE_STORAGE_S3_BUCKET;
+  process.env.IMAGE_STORAGE_DRIVER = "s3";
+  process.env.IMAGE_STORAGE_S3_BUCKET = "test-bucket";
+
+  try {
+    const { imageAssetStorage } = loadModules();
+    let deleteInput = null;
+
+    await imageAssetStorage.removeStoredImageAssetFile({
+      url: "characters/char/task/image-01.png",
+      metadata: JSON.stringify({
+        storageDriver: "s3",
+        storageKey: "characters/char/task/image-01.png",
+      }),
+      s3Client: {
+        send: async (command) => {
+          deleteInput = command.input;
+          return {};
+        },
+      },
+    });
+
+    assert.deepEqual(deleteInput, {
+      Bucket: "test-bucket",
+      Key: "characters/char/task/image-01.png",
+    });
+  } finally {
+    if (originalDriver === undefined) {
+      delete process.env.IMAGE_STORAGE_DRIVER;
+    } else {
+      process.env.IMAGE_STORAGE_DRIVER = originalDriver;
+    }
+    if (originalBucket === undefined) {
+      delete process.env.IMAGE_STORAGE_S3_BUCKET;
+    } else {
+      process.env.IMAGE_STORAGE_S3_BUCKET = originalBucket;
+    }
+  }
+});
+
+test("removeLocalImageAssetFile rejects paths outside configured storage roots", async () => {
+  const { imageAssetStorage } = loadModules();
+  const outsidePath = path.join(os.tmpdir(), `image-cleanup-outside-${Date.now()}.png`);
+  fs.writeFileSync(outsidePath, Buffer.from("outside"));
+
+  try {
+    await assert.rejects(
+      imageAssetStorage.removeLocalImageAssetFile({
+        assetId: "outside_asset",
+        url: outsidePath,
+        metadata: JSON.stringify({
+          localPath: outsidePath,
+        }),
+      }),
+      /Local image asset file was not found/,
+    );
+    assert.equal(fs.existsSync(outsidePath), true);
+  } finally {
+    fs.rmSync(outsidePath, { force: true });
+  }
+});
+
+test("removeLocalImageAssetFile rejects storage-root symlink escapes", async () => {
+  const { imageStorageConfig, imageAssetStorage } = loadModules();
+  const storageRoot = path.resolve(process.cwd(), imageStorageConfig.getImageStorageRoot());
+  fs.mkdirSync(storageRoot, { recursive: true });
+  const tempDir = fs.mkdtempSync(path.join(storageRoot, "symlink-"));
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "image-cleanup-real-"));
+  const targetPath = path.join(outsideDir, "escaped.png");
+  const symlinkDir = path.join(tempDir, "linked-dir");
+  const escapedPath = path.join(symlinkDir, "escaped.png");
+  fs.writeFileSync(targetPath, Buffer.from("outside-via-symlink-dir"));
+  fs.symlinkSync(outsideDir, symlinkDir);
+
+  try {
+    await assert.rejects(
+      imageAssetStorage.removeLocalImageAssetFile({
+        assetId: "symlink_escape_asset",
+        url: escapedPath,
+        metadata: JSON.stringify({
+          localPath: escapedPath,
+        }),
+      }),
+      /Local image asset file was not found/,
+    );
+    assert.equal(fs.existsSync(targetPath), true);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    fs.rmSync(outsideDir, { recursive: true, force: true });
+  }
+});
+
+test("removeStoredImageAssetFile rejects non-canonical metadata storage keys", async () => {
+  const originalDriver = process.env.IMAGE_STORAGE_DRIVER;
+  const originalBucket = process.env.IMAGE_STORAGE_S3_BUCKET;
+  process.env.IMAGE_STORAGE_DRIVER = "s3";
+  process.env.IMAGE_STORAGE_S3_BUCKET = "test-bucket";
+
+  try {
+    const { imageAssetStorage } = loadModules();
+    await assert.rejects(
+      imageAssetStorage.removeStoredImageAssetFile({
+        url: "characters/char/task/image-01.png",
+        metadata: JSON.stringify({
+          storageDriver: "s3",
+          storageKey: "../other-prefix/secret.png",
+        }),
+        s3Client: {
+          send: async () => ({}),
+        },
+      }),
+      /Stored image asset file was not found/,
+    );
+  } finally {
+    if (originalDriver === undefined) {
+      delete process.env.IMAGE_STORAGE_DRIVER;
+    } else {
+      process.env.IMAGE_STORAGE_DRIVER = originalDriver;
+    }
+    if (originalBucket === undefined) {
+      delete process.env.IMAGE_STORAGE_S3_BUCKET;
+    } else {
+      process.env.IMAGE_STORAGE_S3_BUCKET = originalBucket;
+    }
+  }
+});

@@ -4,10 +4,14 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { apiClient } from "./client";
 import { API_BASE_URL } from "@/lib/constants";
 
+export type ImagePromptMode = "character_chain" | "direct";
+export type ImagePromptOutputLanguage = "zh" | "en";
+
 export interface GenerateCharacterImagePayload {
   sceneType: "character";
   sceneId: string;
   prompt: string;
+  promptMode?: ImagePromptMode;
   negativePrompt?: string;
   stylePreset?: string;
   provider?: LLMProvider;
@@ -18,8 +22,24 @@ export interface GenerateCharacterImagePayload {
   maxRetries?: number;
 }
 
+export interface OptimizeCharacterImagePromptPayload {
+  sceneType: "character";
+  sceneId: string;
+  sourcePrompt: string;
+  stylePreset?: string;
+  outputLanguage?: ImagePromptOutputLanguage;
+}
+
 export async function generateCharacterImages(payload: GenerateCharacterImagePayload) {
   const { data } = await apiClient.post<ApiResponse<ImageGenerationTask>>("/images/generate", payload);
+  return data;
+}
+
+export async function optimizeCharacterImagePrompt(payload: OptimizeCharacterImagePromptPayload) {
+  const { data } = await apiClient.post<ApiResponse<{
+    prompt: string;
+    outputLanguage: ImagePromptOutputLanguage;
+  }>>("/images/optimize-prompt", payload);
   return data;
 }
 
@@ -37,6 +57,11 @@ export async function listImageAssets(params: { sceneType: "character"; sceneId:
 
 export async function setPrimaryImageAsset(assetId: string) {
   const { data } = await apiClient.post<ApiResponse<ImageAsset>>(`/images/assets/${assetId}/set-primary`);
+  return data;
+}
+
+export async function deleteImageAsset(assetId: string) {
+  const { data } = await apiClient.delete<ApiResponse<ImageAsset>>(`/images/assets/${assetId}`);
   return data;
 }
 

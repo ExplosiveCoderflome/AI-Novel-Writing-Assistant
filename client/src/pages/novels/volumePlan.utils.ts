@@ -90,6 +90,7 @@ export function createEmptyChapter(chapterOrder: number): VolumeChapterPlan {
     id: createLocalId("chapter"),
     volumeId: "",
     chapterOrder,
+    beatKey: null,
     title: `第${chapterOrder}章`,
     summary: "",
     purpose: "",
@@ -197,6 +198,7 @@ export function buildStructuredPreviewFromVolumes(volumes: VolumePlan[]): string
       openPayoffs: volume.openPayoffs,
       chapters: volume.chapters.map((chapter) => ({
         order: chapter.chapterOrder,
+        beat_key: chapter.beatKey ?? undefined,
         title: chapter.title,
         summary: chapter.summary,
         purpose: chapter.purpose || undefined,

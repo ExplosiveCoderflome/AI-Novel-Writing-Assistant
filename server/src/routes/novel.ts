@@ -101,6 +101,7 @@ const volumeChapterSchema = z.object({
   id: z.string().trim().optional(),
   chapterOrder: z.number().int().min(1).optional(),
   order: z.number().int().min(1).optional(),
+  beatKey: z.string().trim().nullable().optional(),
   title: z.string().trim().min(1),
   summary: z.string().trim().min(1),
   purpose: z.string().trim().nullable().optional(),
@@ -344,7 +345,9 @@ const llmGenerateSchema = z.object({
 const volumeGenerateSchema = llmGenerateSchema.extend({
   guidance: z.string().trim().max(4000).optional(),
   scope: z.enum(["strategy", "strategy_critique", "skeleton", "beat_sheet", "chapter_list", "chapter_detail", "rebalance", "book", "volume"]).optional(),
+  generationMode: z.enum(["full_volume", "single_beat"]).optional(),
   targetVolumeId: z.string().trim().min(1).optional(),
+  targetBeatKey: z.string().trim().min(1).optional(),
   targetChapterId: z.string().trim().min(1).optional(),
   detailMode: z.enum(["purpose", "boundary", "task_sheet"]).optional(),
   estimatedChapterCount: z.number().int().min(1).max(2000).optional(),
@@ -358,6 +361,13 @@ const volumeGenerateSchema = llmGenerateSchema.extend({
       code: z.ZodIssueCode.custom,
       message: "按卷生成时必须提供目标卷。",
       path: ["targetVolumeId"],
+    });
+  }
+  if (value.scope === "chapter_list" && value.generationMode === "single_beat" && !value.targetBeatKey) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "按节奏段重生章节标题时必须提供目标节奏段。",
+      path: ["targetBeatKey"],
     });
   }
   if (value.scope === "chapter_detail" && !value.targetVolumeId) {
@@ -483,6 +493,64 @@ const rewritePreviewSchema = z.object({
   temperature: z.number().min(0).max(2).optional(),
 });
 
+const aiRevisionPreviewSchema = z.object({
+  source: z.enum(["preset", "freeform"]),
+  scope: z.enum(["selection", "chapter"]),
+  presetOperation: z.enum(["polish", "expand", "compress", "emotion", "conflict", "custom"]).optional(),
+  instruction: z.string().trim().max(800).optional(),
+  contentSnapshot: z.string(),
+  selection: z.object({
+    from: z.number().int().min(0),
+    to: z.number().int().min(1),
+    text: z.string().trim().min(1),
+  }).refine((value) => value.to > value.from, {
+    message: "选区结束位置必须大于开始位置。",
+    path: ["to"],
+  }).optional(),
+  context: z.object({
+    beforeParagraphs: z.array(z.string()).max(3),
+    afterParagraphs: z.array(z.string()).max(2),
+  }).optional(),
+  constraints: z.object({
+    keepFacts: z.boolean(),
+    keepPov: z.boolean(),
+    noUnauthorizedSetting: z.boolean(),
+    preserveCoreInfo: z.boolean(),
+  }),
+  provider: llmProviderSchema.optional(),
+  model: z.string().trim().max(120).optional(),
+  temperature: z.number().min(0).max(2).optional(),
+}).superRefine((value, ctx) => {
+  if (value.source === "preset" && !value.presetOperation) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["presetOperation"],
+      message: "预设操作模式必须提供 presetOperation。",
+    });
+  }
+  if (value.source === "freeform" && !value.instruction?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["instruction"],
+      message: "自然语言修正模式必须提供 instruction。",
+    });
+  }
+  if (value.scope === "selection" && !value.selection) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["selection"],
+      message: "片段修正必须提供 selection。",
+    });
+  }
+  if (value.scope === "selection" && !value.context) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["context"],
+      message: "片段修正必须提供上下文窗口。",
+    });
+  }
+});
+
 router.use(authMiddleware);
 
 registerNovelBaseRoutes({
@@ -508,6 +576,7 @@ registerNovelChapterEditorRoutes({
   novelService,
   chapterParamsSchema,
   rewritePreviewSchema,
+  aiRevisionPreviewSchema,
   forwardBusinessError,
 });
 

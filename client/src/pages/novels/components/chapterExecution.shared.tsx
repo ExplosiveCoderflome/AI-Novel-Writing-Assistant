@@ -1,4 +1,10 @@
-import type { Chapter } from "@ai-novel/shared/types/novel";
+import type { SSEFrame } from "@ai-novel/shared/types/api";
+import type {
+  AuditReport,
+  Chapter,
+  StoryStateSnapshot,
+} from "@ai-novel/shared/types/novel";
+import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
 import { parseChapterScenePlan } from "@ai-novel/shared/types/chapterLengthControl";
 import { Link } from "react-router-dom";
 import AiButton from "@/components/common/AiButton";
@@ -8,6 +14,27 @@ import { Button } from "@/components/ui/button";
 
 export type AssetTabKey = "content" | "taskSheet" | "sceneCards" | "quality" | "repair";
 export type QueueFilterKey = "all" | "setup" | "draft" | "review" | "completed";
+export type ChapterExecutionFlowStageKey =
+  | "execution_plan"
+  | "writing"
+  | "review"
+  | "repair"
+  | "state_sync"
+  | "payoff_sync"
+  | "ready";
+export type ChapterExecutionFlowStageStatus = "not_started" | "in_progress" | "done";
+export type ChapterExecutionBackgroundActivityKind = "character_dynamics" | "state_snapshot" | "payoff_ledger";
+export type ChapterExecutionBackgroundActivityStatus = "running" | "failed";
+
+export interface ChapterExecutionBackgroundActivity {
+  kind: ChapterExecutionBackgroundActivityKind;
+  status: ChapterExecutionBackgroundActivityStatus;
+  chapterId: string;
+  chapterOrder?: number;
+  chapterTitle?: string;
+  updatedAt: string;
+  error?: string | null;
+}
 
 export type PrimaryAction = {
   label: string;
@@ -24,6 +51,224 @@ export type QueueFilterOption = {
   label: string;
   count: number;
 };
+
+export interface ChapterExecutionFlowStage {
+  key: ChapterExecutionFlowStageKey;
+  label: string;
+  status: ChapterExecutionFlowStageStatus;
+}
+
+interface ResolveChapterExecutionFlowInput {
+  selectedChapter: Chapter | undefined;
+  chapterAuditReports: AuditReport[];
+  chapterRuntimePackage?: ChapterRuntimePackage | null;
+  chapterStateSnapshot?: StoryStateSnapshot | null;
+  latestStateSnapshot?: StoryStateSnapshot | null;
+  chapterRunStatus?: Extract<SSEFrame, { type: "run_status" }> | null;
+  repairRunStatus?: Extract<SSEFrame, { type: "run_status" }> | null;
+  isStreaming?: boolean;
+  streamingChapterId?: string | null;
+  isRepairStreaming?: boolean;
+  repairStreamingChapterId?: string | null;
+  isRunningFullAudit?: boolean;
+  backgroundActivities?: ChapterExecutionBackgroundActivity[] | null;
+}
+
+const CHAPTER_EXECUTION_FLOW_ORDER: Array<{ key: ChapterExecutionFlowStageKey; label: string }> = [
+  { key: "execution_plan", label: "执行计划" },
+  { key: "writing", label: "正文写作" },
+  { key: "review", label: "审核" },
+  { key: "repair", label: "修复" },
+  { key: "state_sync", label: "状态同步" },
+  { key: "payoff_sync", label: "伏笔回填" },
+  { key: "ready", label: "可继续推进" },
+];
+
+function hasOpenAuditIssues(reports: AuditReport[]): boolean {
+  return reports.some((report) => report.issues.some((issue) => issue.status === "open"));
+}
+
+function hasBackgroundActivity(
+  activities: ChapterExecutionBackgroundActivity[] | null | undefined,
+  kind: ChapterExecutionBackgroundActivity["kind"],
+  chapterId: string,
+): boolean {
+  return (activities ?? []).some((item) => item.kind === kind && item.status === "running" && item.chapterId === chapterId);
+}
+
+function hasRuntimeLedgerData(runtimePackage: ChapterRuntimePackage | null | undefined): boolean {
+  if (!runtimePackage) {
+    return false;
+  }
+  const context = runtimePackage.context;
+  return Boolean(
+    context.ledgerSummary
+    || context.ledgerPendingItems.length > 0
+    || context.ledgerUrgentItems.length > 0
+    || context.ledgerOverdueItems.length > 0,
+  );
+}
+
+function buildCurrentStageNote(stage: ChapterExecutionFlowStage): string {
+  switch (stage.key) {
+    case "execution_plan":
+      return stage.status === "done"
+        ? "这一章的执行计划已经齐备。"
+        : "这章还缺执行计划，系统会先准备任务单或场景拆解。";
+    case "writing":
+      return stage.status === "in_progress"
+        ? "AI 正在写这一章的正文。"
+        : "执行计划已具备，可以开始写正文。";
+    case "review":
+      return stage.status === "in_progress"
+        ? "正文已生成，系统正在审核。"
+        : "正文已有内容，下一步会进入审核。";
+    case "repair":
+      return stage.status === "in_progress"
+        ? "系统正在根据问题修复正文。"
+        : "如果审核发现问题，这里会进入修复阶段。";
+    case "state_sync":
+      return stage.status === "in_progress"
+        ? "系统正在同步本章状态快照与角色变化。"
+        : "正文处理完成后，系统会同步本章状态。";
+    case "payoff_sync":
+      return stage.status === "in_progress"
+        ? "系统正在回填本章涉及的伏笔状态。"
+        : "状态同步完成后，系统会继续更新伏笔账本。";
+    case "ready":
+    default:
+      return stage.status === "done"
+        ? "这章已经达到可继续推进的状态。"
+        : stage.status === "in_progress"
+          ? "这章正在等待你确认是否继续推进。"
+          : "完成前面步骤后，这章就可以继续推进。";
+  }
+}
+
+export function resolveChapterExecutionFlow(input: ResolveChapterExecutionFlowInput): {
+  stages: ChapterExecutionFlowStage[];
+  currentStage: ChapterExecutionFlowStage & { note: string };
+} {
+  const chapter = input.selectedChapter;
+  const chapterId = chapter?.id ?? "";
+  const isCurrentChapterWriting = Boolean(
+    chapter && input.isStreaming && input.streamingChapterId === chapter.id,
+  );
+  const isCurrentChapterRepairing = Boolean(
+    chapter && input.isRepairStreaming && input.repairStreamingChapterId === chapter.id,
+  );
+  const currentStateSnapshot = input.chapterRuntimePackage?.context.stateSnapshot
+    ?? input.chapterStateSnapshot
+    ?? (input.latestStateSnapshot?.sourceChapterId === chapterId ? input.latestStateSnapshot : null);
+
+  const stages: ChapterExecutionFlowStage[] = CHAPTER_EXECUTION_FLOW_ORDER.map(({ key, label }) => {
+    if (!chapter) {
+      return {
+        key,
+        label,
+        status: "not_started",
+      };
+    }
+
+    switch (key) {
+      case "execution_plan":
+        return {
+          key,
+          label,
+          status: chapter.taskSheet?.trim() || chapter.sceneCards?.trim() || chapter.expectation?.trim()
+            ? "done"
+            : "not_started",
+        };
+      case "writing":
+        return {
+          key,
+          label,
+          status: isCurrentChapterWriting
+            ? "in_progress"
+            : chapter.content?.trim()
+              ? "done"
+              : "not_started",
+        };
+      case "review":
+        return {
+          key,
+          label,
+          status: (input.isRunningFullAudit || (isCurrentChapterWriting && input.chapterRunStatus?.phase === "finalizing"))
+            ? "in_progress"
+            : (input.chapterAuditReports.length > 0 || chapter.generationState === "reviewed" || chapter.generationState === "approved" || chapter.generationState === "published")
+              ? "done"
+              : "not_started",
+        };
+      case "repair":
+        return {
+          key,
+          label,
+          status: isCurrentChapterRepairing
+            ? "in_progress"
+            : (chapter.generationState === "repaired" || Boolean(chapter.repairHistory?.trim()))
+              ? "done"
+              : "not_started",
+        };
+      case "state_sync":
+        return {
+          key,
+          label,
+          status: hasBackgroundActivity(input.backgroundActivities, "state_snapshot", chapterId)
+            ? "in_progress"
+            : currentStateSnapshot
+              ? "done"
+              : "not_started",
+        };
+      case "payoff_sync":
+        return {
+          key,
+          label,
+          status: hasBackgroundActivity(input.backgroundActivities, "payoff_ledger", chapterId)
+            ? "in_progress"
+            : (hasRuntimeLedgerData(input.chapterRuntimePackage) || Boolean(currentStateSnapshot?.foreshadowStates?.length))
+              ? "done"
+              : "not_started",
+        };
+      case "ready":
+      default:
+        return {
+          key,
+          label,
+          status: chapter.chapterStatus === "completed" || chapter.generationState === "approved" || chapter.generationState === "published"
+            ? "done"
+            : chapter.chapterStatus === "pending_review" && !hasOpenAuditIssues(input.chapterAuditReports)
+              ? "in_progress"
+              : "not_started",
+        };
+    }
+  });
+
+  const currentStage = stages.find((stage) => stage.status === "in_progress")
+    ?? stages.find((stage) => stage.status === "not_started")
+    ?? stages[stages.length - 1]!;
+
+  return {
+    stages,
+    currentStage: {
+      ...currentStage,
+      note: buildCurrentStageNote(currentStage),
+    },
+  };
+}
+
+export function resolveDisplayedChapterStatus(chapter: Chapter): Chapter["chapterStatus"] | null | undefined {
+  const status = chapter.chapterStatus;
+  if (!hasText(chapter.content)) {
+    return status;
+  }
+  if (status === "pending_generation") {
+    if (chapter.generationState === "approved" || chapter.generationState === "published") {
+      return "completed";
+    }
+    return "pending_review";
+  }
+  return status;
+}
 
 export function chapterStatusLabel(status?: Chapter["chapterStatus"] | null): string {
   switch (status) {
@@ -151,40 +396,42 @@ export function resolveChapterQueuePreview(chapter: Chapter): string {
 }
 
 export function chapterSuggestedActionLabel(chapter: Chapter): string {
-  if (chapter.chapterStatus === "generating") return "等待生成";
-  if (chapter.chapterStatus === "needs_repair") return "修复问题";
-  if (chapter.chapterStatus === "pending_review") {
+  const status = resolveDisplayedChapterStatus(chapter);
+  if (status === "generating") return "等待生成";
+  if (status === "needs_repair") return "修复问题";
+  if (status === "pending_review") {
     return chapter.generationState === "reviewed" || chapter.generationState === "approved"
       ? "确认结果"
       : "运行审校";
   }
-  if (chapter.chapterStatus === "completed") return "继续润色";
-  if (chapter.chapterStatus === "unplanned" || !chapterHasPreparationAssets(chapter)) return "补章节计划";
-  if (!hasText(chapter.content) || chapter.chapterStatus === "pending_generation") return "写本章";
+  if (status === "completed") return "继续润色";
+  if (status === "unplanned" || !chapterHasPreparationAssets(chapter)) return "补章节计划";
+  if (!hasText(chapter.content) || status === "pending_generation") return "写本章";
   if (chapter.generationState === "drafted") return "运行审校";
   return "打开编辑器";
 }
 
 export function chapterMatchesQueueFilter(chapter: Chapter, filter: QueueFilterKey): boolean {
+  const status = resolveDisplayedChapterStatus(chapter);
   if (filter === "all") return true;
   if (filter === "completed") {
-    return chapter.chapterStatus === "completed"
+    return status === "completed"
       || chapter.generationState === "approved"
       || chapter.generationState === "published";
   }
   if (filter === "review") {
-    return chapter.chapterStatus === "pending_review"
-      || chapter.chapterStatus === "needs_repair"
+    return status === "pending_review"
+      || status === "needs_repair"
       || chapter.generationState === "drafted"
       || chapter.generationState === "reviewed";
   }
   if (filter === "setup") {
-    return chapter.chapterStatus === "unplanned" || (!chapterHasPreparationAssets(chapter) && !hasText(chapter.content));
+    return status === "unplanned" || (!chapterHasPreparationAssets(chapter) && !hasText(chapter.content));
   }
   if (filter === "draft") {
-    return chapter.chapterStatus === "pending_generation"
-      || chapter.chapterStatus === "generating"
-      || (!hasText(chapter.content) && chapter.chapterStatus !== "unplanned");
+    return status === "pending_generation"
+      || status === "generating"
+      || (!hasText(chapter.content) && status !== "unplanned");
   }
   return true;
 }

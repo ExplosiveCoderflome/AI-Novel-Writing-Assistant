@@ -13,6 +13,7 @@ import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubB
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
+import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 import { useDirectorChapterTitleRepair } from "@/hooks/useDirectorChapterTitleRepair";
 import {
   buildTaskNoticeRoute,
@@ -65,7 +66,8 @@ function formatKind(kind: TaskKind): string {
   return "图片生成";
 }
 
-function formatCheckpoint(checkpoint: NovelWorkflowCheckpoint | null | undefined): string {
+function formatCheckpoint(checkpoint: NovelWorkflowCheckpoint | null | undefined, scopeLabel?: string | null): string {
+  const resolvedScopeLabel = scopeLabel?.trim() || "前 10 章";
   if (checkpoint === "candidate_selection_required") {
     return "等待确认书级方向";
   }
@@ -79,10 +81,10 @@ function formatCheckpoint(checkpoint: NovelWorkflowCheckpoint | null | undefined
     return "卷战略已就绪";
   }
   if (checkpoint === "front10_ready") {
-    return "前 10 章可开写";
+    return `${resolvedScopeLabel}可开写`;
   }
   if (checkpoint === "chapter_batch_ready") {
-    return "章节批量资源已就绪";
+    return `${resolvedScopeLabel}自动执行已暂停`;
   }
   if (checkpoint === "replan_required") {
     return "需要重规划";
@@ -314,15 +316,22 @@ export default function TaskCenterPage() {
   });
 
   const continueWorkflowMutation = useMutation({
-    mutationFn: (payload: { taskId: string; mode?: "auto_execute_front10" }) => continueNovelWorkflow(
+    mutationFn: (payload: { taskId: string; mode?: "auto_execute_range" }) => continueNovelWorkflow(
       payload.taskId,
       payload.mode ? { continuationMode: payload.mode } : undefined,
     ),
     onSuccess: async (response, variables) => {
       await invalidateTaskQueries();
       const task = response.data;
-      if (variables.mode === "auto_execute_front10") {
-        toast.success("已继续自动执行前 10 章。");
+      const feedback = resolveWorkflowContinuationFeedback(task, {
+        mode: variables.mode,
+      });
+      if (feedback.tone === "error") {
+        toast.error(feedback.message);
+        return;
+      }
+      if (variables.mode === "auto_execute_range") {
+        toast.success(feedback.message);
         return;
       }
       if (task?.kind && task.id) {
@@ -335,7 +344,7 @@ export default function TaskCenterPage() {
         navigate(task.sourceRoute);
         return;
       }
-      toast.success("已恢复小说主流程。");
+      toast.success(feedback.message);
     },
   });
 
@@ -532,7 +541,7 @@ export default function TaskCenterPage() {
                 ) : null}
                 {task.kind === "novel_workflow" ? (
                   <div className="mt-1 text-xs text-muted-foreground">
-                    检查点：{formatCheckpoint(task.checkpointType)} | 建议继续：{task.resumeAction ?? task.nextActionLabel ?? "继续主流程"}
+                    检查点：{formatCheckpoint(task.checkpointType, task.executionScopeLabel)} | 建议继续：{task.resumeAction ?? task.nextActionLabel ?? "继续主流程"}
                   </div>
                 ) : null}
                 {task.blockingReason ? (
@@ -577,7 +586,7 @@ export default function TaskCenterPage() {
                   <div>当前项：{selectedTask.currentItemLabel ?? "暂无"}</div>
                   {selectedTask.kind === "novel_workflow" ? (
                     <>
-                      <div>最近检查点：{formatCheckpoint(selectedTask.checkpointType)}</div>
+                      <div>最近检查点：{formatCheckpoint(selectedTask.checkpointType, selectedTask.executionScopeLabel)}</div>
                       <div>恢复目标页：{formatResumeTarget(selectedTask.resumeTarget)}</div>
                       <div>建议继续：{selectedTask.resumeAction ?? selectedTask.nextActionLabel ?? "继续小说主流程"}</div>
                       <div>最近健康阶段：{selectedTask.lastHealthyStage ?? "暂无"}</div>
@@ -725,11 +734,11 @@ export default function TaskCenterPage() {
                       onClick={() =>
                         continueWorkflowMutation.mutate({
                           taskId: selectedTask.id,
-                          mode: "auto_execute_front10",
+                          mode: "auto_execute_range",
                         })}
                       disabled={continueWorkflowMutation.isPending}
                     >
-                      {selectedTask.resumeAction ?? "继续自动执行前 10 章"}
+                      {selectedTask.resumeAction ?? `继续自动执行${selectedTask.executionScopeLabel ?? "当前章节范围"}`}
                     </Button>
                   ) : null}
                   {selectedTask.kind === "novel_workflow"

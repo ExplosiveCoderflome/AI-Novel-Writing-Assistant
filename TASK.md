@@ -1,6 +1,6 @@
 # AI 长篇成书当前执行计划（小白用户导向）
 
-更新时间：2026-04-10
+更新时间：2026-04-18
 适用范围：当前 `AI-Novel-Writing-Assistant2` 代码库现状  
 目标用户：完全不懂写作、希望通过 AI 引导或全自动规划完成整本小说创作的用户  
 当前定位：强辅助型 AI 小说工作台  
@@ -30,9 +30,9 @@
 
 本轮同步结论：
 
-- `waiting_approval` 的基础展示语义已不再是主阻塞：当前界面已按 live / checkpoint 处理，后续重点转为补齐 `displayStatus / blockingReason / resumeAction / lastHealthyStage`
+- 任务状态可解释性的基础合同已进入主链：`displayStatus / blockingReason / resumeAction / lastHealthyStage` 已接入自动导演任务摘要、任务中心、首页与小说列表，后续重点转为补齐 `pendingReviewCount / nextAction` 这类更细粒度状态
 - `auto_to_ready` 单检查点语义已基本成立，且当前系统已超出旧方案进入 `auto_to_execution`；不再把“只跑到 front10_ready”本身当作新的主待办
-- 当前最值得优先推进的稳定性收口集中在：章节细化硬门禁、结构化 `taskSheet` 与 `artifactHealth`、阶段级模型路由与 fallback、默认 `patch_first` 修复、任务状态可解释性
+- 当前最值得优先推进的稳定性收口集中在：章节细化可用性门禁、轻量 `taskSheet` 执行摘要与非阻塞 `artifactHealth`、阶段级模型路由与 fallback、默认 `patch_first` 修复，以及 `统一状态源 + 状态驱动生成 + 手动/导演共线` 向书级前半段和真实数据链路继续收口
 
 当前唯一主线仍然是 `P0`：
 
@@ -58,6 +58,10 @@
 - runtime package 与统一章节 `contextPackage` 已接入 planner / runtime / review / audit / repair 主入口
 - 动态角色系统已进入 planner 结构化上下文，不再只停留在 digest / package 展示层
 - 自动导演工作流已补上服务重启恢复链，并已超出原 `v1` 计划落到 `auto_to_execution` 与现有项目接管
+- 统一状态主干的章节后半段已落地：`CanonicalStateService / StateCommitService / GenerationDecisionEngine / NovelProductionOrchestrator` 已接入 `chapter_preparation / chapter_execution / quality_repair`
+- 任务状态可解释性已接入任务中心、首页、小说列表与恢复弹窗，不再只停留在后台状态字段
+- 当前卷章节标题/摘要已改为按 beat 分块生成，并支持 `single_beat` 局部重生与章节 `beatKey` 绑定
+- 章节正文默认主链已回退为整章一次性生成；场景字数提示和多轮审校重试止损已同步收口
 
 归档规则：
 
@@ -99,6 +103,20 @@ P0 的默认主链统一为：
 ---
 
 ## 4. 当前活跃计划（P0）
+
+### 当前未完成待做清单（按优先级）
+
+- `P0-E1 / P0-A`：在真实 Prisma 链路完成 `migration -> 章节写入 -> 候选变更 -> 状态版本` 抽样回归，覆盖旧项目、批量执行、自动导演恢复链
+- `P0-E1`：继续把 `story_macro / book_contract / character_prep / volume_planning / takeover_start` 收口到 `NovelProductionOrchestrator`
+- `P0-E1 / P0-E`：把 `PlannerService.replan` 的窗口决策、触发理由、章节选择正式切到 canonical/state-driven 主判断
+- `P0-B`：为 `purpose / boundary / taskSheet` 增加 schema + 语义可用性双门禁，拦截坏细化产物进入同步和执行链
+- `P0-B`：把 `taskSheet` 收口为轻量执行摘要，并补 `artifactHealth / artifactHealthSummary` 诊断合同，但保持非阻塞
+- `P0-B`：补章节 repair 的 `patch_first` 默认策略，并把动态角色系统继续推进到执行期角色筛选、修复边界与 replan 判断
+- `P0-B`：把模型路由从 `planner / writer / review / repair` 粗粒度推进到小说生产阶段级路由与 fallback
+- `P0-C / P0-D`：继续把 `critique / rebalance / uncertainty / canonical payoff ledger` 接成卷级工作台默认消费链，并让卷级账本视图成为主视图
+- `P0-F`：把首页、创建页、空状态统一收敛为“AI 自动导演推荐入口 + 手动高级入口”，并在关键节点只保留一个推荐下一步
+- `P0-G`：为拆书任务补齐 `scope / pause / resume / coverage` 合同，形成“前 N 片段试跑 -> 扩范围继续”的渐进式流程
+- `task-3b8c9c2f4a`：落实 LLM JSON 修复链路优化，包括预修复、错误分类、失败提示与定向回归测试
 
 ### P0-A 真实 Prisma 数据端到端验收（暂缓单列）
 
@@ -150,11 +168,12 @@ P0 的默认主链统一为：
 - 虽然 runtime / review / repair / planner / replan 已开始接入统一账本视角，但真实 Prisma 迁移链路下围绕 payoff ledger 的持续抽样回归仍不够，当前主要完成了构建验证和 targeted test
 - 真实 Prisma 链路、新旧项目迁移链路、自动导演交接链路里，planner / runtime / review / repair / replan 的一致性仍缺持续抽样回归；当前只补齐了自动导演后半段的一轮真实验证，以及 payoff ledger 的服务级 / 上下文级测试
 - 章节细化虽然已有结构校验与字段别名兼容，但 `purpose / taskSheet` 仍偏“非空即过”，坏文本和低可用产物仍可能进入同步与后续消费
-- `taskSheet` 仍是单文本字段，缺少内部结构化表示与 `artifactHealth`；`front10_ready` 仍更接近“细化已生成”而不是“细化健康通过”
+- `taskSheet` 仍是单文本字段，当前更适合继续收口为“轻量执行摘要”而不是重型分段合同；`artifactHealth` 也更适合作为诊断与提醒，而不是新的正文生成阻塞点
 - 模型路由仍以 `planner / writer / review / repair` 为粗粒度，尚未升级到小说生产阶段级主路由与 fallback 链
 - 章节 repair 已共用统一上下文，但默认仍缺 `patch_first` 策略与“局部修补优先、整章重写升级触发”的明确合同
 - 动态角色系统虽然已进入 planner，但在执行期角色筛选、repair 边界、缺席风险提示和 replan 判断中的行为驱动仍不够深
 - 批量执行、异常恢复、旧资产兼容路径下，书级 / 卷级 / 角色 / payoff ledger 资产仍可能出现残余分叉
+- 章节正文默认已经回退为整章一次性生成；`sceneCards` 与执行合同刷新不再适合作为正文热路径的默认硬依赖，但仍可保留为细化、诊断、局部修复和可解释性辅助资产
 
 当前重点：
 
@@ -162,7 +181,8 @@ P0 的默认主链统一为：
 - 收掉手动创建、自动导演创建、现有项目接管三条入口在资产消费上的剩余差异
 - 继续减少 planner、runtime、审阅、repair、replan 在特殊入口和异常分支下的残余分叉，重点盯旧项目、批量执行、`chapter_batch_ready` 之后的继续执行 / 失败重试 / 质量修复恢复
 - 为 `purpose / boundary / taskSheet` 增加 schema + 语义可用性双门禁，优先拦截纯数字、标题回显、缺少推进目标、缺少结尾要求等坏细化产物
-- 把 `taskSheet` 升级为“内部结构化 + 外部兼容文本”，并给章节细化补 `artifactHealth / artifactHealthSummary`，把 `front10_ready` 放行收口到“前置细化健康通过”
+- 把 `taskSheet` 收口为“轻量执行摘要”，优先稳定 `推进目标 / 必保事项 / 结尾要求 / 风险提示` 这类高价值字段；`sceneCards` 退回辅助资产，不再把分段合同刷新与按场景正文生成放进默认热路径
+- 给章节细化补 `artifactHealth / artifactHealthSummary`，但默认只用于诊断、提醒与任务可解释性，不把它抬成新的正文生成阻塞链；`front10_ready` 继续以“细化可用且健康基本通过”为目标，而不是追求重型合同完备
 - 将模型路由从粗粒度任务类型推进到小说阶段级路由与 fallback，优先覆盖 `chapter_purpose / chapter_boundary / chapter_task_sheet / chapter_write / chapter_review / chapter_patch`
 - 把章节 repair 的默认策略收口为 `patch_first`，只在跨段大面积损坏或用户明确要求时升级为整章重写
 - 为自动导演和任务中心补齐 `displayStatus / blockingReason / resumeAction / lastHealthyStage` 这类可解释状态合同，减少“看得到进度但不知道为什么停”的黑盒感
@@ -231,6 +251,92 @@ P0 的默认主链统一为：
 - 长篇连续写作的纠偏从“人工兜底”转为“系统闭环”
 - 系统会主动标出当前最该回收的事项、已超期未回收事项和疑似误回收事项，而不是只在底层状态中被动记录
 - 审计和 replan 能对伏笔 / 回收给出可执行建议，例如 `前移 / 后移 / 拆分 / 合并 / 作废`，而不只是指出“有问题”；当前已开始支持 payoff 专项问题码与 `blockingLedgerKeys`
+
+### P0-E1 统一状态源、状态驱动生成与手动/导演共线
+
+需求背景：
+
+- 当前系统已经不是单 prompt 写作工具，而是 `书级 framing -> story macro -> character -> volume -> chapter mission -> writer -> audit -> replan` 的多层系统
+- 当前最危险的问题不是单次生成差，而是同一本书在不同模块眼里已经不是同一本书：角色、世界、冲突、伏笔、已公开信息、当前任务目标会发生状态分叉
+- 自动导演与手动主链当前仍有残余分叉，尤其体现在前半段资产模型、知识消费方式、状态理解和章节执行前置依据上
+- 因此需要同时推进三件事：
+  - 建立统一状态源，避免 planner / writer / audit / repair 各自维护一份“事实”
+  - 把章节推进改成状态驱动，而不是简单堆资料驱动
+  - 把手动起步、自动导演起步、现有项目接管收口到同一主生产线
+
+统一方案：
+
+- 保留 `手动起步`、`自动导演起步`、`接管现有项目` 三种入口，但三者都收口到同一条 `NovelProductionOrchestrator`
+- 不做一个新的“大 JSON 真源”，继续复用现有正式资产表作为分域真源，在其上建立统一读取层与受控写回层
+- 统一状态主干至少覆盖五层：
+  - `Book Contract State`
+  - `World State`
+  - `Character Runtime State`
+  - `Narrative State`
+  - `Timeline / Event State`
+- 所有长期有效的新事实一律走同一条链：
+  - `章节/阶段执行 -> 提取候选变更 -> 校验 -> 保守提交 -> 记录版本 -> 刷新下游上下文`
+- 章节生成改成三层状态驱动：
+  - `任务状态驱动`：先判断当前正确动作是写、修、重规划还是等待审核
+  - `上下文状态驱动`：只给当前任务必要的局部状态
+  - `输出目标状态驱动`：每次生成前先声明这一步应该推动哪些状态变化
+
+本轮实施计划：
+
+- `P0`：先落地状态主干，不推翻旧表结构
+  - 新增 `CanonicalStateService`、`StateCommitService`、`StateVersionLog`
+  - 章节完成后接入 `ChapterFactExtractor -> StateCommitService`
+  - runtime / review / repair 开始共享 `canonicalState`
+- `P1`：把章节主链改成状态驱动
+  - 落 `GenerationDecisionEngine`
+  - 让 `chapter mission / writer / audit / repair / replan` 共享 `StateGoal / ChapterStateGoal`
+- `P2`：收口手动 / 导演 / 接管三条入口
+  - 新增 `NovelProductionOrchestrator`
+  - 让三种入口只在 `controlPolicy` 上不同，不再各跑一套主链
+- `P3`：收口前端解释性
+  - 明确展示 `当前阶段 / 当前状态 / 当前下一动作 / 为什么停`
+
+已归档进展：
+
+- 统一状态合同、状态持久化模型、`CanonicalStateService / ChapterFactExtractor / StateCommitService / StateVersionLog` 已落地
+- 章节后台同步、runtime 上下文、planner 上下文已经开始优先消费 canonical state
+- `GenerationDecisionEngine / ContextAssemblyService / NovelProductionOrchestrator` 已把章节后半段主链接入最小状态驱动闭环
+- 手动单章生成、批量章节执行、手动章节规划、手动重规划已经开始通过统一编排器共线
+- 定向 build / prisma generate / server 测试已覆盖最小状态驱动闭环；更细的真实链路验证转入下面的未完成项继续推进
+
+当前未完成：
+
+- 真实数据库尚未正式执行这轮 migration；当前只完成了 schema、migration 文件与 prisma generate
+- `NovelProductionOrchestrator` 目前已接通 `chapter_preparation / chapter_execution / quality_repair`，但书级前半段阶段（`story_macro / book_contract / character_prep / volume_planning`）和接管入口还没有正式并线
+- `GenerationDecisionEngine`、`ContextAssemblyService` 已落地，且 `chapter mission / writer / audit / repair` 已开始消费 `ChapterStateGoal`，但 `replan` 和更前面的规划阶段还没有全量切过去
+- `replanNovel` 虽然已走统一编排器入口，且内部会复用新的 `generateChapterPlan`，但 `PlannerService.replan` 的窗口决策、触发理由整形、章节选择策略仍未完全改成 canonical/state-driven 主判断
+- `StateCommitService` 当前采取保守提交：
+  - 低风险的 `character_state_update / event_record / payoff_progression / conflict_update` 已能提交与版本落账
+  - `relation_state_update / information_disclosure / world_rule_change / book_contract_change` 仍停留在 `pending_review`
+- 自动导演前半段还没有完全复用 canonical state 与同一组参考知识消费链，导演链与手动主链仍有剩余分叉
+- 前端还没有把 `当前阶段 / 当前状态 / 当前下一动作 / pending_review` 显式展示出来
+
+下一步重点：
+
+- 优先做真实 Prisma 链路抽样回归，确认 `migration -> 章节写入 -> 候选变更 -> 状态版本` 在旧项目、批量执行、自动导演恢复链上稳定
+- 继续把 `PlannerService.replan` 的窗口决策与触发理由正式接到 `ContextAssemblyService / CanonicalStateService / ChapterStateGoal`，让“为什么要重规划、该改哪几章”也走统一状态判断
+- 继续把书级阶段与入口收口到 `NovelProductionOrchestrator`：
+  - 先收 `story_macro / book_contract`
+  - 再收 `character_prep / volume_planning`
+  - 最后处理 `takeover_start`
+- 让自动导演前半段开始复用 canonical state 与统一参考知识消费，先收掉“导演规划依据”和“手动规划依据”的分叉
+- 在任务中心与编辑页补 `displayStatus / blockingReason / resumeAction / lastHealthyStage / pendingReviewCount`
+
+完成标志：
+
+- planner / writer / audit / repair / replan 对同一章读取到同一份正式状态，不再各自拼一套事实
+- 章节里出现长期有效新事实后，系统能稳定区分：
+  - 可以自动提交的正式变化
+  - 需要人工/审校确认的高风险变化
+  - 明确拒绝写回的脏状态
+- “写下一章”前，系统能先判断应该 `write / repair / replan / hold_for_review`，而不是无条件直接写
+- 手动起步、自动导演起步、接管现有项目三条入口进入章节执行时共享同一套状态与上下文依据
+- 用户能在界面上看懂当前为什么停、现在依据什么状态、继续后会推进什么
 
 ### P0-F 新用户首启与快速开书入口收敛
 
@@ -340,7 +446,7 @@ P0 的默认主链统一为：
 ### 第一阶段：先收口已经开始落地的资产消费与新手主链
 
 - `P0-B` 已落地资产的更深消费
-- `章节细化硬门禁 / taskSheet 结构化 / artifactHealth`
+- `章节细化可用性门禁 / 轻量 taskSheet / 非阻塞 artifactHealth`
 - `阶段级模型路由与 fallback`
 - `P0-F` 新用户首启与快速开书入口收敛
 - `P0-G` 拆书工作台与渐进式拆书收口
@@ -436,6 +542,7 @@ P0 的默认主链统一为：
 - 章节规划默认结构源稳定来自 `书级 framing + story macro + current volume window + 卷级工作台`
 - 旧 `outline / structuredOutline` 只保留兼容性参考地位
 - `purpose / boundary / taskSheet` 不仅结构合法，而且通过可用性门禁；坏细化产物不会误入 `front10_ready`
+- 正文默认走整章一次性生成；`sceneCards` 与执行合同刷新只作为辅助资产、诊断或局部修复能力存在，不再作为默认写作前硬依赖
 - `圣经 / 拍点` 开始以前置规划资产而不是后置质检资产的身份参与链路
 - 伏笔 / 回收不再只是散落字段，系统能通过 payoff ledger 在章节生成前清晰展示结构承诺、兑现缺口和当前卷必须处理的 payoff obligations
 
@@ -700,8 +807,122 @@ P2 重点解决：
 ## Codex 开发同步（自动维护）
 
 本区块由 `$task-md-sync` 自动维护，用于同步开发计划与实现进度。
+使用约定：
+
+- 已完成项以第 `2` 节归档摘要为准，不再把本区块里的完成任务当作当前 backlog。
+- 当前直接待做事项以第 `4` 节“当前未完成待做清单”为准；本区块主要保留开发流水记录与仍未完成的任务条目。
 
 <!-- task-md-sync:start -->
+<!-- task-md-sync:item:task-bd8822d224:start -->
+### 节奏拆章恢复粒度收细
+- 标识：`task-bd8822d224`
+- 状态：已完成
+- 最近更新：2026-04-18 09:23
+- 概要：已实现 structured_outline 按卷 / beat / detail mode 的恢复游标，自动导演与手动拆章页都能从最近已完成边界继续，不再默认从 0 重跑。
+
+计划清单：
+- [ ] 抽 structured_outline 恢复游标，按卷 / beat / detail mode 判断下一步
+- [ ] 让 chapter_list full_volume 支持从首个未完成 beat 继续
+- [ ] 让自动导演恢复与换模型重试跳过已完成卷、已完成 beat、已完成细化项
+- [ ] 让手动拆章页失败后回填已自动保存进度，并让批量细化从缺失 mode 继续
+- [ ] 补后端回归测试并验证恢复链
+
+进度记录：
+- 2026-04-18 09:03 [开发中] 已进入实现，开始收细节奏拆章恢复粒度。
+- 2026-04-18 09:23 [已完成] 已完成后端恢复游标、chapter_list 续跑、前端失败回填与批量细化续跑，并补齐相关测试与构建验证。
+<!-- task-md-sync:item:task-bd8822d224:end -->
+
+<!-- task-md-sync:item:task-2f4c88b71e:start -->
+### 按卷节奏分块生成章节标题
+- 标识：`task-2f4c88b71e`
+- 状态：已完成
+- 最近更新：2026-04-17 01:12
+- 概要：将当前整卷一次性章节标题/摘要生成改为按卷节奏 beat 分块生成，并支持节奏段局部重生与章节 `beatKey` 显式绑定。
+
+计划清单：
+- [ ] 扩展章节列表生成合同，新增 `generationMode`、`targetBeatKey` 和章节 `beatKey` 显式绑定
+- [ ] 重构 `chapter_list` 编排为按 beat 分块生成、块级校验与整卷合并
+- [ ] 在节奏 / 拆章工作区增加节奏段局部重生入口，并优先按 `beatKey` 归组章节
+- [ ] 补充服务端、prompt、前端与工作流回归测试
+
+进度记录：
+- 2026-04-16 23:55 [开发中] 已确认实现范围仅覆盖章节标题/摘要链路，准备开始落地 shared contract、server orchestrator 与工作区局部重生入口。
+- 2026-04-17 01:12 [已完成] 已落地 beat-by-beat 章节块生成、`single_beat` 局部重生、章节 `beatKey` canonical 写回、前端 beat-aware 分组与局部重生按钮，并通过 `pnpm --filter @ai-novel/server build`、`pnpm --filter @ai-novel/client build` 与定向服务端测试。
+<!-- task-md-sync:item:task-2f4c88b71e:end -->
+
+<!-- task-md-sync:item:task-7c41b2e0d3:start -->
+### 章节正文恢复整章生成
+- 标识：`task-7c41b2e0d3`
+- 状态：已完成
+- 最近更新：2026-04-14 23:22
+- 概要：回退章节正文主链路，不再按 `sceneCards` 拆场景生成，也不在生成前自动刷新章节执行合同，让“重写本章”和普通正文生成统一恢复为整章一次性写作。
+
+计划清单：
+- [ ] 确认重写本章与普通生成的统一入口，定位场景驱动接入点
+- [ ] 回退正文主生成到整章一次性写作，并移除生成前自动执行合同刷新
+- [ ] 更新最小回归测试，确认 `createChapterStream` 不再触发执行合同刷新
+
+进度记录：
+- 2026-04-14 23:12 [开发中] 已确认重写本章仍走统一 `/generate` 入口，当前额外耗时主要来自场景驱动与生成前执行合同刷新。
+- 2026-04-14 23:22 [已完成] 已回退正文主链路到整章一次性写作，并通过 `@ai-novel/shared build`、`@ai-novel/server build` 与 `chapterRuntimeCoordinator.test.js` 定向验证。
+<!-- task-md-sync:item:task-7c41b2e0d3:end -->
+
+<!-- task-md-sync:item:task-4f8a2d7c11:start -->
+### 场景写作去字数提示
+- 标识：`task-4f8a2d7c11`
+- 状态：已完成
+- 最近更新：2026-04-14 21:36
+- 概要：移除场景正文写作阶段直接传给 LLM 的场景/章节字数预算提示，保留场景职责、进入/退出状态与内部流式执行机制，降低场景被统一预算话术牵引成同质节奏的风险。
+
+计划清单：
+- [ ] 梳理场景写作 prompt、场景合同块和续写摘录里的长度提示入口
+- [ ] 移除场景 prompt 中的场景预算、章节预算和分轮新增/硬上限提示
+- [ ] 补充回归测试，确认场景 prompt 与场景合同块不再暴露直接长度预算
+
+进度记录：
+- 2026-04-14 21:24 [开发中] 已确认场景流会把场景预算、章节预算和轮次预算同时暴露给 LLM，上下文语气容易重复。
+- 2026-04-14 21:31 [开发中] 已移除场景 prompt、场景合同块和场景续写摘录中的直接长度提示，保留场景职责与轮次状态语义。
+- 2026-04-14 21:36 [已完成] 已通过 `@ai-novel/server build` 与 `prompting`、`sceneBudgetRuntime` 定向测试。
+<!-- task-md-sync:item:task-4f8a2d7c11:end -->
+
+<!-- task-md-sync:item:task-1d9c5b7e21:start -->
+### 章节审校单次修复止损
+- 标识：`task-1d9c5b7e21`
+- 状态：已完成
+- 最近更新：2026-04-14 21:10
+- 概要：将章节流水线的默认审校重试收敛为“初审失败后最多修一次，再复审一次，失败即停”，减少章节在审校/修复阶段反复循环。
+
+计划清单：
+- [ ] 梳理当前章节审校与修复重试链路
+- [ ] 将默认重试预算从 2 调整为 1，覆盖自动导演、批量流水线和编辑页默认值
+- [ ] 补充最小回归测试，确认不会进入第三轮审校
+
+进度记录：
+- 2026-04-14 21:04 [开发中] 已确认当前重复来自默认 `maxRetries=2`，导致“审校 -> 修复 -> 审校 -> 修复 -> 审校”。
+- 2026-04-14 21:08 [开发中] 已将自动导演、章节流水线和编辑页默认重试预算统一收敛为 1。
+- 2026-04-14 21:10 [已完成] 已通过 `@ai-novel/server build`、`@ai-novel/client typecheck` 与 `chapterRuntimePipeline`、`novelDirectorAutoExecution` 定向测试。
+<!-- task-md-sync:item:task-1d9c5b7e21:end -->
+
+<!-- task-md-sync:item:task-6e2c3f1b9a:start -->
+### 正文场景合同主链路接通
+- 标识：`task-6e2c3f1b9a`
+- 状态：开发中
+- 最近更新：2026-04-14 20:34
+- 概要：该任务曾尝试让正文生成主链路在写作前自动刷新章节执行合同，并优先消费 canonical `sceneCards` 按场景写作；后续已确认这条路径会显著拖慢正文生成，因此已被“恢复整章一次性生成”替代，不再作为当前默认主链。
+
+计划清单：
+- [ ] 检查正文生成、planner 持久化与节奏板细化链路，确认 `sceneCards` 在进入正文前的丢失点
+- [ ] 调整 planner 持久化格式，仅在可形成 canonical 场景合同时写入 `sceneCards`
+- [ ] 让正文生成主入口在组装上下文前自动刷新章节执行合同
+- [ ] 将正文主写作链路切到已有的按场景流式生成实现，并回传章节长度控制结果
+- [ ] 补充最小回归测试，覆盖 canonical sceneCards、执行合同刷新与失败降级
+
+进度记录：
+- 2026-04-14 19:58 [开发中] 已确认重复放大点不在节奏板本身，而在 planner 覆写 `sceneCards` 与正文主链路未接场景流。
+- 2026-04-14 20:16 [开发中] 已接入执行合同预刷新与按场景写作主路径，同时把 planner 的 `sceneCards` 持久化改为 canonical JSON。
+- 2026-04-14 20:34 [已完成] 已通过 `@ai-novel/shared build`、`@ai-novel/server build`、`@ai-novel/server typecheck` 与 `chapterLengthControl`、`plannerPersistence`、`chapterRuntimeCoordinator` 定向测试。
+<!-- task-md-sync:item:task-6e2c3f1b9a:end -->
+
 <!-- task-md-sync:item:task-8f0fdf4e01:start -->
 ### 自动导演候选阶段恢复卡死修复
 - 标识：`task-8f0fdf4e01`
@@ -742,7 +963,7 @@ P2 重点解决：
 <!-- task-md-sync:item:task-3b8c9c2f4a:start -->
 ### LLM JSON 修复链路优化
 - 标识：`task-3b8c9c2f4a`
-- 状态：已计划
+- 状态：开发中
 - 最近更新：2026-04-10 00:45
 - 概要：优化结构化 JSON 修复链路，在进入 AI 修复前先尝试处理常见格式错误，并在修复失败时返回明确失败原因与操作建议。
 

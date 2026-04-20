@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type {
   BaseCharacter,
@@ -27,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import CharacterAssetWorkspace from "./CharacterAssetWorkspace";
 import CharacterDiagnosticsSection from "./CharacterDiagnosticsSection";
 import type { QuickCharacterCreatePayload } from "./characterPanel.utils";
+import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
 
 interface QuickCharacterFormState {
   name: string;
@@ -140,6 +142,7 @@ interface NovelCharacterPanelProps {
   onSaveCharacter: () => void;
   isSavingCharacter: boolean;
   timelineEvents: CharacterTimeline[];
+  directorTakeoverEntry?: ReactNode;
 }
 
 export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
@@ -184,6 +187,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
     onSaveCharacter,
     isSavingCharacter,
     timelineEvents,
+    directorTakeoverEntry,
   } = props;
 
   const [isCharacterEntryOpen, setIsCharacterEntryOpen] = useState(false);
@@ -282,6 +286,11 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
 
   return (
     <div className="space-y-5">
+      <DirectorTakeoverEntryPanel
+        title="从角色准备接管"
+        description="AI 会先判断角色资产是否已经齐备，再决定继续补角色还是按你的选择重跑当前步骤。"
+        entry={directorTakeoverEntry}
+      />
       {characterMessage ? <div className="text-sm text-muted-foreground">{characterMessage}</div> : null}
 
       <Card className="overflow-hidden border-border/70 bg-gradient-to-br from-background via-background to-muted/30">

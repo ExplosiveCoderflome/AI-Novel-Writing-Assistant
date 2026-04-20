@@ -1,9 +1,22 @@
 import { NovelArtifactService } from "./NovelArtifactService";
 import { NovelCoreService } from "./NovelCoreService";
+import {
+  buildManualChapterControlPolicy,
+  registerChapterExecutionStageRunner,
+} from "./production/ChapterExecutionStageRunner";
+import { novelProductionOrchestrator } from "./production/NovelProductionOrchestrator";
 import { ChapterRuntimeCoordinator } from "./runtime/ChapterRuntimeCoordinator";
 
 export class NovelGenerationService extends NovelArtifactService {
   private readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator();
+
+  constructor() {
+    super();
+    registerChapterExecutionStageRunner({
+      getCore: () => this.core,
+      getCoordinator: () => this.chapterRuntimeCoordinator,
+    });
+  }
 
   createOutlineStream(...args: Parameters<NovelCoreService["createOutlineStream"]>) {
     return this.core.createOutlineStream(...args);
@@ -15,18 +28,28 @@ export class NovelGenerationService extends NovelArtifactService {
     return this.core.createStructuredOutlineStream(...args);
   }
 
-  createChapterStream(...args: Parameters<NovelCoreService["createChapterStream"]>) {
+  async createChapterStream(...args: Parameters<NovelCoreService["createChapterStream"]>) {
     const [novelId, chapterId, options] = args;
-    return this.chapterRuntimeCoordinator.createChapterStream(novelId, chapterId, options, {
-      includeRuntimePackage: true,
+    const result = await novelProductionOrchestrator.runStage({
+      novelId,
+      stage: "chapter_execution",
+      policy: buildManualChapterControlPolicy(),
+      trigger: "manual_generate_chapter",
+      payload: {
+        mode: "single_chapter_stream",
+        chapterId,
+        options,
+        includeRuntimePackage: true,
+      },
     });
+    if (!result.payload) {
+      throw new Error("Unified chapter execution did not return a stream payload.");
+    }
+    return result.payload as Awaited<ReturnType<ChapterRuntimeCoordinator["createChapterStream"]>>;
   }
 
   createChapterRuntimeStream(...args: Parameters<NovelCoreService["createChapterStream"]>) {
-    const [novelId, chapterId, options] = args;
-    return this.chapterRuntimeCoordinator.createChapterStream(novelId, chapterId, options, {
-      includeRuntimePackage: true,
-    });
+    return this.createChapterStream(...args);
   }
 
   generateTitles(...args: Parameters<NovelCoreService["generateTitles"]>) {

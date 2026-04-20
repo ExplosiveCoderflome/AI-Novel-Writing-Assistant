@@ -1,9 +1,11 @@
 import type {
+  VolumeBeat,
   VolumeBeatSheet,
   VolumeCountGuidance,
   VolumePlan,
   VolumeStrategyPlan,
 } from "@ai-novel/shared/types/novel";
+import { parseChapterScenePlan } from "@ai-novel/shared/types/chapterLengthControl";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
 import type {
   ChapterDetailMode,
@@ -54,10 +56,18 @@ export interface VolumeChapterListPromptInput {
   strategyPlan: VolumeStrategyPlan | null;
   targetVolume: VolumePlan;
   targetBeatSheet: VolumeBeatSheet;
+  targetBeat: VolumeBeat;
+  previousBeat?: VolumeBeat | null;
+  nextBeat?: VolumeBeat | null;
   previousVolume?: VolumePlan;
   nextVolume?: VolumePlan;
   guidance?: string;
-  targetChapterCount: number;
+  targetBeatChapterCount: number;
+  targetChapterStartOrder: number;
+  targetChapterEndOrder: number;
+  nextAvailableChapterOrder: number;
+  previousBeatChapterSummary?: string | null;
+  preservedBeatChapterSummary?: string | null;
   retryReason?: string | null;
 }
 
@@ -272,6 +282,49 @@ export function buildBeatSheetContext(beatSheet: VolumeBeatSheet | null | undefi
     .join("\n\n");
 }
 
+export function buildBeatCard(beat: VolumeBeat | null | undefined): string {
+  if (!beat) {
+    return "none";
+  }
+  return [
+    `${beat.label} (${beat.key})`,
+    `summary: ${beat.summary}`,
+    `chapter span hint: ${beat.chapterSpanHint}`,
+    `must deliver: ${beat.mustDeliver.join(" | ") || "none"}`,
+  ].join("\n");
+}
+
+export function buildBeatContextWindow(params: {
+  previousBeat?: VolumeBeat | null;
+  nextBeat?: VolumeBeat | null;
+}): string {
+  const lines = [
+    params.previousBeat ? `previous beat:\n${buildBeatCard(params.previousBeat)}` : "",
+    params.nextBeat ? `next beat:\n${buildBeatCard(params.nextBeat)}` : "",
+  ].filter(Boolean);
+  return lines.join("\n\n") || "none";
+}
+
+export function buildBeatChapterRangeContext(input: {
+  targetBeat: VolumeBeat;
+  targetBeatChapterCount: number;
+  targetChapterStartOrder: number;
+  targetChapterEndOrder: number;
+  nextAvailableChapterOrder: number;
+}): string {
+  return [
+    `current beat: ${input.targetBeat.label} (${input.targetBeat.key})`,
+    `chapter slot range in current volume: ${input.targetChapterStartOrder}-${input.targetChapterEndOrder}`,
+    `target chapter count for this beat: ${input.targetBeatChapterCount}`,
+    `next available chapter slot before generation: ${input.nextAvailableChapterOrder}`,
+  ].join("\n");
+}
+
+export function buildBeatChapterSummary(summary: string | null | undefined): string {
+  const normalized = summary?.trim();
+  return normalized ? normalized : "none";
+}
+
 export function buildChapterNeighborContext(volume: VolumePlan, chapterId: string): string {
   const index = volume.chapters.findIndex((chapter) => chapter.id === chapterId);
   if (index < 0) {
@@ -281,10 +334,78 @@ export function buildChapterNeighborContext(volume: VolumePlan, chapterId: strin
   const current = volume.chapters[index];
   const next = index < volume.chapters.length - 1 ? volume.chapters[index + 1] : null;
   return [
-    previous ? `previous chapter: ${previous.chapterOrder} ${previous.title} | ${previous.summary || "none"}` : "",
-    `current chapter: ${current.chapterOrder} ${current.title} | ${current.summary || "none"}`,
-    next ? `next chapter: ${next.chapterOrder} ${next.title} | ${next.summary || "none"}` : "",
+    previous
+      ? `previous chapter: ${previous.chapterOrder} ${previous.title} | ${previous.summary || "none"} | exclusiveEvent=${previous.exclusiveEvent || "none"} | endingState=${previous.endingState || "none"} | nextEntry=${previous.nextChapterEntryState || "none"}`
+      : "",
+    `current chapter: ${current.chapterOrder} ${current.title} | ${current.summary || "none"} | exclusiveEvent=${current.exclusiveEvent || "none"} | endingState=${current.endingState || "none"} | nextEntry=${current.nextChapterEntryState || "none"}`,
+    next
+      ? `next chapter: ${next.chapterOrder} ${next.title} | ${next.summary || "none"} | exclusiveEvent=${next.exclusiveEvent || "none"} | endingState=${next.endingState || "none"} | nextEntry=${next.nextChapterEntryState || "none"}`
+      : "",
   ].filter(Boolean).join("\n");
+}
+
+function buildSceneTrajectoryLine(
+  chapter: VolumePlan["chapters"][number],
+  sceneIndex: number,
+  label: string,
+): string | null {
+  const scenePlan = parseChapterScenePlan(chapter.sceneCards, {
+    targetWordCount: chapter.targetWordCount ?? undefined,
+  });
+  const scene = scenePlan?.scenes[sceneIndex];
+  if (!scene) {
+    return null;
+  }
+  return [
+    `${label}: ${scene.title}`,
+    `purpose=${scene.purpose}`,
+    `entry=${scene.entryState}`,
+    `exit=${scene.exitState}`,
+    scene.mustAdvance.length > 0 ? `mustAdvance=${scene.mustAdvance.join(" | ")}` : "",
+    scene.forbiddenExpansion.length > 0 ? `forbidden=${scene.forbiddenExpansion.join(" | ")}` : "",
+  ].filter(Boolean).join(" | ");
+}
+
+export function buildRecentChapterExecutionContext(
+  volume: VolumePlan,
+  chapterId: string,
+  lookback = 2,
+): string {
+  const index = volume.chapters.findIndex((chapter) => chapter.id === chapterId);
+  if (index <= 0) {
+    return "none";
+  }
+
+  const recentChapters = volume.chapters.slice(Math.max(0, index - lookback), index);
+  if (recentChapters.length === 0) {
+    return "none";
+  }
+
+  return recentChapters.map((chapter) => {
+    const scenePlan = parseChapterScenePlan(chapter.sceneCards, {
+      targetWordCount: chapter.targetWordCount ?? undefined,
+    });
+    const openingLine = buildSceneTrajectoryLine(chapter, 0, "opening scene");
+    const endingLine = scenePlan
+      ? buildSceneTrajectoryLine(chapter, Math.max(scenePlan.scenes.length - 1, 0), "ending scene")
+      : null;
+    const middleSceneLines = scenePlan && scenePlan.scenes.length > 2
+      ? scenePlan.scenes
+        .slice(1, -1)
+        .map((scene, middleIndex) => (
+          `middle scene ${middleIndex + 1}: ${scene.title} | purpose=${scene.purpose} | mustAdvance=${scene.mustAdvance.join(" | ") || "none"}`
+        ))
+      : [];
+
+    return [
+      `chapter ${chapter.chapterOrder}: ${chapter.title}`,
+      `summary: ${compactText(chapter.summary)}`,
+      `task sheet: ${compactText(chapter.taskSheet)}`,
+      openingLine,
+      ...middleSceneLines,
+      endingLine,
+    ].filter(Boolean).join("\n");
+  }).join("\n\n");
 }
 
 export function buildChapterDetailDraft(
@@ -296,6 +417,9 @@ export function buildChapterDetailDraft(
   }
   if (detailMode === "boundary") {
     return [
+      `exclusive event: ${chapter.exclusiveEvent?.trim() || "none"}`,
+      `ending state: ${chapter.endingState?.trim() || "none"}`,
+      `next chapter entry state: ${chapter.nextChapterEntryState?.trim() || "none"}`,
       `conflict level: ${typeof chapter.conflictLevel === "number" ? chapter.conflictLevel : "none"}`,
       `reveal level: ${typeof chapter.revealLevel === "number" ? chapter.revealLevel : "none"}`,
       `target word count: ${typeof chapter.targetWordCount === "number" ? chapter.targetWordCount : "none"}`,
@@ -303,5 +427,18 @@ export function buildChapterDetailDraft(
       `payoff refs: ${chapter.payoffRefs.join(" | ") || "none"}`,
     ].join("\n");
   }
-  return `current task sheet draft: ${chapter.taskSheet?.trim() || "none"}`;
+  return [
+    `current chapter title: ${chapter.title.trim() || "none"}`,
+    `current chapter summary: ${chapter.summary?.trim() || "none"}`,
+    `current purpose draft: ${chapter.purpose?.trim() || "none"}`,
+    `exclusive event: ${chapter.exclusiveEvent?.trim() || "none"}`,
+    `ending state: ${chapter.endingState?.trim() || "none"}`,
+    `next chapter entry state: ${chapter.nextChapterEntryState?.trim() || "none"}`,
+    `conflict level: ${typeof chapter.conflictLevel === "number" ? chapter.conflictLevel : "none"}`,
+    `reveal level: ${typeof chapter.revealLevel === "number" ? chapter.revealLevel : "none"}`,
+    `target word count: ${typeof chapter.targetWordCount === "number" ? chapter.targetWordCount : "none"}`,
+    `must avoid: ${chapter.mustAvoid?.trim() || "none"}`,
+    `payoff refs: ${chapter.payoffRefs.join(" | ") || "none"}`,
+    `current task sheet draft: ${chapter.taskSheet?.trim() || "none"}`,
+  ].join("\n");
 }

@@ -4,15 +4,31 @@ import { NovelCoreService } from "./NovelCoreService";
 import { NovelWorldSliceService } from "./storyWorldSlice/NovelWorldSliceService";
 import { CharacterPreparationService } from "./characterPrep/CharacterPreparationService";
 import { CharacterDynamicsService } from "./dynamics/CharacterDynamicsService";
+import { buildManualProductionControlPolicy } from "./production/ChapterExecutionStageRunner";
+import { registerChapterPreparationStageRunner } from "./production/ChapterPreparationStageRunner";
+import { novelProductionOrchestrator } from "./production/NovelProductionOrchestrator";
+import { registerQualityRepairStageRunner } from "./production/QualityRepairStageRunner";
 import { NovelVolumeService } from "./volume/NovelVolumeService";
 import { NovelChapterEditorService } from "./chapterEditor/NovelChapterEditorService";
+import { ChapterEditorWorkspaceService } from "./chapterEditor/ChapterEditorWorkspaceService";
 
 export class NovelService extends NovelPipelineService {
   private readonly worldSliceService = new NovelWorldSliceService();
   private readonly characterPreparationService = new CharacterPreparationService();
   private readonly characterDynamicsService = new CharacterDynamicsService();
   private readonly volumeService = new NovelVolumeService();
+  private readonly chapterEditorWorkspaceService = new ChapterEditorWorkspaceService();
   private readonly chapterEditorService = new NovelChapterEditorService();
+
+  constructor() {
+    super();
+    registerChapterPreparationStageRunner({
+      getCore: () => this.core,
+    });
+    registerQualityRepairStageRunner({
+      getCore: () => this.core,
+    });
+  }
 
   async getNovelById(id: string) {
     const novel = await this.core.getNovelById(id);
@@ -135,6 +151,14 @@ export class NovelService extends NovelPipelineService {
     return this.chapterEditorService.previewRewrite(...args);
   }
 
+  previewChapterAiRevision(...args: Parameters<NovelChapterEditorService["previewAiRevision"]>) {
+    return this.chapterEditorService.previewAiRevision(...args);
+  }
+
+  getChapterEditorWorkspace(...args: Parameters<ChapterEditorWorkspaceService["getWorkspace"]>) {
+    return this.chapterEditorWorkspaceService.getWorkspace(...args);
+  }
+
   getNovelState(...args: Parameters<NovelCoreService["getNovelState"]>) {
     return this.core.getNovelState(...args);
   }
@@ -159,16 +183,45 @@ export class NovelService extends NovelPipelineService {
     return this.core.generateArcPlan(...args);
   }
 
-  generateChapterPlan(...args: Parameters<NovelCoreService["generateChapterPlan"]>) {
-    return this.core.generateChapterPlan(...args);
+  async generateChapterPlan(...args: Parameters<NovelCoreService["generateChapterPlan"]>) {
+    const [novelId, chapterId, options] = args;
+    const result = await novelProductionOrchestrator.runStage({
+      novelId,
+      stage: "chapter_preparation",
+      policy: buildManualProductionControlPolicy(),
+      trigger: "manual_generate_chapter_plan",
+      payload: {
+        mode: "generate_chapter_plan",
+        chapterId,
+        options,
+      },
+    });
+    if (!result.payload) {
+      throw new Error("Unified chapter preparation did not return a chapter plan payload.");
+    }
+    return result.payload as Awaited<ReturnType<NovelCoreService["generateChapterPlan"]>>;
   }
 
   getChapterPlan(...args: Parameters<NovelCoreService["getChapterPlan"]>) {
     return this.core.getChapterPlan(...args);
   }
 
-  replanNovel(...args: Parameters<NovelCoreService["replanNovel"]>) {
-    return this.core.replanNovel(...args);
+  async replanNovel(...args: Parameters<NovelCoreService["replanNovel"]>) {
+    const [novelId, input] = args;
+    const result = await novelProductionOrchestrator.runStage({
+      novelId,
+      stage: "quality_repair",
+      policy: buildManualProductionControlPolicy(),
+      trigger: "manual_replan_novel",
+      payload: {
+        mode: "replan_novel",
+        input,
+      },
+    });
+    if (!result.payload) {
+      throw new Error("Unified quality repair stage did not return a replan payload.");
+    }
+    return result.payload as Awaited<ReturnType<NovelCoreService["replanNovel"]>>;
   }
 
   auditChapter(...args: Parameters<NovelCoreService["auditChapter"]>) {

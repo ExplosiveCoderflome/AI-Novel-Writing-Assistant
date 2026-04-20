@@ -32,26 +32,36 @@ export function resolveSceneWordRange(targetWordCount: number): {
   };
 }
 
-export function buildDraftContinuationBlock(content: string, targetWordCount: number, minWordCount: number): string {
+export function buildDraftContinuationBlock(
+  content: string,
+  targetWordCount?: number | null,
+  minWordCount?: number | null,
+): string {
   const trimmed = content.trim();
   const excerpt = trimmed.length > 1600 ? trimmed.slice(-1600) : trimmed;
-  return [
+  const lines = [
     `Current saved draft length: ${countChapterCharacters(trimmed)} Chinese characters.`,
-    `Current scene target: about ${targetWordCount} Chinese characters. Minimum acceptable length: ${minWordCount}.`,
+  ];
+  if (typeof targetWordCount === "number" && targetWordCount > 0
+    && typeof minWordCount === "number" && minWordCount > 0) {
+    lines.push(
+      `Current scene target: about ${targetWordCount} Chinese characters. Minimum acceptable length: ${minWordCount}.`,
+    );
+  }
+  lines.push(
     "Continue from the existing ending. Do not restart the chapter. Do not repeat already written events.",
     "Current draft tail (continue after this):",
     excerpt || "none",
-  ].join("\n");
+  );
+  return lines.join("\n");
 }
 
 export function buildSceneContractBlock(input: {
   scene: ChapterSceneCard;
   sceneIndex: number;
   sceneCount: number;
-  remainingChapterBudget: number;
   roundPlan?: SceneRoundPlan | null;
 }): ReturnType<typeof createContextBlock> {
-  const sceneRange = resolveSceneWordRange(input.scene.targetWordCount);
   const roundPlan = input.roundPlan ?? null;
   return createContextBlock({
     id: `scene_contract_${input.scene.key}`,
@@ -62,18 +72,13 @@ export function buildSceneContractBlock(input: {
       `Current scene: ${input.sceneIndex}/${input.sceneCount}`,
       `Scene title: ${input.scene.title}`,
       `Scene purpose: ${input.scene.purpose}`,
-      `Scene target length: around ${sceneRange.targetWordCount} Chinese characters (acceptable range ${sceneRange.minWordCount}-${sceneRange.maxWordCount}).`,
-      `Remaining chapter budget before this scene: about ${Math.max(0, input.remainingChapterBudget)} Chinese characters.`,
       `Entry state: ${input.scene.entryState}`,
       `Exit state: ${input.scene.exitState}`,
       input.scene.mustAdvance.length > 0 ? `Must advance: ${input.scene.mustAdvance.join(" | ")}` : "Must advance: none",
       input.scene.mustPreserve.length > 0 ? `Must preserve: ${input.scene.mustPreserve.join(" | ")}` : "Must preserve: none",
       input.scene.forbiddenExpansion.length > 0 ? `Forbidden expansion: ${input.scene.forbiddenExpansion.join(" | ")}` : "Forbidden expansion: none",
       roundPlan ? `Word control mode: ${roundPlan.mode}` : "",
-      roundPlan ? `Current scene draft length: ${roundPlan.currentSceneWordCount} Chinese characters.` : "",
       roundPlan ? `Current round: ${roundPlan.roundIndex}/${roundPlan.maxRounds}` : "",
-      roundPlan?.suggestedRoundWordCount ? `Suggested current round length: about ${roundPlan.suggestedRoundWordCount} Chinese characters.` : "",
-      roundPlan?.hardRoundWordLimit ? `Current round hard limit: about ${roundPlan.hardRoundWordLimit} Chinese characters.` : "",
       roundPlan ? `Closing phase: ${roundPlan.closingPhase ? "yes" : "no"}` : "",
       roundPlan ? `Is final round: ${roundPlan.isFinalRound ? "yes" : "no"}` : "",
     ].filter(Boolean).join("\n"),

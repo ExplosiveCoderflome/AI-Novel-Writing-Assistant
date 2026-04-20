@@ -37,6 +37,36 @@ test("candidate-selection tasks always resolve back to the director create page"
   );
 });
 
+test("structured auto-director tasks fall back to seed resume target when row resume target is missing volume scope", () => {
+  const resumeTarget = normalizeWorkflowResumeTargetForCandidateSelection({
+    id: "task_structured_outline",
+    checkpointType: null,
+    currentItemKey: "chapter_list",
+    resumeTargetJson: JSON.stringify({
+      route: "/novels/:id/edit",
+      novelId: "novel-1",
+      taskId: "task_structured_outline",
+      stage: "basic",
+      volumeId: null,
+    }),
+    seedPayloadJson: JSON.stringify({
+      directorSession: {
+        phase: "structured_outline",
+      },
+      resumeTarget: {
+        route: "/novels/:id/edit",
+        novelId: "novel-1",
+        taskId: "task_structured_outline",
+        stage: "structured",
+        volumeId: "volume-1",
+      },
+    }),
+  });
+
+  assert.equal(resumeTarget.stage, "structured");
+  assert.equal(resumeTarget.volumeId, "volume-1");
+});
+
 test("bootstrapTask does not auto-attach a pre-confirmation auto-director task to a novel", async () => {
   const service = new NovelWorkflowService();
   const originalGetVisibleRowById = service.getVisibleRowById;

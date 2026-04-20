@@ -1,11 +1,11 @@
 import type {
-  AuditReport,
+  ChapterEditorAiRevisionRequest,
+  ChapterEditorAiRevisionResponse,
   Chapter,
+  ChapterEditorDiagnosticCard,
   ChapterEditorOperation,
-  ChapterEditorRewritePreviewRequest,
-  ChapterEditorRewritePreviewResponse,
-  StoryPlan,
-  StoryStateSnapshot,
+  ChapterEditorRevisionScope,
+  ChapterEditorWorkspaceResponse,
 } from "@ai-novel/shared/types/novel";
 
 export interface ChapterEditorSelectionRange {
@@ -19,9 +19,9 @@ export interface SelectionToolbarPosition {
   left: number;
 }
 
-export interface ChapterEditorSessionState extends ChapterEditorRewritePreviewResponse {
+export interface ChapterEditorSessionState extends Partial<ChapterEditorAiRevisionResponse> {
   status: "idle" | "loading" | "ready" | "error";
-  operationLabel?: string;
+  requestLabel?: string;
   customInstruction?: string;
   viewMode: "inline" | "block";
   errorMessage?: string;
@@ -30,12 +30,8 @@ export interface ChapterEditorSessionState extends ChapterEditorRewritePreviewRe
 export interface ChapterEditorShellProps {
   novelId: string;
   chapter: Chapter | undefined;
-  chapterPlan?: StoryPlan | null;
-  latestStateSnapshot?: StoryStateSnapshot | null;
-  chapterAuditReports: AuditReport[];
-  worldInjectionSummary?: string | null;
-  styleSummary?: string | null;
-  chapterSummary?: string | null;
+  workspace: ChapterEditorWorkspaceResponse | null;
+  workspaceStatus: "loading" | "ready" | "error";
   onBack?: () => void;
   onOpenVersionHistory?: () => void;
   onRunFullAudit?: () => void;
@@ -47,20 +43,23 @@ export interface ChapterEditorShellProps {
 }
 
 export interface ChapterEditorRequestBuilderInput {
-  operation: ChapterEditorOperation;
-  customInstruction?: string;
-  selection: ChapterEditorSelectionRange;
+  source: "preset" | "freeform";
+  scope: ChapterEditorRevisionScope;
+  presetOperation?: ChapterEditorOperation;
+  instruction?: string;
+  selection?: ChapterEditorSelectionRange | null;
   content: string;
-  goalSummary?: string | null;
-  chapterSummary?: string | null;
-  styleSummary?: string | null;
-  characterStateSummary?: string | null;
-  worldConstraintSummary?: string | null;
+  contextRange?: ChapterEditorSelectionRange | null;
   provider?: import("@ai-novel/shared/types/llm").LLMProvider;
   model?: string;
   temperature?: number;
 }
 
-export type BuildRewritePreviewRequest = (
+export interface ChapterEditorDiagnosticSelectionState {
+  card: ChapterEditorDiagnosticCard;
+  fromTask?: boolean;
+}
+
+export type BuildAiRevisionRequest = (
   input: ChapterEditorRequestBuilderInput,
-) => ChapterEditorRewritePreviewRequest;
+) => ChapterEditorAiRevisionRequest;

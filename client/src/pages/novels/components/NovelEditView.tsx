@@ -1,63 +1,41 @@
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import AITakeoverContainer from "@/components/workflow/AITakeoverContainer";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import KnowledgeBindingPanel from "@/components/knowledge/KnowledgeBindingPanel";
-import NovelTaskDrawer from "./NovelTaskDrawer";
-import NovelCharacterPanel from "./NovelCharacterPanel";
-import BasicInfoTab from "./BasicInfoTab";
-import OutlineTab from "./OutlineTab";
-import StructuredOutlineTab from "./StructuredOutlineTab";
+import AITakeoverContainer from "@/components/workflow/AITakeoverContainer";
 import ChapterManagementTab from "./ChapterManagementTab";
+import NovelCharacterPanel from "./NovelCharacterPanel";
+import NovelTaskDrawer from "./NovelTaskDrawer";
+import OutlineTab from "./OutlineTab";
 import PipelineTab from "./PipelineTab";
 import StoryMacroPlanTab from "./StoryMacroPlanTab";
+import StructuredOutlineTab from "./StructuredOutlineTab";
 import VersionHistoryTab from "./VersionHistoryTab";
+import BasicInfoTab from "./BasicInfoTab";
 import type { NovelEditViewProps } from "./NovelEditView.types";
 import {
-  getNextNovelWorkspaceFlowTab,
   getNovelWorkspaceFlowStepIndex,
   getNovelWorkspaceTabLabel,
-  getPreviousNovelWorkspaceFlowTab,
   NOVEL_WORKSPACE_FLOW_STEPS,
   normalizeNovelWorkspaceTab,
 } from "../novelWorkspaceNavigation";
-
-function getStepGuidanceDescription(input: {
-  tab: string;
-  totalChapters: number;
-  pendingRepairs: number;
-}) {
-  switch (input.tab) {
-    case "basic":
-      return "先把这本书的标题、题材和一句话想法定清楚，后面的规划才不会跑偏。";
-    case "story_macro":
-      return "这里先确认主卖点、前 30 章承诺和整体方向，再继续往下拆。";
-    case "character":
-      return "先凑齐能支撑前期剧情的核心角色，不必一口气把所有配角都补完。";
-    case "outline":
-      return "先把每一卷要解决什么、冲突怎么升级和卷末钩子想明白。";
-    case "structured":
-      return "把章节目标和节奏拆清楚，后面进入正文写作会更顺。";
-    case "chapter":
-      return input.totalChapters > 0
-        ? "选中当前要推进的一章，正文留在中间，其他能力都放到次级区域。"
-        : "先创建至少一章，再开始正文写作。";
-    case "pipeline":
-      return input.pendingRepairs > 0
-        ? `当前还有 ${input.pendingRepairs} 章待修，先把高风险章节处理掉。`
-        : "这里主要处理审校和修复，问题不多时不需要长时间停留。";
-    default:
-      return "按步骤推进，当前页面只保留最需要看的内容。";
-  }
-}
 
 export default function NovelEditView(props: NovelEditViewProps) {
   const {
     id,
     activeTab,
     workflowCurrentTab,
+    exportControls,
     basicTab,
     storyMacroTab,
     outlineTab,
@@ -67,23 +45,27 @@ export default function NovelEditView(props: NovelEditViewProps) {
     characterTab,
     takeover,
     taskDrawer,
+    activeStepTakeoverEntry,
   } = props;
 
   const [isProjectToolsOpen, setIsProjectToolsOpen] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
 
   const totalChapters = chapterTab.chapters.length;
   const generatedChapters = chapterTab.chapters.filter((item) => Boolean(item.content?.trim())).length;
   const pendingRepairs = pipelineTab.chapterReports.filter(
     (item) => item.overall < pipelineTab.pipelineForm.qualityThreshold,
   ).length;
-  const currentModel = pipelineTab.pipelineJob?.payload ? (() => {
-    try {
-      const parsed = JSON.parse(pipelineTab.pipelineJob.payload) as { model?: string };
-      return parsed.model ?? "default";
-    } catch {
-      return "default";
-    }
-  })() : "default";
+  const currentModel = pipelineTab.pipelineJob?.payload
+    ? (() => {
+        try {
+          const parsed = JSON.parse(pipelineTab.pipelineJob.payload) as { model?: string };
+          return parsed.model ?? "default";
+        } catch {
+          return "default";
+        }
+      })()
+    : "default";
 
   const taskAttentionLabel = taskDrawer?.task
     ? taskDrawer.task.status === "failed"
@@ -97,61 +79,20 @@ export default function NovelEditView(props: NovelEditViewProps) {
 
   const normalizedActiveTab = normalizeNovelWorkspaceTab(activeTab);
   const normalizedWorkflowTab = normalizeNovelWorkspaceTab(workflowCurrentTab ?? activeTab);
-  const novelTitle = basicTab.basicForm.title.trim() || "未命名小说";
-  const currentStepLabel = getNovelWorkspaceTabLabel(normalizedActiveTab);
-  const workflowStepLabel = getNovelWorkspaceTabLabel(normalizedWorkflowTab);
   const guidedFlowTab = normalizedActiveTab === "history"
     ? normalizedWorkflowTab === "history"
       ? "basic"
       : normalizedWorkflowTab
     : normalizedActiveTab;
+  const novelTitle = basicTab.basicForm.title.trim() || "未命名小说";
+  const currentStepLabel = getNovelWorkspaceTabLabel(normalizedActiveTab);
+  const workflowStepLabel = getNovelWorkspaceTabLabel(normalizedWorkflowTab);
   const stepIndex = getNovelWorkspaceFlowStepIndex(guidedFlowTab);
-  const previousStep = getPreviousNovelWorkspaceFlowTab(guidedFlowTab);
-  const nextStep = getNextNovelWorkspaceFlowTab(guidedFlowTab);
   const progressLabel = stepIndex >= 0
     ? `第 ${stepIndex + 1} 步 / 共 ${NOVEL_WORKSPACE_FLOW_STEPS.length} 步`
     : null;
-  const guidanceDescription = normalizedActiveTab === "history"
-    ? "这里保留最近可恢复的创作版本。恢复前系统会先自动备份一次当前状态。"
-    : getStepGuidanceDescription({
-      tab: guidedFlowTab,
-      totalChapters,
-      pendingRepairs,
-    });
-  const currentChapterLabel = normalizedActiveTab === "chapter"
-    ? chapterTab.selectedChapter
-      ? `当前章节：第 ${chapterTab.selectedChapter.order} 章 · ${chapterTab.selectedChapter.title?.trim() || "未命名章节"}`
-      : "当前章节：请选择要继续创作的章节"
-    : null;
-  const primaryActionLabel = normalizedActiveTab === "history"
-    ? `返回当前步骤：${getNovelWorkspaceTabLabel(guidedFlowTab)}`
-    : nextStep
-      ? `下一步：${getNovelWorkspaceTabLabel(nextStep)}`
-      : "查看版本历史";
-  const handlePreviousStep = () => {
-    if (!previousStep) {
-      return;
-    }
-    props.onActiveTabChange(previousStep);
-  };
-  const handlePrimaryAction = () => {
-    if (normalizedActiveTab === "history") {
-      props.onActiveTabChange(guidedFlowTab);
-      return;
-    }
-    if (nextStep) {
-      props.onActiveTabChange(nextStep);
-      return;
-    }
-    props.onActiveTabChange("history");
-  };
-  const handleHistoryAction = () => {
-    if (normalizedActiveTab === "history") {
-      props.onActiveTabChange(guidedFlowTab);
-      return;
-    }
-    props.onActiveTabChange("history");
-  };
+  const isTakeoverLoading = takeover?.mode === "loading";
+  const hideTakeoverEntry = takeover?.mode === "running" || takeover?.mode === "waiting";
 
   const renderActivePanel = () => {
     switch (activeTab) {
@@ -197,37 +138,74 @@ export default function NovelEditView(props: NovelEditViewProps) {
               </>
             ) : null}
           </div>
-
-          <div className="rounded-3xl border border-border/70 bg-gradient-to-r from-slate-50 via-background to-emerald-50/40 p-4 shadow-sm">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-              <div className="min-w-0 flex-1 space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline">{progressLabel ?? "恢复入口"}</Badge>
-                  <Badge variant={normalizedActiveTab === "history" ? "secondary" : "default"}>
-                    {normalizedActiveTab === "history" ? "版本恢复区" : `正在处理：${getNovelWorkspaceTabLabel(guidedFlowTab)}`}
-                  </Badge>
-                  {currentChapterLabel ? <Badge variant="secondary">{currentChapterLabel}</Badge> : null}
-                </div>
-                <div className="text-sm leading-7 text-muted-foreground">
-                  {guidanceDescription}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" onClick={handlePreviousStep} disabled={!previousStep}>
-                  上一步
-                </Button>
-                <Button variant="secondary" onClick={handleHistoryAction}>
-                  {normalizedActiveTab === "history" ? "返回当前步骤" : "版本历史"}
-                </Button>
-                <Button onClick={handlePrimaryAction}>
-                  {primaryActionLabel}
-                </Button>
-              </div>
-            </div>
-          </div>
-
           <div className="flex flex-wrap items-center justify-end gap-2">
+            {!hideTakeoverEntry ? (
+              isTakeoverLoading ? (
+                <Button type="button" size="sm" disabled>
+                  <Loader2 className="animate-spin" />
+                  AI 自动导演接管
+                </Button>
+              ) : activeStepTakeoverEntry
+            ) : null}
+
+            <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">导出</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>导出项目内容</DialogTitle>
+                  <DialogDescription>
+                    当前步骤会按你正在查看的工作台导出；整本书会把项目设定、故事规划、角色、卷规划、拆章、章节和质量修复资产一起导出。
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">当前步骤：{currentStepLabel}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => exportControls.onExportCurrent("markdown")}
+                        disabled={!exportControls.canExportCurrentStep || exportControls.isExportingCurrentMarkdown}
+                      >
+                        {exportControls.isExportingCurrentMarkdown ? "导出中..." : "Markdown"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => exportControls.onExportCurrent("json")}
+                        disabled={!exportControls.canExportCurrentStep || exportControls.isExportingCurrentJson}
+                      >
+                        {exportControls.isExportingCurrentJson ? "导出中..." : "JSON"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">整本书</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => exportControls.onExportFull("markdown")}
+                        disabled={exportControls.isExportingFullMarkdown}
+                      >
+                        {exportControls.isExportingFullMarkdown ? "导出中..." : "Markdown"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => exportControls.onExportFull("json")}
+                        disabled={exportControls.isExportingFullJson}
+                      >
+                        {exportControls.isExportingFullJson ? "导出中..." : "JSON"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             <Dialog open={isProjectToolsOpen} onOpenChange={setIsProjectToolsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline">项目工具</Button>
@@ -236,7 +214,7 @@ export default function NovelEditView(props: NovelEditViewProps) {
                 <DialogHeader>
                   <DialogTitle>项目工具</DialogTitle>
                   <DialogDescription>
-                    这里收纳次级信息。首屏只保留当前步骤、继续按钮和恢复入口，避免主工作区被项目信息挤满。
+                    这里收纳次级信息。首屏只保留当前步骤和恢复接管入口，避免主工作区被项目辅助信息挤满。
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-3 md:grid-cols-2">

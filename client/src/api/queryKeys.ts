@@ -19,6 +19,7 @@ export const queryKeys = {
     chapterStateSnapshot: (id: string, chapterId: string) => ["novels", "state-snapshots", id, chapterId] as const,
     chapterPlan: (id: string, chapterId: string) => ["novels", "chapter-plan", id, chapterId] as const,
     chapterAuditReports: (id: string, chapterId: string) => ["novels", "chapter-audit-reports", id, chapterId] as const,
+    chapterEditorWorkspace: (id: string, chapterId: string) => ["novels", "chapter-editor-workspace", id, chapterId] as const,
     storylineVersions: (id: string) => ["novels", "storyline-versions", id] as const,
     volumeWorkspace: (id: string) => ["novels", "volume-workspace", id] as const,
     volumeVersions: (id: string) => ["novels", "volume-versions", id] as const,
@@ -84,8 +85,10 @@ export const queryKeys = {
     assets: (sceneType: "character", sceneId: string) => ["images", "assets", sceneType, sceneId] as const,
   },
   tasks: {
+    overview: ["tasks", "overview"] as const,
     list: (params: string) => ["tasks", "list", params] as const,
     detail: (kind: string, id: string) => ["tasks", "detail", kind, id] as const,
+    recoveryCandidates: ["tasks", "recovery-candidates"] as const,
   },
   agentRuns: {
     list: (params: string) => ["agent-runs", "list", params] as const,

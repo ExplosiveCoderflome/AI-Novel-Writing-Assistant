@@ -20,13 +20,14 @@ export class BookAnalysisWatchdogService {
     }, BOOK_ANALYSIS_WATCHDOG_INTERVAL_MS);
   }
 
-  async resumePendingAnalyses(): Promise<void> {
+  async markPendingAnalysesForManualRecovery(): Promise<void> {
     try {
       const rows = await prisma.bookAnalysis.findMany({
         where: {
           status: {
             in: ["queued", "running"],
           },
+          pendingManualRecovery: false,
         },
         select: { id: true, status: true },
       });
@@ -41,7 +42,8 @@ export class BookAnalysisWatchdogService {
           },
           data: {
             status: "queued",
-            lastError: "Task interrupted by server restart and requeued.",
+            pendingManualRecovery: true,
+            lastError: "服务重启后任务已暂停，等待手动恢复。",
             heartbeatAt: null,
             currentStage: null,
             currentItemKey: null,
@@ -50,8 +52,19 @@ export class BookAnalysisWatchdogService {
           },
         });
       }
-      for (const row of rows) {
-        this.enqueueFullAnalysis(row.id);
+      const queuedIds = rows.filter((item) => item.status === "queued").map((item) => item.id);
+      if (queuedIds.length > 0) {
+        await prisma.bookAnalysis.updateMany({
+          where: {
+            id: { in: queuedIds },
+          },
+          data: {
+            pendingManualRecovery: true,
+            lastError: "服务重启后任务已暂停，等待手动恢复。",
+            heartbeatAt: null,
+            cancelRequestedAt: null,
+          },
+        });
       }
     } catch (error) {
       if (isMissingTableError(error)) {
@@ -66,6 +79,7 @@ export class BookAnalysisWatchdogService {
     const rows = await prisma.bookAnalysis.findMany({
       where: {
         status: "running",
+        pendingManualRecovery: false,
         OR: [
           { heartbeatAt: { lt: cutoff } },
           { heartbeatAt: null, updatedAt: { lt: cutoff } },

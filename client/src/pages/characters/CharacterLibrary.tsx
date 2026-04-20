@@ -3,7 +3,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/rea
 import type { ImageAsset } from "@ai-novel/shared/types/image";
 import type { BaseCharacter } from "@ai-novel/shared/types/novel";
 import { deleteBaseCharacter, getBaseCharacterList, updateBaseCharacter } from "@/api/character";
-import { listImageAssets, setPrimaryImageAsset } from "@/api/images";
+import { deleteImageAsset, listImageAssets, setPrimaryImageAsset } from "@/api/images";
 import { queryKeys } from "@/api/queryKeys";
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,7 @@ export default function CharacterLibrary() {
   const [selectedImageCharacter, setSelectedImageCharacter] = useState<BaseCharacter | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState<BaseCharacter | null>(null);
+  const [deletingAssetIds, setDeletingAssetIds] = useState<string[]>([]);
 
   const characterListQuery = useQuery({
     queryKey: queryKeys.baseCharacters.all,
@@ -46,6 +47,19 @@ export default function CharacterLibrary() {
 
   const setPrimaryMutation = useMutation({
     mutationFn: (assetId: string) => setPrimaryImageAsset(assetId),
+    onSuccess: async (response) => {
+      const baseCharacterId = response.data?.baseCharacterId;
+      if (!baseCharacterId) {
+        return;
+      }
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.images.assets("character", baseCharacterId),
+      });
+    },
+  });
+
+  const deleteAssetMutation = useMutation({
+    mutationFn: (assetId: string) => deleteImageAsset(assetId),
     onSuccess: async (response) => {
       const baseCharacterId = response.data?.baseCharacterId;
       if (!baseCharacterId) {
@@ -177,9 +191,18 @@ export default function CharacterLibrary() {
               assetsLoading={imageAssetQueries[index]?.isLoading}
               onGenerateImage={() => openImageDialog(character)}
               onSetPrimary={(assetId) => setPrimaryMutation.mutate(assetId)}
+              onDeleteAsset={async (asset) => {
+                setDeletingAssetIds((current) => current.includes(asset.id) ? current : [...current, asset.id]);
+                try {
+                  await deleteAssetMutation.mutateAsync(asset.id);
+                } finally {
+                  setDeletingAssetIds((current) => current.filter((id) => id !== asset.id));
+                }
+              }}
               onEdit={() => openEditDialog(character)}
               onDelete={() => handleDeleteCharacter(character)}
               settingPrimary={setPrimaryMutation.isPending}
+              deletingAssetIds={deletingAssetIds}
               deleting={deleteMutation.isPending && deleteMutation.variables === character.id}
               extraActions={(
                 <OpenInCreativeHubButton

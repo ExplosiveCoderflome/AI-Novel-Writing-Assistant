@@ -134,24 +134,35 @@ export function buildVolumeWindowContext(seed: RuntimeVolumeSeed): VolumeWindowC
 }
 
 export function buildChapterMissionContext(contextPackage: GenerationContextPackage): ChapterMissionContext {
+  const stateGoal = contextPackage.chapterStateGoal;
   return {
     chapterId: contextPackage.chapter.id,
     chapterOrder: contextPackage.chapter.order,
     title: compactText(contextPackage.chapter.title),
-    objective: compactText(
-      contextPackage.plan?.objective,
-      contextPackage.chapter.expectation ?? "Push the current chapter mission forward.",
-    ),
-    expectation: compactText(
-      contextPackage.chapter.expectation,
-      contextPackage.plan?.title ?? "Deliver the current chapter mission.",
-    ),
+    objective:
+      compactText(stateGoal?.summary)
+      || compactText(contextPackage.plan?.objective)
+      || compactText(contextPackage.chapter.expectation, "Push the current chapter mission forward."),
+    expectation:
+      compactText(contextPackage.chapter.expectation)
+      || compactText(stateGoal?.summary)
+      || compactText(contextPackage.plan?.title, "Deliver the current chapter mission."),
     targetWordCount: contextPackage.chapter.targetWordCount ?? null,
     planRole: contextPackage.plan?.planRole ?? null,
     hookTarget: compactText(contextPackage.plan?.hookTarget, "Leave a fresh tension point at the ending."),
-    mustAdvance: takeUnique(contextPackage.plan?.mustAdvance ?? [], 5),
-    mustPreserve: takeUnique(contextPackage.plan?.mustPreserve ?? [], 5),
-    riskNotes: takeUnique(contextPackage.plan?.riskNotes ?? [], 5),
+    mustAdvance: takeUnique([
+      ...(stateGoal?.targetConflicts ?? []),
+      ...(stateGoal?.targetPayoffs ?? []),
+      ...(contextPackage.plan?.mustAdvance ?? []),
+    ], 5),
+    mustPreserve: takeUnique([
+      ...(stateGoal?.targetRelationships ?? []),
+      ...(contextPackage.plan?.mustPreserve ?? []),
+    ], 5),
+    riskNotes: takeUnique([
+      ...(contextPackage.protectedSecrets ?? []),
+      ...(contextPackage.plan?.riskNotes ?? []),
+    ], 5),
   };
 }
 
@@ -170,6 +181,9 @@ export function buildChapterWriteContext(input: {
     macroConstraints: input.macroConstraints,
     volumeWindow: input.volumeWindow,
     chapterMission: buildChapterMissionContext(input.contextPackage),
+    nextAction: input.contextPackage.nextAction,
+    chapterStateGoal: input.contextPackage.chapterStateGoal ?? null,
+    protectedSecrets: input.contextPackage.protectedSecrets ?? [],
     lengthBudget: resolveLengthBudgetContract(input.contextPackage.chapter.targetWordCount),
     scenePlan,
     participants: buildParticipants(input.contextPackage, dynamicCharacterGuidance.characterBehaviorGuides),
@@ -199,6 +213,8 @@ export function buildChapterReviewContext(
     structureObligations: takeUnique([
       ...writeContext.chapterMission.mustAdvance,
       ...writeContext.chapterMission.mustPreserve,
+      ...(writeContext.chapterStateGoal?.targetPayoffs ?? []).map((item) => `state payoff: ${item}`),
+      ...(writeContext.chapterStateGoal?.targetConflicts ?? []).map((item) => `state conflict: ${item}`),
       writeContext.chapterMission.hookTarget ? `hook target: ${writeContext.chapterMission.hookTarget}` : "",
       writeContext.volumeWindow?.missionSummary ? `volume mission: ${writeContext.volumeWindow.missionSummary}` : "",
       ...writeContext.ledgerPendingItems.map((item) => buildLedgerItemLine(item, "pending payoff")),
@@ -226,6 +242,8 @@ export function buildChapterRepairContext(input: {
     structureObligations: takeUnique([
       ...input.writeContext.chapterMission.mustAdvance,
       ...input.writeContext.chapterMission.mustPreserve,
+      ...(input.writeContext.chapterStateGoal?.targetPayoffs ?? []).map((item) => `state payoff: ${item}`),
+      ...(input.writeContext.chapterStateGoal?.targetConflicts ?? []).map((item) => `state conflict: ${item}`),
       input.writeContext.volumeWindow?.missionSummary
         ? `volume mission: ${input.writeContext.volumeWindow.missionSummary}`
         : "",
@@ -254,6 +272,7 @@ export function buildChapterRepairContext(input: {
       input.writeContext.pendingCandidateGuards.length > 0
         ? "Pending character candidates remain read-only unless they are confirmed outside the repair flow."
         : "",
+      ...input.writeContext.protectedSecrets.map((item) => `do not disclose: ${item}`),
       ...input.writeContext.chapterMission.mustPreserve.map((item) => `must preserve: ${item}`),
     ], 12),
   };
@@ -285,6 +304,7 @@ export function buildChapterWriterContextBlocks(writeContext: ChapterWriteContex
         `Chapter mission: ${writeContext.chapterMission.title}`,
         `Objective: ${writeContext.chapterMission.objective}`,
         `Expectation: ${writeContext.chapterMission.expectation}`,
+        `State-driven next action: ${writeContext.nextAction}`,
         writeContext.chapterMission.planRole ? `Plan role: ${writeContext.chapterMission.planRole}` : "",
         wordRange.targetWordCount != null
           ? `Target length: around ${wordRange.targetWordCount} Chinese characters (acceptable range ${wordRange.minWordCount}-${wordRange.maxWordCount}; do not end clearly below the minimum).`
@@ -294,6 +314,21 @@ export function buildChapterWriterContextBlocks(writeContext: ChapterWriteContex
         toListBlock("Risk notes", writeContext.chapterMission.riskNotes),
         writeContext.chapterMission.hookTarget ? `Ending hook: ${writeContext.chapterMission.hookTarget}` : "",
       ].filter(Boolean).join("\n"),
+    }),
+    createContextBlock({
+      id: "state_goal",
+      group: "state_goal",
+      priority: 97,
+      required: Boolean(writeContext.chapterStateGoal),
+      content: writeContext.chapterStateGoal
+        ? [
+            `State goal: ${writeContext.chapterStateGoal.summary}`,
+            toListBlock("Target conflicts", writeContext.chapterStateGoal.targetConflicts),
+            toListBlock("Target relationships", writeContext.chapterStateGoal.targetRelationships),
+            toListBlock("Target payoffs", writeContext.chapterStateGoal.targetPayoffs),
+            toListBlock("Protected secrets", writeContext.protectedSecrets),
+          ].filter(Boolean).join("\n")
+        : "",
     }),
     createContextBlock({
       id: "volume_window",

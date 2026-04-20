@@ -3,12 +3,15 @@ import type {
   DirectorAutoExecutionPlan,
 } from "@ai-novel/shared/types/novelDirector";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 
 export interface DirectorAutoExecutionDraftState {
   mode: DirectorAutoExecutionMode;
   startOrder: string;
   endOrder: string;
   volumeOrder: string;
+  autoReview: boolean;
+  autoRepair: boolean;
 }
 
 const DEFAULT_DIRECTOR_AUTO_EXECUTION_DRAFT: DirectorAutoExecutionDraftState = {
@@ -16,6 +19,8 @@ const DEFAULT_DIRECTOR_AUTO_EXECUTION_DRAFT: DirectorAutoExecutionDraftState = {
   startOrder: "1",
   endOrder: "10",
   volumeOrder: "1",
+  autoReview: true,
+  autoRepair: true,
 };
 
 const AUTO_EXECUTION_SCOPE_OPTIONS: Array<{
@@ -58,22 +63,30 @@ export function normalizeDirectorAutoExecutionDraftState(
   if (plan?.mode === "chapter_range") {
     const startOrder = normalizePositiveInteger(plan.startOrder, 1);
     const endOrder = normalizePositiveInteger(plan.endOrder, Math.max(startOrder, 10));
-    return {
-      mode: "chapter_range",
-      startOrder: String(startOrder),
-      endOrder: String(Math.max(startOrder, endOrder)),
-      volumeOrder: DEFAULT_DIRECTOR_AUTO_EXECUTION_DRAFT.volumeOrder,
-    };
-  }
+      return {
+        mode: "chapter_range",
+        startOrder: String(startOrder),
+        endOrder: String(Math.max(startOrder, endOrder)),
+        volumeOrder: DEFAULT_DIRECTOR_AUTO_EXECUTION_DRAFT.volumeOrder,
+        autoReview: plan.autoReview ?? true,
+        autoRepair: plan.autoReview === false ? false : (plan.autoRepair ?? true),
+      };
+    }
   if (plan?.mode === "volume") {
     return {
       mode: "volume",
       startOrder: DEFAULT_DIRECTOR_AUTO_EXECUTION_DRAFT.startOrder,
       endOrder: DEFAULT_DIRECTOR_AUTO_EXECUTION_DRAFT.endOrder,
       volumeOrder: String(normalizePositiveInteger(plan.volumeOrder, 1)),
+      autoReview: plan.autoReview ?? true,
+      autoRepair: plan.autoReview === false ? false : (plan.autoRepair ?? true),
     };
   }
-  return createDefaultDirectorAutoExecutionDraftState();
+  return {
+    ...createDefaultDirectorAutoExecutionDraftState(),
+    autoReview: plan?.autoReview ?? true,
+    autoRepair: plan?.autoReview === false ? false : (plan?.autoRepair ?? true),
+  };
 }
 
 export function buildDirectorAutoExecutionPlanFromDraft(
@@ -86,16 +99,22 @@ export function buildDirectorAutoExecutionPlanFromDraft(
       mode: "chapter_range",
       startOrder,
       endOrder,
+      autoReview: draft.autoReview,
+      autoRepair: draft.autoReview ? draft.autoRepair : false,
     };
   }
   if (draft.mode === "volume") {
     return {
       mode: "volume",
       volumeOrder: normalizePositiveInteger(draft.volumeOrder, 1),
+      autoReview: draft.autoReview,
+      autoRepair: draft.autoReview ? draft.autoRepair : false,
     };
   }
   return {
     mode: "front10",
+    autoReview: draft.autoReview,
+    autoRepair: draft.autoReview ? draft.autoRepair : false,
   };
 }
 
@@ -127,6 +146,11 @@ export function DirectorAutoExecutionPlanFields({
 }: DirectorAutoExecutionPlanFieldsProps) {
   const plan = buildDirectorAutoExecutionPlanFromDraft(draft);
   const scopeLabel = buildDirectorAutoExecutionPlanLabel(plan);
+  const reviewLabel = draft.autoReview
+    ? draft.autoRepair
+      ? "正文后自动审核 + 自动修复"
+      : "正文后自动审核，不自动修复"
+    : "正文后不做自动审核与修复";
 
   return (
     <div className="mt-3 rounded-md border border-primary/15 bg-primary/5 p-3">
@@ -197,8 +221,43 @@ export function DirectorAutoExecutionPlanFields({
         </div>
       ) : null}
 
+      <div className="mt-4 rounded-xl border bg-background/80 p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <div className="text-sm font-medium text-foreground">正文生成后自动审核</div>
+            <div className="text-xs leading-5 text-muted-foreground">
+              关闭后，正文生成完成就直接结束当前章节，不再自动做质量校验。
+            </div>
+          </div>
+          <Switch
+            checked={draft.autoReview}
+            onCheckedChange={(checked) => onChange({
+              autoReview: checked,
+              autoRepair: checked ? draft.autoRepair : false,
+            })}
+            aria-label="切换正文生成后是否自动审核"
+          />
+        </div>
+
+        <div className="mt-4 flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <div className="text-sm font-medium text-foreground">审核不通过时自动修复</div>
+            <div className="text-xs leading-5 text-muted-foreground">
+              只在开启自动审核后生效；关闭时会保留问题，等待你手动处理或重跑。
+            </div>
+          </div>
+          <Switch
+            checked={draft.autoReview && draft.autoRepair}
+            disabled={!draft.autoReview}
+            onCheckedChange={(checked) => onChange({ autoRepair: checked })}
+            aria-label="切换审核后是否自动修复"
+          />
+        </div>
+      </div>
+
       <div className="mt-3 text-xs leading-5 text-muted-foreground">
-        系统会按你选定的章节范围或卷，自动准备节奏板、拆章和章节执行资源，再继续写作、审校与修复。
+        系统会按你选定的章节范围或卷，自动准备节奏板、拆章和章节执行资源，再继续写作。
+        当前质量策略：{reviewLabel}。
       </div>
     </div>
   );

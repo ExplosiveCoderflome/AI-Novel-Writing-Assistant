@@ -37,7 +37,7 @@ interface ChapterRuntimeCoordinatorDeps {
   chapterWritingGraph?: Pick<ChapterWritingGraph, "createChapterStream">;
   artifactSyncService?: Pick<ChapterArtifactSyncService, "saveDraftAndArtifacts">;
   auditService?: Pick<typeof auditService, "auditChapter">;
-  plannerService?: Pick<typeof plannerService, "shouldTriggerReplanFromAudit">;
+  plannerService?: Pick<typeof plannerService, "buildReplanRecommendation" | "shouldTriggerReplanFromAudit">;
   styleDetectionService?: Pick<StyleDetectionService, "check">;
   styleRewriteService?: Pick<StyleRewriteService, "rewrite">;
   agentRuntime?: AgentRuntimeLike;
@@ -161,9 +161,10 @@ export class ChapterRuntimeCoordinator {
   }> {
     const request = this.deps.validateRequest(options);
     await this.deps.ensureNovelCharacters(novelId, "generate chapter content");
-    await this.deps.ensureChapterExecutionContract(novelId, chapterId, request);
+    await this.markChapterStatus(chapterId, "generating");
 
     const assembled = await this.deps.assembler.assemble(novelId, chapterId, request);
+    this.assertStateDrivenReady(assembled.contextPackage);
     const agentRuntime = this.getAgentRuntime();
 
     let traceRunId: string | null = null;
@@ -239,13 +240,14 @@ export class ChapterRuntimeCoordinator {
     hooks: PipelineRuntimeHooks = {},
   ): Promise<PipelineRuntimeResult> {
     const request = this.deps.validateRequest(options);
-    await this.deps.ensureChapterExecutionContract(novelId, chapterId, request);
+    await this.markChapterStatus(chapterId, "generating");
+    const assembled = await this.deps.assembler.assemble(novelId, chapterId, request);
+    this.assertStateDrivenReady(assembled.contextPackage);
     return runPipelineChapterWithRuntime(
       {
         validateRequest: () => request,
         ensureNovelCharacters: this.deps.ensureNovelCharacters,
-        assemble: (targetNovelId, targetChapterId, request) =>
-          this.deps.assembler.assemble(targetNovelId, targetChapterId, request) as Promise<AssembledRuntimeChapter>,
+        assemble: async () => assembled as AssembledRuntimeChapter,
         generateDraftFromWriter: (input) => this.generateDraftFromWriter(input),
         saveDraftAndArtifacts: (targetNovelId, targetChapterId, content, generationState) =>
           this.deps.artifactSyncService.saveDraftAndArtifacts(targetNovelId, targetChapterId, content, generationState),
@@ -268,6 +270,37 @@ export class ChapterRuntimeCoordinator {
 
   private getAgentRuntime(): AgentRuntimeLike {
     return (this.deps.agentRuntime ?? require("../../../agents").agentRuntime) as AgentRuntimeLike;
+  }
+
+  private assertStateDrivenReady(contextPackage: GenerationContextPackage): void {
+    if (contextPackage.nextAction === "hold_for_review") {
+      const reasons = [
+        contextPackage.pendingReviewProposalCount > 0
+          ? `${contextPackage.pendingReviewProposalCount} pending state proposal(s)`
+          : "",
+        ...contextPackage.openAuditIssues.slice(0, 2).map((issue) => issue.description),
+      ].filter(Boolean);
+      throw new Error(
+        `Chapter generation is blocked until review is resolved.${reasons.length > 0 ? ` ${reasons.join(" | ")}` : ""}`,
+      );
+    }
+  }
+
+  private async bestEffortEnsureChapterExecutionContract(
+    novelId: string,
+    chapterId: string,
+    request: ChapterRuntimeRequestInput,
+  ): Promise<void> {
+    try {
+      await this.deps.ensureChapterExecutionContract(novelId, chapterId, request);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "unknown error";
+      console.warn("[chapter-runtime] execution contract refresh skipped", {
+        novelId,
+        chapterId,
+        error: message,
+      });
+    }
   }
 
   private async generateDraftFromWriter(input: {
@@ -347,7 +380,7 @@ export class ChapterRuntimeCoordinator {
       styleReview,
       runId: input.runId,
     });
-    await this.markGeneratedChapterStatus(
+    await this.markChapterStatus(
       input.chapterId,
       runtimePackage.audit.hasBlockingIssues ? "needs_repair" : "pending_review",
     );
@@ -534,6 +567,29 @@ export class ChapterRuntimeCoordinator {
       })),
     );
 
+    const replanRecommendation = this.deps.plannerService.buildReplanRecommendation
+      ? this.deps.plannerService.buildReplanRecommendation({
+        auditReports: input.auditResult.auditReports,
+        ledgerSummary: input.contextPackage.ledgerSummary ?? null,
+        contextPackage: input.contextPackage,
+        targetChapterOrder: input.contextPackage.chapter.order,
+        blockingLedgerKeys,
+      })
+      : {
+        recommended: hasBlockingIssues || this.deps.plannerService.shouldTriggerReplanFromAudit(
+          input.auditResult.auditReports,
+          input.contextPackage.ledgerSummary ?? null,
+        ),
+        reason: input.contextPackage.ledgerSummary?.overdueCount
+          ? "Overdue payoff ledger items require replan or explicit payoff handling."
+          : hasBlockingIssues
+            ? "Blocking audit issues remain open after generation."
+            : "No blocking audit issues were detected.",
+        blockingIssueIds,
+        blockingLedgerKeys,
+        affectedChapterOrders: [],
+      };
+
     return {
       novelId: input.novelId,
       chapterId: input.chapterId,
@@ -575,19 +631,7 @@ export class ChapterRuntimeCoordinator {
         openIssues,
         hasBlockingIssues,
       },
-      replanRecommendation: {
-        recommended: hasBlockingIssues || this.deps.plannerService.shouldTriggerReplanFromAudit(
-          input.auditResult.auditReports,
-          input.contextPackage.ledgerSummary ?? null,
-        ),
-        reason: input.contextPackage.ledgerSummary?.overdueCount
-          ? "Overdue payoff ledger items require replan or explicit payoff handling."
-          : hasBlockingIssues
-            ? "Blocking audit issues remain open after generation."
-            : "No blocking audit issues were detected.",
-        blockingIssueIds,
-        blockingLedgerKeys,
-      },
+      replanRecommendation,
       lengthControl: input.lengthControl,
       styleReview: {
         report: input.styleReview.report,
@@ -600,6 +644,9 @@ export class ChapterRuntimeCoordinator {
         temperature: input.request.temperature,
         runId: input.runId ?? undefined,
         generatedAt: new Date().toISOString(),
+        nextAction: input.contextPackage.nextAction,
+        stateGoalSummary: input.contextPackage.chapterStateGoal?.summary,
+        pendingReviewProposalCount: input.contextPackage.pendingReviewProposalCount,
       },
     };
   }
@@ -614,9 +661,9 @@ export class ChapterRuntimeCoordinator {
     });
   }
 
-  private async markGeneratedChapterStatus(
+  private async markChapterStatus(
     chapterId: string,
-    chapterStatus: "pending_review" | "needs_repair",
+    chapterStatus: "generating" | "pending_review" | "needs_repair",
   ): Promise<void> {
     await prisma.chapter.update({
       where: { id: chapterId },

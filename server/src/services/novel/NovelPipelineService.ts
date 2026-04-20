@@ -1,20 +1,25 @@
 import { NovelCoreService } from "./NovelCoreService";
 import { NovelReviewService } from "./NovelReviewService";
+import { buildPipelineExecutionControlPolicy } from "./production/ChapterExecutionStageRunner";
+import { novelProductionOrchestrator } from "./production/NovelProductionOrchestrator";
 
 export class NovelPipelineService extends NovelReviewService {
   async startPipelineJob(...args: Parameters<NovelCoreService["startPipelineJob"]>) {
     const [novelId, options] = args;
-    const existing = await this.core.findActivePipelineJobForRange(
+    const result = await novelProductionOrchestrator.runStage({
       novelId,
-      options.startOrder,
-      options.endOrder,
-    );
-    if (existing) {
-      await this.core.resumePipelineJob(existing.id);
-      return existing;
+      stage: "chapter_execution",
+      policy: options.controlPolicy ?? buildPipelineExecutionControlPolicy(),
+      trigger: "start_pipeline_job",
+      payload: {
+        mode: "pipeline_job",
+        options,
+      },
+    });
+    if (!result.payload) {
+      throw new Error("Unified chapter execution did not return a pipeline job payload.");
     }
-    await this.core.createNovelSnapshot(novelId, "before_pipeline", `before-pipeline-${Date.now()}`);
-    return this.core.startPipelineJob(...args);
+    return result.payload as Awaited<ReturnType<NovelCoreService["startPipelineJob"]>>;
   }
 
   getPipelineJob(...args: Parameters<NovelCoreService["getPipelineJob"]>) {

@@ -106,33 +106,39 @@ export default function SearchableSelect({
         type="button"
         disabled={disabled}
         aria-expanded={open}
+        aria-haspopup="listbox"
+        title={displayLabel || undefined}
         className={cn(
-          "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background transition-colors placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+          "group flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-border/70 bg-background px-3 py-2 text-sm shadow-sm ring-offset-background transition-all duration-150 placeholder:text-muted-foreground hover:border-primary/35 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-ring/60 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
           triggerClassName,
         )}
         onClick={() => setOpen((prev) => !prev)}
       >
-        <span className={cn("truncate text-left", !displayLabel && "text-muted-foreground")}>
+        <span className={cn("min-w-0 flex-1 truncate text-left", !displayLabel && "text-muted-foreground")}>
           {displayLabel || placeholder}
         </span>
-        <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+        <ChevronDown className={cn(
+          "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150",
+          open && "rotate-180",
+        )}
+        />
       </button>
 
       {open ? (
         <div
           className={cn(
-            "absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md",
+            "absolute left-0 z-50 mt-2 min-w-full max-w-[min(36rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border/80 bg-popover/95 text-popover-foreground shadow-xl backdrop-blur-sm",
             contentClassName,
           )}
         >
-          <div className="border-b p-2">
+          <div className="border-b border-border/70 p-2.5">
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 ref={inputRef}
                 value={query}
                 placeholder={searchPlaceholder}
-                className="h-8 pl-8"
+                className="h-9 rounded-lg border-border/70 bg-background/80 pl-8"
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
                   event.stopPropagation();
@@ -148,7 +154,7 @@ export default function SearchableSelect({
             </div>
           </div>
 
-          <div className="max-h-64 overflow-y-auto p-1">
+          <div className="max-h-64 overflow-y-auto p-1.5">
             {filteredOptions.length > 0 ? (
               filteredOptions.map((option) => {
                 const isSelected = option.value === value;
@@ -157,8 +163,9 @@ export default function SearchableSelect({
                     key={option.value}
                     type="button"
                     disabled={option.disabled}
+                    title={option.label ?? option.value}
                     className={cn(
-                      "flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-sm outline-none transition-colors",
+                      "flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left text-sm outline-none transition-colors",
                       option.disabled
                         ? "cursor-not-allowed opacity-50"
                         : "hover:bg-accent hover:text-accent-foreground",
@@ -172,13 +179,15 @@ export default function SearchableSelect({
                       setOpen(false);
                     }}
                   >
-                    <span className="truncate pr-3">{option.label ?? option.value}</span>
-                    {isSelected ? <Check className="h-4 w-4 shrink-0" /> : null}
+                    <span className="min-w-0 flex-1 whitespace-normal break-words text-left leading-5 [overflow-wrap:anywhere]">
+                      {option.label ?? option.value}
+                    </span>
+                    {isSelected ? <Check className="mt-0.5 h-4 w-4 shrink-0" /> : null}
                   </button>
                 );
               })
             ) : (
-              <div className="px-2 py-3 text-sm text-muted-foreground">{emptyText}</div>
+              <div className="px-3 py-4 text-sm text-muted-foreground">{emptyText}</div>
             )}
           </div>
         </div>

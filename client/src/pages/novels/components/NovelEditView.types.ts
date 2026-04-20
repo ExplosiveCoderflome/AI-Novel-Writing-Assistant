@@ -18,6 +18,7 @@ import type {
   SupplementalCharacterGenerationResult,
   VolumeImpactResult,
   VolumeBeatSheet,
+  VolumeChapterListGenerationMode,
   VolumePlan,
   VolumePlanningReadiness,
   VolumePlanDiff,
@@ -40,9 +41,11 @@ import type {
 } from "@ai-novel/shared/types/storyMacro";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { NovelExportDownloadFormat } from "@ai-novel/shared/types/novelExport";
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { StoryWorldSliceOverrides, StoryWorldSliceView } from "@ai-novel/shared/types/storyWorldSlice";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
+import type { ChapterExecutionBackgroundActivity } from "./chapterExecution.shared";
 import type { QuickCharacterCreatePayload } from "./characterPanel.utils";
 import type { ChapterReviewResult } from "../chapterPlanning.shared";
 import type { ChapterDetailBundleRequest } from "../chapterDetailPlanning.shared";
@@ -52,6 +55,11 @@ import type { ExistingOutlineChapter } from "../volumePlan.utils";
 import type { AITakeoverAction } from "@/components/workflow/AITakeoverContainer";
 import type { SSEFrame } from "@ai-novel/shared/types/api";
 import type { ReactNode } from "react";
+
+export interface StructuredChapterListGenerationRequest {
+  generationMode?: VolumeChapterListGenerationMode;
+  targetBeatKey?: string;
+}
 
 export interface BasicTabProps {
   novelId: string;
@@ -89,6 +97,7 @@ export interface BasicTabProps {
   onSaveWorldSliceOverrides: (patch: StoryWorldSliceOverrides) => void;
   isSaving: boolean;
   projectQuickStart?: ReactNode;
+  directorTakeoverEntry?: ReactNode;
 }
 
 export interface StoryMacroTabProps {
@@ -116,6 +125,7 @@ export interface StoryMacroTabProps {
   isBuilding: boolean;
   isSaving: boolean;
   isSavingState: boolean;
+  directorTakeoverEntry?: ReactNode;
 }
 
 export interface OutlineTabViewProps {
@@ -170,6 +180,7 @@ export interface OutlineTabViewProps {
   onAnalyzeVersionImpact: () => void;
   isAnalyzingVersionImpact: boolean;
   impactResult: VolumeImpactResult | null;
+  directorTakeoverEntry?: ReactNode;
 }
 
 export interface StructuredTabViewProps extends Omit<
@@ -195,13 +206,17 @@ export interface StructuredTabViewProps extends Omit<
   | "impactResult"
 > {
   novelId: string;
+  directorTakeoverEntry?: ReactNode;
   beatSheets: VolumeBeatSheet[];
   rebalanceDecisions: VolumeRebalanceDecision[];
   draftText: string;
   isGeneratingBeatSheet: boolean;
   onGenerateBeatSheet: (volumeId: string) => void;
   isGeneratingChapterList: boolean;
-  onGenerateChapterList: (volumeId: string) => void;
+  generatingChapterListVolumeId: string;
+  generatingChapterListBeatKey: string;
+  generatingChapterListMode: VolumeChapterListGenerationMode | null;
+  onGenerateChapterList: (volumeId: string, request?: StructuredChapterListGenerationRequest) => void;
   isGeneratingChapterDetail: boolean;
   isGeneratingChapterDetailBundle: boolean;
   generatingChapterDetailMode: "purpose" | "boundary" | "task_sheet" | "";
@@ -300,7 +315,9 @@ export interface ChapterTabViewProps {
   lastReplanResult?: ReplanResult | null;
   chapterPlan?: StoryPlan | null;
   latestStateSnapshot?: StoryStateSnapshot | null;
+  chapterStateSnapshot?: StoryStateSnapshot | null;
   chapterAuditReports: AuditReport[];
+  backgroundSyncActivities?: ChapterExecutionBackgroundActivity[];
   isGeneratingChapterPlan: boolean;
   isReplanningChapter: boolean;
   isRunningFullAudit: boolean;
@@ -326,6 +343,7 @@ export interface ChapterTabViewProps {
   streamingChapterLabel?: string | null;
   chapterRunStatus?: Extract<SSEFrame, { type: "run_status" }> | null;
   onAbortStream: () => void;
+  directorTakeoverEntry?: ReactNode;
 }
 
 export interface PipelineTabViewProps {
@@ -389,6 +407,7 @@ export interface PipelineTabViewProps {
   }>;
   bible?: NovelBible | null;
   plotBeats: PlotBeat[];
+  directorTakeoverEntry?: ReactNode;
 }
 
 export interface CharacterTabViewProps {
@@ -450,6 +469,7 @@ export interface CharacterTabViewProps {
   onSaveCharacter: () => void;
   isSavingCharacter: boolean;
   timelineEvents: CharacterTimeline[];
+  directorTakeoverEntry?: ReactNode;
 }
 
 export interface NovelEditTakeoverState {
@@ -486,6 +506,15 @@ export interface NovelEditViewProps {
   activeTab: string;
   workflowCurrentTab?: string | null;
   onActiveTabChange: (value: string) => void;
+  exportControls: {
+    canExportCurrentStep: boolean;
+    isExportingCurrentMarkdown: boolean;
+    isExportingCurrentJson: boolean;
+    isExportingFullMarkdown: boolean;
+    isExportingFullJson: boolean;
+    onExportCurrent: (format: NovelExportDownloadFormat) => void;
+    onExportFull: (format: NovelExportDownloadFormat) => void;
+  };
   basicTab: BasicTabProps;
   storyMacroTab: StoryMacroTabProps;
   outlineTab: OutlineTabViewProps;
@@ -495,4 +524,5 @@ export interface NovelEditViewProps {
   characterTab: CharacterTabViewProps;
   takeover?: NovelEditTakeoverState | null;
   taskDrawer?: NovelTaskDrawerState | null;
+  activeStepTakeoverEntry?: ReactNode;
 }

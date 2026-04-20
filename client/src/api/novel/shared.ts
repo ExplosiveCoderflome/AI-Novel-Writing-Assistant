@@ -1,4 +1,5 @@
 import { NOVEL_LIST_PAGE_LIMIT_DEFAULT, NOVEL_LIST_PAGE_LIMIT_MAX } from "@ai-novel/shared/types/pagination";
+import type { NovelExportFormat, NovelExportScope } from "@ai-novel/shared/types/novelExport";
 import type {
   Chapter,
   Character,
@@ -115,8 +116,10 @@ export function buildExportTimestamp(input: Date = new Date()): string {
 
 export function buildNovelExportFallbackFileName(
   title: string | null | undefined,
-  format: "txt" | "markdown",
+  format: NovelExportFormat,
+  scope: NovelExportScope = "full",
 ): string {
-  const extension = format === "markdown" ? "md" : "txt";
-  return `${sanitizeFileNamePart(title)}-${buildExportTimestamp()}.${extension}`;
+  const extension = format === "markdown" ? "md" : format === "json" ? "json" : "txt";
+  const scopeSuffix = scope === "full" ? "" : `-${scope}`;
+  return `${sanitizeFileNamePart(title)}${scopeSuffix}-${buildExportTimestamp()}.${extension}`;
 }

@@ -36,6 +36,9 @@ const {
   styleRewritePrompt,
 } = require("../dist/prompting/prompts/style/style.prompts.js");
 const {
+  chapterWriterPrompt,
+} = require("../dist/prompting/prompts/novel/chapterWriter.prompts.js");
+const {
   worldDraftGenerationPrompt,
   worldDraftRefineAlternativesPrompt,
 } = require("../dist/prompting/prompts/world/worldDraft.prompts.js");
@@ -53,6 +56,9 @@ const {
 const {
   sanitizeWriterContextBlocks,
 } = require("../dist/prompting/prompts/novel/chapterLayeredContext.js");
+const {
+  buildSceneContractBlock,
+} = require("../dist/services/novel/chapterWritingGraphShared.js");
 const {
   directorPlanBlueprintSchema,
 } = require("../dist/services/novel/director/novelDirectorSchemas.js");
@@ -77,7 +83,7 @@ test("prompt registry exposes versioned planning assets", () => {
     "novel.volume.strategy.critique@v1",
     "novel.volume.skeleton@v2",
     "title.generation@v1",
-    "audit.chapter.full@v1",
+    "audit.chapter.full@v2",
     "bookAnalysis.source.note@v1",
     "character.base.skeleton@v1",
     "novel.continuation.rewrite_similarity@v1",
@@ -85,7 +91,9 @@ test("prompt registry exposes versioned planning assets", () => {
     "novel.draft_optimize.full@v1",
     "novel.framing.suggest@v1",
     "novel.production.characters@v1",
-    "state.snapshot.extract@v2",
+    "state.snapshot.extract@v4",
+    "novel.payoff_ledger.sync@v5",
+    "novel.characterDynamics.volumeProjection@v3",
     "storyMode.child.generate@v1",
     "storyMode.tree.generate@v1",
     "storyWorldSlice.generate@v1",
@@ -221,6 +229,92 @@ test("volume strategy prompt renders volume count guidance and fixed-count const
   assert.match(String(messages[1].content), /user preferred volume count: 10/);
 });
 
+test("chapter writer prompt omits scene length budget hints in scene mode", () => {
+  const messages = chapterWriterPrompt.render({
+    novelTitle: "测试小说",
+    chapterOrder: 1,
+    chapterTitle: "起势",
+    mode: "draft",
+    wordControlMode: "prompt_only",
+    sceneIndex: 1,
+    sceneCount: 3,
+    sceneTitle: "街头起势",
+    scenePurpose: "建立当前局面与第一轮冲突。",
+    roundIndex: 1,
+    maxRounds: 1,
+    isFinalRound: true,
+    closingPhase: true,
+    entryState: "主角还在被动。",
+    exitState: "主角确认反击窗口存在。",
+    forbiddenExpansion: ["不要提前解决主线"],
+  }, {
+    blocks: [
+      createContextBlock({
+        id: "chapter-mission",
+        group: "chapter_mission",
+        priority: 100,
+        required: true,
+        content: "本章职责：完成第一次有效求生，并留下更大的外部压力。",
+      }),
+    ],
+    selectedBlockIds: ["chapter-mission"],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+
+  const systemContent = String(messages[0].content);
+  assert.match(systemContent, /场景标题：街头起势/);
+  assert.doesNotMatch(systemContent, /当前场景目标：约/);
+  assert.doesNotMatch(systemContent, /当前场景剩余预算：约/);
+  assert.doesNotMatch(systemContent, /整章目标：约/);
+  assert.doesNotMatch(systemContent, /本轮建议新增：约/);
+  assert.doesNotMatch(systemContent, /本轮硬上限：约/);
+});
+
+test("scene contract block omits direct length budget metadata", () => {
+  const block = buildSceneContractBlock({
+    scene: {
+      key: "scene_1",
+      title: "街头求生",
+      purpose: "先让主角看见现实危险。",
+      mustAdvance: ["风险落地"],
+      mustPreserve: ["压迫感"],
+      entryState: "主角刚到汴京，毫无依靠。",
+      exitState: "主角找到暂时的破局方向。",
+      forbiddenExpansion: ["不要提前引出后续大反派"],
+      targetWordCount: 900,
+    },
+    sceneIndex: 1,
+    sceneCount: 3,
+    roundPlan: {
+      mode: "prompt_only",
+      roundIndex: 1,
+      maxRounds: 1,
+      roundsLeft: 1,
+      sceneTargetWordCount: 900,
+      sceneMinWordCount: 765,
+      sceneMaxWordCount: 1035,
+      currentSceneWordCount: 0,
+      currentChapterWordCount: 0,
+      remainingSceneWordCount: 900,
+      remainingChapterWordCount: 3000,
+      suggestedRoundWordCount: 900,
+      hardRoundWordLimit: null,
+      isFinalRound: true,
+      closingPhase: true,
+    },
+  });
+
+  assert.doesNotMatch(block.content, /Scene target length:/);
+  assert.doesNotMatch(block.content, /Remaining chapter budget before this scene:/);
+  assert.doesNotMatch(block.content, /Current scene draft length:/);
+  assert.doesNotMatch(block.content, /Suggested current round length:/);
+  assert.doesNotMatch(block.content, /Current round hard limit:/);
+  assert.match(block.content, /Entry state:/);
+  assert.match(block.content, /Exit state:/);
+});
+
 test("novel main-chain prompt assets declare explicit non-zero context budgets", () => {
   const expectedBudgets = new Map([
     ["novel.director.candidates@v1", NOVEL_PROMPT_BUDGETS.directorCandidates],
@@ -232,7 +326,7 @@ test("novel main-chain prompt assets declare explicit non-zero context budgets",
     ["novel.volume.strategy.critique@v1", NOVEL_PROMPT_BUDGETS.volumeStrategyCritique],
     ["novel.volume.skeleton@v2", NOVEL_PROMPT_BUDGETS.volumeSkeleton],
     ["novel.volume.beat_sheet@v1", NOVEL_PROMPT_BUDGETS.volumeBeatSheet],
-    ["novel.volume.chapter_list@v4", NOVEL_PROMPT_BUDGETS.volumeChapterList],
+    ["novel.volume.chapter_list@v6", NOVEL_PROMPT_BUDGETS.volumeChapterList],
     ["novel.volume.chapter_purpose@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.chapter_boundary@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.chapter_task_sheet@v2", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
@@ -240,7 +334,7 @@ test("novel main-chain prompt assets declare explicit non-zero context budgets",
     ["novel.chapter.writer@v4", NOVEL_PROMPT_BUDGETS.chapterWriter],
     ["novel.review.chapter@v1", NOVEL_PROMPT_BUDGETS.chapterReview],
     ["novel.review.repair@v1", NOVEL_PROMPT_BUDGETS.chapterRepair],
-    ["audit.chapter.full@v1", NOVEL_PROMPT_BUDGETS.chapterReview],
+    ["audit.chapter.full@v2", NOVEL_PROMPT_BUDGETS.chapterReview],
   ]);
 
   for (const [key, budget] of expectedBudgets.entries()) {

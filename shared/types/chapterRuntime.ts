@@ -3,6 +3,11 @@ import {
   chapterScenePlanSchema,
   lengthBudgetContractSchema,
 } from "./chapterLengthControl";
+import {
+  canonicalStateSnapshotSchema,
+  chapterStateGoalSchema,
+  generationNextActionSchema,
+} from "./canonicalState";
 import { storyWorldSliceSchema } from "./storyWorldSlice";
 import type { LLMProvider } from "./llm";
 
@@ -491,6 +496,9 @@ export const chapterWriteContextSchema = z.object({
   macroConstraints: macroConstraintContextSchema.nullable(),
   volumeWindow: volumeWindowContextSchema.nullable(),
   chapterMission: chapterMissionContextSchema,
+  nextAction: generationNextActionSchema.default("write_chapter"),
+  chapterStateGoal: chapterStateGoalSchema.nullable().optional(),
+  protectedSecrets: z.array(z.string()).default([]),
   lengthBudget: lengthBudgetContractSchema.nullable(),
   scenePlan: chapterScenePlanSchema.nullable().optional(),
   participants: z.array(runtimeCharacterSchema),
@@ -535,6 +543,11 @@ export const chapterRepairContextSchema = z.object({
 export const generationContextPackageSchema = z.object({
   chapter: runtimeChapterSchema,
   plan: runtimePlanSchema.nullable(),
+  canonicalState: canonicalStateSnapshotSchema.nullable().optional(),
+  nextAction: generationNextActionSchema.default("write_chapter"),
+  chapterStateGoal: chapterStateGoalSchema.nullable().optional(),
+  protectedSecrets: z.array(z.string()).default([]),
+  pendingReviewProposalCount: z.number().int().nonnegative().default(0),
   stateSnapshot: runtimeStateSnapshotSchema.nullable(),
   openConflicts: z.array(runtimeOpenConflictSchema),
   storyWorldSlice: storyWorldSliceSchema.nullable().optional(),
@@ -675,6 +688,11 @@ export const chapterRuntimePackageSchema = z.object({
     reason: z.string(),
     blockingIssueIds: z.array(z.string()),
     blockingLedgerKeys: z.array(z.string()).default([]),
+    affectedChapterOrders: z.array(z.number().int()).default([]),
+    anchorChapterOrder: z.number().int().nullable().optional(),
+    triggerReason: z.string().optional(),
+    windowReason: z.string().optional(),
+    whyTheseChapters: z.string().optional(),
   }),
   lengthControl: runtimeLengthControlSchema.optional(),
   styleReview: runtimeStyleReviewSchema.optional(),
@@ -684,6 +702,9 @@ export const chapterRuntimePackageSchema = z.object({
     temperature: z.number().optional(),
     runId: z.string().optional(),
     generatedAt: z.string().optional(),
+    nextAction: generationNextActionSchema.optional(),
+    stateGoalSummary: z.string().optional(),
+    pendingReviewProposalCount: z.number().int().nonnegative().optional(),
   }),
 });
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Value } from "platejs";
 import { ParagraphPlugin, Plate, PlateContent, usePlateEditor } from "platejs/react";
 import type { ChapterEditorDiffChunk } from "@ai-novel/shared/types/novel";
@@ -6,6 +6,7 @@ import type { ChapterEditorSelectionRange, SelectionToolbarPosition } from "./ch
 import {
   buildSelectionRangeFromValue,
   buildToolbarPosition,
+  getParagraphIndicesForRange,
   normalizeChapterContent,
   normalizeEditorText,
   normalizeValuePayload,
@@ -43,11 +44,13 @@ interface ChapterTextEditorProps {
   onChange: (next: string) => void;
   onSelectionChange: (selection: ChapterEditorSelectionRange | null, position: SelectionToolbarPosition | null) => void;
   preview?: ChapterEditorPreview | null;
+  focusRange?: Pick<ChapterEditorSelectionRange, "from" | "to"> | null;
 }
 
 const EDITOR_BODY_CLASS_NAME = "prose prose-sm max-w-none min-w-0 overflow-hidden break-words text-[15px] leading-8 dark:prose-invert [&_code]:break-all [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_pre]:break-words";
 const INLINE_PREVIEW_BODY_CLASS_NAME = `${EDITOR_BODY_CLASS_NAME} whitespace-pre-wrap`;
 const READONLY_BODY_CLASS_NAME = "min-w-0 break-words text-[15px] leading-8";
+const SURFACE_INNER_PADDING_CLASS_NAME = "pl-14";
 
 function splitDisplayParagraphs(text: string): string[] {
   const normalized = normalizeChapterContent(text);
@@ -75,6 +78,16 @@ function TextBlock(props: { text: string; className?: string }) {
   );
 }
 
+function getParagraphElements(surface: HTMLDivElement): HTMLElement[] {
+  const richTextRoot = surface.querySelector('[contenteditable="true"]') as HTMLDivElement | null;
+  const searchRoot = richTextRoot ?? surface;
+  const candidates = Array.from(
+    searchRoot.querySelectorAll<HTMLElement>('[data-slate-node="element"], p'),
+  );
+
+  return candidates.filter((node) => node.textContent?.trim());
+}
+
 function renderDiffChunk(chunk: ChapterEditorDiffChunk) {
   if (chunk.type === "equal") {
     return <span key={chunk.id}>{chunk.text}</span>;
@@ -99,7 +112,7 @@ function renderLoadingPreview(
   surfaceRef: React.RefObject<HTMLDivElement | null>,
 ) {
   return (
-    <div ref={surfaceRef} className="space-y-4 rounded-2xl bg-muted/10 p-4">
+    <div ref={surfaceRef} className={`space-y-4 rounded-2xl bg-muted/10 p-4 ${SURFACE_INNER_PADDING_CLASS_NAME}`}>
       <TextBlock text={previewContent.before} className="text-foreground" />
 
       <div className="space-y-3">
@@ -128,7 +141,7 @@ function renderBlockPreview(
   surfaceRef: React.RefObject<HTMLDivElement | null>,
 ) {
   return (
-    <div ref={surfaceRef} className="space-y-4 rounded-2xl bg-muted/10 p-4">
+    <div ref={surfaceRef} className={`space-y-4 rounded-2xl bg-muted/10 p-4 ${SURFACE_INNER_PADDING_CLASS_NAME}`}>
       <TextBlock text={previewContent.before} className="text-foreground" />
 
       <div className="space-y-3">
@@ -148,9 +161,10 @@ function renderBlockPreview(
 }
 
 export default function ChapterTextEditor(props: ChapterTextEditorProps) {
-  const { value, readOnly = false, onChange, onSelectionChange, preview } = props;
+  const { value, readOnly = false, onChange, onSelectionChange, preview, focusRange = null } = props;
   const [editorSeed, setEditorSeed] = useState(0);
   const [internalText, setInternalText] = useState(() => normalizeChapterContent(value));
+  const [paragraphMarkerOffsets, setParagraphMarkerOffsets] = useState<Array<{ index: number; top: number }>>([]);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const isUserEditingRef = useRef(false);
@@ -233,6 +247,11 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
     };
   }, [normalizedContent, preview]);
 
+  const highlightedParagraphRange = useMemo(
+    () => (focusRange ? getParagraphIndicesForRange(normalizedContent, focusRange) : null),
+    [focusRange, normalizedContent],
+  );
+
   const helperText = preview?.mode === "inline"
     ? "当前正在显示细节标记 diff，适合确认具体删改。"
     : preview?.mode === "loading"
@@ -241,7 +260,102 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
         ? "当前正在显示段落 patch 对比，原文和改写会在正文原位置并排落成红绿块。"
         : readOnly
           ? "当前有待确认候选，正文暂时锁定，可在右侧切换候选或接受、拒绝。"
-          : "可直接编辑正文，选中内容后可发起 AI 改写。";
+      : "可直接编辑正文，选中内容后可发起 AI 改写。";
+
+  useEffect(() => {
+    const surface = surfaceRef.current;
+    if (!surface || preview) {
+      return;
+    }
+    const paragraphNodes = getParagraphElements(surface);
+    paragraphNodes.forEach((node) => {
+      node.classList.remove("bg-sky-100/90", "ring-1", "ring-sky-200", "rounded-xl");
+    });
+    if (!focusRange) {
+      return;
+    }
+    const paragraphIndices = getParagraphIndicesForRange(normalizedContent, focusRange);
+    if (!paragraphIndices) {
+      return;
+    }
+    for (let index = paragraphIndices.startIndex; index <= paragraphIndices.endIndex; index += 1) {
+      const node = paragraphNodes[index];
+      node?.classList.add("bg-sky-100/90", "ring-1", "ring-sky-200", "rounded-xl");
+    }
+    paragraphNodes[paragraphIndices.startIndex]?.scrollIntoView({
+      block: "center",
+      behavior: "smooth",
+    });
+  }, [highlightedParagraphRange, preview]);
+
+  const updateParagraphMarkers = useCallback(() => {
+    const surface = surfaceRef.current;
+    if (!surface) {
+      setParagraphMarkerOffsets([]);
+      return;
+    }
+
+    const surfaceRect = surface.getBoundingClientRect();
+    const paragraphNodes = getParagraphElements(surface);
+    const nextOffsets = paragraphNodes.map((node, index) => {
+      const rect = node.getBoundingClientRect();
+      return {
+        index,
+        top: rect.top - surfaceRect.top + rect.height / 2,
+      };
+    });
+
+    setParagraphMarkerOffsets((current) => {
+      if (
+        current.length === nextOffsets.length
+        && current.every((item, index) => item.index === nextOffsets[index]?.index && Math.abs(item.top - nextOffsets[index]!.top) < 1)
+      ) {
+        return current;
+      }
+      return nextOffsets;
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    updateParagraphMarkers();
+
+    const surface = surfaceRef.current;
+    if (!surface) {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateParagraphMarkers();
+    });
+
+    resizeObserver.observe(surface);
+    getParagraphElements(surface).forEach((node) => resizeObserver.observe(node));
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [editorSeed, normalizedContent, preview, readOnly, updateParagraphMarkers]);
+
+  const paragraphMarkers = paragraphMarkerOffsets.length > 0 ? (
+    <div className="pointer-events-none absolute inset-y-0 left-0 top-0 z-10 w-12">
+      {paragraphMarkerOffsets.map((marker) => {
+        const isHighlighted = highlightedParagraphRange
+          ? marker.index >= highlightedParagraphRange.startIndex && marker.index <= highlightedParagraphRange.endIndex
+          : false;
+        return (
+          <div
+            key={`marker:${marker.index}`}
+            className={`absolute left-0 flex w-12 justify-end pr-3 text-[11px] font-semibold ${
+              isHighlighted ? "text-sky-700" : "text-muted-foreground"
+            }`}
+            style={{ top: `${marker.top}px`, transform: "translateY(-50%)" }}
+          >
+            P{marker.index + 1}
+          </div>
+        );
+      })}
+    </div>
+  ) : null;
 
   return (
     <div ref={containerRef} className="relative flex h-full min-h-[540px] flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm xl:min-h-0">
@@ -251,43 +365,47 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        {preview?.mode === "inline" && previewContent ? (
-          <div
-            ref={surfaceRef}
-            className={`${INLINE_PREVIEW_BODY_CLASS_NAME} min-h-full rounded-2xl bg-muted/15 p-4 text-foreground`}
-          >
-            {previewContent.before}
-            {preview.diffChunks.map((chunk) => renderDiffChunk(chunk))}
-            {previewContent.after}
-          </div>
-        ) : preview?.mode === "loading" && previewContent ? (
-          renderLoadingPreview(preview, previewContent, surfaceRef)
-        ) : preview?.mode === "block" && previewContent ? (
-          renderBlockPreview(preview, previewContent, surfaceRef)
-        ) : readOnly ? (
-          <div
-            ref={surfaceRef}
-            className="min-h-full rounded-2xl bg-muted/10 p-4 text-foreground"
-          >
-            <TextBlock text={normalizedContent} />
-          </div>
-        ) : editor ? (
-          <Plate editor={editor} onSelectionChange={updateSelection} onValueChange={handleValueChange}>
-            <div ref={surfaceRef} className="min-h-full">
-              <PlateContent
-                className={`${EDITOR_BODY_CLASS_NAME} min-h-full rounded-2xl bg-muted/10 p-4 outline-none [&_p]:text-foreground`}
-                onFocus={() => {
-                  isUserEditingRef.current = true;
-                }}
-                onBlur={() => {
-                  isUserEditingRef.current = false;
-                }}
-                onMouseUp={updateSelection}
-                onKeyUp={updateSelection}
-              />
+        <div className="relative min-h-full">
+          {preview?.mode === "inline" && previewContent ? (
+            <div
+              ref={surfaceRef}
+              className={`${INLINE_PREVIEW_BODY_CLASS_NAME} ${SURFACE_INNER_PADDING_CLASS_NAME} min-h-full rounded-2xl bg-muted/15 p-4 text-foreground`}
+            >
+              {previewContent.before}
+              {preview.diffChunks.map((chunk) => renderDiffChunk(chunk))}
+              {previewContent.after}
             </div>
-          </Plate>
-        ) : null}
+          ) : preview?.mode === "loading" && previewContent ? (
+            renderLoadingPreview(preview, previewContent, surfaceRef)
+          ) : preview?.mode === "block" && previewContent ? (
+            renderBlockPreview(preview, previewContent, surfaceRef)
+          ) : readOnly ? (
+            <div
+              ref={surfaceRef}
+              className={`min-h-full rounded-2xl bg-muted/10 p-4 text-foreground ${SURFACE_INNER_PADDING_CLASS_NAME}`}
+            >
+              <TextBlock text={normalizedContent} />
+            </div>
+          ) : editor ? (
+            <Plate editor={editor} onSelectionChange={updateSelection} onValueChange={handleValueChange}>
+              <div ref={surfaceRef} className="min-h-full">
+                <PlateContent
+                  className={`${EDITOR_BODY_CLASS_NAME} ${SURFACE_INNER_PADDING_CLASS_NAME} min-h-full rounded-2xl bg-muted/10 p-4 outline-none [&_p]:text-foreground`}
+                  onFocus={() => {
+                    isUserEditingRef.current = true;
+                  }}
+                  onBlur={() => {
+                    isUserEditingRef.current = false;
+                  }}
+                  onMouseUp={updateSelection}
+                  onKeyUp={updateSelection}
+                />
+              </div>
+            </Plate>
+          ) : null}
+
+          {paragraphMarkers}
+        </div>
       </div>
     </div>
   );

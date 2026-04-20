@@ -1,5 +1,6 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
+  VolumeChapterListGenerationMode,
   VolumeBeatSheet,
   VolumeChapterPlan,
   VolumeCritiqueReport,
@@ -22,6 +23,15 @@ export interface VolumeGenerationPhaseEvent {
   scope: VolumeGenerationScope;
   phase: VolumeGenerationPhase;
   label: string;
+}
+
+export interface VolumeIntermediateDocumentEvent {
+  scope: VolumeGenerationScope;
+  document: VolumePlanDocument;
+  isFinal: boolean;
+  targetVolumeId?: string;
+  targetBeatKey?: string;
+  generationMode?: VolumeChapterListGenerationMode;
 }
 
 export interface VolumeWorkspace {
@@ -67,7 +77,9 @@ export interface VolumeGenerateOptions {
   temperature?: number;
   guidance?: string;
   scope?: VolumeGenerationScopeInput;
+  generationMode?: VolumeChapterListGenerationMode;
   targetVolumeId?: string;
+  targetBeatKey?: string;
   targetChapterId?: string;
   detailMode?: "purpose" | "boundary" | "task_sheet";
   estimatedChapterCount?: number;
@@ -76,6 +88,7 @@ export interface VolumeGenerateOptions {
   draftVolumes?: unknown;
   draftWorkspace?: unknown;
   onPhaseStart?: (event: VolumeGenerationPhaseEvent) => void | Promise<void>;
+  onIntermediateDocument?: (event: VolumeIntermediateDocumentEvent) => void | Promise<void>;
 }
 
 export interface VolumeDraftInput {
@@ -136,9 +149,13 @@ export function mapVolumeRow(row: VolumeRow): VolumePlan {
       id: chapter.id,
       volumeId: chapter.volumeId,
       chapterOrder: chapter.chapterOrder,
+      beatKey: null,
       title: chapter.title,
       summary: chapter.summary,
       purpose: chapter.purpose,
+      exclusiveEvent: null,
+      endingState: null,
+      nextChapterEntryState: null,
       conflictLevel: chapter.conflictLevel,
       revealLevel: chapter.revealLevel,
       targetWordCount: chapter.targetWordCount,

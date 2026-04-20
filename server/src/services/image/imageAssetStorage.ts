@@ -4,7 +4,7 @@ import { lookup } from "node:dns/promises";
 import https from "node:https";
 import net from "node:net";
 import path from "node:path";
-import { GetObjectCommand, PutObjectCommand, S3Client, S3ServiceException } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client, S3ServiceException } from "@aws-sdk/client-s3";
 import { imageStorageConfig, isS3ImageStorageEnabled } from "../../config/imageStorage";
 import { AppError } from "../../middleware/errorHandler";
 
@@ -36,6 +36,14 @@ interface PersistedGeneratedImage {
   storageDriver: "local" | "s3";
   sourceUrl: string | null;
   mimeType: string;
+}
+
+interface RemoveStoredImageAssetFileInput {
+  assetId?: string;
+  url: string;
+  metadata?: string | null;
+  storageRoot?: string;
+  s3Client?: Pick<S3Client, "send">;
 }
 
 interface ResolvedImageAssetFile {
@@ -187,6 +195,36 @@ function getCanonicalLocalPath(url: string): string | null {
     throw new AppError("Local image asset file was not found.", 404);
   }
   return resolved;
+}
+
+async function getValidatedLocalDeletionPath(url: string): Promise<string | null> {
+  const localPath = getCanonicalLocalPath(url);
+  if (!localPath) {
+    return null;
+  }
+  let realParentDirectory: string;
+  try {
+    realParentDirectory = await fs.realpath(path.dirname(localPath));
+  } catch (error) {
+    const fsError = error as NodeJS.ErrnoException;
+    if (fsError?.code === "ENOENT") {
+      return localPath;
+    }
+    throw error;
+  }
+  const resolvedPath = path.join(realParentDirectory, path.basename(localPath));
+  if (!isPathInsideRoot(DEFAULT_STORAGE_ROOT, resolvedPath) && !isPathInsideRoot(LEGACY_STORAGE_ROOT, resolvedPath)) {
+    throw new AppError("Local image asset file was not found.", 404);
+  }
+  return resolvedPath;
+}
+
+function getValidatedStorageKey(url: string): string | null {
+  const storageKey = getCanonicalStorageKey(url);
+  if (!storageKey) {
+    return null;
+  }
+  return storageKey;
 }
 
 function isCanonicalStorageKey(url: string): boolean {
@@ -619,4 +657,84 @@ export async function resolveImageAssetFile(input: {
   }
 
   throw new AppError("Image asset is not stored locally yet.", 404);
+}
+
+export async function removeLocalImageAssetFile(input: {
+  assetId: string;
+  url: string;
+  metadata?: string | null;
+  storageRoot?: string;
+}): Promise<void> {
+  const metadata = parseImageAssetMetadata(input.metadata);
+  const localPathCandidate = metadata.localPath
+    ?? (path.isAbsolute(input.url) ? input.url : null);
+  const localPath = localPathCandidate ? await getValidatedLocalDeletionPath(localPathCandidate) : null;
+
+  if (!localPath) {
+    return;
+  }
+
+  try {
+    await fs.unlink(localPath);
+  } catch (error) {
+    const fsError = error as NodeJS.ErrnoException;
+    if (fsError?.code !== "ENOENT") {
+      throw error;
+    }
+  }
+
+  const normalizedStorageRoot = input.storageRoot
+    ? path.resolve(input.storageRoot)
+    : isPathInsideRoot(DEFAULT_STORAGE_ROOT, localPath)
+      ? DEFAULT_STORAGE_ROOT
+      : LEGACY_STORAGE_ROOT;
+  let currentDirectory = path.dirname(localPath);
+
+  while (isPathInsideRoot(normalizedStorageRoot, currentDirectory) && currentDirectory !== normalizedStorageRoot) {
+    try {
+      await fs.rmdir(currentDirectory);
+      currentDirectory = path.dirname(currentDirectory);
+    } catch (error) {
+      const fsError = error as NodeJS.ErrnoException;
+      if (fsError?.code === "ENOTEMPTY" || fsError?.code === "ENOENT") {
+        break;
+      }
+      throw error;
+    }
+  }
+}
+
+export async function removeStoredImageAssetFile(input: RemoveStoredImageAssetFileInput): Promise<void> {
+  const metadata = parseImageAssetMetadata(input.metadata);
+  const storageDriver = metadata.storageDriver
+    ?? (metadata.storageKey || isCanonicalStorageKey(input.url) ? "s3" : null)
+    ?? (metadata.localPath || path.isAbsolute(input.url) ? "local" : null);
+
+  if (storageDriver === "s3") {
+    const storageKey = metadata.storageKey ? getValidatedStorageKey(metadata.storageKey) : getValidatedStorageKey(input.url);
+    if (!storageKey) {
+      return;
+    }
+    assertS3StorageConfigured();
+    const client = input.s3Client ?? getS3Client();
+    try {
+      await client.send(new DeleteObjectCommand({
+        Bucket: imageStorageConfig.s3Bucket,
+        Key: storageKey,
+      }));
+    } catch (error) {
+      if (error instanceof S3ServiceException && error.name === "NoSuchKey") {
+        return;
+      }
+      throw error;
+    }
+    return;
+  }
+
+  await removeLocalImageAssetFile({
+    assetId: input.assetId ?? metadata.storageKey ?? metadata.localPath ?? input.url,
+    url: input.url,
+    metadata: input.metadata,
+    storageRoot: input.storageRoot,
+  });
 }

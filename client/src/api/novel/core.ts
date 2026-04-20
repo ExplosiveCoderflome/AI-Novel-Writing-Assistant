@@ -1,6 +1,7 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { NovelExportFormat, NovelExportScope } from "@ai-novel/shared/types/novelExport";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import type { NovelCreateResourceRecommendation } from "@ai-novel/shared/types/novelResourceRecommendation";
 import type {
@@ -175,14 +176,15 @@ export async function listNovelChapterSummaries(id: string) {
 
 export async function downloadNovelExport(
   id: string,
-  format: "txt" | "markdown" = "txt",
+  format: NovelExportFormat = "txt",
+  scope: NovelExportScope = "full",
   novelTitle?: string,
 ) {
   const response = await apiClient.get<Blob>(`/novels/${id}/export`, {
-    params: { format },
+    params: { format, scope },
     responseType: "blob",
   });
-  const fallback = buildNovelExportFallbackFileName(novelTitle || id, format);
+  const fallback = buildNovelExportFallbackFileName(novelTitle || id, format, scope);
   return {
     blob: response.data,
     fileName: extractFileName(response.headers["content-disposition"], fallback),

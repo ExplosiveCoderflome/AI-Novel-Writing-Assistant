@@ -1,10 +1,11 @@
 import { prisma } from "../../db/prisma";
 import { type EmbeddingProvider } from "../../config/rag";
 import { getProviderModels } from "../../llm/modelCatalog";
-import { PROVIDERS } from "../../llm/providers";
+import { getProviderEnvApiKey, getProviderEnvBaseUrl, PROVIDERS } from "../../llm/providers";
 
 interface ProviderSecret {
   apiKey?: string;
+  baseURL?: string;
   isConfigured: boolean;
   isActive: boolean;
 }
@@ -49,17 +50,6 @@ function getFallbackModels(provider: EmbeddingProvider): string[] {
   return uniqueModels(EMBEDDING_MODEL_FALLBACKS[provider]);
 }
 
-function getProviderEnvApiKey(provider: EmbeddingProvider): string | undefined {
-  switch (provider) {
-    case "openai":
-      return process.env.OPENAI_API_KEY;
-    case "siliconflow":
-      return process.env.SILICONFLOW_API_KEY;
-    default:
-      return undefined;
-  }
-}
-
 function filterEmbeddingModels(provider: EmbeddingProvider, models: string[]): string[] {
   const normalized = uniqueModels(models);
   if (provider === "openai") {
@@ -74,30 +64,29 @@ function filterEmbeddingModels(provider: EmbeddingProvider, models: string[]): s
 }
 
 async function resolveProviderSecret(provider: EmbeddingProvider): Promise<ProviderSecret> {
-  const envApiKey = getProviderEnvApiKey(provider)?.trim();
-  if (envApiKey) {
-    return {
-      apiKey: envApiKey,
-      isConfigured: true,
-      isActive: true,
-    };
-  }
-
   try {
     const record = await prisma.aPIKey.findUnique({
       where: { provider },
     });
-    const dbApiKey = record?.key?.trim();
+    const dbApiKey = record?.isActive ? record.key?.trim() : undefined;
+    const dbBaseURL = record?.isActive ? record.baseURL?.trim() : undefined;
+    const envApiKey = getProviderEnvApiKey(provider)?.trim();
+    const envBaseURL = getProviderEnvBaseUrl(provider)?.trim();
     return {
-      apiKey: record?.isActive ? dbApiKey : undefined,
-      isConfigured: Boolean(dbApiKey),
-      isActive: record?.isActive ?? false,
+      apiKey: dbApiKey || envApiKey,
+      baseURL: dbBaseURL || envBaseURL,
+      isConfigured: Boolean(dbApiKey || envApiKey),
+      isActive: record?.isActive ?? Boolean(envApiKey),
     };
   } catch (error) {
     if (isMissingTableError(error)) {
+      const envApiKey = getProviderEnvApiKey(provider)?.trim();
+      const envBaseURL = getProviderEnvBaseUrl(provider)?.trim();
       return {
-        isConfigured: false,
-        isActive: false,
+        apiKey: envApiKey,
+        baseURL: envBaseURL,
+        isConfigured: Boolean(envApiKey),
+        isActive: Boolean(envApiKey),
       };
     }
     throw error;
@@ -114,6 +103,7 @@ export async function getRagEmbeddingModelOptions(
   if (secret.apiKey) {
     const fetchedModels = await getProviderModels(provider, {
       apiKey: secret.apiKey,
+      baseURL: secret.baseURL,
     });
     remoteModels = filterEmbeddingModels(provider, fetchedModels);
   }

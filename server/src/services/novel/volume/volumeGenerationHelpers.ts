@@ -1,7 +1,10 @@
 import type {
+  VolumeBeat,
   VolumeBeatSheet,
+  VolumeChapterListGenerationMode,
   VolumeGenerationScope,
   VolumeGenerationScopeInput,
+  VolumeChapterPlan,
   VolumePlan,
   VolumePlanDocument,
   VolumeRebalanceDecision,
@@ -24,6 +27,17 @@ import type {
 } from "./volumeModels";
 
 type StoryMacroPlanResult = Awaited<ReturnType<StoryMacroPlanService["getPlan"]>> | null;
+
+export interface GeneratedVolumeChapterBlock {
+  beatKey: string;
+  beatLabel: string;
+  chapterCount: number;
+  chapters: Array<{
+    beatKey: string;
+    title: string;
+    summary: string;
+  }>;
+}
 
 export function normalizeScope(scope?: VolumeGenerationScopeInput): VolumeGenerationScope {
   if (scope === "book") {
@@ -110,6 +124,90 @@ export function getTargetChapter(targetVolume: VolumePlan, targetChapterId?: str
 
 export function getBeatSheet(document: VolumePlanDocument, volumeId: string): VolumeBeatSheet | null {
   return document.beatSheets.find((sheet) => sheet.volumeId === volumeId && sheet.beats.length > 0) ?? null;
+}
+
+export function parseBeatChapterSpan(chapterSpanHint: string): { start: number; end: number } | null {
+  const matches = Array.from(chapterSpanHint.matchAll(/\d+/g), (match) => Number(match[0]));
+  if (matches.length === 0 || matches.some((value) => Number.isNaN(value))) {
+    return null;
+  }
+  const start = Math.max(1, matches[0]);
+  const end = Math.max(start, matches[matches.length - 1]);
+  return { start, end };
+}
+
+export function getBeatExpectedChapterCount(beat: Pick<VolumeBeat, "chapterSpanHint">): number {
+  const span = parseBeatChapterSpan(beat.chapterSpanHint);
+  if (!span) {
+    return 0;
+  }
+  return Math.max(1, span.end - span.start + 1);
+}
+
+function buildLocalVolumeChapterOrderMap(volume: VolumePlan): Map<string, number> {
+  return new Map(
+    volume.chapters
+      .slice()
+      .sort((left, right) => left.chapterOrder - right.chapterOrder)
+      .map((chapter, index) => [chapter.id, index + 1]),
+  );
+}
+
+export function resolveVolumeChapterBeatKey(params: {
+  chapter: VolumeChapterPlan;
+  volume: VolumePlan;
+  beatSheet: VolumeBeatSheet | null;
+}): string | null {
+  const normalizedBeatKey = params.chapter.beatKey?.trim();
+  if (normalizedBeatKey) {
+    return normalizedBeatKey;
+  }
+  if (!params.beatSheet) {
+    return null;
+  }
+  const localOrderMap = buildLocalVolumeChapterOrderMap(params.volume);
+  const localOrder = localOrderMap.get(params.chapter.id);
+  if (!localOrder) {
+    return null;
+  }
+  const matchedBeat = params.beatSheet.beats.find((beat) => {
+    const span = parseBeatChapterSpan(beat.chapterSpanHint);
+    return span ? localOrder >= span.start && localOrder <= span.end : false;
+  });
+  return matchedBeat?.key ?? null;
+}
+
+function buildExistingBeatChapterGroups(params: {
+  volume: VolumePlan;
+  beatSheet: VolumeBeatSheet;
+}): {
+  groups: Map<string, VolumeChapterPlan[]>;
+  unmatched: VolumeChapterPlan[];
+} {
+  const groups = new Map<string, VolumeChapterPlan[]>(
+    params.beatSheet.beats.map((beat) => [beat.key, []]),
+  );
+  const unmatched: VolumeChapterPlan[] = [];
+  for (const chapter of params.volume.chapters.slice().sort((left, right) => left.chapterOrder - right.chapterOrder)) {
+    const beatKey = resolveVolumeChapterBeatKey({
+      chapter,
+      volume: params.volume,
+      beatSheet: params.beatSheet,
+    });
+    if (!beatKey || !groups.has(beatKey)) {
+      unmatched.push(chapter);
+      continue;
+    }
+    groups.get(beatKey)?.push(chapter);
+  }
+  return { groups, unmatched };
+}
+
+function cloneExistingChapterWithBeatKey(chapter: VolumeChapterPlan, beatKey: string | null): VolumeChapterPlan {
+  return {
+    ...chapter,
+    beatKey,
+  };
 }
 
 export function assertScopeReadiness(
@@ -271,23 +369,61 @@ export function mergeBeatSheet(
 export function mergeChapterList(
   document: VolumePlanDocument,
   targetVolumeId: string,
-  generatedChapters: Array<{ title: string; summary: string }>,
+  targetBeatSheet: VolumeBeatSheet,
+  generatedBlocks: GeneratedVolumeChapterBlock[],
+  options: {
+    generationMode?: VolumeChapterListGenerationMode;
+    targetBeatKey?: string;
+    resumeFromBeatKey?: string | null;
+  } = {},
 ): VolumePlanDocument {
   const mergedVolumes = document.volumes.map((volume) => {
     if (volume.id !== targetVolumeId) {
       return volume;
     }
-    return {
-      ...volume,
-      chapters: generatedChapters.map((chapter, chapterIndex) => {
-        const existingChapter = volume.chapters[chapterIndex];
-        return {
+
+    const { groups: existingGroups, unmatched } = buildExistingBeatChapterGroups({
+      volume,
+      beatSheet: targetBeatSheet,
+    });
+    const generatedBlocksByBeatKey = new Map(
+      generatedBlocks.map((block) => [block.beatKey, block]),
+    );
+    const generationMode = options.generationMode ?? "full_volume";
+    const resumeBeatKey = options.resumeFromBeatKey?.trim() || null;
+    const resumeBeatIndex = resumeBeatKey
+      ? targetBeatSheet.beats.findIndex((beat) => beat.key === resumeBeatKey)
+      : -1;
+    const nextChapters: VolumeChapterPlan[] = [];
+
+    for (const [beatIndex, beat] of targetBeatSheet.beats.entries()) {
+      const existingBeatChapters = existingGroups.get(beat.key) ?? [];
+      const generatedBlock = generatedBlocksByBeatKey.get(beat.key);
+
+      if (!generatedBlock) {
+        const shouldPreserveExistingBeat = generationMode === "single_beat"
+          || (generationMode === "full_volume" && resumeBeatIndex >= 0 && beatIndex < resumeBeatIndex);
+        if (shouldPreserveExistingBeat) {
+          nextChapters.push(
+            ...existingBeatChapters.map((chapter) => cloneExistingChapterWithBeatKey(chapter, beat.key)),
+          );
+        }
+        continue;
+      }
+
+      for (const [chapterIndex, chapter] of generatedBlock.chapters.entries()) {
+        const existingChapter = existingBeatChapters[chapterIndex];
+        nextChapters.push({
           id: existingChapter?.id,
           volumeId: volume.id,
-          chapterOrder: existingChapter?.chapterOrder ?? chapterIndex + 1,
+          chapterOrder: nextChapters.length + 1,
+          beatKey: beat.key,
           title: chapter.title,
           summary: chapter.summary,
           purpose: existingChapter?.purpose ?? null,
+          exclusiveEvent: existingChapter?.exclusiveEvent ?? null,
+          endingState: existingChapter?.endingState ?? null,
+          nextChapterEntryState: existingChapter?.nextChapterEntryState ?? null,
           conflictLevel: existingChapter?.conflictLevel ?? null,
           revealLevel: existingChapter?.revealLevel ?? null,
           targetWordCount: existingChapter?.targetWordCount ?? null,
@@ -297,8 +433,33 @@ export function mergeChapterList(
           payoffRefs: existingChapter?.payoffRefs ?? [],
           createdAt: existingChapter?.createdAt ?? new Date(0).toISOString(),
           updatedAt: existingChapter?.updatedAt ?? new Date(0).toISOString(),
-        };
-      }),
+        });
+      }
+    }
+
+    if (generationMode === "single_beat") {
+      const preservedUnmatched = unmatched
+        .filter((chapter) => {
+          const normalizedTargetBeatKey = options.targetBeatKey?.trim();
+          if (!normalizedTargetBeatKey) {
+            return true;
+          }
+          return resolveVolumeChapterBeatKey({
+            chapter,
+            volume,
+            beatSheet: targetBeatSheet,
+          }) !== normalizedTargetBeatKey;
+        })
+        .map((chapter) => cloneExistingChapterWithBeatKey(chapter, chapter.beatKey ?? null));
+      nextChapters.push(...preservedUnmatched);
+    }
+
+    return {
+      ...volume,
+      chapters: nextChapters.map((chapter, chapterIndex) => ({
+        ...chapter,
+        chapterOrder: chapterIndex + 1,
+      })),
     };
   });
 
@@ -341,6 +502,11 @@ export function mergeChapterDetail(params: {
         if (detailMode === "boundary") {
           return {
             ...chapter,
+            exclusiveEvent: typeof generatedDetail.exclusiveEvent === "string" ? generatedDetail.exclusiveEvent : chapter.exclusiveEvent,
+            endingState: typeof generatedDetail.endingState === "string" ? generatedDetail.endingState : chapter.endingState,
+            nextChapterEntryState: typeof generatedDetail.nextChapterEntryState === "string"
+              ? generatedDetail.nextChapterEntryState
+              : chapter.nextChapterEntryState,
             conflictLevel: typeof generatedDetail.conflictLevel === "number" ? generatedDetail.conflictLevel : chapter.conflictLevel,
             revealLevel: typeof generatedDetail.revealLevel === "number" ? generatedDetail.revealLevel : chapter.revealLevel,
             targetWordCount: typeof generatedDetail.targetWordCount === "number" ? generatedDetail.targetWordCount : chapter.targetWordCount,

@@ -1,5 +1,7 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type {
+  RecoverableTaskListResponse,
+  TaskOverviewSummary,
   TaskKind,
   TaskStatus,
   UnifiedTaskDetail,
@@ -18,6 +20,26 @@ export async function listTasks(params?: {
   const { data } = await apiClient.get<ApiResponse<UnifiedTaskListResponse>>("/tasks", {
     params,
   });
+  return data;
+}
+
+export async function getTaskOverview() {
+  const { data } = await apiClient.get<ApiResponse<TaskOverviewSummary>>("/tasks/overview");
+  return data;
+}
+
+export async function listRecoveryCandidates() {
+  const { data } = await apiClient.get<ApiResponse<RecoverableTaskListResponse>>("/tasks/recovery-candidates");
+  return data;
+}
+
+export async function resumeRecoveryCandidate(kind: Extract<TaskKind, "book_analysis" | "novel_pipeline" | "image_generation" | "novel_workflow">, id: string) {
+  const { data } = await apiClient.post<ApiResponse<{ kind: string; id: string }>>(`/tasks/recovery-candidates/${kind}/${id}/resume`, {});
+  return data;
+}
+
+export async function resumeAllRecoveryCandidates() {
+  const { data } = await apiClient.post<ApiResponse<{ resumed: Array<{ kind: string; id: string }> }>>("/tasks/recovery-candidates/resume-all", {});
   return data;
 }
 

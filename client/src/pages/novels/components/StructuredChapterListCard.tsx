@@ -7,7 +7,10 @@ import {
   getChapterExecutionDetailStatus,
   hasChapterExecutionDetail,
 } from "../chapterDetailPlanning.shared";
-import { chapterMatchesBeat } from "./structuredOutlineWorkspace.shared";
+import {
+  chapterMatchesBeat,
+  getBeatExpectedChapterCount,
+} from "./structuredOutlineWorkspace.shared";
 import type { StructuredTabViewProps } from "./NovelEditView.types";
 
 type StructuredVolume = StructuredTabViewProps["volumes"][number];
@@ -27,6 +30,9 @@ interface StructuredChapterListCardProps {
   selectedVolumeRequiredChapterCount: number;
   selectedVolumeNeedsChapterExpansion: boolean;
   isGeneratingChapterList: boolean;
+  generatingChapterListVolumeId: string;
+  generatingChapterListBeatKey: string;
+  generatingChapterListMode: StructuredTabViewProps["generatingChapterListMode"];
   locked: boolean;
   onGenerateChapterList: StructuredTabViewProps["onGenerateChapterList"];
   onAddChapter: StructuredTabViewProps["onAddChapter"];
@@ -58,6 +64,9 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
     selectedVolumeRequiredChapterCount,
     selectedVolumeNeedsChapterExpansion,
     isGeneratingChapterList,
+    generatingChapterListVolumeId,
+    generatingChapterListBeatKey,
+    generatingChapterListMode,
     locked,
     onGenerateChapterList,
     onAddChapter,
@@ -65,10 +74,11 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
     onSelectChapter,
   } = props;
 
+  const isGeneratingCurrentVolume = isGeneratingChapterList && generatingChapterListVolumeId === selectedVolume.id;
   const matchedChapterIds = new Set<string>();
   const beatGroups = (selectedBeatSheet?.beats ?? []).map((beat) => {
     const chapters = selectedVolumeChapters.filter((chapter) => {
-      const matches = chapterMatchesBeat(chapter, beat);
+      const matches = chapterMatchesBeat(chapter, beat, selectedVolumeChapters);
       if (matches) {
         matchedChapterIds.add(chapter.id);
       }
@@ -78,11 +88,27 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
       key: beat.key,
       label: beat.label,
       chapterSpanHint: beat.chapterSpanHint,
+      expectedCount: getBeatExpectedChapterCount(beat),
       chapters,
       refinedCount: chapters.filter((chapter) => hasChapterExecutionDetail(chapter)).length,
     };
   });
   const unmatchedChapters = selectedVolumeChapters.filter((chapter) => !matchedChapterIds.has(chapter.id));
+
+  function renderBeatStatusBadge(group: typeof beatGroups[number]) {
+    const isGeneratingGroup = isGeneratingCurrentVolume
+      && (generatingChapterListMode === "full_volume" || generatingChapterListBeatKey === group.key);
+    if (isGeneratingGroup) {
+      return <Badge>生成中</Badge>;
+    }
+    if (group.chapters.length === 0) {
+      return <Badge variant="outline">{selectedVolumeChapters.length === 0 ? "待生成" : "需重试"}</Badge>;
+    }
+    if (group.expectedCount > 0 && group.chapters.length !== group.expectedCount) {
+      return <Badge variant="outline">需重试</Badge>;
+    }
+    return <Badge variant="secondary">已生成</Badge>;
+  }
 
   return (
     <Card className="border-border/70 bg-background/90">
@@ -102,7 +128,7 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
                 onClick={() => onGenerateChapterList(selectedVolume.id)}
                 disabled={isGeneratingChapterList || locked}
               >
-                {isGeneratingChapterList ? "生成中..." : "生成当前卷章节列表"}
+                {isGeneratingCurrentVolume && generatingChapterListMode === "full_volume" ? "生成中..." : "生成当前卷章节列表"}
               </AiButton>
               <Button size="sm" variant="outline" onClick={() => onAddChapter(selectedVolume.id)}>
                 新增章节
@@ -141,21 +167,39 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
                 const expanded = selectedBeatKey === "all" || active;
                 return (
                   <div key={group.key} className="rounded-xl border border-border/70 bg-background/80 p-3">
-                    <button
-                      type="button"
-                      onClick={() => onSelectBeatKey(active ? "all" : group.key)}
-                      className="w-full text-left"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant={active ? "default" : "outline"}>{group.label}</Badge>
-                          <Badge variant="secondary">{group.chapterSpanHint}</Badge>
+                    <div className="flex items-start justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => onSelectBeatKey(active ? "all" : group.key)}
+                        className="min-w-0 flex-1 text-left"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant={active ? "default" : "outline"}>{group.label}</Badge>
+                            <Badge variant="secondary">{group.chapterSpanHint}</Badge>
+                            {renderBeatStatusBadge(group)}
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {group.chapters.length}/{Math.max(group.expectedCount, group.chapters.length, 1)}章 · {group.refinedCount}章已细化
+                          </span>
                         </div>
-                        <span className="text-xs text-muted-foreground">
-                          {group.chapters.length}章 · {group.refinedCount}章已细化
-                        </span>
-                      </div>
-                    </button>
+                      </button>
+                      {active && selectedVolumeChapters.length > 0 ? (
+                        <AiButton
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onGenerateChapterList(selectedVolume.id, {
+                            generationMode: "single_beat",
+                            targetBeatKey: group.key,
+                          })}
+                          disabled={isGeneratingChapterList || locked}
+                        >
+                          {isGeneratingCurrentVolume && generatingChapterListMode === "single_beat" && generatingChapterListBeatKey === group.key
+                            ? "重生中..."
+                            : "重生当前节奏段"}
+                        </AiButton>
+                      ) : null}
+                    </div>
 
                     {expanded ? (
                       <div className="mt-3 space-y-2 border-l border-border/70 pl-3">

@@ -42,11 +42,26 @@ test("buildDirectorAutoExecutionPipelineOptions uses front10-safe defaults", () 
   });
 
   assert.equal(options.runMode, "fast");
+  assert.equal(options.maxRetries, 1);
   assert.equal(options.autoReview, true);
   assert.equal(options.autoRepair, true);
   assert.equal(options.skipCompleted, true);
   assert.equal(options.qualityThreshold, 75);
   assert.equal(options.repairMode, "light_repair");
+  assert.equal(options.controlPolicy?.kickoffMode, "director_start");
+  assert.equal(options.controlPolicy?.advanceMode, "auto_to_execution");
+});
+
+test("buildDirectorAutoExecutionPipelineOptions respects review and repair toggles", () => {
+  const options = buildDirectorAutoExecutionPipelineOptions({
+    startOrder: 11,
+    endOrder: 20,
+    autoReview: false,
+    autoRepair: true,
+  });
+
+  assert.equal(options.autoReview, false);
+  assert.equal(options.autoRepair, false);
 });
 
 test("buildDirectorAutoExecutionScopeLabel supports chapter ranges and volume labels", () => {

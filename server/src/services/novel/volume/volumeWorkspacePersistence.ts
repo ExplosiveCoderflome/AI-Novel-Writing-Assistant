@@ -84,6 +84,7 @@ async function syncArcCompatibility(
         openPayoffs: volume.openPayoffs,
         chapters: volume.chapters.map((chapter) => ({
           chapterOrder: chapter.chapterOrder,
+          beatKey: chapter.beatKey ?? null,
           title: chapter.title,
           summary: chapter.summary,
         })),

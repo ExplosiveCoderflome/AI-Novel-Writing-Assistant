@@ -1,9 +1,8 @@
 import type { RagOwnerType } from "../../rag/types";
 import { prisma } from "../../../db/prisma";
-import { novelEventBus } from "../../../events";
 import { ragServices } from "../../rag";
-import { stateService } from "../../state/StateService";
 import { briefSummary, extractFacts } from "../novelP0Utils";
+import { chapterArtifactBackgroundSyncService } from "./ChapterArtifactBackgroundSyncService";
 
 export class ChapterArtifactSyncService {
   async saveDraftAndArtifacts(
@@ -17,6 +16,7 @@ export class ChapterArtifactSyncService {
       data: {
         content,
         generationState,
+        chapterStatus: "generating",
       },
     });
     await this.syncChapterArtifacts(novelId, chapterId, content);
@@ -58,7 +58,7 @@ export class ChapterArtifactSyncService {
     });
 
     await this.syncCharacterTimelineForChapter(novelId, chapterId, content);
-    await stateService.syncChapterState(novelId, chapterId, content).catch(() => null);
+    chapterArtifactBackgroundSyncService.scheduleChapterSync(novelId, chapterId, content);
     this.queueRagUpsert("chapter", chapterId);
     this.queueRagUpsert("chapter_summary", chapterId);
     this.queueRagUpsert("novel", novelId);
@@ -71,16 +71,6 @@ export class ChapterArtifactSyncService {
       this.queueRagUpsert("consistency_fact", fact.id);
     }
 
-    const chapterRow = await prisma.chapter.findFirst({
-      where: { id: chapterId, novelId },
-      select: { order: true },
-    });
-    if (chapterRow) {
-      void novelEventBus.emit({
-        type: "chapter:drafted",
-        payload: { novelId, chapterId, chapterOrder: chapterRow.order },
-      }).catch(() => {});
-    }
   }
 
   private async syncCharacterTimelineForChapter(novelId: string, chapterId: string, content: string): Promise<void> {

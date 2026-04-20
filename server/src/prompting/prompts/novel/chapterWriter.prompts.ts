@@ -13,15 +13,8 @@ export interface ChapterWriterPromptInput {
   sceneCount?: number | null;
   sceneTitle?: string | null;
   scenePurpose?: string | null;
-  sceneTargetWordCount?: number | null;
-  sceneCurrentWordCount?: number | null;
-  sceneRemainingWordCount?: number | null;
-  chapterTargetWordCount?: number | null;
-  remainingChapterBudget?: number | null;
   roundIndex?: number | null;
   maxRounds?: number | null;
-  suggestedRoundWordCount?: number | null;
-  hardRoundWordLimit?: number | null;
   isFinalRound?: boolean | null;
   closingPhase?: boolean | null;
   entryState?: string | null;
@@ -77,19 +70,8 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         : "",
       input.sceneTitle ? `场景标题：${input.sceneTitle}` : "",
       input.scenePurpose ? `场景职责：${input.scenePurpose}` : "",
-      typeof input.sceneTargetWordCount === "number" ? `当前场景目标：约 ${input.sceneTargetWordCount} 字。` : "",
-      typeof input.sceneCurrentWordCount === "number" ? `当前场景已写：约 ${input.sceneCurrentWordCount} 字。` : "",
-      typeof input.sceneRemainingWordCount === "number" ? `当前场景剩余预算：约 ${Math.max(0, input.sceneRemainingWordCount)} 字。` : "",
-      typeof input.chapterTargetWordCount === "number" ? `整章目标：约 ${input.chapterTargetWordCount} 字。` : "",
-      typeof input.remainingChapterBudget === "number" ? `当前剩余章节预算：约 ${input.remainingChapterBudget} 字。` : "",
       typeof input.roundIndex === "number" && typeof input.maxRounds === "number"
         ? `当前写作轮次：第 ${input.roundIndex}/${input.maxRounds} 轮。`
-        : "",
-      typeof input.suggestedRoundWordCount === "number"
-        ? `本轮建议新增：约 ${input.suggestedRoundWordCount} 字。`
-        : "",
-      typeof input.hardRoundWordLimit === "number"
-        ? `本轮硬上限：约 ${input.hardRoundWordLimit} 字，接近上限时应主动停在自然句边界。`
         : "",
       typeof input.isFinalRound === "boolean"
         ? input.isFinalRound

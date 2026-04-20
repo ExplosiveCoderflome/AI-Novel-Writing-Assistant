@@ -40,7 +40,7 @@
 - 使用 `family.capability` 风格的 `id`
 - `version` 使用 `v1`、`v2`
 - 示例：
-  - `audit.chapter.full@v1`
+  - `audit.chapter.full@v2`
   - `world.structure.generate@v1`
   - `style.recommendation@v1`
 

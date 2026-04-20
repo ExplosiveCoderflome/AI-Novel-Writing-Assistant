@@ -6,7 +6,7 @@ import { continueNovelWorkflow } from "@/api/novelWorkflow";
 import { getNovelList } from "@/api/novel";
 import type { NovelListResponse } from "@/api/novel/shared";
 import { queryKeys } from "@/api/queryKeys";
-import { listTasks } from "@/api/tasks";
+import { getTaskOverview } from "@/api/tasks";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,7 @@ import {
   requiresCandidateSelection,
 } from "@/lib/novelWorkflowTaskUi";
 import { toast } from "@/components/ui/toast";
+import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 
 const HOME_NOVEL_FETCH_LIMIT = 100;
 const HOME_RECENT_LIMIT = 6;
@@ -102,11 +103,11 @@ export default function Home() {
   const queryClient = useQueryClient();
 
   const taskQuery = useQuery({
-    queryKey: queryKeys.tasks.list("home"),
-    queryFn: () => listTasks({ limit: 80 }),
+    queryKey: queryKeys.tasks.overview,
+    queryFn: getTaskOverview,
     refetchInterval: (query) => {
-      const rows = query.state.data?.data?.items ?? [];
-      return rows.some((item) => item.status === "queued" || item.status === "running") ? 4000 : false;
+      const overview = query.state.data?.data;
+      return (overview?.queuedCount ?? 0) > 0 || (overview?.runningCount ?? 0) > 0 ? 4000 : false;
     },
   });
 
@@ -118,27 +119,33 @@ export default function Home() {
   const continueWorkflowMutation = useMutation({
     mutationFn: async (input: {
       taskId: string;
-      mode?: "auto_execute_front10";
+      mode?: "auto_execute_range";
     }) => continueNovelWorkflow(input.taskId, input.mode ? { continuationMode: input.mode } : undefined),
-    onSuccess: async (_response, input) => {
+    onSuccess: async (response, input) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.all }),
         queryClient.invalidateQueries({ queryKey: ["tasks"] }),
       ]);
-      toast.success(input.mode === "auto_execute_front10" ? "已继续自动执行前 10 章。" : "自动导演已继续推进。");
+      const feedback = resolveWorkflowContinuationFeedback(response.data, {
+        mode: input.mode,
+      });
+      if (feedback.tone === "error") {
+        toast.error(feedback.message);
+        return;
+      }
+      toast.success(feedback.message);
     },
     onError: (error, input) => {
       toast.error(
         error instanceof Error
           ? error.message
-          : input.mode === "auto_execute_front10"
-            ? "继续自动执行前 10 章失败。"
+          : input.mode === "auto_execute_range"
+            ? "继续自动执行当前章节范围失败。"
             : "继续自动导演失败。",
       );
     },
   });
 
-  const tasks = taskQuery.data?.data?.items ?? [];
   const allNovels = novelQuery.data?.data?.items ?? [];
   const hasNovels = allNovels.length > 0;
 
@@ -155,8 +162,8 @@ export default function Home() {
     [allNovels],
   );
   const failedTaskCount = useMemo(
-    () => tasks.filter((item) => item.status === "failed").length,
-    [tasks],
+    () => taskQuery.data?.data?.failedCount ?? 0,
+    [taskQuery.data?.data?.failedCount],
   );
   const primaryNovel = useMemo(() => {
     if (allNovels.length === 0) {
@@ -213,12 +220,12 @@ export default function Home() {
             }
             continueWorkflowMutation.mutate({
               taskId: task.id,
-              mode: "auto_execute_front10",
+              mode: "auto_execute_range",
             });
           }}
           disabled={isWorkflowPending}
         >
-          {isWorkflowPending ? "继续执行中..." : (task?.resumeAction ?? "继续自动执行前 10 章")}
+          {isWorkflowPending ? "继续执行中..." : (task?.resumeAction ?? `继续自动执行${task?.executionScopeLabel ?? "当前章节范围"}`)}
         </Button>
       );
     }

@@ -1,8 +1,10 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  createChapterBoundarySchema,
   createChapterTaskSheetSchema,
   createVolumeBeatSheetSchema,
+  createVolumeChapterBeatBlockSchema,
   createVolumeRebalanceSchema,
   createVolumeStrategySchema,
 } = require("../dist/services/novel/volume/volumeGenerationSchemas.js");
@@ -230,6 +232,108 @@ test("volume beat sheet schema normalizes alias fields and wrapped payloads", ()
   assert.deepEqual(parsed.beats[0].mustDeliver, ["压迫感", "主角处境", "首个异常信号"]);
   assert.equal(parsed.beats[1].key, "first_escalation");
   assert.equal(parsed.beats[2].label, "中段转向");
+});
+
+test("volume chapter beat block schema normalizes beat aliases and enforces beat ownership", () => {
+  const schema = createVolumeChapterBeatBlockSchema({
+    exactChapterCount: 2,
+    expectedBeatKey: "open_hook",
+    expectedBeatLabel: "开卷抓手",
+  });
+  const parsed = schema.parse({
+    beat: "open_hook",
+    label: "开卷抓手",
+    count: 2,
+    items: [
+      {
+        chapterTitle: "第一束异常光",
+        description: "主角第一次看见危险信号，把卷内压迫落到眼前。",
+        beat: "open_hook",
+      },
+      {
+        name: "封锁线内侧",
+        content: "主角被迫进入更危险的区域，让本卷生存承诺正式成立。",
+        beat_key: "open_hook",
+      },
+    ],
+  });
+
+  assert.equal(parsed.beatKey, "open_hook");
+  assert.equal(parsed.beatLabel, "开卷抓手");
+  assert.equal(parsed.chapterCount, 2);
+  assert.equal(parsed.chapters[1].beatKey, "open_hook");
+});
+
+test("chapter boundary schema normalizes structured boundary aliases", () => {
+  const schema = createChapterBoundarySchema();
+  const parsed = schema.parse({
+    独占事件: "第一次正式提取碎银。",
+    本章结束状态: "程秩已经意识到钱能拿，但暂时不敢花。",
+    下章入口状态: "程秩带着藏银压力进入下一章继续观察人和事。",
+    冲突等级: "82",
+    reveal_level: 41,
+    字数: "3200",
+    避免事项: "不要直接把后续请缨节点提前写掉。",
+    关联兑现: "第一笔资源,财富风险认知",
+  });
+
+  assert.equal(parsed.exclusiveEvent, "第一次正式提取碎银。");
+  assert.equal(parsed.endingState, "程秩已经意识到钱能拿，但暂时不敢花。");
+  assert.equal(parsed.nextChapterEntryState, "程秩带着藏银压力进入下一章继续观察人和事。");
+  assert.equal(parsed.conflictLevel, 82);
+  assert.equal(parsed.revealLevel, 41);
+  assert.equal(parsed.targetWordCount, 3200);
+  assert.equal(parsed.mustAvoid, "不要直接把后续请缨节点提前写掉。");
+  assert.deepEqual(parsed.payoffRefs, ["第一笔资源", "财富风险认知"]);
+});
+
+test("volume workspace document preserves chapter beat keys", () => {
+  const document = buildVolumeWorkspaceDocument({
+    novelId: "novel-1",
+    volumes: [
+      {
+        ...createVolume(1),
+        chapters: [
+          {
+            id: "chapter-1",
+            volumeId: "volume-1",
+            chapterOrder: 1,
+            beatKey: "open_hook",
+            title: "第一束异常光",
+            summary: "主角第一次看见危险信号。",
+            purpose: null,
+            conflictLevel: null,
+            revealLevel: null,
+            targetWordCount: null,
+            mustAvoid: null,
+            taskSheet: null,
+            sceneCards: null,
+            payoffRefs: [],
+            createdAt: new Date(0).toISOString(),
+            updatedAt: new Date(0).toISOString(),
+          },
+        ],
+      },
+    ],
+    beatSheets: [
+      {
+        volumeId: "volume-1",
+        volumeSortOrder: 1,
+        status: "generated",
+        beats: [
+          {
+            key: "open_hook",
+            label: "开卷抓手",
+            summary: "先把局势危险钉死。",
+            chapterSpanHint: "1章",
+            mustDeliver: ["压迫感"],
+          },
+        ],
+      },
+    ],
+  });
+
+  assert.equal(document.volumes[0].chapters[0].beatKey, "open_hook");
 });
 
 test("volume beat sheet prompt render includes explicit JSON field contract", () => {

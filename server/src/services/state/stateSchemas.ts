@@ -14,7 +14,7 @@ const characterStateOutputSchema = z.object({
 });
 
 const relationStateOutputSchema = z.object({
-  sourceCharacterId: z.string().trim().optional(),
+  sourceCharacterId: z.string().trim().nullable().optional(),
   sourceCharacterName: z.string().trim().optional(),
   targetCharacterId: z.string().trim().optional(),
   targetCharacterName: z.string().trim().optional(),
@@ -27,8 +27,8 @@ const relationStateOutputSchema = z.object({
 
 const informationStateOutputSchema = z.object({
   holderType: z.enum(["reader", "character"]).optional(),
-  holderRefId: z.string().trim().optional(),
-  holderRefName: z.string().trim().optional(),
+  holderRefId: z.string().trim().nullable().optional(),
+  holderRefName: z.string().trim().nullable().optional(),
   fact: z.string().trim().optional(),
   status: z.enum(["known", "misbelief"]).optional(),
   summary: z.string().trim().optional(),
@@ -51,4 +51,3 @@ export const snapshotExtractionOutputSchema = z.object({
 });
 
 export type SnapshotExtractionOutputSchema = z.infer<typeof snapshotExtractionOutputSchema> & Partial<SnapshotExtractionOutput>;
-

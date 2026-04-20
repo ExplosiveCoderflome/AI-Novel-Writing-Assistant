@@ -2,6 +2,7 @@ import type { VolumePlan, VolumePlanDocument } from "@ai-novel/shared/types/nove
 import {
   CHAPTER_DETAIL_MODES,
   hasAnyChapterDetailDraft,
+  hasChapterDetailDraft,
   type ChapterDetailBundleRequest,
   type ChapterDetailMode,
 } from "../chapterDetailPlanning.shared";
@@ -59,6 +60,20 @@ function buildFallbackLabel(targets: ChapterDetailTarget[]): string {
     return "当前章节范围";
   }
   return `第${first.chapterOrder}-${last.chapterOrder}章（共 ${targets.length} 章）`;
+}
+
+function resolveMissingChapterDetailModes(
+  draft: VolumePlan[],
+  targetVolumeId: string,
+  targetChapterId: string,
+): ChapterDetailMode[] {
+  const chapter = draft
+    .find((volume) => volume.id === targetVolumeId)
+    ?.chapters.find((item) => item.id === targetChapterId);
+  if (!chapter) {
+    return [];
+  }
+  return CHAPTER_DETAIL_MODES.filter((mode) => !hasChapterDetailDraft(chapter, mode));
 }
 
 export function resolveChapterDetailBatch(
@@ -121,15 +136,20 @@ export async function runChapterDetailBatchGeneration({
   generateChapterDetail,
 }: RunChapterDetailBatchGenerationArgs): Promise<void> {
   let workingDraft = initialDraft;
+  let processedModeCount = 0;
   setIsGenerating(true);
   setCurrentMode("");
   setCurrentChapterId(targets[0]?.chapterId ?? "");
-  setStructuredMessage(`正在为${label}连续生成章节目标、执行边界和任务单...`);
+  setStructuredMessage(`正在为${label}补齐缺失的章节目标、执行边界和任务单...`);
 
   try {
     for (const target of targets) {
+      const missingModes = resolveMissingChapterDetailModes(workingDraft, targetVolumeId, target.chapterId);
+      if (missingModes.length === 0) {
+        continue;
+      }
       setCurrentChapterId(target.chapterId);
-      for (const mode of CHAPTER_DETAIL_MODES) {
+      for (const mode of missingModes) {
         setCurrentMode(mode);
         const result = await generateChapterDetail({
           targetVolumeId,
@@ -139,9 +159,14 @@ export async function runChapterDetailBatchGeneration({
           suppressSuccessMessage: true,
         });
         workingDraft = result.nextDocument.volumes;
+        processedModeCount += 1;
       }
     }
-    setStructuredMessage(`${label}的章节目标、执行边界和任务单已补齐并自动保存。`);
+    setStructuredMessage(
+      processedModeCount > 0
+        ? `${label}的章节目标、执行边界和任务单已补齐并自动保存。`
+        : `${label}当前已经完整，无需重复生成章节细化。`,
+    );
   } catch {
     // error message is handled by mutation onError
   } finally {

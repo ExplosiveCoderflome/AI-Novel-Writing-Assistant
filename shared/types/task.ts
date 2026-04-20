@@ -33,6 +33,7 @@ export interface UnifiedTaskSummary {
   currentStage?: string | null;
   currentItemKey?: string | null;
   currentItemLabel?: string | null;
+  executionScopeLabel?: string | null;
   displayStatus?: string | null;
   blockingReason?: string | null;
   resumeAction?: string | null;
@@ -74,4 +75,30 @@ export interface UnifiedTaskDetail extends UnifiedTaskSummary {
 export interface UnifiedTaskListResponse {
   items: UnifiedTaskSummary[];
   nextCursor?: string | null;
+}
+
+export interface TaskOverviewSummary {
+  queuedCount: number;
+  runningCount: number;
+  failedCount: number;
+  cancelledCount: number;
+  waitingApprovalCount: number;
+  recoveryCandidateCount: number;
+}
+
+export interface RecoverableTaskSummary {
+  id: string;
+  kind: Extract<TaskKind, "book_analysis" | "novel_pipeline" | "image_generation" | "novel_workflow">;
+  title: string;
+  ownerLabel: string;
+  status: Extract<TaskStatus, "queued" | "running">;
+  currentStage?: string | null;
+  currentItemLabel?: string | null;
+  resumeAction?: string | null;
+  sourceRoute: string;
+  recoveryHint?: string | null;
+}
+
+export interface RecoverableTaskListResponse {
+  items: RecoverableTaskSummary[];
 }

@@ -1,27 +1,29 @@
+import { lazy } from "react";
 import type { RouteObject } from "react-router-dom";
 import { Navigate, useRoutes } from "react-router-dom";
 import AppLayout from "@/components/layout/AppLayout";
-import BookAnalysisPage from "@/pages/bookAnalysis/BookAnalysisPage";
-import CreativeHubPage from "@/pages/creativeHub/CreativeHubPage";
-import ChatPage from "@/pages/chat/ChatPage";
-import GenreManagementPage from "@/pages/genres/GenreManagementPage";
-import Home from "@/pages/Home";
-import CharacterLibrary from "@/pages/characters/CharacterLibrary";
-import KnowledgePage from "@/pages/knowledge/KnowledgePage";
-import NovelChapterEdit from "@/pages/novels/NovelChapterEdit";
-import NovelEdit from "@/pages/novels/NovelEdit";
-import NovelList from "@/pages/novels/NovelList";
-import ModelRoutesPage from "@/pages/settings/ModelRoutesPage";
-import SettingsPage from "@/pages/settings/SettingsPage";
-import StoryModeManagementPage from "@/pages/storyModes/StoryModeManagementPage";
-import TaskCenterPage from "@/pages/tasks/TaskCenterPage";
-import TitleStudioPage from "@/pages/titles/TitleStudioPage";
-import WorldGenerator from "@/pages/worlds/WorldGenerator";
-import WorldList from "@/pages/worlds/WorldList";
-import WorldWorkspace from "@/pages/worlds/WorldWorkspace";
-import WritingFormulaPage from "@/pages/writingFormula/WritingFormulaPage";
 import { featureFlags } from "@/config/featureFlags";
-import NovelCreate from "@/pages/novels/NovelCreate";
+
+const Home = lazy(() => import("@/pages/Home"));
+const NovelList = lazy(() => import("@/pages/novels/NovelList"));
+const NovelCreate = lazy(() => import("@/pages/novels/NovelCreate"));
+const NovelEdit = lazy(() => import("@/pages/novels/NovelEdit"));
+const NovelChapterEdit = lazy(() => import("@/pages/novels/NovelChapterEdit"));
+const CreativeHubPage = lazy(() => import("@/pages/creativeHub/CreativeHubPage"));
+const ChatPage = lazy(() => import("@/pages/chat/ChatPage"));
+const BookAnalysisPage = lazy(() => import("@/pages/bookAnalysis/BookAnalysisPage"));
+const TaskCenterPage = lazy(() => import("@/pages/tasks/TaskCenterPage"));
+const KnowledgePage = lazy(() => import("@/pages/knowledge/KnowledgePage"));
+const GenreManagementPage = lazy(() => import("@/pages/genres/GenreManagementPage"));
+const StoryModeManagementPage = lazy(() => import("@/pages/storyModes/StoryModeManagementPage"));
+const TitleStudioPage = lazy(() => import("@/pages/titles/TitleStudioPage"));
+const ModelRoutesPage = lazy(() => import("@/pages/settings/ModelRoutesPage"));
+const SettingsPage = lazy(() => import("@/pages/settings/SettingsPage"));
+const WorldList = lazy(() => import("@/pages/worlds/WorldList"));
+const WorldGenerator = lazy(() => import("@/pages/worlds/WorldGenerator"));
+const WorldWorkspace = lazy(() => import("@/pages/worlds/WorldWorkspace"));
+const WritingFormulaPage = lazy(() => import("@/pages/writingFormula/WritingFormulaPage"));
+const CharacterLibrary = lazy(() => import("@/pages/characters/CharacterLibrary"));
 
 const routes: RouteObject[] = [
   {

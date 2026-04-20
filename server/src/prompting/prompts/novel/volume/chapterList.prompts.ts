@@ -1,11 +1,7 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { PromptAsset } from "../../../core/promptTypes";
 import { renderSelectedContextBlocks } from "../../../core/renderContextBlocks";
-import { createVolumeChapterListSchema } from "../../../../services/novel/volume/volumeGenerationSchemas";
-import {
-  assertChapterTitleDiversity,
-  isChapterTitleDiversityIssue,
-} from "../../../../services/novel/volume/chapterTitleDiversity";
+import { createVolumeChapterBeatBlockSchema } from "../../../../services/novel/volume/volumeGenerationSchemas";
 import { type VolumeChapterListPromptInput } from "./shared";
 import { buildVolumeChapterListContextBlocks } from "./contextBlocks";
 import { NOVEL_PROMPT_BUDGETS } from "../promptBudgetProfiles";
@@ -29,22 +25,65 @@ function buildRetryDirective(reason?: string | null): string {
   ].join("\n");
 }
 
+function resolvePromptConfig(
+  input: number | {
+    targetChapterCount: number;
+    targetBeatKey?: string;
+    targetBeatLabel?: string | null;
+  },
+): {
+  targetChapterCount: number;
+  targetBeatKey: string;
+  targetBeatLabel: string;
+} {
+  if (typeof input === "number") {
+    return {
+      targetChapterCount: input,
+      targetBeatKey: "target_beat",
+      targetBeatLabel: "目标节奏段",
+    };
+  }
+
+  return {
+    targetChapterCount: input.targetChapterCount,
+    targetBeatKey: input.targetBeatKey?.trim() || "target_beat",
+    targetBeatLabel: input.targetBeatLabel?.trim() || "目标节奏段",
+  };
+}
+
 export function createVolumeChapterListPrompt(
-  targetChapterCount: number,
+  input: number | {
+    targetChapterCount: number;
+    targetBeatKey?: string;
+    targetBeatLabel?: string | null;
+  },
 ): PromptAsset<
   VolumeChapterListPromptInput,
-  ReturnType<typeof createVolumeChapterListSchema>["_output"]
+  ReturnType<typeof createVolumeChapterBeatBlockSchema>["_output"]
 > {
+  const {
+    targetChapterCount,
+    targetBeatKey,
+    targetBeatLabel,
+  } = resolvePromptConfig(input);
+
   return {
     id: "novel.volume.chapter_list",
-    version: "v4",
+    version: "v7",
     taskType: "planner",
     mode: "structured",
     language: "zh",
     contextPolicy: {
       maxTokensBudget: NOVEL_PROMPT_BUDGETS.volumeChapterList,
-      requiredGroups: ["book_contract", "target_volume", "target_beat_sheet", "target_chapter_count"],
-      preferredGroups: ["macro_constraints", "adjacent_volumes", "soft_future_summary"],
+      requiredGroups: ["book_contract", "target_volume", "target_beat_contract"],
+      preferredGroups: [
+        "macro_constraints",
+        "beat_context_window",
+        "previous_beat_chapters",
+        "preserved_beat_chapters",
+        "adjacent_volumes",
+        "soft_future_summary",
+      ],
       dropOrder: ["soft_future_summary"],
     },
     semanticRetryPolicy: {
@@ -52,16 +91,17 @@ export function createVolumeChapterListPrompt(
       buildMessages: ({ attempt, baseMessages, parsedOutput, validationError }) => [
         ...baseMessages,
         new HumanMessage([
-          `上一次章节列表通过了 JSON 结构校验，但没有通过业务校验。这是第 ${attempt} 次语义重试。`,
+          `上一次章节块通过了 JSON 结构校验，但没有通过业务校验。这是第 ${attempt} 次语义重试。`,
           `失败原因：${validationError}`,
           "",
           "重写要求：",
-          "1. 保持章节总数不变，保持 beat 推进顺序不变。",
-          "2. 优先重写标题结构分布，避免大量回落到“X的Y / X中的Y / 在X中Y”这类名词性骨架。",
-          "3. 同时避免整批标题继续塌成“A，B / 四字动作，四字结果”这一类并列式模板。",
-          "4. 相邻章节标题不要连续复用同一种句法骨架或语气。",
-          "5. 摘要不要空泛重复，必须体现本章新增推进与卷内节奏职责。",
-          "6. 不要把章节写成只有气氛没有事件推进的占位章。",
+          "1. 只重写当前节奏段的标题结构和必要摘要，不得越界生成其他节奏段章节。",
+          "2. 必须保留原有章节位数，最终 chapters.length 仍然必须等于目标章数。",
+          "3. 必须重写所有命中重复骨架的标题，而不是只局部修补几章。",
+          "4. 明确避免大量使用“X的Y / X中的Y / 在X中Y”骨架。",
+          "5. 明确避免整批标题继续塌成“A，B / 四字动作，四字结果”并列模板。",
+          "6. 每章 beatKey 必须保持为当前目标 beatKey。",
+          "7. 摘要必须体现本章新增推进，不能空泛复述标题。",
           "",
           "上一次的 JSON 输出：",
           safeJsonStringify(parsedOutput),
@@ -70,76 +110,98 @@ export function createVolumeChapterListPrompt(
         ].join("\n")),
       ],
     },
-    outputSchema: createVolumeChapterListSchema(targetChapterCount),
-    postValidateFailureRecovery: ({ rawOutput, validationError }) => {
-      if (isChapterTitleDiversityIssue(validationError)) {
-        return rawOutput;
-      }
-      throw new Error(validationError);
-    },
-    render: (input, context) => [
+    outputSchema: createVolumeChapterBeatBlockSchema({
+      exactChapterCount: targetChapterCount,
+      expectedBeatKey: targetBeatKey,
+      expectedBeatLabel: targetBeatLabel,
+    }),
+    render: (promptInput, context) => [
       new SystemMessage([
         "你是网文章节拆分规划助手。",
-        "你的任务不是写正文，也不是扩写详细细纲，而是把当前卷与当前卷 beat sheet 拆成可执行的章节列表。",
+        "你的任务不是写正文，也不是扩写细纲，而是只为当前卷的单个节奏段生成一块可执行的章节列表。",
         "",
-        "【任务边界】",
-        `必须严格输出 ${targetChapterCount} 章，数量不得多也不得少。`,
-        "每章只能包含 title 和 summary 两个字段，不得新增字段，不得输出 Markdown、注释、解释或额外文本。",
-        "当前阶段只做章节级拆分，不写场景细纲、对白、人物小传、章内分幕。",
+        "任务边界：",
+        `1. 你当前只能为「${targetBeatLabel}」生成 ${targetChapterCount} 章，数量不得多也不得少。`,
+        "2. 只允许覆盖当前目标 beat，不得越界生成相邻 beat 的章节。",
+        "3. 不得把两个章节合并成一章摘要，也不得用空泛占位章来凑数。",
+        "4. 若 beat 信息不足，也必须补齐到精确章数，但只能做保守过渡，不得发明重大新设定。",
+        "5. 顶层必须输出 beatKey、beatLabel、chapterCount、chapters 四个字段。",
+        "6. 每章只能包含 title、summary、beatKey 三个字段，不得新增字段。",
+        "7. 不得输出 Markdown、注释、解释或任何额外文本。",
         "",
-        "【核心原则】",
-        "1. 章节列表必须严格服从当前卷骨架与 beat sheet，章节顺序不得破坏 beat 的推进顺序。",
-        "2. 每章都必须回答：这一章为什么必须存在，它推进了什么，它在当前卷节奏中承担什么作用。",
-        "3. 章节拆分要体现网文阅读感，避免机械平均切分，允许不同 beat 下章节密度不同。",
-        "4. 章节必须形成连续递进，不能出现只换说法、不增推进的信息重复章。",
+        "硬性输出约束：",
+        `1. beatKey 必须严格等于 ${targetBeatKey}。`,
+        `2. beatLabel 必须严格等于 ${targetBeatLabel}。`,
+        `3. chapterCount 与 chapters.length 必须严格等于 ${targetChapterCount}。`,
+        `4. 每章 beatKey 都必须严格等于 ${targetBeatKey}。`,
         "",
-        "【标题要求】",
+        "核心原则：",
+        "1. 章节列表必须严格服从当前卷骨架与当前目标 beat 合同，不能偷跑到相邻 beat。",
+        "2. 每章都必须回答：这一章为什么必须存在，它推进了什么，它在当前节奏段中承担什么作用。",
+        "3. 当前节奏段的章节拆分要体现网文阅读感，但不能机械平均切分。",
+        "4. 章节必须形成连续递进，不能出现只是换说法、没有新增推进的信息重复章。",
+        "",
+        "标题要求：",
         "1. 每章 title 必须像真实网文章名，优先体现推进动作、冲突压迫、异常发现、局面变化、阶段兑现或关系异动。",
-        "2. 同一批章节标题必须做表层结构分散，不能大面积重复“X的Y / X中的Y / 在X中Y”这一类名词性结构。",
-        "3. 也不能让大部分标题都变成“A，B / 四字动作，四字结果”这种并列模板。",
-        "4. 相邻章节标题不能连续套用同一骨架，优先混用动作推进型、冲突压迫型、发现异常型、结果兑现型、决断转向型标题。",
-        "5. 只有在极少数确有必要时，才允许使用“X的Y / X中的Y”结构或统一并列式结构。",
-        "6. 标题要有推进感与可读性，避免空泛文学化、抽象抒情化或模板味过重。",
+        "2. 在开始写 chapters 之前，先在脑内完成一次“标题句法配比规划”，再按配比输出，不要边想边重复套模板。",
+        "3. 同一批标题必须主动混用动作推进型、冲突压迫型、异常发现型、结果兑现型、决断转向型、问题钩子型等不同句法。",
+        "4. 若当前节奏段有 6 章及以上：任何单一表层骨架都不要超过一半；“X的Y / X中的Y / 在X中Y”这类骨架最多只占约三成。",
+        "5. 明确避免让大部分标题继续塌成“A，B / 四字动作，四字结果”并列模板。",
+        "6. 相邻章节标题不要连续 3 章以上套用同一语法骨架。",
+        "7. 标题要有推进感与可读性，避免空泛文学化、抽象抒情化或模板味过重。",
+        "8. 生成前先自检一遍：是否出现过多“的字结构”、过多逗号并列结构、或连续多章同骨架；若出现，先改再输出。",
         "",
-        "【摘要要求】",
-        "1. 每章 summary 必须写清本章具体推进了什么，以及它在当前卷节奏中的作用。",
-        "2. summary 必须体现新增信息、局面变化、冲突推进、关系变化、代价上升、风险转向或阶段兑现中的至少一种，不能写成空泛口号。",
-        "3. summary 必须服务于拆章，不要写成过粗的章节标题解释，也不要写成详细剧情复述。",
-        "4. 相邻章节 summary 不能只是同义重复，必须体现明确的推进差异。",
+        "摘要要求：",
+        "1. 每章 summary 必须写清本章具体推进了什么，以及它在当前目标 beat 中承担什么作用。",
+        "2. summary 必须体现新增信息、局面变化、冲突推进、关系变化、代价上升、风险转向或阶段兑现中的至少一种。",
+        "3. 不要把 summary 写成空泛口号，也不要写成详细剧情复述。",
+        "4. 相邻章节 summary 不能只是同义重复。",
         "",
-        "【beat 承接要求】",
-        "1. 章节列表整体必须完整覆盖 target_beat_sheet 的 beats，且推进顺序保持一致。",
-        "2. 开头章节必须承接本卷的 openingHook 与前段 beats，快速建立本卷主要困境、钩子和阅读承诺。",
-        "3. 中段章节必须承接升级、反制或转向类 beats，体现局面变化，而不是线性重复加码。",
-        "4. 高潮前章节必须完成挤压、锁死、代价抬高或方案失效，不得提前把高潮写完。",
-        "5. 高潮章节必须形成明确兑现。",
-        "6. 结尾章节必须承接卷尾钩子，并形成下一阶段入口，不能只是收尾性总结。",
+        "beat 承接要求：",
+        "1. 本次只覆盖当前目标 beat，不得为相邻 beats 生成章节。",
+        "2. 开头章节要承接前序已生成章节状态，不能把已经发生的推进重新起一遍。",
+        "3. 结尾章节要把当前 beat 的 mustDeliver 落到位，但不要提前偷跑下一 beat 的核心兑现。",
         "",
-        "【拆章质量要求】",
-        "1. 不要平均分配信息量，关键 beat 可以占更多章节，过渡 beat 应尽量短促有力。",
-        "2. 不要连续出现多个功能完全相同的章节，例如连续铺压、连续解释、连续反应、连续等待。",
+        "质量要求：",
+        "1. 不要平均分配信息量，关键推进可以占更多章节，过渡章要短促有力。",
+        "2. 不要连续出现多个功能完全相同的章节。",
         "3. 不要为了凑章节数制造低信息密度章节。",
-        "4. 不要脱离上下文擅自发明重大设定或重大人物变化。",
-        "5. 在信息不足时也要给出完整章节列表，但应保守，不要空泛。",
+        "4. 在信息不足时也要给出完整章节块，但必须保守，不得空泛。",
         "",
-        buildRetryDirective(input.retryReason),
-      ].join("\n")),
+        buildRetryDirective(promptInput.retryReason),
+      ].filter(Boolean).join("\n")),
       new HumanMessage([
-        "请基于以下上下文，输出当前卷的章节列表。",
+        "请基于以下上下文，输出当前节奏段的章节块。",
         "",
-        "【输出要求】",
+        "输出要求：",
         "- 只输出严格 JSON",
-        `- 必须严格输出 ${targetChapterCount} 章`,
-        "- 每章只能包含 title 和 summary",
-        "- 保持 beat 顺序不变",
-        "- 优先保证章节推进感、节奏承接关系与标题结构分散度",
+        `- beatKey 必须严格等于 ${targetBeatKey}`,
+        `- beatLabel 必须严格等于 ${targetBeatLabel}`,
+        `- chapterCount 与 chapters.length 必须严格等于 ${targetChapterCount}`,
+        "- 每章只能包含 title、summary、beatKey",
+        "- 不得生成任何相邻 beat 的章节",
+        "- 先在脑内规划标题骨架配比，再输出完整章节块",
+        "- 优先保证章节推进感、节奏承接与标题结构分散",
         "",
-        "【当前卷拆章上下文】",
+        "当前卷拆章上下文：",
         renderSelectedContextBlocks(context),
       ].join("\n")),
     ],
     postValidate: (output) => {
-      assertChapterTitleDiversity(output.chapters.map((chapter) => chapter.title));
+      if (output.beatKey !== targetBeatKey) {
+        throw new Error(`beatKey 必须严格等于 ${targetBeatKey}。`);
+      }
+      if (output.beatLabel !== targetBeatLabel) {
+        throw new Error(`beatLabel 必须严格等于 ${targetBeatLabel}。`);
+      }
+      if (output.chapterCount !== targetChapterCount || output.chapters.length !== targetChapterCount) {
+        throw new Error(`chapterCount 与 chapters.length 必须严格等于 ${targetChapterCount}。`);
+      }
+      output.chapters.forEach((chapter, index) => {
+        if (chapter.beatKey !== targetBeatKey) {
+          throw new Error(`第 ${index + 1} 条章节的 beatKey 必须严格等于 ${targetBeatKey}。`);
+        }
+      });
       return output;
     },
   };
