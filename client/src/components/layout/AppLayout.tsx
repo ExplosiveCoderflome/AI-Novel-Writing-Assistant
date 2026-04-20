@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { matchPath, Outlet, useLocation } from "react-router-dom";
 import AppRouteFallback from "./AppRouteFallback";
+import DesktopModelSetupGate from "./DesktopModelSetupGate";
 import Navbar from "./Navbar";
 import NovelWorkspaceRail from "./NovelWorkspaceRail";
 import Sidebar from "./Sidebar";
@@ -76,6 +77,7 @@ export default function AppLayout() {
           />
         )}
         <main className="h-[calc(100vh-4rem)] flex-1 overflow-y-auto p-6">
+          <DesktopModelSetupGate />
           <Suspense fallback={<AppRouteFallback />}>
             <Outlet />
           </Suspense>

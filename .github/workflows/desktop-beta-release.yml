@@ -1,0 +1,58 @@
+name: Desktop Beta Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "desktop-beta-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish-beta:
+    runs-on: windows-latest
+    env:
+      AI_NOVEL_RELEASE_CHANNEL: beta
+      AI_NOVEL_GITHUB_OWNER: ExplosiveCoderflome
+      AI_NOVEL_GITHUB_REPO: AI-Novel-Writing-Assistant
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.7.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install desktop icon tooling
+        run: python -m pip install --disable-pip-version-check pillow
+
+      - name: Regenerate desktop icon assets
+        run: python desktop/scripts/generate-desktop-icons.py
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Verify packaged desktop layout
+        run: pnpm verify:desktop-package
+
+      - name: Publish beta installer to GitHub Releases
+        run: pnpm publish:desktop:beta

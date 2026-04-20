@@ -1,0 +1,29 @@
+{
+  "name": "@ai-novel/desktop",
+  "version": "0.2.0-beta.1",
+  "private": true,
+  "license": "MIT",
+  "author": "AI Novel Writing Assistant Team",
+  "description": "Windows desktop runtime for AI Novel Writing Assistant v2",
+  "productName": "AI Novel Writing Assistant v2",
+  "main": "dist/main.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "pnpm run build && electron dist/main.js",
+    "start": "electron dist/main.js"
+  },
+  "dependencies": {
+    "@ai-novel/server": "workspace:*",
+    "electron-updater": "^6.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "electron": "^35.7.5",
+    "electron-builder": "^26.1.0",
+    "typescript": "^5.9.3"
+  }
+}

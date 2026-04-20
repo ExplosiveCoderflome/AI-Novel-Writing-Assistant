@@ -1,10 +1,12 @@
 import "dotenv/config";
+import type { Server } from "node:http";
 import os from "node:os";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
+import { ensureRuntimeDatabaseReady } from "./db/runtimeMigrations";
 import { errorHandler } from "./middleware/errorHandler";
 import { loadProviderApiKeys } from "./llm/factory";
 import astrologyRouter from "./routes/astrology";
@@ -157,56 +159,127 @@ function getLanIp(): string | null {
   return null;
 }
 
-async function bootstrap(): Promise<void> {
-  const ragCompatibilityReport = await initializeRagSettingsCompatibility();
-  const app = createApp();
-  const port = Number(process.env.PORT ?? 3000);
-  const allowLan = parseEnvFlag(process.env.ALLOW_LAN, process.env.NODE_ENV !== "production");
-  const host = process.env.HOST ?? (allowLan ? "0.0.0.0" : "localhost");
+function createServerUrl(host: string, port: number): string {
+  if (host === "0.0.0.0" || host === "::") {
+    return `http://localhost:${port}`;
+  }
+  return host.includes(":") ? `http://[${host}]:${port}` : `http://${host}:${port}`;
+}
+
+export interface ServerStartOptions {
+  host?: string;
+  port?: number;
+  allowLan?: boolean;
+}
+
+export interface StartedServer {
+  app: express.Express;
+  server: Server;
+  host: string;
+  port: number;
+  allowLan: boolean;
+  url: string;
+  close: () => Promise<void>;
+}
+
+function resolveServerStartOptions(options?: ServerStartOptions): {
+  host: string;
+  port: number;
+  allowLan: boolean;
+} {
+  const allowLan = options?.allowLan ?? parseEnvFlag(process.env.ALLOW_LAN, process.env.NODE_ENV !== "production");
+  return {
+    allowLan,
+    port: options?.port ?? Number(process.env.PORT ?? 3000),
+    host: options?.host ?? process.env.HOST ?? (allowLan ? "0.0.0.0" : "localhost"),
+  };
+}
+
+function logServerReady(host: string, port: number): void {
+  console.log(`[server] listening on http://localhost:${port}`);
+  if (host === "0.0.0.0" || host === "::") {
+    const lanIp = getLanIp();
+    if (lanIp) {
+      console.log(`[server] LAN: http://${lanIp}:${port}`);
+    }
+  }
+}
+
+function initializeBackgroundServices(): void {
   ragServices.ragWorker.start();
   const recoveryInitialization = recoveryTaskService.initializePendingRecoveries();
 
-  app.listen(port, host, () => {
-    console.log(`[server] listening on http://localhost:${port}`);
-    if (host === "0.0.0.0" || host === "::") {
-      const lanIp = getLanIp();
-      if (lanIp) {
-        console.log(`[server] LAN: http://${lanIp}:${port}`);
-      }
-    }
+  void loadProviderApiKeys().catch((error) => {
+    console.warn("数据库中的模型密钥加载失败，已回退到环境变量。", error);
+  });
 
-    void loadProviderApiKeys().catch((error) => {
-      console.warn("数据库中的模型密钥加载失败，已回退到环境变量。", error);
+  void ensureSystemResourceStarterData()
+    .then((systemResourceReport) => {
+      if (hasSystemResourceBootstrapChanges(systemResourceReport)) {
+        console.log("[server] built-in creative resources bootstrapped.", systemResourceReport);
+      }
+    })
+    .catch((error) => {
+      console.warn("Failed to bootstrap built-in creative resources.", error);
     });
 
-    if (
-      ragCompatibilityReport.importedSettingKeys.length > 0
-      || ragCompatibilityReport.importedProviderRecords.length > 0
-    ) {
-      console.log("[server] imported legacy RAG env settings.", ragCompatibilityReport);
-    }
+  void recoveryInitialization
+    .then(() => {
+      bookAnalysisService.startWatchdog();
+      novelPipelineRuntimeService.startWatchdog();
+    })
+    .catch((error) => {
+      console.warn("Failed to prepare pending recovery candidates.", error);
+      bookAnalysisService.startWatchdog();
+      novelPipelineRuntimeService.startWatchdog();
+    });
+}
 
-    void ensureSystemResourceStarterData()
-      .then((systemResourceReport) => {
-        if (hasSystemResourceBootstrapChanges(systemResourceReport)) {
-          console.log("[server] built-in creative resources bootstrapped.", systemResourceReport);
-        }
-      })
-      .catch((error) => {
-        console.warn("Failed to bootstrap built-in creative resources.", error);
-      });
+export async function startServer(options?: ServerStartOptions): Promise<StartedServer> {
+  await ensureRuntimeDatabaseReady();
 
-    void recoveryInitialization
-      .then(() => {
-        bookAnalysisService.startWatchdog();
-        novelPipelineRuntimeService.startWatchdog();
-      })
-      .catch((error) => {
-        console.warn("Failed to prepare pending recovery candidates.", error);
-        bookAnalysisService.startWatchdog();
-        novelPipelineRuntimeService.startWatchdog();
-      });
+  const ragCompatibilityReport = await initializeRagSettingsCompatibility();
+  if (
+    ragCompatibilityReport.importedSettingKeys.length > 0
+    || ragCompatibilityReport.importedProviderRecords.length > 0
+  ) {
+    console.log("[server] imported legacy RAG env settings.", ragCompatibilityReport);
+  }
+
+  const app = createApp();
+  const { host, port, allowLan } = resolveServerStartOptions(options);
+  initializeBackgroundServices();
+
+  const server = await new Promise<Server>((resolve, reject) => {
+    const listeningServer = app.listen(port, host, () => resolve(listeningServer));
+    listeningServer.once("error", reject);
   });
+
+  logServerReady(host, port);
+
+  return {
+    app,
+    server,
+    host,
+    port,
+    allowLan,
+    url: createServerUrl(host, port),
+    close: async () => {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        });
+      });
+    },
+  };
+}
+
+async function bootstrap(): Promise<void> {
+  await startServer();
 }
 
 if (require.main === module) {

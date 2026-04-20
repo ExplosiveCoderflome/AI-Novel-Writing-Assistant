@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { resolveLogsRoot } from "../runtime/appPaths";
 
 const LOG_TRUE_VALUES = new Set(["1", "true", "on", "yes"]);
 const LOG_FALSE_VALUES = new Set(["0", "false", "off", "no"]);
@@ -88,21 +89,8 @@ function shouldWriteLlmFileLog(): boolean {
   return process.env.NODE_ENV !== "production";
 }
 
-function fileExists(filePath: string): boolean {
-  try {
-    return fs.existsSync(filePath);
-  } catch {
-    return false;
-  }
-}
-
 function resolveDefaultLogsDir(): string {
-  const cwd = process.cwd();
-  const serverAppPath = path.join(cwd, "src", "app.ts");
-  if (fileExists(serverAppPath)) {
-    return path.resolve(cwd, "..", ".logs");
-  }
-  return path.resolve(cwd, ".logs");
+  return resolveLogsRoot();
 }
 
 function formatDatePart(date: Date): string {

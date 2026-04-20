@@ -6,6 +6,63 @@
 当前定位：强辅助型 AI 小说工作台  
 目标定位：可稳定带小白完成整本中长篇小说的 AI 导演系统
 
+### P2-A-1 Desktop 实施清单（浏览器主体 + desktop 宿主层）
+
+详细方案见：
+
+- `docs/plans/desktop-plan.md`
+
+当前执行原则：
+
+- 浏览器端继续作为产品主体，桌面版只新增分发入口。
+- `desktop/` 只承担宿主职责，不重写 `client / server / shared` 核心业务。
+- 业务继续走统一 HTTP API，不把现有主链改造成 Electron-only IPC。
+- 桌面化不得反向打断当前 `P0` 主链稳定性验收。
+
+当前阶段拆分：
+
+1. `Phase 0: desktop-ready core`
+2. `Phase 1: desktop shell dev`
+3. `Phase 2: first package MVP`
+4. `Phase 3: hardening`
+
+当前进度同步：
+
+- `Phase 0` 已基本完成：前端运行时已支持 `web | desktop` 来源切换，桌面模式下 API 基址可由宿主注入；数据库、日志、生成图片等核心路径已开始按应用目录抽象，不再只绑定 repo 相对路径。
+- `Phase 1` 已跑通开发闭环：`desktop/` 宿主骨架已落地 `main.ts / preload.ts / runtime/server.ts / runtime/paths.ts`，`pnpm dev:desktop` 已可拉起 shared、server、client 与 Electron 桌面壳，并已在本机成功显示桌面窗口。
+- 桌面开发环境的原生依赖补齐链已收口：`better-sqlite3` 缺失绑定时可在开发准备阶段自动修复，`electron` 已纳入 `pnpm.onlyBuiltDependencies`，避免再次出现半安装状态。
+- 当前尚未进入可分发打包阶段：Windows 安装包、前端构建产物随包集成、打包态 server 入口、首启向导与桌面端模型配置仍未完成，因此 `Phase 2` 继续保持未开始验收。
+
+当前阻塞与未完成：
+
+- `P2-A-1f` 首启向导 MVP 尚未开始，桌面版仍依赖开发环境下已有配置，未形成“安装后图形化配置模型”的新手路径。
+- `P2-A-1g` Windows 首个安装包尚未开始，仓库当前也没有正式的 Electron 打包器配置与产物校验链。
+- 打包态资源组织仍未收口：前端 `client/dist` 与服务端启动入口目前仍偏向 workspace / 源码运行方式，尚未转为随桌面包分发的独立运行模型。
+
+当前 backlog：
+
+- `P2-A-1a` 运行时配置抽象：已完成首轮落地；后续只补桌面打包态的配置注入与校验。
+- `P2-A-1b` 数据目录抽象：已完成首轮落地；后续补齐打包态全路径验证与更多桌面专属目录能力。
+- `P2-A-1c` server 生命周期抽象：已完成开发态启动 / 探活 / 停止主链；后续补齐打包态入口与失败诊断。
+- `P2-A-1d` 新增 `desktop/` 宿主骨架：已完成最小骨架与运行时路径层。
+- `P2-A-1e` 桌面开发命令：已完成，`pnpm dev:desktop` 可用。
+- `P2-A-1f` 首启向导 MVP：只暴露模型提供商选择、API Key 输入、基础模型选择和默认资源补齐。
+- `P2-A-1g` Windows 首个安装包：完成可安装、可启动、可开书的最小桌面版，不把 RAG / Qdrant 作为首发阻塞项。
+
+当前验收标准：
+
+- 非开发用户无需安装 Node、pnpm、Prisma 即可启动桌面版。
+- 用户首次打开后，可在 `3-5` 分钟内完成配置并开始第一本书。
+- 主流程可跑通 `安装 -> 首启向导 -> 默认资源补齐 -> AI 自动导演开书`。
+- Web / 源码运行路径继续可用，桌面化不破坏浏览器主体。
+
+当前明确不做：
+
+- 不为桌面版重写核心业务逻辑。
+- 不把现有 API 改造成 Electron-only IPC。
+- 不把 Qdrant、Embedding、知识库索引抬成桌面版一期硬依赖。
+- 不把桌面化误解成“打包开发脚本后继续让用户自己配环境”。
+
 ---
 
 ## 1. 当前判断
