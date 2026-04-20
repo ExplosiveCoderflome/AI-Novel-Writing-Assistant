@@ -140,6 +140,16 @@ export default function PipelineTab(props: PipelineTabProps) {
     directorTakeoverEntry,
   } = props;
 
+  const chapterLabelById = new Map(
+    chapters.map((chapter) => [chapter.id, `第${chapter.order}章 - ${chapter.title?.trim() || "未命名章节"}`]),
+  );
+  const getChapterLabel = (chapterId?: string | null) => {
+    if (!chapterId) {
+      return "全书";
+    }
+    return chapterLabelById.get(chapterId) ?? chapterId;
+  };
+
   const lowScoreRange = getLowScoreChapterRange(chapters, chapterReports, pipelineForm.qualityThreshold);
   const lowScoreReports = chapterReports
     .filter((item) => item.chapterId && item.overall < pipelineForm.qualityThreshold)
@@ -246,8 +256,8 @@ export default function PipelineTab(props: PipelineTabProps) {
             <div className="space-y-2 rounded-md border p-2 text-xs">
               <div className="font-medium">低分章节筛选（阈值 {pipelineForm.qualityThreshold}）</div>
               {lowScoreReports.map((item, index) => (
-                <div key={`${item.chapterId}-${index}`} className="flex items-center justify-between">
-                  <span>{item.chapterId}</span>
+                <div key={`${item.chapterId}-${index}`} className="flex items-center justify-between gap-2">
+                  <span className="truncate">{getChapterLabel(item.chapterId)}</span>
                   <Badge variant="secondary">overall {item.overall}</Badge>
                 </div>
               ))}
@@ -497,7 +507,7 @@ export default function PipelineTab(props: PipelineTabProps) {
               <div className="space-y-2 text-sm">
                 {chapterReports.slice(0, 10).map((item, index) => (
                   <div key={`${item.chapterId ?? "novel"}-${index}`} className="rounded-md border p-2">
-                    <div>章节：{item.chapterId ?? "全书"}</div>
+                    <div>章节：{getChapterLabel(item.chapterId)}</div>
                     <div className="text-muted-foreground">
                       综合：{item.overall}，连贯性：{item.coherence}，重复率：{item.repetition}
                     </div>
