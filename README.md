@@ -122,6 +122,21 @@
 - 2026-04-19 之前公开发布的历史版本继续保留原本的 MIT 许可证；仓库内已经补上历史 MIT 文本和 NOTICE 说明，查看旧版本授权边界时更清楚。
 - Pull Request 提交流程新增了贡献授权说明。提交代码、提示词、素材或数据时，需要确认自己有权提交，并在包含第三方内容时注明来源与许可证，减少后续合并和分发时的授权风险。
 
+## Windows 桌面版
+
+如果你只是想直接下载安装并开始使用，优先从桌面版入口进入：
+
+- 下载入口：[GitHub Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases)
+- 最新版本页：[Latest Release](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)
+- 建议优先下载 `Setup.exe` 安装版；如果你不想安装，或者想放在 U 盘 / 临时目录里直接运行，再选择 `portable` 版本
+
+当前桌面版说明：
+
+- Windows 桌面版已经进入可实际安装和分发的 Beta 阶段，目标是让你不必自己准备 Node、pnpm、Prisma 或源码运行环境，也能直接进入创作工作台
+- 首次打开后，如果本机还没有配置模型，桌面端会直接引导你进入设置页补齐模型和密钥，而不是只留下一个空白壳
+- 如果你之前已经在本地 Web 开发环境里使用过旧 `dev.db`，桌面端现在提供手动导入入口，可以把旧数据迁进桌面版继续使用
+- 自动更新链路已经接入 Beta 发布流程，但“从旧版本自动升级到新版本”的完整升级路径仍建议按 Beta 能力看待；需要最稳妥时，优先直接从 Releases 页面手动下载最新安装包
+
 ## 功能预览
 ### 功能概览中的95%以上编写都是AI完成
 ### Creative Hub
