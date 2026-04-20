@@ -552,6 +552,7 @@ docs/     设计文档、阶段检查点、模块计划与历史归档
 - 补充测试、错误回放和运行时可观察性
 
 欢迎直接提 Issue 或 Pull Request。
+提交 Pull Request 即表示你确认自己有权提交该内容，并同意项目以 Apache License 2.0 分发该贡献；如果包含第三方代码、素材或其他受许可证约束的内容，请在 PR 中明确说明来源和许可证。详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
 ## 致谢
 
@@ -569,4 +570,11 @@ docs/     设计文档、阶段检查点、模块计划与历史归档
 # 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](./LICENSE) for details.
+当前仓库版本以 Apache License 2.0 分发，详见 [LICENSE](./LICENSE)；归属与附加说明见 [NOTICE](./NOTICE)。
+
+历史说明：
+
+- 2026-04-19 之前公开发布的版本按 MIT License 发布；
+- 这些历史版本继续保留其原始许可证；
+- 历史 MIT 文本保存在 [LICENSE-MIT](./LICENSE-MIT)；
+- 新贡献默认按 Apache-2.0 提交，详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
