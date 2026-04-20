@@ -185,7 +185,7 @@ function findConnectionCause(error: unknown, depth = 0): {
   return findConnectionCause(record.cause, depth + 1);
 }
 
-function formatUpstreamConnectionError(error: unknown): string | null {
+export function formatUpstreamConnectionError(error: unknown): string | null {
   const joinedMessage = collectErrorMessages(error).join(" | ").trim();
   const isNetworkLike = /connection error|fetch failed|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|socket hang up|tls/i
     .test(joinedMessage);

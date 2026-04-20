@@ -27,15 +27,23 @@ const router = Router();
 const novelService = new NovelService();
 const novelDraftOptimizeService = new NovelDraftOptimizeService();
 
-function forwardBusinessError(error: unknown, next: (err?: unknown) => void): boolean {
+function mapBusinessError(error: unknown): AppError | null {
   if (!(error instanceof Error)) {
-    return false;
+    return null;
   }
   const isBusiness = /请先在本小说中至少添加|基础角色不存在|请先生成小说发展走向|指定区间内没有可生成的章节|当前小说还没有章节/.test(error.message);
   if (!isBusiness) {
+    return null;
+  }
+  return new AppError(error.message, 400);
+}
+
+function forwardBusinessError(error: unknown, next: (err?: unknown) => void): boolean {
+  const appError = mapBusinessError(error);
+  if (!appError) {
     return false;
   }
-  next(new AppError(error.message, 400));
+  next(appError);
   return true;
 }
 
@@ -641,7 +649,7 @@ registerNovelChapterGenerationRoutes({
   router,
   novelService,
   chapterParamsSchema,
-  forwardBusinessError,
+  mapBusinessError,
 });
 
 registerNovelPlanningRoutes({

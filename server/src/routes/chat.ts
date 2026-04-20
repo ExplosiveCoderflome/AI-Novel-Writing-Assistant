@@ -13,7 +13,7 @@ import {
   extractReasoningTextFromChunk,
   isMiniMaxCompatibleProvider,
 } from "../llm/reasoning";
-import { initSSE, writeSSEFrame } from "../llm/streaming";
+import { initSSE, respondWithSSEError, startSSE, writeFailedStatus, writeRunningStatus, writeSSEFrame } from "../llm/streaming";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { ragServices } from "../services/rag";
@@ -78,85 +78,94 @@ function chunkToText(content: BaseMessageChunk["content"]): string {
 }
 
 router.post("/", validate({ body: chatSchema }), async (req, res, next) => {
-  try {
-    const body = req.body as z.infer<typeof chatSchema>;
-    const shouldUseAgentMode = body.chatMode === "agent" || body.agentMode === true;
-    if (shouldUseAgentMode) {
-      const disposeHeartbeat = initSSE(res);
-      let fullContent = "";
-      const callbacks = {
-        onReasoning: (content: string) => writeSSEFrame(res, { type: "reasoning", content }),
-        onToolCall: (payload: { runId: string; stepId: string; toolName: string; inputSummary: string }) =>
-          writeSSEFrame(res, { type: "tool_call", ...payload }),
-        onToolResult: (payload: {
-          runId: string;
-          stepId: string;
-          toolName: string;
-          outputSummary: string;
-          success: boolean;
-        }) => writeSSEFrame(res, { type: "tool_result", ...payload }),
-        onApprovalRequired: (payload: {
-          runId: string;
-          approvalId: string;
-          summary: string;
-          targetType: string;
-          targetId: string;
-        }) => writeSSEFrame(res, { type: "approval_required", ...payload }),
-        onApprovalResolved: (payload: { runId: string; approvalId: string; action: "approved" | "rejected"; note?: string }) =>
-          writeSSEFrame(res, { type: "approval_resolved", ...payload }),
-        onRunStatus: (payload: {
-          runId: string;
-          status: "queued" | "running" | "waiting_approval" | "succeeded" | "failed" | "cancelled";
-          message?: string;
-        }) => writeSSEFrame(res, { type: "run_status", ...payload }),
-      };
-      try {
-        const latestUserMessage = [...body.messages].reverse().find((item) => item.role === "user")?.content?.trim();
-        const contextMode = body.contextMode ?? (body.novelId ? "novel" : "global");
-        if (contextMode === "novel" && !body.novelId) {
-          throw new Error("novel 模式必须提供 novelId。");
-        }
-        if (body.approvalResponse && !body.runId) {
-          throw new Error("处理审批时必须提供 runId。");
-        }
-        const result = body.approvalResponse && body.runId
-          ? await agentRuntime.resolveApproval({
-            runId: body.runId,
-            approvalId: body.approvalResponse.approvalId,
-            action: body.approvalResponse.action,
-            note: body.approvalResponse.note,
-          }, callbacks)
-          : await agentRuntime.start({
-            runId: body.runId,
-            sessionId: body.sessionId?.trim() || `chat_session_${Date.now()}`,
-            goal: latestUserMessage ?? "请根据当前上下文给出写作建议。",
-            messages: body.messages.slice(-20),
-            contextMode,
-            novelId: contextMode === "novel" ? body.novelId : undefined,
-            provider: body.provider,
-            model: body.model,
-            temperature: body.temperature,
-            maxTokens: body.maxTokens,
-          }, callbacks);
-        fullContent = result.assistantOutput.trim();
-        if (fullContent) {
-          writeSSEFrame(res, { type: "chunk", content: fullContent });
-        }
-        writeSSEFrame(res, { type: "done", fullContent });
-      } catch (error) {
-        writeSSEFrame(res, {
-          type: "error",
-          error: error instanceof Error ? error.message : "Agent run failed.",
-        });
-      } finally {
-        disposeHeartbeat();
-        if (!res.writableEnded) {
-          res.end();
-        }
+  const body = req.body as z.infer<typeof chatSchema>;
+  const shouldUseAgentMode = body.chatMode === "agent" || body.agentMode === true;
+  if (shouldUseAgentMode) {
+    const disposeHeartbeat = initSSE(res);
+    let fullContent = "";
+    const callbacks = {
+      onReasoning: (content: string) => writeSSEFrame(res, { type: "reasoning", content }),
+      onToolCall: (payload: { runId: string; stepId: string; toolName: string; inputSummary: string }) =>
+        writeSSEFrame(res, { type: "tool_call", ...payload }),
+      onToolResult: (payload: {
+        runId: string;
+        stepId: string;
+        toolName: string;
+        outputSummary: string;
+        success: boolean;
+      }) => writeSSEFrame(res, { type: "tool_result", ...payload }),
+      onApprovalRequired: (payload: {
+        runId: string;
+        approvalId: string;
+        summary: string;
+        targetType: string;
+        targetId: string;
+      }) => writeSSEFrame(res, { type: "approval_required", ...payload }),
+      onApprovalResolved: (payload: { runId: string; approvalId: string; action: "approved" | "rejected"; note?: string }) =>
+        writeSSEFrame(res, { type: "approval_resolved", ...payload }),
+      onRunStatus: (payload: {
+        runId: string;
+        status: "queued" | "running" | "waiting_approval" | "succeeded" | "failed" | "cancelled";
+        message?: string;
+      }) => writeSSEFrame(res, { type: "run_status", ...payload }),
+    };
+    try {
+      const latestUserMessage = [...body.messages].reverse().find((item) => item.role === "user")?.content?.trim();
+      const contextMode = body.contextMode ?? (body.novelId ? "novel" : "global");
+      if (contextMode === "novel" && !body.novelId) {
+        throw new Error("novel 模式必须提供 novelId。");
       }
-      return;
+      if (body.approvalResponse && !body.runId) {
+        throw new Error("处理审批时必须提供 runId。");
+      }
+      const result = body.approvalResponse && body.runId
+        ? await agentRuntime.resolveApproval({
+          runId: body.runId,
+          approvalId: body.approvalResponse.approvalId,
+          action: body.approvalResponse.action,
+          note: body.approvalResponse.note,
+        }, callbacks)
+        : await agentRuntime.start({
+          runId: body.runId,
+          sessionId: body.sessionId?.trim() || `chat_session_${Date.now()}`,
+          goal: latestUserMessage ?? "请根据当前上下文给出写作建议。",
+          messages: body.messages.slice(-20),
+          contextMode,
+          novelId: contextMode === "novel" ? body.novelId : undefined,
+          provider: body.provider,
+          model: body.model,
+          temperature: body.temperature,
+          maxTokens: body.maxTokens,
+        }, callbacks);
+      fullContent = result.assistantOutput.trim();
+      if (fullContent) {
+        writeSSEFrame(res, { type: "chunk", content: fullContent });
+      }
+      writeSSEFrame(res, { type: "done", fullContent });
+    } catch (error) {
+      writeSSEFrame(res, {
+        type: "error",
+        error: error instanceof Error ? error.message : "Agent run failed.",
+      });
+    } finally {
+      disposeHeartbeat();
+      if (!res.writableEnded) {
+        res.end();
+      }
     }
+    return;
+  }
 
+  const standardRunId = body.runId?.trim() || `chat:${Date.now()}`;
+  const runStatus = {
+    runId: standardRunId,
+    queuedMessage: "正在准备上下文并连接模型。",
+    runningMessage: "模型已开始流式输出。",
+    failedMessage: "对话流式生成失败。",
+  };
+  const disposeHeartbeat = startSSE(res, runStatus);
+
+  try {
     const resolvedLLM = await resolveLLMClientOptions(body.provider ?? "deepseek", {
       model: body.model,
       temperature: body.temperature ?? 0.7,
@@ -232,7 +241,10 @@ router.post("/", validate({ body: chatSchema }), async (req, res, next) => {
     ];
 
     const stream = await llm.stream(messages);
-    const disposeHeartbeat = initSSE(res);
+    writeRunningStatus(res, {
+      runId: standardRunId,
+      runningMessage: "模型已开始流式输出。",
+    });
     let fullContent = "";
     const isMiniMaxStream = isMiniMaxCompatibleProvider(
       resolvedLLM.provider,
@@ -298,11 +310,23 @@ router.post("/", validate({ body: chatSchema }), async (req, res, next) => {
         }
       }
 
+      writeSSEFrame(res, {
+        type: "run_status",
+        runId: standardRunId,
+        status: "succeeded",
+        phase: "completed",
+        message: "对话已完成。",
+      });
       writeSSEFrame(res, { type: "done", fullContent });
     } catch (error) {
+      const message = error instanceof Error ? error.message : "对话流式生成失败。";
+      writeFailedStatus(res, {
+        runId: standardRunId,
+        failedMessage: "对话流式生成失败。",
+      }, message);
       writeSSEFrame(res, {
         type: "error",
-        error: error instanceof Error ? error.message : "对话流式生成失败。",
+        error: message,
       });
     } finally {
       disposeHeartbeat();
@@ -311,7 +335,11 @@ router.post("/", validate({ body: chatSchema }), async (req, res, next) => {
       }
     }
   } catch (error) {
-    next(error);
+    respondWithSSEError(res, error, {
+      disposeHeartbeat,
+      runStatus,
+      fallbackMessage: "对话流式生成失败。",
+    });
   }
 });
 

@@ -1,7 +1,7 @@
 import type { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
-import { streamToSSE } from "../llm/streaming";
+import { respondWithSSEError, startSSE, streamToSSE } from "../llm/streaming";
 import { validate } from "../middleware/validate";
 import type { NovelDraftOptimizeService } from "../services/novel/NovelDraftOptimizeService";
 import type { NovelService } from "../services/novel/NovelService";
@@ -43,18 +43,26 @@ export function registerNovelProductionRoutes(input: RegisterNovelProductionRout
     "/:id/beats/generate",
     validate({ params: idParamsSchema, body: beatGenerateSchema }),
     async (req, res, next) => {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const runStatus = {
+        runId: `novel-beats:${id}`,
+        queuedMessage: "正在准备情节节拍生成上下文。",
+        runningMessage: "情节节拍已开始流式生成。",
+        failedMessage: "情节节拍生成失败。",
+      };
+      const disposeHeartbeat = startSSE(res, runStatus);
       try {
-        const { id } = req.params as z.infer<typeof idParamsSchema>;
         const { stream, onDone } = await novelService.createBeatStream(
           id,
           req.body as any,
         );
-        await streamToSSE(res, stream, onDone);
+        await streamToSSE(res, stream, onDone, { disposeHeartbeat, runStatus });
       } catch (error) {
-        if (forwardBusinessError(error, next)) {
-          return;
-        }
-        next(error);
+        respondWithSSEError(res, error, {
+          disposeHeartbeat,
+          runStatus,
+          fallbackMessage: "情节节拍生成失败。",
+        });
       }
     },
   );
@@ -127,15 +135,26 @@ export function registerNovelProductionRoutes(input: RegisterNovelProductionRout
     "/:id/outline/generate",
     validate({ params: idParamsSchema, body: outlineGenerateSchema }),
     async (req, res, next) => {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const runStatus = {
+        runId: `novel-outline:${id}`,
+        queuedMessage: "正在准备大纲生成上下文。",
+        runningMessage: "大纲已开始流式生成。",
+        failedMessage: "大纲生成失败。",
+      };
+      const disposeHeartbeat = startSSE(res, runStatus);
       try {
-        const { id } = req.params as z.infer<typeof idParamsSchema>;
         const { stream, onDone } = await novelService.createOutlineStream(
           id,
           req.body as any,
         );
-        await streamToSSE(res, stream, onDone);
+        await streamToSSE(res, stream, onDone, { disposeHeartbeat, runStatus });
       } catch (error) {
-        next(error);
+        respondWithSSEError(res, error, {
+          disposeHeartbeat,
+          runStatus,
+          fallbackMessage: "大纲生成失败。",
+        });
       }
     },
   );
@@ -165,18 +184,26 @@ export function registerNovelProductionRoutes(input: RegisterNovelProductionRout
     "/:id/structured-outline/generate",
     validate({ params: idParamsSchema, body: structuredOutlineSchema }),
     async (req, res, next) => {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const runStatus = {
+        runId: `novel-structured-outline:${id}`,
+        queuedMessage: "正在准备结构化大纲生成上下文。",
+        runningMessage: "结构化大纲已开始流式生成。",
+        failedMessage: "结构化大纲生成失败。",
+      };
+      const disposeHeartbeat = startSSE(res, runStatus);
       try {
-        const { id } = req.params as z.infer<typeof idParamsSchema>;
         const { stream, onDone } = await novelService.createStructuredOutlineStream(
           id,
           req.body as any,
         );
-        await streamToSSE(res, stream, onDone);
+        await streamToSSE(res, stream, onDone, { disposeHeartbeat, runStatus });
       } catch (error) {
-        if (forwardBusinessError(error, next)) {
-          return;
-        }
-        next(error);
+        respondWithSSEError(res, error, {
+          disposeHeartbeat,
+          runStatus,
+          fallbackMessage: "结构化大纲生成失败。",
+        });
       }
     },
   );

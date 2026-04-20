@@ -1,6 +1,9 @@
 import type { Response } from "express";
 import type { BaseMessageChunk } from "@langchain/core/messages";
 import type { SSEFrame } from "@ai-novel/shared/types/api";
+import { AppError, formatUpstreamConnectionError } from "../middleware/errorHandler";
+
+const SSE_HEARTBEAT_INTERVAL_MS = 15000;
 
 export type WritableSSEFrame = Extract<
   SSEFrame,
@@ -27,6 +30,13 @@ export interface StreamDonePayload {
 
 export interface StreamDoneHelpers {
   writeFrame: (payload: WritableSSEFrame) => void;
+}
+
+export interface StreamRunStatusContext {
+  runId: string;
+  queuedMessage?: string;
+  runningMessage?: string;
+  failedMessage?: string;
 }
 
 export function writeSSEFrame(res: Response, payload: WritableSSEFrame): void {
@@ -60,15 +70,88 @@ function normalizeChunkContent(content: BaseMessageChunk["content"]): string {
 
 export function initSSE(res: Response): () => void {
   res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
   res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders?.();
 
   const heartbeat = setInterval(() => {
     writeSSEFrame(res, { type: "ping" });
-  }, 15000);
+  }, SSE_HEARTBEAT_INTERVAL_MS);
 
   return () => clearInterval(heartbeat);
+}
+
+export function startSSE(res: Response, runStatus?: StreamRunStatusContext): () => void {
+  const disposeHeartbeat = initSSE(res);
+  if (runStatus) {
+    writeSSEFrame(res, {
+      type: "run_status",
+      runId: runStatus.runId,
+      status: "queued",
+      message: runStatus.queuedMessage,
+    });
+  }
+  return disposeHeartbeat;
+}
+
+export function writeRunningStatus(res: Response, runStatus?: StreamRunStatusContext): void {
+  if (!runStatus) {
+    return;
+  }
+  writeSSEFrame(res, {
+    type: "run_status",
+    runId: runStatus.runId,
+    status: "running",
+    phase: "streaming",
+    message: runStatus.runningMessage,
+  });
+}
+
+export function writeFailedStatus(res: Response, runStatus: StreamRunStatusContext | undefined, message: string): void {
+  if (!runStatus) {
+    return;
+  }
+  writeSSEFrame(res, {
+    type: "run_status",
+    runId: runStatus.runId,
+    status: "failed",
+    message: runStatus.failedMessage ?? message,
+  });
+}
+
+function resolveSSEErrorMessage(error: unknown, fallbackMessage: string): string {
+  if (error instanceof AppError && error.message.trim().length > 0) {
+    return error.message;
+  }
+
+  const upstreamConnectionMessage = formatUpstreamConnectionError(error);
+  if (upstreamConnectionMessage) {
+    return upstreamConnectionMessage;
+  }
+
+  return fallbackMessage;
+}
+
+export function respondWithSSEError(
+  res: Response,
+  error: unknown,
+  options?: {
+    disposeHeartbeat?: () => void;
+    runStatus?: StreamRunStatusContext;
+    fallbackMessage?: string;
+  },
+): void {
+  const message = resolveSSEErrorMessage(error, options?.fallbackMessage ?? "流式输出失败。");
+  writeFailedStatus(res, options?.runStatus, message);
+  writeSSEFrame(res, {
+    type: "error",
+    error: message,
+  });
+  options?.disposeHeartbeat?.();
+  if (!res.writableEnded) {
+    res.end();
+  }
 }
 
 export async function streamToSSE(
@@ -78,8 +161,13 @@ export async function streamToSSE(
     fullContent: string,
     helpers: StreamDoneHelpers,
   ) => void | StreamDonePayload | Promise<void | StreamDonePayload>,
+  options?: {
+    disposeHeartbeat?: () => void;
+    runStatus?: StreamRunStatusContext;
+  },
 ): Promise<void> {
-  const disposeHeartbeat = initSSE(res);
+  const disposeHeartbeat = options?.disposeHeartbeat ?? startSSE(res, options?.runStatus);
+  writeRunningStatus(res, options?.runStatus);
   let fullContent = "";
 
   try {
@@ -108,9 +196,9 @@ export async function streamToSSE(
     }
     writeSSEFrame(res, { type: "done", fullContent });
   } catch (error) {
-    writeSSEFrame(res, {
-      type: "error",
-      error: error instanceof Error ? error.message : "流式输出失败。",
+    respondWithSSEError(res, error, {
+      runStatus: options?.runStatus,
+      fallbackMessage: "流式输出失败。",
     });
   } finally {
     disposeHeartbeat();

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
-import { streamToSSE } from "../llm/streaming";
+import { respondWithSSEError, startSSE, streamToSSE } from "../llm/streaming";
 import { WritingFormulaService } from "../services/writingFormula/WritingFormulaService";
 
 const router = Router();
@@ -89,24 +89,46 @@ router.delete("/:id", validate({ params: idSchema }), async (req, res, next) => 
 });
 
 router.post("/extract", validate({ body: extractSchema }), async (req, res, next) => {
+  const runStatus = {
+    runId: `writing-formula:extract:${Date.now()}`,
+    queuedMessage: "正在准备写作公式提取上下文。",
+    runningMessage: "写作公式提取已开始流式生成。",
+    failedMessage: "写作公式提取失败。",
+  };
+  const disposeHeartbeat = startSSE(res, runStatus);
   try {
     const { stream, onDone } = await writingFormulaService.createExtractStream(
       req.body as z.infer<typeof extractSchema>,
     );
-    await streamToSSE(res, stream, onDone);
+    await streamToSSE(res, stream, onDone, { disposeHeartbeat, runStatus });
   } catch (error) {
-    next(error);
+    respondWithSSEError(res, error, {
+      disposeHeartbeat,
+      runStatus,
+      fallbackMessage: "写作公式提取失败。",
+    });
   }
 });
 
 router.post("/apply", validate({ body: applySchema }), async (req, res, next) => {
+  const runStatus = {
+    runId: `writing-formula:apply:${Date.now()}`,
+    queuedMessage: "正在准备写作公式应用上下文。",
+    runningMessage: "写作公式应用已开始流式生成。",
+    failedMessage: "写作公式应用失败。",
+  };
+  const disposeHeartbeat = startSSE(res, runStatus);
   try {
     const { stream } = await writingFormulaService.createApplyStream(
       req.body as z.infer<typeof applySchema>,
     );
-    await streamToSSE(res, stream);
+    await streamToSSE(res, stream, undefined, { disposeHeartbeat, runStatus });
   } catch (error) {
-    next(error);
+    respondWithSSEError(res, error, {
+      disposeHeartbeat,
+      runStatus,
+      fallbackMessage: "写作公式应用失败。",
+    });
   }
 });
 

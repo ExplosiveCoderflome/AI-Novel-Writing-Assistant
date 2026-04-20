@@ -28,6 +28,8 @@ interface LLMOptions {
   apiKey?: string;
   baseURL?: string;
   maxTokens?: number;
+  timeoutMs?: number;
+  maxRetries?: number;
   reasoningEnabled?: boolean;
   executionMode?: StructuredExecutionMode;
   structuredStrategy?: StructuredOutputStrategy;
@@ -53,6 +55,8 @@ export interface ResolvedLLMClientOptions {
   apiKey?: string;
   baseURL: string;
   maxTokens?: number;
+  timeoutMs?: number;
+  maxRetries: number;
   reasoningEnabled: boolean;
   modelKwargs?: Record<string, unknown>;
   includeRawResponse: boolean;
@@ -66,6 +70,8 @@ export interface ResolvedLLMClientOptions {
 
 const providerSecrets = new Map<LLMProvider, ProviderSecret>();
 const RESOLVED_LLM_OPTIONS = Symbol("RESOLVED_LLM_OPTIONS");
+const DEFAULT_LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS ?? 120000);
+const DEFAULT_LLM_MAX_RETRIES = Number(process.env.LLM_MAX_RETRIES ?? 2);
 
 type ChatOpenAIWithResolvedOptions = ChatOpenAI & {
   [RESOLVED_LLM_OPTIONS]?: ResolvedLLMClientOptions;
@@ -96,6 +102,20 @@ function normalizeProviderSecret(secret: ProviderSecret): ProviderSecret {
     displayName: normalizeOptionalText(secret.displayName),
     reasoningEnabled: secret.reasoningEnabled ?? true,
   };
+}
+
+function normalizeTimeoutMs(value: number | undefined): number | undefined {
+  if (!Number.isFinite(value) || value == null || value <= 0) {
+    return undefined;
+  }
+  return Math.trunc(value);
+}
+
+function normalizeMaxRetries(value: number | undefined): number {
+  if (!Number.isFinite(value) || value == null || value < 0) {
+    return DEFAULT_LLM_MAX_RETRIES;
+  }
+  return Math.trunc(value);
 }
 
 function toProviderSecret(item: {
@@ -275,6 +295,8 @@ export async function resolveLLMClientOptions(
     apiKey,
     baseURL,
     maxTokens: effectiveMaxTokens,
+    timeoutMs: normalizeTimeoutMs(options.timeoutMs ?? DEFAULT_LLM_TIMEOUT_MS),
+    maxRetries: normalizeMaxRetries(options.maxRetries),
     reasoningEnabled: reasoningBehavior.reasoningEnabled,
     modelKwargs: Object.keys(modelKwargs).length > 0 ? modelKwargs : undefined,
     includeRawResponse: reasoningBehavior.includeRawResponse,
@@ -294,6 +316,8 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
     modelName: resolved.model,
     temperature: resolved.temperature,
     maxTokens: resolved.maxTokens,
+    timeout: resolved.timeoutMs,
+    maxRetries: resolved.maxRetries,
     modelKwargs: resolved.modelKwargs,
     __includeRawResponse: resolved.includeRawResponse,
     configuration: {

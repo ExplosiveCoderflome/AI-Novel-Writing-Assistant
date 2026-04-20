@@ -1,7 +1,7 @@
 import type { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
-import { streamToSSE } from "../llm/streaming";
+import { respondWithSSEError, startSSE, streamToSSE } from "../llm/streaming";
 import { validate } from "../middleware/validate";
 import type { NovelService } from "../services/novel/NovelService";
 
@@ -156,16 +156,27 @@ export function registerNovelReviewRoutes(input: RegisterNovelReviewRoutesInput)
     "/:id/chapters/:chapterId/repair",
     validate({ params: chapterParamsSchema, body: repairSchema }),
     async (req, res, next) => {
+      const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
+      const runStatus = {
+        runId: `chapter-repair:${chapterId}`,
+        queuedMessage: "正在准备章节修复上下文。",
+        runningMessage: "章节修复已开始流式生成。",
+        failedMessage: "章节修复失败。",
+      };
+      const disposeHeartbeat = startSSE(res, runStatus);
       try {
-        const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
         const { stream, onDone } = await novelService.createRepairStream(
           id,
           chapterId,
           req.body as any,
         );
-        await streamToSSE(res, stream, onDone);
+        await streamToSSE(res, stream, onDone, { disposeHeartbeat, runStatus });
       } catch (error) {
-        next(error);
+        respondWithSSEError(res, error, {
+          disposeHeartbeat,
+          runStatus,
+          fallbackMessage: "章节修复失败。",
+        });
       }
     },
   );

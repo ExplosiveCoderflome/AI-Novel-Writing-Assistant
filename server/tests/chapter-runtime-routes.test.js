@@ -23,6 +23,37 @@ function buildStream(chunks) {
   };
 }
 
+function createDeferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+async function readChunk(reader, timeoutMs = 300) {
+  const result = await Promise.race([
+    reader.read(),
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`Timed out after ${timeoutMs}ms waiting for SSE chunk.`)), timeoutMs)),
+  ]);
+  const value = result.value ?? new Uint8Array();
+  return new TextDecoder("utf-8").decode(value, { stream: true });
+}
+
+async function readRemaining(reader) {
+  const decoder = new TextDecoder("utf-8");
+  let output = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) {
+      return output;
+    }
+    output += decoder.decode(value, { stream: true });
+  }
+}
+
 function buildRuntimePackage(novelId, chapterId) {
   const now = new Date().toISOString();
   return {
@@ -264,8 +295,8 @@ test("legacy generate route keeps chunk and done without runtime_package", async
         message: "正在保存草稿并同步章节状态。",
       });
       return ({
-      fullContent,
-      frames: [],
+        fullContent,
+        frames: [],
       });
     },
   });
@@ -291,6 +322,105 @@ test("legacy generate route keeps chunk and done without runtime_package", async
     assert.ok(text.indexOf("\"type\":\"run_status\"") < text.indexOf("\"type\":\"done\""));
   } finally {
     NovelService.prototype.createChapterStream = originalMethod;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("runtime chapter route emits failed SSE for business errors after headers start", async () => {
+  const originalRuntimeMethod = NovelService.prototype.createChapterRuntimeStream;
+  const originalGenerateMethod = NovelService.prototype.createChapterStream;
+  const novelId = "novel-business-error";
+  const chapterId = "chapter-business-error";
+
+  NovelService.prototype.createChapterRuntimeStream = async () => {
+    throw new Error("当前小说还没有章节");
+  };
+  NovelService.prototype.createChapterStream = async () => {
+    throw new Error("当前小说还没有章节");
+  };
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+
+  const cases = [
+    `/api/novels/${novelId}/chapters/${chapterId}/runtime/run`,
+    `/api/novels/${novelId}/chapters/${chapterId}/generate`,
+  ];
+
+  try {
+    for (const path of cases) {
+      const response = await fetch(`http://127.0.0.1:${port}${path}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+      assert.equal(response.status, 200, path);
+      assert.match(response.headers.get("content-type") ?? "", /text\/event-stream/, path);
+
+      const text = await response.text();
+      assert.ok(text.includes("\"type\":\"run_status\""), path);
+      assert.ok(text.includes("\"status\":\"queued\""), path);
+      assert.ok(text.includes("\"status\":\"failed\""), path);
+      assert.ok(text.includes("\"type\":\"error\""), path);
+      assert.ok(text.includes("当前小说还没有章节"), path);
+      assert.ok(!text.includes("\"status\":\"running\""), path);
+      assert.ok(!text.includes("\"type\":\"done\""), path);
+      assert.ok(!text.includes("\"success\":false"), path);
+    }
+  } finally {
+    NovelService.prototype.createChapterRuntimeStream = originalRuntimeMethod;
+    NovelService.prototype.createChapterStream = originalGenerateMethod;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("runtime chapter route starts SSE and queued status before stream creation resolves", async () => {
+  const originalMethod = NovelService.prototype.createChapterRuntimeStream;
+  const novelId = "novel-runtime-queued";
+  const chapterId = "chapter-runtime-queued";
+  const deferred = createDeferred();
+
+  NovelService.prototype.createChapterRuntimeStream = async () => {
+    await deferred.promise;
+    return {
+      stream: buildStream(["延迟完成正文"]),
+      onDone: async (fullContent) => ({ fullContent }),
+    };
+  };
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+
+  try {
+    const response = await Promise.race([
+      fetch(`http://127.0.0.1:${port}/api/novels/${novelId}/chapters/${chapterId}/runtime/run`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Timed out waiting for runtime SSE response headers.")), 300)),
+    ]);
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type") ?? "", /text\/event-stream/);
+    const reader = response.body.getReader();
+    const firstChunk = await readChunk(reader);
+    assert.ok(firstChunk.includes("\"type\":\"run_status\""));
+    assert.ok(firstChunk.includes("\"status\":\"queued\""));
+    assert.ok(firstChunk.includes(`\"runId\":\"chapter-runtime:${chapterId}\"`));
+
+    deferred.resolve();
+    const remaining = await readRemaining(reader);
+    assert.ok(remaining.includes("\"status\":\"running\""));
+    assert.ok(remaining.includes("\"type\":\"done\""));
+  } finally {
+    NovelService.prototype.createChapterRuntimeStream = originalMethod;
+    deferred.reject?.(new Error("cleanup"));
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });

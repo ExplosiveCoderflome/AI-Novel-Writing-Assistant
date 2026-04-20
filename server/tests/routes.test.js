@@ -10,11 +10,14 @@ const { llmConnectivityService } = require("../dist/llm/connectivity.js");
 const structuredFallbackSettings = require("../dist/llm/structuredFallbackSettings.js");
 const { NovelService } = require("../dist/services/novel/NovelService.js");
 const { NovelFramingSuggestionService } = require("../dist/services/novel/NovelFramingSuggestionService.js");
+const { WorldService } = require("../dist/services/world/WorldService.js");
+const { WritingFormulaService } = require("../dist/services/writingFormula/WritingFormulaService.js");
 const { ragServices } = require("../dist/services/rag/index.js");
 const { providerBalanceService } = require("../dist/services/settings/ProviderBalanceService.js");
 const { prisma } = require("../dist/db/prisma.js");
 const { AppError } = require("../dist/middleware/errorHandler.js");
 const { imageGenerationService } = require("../dist/services/image/ImageGenerationService.js");
+const factory = require("../dist/llm/factory.js");
 
 function listen(server) {
   return new Promise((resolve) => {
@@ -23,6 +26,13 @@ function listen(server) {
       resolve(address.port);
     });
   });
+}
+
+async function readResponseText(response, timeoutMs = 600) {
+  return Promise.race([
+    response.text(),
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`Timed out after ${timeoutMs}ms waiting for response body.`)), timeoutMs)),
+  ]);
 }
 
 async function safeDeleteCreativeHubThread(threadId) {
@@ -1065,6 +1075,284 @@ test("POST /api/novels/framing/suggest returns book framing suggestion", async (
     assert.deepEqual(payload.data.commercialTags, ["逆袭", "强冲突", "持续钩子"]);
   } finally {
     NovelFramingSuggestionService.prototype.suggest = originalSuggest;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("POST /api/chat starts SSE and queued status before llm stream resolves", async () => {
+  const originalResolveOptions = factory.resolveLLMClientOptions;
+  const originalCreateLLM = factory.createLLMFromResolvedOptions;
+  const deferred = {};
+  deferred.promise = new Promise((resolve, reject) => {
+    deferred.resolve = resolve;
+    deferred.reject = reject;
+  });
+
+  factory.resolveLLMClientOptions = async () => ({
+    provider: "deepseek",
+    providerName: "DeepSeek",
+    model: "deepseek-chat",
+    temperature: 0.7,
+    apiKey: "test-key",
+    baseURL: "https://api.deepseek.com/v1",
+    maxTokens: 1024,
+    reasoningEnabled: true,
+    modelKwargs: undefined,
+    includeRawResponse: false,
+    executionMode: "plain",
+    structuredProfile: null,
+    structuredStrategy: null,
+    reasoningForcedOff: false,
+    taskType: undefined,
+    promptMeta: undefined,
+  });
+  factory.createLLMFromResolvedOptions = () => ({
+    stream: async () => {
+      await deferred.promise;
+      return Readable.from([{ content: "聊天正文" }]);
+    },
+  });
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+
+  try {
+    const response = await Promise.race([
+      fetch(`http://127.0.0.1:${port}/api/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: [{ role: "user", content: "你好" }],
+        }),
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Timed out waiting for chat SSE response headers.")), 300)),
+    ]);
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type") ?? "", /text\/event-stream/);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    const firstRead = await Promise.race([
+      reader.read(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Timed out waiting for early chat SSE chunk.")), 300)),
+    ]);
+    const firstChunk = decoder.decode(firstRead.value ?? new Uint8Array(), { stream: true });
+    assert.ok(firstChunk.includes("\"type\":\"run_status\""));
+    assert.ok(firstChunk.includes("\"status\":\"queued\""));
+    assert.ok(firstChunk.includes("\"runId\":\"chat:"));
+
+    deferred.resolve();
+
+    let remaining = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) {
+        break;
+      }
+      remaining += decoder.decode(value, { stream: true });
+    }
+    assert.ok(remaining.includes("\"status\":\"running\""));
+    assert.ok(remaining.includes("\"type\":\"chunk\""));
+    assert.ok(remaining.includes("\"type\":\"done\""));
+  } finally {
+    factory.resolveLLMClientOptions = originalResolveOptions;
+    factory.createLLMFromResolvedOptions = originalCreateLLM;
+    deferred.reject?.(new Error("cleanup"));
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("POST /api/chat emits sanitized failed SSE when setup fails after headers start", async () => {
+  const originalResolveOptions = factory.resolveLLMClientOptions;
+
+  factory.resolveLLMClientOptions = async () => {
+    throw new Error("401 Incorrect API key provided: sk-test-secret");
+  };
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messages: [{ role: "user", content: "你好" }],
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type") ?? "", /text\/event-stream/);
+
+    const text = await readResponseText(response);
+    assert.ok(text.includes('"type":"run_status"'));
+    assert.ok(text.includes('"status":"queued"'));
+    assert.ok(text.includes('"status":"failed"'));
+    assert.ok(text.includes('"type":"error"'));
+    assert.ok(text.includes("对话流式生成失败。"));
+    assert.ok(!text.includes('"status":"running"'));
+    assert.ok(!text.includes('"type":"done"'));
+    assert.ok(!text.includes("sk-test-secret"));
+    assert.ok(!text.includes("Incorrect API key"));
+  } finally {
+    factory.resolveLLMClientOptions = originalResolveOptions;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("SSE routes emit failed status when stream creation fails after headers start", async () => {
+  const originalCreateExtractStream = WritingFormulaService.prototype.createExtractStream;
+  const originalCreateApplyStream = WritingFormulaService.prototype.createApplyStream;
+  const originalCreateWorldGenerateStream = WorldService.prototype.createWorldGenerateStream;
+  const originalCreateRefineStream = WorldService.prototype.createRefineStream;
+  const originalCreateBeatStream = NovelService.prototype.createBeatStream;
+  const originalCreateOutlineStream = NovelService.prototype.createOutlineStream;
+  const originalCreateStructuredOutlineStream = NovelService.prototype.createStructuredOutlineStream;
+  const originalCreateRepairStream = NovelService.prototype.createRepairStream;
+  const originalCreateBibleStream = NovelService.prototype.createBibleStream;
+
+  WritingFormulaService.prototype.createExtractStream = async () => {
+    throw {};
+  };
+  WritingFormulaService.prototype.createApplyStream = async () => {
+    throw {};
+  };
+  WorldService.prototype.createWorldGenerateStream = async () => {
+    throw {};
+  };
+  WorldService.prototype.createRefineStream = async () => {
+    throw {};
+  };
+  NovelService.prototype.createBeatStream = async () => {
+    throw {};
+  };
+  NovelService.prototype.createOutlineStream = async () => {
+    throw {};
+  };
+  NovelService.prototype.createStructuredOutlineStream = async () => {
+    throw {};
+  };
+  NovelService.prototype.createRepairStream = async () => {
+    throw {};
+  };
+  NovelService.prototype.createBibleStream = async () => {
+    throw {};
+  };
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+
+  const cases = [
+    {
+      path: "/api/writing-formula/extract",
+      body: {
+        name: "测试公式",
+        sourceText: "这是一段测试文本。",
+        extractLevel: "basic",
+        focusAreas: ["节奏"],
+      },
+      fallbackMessage: "写作公式提取失败。",
+    },
+    {
+      path: "/api/writing-formula/apply",
+      body: {
+        formulaContent: "保持强冲突",
+        mode: "generate",
+        topic: "少年复仇",
+      },
+      fallbackMessage: "写作公式应用失败。",
+    },
+    {
+      path: "/api/worlds/generate",
+      body: {
+        name: "测试世界",
+        description: "一个高压都市奇幻世界。",
+        worldType: "urban_fantasy",
+        complexity: "simple",
+        dimensions: {
+          geography: true,
+          culture: true,
+          magicSystem: true,
+          technology: false,
+          history: true,
+        },
+      },
+      fallbackMessage: "世界生成失败。",
+    },
+    {
+      path: "/api/worlds/world-test/refine",
+      body: {
+        attribute: "description",
+        currentValue: "旧世界描述",
+        refinementLevel: "light",
+      },
+      fallbackMessage: "世界精修失败。",
+    },
+    {
+      path: "/api/novels/novel-test/beats/generate",
+      body: {},
+      fallbackMessage: "情节节拍生成失败。",
+    },
+    {
+      path: "/api/novels/novel-test/outline/generate",
+      body: {},
+      fallbackMessage: "大纲生成失败。",
+    },
+    {
+      path: "/api/novels/novel-test/structured-outline/generate",
+      body: {},
+      fallbackMessage: "结构化大纲生成失败。",
+    },
+    {
+      path: "/api/novels/novel-test/chapters/chapter-test/repair",
+      body: {},
+      fallbackMessage: "章节修复失败。",
+    },
+    {
+      path: "/api/novels/novel-test/bible/generate",
+      body: {},
+      fallbackMessage: "作品圣经生成失败。",
+    },
+  ];
+
+  try {
+    for (const testCase of cases) {
+      const response = await fetch(`http://127.0.0.1:${port}${testCase.path}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(testCase.body),
+      });
+
+      assert.equal(response.status, 200, testCase.path);
+      assert.match(response.headers.get("content-type") ?? "", /text\/event-stream/, testCase.path);
+
+      const text = await readResponseText(response);
+      assert.ok(text.includes('"type":"run_status"'), testCase.path);
+      assert.ok(text.includes('"status":"queued"'), testCase.path);
+      assert.ok(text.includes('"status":"failed"'), testCase.path);
+      assert.ok(text.includes('"type":"error"'), testCase.path);
+      assert.ok(text.includes(testCase.fallbackMessage), testCase.path);
+      assert.ok(!text.includes('"status":"running"'), testCase.path);
+      assert.ok(!text.includes('"type":"done"'), testCase.path);
+    }
+  } finally {
+    WritingFormulaService.prototype.createExtractStream = originalCreateExtractStream;
+    WritingFormulaService.prototype.createApplyStream = originalCreateApplyStream;
+    WorldService.prototype.createWorldGenerateStream = originalCreateWorldGenerateStream;
+    WorldService.prototype.createRefineStream = originalCreateRefineStream;
+    NovelService.prototype.createBeatStream = originalCreateBeatStream;
+    NovelService.prototype.createOutlineStream = originalCreateOutlineStream;
+    NovelService.prototype.createStructuredOutlineStream = originalCreateStructuredOutlineStream;
+    NovelService.prototype.createRepairStream = originalCreateRepairStream;
+    NovelService.prototype.createBibleStream = originalCreateBibleStream;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });

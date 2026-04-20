@@ -6,7 +6,7 @@ import { z } from "zod";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { llmProviderSchema } from "../llm/providerSchema";
-import { initSSE, streamToSSE, writeSSEFrame } from "../llm/streaming";
+import { initSSE, respondWithSSEError, startSSE, streamToSSE, writeSSEFrame } from "../llm/streaming";
 import { featureFlags } from "../config/featureFlags";
 import { KnowledgeService } from "../services/knowledge/KnowledgeService";
 import { WorldService } from "../services/world/WorldService";
@@ -380,13 +380,24 @@ router.post("/", validate({ body: createWorldSchema }), async (req, res, next) =
 });
 
 router.post("/generate", validate({ body: worldGenerateSchema }), async (req, res, next) => {
+  const runStatus = {
+    runId: `world-generate:${Date.now()}`,
+    queuedMessage: "正在准备世界生成上下文。",
+    runningMessage: "世界生成已开始流式输出。",
+    failedMessage: "世界生成失败。",
+  };
+  const disposeHeartbeat = startSSE(res, runStatus);
   try {
     const { stream, onDone } = await worldService.createWorldGenerateStream(
       req.body as z.infer<typeof worldGenerateSchema>,
     );
-    await streamToSSE(res, stream, onDone);
+    await streamToSSE(res, stream, onDone, { disposeHeartbeat, runStatus });
   } catch (error) {
-    next(error);
+    respondWithSSEError(res, error, {
+      disposeHeartbeat,
+      runStatus,
+      fallbackMessage: "世界生成失败。",
+    });
   }
 });
 
@@ -800,12 +811,23 @@ router.get("/:id/visualization", requireWorldWizard, requireWorldVisualization, 
 });
 
 router.post("/:id/refine", validate({ params: worldIdSchema, body: worldRefineSchema }), async (req, res, next) => {
+  const { id } = req.params as z.infer<typeof worldIdSchema>;
+  const runStatus = {
+    runId: `world-refine:${id}`,
+    queuedMessage: "正在准备世界精修上下文。",
+    runningMessage: "世界精修已开始流式输出。",
+    failedMessage: "世界精修失败。",
+  };
+  const disposeHeartbeat = startSSE(res, runStatus);
   try {
-    const { id } = req.params as z.infer<typeof worldIdSchema>;
     const { stream, onDone } = await worldService.createRefineStream(id, req.body as z.infer<typeof worldRefineSchema>);
-    await streamToSSE(res, stream, onDone);
+    await streamToSSE(res, stream, onDone, { disposeHeartbeat, runStatus });
   } catch (error) {
-    next(error);
+    respondWithSSEError(res, error, {
+      disposeHeartbeat,
+      runStatus,
+      fallbackMessage: "世界精修失败。",
+    });
   }
 });
 

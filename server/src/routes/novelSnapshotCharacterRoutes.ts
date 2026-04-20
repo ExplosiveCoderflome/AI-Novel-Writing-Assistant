@@ -1,7 +1,7 @@
 import type { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
-import { streamToSSE } from "../llm/streaming";
+import { respondWithSSEError, startSSE, streamToSSE } from "../llm/streaming";
 import { validate } from "../middleware/validate";
 import type { NovelService } from "../services/novel/NovelService";
 
@@ -268,18 +268,26 @@ export function registerNovelSnapshotCharacterRoutes(
     "/:id/bible/generate",
     validate({ params: idParamsSchema, body: llmGenerateSchema }),
     async (req, res, next) => {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const runStatus = {
+        runId: `novel-bible:${id}`,
+        queuedMessage: "正在准备作品圣经生成上下文。",
+        runningMessage: "作品圣经已开始流式生成。",
+        failedMessage: "作品圣经生成失败。",
+      };
+      const disposeHeartbeat = startSSE(res, runStatus);
       try {
-        const { id } = req.params as z.infer<typeof idParamsSchema>;
         const { stream, onDone } = await novelService.createBibleStream(
           id,
           req.body as any,
         );
-        await streamToSSE(res, stream, onDone);
+        await streamToSSE(res, stream, onDone, { disposeHeartbeat, runStatus });
       } catch (error) {
-        if (forwardBusinessError(error, next)) {
-          return;
-        }
-        next(error);
+        respondWithSSEError(res, error, {
+          disposeHeartbeat,
+          runStatus,
+          fallbackMessage: "作品圣经生成失败。",
+        });
       }
     },
   );
