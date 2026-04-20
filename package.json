@@ -2,17 +2,11 @@
   "name": "ai-novel-writing-assistant-v2",
   "private": true,
   "license": "Apache-2.0",
-  "packageManager": "pnpm@9.7.0",
+  "packageManager": "pnpm@10.6.0",
   "engines": {
     "node": "^20.19.0 || ^22.12.0 || >=24.0.0",
-    "pnpm": ">=9.7.0"
+    "pnpm": ">=10.6.0"
   },
-  "workspaces": [
-    "client",
-    "desktop",
-    "server",
-    "shared"
-  ],
   "scripts": {
     "dev": "node scripts/run-with-log.cjs --name dev -- pnpm dev:raw",
     "dev:raw": "concurrently \"pnpm dev:shared\" \"pnpm dev:server\" \"pnpm dev:client:wait\"",
@@ -22,6 +16,7 @@
     "dev:server:log": "node scripts/run-with-log.cjs --name server -- pnpm --filter @ai-novel/server dev",
     "dev:client": "pnpm --filter @ai-novel/client dev",
     "dev:client:wait": "node scripts/wait-for-port.cjs --port 3000 && pnpm dev:client",
+    "prepare:desktop-runtime": "pnpm --filter @ai-novel/desktop prepare:runtime",
     "dev:desktop:shell": "node scripts/wait-for-port.cjs --port 3000 && node scripts/wait-for-port.cjs --port 5173 && pnpm --filter @ai-novel/desktop dev",
     "dev:desktop": "node scripts/run-with-log.cjs --name desktop-dev -- pnpm dev:desktop:raw",
     "dev:desktop:raw": "concurrently \"pnpm dev:shared\" \"pnpm dev:server\" \"pnpm dev:client:wait\" \"pnpm dev:desktop:shell\"",
@@ -49,9 +44,12 @@
     "onlyBuiltDependencies": [
       "@prisma/engines",
       "better-sqlite3",
-      "electron",
       "esbuild",
       "prisma"
+    ],
+    "ignoredBuiltDependencies": [
+      "electron",
+      "electron-winstaller"
     ]
   },
   "devDependencies": {
