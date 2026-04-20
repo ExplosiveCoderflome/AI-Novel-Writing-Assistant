@@ -32,6 +32,15 @@ function getTaskListPriority(status: TaskStatus): number {
   return status === "failed" ? 0 : 1;
 }
 
+type TaskSortMode = "default" | "updated_desc" | "updated_asc" | "heartbeat_desc" | "heartbeat_asc";
+
+function getTimestamp(value: string | null | undefined): number {
+  if (!value) {
+    return Number.NaN;
+  }
+  return new Date(value).getTime();
+}
+
 function formatDate(value: string | null | undefined): string {
   if (!value) {
     return "暂无";
@@ -179,6 +188,7 @@ export default function TaskCenterPage() {
   const [status, setStatus] = useState<TaskStatus | "">("");
   const [keyword, setKeyword] = useState("");
   const [onlyAnomaly, setOnlyAnomaly] = useState(false);
+  const [sortMode, setSortMode] = useState<TaskSortMode>("updated_desc");
   const [retryOverride, setRetryOverride] = useState<LLMSelectorValue>({
     provider: llm.provider,
     model: llm.model,
@@ -210,6 +220,22 @@ export default function TaskCenterPage() {
       (onlyAnomaly ? allRows.filter((item) => ANOMALY_STATUSES.has(item.status)) : allRows)
         .map((item, index) => ({ item, index }))
         .sort((left, right) => {
+          if (sortMode !== "default") {
+            const leftTime = sortMode.startsWith("heartbeat")
+              ? getTimestamp(left.item.heartbeatAt)
+              : getTimestamp(left.item.updatedAt);
+            const rightTime = sortMode.startsWith("heartbeat")
+              ? getTimestamp(right.item.heartbeatAt)
+              : getTimestamp(right.item.updatedAt);
+            const leftResolved = Number.isNaN(leftTime) ? -Infinity : leftTime;
+            const rightResolved = Number.isNaN(rightTime) ? -Infinity : rightTime;
+            const timeDiff = sortMode.endsWith("_asc")
+              ? leftResolved - rightResolved
+              : rightResolved - leftResolved;
+            if (timeDiff !== 0) {
+              return timeDiff;
+            }
+          }
           const priorityDiff = getTaskListPriority(left.item.status) - getTaskListPriority(right.item.status);
           if (priorityDiff !== 0) {
             return priorityDiff;
@@ -217,7 +243,7 @@ export default function TaskCenterPage() {
           return left.index - right.index;
         })
         .map(({ item }) => item),
-    [allRows, onlyAnomaly],
+    [allRows, onlyAnomaly, sortMode],
   );
 
   const detailQuery = useQuery({
@@ -490,6 +516,17 @@ export default function TaskCenterPage() {
               onChange={(event) => setKeyword(event.target.value)}
               placeholder="标题或关联对象"
             />
+            <select
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={sortMode}
+              onChange={(event) => setSortMode(event.target.value as TaskSortMode)}
+            >
+              <option value="updated_desc">按更新时间排序：最新优先</option>
+              <option value="updated_asc">按更新时间排序：最早优先</option>
+              <option value="heartbeat_desc">按最近心跳排序：最新优先</option>
+              <option value="heartbeat_asc">按最近心跳排序：最早优先</option>
+              <option value="default">默认排序：失败优先</option>
+            </select>
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               <input
                 type="checkbox"

@@ -229,6 +229,77 @@ test("volume strategy prompt renders volume count guidance and fixed-count const
   assert.match(String(messages[1].content), /user preferred volume count: 10/);
 });
 
+test("workspace diagnosis prompt requires english recommendedAction enum values", () => {
+  const asset = getRegisteredPromptAsset("novel.chapter_editor.workspace_diagnosis", "v1");
+  assert.ok(asset);
+
+  const messages = asset.render({
+    chapterTitle: "第一章",
+    chapterMission: "建立主角困境",
+    volumePositionLabel: "卷初",
+    volumePhaseLabel: "开局",
+    paceDirective: "尽快把主冲突顶上来",
+    previousChapterBridge: "无",
+    nextChapterBridge: "为下一章系统触发做铺垫",
+    activePlotThreads: ["系统伏笔", "生存压力"],
+    paragraphs: [{ index: 12, text: "主角在院中继续做杂活。" }],
+    openIssues: [{
+      severity: "medium",
+      auditType: "plot",
+      code: "pacing_slow",
+      evidence: "静态描写偏多。",
+      fixSuggestion: "压缩重复劳动描写。",
+    }],
+  });
+
+  assert.match(String(messages[0].content), /recommendedAction 只能输出英文枚举值/);
+  assert.match(String(messages[0].content), /compress（精简）/);
+  assert.match(String(messages[0].content), /polish（优化表达）/);
+  assert.match(String(messages[0].content), /不要输出中文动作词本身/);
+  assert.match(String(messages[1].content), /"recommendedAction":"compress"/);
+});
+
+test("character dynamics prompts harden plannedChapterOrders and confidence output contracts", () => {
+  const volumeAsset = getRegisteredPromptAsset("novel.characterDynamics.volumeProjection", "v3");
+  const chapterAsset = getRegisteredPromptAsset("novel.characterDynamics.chapterExtract", "v1");
+  assert.ok(volumeAsset);
+  assert.ok(chapterAsset);
+
+  const volumeMessages = volumeAsset.render({
+    novelTitle: "测试小说",
+    description: "测试简介",
+    targetAudience: "男频",
+    sellingPoint: "朝堂升级",
+    firstPromise: "前30章建立权力上升线",
+    outline: "大纲",
+    structuredOutline: "结构化大纲",
+    appliedCastOption: "默认方案",
+    rosterText: "赵高\n李斯",
+    relationText: "赵高-李斯 对立",
+    volumePlansText: "第一卷：立足；第二卷：扩权",
+  });
+  const chapterMessages = chapterAsset.render({
+    novelTitle: "测试小说",
+    targetAudience: "男频",
+    sellingPoint: "朝堂升级",
+    firstPromise: "前30章建立权力上升线",
+    currentVolumeTitle: "第一卷",
+    rosterText: "赵高\n李斯",
+    relationText: "赵高-李斯 对立",
+    chapterOrder: 1,
+    chapterTitle: "入局",
+    chapterContent: "赵高第一次被要求处理脏活。",
+  });
+
+  assert.match(String(volumeMessages[0].content), /plannedChapterOrders 如果填写，必须是正整数数组/);
+  assert.match(String(volumeMessages[0].content), /绝不能输出 null、\[null\] 或字符串数组/);
+  assert.match(String(volumeMessages[0].content), /不要输出 confidence/);
+
+  assert.match(String(chapterMessages[0].content), /confidence 是可选字段；如果填写，必须是 0-1 数字/);
+  assert.match(String(chapterMessages[0].content), /不要输出 5、10、80、百分数、中文等级或字符串化置信度/);
+  assert.match(String(chapterMessages[0].content), /"confidence":0.8/);
+});
+
 test("chapter writer prompt omits scene length budget hints in scene mode", () => {
   const messages = chapterWriterPrompt.render({
     novelTitle: "测试小说",

@@ -78,6 +78,13 @@ export const volumeDynamicsProjectionPrompt: PromptAsset<
   contextPolicy: {
     maxTokensBudget: 0,
   },
+  structuredOutputHint: {
+    note: [
+      "plannedChapterOrders 只能是正整数数组；拿不准就省略或输出空数组，不要输出 null、[null]、字符串数组。",
+      "roleLabel、stanceLabel、summary 等可选字段拿不准时优先省略，不要为了凑结构输出 null。",
+      "不要输出 confidence。",
+    ].join(" "),
+  },
   outputSchema: volumeDynamicsProjectionSchema,
   render: (input) => [
     new SystemMessage([
@@ -104,6 +111,8 @@ export const volumeDynamicsProjectionPrompt: PromptAsset<
       "2. 同一角色跨卷可升温、降温、转位、退场或重新激活，但变化必须有逻辑。",
       "3. 若某卷承担转折、升级、爆点或收束功能，角色配置必须同步反映这一点。",
       "4. plannedChapterOrders 只在角色需要稀疏、锚点式出场时填写；高频持续出场时可省略。",
+      "5. plannedChapterOrders 如果填写，必须是正整数数组；拿不准时省略或输出空数组，绝不能输出 null、[null] 或字符串数组。",
+      "6. roleLabel、stanceLabel、summary 等可选字段拿不准时优先省略，不要为了凑结构写 null。",
       "",
       "压缩输出规则：",
       "1. 只保留系统后续确实需要消费的最小结果，不要输出总述。",
@@ -112,6 +121,9 @@ export const volumeDynamicsProjectionPrompt: PromptAsset<
       "",
       "固定 JSON 结构如下：",
       VOLUME_DYNAMICS_PROJECTION_TEMPLATE,
+      "",
+      "额外提醒：plannedChapterOrders 合法示例为 [4, 7] 或 []，不允许 [null]、[\"4\"]、[\"第4章\"]。",
+      "不要输出 confidence。",
       "",
       "输出内容必须严格符合 volumeDynamicsProjectionSchema。",
     ].join("\n")),
@@ -145,6 +157,13 @@ export const chapterDynamicsExtractionPrompt: PromptAsset<
   contextPolicy: {
     maxTokensBudget: 0,
   },
+  structuredOutputHint: {
+    note: [
+      "confidence 是可选字段。",
+      "如果输出 confidence，必须是 0-1 数字。",
+      "不要输出 5、10、80、百分数、中文等级或字符串化置信度；拿不准就省略。",
+    ].join(" "),
+  },
   outputSchema: chapterDynamicExtractionSchema,
   render: (input) => [
     new SystemMessage([
@@ -162,6 +181,11 @@ export const chapterDynamicsExtractionPrompt: PromptAsset<
       "2. 不得把推测写成事实；信息不明确时不要输出该项。",
       "3. 不要复述剧情，不要写成长段总结，只抽取结构化变化点。",
       "4. 所有角色必须使用明确姓名，不要使用“他”“她”“对方”等代词。",
+      "5. confidence 是可选字段；如果填写，必须是 0-1 数字，拿不准就省略。",
+      "6. 不要输出 5、10、80、百分数、中文等级或字符串化置信度。",
+      "",
+      "最小合法示例：",
+      "{\"candidates\":[{\"proposedName\":\"老吴\",\"proposedRole\":\"杂役头目\",\"summary\":\"负责监工后院杂役。\",\"evidence\":[\"老吴负责监工\"],\"matchedCharacterName\":\"\",\"confidence\":0.8}],\"factionUpdates\":[],\"relationStages\":[{\"sourceCharacterName\":\"赵管事\",\"targetCharacterName\":\"程秩\",\"stageLabel\":\"监视升级\",\"stageSummary\":\"赵管事开始持续盯防程秩。\",\"nextTurnPoint\":\"程秩准备改换应对策略。\",\"confidence\":0.6}]}",
       "",
       "输出必须严格符合 chapterDynamicExtractionSchema。",
     ].join("\n")),

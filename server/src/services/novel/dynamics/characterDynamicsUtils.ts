@@ -7,6 +7,7 @@ import type {
   DynamicCharacterOverviewItem,
   DynamicCharacterRiskLevel,
 } from "@ai-novel/shared/types/characterDynamics";
+import { normalizeName } from "./characterDynamicsShared";
 
 export interface VolumeWindow {
   id: string;
@@ -33,6 +34,93 @@ export function dedupeStrings(values: Array<string | null | undefined>): string[
       .map((value) => value?.trim())
       .filter((value): value is string => Boolean(value)),
   ));
+}
+
+interface ProjectionAssignmentLike {
+  characterName: string;
+  volumeSortOrder: number;
+  roleLabel?: string | null;
+  responsibility: string;
+  appearanceExpectation?: string | null;
+  plannedChapterOrders: number[];
+  isCore: boolean;
+  absenceWarningThreshold?: number | null;
+  absenceHighRiskThreshold?: number | null;
+}
+
+function pickPreferredText(primary: string | null | undefined, secondary: string | null | undefined): string | null {
+  const left = primary?.trim() || "";
+  const right = secondary?.trim() || "";
+  if (!left && !right) {
+    return null;
+  }
+  if (!left) {
+    return right;
+  }
+  if (!right) {
+    return left;
+  }
+  return right.length > left.length ? right : left;
+}
+
+function normalizePositiveIntList(values: number[]): number[] {
+  return Array.from(new Set(
+    values.filter((value) => Number.isInteger(value) && value >= 1),
+  )).sort((a, b) => a - b);
+}
+
+function pickStricterThreshold(
+  primary: number | null | undefined,
+  secondary: number | null | undefined,
+): number | undefined {
+  const candidates = [primary, secondary].filter((value): value is number => typeof value === "number" && Number.isInteger(value) && value >= 1);
+  if (candidates.length === 0) {
+    return undefined;
+  }
+  return Math.min(...candidates);
+}
+
+export function mergeProjectionAssignments<T extends ProjectionAssignmentLike>(assignments: T[]): T[] {
+  const merged = new Map<string, T>();
+
+  for (const assignment of assignments) {
+    const key = `${normalizeName(assignment.characterName)}:${assignment.volumeSortOrder}`;
+    const normalizedAssignment = {
+      ...assignment,
+      plannedChapterOrders: normalizePositiveIntList(assignment.plannedChapterOrders ?? []),
+    } as T;
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, normalizedAssignment);
+      continue;
+    }
+
+    const mergedWarningThreshold = pickStricterThreshold(
+      existing.absenceWarningThreshold,
+      normalizedAssignment.absenceWarningThreshold,
+    );
+    const mergedHighRiskThreshold = pickStricterThreshold(
+      existing.absenceHighRiskThreshold,
+      normalizedAssignment.absenceHighRiskThreshold,
+    );
+    merged.set(key, {
+      ...existing,
+      roleLabel: pickPreferredText(existing.roleLabel, normalizedAssignment.roleLabel),
+      responsibility: pickPreferredText(existing.responsibility, normalizedAssignment.responsibility) ?? existing.responsibility,
+      appearanceExpectation: pickPreferredText(existing.appearanceExpectation, normalizedAssignment.appearanceExpectation),
+      plannedChapterOrders: normalizePositiveIntList([
+        ...existing.plannedChapterOrders,
+        ...normalizedAssignment.plannedChapterOrders,
+      ]),
+      isCore: existing.isCore || normalizedAssignment.isCore,
+      absenceWarningThreshold: mergedWarningThreshold,
+      absenceHighRiskThreshold: typeof mergedHighRiskThreshold === "number"
+        ? Math.max(mergedHighRiskThreshold, mergedWarningThreshold ?? mergedHighRiskThreshold)
+        : mergedHighRiskThreshold,
+    });
+  }
+
+  return Array.from(merged.values());
 }
 
 export function buildVolumeWindows(

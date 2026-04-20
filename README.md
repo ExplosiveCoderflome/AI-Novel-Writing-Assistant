@@ -589,5 +589,5 @@ docs/     设计文档、阶段检查点、模块计划与历史归档
 
 - 2026-04-19 之前公开发布的版本按 MIT License 发布；
 - 这些历史版本继续保留其原始许可证；
-- 历史 MIT 文本保存在 [LICENSE-MIT](./LICENSE-MIT)；
+- 2026-04-19 之前的历史版本继续按其发布时附带的 MIT 许可文本解释；
 - 新贡献默认按 Apache-2.0 提交，详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。

@@ -1,18 +1,32 @@
 import { z } from "zod";
 
 function normalizeOptionalConfidence(value: unknown): unknown {
-  if (value == null || typeof value === "number") {
+  if (value == null) {
     return value;
   }
-  if (typeof value !== "string") {
-    return value;
-  }
-  const normalized = value.trim();
-  if (!normalized) {
+  let numeric: number | null = null;
+  if (typeof value === "number") {
+    numeric = Number.isFinite(value) ? value : null;
+  } else if (typeof value === "string") {
+    const normalized = value.trim();
+    if (!normalized) {
+      return undefined;
+    }
+    const parsed = Number(normalized);
+    numeric = Number.isFinite(parsed) ? parsed : null;
+  } else {
     return undefined;
   }
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : value;
+  if (numeric == null) {
+    return undefined;
+  }
+  if (numeric >= 0 && numeric <= 1) {
+    return numeric;
+  }
+  if (numeric > 1 && numeric <= 100) {
+    return numeric / 100;
+  }
+  return undefined;
 }
 
 function normalizeThresholdValue(value: unknown): unknown {
@@ -36,6 +50,29 @@ function normalizeThresholdValue(value: unknown): unknown {
   return value;
 }
 
+function normalizePositiveIntegerArray(value: unknown): unknown {
+  if (value == null) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    return value;
+  }
+  return value.flatMap((item) => {
+    if (typeof item === "number") {
+      return Number.isInteger(item) && item >= 1 ? [item] : [];
+    }
+    if (typeof item === "string") {
+      const trimmed = item.trim();
+      if (!trimmed) {
+        return [];
+      }
+      const parsed = Number(trimmed);
+      return Number.isInteger(parsed) && parsed >= 1 ? [parsed] : [];
+    }
+    return [];
+  });
+}
+
 const normalizedConfidenceSchema = z.preprocess(
   normalizeOptionalConfidence,
   z.number().min(0).max(1).optional().nullable(),
@@ -52,7 +89,10 @@ const volumeProjectionAssignmentSchema = z.object({
   roleLabel: z.string().trim().optional().nullable(),
   responsibility: z.string().trim().min(1),
   appearanceExpectation: z.string().trim().optional().nullable(),
-  plannedChapterOrders: z.array(z.number().int().min(1)).default([]),
+  plannedChapterOrders: z.preprocess(
+    normalizePositiveIntegerArray,
+    z.array(z.number().int().min(1)).default([]),
+  ),
   isCore: z.boolean().default(false),
   absenceWarningThreshold: normalizedVolumeThresholdSchema,
   absenceHighRiskThreshold: normalizedVolumeThresholdSchema,

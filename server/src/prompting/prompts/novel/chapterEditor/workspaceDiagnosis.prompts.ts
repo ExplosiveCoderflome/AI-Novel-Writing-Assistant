@@ -47,7 +47,10 @@ export const chapterEditorWorkspaceDiagnosisPrompt: PromptAsset<
   outputSchema: chapterEditorWorkspaceDiagnosisSchema,
   structuredOutputHint: {
     mode: "auto",
-    note: "输出 1 到 4 个适合初学作者立即处理的问题卡，并只保留一个最优先任务。",
+    note: [
+      "输出 1 到 4 个适合初学作者立即处理的问题卡，并只保留一个最优先任务。",
+      "recommendedAction 只能使用英文枚举：polish、expand、compress、emotion、conflict。",
+    ].join(" "),
   },
   render: (input) => [
     new SystemMessage([
@@ -56,10 +59,11 @@ export const chapterEditorWorkspaceDiagnosisPrompt: PromptAsset<
       "",
       "必须遵守：",
       "1. 面向写作新手，语言直接，不要使用内部系统标签。",
-      "2. 问题卡必须可执行，优先给出“精简、优化表达、强化情绪、强化冲突、扩写”中的一个建议动作。",
+      "2. 问题卡必须可执行，但 recommendedAction 只能输出英文枚举值：compress（精简）、polish（优化表达）、emotion（强化情绪）、conflict（强化冲突）、expand（扩写）。",
       "3. 优先选择真正影响阅读推进、情绪承接或卷内节奏的问题。",
       "4. paragraphStart / paragraphEnd 必须引用提供的段落编号；整章问题可留空。",
       "5. 不要输出 schema 之外的任何解释。",
+      "6. 不要输出中文动作词本身；只能输出对应的英文枚举值。",
       "",
       "推荐逻辑：",
       "1. 如果存在明显的节奏、冲突、情绪或承接问题，优先选择这类问题。",
@@ -85,6 +89,9 @@ export const chapterEditorWorkspaceDiagnosisPrompt: PromptAsset<
         "【段落摘录】",
         input.paragraphs.map((paragraph) => `- P${paragraph.index}: ${paragraph.text}`),
       ),
+      "",
+      "【最小合法示例】",
+      "{\"cards\":[{\"title\":\"节奏偏慢\",\"problemSummary\":\"中段静态描写过多。\",\"whyItMatters\":\"会拖慢读者进入主冲突。\",\"recommendedAction\":\"compress\",\"recommendedScope\":\"selection\",\"paragraphStart\":12,\"paragraphEnd\":18,\"severity\":\"medium\",\"sourceTags\":[\"节奏\"]}],\"recommendedTask\":{\"title\":\"先压缩中段静态描写\",\"summary\":\"优先删减重复日常描写，让冲突更早顶上来。\",\"recommendedAction\":\"compress\",\"recommendedScope\":\"selection\",\"paragraphStart\":12,\"paragraphEnd\":18}}",
       "",
       "请只返回 JSON。",
     ].join("\n")),

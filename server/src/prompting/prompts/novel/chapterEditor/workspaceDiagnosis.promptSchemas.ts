@@ -1,6 +1,30 @@
 import { z } from "zod";
 
-const workspaceDiagnosticActionSchema = z.enum(["polish", "expand", "compress", "emotion", "conflict"]);
+function normalizeWorkspaceDiagnosticAction(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const normalized = value.trim();
+  switch (normalized) {
+    case "优化表达":
+      return "polish";
+    case "扩写":
+      return "expand";
+    case "精简":
+      return "compress";
+    case "强化情绪":
+      return "emotion";
+    case "强化冲突":
+      return "conflict";
+    default:
+      return normalized;
+  }
+}
+
+const workspaceDiagnosticActionSchema = z.preprocess(
+  normalizeWorkspaceDiagnosticAction,
+  z.enum(["polish", "expand", "compress", "emotion", "conflict"]),
+);
 const workspaceDiagnosticScopeSchema = z.enum(["selection", "chapter"]);
 const workspaceDiagnosticSeveritySchema = z.enum(["low", "medium", "high", "critical"]);
 
