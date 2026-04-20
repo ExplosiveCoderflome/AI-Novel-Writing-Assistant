@@ -637,3 +637,27 @@ export function createChapterTaskSheetSchema() {
     sceneCards: z.array(z.preprocess(normalizeSceneCardPayload, chapterSceneCardSchema)).min(1),
   }));
 }
+
+export function createChapterExecutionContractSchema() {
+  return z.preprocess(
+    (raw) => {
+      const normalized = normalizeScenePlanPayload(normalizeBoundaryPayload(normalizeObjectAlias(raw, {
+        purpose: ["绔犺妭鐩爣", "chapterGoal", "goal", "objective"],
+      })));
+      return normalized;
+    },
+    z.object({
+      purpose: z.string().trim().min(1),
+      exclusiveEvent: z.string().trim().min(1),
+      endingState: z.string().trim().min(1),
+      nextChapterEntryState: z.string().trim().min(1),
+      conflictLevel: z.number().int().min(0).max(100),
+      revealLevel: z.number().int().min(0).max(100),
+      targetWordCount: z.number().int().min(200).max(20000),
+      mustAvoid: z.string().trim().min(1),
+      payoffRefs: z.array(z.string().trim().min(1)).default([]),
+      taskSheet: z.string().trim().min(1),
+      sceneCards: z.array(z.preprocess(normalizeSceneCardPayload, chapterSceneCardSchema)).min(1),
+    }),
+  );
+}

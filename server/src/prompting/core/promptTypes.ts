@@ -37,6 +37,12 @@ export interface PromptInvocationMeta {
   promptId: string;
   promptVersion: string;
   taskType: TaskType;
+  novelId?: string;
+  chapterId?: string;
+  stage?: string;
+  sceneIndex?: number;
+  roundIndex?: number;
+  triggerReason?: string;
   contextBlockIds: string[];
   droppedContextBlockIds: string[];
   summarizedContextBlockIds: string[];
@@ -52,6 +58,12 @@ export interface PromptExecutionOptions {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  novelId?: string;
+  chapterId?: string;
+  stage?: string;
+  sceneIndex?: number;
+  roundIndex?: number;
+  triggerReason?: string;
 }
 
 export interface PromptExecutionMeta {

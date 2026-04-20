@@ -53,6 +53,16 @@ export const fullAuditOutputSchema = z.object({
   auditReports: z.array(auditReportOutputSchema).optional().default([]),
 });
 
+export const lightAuditOutputSchema = z.object({
+  score: qualityScorePartialSchema.optional(),
+  summary: z.string().trim().optional(),
+  issues: z.array(reviewIssueSchema).optional().default([]),
+  continueRecommendation: z.enum(["continue", "suggest_repair", "full_audit"]).default("continue"),
+  shouldRunFullAudit: z.boolean().default(false),
+  triggerReasons: z.array(z.string().trim().min(1)).default([]),
+});
+
 export type FullAuditOutput = z.infer<typeof fullAuditOutputSchema>;
+export type LightAuditOutput = z.infer<typeof lightAuditOutputSchema>;
 export type ReviewOutput = FullAuditOutput;
 

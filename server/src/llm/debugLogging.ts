@@ -325,6 +325,24 @@ function buildHeader(method: "invoke" | "stream" | "batch", meta: LLMDebugMeta):
     chunks.push(`promptId=${meta.promptMeta.promptId}`);
     chunks.push(`promptVersion=${meta.promptMeta.promptVersion}`);
     chunks.push(`estimatedInputTokens=${meta.promptMeta.estimatedInputTokens}`);
+    if (meta.promptMeta.novelId) {
+      chunks.push(`novelId=${meta.promptMeta.novelId}`);
+    }
+    if (meta.promptMeta.chapterId) {
+      chunks.push(`chapterId=${meta.promptMeta.chapterId}`);
+    }
+    if (meta.promptMeta.stage) {
+      chunks.push(`stage=${meta.promptMeta.stage}`);
+    }
+    if (typeof meta.promptMeta.sceneIndex === "number") {
+      chunks.push(`sceneIndex=${meta.promptMeta.sceneIndex}`);
+    }
+    if (typeof meta.promptMeta.roundIndex === "number") {
+      chunks.push(`roundIndex=${meta.promptMeta.roundIndex}`);
+    }
+    if (meta.promptMeta.triggerReason) {
+      chunks.push(`triggerReason=${JSON.stringify(meta.promptMeta.triggerReason)}`);
+    }
     chunks.push(`repairUsed=${meta.promptMeta.repairUsed}`);
     chunks.push(`repairAttempts=${meta.promptMeta.repairAttempts}`);
     chunks.push(`semanticRetryUsed=${meta.promptMeta.semanticRetryUsed}`);
@@ -351,6 +369,28 @@ function nextRequestId(method: "invoke" | "stream" | "batch"): string {
   return `${method}-${Date.now()}-${logSequence}`;
 }
 
+function extractActualPromptTokens(payload: unknown): number | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+  const record = payload as {
+    usage_metadata?: unknown;
+    usageMetadata?: unknown;
+    response_metadata?: unknown;
+    responseMetadata?: unknown;
+  };
+  const usage = (record.usage_metadata ?? record.usageMetadata) as
+    | { input_tokens?: unknown; prompt_tokens?: unknown }
+    | undefined;
+  const response = (record.response_metadata ?? record.responseMetadata) as
+    | { tokenUsage?: { promptTokens?: unknown } }
+    | undefined;
+  const candidate = usage?.input_tokens
+    ?? usage?.prompt_tokens
+    ?? response?.tokenUsage?.promptTokens;
+  return typeof candidate === "number" && Number.isFinite(candidate) ? candidate : null;
+}
+
 function buildFileLogBlock(input: {
   requestId: string;
   event: "request" | "response" | "error";
@@ -372,6 +412,7 @@ function buildFileLogBlock(input: {
     taskType: input.meta.taskType ?? null,
     baseURL: input.meta.baseURL ?? null,
     promptMeta: input.meta.promptMeta ?? null,
+    actualPromptTokens: input.event === "response" ? extractActualPromptTokens(input.payload) : null,
     latencyMs: input.latencyMs ?? null,
     payload: input.payload ?? null,
     error: input.error ?? null,

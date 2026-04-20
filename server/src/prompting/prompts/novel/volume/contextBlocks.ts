@@ -165,7 +165,7 @@ export function buildVolumeBeatSheetContextBlocks(input: VolumeBeatSheetPromptIn
     createContextBlock({
       id: "strategy_context",
       group: "strategy_context",
-      priority: 94,
+      priority: 82,
       content: `Strategy plan:\n${buildStrategyContext(input.strategyPlan)}`,
     }),
     createContextBlock({
@@ -252,15 +252,6 @@ export function buildVolumeChapterListContextBlocks(input: VolumeChapterListProm
       })}`,
     }),
     createContextBlock({
-      id: "adjacent_volumes",
-      group: "adjacent_volumes",
-      priority: 88,
-      content: [
-        input.previousVolume ? `Previous volume:\n${buildCompactVolumeCard(input.previousVolume)}` : "",
-        input.nextVolume ? `Next volume:\n${buildCompactVolumeCard(input.nextVolume)}` : "",
-      ].filter(Boolean).join("\n\n") || "Adjacent volumes: none",
-    }),
-    createContextBlock({
       id: "previous_beat_chapters",
       group: "previous_beat_chapters",
       priority: 86,
@@ -271,12 +262,6 @@ export function buildVolumeChapterListContextBlocks(input: VolumeChapterListProm
       group: "preserved_beat_chapters",
       priority: 84,
       content: `Locked existing beat summary:\n${buildBeatChapterSummary(input.preservedBeatChapterSummary)}`,
-    }),
-    createContextBlock({
-      id: "soft_future_summary",
-      group: "soft_future_summary",
-      priority: 74,
-      content: `Future soft summary:\n${buildSoftFutureVolumeSummary(input.workspace.volumes, input.targetVolume.id)}`,
     }),
     guidanceBlock(input.guidance),
   ].filter((block): block is PromptContextBlock => Boolean(block));

@@ -533,6 +533,27 @@ export class GenerationContextAssembler {
       chapterWriteContext: null,
       chapterReviewContext: null,
       chapterRepairContext: null,
+      contextGatingDecisions: [],
+      chapterChangeFlags: {
+        introducedPayoff: false,
+        payoffResolutionSignal: false,
+        relationshipShiftSignal: false,
+        majorStateShiftSignal: false,
+      },
+      tokenBudgetPolicy: {
+        chapterBudgetProfile: "balanced",
+        stageTokenCap: {
+          writer: 1800,
+          light_audit: 900,
+          full_audit: 2600,
+          repair: 1600,
+        },
+        retryCap: {
+          full_audit: 1,
+          repair: 1,
+        },
+        auditMode: "light",
+      },
       promptBudgetProfiles: getRuntimePromptBudgetProfiles(),
     };
     const chapterWriteContext = buildChapterWriteContext({
@@ -604,6 +625,27 @@ export class GenerationContextAssembler {
       chapterWriteContext,
       chapterReviewContext,
       chapterRepairContext,
+      contextGatingDecisions: [],
+      chapterChangeFlags: {
+        introducedPayoff: false,
+        payoffResolutionSignal: false,
+        relationshipShiftSignal: false,
+        majorStateShiftSignal: false,
+      },
+      tokenBudgetPolicy: {
+        chapterBudgetProfile: "balanced",
+        stageTokenCap: {
+          writer: 1800,
+          light_audit: 900,
+          full_audit: 2600,
+          repair: 1600,
+        },
+        retryCap: {
+          full_audit: 1,
+          repair: 1,
+        },
+        auditMode: "light",
+      },
       promptBudgetProfiles: getRuntimePromptBudgetProfiles(),
     };
 

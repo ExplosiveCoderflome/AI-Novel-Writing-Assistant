@@ -45,6 +45,7 @@ interface ChapterSceneStreamingOptions {
 }
 
 interface ChapterSceneStreamInput {
+  novelId: string;
   novelTitle: string;
   chapter: ChapterRef;
   contextPackage: GenerationContextPackage;
@@ -150,6 +151,21 @@ function resolveSceneWordControlMode(_sceneRange: {
   return "prompt_only";
 }
 
+function buildRoundInstruction(roundPlan: SceneRoundPlan): string {
+  const suggestedWordCount = roundPlan.suggestedRoundWordCount ?? 0;
+  return [
+    `Round ${roundPlan.roundIndex}/${roundPlan.maxRounds}.`,
+    suggestedWordCount > 0
+      ? `Aim to add about ${suggestedWordCount} Chinese characters this round.`
+      : "",
+    roundPlan.remainingSceneWordCount > 0
+      ? `Keep the remaining scene budget within about ${roundPlan.remainingSceneWordCount} characters.`
+      : "",
+    roundPlan.closingPhase ? "This round should close the current scene cleanly and land its exit state." : "",
+    roundPlan.isFinalRound ? "Treat this as the last available drafting round for the current scene." : "",
+  ].filter(Boolean).join(" ");
+}
+
 export function buildChapterSceneWriterBlocks(input: {
   contextPackage: GenerationContextPackage;
   scene: ChapterSceneCard;
@@ -162,7 +178,19 @@ export function buildChapterSceneWriterBlocks(input: {
   if (!writeContext) {
     throw new Error("Chapter write context is required.");
   }
-  const builtBlocks = buildChapterWriterContextBlocks(writeContext);
+  const isIncrementalRound = (input.roundPlan?.roundIndex ?? 1) > 1;
+  const builtBlocks = buildChapterWriterContextBlocks(writeContext, {
+    mode: isIncrementalRound ? "incremental" : "full",
+    incrementalContext: isIncrementalRound
+      ? {
+          previousRoundSummary: input.currentContent.trim()
+            ? buildDraftContinuationBlock(input.currentContent)
+            : null,
+          currentSceneProgress: input.scene.exitState,
+          roundInstruction: input.roundPlan ? buildRoundInstruction(input.roundPlan) : null,
+        }
+      : null,
+  });
   const sceneRange = resolveSceneWordRange(input.scene.targetWordCount);
   const extraBlocks = [
     buildSceneContractBlock({
@@ -344,6 +372,12 @@ async function runSceneStreaming(input: ChapterSceneStreamInput, emitChunk: (chu
         model: input.options.model,
         temperature: input.options.temperature ?? 0.8,
         maxTokens: undefined,
+        novelId: input.novelId,
+        chapterId: input.chapter.id,
+        stage: "scene_writer",
+        sceneIndex: input.sceneIndex,
+        roundIndex: roundPlan.roundIndex,
+        triggerReason: roundPlan.roundIndex > 1 ? "scene_incremental_round" : "scene_first_round",
       },
     });
     const roundOutput = await streamSceneRound({

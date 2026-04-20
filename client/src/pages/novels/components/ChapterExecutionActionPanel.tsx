@@ -14,6 +14,7 @@ import {
   PrimaryActionButton,
   type PrimaryAction,
   type ChapterExecutionBackgroundActivity,
+  resolveDisplayedChapterStatus,
   resolveChapterExecutionFlow,
 } from "./chapterExecution.shared";
 
@@ -114,12 +115,10 @@ function resolvePrimaryAction(params: {
 
   if (selectedChapter.chapterStatus === "needs_repair") {
     return {
-      label: isSelectedChapterRepairing ? "正在自动修复..." : "自动修复问题",
-      reason: "这一章已经暴露出问题，先修复再继续润色会更稳。",
+      label: "打开章节编辑器",
+      reason: "这章已经有正文。即使审核发现问题，也不应阻塞继续编辑；你可以先进入编辑器，或在下方一键修复。",
       variant: "default",
-      ai: true,
-      onClick: onAutoRepair,
-      disabled: isSelectedChapterRepairing,
+      href: `/novels/${novelId}/chapters/${selectedChapter.id}`,
     };
   }
 
@@ -224,6 +223,7 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
   const isSelectedChapterRepairing = Boolean(selectedChapter && isRepairingChapter && repairStreamingChapterId === selectedChapter.id);
   const isExecutionContractPending = isGeneratingTaskSheet || isGeneratingSceneCards;
   const runtimePackage = chapterRuntimePackage?.chapterId === selectedChapter?.id ? chapterRuntimePackage : null;
+  const displayedStatus = selectedChapter ? resolveDisplayedChapterStatus(selectedChapter) : undefined;
 
   const selectedChapterLabel = selectedChapter
     ? `第${selectedChapter.order}章 ${selectedChapter.title || "未命名章节"}`
@@ -231,7 +231,12 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
 
   const primaryAction = resolvePrimaryAction({
     novelId,
-    selectedChapter,
+    selectedChapter: selectedChapter
+      ? {
+        ...selectedChapter,
+        chapterStatus: displayedStatus ?? selectedChapter.chapterStatus,
+      }
+      : undefined,
     hasCharacters,
     isGeneratingChapterPlan,
     isRunningFullAudit,
@@ -276,7 +281,7 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
           <div className="mt-1 text-sm font-semibold text-foreground">{selectedChapterLabel}</div>
           {selectedChapter ? (
             <div className="mt-2 flex flex-wrap gap-1.5">
-              <Badge variant="secondary">{chapterStatusLabel(selectedChapter.chapterStatus)}</Badge>
+              <Badge variant="secondary">{chapterStatusLabel(displayedStatus ?? selectedChapter.chapterStatus)}</Badge>
               <Badge variant="outline">{chapterSuggestedActionLabel(selectedChapter)}</Badge>
             </div>
           ) : null}

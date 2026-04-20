@@ -140,7 +140,7 @@ function buildCurrentStageNote(stage: ChapterExecutionFlowStage): string {
       return stage.status === "done"
         ? "这章已经达到可继续推进的状态。"
         : stage.status === "in_progress"
-          ? "这章正在等待你确认是否继续推进。"
+          ? "这章已经完成当前轮审核。你可以继续编辑，也可以先处理建议。"
           : "完成前面步骤后，这章就可以继续推进。";
   }
 }
@@ -261,10 +261,10 @@ export function resolveDisplayedChapterStatus(chapter: Chapter): Chapter["chapte
   if (!hasText(chapter.content)) {
     return status;
   }
+  if (chapter.generationState === "approved" || chapter.generationState === "published") {
+    return "completed";
+  }
   if (status === "pending_generation") {
-    if (chapter.generationState === "approved" || chapter.generationState === "published") {
-      return "completed";
-    }
     return "pending_review";
   }
   return status;
@@ -279,9 +279,9 @@ export function chapterStatusLabel(status?: Chapter["chapterStatus"] | null): st
     case "generating":
       return "写作中";
     case "pending_review":
-      return "待确认";
+      return "已审校";
     case "needs_repair":
-      return "待修复";
+      return "建议修复";
     case "completed":
       return "已完成";
     default:
@@ -298,9 +298,9 @@ export function chapterStatusDescription(status?: Chapter["chapterStatus"] | nul
     case "generating":
       return "写作中：AI 正在生成本章正文，或正在做生成后的收尾处理。";
     case "pending_review":
-      return "待确认：正文已经进入确认阶段，建议查看审校结果并决定是否继续修复或确认通过。";
+      return "已审校：正文已经完成当前轮审核。你可以查看建议、直接继续编辑，或按需处理问题。";
     case "needs_repair":
-      return "待修复：审校发现了问题，建议先修复再继续推进。";
+      return "建议修复：审核发现了问题，但不会阻止继续编辑。你可以一键修复，也可以先继续写。";
     case "completed":
       return "已完成：本章已通过当前流程，可以继续润色或进入下一章。";
     default:
@@ -398,10 +398,10 @@ export function resolveChapterQueuePreview(chapter: Chapter): string {
 export function chapterSuggestedActionLabel(chapter: Chapter): string {
   const status = resolveDisplayedChapterStatus(chapter);
   if (status === "generating") return "等待生成";
-  if (status === "needs_repair") return "修复问题";
+  if (status === "needs_repair") return "一键修复";
   if (status === "pending_review") {
     return chapter.generationState === "reviewed" || chapter.generationState === "approved"
-      ? "确认结果"
+      ? "查看建议"
       : "运行审校";
   }
   if (status === "completed") return "继续润色";

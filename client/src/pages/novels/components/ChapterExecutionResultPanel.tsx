@@ -64,6 +64,7 @@ interface ChapterExecutionResultPanelProps {
   onAbortStream: () => void;
   onRunFullAudit: () => void;
   isRunningFullAudit: boolean;
+  onAutoRepair: () => void;
   repairStreamContent: string;
   isRepairStreaming: boolean;
   repairStreamingChapterId?: string | null;
@@ -115,6 +116,7 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
     onAbortStream,
     onRunFullAudit,
     isRunningFullAudit,
+    onAutoRepair,
     repairStreamContent,
     isRepairStreaming,
     repairStreamingChapterId,
@@ -179,6 +181,7 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
     && selectedChapter.generationState !== "approved";
   const needsConfirmationPrompt = displayedStatus === "pending_review"
     && (selectedChapter.generationState === "reviewed" || selectedChapter.generationState === "approved");
+  const needsRepairPrompt = displayedStatus === "needs_repair";
 
   useEffect(() => {
     if (!isSelectedChapterStreaming && !isSelectedChapterFinalizing) {
@@ -200,6 +203,19 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
     window.requestAnimationFrame(() => {
       detailSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
+  };
+
+  const openRepairPanel = () => {
+    setIsDetailSectionOpen(true);
+    onAssetTabChange("repair");
+    window.requestAnimationFrame(() => {
+      detailSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  const runAutoRepairFromWorkspace = () => {
+    openRepairPanel();
+    onAutoRepair();
   };
 
   return (
@@ -307,7 +323,17 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
                 ) : null}
                 {needsConfirmationPrompt ? (
                   <Button size="sm" variant="outline" onClick={openQualityPanel}>
-                    去确认
+                    查看建议
+                  </Button>
+                ) : null}
+                {(needsConfirmationPrompt || needsRepairPrompt) ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={runAutoRepairFromWorkspace}
+                    disabled={isSelectedChapterRepairStreaming}
+                  >
+                    {isSelectedChapterRepairStreaming ? "修复中..." : "一键修复"}
                   </Button>
                 ) : null}
                 {isSelectedChapterStreaming && !isSelectedChapterFinalizing ? (

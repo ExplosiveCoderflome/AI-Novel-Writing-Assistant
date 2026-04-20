@@ -19,6 +19,23 @@ interface ChapterBackgroundSyncContext {
   chapterTitle: string;
 }
 
+interface ChapterChangeFlags {
+  introducedPayoff: boolean;
+  payoffResolutionSignal: boolean;
+  relationshipShiftSignal: boolean;
+  majorStateShiftSignal: boolean;
+}
+
+function detectChapterChangeFlags(content: string, taskSheet: string | null | undefined): ChapterChangeFlags {
+  const combinedText = `${taskSheet ?? ""}\n${content}`;
+  return {
+    introducedPayoff: /(伏笔|线索|埋下|承诺|约定|秘密|计划)/u.test(combinedText),
+    payoffResolutionSignal: /(兑现|揭晓|完成|成功|达成|得手|反杀|逆转|破解)/u.test(combinedText),
+    relationshipShiftSignal: /(联盟|合作|和解|决裂|背叛|表白|结盟|翻脸)/u.test(combinedText),
+    majorStateShiftSignal: /(觉醒|突破|晋升|加入|离开|死亡|成了|成为|暴露|接管)/u.test(combinedText),
+  };
+}
+
 export class ChapterArtifactBackgroundSyncService {
   private readonly characterDynamicsService = new CharacterDynamicsService();
 
@@ -35,11 +52,13 @@ export class ChapterArtifactBackgroundSyncService {
   private async runChapterSync(novelId: string, chapterId: string, content: string): Promise<void> {
     const chapter = await prisma.chapter.findFirst({
       where: { id: chapterId, novelId },
-      select: { id: true, order: true, title: true },
+      select: { id: true, order: true, title: true, taskSheet: true },
     });
     if (!chapter) {
       return;
     }
+    const changeFlags = detectChapterChangeFlags(content, chapter.taskSheet);
+    const isBatchBoundary = chapter.order <= 1 || chapter.order % 3 === 0;
 
     const context: ChapterBackgroundSyncContext = {
       chapterId,
@@ -52,22 +71,26 @@ export class ChapterArtifactBackgroundSyncService {
         skipPayoffLedgerSync: true,
       });
     });
-    const dynamicsSyncPromise = this.runTrackedActivity(novelId, context, "character_dynamics", async () => {
-      await this.characterDynamicsService.syncChapterDraftDynamics(
-        novelId,
-        chapterId,
-        chapter.order,
-      );
-    });
+    const dynamicsSyncPromise = (isBatchBoundary || changeFlags.relationshipShiftSignal || changeFlags.majorStateShiftSignal)
+      ? this.runTrackedActivity(novelId, context, "character_dynamics", async () => {
+        await this.characterDynamicsService.syncChapterDraftDynamics(
+          novelId,
+          chapterId,
+          chapter.order,
+        );
+      })
+      : Promise.resolve();
 
     await Promise.allSettled([stateSyncPromise, dynamicsSyncPromise]);
 
-    await this.runTrackedActivity(novelId, context, "payoff_ledger", async () => {
-      await payoffLedgerSyncService.syncLedger(novelId, {
-        chapterOrder: chapter.order,
-        sourceChapterId: chapterId,
+    if (isBatchBoundary || changeFlags.introducedPayoff || changeFlags.payoffResolutionSignal) {
+      await this.runTrackedActivity(novelId, context, "payoff_ledger", async () => {
+        await payoffLedgerSyncService.syncLedger(novelId, {
+          chapterOrder: chapter.order,
+          sourceChapterId: chapterId,
+        });
       });
-    });
+    }
 
     await this.runTrackedActivity(novelId, context, "canonical_state", async () => {
       await stateCommitService.proposeAndCommit({

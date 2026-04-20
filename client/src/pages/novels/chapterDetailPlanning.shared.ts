@@ -4,7 +4,7 @@ export type StructuredVolumeChapter = VolumePlan["chapters"][number];
 export type ChapterDetailMode = "purpose" | "boundary" | "task_sheet";
 export type ChapterExecutionDetailStatus = "empty" | "partial" | "complete";
 
-export const CHAPTER_DETAIL_MODES: ChapterDetailMode[] = ["purpose", "boundary", "task_sheet"];
+export const CHAPTER_DETAIL_MODES: ChapterDetailMode[] = ["task_sheet"];
 
 export interface ChapterDetailBatchSelection {
   chapterIds: string[];
@@ -33,7 +33,7 @@ export function hasChapterDetailDraft(
       || Boolean(chapter.mustAvoid?.trim())
       || chapter.payoffRefs.length > 0;
   }
-  return Boolean(chapter.taskSheet?.trim());
+  return Boolean(chapter.taskSheet?.trim()) && Boolean(chapter.sceneCards?.trim());
 }
 
 export function hasAnyChapterDetailDraft(chapter: StructuredVolumeChapter): boolean {
