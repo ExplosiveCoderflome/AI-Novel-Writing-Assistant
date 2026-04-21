@@ -5,6 +5,7 @@ import type {
   StyleProfile,
   StyleRuleSet,
 } from "@ai-novel/shared/types/styleEngine";
+import { isStyleCompatibilityField } from "@ai-novel/shared/types/styleEngine";
 import { clamp } from "./helpers";
 
 type StyleSectionKey = keyof StyleRuleSet;
@@ -104,6 +105,7 @@ function renderBindingContext(summaries: BindingSummary[] | undefined): string {
 }
 
 function renderObjectRules(
+  sectionKey: StyleSectionKey,
   sectionLabel: string,
   rules: Record<string, unknown>,
   defaultWeight: number,
@@ -116,8 +118,11 @@ function renderObjectRules(
 
   return entries
     .map(([key, value], index) => {
-      const weight = clamp(sectionWeightMap?.[key] ?? defaultWeight, 0.3, 1);
-      return `${index + 1}. ${sectionLabel}.${key}：${resolveDirective(weight)} ${formatRuleValue(value)}`;
+      const rawWeight = clamp(sectionWeightMap?.[key] ?? defaultWeight, 0.3, 1);
+      const compatibilityField = isStyleCompatibilityField(sectionKey, key);
+      const weight = compatibilityField ? clamp(rawWeight - 0.2, 0.3, 1) : rawWeight;
+      const prefix = compatibilityField ? "[兼容字段] " : "";
+      return `${index + 1}. ${sectionLabel}.${key}：${prefix}${resolveDirective(weight)} ${formatRuleValue(value)}`;
     })
     .join("\n");
 }
@@ -158,14 +163,14 @@ export class StyleCompiler {
     const bindingContext = renderBindingContext(input.bindingSummaries);
     const style = [
       "写作执行要求：",
-      renderObjectRules("叙事", input.styleProfile.narrativeRules, weight, input.sectionWeights?.narrativeRules),
-      renderObjectRules("语言", input.styleProfile.languageRules, weight, input.sectionWeights?.languageRules),
-      renderObjectRules("节奏", input.styleProfile.rhythmRules, weight, input.sectionWeights?.rhythmRules),
+      renderObjectRules("narrativeRules", "叙事", input.styleProfile.narrativeRules, weight, input.sectionWeights?.narrativeRules),
+      renderObjectRules("languageRules", "语言", input.styleProfile.languageRules, weight, input.sectionWeights?.languageRules),
+      renderObjectRules("rhythmRules", "节奏", input.styleProfile.rhythmRules, weight, input.sectionWeights?.rhythmRules),
     ].filter(Boolean).join("\n");
 
     const character = [
       "角色表达要求：",
-      renderObjectRules("角色", input.styleProfile.characterRules, weight, input.sectionWeights?.characterRules),
+      renderObjectRules("characterRules", "角色", input.styleProfile.characterRules, weight, input.sectionWeights?.characterRules),
     ].filter(Boolean).join("\n");
 
     const antiAi = compileAntiAiRules(input.antiAiRules, weight, input.antiAiRuleWeights);

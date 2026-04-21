@@ -410,6 +410,8 @@ export function buildWorkflowSeedPayload(
     narrativePov: basicForm.narrativePov,
     pacePreference: basicForm.pacePreference,
     styleTone: basicForm.styleTone || null,
+    styleProfileId: input.styleProfileId?.trim() || null,
+    styleIntentSummary: input.styleIntentSummary ?? null,
     emotionIntensity: basicForm.emotionIntensity,
     aiFreedom: basicForm.aiFreedom,
     provider: input.provider ?? null,

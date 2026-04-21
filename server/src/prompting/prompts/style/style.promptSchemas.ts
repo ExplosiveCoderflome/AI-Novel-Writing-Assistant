@@ -1,9 +1,17 @@
 import { z } from "zod";
 
+export const styleDetectionRuleTypeSchema = z.enum([
+  "style",
+  "character",
+  "forbidden",
+  "risk",
+  "encourage",
+]);
+
 export const styleDetectionViolationSchema = z.object({
   ruleId: z.string().trim().optional(),
   ruleName: z.string().trim().min(1),
-  ruleType: z.enum(["forbidden", "risk", "encourage"]),
+  ruleType: styleDetectionRuleTypeSchema,
   severity: z.enum(["low", "medium", "high"]),
   excerpt: z.string().trim().min(1),
   reason: z.string().trim().min(1),
@@ -57,26 +65,27 @@ export const stylePresetSchema = z.object({
 export const styleProfileExtractionSchema = z.object({
   name: z.string().trim().optional(),
   description: z.string().trim().optional().nullable(),
-  category: z.string().trim().optional().nullable(),
-  tags: z.array(z.string().trim()).optional(),
-  applicableGenres: z.array(z.string().trim()).optional(),
   analysisMarkdown: z.string().trim().optional().nullable(),
   summary: z.string().trim().optional(),
-  antiAiRuleKeys: z.array(z.string().trim()).optional(),
   features: z.array(styleFeatureSchema).optional(),
-  presets: z.array(stylePresetSchema).optional(),
 }).passthrough();
 
 export const styleGeneratedProfileSchema = z.object({
   name: z.string().trim().optional(),
   description: z.string().trim().optional().nullable(),
-  category: z.string().trim().optional().nullable(),
-  tags: z.array(z.string().trim()).optional(),
-  applicableGenres: z.array(z.string().trim()).optional(),
   analysisMarkdown: z.string().trim().optional().nullable(),
-  antiAiRuleKeys: z.array(z.string().trim()).optional(),
   narrativeRules: styleRuleObjectSchema.optional(),
   characterRules: styleRuleObjectSchema.optional(),
   languageRules: styleRuleObjectSchema.optional(),
   rhythmRules: styleRuleObjectSchema.optional(),
+}).passthrough();
+
+export const styleProfileMetadataSchema = z.object({
+  category: z.string().trim().optional().nullable(),
+  tags: z.array(z.string().trim()).optional().default([]),
+  applicableGenres: z.array(z.string().trim()).optional().default([]),
+}).passthrough();
+
+export const styleProfileAntiAiSelectionSchema = z.object({
+  antiAiRuleKeys: z.array(z.string().trim()).optional().default([]),
 }).passthrough();

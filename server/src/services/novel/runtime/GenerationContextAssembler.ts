@@ -363,6 +363,21 @@ export class GenerationContextAssembler {
       })),
       chapter.order,
     ));
+    const activeStyleProfileId = styleContext.matchedBindings[0]?.styleProfileId?.trim()
+      || styleContext.matchedBindings[0]?.styleProfile?.id?.trim()
+      || request.taskStyleProfileId?.trim()
+      || "";
+    const novelStyleTone = novel.styleTone?.trim() || "";
+    const filteredToneGuardrails = canonicalState.bookContract.toneGuardrails.filter((item) => {
+      const normalized = item.trim();
+      if (!normalized) {
+        return false;
+      }
+      if (!activeStyleProfileId) {
+        return true;
+      }
+      return !novelStyleTone || normalized !== novelStyleTone;
+    });
     const bookContract = buildBookContractContext({
       title: canonicalState.bookContract.title,
       genre: canonicalState.bookContract.genre ?? null,
@@ -372,9 +387,9 @@ export class GenerationContextAssembler {
       narrativePov: novel.narrativePov,
       pacePreference: novel.pacePreference,
       emotionIntensity: novel.emotionIntensity,
-      toneGuardrails: canonicalState.bookContract.toneGuardrails.length > 0
-        ? canonicalState.bookContract.toneGuardrails
-        : novel.styleTone ? [novel.styleTone] : [],
+      toneGuardrails: filteredToneGuardrails.length > 0
+        ? filteredToneGuardrails
+        : (!activeStyleProfileId && novelStyleTone ? [novelStyleTone] : []),
       hardConstraints: canonicalState.bookContract.hardConstraints.length > 0
         ? canonicalState.bookContract.hardConstraints
         : storyMacroPlan?.constraints ?? [],

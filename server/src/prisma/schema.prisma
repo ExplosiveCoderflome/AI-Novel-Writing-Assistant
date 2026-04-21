@@ -781,6 +781,43 @@ model ImageGenerationTask {
   @@index([baseCharacterId, createdAt])
 }
 
+model StyleExtractionTask {
+  id                    String            @id @default(cuid())
+  name                  String
+  category              String?
+  sourceText            String
+  provider              String
+  model                 String?
+  temperature           Float?
+  presetKey             String            @default("balanced")
+  status                PipelineJobStatus @default(queued)
+  progress              Float             @default(0)
+  retryCount            Int               @default(0)
+  maxRetries            Int               @default(1)
+  pendingManualRecovery Boolean           @default(false)
+  heartbeatAt           DateTime?
+  currentStage          String?
+  currentItemKey        String?
+  currentItemLabel      String?
+  cancelRequestedAt     DateTime?
+  error                 String?
+  summary               String?
+  createdStyleProfileId String?
+  createdStyleProfileName String?
+  startedAt             DateTime?
+  finishedAt            DateTime?
+  promptTokens          Int               @default(0)
+  completionTokens      Int               @default(0)
+  totalTokens           Int               @default(0)
+  llmCallCount          Int               @default(0)
+  lastTokenRecordedAt   DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@index([status, updatedAt])
+  @@index([createdStyleProfileId])
+}
+
 model ImageAsset {
   id              String            @id @default(cuid())
   taskId          String
@@ -977,6 +1014,9 @@ model StyleProfile {
   sourceRefId        String?
   sourceContent      String?
   extractedFeaturesJson String?
+  extractionPresetsJson String?
+  extractionAntiAiRuleKeysJson String?
+  selectedExtractionPresetKey String?
   analysisMarkdown   String?
   narrativeRulesJson String?
   characterRulesJson String?

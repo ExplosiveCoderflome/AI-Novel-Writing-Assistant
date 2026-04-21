@@ -66,6 +66,7 @@ const projectContextSchema = z.object({
   narrativePov: z.enum(["first_person", "third_person", "mixed"]).optional(),
   pacePreference: z.enum(["slow", "balanced", "fast"]).optional(),
   styleTone: z.string().trim().optional(),
+  styleProfileId: z.string().trim().optional(),
   emotionIntensity: z.enum(["low", "medium", "high"]).optional(),
   aiFreedom: z.enum(["low", "medium", "high"]).optional(),
   defaultChapterLength: z.number().int().min(500).max(10000).optional(),
@@ -151,6 +152,7 @@ const takeoverSchema = z.object({
   entryStep: z.enum(takeoverEntryStepValues).optional(),
   strategy: z.enum(takeoverStrategyValues).optional(),
   autoExecutionPlan: autoExecutionPlanSchema,
+  styleProfileId: z.string().trim().optional(),
 }).merge(llmOptionsSchema);
 
 router.post("/candidates", validate({ body: candidatesSchema }), async (req, res, next) => {

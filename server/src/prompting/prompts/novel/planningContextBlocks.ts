@@ -29,6 +29,7 @@ function takeUnique(items: Array<string | null | undefined>, limit = items.lengt
 }
 
 export function formatProjectContext(input: DirectorProjectContextInput): string {
+  const styleSummaryLines = input.styleIntentSummary?.stageSummaryLines ?? [];
   const lines = [
     input.title?.trim() ? `current title: ${input.title.trim()}` : "",
     input.description?.trim() ? `current description: ${input.description.trim()}` : "",
@@ -47,7 +48,10 @@ export function formatProjectContext(input: DirectorProjectContextInput): string
     input.projectMode ? `project mode: ${input.projectMode}` : "",
     input.narrativePov ? `narrative pov: ${input.narrativePov}` : "",
     input.pacePreference ? `pace: ${input.pacePreference}` : "",
-    input.styleTone?.trim() ? `style tone: ${input.styleTone.trim()}` : "",
+    input.styleTone?.trim() && !input.styleProfileId?.trim() ? `style tone: ${input.styleTone.trim()}` : "",
+    input.styleProfileId?.trim() ? `style profile id: ${input.styleProfileId.trim()}` : "",
+    input.styleIntentSummary?.headline?.trim() ? `active style hint: ${input.styleIntentSummary.headline.trim()}` : "",
+    styleSummaryLines.length > 0 ? `style intent summary: ${styleSummaryLines.join(" | ")}` : "",
     input.emotionIntensity ? `emotion intensity: ${input.emotionIntensity}` : "",
     input.aiFreedom ? `ai freedom: ${input.aiFreedom}` : "",
     typeof input.defaultChapterLength === "number" ? `default chapter length: ${input.defaultChapterLength}` : "",

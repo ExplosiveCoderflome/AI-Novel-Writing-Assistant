@@ -58,6 +58,8 @@ export interface PromptExecutionOptions {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  timeoutMs?: number;
+  signal?: AbortSignal;
   novelId?: string;
   chapterId?: string;
   stage?: string;

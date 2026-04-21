@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import type { TaskStatus, UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import {
   DIRECTOR_CANDIDATE_SETUP_STEPS,
@@ -21,6 +22,7 @@ import {
   refineDirectorCandidates,
 } from "@/api/novelDirector";
 import { queryKeys } from "@/api/queryKeys";
+import { getStyleProfiles } from "@/api/styleEngine";
 import { getTaskDetail } from "@/api/tasks";
 import { Button } from "@/components/ui/button";
 import {
@@ -102,6 +104,7 @@ export default function NovelAutoDirectorDialog({
   const [executionError, setExecutionError] = useState("");
   const [runMode, setRunMode] = useState<DirectorRunMode>(DEFAULT_VISIBLE_RUN_MODE);
   const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState());
+  const [selectedStyleProfileId, setSelectedStyleProfileId] = useState("");
   const [candidatePatchFeedbacks, setCandidatePatchFeedbacks] = useState<Record<string, string>>({});
   const [titlePatchFeedbacks, setTitlePatchFeedbacks] = useState<Record<string, string>>({});
   const confirmSubmitLockedRef = useRef(false);
@@ -144,6 +147,9 @@ export default function NovelAutoDirectorDialog({
     if (seedPayload?.autoExecutionPlan) {
       setAutoExecutionDraft(normalizeDirectorAutoExecutionDraftState(seedPayload.autoExecutionPlan));
     }
+    if (typeof seedPayload?.styleProfileId === "string") {
+      setSelectedStyleProfileId(seedPayload.styleProfileId);
+    }
     if (initialOpen) {
       setOpen(true);
     }
@@ -163,6 +169,24 @@ export default function NovelAutoDirectorDialog({
     }
     setIdea(buildInitialIdea(directorBasicForm));
   }, [directorBasicForm, idea, open]);
+
+  const styleProfilesQuery = useQuery({
+    queryKey: queryKeys.styleEngine.profiles,
+    queryFn: getStyleProfiles,
+    enabled: open,
+  });
+  const styleProfiles = styleProfilesQuery.data?.data ?? [];
+  const selectedStyleProfile = useMemo(
+    () => styleProfiles.find((item) => item.id === selectedStyleProfileId) ?? null,
+    [selectedStyleProfileId, styleProfiles],
+  );
+  const selectedStyleSummary = useMemo(
+    () => buildStyleIntentSummary({
+      styleProfile: selectedStyleProfile,
+      styleTone: directorBasicForm.styleTone,
+    }),
+    [directorBasicForm.styleTone, selectedStyleProfile],
+  );
 
   const directorTaskQuery = useQuery({
     queryKey: queryKeys.tasks.detail("novel_workflow", workflowTaskId || "none"),
@@ -248,6 +272,8 @@ export default function NovelAutoDirectorDialog({
         batches,
         runMode,
         autoExecutionPlan,
+        styleProfileId: selectedStyleProfileId || null,
+        styleIntentSummary: selectedStyleSummary ?? null,
       },
     });
     const taskId = response.data?.id ?? "";
@@ -277,7 +303,14 @@ export default function NovelAutoDirectorDialog({
     },
     mutationFn: async () => {
       const currentWorkflowTaskId = await ensureWorkflowTask();
-      const payload = buildAutoDirectorRequestPayload(directorBasicForm, idea, llm, runMode, currentWorkflowTaskId);
+      const payload = buildAutoDirectorRequestPayload(
+        directorBasicForm,
+        idea,
+        llm,
+        runMode,
+        currentWorkflowTaskId,
+        { styleProfileId: selectedStyleProfileId },
+      );
       const response = batches.length === 0
         ? await generateDirectorCandidates(payload)
         : await refineDirectorCandidates({
@@ -322,7 +355,9 @@ export default function NovelAutoDirectorDialog({
     mutationFn: async (payload: { batchId: string; candidate: DirectorCandidate; feedback: string }) => {
       const currentWorkflowTaskId = await ensureWorkflowTask();
       const response = await patchDirectorCandidate({
-        ...buildAutoDirectorRequestPayload(directorBasicForm, idea, llm, runMode, currentWorkflowTaskId),
+        ...buildAutoDirectorRequestPayload(directorBasicForm, idea, llm, runMode, currentWorkflowTaskId, {
+          styleProfileId: selectedStyleProfileId,
+        }),
         previousBatches: batches,
         batchId: payload.batchId,
         candidateId: payload.candidate.id,
@@ -358,7 +393,9 @@ export default function NovelAutoDirectorDialog({
     mutationFn: async (payload: { batchId: string; candidate: DirectorCandidate; feedback: string }) => {
       const currentWorkflowTaskId = await ensureWorkflowTask();
       const response = await refineDirectorCandidateTitles({
-        ...buildAutoDirectorRequestPayload(directorBasicForm, idea, llm, runMode, currentWorkflowTaskId),
+        ...buildAutoDirectorRequestPayload(directorBasicForm, idea, llm, runMode, currentWorkflowTaskId, {
+          styleProfileId: selectedStyleProfileId,
+        }),
         previousBatches: batches,
         batchId: payload.batchId,
         candidateId: payload.candidate.id,
@@ -393,7 +430,9 @@ export default function NovelAutoDirectorDialog({
         ? buildDirectorAutoExecutionPlanFromDraft(autoExecutionDraft)
         : undefined;
       const response = await confirmDirectorCandidate({
-        ...buildAutoDirectorRequestPayload(directorBasicForm, idea, llm, runMode, currentWorkflowTaskId),
+        ...buildAutoDirectorRequestPayload(directorBasicForm, idea, llm, runMode, currentWorkflowTaskId, {
+          styleProfileId: selectedStyleProfileId,
+        }),
         batchId: latestBatch?.id,
         round: latestBatch?.round,
         candidate: payload.candidate,
@@ -492,6 +531,7 @@ export default function NovelAutoDirectorDialog({
     setExecutionError("");
     setRunMode(DEFAULT_VISIBLE_RUN_MODE);
     setAutoExecutionDraft(createDefaultDirectorAutoExecutionDraftState());
+    setSelectedStyleProfileId("");
     setCandidatePatchFeedbacks({});
     setTitlePatchFeedbacks({});
   };
@@ -618,6 +658,10 @@ export default function NovelAutoDirectorDialog({
                   onRunModeChange={setRunMode}
                   autoExecutionDraft={autoExecutionDraft}
                   onAutoExecutionDraftChange={(patch) => setAutoExecutionDraft((prev) => ({ ...prev, ...patch }))}
+                  styleProfileOptions={styleProfiles.map((profile) => ({ id: profile.id, name: profile.name }))}
+                  selectedStyleProfileId={selectedStyleProfileId}
+                  selectedStyleSummary={selectedStyleSummary}
+                  onStyleProfileChange={setSelectedStyleProfileId}
                   onBasicFormChange={onBasicFormChange}
                   canGenerate={canGenerate}
                   isGenerating={generateMutation.isPending}

@@ -20,7 +20,7 @@ const storyPlanRoleSchema = z.enum(["setup", "progress", "pressure", "turn", "pa
 const payoffLedgerScopeTypeSchema = z.enum(["book", "volume", "chapter"]);
 const payoffLedgerStatusSchema = z.enum(["setup", "hinted", "pending_payoff", "paid_off", "failed", "overdue"]);
 const styleBindingTargetTypeSchema = z.enum(["novel", "chapter", "task"]);
-const antiAiRuleTypeSchema = z.enum(["forbidden", "risk", "encourage"]);
+const styleDetectionRuleTypeSchema = z.enum(["style", "character", "forbidden", "risk", "encourage"]);
 const antiAiSeveritySchema = z.enum(["low", "medium", "high"]);
 const characterCandidateStatusSchema = z.enum(["pending", "confirmed", "merged", "rejected"]);
 const dynamicCharacterRiskLevelSchema = z.enum(["none", "info", "warn", "high"]);
@@ -624,7 +624,7 @@ export const runtimeAuditReportSchema = z.object({
 export const styleDetectionViolationSchema = z.object({
   ruleId: z.string(),
   ruleName: z.string(),
-  ruleType: antiAiRuleTypeSchema,
+  ruleType: styleDetectionRuleTypeSchema,
   severity: antiAiSeveritySchema,
   excerpt: z.string(),
   reason: z.string(),

@@ -10,7 +10,7 @@ import { taskCenterService } from "../services/task/TaskCenterService";
 
 const router = Router();
 
-const kindSchema = z.enum(["book_analysis", "novel_pipeline", "knowledge_document", "image_generation", "agent_run", "novel_workflow"]);
+const kindSchema = z.enum(["book_analysis", "novel_pipeline", "knowledge_document", "image_generation", "agent_run", "novel_workflow", "style_extraction"]);
 const statusSchema = z.enum(["queued", "running", "waiting_approval", "succeeded", "failed", "cancelled"]);
 
 const listQuerySchema = z.object({
@@ -35,7 +35,7 @@ const retryBodySchema = z.object({
   resume: z.boolean().optional(),
 });
 
-const recoveryTaskKindSchema = z.enum(["book_analysis", "novel_pipeline", "image_generation", "novel_workflow"]);
+const recoveryTaskKindSchema = z.enum(["book_analysis", "novel_pipeline", "image_generation", "novel_workflow", "style_extraction"]);
 
 const recoveryTaskParamsSchema = z.object({
   kind: recoveryTaskKindSchema,

@@ -8,7 +8,12 @@ import type {
   StyleRulePatch,
   StyleRuleSet,
 } from "@ai-novel/shared/types/styleEngine";
-import { buildEmptyRuleSet, clamp, mergeRuleObjects } from "./helpers";
+import {
+  buildStyleRuleSetFromFeatures,
+  hasStyleRulePatchContent,
+  resolveStyleFeatureRulePatch,
+} from "@ai-novel/shared/types/styleEngine";
+import { clamp } from "./helpers";
 
 const FEATURE_GROUPS: StyleExtractionFeatureGroup[] = ["narrative", "language", "dialogue", "rhythm", "fingerprint"];
 const PRESET_KEYS = ["imitate", "balanced", "transfer"] as const;
@@ -83,7 +88,13 @@ function normalizeFeature(raw: unknown, index: number): StyleExtractionFeature |
     imitationValue: normalizeScore(record.imitationValue, 0.5),
     transferability: normalizeScore(record.transferability, 0.5),
     fingerprintRisk: normalizeScore(record.fingerprintRisk, group === "fingerprint" ? 0.8 : 0.4),
-    keepRulePatch: normalizeRulePatch(record.keepRulePatch ?? record.rulePatch ?? record.patch ?? record.rules),
+    keepRulePatch: resolveStyleFeatureRulePatch({
+      group,
+      label,
+      description,
+      keepRulePatch: normalizeRulePatch(record.keepRulePatch ?? record.rulePatch ?? record.patch ?? record.rules),
+      weakenRulePatch: normalizeRulePatch(record.weakenRulePatch ?? record.weakenPatch ?? record.softRulePatch),
+    }),
     weakenRulePatch: normalizeRulePatch(record.weakenRulePatch ?? record.weakenPatch ?? record.softRulePatch),
   };
 }
@@ -97,6 +108,11 @@ function normalizeProfileFeature(raw: unknown, index: number): StyleProfileFeatu
   return {
     ...feature,
     enabled: typeof record?.enabled === "boolean" ? record.enabled : true,
+    selectedDecision: record?.selectedDecision === "keep"
+      || record?.selectedDecision === "weaken"
+      || record?.selectedDecision === "remove"
+      ? record.selectedDecision
+      : undefined,
   };
 }
 
@@ -203,18 +219,6 @@ function buildPresetMap(features: StyleExtractionFeature[], rawPresets: unknown)
   return result;
 }
 
-function mergeStylePatch(ruleSet: StyleRuleSet, patch: StyleRulePatch | undefined): StyleRuleSet {
-  if (!patch) {
-    return ruleSet;
-  }
-  return {
-    narrativeRules: patch.narrativeRules ? mergeRuleObjects(ruleSet.narrativeRules, patch.narrativeRules) : ruleSet.narrativeRules,
-    characterRules: patch.characterRules ? mergeRuleObjects(ruleSet.characterRules, patch.characterRules) : ruleSet.characterRules,
-    languageRules: patch.languageRules ? mergeRuleObjects(ruleSet.languageRules, patch.languageRules) : ruleSet.languageRules,
-    rhythmRules: patch.rhythmRules ? mergeRuleObjects(ruleSet.rhythmRules, patch.rhythmRules) : ruleSet.rhythmRules,
-  };
-}
-
 export function normalizeStyleExtractionDraft(
   raw: unknown,
   inputName: string,
@@ -274,7 +278,11 @@ export function resolveStyleExtractionDecisions(
 export function buildProfileFeaturesFromDraft(draft: StyleExtractionDraft): StyleProfileFeature[] {
   return draft.features.map((feature) => ({
     ...feature,
+    keepRulePatch: hasStyleRulePatchContent(feature.keepRulePatch)
+      ? feature.keepRulePatch
+      : resolveStyleFeatureRulePatch(feature),
     enabled: true,
+    selectedDecision: "keep",
   }));
 }
 
@@ -287,14 +295,7 @@ export function normalizeStyleProfileFeatures(raw: unknown): StyleProfileFeature
 }
 
 export function buildRuleSetFromProfileFeatures(features: StyleProfileFeature[]): StyleRuleSet {
-  let ruleSet = buildEmptyRuleSet();
-  for (const feature of features) {
-    if (!feature.enabled) {
-      continue;
-    }
-    ruleSet = mergeStylePatch(ruleSet, feature.keepRulePatch);
-  }
-  return ruleSet;
+  return buildStyleRuleSetFromFeatures(features);
 }
 
 export function buildRuleSetFromExtraction(
@@ -303,22 +304,13 @@ export function buildRuleSetFromExtraction(
   presetKey?: PresetKey,
 ): StyleRuleSet {
   const decisionMap = resolveStyleExtractionDecisions(draft, decisions, presetKey);
-  let ruleSet = buildEmptyRuleSet();
-
-  for (const feature of draft.features) {
-    const decision = decisionMap.get(feature.id) ?? "keep";
-    if (decision === "remove") {
-      continue;
-    }
-    const patch = decision === "weaken"
-      ? (feature.weakenRulePatch && Object.keys(feature.weakenRulePatch).length > 0
-        ? feature.weakenRulePatch
-        : feature.keepRulePatch)
-      : feature.keepRulePatch;
-    ruleSet = mergeStylePatch(ruleSet, patch);
-  }
-
-  return ruleSet;
+  return buildStyleRuleSetFromFeatures(
+    draft.features.map((feature) => ({
+      ...feature,
+      enabled: (decisionMap.get(feature.id) ?? "keep") !== "remove",
+      selectedDecision: decisionMap.get(feature.id) ?? "keep",
+    })),
+  );
 }
 
 export function buildExtractionAnalysisMarkdown(

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import { normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
 import type {
   DirectorAutoExecutionPlan,
@@ -10,6 +11,7 @@ import type {
 } from "@ai-novel/shared/types/novelDirector";
 import { getDirectorTakeoverReadiness, startDirectorTakeover } from "@/api/novelDirector";
 import { queryKeys } from "@/api/queryKeys";
+import { getStyleBindings, getStyleProfiles } from "@/api/styleEngine";
 import LLMSelector from "@/components/common/LLMSelector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -119,6 +121,7 @@ export default function NovelExistingProjectTakeoverDialog({
   const [selectedEntryStep, setSelectedEntryStep] = useState<DirectorTakeoverEntryStep>(defaultEntryStep);
   const [selectedStrategy, setSelectedStrategy] = useState<DirectorTakeoverStrategy>("continue_existing");
   const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState());
+  const [selectedStyleProfileId, setSelectedStyleProfileId] = useState("");
 
   const readinessQuery = useQuery({
     queryKey: queryKeys.novels.autoDirectorTakeoverReadiness(novelId),
@@ -126,8 +129,31 @@ export default function NovelExistingProjectTakeoverDialog({
     enabled: open && Boolean(novelId),
     retry: false,
   });
+  const styleProfilesQuery = useQuery({
+    queryKey: queryKeys.styleEngine.profiles,
+    queryFn: getStyleProfiles,
+    enabled: open,
+  });
+  const novelStyleBindingsQuery = useQuery({
+    queryKey: queryKeys.styleEngine.bindings(`novel-${novelId}`),
+    queryFn: () => getStyleBindings({ targetType: "novel", targetId: novelId }),
+    enabled: open && Boolean(novelId),
+  });
 
   const readiness = readinessQuery.data?.data ?? null;
+  const styleProfiles = styleProfilesQuery.data?.data ?? [];
+  const currentNovelStyleBindings = novelStyleBindingsQuery.data?.data ?? [];
+  const selectedStyleProfile = useMemo(
+    () => styleProfiles.find((item) => item.id === selectedStyleProfileId) ?? null,
+    [selectedStyleProfileId, styleProfiles],
+  );
+  const selectedStyleSummary = useMemo(
+    () => buildStyleIntentSummary({
+      styleProfile: selectedStyleProfile,
+      styleTone: basicForm.styleTone,
+    }),
+    [basicForm.styleTone, selectedStyleProfile],
+  );
   const contextLines = useMemo(
     () => summarizeCurrentContext(basicForm, genreOptions, storyModeOptions, worldOptions),
     [basicForm, genreOptions, storyModeOptions, worldOptions],
@@ -142,8 +168,19 @@ export default function NovelExistingProjectTakeoverDialog({
     if (!open) {
       setSelectedEntryStep(defaultEntryStep);
       setSelectedStrategy("continue_existing");
+      setSelectedStyleProfileId("");
     }
   }, [defaultEntryStep, open]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const currentBookBinding = currentNovelStyleBindings[0];
+    if (currentBookBinding?.styleProfileId) {
+      setSelectedStyleProfileId((current) => current || currentBookBinding.styleProfileId);
+    }
+  }, [currentNovelStyleBindings, open]);
 
   useEffect(() => {
     if (!readiness) {
@@ -165,6 +202,7 @@ export default function NovelExistingProjectTakeoverDialog({
       novelId,
       entryStep: selectedEntryStep,
       strategy: selectedStrategy,
+      styleProfileId: selectedStyleProfileId || undefined,
       provider: llm.provider,
       model: llm.model,
       temperature: llm.temperature,
@@ -179,6 +217,7 @@ export default function NovelExistingProjectTakeoverDialog({
       }
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTask(novelId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTakeoverReadiness(novelId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.styleEngine.bindings(`novel-${novelId}`) });
       await queryClient.invalidateQueries({ queryKey: ["tasks"] });
       setOpen(false);
       toast.success(
@@ -253,6 +292,37 @@ export default function NovelExistingProjectTakeoverDialog({
                     onChange={(patch) => setAutoExecutionDraft((prev) => ({ ...prev, ...patch }))}
                   />
                 ) : null}
+              </div>
+
+              <div className="rounded-xl border bg-background/80 p-4">
+                <div className="text-sm font-medium text-foreground">本次接管使用的写法</div>
+                <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                  如果已经给这本书绑定过默认写法，接管时建议沿用它。前半段导演只会读取轻量摘要，不会和结构规划抢职责。
+                </div>
+                <div className="mt-3 space-y-3">
+                  <select
+                    className="w-full rounded-md border bg-background p-2 text-sm"
+                    value={selectedStyleProfileId}
+                    onChange={(event) => setSelectedStyleProfileId(event.target.value)}
+                  >
+                    <option value="">先只沿用文风关键词</option>
+                    {styleProfiles.map((profile) => (
+                      <option key={profile.id} value={profile.id}>{profile.name}</option>
+                    ))}
+                  </select>
+                  {currentNovelStyleBindings.length > 0 ? (
+                    <div className="rounded-lg border bg-muted/15 p-3 text-xs leading-6 text-muted-foreground">
+                      当前书级默认写法：{currentNovelStyleBindings
+                        .map((binding) => binding.styleProfile?.name ?? binding.styleProfileId)
+                        .join(" / ")}
+                    </div>
+                  ) : null}
+                  {selectedStyleSummary?.stageSummaryLines.length ? (
+                    <div className="rounded-lg border bg-muted/15 p-3 text-xs leading-6 text-muted-foreground">
+                      本阶段仅生效的写法摘要：{selectedStyleSummary.stageSummaryLines.join("；")}
+                    </div>
+                  ) : null}
+                </div>
               </div>
 
               <div className="rounded-xl border bg-background/80 p-4">

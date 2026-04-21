@@ -16,6 +16,7 @@ import { KnowledgeTaskAdapter } from "./adapters/KnowledgeTaskAdapter";
 import { ImageTaskAdapter } from "./adapters/ImageTaskAdapter";
 import { NovelWorkflowTaskAdapter } from "./adapters/NovelWorkflowTaskAdapter";
 import { PipelineTaskAdapter } from "./adapters/PipelineTaskAdapter";
+import { StyleExtractionTaskAdapter } from "./adapters/StyleExtractionTaskAdapter";
 import { collectWorkflowLinkedPipelineIds } from "./taskCenterVisibility";
 import {
   compareTaskSummary,
@@ -43,6 +44,8 @@ export class TaskCenterService {
 
   private readonly agentAdapter = new AgentRunTaskAdapter();
 
+  private readonly styleExtractionAdapter = new StyleExtractionTaskAdapter();
+
   async getOverview(): Promise<TaskOverviewSummary> {
     const [
       archivedBookIds,
@@ -51,6 +54,7 @@ export class TaskCenterService {
       archivedImageIds,
       archivedAgentIds,
       archivedWorkflowIds,
+      archivedStyleExtractionIds,
     ] = await Promise.all([
       getArchivedTaskIds("book_analysis"),
       getArchivedTaskIds("novel_pipeline"),
@@ -58,6 +62,7 @@ export class TaskCenterService {
       getArchivedTaskIds("image_generation"),
       getArchivedTaskIds("agent_run"),
       getArchivedTaskIds("novel_workflow"),
+      getArchivedTaskIds("style_extraction"),
     ]);
 
     const [
@@ -67,10 +72,12 @@ export class TaskCenterService {
       imageRows,
       agentRows,
       workflowRows,
+      styleExtractionRows,
       bookRecoveryCount,
       pipelineRecoveryCount,
       imageRecoveryCount,
       workflowRecoveryCount,
+      styleExtractionRecoveryCount,
     ] = await Promise.all([
       prisma.bookAnalysis.groupBy({
         by: ["status"],
@@ -117,6 +124,13 @@ export class TaskCenterService {
         },
         _count: { _all: true },
       }),
+      prisma.styleExtractionTask.groupBy({
+        by: ["status"],
+        where: {
+          ...(archivedStyleExtractionIds.length ? { id: { notIn: archivedStyleExtractionIds } } : {}),
+        },
+        _count: { _all: true },
+      }),
       prisma.bookAnalysis.count({
         where: {
           status: { in: ["queued", "running"] },
@@ -146,6 +160,13 @@ export class TaskCenterService {
           ...(archivedWorkflowIds.length ? { id: { notIn: archivedWorkflowIds } } : {}),
         },
       }),
+      prisma.styleExtractionTask.count({
+        where: {
+          status: { in: ["queued", "running"] },
+          pendingManualRecovery: true,
+          ...(archivedStyleExtractionIds.length ? { id: { notIn: archivedStyleExtractionIds } } : {}),
+        },
+      }),
     ]);
 
     const overview: TaskOverviewSummary = {
@@ -154,10 +175,10 @@ export class TaskCenterService {
       failedCount: 0,
       cancelledCount: 0,
       waitingApprovalCount: 0,
-      recoveryCandidateCount: bookRecoveryCount + pipelineRecoveryCount + imageRecoveryCount + workflowRecoveryCount,
+      recoveryCandidateCount: bookRecoveryCount + pipelineRecoveryCount + imageRecoveryCount + workflowRecoveryCount + styleExtractionRecoveryCount,
     };
 
-    for (const rows of [bookRows, pipelineRows, knowledgeRows, imageRows, agentRows, workflowRows]) {
+    for (const rows of [bookRows, pipelineRows, knowledgeRows, imageRows, agentRows, workflowRows, styleExtractionRows]) {
       for (const row of rows) {
         const count = row._count._all;
         if (row.status === "queued") {
@@ -183,7 +204,7 @@ export class TaskCenterService {
     const keyword = normalizeKeyword(filters.keyword);
     const cursorPayload = parseCursor(filters.cursor);
 
-    const [bookTasks, novelTasks, knowledgeTasks, imageTasks, agentTasks, workflowTasks] = await Promise.all([
+    const [bookTasks, novelTasks, knowledgeTasks, imageTasks, agentTasks, workflowTasks, styleExtractionTasks] = await Promise.all([
       filters.kind && filters.kind !== "book_analysis"
         ? Promise.resolve<UnifiedTaskSummary[]>([])
         : this.bookAdapter.list({ status: filters.status, keyword, take: sourceTake }),
@@ -202,6 +223,9 @@ export class TaskCenterService {
       filters.kind && filters.kind !== "novel_workflow"
         ? Promise.resolve<UnifiedTaskSummary[]>([])
         : this.workflowAdapter.list({ status: filters.status, keyword, take: sourceTake }),
+      filters.kind && filters.kind !== "style_extraction"
+        ? Promise.resolve<UnifiedTaskSummary[]>([])
+        : this.styleExtractionAdapter.list({ status: filters.status, keyword, take: sourceTake }),
     ]);
 
     const linkedPipelineIds = filters.kind === "novel_pipeline"
@@ -211,7 +235,7 @@ export class TaskCenterService {
       ? novelTasks
       : novelTasks.filter((task) => !linkedPipelineIds.has(task.id));
 
-    const merged = [...bookTasks, ...visibleNovelTasks, ...knowledgeTasks, ...imageTasks, ...agentTasks, ...workflowTasks]
+    const merged = [...bookTasks, ...visibleNovelTasks, ...knowledgeTasks, ...imageTasks, ...agentTasks, ...workflowTasks, ...styleExtractionTasks]
       .sort(compareTaskSummary);
     const filteredByCursor = cursorPayload
       ? merged.filter((item) => isAfterCursor(item, cursorPayload))
@@ -240,6 +264,9 @@ export class TaskCenterService {
     }
     if (kind === "novel_workflow") {
       return this.workflowAdapter.detail(id);
+    }
+    if (kind === "style_extraction") {
+      return this.styleExtractionAdapter.detail(id);
     }
     return this.imageAdapter.detail(id);
   }
@@ -274,6 +301,9 @@ export class TaskCenterService {
     if (kind === "image_generation") {
       return this.imageAdapter.retry(id);
     }
+    if (kind === "style_extraction") {
+      return this.styleExtractionAdapter.retry(id);
+    }
     throw new AppError(`Unsupported task kind: ${kind}`, 400);
   }
 
@@ -296,6 +326,9 @@ export class TaskCenterService {
     if (kind === "image_generation") {
       return this.imageAdapter.cancel(id);
     }
+    if (kind === "style_extraction") {
+      return this.styleExtractionAdapter.cancel(id);
+    }
     throw new AppError(`Unsupported task kind: ${kind}`, 400);
   }
 
@@ -317,6 +350,9 @@ export class TaskCenterService {
     }
     if (kind === "image_generation") {
       return this.imageAdapter.archive(id);
+    }
+    if (kind === "style_extraction") {
+      return this.styleExtractionAdapter.archive(id);
     }
     throw new AppError(`Unsupported task kind: ${kind}`, 400);
   }

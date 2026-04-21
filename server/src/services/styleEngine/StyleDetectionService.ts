@@ -27,10 +27,16 @@ export class StyleDetectionService {
     });
     const antiRules = resolved.antiAiRules;
     const appliedRuleIds = antiRules.map((rule) => rule.id);
-    if (antiRules.length === 0) {
+    const styleRulesBlock = resolved.context.compiledBlocks?.style?.trim() || "";
+    const characterRulesBlock = resolved.context.compiledBlocks?.character?.trim() || "";
+    const antiRulesText = antiRules
+      .map((rule) => `- [${rule.id}] ${rule.name} (${rule.type}/${rule.severity})：${rule.promptInstruction ?? rule.description}`)
+      .join("\n");
+
+    if (!styleRulesBlock && !characterRulesBlock && antiRules.length === 0) {
       return {
         riskScore: 0,
-        summary: "当前没有绑定反 AI 规则，未执行写法违规检测。",
+        summary: "当前没有可执行的写法检测约束，未执行写法违规检测。",
         violations: [],
         canAutoRewrite: false,
         appliedRuleIds,
@@ -40,9 +46,9 @@ export class StyleDetectionService {
     const result = await runStructuredPrompt({
       asset: styleDetectionPrompt,
       promptInput: {
-        styleRulesBlock: resolved.context.compiledBlocks?.style ?? "无",
-        characterRulesBlock: resolved.context.compiledBlocks?.character ?? "无",
-        antiRulesText: antiRules.map((rule) => `- [${rule.id}] ${rule.name} (${rule.type}/${rule.severity})：${rule.promptInstruction ?? rule.description}`).join("\n"),
+        styleRulesBlock: styleRulesBlock || "无",
+        characterRulesBlock: characterRulesBlock || "无",
+        antiRulesText: antiRulesText || "无",
         content: input.content,
       },
       options: {

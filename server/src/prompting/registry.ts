@@ -313,18 +313,26 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     key: "style.rewrite@v1",
     load: () => require("./prompts/style/style.prompts").styleRewritePrompt as UnknownPromptAsset,
   },
-  {
-    key: "style.profile.extract@v1",
-    load: () => require("./prompts/style/style.prompts").styleProfileExtractionPrompt as UnknownPromptAsset,
-  },
-  {
-    key: "style.profile.from_book_analysis@v2",
-    load: () => require("./prompts/style/style.prompts").styleProfileFromBookAnalysisPrompt as UnknownPromptAsset,
-  },
-  {
-    key: "style.profile.from_brief@v1",
-    load: () => require("./prompts/style/style.prompts").styleProfileFromBriefPrompt as UnknownPromptAsset,
-  },
+    {
+      key: "style.profile.extract@v2",
+      load: () => require("./prompts/style/style.prompts").styleProfileExtractionPrompt as UnknownPromptAsset,
+    },
+    {
+      key: "style.profile.from_book_analysis@v3",
+      load: () => require("./prompts/style/style.prompts").styleProfileFromBookAnalysisPrompt as UnknownPromptAsset,
+    },
+    {
+      key: "style.profile.from_brief@v2",
+      load: () => require("./prompts/style/style.prompts").styleProfileFromBriefPrompt as UnknownPromptAsset,
+    },
+    {
+      key: "style.profile.metadata@v1",
+      load: () => require("./prompts/style/style.prompts").styleProfileMetadataPrompt as UnknownPromptAsset,
+    },
+    {
+      key: "style.profile.select_anti_ai@v1",
+      load: () => require("./prompts/style/style.prompts").styleProfileAntiAiSelectionPrompt as UnknownPromptAsset,
+    },
   {
     key: "world.reference.inspiration@v1",
     load: () => require("./prompts/world/world.prompts").worldReferenceInspirationPrompt as UnknownPromptAsset,

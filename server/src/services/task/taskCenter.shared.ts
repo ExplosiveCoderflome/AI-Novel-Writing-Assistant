@@ -5,7 +5,7 @@ import type {
 } from "@ai-novel/shared/types/task";
 
 export interface ListTasksFilters {
-  kind?: "book_analysis" | "novel_pipeline" | "knowledge_document" | "image_generation" | "agent_run" | "novel_workflow";
+  kind?: "book_analysis" | "novel_pipeline" | "knowledge_document" | "image_generation" | "agent_run" | "novel_workflow" | "style_extraction";
   status?: TaskStatus;
   keyword?: string;
   limit?: number;
@@ -59,6 +59,14 @@ export const IMAGE_TASK_STEPS = [
   { key: "submitting", label: "提交请求" },
   { key: "generating", label: "生成图片" },
   { key: "saving_assets", label: "保存素材" },
+  { key: "finalizing", label: "收尾" },
+] as const;
+
+export const STYLE_EXTRACTION_TASK_STEPS = [
+  { key: "queued", label: "排队" },
+  { key: "extracting_features", label: "提取写法特征" },
+  { key: "building_profile", label: "整理保留策略" },
+  { key: "saving_profile", label: "自动保存写法" },
   { key: "finalizing", label: "收尾" },
 ] as const;
 

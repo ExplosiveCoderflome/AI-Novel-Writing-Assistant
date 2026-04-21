@@ -1,6 +1,7 @@
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 import {
   DIRECTOR_CANDIDATE_SETUP_STEPS,
+  extractDirectorTaskSeedPayloadFromMeta,
 } from "@ai-novel/shared/types/novelDirector";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import { Badge } from "@/components/ui/badge";
@@ -65,7 +66,7 @@ function formatTokenCount(value: number | null | undefined): string {
 }
 
 function resolveAutoExecutionScopeLabel(task: UnifiedTaskDetail | null): string {
-  const seedPayload = (task?.meta.seedPayload ?? null) as {
+  const seedPayload = extractDirectorTaskSeedPayloadFromMeta(task?.meta) as {
     autoExecution?: {
       scopeLabel?: string | null;
       totalChapterCount?: number | null;
@@ -77,6 +78,30 @@ function resolveAutoExecutionScopeLabel(task: UnifiedTaskDetail | null): string 
   }
   const fallbackCount = Math.max(1, Math.round(seedPayload?.autoExecution?.totalChapterCount ?? 10));
   return `前 ${fallbackCount} 章`;
+}
+
+function resolveDirectorStyleSeed(task: UnifiedTaskDetail | null): {
+  title: string;
+  summaryLines: string[];
+} | null {
+  const seedPayload = extractDirectorTaskSeedPayloadFromMeta(task?.meta);
+  const styleIntentSummary = seedPayload?.styleIntentSummary;
+  if (styleIntentSummary?.headline?.trim()) {
+    return {
+      title: styleIntentSummary.styleProfileName?.trim() || styleIntentSummary.headline.trim(),
+      summaryLines: styleIntentSummary.stageSummaryLines ?? [],
+    };
+  }
+  const fallbackTone = typeof (seedPayload as { styleTone?: unknown } | null)?.styleTone === "string"
+    ? (((seedPayload as { styleTone?: string }).styleTone ?? "").trim())
+    : "";
+  if (!fallbackTone) {
+    return null;
+  }
+  return {
+    title: fallbackTone,
+    summaryLines: [`文风关键词：${fallbackTone}`],
+  };
 }
 
 function formatCheckpoint(
@@ -272,6 +297,7 @@ export default function NovelAutoDirectorProgressPanel({
   const steps = resolveDirectorStepStatuses(task, visualMode, stepDefinitions);
   const failureMessage = task?.lastError?.trim() || fallbackError?.trim() || "导演任务执行失败，但没有记录明确错误。";
   const tokenUsage = task?.tokenUsage ?? null;
+  const styleSeed = resolveDirectorStyleSeed(task);
   const containerMode: AITakeoverMode = visualMode === "execution_failed"
     ? "failed"
     : !task
@@ -347,6 +373,23 @@ export default function NovelAutoDirectorProgressPanel({
                 <Badge key={tag} variant="secondary">{tag}</Badge>
               ))}
             </div>
+          </div>
+        ) : null}
+
+        {styleSeed ? (
+          <div className="mt-4 rounded-xl border bg-background/80 p-4">
+            <div className="text-sm font-medium text-foreground">当前命中写法</div>
+            <div className="mt-2 text-sm text-foreground">{styleSeed.title}</div>
+            {styleSeed.summaryLines.length > 0 ? (
+              <div className="mt-3 space-y-2">
+                <div className="text-xs font-medium text-muted-foreground">本阶段仅生效的写法摘要</div>
+                {styleSeed.summaryLines.map((line) => (
+                  <div key={line} className="rounded-lg border bg-muted/20 px-3 py-2 text-xs leading-6 text-muted-foreground">
+                    {line}
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
 

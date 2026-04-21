@@ -28,6 +28,7 @@ interface LLMOptions {
   apiKey?: string;
   baseURL?: string;
   maxTokens?: number;
+  timeoutMs?: number;
   reasoningEnabled?: boolean;
   executionMode?: StructuredExecutionMode;
   structuredStrategy?: StructuredOutputStrategy;
@@ -53,6 +54,7 @@ export interface ResolvedLLMClientOptions {
   apiKey?: string;
   baseURL: string;
   maxTokens?: number;
+  timeoutMs?: number;
   reasoningEnabled: boolean;
   modelKwargs?: Record<string, unknown>;
   includeRawResponse: boolean;
@@ -86,6 +88,13 @@ function normalizeOptionalText(value: string | null | undefined): string | undef
   }
   const trimmed = value.trim();
   return trimmed || undefined;
+}
+
+function normalizeOptionalTimeoutMs(value: number | undefined): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return undefined;
+  }
+  return Math.floor(value);
 }
 
 function normalizeProviderSecret(secret: ProviderSecret): ProviderSecret {
@@ -221,6 +230,7 @@ export async function resolveLLMClientOptions(
   }
 
   const temperature = resolveModelTemperature(resolvedProvider, model, resolvedTemperature);
+  const timeoutMs = normalizeOptionalTimeoutMs(options.timeoutMs);
   const executionMode = options.executionMode ?? "plain";
   const structuredProfile = executionMode === "structured"
     ? resolveStructuredOutputProfile({
@@ -271,6 +281,7 @@ export async function resolveLLMClientOptions(
     apiKey,
     baseURL,
     maxTokens: effectiveMaxTokens,
+    timeoutMs,
     reasoningEnabled: reasoningBehavior.reasoningEnabled,
     modelKwargs: Object.keys(modelKwargs).length > 0 ? modelKwargs : undefined,
     includeRawResponse: reasoningBehavior.includeRawResponse,
@@ -290,6 +301,7 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
     modelName: resolved.model,
     temperature: resolved.temperature,
     maxTokens: resolved.maxTokens,
+    timeout: resolved.timeoutMs,
     modelKwargs: resolved.modelKwargs,
     __includeRawResponse: resolved.includeRawResponse,
     configuration: {
@@ -301,6 +313,7 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
     model: resolved.model,
     temperature: resolved.temperature,
     maxTokens: resolved.maxTokens,
+    timeoutMs: resolved.timeoutMs,
     taskType: resolved.taskType,
     baseURL: resolved.baseURL,
     promptMeta: resolved.promptMeta,
