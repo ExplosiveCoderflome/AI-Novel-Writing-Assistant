@@ -1,18 +1,24 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { z } = require("zod");
+const { HumanMessage } = require("@langchain/core/messages");
 const { PROVIDERS, SUPPORTED_PROVIDERS } = require("../dist/llm/providers.js");
 const {
   getJsonCapability,
   getModelParameterCompatibility,
   resolveModelTemperature,
 } = require("../dist/llm/capabilities.js");
-const { resolveLLMClientOptions, setProviderSecretCache, createLLMFromResolvedOptions } = require("../dist/llm/factory.js");
+const {
+  resolveLLMClientOptions,
+  setProviderSecretCache,
+  createLLMFromResolvedOptions,
+} = require("../dist/llm/factory.js");
 const {
   classifyStructuredOutputFailure,
   resolveStructuredOutputProfile,
   selectStructuredOutputStrategy,
 } = require("../dist/llm/structuredOutput.js");
+const { shouldUseAnthropicMessagesTransport } = require("../dist/llm/transportRouting.js");
 
 test("supported providers include kimi, minimax, glm, qwen, gemini and ollama", () => {
   for (const provider of ["kimi", "minimax", "glm", "qwen", "gemini", "ollama"]) {
@@ -229,6 +235,7 @@ test("createLLMFromResolvedOptions forwards timeout and maxRetries to ChatOpenAI
     provider: "deepseek",
     providerName: "DeepSeek",
     model: "deepseek-chat",
+    transportProtocol: "openai",
     temperature: 0.7,
     apiKey: "test-key",
     baseURL: "https://api.deepseek.com/v1",
@@ -248,4 +255,105 @@ test("createLLMFromResolvedOptions forwards timeout and maxRetries to ChatOpenAI
 
   assert.equal(llm.timeout, 43210);
   assert.equal(llm.caller.maxRetries, 4);
+});
+
+test("tk routed models prefer anthropic structured semantics even behind openai-compatible proxy", () => {
+  const schema = z.object({ ok: z.string() });
+  const profile = resolveStructuredOutputProfile({
+    provider: "openai",
+    model: "tk/GLM-5.1",
+    baseURL: "https://aiproxy.mircosoft.cn/v1",
+    executionMode: "structured",
+  });
+
+  assert.equal(shouldUseAnthropicMessagesTransport("openai", "tk/GLM-5.1"), true);
+  assert.equal(shouldUseAnthropicMessagesTransport("openai", "gpt-5.4"), false);
+  assert.equal(profile.family, "anthropic");
+  assert.equal(profile.nativeJsonSchema, false);
+  assert.equal(profile.nativeJsonObject, false);
+  assert.equal(selectStructuredOutputStrategy(profile, schema), "prompt_json");
+});
+
+test("createLLMFromResolvedOptions routes tk models through anthropic messages transport", async () => {
+  const originalFetch = global.fetch;
+  const requests = [];
+
+  global.fetch = async (url, init) => {
+    requests.push({
+      url,
+      method: init?.method,
+      headers: init?.headers,
+      body: JSON.parse(init?.body ?? "{}"),
+    });
+    return {
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        id: "msg_test",
+        type: "message",
+        role: "assistant",
+        model: "tk/GLM-5.1",
+        content: [
+          { type: "text", text: "Hello!" },
+        ],
+        stop_reason: "end_turn",
+        usage: {
+          input_tokens: 123,
+          output_tokens: 7,
+          cache_read_input_tokens: 0,
+        },
+      }),
+    };
+  };
+
+  try {
+    const llm = createLLMFromResolvedOptions({
+      provider: "openai",
+      providerName: "OpenAI",
+      model: "tk/GLM-5.1",
+      temperature: 0.2,
+      apiKey: "test-key",
+      baseURL: "https://aiproxy.mircosoft.cn/v1",
+      maxTokens: 256,
+      reasoningEnabled: true,
+      modelKwargs: undefined,
+      includeRawResponse: false,
+      executionMode: "structured",
+      structuredProfile: resolveStructuredOutputProfile({
+        provider: "openai",
+        model: "tk/GLM-5.1",
+        baseURL: "https://aiproxy.mircosoft.cn/v1",
+        executionMode: "structured",
+      }),
+      structuredStrategy: "prompt_json",
+      reasoningForcedOff: false,
+      taskType: "planner",
+      promptMeta: undefined,
+      timeoutMs: 43210,
+      maxRetries: 4,
+      transportProtocol: "anthropic",
+    });
+
+    const result = await llm.invoke([new HumanMessage("hello")]);
+
+    assert.equal(llm.timeout, 43210);
+    assert.equal(llm.caller.maxRetries, 4);
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].url, "https://aiproxy.mircosoft.cn/v1/messages");
+    assert.equal(requests[0].method, "POST");
+    assert.equal(requests[0].headers["x-api-key"], "test-key");
+    assert.equal(requests[0].headers["anthropic-version"], "2023-06-01");
+    assert.equal(requests[0].body.model, "tk/GLM-5.1");
+    assert.equal(result.text, "Hello!");
+    assert.deepEqual(result.usage_metadata, {
+      input_tokens: 123,
+      output_tokens: 7,
+      total_tokens: 130,
+      input_token_details: {
+        cache_read: 0,
+      },
+    });
+  } finally {
+    global.fetch = originalFetch;
+  }
 });

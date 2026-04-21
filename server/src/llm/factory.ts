@@ -2,6 +2,7 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { ChatOpenAI } from "@langchain/openai";
 import { prisma } from "../db/prisma";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
+import { createAnthropicMessagesTransport } from "./anthropicTransport";
 import { resolveModelTemperature } from "./capabilities";
 import { attachLLMDebugLogging } from "./debugLogging";
 import { resolveProviderReasoningBehavior } from "./reasoning";
@@ -11,6 +12,7 @@ import {
   type StructuredOutputProfile,
   type StructuredOutputStrategy,
 } from "./structuredOutput";
+import { resolveTransportProtocol, type TransportProtocol } from "./transportRouting";
 import { attachLLMUsageTracking } from "./usageTracking";
 import { resolveModel, type TaskType } from "./modelRouter";
 import {
@@ -51,6 +53,7 @@ export interface ResolvedLLMClientOptions {
   provider: LLMProvider;
   providerName: string;
   model: string;
+  transportProtocol: TransportProtocol;
   temperature: number;
   apiKey?: string;
   baseURL: string;
@@ -254,10 +257,11 @@ export async function resolveLLMClientOptions(
   }
 
   const temperature = resolveModelTemperature(resolvedProvider, model, resolvedTemperature);
+  const transportProtocol = resolveTransportProtocol(resolvedProvider, model);
   const executionMode = options.executionMode ?? "plain";
   const structuredProfile = executionMode === "structured"
     ? resolveStructuredOutputProfile({
-      provider: resolvedProvider,
+      provider: transportProtocol === "anthropic" ? "anthropic" : resolvedProvider,
       model,
       baseURL,
       executionMode,
@@ -300,6 +304,7 @@ export async function resolveLLMClientOptions(
     provider: resolvedProvider,
     providerName,
     model,
+    transportProtocol,
     temperature,
     apiKey,
     baseURL,
@@ -319,6 +324,29 @@ export async function resolveLLMClientOptions(
 }
 
 export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions): ChatOpenAI {
+  if (resolved.transportProtocol === "anthropic") {
+    const anthropicTransport = createAnthropicMessagesTransport(resolved, {
+      provider: resolved.provider,
+      model: resolved.model,
+      temperature: resolved.temperature,
+      maxTokens: resolved.maxTokens,
+      taskType: resolved.taskType,
+      baseURL: resolved.baseURL,
+      promptMeta: resolved.promptMeta,
+    });
+    const decorated = attachLLMDebugLogging(attachLLMUsageTracking(anthropicTransport as unknown as ChatOpenAI), {
+      provider: resolved.provider,
+      model: resolved.model,
+      temperature: resolved.temperature,
+      maxTokens: resolved.maxTokens,
+      taskType: resolved.taskType,
+      baseURL: resolved.baseURL,
+      promptMeta: resolved.promptMeta,
+    });
+    (decorated as ChatOpenAIWithResolvedOptions)[RESOLVED_LLM_OPTIONS] = resolved;
+    return decorated;
+  }
+
   const llm = new ChatOpenAI({
     apiKey: resolved.apiKey ?? "ollama",
     model: resolved.model,

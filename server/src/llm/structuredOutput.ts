@@ -72,6 +72,10 @@ function normalizeModelId(model: string): string {
   return parts.length > 0 ? parts[parts.length - 1] ?? normalized : normalized;
 }
 
+function isTkRoutedModel(model: string): boolean {
+  return normalizeText(model).startsWith("tk/");
+}
+
 function isQwenThinkingOnlyModel(model: string): boolean {
   const normalizedModel = normalizeModelId(model);
   if (!normalizedModel) {
@@ -152,6 +156,14 @@ export function resolveStructuredOutputProfile(input: {
   const qwenNativeStructuredModel = supportsDashScopeQwenNativeStructuredOutput(model);
   const isDashScopeQwen = input.provider === "qwen" || DASHSCOPE_HOST_PATTERN.test(host);
   const isModelScopeQwen = MODELSCOPE_HOST_PATTERN.test(host) || provider.includes("modelscope");
+
+  if (isTkRoutedModel(model)) {
+    return buildProfile({
+      family: "anthropic",
+      preferredStructuredStrategy: "prompt_json",
+      safeStructuredMaxTokens: 8192,
+    });
+  }
 
   if (input.provider === "openai" || OPENAI_HOST_PATTERN.test(host)) {
     return buildProfile({
