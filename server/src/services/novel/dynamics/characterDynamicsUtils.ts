@@ -7,6 +7,7 @@ import type {
   DynamicCharacterOverviewItem,
   DynamicCharacterRiskLevel,
 } from "@ai-novel/shared/types/characterDynamics";
+import type { VolumeDynamicsProjection } from "./characterDynamicsSchemas";
 
 export interface VolumeWindow {
   id: string;
@@ -33,6 +34,41 @@ export function dedupeStrings(values: Array<string | null | undefined>): string[
       .map((value) => value?.trim())
       .filter((value): value is string => Boolean(value)),
   ));
+}
+
+export function collapseVolumeProjectionAssignments(
+  assignments: VolumeDynamicsProjection["assignments"],
+): VolumeDynamicsProjection["assignments"] {
+  const byKey = new Map<string, VolumeDynamicsProjection["assignments"][number]>();
+
+  for (const assignment of assignments) {
+    const key = `${assignment.characterName.trim().toLowerCase()}::${assignment.volumeSortOrder}`;
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, {
+        ...assignment,
+        plannedChapterOrders: Array.from(new Set(assignment.plannedChapterOrders)).sort((a, b) => a - b),
+      });
+      continue;
+    }
+
+    byKey.set(key, {
+      ...existing,
+      ...assignment,
+      characterName: existing.characterName,
+      roleLabel: assignment.roleLabel ?? existing.roleLabel,
+      responsibility: assignment.responsibility || existing.responsibility,
+      appearanceExpectation: assignment.appearanceExpectation ?? existing.appearanceExpectation,
+      plannedChapterOrders: Array.from(
+        new Set([...existing.plannedChapterOrders, ...assignment.plannedChapterOrders]),
+      ).sort((a, b) => a - b),
+      isCore: existing.isCore || assignment.isCore,
+      absenceWarningThreshold: assignment.absenceWarningThreshold ?? existing.absenceWarningThreshold,
+      absenceHighRiskThreshold: assignment.absenceHighRiskThreshold ?? existing.absenceHighRiskThreshold,
+    });
+  }
+
+  return [...byKey.values()];
 }
 
 export function buildVolumeWindows(

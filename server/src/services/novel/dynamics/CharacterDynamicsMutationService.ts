@@ -17,7 +17,13 @@ import {
   normalizeName,
   PROJECTION_SOURCE_TYPES,
 } from "./characterDynamicsShared";
-import { buildVolumeWindows, dedupeStrings, resolveCurrentVolume, toCharacterRelationStage } from "./characterDynamicsUtils";
+import {
+  buildVolumeWindows,
+  collapseVolumeProjectionAssignments,
+  dedupeStrings,
+  resolveCurrentVolume,
+  toCharacterRelationStage,
+} from "./characterDynamicsUtils";
 
 export class CharacterDynamicsMutationService {
   constructor(private readonly queryService: CharacterDynamicsQueryService) {}
@@ -408,7 +414,7 @@ export class CharacterDynamicsMutationService {
         },
       });
 
-      for (const assignment of projection.assignments) {
+      for (const assignment of collapseVolumeProjectionAssignments(projection.assignments)) {
         const characterId = characterIdByName.get(normalizeName(assignment.characterName));
         const volume = volumeBySortOrder.get(assignment.volumeSortOrder);
         if (!characterId || !volume) {
