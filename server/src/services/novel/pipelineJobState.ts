@@ -16,10 +16,10 @@ const PIPELINE_STAGE_PROGRESS = {
 } as const;
 
 const PIPELINE_BACKGROUND_ACTIVITY_LABELS: Record<PipelineBackgroundSyncKind, string> = {
-  character_dynamics: "character dynamics syncing",
-  state_snapshot: "state snapshot syncing",
-  payoff_ledger: "payoff ledger syncing",
-  canonical_state: "canonical state syncing",
+  character_dynamics: "角色成长中",
+  state_snapshot: "状态同步中",
+  payoff_ledger: "伏笔台账同步中",
+  canonical_state: "设定快照同步中",
 };
 
 export const PIPELINE_QUALITY_NOTICE_CODE = "PIPELINE_QUALITY_REVIEW";
@@ -118,7 +118,7 @@ export function buildPipelineBackgroundActivityLabels(
     }
     labels.add(
       typeof activity.chapterOrder === "number"
-        ? `${baseLabel} (chapter ${activity.chapterOrder})`
+        ? `${baseLabel}(第${activity.chapterOrder}章)`
         : baseLabel,
     );
   }

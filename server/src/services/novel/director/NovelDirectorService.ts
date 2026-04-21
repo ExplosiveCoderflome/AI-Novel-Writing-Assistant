@@ -493,14 +493,26 @@ export class NovelDirectorService {
       : undefined;
     const runMode = normalizeDirectorRunMode(directorInput.runMode ?? fallbackRunMode);
     const directorSessionPhase = seedPayload.directorSession?.phase;
+    const recoveryResumeTarget = mergeResumeTargets(
+      parseResumeTarget(row.resumeTargetJson),
+      parseResumeTargetLike(seedPayload.resumeTarget),
+    );
+    const inferredAutoExecutionCheckpoint = row.status === "cancelled"
+      && !row.checkpointType
+      && recoveryResumeTarget?.stage === "pipeline"
+      && seedPayload.autoExecution
+      ? "chapter_batch_ready"
+      : null;
+    const effectiveCheckpointType = row.checkpointType ?? inferredAutoExecutionCheckpoint;
     const shouldContinueAutoExecution = (
       input?.continuationMode === "auto_execute_range"
       || input?.continuationMode === "auto_execute_front10"
       || (
         runMode === "auto_to_execution"
         && (
-          row.checkpointType === "front10_ready"
-          || row.checkpointType === "chapter_batch_ready"
+          effectiveCheckpointType === "front10_ready"
+          || effectiveCheckpointType === "chapter_batch_ready"
+          || effectiveCheckpointType === "replan_required"
           || directorSessionPhase === "front10_ready"
         )
       )
@@ -508,17 +520,17 @@ export class NovelDirectorService {
     if (
       shouldContinueAutoExecution
       && (
-        row.checkpointType === "front10_ready"
-        || row.checkpointType === "chapter_batch_ready"
+        effectiveCheckpointType === "front10_ready"
+        || effectiveCheckpointType === "chapter_batch_ready"
+        || effectiveCheckpointType === "replan_required"
         || directorSessionPhase === "front10_ready"
       )
     ) {
-      const resumeCheckpointType = row.checkpointType === "chapter_batch_ready" || row.checkpointType === "replan_required"
-        ? row.checkpointType
+      const resumeCheckpointType = effectiveCheckpointType === "chapter_batch_ready" || effectiveCheckpointType === "replan_required"
+        ? effectiveCheckpointType
         : "front10_ready";
       const resumedChapterId = (
-        parseResumeTargetLike(row.resumeTargetJson)?.chapterId
-        ?? parseResumeTargetLike(seedPayload.resumeTarget)?.chapterId
+        recoveryResumeTarget?.chapterId
         ?? seedPayload.autoExecution?.nextChapterId
         ?? null
       );

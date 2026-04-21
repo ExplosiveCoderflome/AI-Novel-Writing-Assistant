@@ -120,8 +120,9 @@ test("repairDirectorChapterTitles clears warning notice after titles are diversi
     }),
   });
 
-  assert.equal(markTaskRunningCalls.length, 1);
-  assert.match(markTaskRunningCalls[0].itemLabel, /整理第 1 卷拆章上下文/);
+  assert.equal(markTaskRunningCalls.length, 2);
+  assert.match(markTaskRunningCalls[0].itemLabel, /补齐第 1 卷节奏板/);
+  assert.match(markTaskRunningCalls[1].itemLabel, /整理第 1 卷拆章上下文/);
   assert.equal(markTaskWaitingApprovalCalls.length, 1);
   assert.equal(markTaskWaitingApprovalCalls[0].volumeId, "volume-1");
   assert.equal(markTaskWaitingApprovalCalls[0].clearCheckpoint, true);
@@ -174,6 +175,5 @@ test("repairDirectorChapterTitles keeps warning notice when repaired titles are 
   });
 
   assert.equal(markTaskWaitingApprovalCalls.length, 1);
-  assert.equal(markTaskWaitingApprovalCalls[0].seedPayload.taskNotice.code, "CHAPTER_TITLE_DIVERSITY");
-  assert.equal(markTaskWaitingApprovalCalls[0].seedPayload.taskNotice.action.volumeId, "volume-1");
+  assert.equal(markTaskWaitingApprovalCalls[0].seedPayload.taskNotice, null);
 });

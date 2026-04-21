@@ -215,11 +215,20 @@ export async function resolveLLMClientOptions(
     }
   }
 
-  const dbSecret = await resolveProviderSecret(resolvedProvider);
+  const explicitApiKey = normalizeOptionalText(options.apiKey);
+  const explicitBaseURL = normalizeOptionalText(options.baseURL);
+  const canResolveWithoutDb = Boolean(
+    explicitApiKey
+    && resolvedModel
+    && (explicitBaseURL || isBuiltInProvider(resolvedProvider)),
+  );
+  const dbSecret = canResolveWithoutDb
+    ? undefined
+    : await resolveProviderSecret(resolvedProvider);
   const providerName = isBuiltInProvider(resolvedProvider)
     ? PROVIDERS[resolvedProvider].name
     : dbSecret?.displayName ?? resolvedProvider;
-  const apiKey = normalizeOptionalText(options.apiKey)
+  const apiKey = explicitApiKey
     ?? dbSecret?.key
     ?? getProviderEnvApiKey(resolvedProvider);
 

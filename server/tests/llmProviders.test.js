@@ -7,7 +7,7 @@ const {
   getModelParameterCompatibility,
   resolveModelTemperature,
 } = require("../dist/llm/capabilities.js");
-const { resolveLLMClientOptions, setProviderSecretCache } = require("../dist/llm/factory.js");
+const { resolveLLMClientOptions, setProviderSecretCache, createLLMFromResolvedOptions } = require("../dist/llm/factory.js");
 const {
   classifyStructuredOutputFailure,
   resolveStructuredOutputProfile,
@@ -222,4 +222,30 @@ test("structured failure classification separates native-json, thinking and sche
     classifyStructuredOutputFailure({ error: new Error("schema validation failed") }),
     "schema_mismatch",
   );
+});
+
+test("createLLMFromResolvedOptions forwards timeout and maxRetries to ChatOpenAI", () => {
+  const llm = createLLMFromResolvedOptions({
+    provider: "deepseek",
+    providerName: "DeepSeek",
+    model: "deepseek-chat",
+    temperature: 0.7,
+    apiKey: "test-key",
+    baseURL: "https://api.deepseek.com/v1",
+    maxTokens: 2048,
+    reasoningEnabled: true,
+    modelKwargs: undefined,
+    includeRawResponse: false,
+    executionMode: "plain",
+    structuredProfile: null,
+    structuredStrategy: null,
+    reasoningForcedOff: false,
+    taskType: "chat",
+    promptMeta: undefined,
+    timeoutMs: 43210,
+    maxRetries: 4,
+  });
+
+  assert.equal(llm.timeout, 43210);
+  assert.equal(llm.caller.maxRetries, 4);
 });
