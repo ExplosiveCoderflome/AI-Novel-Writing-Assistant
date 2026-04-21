@@ -73,6 +73,9 @@ export function buildTakeoverTitle(input: {
     if (input.checkpointType === "front10_ready") {
       return `《${input.novelTitle}》已完成自动导演交接`;
     }
+    if (input.checkpointType === "workflow_completed") {
+      return `《${input.novelTitle}》本轮自动导演已完成`;
+    }
     if (input.checkpointType === "replan_required") {
       return `《${input.novelTitle}》需要处理重规划`;
     }
@@ -113,6 +116,9 @@ export function buildTakeoverDescription(input: {
     }
     if (input.checkpointType === "front10_ready") {
       return `自动导演已经完成${input.scopeLabel}的开写准备。你可以直接进入章节执行，也可以继续让 AI 自动执行这批章节。`;
+    }
+    if (input.checkpointType === "workflow_completed") {
+      return `自动导演已经完成${input.scopeLabel}的章节执行、审核与修复。你可以直接进入章节执行继续写作，也可以完成并退出导演模式。`;
     }
     if (input.checkpointType === "replan_required") {
       return "AI 在前 10 章自动执行后判断后续章节需要重规划。这不是简单的“确认”步骤，而是要先进入质量修复 / 重规划区处理建议，再决定是否继续自动导演。";

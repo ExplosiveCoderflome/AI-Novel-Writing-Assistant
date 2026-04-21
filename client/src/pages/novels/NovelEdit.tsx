@@ -908,6 +908,12 @@ export default function NovelEdit() {
         },
         variant: "outline",
       });
+    } else if (mode === "waiting" && task.checkpointType === "workflow_completed") {
+      actions.push({
+        label: "进入章节执行",
+        onClick: openChapterExecution,
+        variant: "default",
+      });
     } else if (mode === "action_required" && task.checkpointType === "replan_required") {
       actions.push({
         label: "打开质量修复",
@@ -983,7 +989,10 @@ export default function NovelEdit() {
           disabled: cancelAutoDirectorMutation.isPending,
         });
       }
-    } else if (task.status === "waiting_approval") {
+    } else if (
+      task.status === "waiting_approval"
+      || (task.status === "succeeded" && task.checkpointType === "workflow_completed")
+    ) {
       actions.push({
         label: "完成并退出",
         onClick: dismissTakeover,
@@ -1149,7 +1158,7 @@ export default function NovelEdit() {
         onClick: openQualityRepair,
         variant: "outline",
       });
-    } else if (task.checkpointType === "front10_ready") {
+    } else if (task.checkpointType === "front10_ready" || task.checkpointType === "workflow_completed") {
       actions.push({
         label: "进入章节执行",
         onClick: openChapterExecution,
