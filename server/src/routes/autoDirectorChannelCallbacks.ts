@@ -6,6 +6,7 @@ import { AppError } from "../middleware/errorHandler";
 import { validate } from "../middleware/validate";
 import { AutoDirectorFollowUpActionExecutor } from "../services/task/autoDirectorFollowUps/AutoDirectorFollowUpActionExecutor";
 import { getAutoDirectorChannelSettings } from "../services/settings/AutoDirectorChannelSettingsService";
+import { signWeComMarkdownCallback } from "../services/task/autoDirectorFollowUps/wecomMarkdownCallback";
 
 const router = Router();
 const actionExecutor = new AutoDirectorFollowUpActionExecutor();
@@ -22,6 +23,16 @@ const dingtalkCallbackBodySchema = z.object({
 });
 
 const wecomCallbackBodySchema = dingtalkCallbackBodySchema;
+const wecomMarkdownQuerySchema = z.object({
+  callbackId: z.string().trim().min(1),
+  eventId: z.string().trim().min(1),
+  taskId: z.string().trim().min(1),
+  actionCode: z.enum([
+    "continue_auto_execution",
+    "retry_with_task_model",
+  ]),
+  signature: z.string().trim().min(1),
+});
 
 function resolveMappedOperatorId(mappingRaw: string, channelUserId: string, channelLabel: string): string {
   if (!mappingRaw) {
@@ -43,6 +54,25 @@ function resolveMappedOperatorId(mappingRaw: string, channelUserId: string, chan
 function verifyChannelToken(expected: string, token: string | undefined, channelLabel: string): void {
   if (!expected || token?.trim() !== expected) {
     throw new AppError(`Invalid ${channelLabel} callback token.`, 403);
+  }
+}
+
+function verifyWeComMarkdownSignature(input: {
+  callbackId: string;
+  eventId: string;
+  taskId: string;
+  actionCode: "continue_auto_execution" | "retry_with_task_model";
+  signature: string;
+  callbackToken: string;
+}): void {
+  const expected = signWeComMarkdownCallback({
+    callbackId: input.callbackId,
+    eventId: input.eventId,
+    taskId: input.taskId,
+    actionCode: input.actionCode,
+  }, input.callbackToken);
+  if (expected !== input.signature.trim()) {
+    throw new AppError("Invalid WeCom markdown callback signature.", 403);
   }
 }
 
@@ -119,6 +149,52 @@ router.post("/wecom", validate({ body: wecomCallbackBodySchema }), async (req, r
         channelUserId: body.userId,
         callbackId: body.callbackId,
         eventId: body.eventId,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        channelType: "wecom",
+        ...actionResult,
+      },
+      message: actionResult.message,
+    } satisfies ApiResponse<{
+      channelType: "wecom";
+      taskId: string;
+      actionCode: string;
+      code: string;
+      message: string;
+      task?: unknown;
+    }>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/wecom/execute", validate({ query: wecomMarkdownQuerySchema }), async (req, res, next) => {
+  try {
+    const settings = await getAutoDirectorChannelSettings();
+    const query = req.query as z.infer<typeof wecomMarkdownQuerySchema>;
+    verifyWeComMarkdownSignature({
+      callbackId: query.callbackId,
+      eventId: query.eventId,
+      taskId: query.taskId,
+      actionCode: query.actionCode,
+      signature: query.signature,
+      callbackToken: settings.wecom.callbackToken,
+    });
+
+    const actionResult = await actionExecutor.execute({
+      taskId: query.taskId,
+      actionCode: query.actionCode,
+      source: "wecom",
+      operatorId: "wecom_markdown_link",
+      idempotencyKey: `wecom:${query.callbackId}`,
+      metadata: {
+        callbackId: query.callbackId,
+        eventId: query.eventId,
+        trigger: "markdown_link",
       },
     });
 

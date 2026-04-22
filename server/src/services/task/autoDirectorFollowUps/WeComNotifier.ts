@@ -1,6 +1,5 @@
 import type {
   AutoDirectorAction,
-  AutoDirectorChannelAction,
   AutoDirectorChannelNotificationPayload,
   AutoDirectorEvent,
   AutoDirectorMutationActionCode,
@@ -9,6 +8,7 @@ import {
   resolveAutoDirectorBaseUrl,
   type AutoDirectorChannelConfig,
 } from "../../settings/AutoDirectorChannelSettingsService";
+import { buildWeComMarkdownCallbackParams, signWeComMarkdownCallback } from "./wecomMarkdownCallback";
 
 function isChannelSafeAction(
   action: AutoDirectorAction,
@@ -24,37 +24,89 @@ function hasCallbackSupport(config?: AutoDirectorChannelConfig | null): boolean 
   return Boolean(config?.callbackToken.trim() && config?.operatorMapJson.trim());
 }
 
-function buildCallbackAction(input: {
+function buildMarkdownLink(label: string, url: string): string {
+  return `[${label}](${url})`;
+}
+
+function buildMarkdownCallbackLink(input: {
   actionCode: Extract<AutoDirectorMutationActionCode, "continue_auto_execution" | "retry_with_task_model">;
   label: string;
   taskId: string;
   eventId: string;
   callbackToken: string;
   baseUrl: string;
-}): AutoDirectorChannelAction {
-  return {
+}): string {
+  const query = buildWeComMarkdownCallbackParams({
+    callbackId: `${input.eventId}:${input.taskId}:${input.actionCode}`,
+    eventId: input.eventId,
+    taskId: input.taskId,
     actionCode: input.actionCode,
-    label: input.label,
-    kind: "callback",
-    callback: {
-      endpoint: `${input.baseUrl}/api/auto-director/channel-callbacks/wecom`,
-      token: input.callbackToken,
-      callbackId: `${input.eventId}:${input.taskId}:${input.actionCode}`,
-    },
-  };
+  });
+  const signature = signWeComMarkdownCallback({
+    callbackId: `${input.eventId}:${input.taskId}:${input.actionCode}`,
+    eventId: input.eventId,
+    taskId: input.taskId,
+    actionCode: input.actionCode,
+  }, input.callbackToken);
+  query.set("signature", signature);
+  return buildMarkdownLink(
+    input.label,
+    `${input.baseUrl}/api/auto-director/channel-callbacks/wecom/execute?${query.toString()}`,
+  );
 }
 
-function buildLinkAction(input: {
-  actionCode: "open_detail" | "open_follow_up_center";
-  label: string;
-  url: string;
-}): AutoDirectorChannelAction {
-  return {
-    actionCode: input.actionCode,
-    label: input.label,
-    kind: "link",
-    url: input.url,
-  };
+function buildMarkdownContent(input: {
+  event: AutoDirectorEvent;
+  taskId: string;
+  novelTitle: string;
+  reasonLabel: string | null;
+  checkpointSummary: string | null;
+  stage: string | null;
+  availableActions: AutoDirectorAction[];
+  channelConfig?: AutoDirectorChannelConfig | null;
+  baseUrl?: string | null;
+}): string {
+  const baseUrl = resolveAutoDirectorBaseUrl(input.baseUrl);
+  const followUpCenterUrl = `${baseUrl}/auto-director/follow-ups?taskId=${input.taskId}`;
+  const detailUrl = `${baseUrl}/tasks?kind=novel_workflow&id=${input.taskId}`;
+  const lines = [
+    "# 自动导演跟进提醒",
+    "",
+    `> 小说：${input.novelTitle}`,
+    `> 事件：${input.event.summary}`,
+  ];
+
+  if (input.reasonLabel?.trim()) {
+    lines.push(`> 原因：${input.reasonLabel.trim()}`);
+  }
+  if (input.stage?.trim()) {
+    lines.push(`> 阶段：${input.stage.trim()}`);
+  }
+  if (input.checkpointSummary?.trim()) {
+    lines.push(`> 摘要：${input.checkpointSummary.trim()}`);
+  }
+
+  lines.push("", "## 操作");
+
+  if (hasCallbackSupport(input.channelConfig)) {
+    for (const action of input.availableActions.filter(isChannelSafeAction)) {
+      lines.push(
+        `- ${buildMarkdownCallbackLink({
+          actionCode: action.code,
+          label: action.label,
+          taskId: input.taskId,
+          eventId: input.event.eventId,
+          callbackToken: input.channelConfig?.callbackToken?.trim() || "",
+          baseUrl,
+        })}`,
+      );
+    }
+  }
+
+  lines.push(`- ${buildMarkdownLink("查看详情", detailUrl)}`);
+  lines.push(`- ${buildMarkdownLink("打开跟进中心", followUpCenterUrl)}`);
+
+  return lines.join("\n");
 }
 
 export class WeComNotifier {
@@ -78,51 +130,11 @@ export class WeComNotifier {
     channelConfig?: AutoDirectorChannelConfig | null;
     baseUrl?: string | null;
   }): AutoDirectorChannelNotificationPayload {
-    const baseUrl = resolveAutoDirectorBaseUrl(input.baseUrl);
-    const followUpCenterUrl = `${baseUrl}/auto-director/follow-ups?taskId=${input.taskId}`;
-    const detailUrl = `${baseUrl}/tasks?kind=novel_workflow&id=${input.taskId}`;
-    const callbackActions = hasCallbackSupport(input.channelConfig)
-      ? input.availableActions
-        .filter(isChannelSafeAction)
-        .map((action) => buildCallbackAction({
-          actionCode: action.code,
-          label: action.label,
-          taskId: input.taskId,
-          eventId: input.event.eventId,
-          callbackToken: input.channelConfig?.callbackToken?.trim() || "",
-          baseUrl,
-        }))
-      : [];
-
     return {
       channelType: "wecom",
-      event: input.event,
-      card: {
-        title: "自动导演跟进提醒",
-        summary: input.event.summary,
-        reasonLabel: input.reasonLabel,
-        stage: input.stage,
-        checkpointSummary: input.checkpointSummary,
-        actions: [
-          ...callbackActions,
-          buildLinkAction({
-            actionCode: "open_detail",
-            label: "查看详情",
-            url: detailUrl,
-          }),
-          buildLinkAction({
-            actionCode: "open_follow_up_center",
-            label: "打开跟进中心",
-            url: followUpCenterUrl,
-          }),
-        ],
-      },
-      task: {
-        taskId: input.taskId,
-        novelId: input.novelId,
-        novelTitle: input.novelTitle,
-        followUpCenterUrl,
-        detailUrl,
+      msgtype: "markdown",
+      markdown: {
+        content: buildMarkdownContent(input),
       },
     };
   }

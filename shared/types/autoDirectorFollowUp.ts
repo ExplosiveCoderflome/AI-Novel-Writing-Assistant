@@ -259,14 +259,18 @@ export interface AutoDirectorChannelCardPayload {
 
 export interface AutoDirectorChannelNotificationPayload {
   channelType: AutoDirectorChannelType;
-  event: AutoDirectorEvent;
-  card: AutoDirectorChannelCardPayload;
-  task: {
+  event?: AutoDirectorEvent;
+  card?: AutoDirectorChannelCardPayload;
+  task?: {
     taskId: string;
     novelId: string | null;
     novelTitle: string;
     followUpCenterUrl: string;
     detailUrl: string;
+  };
+  msgtype?: "markdown";
+  markdown?: {
+    content: string;
   };
 }
 
