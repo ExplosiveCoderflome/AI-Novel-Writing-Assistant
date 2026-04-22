@@ -373,6 +373,75 @@ test("manual review and manual audit pass assembled chapter review context into 
   }
 });
 
+test("concurrent manual reviews dedupe background replans for the same chapter", { timeout: 2000 }, async () => {
+  const originalChapterFindFirst = prisma.chapter.findFirst;
+  const originalChapterUpdate = prisma.chapter.update;
+  const originalQualityReportCreate = prisma.qualityReport.create;
+  const originalBuildReplanRecommendation = plannerService.buildReplanRecommendation;
+  const originalReplan = plannerService.replan;
+  const originalAuditChapter = auditService.auditChapter;
+  const originalAssemble = GenerationContextAssembler.prototype.assemble;
+
+  const replanStarted = createDeferred();
+  const releaseReplan = createDeferred();
+  let replanCallCount = 0;
+
+  prisma.chapter.findFirst = async () => ({
+    id: "chapter-1",
+    title: "第1章",
+    content: "章节正文",
+    novel: { title: "测试小说" },
+  });
+  prisma.chapter.update = async () => null;
+  prisma.qualityReport.create = async () => null;
+  plannerService.buildReplanRecommendation = () => ({
+    recommended: true,
+    reason: "存在阻塞问题",
+    triggerReason: "存在阻塞问题",
+    blockingIssueIds: ["issue-1"],
+  });
+  plannerService.replan = async () => {
+    replanCallCount += 1;
+    replanStarted.resolve();
+    await releaseReplan.promise;
+    return { generatedPlans: [] };
+  };
+  GenerationContextAssembler.prototype.assemble = async () => ({
+    novel: { id: "novel-1", title: "测试小说" },
+    chapter: { id: "chapter-1", title: "第1章", order: 1, content: "章节正文", expectation: "推进冲突" },
+    contextPackage: createAssembledContextPackage(),
+  });
+  auditService.auditChapter = async () => ({
+    score: {
+      coherence: 85,
+      repetition: 10,
+      pacing: 82,
+      voice: 81,
+      engagement: 84,
+      overall: 84,
+    },
+    issues: [],
+    auditReports: [{ id: "report-1", issues: [] }],
+  });
+
+  try {
+    const service = new NovelCoreReviewService();
+    const firstReview = service.reviewChapter("novel-1", "chapter-1", {});
+    await replanStarted.promise;
+    const secondReview = service.reviewChapter("novel-1", "chapter-1", {});
+    await Promise.all([firstReview, secondReview]);
+    assert.equal(replanCallCount, 1);
+  } finally {
+    releaseReplan.resolve();
+    prisma.chapter.findFirst = originalChapterFindFirst;
+    prisma.chapter.update = originalChapterUpdate;
+    prisma.qualityReport.create = originalQualityReportCreate;
+    plannerService.buildReplanRecommendation = originalBuildReplanRecommendation;
+    plannerService.replan = originalReplan;
+    auditService.auditChapter = originalAuditChapter;
+    GenerationContextAssembler.prototype.assemble = originalAssemble;
+  }
+});
 test("manual review ignores background replan failures after persistence", { timeout: 2000 }, async () => {
   const originalChapterFindFirst = prisma.chapter.findFirst;
   const originalChapterUpdate = prisma.chapter.update;
@@ -530,11 +599,22 @@ test("manual review and manual audit fail loudly when chapter context assembly b
     novel: { title: "测试小说" },
   });
   GenerationContextAssembler.prototype.assemble = async () => {
-    throw new Error("volume window missing");
+    throw new Error("runtime context missing");
   };
   auditService.auditChapter = async () => {
     auditCallCount += 1;
-    return null;
+    return {
+      score: {
+        coherence: 85,
+        repetition: 10,
+        pacing: 82,
+        voice: 81,
+        engagement: 84,
+        overall: 84,
+      },
+      issues: [],
+      auditReports: [],
+    };
   };
   novelCoreShared.logPipelineError = (message, meta) => {
     loggedFailures.push({ message, meta });
@@ -552,10 +632,8 @@ test("manual review and manual audit fail loudly when chapter context assembly b
     );
     assert.equal(auditCallCount, 0);
     assert.equal(loggedFailures.length, 2);
-    assert.deepEqual(
-      loggedFailures.map((entry) => entry.meta?.operation),
-      ["review", "audit"],
-    );
+    assert.equal(loggedFailures[0].meta.operation, "review");
+    assert.equal(loggedFailures[1].meta.operation, "audit");
   } finally {
     prisma.chapter.findFirst = originalChapterFindFirst;
     auditService.auditChapter = originalAuditChapter;
@@ -595,15 +673,15 @@ test("repair stream fails loudly when chapter context assembly breaks", async ()
       service.createRepairStream("novel-1", "chapter-1", {
         reviewIssues: [{
           severity: "high",
-          category: "pacing",
-          evidence: "第一次反压没有实际落地。",
-          fixSuggestion: "让主角在本章拿到明确反压结果。",
+          category: "coherence",
+          evidence: "前后设定断裂",
+          fixSuggestion: "回填设定约束",
         }],
       }),
       /章节上下文装配失败，无法继续章节修复/,
     );
     assert.equal(loggedFailures.length, 1);
-    assert.equal(loggedFailures[0]?.meta?.operation, "repair");
+    assert.equal(loggedFailures[0].meta.operation, "repair");
   } finally {
     prisma.novel.findUnique = originalNovelFindUnique;
     prisma.chapter.findFirst = originalChapterFindFirst;

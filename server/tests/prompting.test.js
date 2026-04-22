@@ -9,8 +9,8 @@ const {
   NOVEL_PROMPT_BUDGETS,
 } = require("../dist/prompting/prompts/novel/promptBudgetProfiles.js");
 const {
-  runStructuredPrompt,
   preparePromptExecution,
+  runStructuredPrompt,
   setPromptRunnerLLMFactoryForTests,
   setPromptRunnerStructuredInvokerForTests,
   streamStructuredPrompt,

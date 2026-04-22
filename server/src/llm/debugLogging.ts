@@ -3,6 +3,7 @@ import type { ChatOpenAI } from "@langchain/openai";
 import type { TaskType } from "./modelRouter";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
 import { appendLlmSessionLog } from "./sessionLogFile";
+import { extractLlmTokenUsage } from "./usageTracking";
 
 const LLM_DEBUG_PATCHED = Symbol("LLM_DEBUG_PATCHED");
 const LOG_TRUE_VALUES = new Set(["1", "true", "on", "yes"]);
@@ -25,6 +26,19 @@ interface MessageLogEntry {
   content: string;
 }
 
+interface LowCompletionTokenAnomaly {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  stopReason: string | null;
+}
+
+interface RawUsageSnapshot {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
 type PatchableChatOpenAI = ChatOpenAI & {
   [LLM_DEBUG_PATCHED]?: boolean;
 };
@@ -38,6 +52,22 @@ function shouldLogLLMRequests(): boolean {
     return true;
   }
   return process.env.NODE_ENV !== "production";
+}
+
+function getLowCompletionTokensThreshold(): number {
+  const raw = Number(process.env.LLM_LOW_COMPLETION_TOKENS_THRESHOLD ?? 4);
+  if (!Number.isFinite(raw) || raw < 0) {
+    return 4;
+  }
+  return Math.trunc(raw);
+}
+
+function getLowCompletionInputTokensThreshold(): number {
+  const raw = Number(process.env.LLM_LOW_COMPLETION_INPUT_TOKENS_THRESHOLD ?? 128);
+  if (!Number.isFinite(raw) || raw < 0) {
+    return 128;
+  }
+  return Math.trunc(raw);
 }
 
 function safeStringify(value: unknown): string {
@@ -216,6 +246,134 @@ function buildMetadataSections(value: unknown, label: string): string[] {
     return [];
   }
   return [`----- ${label} -----\n${safeStringify(value)}`];
+}
+
+function extractStopReason(output: unknown): string | null {
+  if (!output || typeof output !== "object") {
+    return null;
+  }
+
+  const candidate = output as {
+    response_metadata?: { stop_reason?: unknown; stopReason?: unknown } | null;
+    responseMetadata?: { stop_reason?: unknown; stopReason?: unknown } | null;
+  };
+  const raw = candidate.response_metadata?.stop_reason
+    ?? candidate.response_metadata?.stopReason
+    ?? candidate.responseMetadata?.stop_reason
+    ?? candidate.responseMetadata?.stopReason;
+  return typeof raw === "string" && raw.trim() ? raw.trim() : null;
+}
+
+function toNonNegativeInteger(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+  return Math.max(0, Math.round(value));
+}
+
+function normalizeRawUsageSnapshot(input: {
+  promptTokens?: unknown;
+  completionTokens?: unknown;
+  totalTokens?: unknown;
+}): RawUsageSnapshot | null {
+  const promptTokens = toNonNegativeInteger(input.promptTokens);
+  const completionTokens = toNonNegativeInteger(input.completionTokens);
+  const totalTokens = toNonNegativeInteger(input.totalTokens);
+
+  if (promptTokens == null && completionTokens == null && totalTokens == null) {
+    return null;
+  }
+
+  const normalizedPromptTokens = promptTokens ?? 0;
+  const normalizedCompletionTokens = completionTokens ?? 0;
+  const normalizedTotalTokens = Math.max(
+    totalTokens ?? 0,
+    normalizedPromptTokens + normalizedCompletionTokens,
+  );
+
+  return {
+    promptTokens: normalizedPromptTokens,
+    completionTokens: normalizedCompletionTokens,
+    totalTokens: normalizedTotalTokens,
+  };
+}
+
+function extractRawUsageSnapshot(value: unknown): RawUsageSnapshot | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const usage = value as {
+    prompt_tokens?: unknown;
+    completion_tokens?: unknown;
+    total_tokens?: unknown;
+    promptTokens?: unknown;
+    completionTokens?: unknown;
+    totalTokens?: unknown;
+    input_tokens?: unknown;
+    output_tokens?: unknown;
+    inputTokens?: unknown;
+    outputTokens?: unknown;
+  };
+
+  return normalizeRawUsageSnapshot({
+    promptTokens: usage.prompt_tokens ?? usage.promptTokens ?? usage.input_tokens ?? usage.inputTokens,
+    completionTokens: usage.completion_tokens ?? usage.completionTokens ?? usage.output_tokens ?? usage.outputTokens,
+    totalTokens: usage.total_tokens ?? usage.totalTokens,
+  });
+}
+
+function extractUsageSnapshotAllowZero(output: unknown): RawUsageSnapshot | null {
+  const normalized = extractLlmTokenUsage(output);
+  if (normalized) {
+    return normalized;
+  }
+  if (!output || typeof output !== "object") {
+    return null;
+  }
+
+  const candidate = output as {
+    usage_metadata?: unknown;
+    usageMetadata?: unknown;
+    response_metadata?: { usage?: unknown; tokenUsage?: unknown } | null;
+    responseMetadata?: { usage?: unknown; tokenUsage?: unknown } | null;
+    llmOutput?: { tokenUsage?: unknown; estimatedTokenUsage?: unknown } | null;
+  };
+
+  return (
+    extractRawUsageSnapshot(candidate.usage_metadata)
+    ?? extractRawUsageSnapshot(candidate.usageMetadata)
+    ?? extractRawUsageSnapshot(candidate.response_metadata?.usage)
+    ?? extractRawUsageSnapshot(candidate.response_metadata?.tokenUsage)
+    ?? extractRawUsageSnapshot(candidate.responseMetadata?.usage)
+    ?? extractRawUsageSnapshot(candidate.responseMetadata?.tokenUsage)
+    ?? extractRawUsageSnapshot(candidate.llmOutput?.tokenUsage)
+    ?? extractRawUsageSnapshot(candidate.llmOutput?.estimatedTokenUsage)
+  );
+}
+
+function detectLowCompletionTokenAnomaly(output: unknown): LowCompletionTokenAnomaly | null {
+  const usage = extractUsageSnapshotAllowZero(output);
+  if (!usage) {
+    return null;
+  }
+
+  const lowCompletionTokensThreshold = getLowCompletionTokensThreshold();
+  const lowCompletionInputTokensThreshold = getLowCompletionInputTokensThreshold();
+  const hasZeroUsage = usage.promptTokens <= 0 && usage.completionTokens <= 0 && usage.totalTokens <= 0;
+  const hasSuspiciouslyLowCompletion = usage.completionTokens <= lowCompletionTokensThreshold
+    && usage.promptTokens >= lowCompletionInputTokensThreshold;
+
+  if (!hasZeroUsage && !hasSuspiciouslyLowCompletion) {
+    return null;
+  }
+
+  return {
+    promptTokens: usage.promptTokens,
+    completionTokens: usage.completionTokens,
+    totalTokens: usage.totalTokens,
+    stopReason: extractStopReason(output),
+  };
 }
 
 function serializeSingleLLMOutputForJson(output: unknown, fallbackRole: string): unknown {
@@ -434,6 +592,60 @@ function logLLMResponse(method: "invoke" | "stream" | "batch", output: unknown, 
   });
 }
 
+function logLowCompletionTokenAnomaly(
+  method: "invoke" | "stream" | "batch",
+  input: unknown,
+  output: unknown,
+  meta: LLMDebugMeta,
+  requestId: string,
+  latencyMs: number,
+): void {
+  const anomaly = detectLowCompletionTokenAnomaly(output);
+  if (!anomaly) {
+    return;
+  }
+
+  const renderedInput = serializeLLMInput(method, input);
+  const renderedOutput = serializeLLMOutput(method, output);
+  console.warn(
+    [
+      "[llm.debug]",
+      "event=low_completion_tokens",
+      `requestId=${requestId}`,
+      `method=${method}`,
+      `provider=${meta.provider}`,
+      `model=${meta.model}`,
+      `latencyMs=${latencyMs}`,
+      `inputTokens=${anomaly.promptTokens}`,
+      `completionTokens=${anomaly.completionTokens}`,
+      `totalTokens=${anomaly.totalTokens}`,
+      `stopReason=${JSON.stringify(anomaly.stopReason)}`,
+      "----- input -----",
+      renderedInput,
+      "----- output -----",
+      renderedOutput,
+    ].join("\n"),
+  );
+  logLlmFileBlock({
+    requestId,
+    event: "response",
+    method,
+    meta,
+    payload: {
+      anomaly: {
+        type: "low_completion_tokens",
+        promptTokens: anomaly.promptTokens,
+        completionTokens: anomaly.completionTokens,
+        totalTokens: anomaly.totalTokens,
+        stopReason: anomaly.stopReason,
+      },
+      input: serializeLLMInputForJson(method, input),
+      output: serializeLLMOutputForJson(method, output),
+    },
+    latencyMs,
+  });
+}
+
 function logLLMError(method: "invoke" | "stream" | "batch", error: unknown, meta: LLMDebugMeta, requestId: string, latencyMs: number): void {
   const message = error instanceof Error ? error.message : String(error);
   console.warn(
@@ -459,12 +671,20 @@ function logLLMError(method: "invoke" | "stream" | "batch", error: unknown, meta
   });
 }
 
-function wrapLoggedStream(stream: AsyncIterable<unknown>, meta: LLMDebugMeta, requestId: string, startedAt: number): AsyncIterable<unknown> {
+function wrapLoggedStream(
+  stream: AsyncIterable<unknown>,
+  input: unknown,
+  meta: LLMDebugMeta,
+  requestId: string,
+  startedAt: number,
+): AsyncIterable<unknown> {
   return {
     async *[Symbol.asyncIterator]() {
       const chunks: string[] = [];
+      let lastChunk: unknown = null;
       try {
         for await (const chunk of stream) {
+          lastChunk = chunk;
           if (chunk && typeof chunk === "object" && "content" in (chunk as Record<string, unknown>)) {
             chunks.push(stringifyContent((chunk as { content?: unknown }).content));
           } else {
@@ -472,13 +692,23 @@ function wrapLoggedStream(stream: AsyncIterable<unknown>, meta: LLMDebugMeta, re
           }
           yield chunk;
         }
-        logLLMResponse(
-          "stream",
-          { content: chunks.join("") },
-          meta,
-          requestId,
-          Date.now() - startedAt,
-        );
+        const latencyMs = Date.now() - startedAt;
+        const mergedOutput = lastChunk && typeof lastChunk === "object"
+          ? {
+            ...(lastChunk as Record<string, unknown>),
+            content: chunks.join(""),
+          }
+          : { content: chunks.join("") };
+        if (shouldLogLLMRequests()) {
+          logLLMResponse(
+            "stream",
+            mergedOutput,
+            meta,
+            requestId,
+            latencyMs,
+          );
+        }
+        logLowCompletionTokenAnomaly("stream", input, mergedOutput, meta, requestId, latencyMs);
       } catch (error) {
         logLLMError("stream", error, meta, requestId, Date.now() - startedAt);
         throw error;
@@ -488,10 +718,6 @@ function wrapLoggedStream(stream: AsyncIterable<unknown>, meta: LLMDebugMeta, re
 }
 
 export function attachLLMDebugLogging(llm: ChatOpenAI, meta: LLMDebugMeta): ChatOpenAI {
-  if (!shouldLogLLMRequests()) {
-    return llm;
-  }
-
   const patchable = llm as PatchableChatOpenAI;
   if (patchable[LLM_DEBUG_PATCHED]) {
     return llm;
@@ -504,10 +730,17 @@ export function attachLLMDebugLogging(llm: ChatOpenAI, meta: LLMDebugMeta): Chat
   patchable.invoke = (async (...args: Parameters<ChatOpenAI["invoke"]>) => {
     const requestId = nextRequestId("invoke");
     const startedAt = Date.now();
-    logLLMRequest("invoke", args[0], meta, requestId);
+    const shouldLogRequest = shouldLogLLMRequests();
+    if (shouldLogRequest) {
+      logLLMRequest("invoke", args[0], meta, requestId);
+    }
     try {
       const result = await originalInvoke(...args);
-      logLLMResponse("invoke", result, meta, requestId, Date.now() - startedAt);
+      const latencyMs = Date.now() - startedAt;
+      if (shouldLogRequest) {
+        logLLMResponse("invoke", result, meta, requestId, latencyMs);
+      }
+      logLowCompletionTokenAnomaly("invoke", args[0], result, meta, requestId, latencyMs);
       return result;
     } catch (error) {
       logLLMError("invoke", error, meta, requestId, Date.now() - startedAt);
@@ -518,10 +751,19 @@ export function attachLLMDebugLogging(llm: ChatOpenAI, meta: LLMDebugMeta): Chat
   patchable.stream = (async (...args: Parameters<ChatOpenAI["stream"]>) => {
     const requestId = nextRequestId("stream");
     const startedAt = Date.now();
-    logLLMRequest("stream", args[0], meta, requestId);
+    const shouldLogRequest = shouldLogLLMRequests();
+    if (shouldLogRequest) {
+      logLLMRequest("stream", args[0], meta, requestId);
+    }
     try {
       const stream = await originalStream(...args);
-      return wrapLoggedStream(stream as AsyncIterable<unknown>, meta, requestId, startedAt) as Awaited<ReturnType<ChatOpenAI["stream"]>>;
+      return wrapLoggedStream(
+        stream as AsyncIterable<unknown>,
+        args[0],
+        meta,
+        requestId,
+        startedAt,
+      ) as Awaited<ReturnType<ChatOpenAI["stream"]>>;
     } catch (error) {
       logLLMError("stream", error, meta, requestId, Date.now() - startedAt);
       throw error;
@@ -531,10 +773,17 @@ export function attachLLMDebugLogging(llm: ChatOpenAI, meta: LLMDebugMeta): Chat
   patchable.batch = (async (...args: Parameters<ChatOpenAI["batch"]>) => {
     const requestId = nextRequestId("batch");
     const startedAt = Date.now();
-    logLLMRequest("batch", args[0], meta, requestId);
+    const shouldLogRequest = shouldLogLLMRequests();
+    if (shouldLogRequest) {
+      logLLMRequest("batch", args[0], meta, requestId);
+    }
     try {
       const result = await originalBatch(...args);
-      logLLMResponse("batch", result, meta, requestId, Date.now() - startedAt);
+      const latencyMs = Date.now() - startedAt;
+      if (shouldLogRequest) {
+        logLLMResponse("batch", result, meta, requestId, latencyMs);
+      }
+      logLowCompletionTokenAnomaly("batch", args[0], result, meta, requestId, latencyMs);
       return result;
     } catch (error) {
       logLLMError("batch", error, meta, requestId, Date.now() - startedAt);

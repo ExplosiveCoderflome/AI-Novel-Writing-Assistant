@@ -7,7 +7,7 @@ export const MODEL_ROUTE_LABELS: Record<ModelRouteTaskType, { title: string; des
   },
   small_text: {
     title: "短文本处理",
-    description: "处理提示短、上下文轻的后台同步与维护类请求，避免挤占主规划模型。",
+    description: "处理提示短、上下文轻的规划类请求，避免挤占主规划模型。",
   },
   writer: {
     title: "主笔作家",
