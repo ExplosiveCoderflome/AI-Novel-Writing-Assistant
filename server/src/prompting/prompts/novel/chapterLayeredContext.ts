@@ -17,6 +17,7 @@ import type { ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
 import { createContextBlock } from "../../core/contextBudget";
 import type { PromptContextBlock } from "../../core/promptTypes";
+import { buildWriterStyleContractText } from "../../../services/styleEngine/styleContractText";
 import { buildDynamicCharacterGuidance, buildParticipants } from "./chapterLayeredContextCharacters";
 import {
   buildCharacterGuidanceText,
@@ -209,6 +210,7 @@ export function buildChapterWriteContext(input: {
     ledgerSummary: input.contextPackage.ledgerSummary ?? null,
     recentChapterSummaries: takeUnique(input.contextPackage.previousChaptersSummary.slice(0, 3), 3),
     openingAntiRepeatHint: compactText(input.contextPackage.openingHint, "No recent opening guidance."),
+    styleContract: input.contextPackage.styleContext?.compiledBlocks?.contract ?? null,
     styleConstraints: summarizeStyleConstraints(input.contextPackage),
     continuationConstraints: summarizeContinuationConstraints(input.contextPackage),
     ragFacts: [],
@@ -366,7 +368,7 @@ export function buildChapterWriterContextBlocks(
   const includeCharacterDynamics = shouldIncludeCharacterDynamics(writeContext, mode);
   const includeOpenConflicts = !isIncremental && writeContext.openConflictSummaries.length > 0;
   const includeRecentChapters = mode === "full" && writeContext.recentChapterSummaries.length > 0;
-  const includeStyleConstraints = mode === "full" && writeContext.styleConstraints.length > 0;
+  const includeStyleContract = mode !== "incremental" && Boolean(writeContext.styleContract);
   const includeContinuationConstraints = mode === "full" && writeContext.continuationConstraints.length > 0;
   const wordRange = resolveTargetWordRange(writeContext.chapterMission.targetWordCount);
   const blocks: Array<PromptContextBlock | null> = [
@@ -502,12 +504,13 @@ export function buildChapterWriterContextBlocks(
         content: `Opening anti-repeat hint:\n${writeContext.openingAntiRepeatHint}`,
       })
       : null,
-    includeStyleConstraints
+    includeStyleContract
       ? createContextBlock({
-        id: "style_constraints",
-        group: "style_constraints",
+        id: "style_contract",
+        group: "style_contract",
         priority: 74,
-        content: toListBlock("Style constraints", writeContext.styleConstraints),
+        required: mode === "full",
+        content: buildWriterStyleContractText(writeContext.styleContract),
       })
       : null,
     includeContinuationConstraints

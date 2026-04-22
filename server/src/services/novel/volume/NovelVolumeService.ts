@@ -18,6 +18,8 @@ import { novelEventBus } from "../../../events";
 import type { VolumeUpdateReason } from "../../../events";
 import { payoffLedgerSyncService } from "../../payoff/PayoffLedgerSyncService";
 import { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
+import { StyleBindingService } from "../../styleEngine/StyleBindingService";
+import { buildWriterStyleContractText } from "../../styleEngine/styleContractText";
 import {
   buildTaskSheetFromVolumeChapter,
   hasPayoffLedgerRelevantPlanChanges,
@@ -60,6 +62,7 @@ import {
 
 export class NovelVolumeService {
   private readonly storyMacroPlanService = new StoryMacroPlanService();
+  private readonly styleBindingService = new StyleBindingService();
 
   private emitVolumeUpdated(novelId: string, reason: VolumeUpdateReason): void {
     void novelEventBus.emit({
@@ -552,7 +555,9 @@ export class NovelVolumeService {
   async ensureChapterExecutionContract(
     novelId: string,
     chapterId: string,
-    options: Pick<VolumeGenerateOptions, "provider" | "model" | "temperature" | "guidance"> = {},
+    options: Pick<VolumeGenerateOptions, "provider" | "model" | "temperature" | "guidance"> & {
+      taskStyleProfileId?: string;
+    } = {},
   ) {
     const chapter = await prisma.chapter.findFirst({
       where: { id: chapterId, novelId },
@@ -590,7 +595,15 @@ export class NovelVolumeService {
       targetWordCount: chapter.targetWordCount ?? undefined,
     });
     if (chapter.taskSheet?.trim() && existingScenePlan) {
-      return chapter;
+      const resolvedStyleContext = await this.styleBindingService.resolveForGeneration({
+        novelId,
+        chapterId,
+        taskStyleProfileId: options.taskStyleProfileId,
+      }).catch(() => null);
+      return {
+        ...chapter,
+        styleContract: buildWriterStyleContractText(resolvedStyleContext?.compiledBlocks?.contract ?? null) || null,
+      };
     }
 
     const workspace = await this.ensureVolumeWorkspace(novelId);
@@ -616,6 +629,13 @@ export class NovelVolumeService {
     if (!targetChapter?.taskSheet?.trim() || !targetChapter.sceneCards?.trim()) {
       throw new Error("AI 未返回完整的章节执行合同。");
     }
+    const resolvedStyleContext = await this.styleBindingService.resolveForGeneration({
+      novelId,
+      chapterId,
+      taskStyleProfileId: options.taskStyleProfileId,
+    }).catch(() => null);
+    const styleContract = buildWriterStyleContractText(resolvedStyleContext?.compiledBlocks?.contract ?? null) || null;
+    targetChapter.styleContract = styleContract;
     const taskSheet = targetChapter.taskSheet.trim();
     const scenePlan = parseChapterScenePlan(targetChapter.sceneCards, {
       targetWordCount: targetChapter.targetWordCount ?? chapter.targetWordCount ?? undefined,
@@ -643,7 +663,7 @@ export class NovelVolumeService {
         },
       });
       await persistActiveVolumeWorkspace(tx, novelId, persistedDocument, versionId);
-      return tx.chapter.update({
+      const updatedChapter = await tx.chapter.update({
         where: { id: chapterId },
         data: {
           targetWordCount: targetChapter.targetWordCount ?? chapter.targetWordCount ?? null,
@@ -654,6 +674,10 @@ export class NovelVolumeService {
           sceneCards: serializeChapterScenePlan(scenePlan),
         },
       });
+      return {
+        ...updatedChapter,
+        styleContract,
+      };
     });
 
     this.emitVolumeUpdated(novelId, "chapter_execution_contract_refined");

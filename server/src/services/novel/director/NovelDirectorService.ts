@@ -1,6 +1,7 @@
 import {
   DIRECTOR_RUN_MODES,
 } from "@ai-novel/shared/types/novelDirector";
+import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import { AppError } from "../../../middleware/errorHandler";
 import { runWithLlmUsageTracking } from "../../../llm/usageTracking";
 import type {
@@ -71,6 +72,8 @@ import { DirectorRecoveryNotNeededError } from "./novelDirectorErrors";
 import { repairDirectorChapterTitles } from "./novelDirectorChapterTitleRepair";
 import { startDirectorTakeoverExecution } from "./novelDirectorTakeoverExecution";
 import { resetDirectorTakeoverCurrentStep } from "./novelDirectorTakeoverReset";
+import { StyleBindingService } from "../../styleEngine/StyleBindingService";
+import { StyleProfileService } from "../../styleEngine/StyleProfileService";
 
 type WorkflowTaskSnapshot = Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>;
 
@@ -127,10 +130,13 @@ export class NovelDirectorService {
   private readonly characterDynamicsService = new CharacterDynamicsService();
   private readonly volumeService = new NovelVolumeService();
   private readonly workflowService = new NovelWorkflowService();
+  private readonly styleProfileService = new StyleProfileService();
+  private readonly styleBindingService = new StyleBindingService();
   private readonly candidateStageService = new NovelDirectorCandidateStageService(this.workflowService);
   private readonly autoExecutionRuntime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: this.novelContextService,
     novelService: this.novelService,
+    volumeWorkspaceService: this.volumeService,
     workflowService: this.workflowService,
     buildDirectorSeedPayload: (input, novelId, extra) => this.buildDirectorSeedPayload(input, novelId, extra),
   });
@@ -152,6 +158,52 @@ export class NovelDirectorService {
       return runner();
     }
     return runWithLlmUsageTracking({ workflowTaskId: workflowTaskId.trim() }, runner);
+  }
+
+  private async enrichDirectorStyleContext<T extends { styleProfileId?: string; styleTone?: string; styleIntentSummary?: unknown }>(
+    input: T,
+  ): Promise<T> {
+    const styleProfileId = input.styleProfileId?.trim() || undefined;
+    let styleProfile = null;
+    if (styleProfileId) {
+      styleProfile = await this.styleProfileService.getProfileById(styleProfileId);
+      if (!styleProfile) {
+        throw new Error("所选写法资产不存在。");
+      }
+    }
+
+    const styleIntentSummary = buildStyleIntentSummary({
+      styleProfile,
+      styleTone: input.styleTone,
+    });
+    return {
+      ...input,
+      styleProfileId,
+      styleIntentSummary: styleIntentSummary ?? undefined,
+    };
+  }
+
+  private async ensurePrimaryNovelStyleBinding(novelId: string, styleProfileId: string | null | undefined): Promise<void> {
+    const normalizedProfileId = styleProfileId?.trim();
+    if (!normalizedProfileId) {
+      return;
+    }
+    const existingBindings = await this.styleBindingService.listBindings({
+      targetType: "novel",
+      targetId: novelId,
+    });
+    if (existingBindings.some((binding) => binding.styleProfileId === normalizedProfileId)) {
+      return;
+    }
+    const nextPriority = Math.max(1, ...existingBindings.map((binding) => binding.priority)) + 1;
+    await this.styleBindingService.createBinding({
+      styleProfileId: normalizedProfileId,
+      targetType: "novel",
+      targetId: novelId,
+      priority: nextPriority,
+      weight: 1,
+      enabled: true,
+    });
   }
 
   private resolveDirectorEditStage(
@@ -313,6 +365,8 @@ export class NovelDirectorService {
         ? seedPayload.pacePreference
         : undefined,
       styleTone: readText(seedPayload.styleTone),
+      styleProfileId: readText(seedPayload.styleProfileId),
+      styleIntentSummary: seedPayload.styleIntentSummary as DirectorCandidatesRequest["styleIntentSummary"] | undefined,
       emotionIntensity: seedPayload.emotionIntensity === "low"
         || seedPayload.emotionIntensity === "medium"
         || seedPayload.emotionIntensity === "high"
@@ -731,22 +785,25 @@ export class NovelDirectorService {
       throw new Error("当前已有自动导演任务在运行或等待审核，请先继续或取消当前任务。");
     }
 
-    const directorInput = buildDirectorTakeoverInput({
+    const takeoverDirectorInput = buildDirectorTakeoverInput({
       novel: takeoverState.novel,
       storyMacroPlan: takeoverState.storyMacroPlan,
       bookContract: takeoverState.bookContract,
       runMode: input.runMode,
     });
+    const directorInput = await this.enrichDirectorStyleContext({
+      ...takeoverDirectorInput,
+      styleProfileId: input.styleProfileId ?? takeoverDirectorInput.styleProfileId,
+      autoExecutionPlan: input.autoExecutionPlan,
+      provider: input.provider ?? takeoverDirectorInput.provider,
+      model: input.model?.trim() || takeoverDirectorInput.model,
+      temperature: typeof input.temperature === "number" ? input.temperature : takeoverDirectorInput.temperature,
+    });
+    await this.ensurePrimaryNovelStyleBinding(input.novelId, directorInput.styleProfileId);
     return startDirectorTakeoverExecution({
       request: input,
       takeoverState,
-      directorInput: {
-        ...directorInput,
-        autoExecutionPlan: input.autoExecutionPlan,
-        provider: input.provider ?? directorInput.provider,
-        model: input.model?.trim() || directorInput.model,
-        temperature: typeof input.temperature === "number" ? input.temperature : directorInput.temperature,
-      },
+      directorInput,
       workflowService: this.workflowService,
       autoExecutionRuntime: this.autoExecutionRuntime,
       buildDirectorSeedPayload: (request, novelId, extra) => this.buildDirectorSeedPayload(request, novelId, extra),
@@ -770,21 +827,21 @@ export class NovelDirectorService {
   async generateCandidates(input: DirectorCandidatesRequest): Promise<DirectorCandidatesResponse> {
     return this.runCandidateStageWithFailureHandling(
       input.workflowTaskId,
-      () => this.candidateStageService.generateCandidates(input),
+      async () => this.candidateStageService.generateCandidates(await this.enrichDirectorStyleContext(input)),
     );
   }
 
   async refineCandidates(input: DirectorRefinementRequest): Promise<DirectorRefineResponse> {
     return this.runCandidateStageWithFailureHandling(
       input.workflowTaskId,
-      () => this.candidateStageService.refineCandidates(input),
+      async () => this.candidateStageService.refineCandidates(await this.enrichDirectorStyleContext(input)),
     );
   }
 
   async patchCandidate(input: DirectorCandidatePatchRequest): Promise<DirectorCandidatePatchResponse> {
     return this.runCandidateStageWithFailureHandling(
       input.workflowTaskId,
-      () => this.candidateStageService.patchCandidate(input),
+      async () => this.candidateStageService.patchCandidate(await this.enrichDirectorStyleContext(input)),
     );
   }
 
@@ -793,24 +850,25 @@ export class NovelDirectorService {
   ): Promise<DirectorCandidateTitleRefineResponse> {
     return this.runCandidateStageWithFailureHandling(
       input.workflowTaskId,
-      () => this.candidateStageService.refineCandidateTitleOptions(input),
+      async () => this.candidateStageService.refineCandidateTitleOptions(await this.enrichDirectorStyleContext(input)),
     );
   }
 
   async confirmCandidate(input: DirectorConfirmRequest): Promise<DirectorConfirmApiResponse> {
-    const runMode = normalizeDirectorRunMode(input.runMode);
-    const title = input.candidate.workingTitle.trim() || input.title?.trim() || "未命名项目";
-    const description = input.description?.trim() || input.candidate.logline.trim();
+    const resolvedInput = await this.enrichDirectorStyleContext(input);
+    const runMode = normalizeDirectorRunMode(resolvedInput.runMode);
+    const title = resolvedInput.candidate.workingTitle.trim() || resolvedInput.title?.trim() || "未命名项目";
+    const description = resolvedInput.description?.trim() || resolvedInput.candidate.logline.trim();
     const bookSpec = toBookSpec(
-      input.candidate,
-      input.idea,
-      input.estimatedChapterCount,
+      resolvedInput.candidate,
+      resolvedInput.idea,
+      resolvedInput.estimatedChapterCount,
     );
     const workflowTask = await this.workflowService.bootstrapTask({
-      workflowTaskId: input.workflowTaskId,
+      workflowTaskId: resolvedInput.workflowTaskId,
       lane: "auto_director",
       title,
-      seedPayload: this.buildDirectorSeedPayload({ ...input, runMode }, null, {
+      seedPayload: this.buildDirectorSeedPayload({ ...resolvedInput, runMode }, null, {
         directorSession: buildDirectorSessionState({
           runMode,
           phase: "candidate_selection",
@@ -820,7 +878,8 @@ export class NovelDirectorService {
     });
 
     if (workflowTask.novelId) {
-      return this.buildExistingConfirmResponse(workflowTask, input, bookSpec);
+      await this.ensurePrimaryNovelStyleBinding(workflowTask.novelId, resolvedInput.styleProfileId);
+      return this.buildExistingConfirmResponse(workflowTask, resolvedInput, bookSpec);
     }
 
     const novelCreationClaim = await this.workflowService.claimAutoDirectorNovelCreation(workflowTask.id, {
@@ -828,12 +887,20 @@ export class NovelDirectorService {
       progress: DIRECTOR_PROGRESS.novelCreate,
     });
     if (novelCreationClaim.status === "attached") {
-      return this.buildExistingConfirmResponse(novelCreationClaim.task, input, bookSpec);
+      const attachedTask = novelCreationClaim.task;
+      if (!attachedTask) {
+        throw new Error("自动导演确认链缺少已附着的任务快照。");
+      }
+      if (attachedTask.novelId) {
+        await this.ensurePrimaryNovelStyleBinding(attachedTask.novelId, resolvedInput.styleProfileId);
+      }
+      return this.buildExistingConfirmResponse(attachedTask, resolvedInput, bookSpec);
     }
     if (novelCreationClaim.status === "in_progress") {
       const existingTask = await this.waitForExistingConfirmedNovel(workflowTask.id);
       if (existingTask?.novelId) {
-        return this.buildExistingConfirmResponse(existingTask, input, bookSpec);
+        await this.ensurePrimaryNovelStyleBinding(existingTask.novelId, resolvedInput.styleProfileId);
+        return this.buildExistingConfirmResponse(existingTask, resolvedInput, bookSpec);
       }
       if (existingTask?.status === "failed" || existingTask?.status === "cancelled") {
         throw new Error(existingTask.lastError?.trim() || "当前导演建书流程已中断，请重新尝试。");
@@ -844,18 +911,18 @@ export class NovelDirectorService {
     try {
       return await this.withWorkflowTaskUsage(workflowTask.id, async () => {
         const resolvedBookFraming = await resolveDirectorBookFraming({
-          context: input,
+          context: resolvedInput,
           title,
           description,
           suggest: (suggestInput) => novelFramingSuggestionService.suggest({
             ...suggestInput,
-            provider: input.provider,
-            model: input.model,
-            temperature: input.temperature,
+            provider: resolvedInput.provider,
+            model: resolvedInput.model,
+            temperature: resolvedInput.temperature,
           }),
         });
         const directorInput: DirectorConfirmRequest = {
-          ...input,
+          ...resolvedInput,
           ...resolvedBookFraming,
           runMode,
         };
@@ -875,28 +942,29 @@ export class NovelDirectorService {
           competingFeel: resolvedBookFraming.competingFeel,
           first30ChapterPromise: resolvedBookFraming.first30ChapterPromise,
           commercialTags: resolvedBookFraming.commercialTags,
-          genreId: input.genreId?.trim() || undefined,
-          primaryStoryModeId: input.primaryStoryModeId?.trim() || undefined,
-          secondaryStoryModeId: input.secondaryStoryModeId?.trim() || undefined,
-          worldId: input.worldId?.trim() || undefined,
-          writingMode: input.writingMode,
-          projectMode: input.projectMode,
-          narrativePov: input.narrativePov,
-          pacePreference: input.pacePreference,
-          styleTone: input.styleTone?.trim() || undefined,
-          emotionIntensity: input.emotionIntensity,
-          aiFreedom: input.aiFreedom,
-          defaultChapterLength: input.defaultChapterLength,
-          estimatedChapterCount: input.estimatedChapterCount ?? bookSpec.targetChapterCount,
-          projectStatus: input.projectStatus,
-          storylineStatus: input.storylineStatus,
-          outlineStatus: input.outlineStatus,
-          resourceReadyScore: input.resourceReadyScore,
-          sourceNovelId: input.sourceNovelId ?? undefined,
-          sourceKnowledgeDocumentId: input.sourceKnowledgeDocumentId ?? undefined,
-          continuationBookAnalysisId: input.continuationBookAnalysisId ?? undefined,
-          continuationBookAnalysisSections: input.continuationBookAnalysisSections ?? undefined,
+          genreId: resolvedInput.genreId?.trim() || undefined,
+          primaryStoryModeId: resolvedInput.primaryStoryModeId?.trim() || undefined,
+          secondaryStoryModeId: resolvedInput.secondaryStoryModeId?.trim() || undefined,
+          worldId: resolvedInput.worldId?.trim() || undefined,
+          writingMode: resolvedInput.writingMode,
+          projectMode: resolvedInput.projectMode,
+          narrativePov: resolvedInput.narrativePov,
+          pacePreference: resolvedInput.pacePreference,
+          styleTone: resolvedInput.styleTone?.trim() || undefined,
+          emotionIntensity: resolvedInput.emotionIntensity,
+          aiFreedom: resolvedInput.aiFreedom,
+          defaultChapterLength: resolvedInput.defaultChapterLength,
+          estimatedChapterCount: resolvedInput.estimatedChapterCount ?? bookSpec.targetChapterCount,
+          projectStatus: resolvedInput.projectStatus,
+          storylineStatus: resolvedInput.storylineStatus,
+          outlineStatus: resolvedInput.outlineStatus,
+          resourceReadyScore: resolvedInput.resourceReadyScore,
+          sourceNovelId: resolvedInput.sourceNovelId ?? undefined,
+          sourceKnowledgeDocumentId: resolvedInput.sourceKnowledgeDocumentId ?? undefined,
+          continuationBookAnalysisId: resolvedInput.continuationBookAnalysisId ?? undefined,
+          continuationBookAnalysisSections: resolvedInput.continuationBookAnalysisSections ?? undefined,
         });
+        await this.ensurePrimaryNovelStyleBinding(createdNovel.id, resolvedInput.styleProfileId);
         await this.workflowService.attachNovelToTask(workflowTask.id, createdNovel.id, "project_setup");
         const directorSession = buildDirectorSessionState({
           runMode,

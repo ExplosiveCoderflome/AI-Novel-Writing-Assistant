@@ -34,7 +34,7 @@ export interface LegacyVolumeSource {
   outline?: string | null;
   structuredOutline?: string | null;
   estimatedChapterCount?: number | null;
-  chapters?: Array<Pick<Chapter, "order" | "title" | "expectation" | "targetWordCount" | "conflictLevel" | "revealLevel" | "mustAvoid" | "taskSheet" | "sceneCards">>;
+  chapters?: Array<Pick<Chapter, "order" | "title" | "expectation" | "targetWordCount" | "conflictLevel" | "revealLevel" | "mustAvoid" | "taskSheet" | "sceneCards" | "styleContract">>;
   arcPlans?: LegacyArcSignal[];
 }
 
@@ -55,6 +55,7 @@ const volumeChapterInputSchema = z.object({
   mustAvoid: z.string().trim().nullable().optional(),
   taskSheet: z.string().trim().nullable().optional(),
   sceneCards: z.string().trim().nullable().optional(),
+  styleContract: z.string().trim().nullable().optional(),
   payoffRefs: z.array(z.string().trim().min(1)).optional(),
 }).passthrough();
 
@@ -112,6 +113,7 @@ export const volumeGenerationSchema = z.object({
           mustAvoid: z.string().trim().optional().nullable(),
           taskSheet: z.string().trim().optional().nullable(),
           sceneCards: z.string().trim().optional().nullable(),
+          styleContract: z.string().trim().optional().nullable(),
           payoffRefs: z.array(z.string().trim().min(1)).default([]),
         }),
       ).min(1),
@@ -225,6 +227,7 @@ function sanitizeVolumeChapter(
     mustAvoid: normalizeText(chapter.mustAvoid),
     taskSheet: normalizeText(chapter.taskSheet),
     sceneCards: normalizeText(chapter.sceneCards),
+    styleContract: normalizeText(chapter.styleContract),
     payoffRefs: (chapter.payoffRefs ?? []).map((item) => item.trim()).filter(Boolean),
     createdAt: new Date(0).toISOString(),
     updatedAt: new Date(0).toISOString(),
@@ -295,6 +298,7 @@ function normalizeLegacyChapter(raw: unknown, index: number): VolumeChapterPlan 
   const mustAvoid = pickFirstString(raw, ["mustAvoid", "must_avoid", "forbidden"]);
   const taskSheet = pickFirstString(raw, ["taskSheet", "task_sheet"]);
   const sceneCards = pickFirstString(raw, ["sceneCards", "scene_cards"]);
+  const styleContract = pickFirstString(raw, ["styleContract", "style_contract"]);
   if (!title.trim() && !summary.trim()) {
     return null;
   }
@@ -315,6 +319,7 @@ function normalizeLegacyChapter(raw: unknown, index: number): VolumeChapterPlan 
     mustAvoid,
     taskSheet,
     sceneCards,
+    styleContract,
     payoffRefs: parseLooseStringArray(raw.payoffRefs ?? raw.payoff_refs),
     createdAt: new Date(0).toISOString(),
     updatedAt: new Date(0).toISOString(),

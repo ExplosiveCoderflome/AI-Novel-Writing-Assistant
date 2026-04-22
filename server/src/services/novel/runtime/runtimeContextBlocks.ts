@@ -1,4 +1,5 @@
 import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
+import { buildWriterStyleContractText } from "../../styleEngine/styleContractText";
 
 function compactText(value: string | null | undefined, limit: number): string {
   const normalized = String(value ?? "").replace(/\s+/g, " ").trim();
@@ -137,15 +138,13 @@ export function buildDecisionsBlock(
 }
 
 export function buildStyleEngineBlock(styleContext: GenerationContextPackage["styleContext"]): string {
-  const compiled = styleContext?.compiledBlocks;
-  if (!compiled) {
+  const contract = styleContext?.compiledBlocks?.contract;
+  if (!contract) {
     return "";
   }
   return [
     "写法引擎约束：",
-    compiled.style,
-    compiled.character,
-    compiled.antiAi,
+    buildWriterStyleContractText(contract),
   ].filter(Boolean).join("\n\n");
 }
 

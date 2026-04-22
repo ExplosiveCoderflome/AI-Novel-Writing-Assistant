@@ -12,6 +12,7 @@ import { NovelPipelineRuntimeService } from "../novel/NovelPipelineRuntimeServic
 import { NovelService } from "../novel/NovelService";
 import { NovelDirectorService } from "../novel/director/NovelDirectorService";
 import { NovelWorkflowRuntimeService } from "../novel/workflow/NovelWorkflowRuntimeService";
+import { styleExtractionTaskService } from "../styleEngine/StyleExtractionTaskService";
 import { taskCenterService } from "./TaskCenterService";
 
 function toRecoverableTaskSummary(detail: UnifiedTaskDetail | null): RecoverableTaskSummary | null {
@@ -49,6 +50,7 @@ export class RecoveryTaskService {
         imageGenerationService.markPendingTasksForManualRecovery(),
         this.novelWorkflowRuntimeService.markPendingAutoDirectorTasksForManualRecovery(),
         this.novelPipelineRuntimeService.markPendingPipelineJobsForManualRecovery(),
+        styleExtractionTaskService.markPendingTasksForManualRecovery(),
       ]).then(() => undefined);
     }
     return this.initializationPromise;
@@ -67,6 +69,7 @@ export class RecoveryTaskService {
       pipelineRows,
       bookRows,
       imageRows,
+      styleExtractionRows,
     ] = await Promise.all([
       prisma.novelWorkflowTask.findMany({
         where: {
@@ -101,6 +104,14 @@ export class RecoveryTaskService {
         select: { id: true, updatedAt: true },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
       }),
+      prisma.styleExtractionTask.findMany({
+        where: {
+          status: { in: ["queued", "running"] },
+          pendingManualRecovery: true,
+        },
+        select: { id: true, updatedAt: true },
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      }),
     ]);
 
     const rawItems = [
@@ -108,6 +119,7 @@ export class RecoveryTaskService {
       ...pipelineRows.map((row) => ({ kind: "novel_pipeline" as const, id: row.id, updatedAt: row.updatedAt })),
       ...bookRows.map((row) => ({ kind: "book_analysis" as const, id: row.id, updatedAt: row.updatedAt })),
       ...imageRows.map((row) => ({ kind: "image_generation" as const, id: row.id, updatedAt: row.updatedAt })),
+      ...styleExtractionRows.map((row) => ({ kind: "style_extraction" as const, id: row.id, updatedAt: row.updatedAt })),
     ].sort((left, right) => {
       const timeDiff = right.updatedAt.getTime() - left.updatedAt.getTime();
       if (timeDiff !== 0) {
@@ -142,6 +154,10 @@ export class RecoveryTaskService {
     }
     if (kind === "image_generation") {
       await imageGenerationService.resumeTask(id);
+      return;
+    }
+    if (kind === "style_extraction") {
+      await styleExtractionTaskService.resumeTask(id);
       return;
     }
     throw new AppError(`Unsupported recovery task kind: ${kind}`, 400);

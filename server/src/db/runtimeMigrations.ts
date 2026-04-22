@@ -46,6 +46,21 @@ const REQUIRED_COLUMN_BACKFILLS = [
     columnName: "pendingManualRecovery",
     columnDefinition: `"pendingManualRecovery" BOOLEAN NOT NULL DEFAULT false`,
   },
+  {
+    tableName: "StyleProfile",
+    columnName: "extractionPresetsJson",
+    columnDefinition: `"extractionPresetsJson" TEXT`,
+  },
+  {
+    tableName: "StyleProfile",
+    columnName: "extractionAntiAiRuleKeysJson",
+    columnDefinition: `"extractionAntiAiRuleKeysJson" TEXT`,
+  },
+  {
+    tableName: "StyleProfile",
+    columnName: "selectedExtractionPresetKey",
+    columnDefinition: `"selectedExtractionPresetKey" TEXT`,
+  },
 ] as const;
 
 function resolveSqliteDatabasePath(): string | null {

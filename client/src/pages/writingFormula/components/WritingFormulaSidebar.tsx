@@ -11,10 +11,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getStyleProfileOriginLabel, isStarterStyleProfile } from "../writingFormulaV2.shared";
 import WritingFormulaRulesPanel from "./WritingFormulaRulesPanel";
-
-const STARTER_STYLE_PROFILE_SOURCE_PREFIX = "starter-style-profile:";
-const AI_STYLE_BRIEF_SOURCE_PREFIX = "ai-style-brief:";
 
 export interface WritingFormulaCreateFormState {
   manualName: string;
@@ -45,29 +43,6 @@ interface WritingFormulaSidebarProps {
   onToggleRule: (rule: AntiAiRule, enabled: boolean) => void;
 }
 
-function isStarterProfile(profile: StyleProfile): boolean {
-  return profile.sourceRefId?.startsWith(STARTER_STYLE_PROFILE_SOURCE_PREFIX) ?? false;
-}
-
-function getProfileOriginLabel(profile: StyleProfile): string {
-  if (isStarterProfile(profile)) {
-    return "预置";
-  }
-  if (profile.sourceRefId?.startsWith(AI_STYLE_BRIEF_SOURCE_PREFIX)) {
-    return "AI生成";
-  }
-  if (profile.sourceType === "from_text") {
-    return "文本提取";
-  }
-  if (profile.sourceType === "from_book_analysis") {
-    return "拆书生成";
-  }
-  if (profile.sourceType === "from_current_work") {
-    return "当前作品";
-  }
-  return "手动创建";
-}
-
 export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps) {
   const {
     createForm,
@@ -91,8 +66,8 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
   const [activeCreateTab, setActiveCreateTab] = useState("quick_start");
 
   const { starterProfiles, customProfiles } = useMemo(() => {
-    const starters = profiles.filter((profile) => isStarterProfile(profile));
-    const custom = profiles.filter((profile) => !isStarterProfile(profile));
+    const starters = profiles.filter((profile) => isStarterStyleProfile(profile));
+    const custom = profiles.filter((profile) => !isStarterStyleProfile(profile));
     return {
       starterProfiles: starters,
       customProfiles: custom,
@@ -100,7 +75,7 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
   }, [profiles]);
 
   return (
-    <div className="space-y-4 xl:min-h-0 xl:overflow-y-auto xl:pr-1">
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto xl:pr-1">
       <Card>
         <CardHeader>
           <CardTitle>先选一套写法再微调</CardTitle>
@@ -111,7 +86,7 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-lg border bg-muted/20 p-3">
-              <div className="text-xs font-medium text-muted-foreground">可直接编辑的我的写法</div>
+              <div className="text-xs font-medium text-muted-foreground">可直接编辑的写法资产</div>
               <div className="mt-1 text-2xl font-semibold text-foreground">{profiles.length}</div>
               <div className="mt-1 text-xs text-muted-foreground">
                 其中预置 {starterProfiles.length} 套，适合直接复制思路后再改。
@@ -133,48 +108,56 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
 
       <Card>
         <CardHeader>
-          <CardTitle>我的写法</CardTitle>
+          <CardTitle>切换当前写法</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {starterProfiles.length > 0 ? (
+          <div className="text-xs leading-6 text-muted-foreground">
+            这里负责切换弹窗中的编辑对象。完整资产列表在首页查看。
+          </div>
+
+          {customProfiles.length > 0 ? (
             <div className="space-y-2">
-              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">推荐起步</div>
-              {starterProfiles.map((profile) => (
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">你创建的写法</div>
+              {customProfiles.map((profile) => (
                 <button
                   key={profile.id}
                   type="button"
-                  className={`w-full rounded-md border p-3 text-left transition ${
+                  className={`w-full rounded-lg border px-3 py-2 text-left transition ${
                     profile.id === selectedProfileId ? "border-primary bg-primary/5" : "hover:border-primary/40"
                   }`}
                   onClick={() => onSelectProfile(profile.id)}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="font-medium text-foreground">{profile.name}</div>
-                    <Badge variant="outline">预置</Badge>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="truncate font-medium text-foreground">{profile.name}</div>
+                    </div>
+                    <Badge variant="secondary" className="shrink-0">
+                      {getStyleProfileOriginLabel(profile)}
+                    </Badge>
                   </div>
-                  <div className="mt-1 text-sm text-muted-foreground">{profile.description || "可直接编辑的默认写法。"}</div>
                 </button>
               ))}
             </div>
           ) : null}
 
-          {customProfiles.length > 0 ? (
+          {starterProfiles.length > 0 ? (
             <div className="space-y-2">
-              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">你自己创建的写法</div>
-              {customProfiles.map((profile) => (
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">预置起步写法</div>
+              {starterProfiles.map((profile) => (
                 <button
                   key={profile.id}
                   type="button"
-                  className={`w-full rounded-md border p-3 text-left transition ${
+                  className={`w-full rounded-lg border px-3 py-2 text-left transition ${
                     profile.id === selectedProfileId ? "border-primary bg-primary/5" : "hover:border-primary/40"
                   }`}
                   onClick={() => onSelectProfile(profile.id)}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="font-medium text-foreground">{profile.name}</div>
-                    <Badge variant="secondary">{getProfileOriginLabel(profile)}</Badge>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="truncate font-medium text-foreground">{profile.name}</div>
+                    </div>
+                    <Badge variant="outline" className="shrink-0">预置</Badge>
                   </div>
-                  <div className="mt-1 text-sm text-muted-foreground">{profile.description || "暂无简介"}</div>
                 </button>
               ))}
             </div>
@@ -195,7 +178,7 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
           <DialogHeader>
             <DialogTitle>新建或导入写法</DialogTitle>
             <DialogDescription>
-              推荐先走“快速开始”或“空白 / AI”里的句子生成。只有你已经准备好样本文本，才建议使用“从文本提取”。
+              推荐先走“快速开始”或“空白 / AI”里的句子生成。手里有稳定样本文本时，再使用“从文本提取”。
             </DialogDescription>
           </DialogHeader>
 
@@ -208,7 +191,7 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
 
             <TabsContent value="quick_start" className="space-y-4">
               <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
-                左侧已经预置了几套可直接修改的“我的写法”。如果你想再新开一套，最省心的方式还是从模板快速生成，再按自己的项目做微调。
+                左侧放了几套可直接修改的起步写法。想再新开一套时，从模板快速生成会更省力，再按项目微调。
               </div>
               <div className="grid max-h-[58vh] gap-3 overflow-y-auto pr-1 md:grid-cols-2">
                 {templates.map((template) => (
@@ -248,14 +231,14 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
 
             <TabsContent value="blank" className="space-y-4">
               <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
-                这里有两种轻量起步方式：如果你已经知道自己要维护一套规则，就手动建空白；如果你只知道“想写成什么感觉”，直接写一句话交给 AI 先搭骨架。
+                这里有两种轻量起步方式：如果你清楚自己要维护一套规则，就手动建空白；如果你只知道“想写成什么感觉”，直接写一句话交给 AI 搭骨架。
               </div>
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="rounded-lg border p-4">
                   <div className="mb-3">
                     <div className="text-sm font-medium text-foreground">手动空白创建</div>
                     <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                      适合你已经知道自己要维护一套什么风格规则，只想先建一个空壳再慢慢补。
+                      适合你清楚自己要维护哪类风格规则，只想先建一个空壳再慢慢补。
                     </div>
                   </div>
                   <div className="space-y-3">
@@ -315,7 +298,7 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
 
             <TabsContent value="extract" className="space-y-4">
               <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
-                适合你手里已经有一段很确定的参考文本，想让系统先帮你提取特征再进入编辑。没有现成样本时，不建议把它当第一步。
+                适合你手里有一段稳定的参考文本，想让系统先提取特征再进入编辑。没有现成样本时，建议先从模板或 AI 起步。
               </div>
               <div className="rounded-lg border p-4">
                 <div className="space-y-3">

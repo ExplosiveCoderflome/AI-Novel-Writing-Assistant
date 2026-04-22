@@ -1,6 +1,7 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { runTextPrompt } from "../../prompting/core/promptRunner";
 import { styleRewritePrompt } from "../../prompting/prompts/style/style.prompts";
+import { buildWriterStyleContractText } from "./styleContractText";
 import { StyleRuntimeResolver } from "./StyleRuntimeResolver";
 
 interface RewriteInput {
@@ -37,9 +38,7 @@ export class StyleRewriteService {
     const result = await runTextPrompt({
       asset: styleRewritePrompt,
       promptInput: {
-        styleBlock: resolved.context.compiledBlocks?.style ?? "",
-        characterBlock: resolved.context.compiledBlocks?.character ?? "",
-        antiAiBlock: resolved.context.compiledBlocks?.antiAi ?? "",
+        styleContractText: buildWriterStyleContractText(resolved.context.compiledBlocks?.contract ?? null),
         content: input.content,
         issuesBlock,
       },

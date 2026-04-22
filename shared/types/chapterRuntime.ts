@@ -20,8 +20,12 @@ const storyPlanRoleSchema = z.enum(["setup", "progress", "pressure", "turn", "pa
 const payoffLedgerScopeTypeSchema = z.enum(["book", "volume", "chapter"]);
 const payoffLedgerStatusSchema = z.enum(["setup", "hinted", "pending_payoff", "paid_off", "failed", "overdue"]);
 const styleBindingTargetTypeSchema = z.enum(["novel", "chapter", "task"]);
-const antiAiRuleTypeSchema = z.enum(["forbidden", "risk", "encourage"]);
+const styleDetectionRuleTypeSchema = z.enum(["style", "character", "forbidden", "risk", "encourage"]);
 const antiAiSeveritySchema = z.enum(["low", "medium", "high"]);
+const styleContractSectionKeySchema = z.enum(["narrative", "character", "language", "rhythm", "antiAi", "selfCheck"]);
+const styleContractMaturitySchema = z.enum(["structured", "summary_only"]);
+const styleContractIssueCategorySchema = z.enum(["style_expression", "story_structure"]);
+const styleContractViolationSourceSchema = z.enum(["global_anti_ai", "style_anti_ai", "style_contract"]);
 const characterCandidateStatusSchema = z.enum(["pending", "confirmed", "merged", "rejected"]);
 const dynamicCharacterRiskLevelSchema = z.enum(["none", "info", "warn", "high"]);
 const auditModeSchema = z.enum(["light", "full", "repair_only"]);
@@ -247,6 +251,37 @@ export const runtimeContinuationSchema = z.object({
 
 export const runtimeStyleRuleBlockSchema = z.record(z.string(), z.unknown());
 
+export const runtimeStyleContractSectionSchema = z.object({
+  key: styleContractSectionKeySchema,
+  title: z.string(),
+  summary: z.string().nullable().optional(),
+  lines: z.array(z.string()).default([]),
+  text: z.string(),
+  hasContent: z.boolean(),
+});
+
+export const runtimeStyleContractSchema = z.object({
+  narrative: runtimeStyleContractSectionSchema,
+  character: runtimeStyleContractSectionSchema,
+  language: runtimeStyleContractSectionSchema,
+  rhythm: runtimeStyleContractSectionSchema,
+  antiAi: runtimeStyleContractSectionSchema,
+  selfCheck: runtimeStyleContractSectionSchema,
+  meta: z.object({
+    effectiveStyleProfileId: z.string().nullable().optional(),
+    taskStyleProfileId: z.string().nullable().optional(),
+    activeSourceTargets: z.array(styleBindingTargetTypeSchema).default([]),
+    activeSourceLabels: z.array(z.string()).default([]),
+    writerIncludedSections: z.array(styleContractSectionKeySchema).default([]),
+    plannerIncludedSections: z.array(styleContractSectionKeySchema).default([]),
+    droppedSections: z.array(styleContractSectionKeySchema).default([]),
+    maturity: styleContractMaturitySchema,
+    usesGlobalAntiAiBaseline: z.boolean(),
+    globalAntiAiRuleIds: z.array(z.string()).default([]),
+    styleAntiAiRuleIds: z.array(z.string()).default([]),
+  }),
+});
+
 export const runtimeCompiledStylePromptBlocksSchema = z.object({
   context: z.string(),
   style: z.string(),
@@ -254,6 +289,7 @@ export const runtimeCompiledStylePromptBlocksSchema = z.object({
   antiAi: z.string(),
   output: z.string(),
   selfCheck: z.string(),
+  contract: runtimeStyleContractSchema,
   mergedRules: z.object({
     narrativeRules: runtimeStyleRuleBlockSchema,
     characterRules: runtimeStyleRuleBlockSchema,
@@ -284,6 +320,14 @@ export const runtimeStyleBindingSchema = z.object({
 export const runtimeStyleContextSchema = z.object({
   matchedBindings: z.array(runtimeStyleBindingSchema),
   compiledBlocks: runtimeCompiledStylePromptBlocksSchema.nullable(),
+  effectiveStyleProfileId: z.string().nullable().optional(),
+  taskStyleProfileId: z.string().nullable().optional(),
+  activeSourceTargets: z.array(styleBindingTargetTypeSchema).default([]),
+  activeSourceLabels: z.array(z.string()).default([]),
+  maturity: styleContractMaturitySchema.optional(),
+  usesGlobalAntiAiBaseline: z.boolean().optional(),
+  globalAntiAiRuleIds: z.array(z.string()).default([]),
+  styleAntiAiRuleIds: z.array(z.string()).default([]),
 });
 
 export const runtimeCharacterCandidateSchema = z.object({
@@ -536,6 +580,7 @@ export const chapterWriteContextSchema = z.object({
   ledgerSummary: runtimePayoffLedgerSummarySchema.nullable().optional(),
   recentChapterSummaries: z.array(z.string()).default([]),
   openingAntiRepeatHint: z.string(),
+  styleContract: runtimeStyleContractSchema.nullable().optional(),
   styleConstraints: z.array(z.string()).default([]),
   continuationConstraints: z.array(z.string()).default([]),
   ragFacts: z.array(z.string()).default([]),
@@ -624,8 +669,10 @@ export const runtimeAuditReportSchema = z.object({
 export const styleDetectionViolationSchema = z.object({
   ruleId: z.string(),
   ruleName: z.string(),
-  ruleType: antiAiRuleTypeSchema,
+  ruleType: styleDetectionRuleTypeSchema,
   severity: antiAiSeveritySchema,
+  source: styleContractViolationSourceSchema,
+  issueCategory: styleContractIssueCategorySchema,
   excerpt: z.string(),
   reason: z.string(),
   suggestion: z.string(),
@@ -744,6 +791,8 @@ export type RuntimeAuditIssue = z.infer<typeof runtimeAuditIssueSchema>;
 export type RuntimeStateSnapshot = z.infer<typeof runtimeStateSnapshotSchema>;
 export type RuntimeOpenConflict = z.infer<typeof runtimeOpenConflictSchema>;
 export type RuntimeContinuation = z.infer<typeof runtimeContinuationSchema>;
+export type RuntimeStyleContractSection = z.infer<typeof runtimeStyleContractSectionSchema>;
+export type RuntimeStyleContract = z.infer<typeof runtimeStyleContractSchema>;
 export type RuntimeCompiledStylePromptBlocks = z.infer<typeof runtimeCompiledStylePromptBlocksSchema>;
 export type RuntimeStyleBinding = z.infer<typeof runtimeStyleBindingSchema>;
 export type RuntimeStyleContext = z.infer<typeof runtimeStyleContextSchema>;

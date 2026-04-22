@@ -103,6 +103,14 @@ function safeJsonStringify(value: unknown): string {
   }
 }
 
+function buildPromptCallOptions(options?: PromptExecutionOptions): Record<string, unknown> {
+  const callOptions: Record<string, unknown> = {};
+  if (options?.signal) {
+    callOptions.signal = options.signal;
+  }
+  return callOptions;
+}
+
 function buildDefaultSemanticRetryMessages<I, R>(input: {
   baseMessages: BaseMessage[];
   attempt: number;
@@ -410,6 +418,8 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
         model: input.options?.model,
         temperature: input.options?.temperature,
         maxTokens: input.options?.maxTokens,
+        timeoutMs: input.options?.timeoutMs,
+        signal: input.options?.signal,
         taskType: input.asset.taskType,
         messages: currentMessages,
         schema: input.outputSchema,
@@ -464,6 +474,8 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
     model: input.options?.model,
     temperature: input.options?.temperature,
     maxTokens: input.options?.maxTokens,
+    timeoutMs: input.options?.timeoutMs,
+    signal: input.options?.signal,
     taskType: input.asset.taskType,
     messages: prepared.messages,
     schema: outputSchema,
@@ -506,10 +518,11 @@ export async function runTextPrompt<I>(input: {
     model: input.options?.model,
     temperature: input.options?.temperature,
     maxTokens: input.options?.maxTokens,
+    timeoutMs: input.options?.timeoutMs,
     taskType: input.asset.taskType,
     promptMeta: prepared.invocation,
   });
-  const result = await llm.invoke(prepared.messages);
+  const result = await llm.invoke(prepared.messages, buildPromptCallOptions(input.options));
   return buildPromptRunResult({
     output: applyPromptPostValidate({
       asset: input.asset,
@@ -550,10 +563,11 @@ export async function streamTextPrompt<I>(input: {
     model: input.options?.model,
     temperature: input.options?.temperature,
     maxTokens: input.options?.maxTokens,
+    timeoutMs: input.options?.timeoutMs,
     taskType: input.asset.taskType,
     promptMeta: prepared.invocation,
   });
-  const rawStream = await llm.stream(prepared.messages);
+  const rawStream = await llm.stream(prepared.messages, buildPromptCallOptions(input.options));
   const captured = captureStreamOutput(rawStream as AsyncIterable<BaseMessageChunk>);
 
   return {
@@ -602,6 +616,7 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
     model: input.options?.model,
     temperature: input.options?.temperature,
     maxTokens: input.options?.maxTokens,
+    timeoutMs: input.options?.timeoutMs,
     taskType: input.asset.taskType,
     promptMeta: prepared.invocation,
     executionMode: "structured",
@@ -629,6 +644,9 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
   if (responseFormat) {
     invokeOptions.response_format = responseFormat;
   }
+  if (input.options?.signal) {
+    invokeOptions.signal = input.options.signal;
+  }
   const rawStream = await llm.stream(prepared.messages, invokeOptions);
   const captured = captureStreamOutput(rawStream as AsyncIterable<BaseMessageChunk>);
 
@@ -642,6 +660,8 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
         model: input.options?.model,
         temperature: input.options?.temperature,
         maxTokens: input.options?.maxTokens,
+        timeoutMs: input.options?.timeoutMs,
+        signal: input.options?.signal,
         taskType: input.asset.taskType,
         label: `${input.asset.id}@${input.asset.version}`,
         maxRepairAttempts: resolveStructuredRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),

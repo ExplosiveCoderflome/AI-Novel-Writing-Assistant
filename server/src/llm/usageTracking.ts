@@ -11,6 +11,7 @@ export interface LlmTokenUsageSnapshot {
 export interface LlmUsageTrackingContext {
   workflowTaskId?: string | null;
   generationJobId?: string | null;
+  styleExtractionTaskId?: string | null;
 }
 
 const usageTrackingStore = new AsyncLocalStorage<LlmUsageTrackingContext>();
@@ -145,6 +146,7 @@ export function runWithLlmUsageTracking<T>(
     {
       workflowTaskId: mergeContextValue(current?.workflowTaskId, context.workflowTaskId),
       generationJobId: mergeContextValue(current?.generationJobId, context.generationJobId),
+      styleExtractionTaskId: mergeContextValue(current?.styleExtractionTaskId, context.styleExtractionTaskId),
     },
     runner,
   );
@@ -156,7 +158,9 @@ export async function recordTrackedLlmUsage(usage: LlmTokenUsageSnapshot | null)
   }
   const context = usageTrackingStore.getStore();
   if (!context?.workflowTaskId && !context?.generationJobId) {
-    return;
+    if (!context?.styleExtractionTaskId) {
+      return;
+    }
   }
   const now = new Date();
   await Promise.all([
@@ -175,6 +179,18 @@ export async function recordTrackedLlmUsage(usage: LlmTokenUsageSnapshot | null)
     context.generationJobId
       ? prisma.generationJob.updateMany({
         where: { id: context.generationJobId },
+        data: {
+          promptTokens: { increment: usage.promptTokens },
+          completionTokens: { increment: usage.completionTokens },
+          totalTokens: { increment: usage.totalTokens },
+          llmCallCount: { increment: 1 },
+          lastTokenRecordedAt: now,
+        },
+      }).catch(() => null)
+      : Promise.resolve(null),
+    context.styleExtractionTaskId
+      ? prisma.styleExtractionTask.updateMany({
+        where: { id: context.styleExtractionTaskId },
         data: {
           promptTokens: { increment: usage.promptTokens },
           completionTokens: { increment: usage.completionTokens },

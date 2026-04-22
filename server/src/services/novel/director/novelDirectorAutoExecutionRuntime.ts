@@ -3,7 +3,7 @@ import type {
   DirectorConfirmRequest,
 } from "@ai-novel/shared/types/novelDirector";
 import type { NovelControlPolicy } from "@ai-novel/shared/types/canonicalState";
-import type { PipelineJobStatus } from "@ai-novel/shared/types/novel";
+import type { PipelineJobStatus, VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import { buildNovelEditResumeTarget } from "../workflow/novelWorkflow.shared";
 import { buildDirectorSessionState } from "./novelDirectorHelpers";
 import {
@@ -15,6 +15,7 @@ import {
   buildDirectorAutoExecutionScopeLabelFromState,
   buildDirectorAutoExecutionPipelineOptions,
   buildDirectorAutoExecutionState,
+  isDirectorAutoExecutionChapterProcessed,
   resolveDirectorAutoExecutionRange,
   resolveDirectorAutoExecutionRangeFromState,
   resolveDirectorAutoExecutionWorkflowState,
@@ -23,6 +24,10 @@ import {
 } from "./novelDirectorAutoExecution";
 import { isSkippableAutoExecutionReviewFailure } from "./novelDirectorAutoExecutionFailure";
 import { PIPELINE_REPLAN_NOTICE_CODE } from "../pipelineJobState";
+import {
+  flattenPreparedOutlineChapters,
+  resolveStructuredOutlineRecoveryCursor,
+} from "./novelDirectorStructuredOutlineRecovery";
 
 type AutoExecutionResumeStage = "chapter" | "pipeline";
 
@@ -71,6 +76,7 @@ interface NovelDirectorAutoExecutionNovelPort {
     startOrder: number;
     endOrder: number;
     controlPolicy?: NovelControlPolicy;
+    taskStyleProfileId?: string;
     maxRetries: number;
     runMode: "fast" | "polish";
     autoReview: boolean;
@@ -99,12 +105,17 @@ interface NovelDirectorAutoExecutionNovelPort {
   cancelPipelineJob(jobId: string): Promise<unknown>;
 }
 
+interface NovelDirectorAutoExecutionVolumeWorkspacePort {
+  getVolumes(novelId: string): Promise<VolumePlanDocument>;
+}
+
 interface NovelDirectorAutoExecutionRuntimeDeps {
   novelContextService: Pick<NovelDirectorAutoExecutionNovelPort, "listChapters">;
   novelService: Pick<
     NovelDirectorAutoExecutionNovelPort,
     "startPipelineJob" | "findActivePipelineJobForRange" | "getPipelineJobById" | "cancelPipelineJob"
   >;
+  volumeWorkspaceService?: Pick<NovelDirectorAutoExecutionVolumeWorkspacePort, "getVolumes">;
   workflowService: NovelDirectorAutoExecutionWorkflowPort;
   buildDirectorSeedPayload: (
     input: DirectorConfirmRequest,
@@ -115,6 +126,13 @@ interface NovelDirectorAutoExecutionRuntimeDeps {
 
 function isNoChaptersToGenerateError(error: unknown): boolean {
   return error instanceof Error && error.message.includes("指定区间内没有可生成的章节");
+}
+
+interface DirectorAutoExecutionResolvedScope {
+  range: DirectorAutoExecutionRange;
+  scopeLabel?: string | null;
+  volumeTitle?: string | null;
+  preparedVolumeIds?: string[];
 }
 
 export class NovelDirectorAutoExecutionRuntime {
@@ -200,6 +218,84 @@ export class NovelDirectorAutoExecutionRuntime {
     };
   }
 
+  private findPendingEarlierVolumeChapter(input: {
+    workspace: VolumePlanDocument;
+    chapters: DirectorAutoExecutionChapterRef[];
+    selectedVolumeOrder: number;
+  }): {
+    volumeOrder: number;
+    volumeTitle: string;
+    chapterOrder: number;
+  } | null {
+    if (input.selectedVolumeOrder <= 1) {
+      return null;
+    }
+    const chapterByOrder = new Map(input.chapters.map((chapter) => [chapter.order, chapter] as const));
+    const pendingChapter = flattenPreparedOutlineChapters(input.workspace)
+      .filter((chapter) => chapter.volumeOrder < input.selectedVolumeOrder)
+      .find((chapter) => {
+        const persistedChapter = chapterByOrder.get(chapter.chapterOrder);
+        return !persistedChapter || !isDirectorAutoExecutionChapterProcessed(persistedChapter);
+      });
+    if (!pendingChapter) {
+      return null;
+    }
+    return {
+      volumeOrder: pendingChapter.volumeOrder,
+      volumeTitle: pendingChapter.volumeTitle?.trim() || `第 ${pendingChapter.volumeOrder} 卷`,
+      chapterOrder: pendingChapter.chapterOrder,
+    };
+  }
+
+  private async resolveVolumeScopedRange(input: {
+    novelId: string;
+    plan: DirectorAutoExecutionState;
+    chapters: DirectorAutoExecutionChapterRef[];
+  }): Promise<DirectorAutoExecutionResolvedScope> {
+    if (!this.deps.volumeWorkspaceService) {
+      throw new Error("当前环境缺少卷工作区服务，无法解析按卷自动执行范围。");
+    }
+    const normalizedPlan = normalizeDirectorAutoExecutionPlan(input.plan);
+    const workspace = await this.deps.volumeWorkspaceService.getVolumes(input.novelId);
+    const recoveryCursor = resolveStructuredOutlineRecoveryCursor({
+      workspace,
+      plan: normalizedPlan,
+    });
+    if (recoveryCursor.step !== "chapter_sync" && recoveryCursor.step !== "completed") {
+      throw new Error(`${recoveryCursor.scopeLabel}还没有完成节奏 / 拆章同步，不能直接进入自动执行。`);
+    }
+    const pendingEarlierVolumeChapter = this.findPendingEarlierVolumeChapter({
+      workspace,
+      chapters: input.chapters,
+      selectedVolumeOrder: normalizedPlan.volumeOrder ?? 1,
+    });
+    if (pendingEarlierVolumeChapter) {
+      throw new Error(
+        `${pendingEarlierVolumeChapter.volumeTitle}仍有未完成章节（第 ${pendingEarlierVolumeChapter.chapterOrder} 章起），不能直接跳到第 ${normalizedPlan.volumeOrder ?? 1} 卷。请先完成前序卷，或把卷序号改为 ${pendingEarlierVolumeChapter.volumeOrder}。`,
+      );
+    }
+    const selectedChapterOrders = recoveryCursor.selectedChapters
+      .map((chapter) => chapter.chapterOrder)
+      .sort((left, right) => left - right);
+    if (selectedChapterOrders.length === 0) {
+      throw new Error(`${recoveryCursor.scopeLabel}还没有可执行的章节范围，请先完成目标卷的拆章同步。`);
+    }
+    const chapterByOrder = new Map(input.chapters.map((chapter) => [chapter.order, chapter] as const));
+    const firstChapterOrder = selectedChapterOrders[0] ?? 1;
+    const lastChapterOrder = selectedChapterOrders[selectedChapterOrders.length - 1] ?? firstChapterOrder;
+    return {
+      range: {
+        startOrder: firstChapterOrder,
+        endOrder: lastChapterOrder,
+        totalChapterCount: selectedChapterOrders.length,
+        firstChapterId: chapterByOrder.get(firstChapterOrder)?.id ?? null,
+      },
+      scopeLabel: recoveryCursor.scopeLabel,
+      volumeTitle: recoveryCursor.volumeTitle ?? recoveryCursor.selectedChapters[0]?.volumeTitle ?? null,
+      preparedVolumeIds: recoveryCursor.preparedVolumeIds,
+    };
+  }
+
   private async resolveRangeAndState(input: {
     novelId: string;
     existingState?: DirectorAutoExecutionState | null;
@@ -210,8 +306,23 @@ export class NovelDirectorAutoExecutionRuntime {
     autoExecution: DirectorAutoExecutionState;
   }> {
     const chapters = await this.deps.novelContextService.listChapters(input.novelId);
-    const range = resolveDirectorAutoExecutionRangeFromState(input.existingState)
-      ?? resolveDirectorAutoExecutionRange(chapters);
+    const normalizedPlan = normalizeDirectorAutoExecutionPlan(input.existingState);
+    let range = resolveDirectorAutoExecutionRangeFromState(input.existingState);
+    let scopeLabel = input.existingState?.scopeLabel ?? null;
+    let volumeTitle = input.existingState?.volumeTitle ?? null;
+    let preparedVolumeIds = input.existingState?.preparedVolumeIds ?? [];
+    if (!range && normalizedPlan.mode === "volume" && input.existingState?.enabled) {
+      const resolvedVolumeScope = await this.resolveVolumeScopedRange({
+        novelId: input.novelId,
+        plan: input.existingState,
+        chapters,
+      });
+      range = resolvedVolumeScope.range;
+      scopeLabel = resolvedVolumeScope.scopeLabel ?? scopeLabel;
+      volumeTitle = resolvedVolumeScope.volumeTitle ?? volumeTitle;
+      preparedVolumeIds = resolvedVolumeScope.preparedVolumeIds ?? preparedVolumeIds;
+    }
+    range = range ?? resolveDirectorAutoExecutionRange(chapters);
     if (!range) {
       throw new Error("当前还没有可自动执行的章节，请先完成目标范围的拆章同步。");
     }
@@ -221,12 +332,54 @@ export class NovelDirectorAutoExecutionRuntime {
         range,
         chapters,
         plan: input.existingState,
-        scopeLabel: input.existingState?.scopeLabel ?? null,
-        volumeTitle: input.existingState?.volumeTitle ?? null,
-        preparedVolumeIds: input.existingState?.preparedVolumeIds ?? [],
+        scopeLabel,
+        volumeTitle,
+        preparedVolumeIds,
         pipelineJobId: input.pipelineJobId ?? input.existingState?.pipelineJobId ?? null,
         pipelineStatus: input.pipelineStatus ?? input.existingState?.pipelineStatus ?? null,
       }),
+    };
+  }
+
+  async prepareRequestedAutoExecution(input: {
+    novelId: string;
+    request: DirectorConfirmRequest;
+    existingState?: DirectorAutoExecutionState | null;
+    existingPipelineJobId?: string | null;
+    previousFailureMessage?: string | null;
+    allowSkipReviewBlockedChapter?: boolean;
+  }): Promise<{
+    range: DirectorAutoExecutionRange;
+    autoExecution: DirectorAutoExecutionState;
+    pipelineJobId: string;
+  }> {
+    const shouldSkipReviewBlockedChapter = Boolean(
+      input.allowSkipReviewBlockedChapter
+      && isSkippableAutoExecutionReviewFailure(input.previousFailureMessage),
+    );
+    const pipelineJobId = shouldSkipReviewBlockedChapter
+      ? ""
+      : (input.existingPipelineJobId?.trim() || "");
+    const existingState = this.applyReviewSkipOverride({
+      existingState: input.existingState,
+      previousFailureMessage: input.previousFailureMessage,
+      allowSkipReviewBlockedChapter: input.allowSkipReviewBlockedChapter,
+    });
+    const requestedExecutionState = this.buildRequestedAutoExecutionState({
+      request: input.request,
+      existingState,
+      existingPipelineJobId: pipelineJobId || null,
+    });
+    const { range, autoExecution } = await this.resolveRangeAndState({
+      novelId: input.novelId,
+      existingState: requestedExecutionState,
+      pipelineJobId: pipelineJobId || null,
+      pipelineStatus: pipelineJobId ? "running" : "queued",
+    });
+    return {
+      range,
+      autoExecution,
+      pipelineJobId,
     };
   }
 
@@ -330,28 +483,13 @@ export class NovelDirectorAutoExecutionRuntime {
     previousFailureMessage?: string | null;
     allowSkipReviewBlockedChapter?: boolean;
   }): Promise<void> {
-    const shouldSkipReviewBlockedChapter = Boolean(
-      input.allowSkipReviewBlockedChapter
-      && isSkippableAutoExecutionReviewFailure(input.previousFailureMessage),
-    );
-    let pipelineJobId = shouldSkipReviewBlockedChapter
-      ? ""
-      : (input.existingPipelineJobId?.trim() || "");
-    const existingState = this.applyReviewSkipOverride({
+    let { range, autoExecution, pipelineJobId } = await this.prepareRequestedAutoExecution({
+      novelId: input.novelId,
+      request: input.request,
       existingState: input.existingState,
+      existingPipelineJobId: input.existingPipelineJobId,
       previousFailureMessage: input.previousFailureMessage,
       allowSkipReviewBlockedChapter: input.allowSkipReviewBlockedChapter,
-    });
-    const requestedExecutionState = this.buildRequestedAutoExecutionState({
-      request: input.request,
-      existingState,
-      existingPipelineJobId: pipelineJobId || null,
-    });
-    let { range, autoExecution } = await this.resolveRangeAndState({
-      novelId: input.novelId,
-      existingState: requestedExecutionState,
-      pipelineJobId: pipelineJobId || null,
-      pipelineStatus: pipelineJobId ? "running" : "queued",
     });
 
     try {
@@ -434,6 +572,7 @@ export class NovelDirectorAutoExecutionRuntime {
               model: input.request.model,
               temperature: input.request.temperature,
               workflowTaskId: input.taskId,
+              taskStyleProfileId: input.request.styleProfileId,
               startOrder: autoExecution.nextChapterOrder ?? range.startOrder,
               endOrder: autoExecution.remainingChapterOrders?.[autoExecution.remainingChapterOrders.length - 1] ?? range.endOrder,
               autoReview: autoExecution.autoReview,

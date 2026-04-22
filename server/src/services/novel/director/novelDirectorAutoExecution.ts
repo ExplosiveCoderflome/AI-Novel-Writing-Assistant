@@ -134,7 +134,7 @@ function isDirectorAutoExecutionChapterCompleted(chapter: DirectorAutoExecutionC
     || chapter.chapterStatus === "completed";
 }
 
-function isDirectorAutoExecutionChapterProcessed(chapter: DirectorAutoExecutionChapterRef): boolean {
+export function isDirectorAutoExecutionChapterProcessed(chapter: DirectorAutoExecutionChapterRef): boolean {
   if (isDirectorAutoExecutionChapterCompleted(chapter)) {
     return true;
   }
@@ -248,6 +248,7 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
   model?: string;
   temperature?: number;
   workflowTaskId?: string;
+  taskStyleProfileId?: string;
   startOrder: number;
   endOrder: number;
   runMode?: PipelineRunMode;
@@ -270,6 +271,7 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
     model: input.model,
     temperature: input.temperature,
     workflowTaskId: input.workflowTaskId,
+    taskStyleProfileId: input.taskStyleProfileId,
   };
 }
 

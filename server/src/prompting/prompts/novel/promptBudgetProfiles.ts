@@ -30,6 +30,7 @@ export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterWriter,
     preferredGroups: [
       "chapter_mission",
+      "style_contract",
       "volume_window",
       "participant_subset",
       "local_state",
@@ -39,7 +40,6 @@ export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
     dropOrder: [
       "rag_facts",
       "world_rules",
-      "style_constraints",
       "continuation_constraints",
       "opening_constraints",
     ],
@@ -78,6 +78,7 @@ export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
     promptId: "novel.review.repair",
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterRepair,
     preferredGroups: [
+      "style_contract",
       "repair_issues",
       "chapter_mission",
       "repair_boundaries",
@@ -86,7 +87,6 @@ export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
     dropOrder: [
       "recent_chapters",
       "participant_subset",
-      "style_constraints",
       "continuation_constraints",
     ],
   },

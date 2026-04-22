@@ -22,9 +22,18 @@ function resolveDatabaseUrl(databaseUrl?: string): string {
   return `file:${resolvedFilePath}`;
 }
 
+function resolveSqliteBusyTimeout(timeoutValue?: string): number {
+  const parsed = Number(timeoutValue);
+  if (Number.isFinite(parsed) && parsed >= 0) {
+    return parsed;
+  }
+  return 15000;
+}
+
 const databaseUrl = resolveDatabaseUrl(process.env.DATABASE_URL);
 const adapter = new PrismaBetterSqlite3({
   url: databaseUrl,
+  timeout: resolveSqliteBusyTimeout(process.env.SQLITE_BUSY_TIMEOUT_MS),
 });
 
 export const prisma =

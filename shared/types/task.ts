@@ -4,7 +4,14 @@ import type {
   NovelWorkflowResumeTarget,
 } from "./novelWorkflow";
 
-export type TaskKind = "book_analysis" | "novel_pipeline" | "knowledge_document" | "image_generation" | "agent_run" | "novel_workflow";
+export type TaskKind =
+  | "book_analysis"
+  | "novel_pipeline"
+  | "knowledge_document"
+  | "image_generation"
+  | "agent_run"
+  | "novel_workflow"
+  | "style_extraction";
 
 export type TaskStatus = "queued" | "running" | "waiting_approval" | "succeeded" | "failed" | "cancelled";
 
@@ -88,7 +95,7 @@ export interface TaskOverviewSummary {
 
 export interface RecoverableTaskSummary {
   id: string;
-  kind: Extract<TaskKind, "book_analysis" | "novel_pipeline" | "image_generation" | "novel_workflow">;
+  kind: Extract<TaskKind, "book_analysis" | "novel_pipeline" | "image_generation" | "novel_workflow" | "style_extraction">;
   title: string;
   ownerLabel: string;
   status: Extract<TaskStatus, "queued" | "running">;

@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 import { useDirectorChapterTitleRepair } from "@/hooks/useDirectorChapterTitleRepair";
+import { syncKnownTaskCaches } from "@/lib/taskQueryCache";
 import {
   buildTaskNoticeRoute,
   isChapterTitleDiversitySummary,
@@ -68,6 +69,9 @@ function formatKind(kind: TaskKind): string {
   }
   if (kind === "knowledge_document") {
     return "知识库索引";
+  }
+  if (kind === "style_extraction") {
+    return "写法提取";
   }
   if (kind === "agent_run") {
     return "Agent 运行";
@@ -316,6 +320,7 @@ export default function TaskCenterPage() {
     }),
     onSuccess: async (response, variables) => {
       const task = response.data;
+      syncKnownTaskCaches(queryClient, task);
       await invalidateTaskQueries();
       if (task) {
         setSearchParams((prev) => {
@@ -496,6 +501,7 @@ export default function TaskCenterPage() {
               <option value="novel_pipeline">小说流水线</option>
               <option value="knowledge_document">知识库索引</option>
               <option value="image_generation">图片生成</option>
+              <option value="style_extraction">写法提取</option>
               <option value="agent_run">Agent 运行</option>
             </select>
             <select
@@ -636,19 +642,21 @@ export default function TaskCenterPage() {
                   <div>开始时间：{formatDate(selectedTask.startedAt)}</div>
                   <div>结束时间：{formatDate(selectedTask.finishedAt)}</div>
                   <div>重试计数：{selectedTask.retryCountLabel}</div>
+                  {(selectedTask.provider || selectedTask.model) ? (
+                    <div>调用模型：{selectedTask.provider ?? "暂无"} / {selectedTask.model ?? "暂无"}</div>
+                  ) : null}
                   {isAutoDirectorTask ? (
                     <>
-                      <div>任务绑定模型：{selectedTask.provider ?? "暂无"} / {selectedTask.model ?? "暂无"}</div>
                       <div>当前界面模型：{llm.provider} / {llm.model}</div>
                     </>
                   ) : null}
-                  {selectedTask.tokenUsage ? (
+                  {(selectedTask.tokenUsage || selectedTask.provider || selectedTask.model) ? (
                     <>
-                      <div>累计调用：{formatTokenCount(selectedTask.tokenUsage.llmCallCount)}</div>
-                      <div>输入 Tokens：{formatTokenCount(selectedTask.tokenUsage.promptTokens)}</div>
-                      <div>输出 Tokens：{formatTokenCount(selectedTask.tokenUsage.completionTokens)}</div>
-                      <div>累计总 Tokens：{formatTokenCount(selectedTask.tokenUsage.totalTokens)}</div>
-                      <div>最近记录：{formatDate(selectedTask.tokenUsage.lastRecordedAt)}</div>
+                      <div>累计调用：{formatTokenCount(selectedTask.tokenUsage?.llmCallCount ?? 0)}</div>
+                      <div>输入 Tokens：{formatTokenCount(selectedTask.tokenUsage?.promptTokens ?? 0)}</div>
+                      <div>输出 Tokens：{formatTokenCount(selectedTask.tokenUsage?.completionTokens ?? 0)}</div>
+                      <div>累计总 Tokens：{formatTokenCount(selectedTask.tokenUsage?.totalTokens ?? 0)}</div>
+                      <div>最近记录：{formatDate(selectedTask.tokenUsage?.lastRecordedAt)}</div>
                     </>
                   ) : null}
                 </div>

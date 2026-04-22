@@ -30,6 +30,9 @@ function formatTaskKind(kind: RecoverableTaskSummary["kind"]): string {
   if (kind === "book_analysis") {
     return "拆书任务";
   }
+  if (kind === "style_extraction") {
+    return "写法提取";
+  }
   return "图片任务";
 }
 

@@ -1,4 +1,5 @@
 import type { DirectorRunMode } from "@ai-novel/shared/types/novelDirector";
+import type { StyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import LLMSelector from "@/components/common/LLMSelector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +44,10 @@ interface NovelAutoDirectorSetupPanelProps {
   onRunModeChange: (value: DirectorRunMode) => void;
   autoExecutionDraft: DirectorAutoExecutionDraftState;
   onAutoExecutionDraftChange: (patch: Partial<DirectorAutoExecutionDraftState>) => void;
+  styleProfileOptions: Array<{ id: string; name: string }>;
+  selectedStyleProfileId: string;
+  selectedStyleSummary: StyleIntentSummary | null;
+  onStyleProfileChange: (value: string) => void;
   onBasicFormChange?: (patch: Partial<NovelBasicFormState>) => void;
   canGenerate: boolean;
   isGenerating: boolean;
@@ -61,6 +66,10 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
     onRunModeChange,
     autoExecutionDraft,
     onAutoExecutionDraftChange,
+    styleProfileOptions,
+    selectedStyleProfileId,
+    selectedStyleSummary,
+    onStyleProfileChange,
     onBasicFormChange,
     canGenerate,
     isGenerating,
@@ -159,6 +168,31 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
                   <div className="text-xs text-muted-foreground">
                     会作为整书结构密度和后续卷章规划的参考，不是硬性上限。
                   </div>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <FieldLabel htmlFor="director-basic-style-profile" hint="可选。选定后，导演前半段会只读取轻量写法摘要，正文阶段再继续使用完整写法规则。">
+                    书级默认写法
+                  </FieldLabel>
+                  <select
+                    id="director-basic-style-profile"
+                    className="w-full rounded-md border bg-background p-2 text-sm"
+                    value={selectedStyleProfileId}
+                    onChange={(event) => onStyleProfileChange(event.target.value)}
+                  >
+                    <option value="">先只用文风关键词</option>
+                    {styleProfileOptions.map((option) => (
+                      <option key={option.id} value={option.id}>{option.name}</option>
+                    ))}
+                  </select>
+                  <div className="text-xs leading-5 text-muted-foreground">
+                    {selectedStyleSummary?.stageSummaryLines[0] ?? "如果已经有沉淀好的写法资产，建议直接选一套，能明显减少导演黑盒感。"}
+                  </div>
+                  {selectedStyleSummary?.stageSummaryLines.length ? (
+                    <div className="rounded-xl border bg-muted/15 p-3 text-xs leading-6 text-muted-foreground">
+                      本阶段仅生效的写法摘要：{selectedStyleSummary.stageSummaryLines.join("；")}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </section>

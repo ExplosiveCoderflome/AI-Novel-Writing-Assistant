@@ -15,6 +15,7 @@ interface LLMDebugMeta {
   model: string;
   temperature: number;
   maxTokens?: number;
+  timeoutMs?: number;
   taskType?: TaskType;
   baseURL?: string;
   promptMeta?: PromptInvocationMeta;
@@ -315,6 +316,9 @@ function buildHeader(method: "invoke" | "stream" | "batch", meta: LLMDebugMeta):
   if (typeof meta.maxTokens === "number") {
     chunks.push(`maxTokens=${meta.maxTokens}`);
   }
+  if (typeof meta.timeoutMs === "number") {
+    chunks.push(`timeoutMs=${meta.timeoutMs}`);
+  }
   if (meta.taskType) {
     chunks.push(`taskType=${meta.taskType}`);
   }
@@ -409,6 +413,7 @@ function buildFileLogBlock(input: {
     model: input.meta.model,
     temperature: input.meta.temperature,
     maxTokens: input.meta.maxTokens ?? null,
+    timeoutMs: input.meta.timeoutMs ?? null,
     taskType: input.meta.taskType ?? null,
     baseURL: input.meta.baseURL ?? null,
     promptMeta: input.meta.promptMeta ?? null,

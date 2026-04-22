@@ -1,7 +1,12 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../../db/prisma";
+import { StructuredOutputError } from "../../../llm/structuredOutput";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import { buildCharacterCastContextBlocks } from "../../../prompting/prompts/novel/characterPreparation.contextBlocks";
+import {
+  characterCastAutoMembersPrompt,
+  characterCastAutoRelationsPrompt,
+} from "../../../prompting/prompts/novel/characterPreparation.autoFallback.prompts";
 import {
   characterCastAutoNormalizePrompt,
   characterCastAutoPrompt,
@@ -11,6 +16,7 @@ import {
   characterCastOptionRepairPrompt,
 } from "../../../prompting/prompts/novel/characterPreparation.prompts";
 import type {
+  CharacterCastAutoMembersResponseParsed,
   CharacterCastAutoResponseParsed,
   CharacterCastOptionResponseParsed,
 } from "../../../prompting/prompts/novel/characterPreparation.promptSchemas";
@@ -61,6 +67,28 @@ function buildWorldStage(novel: {
       .filter((item) => typeof item === "string" && item.trim().length > 0)
       .join("\n")
     : "当前还没有绑定世界观。";
+}
+
+function shouldFallbackToStagedAutoCast(error: unknown): error is StructuredOutputError {
+  if (!(error instanceof StructuredOutputError)) {
+    return false;
+  }
+
+  return error.category === "incomplete_json"
+    || error.category === "malformed_json"
+    || error.category === "schema_mismatch";
+}
+
+function buildAutoCastMemberRosterText(parsed: CharacterCastAutoMembersResponseParsed): string {
+  return parsed.members.map((member, index) => {
+    return [
+      `${index + 1}. ${member.name}`,
+      `castRole=${member.castRole}`,
+      `role=${member.role}`,
+      `relationToProtagonist=${member.relationToProtagonist || "未写"}`,
+      `storyFunction=${member.storyFunction}`,
+    ].join(" | ");
+  }).join("\n");
 }
 
 async function loadCastGenerationContext(
@@ -236,6 +264,51 @@ async function normalizeAutoCharacterCastOption(
   return result.output;
 }
 
+async function generateAutoCharacterCastDraftViaStagedPrompts(
+  context: CharacterCastGenerationContext,
+  options: CharacterPrepOptions,
+): Promise<CharacterCastAutoResponseParsed> {
+  const memberTemperature = Math.min(options.temperature ?? 0.5, 0.45);
+  const membersGeneration = await runStructuredPrompt({
+    asset: characterCastAutoMembersPrompt,
+    promptInput: {},
+    contextBlocks: context.contextBlocks,
+    options: {
+      provider: options.provider,
+      model: options.model,
+      temperature: memberTemperature,
+    },
+  });
+
+  const memberRosterText = buildAutoCastMemberRosterText(membersGeneration.output);
+  const protagonistName = membersGeneration.output.members.find((member) => member.castRole === "protagonist")?.name
+    ?? membersGeneration.output.members[0]?.name
+    ?? "";
+  const relationsGeneration = await runStructuredPrompt({
+    asset: characterCastAutoRelationsPrompt,
+    promptInput: {
+      storyInput: context.storyInput,
+      optionTitle: membersGeneration.output.title,
+      optionSummary: membersGeneration.output.summary,
+      protagonistName,
+      memberNames: membersGeneration.output.members.map((member) => member.name),
+      memberRosterText,
+    },
+    options: {
+      provider: options.provider,
+      model: options.model,
+      temperature: 0.3,
+    },
+  });
+
+  return {
+    option: {
+      ...membersGeneration.output,
+      relations: relationsGeneration.output.relations,
+    },
+  };
+}
+
 async function repairAutoCharacterCastOption(input: {
   parsed: CharacterCastAutoResponseParsed;
   assessment: CharacterCastBatchAssessment;
@@ -306,18 +379,36 @@ export async function generateAutoCharacterCastDraft(
   options: CharacterPrepOptions = {},
 ): Promise<{ storyInput: string; parsed: CharacterCastAutoResponseParsed }> {
   const context = await loadCastGenerationContext(novelId, options);
-  const generation = await runStructuredPrompt({
-    asset: characterCastAutoPrompt,
-    promptInput: {},
-    contextBlocks: context.contextBlocks,
-    options: {
-      provider: options.provider,
-      model: options.model,
-      temperature: options.temperature ?? 0.5,
-    },
-  });
+  let parsed: CharacterCastAutoResponseParsed;
+  try {
+    const generation = await runStructuredPrompt({
+      asset: characterCastAutoPrompt,
+      promptInput: {},
+      contextBlocks: context.contextBlocks,
+      options: {
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature ?? 0.5,
+      },
+    });
+    parsed = generation.output;
+  } catch (error) {
+    if (!shouldFallbackToStagedAutoCast(error)) {
+      throw error;
+    }
 
-  let parsed = generation.output;
+    console.info(
+      [
+        "[character.cast.auto]",
+        "event=staged_fallback",
+        `category=${error.category}`,
+        `provider=${options.provider ?? "default"}`,
+        `model=${options.model ?? "default"}`,
+      ].join(" "),
+    );
+    parsed = await generateAutoCharacterCastDraftViaStagedPrompts(context, options);
+  }
+
   if (shouldNormalizeCharacterCastLanguage([parsed.option])) {
     parsed = await normalizeAutoCharacterCastOption(parsed, options).catch(() => parsed);
   }

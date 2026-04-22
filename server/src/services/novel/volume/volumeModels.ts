@@ -162,6 +162,7 @@ export function mapVolumeRow(row: VolumeRow): VolumePlan {
       mustAvoid: chapter.mustAvoid,
       taskSheet: chapter.taskSheet,
       sceneCards: chapter.sceneCards,
+      styleContract: null,
       payoffRefs: chapter.payoffRefsJson ? JSON.parse(chapter.payoffRefsJson) as string[] : [],
       createdAt: chapter.createdAt.toISOString(),
       updatedAt: chapter.updatedAt.toISOString(),

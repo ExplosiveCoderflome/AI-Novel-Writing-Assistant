@@ -202,6 +202,14 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/novel/characterPreparation.prompts").characterCastAutoPrompt as UnknownPromptAsset,
   },
   {
+    key: "novel.character.castAuto.members@v1",
+    load: () => require("./prompts/novel/characterPreparation.autoFallback.prompts").characterCastAutoMembersPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.character.castAuto.relations@v1",
+    load: () => require("./prompts/novel/characterPreparation.autoFallback.prompts").characterCastAutoRelationsPrompt as UnknownPromptAsset,
+  },
+  {
     key: "novel.character.castAuto.repair@v1",
     load: () => require("./prompts/novel/characterPreparation.prompts").characterCastAutoRepairPrompt as UnknownPromptAsset,
   },
@@ -230,7 +238,7 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     load: () => require("./prompts/novel/review.prompts").chapterSummaryPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.chapter.writer@v4",
+    key: "novel.chapter.writer@v5",
     load: () => require("./prompts/novel/chapterWriter.prompts").chapterWriterPrompt as UnknownPromptAsset,
   },
   {
@@ -313,18 +321,26 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     key: "style.rewrite@v1",
     load: () => require("./prompts/style/style.prompts").styleRewritePrompt as UnknownPromptAsset,
   },
-  {
-    key: "style.profile.extract@v1",
-    load: () => require("./prompts/style/style.prompts").styleProfileExtractionPrompt as UnknownPromptAsset,
-  },
-  {
-    key: "style.profile.from_book_analysis@v2",
-    load: () => require("./prompts/style/style.prompts").styleProfileFromBookAnalysisPrompt as UnknownPromptAsset,
-  },
-  {
-    key: "style.profile.from_brief@v1",
-    load: () => require("./prompts/style/style.prompts").styleProfileFromBriefPrompt as UnknownPromptAsset,
-  },
+    {
+      key: "style.profile.extract@v2",
+      load: () => require("./prompts/style/style.prompts").styleProfileExtractionPrompt as UnknownPromptAsset,
+    },
+    {
+      key: "style.profile.from_book_analysis@v3",
+      load: () => require("./prompts/style/style.prompts").styleProfileFromBookAnalysisPrompt as UnknownPromptAsset,
+    },
+    {
+      key: "style.profile.from_brief@v2",
+      load: () => require("./prompts/style/style.prompts").styleProfileFromBriefPrompt as UnknownPromptAsset,
+    },
+    {
+      key: "style.profile.metadata@v1",
+      load: () => require("./prompts/style/style.prompts").styleProfileMetadataPrompt as UnknownPromptAsset,
+    },
+    {
+      key: "style.profile.select_anti_ai@v1",
+      load: () => require("./prompts/style/style.prompts").styleProfileAntiAiSelectionPrompt as UnknownPromptAsset,
+    },
   {
     key: "world.reference.inspiration@v1",
     load: () => require("./prompts/world/world.prompts").worldReferenceInspirationPrompt as UnknownPromptAsset,
