@@ -25,6 +25,7 @@ import { AutoDirectorFollowUpBatchBar } from "./components/AutoDirectorFollowUpB
 import { AutoDirectorFollowUpDetailPanel } from "./components/AutoDirectorFollowUpDetail";
 import { AutoDirectorFollowUpListPanel } from "./components/AutoDirectorFollowUpList";
 import { AutoDirectorFollowUpOverviewCards } from "./components/AutoDirectorFollowUpOverview";
+import { reconcileSelectedTaskIds } from "./selectionState";
 import { toast } from "@/components/ui/toast";
 
 const TASK_STATUSES: readonly TaskStatus[] = [
@@ -155,7 +156,7 @@ export default function AutoDirectorFollowUpCenterPage() {
   }, [items, selectedTaskId, setSearchParams]);
 
   useEffect(() => {
-    setSelectedTaskIds((current) => current.filter((taskId) => items.some((item) => item.taskId === taskId)));
+    setSelectedTaskIds((current) => reconcileSelectedTaskIds(current, items));
   }, [items]);
 
   const selectedItems = useMemo(
