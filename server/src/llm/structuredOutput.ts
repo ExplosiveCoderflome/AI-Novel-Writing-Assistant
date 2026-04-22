@@ -63,6 +63,14 @@ function isQwenFamily(model: string): boolean {
   return QWEN_FAMILY_PATTERN.test(model);
 }
 
+function isGlmFamily(model: string): boolean {
+  const normalizedModel = normalizeModelId(model);
+  if (!normalizedModel) {
+    return false;
+  }
+  return normalizedModel.startsWith("glm");
+}
+
 function normalizeModelId(model: string): string {
   const normalized = normalizeText(model);
   if (!normalized) {
@@ -151,6 +159,7 @@ export function resolveStructuredOutputProfile(input: {
   const host = extractHost(input.baseURL);
   const customProvider = !isBuiltInProvider(input.provider);
   const qwenFamily = isQwenFamily(model);
+  const glmFamily = isGlmFamily(model);
   const qwenMixedThinkingModel = isQwenMixedThinkingModel(model);
   const qwenThinkingOnlyModel = isQwenThinkingOnlyModel(model);
   const qwenNativeStructuredModel = supportsDashScopeQwenNativeStructuredOutput(model);
@@ -160,6 +169,14 @@ export function resolveStructuredOutputProfile(input: {
   if (isTkRoutedModel(model)) {
     return buildProfile({
       family: "anthropic",
+      preferredStructuredStrategy: "prompt_json",
+      safeStructuredMaxTokens: 8192,
+    });
+  }
+
+  if (input.provider === "glm" || GLM_HOST_PATTERN.test(host) || glmFamily) {
+    return buildProfile({
+      family: "glm",
       preferredStructuredStrategy: "prompt_json",
       safeStructuredMaxTokens: 8192,
     });
@@ -192,13 +209,6 @@ export function resolveStructuredOutputProfile(input: {
   if (input.provider === "deepseek" || DEEPSEEK_HOST_PATTERN.test(host)) {
     return buildProfile({
       family: "deepseek",
-      nativeJsonObject: true,
-      preferredStructuredStrategy: "json_object",
-    });
-  }
-  if (input.provider === "glm" || GLM_HOST_PATTERN.test(host)) {
-    return buildProfile({
-      family: "glm",
       nativeJsonObject: true,
       preferredStructuredStrategy: "json_object",
     });

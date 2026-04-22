@@ -243,6 +243,85 @@ test("invokeStructuredLlmDetailed switches to the configured fallback model afte
   }
 });
 
+test("invokeStructuredLlmDetailed uses prompt_json for glm models behind openai-compatible provider", async () => {
+  const originalResolveOptions = factory.resolveLLMClientOptions;
+  const originalCreateLLM = factory.createLLMFromResolvedOptions;
+  const calls = [];
+
+  factory.resolveLLMClientOptions = async (provider, options = {}) => {
+    const resolvedProvider = provider ?? "openai";
+    const resolvedModel = options.model ?? "glm-5";
+    const baseURL = options.baseURL ?? "https://open.bigmodel.cn/api/paas/v4";
+    const structuredProfile = options.executionMode === "structured"
+      ? resolveStructuredOutputProfile({
+        provider: resolvedProvider,
+        model: resolvedModel,
+        baseURL,
+        executionMode: "structured",
+      })
+      : null;
+    return {
+      provider: resolvedProvider,
+      providerName: resolvedProvider,
+      model: resolvedModel,
+      temperature: options.temperature ?? 0.3,
+      apiKey: "test-key",
+      baseURL,
+      maxTokens: options.maxTokens,
+      reasoningEnabled: true,
+      modelKwargs: undefined,
+      includeRawResponse: false,
+      executionMode: options.executionMode ?? "plain",
+      structuredProfile,
+      structuredStrategy: options.structuredStrategy ?? null,
+      reasoningForcedOff: false,
+      taskType: options.taskType,
+      promptMeta: options.promptMeta,
+    };
+  };
+  factory.createLLMFromResolvedOptions = (resolved) => ({
+    invoke: async () => {
+      calls.push({
+        provider: resolved.provider,
+        model: resolved.model,
+        strategy: resolved.structuredStrategy,
+      });
+      return {
+        content: [
+          "```json",
+          "{\"value\":\"glm-ok\"}",
+          "```",
+        ].join("\n"),
+      };
+    },
+  });
+
+  try {
+    const result = await structuredInvoke.invokeStructuredLlmDetailed({
+      provider: "openai",
+      model: "glm-5",
+      baseURL: "https://open.bigmodel.cn/api/paas/v4",
+      label: "structured.invoke.glm.compat",
+      taskType: "planner",
+      schema: z.object({
+        value: z.string(),
+      }),
+      systemPrompt: "只返回 JSON。",
+      userPrompt: "给我一个 value。",
+      disableFallbackModel: true,
+      maxRepairAttempts: 0,
+    });
+
+    assert.deepEqual(result.data, { value: "glm-ok" });
+    assert.deepEqual(calls, [
+      { provider: "openai", model: "glm-5", strategy: "prompt_json" },
+    ]);
+  } finally {
+    factory.resolveLLMClientOptions = originalResolveOptions;
+    factory.createLLMFromResolvedOptions = originalCreateLLM;
+  }
+});
+
 test("parseStructuredLlmRawContentDetailed ignores generated string length limits while preserving trim normalization", async () => {
   const result = await structuredInvoke.parseStructuredLlmRawContentDetailed({
     rawContent: JSON.stringify({

@@ -284,6 +284,25 @@ test("tk routed models prefer anthropic structured semantics even behind openai-
   assert.equal(selectStructuredOutputStrategy(profile, schema), "prompt_json");
 });
 
+test("openai provider does not assume native structured output for glm models on compatible gateways", () => {
+  const schema = z.object({ ok: z.string() });
+  const profile = resolveStructuredOutputProfile({
+    provider: "openai",
+    model: "glm-5",
+    baseURL: "https://open.bigmodel.cn/api/paas/v4",
+    executionMode: "structured",
+  });
+
+  assert.equal(profile.family, "glm");
+  assert.equal(profile.nativeJsonSchema, false);
+  assert.equal(profile.nativeJsonObject, false);
+  assert.equal(selectStructuredOutputStrategy(profile, schema), "prompt_json");
+  assert.deepEqual(
+    getJsonCapability("openai", "glm-5", "https://open.bigmodel.cn/api/paas/v4"),
+    { supportsJsonSchema: false, supportsJsonObject: false },
+  );
+});
+
 test("createLLMFromResolvedOptions routes tk models through anthropic messages transport", async () => {
   const originalFetch = global.fetch;
   const requests = [];
