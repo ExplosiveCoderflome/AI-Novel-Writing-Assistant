@@ -24,6 +24,14 @@
 - 👉 控制写作风格与叙事一致性
 - 👉 最终生成完整章节甚至整本小说
 
+## Windows 桌面版
+
+如果你只是想直接下载安装并开始使用，优先从桌面版入口进入：
+
+- 下载入口：[GitHub Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases)
+- 最新版本页：[Latest Release](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)
+- 建议优先下载 `Setup.exe` 安装版；如果你不想安装，或者想放在 U 盘 / 临时目录里直接运行，再选择 `portable` 版本
+
 
 
 ## 项目定位
@@ -127,21 +135,6 @@
 - 后台任务恢复和状态同步更稳了。数据库写入拥堵时会优先等待并重试，小说页和任务中心在继续、取消或重试自动导演后，也会更快同步到当前真实状态。
 - Windows 桌面版补发 `0.2.2` 修复版。旧 `dev.db` 导入后如果数据库里已经带着半完成迁移记录，桌面端现在会优先接管已有结构，不再因为重复建表把启动卡死；选错成当前桌面库自身时，提示也会明确告诉你去选旧的 web/dev `dev.db`。
 - Windows 安装版图标和桌面运行时也一起补稳了。开始菜单、桌面快捷方式和系统入口会继续使用正式应用图标；桌面开发壳与打包环境也补上了 `better-sqlite3` 运行时依赖，减少启动时直接报缺模块或看起来还像 Electron 默认壳的情况。
-
-## Windows 桌面版
-
-如果你只是想直接下载安装并开始使用，优先从桌面版入口进入：
-
-- 下载入口：[GitHub Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases)
-- 最新版本页：[Latest Release](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)
-- 建议优先下载 `Setup.exe` 安装版；如果你不想安装，或者想放在 U 盘 / 临时目录里直接运行，再选择 `portable` 版本
-
-当前桌面版说明：
-
-- Windows 桌面版已经提供正式安装包，目标是让你不必自己准备 Node、pnpm、Prisma 或源码运行环境，也能直接进入创作工作台
-- 首次打开后，如果本机还没有配置模型，桌面端会直接引导你进入设置页补齐模型和密钥，而不是只留下一个空白壳
-- 如果你之前已经在本地 Web 开发环境里使用过旧 `dev.db`，桌面端现在提供手动导入入口，可以把旧数据迁进桌面版继续使用
-- 安装版会通过正式发布链接收后续更新；需要最稳妥时，也可以直接从 Releases 页面手动下载最新安装包
 
 ## 功能预览
 ### 功能概览中的95%以上编写都是AI完成
