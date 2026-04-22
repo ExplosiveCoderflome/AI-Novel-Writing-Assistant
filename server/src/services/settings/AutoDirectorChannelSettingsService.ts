@@ -257,3 +257,7 @@ export async function saveAutoDirectorChannelSettings(
     throw error;
   }
 }
+
+export function resolveAutoDirectorBaseUrl(baseUrl?: string | null): string {
+  return trimText(baseUrl) || getDefaultBaseUrl() || "http://localhost:3000";
+}

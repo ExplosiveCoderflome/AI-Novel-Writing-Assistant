@@ -3,9 +3,11 @@ import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import {
+  getAutoDirectorChannelSettings,
   createCustomProvider,
   deleteCustomProvider,
   getAPIKeySettings,
+  saveAutoDirectorChannelSettings,
   getProviderBalances,
   getRagSettings,
   refreshProviderBalance,
@@ -73,6 +75,21 @@ export default function SettingsPage() {
   });
   const [testResult, setTestResult] = useState("");
   const [actionResult, setActionResult] = useState("");
+  const [autoDirectorChannelDraft, setAutoDirectorChannelDraft] = useState<null | {
+    baseUrl: string;
+    dingtalk: {
+      webhookUrl: string;
+      callbackToken: string;
+      operatorMapJson: string;
+      eventTypesText: string;
+    };
+    wecom: {
+      webhookUrl: string;
+      callbackToken: string;
+      operatorMapJson: string;
+      eventTypesText: string;
+    };
+  }>(null);
 
   const apiKeySettingsQuery = useQuery({
     queryKey: queryKeys.settings.apiKeys,
@@ -87,6 +104,11 @@ export default function SettingsPage() {
   const providerBalancesQuery = useQuery({
     queryKey: queryKeys.settings.apiKeyBalances,
     queryFn: getProviderBalances,
+  });
+
+  const autoDirectorChannelsQuery = useQuery({
+    queryKey: queryKeys.settings.autoDirectorChannels,
+    queryFn: getAutoDirectorChannelSettings,
   });
 
   const providerConfigs = useMemo(() => apiKeySettingsQuery.data?.data ?? [], [apiKeySettingsQuery.data?.data]);
@@ -118,6 +140,7 @@ export default function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.llm.providers }),
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.autoDirectorChannels }),
     ]);
   };
 
@@ -246,11 +269,54 @@ export default function SettingsPage() {
     },
   });
 
+  const saveAutoDirectorChannelsMutation = useMutation({
+    mutationFn: (payload: {
+      baseUrl: string;
+      dingtalk: {
+        webhookUrl: string;
+        callbackToken: string;
+        operatorMapJson: string;
+        eventTypes: string[];
+      };
+      wecom: {
+        webhookUrl: string;
+        callbackToken: string;
+        operatorMapJson: string;
+        eventTypes: string[];
+      };
+    }) => saveAutoDirectorChannelSettings(payload),
+    onSuccess: async (response) => {
+      setActionResult(response.message ?? "导演跟进通道配置已保存。");
+      if (response.data) {
+        setAutoDirectorChannelDraft({
+          baseUrl: response.data.baseUrl,
+          dingtalk: {
+            webhookUrl: response.data.dingtalk.webhookUrl,
+            callbackToken: response.data.dingtalk.callbackToken,
+            operatorMapJson: response.data.dingtalk.operatorMapJson,
+            eventTypesText: response.data.dingtalk.eventTypes.join(", "),
+          },
+          wecom: {
+            webhookUrl: response.data.wecom.webhookUrl,
+            callbackToken: response.data.wecom.callbackToken,
+            operatorMapJson: response.data.wecom.operatorMapJson,
+            eventTypesText: response.data.wecom.eventTypes.join(", "),
+          },
+        });
+      }
+      await queryClient.invalidateQueries({ queryKey: queryKeys.settings.autoDirectorChannels });
+    },
+    onError: (error) => {
+      setActionResult(error instanceof Error ? error.message : "保存导演跟进通道配置失败。");
+    },
+  });
+
   const providerBalanceMap = useMemo(
     () => new Map((providerBalancesQuery.data?.data ?? []).map((item) => [item.provider, item])),
     [providerBalancesQuery.data?.data],
   );
   const ragSettings = ragSettingsQuery.data?.data;
+  const autoDirectorChannels = autoDirectorChannelsQuery.data?.data;
   const ragProvider = useMemo(
     () => ragSettings?.providers.find((item) => item.provider === ragSettings.embeddingProvider),
     [ragSettings],
@@ -258,6 +324,52 @@ export default function SettingsPage() {
   const modelOptions = editingConfig?.models ?? [];
   const canSelectListedModels = !isCreatingCustomProvider && modelOptions.length > 0;
   const primaryModelLabel = isCustomDialog ? "Default model name" : "Model name";
+
+  const channelDraft = autoDirectorChannelDraft ?? (autoDirectorChannels ? {
+    baseUrl: autoDirectorChannels.baseUrl,
+    dingtalk: {
+      webhookUrl: autoDirectorChannels.dingtalk.webhookUrl,
+      callbackToken: autoDirectorChannels.dingtalk.callbackToken,
+      operatorMapJson: autoDirectorChannels.dingtalk.operatorMapJson,
+      eventTypesText: autoDirectorChannels.dingtalk.eventTypes.join(", "),
+    },
+    wecom: {
+      webhookUrl: autoDirectorChannels.wecom.webhookUrl,
+      callbackToken: autoDirectorChannels.wecom.callbackToken,
+      operatorMapJson: autoDirectorChannels.wecom.operatorMapJson,
+      eventTypesText: autoDirectorChannels.wecom.eventTypes.join(", "),
+    },
+  } : {
+    baseUrl: "",
+    dingtalk: {
+      webhookUrl: "",
+      callbackToken: "",
+      operatorMapJson: "",
+      eventTypesText: "",
+    },
+    wecom: {
+      webhookUrl: "",
+      callbackToken: "",
+      operatorMapJson: "",
+      eventTypesText: "",
+    },
+  });
+
+  const patchChannelDraft = (
+    channelType: "dingtalk" | "wecom",
+    patch: Partial<(typeof channelDraft)["dingtalk"]>,
+  ) => {
+    setAutoDirectorChannelDraft((prev) => {
+      const current = prev ?? channelDraft;
+      return {
+        ...current,
+        [channelType]: {
+          ...current[channelType],
+          ...patch,
+        },
+      };
+    });
+  };
 
   const isProviderExpanded = (provider: string) => expandedProviders[provider] === true;
   const toggleProviderExpanded = (provider: string) => {
@@ -339,6 +451,100 @@ export default function SettingsPage() {
           <Button asChild>
             <Link to="/knowledge?tab=settings">Open knowledge settings</Link>
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>导演跟进通道配置</CardTitle>
+          <CardDescription>
+            集中配置钉钉与企微的 webhook、回调 token、用户映射和事件订阅。未配完整回调能力时，消息会自动降级成仅跳转站内。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-1">
+            <div className="text-xs text-muted-foreground">站内访问地址</div>
+            <Input
+              value={channelDraft.baseUrl}
+              placeholder="https://book.example.com"
+              onChange={(event) => setAutoDirectorChannelDraft((prev) => ({
+                ...(prev ?? channelDraft),
+                baseUrl: event.target.value,
+              }))}
+            />
+            <div className="text-xs text-muted-foreground">
+              用于钉钉/企微消息里的“打开跟进中心 / 查看详情”链接。未填写时会回退到服务端环境中的站点地址。
+            </div>
+          </div>
+
+          {(["dingtalk", "wecom"] as const).map((channelType) => (
+            <div key={channelType} className="space-y-3 rounded-lg border p-4">
+              <div className="font-medium">{channelType === "dingtalk" ? "钉钉" : "企业微信"}</div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">Webhook URL</div>
+                  <Input
+                    value={channelDraft[channelType].webhookUrl}
+                    placeholder="https://..."
+                    onChange={(event) => patchChannelDraft(channelType, { webhookUrl: event.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">回调 Token</div>
+                  <Input
+                    value={channelDraft[channelType].callbackToken}
+                    placeholder="可选；未配置则只保留站内跳转"
+                    onChange={(event) => patchChannelDraft(channelType, { callbackToken: event.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-xs text-muted-foreground">用户映射 JSON</div>
+                <Input
+                  value={channelDraft[channelType].operatorMapJson}
+                  placeholder='{"ding_user_1":"user_1"}'
+                  onChange={(event) => patchChannelDraft(channelType, { operatorMapJson: event.target.value })}
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="text-xs text-muted-foreground">订阅事件</div>
+                <Input
+                  value={channelDraft[channelType].eventTypesText}
+                  placeholder="auto_director.approval_required, auto_director.exception, auto_director.recovered, auto_director.completed"
+                  onChange={(event) => patchChannelDraft(channelType, { eventTypesText: event.target.value })}
+                />
+              </div>
+            </div>
+          ))}
+
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              asChild
+            >
+              <Link to="/settings/model-routes">去看模型路由</Link>
+            </Button>
+            <Button
+              onClick={() => saveAutoDirectorChannelsMutation.mutate({
+                baseUrl: channelDraft.baseUrl.trim(),
+                dingtalk: {
+                  webhookUrl: channelDraft.dingtalk.webhookUrl.trim(),
+                  callbackToken: channelDraft.dingtalk.callbackToken.trim(),
+                  operatorMapJson: channelDraft.dingtalk.operatorMapJson.trim(),
+                  eventTypes: channelDraft.dingtalk.eventTypesText.split(",").map((item) => item.trim()).filter(Boolean),
+                },
+                wecom: {
+                  webhookUrl: channelDraft.wecom.webhookUrl.trim(),
+                  callbackToken: channelDraft.wecom.callbackToken.trim(),
+                  operatorMapJson: channelDraft.wecom.operatorMapJson.trim(),
+                  eventTypes: channelDraft.wecom.eventTypesText.split(",").map((item) => item.trim()).filter(Boolean),
+                },
+              })}
+              disabled={saveAutoDirectorChannelsMutation.isPending}
+            >
+              {saveAutoDirectorChannelsMutation.isPending ? "保存中..." : "保存导演跟进通道配置"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

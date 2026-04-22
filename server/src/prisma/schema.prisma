@@ -1551,6 +1551,26 @@ model AutoDirectorFollowUpActionLog {
   @@index([taskId, actionCode, executedAt])
 }
 
+model AutoDirectorFollowUpNotificationLog {
+  id             String   @id @default(cuid())
+  eventId        String
+  eventType      String
+  taskId         String
+  channelType    String
+  target         String?
+  requestPayload String?
+  responseBody   String?
+  responseStatus Int?
+  attemptCount   Int      @default(1)
+  deliveredAt    DateTime?
+  status         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([taskId, createdAt])
+  @@index([eventId, channelType, createdAt])
+}
+
 model StoryStateSnapshot {
   id             String   @id @default(cuid())
   novelId        String

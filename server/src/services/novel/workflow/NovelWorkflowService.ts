@@ -46,6 +46,12 @@ import {
 } from "./novelWorkflowRecoveryHeuristics";
 import { syncAutoDirectorChapterBatchCheckpoint } from "./novelWorkflowAutoDirectorReconciliation";
 import { repairAutoDirectorCandidateSeedPayload } from "./novelWorkflowCandidateSeedRepair";
+import {
+  AutoDirectorFollowUpNotificationService,
+} from "../../task/autoDirectorFollowUps/AutoDirectorFollowUpNotificationService";
+import type {
+  AutoDirectorEventWorkflowSnapshot,
+} from "../../task/autoDirectorFollowUps/autoDirectorFollowUpEventBuilder";
 
 type WorkflowRow = Awaited<ReturnType<typeof prisma.novelWorkflowTask.findUnique>>;
 
@@ -260,6 +266,120 @@ function isStructuredOutlineItemKey(itemKey: string | null | undefined): boolean
 
 export class NovelWorkflowService {
   private readonly volumeService = new NovelVolumeService();
+
+  private readonly autoDirectorFollowUpNotificationService = new AutoDirectorFollowUpNotificationService();
+
+  private toAutoDirectorEventSnapshot(row: {
+    id: string;
+    novelId: string | null;
+    lane: string;
+    status: string;
+    currentStage: string | null;
+    checkpointType: string | null;
+    checkpointSummary?: string | null;
+    currentItemLabel?: string | null;
+    pendingManualRecovery: boolean;
+    updatedAt: Date;
+    seedPayloadJson?: string | null;
+    novel?: {
+      title?: string | null;
+    } | null;
+  } | null): AutoDirectorEventWorkflowSnapshot | null {
+    if (!row || row.lane !== "auto_director") {
+      return null;
+    }
+    return {
+      id: row.id,
+      novelId: row.novelId,
+      status: row.status as TaskStatus,
+      progress: "progress" in row && typeof row.progress === "number" ? row.progress : null,
+      currentStage: row.currentStage,
+      checkpointType: row.checkpointType as NovelWorkflowCheckpoint | null,
+      checkpointSummary: row.checkpointSummary ?? null,
+      currentItemLabel: row.currentItemLabel ?? null,
+      pendingManualRecovery: row.pendingManualRecovery,
+      updatedAt: row.updatedAt,
+      seedPayloadJson: row.seedPayloadJson ?? null,
+      novel: row.novel ?? null,
+    };
+  }
+
+  private async notifyAutoDirectorTaskTransition(input: {
+    before: {
+      id: string;
+      novelId: string | null;
+      lane: string;
+      status: string;
+      progress?: number | null;
+      currentStage: string | null;
+      checkpointType: string | null;
+      checkpointSummary?: string | null;
+      currentItemLabel?: string | null;
+      pendingManualRecovery: boolean;
+      updatedAt: Date;
+      seedPayloadJson?: string | null;
+      novel?: {
+        title?: string | null;
+      } | null;
+    } | null;
+    after: {
+      id: string;
+      novelId: string | null;
+      lane: string;
+      status: string;
+      progress?: number | null;
+      currentStage: string | null;
+      checkpointType: string | null;
+      checkpointSummary?: string | null;
+      currentItemLabel?: string | null;
+      pendingManualRecovery: boolean;
+      updatedAt: Date;
+      seedPayloadJson?: string | null;
+      novel?: {
+        title?: string | null;
+      } | null;
+    } | null;
+  }): Promise<void> {
+    await this.autoDirectorFollowUpNotificationService.handleTaskTransition({
+      before: this.toAutoDirectorEventSnapshot(input.before),
+      after: this.toAutoDirectorEventSnapshot(input.after),
+    });
+  }
+
+  private async updateWorkflowTaskWithNotifications<T extends {
+    id: string;
+    novelId: string | null;
+    lane: string;
+    status: string;
+    progress?: number | null;
+    currentStage: string | null;
+    checkpointType: string | null;
+    checkpointSummary?: string | null;
+    currentItemLabel?: string | null;
+    pendingManualRecovery: boolean;
+    updatedAt: Date;
+    seedPayloadJson?: string | null;
+  }>(input: {
+    before: T;
+    data: Record<string, unknown>;
+  }): Promise<T> {
+    const next = await prisma.novelWorkflowTask.update({
+      where: { id: input.before.id },
+      data: input.data,
+      include: {
+        novel: {
+          select: {
+            title: true,
+          },
+        },
+      },
+    }) as unknown as T;
+    await this.notifyAutoDirectorTaskTransition({
+      before: input.before,
+      after: next,
+    });
+    return next;
+  }
 
   private async getVisibleRowsByNovelIdRaw(novelId: string, lane?: NovelWorkflowLane) {
     const rows = await prisma.novelWorkflowTask.findMany({
@@ -1089,8 +1209,8 @@ export class NovelWorkflowService {
       chapterId: input.chapterId,
       volumeId: input.volumeId,
     });
-    return prisma.novelWorkflowTask.update({
-      where: { id: taskId },
+    return this.updateWorkflowTaskWithNotifications({
+      before: existing,
       data: {
         status: "running",
         startedAt: existing.startedAt ?? new Date(),
@@ -1140,8 +1260,8 @@ export class NovelWorkflowService {
       chapterId: input.chapterId,
       volumeId: input.volumeId,
     });
-    return prisma.novelWorkflowTask.update({
-      where: { id: taskId },
+    return this.updateWorkflowTaskWithNotifications({
+      before: existing,
       data: {
         status: "waiting_approval",
         finishedAt: null,
@@ -1180,8 +1300,8 @@ export class NovelWorkflowService {
       chapterId: patch?.chapterId,
       volumeId: patch?.volumeId,
     });
-    return prisma.novelWorkflowTask.update({
-      where: { id: taskId },
+    return this.updateWorkflowTaskWithNotifications({
+      before: existing,
       data: {
         status: "failed",
         finishedAt: new Date(),
@@ -1202,8 +1322,8 @@ export class NovelWorkflowService {
     if (!existing) {
       throw new AppError("Task not found.", 404);
     }
-    return prisma.novelWorkflowTask.update({
-      where: { id: taskId },
+    return this.updateWorkflowTaskWithNotifications({
+      before: existing,
       data: {
         status: "cancelled",
         cancelRequestedAt: new Date(),
@@ -1218,8 +1338,8 @@ export class NovelWorkflowService {
     if (!existing) {
       throw new AppError("Task not found.", 404);
     }
-      return prisma.novelWorkflowTask.update({
-        where: { id: taskId },
+      return this.updateWorkflowTaskWithNotifications({
+        before: existing,
         data: {
           status: existing.checkpointType ? "waiting_approval" : "queued",
           pendingManualRecovery: false,
@@ -1252,9 +1372,9 @@ export class NovelWorkflowService {
           stage: checkpointStage,
         })
       );
-    return prisma.novelWorkflowTask.update({
-      where: { id: taskId },
-        data: {
+    return this.updateWorkflowTaskWithNotifications({
+      before: existing,
+      data: {
           status: checkpointType === "workflow_completed" ? "succeeded" : "waiting_approval",
           pendingManualRecovery: false,
           finishedAt: checkpointType === "workflow_completed" ? (existing.finishedAt ?? new Date()) : null,
@@ -1278,8 +1398,8 @@ export class NovelWorkflowService {
     if (isTaskCancellationRequested(existing)) {
       throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
     }
-      return prisma.novelWorkflowTask.update({
-        where: { id: taskId },
+      return this.updateWorkflowTaskWithNotifications({
+        before: existing,
         data: {
           heartbeatAt: new Date(),
           pendingManualRecovery: false,
@@ -1293,14 +1413,14 @@ export class NovelWorkflowService {
     if (!existing) {
       throw new AppError("Task not found.", 404);
     }
-      return prisma.novelWorkflowTask.update({
-        where: { id: taskId },
+      return this.updateWorkflowTaskWithNotifications({
+        before: existing,
         data: {
           status: "queued",
           pendingManualRecovery: true,
           finishedAt: null,
           cancelRequestedAt: null,
-          heartbeatAt: null,
+        heartbeatAt: null,
         lastError: message.trim(),
       },
     });
@@ -1317,8 +1437,8 @@ export class NovelWorkflowService {
     if (isTaskCancellationRequested(existing)) {
       throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
     }
-    return prisma.novelWorkflowTask.update({
-      where: { id: taskId },
+    return this.updateWorkflowTaskWithNotifications({
+      before: existing,
       data: {
         status: "waiting_approval",
         currentStage: stageLabel("auto_director"),
@@ -1362,8 +1482,8 @@ export class NovelWorkflowService {
       chapterId: input.chapterId,
       volumeId: input.volumeId,
     });
-    return prisma.novelWorkflowTask.update({
-      where: { id: taskId },
+    return this.updateWorkflowTaskWithNotifications({
+      before: existing,
       data: {
         status: input.checkpointType === "workflow_completed" ? "succeeded" : "waiting_approval",
         progress: input.progress ?? defaultProgressForStage(input.stage),
