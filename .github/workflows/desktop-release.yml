@@ -16,6 +16,7 @@ jobs:
     runs-on: windows-latest
     env:
       AI_NOVEL_RELEASE_CHANNEL: release
+      AI_NOVEL_ALLOW_UNSIGNED_RELEASE: "true"
       AI_NOVEL_GITHUB_OWNER: ExplosiveCoderflome
       AI_NOVEL_GITHUB_REPO: AI-Novel-Writing-Assistant
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

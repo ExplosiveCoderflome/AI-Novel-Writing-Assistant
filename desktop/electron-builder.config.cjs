@@ -19,12 +19,17 @@ const windowsSigningLink = firstNonEmpty(
   process.env.AI_NOVEL_WINDOWS_CSC_LINK,
   process.env.AI_NOVEL_WINDOWS_CSC_FILE,
 );
+const allowUnsignedRelease =
+  firstNonEmpty(
+    process.env.AI_NOVEL_ALLOW_UNSIGNED_RELEASE,
+    process.env.AI_NOVEL_ALLOW_UNSIGNED_WINDOWS_RELEASE,
+  ).toLowerCase() === "true";
 const hasWindowsSigningMaterial = Boolean(windowsSigningLink);
 const builderIconPath = path.join("builder", "app-icon.ico");
 
-if (!isBetaRelease && !hasWindowsSigningMaterial) {
+if (!isBetaRelease && !hasWindowsSigningMaterial && !allowUnsignedRelease) {
   throw new Error(
-    "Public Windows desktop releases require signing material. Provide CSC_LINK/WIN_CSC_LINK before publishing.",
+    "Public Windows desktop releases require signing material. Provide CSC_LINK/WIN_CSC_LINK, or explicitly opt in to an unsigned release.",
   );
 }
 
