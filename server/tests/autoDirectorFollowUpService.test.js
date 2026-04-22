@@ -183,6 +183,7 @@ test("auto director follow-up service detail reuses workflow detail and adds fol
   const originals = {
     isTaskArchived: taskArchive.isTaskArchived,
     findUnique: prisma.novelWorkflowTask.findUnique,
+    notificationLogFindMany: prisma.autoDirectorFollowUpNotificationLog.findMany,
     adapterDetail: NovelWorkflowTaskAdapter.prototype.detail,
   };
 
@@ -209,6 +210,24 @@ test("auto director follow-up service detail reuses workflow detail and adds fol
       },
     ]),
   });
+  prisma.autoDirectorFollowUpNotificationLog.findMany = async () => ([
+    {
+      id: "notify_1",
+      eventId: "evt_1",
+      eventType: "auto_director.approval_required",
+      taskId: "task_detail",
+      channelType: "dingtalk",
+      target: "https://relay.example.test/dingtalk",
+      requestPayload: "{}",
+      responseBody: "{\"ok\":true}",
+      responseStatus: 202,
+      attemptCount: 1,
+      deliveredAt: new Date("2026-04-22T09:20:00.000Z"),
+      status: "delivered",
+      createdAt: new Date("2026-04-22T09:20:00.000Z"),
+      updatedAt: new Date("2026-04-22T09:20:00.000Z"),
+    },
+  ]);
   NovelWorkflowTaskAdapter.prototype.detail = async function detailMock(taskId) {
     return {
       id: taskId,
@@ -272,6 +291,14 @@ test("auto director follow-up service detail reuses workflow detail and adds fol
     assert.equal(detail.originDetailUrl, "/tasks?kind=novel_workflow&id=task_detail");
     assert.equal(detail.candidateSelectionUrl, "/novels/create?workflowTaskId=task_detail&mode=director");
     assert.equal(detail.replanUrl, null);
+    assert.deepEqual(detail.channelDeliveries, [{
+      channelType: "dingtalk",
+      status: "delivered",
+      deliveredAt: "2026-04-22T09:20:00.000Z",
+      responseStatus: 202,
+      eventType: "auto_director.approval_required",
+      target: "https://relay.example.test/dingtalk",
+    }]);
     assert.deepEqual(detail.availableActions.map((item) => item.code), ["go_candidate_selection", "open_detail"]);
     assert.deepEqual(detail.milestones, [
       {
@@ -285,6 +312,7 @@ test("auto director follow-up service detail reuses workflow detail and adds fol
   } finally {
     taskArchive.isTaskArchived = originals.isTaskArchived;
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
+    prisma.autoDirectorFollowUpNotificationLog.findMany = originals.notificationLogFindMany;
     NovelWorkflowTaskAdapter.prototype.detail = originals.adapterDetail;
     service.workflowService.healAutoDirectorTaskState = originalHeal;
   }

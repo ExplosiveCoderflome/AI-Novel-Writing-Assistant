@@ -113,6 +113,7 @@ export interface AutoDirectorFollowUpDetail {
   candidateSelectionUrl: string | null;
   availableActions: AutoDirectorAction[];
   milestones: AutoDirectorFollowUpMilestone[];
+  channelDeliveries?: AutoDirectorChannelDeliveryStatus[];
   task: UnifiedTaskDetail;
 }
 
@@ -207,4 +208,81 @@ export interface AutoDirectorBatchActionExecutionResult {
   failureCount: number;
   skippedCount: number;
   itemResults: AutoDirectorActionExecutionResult[];
+}
+
+export const AUTO_DIRECTOR_EVENT_TYPES = [
+  "auto_director.approval_required",
+  "auto_director.exception",
+  "auto_director.recovered",
+  "auto_director.completed",
+  "auto_director.progress_changed",
+] as const;
+
+export type AutoDirectorEventType = (typeof AUTO_DIRECTOR_EVENT_TYPES)[number];
+
+export interface AutoDirectorEvent {
+  eventId: string;
+  eventType: AutoDirectorEventType;
+  taskId: string;
+  novelId: string | null;
+  reason: AutoDirectorFollowUpReason | null;
+  actionCandidates: AutoDirectorMutationActionCode[];
+  summary: string;
+  progressBucket: number | null;
+  stage: string | null;
+  checkpointType: NovelWorkflowCheckpoint | null;
+  occurredAt: string;
+}
+
+export interface AutoDirectorChannelActionCallback {
+  endpoint: string;
+  token: string;
+  callbackId: string;
+}
+
+export interface AutoDirectorChannelAction {
+  actionCode: AutoDirectorActionCode;
+  label: string;
+  kind: "callback" | "link";
+  callback?: AutoDirectorChannelActionCallback;
+  url?: string;
+}
+
+export interface AutoDirectorChannelCardPayload {
+  title: string;
+  summary: string;
+  reasonLabel: string | null;
+  stage: string | null;
+  checkpointSummary: string | null;
+  actions: AutoDirectorChannelAction[];
+}
+
+export interface AutoDirectorChannelNotificationPayload {
+  channelType: AutoDirectorChannelType;
+  event: AutoDirectorEvent;
+  card: AutoDirectorChannelCardPayload;
+  task: {
+    taskId: string;
+    novelId: string | null;
+    novelTitle: string;
+    followUpCenterUrl: string;
+    detailUrl: string;
+  };
+}
+
+export const AUTO_DIRECTOR_NOTIFICATION_STATUSES = [
+  "pending",
+  "delivered",
+  "failed",
+] as const;
+
+export type AutoDirectorNotificationStatus = (typeof AUTO_DIRECTOR_NOTIFICATION_STATUSES)[number];
+
+export interface AutoDirectorChannelDeliveryStatus {
+  channelType: AutoDirectorChannelType;
+  status: AutoDirectorNotificationStatus;
+  deliveredAt: string | null;
+  responseStatus: number | null;
+  eventType: AutoDirectorEventType;
+  target: string | null;
 }

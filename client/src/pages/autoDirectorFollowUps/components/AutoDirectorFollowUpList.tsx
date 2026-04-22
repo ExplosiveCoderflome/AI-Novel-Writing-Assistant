@@ -53,6 +53,17 @@ function formatChannelType(channelType: AutoDirectorChannelType): string {
   return channelType === "dingtalk" ? "钉钉" : "企微";
 }
 
+function buildChannelBadges(item: AutoDirectorFollowUpItem): string[] {
+  const labels: string[] = [];
+  if (item.channelCapabilities.dingtalk) {
+    labels.push("钉钉可直达");
+  }
+  if (item.channelCapabilities.wecom) {
+    labels.push("企微可直达");
+  }
+  return labels;
+}
+
 export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPanelProps) {
   const totalPages = props.pagination ? Math.max(1, Math.ceil(props.pagination.total / props.pagination.pageSize)) : 1;
 
@@ -159,6 +170,9 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
                   <Badge variant="outline">{item.reasonLabel}</Badge>
                   {item.executionScope ? <Badge variant="outline">{item.executionScope}</Badge> : null}
                   {item.supportsBatch ? <Badge variant="secondary">可批量</Badge> : null}
+                  {buildChannelBadges(item).map((label) => (
+                    <Badge key={`${item.taskId}:${label}`} variant="secondary">{label}</Badge>
+                  ))}
                 </div>
 
                 <div className="mt-2 text-xs text-muted-foreground">

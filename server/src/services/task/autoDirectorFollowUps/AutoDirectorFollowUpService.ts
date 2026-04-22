@@ -1,5 +1,6 @@
 import type {
   AutoDirectorAction,
+  AutoDirectorChannelDeliveryStatus,
   AutoDirectorFollowUpDetail,
   AutoDirectorFollowUpItem,
   AutoDirectorFollowUpListInput,
@@ -372,6 +373,22 @@ function decorateDetailActions(input: {
   });
 }
 
+function isMissingTableError(error: unknown): boolean {
+  return typeof error === "object"
+    && error !== null
+    && "code" in error
+    && (error as { code?: string }).code === "P2021";
+}
+
+function isDbUnavailableError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const code = "code" in error ? (error as { code?: string }).code : undefined;
+  const message = "message" in error ? String((error as { message?: unknown }).message ?? "") : "";
+  return code === "P1001" || /can't reach database server/i.test(message);
+}
+
 export class AutoDirectorFollowUpService {
   readonly workflowService = new NovelWorkflowService();
 
@@ -476,8 +493,40 @@ export class AutoDirectorFollowUpService {
         replanUrl,
       }),
       milestones: buildMilestones(row),
+      channelDeliveries: await this.getRecentChannelDeliveries(taskId),
       task,
     };
+  }
+
+  private async getRecentChannelDeliveries(taskId: string): Promise<AutoDirectorChannelDeliveryStatus[]> {
+    try {
+      const rows = await prisma.autoDirectorFollowUpNotificationLog.findMany({
+        where: {
+          taskId,
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: 10,
+      });
+      const latestByChannel = new Map<string, typeof rows[number]>();
+      for (const row of rows) {
+        if (!latestByChannel.has(row.channelType)) {
+          latestByChannel.set(row.channelType, row);
+        }
+      }
+      return Array.from(latestByChannel.values()).map((row) => ({
+        channelType: row.channelType === "wecom" ? "wecom" : "dingtalk",
+        status: row.status === "delivered" ? "delivered" : (row.status === "pending" ? "pending" : "failed"),
+        deliveredAt: row.deliveredAt?.toISOString() ?? null,
+        responseStatus: row.responseStatus ?? null,
+        eventType: row.eventType as AutoDirectorChannelDeliveryStatus["eventType"],
+        target: row.target ?? null,
+      }));
+    } catch (error) {
+      if (isMissingTableError(error) || isDbUnavailableError(error)) {
+        return [];
+      }
+      throw error;
+    }
   }
 
   private async loadRows(): Promise<FollowUpWorkflowRow[]> {
