@@ -1,6 +1,6 @@
 {
   "name": "@ai-novel/desktop",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "license": "MIT",
   "author": "AI Novel Writing Assistant Team",
@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@ai-novel/server": "workspace:*",
+    "better-sqlite3": "^12.6.2",
     "electron-updater": "^6.6.2"
   },
   "devDependencies": {

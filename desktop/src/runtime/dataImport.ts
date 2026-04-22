@@ -320,7 +320,7 @@ function validateImportSource(sourcePath: string, currentDatabasePath: string): 
   const normalizedCurrentPath = normalizeImportPath(currentDatabasePath);
 
   if (normalizedSourcePath === normalizedCurrentPath) {
-    throw new Error("The selected database is already the current desktop database.");
+    throw new Error("The selected file is already the current desktop database. Please choose the old web/dev dev.db instead.");
   }
 
   if (!fs.existsSync(normalizedSourcePath)) {

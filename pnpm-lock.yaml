@@ -151,6 +151,9 @@ importers:
       '@ai-novel/server':
         specifier: workspace:*
         version: link:../server
+      better-sqlite3:
+        specifier: ^12.6.2
+        version: 12.6.2
       electron-updater:
         specifier: ^6.6.2
         version: 6.8.3

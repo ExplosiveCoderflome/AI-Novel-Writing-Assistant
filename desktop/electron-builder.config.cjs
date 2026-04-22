@@ -82,7 +82,8 @@ module.exports = {
   generateUpdatesFilesForAllChannels: false,
   win: {
     icon: builderIconPath,
-    signAndEditExecutable: hasWindowsSigningMaterial,
+    // Keep EXE resource editing enabled for unsigned builds so Windows uses the app icon and metadata.
+    signAndEditExecutable: true,
     target: [
       {
         target: "nsis",

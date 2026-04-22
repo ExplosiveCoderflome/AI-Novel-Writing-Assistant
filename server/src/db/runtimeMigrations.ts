@@ -111,6 +111,63 @@ function columnExists(database: Database.Database, tableName: string, columnName
   return columns.some((column) => column.name === columnName);
 }
 
+function indexExists(database: Database.Database, indexName: string): boolean {
+  const result = database
+    .prepare(`SELECT name FROM sqlite_master WHERE type = 'index' AND name = ? LIMIT 1`)
+    .get(indexName);
+  return result != null;
+}
+
+interface MigrationTableExpectation {
+  tableName: string;
+  columnNames: string[];
+}
+
+interface MigrationExpectations {
+  tables: MigrationTableExpectation[];
+  indexes: string[];
+  addedColumns: Array<{ tableName: string; columnName: string }>;
+}
+
+function parseMigrationExpectations(migrationSql: string): MigrationExpectations {
+  const renameMap = new Map<string, string>();
+  const renameRegex = /ALTER TABLE\s+"([^"]+)"\s+RENAME TO\s+"([^"]+)"/g;
+
+  for (const match of migrationSql.matchAll(renameRegex)) {
+    renameMap.set(match[1], match[2]);
+  }
+
+  const tables: MigrationTableExpectation[] = [];
+  const createTableRegex = /CREATE TABLE(?: IF NOT EXISTS)?\s+"([^"]+)"\s*\(([\s\S]*?)\);/g;
+
+  for (const match of migrationSql.matchAll(createTableRegex)) {
+    const createdTableName = match[1];
+    const finalTableName = renameMap.get(createdTableName) ?? createdTableName;
+    const columnNames = Array.from(match[2].matchAll(/^\s*"([^"]+)"\s+/gm)).map((columnMatch) => columnMatch[1]);
+    tables.push({
+      tableName: finalTableName,
+      columnNames,
+    });
+  }
+
+  const indexes = Array.from(
+    migrationSql.matchAll(/CREATE(?: UNIQUE)? INDEX(?: IF NOT EXISTS)?\s+"([^"]+)"/g),
+  ).map((match) => match[1]);
+
+  const addedColumns = Array.from(
+    migrationSql.matchAll(/ALTER TABLE\s+"([^"]+)"\s+ADD COLUMN\s+"([^"]+)"/g),
+  ).map((match) => ({
+    tableName: renameMap.get(match[1]) ?? match[1],
+    columnName: match[2],
+  }));
+
+  return {
+    tables,
+    indexes,
+    addedColumns,
+  };
+}
+
 function listMigrationNames(migrationsDir: string): string[] {
   return fs.readdirSync(migrationsDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -134,6 +191,51 @@ function isMigrationRecorded(database: Database.Database, migrationName: string)
     )
     .get(migrationName);
   return result != null;
+}
+
+function markMigrationFinished(database: Database.Database, migrationName: string, checksum: string): void {
+  const pendingRecord = database
+    .prepare(
+      `SELECT id
+       FROM "_prisma_migrations"
+       WHERE migration_name = ?
+         AND rolled_back_at IS NULL
+         AND finished_at IS NULL
+       ORDER BY started_at DESC
+       LIMIT 1`,
+    )
+    .get(migrationName) as { id?: string } | undefined;
+
+  if (pendingRecord?.id) {
+    database.prepare(
+      `UPDATE "_prisma_migrations"
+       SET checksum = ?, finished_at = ?, applied_steps_count = 1
+       WHERE id = ?`,
+    ).run(checksum, new Date().toISOString(), pendingRecord.id);
+    return;
+  }
+
+  recordAppliedMigration(database, migrationName, checksum);
+}
+
+function isMigrationAlreadySatisfied(database: Database.Database, migrationSql: string): boolean {
+  const expectations = parseMigrationExpectations(migrationSql);
+  const hasExpectations = expectations.tables.length > 0
+    || expectations.indexes.length > 0
+    || expectations.addedColumns.length > 0;
+
+  if (!hasExpectations) {
+    return false;
+  }
+
+  const tablesSatisfied = expectations.tables.every((table) =>
+    tableExists(database, table.tableName)
+    && table.columnNames.every((columnName) => columnExists(database, table.tableName, columnName)));
+  const indexesSatisfied = expectations.indexes.every((indexName) => indexExists(database, indexName));
+  const columnsSatisfied = expectations.addedColumns.every((column) =>
+    columnExists(database, column.tableName, column.columnName));
+
+  return tablesSatisfied && indexesSatisfied && columnsSatisfied;
 }
 
 function recordAppliedMigration(database: Database.Database, migrationName: string, checksum: string): void {
@@ -222,28 +324,22 @@ export async function ensureRuntimeDatabaseReady(): Promise<void> {
   const database = new Database(databasePath);
 
   try {
-    const hasMigrationTable = tableExists(database, "_prisma_migrations");
-    const hasLegacyTables = hasLegacyApplicationTables(database);
-
     createMigrationsTable(database);
-
-    if (!hasMigrationTable && hasLegacyTables) {
-      for (const migrationName of listMigrationNames(migrationsDir)) {
-        const migrationFilePath = path.join(migrationsDir, migrationName, "migration.sql");
-        const migrationSql = fs.readFileSync(migrationFilePath, "utf8");
-        const checksum = crypto.createHash("sha256").update(migrationSql).digest("hex");
-        if (!isMigrationRecorded(database, migrationName)) {
-          recordAppliedMigration(database, migrationName, checksum);
-        }
-      }
-      ensureSchemaColumnBackfills(database);
-      return;
-    }
 
     for (const migrationName of listMigrationNames(migrationsDir)) {
       if (isMigrationRecorded(database, migrationName)) {
         continue;
       }
+
+      const migrationFilePath = path.join(migrationsDir, migrationName, "migration.sql");
+      const migrationSql = fs.readFileSync(migrationFilePath, "utf8");
+      const checksum = crypto.createHash("sha256").update(migrationSql).digest("hex");
+
+      if (hasLegacyApplicationTables(database) && isMigrationAlreadySatisfied(database, migrationSql)) {
+        markMigrationFinished(database, migrationName, checksum);
+        continue;
+      }
+
       applyMigration(database, migrationsDir, migrationName);
     }
 
