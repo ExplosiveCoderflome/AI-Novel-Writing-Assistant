@@ -996,7 +996,7 @@ export class RagIndexService {
   async listJobs(limit = 100, status?: RagJobStatus) {
     return prisma.ragIndexJob.findMany({
       where: status ? { status } : {},
-      orderBy: [{ runAfter: "asc" }, { createdAt: "desc" }],
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
       take: Math.min(Math.max(limit, 1), 500),
     });
   }
