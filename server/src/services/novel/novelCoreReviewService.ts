@@ -18,6 +18,7 @@ import {
   isPass,
   LLMGenerateOptions,
   logPipelineError,
+  logPipelineWarn,
   normalizeScore,
   RepairOptions,
   ReviewOptions,
@@ -114,15 +115,25 @@ export class NovelCoreReviewService {
       contextPackage: review.contextPackage ?? null,
     });
     if ((review.auditReports?.length ?? 0) > 0 && replanRecommendation.recommended) {
-      await plannerService.replan(novelId, {
+      const replanReason = replanRecommendation.triggerReason || replanRecommendation.reason;
+      void plannerService.replan(novelId, {
         chapterId,
         triggerType: "audit_failure",
-        reason: replanRecommendation.triggerReason || replanRecommendation.reason,
+        reason: replanReason,
         sourceIssueIds: replanRecommendation.blockingIssueIds,
         provider: options.provider,
         model: options.model,
         temperature: options.temperature,
-      }).catch(() => null);
+      }).catch((error) => {
+        logPipelineWarn("自动重规划失败，已跳过，不影响本次章节审阅返回", {
+          novelId,
+          chapterId,
+          triggerType: "audit_failure",
+          reason: replanReason,
+          sourceIssueIds: replanRecommendation.blockingIssueIds,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
     }
 
     return review;

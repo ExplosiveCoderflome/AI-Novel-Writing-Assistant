@@ -37,10 +37,13 @@ export interface PromptInvocationMeta {
   promptId: string;
   promptVersion: string;
   taskType: TaskType;
+  effectiveTaskType?: TaskType;
   contextBlockIds: string[];
   droppedContextBlockIds: string[];
   summarizedContextBlockIds: string[];
   estimatedInputTokens: number;
+  renderedPromptChars?: number;
+  renderedPromptTokensApprox?: number;
   repairUsed: boolean;
   repairAttempts: number;
   semanticRetryUsed: boolean;

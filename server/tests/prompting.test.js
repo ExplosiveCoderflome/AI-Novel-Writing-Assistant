@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { HumanMessage, SystemMessage } = require("@langchain/core/messages");
 
 const {
   createContextBlock,
@@ -9,6 +10,7 @@ const {
 } = require("../dist/prompting/prompts/novel/promptBudgetProfiles.js");
 const {
   runStructuredPrompt,
+  preparePromptExecution,
   setPromptRunnerLLMFactoryForTests,
   setPromptRunnerStructuredInvokerForTests,
   streamStructuredPrompt,
@@ -50,9 +52,15 @@ const {
   storyModeTreePrompt,
 } = require("../dist/prompting/prompts/storyMode/storyMode.prompts.js");
 const {
+  volumeDynamicsProjectionPrompt,
+} = require("../dist/prompting/prompts/novel/characterDynamics.prompts.js");
+const {
   bookAnalysisSourceNotePrompt,
   bookAnalysisSectionPrompt,
 } = require("../dist/prompting/prompts/bookAnalysis/bookAnalysis.prompts.js");
+const {
+  payoffLedgerSyncPrompt,
+} = require("../dist/prompting/prompts/payoff/payoffLedgerSync.prompts.js");
 const {
   sanitizeWriterContextBlocks,
 } = require("../dist/prompting/prompts/novel/chapterLayeredContext.js");
@@ -326,7 +334,7 @@ test("novel main-chain prompt assets declare explicit non-zero context budgets",
     ["novel.volume.strategy.critique@v1", NOVEL_PROMPT_BUDGETS.volumeStrategyCritique],
     ["novel.volume.skeleton@v2", NOVEL_PROMPT_BUDGETS.volumeSkeleton],
     ["novel.volume.beat_sheet@v1", NOVEL_PROMPT_BUDGETS.volumeBeatSheet],
-    ["novel.volume.chapter_list@v6", NOVEL_PROMPT_BUDGETS.volumeChapterList],
+    ["novel.volume.chapter_list@v7", NOVEL_PROMPT_BUDGETS.volumeChapterList],
     ["novel.volume.chapter_purpose@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.chapter_boundary@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.chapter_task_sheet@v2", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
@@ -964,6 +972,91 @@ test("runStructuredPrompt forwards repair policy and context telemetry", async (
     genreTreePrompt.contextPolicy = originalContextPolicy;
     setPromptRunnerStructuredInvokerForTests();
   }
+});
+
+test("runStructuredPrompt routes short planner prompts to small_text automatically", async () => {
+  let captured = null;
+  const originalRender = genreTreePrompt.render;
+
+  setPromptRunnerStructuredInvokerForTests(async (input) => {
+    captured = input;
+    return {
+      data: {
+        name: "都市",
+        description: "短提示测试",
+        children: [],
+      },
+      repairUsed: false,
+      repairAttempts: 0,
+    };
+  });
+
+  try {
+    genreTreePrompt.render = () => [
+      new SystemMessage("你是类型规划器，只输出 JSON。"),
+      new HumanMessage("都市"),
+    ];
+
+    await runStructuredPrompt({
+      asset: genreTreePrompt,
+      promptInput: {
+        prompt: "都市",
+        retry: false,
+        forceJson: true,
+      },
+    });
+
+    assert.equal(captured.taskType, "small_text");
+    assert.equal(captured.promptMeta.taskType, "planner");
+    assert.equal(captured.promptMeta.effectiveTaskType, "small_text");
+    assert.ok((captured.promptMeta.renderedPromptTokensApprox ?? 0) > 0);
+    assert.ok((captured.promptMeta.renderedPromptTokensApprox ?? 0) <= 2048);
+  } finally {
+    genreTreePrompt.render = originalRender;
+    setPromptRunnerStructuredInvokerForTests();
+  }
+});
+
+test("preparePromptExecution keeps long planner maintenance prompts on planner route", () => {
+  const longPayoffText = Array.from({ length: 320 }, (_value, index) => `伏笔${index + 1}：异常规则需要后续兑现与校正`).join("\n");
+  const longDynamicsText = Array.from({ length: 240 }, (_value, index) => `卷${Math.floor(index / 20) + 1}章节${index + 1}：主角与对手围绕异常规则持续升级并重排关系`).join("\n");
+  const payoffPrepared = preparePromptExecution({
+    asset: payoffLedgerSyncPrompt,
+    promptInput: {
+      novelTitle: "测试小说",
+      activeVolumeSummary: longPayoffText,
+      latestChapterContext: longPayoffText,
+      majorPayoffsText: longPayoffText,
+      openPayoffsText: longPayoffText,
+      chapterPayoffRefsText: longPayoffText,
+      foreshadowStatesText: longPayoffText,
+      payoffConflictsText: longPayoffText,
+      payoffAuditIssuesText: longPayoffText,
+    },
+  });
+  assert.equal(payoffPrepared.invocation.taskType, "planner");
+  assert.equal(payoffPrepared.invocation.effectiveTaskType, "planner");
+  assert.ok((payoffPrepared.invocation.renderedPromptTokensApprox ?? 0) > 2048);
+
+  const dynamicsPrepared = preparePromptExecution({
+    asset: volumeDynamicsProjectionPrompt,
+    promptInput: {
+      novelTitle: "测试小说",
+      description: "都市异能成长。",
+      targetAudience: "男频成长向读者",
+      sellingPoint: "主角通过异常规则持续升级。",
+      firstPromise: "前三十章确认异常系统可被利用。",
+      outline: longDynamicsText,
+      structuredOutline: longDynamicsText,
+      appliedCastOption: longDynamicsText,
+      rosterText: longDynamicsText,
+      relationText: longDynamicsText,
+      volumePlansText: longDynamicsText,
+    },
+  });
+  assert.equal(dynamicsPrepared.invocation.taskType, "planner");
+  assert.equal(dynamicsPrepared.invocation.effectiveTaskType, "planner");
+  assert.ok((dynamicsPrepared.invocation.renderedPromptTokensApprox ?? 0) > 2048);
 });
 
 test("runStructuredPrompt retries semantically after postValidate failure", async () => {
