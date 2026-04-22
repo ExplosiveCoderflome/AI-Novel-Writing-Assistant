@@ -1,4 +1,5 @@
 import type { AntiAiRule, StyleProfile, StyleTemplate, StyleRuleSet } from "@ai-novel/shared/types/styleEngine";
+import { extractJSONObject as extractCanonicalJSONObject } from "../novel/novelP0Utils";
 
 export function parseJsonObject<T extends Record<string, unknown>>(value?: string | null, fallback?: T): T {
   if (!value) {
@@ -58,13 +59,13 @@ export function toLlmText(content: unknown): string {
 }
 
 export function extractJsonObject<T>(content: string): T {
-  const cleaned = content.replace(/```json|```/gi, "").trim();
-  const start = cleaned.indexOf("{");
-  const end = cleaned.lastIndexOf("}");
-  if (start < 0 || end < 0 || end <= start) {
+  let extracted: string;
+  try {
+    extracted = extractCanonicalJSONObject(content);
+  } catch {
     throw new Error("未解析到有效 JSON 对象。");
   }
-  return JSON.parse(cleaned.slice(start, end + 1)) as T;
+  return JSON.parse(extracted) as T;
 }
 
 export function clamp(value: number, min: number, max: number): number {

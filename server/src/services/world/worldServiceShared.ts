@@ -10,6 +10,11 @@ import type {
 } from "@ai-novel/shared/types/worldWizard";
 import { WORLD_LAYER_ORDER } from "./worldTemplates";
 import { normalizeWorldStructuredData } from "./worldStructure";
+import {
+  cleanJsonText as cleanCanonicalJsonText,
+  extractJSONArray as extractCanonicalJSONArray,
+  extractJSONObject as extractCanonicalJSONObject,
+} from "../novel/novelP0Utils";
 
 export const LAYER_STATUSES = ["pending", "generated", "confirmed", "stale"] as const;
 export type LayerStatus = (typeof LAYER_STATUSES)[number];
@@ -275,27 +280,23 @@ export interface StructureUpdateInput {
 }
 
 export function cleanJsonText(source: string): string {
-  return source.replace(/```json|```/gi, "").trim();
+  return cleanCanonicalJsonText(source);
 }
 
 export function extractJSONObject(source: string): string {
-  const text = cleanJsonText(source);
-  const first = text.indexOf("{");
-  const last = text.lastIndexOf("}");
-  if (first === -1 || last === -1 || first >= last) {
+  try {
+    return extractCanonicalJSONObject(source);
+  } catch {
     throw new Error("Invalid JSON object.");
   }
-  return text.slice(first, last + 1);
 }
 
 export function extractJSONArray(source: string): string {
-  const text = cleanJsonText(source);
-  const first = text.indexOf("[");
-  const last = text.lastIndexOf("]");
-  if (first === -1 || last === -1 || first >= last) {
+  try {
+    return extractCanonicalJSONArray(source);
+  } catch {
     throw new Error("Invalid JSON array.");
   }
-  return text.slice(first, last + 1);
 }
 
 export function safeParseJSON<T>(raw: string | null | undefined, fallback: T): T {

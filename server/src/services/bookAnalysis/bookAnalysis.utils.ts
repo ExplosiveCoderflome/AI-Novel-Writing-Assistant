@@ -15,6 +15,10 @@ import {
   UNLIMITED_NOTES_MAX_TOKENS_CACHE_KEY,
 } from "./bookAnalysis.constants";
 import type { SourceNote, SourceSegment } from "./bookAnalysis.types";
+import {
+  cleanJsonText as cleanCanonicalJsonText,
+  extractJSONObject as extractCanonicalJSONObject,
+} from "../novel/novelP0Utils";
 
 export function isMissingTableError(error: unknown): boolean {
   return (
@@ -26,17 +30,15 @@ export function isMissingTableError(error: unknown): boolean {
 }
 
 export function cleanJsonText(source: string): string {
-  return source.replace(/```json|```/gi, "").trim();
+  return cleanCanonicalJsonText(source);
 }
 
 export function extractJSONObject(source: string): string {
-  const text = cleanJsonText(source);
-  const first = text.indexOf("{");
-  const last = text.lastIndexOf("}");
-  if (first === -1 || last === -1 || first >= last) {
+  try {
+    return extractCanonicalJSONObject(source);
+  } catch {
     throw new Error("Invalid JSON object.");
   }
-  return text.slice(first, last + 1);
 }
 
 export function safeParseJSON<T>(raw: string | null | undefined, fallback: T): T {

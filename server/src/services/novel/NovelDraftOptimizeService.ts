@@ -5,6 +5,7 @@ import {
   novelDraftOptimizeFullPrompt,
   novelDraftOptimizeSelectionPrompt,
 } from "../../prompting/prompts/novel/draftOptimize.prompts";
+import { extractJSONArray as extractCanonicalJSONArray } from "./novelP0Utils";
 
 interface DraftOptimizeInput {
   provider?: LLMProvider;
@@ -35,18 +36,12 @@ function toText(content: unknown): string {
   return JSON.stringify(content ?? "");
 }
 
-function cleanJsonText(source: string): string {
-  return source.replace(/```json|```/gi, "").trim();
-}
-
 function extractJSONArray(source: string): string {
-  const text = cleanJsonText(source);
-  const first = text.indexOf("[");
-  const last = text.lastIndexOf("]");
-  if (first < 0 || last < 0 || first >= last) {
+  try {
+    return extractCanonicalJSONArray(source);
+  } catch {
     throw new Error("未检测到有效 JSON 数组。");
   }
-  return text.slice(first, last + 1);
 }
 
 function normalizeLineBreaks(text: string): string {

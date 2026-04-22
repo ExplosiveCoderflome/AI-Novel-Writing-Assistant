@@ -1,6 +1,7 @@
 import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { extractJSONArray as extractCanonicalJSONArray } from "../services/novel/novelP0Utils";
 
 export const NovelOutlineGraphAnnotation = Annotation.Root({
   novelTitle: Annotation<string>(),
@@ -94,7 +95,7 @@ ${state.outline}
       ),
     ]);
     const text = typeof result.content === "string" ? result.content : JSON.stringify(result.content);
-    const normalized = text.replace(/```json|```/g, "").trim();
+    const normalized = extractCanonicalJSONArray(text);
     return { structuredOutline: JSON.parse(normalized) };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "结构化大纲生成失败。" };

@@ -1,4 +1,5 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
+import { extractJSONArray as extractCanonicalJSONArray } from "./novelP0Utils";
 
 function toText(content: unknown): string {
   if (typeof content === "string") {
@@ -24,13 +25,11 @@ function toText(content: unknown): string {
 }
 
 export function extractJsonArray(raw: string): string {
-  const cleaned = raw.replace(/```json|```/gi, "").trim();
-  const first = cleaned.indexOf("[");
-  const last = cleaned.lastIndexOf("]");
-  if (first < 0 || last <= first) {
+  try {
+    return extractCanonicalJSONArray(raw);
+  } catch {
     throw new Error("LLM 未返回合法的 JSON 数组。");
   }
-  return cleaned.slice(first, last + 1);
 }
 
 export async function collectStream(stream: AsyncIterable<BaseMessageChunk>): Promise<string> {

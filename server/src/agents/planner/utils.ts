@@ -1,5 +1,6 @@
 import type { PlannerInput } from "../types";
 import { listPlannerSemanticDefinitions } from "../toolRegistry";
+import { extractJSONObject as extractCanonicalJSONObject } from "../../services/novel/novelP0Utils";
 
 const INTENT_ALIAS_MAP: Record<string, string> = {
   complete_novel: "produce_novel",
@@ -78,13 +79,11 @@ function buildSemanticIntentAliasMap(): Record<string, string> {
 }
 
 export function extractJsonObject(raw: string): string {
-  const cleaned = raw.replace(/```json|```/gi, "").trim();
-  const first = cleaned.indexOf("{");
-  const last = cleaned.lastIndexOf("}");
-  if (first < 0 || last <= first) {
+  try {
+    return extractCanonicalJSONObject(raw);
+  } catch {
     throw new Error("No JSON object found.");
   }
-  return cleaned.slice(first, last + 1);
 }
 
 export function slug(value: string): string {

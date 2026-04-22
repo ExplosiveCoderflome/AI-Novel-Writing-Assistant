@@ -36,6 +36,34 @@ test("parseStructuredLlmRawContentDetailed recovers when repair output is trunca
   }
 });
 
+test("parseStructuredLlmRawContentDetailed prefers fenced json payload over bracketed prose before it", async () => {
+  const result = await structuredInvoke.parseStructuredLlmRawContentDetailed({
+    rawContent: [
+      "下面是[约定json]返回：",
+      "```json",
+      "{\"value\":\"ok\"}",
+      "```",
+    ].join("\n"),
+    schema: z.object({
+      value: z.string(),
+    }),
+    provider: "deepseek",
+    model: "deepseek-chat",
+    label: "structured.invoke.fenced-json",
+    maxRepairAttempts: 0,
+    strategy: "prompt_json",
+    profile: resolveStructuredOutputProfile({
+      provider: "deepseek",
+      model: "deepseek-chat",
+      executionMode: "structured",
+    }),
+  });
+
+  assert.deepEqual(result.data, { value: "ok" });
+  assert.equal(result.repairUsed, false);
+  assert.equal(result.repairAttempts, 0);
+});
+
 test("invokeStructuredLlmDetailed degrades to prompt JSON before using fallback models", async () => {
   const originalResolveOptions = factory.resolveLLMClientOptions;
   const originalCreateLLM = factory.createLLMFromResolvedOptions;
