@@ -18,5 +18,6 @@ export * from "./types/storyMacro";
 export * from "./types/title";
 export * from "./types/novelDirector";
 export * from "./types/novelWorkflow";
+export * from "./types/autoDirectorFollowUp";
 export * from "./types/volumePlanning";
 export * from "./types/canonicalState";

@@ -10,6 +10,7 @@ import { loadProviderApiKeys } from "./llm/factory";
 import astrologyRouter from "./routes/astrology";
 import agentCatalogRouter from "./routes/agentCatalog";
 import agentRunsRouter from "./routes/agentRuns";
+import autoDirectorFollowUpsRouter from "./routes/autoDirectorFollowUps";
 import bookAnalysisRouter from "./routes/bookAnalysis";
 import characterRouter from "./routes/character";
 import chatRouter from "./routes/chat";
@@ -128,6 +129,7 @@ export function createApp() {
   app.use("/api/creative-hub", creativeHubRouter);
   app.use("/api/images", imagesRouter);
   app.use("/api/tasks", tasksRouter);
+  app.use("/api/auto-director/follow-ups", autoDirectorFollowUpsRouter);
   app.use("/api/settings", settingsRouter);
   app.use("/api/astrology", astrologyRouter);
 

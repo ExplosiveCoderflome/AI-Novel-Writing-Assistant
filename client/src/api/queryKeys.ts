@@ -90,6 +90,11 @@ export const queryKeys = {
     detail: (kind: string, id: string) => ["tasks", "detail", kind, id] as const,
     recoveryCandidates: ["tasks", "recovery-candidates"] as const,
   },
+  autoDirectorFollowUps: {
+    overview: ["auto-director-follow-ups", "overview"] as const,
+    list: (params: string) => ["auto-director-follow-ups", "list", params] as const,
+    detail: (taskId: string) => ["auto-director-follow-ups", "detail", taskId] as const,
+  },
   agentRuns: {
     list: (params: string) => ["agent-runs", "list", params] as const,
     detail: (id: string) => ["agent-runs", "detail", id] as const,
