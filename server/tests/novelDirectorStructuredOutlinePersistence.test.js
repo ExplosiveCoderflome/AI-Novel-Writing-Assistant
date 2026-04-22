@@ -6,6 +6,8 @@ const { runDirectorStructuredOutlinePhase } = require("../dist/services/novel/di
 function createChapter(id, order, title) {
   return {
     id,
+    volumeId: "volume-1",
+    beatKey: "beat-1",
     chapterOrder: order,
     title,
     summary: `${title} summary`,
@@ -32,14 +34,32 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
     activeVersionId: "version-1",
     derivedOutline: "",
     derivedStructuredOutline: "",
-    readiness: {},
+    readiness: {
+      canGenerateStrategy: true,
+      canGenerateSkeleton: true,
+      canGenerateBeatSheet: true,
+      canGenerateChapterList: true,
+      blockingReasons: [],
+    },
     strategyPlan: null,
     critiqueReport: null,
-    beatSheets: [],
+    beatSheets: [{
+      volumeId: "volume-1",
+      volumeSortOrder: 1,
+      status: "generated",
+      beats: [{
+        key: "beat-1",
+        label: "Beat 1",
+        summary: "Beat summary",
+        chapterSpanHint: "1-2",
+        mustDeliver: [],
+      }],
+    }],
     rebalanceDecisions: [],
     volumes: [
       {
         id: "volume-1",
+        novelId: "novel-demo",
         sortOrder: 1,
         title: "Volume 1",
         summary: "",
@@ -56,6 +76,8 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
         resetPoint: "",
         openPayoffs: [],
         status: "draft",
+        createdAt: "2026-04-23T00:00:00.000Z",
+        updatedAt: "2026-04-23T00:00:00.000Z",
         chapters: [
           createChapter("chapter-1", 1, "Chapter 1"),
           createChapter("chapter-2", 2, "Chapter 2"),
@@ -65,6 +87,7 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
   };
 
   const syncedSnapshots = [];
+  const updateVolumeCalls = [];
   let lastSyncedWorkspace = clone(baseWorkspace);
   const rebuildCalls = [];
 
@@ -91,7 +114,13 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
 
       return workspace;
     },
-    updateVolumes: async (_novelId, workspace) => clone(workspace),
+    updateVolumes: async (_novelId, workspace, options) => {
+      updateVolumeCalls.push({
+        volumes: clone(workspace.volumes),
+        options: options ?? null,
+      });
+      return clone(workspace);
+    },
     syncVolumeChapters: async (_novelId, input) => {
       const snapshot = clone(input.volumes);
       syncedSnapshots.push(snapshot);
@@ -151,23 +180,30 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
     callbacks,
   });
 
-  assert.equal(syncedSnapshots.length, 3);
+  const silentSnapshots = updateVolumeCalls.filter((call) => call.options?.emitEvent === false);
+
+  assert.equal(silentSnapshots.length, 6);
+  assert.equal(syncedSnapshots.length, 1);
   assert.deepEqual(rebuildCalls, [{
     novelId: "novel-demo",
     options: { sourceType: "rebuild_projection" },
   }]);
 
-  const firstDetailSync = syncedSnapshots[1][0].chapters;
+  const firstDetailSync = silentSnapshots[2].volumes[0].chapters;
   assert.equal(firstDetailSync[0].purpose, "Chapter 1 purpose");
   assert.equal(firstDetailSync[0].taskSheet, "Chapter 1 task sheet");
   assert.ok(firstDetailSync[0].sceneCards);
   assert.equal(firstDetailSync[1].purpose, null);
   assert.equal(firstDetailSync[1].taskSheet, null);
 
-  const secondDetailSync = syncedSnapshots[2][0].chapters;
+  const secondDetailSync = silentSnapshots[5].volumes[0].chapters;
   assert.equal(secondDetailSync[1].purpose, "Chapter 2 purpose");
   assert.equal(secondDetailSync[1].taskSheet, "Chapter 2 task sheet");
   assert.ok(secondDetailSync[1].sceneCards);
+
+  const finalSyncedChapters = syncedSnapshots[0][0].chapters;
+  assert.equal(finalSyncedChapters[0].taskSheet, "Chapter 1 task sheet");
+  assert.equal(finalSyncedChapters[1].taskSheet, "Chapter 2 task sheet");
 });
 
 test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter", async () => {
@@ -188,14 +224,32 @@ test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter
     activeVersionId: "version-1",
     derivedOutline: "",
     derivedStructuredOutline: "",
-    readiness: {},
+    readiness: {
+      canGenerateStrategy: true,
+      canGenerateSkeleton: true,
+      canGenerateBeatSheet: true,
+      canGenerateChapterList: true,
+      blockingReasons: [],
+    },
     strategyPlan: null,
     critiqueReport: null,
-    beatSheets: [],
+    beatSheets: [{
+      volumeId: "volume-1",
+      volumeSortOrder: 1,
+      status: "generated",
+      beats: [{
+        key: "beat-1",
+        label: "Beat 1",
+        summary: "Beat summary",
+        chapterSpanHint: "1-2",
+        mustDeliver: [],
+      }],
+    }],
     rebalanceDecisions: [],
     volumes: [
       {
         id: "volume-1",
+        novelId: "novel-demo",
         sortOrder: 1,
         title: "Volume 1",
         summary: "",
@@ -212,6 +266,8 @@ test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter
         resetPoint: "",
         openPayoffs: [],
         status: "draft",
+        createdAt: "2026-04-23T00:00:00.000Z",
+        updatedAt: "2026-04-23T00:00:00.000Z",
         chapters: [
           preDetailedChapter,
           createChapter("chapter-2", 2, "Chapter 2"),
@@ -308,6 +364,177 @@ test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter
     "chapter-2:boundary",
     "chapter-2:task_sheet",
   ]);
+  assert.deepEqual(rebuildCalls, [{
+    novelId: "novel-demo",
+    options: { sourceType: "rebuild_projection" },
+  }]);
+});
+
+test("runDirectorStructuredOutlinePhase persists intermediate chapter detail snapshots without emitting rebuild-triggering events", async () => {
+  const baseWorkspace = {
+    novelId: "novel-demo",
+    workspaceVersion: "v2",
+    source: "volume",
+    activeVersionId: "version-1",
+    derivedOutline: "",
+    derivedStructuredOutline: "",
+    readiness: {
+      canGenerateStrategy: true,
+      canGenerateSkeleton: true,
+      canGenerateBeatSheet: true,
+      canGenerateChapterList: true,
+      blockingReasons: [],
+    },
+    strategyPlan: null,
+    critiqueReport: null,
+    beatSheets: [{
+      volumeId: "volume-1",
+      volumeSortOrder: 1,
+      status: "generated",
+      beats: [{
+        key: "beat-1",
+        label: "Beat 1",
+        summary: "Beat summary",
+        chapterSpanHint: "1-2",
+        mustDeliver: [],
+      }],
+    }],
+    rebalanceDecisions: [],
+    volumes: [
+      {
+        id: "volume-1",
+        novelId: "novel-demo",
+        sortOrder: 1,
+        title: "Volume 1",
+        summary: "",
+        openingHook: "",
+        mainPromise: "",
+        primaryPressureSource: "",
+        coreSellingPoint: "",
+        escalationMode: "",
+        protagonistChange: "",
+        midVolumeRisk: "",
+        climax: "",
+        payoffType: "",
+        nextVolumeHook: "",
+        resetPoint: "",
+        openPayoffs: [],
+        status: "draft",
+        createdAt: "2026-04-23T00:00:00.000Z",
+        updatedAt: "2026-04-23T00:00:00.000Z",
+        chapters: [
+          createChapter("chapter-1", 1, "Chapter 1"),
+          createChapter("chapter-2", 2, "Chapter 2"),
+        ],
+      },
+    ],
+  };
+
+  const updateVolumeCalls = [];
+  const rebuildCalls = [];
+  let lastSyncedWorkspace = clone(baseWorkspace);
+
+  const volumeService = {
+    generateVolumes: async (_novelId, options) => {
+      if (options.scope !== "chapter_detail") {
+        return clone(options.draftWorkspace);
+      }
+
+      const workspace = clone(options.draftWorkspace);
+      const chapter = workspace.volumes[0].chapters.find((item) => item.id === options.targetChapterId);
+      assert.ok(chapter, "target chapter should exist in draft workspace");
+
+      if (options.detailMode === "purpose") {
+        chapter.purpose = `${chapter.title} purpose`;
+      } else if (options.detailMode === "boundary") {
+        chapter.conflictLevel = "high";
+        chapter.revealLevel = "mid";
+        chapter.targetWordCount = 3200 + chapter.chapterOrder;
+        chapter.mustAvoid = `${chapter.title} avoid`;
+      } else {
+        chapter.taskSheet = `${chapter.title} task sheet`;
+        chapter.sceneCards = JSON.stringify([{ key: `${chapter.id}-scene-1`, title: `${chapter.title} scene` }]);
+      }
+
+      return workspace;
+    },
+    updateVolumes: async (_novelId, workspace, options) => {
+      updateVolumeCalls.push({
+        workspace: clone(workspace),
+        options: options ?? null,
+      });
+      return clone(workspace);
+    },
+    syncVolumeChapters: async (_novelId, input) => {
+      lastSyncedWorkspace = {
+        ...lastSyncedWorkspace,
+        volumes: clone(input.volumes),
+      };
+      return { creates: [], updates: [], deletes: [] };
+    },
+  };
+
+  const dependencies = {
+    workflowService: {
+      bootstrapTask: async () => undefined,
+      markTaskRunning: async () => undefined,
+      recordCheckpoint: async () => undefined,
+    },
+    novelContextService: {
+      listChapters: async () => lastSyncedWorkspace.volumes[0].chapters.map((chapter) => ({
+        id: chapter.id,
+        order: chapter.chapterOrder,
+        generationState: "planned",
+      })),
+      updateNovel: async () => undefined,
+    },
+    characterDynamicsService: {
+      rebuildDynamics: async (novelId, options) => {
+        rebuildCalls.push({ novelId, options });
+      },
+    },
+    characterPreparationService: {},
+    volumeService,
+  };
+
+  const callbacks = {
+    buildDirectorSeedPayload: (_request, novelId, extra) => ({
+      novelId,
+      ...extra,
+    }),
+    markDirectorTaskRunning: async () => undefined,
+  };
+
+  await runDirectorStructuredOutlinePhase({
+    taskId: "task-3",
+    novelId: "novel-demo",
+    request: {
+      runMode: "auto_to_ready",
+      provider: "deepseek",
+      model: "deepseek-chat",
+      temperature: 0.7,
+      candidate: {
+        workingTitle: "Demo Novel",
+      },
+    },
+    baseWorkspace,
+    dependencies,
+    callbacks,
+  });
+
+  assert.equal(updateVolumeCalls.length, 7);
+  assert.deepEqual(
+    updateVolumeCalls.map((call) => call.options),
+    [
+      { emitEvent: false, syncPayoffLedger: false },
+      { emitEvent: false, syncPayoffLedger: false },
+      { emitEvent: false, syncPayoffLedger: false },
+      { emitEvent: false, syncPayoffLedger: false },
+      { emitEvent: false, syncPayoffLedger: false },
+      { emitEvent: false, syncPayoffLedger: false },
+      null,
+    ],
+  );
   assert.deepEqual(rebuildCalls, [{
     novelId: "novel-demo",
     options: { sourceType: "rebuild_projection" },

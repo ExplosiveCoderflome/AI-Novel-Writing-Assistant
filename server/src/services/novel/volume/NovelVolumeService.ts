@@ -250,11 +250,19 @@ export class NovelVolumeService {
     return this.ensureVolumeWorkspace(novelId);
   }
 
-  async updateVolumes(novelId: string, input: unknown): Promise<VolumePlanDocument> {
+  async updateVolumes(
+    novelId: string,
+    input: unknown,
+    options: {
+      emitEvent?: boolean;
+      syncPayoffLedger?: boolean;
+    } = {},
+  ): Promise<VolumePlanDocument> {
     const currentDocument = await this.ensureVolumeWorkspace(novelId);
     const mergedDocument = mergeVolumeWorkspaceInput(novelId, currentDocument, input);
     return this.persistWorkspaceDocument(novelId, mergedDocument, {
-      syncPayoffLedger: hasPayoffLedgerRelevantPlanChanges(currentDocument.volumes, mergedDocument.volumes),
+      emitEvent: options.emitEvent,
+      syncPayoffLedger: options.syncPayoffLedger ?? hasPayoffLedgerRelevantPlanChanges(currentDocument.volumes, mergedDocument.volumes),
     });
   }
 
