@@ -5,13 +5,14 @@ on:
   push:
     tags:
       - "v*"
+      - "desktop-v*"
 
 permissions:
   contents: write
 
 jobs:
   publish-release:
-    if: ${{ !contains(github.ref_name, '-') }}
+    if: ${{ startsWith(github.ref_name, 'desktop-v') || !contains(github.ref_name, '-') }}
     runs-on: windows-latest
     env:
       AI_NOVEL_RELEASE_CHANNEL: release
@@ -27,7 +28,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9.7.0
+          version: 10.6.0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
