@@ -10,6 +10,9 @@ const { llmConnectivityService } = require("../dist/llm/connectivity.js");
 const structuredFallbackSettings = require("../dist/llm/structuredFallbackSettings.js");
 const { NovelService } = require("../dist/services/novel/NovelService.js");
 const { NovelFramingSuggestionService } = require("../dist/services/novel/NovelFramingSuggestionService.js");
+const { auditService } = require("../dist/services/audit/AuditService.js");
+const { plannerService } = require("../dist/services/planner/PlannerService.js");
+const { GenerationContextAssembler } = require("../dist/services/novel/runtime/GenerationContextAssembler.js");
 const { WorldService } = require("../dist/services/world/WorldService.js");
 const { WritingFormulaService } = require("../dist/services/writingFormula/WritingFormulaService.js");
 const { ragServices } = require("../dist/services/rag/index.js");
@@ -26,6 +29,16 @@ function listen(server) {
       resolve(address.port);
     });
   });
+}
+
+function createDeferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
 }
 
 async function readResponseText(response, timeoutMs = 600) {
@@ -1871,6 +1884,102 @@ test("novel world slice routes return success payloads", async () => {
     assert.equal((await updateResponse.json()).data.overrides.scopeNote, "只保留现实压力。");
   } finally {
     Object.assign(NovelService.prototype, originalMethods);
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("POST /api/novels/:id/chapters/:chapterId/review returns before background replan finishes", { timeout: 2000 }, async () => {
+  const originalChapterFindFirst = prisma.chapter.findFirst;
+  const originalChapterUpdate = prisma.chapter.update;
+  const originalQualityReportCreate = prisma.qualityReport.create;
+  const originalAuditChapter = auditService.auditChapter;
+  const originalBuildReplanRecommendation = plannerService.buildReplanRecommendation;
+  const originalReplan = plannerService.replan;
+  const originalAssemble = GenerationContextAssembler.prototype.assemble;
+  const novelId = "novel-review-route-test";
+  const chapterId = "chapter-review-route-test";
+  const deferred = createDeferred();
+  const replanStartedSignal = createDeferred();
+  let replanStarted = false;
+  let replanFinished = false;
+
+  prisma.chapter.findFirst = async () => ({
+    id: chapterId,
+    novelId,
+    title: "第1章",
+    content: "章节正文",
+    order: 1,
+    novel: { title: "测试小说" },
+  });
+  prisma.chapter.update = async () => null;
+  prisma.qualityReport.create = async () => null;
+  GenerationContextAssembler.prototype.assemble = async () => ({
+    novel: { id: novelId, title: "测试小说" },
+    chapter: { id: chapterId, title: "第1章", order: 1, content: "章节正文", expectation: "推进冲突" },
+    contextPackage: {
+      chapter: { id: chapterId, order: 1 },
+      ledgerSummary: null,
+      chapterReviewContext: { marker: "route-review-context" },
+    },
+  });
+  auditService.auditChapter = async () => ({
+    score: {
+      coherence: 72,
+      repetition: 82,
+      pacing: 75,
+      voice: 79,
+      engagement: 78,
+      overall: 77,
+    },
+    issues: [],
+    auditReports: [{ id: "report-1", issues: [] }],
+  });
+  plannerService.buildReplanRecommendation = () => ({
+    recommended: true,
+    reason: "存在阻塞问题",
+    triggerReason: "存在阻塞问题",
+    blockingIssueIds: ["issue-1"],
+  });
+  plannerService.replan = async () => {
+    replanStarted = true;
+    replanStartedSignal.resolve();
+    await deferred.promise;
+    replanFinished = true;
+    return { generatedPlans: [] };
+  };
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(new Error("Timed out waiting for review response.")), 1000);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}/chapters/${chapterId}/review`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    await replanStartedSignal.promise;
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    assert.equal(replanStarted, true);
+    assert.equal(replanFinished, false);
+    deferred.resolve();
+  } finally {
+    clearTimeout(timeoutId);
+    prisma.chapter.findFirst = originalChapterFindFirst;
+    prisma.chapter.update = originalChapterUpdate;
+    prisma.qualityReport.create = originalQualityReportCreate;
+    auditService.auditChapter = originalAuditChapter;
+    plannerService.buildReplanRecommendation = originalBuildReplanRecommendation;
+    plannerService.replan = originalReplan;
+    GenerationContextAssembler.prototype.assemble = originalAssemble;
+    deferred.resolve();
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });

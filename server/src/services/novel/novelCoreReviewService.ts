@@ -18,6 +18,8 @@ import {
   isPass,
   LLMGenerateOptions,
   logPipelineError,
+  logPipelineInfo,
+  logPipelineWarn,
   normalizeScore,
   RepairOptions,
   ReviewOptions,
@@ -30,6 +32,28 @@ import {
 } from "../../prompting/prompts/novel/chapterLayeredContext";
 
 type AuditContextOperation = "review" | "audit" | "repair";
+const inFlightReviewReplans = new Map<string, Promise<void>>();
+
+function buildReviewReplanDedupeKey(input: {
+  novelId: string;
+  chapterId: string;
+  triggerType: string;
+  reason: string;
+  sourceIssueIds: string[];
+}): string {
+  const issueIds = [...input.sourceIssueIds]
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .sort()
+    .join(",");
+  return [
+    input.novelId,
+    input.chapterId,
+    input.triggerType,
+    input.reason.trim(),
+    issueIds,
+  ].join("::");
+}
 
 class ChapterContextAssemblyError extends Error {
   readonly code = "chapter_context_assembly_failed";
@@ -82,6 +106,58 @@ export async function createQualityReport(
 export class NovelCoreReviewService {
   private readonly generationContextAssembler = new GenerationContextAssembler();
 
+  private queueBackgroundReplan(input: {
+    novelId: string;
+    chapterId: string;
+    reason: string;
+    sourceIssueIds: string[];
+    options: ReviewOptions;
+  }) {
+    const dedupeKey = buildReviewReplanDedupeKey({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      triggerType: "audit_failure",
+      reason: input.reason,
+      sourceIssueIds: input.sourceIssueIds,
+    });
+    const existing = inFlightReviewReplans.get(dedupeKey);
+    if (existing) {
+      logPipelineInfo("检测到相同章节审阅重规划仍在执行，跳过重复触发。", {
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        triggerType: "audit_failure",
+        reason: input.reason,
+        sourceIssueIds: input.sourceIssueIds,
+      });
+      return;
+    }
+
+    const replanPromise = plannerService.replan(input.novelId, {
+      chapterId: input.chapterId,
+      triggerType: "audit_failure",
+      reason: input.reason,
+      sourceIssueIds: input.sourceIssueIds,
+      provider: input.options.provider,
+      model: input.options.model,
+      temperature: input.options.temperature,
+    }).then(() => undefined).catch((error) => {
+      logPipelineWarn("自动重规划失败，已跳过，不影响本次章节审阅返回", {
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        triggerType: "audit_failure",
+        reason: input.reason,
+        sourceIssueIds: input.sourceIssueIds,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }).finally(() => {
+      if (inFlightReviewReplans.get(dedupeKey) === replanPromise) {
+        inFlightReviewReplans.delete(dedupeKey);
+      }
+    });
+
+    inFlightReviewReplans.set(dedupeKey, replanPromise);
+  }
+
   async reviewChapter(novelId: string, chapterId: string, options: ReviewOptions = {}) {
     const chapter = await prisma.chapter.findFirst({
       where: { id: chapterId, novelId },
@@ -114,15 +190,13 @@ export class NovelCoreReviewService {
       contextPackage: review.contextPackage ?? null,
     });
     if ((review.auditReports?.length ?? 0) > 0 && replanRecommendation.recommended) {
-      await plannerService.replan(novelId, {
+      this.queueBackgroundReplan({
+        novelId,
         chapterId,
-        triggerType: "audit_failure",
         reason: replanRecommendation.triggerReason || replanRecommendation.reason,
         sourceIssueIds: replanRecommendation.blockingIssueIds,
-        provider: options.provider,
-        model: options.model,
-        temperature: options.temperature,
-      }).catch(() => null);
+        options,
+      });
     }
 
     return review;
