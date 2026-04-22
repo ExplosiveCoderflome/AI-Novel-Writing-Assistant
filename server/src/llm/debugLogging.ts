@@ -325,6 +325,15 @@ function buildHeader(method: "invoke" | "stream" | "batch", meta: LLMDebugMeta):
     chunks.push(`promptId=${meta.promptMeta.promptId}`);
     chunks.push(`promptVersion=${meta.promptMeta.promptVersion}`);
     chunks.push(`estimatedInputTokens=${meta.promptMeta.estimatedInputTokens}`);
+    if (meta.promptMeta.effectiveTaskType) {
+      chunks.push(`effectiveTaskType=${meta.promptMeta.effectiveTaskType}`);
+    }
+    if (typeof meta.promptMeta.renderedPromptChars === "number") {
+      chunks.push(`renderedPromptChars=${meta.promptMeta.renderedPromptChars}`);
+    }
+    if (typeof meta.promptMeta.renderedPromptTokensApprox === "number") {
+      chunks.push(`renderedPromptTokensApprox=${meta.promptMeta.renderedPromptTokensApprox}`);
+    }
     chunks.push(`repairUsed=${meta.promptMeta.repairUsed}`);
     chunks.push(`repairAttempts=${meta.promptMeta.repairAttempts}`);
     chunks.push(`semanticRetryUsed=${meta.promptMeta.semanticRetryUsed}`);

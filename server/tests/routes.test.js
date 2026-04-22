@@ -69,6 +69,7 @@ test("GET /api/llm/model-routes returns success payload", async () => {
     const payload = await response.json();
     assert.equal(payload.success, true);
     assert.ok(Array.isArray(payload.data.taskTypes));
+    assert.ok(payload.data.taskTypes.includes("small_text"));
   } finally {
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }

@@ -1,5 +1,6 @@
 import { HumanMessage, type BaseMessage, type BaseMessageChunk } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { TaskType } from "../../llm/modelRouter";
 import { getLLM } from "../../llm/factory";
 import {
   invokeStructuredLlmDetailed,
@@ -12,6 +13,7 @@ import {
   selectStructuredOutputStrategy,
 } from "../../llm/structuredOutput";
 import { toText } from "../../services/novel/novelP0Utils";
+import { estimateTokenCount } from "../../services/rag/utils";
 import { hasRegisteredPromptAsset } from "../registry";
 import { selectContextBlocks } from "./contextSelection";
 import { appendStructuredOutputHintMessages } from "./structuredOutputHint";
@@ -29,6 +31,11 @@ type PromptRunnerStructuredInvoker = typeof invokeStructuredLlmDetailed;
 
 let promptRunnerLLMFactory: PromptRunnerLLMFactory = getLLM;
 let promptRunnerStructuredInvoker: PromptRunnerStructuredInvoker = invokeStructuredLlmDetailed;
+const SMALL_TEXT_ROUTE_TOKEN_THRESHOLD = Number(process.env.SMALL_TEXT_ROUTE_TOKEN_THRESHOLD ?? 700);
+const EXPLICIT_SMALL_TEXT_PROMPT_KEYS = new Set([
+  "novel.characterDynamics.volumeProjection@v3",
+  "novel.payoff_ledger.sync@v5",
+]);
 
 function buildRenderContext(asset: PromptAsset<unknown, unknown, unknown>, rawBlocks: Parameters<typeof selectContextBlocks>[0]): PromptRenderContext {
   const selection = selectContextBlocks(rawBlocks, asset.contextPolicy);
@@ -50,6 +57,11 @@ function assertRegistered(asset: PromptAsset<unknown, unknown, unknown>): void {
 function buildPromptInvocationMeta(
   asset: PromptAsset<unknown, unknown, unknown>,
   context: PromptRenderContext,
+  runtime: {
+    effectiveTaskType?: TaskType;
+    renderedPromptChars?: number;
+    renderedPromptTokensApprox?: number;
+  },
   repairUsed: boolean,
   repairAttempts: number,
   semanticRetryUsed: boolean,
@@ -59,15 +71,41 @@ function buildPromptInvocationMeta(
     promptId: asset.id,
     promptVersion: asset.version,
     taskType: asset.taskType,
+    effectiveTaskType: runtime.effectiveTaskType,
     contextBlockIds: context.selectedBlockIds,
     droppedContextBlockIds: context.droppedBlockIds,
     summarizedContextBlockIds: context.summarizedBlockIds,
     estimatedInputTokens: context.estimatedInputTokens,
+    renderedPromptChars: runtime.renderedPromptChars,
+    renderedPromptTokensApprox: runtime.renderedPromptTokensApprox,
     repairUsed,
     repairAttempts,
     semanticRetryUsed,
     semanticRetryAttempts,
   };
+}
+
+function serializePromptMessages(messages: BaseMessage[]): string {
+  return messages.map((message) => {
+    const role = typeof (message as { _getType?: () => string })._getType === "function"
+      ? (message as { _getType: () => string })._getType()
+      : "message";
+    return `${role}\n${toText(message.content)}`;
+  }).join("\n\n");
+}
+
+function resolveEffectiveTaskType(
+  asset: PromptAsset<unknown, unknown, unknown>,
+  renderedPromptTokensApprox: number,
+): TaskType {
+  const assetKey = `${asset.id}@${asset.version}`;
+  if (EXPLICIT_SMALL_TEXT_PROMPT_KEYS.has(assetKey)) {
+    return "small_text";
+  }
+  if (asset.taskType === "planner" && renderedPromptTokensApprox > 0 && renderedPromptTokensApprox <= SMALL_TEXT_ROUTE_TOKEN_THRESHOLD) {
+    return "small_text";
+  }
+  return asset.taskType;
 }
 
 function resolveStructuredRepairAttempts(asset: PromptAsset<unknown, unknown, unknown>): number {
@@ -153,6 +191,12 @@ export function preparePromptExecution<I, O, R = O>(input: {
   assertRegistered(input.asset as PromptAsset<unknown, unknown, unknown>);
   const context = buildRenderContext(input.asset as PromptAsset<unknown, unknown, unknown>, input.contextBlocks ?? []);
   const renderedMessages = input.asset.render(input.promptInput, context);
+  const renderedPrompt = serializePromptMessages(renderedMessages);
+  const renderedPromptTokensApprox = estimateTokenCount(renderedPrompt);
+  const effectiveTaskType = resolveEffectiveTaskType(
+    input.asset as PromptAsset<unknown, unknown, unknown>,
+    renderedPromptTokensApprox,
+  );
   return {
     messages: appendStructuredOutputHintMessages({
       asset: input.asset,
@@ -164,6 +208,11 @@ export function preparePromptExecution<I, O, R = O>(input: {
     invocation: buildPromptInvocationMeta(
       input.asset as PromptAsset<unknown, unknown, unknown>,
       context,
+      {
+        effectiveTaskType,
+        renderedPromptChars: renderedPrompt.length,
+        renderedPromptTokensApprox,
+      },
       false,
       0,
       false,
@@ -184,10 +233,13 @@ function logPromptCompletion(input: {
       `promptId=${input.meta.promptId}`,
       `promptVersion=${input.meta.promptVersion}`,
       `taskType=${input.meta.taskType}`,
+      `effectiveTaskType=${input.meta.effectiveTaskType ?? input.meta.taskType}`,
       `contextBlockIds=${input.meta.contextBlockIds.join(",") || "none"}`,
       `droppedContextBlockIds=${input.meta.droppedContextBlockIds.join(",") || "none"}`,
       `summarizedContextBlockIds=${input.meta.summarizedContextBlockIds.join(",") || "none"}`,
       `estimatedInputTokens=${input.meta.estimatedInputTokens}`,
+      `renderedPromptChars=${input.meta.renderedPromptChars ?? 0}`,
+      `renderedPromptTokensApprox=${input.meta.renderedPromptTokensApprox ?? 0}`,
       `repairUsed=${input.meta.repairUsed}`,
       `repairAttempts=${input.meta.repairAttempts}`,
       `semanticRetryUsed=${input.meta.semanticRetryUsed}`,
@@ -301,6 +353,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
   promptInput: I;
   context: PromptRenderContext;
   baseMessages: BaseMessage[];
+  initialInvocation: PromptInvocationMeta;
   outputSchema: NonNullable<PromptAsset<I, O, R>["outputSchema"]>;
   initialResult: StructuredInvokeResult<R>;
   options?: PromptExecutionOptions;
@@ -329,6 +382,11 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
         invocation: buildPromptInvocationMeta(
           asset,
           input.context,
+          {
+            effectiveTaskType: input.initialInvocation.effectiveTaskType,
+            renderedPromptChars: input.initialInvocation.renderedPromptChars,
+            renderedPromptTokensApprox: input.initialInvocation.renderedPromptTokensApprox,
+          },
           repairUsed,
           totalRepairAttempts,
           semanticRetryAttempts > 0,
@@ -358,6 +416,11 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
             invocation: buildPromptInvocationMeta(
               asset,
               input.context,
+              {
+                effectiveTaskType: input.initialInvocation.effectiveTaskType,
+                renderedPromptChars: input.initialInvocation.renderedPromptChars,
+                renderedPromptTokensApprox: input.initialInvocation.renderedPromptTokensApprox,
+              },
               repairUsed,
               totalRepairAttempts,
               semanticRetryAttempts > 0,
@@ -393,13 +456,18 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
         model: input.options?.model,
         temperature: input.options?.temperature,
         maxTokens: input.options?.maxTokens,
-        taskType: input.asset.taskType,
+        taskType: input.initialInvocation.effectiveTaskType ?? input.asset.taskType,
         messages: currentMessages,
         schema: input.outputSchema,
         maxRepairAttempts: resolveStructuredRepairAttempts(asset),
         promptMeta: buildPromptInvocationMeta(
           asset,
           input.context,
+          {
+            effectiveTaskType: input.initialInvocation.effectiveTaskType,
+            renderedPromptChars: input.initialInvocation.renderedPromptChars,
+            renderedPromptTokensApprox: input.initialInvocation.renderedPromptTokensApprox,
+          },
           repairUsed,
           totalRepairAttempts,
           true,
@@ -446,7 +514,7 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
     model: input.options?.model,
     temperature: input.options?.temperature,
     maxTokens: input.options?.maxTokens,
-    taskType: input.asset.taskType,
+    taskType: prepared.invocation.effectiveTaskType ?? input.asset.taskType,
     messages: prepared.messages,
     schema: outputSchema,
     maxRepairAttempts: resolveStructuredRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
@@ -457,6 +525,7 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
     promptInput: input.promptInput,
     context: prepared.context,
     baseMessages: prepared.messages,
+    initialInvocation: prepared.invocation,
     outputSchema,
     initialResult: result,
     options: input.options,
@@ -488,7 +557,7 @@ export async function runTextPrompt<I>(input: {
     model: input.options?.model,
     temperature: input.options?.temperature,
     maxTokens: input.options?.maxTokens,
-    taskType: input.asset.taskType,
+    taskType: prepared.invocation.effectiveTaskType ?? input.asset.taskType,
     promptMeta: prepared.invocation,
   });
   const result = await llm.invoke(prepared.messages);
@@ -506,6 +575,11 @@ export async function runTextPrompt<I>(input: {
     invocation: buildPromptInvocationMeta(
       input.asset as PromptAsset<unknown, unknown, unknown>,
       prepared.context,
+      {
+        effectiveTaskType: prepared.invocation.effectiveTaskType,
+        renderedPromptChars: prepared.invocation.renderedPromptChars,
+        renderedPromptTokensApprox: prepared.invocation.renderedPromptTokensApprox,
+      },
       false,
       0,
       false,
@@ -531,7 +605,7 @@ export async function streamTextPrompt<I>(input: {
     model: input.options?.model,
     temperature: input.options?.temperature,
     maxTokens: input.options?.maxTokens,
-    taskType: input.asset.taskType,
+    taskType: prepared.invocation.effectiveTaskType ?? input.asset.taskType,
     promptMeta: prepared.invocation,
   });
   const rawStream = await llm.stream(prepared.messages);
@@ -553,6 +627,11 @@ export async function streamTextPrompt<I>(input: {
       invocation: buildPromptInvocationMeta(
         input.asset as PromptAsset<unknown, unknown, unknown>,
         prepared.context,
+        {
+          effectiveTaskType: prepared.invocation.effectiveTaskType,
+          renderedPromptChars: prepared.invocation.renderedPromptChars,
+          renderedPromptTokensApprox: prepared.invocation.renderedPromptTokensApprox,
+        },
         false,
         0,
         false,
@@ -582,7 +661,7 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
     model: input.options?.model,
     temperature: input.options?.temperature,
     maxTokens: input.options?.maxTokens,
-    taskType: input.asset.taskType,
+    taskType: prepared.invocation.effectiveTaskType ?? input.asset.taskType,
     promptMeta: prepared.invocation,
     executionMode: "structured",
     structuredStrategy: selectStructuredOutputStrategy(
@@ -622,7 +701,7 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
         model: input.options?.model,
         temperature: input.options?.temperature,
         maxTokens: input.options?.maxTokens,
-        taskType: input.asset.taskType,
+        taskType: prepared.invocation.effectiveTaskType ?? input.asset.taskType,
         label: `${input.asset.id}@${input.asset.version}`,
         maxRepairAttempts: resolveStructuredRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
         promptMeta: prepared.invocation,
@@ -634,6 +713,7 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
         promptInput: input.promptInput,
         context: prepared.context,
         baseMessages: prepared.messages,
+        initialInvocation: prepared.invocation,
         outputSchema,
         initialResult: parsed,
         options: input.options,

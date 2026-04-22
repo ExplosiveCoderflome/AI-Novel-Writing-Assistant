@@ -104,6 +104,7 @@ export interface NovelAutoDirectorTaskSummary {
 
 export type ModelRouteTaskType =
   | "planner"
+  | "small_text"
   | "writer"
   | "review"
   | "repair"

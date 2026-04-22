@@ -257,6 +257,16 @@ test("createLLMFromResolvedOptions forwards timeout and maxRetries to ChatOpenAI
   assert.equal(llm.caller.maxRetries, 4);
 });
 
+test("resolveLLMClientOptions defaults llm timeout to 600 seconds", async () => {
+  const llm = await resolveLLMClientOptions("openai", {
+    apiKey: "test-key",
+    model: "gpt-5.4",
+    baseURL: "https://api.openai.com/v1",
+  });
+
+  assert.equal(llm.timeoutMs, 600000);
+});
+
 test("tk routed models prefer anthropic structured semantics even behind openai-compatible proxy", () => {
   const schema = z.object({ ok: z.string() });
   const profile = resolveStructuredOutputProfile({

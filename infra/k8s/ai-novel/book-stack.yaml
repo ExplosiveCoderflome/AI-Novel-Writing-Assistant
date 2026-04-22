@@ -19,6 +19,7 @@ data:
   EMBEDDING_PROVIDER: siliconflow
   EMBEDDING_MODEL: BAAI/bge-m3
   QDRANT_URL: http://ai-novel-qdrant:6333
+  LLM_TIMEOUT_MS: "600000"
   IMAGE_STORAGE_DRIVER: s3
   IMAGE_STORAGE_ROOT: storage/generated-images
   IMAGE_STORAGE_S3_REGION: us-east-1
@@ -481,6 +482,9 @@ metadata:
     app.kubernetes.io/environment: production
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: 20m
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
 spec:
   ingressClassName: lucky
   rules:

@@ -73,7 +73,7 @@ export interface ResolvedLLMClientOptions {
 
 const providerSecrets = new Map<LLMProvider, ProviderSecret>();
 const RESOLVED_LLM_OPTIONS = Symbol("RESOLVED_LLM_OPTIONS");
-const DEFAULT_LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS ?? 120000);
+const DEFAULT_LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS ?? 600000);
 const DEFAULT_LLM_MAX_RETRIES = Number(process.env.LLM_MAX_RETRIES ?? 2);
 
 type ChatOpenAIWithResolvedOptions = ChatOpenAI & {
