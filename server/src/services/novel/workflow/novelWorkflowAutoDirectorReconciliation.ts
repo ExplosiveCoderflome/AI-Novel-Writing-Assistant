@@ -287,6 +287,6 @@ export async function syncAutoDirectorChapterBatchCheckpoint(input: {
   await withSqliteRetry(() => prisma.novelWorkflowTask.update({
     where: { id: input.taskId },
     data: checkpointPatch,
-  });
+  }));
   return true;
 }

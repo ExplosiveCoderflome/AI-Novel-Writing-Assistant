@@ -1,0 +1,2075 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum ChapterGenerationState {
+  planned
+  drafted
+  reviewed
+  repaired
+  approved
+  published
+}
+
+enum PipelineJobStatus {
+  queued
+  running
+  succeeded
+  failed
+  cancelled
+}
+
+enum BeatStatus {
+  planned
+  completed
+  skipped
+}
+
+enum FactCategory {
+  world
+  character
+  timeline
+  plot
+  rule
+}
+
+enum RagOwnerType {
+  novel
+  chapter
+  world
+  character
+  bible
+  chapter_summary
+  consistency_fact
+  character_timeline
+  world_library_item
+  knowledge_document
+  chat_message
+}
+
+enum RagJobType {
+  upsert
+  delete
+  rebuild
+}
+
+enum RagJobStatus {
+  queued
+  running
+  succeeded
+  failed
+  cancelled
+}
+
+enum KnowledgeDocumentStatus {
+  enabled
+  disabled
+  archived
+}
+
+enum KnowledgeIndexStatus {
+  idle
+  queued
+  running
+  succeeded
+  failed
+}
+
+enum KnowledgeBindingTargetType {
+  novel
+  world
+}
+
+enum BookAnalysisStatus {
+  draft
+  queued
+  running
+  succeeded
+  failed
+  cancelled
+  archived
+}
+
+enum BookAnalysisSectionStatus {
+  idle
+  running
+  succeeded
+  failed
+}
+
+enum ImageSceneType {
+  character
+  novel_cover
+  chapter_illustration
+}
+
+enum ProjectMode {
+  ai_led
+  co_pilot
+  draft_mode
+  auto_pipeline
+}
+
+enum NarrativePov {
+  first_person
+  third_person
+  mixed
+}
+
+enum PacePreference {
+  slow
+  balanced
+  fast
+}
+
+enum EmotionIntensity {
+  low
+  medium
+  high
+}
+
+enum AIFreedom {
+  low
+  medium
+  high
+}
+
+enum ProjectProgressStatus {
+  not_started
+  in_progress
+  completed
+  rework
+  blocked
+}
+
+enum StorylineVersionStatus {
+  draft
+  active
+  frozen
+}
+
+enum VolumePlanVersionStatus {
+  draft
+  active
+  frozen
+}
+
+enum ChapterStatus {
+  unplanned
+  pending_generation
+  generating
+  pending_review
+  needs_repair
+  completed
+}
+
+enum PipelineRunMode {
+  fast
+  polish
+}
+
+enum PipelineRepairMode {
+  detect_only
+  light_repair
+  heavy_repair
+  continuity_only
+  character_only
+  ending_only
+}
+
+enum AgentRunStatus {
+  queued
+  running
+  waiting_approval
+  succeeded
+  failed
+  cancelled
+}
+
+enum NovelWorkflowLane {
+  manual_create
+  auto_director
+}
+
+enum NovelWorkflowTaskStatus {
+  queued
+  running
+  waiting_approval
+  succeeded
+  failed
+  cancelled
+}
+
+enum AgentStepType {
+  planning
+  tool_call
+  tool_result
+  reasoning
+  write
+  approval
+  answer
+}
+
+enum AgentStepStatus {
+  pending
+  running
+  succeeded
+  failed
+  cancelled
+}
+
+enum AgentApprovalStatus {
+  pending
+  approved
+  rejected
+  expired
+}
+
+enum CreativeHubThreadStatus {
+  idle
+  busy
+  interrupted
+  error
+}
+
+enum StoryPlanLevel {
+  book
+  arc
+  chapter
+}
+
+enum StoryPlanRole {
+  setup
+  progress
+  pressure
+  turn
+  payoff
+  cooldown
+}
+
+enum AuditType {
+  continuity
+  character
+  plot
+  mode_fit
+}
+
+enum AuditIssueStatus {
+  open
+  resolved
+  ignored
+}
+
+enum PayoffLedgerScopeType {
+  book
+  volume
+  chapter
+}
+
+enum PayoffLedgerStatus {
+  setup
+  hinted
+  pending_payoff
+  paid_off
+  failed
+  overdue
+}
+
+enum StyleBindingTargetType {
+  novel
+  chapter
+  task
+}
+
+enum AntiAiRuleType {
+  forbidden
+  risk
+  encourage
+}
+
+enum AntiAiSeverity {
+  low
+  medium
+  high
+}
+
+enum CharacterGender {
+  male
+  female
+  other
+  unknown
+}
+
+model Novel {
+  id                String      @id @default(cuid())
+  title             String
+  description       String?
+  targetAudience    String?
+  bookSellingPoint  String?
+  competingFeel     String?
+  first30ChapterPromise String?
+  commercialTagsJson String?
+  status            String      @default("draft")
+  writingMode       String      @default("original")
+  projectMode       ProjectMode?
+  narrativePov      NarrativePov?
+  pacePreference    PacePreference?
+  styleTone         String?
+  emotionIntensity  EmotionIntensity?
+  aiFreedom         AIFreedom?
+  defaultChapterLength Int?
+  estimatedChapterCount Int?
+  projectStatus     ProjectProgressStatus? @default(not_started)
+  storylineStatus   ProjectProgressStatus? @default(not_started)
+  outlineStatus     ProjectProgressStatus? @default(not_started)
+  resourceReadyScore Int?
+  sourceNovelId     String?
+  sourceKnowledgeDocumentId String?
+  continuationBookAnalysisId String?
+  continuationBookAnalysisSections String?
+  outline           String?
+  structuredOutline String?
+  storyWorldSliceJson String?
+  storyWorldSliceOverridesJson String?
+  storyWorldSliceSchemaVersion Int @default(1)
+  genreId           String?
+  primaryStoryModeId String?
+  secondaryStoryModeId String?
+  worldId           String?
+  genre             NovelGenre? @relation(fields: [genreId], references: [id])
+  primaryStoryMode  NovelStoryMode? @relation("NovelPrimaryStoryMode", fields: [primaryStoryModeId], references: [id], onDelete: SetNull)
+  secondaryStoryMode NovelStoryMode? @relation("NovelSecondaryStoryMode", fields: [secondaryStoryModeId], references: [id], onDelete: SetNull)
+  world             World?      @relation(fields: [worldId], references: [id], onDelete: SetNull)
+  sourceNovel       Novel?      @relation("NovelContinuation", fields: [sourceNovelId], references: [id], onDelete: SetNull)
+  continuationNovels Novel[]    @relation("NovelContinuation")
+  sourceKnowledgeDocument KnowledgeDocument? @relation("NovelKnowledgeContinuation", fields: [sourceKnowledgeDocumentId], references: [id], onDelete: SetNull)
+  continuationBookAnalysis BookAnalysis? @relation("NovelContinuationBookAnalysis", fields: [continuationBookAnalysisId], references: [id], onDelete: SetNull)
+  chapters          Chapter[]
+  characters        Character[]
+  characterRelations CharacterRelation[]
+  characterCastOptions CharacterCastOption[]
+  characterTimelines CharacterTimeline[]
+  characterCandidates CharacterCandidate[]
+  characterVolumeAssignments CharacterVolumeAssignment[]
+  characterFactionTracks CharacterFactionTrack[]
+  characterRelationStages CharacterRelationStage[]
+  bible             NovelBible?
+  plotBeats         PlotBeat[]
+  chapterSummaries  ChapterSummary[]
+  facts             ConsistencyFact[]
+  generationJobs    GenerationJob[]
+  agentRuns          AgentRun[]
+  creativeDecisions  CreativeDecision[]
+  novelSnapshots     NovelSnapshot[]
+  storylineVersions  StorylineVersion[]
+  volumePlans        VolumePlan[]
+  volumePlanVersions VolumePlanVersion[]
+  qualityReports     QualityReport[]
+  storyMacroPlan     StoryMacroPlan?
+  bookContract       BookContract?
+  storyStateSnapshots StoryStateSnapshot[]
+  canonicalStateVersions CanonicalStateVersion[]
+  stateChangeProposals StateChangeProposal[]
+  openConflicts      OpenConflict[]
+  payoffLedgerItems  PayoffLedgerItem[]
+  storyPlans         StoryPlan[]
+  replanRuns         ReplanRun[]
+  auditReports       AuditReport[]
+  workflowTasks      NovelWorkflowTask[]
+  createdAt          DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([genreId])
+  @@index([primaryStoryModeId])
+  @@index([secondaryStoryModeId])
+  @@index([worldId])
+  @@index([writingMode])
+  @@index([sourceNovelId])
+  @@index([sourceKnowledgeDocumentId])
+  @@index([continuationBookAnalysisId])
+}
+
+model CreativeDecision {
+  id          String   @id @default(cuid())
+  novelId     String
+  chapterId   String?
+  category    String
+  content     String
+  importance  String   @default("normal")
+  expiresAt   Int?
+  sourceType  String?
+  sourceRefId String?
+  novel       Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([novelId, createdAt])
+}
+
+model NovelSnapshot {
+  id           String   @id @default(cuid())
+  novelId      String
+  label        String?
+  snapshotData String
+  triggerType  String
+  novel        Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@index([novelId, createdAt])
+}
+
+model Chapter {
+  id              String                 @id @default(cuid())
+  title           String
+  content         String?                @default("")
+  order           Int
+  generationState ChapterGenerationState @default(planned)
+  chapterStatus   ChapterStatus?         @default(unplanned)
+  targetWordCount Int?
+  conflictLevel   Int?
+  revealLevel     Int?
+  mustAvoid       String?
+  taskSheet       String?
+  sceneCards      String?
+  repairHistory   String?
+  qualityScore    Int?
+  continuityScore Int?
+  characterScore  Int?
+  pacingScore     Int?
+  riskFlags       String?
+  hook            String?
+  expectation     String?
+  novelId         String
+  novel           Novel                  @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapterSummary  ChapterSummary?
+  characterTimelines CharacterTimeline[]
+  characterCandidates CharacterCandidate[] @relation("CharacterCandidateSourceChapter")
+  characterFactionTracks CharacterFactionTrack[]
+  characterRelationStages CharacterRelationStage[] @relation("CharacterRelationStageChapter")
+  facts           ConsistencyFact[]
+  qualityReports  QualityReport[]
+  storyStateSnapshots StoryStateSnapshot[]
+  canonicalStateVersions CanonicalStateVersion[]
+  stateChangeProposals StateChangeProposal[]
+  openConflicts      OpenConflict[]
+  storyPlans      StoryPlan[]
+  replanRuns      ReplanRun[]
+  auditReports    AuditReport[]
+  foreshadowSetupStates ForeshadowState[] @relation("ForeshadowSetupChapter")
+  foreshadowPayoffStates ForeshadowState[] @relation("ForeshadowPayoffChapter")
+  payoffLedgerLastTouchedItems PayoffLedgerItem[] @relation("PayoffLedgerLastTouchedChapter")
+  payoffLedgerSetupItems PayoffLedgerItem[] @relation("PayoffLedgerSetupChapter")
+  payoffLedgerPayoffItems PayoffLedgerItem[] @relation("PayoffLedgerPayoffChapter")
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([novelId, order])
+}
+
+model Character {
+  id              String   @id @default(cuid())
+  name            String
+  role            String
+  gender          CharacterGender @default(unknown)
+  castRole        String?
+  storyFunction   String?
+  relationToProtagonist String?
+  personality     String?
+  background      String?
+  development     String?
+  outerGoal       String?
+  innerNeed       String?
+  fear            String?
+  wound           String?
+  misbelief       String?
+  secret          String?
+  moralLine       String?
+  firstImpression String?
+  arcStart        String?
+  arcMidpoint     String?
+  arcClimax       String?
+  arcEnd          String?
+  currentState    String?
+  currentGoal     String?
+  lastEvolvedAt   DateTime?
+  novelId         String
+  novel           Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  baseCharacterId String?
+  timelines       CharacterTimeline[]
+  matchedCandidates CharacterCandidate[] @relation("CharacterCandidateMatchedCharacter")
+  volumeAssignments CharacterVolumeAssignment[]
+  factionTracks CharacterFactionTrack[]
+  outgoingRelationStages CharacterRelationStage[] @relation("CharacterRelationStageSource")
+  incomingRelationStages CharacterRelationStage[] @relation("CharacterRelationStageTarget")
+  stateEntries    CharacterState[]
+  outgoingRelations RelationState[] @relation("RelationStateSource")
+  incomingRelations RelationState[] @relation("RelationStateTarget")
+  outgoingCharacterRelations CharacterRelation[] @relation("CharacterRelationSource")
+  incomingCharacterRelations CharacterRelation[] @relation("CharacterRelationTarget")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([novelId])
+  @@index([baseCharacterId])
+}
+
+model CharacterRelation {
+  id                String   @id @default(cuid())
+  novelId           String
+  sourceCharacterId String
+  targetCharacterId String
+  surfaceRelation   String
+  hiddenTension     String?
+  conflictSource    String?
+  secretAsymmetry   String?
+  dynamicLabel      String?
+  nextTurnPoint     String?
+  trustScore        Int?
+  conflictScore     Int?
+  intimacyScore     Int?
+  dependencyScore   Int?
+  evidence          String?
+  novel             Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  sourceCharacter   Character @relation("CharacterRelationSource", fields: [sourceCharacterId], references: [id], onDelete: Cascade)
+  targetCharacter   Character @relation("CharacterRelationTarget", fields: [targetCharacterId], references: [id], onDelete: Cascade)
+  stages            CharacterRelationStage[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([novelId, sourceCharacterId, targetCharacterId])
+  @@index([novelId, updatedAt])
+  @@index([sourceCharacterId])
+  @@index([targetCharacterId])
+}
+
+model CharacterCastOption {
+  id                String   @id @default(cuid())
+  novelId           String
+  title             String
+  summary           String
+  whyItWorks        String?
+  recommendedReason String?
+  status            String   @default("draft")
+  sourceStoryInput  String?
+  novel             Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  members           CharacterCastOptionMember[]
+  relations         CharacterCastOptionRelation[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([novelId, updatedAt])
+}
+
+model CharacterCastOptionMember {
+  id                    String   @id @default(cuid())
+  optionId              String
+  sortOrder             Int
+  name                  String
+  role                  String
+  gender                CharacterGender @default(unknown)
+  castRole              String
+  relationToProtagonist String?
+  storyFunction         String
+  shortDescription      String?
+  outerGoal             String?
+  innerNeed             String?
+  fear                  String?
+  wound                 String?
+  misbelief             String?
+  secret                String?
+  moralLine             String?
+  firstImpression       String?
+  option                CharacterCastOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([optionId, sortOrder])
+}
+
+model CharacterCastOptionRelation {
+  id              String   @id @default(cuid())
+  optionId        String
+  sortOrder       Int
+  sourceName      String
+  targetName      String
+  surfaceRelation String
+  hiddenTension   String?
+  conflictSource  String?
+  secretAsymmetry String?
+  dynamicLabel    String?
+  nextTurnPoint   String?
+  option          CharacterCastOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([optionId, sortOrder])
+}
+
+model CharacterTimeline {
+  id          String    @id @default(cuid())
+  novelId     String
+  characterId String
+  chapterId   String?
+  chapterOrder Int?
+  title       String
+  content     String
+  source      String    @default("auto")
+  novel       Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  chapter     Chapter?  @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([novelId, characterId])
+  @@index([characterId, chapterOrder])
+  @@index([chapterId])
+}
+
+model CharacterCandidate {
+  id                String     @id @default(cuid())
+  novelId           String
+  sourceChapterId   String?
+  proposedName      String
+  proposedRole      String?
+  summary           String?
+  evidenceJson      String?
+  matchedCharacterId String?
+  status            String     @default("pending")
+  confidence        Float?
+  novel             Novel      @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  sourceChapter     Chapter?   @relation("CharacterCandidateSourceChapter", fields: [sourceChapterId], references: [id], onDelete: SetNull)
+  matchedCharacter  Character? @relation("CharacterCandidateMatchedCharacter", fields: [matchedCharacterId], references: [id], onDelete: SetNull)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([novelId, status, updatedAt])
+  @@index([sourceChapterId])
+  @@index([matchedCharacterId])
+}
+
+model CharacterVolumeAssignment {
+  id                        String    @id @default(cuid())
+  novelId                   String
+  characterId               String
+  volumeId                  String
+  roleLabel                 String?
+  responsibility            String
+  appearanceExpectation     String?
+  plannedChapterOrdersJson  String?
+  isCore                    Boolean   @default(false)
+  absenceWarningThreshold   Int       @default(3)
+  absenceHighRiskThreshold  Int       @default(5)
+  novel                     Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  character                 Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  volume                    VolumePlan @relation(fields: [volumeId], references: [id], onDelete: Cascade)
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  @@unique([characterId, volumeId])
+  @@index([novelId, volumeId, isCore])
+  @@index([volumeId, characterId])
+}
+
+model CharacterFactionTrack {
+  id           String    @id @default(cuid())
+  novelId      String
+  characterId  String
+  volumeId      String?
+  chapterId     String?
+  chapterOrder  Int?
+  factionLabel  String
+  stanceLabel   String?
+  summary       String?
+  sourceType    String
+  confidence    Float?
+  novel         Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  character     Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  volume        VolumePlan? @relation(fields: [volumeId], references: [id], onDelete: SetNull)
+  chapter       Chapter?   @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([novelId, characterId, createdAt])
+  @@index([volumeId, characterId, createdAt])
+  @@index([chapterId, createdAt])
+}
+
+model CharacterRelationStage {
+  id                 String    @id @default(cuid())
+  novelId            String
+  relationId         String?
+  sourceCharacterId  String
+  targetCharacterId  String
+  volumeId           String?
+  chapterId          String?
+  chapterOrder       Int?
+  stageLabel         String
+  stageSummary       String
+  nextTurnPoint      String?
+  sourceType         String
+  confidence         Float?
+  isCurrent          Boolean   @default(true)
+  novel              Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  relation           CharacterRelation? @relation(fields: [relationId], references: [id], onDelete: SetNull)
+  sourceCharacter    Character @relation("CharacterRelationStageSource", fields: [sourceCharacterId], references: [id], onDelete: Cascade)
+  targetCharacter    Character @relation("CharacterRelationStageTarget", fields: [targetCharacterId], references: [id], onDelete: Cascade)
+  volume             VolumePlan? @relation(fields: [volumeId], references: [id], onDelete: SetNull)
+  chapter            Chapter?   @relation("CharacterRelationStageChapter", fields: [chapterId], references: [id], onDelete: SetNull)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@index([novelId, isCurrent, updatedAt])
+  @@index([sourceCharacterId, targetCharacterId, isCurrent])
+  @@index([relationId])
+  @@index([chapterId])
+}
+
+model BaseCharacter {
+  id          String   @id @default(cuid())
+  name        String
+  role        String
+  personality String
+  background  String
+  development String
+  appearance  String?
+  weaknesses  String?
+  interests   String?
+  keyEvents   String?
+  tags        String   @default("")
+  category    String
+  imageTasks  ImageGenerationTask[]
+  imageAssets ImageAsset[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ImageGenerationTask {
+  id              String            @id @default(cuid())
+  sceneType       ImageSceneType    @default(character)
+  baseCharacterId String?
+  provider        String
+  model           String
+  prompt          String
+  negativePrompt  String?
+  stylePreset     String?
+  size            String            @default("1024x1024")
+  imageCount      Int               @default(1)
+  seed            Int?
+  status          PipelineJobStatus @default(queued)
+  progress        Float             @default(0)
+  retryCount      Int               @default(0)
+  maxRetries      Int               @default(2)
+  pendingManualRecovery Boolean     @default(false)
+  heartbeatAt     DateTime?
+  currentStage    String?
+  currentItemKey  String?
+  currentItemLabel String?
+  cancelRequestedAt DateTime?
+  error           String?
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  baseCharacter   BaseCharacter?    @relation(fields: [baseCharacterId], references: [id], onDelete: Cascade)
+  assets          ImageAsset[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([sceneType, status])
+  @@index([baseCharacterId, createdAt])
+}
+
+model StyleExtractionTask {
+  id                    String            @id @default(cuid())
+  name                  String
+  category              String?
+  sourceText            String
+  provider              String
+  model                 String?
+  temperature           Float?
+  presetKey             String            @default("balanced")
+  status                PipelineJobStatus @default(queued)
+  progress              Float             @default(0)
+  retryCount            Int               @default(0)
+  maxRetries            Int               @default(1)
+  pendingManualRecovery Boolean           @default(false)
+  heartbeatAt           DateTime?
+  currentStage          String?
+  currentItemKey        String?
+  currentItemLabel      String?
+  cancelRequestedAt     DateTime?
+  error                 String?
+  summary               String?
+  createdStyleProfileId String?
+  createdStyleProfileName String?
+  startedAt             DateTime?
+  finishedAt            DateTime?
+  promptTokens          Int               @default(0)
+  completionTokens      Int               @default(0)
+  totalTokens           Int               @default(0)
+  llmCallCount          Int               @default(0)
+  lastTokenRecordedAt   DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@index([status, updatedAt])
+  @@index([createdStyleProfileId])
+}
+
+model ImageAsset {
+  id              String            @id @default(cuid())
+  taskId          String
+  sceneType       ImageSceneType    @default(character)
+  baseCharacterId String?
+  provider        String
+  model           String
+  url             String
+  mimeType        String?
+  width           Int?
+  height          Int?
+  seed            Int?
+  prompt          String?
+  isPrimary       Boolean           @default(false)
+  sortOrder       Int               @default(0)
+  metadata        String?
+  task            ImageGenerationTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  baseCharacter   BaseCharacter?    @relation(fields: [baseCharacterId], references: [id], onDelete: Cascade)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([taskId])
+  @@index([sceneType, createdAt])
+  @@index([baseCharacterId, isPrimary, createdAt])
+}
+
+model NovelGenre {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  template    String?
+  parentId    String?
+  parent      NovelGenre?  @relation("GenreChildren", fields: [parentId], references: [id])
+  children    NovelGenre[] @relation("GenreChildren")
+  novels      Novel[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([parentId])
+}
+
+model NovelStoryMode {
+  id                String           @id @default(cuid())
+  name              String
+  description       String?
+  template          String?
+  profileJson       String
+  parentId          String?
+  parent            NovelStoryMode?  @relation("StoryModeChildren", fields: [parentId], references: [id], onDelete: SetNull)
+  children          NovelStoryMode[] @relation("StoryModeChildren")
+  primaryNovels     Novel[]          @relation("NovelPrimaryStoryMode")
+  secondaryNovels   Novel[]          @relation("NovelSecondaryStoryMode")
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([parentId])
+}
+
+model World {
+  id                 String                @id @default(cuid())
+  name               String
+  description        String?
+  worldType          String?
+  templateKey        String?
+  axioms             String?
+  background         String?
+  geography          String?
+  cultures           String?
+  magicSystem        String?
+  politics           String?
+  races              String?
+  religions          String?
+  technology         String?
+  conflicts          String?
+  history            String?
+  economy            String?
+  factions           String?
+  status             String                @default("draft")
+  version            Int                   @default(1)
+  selectedDimensions String?
+  selectedElements   String?
+  layerStates        String?
+  consistencyReport  String?
+  overviewSummary    String?
+  structureJson      String?
+  bindingSupportJson String?
+  structureSchemaVersion Int @default(1)
+  novels             Novel[]
+  snapshots          WorldSnapshot[]
+  deepeningQA        WorldDeepeningQA[]
+  consistencyIssues  WorldConsistencyIssue[]
+  libraryItems       WorldPropertyLibrary[]
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+}
+
+model WorldPropertyLibrary {
+  id            String  @id @default(cuid())
+  name          String
+  description   String?
+  category      String
+  worldType     String?
+  usageCount    Int     @default(0)
+  sourceWorldId String?
+  sourceWorld   World?  @relation(fields: [sourceWorldId], references: [id], onDelete: SetNull)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([sourceWorldId])
+}
+
+model WorldSnapshot {
+  id        String   @id @default(cuid())
+  worldId   String
+  label     String?
+  data      String
+  world     World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([worldId, createdAt])
+}
+
+model WorldDeepeningQA {
+  id               String   @id @default(cuid())
+  worldId          String
+  priority         String   @default("recommended")
+  question         String
+  targetLayer      String?
+  targetField      String?
+  answer           String?
+  integratedSummary String?
+  status           String   @default("pending")
+  world            World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([worldId, status])
+}
+
+model WorldConsistencyIssue {
+  id          String   @id @default(cuid())
+  worldId     String
+  severity    String
+  code        String
+  message     String
+  detail      String?
+  source      String   @default("rule")
+  status      String   @default("open")
+  targetField String?
+  world       World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([worldId, status])
+  @@index([worldId, severity])
+}
+
+model WritingFormula {
+  id                 String   @id @default(cuid())
+  name               String
+  sourceText         String?
+  content            String?
+  genre              String?
+  style              String?
+  toneVoice          String?
+  structure          String?
+  pacing             String?
+  paragraphPattern   String?
+  sentenceStructure  String?
+  vocabularyLevel    String?
+  rhetoricalDevices  String?
+  narrativeMode      String?
+  perspectivePoint   String?
+  characterVoice     String?
+  themes             String?
+  motifs             String?
+  emotionalTone      String?
+  uniqueFeatures     String?
+  formulaDescription String?
+  formulaSteps       String?
+  applicationTips    String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model StyleProfile {
+  id                 String   @id @default(cuid())
+  name               String
+  description        String?
+  category           String?
+  tagsJson           String?
+  applicableGenresJson String?
+  sourceType         String
+  sourceRefId        String?
+  sourceContent      String?
+  extractedFeaturesJson String?
+  extractionPresetsJson String?
+  extractionAntiAiRuleKeysJson String?
+  selectedExtractionPresetKey String?
+  analysisMarkdown   String?
+  narrativeRulesJson String?
+  characterRulesJson String?
+  languageRulesJson  String?
+  rhythmRulesJson    String?
+  status             String   @default("active")
+  antiAiBindings     StyleProfileAntiAiRule[]
+  bindings           StyleBinding[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([status, updatedAt])
+  @@index([sourceType, sourceRefId])
+}
+
+model StyleTemplate {
+  id                   String   @id @default(cuid())
+  key                  String   @unique
+  name                 String
+  description          String
+  category             String
+  tagsJson             String?
+  applicableGenresJson String?
+  analysisMarkdown     String?
+  narrativeRulesJson   String?
+  characterRulesJson   String?
+  languageRulesJson    String?
+  rhythmRulesJson      String?
+  defaultAntiAiRuleKeysJson String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model AntiAiRule {
+  id               String         @id @default(cuid())
+  key              String         @unique
+  name             String
+  type             AntiAiRuleType
+  severity         AntiAiSeverity
+  description      String
+  detectPatternsJson String?
+  rewriteSuggestion String?
+  promptInstruction String?
+  autoRewrite      Boolean        @default(false)
+  enabled          Boolean        @default(true)
+  profileBindings  StyleProfileAntiAiRule[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([type, enabled])
+}
+
+model StyleProfileAntiAiRule {
+  id             String       @id @default(cuid())
+  styleProfileId String
+  antiAiRuleId   String
+  enabled        Boolean      @default(true)
+  weight         Float        @default(1)
+  styleProfile   StyleProfile @relation(fields: [styleProfileId], references: [id], onDelete: Cascade)
+  antiAiRule     AntiAiRule   @relation(fields: [antiAiRuleId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([styleProfileId, antiAiRuleId])
+  @@index([antiAiRuleId])
+}
+
+model StyleBinding {
+  id             String                 @id @default(cuid())
+  styleProfileId String
+  targetType     StyleBindingTargetType
+  targetId       String
+  priority       Int                    @default(1)
+  weight         Float                  @default(1)
+  enabled        Boolean                @default(true)
+  styleProfile   StyleProfile           @relation(fields: [styleProfileId], references: [id], onDelete: Cascade)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@index([targetType, targetId, enabled])
+  @@index([styleProfileId])
+}
+
+model TitleLibrary {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  clickRate   Float?
+  keywords    String?
+  genreId     String?
+  usedCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model APIKey {
+  id        String   @id @default(cuid())
+  provider  String
+  displayName String?
+  key       String?
+  model     String?
+  baseURL   String?
+  isActive  Boolean  @default(true)
+  reasoningEnabled Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider])
+}
+
+model AppSetting {
+  key       String   @id
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ModelRouteConfig {
+  id          String  @id @default(cuid())
+  taskType    String  @unique
+  provider    String
+  model       String
+  temperature Float   @default(0.7)
+  maxTokens   Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model NovelBible {
+  id             String   @id @default(cuid())
+  novelId        String   @unique
+  coreSetting    String?
+  forbiddenRules String?
+  mainPromise    String?
+  characterArcs  String?
+  worldRules     String?
+  rawContent     String?
+  novel          Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model PlotBeat {
+  id           String     @id @default(cuid())
+  novelId      String
+  chapterOrder Int?
+  beatType     String
+  title        String
+  content      String
+  status       BeatStatus @default(planned)
+  metadata     String?
+  novel        Novel      @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([novelId])
+  @@index([novelId, chapterOrder])
+}
+
+model ChapterSummary {
+  id              String   @id @default(cuid())
+  novelId         String
+  chapterId       String   @unique
+  summary         String
+  keyEvents       String?
+  characterStates String?
+  hook            String?
+  novel           Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter         Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([novelId])
+}
+
+model ConsistencyFact {
+  id        String       @id @default(cuid())
+  novelId   String
+  chapterId String?
+  category  FactCategory @default(plot)
+  content   String
+  source    String?
+  novel     Novel        @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter   Chapter?     @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([novelId])
+  @@index([chapterId])
+  @@index([novelId, category])
+}
+
+model GenerationJob {
+  id             String            @id @default(cuid())
+  novelId        String
+  startOrder     Int
+  endOrder       Int
+  runMode        PipelineRunMode?  @default(fast)
+  autoReview     Boolean           @default(true)
+  autoRepair     Boolean           @default(true)
+  skipCompleted  Boolean           @default(true)
+  qualityThreshold Int?
+  repairMode     PipelineRepairMode? @default(light_repair)
+  status         PipelineJobStatus @default(queued)
+  progress       Float             @default(0)
+  completedCount Int               @default(0)
+  totalCount     Int               @default(0)
+  retryCount     Int               @default(0)
+  maxRetries     Int               @default(2)
+  pendingManualRecovery Boolean    @default(false)
+  heartbeatAt    DateTime?
+  currentStage   String?
+  currentItemKey String?
+  currentItemLabel String?
+  cancelRequestedAt DateTime?
+  error          String?
+  lastErrorType  String?
+  promptTokens   Int               @default(0)
+  completionTokens Int             @default(0)
+  totalTokens    Int               @default(0)
+  llmCallCount   Int               @default(0)
+  lastTokenRecordedAt DateTime?
+  payload        String?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  novel          Novel             @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([novelId])
+  @@index([novelId, status])
+}
+
+model AgentRun {
+  id           String         @id @default(cuid())
+  novelId      String?
+  chapterId    String?
+  sessionId    String
+  goal         String
+  entryAgent   String
+  status       AgentRunStatus @default(queued)
+  currentStep  String?
+  currentAgent String?
+  error        String?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  metadataJson String?
+  novel        Novel?         @relation(fields: [novelId], references: [id], onDelete: SetNull)
+  steps        AgentStep[]
+  approvals    AgentApproval[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([status, updatedAt])
+  @@index([novelId, createdAt])
+  @@index([novelId, chapterId, createdAt])
+  @@index([sessionId, createdAt])
+}
+
+model AgentStep {
+  id             String          @id @default(cuid())
+  runId          String
+  seq            Int
+  agentName      String
+  stepType       AgentStepType
+  status         AgentStepStatus @default(succeeded)
+  parentStepId   String?
+  idempotencyKey String?
+  inputJson      String?
+  outputJson     String?
+  error          String?
+  errorCode      String?
+  provider       String?
+  model          String?
+  tokenUsageJson String?
+  costUsd        Float?
+  durationMs     Int?
+  run            AgentRun        @relation(fields: [runId], references: [id], onDelete: Cascade)
+  approvals      AgentApproval[]
+  createdAt      DateTime        @default(now())
+
+  @@unique([runId, seq])
+  @@index([runId, idempotencyKey])
+  @@index([runId, parentStepId])
+}
+
+model AgentApproval {
+  id           String             @id @default(cuid())
+  runId        String
+  stepId       String?
+  approvalType String
+  targetType   String
+  targetId     String
+  diffSummary  String
+  status       AgentApprovalStatus @default(pending)
+  expiresAt    DateTime?
+  decisionNote String?
+  decider      String?
+  decidedAt    DateTime?
+  payloadJson  String?
+  run          AgentRun           @relation(fields: [runId], references: [id], onDelete: Cascade)
+  step         AgentStep?         @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([runId, status])
+  @@index([stepId])
+  @@index([status, expiresAt])
+}
+
+model CreativeHubThread {
+  id               String                  @id @default(cuid())
+  title            String                  @default("新对话")
+  archived         Boolean                 @default(false)
+  status           CreativeHubThreadStatus @default(idle)
+  latestRunId      String?
+  latestError      String?
+  resourceBindingsJson String?
+  metadataJson     String?
+  checkpoints      CreativeHubCheckpoint[]
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@index([archived, updatedAt])
+  @@index([status, updatedAt])
+}
+
+model CreativeHubCheckpoint {
+  id                String            @id @default(cuid())
+  threadId          String
+  checkpointId      String
+  parentCheckpointId String?
+  runId             String?
+  messageCount      Int               @default(0)
+  preview           String?
+  messagesJson      String
+  interruptsJson    String?
+  metadataJson      String?
+  thread            CreativeHubThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  createdAt         DateTime          @default(now())
+
+  @@unique([threadId, checkpointId])
+  @@index([threadId, createdAt])
+}
+
+model StorylineVersion {
+  id          String                @id @default(cuid())
+  novelId     String
+  version     Int
+  status      StorylineVersionStatus @default(draft)
+  content     String
+  diffSummary String?
+  novel       Novel                 @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@unique([novelId, version])
+  @@index([novelId, status, createdAt])
+}
+
+model VolumePlanVersion {
+  id          String                  @id @default(cuid())
+  novelId     String
+  version     Int
+  status      VolumePlanVersionStatus @default(draft)
+  contentJson String
+  diffSummary String?
+  novel       Novel                   @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  volumes     VolumePlan[]
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  @@unique([novelId, version])
+  @@index([novelId, status, createdAt])
+}
+
+model VolumePlan {
+  id                String             @id @default(cuid())
+  novelId           String
+  sortOrder         Int
+  title             String
+  summary           String?
+  mainPromise       String?
+  escalationMode    String?
+  protagonistChange String?
+  climax            String?
+  nextVolumeHook    String?
+  resetPoint        String?
+  openPayoffsJson   String?
+  status            String             @default("active")
+  sourceVersionId   String?
+  novel             Novel              @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  sourceVersion     VolumePlanVersion? @relation(fields: [sourceVersionId], references: [id], onDelete: SetNull)
+  chapters          VolumeChapterPlan[]
+  characterAssignments CharacterVolumeAssignment[]
+  factionTracks     CharacterFactionTrack[]
+  relationStages    CharacterRelationStage[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([novelId, sortOrder])
+  @@index([novelId, status, sortOrder])
+  @@index([sourceVersionId])
+}
+
+model VolumeChapterPlan {
+  id              String     @id @default(cuid())
+  volumeId        String
+  chapterOrder    Int
+  title           String
+  summary         String
+  purpose         String?
+  conflictLevel   Int?
+  revealLevel     Int?
+  targetWordCount Int?
+  mustAvoid       String?
+  taskSheet       String?
+  sceneCards      String?
+  payoffRefsJson  String?
+  volume          VolumePlan @relation(fields: [volumeId], references: [id], onDelete: Cascade)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@unique([volumeId, chapterOrder])
+  @@index([volumeId, chapterOrder])
+}
+
+model QualityReport {
+  id         String   @id @default(cuid())
+  novelId    String
+  chapterId  String?
+  coherence  Int
+  repetition Int
+  pacing     Int
+  voice      Int
+  engagement Int
+  overall    Int
+  issues     String?
+  novel      Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter    Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([novelId])
+  @@index([chapterId])
+  @@index([novelId, createdAt])
+}
+
+model StoryMacroPlan {
+  id                   String   @id @default(cuid())
+  novelId              String   @unique
+  storyInput           String?
+  expansionJson        String?
+  decompositionJson    String?
+  issuesJson           String?
+  lockedFieldsJson     String?
+  constraintEngineJson String?
+  stateJson            String?
+  novel                Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model BookContract {
+  id                   String   @id @default(cuid())
+  novelId              String   @unique
+  readingPromise       String
+  protagonistFantasy   String
+  coreSellingPoint     String
+  chapter3Payoff       String
+  chapter10Payoff      String
+  chapter30Payoff      String
+  escalationLadder     String
+  relationshipMainline String
+  absoluteRedLinesJson String
+  novel                Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model NovelWorkflowTask {
+  id                 String                  @id @default(cuid())
+  novelId            String?
+  lane               NovelWorkflowLane
+  title              String
+  status             NovelWorkflowTaskStatus @default(queued)
+  progress           Float                   @default(0)
+  currentStage       String?
+  currentItemKey     String?
+  currentItemLabel   String?
+  checkpointType     String?
+  checkpointSummary  String?
+  resumeTargetJson   String?
+  seedPayloadJson    String?
+  milestonesJson     String?
+  pendingManualRecovery Boolean              @default(false)
+  heartbeatAt        DateTime?
+  startedAt          DateTime?
+  finishedAt         DateTime?
+  cancelRequestedAt  DateTime?
+  attemptCount       Int                     @default(0)
+  maxAttempts        Int                     @default(3)
+  lastError          String?
+  promptTokens       Int                     @default(0)
+  completionTokens   Int                     @default(0)
+  totalTokens        Int                     @default(0)
+  llmCallCount       Int                     @default(0)
+  lastTokenRecordedAt DateTime?
+  novel              Novel?                  @relation(fields: [novelId], references: [id], onDelete: SetNull)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  @@index([novelId, status, updatedAt])
+  @@index([status, updatedAt])
+  @@index([lane, updatedAt])
+}
+
+
+model AutoDirectorFollowUpActionLog {
+  id             String   @id @default(cuid())
+  taskId         String
+  actionCode     String
+  sourceChannel  String
+  sourceUser     String?
+  idempotencyKey String   @unique
+  resultCode     String
+  failureReason  String?
+  metadataJson   String?
+  executedAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  @@index([taskId, executedAt])
+  @@index([taskId, actionCode, executedAt])
+}
+
+model AutoDirectorFollowUpNotificationLog {
+  id             String   @id @default(cuid())
+  eventId        String
+  eventType      String
+  taskId         String
+  channelType    String
+  target         String?
+  requestPayload String?
+  responseBody   String?
+  responseStatus Int?
+  attemptCount   Int      @default(1)
+  deliveredAt    DateTime?
+  status         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([taskId, createdAt])
+  @@index([eventId, channelType, createdAt])
+}
+
+model StoryStateSnapshot {
+  id             String   @id @default(cuid())
+  novelId        String
+  sourceChapterId String?
+  summary        String?
+  rawStateJson   String?
+  novel          Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  sourceChapter  Chapter? @relation(fields: [sourceChapterId], references: [id], onDelete: SetNull)
+  characterStates CharacterState[]
+  relationStates RelationState[]
+  informationStates InformationState[]
+  foreshadowStates ForeshadowState[]
+  openConflicts   OpenConflict[]
+  payoffLedgerItems PayoffLedgerItem[] @relation("PayoffLedgerLastSnapshot")
+  storyPlans     StoryPlan[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([novelId, sourceChapterId])
+  @@index([novelId, createdAt])
+  @@index([sourceChapterId])
+}
+
+model CharacterState {
+  id             String   @id @default(cuid())
+  snapshotId     String
+  characterId    String
+  currentGoal    String?
+  emotion        String?
+  stressLevel    Int?
+  secretExposure String?
+  knownFactsJson String?
+  misbeliefsJson String?
+  summary        String?
+  snapshot       StoryStateSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  character      Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([snapshotId, characterId])
+  @@index([characterId, createdAt])
+}
+
+model RelationState {
+  id                String   @id @default(cuid())
+  snapshotId        String
+  sourceCharacterId String
+  targetCharacterId String
+  trustScore        Int?
+  intimacyScore     Int?
+  conflictScore     Int?
+  dependencyScore   Int?
+  summary           String?
+  snapshot          StoryStateSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  sourceCharacter   Character @relation("RelationStateSource", fields: [sourceCharacterId], references: [id], onDelete: Cascade)
+  targetCharacter   Character @relation("RelationStateTarget", fields: [targetCharacterId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([snapshotId, sourceCharacterId, targetCharacterId])
+  @@index([sourceCharacterId, targetCharacterId])
+}
+
+model InformationState {
+  id          String   @id @default(cuid())
+  snapshotId  String
+  holderType  String
+  holderRefId String?
+  fact        String
+  status      String
+  summary     String?
+  snapshot    StoryStateSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([snapshotId, holderType])
+}
+
+model ForeshadowState {
+  id             String   @id @default(cuid())
+  snapshotId     String
+  title          String
+  summary        String?
+  status         String
+  setupChapterId String?
+  payoffChapterId String?
+  snapshot       StoryStateSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  setupChapter   Chapter? @relation("ForeshadowSetupChapter", fields: [setupChapterId], references: [id], onDelete: SetNull)
+  payoffChapter  Chapter? @relation("ForeshadowPayoffChapter", fields: [payoffChapterId], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([snapshotId, status])
+  @@index([setupChapterId])
+  @@index([payoffChapterId])
+}
+
+model OpenConflict {
+  id                   String   @id @default(cuid())
+  novelId              String
+  chapterId            String?
+  sourceSnapshotId     String?
+  sourceIssueId        String?
+  sourceType           String
+  conflictType         String
+  conflictKey          String
+  title                String
+  summary              String
+  severity             String   @default("medium")
+  status               String   @default("open")
+  evidenceJson         String?
+  affectedCharacterIdsJson String?
+  resolutionHint       String?
+  lastSeenChapterOrder Int?
+  novel                Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter              Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  sourceSnapshot       StoryStateSnapshot? @relation(fields: [sourceSnapshotId], references: [id], onDelete: SetNull)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([novelId, chapterId, sourceType, conflictKey])
+  @@index([novelId, status, updatedAt])
+  @@index([chapterId, status])
+  @@index([sourceSnapshotId])
+  @@index([sourceIssueId])
+}
+
+model PayoffLedgerItem {
+  id                    String                @id @default(cuid())
+  novelId               String
+  ledgerKey             String
+  title                 String
+  summary               String
+  scopeType             PayoffLedgerScopeType
+  currentStatus         PayoffLedgerStatus
+  targetStartChapterOrder Int?
+  targetEndChapterOrder Int?
+  firstSeenChapterOrder Int?
+  lastTouchedChapterOrder Int?
+  lastTouchedChapterId  String?
+  setupChapterId        String?
+  payoffChapterId       String?
+  lastSnapshotId        String?
+  sourceRefsJson        String?
+  evidenceJson          String?
+  riskSignalsJson       String?
+  statusReason          String?
+  confidence            Float?
+  novel                 Novel                 @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  lastTouchedChapter    Chapter?              @relation("PayoffLedgerLastTouchedChapter", fields: [lastTouchedChapterId], references: [id], onDelete: SetNull)
+  setupChapter          Chapter?              @relation("PayoffLedgerSetupChapter", fields: [setupChapterId], references: [id], onDelete: SetNull)
+  payoffChapter         Chapter?              @relation("PayoffLedgerPayoffChapter", fields: [payoffChapterId], references: [id], onDelete: SetNull)
+  lastSnapshot          StoryStateSnapshot?   @relation("PayoffLedgerLastSnapshot", fields: [lastSnapshotId], references: [id], onDelete: SetNull)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@unique([novelId, ledgerKey])
+  @@index([novelId, currentStatus, updatedAt])
+  @@index([novelId, targetEndChapterOrder])
+  @@index([lastTouchedChapterId])
+  @@index([setupChapterId])
+  @@index([payoffChapterId])
+  @@index([lastSnapshotId])
+}
+
+model CanonicalStateVersion {
+  id                     String   @id @default(cuid())
+  novelId                String
+  chapterId              String?
+  sourceType             String
+  sourceStage            String?
+  version                Int
+  summary                String
+  snapshotJson           String
+  acceptedProposalIdsJson String?
+  novel                  Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter                Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  committedProposals     StateChangeProposal[] @relation("CommittedStateChangeVersion")
+  createdAt              DateTime @default(now())
+
+  @@unique([novelId, version])
+  @@index([novelId, createdAt])
+  @@index([chapterId])
+}
+
+model StateChangeProposal {
+  id                   String   @id @default(cuid())
+  novelId              String
+  chapterId            String?
+  sourceSnapshotId     String?
+  sourceType           String
+  sourceStage          String?
+  proposalType         String
+  riskLevel            String
+  status               String   @default("validated")
+  summary              String
+  payloadJson          String
+  evidenceJson         String?
+  validationNotesJson  String?
+  committedVersionId   String?
+  novel                Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter              Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  committedVersion     CanonicalStateVersion? @relation("CommittedStateChangeVersion", fields: [committedVersionId], references: [id], onDelete: SetNull)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([novelId, createdAt])
+  @@index([chapterId, createdAt])
+  @@index([status, riskLevel, createdAt])
+  @@index([committedVersionId])
+}
+
+model StoryPlan {
+  id                   String   @id @default(cuid())
+  novelId              String
+  chapterId            String?
+  parentId             String?
+  sourceStateSnapshotId String?
+  level                StoryPlanLevel
+  planRole             StoryPlanRole?
+  phaseLabel           String?
+  title                String
+  objective            String
+  participantsJson     String?
+  revealsJson          String?
+  riskNotesJson        String?
+  mustAdvanceJson      String?
+  mustPreserveJson     String?
+  sourceIssueIdsJson   String?
+  replannedFromPlanId  String?
+  hookTarget           String?
+  status               String   @default("draft")
+  externalRef          String?
+  rawPlanJson          String?
+  novel                Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter              Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  parent               StoryPlan? @relation("StoryPlanHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children             StoryPlan[] @relation("StoryPlanHierarchy")
+  sourceStateSnapshot  StoryStateSnapshot? @relation(fields: [sourceStateSnapshotId], references: [id], onDelete: SetNull)
+  scenes               ChapterPlanScene[]
+  replanRuns           ReplanRun[]
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([novelId, level, createdAt])
+  @@index([chapterId, createdAt])
+  @@index([externalRef])
+  @@index([sourceStateSnapshotId])
+}
+
+model ChapterPlanScene {
+  id          String   @id @default(cuid())
+  planId       String
+  sortOrder    Int
+  title        String
+  objective    String?
+  conflict     String?
+  reveal       String?
+  emotionBeat  String?
+  plan         StoryPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([planId, sortOrder])
+}
+
+model ReplanRun {
+  id           String   @id @default(cuid())
+  novelId      String
+  chapterId    String?
+  sourcePlanId String?
+  triggerType  String
+  reason       String
+  outputSummary String?
+  novel        Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter      Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  sourcePlan   StoryPlan? @relation(fields: [sourcePlanId], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  @@index([novelId, createdAt])
+  @@index([chapterId, createdAt])
+}
+
+model AuditReport {
+  id             String   @id @default(cuid())
+  novelId        String
+  chapterId      String
+  auditType      AuditType
+  overallScore   Int?
+  summary        String?
+  legacyScoreJson String?
+  novel          Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter        Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  issues         AuditIssue[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([novelId, chapterId, auditType, createdAt])
+  @@index([chapterId, createdAt])
+}
+
+model AuditIssue {
+  id            String   @id @default(cuid())
+  reportId      String
+  auditType     AuditType
+  severity      String
+  code          String
+  description   String
+  evidence      String
+  fixSuggestion String
+  status        AuditIssueStatus @default(open)
+  report        AuditReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([reportId, status])
+  @@index([auditType, severity])
+}
+
+model KnowledgeDocument {
+  id                     String                   @id @default(cuid())
+  title                  String
+  fileName               String
+  status                 KnowledgeDocumentStatus  @default(enabled)
+  activeVersionId        String?
+  activeVersionNumber    Int                      @default(0)
+  latestIndexStatus      KnowledgeIndexStatus     @default(idle)
+  lastIndexedAt          DateTime?
+  activeVersion          KnowledgeDocumentVersion? @relation("KnowledgeDocumentActiveVersion", fields: [activeVersionId], references: [id], onDelete: SetNull)
+  versions               KnowledgeDocumentVersion[] @relation("KnowledgeDocumentVersions")
+  bindings               KnowledgeBinding[]
+  bookAnalyses           BookAnalysis[]
+  publishedFromAnalyses  BookAnalysis[]           @relation("BookAnalysisPublishedDocument")
+  continuationNovels     Novel[]                  @relation("NovelKnowledgeContinuation")
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+
+  @@index([status, updatedAt])
+  @@index([title])
+}
+
+model KnowledgeDocumentVersion {
+  id                 String               @id @default(cuid())
+  documentId         String
+  versionNumber      Int
+  content            String
+  contentHash        String
+  charCount          Int
+  document           KnowledgeDocument    @relation("KnowledgeDocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
+  activeForDocuments KnowledgeDocument[]  @relation("KnowledgeDocumentActiveVersion")
+  bookAnalyses       BookAnalysis[]
+  sourceCaches       BookAnalysisSourceCache[]
+  createdAt          DateTime             @default(now())
+
+  @@unique([documentId, versionNumber])
+  @@index([documentId, createdAt])
+  @@index([contentHash])
+}
+
+model KnowledgeBinding {
+  id         String                     @id @default(cuid())
+  targetType KnowledgeBindingTargetType
+  targetId   String
+  documentId String
+  document   KnowledgeDocument          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdAt  DateTime                   @default(now())
+
+  @@unique([targetType, targetId, documentId])
+  @@index([targetType, targetId])
+  @@index([documentId])
+}
+
+model BookAnalysis {
+  id                          String             @id @default(cuid())
+  documentId                  String
+  documentVersionId           String
+  title                       String
+  status                      BookAnalysisStatus @default(queued)
+  summary                     String?
+  provider                    String?
+  model                       String?
+  temperature                 Float?
+  maxTokens                   Int?
+  progress                    Float              @default(0)
+  pendingManualRecovery       Boolean            @default(false)
+  heartbeatAt                 DateTime?
+  currentStage                String?
+  currentItemKey              String?
+  currentItemLabel            String?
+  cancelRequestedAt           DateTime?
+  attemptCount                Int                @default(0)
+  maxAttempts                 Int                @default(1)
+  lastError                   String?
+  lastRunAt                   DateTime?
+  publishedDocumentId         String?
+  document                    KnowledgeDocument  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentVersion             KnowledgeDocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: NoAction)
+  publishedDocument           KnowledgeDocument?  @relation("BookAnalysisPublishedDocument", fields: [publishedDocumentId], references: [id], onDelete: SetNull)
+  continuationNovels          Novel[]             @relation("NovelContinuationBookAnalysis")
+  sections                    BookAnalysisSection[]
+  createdAt                   DateTime           @default(now())
+  updatedAt                   DateTime           @updatedAt
+
+  @@index([documentId, status])
+  @@index([documentVersionId])
+  @@index([status, updatedAt])
+}
+
+model BookAnalysisSourceCache {
+  id                String                   @id @default(cuid())
+  documentVersionId String
+  provider          String
+  model             String
+  temperature       Float
+  notesMaxTokens    Int
+  segmentVersion    Int                      @default(1)
+  segmentCount      Int
+  notesJson         String
+  documentVersion   KnowledgeDocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  @@unique([documentVersionId, provider, model, temperature, notesMaxTokens, segmentVersion])
+  @@index([documentVersionId, updatedAt])
+}
+
+model BookAnalysisSection {
+  id                 String                    @id @default(cuid())
+  analysisId         String
+  sectionKey         String
+  title              String
+  status             BookAnalysisSectionStatus @default(idle)
+  aiContent          String?
+  editedContent      String?
+  notes              String?
+  structuredDataJson String?
+  evidenceJson       String?
+  frozen             Boolean                   @default(false)
+  sortOrder          Int
+  analysis           BookAnalysis              @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  updatedAt          DateTime                  @updatedAt
+
+  @@unique([analysisId, sectionKey])
+  @@index([analysisId, sortOrder])
+}
+
+model KnowledgeChunk {
+  id            String       @id @default(cuid())
+  tenantId      String       @default("default")
+  ownerType     RagOwnerType
+  ownerId       String
+  novelId       String?
+  worldId       String?
+  title         String?
+  chunkText     String
+  chunkHash     String
+  chunkOrder    Int
+  tokenEstimate Int          @default(0)
+  language      String       @default("zh")
+  metadataJson  String?
+  embedProvider String
+  embedModel    String
+  embedVersion  Int          @default(1)
+  indexedAt     DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([tenantId, ownerType, ownerId])
+  @@index([tenantId, novelId])
+  @@index([tenantId, worldId])
+  @@index([chunkHash])
+}
+
+model RagIndexJob {
+  id          String       @id @default(cuid())
+  tenantId    String       @default("default")
+  jobType     RagJobType
+  ownerType   RagOwnerType
+  ownerId     String
+  status      RagJobStatus @default(queued)
+  attempts    Int          @default(0)
+  maxAttempts Int          @default(5)
+  runAfter    DateTime     @default(now())
+  payloadJson String?
+  lastError   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([status, runAfter])
+  @@index([tenantId, ownerType, ownerId])
+}
+
+model TaskCenterArchive {
+  id         String   @id @default(cuid())
+  taskKind   String
+  taskId     String
+  archivedAt DateTime @default(now())
+
+  @@unique([taskKind, taskId])
+  @@index([taskKind, archivedAt])
+}

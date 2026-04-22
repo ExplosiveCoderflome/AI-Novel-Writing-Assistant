@@ -3,6 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import {
+  resolveDatabaseRuntimeConfig,
+  SQLITE_PRISMA_MIGRATIONS_PATH,
+} from "../config/database";
+import {
   resolveAppRuntimeMode,
   resolveDatabaseFilePath,
   resolveServerRoot,
@@ -64,17 +68,17 @@ const REQUIRED_COLUMN_BACKFILLS = [
 ] as const;
 
 function resolveSqliteDatabasePath(): string | null {
-  const databaseUrl = process.env.DATABASE_URL?.trim() || "file:./dev.db";
-  if (!databaseUrl.startsWith("file:")) {
+  const runtimeConfig = resolveDatabaseRuntimeConfig({ allowDefault: true, preferSqlite: true });
+  if (runtimeConfig.provider !== "sqlite") {
     return null;
   }
 
-  const filePath = databaseUrl.slice("file:".length) || "./dev.db";
+  const filePath = runtimeConfig.url.slice("file:".length) || "./dev.db";
   return path.isAbsolute(filePath) ? filePath : resolveDatabaseFilePath(filePath);
 }
 
 function resolveMigrationsDir(): string {
-  return path.join(resolveServerRoot(), "src", "prisma", "migrations");
+  return path.join(resolveServerRoot(), SQLITE_PRISMA_MIGRATIONS_PATH);
 }
 
 function createMigrationsTable(database: Database.Database): void {

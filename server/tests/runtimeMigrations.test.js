@@ -10,7 +10,7 @@ const {
   ensureRuntimeDatabaseReady,
 } = require("../dist/db/runtimeMigrations.js");
 
-const migrationsDir = path.join(__dirname, "..", "src", "prisma", "migrations");
+const migrationsDir = path.join(__dirname, "..", "src", "prisma", "migrations.sqlite");
 const allMigrationNames = fs.readdirSync(migrationsDir, { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name)

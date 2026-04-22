@@ -1,0 +1,1 @@
+ALTER TABLE "APIKey" ADD COLUMN "reasoningEnabled" BOOLEAN NOT NULL DEFAULT true;

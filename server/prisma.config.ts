@@ -1,12 +1,15 @@
 import { defineConfig } from "prisma/config";
-import { getDatabaseUrl } from "./src/config/database";
+import { resolveDatabaseRuntimeConfig } from "./src/config/database";
+
+const runtimeConfig = resolveDatabaseRuntimeConfig();
 
 export default defineConfig({
-  schema: "src/prisma/schema.prisma",
+  schema: runtimeConfig.prismaSchemaPath,
   migrations: {
+    path: runtimeConfig.prismaMigrationsPath,
     seed: "ts-node-dev --transpile-only src/db/seed.ts",
   },
   datasource: {
-    url: getDatabaseUrl(),
+    url: runtimeConfig.url,
   },
 });

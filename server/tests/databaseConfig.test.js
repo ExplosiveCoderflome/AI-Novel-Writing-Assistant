@@ -76,3 +76,106 @@ test("getDatabaseUrl rejects missing DATABASE_URL in production", () => {
     }
   }
 });
+
+test("getDatabaseUrl can prefer the sqlite default for legacy local runtime", () => {
+  const originalDatabaseUrl = process.env.DATABASE_URL;
+  const originalNodeEnv = process.env.NODE_ENV;
+  delete process.env.DATABASE_URL;
+  delete process.env.NODE_ENV;
+
+  try {
+    const { getDatabaseUrl, DEFAULT_SQLITE_DATABASE_URL } = loadDatabaseConfig();
+    assert.equal(getDatabaseUrl({ preferSqlite: true }), DEFAULT_SQLITE_DATABASE_URL);
+  } finally {
+    if (originalDatabaseUrl === undefined) {
+      delete process.env.DATABASE_URL;
+    } else {
+      process.env.DATABASE_URL = originalDatabaseUrl;
+    }
+    if (originalNodeEnv === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = originalNodeEnv;
+    }
+  }
+});
+
+test("resolveDatabaseRuntimeConfig selects sqlite schema for desktop legacy mode", () => {
+  const originalDatabaseUrl = process.env.DATABASE_URL;
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalRuntime = process.env.AI_NOVEL_RUNTIME;
+  const originalMode = process.env.AI_NOVEL_DATABASE_MODE;
+  delete process.env.DATABASE_URL;
+  delete process.env.NODE_ENV;
+  process.env.AI_NOVEL_RUNTIME = "desktop";
+  delete process.env.AI_NOVEL_DATABASE_MODE;
+
+  try {
+    const {
+      DEFAULT_SQLITE_DATABASE_URL,
+      resolveDatabaseRuntimeConfig,
+    } = loadDatabaseConfig();
+    const config = resolveDatabaseRuntimeConfig();
+
+    assert.equal(config.provider, "sqlite");
+    assert.equal(config.url, DEFAULT_SQLITE_DATABASE_URL);
+    assert.equal(config.prismaSchemaPath, "src/prisma/schema.sqlite.prisma");
+    assert.equal(config.prismaMigrationsPath, "src/prisma/migrations.sqlite");
+  } finally {
+    if (originalDatabaseUrl === undefined) {
+      delete process.env.DATABASE_URL;
+    } else {
+      process.env.DATABASE_URL = originalDatabaseUrl;
+    }
+    if (originalNodeEnv === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = originalNodeEnv;
+    }
+    if (originalRuntime === undefined) {
+      delete process.env.AI_NOVEL_RUNTIME;
+    } else {
+      process.env.AI_NOVEL_RUNTIME = originalRuntime;
+    }
+    if (originalMode === undefined) {
+      delete process.env.AI_NOVEL_DATABASE_MODE;
+    } else {
+      process.env.AI_NOVEL_DATABASE_MODE = originalMode;
+    }
+  }
+});
+
+test("resolveDatabaseRuntimeConfig keeps postgres schema when a postgres URL is configured", () => {
+  const originalDatabaseUrl = process.env.DATABASE_URL;
+  const originalRuntime = process.env.AI_NOVEL_RUNTIME;
+  const originalMode = process.env.AI_NOVEL_DATABASE_MODE;
+  process.env.DATABASE_URL = "postgresql://writer:pass@db.internal:5432/ai_novel";
+  process.env.AI_NOVEL_RUNTIME = "desktop";
+  delete process.env.AI_NOVEL_DATABASE_MODE;
+
+  try {
+    const { resolveDatabaseRuntimeConfig } = loadDatabaseConfig();
+    const config = resolveDatabaseRuntimeConfig();
+
+    assert.equal(config.provider, "postgresql");
+    assert.equal(config.url, "postgresql://writer:pass@db.internal:5432/ai_novel");
+    assert.equal(config.prismaSchemaPath, "src/prisma/schema.prisma");
+    assert.equal(config.prismaMigrationsPath, "src/prisma/migrations");
+  } finally {
+    if (originalDatabaseUrl === undefined) {
+      delete process.env.DATABASE_URL;
+    } else {
+      process.env.DATABASE_URL = originalDatabaseUrl;
+    }
+    if (originalRuntime === undefined) {
+      delete process.env.AI_NOVEL_RUNTIME;
+    } else {
+      process.env.AI_NOVEL_RUNTIME = originalRuntime;
+    }
+    if (originalMode === undefined) {
+      delete process.env.AI_NOVEL_DATABASE_MODE;
+    } else {
+      process.env.AI_NOVEL_DATABASE_MODE = originalMode;
+    }
+  }
+});
