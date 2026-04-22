@@ -33,7 +33,10 @@ const {
   titleGenerationPrompt,
 } = require("../dist/prompting/prompts/helper/titleGeneration.prompt.js");
 const {
+  styleDetectionPrompt,
   styleRewritePrompt,
+  styleProfileExtractionPrompt,
+  styleProfileFromBookAnalysisPrompt,
 } = require("../dist/prompting/prompts/style/style.prompts.js");
 const {
   chapterWriterPrompt,
@@ -62,6 +65,8 @@ const {
 const {
   directorPlanBlueprintSchema,
 } = require("../dist/services/novel/director/novelDirectorSchemas.js");
+
+const promptKey = (asset) => `${asset.id}@${asset.version}`;
 
 test("prompt registry exposes versioned planning assets", () => {
   const keys = [
@@ -97,13 +102,14 @@ test("prompt registry exposes versioned planning assets", () => {
     "storyMode.child.generate@v1",
     "storyMode.tree.generate@v1",
     "storyWorldSlice.generate@v1",
+    promptKey(styleDetectionPrompt),
     "style.generate@v1",
-    "style.rewrite@v1",
-    "style.profile.extract@v1",
-    "style.profile.from_book_analysis@v2",
+    promptKey(styleRewritePrompt),
+    promptKey(styleProfileExtractionPrompt),
+    promptKey(styleProfileFromBookAnalysisPrompt),
     "style.recommendation@v1",
     "novel.review.chapter@v1",
-    "novel.chapter.writer@v4",
+    promptKey(chapterWriterPrompt),
     "world.draft.generate@v1",
     "world.draft.refine@v1",
     "world.draft.refine_alternatives@v1",
@@ -127,6 +133,17 @@ test("prompt registry exposes versioned planning assets", () => {
   const chapterAsset = getRegisteredPromptAsset("planner.chapter.plan", "v1");
   assert.ok(chapterAsset);
   assert.equal(chapterAsset.taskType, "planner");
+});
+
+test("prompt registry resolves style prompts by their declared asset versions", () => {
+  for (const asset of [
+    styleDetectionPrompt,
+    styleRewritePrompt,
+    styleProfileExtractionPrompt,
+    styleProfileFromBookAnalysisPrompt,
+  ]) {
+    assert.equal(getRegisteredPromptAsset(asset.id, asset.version), asset);
+  }
 });
 
 test("character cast prompt hardens real-name constraints and required gender output", () => {
@@ -397,12 +414,12 @@ test("novel main-chain prompt assets declare explicit non-zero context budgets",
     ["novel.volume.strategy.critique@v1", NOVEL_PROMPT_BUDGETS.volumeStrategyCritique],
     ["novel.volume.skeleton@v2", NOVEL_PROMPT_BUDGETS.volumeSkeleton],
     ["novel.volume.beat_sheet@v1", NOVEL_PROMPT_BUDGETS.volumeBeatSheet],
-    ["novel.volume.chapter_list@v6", NOVEL_PROMPT_BUDGETS.volumeChapterList],
+    ["novel.volume.chapter_list@v7", NOVEL_PROMPT_BUDGETS.volumeChapterList],
     ["novel.volume.chapter_purpose@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.chapter_boundary@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.chapter_task_sheet@v2", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.rebalance.adjacent@v1", NOVEL_PROMPT_BUDGETS.volumeRebalance],
-    ["novel.chapter.writer@v4", NOVEL_PROMPT_BUDGETS.chapterWriter],
+    [promptKey(chapterWriterPrompt), NOVEL_PROMPT_BUDGETS.chapterWriter],
     ["novel.review.chapter@v1", NOVEL_PROMPT_BUDGETS.chapterReview],
     ["novel.review.repair@v1", NOVEL_PROMPT_BUDGETS.chapterRepair],
     ["audit.chapter.full@v2", NOVEL_PROMPT_BUDGETS.chapterReview],
@@ -445,7 +462,7 @@ test("writer guard strips forbidden context groups before prompt execution", () 
 });
 
 test("chapter writer prompt carries explicit target length and continuation instructions", () => {
-  const asset = getRegisteredPromptAsset("novel.chapter.writer", "v4");
+  const asset = getRegisteredPromptAsset(chapterWriterPrompt.id, chapterWriterPrompt.version);
   assert.ok(asset);
 
   const draftMessages = asset.render({

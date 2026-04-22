@@ -20,7 +20,7 @@ function createPromptAssetLoaderRegistry(entries: PromptAssetLoaderEntry[]): Map
   return registry;
 }
 
-const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
+const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
   {
     key: "planner.intent.parse@v1",
     load: () => require("./prompts/agent/plannerIntent.prompt").plannerIntentPrompt as UnknownPromptAsset,
@@ -405,9 +405,85 @@ const promptAssetLoaderByKey = createPromptAssetLoaderRegistry([
     key: "world.axioms.suggest@v1",
     load: () => require("./prompts/world/world.prompts").worldAxiomSuggestionPrompt as UnknownPromptAsset,
   },
-]);
+];
 
+const promptAssetLoaderByKey = createPromptAssetLoaderRegistry(promptAssetLoaderEntries);
+const promptAssetLoaderEntryByLoad = new Map<PromptAssetLoader, PromptAssetLoaderEntry>(
+  promptAssetLoaderEntries.map((entry) => [entry.load, entry] as const),
+);
 const promptAssetByKey = new Map<string, UnknownPromptAsset>();
+const unhydratedPromptAssetLoaders = new Set<PromptAssetLoader>(
+  promptAssetLoaderEntries.map((entry) => entry.load),
+);
+
+function findCachedPromptAssetByLoader(load: PromptAssetLoader): UnknownPromptAsset | null {
+  for (const [key, asset] of promptAssetByKey.entries()) {
+    if (promptAssetLoaderByKey.get(key) === load) {
+      return asset;
+    }
+  }
+  return null;
+}
+
+function cacheLoadedPromptAsset(entry: PromptAssetLoaderEntry, asset: UnknownPromptAsset): UnknownPromptAsset {
+  const actualKey = buildPromptAssetKey(asset);
+  const registeredLoader = promptAssetLoaderByKey.get(actualKey);
+  if (registeredLoader && registeredLoader !== entry.load) {
+    throw new Error(`Duplicate prompt asset registration: ${actualKey}`);
+  }
+
+  const cachedAsset = promptAssetByKey.get(actualKey);
+  if (cachedAsset && cachedAsset !== asset) {
+    throw new Error(`Duplicate prompt asset cache entry: ${actualKey}`);
+  }
+
+  if (entry.key !== actualKey) {
+    const declaredLoader = promptAssetLoaderByKey.get(entry.key);
+    if (declaredLoader === entry.load) {
+      promptAssetLoaderByKey.delete(entry.key);
+    }
+  }
+
+  promptAssetLoaderByKey.set(actualKey, entry.load);
+  promptAssetByKey.set(actualKey, asset);
+  unhydratedPromptAssetLoaders.delete(entry.load);
+  return asset;
+}
+
+function hydratePromptAssetEntry(entry: PromptAssetLoaderEntry): UnknownPromptAsset {
+  const cached = findCachedPromptAssetByLoader(entry.load);
+  if (cached) {
+    return cached;
+  }
+
+  return cacheLoadedPromptAsset(entry, entry.load());
+}
+
+function hydratePromptAssetByKey(key: string): void {
+  if (promptAssetByKey.has(key)) {
+    return;
+  }
+
+  for (const entry of promptAssetLoaderEntries) {
+    if (!unhydratedPromptAssetLoaders.has(entry.load)) {
+      continue;
+    }
+
+    const asset = hydratePromptAssetEntry(entry);
+    if (buildPromptAssetKey(asset) === key) {
+      return;
+    }
+  }
+}
+
+function hydrateAllPromptAssets(): void {
+  for (const entry of promptAssetLoaderEntries) {
+    if (!unhydratedPromptAssetLoaders.has(entry.load)) {
+      continue;
+    }
+    hydratePromptAssetEntry(entry);
+  }
+}
 
 function loadRegisteredPromptAsset(key: string): UnknownPromptAsset | null {
   const cached = promptAssetByKey.get(key);
@@ -416,28 +492,27 @@ function loadRegisteredPromptAsset(key: string): UnknownPromptAsset | null {
   }
 
   const load = promptAssetLoaderByKey.get(key);
-  if (!load) {
-    return null;
+  if (load) {
+    const entry = promptAssetLoaderEntryByLoad.get(load);
+    if (!entry) {
+      return null;
+    }
+
+    const asset = hydratePromptAssetEntry(entry);
+    return buildPromptAssetKey(asset) === key ? asset : promptAssetByKey.get(key) ?? null;
   }
 
-  const asset = load();
-  const assetKey = buildPromptAssetKey(asset);
-  if (assetKey !== key) {
-    throw new Error(`Prompt asset registry key mismatch: expected ${key}, received ${assetKey}`);
-  }
-
-  promptAssetByKey.set(key, asset);
-  return asset;
+  hydratePromptAssetByKey(key);
+  return promptAssetByKey.get(key) ?? null;
 }
 
 export function hasRegisteredPromptAsset(id: string, version: string): boolean {
-  return promptAssetLoaderByKey.has(`${id}@${version}`);
+  return loadRegisteredPromptAsset(`${id}@${version}`) != null;
 }
 
 export function listRegisteredPromptAssets(): UnknownPromptAsset[] {
-  return [...promptAssetLoaderByKey.keys()]
-    .map((key) => loadRegisteredPromptAsset(key))
-    .filter((asset): asset is UnknownPromptAsset => Boolean(asset));
+  hydrateAllPromptAssets();
+  return [...promptAssetByKey.values()];
 }
 
 export function getRegisteredPromptAsset(id: string, version: string): UnknownPromptAsset | null {
