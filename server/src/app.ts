@@ -27,6 +27,7 @@ import novelChapterSummaryRouter from "./routes/novelChapterSummary";
 import novelExportRouter from "./routes/novelExport";
 import novelWorkflowsRouter from "./routes/novelWorkflows";
 import ragRouter from "./routes/rag";
+import settingsAutoDirectorRouter from "./routes/settingsAutoDirector";
 import settingsRouter from "./routes/settings";
 import styleEngineRouter from "./routes/styleEngine";
 import styleEngineExtractionRouter from "./routes/styleEngineExtraction";
@@ -130,6 +131,7 @@ export function createApp() {
   app.use("/api/images", imagesRouter);
   app.use("/api/tasks", tasksRouter);
   app.use("/api/auto-director/follow-ups", autoDirectorFollowUpsRouter);
+  app.use("/api/settings/auto-director", settingsAutoDirectorRouter);
   app.use("/api/settings", settingsRouter);
   app.use("/api/astrology", astrologyRouter);
 

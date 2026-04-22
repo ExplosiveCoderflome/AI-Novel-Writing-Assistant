@@ -20,6 +20,7 @@ import { AppError } from "../middleware/errorHandler";
 import { validate } from "../middleware/validate";
 import { ragServices } from "../services/rag";
 import { providerBalanceService } from "../services/settings/ProviderBalanceService";
+import { secretStore } from "../services/settings/secretStore";
 import {
   getDefaultImageModel,
   getImageModelOptions,
@@ -166,7 +167,7 @@ async function ensureUniqueCustomProviderId(name: string): Promise<string> {
   const baseId = buildCustomProviderId(name);
   let candidate = baseId;
   let suffix = 2;
-  while (await prisma.aPIKey.findUnique({ where: { provider: candidate }, select: { id: true } })) {
+  while (await secretStore.hasProvider(candidate)) {
     candidate = `${baseId}_${suffix}`;
     suffix += 1;
   }
@@ -389,9 +390,7 @@ router.get(
 
 router.get("/api-keys", async (_req, res, next) => {
   try {
-    const keys = await prisma.aPIKey.findMany({
-      orderBy: [{ createdAt: "asc" }],
-    });
+    const keys = await secretStore.listProviders();
     const keyMap = new Map(keys.map((item) => [item.provider, item]));
     const imageModelMap = await getProviderImageModelMap(SUPPORTED_PROVIDERS);
     const builtInProviders = await Promise.all(
@@ -422,17 +421,14 @@ router.post(
       const body = req.body as z.infer<typeof createCustomProviderSchema>;
       const provider = await ensureUniqueCustomProviderId(body.name);
       const createData = {
-        provider,
         displayName: body.name.trim(),
         key: normalizeOptionalText(body.key) ?? null,
         model: body.model.trim(),
         baseURL: body.baseURL.trim(),
         isActive: body.isActive ?? true,
         reasoningEnabled: body.reasoningEnabled ?? true,
-      } as Record<string, unknown>;
-      const data = await prisma.aPIKey.create({
-        data: createData as never,
-      }) as APIKeyRecordLike;
+      };
+      const data = await secretStore.createProvider(provider, createData) as APIKeyRecordLike;
       setProviderSecretCache(provider, data.isActive ? {
         displayName: data.displayName ?? undefined,
         key: data.key ?? undefined,
@@ -489,9 +485,7 @@ router.delete(
       if (isBuiltInProvider(provider)) {
         throw new AppError("Built-in providers cannot be deleted.", 400);
       }
-      const existing = await prisma.aPIKey.findUnique({
-        where: { provider },
-      });
+      const existing = await secretStore.getProvider(provider);
       if (!existing) {
         throw new AppError("Custom provider not found.", 404);
       }
@@ -502,9 +496,7 @@ router.delete(
       if (routeInUse) {
         throw new AppError(`Please reassign model route ${routeInUse.taskType} before deleting this provider.`, 400);
       }
-      await prisma.aPIKey.delete({
-        where: { provider },
-      });
+      await secretStore.deleteProvider(provider);
       setProviderSecretCache(provider, null);
       res.status(200).json({
         success: true,
@@ -518,17 +510,7 @@ router.delete(
 
 router.get("/api-keys/balances", async (_req, res, next) => {
   try {
-    const keys = await prisma.aPIKey.findMany({
-      where: {
-        provider: {
-          in: SUPPORTED_PROVIDERS,
-        },
-      },
-      select: {
-        provider: true,
-        key: true,
-      },
-    });
+    const keys = await secretStore.listProviders({ providers: SUPPORTED_PROVIDERS });
     const keyMap = new Map(
       SUPPORTED_PROVIDERS.map((provider) => {
         const record = keys.find((item) => item.provider === provider);
@@ -553,9 +535,7 @@ router.put(
     try {
       const { provider } = req.params as z.infer<typeof providerSchema>;
       const body = req.body as z.infer<typeof upsertApiKeySchema>;
-      const existing = await prisma.aPIKey.findUnique({
-        where: { provider },
-      });
+      const existing = await secretStore.getProvider(provider);
       const existingRecord = existing as APIKeyRecordLike | null;
       if (!isBuiltInProvider(provider) && !existing) {
         throw new AppError("Custom provider not found.", 404);
@@ -585,34 +565,20 @@ router.put(
       }
 
       const data = (isBuiltInProvider(provider)
-        ? await prisma.aPIKey.upsert({
-          where: { provider },
-          update: ({
-            key: nextKey ?? null,
-            model: nextModel ?? null,
-            baseURL: nextBaseURL ?? null,
-            isActive: body.isActive ?? true,
-            reasoningEnabled: nextReasoningEnabled,
-          } as Record<string, unknown>) as never,
-          create: ({
-            provider,
-            key: nextKey ?? null,
-            model: nextModel ?? null,
-            baseURL: nextBaseURL ?? null,
-            isActive: body.isActive ?? true,
-            reasoningEnabled: nextReasoningEnabled,
-          } as Record<string, unknown>) as never,
+        ? await secretStore.upsertProvider(provider, {
+          key: nextKey ?? null,
+          model: nextModel ?? null,
+          baseURL: nextBaseURL ?? null,
+          isActive: body.isActive ?? true,
+          reasoningEnabled: nextReasoningEnabled,
         })
-        : await prisma.aPIKey.update({
-          where: { provider },
-          data: ({
-            displayName: nextDisplayName,
-            key: nextKey ?? null,
-            model: nextModel ?? null,
-            baseURL: nextBaseURL ?? null,
-            isActive: body.isActive ?? existingRecord?.isActive ?? true,
-            reasoningEnabled: nextReasoningEnabled,
-          } as Record<string, unknown>) as never,
+        : await secretStore.updateProvider(provider, {
+          displayName: nextDisplayName,
+          key: nextKey ?? null,
+          model: nextModel ?? null,
+          baseURL: nextBaseURL ?? null,
+          isActive: body.isActive ?? existingRecord?.isActive ?? true,
+          reasoningEnabled: nextReasoningEnabled,
         })) as APIKeyRecordLike;
 
       const currentImageModel = body.imageModel !== undefined
@@ -677,12 +643,7 @@ router.post(
       if (!isBuiltInProvider(provider)) {
         throw new AppError("Balance refresh is not supported for custom providers.", 400);
       }
-      const keyConfig = await prisma.aPIKey.findUnique({
-        where: { provider },
-        select: {
-          key: true,
-        },
-      });
+      const keyConfig = await secretStore.getProvider(provider);
       const data = await providerBalanceService.getProviderBalance({
         provider,
         apiKey: normalizeOptionalText(keyConfig?.key) ?? getProviderEnvApiKey(provider),
@@ -704,9 +665,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { provider } = req.params as z.infer<typeof providerSchema>;
-      const keyConfig = await prisma.aPIKey.findUnique({
-        where: { provider },
-      });
+      const keyConfig = await secretStore.getProvider(provider);
       const effectiveKey = normalizeOptionalText(keyConfig?.key) ?? getProviderEnvApiKey(provider);
       if (providerRequiresApiKey(provider) && !effectiveKey) {
         throw new AppError("Configure an API key before refreshing models.", 400);

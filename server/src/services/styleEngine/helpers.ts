@@ -1,4 +1,14 @@
-import type { AntiAiRule, StyleProfile, StyleTemplate, StyleRuleSet } from "@ai-novel/shared/types/styleEngine";
+import {
+  buildStyleExtractionPresets,
+  buildStyleRuleSetFromFeatures,
+  hasStyleRulePatchContent,
+  resolveStyleFeatureRulePatch,
+  type AntiAiRule,
+  type StyleProfile,
+  type StyleProfileFeature,
+  type StyleTemplate,
+  type StyleRuleSet,
+} from "@ai-novel/shared/types/styleEngine";
 import { extractJSONObject as extractCanonicalJSONObject } from "../novel/novelP0Utils";
 
 export function parseJsonObject<T extends Record<string, unknown>>(value?: string | null, fallback?: T): T {
@@ -106,6 +116,108 @@ export function buildEmptyRuleSet(): StyleRuleSet {
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeProfileFeaturesForRead(value: string | null | undefined): StyleProfileFeature[] {
+  const parsed = parseJsonValue<unknown[]>(value, []);
+  return parsed
+    .map((item, index): StyleProfileFeature | null => {
+      if (!isRecord(item)) {
+        return null;
+      }
+      const id = typeof item.id === "string" && item.id.trim()
+        ? item.id.trim()
+        : `feature-${index + 1}`;
+      const group = item.group;
+      const label = typeof item.label === "string" ? item.label.trim() : "";
+      const description = typeof item.description === "string" ? item.description.trim() : "";
+      if (!label || !description) {
+        return null;
+      }
+      const normalizedGroup = (group === "narrative" || group === "language" || group === "dialogue" || group === "rhythm" || group === "fingerprint")
+        ? group
+        : "fingerprint";
+      const keepRulePatch = isRecord(item.keepRulePatch)
+        ? item.keepRulePatch as StyleProfileFeature["keepRulePatch"]
+        : {};
+      const weakenRulePatch = isRecord(item.weakenRulePatch)
+        ? item.weakenRulePatch as NonNullable<StyleProfileFeature["weakenRulePatch"]>
+        : undefined;
+
+      return {
+        ...item,
+        id,
+        group: normalizedGroup,
+        label,
+        description,
+        evidence: typeof item.evidence === "string" && item.evidence.trim()
+          ? item.evidence.trim()
+          : "未提供证据片段。",
+        importance: typeof item.importance === "number" ? item.importance : 0.5,
+        imitationValue: typeof item.imitationValue === "number" ? item.imitationValue : 0.5,
+        transferability: typeof item.transferability === "number" ? item.transferability : 0.5,
+        fingerprintRisk: typeof item.fingerprintRisk === "number" ? item.fingerprintRisk : 0.5,
+        enabled: typeof item.enabled === "boolean" ? item.enabled : true,
+        selectedDecision: item.selectedDecision === "keep"
+          || item.selectedDecision === "weaken"
+          || item.selectedDecision === "remove"
+          ? item.selectedDecision
+          : undefined,
+        keepRulePatch: hasStyleRulePatchContent(keepRulePatch)
+          ? keepRulePatch
+          : resolveStyleFeatureRulePatch({
+            group: normalizedGroup,
+            label,
+            description,
+            keepRulePatch,
+            weakenRulePatch,
+          }),
+        weakenRulePatch,
+      };
+    })
+    .filter((item): item is StyleProfileFeature => item !== null);
+}
+
+function buildDerivedRuleSetFromProfile(row: {
+  extractedFeaturesJson: string | null;
+  narrativeRulesJson: string | null;
+  characterRulesJson: string | null;
+  languageRulesJson: string | null;
+  rhythmRulesJson: string | null;
+}): {
+  extractedFeatures: StyleProfileFeature[];
+  ruleSet: StyleRuleSet;
+} {
+  const extractedFeatures = normalizeProfileFeaturesForRead(row.extractedFeaturesJson);
+  const derivedRuleSet = buildStyleRuleSetFromFeatures(extractedFeatures);
+  const storedRuleSet = {
+    narrativeRules: parseJsonObject(row.narrativeRulesJson),
+    characterRules: parseJsonObject(row.characterRulesJson),
+    languageRules: parseJsonObject(row.languageRulesJson),
+    rhythmRules: parseJsonObject(row.rhythmRulesJson),
+  };
+
+  return {
+    extractedFeatures,
+    ruleSet: {
+      narrativeRules: Object.keys(storedRuleSet.narrativeRules).length > 0
+        ? storedRuleSet.narrativeRules
+        : derivedRuleSet.narrativeRules,
+      characterRules: Object.keys(storedRuleSet.characterRules).length > 0
+        ? storedRuleSet.characterRules
+        : derivedRuleSet.characterRules,
+      languageRules: Object.keys(storedRuleSet.languageRules).length > 0
+        ? storedRuleSet.languageRules
+        : derivedRuleSet.languageRules,
+      rhythmRules: Object.keys(storedRuleSet.rhythmRules).length > 0
+        ? storedRuleSet.rhythmRules
+        : derivedRuleSet.rhythmRules,
+    },
+  };
+}
+
 export function mapStyleProfileRow(row: {
   id: string;
   name: string;
@@ -117,6 +229,9 @@ export function mapStyleProfileRow(row: {
   sourceRefId: string | null;
   sourceContent: string | null;
   extractedFeaturesJson: string | null;
+  extractionPresetsJson?: string | null;
+  extractionAntiAiRuleKeysJson?: string | null;
+  selectedExtractionPresetKey?: string | null;
   analysisMarkdown: string | null;
   status: string;
   narrativeRulesJson: string | null;
@@ -143,6 +258,15 @@ export function mapStyleProfileRow(row: {
   createdAt: Date;
   updatedAt: Date;
 }): StyleProfile {
+  const derived = buildDerivedRuleSetFromProfile(row);
+  const rawExtractionPresets = parseJsonValue<StyleProfile["extractionPresets"]>(
+    row.extractionPresetsJson,
+    [],
+  );
+  const extractionPresets = rawExtractionPresets.length > 0
+    ? rawExtractionPresets
+    : buildStyleExtractionPresets(derived.extractedFeatures);
+
   return {
     id: row.id,
     name: row.name,
@@ -153,13 +277,16 @@ export function mapStyleProfileRow(row: {
     sourceType: row.sourceType as StyleProfile["sourceType"],
     sourceRefId: row.sourceRefId,
     sourceContent: row.sourceContent,
-    extractedFeatures: parseJsonValue(row.extractedFeaturesJson, []),
+    extractedFeatures: derived.extractedFeatures,
+    extractionPresets,
+    extractionAntiAiRuleKeys: parseJsonArray(row.extractionAntiAiRuleKeysJson),
+    selectedExtractionPresetKey: row.selectedExtractionPresetKey as StyleProfile["selectedExtractionPresetKey"],
     analysisMarkdown: row.analysisMarkdown,
     status: row.status as StyleProfile["status"],
-    narrativeRules: parseJsonObject(row.narrativeRulesJson),
-    characterRules: parseJsonObject(row.characterRulesJson),
-    languageRules: parseJsonObject(row.languageRulesJson),
-    rhythmRules: parseJsonObject(row.rhythmRulesJson),
+    narrativeRules: derived.ruleSet.narrativeRules,
+    characterRules: derived.ruleSet.characterRules,
+    languageRules: derived.ruleSet.languageRules,
+    rhythmRules: derived.ruleSet.rhythmRules,
     antiAiRules: (row.antiAiBindings ?? []).map((binding) => mapAntiAiRuleRow(binding.antiAiRule)),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

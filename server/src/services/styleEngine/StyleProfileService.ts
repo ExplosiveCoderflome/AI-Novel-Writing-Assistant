@@ -1,5 +1,14 @@
+import { Prisma } from "@prisma/client";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import type { StyleExtractionDraft, StyleFeatureDecision, StyleProfile, StyleProfileFeature, StyleSourceType, StyleTemplate } from "@ai-novel/shared/types/styleEngine";
+import type {
+  StyleExtractionDraft,
+  StyleExtractionPreset,
+  StyleFeatureDecision,
+  StyleProfile,
+  StyleProfileFeature,
+  StyleSourceType,
+  StyleTemplate,
+} from "@ai-novel/shared/types/styleEngine";
 import { prisma } from "../../db/prisma";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import {
@@ -35,6 +44,9 @@ interface ManualProfileInput {
   languageRules?: Record<string, unknown>;
   rhythmRules?: Record<string, unknown>;
   antiAiRuleIds?: string[];
+  extractionPresets?: StyleExtractionPreset[];
+  extractionAntiAiRuleKeys?: string[];
+  selectedExtractionPresetKey?: StyleExtractionPreset["key"] | null;
 }
 
 interface LlmInput {
@@ -90,31 +102,35 @@ export class StyleProfileService {
 
   async createManualProfile(input: ManualProfileInput): Promise<StyleProfile> {
     await ensureStyleEngineSeedData();
+    const data: Prisma.StyleProfileCreateInput = {
+      name: input.name,
+      description: input.description,
+      category: input.category,
+      tagsJson: serializeJson(input.tags ?? []),
+      applicableGenresJson: serializeJson(input.applicableGenres ?? []),
+      sourceType: input.sourceType ?? "manual",
+      sourceRefId: input.sourceRefId,
+      sourceContent: input.sourceContent,
+      extractedFeaturesJson: serializeJson(input.extractedFeatures ?? []),
+      analysisMarkdown: input.analysisMarkdown,
+      narrativeRulesJson: serializeJson(input.narrativeRules ?? {}),
+      characterRulesJson: serializeJson(input.characterRules ?? {}),
+      languageRulesJson: serializeJson(input.languageRules ?? {}),
+      rhythmRulesJson: serializeJson(input.rhythmRules ?? {}),
+      extractionPresetsJson: serializeJson(input.extractionPresets ?? []),
+      extractionAntiAiRuleKeysJson: serializeJson(input.extractionAntiAiRuleKeys ?? []),
+      selectedExtractionPresetKey: input.selectedExtractionPresetKey ?? null,
+      antiAiBindings: input.antiAiRuleIds?.length
+        ? {
+          create: input.antiAiRuleIds.map((antiAiRuleId) => ({
+            antiAiRuleId,
+            enabled: true,
+          })),
+        }
+        : undefined,
+    };
     const row = await prisma.styleProfile.create({
-      data: {
-        name: input.name,
-        description: input.description,
-        category: input.category,
-        tagsJson: serializeJson(input.tags ?? []),
-        applicableGenresJson: serializeJson(input.applicableGenres ?? []),
-        sourceType: input.sourceType ?? "manual",
-        sourceRefId: input.sourceRefId,
-        sourceContent: input.sourceContent,
-        extractedFeaturesJson: serializeJson(input.extractedFeatures ?? []),
-        analysisMarkdown: input.analysisMarkdown,
-        narrativeRulesJson: serializeJson(input.narrativeRules ?? {}),
-        characterRulesJson: serializeJson(input.characterRules ?? {}),
-        languageRulesJson: serializeJson(input.languageRules ?? {}),
-        rhythmRulesJson: serializeJson(input.rhythmRules ?? {}),
-        antiAiBindings: input.antiAiRuleIds?.length
-          ? {
-              create: input.antiAiRuleIds.map((antiAiRuleId) => ({
-                antiAiRuleId,
-                enabled: true,
-              })),
-            }
-          : undefined,
-      },
+      data,
       include: {
         antiAiBindings: {
           include: { antiAiRule: true },
@@ -132,32 +148,38 @@ export class StyleProfileService {
     const compiledRuleSet = normalizedExtractedFeatures
       ? buildRuleSetFromProfileFeatures(normalizedExtractedFeatures)
       : null;
+    const data: Prisma.StyleProfileUpdateInput = {
+      name: input.name,
+      description: input.description,
+      category: input.category,
+      tagsJson: input.tags ? serializeJson(input.tags) : undefined,
+      applicableGenresJson: input.applicableGenres ? serializeJson(input.applicableGenres) : undefined,
+      sourceRefId: input.sourceRefId,
+      sourceContent: input.sourceContent,
+      extractedFeaturesJson: normalizedExtractedFeatures ? serializeJson(normalizedExtractedFeatures) : undefined,
+      analysisMarkdown: input.analysisMarkdown,
+      narrativeRulesJson: compiledRuleSet
+        ? serializeJson(compiledRuleSet.narrativeRules)
+        : (input.narrativeRules ? serializeJson(input.narrativeRules) : undefined),
+      characterRulesJson: compiledRuleSet
+        ? serializeJson(compiledRuleSet.characterRules)
+        : (input.characterRules ? serializeJson(input.characterRules) : undefined),
+      languageRulesJson: compiledRuleSet
+        ? serializeJson(compiledRuleSet.languageRules)
+        : (input.languageRules ? serializeJson(input.languageRules) : undefined),
+      rhythmRulesJson: compiledRuleSet
+        ? serializeJson(compiledRuleSet.rhythmRules)
+        : (input.rhythmRules ? serializeJson(input.rhythmRules) : undefined),
+      extractionPresetsJson: input.extractionPresets ? serializeJson(input.extractionPresets) : undefined,
+      extractionAntiAiRuleKeysJson: input.extractionAntiAiRuleKeys
+        ? serializeJson(input.extractionAntiAiRuleKeys)
+        : undefined,
+      selectedExtractionPresetKey: input.selectedExtractionPresetKey,
+      status: input.status,
+    };
     await prisma.styleProfile.update({
       where: { id },
-      data: {
-        name: input.name,
-        description: input.description,
-        category: input.category,
-        tagsJson: input.tags ? serializeJson(input.tags) : undefined,
-        applicableGenresJson: input.applicableGenres ? serializeJson(input.applicableGenres) : undefined,
-        sourceRefId: input.sourceRefId,
-        sourceContent: input.sourceContent,
-        extractedFeaturesJson: normalizedExtractedFeatures ? serializeJson(normalizedExtractedFeatures) : undefined,
-        analysisMarkdown: input.analysisMarkdown,
-        narrativeRulesJson: compiledRuleSet
-          ? serializeJson(compiledRuleSet.narrativeRules)
-          : (input.narrativeRules ? serializeJson(input.narrativeRules) : undefined),
-        characterRulesJson: compiledRuleSet
-          ? serializeJson(compiledRuleSet.characterRules)
-          : (input.characterRules ? serializeJson(input.characterRules) : undefined),
-        languageRulesJson: compiledRuleSet
-          ? serializeJson(compiledRuleSet.languageRules)
-          : (input.languageRules ? serializeJson(input.languageRules) : undefined),
-        rhythmRulesJson: compiledRuleSet
-          ? serializeJson(compiledRuleSet.rhythmRules)
-          : (input.rhythmRules ? serializeJson(input.rhythmRules) : undefined),
-        status: input.status,
-      },
+      data,
     });
 
     if (input.antiAiRuleIds) {
@@ -249,6 +271,9 @@ export class StyleProfileService {
       languageRules: ruleSet.languageRules,
       rhythmRules: ruleSet.rhythmRules,
       antiAiRuleIds,
+      extractionPresets: draft.presets,
+      extractionAntiAiRuleKeys: draft.antiAiRuleKeys,
+      selectedExtractionPresetKey: null,
     });
   }
 
@@ -276,6 +301,7 @@ export class StyleProfileService {
     const extractedFeatures = buildProfileFeaturesFromDraft(normalizedDraft).map((feature) => ({
       ...feature,
       enabled: (input.decisions.find((item) => item.featureId === feature.id)?.decision ?? "keep") !== "remove",
+      selectedDecision: input.decisions.find((item) => item.featureId === feature.id)?.decision ?? "keep",
     }));
     const antiAiRuleIds = await this.resolveAntiAiRuleIds(normalizedDraft.antiAiRuleKeys);
 
@@ -295,6 +321,9 @@ export class StyleProfileService {
       languageRules: ruleSet.languageRules,
       rhythmRules: ruleSet.rhythmRules,
       antiAiRuleIds,
+      extractionPresets: normalizedDraft.presets,
+      extractionAntiAiRuleKeys: normalizedDraft.antiAiRuleKeys,
+      selectedExtractionPresetKey: input.presetKey ?? null,
     });
   }
 

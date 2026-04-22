@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 require("../dist/app.js");
 const { AutoDirectorFollowUpService } = require("../dist/services/task/autoDirectorFollowUps/AutoDirectorFollowUpService.js");
 const { NovelWorkflowTaskAdapter } = require("../dist/services/task/adapters/NovelWorkflowTaskAdapter.js");
+const autoDirectorChannelSettingsService = require("../dist/services/settings/AutoDirectorChannelSettingsService.js");
 const taskArchive = require("../dist/services/task/taskArchive.js");
 const { prisma } = require("../dist/db/prisma.js");
 
@@ -72,6 +73,7 @@ test("auto director follow-up service overview counts actionable rows by reason"
   const originals = {
     getArchivedTaskIds: taskArchive.getArchivedTaskIds,
     findMany: prisma.novelWorkflowTask.findMany,
+    getAutoDirectorChannelSettings: autoDirectorChannelSettingsService.getAutoDirectorChannelSettings,
   };
 
   taskArchive.getArchivedTaskIds = async () => [];
@@ -81,6 +83,21 @@ test("auto director follow-up service overview counts actionable rows by reason"
     buildWorkflowRow({ id: "task_candidate", checkpointType: "candidate_selection_required", currentStage: "AI 自动导演", currentItemKey: "auto_director", currentItemLabel: "等待确认书级方向", seedPayloadJson: null }),
     buildWorkflowRow({ id: "task_excluded", checkpointType: "book_contract_ready", currentItemLabel: "Book Contract 已就绪", seedPayloadJson: null }),
   ]);
+  autoDirectorChannelSettingsService.getAutoDirectorChannelSettings = async () => ({
+    baseUrl: "https://writer.example.test",
+    dingtalk: {
+      webhookUrl: "https://relay.example.test/dingtalk",
+      callbackToken: "",
+      operatorMapJson: "",
+      eventTypes: [],
+    },
+    wecom: {
+      webhookUrl: "https://relay.example.test/wecom",
+      callbackToken: "",
+      operatorMapJson: "",
+      eventTypes: [],
+    },
+  });
 
   const service = new AutoDirectorFollowUpService();
   const originalHeal = service.workflowService.healAutoDirectorTaskState;
@@ -101,6 +118,7 @@ test("auto director follow-up service overview counts actionable rows by reason"
   } finally {
     taskArchive.getArchivedTaskIds = originals.getArchivedTaskIds;
     prisma.novelWorkflowTask.findMany = originals.findMany;
+    autoDirectorChannelSettingsService.getAutoDirectorChannelSettings = originals.getAutoDirectorChannelSettings;
     service.workflowService.healAutoDirectorTaskState = originalHeal;
   }
 });
@@ -109,6 +127,7 @@ test("auto director follow-up service lists actionable items with filters, count
   const originals = {
     getArchivedTaskIds: taskArchive.getArchivedTaskIds,
     findMany: prisma.novelWorkflowTask.findMany,
+    getAutoDirectorChannelSettings: autoDirectorChannelSettingsService.getAutoDirectorChannelSettings,
   };
 
   taskArchive.getArchivedTaskIds = async () => [];
@@ -143,6 +162,21 @@ test("auto director follow-up service lists actionable items with filters, count
       }),
     ];
   };
+  autoDirectorChannelSettingsService.getAutoDirectorChannelSettings = async () => ({
+    baseUrl: "https://writer.example.test",
+    dingtalk: {
+      webhookUrl: "https://relay.example.test/dingtalk",
+      callbackToken: "",
+      operatorMapJson: "",
+      eventTypes: [],
+    },
+    wecom: {
+      webhookUrl: "https://relay.example.test/wecom",
+      callbackToken: "",
+      operatorMapJson: "",
+      eventTypes: [],
+    },
+  });
 
   const service = new AutoDirectorFollowUpService();
   const originalHeal = service.workflowService.healAutoDirectorTaskState;
@@ -175,6 +209,7 @@ test("auto director follow-up service lists actionable items with filters, count
   } finally {
     taskArchive.getArchivedTaskIds = originals.getArchivedTaskIds;
     prisma.novelWorkflowTask.findMany = originals.findMany;
+    autoDirectorChannelSettingsService.getAutoDirectorChannelSettings = originals.getAutoDirectorChannelSettings;
     service.workflowService.healAutoDirectorTaskState = originalHeal;
   }
 });
@@ -184,6 +219,7 @@ test("auto director follow-up service detail reuses workflow detail and adds fol
     isTaskArchived: taskArchive.isTaskArchived,
     findUnique: prisma.novelWorkflowTask.findUnique,
     adapterDetail: NovelWorkflowTaskAdapter.prototype.detail,
+    getAutoDirectorChannelSettings: autoDirectorChannelSettingsService.getAutoDirectorChannelSettings,
   };
 
   taskArchive.isTaskArchived = async () => false;
@@ -259,6 +295,21 @@ test("auto director follow-up service detail reuses workflow detail and adds fol
       failureDetails: null,
     };
   };
+  autoDirectorChannelSettingsService.getAutoDirectorChannelSettings = async () => ({
+    baseUrl: "https://writer.example.test",
+    dingtalk: {
+      webhookUrl: "https://relay.example.test/dingtalk",
+      callbackToken: "",
+      operatorMapJson: "",
+      eventTypes: [],
+    },
+    wecom: {
+      webhookUrl: "https://relay.example.test/wecom",
+      callbackToken: "",
+      operatorMapJson: "",
+      eventTypes: [],
+    },
+  });
 
   const service = new AutoDirectorFollowUpService();
   const originalHeal = service.workflowService.healAutoDirectorTaskState;
@@ -286,6 +337,7 @@ test("auto director follow-up service detail reuses workflow detail and adds fol
     taskArchive.isTaskArchived = originals.isTaskArchived;
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
     NovelWorkflowTaskAdapter.prototype.detail = originals.adapterDetail;
+    autoDirectorChannelSettingsService.getAutoDirectorChannelSettings = originals.getAutoDirectorChannelSettings;
     service.workflowService.healAutoDirectorTaskState = originalHeal;
   }
 });

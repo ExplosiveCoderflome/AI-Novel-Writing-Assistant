@@ -116,6 +116,9 @@ test("style engine routes return mocked payloads", async () => {
     sourceRefId: null,
     sourceContent: null,
     extractedFeatures: [],
+    extractionPresets: [],
+    extractionAntiAiRuleKeys: [],
+    selectedExtractionPresetKey: null,
     analysisMarkdown: "分析",
     status: "active",
     narrativeRules: {},
@@ -171,7 +174,11 @@ test("style engine routes return mocked payloads", async () => {
     extractedFeatures: [{
       ...fakeDraft.features[0],
       enabled: true,
+      selectedDecision: "keep",
     }],
+    extractionPresets: fakeDraft.presets,
+    extractionAntiAiRuleKeys: fakeDraft.antiAiRuleKeys,
+    selectedExtractionPresetKey: null,
   };
 
   StyleProfileService.prototype.listProfiles = async () => [fakeProfile];
