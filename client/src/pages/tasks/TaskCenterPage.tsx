@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 import { useDirectorChapterTitleRepair } from "@/hooks/useDirectorChapterTitleRepair";
+import { syncKnownTaskCaches } from "@/lib/taskQueryCache";
 import {
   buildTaskNoticeRoute,
   isChapterTitleDiversitySummary,
@@ -30,6 +31,15 @@ const ARCHIVABLE_STATUSES = new Set<TaskStatus>(["succeeded", "failed", "cancell
 
 function getTaskListPriority(status: TaskStatus): number {
   return status === "failed" ? 0 : 1;
+}
+
+type TaskSortMode = "default" | "updated_desc" | "updated_asc" | "heartbeat_desc" | "heartbeat_asc";
+
+function getTimestamp(value: string | null | undefined): number {
+  if (!value) {
+    return Number.NaN;
+  }
+  return new Date(value).getTime();
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -59,6 +69,9 @@ function formatKind(kind: TaskKind): string {
   }
   if (kind === "knowledge_document") {
     return "知识库索引";
+  }
+  if (kind === "style_extraction") {
+    return "写法提取";
   }
   if (kind === "agent_run") {
     return "Agent 运行";
@@ -179,6 +192,7 @@ export default function TaskCenterPage() {
   const [status, setStatus] = useState<TaskStatus | "">("");
   const [keyword, setKeyword] = useState("");
   const [onlyAnomaly, setOnlyAnomaly] = useState(false);
+  const [sortMode, setSortMode] = useState<TaskSortMode>("updated_desc");
   const [retryOverride, setRetryOverride] = useState<LLMSelectorValue>({
     provider: llm.provider,
     model: llm.model,
@@ -210,6 +224,22 @@ export default function TaskCenterPage() {
       (onlyAnomaly ? allRows.filter((item) => ANOMALY_STATUSES.has(item.status)) : allRows)
         .map((item, index) => ({ item, index }))
         .sort((left, right) => {
+          if (sortMode !== "default") {
+            const leftTime = sortMode.startsWith("heartbeat")
+              ? getTimestamp(left.item.heartbeatAt)
+              : getTimestamp(left.item.updatedAt);
+            const rightTime = sortMode.startsWith("heartbeat")
+              ? getTimestamp(right.item.heartbeatAt)
+              : getTimestamp(right.item.updatedAt);
+            const leftResolved = Number.isNaN(leftTime) ? -Infinity : leftTime;
+            const rightResolved = Number.isNaN(rightTime) ? -Infinity : rightTime;
+            const timeDiff = sortMode.endsWith("_asc")
+              ? leftResolved - rightResolved
+              : rightResolved - leftResolved;
+            if (timeDiff !== 0) {
+              return timeDiff;
+            }
+          }
           const priorityDiff = getTaskListPriority(left.item.status) - getTaskListPriority(right.item.status);
           if (priorityDiff !== 0) {
             return priorityDiff;
@@ -217,7 +247,7 @@ export default function TaskCenterPage() {
           return left.index - right.index;
         })
         .map(({ item }) => item),
-    [allRows, onlyAnomaly],
+    [allRows, onlyAnomaly, sortMode],
   );
 
   const detailQuery = useQuery({
@@ -290,6 +320,7 @@ export default function TaskCenterPage() {
     }),
     onSuccess: async (response, variables) => {
       const task = response.data;
+      syncKnownTaskCaches(queryClient, task);
       await invalidateTaskQueries();
       if (task) {
         setSearchParams((prev) => {
@@ -470,6 +501,7 @@ export default function TaskCenterPage() {
               <option value="novel_pipeline">小说流水线</option>
               <option value="knowledge_document">知识库索引</option>
               <option value="image_generation">图片生成</option>
+              <option value="style_extraction">写法提取</option>
               <option value="agent_run">Agent 运行</option>
             </select>
             <select
@@ -490,6 +522,17 @@ export default function TaskCenterPage() {
               onChange={(event) => setKeyword(event.target.value)}
               placeholder="标题或关联对象"
             />
+            <select
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={sortMode}
+              onChange={(event) => setSortMode(event.target.value as TaskSortMode)}
+            >
+              <option value="updated_desc">按更新时间排序：最新优先</option>
+              <option value="updated_asc">按更新时间排序：最早优先</option>
+              <option value="heartbeat_desc">按最近心跳排序：最新优先</option>
+              <option value="heartbeat_asc">按最近心跳排序：最早优先</option>
+              <option value="default">默认排序：失败优先</option>
+            </select>
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               <input
                 type="checkbox"
@@ -599,19 +642,21 @@ export default function TaskCenterPage() {
                   <div>开始时间：{formatDate(selectedTask.startedAt)}</div>
                   <div>结束时间：{formatDate(selectedTask.finishedAt)}</div>
                   <div>重试计数：{selectedTask.retryCountLabel}</div>
+                  {(selectedTask.provider || selectedTask.model) ? (
+                    <div>调用模型：{selectedTask.provider ?? "暂无"} / {selectedTask.model ?? "暂无"}</div>
+                  ) : null}
                   {isAutoDirectorTask ? (
                     <>
-                      <div>任务绑定模型：{selectedTask.provider ?? "暂无"} / {selectedTask.model ?? "暂无"}</div>
                       <div>当前界面模型：{llm.provider} / {llm.model}</div>
                     </>
                   ) : null}
-                  {selectedTask.tokenUsage ? (
+                  {(selectedTask.tokenUsage || selectedTask.provider || selectedTask.model) ? (
                     <>
-                      <div>累计调用：{formatTokenCount(selectedTask.tokenUsage.llmCallCount)}</div>
-                      <div>输入 Tokens：{formatTokenCount(selectedTask.tokenUsage.promptTokens)}</div>
-                      <div>输出 Tokens：{formatTokenCount(selectedTask.tokenUsage.completionTokens)}</div>
-                      <div>累计总 Tokens：{formatTokenCount(selectedTask.tokenUsage.totalTokens)}</div>
-                      <div>最近记录：{formatDate(selectedTask.tokenUsage.lastRecordedAt)}</div>
+                      <div>累计调用：{formatTokenCount(selectedTask.tokenUsage?.llmCallCount ?? 0)}</div>
+                      <div>输入 Tokens：{formatTokenCount(selectedTask.tokenUsage?.promptTokens ?? 0)}</div>
+                      <div>输出 Tokens：{formatTokenCount(selectedTask.tokenUsage?.completionTokens ?? 0)}</div>
+                      <div>累计总 Tokens：{formatTokenCount(selectedTask.tokenUsage?.totalTokens ?? 0)}</div>
+                      <div>最近记录：{formatDate(selectedTask.tokenUsage?.lastRecordedAt)}</div>
                     </>
                   ) : null}
                 </div>

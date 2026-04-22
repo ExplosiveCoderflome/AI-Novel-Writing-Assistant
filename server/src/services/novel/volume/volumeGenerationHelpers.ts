@@ -15,7 +15,7 @@ import {
   serializeChapterScenePlan,
 } from "@ai-novel/shared/types/chapterLengthControl";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
-import { volumeChapterTaskSheetPrompt } from "../../../prompting/prompts/novel/volume/chapterDetail.prompts";
+import { volumeChapterExecutionContractPrompt } from "../../../prompting/prompts/novel/volume/chapterDetail.prompts";
 import { buildVolumeChapterDetailContextBlocks } from "../../../prompting/prompts/novel/volume/contextBlocks";
 import type { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import { buildVolumeWorkspaceDocument } from "./volumeWorkspaceDocument";
@@ -518,6 +518,19 @@ export function mergeChapterDetail(params: {
         }
         return {
           ...chapter,
+          purpose: typeof generatedDetail.purpose === "string" ? generatedDetail.purpose : chapter.purpose,
+          exclusiveEvent: typeof generatedDetail.exclusiveEvent === "string" ? generatedDetail.exclusiveEvent : chapter.exclusiveEvent,
+          endingState: typeof generatedDetail.endingState === "string" ? generatedDetail.endingState : chapter.endingState,
+          nextChapterEntryState: typeof generatedDetail.nextChapterEntryState === "string"
+            ? generatedDetail.nextChapterEntryState
+            : chapter.nextChapterEntryState,
+          conflictLevel: typeof generatedDetail.conflictLevel === "number" ? generatedDetail.conflictLevel : chapter.conflictLevel,
+          revealLevel: typeof generatedDetail.revealLevel === "number" ? generatedDetail.revealLevel : chapter.revealLevel,
+          targetWordCount: typeof generatedDetail.targetWordCount === "number" ? generatedDetail.targetWordCount : chapter.targetWordCount,
+          mustAvoid: typeof generatedDetail.mustAvoid === "string" ? generatedDetail.mustAvoid : chapter.mustAvoid,
+          payoffRefs: Array.isArray(generatedDetail.payoffRefs)
+            ? generatedDetail.payoffRefs.filter((item): item is string => typeof item === "string")
+            : chapter.payoffRefs,
           taskSheet: typeof generatedDetail.taskSheet === "string" ? generatedDetail.taskSheet : chapter.taskSheet,
           sceneCards: typeof generatedDetail.sceneCards === "string" ? generatedDetail.sceneCards : chapter.sceneCards,
         };
@@ -550,26 +563,51 @@ export async function generateChapterTaskSheetDetail(params: {
     detailMode: "task_sheet";
   };
   options: VolumeGenerateOptions;
-}): Promise<{ taskSheet: string; sceneCards: string }> {
+}): Promise<{
+  purpose: string;
+  exclusiveEvent: string;
+  endingState: string;
+  nextChapterEntryState: string;
+  conflictLevel: number;
+  revealLevel: number;
+  targetWordCount: number;
+  mustAvoid: string;
+  payoffRefs: string[];
+  taskSheet: string;
+  sceneCards: string;
+}> {
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const generated = await runStructuredPrompt({
-        asset: volumeChapterTaskSheetPrompt,
+        asset: volumeChapterExecutionContractPrompt,
         promptInput: params.promptInput,
         contextBlocks: buildVolumeChapterDetailContextBlocks(params.promptInput),
         options: {
           provider: params.options.provider,
           model: params.options.model,
           temperature: params.options.temperature ?? 0.35,
+          novelId: params.promptInput.workspace.novelId,
+          chapterId: params.promptInput.targetChapter.id,
+          stage: "chapter_execution_contract",
+          triggerReason: "chapter_detail_generation",
         },
       });
       const scenePlan = normalizeChapterScenePlan(
         generated.output.sceneCards,
-        params.promptInput.targetChapter.targetWordCount,
+        generated.output.targetWordCount ?? params.promptInput.targetChapter.targetWordCount,
       );
       return {
+        purpose: generated.output.purpose.trim(),
+        exclusiveEvent: generated.output.exclusiveEvent.trim(),
+        endingState: generated.output.endingState.trim(),
+        nextChapterEntryState: generated.output.nextChapterEntryState.trim(),
+        conflictLevel: generated.output.conflictLevel,
+        revealLevel: generated.output.revealLevel,
+        targetWordCount: generated.output.targetWordCount,
+        mustAvoid: generated.output.mustAvoid.trim(),
+        payoffRefs: generated.output.payoffRefs,
         taskSheet: generated.output.taskSheet.trim(),
         sceneCards: serializeChapterScenePlan(scenePlan),
       };

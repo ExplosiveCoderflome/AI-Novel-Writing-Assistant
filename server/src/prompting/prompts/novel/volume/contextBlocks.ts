@@ -165,7 +165,7 @@ export function buildVolumeBeatSheetContextBlocks(input: VolumeBeatSheetPromptIn
     createContextBlock({
       id: "strategy_context",
       group: "strategy_context",
-      priority: 94,
+      priority: 82,
       content: `Strategy plan:\n${buildStrategyContext(input.strategyPlan)}`,
     }),
     createContextBlock({
@@ -256,9 +256,15 @@ export function buildVolumeChapterListContextBlocks(input: VolumeChapterListProm
       group: "adjacent_volumes",
       priority: 88,
       content: [
-        input.previousVolume ? `Previous volume:\n${buildCompactVolumeCard(input.previousVolume)}` : "",
-        input.nextVolume ? `Next volume:\n${buildCompactVolumeCard(input.nextVolume)}` : "",
-      ].filter(Boolean).join("\n\n") || "Adjacent volumes: none",
+        `Target beat:\n${buildBeatCard(input.targetBeat)}`,
+        `Beat chapter contract:\n${buildBeatChapterRangeContext({
+          targetBeat: input.targetBeat,
+          targetBeatChapterCount: input.targetBeatChapterCount,
+          targetChapterStartOrder: input.targetChapterStartOrder,
+          targetChapterEndOrder: input.targetChapterEndOrder,
+          nextAvailableChapterOrder: input.nextAvailableChapterOrder,
+        })}`,
+      ].join("\n\n"),
     }),
     createContextBlock({
       id: "previous_beat_chapters",

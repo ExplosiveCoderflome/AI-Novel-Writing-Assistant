@@ -44,6 +44,7 @@ const manualProfileSchema = z.object({
     transferability: z.number().min(0).max(1),
     fingerprintRisk: z.number().min(0).max(1),
     enabled: z.boolean(),
+    selectedDecision: z.enum(["keep", "weaken", "remove"]).optional(),
     keepRulePatch: z.record(z.string(), z.unknown()),
     weakenRulePatch: z.record(z.string(), z.unknown()).optional(),
   })).optional(),

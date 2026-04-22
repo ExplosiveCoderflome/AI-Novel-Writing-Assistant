@@ -367,6 +367,9 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-4">
+      <DesktopUpdateCard />
+      <DesktopLegacyDataImportCard forceVisible />
+
       <Card>
         <CardHeader>
           <CardTitle>Embedding Settings Moved</CardTitle>

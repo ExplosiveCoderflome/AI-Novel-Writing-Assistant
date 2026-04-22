@@ -15,6 +15,7 @@ import type { NovelWorkflowResumeTarget, NovelWorkflowStage } from "./novelWorkf
 import type { StoryMacroPlan } from "./storyMacro";
 import type { BookContract, BookContractDraft } from "./novelWorkflow";
 import type { TitleFactorySuggestion } from "./title";
+import type { StyleIntentSummary } from "./styleEngine";
 
 export const DIRECTOR_CORRECTION_PRESETS = [
   {
@@ -235,6 +236,8 @@ export interface DirectorTaskSeedPayloadSnapshot {
   batches?: DirectorCandidateBatch[];
   runMode?: DirectorRunMode;
   autoExecutionPlan?: DirectorAutoExecutionPlan;
+  styleProfileId?: string | null;
+  styleIntentSummary?: StyleIntentSummary | null;
   taskNotice?: DirectorTaskNotice | null;
 }
 
@@ -337,6 +340,7 @@ export interface DirectorTakeoverRequest extends DirectorLLMOptions {
   entryStep?: DirectorTakeoverEntryStep;
   strategy?: DirectorTakeoverStrategy;
   autoExecutionPlan?: DirectorAutoExecutionPlan;
+  styleProfileId?: string;
 }
 
 export interface DirectorTakeoverResponse {
@@ -367,6 +371,8 @@ export interface DirectorProjectContextInput {
   narrativePov?: NarrativePov;
   pacePreference?: PacePreference;
   styleTone?: string;
+  styleProfileId?: string;
+  styleIntentSummary?: StyleIntentSummary;
   emotionIntensity?: EmotionIntensity;
   aiFreedom?: AIFreedom;
   defaultChapterLength?: number;

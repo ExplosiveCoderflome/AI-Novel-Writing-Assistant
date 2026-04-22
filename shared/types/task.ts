@@ -4,7 +4,14 @@ import type {
   NovelWorkflowResumeTarget,
 } from "./novelWorkflow";
 
-export type TaskKind = "book_analysis" | "novel_pipeline" | "knowledge_document" | "image_generation" | "agent_run" | "novel_workflow";
+export type TaskKind =
+  | "book_analysis"
+  | "novel_pipeline"
+  | "knowledge_document"
+  | "image_generation"
+  | "agent_run"
+  | "novel_workflow"
+  | "style_extraction";
 
 export type TaskStatus = "queued" | "running" | "waiting_approval" | "succeeded" | "failed" | "cancelled";
 

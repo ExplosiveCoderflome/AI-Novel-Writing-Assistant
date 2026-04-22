@@ -7,7 +7,7 @@ import WorkflowProgressBar, {
   type WorkflowProgressTone,
 } from "./WorkflowProgressBar";
 
-export type AITakeoverMode = "loading" | "running" | "waiting" | "failed";
+export type AITakeoverMode = "loading" | "running" | "waiting" | "action_required" | "failed";
 
 export interface AITakeoverAction {
   label: string;
@@ -29,68 +29,91 @@ export interface AITakeoverContainerProps {
 }
 
 function modeLabel(mode: AITakeoverMode): string {
-  if (mode === "loading") {
-    return "加载中";
+  switch (mode) {
+    case "loading":
+      return "加载中";
+    case "running":
+      return "AI 接管中";
+    case "waiting":
+      return "等待确认";
+    case "action_required":
+      return "待处理";
+    case "failed":
+    default:
+      return "执行异常";
   }
-  if (mode === "running") {
-    return "AI 接管中";
-  }
-  if (mode === "waiting") {
-    return "等待确认";
-  }
-  return "执行异常";
 }
 
 function shellClass(mode: AITakeoverMode): string {
-  if (mode === "loading") {
-    return "border-slate-300/60 bg-slate-50/80";
+  switch (mode) {
+    case "loading":
+      return "border-slate-300/60 bg-slate-50/80";
+    case "failed":
+      return "border-destructive/35 bg-destructive/5";
+    case "action_required":
+      return "border-orange-500/35 bg-orange-50/80";
+    case "waiting":
+      return "border-amber-500/35 bg-amber-50/80";
+    case "running":
+    default:
+      return "border-sky-400/45 bg-sky-50/80";
   }
-  if (mode === "failed") {
-    return "border-destructive/35 bg-destructive/5";
-  }
-  if (mode === "waiting") {
-    return "border-amber-500/35 bg-amber-50/80";
-  }
-  return "border-sky-400/45 bg-sky-50/80";
 }
 
 function progressShellClass(mode: AITakeoverMode): string {
-  if (mode === "loading") {
-    return "border-slate-300/60 bg-background/75";
+  switch (mode) {
+    case "loading":
+      return "border-slate-300/60 bg-background/75";
+    case "failed":
+      return "border-destructive/20 bg-destructive/[0.03]";
+    case "action_required":
+      return "border-orange-500/20 bg-orange-500/[0.04]";
+    case "waiting":
+      return "border-amber-500/20 bg-amber-500/[0.04]";
+    case "running":
+    default:
+      return "border-primary/20 bg-primary/[0.05] shadow-sm";
   }
-  if (mode === "failed") {
-    return "border-destructive/20 bg-destructive/[0.03]";
-  }
-  if (mode === "waiting") {
-    return "border-amber-500/20 bg-amber-500/[0.04]";
-  }
-  return "border-primary/20 bg-primary/[0.05] shadow-sm";
 }
 
 function progressTone(mode: AITakeoverMode): WorkflowProgressTone {
-  if (mode === "loading") {
-    return "loading";
+  switch (mode) {
+    case "loading":
+      return "loading";
+    case "failed":
+      return "failed";
+    case "waiting":
+    case "action_required":
+      return "waiting";
+    case "running":
+    default:
+      return "running";
   }
-  if (mode === "failed") {
-    return "failed";
-  }
-  if (mode === "waiting") {
-    return "waiting";
-  }
-  return "running";
 }
 
 function progressStatusLabel(mode: AITakeoverMode): string | null {
-  if (mode === "running") {
-    return "实时推进中";
+  switch (mode) {
+    case "running":
+      return "实时推进中";
+    case "waiting":
+      return "等待你确认";
+    case "action_required":
+      return "需要你处理";
+    case "failed":
+      return "已中断";
+    default:
+      return null;
   }
-  if (mode === "waiting") {
-    return "等待你确认";
-  }
+}
+
+function badgeVariant(mode: AITakeoverMode): "default" | "secondary" | "destructive" {
   if (mode === "failed") {
-    return "已中断";
+    return "destructive";
   }
-  return null;
+  if (mode === "loading" || mode === "waiting" || mode === "action_required") {
+    return "secondary";
+  }
+  return "default";
 }
 
 export default function AITakeoverContainer({
@@ -112,17 +135,7 @@ export default function AITakeoverContainer({
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <div className="text-base font-semibold text-foreground">{title}</div>
-            <Badge
-              variant={
-                mode === "failed"
-                  ? "destructive"
-                  : mode === "waiting" || mode === "loading"
-                    ? "secondary"
-                    : "default"
-              }
-            >
-              {modeLabel(mode)}
-            </Badge>
+            <Badge variant={badgeVariant(mode)}>{modeLabel(mode)}</Badge>
             {taskId ? <Badge variant="outline">任务 #{taskId.slice(0, 8)}</Badge> : null}
           </div>
           <div className="text-sm text-muted-foreground">{description}</div>

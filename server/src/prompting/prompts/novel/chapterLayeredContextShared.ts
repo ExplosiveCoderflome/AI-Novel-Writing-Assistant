@@ -3,6 +3,7 @@ import type {
   GenerationContextPackage,
 } from "@ai-novel/shared/types/chapterRuntime";
 import { resolveLengthBudgetContract } from "@ai-novel/shared/types/chapterLengthControl";
+import { buildPlannerStyleContractSummaryText } from "../../../services/styleEngine/styleContractText";
 
 export function compactText(value: string | null | undefined, fallback = ""): string {
   return value?.replace(/\s+/g, " ").trim() || fallback;
@@ -168,16 +169,17 @@ export function summarizeHistoricalIssues(contextPackage: GenerationContextPacka
 }
 
 export function summarizeStyleConstraints(contextPackage: GenerationContextPackage): string[] {
-  const compiled = contextPackage.styleContext?.compiledBlocks;
-  if (!compiled) {
+  const contract = contextPackage.styleContext?.compiledBlocks?.contract;
+  if (!contract) {
     return [];
   }
-  return takeUnique([
-    ...splitLines(compiled.style, 2),
-    ...splitLines(compiled.character, 2),
-    ...splitLines(compiled.antiAi, 2),
-    ...splitLines(compiled.selfCheck, 1),
-  ], 6);
+  return takeUnique(
+    buildPlannerStyleContractSummaryText(contract)
+      .split(/\r?\n/g)
+      .map((line) => line.trim())
+      .filter(Boolean),
+    8,
+  );
 }
 
 export function summarizeContinuationConstraints(contextPackage: GenerationContextPackage): string[] {

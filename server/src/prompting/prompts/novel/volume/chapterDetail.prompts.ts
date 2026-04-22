@@ -3,6 +3,7 @@ import type { PromptAsset } from "../../../core/promptTypes";
 import { renderSelectedContextBlocks } from "../../../core/renderContextBlocks";
 import {
   createChapterBoundarySchema,
+  createChapterExecutionContractSchema,
   createChapterPurposeSchema,
   createChapterTaskSheetSchema,
 } from "../../../../services/novel/volume/volumeGenerationSchemas";

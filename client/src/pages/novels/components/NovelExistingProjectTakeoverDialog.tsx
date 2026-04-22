@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import { normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
 import type {
   DirectorAutoExecutionPlan,
@@ -10,6 +11,7 @@ import type {
 } from "@ai-novel/shared/types/novelDirector";
 import { getDirectorTakeoverReadiness, startDirectorTakeover } from "@/api/novelDirector";
 import { queryKeys } from "@/api/queryKeys";
+import { getStyleBindings, getStyleProfiles } from "@/api/styleEngine";
 import LLMSelector from "@/components/common/LLMSelector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -119,6 +121,7 @@ export default function NovelExistingProjectTakeoverDialog({
   const [selectedEntryStep, setSelectedEntryStep] = useState<DirectorTakeoverEntryStep>(defaultEntryStep);
   const [selectedStrategy, setSelectedStrategy] = useState<DirectorTakeoverStrategy>("continue_existing");
   const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState());
+  const [selectedStyleProfileId, setSelectedStyleProfileId] = useState("");
 
   const readinessQuery = useQuery({
     queryKey: queryKeys.novels.autoDirectorTakeoverReadiness(novelId),
@@ -126,8 +129,31 @@ export default function NovelExistingProjectTakeoverDialog({
     enabled: open && Boolean(novelId),
     retry: false,
   });
+  const styleProfilesQuery = useQuery({
+    queryKey: queryKeys.styleEngine.profiles,
+    queryFn: getStyleProfiles,
+    enabled: open,
+  });
+  const novelStyleBindingsQuery = useQuery({
+    queryKey: queryKeys.styleEngine.bindings(`novel-${novelId}`),
+    queryFn: () => getStyleBindings({ targetType: "novel", targetId: novelId }),
+    enabled: open && Boolean(novelId),
+  });
 
   const readiness = readinessQuery.data?.data ?? null;
+  const styleProfiles = styleProfilesQuery.data?.data ?? [];
+  const currentNovelStyleBindings = novelStyleBindingsQuery.data?.data ?? [];
+  const selectedStyleProfile = useMemo(
+    () => styleProfiles.find((item) => item.id === selectedStyleProfileId) ?? null,
+    [selectedStyleProfileId, styleProfiles],
+  );
+  const selectedStyleSummary = useMemo(
+    () => buildStyleIntentSummary({
+      styleProfile: selectedStyleProfile,
+      styleTone: basicForm.styleTone,
+    }),
+    [basicForm.styleTone, selectedStyleProfile],
+  );
   const contextLines = useMemo(
     () => summarizeCurrentContext(basicForm, genreOptions, storyModeOptions, worldOptions),
     [basicForm, genreOptions, storyModeOptions, worldOptions],
@@ -179,6 +205,7 @@ export default function NovelExistingProjectTakeoverDialog({
       }
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTask(novelId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTakeoverReadiness(novelId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.styleEngine.bindings(`novel-${novelId}`) });
       await queryClient.invalidateQueries({ queryKey: ["tasks"] });
       setOpen(false);
       toast.success(

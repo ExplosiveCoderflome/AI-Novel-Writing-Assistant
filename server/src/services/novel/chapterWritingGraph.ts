@@ -291,6 +291,10 @@ export class ChapterWritingGraph {
         provider: input.options.provider,
         model: input.options.model,
         temperature: input.options.temperature ?? 0.8,
+        novelId: input.novelId,
+        chapterId: input.chapter.id,
+        stage: "writer_extend",
+        triggerReason: "length_recovery",
       },
     });
     const appended = completion.output.trim();

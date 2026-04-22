@@ -34,6 +34,8 @@ export interface StructuredInvokeInput<T> {
   baseURL?: string;
   temperature?: number;
   maxTokens?: number;
+  timeoutMs?: number;
+  signal?: AbortSignal;
   taskType?: TaskType;
   label: string;
   maxRepairAttempts?: number;
@@ -57,6 +59,8 @@ export interface StructuredInvokeRawParseInput<T> {
   baseURL?: string;
   temperature?: number;
   maxTokens?: number;
+  timeoutMs?: number;
+  signal?: AbortSignal;
   taskType?: TaskType;
   label: string;
   maxRepairAttempts?: number;
@@ -448,7 +452,17 @@ function computeAttemptTemperature(baseTemperature: number, strategyIndex: numbe
 async function repairWithLlm<T>(
   input: Pick<
     StructuredInvokeInput<T>,
-    "provider" | "model" | "apiKey" | "baseURL" | "maxTokens" | "taskType" | "label" | "schema" | "promptMeta"
+    | "provider"
+    | "model"
+    | "apiKey"
+    | "baseURL"
+    | "maxTokens"
+    | "timeoutMs"
+    | "signal"
+    | "taskType"
+    | "label"
+    | "schema"
+    | "promptMeta"
   >,
   rawContent: string,
   validationError: string,
@@ -470,6 +484,7 @@ async function repairWithLlm<T>(
     model: input.model,
     temperature: 0.15,
     maxTokens: input.maxTokens,
+    timeoutMs: input.timeoutMs,
     taskType: input.taskType ?? "planner",
     promptMeta: input.promptMeta ? {
       ...input.promptMeta,
@@ -787,6 +802,7 @@ async function invokeStructuredAttempt<T>(input: {
     model: input.target.model,
     temperature: attemptTemperature,
     maxTokens: input.target.maxTokens,
+    timeoutMs: input.baseInput.timeoutMs,
     taskType: input.baseInput.taskType ?? "planner",
     promptMeta: input.baseInput.promptMeta,
     executionMode: "structured",
@@ -802,6 +818,9 @@ async function invokeStructuredAttempt<T>(input: {
   if (responseFormat) {
     invokeOptions.response_format = responseFormat;
   }
+  if (input.baseInput.signal) {
+    invokeOptions.signal = input.baseInput.signal;
+  }
 
   const messages = buildInvokeMessages(input.baseInput);
   logStructuredInvokeEvent({
@@ -816,7 +835,15 @@ async function invokeStructuredAttempt<T>(input: {
   });
   const startedAt = Date.now();
   try {
-    const result = await llm.invoke(messages, invokeOptions);
+    const result = await runWithEnforcedTimeout({
+      label: input.baseInput.label,
+      timeoutMs: input.baseInput.timeoutMs,
+      signal: input.baseInput.signal,
+      run: (signal) => llm.invoke(
+        messages,
+        signal ? { ...invokeOptions, signal } : invokeOptions,
+      ),
+    });
     const rawContent = toText(result.content);
     logStructuredInvokeEvent({
       event: "invoke_done",
@@ -839,6 +866,8 @@ async function invokeStructuredAttempt<T>(input: {
       baseURL: resolved.baseURL,
       temperature: resolved.temperature,
       maxTokens: resolved.maxTokens,
+      timeoutMs: input.baseInput.timeoutMs,
+      signal: input.baseInput.signal,
       taskType: input.baseInput.taskType,
       label: input.baseInput.label,
       maxRepairAttempts: input.baseInput.maxRepairAttempts,
@@ -905,6 +934,9 @@ async function tryStructuredStrategies<T>(input: {
         fallbackAvailable: input.fallbackAvailable,
         fallbackUsed: input.fallbackUsed,
       });
+      if (lastError.category === "transport_error") {
+        break;
+      }
       if (lastError.category === "schema_mismatch" && strategy === "prompt_json") {
         break;
       }

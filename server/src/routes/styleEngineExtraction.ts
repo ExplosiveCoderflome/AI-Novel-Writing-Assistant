@@ -5,6 +5,8 @@ import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { StyleProfileService } from "../services/styleEngine/StyleProfileService";
+import { styleExtractionTaskService } from "../services/styleEngine/StyleExtractionTaskService";
+import { taskCenterService } from "../services/task/TaskCenterService";
 
 const router = Router();
 const styleProfileService = new StyleProfileService();
@@ -18,6 +20,10 @@ const fromTextSchema = z.object({
   provider: providerSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
+});
+
+const fromTextTaskSchema = fromTextSchema.extend({
+  presetKey: z.enum(["imitate", "balanced", "transfer"]).optional(),
 });
 
 const styleRulePatchSchema = z.object({
@@ -85,6 +91,23 @@ router.post("/style-extractions/from-text", validate({ body: fromTextSchema }), 
       success: true,
       data,
       message: "文本写法特征提取完成。",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/style-extraction-tasks/from-text", validate({ body: fromTextTaskSchema }), async (req, res, next) => {
+  try {
+    const task = await styleExtractionTaskService.createTask(req.body as z.infer<typeof fromTextTaskSchema>);
+    const data = await taskCenterService.getTaskDetail("style_extraction", task.id);
+    if (!data) {
+      throw new Error("Style extraction task was created but could not be loaded.");
+    }
+    res.status(202).json({
+      success: true,
+      data,
+      message: "Style extraction task queued.",
     } satisfies ApiResponse<typeof data>);
   } catch (error) {
     next(error);

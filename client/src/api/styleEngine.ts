@@ -11,6 +11,7 @@ import type {
   StyleTemplate,
 } from "@ai-novel/shared/types/styleEngine";
 import type { CompiledStylePromptBlocks } from "@ai-novel/shared/types/styleEngine";
+import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import { apiClient } from "./client";
 
 export async function getStyleProfiles() {
@@ -87,6 +88,19 @@ export async function extractStyleFeaturesFromText(payload: {
   temperature?: number;
 }) {
   const { data } = await apiClient.post<ApiResponse<StyleExtractionDraft>>("/style-extractions/from-text", payload);
+  return data;
+}
+
+export async function createStyleExtractionTaskFromText(payload: {
+  name: string;
+  sourceText: string;
+  category?: string;
+  provider?: string;
+  model?: string;
+  temperature?: number;
+  presetKey?: "imitate" | "balanced" | "transfer";
+}) {
+  const { data } = await apiClient.post<ApiResponse<UnifiedTaskDetail>>("/style-extraction-tasks/from-text", payload);
   return data;
 }
 

@@ -97,6 +97,13 @@ function normalizeOptionalText(value: string | null | undefined): string | undef
   return trimmed || undefined;
 }
 
+function normalizeOptionalTimeoutMs(value: number | undefined): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return undefined;
+  }
+  return Math.floor(value);
+}
+
 function normalizeProviderSecret(secret: ProviderSecret): ProviderSecret {
   return {
     key: normalizeOptionalText(secret.key),
@@ -362,6 +369,7 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
     model: resolved.model,
     temperature: resolved.temperature,
     maxTokens: resolved.maxTokens,
+    timeoutMs: resolved.timeoutMs,
     taskType: resolved.taskType,
     baseURL: resolved.baseURL,
     promptMeta: resolved.promptMeta,

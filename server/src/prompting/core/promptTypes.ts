@@ -55,6 +55,14 @@ export interface PromptExecutionOptions {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  timeoutMs?: number;
+  signal?: AbortSignal;
+  novelId?: string;
+  chapterId?: string;
+  stage?: string;
+  sceneIndex?: number;
+  roundIndex?: number;
+  triggerReason?: string;
 }
 
 export interface PromptExecutionMeta {

@@ -16,6 +16,7 @@ interface LLMDebugMeta {
   model: string;
   temperature: number;
   maxTokens?: number;
+  timeoutMs?: number;
   taskType?: TaskType;
   baseURL?: string;
   promptMeta?: PromptInvocationMeta;
@@ -472,6 +473,9 @@ function buildHeader(method: "invoke" | "stream" | "batch", meta: LLMDebugMeta):
   ];
   if (typeof meta.maxTokens === "number") {
     chunks.push(`maxTokens=${meta.maxTokens}`);
+  }
+  if (typeof meta.timeoutMs === "number") {
+    chunks.push(`timeoutMs=${meta.timeoutMs}`);
   }
   if (meta.taskType) {
     chunks.push(`taskType=${meta.taskType}`);

@@ -1,6 +1,6 @@
-import { PenSquare } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import LLMSelector from "@/components/common/LLMSelector";
+import DesktopBrandMark from "@/components/layout/DesktopBrandMark";
 import { Button } from "@/components/ui/button";
 
 interface NavbarProps {
@@ -17,7 +17,7 @@ export default function Navbar(props: NavbarProps) {
   return (
     <header className="flex h-16 items-center justify-between border-b bg-background px-6">
       <div className="flex items-center gap-2">
-        <PenSquare className="h-5 w-5" />
+        <DesktopBrandMark className="h-8 w-8 shrink-0 drop-shadow-none" />
         <div className="flex flex-col leading-tight">
           <span className="text-sm font-semibold">AI 小说创作工作台</span>
           <span className="text-[11px] text-muted-foreground">AI Novel Production Engine</span>

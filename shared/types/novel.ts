@@ -167,6 +167,7 @@ export interface Chapter {
   mustAvoid?: string | null;
   taskSheet?: string | null;
   sceneCards?: string | null;
+  styleContract?: string | null;
   repairHistory?: string | null;
   qualityScore?: number | null;
   continuityScore?: number | null;
@@ -694,6 +695,7 @@ export interface VolumeChapterPlan {
   mustAvoid?: string | null;
   taskSheet?: string | null;
   sceneCards?: string | null;
+  styleContract?: string | null;
   payoffRefs: string[];
   createdAt: string;
   updatedAt: string;

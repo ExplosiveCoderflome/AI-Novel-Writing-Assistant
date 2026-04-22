@@ -363,6 +363,21 @@ export class GenerationContextAssembler {
       })),
       chapter.order,
     ));
+    const activeStyleProfileId = styleContext.matchedBindings[0]?.styleProfileId?.trim()
+      || styleContext.matchedBindings[0]?.styleProfile?.id?.trim()
+      || request.taskStyleProfileId?.trim()
+      || "";
+    const novelStyleTone = novel.styleTone?.trim() || "";
+    const filteredToneGuardrails = canonicalState.bookContract.toneGuardrails.filter((item) => {
+      const normalized = item.trim();
+      if (!normalized) {
+        return false;
+      }
+      if (!activeStyleProfileId) {
+        return true;
+      }
+      return !novelStyleTone || normalized !== novelStyleTone;
+    });
     const bookContract = buildBookContractContext({
       title: canonicalState.bookContract.title,
       genre: canonicalState.bookContract.genre ?? null,
@@ -533,6 +548,27 @@ export class GenerationContextAssembler {
       chapterWriteContext: null,
       chapterReviewContext: null,
       chapterRepairContext: null,
+      contextGatingDecisions: [],
+      chapterChangeFlags: {
+        introducedPayoff: false,
+        payoffResolutionSignal: false,
+        relationshipShiftSignal: false,
+        majorStateShiftSignal: false,
+      },
+      tokenBudgetPolicy: {
+        chapterBudgetProfile: "balanced",
+        stageTokenCap: {
+          writer: 1800,
+          light_audit: 900,
+          full_audit: 2600,
+          repair: 1600,
+        },
+        retryCap: {
+          full_audit: 1,
+          repair: 1,
+        },
+        auditMode: "light",
+      },
       promptBudgetProfiles: getRuntimePromptBudgetProfiles(),
     };
     const chapterWriteContext = buildChapterWriteContext({
@@ -604,6 +640,27 @@ export class GenerationContextAssembler {
       chapterWriteContext,
       chapterReviewContext,
       chapterRepairContext,
+      contextGatingDecisions: [],
+      chapterChangeFlags: {
+        introducedPayoff: false,
+        payoffResolutionSignal: false,
+        relationshipShiftSignal: false,
+        majorStateShiftSignal: false,
+      },
+      tokenBudgetPolicy: {
+        chapterBudgetProfile: "balanced",
+        stageTokenCap: {
+          writer: 1800,
+          light_audit: 900,
+          full_audit: 2600,
+          repair: 1600,
+        },
+        retryCap: {
+          full_audit: 1,
+          repair: 1,
+        },
+        auditMode: "light",
+      },
       promptBudgetProfiles: getRuntimePromptBudgetProfiles(),
     };
 

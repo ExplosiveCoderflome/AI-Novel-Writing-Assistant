@@ -219,18 +219,6 @@ function buildPresetMap(features: StyleExtractionFeature[], rawPresets: unknown)
   return result;
 }
 
-function mergeStylePatch(ruleSet: StyleRuleSet, patch: StyleRulePatch | undefined): StyleRuleSet {
-  if (!patch) {
-    return ruleSet;
-  }
-  return {
-    narrativeRules: patch.narrativeRules ? mergeRuleObjects(ruleSet.narrativeRules, patch.narrativeRules) : ruleSet.narrativeRules,
-    characterRules: patch.characterRules ? mergeRuleObjects(ruleSet.characterRules, patch.characterRules) : ruleSet.characterRules,
-    languageRules: patch.languageRules ? mergeRuleObjects(ruleSet.languageRules, patch.languageRules) : ruleSet.languageRules,
-    rhythmRules: patch.rhythmRules ? mergeRuleObjects(ruleSet.rhythmRules, patch.rhythmRules) : ruleSet.rhythmRules,
-  };
-}
-
 export function normalizeStyleExtractionDraft(
   raw: unknown,
   inputName: string,

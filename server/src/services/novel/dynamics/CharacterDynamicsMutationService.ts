@@ -379,6 +379,12 @@ export class CharacterDynamicsMutationService {
 
     const projection = await generateVolumeProjection(context);
     const sourceType = options.sourceType ?? "rebuild_projection";
+    const mergedAssignments = mergeProjectionAssignments(projection.assignments);
+    if (mergedAssignments.length < projection.assignments.length) {
+      console.warn(
+        `[CharacterDynamicsMutationService] Deduped ${projection.assignments.length - mergedAssignments.length} duplicate character-volume assignments for novel ${novelId}.`,
+      );
+    }
     const characterIdByName = new Map(context.characters.map((character) => [normalizeName(character.name), character.id]));
     const relationByPair = new Map(context.characterRelations.map((relation) => [
       `${relation.sourceCharacterId}:${relation.targetCharacterId}`,
@@ -420,24 +426,42 @@ export class CharacterDynamicsMutationService {
         if (!characterId || !volume) {
           continue;
         }
-        await tx.characterVolumeAssignment.create({
-          data: {
-            novelId,
-            characterId,
-            volumeId: volume.id,
-            roleLabel: assignment.roleLabel || null,
-            responsibility: assignment.responsibility,
-            appearanceExpectation: assignment.appearanceExpectation || null,
-            plannedChapterOrdersJson: JSON.stringify(
-              assignment.plannedChapterOrders.length > 0
-                ? assignment.plannedChapterOrders
-                : volume.chapters.map((chapter) => chapter.chapterOrder),
-            ),
-            isCore: assignment.isCore,
-            absenceWarningThreshold: assignment.absenceWarningThreshold ?? 3,
-            absenceHighRiskThreshold: assignment.absenceHighRiskThreshold ?? 5,
-          },
+        const plannedChapterOrders = assignment.plannedChapterOrders.length > 0
+          ? assignment.plannedChapterOrders
+          : volume.chapters.map((chapter) => chapter.chapterOrder);
+        const existingAssignment = await tx.characterVolumeAssignment.findFirst({
+          where: { novelId, characterId, volumeId: volume.id },
+          select: { id: true },
         });
+        if (existingAssignment) {
+          await tx.characterVolumeAssignment.update({
+            where: { id: existingAssignment.id },
+            data: {
+              roleLabel: assignment.roleLabel || null,
+              responsibility: assignment.responsibility,
+              appearanceExpectation: assignment.appearanceExpectation || null,
+              plannedChapterOrdersJson: JSON.stringify(plannedChapterOrders),
+              isCore: assignment.isCore,
+              absenceWarningThreshold: assignment.absenceWarningThreshold ?? 3,
+              absenceHighRiskThreshold: assignment.absenceHighRiskThreshold ?? 5,
+            },
+          });
+        } else {
+          await tx.characterVolumeAssignment.create({
+            data: {
+              novelId,
+              characterId,
+              volumeId: volume.id,
+              roleLabel: assignment.roleLabel || null,
+              responsibility: assignment.responsibility,
+              appearanceExpectation: assignment.appearanceExpectation || null,
+              plannedChapterOrdersJson: JSON.stringify(plannedChapterOrders),
+              isCore: assignment.isCore,
+              absenceWarningThreshold: assignment.absenceWarningThreshold ?? 3,
+              absenceHighRiskThreshold: assignment.absenceHighRiskThreshold ?? 5,
+            },
+          });
+        }
       }
 
       for (const track of projection.factionTracks) {

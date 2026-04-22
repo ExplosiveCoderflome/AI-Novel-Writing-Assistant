@@ -22,7 +22,7 @@ export const DIRECTOR_PROGRESS = {
   front10Ready: 0.92,
 } as const;
 
-export const DIRECTOR_CHAPTER_DETAIL_MODES = ["purpose", "boundary", "task_sheet"] as const;
+export const DIRECTOR_CHAPTER_DETAIL_MODES = ["task_sheet"] as const;
 
 export type DirectorProgressItemKey =
   | "candidate_seed_alignment"

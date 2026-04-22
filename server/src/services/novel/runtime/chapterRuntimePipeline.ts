@@ -15,6 +15,7 @@ export interface PipelineRuntimeInput extends ChapterRuntimeRequestInput {
   maxRetries?: number;
   autoReview?: boolean;
   autoRepair?: boolean;
+  auditMode?: "light" | "full" | "repair_only";
   qualityThreshold?: number;
   repairMode?: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only";
 }
@@ -267,6 +268,10 @@ async function repairDraftContent(input: {
       provider: input.options.provider,
       model: input.options.model,
       temperature: Math.min(input.options.temperature ?? 0.55, 0.65),
+      novelId: input.runtimePackage.novelId,
+      chapterId: input.runtimePackage.chapterId,
+      stage: "chapter_repair",
+      triggerReason: input.options.repairMode ?? "light_repair",
     },
   });
   const nextContent = repaired.output.trim();

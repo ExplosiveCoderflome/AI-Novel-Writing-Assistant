@@ -34,9 +34,21 @@ function clearStaleOptimizeCache(rootDir: string): void {
   console.info("[vite] Cleared stale optimize cache because cached dependency sources no longer exist.");
 }
 
+function resolveDevProxyTarget(): string {
+  const configuredHost = process.env.HOST?.trim();
+  const port = Number(process.env.PORT ?? 3000);
+  const targetHost = configuredHost && !["0.0.0.0", "::"].includes(configuredHost)
+    ? configuredHost
+    : "127.0.0.1";
+  return `http://${targetHost}:${port}`;
+}
+
 clearStaleOptimizeCache(__dirname);
 
+const isDesktopRelativeBaseBuild = process.env.AI_NOVEL_CLIENT_BASE === "relative";
+
 export default defineConfig({
+  base: isDesktopRelativeBaseBuild ? "./" : "/",
   plugins: [react()],
   resolve: {
     alias: {
@@ -63,6 +75,12 @@ export default defineConfig({
     },
   },
   server: {
-    host: true, // 允许局域网访问（监听 0.0.0.0）
+    host: true,
+    proxy: {
+      "/api": {
+        target: resolveDevProxyTarget(),
+        changeOrigin: true,
+      },
+    },
   },
 });

@@ -1,4 +1,5 @@
 import { prisma } from "../../../db/prisma";
+import { withSqliteRetry } from "../../../db/sqliteRetry";
 import type { DirectorWorkflowSeedPayload } from "../director/novelDirectorHelpers";
 import type { DirectorAutoExecutionState } from "@ai-novel/shared/types/novelDirector";
 import type { PipelineJobStatus } from "@ai-novel/shared/types/novel";
@@ -231,7 +232,7 @@ export async function syncAutoDirectorChapterBatchCheckpoint(input: {
     if (!needsCompletionUpdate) {
       return false;
     }
-    await prisma.novelWorkflowTask.update({
+    await withSqliteRetry(() => prisma.novelWorkflowTask.update({
       where: { id: input.taskId },
       data: {
         status: "succeeded",
@@ -249,7 +250,7 @@ export async function syncAutoDirectorChapterBatchCheckpoint(input: {
         milestonesJson: appendMilestone(existing.milestonesJson, "workflow_completed", reconciliation.checkpointSummary),
         lastError: null,
       },
-    });
+    }), { label: "novelWorkflowTask.update" });
     return true;
   }
 
@@ -283,7 +284,7 @@ export async function syncAutoDirectorChapterBatchCheckpoint(input: {
   if (!needsCheckpointRefresh) {
     return false;
   }
-  await prisma.novelWorkflowTask.update({
+  await withSqliteRetry(() => prisma.novelWorkflowTask.update({
     where: { id: input.taskId },
     data: checkpointPatch,
   });

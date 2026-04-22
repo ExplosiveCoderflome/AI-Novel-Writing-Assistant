@@ -78,6 +78,13 @@ export const volumeDynamicsProjectionPrompt: PromptAsset<
   contextPolicy: {
     maxTokensBudget: 0,
   },
+  structuredOutputHint: {
+    note: [
+      "plannedChapterOrders 只能是正整数数组；拿不准就省略或输出空数组，不要输出 null、[null]、字符串数组。",
+      "roleLabel、stanceLabel、summary 等可选字段拿不准时优先省略，不要为了凑结构输出 null。",
+      "不要输出 confidence。",
+    ].join(" "),
+  },
   outputSchema: volumeDynamicsProjectionSchema,
   render: (input) => [
     new SystemMessage([
@@ -113,6 +120,9 @@ export const volumeDynamicsProjectionPrompt: PromptAsset<
       "固定 JSON 结构如下：",
       VOLUME_DYNAMICS_PROJECTION_TEMPLATE,
       "",
+      "额外提醒：plannedChapterOrders 合法示例为 [4, 7] 或 []，不允许 [null]、[\"4\"]、[\"第4章\"]。",
+      "不要输出 confidence。",
+      "",
       "输出内容必须严格符合 volumeDynamicsProjectionSchema。",
     ].join("\n")),
     new HumanMessage([
@@ -144,6 +154,13 @@ export const chapterDynamicsExtractionPrompt: PromptAsset<
   language: "zh",
   contextPolicy: {
     maxTokensBudget: 0,
+  },
+  structuredOutputHint: {
+    note: [
+      "confidence 是可选字段。",
+      "如果输出 confidence，必须是 0-1 数字。",
+      "不要输出 5、10、80、百分数、中文等级或字符串化置信度；拿不准就省略。",
+    ].join(" "),
   },
   outputSchema: chapterDynamicExtractionSchema,
   render: (input) => [

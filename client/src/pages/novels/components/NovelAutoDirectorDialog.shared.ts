@@ -43,6 +43,9 @@ export function buildAutoDirectorRequestPayload(
   llm: AutoDirectorRequestLlmOptions,
   runMode: DirectorRunMode,
   workflowTaskId?: string,
+  options?: {
+    styleProfileId?: string;
+  },
 ) {
   const commercialTags = normalizeCommercialTags(basicForm.commercialTagsText);
   return {
@@ -64,6 +67,7 @@ export function buildAutoDirectorRequestPayload(
     narrativePov: basicForm.narrativePov,
     pacePreference: basicForm.pacePreference,
     styleTone: basicForm.styleTone.trim() || undefined,
+    styleProfileId: options?.styleProfileId?.trim() || undefined,
     emotionIntensity: basicForm.emotionIntensity,
     aiFreedom: basicForm.aiFreedom,
     defaultChapterLength: basicForm.defaultChapterLength,

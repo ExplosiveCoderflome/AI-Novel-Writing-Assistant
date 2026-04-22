@@ -62,6 +62,7 @@ function buildPromptInvocationMeta(
   repairAttempts: number,
   semanticRetryUsed: boolean,
   semanticRetryAttempts: number,
+  options?: PromptExecutionOptions,
 ): PromptInvocationMeta {
   return {
     promptId: asset.id,
@@ -126,6 +127,14 @@ function safeJsonStringify(value: unknown): string {
   }
 }
 
+function buildPromptCallOptions(options?: PromptExecutionOptions): Record<string, unknown> {
+  const callOptions: Record<string, unknown> = {};
+  if (options?.signal) {
+    callOptions.signal = options.signal;
+  }
+  return callOptions;
+}
+
 function buildDefaultSemanticRetryMessages<I, R>(input: {
   baseMessages: BaseMessage[];
   attempt: number;
@@ -175,6 +184,7 @@ export function preparePromptExecution<I, O, R = O>(input: {
   asset: PromptAsset<I, O, R>;
   promptInput: I;
   contextBlocks?: Parameters<typeof selectContextBlocks>[0];
+  options?: PromptExecutionOptions;
 }): {
   messages: ReturnType<PromptAsset<I, O, R>["render"]>;
   context: PromptRenderContext;
@@ -209,6 +219,7 @@ export function preparePromptExecution<I, O, R = O>(input: {
       0,
       false,
       0,
+      input.options,
     ),
   };
 }
@@ -383,6 +394,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
           totalRepairAttempts,
           semanticRetryAttempts > 0,
           semanticRetryAttempts,
+          input.options,
         ),
       };
     } catch (error) {
@@ -417,6 +429,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
               totalRepairAttempts,
               semanticRetryAttempts > 0,
               semanticRetryAttempts,
+              input.options,
             ),
           };
         }
@@ -464,6 +477,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
           totalRepairAttempts,
           true,
           semanticRetryAttempts,
+          input.options,
         ),
       });
       logPromptEvent({
@@ -552,7 +566,7 @@ export async function runTextPrompt<I>(input: {
     taskType: prepared.invocation.effectiveTaskType ?? input.asset.taskType,
     promptMeta: prepared.invocation,
   });
-  const result = await llm.invoke(prepared.messages);
+  const result = await llm.invoke(prepared.messages, buildPromptCallOptions(input.options));
   return buildPromptRunResult({
     output: applyPromptPostValidate({
       asset: input.asset,
@@ -576,6 +590,7 @@ export async function runTextPrompt<I>(input: {
       0,
       false,
       0,
+      input.options,
     ),
   });
 }
@@ -600,7 +615,7 @@ export async function streamTextPrompt<I>(input: {
     taskType: prepared.invocation.effectiveTaskType ?? input.asset.taskType,
     promptMeta: prepared.invocation,
   });
-  const rawStream = await llm.stream(prepared.messages);
+  const rawStream = await llm.stream(prepared.messages, buildPromptCallOptions(input.options));
   const captured = captureStreamOutput(rawStream as AsyncIterable<BaseMessageChunk>);
 
   return {
@@ -628,6 +643,7 @@ export async function streamTextPrompt<I>(input: {
         0,
         false,
         0,
+        input.options,
       ),
     })),
     context: prepared.context,
@@ -679,6 +695,9 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
   });
   if (responseFormat) {
     invokeOptions.response_format = responseFormat;
+  }
+  if (input.options?.signal) {
+    invokeOptions.signal = input.options.signal;
   }
   const rawStream = await llm.stream(prepared.messages, invokeOptions);
   const captured = captureStreamOutput(rawStream as AsyncIterable<BaseMessageChunk>);

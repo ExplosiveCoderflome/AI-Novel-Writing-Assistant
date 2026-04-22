@@ -81,6 +81,25 @@ function countChapterCharacters(content: string): number {
   return content.replace(/\s+/g, "").trim().length;
 }
 
+function shouldEscalateToFullAudit(input: {
+  content: string;
+  contextPackage: GenerationContextPackage;
+  lightAssessment: Awaited<ReturnType<typeof auditService.assessChapterAuditNeed>>;
+}): boolean {
+  if (input.lightAssessment.shouldRunFullAudit) {
+    return true;
+  }
+  const budget = input.contextPackage.chapterWriteContext?.lengthBudget;
+  if (!budget) {
+    return false;
+  }
+  const finalWordCount = countChapterCharacters(input.content);
+  if (finalWordCount > budget.hardMaxWordCount) {
+    return true;
+  }
+  return finalWordCount < Math.floor(budget.softMinWordCount * 0.75);
+}
+
 function mapOpenConflictForRuntime(
   conflict: Awaited<ReturnType<typeof openConflictService.listOpenConflicts>>[number],
 ): GenerationContextPackage["openConflicts"][number] {
@@ -355,7 +374,7 @@ export class ChapterRuntimeCoordinator {
       );
     }
 
-    const auditResult = await this.deps.auditService.auditChapter(input.novelId, input.chapterId, "full", {
+    const lightAssessment = await this.deps.auditService.assessChapterAuditNeed(input.novelId, input.chapterId, {
       provider: input.request.provider,
       model: input.request.model,
       temperature: input.request.temperature,
@@ -363,6 +382,24 @@ export class ChapterRuntimeCoordinator {
       contextPackage: input.contextPackage,
       lengthControl: input.lengthControl,
     });
+    const auditResult = shouldEscalateToFullAudit({
+      content: styleReview.finalContent,
+      contextPackage: input.contextPackage,
+      lightAssessment,
+    })
+      ? await this.deps.auditService.auditChapter(input.novelId, input.chapterId, "full", {
+        provider: input.request.provider,
+        model: input.request.model,
+        temperature: input.request.temperature,
+        content: styleReview.finalContent,
+        contextPackage: input.contextPackage,
+        lengthControl: input.lengthControl,
+      })
+      : {
+        score: lightAssessment.score,
+        issues: lightAssessment.issues,
+        auditReports: lightAssessment.auditReports,
+      };
     const activeOpenConflicts = await openConflictService.listOpenConflicts(input.novelId, {
       beforeChapterOrder: input.contextPackage.chapter.order,
       includeCurrentChapter: true,

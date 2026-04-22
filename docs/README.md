@@ -31,6 +31,7 @@
 - [Assistant UI Plan](./plans/assistant-ui-plan.md)
 - [Knowledge Module Plan](./plans/knowledge-module-plan.md)
 - [Chapter Editor V2 Plan](./plans/chapter-editor-v2-plan.md)
+- [Desktop Plan](./plans/desktop-plan.md)
 
 ### `docs/design`
 
@@ -38,6 +39,7 @@
 
 - [Style Engine v1](./design/style-engine-v1.md)
 - [Style Engine Prompt Compiler v1](./design/style-engine-prompt-compiler-v1.md)
+- [Style Engine Boundary and PRD v2](./design/style-engine-boundary-prd-v2.md)
 - [World Management v2](./design/world-management-v2.md)
 - [World Story Interface v1](./design/world-story-interface-v1.md)
 

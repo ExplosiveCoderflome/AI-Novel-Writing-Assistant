@@ -579,11 +579,17 @@ export async function runDirectorStructuredOutlinePhase(input: {
     "正在同步已准备章节到执行区",
     DIRECTOR_PROGRESS.chapterSync,
   );
-  let persistedOutlineWorkspace = await dependencies.volumeService.updateVolumes(novelId, workspace);
-  await dependencies.volumeService.syncVolumeChapters(novelId, {
+  let persistedOutlineWorkspace = await dependencies.volumeService.updateVolumesWithOptions(novelId, workspace, {
+    volumeUpdateReason: "chapter_execution_contract_refined",
+    syncPayoffLedger: false,
+  });
+  await dependencies.volumeService.syncVolumeChaptersWithOptions(novelId, {
     volumes: persistedOutlineWorkspace.volumes,
     preserveContent: true,
     applyDeletes: false,
+  }, {
+    emitEvent: false,
+    syncPayoffLedger: false,
   });
   await callbacks.markDirectorTaskRunning(
     taskId,

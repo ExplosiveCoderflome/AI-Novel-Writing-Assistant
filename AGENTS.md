@@ -32,6 +32,19 @@
 - Do not assume the primary user can manually repair structure, pacing, character arcs, or chapter planning without substantial AI support.
 - If there is a tradeoff between expert-oriented flexibility and beginner completion rate, prefer the path that better helps a novice user successfully produce a complete novel.
 
+## UI Copy Rules
+
+- All user-facing UI copy must explain the function from the user's perspective: what the user can do, what the system is helping with, or what the next step is.
+- Do not write UI copy as implementation commentary, migration commentary, refactor commentary, or change-history commentary.
+- Avoid product-facing copy that uses process/meta wording such as `现在`, `不再`, `已经`, `之前`, `原本`, `迁回`, `升级为`, or similar "we changed this" narration when the text is visible to end users.
+- Prefer direct task wording such as:
+  - entry point guidance;
+  - action guidance;
+  - expected effect;
+  - current selection or current result.
+- If a workflow belongs in another module, explain the correct user entry point directly, for example "从小说基础信息设置书级默认写法", rather than "书级默认写法已经迁回小说页".
+- Before finishing UI work, review newly added copy and rewrite any sentence that sounds like it is talking to the developer or describing the modification process.
+
 ## Architecture Rules
 
 - If a single source file becomes too long, it must be split into functional modules.

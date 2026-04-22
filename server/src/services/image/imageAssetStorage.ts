@@ -7,6 +7,7 @@ import path from "node:path";
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client, S3ServiceException } from "@aws-sdk/client-s3";
 import { imageStorageConfig, isS3ImageStorageEnabled } from "../../config/imageStorage";
 import { AppError } from "../../middleware/errorHandler";
+import { resolveGeneratedImagesRoot } from "../../runtime/appPaths";
 
 interface ParsedAssetMetadata {
   localPath: string | null;
@@ -585,7 +586,7 @@ export function parseImageAssetMetadata(metadata: string | null | undefined): Pa
 }
 
 export async function persistGeneratedImageAsset(input: PersistGeneratedImageInput): Promise<PersistedGeneratedImage> {
-  const storageRoot = input.storageRoot ?? DEFAULT_STORAGE_ROOT;
+  const storageRoot = input.storageRoot ?? resolveGeneratedImagesRoot();
   const image = await readImageBuffer({
     url: input.url,
     mimeType: input.mimeType,
@@ -737,4 +738,45 @@ export async function removeStoredImageAssetFile(input: RemoveStoredImageAssetFi
     metadata: input.metadata,
     storageRoot: input.storageRoot,
   });
+}
+
+export async function removeLocalImageAssetFile(input: {
+  assetId: string;
+  url: string;
+  metadata?: string | null;
+  storageRoot?: string;
+}): Promise<void> {
+  const metadata = parseImageAssetMetadata(input.metadata);
+  const localPath = metadata.localPath
+    ?? (path.isAbsolute(input.url) ? input.url : null);
+
+  if (!localPath) {
+    return;
+  }
+
+  try {
+    await fs.unlink(localPath);
+  } catch (error) {
+    const fsError = error as NodeJS.ErrnoException;
+    if (fsError?.code !== "ENOENT") {
+      throw error;
+    }
+  }
+
+  const storageRoot = input.storageRoot ?? resolveGeneratedImagesRoot();
+  let currentDirectory = path.dirname(localPath);
+  const normalizedStorageRoot = path.resolve(storageRoot);
+
+  while (currentDirectory.startsWith(normalizedStorageRoot) && currentDirectory !== normalizedStorageRoot) {
+    try {
+      await fs.rmdir(currentDirectory);
+      currentDirectory = path.dirname(currentDirectory);
+    } catch (error) {
+      const fsError = error as NodeJS.ErrnoException;
+      if (fsError?.code === "ENOTEMPTY" || fsError?.code === "ENOENT") {
+        break;
+      }
+      throw error;
+    }
+  }
 }

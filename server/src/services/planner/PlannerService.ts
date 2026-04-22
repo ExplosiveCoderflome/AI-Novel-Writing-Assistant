@@ -37,7 +37,9 @@ import { resolveChapterPlanParticipants } from "./plannerParticipantResolution";
 
 export { normalizePlannerOutput } from "./plannerOutputNormalization";
 
-interface PlannerOptions extends PlannerLlmOptions {}
+interface PlannerOptions extends PlannerLlmOptions {
+  taskStyleProfileId?: string;
+}
 
 interface ReplanInput extends PlannerOptions {
   chapterId?: string;
@@ -232,7 +234,7 @@ export class PlannerService {
       throw new Error("小说不存在。");
     }
     const storyModeBlock = buildPlannerStoryModeBlock(novel);
-    const styleEngine = await this.resolvePlannerStyleEngineSummary(novelId);
+    const styleEngine = await this.resolvePlannerStyleEngineSummary(novelId, undefined, options.taskStyleProfileId);
     const contextBlocks = buildBookPlanContextBlocks({
       novelTitle: novel.title,
       description: novel.description,
@@ -302,7 +304,7 @@ export class PlannerService {
       throw new Error("小说不存在。");
     }
     const storyModeBlock = buildPlannerStoryModeBlock(novel);
-    const styleEngine = await this.resolvePlannerStyleEngineSummary(novelId);
+    const styleEngine = await this.resolvePlannerStyleEngineSummary(novelId, undefined, options.taskStyleProfileId);
     const contextBlocks = buildArcPlanContextBlocks({
       novelTitle: novel.title,
       description: novel.description,
@@ -907,9 +909,38 @@ export class PlannerService {
     });
   }
 
-  private async resolvePlannerStyleEngineSummary(novelId: string, chapterId?: string): Promise<string> {
+  buildReplanRecommendation(input: {
+    auditReports?: AuditReport[];
+    ledgerSummary?: PayoffLedgerSummary | null;
+    contextPackage?: GenerationContextPackage | null;
+    targetChapterOrder?: number | null;
+    requestedWindowSize?: number | null;
+    blockingLedgerKeys?: string[];
+  }) {
+    return buildReplanDecision({
+      auditReports: input.auditReports ?? [],
+      ledgerSummary: input.ledgerSummary ?? null,
+      snapshot: input.contextPackage?.canonicalState ?? null,
+      nextAction: input.contextPackage?.nextAction ?? null,
+      chapterStateGoal: input.contextPackage?.chapterStateGoal ?? null,
+      protectedSecrets: input.contextPackage?.protectedSecrets ?? [],
+      targetChapterOrder: input.targetChapterOrder ?? input.contextPackage?.chapter?.order ?? null,
+      requestedWindowSize: input.requestedWindowSize ?? null,
+      blockingLedgerKeys: input.blockingLedgerKeys ?? [],
+    });
+  }
+
+  private async resolvePlannerStyleEngineSummary(
+    novelId: string,
+    chapterId?: string,
+    taskStyleProfileId?: string,
+  ): Promise<string> {
     try {
-      const styleContext = await this.styleBindingService.resolveForGeneration({ novelId, chapterId });
+      const styleContext = await this.styleBindingService.resolveForGeneration({
+        novelId,
+        chapterId,
+        taskStyleProfileId,
+      });
       return buildPlannerStyleEngineSummary(styleContext);
     } catch {
       return "无";
