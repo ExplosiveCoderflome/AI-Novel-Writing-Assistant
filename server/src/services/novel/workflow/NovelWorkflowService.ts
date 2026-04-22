@@ -292,6 +292,7 @@ export class NovelWorkflowService {
       id: row.id,
       novelId: row.novelId,
       status: row.status as TaskStatus,
+      progress: "progress" in row && typeof row.progress === "number" ? row.progress : null,
       currentStage: row.currentStage,
       checkpointType: row.checkpointType as NovelWorkflowCheckpoint | null,
       checkpointSummary: row.checkpointSummary ?? null,
@@ -309,6 +310,7 @@ export class NovelWorkflowService {
       novelId: string | null;
       lane: string;
       status: string;
+      progress?: number | null;
       currentStage: string | null;
       checkpointType: string | null;
       checkpointSummary?: string | null;
@@ -325,6 +327,7 @@ export class NovelWorkflowService {
       novelId: string | null;
       lane: string;
       status: string;
+      progress?: number | null;
       currentStage: string | null;
       checkpointType: string | null;
       checkpointSummary?: string | null;
@@ -348,6 +351,7 @@ export class NovelWorkflowService {
     novelId: string | null;
     lane: string;
     status: string;
+    progress?: number | null;
     currentStage: string | null;
     checkpointType: string | null;
     checkpointSummary?: string | null;

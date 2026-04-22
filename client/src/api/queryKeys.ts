@@ -113,6 +113,7 @@ export const queryKeys = {
     modelRoutes: ["settings", "model-routes"] as const,
     modelRouteConnectivity: ["settings", "model-route-connectivity"] as const,
     structuredFallback: ["settings", "structured-fallback"] as const,
+    autoDirectorChannels: ["settings", "auto-director-channels"] as const,
   },
   novelsKnowledge: {
     bindings: (id: string) => ["novels", "knowledge-documents", id] as const,

@@ -110,6 +110,13 @@ test("auto director follow-up service lists actionable items with filters, count
     getArchivedTaskIds: taskArchive.getArchivedTaskIds,
     findMany: prisma.novelWorkflowTask.findMany,
   };
+  const previousEnv = {
+    AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL: process.env.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL,
+    AUTO_DIRECTOR_WECOM_WEBHOOK_URL: process.env.AUTO_DIRECTOR_WECOM_WEBHOOK_URL,
+  };
+
+  process.env.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL = "https://relay.example.test/dingtalk";
+  process.env.AUTO_DIRECTOR_WECOM_WEBHOOK_URL = "https://relay.example.test/wecom";
 
   taskArchive.getArchivedTaskIds = async () => [];
   prisma.novelWorkflowTask.findMany = async ({ where }) => {
@@ -175,6 +182,8 @@ test("auto director follow-up service lists actionable items with filters, count
   } finally {
     taskArchive.getArchivedTaskIds = originals.getArchivedTaskIds;
     prisma.novelWorkflowTask.findMany = originals.findMany;
+    process.env.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL = previousEnv.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL;
+    process.env.AUTO_DIRECTOR_WECOM_WEBHOOK_URL = previousEnv.AUTO_DIRECTOR_WECOM_WEBHOOK_URL;
     service.workflowService.healAutoDirectorTaskState = originalHeal;
   }
 });
@@ -314,6 +323,51 @@ test("auto director follow-up service detail reuses workflow detail and adds fol
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
     prisma.autoDirectorFollowUpNotificationLog.findMany = originals.notificationLogFindMany;
     NovelWorkflowTaskAdapter.prototype.detail = originals.adapterDetail;
+    service.workflowService.healAutoDirectorTaskState = originalHeal;
+  }
+});
+
+test("auto director follow-up service reflects runtime channel capabilities from configured webhooks", async () => {
+  const originals = {
+    getArchivedTaskIds: taskArchive.getArchivedTaskIds,
+    findMany: prisma.novelWorkflowTask.findMany,
+  };
+  const previousEnv = {
+    AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL: process.env.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL,
+    AUTO_DIRECTOR_WECOM_WEBHOOK_URL: process.env.AUTO_DIRECTOR_WECOM_WEBHOOK_URL,
+  };
+
+  process.env.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL = "https://relay.example.test/dingtalk";
+  delete process.env.AUTO_DIRECTOR_WECOM_WEBHOOK_URL;
+
+  taskArchive.getArchivedTaskIds = async () => [];
+  prisma.novelWorkflowTask.findMany = async () => ([
+    buildWorkflowRow({
+      id: "task_runtime_channels",
+      checkpointType: "front10_ready",
+    }),
+  ]);
+
+  const service = new AutoDirectorFollowUpService();
+  const originalHeal = service.workflowService.healAutoDirectorTaskState;
+  service.workflowService.healAutoDirectorTaskState = async () => false;
+
+  try {
+    const response = await service.list({
+      page: 1,
+      pageSize: 10,
+    });
+
+    assert.equal(response.items.length, 1);
+    assert.deepEqual(response.items[0].channelCapabilities, {
+      dingtalk: true,
+      wecom: false,
+    });
+  } finally {
+    taskArchive.getArchivedTaskIds = originals.getArchivedTaskIds;
+    prisma.novelWorkflowTask.findMany = originals.findMany;
+    process.env.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL = previousEnv.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL;
+    process.env.AUTO_DIRECTOR_WECOM_WEBHOOK_URL = previousEnv.AUTO_DIRECTOR_WECOM_WEBHOOK_URL;
     service.workflowService.healAutoDirectorTaskState = originalHeal;
   }
 });

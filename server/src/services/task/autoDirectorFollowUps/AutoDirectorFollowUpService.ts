@@ -31,6 +31,7 @@ import {
   getArchivedTaskIds,
   isTaskArchived,
 } from "../taskArchive";
+import { getAutoDirectorChannelSettings } from "../../settings/AutoDirectorChannelSettingsService";
 import { resolveAutoDirectorFollowUpReason } from "./autoDirectorFollowUpReasonResolver";
 
 interface RawFollowUpWorkflowRow {
@@ -200,7 +201,17 @@ function buildFollowUpSummary(
   return buildBlockingReason(row) ?? resolved.reasonLabel;
 }
 
-function projectFollowUpItem(row: FollowUpWorkflowRow): AutoDirectorFollowUpItem | null {
+function getRuntimeChannelCapabilities(channelSettings?: Awaited<ReturnType<typeof getAutoDirectorChannelSettings>>): AutoDirectorFollowUpItem["channelCapabilities"] {
+  return {
+    dingtalk: Boolean(channelSettings?.dingtalk.webhookUrl?.trim()),
+    wecom: Boolean(channelSettings?.wecom.webhookUrl?.trim()),
+  };
+}
+
+function projectFollowUpItem(
+  row: FollowUpWorkflowRow,
+  channelSettings?: Awaited<ReturnType<typeof getAutoDirectorChannelSettings>>,
+): AutoDirectorFollowUpItem | null {
   const executionScopeLabel = getExecutionScopeLabel(row.seedPayloadJson);
   const resolved = resolveAutoDirectorFollowUpReason({
     status: row.status,
@@ -231,7 +242,10 @@ function projectFollowUpItem(row: FollowUpWorkflowRow): AutoDirectorFollowUpItem
     availableActions: resolved.availableActions,
     batchActionCodes: resolved.batchActionCodes,
     supportsBatch: resolved.supportsBatch,
-    channelCapabilities: resolved.channelCapabilities,
+    channelCapabilities: {
+      dingtalk: resolved.channelCapabilities.dingtalk && getRuntimeChannelCapabilities(channelSettings).dingtalk,
+      wecom: resolved.channelCapabilities.wecom && getRuntimeChannelCapabilities(channelSettings).wecom,
+    },
     pendingManualRecovery: row.pendingManualRecovery,
     lastMilestoneAt: getLatestMilestoneAt(row.milestonesJson),
     updatedAt: row.updatedAt.toISOString(),
@@ -396,8 +410,9 @@ export class AutoDirectorFollowUpService {
 
   async getOverview(): Promise<AutoDirectorFollowUpOverview> {
     const rows = await this.loadRows();
+    const channelSettings = await getAutoDirectorChannelSettings();
     const items = rows
-      .map((row) => projectFollowUpItem(row))
+      .map((row) => projectFollowUpItem(row, channelSettings))
       .filter((item): item is AutoDirectorFollowUpItem => Boolean(item));
 
     return {
@@ -408,9 +423,10 @@ export class AutoDirectorFollowUpService {
 
   async list(input: AutoDirectorFollowUpListInput = {}): Promise<AutoDirectorFollowUpListResponse> {
     const rows = await this.loadRows();
+    const channelSettings = await getAutoDirectorChannelSettings();
     const scopedRows = rows.filter((row) => matchesRowScopeFilters(row, input));
     const scopedItems = scopedRows
-      .map((row) => projectFollowUpItem(row))
+      .map((row) => projectFollowUpItem(row, channelSettings))
       .filter((item): item is AutoDirectorFollowUpItem => Boolean(item));
     const filteredItems = scopedItems
       .filter((item) => matchesItemFilters(item, input))
@@ -459,7 +475,7 @@ export class AutoDirectorFollowUpService {
       return null;
     }
 
-    const item = projectFollowUpItem(row);
+    const item = projectFollowUpItem(row, await getAutoDirectorChannelSettings());
     if (!item) {
       return null;
     }

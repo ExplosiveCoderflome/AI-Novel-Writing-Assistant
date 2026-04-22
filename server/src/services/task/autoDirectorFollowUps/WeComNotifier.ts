@@ -37,7 +37,7 @@ function buildCallbackAction(input: {
     label: input.label,
     kind: "callback",
     callback: {
-      endpoint: `${input.baseUrl}/api/auto-director/channel-callbacks/dingtalk`,
+      endpoint: `${input.baseUrl}/api/auto-director/channel-callbacks/wecom`,
       token: input.callbackToken,
       callbackId: `${input.eventId}:${input.taskId}:${input.actionCode}`,
     },
@@ -57,7 +57,7 @@ function buildLinkAction(input: {
   };
 }
 
-export class DingTalkNotifier {
+export class WeComNotifier {
   isEnabled(config?: AutoDirectorChannelConfig | null): boolean {
     return Boolean(config?.webhookUrl.trim());
   }
@@ -95,7 +95,7 @@ export class DingTalkNotifier {
       : [];
 
     return {
-      channelType: "dingtalk",
+      channelType: "wecom",
       event: input.event,
       card: {
         title: "自动导演跟进提醒",

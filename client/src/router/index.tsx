@@ -42,6 +42,8 @@ const routes: RouteObject[] = [
       { path: "book-analysis", element: <BookAnalysisPage /> },
       { path: "tasks", element: <TaskCenterPage /> },
       { path: "auto-director/follow-ups", element: <AutoDirectorFollowUpCenterPage /> },
+      { path: "auto-director/follow-up-center", element: <Navigate to="/auto-director/follow-ups" replace /> },
+      { path: "auto-director/followup-center", element: <Navigate to="/auto-director/follow-ups" replace /> },
       { path: "knowledge", element: <KnowledgePage /> },
       { path: "genres", element: <GenreManagementPage /> },
       { path: "story-modes", element: <StoryModeManagementPage /> },

@@ -5,6 +5,11 @@ import type {
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import { prisma } from "../../../db/prisma";
 import { DingTalkNotifier } from "./DingTalkNotifier";
+import { WeComNotifier } from "./WeComNotifier";
+import {
+  getAutoDirectorChannelSettings,
+  type AutoDirectorChannelSettings,
+} from "../../settings/AutoDirectorChannelSettingsService";
 import {
   buildAutoDirectorEvent,
   detectAutoDirectorEventType,
@@ -50,6 +55,8 @@ function parseExecutionScopeLabel(seedPayloadJson: string | null | undefined): s
 export class AutoDirectorFollowUpNotificationService {
   private readonly dingTalkNotifier = new DingTalkNotifier();
 
+  private readonly weComNotifier = new WeComNotifier();
+
   async handleTaskTransition(input: {
     before: AutoDirectorEventWorkflowSnapshot | null;
     after: AutoDirectorEventWorkflowSnapshot | null;
@@ -64,7 +71,7 @@ export class AutoDirectorFollowUpNotificationService {
       after,
       afterStatus: input.after.status ?? null,
     });
-    if (!after || !eventType || eventType === "auto_director.progress_changed") {
+    if (!after || !eventType) {
       return;
     }
 
@@ -74,9 +81,16 @@ export class AutoDirectorFollowUpNotificationService {
       after,
       occurredAt,
     });
+    const channelSettings = await getAutoDirectorChannelSettings();
     await this.notifyDingTalk({
       event,
       after: input.after,
+      channelSettings,
+    });
+    await this.notifyWeCom({
+      event,
+      after: input.after,
+      channelSettings,
     });
   }
 
@@ -93,8 +107,13 @@ export class AutoDirectorFollowUpNotificationService {
   private async notifyDingTalk(input: {
     event: ReturnType<typeof buildAutoDirectorEvent>;
     after: AutoDirectorEventWorkflowSnapshot;
+    channelSettings: AutoDirectorChannelSettings;
   }) {
-    if (!this.dingTalkNotifier.isEnabled()) {
+    const channelConfig = input.channelSettings.dingtalk;
+    if (!this.dingTalkNotifier.isEnabled(channelConfig)) {
+      return;
+    }
+    if (!this.isEventEnabledForChannel(channelConfig.eventTypes, input.event.eventType)) {
       return;
     }
     const reasonResolved = resolveAutoDirectorFollowUpReason({
@@ -112,6 +131,8 @@ export class AutoDirectorFollowUpNotificationService {
       checkpointSummary: input.after.checkpointSummary ?? null,
       stage: input.after.currentStage,
       availableActions: this.resolveAvailableActions(input.after),
+      channelConfig,
+      baseUrl: input.channelSettings.baseUrl,
     });
 
     let responseStatus = null;
@@ -121,7 +142,7 @@ export class AutoDirectorFollowUpNotificationService {
     let target: string | null = null;
 
     try {
-      const delivered = await this.dingTalkNotifier.deliver(payload);
+      const delivered = await this.dingTalkNotifier.deliver(payload, channelConfig);
       target = delivered.target;
       responseStatus = delivered.status;
       responseBody = delivered.body;
@@ -147,11 +168,75 @@ export class AutoDirectorFollowUpNotificationService {
     });
   }
 
+  private async notifyWeCom(input: {
+    event: ReturnType<typeof buildAutoDirectorEvent>;
+    after: AutoDirectorEventWorkflowSnapshot;
+    channelSettings: AutoDirectorChannelSettings;
+  }) {
+    const channelConfig = input.channelSettings.wecom;
+    if (!this.weComNotifier.isEnabled(channelConfig)) {
+      return;
+    }
+    if (!this.isEventEnabledForChannel(channelConfig.eventTypes, input.event.eventType)) {
+      return;
+    }
+    const reasonResolved = resolveAutoDirectorFollowUpReason({
+      status: input.after.status,
+      checkpointType: input.after.checkpointType,
+      pendingManualRecovery: input.after.pendingManualRecovery,
+      executionScopeLabel: parseExecutionScopeLabel(input.after.seedPayloadJson),
+    });
+    const payload = this.weComNotifier.buildPayload({
+      event: input.event,
+      taskId: input.after.id,
+      novelId: input.after.novelId,
+      novelTitle: input.after.novel?.title?.trim() || input.after.id,
+      reasonLabel: reasonResolved?.reasonLabel ?? null,
+      checkpointSummary: input.after.checkpointSummary ?? null,
+      stage: input.after.currentStage,
+      availableActions: this.resolveAvailableActions(input.after),
+      channelConfig,
+      baseUrl: input.channelSettings.baseUrl,
+    });
+
+    let responseStatus = null;
+    let responseBody = null;
+    let deliveredAt = null;
+    let status: "delivered" | "failed" = "failed";
+    let target: string | null = null;
+
+    try {
+      const delivered = await this.weComNotifier.deliver(payload, channelConfig);
+      target = delivered.target;
+      responseStatus = delivered.status;
+      responseBody = delivered.body;
+      if (typeof delivered.status === "number" && delivered.status >= 200 && delivered.status < 300) {
+        status = "delivered";
+        deliveredAt = new Date();
+      }
+    } catch (error) {
+      responseBody = error instanceof Error ? error.message : "delivery_failed";
+    }
+
+    await this.recordNotificationLog({
+      eventId: input.event.eventId,
+      eventType: input.event.eventType,
+      taskId: input.after.id,
+      channelType: "wecom",
+      target,
+      payload,
+      responseBody,
+      responseStatus,
+      deliveredAt,
+      status,
+    });
+  }
+
   private async recordNotificationLog(input: {
     eventId: string;
     eventType: AutoDirectorEventType;
     taskId: string;
-    channelType: "dingtalk";
+    channelType: "dingtalk" | "wecom";
     target: string | null;
     payload: AutoDirectorChannelNotificationPayload;
     responseBody: string | null;
@@ -181,5 +266,13 @@ export class AutoDirectorFollowUpNotificationService {
       }
       throw error;
     }
+  }
+
+  private isEventEnabledForChannel(eventTypes: string[] | null | undefined, eventType: AutoDirectorEventType): boolean {
+    const subscribed = new Set((eventTypes ?? []).map((item) => item.trim()).filter(Boolean));
+    if (subscribed.size === 0) {
+      return eventType !== "auto_director.progress_changed";
+    }
+    return subscribed.has(eventType);
   }
 }

@@ -14,6 +14,7 @@ export interface AutoDirectorEventWorkflowSnapshot {
   id: string;
   novelId: string | null;
   status: TaskStatus;
+  progress?: number | null;
   currentStage: string | null;
   checkpointType: NovelWorkflowCheckpoint | null;
   checkpointSummary?: string | null;
@@ -38,6 +39,7 @@ export interface AutoDirectorDerivedFollowUpState {
   checkpointType: NovelWorkflowCheckpoint | null;
   checkpointSummary: string | null;
   progressBucket: number | null;
+  executionScopeLabel: string | null;
 }
 
 function parseExecutionScopeLabel(seedPayloadJson: string | null | undefined): string | null {
@@ -68,6 +70,14 @@ function summarizeActions(actions: AutoDirectorAction[]): AutoDirectorMutationAc
     .map((action) => action.code as AutoDirectorMutationActionCode);
 }
 
+function resolveProgressBucket(progress: number | null | undefined): number | null {
+  if (typeof progress !== "number" || Number.isNaN(progress)) {
+    return null;
+  }
+  const normalized = Math.max(0, Math.min(progress, 0.999999));
+  return Math.floor(normalized * 10);
+}
+
 export function deriveAutoDirectorFollowUpState(
   row: AutoDirectorEventWorkflowSnapshot | null,
 ): AutoDirectorDerivedFollowUpState | null {
@@ -81,6 +91,7 @@ export function deriveAutoDirectorFollowUpState(
     executionScopeLabel: parseExecutionScopeLabel(row.seedPayloadJson),
   });
   if (!resolved) {
+    const executionScopeLabel = parseExecutionScopeLabel(row.seedPayloadJson);
     return {
       taskId: row.id,
       novelId: row.novelId,
@@ -92,11 +103,13 @@ export function deriveAutoDirectorFollowUpState(
       stage: row.currentStage,
       checkpointType: row.checkpointType,
       checkpointSummary: row.checkpointSummary ?? null,
-      progressBucket: null,
+      progressBucket: resolveProgressBucket(row.progress),
+      executionScopeLabel,
     };
   }
 
   const summary = row.checkpointSummary?.trim() || row.currentItemLabel?.trim() || resolved.reasonLabel;
+  const executionScopeLabel = parseExecutionScopeLabel(row.seedPayloadJson);
   return {
     taskId: row.id,
     novelId: row.novelId,
@@ -108,7 +121,8 @@ export function deriveAutoDirectorFollowUpState(
     stage: row.currentStage,
     checkpointType: row.checkpointType,
     checkpointSummary: row.checkpointSummary ?? null,
-    progressBucket: null,
+    progressBucket: resolveProgressBucket(row.progress),
+    executionScopeLabel,
   };
 }
 
@@ -141,6 +155,9 @@ export function detectAutoDirectorEventType(input: {
     input.before.reason !== input.after.reason
     || input.before.summary !== input.after.summary
     || input.before.checkpointType !== input.after.checkpointType
+    || input.before.stage !== input.after.stage
+    || input.before.progressBucket !== input.after.progressBucket
+    || input.before.executionScopeLabel !== input.after.executionScopeLabel
   )) {
     return "auto_director.progress_changed";
   }
@@ -184,5 +201,6 @@ export function projectDerivedStateToFollowUpItem(
     checkpointType: item.checkpointType,
     checkpointSummary: item.followUpSummary,
     progressBucket: null,
+    executionScopeLabel: item.executionScope,
   };
 }
