@@ -21,6 +21,7 @@ import {
 import { NavLink } from "react-router-dom";
 import { listKnowledgeDocuments } from "@/api/knowledge";
 import { queryKeys } from "@/api/queryKeys";
+import { getAutoDirectorFollowUpOverview } from "@/api/autoDirectorFollowUps";
 import { getTaskOverview } from "@/api/tasks";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,7 @@ const navGroups: NavGroup[] = [
       { to: "/creative-hub", label: "创作中枢", icon: LayoutDashboard },
       { to: "/book-analysis", label: "拆书", icon: ScanSearch },
       { to: "/tasks", label: "任务中心", icon: ListTodo },
+      { to: "/auto-director/follow-ups", label: "导演跟进", icon: Workflow },
     ],
   },
   {
@@ -90,8 +92,18 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     staleTime: 30_000,
   });
 
+  const autoDirectorFollowUpQuery = useQuery({
+    queryKey: queryKeys.autoDirectorFollowUps.overview,
+    queryFn: getAutoDirectorFollowUpOverview,
+    refetchInterval: (query) => {
+      const totalCount = query.state.data?.data?.totalCount ?? 0;
+      return totalCount > 0 ? 4000 : false;
+    },
+  });
+
   const runningTaskCount = taskQuery.data?.data?.runningCount ?? 0;
   const failedTaskCount = taskQuery.data?.data?.failedCount ?? 0;
+  const autoDirectorFollowUpCount = autoDirectorFollowUpQuery.data?.data?.totalCount ?? 0;
   const knowledgeDocuments = knowledgeQuery.data?.data ?? [];
   const failedIndexCount = knowledgeDocuments.filter((item) => item.latestIndexStatus === "failed").length;
 
@@ -132,6 +144,20 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           )}
         >
           {collapsed ? failedIndexCount : `F${failedIndexCount}`}
+        </Badge>
+      );
+    }
+
+    if (to === "/auto-director/follow-ups" && autoDirectorFollowUpCount > 0) {
+      return (
+        <Badge
+          variant="destructive"
+          className={cn(
+            "h-5 px-1.5 text-[10px]",
+            collapsed ? "absolute right-1 top-1 h-4 min-w-4 px-1 text-[9px]" : "ml-auto",
+          )}
+        >
+          {collapsed ? autoDirectorFollowUpCount : autoDirectorFollowUpCount}
         </Badge>
       );
     }

@@ -215,3 +215,12 @@ export function getCandidateSelectionLink(taskId: string): string {
   searchParams.set("mode", "director");
   return `/novels/create?${searchParams.toString()}`;
 }
+
+export function getAutoDirectorFollowUpCenterLink(taskId?: string | null): string {
+  if (!taskId?.trim()) {
+    return "/auto-director/follow-ups";
+  }
+  const searchParams = new URLSearchParams();
+  searchParams.set("taskId", taskId.trim());
+  return `/auto-director/follow-ups?${searchParams.toString()}`;
+}

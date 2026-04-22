@@ -1494,6 +1494,23 @@ model NovelWorkflowTask {
   @@index([lane, updatedAt])
 }
 
+model AutoDirectorFollowUpActionLog {
+  id             String   @id @default(cuid())
+  taskId         String
+  actionCode     String
+  sourceChannel  String
+  sourceUser     String?
+  idempotencyKey String   @unique
+  resultCode     String
+  failureReason  String?
+  metadataJson   String?
+  executedAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  @@index([taskId, executedAt])
+  @@index([taskId, actionCode, executedAt])
+}
+
 model StoryStateSnapshot {
   id             String   @id @default(cuid())
   novelId        String
