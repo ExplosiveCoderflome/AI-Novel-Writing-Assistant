@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 import { useDirectorChapterTitleRepair } from "@/hooks/useDirectorChapterTitleRepair";
+import { syncKnownTaskCaches } from "@/lib/taskQueryCache";
 import {
   buildTaskNoticeRoute,
   isChapterTitleDiversitySummary,
@@ -319,6 +320,7 @@ export default function TaskCenterPage() {
     }),
     onSuccess: async (response, variables) => {
       const task = response.data;
+      syncKnownTaskCaches(queryClient, task);
       await invalidateTaskQueries();
       if (task) {
         setSearchParams((prev) => {

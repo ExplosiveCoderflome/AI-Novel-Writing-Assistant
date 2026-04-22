@@ -11,9 +11,9 @@ import {
 } from "./style.promptSchemas";
 
 export interface StyleDetectionPromptInput {
-  styleRulesBlock: string;
-  characterRulesBlock: string;
-  antiRulesText: string;
+  styleContractText: string;
+  styleContractMetaText: string;
+  antiRuleCatalogText: string;
   content: string;
 }
 
@@ -35,9 +35,7 @@ export interface StyleGenerationPromptInput {
 }
 
 export interface StyleRewritePromptInput {
-  styleBlock: string;
-  characterBlock: string;
-  antiAiBlock: string;
+  styleContractText: string;
   content: string;
   issuesBlock: string;
 }
@@ -82,7 +80,7 @@ export const styleDetectionPrompt: PromptAsset<
   z.infer<typeof styleDetectionPayloadSchema>
 > = {
   id: "style.detection",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -92,7 +90,7 @@ export const styleDetectionPrompt: PromptAsset<
   outputSchema: styleDetectionPayloadSchema,
   render: (input) => [
     new SystemMessage([
-      "你是小说写法检测器，负责检查文本是否违背当前写法规则、角色表达规则和反 AI 规则。",
+      "你是小说写法检测器，负责检查文本是否违背当前写法合同与反 AI 规则。",
       "你的任务不是润色文本，也不是直接重写，而是输出一份可供后续修复流程使用的结构化检测结果。",
       "",
       "只输出一个合法 JSON 对象，不要输出 Markdown、解释、注释、代码块或额外文本。",
@@ -101,7 +99,7 @@ export const styleDetectionPrompt: PromptAsset<
       "riskScore, summary, canAutoRewrite, violations。",
       "",
       "violations 中每一项必须且只能包含以下字段：",
-      "ruleName, ruleType, severity, excerpt, reason, suggestion, canAutoRewrite。",
+      "ruleName, ruleType, severity, issueCategory, excerpt, reason, suggestion, canAutoRewrite。",
       "",
       "全局硬规则：",
       "1. 所有内容必须使用简体中文。",
@@ -111,9 +109,9 @@ export const styleDetectionPrompt: PromptAsset<
       "5. 如果没有违规，violations 必须返回空数组。",
       "",
       "检测范围：",
-      "1. 写法规则：检查文本是否违背当前要求的叙事方式、语言风格、节奏组织、技法使用或表达边界。",
-      "2. 角色表达规则：检查人物言行、台词、心理、关系表达是否符合角色规则约束。",
-      "3. 反 AI 规则：检查文本是否出现套路化、八股感、空泛总结、机械排比、情绪假热闹、模板痕迹或其他明显 AI 味问题。",
+      "1. 写法合同：检查文本是否违背当前要求的叙事方式、角色表达、语言风格、节奏组织、技法使用或表达边界。",
+      "2. 反 AI 规则：检查文本是否出现套路化、八股感、空泛总结、机械排比、情绪假热闹、模板痕迹或其他明显 AI 味问题。",
+      "3. issueCategory 必须判断问题更接近“style_expression”还是“story_structure”。只有当问题已经越过表达层、开始干扰剧情结构或场景推进时，才可标成 story_structure。",
       "",
       "riskScore 规则：",
       "1. riskScore 为 0-100 的整数。",
@@ -139,10 +137,11 @@ export const styleDetectionPrompt: PromptAsset<
       "1. ruleName：写明触发的问题规则名，优先使用输入规则中的原始名称或最贴近的规则指代。",
       "2. ruleType：必须清楚区分来源类别，应对应写法规则、角色表达规则或反AI规则中的一类。",
       "3. severity：必须体现问题严重程度，使用稳定、清晰、可比较的等级表述。",
-      "4. excerpt：必须摘取文本中的具体问题片段，尽量短、准、能定位；不要整段复制。",
-      "5. reason：必须具体说明这段 excerpt 为什么违规，不能只复读规则名。",
-      "6. suggestion：必须给出可执行的修改方向，直接说明应如何调整表达、人物、节奏或技法。",
-      "7. canAutoRewrite：表示该条问题是否适合自动改写修复，必须与问题性质一致。",
+      "4. issueCategory：表达层偏差用 style_expression；只有已经影响章节结构或事件推进时才用 story_structure。",
+      "5. excerpt：必须摘取文本中的具体问题片段，尽量短、准、能定位；不要整段复制。",
+      "6. reason：必须具体说明这段 excerpt 为什么违规，不能只复读规则名。",
+      "7. suggestion：必须给出可执行的修改方向，直接说明应如何调整表达、人物、节奏或技法。",
+      "8. canAutoRewrite：表示该条问题是否适合自动改写修复，必须与问题性质一致。",
       "",
       "质量要求：",
       "1. 不要输出空泛套话，如“可以更生动一些”“建议优化表达”。",
@@ -153,14 +152,14 @@ export const styleDetectionPrompt: PromptAsset<
       "输出必须严格符合 styleDetectionPayloadSchema。",
     ].join("\n")),
     new HumanMessage([
-      "当前写法规则：",
-      input.styleRulesBlock,
+      "当前写法合同元信息：",
+      input.styleContractMetaText,
       "",
-      "角色表达规则：",
-      input.characterRulesBlock,
+      "当前写法合同：",
+      input.styleContractText,
       "",
-      "反AI规则：",
-      input.antiRulesText,
+      "反AI规则目录：",
+      input.antiRuleCatalogText,
       "",
       "待检测文本：",
       input.content,
@@ -328,7 +327,7 @@ export const styleGenerationPrompt: PromptAsset<StyleGenerationPromptInput, stri
 
 export const styleRewritePrompt: PromptAsset<StyleRewritePromptInput, string, string> = {
   id: "style.rewrite",
-  version: "v1",
+  version: "v2",
   taskType: "repair",
   mode: "text",
   language: "zh",
@@ -340,15 +339,9 @@ export const styleRewritePrompt: PromptAsset<StyleRewritePromptInput, string, st
       "你是中文小说修文编辑。",
       "你的任务是根据已检测到的违规问题，对原文进行定点修正，让文本更符合写法规则、角色表达规则和反AI要求。",
       "",
-      "你必须同时遵守以下规则块：",
-      "【写法规则】",
-      input.styleBlock || "无",
-      "",
-      "【角色表达规则】",
-      input.characterBlock || "无",
-      "",
-      "【反AI规则】",
-      input.antiAiBlock || "无",
+      "你必须同时遵守当前写法合同的所有约束：",
+      "【写法合同】",
+      input.styleContractText || "无",
       "",
       "全局硬规则：",
       "1. 只输出修正后的完整正文，不要输出解释、注释、修改说明、代码块或额外文本。",

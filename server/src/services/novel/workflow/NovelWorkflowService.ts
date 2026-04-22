@@ -5,6 +5,7 @@ import type {
   NovelWorkflowStage,
 } from "@ai-novel/shared/types/novelWorkflow";
 import { prisma } from "../../../db/prisma";
+import { withSqliteRetry } from "../../../db/sqliteRetry";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
 import { AppError } from "../../../middleware/errorHandler";
 import { getArchivedTaskIdSet, isTaskArchived } from "../../task/taskArchive";
@@ -48,6 +49,8 @@ import { syncAutoDirectorChapterBatchCheckpoint } from "./novelWorkflowAutoDirec
 import { repairAutoDirectorCandidateSeedPayload } from "./novelWorkflowCandidateSeedRepair";
 
 type WorkflowRow = Awaited<ReturnType<typeof prisma.novelWorkflowTask.findUnique>>;
+type NovelWorkflowTaskUpdateArgs = Parameters<typeof prisma.novelWorkflowTask.update>[0];
+type NovelWorkflowTaskUpdateManyArgs = Parameters<typeof prisma.novelWorkflowTask.updateMany>[0];
 
 interface AutoDirectorNovelCreationClaim {
   status: "claimed" | "attached" | "in_progress";
@@ -261,6 +264,20 @@ function isStructuredOutlineItemKey(itemKey: string | null | undefined): boolean
 export class NovelWorkflowService {
   private readonly volumeService = new NovelVolumeService();
 
+  private updateTaskWithRetry(args: NovelWorkflowTaskUpdateArgs) {
+    return withSqliteRetry(
+      () => prisma.novelWorkflowTask.update(args),
+      { label: "novelWorkflowTask.update" },
+    );
+  }
+
+  private updateTaskManyWithRetry(args: NovelWorkflowTaskUpdateManyArgs) {
+    return withSqliteRetry(
+      () => prisma.novelWorkflowTask.updateMany(args),
+      { label: "novelWorkflowTask.updateMany" },
+    );
+  }
+
   private async getVisibleRowsByNovelIdRaw(novelId: string, lane?: NovelWorkflowLane) {
     const rows = await prisma.novelWorkflowTask.findMany({
       where: {
@@ -460,7 +477,7 @@ export class NovelWorkflowService {
 
     const shouldRestoreCandidateSelection = repaired.staleTargetedCandidate
       && isPreNovelAutoDirectorCandidateTask(candidate);
-    await prisma.novelWorkflowTask.update({
+    await this.updateTaskWithRetry({
       where: { id: taskId },
       data: {
         seedPayloadJson: repaired.seedPayloadJson,
@@ -560,7 +577,7 @@ export class NovelWorkflowService {
       return false;
     }
 
-    await prisma.novelWorkflowTask.update({
+    await this.updateTaskWithRetry({
       where: { id: taskId },
       data: {
         status: shouldPromoteToRunning ? "running" : undefined,
@@ -665,7 +682,7 @@ export class NovelWorkflowService {
       chapterId: autoExecution?.nextChapterId ?? autoExecution?.firstChapterId ?? null,
     });
 
-    await prisma.novelWorkflowTask.update({
+    await this.updateTaskWithRetry({
       where: { id: taskId },
       data: {
         status: job.status === "queued" ? "queued" : "running",
@@ -734,7 +751,7 @@ export class NovelWorkflowService {
         volumeId: resumeTarget?.volumeId ?? notice.action.volumeId ?? null,
       });
 
-    await prisma.novelWorkflowTask.update({
+    await this.updateTaskWithRetry({
       where: { id: taskId },
       data: {
         status: "waiting_approval",
@@ -801,7 +818,7 @@ export class NovelWorkflowService {
       return false;
     }
 
-    await prisma.novelWorkflowTask.update({
+    await this.updateTaskWithRetry({
       where: { id: taskId },
       data: {
         currentStage: stageLabel("structured_outline"),
@@ -838,7 +855,7 @@ export class NovelWorkflowService {
     if (!nextSeedPayload) {
       throw new AppError("当前自动导演任务缺少可覆盖的模型上下文。", 400);
     }
-    return prisma.novelWorkflowTask.update({
+    return this.updateTaskWithRetry({
       where: { id: taskId },
       data: {
         seedPayloadJson: JSON.stringify(nextSeedPayload),
@@ -908,7 +925,7 @@ export class NovelWorkflowService {
       lane: created.lane,
       stage: created.lane === "auto_director" ? "auto_director" : "project_setup",
     });
-    return prisma.novelWorkflowTask.update({
+    return this.updateTaskWithRetry({
       where: { id: created.id },
       data: {
         resumeTargetJson: stringifyResumeTarget(resumeTarget),
@@ -926,7 +943,7 @@ export class NovelWorkflowService {
           }
           const attached = await this.attachNovelToTask(existing.id, input.novelId.trim());
           if (input.seedPayload) {
-            return prisma.novelWorkflowTask.update({
+            return this.updateTaskWithRetry({
               where: { id: attached.id },
               data: {
                 seedPayloadJson: mergeSeedPayload(attached.seedPayloadJson, input.seedPayload),
@@ -937,7 +954,7 @@ export class NovelWorkflowService {
           return attached;
         }
         if (input.seedPayload) {
-          return prisma.novelWorkflowTask.update({
+          return this.updateTaskWithRetry({
             where: { id: existing.id },
             data: {
               seedPayloadJson: mergeSeedPayload(existing.seedPayloadJson, input.seedPayload),
@@ -973,7 +990,7 @@ export class NovelWorkflowService {
       throw new AppError("Workflow task not found.", 404);
     }
     const novelTitle = await this.getNovelTitle(novelId);
-    return prisma.novelWorkflowTask.update({
+    return this.updateTaskWithRetry({
       where: { id: taskId },
       data: {
         novelId,
@@ -1016,7 +1033,7 @@ export class NovelWorkflowService {
     }
 
     const now = new Date();
-    const claimed = await prisma.novelWorkflowTask.updateMany({
+    const claimed = await this.updateTaskManyWithRetry({
       where: {
         id: taskId,
         lane: "auto_director",
@@ -1089,7 +1106,7 @@ export class NovelWorkflowService {
       chapterId: input.chapterId,
       volumeId: input.volumeId,
     });
-    return prisma.novelWorkflowTask.update({
+    return this.updateTaskWithRetry({
       where: { id: taskId },
       data: {
         status: "running",
@@ -1140,7 +1157,7 @@ export class NovelWorkflowService {
       chapterId: input.chapterId,
       volumeId: input.volumeId,
     });
-    return prisma.novelWorkflowTask.update({
+    return this.updateTaskWithRetry({
       where: { id: taskId },
       data: {
         status: "waiting_approval",
@@ -1180,7 +1197,7 @@ export class NovelWorkflowService {
       chapterId: patch?.chapterId,
       volumeId: patch?.volumeId,
     });
-    return prisma.novelWorkflowTask.update({
+    return this.updateTaskWithRetry({
       where: { id: taskId },
       data: {
         status: "failed",
@@ -1202,7 +1219,7 @@ export class NovelWorkflowService {
     if (!existing) {
       throw new AppError("Task not found.", 404);
     }
-    return prisma.novelWorkflowTask.update({
+    return this.updateTaskWithRetry({
       where: { id: taskId },
       data: {
         status: "cancelled",
@@ -1218,7 +1235,7 @@ export class NovelWorkflowService {
     if (!existing) {
       throw new AppError("Task not found.", 404);
     }
-      return prisma.novelWorkflowTask.update({
+      return this.updateTaskWithRetry({
         where: { id: taskId },
         data: {
           status: existing.checkpointType ? "waiting_approval" : "queued",
@@ -1252,7 +1269,7 @@ export class NovelWorkflowService {
           stage: checkpointStage,
         })
       );
-    return prisma.novelWorkflowTask.update({
+    return this.updateTaskWithRetry({
       where: { id: taskId },
         data: {
           status: checkpointType === "workflow_completed" ? "succeeded" : "waiting_approval",
@@ -1278,7 +1295,7 @@ export class NovelWorkflowService {
     if (isTaskCancellationRequested(existing)) {
       throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
     }
-      return prisma.novelWorkflowTask.update({
+      return this.updateTaskWithRetry({
         where: { id: taskId },
         data: {
           heartbeatAt: new Date(),
@@ -1293,7 +1310,7 @@ export class NovelWorkflowService {
     if (!existing) {
       throw new AppError("Task not found.", 404);
     }
-      return prisma.novelWorkflowTask.update({
+      return this.updateTaskWithRetry({
         where: { id: taskId },
         data: {
           status: "queued",
@@ -1317,7 +1334,7 @@ export class NovelWorkflowService {
     if (isTaskCancellationRequested(existing)) {
       throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
     }
-    return prisma.novelWorkflowTask.update({
+    return this.updateTaskWithRetry({
       where: { id: taskId },
       data: {
         status: "waiting_approval",
@@ -1362,7 +1379,7 @@ export class NovelWorkflowService {
       chapterId: input.chapterId,
       volumeId: input.volumeId,
     });
-    return prisma.novelWorkflowTask.update({
+    return this.updateTaskWithRetry({
       where: { id: taskId },
       data: {
         status: input.checkpointType === "workflow_completed" ? "succeeded" : "waiting_approval",
@@ -1397,7 +1414,7 @@ export class NovelWorkflowService {
       chapterId: input.chapterId,
       volumeId: input.volumeId,
     });
-    return prisma.novelWorkflowTask.update({
+    return this.updateTaskWithRetry({
       where: { id: task.id },
       data: {
         status: input.status ?? "waiting_approval",

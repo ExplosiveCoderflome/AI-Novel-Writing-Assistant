@@ -65,6 +65,7 @@ import { isNovelWorkspaceFlowTab, scopeFromWorkspaceTab, tabFromDirectorProgress
 import { resolveChapterTitleWarning } from "@/lib/directorTaskNotice";
 import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 import { getCandidateSelectionLink } from "@/lib/novelWorkflowTaskUi";
+import { syncAutoDirectorTaskCache } from "@/lib/taskQueryCache";
 import {
   buildContinueAutoExecutionActionLabel,
   buildTakeoverDescription,
@@ -637,6 +638,7 @@ export default function NovelEdit() {
       return continueNovelWorkflow(activeAutoDirectorTask.id);
     },
     onSuccess: async (response) => {
+      syncAutoDirectorTaskCache(queryClient, id, response.data);
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTask(id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.volumeWorkspace(id) });
@@ -663,6 +665,7 @@ export default function NovelEdit() {
       });
     },
     onSuccess: async (response) => {
+      syncAutoDirectorTaskCache(queryClient, id, response.data);
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTask(id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.volumeWorkspace(id) });
@@ -755,8 +758,9 @@ export default function NovelEdit() {
         resume: true,
       });
     },
-    onSuccess: async () => {
-      await invalidateAutoDirectorTaskState(activeAutoDirectorTask?.id);
+    onSuccess: async (response) => {
+      syncAutoDirectorTaskCache(queryClient, id, response.data);
+      await invalidateAutoDirectorTaskState(response.data?.id ?? activeAutoDirectorTask?.id);
       setIsTaskDrawerOpen(true);
       toast.success(`已切换到 ${llm.provider} / ${llm.model} 并重新启动自动导演。`);
     },
@@ -772,8 +776,9 @@ export default function NovelEdit() {
       }
       return retryTask("novel_workflow", activeAutoDirectorTask.id, { resume: true });
     },
-    onSuccess: async () => {
-      await invalidateAutoDirectorTaskState(activeAutoDirectorTask?.id);
+    onSuccess: async (response) => {
+      syncAutoDirectorTaskCache(queryClient, id, response.data);
+      await invalidateAutoDirectorTaskState(response.data?.id ?? activeAutoDirectorTask?.id);
       setIsTaskDrawerOpen(true);
       toast.success("自动导演已按任务原模型重新启动。");
     },
@@ -789,9 +794,10 @@ export default function NovelEdit() {
       }
       return cancelTask("novel_workflow", activeAutoDirectorTask.id);
     },
-    onSuccess: async () => {
+    onSuccess: async (response) => {
       setIsDirectorExitActionExpanded(false);
-      await invalidateAutoDirectorTaskState(activeAutoDirectorTask?.id);
+      syncAutoDirectorTaskCache(queryClient, id, response.data);
+      await invalidateAutoDirectorTaskState(response.data?.id ?? activeAutoDirectorTask?.id);
       toast.success("已提交自动导演取消请求。");
     },
     onError: (error) => {
@@ -801,6 +807,9 @@ export default function NovelEdit() {
   });
   useEffect(() => {
     if (activeAutoDirectorTask?.status !== "failed") {
+      if (autoOpenedFailedTaskId) {
+        setAutoOpenedFailedTaskId("");
+      }
       return;
     }
     if (!activeAutoDirectorTask.id || activeAutoDirectorTask.id === autoOpenedFailedTaskId) {

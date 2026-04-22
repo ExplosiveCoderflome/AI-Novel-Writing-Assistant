@@ -13,6 +13,7 @@ export const styleDetectionViolationSchema = z.object({
   ruleName: z.string().trim().min(1),
   ruleType: styleDetectionRuleTypeSchema,
   severity: z.enum(["low", "medium", "high"]),
+  issueCategory: z.enum(["style_expression", "story_structure"]).optional(),
   excerpt: z.string().trim().min(1),
   reason: z.string().trim().min(1),
   suggestion: z.string().trim().min(1),

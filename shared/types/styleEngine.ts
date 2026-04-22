@@ -55,6 +55,51 @@ export interface StyleRuleSet {
   rhythmRules: RhythmRules;
 }
 
+export type StyleContractSectionKey =
+  | "narrative"
+  | "character"
+  | "language"
+  | "rhythm"
+  | "antiAi"
+  | "selfCheck";
+
+export type StyleContractMaturity = "structured" | "summary_only";
+export type StyleContractIssueCategory = "style_expression" | "story_structure";
+export type StyleContractViolationSource = "global_anti_ai" | "style_anti_ai" | "style_contract";
+
+export interface StyleContractSection {
+  key: StyleContractSectionKey;
+  title: string;
+  summary?: string | null;
+  lines: string[];
+  text: string;
+  hasContent: boolean;
+}
+
+export interface StyleContractMeta {
+  effectiveStyleProfileId?: string | null;
+  taskStyleProfileId?: string | null;
+  activeSourceTargets: StyleBindingTargetType[];
+  activeSourceLabels: string[];
+  writerIncludedSections: StyleContractSectionKey[];
+  plannerIncludedSections: StyleContractSectionKey[];
+  droppedSections: StyleContractSectionKey[];
+  maturity: StyleContractMaturity;
+  usesGlobalAntiAiBaseline: boolean;
+  globalAntiAiRuleIds: string[];
+  styleAntiAiRuleIds: string[];
+}
+
+export interface StyleContract {
+  narrative: StyleContractSection;
+  character: StyleContractSection;
+  language: StyleContractSection;
+  rhythm: StyleContractSection;
+  antiAi: StyleContractSection;
+  selfCheck: StyleContractSection;
+  meta: StyleContractMeta;
+}
+
 export interface StyleRulePatch {
   narrativeRules?: NarrativeRules;
   characterRules?: CharacterRules;
@@ -440,6 +485,7 @@ export interface CompiledStylePromptBlocks {
   antiAi: string;
   output: string;
   selfCheck: string;
+  contract: StyleContract;
   mergedRules: StyleRuleSet;
   appliedRuleIds: string[];
 }
@@ -449,6 +495,8 @@ export interface StyleDetectionViolation {
   ruleName: string;
   ruleType: StyleDetectionRuleType;
   severity: AntiAiSeverity;
+  source: StyleContractViolationSource;
+  issueCategory: StyleContractIssueCategory;
   excerpt: string;
   reason: string;
   suggestion: string;
@@ -488,6 +536,14 @@ export interface StyleRecommendationResult {
 export interface ResolvedStyleContext {
   matchedBindings: StyleBinding[];
   compiledBlocks: CompiledStylePromptBlocks | null;
+  effectiveStyleProfileId: string | null;
+  taskStyleProfileId: string | null;
+  activeSourceTargets: StyleBindingTargetType[];
+  activeSourceLabels: string[];
+  maturity: StyleContractMaturity;
+  usesGlobalAntiAiBaseline: boolean;
+  globalAntiAiRuleIds: string[];
+  styleAntiAiRuleIds: string[];
 }
 
 export interface StyleIntentSummary {

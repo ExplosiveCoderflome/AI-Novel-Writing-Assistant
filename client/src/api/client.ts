@@ -19,6 +19,11 @@ export const apiClient = axios.create({
   timeout: API_TIMEOUT_MS,
 });
 
+const AUTO_DISMISS_SERVER_ERROR_TOAST = {
+  duration: 4000,
+  closeButton: false,
+} as const;
+
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiResponse<unknown>>) => {
@@ -38,10 +43,20 @@ apiClient.interceptors.response.use(
     }
 
     if (!status || !silentErrorStatuses.includes(status)) {
+      const isGenericServerErrorToast = title === "服务器错误，请稍后重试。";
+
       if (description) {
-        toast.error(title, { description });
+        toast.error(
+          title,
+          isGenericServerErrorToast
+            ? {
+                description,
+                ...AUTO_DISMISS_SERVER_ERROR_TOAST,
+              }
+            : { description },
+        );
       } else {
-        toast.error(title);
+        toast.error(title, isGenericServerErrorToast ? AUTO_DISMISS_SERVER_ERROR_TOAST : undefined);
       }
     }
 

@@ -164,6 +164,18 @@ export const characterCastAutoResponseSchema = z.object({
   option: characterCastOptionSchema,
 });
 
+export const characterCastAutoMembersResponseSchema = characterCastOptionSchema.pick({
+  title: true,
+  summary: true,
+  whyItWorks: true,
+  recommendedReason: true,
+  members: true,
+});
+
+export const characterCastAutoRelationsResponseSchema = z.object({
+  relations: z.array(characterCastOptionRelationSchema).min(2).max(12),
+});
+
 export const supplementalCharacterRelationSchema = z.object({
   sourceName: nonEmptyString,
   targetName: nonEmptyString,
@@ -220,6 +232,8 @@ export const supplementalCharacterGenerationResponseSchema = z.object({
 export type CharacterCastOptionParsed = z.infer<typeof characterCastOptionSchema>;
 export type CharacterCastOptionResponseParsed = z.infer<typeof characterCastOptionResponseSchema>;
 export type CharacterCastAutoResponseParsed = z.infer<typeof characterCastAutoResponseSchema>;
+export type CharacterCastAutoMembersResponseParsed = z.infer<typeof characterCastAutoMembersResponseSchema>;
+export type CharacterCastAutoRelationsResponseParsed = z.infer<typeof characterCastAutoRelationsResponseSchema>;
 export type SupplementalCharacterCandidateParsed = z.infer<typeof supplementalCharacterCandidateSchema>;
 export type SupplementalCharacterGenerationInputParsed = z.infer<typeof supplementalCharacterGenerationInputSchema>;
 export type SupplementalCharacterGenerationResponseParsed = z.infer<typeof supplementalCharacterGenerationResponseSchema>;

@@ -2,6 +2,12 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { StyleDetectionReport } from "@ai-novel/shared/types/styleEngine";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { styleDetectionPrompt } from "../../prompting/prompts/style/style.prompts";
+import {
+  buildFullStyleContractText,
+  buildStyleContractMetaText,
+  inferStyleIssueCategory,
+  inferStyleViolationSource,
+} from "./styleContractText";
 import { StyleRuntimeResolver } from "./StyleRuntimeResolver";
 
 interface DetectionInput {
@@ -27,13 +33,14 @@ export class StyleDetectionService {
     });
     const antiRules = resolved.antiAiRules;
     const appliedRuleIds = antiRules.map((rule) => rule.id);
-    const styleRulesBlock = resolved.context.compiledBlocks?.style?.trim() || "";
-    const characterRulesBlock = resolved.context.compiledBlocks?.character?.trim() || "";
-    const antiRulesText = antiRules
-      .map((rule) => `- [${rule.id}] ${rule.name} (${rule.type}/${rule.severity})：${rule.promptInstruction ?? rule.description}`)
+    const contract = resolved.context.compiledBlocks?.contract ?? null;
+    const styleContractText = buildFullStyleContractText(contract);
+    const styleContractMetaText = buildStyleContractMetaText(contract);
+    const antiRuleCatalogText = antiRules
+      .map((rule) => `- [${rule.id}] ${rule.name} (${rule.type}/${rule.severity}): ${rule.promptInstruction ?? rule.description}`)
       .join("\n");
 
-    if (!styleRulesBlock && !characterRulesBlock && antiRules.length === 0) {
+    if (!styleContractText && antiRules.length === 0) {
       return {
         riskScore: 0,
         summary: "当前没有可执行的写法检测约束，未执行写法违规检测。",
@@ -46,9 +53,9 @@ export class StyleDetectionService {
     const result = await runStructuredPrompt({
       asset: styleDetectionPrompt,
       promptInput: {
-        styleRulesBlock: styleRulesBlock || "无",
-        characterRulesBlock: characterRulesBlock || "无",
-        antiRulesText: antiRulesText || "无",
+        styleContractText: styleContractText || "none",
+        styleContractMetaText: styleContractMetaText || "none",
+        antiRuleCatalogText: antiRuleCatalogText || "none",
         content: input.content,
       },
       options: {
@@ -63,11 +70,20 @@ export class StyleDetectionService {
       summary: parsed.summary ?? "",
       violations: (parsed.violations ?? []).map((item) => {
         const matchedRule = antiRules.find((rule) => rule.id === item.ruleId || rule.name === item.ruleName);
+        const ruleId = matchedRule?.id ?? item.ruleId ?? item.ruleName;
+        const ruleType = matchedRule?.type ?? item.ruleType;
+        const source = inferStyleViolationSource(ruleId, contract);
         return {
-          ruleId: matchedRule?.id ?? item.ruleId ?? item.ruleName,
+          ruleId,
           ruleName: matchedRule?.name ?? item.ruleName,
-          ruleType: matchedRule?.type ?? item.ruleType,
+          ruleType,
           severity: matchedRule?.severity ?? item.severity,
+          source,
+          issueCategory: inferStyleIssueCategory({
+            issueCategory: item.issueCategory,
+            source,
+            ruleType,
+          }),
           excerpt: item.excerpt,
           reason: item.reason,
           suggestion: item.suggestion,

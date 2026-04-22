@@ -1,6 +1,7 @@
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
 import type { ResolvedStyleContext } from "@ai-novel/shared/types/styleEngine";
 import type { PayoffLedgerResponse } from "@ai-novel/shared/types/payoffLedger";
+import { buildPlannerStyleContractSummaryText } from "../styleEngine/styleContractText";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../storyMode/storyModeProfile";
 import { characterDynamicsQueryService } from "../novel/dynamics/CharacterDynamicsQueryService";
 
@@ -195,14 +196,8 @@ export function buildPlannerStyleEngineSummary(styleContext: ResolvedStyleContex
       .join(" / ")}`
     : "";
 
-  const sections = [
-    takeNonEmptyLines(compiled?.style, 3),
-    takeNonEmptyLines(compiled?.character, 2),
-    takeNonEmptyLines(compiled?.antiAi, 2),
-    takeNonEmptyLines(compiled?.selfCheck, 2),
-  ]
-    .flat()
-    .slice(0, 8);
+  const summaryText = buildPlannerStyleContractSummaryText(compiled?.contract);
+  const sections = takeNonEmptyLines(summaryText, 10);
 
   return [
     bindingLine,

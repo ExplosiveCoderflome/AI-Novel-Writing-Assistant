@@ -37,6 +37,12 @@ interface TakeoverExecutionWorkflowPort {
 }
 
 interface TakeoverExecutionAutoRuntimePort {
+  prepareRequestedAutoExecution(input: {
+    novelId: string;
+    request: DirectorConfirmRequest;
+    existingPipelineJobId?: string | null;
+    existingState?: DirectorAutoExecutionState | null;
+  }): Promise<unknown>;
   runFromReady(input: {
     taskId: string;
     novelId: string;
@@ -215,6 +221,12 @@ export async function startDirectorTakeoverExecution(
       });
     });
   } else {
+    await input.autoExecutionRuntime.prepareRequestedAutoExecution({
+      novelId: input.request.novelId,
+      request: input.directorInput,
+      existingPipelineJobId: plan.usesCurrentBatch ? (input.takeoverState.activePipelineJob?.id ?? null) : null,
+      existingState: plan.usesCurrentBatch ? (input.takeoverState.latestAutoExecutionState ?? null) : null,
+    });
     await input.workflowService.markTaskRunning(workflowTask.id, buildAutoExecutionRunningState(plan));
     input.scheduleBackgroundRun(workflowTask.id, async () => {
       await input.autoExecutionRuntime.runFromReady({

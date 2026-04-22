@@ -136,6 +136,7 @@ export class NovelDirectorService {
   private readonly autoExecutionRuntime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: this.novelContextService,
     novelService: this.novelService,
+    volumeWorkspaceService: this.volumeService,
     workflowService: this.workflowService,
     buildDirectorSeedPayload: (input, novelId, extra) => this.buildDirectorSeedPayload(input, novelId, extra),
   });

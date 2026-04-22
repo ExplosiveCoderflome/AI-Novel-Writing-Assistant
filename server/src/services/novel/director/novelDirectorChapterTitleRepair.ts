@@ -26,6 +26,11 @@ function hasTargetBeatSheet(workspace: Awaited<ReturnType<NovelVolumeService["ge
   return workspace.beatSheets.some((item) => item.volumeId === volumeId && item.beats.length > 0);
 }
 
+function shouldRefreshBeatSheetForRepair(lastError: string | null | undefined): boolean {
+  const normalized = lastError?.trim() ?? "";
+  return normalized.includes("当前卷节奏板的章节跨度异常");
+}
+
 export async function repairDirectorChapterTitles(input: {
   taskId: string;
   novelId: string;
@@ -51,8 +56,9 @@ export async function repairDirectorChapterTitles(input: {
     stage: "structured",
     volumeId: targetVolume.id,
   });
+  const currentTask = await input.workflowService.getTaskByIdWithoutHealing(input.taskId);
   let workingWorkspace = currentWorkspace;
-  if (!hasTargetBeatSheet(workingWorkspace, targetVolume.id)) {
+  if (!hasTargetBeatSheet(workingWorkspace, targetVolume.id) || shouldRefreshBeatSheetForRepair(currentTask?.lastError)) {
     workingWorkspace = await input.volumeService.generateVolumes(input.novelId, {
       provider: input.request.provider,
       model: input.request.model,
@@ -64,7 +70,7 @@ export async function repairDirectorChapterTitles(input: {
         await input.workflowService.markTaskRunning(input.taskId, {
           stage: "structured_outline",
           itemKey: "beat_sheet",
-          itemLabel: event.label.trim() || `正在补齐第 ${targetVolume.sortOrder} 卷节奏板`,
+          itemLabel: event.label.trim() || `正在重整第 ${targetVolume.sortOrder} 卷节奏板`,
           progress: DIRECTOR_PROGRESS.beatSheet,
         });
       },

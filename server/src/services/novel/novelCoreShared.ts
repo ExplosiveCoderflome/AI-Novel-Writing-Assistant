@@ -155,6 +155,7 @@ export interface PipelineRunOptions extends LLMGenerateOptions {
   endOrder: number;
   controlPolicy?: NovelControlPolicy;
   workflowTaskId?: string;
+  taskStyleProfileId?: string;
   maxRetries?: number;
   runMode?: "fast" | "polish";
   autoReview?: boolean;
@@ -185,6 +186,7 @@ export interface PipelineBackgroundSyncState {
 export interface PipelinePayload extends LLMGenerateOptions {
   controlPolicy?: NovelControlPolicy;
   workflowTaskId?: string;
+  taskStyleProfileId?: string;
   maxRetries?: number;
   runMode?: "fast" | "polish";
   autoReview?: boolean;
