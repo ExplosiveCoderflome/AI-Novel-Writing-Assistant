@@ -15,6 +15,7 @@ import {
   type PrimaryAction,
   type ChapterExecutionBackgroundActivity,
   resolveChapterExecutionFlow,
+  resolveDisplayedChapterStatus,
 } from "./chapterExecution.shared";
 
 interface ChapterExecutionActionPanelProps {
@@ -222,6 +223,7 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
   const isSelectedChapterRepairing = Boolean(selectedChapter && isRepairingChapter && repairStreamingChapterId === selectedChapter.id);
   const isExecutionContractPending = isGeneratingTaskSheet || isGeneratingSceneCards;
   const runtimePackage = chapterRuntimePackage?.chapterId === selectedChapter?.id ? chapterRuntimePackage : null;
+  const displayedStatus = selectedChapter ? resolveDisplayedChapterStatus(selectedChapter) : null;
 
   const selectedChapterLabel = selectedChapter
     ? `第${selectedChapter.order}章 ${selectedChapter.title || "未命名章节"}`

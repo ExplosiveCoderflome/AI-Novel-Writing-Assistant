@@ -272,6 +272,20 @@ export class NovelWorkflowService {
 
   private readonly autoDirectorFollowUpNotificationService = new AutoDirectorFollowUpNotificationService();
 
+  private updateTaskWithRetry(args: NovelWorkflowTaskUpdateArgs) {
+    return withSqliteRetry(
+      () => prisma.novelWorkflowTask.update(args),
+      { label: "novelWorkflowTask.update" },
+    );
+  }
+
+  private updateTaskManyWithRetry(args: NovelWorkflowTaskUpdateManyArgs) {
+    return withSqliteRetry(
+      () => prisma.novelWorkflowTask.updateMany(args),
+      { label: "novelWorkflowTask.updateMany" },
+    );
+  }
+
   private toAutoDirectorEventSnapshot(row: {
     id: string;
     novelId: string | null;

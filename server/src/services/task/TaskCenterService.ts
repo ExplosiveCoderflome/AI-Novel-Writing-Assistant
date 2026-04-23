@@ -44,6 +44,8 @@ export class TaskCenterService {
 
   private readonly agentAdapter = new AgentRunTaskAdapter();
 
+  private readonly styleExtractionAdapter = new StyleExtractionTaskAdapter();
+
   async getOverview(): Promise<TaskOverviewSummary> {
     const [
       archivedBookIds,

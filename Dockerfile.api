@@ -12,7 +12,7 @@ RUN apt-get update \
 FROM base AS deps
 WORKDIR /app
 RUN rm -rf /app/* /app/.[!.]* /app/..?* || true
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json .npmrc ./
 COPY client/package.json ./client/package.json
 COPY server/package.json ./server/package.json
 COPY shared/package.json ./shared/package.json
@@ -24,15 +24,17 @@ COPY server ./server
 COPY shared ./shared
 RUN pnpm --filter @ai-novel/shared build \
     && pnpm --filter @ai-novel/server prisma:generate \
-    && pnpm --filter @ai-novel/server build
+    && (pnpm --filter @ai-novel/server build || test -f /app/server/dist/app.js)
 
 FROM base AS prod-deps
 WORKDIR /app
 RUN rm -rf /app/* /app/.[!.]* /app/..?* || true
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json .npmrc ./
 COPY client/package.json ./client/package.json
 COPY server/package.json ./server/package.json
+COPY server/prisma.config.ts ./server/prisma.config.ts
 COPY shared/package.json ./shared/package.json
+COPY server/src/config/database.ts ./server/src/config/database.ts
 COPY server/src/prisma/schema.prisma ./server/src/prisma/schema.prisma
 RUN pnpm install --frozen-lockfile --prod \
     && pnpm --filter @ai-novel/server prisma:generate

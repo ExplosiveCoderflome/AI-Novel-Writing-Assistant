@@ -10,11 +10,10 @@ RUN corepack enable
 FROM base AS deps
 WORKDIR /app
 RUN rm -rf /app/* /app/.[!.]* /app/..?* || true
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json .npmrc ./
 COPY client/package.json ./client/package.json
-COPY server/package.json ./server/package.json
 COPY shared/package.json ./shared/package.json
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --filter @ai-novel/shared --filter @ai-novel/client
 
 FROM deps AS build
 WORKDIR /app

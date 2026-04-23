@@ -20,6 +20,7 @@ import {
 import { relaxGeneratedContentSchema } from "./generatedContentSchema";
 import { getStructuredFallbackSettings } from "./structuredFallbackSettings";
 import { logStructuredRepairSession } from "./repairLogging";
+import { runWithEnforcedTimeout } from "./invokeTimeout";
 import { toText, extractJSONValue } from "../services/novel/novelP0Utils";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
 
