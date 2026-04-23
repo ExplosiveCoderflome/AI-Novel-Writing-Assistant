@@ -36,18 +36,45 @@ export function dedupeStrings(values: Array<string | null | undefined>): string[
   ));
 }
 
-export function collapseVolumeProjectionAssignments(
+function normalizeProjectionText(value: string | null | undefined): string | null {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
+function normalizeProjectionChapterOrders(chapterOrders: number[]): number[] {
+  return Array.from(new Set(
+    chapterOrders.filter((order) => Number.isInteger(order) && order > 0),
+  )).sort((left, right) => left - right);
+}
+
+function pickLatestDefinedValue(current: number | null | undefined, next: number | null | undefined): number | null | undefined {
+  if (typeof next !== "number") {
+    return current;
+  }
+  return next;
+}
+
+export function mergeProjectionAssignments(
   assignments: VolumeDynamicsProjection["assignments"],
 ): VolumeDynamicsProjection["assignments"] {
   const byKey = new Map<string, VolumeDynamicsProjection["assignments"][number]>();
 
   for (const assignment of assignments) {
-    const key = `${assignment.characterName.trim().toLowerCase()}::${assignment.volumeSortOrder}`;
+    const normalizedCharacterName = assignment.characterName.trim();
+    const normalizedRoleLabel = normalizeProjectionText(assignment.roleLabel);
+    const normalizedResponsibility = assignment.responsibility.trim();
+    const normalizedAppearanceExpectation = normalizeProjectionText(assignment.appearanceExpectation);
+    const normalizedPlannedChapterOrders = normalizeProjectionChapterOrders(assignment.plannedChapterOrders);
+    const key = `${normalizedCharacterName.toLowerCase()}::${assignment.volumeSortOrder}`;
     const existing = byKey.get(key);
     if (!existing) {
       byKey.set(key, {
         ...assignment,
-        plannedChapterOrders: Array.from(new Set(assignment.plannedChapterOrders)).sort((a, b) => a - b),
+        characterName: normalizedCharacterName,
+        roleLabel: normalizedRoleLabel,
+        responsibility: normalizedResponsibility,
+        appearanceExpectation: normalizedAppearanceExpectation,
+        plannedChapterOrders: normalizedPlannedChapterOrders,
       });
       continue;
     }
@@ -56,19 +83,26 @@ export function collapseVolumeProjectionAssignments(
       ...existing,
       ...assignment,
       characterName: existing.characterName,
-      roleLabel: assignment.roleLabel ?? existing.roleLabel,
-      responsibility: assignment.responsibility || existing.responsibility,
-      appearanceExpectation: assignment.appearanceExpectation ?? existing.appearanceExpectation,
-      plannedChapterOrders: Array.from(
-        new Set([...existing.plannedChapterOrders, ...assignment.plannedChapterOrders]),
-      ).sort((a, b) => a - b),
+      roleLabel: normalizedRoleLabel ?? existing.roleLabel,
+      responsibility: normalizedResponsibility || existing.responsibility,
+      appearanceExpectation: normalizedAppearanceExpectation ?? existing.appearanceExpectation,
+      plannedChapterOrders: normalizeProjectionChapterOrders([
+        ...existing.plannedChapterOrders,
+        ...normalizedPlannedChapterOrders,
+      ]),
       isCore: existing.isCore || assignment.isCore,
-      absenceWarningThreshold: assignment.absenceWarningThreshold ?? existing.absenceWarningThreshold,
-      absenceHighRiskThreshold: assignment.absenceHighRiskThreshold ?? existing.absenceHighRiskThreshold,
+      absenceWarningThreshold: pickLatestDefinedValue(existing.absenceWarningThreshold, assignment.absenceWarningThreshold),
+      absenceHighRiskThreshold: pickLatestDefinedValue(existing.absenceHighRiskThreshold, assignment.absenceHighRiskThreshold),
     });
   }
 
   return [...byKey.values()];
+}
+
+export function collapseVolumeProjectionAssignments(
+  assignments: VolumeDynamicsProjection["assignments"],
+): VolumeDynamicsProjection["assignments"] {
+  return mergeProjectionAssignments(assignments);
 }
 
 export function buildVolumeWindows(

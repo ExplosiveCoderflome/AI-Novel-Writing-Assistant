@@ -19,8 +19,8 @@ import {
 } from "./characterDynamicsShared";
 import {
   buildVolumeWindows,
-  collapseVolumeProjectionAssignments,
   dedupeStrings,
+  mergeProjectionAssignments,
   resolveCurrentVolume,
   toCharacterRelationStage,
 } from "./characterDynamicsUtils";
@@ -420,7 +420,7 @@ export class CharacterDynamicsMutationService {
         },
       });
 
-      for (const assignment of collapseVolumeProjectionAssignments(projection.assignments)) {
+      for (const assignment of mergedAssignments) {
         const characterId = characterIdByName.get(normalizeName(assignment.characterName));
         const volume = volumeBySortOrder.get(assignment.volumeSortOrder);
         if (!characterId || !volume) {
@@ -429,39 +429,20 @@ export class CharacterDynamicsMutationService {
         const plannedChapterOrders = assignment.plannedChapterOrders.length > 0
           ? assignment.plannedChapterOrders
           : volume.chapters.map((chapter) => chapter.chapterOrder);
-        const existingAssignment = await tx.characterVolumeAssignment.findFirst({
-          where: { novelId, characterId, volumeId: volume.id },
-          select: { id: true },
+        await tx.characterVolumeAssignment.create({
+          data: {
+            novelId,
+            characterId,
+            volumeId: volume.id,
+            roleLabel: assignment.roleLabel || null,
+            responsibility: assignment.responsibility,
+            appearanceExpectation: assignment.appearanceExpectation || null,
+            plannedChapterOrdersJson: JSON.stringify(plannedChapterOrders),
+            isCore: assignment.isCore,
+            absenceWarningThreshold: assignment.absenceWarningThreshold ?? 3,
+            absenceHighRiskThreshold: assignment.absenceHighRiskThreshold ?? 5,
+          },
         });
-        if (existingAssignment) {
-          await tx.characterVolumeAssignment.update({
-            where: { id: existingAssignment.id },
-            data: {
-              roleLabel: assignment.roleLabel || null,
-              responsibility: assignment.responsibility,
-              appearanceExpectation: assignment.appearanceExpectation || null,
-              plannedChapterOrdersJson: JSON.stringify(plannedChapterOrders),
-              isCore: assignment.isCore,
-              absenceWarningThreshold: assignment.absenceWarningThreshold ?? 3,
-              absenceHighRiskThreshold: assignment.absenceHighRiskThreshold ?? 5,
-            },
-          });
-        } else {
-          await tx.characterVolumeAssignment.create({
-            data: {
-              novelId,
-              characterId,
-              volumeId: volume.id,
-              roleLabel: assignment.roleLabel || null,
-              responsibility: assignment.responsibility,
-              appearanceExpectation: assignment.appearanceExpectation || null,
-              plannedChapterOrdersJson: JSON.stringify(plannedChapterOrders),
-              isCore: assignment.isCore,
-              absenceWarningThreshold: assignment.absenceWarningThreshold ?? 3,
-              absenceHighRiskThreshold: assignment.absenceHighRiskThreshold ?? 5,
-            },
-          });
-        }
       }
 
       for (const track of projection.factionTracks) {
