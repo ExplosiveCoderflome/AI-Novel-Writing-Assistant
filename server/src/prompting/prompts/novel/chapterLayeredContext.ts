@@ -407,21 +407,6 @@ export function buildChapterWriterContextBlocks(
           ].filter(Boolean).join("\n")
         : "",
     }),
-    createContextBlock({
-      id: "volume_window",
-      group: "volume_window",
-      priority: 96,
-      required: true,
-      content: writeContext.volumeWindow
-        ? [
-            `State goal: ${writeContext.chapterStateGoal.summary}`,
-            toListBlock("Target conflicts", writeContext.chapterStateGoal.targetConflicts),
-            toListBlock("Target relationships", writeContext.chapterStateGoal.targetRelationships),
-            toListBlock("Target payoffs", writeContext.chapterStateGoal.targetPayoffs),
-            toListBlock("Protected secrets", writeContext.protectedSecrets),
-          ].filter(Boolean).join("\n")
-        : "",
-    }),
     buildIncrementalRoundContextBlock(options.incrementalContext),
     includeVolumeWindow
       ? createContextBlock({
@@ -444,12 +429,12 @@ export function buildChapterWriterContextBlocks(
         priority: 95,
         content: [
           writeContext.ledgerSummary
-            ? `Payoff ledger summary: pending=${writeContext.ledgerSummary.pendingCount}, urgent=${writeContext.ledgerSummary.urgentCount}, overdue=${writeContext.ledgerSummary.overdueCount}`
+            ? `Payoff ledger summary: pending=${writeContext.ledgerSummary.pendingCount}, urgent=${writeContext.ledgerSummary.urgentCount}, overdue=${writeContext.ledgerSummary.overdueCount}, paid_off=${writeContext.ledgerSummary.paidOffCount}`
             : "Payoff ledger summary: none",
           toListBlock("Urgent payoffs", writeContext.ledgerUrgentItems.map((item) => buildLedgerItemLine(item, "urgent"))),
           toListBlock("Overdue payoffs", writeContext.ledgerOverdueItems.map((item) => buildLedgerItemLine(item, "overdue"))),
           toListBlock(
-            "Active pending payoffs",
+            "Canonical pending payoffs",
             writeContext.ledgerPendingItems.slice(0, 3).map((item) => buildLedgerItemLine(item, "pending")),
           ),
         ].join("\n"),

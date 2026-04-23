@@ -36,7 +36,7 @@ interface ChapterRuntimeCoordinatorDeps {
   assembler?: Pick<GenerationContextAssembler, "assemble">;
   chapterWritingGraph?: Pick<ChapterWritingGraph, "createChapterStream">;
   artifactSyncService?: Pick<ChapterArtifactSyncService, "saveDraftAndArtifacts">;
-  auditService?: Pick<typeof auditService, "auditChapter">;
+  auditService?: Pick<typeof auditService, "auditChapter" | "assessChapterAuditNeed">;
   plannerService?: Pick<typeof plannerService, "buildReplanRecommendation" | "shouldTriggerReplanFromAudit">;
   styleDetectionService?: Pick<StyleDetectionService, "check">;
   styleRewriteService?: Pick<StyleRewriteService, "rewrite">;

@@ -35,6 +35,7 @@ import {
 } from "./styleCreation";
 import {
   buildExtractionAnalysisMarkdown,
+  buildProfileFeatureAnalysisMarkdown,
   buildProfileFeaturesFromDraft,
   buildRuleSetFromExtraction,
   buildRuleSetFromProfileFeatures,
@@ -61,9 +62,6 @@ interface ManualProfileInput {
   languageRules?: Record<string, unknown>;
   rhythmRules?: Record<string, unknown>;
   antiAiRuleIds?: string[];
-  extractionPresets?: StyleExtractionPreset[];
-  extractionAntiAiRuleKeys?: string[];
-  selectedExtractionPresetKey?: StyleExtractionPreset["key"] | null;
 }
 
 interface LlmInput {
@@ -419,7 +417,6 @@ export class StyleProfileService {
       ...feature,
       selectedDecision: input.decisions.find((item) => item.featureId === feature.id)?.decision ?? "keep",
       enabled: (input.decisions.find((item) => item.featureId === feature.id)?.decision ?? "keep") !== "remove",
-      selectedDecision: input.decisions.find((item) => item.featureId === feature.id)?.decision ?? "keep",
     }));
     const antiAiRuleIds = await this.resolveAntiAiRuleIds(normalizedDraft.antiAiRuleKeys);
 
@@ -444,9 +441,6 @@ export class StyleProfileService {
       languageRules: ruleSet.languageRules,
       rhythmRules: ruleSet.rhythmRules,
       antiAiRuleIds,
-      extractionPresets: normalizedDraft.presets,
-      extractionAntiAiRuleKeys: normalizedDraft.antiAiRuleKeys,
-      selectedExtractionPresetKey: input.presetKey ?? null,
     });
   }
 

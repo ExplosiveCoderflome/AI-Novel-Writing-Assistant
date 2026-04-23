@@ -909,27 +909,6 @@ export class PlannerService {
     });
   }
 
-  buildReplanRecommendation(input: {
-    auditReports?: AuditReport[];
-    ledgerSummary?: PayoffLedgerSummary | null;
-    contextPackage?: GenerationContextPackage | null;
-    targetChapterOrder?: number | null;
-    requestedWindowSize?: number | null;
-    blockingLedgerKeys?: string[];
-  }) {
-    return buildReplanDecision({
-      auditReports: input.auditReports ?? [],
-      ledgerSummary: input.ledgerSummary ?? null,
-      snapshot: input.contextPackage?.canonicalState ?? null,
-      nextAction: input.contextPackage?.nextAction ?? null,
-      chapterStateGoal: input.contextPackage?.chapterStateGoal ?? null,
-      protectedSecrets: input.contextPackage?.protectedSecrets ?? [],
-      targetChapterOrder: input.targetChapterOrder ?? input.contextPackage?.chapter?.order ?? null,
-      requestedWindowSize: input.requestedWindowSize ?? null,
-      blockingLedgerKeys: input.blockingLedgerKeys ?? [],
-    });
-  }
-
   private async resolvePlannerStyleEngineSummary(
     novelId: string,
     chapterId?: string,

@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { NovelWorkflowService } = require("../dist/services/novel/workflow/NovelWorkflowService.js");
+const taskArchive = require("../dist/services/task/taskArchive.js");
 const {
   resolveStructuredOutlineRecoveryCursor,
 } = require("../dist/services/novel/director/novelDirectorStructuredOutlineRecovery.js");
@@ -286,9 +287,11 @@ test("healStaleAutoDirectorStructuredOutlineProgress advances stale chapter list
     findUnique: prisma.novelWorkflowTask.findUnique,
     update: prisma.novelWorkflowTask.update,
     getVolumes: NovelVolumeService.prototype.getVolumes,
+    isTaskArchived: taskArchive.isTaskArchived,
   };
 
   let updatedPayload = null;
+  taskArchive.isTaskArchived = async () => false;
   prisma.novelWorkflowTask.findUnique = async () => ({
     id: "task-outline-stale",
     novelId: "novel-demo",
@@ -354,5 +357,6 @@ test("healStaleAutoDirectorStructuredOutlineProgress advances stale chapter list
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
     prisma.novelWorkflowTask.update = originals.update;
     NovelVolumeService.prototype.getVolumes = originals.getVolumes;
+    taskArchive.isTaskArchived = originals.isTaskArchived;
   }
 });

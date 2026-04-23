@@ -40,6 +40,29 @@ const AUDIT_CHAPTER_EXAMPLE = {
   ],
 };
 
+const LIGHT_AUDIT_CHAPTER_EXAMPLE = {
+  score: {
+    coherence: 82,
+    repetition: 76,
+    pacing: 79,
+    voice: 84,
+    engagement: 81,
+    overall: 80,
+  },
+  summary: "当前章节可继续推进，但中段说明性段落偏密，建议轻微压缩后再进入下一章。",
+  issues: [
+    {
+      severity: "medium",
+      category: "pacing",
+      evidence: "中段连续两段都在解释处境，但没有新增推进。",
+      fixSuggestion: "压缩第二段解释，把信息并入动作或对话里。",
+    },
+  ],
+  continueRecommendation: "suggest_repair",
+  shouldRunFullAudit: false,
+  triggerReasons: [],
+};
+
 export interface AuditChapterPromptInput {
   novelTitle: string;
   chapterTitle: string;
@@ -49,9 +72,9 @@ export interface AuditChapterPromptInput {
   ragContext: string;
 }
 
-export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<typeof fullAuditOutputSchema>> = {
-  id: "audit.chapter.full",
-  version: "v2",
+export const auditChapterLightPrompt: PromptAsset<AuditChapterPromptInput, z.infer<typeof lightAuditOutputSchema>> = {
+  id: "audit.chapter.light",
+  version: "v1",
   taskType: "review",
   mode: "structured",
   language: "zh",
@@ -70,10 +93,10 @@ export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<ty
     ],
   },
   structuredOutputHint: {
-    example: AUDIT_CHAPTER_EXAMPLE,
+    example: LIGHT_AUDIT_CHAPTER_EXAMPLE,
     note: "severity 只能是 low/medium/high/critical；issues.category 只能是 coherence/repetition/pacing/voice/engagement/logic，不要输出 plot、character 或中文分类名。",
   },
-  outputSchema: fullAuditOutputSchema,
+  outputSchema: lightAuditOutputSchema,
   render: (input, context) => [
     new SystemMessage([
       "你是中文长篇小说章节轻审校助手。",
@@ -84,12 +107,12 @@ export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<ty
       "硬性枚举要求：",
       "1. 顶层 issues.category 只能是 coherence、repetition、pacing、voice、engagement、logic。",
       "2. 不要输出 plot、character、中文分类名或任何自定义类别。",
-      "3. auditReports.auditType 只能使用 continuity、character、plot、mode_fit。",
+      "3. continueRecommendation 只能是 continue、suggest_repair、full_audit。",
       "",
       "审校原则：",
       "1. 只根据给定正文和上下文判断，不得脑补未提供的剧情、设定或作者意图。",
       "2. 所有问题都必须具体，evidence 必须指向文本中的明确现象，fixSuggestion 必须可执行。",
-      "3. score、issues、auditReports 三部分必须彼此一致，不能互相矛盾。",
+      "3. score、summary、issues、continueRecommendation、shouldRunFullAudit、triggerReasons 六部分必须彼此一致，不能互相矛盾。",
       "4. requestedTypes 中要求的类型必须全部覆盖；即使问题不明显，也要给出简短结论。",
       "",
       "评分维度：",
@@ -100,7 +123,7 @@ export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<ty
       "5. engagement：吸引力、张力和追读动力。",
       "6. overall：综合评分，必须与前述维度大体匹配。",
       "",
-      "输出必须严格符合 fullAuditOutputSchema。",
+      "输出必须严格符合 lightAuditOutputSchema。",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,
@@ -119,7 +142,7 @@ export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<ty
       "检索补充：",
       input.ragContext || "none",
       "",
-      "输出提醒：顶层 issues.category 只能使用 coherence/repetition/pacing/voice/engagement/logic。",
+      "输出提醒：顶层 issues.category 只能使用 coherence/repetition/pacing/voice/engagement/logic；continueRecommendation 只能是 continue、suggest_repair、full_audit。",
     ].join("\n")),
   ],
 };

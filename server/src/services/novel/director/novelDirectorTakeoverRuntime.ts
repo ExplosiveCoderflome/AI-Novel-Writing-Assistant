@@ -185,6 +185,7 @@ export async function loadDirectorTakeoverState(input: {
   const firstVolumePreparedChapterCount = firstVolume?.chapters.filter((chapter) => (
     Boolean(chapter.purpose?.trim())
     && Boolean(chapter.taskSheet?.trim())
+    && Boolean(chapter.sceneCards?.trim())
   )).length ?? 0;
   const generatedChapterCount = chapterRows.filter((chapter) => Boolean(chapter.content?.trim())).length;
   const approvedChapterCount = chapterRows.filter((chapter) => chapter.generationState === "approved" || chapter.generationState === "published").length;

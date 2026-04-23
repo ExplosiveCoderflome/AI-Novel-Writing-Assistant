@@ -279,6 +279,23 @@ function createVolumeDetailSystemPrompt(detailMode: VolumeChapterDetailPromptInp
   ].join("\n");
 }
 
+function createVolumeExecutionContractSystemPrompt(): string {
+  return [
+    "你是资深网文章节编辑。",
+    "当前任务是生成完整的章节执行合同。",
+    "只输出严格 JSON，且必须包含 purpose、exclusiveEvent、endingState、nextChapterEntryState、conflictLevel、revealLevel、targetWordCount、mustAvoid、payoffRefs、taskSheet、sceneCards。",
+    "purpose 必须明确本章独立推进目标，不要复述摘要。",
+    "exclusiveEvent 表示只能由本章承担的一次性里程碑事件，必须具体，不能写成空泛主题。",
+    "endingState 表示本章写完时的稳定局面。",
+    "nextChapterEntryState 表示下一章开场时应承接的入口状态，必须与 endingState 强关联但不能逐字重复。",
+    "taskSheet 是给用户读的简洁执行摘要，需要覆盖情绪基调、冲突对象、关键推进和收尾要求。",
+    "sceneCards 必须是 3-8 个场景卡数组，每个场景卡都必须包含 key、title、purpose、mustAdvance、mustPreserve、entryState、exitState、forbiddenExpansion、targetWordCount。",
+    "完整执行合同必须同时满足边界合同和执行任务单两层要求：上一章独占事件不重复，下一章关键首次事件不提前，本章结尾只能把局面推到下一章入口。",
+    "如果最近章节已经连续使用同类开场、同类推进或同类结尾，本章必须主动切换，不得机械复用。",
+    "sceneCards 必须完整覆盖整章推进和结尾 hook，不要把整章压成一个场景。",
+  ].join("\n");
+}
+
 function buildChapterDetailPrompt(contextText: string, detailMode: VolumeChapterDetailPromptInput["detailMode"]): string {
   return [
     `detail mode: ${detailMode}`,
@@ -352,6 +369,48 @@ export const volumeChapterTaskSheetPrompt: PromptAsset<
     new HumanMessage(buildChapterDetailPrompt(renderSelectedContextBlocks(context), input.detailMode)),
   ],
   postValidate: (output, input) => validateAdjacentChapterBoundary(output, input),
+};
+
+export const volumeChapterExecutionContractPrompt: PromptAsset<
+  VolumeChapterDetailPromptInput,
+  ReturnType<typeof createChapterExecutionContractSchema>["_output"]
+> = {
+  id: "novel.volume.chapter_execution_contract",
+  version: "v1",
+  taskType: "planner",
+  mode: "structured",
+  language: "zh",
+  contextPolicy: baseContextPolicy,
+  semanticRetryPolicy: {
+    maxAttempts: 2,
+  },
+  outputSchema: createChapterExecutionContractSchema(),
+  render: (input, context) => [
+    new SystemMessage(createVolumeExecutionContractSystemPrompt()),
+    new HumanMessage(buildChapterDetailPrompt(renderSelectedContextBlocks(context), input.detailMode)),
+  ],
+  postValidate: (output, input) => {
+    const boundary = validateBoundaryContract({
+      exclusiveEvent: output.exclusiveEvent,
+      endingState: output.endingState,
+      nextChapterEntryState: output.nextChapterEntryState,
+      conflictLevel: output.conflictLevel,
+      revealLevel: output.revealLevel,
+      targetWordCount: output.targetWordCount,
+      mustAvoid: output.mustAvoid,
+      payoffRefs: output.payoffRefs,
+    }, input);
+    const taskSheet = validateAdjacentChapterBoundary({
+      taskSheet: output.taskSheet,
+      sceneCards: output.sceneCards,
+    }, input);
+    return {
+      purpose: output.purpose,
+      ...boundary,
+      taskSheet: taskSheet.taskSheet,
+      sceneCards: taskSheet.sceneCards,
+    };
+  },
 };
 
 export { buildVolumeChapterDetailContextBlocks };

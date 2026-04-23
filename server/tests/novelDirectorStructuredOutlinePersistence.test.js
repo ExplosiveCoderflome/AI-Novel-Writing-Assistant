@@ -114,14 +114,14 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
 
       return workspace;
     },
-    updateVolumes: async (_novelId, workspace, options) => {
+    updateVolumesWithOptions: async (_novelId, workspace, options) => {
       updateVolumeCalls.push({
         volumes: clone(workspace.volumes),
         options: options ?? null,
       });
       return clone(workspace);
     },
-    syncVolumeChapters: async (_novelId, input) => {
+    syncVolumeChaptersWithOptions: async (_novelId, input) => {
       const snapshot = clone(input.volumes);
       syncedSnapshots.push(snapshot);
       lastSyncedWorkspace = {
@@ -167,7 +167,8 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
     taskId: "task-1",
     novelId: "novel-demo",
     request: {
-      runMode: "auto_to_ready",
+      runMode: "auto_to_execution",
+      autoExecutionPlan: { mode: "volume", volumeOrder: 1 },
       provider: "deepseek",
       model: "deepseek-chat",
       temperature: 0.7,
@@ -182,22 +183,19 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
 
   const silentSnapshots = updateVolumeCalls.filter((call) => call.options?.emitEvent === false);
 
-  assert.equal(silentSnapshots.length, 6);
+  assert.equal(silentSnapshots.length, 2);
   assert.equal(syncedSnapshots.length, 1);
   assert.deepEqual(rebuildCalls, [{
     novelId: "novel-demo",
     options: { sourceType: "rebuild_projection" },
   }]);
 
-  const firstDetailSync = silentSnapshots[2].volumes[0].chapters;
-  assert.equal(firstDetailSync[0].purpose, "Chapter 1 purpose");
+  const firstDetailSync = silentSnapshots[0].volumes[0].chapters;
   assert.equal(firstDetailSync[0].taskSheet, "Chapter 1 task sheet");
   assert.ok(firstDetailSync[0].sceneCards);
-  assert.equal(firstDetailSync[1].purpose, null);
   assert.equal(firstDetailSync[1].taskSheet, null);
 
-  const secondDetailSync = silentSnapshots[5].volumes[0].chapters;
-  assert.equal(secondDetailSync[1].purpose, "Chapter 2 purpose");
+  const secondDetailSync = silentSnapshots[1].volumes[0].chapters;
   assert.equal(secondDetailSync[1].taskSheet, "Chapter 2 task sheet");
   assert.ok(secondDetailSync[1].sceneCards);
 
@@ -301,8 +299,8 @@ test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter
       }
       return workspace;
     },
-    updateVolumes: async (_novelId, workspace) => clone(workspace),
-    syncVolumeChapters: async (_novelId, input) => {
+    updateVolumesWithOptions: async (_novelId, workspace) => clone(workspace),
+    syncVolumeChaptersWithOptions: async (_novelId, input) => {
       lastSyncedWorkspace = {
         ...lastSyncedWorkspace,
         volumes: clone(input.volumes),
@@ -346,7 +344,8 @@ test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter
     taskId: "task-2",
     novelId: "novel-demo",
     request: {
-      runMode: "auto_to_ready",
+      runMode: "auto_to_execution",
+      autoExecutionPlan: { mode: "volume", volumeOrder: 1 },
       provider: "deepseek",
       model: "deepseek-chat",
       temperature: 0.7,
@@ -360,8 +359,6 @@ test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter
   });
 
   assert.deepEqual(generatedTargets, [
-    "chapter-2:purpose",
-    "chapter-2:boundary",
     "chapter-2:task_sheet",
   ]);
   assert.deepEqual(rebuildCalls, [{
@@ -458,14 +455,14 @@ test("runDirectorStructuredOutlinePhase persists intermediate chapter detail sna
 
       return workspace;
     },
-    updateVolumes: async (_novelId, workspace, options) => {
+    updateVolumesWithOptions: async (_novelId, workspace, options) => {
       updateVolumeCalls.push({
         workspace: clone(workspace),
         options: options ?? null,
       });
       return clone(workspace);
     },
-    syncVolumeChapters: async (_novelId, input) => {
+    syncVolumeChaptersWithOptions: async (_novelId, input) => {
       lastSyncedWorkspace = {
         ...lastSyncedWorkspace,
         volumes: clone(input.volumes),
@@ -509,7 +506,8 @@ test("runDirectorStructuredOutlinePhase persists intermediate chapter detail sna
     taskId: "task-3",
     novelId: "novel-demo",
     request: {
-      runMode: "auto_to_ready",
+      runMode: "auto_to_execution",
+      autoExecutionPlan: { mode: "volume", volumeOrder: 1 },
       provider: "deepseek",
       model: "deepseek-chat",
       temperature: 0.7,
@@ -522,17 +520,13 @@ test("runDirectorStructuredOutlinePhase persists intermediate chapter detail sna
     callbacks,
   });
 
-  assert.equal(updateVolumeCalls.length, 7);
+  assert.equal(updateVolumeCalls.length, 3);
   assert.deepEqual(
     updateVolumeCalls.map((call) => call.options),
     [
       { emitEvent: false, syncPayoffLedger: false },
       { emitEvent: false, syncPayoffLedger: false },
-      { emitEvent: false, syncPayoffLedger: false },
-      { emitEvent: false, syncPayoffLedger: false },
-      { emitEvent: false, syncPayoffLedger: false },
-      { emitEvent: false, syncPayoffLedger: false },
-      null,
+      { volumeUpdateReason: "chapter_execution_contract_refined", syncPayoffLedger: false },
     ],
   );
   assert.deepEqual(rebuildCalls, [{

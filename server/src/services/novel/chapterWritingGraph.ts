@@ -356,6 +356,7 @@ export class ChapterWritingGraph {
   }
 
   private createSceneChapterStream(input: {
+    novelId: string;
     novelTitle: string;
     chapter: ChapterRef;
     contextPackage: GenerationContextPackage;
@@ -375,6 +376,7 @@ export class ChapterWritingGraph {
             const scene = input.scenePlan.scenes[index]!;
             const beforeLength = countChapterCharacters(joinSceneContents(sceneContents));
             const sceneStream = createChapterSceneStream({
+              novelId: input.novelId,
               novelTitle: input.novelTitle,
               chapter: input.chapter,
               contextPackage: input.contextPackage,

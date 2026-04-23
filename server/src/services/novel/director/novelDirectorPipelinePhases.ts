@@ -140,7 +140,7 @@ async function persistStructuredOutlineVolumeSnapshot(input: {
   workspace: VolumePlanDocument;
   dependencies: Pick<DirectorPhaseDependencies, "volumeService">;
 }): Promise<VolumePlanDocument> {
-  return input.dependencies.volumeService.updateVolumes(input.novelId, input.workspace, {
+  return input.dependencies.volumeService.updateVolumesWithOptions(input.novelId, input.workspace, {
     emitEvent: false,
     syncPayoffLedger: false,
   });
@@ -572,7 +572,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
         detailMode: targetDetailMode,
         draftWorkspace: workspace,
       });
-      workspace = await dependencies.volumeService.updateVolumes(novelId, workspace, {
+      workspace = await dependencies.volumeService.updateVolumesWithOptions(novelId, workspace, {
         emitEvent: false,
         syncPayoffLedger: false,
       });

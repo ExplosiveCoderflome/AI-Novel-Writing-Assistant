@@ -75,7 +75,8 @@ export function hasPreparedOutlineChapterExecutionDetail(
   }
   return Boolean(chapter.purpose?.trim())
     && hasPreparedOutlineChapterBoundary(chapter)
-    && Boolean(chapter.taskSheet?.trim());
+    && Boolean(chapter.taskSheet?.trim())
+    && Boolean(chapter.sceneCards?.trim());
 }
 
 function hasPreparedOutlineChapterDetailMode(
@@ -85,13 +86,9 @@ function hasPreparedOutlineChapterDetailMode(
   if (!chapter) {
     return false;
   }
-  if (detailMode === "purpose") {
-    return Boolean(chapter.purpose?.trim());
-  }
-  if (detailMode === "boundary") {
-    return hasPreparedOutlineChapterBoundary(chapter);
-  }
-  return Boolean(chapter.taskSheet?.trim());
+  return detailMode === "task_sheet"
+    ? Boolean(chapter.taskSheet?.trim()) && Boolean(chapter.sceneCards?.trim())
+    : false;
 }
 
 function findPreparedOutlineChapterDetail(

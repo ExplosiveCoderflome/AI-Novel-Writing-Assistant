@@ -34,7 +34,8 @@ function hasPreparedOutlineChapterExecutionDetail(
   }
   return Boolean(chapter.purpose?.trim())
     && hasPreparedOutlineChapterBoundary(chapter)
-    && Boolean(chapter.taskSheet?.trim());
+    && Boolean(chapter.taskSheet?.trim())
+    && Boolean(chapter.sceneCards?.trim());
 }
 
 function buildRangeFromPreparedChapters(input: {
