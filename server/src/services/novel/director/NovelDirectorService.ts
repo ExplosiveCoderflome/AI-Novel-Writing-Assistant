@@ -77,6 +77,7 @@ import { StyleProfileService } from "../../styleEngine/StyleProfileService";
 import {
   resolveAssetFirstRecoveryFromSnapshot,
   resolveObservedResumePhaseFromWorkspace,
+  resolveSafeDirectorPipelineStartPhase,
 } from "./novelDirectorRecovery";
 
 type WorkflowTaskSnapshot = Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>;
@@ -239,6 +240,7 @@ export class NovelDirectorService {
       characterCount: characters.length,
       chapterCount: chapters.length,
       volumeCount: workspace?.volumes.length ?? 0,
+      hasVolumeStrategyPlan: Boolean(workspace?.strategyPlan),
       firstVolumeId: firstVolume?.id ?? null,
       firstVolumeChapterCount: firstVolume?.chapters.length ?? 0,
     };
@@ -250,6 +252,7 @@ export class NovelDirectorService {
     const workspace = await this.volumeService.getVolumes(novelId).catch(() => null);
     return resolveObservedResumePhaseFromWorkspace({
       hasVolumeWorkspace: Boolean(workspace?.volumes.length),
+      hasVolumeStrategyPlan: Boolean(workspace?.strategyPlan),
     });
   }
 
@@ -281,6 +284,7 @@ export class NovelDirectorService {
       runMode: input.directorInput.runMode,
       structuredOutlineRecoveryStep: structuredOutlineStep,
       volumeCount: takeoverState.snapshot.volumeCount,
+      hasVolumeStrategyPlan: Boolean(takeoverState.snapshot.hasVolumeStrategyPlan),
       hasActivePipelineJob: Boolean(takeoverState.activePipelineJob),
       hasExecutableRange: Boolean(takeoverState.executableRange),
       hasAutoExecutionState: Boolean(takeoverState.latestAutoExecutionState?.enabled),
@@ -313,7 +317,7 @@ export class NovelDirectorService {
         return "character_setup";
       }
       if (assets.chapterCount === 0 || assets.firstVolumeChapterCount === 0) {
-        return assets.volumeCount > 0 ? "structured_outline" : "volume_strategy";
+        return assets.hasVolumeStrategyPlan ? "structured_outline" : "volume_strategy";
       }
       throw new DirectorRecoveryNotNeededError();
     }
@@ -332,11 +336,12 @@ export class NovelDirectorService {
     novelId: string;
     requestedPhase: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline";
   }): Promise<"story_macro" | "character_setup" | "volume_strategy" | "structured_outline"> {
-    if (input.requestedPhase === "structured_outline") {
-      return input.requestedPhase;
-    }
-    const observedPhase = await this.resolveObservedResumePhase(input.novelId);
-    return observedPhase ?? input.requestedPhase;
+    const workspace = await this.volumeService.getVolumes(input.novelId).catch(() => null);
+    return resolveSafeDirectorPipelineStartPhase({
+      requestedPhase: input.requestedPhase,
+      hasVolumeWorkspace: Boolean(workspace?.volumes.length),
+      hasVolumeStrategyPlan: Boolean(workspace?.strategyPlan),
+    });
   }
 
   private isCandidateSelectionTask(input: {

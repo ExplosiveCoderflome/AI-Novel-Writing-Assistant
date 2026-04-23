@@ -33,6 +33,7 @@ export interface DirectorTakeoverAssetSnapshot {
   characterCount: number;
   chapterCount: number;
   volumeCount: number;
+  hasVolumeStrategyPlan?: boolean;
   firstVolumeId: string | null;
   firstVolumeChapterCount: number;
   firstVolumeBeatSheetReady?: boolean;
@@ -277,7 +278,7 @@ function isCharacterReady(snapshot: DirectorTakeoverAssetSnapshot): boolean {
 }
 
 function isOutlineReady(snapshot: DirectorTakeoverAssetSnapshot): boolean {
-  return snapshot.volumeCount > 0;
+  return snapshot.volumeCount > 0 && Boolean(snapshot.hasVolumeStrategyPlan);
 }
 
 function isStructuredReady(snapshot: DirectorTakeoverAssetSnapshot): boolean {

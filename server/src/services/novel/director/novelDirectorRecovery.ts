@@ -2,16 +2,40 @@ import type { DirectorRunMode } from "@ai-novel/shared/types/novelDirector";
 import { normalizeDirectorRunMode } from "./novelDirectorHelpers";
 import type { StructuredOutlineRecoveryStep } from "./novelDirectorStructuredOutlineRecovery";
 
+export type DirectorPipelinePhase =
+  | "story_macro"
+  | "character_setup"
+  | "volume_strategy"
+  | "structured_outline";
+
 export function resolveObservedResumePhaseFromWorkspace(input: {
   hasVolumeWorkspace: boolean;
+  hasVolumeStrategyPlan: boolean;
 }): "structured_outline" | null {
-  return input.hasVolumeWorkspace ? "structured_outline" : null;
+  return input.hasVolumeWorkspace && input.hasVolumeStrategyPlan ? "structured_outline" : null;
+}
+
+export function resolveSafeDirectorPipelineStartPhase(input: {
+  requestedPhase: DirectorPipelinePhase;
+  hasVolumeWorkspace: boolean;
+  hasVolumeStrategyPlan: boolean;
+}): DirectorPipelinePhase {
+  if (input.requestedPhase === "structured_outline" && (!input.hasVolumeWorkspace || !input.hasVolumeStrategyPlan)) {
+    return "volume_strategy";
+  }
+
+  const observedPhase = resolveObservedResumePhaseFromWorkspace({
+    hasVolumeWorkspace: input.hasVolumeWorkspace,
+    hasVolumeStrategyPlan: input.hasVolumeStrategyPlan,
+  });
+  return observedPhase ?? input.requestedPhase;
 }
 
 export function resolveAssetFirstRecoveryFromSnapshot(input: {
   runMode?: DirectorRunMode;
   structuredOutlineRecoveryStep?: StructuredOutlineRecoveryStep | null;
   volumeCount: number;
+  hasVolumeStrategyPlan: boolean;
   hasActivePipelineJob: boolean;
   hasExecutableRange: boolean;
   hasAutoExecutionState: boolean;
@@ -48,7 +72,7 @@ export function resolveAssetFirstRecoveryFromSnapshot(input: {
     };
   }
 
-  if (input.structuredOutlineRecoveryStep || input.volumeCount > 0) {
+  if (input.hasVolumeStrategyPlan && (input.structuredOutlineRecoveryStep || input.volumeCount > 0)) {
     return {
       type: "phase",
       phase: "structured_outline",
