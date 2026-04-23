@@ -647,3 +647,100 @@ test("runFromReady skips the current review-blocked chapter when continuing expl
   assert.deepEqual(calls[5], ["getPipelineJobById", "job-skip-review"]);
   assert.deepEqual(calls[6], ["recordCheckpoint", "task-auto-exec", [1]]);
 });
+
+test("runFromReady preserves explicit existing range when request does not resend autoExecutionPlan", async () => {
+  const calls = [];
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        return Array.from({ length: 60 }, (_, index) => ({
+          id: `chapter-${index + 1}`,
+          order: index + 1,
+          generationState: index < 10 ? "approved" : "planned",
+        }));
+      },
+    },
+    novelService: {
+      async startPipelineJob(_novelId, options) {
+        calls.push(["startPipelineJob", options.startOrder, options.endOrder]);
+        return { id: "job-60", status: "queued" };
+      },
+      async findActivePipelineJobForRange(_novelId, startOrder, endOrder, preferredJobId) {
+        calls.push(["findActivePipelineJobForRange", startOrder, endOrder, preferredJobId]);
+        return null;
+      },
+      async getPipelineJobById(jobId) {
+        calls.push(["getPipelineJobById", jobId]);
+        return {
+          id: jobId,
+          status: "succeeded",
+          progress: 1,
+          currentStage: null,
+          currentItemLabel: null,
+          noticeSummary: null,
+          error: null,
+        };
+      },
+      async cancelPipelineJob() {
+        calls.push(["cancelPipelineJob"]);
+      },
+    },
+    workflowService: {
+      async bootstrapTask(input) {
+        calls.push([
+          "bootstrapTask",
+          input.seedPayload.autoExecution.startOrder,
+          input.seedPayload.autoExecution.endOrder,
+          input.seedPayload.autoExecution.totalChapterCount,
+        ]);
+      },
+      async getTaskById() {
+        return { status: "running" };
+      },
+      async markTaskRunning() {
+        calls.push(["markTaskRunning"]);
+      },
+      async recordCheckpoint(taskId, input) {
+        calls.push([
+          "recordCheckpoint",
+          taskId,
+          input.seedPayload.autoExecution.startOrder,
+          input.seedPayload.autoExecution.endOrder,
+          input.seedPayload.autoExecution.totalChapterCount,
+        ]);
+      },
+      async markTaskFailed() {
+        calls.push(["markTaskFailed"]);
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+  });
+
+  await runtime.runFromReady({
+    taskId: "task-auto-exec",
+    novelId: "novel-1",
+    request: buildRequest(),
+    existingState: {
+      enabled: true,
+      mode: "chapter_range",
+      scopeLabel: "第 11-60 章",
+      startOrder: 11,
+      endOrder: 60,
+      totalChapterCount: 50,
+      nextChapterId: "chapter-11",
+      nextChapterOrder: 11,
+      remainingChapterCount: 50,
+      remainingChapterOrders: Array.from({ length: 50 }, (_, index) => index + 11),
+      pipelineJobId: null,
+      pipelineStatus: null,
+    },
+  });
+
+  assert.deepEqual(calls[0], ["bootstrapTask", 11, 60, 50]);
+  assert.deepEqual(calls[1], ["findActivePipelineJobForRange", 11, 60, null]);
+  assert.deepEqual(calls[3], ["startPipelineJob", 11, 60]);
+  assert.deepEqual(calls[4], ["bootstrapTask", 11, 60, 50]);
+  assert.deepEqual(calls[6], ["recordCheckpoint", "task-auto-exec", 11, 60, 50]);
+});

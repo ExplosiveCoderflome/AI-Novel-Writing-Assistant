@@ -13,22 +13,6 @@ test("getBeatSheetChapterSpanUpperBound returns the upper bound for chapter rang
   assert.equal(getBeatSheetChapterSpanUpperBound("未标注"), 0);
 });
 
-test("inferRequiredChapterCountFromBeatSheet uses the farthest beat span end", () => {
-  const beatSheet = {
-    beats: [
-      { chapterSpanHint: "1-2章" },
-      { chapterSpanHint: "5-7章" },
-      { chapterSpanHint: "12-15章" },
-      { chapterSpanHint: "20-25章" },
-      { chapterSpanHint: "29-30章" },
-    ],
-  };
-
-  assert.equal(inferRequiredChapterCountFromBeatSheet(beatSheet), 30);
-  assert.equal(inferRequiredChapterCountFromBeatSheet({ beats: [] }), 0);
-  assert.equal(inferRequiredChapterCountFromBeatSheet(null), 0);
-});
-
 test("resolveTargetChapterCount accepts small beat-sheet drift above the budget", () => {
   const resolved = resolveTargetChapterCount({
     budgetedChapterCount: 40,

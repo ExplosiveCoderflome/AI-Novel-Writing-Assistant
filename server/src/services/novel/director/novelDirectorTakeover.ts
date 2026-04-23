@@ -18,6 +18,10 @@ import type {
 import type { NovelWorkflowStage, BookContract } from "@ai-novel/shared/types/novelWorkflow";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
 import { DIRECTOR_TAKEOVER_ENTRY_STEPS } from "@ai-novel/shared/types/novelDirector";
+import {
+  doesCheckpointOverlapRange,
+  doesPipelineJobOverlapRange,
+} from "./novelDirectorTakeoverRange";
 
 export interface DirectorTakeoverNovelContext extends Omit<DirectorProjectContextInput, "description"> {
   id: string;
@@ -48,6 +52,8 @@ export interface DirectorTakeoverDecisionInput {
   activePipelineJob?: DirectorTakeoverPipelineJobSnapshot | null;
   latestCheckpoint?: DirectorTakeoverCheckpointSnapshot | null;
   executableRange?: DirectorTakeoverExecutableRangeSnapshot | null;
+  requestedExecutionRange?: DirectorTakeoverExecutableRangeSnapshot | null;
+  requestedPendingRepairChapterCount?: number;
 }
 
 export interface DirectorTakeoverResolvedPlan {
@@ -293,7 +299,11 @@ function hasExecutableRange(input: {
   executableRange?: DirectorTakeoverExecutableRangeSnapshot | null;
   latestCheckpoint?: DirectorTakeoverCheckpointSnapshot | null;
   activePipelineJob?: DirectorTakeoverPipelineJobSnapshot | null;
+  requestedExecutionRange?: DirectorTakeoverExecutableRangeSnapshot | null;
 }): boolean {
+  if (input.requestedExecutionRange) {
+    return true;
+  }
   return Boolean(
     input.executableRange
     || input.latestCheckpoint?.checkpointType === "front10_ready"
@@ -314,13 +324,47 @@ function hasPendingRepairContext(input: {
   snapshot: DirectorTakeoverAssetSnapshot;
   activePipelineJob?: DirectorTakeoverPipelineJobSnapshot | null;
   latestCheckpoint?: DirectorTakeoverCheckpointSnapshot | null;
+  requestedExecutionRange?: DirectorTakeoverExecutableRangeSnapshot | null;
+  requestedPendingRepairChapterCount?: number;
 }): boolean {
+  if (input.requestedExecutionRange) {
+    return Boolean(
+      doesPipelineJobOverlapRange(input.activePipelineJob, input.requestedExecutionRange)
+      || doesCheckpointOverlapRange(input.latestCheckpoint, input.requestedExecutionRange)
+      || (input.requestedPendingRepairChapterCount ?? 0) > 0
+    );
+  }
   return Boolean(
     isRepairingPipelineJob(input.activePipelineJob)
     || input.latestCheckpoint?.checkpointType === "chapter_batch_ready"
     || input.latestCheckpoint?.checkpointType === "replan_required"
     || (input.snapshot.pendingRepairChapterCount ?? 0) > 0,
   );
+}
+
+function doesExecutionRangeOverlapRequested(input: {
+  executableRange?: DirectorTakeoverExecutableRangeSnapshot | null;
+  latestCheckpoint?: DirectorTakeoverCheckpointSnapshot | null;
+  activePipelineJob?: DirectorTakeoverPipelineJobSnapshot | null;
+  requestedExecutionRange?: DirectorTakeoverExecutableRangeSnapshot | null;
+}): boolean {
+  if (!input.requestedExecutionRange) {
+    return Boolean(
+      input.executableRange
+      || input.latestCheckpoint?.checkpointType === "front10_ready"
+      || input.latestCheckpoint?.checkpointType === "chapter_batch_ready"
+      || input.latestCheckpoint?.checkpointType === "replan_required"
+      || input.activePipelineJob
+    );
+  }
+  const range = input.requestedExecutionRange;
+  const executableOverlap = Boolean(
+    input.executableRange
+    && !(input.executableRange.endOrder < range.startOrder || input.executableRange.startOrder > range.endOrder)
+  );
+  return executableOverlap
+    || doesCheckpointOverlapRange(input.latestCheckpoint, range)
+    || doesPipelineJobOverlapRange(input.activePipelineJob, range);
 }
 
 function phaseToEntryStep(phase: DirectorTakeoverStartPhase): DirectorTakeoverEntryStep {
@@ -495,6 +539,7 @@ export function resolveDirectorTakeoverPlan(input: DirectorTakeoverDecisionInput
   const structuredReady = isStructuredReady(input.snapshot);
   const executable = hasExecutableRange(input);
   const pendingRepair = hasPendingRepairContext(input);
+  const reusableExecution = doesExecutionRangeOverlapRequested(input);
 
   if (input.strategy === "continue_existing") {
     const effectiveStep = resolveContinueTargetStep(input);
@@ -557,7 +602,7 @@ export function resolveDirectorTakeoverPlan(input: DirectorTakeoverDecisionInput
       entryStep: input.entryStep,
       strategy: input.strategy,
       effectiveStep: "chapter",
-      usesCurrentBatch: executable,
+      usesCurrentBatch: reusableExecution,
       latestCheckpoint: input.latestCheckpoint,
       summary: "继续已有进度，优先恢复当前章节批次。",
       effectSummary: "会优先恢复活动中的批次、检查点或已准备好的章节范围继续执行。",

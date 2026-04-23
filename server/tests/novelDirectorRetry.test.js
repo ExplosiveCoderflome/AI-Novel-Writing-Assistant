@@ -831,6 +831,85 @@ test("continueTask preserves replan recovery state for replan checkpoints", asyn
   }
 });
 
+test("continueTask preserves expanded auto-execution scope instead of reverting to front10", async () => {
+  const service = new NovelDirectorService();
+  const originalContinueCandidateStageTask = service.continueCandidateStageTask;
+  const originalGetTaskByIdWithoutHealing = service.workflowService.getTaskByIdWithoutHealing;
+  const originalMarkTaskRunning = service.workflowService.markTaskRunning;
+  const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
+  const originalRunFromReady = service.autoExecutionRuntime.runFromReady;
+  const runtimeCalls = [];
+  const scheduledRuns = [];
+
+  service.continueCandidateStageTask = async () => false;
+  service.workflowService.getTaskByIdWithoutHealing = async () => ({
+    id: "task_auto_execution_resume",
+    lane: "auto_director",
+    status: "failed",
+    pendingManualRecovery: false,
+    novelId: "novel_auto_execution_resume",
+    checkpointType: "chapter_batch_ready",
+    currentItemKey: "quality_repair",
+    resumeTargetJson: JSON.stringify({
+      stage: "pipeline",
+      chapterId: "chapter_11",
+    }),
+    lastError: "当前还有章节待继续处理。",
+    seedPayloadJson: JSON.stringify({
+      directorInput: buildDirectorInput({
+        workflowTaskId: "task_auto_execution_resume",
+        runMode: "auto_to_execution",
+      }),
+      directorSession: {
+        runMode: "auto_to_execution",
+        phase: "front10_ready",
+        isBackgroundRunning: false,
+        lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
+        reviewScope: null,
+      },
+      autoExecution: {
+        enabled: true,
+        mode: "chapter_range",
+        scopeLabel: "第 11-60 章",
+        startOrder: 11,
+        endOrder: 60,
+        totalChapterCount: 50,
+        nextChapterId: "chapter_11",
+        nextChapterOrder: 11,
+        remainingChapterCount: 50,
+        remainingChapterOrders: Array.from({ length: 50 }, (_, index) => index + 11),
+        pipelineJobId: "pipeline_existing",
+        pipelineStatus: "failed",
+      },
+    }),
+  });
+  service.workflowService.markTaskRunning = async () => null;
+  service.scheduleBackgroundRun = (taskId, runner) => {
+    scheduledRuns.push({ taskId, runner });
+  };
+  service.autoExecutionRuntime.runFromReady = async (input) => {
+    runtimeCalls.push(input);
+  };
+
+  try {
+    await service.continueTask("task_auto_execution_resume", {
+      continuationMode: "auto_execute_range",
+    });
+    await scheduledRuns[0].runner();
+  } finally {
+    service.continueCandidateStageTask = originalContinueCandidateStageTask;
+    service.workflowService.getTaskByIdWithoutHealing = originalGetTaskByIdWithoutHealing;
+    service.workflowService.markTaskRunning = originalMarkTaskRunning;
+    service.scheduleBackgroundRun = originalScheduleBackgroundRun;
+    service.autoExecutionRuntime.runFromReady = originalRunFromReady;
+  }
+
+  assert.equal(runtimeCalls.length, 1);
+  assert.equal(runtimeCalls[0].existingState.startOrder, 11);
+  assert.equal(runtimeCalls[0].existingState.endOrder, 60);
+  assert.equal(runtimeCalls[0].existingState.totalChapterCount, 50);
+});
+
 test("runDirectorStructuredOutlinePhase resumes from the first incomplete beat and missing detail mode", async () => {
   const baseWorkspace = createStructuredOutlineWorkspace();
   const chapterListCompletedWorkspace = buildVolumeWorkspaceDocument({

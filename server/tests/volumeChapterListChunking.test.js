@@ -273,3 +273,151 @@ test("generateBeatChunkedChapterList skips full-volume regeneration when all bea
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
   }
 });
+
+function createSeedChapterDocument() {
+  return buildVolumeWorkspaceDocument({
+    novelId: "novel-1",
+    volumes: [
+      {
+        id: "volume-1",
+        novelId: "novel-1",
+        sortOrder: 1,
+        title: "第一卷",
+        summary: "卷摘要",
+        openingHook: "开卷抓手",
+        mainPromise: "主承诺",
+        primaryPressureSource: "压力源",
+        coreSellingPoint: "核心卖点",
+        escalationMode: "升级方式",
+        protagonistChange: "主角变化",
+        midVolumeRisk: "中段风险",
+        climax: "高潮",
+        payoffType: "兑现类型",
+        nextVolumeHook: "下卷钩子",
+        resetPoint: null,
+        openPayoffs: [],
+        status: "active",
+        sourceVersionId: null,
+        chapters: [
+          createChapter({
+            id: "seed-chapter-1",
+            chapterOrder: 1,
+            beatKey: "open_hook",
+            title: "旧开卷一",
+            summary: "旧开卷摘要一",
+          }),
+          createChapter({
+            id: "seed-chapter-2",
+            chapterOrder: 2,
+            beatKey: "open_hook",
+            title: "旧开卷二",
+            summary: "旧开卷摘要二",
+          }),
+          createChapter({
+            id: "seed-chapter-3",
+            chapterOrder: 3,
+            beatKey: "open_hook",
+            title: "旧开卷三",
+            summary: "旧开卷摘要三",
+          }),
+        ],
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString(),
+      },
+    ],
+    beatSheets: [
+      {
+        volumeId: "volume-1",
+        volumeSortOrder: 1,
+        status: "generated",
+        beats: [
+          {
+            key: "open_hook",
+            label: "开卷抓手",
+            summary: "先把局势危险钉死。",
+            chapterSpanHint: "1-4章",
+            mustDeliver: ["压迫感"],
+          },
+          {
+            key: "mid_turn",
+            label: "中段转向",
+            summary: "让局势方向发生变化。",
+            chapterSpanHint: "5-7章",
+            mustDeliver: ["转向"],
+          },
+          {
+            key: "climax",
+            label: "高潮兑现",
+            summary: "把当前卷的主要承诺兑现出来。",
+            chapterSpanHint: "8-10章",
+            mustDeliver: ["兑现"],
+          },
+        ],
+      },
+    ],
+  });
+}
+
+test("generateBeatChunkedChapterList does not treat seed chapters as the trusted full-volume budget", async () => {
+  const document = createSeedChapterDocument();
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  const generatedBeatKeys = [];
+
+  promptRunner.runStructuredPrompt = async ({ promptInput }) => {
+    generatedBeatKeys.push(promptInput.targetBeat.key);
+    return {
+      output: {
+        beatKey: promptInput.targetBeat.key,
+        beatLabel: promptInput.targetBeat.label,
+        chapterCount: promptInput.targetBeatChapterCount,
+        chapters: Array.from({ length: promptInput.targetBeatChapterCount }, (_, index) => ({
+          beatKey: promptInput.targetBeat.key,
+          title: `${promptInput.targetBeat.label}-${index + 1}`,
+          summary: `${promptInput.targetBeat.label}摘要${index + 1}`,
+        })),
+      },
+    };
+  };
+
+  try {
+    const result = await generateBeatChunkedChapterList({
+      document,
+      novel: {
+        title: "测试小说",
+        description: null,
+        targetAudience: null,
+        bookSellingPoint: null,
+        competingFeel: null,
+        first30ChapterPromise: null,
+        commercialTagsJson: null,
+        estimatedChapterCount: 10,
+        narrativePov: null,
+        pacePreference: null,
+        emotionIntensity: null,
+        storyModePromptBlock: null,
+        genre: null,
+        characters: [],
+      },
+      workspace: {
+        ...document,
+        workspaceVersion: "v2",
+        readiness: {},
+      },
+      storyMacroPlan: null,
+      options: {
+        targetVolumeId: "volume-1",
+        generationMode: "full_volume",
+      },
+      notifyPhase: async () => {},
+    });
+
+    assert.deepEqual(generatedBeatKeys, ["open_hook", "mid_turn", "climax"]);
+    assert.equal(result.mergedDocument.volumes[0].chapters.length, 10);
+    assert.deepEqual(
+      result.mergedDocument.volumes[0].chapters.map((chapter) => chapter.beatKey),
+      ["open_hook", "open_hook", "open_hook", "open_hook", "mid_turn", "mid_turn", "mid_turn", "climax", "climax", "climax"],
+    );
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});

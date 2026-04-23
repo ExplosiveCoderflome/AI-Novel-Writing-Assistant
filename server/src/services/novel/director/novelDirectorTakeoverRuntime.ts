@@ -12,7 +12,14 @@ import { prisma } from "../../../db/prisma";
 import { normalizeNovelOutput } from "../novelCoreShared";
 import { DIRECTOR_PROGRESS } from "./novelDirectorProgress";
 import { parseSeedPayload } from "../workflow/novelWorkflow.shared";
-import { resolveDirectorAutoExecutionRangeFromState } from "./novelDirectorAutoExecution";
+import {
+  buildDirectorAutoExecutionState,
+  resolveDirectorAutoExecutionRangeFromState,
+} from "./novelDirectorAutoExecution";
+import {
+  buildPreparedExecutableRange,
+  resolveRequestedTakeoverRange,
+} from "./novelDirectorTakeoverRange";
 
 export interface DirectorTakeoverLoadedState {
   novel: DirectorTakeoverNovelContext;
@@ -26,62 +33,9 @@ export interface DirectorTakeoverLoadedState {
   latestCheckpoint: DirectorTakeoverCheckpointSnapshot | null;
   executableRange: DirectorTakeoverExecutableRangeSnapshot | null;
   latestAutoExecutionState: DirectorWorkflowSeedPayload["autoExecution"] | null;
-}
-
-function hasPreparedOutlineChapterBoundary(
-  chapter: VolumePlanDocument["volumes"][number]["chapters"][number] | null | undefined,
-): boolean {
-  if (!chapter) {
-    return false;
-  }
-  return typeof chapter.conflictLevel === "number"
-    || typeof chapter.revealLevel === "number"
-    || typeof chapter.targetWordCount === "number"
-    || Boolean(chapter.mustAvoid?.trim())
-    || chapter.payoffRefs.length > 0;
-}
-
-function hasPreparedOutlineChapterExecutionDetail(
-  chapter: VolumePlanDocument["volumes"][number]["chapters"][number] | null | undefined,
-): boolean {
-  if (!chapter) {
-    return false;
-  }
-  return Boolean(chapter.purpose?.trim())
-    && hasPreparedOutlineChapterBoundary(chapter)
-    && Boolean(chapter.taskSheet?.trim());
-}
-
-function buildPreparedRangeFromWorkspace(
-  workspace: VolumePlanDocument | null,
-  chapterStates: Array<{ id: string; order: number; generationState: string | null }>,
-): DirectorTakeoverExecutableRangeSnapshot | null {
-  const firstVolume = workspace?.volumes[0];
-  if (!firstVolume) {
-    return null;
-  }
-
-  const prepared = firstVolume.chapters
-    .filter((chapter) => hasPreparedOutlineChapterExecutionDetail(chapter))
-    .sort((left, right) => left.chapterOrder - right.chapterOrder)
-    .slice(0, 10);
-  if (prepared.length === 0) {
-    return null;
-  }
-
-  const chapterStateMap = new Map(chapterStates.map((chapter) => [chapter.id, chapter]));
-  const nextPending = prepared.find((chapter) => {
-    const state = chapterStateMap.get(chapter.id)?.generationState ?? null;
-    return state !== "approved" && state !== "published";
-  }) ?? null;
-
-  return {
-    startOrder: prepared[0].chapterOrder,
-    endOrder: prepared[prepared.length - 1].chapterOrder,
-    totalChapterCount: prepared.length,
-    nextChapterId: nextPending?.id ?? null,
-    nextChapterOrder: nextPending?.chapterOrder ?? null,
-  };
+  requestedExecutionRange: DirectorTakeoverExecutableRangeSnapshot | null;
+  requestedAutoExecutionState: DirectorWorkflowSeedPayload["autoExecution"] | null;
+  requestedPendingRepairChapterCount: number;
 }
 
 function buildCheckpointSnapshot(input: {
@@ -125,6 +79,7 @@ function buildCheckpointSnapshot(input: {
 
 export async function loadDirectorTakeoverState(input: {
   novelId: string;
+  autoExecutionPlan?: DirectorWorkflowSeedPayload["autoExecutionPlan"] | null;
   getStoryMacroPlan: (novelId: string) => Promise<StoryMacroPlan | null>;
   getDirectorAssetSnapshot: (novelId: string) => Promise<{
     characterCount: number;
@@ -226,7 +181,10 @@ export async function loadDirectorTakeoverState(input: {
     firstVolume
     && workspace?.beatSheets.some((sheet) => sheet.volumeId === firstVolume.id && sheet.beats.length > 0),
   );
-  const firstVolumePreparedChapterCount = firstVolume?.chapters.filter((chapter) => hasPreparedOutlineChapterExecutionDetail(chapter)).length ?? 0;
+  const firstVolumePreparedChapterCount = firstVolume?.chapters.filter((chapter) => (
+    Boolean(chapter.purpose?.trim())
+    && Boolean(chapter.taskSheet?.trim())
+  )).length ?? 0;
   const generatedChapterCount = chapterRows.filter((chapter) => Boolean(chapter.content?.trim())).length;
   const approvedChapterCount = chapterRows.filter((chapter) => chapter.generationState === "approved" || chapter.generationState === "published").length;
   const pendingRepairChapterCount = chapterRows.filter((chapter) => {
@@ -263,7 +221,42 @@ export async function loadDirectorTakeoverState(input: {
         nextChapterId: latestSeedPayload?.autoExecution?.nextChapterId ?? null,
         nextChapterOrder: latestSeedPayload?.autoExecution?.nextChapterOrder ?? null,
       }
-    : buildPreparedRangeFromWorkspace(workspace, chapterRows);
+    : buildPreparedExecutableRange({
+        workspace,
+        chapterStates: chapterRows,
+      });
+  const requestedRangePlan = input.autoExecutionPlan
+    ?? latestSeedPayload?.autoExecutionPlan
+    ?? latestSeedPayload?.autoExecution
+    ?? null;
+  const requestedExecutionRange = resolveRequestedTakeoverRange({
+    autoExecutionPlan: requestedRangePlan,
+    workspace,
+    chapterStates: chapterRows,
+  });
+  const requestedAutoExecutionState = requestedExecutionRange
+    ? buildDirectorAutoExecutionState({
+        range: {
+          startOrder: requestedExecutionRange.startOrder,
+          endOrder: requestedExecutionRange.endOrder,
+          totalChapterCount: requestedExecutionRange.totalChapterCount,
+          firstChapterId: requestedExecutionRange.nextChapterId ?? null,
+        },
+        chapters: chapterRows,
+        plan: requestedRangePlan,
+      })
+    : null;
+  const requestedPendingRepairChapterCount = requestedExecutionRange
+    ? chapterRows.filter((chapter) => {
+        if (!chapter.content?.trim()) {
+          return false;
+        }
+        if (chapter.order < requestedExecutionRange.startOrder || chapter.order > requestedExecutionRange.endOrder) {
+          return false;
+        }
+        return chapter.generationState !== "approved" && chapter.generationState !== "published";
+      }).length
+    : 0;
 
   return {
     novel,
@@ -287,6 +280,9 @@ export async function loadDirectorTakeoverState(input: {
     latestCheckpoint,
     executableRange,
     latestAutoExecutionState: latestSeedPayload?.autoExecution ?? null,
+    requestedExecutionRange,
+    requestedAutoExecutionState,
+    requestedPendingRepairChapterCount,
   };
 }
 

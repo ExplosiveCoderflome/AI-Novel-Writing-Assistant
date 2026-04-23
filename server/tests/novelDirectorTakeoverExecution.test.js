@@ -131,3 +131,77 @@ test("continue_existing does not invoke restart preparation", async () => {
 
   assert.equal(restartCalled, false);
 });
+
+test("startDirectorTakeoverExecution passes the requested range state instead of stale front10 state", async () => {
+  const runtimeCalls = [];
+
+  await startDirectorTakeoverExecution({
+    request: {
+      novelId: "novel_takeover_demo",
+      entryStep: "chapter",
+      strategy: "continue_existing",
+      autoExecutionPlan: {
+        mode: "chapter_range",
+        startOrder: 11,
+        endOrder: 190,
+      },
+    },
+    takeoverState: {
+      ...buildTakeoverState(),
+      executableRange: {
+        startOrder: 1,
+        endOrder: 10,
+        totalChapterCount: 10,
+        nextChapterId: "chapter_4",
+        nextChapterOrder: 4,
+      },
+      latestAutoExecutionState: {
+        enabled: true,
+        mode: "front10",
+        startOrder: 1,
+        endOrder: 10,
+        totalChapterCount: 10,
+        nextChapterId: "chapter_4",
+        nextChapterOrder: 4,
+      },
+      requestedExecutionRange: {
+        startOrder: 11,
+        endOrder: 190,
+        totalChapterCount: 180,
+        nextChapterId: "chapter_11",
+        nextChapterOrder: 11,
+      },
+      requestedAutoExecutionState: {
+        enabled: true,
+        mode: "chapter_range",
+        startOrder: 11,
+        endOrder: 190,
+        totalChapterCount: 180,
+        nextChapterId: "chapter_11",
+        nextChapterOrder: 11,
+      },
+    },
+    directorInput: {
+      candidate: { workingTitle: "Neon Archive" },
+      runMode: "auto_to_execution",
+      autoExecutionPlan: { mode: "chapter_range", startOrder: 11, endOrder: 190 },
+    },
+    workflowService: {
+      bootstrapTask: async () => ({ id: "workflow_takeover_demo" }),
+      markTaskRunning: async () => {},
+    },
+    autoExecutionRuntime: {
+      runFromReady: async (input) => {
+        runtimeCalls.push(input);
+      },
+    },
+    buildDirectorSeedPayload: () => ({}),
+    scheduleBackgroundRun: (_taskId, runner) => {
+      void runner();
+    },
+    runDirectorPipeline: async () => {},
+  });
+
+  assert.equal(runtimeCalls[0].existingState.startOrder, 11);
+  assert.equal(runtimeCalls[0].existingState.endOrder, 190);
+});

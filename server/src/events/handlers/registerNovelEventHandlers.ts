@@ -7,6 +7,34 @@ function shouldRebuildCharacterDynamics(reason: VolumeUpdateReason): boolean {
   return reason !== "chapter_execution_contract_refined";
 }
 
+const pendingVolumeProjectionRebuilds = new Set<string>();
+const runningVolumeProjectionRebuilds = new Map<string, Promise<void>>();
+
+async function scheduleVolumeProjectionRebuild(novelId: string): Promise<void> {
+  if (runningVolumeProjectionRebuilds.has(novelId)) {
+    pendingVolumeProjectionRebuilds.add(novelId);
+    return runningVolumeProjectionRebuilds.get(novelId);
+  }
+
+  const run = (async () => {
+    try {
+      do {
+        pendingVolumeProjectionRebuilds.delete(novelId);
+        const characterDynamicsService = new CharacterDynamicsService();
+        await characterDynamicsService.rebuildDynamics(novelId, {
+          sourceType: "volume_projection",
+        });
+      } while (pendingVolumeProjectionRebuilds.has(novelId));
+    } finally {
+      runningVolumeProjectionRebuilds.delete(novelId);
+      pendingVolumeProjectionRebuilds.delete(novelId);
+    }
+  })();
+
+  runningVolumeProjectionRebuilds.set(novelId, run);
+  return run;
+}
+
 export function registerNovelEventHandlers(eventBus: EventBus): void {
   eventBus.on("chapter:drafted", async (event) => {
     if (event.type !== "chapter:drafted") {
@@ -27,10 +55,7 @@ export function registerNovelEventHandlers(eventBus: EventBus): void {
     if (!shouldRebuildCharacterDynamics(event.payload.reason)) {
       return;
     }
-    const characterDynamicsService = new CharacterDynamicsService();
-    await characterDynamicsService.rebuildDynamics(event.payload.novelId, {
-      sourceType: "volume_projection",
-    });
+    await scheduleVolumeProjectionRebuild(event.payload.novelId);
   }, 90);
 
   eventBus.on("pipeline:completed", async (event) => {
