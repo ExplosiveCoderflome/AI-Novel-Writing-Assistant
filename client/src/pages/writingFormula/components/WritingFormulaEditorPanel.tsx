@@ -288,13 +288,15 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
               </div>
             </div>
 
-            {selectedProfile.sourceType === "from_text" || editor.sourceContent.trim() ? (
+            {selectedProfile.sourceType === "from_text"
+            || selectedProfile.sourceType === "from_knowledge_document"
+            || editor.sourceContent.trim() ? (
               <div className="space-y-4 rounded-2xl border p-4">
                 <div className="space-y-1">
                   <div className="text-base font-semibold text-slate-950">原文依据与提取特征</div>
                   <div className="text-sm leading-6 text-slate-500">
-                    这部分是这套写法的“证据层”。如果你是从文本提取出来的写法，后续回看和重提取都会依赖这里。
-                    当前会把特征说明、证据、分数、预设建议和推荐规则一起展示出来。
+                    这部分是这套写法的“证据层”。从文本或知识库原文提取出来的写法，后续回看和重提取都会依赖这里。
+                    这里会把特征说明、证据、分数、预设建议和推荐规则一起展示出来。
                   </div>
                 </div>
 

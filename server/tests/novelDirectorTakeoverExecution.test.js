@@ -53,6 +53,8 @@ function buildTakeoverState() {
 
 test("restart_current_step prepares reset before bootstrapping execution", async () => {
   const calls = [];
+  const scheduled = [];
+  let runFromReadyInput = null;
   const response = await startDirectorTakeoverExecution({
     request: {
       novelId: "novel_takeover_demo",
@@ -75,14 +77,18 @@ test("restart_current_step prepares reset before bootstrapping execution", async
       },
     },
     autoExecutionRuntime: {
-      runFromReady: async () => {
+      prepareRequestedAutoExecution: async (input) => {
+        calls.push(["prepare_auto_execution", input.existingState]);
+      },
+      runFromReady: async (input) => {
+        runFromReadyInput = input;
         calls.push("auto_execution");
       },
     },
     buildDirectorSeedPayload: () => ({}),
     scheduleBackgroundRun: (_taskId, runner) => {
       calls.push("schedule");
-      void runner();
+      scheduled.push(runner);
     },
     runDirectorPipeline: async () => {
       calls.push("phase_pipeline");
@@ -95,7 +101,10 @@ test("restart_current_step prepares reset before bootstrapping execution", async
   assert.equal(response.strategy, "restart_current_step");
   assert.equal(response.effectiveStage, "chapter_execution");
   assert.deepEqual(calls.slice(0, 2), ["reset:chapter", "bootstrap"]);
+  assert.deepEqual(calls[2], ["prepare_auto_execution", null]);
+  await Promise.all(scheduled.map((runner) => runner()));
   assert.ok(calls.includes("auto_execution"));
+  assert.equal(runFromReadyInput.existingState, null);
 });
 
 test("continue_existing does not invoke restart preparation", async () => {
@@ -117,6 +126,7 @@ test("continue_existing does not invoke restart preparation", async () => {
       markTaskRunning: async () => {},
     },
     autoExecutionRuntime: {
+      prepareRequestedAutoExecution: async () => {},
       runFromReady: async () => {},
     },
     buildDirectorSeedPayload: () => ({}),

@@ -624,6 +624,7 @@ export default function NovelEdit() {
   const invalidateAutoDirectorTaskState = async (taskId?: string) => {
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTask(id) });
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCastOptions(id) });
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.volumeWorkspace(id) });
     if (taskId) {
       await queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail("novel_workflow", taskId) });
@@ -640,6 +641,7 @@ export default function NovelEdit() {
     onSuccess: async (response) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTask(id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCastOptions(id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.volumeWorkspace(id) });
       await queryClient.invalidateQueries({ queryKey: ["tasks"] });
       const feedback = resolveWorkflowContinuationFeedback(response.data);
@@ -666,6 +668,7 @@ export default function NovelEdit() {
     onSuccess: async (response) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTask(id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCastOptions(id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.volumeWorkspace(id) });
       await queryClient.invalidateQueries({ queryKey: ["tasks"] });
       const feedback = resolveWorkflowContinuationFeedback(response.data, {
@@ -1313,6 +1316,7 @@ export default function NovelEdit() {
       queryClient.invalidateQueries({ queryKey: queryKeys.novels.volumeWorkspace(id) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.novels.latestStateSnapshot(id) }),
       queryClient.invalidateQueries({ queryKey: ["novels", "payoff-ledger", id] }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCastOptions(id) }),
       queryClient.invalidateQueries({ queryKey: ["novels", "character-dynamics-overview", id] }),
       queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterRelations(id) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCandidates(id) }),
@@ -1384,6 +1388,7 @@ export default function NovelEdit() {
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(id) });
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterDynamicsOverview(id) });
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCandidates(id) });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCastOptions(id) });
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterRelations(id) });
     await queryClient.invalidateQueries({ queryKey: ["novels", "chapter-plan", id] });
     await queryClient.invalidateQueries({ queryKey: ["novels", "chapter-audit-reports", id] });

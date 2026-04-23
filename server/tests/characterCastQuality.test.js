@@ -100,7 +100,7 @@ test("character cast quality gate blocks abstract slot names and missing hidden 
   const issueCodes = assessment.options[0].issues.map((issue) => issue.code);
   assert.ok(issueCodes.includes("abstract_name"));
   assert.ok(issueCodes.includes("missing_hidden_identity_anchor"));
-  assert.match(buildCharacterCastBlockedMessage(assessment), /不能直接应用到正式角色库/);
+  assert.match(buildCharacterCastBlockedMessage(assessment), /需要你确认后再应用到正式角色库/);
 });
 
 test("character cast quality gate accepts concrete cast that carries identity anchors and gender", () => {

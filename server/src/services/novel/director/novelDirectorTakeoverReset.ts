@@ -1,6 +1,11 @@
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../../db/prisma";
-import { resolveDirectorAutoExecutionRangeFromState } from "./novelDirectorAutoExecution";
+import type { DirectorAutoExecutionPlan } from "@ai-novel/shared/types/novelDirector";
+import {
+  normalizeDirectorAutoExecutionPlan,
+  resolveDirectorAutoExecutionPlanChapterRange,
+  resolveDirectorAutoExecutionRangeFromState,
+} from "./novelDirectorAutoExecution";
 import type { DirectorTakeoverResolvedPlan } from "./novelDirectorTakeover";
 import type { DirectorTakeoverLoadedState } from "./novelDirectorTakeoverRuntime";
 
@@ -43,6 +48,49 @@ function resolveAutoExecutionRange(state: DirectorTakeoverLoadedState): { startO
     };
   }
   return null;
+}
+
+function resolveChapterOrderRange(chapterOrders: number[]): { startOrder: number; endOrder: number } | null {
+  const normalizedOrders = chapterOrders
+    .filter((order) => Number.isFinite(order))
+    .map((order) => Math.round(order))
+    .sort((left, right) => left - right);
+  if (normalizedOrders.length === 0) {
+    return null;
+  }
+  return {
+    startOrder: normalizedOrders[0],
+    endOrder: normalizedOrders[normalizedOrders.length - 1],
+  };
+}
+
+export async function resolveDirectorTakeoverAutoExecutionResetRange(input: {
+  novelId: string;
+  autoExecutionPlan?: DirectorAutoExecutionPlan | null;
+  takeoverState: DirectorTakeoverLoadedState;
+  deps: Pick<DirectorTakeoverResetDeps, "getVolumeWorkspace">;
+}): Promise<{ startOrder: number; endOrder: number } | null> {
+  if (input.autoExecutionPlan?.mode) {
+    const plan = normalizeDirectorAutoExecutionPlan(input.autoExecutionPlan);
+    const chapterRange = resolveDirectorAutoExecutionPlanChapterRange(plan);
+    if (chapterRange) {
+      return {
+        startOrder: chapterRange.startOrder,
+        endOrder: chapterRange.endOrder,
+      };
+    }
+    if (plan.mode === "volume") {
+      const workspace = await input.deps.getVolumeWorkspace(input.novelId);
+      const targetVolume = workspace.volumes.find((volume) => volume.sortOrder === plan.volumeOrder);
+      const range = resolveChapterOrderRange(
+        targetVolume?.chapters.map((chapter) => chapter.chapterOrder) ?? [],
+      );
+      if (range) {
+        return range;
+      }
+    }
+  }
+  return resolveAutoExecutionRange(input.takeoverState);
 }
 
 async function cancelActivePipelineJobIfNeeded(
@@ -149,9 +197,8 @@ async function resetStructuredOutputs(
 
 async function resetChapterExecutionOutputs(
   novelId: string,
-  state: DirectorTakeoverLoadedState,
+  range: { startOrder: number; endOrder: number } | null,
 ): Promise<void> {
-  const range = resolveAutoExecutionRange(state);
   if (!range) {
     return;
   }
@@ -198,9 +245,8 @@ async function resetChapterExecutionOutputs(
 
 async function resetQualityRepairOutputs(
   novelId: string,
-  state: DirectorTakeoverLoadedState,
+  range: { startOrder: number; endOrder: number } | null,
 ): Promise<void> {
-  const range = resolveAutoExecutionRange(state);
   if (!range) {
     return;
   }
@@ -273,6 +319,7 @@ async function resetQualityRepairOutputs(
 export async function resetDirectorTakeoverCurrentStep(input: {
   novelId: string;
   plan: DirectorTakeoverResolvedPlan;
+  autoExecutionPlan?: DirectorAutoExecutionPlan | null;
   takeoverState: DirectorTakeoverLoadedState;
   deps: DirectorTakeoverResetDeps;
 }): Promise<void> {
@@ -298,9 +345,15 @@ export async function resetDirectorTakeoverCurrentStep(input: {
   }
 
   await cancelActivePipelineJobIfNeeded(input.takeoverState, input.deps);
+  const autoExecutionRange = await resolveDirectorTakeoverAutoExecutionResetRange({
+    novelId: input.novelId,
+    autoExecutionPlan: input.autoExecutionPlan,
+    takeoverState: input.takeoverState,
+    deps: input.deps,
+  });
   if (input.plan.effectiveStep === "chapter") {
-    await resetChapterExecutionOutputs(input.novelId, input.takeoverState);
+    await resetChapterExecutionOutputs(input.novelId, autoExecutionRange);
     return;
   }
-  await resetQualityRepairOutputs(input.novelId, input.takeoverState);
+  await resetQualityRepairOutputs(input.novelId, autoExecutionRange);
 }

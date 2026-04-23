@@ -17,6 +17,7 @@ const { WorldService } = require("../dist/services/world/WorldService.js");
 const { WritingFormulaService } = require("../dist/services/writingFormula/WritingFormulaService.js");
 const { ragServices } = require("../dist/services/rag/index.js");
 const { providerBalanceService } = require("../dist/services/settings/ProviderBalanceService.js");
+const { STYLE_EXTRACTION_TIMEOUT_MS_KEY } = require("../dist/services/settings/StyleEngineRuntimeSettingsService.js");
 const { prisma } = require("../dist/db/prisma.js");
 const { AppError } = require("../dist/middleware/errorHandler.js");
 const { imageGenerationService } = require("../dist/services/image/ImageGenerationService.js");
@@ -333,6 +334,59 @@ test("PUT /api/settings/rag saves extended settings and auto-enqueues reindex", 
     });
   } finally {
     ragServices.ragIndexService.enqueueReindex = originalEnqueueReindex;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("GET and PUT /api/settings/style-engine-runtime saves style extraction timeout", async () => {
+  const originalSetting = await prisma.appSetting.findUnique({
+    where: { key: STYLE_EXTRACTION_TIMEOUT_MS_KEY },
+  });
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const settingsResponse = await fetch(`http://127.0.0.1:${port}/api/settings/style-engine-runtime`);
+    assert.equal(settingsResponse.status, 200);
+    const settingsPayload = await settingsResponse.json();
+    assert.equal(settingsPayload.success, true);
+    assert.equal(settingsPayload.data.defaultStyleExtractionTimeoutMs, 600000);
+    assert.equal(settingsPayload.data.minStyleExtractionTimeoutMs, 180000);
+    assert.equal(settingsPayload.data.maxStyleExtractionTimeoutMs, 1800000);
+
+    const response = await fetch(`http://127.0.0.1:${port}/api/settings/style-engine-runtime`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        styleExtractionTimeoutMs: 720000,
+      }),
+    });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    assert.equal(payload.data.styleExtractionTimeoutMs, 720000);
+
+    const reloadResponse = await fetch(`http://127.0.0.1:${port}/api/settings/style-engine-runtime`);
+    assert.equal(reloadResponse.status, 200);
+    const reloadPayload = await reloadResponse.json();
+    assert.equal(reloadPayload.data.styleExtractionTimeoutMs, 720000);
+  } finally {
+    if (originalSetting) {
+      await prisma.appSetting.upsert({
+        where: { key: STYLE_EXTRACTION_TIMEOUT_MS_KEY },
+        update: { value: originalSetting.value },
+        create: {
+          key: STYLE_EXTRACTION_TIMEOUT_MS_KEY,
+          value: originalSetting.value,
+        },
+      });
+    } else {
+      await prisma.appSetting.deleteMany({
+        where: { key: STYLE_EXTRACTION_TIMEOUT_MS_KEY },
+      });
+    }
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });

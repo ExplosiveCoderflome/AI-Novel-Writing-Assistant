@@ -7,7 +7,9 @@ import type {
 import type { DirectorAutoExecutionPlan } from "@ai-novel/shared/types/novelDirector";
 import {
   buildDirectorAutoExecutionScopeLabel,
+  countDirectorAutoExecutionChapterRange,
   normalizeDirectorAutoExecutionPlan,
+  resolveDirectorAutoExecutionPlanChapterRange,
 } from "./novelDirectorAutoExecution";
 import { DIRECTOR_CHAPTER_DETAIL_MODES } from "./novelDirectorProgress";
 import {
@@ -130,15 +132,13 @@ function resolveRequiredVolumes(
     .sort((left, right) => left.sortOrder - right.sortOrder);
   const requiredVolumes: VolumePlan[] = [];
   let maxPreparedChapterOrder = 0;
+  const targetChapterRange = resolveDirectorAutoExecutionPlanChapterRange(normalizedPlan);
 
   for (const volume of sortedVolumes) {
-    if (normalizedPlan.mode === "front10" && requiredVolumes.length > 0) {
-      break;
-    }
     if (normalizedPlan.mode === "volume" && volume.sortOrder > (normalizedPlan.volumeOrder ?? 1)) {
       break;
     }
-    if (normalizedPlan.mode === "chapter_range" && maxPreparedChapterOrder >= (normalizedPlan.endOrder ?? 1)) {
+    if (targetChapterRange && maxPreparedChapterOrder >= targetChapterRange.endOrder) {
       break;
     }
 
@@ -161,13 +161,14 @@ function selectPreparedOutlineChapters(
   if (normalizedPlan.mode === "volume") {
     return prepared.filter((chapter) => chapter.volumeOrder === normalizedPlan.volumeOrder);
   }
-  if (normalizedPlan.mode === "chapter_range") {
+  const targetChapterRange = resolveDirectorAutoExecutionPlanChapterRange(normalizedPlan);
+  if (targetChapterRange) {
     return prepared.filter((chapter) => (
-      chapter.chapterOrder >= (normalizedPlan.startOrder ?? 1)
-      && chapter.chapterOrder <= (normalizedPlan.endOrder ?? normalizedPlan.startOrder ?? 1)
+      chapter.chapterOrder >= targetChapterRange.startOrder
+      && chapter.chapterOrder <= targetChapterRange.endOrder
     ));
   }
-  return prepared.slice(0, 10);
+  return [];
 }
 
 function resolveVolumeChapterListCursor(input: {
@@ -301,9 +302,10 @@ export function resolveStructuredOutlineRecoveryCursor(input: {
     }
   }
 
+  const selectedChapterRange = resolveDirectorAutoExecutionPlanChapterRange(normalizedPlan);
   const scopeLabel = buildDirectorAutoExecutionScopeLabel(
     normalizedPlan,
-    selectedChapters.length,
+    selectedChapterRange ? countDirectorAutoExecutionChapterRange(selectedChapterRange) : selectedChapters.length,
     normalizedPlan.mode === "volume" ? selectedChapters[0]?.volumeTitle ?? null : null,
   );
 

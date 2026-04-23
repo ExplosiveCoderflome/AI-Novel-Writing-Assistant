@@ -57,6 +57,32 @@ function getCharacterGenderLabel(gender?: CharacterGender | null): string {
   return CHARACTER_GENDER_LABELS[gender] ?? gender;
 }
 
+function getCharacterCastQualityWarnings(option: CharacterCastOption): string[] {
+  const assessment = option.qualityAssessment;
+  if (!assessment || assessment.autoApplicable) {
+    return [];
+  }
+  const issueMessages = Array.from(
+    new Set(assessment.issues.map((issue) => issue.message).filter((message) => message.trim().length > 0)),
+  );
+  if (issueMessages.length > 0) {
+    return issueMessages;
+  }
+  return assessment.blockingReasons;
+}
+
+function buildCharacterCastApplyConfirmMessage(option: CharacterCastOption, warnings: string[]): string {
+  const warningText = warnings
+    .slice(0, 4)
+    .map((warning, index) => `${index + 1}. ${warning}`)
+    .join("\n");
+  return [
+    `阵容「${option.title}」和当前故事设定还有不完全匹配的地方。`,
+    warningText,
+    "仍然应用到角色资产工作台吗？应用后可以继续在角色资产里调整。",
+  ].filter((line) => line.trim().length > 0).join("\n\n");
+}
+
 export default function CharacterCastOptionsSection(props: CharacterCastOptionsSectionProps) {
   const { novelId, characters, selectedCharacter, onSelectedCharacterChange, llmProvider, llmModel } = props;
   const queryClient = useQueryClient();
@@ -157,15 +183,22 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
   });
 
   const applyMutation = useMutation({
-    mutationFn: (optionId: string) => applyCharacterCastOption(novelId, optionId),
+    mutationFn: (input: { optionId: string; overrideQualityGate?: boolean }) => (
+      applyCharacterCastOption(novelId, input.optionId, {
+        overrideQualityGate: input.overrideQualityGate,
+      })
+    ),
     onSuccess: async (response) => {
       const primaryCharacterId = response.data?.primaryCharacterId ?? "";
       if (primaryCharacterId) {
         onSelectedCharacterChange(primaryCharacterId);
       }
+      const createdCount = response.data?.createdCount ?? 0;
+      const updatedCount = response.data?.updatedCount ?? 0;
       setStatusMessage(
-        response.message
-        ?? `已同步 ${response.data?.createdCount ?? 0} 个新角色，更新 ${response.data?.updatedCount ?? 0} 个既有角色。`,
+        response.data?.qualityOverrideApplied
+          ? `已按你的确认应用这套阵容，同步 ${createdCount} 个新角色，更新 ${updatedCount} 个既有角色。建议稍后检查角色资产里的身份线索。`
+          : response.message ?? `已同步 ${createdCount} 个新角色，更新 ${updatedCount} 个既有角色。`,
       );
       setIsPlannerExpanded(false);
       await refreshAppliedCharacterWorkspace();
@@ -174,6 +207,19 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
       setStatusMessage(error instanceof Error ? error.message : "角色阵容方案应用失败。");
     },
   });
+
+  function handleApplyOption(option: CharacterCastOption) {
+    const qualityWarnings = getCharacterCastQualityWarnings(option);
+    if (qualityWarnings.length > 0) {
+      const confirmed = window.confirm(buildCharacterCastApplyConfirmMessage(option, qualityWarnings));
+      if (!confirmed) {
+        return;
+      }
+      applyMutation.mutate({ optionId: option.id, overrideQualityGate: true });
+      return;
+    }
+    applyMutation.mutate({ optionId: option.id });
+  }
 
   const deleteMutation = useMutation({
     mutationFn: (optionId: string) => deleteCharacterCastOption(novelId, optionId),
@@ -305,77 +351,98 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                   </div>
                 ) : castOptions.length > 0 ? (
                   <div className="grid gap-3 2xl:grid-cols-2">
-                    {castOptions.map((option) => (
-                      <div
-                        key={option.id}
-                        className={`rounded-2xl border p-4 ${
-                          option.status === "applied" ? "border-emerald-500/40 bg-emerald-50/40" : ""
-                        }`}
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div className="space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <div className="font-medium">{option.title}</div>
-                              {option.status === "applied" ? <Badge variant="secondary">已应用</Badge> : null}
-                              {option.recommendedReason ? <Badge variant="outline">推荐</Badge> : null}
-                            </div>
-                            <div className="text-xs leading-5 text-muted-foreground">{option.summary}</div>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => applyMutation.mutate(option.id)}
-                              disabled={isWorking}
-                              variant={option.status === "applied" ? "outline" : "default"}
-                            >
-                              {option.status === "applied"
-                                ? "重新应用"
-                                : applyMutation.isPending
-                                  ? "应用中..."
-                                  : "应用这套阵容"}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-muted-foreground hover:text-destructive"
-                              onClick={() => handleDeleteOption(option)}
-                              disabled={isWorking}
-                            >
-                              {deleteMutation.isPending && deleteMutation.variables === option.id ? "删除中..." : "删除"}
-                            </Button>
-                          </div>
-                        </div>
-                        {option.recommendedReason ? (
-                          <div className="mt-3 rounded-xl border border-amber-200/60 bg-amber-50/50 p-3 text-xs text-muted-foreground">
-                            推荐理由：{option.recommendedReason}
-                          </div>
-                        ) : null}
-                        {option.whyItWorks ? (
-                          <div className="mt-2 text-xs text-muted-foreground">成立原因：{option.whyItWorks}</div>
-                        ) : null}
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                          {option.members.map((member) => (
-                            <div key={member.id} className="rounded-xl border border-dashed p-3">
+                    {castOptions.map((option) => {
+                      const qualityWarnings = getCharacterCastQualityWarnings(option);
+                      const requiresQualityConfirmation = qualityWarnings.length > 0;
+                      const isApplyingThisOption = applyMutation.isPending && applyMutation.variables?.optionId === option.id;
+                      return (
+                        <div
+                          key={option.id}
+                          className={`rounded-2xl border p-4 ${
+                            option.status === "applied" ? "border-emerald-500/40 bg-emerald-50/40" : ""
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="space-y-1">
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-medium">{member.name}</span>
-                                <Badge variant="outline">{getCastRoleLabel(member.castRole)}</Badge>
-                                <Badge variant="secondary">{getCharacterGenderLabel(member.gender)}</Badge>
+                                <div className="font-medium">{option.title}</div>
+                                {option.status === "applied" ? <Badge variant="secondary">已应用</Badge> : null}
+                                {option.recommendedReason ? <Badge variant="outline">推荐</Badge> : null}
+                                {requiresQualityConfirmation ? <Badge variant="outline">需确认</Badge> : null}
                               </div>
-                              <div className="mt-1 text-xs text-muted-foreground">{member.role}</div>
-                              <div className="mt-2 text-xs text-muted-foreground">作用：{member.storyFunction}</div>
-                              {member.relationToProtagonist ? (
-                                <div className="text-xs text-muted-foreground">
-                                  与主角关系：{member.relationToProtagonist}
-                                </div>
-                              ) : null}
-                              {member.outerGoal ? (
-                                <div className="text-xs text-muted-foreground">外在目标：{member.outerGoal}</div>
-                              ) : null}
+                              <div className="text-xs leading-5 text-muted-foreground">{option.summary}</div>
                             </div>
-                          ))}
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleApplyOption(option)}
+                                disabled={isWorking}
+                                variant={option.status === "applied" ? "outline" : "default"}
+                              >
+                                {isApplyingThisOption
+                                  ? "应用中..."
+                                  : option.status === "applied"
+                                    ? "重新应用"
+                                    : requiresQualityConfirmation
+                                      ? "确认后应用"
+                                      : "应用这套阵容"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-muted-foreground hover:text-destructive"
+                                onClick={() => handleDeleteOption(option)}
+                                disabled={isWorking}
+                              >
+                                {deleteMutation.isPending && deleteMutation.variables === option.id ? "删除中..." : "删除"}
+                              </Button>
+                            </div>
+                          </div>
+                          {requiresQualityConfirmation ? (
+                            <div className="mt-3 rounded-xl border border-amber-300/70 bg-amber-50/70 p-3 text-xs text-amber-900">
+                              <div className="font-medium">这套阵容需要你确认后再应用</div>
+                              <div className="mt-1">
+                                系统发现它和当前故事设定还有不完全匹配的地方。你可以先应用，再到角色资产里调整。
+                              </div>
+                              <ul className="mt-2 list-disc space-y-1 pl-4">
+                                {qualityWarnings.slice(0, 3).map((warning) => (
+                                  <li key={warning}>{warning}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                          {option.recommendedReason ? (
+                            <div className="mt-3 rounded-xl border border-amber-200/60 bg-amber-50/50 p-3 text-xs text-muted-foreground">
+                              推荐理由：{option.recommendedReason}
+                            </div>
+                          ) : null}
+                          {option.whyItWorks ? (
+                            <div className="mt-2 text-xs text-muted-foreground">成立原因：{option.whyItWorks}</div>
+                          ) : null}
+                          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            {option.members.map((member) => (
+                              <div key={member.id} className="rounded-xl border border-dashed p-3">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="font-medium">{member.name}</span>
+                                  <Badge variant="outline">{getCastRoleLabel(member.castRole)}</Badge>
+                                  <Badge variant="secondary">{getCharacterGenderLabel(member.gender)}</Badge>
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">{member.role}</div>
+                                <div className="mt-2 text-xs text-muted-foreground">作用：{member.storyFunction}</div>
+                                {member.relationToProtagonist ? (
+                                  <div className="text-xs text-muted-foreground">
+                                    与主角关系：{member.relationToProtagonist}
+                                  </div>
+                                ) : null}
+                                {member.outerGoal ? (
+                                  <div className="text-xs text-muted-foreground">外在目标：{member.outerGoal}</div>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="flex min-h-[260px] items-center justify-center rounded-2xl border border-dashed px-6 text-center text-sm text-muted-foreground">

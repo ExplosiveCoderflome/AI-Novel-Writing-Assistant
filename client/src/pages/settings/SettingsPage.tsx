@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import {
@@ -9,7 +8,6 @@ import {
   getAPIKeySettings,
   saveAutoDirectorChannelSettings,
   getProviderBalances,
-  getRagSettings,
   refreshProviderBalance,
   refreshProviderModelList,
   saveAPIKeySetting,
@@ -23,8 +21,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import DesktopLegacyDataImportCard from "@/components/layout/DesktopLegacyDataImportCard";
+import DesktopUpdateCard from "@/components/layout/DesktopUpdateCard";
 import { AutoDirectorChannelSettingsCard } from "./AutoDirectorChannelSettingsCard";
 import { buildAutoDirectorChannelDraft, type AutoDirectorChannelDraft } from "./autoDirectorEventOptions";
+import SettingsNavigationCards from "./components/SettingsNavigationCards";
+import StyleEngineRuntimeSettingsCard from "./components/StyleEngineRuntimeSettingsCard";
 
 const MODEL_BADGE_COLLAPSE_COUNT = 8;
 
@@ -84,11 +86,6 @@ export default function SettingsPage() {
     queryFn: getAPIKeySettings,
   });
 
-  const ragSettingsQuery = useQuery({
-    queryKey: queryKeys.settings.rag,
-    queryFn: getRagSettings,
-  });
-
   const providerBalancesQuery = useQuery({
     queryKey: queryKeys.settings.apiKeyBalances,
     queryFn: getProviderBalances,
@@ -124,7 +121,6 @@ export default function SettingsPage() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeys }),
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeyBalances }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.settings.rag }),
       queryClient.invalidateQueries({ queryKey: queryKeys.llm.providers }),
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
@@ -289,12 +285,7 @@ export default function SettingsPage() {
     () => new Map((providerBalancesQuery.data?.data ?? []).map((item) => [item.provider, item])),
     [providerBalancesQuery.data?.data],
   );
-  const ragSettings = ragSettingsQuery.data?.data;
   const autoDirectorChannels = autoDirectorChannelsQuery.data?.data;
-  const ragProvider = useMemo(
-    () => ragSettings?.providers.find((item) => item.provider === ragSettings.embeddingProvider),
-    [ragSettings],
-  );
   const modelOptions = editingConfig?.models ?? [];
   const canSelectListedModels = !isCreatingCustomProvider && modelOptions.length > 0;
   const primaryModelLabel = isCustomDialog ? "Default model name" : "Model name";
@@ -370,38 +361,8 @@ export default function SettingsPage() {
       <DesktopUpdateCard />
       <DesktopLegacyDataImportCard forceVisible />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Embedding Settings Moved</CardTitle>
-          <CardDescription>
-            Embedding provider and model configuration now live in the knowledge module.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="rounded-md border p-3">
-              <div className="text-xs text-muted-foreground">Current embedding provider</div>
-              <div className="mt-1 font-medium">{ragProvider?.name ?? ragSettings?.embeddingProvider ?? "-"}</div>
-            </div>
-            <div className="rounded-md border p-3">
-              <div className="text-xs text-muted-foreground">Current embedding model</div>
-              <div className="mt-1 font-medium">{ragSettings?.embeddingModel ?? "-"}</div>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span>Status</span>
-            <Badge variant={ragProvider?.isConfigured ? "default" : "outline"}>
-              {ragProvider?.isConfigured ? "API key ready" : "API key missing"}
-            </Badge>
-            <Badge variant={ragProvider?.isActive ? "default" : "outline"}>
-              {ragProvider?.isActive ? "Active" : "Inactive"}
-            </Badge>
-          </div>
-          <Button asChild>
-            <Link to="/knowledge?tab=settings">Open knowledge settings</Link>
-          </Button>
-        </CardContent>
-      </Card>
+      <SettingsNavigationCards />
+      <StyleEngineRuntimeSettingsCard />
 
       <AutoDirectorChannelSettingsCard
         channelDraft={channelDraft}
@@ -427,21 +388,6 @@ export default function SettingsPage() {
         })}
         isSaving={saveAutoDirectorChannelsMutation.isPending}
       />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>模型路由</CardTitle>
-          <CardDescription>把不同写作角色分配给不同模型，建议在独立页面集中管理。</CardDescription>
-        </CardHeader>
-        <CardContent className="flex items-center justify-between gap-3">
-          <div className="text-sm text-muted-foreground">
-            现在模型路由已经独立成管理页，支持按角色单独配置服务商和模型。
-          </div>
-          <Button asChild>
-            <Link to="/settings/model-routes">进入模型路由管理</Link>
-          </Button>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-3">

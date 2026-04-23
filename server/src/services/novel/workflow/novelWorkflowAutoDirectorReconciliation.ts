@@ -182,6 +182,7 @@ export async function syncAutoDirectorChapterBatchCheckpoint(input: {
     select: {
       id: true,
       order: true,
+      content: true,
       generationState: true,
       chapterStatus: true,
     },

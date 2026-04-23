@@ -122,6 +122,29 @@ export interface CharacterCastOptionRelation {
   updatedAt: string;
 }
 
+export type CharacterCastQualityIssueCode =
+  | "abstract_name"
+  | "english_residue"
+  | "duplicate_story_function"
+  | "missing_protagonist"
+  | "missing_current_identity_anchor"
+  | "missing_hidden_identity_anchor"
+  | "missing_gender";
+
+export interface CharacterCastQualityIssue {
+  code: CharacterCastQualityIssueCode;
+  optionIndex?: number;
+  optionTitle: string;
+  message: string;
+  memberName?: string;
+}
+
+export interface CharacterCastQualityAssessment {
+  autoApplicable: boolean;
+  blockingReasons: string[];
+  issues: CharacterCastQualityIssue[];
+}
+
 export interface CharacterCastOption {
   id: string;
   novelId: string;
@@ -131,6 +154,7 @@ export interface CharacterCastOption {
   recommendedReason?: string | null;
   status: string;
   sourceStoryInput?: string | null;
+  qualityAssessment?: CharacterCastQualityAssessment | null;
   members: CharacterCastOptionMember[];
   relations: CharacterCastOptionRelation[];
   createdAt: string;
@@ -144,6 +168,8 @@ export interface CharacterCastApplyResult {
   relationCount: number;
   characterIds: string[];
   primaryCharacterId?: string | null;
+  qualityOverrideApplied?: boolean;
+  qualityWarnings?: string[];
 }
 
 export interface CharacterCastOptionDeleteResult {

@@ -30,7 +30,7 @@ const manualProfileSchema = z.object({
   category: z.string().trim().optional(),
   tags: z.array(z.string().trim()).optional(),
   applicableGenres: z.array(z.string().trim()).optional(),
-  sourceType: z.enum(["manual", "from_text", "from_book_analysis", "from_current_work"]).optional(),
+  sourceType: z.enum(["manual", "from_text", "from_book_analysis", "from_knowledge_document", "from_current_work"]).optional(),
   sourceRefId: z.string().trim().optional(),
   sourceContent: z.string().optional(),
   extractedFeatures: z.array(z.object({

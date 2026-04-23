@@ -3,6 +3,7 @@ import type {
   CharacterCastOption,
   CharacterCastOptionClearResult,
   CharacterCastOptionDeleteResult,
+  CharacterCastQualityAssessment,
   CharacterCastRole,
   CharacterRelation,
   SupplementalCharacterApplyResult,
@@ -37,6 +38,10 @@ interface CharacterPrepOptions {
   model?: string;
   temperature?: number;
   storyInput?: string;
+}
+
+interface CharacterCastApplyOptions {
+  overrideQualityGate?: boolean;
 }
 
 function toOptionalText(value: string | null | undefined): string | null {
@@ -163,6 +168,26 @@ function serializeCharacterCastOption(row: {
     })),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+function buildCastOptionQualityAssessment(option: CharacterCastOption): CharacterCastQualityAssessment {
+  const assessment = assessCharacterCastBatch([option], option.sourceStoryInput ?? "");
+  const optionAssessment = assessment.options[0];
+  return {
+    autoApplicable: optionAssessment?.autoApplicable ?? true,
+    blockingReasons: assessment.blockingReasons,
+    issues: optionAssessment?.issues ?? [],
+  };
+}
+
+function serializeCharacterCastOptionWithQuality(
+  row: Parameters<typeof serializeCharacterCastOption>[0],
+): CharacterCastOption {
+  const option = serializeCharacterCastOption(row);
+  return {
+    ...option,
+    qualityAssessment: buildCastOptionQualityAssessment(option),
   };
 }
 
@@ -400,7 +425,7 @@ export class CharacterPreparationService {
         { updatedAt: "desc" },
         { createdAt: "desc" },
       ],
-    }).then((rows) => rows.map((row) => serializeCharacterCastOption(row)));
+    }).then((rows) => rows.map((row) => serializeCharacterCastOptionWithQuality(row)));
   }
 
   async listCharacterRelations(novelId: string): Promise<CharacterRelation[]> {
@@ -490,6 +515,7 @@ export class CharacterPreparationService {
   async applyCharacterCastOption(
     novelId: string,
     optionId: string,
+    options: CharacterCastApplyOptions = {},
   ): Promise<CharacterCastApplyResult> {
     const option = await prisma.characterCastOption.findFirst({
       where: { id: optionId, novelId },
@@ -503,13 +529,9 @@ export class CharacterPreparationService {
       throw new Error("Character cast option not found.");
     }
 
-    const assessment = assessCharacterCastBatch([
-      {
-        ...serializeCharacterCastOption(option),
-        id: option.id,
-      },
-    ], option.sourceStoryInput ?? "");
-    if (assessment.autoApplicableOptionIndex === null) {
+    const assessment = assessCharacterCastBatch([serializeCharacterCastOption(option)], option.sourceStoryInput ?? "");
+    const hasQualityRisk = assessment.autoApplicableOptionIndex === null;
+    if (hasQualityRisk && !options.overrideQualityGate) {
       throw new Error(buildCharacterCastBlockedMessage(assessment));
     }
 
@@ -634,6 +656,8 @@ export class CharacterPreparationService {
       relationCount: relationRows.length,
       characterIds: uniqueCharacterIds,
       primaryCharacterId: characterIdByName.get(option.members[0]?.name ?? "") ?? null,
+      qualityOverrideApplied: hasQualityRisk && Boolean(options.overrideQualityGate),
+      qualityWarnings: assessment.blockingReasons,
     };
   }
 

@@ -215,6 +215,7 @@ const volumeDocumentSchema = z.object({
   critiqueReport: volumeCritiqueReportSchema.nullish(),
   beatSheets: z.array(volumeBeatSheetSchema).optional(),
   rebalanceDecisions: z.array(volumeRebalanceDecisionSchema).optional(),
+  syncToChapterExecution: z.boolean().optional(),
 });
 
 const volumeDraftSchema = z.object({

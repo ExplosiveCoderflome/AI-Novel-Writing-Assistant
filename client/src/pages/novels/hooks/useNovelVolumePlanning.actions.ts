@@ -164,19 +164,21 @@ export function buildChapterListSuccessMessage(params: {
   targetVolumeId?: string;
   generationMode?: VolumeChapterListGenerationMode;
   targetBeatKey?: string;
+  autoSyncedToChapterExecution?: boolean;
 }): string {
   const updatedVolume = params.targetVolumeId
     ? params.document.volumes.find((volume) => volume.id === params.targetVolumeId)
     : undefined;
   const updatedChapterCount = updatedVolume?.chapters.length ?? 0;
+  const syncSuffix = params.autoSyncedToChapterExecution ? "，并已自动同步到章节执行区" : "";
   if (params.generationMode === "single_beat" && params.targetVolumeId && params.targetBeatKey) {
     const targetBeat = findBeatSheet(params.document.beatSheets, params.targetVolumeId)?.beats
       .find((beat) => beat.key === params.targetBeatKey);
     return updatedChapterCount > 0
-      ? `当前卷节奏段「${targetBeat?.label ?? params.targetBeatKey}」已重生并自动保存，本卷现有 ${updatedChapterCount} 章，相邻卷再平衡建议也已同步更新。`
-      : `当前卷节奏段「${targetBeat?.label ?? params.targetBeatKey}」已重生并自动保存，相邻卷再平衡建议也已同步更新。`;
+      ? `当前卷节奏段「${targetBeat?.label ?? params.targetBeatKey}」已重生并自动保存${syncSuffix}，本卷现有 ${updatedChapterCount} 章，相邻卷再平衡建议也已同步更新。`
+      : `当前卷节奏段「${targetBeat?.label ?? params.targetBeatKey}」已重生并自动保存${syncSuffix}，相邻卷再平衡建议也已同步更新。`;
   }
   return updatedChapterCount > 0
-    ? `当前卷章节列表已生成并自动保存，现已更新为 ${updatedChapterCount} 章，相邻卷再平衡建议也已同步更新。`
-    : "当前卷章节列表已生成并自动保存，相邻卷再平衡建议也已同步更新。";
+    ? `当前卷章节列表已生成并自动保存${syncSuffix}，现已更新为 ${updatedChapterCount} 章，相邻卷再平衡建议也已同步更新。`
+    : `当前卷章节列表已生成并自动保存${syncSuffix}，相邻卷再平衡建议也已同步更新。`;
 }

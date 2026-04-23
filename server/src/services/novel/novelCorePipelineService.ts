@@ -24,9 +24,15 @@ const PIPELINE_HEARTBEAT_INTERVAL_MS = 15000;
 function buildSkipCompletedChapterWhere(): Prisma.ChapterWhereInput {
   return {
     NOT: {
-      OR: [
-        { generationState: { in: ["approved", "published"] } },
-        { chapterStatus: { in: ["pending_review", "completed"] } },
+      AND: [
+        { content: { not: null } },
+        { content: { not: "" } },
+        {
+          OR: [
+            { generationState: { in: ["approved", "published"] } },
+            { chapterStatus: "completed" },
+          ],
+        },
       ],
     },
   };

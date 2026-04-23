@@ -24,9 +24,18 @@ export interface DirectorAutoExecutionRange {
   firstChapterId: string | null;
 }
 
+export interface DirectorAutoExecutionChapterRange {
+  startOrder: number;
+  endOrder: number;
+}
+
+export const DIRECTOR_FRONT10_START_ORDER = 1;
+export const DIRECTOR_FRONT10_END_ORDER = 10;
+
 export interface DirectorAutoExecutionChapterRef {
   id: string;
   order: number;
+  content?: string | null;
   generationState?: ChapterGenerationState | null;
   chapterStatus?: "unplanned" | "pending_generation" | "generating" | "pending_review" | "needs_repair" | "completed" | null;
 }
@@ -57,9 +66,36 @@ export function normalizeDirectorAutoExecutionPlan(
   }
   return {
     mode: "front10",
+    startOrder: DIRECTOR_FRONT10_START_ORDER,
+    endOrder: DIRECTOR_FRONT10_END_ORDER,
     autoReview,
     autoRepair,
   };
+}
+
+export function resolveDirectorAutoExecutionPlanChapterRange(
+  plan: DirectorAutoExecutionPlan | null | undefined,
+): DirectorAutoExecutionChapterRange | null {
+  const normalized = normalizeDirectorAutoExecutionPlan(plan);
+  if (normalized.mode === "volume") {
+    return null;
+  }
+  const startOrder = Math.max(
+    DIRECTOR_FRONT10_START_ORDER,
+    Math.round(normalized.startOrder ?? DIRECTOR_FRONT10_START_ORDER),
+  );
+  const endOrder = Math.max(
+    startOrder,
+    Math.round(normalized.endOrder ?? DIRECTOR_FRONT10_END_ORDER),
+  );
+  return {
+    startOrder,
+    endOrder,
+  };
+}
+
+export function countDirectorAutoExecutionChapterRange(range: DirectorAutoExecutionChapterRange): number {
+  return Math.max(1, range.endOrder - range.startOrder + 1);
 }
 
 export function buildDirectorAutoExecutionScopeLabel(
@@ -95,17 +131,20 @@ export function resolveDirectorAutoExecutionRange(
   chapters: DirectorAutoExecutionChapterRef[],
   preferredChapterCount = 10,
 ): DirectorAutoExecutionRange | null {
+  const startOrder = DIRECTOR_FRONT10_START_ORDER;
+  const endOrder = Math.max(startOrder, Math.round(preferredChapterCount));
   const selected = chapters
     .slice()
+    .filter((chapter) => chapter.order >= startOrder && chapter.order <= endOrder)
     .sort((left, right) => left.order - right.order)
     .slice(0, preferredChapterCount);
   if (selected.length === 0) {
     return null;
   }
   return {
-    startOrder: selected[0].order,
-    endOrder: selected[selected.length - 1].order,
-    totalChapterCount: selected.length,
+    startOrder,
+    endOrder,
+    totalChapterCount: preferredChapterCount,
     firstChapterId: selected[0].id,
   };
 }
@@ -128,13 +167,26 @@ export function resolveDirectorAutoExecutionRangeFromState(
   };
 }
 
+function hasDirectorAutoExecutionChapterContent(chapter: DirectorAutoExecutionChapterRef): boolean {
+  if (!Object.prototype.hasOwnProperty.call(chapter, "content")) {
+    return true;
+  }
+  return typeof chapter.content === "string" && chapter.content.trim().length > 0;
+}
+
 function isDirectorAutoExecutionChapterCompleted(chapter: DirectorAutoExecutionChapterRef): boolean {
+  if (!hasDirectorAutoExecutionChapterContent(chapter)) {
+    return false;
+  }
   return chapter.generationState === "approved"
     || chapter.generationState === "published"
     || chapter.chapterStatus === "completed";
 }
 
-function isDirectorAutoExecutionChapterProcessed(chapter: DirectorAutoExecutionChapterRef): boolean {
+export function isDirectorAutoExecutionChapterProcessed(chapter: DirectorAutoExecutionChapterRef): boolean {
+  if (!hasDirectorAutoExecutionChapterContent(chapter)) {
+    return false;
+  }
   if (isDirectorAutoExecutionChapterCompleted(chapter)) {
     return true;
   }

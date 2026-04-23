@@ -551,6 +551,12 @@ export default function WritingFormulaPage() {
         createFromTemplatePending={createFlow.createFromTemplatePending}
         extractTaskSubmitting={createFlow.extractTaskSubmitting}
         activeExtractionTask={createFlow.activeExtractionTask}
+        knowledgeDocuments={createFlow.knowledgeDocuments}
+        knowledgeDocumentsLoading={createFlow.knowledgeDocumentsLoading}
+        selectedKnowledgeDocument={createFlow.selectedKnowledgeDocument}
+        selectedKnowledgeDocumentLoading={createFlow.selectedKnowledgeDocumentLoading}
+        bookAnalyses={createFlow.bookAnalyses}
+        bookAnalysesLoading={createFlow.bookAnalysesLoading}
         selectedPresetKey={createFlow.selectedPresetKey}
         onCreateManual={createFlow.onCreateManual}
         onCreateFromBrief={createFlow.onCreateFromBrief}

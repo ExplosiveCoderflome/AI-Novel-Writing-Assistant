@@ -85,6 +85,7 @@ export async function loadDirectorTakeoverState(input: {
     characterCount: number;
     chapterCount: number;
     volumeCount: number;
+    hasVolumeStrategyPlan: boolean;
     firstVolumeId: string | null;
     firstVolumeChapterCount: number;
   }>;
@@ -266,6 +267,7 @@ export async function loadDirectorTakeoverState(input: {
       ...assets,
       hasStoryMacroPlan: Boolean(storyMacroPlan?.storyInput?.trim() && storyMacroPlan.decomposition),
       hasBookContract: Boolean(novel.bookContract),
+      hasVolumeStrategyPlan: assets.hasVolumeStrategyPlan,
       firstVolumeId: assets.firstVolumeId,
       firstVolumeBeatSheetReady,
       firstVolumePreparedChapterCount,

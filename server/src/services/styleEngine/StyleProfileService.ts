@@ -96,6 +96,7 @@ const STYLE_EXTRACTION_MAX_TOKENS = 4096;
 const STYLE_METADATA_MAX_TOKENS = 600;
 const STYLE_ANTI_AI_SELECTION_MAX_TOKENS = 500;
 const DEFAULT_EXTRACTION_PRESET_KEY: StyleExtractionPreset["key"] = "balanced";
+type TextExtractionSourceType = Extract<StyleSourceType, "from_text" | "from_knowledge_document">;
 
 function formatRuntimeLogValue(value: unknown): string {
   if (value == null) {
@@ -407,9 +408,11 @@ export class StyleProfileService {
     draft: StyleExtractionDraft;
     decisions: Array<{ featureId: string; decision: StyleFeatureDecision }>;
     presetKey?: "imitate" | "balanced" | "transfer";
+    sourceType?: TextExtractionSourceType;
     sourceRefId?: string;
   }): Promise<StyleProfile> {
     await ensureStyleEngineSeedData();
+    const sourceType = input.sourceType ?? "from_text";
     const normalizedDraft = normalizeStyleExtractionDraft(input.draft, input.name, input.category);
     const ruleSet = buildRuleSetFromExtraction(normalizedDraft, input.decisions, input.presetKey);
     const extractedFeatures = buildProfileFeaturesFromDraft(normalizedDraft).map((feature) => ({
@@ -423,11 +426,11 @@ export class StyleProfileService {
     return this.createManualProfile({
       name: input.name.trim() || normalizedDraft.name,
       description: normalizedDraft.description
-        ?? `基于文本提取生成，保留 ${input.decisions.filter((item) => item.decision === "keep").length} 项特征，弱化 ${input.decisions.filter((item) => item.decision === "weaken").length} 项特征。`,
+        ?? `${sourceType === "from_knowledge_document" ? "基于知识库原文提取生成" : "基于文本提取生成"}，保留 ${input.decisions.filter((item) => item.decision === "keep").length} 项特征，弱化 ${input.decisions.filter((item) => item.decision === "weaken").length} 项特征。`,
       category: input.category?.trim() || normalizedDraft.category || undefined,
       tags: normalizedDraft.tags,
       applicableGenres: normalizedDraft.applicableGenres,
-      sourceType: "from_text",
+      sourceType,
       sourceRefId: input.sourceRefId,
       sourceContent: input.sourceText,
       extractedFeatures,

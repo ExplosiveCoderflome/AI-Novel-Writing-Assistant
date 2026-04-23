@@ -4,6 +4,7 @@ import type {
   StyleBinding,
   StyleDetectionReport,
   StyleExtractionDraft,
+  StyleExtractionSourceProcessingMode,
   StyleFeatureDecision,
   StyleProfileFeature,
   StyleProfile,
@@ -101,6 +102,23 @@ export async function createStyleExtractionTaskFromText(payload: {
   presetKey?: "imitate" | "balanced" | "transfer";
 }) {
   const { data } = await apiClient.post<ApiResponse<UnifiedTaskDetail>>("/style-extraction-tasks/from-text", payload);
+  return data;
+}
+
+export async function createStyleExtractionTaskFromKnowledgeDocument(payload: {
+  documentId: string;
+  name: string;
+  category?: string;
+  provider?: string;
+  model?: string;
+  temperature?: number;
+  presetKey?: "imitate" | "balanced" | "transfer";
+  sourceProcessingMode?: StyleExtractionSourceProcessingMode;
+}) {
+  const { data } = await apiClient.post<ApiResponse<UnifiedTaskDetail>>(
+    "/style-extraction-tasks/from-knowledge-document",
+    payload,
+  );
   return data;
 }
 

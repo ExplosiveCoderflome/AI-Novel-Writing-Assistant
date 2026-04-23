@@ -15,7 +15,11 @@ import type {
   DirectorSessionState,
   DirectorTaskNotice,
 } from "@ai-novel/shared/types/novelDirector";
-import { DIRECTOR_CORRECTION_PRESETS } from "@ai-novel/shared/types/novelDirector";
+import {
+  DIRECTOR_CORRECTION_PRESETS,
+  DIRECTOR_MAX_TARGET_CHAPTER_COUNT,
+  DIRECTOR_MIN_TARGET_CHAPTER_COUNT,
+} from "@ai-novel/shared/types/novelDirector";
 import type { BookContractDraft } from "@ai-novel/shared/types/novelWorkflow";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { titleGenerationService } from "../../title/TitleGenerationService";
@@ -91,6 +95,14 @@ export function normalizeDirectorRunMode(runMode: DirectorRunMode | undefined): 
     return "auto_to_execution";
   }
   return "auto_to_ready";
+}
+
+export function normalizeDirectorTargetChapterCount(value: number | null | undefined, fallback = 80): number {
+  const numericValue = typeof value === "number" && Number.isFinite(value) ? value : fallback;
+  return Math.max(
+    DIRECTOR_MIN_TARGET_CHAPTER_COUNT,
+    Math.min(DIRECTOR_MAX_TARGET_CHAPTER_COUNT, Math.round(numericValue)),
+  );
 }
 
 export function buildDirectorSessionState(input: {
@@ -194,7 +206,7 @@ export function normalizeCandidate(
     toneKeywords: Array.from(
       new Set(candidate.toneKeywords.map((item) => item.trim()).filter(Boolean)),
     ).slice(0, 4),
-    targetChapterCount: Math.max(12, Math.min(120, Math.round(candidate.targetChapterCount))),
+    targetChapterCount: normalizeDirectorTargetChapterCount(candidate.targetChapterCount),
   };
 }
 
@@ -293,9 +305,8 @@ export function toBookSpec(
     endingDirection: candidate.endingDirection.trim(),
     hookStrategy: candidate.hookStrategy.trim(),
     progressionLoop: candidate.progressionLoop.trim(),
-    targetChapterCount: Math.max(
-      12,
-      Math.min(120, Math.round(overrideTargetChapterCount ?? candidate.targetChapterCount)),
+    targetChapterCount: normalizeDirectorTargetChapterCount(
+      overrideTargetChapterCount ?? candidate.targetChapterCount,
     ),
   };
 }

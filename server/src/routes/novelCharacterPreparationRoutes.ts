@@ -21,6 +21,10 @@ const castOptionGenerateSchema = z.object({
   storyInput: z.string().trim().max(4000).optional(),
 });
 
+const castOptionApplySchema = z.object({
+  overrideQualityGate: z.boolean().optional(),
+}).default({});
+
 interface RegisterNovelCharacterPreparationRoutesInput {
   router: Router;
   novelService: NovelService;
@@ -81,11 +85,14 @@ export function registerNovelCharacterPreparationRoutes(
 
   router.post(
     "/:id/character-prep/cast-options/:optionId/apply",
-    validate({ params: optionParamsSchema }),
+    validate({ params: optionParamsSchema, body: castOptionApplySchema }),
     async (req, res, next) => {
       try {
         const { id, optionId } = req.params as z.infer<typeof optionParamsSchema>;
-        const data = await novelService.applyCharacterCastOption(id, optionId);
+        const body = req.body as z.infer<typeof castOptionApplySchema>;
+        const data = await novelService.applyCharacterCastOption(id, optionId, {
+          overrideQualityGate: body.overrideQualityGate,
+        });
         res.status(200).json({
           success: true,
           data,

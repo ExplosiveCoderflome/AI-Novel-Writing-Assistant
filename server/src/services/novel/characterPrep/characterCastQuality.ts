@@ -364,7 +364,7 @@ export function buildCharacterCastRepairReasons(assessment: CharacterCastBatchAs
 
 export function buildCharacterCastBlockedMessage(assessment: CharacterCastBatchAssessment): string {
   return [
-    "当前角色阵容仍含功能位式名称或关键锚点缺失，不能直接应用到正式角色库。",
+    "这套角色阵容还需要你确认后再应用到正式角色库。",
     ...assessment.blockingReasons.slice(0, 5).map((reason, index) => `${index + 1}. ${reason}`),
   ].join("\n");
 }

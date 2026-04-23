@@ -60,11 +60,32 @@ import {
   persistActiveVolumeWorkspace,
 } from "./volumeWorkspacePersistence";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function extractVolumeWorkspaceUpdateInput(input: unknown): {
+  workspaceInput: unknown;
+  syncToChapterExecution: boolean;
+} {
+  if (!isRecord(input)) {
+    return {
+      workspaceInput: input,
+      syncToChapterExecution: false,
+    };
+  }
+  const { syncToChapterExecution, ...workspaceInput } = input;
+  return {
+    workspaceInput,
+    syncToChapterExecution: syncToChapterExecution === true,
+  };
+}
+
 export class NovelVolumeService {
   private readonly storyMacroPlanService = new StoryMacroPlanService();
   private readonly styleBindingService = new StyleBindingService();
 
-  private emitVolumeUpdated(novelId: string, reason: VolumeUpdateReason): void {
+  private emitVolumeUpdated(novelId: string, reason: VolumeUpdateReason = "workspace_updated"): void {
     void novelEventBus.emit({
       type: "volume:updated",
       payload: { novelId, reason },
@@ -81,6 +102,7 @@ export class NovelVolumeService {
     options: {
       emitEvent?: boolean;
       syncPayoffLedger?: boolean;
+      volumeUpdateReason?: VolumeUpdateReason;
     } = {},
   ): Promise<VolumePlanDocument> {
     const persistedDocument = await prisma.$transaction(async (tx) => {
@@ -101,7 +123,7 @@ export class NovelVolumeService {
     });
 
     if (options.emitEvent !== false) {
-      this.emitVolumeUpdated(novelId);
+      this.emitVolumeUpdated(novelId, options.volumeUpdateReason ?? "workspace_updated");
     }
     if (options.syncPayoffLedger !== false) {
       this.syncPayoffLedger(novelId);
@@ -255,7 +277,23 @@ export class NovelVolumeService {
   }
 
   async updateVolumes(novelId: string, input: unknown): Promise<VolumePlanDocument> {
-    return this.updateVolumesWithOptions(novelId, input);
+    const { workspaceInput, syncToChapterExecution } = extractVolumeWorkspaceUpdateInput(input);
+    const updatedDocument = await this.updateVolumesWithOptions(novelId, workspaceInput);
+    if (syncToChapterExecution) {
+      await this.syncVolumeChaptersWithOptions(
+        novelId,
+        {
+          volumes: updatedDocument.volumes,
+          preserveContent: true,
+          applyDeletes: false,
+        },
+        {
+          emitEvent: false,
+          syncPayoffLedger: false,
+        },
+      );
+    }
+    return updatedDocument;
   }
 
   async updateVolumesWithOptions(
@@ -270,6 +308,7 @@ export class NovelVolumeService {
     const currentDocument = await this.ensureVolumeWorkspace(novelId);
     const mergedDocument = mergeVolumeWorkspaceInput(novelId, currentDocument, input);
     return this.persistWorkspaceDocument(novelId, mergedDocument, {
+      volumeUpdateReason: options.volumeUpdateReason,
       emitEvent: options.emitEvent,
       syncPayoffLedger: options.syncPayoffLedger ?? hasPayoffLedgerRelevantPlanChanges(currentDocument.volumes, mergedDocument.volumes),
     });

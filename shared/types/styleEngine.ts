@@ -1,6 +1,12 @@
 import type { LLMProvider } from "./llm";
 
-export type StyleSourceType = "manual" | "from_text" | "from_book_analysis" | "from_current_work";
+export type StyleSourceType =
+  | "manual"
+  | "from_text"
+  | "from_book_analysis"
+  | "from_knowledge_document"
+  | "from_current_work";
+export type StyleExtractionSourceProcessingMode = "full_text" | "representative_sample";
 export type StyleProfileStatus = "active" | "archived";
 export type StyleBindingTargetType = "novel" | "chapter" | "task";
 export type AntiAiRuleType = "forbidden" | "risk" | "encourage";

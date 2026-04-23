@@ -785,8 +785,14 @@ model StyleExtractionTask {
   id                    String            @id @default(cuid())
   name                  String
   category              String?
-  sourceText            String
-  provider              String
+    sourceText            String
+    sourceType            String            @default("from_text")
+    sourceRefId           String?
+    sourceProcessingMode  String            @default("full_text")
+    sourceInputText       String?
+    sourceInputCharLimit  Int?
+    sourceInputCharCount  Int?
+    provider              String
   model                 String?
   temperature           Float?
   presetKey             String            @default("balanced")
@@ -816,6 +822,7 @@ model StyleExtractionTask {
 
   @@index([status, updatedAt])
   @@index([createdStyleProfileId])
+  @@index([sourceType, sourceRefId])
 }
 
 model ImageAsset {

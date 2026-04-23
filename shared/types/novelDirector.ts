@@ -85,6 +85,9 @@ export const DIRECTOR_RUN_MODES = [
 
 export type DirectorRunMode = typeof DIRECTOR_RUN_MODES[number];
 
+export const DIRECTOR_MIN_TARGET_CHAPTER_COUNT = 12;
+export const DIRECTOR_MAX_TARGET_CHAPTER_COUNT = 2000;
+
 export const DIRECTOR_AUTO_EXECUTION_MODES = [
   "front10",
   "chapter_range",
