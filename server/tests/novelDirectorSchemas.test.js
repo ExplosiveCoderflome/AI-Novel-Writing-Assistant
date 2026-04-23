@@ -6,7 +6,9 @@ const {
   normalizeDirectorTitleSuggestionStyle,
 } = require("../dist/services/novel/director/novelDirectorSchemas.js");
 const {
+  normalizeCandidate,
   normalizeBookContract,
+  toBookSpec,
 } = require("../dist/services/novel/director/novelDirectorHelpers.js");
 
 test("normalizeDirectorTitleSuggestionStyle handles common variants", () => {
@@ -62,6 +64,64 @@ test("directorCandidateResponseSchema accepts normalized titleOptions.style", ()
   });
   assert.equal(parsed.candidates[0].titleOptions[0].style, "high_concept");
   assert.equal(parsed.candidates[1].titleOptions[0].style, "suspense");
+});
+
+test("directorCandidateResponseSchema preserves long novel chapter targets", () => {
+  const parsed = directorCandidateResponseSchema.parse({
+    candidates: [
+      {
+        workingTitle: "长篇测试",
+        logline: "logline",
+        positioning: "pos",
+        sellingPoint: "sell",
+        coreConflict: "conflict",
+        protagonistPath: "path",
+        endingDirection: "end",
+        hookStrategy: "hook",
+        progressionLoop: "loop",
+        whyItFits: "fit",
+        toneKeywords: ["a", "b"],
+        targetChapterCount: 430,
+      },
+      {
+        workingTitle: "长篇测试二",
+        logline: "logline two",
+        positioning: "pos",
+        sellingPoint: "sell",
+        coreConflict: "conflict",
+        protagonistPath: "path",
+        endingDirection: "end",
+        hookStrategy: "hook",
+        progressionLoop: "loop",
+        whyItFits: "fit",
+        toneKeywords: ["c", "d"],
+        targetChapterCount: 360,
+      },
+    ],
+  });
+
+  assert.equal(parsed.candidates[0].targetChapterCount, 430);
+});
+
+test("director helper normalization keeps explicit long-form chapter counts", () => {
+  const candidate = normalizeCandidate({
+    workingTitle: "长篇测试",
+    logline: "logline",
+    positioning: "pos",
+    sellingPoint: "sell",
+    coreConflict: "conflict",
+    protagonistPath: "path",
+    endingDirection: "end",
+    hookStrategy: "hook",
+    progressionLoop: "loop",
+    whyItFits: "fit",
+    toneKeywords: ["a", "b"],
+    targetChapterCount: 430,
+  }, 0);
+  const bookSpec = toBookSpec(candidate, "长篇故事", 430);
+
+  assert.equal(candidate.targetChapterCount, 430);
+  assert.equal(bookSpec.targetChapterCount, 430);
 });
 
 test("directorBookContractSchema tolerates overflow red lines and normalization trims them to six", () => {

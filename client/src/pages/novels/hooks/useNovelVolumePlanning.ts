@@ -96,6 +96,7 @@ interface GeneratedVolumeMutationResult {
   generatedResponse: Awaited<ReturnType<typeof generateNovelVolumes>>;
   persistedResponse: Awaited<ReturnType<typeof updateNovelVolumes>>;
   nextDocument: VolumePlanDocument;
+  autoSyncedToChapterExecution: boolean;
 }
 
 interface VolumeGenerationMutationContext {
@@ -110,6 +111,10 @@ class VolumeGenerationAutoSaveError extends Error {
     this.name = "VolumeGenerationAutoSaveError";
     this.nextDocument = nextDocument;
   }
+}
+
+function shouldAutoSyncGeneratedScope(scope: VolumeGenerationPayload["scope"]): boolean {
+  return scope === "chapter_list" || scope === "volume" || scope === "chapter_detail";
 }
 
 function mergeSavedVolumeDocumentIntoNovelDetail(
@@ -260,6 +265,7 @@ export function useNovelVolumePlanning({
     }),
     mutationFn: async (payload: VolumeGenerationPayload): Promise<GeneratedVolumeMutationResult> => {
       const requestDraft = normalizeVolumeDraft(payload.draftVolumesOverride ?? normalizedVolumeDraft);
+      const autoSyncedToChapterExecution = shouldAutoSyncGeneratedScope(payload.scope);
       const generatedResponse = await generateNovelVolumes(novelId, {
         provider: llm.provider,
         model: llm.model,
@@ -297,21 +303,31 @@ export function useNovelVolumePlanning({
       }
 
       try {
-        const persistedResponse = await updateNovelVolumes(novelId, nextDocument);
+        const persistedResponse = await updateNovelVolumes(novelId, {
+          ...nextDocument,
+          syncToChapterExecution: autoSyncedToChapterExecution,
+        });
         return {
           generatedResponse,
           persistedResponse,
           nextDocument: persistedResponse.data ?? nextDocument,
+          autoSyncedToChapterExecution,
         };
       } catch (error) {
-        const message = error instanceof Error ? error.message : "AI 生成已完成，但自动保存失败。";
+        const message = error instanceof Error ? error.message : "AI 生成已完成，但保存当前卷工作区失败。";
         throw new VolumeGenerationAutoSaveError(message, nextDocument);
       }
     },
-    onSuccess: (result, payload) => {
+    onSuccess: async (result, payload) => {
       applyWorkspaceDocument(result.nextDocument);
       if (result.persistedResponse.data) {
         syncSavedVolumeDocumentToCache(result.persistedResponse.data);
+      }
+      if (result.autoSyncedToChapterExecution) {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapters(novelId) }),
+        ]);
       }
 
       void syncNovelWorkflowStageSilently({
@@ -329,11 +345,13 @@ export function useNovelVolumePlanning({
                 ? "当前卷节奏板已更新"
                 : payload.scope === "chapter_list" || payload.scope === "volume"
                   ? payload.generationMode === "single_beat"
-                    ? "当前卷节奏段章节已更新"
-                    : "当前卷章节列表已生成"
+                    ? "当前卷节奏段章节已更新并自动同步到章节执行"
+                    : "当前卷章节列表已生成并自动同步到章节执行"
                   : payload.scope === "rebalance"
                     ? "相邻卷再平衡建议已更新"
-                    : "章节细化已更新",
+                    : result.autoSyncedToChapterExecution
+                      ? "章节细化已更新并自动同步到章节执行"
+                      : "章节细化已更新",
         checkpointType: payload.scope === "skeleton" || payload.scope === "book"
           ? "volume_strategy_ready"
           : payload.scope === "chapter_list" || payload.scope === "volume"
@@ -343,8 +361,8 @@ export function useNovelVolumePlanning({
           ? "卷战略与卷骨架已刷新，可以继续进入节奏拆章。"
           : payload.scope === "chapter_list" || payload.scope === "volume"
             ? payload.generationMode === "single_beat"
-              ? "当前卷节奏段章节已刷新，可继续细化并同步到章节执行。"
-              : "当前卷章节列表已准备完成，可继续细化并同步到章节执行。"
+              ? "当前卷节奏段章节已刷新，并已自动同步到章节执行区，可继续细化或直接进入章节执行。"
+              : "当前卷章节列表已准备完成，并已自动同步到章节执行区，可继续细化或直接进入章节执行。"
             : undefined,
         volumeId: payload.targetVolumeId,
         chapterId: payload.targetChapterId,
@@ -382,6 +400,7 @@ export function useNovelVolumePlanning({
           targetVolumeId: payload.targetVolumeId,
           generationMode: payload.generationMode,
           targetBeatKey: payload.targetBeatKey,
+          autoSyncedToChapterExecution: result.autoSyncedToChapterExecution,
         }));
         return;
       }
@@ -391,14 +410,18 @@ export function useNovelVolumePlanning({
       }
 
       const label = detailModeLabel(payload.detailMode ?? "purpose");
-      setStructuredMessage(`${label}已完成 AI 修正并自动保存。`);
+      setStructuredMessage(
+        result.autoSyncedToChapterExecution
+          ? `${label}已完成 AI 修正并自动保存，章节执行区也已自动同步最新内容。`
+          : `${label}已完成 AI 修正并自动保存。`,
+      );
     },
     onError: async (error, payload, context) => {
       if (error instanceof VolumeGenerationAutoSaveError) {
         applyWorkspaceDocument(error.nextDocument);
       }
       const fallbackMessage = error instanceof VolumeGenerationAutoSaveError
-        ? `AI 生成已完成，但自动保存失败：${error.message}`
+        ? error.message
         : error instanceof Error
           ? error.message
           : "卷级方案生成失败。";

@@ -234,7 +234,7 @@ export async function startDirectorTakeoverExecution(
         novelId: input.request.novelId,
         request: input.directorInput,
         existingPipelineJobId: plan.usesCurrentBatch ? (input.takeoverState.activePipelineJob?.id ?? null) : null,
-        existingState: input.takeoverState.latestAutoExecutionState ?? null,
+        existingState: plan.usesCurrentBatch ? (input.takeoverState.latestAutoExecutionState ?? null) : null,
         resumeCheckpointType: plan.usesCurrentBatch ? (plan.resumeCheckpointType ?? null) : null,
         resumeStage: plan.resumeStage === "pipeline" ? "pipeline" : "chapter",
       });

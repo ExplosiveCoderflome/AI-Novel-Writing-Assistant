@@ -2,11 +2,24 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  buildDirectorAutoExecutionState,
   buildDirectorAutoExecutionScopeLabel,
   buildDirectorAutoExecutionPipelineOptions,
+  isDirectorAutoExecutionChapterProcessed,
+  normalizeDirectorAutoExecutionPlan,
   resolveDirectorAutoExecutionRange,
   resolveDirectorAutoExecutionWorkflowState,
 } = require("../dist/services/novel/director/novelDirectorAutoExecution.js");
+
+test("front10 normalizes to the explicit chapter range 1-10", () => {
+  assert.deepEqual(normalizeDirectorAutoExecutionPlan({ mode: "front10" }), {
+    mode: "front10",
+    startOrder: 1,
+    endOrder: 10,
+    autoReview: true,
+    autoRepair: true,
+  });
+});
 
 test("resolveDirectorAutoExecutionRange sorts chapters and limits to front 10", () => {
   const range = resolveDirectorAutoExecutionRange([
@@ -62,6 +75,45 @@ test("buildDirectorAutoExecutionPipelineOptions respects review and repair toggl
 
   assert.equal(options.autoReview, false);
   assert.equal(options.autoRepair, false);
+});
+
+test("auto execution does not treat empty reviewed chapters as processed", () => {
+  const emptyReviewedChapter = {
+    id: "chapter-empty",
+    order: 11,
+    content: "",
+    generationState: "reviewed",
+    chapterStatus: "pending_review",
+  };
+  const draftedReviewedChapter = {
+    id: "chapter-drafted",
+    order: 12,
+    content: "正文内容",
+    generationState: "reviewed",
+    chapterStatus: "pending_review",
+  };
+
+  assert.equal(isDirectorAutoExecutionChapterProcessed(emptyReviewedChapter), false);
+  assert.equal(isDirectorAutoExecutionChapterProcessed(draftedReviewedChapter), true);
+
+  const state = buildDirectorAutoExecutionState({
+    range: {
+      startOrder: 11,
+      endOrder: 12,
+      totalChapterCount: 2,
+      firstChapterId: "chapter-empty",
+    },
+    chapters: [emptyReviewedChapter, draftedReviewedChapter],
+    plan: {
+      mode: "chapter_range",
+      startOrder: 11,
+      endOrder: 12,
+    },
+  });
+
+  assert.equal(state.completedChapterCount, 1);
+  assert.equal(state.remainingChapterCount, 1);
+  assert.deepEqual(state.remainingChapterOrders, [11]);
 });
 
 test("buildDirectorAutoExecutionScopeLabel supports chapter ranges and volume labels", () => {

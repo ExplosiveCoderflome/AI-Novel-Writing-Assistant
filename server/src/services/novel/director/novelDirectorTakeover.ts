@@ -18,6 +18,7 @@ import type {
 import type { NovelWorkflowStage, BookContract } from "@ai-novel/shared/types/novelWorkflow";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
 import { DIRECTOR_TAKEOVER_ENTRY_STEPS } from "@ai-novel/shared/types/novelDirector";
+import { normalizeDirectorTargetChapterCount } from "./novelDirectorHelpers";
 
 export interface DirectorTakeoverNovelContext extends Omit<DirectorProjectContextInput, "description"> {
   id: string;
@@ -218,7 +219,7 @@ function buildTakeoverCandidate(input: {
     progressionLoop,
     whyItFits: "沿用当前项目已保存的书级信息与既有资产，继续自动导演。",
     toneKeywords: splitToneKeywords(novel),
-    targetChapterCount: Math.max(12, Math.min(120, Math.round(novel.estimatedChapterCount ?? 80))),
+    targetChapterCount: normalizeDirectorTargetChapterCount(novel.estimatedChapterCount),
   };
 }
 

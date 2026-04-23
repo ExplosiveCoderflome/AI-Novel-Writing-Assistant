@@ -135,6 +135,20 @@ interface DirectorAutoExecutionResolvedScope {
   preparedVolumeIds?: string[];
 }
 
+function findMissingChapterOrders(
+  chapters: DirectorAutoExecutionChapterRef[],
+  range: DirectorAutoExecutionRange,
+): number[] {
+  const chapterOrders = new Set(chapters.map((chapter) => chapter.order));
+  const missing: number[] = [];
+  for (let order = range.startOrder; order <= range.endOrder; order += 1) {
+    if (!chapterOrders.has(order)) {
+      missing.push(order);
+    }
+  }
+  return missing;
+}
+
 export class NovelDirectorAutoExecutionRuntime {
   constructor(private readonly deps: NovelDirectorAutoExecutionRuntimeDeps) {}
 
@@ -187,6 +201,7 @@ export class NovelDirectorAutoExecutionRuntime {
     existingPipelineJobId?: string | null;
   }): DirectorAutoExecutionState | null {
     const requestedPlan = normalizeDirectorAutoExecutionPlan(input.request.autoExecutionPlan);
+    const hasRequestedPlan = Boolean(input.request.autoExecutionPlan);
     if (!input.existingState) {
       return {
         enabled: true,
@@ -202,6 +217,15 @@ export class NovelDirectorAutoExecutionRuntime {
     }
 
     const keepPipelineBinding = Boolean(input.existingPipelineJobId?.trim());
+    if (!hasRequestedPlan) {
+      return {
+        ...input.existingState,
+        pipelineJobId: keepPipelineBinding
+          ? (input.existingPipelineJobId?.trim() || input.existingState.pipelineJobId || null)
+          : null,
+        pipelineStatus: keepPipelineBinding ? (input.existingState.pipelineStatus ?? "running") : null,
+      };
+    }
     return {
       ...input.existingState,
       mode: requestedPlan.mode,
@@ -307,11 +331,11 @@ export class NovelDirectorAutoExecutionRuntime {
   }> {
     const chapters = await this.deps.novelContextService.listChapters(input.novelId);
     const normalizedPlan = normalizeDirectorAutoExecutionPlan(input.existingState);
-    let range = resolveDirectorAutoExecutionRangeFromState(input.existingState);
+    let range: DirectorAutoExecutionRange | null = null;
     let scopeLabel = input.existingState?.scopeLabel ?? null;
     let volumeTitle = input.existingState?.volumeTitle ?? null;
     let preparedVolumeIds = input.existingState?.preparedVolumeIds ?? [];
-    if (!range && normalizedPlan.mode === "volume" && input.existingState?.enabled) {
+    if (normalizedPlan.mode === "volume" && input.existingState?.enabled) {
       const resolvedVolumeScope = await this.resolveVolumeScopedRange({
         novelId: input.novelId,
         plan: input.existingState,
@@ -322,9 +346,17 @@ export class NovelDirectorAutoExecutionRuntime {
       volumeTitle = resolvedVolumeScope.volumeTitle ?? volumeTitle;
       preparedVolumeIds = resolvedVolumeScope.preparedVolumeIds ?? preparedVolumeIds;
     }
+    range = range ?? resolveDirectorAutoExecutionRangeFromState(input.existingState);
     range = range ?? resolveDirectorAutoExecutionRange(chapters);
     if (!range) {
       throw new Error("当前还没有可自动执行的章节，请先完成目标范围的拆章同步。");
+    }
+    const missingChapterOrders = findMissingChapterOrders(chapters, range);
+    if (missingChapterOrders.length > 0) {
+      const resolvedScopeLabel = scopeLabel ?? buildDirectorAutoExecutionScopeLabelFromState(input.existingState, range.totalChapterCount);
+      throw new Error(
+        `${resolvedScopeLabel}对应的章节执行区还缺少第 ${missingChapterOrders.slice(0, 5).join("、")} 章，请先完成目标范围的拆章同步。`,
+      );
     }
     return {
       range,

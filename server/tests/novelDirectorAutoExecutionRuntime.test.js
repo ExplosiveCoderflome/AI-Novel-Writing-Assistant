@@ -411,15 +411,16 @@ test("runFromReady uses the latest auto-execution review toggles instead of stal
   const runtime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: {
       async listChapters() {
-        return [
-          { id: "chapter-1", order: 1, generationState: "planned" },
-          { id: "chapter-2", order: 2, generationState: "planned" },
-        ];
+        return Array.from({ length: 10 }, (_, index) => ({
+          id: `chapter-${index + 1}`,
+          order: index + 1,
+          generationState: "planned",
+        }));
       },
     },
     novelService: {
       async startPipelineJob(_novelId, options) {
-        calls.push(["startPipelineJob", options.autoReview, options.autoRepair]);
+        calls.push(["startPipelineJob", options.startOrder, options.endOrder, options.autoReview, options.autoRepair]);
         return { id: "job-no-review", status: "queued" };
       },
       async findActivePipelineJobForRange() {
@@ -497,7 +498,7 @@ test("runFromReady uses the latest auto-execution review toggles instead of stal
 
   assert.deepEqual(calls[0], ["bootstrapTask", false, false]);
   assert.deepEqual(calls[1], ["markTaskRunning"]);
-  assert.deepEqual(calls[2], ["startPipelineJob", false, false]);
+  assert.deepEqual(calls[2], ["startPipelineJob", 1, 10, false, false]);
   assert.deepEqual(calls[3], ["bootstrapTask", false, false]);
   assert.deepEqual(calls[4], ["getPipelineJobById", "job-no-review"]);
   assert.deepEqual(calls[5], ["recordCheckpoint", "task-auto-exec", false, false]);
@@ -686,6 +687,100 @@ test("prepareRequestedAutoExecution resolves the selected volume range instead o
   });
   assert.equal(resolved.autoExecution.volumeOrder, 2);
   assert.equal(resolved.autoExecution.scopeLabel, "第 2 卷 · 反扑卷");
+  assert.deepEqual(resolved.autoExecution.remainingChapterOrders, [5, 6, 7, 8]);
+});
+
+test("prepareRequestedAutoExecution refreshes a stale volume range after chapter planning grows", async () => {
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        return [
+          { id: "chapter-1", order: 1, content: "正文1", generationState: "approved" },
+          { id: "chapter-2", order: 2, content: "正文2", generationState: "approved" },
+          { id: "chapter-3", order: 3, content: "正文3", generationState: "approved" },
+          { id: "chapter-4", order: 4, content: "正文4", generationState: "approved" },
+          { id: "chapter-5", order: 5, content: "", generationState: "planned" },
+          { id: "chapter-6", order: 6, content: "", generationState: "planned" },
+          { id: "chapter-7", order: 7, content: "", generationState: "planned" },
+          { id: "chapter-8", order: 8, content: "", generationState: "planned" },
+        ];
+      },
+    },
+    novelService: {
+      async startPipelineJob() {
+        throw new Error("should not start a pipeline in prepareRequestedAutoExecution");
+      },
+      async findActivePipelineJobForRange() {
+        return null;
+      },
+      async getPipelineJobById() {
+        return null;
+      },
+      async cancelPipelineJob() {
+        return null;
+      },
+    },
+    volumeWorkspaceService: {
+      async getVolumes() {
+        return {
+          volumes: [
+            buildPreparedVolume(1, "扩写卷", [1, 2, 3, 4, 5, 6, 7, 8]),
+          ],
+          beatSheets: [
+            {
+              volumeId: "volume-1",
+              beats: [{ key: "volume-1-beat-1", label: "扩写推进", chapterSpanHint: "1-8" }],
+            },
+          ],
+        };
+      },
+    },
+    workflowService: {
+      async bootstrapTask() {
+        throw new Error("should not bootstrap in prepareRequestedAutoExecution");
+      },
+      async getTaskById() {
+        return { status: "waiting_approval" };
+      },
+      async markTaskRunning() {
+        throw new Error("should not mark running in prepareRequestedAutoExecution");
+      },
+      async recordCheckpoint() {
+        throw new Error("should not record checkpoint in prepareRequestedAutoExecution");
+      },
+      async markTaskFailed() {
+        throw new Error("should not mark failed in prepareRequestedAutoExecution");
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+  });
+
+  const resolved = await runtime.prepareRequestedAutoExecution({
+    novelId: "novel-1",
+    request: buildRequest({
+      autoExecutionPlan: {
+        mode: "volume",
+        volumeOrder: 1,
+      },
+    }),
+    existingState: {
+      enabled: true,
+      mode: "volume",
+      volumeOrder: 1,
+      startOrder: 1,
+      endOrder: 4,
+      totalChapterCount: 4,
+    },
+  });
+
+  assert.deepEqual(resolved.range, {
+    startOrder: 1,
+    endOrder: 8,
+    totalChapterCount: 8,
+    firstChapterId: "chapter-1",
+  });
   assert.deepEqual(resolved.autoExecution.remainingChapterOrders, [5, 6, 7, 8]);
 });
 

@@ -21,6 +21,7 @@ export async function updateNovelVolumes(
   id: string,
   payload: Partial<VolumePlanDocument> & {
     volumes: VolumePlan[];
+    syncToChapterExecution?: boolean;
   },
 ) {
   const { data } = await apiClient.put<ApiResponse<VolumePlanDocument>>(`/novels/${id}/volumes`, payload);

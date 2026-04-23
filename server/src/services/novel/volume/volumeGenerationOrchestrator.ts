@@ -331,9 +331,13 @@ async function generateBeatSheet(params: {
     existingVolumes: document.volumes,
   });
   const targetIndex = document.volumes.findIndex((volume) => volume.id === targetVolume.id);
-  const targetChapterCount = targetVolume.chapters.length >= 3
-    ? targetVolume.chapters.length
-    : chapterBudgets[targetIndex] ?? Math.max(3, Math.round(chapterBudget / Math.max(document.volumes.length, 1)));
+  const targetChapterCount = resolveBeatSheetTargetChapterCount({
+    targetVolumeChapterCount: targetVolume.chapters.length,
+    targetVolumeIndex: targetIndex,
+    volumeCount: document.volumes.length,
+    chapterBudget,
+    chapterBudgets,
+  });
   await notifyVolumeGenerationPhase({
     novelId: document.novelId,
     scope: "beat_sheet",
@@ -368,6 +372,18 @@ async function generateBeatSheet(params: {
     },
   });
   return mergeBeatSheet(document, targetVolume, generated.output.beats);
+}
+
+export function resolveBeatSheetTargetChapterCount(input: {
+  targetVolumeChapterCount: number;
+  targetVolumeIndex: number;
+  volumeCount: number;
+  chapterBudget: number;
+  chapterBudgets: number[];
+}): number {
+  const fallbackTargetChapterCount = input.chapterBudgets[input.targetVolumeIndex]
+    ?? Math.max(3, Math.round(input.chapterBudget / Math.max(input.volumeCount, 1)));
+  return Math.max(input.targetVolumeChapterCount, fallbackTargetChapterCount);
 }
 
 async function generateRebalance(params: {

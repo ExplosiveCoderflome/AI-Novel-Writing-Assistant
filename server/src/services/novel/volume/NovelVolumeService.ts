@@ -60,6 +60,27 @@ import {
   persistActiveVolumeWorkspace,
 } from "./volumeWorkspacePersistence";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function extractVolumeWorkspaceUpdateInput(input: unknown): {
+  workspaceInput: unknown;
+  syncToChapterExecution: boolean;
+} {
+  if (!isRecord(input)) {
+    return {
+      workspaceInput: input,
+      syncToChapterExecution: false,
+    };
+  }
+  const { syncToChapterExecution, ...workspaceInput } = input;
+  return {
+    workspaceInput,
+    syncToChapterExecution: syncToChapterExecution === true,
+  };
+}
+
 export class NovelVolumeService {
   private readonly storyMacroPlanService = new StoryMacroPlanService();
   private readonly styleBindingService = new StyleBindingService();
@@ -256,7 +277,10 @@ export class NovelVolumeService {
   }
 
   async updateVolumes(novelId: string, input: unknown): Promise<VolumePlanDocument> {
-    return this.updateVolumesWithOptions(novelId, input);
+    const { workspaceInput, syncToChapterExecution } = extractVolumeWorkspaceUpdateInput(input);
+    return this.updateVolumesWithOptions(novelId, workspaceInput, {
+      syncToChapterExecution,
+    });
   }
 
   async updateVolumesWithOptions(
@@ -265,15 +289,32 @@ export class NovelVolumeService {
     options: {
       volumeUpdateReason?: VolumeUpdateReason;
       syncPayoffLedger?: boolean;
+      syncToChapterExecution?: boolean;
     } = {},
   ): Promise<VolumePlanDocument> {
     const currentDocument = await this.ensureVolumeWorkspace(novelId);
     const mergedDocument = mergeVolumeWorkspaceInput(novelId, currentDocument, input);
-    return this.persistWorkspaceDocument(novelId, mergedDocument, {
+    const persistedDocument = await this.persistWorkspaceDocument(novelId, mergedDocument, {
       volumeUpdateReason: options.volumeUpdateReason,
       syncPayoffLedger: options.syncPayoffLedger
         ?? hasPayoffLedgerRelevantPlanChanges(currentDocument.volumes, mergedDocument.volumes),
     });
+    if (options.syncToChapterExecution) {
+      try {
+        await this.syncVolumeChaptersWithOptions(novelId, {
+          volumes: persistedDocument.volumes,
+          preserveContent: true,
+          applyDeletes: false,
+        }, {
+          emitEvent: false,
+          syncPayoffLedger: false,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "未知错误";
+        throw new Error(`当前卷工作区已保存，但自动同步到章节执行区失败：${message}`);
+      }
+    }
+    return persistedDocument;
   }
 
   async listVolumeVersions(novelId: string): Promise<VolumePlanVersion[]> {

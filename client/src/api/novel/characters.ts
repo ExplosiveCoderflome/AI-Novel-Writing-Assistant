@@ -46,10 +46,16 @@ export async function generateCharacterCastOptions(
   return data;
 }
 
-export async function applyCharacterCastOption(id: string, optionId: string) {
+export async function applyCharacterCastOption(
+  id: string,
+  optionId: string,
+  payload?: {
+    overrideQualityGate?: boolean;
+  },
+) {
   const { data } = await apiClient.post<ApiResponse<CharacterCastApplyResult>>(
     `/novels/${id}/character-prep/cast-options/${optionId}/apply`,
-    {},
+    payload ?? {},
   );
   return data;
 }

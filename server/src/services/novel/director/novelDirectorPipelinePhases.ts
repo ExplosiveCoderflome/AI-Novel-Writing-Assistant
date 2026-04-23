@@ -26,7 +26,9 @@ import {
 } from "./novelDirectorProgress";
 import {
   buildDirectorAutoExecutionState,
+  countDirectorAutoExecutionChapterRange,
   normalizeDirectorAutoExecutionPlan,
+  resolveDirectorAutoExecutionPlanChapterRange,
 } from "./novelDirectorAutoExecution";
 import {
   flattenPreparedOutlineChapters,
@@ -84,6 +86,24 @@ interface DirectorPhaseCallbacks {
       volumeId?: string | null;
     },
   ) => Promise<void>;
+}
+
+function buildChapterOrderRangeLabel(startOrder: number, endOrder: number): string {
+  return startOrder === endOrder ? `第 ${startOrder} 章` : `第 ${startOrder}-${endOrder} 章`;
+}
+
+function findMissingSelectedChapterOrders(
+  selectedOrders: number[],
+  range: { startOrder: number; endOrder: number },
+): number[] {
+  const selected = new Set(selectedOrders);
+  const missing: number[] = [];
+  for (let order = range.startOrder; order <= range.endOrder; order += 1) {
+    if (!selected.has(order)) {
+      missing.push(order);
+    }
+  }
+  return missing;
 }
 
 function buildStructuredOutlinePhaseUpdate(event: VolumeGenerationPhaseEvent): {
@@ -569,9 +589,10 @@ export async function runDirectorStructuredOutlinePhase(input: {
     0,
     ...flattenPreparedOutlineChapters(workspace).map((chapter) => chapter.chapterOrder),
   );
-  if (detailPlan.mode === "chapter_range" && maxPreparedChapterOrder < (detailPlan.endOrder ?? 1)) {
+  const targetChapterRange = resolveDirectorAutoExecutionPlanChapterRange(detailPlan);
+  if (targetChapterRange && maxPreparedChapterOrder < targetChapterRange.endOrder) {
     throw new Error(
-      `当前已生成的章节规划最多只覆盖到第 ${maxPreparedChapterOrder} 章，不能直接自动执行第 ${detailPlan.startOrder}-${detailPlan.endOrder} 章。`,
+      `当前已生成的章节规划最多只覆盖到第 ${maxPreparedChapterOrder} 章，不能直接自动执行${buildChapterOrderRangeLabel(targetChapterRange.startOrder, targetChapterRange.endOrder)}。`,
     );
   }
 
@@ -603,6 +624,15 @@ export async function runDirectorStructuredOutlinePhase(input: {
   if (selectedChapters.length === 0) {
     throw new Error("自动导演未能准备出可执行的章节范围。");
   }
+  const selectedChapterOrders = selectedChapters.map((chapter) => chapter.chapterOrder).sort((left, right) => left - right);
+  if (targetChapterRange) {
+    const missingOrders = findMissingSelectedChapterOrders(selectedChapterOrders, targetChapterRange);
+    if (missingOrders.length > 0) {
+      throw new Error(
+        `自动导演已准备的章节规划缺少第 ${missingOrders.slice(0, 5).join("、")} 章，不能直接自动执行${buildChapterOrderRangeLabel(targetChapterRange.startOrder, targetChapterRange.endOrder)}。`,
+      );
+    }
+  }
   const autoExecutionScopeLabel = syncCursor.scopeLabel;
 
   await callbacks.markDirectorTaskRunning(
@@ -627,17 +657,19 @@ export async function runDirectorStructuredOutlinePhase(input: {
     outlineStatus: "in_progress",
   });
 
-  const selectedChapterOrders = selectedChapters.map((chapter) => chapter.chapterOrder).sort((left, right) => left - right);
   const autoExecutionState = buildDirectorAutoExecutionState({
     range: {
       startOrder: selectedChapterOrders[0] ?? 1,
       endOrder: selectedChapterOrders[selectedChapterOrders.length - 1] ?? selectedChapterOrders[0] ?? 1,
-      totalChapterCount: selectedChapters.length,
+      totalChapterCount: targetChapterRange
+        ? countDirectorAutoExecutionChapterRange(targetChapterRange)
+        : selectedChapters.length,
       firstChapterId: selectedChapters[0]?.id ?? null,
     },
     chapters: persistedChapters.map((chapter) => ({
       id: chapter.id,
       order: chapter.order,
+      content: chapter.content ?? null,
       generationState: chapter.generationState ?? null,
     })),
     plan: detailPlan,

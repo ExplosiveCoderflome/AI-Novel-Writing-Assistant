@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  DIRECTOR_MAX_TARGET_CHAPTER_COUNT,
+  DIRECTOR_MIN_TARGET_CHAPTER_COUNT,
+} from "@ai-novel/shared/types/novelDirector";
 
 const nonEmptyString = z.string().trim().min(1);
 
@@ -61,19 +65,25 @@ const keywordArraySchema = z.union([
 
 const chapterCountSchema = z.preprocess((value) => {
   if (typeof value === "number" && Number.isFinite(value)) {
-    return Math.max(12, Math.min(120, Math.round(value)));
+    return Math.max(
+      DIRECTOR_MIN_TARGET_CHAPTER_COUNT,
+      Math.min(DIRECTOR_MAX_TARGET_CHAPTER_COUNT, Math.round(value)),
+    );
   }
   if (typeof value === "string") {
     const trimmed = value.trim();
     if (trimmed && /^-?\d+(\.\d+)?$/.test(trimmed)) {
       const parsed = Number(trimmed);
       if (Number.isFinite(parsed)) {
-        return Math.max(12, Math.min(120, Math.round(parsed)));
+        return Math.max(
+          DIRECTOR_MIN_TARGET_CHAPTER_COUNT,
+          Math.min(DIRECTOR_MAX_TARGET_CHAPTER_COUNT, Math.round(parsed)),
+        );
       }
     }
   }
   return value;
-}, z.number().int().min(12).max(120));
+}, z.number().int().min(DIRECTOR_MIN_TARGET_CHAPTER_COUNT).max(DIRECTOR_MAX_TARGET_CHAPTER_COUNT));
 
 export const directorCandidateSchema = z.object({
   id: nonEmptyString.optional(),
