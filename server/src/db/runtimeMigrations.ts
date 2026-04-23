@@ -61,6 +61,36 @@ const REQUIRED_COLUMN_BACKFILLS = [
     columnName: "selectedExtractionPresetKey",
     columnDefinition: `"selectedExtractionPresetKey" TEXT`,
   },
+  {
+    tableName: "StyleExtractionTask",
+    columnName: "sourceType",
+    columnDefinition: `"sourceType" TEXT NOT NULL DEFAULT 'from_text'`,
+  },
+  {
+    tableName: "StyleExtractionTask",
+    columnName: "sourceRefId",
+    columnDefinition: `"sourceRefId" TEXT`,
+  },
+  {
+    tableName: "StyleExtractionTask",
+    columnName: "sourceProcessingMode",
+    columnDefinition: `"sourceProcessingMode" TEXT NOT NULL DEFAULT 'full_text'`,
+  },
+  {
+    tableName: "StyleExtractionTask",
+    columnName: "sourceInputText",
+    columnDefinition: `"sourceInputText" TEXT`,
+  },
+  {
+    tableName: "StyleExtractionTask",
+    columnName: "sourceInputCharLimit",
+    columnDefinition: `"sourceInputCharLimit" INTEGER`,
+  },
+  {
+    tableName: "StyleExtractionTask",
+    columnName: "sourceInputCharCount",
+    columnDefinition: `"sourceInputCharCount" INTEGER`,
+  },
 ] as const;
 
 function resolveSqliteDatabasePath(): string | null {

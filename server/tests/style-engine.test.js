@@ -3,9 +3,13 @@ const assert = require("node:assert/strict");
 const http = require("node:http");
 const { createApp } = require("../dist/app.js");
 const { StyleCompiler } = require("../dist/services/styleEngine/StyleCompiler.js");
+const { buildStyleExtractionSourceInput } = require("../dist/services/styleEngine/StyleExtractionSourceInput.js");
 const { StyleProfileService } = require("../dist/services/styleEngine/StyleProfileService.js");
+const { styleExtractionTaskService } = require("../dist/services/styleEngine/StyleExtractionTaskService.js");
 const { StyleBindingService } = require("../dist/services/styleEngine/StyleBindingService.js");
 const { StyleDetectionService } = require("../dist/services/styleEngine/StyleDetectionService.js");
+const { KnowledgeService } = require("../dist/services/knowledge/KnowledgeService.js");
+const { taskCenterService } = require("../dist/services/task/TaskCenterService.js");
 
 function listen(server) {
   return new Promise((resolve) => {
@@ -95,6 +99,31 @@ test("StyleCompiler emits layered binding context and section-level strength", (
   assert.match(compiled.character, /character\.emotionExpression: keep when natural 克制外露/);
 });
 
+test("knowledge document style extraction uses representative sample by default", () => {
+  const sourceText = Array.from({ length: 90 }, (_, index) =>
+    `第${index + 1}段：${"人物对话和场景推进。".repeat(160)}`).join("\n");
+
+  const sampled = buildStyleExtractionSourceInput({
+    sourceText,
+    sourceType: "from_knowledge_document",
+    sourceProcessingMode: "representative_sample",
+  });
+  assert.equal(sampled.sourceProcessingMode, "representative_sample");
+  assert.equal(sampled.sourceInputCharLimit, 60000);
+  assert.ok(sampled.sourceInputText.length <= 60000);
+  assert.ok(sampled.sourceInputText.length < sourceText.length);
+  assert.equal(sampled.sourceInputCharCount, sampled.sourceInputText.length);
+  assert.match(sampled.sourceInputText, /系统抽样说明/);
+
+  const fullText = buildStyleExtractionSourceInput({
+    sourceText,
+    sourceType: "from_text",
+  });
+  assert.equal(fullText.sourceProcessingMode, "full_text");
+  assert.equal(fullText.sourceInputText, null);
+  assert.equal(fullText.sourceInputCharCount, sourceText.length);
+});
+
 test("style engine routes return mocked payloads", async () => {
   const originalMethods = {
     listProfiles: StyleProfileService.prototype.listProfiles,
@@ -102,8 +131,11 @@ test("style engine routes return mocked payloads", async () => {
     createFromText: StyleProfileService.prototype.createFromText,
     createProfileFromExtraction: StyleProfileService.prototype.createProfileFromExtraction,
     createFromBookAnalysis: StyleProfileService.prototype.createFromBookAnalysis,
+    createExtractionTask: styleExtractionTaskService.createTask,
     createBinding: StyleBindingService.prototype.createBinding,
     check: StyleDetectionService.prototype.check,
+    getKnowledgeDocumentById: KnowledgeService.prototype.getDocumentById,
+    getTaskDetail: taskCenterService.getTaskDetail,
   };
 
   const fakeProfile = {
@@ -180,6 +212,68 @@ test("style engine routes return mocked payloads", async () => {
   StyleProfileService.prototype.createFromText = async () => fakeExtractedProfile;
   StyleProfileService.prototype.createProfileFromExtraction = async () => fakeProfile;
   StyleProfileService.prototype.createFromBookAnalysis = async () => fakeProfile;
+  let capturedKnowledgeExtractionInput = null;
+  KnowledgeService.prototype.getDocumentById = async (documentId) => ({
+    id: documentId,
+    title: "知识库小说",
+    fileName: "novel.txt",
+    status: "enabled",
+    activeVersionId: "knowledge-version-1",
+    activeVersionNumber: 1,
+    latestIndexStatus: "idle",
+    latestIndexError: null,
+    lastIndexedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    bookAnalysisCount: 0,
+    versions: [{
+      id: "knowledge-version-1",
+      documentId,
+      versionNumber: 1,
+      content: "  第一版活动正文  ",
+      contentHash: "hash-1",
+      charCount: 11,
+      createdAt: new Date(),
+      isActive: true,
+    }],
+  });
+  styleExtractionTaskService.createTask = async (input) => {
+    capturedKnowledgeExtractionInput = input;
+    return { id: "style-task-knowledge" };
+  };
+  taskCenterService.getTaskDetail = async (kind, id) => ({
+    id,
+    kind,
+    title: "写法提取：知识库写法",
+    status: "queued",
+    progress: 0,
+    currentStage: "queued",
+    currentItemKey: id,
+    currentItemLabel: "知识库写法",
+    attemptCount: 0,
+    maxAttempts: 1,
+    lastError: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    heartbeatAt: null,
+    ownerId: id,
+    ownerLabel: "知识库写法",
+    sourceRoute: "/writing-formula",
+    tokenUsage: null,
+    sourceResource: null,
+    targetResources: [],
+    provider: "deepseek",
+    model: null,
+    startedAt: null,
+    finishedAt: null,
+    retryCountLabel: "0/1",
+    meta: {
+      sourceType: capturedKnowledgeExtractionInput?.sourceType,
+      sourceRefId: capturedKnowledgeExtractionInput?.sourceRefId,
+    },
+    steps: [],
+    failureDetails: null,
+  });
   StyleBindingService.prototype.createBinding = async () => ({
     id: "binding-1",
     styleProfileId: fakeProfile.id,
@@ -233,6 +327,24 @@ test("style engine routes return mocked payloads", async () => {
     });
     assert.equal(extractionResponse.status, 200);
     assert.equal((await extractionResponse.json()).data.features[0].id, "feature-1");
+
+    const knowledgeTaskResponse = await fetch(`http://127.0.0.1:${port}/api/style-extraction-tasks/from-knowledge-document`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        documentId: "knowledge-doc-1",
+        name: "知识库写法",
+        presetKey: "transfer",
+      }),
+    });
+    assert.equal(knowledgeTaskResponse.status, 202);
+    const knowledgeTaskPayload = await knowledgeTaskResponse.json();
+    assert.equal(knowledgeTaskPayload.data.id, "style-task-knowledge");
+    assert.equal(capturedKnowledgeExtractionInput.sourceType, "from_knowledge_document");
+    assert.equal(capturedKnowledgeExtractionInput.sourceRefId, "knowledge-doc-1");
+    assert.equal(capturedKnowledgeExtractionInput.sourceProcessingMode, "representative_sample");
+    assert.equal(capturedKnowledgeExtractionInput.sourceText, "  第一版活动正文  ");
+    assert.equal(capturedKnowledgeExtractionInput.presetKey, "transfer");
 
     const fromTextResponse = await fetch(`http://127.0.0.1:${port}/api/style-profiles/from-text`, {
       method: "POST",
@@ -290,12 +402,17 @@ test("style engine routes return mocked payloads", async () => {
       createProfileFromExtraction: originalMethods.createProfileFromExtraction,
       createFromBookAnalysis: originalMethods.createFromBookAnalysis,
     });
+    styleExtractionTaskService.createTask = originalMethods.createExtractionTask;
     Object.assign(StyleBindingService.prototype, {
       createBinding: originalMethods.createBinding,
     });
     Object.assign(StyleDetectionService.prototype, {
       check: originalMethods.check,
     });
+    Object.assign(KnowledgeService.prototype, {
+      getDocumentById: originalMethods.getKnowledgeDocumentById,
+    });
+    taskCenterService.getTaskDetail = originalMethods.getTaskDetail;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });

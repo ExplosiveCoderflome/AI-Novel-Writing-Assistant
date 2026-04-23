@@ -91,6 +91,9 @@ export function getStyleProfileOriginLabel(
   if (profile.sourceType === "from_book_analysis") {
     return "拆书生成";
   }
+  if (profile.sourceType === "from_knowledge_document") {
+    return "知识库原文";
+  }
   if (profile.sourceType === "from_current_work") {
     return "当前作品";
   }

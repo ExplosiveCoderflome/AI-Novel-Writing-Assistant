@@ -94,6 +94,13 @@ export interface RagSettingsStatus {
   providers: RagProviderStatus[];
 }
 
+export interface StyleEngineRuntimeSettingsStatus {
+  styleExtractionTimeoutMs: number;
+  defaultStyleExtractionTimeoutMs: number;
+  minStyleExtractionTimeoutMs: number;
+  maxStyleExtractionTimeoutMs: number;
+}
+
 export interface ModelRoutesResponse {
   taskTypes: ModelRouteTaskType[];
   routes: Array<{
@@ -231,6 +238,21 @@ export async function saveRagSettings(payload: {
 
 export async function getRagEmbeddingModels(provider: EmbeddingProvider) {
   const { data } = await apiClient.get<ApiResponse<RagEmbeddingModelStatus>>(`/settings/rag/models/${provider}`);
+  return data;
+}
+
+export async function getStyleEngineRuntimeSettings() {
+  const { data } = await apiClient.get<ApiResponse<StyleEngineRuntimeSettingsStatus>>("/settings/style-engine-runtime");
+  return data;
+}
+
+export async function saveStyleEngineRuntimeSettings(payload: {
+  styleExtractionTimeoutMs: number;
+}) {
+  const { data } = await apiClient.put<ApiResponse<StyleEngineRuntimeSettingsStatus>>(
+    "/settings/style-engine-runtime",
+    payload,
+  );
   return data;
 }
 

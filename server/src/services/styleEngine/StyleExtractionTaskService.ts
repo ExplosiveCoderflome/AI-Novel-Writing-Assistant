@@ -1,9 +1,20 @@
 import { Prisma } from "@prisma/client";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import type { StyleExtractionDraft, StyleFeatureDecision } from "@ai-novel/shared/types/styleEngine";
+import type {
+  StyleExtractionDraft,
+  StyleExtractionSourceProcessingMode,
+  StyleFeatureDecision,
+} from "@ai-novel/shared/types/styleEngine";
 import { prisma } from "../../db/prisma";
 import { runWithLlmUsageTracking } from "../../llm/usageTracking";
 import { AppError } from "../../middleware/errorHandler";
+import { getStyleEngineRuntimeSettings } from "../settings/StyleEngineRuntimeSettingsService";
+import {
+  buildStyleExtractionSourceInput,
+  resolveStyleExtractionInputText,
+  resolveTaskProfileSource,
+  type StyleExtractionTaskSourceType,
+} from "./StyleExtractionSourceInput";
 import { StyleProfileService } from "./StyleProfileService";
 
 type PresetKey = "imitate" | "balanced" | "transfer";
@@ -11,6 +22,9 @@ type PresetKey = "imitate" | "balanced" | "transfer";
 interface CreateStyleExtractionTaskInput {
   name: string;
   sourceText: string;
+  sourceType?: StyleExtractionTaskSourceType;
+  sourceRefId?: string;
+  sourceProcessingMode?: StyleExtractionSourceProcessingMode;
   category?: string;
   provider?: LLMProvider;
   model?: string;
@@ -27,20 +41,6 @@ function parseTimeoutMs(rawValue: string | undefined, fallback: number, min: num
   const value = Math.floor(parsed);
   return Math.max(min, Math.min(max, value));
 }
-
-const GLOBAL_LLM_TIMEOUT_MS = parseTimeoutMs(
-  process.env.LLM_REQUEST_TIMEOUT_MS,
-  180_000,
-  30_000,
-  900_000,
-);
-
-const STYLE_EXTRACTION_LLM_TIMEOUT_MS = parseTimeoutMs(
-  process.env.STYLE_EXTRACTION_LLM_TIMEOUT_MS,
-  Math.max(GLOBAL_LLM_TIMEOUT_MS, 180_000),
-  180_000,
-  900_000,
-);
 
 const STYLE_EXTRACTION_HEARTBEAT_INTERVAL_MS = parseTimeoutMs(
   process.env.STYLE_EXTRACTION_TASK_HEARTBEAT_INTERVAL_MS,
@@ -71,7 +71,7 @@ function isAbortError(error: unknown): boolean {
 
 function normalizeTaskError(error: unknown): string {
   if (isTimeoutError(error)) {
-    return "写法提取请求超时，当前模型长时间没有返回结果。可以重试，或切换更稳定的模型后再试。";
+    return "写法提取请求超时，模型长时间没有返回结果。可以在系统设置调高写法提取超时后重试，或切换更稳定的模型。";
   }
   if (isAbortError(error)) {
     return "写法提取已中止。";
@@ -175,11 +175,24 @@ export class StyleExtractionTaskService {
   }
 
   async createTask(input: CreateStyleExtractionTaskInput) {
-    const task = await prisma.styleExtractionTask.create({
+    const sourceType = input.sourceType ?? "from_text";
+    const sourceRefId = input.sourceRefId?.trim() || null;
+    const sourceInput = buildStyleExtractionSourceInput({
+      sourceText: input.sourceText,
+      sourceType,
+      sourceProcessingMode: input.sourceProcessingMode,
+    });
+    const createdTask = await prisma.styleExtractionTask.create({
       data: {
         name: input.name.trim(),
         category: input.category?.trim() || null,
         sourceText: input.sourceText,
+        sourceType,
+        sourceRefId,
+        sourceProcessingMode: sourceInput.sourceProcessingMode,
+        sourceInputText: sourceInput.sourceInputText,
+        sourceInputCharLimit: sourceInput.sourceInputCharLimit,
+        sourceInputCharCount: sourceInput.sourceInputCharCount,
         provider: input.provider ?? "deepseek",
         model: input.model?.trim() || null,
         temperature: input.temperature ?? 0.5,
@@ -190,14 +203,25 @@ export class StyleExtractionTaskService {
         currentItemLabel: input.name.trim(),
       },
     });
+    const task = sourceRefId
+      ? createdTask
+      : await prisma.styleExtractionTask.update({
+          where: { id: createdTask.id },
+          data: { sourceRefId: createdTask.id },
+        });
+    const runtimeSettings = await getStyleEngineRuntimeSettings();
     this.logTaskEvent("task_created", {
       taskId: task.id,
+      sourceType: task.sourceType,
+      sourceRefId: task.sourceRefId,
+      sourceProcessingMode: task.sourceProcessingMode,
       provider: task.provider,
       model: task.model,
       temperature: task.temperature,
       sourceTextChars: task.sourceText.length,
+      sourceInputChars: task.sourceInputCharCount,
       presetKey: task.presetKey,
-      timeoutMs: STYLE_EXTRACTION_LLM_TIMEOUT_MS,
+      timeoutMs: runtimeSettings.styleExtractionTimeoutMs,
     });
     this.enqueueTask(task.id);
     return task;
@@ -402,6 +426,30 @@ export class StyleExtractionTaskService {
       return;
     }
 
+    const taskSource = resolveTaskProfileSource(task);
+    if (!taskSource) {
+      const errorMessage = "知识库原文写法提取任务缺少来源文档 ID，无法安全生成写法。";
+      await prisma.styleExtractionTask.update({
+        where: { id: task.id },
+        data: {
+          status: "failed",
+          progress: 1,
+          error: errorMessage,
+          heartbeatAt: null,
+          currentStage: null,
+          currentItemKey: null,
+          currentItemLabel: task.name,
+          cancelRequestedAt: null,
+          finishedAt: new Date(),
+        },
+      });
+      this.logTaskEvent("task_failed_missing_source_ref", {
+        taskId: task.id,
+        sourceType: task.sourceType,
+      }, "warn");
+      return;
+    }
+
     const existingProfile = task.createdStyleProfileId
       ? await prisma.styleProfile.findUnique({
           where: { id: task.createdStyleProfileId },
@@ -409,8 +457,14 @@ export class StyleExtractionTaskService {
         })
       : await prisma.styleProfile.findFirst({
           where: {
-            sourceType: "from_text",
-            sourceRefId: task.id,
+            sourceType: taskSource.sourceType,
+            sourceRefId: taskSource.sourceRefId,
+            ...(taskSource.sourceType === "from_knowledge_document"
+              ? {
+                  name: task.name,
+                  sourceContent: task.sourceText,
+                }
+              : {}),
           },
           select: { id: true, name: true },
         });
@@ -423,6 +477,10 @@ export class StyleExtractionTaskService {
       await this.markSucceeded(task.id, existingProfile.id, existingProfile.name, task.summary);
       return;
     }
+
+    const runtimeSettings = await getStyleEngineRuntimeSettings();
+    const styleExtractionTimeoutMs = runtimeSettings.styleExtractionTimeoutMs;
+    const extractionInputText = resolveStyleExtractionInputText(task);
 
     await prisma.styleExtractionTask.update({
       where: { id: task.id },
@@ -444,10 +502,14 @@ export class StyleExtractionTaskService {
     const stopHeartbeat = this.startTaskHeartbeat(task.id);
     this.logTaskEvent("task_started", {
       taskId: task.id,
+      sourceType: taskSource.sourceType,
+      sourceRefId: taskSource.sourceRefId,
       provider: task.provider,
       model: task.model,
+      sourceProcessingMode: task.sourceProcessingMode,
       sourceTextChars: task.sourceText.length,
-      timeoutMs: STYLE_EXTRACTION_LLM_TIMEOUT_MS,
+      sourceInputChars: extractionInputText.length,
+      timeoutMs: styleExtractionTimeoutMs,
       retryCount: task.retryCount,
       maxRetries: task.maxRetries,
     });
@@ -459,12 +521,12 @@ export class StyleExtractionTaskService {
         styleExtractionTaskId: task.id,
       }, () => this.styleProfileService.extractFromText({
         name: task.name,
-        sourceText: task.sourceText,
+        sourceText: extractionInputText,
         category: task.category ?? undefined,
         provider: task.provider as LLMProvider,
         model: task.model ?? undefined,
         temperature: task.temperature ?? undefined,
-        timeoutMs: STYLE_EXTRACTION_LLM_TIMEOUT_MS,
+        timeoutMs: styleExtractionTimeoutMs,
         signal: controller.signal,
       }));
       this.logTaskEvent("features_extracted", {
@@ -510,7 +572,8 @@ export class StyleExtractionTaskService {
         draft,
         presetKey,
         decisions,
-        sourceRefId: task.id,
+        sourceType: taskSource.sourceType,
+        sourceRefId: taskSource.sourceRefId,
       });
       this.logTaskEvent("profile_created", {
         taskId: task.id,

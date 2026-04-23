@@ -71,6 +71,8 @@ function formatSourceTypeLabel(sourceType: StyleProfile["sourceType"]): string {
       return "从文本提取";
     case "from_book_analysis":
       return "拆书生成";
+    case "from_knowledge_document":
+      return "知识库原文";
     case "from_current_work":
       return "当前工作提炼";
     default:

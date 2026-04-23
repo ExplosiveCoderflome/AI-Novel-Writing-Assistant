@@ -3,13 +3,16 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
+import { AppError } from "../middleware/errorHandler";
 import { validate } from "../middleware/validate";
+import { KnowledgeService } from "../services/knowledge/KnowledgeService";
 import { StyleProfileService } from "../services/styleEngine/StyleProfileService";
 import { styleExtractionTaskService } from "../services/styleEngine/StyleExtractionTaskService";
 import { taskCenterService } from "../services/task/TaskCenterService";
 
 const router = Router();
 const styleProfileService = new StyleProfileService();
+const knowledgeService = new KnowledgeService();
 
 const providerSchema = llmProviderSchema;
 
@@ -24,6 +27,19 @@ const fromTextSchema = z.object({
 
 const fromTextTaskSchema = fromTextSchema.extend({
   presetKey: z.enum(["imitate", "balanced", "transfer"]).optional(),
+});
+
+const sourceProcessingModeSchema = z.enum(["full_text", "representative_sample"]);
+
+const fromKnowledgeDocumentTaskSchema = z.object({
+  documentId: z.string().trim().min(1),
+  name: z.string().trim().min(1),
+  category: z.string().trim().optional(),
+  provider: providerSchema.optional(),
+  model: z.string().trim().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  presetKey: z.enum(["imitate", "balanced", "transfer"]).optional(),
+  sourceProcessingMode: sourceProcessingModeSchema.optional(),
 });
 
 const styleRulePatchSchema = z.object({
@@ -113,6 +129,56 @@ router.post("/style-extraction-tasks/from-text", validate({ body: fromTextTaskSc
     next(error);
   }
 });
+
+router.post(
+  "/style-extraction-tasks/from-knowledge-document",
+  validate({ body: fromKnowledgeDocumentTaskSchema }),
+  async (req, res, next) => {
+    try {
+      const body = req.body as z.infer<typeof fromKnowledgeDocumentTaskSchema>;
+      const document = await knowledgeService.getDocumentById(body.documentId);
+      if (!document) {
+        throw new AppError("知识库文档不存在。", 404);
+      }
+      if (document.status === "archived") {
+        throw new AppError("归档知识库文档不能用于创建写法。", 400);
+      }
+
+      const activeVersion = document.versions.find((version) => version.isActive);
+      if (!activeVersion) {
+        throw new AppError("知识库文档没有可用的活动版本。", 400);
+      }
+      const sourceText = activeVersion.content;
+      if (!sourceText.trim()) {
+        throw new AppError("知识库文档活动版本内容为空，不能用于创建写法。", 400);
+      }
+
+      const task = await styleExtractionTaskService.createTask({
+        name: body.name,
+        category: body.category,
+        sourceText,
+        sourceType: "from_knowledge_document",
+        sourceRefId: document.id,
+        sourceProcessingMode: body.sourceProcessingMode ?? "representative_sample",
+        provider: body.provider,
+        model: body.model,
+        temperature: body.temperature,
+        presetKey: body.presetKey,
+      });
+      const data = await taskCenterService.getTaskDetail("style_extraction", task.id);
+      if (!data) {
+        throw new Error("Style extraction task was created but could not be loaded.");
+      }
+      res.status(202).json({
+        success: true,
+        data,
+        message: "知识库原文写法提取任务已提交。",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 router.post("/style-profiles/from-text", validate({ body: fromTextSchema }), async (req, res, next) => {
   try {

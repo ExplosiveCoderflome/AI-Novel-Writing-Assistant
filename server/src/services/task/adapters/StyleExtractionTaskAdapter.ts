@@ -1,6 +1,7 @@
 import type { TaskStatus, UnifiedTaskDetail, UnifiedTaskSummary } from "@ai-novel/shared/types/task";
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
+import { getStyleEngineRuntimeSettings } from "../../settings/StyleEngineRuntimeSettingsService";
 import { styleExtractionTaskService } from "../../styleEngine/StyleExtractionTaskService";
 import { getLlmRepairSessionLogPath, getLlmSessionLogPath } from "../../../llm/sessionLogFile";
 import {
@@ -23,30 +24,6 @@ import {
 
 function buildTaskTitle(name: string): string {
   return `写法提取：${name}`;
-}
-
-function parseTimeoutMs(rawValue: string | undefined, fallback: number, min: number, max: number): number {
-  const parsed = Number(rawValue ?? "");
-  if (!Number.isFinite(parsed)) {
-    return fallback;
-  }
-  const value = Math.floor(parsed);
-  return Math.max(min, Math.min(max, value));
-}
-
-function resolveStyleExtractionTimeoutMs(): number {
-  const globalTimeoutMs = parseTimeoutMs(
-    process.env.LLM_REQUEST_TIMEOUT_MS,
-    180_000,
-    30_000,
-    900_000,
-  );
-  return parseTimeoutMs(
-    process.env.STYLE_EXTRACTION_LLM_TIMEOUT_MS,
-    Math.max(globalTimeoutMs, 180_000),
-    180_000,
-    900_000,
-  );
 }
 
 export class StyleExtractionTaskAdapter {
@@ -143,6 +120,7 @@ export class StyleExtractionTaskAdapter {
     }
 
     const structuredFailure = resolveStructuredFailureSummary(row.error);
+    const runtimeSettings = await getStyleEngineRuntimeSettings();
     const summary: UnifiedTaskSummary = {
       id: row.id,
       kind: "style_extraction",
@@ -201,12 +179,17 @@ export class StyleExtractionTaskAdapter {
       meta: {
         category: row.category,
         presetKey: row.presetKey,
+        sourceType: row.sourceType,
+        sourceRefId: row.sourceRefId,
+        sourceProcessingMode: row.sourceProcessingMode,
         sourceTextLength: row.sourceText.length,
+        sourceInputTextLength: row.sourceInputCharCount ?? row.sourceInputText?.length ?? row.sourceText.length,
+        sourceInputCharLimit: row.sourceInputCharLimit,
         summary: row.summary,
         createdStyleProfileId: row.createdStyleProfileId,
         createdStyleProfileName: row.createdStyleProfileName,
         cancelRequestedAt: row.cancelRequestedAt?.toISOString() ?? null,
-        llmTimeoutMs: resolveStyleExtractionTimeoutMs(),
+        llmTimeoutMs: runtimeSettings.styleExtractionTimeoutMs,
         llmLogPath: getLlmSessionLogPath(),
         llmRepairLogPath: getLlmRepairSessionLogPath(),
       },
