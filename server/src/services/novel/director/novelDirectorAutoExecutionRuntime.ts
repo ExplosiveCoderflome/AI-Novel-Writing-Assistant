@@ -177,6 +177,17 @@ export class NovelDirectorAutoExecutionRuntime {
     existingState?: DirectorAutoExecutionState | null;
     existingPipelineJobId?: string | null;
   }): DirectorAutoExecutionState | null {
+    if (!input.request.autoExecutionPlan && input.existingState) {
+      const keepPipelineBinding = Boolean(input.existingPipelineJobId?.trim());
+      return {
+        ...input.existingState,
+        pipelineJobId: keepPipelineBinding
+          ? (input.existingPipelineJobId?.trim() || input.existingState.pipelineJobId || null)
+          : null,
+        pipelineStatus: keepPipelineBinding ? (input.existingState.pipelineStatus ?? "running") : null,
+      };
+    }
+
     const requestedPlan = normalizeDirectorAutoExecutionPlan(input.request.autoExecutionPlan);
     if (!input.existingState) {
       return {

@@ -733,6 +733,7 @@ export class NovelDirectorService {
   async startTakeover(input: DirectorTakeoverRequest): Promise<DirectorTakeoverResponse> {
     const takeoverState = await loadDirectorTakeoverState({
       novelId: input.novelId,
+      autoExecutionPlan: input.autoExecutionPlan ?? null,
       getStoryMacroPlan: (targetNovelId) => this.storyMacroService.getPlan(targetNovelId),
       getDirectorAssetSnapshot: (targetNovelId) => this.getDirectorAssetSnapshot(targetNovelId),
       getVolumeWorkspace: (targetNovelId) => this.volumeService.getVolumes(targetNovelId),

@@ -91,3 +91,39 @@ test("restart_current_step on pipeline clears repair outputs before rerun", () =
   assert.match(plan.effectSummary, /清空当前质量修复结果|重新审校/);
   assert.deepEqual(plan.impactNotes, ["保留当前章节正文。", "会重新进入自动审校与修复。"]);
 });
+
+test("continue_existing ignores old front10 repair state when the requested range starts at 11", () => {
+  const plan = resolveDirectorTakeoverPlan({
+    entryStep: "chapter",
+    strategy: "continue_existing",
+    snapshot: buildSnapshot({
+      pendingRepairChapterCount: 10,
+    }),
+    latestCheckpoint: {
+      checkpointType: "chapter_batch_ready",
+      stage: "quality_repair",
+      volumeId: "volume_1",
+      chapterId: "chapter_4",
+      chapterOrder: 4,
+    },
+    executableRange: {
+      startOrder: 1,
+      endOrder: 10,
+      totalChapterCount: 10,
+      nextChapterId: "chapter_4",
+      nextChapterOrder: 4,
+    },
+    requestedExecutionRange: {
+      startOrder: 11,
+      endOrder: 190,
+      totalChapterCount: 180,
+      nextChapterId: "chapter_11",
+      nextChapterOrder: 11,
+    },
+    requestedPendingRepairChapterCount: 0,
+  });
+
+  assert.equal(plan.effectiveStep, "chapter");
+  assert.equal(plan.effectiveStage, "chapter_execution");
+  assert.equal(plan.usesCurrentBatch, false);
+});

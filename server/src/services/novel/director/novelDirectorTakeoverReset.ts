@@ -11,6 +11,12 @@ interface DirectorTakeoverResetDeps {
 }
 
 function resolveAutoExecutionRange(state: DirectorTakeoverLoadedState): { startOrder: number; endOrder: number } | null {
+  if (state.requestedExecutionRange) {
+    return {
+      startOrder: state.requestedExecutionRange.startOrder,
+      endOrder: state.requestedExecutionRange.endOrder,
+    };
+  }
   const stateRange = resolveDirectorAutoExecutionRangeFromState(state.latestAutoExecutionState);
   if (stateRange) {
     return {

@@ -162,6 +162,8 @@ export async function startDirectorTakeoverExecution(
     activePipelineJob: input.takeoverState.activePipelineJob,
     latestCheckpoint: input.takeoverState.latestCheckpoint,
     executableRange: input.takeoverState.executableRange,
+    requestedExecutionRange: input.takeoverState.requestedExecutionRange,
+    requestedPendingRepairChapterCount: input.takeoverState.requestedPendingRepairChapterCount,
   });
 
   const directorSession: DirectorSessionState = buildDirectorSessionState({
@@ -222,7 +224,9 @@ export async function startDirectorTakeoverExecution(
         novelId: input.request.novelId,
         request: input.directorInput,
         existingPipelineJobId: plan.usesCurrentBatch ? (input.takeoverState.activePipelineJob?.id ?? null) : null,
-        existingState: input.takeoverState.latestAutoExecutionState ?? null,
+        existingState: input.takeoverState.requestedAutoExecutionState
+          ?? input.takeoverState.latestAutoExecutionState
+          ?? null,
         resumeCheckpointType: plan.usesCurrentBatch ? (plan.resumeCheckpointType ?? null) : null,
         resumeStage: plan.resumeStage === "pipeline" ? "pipeline" : "chapter",
       });
