@@ -187,7 +187,7 @@ export default function MobileNovelEditView(props: NovelEditViewProps) {
         </Dialog>
       )}
     >
-      <div className="space-y-4">
+      <div className="mobile-page-novel-edit space-y-4">
         <MobileNovelStepNav
           activeTab={normalizedActiveTab}
           workflowCurrentTab={normalizedWorkflowTab}

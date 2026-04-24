@@ -64,7 +64,7 @@ export default function GenreManagementPage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="mobile-page-genres space-y-4">
       <GenreCreateDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}

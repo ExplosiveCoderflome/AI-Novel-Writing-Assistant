@@ -170,7 +170,7 @@ export default function NovelCreate() {
   });
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="mobile-page-novel-create mx-auto max-w-5xl space-y-4">
       <Card>
         <CardHeader>
           <CardTitle>创建小说项目</CardTitle>

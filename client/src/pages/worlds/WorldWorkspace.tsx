@@ -299,7 +299,7 @@ export default function WorldWorkspace() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="mobile-page-world-workspace space-y-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>世界工作台：{world?.name ?? "加载中..."} {world?.version ? `(v${world.version})` : ""}</CardTitle>

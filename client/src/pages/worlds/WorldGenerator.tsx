@@ -341,7 +341,7 @@ export default function WorldGenerator() {
     setSelectedPropertyIds((prev) => (prev.includes(item.id) ? prev : [...prev, item.id]));
   };
   return (
-    <div className="space-y-4">
+    <div className="mobile-page-world-generator space-y-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>世界观向导（阶段 1-3）</CardTitle>

@@ -279,7 +279,7 @@ export default function AutoDirectorFollowUpCenterPage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="mobile-page-follow-ups space-y-4">
       <AutoDirectorFollowUpOverviewCards
         overview={overviewQuery.data?.data ?? null}
         list={listQuery.data?.data ?? null}

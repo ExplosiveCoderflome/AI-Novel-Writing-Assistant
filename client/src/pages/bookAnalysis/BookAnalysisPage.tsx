@@ -7,7 +7,7 @@ export default function BookAnalysisPage() {
   const workspace = useBookAnalysisWorkspace();
 
   return (
-    <div className="space-y-4">
+    <div className="mobile-page-book-analysis space-y-4">
       <div className="flex justify-end">
         <OpenInCreativeHubButton
           bindings={{

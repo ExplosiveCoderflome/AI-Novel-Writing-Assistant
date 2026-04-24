@@ -235,7 +235,7 @@ export default function ModelRoutesPage() {
   const fallbackModelOptions = getModelOptions(providerConfigs, fallbackDraft.provider, fallbackDraft.model);
 
   return (
-    <div className="space-y-4">
+    <div className="mobile-page-model-routes space-y-4">
       <Card>
         <CardHeader>
           <CardTitle>模型路由管理</CardTitle>

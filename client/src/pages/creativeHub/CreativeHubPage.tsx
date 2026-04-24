@@ -384,7 +384,7 @@ export default function CreativeHubPage() {
   }, [activeThreadId, productionStatus?.worldId, queryClient, rawThreadBindings]);
 
   return (
-    <div className="space-y-4">
+    <div className="mobile-page-creative-hub space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="secondary">创作中枢</Badge>
         {currentThread ? <Badge variant="outline">{currentThread.title}</Badge> : null}

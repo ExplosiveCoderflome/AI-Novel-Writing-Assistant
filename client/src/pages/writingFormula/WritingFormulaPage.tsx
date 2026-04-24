@@ -500,7 +500,7 @@ export default function WritingFormulaPage() {
   }, [selectedProfileId]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
+    <div className="mobile-page-style-engine flex h-full min-h-0 flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <div className="text-sm font-medium uppercase tracking-[0.18em] text-slate-500">Style Engine V2</div>

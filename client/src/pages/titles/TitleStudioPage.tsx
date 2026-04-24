@@ -25,7 +25,7 @@ export default function TitleStudioPage() {
   const novels = novelListQuery.data?.data?.items ?? [];
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
+    <div className="mobile-page-titles mx-auto max-w-6xl space-y-4">
       <Card>
         <CardHeader className="space-y-2">
           <CardTitle>标题工坊</CardTitle>

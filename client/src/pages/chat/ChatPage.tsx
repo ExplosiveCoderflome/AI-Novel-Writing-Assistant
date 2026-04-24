@@ -465,7 +465,7 @@ export default function ChatPage() {
     }));
 
   return (
-    <div className="grid min-h-[70vh] gap-4 lg:grid-cols-[240px_minmax(0,1fr)_360px]">
+    <div className="mobile-page-chat-legacy grid min-h-[70vh] gap-4 lg:grid-cols-[240px_minmax(0,1fr)_360px]">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">会话列表</CardTitle>

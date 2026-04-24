@@ -27,7 +27,7 @@ export default function MobileChapterEditorShell(props: ChapterEditorShellProps)
           返回
         </Button>
       )}
-      contentClassName="mobile-chapter-editor-shell"
+      contentClassName="mobile-page-chapter-edit mobile-chapter-editor-shell"
     >
       <div className="rounded-3xl border border-border/70 bg-background p-3 shadow-sm">
         <ChapterEditorShell {...props} />

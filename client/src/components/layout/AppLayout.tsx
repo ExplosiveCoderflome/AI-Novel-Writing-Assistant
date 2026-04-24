@@ -4,6 +4,7 @@ import AppRouteFallback from "./AppRouteFallback";
 import Navbar from "./Navbar";
 import NovelWorkspaceRail from "./NovelWorkspaceRail";
 import Sidebar from "./Sidebar";
+import MobileSiteShell from "./mobile/MobileSiteShell";
 import TaskRecoveryDialog from "./TaskRecoveryDialog";
 import { useIsMobileViewport } from "./mobile/useIsMobileViewport";
 
@@ -37,6 +38,7 @@ export default function AppLayout() {
 
   const isNovelWorkspace = Boolean(workspaceRoute?.novelId);
   const useMobileNovelWorkspaceLayout = isMobileViewport && isNovelWorkspace;
+  const useMobileSiteLayout = isMobileViewport && !isNovelWorkspace;
 
   useEffect(() => {
     const storedValue = window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
@@ -65,6 +67,17 @@ export default function AppLayout() {
         </Suspense>
         <TaskRecoveryDialog />
       </div>
+    );
+  }
+
+  if (useMobileSiteLayout) {
+    return (
+      <MobileSiteShell>
+        <Suspense fallback={<AppRouteFallback />}>
+          <Outlet />
+        </Suspense>
+        <TaskRecoveryDialog />
+      </MobileSiteShell>
     );
   }
 

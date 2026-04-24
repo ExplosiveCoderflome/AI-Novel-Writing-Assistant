@@ -132,7 +132,7 @@ export default function WorldList() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="mobile-page-worlds space-y-4">
       <div className="flex flex-wrap justify-end gap-2">
         <OpenInCreativeHubButton bindings={{}} label="创作中枢总览" />
         {featureFlags.worldWizardEnabled ? (

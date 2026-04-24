@@ -448,7 +448,7 @@ export default function TaskCenterPage() {
   }, [llm.model, llm.provider, llm.temperature, selectedTask?.id]);
 
   return (
-    <div className="space-y-4">
+    <div className="mobile-page-tasks space-y-4">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">

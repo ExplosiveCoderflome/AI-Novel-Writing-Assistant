@@ -136,7 +136,7 @@ export default function CharacterLibrary() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="mobile-page-base-characters space-y-4">
       <div className="flex items-center justify-between gap-2">
         <div className="text-sm text-muted-foreground">已创建角色：{characters.length}</div>
         <div className="flex flex-wrap gap-2">

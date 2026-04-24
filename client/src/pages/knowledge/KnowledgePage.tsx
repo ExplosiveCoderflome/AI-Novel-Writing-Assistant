@@ -423,7 +423,7 @@ export default function KnowledgePage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="mobile-page-knowledge space-y-4">
       <div className="flex justify-end">
         <OpenInCreativeHubButton
           bindings={{ knowledgeDocumentIds: selectedDocumentId ? [selectedDocumentId] : [] }}

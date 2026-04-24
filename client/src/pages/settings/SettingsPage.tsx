@@ -357,7 +357,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="mobile-page-settings space-y-4">
       <DesktopUpdateCard />
       <DesktopLegacyDataImportCard forceVisible />
 

@@ -375,7 +375,7 @@ export default function StoryModeManagementPage() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="mobile-page-story-modes space-y-4">
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="max-h-[90vh] max-w-5xl overflow-auto">
           <DialogHeader>

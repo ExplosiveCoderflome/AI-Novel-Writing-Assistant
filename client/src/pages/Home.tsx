@@ -302,7 +302,7 @@ export default function Home() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="mobile-page-home space-y-4 md:space-y-4">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           title="自动推进中"
