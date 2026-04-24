@@ -52,9 +52,19 @@ export function resolveTargetChapterCount(input: {
 } {
   const budgetedChapterCount = Math.max(3, Math.round(input.budgetedChapterCount || 0));
   const beatSheetRequiredChapterCount = Math.max(0, Math.round(input.beatSheetRequiredChapterCount || 0));
+  const trustedChapterDrift = Math.max(8, Math.ceil(budgetedChapterCount * 0.25));
+  const minTrustedChapterCount = Math.max(1, budgetedChapterCount - trustedChapterDrift);
   const maxTrustedChapterCount = budgetedChapterCount + Math.max(6, Math.ceil(budgetedChapterCount * 0.25));
 
   if (beatSheetRequiredChapterCount === 0) {
+    return {
+      targetChapterCount: budgetedChapterCount,
+      beatSheetCountAccepted: false,
+      maxTrustedChapterCount,
+    };
+  }
+
+  if (beatSheetRequiredChapterCount < minTrustedChapterCount) {
     return {
       targetChapterCount: budgetedChapterCount,
       beatSheetCountAccepted: false,

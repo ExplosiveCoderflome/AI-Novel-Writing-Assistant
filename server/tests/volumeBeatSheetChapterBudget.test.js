@@ -34,3 +34,13 @@ test("resolveTargetChapterCount ignores implausible beat-sheet chapter counts", 
   assert.equal(resolved.beatSheetCountAccepted, false);
   assert.equal(resolved.maxTrustedChapterCount, 78);
 });
+
+test("resolveTargetChapterCount rejects beat sheets that shrink below the planned budget", () => {
+  const resolved = resolveTargetChapterCount({
+    budgetedChapterCount: 54,
+    beatSheetRequiredChapterCount: 7,
+  });
+
+  assert.equal(resolved.targetChapterCount, 54);
+  assert.equal(resolved.beatSheetCountAccepted, false);
+});

@@ -274,6 +274,56 @@ test("generateBeatChunkedChapterList skips full-volume regeneration when all bea
   }
 });
 
+test("generateBeatChunkedChapterList rejects beat sheets that cover far fewer chapters than the planned budget", async () => {
+  const document = createDocument();
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  let promptCallCount = 0;
+
+  promptRunner.runStructuredPrompt = async () => {
+    promptCallCount += 1;
+    throw new Error("should reject invalid beat sheet before prompting");
+  };
+
+  try {
+    await assert.rejects(
+      () => generateBeatChunkedChapterList({
+        document,
+        novel: {
+          title: "测试小说",
+          description: null,
+          targetAudience: null,
+          bookSellingPoint: null,
+          competingFeel: null,
+          first30ChapterPromise: null,
+          commercialTagsJson: null,
+          estimatedChapterCount: 54,
+          narrativePov: null,
+          pacePreference: null,
+          emotionIntensity: null,
+          storyModePromptBlock: null,
+          genre: null,
+          characters: [],
+        },
+        workspace: {
+          ...document,
+          workspaceVersion: "v2",
+          readiness: {},
+        },
+        storyMacroPlan: null,
+        options: {
+          targetVolumeId: "volume-1",
+          generationMode: "full_volume",
+        },
+        notifyPhase: async () => {},
+      }),
+      /章节跨度异常/,
+    );
+    assert.equal(promptCallCount, 0);
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});
+
 function createSeedChapterDocument() {
   return buildVolumeWorkspaceDocument({
     novelId: "novel-1",
