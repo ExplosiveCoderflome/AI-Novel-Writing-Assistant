@@ -71,6 +71,22 @@ test("asset-first recovery resumes structured outline instead of regressing to v
   });
 });
 
+test("asset-first recovery keeps an interrupted volume strategy phase instead of jumping to structured outline", () => {
+  const recovery = resolveAssetFirstRecoveryFromSnapshot({
+    runMode: "auto_to_ready",
+    directorSessionPhase: "volume_strategy",
+    structuredOutlineRecoveryStep: null,
+    volumeCount: 6,
+    hasVolumeStrategyPlan: true,
+    hasActivePipelineJob: false,
+    hasExecutableRange: false,
+    hasAutoExecutionState: false,
+    latestCheckpointType: null,
+  });
+
+  assert.equal(recovery, null);
+});
+
 test("asset-first recovery does not jump into structured outline with placeholder volumes only", () => {
   const recovery = resolveAssetFirstRecoveryFromSnapshot({
     runMode: "auto_to_ready",

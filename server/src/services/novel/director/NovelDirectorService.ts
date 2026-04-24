@@ -259,6 +259,7 @@ export class NovelDirectorService {
   private async resolveAssetFirstRecovery(input: {
     novelId: string;
     directorInput: DirectorConfirmRequest;
+    directorSessionPhase?: "candidate_selection" | "story_macro" | "character_setup" | "volume_strategy" | "structured_outline" | "front10_ready";
   }): Promise<
     | {
       type: "auto_execution";
@@ -280,6 +281,7 @@ export class NovelDirectorService {
     });
     return resolveAssetFirstRecoveryFromSnapshot({
       runMode: input.directorInput.runMode,
+      directorSessionPhase: input.directorSessionPhase,
       structuredOutlineRecoveryStep: takeoverState.snapshot.structuredOutlineRecoveryStep,
       volumeCount: takeoverState.snapshot.volumeCount,
       hasVolumeStrategyPlan: Boolean(takeoverState.snapshot.hasVolumeStrategyPlan),
@@ -295,10 +297,6 @@ export class NovelDirectorService {
     checkpointType: string | null;
     directorSessionPhase?: "candidate_selection" | "story_macro" | "character_setup" | "volume_strategy" | "structured_outline" | "front10_ready";
   }): Promise<"story_macro" | "character_setup" | "volume_strategy" | "structured_outline"> {
-    const observedPhase = await this.resolveObservedResumePhase(input.novelId);
-    if (observedPhase) {
-      return observedPhase;
-    }
     if (input.checkpointType === "character_setup_required") {
       const characters = await this.novelContextService.listCharacters(input.novelId);
       if (characters.length === 0) {
@@ -326,6 +324,10 @@ export class NovelDirectorService {
       || input.directorSessionPhase === "structured_outline"
     ) {
       return input.directorSessionPhase;
+    }
+    const observedPhase = await this.resolveObservedResumePhase(input.novelId);
+    if (observedPhase) {
+      return observedPhase;
     }
     throw new Error("当前检查点不支持继续自动导演。");
   }
@@ -607,16 +609,17 @@ export class NovelDirectorService {
     if (!directorInput || !novelId) {
       throw new Error("自动导演任务缺少恢复所需上下文。");
     }
+    const directorSessionPhase = seedPayload.directorSession?.phase;
     const assetFirstRecovery = await this.resolveAssetFirstRecovery({
       novelId,
       directorInput,
+      directorSessionPhase,
     });
     const fallbackRunMode = typeof seedPayload.runMode === "string"
       && (DIRECTOR_RUN_MODES as readonly string[]).includes(seedPayload.runMode)
       ? seedPayload.runMode as (typeof DIRECTOR_RUN_MODES)[number]
       : undefined;
     const runMode = normalizeDirectorRunMode(directorInput.runMode ?? fallbackRunMode);
-    const directorSessionPhase = seedPayload.directorSession?.phase;
     const recoveryResumeTarget = mergeResumeTargets(
       parseResumeTarget(row.resumeTargetJson),
       parseResumeTargetLike(seedPayload.resumeTarget),

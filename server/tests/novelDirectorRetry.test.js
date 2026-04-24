@@ -473,6 +473,84 @@ test("continueTask resumes auto-director tasks that are still marked running aft
   }
 });
 
+test("continueTask resumes the interrupted volume strategy phase instead of jumping to structured outline", async () => {
+  const service = new NovelDirectorService();
+  const originalContinueCandidateStageTask = service.continueCandidateStageTask;
+  const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
+  const originalResolveObservedResumePhase = service.resolveObservedResumePhase;
+  const originalGetTaskByIdWithoutHealing = service.workflowService.getTaskByIdWithoutHealing;
+  const originalBootstrapTask = service.workflowService.bootstrapTask;
+  const originalMarkTaskRunning = service.workflowService.markTaskRunning;
+  const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
+  const originalRunDirectorPipeline = service.runDirectorPipeline;
+  const bootstrapCalls = [];
+  const runningCalls = [];
+  const scheduledRuns = [];
+  const pipelineRuns = [];
+
+  service.continueCandidateStageTask = async () => false;
+  service.resolveAssetFirstRecovery = async () => null;
+  service.resolveObservedResumePhase = async () => "structured_outline";
+  service.workflowService.getTaskByIdWithoutHealing = async () => ({
+    id: "task_volume_strategy_resume",
+    lane: "auto_director",
+    status: "queued",
+    pendingManualRecovery: true,
+    novelId: "novel_volume_strategy_resume",
+    checkpointType: null,
+    currentItemKey: "volume_skeleton",
+    seedPayloadJson: JSON.stringify({
+      directorInput: buildDirectorInput({
+        workflowTaskId: "task_volume_strategy_resume",
+        runMode: "auto_to_ready",
+      }),
+      directorSession: {
+        runMode: "auto_to_ready",
+        phase: "volume_strategy",
+        isBackgroundRunning: true,
+        lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
+        reviewScope: null,
+      },
+    }),
+  });
+  service.workflowService.bootstrapTask = async (input) => {
+    bootstrapCalls.push(input);
+    return { id: "task_volume_strategy_resume" };
+  };
+  service.workflowService.markTaskRunning = async (taskId, input) => {
+    runningCalls.push({ taskId, ...input });
+    return null;
+  };
+  service.scheduleBackgroundRun = (taskId, runner) => {
+    scheduledRuns.push(taskId);
+    void runner();
+  };
+  service.runDirectorPipeline = async (input) => {
+    pipelineRuns.push(input);
+  };
+
+  try {
+    await service.continueTask("task_volume_strategy_resume");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(bootstrapCalls.length, 1);
+    assert.equal(runningCalls.length, 1);
+    assert.equal(runningCalls[0].stage, "volume_strategy");
+    assert.equal(runningCalls[0].itemKey, "volume_strategy");
+    assert.equal(scheduledRuns.length, 1);
+    assert.equal(pipelineRuns.length, 1);
+    assert.equal(pipelineRuns[0].startPhase, "volume_strategy");
+  } finally {
+    service.continueCandidateStageTask = originalContinueCandidateStageTask;
+    service.resolveAssetFirstRecovery = originalResolveAssetFirstRecovery;
+    service.resolveObservedResumePhase = originalResolveObservedResumePhase;
+    service.workflowService.getTaskByIdWithoutHealing = originalGetTaskByIdWithoutHealing;
+    service.workflowService.bootstrapTask = originalBootstrapTask;
+    service.workflowService.markTaskRunning = originalMarkTaskRunning;
+    service.scheduleBackgroundRun = originalScheduleBackgroundRun;
+    service.runDirectorPipeline = originalRunDirectorPipeline;
+  }
+});
+
 test("continueTask resumes auto execution in the background instead of blocking the request", async () => {
   const service = new NovelDirectorService();
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;

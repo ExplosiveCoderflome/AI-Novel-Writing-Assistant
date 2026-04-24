@@ -33,6 +33,7 @@ export function resolveSafeDirectorPipelineStartPhase(input: {
 
 export function resolveAssetFirstRecoveryFromSnapshot(input: {
   runMode?: DirectorRunMode;
+  directorSessionPhase?: DirectorPipelinePhase | "candidate_selection" | "front10_ready" | null;
   structuredOutlineRecoveryStep?: StructuredOutlineRecoveryStep | null;
   volumeCount: number;
   hasVolumeStrategyPlan: boolean;
@@ -70,6 +71,14 @@ export function resolveAssetFirstRecoveryFromSnapshot(input: {
         ? input.latestCheckpointType
         : "front10_ready",
     };
+  }
+
+  if (
+    input.directorSessionPhase === "story_macro"
+    || input.directorSessionPhase === "character_setup"
+    || input.directorSessionPhase === "volume_strategy"
+  ) {
+    return null;
   }
 
   if (input.hasVolumeStrategyPlan && (input.structuredOutlineRecoveryStep || input.volumeCount > 0)) {
