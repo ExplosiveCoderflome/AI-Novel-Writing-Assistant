@@ -54,8 +54,8 @@ export default function VolumePayoffOverviewCard(props: VolumePayoffOverviewCard
   const unplannedOpenPayoffs = openPayoffRows.filter((item) => item.linkedChapters.length === 0);
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
+    <Card className="max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+      <CardHeader className="pb-3 max-md:px-0">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <CardTitle className="text-base">当前卷伏笔 / 回收参考</CardTitle>
@@ -74,9 +74,9 @@ export default function VolumePayoffOverviewCard(props: VolumePayoffOverviewCard
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="max-md:px-0">
         <div className="grid gap-3 xl:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.35fr)]">
-          <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
+          <div className="rounded-xl border border-border/70 bg-muted/20 p-4 max-md:p-3">
             <div className="flex items-center justify-between gap-2">
               <div className="font-medium text-foreground">本卷待兑现事项</div>
               <Badge variant="outline">{openPayoffRows.length}</Badge>
@@ -123,7 +123,7 @@ export default function VolumePayoffOverviewCard(props: VolumePayoffOverviewCard
             </div>
           </div>
 
-          <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
+          <div className="rounded-xl border border-border/70 bg-muted/20 p-4 max-md:p-3">
             <div className="flex items-center justify-between gap-2">
               <div className="font-medium text-foreground">本卷章节兑现安排</div>
               <Badge variant="outline">{chapterPayoffGroups.length}</Badge>

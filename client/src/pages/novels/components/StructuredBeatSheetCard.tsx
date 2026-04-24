@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import AiButton from "@/components/common/AiButton";
+import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { StructuredTabViewProps } from "./NovelEditView.types";
+import { formatMobileStructuredPanelSummary } from "./structuredOutlineMobilePanels";
 
 type StructuredVolume = StructuredTabViewProps["volumes"][number];
 type StructuredChapter = StructuredVolume["chapters"][number];
@@ -14,6 +16,7 @@ interface StructuredBeatSheetCardProps {
   selectedVolumeChapters: StructuredChapter[];
   selectedBeatSheet: StructuredBeatSheet | null;
   selectedBeat: StructuredBeat | null;
+  selectedChapter: StructuredChapter | null;
   visibleChapters: StructuredChapter[];
   refinedChapterCount: number;
   visibleRefinedChapterCount: number;
@@ -39,6 +42,7 @@ export default function StructuredBeatSheetCard(props: StructuredBeatSheetCardPr
     selectedVolumeChapters,
     selectedBeatSheet,
     selectedBeat,
+    selectedChapter,
     visibleChapters,
     refinedChapterCount,
     visibleRefinedChapterCount,
@@ -48,6 +52,7 @@ export default function StructuredBeatSheetCard(props: StructuredBeatSheetCardPr
     chapterListPanel,
     chapterDetailPanel,
   } = props;
+  const isMobileViewport = useIsMobileViewport();
 
   const hasExistingBeatSheet = Boolean(selectedBeatSheet);
   const volumeTitle = selectedVolume.title?.trim() || `第${selectedVolume.sortOrder}卷`;
@@ -57,6 +62,11 @@ export default function StructuredBeatSheetCard(props: StructuredBeatSheetCardPr
   const generateButtonLabel = isGeneratingBeatSheet
     ? (hasExistingBeatSheet ? "重新生成中..." : "生成中...")
     : (hasExistingBeatSheet ? "重新生成当前卷节奏板" : "生成当前卷节奏板");
+  const mobilePanelSummary = formatMobileStructuredPanelSummary({
+    beatLabel: selectedBeat?.label ?? null,
+    visibleChapterCount: visibleChapters.length,
+    selectedChapterOrder: selectedChapter?.chapterOrder ?? null,
+  });
 
   return (
     <Card className="md:rounded-3xl max-md:rounded-2xl max-md:shadow-sm">
@@ -77,6 +87,74 @@ export default function StructuredBeatSheetCard(props: StructuredBeatSheetCardPr
       </CardHeader>
       <CardContent className="max-md:px-4">
         {selectedBeatSheet ? (
+          isMobileViewport ? (
+          <div className="space-y-3">
+            <details open className="group rounded-2xl border border-border/70 bg-muted/20 p-3">
+              <summary className="cursor-pointer list-none">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-semibold text-foreground">节奏与章节</div>
+                    <div className="mt-1 text-xs text-muted-foreground">{mobilePanelSummary}</div>
+                  </div>
+                  <span className="text-xs text-muted-foreground group-open:hidden">展开</span>
+                  <span className="hidden text-xs text-muted-foreground group-open:inline">收起</span>
+                </div>
+              </summary>
+              <div className="mt-3 space-y-3">
+                {chapterListPanel}
+              </div>
+            </details>
+
+            <details open className="group rounded-2xl border border-border/70 bg-muted/20 p-3">
+              <summary className="cursor-pointer list-none">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-semibold text-foreground">当前聚焦</div>
+                    <div className="mt-1 text-xs text-muted-foreground">先看节奏要求，再直接细化当前章节。</div>
+                  </div>
+                  <span className="text-xs text-muted-foreground group-open:hidden">展开</span>
+                  <span className="hidden text-xs text-muted-foreground group-open:inline">收起</span>
+                </div>
+              </summary>
+              <div className="mt-3 space-y-3">
+                <div className="rounded-2xl border border-border/70 bg-background/90 p-3">
+                  {selectedBeat ? (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge>{selectedBeat.label}</Badge>
+                        <Badge variant="secondary">{selectedBeat.chapterSpanHint}</Badge>
+                        <Badge variant="outline">{visibleChapters.length}章</Badge>
+                        <Badge variant="outline">{visibleRefinedChapterCount}/{Math.max(visibleChapters.length, 1)} 已细化</Badge>
+                      </div>
+                      <div className="text-sm leading-6 text-foreground">{selectedBeat.summary}</div>
+                      {selectedBeat.mustDeliver.length > 0 ? (
+                        <ol className="space-y-2 text-sm text-foreground">
+                          {selectedBeat.mustDeliver.map((item, index) => (
+                            <li key={`${selectedBeat.key}-mobile-deliverable-${index}`} className="flex gap-2">
+                              <span className="mt-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/10 px-1.5 text-xs font-semibold text-primary">{index + 1}</span>
+                              <span className="leading-6">{item}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge>{volumeTitle}</Badge>
+                        <Badge variant="outline">{selectedVolumeChapters.length}章</Badge>
+                        <Badge variant="outline">{selectedBeatSheet.beats.length}个节奏段</Badge>
+                        <Badge variant="outline">{refinedChapterCount}/{Math.max(selectedVolumeChapters.length, 1)} 已细化</Badge>
+                      </div>
+                      <div className="text-sm leading-6 text-foreground">{volumeSummary}</div>
+                    </div>
+                  )}
+                </div>
+                {chapterDetailPanel}
+              </div>
+            </details>
+          </div>
+          ) : (
           <div className="grid gap-4 xl:grid-cols-[minmax(320px,420px)_minmax(0,1fr)] xl:items-start">
             {chapterListPanel ? <div className="min-w-0 max-md:contents">{chapterListPanel}</div> : <div />}
 
@@ -151,6 +229,7 @@ export default function StructuredBeatSheetCard(props: StructuredBeatSheetCardPr
               {chapterDetailPanel}
             </div>
           </div>
+          )
         ) : (
           <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
             先为当前卷生成节奏板。

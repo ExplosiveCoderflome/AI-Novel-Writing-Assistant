@@ -111,7 +111,7 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
   }
 
   return (
-    <Card className="border-border/70 bg-background/90">
+    <Card className="border-border/70 bg-background/90 max-md:border-0 max-md:bg-transparent max-md:shadow-none">
       <CardHeader className="px-0 pb-3 md:px-6">
         <div className="space-y-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">

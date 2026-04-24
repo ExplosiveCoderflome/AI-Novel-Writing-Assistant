@@ -11,7 +11,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import AITakeoverContainer from "@/components/workflow/AITakeoverContainer";
 import BasicInfoTab from "../components/BasicInfoTab";
 import ChapterManagementTab from "../components/ChapterManagementTab";
 import NovelCharacterPanel from "../components/NovelCharacterPanel";
@@ -27,6 +26,7 @@ import {
   normalizeNovelWorkspaceTab,
   type NovelWorkspaceTab,
 } from "../novelWorkspaceNavigation";
+import MobileAutoDirectorStatusCard from "./MobileAutoDirectorStatusCard";
 import MobileNovelStepNav from "./MobileNovelStepNav";
 import { getMobileNovelWorkspaceStatusText } from "./mobileNovelWorkspaceUtils";
 
@@ -197,21 +197,10 @@ export default function MobileNovelEditView(props: NovelEditViewProps) {
           </div>
         ) : null}
 
+        {takeover ? <MobileAutoDirectorStatusCard takeover={takeover} /> : null}
+
         <section className="mobile-novel-workspace-panel space-y-4 [&_.grid]:min-w-0 [&_.min-w-0]:min-w-0">
-          {takeover ? (
-            <AITakeoverContainer
-              mode={takeover.mode}
-              title={takeover.title}
-              description={takeover.description}
-              progress={takeover.progress}
-              currentAction={takeover.currentAction}
-              checkpointLabel={takeover.checkpointLabel}
-              taskId={takeover.taskId}
-              actions={takeover.actions}
-            >
-              {activePanel}
-            </AITakeoverContainer>
-          ) : activePanel}
+          {activePanel}
         </section>
       </div>
       {taskDrawer ? <NovelTaskDrawer {...taskDrawer} /> : null}

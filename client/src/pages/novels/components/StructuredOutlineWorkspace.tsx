@@ -402,6 +402,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
             selectedVolumeChapters={selectedVolumeChapters}
             selectedBeatSheet={selectedBeatSheet}
             selectedBeat={selectedBeat}
+            selectedChapter={selectedChapter}
             visibleChapters={visibleChapters}
             refinedChapterCount={refinedChapterCount}
             visibleRefinedChapterCount={visibleRefinedChapterCount}

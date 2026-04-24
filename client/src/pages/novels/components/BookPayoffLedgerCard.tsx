@@ -104,7 +104,7 @@ export default function BookPayoffLedgerCard(props: BookPayoffLedgerCardProps) {
   const hasSnapshotContent = snapshotForeshadows.length > 0 || Boolean(latestStateSnapshot?.summary?.trim());
 
   return (
-    <Card>
+    <Card className="max-md:border-0 max-md:bg-transparent max-md:shadow-none">
       <CardContent className="p-0">
         <details className="group">
           <summary className="cursor-pointer list-none p-5">
@@ -129,7 +129,7 @@ export default function BookPayoffLedgerCard(props: BookPayoffLedgerCardProps) {
           </summary>
 
           <div className="space-y-3 border-t border-border/70 px-5 pb-5 pt-4">
-            <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
+            <div className="rounded-xl border border-border/70 bg-muted/20 p-4 max-md:p-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="font-medium text-foreground">Canonical 伏笔账本</div>
                 <Badge variant="outline">{ledgerItems.length}</Badge>
@@ -184,7 +184,7 @@ export default function BookPayoffLedgerCard(props: BookPayoffLedgerCardProps) {
               </div>
             </div>
 
-            <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
+            <div className="rounded-xl border border-border/70 bg-muted/20 p-4 max-md:p-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="font-medium text-foreground">全书最新状态快照</div>
                 <Badge variant="outline">{snapshotForeshadows.length}</Badge>

@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
 import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import BookPayoffLedgerCard from "./BookPayoffLedgerCard";
 import CollapsibleSummary from "./CollapsibleSummary";
+import MobileOutlineVolumeWorkspace from "./MobileOutlineVolumeWorkspace";
 import WorldInjectionHint from "./WorldInjectionHint";
 import VolumePayoffOverviewCard from "./VolumePayoffOverviewCard";
 import type { OutlineTabViewProps } from "./NovelEditView.types";
@@ -114,6 +116,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
   const nextOutlineAction = getNextOutlineAction(readiness);
   const outlineStageReady = completedReadinessCount === readinessSteps.length;
   const [selectedVolumeId, setSelectedVolumeId] = useState(volumes[0]?.id ?? "");
+  const isMobileViewport = useIsMobileViewport();
   const volumeCountModeLabel = volumeCountGuidance.userPreferredVolumeCount != null
     ? `当前固定 ${volumeCountGuidance.userPreferredVolumeCount} 卷`
     : volumeCountGuidance.respectedExistingVolumeCount != null
@@ -496,11 +499,44 @@ export default function OutlineTab(props: OutlineTabViewProps) {
           </CardContent>
         </Card>
 
-        <BookPayoffLedgerCard
-          latestStateSnapshot={latestStateSnapshot}
-          payoffLedger={payoffLedger}
-        />
+        {isMobileViewport ? (
+          <>
+            <MobileOutlineVolumeWorkspace
+              volumes={volumes}
+              selectedVolume={selectedVolume}
+              selectedVolumeId={selectedVolumeId}
+              strategyPlan={strategyPlan}
+              onSelectVolume={setSelectedVolumeId}
+              onAddVolume={onAddVolume}
+              onRemoveVolume={onRemoveVolume}
+              onMoveVolume={onMoveVolume}
+              onVolumeFieldChange={onVolumeFieldChange}
+              onOpenPayoffsChange={onOpenPayoffsChange}
+            />
 
+            <details className="group rounded-2xl border border-border/70 bg-background p-3 shadow-sm">
+              <summary className="cursor-pointer list-none">
+                <CollapsibleSummary
+                  title="全书伏笔账本"
+                  description="这部分用于全书级回收核对，需要检查整体压力时再展开。"
+                />
+              </summary>
+              <div className="mt-3">
+                <BookPayoffLedgerCard
+                  latestStateSnapshot={latestStateSnapshot}
+                  payoffLedger={payoffLedger}
+                />
+              </div>
+            </details>
+          </>
+        ) : (
+          <BookPayoffLedgerCard
+            latestStateSnapshot={latestStateSnapshot}
+            payoffLedger={payoffLedger}
+          />
+        )}
+
+        {!isMobileViewport ? (
         <div className="grid items-start gap-3 xl:grid-cols-[320px_minmax(0,1fr)]">
           <Card className="self-start xl:sticky xl:top-4">
             <CardHeader className="pb-3">
@@ -652,6 +688,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
             )}
           </div>
         </div>
+        ) : null}
       </CardContent>
       </Card>
     </div>
