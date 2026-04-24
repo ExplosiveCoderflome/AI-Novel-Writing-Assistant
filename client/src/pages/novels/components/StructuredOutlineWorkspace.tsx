@@ -228,7 +228,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
           <CardTitle>节奏 / 拆章</CardTitle>
           <div className="text-sm text-muted-foreground">先选卷，再看节奏，再从对应章节里挑当前要细化的一章。</div>
         </div>
-        <Button variant="secondary" onClick={onSave} disabled={isSaving}>
+        <Button variant="secondary" onClick={onSave} disabled={isSaving} className="max-md:hidden">
           {isSaving ? "保存中..." : "保存卷工作区"}
         </Button>
       </CardHeader>

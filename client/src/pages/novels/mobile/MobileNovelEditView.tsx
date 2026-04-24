@@ -27,6 +27,7 @@ import {
   type NovelWorkspaceTab,
 } from "../novelWorkspaceNavigation";
 import MobileAutoDirectorStatusCard from "./MobileAutoDirectorStatusCard";
+import MobileFloatingSaveButton from "./MobileFloatingSaveButton";
 import MobileNovelStepNav from "./MobileNovelStepNav";
 import { getMobileNovelWorkspaceStatusText } from "./mobileNovelWorkspaceUtils";
 
@@ -97,6 +98,13 @@ export default function MobileNovelEditView(props: NovelEditViewProps) {
   };
 
   const activePanel = renderActivePanel();
+  const saveState = normalizedActiveTab === "basic"
+    ? { onSave: basicTab.onSave, isSaving: basicTab.isSaving, visible: true }
+    : normalizedActiveTab === "outline"
+      ? { onSave: outlineTab.onSave, isSaving: outlineTab.isSaving, visible: true }
+      : normalizedActiveTab === "structured"
+        ? { onSave: structuredTab.onSave, isSaving: structuredTab.isSaving, visible: true }
+        : { onSave: () => {}, isSaving: false, visible: false };
 
   return (
     <MobileWorkspaceShell
@@ -203,6 +211,7 @@ export default function MobileNovelEditView(props: NovelEditViewProps) {
           {activePanel}
         </section>
       </div>
+      <MobileFloatingSaveButton {...saveState} />
       {taskDrawer ? <NovelTaskDrawer {...taskDrawer} /> : null}
     </MobileWorkspaceShell>
   );

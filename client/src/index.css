@@ -43,6 +43,28 @@ body {
     padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
   }
 
+  @media (max-width: 767px) {
+    .mobile-novel-workspace-panel > div > .rounded-xl.border.bg-card.shadow-sm,
+    .mobile-novel-workspace-panel > div > .rounded-xl.border.bg-background.shadow-sm,
+    .mobile-novel-workspace-panel > div > .rounded-xl.border.bg-background\/95 {
+      border-width: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .mobile-novel-workspace-panel > div > .rounded-xl.border.bg-card.shadow-sm > div,
+    .mobile-novel-workspace-panel > div > .rounded-xl.border.bg-background.shadow-sm > div {
+      padding-left: 0;
+      padding-right: 0;
+    }
+
+    .mobile-novel-workspace-panel > div > .rounded-xl.border.bg-card.shadow-sm > div:first-child,
+    .mobile-novel-workspace-panel > div > .rounded-xl.border.bg-background.shadow-sm > div:first-child {
+      padding-top: 0;
+    }
+  }
+
   .mobile-chapter-editor-shell > div > .flex > .grid {
     grid-template-columns: minmax(0, 1fr);
   }

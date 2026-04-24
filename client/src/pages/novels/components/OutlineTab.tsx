@@ -157,7 +157,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
           <AiButton onClick={onGenerateSkeleton} disabled={isGeneratingSkeleton || !readiness.canGenerateSkeleton}>
             {isGeneratingSkeleton ? "生成中..." : volumes.length > 0 ? "重生成全书卷骨架" : "生成全书卷骨架"}
           </AiButton>
-          <Button variant="secondary" onClick={onSave} disabled={isSaving}>
+          <Button variant="secondary" onClick={onSave} disabled={isSaving} className="max-md:hidden">
             {isSaving ? "保存中..." : "保存卷工作区"}
           </Button>
         </div>

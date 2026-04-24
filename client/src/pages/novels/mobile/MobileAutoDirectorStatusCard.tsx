@@ -8,6 +8,7 @@ import {
   getMobileAutoDirectorStickyLabel,
   shouldShowMobileAutoDirectorProgress,
 } from "./mobileAutoDirectorUi";
+import { getMobileStickyDirectorTopClass } from "./mobileFloatingActions";
 
 interface MobileAutoDirectorStatusCardProps {
   takeover: NovelEditTakeoverState;
@@ -96,7 +97,7 @@ export default function MobileAutoDirectorStatusCard({ takeover }: MobileAutoDir
         ) : null}
       </section>
 
-      <div className="pointer-events-none sticky top-[4.75rem] z-20 -mx-1 mt-2">
+      <div className={cn("pointer-events-none sticky z-20 -mx-1 mt-2", getMobileStickyDirectorTopClass())}>
         <div className={cn("mx-1 flex min-w-0 items-center gap-2 rounded-full border px-3 py-2 text-xs shadow-sm backdrop-blur", modeToneClass(takeover.mode))}>
           <span className="relative flex h-2 w-2 shrink-0">
             {takeover.mode === "running" ? <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/40" /> : null}
