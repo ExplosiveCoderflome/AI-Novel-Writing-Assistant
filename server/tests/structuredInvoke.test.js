@@ -278,7 +278,7 @@ test("invokeStructuredLlmDetailed degrades to prompt JSON before using fallback 
   }
 });
 
-test("invokeStructuredLlmDetailed switches to the configured fallback model after primary strategies fail", async () => {
+test("invokeStructuredLlmDetailed switches to the configured fallback model after primary transport failure", async () => {
   const originalResolveOptions = factory.resolveLLMClientOptions;
   const originalCreateLLM = factory.createLLMFromResolvedOptions;
   const originalGetFallbackSettings = structuredFallbackSettings.getStructuredFallbackSettings;
@@ -357,8 +357,6 @@ test("invokeStructuredLlmDetailed switches to the configured fallback model afte
     assert.equal(result.diagnostics.fallbackUsed, true);
     assert.deepEqual(calls, [
       { provider: "openai", strategy: "json_schema" },
-      { provider: "openai", strategy: "json_object" },
-      { provider: "openai", strategy: "prompt_json" },
       { provider: "deepseek", strategy: "json_object" },
     ]);
   } finally {
