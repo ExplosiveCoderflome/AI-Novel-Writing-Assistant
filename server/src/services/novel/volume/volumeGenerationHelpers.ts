@@ -76,17 +76,27 @@ export function allocateChapterBudgets(params: {
     { length: safeVolumeCount },
     (_, index) => Math.max(existingVolumes[index]?.chapters.length ?? 0, 0),
   );
-  const hasUsefulWeights = existingCounts.some((count) => count >= minimumPerVolume);
+  const averageBudget = totalBudget / safeVolumeCount;
+  const usefulExistingChapterThreshold = Math.max(12, Math.floor(averageBudget * 0.5));
+  const hasUsefulWeights = existingCounts.some((count) => count >= usefulExistingChapterThreshold);
   const weights = hasUsefulWeights
     ? existingCounts.map((count) => Math.max(count, 1))
     : Array.from({ length: safeVolumeCount }, () => 1);
   const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
-  const budgets = weights.map((weight) => Math.max(minimumPerVolume, Math.round((totalBudget * weight) / totalWeight)));
+  const rawBudgets = weights.map((weight) => (totalBudget * weight) / totalWeight);
+  const budgets = rawBudgets.map((budget) => Math.max(minimumPerVolume, Math.floor(budget)));
   let delta = totalBudget - budgets.reduce((sum, budget) => sum + budget, 0);
+  const distributionOrder = rawBudgets
+    .map((budget, index) => ({ index, fraction: budget - Math.floor(budget) }))
+    .sort((left, right) => right.fraction - left.fraction || left.index - right.index)
+    .map((item) => item.index);
 
   while (delta !== 0) {
     const direction = delta > 0 ? 1 : -1;
-    for (let index = 0; index < budgets.length && delta !== 0; index += 1) {
+    for (const index of distributionOrder) {
+      if (delta === 0) {
+        break;
+      }
       if (direction < 0 && budgets[index] <= minimumPerVolume) {
         continue;
       }

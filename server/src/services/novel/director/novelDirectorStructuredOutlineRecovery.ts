@@ -15,6 +15,7 @@ import { DIRECTOR_CHAPTER_DETAIL_MODES } from "./novelDirectorProgress";
 import {
   getBeatExpectedChapterCount,
   getBeatSheet,
+  allocateChapterBudgets,
   resolveVolumeChapterBeatKey,
 } from "../volume/volumeGenerationHelpers";
 
@@ -171,6 +172,7 @@ function selectPreparedOutlineChapters(
 function resolveVolumeChapterListCursor(input: {
   volume: VolumePlan;
   workspace: VolumePlanDocument;
+  expectedChapterCount?: number | null;
 }): {
   isReady: boolean;
   nextBeat: VolumeBeat | null;
@@ -186,6 +188,16 @@ function resolveVolumeChapterListCursor(input: {
   const chapters = input.volume.chapters
     .slice()
     .sort((left, right) => left.chapterOrder - right.chapterOrder);
+
+  if (typeof input.expectedChapterCount === "number" && input.expectedChapterCount > 0) {
+    const expectedDrift = Math.max(8, Math.ceil(input.expectedChapterCount * 0.25));
+    if (chapters.length < input.expectedChapterCount - expectedDrift) {
+      return {
+        isReady: false,
+        nextBeat: beatSheet.beats[0] ?? null,
+      };
+    }
+  }
 
   for (const beat of beatSheet.beats) {
     const matchedChapterCount = chapters.filter((chapter) => resolveVolumeChapterBeatKey({
@@ -210,10 +222,18 @@ function resolveVolumeChapterListCursor(input: {
 export function resolveStructuredOutlineRecoveryCursor(input: {
   workspace: VolumePlanDocument;
   plan?: DirectorAutoExecutionPlan | null;
+  estimatedChapterCount?: number | null;
 }): StructuredOutlineRecoveryCursor {
   const normalizedPlan = normalizeDirectorAutoExecutionPlan(input.plan);
   const requiredVolumes = resolveRequiredVolumes(input.workspace, normalizedPlan);
   const preparedVolumeIds: string[] = [];
+  const expectedChapterBudgets = typeof input.estimatedChapterCount === "number" && input.estimatedChapterCount > 0
+    ? allocateChapterBudgets({
+      volumeCount: Math.max(input.workspace.volumes.length, 1),
+      chapterBudget: input.estimatedChapterCount,
+      existingVolumes: input.workspace.volumes,
+    })
+    : [];
 
   for (const volume of requiredVolumes) {
     const beatSheet = getBeatSheet(input.workspace, volume.id);
@@ -243,6 +263,7 @@ export function resolveStructuredOutlineRecoveryCursor(input: {
     const chapterListCursor = resolveVolumeChapterListCursor({
       volume,
       workspace: input.workspace,
+      expectedChapterCount: expectedChapterBudgets[volume.sortOrder - 1] ?? null,
     });
     if (!chapterListCursor.isReady) {
       return {

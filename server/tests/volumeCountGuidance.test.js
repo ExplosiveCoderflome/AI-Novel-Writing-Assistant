@@ -46,8 +46,8 @@ test("volume count guidance respects preferred and existing counts while clampin
     existingVolumeCount: 5,
     respectExistingVolumeCount: true,
   });
-  assert.equal(respectedExisting.respectedExistingVolumeCount, 3);
-  assert.equal(respectedExisting.recommendedVolumeCount, 3);
+  assert.equal(respectedExisting.respectedExistingVolumeCount, null);
+  assert.equal(respectedExisting.recommendedVolumeCount, respectedExisting.systemRecommendedVolumeCount);
 
   const ignoredExisting = buildVolumeCountGuidance({
     chapterBudget: 120,
@@ -56,6 +56,19 @@ test("volume count guidance respects preferred and existing counts while clampin
   });
   assert.equal(ignoredExisting.respectedExistingVolumeCount, null);
   assert.equal(ignoredExisting.recommendedVolumeCount, ignoredExisting.systemRecommendedVolumeCount);
+});
+
+test("volume count guidance ignores stale existing counts outside the valid chapter budget range", () => {
+  const guidance = buildVolumeCountGuidance({
+    chapterBudget: 430,
+    existingVolumeCount: 4,
+    respectExistingVolumeCount: true,
+  });
+
+  assert.deepEqual(guidance.allowedVolumeCountRange, { min: 7, max: 11 });
+  assert.equal(guidance.systemRecommendedVolumeCount, 8);
+  assert.equal(guidance.respectedExistingVolumeCount, null);
+  assert.equal(guidance.recommendedVolumeCount, 8);
 });
 
 test("volume count guidance clamps huge budgets to the configured maximum", () => {

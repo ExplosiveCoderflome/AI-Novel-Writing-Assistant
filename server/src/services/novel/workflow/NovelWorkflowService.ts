@@ -510,6 +510,9 @@ export class NovelWorkflowService {
     const recoveryCursor = resolveStructuredOutlineRecoveryCursor({
       workspace,
       plan,
+      estimatedChapterCount: typeof seedPayload?.estimatedChapterCount === "number"
+        ? seedPayload.estimatedChapterCount
+        : seedPayload?.directorInput?.estimatedChapterCount,
     });
     if (recoveryCursor.step === "completed") {
       return null;

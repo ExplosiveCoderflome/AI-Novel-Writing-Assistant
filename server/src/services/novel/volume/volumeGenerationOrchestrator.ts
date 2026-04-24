@@ -278,7 +278,11 @@ async function generateSkeleton(params: {
     userPreferredVolumeCount: options.userPreferredVolumeCount,
     maxVolumeCount: MAX_VOLUME_COUNT,
   });
-  const targetVolumeCount = document.strategyPlan.recommendedVolumeCount;
+  const targetVolumeCount = resolveSkeletonTargetVolumeCount({
+    strategyRecommendedVolumeCount: document.strategyPlan.recommendedVolumeCount,
+    guidanceRecommendedVolumeCount: volumeCountGuidance.recommendedVolumeCount,
+    allowedVolumeCountRange: volumeCountGuidance.allowedVolumeCountRange,
+  });
   await notifyVolumeGenerationPhase({
     novelId: document.novelId,
     scope: "skeleton",
@@ -384,6 +388,23 @@ export function resolveBeatSheetTargetChapterCount(input: {
   const fallbackTargetChapterCount = input.chapterBudgets[input.targetVolumeIndex]
     ?? Math.max(3, Math.round(input.chapterBudget / Math.max(input.volumeCount, 1)));
   return Math.max(input.targetVolumeChapterCount, fallbackTargetChapterCount);
+}
+
+export function resolveSkeletonTargetVolumeCount(input: {
+  strategyRecommendedVolumeCount: number;
+  guidanceRecommendedVolumeCount: number;
+  allowedVolumeCountRange: { min: number; max: number };
+}): number {
+  const strategyRecommendedVolumeCount = Math.max(1, Math.round(input.strategyRecommendedVolumeCount || 0));
+  const guidanceRecommendedVolumeCount = Math.max(1, Math.round(input.guidanceRecommendedVolumeCount || 0));
+  const minVolumeCount = Math.max(1, Math.round(input.allowedVolumeCountRange.min || 1));
+  const maxVolumeCount = Math.max(minVolumeCount, Math.round(input.allowedVolumeCountRange.max || minVolumeCount));
+
+  if (strategyRecommendedVolumeCount < minVolumeCount || strategyRecommendedVolumeCount > maxVolumeCount) {
+    return Math.min(Math.max(guidanceRecommendedVolumeCount, minVolumeCount), maxVolumeCount);
+  }
+
+  return strategyRecommendedVolumeCount;
 }
 
 async function generateRebalance(params: {
