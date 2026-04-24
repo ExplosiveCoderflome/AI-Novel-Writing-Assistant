@@ -137,10 +137,10 @@ export const chapterDynamicExtractionSchema = z.object({
 });
 
 export const volumeDynamicsProjectionSchema = z.object({
-  assignments: z.array(volumeProjectionAssignmentSchema).default([]),
+  assignments: z.array(volumeProjectionAssignmentSchema).min(1),
   factionTracks: z.array(z.object({
     characterName: z.string().trim().min(1),
-    volumeSortOrder: z.number().int().min(1).optional().nullable(),
+    volumeSortOrder: z.number().int().min(1),
     factionLabel: z.string().trim().min(1),
     stanceLabel: z.string().trim().optional().nullable(),
     summary: z.string().trim().optional().nullable(),
@@ -149,7 +149,7 @@ export const volumeDynamicsProjectionSchema = z.object({
   relationStages: z.array(z.object({
     sourceCharacterName: z.string().trim().min(1),
     targetCharacterName: z.string().trim().min(1),
-    volumeSortOrder: z.number().int().min(1).optional().nullable(),
+    volumeSortOrder: z.number().int().min(1),
     stageLabel: z.string().trim().min(1),
     stageSummary: z.string().trim().min(1),
     nextTurnPoint: z.string().trim().optional().nullable(),

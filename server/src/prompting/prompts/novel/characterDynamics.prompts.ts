@@ -80,6 +80,8 @@ export const volumeDynamicsProjectionPrompt: PromptAsset<
   },
   structuredOutputHint: {
     note: [
+      "assignments 不能为空；每个输入分卷至少输出主角或该卷核心角色的卷级职责。",
+      "factionTracks 和 relationStages 中的 volumeSortOrder 必须填写对应分卷序号。",
       "plannedChapterOrders 只能是正整数数组；拿不准就省略或输出空数组，不要输出 null、[null]、字符串数组。",
       "roleLabel、stanceLabel、summary 等可选字段拿不准时优先省略，不要为了凑结构输出 null。",
       "不要输出 confidence。",
@@ -99,6 +101,8 @@ export const volumeDynamicsProjectionPrompt: PromptAsset<
       "2. 所有安排都必须基于输入材料，不得虚构超出材料支持的新设定、新关系或新身份。",
       "3. 材料不足时必须做保守推断，优先给低风险、能成立的安排，不要为了凑完整度硬补复杂动态。",
       "4. 结果必须服务卷级推进，而不是写成人物卡或静态档案。",
+      "5. assignments 不能为空；每个输入分卷至少输出主角或该卷最核心角色的卷级职责。",
+      "6. factionTracks 和 relationStages 如有输出，必须填写对应的 volumeSortOrder，不允许省略或输出 null。",
       "",
       "阈值硬规则：",
       "1. absenceWarningThreshold 和 absenceHighRiskThreshold 必须是 1-12 的整数。",

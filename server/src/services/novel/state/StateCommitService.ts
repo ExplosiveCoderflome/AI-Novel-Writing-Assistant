@@ -3,8 +3,11 @@ import type {
   StateCommitResult,
   StateVersionRecord,
 } from "@ai-novel/shared/types/canonicalState";
+import { characterResourceUpdatePayloadSchema } from "@ai-novel/shared/types/characterResource";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
+import { characterResourceLedgerService } from "../characterResource/CharacterResourceLedgerService";
+import { characterResourceValidationService } from "../characterResource/CharacterResourceValidationService";
 import { canonicalStateService } from "./CanonicalStateService";
 import { chapterFactExtractor, type ChapterFactExtractorInput } from "./ChapterFactExtractor";
 import { stateVersionLog } from "./StateVersionLog";
@@ -14,6 +17,7 @@ const AUTO_COMMIT_TYPES = new Set<StateChangeProposal["proposalType"]>([
   "character_state_update",
   "payoff_progression",
   "conflict_update",
+  "character_resource_update",
 ]);
 
 const ALWAYS_REVIEW_TYPES = new Set<StateChangeProposal["proposalType"]>([
@@ -74,7 +78,10 @@ interface PersistedProposalRow {
 
 export class StateCommitService {
   async proposeAndCommit(input: StateCommitServiceInput): Promise<StateCommitResult> {
-    const rawProposals = input.proposals ?? await chapterFactExtractor.extract(input);
+    const extractedProposals = await chapterFactExtractor.extract(input);
+    const rawProposals = input.proposals
+      ? extractedProposals.concat(input.proposals)
+      : extractedProposals;
     const validation = this.validate(rawProposals);
     const persisted = await this.persistValidated(validation);
 
@@ -137,6 +144,18 @@ export class StateCommitService {
           status: "rejected",
           validationNotes: normalized.validationNotes.concat("missing summary"),
         });
+        continue;
+      }
+
+      if (normalized.proposalType === "character_resource_update") {
+        const resourceValidation = characterResourceValidationService.validateProposal(normalized);
+        if (resourceValidation.status === "committed") {
+          accepted.push(resourceValidation);
+        } else if (resourceValidation.status === "pending_review") {
+          pendingReview.push(resourceValidation);
+        } else {
+          rejected.push(resourceValidation);
+        }
         continue;
       }
 
@@ -268,6 +287,22 @@ export class StateCommitService {
     tx: Prisma.TransactionClient,
     proposal: StateChangeProposal,
   ): Promise<void> {
+    if (proposal.proposalType === "character_resource_update") {
+      const payload = characterResourceUpdatePayloadSchema.safeParse(proposal.payload);
+      if (!payload.success) {
+        return;
+      }
+      await characterResourceLedgerService.applyCommittedUpdate(tx, {
+        novelId: proposal.novelId,
+        chapterId: proposal.chapterId ?? null,
+        chapterOrder: typeof payload.data.chapterOrder === "number" ? payload.data.chapterOrder : null,
+        payload: payload.data,
+        evidence: proposal.evidence,
+        validationNotes: proposal.validationNotes,
+      });
+      return;
+    }
+
     if (proposal.proposalType !== "character_state_update") {
       return;
     }

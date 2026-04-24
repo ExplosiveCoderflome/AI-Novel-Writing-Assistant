@@ -357,6 +357,8 @@ model Novel {
   characterVolumeAssignments CharacterVolumeAssignment[]
   characterFactionTracks CharacterFactionTrack[]
   characterRelationStages CharacterRelationStage[]
+  characterResourceItems CharacterResourceLedgerItem[]
+  characterResourceEvents CharacterResourceEvent[]
   bible             NovelBible?
   plotBeats         PlotBeat[]
   chapterSummaries  ChapterSummary[]
@@ -464,6 +466,9 @@ model Chapter {
   payoffLedgerLastTouchedItems PayoffLedgerItem[] @relation("PayoffLedgerLastTouchedChapter")
   payoffLedgerSetupItems PayoffLedgerItem[] @relation("PayoffLedgerSetupChapter")
   payoffLedgerPayoffItems PayoffLedgerItem[] @relation("PayoffLedgerPayoffChapter")
+  introducedCharacterResources CharacterResourceLedgerItem[] @relation("CharacterResourceIntroducedChapter")
+  lastTouchedCharacterResources CharacterResourceLedgerItem[] @relation("CharacterResourceLastTouchedChapter")
+  characterResourceEvents CharacterResourceEvent[]
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @updatedAt
 
@@ -510,6 +515,11 @@ model Character {
   incomingRelations RelationState[] @relation("RelationStateTarget")
   outgoingCharacterRelations CharacterRelation[] @relation("CharacterRelationSource")
   incomingCharacterRelations CharacterRelation[] @relation("CharacterRelationTarget")
+  ownedResourceItems CharacterResourceLedgerItem[] @relation("CharacterResourceOwner")
+  heldResourceItems CharacterResourceLedgerItem[] @relation("CharacterResourceHolder")
+  actedResourceEvents CharacterResourceEvent[] @relation("CharacterResourceEventActor")
+  fromResourceEvents CharacterResourceEvent[] @relation("CharacterResourceEventFromHolder")
+  toResourceEvents CharacterResourceEvent[] @relation("CharacterResourceEventToHolder")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -1704,6 +1714,81 @@ model PayoffLedgerItem {
   @@index([setupChapterId])
   @@index([payoffChapterId])
   @@index([lastSnapshotId])
+}
+
+model CharacterResourceLedgerItem {
+  id                           String   @id @default(cuid())
+  novelId                      String
+  resourceKey                  String
+  name                         String
+  summary                      String
+  resourceType                 String
+  narrativeFunction            String
+  ownerType                    String
+  ownerId                      String?
+  ownerName                    String?
+  ownerCharacterId             String?
+  holderCharacterId            String?
+  holderCharacterName          String?
+  status                       String
+  readerKnows                  Boolean  @default(false)
+  holderKnows                  Boolean  @default(true)
+  knownByCharacterIdsJson      String?
+  introducedChapterId          String?
+  introducedChapterOrder       Int?
+  lastTouchedChapterId         String?
+  lastTouchedChapterOrder      Int?
+  expectedUseStartChapterOrder Int?
+  expectedUseEndChapterOrder   Int?
+  constraintsJson              String?
+  riskSignalsJson              String?
+  sourceRefsJson               String?
+  evidenceJson                 String?
+  confidence                   Float?
+  novel                        Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  ownerCharacter               Character? @relation("CharacterResourceOwner", fields: [ownerCharacterId], references: [id], onDelete: SetNull)
+  holderCharacter              Character? @relation("CharacterResourceHolder", fields: [holderCharacterId], references: [id], onDelete: SetNull)
+  introducedChapter            Chapter? @relation("CharacterResourceIntroducedChapter", fields: [introducedChapterId], references: [id], onDelete: SetNull)
+  lastTouchedChapter           Chapter? @relation("CharacterResourceLastTouchedChapter", fields: [lastTouchedChapterId], references: [id], onDelete: SetNull)
+  events                       CharacterResourceEvent[]
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+
+  @@unique([novelId, resourceKey])
+  @@index([novelId, status, updatedAt])
+  @@index([holderCharacterId, status])
+  @@index([ownerCharacterId])
+  @@index([novelId, lastTouchedChapterOrder])
+  @@index([introducedChapterId])
+  @@index([lastTouchedChapterId])
+}
+
+model CharacterResourceEvent {
+  id                    String   @id @default(cuid())
+  novelId               String
+  resourceId            String
+  chapterId             String?
+  chapterOrder          Int?
+  eventType             String
+  actorCharacterId      String?
+  fromHolderCharacterId String?
+  toHolderCharacterId   String?
+  summary               String
+  evidenceJson          String?
+  novel                 Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  resource              CharacterResourceLedgerItem @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  chapter               Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  actorCharacter        Character? @relation("CharacterResourceEventActor", fields: [actorCharacterId], references: [id], onDelete: SetNull)
+  fromHolderCharacter   Character? @relation("CharacterResourceEventFromHolder", fields: [fromHolderCharacterId], references: [id], onDelete: SetNull)
+  toHolderCharacter     Character? @relation("CharacterResourceEventToHolder", fields: [toHolderCharacterId], references: [id], onDelete: SetNull)
+  createdAt             DateTime @default(now())
+
+  @@index([novelId, createdAt])
+  @@index([resourceId, createdAt])
+  @@index([chapterId])
+  @@index([actorCharacterId])
+  @@index([fromHolderCharacterId])
+  @@index([toHolderCharacterId])
 }
 
 model CanonicalStateVersion {

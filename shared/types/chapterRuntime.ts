@@ -8,6 +8,7 @@ import {
   chapterStateGoalSchema,
   generationNextActionSchema,
 } from "./canonicalState";
+import { characterResourceContextSchema } from "./characterResource";
 import { storyWorldSliceSchema } from "./storyWorldSlice";
 import type { LLMProvider } from "./llm";
 
@@ -578,6 +579,7 @@ export const chapterWriteContextSchema = z.object({
   ledgerUrgentItems: z.array(runtimePayoffLedgerItemSchema).default([]),
   ledgerOverdueItems: z.array(runtimePayoffLedgerItemSchema).default([]),
   ledgerSummary: runtimePayoffLedgerSummarySchema.nullable().optional(),
+  characterResourceContext: characterResourceContextSchema.nullable().optional(),
   recentChapterSummaries: z.array(z.string()).default([]),
   openingAntiRepeatHint: z.string(),
   styleContract: runtimeStyleContractSchema.nullable().optional(),
@@ -634,6 +636,7 @@ export const generationContextPackageSchema = z.object({
   ledgerUrgentItems: z.array(runtimePayoffLedgerItemSchema).default([]),
   ledgerOverdueItems: z.array(runtimePayoffLedgerItemSchema).default([]),
   ledgerSummary: runtimePayoffLedgerSummarySchema.nullable().optional(),
+  characterResourceContext: characterResourceContextSchema.nullable().optional(),
   chapterMission: chapterMissionContextSchema.nullable().optional(),
   chapterWriteContext: chapterWriteContextSchema.nullable().optional(),
   chapterReviewContext: chapterReviewContextSchema.nullable().optional(),
@@ -801,6 +804,7 @@ export type RuntimePayoffLedgerEvidence = z.infer<typeof runtimePayoffLedgerEvid
 export type RuntimePayoffLedgerRiskSignal = z.infer<typeof runtimePayoffLedgerRiskSignalSchema>;
 export type RuntimePayoffLedgerItem = z.infer<typeof runtimePayoffLedgerItemSchema>;
 export type RuntimePayoffLedgerSummary = z.infer<typeof runtimePayoffLedgerSummarySchema>;
+export type RuntimeCharacterResourceContext = z.infer<typeof characterResourceContextSchema>;
 export type RuntimeCharacterCandidate = z.infer<typeof runtimeCharacterCandidateSchema>;
 export type RuntimeCharacterVolumeAssignment = z.infer<typeof runtimeCharacterVolumeAssignmentSchema>;
 export type RuntimeCharacterFactionTrack = z.infer<typeof runtimeCharacterFactionTrackSchema>;

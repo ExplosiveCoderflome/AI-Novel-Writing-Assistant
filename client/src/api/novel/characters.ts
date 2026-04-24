@@ -1,6 +1,11 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
+  CharacterResourceContext,
+  CharacterResourceLedgerItem,
+  CharacterResourceLedgerResponse,
+} from "@ai-novel/shared/types/characterResource";
+import type {
   Character,
   CharacterCastApplyResult,
   CharacterCastOptionClearResult,
@@ -17,6 +22,57 @@ import { apiClient } from "../client";
 
 export async function getNovelCharacters(id: string) {
   const { data } = await apiClient.get<ApiResponse<Character[]>>(`/novels/${id}/characters`);
+  return data;
+}
+
+export async function getNovelCharacterResources(id: string) {
+  const { data } = await apiClient.get<ApiResponse<CharacterResourceLedgerResponse>>(
+    `/novels/${id}/character-resources`,
+  );
+  return data;
+}
+
+export async function getNovelCharacterResourcesForCharacter(id: string, characterId: string) {
+  const { data } = await apiClient.get<ApiResponse<CharacterResourceLedgerItem[]>>(
+    `/novels/${id}/characters/${characterId}/resources`,
+  );
+  return data;
+}
+
+export async function getChapterResourceContext(id: string, chapterId: string) {
+  const { data } = await apiClient.get<ApiResponse<CharacterResourceContext>>(
+    `/novels/${id}/chapters/${chapterId}/resource-context`,
+  );
+  return data;
+}
+
+export async function extractChapterResources(
+  id: string,
+  chapterId: string,
+  payload?: {
+    provider?: LLMProvider;
+    model?: string;
+    temperature?: number;
+  },
+) {
+  const { data } = await apiClient.post(
+    `/novels/${id}/chapters/${chapterId}/resources/extract`,
+    payload ?? {},
+  );
+  return data;
+}
+
+export async function confirmCharacterResourceProposal(id: string, proposalId: string) {
+  const { data } = await apiClient.post<ApiResponse<CharacterResourceLedgerResponse>>(
+    `/novels/${id}/character-resource-proposals/${proposalId}/confirm`,
+  );
+  return data;
+}
+
+export async function rejectCharacterResourceProposal(id: string, proposalId: string) {
+  const { data } = await apiClient.post<ApiResponse<CharacterResourceLedgerResponse>>(
+    `/novels/${id}/character-resource-proposals/${proposalId}/reject`,
+  );
   return data;
 }
 

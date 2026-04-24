@@ -63,6 +63,21 @@ export type StoryPlanRole = "setup" | "progress" | "pressure" | "turn" | "payoff
 export type AuditType = "continuity" | "character" | "plot" | "mode_fit";
 export type AuditIssueStatus = "open" | "resolved" | "ignored";
 export type {
+  CharacterResourceContext,
+  CharacterResourceEvent,
+  CharacterResourceEventType,
+  CharacterResourceLedgerItem,
+  CharacterResourceLedgerResponse,
+  CharacterResourceNarrativeFunction,
+  CharacterResourceOwnerType,
+  CharacterResourceProposalSummary,
+  CharacterResourceRiskSignal,
+  CharacterResourceStatus,
+  CharacterResourceType,
+  CharacterResourceUpdatePayload,
+} from "./characterResource";
+
+export type {
   PayoffLedgerItem,
   PayoffLedgerResponse,
   PayoffLedgerScopeType,

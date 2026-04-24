@@ -1,6 +1,6 @@
 # AI 长篇成书当前执行计划（小白用户导向）
 
-更新时间：2026-04-18
+更新时间：2026-04-25
 适用范围：当前 `AI-Novel-Writing-Assistant2` 代码库现状  
 目标用户：完全不懂写作、希望通过 AI 引导或全自动规划完成整本小说创作的用户  
 当前定位：强辅助型 AI 小说工作台  
@@ -1036,4 +1036,37 @@ P2 重点解决：
 - 2026-04-10 00:45 [已计划] 已记录后续优化方向：先做常见错误预修复，再增强 AI 修复失败原因分类与模型切换提示。
 - 2026-04-24 10:51 [开发中] 已吸收 PR #22 中可安全并入主线的部分：对“对象 schema + 单元素数组包裹”增加 schema-aware 本地解包，对中转站 / Relay 返回的 HTML 错页改判为 `transport_error`，并补充 markdown fenced JSON、字段缺失、AI 修复后仍缺字段、HTML 错页与单元素数组包裹的 targeted regression tests；更细粒度的字段缺失提示合同仍待继续收口。
 <!-- task-md-sync:item:task-3b8c9c2f4a:end -->
+<!-- task-md-sync:item:task-65a7562c11:start -->
+### 角色资源账本与背包系统
+- 标识：`task-65a7562c11`
+- 状态：已完成
+- 最近更新：2026-04-24 23:07
+- 概要：完成角色资源账本端到端 MVP：新增共享类型、Prisma 账本/事件、AI 结构化提取 PromptAsset、状态提交分流、章节 runtime/review/repair 资源窗口、API 与角色/章节 UI，并通过 shared/server/client 构建和 targeted tests。
+
+计划清单：
+- [ ] 数据层与共享类型
+- [ ] AI 结构化提取与状态提交
+- [ ] 章节 runtime/review/repair 资源上下文
+- [ ] API 与 UI 最小闭环
+- [ ] 构建与 targeted tests 验证
+
+进度记录：
+- 2026-04-24 23:07 [已完成] 2026-04-24: 完成 character resource ledger MVP；低风险资源变化自动提交，高风险待确认，章节上下文只注入本章相关资源窗口。
+<!-- task-md-sync:item:task-65a7562c11:end -->
+<!-- task-md-sync:item:task-a9206e4ae1:start -->
+### 预发 beta 分支发布流程规则
+- 标识：`task-a9206e4ae1`
+- 状态：已完成
+- 最近更新：2026-04-25 00:35
+- 概要：已在 AGENTS.md 写入 beta 预发分支规则，并将已完成的 desktop-dev 调整为收尾验证、合入 beta/main、退休分支的流程。
+
+计划清单：
+- [ ] 确认 AGENTS.md 现有开发分支、desktop-dev、打包发布规则之间的关系
+- [ ] 新增 beta 预发分支工作流，明确功能分支、自测、预发集成、发布回 main 的顺序
+- [ ] 将 desktop-dev 从长期集成分支调整为已完成功能的收尾验证、合入 beta/main、退休流程
+- [ ] 补充发布与桌面打包前必须基于 beta 验证稳定的约束
+
+进度记录：
+- 2026-04-25 00:35 [已完成] 已完成 AGENTS.md 分支规则更新：功能分支先入 beta 预发验证，desktop-dev 作为完成候选进入 beta/main 后退休。
+<!-- task-md-sync:item:task-a9206e4ae1:end -->
 <!-- task-md-sync:end -->

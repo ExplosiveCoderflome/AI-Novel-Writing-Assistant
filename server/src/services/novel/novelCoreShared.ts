@@ -165,7 +165,7 @@ export interface PipelineRunOptions extends LLMGenerateOptions {
   repairMode?: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only";
 }
 
-export type PipelineBackgroundSyncKind = "character_dynamics" | "state_snapshot" | "payoff_ledger" | "canonical_state";
+export type PipelineBackgroundSyncKind = "character_dynamics" | "state_snapshot" | "payoff_ledger" | "character_resources" | "canonical_state";
 
 export type PipelineBackgroundSyncStatus = "running" | "failed";
 
