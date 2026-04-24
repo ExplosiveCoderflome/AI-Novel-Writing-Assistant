@@ -20,6 +20,7 @@ import {
   buildPreparedExecutableRange,
   resolveRequestedTakeoverRange,
 } from "./novelDirectorTakeoverRange";
+import { buildDirectorTakeoverCompletenessSnapshot } from "./novelDirectorTakeoverCompleteness";
 
 export interface DirectorTakeoverLoadedState {
   novel: DirectorTakeoverNovelContext;
@@ -75,6 +76,23 @@ function buildCheckpointSnapshot(input: {
     chapterOrder: chapterId ? (input.chapterOrderMap.get(chapterId) ?? null) : null,
     volumeId,
   };
+}
+
+function isRangeFullyWritten(input: {
+  chapterRows: Array<{ order: number; content?: string | null }>;
+  range: { startOrder: number; endOrder: number } | null;
+}): boolean {
+  if (!input.range) {
+    return false;
+  }
+  const chapterByOrder = new Map(input.chapterRows.map((chapter) => [chapter.order, chapter]));
+  for (let order = input.range.startOrder; order <= input.range.endOrder; order += 1) {
+    const chapter = chapterByOrder.get(order);
+    if (!chapter?.content?.trim()) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export async function loadDirectorTakeoverState(input: {
@@ -149,6 +167,14 @@ export async function loadDirectorTakeoverState(input: {
         generationState: true,
         chapterStatus: true,
         content: true,
+        title: true,
+        expectation: true,
+        targetWordCount: true,
+        conflictLevel: true,
+        revealLevel: true,
+        mustAvoid: true,
+        taskSheet: true,
+        sceneCards: true,
       },
     }),
     prisma.generationJob.findFirst({
@@ -195,6 +221,11 @@ export async function loadDirectorTakeoverState(input: {
     }
     return chapter.generationState !== "approved" && chapter.generationState !== "published";
   }).length;
+  const completeness = buildDirectorTakeoverCompletenessSnapshot({
+    workspace,
+    chapterStates: chapterRows,
+    estimatedChapterCount: novel.estimatedChapterCount,
+  });
   const latestSeedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(latestTask?.seedPayloadJson) ?? null;
   const chapterOrderMap = new Map(chapterRows.map((chapter) => [chapter.id, chapter.order]));
   const activePipelineSnapshot = activePipelineJob
@@ -215,18 +246,20 @@ export async function loadDirectorTakeoverState(input: {
   });
 
   const executableRangeFromState = resolveDirectorAutoExecutionRangeFromState(latestSeedPayload?.autoExecution);
-  const executableRange = executableRangeFromState
-    ? {
-        startOrder: executableRangeFromState.startOrder,
-        endOrder: executableRangeFromState.endOrder,
-        totalChapterCount: executableRangeFromState.totalChapterCount,
-        nextChapterId: latestSeedPayload?.autoExecution?.nextChapterId ?? null,
-        nextChapterOrder: latestSeedPayload?.autoExecution?.nextChapterOrder ?? null,
-      }
-    : buildPreparedExecutableRange({
-        workspace,
-        chapterStates: chapterRows,
-      });
+  const executableRange = completeness.chapterSyncReady
+    ? (executableRangeFromState
+      ? {
+          startOrder: executableRangeFromState.startOrder,
+          endOrder: executableRangeFromState.endOrder,
+          totalChapterCount: executableRangeFromState.totalChapterCount,
+          nextChapterId: latestSeedPayload?.autoExecution?.nextChapterId ?? null,
+          nextChapterOrder: latestSeedPayload?.autoExecution?.nextChapterOrder ?? null,
+        }
+      : buildPreparedExecutableRange({
+          workspace,
+          chapterStates: chapterRows,
+        }))
+    : null;
   const requestedRangePlan = input.autoExecutionPlan
     ?? latestSeedPayload?.autoExecutionPlan
     ?? latestSeedPayload?.autoExecution
@@ -259,6 +292,15 @@ export async function loadDirectorTakeoverState(input: {
         return chapter.generationState !== "approved" && chapter.generationState !== "published";
       }).length
     : 0;
+  const repairCandidateRange = requestedExecutionRange
+    ?? executableRange
+    ?? (activePipelineSnapshot
+      ? { startOrder: activePipelineSnapshot.startOrder, endOrder: activePipelineSnapshot.endOrder }
+      : null);
+  const chapterExecutionReadyForRepair = isRangeFullyWritten({
+    chapterRows,
+    range: repairCandidateRange,
+  });
 
   return {
     novel,
@@ -269,6 +311,13 @@ export async function loadDirectorTakeoverState(input: {
       hasStoryMacroPlan: Boolean(storyMacroPlan?.storyInput?.trim() && storyMacroPlan.decomposition),
       hasBookContract: Boolean(novel.bookContract),
       hasVolumeStrategyPlan: assets.hasVolumeStrategyPlan,
+      expectedVolumeCount: completeness.expectedVolumeCount,
+      plannedChapterCount: completeness.plannedChapterCount,
+      volumePlanningReady: completeness.volumePlanningReady,
+      structuredOutlineReady: completeness.structuredOutlineReady,
+      chapterSyncReady: completeness.chapterSyncReady,
+      chapterExecutionReadyForRepair,
+      structuredOutlineRecoveryStep: completeness.structuredOutlineRecoveryStep,
       firstVolumeId: assets.firstVolumeId,
       firstVolumeBeatSheetReady,
       firstVolumePreparedChapterCount,

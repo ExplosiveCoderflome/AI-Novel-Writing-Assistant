@@ -127,3 +127,119 @@ test("continue_existing ignores old front10 repair state when the requested rang
   assert.equal(plan.effectiveStage, "chapter_execution");
   assert.equal(plan.usesCurrentBatch, false);
 });
+
+test("continue_existing stays in volume strategy when planned volume count is incomplete", () => {
+  const plan = resolveDirectorTakeoverPlan({
+    entryStep: "outline",
+    strategy: "continue_existing",
+    snapshot: buildSnapshot({
+      volumeCount: 7,
+      expectedVolumeCount: 8,
+      volumePlanningReady: false,
+      structuredOutlineReady: false,
+      chapterSyncReady: false,
+      firstVolumeBeatSheetReady: true,
+      firstVolumePreparedChapterCount: 10,
+    }),
+    latestCheckpoint: null,
+    executableRange: {
+      startOrder: 1,
+      endOrder: 10,
+      totalChapterCount: 10,
+      nextChapterOrder: 1,
+      nextChapterId: "chapter_1",
+    },
+  });
+
+  assert.equal(plan.executionMode, "phase");
+  assert.equal(plan.effectiveStep, "outline");
+  assert.equal(plan.effectiveStage, "volume_strategy");
+});
+
+test("continue_existing stays in structured outline when any volume lacks details", () => {
+  const plan = resolveDirectorTakeoverPlan({
+    entryStep: "structured",
+    strategy: "continue_existing",
+    snapshot: buildSnapshot({
+      expectedVolumeCount: 8,
+      volumePlanningReady: true,
+      structuredOutlineReady: false,
+      chapterSyncReady: false,
+      firstVolumeBeatSheetReady: true,
+      firstVolumePreparedChapterCount: 10,
+    }),
+    latestCheckpoint: null,
+    executableRange: {
+      startOrder: 1,
+      endOrder: 10,
+      totalChapterCount: 10,
+      nextChapterOrder: 1,
+      nextChapterId: "chapter_1",
+    },
+  });
+
+  assert.equal(plan.executionMode, "phase");
+  assert.equal(plan.effectiveStep, "structured");
+  assert.equal(plan.effectiveStage, "structured_outline");
+});
+
+test("continue_existing does not enter chapter execution before chapter sync is ready", () => {
+  const plan = resolveDirectorTakeoverPlan({
+    entryStep: "basic",
+    strategy: "continue_existing",
+    snapshot: buildSnapshot({
+      expectedVolumeCount: 8,
+      volumePlanningReady: true,
+      structuredOutlineReady: true,
+      chapterSyncReady: false,
+      chapterCount: 50,
+      plannedChapterCount: 383,
+      firstVolumeBeatSheetReady: true,
+      firstVolumePreparedChapterCount: 10,
+    }),
+    latestCheckpoint: null,
+    executableRange: {
+      startOrder: 1,
+      endOrder: 10,
+      totalChapterCount: 10,
+      nextChapterOrder: 11,
+      nextChapterId: "chapter_11",
+    },
+  });
+
+  assert.equal(plan.executionMode, "phase");
+  assert.equal(plan.effectiveStep, "structured");
+  assert.equal(plan.effectiveStage, "structured_outline");
+});
+
+test("continue_existing resumes chapter execution instead of repair when selected chapters are not fully written", () => {
+  const plan = resolveDirectorTakeoverPlan({
+    entryStep: "pipeline",
+    strategy: "continue_existing",
+    snapshot: buildSnapshot({
+      volumePlanningReady: true,
+      structuredOutlineReady: true,
+      chapterSyncReady: true,
+      chapterExecutionReadyForRepair: false,
+      pendingRepairChapterCount: 0,
+    }),
+    latestCheckpoint: {
+      checkpointType: "chapter_batch_ready",
+      stage: "quality_repair",
+      volumeId: "volume_1",
+      chapterId: "chapter_4",
+      chapterOrder: 4,
+    },
+    executableRange: {
+      startOrder: 1,
+      endOrder: 10,
+      totalChapterCount: 10,
+      nextChapterId: "chapter_4",
+      nextChapterOrder: 4,
+    },
+  });
+
+  assert.equal(plan.executionMode, "auto_execution");
+  assert.equal(plan.effectiveStep, "chapter");
+  assert.equal(plan.effectiveStage, "chapter_execution");
+});

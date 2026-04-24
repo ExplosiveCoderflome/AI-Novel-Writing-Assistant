@@ -101,3 +101,22 @@ test("asset-first recovery does not jump into structured outline with placeholde
 
   assert.equal(recovery, null);
 });
+
+test("asset-first recovery resumes structured outline when stale auto execution state is not synced", () => {
+  const recovery = resolveAssetFirstRecoveryFromSnapshot({
+    runMode: "auto_to_execution",
+    structuredOutlineRecoveryStep: "chapter_sync",
+    volumeCount: 2,
+    hasVolumeStrategyPlan: true,
+    hasActivePipelineJob: false,
+    hasExecutableRange: false,
+    hasAutoExecutionState: true,
+    chapterSyncReady: false,
+    latestCheckpointType: "front10_ready",
+  });
+
+  assert.deepEqual(recovery, {
+    type: "phase",
+    phase: "structured_outline",
+  });
+});

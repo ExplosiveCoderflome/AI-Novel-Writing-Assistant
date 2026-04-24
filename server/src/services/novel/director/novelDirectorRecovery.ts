@@ -40,6 +40,7 @@ export function resolveAssetFirstRecoveryFromSnapshot(input: {
   hasActivePipelineJob: boolean;
   hasExecutableRange: boolean;
   hasAutoExecutionState: boolean;
+  chapterSyncReady?: boolean;
   latestCheckpointType?: "front10_ready" | "chapter_batch_ready" | "replan_required" | null;
 }):
   | {
@@ -51,8 +52,11 @@ export function resolveAssetFirstRecoveryFromSnapshot(input: {
     phase: "structured_outline";
   }
   | null {
+  const chapterSyncReady = input.chapterSyncReady !== false;
+
   if (
-    normalizeDirectorRunMode(input.runMode) === "auto_to_execution"
+    chapterSyncReady
+    && normalizeDirectorRunMode(input.runMode) === "auto_to_execution"
     && (
       input.hasActivePipelineJob
       || input.hasExecutableRange

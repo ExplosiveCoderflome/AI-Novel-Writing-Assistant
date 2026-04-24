@@ -288,6 +288,7 @@ export class NovelDirectorService {
       hasActivePipelineJob: Boolean(takeoverState.activePipelineJob),
       hasExecutableRange: Boolean(takeoverState.executableRange),
       hasAutoExecutionState: Boolean(takeoverState.latestAutoExecutionState?.enabled),
+      chapterSyncReady: takeoverState.snapshot.chapterSyncReady !== false,
       latestCheckpointType: takeoverState.latestCheckpoint?.checkpointType ?? null,
     });
   }

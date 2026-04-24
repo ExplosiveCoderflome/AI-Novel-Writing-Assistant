@@ -322,6 +322,14 @@ export interface DirectorTakeoverReadinessResponse {
     characterCount: number;
     chapterCount: number;
     volumeCount: number;
+    hasVolumeStrategyPlan?: boolean;
+    expectedVolumeCount?: number | null;
+    plannedChapterCount?: number;
+    volumePlanningReady?: boolean;
+    structuredOutlineReady?: boolean;
+    chapterSyncReady?: boolean;
+    chapterExecutionReadyForRepair?: boolean;
+    structuredOutlineRecoveryStep?: "beat_sheet" | "chapter_list" | "chapter_detail_bundle" | "chapter_sync" | "completed" | null;
     firstVolumeId?: string | null;
     firstVolumeChapterCount: number;
     firstVolumeBeatSheetReady?: boolean;
