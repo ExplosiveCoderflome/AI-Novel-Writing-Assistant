@@ -131,6 +131,57 @@ test("legacy volume version blob upgrades to v2 defaults", () => {
   assert.equal(reparsed.readiness.canGenerateStrategy, true);
 });
 
+test("mergeVolumeWorkspaceInput allows clearing all downstream volume assets", () => {
+  const current = buildVolumeWorkspaceDocument({
+    novelId: "novel-1",
+    volumes: [createBaseVolume()],
+    strategyPlan: {
+      recommendedVolumeCount: 1,
+      hardPlannedVolumeCount: 1,
+      readerRewardLadder: "先压迫后兑现。",
+      escalationLadder: "代价持续升级。",
+      midpointShift: "中盘身份反转。",
+      notes: "先锁当前卷。",
+      volumes: [{
+        sortOrder: 1,
+        planningMode: "hard",
+        roleLabel: "起势卷",
+        coreReward: "主线抓手成立",
+        escalationFocus: "危险升级",
+        uncertaintyLevel: "low",
+      }],
+      uncertainties: [],
+    },
+    beatSheets: [{
+      volumeId: "volume-1",
+      volumeSortOrder: 1,
+      status: "generated",
+      beats: [{
+        key: "opening_hook",
+        label: "开卷抓手",
+        summary: "旧节奏板",
+        chapterSpanHint: "1-2章",
+        mustDeliver: ["旧数据"],
+      }],
+    }],
+  });
+
+  const merged = mergeVolumeWorkspaceInput("novel-1", current, {
+    volumes: [],
+    strategyPlan: null,
+    critiqueReport: null,
+    beatSheets: [],
+    rebalanceDecisions: [],
+  });
+
+  assert.deepEqual(merged.volumes, []);
+  assert.equal(merged.strategyPlan, null);
+  assert.equal(merged.critiqueReport, null);
+  assert.deepEqual(merged.beatSheets, []);
+  assert.deepEqual(merged.rebalanceDecisions, []);
+  assert.equal(merged.source, "empty");
+});
+
 test("mergeVolumeWorkspaceInput keeps strategy data but clears downstream assets after volume-level edits", () => {
   const current = buildVolumeWorkspaceDocument({
     novelId: "novel-1",
