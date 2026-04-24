@@ -619,8 +619,8 @@ export function resolveDirectorTakeoverPlan(input: DirectorTakeoverDecisionInput
       strategy: input.strategy,
       effectiveStep: "story_macro",
       summary: "重新生成当前步，从故事宏观规划重跑。",
-      effectSummary: "会先清空 Story Macro 与 Book Contract，再从故事宏观规划重跑。",
-      impactNotes: ["会刷新当前书级规划资产。", "不会删除已写正文。"],
+      effectSummary: "会先清空书级规划、角色准备、卷战略、节奏拆章和章节细化资源，再从故事宏观规划重跑。",
+      impactNotes: ["会刷新当前书级规划资产，并让后续规划重新生成。", "不会删除已写正文。"],
     });
   }
   if (input.entryStep === "character") {
@@ -632,8 +632,8 @@ export function resolveDirectorTakeoverPlan(input: DirectorTakeoverDecisionInput
       strategy: input.strategy,
       effectiveStep: "character",
       summary: "重新生成当前步，从角色准备重跑。",
-      effectSummary: "会先清空当前角色阵容、关系和角色准备候选，再重跑角色准备。",
-      impactNotes: ["保留前置书级规划。", "不会清空已有正文。"],
+      effectSummary: "会先清空当前角色准备，以及依赖角色的卷战略、节奏拆章和章节细化资源，再重跑角色准备。",
+      impactNotes: ["保留前置书级规划。", "后续规划会重新生成，避免旧结构干扰。", "不会清空已有正文。"],
     });
   }
   if (input.entryStep === "outline") {
@@ -645,8 +645,8 @@ export function resolveDirectorTakeoverPlan(input: DirectorTakeoverDecisionInput
       strategy: input.strategy,
       effectiveStep: "outline",
       summary: "重新生成当前步，从卷战略重跑。",
-      effectSummary: "会先清空当前卷战略与卷骨架，再从卷战略重跑。",
-      impactNotes: ["保留前置书级规划与角色。", "不会清空已有正文。"],
+      effectSummary: "会先清空当前卷战略、卷骨架、节奏拆章和章节细化资源，再从卷战略重跑。",
+      impactNotes: ["保留前置书级规划与角色。", "后续节奏与拆章会重新生成，避免旧卷数据干扰。", "不会清空已有正文。"],
     });
   }
   if (input.entryStep === "structured") {

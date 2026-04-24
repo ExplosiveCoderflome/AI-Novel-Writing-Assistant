@@ -162,3 +162,204 @@ test("resetDirectorTakeoverCurrentStep only clears the requested chapter range",
   assert.deepEqual(calls[0], ["findMany", 11, 190]);
   assert.deepEqual(calls[1], ["updateMany", ["chapter-11", "chapter-12"]]);
 });
+
+test("resetDirectorTakeoverCurrentStep clears downstream structured outputs when restarting volume strategy", async () => {
+  const updates = [];
+  const deletedOrders = [];
+  const originals = {
+    chapterDeleteMany: prisma.chapter.deleteMany,
+  };
+
+  prisma.chapter.deleteMany = async ({ where }) => {
+    deletedOrders.push(where.order.in);
+    return { count: where.order.in.length };
+  };
+
+  try {
+    await resetDirectorTakeoverCurrentStep({
+      novelId: "novel-1",
+      plan: {
+        entryStep: "outline",
+        strategy: "restart_current_step",
+        effectiveStep: "outline",
+        effectiveStage: "volume_strategy",
+      },
+      takeoverState: buildTakeoverState(),
+      deps: {
+        getVolumeWorkspace: async () => ({
+          strategyPlan: { summary: "旧卷战略" },
+          critiqueReport: { summary: "旧批注" },
+          beatSheets: [{ volumeId: "volume-1", beats: [{ key: "old_beat" }] }],
+          rebalanceDecisions: [{ anchorVolumeId: "volume-1", affectedVolumeId: "volume-2" }],
+          volumes: [
+            {
+              id: "volume-1",
+              sortOrder: 1,
+              chapters: [
+                { chapterOrder: 1, title: "旧标题一" },
+                { chapterOrder: 2, title: "旧标题二" },
+              ],
+            },
+          ],
+        }),
+        updateVolumeWorkspace: async (_novelId, payload) => {
+          updates.push(payload);
+          return payload;
+        },
+        cancelPipelineJob: async () => null,
+      },
+    });
+  } finally {
+    prisma.chapter.deleteMany = originals.chapterDeleteMany;
+  }
+
+  assert.equal(updates.length, 1);
+  assert.equal(updates[0].strategyPlan, null);
+  assert.equal(updates[0].critiqueReport, null);
+  assert.deepEqual(updates[0].beatSheets, []);
+  assert.deepEqual(updates[0].rebalanceDecisions, []);
+  assert.deepEqual(updates[0].volumes, []);
+  assert.deepEqual(deletedOrders, [[1, 2]]);
+});
+
+test("resetDirectorTakeoverCurrentStep clears downstream outline outputs when restarting character setup", async () => {
+  const updates = [];
+  const deletedOrders = [];
+  const originals = {
+    transaction: prisma.$transaction,
+    chapterDeleteMany: prisma.chapter.deleteMany,
+  };
+
+  prisma.$transaction = async (callback) => callback({
+    characterCastOption: { deleteMany: async () => ({ count: 1 }) },
+    characterCandidate: { deleteMany: async () => ({ count: 1 }) },
+    characterRelation: { deleteMany: async () => ({ count: 1 }) },
+    character: { deleteMany: async () => ({ count: 1 }) },
+  });
+  prisma.chapter.deleteMany = async ({ where }) => {
+    deletedOrders.push(where.order.in);
+    return { count: where.order.in.length };
+  };
+
+  try {
+    await resetDirectorTakeoverCurrentStep({
+      novelId: "novel-1",
+      plan: {
+        entryStep: "character",
+        strategy: "restart_current_step",
+        effectiveStep: "character",
+        effectiveStage: "character_setup",
+      },
+      takeoverState: buildTakeoverState(),
+      deps: {
+        getVolumeWorkspace: async () => ({
+          strategyPlan: { summary: "旧卷战略" },
+          critiqueReport: null,
+          beatSheets: [{ volumeId: "volume-1", beats: [{ key: "old_beat" }] }],
+          rebalanceDecisions: [],
+          volumes: [
+            {
+              id: "volume-1",
+              sortOrder: 1,
+              chapters: [
+                { chapterOrder: 1, title: "旧标题一" },
+                { chapterOrder: 2, title: "旧标题二" },
+              ],
+            },
+          ],
+        }),
+        updateVolumeWorkspace: async (_novelId, payload) => {
+          updates.push(payload);
+          return payload;
+        },
+        cancelPipelineJob: async () => null,
+      },
+    });
+  } finally {
+    prisma.$transaction = originals.transaction;
+    prisma.chapter.deleteMany = originals.chapterDeleteMany;
+  }
+
+  assert.equal(updates.length, 1);
+  assert.deepEqual(updates[0].volumes, []);
+  assert.equal(updates[0].strategyPlan, null);
+  assert.deepEqual(updates[0].beatSheets, []);
+  assert.deepEqual(deletedOrders, [[1, 2]]);
+});
+
+test("resetDirectorTakeoverCurrentStep clears all downstream planning outputs when restarting story macro", async () => {
+  const updates = [];
+  const deletedOrders = [];
+  const calls = [];
+  const originals = {
+    transaction: prisma.$transaction,
+    chapterDeleteMany: prisma.chapter.deleteMany,
+  };
+
+  prisma.$transaction = async (callback) => callback({
+    bookContract: { deleteMany: async () => calls.push("bookContract") },
+    storyMacroPlan: { deleteMany: async () => calls.push("storyMacroPlan") },
+    characterCastOption: { deleteMany: async () => calls.push("characterCastOption") },
+    characterCandidate: { deleteMany: async () => calls.push("characterCandidate") },
+    characterRelation: { deleteMany: async () => calls.push("characterRelation") },
+    character: { deleteMany: async () => calls.push("character") },
+  });
+  prisma.chapter.deleteMany = async ({ where }) => {
+    deletedOrders.push(where.order.in);
+    return { count: where.order.in.length };
+  };
+
+  try {
+    await resetDirectorTakeoverCurrentStep({
+      novelId: "novel-1",
+      plan: {
+        entryStep: "story_macro",
+        strategy: "restart_current_step",
+        effectiveStep: "story_macro",
+        effectiveStage: "story_macro",
+      },
+      takeoverState: buildTakeoverState(),
+      deps: {
+        getVolumeWorkspace: async () => ({
+          strategyPlan: { summary: "旧卷战略" },
+          critiqueReport: null,
+          beatSheets: [{ volumeId: "volume-1", beats: [{ key: "old_beat" }] }],
+          rebalanceDecisions: [{ anchorVolumeId: "volume-1", affectedVolumeId: "volume-2" }],
+          volumes: [
+            {
+              id: "volume-1",
+              sortOrder: 1,
+              chapters: [
+                { chapterOrder: 1, title: "旧标题一" },
+                { chapterOrder: 2, title: "旧标题二" },
+              ],
+            },
+          ],
+        }),
+        updateVolumeWorkspace: async (_novelId, payload) => {
+          updates.push(payload);
+          return payload;
+        },
+        cancelPipelineJob: async () => null,
+      },
+    });
+  } finally {
+    prisma.$transaction = originals.transaction;
+    prisma.chapter.deleteMany = originals.chapterDeleteMany;
+  }
+
+  assert.deepEqual(calls, [
+    "bookContract",
+    "storyMacroPlan",
+    "characterCastOption",
+    "characterCandidate",
+    "characterRelation",
+    "character",
+  ]);
+  assert.equal(updates.length, 1);
+  assert.deepEqual(updates[0].volumes, []);
+  assert.equal(updates[0].strategyPlan, null);
+  assert.deepEqual(updates[0].beatSheets, []);
+  assert.deepEqual(deletedOrders, [[1, 2]]);
+});
+
