@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buildReplanRecommendationFromAuditReports } from "../chapterPlanning.shared";
@@ -13,6 +14,59 @@ import {
   type QueueFilterKey,
 } from "./chapterExecution.shared";
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
+
+type ChapterResourceContextItem = NonNullable<ChapterTabViewProps["chapterResourceContext"]>["availableItems"][number];
+
+function getResourceStatusLabel(status: ChapterResourceContextItem["status"]): string {
+  const labels: Record<ChapterResourceContextItem["status"], string> = {
+    available: "可用",
+    hidden: "隐藏",
+    borrowed: "借用",
+    transferred: "转交",
+    lost: "丢失",
+    consumed: "已消耗",
+    damaged: "受损",
+    destroyed: "毁坏",
+    stale: "淡出",
+  };
+  return labels[status] ?? status;
+}
+
+function getResourceLine(item: ChapterResourceContextItem): string {
+  const holder = item.holderCharacterName ? `${item.holderCharacterName}持有` : "持有者待确认";
+  const window = item.expectedUseEndChapterOrder
+    ? `第${item.expectedUseStartChapterOrder ?? "?"}章至第${item.expectedUseEndChapterOrder}章`
+    : "";
+  return [holder, getResourceStatusLabel(item.status), window].filter(Boolean).join(" · ");
+}
+
+function ResourceGroup(props: {
+  title: string;
+  items: ChapterResourceContextItem[];
+  emptyText: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border/70 bg-background p-3">
+      <div className="text-xs font-medium text-muted-foreground">{props.title}</div>
+      {props.items.length > 0 ? (
+        <div className="mt-2 space-y-2">
+          {props.items.slice(0, 4).map((item) => (
+            <div key={item.id} className="rounded-md border border-border/60 bg-muted/15 p-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium">{item.name}</span>
+                <Badge variant="outline">{getResourceStatusLabel(item.status)}</Badge>
+              </div>
+              <div className="mt-1 text-xs leading-5 text-muted-foreground">{item.summary}</div>
+              <div className="mt-1 text-[11px] text-muted-foreground">{getResourceLine(item)}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-2 text-xs leading-5 text-muted-foreground">{props.emptyText}</div>
+      )}
+    </div>
+  );
+}
 
 export default function ChapterManagementTab(props: ChapterTabViewProps) {
   const {
@@ -64,6 +118,13 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     chapterPlan,
     latestStateSnapshot,
     chapterStateSnapshot,
+    chapterResourceContext,
+    isLoadingChapterResourceContext,
+    pendingCharacterResourceProposals = [],
+    onConfirmCharacterResourceProposal,
+    onRejectCharacterResourceProposal,
+    confirmingCharacterResourceProposalId = "",
+    rejectingCharacterResourceProposalId = "",
     chapterAuditReports,
     backgroundSyncActivities,
     isGeneratingChapterPlan,
@@ -157,6 +218,81 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
             <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>去角色管理</Button>
           </div>
         ) : null}
+
+        <div className="rounded-xl border border-border/70 bg-muted/10 p-4">
+          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+            <div>
+              <div className="text-sm font-medium">本章关键资源</div>
+              <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                {isLoadingChapterResourceContext
+                  ? "资源边界读取中。"
+                  : chapterResourceContext?.summary ?? "选择章节后，这里会提示可用资源、需要铺垫的资源和不能提前使用的资源。"}
+              </div>
+            </div>
+            {pendingCharacterResourceProposals.length > 0 ? (
+              <Badge variant="secondary">{pendingCharacterResourceProposals.length} 条待确认</Badge>
+            ) : null}
+          </div>
+
+          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <ResourceGroup
+              title="可用资源"
+              items={chapterResourceContext?.availableItems ?? []}
+              emptyText="没有需要特别依赖的可用资源。"
+            />
+            <ResourceGroup
+              title="需要铺垫"
+              items={chapterResourceContext?.setupNeededItems ?? []}
+              emptyText="没有必须先铺垫的资源。"
+            />
+            <ResourceGroup
+              title="不能提前使用"
+              items={chapterResourceContext?.blockedItems ?? []}
+              emptyText="没有被消耗、丢失或毁坏的关键资源。"
+            />
+            <ResourceGroup
+              title="缺失或待确认"
+              items={chapterResourceContext?.pendingReviewItems ?? []}
+              emptyText="没有需要你确认的高风险资源。"
+            />
+          </div>
+
+          {pendingCharacterResourceProposals.length > 0 ? (
+            <div className="mt-3 space-y-2">
+              <div className="text-xs font-medium text-muted-foreground">资源变更待确认</div>
+              {pendingCharacterResourceProposals.slice(0, 3).map((proposal) => (
+                <div key={proposal.id} className="flex flex-col gap-2 rounded-lg border border-border/70 bg-background p-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium">{proposal.summary}</div>
+                    <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                      确认后会影响后续写作；忽略后系统不会把这条资源变化写入角色账本。
+                    </div>
+                    {proposal.evidence[0] ? (
+                      <div className="mt-1 text-[11px] text-muted-foreground">证据：{proposal.evidence[0]}</div>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => onConfirmCharacterResourceProposal?.(proposal.id)}
+                      disabled={confirmingCharacterResourceProposalId === proposal.id}
+                    >
+                      {confirmingCharacterResourceProposalId === proposal.id ? "确认中..." : "确认"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onRejectCharacterResourceProposal?.(proposal.id)}
+                      disabled={rejectingCharacterResourceProposalId === proposal.id}
+                    >
+                      {rejectingCharacterResourceProposalId === proposal.id ? "处理中..." : "忽略"}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
 
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
           <div className="w-full xl:w-[300px] xl:flex-none">

@@ -3,7 +3,7 @@ import type {
   DynamicCharacterOverview,
 } from "@ai-novel/shared/types/characterDynamics";
 import { prisma } from "../../../db/prisma";
-import { compareDynamicRows } from "./characterDynamicsShared";
+import { compareDynamicRows, PROJECTION_SOURCE_TYPES } from "./characterDynamicsShared";
 import {
   buildOverviewItem,
   buildOverviewSummary,
@@ -93,7 +93,15 @@ export class CharacterDynamicsQueryService {
           })
         : Promise.resolve([]),
       prisma.characterFactionTrack.findMany({
-        where: { novelId },
+        where: {
+          novelId,
+          OR: [
+            { sourceType: { notIn: PROJECTION_SOURCE_TYPES } },
+            ...(currentVolume?.id
+              ? [{ sourceType: { in: PROJECTION_SOURCE_TYPES }, volumeId: currentVolume.id }]
+              : []),
+          ],
+        },
         include: {
           volume: {
             select: { title: true },
@@ -102,7 +110,16 @@ export class CharacterDynamicsQueryService {
         orderBy: [{ chapterOrder: "desc" }, { updatedAt: "desc" }],
       }),
       prisma.characterRelationStage.findMany({
-        where: { novelId, isCurrent: true },
+        where: {
+          novelId,
+          isCurrent: true,
+          OR: [
+            { sourceType: { notIn: PROJECTION_SOURCE_TYPES } },
+            ...(currentVolume?.id
+              ? [{ sourceType: { in: PROJECTION_SOURCE_TYPES }, volumeId: currentVolume.id }]
+              : []),
+          ],
+        },
         include: {
           sourceCharacter: { select: { name: true } },
           targetCharacter: { select: { name: true } },

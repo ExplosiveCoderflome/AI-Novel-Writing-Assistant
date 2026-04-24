@@ -186,6 +186,10 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/novel/characterDynamics.prompts").volumeDynamicsProjectionPrompt as UnknownPromptAsset,
   },
   {
+    key: "novel.character_resource.extract_updates@v1",
+    load: () => require("./prompts/novel/characterResource.prompts").characterResourceExtractionPrompt as UnknownPromptAsset,
+  },
+  {
     key: "novel.character.castOptions@v2",
     load: () => require("./prompts/novel/characterPreparation.prompts").characterCastOptionPrompt as UnknownPromptAsset,
   },

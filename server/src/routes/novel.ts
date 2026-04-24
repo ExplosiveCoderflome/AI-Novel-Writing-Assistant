@@ -13,6 +13,7 @@ import { registerNovelChapterRoutes } from "./novelChapterRoutes";
 import { registerNovelChapterGenerationRoutes } from "./novelChapterGeneration";
 import { registerNovelCharacterDynamicsRoutes } from "./novelCharacterDynamicsRoutes";
 import { registerNovelCharacterPreparationRoutes } from "./novelCharacterPreparationRoutes";
+import { registerNovelCharacterResourceRoutes } from "./novelCharacterResourceRoutes";
 import { registerNovelFramingRoutes } from "./novelFramingRoutes";
 import { registerNovelPlanningRoutes } from "./novelPlanningRoutes";
 import { registerNovelProductionRoutes } from "./novelProductionRoutes";
@@ -602,6 +603,11 @@ registerNovelCharacterDynamicsRoutes({
 registerNovelCharacterPreparationRoutes({
   router,
   novelService,
+  idParamsSchema,
+});
+
+registerNovelCharacterResourceRoutes({
+  router,
   idParamsSchema,
 });
 

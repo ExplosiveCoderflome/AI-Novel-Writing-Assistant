@@ -1,5 +1,7 @@
 import { prisma } from "../../../db/prisma";
+import type { StateChangeProposal } from "@ai-novel/shared/types/canonicalState";
 import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
+import { characterResourceExtractionService } from "../characterResource/CharacterResourceExtractionService";
 import { payoffLedgerSyncService } from "../../payoff/PayoffLedgerSyncService";
 import { stateService } from "../../state/StateService";
 import { stateCommitService } from "../state/StateCommitService";
@@ -83,6 +85,24 @@ export class ChapterArtifactBackgroundSyncService {
 
     await Promise.allSettled([stateSyncPromise, dynamicsSyncPromise]);
 
+    let characterResourceProposals: StateChangeProposal[] = [];
+    await this.runTrackedActivity(novelId, context, "character_resources", async () => {
+      characterResourceProposals = await characterResourceExtractionService.extractChapterResourceProposals({
+        novelId,
+        chapterId,
+        chapterOrder: chapter.order,
+        sourceType: "chapter_background_sync",
+        sourceStage: "chapter_execution",
+      });
+    }).catch((error) => {
+      console.warn("[chapter-artifact-background-sync] character resource extraction skipped", {
+        novelId,
+        chapterId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      characterResourceProposals = [];
+    });
+
     if (isBatchBoundary || changeFlags.introducedPayoff || changeFlags.payoffResolutionSignal) {
       await this.runTrackedActivity(novelId, context, "payoff_ledger", async () => {
         await payoffLedgerSyncService.syncLedger(novelId, {
@@ -99,6 +119,7 @@ export class ChapterArtifactBackgroundSyncService {
         chapterOrder: chapter.order,
         sourceType: "chapter_background_sync",
         sourceStage: "chapter_execution",
+        proposals: characterResourceProposals,
       });
     });
   }

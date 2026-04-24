@@ -23,7 +23,7 @@ export type ChapterExecutionFlowStageKey =
   | "payoff_sync"
   | "ready";
 export type ChapterExecutionFlowStageStatus = "not_started" | "in_progress" | "done";
-export type ChapterExecutionBackgroundActivityKind = "character_dynamics" | "state_snapshot" | "payoff_ledger";
+export type ChapterExecutionBackgroundActivityKind = "character_dynamics" | "state_snapshot" | "payoff_ledger" | "character_resources";
 export type ChapterExecutionBackgroundActivityStatus = "running" | "failed";
 
 export interface ChapterExecutionBackgroundActivity {
@@ -109,6 +109,20 @@ function hasRuntimeLedgerData(runtimePackage: ChapterRuntimePackage | null | und
   );
 }
 
+function hasRuntimeResourceData(runtimePackage: ChapterRuntimePackage | null | undefined): boolean {
+  const context = runtimePackage?.context.characterResourceContext;
+  return Boolean(
+    context
+    && (
+      context.availableItems.length > 0
+      || context.setupNeededItems.length > 0
+      || context.blockedItems.length > 0
+      || context.pendingReviewItems.length > 0
+      || context.riskSignals.length > 0
+    ),
+  );
+}
+
 function buildCurrentStageNote(stage: ChapterExecutionFlowStage): string {
   switch (stage.key) {
     case "execution_plan":
@@ -129,8 +143,8 @@ function buildCurrentStageNote(stage: ChapterExecutionFlowStage): string {
         : "如果审核发现问题，这里会进入修复阶段。";
     case "state_sync":
       return stage.status === "in_progress"
-        ? "系统正在同步本章状态快照与角色变化。"
-        : "正文处理完成后，系统会同步本章状态。";
+        ? "系统正在同步本章状态快照、角色变化和关键资源。"
+        : "正文处理完成后，系统会同步本章状态和关键资源。";
     case "payoff_sync":
       return stage.status === "in_progress"
         ? "系统正在回填本章涉及的伏笔状态。"
@@ -214,8 +228,9 @@ export function resolveChapterExecutionFlow(input: ResolveChapterExecutionFlowIn
           key,
           label,
           status: hasBackgroundActivity(input.backgroundActivities, "state_snapshot", chapterId)
+            || hasBackgroundActivity(input.backgroundActivities, "character_resources", chapterId)
             ? "in_progress"
-            : currentStateSnapshot
+            : (currentStateSnapshot || hasRuntimeResourceData(input.chapterRuntimePackage))
               ? "done"
               : "not_started",
         };

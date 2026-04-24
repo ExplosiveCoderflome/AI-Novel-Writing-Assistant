@@ -398,6 +398,115 @@ function createContextPackage() {
       failedCount: 0,
       updatedAt: now,
     },
+    characterResourceContext: {
+      summary: "可用关键资源 1 项；需要留意铺垫 1 项；不可直接使用 1 项",
+      availableItems: [{
+        id: "resource-1",
+        novelId: "novel-1",
+        resourceKey: "service-key:char-1",
+        name: "维修通道钥匙",
+        summary: "主角持有能打开维修通道的钥匙。",
+        resourceType: "credential",
+        narrativeFunction: "key",
+        ownerType: "character",
+        ownerId: "char-1",
+        ownerName: "主角",
+        ownerCharacterId: "char-1",
+        holderCharacterId: "char-1",
+        holderCharacterName: "主角",
+        status: "available",
+        readerKnows: true,
+        holderKnows: true,
+        knownByCharacterIds: ["char-1"],
+        introducedChapterId: "chapter-4",
+        introducedChapterOrder: 4,
+        lastTouchedChapterId: "chapter-4",
+        lastTouchedChapterOrder: 4,
+        expectedUseStartChapterOrder: 5,
+        expectedUseEndChapterOrder: 6,
+        constraints: ["只能打开维修通道"],
+        riskSignals: [],
+        sourceRefs: [],
+        evidence: [{ summary: "主角收起维修通道钥匙。", chapterId: "chapter-4", chapterOrder: 4 }],
+        confidence: 0.9,
+        createdAt: now,
+        updatedAt: now,
+      }],
+      setupNeededItems: [{
+        id: "resource-2",
+        novelId: "novel-1",
+        resourceKey: "hidden-ledger:char-2",
+        name: "女二暗账副本",
+        summary: "女二掌握的暗账副本还没有公开给主角。",
+        resourceType: "clue",
+        narrativeFunction: "proof",
+        ownerType: "character",
+        ownerId: "char-2",
+        ownerName: "女二",
+        ownerCharacterId: "char-2",
+        holderCharacterId: "char-2",
+        holderCharacterName: "女二",
+        status: "hidden",
+        readerKnows: true,
+        holderKnows: true,
+        knownByCharacterIds: ["char-2"],
+        introducedChapterId: "chapter-4",
+        introducedChapterOrder: 4,
+        lastTouchedChapterId: "chapter-4",
+        lastTouchedChapterOrder: 4,
+        expectedUseStartChapterOrder: 5,
+        expectedUseEndChapterOrder: 7,
+        constraints: ["主角不能提前知道副本内容"],
+        riskSignals: [],
+        sourceRefs: [],
+        evidence: [{ summary: "女二没有把暗账副本交给主角。", chapterId: "chapter-4", chapterOrder: 4 }],
+        confidence: 0.82,
+        createdAt: now,
+        updatedAt: now,
+      }],
+      blockedItems: [{
+        id: "resource-3",
+        novelId: "novel-1",
+        resourceKey: "old-pass:char-1",
+        name: "旧通行证",
+        summary: "旧通行证在上一章被烧毁。",
+        resourceType: "credential",
+        narrativeFunction: "key",
+        ownerType: "character",
+        ownerId: "char-1",
+        ownerName: "主角",
+        ownerCharacterId: "char-1",
+        holderCharacterId: "char-1",
+        holderCharacterName: "主角",
+        status: "destroyed",
+        readerKnows: true,
+        holderKnows: true,
+        knownByCharacterIds: ["char-1"],
+        introducedChapterId: "chapter-2",
+        introducedChapterOrder: 2,
+        lastTouchedChapterId: "chapter-4",
+        lastTouchedChapterOrder: 4,
+        expectedUseStartChapterOrder: null,
+        expectedUseEndChapterOrder: null,
+        constraints: ["不能再用旧通行证进入内门"],
+        riskSignals: [{
+          code: "resource_destroyed_reuse",
+          severity: "high",
+          summary: "旧通行证已毁坏，不能无铺垫复用。",
+        }],
+        sourceRefs: [],
+        evidence: [{ summary: "旧通行证被火烧成灰。", chapterId: "chapter-4", chapterOrder: 4 }],
+        confidence: 0.94,
+        createdAt: now,
+        updatedAt: now,
+      }],
+      pendingReviewItems: [],
+      riskSignals: [{
+        code: "resource_destroyed_reuse",
+        severity: "high",
+        summary: "旧通行证已毁坏，不能无铺垫复用。",
+      }],
+    },
     chapterMission: null,
     chapterWriteContext: null,
     chapterReviewContext: null,
@@ -442,10 +551,13 @@ test("chapter layered contexts carry volume mission, character duties and repair
   assert.ok(reviewContext.structureObligations.some((item) => item.includes("pending payoff: 女二情报钥匙")));
   assert.ok(reviewContext.structureObligations.some((item) => item.includes("urgent payoff: 黑市账户异常")));
   assert.ok(reviewContext.structureObligations.some((item) => item.includes("overdue payoff: 第一次反压收益")));
+  assert.ok(reviewContext.structureObligations.some((item) => item.includes("resource setup needed: 女二暗账副本")));
+  assert.ok(reviewContext.structureObligations.some((item) => item.includes("resource unavailable: 旧通行证")));
   assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("Pending character candidates remain read-only")));
   assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("女二")));
   assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("urgent payoff thread: 黑市账户异常")));
   assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("overdue payoff pressure: 第一次反压收益")));
+  assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("Patch resource continuity before using 旧通行证")));
 
   const writerBlocks = buildChapterWriterContextBlocks(writeContext);
   const reviewBlocks = buildChapterReviewContextBlocks(reviewContext);
@@ -458,9 +570,14 @@ test("chapter layered contexts carry volume mission, character duties and repair
   )));
   assert.ok(writerBlocks.some((block) => (
     block.id === "payoff_ledger"
-    && /Payoff ledger summary: pending=1, urgent=1, overdue=1, paid_off=0/.test(block.content)
-    && /Canonical pending payoffs/.test(block.content)
+    && /Payoff ledger summary: pending=1, urgent=1, overdue=1/.test(block.content)
+    && /Active pending payoffs/.test(block.content)
     && /Overdue payoffs/.test(block.content)
+  )));
+  assert.ok(writerBlocks.some((block) => (
+    block.id === "character_resource_context"
+    && /维修通道钥匙/.test(block.content)
+    && /旧通行证/.test(block.content)
   )));
   assert.ok(reviewBlocks.some((block) => (
     block.id === "character_dynamics"

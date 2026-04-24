@@ -43,6 +43,11 @@ import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { NovelExportDownloadFormat } from "@ai-novel/shared/types/novelExport";
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
+import type {
+  CharacterResourceContext,
+  CharacterResourceLedgerItem,
+  CharacterResourceProposalSummary,
+} from "@ai-novel/shared/types/characterResource";
 import type { StoryWorldSliceOverrides, StoryWorldSliceView } from "@ai-novel/shared/types/storyWorldSlice";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import type { ChapterExecutionBackgroundActivity } from "./chapterExecution.shared";
@@ -316,6 +321,13 @@ export interface ChapterTabViewProps {
   chapterPlan?: StoryPlan | null;
   latestStateSnapshot?: StoryStateSnapshot | null;
   chapterStateSnapshot?: StoryStateSnapshot | null;
+  chapterResourceContext?: CharacterResourceContext | null;
+  isLoadingChapterResourceContext?: boolean;
+  pendingCharacterResourceProposals?: CharacterResourceProposalSummary[];
+  onConfirmCharacterResourceProposal?: (proposalId: string) => void;
+  onRejectCharacterResourceProposal?: (proposalId: string) => void;
+  confirmingCharacterResourceProposalId?: string;
+  rejectingCharacterResourceProposalId?: string;
   chapterAuditReports: AuditReport[];
   backgroundSyncActivities?: ChapterExecutionBackgroundActivity[];
   isGeneratingChapterPlan: boolean;
@@ -452,6 +464,8 @@ export interface CharacterTabViewProps {
   onWorldCheck: () => void;
   isCheckingWorld: boolean;
   selectedCharacter?: Character;
+  characterResources?: CharacterResourceLedgerItem[];
+  pendingCharacterResourceCount?: number;
   characterForm: {
     name: string;
     role: string;

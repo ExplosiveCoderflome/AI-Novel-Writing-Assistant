@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { canonicalCharacterResourceSummarySchema } from "./characterResource";
 
 export const canonicalStateRiskLevelSchema = z.enum(["low", "medium", "high"]);
 export const stateChangeProposalStatusSchema = z.enum(["validated", "pending_review", "committed", "rejected"]);
@@ -9,6 +10,7 @@ export const stateChangeProposalTypeSchema = z.enum([
   "information_disclosure",
   "conflict_update",
   "payoff_progression",
+  "character_resource_update",
   "world_rule_change",
   "book_contract_change",
 ]);
@@ -53,6 +55,7 @@ export const canonicalCharacterRuntimeStateSchema = z.object({
   emotion: z.string().nullable().optional(),
   knownFacts: z.array(z.string()).default([]),
   relationStageLabels: z.array(z.string()).default([]),
+  resources: z.array(canonicalCharacterResourceSummarySchema).default([]),
   summary: z.string().nullable().optional(),
   lastEventSummary: z.string().nullable().optional(),
 });
