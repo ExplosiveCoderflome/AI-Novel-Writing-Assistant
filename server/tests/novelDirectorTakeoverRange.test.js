@@ -24,6 +24,7 @@ function createWorkspace() {
           mustAvoid: "",
           payoffRefs: [],
           taskSheet: `第${index + 1}章任务单`,
+          sceneCards: `第${index + 1}章场景卡`,
         })),
       },
       {
@@ -40,6 +41,7 @@ function createWorkspace() {
           mustAvoid: "",
           payoffRefs: [],
           taskSheet: `第${index + 31}章任务单`,
+          sceneCards: `第${index + 31}章场景卡`,
         })),
       },
     ],

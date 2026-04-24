@@ -123,7 +123,10 @@ function hasPreparedOutlineChapterDetailMode(
     return false;
   }
   return detailMode === "task_sheet"
-    ? Boolean(chapter.taskSheet?.trim()) && Boolean(chapter.sceneCards?.trim())
+    ? Boolean(chapter.purpose?.trim())
+      && hasPreparedOutlineChapterBoundary(chapter)
+      && Boolean(chapter.taskSheet?.trim())
+      && Boolean(chapter.sceneCards?.trim())
     : false;
 }
 
@@ -306,6 +309,102 @@ function resolveVolumeChapterListCursor(input: {
   };
 }
 
+function resolveSelectedOutlineDetailProgress(input: {
+  workspace: VolumePlanDocument;
+  selectedChapters: PreparedOutlineChapterRef[];
+  targetVolumeId?: string | null;
+}): {
+  totalDetailSteps: number;
+  completedDetailSteps: number;
+  completedChapterCount: number;
+  nextChapterIndex: number | null;
+  nextChapter: PreparedOutlineChapterRef | null;
+  nextDetailMode: StructuredOutlineDetailMode | null;
+} {
+  const totalDetailSteps = input.selectedChapters.length * DIRECTOR_CHAPTER_DETAIL_MODES.length;
+  let completedDetailSteps = 0;
+  let completedChapterCount = 0;
+  let nextChapterIndex: number | null = null;
+  let nextChapter: PreparedOutlineChapterRef | null = null;
+  let nextDetailMode: StructuredOutlineDetailMode | null = null;
+
+  for (const [chapterIndex, chapterRef] of input.selectedChapters.entries()) {
+    const chapter = findPreparedOutlineChapterDetail(input.workspace, chapterRef);
+    let chapterComplete = true;
+    for (const detailMode of DIRECTOR_CHAPTER_DETAIL_MODES) {
+      if (hasPreparedOutlineChapterDetailMode(chapter, detailMode)) {
+        completedDetailSteps += 1;
+        continue;
+      }
+      chapterComplete = false;
+      if (
+        nextChapterIndex == null
+        && (!input.targetVolumeId || chapterRef.volumeId === input.targetVolumeId)
+      ) {
+        nextChapterIndex = chapterIndex;
+        nextChapter = chapterRef;
+        nextDetailMode = detailMode;
+      }
+      break;
+    }
+    if (chapterComplete) {
+      completedChapterCount += 1;
+    }
+  }
+
+  return {
+    totalDetailSteps,
+    completedDetailSteps,
+    completedChapterCount,
+    nextChapterIndex,
+    nextChapter,
+    nextDetailMode,
+  };
+}
+
+function buildStructuredOutlineDetailCursor(input: {
+  normalizedPlan: DirectorAutoExecutionPlan;
+  requiredVolumes: VolumePlan[];
+  preparedVolumeIds: string[];
+  selectedChapters: PreparedOutlineChapterRef[];
+  selectedChapterRange: { startOrder: number; endOrder: number } | null;
+  detailProgress: ReturnType<typeof resolveSelectedOutlineDetailProgress>;
+}): StructuredOutlineRecoveryCursor | null {
+  const { nextChapter, nextDetailMode } = input.detailProgress;
+  if (!nextChapter || !nextDetailMode) {
+    return null;
+  }
+
+  const scopeLabel = buildDirectorAutoExecutionScopeLabel(
+    input.normalizedPlan,
+    input.selectedChapterRange
+      ? countDirectorAutoExecutionChapterRange(input.selectedChapterRange)
+      : input.selectedChapters.length,
+    input.normalizedPlan.mode === "volume" ? input.selectedChapters[0]?.volumeTitle ?? null : null,
+  );
+
+  return {
+    step: "chapter_detail_bundle",
+    scopeLabel,
+    requiredVolumes: input.requiredVolumes,
+    preparedVolumeIds: input.preparedVolumeIds,
+    selectedChapters: input.selectedChapters,
+    totalChapterCount: input.selectedChapters.length,
+    completedChapterCount: input.detailProgress.completedChapterCount,
+    totalDetailSteps: input.detailProgress.totalDetailSteps,
+    completedDetailSteps: input.detailProgress.completedDetailSteps,
+    nextChapterIndex: input.detailProgress.nextChapterIndex,
+    volumeId: nextChapter.volumeId,
+    volumeOrder: nextChapter.volumeOrder,
+    volumeTitle: nextChapter.volumeTitle,
+    beatKey: null,
+    beatLabel: null,
+    chapterId: nextChapter.id,
+    chapterOrder: nextChapter.chapterOrder,
+    detailMode: nextDetailMode,
+  };
+}
+
 export function resolveStructuredOutlineRecoveryCursor(input: {
   workspace: VolumePlanDocument;
   plan?: DirectorAutoExecutionPlan | null;
@@ -313,6 +412,8 @@ export function resolveStructuredOutlineRecoveryCursor(input: {
 }): StructuredOutlineRecoveryCursor {
   const normalizedPlan = normalizeDirectorAutoExecutionPlan(input.plan);
   const requiredVolumes = resolveRequiredVolumes(input.workspace, normalizedPlan);
+  const selectedChapters = selectPreparedOutlineChapters(input.workspace, normalizedPlan);
+  const selectedChapterRange = resolveDirectorAutoExecutionPlanChapterRange(normalizedPlan);
   const preparedVolumeIds: string[] = [];
   const shouldValidateFullVolumeBudget = normalizedPlan.mode === "volume";
   const expectedChapterBudgets = shouldValidateFullVolumeBudget
@@ -370,10 +471,24 @@ export function resolveStructuredOutlineRecoveryCursor(input: {
     }
 
     preparedVolumeIds.push(volume.id);
+
+    const detailCursor = buildStructuredOutlineDetailCursor({
+      normalizedPlan,
+      requiredVolumes,
+      preparedVolumeIds,
+      selectedChapters,
+      selectedChapterRange,
+      detailProgress: resolveSelectedOutlineDetailProgress({
+        workspace: input.workspace,
+        selectedChapters,
+        targetVolumeId: volume.id,
+      }),
+    });
+    if (detailCursor) {
+      return detailCursor;
+    }
   }
 
-  const selectedChapters = selectPreparedOutlineChapters(input.workspace, normalizedPlan);
-  const selectedChapterRange = resolveDirectorAutoExecutionPlanChapterRange(normalizedPlan);
   if (selectedChapterRange) {
     const missingOrders = findMissingSelectedChapterOrders(selectedChapters, selectedChapterRange);
     if (missingOrders.length > 0) {
@@ -389,32 +504,21 @@ export function resolveStructuredOutlineRecoveryCursor(input: {
       }
     }
   }
-  const totalDetailSteps = selectedChapters.length * DIRECTOR_CHAPTER_DETAIL_MODES.length;
-  let completedDetailSteps = 0;
-  let completedChapterCount = 0;
-  let nextChapterIndex: number | null = null;
-  let nextChapter: PreparedOutlineChapterRef | null = null;
-  let nextDetailMode: StructuredOutlineDetailMode | null = null;
 
-  for (const [chapterIndex, chapterRef] of selectedChapters.entries()) {
-    const chapter = findPreparedOutlineChapterDetail(input.workspace, chapterRef);
-    let chapterComplete = true;
-    for (const detailMode of DIRECTOR_CHAPTER_DETAIL_MODES) {
-      if (hasPreparedOutlineChapterDetailMode(chapter, detailMode)) {
-        completedDetailSteps += 1;
-        continue;
-      }
-      chapterComplete = false;
-      if (nextChapterIndex == null) {
-        nextChapterIndex = chapterIndex;
-        nextChapter = chapterRef;
-        nextDetailMode = detailMode;
-      }
-      break;
-    }
-    if (chapterComplete) {
-      completedChapterCount += 1;
-    }
+  const detailProgress = resolveSelectedOutlineDetailProgress({
+    workspace: input.workspace,
+    selectedChapters,
+  });
+  const detailCursor = buildStructuredOutlineDetailCursor({
+    normalizedPlan,
+    requiredVolumes,
+    preparedVolumeIds,
+    selectedChapters,
+    selectedChapterRange,
+    detailProgress,
+  });
+  if (detailCursor) {
+    return detailCursor;
   }
 
   const scopeLabel = buildDirectorAutoExecutionScopeLabel(
@@ -423,29 +527,6 @@ export function resolveStructuredOutlineRecoveryCursor(input: {
     normalizedPlan.mode === "volume" ? selectedChapters[0]?.volumeTitle ?? null : null,
   );
 
-  if (nextChapter && nextDetailMode) {
-    return {
-      step: "chapter_detail_bundle",
-      scopeLabel,
-      requiredVolumes,
-      preparedVolumeIds,
-      selectedChapters,
-      totalChapterCount: selectedChapters.length,
-      completedChapterCount,
-      totalDetailSteps,
-      completedDetailSteps,
-      nextChapterIndex,
-      volumeId: nextChapter.volumeId,
-      volumeOrder: nextChapter.volumeOrder,
-      volumeTitle: nextChapter.volumeTitle,
-      beatKey: null,
-      beatLabel: null,
-      chapterId: nextChapter.id,
-      chapterOrder: nextChapter.chapterOrder,
-      detailMode: nextDetailMode,
-    };
-  }
-
   return {
     step: selectedChapters.length > 0 ? "chapter_sync" : "completed",
     scopeLabel,
@@ -453,9 +534,9 @@ export function resolveStructuredOutlineRecoveryCursor(input: {
     preparedVolumeIds,
     selectedChapters,
     totalChapterCount: selectedChapters.length,
-    completedChapterCount,
-    totalDetailSteps,
-    completedDetailSteps,
+    completedChapterCount: detailProgress.completedChapterCount,
+    totalDetailSteps: detailProgress.totalDetailSteps,
+    completedDetailSteps: detailProgress.completedDetailSteps,
     nextChapterIndex: null,
     volumeId: null,
     volumeOrder: null,

@@ -155,7 +155,11 @@ function resolvePipelineDirectorInput(input: {
   directorInput: DirectorConfirmRequest;
   plan: DirectorTakeoverResolvedPlan;
 }): DirectorConfirmRequest {
-  if (input.plan.strategy === "restart_current_step" && input.plan.effectiveStep === "outline") {
+  if (
+    input.plan.strategy === "restart_current_step"
+    && input.plan.effectiveStep === "outline"
+    && input.directorInput.runMode !== "auto_to_execution"
+  ) {
     return {
       ...input.directorInput,
       runMode: "stage_review",

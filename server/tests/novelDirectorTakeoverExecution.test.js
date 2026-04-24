@@ -183,6 +183,58 @@ test("restart_current_step at volume strategy pauses after the volume strategy p
   assert.equal(pipelineCalls[0].input.runMode, "stage_review");
 });
 
+test("restart_current_step at volume strategy preserves auto execution range mode", async () => {
+  const scheduled = [];
+  const pipelineCalls = [];
+  const requestedPlan = {
+    mode: "chapter_range",
+    startOrder: 1,
+    endOrder: 1292,
+    autoReview: true,
+    autoRepair: true,
+  };
+
+  const response = await startDirectorTakeoverExecution({
+    request: {
+      novelId: "novel_takeover_demo",
+      entryStep: "outline",
+      strategy: "restart_current_step",
+      autoExecutionPlan: requestedPlan,
+    },
+    takeoverState: buildTakeoverState(),
+    directorInput: {
+      candidate: { workingTitle: "Neon Archive" },
+      runMode: "auto_to_execution",
+      autoExecutionPlan: requestedPlan,
+    },
+    workflowService: {
+      bootstrapTask: async () => ({ id: "workflow_takeover_demo" }),
+      markTaskRunning: async () => {},
+    },
+    autoExecutionRuntime: {
+      runFromReady: async () => {
+        throw new Error("volume strategy restart should finish structured outline before auto execution starts");
+      },
+    },
+    buildDirectorSeedPayload: () => ({}),
+    scheduleBackgroundRun: (_taskId, runner) => {
+      scheduled.push(runner);
+    },
+    runDirectorPipeline: async (input) => {
+      pipelineCalls.push(input);
+    },
+    prepareRestartStep: async () => {},
+  });
+
+  assert.equal(response.effectiveStage, "volume_strategy");
+  assert.equal(scheduled.length, 1);
+  await scheduled[0]();
+  assert.equal(pipelineCalls.length, 1);
+  assert.equal(pipelineCalls[0].startPhase, "volume_strategy");
+  assert.equal(pipelineCalls[0].input.runMode, "auto_to_execution");
+  assert.deepEqual(pipelineCalls[0].input.autoExecutionPlan, requestedPlan);
+});
+
 test("startDirectorTakeoverExecution passes the requested range state instead of stale front10 state", async () => {
   const runtimeCalls = [];
 
