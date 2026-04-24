@@ -100,8 +100,7 @@ test("restart_current_step prepares reset before bootstrapping execution", async
 
   assert.equal(response.strategy, "restart_current_step");
   assert.equal(response.effectiveStage, "chapter_execution");
-  assert.deepEqual(calls.slice(0, 2), ["reset:chapter", "bootstrap"]);
-  assert.deepEqual(calls[2], ["prepare_auto_execution", null]);
+  assert.deepEqual(calls.slice(0, 4), ["reset:chapter", "bootstrap", "mark_running", "schedule"]);
   await Promise.all(scheduled.map((runner) => runner()));
   assert.ok(calls.includes("auto_execution"));
   assert.equal(runFromReadyInput.existingState, null);
@@ -140,6 +139,48 @@ test("continue_existing does not invoke restart preparation", async () => {
   });
 
   assert.equal(restartCalled, false);
+});
+
+test("restart_current_step at volume strategy pauses after the volume strategy phase in review mode", async () => {
+  const scheduled = [];
+  const pipelineCalls = [];
+
+  const response = await startDirectorTakeoverExecution({
+    request: {
+      novelId: "novel_takeover_demo",
+      entryStep: "outline",
+      strategy: "restart_current_step",
+    },
+    takeoverState: buildTakeoverState(),
+    directorInput: {
+      candidate: { workingTitle: "Neon Archive" },
+      runMode: "auto_to_ready",
+    },
+    workflowService: {
+      bootstrapTask: async () => ({ id: "workflow_takeover_demo" }),
+      markTaskRunning: async () => {},
+    },
+    autoExecutionRuntime: {
+      runFromReady: async () => {
+        throw new Error("volume strategy restart should not enter auto execution");
+      },
+    },
+    buildDirectorSeedPayload: () => ({}),
+    scheduleBackgroundRun: (_taskId, runner) => {
+      scheduled.push(runner);
+    },
+    runDirectorPipeline: async (input) => {
+      pipelineCalls.push(input);
+    },
+    prepareRestartStep: async () => {},
+  });
+
+  assert.equal(response.effectiveStage, "volume_strategy");
+  assert.equal(scheduled.length, 1);
+  await scheduled[0]();
+  assert.equal(pipelineCalls.length, 1);
+  assert.equal(pipelineCalls[0].startPhase, "volume_strategy");
+  assert.equal(pipelineCalls[0].input.runMode, "stage_review");
 });
 
 test("startDirectorTakeoverExecution passes the requested range state instead of stale front10 state", async () => {

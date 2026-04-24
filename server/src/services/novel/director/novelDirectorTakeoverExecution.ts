@@ -151,6 +151,31 @@ function buildAutoExecutionRunningState(plan: DirectorTakeoverResolvedPlan): {
   };
 }
 
+function resolvePipelineDirectorInput(input: {
+  directorInput: DirectorConfirmRequest;
+  plan: DirectorTakeoverResolvedPlan;
+}): DirectorConfirmRequest {
+  if (input.plan.strategy === "restart_current_step" && input.plan.effectiveStep === "outline") {
+    return {
+      ...input.directorInput,
+      runMode: "stage_review",
+    };
+  }
+  return input.directorInput;
+}
+
+function resolveAutoExecutionExistingState(input: {
+  takeoverState: DirectorTakeoverLoadedState;
+  plan: DirectorTakeoverResolvedPlan;
+}): DirectorAutoExecutionState | null {
+  if (input.plan.strategy === "restart_current_step") {
+    return input.takeoverState.requestedAutoExecutionState ?? null;
+  }
+  return input.takeoverState.requestedAutoExecutionState
+    ?? input.takeoverState.latestAutoExecutionState
+    ?? null;
+}
+
 export async function startDirectorTakeoverExecution(
   input: StartDirectorTakeoverExecutionInput,
 ): Promise<DirectorTakeoverResponse> {
@@ -207,12 +232,16 @@ export async function startDirectorTakeoverExecution(
   });
 
   if (plan.executionMode === "phase") {
+    const pipelineDirectorInput = resolvePipelineDirectorInput({
+      directorInput: input.directorInput,
+      plan,
+    });
     await input.workflowService.markTaskRunning(workflowTask.id, resolveDirectorRunningStateForPhase(plan.phase ?? plan.startPhase));
     input.scheduleBackgroundRun(workflowTask.id, async () => {
       await input.runDirectorPipeline({
         taskId: workflowTask.id,
         novelId: input.request.novelId,
-        input: input.directorInput,
+        input: pipelineDirectorInput,
         startPhase: plan.phase ?? plan.startPhase,
       });
     });
@@ -224,9 +253,10 @@ export async function startDirectorTakeoverExecution(
         novelId: input.request.novelId,
         request: input.directorInput,
         existingPipelineJobId: plan.usesCurrentBatch ? (input.takeoverState.activePipelineJob?.id ?? null) : null,
-        existingState: input.takeoverState.requestedAutoExecutionState
-          ?? input.takeoverState.latestAutoExecutionState
-          ?? null,
+        existingState: resolveAutoExecutionExistingState({
+          takeoverState: input.takeoverState,
+          plan,
+        }),
         resumeCheckpointType: plan.usesCurrentBatch ? (plan.resumeCheckpointType ?? null) : null,
         resumeStage: plan.resumeStage === "pipeline" ? "pipeline" : "chapter",
       });
