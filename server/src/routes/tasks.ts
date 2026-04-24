@@ -6,9 +6,13 @@ import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { recoveryTaskService } from "../services/task/RecoveryTaskService";
+import { AutoDirectorFollowUpActionExecutor } from "../services/task/autoDirectorFollowUps/AutoDirectorFollowUpActionExecutor";
+import { AutoDirectorFollowUpService } from "../services/task/autoDirectorFollowUps/AutoDirectorFollowUpService";
 import { taskCenterService } from "../services/task/TaskCenterService";
 
 const router = Router();
+const autoDirectorFollowUpService = new AutoDirectorFollowUpService();
+const autoDirectorFollowUpActionExecutor = new AutoDirectorFollowUpActionExecutor();
 
 const kindSchema = z.enum(["book_analysis", "novel_pipeline", "knowledge_document", "image_generation", "agent_run", "novel_workflow", "style_extraction"]);
 const statusSchema = z.enum(["queued", "running", "waiting_approval", "succeeded", "failed", "cancelled"]);
@@ -40,6 +44,20 @@ const recoveryTaskKindSchema = z.enum(["book_analysis", "novel_pipeline", "image
 const recoveryTaskParamsSchema = z.object({
   kind: recoveryTaskKindSchema,
   id: z.string().trim().min(1),
+});
+
+const autoDirectorFollowUpParamsSchema = z.object({
+  taskId: z.string().trim().min(1),
+});
+
+const autoDirectorFollowUpActionBodySchema = z.object({
+  actionCode: z.enum([
+    "continue_auto_execution",
+    "continue_generic",
+    "retry_with_task_model",
+    "retry_with_route_model",
+  ]),
+  idempotencyKey: z.string().trim().min(1),
 });
 
 router.use(authMiddleware);
@@ -92,6 +110,51 @@ router.post("/recovery-candidates/:kind/:id/resume", validate({ params: recovery
       data: { kind, id },
       message: "Recovery candidate resumed.",
     } satisfies ApiResponse<{ kind: typeof kind; id: string }>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/auto-director-follow-ups/:taskId", validate({ params: autoDirectorFollowUpParamsSchema }), async (req, res, next) => {
+  try {
+    const { taskId } = req.params as z.infer<typeof autoDirectorFollowUpParamsSchema>;
+    const data = await autoDirectorFollowUpService.getDetail(taskId);
+    if (!data) {
+      res.status(404).json({
+        success: false,
+        error: "Auto director follow-up not found.",
+      } satisfies ApiResponse<null>);
+      return;
+    }
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Auto director follow-up loaded.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/auto-director-follow-ups/:taskId/actions", validate({
+  params: autoDirectorFollowUpParamsSchema,
+  body: autoDirectorFollowUpActionBodySchema,
+}), async (req, res, next) => {
+  try {
+    const { taskId } = req.params as z.infer<typeof autoDirectorFollowUpParamsSchema>;
+    const body = req.body as z.infer<typeof autoDirectorFollowUpActionBodySchema>;
+    const data = await autoDirectorFollowUpActionExecutor.execute({
+      taskId,
+      actionCode: body.actionCode,
+      source: "web",
+      operatorId: "anonymous",
+      idempotencyKey: body.idempotencyKey,
+    });
+    res.status(200).json({
+      success: true,
+      data,
+      message: data.message,
+    } satisfies ApiResponse<typeof data>);
   } catch (error) {
     next(error);
   }

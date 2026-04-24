@@ -89,6 +89,7 @@ export const queryKeys = {
     list: (params: string) => ["tasks", "list", params] as const,
     detail: (kind: string, id: string) => ["tasks", "detail", kind, id] as const,
     recoveryCandidates: ["tasks", "recovery-candidates"] as const,
+    autoDirectorFollowUpDetail: (taskId: string) => ["tasks", "auto-director-follow-up", taskId] as const,
   },
   agentRuns: {
     list: (params: string) => ["agent-runs", "list", params] as const,
