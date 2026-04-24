@@ -323,6 +323,8 @@ export function classifyStructuredOutputFailure(input: {
       ? input.error
       : String(input.error ?? "");
   const rawContent = input.rawContent ?? "";
+  const lowerMessage = message.toLowerCase();
+  const trimmedRawContent = rawContent.trim().toLowerCase();
   const haystack = `${message}\n${rawContent}`.toLowerCase();
 
   if (
@@ -335,6 +337,36 @@ export function classifyStructuredOutputFailure(input: {
   }
   if (rawContent.includes("<think>") || rawContent.includes("</think>")) {
     return "thinking_pollution";
+  }
+  const rawLooksLikeHtmlPage = trimmedRawContent.startsWith("<!doctype")
+    || trimmedRawContent.startsWith("<html")
+    || trimmedRawContent.startsWith("<body")
+    || trimmedRawContent.startsWith("<head")
+    || trimmedRawContent.startsWith("<title");
+  const messageLooksLikeHtmlTransport = lowerMessage.includes("text/html")
+    || lowerMessage.includes("content-type: text/html")
+    || lowerMessage.includes("<!doctype")
+    || lowerMessage.includes("<html")
+    || lowerMessage.includes("<body")
+    || lowerMessage.includes("</div>")
+    || lowerMessage.includes("</script>")
+    || lowerMessage.includes("<title>403")
+    || lowerMessage.includes("<title>404")
+    || lowerMessage.includes("<title>429")
+    || lowerMessage.includes("<title>502")
+    || lowerMessage.includes("<title>503");
+  if (
+    rawLooksLikeHtmlPage
+    || messageLooksLikeHtmlTransport
+    || (
+      trimmedRawContent.startsWith("<")
+      && (
+        lowerMessage.includes("unexpected token '<'")
+        || lowerMessage.includes("is not valid json")
+      )
+    )
+  ) {
+    return "transport_error";
   }
   if (
     haystack.includes("未检测到完整 json 值")

@@ -222,4 +222,25 @@ test("structured failure classification separates native-json, thinking and sche
     classifyStructuredOutputFailure({ error: new Error("schema validation failed") }),
     "schema_mismatch",
   );
+  assert.equal(
+    classifyStructuredOutputFailure({
+      error: new Error("Unexpected token '<', \"<!doctype\" is not valid JSON"),
+      rawContent: "<!DOCTYPE html><html><head><title>429 Too Many Requests</title></head><body>rate limit</body></html>",
+    }),
+    "transport_error",
+  );
+  assert.equal(
+    classifyStructuredOutputFailure({
+      error: new Error("schema validation failed"),
+      rawContent: "{\"snippet\":\"<html>rendered fragment</html>\",\"value\":\"ok\"}",
+    }),
+    "schema_mismatch",
+  );
+  assert.equal(
+    classifyStructuredOutputFailure({
+      error: new Error("Expected ',' or '}' after property value"),
+      rawContent: "{\"snippet\":\"<html>rendered fragment</html>\"",
+    }),
+    "malformed_json",
+  );
 });

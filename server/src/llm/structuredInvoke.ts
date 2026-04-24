@@ -146,6 +146,24 @@ function tryParseStructuredJsonValue(source: string): { parsed: unknown } | { er
   }
 }
 
+function tryUnwrapSingletonArrayWrapper<T>(
+  parsed: unknown,
+  schema: ZodType<T>,
+): { data: T } | null {
+  if (!Array.isArray(parsed) || parsed.length !== 1 || schemaAllowsTopLevelArray(schema)) {
+    return null;
+  }
+
+  const unwrapped = schema.safeParse(parsed[0]);
+  if (!unwrapped.success) {
+    return null;
+  }
+
+  return {
+    data: unwrapped.data,
+  };
+}
+
 function formatZodErrors(error: ZodError): string {
   return error.issues
     .map((issue) => {
@@ -596,6 +614,20 @@ async function repairWithLlm<T>(
 
     const final = input.schema.safeParse(repairParse.parsed);
     if (!final.success) {
+      const unwrapped = tryUnwrapSingletonArrayWrapper(repairParse.parsed, input.schema);
+      if (unwrapped) {
+        logStructuredInvokeEvent({
+          event: "repair_unwrapped_singleton_array",
+          label: input.label,
+          provider: input.provider,
+          model: input.model,
+          taskType: input.taskType,
+          repairAttempt,
+          strategy: "prompt_json",
+        });
+        return unwrapped.data;
+      }
+
       const normalized = normalizeOversizedArrays(repairParse.parsed, final.error, input.schema);
       if (normalized) {
         logStructuredInvokeEvent({
@@ -697,6 +729,26 @@ export async function parseStructuredLlmRawContentDetailed<T>(
   if (first.success) {
     return {
       data: first.data,
+      repairUsed: false,
+      repairAttempts: 0,
+      diagnostics,
+    };
+  }
+
+  const unwrappedInitial = tryUnwrapSingletonArrayWrapper(parsed, runtimeSchema);
+  if (unwrappedInitial) {
+    logStructuredInvokeEvent({
+      event: "unwrapped_singleton_array",
+      label: input.label,
+      provider: input.provider,
+      model: input.model,
+      taskType: input.taskType,
+      strategy: input.strategy,
+      fallbackUsed: input.fallbackUsed,
+      reasoningForcedOff: input.reasoningForcedOff,
+    });
+    return {
+      data: unwrappedInitial.data,
       repairUsed: false,
       repairAttempts: 0,
       diagnostics,
@@ -1044,10 +1096,13 @@ export function summarizeStructuredOutputFailure(input: {
     ? input.error.category
     : extractStructuredOutputErrorCategory(message) ?? classifyStructuredOutputFailure({ error: input.error });
   const suffix = input.fallbackAvailable ? "，可考虑启用结构化备用模型。" : "。";
+  const incompleteJsonSummary = input.fallbackAvailable
+    ? "模型输出的 JSON 被截断或不完整，可能是输出被截断或 token 上限不足；建议先重试，必要时切换更强模型或启用结构化备用模型。"
+    : "模型输出的 JSON 被截断或不完整，可能是输出被截断或 token 上限不足；建议先重试，必要时切换更强模型。";
   const summaryMap: Record<StructuredOutputErrorCategory, string> = {
     unsupported_native_json: `当前模型端点不兼容原生 JSON 输出${suffix}`,
     thinking_pollution: `当前模型的思考内容污染了结构化输出${suffix}`,
-    incomplete_json: `模型输出的 JSON 被截断或不完整${suffix}`,
+    incomplete_json: incompleteJsonSummary,
     malformed_json: `模型输出的 JSON 格式不稳定${suffix}`,
     schema_mismatch: `模型输出未满足目标结构要求${suffix}`,
     transport_error: `结构化调用过程发生传输或服务端错误${suffix}`,

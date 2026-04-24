@@ -36,6 +36,159 @@ test("parseStructuredLlmRawContentDetailed recovers when repair output is trunca
   }
 });
 
+test("parseStructuredLlmRawContentDetailed unwraps singleton array wrappers for object schemas before repair", async () => {
+  const result = await structuredInvoke.parseStructuredLlmRawContentDetailed({
+    rawContent: JSON.stringify([{ value: "wrapped" }]),
+    schema: z.object({
+      value: z.string(),
+    }),
+    provider: "deepseek",
+    model: "deepseek-chat",
+    label: "structured.invoke.singleton.unwrap",
+    maxRepairAttempts: 0,
+    strategy: "prompt_json",
+    profile: resolveStructuredOutputProfile({
+      provider: "deepseek",
+      model: "deepseek-chat",
+      executionMode: "structured",
+    }),
+  });
+
+  assert.deepEqual(result.data, { value: "wrapped" });
+  assert.equal(result.repairUsed, false);
+  assert.equal(result.repairAttempts, 0);
+});
+
+test("parseStructuredLlmRawContentDetailed accepts markdown fenced JSON without invoking repair", async () => {
+  const result = await structuredInvoke.parseStructuredLlmRawContentDetailed({
+    rawContent: "```json\n{\"value\":\"fenced\"}\n```",
+    schema: z.object({
+      value: z.string(),
+    }),
+    provider: "deepseek",
+    model: "deepseek-chat",
+    label: "structured.invoke.fenced.json",
+    maxRepairAttempts: 0,
+    strategy: "prompt_json",
+    profile: resolveStructuredOutputProfile({
+      provider: "deepseek",
+      model: "deepseek-chat",
+      executionMode: "structured",
+    }),
+  });
+
+  assert.deepEqual(result.data, { value: "fenced" });
+  assert.equal(result.repairUsed, false);
+  assert.equal(result.repairAttempts, 0);
+});
+
+test("parseStructuredLlmRawContentDetailed preserves singleton arrays when schema expects a top-level array", async () => {
+  const result = await structuredInvoke.parseStructuredLlmRawContentDetailed({
+    rawContent: JSON.stringify([{ value: "wrapped" }]),
+    schema: z.array(z.object({
+      value: z.string(),
+    })).length(1),
+    provider: "deepseek",
+    model: "deepseek-chat",
+    label: "structured.invoke.singleton.array",
+    maxRepairAttempts: 0,
+    strategy: "prompt_json",
+    profile: resolveStructuredOutputProfile({
+      provider: "deepseek",
+      model: "deepseek-chat",
+      executionMode: "structured",
+    }),
+  });
+
+  assert.deepEqual(result.data, [{ value: "wrapped" }]);
+  assert.equal(result.repairUsed, false);
+  assert.equal(result.repairAttempts, 0);
+});
+
+test("parseStructuredLlmRawContentDetailed does not collapse multi-item arrays for object schemas", async () => {
+  await assert.rejects(async () => structuredInvoke.parseStructuredLlmRawContentDetailed({
+    rawContent: JSON.stringify([{ value: "first" }, { value: "second" }]),
+    schema: z.object({
+      value: z.string(),
+    }),
+    provider: "deepseek",
+    model: "deepseek-chat",
+    label: "structured.invoke.multi-item.array",
+    maxRepairAttempts: 0,
+    strategy: "prompt_json",
+    profile: resolveStructuredOutputProfile({
+      provider: "deepseek",
+      model: "deepseek-chat",
+      executionMode: "structured",
+    }),
+  }), /STRUCTURED_OUTPUT:schema_mismatch/i);
+});
+
+test("parseStructuredLlmRawContentDetailed surfaces schema mismatch for missing required fields", async () => {
+  await assert.rejects(async () => structuredInvoke.parseStructuredLlmRawContentDetailed({
+    rawContent: JSON.stringify({ value: "present" }),
+    schema: z.object({
+      value: z.string(),
+      requiredField: z.string(),
+    }),
+    provider: "deepseek",
+    model: "deepseek-chat",
+    label: "structured.invoke.missing.field",
+    maxRepairAttempts: 0,
+    strategy: "prompt_json",
+    profile: resolveStructuredOutputProfile({
+      provider: "deepseek",
+      model: "deepseek-chat",
+      executionMode: "structured",
+    }),
+  }), /STRUCTURED_OUTPUT:schema_mismatch/i);
+});
+
+test("parseStructuredLlmRawContentDetailed reports schema mismatch when AI repair still misses required fields", async () => {
+  const originalGetLLM = factory.getLLM;
+
+  factory.getLLM = async () => ({
+    invoke: async () => ({
+      content: "{\"value\":\"fixed\"}",
+    }),
+  });
+
+  try {
+    await assert.rejects(async () => structuredInvoke.parseStructuredLlmRawContentDetailed({
+      rawContent: "not valid json",
+      schema: z.object({
+        value: z.string(),
+        requiredField: z.string(),
+      }),
+      provider: "deepseek",
+      model: "deepseek-chat",
+      label: "structured.invoke.repair.schema-mismatch",
+      maxRepairAttempts: 1,
+      strategy: "prompt_json",
+      profile: resolveStructuredOutputProfile({
+        provider: "deepseek",
+        model: "deepseek-chat",
+        executionMode: "structured",
+      }),
+    }), /STRUCTURED_OUTPUT:schema_mismatch/i);
+  } finally {
+    factory.getLLM = originalGetLLM;
+  }
+});
+
+test("summarizeStructuredOutputFailure tells users to retry or switch models for incomplete JSON", () => {
+  const summary = structuredInvoke.summarizeStructuredOutputFailure({
+    error: new Error("Unexpected end of JSON input"),
+    fallbackAvailable: true,
+  });
+
+  assert.equal(summary.category, "incomplete_json");
+  assert.equal(summary.failureCode, "STRUCTURED_OUTPUT_INCOMPLETE_JSON");
+  assert.match(summary.summary, /截断|不完整/);
+  assert.match(summary.summary, /重试/);
+  assert.match(summary.summary, /更强模型|备用模型/);
+});
+
 test("invokeStructuredLlmDetailed degrades to prompt JSON before using fallback models", async () => {
   const originalResolveOptions = factory.resolveLLMClientOptions;
   const originalCreateLLM = factory.createLLMFromResolvedOptions;
