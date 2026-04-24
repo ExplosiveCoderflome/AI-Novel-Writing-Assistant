@@ -112,7 +112,7 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
 
   return (
     <Card className="border-border/70 bg-background/90">
-      <CardHeader className="pb-3">
+      <CardHeader className="px-0 pb-3 md:px-6">
         <div className="space-y-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
@@ -152,7 +152,7 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3 pt-0">
+      <CardContent className="space-y-3 px-0 pt-0 md:px-6">
         {selectedVolumeNeedsChapterExpansion ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-800">
             当前卷目前只有 {selectedVolumeChapters.length} 章，但节奏板已经排到 {selectedVolumeRequiredChapterCount} 章。需要先重新生成当前卷章节列表，后半段节奏才会真正映射到章节。
@@ -161,7 +161,7 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
 
         {selectedVolumeChapters.length > 0 ? (
           <>
-            <div className="max-h-[560px] space-y-3 overflow-y-auto pr-1 xl:max-h-[calc(100vh-12rem)]">
+            <div className="space-y-3 md:max-h-[560px] md:overflow-y-auto md:pr-1 xl:max-h-[calc(100vh-12rem)]">
               {beatGroups.map((group) => {
                 const active = selectedBeatKey === group.key;
                 const expanded = selectedBeatKey === "all" || active;

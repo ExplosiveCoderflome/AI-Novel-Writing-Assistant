@@ -175,8 +175,8 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
   );
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
+    <Card className="max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+      <CardHeader className="px-0 pb-3 md:px-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -211,7 +211,7 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 px-0 md:px-6">
         {selectedVolume && selectedChapter ? (
           <>
             <div className="rounded-xl border border-border/70 bg-muted/20 p-4">

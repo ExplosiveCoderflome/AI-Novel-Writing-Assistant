@@ -59,7 +59,7 @@ export default function StructuredBeatSheetCard(props: StructuredBeatSheetCardPr
     : (hasExistingBeatSheet ? "重新生成当前卷节奏板" : "生成当前卷节奏板");
 
   return (
-    <Card>
+    <Card className="md:rounded-3xl max-md:rounded-2xl max-md:shadow-sm">
       <CardHeader className="pb-3">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -75,10 +75,10 @@ export default function StructuredBeatSheetCard(props: StructuredBeatSheetCardPr
           </AiButton>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="max-md:px-4">
         {selectedBeatSheet ? (
           <div className="grid gap-4 xl:grid-cols-[minmax(320px,420px)_minmax(0,1fr)] xl:items-start">
-            {chapterListPanel ? <div className="min-w-0">{chapterListPanel}</div> : <div />}
+            {chapterListPanel ? <div className="min-w-0 max-md:contents">{chapterListPanel}</div> : <div />}
 
             <div className="min-w-0 space-y-4">
               <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 lg:p-5">

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { formatMobileVolumeOptionLabel } from "./structuredOutlineMobileUi";
 import {
   getStructuredOutlineWorkspaceDefaults,
   useStructuredOutlineWorkspaceStore,
@@ -264,50 +265,93 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
         {syncMessage ? <div className="text-xs text-muted-foreground">{syncMessage}</div> : null}
         {locked ? <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">当前卷还没有节奏板，章节列表生成已锁定。</div> : null}
 
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex flex-col gap-1">
-              <CardTitle className="text-base">当前处理卷</CardTitle>
-              <div className="text-sm text-muted-foreground">先切到要处理的卷，主工作区会跟着切换当前卷节奏和章节。</div>
+        <section className="rounded-2xl border border-border/70 bg-background p-4 shadow-sm md:rounded-3xl md:p-0 md:shadow-none">
+          <div className="space-y-3 md:hidden">
+            <div className="space-y-1">
+              <div className="text-base font-semibold text-foreground">当前处理卷</div>
+              <div className="text-sm leading-6 text-muted-foreground">选择要处理的卷，下方会显示对应节奏、章节和细化内容。</div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-3 overflow-x-auto pb-1">
+            <select
+              className="w-full rounded-2xl border border-border bg-background px-3 py-3 text-sm text-foreground shadow-sm"
+              value={selectedVolume.id}
+              onChange={(event) => {
+                const nextVolume = volumes.find((volume) => volume.id === event.target.value) ?? volumes[0];
+                patchWorkspace(workspaceId, {
+                  selectedVolumeId: nextVolume.id,
+                  selectedBeatKey: "all",
+                  selectedChapterId: nextVolume.chapters[0]?.id ?? "",
+                });
+              }}
+            >
               {volumes.map((volume) => {
-                const volumeBeatSheet = findBeatSheet(beatSheets, volume.id);
-                const isSelected = selectedVolume.id === volume.id;
                 const doneCount = volume.chapters.filter((chapter) => hasChapterExecutionDetail(chapter)).length;
                 return (
-                  <button
-                    key={volume.id}
-                    type="button"
-                    onClick={() => {
-                      patchWorkspace(workspaceId, {
-                        selectedVolumeId: volume.id,
-                        selectedBeatKey: "all",
-                        selectedChapterId: volume.chapters[0]?.id ?? "",
-                      });
-                    }}
-                    className={cn(
-                      "min-w-[220px] shrink-0 rounded-2xl border p-3 text-left transition-colors",
-                      isSelected ? "border-primary/50 bg-primary/5" : "border-border/70 hover:border-primary/30",
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <Badge variant={isSelected ? "default" : "outline"}>第{volume.sortOrder}卷</Badge>
-                      {volumeBeatSheet ? <Badge variant="secondary">有节奏板</Badge> : <Badge variant="outline">未做节奏板</Badge>}
-                    </div>
-                    <div className="mt-2 line-clamp-1 text-sm font-medium">{volume.title || `第${volume.sortOrder}卷`}</div>
-                    <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                      {volume.mainPromise || volume.summary || "先补这卷的核心承诺。"}
-                    </div>
-                    <div className="mt-2 text-[11px] text-muted-foreground">{volume.chapters.length}章 · {doneCount}章已细化</div>
-                  </button>
+                  <option key={volume.id} value={volume.id}>
+                    {formatMobileVolumeOptionLabel({
+                      sortOrder: volume.sortOrder,
+                      title: volume.title,
+                      chapterCount: volume.chapters.length,
+                      refinedCount: doneCount,
+                    })}
+                  </option>
                 );
               })}
+            </select>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline">第{selectedVolume.sortOrder}卷</Badge>
+              {selectedBeatSheet ? <Badge variant="secondary">有节奏板</Badge> : <Badge variant="outline">未做节奏板</Badge>}
+              <Badge variant="outline">{selectedVolumeChapters.length}章</Badge>
+              <Badge variant="outline">{refinedChapterCount}章已细化</Badge>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+
+          <div className="hidden md:block">
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex flex-col gap-1">
+                  <CardTitle className="text-base">当前处理卷</CardTitle>
+                  <div className="text-sm text-muted-foreground">先切到要处理的卷，主工作区会跟着切换当前卷节奏和章节。</div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-3 overflow-x-auto pb-1">
+                  {volumes.map((volume) => {
+                    const volumeBeatSheet = findBeatSheet(beatSheets, volume.id);
+                    const isSelected = selectedVolume.id === volume.id;
+                    const doneCount = volume.chapters.filter((chapter) => hasChapterExecutionDetail(chapter)).length;
+                    return (
+                      <button
+                        key={volume.id}
+                        type="button"
+                        onClick={() => {
+                          patchWorkspace(workspaceId, {
+                            selectedVolumeId: volume.id,
+                            selectedBeatKey: "all",
+                            selectedChapterId: volume.chapters[0]?.id ?? "",
+                          });
+                        }}
+                        className={cn(
+                          "min-w-[220px] shrink-0 rounded-2xl border p-3 text-left transition-colors",
+                          isSelected ? "border-primary/50 bg-primary/5" : "border-border/70 hover:border-primary/30",
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <Badge variant={isSelected ? "default" : "outline"}>第{volume.sortOrder}卷</Badge>
+                          {volumeBeatSheet ? <Badge variant="secondary">有节奏板</Badge> : <Badge variant="outline">未做节奏板</Badge>}
+                        </div>
+                        <div className="mt-2 line-clamp-1 text-sm font-medium">{volume.title || `第${volume.sortOrder}卷`}</div>
+                        <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                          {volume.mainPromise || volume.summary || "先补这卷的核心承诺。"}
+                        </div>
+                        <div className="mt-2 text-[11px] text-muted-foreground">{volume.chapters.length}章 · {doneCount}章已细化</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
 
         {selectedRebalance.length > 0 ? (
           <div className="space-y-3">
