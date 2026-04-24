@@ -75,6 +75,15 @@
 - When syncing `main` into `desktop-dev`, prefer `merge` if the branch is shared by multiple collaborators. Only use `rebase` when the branch is effectively single-owner and history rewriting will not disrupt anyone else.
 - Once desktopization has been completed, merged into `main`, and the `desktop-dev` branch has been retired, this temporary policy should be considered expired and the repository should fall back to the normal feature-branch workflow above.
 
+## Desktop Packaging Upload Rules
+
+- Public desktop package upload to GitHub Releases is allowed only when the release version is driven by `desktop/package.json` and the Git tag is exactly `vX.Y.Z`.
+- Before any public desktop upload, verify that `desktop/package.json` `version` is a stable semver like `0.2.3`, with no `desktop-` prefix, no `-r1` style suffix, and no branch-only naming mixed into the version field.
+- The pushed release tag must match `desktop/package.json` exactly after adding the `v` prefix. Example: `desktop/package.json` is `0.2.3`, then the only allowed public release tag is `v0.2.3`.
+- Do not use `desktop-vX.Y.Z-rN`, `desktop-v*`, branch names, workflow dispatch on `main`, or any other non-matching ref as the identifier for a public desktop GitHub Release upload.
+- If a build is triggered manually or from a non-matching tag, treat it as verification or packaging only. It must not be treated as a valid public release upload.
+- If the required `vX.Y.Z` tag and `desktop/package.json` version are not aligned, stop before upload, fix the version/tag pair first, and then rerun the release flow.
+
 ## Prompt Governance
 
 - `server/src/prompting/` is the only allowed entrypoint for adding new product-level prompts.
