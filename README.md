@@ -32,7 +32,22 @@
 - 最新版本页：[Latest Release](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)
 - 建议优先下载 `Setup.exe` 安装版；如果你不想安装，或者想放在 U 盘 / 临时目录里直接运行，再选择 `portable` 版本
 
+## Beta 预发体验
 
+新功能会优先发布到 `beta` 分支，完成预发验证并稳定后再合入 `main`。如果你想提前体验最新能力，可以切换到 `beta` 分支运行源码版；如果你更看重稳定使用，建议继续使用 `main` 分支或 Releases 中的正式版本。
+
+```bash
+git fetch origin
+git switch beta
+git pull
+```
+
+如果本地还没有 `beta` 分支，可以使用：
+
+```bash
+git fetch origin
+git switch -c beta origin/beta
+```
 
 ## 项目定位
 
