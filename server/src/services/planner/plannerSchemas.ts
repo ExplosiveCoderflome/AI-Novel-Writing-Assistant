@@ -10,7 +10,7 @@ const plannerSceneSchema = z.object({
   conflict: z.string().trim().optional(),
   reveal: z.string().trim().optional(),
   emotionBeat: z.string().trim().optional(),
-});
+}).passthrough();
 
 export const plannerOutputSchema = z.object({
   title: z.string().trim().optional(),
@@ -24,7 +24,6 @@ export const plannerOutputSchema = z.object({
   mustAdvance: z.array(z.string().trim()).optional(),
   mustPreserve: z.array(z.string().trim()).optional(),
   scenes: z.array(plannerSceneSchema).optional(),
-});
+}).passthrough();
 
 export type PlannerOutputSchema = z.infer<typeof plannerOutputSchema> & Partial<PlannerOutput>;
-

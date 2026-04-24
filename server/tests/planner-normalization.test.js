@@ -33,3 +33,22 @@ test("normalizePlannerOutput coerces object-like planner fields into safe string
   assert.equal(normalized.scenes[0].reveal, "真相露出一角");
   assert.equal(normalized.scenes[0].emotionBeat, "7");
 });
+
+test("normalizePlannerOutput maps common planner goal aliases to objective", () => {
+  const normalized = normalizePlannerOutput({
+    title: "第 3 章",
+    chapterGoal: "接到鬼宅委托并决定前往现场",
+    scenes: [
+      {
+        title: "陌生来电",
+        sceneGoal: "让委托人说出鬼宅地址",
+        conflict: "电话断续且信息不完整",
+        reveal: "城南旧宅出现异常阴气",
+        emotionBeat: "疑虑升高",
+      },
+    ],
+  });
+
+  assert.equal(normalized.objective, "接到鬼宅委托并决定前往现场");
+  assert.equal(normalized.scenes[0].objective, "让委托人说出鬼宅地址");
+});

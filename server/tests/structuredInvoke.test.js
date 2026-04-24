@@ -6,6 +6,8 @@ const factory = require("../dist/llm/factory.js");
 const structuredFallbackSettings = require("../dist/llm/structuredFallbackSettings.js");
 const { buildStructuredResponseFormat, resolveStructuredOutputProfile } = require("../dist/llm/structuredOutput.js");
 const structuredInvoke = require("../dist/llm/structuredInvoke.js");
+const { plannerOutputSchema } = require("../dist/services/planner/plannerSchemas.js");
+const { normalizePlannerOutput } = require("../dist/services/planner/PlannerService.js");
 
 test("parseStructuredLlmRawContentDetailed recovers when repair output is truncated but completable", async () => {
   const originalGetLLM = factory.getLLM;
@@ -57,6 +59,46 @@ test("parseStructuredLlmRawContentDetailed unwraps singleton array wrappers for 
   assert.deepEqual(result.data, { value: "wrapped" });
   assert.equal(result.repairUsed, false);
   assert.equal(result.repairAttempts, 0);
+});
+
+test("parseStructuredLlmRawContentDetailed preserves planner goal aliases after singleton unwrap", async () => {
+  const result = await structuredInvoke.parseStructuredLlmRawContentDetailed({
+    rawContent: JSON.stringify([{
+      title: "第 3 章",
+      goal: "接到鬼宅委托并决定前往现场",
+      participants: ["林渊", "委托人"],
+      reveals: ["城南旧宅出现异常阴气"],
+      riskNotes: ["不要把委托写成背景复述"],
+      hookTarget: "章末留下进宅前的危险预感",
+      planRole: "progress",
+      phaseLabel: "委托启动",
+      mustAdvance: ["确认鬼宅地址"],
+      mustPreserve: ["主角仍在摸索事务所运营"],
+      scenes: [{
+        title: "陌生来电",
+        sceneGoal: "让委托人说出鬼宅地址",
+        conflict: "电话断续且信息不完整",
+        reveal: "旧宅里出现无法解释的脚步声",
+        emotionBeat: "疑虑升高",
+      }],
+    }]),
+    schema: plannerOutputSchema,
+    provider: "deepseek",
+    model: "deepseek-chat",
+    label: "structured.invoke.planner.alias.unwrap",
+    maxRepairAttempts: 0,
+    strategy: "prompt_json",
+    profile: resolveStructuredOutputProfile({
+      provider: "deepseek",
+      model: "deepseek-chat",
+      executionMode: "structured",
+    }),
+  });
+  const normalized = normalizePlannerOutput(result.data);
+
+  assert.equal(normalized.objective, "接到鬼宅委托并决定前往现场");
+  assert.equal(normalized.scenes[0].objective, "让委托人说出鬼宅地址");
+  assert.equal(result.repairUsed, false);
 });
 
 test("parseStructuredLlmRawContentDetailed accepts markdown fenced JSON without invoking repair", async () => {

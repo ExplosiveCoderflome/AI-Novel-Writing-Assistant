@@ -20,6 +20,37 @@ export interface PlannerOutput {
   }>;
 }
 
+const PLANNER_OBJECTIVE_KEYS = [
+  "objective",
+  "goal",
+  "chapterGoal",
+  "chapterObjective",
+  "mainGoal",
+  "mainObjective",
+  "coreGoal",
+  "coreObjective",
+  "purpose",
+  "mission",
+  "target",
+  "目标",
+  "章节目标",
+  "规划目标",
+  "核心目标",
+];
+
+const PLANNER_SCENE_OBJECTIVE_KEYS = [
+  "objective",
+  "sceneObjective",
+  "sceneGoal",
+  "goal",
+  "purpose",
+  "mission",
+  "target",
+  "目标",
+  "场景目标",
+  "章节目标",
+];
+
 function collectPlannerTextFragments(value: unknown): string[] {
   if (typeof value === "string") {
     const normalized = value.trim();
@@ -42,6 +73,16 @@ function toPlannerOptionalText(value: unknown, separator = "；"): string | null
   return parts.length > 0 ? parts.join(separator) : null;
 }
 
+function pickPlannerOptionalText(record: Record<string, unknown>, keys: string[], separator = "；"): string | null {
+  for (const key of keys) {
+    const value = toPlannerOptionalText(record[key], separator);
+    if (value) {
+      return value;
+    }
+  }
+  return null;
+}
+
 function toPlannerStringArray(value: unknown): string[] {
   return Array.from(new Set(collectPlannerTextFragments(value)));
 }
@@ -59,7 +100,7 @@ function normalizePlannerScenes(value: unknown): NonNullable<PlannerOutput["scen
     const record = scene as Record<string, unknown>;
     return {
       title: toPlannerOptionalText(record.title) ?? `Scene ${index + 1}`,
-      objective: toPlannerOptionalText(record.objective) ?? undefined,
+      objective: pickPlannerOptionalText(record, PLANNER_SCENE_OBJECTIVE_KEYS) ?? undefined,
       conflict: toPlannerOptionalText(record.conflict) ?? undefined,
       reveal: toPlannerOptionalText(record.reveal) ?? undefined,
       emotionBeat: toPlannerOptionalText(record.emotionBeat) ?? undefined,
@@ -71,7 +112,7 @@ export function normalizePlannerOutput(output: unknown): PlannerOutput {
   const record = output && typeof output === "object" ? output as Record<string, unknown> : {};
   return {
     title: toPlannerOptionalText(record.title) ?? undefined,
-    objective: toPlannerOptionalText(record.objective) ?? undefined,
+    objective: pickPlannerOptionalText(record, PLANNER_OBJECTIVE_KEYS) ?? undefined,
     participants: toPlannerStringArray(record.participants),
     reveals: toPlannerStringArray(record.reveals),
     riskNotes: toPlannerStringArray(record.riskNotes),
