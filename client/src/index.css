@@ -33,3 +33,29 @@ body {
   @apply bg-background text-foreground antialiased;
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
 }
+
+@layer utilities {
+  .mobile-novel-workspace-panel {
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-safe-bottom {
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+
+  .mobile-chapter-editor-shell > div > .flex > .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mobile-chapter-editor-shell > div > .flex > .grid > :nth-child(1) {
+    order: 2;
+  }
+
+  .mobile-chapter-editor-shell > div > .flex > .grid > :nth-child(2) {
+    order: 1;
+  }
+
+  .mobile-chapter-editor-shell > div > .flex > .grid > :nth-child(3) {
+    order: 3;
+  }
+}
