@@ -201,6 +201,43 @@ function createBeatSheet() {
   ];
 }
 
+function createSingleBeatSheet(volumeId, volumeSortOrder, key, label, chapterSpanHint) {
+  return {
+    volumeId,
+    volumeSortOrder,
+    status: "generated",
+    beats: [
+      {
+        key,
+        label,
+        summary: `${label}摘要`,
+        chapterSpanHint,
+        mustDeliver: [label],
+      },
+    ],
+  };
+}
+
+function createTwoVolumeWorkspace({
+  volume1Chapters = [],
+  volume2Chapters = [],
+  beatSheets = [],
+} = {}) {
+  return buildVolumeWorkspaceDocument({
+    novelId: "novel-demo",
+    volumes: [
+      createVolume("volume-1", 1, "第一卷", volume1Chapters),
+      createVolume("volume-2", 2, "第二卷", volume2Chapters),
+    ],
+    beatSheets,
+    strategyPlan: null,
+    critiqueReport: null,
+    rebalanceDecisions: [],
+    source: "volume",
+    activeVersionId: null,
+  });
+}
+
 test("resolveStructuredOutlineRecoveryCursor returns beat_sheet when required volume has no beat sheet", () => {
   const cursor = resolveStructuredOutlineRecoveryCursor({
     workspace: createWorkspace(),
@@ -227,6 +264,96 @@ test("resolveStructuredOutlineRecoveryCursor returns chapter_list for the first 
   assert.equal(cursor.volumeId, "volume-1");
   assert.equal(cursor.beatKey, "mid_turn");
   assert.equal(cursor.beatLabel, "中段转向");
+});
+
+test("resolveStructuredOutlineRecoveryCursor regenerates beat sheet for full-volume plan when span misses planned budget", () => {
+  const cursor = resolveStructuredOutlineRecoveryCursor({
+    workspace: createWorkspace({
+      beatSheets: [createSingleBeatSheet("volume-1", 1, "too_short", "异常短跨度", "1-2章")],
+    }),
+    plan: { mode: "volume", volumeOrder: 1 },
+    estimatedChapterCount: 60,
+  });
+
+  assert.equal(cursor.step, "beat_sheet");
+  assert.equal(cursor.volumeId, "volume-1");
+  assert.equal(cursor.volumeOrder, 1);
+});
+
+test("resolveStructuredOutlineRecoveryCursor keeps current volume chapter_list before later empty beat sheet", () => {
+  const cursor = resolveStructuredOutlineRecoveryCursor({
+    workspace: createTwoVolumeWorkspace({
+      beatSheets: [createSingleBeatSheet("volume-1", 1, "volume-1-beat", "卷一起势", "1-6章")],
+    }),
+    plan: { mode: "front10" },
+    estimatedChapterCount: 430,
+  });
+
+  assert.equal(cursor.step, "chapter_list");
+  assert.equal(cursor.volumeId, "volume-1");
+  assert.equal(cursor.volumeOrder, 1);
+  assert.equal(cursor.beatKey, "volume-1-beat");
+});
+
+test("resolveStructuredOutlineRecoveryCursor advances to next volume beat_sheet after current volume chapter list is ready", () => {
+  const cursor = resolveStructuredOutlineRecoveryCursor({
+    workspace: createTwoVolumeWorkspace({
+      volume1Chapters: Array.from({ length: 6 }, (_, index) => createEmptyChapter(`chapter-${index + 1}`, index + 1, {
+        beatKey: "volume-1-beat",
+      })),
+      beatSheets: [createSingleBeatSheet("volume-1", 1, "volume-1-beat", "卷一起势", "1-6章")],
+    }),
+    plan: { mode: "front10" },
+    estimatedChapterCount: 430,
+  });
+
+  assert.equal(cursor.step, "beat_sheet");
+  assert.equal(cursor.volumeId, "volume-2");
+  assert.equal(cursor.volumeOrder, 2);
+});
+
+test("resolveStructuredOutlineRecoveryCursor advances to next volume chapter_list when next beat sheet exists", () => {
+  const cursor = resolveStructuredOutlineRecoveryCursor({
+    workspace: createTwoVolumeWorkspace({
+      volume1Chapters: Array.from({ length: 6 }, (_, index) => createEmptyChapter(`chapter-${index + 1}`, index + 1, {
+        beatKey: "volume-1-beat",
+      })),
+      beatSheets: [
+        createSingleBeatSheet("volume-1", 1, "volume-1-beat", "卷一起势", "1-6章"),
+        createSingleBeatSheet("volume-2", 2, "volume-2-beat", "卷二承接", "1-4章"),
+      ],
+    }),
+    plan: { mode: "front10" },
+    estimatedChapterCount: 430,
+  });
+
+  assert.equal(cursor.step, "chapter_list");
+  assert.equal(cursor.volumeId, "volume-2");
+  assert.equal(cursor.volumeOrder, 2);
+  assert.equal(cursor.beatKey, "volume-2-beat");
+});
+
+test("resolveStructuredOutlineRecoveryCursor does not enter chapter execution when target range is still short", () => {
+  const cursor = resolveStructuredOutlineRecoveryCursor({
+    workspace: createTwoVolumeWorkspace({
+      volume1Chapters: Array.from({ length: 6 }, (_, index) => createDetailedChapter(`chapter-${index + 1}`, index + 1, {
+        beatKey: "volume-1-beat",
+      })),
+      volume2Chapters: Array.from({ length: 3 }, (_, index) => createDetailedChapter(`chapter-${index + 7}`, index + 7, {
+        volumeId: "volume-2",
+        beatKey: "volume-2-beat",
+      })),
+      beatSheets: [
+        createSingleBeatSheet("volume-1", 1, "volume-1-beat", "卷一起势", "1-6章"),
+        createSingleBeatSheet("volume-2", 2, "volume-2-beat", "卷二承接", "1-3章"),
+      ],
+    }),
+    plan: { mode: "front10" },
+  });
+
+  assert.equal(cursor.step, "beat_sheet");
+  assert.equal(cursor.volumeId, "volume-2");
+  assert.equal(cursor.volumeOrder, 2);
 });
 
 test("resolveStructuredOutlineRecoveryCursor returns chapter_detail_bundle with the next missing detail mode", () => {

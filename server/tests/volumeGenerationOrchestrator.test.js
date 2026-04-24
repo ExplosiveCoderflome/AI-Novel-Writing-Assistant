@@ -65,7 +65,7 @@ test("beat sheet target chapter count still preserves a larger existing volume",
   assert.equal(targetChapterCount, 70);
 });
 
-test("structured outline recovery does not treat a 4-chapter first volume as ready for a 430-chapter book", () => {
+test("structured outline recovery regenerates a 4-chapter full-volume beat sheet for a 430-chapter book", () => {
   const workspace = {
     novelId: "novel-1",
     volumes: [{
@@ -110,6 +110,6 @@ test("structured outline recovery does not treat a 4-chapter first volume as rea
     estimatedChapterCount: 430,
   });
 
-  assert.equal(cursor.step, "chapter_list");
+  assert.equal(cursor.step, "beat_sheet");
   assert.equal(cursor.volumeId, "volume-1");
 });
