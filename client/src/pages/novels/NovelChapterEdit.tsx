@@ -2,8 +2,10 @@ import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getChapterEditorWorkspace, getNovelDetail } from "@/api/novel";
+import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
 import { queryKeys } from "@/api/queryKeys";
 import ChapterEditorShell from "./components/chapterEditor/ChapterEditorShell";
+import MobileChapterEditorShell from "./mobile/MobileChapterEditorShell";
 
 function PageStateCard(props: { message: string }) {
   return (
@@ -16,6 +18,7 @@ function PageStateCard(props: { message: string }) {
 export default function NovelChapterEdit() {
   const { id = "", chapterId = "" } = useParams();
   const navigate = useNavigate();
+  const isMobileViewport = useIsMobileViewport();
 
   const novelDetailQuery = useQuery({
     queryKey: queryKeys.novels.detail(id),
@@ -58,9 +61,11 @@ export default function NovelChapterEdit() {
     );
   }
 
+  const EditorShell = isMobileViewport ? MobileChapterEditorShell : ChapterEditorShell;
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
-      <ChapterEditorShell
+      <EditorShell
         key={`${chapter.id}:${chapter.updatedAt}`}
         novelId={id}
         chapter={chapter}

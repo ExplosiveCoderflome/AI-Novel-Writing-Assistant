@@ -5,6 +5,7 @@ import Navbar from "./Navbar";
 import NovelWorkspaceRail from "./NovelWorkspaceRail";
 import Sidebar from "./Sidebar";
 import TaskRecoveryDialog from "./TaskRecoveryDialog";
+import { useIsMobileViewport } from "./mobile/useIsMobileViewport";
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "ai-novel.sidebar.collapsed";
 const WORKSPACE_RAIL_COLLAPSED_STORAGE_KEY = "ai-novel.workspace-rail.collapsed";
@@ -14,6 +15,7 @@ export default function AppLayout() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isWorkspaceRailCollapsed, setIsWorkspaceRailCollapsed] = useState(false);
   const [workspaceNavMode, setWorkspaceNavMode] = useState<"workspace" | "project">("project");
+  const isMobileViewport = useIsMobileViewport();
 
   const workspaceRoute = useMemo(() => {
     const editMatch = matchPath("/novels/:id/edit", location.pathname);
@@ -34,6 +36,7 @@ export default function AppLayout() {
   }, [location.pathname]);
 
   const isNovelWorkspace = Boolean(workspaceRoute?.novelId);
+  const useMobileNovelWorkspaceLayout = isMobileViewport && isNovelWorkspace;
 
   useEffect(() => {
     const storedValue = window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
@@ -53,6 +56,17 @@ export default function AppLayout() {
   useEffect(() => {
     setWorkspaceNavMode(isNovelWorkspace ? "workspace" : "project");
   }, [isNovelWorkspace, location.pathname]);
+
+  if (useMobileNovelWorkspaceLayout) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Suspense fallback={<AppRouteFallback />}>
+          <Outlet />
+        </Suspense>
+        <TaskRecoveryDialog />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

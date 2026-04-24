@@ -15,6 +15,7 @@ import type {
   VolumeStrategyPlan,
 } from "@ai-novel/shared/types/novel";
 import NovelEditView from "./components/NovelEditView";
+import MobileNovelEditView from "./mobile/MobileNovelEditView";
 import { getBaseCharacterList } from "@/api/character";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
 import { continueNovelWorkflow, getActiveAutoDirectorTask } from "@/api/novelWorkflow";
@@ -38,6 +39,7 @@ import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
 import { getWorldList } from "@/api/world";
 import { queryKeys } from "@/api/queryKeys";
 import { toast } from "@/components/ui/toast";
+import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
 import { useSSE } from "@/hooks/useSSE";
 import { useDirectorChapterTitleRepair } from "@/hooks/useDirectorChapterTitleRepair";
 import { useLLMStore } from "@/store/llmStore";
@@ -182,6 +184,7 @@ export default function NovelEdit() {
   const navigate = useNavigate();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
+  const isMobileViewport = useIsMobileViewport();
   const {
     activeTab,
     setActiveTab,
@@ -1774,8 +1777,10 @@ export default function NovelEdit() {
     && exportVariables?.scope === "full"
     && exportVariables?.format === "json";
 
+  const NovelWorkspaceView = isMobileViewport ? MobileNovelEditView : NovelEditView;
+
   return (
-    <NovelEditView
+    <NovelWorkspaceView
       id={id}
       activeTab={activeTab}
       workflowCurrentTab={workflowCurrentTab}
