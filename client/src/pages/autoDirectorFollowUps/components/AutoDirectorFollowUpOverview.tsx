@@ -46,8 +46,8 @@ export function AutoDirectorFollowUpOverviewCards({
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-      <Card className="xl:col-span-2">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+      <Card className="sm:col-span-2 xl:col-span-2">
         <CardHeader className="pb-2">
           <CardTitle className="text-base">待跟进总数</CardTitle>
         </CardHeader>
@@ -59,23 +59,25 @@ export function AutoDirectorFollowUpOverviewCards({
         </CardContent>
       </Card>
 
-      {cards.map((card) => (
-        <button
-          key={card.reason}
-          type="button"
-          onClick={() => onReasonChange(activeReason === card.reason ? "" : card.reason)}
-          className="text-left"
-        >
-          <Card className={cn(activeReason === card.reason && "border-primary bg-primary/5")}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">{card.label}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-semibold">{card.count}</div>
-            </CardContent>
-          </Card>
-        </button>
-      ))}
+      <div className="auto-director-follow-up-reason-grid grid grid-cols-2 gap-3 sm:contents">
+        {cards.map((card) => (
+          <button
+            key={card.reason}
+            type="button"
+            onClick={() => onReasonChange(activeReason === card.reason ? "" : card.reason)}
+            className="h-full text-left"
+          >
+            <Card className={cn("h-full", activeReason === card.reason && "border-primary bg-primary/5")}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm sm:text-base">{card.label}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-semibold">{card.count}</div>
+              </CardContent>
+            </Card>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
