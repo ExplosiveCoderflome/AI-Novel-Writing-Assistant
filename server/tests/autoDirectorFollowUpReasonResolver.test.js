@@ -162,6 +162,15 @@ test("auto director follow-up reason resolver only marks replaced for inactive t
   assert.ok(replaced);
   assert.equal(replaced.reason, "runtime_replaced");
   assert.deepEqual(actionCodes(replaced), ["open_detail"]);
+
+  const cancelledReplaced = resolveAutoDirectorFollowUpReason({
+    status: "cancelled",
+    checkpointType: "front10_ready",
+    replacementTaskId: "task_new",
+  });
+  assert.ok(cancelledReplaced);
+  assert.equal(cancelledReplaced.reason, "runtime_replaced");
+  assert.deepEqual(actionCodes(cancelledReplaced), ["open_detail"]);
 });
 
 test("auto director follow-up reason resolver allows cancelled tasks to resume or retry", () => {

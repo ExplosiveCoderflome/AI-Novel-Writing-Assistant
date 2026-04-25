@@ -14,6 +14,9 @@ import {
 } from "./novelDirectorTakeover";
 import type { DirectorTakeoverLoadedState } from "./novelDirectorTakeoverRuntime";
 import { resolveDirectorRunningStateForPhase } from "./novelDirectorTakeoverRuntime";
+import {
+  buildContinueExistingDownstreamReset,
+} from "./novelDirectorTakeoverContinue";
 
 interface TakeoverBootstrapTaskResult {
   id: string;
@@ -103,6 +106,13 @@ interface StartDirectorTakeoverExecutionInput {
     directorInput: DirectorConfirmRequest;
     plan: DirectorTakeoverResolvedPlan;
   }) => Promise<void>;
+  cancelReplacedRuns?: (input: {
+    request: DirectorTakeoverRequest;
+    takeoverState: DirectorTakeoverLoadedState;
+    directorInput: DirectorConfirmRequest;
+    plan: DirectorTakeoverResolvedPlan;
+    replacementTaskId: string;
+  }) => Promise<unknown>;
 }
 
 function startPhaseToEntryStep(startPhase: NonNullable<DirectorTakeoverRequest["startPhase"]>): DirectorTakeoverEntryStep {
@@ -157,6 +167,9 @@ function buildTakeoverMetadata(plan: DirectorTakeoverResolvedPlan) {
     strategy: plan.strategy,
     effectiveStep: plan.effectiveStep,
     effectiveStage: plan.effectiveStage,
+    ...(plan.strategy === "continue_existing"
+      ? { downstreamReset: buildContinueExistingDownstreamReset(plan) }
+      : {}),
   };
 }
 
@@ -260,6 +273,16 @@ export async function startDirectorTakeoverExecution(
       taskId: workflowTask.id,
       snapshot: rewriteSnapshot,
       summary: `${rewriteSnapshot.label}已创建：${rewriteSnapshot.snapshotId}`,
+    });
+  }
+
+  if (selection.strategy === "continue_existing") {
+    await input.cancelReplacedRuns?.({
+      request: input.request,
+      takeoverState: input.takeoverState,
+      directorInput: input.directorInput,
+      plan,
+      replacementTaskId: workflowTask.id,
     });
   }
 

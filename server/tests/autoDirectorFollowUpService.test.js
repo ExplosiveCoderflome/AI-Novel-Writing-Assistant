@@ -356,11 +356,13 @@ test("auto director follow-up service returns section-first counts and filters s
     }),
     buildWorkflowRow({
       id: "task_replaced",
-      status: "succeeded",
-      checkpointType: "workflow_completed",
+      status: "cancelled",
+      checkpointType: "front10_ready",
       currentItemLabel: "任务已由新导演任务接管",
+      lastError: "已由自动导演任务 task_new 替代。",
       seedPayloadJson: JSON.stringify({
         replacementTaskId: "task_new",
+        replacementReason: "由本任务替代",
       }),
       updatedAt: new Date("2026-04-21T11:00:00.000Z"),
     }),

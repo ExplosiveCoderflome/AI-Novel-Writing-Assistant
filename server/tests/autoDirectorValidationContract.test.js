@@ -256,6 +256,11 @@ test("resolveAutoDirectorFollowUpSection prioritizes validation, exceptions, pen
   }), "exception");
 
   assert.equal(resolveAutoDirectorFollowUpSection({
+    status: "cancelled",
+    replacementTaskId: "task_new",
+  }), "replaced");
+
+  assert.equal(resolveAutoDirectorFollowUpSection({
     status: "waiting_approval",
     checkpointType: "front10_ready",
     replacementTaskId: "task_new",

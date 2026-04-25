@@ -262,3 +262,64 @@ test("continue_existing does not invoke restart preparation", async () => {
 
   assert.equal(restartCalled, false);
 });
+
+test("continue_existing records downstream reset metadata and cancels replaced runs after bootstrap", async () => {
+  const calls = [];
+  let bootstrapInput = null;
+  let cancelInput = null;
+
+  await startDirectorTakeoverExecution({
+    request: {
+      novelId: "novel_takeover_demo",
+      entryStep: "structured",
+      strategy: "continue_existing",
+    },
+    takeoverState: buildTakeoverState(),
+    directorInput: {
+      candidate: { workingTitle: "Neon Archive" },
+      runMode: "auto_to_execution",
+      autoExecutionPlan: { mode: "front10" },
+    },
+    workflowService: {
+      bootstrapTask: async (input) => {
+        bootstrapInput = input;
+        calls.push("bootstrap");
+        return { id: "workflow_takeover_demo" };
+      },
+      markTaskRunning: async () => {
+        calls.push("mark_running");
+      },
+    },
+    autoExecutionRuntime: {
+      prepareRequestedAutoExecution: async () => {
+        calls.push("prepare_auto_execution");
+      },
+      runFromReady: async () => {},
+    },
+    buildDirectorSeedPayload: (_request, _novelId, extra) => ({ ...extra }),
+    scheduleBackgroundRun: () => {
+      calls.push("schedule");
+    },
+    runDirectorPipeline: async () => {},
+    cancelReplacedRuns: async (input) => {
+      cancelInput = input;
+      calls.push("cancel_replaced_runs");
+    },
+    prepareRestartStep: async () => {
+      calls.push("reset_assets");
+    },
+  });
+
+  assert.equal(bootstrapInput.seedPayload.takeover.downstreamReset.preserveAssets, true);
+  assert.equal(bootstrapInput.seedPayload.takeover.downstreamReset.fromStep, "structured");
+  assert.deepEqual(bootstrapInput.seedPayload.takeover.downstreamReset.resetSteps, ["chapter", "pipeline"]);
+  assert.equal(cancelInput.replacementTaskId, "workflow_takeover_demo");
+  assert.equal(cancelInput.plan.strategy, "continue_existing");
+  assert.deepEqual(calls.slice(0, 4), [
+    "bootstrap",
+    "cancel_replaced_runs",
+    "prepare_auto_execution",
+    "mark_running",
+  ]);
+  assert.equal(calls.includes("reset_assets"), false);
+});

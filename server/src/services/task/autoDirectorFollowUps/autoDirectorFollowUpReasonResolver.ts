@@ -102,7 +102,7 @@ export function resolveAutoDirectorFollowUpReason(
     });
   }
 
-  if (input.replacementTaskId?.trim() && input.status !== "failed" && input.status !== "cancelled" && input.status !== "waiting_approval" && input.status !== "running" && input.status !== "queued") {
+  if (input.replacementTaskId?.trim() && input.status !== "failed" && input.status !== "waiting_approval" && input.status !== "running" && input.status !== "queued") {
     return finalizeResolvedReason({
       reason: "runtime_replaced",
       priority: "P2",

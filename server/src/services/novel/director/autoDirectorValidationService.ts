@@ -273,6 +273,9 @@ export function resolveAutoDirectorFollowUpSection(input: AutoDirectorFollowUpSe
   if (input.validationResult && !input.validationResult.allowed) {
     return "needs_validation";
   }
+  if (input.status === "cancelled" && input.replacementTaskId?.trim()) {
+    return "replaced";
+  }
   if (input.pendingManualRecovery || input.status === "failed" || input.status === "cancelled") {
     return "exception";
   }

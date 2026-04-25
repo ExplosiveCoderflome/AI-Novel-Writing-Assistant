@@ -72,6 +72,7 @@ import { DirectorRecoveryNotNeededError } from "./novelDirectorErrors";
 import { repairDirectorChapterTitles } from "./novelDirectorChapterTitleRepair";
 import { startDirectorTakeoverExecution } from "./novelDirectorTakeoverExecution";
 import { resetDirectorTakeoverCurrentStep } from "./novelDirectorTakeoverReset";
+import { cancelContinueExistingReplacedRuns } from "./novelDirectorTakeoverContinue";
 import { StyleBindingService } from "../../styleEngine/StyleBindingService";
 import { StyleProfileService } from "../../styleEngine/StyleProfileService";
 import {
@@ -918,7 +919,8 @@ export class NovelDirectorService {
       findActiveAutoDirectorTask: (targetNovelId) => this.workflowService.findActiveTaskByNovelAndLane(targetNovelId, "auto_director"),
       findLatestAutoDirectorTask: (targetNovelId) => this.workflowService.findLatestVisibleTaskByNovelId(targetNovelId, "auto_director"),
     });
-    if (takeoverState.hasActiveTask) {
+    const takeoverStrategy = input.strategy ?? (input.startPhase ? "restart_current_step" : "continue_existing");
+    if (takeoverState.hasActiveTask && takeoverStrategy !== "continue_existing") {
       throw new Error("当前已有自动导演任务在运行或等待审核，请先继续或取消当前任务。");
     }
     const takeoverValidation = validateAutoDirectorTakeoverRequest({
@@ -987,6 +989,16 @@ export class NovelDirectorService {
             updateVolumeWorkspace: (targetNovelId, payload) => this.volumeService.updateVolumes(targetNovelId, payload),
             cancelPipelineJob: (jobId) => this.novelService.cancelPipelineJob(jobId),
           },
+        });
+      },
+      cancelReplacedRuns: async ({ replacementTaskId, directorInput, takeoverState: currentTakeoverState }) => {
+        await cancelContinueExistingReplacedRuns({
+          novelId: input.novelId,
+          replacementTaskId,
+          autoExecutionPlan: directorInput.autoExecutionPlan,
+          resolvedRange: currentTakeoverState.executableRange,
+          getVolumeWorkspace: (targetNovelId) => this.volumeService.getVolumes(targetNovelId),
+          cancelPipelineJob: (jobId) => this.novelService.cancelPipelineJob(jobId),
         });
       },
     });
