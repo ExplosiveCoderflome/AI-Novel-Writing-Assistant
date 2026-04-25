@@ -13,6 +13,7 @@ const WECOM_EVENT_TYPES_KEY = "autoDirector.channels.wecom.eventTypes";
 
 const DEFAULT_EVENT_TYPES = [
   "auto_director.approval_required",
+  "auto_director.auto_approved",
   "auto_director.exception",
   "auto_director.recovered",
   "auto_director.completed",

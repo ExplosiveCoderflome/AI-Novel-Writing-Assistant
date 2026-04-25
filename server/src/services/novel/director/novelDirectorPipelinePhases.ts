@@ -35,6 +35,7 @@ import {
   normalizeDirectorAutoApprovalConfig,
   shouldAutoApproveDirectorCheckpoint,
 } from "@ai-novel/shared/types/autoDirectorApproval";
+import { recordAutoDirectorAutoApproval } from "../../task/autoDirectorFollowUps/autoDirectorAutoApprovalAudit";
 import {
   flattenPreparedOutlineChapters,
   resolveStructuredOutlineRecoveryCursor,
@@ -302,6 +303,14 @@ export async function runDirectorCharacterSetupPhase(input: {
     normalizeDirectorAutoApprovalConfig(request.autoApproval),
     "character_setup_required",
   )) {
+    await recordAutoDirectorAutoApproval({
+      taskId,
+      novelId,
+      novelTitle: request.candidate.workingTitle,
+      checkpointType: "character_setup_required",
+      checkpointSummary: `角色准备已生成并应用「${targetOption.title}」。`,
+      stage: "character_setup",
+    });
     return false;
   }
 
@@ -406,6 +415,14 @@ export async function runDirectorVolumeStrategyPhase(input: {
     normalizeDirectorAutoApprovalConfig(request.autoApproval),
     "volume_strategy_ready",
   )) {
+    await recordAutoDirectorAutoApproval({
+      taskId,
+      novelId,
+      novelTitle: request.candidate.workingTitle,
+      checkpointType: "volume_strategy_ready",
+      checkpointSummary: `卷战略与卷骨架已生成，共 ${persistedStrategyWorkspace.volumes.length} 卷。`,
+      stage: "volume_strategy",
+    });
     return persistedStrategyWorkspace;
   }
 

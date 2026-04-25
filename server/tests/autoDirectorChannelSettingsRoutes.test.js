@@ -104,6 +104,7 @@ test("auto director channel settings routes expose saved config and allow cleari
       putPayload.data.wecom.eventTypes,
       [
         "auto_director.approval_required",
+        "auto_director.auto_approved",
         "auto_director.exception",
         "auto_director.recovered",
         "auto_director.completed",
@@ -126,7 +127,7 @@ test("auto director channel settings routes expose saved config and allow cleari
         { key: "autoDirector.channels.wecom.operatorMapJson", value: "" },
         {
           key: "autoDirector.channels.wecom.eventTypes",
-          value: "auto_director.approval_required,auto_director.exception,auto_director.recovered,auto_director.completed",
+          value: "auto_director.approval_required,auto_director.auto_approved,auto_director.exception,auto_director.recovered,auto_director.completed",
         },
       ],
     );

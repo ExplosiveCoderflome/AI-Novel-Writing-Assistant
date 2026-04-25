@@ -36,6 +36,7 @@ import {
   extractBlockedAutoDirectorValidationResult,
   summarizeAutoDirectorValidationResult,
 } from "./autoDirectorFollowUpValidationResult";
+import type { AutoDirectorAutoApprovalRecordRow } from "./autoDirectorAutoApprovalAudit";
 
 export interface RawFollowUpWorkflowRow {
   id: string;
@@ -82,6 +83,12 @@ export interface FollowUpWorkflowRow {
   updatedAt: Date;
   novel?: {
     title: string;
+  } | null;
+}
+
+export interface AutoApprovalRecordProjectionInput extends AutoDirectorAutoApprovalRecordRow {
+  novel?: {
+    title?: string | null;
   } | null;
 }
 
@@ -294,6 +301,7 @@ export function projectFollowUpItem(
   const batchActionCodes = filterBatchActionCodes(section, resolved);
 
   return {
+    itemType: "task",
     taskId: row.id,
     novelId: row.novelId,
     novelTitle: getNovelTitle(row),
@@ -321,6 +329,51 @@ export function projectFollowUpItem(
     pendingManualRecovery: row.pendingManualRecovery,
     lastMilestoneAt: getLatestMilestoneAt(row.milestonesJson),
     updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+export function projectAutoApprovalRecordItem(
+  row: AutoApprovalRecordProjectionInput,
+  taskById: ReadonlyMap<string, FollowUpWorkflowRow>,
+): AutoDirectorFollowUpItem {
+  const task = taskById.get(row.taskId);
+  return {
+    itemType: "auto_approval_record",
+    taskId: row.taskId,
+    autoApprovalRecordId: row.id,
+    novelId: row.novelId,
+    novelTitle: row.novel?.title?.trim() || task?.novel?.title?.trim() || task?.title?.trim() || "AI 自动导演",
+    taskTitle: task?.title ?? "AI 自动导演",
+    lane: "auto_director",
+    status: task?.status ?? "running",
+    currentStage: row.stage ?? task?.currentStage ?? null,
+    checkpointType: normalizeCheckpointType(row.checkpointType),
+    reason: "auto_approval_completed",
+    section: "auto_progress",
+    reasonLabel: "最近自动通过",
+    priority: "P2",
+    followUpSummary: row.summary,
+    blockingReason: null,
+    validationSummary: null,
+    executionScope: row.scopeLabel ?? getExecutionScopeLabel(task?.seedPayloadJson) ?? null,
+    currentModel: getCurrentModel(task?.seedPayloadJson),
+    availableActions: [{
+      code: "open_detail",
+      kind: "navigation",
+      label: "查看任务详情",
+      riskLevel: "low",
+      requiresConfirm: false,
+      targetUrl: `/tasks?kind=novel_workflow&id=${row.taskId}`,
+    }],
+    batchActionCodes: [],
+    supportsBatch: false,
+    channelCapabilities: {
+      dingtalk: false,
+      wecom: false,
+    },
+    pendingManualRecovery: false,
+    lastMilestoneAt: row.createdAt.toISOString(),
+    updatedAt: row.createdAt.toISOString(),
   };
 }
 

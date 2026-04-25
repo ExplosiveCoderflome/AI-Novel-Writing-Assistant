@@ -46,7 +46,7 @@ export function AutoDirectorFollowUpOverviewCards({
     {
       section: "auto_progress",
       label: "自动推进",
-      description: "排队或后台推进中的任务",
+      description: "正在推进的任务和最近自动通过记录",
       count: counters?.auto_progress ?? 0,
     },
     {

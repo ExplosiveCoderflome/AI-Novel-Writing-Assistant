@@ -31,10 +31,12 @@ import {
   matchesItemFilters,
   matchesRowScopeFilters,
   normalizeWorkflowRow,
+  projectAutoApprovalRecordItem,
   projectFollowUpItem,
   type FollowUpWorkflowRow,
   type RawFollowUpWorkflowRow,
 } from "./autoDirectorFollowUpProjection";
+import { loadRecentAutoDirectorAutoApprovalRecords } from "./autoDirectorAutoApprovalAudit";
 
 function isMissingTableError(error: unknown): boolean {
   return typeof error === "object"
@@ -60,10 +62,13 @@ export class AutoDirectorFollowUpService {
   async getOverview(): Promise<AutoDirectorFollowUpOverview> {
     const rows = await this.loadRows();
     const knownTaskIds = new Set(rows.map((row) => row.id));
+    const taskById = new Map(rows.map((row) => [row.id, row]));
     const channelSettings = await getAutoDirectorChannelSettings();
-    const items = rows
+    const taskItems = rows
       .map((row) => projectFollowUpItem(row, knownTaskIds, channelSettings))
       .filter((item): item is AutoDirectorFollowUpItem => Boolean(item));
+    const autoApprovalItems = await this.loadAutoApprovalItems(rows, taskById);
+    const items = taskItems.concat(autoApprovalItems);
 
     return {
       totalCount: items.length,
@@ -75,11 +80,13 @@ export class AutoDirectorFollowUpService {
   async list(input: AutoDirectorFollowUpListInput = {}): Promise<AutoDirectorFollowUpListResponse> {
     const rows = await this.loadRows();
     const knownTaskIds = new Set(rows.map((row) => row.id));
+    const taskById = new Map(rows.map((row) => [row.id, row]));
     const channelSettings = await getAutoDirectorChannelSettings();
     const scopedRows = rows.filter((row) => matchesRowScopeFilters(row, input));
-    const scopedItems = scopedRows
+    const scopedTaskItems = scopedRows
       .map((row) => projectFollowUpItem(row, knownTaskIds, channelSettings))
       .filter((item): item is AutoDirectorFollowUpItem => Boolean(item));
+    const scopedItems = scopedTaskItems.concat(await this.loadAutoApprovalItems(scopedRows, taskById));
     const filteredItems = scopedItems
       .filter((item) => matchesItemFilters(item, input))
       .sort(compareFollowUpItems);
@@ -217,6 +224,20 @@ export class AutoDirectorFollowUpService {
       }
       throw error;
     }
+  }
+
+  private async loadAutoApprovalItems(
+    rows: FollowUpWorkflowRow[],
+    taskById: ReadonlyMap<string, FollowUpWorkflowRow>,
+  ): Promise<AutoDirectorFollowUpItem[]> {
+    const novelIds = rows
+      .map((row) => row.novelId)
+      .filter((novelId): novelId is string => Boolean(novelId?.trim()));
+    const records = await loadRecentAutoDirectorAutoApprovalRecords(novelIds);
+    return records.map((record) => projectAutoApprovalRecordItem({
+      ...record,
+      novel: taskById.get(record.taskId)?.novel ?? null,
+    }, taskById));
   }
 
   private async loadRows(): Promise<FollowUpWorkflowRow[]> {

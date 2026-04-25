@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  buildAutoDirectorEvent,
   deriveAutoDirectorFollowUpState,
   detectAutoDirectorEventType,
 } = require("../dist/services/task/autoDirectorFollowUps/autoDirectorFollowUpEventBuilder.js");
@@ -112,6 +113,32 @@ test("auto director event builder emits approval when auto progress reaches a us
   });
 
   assert.equal(eventType, "auto_director.approval_required");
+});
+
+test("auto director event builder builds auto-approved audit events", () => {
+  const event = buildAutoDirectorEvent({
+    eventType: "auto_director.auto_approved",
+    after: {
+      taskId: "task_auto_approved",
+      novelId: "novel_auto_approved",
+      novelTitle: "《雾港巡夜人》",
+      summary: "AI 已自动通过角色准备，并继续推进。",
+      reason: "auto_approval_completed",
+      reasonLabel: "最近自动通过",
+      availableMutationActions: [],
+      stage: "character_setup",
+      checkpointType: "character_setup_required",
+      checkpointSummary: "角色准备已生成并应用。",
+      progressBucket: null,
+      executionScopeLabel: "全书",
+    },
+    occurredAt: new Date("2026-04-22T10:30:00.000Z"),
+  });
+
+  assert.equal(event.eventType, "auto_director.auto_approved");
+  assert.equal(event.reason, "auto_approval_completed");
+  assert.deepEqual(event.actionCandidates, []);
+  assert.equal(event.summary, "AI 已自动通过角色准备，并继续推进。");
 });
 
 test("auto director event builder exposes validation-required state without mutation actions", () => {

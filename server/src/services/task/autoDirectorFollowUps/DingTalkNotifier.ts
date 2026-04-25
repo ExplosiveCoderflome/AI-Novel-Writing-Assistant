@@ -77,6 +77,7 @@ export class DingTalkNotifier {
     availableActions: AutoDirectorAction[];
     channelConfig?: AutoDirectorChannelConfig | null;
     baseUrl?: string | null;
+    cardTitle?: string;
   }): AutoDirectorChannelNotificationPayload {
     const baseUrl = resolveAutoDirectorBaseUrl(input.baseUrl);
     const followUpCenterUrl = `${baseUrl}/auto-director/follow-ups?taskId=${input.taskId}`;
@@ -98,7 +99,7 @@ export class DingTalkNotifier {
       channelType: "dingtalk",
       event: input.event,
       card: {
-        title: "自动导演跟进提醒",
+        title: input.cardTitle?.trim() || "自动导演跟进提醒",
         summary: input.event.summary,
         reasonLabel: input.reasonLabel,
         stage: input.stage,

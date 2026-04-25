@@ -65,12 +65,13 @@ function buildMarkdownContent(input: {
   availableActions: AutoDirectorAction[];
   channelConfig?: AutoDirectorChannelConfig | null;
   baseUrl?: string | null;
+  cardTitle?: string;
 }): string {
   const baseUrl = resolveAutoDirectorBaseUrl(input.baseUrl);
   const followUpCenterUrl = `${baseUrl}/auto-director/follow-ups?taskId=${input.taskId}`;
   const detailUrl = `${baseUrl}/tasks?kind=novel_workflow&id=${input.taskId}`;
   const lines = [
-    "# 自动导演跟进提醒",
+    `# ${input.cardTitle?.trim() || "自动导演跟进提醒"}`,
     "",
     `> 小说：${input.novelTitle}`,
     `> 事件：${input.event.summary}`,
@@ -129,6 +130,7 @@ export class WeComNotifier {
     availableActions: AutoDirectorAction[];
     channelConfig?: AutoDirectorChannelConfig | null;
     baseUrl?: string | null;
+    cardTitle?: string;
   }): AutoDirectorChannelNotificationPayload {
     return {
       channelType: "wecom",

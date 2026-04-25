@@ -90,6 +90,7 @@ import {
   normalizeDirectorAutoApprovalConfig,
   shouldAutoApproveDirectorCheckpoint,
 } from "@ai-novel/shared/types/autoDirectorApproval";
+import { recordAutoDirectorAutoApprovalFromTask } from "../../task/autoDirectorFollowUps/autoDirectorAutoApprovalAudit";
 
 type WorkflowTaskSnapshot = Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>;
 
@@ -1349,6 +1350,10 @@ export class NovelDirectorService {
       });
       await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, volumeWorkspace);
       if (this.shouldAutoApproveCheckpoint(input.input, "front10_ready")) {
+        await recordAutoDirectorAutoApprovalFromTask({
+          taskId: input.taskId,
+          checkpointType: "front10_ready",
+        });
         await this.autoExecutionRuntime.runFromReady({
           taskId: input.taskId,
           novelId: input.novelId,
@@ -1374,6 +1379,10 @@ export class NovelDirectorService {
     });
     await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, currentWorkspace);
     if (this.shouldAutoApproveCheckpoint(input.input, "front10_ready")) {
+      await recordAutoDirectorAutoApprovalFromTask({
+        taskId: input.taskId,
+        checkpointType: "front10_ready",
+      });
       await this.autoExecutionRuntime.runFromReady({
         taskId: input.taskId,
         novelId: input.novelId,

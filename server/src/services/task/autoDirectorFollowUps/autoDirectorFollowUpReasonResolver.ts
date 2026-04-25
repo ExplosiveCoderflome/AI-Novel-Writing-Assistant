@@ -24,6 +24,7 @@ const REASON_LABELS: Record<AutoDirectorFollowUpReason, string> = {
   front10_execution_pending: "自动执行待继续",
   quality_repair_pending: "质量修复待继续",
   auto_progress_running: "自动推进中",
+  auto_approval_completed: "最近自动通过",
   runtime_replaced: "任务已替代",
   validation_required: "需要重新校验",
 };

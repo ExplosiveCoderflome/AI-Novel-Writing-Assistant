@@ -16,6 +16,7 @@ export const AUTO_DIRECTOR_FOLLOW_UP_REASONS = [
   "front10_execution_pending",
   "quality_repair_pending",
   "auto_progress_running",
+  "auto_approval_completed",
   "runtime_replaced",
   "validation_required",
 ] as const;
@@ -92,7 +93,9 @@ export interface AutoDirectorFollowUpValidationSummary {
 }
 
 export interface AutoDirectorFollowUpItem {
+  itemType: "task" | "auto_approval_record";
   taskId: string;
+  autoApprovalRecordId?: string;
   novelId: string | null;
   novelTitle: string;
   taskTitle: string;
@@ -244,6 +247,7 @@ export interface AutoDirectorBatchActionExecutionResult {
 
 export const AUTO_DIRECTOR_EVENT_TYPES = [
   "auto_director.approval_required",
+  "auto_director.auto_approved",
   "auto_director.exception",
   "auto_director.recovered",
   "auto_director.completed",

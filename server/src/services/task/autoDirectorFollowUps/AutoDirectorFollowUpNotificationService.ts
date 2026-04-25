@@ -3,6 +3,8 @@ import type {
   AutoDirectorChannelNotificationPayload,
   AutoDirectorEventType,
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
+import type { DirectorAutoApprovalPointCode } from "@ai-novel/shared/types/autoDirectorApproval";
+import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 import { prisma } from "../../../db/prisma";
 import { DingTalkNotifier } from "./DingTalkNotifier";
 import { WeComNotifier } from "./WeComNotifier";
@@ -122,6 +124,70 @@ export class AutoDirectorFollowUpNotificationService {
     });
   }
 
+  async notifyAutoApproved(input: {
+    taskId: string;
+    novelId: string | null;
+    novelTitle: string;
+    checkpointType: NovelWorkflowCheckpoint;
+    checkpointSummary?: string | null;
+    approvalPointCode: DirectorAutoApprovalPointCode;
+    approvalPointLabel: string;
+    stage?: string | null;
+    summary: string;
+    occurredAt: Date;
+  }): Promise<void> {
+    const after = {
+      taskId: input.taskId,
+      novelId: input.novelId,
+      novelTitle: input.novelTitle,
+      summary: input.summary,
+      reason: "auto_approval_completed" as const,
+      reasonLabel: "最近自动通过",
+      availableMutationActions: [],
+      stage: input.stage ?? null,
+      checkpointType: input.checkpointType,
+      checkpointSummary: input.checkpointSummary ?? null,
+      progressBucket: null,
+      executionScopeLabel: null,
+    };
+    const event = buildAutoDirectorEvent({
+      eventType: "auto_director.auto_approved",
+      after,
+      occurredAt: input.occurredAt,
+    });
+    const channelSettings = await getAutoDirectorChannelSettings();
+    const snapshot: AutoDirectorEventWorkflowSnapshot = {
+      id: input.taskId,
+      novelId: input.novelId,
+      status: "running",
+      currentStage: input.stage ?? null,
+      checkpointType: input.checkpointType,
+      checkpointSummary: input.checkpointSummary ?? null,
+      currentItemLabel: input.summary,
+      pendingManualRecovery: false,
+      updatedAt: input.occurredAt,
+      novel: {
+        title: input.novelTitle,
+      },
+    };
+    await this.notifyDingTalk({
+      event,
+      after: snapshot,
+      channelSettings,
+      cardTitle: "AI 已自动通过并继续推进",
+      reasonLabel: "最近自动通过",
+      availableActions: [],
+    });
+    await this.notifyWeCom({
+      event,
+      after: snapshot,
+      channelSettings,
+      cardTitle: "AI 已自动通过并继续推进",
+      reasonLabel: "最近自动通过",
+      availableActions: [],
+    });
+  }
+
   private resolveAvailableActions(input: AutoDirectorEventWorkflowSnapshot): AutoDirectorAction[] {
     const resolved = resolveAutoDirectorFollowUpReason(resolveReasonInput(input));
     return resolved?.availableActions ?? [];
@@ -131,6 +197,9 @@ export class AutoDirectorFollowUpNotificationService {
     event: ReturnType<typeof buildAutoDirectorEvent>;
     after: AutoDirectorEventWorkflowSnapshot;
     channelSettings: AutoDirectorChannelSettings;
+    cardTitle?: string;
+    reasonLabel?: string | null;
+    availableActions?: AutoDirectorAction[];
   }) {
     const channelConfig = input.channelSettings.dingtalk;
     if (!this.dingTalkNotifier.isEnabled(channelConfig)) {
@@ -145,12 +214,13 @@ export class AutoDirectorFollowUpNotificationService {
       taskId: input.after.id,
       novelId: input.after.novelId,
       novelTitle: input.after.novel?.title?.trim() || input.after.id,
-      reasonLabel: reasonResolved?.reasonLabel ?? null,
+      reasonLabel: input.reasonLabel ?? reasonResolved?.reasonLabel ?? null,
       checkpointSummary: input.after.checkpointSummary ?? null,
       stage: input.after.currentStage,
-      availableActions: this.resolveAvailableActions(input.after),
+      availableActions: input.availableActions ?? this.resolveAvailableActions(input.after),
       channelConfig,
       baseUrl: input.channelSettings.baseUrl,
+      cardTitle: input.cardTitle,
     });
 
     let responseStatus = null;
@@ -190,6 +260,9 @@ export class AutoDirectorFollowUpNotificationService {
     event: ReturnType<typeof buildAutoDirectorEvent>;
     after: AutoDirectorEventWorkflowSnapshot;
     channelSettings: AutoDirectorChannelSettings;
+    cardTitle?: string;
+    reasonLabel?: string | null;
+    availableActions?: AutoDirectorAction[];
   }) {
     const channelConfig = input.channelSettings.wecom;
     if (!this.weComNotifier.isEnabled(channelConfig)) {
@@ -204,12 +277,13 @@ export class AutoDirectorFollowUpNotificationService {
       taskId: input.after.id,
       novelId: input.after.novelId,
       novelTitle: input.after.novel?.title?.trim() || input.after.id,
-      reasonLabel: reasonResolved?.reasonLabel ?? null,
+      reasonLabel: input.reasonLabel ?? reasonResolved?.reasonLabel ?? null,
       checkpointSummary: input.after.checkpointSummary ?? null,
       stage: input.after.currentStage,
-      availableActions: this.resolveAvailableActions(input.after),
+      availableActions: input.availableActions ?? this.resolveAvailableActions(input.after),
       channelConfig,
       baseUrl: input.channelSettings.baseUrl,
+      cardTitle: input.cardTitle,
     });
 
     let responseStatus = null;

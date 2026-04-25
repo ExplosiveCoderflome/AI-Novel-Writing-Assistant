@@ -37,6 +37,7 @@ test("auto director follow-up routes expose overview, list, detail, and action e
         front10_execution_pending: 1,
         quality_repair_pending: 0,
         auto_progress_running: 0,
+        auto_approval_completed: 0,
         runtime_replaced: 0,
         validation_required: 0,
       },
@@ -53,6 +54,7 @@ test("auto director follow-up routes expose overview, list, detail, and action e
     calls.push(["list", input]);
     return {
       items: [{
+        itemType: "task",
         taskId: "task_1",
         novelId: "novel_1",
         novelTitle: "《雾港巡夜人》",
@@ -90,6 +92,7 @@ test("auto director follow-up routes expose overview, list, detail, and action e
         front10_execution_pending: 1,
         quality_repair_pending: 0,
         auto_progress_running: 0,
+        auto_approval_completed: 0,
         runtime_replaced: 0,
         validation_required: 0,
       },

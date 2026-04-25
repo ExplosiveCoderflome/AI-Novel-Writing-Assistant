@@ -369,9 +369,11 @@ test("auto director follow-up notification service skips progress_changed by def
     ding_user_1: "user_1",
   });
   delete process.env.AUTO_DIRECTOR_DINGTALK_EVENT_TYPES;
-  delete process.env.AUTO_DIRECTOR_WECOM_WEBHOOK_URL;
-  delete process.env.AUTO_DIRECTOR_WECOM_CALLBACK_TOKEN;
-  delete process.env.AUTO_DIRECTOR_WECOM_OPERATOR_MAP_JSON;
+  process.env.AUTO_DIRECTOR_WECOM_WEBHOOK_URL = "https://relay.example.test/wecom";
+  process.env.AUTO_DIRECTOR_WECOM_CALLBACK_TOKEN = "wecom-callback-token";
+  process.env.AUTO_DIRECTOR_WECOM_OPERATOR_MAP_JSON = JSON.stringify({
+    wecom_user_1: "user_1",
+  });
   process.env.APP_BASE_URL = "https://writer.example.test";
 
   const service = new AutoDirectorFollowUpNotificationService();
@@ -533,5 +535,112 @@ test("auto director follow-up notification service prefers saved baseUrl when bu
     process.env.AUTO_DIRECTOR_WECOM_CALLBACK_TOKEN = previousEnv.AUTO_DIRECTOR_WECOM_CALLBACK_TOKEN;
     process.env.AUTO_DIRECTOR_WECOM_OPERATOR_MAP_JSON = previousEnv.AUTO_DIRECTOR_WECOM_OPERATOR_MAP_JSON;
     process.env.AUTO_DIRECTOR_WECOM_EVENT_TYPES = previousEnv.AUTO_DIRECTOR_WECOM_EVENT_TYPES;
+  }
+});
+
+test("auto director follow-up notification service delivers auto-approved events without callback actions", async () => {
+  const originals = {
+    fetch: global.fetch,
+    notificationLogCreate: prisma.autoDirectorFollowUpNotificationLog.create,
+    appSettingFindMany: prisma.appSetting.findMany,
+  };
+  const notifications = [];
+  const fetchCalls = [];
+
+  prisma.autoDirectorFollowUpNotificationLog.create = async ({ data }) => {
+    notifications.push(data);
+    return data;
+  };
+  prisma.appSetting.findMany = async () => [];
+  global.fetch = async (url, init) => {
+    fetchCalls.push({
+      url,
+      method: init?.method ?? "GET",
+      headers: init?.headers ?? {},
+      body: init?.body ? JSON.parse(String(init.body)) : null,
+    });
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 202,
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+  };
+
+  const previousEnv = {
+    AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL: process.env.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL,
+    AUTO_DIRECTOR_DINGTALK_CALLBACK_TOKEN: process.env.AUTO_DIRECTOR_DINGTALK_CALLBACK_TOKEN,
+    AUTO_DIRECTOR_DINGTALK_OPERATOR_MAP_JSON: process.env.AUTO_DIRECTOR_DINGTALK_OPERATOR_MAP_JSON,
+    AUTO_DIRECTOR_DINGTALK_EVENT_TYPES: process.env.AUTO_DIRECTOR_DINGTALK_EVENT_TYPES,
+    AUTO_DIRECTOR_WECOM_WEBHOOK_URL: process.env.AUTO_DIRECTOR_WECOM_WEBHOOK_URL,
+    AUTO_DIRECTOR_WECOM_CALLBACK_TOKEN: process.env.AUTO_DIRECTOR_WECOM_CALLBACK_TOKEN,
+    AUTO_DIRECTOR_WECOM_OPERATOR_MAP_JSON: process.env.AUTO_DIRECTOR_WECOM_OPERATOR_MAP_JSON,
+    AUTO_DIRECTOR_WECOM_EVENT_TYPES: process.env.AUTO_DIRECTOR_WECOM_EVENT_TYPES,
+    APP_BASE_URL: process.env.APP_BASE_URL,
+  };
+  process.env.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL = "https://relay.example.test/dingtalk";
+  process.env.AUTO_DIRECTOR_DINGTALK_CALLBACK_TOKEN = "ding-callback-token";
+  process.env.AUTO_DIRECTOR_DINGTALK_OPERATOR_MAP_JSON = JSON.stringify({
+    ding_user_1: "user_1",
+  });
+  delete process.env.AUTO_DIRECTOR_DINGTALK_EVENT_TYPES;
+  process.env.AUTO_DIRECTOR_WECOM_WEBHOOK_URL = "https://relay.example.test/wecom";
+  delete process.env.AUTO_DIRECTOR_WECOM_CALLBACK_TOKEN;
+  delete process.env.AUTO_DIRECTOR_WECOM_OPERATOR_MAP_JSON;
+  delete process.env.AUTO_DIRECTOR_WECOM_EVENT_TYPES;
+  process.env.APP_BASE_URL = "https://writer.example.test";
+
+  const service = new AutoDirectorFollowUpNotificationService();
+
+  try {
+    await service.notifyAutoApproved({
+      taskId: "task_auto_approved",
+      novelId: "novel_1",
+      novelTitle: "《雾港巡夜人》",
+      checkpointType: "character_setup_required",
+      checkpointSummary: "角色准备已生成并应用。",
+      approvalPointCode: "character_setup_ready",
+      approvalPointLabel: "角色准备通过后继续",
+      stage: "character_setup",
+      summary: "AI 已自动通过角色准备，并继续推进。",
+      occurredAt: new Date("2026-04-22T10:30:00.000Z"),
+    });
+
+    assert.equal(fetchCalls.length, 2);
+    assert.equal(fetchCalls[0].body.event.eventType, "auto_director.auto_approved");
+    assert.equal(fetchCalls[0].body.event.reason, "auto_approval_completed");
+    assert.deepEqual(fetchCalls[0].body.event.actionCandidates, []);
+    assert.equal(fetchCalls[0].body.card.title, "AI 已自动通过并继续推进");
+    assert.equal(fetchCalls[0].body.card.reasonLabel, "最近自动通过");
+    assert.deepEqual(
+      fetchCalls[0].body.card.actions.map((item) => ({ kind: item.kind, actionCode: item.actionCode })),
+      [
+        { kind: "link", actionCode: "open_detail" },
+        { kind: "link", actionCode: "open_follow_up_center" },
+      ],
+    );
+    assert.equal(fetchCalls[1].url, "https://relay.example.test/wecom");
+    assert.equal(fetchCalls[1].body.msgtype, "markdown");
+    assert.match(fetchCalls[1].body.markdown.content, /AI 已自动通过并继续推进/);
+    assert.match(fetchCalls[1].body.markdown.content, /AI 已自动通过角色准备，并继续推进。/);
+    assert.match(fetchCalls[1].body.markdown.content, /原因：最近自动通过/);
+    assert.doesNotMatch(fetchCalls[1].body.markdown.content, /actionCode=continue_auto_execution/);
+    assert.doesNotMatch(fetchCalls[1].body.markdown.content, /callbackId=/);
+    assert.equal(notifications.length, 2);
+    assert.equal(notifications[0].eventType, "auto_director.auto_approved");
+    assert.equal(notifications[1].eventType, "auto_director.auto_approved");
+  } finally {
+    prisma.autoDirectorFollowUpNotificationLog.create = originals.notificationLogCreate;
+    prisma.appSetting.findMany = originals.appSettingFindMany;
+    global.fetch = originals.fetch;
+    process.env.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL = previousEnv.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL;
+    process.env.AUTO_DIRECTOR_DINGTALK_CALLBACK_TOKEN = previousEnv.AUTO_DIRECTOR_DINGTALK_CALLBACK_TOKEN;
+    process.env.AUTO_DIRECTOR_DINGTALK_OPERATOR_MAP_JSON = previousEnv.AUTO_DIRECTOR_DINGTALK_OPERATOR_MAP_JSON;
+    process.env.AUTO_DIRECTOR_DINGTALK_EVENT_TYPES = previousEnv.AUTO_DIRECTOR_DINGTALK_EVENT_TYPES;
+    process.env.AUTO_DIRECTOR_WECOM_WEBHOOK_URL = previousEnv.AUTO_DIRECTOR_WECOM_WEBHOOK_URL;
+    process.env.AUTO_DIRECTOR_WECOM_CALLBACK_TOKEN = previousEnv.AUTO_DIRECTOR_WECOM_CALLBACK_TOKEN;
+    process.env.AUTO_DIRECTOR_WECOM_OPERATOR_MAP_JSON = previousEnv.AUTO_DIRECTOR_WECOM_OPERATOR_MAP_JSON;
+    process.env.AUTO_DIRECTOR_WECOM_EVENT_TYPES = previousEnv.AUTO_DIRECTOR_WECOM_EVENT_TYPES;
+    process.env.APP_BASE_URL = previousEnv.APP_BASE_URL;
   }
 });

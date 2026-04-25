@@ -9,6 +9,8 @@ import {
 test("auto director event options expose Chinese labels and preserve event codes in drafts", () => {
   assert.equal(AUTO_DIRECTOR_EVENT_OPTIONS[0]?.code, "auto_director.approval_required");
   assert.equal(AUTO_DIRECTOR_EVENT_OPTIONS[0]?.label, "自动继续待处理");
+  assert.equal(AUTO_DIRECTOR_EVENT_OPTIONS[1]?.code, "auto_director.auto_approved");
+  assert.equal(AUTO_DIRECTOR_EVENT_OPTIONS[1]?.label, "AI 已自动通过");
 
   const draft = buildAutoDirectorChannelDraft({
     baseUrl: "https://book.example.com",

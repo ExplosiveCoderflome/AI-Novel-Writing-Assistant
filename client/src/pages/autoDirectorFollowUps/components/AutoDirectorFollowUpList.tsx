@@ -71,6 +71,10 @@ function buildChannelBadges(item: AutoDirectorFollowUpItem): string[] {
   return labels;
 }
 
+function formatItemType(item: AutoDirectorFollowUpItem): string {
+  return item.itemType === "auto_approval_record" ? "最近自动通过" : "正在推进";
+}
+
 export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPanelProps) {
   const totalPages = props.pagination ? Math.max(1, Math.ceil(props.pagination.total / props.pagination.pageSize)) : 1;
 
@@ -126,7 +130,7 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
           {!props.loading && props.items.length === 0 ? (
             <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
               {props.activeSection === "auto_progress"
-                ? "当前没有排队或后台推进中的导演任务。"
+                ? "当前没有正在推进的任务或最近自动通过记录。"
                 : props.activeSection === "replaced"
                   ? "当前没有被新任务替代的旧任务。"
                   : "当前没有符合条件的导演跟进项。"}
@@ -134,11 +138,12 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
           ) : null}
 
           {props.items.map((item) => {
+            const itemKey = item.autoApprovalRecordId ?? item.taskId;
             const checked = props.selectedTaskIds.includes(item.taskId);
             const selected = props.selectedTaskId === item.taskId;
             return (
               <button
-                key={item.taskId}
+                key={itemKey}
                 type="button"
                 className={cn(
                   "w-full rounded-xl border p-4 text-left transition-colors",
@@ -168,6 +173,7 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  {item.section === "auto_progress" ? <Badge variant="secondary">{formatItemType(item)}</Badge> : null}
                   <Badge variant="outline">{formatStatus(item.status)}</Badge>
                   <Badge variant="outline">{item.reasonLabel}</Badge>
                   <Badge variant="outline">{formatPriority(item.priority)}</Badge>

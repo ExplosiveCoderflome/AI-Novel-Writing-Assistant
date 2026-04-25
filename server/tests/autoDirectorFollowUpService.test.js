@@ -73,6 +73,7 @@ test("auto director follow-up service overview counts actionable rows by reason"
   const originals = {
     getArchivedTaskIds: taskArchive.getArchivedTaskIds,
     findMany: prisma.novelWorkflowTask.findMany,
+    autoApprovalFindMany: prisma.autoDirectorAutoApprovalRecord.findMany,
     getAutoDirectorChannelSettings: autoDirectorChannelSettingsService.getAutoDirectorChannelSettings,
   };
 
@@ -83,6 +84,7 @@ test("auto director follow-up service overview counts actionable rows by reason"
     buildWorkflowRow({ id: "task_candidate", checkpointType: "candidate_selection_required", currentStage: "AI 自动导演", currentItemKey: "auto_director", currentItemLabel: "等待确认书级方向", seedPayloadJson: null }),
     buildWorkflowRow({ id: "task_excluded", checkpointType: "book_contract_ready", currentItemLabel: "Book Contract 已就绪", seedPayloadJson: null }),
   ]);
+  prisma.autoDirectorAutoApprovalRecord.findMany = async () => [];
   autoDirectorChannelSettingsService.getAutoDirectorChannelSettings = async () => ({
     baseUrl: "https://writer.example.test",
     dingtalk: {
@@ -114,6 +116,7 @@ test("auto director follow-up service overview counts actionable rows by reason"
       front10_execution_pending: 0,
       quality_repair_pending: 0,
       auto_progress_running: 0,
+      auto_approval_completed: 0,
       runtime_replaced: 0,
       validation_required: 0,
     });
@@ -121,6 +124,98 @@ test("auto director follow-up service overview counts actionable rows by reason"
   } finally {
     taskArchive.getArchivedTaskIds = originals.getArchivedTaskIds;
     prisma.novelWorkflowTask.findMany = originals.findMany;
+    prisma.autoDirectorAutoApprovalRecord.findMany = originals.autoApprovalFindMany;
+    autoDirectorChannelSettingsService.getAutoDirectorChannelSettings = originals.getAutoDirectorChannelSettings;
+    service.workflowService.healAutoDirectorTaskState = originalHeal;
+  }
+});
+
+test("auto director follow-up service lists recent auto-approved records in auto-progress without mutation actions", async () => {
+  const originals = {
+    getArchivedTaskIds: taskArchive.getArchivedTaskIds,
+    findMany: prisma.novelWorkflowTask.findMany,
+    autoApprovalFindMany: prisma.autoDirectorAutoApprovalRecord.findMany,
+    getAutoDirectorChannelSettings: autoDirectorChannelSettingsService.getAutoDirectorChannelSettings,
+  };
+
+  taskArchive.getArchivedTaskIds = async () => [];
+  prisma.novelWorkflowTask.findMany = async () => ([
+    buildWorkflowRow({
+      id: "task_running",
+      novelId: "novel_a",
+      status: "running",
+      checkpointType: null,
+      currentItemLabel: "正在继续拆章",
+      updatedAt: new Date("2026-04-21T09:00:00.000Z"),
+    }),
+  ]);
+  prisma.autoDirectorAutoApprovalRecord.findMany = async ({ where, take }) => {
+    assert.deepEqual(where, {
+      novelId: "novel_a",
+    });
+    assert.equal(take, 10);
+    return [
+      {
+        id: "auto_approval_1",
+        taskId: "task_running",
+        novelId: "novel_a",
+        approvalPointCode: "character_setup_ready",
+        approvalPointLabel: "角色准备通过后继续",
+        checkpointType: "character_setup_required",
+        checkpointSummary: "角色准备已生成并应用。",
+        summary: "AI 已自动通过角色准备，并继续推进。",
+        stage: "character_setup",
+        scopeLabel: "全书",
+        eventId: "task_running:auto_director.auto_approved:2026-04-21T09:30:00.000Z",
+        createdAt: new Date("2026-04-21T09:30:00.000Z"),
+      },
+    ];
+  };
+  autoDirectorChannelSettingsService.getAutoDirectorChannelSettings = async () => ({
+    baseUrl: "https://writer.example.test",
+    dingtalk: {
+      webhookUrl: "https://relay.example.test/dingtalk",
+      callbackToken: "",
+      operatorMapJson: "",
+      eventTypes: [],
+    },
+    wecom: {
+      webhookUrl: "",
+      callbackToken: "",
+      operatorMapJson: "",
+      eventTypes: [],
+    },
+  });
+
+  const service = new AutoDirectorFollowUpService();
+  const originalHeal = service.workflowService.healAutoDirectorTaskState;
+  service.workflowService.healAutoDirectorTaskState = async () => false;
+
+  try {
+    const response = await service.list({
+      section: "auto_progress",
+      page: 1,
+      pageSize: 10,
+    });
+
+    assert.deepEqual(response.items.map((item) => [item.itemType, item.taskId, item.autoApprovalRecordId ?? null]), [
+      ["auto_approval_record", "task_running", "auto_approval_1"],
+      ["task", "task_running", null],
+    ]);
+    const record = response.items[0];
+    assert.equal(record.reason, "auto_approval_completed");
+    assert.equal(record.section, "auto_progress");
+    assert.equal(record.reasonLabel, "最近自动通过");
+    assert.equal(record.followUpSummary, "AI 已自动通过角色准备，并继续推进。");
+    assert.deepEqual(record.availableActions.map((action) => action.code), ["open_detail"]);
+    assert.deepEqual(record.batchActionCodes, []);
+    assert.equal(record.supportsBatch, false);
+    assert.equal(response.countersBySection.auto_progress, 2);
+    assert.equal(response.countersByReason.auto_approval_completed, 1);
+  } finally {
+    taskArchive.getArchivedTaskIds = originals.getArchivedTaskIds;
+    prisma.novelWorkflowTask.findMany = originals.findMany;
+    prisma.autoDirectorAutoApprovalRecord.findMany = originals.autoApprovalFindMany;
     autoDirectorChannelSettingsService.getAutoDirectorChannelSettings = originals.getAutoDirectorChannelSettings;
     service.workflowService.healAutoDirectorTaskState = originalHeal;
   }
@@ -130,6 +225,7 @@ test("auto director follow-up service lists actionable items with filters, count
   const originals = {
     getArchivedTaskIds: taskArchive.getArchivedTaskIds,
     findMany: prisma.novelWorkflowTask.findMany,
+    autoApprovalFindMany: prisma.autoDirectorAutoApprovalRecord.findMany,
     getAutoDirectorChannelSettings: autoDirectorChannelSettingsService.getAutoDirectorChannelSettings,
   };
   const previousEnv = {
@@ -172,6 +268,7 @@ test("auto director follow-up service lists actionable items with filters, count
       }),
     ];
   };
+  prisma.autoDirectorAutoApprovalRecord.findMany = async () => [];
   autoDirectorChannelSettingsService.getAutoDirectorChannelSettings = async () => ({
     baseUrl: "https://writer.example.test",
     dingtalk: {
@@ -219,6 +316,7 @@ test("auto director follow-up service lists actionable items with filters, count
   } finally {
     taskArchive.getArchivedTaskIds = originals.getArchivedTaskIds;
     prisma.novelWorkflowTask.findMany = originals.findMany;
+    prisma.autoDirectorAutoApprovalRecord.findMany = originals.autoApprovalFindMany;
     autoDirectorChannelSettingsService.getAutoDirectorChannelSettings = originals.getAutoDirectorChannelSettings;
     process.env.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL = previousEnv.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL;
     process.env.AUTO_DIRECTOR_WECOM_WEBHOOK_URL = previousEnv.AUTO_DIRECTOR_WECOM_WEBHOOK_URL;
@@ -230,6 +328,7 @@ test("auto director follow-up service returns section-first counts and filters s
   const originals = {
     getArchivedTaskIds: taskArchive.getArchivedTaskIds,
     findMany: prisma.novelWorkflowTask.findMany,
+    autoApprovalFindMany: prisma.autoDirectorAutoApprovalRecord.findMany,
     getAutoDirectorChannelSettings: autoDirectorChannelSettingsService.getAutoDirectorChannelSettings,
   };
 
@@ -315,6 +414,7 @@ test("auto director follow-up service returns section-first counts and filters s
       updatedAt: new Date("2026-04-21T13:00:00.000Z"),
     }),
   ]);
+  prisma.autoDirectorAutoApprovalRecord.findMany = async () => [];
   autoDirectorChannelSettingsService.getAutoDirectorChannelSettings = async () => ({
     baseUrl: "https://writer.example.test",
     dingtalk: {
@@ -375,6 +475,7 @@ test("auto director follow-up service returns section-first counts and filters s
   } finally {
     taskArchive.getArchivedTaskIds = originals.getArchivedTaskIds;
     prisma.novelWorkflowTask.findMany = originals.findMany;
+    prisma.autoDirectorAutoApprovalRecord.findMany = originals.autoApprovalFindMany;
     autoDirectorChannelSettingsService.getAutoDirectorChannelSettings = originals.getAutoDirectorChannelSettings;
     service.workflowService.healAutoDirectorTaskState = originalHeal;
   }
@@ -666,6 +767,8 @@ test("auto director follow-up service reflects runtime channel capabilities from
   const originals = {
     getArchivedTaskIds: taskArchive.getArchivedTaskIds,
     findMany: prisma.novelWorkflowTask.findMany,
+    autoApprovalFindMany: prisma.autoDirectorAutoApprovalRecord.findMany,
+    appSettingFindMany: prisma.appSetting.findMany,
   };
   const previousEnv = {
     AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL: process.env.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL,
@@ -682,6 +785,8 @@ test("auto director follow-up service reflects runtime channel capabilities from
       checkpointType: "front10_ready",
     }),
   ]);
+  prisma.autoDirectorAutoApprovalRecord.findMany = async () => [];
+  prisma.appSetting.findMany = async () => [];
 
   const service = new AutoDirectorFollowUpService();
   const originalHeal = service.workflowService.healAutoDirectorTaskState;
@@ -701,6 +806,8 @@ test("auto director follow-up service reflects runtime channel capabilities from
   } finally {
     taskArchive.getArchivedTaskIds = originals.getArchivedTaskIds;
     prisma.novelWorkflowTask.findMany = originals.findMany;
+    prisma.autoDirectorAutoApprovalRecord.findMany = originals.autoApprovalFindMany;
+    prisma.appSetting.findMany = originals.appSettingFindMany;
     process.env.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL = previousEnv.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL;
     process.env.AUTO_DIRECTOR_WECOM_WEBHOOK_URL = previousEnv.AUTO_DIRECTOR_WECOM_WEBHOOK_URL;
     service.workflowService.healAutoDirectorTaskState = originalHeal;

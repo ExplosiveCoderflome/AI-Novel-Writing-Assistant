@@ -34,6 +34,7 @@ export function AutoDirectorFollowUpDetailPanel({
   } as const;
   const eventTypeLabels = {
     "auto_director.approval_required": "需要处理",
+    "auto_director.auto_approved": "AI 已自动通过",
     "auto_director.exception": "任务异常",
     "auto_director.recovered": "已恢复",
     "auto_director.completed": "已完成",

@@ -29,6 +29,11 @@ export const AUTO_DIRECTOR_EVENT_OPTIONS: AutoDirectorEventOption[] = [
     description: "自动导演卡在需要继续或确认的节点时通知你处理。",
   },
   {
+    code: "auto_director.auto_approved",
+    label: "AI 已自动通过",
+    description: "AI 推进替你通过审批点并继续执行时通知你。",
+  },
+  {
     code: "auto_director.exception",
     label: "运行异常",
     description: "自动导演执行报错、失败或进入异常状态时通知你。",
