@@ -22,7 +22,7 @@ interface TakeoverBootstrapTaskResult {
 interface RewriteSnapshotReference {
   snapshotId: string;
   label: string;
-  restoreEntry?: string | null;
+  restoreEntry: "version_history";
 }
 
 interface TakeoverExecutionWorkflowPort {
@@ -191,10 +191,15 @@ async function createRewriteSnapshotForRestart(
     throw new Error("无法创建自动导演重写前备份：快照服务未配置");
   }
   try {
-    return await input.createRewriteSnapshot({
+    const snapshot = await input.createRewriteSnapshot({
       novelId: input.request.novelId,
       label: REWRITE_SNAPSHOT_LABEL,
     });
+    return {
+      snapshotId: snapshot.snapshotId,
+      label: snapshot.label.trim() || REWRITE_SNAPSHOT_LABEL,
+      restoreEntry: "version_history",
+    };
   } catch (error) {
     const cause = error instanceof Error && error.message ? `：${error.message}` : "";
     throw new Error(`无法创建自动导演重写前备份${cause}`);

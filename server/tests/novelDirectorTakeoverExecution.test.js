@@ -156,7 +156,6 @@ test("restart_current_step stores rewrite snapshot reference in task seed and mi
         snapshotId: "snapshot_before_rewrite",
         label,
         createdAt: "2026-04-25T00:00:00.000Z",
-        restoreEntry: "version_history",
       };
     },
     prepareRestartStep: async () => {
