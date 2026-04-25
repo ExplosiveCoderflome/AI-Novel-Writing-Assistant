@@ -113,10 +113,17 @@ function tryFixTruncatedJson(raw: string): string {
   return fixed;
 }
 
+function unwrapSingletonArray(val: unknown): unknown {
+  if (Array.isArray(val) && val.length === 1) {
+    return val[0];
+  }
+  return val;
+}
+
 function tryParseStructuredJsonValue(source: string): { parsed: unknown } | { error: string } {
   try {
     return {
-      parsed: JSON.parse(extractJSONValue(source)) as unknown,
+      parsed: unwrapSingletonArray(JSON.parse(extractJSONValue(source))),
     };
   } catch (error) {
     const fixed = tryFixTruncatedJson(source);
@@ -131,7 +138,7 @@ function tryParseStructuredJsonValue(source: string): { parsed: unknown } | { er
 
     try {
       return {
-        parsed: JSON.parse(extractJSONValue(fixed)) as unknown,
+        parsed: unwrapSingletonArray(JSON.parse(extractJSONValue(fixed))),
       };
     } catch (fixedError) {
       return {

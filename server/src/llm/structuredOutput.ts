@@ -387,6 +387,24 @@ export function classifyStructuredOutputFailure(input: {
   if (haystack.includes("zod") || haystack.includes("schema") || haystack.includes("校验错误")) {
     return "schema_mismatch";
   }
+  // Relay/proxy returned HTML instead of JSON (e.g. rate limit page, auth error page)
+  const lowerHaystack = haystack.toLowerCase();
+  if (
+    lowerHaystack.includes("<!doctype") ||
+    lowerHaystack.includes("<html") ||
+    lowerHaystack.includes("<body") ||
+    lowerHaystack.includes("</div>") ||
+    lowerHaystack.includes("</script>") ||
+    lowerHaystack.includes("rate limit") ||
+    lowerHaystack.includes("429") ||
+    lowerHaystack.includes("<title>error") ||
+    lowerHaystack.includes("<title>403") ||
+    lowerHaystack.includes("<title>404") ||
+    lowerHaystack.includes("<title>502") ||
+    lowerHaystack.includes("<title>503")
+  ) {
+    return "transport_error";
+  }
   return "transport_error";
 }
 
