@@ -43,6 +43,27 @@ test("chapter budget allocation ignores sparse seed chapters for a 430-chapter b
   assert.deepEqual(chapterBudgets, [54, 54, 54, 54, 54, 54, 53, 53]);
 });
 
+test("chapter budget allocation ignores partially generated long-book volumes", () => {
+  const chapterBudgets = allocateChapterBudgets({
+    volumeCount: 16,
+    chapterBudget: 1024,
+    existingVolumes: [
+      { chapters: Array.from({ length: 64 }, (_, index) => ({ id: `volume-1-${index + 1}` })) },
+      { chapters: Array.from({ length: 13 }, (_, index) => ({ id: `volume-2-${index + 1}` })) },
+      { chapters: Array.from({ length: 12 }, (_, index) => ({ id: `volume-3-${index + 1}` })) },
+      { chapters: Array.from({ length: 10 }, (_, index) => ({ id: `volume-4-${index + 1}` })) },
+      { chapters: Array.from({ length: 10 }, (_, index) => ({ id: `volume-5-${index + 1}` })) },
+      { chapters: Array.from({ length: 9 }, (_, index) => ({ id: `volume-6-${index + 1}` })) },
+      { chapters: Array.from({ length: 8 }, (_, index) => ({ id: `volume-7-${index + 1}` })) },
+      { chapters: Array.from({ length: 8 }, (_, index) => ({ id: `volume-8-${index + 1}` })) },
+      { chapters: Array.from({ length: 6 }, (_, index) => ({ id: `volume-9-${index + 1}` })) },
+      ...Array.from({ length: 7 }, () => ({ chapters: [] })),
+    ],
+  });
+
+  assert.deepEqual(chapterBudgets, Array.from({ length: 16 }, () => 64));
+});
+
 test("skeleton regeneration ignores stale 4-volume strategy for a 430-chapter book", () => {
   const targetVolumeCount = resolveSkeletonTargetVolumeCount({
     strategyRecommendedVolumeCount: 4,

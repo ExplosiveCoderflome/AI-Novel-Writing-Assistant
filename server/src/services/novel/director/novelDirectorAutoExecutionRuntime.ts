@@ -285,6 +285,7 @@ export class NovelDirectorAutoExecutionRuntime {
     novelId: string;
     plan: DirectorAutoExecutionState;
     chapters: DirectorAutoExecutionChapterRef[];
+    estimatedChapterCount?: number | null;
   }): Promise<DirectorAutoExecutionResolvedScope> {
     if (!this.deps.volumeWorkspaceService) {
       throw new Error("当前环境缺少卷工作区服务，无法解析按卷自动执行范围。");
@@ -294,6 +295,7 @@ export class NovelDirectorAutoExecutionRuntime {
     const recoveryCursor = resolveStructuredOutlineRecoveryCursor({
       workspace,
       plan: normalizedPlan,
+      estimatedChapterCount: input.estimatedChapterCount,
     });
     if (recoveryCursor.step !== "chapter_sync" && recoveryCursor.step !== "completed") {
       throw new Error(`${recoveryCursor.scopeLabel}还没有完成节奏 / 拆章同步，不能直接进入自动执行。`);
@@ -335,6 +337,7 @@ export class NovelDirectorAutoExecutionRuntime {
     existingState?: DirectorAutoExecutionState | null;
     pipelineJobId?: string | null;
     pipelineStatus?: PipelineJobStatus | null;
+    estimatedChapterCount?: number | null;
   }): Promise<{
     range: DirectorAutoExecutionRange;
     autoExecution: DirectorAutoExecutionState;
@@ -350,6 +353,7 @@ export class NovelDirectorAutoExecutionRuntime {
         novelId: input.novelId,
         plan: input.existingState,
         chapters,
+        estimatedChapterCount: input.estimatedChapterCount,
       });
       range = resolvedVolumeScope.range;
       scopeLabel = resolvedVolumeScope.scopeLabel ?? scopeLabel;
@@ -423,6 +427,7 @@ export class NovelDirectorAutoExecutionRuntime {
       existingState: requestedExecutionState,
       pipelineJobId: pipelineJobId || null,
       pipelineStatus: pipelineJobId ? "running" : "queued",
+      estimatedChapterCount: input.request.estimatedChapterCount,
     });
     return {
       range,
@@ -565,6 +570,7 @@ export class NovelDirectorAutoExecutionRuntime {
       existingState: requestedExecutionState,
       pipelineJobId: pipelineJobId || null,
       pipelineStatus,
+      estimatedChapterCount: input.request.estimatedChapterCount,
     });
 
     try {
@@ -594,6 +600,7 @@ export class NovelDirectorAutoExecutionRuntime {
           existingState: autoExecution,
           pipelineJobId,
           pipelineStatus: activeRangeJob.status,
+          estimatedChapterCount: input.request.estimatedChapterCount,
         }));
         await this.syncAutoExecutionTaskState({
           taskId: input.taskId,
@@ -612,6 +619,7 @@ export class NovelDirectorAutoExecutionRuntime {
           existingState: autoExecution,
           pipelineJobId: null,
           pipelineStatus: "queued",
+          estimatedChapterCount: input.request.estimatedChapterCount,
         }));
         if ((autoExecution.remainingChapterCount ?? 0) === 0) {
           await this.recordCompletedCheckpoint({

@@ -415,7 +415,11 @@ export function resolveStructuredOutlineRecoveryCursor(input: {
   const selectedChapters = selectPreparedOutlineChapters(input.workspace, normalizedPlan);
   const selectedChapterRange = resolveDirectorAutoExecutionPlanChapterRange(normalizedPlan);
   const preparedVolumeIds: string[] = [];
-  const shouldValidateFullVolumeBudget = normalizedPlan.mode === "volume";
+  const shouldValidateFullVolumeBudget = Boolean(
+    (normalizedPlan.mode === "volume" || normalizedPlan.mode === "chapter_range")
+      && typeof input.estimatedChapterCount === "number"
+      && input.estimatedChapterCount > 0,
+  );
   const expectedChapterBudgets = shouldValidateFullVolumeBudget
     && typeof input.estimatedChapterCount === "number"
     && input.estimatedChapterCount > 0

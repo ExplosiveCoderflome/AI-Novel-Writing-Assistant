@@ -358,6 +358,42 @@ test("resolveStructuredOutlineRecoveryCursor advances to next volume chapter_lis
   assert.equal(cursor.beatKey, "volume-2-beat");
 });
 
+test("resolveStructuredOutlineRecoveryCursor regenerates short later volumes for full-book chapter range", () => {
+  const workspace = buildVolumeWorkspaceDocument({
+    novelId: "novel-demo",
+    volumes: Array.from({ length: 16 }, (_, index) => {
+      const sortOrder = index + 1;
+      const chapterStart = sortOrder === 1 ? 1 : 65;
+      const chapterCount = sortOrder === 1 ? 64 : sortOrder === 2 ? 13 : 0;
+      return createVolume(`volume-${sortOrder}`, sortOrder, `第${sortOrder}卷`, Array.from({ length: chapterCount }, (_, chapterIndex) => (
+        createDetailedChapter(`chapter-${sortOrder}-${chapterIndex + 1}`, chapterStart + chapterIndex, {
+          volumeId: `volume-${sortOrder}`,
+          beatKey: `volume-${sortOrder}-beat`,
+        })
+      )));
+    }),
+    beatSheets: [
+      createSingleBeatSheet("volume-1", 1, "volume-1-beat", "卷一完整节奏", "1-64章"),
+      createSingleBeatSheet("volume-2", 2, "volume-2-beat", "卷二短节奏", "1-13章"),
+    ],
+    strategyPlan: null,
+    critiqueReport: null,
+    rebalanceDecisions: [],
+    source: "volume",
+    activeVersionId: null,
+  });
+
+  const cursor = resolveStructuredOutlineRecoveryCursor({
+    workspace,
+    plan: { mode: "chapter_range", startOrder: 1, endOrder: 1024 },
+    estimatedChapterCount: 1024,
+  });
+
+  assert.equal(cursor.step, "beat_sheet");
+  assert.equal(cursor.volumeId, "volume-2");
+  assert.equal(cursor.volumeOrder, 2);
+});
+
 test("resolveStructuredOutlineRecoveryCursor does not enter chapter execution when target range is still short", () => {
   const cursor = resolveStructuredOutlineRecoveryCursor({
     workspace: createTwoVolumeWorkspace({

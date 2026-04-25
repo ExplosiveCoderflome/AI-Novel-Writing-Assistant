@@ -41,6 +41,11 @@ function buildPreparedVolume(order, title, chapterOrders) {
       chapterOrder,
       title: `第${chapterOrder}章`,
       beatKey,
+      purpose: `purpose-${chapterOrder}`,
+      conflictLevel: 3,
+      revealLevel: 2,
+      targetWordCount: 2500,
+      mustAvoid: `avoid-${chapterOrder}`,
       taskSheet: `task-${chapterOrder}`,
       sceneCards: `scene-${chapterOrder}`,
       payoffRefs: [],
@@ -317,10 +322,11 @@ test("runFromReady records a normal checkpoint when pipeline completes with qual
   const runtime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: {
       async listChapters() {
-        return [
-          { id: "chapter-1", order: 1, generationState: "planned" },
-          { id: "chapter-2", order: 2, generationState: "planned" },
-        ];
+        return Array.from({ length: 10 }, (_, index) => ({
+          id: `chapter-${index + 1}`,
+          order: index + 1,
+          generationState: "planned",
+        }));
       },
     },
     novelService: {
@@ -494,10 +500,11 @@ test("runFromReady uses the latest auto-execution review toggles instead of stal
   const runtime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: {
       async listChapters() {
-        return [
-          { id: "chapter-1", order: 1, generationState: "planned" },
-          { id: "chapter-2", order: 2, generationState: "planned" },
-        ];
+        return Array.from({ length: 10 }, (_, index) => ({
+          id: `chapter-${index + 1}`,
+          order: index + 1,
+          generationState: "planned",
+        }));
       },
     },
     novelService: {
@@ -1009,5 +1016,85 @@ test("prepareRequestedAutoExecution rejects skipping to a later volume while ear
       }),
     }),
     /不能直接跳到第 2 卷/,
+  );
+});
+
+test("prepareRequestedAutoExecution rejects a short volume plan against the requested book budget", async () => {
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        return Array.from({ length: 77 }, (_, index) => ({
+          id: `chapter-${index + 1}`,
+          order: index + 1,
+          generationState: "planned",
+        }));
+      },
+    },
+    novelService: {
+      async startPipelineJob() {
+        throw new Error("should not start a pipeline in prepareRequestedAutoExecution");
+      },
+      async findActivePipelineJobForRange() {
+        return null;
+      },
+      async getPipelineJobById() {
+        throw new Error("should not inspect a pipeline in prepareRequestedAutoExecution");
+      },
+      async cancelPipelineJob() {},
+    },
+    volumeWorkspaceService: {
+      async getVolumes() {
+        return {
+          volumes: [
+            buildPreparedVolume(1, "完整卷", Array.from({ length: 64 }, (_, index) => index + 1)),
+            buildPreparedVolume(2, "短卷", Array.from({ length: 13 }, (_, index) => index + 65)),
+          ],
+          beatSheets: [
+            {
+              volumeId: "volume-1",
+              beats: [{ key: "volume-1-beat-1", label: "完整推进", chapterSpanHint: "1-64" }],
+            },
+            {
+              volumeId: "volume-2",
+              beats: [{ key: "volume-2-beat-1", label: "短卷推进", chapterSpanHint: "1-13" }],
+            },
+          ],
+        };
+      },
+    },
+    workflowService: {
+      async bootstrapTask() {
+        throw new Error("should not bootstrap in prepareRequestedAutoExecution");
+      },
+      async getTaskById() {
+        return { status: "waiting_approval" };
+      },
+      async markTaskRunning() {
+        throw new Error("should not mark running in prepareRequestedAutoExecution");
+      },
+      async recordCheckpoint() {
+        throw new Error("should not record checkpoint in prepareRequestedAutoExecution");
+      },
+      async markTaskFailed() {
+        throw new Error("should not mark failed in prepareRequestedAutoExecution");
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+  });
+
+  await assert.rejects(
+    runtime.prepareRequestedAutoExecution({
+      novelId: "novel-1",
+      request: buildRequest({
+        estimatedChapterCount: 1024,
+        autoExecutionPlan: {
+          mode: "volume",
+          volumeOrder: 2,
+        },
+      }),
+    }),
+    /第 2 卷 · 完整卷还没有完成节奏 \/ 拆章同步/,
   );
 });
