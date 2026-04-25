@@ -965,6 +965,17 @@ export class NovelDirectorService {
       scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, runner),
       runDirectorPipeline: (payload) => this.runDirectorPipeline(payload),
       assertHighMemoryStartAllowed: (payload) => this.assertHighMemoryDirectorStartAllowed(payload),
+      createRewriteSnapshot: async ({ novelId, label }) => {
+        const snapshot = await this.novelService.createNovelSnapshot(novelId, "before_pipeline", label);
+        return {
+          snapshotId: snapshot.id,
+          label: snapshot.label ?? label,
+          restoreEntry: "version_history",
+        };
+      },
+      recordRewriteSnapshotMilestone: ({ taskId, summary }) => this.workflowService.recordRewriteSnapshotMilestone(taskId, {
+        summary,
+      }),
       prepareRestartStep: async ({ plan, takeoverState: currentTakeoverState, directorInput }) => {
         await resetDirectorTakeoverCurrentStep({
           novelId: input.novelId,

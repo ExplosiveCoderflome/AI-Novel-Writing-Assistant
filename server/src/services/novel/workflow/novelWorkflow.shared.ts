@@ -1,15 +1,11 @@
 import type {
   NovelWorkflowCheckpoint,
   NovelWorkflowLane,
+  NovelWorkflowMilestone,
+  NovelWorkflowMilestoneType,
   NovelWorkflowResumeTarget,
   NovelWorkflowStage,
 } from "@ai-novel/shared/types/novelWorkflow";
-
-export interface NovelWorkflowMilestone {
-  checkpointType: NovelWorkflowCheckpoint;
-  summary: string;
-  createdAt: string;
-}
 
 export const NOVEL_WORKFLOW_STAGE_LABELS: Record<NovelWorkflowStage, string> = {
   project_setup: "项目设定",
@@ -130,7 +126,7 @@ export function parseMilestones(value: string | null | undefined): NovelWorkflow
 
 export function appendMilestone(
   existing: string | null | undefined,
-  checkpointType: NovelWorkflowCheckpoint,
+  checkpointType: NovelWorkflowMilestoneType,
   summary: string,
 ): string {
   const next = [

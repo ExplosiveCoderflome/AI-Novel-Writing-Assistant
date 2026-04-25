@@ -19,6 +19,12 @@ interface TakeoverBootstrapTaskResult {
   id: string;
 }
 
+interface RewriteSnapshotReference {
+  snapshotId: string;
+  label: string;
+  restoreEntry?: string | null;
+}
+
 interface TakeoverExecutionWorkflowPort {
   bootstrapTask(input: {
     novelId: string;
@@ -82,6 +88,15 @@ interface StartDirectorTakeoverExecutionInput {
     scope?: string | null;
     batchAlreadyStartedCount?: number;
   }) => Promise<void>;
+  createRewriteSnapshot?: (input: {
+    novelId: string;
+    label: string;
+  }) => Promise<RewriteSnapshotReference>;
+  recordRewriteSnapshotMilestone?: (input: {
+    taskId: string;
+    snapshot: RewriteSnapshotReference;
+    summary: string;
+  }) => Promise<unknown>;
   prepareRestartStep?: (input: {
     request: DirectorTakeoverRequest;
     takeoverState: DirectorTakeoverLoadedState;
@@ -167,6 +182,25 @@ function buildAutoExecutionRunningState(plan: DirectorTakeoverResolvedPlan): {
   };
 }
 
+const REWRITE_SNAPSHOT_LABEL = "自动导演重写前备份";
+
+async function createRewriteSnapshotForRestart(
+  input: StartDirectorTakeoverExecutionInput,
+): Promise<RewriteSnapshotReference> {
+  if (!input.createRewriteSnapshot) {
+    throw new Error("无法创建自动导演重写前备份：快照服务未配置");
+  }
+  try {
+    return await input.createRewriteSnapshot({
+      novelId: input.request.novelId,
+      label: REWRITE_SNAPSHOT_LABEL,
+    });
+  } catch (error) {
+    const cause = error instanceof Error && error.message ? `：${error.message}` : "";
+    throw new Error(`无法创建自动导演重写前备份${cause}`);
+  }
+}
+
 export async function startDirectorTakeoverExecution(
   input: StartDirectorTakeoverExecutionInput,
 ): Promise<DirectorTakeoverResponse> {
@@ -186,7 +220,9 @@ export async function startDirectorTakeoverExecution(
     isBackgroundRunning: true,
   });
 
+  let rewriteSnapshot: RewriteSnapshotReference | null = null;
   if (selection.strategy === "restart_current_step") {
+    rewriteSnapshot = await createRewriteSnapshotForRestart(input);
     await input.prepareRestartStep?.({
       request: input.request,
       takeoverState: input.takeoverState,
@@ -210,8 +246,17 @@ export async function startDirectorTakeoverExecution(
       directorSession,
       resumeTarget: initialResumeTarget,
       takeover: buildTakeoverMetadata(plan),
+      ...(rewriteSnapshot ? { rewriteSnapshot } : {}),
     }),
   });
+
+  if (rewriteSnapshot) {
+    await input.recordRewriteSnapshotMilestone?.({
+      taskId: workflowTask.id,
+      snapshot: rewriteSnapshot,
+      summary: `${rewriteSnapshot.label}已创建：${rewriteSnapshot.snapshotId}`,
+    });
+  }
 
   const resumeTarget = buildResumeTargetFromPlan({
     novelId: input.request.novelId,

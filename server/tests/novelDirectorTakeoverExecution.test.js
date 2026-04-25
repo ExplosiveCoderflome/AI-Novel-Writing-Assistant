@@ -93,9 +93,16 @@ test("restart_current_step prepares reset before bootstrapping execution", async
     runDirectorPipeline: async () => {
       calls.push("phase_pipeline");
     },
+    createRewriteSnapshot: async () => ({
+      snapshotId: "snapshot_before_rewrite",
+      label: "自动导演重写前备份",
+      createdAt: "2026-04-25T00:00:00.000Z",
+      restoreEntry: "version_history",
+    }),
     prepareRestartStep: async ({ plan }) => {
       calls.push(`reset:${plan.effectiveStep}`);
     },
+    recordRewriteSnapshotMilestone: async () => {},
   });
 
   assert.equal(response.strategy, "restart_current_step");
@@ -105,6 +112,121 @@ test("restart_current_step prepares reset before bootstrapping execution", async
   await Promise.all(scheduled.map((runner) => runner()));
   assert.ok(calls.includes("auto_execution"));
   assert.equal(runFromReadyInput.existingState, null);
+});
+
+test("restart_current_step stores rewrite snapshot reference in task seed and milestone", async () => {
+  const calls = [];
+  let bootstrapInput = null;
+  let milestoneInput = null;
+
+  await startDirectorTakeoverExecution({
+    request: {
+      novelId: "novel_takeover_demo",
+      entryStep: "chapter",
+      strategy: "restart_current_step",
+    },
+    takeoverState: buildTakeoverState(),
+    directorInput: {
+      candidate: { workingTitle: "Neon Archive" },
+      runMode: "auto_to_execution",
+      autoExecutionPlan: { mode: "front10" },
+    },
+    workflowService: {
+      bootstrapTask: async (input) => {
+        bootstrapInput = input;
+        calls.push("bootstrap");
+        return { id: "workflow_takeover_demo" };
+      },
+      markTaskRunning: async () => {
+        calls.push("mark_running");
+      },
+    },
+    autoExecutionRuntime: {
+      prepareRequestedAutoExecution: async () => {
+        calls.push("prepare_auto_execution");
+      },
+      runFromReady: async () => {},
+    },
+    buildDirectorSeedPayload: (_request, _novelId, extra) => ({ ...extra }),
+    scheduleBackgroundRun: () => {},
+    runDirectorPipeline: async () => {},
+    createRewriteSnapshot: async ({ label }) => {
+      calls.push(["snapshot", label]);
+      return {
+        snapshotId: "snapshot_before_rewrite",
+        label,
+        createdAt: "2026-04-25T00:00:00.000Z",
+        restoreEntry: "version_history",
+      };
+    },
+    prepareRestartStep: async () => {
+      calls.push("reset");
+    },
+    recordRewriteSnapshotMilestone: async (input) => {
+      milestoneInput = input;
+      calls.push("milestone");
+    },
+  });
+
+  assert.deepEqual(calls.slice(0, 3), [
+    ["snapshot", "自动导演重写前备份"],
+    "reset",
+    "bootstrap",
+  ]);
+  assert.equal(bootstrapInput.seedPayload.rewriteSnapshot.snapshotId, "snapshot_before_rewrite");
+  assert.equal(bootstrapInput.seedPayload.rewriteSnapshot.label, "自动导演重写前备份");
+  assert.equal(bootstrapInput.seedPayload.rewriteSnapshot.restoreEntry, "version_history");
+  assert.equal(milestoneInput.taskId, "workflow_takeover_demo");
+  assert.match(milestoneInput.summary, /自动导演重写前备份/);
+  assert.match(milestoneInput.summary, /snapshot_before_rewrite/);
+});
+
+test("restart_current_step stops before reset when rewrite snapshot creation fails", async () => {
+  const calls = [];
+
+  await assert.rejects(
+    () => startDirectorTakeoverExecution({
+      request: {
+        novelId: "novel_takeover_demo",
+        entryStep: "chapter",
+        strategy: "restart_current_step",
+      },
+      takeoverState: buildTakeoverState(),
+      directorInput: {
+        candidate: { workingTitle: "Neon Archive" },
+        runMode: "auto_to_execution",
+        autoExecutionPlan: { mode: "front10" },
+      },
+      workflowService: {
+        bootstrapTask: async () => {
+          calls.push("bootstrap");
+          return { id: "workflow_takeover_demo" };
+        },
+        markTaskRunning: async () => {
+          calls.push("mark_running");
+        },
+      },
+      autoExecutionRuntime: {
+        prepareRequestedAutoExecution: async () => {
+          calls.push("prepare_auto_execution");
+        },
+        runFromReady: async () => {},
+      },
+      buildDirectorSeedPayload: () => ({}),
+      scheduleBackgroundRun: () => {},
+      runDirectorPipeline: async () => {},
+      createRewriteSnapshot: async () => {
+        calls.push("snapshot");
+        throw new Error("snapshot storage unavailable");
+      },
+      prepareRestartStep: async () => {
+        calls.push("reset");
+      },
+    }),
+    /无法创建自动导演重写前备份/,
+  );
+
+  assert.deepEqual(calls, ["snapshot"]);
 });
 
 test("continue_existing does not invoke restart preparation", async () => {

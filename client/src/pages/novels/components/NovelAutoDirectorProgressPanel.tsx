@@ -1,4 +1,7 @@
-import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
+import type {
+  NovelWorkflowMilestone,
+  NovelWorkflowMilestoneType,
+} from "@ai-novel/shared/types/novelWorkflow";
 import {
   DIRECTOR_CANDIDATE_SETUP_STEPS,
   extractDirectorTaskSeedPayloadFromMeta,
@@ -105,9 +108,12 @@ function resolveDirectorStyleSeed(task: UnifiedTaskDetail | null): {
 }
 
 function formatCheckpoint(
-  checkpoint: NovelWorkflowCheckpoint | null | undefined,
+  checkpoint: NovelWorkflowMilestoneType | null | undefined,
   task: UnifiedTaskDetail | null,
 ): string {
+  if (checkpoint === "rewrite_snapshot_created") {
+    return "重写前备份已创建";
+  }
   if (checkpoint === "candidate_selection_required") {
     return "等待确认书级方向";
   }
@@ -288,7 +294,7 @@ export default function NovelAutoDirectorProgressPanel({
       : workflowTitle || hintedTitle || "新小说项目"
   );
   const milestones = Array.isArray(task?.meta.milestones)
-    ? task.meta.milestones as Array<{ checkpointType: NovelWorkflowCheckpoint; summary: string; createdAt: string }>
+    ? task.meta.milestones as NovelWorkflowMilestone[]
     : [];
   const candidateSetupFlow = isCandidateSetupFlow(task);
   const stepDefinitions = candidateSetupFlow

@@ -6,7 +6,11 @@ import type {
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import type { TaskKind, TaskStatus } from "@ai-novel/shared/types/task";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import type { NovelWorkflowCheckpoint, NovelWorkflowResumeTarget } from "@ai-novel/shared/types/novelWorkflow";
+import type {
+  NovelWorkflowMilestone,
+  NovelWorkflowMilestoneType,
+  NovelWorkflowResumeTarget,
+} from "@ai-novel/shared/types/novelWorkflow";
 import { continueNovelWorkflow } from "@/api/novelWorkflow";
 import {
   archiveTask,
@@ -91,8 +95,11 @@ function formatKind(kind: TaskKind): string {
   return "图片生成";
 }
 
-function formatCheckpoint(checkpoint: NovelWorkflowCheckpoint | null | undefined, scopeLabel?: string | null): string {
+function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null | undefined, scopeLabel?: string | null): string {
   const resolvedScopeLabel = scopeLabel?.trim() || "前 10 章";
+  if (checkpoint === "rewrite_snapshot_created") {
+    return "重写前备份已创建";
+  }
   if (checkpoint === "candidate_selection_required") {
     return "等待确认书级方向";
   }
@@ -993,7 +1000,7 @@ export default function TaskCenterPage() {
                 {selectedTask.kind === "novel_workflow" && Array.isArray(selectedTask.meta.milestones) && selectedTask.meta.milestones.length > 0 ? (
                   <div className="space-y-2">
                     <div className="font-medium">里程碑历史</div>
-                    {(selectedTask.meta.milestones as Array<{ checkpointType: NovelWorkflowCheckpoint; summary: string; createdAt: string }>).map((item) => (
+                    {(selectedTask.meta.milestones as NovelWorkflowMilestone[]).map((item) => (
                       <div key={`${item.checkpointType}:${item.createdAt}`} className="rounded-md border p-2 text-muted-foreground">
                         <div className="font-medium text-foreground">{formatCheckpoint(item.checkpointType)}</div>
                         <div className="mt-1">{item.summary}</div>

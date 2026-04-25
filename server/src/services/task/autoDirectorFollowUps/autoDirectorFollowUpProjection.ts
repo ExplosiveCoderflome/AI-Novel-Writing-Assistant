@@ -456,9 +456,12 @@ export function buildSectionCounters(items: AutoDirectorFollowUpItem[]): AutoDir
 }
 
 function buildMilestoneLabel(milestone: ReturnType<typeof parseMilestones>[number]): string {
+  if (milestone.checkpointType === "rewrite_snapshot_created") {
+    return "重写前备份已创建";
+  }
   return buildWorkflowExplainability({
     status: "waiting_approval",
-    checkpointType: milestone.checkpointType,
+    checkpointType: milestone.checkpointType as NovelWorkflowCheckpoint,
   }).displayStatus ?? milestone.summary;
 }
 

@@ -1,4 +1,7 @@
-import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
+import type {
+  NovelWorkflowMilestone,
+  NovelWorkflowMilestoneType,
+} from "@ai-novel/shared/types/novelWorkflow";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
 import type { CharacterResourceProposalSummary } from "@ai-novel/shared/types/characterResource";
 import { Badge } from "@/components/ui/badge";
@@ -44,8 +47,11 @@ function toStatusVariant(status: TaskStatus): "default" | "outline" | "secondary
   return "outline";
 }
 
-function formatCheckpoint(checkpoint: NovelWorkflowCheckpoint | null | undefined, scopeLabel?: string | null): string {
+function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null | undefined, scopeLabel?: string | null): string {
   const resolvedScopeLabel = scopeLabel?.trim() || "前 10 章";
+  if (checkpoint === "rewrite_snapshot_created") {
+    return "重写前备份已创建";
+  }
   if (checkpoint === "candidate_selection_required") {
     return "等待确认书级方向";
   }
@@ -217,7 +223,7 @@ export default function NovelTaskDrawer({
   onOpenFullTaskCenter,
 }: NovelTaskDrawerState) {
   const milestones = Array.isArray(task?.meta.milestones)
-    ? task.meta.milestones as Array<{ checkpointType: NovelWorkflowCheckpoint; summary: string; createdAt: string }>
+    ? task.meta.milestones as NovelWorkflowMilestone[]
     : [];
   const progressPercent = Math.max(0, Math.min(100, Math.round((task?.progress ?? 0) * 100)));
   const tokenUsage = task?.tokenUsage ?? null;

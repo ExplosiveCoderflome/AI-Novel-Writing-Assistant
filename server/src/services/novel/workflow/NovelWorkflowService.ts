@@ -37,6 +37,7 @@ import {
   mergeSeedPayload,
   NOVEL_WORKFLOW_STAGE_LABELS,
   NOVEL_WORKFLOW_STAGE_PROGRESS,
+  parseMilestones,
   parseSeedPayload,
   parseResumeTarget,
   stringifyResumeTarget,
@@ -1407,6 +1408,32 @@ export class NovelWorkflowService {
           ? mergeSeedPayload(existing.seedPayloadJson, input.seedPayload)
           : existing.seedPayloadJson,
         milestonesJson: appendMilestone(existing.milestonesJson, "candidate_selection_required", input.summary),
+      },
+    });
+  }
+
+  async recordRewriteSnapshotMilestone(taskId: string, input: {
+    summary: string;
+  }) {
+    const existing = await this.getVisibleRowById(taskId);
+    if (!existing) {
+      throw new AppError("Workflow task not found.", 404);
+    }
+    if (isTaskCancellationRequested(existing)) {
+      throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
+    }
+    return this.updateTaskWithRetry({
+      where: { id: taskId },
+      data: {
+        heartbeatAt: new Date(),
+        milestonesJson: JSON.stringify([
+          ...parseMilestones(existing.milestonesJson),
+          {
+            checkpointType: "rewrite_snapshot_created",
+            summary: input.summary,
+            createdAt: new Date().toISOString(),
+          },
+        ]),
       },
     });
   }
