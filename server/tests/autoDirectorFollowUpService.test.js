@@ -113,6 +113,9 @@ test("auto director follow-up service overview counts actionable rows by reason"
       runtime_cancelled: 0,
       front10_execution_pending: 0,
       quality_repair_pending: 0,
+      auto_progress_running: 0,
+      runtime_replaced: 0,
+      validation_required: 0,
     });
     assert.equal(overview.totalCount, 3);
   } finally {
@@ -223,6 +226,160 @@ test("auto director follow-up service lists actionable items with filters, count
   }
 });
 
+test("auto director follow-up service returns section-first counts and filters section results", async () => {
+  const originals = {
+    getArchivedTaskIds: taskArchive.getArchivedTaskIds,
+    findMany: prisma.novelWorkflowTask.findMany,
+    getAutoDirectorChannelSettings: autoDirectorChannelSettingsService.getAutoDirectorChannelSettings,
+  };
+
+  taskArchive.getArchivedTaskIds = async () => [];
+  prisma.novelWorkflowTask.findMany = async () => ([
+    buildWorkflowRow({
+      id: "task_pending",
+      status: "waiting_approval",
+      checkpointType: "front10_ready",
+      updatedAt: new Date("2026-04-21T08:00:00.000Z"),
+    }),
+    buildWorkflowRow({
+      id: "task_running",
+      status: "running",
+      checkpointType: null,
+      currentItemLabel: "正在继续拆章",
+      updatedAt: new Date("2026-04-21T09:00:00.000Z"),
+    }),
+    buildWorkflowRow({
+      id: "task_exception",
+      status: "failed",
+      checkpointType: "chapter_batch_ready",
+      lastError: "模型调用失败",
+      updatedAt: new Date("2026-04-21T10:00:00.000Z"),
+    }),
+    buildWorkflowRow({
+      id: "task_replaced",
+      status: "succeeded",
+      checkpointType: "workflow_completed",
+      currentItemLabel: "任务已由新导演任务接管",
+      seedPayloadJson: JSON.stringify({
+        replacementTaskId: "task_new",
+      }),
+      updatedAt: new Date("2026-04-21T11:00:00.000Z"),
+    }),
+    buildWorkflowRow({
+      id: "task_new",
+      status: "running",
+      checkpointType: null,
+      currentItemLabel: "新导演任务正在推进",
+      updatedAt: new Date("2026-04-21T12:00:00.000Z"),
+    }),
+    buildWorkflowRow({
+      id: "task_stale_replacement",
+      status: "succeeded",
+      checkpointType: "workflow_completed",
+      currentItemLabel: "任务记录了不存在的替代任务",
+      seedPayloadJson: JSON.stringify({
+        replacementTaskId: "task_missing",
+      }),
+      updatedAt: new Date("2026-04-21T07:00:00.000Z"),
+    }),
+    buildWorkflowRow({
+      id: "task_validation",
+      status: "waiting_approval",
+      checkpointType: "front10_ready",
+      currentItemLabel: "等待继续自动执行",
+      seedPayloadJson: JSON.stringify({
+        autoExecution: {
+          scopeLabel: "第 1-10 章",
+          startOrder: 1,
+          endOrder: 10,
+        },
+        autoDirectorValidationResult: {
+          allowed: false,
+          blockingReasons: ["目标范围缺少节奏拆章，需要先重新校验。"],
+          warnings: ["继续前请确认章节范围。"],
+          requiredActions: [{
+            code: "revalidate_assets",
+            label: "重新读取任务状态",
+            riskLevel: "low",
+            safeToAutoFix: true,
+          }],
+          affectedScope: {
+            type: "chapter_range",
+            label: "第 1-10 章",
+            startOrder: 1,
+            endOrder: 10,
+          },
+          nextAction: "revalidate",
+        },
+      }),
+      updatedAt: new Date("2026-04-21T13:00:00.000Z"),
+    }),
+  ]);
+  autoDirectorChannelSettingsService.getAutoDirectorChannelSettings = async () => ({
+    baseUrl: "https://writer.example.test",
+    dingtalk: {
+      webhookUrl: "",
+      callbackToken: "",
+      operatorMapJson: "",
+      eventTypes: [],
+    },
+    wecom: {
+      webhookUrl: "",
+      callbackToken: "",
+      operatorMapJson: "",
+      eventTypes: [],
+    },
+  });
+
+  const service = new AutoDirectorFollowUpService();
+  const originalHeal = service.workflowService.healAutoDirectorTaskState;
+  service.workflowService.healAutoDirectorTaskState = async () => false;
+
+  try {
+    const all = await service.list({
+      page: 1,
+      pageSize: 10,
+    });
+
+    assert.deepEqual(all.items.map((item) => item.taskId), [
+      "task_validation",
+      "task_exception",
+      "task_pending",
+      "task_new",
+      "task_running",
+      "task_replaced",
+    ]);
+    assert.deepEqual(all.countersBySection, {
+      needs_validation: 1,
+      exception: 1,
+      pending: 1,
+      auto_progress: 2,
+      replaced: 1,
+    });
+    assert.deepEqual(all.availableFilters.sections, ["needs_validation", "exception", "pending", "auto_progress", "replaced"]);
+    assert.equal(all.items.find((item) => item.taskId === "task_running").section, "auto_progress");
+    assert.equal(all.items.find((item) => item.taskId === "task_running").supportsBatch, false);
+    assert.equal(all.items.find((item) => item.taskId === "task_replaced").section, "replaced");
+    assert.equal(all.items.find((item) => item.taskId === "task_validation").reason, "validation_required");
+    assert.equal(all.items.find((item) => item.taskId === "task_validation").section, "needs_validation");
+    assert.equal(all.items.find((item) => item.taskId === "task_validation").supportsBatch, false);
+    assert.equal(all.items.find((item) => item.taskId === "task_stale_replacement"), undefined);
+
+    const filtered = await service.list({
+      section: "auto_progress",
+      page: 1,
+      pageSize: 10,
+    });
+    assert.deepEqual(filtered.items.map((item) => item.taskId), ["task_new", "task_running"]);
+    assert.equal(filtered.pagination.total, 2);
+  } finally {
+    taskArchive.getArchivedTaskIds = originals.getArchivedTaskIds;
+    prisma.novelWorkflowTask.findMany = originals.findMany;
+    autoDirectorChannelSettingsService.getAutoDirectorChannelSettings = originals.getAutoDirectorChannelSettings;
+    service.workflowService.healAutoDirectorTaskState = originalHeal;
+  }
+});
+
 test("auto director follow-up service detail reuses workflow detail and adds follow-up links", async () => {
   const originals = {
     isTaskArchived: taskArchive.isTaskArchived,
@@ -233,28 +390,31 @@ test("auto director follow-up service detail reuses workflow detail and adds fol
   };
 
   taskArchive.isTaskArchived = async () => false;
-  prisma.novelWorkflowTask.findUnique = async () => buildWorkflowRow({
-    id: "task_detail",
-    novelId: "novel_detail",
-    checkpointType: "candidate_selection_required",
-    currentStage: "AI 自动导演",
-    currentItemKey: "auto_director",
-    currentItemLabel: "等待确认书级方向",
-    checkpointSummary: "请先确认书级方向。",
-    resumeTargetJson: JSON.stringify({
-      route: "/novels/create",
-      taskId: "task_detail",
-      mode: "director",
-    }),
-    seedPayloadJson: JSON.stringify({ provider: "anthropic", model: "claude-sonnet-4-6" }),
-    milestonesJson: JSON.stringify([
-      {
-        checkpointType: "candidate_selection_required",
-        summary: "请先确认书级方向。",
-        createdAt: "2026-04-21T08:30:00.000Z",
-      },
-    ]),
-  });
+  prisma.novelWorkflowTask.findUnique = async ({ where }) => {
+    assert.equal(where.id, "task_detail");
+    return buildWorkflowRow({
+      id: "task_detail",
+      novelId: "novel_detail",
+      checkpointType: "candidate_selection_required",
+      currentStage: "AI 自动导演",
+      currentItemKey: "auto_director",
+      currentItemLabel: "等待确认书级方向",
+      checkpointSummary: "请先确认书级方向。",
+      resumeTargetJson: JSON.stringify({
+        route: "/novels/create",
+        taskId: "task_detail",
+        mode: "director",
+      }),
+      seedPayloadJson: JSON.stringify({ provider: "anthropic", model: "claude-sonnet-4-6" }),
+      milestonesJson: JSON.stringify([
+        {
+          checkpointType: "candidate_selection_required",
+          summary: "请先确认书级方向。",
+          createdAt: "2026-04-21T08:30:00.000Z",
+        },
+      ]),
+    });
+  };
   prisma.autoDirectorFollowUpNotificationLog.findMany = async () => ([
     {
       id: "notify_1",
@@ -372,6 +532,126 @@ test("auto director follow-up service detail reuses workflow detail and adds fol
       },
     ]);
     assert.equal(detail.task.id, "task_detail");
+  } finally {
+    taskArchive.isTaskArchived = originals.isTaskArchived;
+    prisma.novelWorkflowTask.findUnique = originals.findUnique;
+    prisma.autoDirectorFollowUpNotificationLog.findMany = originals.notificationLogFindMany;
+    NovelWorkflowTaskAdapter.prototype.detail = originals.adapterDetail;
+    autoDirectorChannelSettingsService.getAutoDirectorChannelSettings = originals.getAutoDirectorChannelSettings;
+    service.workflowService.healAutoDirectorTaskState = originalHeal;
+  }
+});
+
+test("auto director follow-up service detail only marks replaced when replacement task exists", async () => {
+  const originals = {
+    isTaskArchived: taskArchive.isTaskArchived,
+    findUnique: prisma.novelWorkflowTask.findUnique,
+    notificationLogFindMany: prisma.autoDirectorFollowUpNotificationLog.findMany,
+    adapterDetail: NovelWorkflowTaskAdapter.prototype.detail,
+    getAutoDirectorChannelSettings: autoDirectorChannelSettingsService.getAutoDirectorChannelSettings,
+  };
+  const findUniqueCalls = [];
+
+  taskArchive.isTaskArchived = async () => false;
+  prisma.novelWorkflowTask.findUnique = async ({ where }) => {
+    findUniqueCalls.push(where.id);
+    if (where.id === "task_replaced_detail") {
+      return buildWorkflowRow({
+        id: "task_replaced_detail",
+        novelId: "novel_detail",
+        status: "succeeded",
+        checkpointType: "workflow_completed",
+        currentItemLabel: "任务已由新导演任务接管",
+        seedPayloadJson: JSON.stringify({
+          replacementTaskId: "task_replacement_exists",
+        }),
+        finishedAt: new Date("2026-04-21T09:00:00.000Z"),
+      });
+    }
+    if (where.id === "task_replacement_exists") {
+      return { id: "task_replacement_exists" };
+    }
+    return null;
+  };
+  prisma.autoDirectorFollowUpNotificationLog.findMany = async () => [];
+  NovelWorkflowTaskAdapter.prototype.detail = async function detailMock(taskId, options) {
+    assert.deepEqual(options, { heal: false });
+    return {
+      id: taskId,
+      kind: "novel_workflow",
+      title: "AI 自动导演",
+      status: "succeeded",
+      progress: 1,
+      currentStage: "完成",
+      currentItemKey: "workflow_completed",
+      currentItemLabel: "任务已完成",
+      executionScopeLabel: null,
+      displayStatus: "任务已完成",
+      blockingReason: null,
+      resumeAction: null,
+      lastHealthyStage: "完成",
+      attemptCount: 1,
+      maxAttempts: 3,
+      lastError: null,
+      createdAt: "2026-04-21T08:00:00.000Z",
+      updatedAt: "2026-04-21T09:00:00.000Z",
+      heartbeatAt: "2026-04-21T09:00:00.000Z",
+      ownerId: "novel_detail",
+      ownerLabel: "《雾港巡夜人》",
+      sourceRoute: "/novels/novel_detail/edit",
+      checkpointType: "workflow_completed",
+      checkpointSummary: null,
+      resumeTarget: null,
+      nextActionLabel: null,
+      noticeCode: null,
+      noticeSummary: null,
+      failureCode: null,
+      failureSummary: null,
+      recoveryHint: null,
+      tokenUsage: null,
+      sourceResource: null,
+      targetResources: [],
+      provider: null,
+      model: null,
+      startedAt: "2026-04-21T08:00:00.000Z",
+      finishedAt: "2026-04-21T09:00:00.000Z",
+      retryCountLabel: "1/3",
+      meta: {},
+      steps: [],
+      failureDetails: null,
+    };
+  };
+  autoDirectorChannelSettingsService.getAutoDirectorChannelSettings = async () => ({
+    baseUrl: "https://writer.example.test",
+    dingtalk: {
+      webhookUrl: "",
+      callbackToken: "",
+      operatorMapJson: "",
+      eventTypes: [],
+    },
+    wecom: {
+      webhookUrl: "",
+      callbackToken: "",
+      operatorMapJson: "",
+      eventTypes: [],
+    },
+  });
+
+  const service = new AutoDirectorFollowUpService();
+  const originalHeal = service.workflowService.healAutoDirectorTaskState;
+  const healCalls = [];
+  service.workflowService.healAutoDirectorTaskState = async (taskId) => {
+    healCalls.push(taskId);
+    return false;
+  };
+
+  try {
+    const detail = await service.getDetail("task_replaced_detail", { heal: false });
+
+    assert.ok(detail);
+    assert.equal(detail.reasonLabel, "任务已替代");
+    assert.deepEqual(findUniqueCalls, ["task_replaced_detail", "task_replacement_exists"]);
+    assert.deepEqual(healCalls, []);
   } finally {
     taskArchive.isTaskArchived = originals.isTaskArchived;
     prisma.novelWorkflowTask.findUnique = originals.findUnique;

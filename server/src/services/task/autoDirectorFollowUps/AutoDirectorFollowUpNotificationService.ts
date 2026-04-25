@@ -17,6 +17,7 @@ import {
   type AutoDirectorEventWorkflowSnapshot,
 } from "./autoDirectorFollowUpEventBuilder";
 import { resolveAutoDirectorFollowUpReason } from "./autoDirectorFollowUpReasonResolver";
+import { extractBlockedAutoDirectorValidationResult } from "./autoDirectorFollowUpValidationResult";
 
 function isMissingTableError(error: unknown): boolean {
   return typeof error === "object"
@@ -50,6 +51,33 @@ function parseExecutionScopeLabel(seedPayloadJson: string | null | undefined): s
   } catch {
     return null;
   }
+}
+
+function parseReplacementTaskId(seedPayloadJson: string | null | undefined): string | null {
+  if (!seedPayloadJson?.trim()) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(seedPayloadJson) as {
+      replacementTaskId?: unknown;
+    };
+    return typeof parsed.replacementTaskId === "string" && parsed.replacementTaskId.trim()
+      ? parsed.replacementTaskId.trim()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveReasonInput(input: AutoDirectorEventWorkflowSnapshot) {
+  return {
+    status: input.status,
+    checkpointType: input.checkpointType,
+    pendingManualRecovery: input.pendingManualRecovery,
+    executionScopeLabel: parseExecutionScopeLabel(input.seedPayloadJson),
+    replacementTaskId: parseReplacementTaskId(input.seedPayloadJson),
+    validationResult: extractBlockedAutoDirectorValidationResult(input.seedPayloadJson),
+  };
 }
 
 export class AutoDirectorFollowUpNotificationService {
@@ -95,12 +123,7 @@ export class AutoDirectorFollowUpNotificationService {
   }
 
   private resolveAvailableActions(input: AutoDirectorEventWorkflowSnapshot): AutoDirectorAction[] {
-    const resolved = resolveAutoDirectorFollowUpReason({
-      status: input.status,
-      checkpointType: input.checkpointType,
-      pendingManualRecovery: input.pendingManualRecovery,
-      executionScopeLabel: parseExecutionScopeLabel(input.seedPayloadJson),
-    });
+    const resolved = resolveAutoDirectorFollowUpReason(resolveReasonInput(input));
     return resolved?.availableActions ?? [];
   }
 
@@ -116,12 +139,7 @@ export class AutoDirectorFollowUpNotificationService {
     if (!this.isEventEnabledForChannel(channelConfig.eventTypes, input.event.eventType)) {
       return;
     }
-    const reasonResolved = resolveAutoDirectorFollowUpReason({
-      status: input.after.status,
-      checkpointType: input.after.checkpointType,
-      pendingManualRecovery: input.after.pendingManualRecovery,
-      executionScopeLabel: parseExecutionScopeLabel(input.after.seedPayloadJson),
-    });
+    const reasonResolved = resolveAutoDirectorFollowUpReason(resolveReasonInput(input.after));
     const payload = this.dingTalkNotifier.buildPayload({
       event: input.event,
       taskId: input.after.id,
@@ -180,12 +198,7 @@ export class AutoDirectorFollowUpNotificationService {
     if (!this.isEventEnabledForChannel(channelConfig.eventTypes, input.event.eventType)) {
       return;
     }
-    const reasonResolved = resolveAutoDirectorFollowUpReason({
-      status: input.after.status,
-      checkpointType: input.after.checkpointType,
-      pendingManualRecovery: input.after.pendingManualRecovery,
-      executionScopeLabel: parseExecutionScopeLabel(input.after.seedPayloadJson),
-    });
+    const reasonResolved = resolveAutoDirectorFollowUpReason(resolveReasonInput(input.after));
     const payload = this.weComNotifier.buildPayload({
       event: input.event,
       taskId: input.after.id,

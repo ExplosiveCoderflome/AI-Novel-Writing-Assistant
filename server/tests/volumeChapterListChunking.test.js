@@ -273,3 +273,75 @@ test("generateBeatChunkedChapterList skips full-volume regeneration when all bea
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
   }
 });
+
+test("generateBeatChunkedChapterList only emits the latest intermediate document", async () => {
+  const document = createDocument();
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  const intermediateEvents = [];
+
+  promptRunner.runStructuredPrompt = async ({ promptInput }) => ({
+    output: {
+      beatKey: promptInput.targetBeat.key,
+      beatLabel: promptInput.targetBeat.label,
+      chapterCount: promptInput.targetBeatChapterCount,
+      chapters: Array.from({ length: promptInput.targetBeatChapterCount }, (_, index) => ({
+        beatKey: promptInput.targetBeat.key,
+        title: `${promptInput.targetBeat.label}-${index + 1}`,
+        summary: `${promptInput.targetBeat.label}摘要${index + 1}`,
+      })),
+    },
+  });
+
+  try {
+    const result = await generateBeatChunkedChapterList({
+      document: {
+        ...document,
+        volumes: [{
+          ...document.volumes[0],
+          chapters: [],
+        }],
+      },
+      novel: {
+        title: "测试小说",
+        description: null,
+        targetAudience: null,
+        bookSellingPoint: null,
+        competingFeel: null,
+        first30ChapterPromise: null,
+        commercialTagsJson: null,
+        estimatedChapterCount: 4,
+        narrativePov: null,
+        pacePreference: null,
+        emotionIntensity: null,
+        storyModePromptBlock: null,
+        genre: null,
+        characters: [],
+      },
+      workspace: {
+        ...document,
+        volumes: [{
+          ...document.volumes[0],
+          chapters: [],
+        }],
+        workspaceVersion: "v2",
+        readiness: {},
+      },
+      storyMacroPlan: null,
+      options: {
+        targetVolumeId: "volume-1",
+        generationMode: "full_volume",
+      },
+      notifyPhase: async () => {},
+      notifyIntermediateDocument: async (event) => {
+        intermediateEvents.push(event);
+      },
+    });
+
+    assert.equal(intermediateEvents.length, 1);
+    assert.equal(intermediateEvents[0].isFinal, true);
+    assert.equal(intermediateEvents[0].targetBeatKey, "mid_turn");
+    assert.deepEqual(intermediateEvents[0].document.volumes[0].chapters, result.mergedDocument.volumes[0].chapters);
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});

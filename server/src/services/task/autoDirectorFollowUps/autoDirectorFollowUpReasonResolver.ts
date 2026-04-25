@@ -23,6 +23,9 @@ const REASON_LABELS: Record<AutoDirectorFollowUpReason, string> = {
   runtime_cancelled: "已取消待恢复",
   front10_execution_pending: "自动执行待继续",
   quality_repair_pending: "质量修复待继续",
+  auto_progress_running: "自动推进中",
+  runtime_replaced: "任务已替代",
+  validation_required: "需要重新校验",
 };
 
 function mutationAction(input: {
@@ -85,6 +88,32 @@ function finalizeResolvedReason(input: {
 export function resolveAutoDirectorFollowUpReason(
   input: AutoDirectorFollowUpResolverInput,
 ): AutoDirectorResolvedFollowUpReason | null {
+  if (input.validationResult && !input.validationResult.allowed) {
+    return finalizeResolvedReason({
+      reason: "validation_required",
+      priority: "P0",
+      availableActions: [
+        navigationAction({
+          code: "open_detail",
+          label: "查看校验结果",
+        }),
+      ],
+    });
+  }
+
+  if (input.replacementTaskId?.trim() && input.status !== "failed" && input.status !== "cancelled" && input.status !== "waiting_approval" && input.status !== "running" && input.status !== "queued") {
+    return finalizeResolvedReason({
+      reason: "runtime_replaced",
+      priority: "P2",
+      availableActions: [
+        navigationAction({
+          code: "open_detail",
+          label: "查看替代详情",
+        }),
+      ],
+    });
+  }
+
   if (input.pendingManualRecovery) {
     return finalizeResolvedReason({
       reason: "manual_recovery_required",
@@ -99,6 +128,19 @@ export function resolveAutoDirectorFollowUpReason(
         navigationAction({
           code: "open_detail",
           label: "查看详情",
+        }),
+      ],
+    });
+  }
+
+  if (input.status === "queued" || input.status === "running") {
+    return finalizeResolvedReason({
+      reason: "auto_progress_running",
+      priority: "P2",
+      availableActions: [
+        navigationAction({
+          code: "open_detail",
+          label: "查看推进详情",
         }),
       ],
     });

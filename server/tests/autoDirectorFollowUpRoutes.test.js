@@ -36,6 +36,16 @@ test("auto director follow-up routes expose overview, list, detail, and action e
         runtime_cancelled: 0,
         front10_execution_pending: 1,
         quality_repair_pending: 0,
+        auto_progress_running: 0,
+        runtime_replaced: 0,
+        validation_required: 0,
+      },
+      countersBySection: {
+        pending: 1,
+        auto_progress: 0,
+        exception: 2,
+        replaced: 0,
+        needs_validation: 0,
       },
     };
   };
@@ -52,10 +62,12 @@ test("auto director follow-up routes expose overview, list, detail, and action e
         currentStage: "章节执行",
         checkpointType: "front10_ready",
         reason: "front10_execution_pending",
+        section: "pending",
         reasonLabel: "自动执行待继续",
         priority: "P2",
         followUpSummary: "前 10 章已准备完成。",
         blockingReason: null,
+        validationSummary: null,
         executionScope: "前 10 章",
         currentModel: "anthropic/claude-sonnet-4-6",
         availableActions: [],
@@ -77,12 +89,23 @@ test("auto director follow-up routes expose overview, list, detail, and action e
         runtime_cancelled: 0,
         front10_execution_pending: 1,
         quality_repair_pending: 0,
+        auto_progress_running: 0,
+        runtime_replaced: 0,
+        validation_required: 0,
+      },
+      countersBySection: {
+        pending: 1,
+        auto_progress: 0,
+        exception: 0,
+        replaced: 0,
+        needs_validation: 0,
       },
       summaryCounters: {
         recoveredToday: 1,
         completedToday: 0,
       },
       availableFilters: {
+        sections: ["pending"],
         reasons: ["front10_execution_pending"],
         statuses: ["waiting_approval"],
         channelTypes: ["dingtalk", "wecom"],
@@ -94,12 +117,14 @@ test("auto director follow-up routes expose overview, list, detail, and action e
       },
     };
   };
-  AutoDirectorFollowUpService.prototype.getDetail = async function getDetailMock(taskId) {
-    calls.push(["detail", taskId]);
+  AutoDirectorFollowUpService.prototype.getDetail = async function getDetailMock(taskId, options) {
+    calls.push(["detail", taskId, options]);
     return {
       taskId,
       checkpointSummary: "前 10 章已准备完成。",
       blockingReason: null,
+      nextStepSuggestion: "继续自动执行前 10 章",
+      validationSummary: null,
       currentModel: "anthropic/claude-sonnet-4-6",
       riskNote: null,
       originDetailUrl: `/tasks?kind=novel_workflow&id=${taskId}`,
@@ -162,18 +187,31 @@ test("auto director follow-up routes expose overview, list, detail, and action e
     assert.equal(overviewPayload.data.totalCount, 3);
 
     const listResponse = await fetch(
-      `http://127.0.0.1:${port}/api/auto-director/follow-ups?reason=front10_execution_pending&supportsBatch=true&page=1&pageSize=20`,
+      `http://127.0.0.1:${port}/api/auto-director/follow-ups?section=pending&reason=front10_execution_pending&supportsBatch=true&page=1&pageSize=20`,
     );
     assert.equal(listResponse.status, 200);
     const listPayload = await listResponse.json();
     assert.equal(listPayload.success, true);
     assert.equal(listPayload.data.items[0].taskId, "task_1");
 
+    const validationListResponse = await fetch(
+      `http://127.0.0.1:${port}/api/auto-director/follow-ups?section=needs_validation&reason=validation_required&page=1&pageSize=20`,
+    );
+    assert.equal(validationListResponse.status, 200);
+    const validationListPayload = await validationListResponse.json();
+    assert.equal(validationListPayload.success, true);
+
     const detailResponse = await fetch(`http://127.0.0.1:${port}/api/auto-director/follow-ups/task_1`);
     assert.equal(detailResponse.status, 200);
     const detailPayload = await detailResponse.json();
     assert.equal(detailPayload.success, true);
     assert.equal(detailPayload.data.taskId, "task_1");
+
+    const revalidationResponse = await fetch(`http://127.0.0.1:${port}/api/auto-director/follow-ups/task_1/revalidation`);
+    assert.equal(revalidationResponse.status, 200);
+    const revalidationPayload = await revalidationResponse.json();
+    assert.equal(revalidationPayload.success, true);
+    assert.equal(revalidationPayload.data.taskId, "task_1");
 
     const actionResponse = await fetch(`http://127.0.0.1:${port}/api/auto-director/follow-ups/task_1/actions`, {
       method: "POST",
@@ -204,12 +242,22 @@ test("auto director follow-up routes expose overview, list, detail, and action e
 
     assert.deepEqual(calls, [
       ["list", {
+        section: "pending",
         reason: "front10_execution_pending",
         supportsBatch: true,
         page: 1,
         pageSize: 20,
       }],
-      ["detail", "task_1"],
+      ["list", {
+        section: "needs_validation",
+        reason: "validation_required",
+        page: 1,
+        pageSize: 20,
+      }],
+      ["detail", "task_1", undefined],
+      ["detail", "task_1", {
+        heal: false,
+      }],
       ["execute", {
         taskId: "task_1",
         actionCode: "continue_auto_execution",

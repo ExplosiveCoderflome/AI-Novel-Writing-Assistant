@@ -5,16 +5,20 @@ import type {
   AutoDirectorBatchActionRequest,
   AutoDirectorMutationActionCode,
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
+import type { AutoDirectorFollowUpSection } from "@ai-novel/shared/types/autoDirectorValidation";
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { resolveModel, type TaskType } from "../../../llm/modelRouter";
 import { NovelDirectorService } from "../../novel/director/NovelDirectorService";
+import { AutoDirectorValidationService } from "../../novel/director/autoDirectorValidationService";
 import type { DirectorWorkflowSeedPayload } from "../../novel/director/novelDirectorHelpers";
 import { NovelWorkflowService } from "../../novel/workflow/NovelWorkflowService";
 import { parseSeedPayload } from "../../novel/workflow/novelWorkflow.shared";
 import { NovelWorkflowTaskAdapter } from "../adapters/NovelWorkflowTaskAdapter";
 import { resolveAutoDirectorFollowUpReason } from "./autoDirectorFollowUpReasonResolver";
+import { resolveAutoDirectorFollowUpSection } from "../../novel/director/autoDirectorValidationService";
+import { extractBlockedAutoDirectorValidationResult } from "./autoDirectorFollowUpValidationResult";
 
 type WorkflowTaskRow = NonNullable<Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>>;
 
@@ -24,6 +28,21 @@ const BATCH_ALLOWED_ACTIONS = new Set<AutoDirectorMutationActionCode>([
   "continue_auto_execution",
   "retry_with_task_model",
 ]);
+
+const BATCH_SECTION_ACTIONS: Partial<Record<AutoDirectorFollowUpSection, AutoDirectorMutationActionCode>> = {
+  pending: "continue_auto_execution",
+  exception: "retry_with_task_model",
+};
+
+function getAllowedBatchActionForRow(row: WorkflowTaskRow): AutoDirectorMutationActionCode | null {
+  const section = resolveAutoDirectorFollowUpSection({
+    status: row.status,
+    checkpointType: toCheckpointType(row.checkpointType),
+    pendingManualRecovery: row.pendingManualRecovery,
+    validationResult: extractBlockedAutoDirectorValidationResult(row.seedPayloadJson),
+  });
+  return BATCH_SECTION_ACTIONS[section] ?? null;
+}
 
 function isMissingTableError(error: unknown): boolean {
   return typeof error === "object"
@@ -131,6 +150,8 @@ export class AutoDirectorFollowUpActionExecutor {
 
   readonly workflowTaskAdapter = new NovelWorkflowTaskAdapter();
 
+  readonly validationService = new AutoDirectorValidationService();
+
   async execute(input: AutoDirectorActionRequest): Promise<AutoDirectorActionExecutionResult> {
     const executedCacheKey = buildExecutedCacheKey(input);
     const cached = EXECUTED_ACTION_CACHE.get(executedCacheKey);
@@ -159,6 +180,21 @@ export class AutoDirectorFollowUpActionExecutor {
       throw new AppError("Only auto director workflow tasks are supported.", 400);
     }
 
+    if (input.metadata?.batchAction === true) {
+      const allowedBatchAction = getAllowedBatchActionForRow(row);
+      if (allowedBatchAction !== input.actionCode) {
+        const result: AutoDirectorActionExecutionResult = {
+          taskId: input.taskId,
+          actionCode: input.actionCode,
+          code: "forbidden",
+          message: "所选分区不支持该批量动作",
+          task: await this.safeGetTaskDetail(input.taskId),
+        };
+        await this.recordActionLog(input, result);
+        return result;
+      }
+    }
+
     const allowedActions = this.getAllowedMutationActions(row);
     if (!allowedActions) {
       const result: AutoDirectorActionExecutionResult = {
@@ -178,6 +214,34 @@ export class AutoDirectorFollowUpActionExecutor {
         actionCode: input.actionCode,
         code: "forbidden",
         message: "当前任务不支持该操作",
+        task: await this.safeGetTaskDetail(input.taskId),
+      };
+      await this.recordActionLog(input, result);
+      return result;
+    }
+
+    const validation = await this.validationService.validateAction({
+      source: input.source,
+      actionCode: input.actionCode,
+      task: {
+        id: row.id,
+        lane: row.lane,
+        status: row.status,
+        checkpointType: toCheckpointType(row.checkpointType),
+        pendingManualRecovery: row.pendingManualRecovery,
+        novelId: row.novelId,
+        seedPayload: parseSeedPayload<DirectorWorkflowSeedPayload>(row.seedPayloadJson),
+      },
+    });
+    if (!validation.allowed) {
+      const blockingReasons = Array.isArray(validation.blockingReasons)
+        ? validation.blockingReasons
+        : [];
+      const result: AutoDirectorActionExecutionResult = {
+        taskId: input.taskId,
+        actionCode: input.actionCode,
+        code: "forbidden",
+        message: blockingReasons.join("；") || "当前任务需要先重新校验。",
         task: await this.safeGetTaskDetail(input.taskId),
       };
       await this.recordActionLog(input, result);
@@ -214,6 +278,7 @@ export class AutoDirectorFollowUpActionExecutor {
 
     const uniqueTaskIds = Array.from(new Set(input.taskIds.map((item) => item.trim()).filter(Boolean)));
     const itemResults: AutoDirectorActionExecutionResult[] = [];
+    let highMemoryStartedCount = 0;
 
     for (const taskId of uniqueTaskIds) {
       const result = await this.execute({
@@ -222,9 +287,16 @@ export class AutoDirectorFollowUpActionExecutor {
         source: input.source,
         operatorId: input.operatorId,
         idempotencyKey: `${input.batchRequestKey}:${taskId}:${input.actionCode}`,
-        metadata: input.metadata,
+        metadata: {
+          ...input.metadata,
+          batchAction: true,
+          highMemoryStartedCount,
+        },
       });
       itemResults.push(result);
+      if (result.code === "executed") {
+        highMemoryStartedCount += 1;
+      }
     }
 
     const successCount = itemResults.filter((item) => item.code === "executed").length;
@@ -274,6 +346,8 @@ export class AutoDirectorFollowUpActionExecutor {
       checkpointType: toCheckpointType(row.checkpointType),
       pendingManualRecovery: row.pendingManualRecovery,
       executionScopeLabel: getExecutionScopeLabel(row.seedPayloadJson),
+      replacementTaskId: null,
+      validationResult: extractBlockedAutoDirectorValidationResult(row.seedPayloadJson),
     });
     if (!resolved) {
       return null;
@@ -289,33 +363,64 @@ export class AutoDirectorFollowUpActionExecutor {
     row: WorkflowTaskRow,
     input: AutoDirectorActionRequest,
   ): Promise<AutoDirectorActionExecutionResult["task"]> {
+    const batchAlreadyStartedCount = typeof input.metadata?.highMemoryStartedCount === "number" && input.metadata.highMemoryStartedCount > 0
+      ? input.metadata.highMemoryStartedCount
+      : undefined;
     if (input.actionCode === "continue_auto_execution") {
-      await this.novelDirectorService.continueTask(input.taskId, {
+      const continueInput: {
+        continuationMode: "auto_execute_front10" | "auto_execute_range";
+        batchAlreadyStartedCount?: number;
+      } = {
         continuationMode: row.checkpointType === "front10_ready"
           ? "auto_execute_front10"
           : "auto_execute_range",
-      });
+      };
+      if (batchAlreadyStartedCount !== undefined) {
+        continueInput.batchAlreadyStartedCount = batchAlreadyStartedCount;
+      }
+      await this.novelDirectorService.continueTask(input.taskId, continueInput);
       return this.safeGetTaskDetail(input.taskId);
     }
 
     if (input.actionCode === "continue_generic") {
-      await this.novelDirectorService.continueTask(input.taskId);
+      const continueInput: { batchAlreadyStartedCount?: number } = {};
+      if (batchAlreadyStartedCount !== undefined) {
+        continueInput.batchAlreadyStartedCount = batchAlreadyStartedCount;
+      }
+      await this.novelDirectorService.continueTask(input.taskId, continueInput);
       return this.safeGetTaskDetail(input.taskId);
     }
 
     if (input.actionCode === "retry_with_task_model") {
-      return this.workflowTaskAdapter.retry({
+      const retryInput: {
+        id: string;
+        resume: true;
+        batchAlreadyStartedCount?: number;
+      } = {
         id: input.taskId,
         resume: true,
-      });
+      };
+      if (batchAlreadyStartedCount !== undefined) {
+        retryInput.batchAlreadyStartedCount = batchAlreadyStartedCount;
+      }
+      return this.workflowTaskAdapter.retry(retryInput);
     }
 
     const routeModel = await this.resolveRouteModelOverride(input.taskId, row);
-    return this.workflowTaskAdapter.retry({
+    const retryInput: {
+      id: string;
+      llmOverride: { provider: string; model: string; temperature: number };
+      resume: true;
+      batchAlreadyStartedCount?: number;
+    } = {
       id: input.taskId,
       llmOverride: routeModel,
       resume: true,
-    });
+    };
+    if (batchAlreadyStartedCount !== undefined) {
+      retryInput.batchAlreadyStartedCount = batchAlreadyStartedCount;
+    }
+    return this.workflowTaskAdapter.retry(retryInput);
   }
 
   private async safeGetTaskDetail(taskId: string) {

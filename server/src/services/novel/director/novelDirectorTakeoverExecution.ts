@@ -72,6 +72,16 @@ interface StartDirectorTakeoverExecutionInput {
     input: DirectorConfirmRequest;
     startPhase: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline";
   }) => Promise<void>;
+  assertHighMemoryStartAllowed?: (input: {
+    taskId: string;
+    novelId: string;
+    stage: "structured_outline";
+    itemKey: "beat_sheet" | "chapter_list" | "chapter_detail_bundle" | "chapter_sync";
+    volumeId?: string | null;
+    chapterId?: string | null;
+    scope?: string | null;
+    batchAlreadyStartedCount?: number;
+  }) => Promise<void>;
   prepareRestartStep?: (input: {
     request: DirectorTakeoverRequest;
     takeoverState: DirectorTakeoverLoadedState;
@@ -211,6 +221,19 @@ export async function startDirectorTakeoverExecution(
   });
 
   if (plan.executionMode === "phase") {
+    if ((plan.phase ?? plan.startPhase) === "structured_outline") {
+      await input.assertHighMemoryStartAllowed?.({
+        taskId: workflowTask.id,
+        novelId: input.request.novelId,
+        stage: "structured_outline",
+        itemKey: "chapter_list",
+        volumeId: input.takeoverState.latestCheckpoint?.volumeId
+          ?? input.takeoverState.snapshot.firstVolumeId
+          ?? null,
+        chapterId: input.takeoverState.latestCheckpoint?.chapterId ?? null,
+        scope: "book",
+      });
+    }
     await input.workflowService.markTaskRunning(workflowTask.id, resolveDirectorRunningStateForPhase(plan.phase ?? plan.startPhase));
     input.scheduleBackgroundRun(workflowTask.id, async () => {
       await input.runDirectorPipeline({

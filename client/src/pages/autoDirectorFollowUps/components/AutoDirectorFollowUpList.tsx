@@ -1,14 +1,13 @@
 import type {
-  AutoDirectorChannelType,
   AutoDirectorFollowUpAvailableFilters,
   AutoDirectorFollowUpItem,
   AutoDirectorFollowUpPagination,
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
+import type { AutoDirectorFollowUpSection } from "@ai-novel/shared/types/autoDirectorValidation";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -23,9 +22,9 @@ interface AutoDirectorFollowUpListPanelProps {
   pagination: AutoDirectorFollowUpPagination | null;
   filters: AutoDirectorFollowUpAvailableFilters | null;
   activeReason: string;
+  activeSection: AutoDirectorFollowUpSection | "";
   activeStatus: string;
   activeSupportsBatch: string;
-  activeChannelType: string;
   selectedTaskId: string;
   selectedTaskIds: string[];
   loading: boolean;
@@ -49,8 +48,16 @@ function formatStatus(status: TaskStatus): string {
   return "已完成";
 }
 
-function formatChannelType(channelType: AutoDirectorChannelType): string {
-  return channelType === "dingtalk" ? "钉钉" : "企微";
+function formatSection(section: AutoDirectorFollowUpSection): string {
+  if (section === "needs_validation") return "需校验";
+  if (section === "exception") return "异常";
+  if (section === "pending") return "待处理";
+  if (section === "auto_progress") return "自动推进";
+  return "已替代";
+}
+
+function formatActiveSection(section: AutoDirectorFollowUpSection | ""): string {
+  return section ? formatSection(section) : "全部分区";
 }
 
 function buildChannelBadges(item: AutoDirectorFollowUpItem): string[] {
@@ -70,10 +77,10 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">导演跟进列表</CardTitle>
+        <CardTitle className="text-base">{formatActiveSection(props.activeSection)}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <Select value={props.activeReason || "__all__"} onValueChange={(value) => props.onFilterChange("reason", value === "__all__" ? "" : value)}>
             <SelectTrigger>
               <SelectValue placeholder="全部原因" />
@@ -109,17 +116,6 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
             </SelectContent>
           </Select>
 
-          <Select value={props.activeChannelType || "__all__"} onValueChange={(value) => props.onFilterChange("channelType", value === "__all__" ? "" : value)}>
-            <SelectTrigger>
-              <SelectValue placeholder="通道能力" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">全部通道</SelectItem>
-              {(props.filters?.channelTypes ?? []).map((channelType) => (
-                <SelectItem key={channelType} value={channelType}>{formatChannelType(channelType)}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
 
         <div className="space-y-3">
@@ -128,7 +124,13 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
           ) : null}
 
           {!props.loading && props.items.length === 0 ? (
-            <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">当前没有符合条件的导演跟进项。</div>
+            <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
+              {props.activeSection === "auto_progress"
+                ? "当前没有排队或后台推进中的导演任务。"
+                : props.activeSection === "replaced"
+                  ? "当前没有被新任务替代的旧任务。"
+                  : "当前没有符合条件的导演跟进项。"}
+            </div>
           ) : null}
 
           {props.items.map((item) => {
@@ -160,7 +162,7 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
                       />
                     ) : null}
                     <Badge variant={item.priority === "P0" ? "destructive" : item.priority === "P1" ? "secondary" : "outline"}>
-                      {formatPriority(item.priority)}
+                      {formatSection(item.section)}
                     </Badge>
                   </div>
                 </div>
@@ -168,6 +170,7 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
                 <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                   <Badge variant="outline">{formatStatus(item.status)}</Badge>
                   <Badge variant="outline">{item.reasonLabel}</Badge>
+                  <Badge variant="outline">{formatPriority(item.priority)}</Badge>
                   {item.executionScope ? <Badge variant="outline">{item.executionScope}</Badge> : null}
                   {item.supportsBatch ? <Badge variant="secondary">可批量</Badge> : null}
                   {buildChannelBadges(item).map((label) => (

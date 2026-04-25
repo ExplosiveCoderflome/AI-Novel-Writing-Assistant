@@ -48,7 +48,9 @@ export class RecoveryTaskService {
       this.initializationPromise = Promise.all([
         bookAnalysisService.markPendingAnalysesForManualRecovery(),
         imageGenerationService.markPendingTasksForManualRecovery(),
-        this.novelWorkflowRuntimeService.markPendingAutoDirectorTasksForManualRecovery(),
+        this.novelWorkflowRuntimeService.markPendingAutoDirectorTasksForManualRecovery({
+          staleRunningAsFailed: true,
+        }),
         this.novelPipelineRuntimeService.markPendingPipelineJobsForManualRecovery(),
         styleExtractionTaskService.markPendingTasksForManualRecovery(),
       ]).then(() => undefined);
@@ -166,8 +168,15 @@ export class RecoveryTaskService {
   async resumeAllRecoveryCandidates(): Promise<Array<{ kind: TaskKind; id: string }>> {
     const { items } = await this.listRecoveryCandidates();
     const resumed: Array<{ kind: TaskKind; id: string }> = [];
+    let highMemoryWorkflowStartedCount = 0;
     for (const item of items) {
+      if (item.kind === "novel_workflow" && highMemoryWorkflowStartedCount > 0) {
+        continue;
+      }
       await this.resumeRecoveryCandidate(item.kind, item.id);
+      if (item.kind === "novel_workflow") {
+        highMemoryWorkflowStartedCount += 1;
+      }
       resumed.push({ kind: item.kind, id: item.id });
     }
     return resumed;

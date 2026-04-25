@@ -79,6 +79,17 @@ import {
   resolveObservedResumePhaseFromWorkspace,
   resolveSafeDirectorPipelineStartPhase,
 } from "./novelDirectorRecovery";
+import {
+  assertHighMemoryDirectorStartAllowed,
+  normalizeDirectorMemoryScope,
+} from "./autoDirectorMemorySafety";
+import {
+  validateAutoDirectorTakeoverRequest,
+} from "./autoDirectorValidationService";
+import {
+  normalizeDirectorAutoApprovalConfig,
+  shouldAutoApproveDirectorCheckpoint,
+} from "@ai-novel/shared/types/autoDirectorApproval";
 
 type WorkflowTaskSnapshot = Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>;
 
@@ -145,6 +156,19 @@ export class NovelDirectorService {
     workflowService: this.workflowService,
     buildDirectorSeedPayload: (input, novelId, extra) => this.buildDirectorSeedPayload(input, novelId, extra),
   });
+
+  private async assertHighMemoryDirectorStartAllowed(input: {
+    taskId: string;
+    novelId: string;
+    stage: "structured_outline";
+    itemKey: "beat_sheet" | "chapter_list" | "chapter_detail_bundle" | "chapter_sync";
+    volumeId?: string | null;
+    chapterId?: string | null;
+    scope?: string | null;
+    batchAlreadyStartedCount?: number;
+  }): Promise<void> {
+    await assertHighMemoryDirectorStartAllowed(this.workflowService, input);
+  }
 
   private scheduleBackgroundRun(taskId: string, runner: () => Promise<void>) {
     void Promise.resolve()
@@ -580,6 +604,7 @@ export class NovelDirectorService {
 
   async continueTask(taskId: string, input?: {
     continuationMode?: DirectorContinuationMode;
+    batchAlreadyStartedCount?: number;
   }): Promise<void> {
     const row = await this.workflowService.getTaskById(taskId);
     if (!row) {
@@ -712,6 +737,22 @@ export class NovelDirectorService {
       taskId,
       stage: this.resolveDirectorEditStage(phase),
     });
+    const recoveryResumeTarget = mergeResumeTargets(
+      parseResumeTargetLike(row.resumeTargetJson),
+      parseResumeTargetLike(seedPayload.resumeTarget),
+    );
+    if (phase === "structured_outline") {
+      await this.assertHighMemoryDirectorStartAllowed({
+        taskId,
+        novelId,
+        stage: "structured_outline",
+        itemKey: "chapter_list",
+        volumeId: recoveryResumeTarget?.volumeId,
+        chapterId: recoveryResumeTarget?.chapterId,
+        scope: recoveryResumeTarget?.volumeId || recoveryResumeTarget?.chapterId ? null : "book",
+        batchAlreadyStartedCount: input?.batchAlreadyStartedCount,
+      });
+    }
     await this.workflowService.bootstrapTask({
       workflowTaskId: taskId,
       novelId,
@@ -729,6 +770,12 @@ export class NovelDirectorService {
         novelId,
         input: directorInput,
         startPhase: phase,
+        scope: normalizeDirectorMemoryScope({
+          volumeId: recoveryResumeTarget?.volumeId,
+          chapterId: recoveryResumeTarget?.chapterId,
+          fallback: recoveryResumeTarget?.volumeId || recoveryResumeTarget?.chapterId ? null : "book",
+        }),
+        batchAlreadyStartedCount: input?.batchAlreadyStartedCount,
       });
     });
   }
@@ -800,6 +847,14 @@ export class NovelDirectorService {
       stage: "structured",
       volumeId: targetVolume.id,
     });
+    await this.assertHighMemoryDirectorStartAllowed({
+      taskId,
+      novelId,
+      stage: "structured_outline",
+      itemKey: "chapter_list",
+      volumeId: targetVolume.id,
+      scope: `volume:${targetVolume.id}`,
+    });
     await this.workflowService.bootstrapTask({
       workflowTaskId: taskId,
       novelId,
@@ -865,6 +920,23 @@ export class NovelDirectorService {
     if (takeoverState.hasActiveTask) {
       throw new Error("当前已有自动导演任务在运行或等待审核，请先继续或取消当前任务。");
     }
+    const takeoverValidation = validateAutoDirectorTakeoverRequest({
+      source: "takeover",
+      request: input,
+      assets: {
+        hasProjectSetup: true,
+        hasStoryMacroPlan: takeoverState.snapshot.hasStoryMacroPlan,
+        hasBookContract: takeoverState.snapshot.hasBookContract,
+        characterCount: takeoverState.snapshot.characterCount,
+        volumeCount: takeoverState.snapshot.volumeCount,
+        hasVolumeStrategyPlan: takeoverState.snapshot.hasVolumeStrategyPlan,
+        hasStructuredOutline: takeoverState.snapshot.structuredOutlineRecoveryStep === "completed",
+        totalChapterCount: takeoverState.snapshot.chapterCount,
+      },
+    });
+    if (!takeoverValidation.allowed) {
+      throw new AppError(takeoverValidation.blockingReasons.join("；") || "当前接管请求需要先重新校验。", 409);
+    }
 
     const takeoverDirectorInput = buildDirectorTakeoverInput({
       novel: takeoverState.novel,
@@ -876,6 +948,7 @@ export class NovelDirectorService {
       ...takeoverDirectorInput,
       styleProfileId: input.styleProfileId ?? takeoverDirectorInput.styleProfileId,
       autoExecutionPlan: input.autoExecutionPlan,
+      autoApproval: input.autoApproval,
       provider: input.provider ?? takeoverDirectorInput.provider,
       model: input.model?.trim() || takeoverDirectorInput.model,
       temperature: typeof input.temperature === "number" ? input.temperature : takeoverDirectorInput.temperature,
@@ -890,6 +963,7 @@ export class NovelDirectorService {
       buildDirectorSeedPayload: (request, novelId, extra) => this.buildDirectorSeedPayload(request, novelId, extra),
       scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, runner),
       runDirectorPipeline: (payload) => this.runDirectorPipeline(payload),
+      assertHighMemoryStartAllowed: (payload) => this.assertHighMemoryDirectorStartAllowed(payload),
       prepareRestartStep: async ({ plan, takeoverState: currentTakeoverState, directorInput }) => {
         await resetDirectorTakeoverCurrentStep({
           novelId: input.novelId,
@@ -1081,6 +1155,7 @@ export class NovelDirectorService {
             novelId: createdNovel.id,
             input: directorInput,
             startPhase: "story_macro",
+            scope: "book",
           });
         });
         const novel = await this.novelContextService.getNovelById(createdNovel.id) as unknown as DirectorConfirmApiResponse["novel"];
@@ -1232,6 +1307,8 @@ export class NovelDirectorService {
     novelId: string;
     input: DirectorConfirmRequest;
     startPhase: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline";
+    scope?: string | null;
+    batchAlreadyStartedCount?: number;
   }) {
     const safeStartPhase = await this.resolveSafePipelineStartPhase({
       novelId: input.novelId,
@@ -1258,8 +1335,20 @@ export class NovelDirectorService {
       if (!volumeWorkspace) {
         return;
       }
+      await this.assertHighMemoryDirectorStartAllowed({
+        taskId: input.taskId,
+        novelId: input.novelId,
+        stage: "structured_outline",
+        itemKey: "chapter_list",
+        volumeId: volumeWorkspace.volumes[0]?.id,
+          scope: normalizeDirectorMemoryScope({
+          volumeId: volumeWorkspace.volumes[0]?.id,
+          fallback: input.scope ?? "book",
+        }),
+        batchAlreadyStartedCount: input.batchAlreadyStartedCount,
+      });
       await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, volumeWorkspace);
-      if (normalizeDirectorRunMode(input.input.runMode) === "auto_to_execution") {
+      if (this.shouldAutoApproveCheckpoint(input.input, "front10_ready")) {
         await this.autoExecutionRuntime.runFromReady({
           taskId: input.taskId,
           novelId: input.novelId,
@@ -1271,8 +1360,20 @@ export class NovelDirectorService {
     }
 
     const currentWorkspace = await this.volumeService.getVolumes(input.novelId);
+    await this.assertHighMemoryDirectorStartAllowed({
+      taskId: input.taskId,
+      novelId: input.novelId,
+      stage: "structured_outline",
+      itemKey: "chapter_list",
+      volumeId: currentWorkspace.volumes[0]?.id,
+      scope: normalizeDirectorMemoryScope({
+        volumeId: currentWorkspace.volumes[0]?.id,
+        fallback: input.scope ?? "book",
+      }),
+      batchAlreadyStartedCount: input.batchAlreadyStartedCount,
+    });
     await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, currentWorkspace);
-    if (normalizeDirectorRunMode(input.input.runMode) === "auto_to_execution") {
+    if (this.shouldAutoApproveCheckpoint(input.input, "front10_ready")) {
       await this.autoExecutionRuntime.runFromReady({
         taskId: input.taskId,
         novelId: input.novelId,
@@ -1280,6 +1381,19 @@ export class NovelDirectorService {
         resumeCheckpointType: "front10_ready",
       });
     }
+  }
+
+  private shouldAutoApproveCheckpoint(
+    input: DirectorConfirmRequest,
+    checkpointType: "front10_ready" | "chapter_batch_ready" | "replan_required",
+  ): boolean {
+    if (Object.prototype.hasOwnProperty.call(input, "autoApproval")) {
+      return shouldAutoApproveDirectorCheckpoint(
+        normalizeDirectorAutoApprovalConfig(input.autoApproval),
+        checkpointType,
+      );
+    }
+    return checkpointType === "front10_ready" && normalizeDirectorRunMode(input.runMode) === "auto_to_execution";
   }
 
   private async runStoryMacroPhase(

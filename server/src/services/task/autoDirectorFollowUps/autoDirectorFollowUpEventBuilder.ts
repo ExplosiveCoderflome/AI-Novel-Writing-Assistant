@@ -9,6 +9,7 @@ import type {
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
 import { resolveAutoDirectorFollowUpReason } from "./autoDirectorFollowUpReasonResolver";
+import { extractBlockedAutoDirectorValidationResult } from "./autoDirectorFollowUpValidationResult";
 
 export interface AutoDirectorEventWorkflowSnapshot {
   id: string;
@@ -59,6 +60,22 @@ function parseExecutionScopeLabel(seedPayloadJson: string | null | undefined): s
   }
 }
 
+function parseReplacementTaskId(seedPayloadJson: string | null | undefined): string | null {
+  if (!seedPayloadJson?.trim()) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(seedPayloadJson) as {
+      replacementTaskId?: unknown;
+    };
+    return typeof parsed.replacementTaskId === "string" && parsed.replacementTaskId.trim()
+      ? parsed.replacementTaskId.trim()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function getNovelTitle(row: Pick<AutoDirectorEventWorkflowSnapshot, "novel" | "id">): string {
   const title = row.novel?.title;
   return typeof title === "string" && title.trim() ? title.trim() : row.id;
@@ -84,14 +101,16 @@ export function deriveAutoDirectorFollowUpState(
   if (!row) {
     return null;
   }
+  const executionScopeLabel = parseExecutionScopeLabel(row.seedPayloadJson);
   const resolved = resolveAutoDirectorFollowUpReason({
     status: row.status,
     checkpointType: row.checkpointType,
     pendingManualRecovery: row.pendingManualRecovery,
-    executionScopeLabel: parseExecutionScopeLabel(row.seedPayloadJson),
+    executionScopeLabel,
+    replacementTaskId: parseReplacementTaskId(row.seedPayloadJson),
+    validationResult: extractBlockedAutoDirectorValidationResult(row.seedPayloadJson),
   });
   if (!resolved) {
-    const executionScopeLabel = parseExecutionScopeLabel(row.seedPayloadJson);
     return {
       taskId: row.id,
       novelId: row.novelId,
@@ -109,7 +128,6 @@ export function deriveAutoDirectorFollowUpState(
   }
 
   const summary = row.checkpointSummary?.trim() || row.currentItemLabel?.trim() || resolved.reasonLabel;
-  const executionScopeLabel = parseExecutionScopeLabel(row.seedPayloadJson);
   return {
     taskId: row.id,
     novelId: row.novelId,
@@ -136,6 +154,14 @@ export function detectAutoDirectorEventType(input: {
   }
   if (input.afterStatus === "succeeded") {
     return "auto_director.completed";
+  }
+  if (input.after.reason && input.before?.reason === "auto_progress_running" && input.after.reason !== "auto_progress_running") {
+    if (input.after.reason === "runtime_failed" || input.after.reason === "manual_recovery_required") {
+      return "auto_director.exception";
+    }
+    if (input.after.reason !== "runtime_replaced") {
+      return "auto_director.approval_required";
+    }
   }
   if (input.after.reason && !input.before?.reason) {
     if (input.after.reason === "runtime_failed" || input.after.reason === "manual_recovery_required") {

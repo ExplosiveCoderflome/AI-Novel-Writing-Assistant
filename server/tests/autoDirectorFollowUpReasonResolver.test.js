@@ -118,6 +118,52 @@ test("auto director follow-up reason resolver exposes retry-focused metadata for
   });
 });
 
+test("auto director follow-up reason resolver prioritizes validation blocks over runnable checkpoints", () => {
+  const result = resolveAutoDirectorFollowUpReason({
+    status: "waiting_approval",
+    checkpointType: "front10_ready",
+    executionScopeLabel: "第 1-10 章",
+    validationResult: {
+      allowed: false,
+      blockingReasons: ["目标范围缺少节奏拆章，需要先重新校验。"],
+      warnings: [],
+      requiredActions: [],
+      affectedScope: {
+        type: "chapter_range",
+        label: "第 1-10 章",
+        startOrder: 1,
+        endOrder: 10,
+      },
+      nextAction: "revalidate",
+    },
+  });
+
+  assert.ok(result);
+  assert.equal(result.reason, "validation_required");
+  assert.equal(result.priority, "P0");
+  assert.deepEqual(actionCodes(result), ["open_detail"]);
+  assert.equal(result.supportsBatch, false);
+});
+
+test("auto director follow-up reason resolver only marks replaced for inactive tasks", () => {
+  const active = resolveAutoDirectorFollowUpReason({
+    status: "running",
+    checkpointType: null,
+    replacementTaskId: "task_new",
+  });
+  assert.ok(active);
+  assert.equal(active.reason, "auto_progress_running");
+
+  const replaced = resolveAutoDirectorFollowUpReason({
+    status: "succeeded",
+    checkpointType: "workflow_completed",
+    replacementTaskId: "task_new",
+  });
+  assert.ok(replaced);
+  assert.equal(replaced.reason, "runtime_replaced");
+  assert.deepEqual(actionCodes(replaced), ["open_detail"]);
+});
+
 test("auto director follow-up reason resolver allows cancelled tasks to resume or retry", () => {
   const result = resolveAutoDirectorFollowUpReason({
     status: "cancelled",
@@ -139,10 +185,13 @@ test("auto director follow-up reason resolver allows cancelled tasks to resume o
 });
 
 test("auto director follow-up reason resolver returns null for statuses and checkpoints outside P1 scope", () => {
-  assert.equal(resolveAutoDirectorFollowUpReason({
+  const running = resolveAutoDirectorFollowUpReason({
     status: "running",
     checkpointType: "front10_ready",
-  }), null);
+  });
+  assert.ok(running);
+  assert.equal(running.reason, "auto_progress_running");
+  assert.deepEqual(actionCodes(running), ["open_detail"]);
 
   assert.equal(resolveAutoDirectorFollowUpReason({
     status: "waiting_approval",

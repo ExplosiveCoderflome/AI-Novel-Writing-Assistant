@@ -153,6 +153,9 @@ function selectPreparedOutlineChapters(
 ): PreparedOutlineChapterRef[] {
   const normalizedPlan = normalizeDirectorAutoExecutionPlan(plan);
   const prepared = flattenPreparedOutlineChapters(workspace);
+  if (normalizedPlan.mode === "book") {
+    return prepared;
+  }
   if (normalizedPlan.mode === "volume") {
     return prepared.filter((chapter) => chapter.volumeOrder === normalizedPlan.volumeOrder);
   }

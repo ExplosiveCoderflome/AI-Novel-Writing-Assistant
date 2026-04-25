@@ -23,6 +23,7 @@ import {
 import {
   buildDirectorAutoExecutionScopeLabel,
   normalizeDirectorAutoExecutionPlan,
+  resolveDirectorAutoExecutionBookRange,
   resolveDirectorAutoExecutionRangeFromState,
   resolveDirectorAutoExecutionWorkflowState,
 } from "../director/novelDirectorAutoExecution";
@@ -47,6 +48,10 @@ import {
 } from "./novelWorkflowRecoveryHeuristics";
 import { syncAutoDirectorChapterBatchCheckpoint } from "./novelWorkflowAutoDirectorReconciliation";
 import { repairAutoDirectorCandidateSeedPayload } from "./novelWorkflowCandidateSeedRepair";
+import {
+  isStaleAutoDirectorRunningTask,
+  STALE_AUTO_DIRECTOR_RUNNING_MESSAGE,
+} from "./autoDirectorStaleTaskRecovery";
 
 type WorkflowRow = Awaited<ReturnType<typeof prisma.novelWorkflowTask.findUnique>>;
 type NovelWorkflowTaskUpdateArgs = Parameters<typeof prisma.novelWorkflowTask.update>[0];
@@ -333,7 +338,14 @@ export class NovelWorkflowService {
     return rows.find((row) => ACTIVE_STATUSES.includes(row.status as (typeof ACTIVE_STATUSES)[number])) ?? null;
   }
 
-  async listRecoverableAutoDirectorTasks() {
+  async listActiveTasksByNovelAndLane(novelId: string, lane: NovelWorkflowLane) {
+    const rows = await this.getVisibleRowsByNovelId(novelId, lane);
+    return rows.filter((row) => ACTIVE_STATUSES.includes(row.status as (typeof ACTIVE_STATUSES)[number]));
+  }
+
+  async listRecoverableAutoDirectorTasks(options: {
+    includeStaleRunningFlag?: boolean;
+  } = {}) {
     const rows = await prisma.novelWorkflowTask.findMany({
       where: {
         lane: "auto_director",
@@ -346,10 +358,24 @@ export class NovelWorkflowService {
       select: {
         id: true,
         status: true,
+        lane: true,
+        currentItemKey: true,
+        pendingManualRecovery: true,
+        cancelRequestedAt: true,
+        heartbeatAt: true,
+        updatedAt: true,
       },
     });
     const archived = await getArchivedTaskIdSet("novel_workflow", rows.map((row) => row.id));
-    return rows.filter((row) => !archived.has(row.id));
+    return rows
+      .filter((row) => !archived.has(row.id))
+      .map((row) => ({
+        id: row.id,
+        status: row.status,
+        ...(options.includeStaleRunningFlag
+          ? { stale: isStaleAutoDirectorRunningTask(row) }
+          : {}),
+      }));
   }
 
   async getTaskById(taskId: string) {
@@ -538,7 +564,8 @@ export class NovelWorkflowService {
       const front10Healed = await this.healHistoricalAutoDirectorFront10RecoveryFailure(taskId, normalizedRow);
       const titleDiversityHealed = await this.healChapterTitleDiversitySoftFailure(taskId, normalizedRow);
       const structuredOutlineHealed = await this.healStaleAutoDirectorStructuredOutlineProgress(taskId, normalizedRow);
-      const checkpointRow = (brokenSeedHealed || queuedHealed || historicalHealed || front10Healed || titleDiversityHealed || structuredOutlineHealed)
+      const staleRunningHealed = await this.healStaleAutoDirectorRunningTask(taskId, normalizedRow);
+      const checkpointRow = (brokenSeedHealed || queuedHealed || historicalHealed || front10Healed || titleDiversityHealed || structuredOutlineHealed || staleRunningHealed)
         ? await this.getVisibleRowByIdRaw(taskId)
         : (normalizedRow ?? await this.getVisibleRowByIdRaw(taskId));
     const checkpointHealed = isChapterBatchCheckpointRow(checkpointRow)
@@ -547,7 +574,27 @@ export class NovelWorkflowService {
         row: checkpointRow,
       })
       : false;
-    return brokenSeedHealed || queuedHealed || historicalHealed || front10Healed || titleDiversityHealed || structuredOutlineHealed || checkpointHealed;
+    return brokenSeedHealed || queuedHealed || historicalHealed || front10Healed || titleDiversityHealed || structuredOutlineHealed || staleRunningHealed || checkpointHealed;
+  }
+
+  async healStaleAutoDirectorRunningTask(
+    taskId: string,
+    row = null as {
+      lane?: string | null;
+      status?: string | null;
+      currentItemKey?: string | null;
+      pendingManualRecovery?: boolean | null;
+      cancelRequestedAt?: Date | null;
+      heartbeatAt?: Date | null;
+      updatedAt?: Date | null;
+    } | null,
+  ): Promise<boolean> {
+    const candidate = row ?? await this.getVisibleRowByIdRaw(taskId);
+    if (!candidate || !isStaleAutoDirectorRunningTask(candidate)) {
+      return false;
+    }
+    await this.markTaskFailed(taskId, STALE_AUTO_DIRECTOR_RUNNING_MESSAGE);
+    return true;
   }
 
   async healStaleAutoDirectorQueuedProgress(
@@ -643,6 +690,7 @@ export class NovelWorkflowService {
     const pipelineJobId = autoExecution?.pipelineJobId?.trim();
     if (
       !existing.novelId
+      || !autoExecution
       || !pipelineJobId
       || directorSession?.phase !== "front10_ready"
     ) {
@@ -664,7 +712,16 @@ export class NovelWorkflowService {
       return false;
     }
 
-    const range = resolveDirectorAutoExecutionRangeFromState(autoExecution);
+    const chapters = autoExecution.mode === "book"
+      ? await prisma.chapter.findMany({
+          where: { novelId: existing.novelId },
+          orderBy: { order: "asc" },
+          select: { id: true, order: true },
+        })
+      : [];
+    const range = autoExecution.mode === "book"
+      ? resolveDirectorAutoExecutionBookRange(chapters)
+      : resolveDirectorAutoExecutionRangeFromState(autoExecution);
     if (!range) {
       return false;
     }

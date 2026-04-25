@@ -16,6 +16,7 @@ import {
   buildDirectorAutoExecutionPipelineOptions,
   buildDirectorAutoExecutionState,
   isDirectorAutoExecutionChapterProcessed,
+  resolveDirectorAutoExecutionBookRange,
   resolveDirectorAutoExecutionRange,
   resolveDirectorAutoExecutionRangeFromState,
   resolveDirectorAutoExecutionWorkflowState,
@@ -335,7 +336,10 @@ export class NovelDirectorAutoExecutionRuntime {
     let scopeLabel = input.existingState?.scopeLabel ?? null;
     let volumeTitle = input.existingState?.volumeTitle ?? null;
     let preparedVolumeIds = input.existingState?.preparedVolumeIds ?? [];
-    if (normalizedPlan.mode === "volume" && input.existingState?.enabled) {
+    if (normalizedPlan.mode === "book" && input.existingState?.enabled) {
+      range = resolveDirectorAutoExecutionBookRange(chapters);
+      scopeLabel = scopeLabel ?? buildDirectorAutoExecutionScopeLabelFromState(input.existingState, range?.totalChapterCount ?? null);
+    } else if (normalizedPlan.mode === "volume" && input.existingState?.enabled) {
       const resolvedVolumeScope = await this.resolveVolumeScopedRange({
         novelId: input.novelId,
         plan: input.existingState,

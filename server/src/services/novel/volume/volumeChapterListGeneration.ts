@@ -6,6 +6,7 @@ import type {
 } from "@ai-novel/shared/types/novel";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
+import { logMemoryUsage } from "../../../runtime/memoryTelemetry";
 import { createVolumeChapterListPrompt } from "../../../prompting/prompts/novel/volume/chapterList.prompts";
 import { buildVolumeChapterListContextBlocks } from "../../../prompting/prompts/novel/volume/contextBlocks";
 import {
@@ -225,6 +226,13 @@ async function generateBeatChapterBlock(params: {
       provider: params.options.provider,
       model: params.options.model,
       temperature: params.options.temperature ?? 0.35,
+      novelId: params.document.novelId,
+      volumeId: params.targetVolume.id,
+      taskId: params.options.taskId,
+      stage: "structured_outline",
+      itemKey: "chapter_list",
+      scope: "chapter_list",
+      entrypoint: params.options.entrypoint,
     },
   });
 
@@ -246,6 +254,20 @@ export async function generateBeatChunkedChapterList(params: {
   const { document, novel, workspace, storyMacroPlan, options } = params;
   const targetVolume = getTargetVolume(document, options.targetVolumeId);
   const targetBeatSheet = getBeatSheet(document, targetVolume.id);
+  logMemoryUsage({
+    event: "start",
+    component: "generateBeatChunkedChapterList",
+    taskId: options.taskId,
+    novelId: document.novelId,
+    stage: "structured_outline",
+    itemKey: "chapter_list",
+    scope: options.generationMode ?? "full_volume",
+    entrypoint: options.entrypoint,
+    volumeId: targetVolume.id,
+    volumeCount: document.volumes.length,
+    chapterCount: document.volumes.reduce((sum, volume) => sum + volume.chapters.length, 0),
+    beatSheetCount: document.beatSheets.length,
+  });
   if (!targetBeatSheet) {
     throw new Error("当前卷还没有节奏板，不能直接拆章节列表。");
   }
@@ -339,30 +361,20 @@ export async function generateBeatChunkedChapterList(params: {
         : null,
     });
     generatedBlocks.push(generatedBlock);
-
-    if (params.notifyIntermediateDocument) {
-      const partialDocument = mergeChapterList(
-        document,
-        targetVolume.id,
-        targetBeatSheet,
-        generatedBlocks,
-        {
-          generationMode,
-          targetBeatKey: options.targetBeatKey,
-          resumeFromBeatKey: fullVolumeResumeState?.resumeBeatKey,
-        },
-      );
-      await params.notifyIntermediateDocument({
-        scope: "chapter_list",
-        document: partialDocument,
-        isFinal: false,
-        targetVolumeId: targetVolume.id,
-        targetBeatKey: beatPlan.beat.key,
-        generationMode,
-      });
-    }
   }
 
+  logMemoryUsage({
+    event: "before_merge",
+    component: "mergeChapterList",
+    taskId: options.taskId,
+    novelId: document.novelId,
+    stage: "structured_outline",
+    itemKey: "chapter_list",
+    scope: generationMode,
+    entrypoint: options.entrypoint,
+    volumeId: targetVolume.id,
+    chapterCount: generatedBlocks.reduce((sum, block) => sum + block.chapters.length, 0),
+  });
   const mergedDocument = mergeChapterList(
     document,
     targetVolume.id,
@@ -381,6 +393,28 @@ export async function generateBeatChunkedChapterList(params: {
   assertMergedVolumeChapterList({
     volume: mergedVolume,
     beatSheet: targetBeatSheet,
+  });
+  logMemoryUsage({
+    event: "after_merge",
+    component: "mergeChapterList",
+    taskId: options.taskId,
+    novelId: document.novelId,
+    stage: "structured_outline",
+    itemKey: "chapter_list",
+    scope: generationMode,
+    entrypoint: options.entrypoint,
+    volumeId: targetVolume.id,
+    volumeCount: mergedDocument.volumes.length,
+    chapterCount: mergedDocument.volumes.reduce((sum, volume) => sum + volume.chapters.length, 0),
+    beatSheetCount: mergedDocument.beatSheets.length,
+  });
+  await params.notifyIntermediateDocument?.({
+    scope: "chapter_list",
+    document: mergedDocument,
+    isFinal: true,
+    targetVolumeId: targetVolume.id,
+    targetBeatKey: generatedBlocks[generatedBlocks.length - 1]?.beatKey,
+    generationMode,
   });
 
   return {

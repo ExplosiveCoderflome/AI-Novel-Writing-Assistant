@@ -11,6 +11,7 @@ import type { VolumeGenerationPhaseEvent } from "../volume/volumeModels";
 import { getChapterTitleDiversityIssue } from "../volume/chapterTitleDiversity";
 import { NovelWorkflowService } from "../workflow/NovelWorkflowService";
 import { buildNovelEditResumeTarget } from "../workflow/novelWorkflow.shared";
+import { logMemoryUsage } from "../../../runtime/memoryTelemetry";
 import {
   buildDirectorSessionState,
   buildStoryInput,
@@ -31,9 +32,14 @@ import {
   resolveDirectorAutoExecutionPlanChapterRange,
 } from "./novelDirectorAutoExecution";
 import {
+  normalizeDirectorAutoApprovalConfig,
+  shouldAutoApproveDirectorCheckpoint,
+} from "@ai-novel/shared/types/autoDirectorApproval";
+import {
   flattenPreparedOutlineChapters,
   resolveStructuredOutlineRecoveryCursor,
   type StructuredOutlineDetailMode,
+  type StructuredOutlineRecoveryCursor,
 } from "./novelDirectorStructuredOutlineRecovery";
 import { runDirectorTrackedStep } from "./directorProgressTracker";
 
@@ -135,12 +141,43 @@ function buildStructuredOutlinePhaseUpdate(event: VolumeGenerationPhaseEvent): {
   return null;
 }
 
+function buildStructuredOutlineCursorKey(cursor: StructuredOutlineRecoveryCursor): string {
+  return [
+    cursor.step,
+    cursor.volumeId ?? "",
+    cursor.chapterId ?? "",
+    cursor.detailMode ?? "",
+    cursor.beatKey ?? "",
+    cursor.preparedVolumeIds.length,
+    cursor.selectedChapters.length,
+    cursor.completedChapterCount,
+    cursor.totalChapterCount,
+    cursor.completedDetailSteps,
+    cursor.totalDetailSteps,
+  ].join("|");
+}
+
 async function persistStructuredOutlineVolumeSnapshot(input: {
+  taskId: string;
   novelId: string;
   workspace: VolumePlanDocument;
+  itemKey: "beat_sheet" | "chapter_list";
+  scope: "beat_sheet" | "chapter_list";
+  volumeId?: string | null;
   dependencies: Pick<DirectorPhaseDependencies, "volumeService">;
 }): Promise<VolumePlanDocument> {
-  return input.dependencies.volumeService.updateVolumes(input.novelId, input.workspace);
+  return input.dependencies.volumeService.updateVolumesWithOptions(input.novelId, input.workspace, {
+    emitEvent: false,
+    syncPayoffLedger: false,
+    memoryTelemetry: {
+      taskId: input.taskId,
+      stage: "structured_outline",
+      itemKey: input.itemKey,
+      scope: input.scope,
+      entrypoint: "auto_director",
+      volumeId: input.volumeId,
+    },
+  });
 }
 
 function buildVolumeStrategyPhaseUpdate(event: VolumeGenerationPhaseEvent): {
@@ -261,6 +298,12 @@ export async function runDirectorCharacterSetupPhase(input: {
   if (normalizeDirectorRunMode(request.runMode) !== "stage_review") {
     return false;
   }
+  if (shouldAutoApproveDirectorCheckpoint(
+    normalizeDirectorAutoApprovalConfig(request.autoApproval),
+    "character_setup_required",
+  )) {
+    return false;
+  }
 
   const pausedSession = buildDirectorSessionState({
     runMode: request.runMode,
@@ -359,6 +402,12 @@ export async function runDirectorVolumeStrategyPhase(input: {
   if (normalizeDirectorRunMode(request.runMode) !== "stage_review") {
     return persistedStrategyWorkspace;
   }
+  if (shouldAutoApproveDirectorCheckpoint(
+    normalizeDirectorAutoApprovalConfig(request.autoApproval),
+    "volume_strategy_ready",
+  )) {
+    return persistedStrategyWorkspace;
+  }
 
   const pausedSession = buildDirectorSessionState({
     runMode: request.runMode,
@@ -388,6 +437,18 @@ export async function runDirectorStructuredOutlinePhase(input: {
   callbacks: DirectorPhaseCallbacks;
 }): Promise<void> {
   const { taskId, novelId, request, baseWorkspace, dependencies, callbacks } = input;
+  logMemoryUsage({
+    event: "start",
+    component: "runDirectorStructuredOutlinePhase",
+    taskId,
+    novelId,
+    stage: "structured_outline",
+    scope: "structured_outline",
+    entrypoint: "auto_director",
+    volumeCount: baseWorkspace.volumes.length,
+    chapterCount: baseWorkspace.volumes.reduce((sum, volume) => sum + volume.chapters.length, 0),
+    beatSheetCount: baseWorkspace.beatSheets.length,
+  });
   const firstVolume = baseWorkspace.volumes[0];
   if (!firstVolume) {
     throw new Error("自动导演未能生成可用卷骨架。");
@@ -427,11 +488,17 @@ export async function runDirectorStructuredOutlinePhase(input: {
   });
 
   let workspace = baseWorkspace;
+  let previousCursorKey: string | null = null;
   while (true) {
     const recoveryCursor = resolveStructuredOutlineRecoveryCursor({
       workspace,
       plan: detailPlan,
     });
+    const cursorKey = buildStructuredOutlineCursorKey(recoveryCursor);
+    if (cursorKey === previousCursorKey) {
+      throw new Error("自动导演结构化大纲恢复没有推进，请检查章节规划生成结果后重试。");
+    }
+    previousCursorKey = cursorKey;
 
     if (recoveryCursor.step === "beat_sheet") {
       const targetVolume = workspace.volumes.find((volume) => volume.id === recoveryCursor.volumeId);
@@ -453,6 +520,8 @@ export async function runDirectorStructuredOutlinePhase(input: {
           scope: "beat_sheet",
           targetVolumeId: targetVolume.id,
           draftWorkspace: workspace,
+          taskId,
+          entrypoint: "auto_director",
           onPhaseStart: async (event) => {
             const update = buildStructuredOutlinePhaseUpdate(event);
             if (!update) {
@@ -463,8 +532,12 @@ export async function runDirectorStructuredOutlinePhase(input: {
         }),
       });
       workspace = await persistStructuredOutlineVolumeSnapshot({
+        taskId,
         novelId,
         workspace,
+        itemKey: "beat_sheet",
+        scope: "beat_sheet",
+        volumeId: targetVolume.id,
         dependencies,
       });
       continue;
@@ -490,6 +563,8 @@ export async function runDirectorStructuredOutlinePhase(input: {
           scope: "chapter_list",
           targetVolumeId: targetVolume.id,
           draftWorkspace: workspace,
+          taskId,
+          entrypoint: "auto_director",
           onPhaseStart: async (event) => {
             const update = buildStructuredOutlinePhaseUpdate(event);
             if (!update) {
@@ -503,8 +578,12 @@ export async function runDirectorStructuredOutlinePhase(input: {
         }),
       });
       workspace = await persistStructuredOutlineVolumeSnapshot({
+        taskId,
         novelId,
         workspace,
+        itemKey: "chapter_list",
+        scope: "chapter_list",
+        volumeId: targetVolume.id,
         dependencies,
       });
       const preparedVolume = workspace.volumes.find((item) => item.id === targetVolume.id);
@@ -568,10 +647,21 @@ export async function runDirectorStructuredOutlinePhase(input: {
         targetChapterId: recoveryCursor.chapterId,
         detailMode: targetDetailMode,
         draftWorkspace: workspace,
+        taskId,
+        entrypoint: "auto_director",
       });
       workspace = await dependencies.volumeService.updateVolumesWithOptions(novelId, workspace, {
         volumeUpdateReason: "chapter_execution_contract_refined",
         syncPayoffLedger: false,
+        memoryTelemetry: {
+          taskId,
+          stage: "structured_outline",
+          itemKey: "chapter_detail_bundle",
+          scope: "chapter_detail",
+          entrypoint: "auto_director",
+          volumeId: recoveryCursor.volumeId,
+          chapterId: recoveryCursor.chapterId,
+        },
       });
       continue;
     }
@@ -603,9 +693,29 @@ export async function runDirectorStructuredOutlinePhase(input: {
     "正在同步已准备章节到执行区",
     DIRECTOR_PROGRESS.chapterSync,
   );
+  logMemoryUsage({
+    event: "before_sync_write",
+    component: "runDirectorStructuredOutlinePhase",
+    taskId,
+    novelId,
+    stage: "structured_outline",
+    itemKey: "chapter_sync",
+    scope: "structured_outline",
+    entrypoint: "auto_director",
+    volumeCount: workspace.volumes.length,
+    chapterCount: workspace.volumes.reduce((sum, volume) => sum + volume.chapters.length, 0),
+    beatSheetCount: workspace.beatSheets.length,
+  });
   let persistedOutlineWorkspace = await dependencies.volumeService.updateVolumesWithOptions(novelId, workspace, {
     volumeUpdateReason: "chapter_execution_contract_refined",
     syncPayoffLedger: false,
+    memoryTelemetry: {
+      taskId,
+      stage: "structured_outline",
+      itemKey: "chapter_sync",
+      scope: "structured_outline",
+      entrypoint: "auto_director",
+    },
   });
   await dependencies.volumeService.syncVolumeChaptersWithOptions(novelId, {
     volumes: persistedOutlineWorkspace.volumes,
@@ -703,5 +813,18 @@ export async function runDirectorStructuredOutlinePhase(input: {
       resumeTarget: chapterResumeTarget,
       autoExecution: autoExecutionState,
     }),
+  });
+  logMemoryUsage({
+    event: "done",
+    component: "runDirectorStructuredOutlinePhase",
+    taskId,
+    novelId,
+    stage: "structured_outline",
+    itemKey: "front10_ready",
+    scope: autoExecutionScopeLabel,
+    entrypoint: "auto_director",
+    volumeCount: persistedOutlineWorkspace.volumes.length,
+    chapterCount: persistedOutlineWorkspace.volumes.reduce((sum, volume) => sum + volume.chapters.length, 0),
+    beatSheetCount: persistedOutlineWorkspace.beatSheets.length,
   });
 }

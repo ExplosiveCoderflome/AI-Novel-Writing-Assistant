@@ -211,6 +211,12 @@ async function generateStrategy(params: {
       provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.3,
+      novelId: document.novelId,
+      taskId: options.taskId,
+      stage: "volume_strategy",
+      itemKey: "volume_strategy",
+      scope: "strategy",
+      entrypoint: options.entrypoint,
     },
   });
   return mergeStrategyPlan(document, generated.output);
@@ -254,6 +260,12 @@ async function generateStrategyCritique(params: {
       provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.2,
+      novelId: document.novelId,
+      taskId: options.taskId,
+      stage: "volume_strategy",
+      itemKey: "volume_strategy",
+      scope: "strategy_critique",
+      entrypoint: options.entrypoint,
     },
   });
   return mergeCritiqueReport(document, generated.output);
@@ -310,6 +322,12 @@ async function generateSkeleton(params: {
       provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.35,
+      novelId: document.novelId,
+      taskId: options.taskId,
+      stage: "volume_strategy",
+      itemKey: "volume_skeleton",
+      scope: "skeleton",
+      entrypoint: options.entrypoint,
     },
   });
   return mergeSkeleton(document, generated.output.volumes);
@@ -369,6 +387,13 @@ async function generateBeatSheet(params: {
       provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.35,
+      novelId: document.novelId,
+      volumeId: targetVolume.id,
+      taskId: options.taskId,
+      stage: "structured_outline",
+      itemKey: "beat_sheet",
+      scope: "beat_sheet",
+      entrypoint: options.entrypoint,
     },
   });
   return mergeBeatSheet(document, targetVolume, generated.output.beats);
@@ -431,6 +456,13 @@ async function generateRebalance(params: {
       provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.25,
+      novelId: document.novelId,
+      volumeId: anchorVolume.id,
+      taskId: options.taskId,
+      stage: "structured_outline",
+      itemKey: "chapter_list",
+      scope: "rebalance",
+      entrypoint: options.entrypoint,
     },
   });
   return mergeRebalance(document, anchorVolume.id, generated.output.decisions);
@@ -458,7 +490,9 @@ async function generateChapterList(params: {
       label,
       options,
     }),
-    notifyIntermediateDocument: options.onIntermediateDocument,
+    notifyIntermediateDocument: options.persistIntermediateDocuments === true
+      ? options.onIntermediateDocument
+      : undefined,
   });
   const rebalancedDocument = await generateRebalance({
     document: mergedDocument,
@@ -524,9 +558,14 @@ async function generateChapterDetail(params: {
         provider: options.provider,
         model: options.model,
         temperature: options.temperature ?? 0.35,
+        taskId: options.taskId,
+        entrypoint: options.entrypoint,
         novelId: document.novelId,
+        volumeId: targetVolume.id,
         chapterId: targetChapter.id,
         stage: "chapter_detail_purpose",
+        itemKey: "chapter_detail_bundle",
+        scope: "chapter_detail",
         triggerReason: "chapter_detail_generation",
       },
     })
@@ -539,9 +578,14 @@ async function generateChapterDetail(params: {
           provider: options.provider,
           model: options.model,
           temperature: options.temperature ?? 0.35,
+          taskId: options.taskId,
+          entrypoint: options.entrypoint,
           novelId: document.novelId,
+          volumeId: targetVolume.id,
           chapterId: targetChapter.id,
           stage: "chapter_detail_boundary",
+          itemKey: "chapter_detail_bundle",
+          scope: "chapter_detail",
           triggerReason: "chapter_detail_generation",
         },
       })

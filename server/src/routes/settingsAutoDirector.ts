@@ -7,6 +7,13 @@ import {
   getAutoDirectorChannelSettings,
   saveAutoDirectorChannelSettings,
 } from "../services/settings/AutoDirectorChannelSettingsService";
+import {
+  DIRECTOR_AUTO_APPROVAL_POINTS,
+} from "@ai-novel/shared/types/autoDirectorApproval";
+import {
+  getAutoDirectorApprovalPreferenceSettings,
+  saveAutoDirectorApprovalPreferenceSettings,
+} from "../services/settings/AutoDirectorApprovalPreferenceService";
 
 const router = Router();
 
@@ -21,6 +28,12 @@ const autoDirectorChannelSettingsSchema = z.object({
   baseUrl: z.union([z.string().trim().url("Base URL is invalid."), z.literal("")]).optional(),
   dingtalk: autoDirectorChannelSchema.optional(),
   wecom: autoDirectorChannelSchema.optional(),
+});
+
+const autoApprovalPointValues = DIRECTOR_AUTO_APPROVAL_POINTS.map((item) => item.code) as [string, ...string[]];
+
+const autoDirectorApprovalPreferenceSchema = z.object({
+  approvalPointCodes: z.array(z.enum(autoApprovalPointValues)),
 });
 
 router.use(authMiddleware);
@@ -49,6 +62,37 @@ router.put(
         success: true,
         data,
         message: "Auto director channel settings saved.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.get("/approval-preferences", async (_req, res, next) => {
+  try {
+    const data = await getAutoDirectorApprovalPreferenceSettings();
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Loaded auto director approval preferences.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put(
+  "/approval-preferences",
+  validate({ body: autoDirectorApprovalPreferenceSchema }),
+  async (req, res, next) => {
+    try {
+      const body = req.body as z.infer<typeof autoDirectorApprovalPreferenceSchema>;
+      const data = await saveAutoDirectorApprovalPreferenceSettings(body);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Auto director approval preferences saved.",
       } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);

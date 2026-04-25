@@ -1,6 +1,11 @@
 import type { DirectorRunMode } from "@ai-novel/shared/types/novelDirector";
+import type {
+  DirectorAutoApprovalGroup,
+  DirectorAutoApprovalPoint,
+} from "@ai-novel/shared/types/autoDirectorApproval";
 import type { StyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import LLMSelector from "@/components/common/LLMSelector";
+import AutoDirectorApprovalStrategyPanel from "@/components/autoDirector/AutoDirectorApprovalStrategyPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
@@ -44,6 +49,13 @@ interface NovelAutoDirectorSetupPanelProps {
   onRunModeChange: (value: DirectorRunMode) => void;
   autoExecutionDraft: DirectorAutoExecutionDraftState;
   onAutoExecutionDraftChange: (patch: Partial<DirectorAutoExecutionDraftState>) => void;
+  maxChapterCount?: number | null;
+  autoApprovalEnabled: boolean;
+  autoApprovalCodes: string[];
+  autoApprovalGroups?: DirectorAutoApprovalGroup[];
+  autoApprovalPoints?: DirectorAutoApprovalPoint[];
+  onAutoApprovalEnabledChange: (enabled: boolean) => void;
+  onAutoApprovalCodesChange: (next: string[]) => void;
   styleProfileOptions: Array<{ id: string; name: string }>;
   selectedStyleProfileId: string;
   selectedStyleSummary: StyleIntentSummary | null;
@@ -66,6 +78,13 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
     onRunModeChange,
     autoExecutionDraft,
     onAutoExecutionDraftChange,
+    maxChapterCount,
+    autoApprovalEnabled,
+    autoApprovalCodes,
+    autoApprovalGroups,
+    autoApprovalPoints,
+    onAutoApprovalEnabledChange,
+    onAutoApprovalCodesChange,
     styleProfileOptions,
     selectedStyleProfileId,
     selectedStyleSummary,
@@ -186,7 +205,7 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
                     ))}
                   </select>
                   <div className="text-xs leading-5 text-muted-foreground">
-                    {selectedStyleSummary?.stageSummaryLines[0] ?? "如果已经有沉淀好的写法资产，建议直接选一套，能明显减少导演黑盒感。"}
+                    {selectedStyleSummary?.stageSummaryLines[0] ?? "有沉淀好的写法资产时，建议直接选一套，帮助你更清楚地预期导演会怎样写。"}
                   </div>
                   {selectedStyleSummary?.stageSummaryLines.length ? (
                     <div className="rounded-xl border bg-muted/15 p-3 text-xs leading-6 text-muted-foreground">
@@ -245,10 +264,22 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
               })}
             </div>
             {runMode === "auto_to_execution" ? (
-              <DirectorAutoExecutionPlanFields
-                draft={autoExecutionDraft}
-                onChange={onAutoExecutionDraftChange}
-              />
+              <>
+                <DirectorAutoExecutionPlanFields
+                  draft={autoExecutionDraft}
+                  onChange={onAutoExecutionDraftChange}
+                  usage="new_book"
+                  maxChapterCount={maxChapterCount}
+                />
+                <AutoDirectorApprovalStrategyPanel
+                  enabled={autoApprovalEnabled}
+                  approvalPointCodes={autoApprovalCodes}
+                  groups={autoApprovalGroups}
+                  approvalPoints={autoApprovalPoints}
+                  onEnabledChange={onAutoApprovalEnabledChange}
+                  onApprovalPointCodesChange={onAutoApprovalCodesChange}
+                />
+              </>
             ) : null}
           </section>
 

@@ -126,3 +126,37 @@ test("markPendingAutoDirectorTasksForManualRecovery only marks tasks without con
     ["requeue", "task-running", "服务重启后任务已暂停，等待手动恢复。"],
   ]);
 });
+
+test("markPendingAutoDirectorTasksForManualRecovery marks stale running tasks as failed when configured", async () => {
+  const calls = [];
+  const runtimeService = new NovelWorkflowRuntimeService(
+    {
+      async listRecoverableAutoDirectorTasks() {
+        return [
+          { id: "task-stale", status: "running", stale: true },
+          { id: "task-fresh", status: "running" },
+        ];
+      },
+      async requeueTaskForRecovery(taskId, message) {
+        calls.push(["requeue", taskId, message]);
+      },
+      async markTaskFailed(taskId, message) {
+        calls.push(["failed", taskId, message]);
+      },
+    },
+    {
+      async continueTask(taskId) {
+        calls.push(["continue", taskId]);
+      },
+    },
+  );
+
+  await runtimeService.markPendingAutoDirectorTasksForManualRecovery({
+    staleRunningAsFailed: true,
+  });
+
+  assert.deepEqual(calls, [
+    ["failed", "task-stale", "自动导演任务长时间没有心跳，可能已因服务重启或内存不足中断。请检查后继续或重试。"],
+    ["requeue", "task-fresh", "服务重启后任务已暂停，等待手动恢复。"],
+  ]);
+});

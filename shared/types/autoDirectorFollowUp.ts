@@ -1,5 +1,11 @@
 import type { NovelWorkflowCheckpoint } from "./novelWorkflow";
 import type { TaskStatus, UnifiedTaskDetail } from "./task";
+import type {
+  AutoDirectorAffectedScope,
+  AutoDirectorFollowUpSection,
+  AutoDirectorValidationResult,
+  AutoDirectorValidationRequiredAction,
+} from "./autoDirectorValidation";
 
 export const AUTO_DIRECTOR_FOLLOW_UP_REASONS = [
   "manual_recovery_required",
@@ -9,6 +15,9 @@ export const AUTO_DIRECTOR_FOLLOW_UP_REASONS = [
   "runtime_cancelled",
   "front10_execution_pending",
   "quality_repair_pending",
+  "auto_progress_running",
+  "runtime_replaced",
+  "validation_required",
 ] as const;
 
 export type AutoDirectorFollowUpReason = (typeof AUTO_DIRECTOR_FOLLOW_UP_REASONS)[number];
@@ -52,6 +61,8 @@ export interface AutoDirectorFollowUpResolverInput {
   checkpointType?: NovelWorkflowCheckpoint | null;
   pendingManualRecovery?: boolean;
   executionScopeLabel?: string | null;
+  replacementTaskId?: string | null;
+  validationResult?: AutoDirectorValidationResult | null;
 }
 
 export interface AutoDirectorResolvedFollowUpReason {
@@ -70,6 +81,16 @@ export type AutoDirectorChannelType = (typeof AUTO_DIRECTOR_CHANNEL_TYPES)[numbe
 
 export type AutoDirectorCountersByReason = Record<AutoDirectorFollowUpReason, number>;
 
+export type AutoDirectorCountersBySection = Record<AutoDirectorFollowUpSection, number>;
+
+export interface AutoDirectorFollowUpValidationSummary {
+  blockingReasons: string[];
+  warnings: string[];
+  requiredActions: AutoDirectorValidationRequiredAction[];
+  affectedScope: AutoDirectorAffectedScope | null;
+  nextAction: string | null;
+}
+
 export interface AutoDirectorFollowUpItem {
   taskId: string;
   novelId: string | null;
@@ -80,10 +101,12 @@ export interface AutoDirectorFollowUpItem {
   currentStage: string | null;
   checkpointType: NovelWorkflowCheckpoint | null;
   reason: AutoDirectorFollowUpReason;
+  section: AutoDirectorFollowUpSection;
   reasonLabel: string;
   priority: AutoDirectorFollowUpPriority;
   followUpSummary: string;
   blockingReason: string | null;
+  validationSummary?: AutoDirectorFollowUpValidationSummary | null;
   executionScope: string | null;
   currentModel: string | null;
   availableActions: AutoDirectorAction[];
@@ -109,6 +132,8 @@ export interface AutoDirectorFollowUpDetail {
   followUpSummary: string;
   checkpointSummary: string | null;
   blockingReason: string | null;
+  nextStepSuggestion: string | null;
+  validationSummary: AutoDirectorFollowUpValidationSummary | null;
   currentModel: string | null;
   riskNote: string | null;
   originDetailUrl: string;
@@ -123,6 +148,7 @@ export interface AutoDirectorFollowUpDetail {
 export interface AutoDirectorFollowUpOverview {
   totalCount: number;
   countersByReason: AutoDirectorCountersByReason;
+  countersBySection: AutoDirectorCountersBySection;
 }
 
 export interface AutoDirectorFollowUpSummaryCounters {
@@ -131,6 +157,7 @@ export interface AutoDirectorFollowUpSummaryCounters {
 }
 
 export interface AutoDirectorFollowUpAvailableFilters {
+  sections: AutoDirectorFollowUpSection[];
   reasons: AutoDirectorFollowUpReason[];
   statuses: TaskStatus[];
   channelTypes: AutoDirectorChannelType[];
@@ -145,12 +172,14 @@ export interface AutoDirectorFollowUpPagination {
 export interface AutoDirectorFollowUpListResponse {
   items: AutoDirectorFollowUpItem[];
   countersByReason: AutoDirectorCountersByReason;
+  countersBySection: AutoDirectorCountersBySection;
   summaryCounters: AutoDirectorFollowUpSummaryCounters;
   availableFilters: AutoDirectorFollowUpAvailableFilters;
   pagination: AutoDirectorFollowUpPagination;
 }
 
 export interface AutoDirectorFollowUpListInput {
+  section?: AutoDirectorFollowUpSection;
   reason?: AutoDirectorFollowUpReason;
   status?: TaskStatus;
   novelId?: string;

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import { normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
 import type {
+  DirectorAutoExecutionMode,
   DirectorAutoExecutionPlan,
   DirectorRunMode,
   DirectorTakeoverEntryStep,
@@ -23,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
+import AutoDirectorApprovalStrategyPanel from "@/components/autoDirector/AutoDirectorApprovalStrategyPanel";
 import { useLLMStore } from "@/store/llmStore";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 import {
@@ -31,6 +33,7 @@ import {
   buildDirectorAutoExecutionPlanLabel,
   createDefaultDirectorAutoExecutionDraftState,
 } from "./directorAutoExecutionPlan.shared";
+import { useDirectorAutoApprovalDraft } from "./useDirectorAutoApprovalDraft";
 
 interface NovelExistingProjectTakeoverDialogProps {
   novelId: string;
@@ -50,8 +53,8 @@ const RUN_MODE_OPTIONS: Array<{ value: DirectorRunMode; label: string; descripti
   },
   {
     value: "auto_to_execution",
-    label: "继续自动执行章节批次",
-    description: "默认执行前 10 章，也可以改成指定范围或按卷执行。",
+    label: "按范围执行",
+    description: "按全书、章节范围或卷范围接管，并继续准备目标范围的章节执行。",
   },
 ];
 
@@ -104,6 +107,19 @@ function buildEditRoute(input: {
   return `/novels/${input.novelId}/edit?${search.toString()}`;
 }
 
+function isEntryStepAllowedForScope(
+  entryStep: DirectorTakeoverEntryStep,
+  scopeMode: DirectorAutoExecutionMode,
+): boolean {
+  if (scopeMode === "chapter_range" || scopeMode === "front10") {
+    return entryStep === "structured" || entryStep === "chapter" || entryStep === "pipeline";
+  }
+  if (scopeMode === "volume") {
+    return entryStep === "outline" || entryStep === "structured" || entryStep === "chapter" || entryStep === "pipeline";
+  }
+  return true;
+}
+
 export default function NovelExistingProjectTakeoverDialog({
   novelId,
   basicForm,
@@ -120,8 +136,9 @@ export default function NovelExistingProjectTakeoverDialog({
   const [runMode, setRunMode] = useState<DirectorRunMode>("auto_to_ready");
   const [selectedEntryStep, setSelectedEntryStep] = useState<DirectorTakeoverEntryStep>(defaultEntryStep);
   const [selectedStrategy, setSelectedStrategy] = useState<DirectorTakeoverStrategy>("continue_existing");
-  const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState());
+  const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState("takeover"));
   const [selectedStyleProfileId, setSelectedStyleProfileId] = useState("");
+  const autoApprovalDraft = useDirectorAutoApprovalDraft(open);
 
   const readinessQuery = useQuery({
     queryKey: queryKeys.novels.autoDirectorTakeoverReadiness(novelId),
@@ -161,16 +178,21 @@ export default function NovelExistingProjectTakeoverDialog({
   const selectedEntry = readiness?.entrySteps.find((item) => item.step === selectedEntryStep) ?? null;
   const selectedPreview = selectedEntry?.previews.find((item) => item.strategy === selectedStrategy) ?? null;
   const autoExecutionPlan: DirectorAutoExecutionPlan | undefined = runMode === "auto_to_execution"
-    ? buildDirectorAutoExecutionPlanFromDraft(autoExecutionDraft)
+    ? buildDirectorAutoExecutionPlanFromDraft(autoExecutionDraft, { usage: "takeover" })
     : undefined;
+  const selectedScopeMode = runMode === "auto_to_execution"
+    ? autoExecutionPlan?.mode ?? autoExecutionDraft.mode
+    : "book";
+  const selectedEntryAllowedForScope = isEntryStepAllowedForScope(selectedEntryStep, selectedScopeMode);
 
   useEffect(() => {
     if (!open) {
       setSelectedEntryStep(defaultEntryStep);
       setSelectedStrategy("continue_existing");
       setSelectedStyleProfileId("");
+      autoApprovalDraft.reset();
     }
-  }, [defaultEntryStep, open]);
+  }, [autoApprovalDraft, defaultEntryStep, open]);
 
   useEffect(() => {
     if (!open) {
@@ -186,16 +208,22 @@ export default function NovelExistingProjectTakeoverDialog({
     if (!readiness) {
       return;
     }
-    const recommended = readiness.entrySteps.find((item) => item.recommended && item.available)
-      ?? readiness.entrySteps.find((item) => item.available)
+    const recommended = readiness.entrySteps.find((item) => (
+      item.recommended
+      && item.available
+      && isEntryStepAllowedForScope(item.step, selectedScopeMode)
+    ))
+      ?? readiness.entrySteps.find((item) => item.available && isEntryStepAllowedForScope(item.step, selectedScopeMode))
       ?? null;
     if (recommended) {
       setSelectedEntryStep((current) => {
         const currentStep = readiness.entrySteps.find((item) => item.step === current);
-        return currentStep?.available ? current : recommended.step;
+        return currentStep?.available && isEntryStepAllowedForScope(current, selectedScopeMode)
+          ? current
+          : recommended.step;
       });
     }
-  }, [readiness]);
+  }, [readiness, selectedScopeMode]);
 
   const startMutation = useMutation({
     mutationFn: async () => startDirectorTakeover({
@@ -208,6 +236,7 @@ export default function NovelExistingProjectTakeoverDialog({
       temperature: llm.temperature,
       runMode,
       autoExecutionPlan,
+      autoApproval: autoApprovalDraft.buildPayload(runMode),
     }),
     onSuccess: async (response) => {
       const data = response.data;
@@ -287,17 +316,28 @@ export default function NovelExistingProjectTakeoverDialog({
                   })}
                 </div>
                 {runMode === "auto_to_execution" ? (
-                  <DirectorAutoExecutionPlanFields
-                    draft={autoExecutionDraft}
-                    onChange={(patch) => setAutoExecutionDraft((prev) => ({ ...prev, ...patch }))}
-                  />
+                  <>
+                    <DirectorAutoExecutionPlanFields
+                      draft={autoExecutionDraft}
+                      onChange={(patch) => setAutoExecutionDraft((prev) => ({ ...prev, ...patch }))}
+                      usage="takeover"
+                    />
+                    <AutoDirectorApprovalStrategyPanel
+                      enabled={autoApprovalDraft.enabled}
+                      approvalPointCodes={autoApprovalDraft.codes}
+                      groups={autoApprovalDraft.groups}
+                      approvalPoints={autoApprovalDraft.points}
+                      onEnabledChange={autoApprovalDraft.setEnabled}
+                      onApprovalPointCodesChange={autoApprovalDraft.setCodes}
+                    />
+                  </>
                 ) : null}
               </div>
 
               <div className="rounded-xl border bg-background/80 p-4">
                 <div className="text-sm font-medium text-foreground">本次接管使用的写法</div>
                 <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                  如果已经给这本书绑定过默认写法，接管时建议沿用它。前半段导演只会读取轻量摘要，不会和结构规划抢职责。
+                  绑定书级默认写法后，接管时建议沿用它。前半段导演只读取轻量摘要，避免干扰结构规划。
                 </div>
                 <div className="mt-3 space-y-3">
                   <select
@@ -379,13 +419,15 @@ export default function NovelExistingProjectTakeoverDialog({
                         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                           {readiness.entrySteps.map((entry) => {
                             const active = entry.step === selectedEntryStep;
+                            const allowedForScope = isEntryStepAllowedForScope(entry.step, selectedScopeMode);
+                            const disabled = !entry.available || !allowedForScope || startMutation.isPending;
                             return (
                               <button
                                 key={entry.step}
                                 type="button"
-                                disabled={!entry.available || startMutation.isPending}
+                                disabled={disabled}
                                 className={`rounded-xl border px-4 py-4 text-left transition ${
-                                  active ? "border-primary bg-primary/10 shadow-sm" : entry.available ? "border-border bg-background hover:border-primary/40" : "border-border/60 bg-muted/20 opacity-70"
+                                  active ? "border-primary bg-primary/10 shadow-sm" : !disabled ? "border-border bg-background hover:border-primary/40" : "border-border/60 bg-muted/20 opacity-70"
                                 }`}
                                 onClick={() => setSelectedEntryStep(entry.step)}
                               >
@@ -397,7 +439,9 @@ export default function NovelExistingProjectTakeoverDialog({
                                   </div>
                                 </div>
                                 <div className="mt-2 text-xs leading-5 text-muted-foreground">{entry.description}</div>
-                                <div className="mt-3 text-xs leading-5 text-muted-foreground">{entry.reason}</div>
+                                <div className="mt-3 text-xs leading-5 text-muted-foreground">
+                                  {allowedForScope ? entry.reason : "当前范围不能从这一步开始。章节范围从节奏拆章开始，卷范围从卷战略开始。"}
+                                </div>
                               </button>
                             );
                           })}
@@ -466,7 +510,7 @@ export default function NovelExistingProjectTakeoverDialog({
                         <div className="mt-4 flex justify-end">
                           <Button
                             type="button"
-                            disabled={startMutation.isPending || !selectedEntry || !selectedEntry.available}
+                            disabled={startMutation.isPending || !selectedEntry || !selectedEntry.available || !selectedEntryAllowedForScope}
                             onClick={() => startMutation.mutate()}
                           >
                             {startMutation.isPending ? "启动中..." : "从这一阶段开始接管"}

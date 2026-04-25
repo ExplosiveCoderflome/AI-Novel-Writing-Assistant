@@ -45,6 +45,28 @@ export async function getAutoDirectorFollowUpDetail(taskId: string) {
   }
 }
 
+export async function revalidateAutoDirectorFollowUpDetail(taskId: string) {
+  try {
+    const { data } = await apiClient.get<ApiResponse<AutoDirectorFollowUpDetail | null>>(
+      `/auto-director/follow-ups/${taskId}/revalidation`,
+      {
+        silentErrorStatuses: [404],
+      },
+    );
+    return data;
+  } catch (error) {
+    const httpError = error as ApiHttpError;
+    if (httpError.status === 404) {
+      return {
+        success: true,
+        data: null,
+        message: "Follow-up not found.",
+      } satisfies ApiResponse<AutoDirectorFollowUpDetail | null>;
+    }
+    throw error;
+  }
+}
+
 export async function executeAutoDirectorFollowUpAction(
   taskId: string,
   input: {

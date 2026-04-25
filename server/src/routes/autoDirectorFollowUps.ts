@@ -1,6 +1,9 @@
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
+import {
+  AUTO_DIRECTOR_FOLLOW_UP_REASONS,
+} from "@ai-novel/shared/types/autoDirectorFollowUp";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { AutoDirectorFollowUpActionExecutor } from "../services/task/autoDirectorFollowUps/AutoDirectorFollowUpActionExecutor";
@@ -10,21 +13,16 @@ const router = Router();
 const followUpService = new AutoDirectorFollowUpService();
 const actionExecutor = new AutoDirectorFollowUpActionExecutor();
 
-const reasonSchema = z.enum([
-  "manual_recovery_required",
-  "runtime_failed",
-  "candidate_selection_required",
-  "replan_required",
-  "runtime_cancelled",
-  "front10_execution_pending",
-  "quality_repair_pending",
-]);
+const reasonSchema = z.enum(AUTO_DIRECTOR_FOLLOW_UP_REASONS);
 
 const statusSchema = z.enum(["queued", "running", "waiting_approval", "succeeded", "failed", "cancelled"]);
 
 const channelTypeSchema = z.enum(["dingtalk", "wecom"]);
 
+const sectionSchema = z.enum(["pending", "auto_progress", "exception", "replaced", "needs_validation"]);
+
 const listQuerySchema = z.object({
+  section: sectionSchema.optional(),
   reason: reasonSchema.optional(),
   status: statusSchema.optional(),
   novelId: z.string().trim().optional(),
@@ -127,6 +125,29 @@ router.get("/:taskId", validate({ params: taskParamsSchema }), async (req, res, 
       success: true,
       data,
       message: "Follow-up detail loaded.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/:taskId/revalidation", validate({ params: taskParamsSchema }), async (req, res, next) => {
+  try {
+    const { taskId } = req.params as z.infer<typeof taskParamsSchema>;
+    const data = await followUpService.getDetail(taskId, {
+      heal: false,
+    });
+    if (!data) {
+      res.status(404).json({
+        success: false,
+        error: "Follow-up not found.",
+      } satisfies ApiResponse<null>);
+      return;
+    }
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Follow-up validation refreshed.",
     } satisfies ApiResponse<typeof data>);
   } catch (error) {
     next(error);

@@ -277,6 +277,7 @@ export class TaskCenterService {
     options?: {
       llmOverride?: Pick<DirectorLLMOptions, "provider" | "model" | "temperature">;
       resume?: boolean;
+      batchAlreadyStartedCount?: number;
     },
   ): Promise<UnifiedTaskDetail> {
     if (kind === "book_analysis") {
@@ -296,6 +297,7 @@ export class TaskCenterService {
         id,
         llmOverride: options?.llmOverride,
         resume: options?.resume,
+        batchAlreadyStartedCount: options?.batchAlreadyStartedCount,
       });
     }
     if (kind === "image_generation") {

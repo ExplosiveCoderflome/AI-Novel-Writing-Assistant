@@ -83,6 +83,15 @@ export async function resolveDirectorTakeoverAutoExecutionResetRange(input: {
         return range;
       }
     }
+    if (plan.mode === "book") {
+      const workspace = await input.deps.getVolumeWorkspace(input.novelId);
+      const range = resolveChapterOrderRange(
+        workspace.volumes.flatMap((volume) => volume.chapters.map((chapter) => chapter.chapterOrder)),
+      );
+      if (range) {
+        return range;
+      }
+    }
   }
   return resolveAutoExecutionRange(input.takeoverState);
 }

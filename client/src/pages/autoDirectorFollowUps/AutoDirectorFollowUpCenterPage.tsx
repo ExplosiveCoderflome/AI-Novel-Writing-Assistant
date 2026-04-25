@@ -11,6 +11,10 @@ import {
   AUTO_DIRECTOR_CHANNEL_TYPES,
   AUTO_DIRECTOR_FOLLOW_UP_REASONS,
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
+import {
+  AUTO_DIRECTOR_FOLLOW_UP_SECTIONS,
+  type AutoDirectorFollowUpSection,
+} from "@ai-novel/shared/types/autoDirectorValidation";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -19,6 +23,7 @@ import {
   getAutoDirectorFollowUpDetail,
   getAutoDirectorFollowUpOverview,
   listAutoDirectorFollowUps,
+  revalidateAutoDirectorFollowUpDetail,
 } from "@/api/autoDirectorFollowUps";
 import { queryKeys } from "@/api/queryKeys";
 import { AutoDirectorFollowUpBatchBar } from "./components/AutoDirectorFollowUpBatchBar";
@@ -38,6 +43,7 @@ const TASK_STATUSES: readonly TaskStatus[] = [
 ];
 
 function buildListParamsKey(input: {
+  section: AutoDirectorFollowUpSection | "";
   reason: AutoDirectorFollowUpReason | "";
   status: TaskStatus | "";
   supportsBatch: string;
@@ -46,6 +52,19 @@ function buildListParamsKey(input: {
   pageSize: number;
 }): string {
   return JSON.stringify(input);
+}
+
+function isBatchActionAllowedForSection(
+  section: AutoDirectorFollowUpSection,
+  actionCode: AutoDirectorMutationActionCode,
+): actionCode is Extract<AutoDirectorMutationActionCode, "continue_auto_execution" | "retry_with_task_model"> {
+  if (section === "pending") {
+    return actionCode === "continue_auto_execution";
+  }
+  if (section === "exception") {
+    return actionCode === "retry_with_task_model";
+  }
+  return false;
 }
 
 function buildIdempotencyKey(taskId: string, actionCode: AutoDirectorMutationActionCode): string {
@@ -60,6 +79,11 @@ function isBatchActionCode(
   actionCode: AutoDirectorMutationActionCode,
 ): actionCode is Extract<AutoDirectorMutationActionCode, "continue_auto_execution" | "retry_with_task_model"> {
   return actionCode === "continue_auto_execution" || actionCode === "retry_with_task_model";
+}
+
+function getSelectedSection(items: AutoDirectorFollowUpItem[]): AutoDirectorFollowUpSection | null {
+  const sections = Array.from(new Set(items.map((item) => item.section)));
+  return sections.length === 1 ? sections[0] : null;
 }
 
 function shouldConfirmAction(action: AutoDirectorAction): boolean {
@@ -88,6 +112,7 @@ export default function AutoDirectorFollowUpCenterPage() {
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
 
   const selectedTaskId = searchParams.get("taskId")?.trim() || "";
+  const section = parseEnumParam(searchParams.get("section"), AUTO_DIRECTOR_FOLLOW_UP_SECTIONS);
   const reason = parseEnumParam(searchParams.get("reason"), AUTO_DIRECTOR_FOLLOW_UP_REASONS);
   const status = parseEnumParam(searchParams.get("status"), TASK_STATUSES);
   const supportsBatch = searchParams.get("supportsBatch")?.trim() || "";
@@ -95,6 +120,7 @@ export default function AutoDirectorFollowUpCenterPage() {
   const page = Math.max(1, Number(searchParams.get("page") || "1"));
   const pageSize = 20;
   const paramsKey = buildListParamsKey({
+    section,
     reason,
     status,
     supportsBatch,
@@ -115,6 +141,7 @@ export default function AutoDirectorFollowUpCenterPage() {
   const listQuery = useQuery({
     queryKey: queryKeys.autoDirectorFollowUps.list(paramsKey),
     queryFn: () => listAutoDirectorFollowUps({
+      section: section || undefined,
       reason: reason || undefined,
       status: status || undefined,
       supportsBatch: supportsBatch ? supportsBatch === "true" : undefined,
@@ -176,7 +203,11 @@ export default function AutoDirectorFollowUpCenterPage() {
         }
         return sharedCodes.filter((code) => codes.includes(code));
       }, []);
-    return intersection.find((code) => isBatchActionCode(code)) ?? null;
+    const selectedSection = getSelectedSection(selectedItems);
+    if (!selectedSection) {
+      return null;
+    }
+    return intersection.find((code) => isBatchActionAllowedForSection(selectedSection, code)) ?? null;
   }, [selectedItems]);
 
   const invalidateFollowUps = async () => {
@@ -221,12 +252,39 @@ export default function AutoDirectorFollowUpCenterPage() {
     },
   });
 
+  const revalidationMutation = useMutation({
+    mutationFn: revalidateAutoDirectorFollowUpDetail,
+    onSuccess: async (response, taskId) => {
+      queryClient.setQueryData(
+        queryKeys.autoDirectorFollowUps.detail(taskId),
+        response,
+      );
+      toast.success("校验结果已刷新。");
+    },
+  });
+
   const handleSelectTask = (taskId: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set("taskId", taskId);
       return next;
     });
+  };
+
+  const handleSectionChange = (nextSection: AutoDirectorFollowUpSection) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (section === nextSection) {
+        next.delete("section");
+      } else {
+        next.set("section", nextSection);
+      }
+      next.delete("taskId");
+      next.delete("supportsBatch");
+      next.set("page", "1");
+      return next;
+    });
+    setSelectedTaskIds([]);
   };
 
   const handleFilterChange = (key: "reason" | "status" | "supportsBatch" | "channelType", value: string) => {
@@ -278,13 +336,24 @@ export default function AutoDirectorFollowUpCenterPage() {
     });
   };
 
+  const handleRefreshValidation = async () => {
+    if (!selectedTaskId) {
+      return;
+    }
+    await revalidationMutation.mutateAsync(selectedTaskId);
+  };
+
+  const handleSafeFix = () => {
+    toast.warning("当前没有可安全修复项。会保留正文、规划和候选选择，请先查看阻塞原因。");
+  };
+
   return (
     <div className="mobile-page-follow-ups space-y-4">
       <AutoDirectorFollowUpOverviewCards
         overview={overviewQuery.data?.data ?? null}
         list={listQuery.data?.data ?? null}
-        activeReason={reason}
-        onReasonChange={(nextReason: string) => handleFilterChange("reason", nextReason)}
+        activeSection={section}
+        onSectionChange={handleSectionChange}
       />
 
       <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
@@ -293,9 +362,9 @@ export default function AutoDirectorFollowUpCenterPage() {
           pagination={listQuery.data?.data?.pagination ?? null}
           filters={listQuery.data?.data?.availableFilters ?? null}
           activeReason={reason}
+          activeSection={section}
           activeStatus={status}
           activeSupportsBatch={supportsBatch}
-          activeChannelType={channelType}
           selectedTaskId={selectedTaskId}
           selectedTaskIds={selectedTaskIds}
           loading={listQuery.isLoading}
@@ -315,9 +384,11 @@ export default function AutoDirectorFollowUpCenterPage() {
         <AutoDirectorFollowUpDetailPanel
           detail={detailQuery.data?.data ?? null}
           selectedItem={items.find((item) => item.taskId === selectedTaskId) ?? null}
-          loading={detailQuery.isLoading}
-          actionLoading={actionMutation.isPending}
+          loading={detailQuery.isLoading || revalidationMutation.isPending}
+          actionLoading={actionMutation.isPending || revalidationMutation.isPending}
           onExecuteAction={handleExecuteAction}
+          onRefreshValidation={handleRefreshValidation}
+          onSafeFix={handleSafeFix}
         />
       </div>
 
