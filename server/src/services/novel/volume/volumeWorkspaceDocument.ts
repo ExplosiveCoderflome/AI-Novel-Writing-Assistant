@@ -524,7 +524,7 @@ export function mergeVolumeWorkspaceInput(
         : currentDocument.critiqueReport,
     beatSheets,
     rebalanceDecisions,
-    source: currentDocument.source,
+    source: nextVolumes.length > 0 ? currentDocument.source : "empty",
     activeVersionId: currentDocument.activeVersionId,
   }, {
     source: currentDocument.source,

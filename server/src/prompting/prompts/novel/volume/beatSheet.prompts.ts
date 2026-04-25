@@ -2,16 +2,79 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { PromptAsset } from "../../../core/promptTypes";
 import { renderSelectedContextBlocks } from "../../../core/renderContextBlocks";
 import { createVolumeBeatSheetSchema } from "../../../../services/novel/volume/volumeGenerationSchemas";
+import { parseBeatSheetChapterSpan } from "../../../../services/novel/volume/volumeBeatSheetChapterBudget";
 import { type VolumeBeatSheetPromptInput } from "./shared";
 import { buildVolumeBeatSheetContextBlocks } from "./contextBlocks";
 import { NOVEL_PROMPT_BUDGETS } from "../promptBudgetProfiles";
+
+type VolumeBeatSheetPromptOutput = ReturnType<typeof createVolumeBeatSheetSchema>["_output"];
+
+function safeJsonStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2) ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function resolveVolumeBeatSheetCountRule(targetChapterCount: number): {
+  min: number;
+  max: number;
+  description: string;
+} {
+  if (targetChapterCount < 5) {
+    return {
+      min: targetChapterCount,
+      max: targetChapterCount,
+      description: `${targetChapterCount} 条`,
+    };
+  }
+  return {
+    min: 5,
+    max: 8,
+    description: "5-8 条",
+  };
+}
+
+function assertVolumeBeatSheetChapterCoverage(
+  output: VolumeBeatSheetPromptOutput,
+  input: VolumeBeatSheetPromptInput,
+): VolumeBeatSheetPromptOutput {
+  const targetChapterCount = Math.max(1, Math.round(input.targetChapterCount || 0));
+  const beatCountRule = resolveVolumeBeatSheetCountRule(targetChapterCount);
+  if (output.beats.length < beatCountRule.min || output.beats.length > beatCountRule.max) {
+    throw new Error(`目标 ${targetChapterCount} 章需要 ${beatCountRule.description} beats，当前输出 ${output.beats.length} 条。`);
+  }
+  let expectedStart = 1;
+
+  for (const beat of output.beats) {
+    const span = parseBeatSheetChapterSpan(beat.chapterSpanHint);
+    if (!span) {
+      throw new Error(`节奏段「${beat.label}」的 chapterSpanHint 必须使用可解析的卷内章序。`);
+    }
+    if (span.start !== expectedStart) {
+      throw new Error(`节奏段「${beat.label}」的 chapterSpanHint 必须连续覆盖目标 ${targetChapterCount} 章；当前从第 ${span.start} 章开始，应从第 ${expectedStart} 章开始。`);
+    }
+    if (span.end > targetChapterCount) {
+      throw new Error(`节奏段「${beat.label}」的 chapterSpanHint 不能超过目标 ${targetChapterCount} 章。`);
+    }
+    expectedStart = span.end + 1;
+  }
+
+  const coveredChapterCount = expectedStart - 1;
+  if (coveredChapterCount !== targetChapterCount) {
+    throw new Error(`当前节奏板只覆盖 ${coveredChapterCount} 章，必须覆盖目标 ${targetChapterCount} 章。`);
+  }
+
+  return output;
+}
 
 export const volumeBeatSheetPrompt: PromptAsset<
   VolumeBeatSheetPromptInput,
   ReturnType<typeof createVolumeBeatSheetSchema>["_output"]
 > = {
   id: "novel.volume.beat_sheet",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -24,8 +87,35 @@ export const volumeBeatSheetPrompt: PromptAsset<
   repairPolicy: {
     maxAttempts: 2,
   },
+  semanticRetryPolicy: {
+    maxAttempts: 2,
+    buildMessages: ({ attempt, baseMessages, parsedOutput, promptInput, validationError }) => [
+      ...baseMessages,
+      new HumanMessage([
+        `上一次节奏板通过了 JSON 结构校验，但章节跨度没有通过业务校验。这是第 ${attempt} 次语义重试。`,
+        `失败原因：${validationError}`,
+        "",
+        "重写要求：",
+        `1. chapterSpanHint 必须从第 1 章开始，连续覆盖到第 ${promptInput.targetChapterCount} 章。`,
+        `2. 最后一个 beat 的结束章必须严格等于 ${promptInput.targetChapterCount}。`,
+        `3. beats 必须输出 ${resolveVolumeBeatSheetCountRule(Math.max(1, Math.round(promptInput.targetChapterCount || 0))).description}；目标章数少于 5 时，一章对应一条 beat。`,
+        "4. 不得使用整书绝对章号，不得留空档、重叠或只生成 6-7 章跨度。",
+        "5. 只输出完整 JSON 对象，不要解释。",
+        "",
+        "上一次的 JSON 输出：",
+        safeJsonStringify(parsedOutput),
+      ].join("\n")),
+    ],
+  },
   outputSchema: createVolumeBeatSheetSchema(),
-  render: (input, context) => [
+  postValidate: assertVolumeBeatSheetChapterCoverage,
+  render: (input, context) => {
+    const targetChapterCount = Math.max(1, Math.round(input.targetChapterCount || 0));
+    const beatCountRule = resolveVolumeBeatSheetCountRule(targetChapterCount);
+    const shortVolumeBeatGuidance = targetChapterCount < 5
+      ? `目标章数少于 5，本卷 beats 必须输出 ${beatCountRule.description}，每章对应一条 beat，并把开局、反制/转向、兑现/钩子压缩到这些 beats 中。`
+      : "5-8 条 beats 是节奏段数量，不是总章数；每个 beat 可以覆盖多章。";
+    return [
     new SystemMessage([
       "你是网文单卷节奏规划助手。",
       "你的任务不是写章节目录，也不是扩写剧情梗概，而是把“卷骨架”转成可供后续拆章使用的 beat sheet。",
@@ -50,14 +140,17 @@ export const volumeBeatSheetPrompt: PromptAsset<
       "}",
       "",
       "【硬性要求】",
-      "1. beats 必须输出 5-8 条。",
+      `1. beats 必须输出 ${beatCountRule.description}。`,
       "2. 每个 beat 都必须完整包含 key、label、summary、chapterSpanHint、mustDeliver 五个字段，不能缺漏、不能改名。",
       "3. summary 必须写清：这一拍推进了什么、承担什么节奏职责、与卷骨架中的哪类承诺或压力相关。",
       "4. chapterSpanHint 必须是非空字符串，使用类似“1-2章”“3章”“7-8章”的表达。",
       "5. mustDeliver 必须是 1-6 条非空字符串，优先写必须兑现的局面、信号、压力、转向、读者感知，不要只写抽象口号。",
-      "6. beats 必须至少覆盖：开卷抓手、第一次升级或反制、中段转向、高潮前挤压、卷高潮、卷尾钩子。",
+      `6. ${targetChapterCount < 5 ? "短卷 beats 必须压缩覆盖：开卷抓手、第一次升级或反制、关键转向、卷内兑现、卷尾钩子。" : "beats 必须至少覆盖：开卷抓手、第一次升级或反制、中段转向、高潮前挤压、卷高潮、卷尾钩子。"}`,
       "7. 各 beat 的节奏职责必须有差异，不能把多个 beat 都写成‘冲突升级’或‘继续推进’。",
       "8. 不要把高潮前挤压写成提前高潮，也不要把卷尾钩子写成泛泛留白。",
+      `9. chapterSpanHint 必须从第 1 章开始连续覆盖到第 ${input.targetChapterCount} 章，不能留空档、重叠或只覆盖 5-8 章。`,
+      `10. 最后一个 beat 的 chapterSpanHint 结束章必须严格等于 ${input.targetChapterCount}。`,
+      `11. ${shortVolumeBeatGuidance}`,
       "",
       "【卷骨架承接要求】",
       "1. 开头相关 beat 必须承接 target_volume 中的 openingHook 与 mainPromise。",
@@ -84,6 +177,8 @@ export const volumeBeatSheetPrompt: PromptAsset<
       "- 只输出 JSON",
       "- 不补充 schema 之外字段",
       "- beats 是节奏任务分段，不是章节目录",
+      `- beats 必须输出 ${beatCountRule.description}`,
+      `- chapterSpanHint 必须连续覆盖 1-${input.targetChapterCount} 章，最后一个 beat 结束在第 ${input.targetChapterCount} 章`,
       "- 优先保证与卷骨架承接关系清晰、节奏职责明确、后续可拆章",
       "",
       "【当前卷节奏板上下文】",
@@ -92,7 +187,8 @@ export const volumeBeatSheetPrompt: PromptAsset<
       "",
       renderSelectedContextBlocks(context),
     ].join("\n")),
-  ],
+  ];
+  },
 };
 
 export { buildVolumeBeatSheetContextBlocks };

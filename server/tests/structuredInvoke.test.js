@@ -61,6 +61,34 @@ test("parseStructuredLlmRawContentDetailed unwraps singleton array wrappers for 
   assert.equal(result.repairAttempts, 0);
 });
 
+test("parseStructuredLlmRawContentDetailed prefers fenced json payload over bracketed prose before it", async () => {
+  const result = await structuredInvoke.parseStructuredLlmRawContentDetailed({
+    rawContent: [
+      "下面是[约定json]返回：",
+      "```json",
+      "{\"value\":\"ok\"}",
+      "```",
+    ].join("\n"),
+    schema: z.object({
+      value: z.string(),
+    }),
+    provider: "deepseek",
+    model: "deepseek-chat",
+    label: "structured.invoke.fenced-json",
+    maxRepairAttempts: 0,
+    strategy: "prompt_json",
+    profile: resolveStructuredOutputProfile({
+      provider: "deepseek",
+      model: "deepseek-chat",
+      executionMode: "structured",
+    }),
+  });
+
+  assert.deepEqual(result.data, { value: "ok" });
+  assert.equal(result.repairUsed, false);
+  assert.equal(result.repairAttempts, 0);
+});
+
 test("parseStructuredLlmRawContentDetailed preserves planner goal aliases after singleton unwrap", async () => {
   const result = await structuredInvoke.parseStructuredLlmRawContentDetailed({
     rawContent: JSON.stringify([{
@@ -405,6 +433,85 @@ test("invokeStructuredLlmDetailed switches to the configured fallback model afte
     factory.resolveLLMClientOptions = originalResolveOptions;
     factory.createLLMFromResolvedOptions = originalCreateLLM;
     structuredFallbackSettings.getStructuredFallbackSettings = originalGetFallbackSettings;
+  }
+});
+
+test("invokeStructuredLlmDetailed uses prompt_json for glm models behind openai-compatible provider", async () => {
+  const originalResolveOptions = factory.resolveLLMClientOptions;
+  const originalCreateLLM = factory.createLLMFromResolvedOptions;
+  const calls = [];
+
+  factory.resolveLLMClientOptions = async (provider, options = {}) => {
+    const resolvedProvider = provider ?? "openai";
+    const resolvedModel = options.model ?? "glm-5";
+    const baseURL = options.baseURL ?? "https://open.bigmodel.cn/api/paas/v4";
+    const structuredProfile = options.executionMode === "structured"
+      ? resolveStructuredOutputProfile({
+        provider: resolvedProvider,
+        model: resolvedModel,
+        baseURL,
+        executionMode: "structured",
+      })
+      : null;
+    return {
+      provider: resolvedProvider,
+      providerName: resolvedProvider,
+      model: resolvedModel,
+      temperature: options.temperature ?? 0.3,
+      apiKey: "test-key",
+      baseURL,
+      maxTokens: options.maxTokens,
+      reasoningEnabled: true,
+      modelKwargs: undefined,
+      includeRawResponse: false,
+      executionMode: options.executionMode ?? "plain",
+      structuredProfile,
+      structuredStrategy: options.structuredStrategy ?? null,
+      reasoningForcedOff: false,
+      taskType: options.taskType,
+      promptMeta: options.promptMeta,
+    };
+  };
+  factory.createLLMFromResolvedOptions = (resolved) => ({
+    invoke: async () => {
+      calls.push({
+        provider: resolved.provider,
+        model: resolved.model,
+        strategy: resolved.structuredStrategy,
+      });
+      return {
+        content: [
+          "```json",
+          "{\"value\":\"glm-ok\"}",
+          "```",
+        ].join("\n"),
+      };
+    },
+  });
+
+  try {
+    const result = await structuredInvoke.invokeStructuredLlmDetailed({
+      provider: "openai",
+      model: "glm-5",
+      baseURL: "https://open.bigmodel.cn/api/paas/v4",
+      label: "structured.invoke.glm.compat",
+      taskType: "planner",
+      schema: z.object({
+        value: z.string(),
+      }),
+      systemPrompt: "只返回 JSON。",
+      userPrompt: "给我一个 value。",
+      disableFallbackModel: true,
+      maxRepairAttempts: 0,
+    });
+
+    assert.deepEqual(result.data, { value: "glm-ok" });
+    assert.deepEqual(calls, [
+      { provider: "openai", model: "glm-5", strategy: "prompt_json" },
+    ]);
+  } finally {
+    factory.resolveLLMClientOptions = originalResolveOptions;
+    factory.createLLMFromResolvedOptions = originalCreateLLM;
   }
 });
 

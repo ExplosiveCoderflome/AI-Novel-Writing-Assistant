@@ -1,3 +1,5 @@
+import { extractJSONArray as extractCanonicalJSONArray } from "./novelP0Utils";
+
 export interface StructuredOutlineChapter {
   chapter: number;
   title: string;
@@ -8,18 +10,12 @@ export interface StructuredOutlineChapter {
 
 const REQUIRED_KEYS = ["chapter", "title", "summary", "key_events", "roles"] as const;
 
-function cleanJsonText(source: string): string {
-  return source.replace(/```json|```/gi, "").trim();
-}
-
 function extractJSONArray(source: string): string {
-  const text = cleanJsonText(source);
-  const first = text.indexOf("[");
-  const last = text.lastIndexOf("]");
-  if (first < 0 || last < 0 || first >= last) {
+  try {
+    return extractCanonicalJSONArray(source);
+  } catch {
     throw new Error("Structured outline must be a JSON array.");
   }
-  return text.slice(first, last + 1);
 }
 
 function toPositiveInt(value: unknown): number | null {

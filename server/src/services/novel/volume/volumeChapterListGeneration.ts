@@ -267,7 +267,7 @@ export async function generateBeatChunkedChapterList(params: {
     budgetedChapterCount: budgetedTargetChapterCount,
     beatSheetRequiredChapterCount,
   });
-  if (!resolvedTargetChapterCount.beatSheetCountAccepted && beatSheetRequiredChapterCount > 0) {
+  if (!resolvedTargetChapterCount.beatSheetCountAccepted) {
     throw new Error("当前卷节奏板的章节跨度异常，建议先重生成节奏板，再继续生成章节标题。");
   }
 

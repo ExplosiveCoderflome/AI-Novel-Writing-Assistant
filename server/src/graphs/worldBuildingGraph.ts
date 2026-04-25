@@ -1,19 +1,16 @@
 import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-
-function cleanJsonText(source: string): string {
-  return source.replace(/```json|```/gi, "").trim();
-}
+import { extractJSONObject as extractCanonicalJSONObject } from "../services/novel/novelP0Utils";
 
 function parseJSONObject(source: string): Record<string, string> {
-  const text = cleanJsonText(source);
-  const first = text.indexOf("{");
-  const last = text.lastIndexOf("}");
-  if (first < 0 || last < 0 || first >= last) {
+  let text: string;
+  try {
+    text = extractCanonicalJSONObject(source);
+  } catch {
     throw new Error("Missing JSON object.");
   }
-  return JSON.parse(text.slice(first, last + 1)) as Record<string, string>;
+  return JSON.parse(text) as Record<string, string>;
 }
 
 export const WorldBuildingGraphAnnotation = Annotation.Root({

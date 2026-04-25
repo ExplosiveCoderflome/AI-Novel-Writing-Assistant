@@ -1069,4 +1069,21 @@ P2 重点解决：
 进度记录：
 - 2026-04-25 00:35 [已完成] 已完成 AGENTS.md 分支规则更新：功能分支先入 beta 预发验证，desktop-dev 作为完成候选进入 beta/main 后退休。
 <!-- task-md-sync:item:task-a9206e4ae1:end -->
+<!-- task-md-sync:item:task-560d294da7:start -->
+### PR30 稳定性补丁部分合并
+- 标识：`task-560d294da7`
+- 状态：已完成
+- 最近更新：2026-04-25 09:30
+- 概要：已在 codex/pr30-stability-slice worktree 中只摘取 PR 30 的自动导演恢复/接管/章节范围、LLM 路由/结构化输出/低 token 日志、角色动态去重/卷规划章节预算稳定性补丁；排除部署、外部通知、移动端。shared/server 构建通过，定向逻辑测试通过；数据库集成类测试因新 worktree 测试库未建表且临时 Prisma schema engine 初始化失败而未完整通过。
+
+计划清单：
+- [ ] 保留自动导演恢复、接管、拆章顺序、章节范围校验补丁
+- [ ] 保留 LLM 路由、结构化输出、低 token 异常日志补丁
+- [ ] 保留角色动态去重、卷规划章节预算稳定性补丁
+- [ ] 排除 Postgres/MinIO/Docker/K8s/Nginx、跟进中心/钉钉/企微、移动端站点壳改动
+- [ ] 完成 shared/server 构建和定向测试验证记录
+
+进度记录：
+- 2026-04-25 09:30 [已完成] 已同步计划。
+<!-- task-md-sync:item:task-560d294da7:end -->
 <!-- task-md-sync:end -->

@@ -15,6 +15,7 @@ import {
 } from "./worldStructure";
 import { WORLD_LAYER_ORDER } from "./worldTemplates";
 import type { RagOwnerType } from "../rag/types";
+import { extractJSONObject as extractCanonicalJSONObject } from "../novel/novelP0Utils";
 
 type LayerStatus = "pending" | "generated" | "confirmed" | "stale";
 
@@ -61,18 +62,12 @@ interface WorldTransferCallbacks {
   queueRagUpsert: (ownerType: RagOwnerType, ownerId: string) => void;
 }
 
-function cleanJsonText(source: string): string {
-  return source.replace(/```json|```/gi, "").trim();
-}
-
 function extractJSONObject(source: string): string {
-  const text = cleanJsonText(source);
-  const first = text.indexOf("{");
-  const last = text.lastIndexOf("}");
-  if (first === -1 || last === -1 || first >= last) {
+  try {
+    return extractCanonicalJSONObject(source);
+  } catch {
     throw new Error("Invalid JSON object.");
   }
-  return text.slice(first, last + 1);
 }
 
 function safeParseJSON<T>(raw: string | null | undefined, fallback: T): T {

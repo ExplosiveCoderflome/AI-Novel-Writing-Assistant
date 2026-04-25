@@ -13,6 +13,7 @@ import { getTemplateByKey, WORLD_TEMPLATES } from "./worldTemplates";
 import { generateWorldPropertyOptions } from "./worldPropertyOptions";
 import { generateReferenceInspirationAnalysis } from "./worldReferenceInspiration";
 import { listActiveKnowledgeDocumentContents } from "../knowledge/common";
+import { extractJSONObject as extractCanonicalJSONObject } from "../novel/novelP0Utils";
 
 export interface InspirationInput {
   input?: string;
@@ -52,18 +53,12 @@ const INSPIRATION_MAX_SELECTED_CHUNKS = 12;
 const INSPIRATION_MAX_EXCERPT_CHARS = 260;
 const INSPIRATION_MAX_DIGEST_CHARS = 18_000;
 
-function cleanJsonText(source: string): string {
-  return source.replace(/```json|```/gi, "").trim();
-}
-
 function extractJSONObject(source: string): string {
-  const text = cleanJsonText(source);
-  const first = text.indexOf("{");
-  const last = text.lastIndexOf("}");
-  if (first === -1 || last === -1 || first >= last) {
+  try {
+    return extractCanonicalJSONObject(source);
+  } catch {
     throw new Error("Invalid JSON object.");
   }
-  return text.slice(first, last + 1);
 }
 
 function safeParseJSON<T>(raw: string | null | undefined, fallback: T): T {

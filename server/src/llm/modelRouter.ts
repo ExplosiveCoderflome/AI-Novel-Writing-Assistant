@@ -6,6 +6,7 @@ import { isBuiltInProvider, PROVIDERS } from "./providers";
 export type TaskType =
   | ModelRouteTaskType
   | "outline_planning"
+  | "small_text"
   | "chapter_drafting"
   | "chapter_review"
   | "chapter_repair"
@@ -15,6 +16,7 @@ export type TaskType =
 
 const TASK_TYPE_ALIASES: Partial<Record<TaskType, ModelRouteTaskType>> = {
   outline_planning: "planner",
+  small_text: "small_text",
   chapter_drafting: "writer",
   chapter_review: "review",
   chapter_repair: "repair",
@@ -24,6 +26,7 @@ const TASK_TYPE_ALIASES: Partial<Record<TaskType, ModelRouteTaskType>> = {
 
 export const MODEL_ROUTE_TASK_TYPES: ModelRouteTaskType[] = [
   "planner",
+  "small_text",
   "writer",
   "review",
   "repair",
@@ -44,6 +47,11 @@ const DEFAULT_ROUTES: Record<ModelRouteTaskType | "default", ResolvedModel> = {
     provider: "deepseek",
     model: PROVIDERS.deepseek.defaultModel,
     temperature: 0.3,
+  },
+  small_text: {
+    provider: "deepseek",
+    model: PROVIDERS.deepseek.defaultModel,
+    temperature: 0.2,
   },
   writer: {
     provider: "deepseek",

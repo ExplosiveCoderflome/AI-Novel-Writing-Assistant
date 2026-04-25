@@ -597,7 +597,7 @@ export function createVolumeStrategyCritiqueSchema() {
 
 export function createVolumeBeatSheetSchema() {
   return z.preprocess(normalizeBeatSheetPayload, z.object({
-    beats: z.array(generatedVolumeBeatSchema).min(5).max(8),
+    beats: z.array(generatedVolumeBeatSchema).min(1).max(8),
   }));
 }
 

@@ -82,7 +82,7 @@ const volumeInputSchema = z.object({
 }).passthrough();
 
 export const volumeDocumentInputSchema = z.object({
-  volumes: z.array(volumeInputSchema).min(1),
+  volumes: z.array(volumeInputSchema).default([]),
 });
 
 export const volumeGenerationSchema = z.object({

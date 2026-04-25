@@ -1,4 +1,5 @@
 import type { TitleFactorySuggestion, TitleSuggestionStyle } from "@ai-novel/shared/types/title";
+import { extractJSONValue as extractCanonicalJSONValue } from "../novel/novelP0Utils";
 
 export type TitleGenerationMode = "brief" | "adapt" | "novel";
 
@@ -105,19 +106,11 @@ export function readMessageContent(content: unknown): string {
 }
 
 export function extractJsonPayload(source: string): string {
-  const normalized = source.replace(/```json|```/gi, "").trim();
-  const firstBrace = normalized.indexOf("{");
-  const lastBrace = normalized.lastIndexOf("}");
-  const firstBracket = normalized.indexOf("[");
-  const lastBracket = normalized.lastIndexOf("]");
-
-  if (firstBracket >= 0 && lastBracket > firstBracket && (firstBrace < 0 || firstBracket < firstBrace)) {
-    return normalized.slice(firstBracket, lastBracket + 1);
+  try {
+    return extractCanonicalJSONValue(source);
+  } catch {
+    throw new Error("模型输出异常：无法解析为合法 JSON。");
   }
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    return normalized.slice(firstBrace, lastBrace + 1);
-  }
-  throw new Error("模型输出异常：无法解析为合法 JSON。");
 }
 
 export function normalizeRequestedCount(value: unknown, fallback = DEFAULT_TITLE_COUNT): number {

@@ -5,6 +5,10 @@ export const MODEL_ROUTE_LABELS: Record<ModelRouteTaskType, { title: string; des
     title: "大纲策士",
     description: "先吃透你的要求，再安排这段创作该怎么推进。",
   },
+  small_text: {
+    title: "短文本处理",
+    description: "处理提示短、上下文轻的后台同步与维护类请求，避免挤占主规划模型。",
+  },
   writer: {
     title: "主笔作家",
     description: "真正动笔写正文，把章节内容完整落下来。",

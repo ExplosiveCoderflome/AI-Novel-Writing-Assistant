@@ -17,7 +17,13 @@ import {
   normalizeName,
   PROJECTION_SOURCE_TYPES,
 } from "./characterDynamicsShared";
-import { buildVolumeWindows, dedupeStrings, mergeProjectionAssignments, resolveCurrentVolume, toCharacterRelationStage } from "./characterDynamicsUtils";
+import {
+  buildVolumeWindows,
+  dedupeStrings,
+  mergeProjectionAssignments,
+  resolveCurrentVolume,
+  toCharacterRelationStage,
+} from "./characterDynamicsUtils";
 
 export class CharacterDynamicsMutationService {
   constructor(private readonly queryService: CharacterDynamicsQueryService) {}
@@ -371,38 +377,20 @@ export class CharacterDynamicsMutationService {
       return this.queryService.getOverview(novelId);
     }
 
-    const projectionVolumePlans = context.volumePlans.filter((volume) => volume.chapters.length > 0);
-    if (projectionVolumePlans.length === 0) {
-      return this.queryService.getOverview(novelId);
-    }
-
-    const projection = await generateVolumeProjection({
-      ...context,
-      volumePlans: projectionVolumePlans,
-    });
+    const projection = await generateVolumeProjection(context);
     const sourceType = options.sourceType ?? "rebuild_projection";
-    const characterIdByName = new Map(context.characters.map((character) => [normalizeName(character.name), character.id]));
-    const volumeBySortOrder = new Map(context.volumePlans.map((volume) => [volume.sortOrder, volume]));
     const mergedAssignments = mergeProjectionAssignments(projection.assignments);
-    const validAssignments = mergedAssignments.filter((assignment) => (
-      characterIdByName.has(normalizeName(assignment.characterName))
-      && volumeBySortOrder.has(assignment.volumeSortOrder)
-    ));
     if (mergedAssignments.length < projection.assignments.length) {
       console.warn(
         `[CharacterDynamicsMutationService] Deduped ${projection.assignments.length - mergedAssignments.length} duplicate character-volume assignments for novel ${novelId}.`,
       );
     }
-    if (validAssignments.length === 0) {
-      console.warn(
-        `[CharacterDynamicsMutationService] Skipped character dynamics rebuild for novel ${novelId}: projection contained no valid character-volume assignments.`,
-      );
-      return this.queryService.getOverview(novelId);
-    }
+    const characterIdByName = new Map(context.characters.map((character) => [normalizeName(character.name), character.id]));
     const relationByPair = new Map(context.characterRelations.map((relation) => [
       `${relation.sourceCharacterId}:${relation.targetCharacterId}`,
       relation,
     ]));
+    const volumeBySortOrder = new Map(context.volumePlans.map((volume) => [volume.sortOrder, volume]));
     const anchoredCurrentStagePairs = new Set(
       (await prisma.characterRelationStage.findMany({
         where: {
@@ -432,7 +420,7 @@ export class CharacterDynamicsMutationService {
         },
       });
 
-      for (const assignment of validAssignments) {
+      for (const assignment of mergedAssignments) {
         const characterId = characterIdByName.get(normalizeName(assignment.characterName));
         const volume = volumeBySortOrder.get(assignment.volumeSortOrder);
         if (!characterId || !volume) {
@@ -441,52 +429,35 @@ export class CharacterDynamicsMutationService {
         const plannedChapterOrders = assignment.plannedChapterOrders.length > 0
           ? assignment.plannedChapterOrders
           : volume.chapters.map((chapter) => chapter.chapterOrder);
-        const existingAssignment = await tx.characterVolumeAssignment.findFirst({
-          where: { novelId, characterId, volumeId: volume.id },
-          select: { id: true },
-        });
-        if (existingAssignment) {
-          await tx.characterVolumeAssignment.update({
-            where: { id: existingAssignment.id },
-            data: {
-              roleLabel: assignment.roleLabel || null,
-              responsibility: assignment.responsibility,
-              appearanceExpectation: assignment.appearanceExpectation || null,
-              plannedChapterOrdersJson: JSON.stringify(plannedChapterOrders),
-              isCore: assignment.isCore,
-              absenceWarningThreshold: assignment.absenceWarningThreshold ?? 3,
-              absenceHighRiskThreshold: assignment.absenceHighRiskThreshold ?? 5,
-            },
-          });
-        } else {
-          await tx.characterVolumeAssignment.create({
-            data: {
-              novelId,
-              characterId,
-              volumeId: volume.id,
-              roleLabel: assignment.roleLabel || null,
-              responsibility: assignment.responsibility,
-              appearanceExpectation: assignment.appearanceExpectation || null,
-              plannedChapterOrdersJson: JSON.stringify(plannedChapterOrders),
-              isCore: assignment.isCore,
-              absenceWarningThreshold: assignment.absenceWarningThreshold ?? 3,
-              absenceHighRiskThreshold: assignment.absenceHighRiskThreshold ?? 5,
-            },
-          });
-        }
-      }
-
-      for (const track of projection.factionTracks) {
-        const characterId = characterIdByName.get(normalizeName(track.characterName));
-        const volume = volumeBySortOrder.get(track.volumeSortOrder) ?? null;
-        if (!characterId || !volume) {
-          continue;
-        }
-        await tx.characterFactionTrack.create({
+        await tx.characterVolumeAssignment.create({
           data: {
             novelId,
             characterId,
             volumeId: volume.id,
+            roleLabel: assignment.roleLabel || null,
+            responsibility: assignment.responsibility,
+            appearanceExpectation: assignment.appearanceExpectation || null,
+            plannedChapterOrdersJson: JSON.stringify(plannedChapterOrders),
+            isCore: assignment.isCore,
+            absenceWarningThreshold: assignment.absenceWarningThreshold ?? 3,
+            absenceHighRiskThreshold: assignment.absenceHighRiskThreshold ?? 5,
+          },
+        });
+      }
+
+      for (const track of projection.factionTracks) {
+        const characterId = characterIdByName.get(normalizeName(track.characterName));
+        if (!characterId) {
+          continue;
+        }
+        const volume = typeof track.volumeSortOrder === "number"
+          ? volumeBySortOrder.get(track.volumeSortOrder) ?? null
+          : null;
+        await tx.characterFactionTrack.create({
+          data: {
+            novelId,
+            characterId,
+            volumeId: volume?.id ?? null,
             chapterId: null,
             chapterOrder: null,
             factionLabel: track.factionLabel,
@@ -501,18 +472,20 @@ export class CharacterDynamicsMutationService {
       for (const stage of projection.relationStages) {
         const sourceCharacterId = characterIdByName.get(normalizeName(stage.sourceCharacterName));
         const targetCharacterId = characterIdByName.get(normalizeName(stage.targetCharacterName));
-        const volume = volumeBySortOrder.get(stage.volumeSortOrder) ?? null;
-        if (!sourceCharacterId || !targetCharacterId || sourceCharacterId === targetCharacterId || !volume) {
+        if (!sourceCharacterId || !targetCharacterId || sourceCharacterId === targetCharacterId) {
           continue;
         }
         const relation = relationByPair.get(`${sourceCharacterId}:${targetCharacterId}`) ?? null;
+        const volume = typeof stage.volumeSortOrder === "number"
+          ? volumeBySortOrder.get(stage.volumeSortOrder) ?? null
+          : null;
         await tx.characterRelationStage.create({
           data: {
             novelId,
             relationId: relation?.id ?? null,
             sourceCharacterId,
             targetCharacterId,
-            volumeId: volume.id,
+            volumeId: volume?.id ?? null,
             chapterId: null,
             chapterOrder: null,
             stageLabel: stage.stageLabel,

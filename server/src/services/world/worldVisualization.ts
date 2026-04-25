@@ -6,6 +6,7 @@ import {
   buildWorldBindingSupport,
   parseWorldStructurePayload,
 } from "./worldStructure";
+import { extractJSONObject as extractCanonicalJSONObject } from "../novel/novelP0Utils";
 
 type FactionNodeType = "state" | "faction" | "race" | "organization" | "other";
 
@@ -101,18 +102,12 @@ const EDGE_RELATION_LABELS = [
   "关联",
 ] as const;
 
-function cleanJsonText(source: string): string {
-  return source.replace(/```json|```/gi, "").trim();
-}
-
 function extractJSONObject(source: string): string {
-  const text = cleanJsonText(source);
-  const first = text.indexOf("{");
-  const last = text.lastIndexOf("}");
-  if (first === -1 || last === -1 || first >= last) {
+  try {
+    return extractCanonicalJSONObject(source);
+  } catch {
     throw new Error("Invalid JSON object.");
   }
-  return text.slice(first, last + 1);
 }
 
 function safeParseJSON<T>(raw: string, fallback: T): T {

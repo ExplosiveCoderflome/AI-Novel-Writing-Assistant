@@ -87,12 +87,10 @@ export function buildVolumeCountGuidance(params: {
     params.respectExistingVolumeCount !== false
     && userPreferredVolumeCount == null
     && normalizedExistingVolumeCount != null
+    && normalizedExistingVolumeCount >= allowedVolumeCountRange.min
+    && normalizedExistingVolumeCount <= allowedVolumeCountRange.max
   )
-    ? clampInteger(
-      normalizedExistingVolumeCount,
-      allowedVolumeCountRange.min,
-      allowedVolumeCountRange.max,
-    )
+    ? normalizedExistingVolumeCount
     : null;
 
   const recommendedVolumeCount = userPreferredVolumeCount

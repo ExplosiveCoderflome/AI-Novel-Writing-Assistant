@@ -37,12 +37,6 @@ interface TakeoverExecutionWorkflowPort {
 }
 
 interface TakeoverExecutionAutoRuntimePort {
-  prepareRequestedAutoExecution(input: {
-    novelId: string;
-    request: DirectorConfirmRequest;
-    existingPipelineJobId?: string | null;
-    existingState?: DirectorAutoExecutionState | null;
-  }): Promise<unknown>;
   runFromReady(input: {
     taskId: string;
     novelId: string;
@@ -157,6 +151,35 @@ function buildAutoExecutionRunningState(plan: DirectorTakeoverResolvedPlan): {
   };
 }
 
+function resolvePipelineDirectorInput(input: {
+  directorInput: DirectorConfirmRequest;
+  plan: DirectorTakeoverResolvedPlan;
+}): DirectorConfirmRequest {
+  if (
+    input.plan.strategy === "restart_current_step"
+    && input.plan.effectiveStep === "outline"
+    && input.directorInput.runMode !== "auto_to_execution"
+  ) {
+    return {
+      ...input.directorInput,
+      runMode: "stage_review",
+    };
+  }
+  return input.directorInput;
+}
+
+function resolveAutoExecutionExistingState(input: {
+  takeoverState: DirectorTakeoverLoadedState;
+  plan: DirectorTakeoverResolvedPlan;
+}): DirectorAutoExecutionState | null {
+  if (input.plan.strategy === "restart_current_step") {
+    return input.takeoverState.requestedAutoExecutionState ?? null;
+  }
+  return input.takeoverState.requestedAutoExecutionState
+    ?? input.takeoverState.latestAutoExecutionState
+    ?? null;
+}
+
 export async function startDirectorTakeoverExecution(
   input: StartDirectorTakeoverExecutionInput,
 ): Promise<DirectorTakeoverResponse> {
@@ -168,6 +191,8 @@ export async function startDirectorTakeoverExecution(
     activePipelineJob: input.takeoverState.activePipelineJob,
     latestCheckpoint: input.takeoverState.latestCheckpoint,
     executableRange: input.takeoverState.executableRange,
+    requestedExecutionRange: input.takeoverState.requestedExecutionRange,
+    requestedPendingRepairChapterCount: input.takeoverState.requestedPendingRepairChapterCount,
   });
 
   const directorSession: DirectorSessionState = buildDirectorSessionState({
@@ -211,22 +236,20 @@ export async function startDirectorTakeoverExecution(
   });
 
   if (plan.executionMode === "phase") {
+    const pipelineDirectorInput = resolvePipelineDirectorInput({
+      directorInput: input.directorInput,
+      plan,
+    });
     await input.workflowService.markTaskRunning(workflowTask.id, resolveDirectorRunningStateForPhase(plan.phase ?? plan.startPhase));
     input.scheduleBackgroundRun(workflowTask.id, async () => {
       await input.runDirectorPipeline({
         taskId: workflowTask.id,
         novelId: input.request.novelId,
-        input: input.directorInput,
+        input: pipelineDirectorInput,
         startPhase: plan.phase ?? plan.startPhase,
       });
     });
   } else {
-    await input.autoExecutionRuntime.prepareRequestedAutoExecution({
-      novelId: input.request.novelId,
-      request: input.directorInput,
-      existingPipelineJobId: plan.usesCurrentBatch ? (input.takeoverState.activePipelineJob?.id ?? null) : null,
-      existingState: plan.usesCurrentBatch ? (input.takeoverState.latestAutoExecutionState ?? null) : null,
-    });
     await input.workflowService.markTaskRunning(workflowTask.id, buildAutoExecutionRunningState(plan));
     input.scheduleBackgroundRun(workflowTask.id, async () => {
       await input.autoExecutionRuntime.runFromReady({
@@ -234,7 +257,10 @@ export async function startDirectorTakeoverExecution(
         novelId: input.request.novelId,
         request: input.directorInput,
         existingPipelineJobId: plan.usesCurrentBatch ? (input.takeoverState.activePipelineJob?.id ?? null) : null,
-        existingState: plan.usesCurrentBatch ? (input.takeoverState.latestAutoExecutionState ?? null) : null,
+        existingState: resolveAutoExecutionExistingState({
+          takeoverState: input.takeoverState,
+          plan,
+        }),
         resumeCheckpointType: plan.usesCurrentBatch ? (plan.resumeCheckpointType ?? null) : null,
         resumeStage: plan.resumeStage === "pipeline" ? "pipeline" : "chapter",
       });

@@ -2,10 +2,12 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { NovelWorkflowService } = require("../dist/services/novel/workflow/NovelWorkflowService.js");
+const taskArchive = require("../dist/services/task/taskArchive.js");
 const { prisma } = require("../dist/db/prisma.js");
 
 test("healHistoricalAutoDirectorRecoveryFailure restores legacy restart failures back to checkpoint state", async () => {
   const originals = {
+    isTaskArchived: taskArchive.isTaskArchived,
     findUnique: prisma.novelWorkflowTask.findUnique,
     update: prisma.novelWorkflowTask.update,
   };
@@ -28,6 +30,7 @@ test("healHistoricalAutoDirectorRecoveryFailure restores legacy restart failures
     cancelRequestedAt: null,
   };
 
+  taskArchive.isTaskArchived = async () => false;
   prisma.novelWorkflowTask.findUnique = async () => currentRow;
 
   prisma.novelWorkflowTask.update = async ({ data }) => {
@@ -57,6 +60,7 @@ test("healHistoricalAutoDirectorRecoveryFailure restores legacy restart failures
     assert.equal(currentRow.currentItemLabel, "已准备章节可进入执行");
     assert.equal(currentRow.lastError, null);
   } finally {
+    taskArchive.isTaskArchived = originals.isTaskArchived;
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
     prisma.novelWorkflowTask.update = originals.update;
   }
@@ -64,8 +68,10 @@ test("healHistoricalAutoDirectorRecoveryFailure restores legacy restart failures
 
 test("healAutoDirectorTaskState also reconciles chapter batch checkpoints when task detail loads without a preloaded row", async () => {
   const originals = {
+    isTaskArchived: taskArchive.isTaskArchived,
     findUnique: prisma.novelWorkflowTask.findUnique,
     chapterFindMany: prisma.chapter.findMany,
+    generationJobFindUnique: prisma.generationJob.findUnique,
     update: prisma.novelWorkflowTask.update,
   };
 
@@ -100,7 +106,12 @@ test("healAutoDirectorTaskState also reconciles chapter batch checkpoints when t
     milestonesJson: null,
   };
 
+  taskArchive.isTaskArchived = async () => false;
   prisma.novelWorkflowTask.findUnique = async () => currentRow;
+  prisma.generationJob.findUnique = async () => ({
+    id: "job-3",
+    status: "succeeded",
+  });
   prisma.chapter.findMany = async () => [
     { id: "chapter-1", order: 1, generationState: "approved" },
     { id: "chapter-2", order: 2, generationState: "reviewed" },
@@ -134,18 +145,23 @@ test("healAutoDirectorTaskState also reconciles chapter batch checkpoints when t
     const healed = await service.healAutoDirectorTaskState("task_batch_ready");
 
     assert.equal(healed, true);
+    assert.equal(currentRow.status, "waiting_approval");
     assert.match(currentRow.checkpointSummary, /当前仍有 1 章待继续/);
     assert.equal(JSON.parse(currentRow.resumeTargetJson).chapterId, "chapter-2");
     assert.equal(JSON.parse(currentRow.seedPayloadJson).autoExecution.remainingChapterCount, 1);
+    assert.equal(JSON.parse(currentRow.seedPayloadJson).autoExecution.pipelineStatus, "succeeded");
   } finally {
+    taskArchive.isTaskArchived = originals.isTaskArchived;
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
     prisma.chapter.findMany = originals.chapterFindMany;
+    prisma.generationJob.findUnique = originals.generationJobFindUnique;
     prisma.novelWorkflowTask.update = originals.update;
   }
 });
 
 test("healAutoDirectorTaskState revives front10 auto execution tasks that only failed during restart recovery while pipeline is still running", async () => {
   const originals = {
+    isTaskArchived: taskArchive.isTaskArchived,
     findUnique: prisma.novelWorkflowTask.findUnique,
     generationJobFindUnique: prisma.generationJob.findUnique,
     update: prisma.novelWorkflowTask.update,
@@ -191,6 +207,7 @@ test("healAutoDirectorTaskState revives front10 auto execution tasks that only f
     milestonesJson: null,
   };
 
+  taskArchive.isTaskArchived = async () => false;
   prisma.novelWorkflowTask.findUnique = async () => currentRow;
   prisma.generationJob.findUnique = async () => ({
     id: "job-front10-running",
@@ -236,6 +253,7 @@ test("healAutoDirectorTaskState revives front10 auto execution tasks that only f
     assert.equal(currentRow.lastError, null);
     assert.equal(JSON.parse(currentRow.resumeTargetJson).chapterId, "chapter-2");
   } finally {
+    taskArchive.isTaskArchived = originals.isTaskArchived;
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
     prisma.generationJob.findUnique = originals.generationJobFindUnique;
     prisma.novelWorkflowTask.update = originals.update;
@@ -244,6 +262,7 @@ test("healAutoDirectorTaskState revives front10 auto execution tasks that only f
 
 test("healAutoDirectorTaskState promotes advanced queued auto director tasks back to running and clears stale candidate checkpoints", async () => {
   const originals = {
+    isTaskArchived: taskArchive.isTaskArchived,
     findUnique: prisma.novelWorkflowTask.findUnique,
     update: prisma.novelWorkflowTask.update,
   };
@@ -277,6 +296,7 @@ test("healAutoDirectorTaskState promotes advanced queued auto director tasks bac
     milestonesJson: null,
   };
 
+  taskArchive.isTaskArchived = async () => false;
   prisma.novelWorkflowTask.findUnique = async () => currentRow;
   prisma.novelWorkflowTask.update = async ({ data }) => {
     currentRow = {
@@ -312,6 +332,7 @@ test("healAutoDirectorTaskState promotes advanced queued auto director tasks bac
     assert.equal(currentRow.checkpointSummary, null);
     assert.ok(currentRow.heartbeatAt instanceof Date);
   } finally {
+    taskArchive.isTaskArchived = originals.isTaskArchived;
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
     prisma.novelWorkflowTask.update = originals.update;
   }
@@ -319,6 +340,7 @@ test("healAutoDirectorTaskState promotes advanced queued auto director tasks bac
 
 test("healAutoDirectorTaskState repairs broken candidate seed payloads and restores candidate selection tasks", async () => {
   const originals = {
+    isTaskArchived: taskArchive.isTaskArchived,
     findUnique: prisma.novelWorkflowTask.findUnique,
     update: prisma.novelWorkflowTask.update,
   };
@@ -399,6 +421,7 @@ test("healAutoDirectorTaskState repairs broken candidate seed payloads and resto
     milestonesJson: null,
   };
 
+  taskArchive.isTaskArchived = async () => false;
   prisma.novelWorkflowTask.findUnique = async () => currentRow;
   prisma.novelWorkflowTask.update = async ({ data }) => {
     currentRow = {
@@ -449,6 +472,7 @@ test("healAutoDirectorTaskState repairs broken candidate seed payloads and resto
     assert.equal(seedPayload.batches[0].candidates.length, 2);
     assert.ok(seedPayload.batches[0].candidates.every((candidate) => typeof candidate.id === "string" && candidate.id.length > 0));
   } finally {
+    taskArchive.isTaskArchived = originals.isTaskArchived;
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
     prisma.novelWorkflowTask.update = originals.update;
   }
@@ -456,6 +480,7 @@ test("healAutoDirectorTaskState repairs broken candidate seed payloads and resto
 
 test("healAutoDirectorTaskState degrades chapter title diversity failures into warning checkpoints", async () => {
   const originals = {
+    isTaskArchived: taskArchive.isTaskArchived,
     findUnique: prisma.novelWorkflowTask.findUnique,
     update: prisma.novelWorkflowTask.update,
   };
@@ -496,6 +521,7 @@ test("healAutoDirectorTaskState degrades chapter title diversity failures into w
     milestonesJson: null,
   };
 
+  taskArchive.isTaskArchived = async () => false;
   prisma.novelWorkflowTask.findUnique = async () => currentRow;
   prisma.novelWorkflowTask.update = async ({ data }) => {
     currentRow = {
@@ -539,6 +565,7 @@ test("healAutoDirectorTaskState degrades chapter title diversity failures into w
     assert.equal(seedPayload.taskNotice.action.label, "快速修复章节标题");
     assert.equal(seedPayload.taskNotice.action.volumeId, "volume-1");
   } finally {
+    taskArchive.isTaskArchived = originals.isTaskArchived;
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
     prisma.novelWorkflowTask.update = originals.update;
   }

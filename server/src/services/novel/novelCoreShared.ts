@@ -3,6 +3,11 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import { parseCommercialTagsJson } from "@ai-novel/shared/types/novelFraming";
 import { normalizeStoryModeOutput } from "../storyMode/storyModeProfile";
+import {
+  cleanJsonText as cleanCanonicalJsonText,
+  extractJSONArray as extractCanonicalJSONArray,
+  extractJSONObject as extractCanonicalJSONObject,
+} from "./novelP0Utils";
 
 export interface PaginationInput {
   page: number;
@@ -383,27 +388,23 @@ export function toText(content: unknown): string {
 }
 
 function cleanJsonText(source: string): string {
-  return source.replace(/```json|```/gi, "").trim();
+  return cleanCanonicalJsonText(source);
 }
 
 export function extractJSONObject(source: string): string {
-  const text = cleanJsonText(source);
-  const first = text.indexOf("{");
-  const last = text.lastIndexOf("}");
-  if (first < 0 || last < 0 || first >= last) {
+  try {
+    return extractCanonicalJSONObject(source);
+  } catch {
     throw new Error("未检测到有效 JSON 对象");
   }
-  return text.slice(first, last + 1);
 }
 
 export function extractJSONArray(source: string): string {
-  const text = cleanJsonText(source);
-  const first = text.indexOf("[");
-  const last = text.lastIndexOf("]");
-  if (first < 0 || last < 0 || first >= last) {
+  try {
+    return extractCanonicalJSONArray(source);
+  } catch {
     throw new Error("未检测到有效 JSON 数组");
   }
-  return text.slice(first, last + 1);
 }
 
 function clamp(score: number): number {

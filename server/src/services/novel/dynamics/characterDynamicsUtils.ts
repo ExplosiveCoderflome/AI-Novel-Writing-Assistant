@@ -7,7 +7,7 @@ import type {
   DynamicCharacterOverviewItem,
   DynamicCharacterRiskLevel,
 } from "@ai-novel/shared/types/characterDynamics";
-import { normalizeName } from "./characterDynamicsShared";
+import type { VolumeDynamicsProjection } from "./characterDynamicsSchemas";
 
 export interface VolumeWindow {
   id: string;
@@ -36,91 +36,73 @@ export function dedupeStrings(values: Array<string | null | undefined>): string[
   ));
 }
 
-interface ProjectionAssignmentLike {
-  characterName: string;
-  volumeSortOrder: number;
-  roleLabel?: string | null;
-  responsibility: string;
-  appearanceExpectation?: string | null;
-  plannedChapterOrders: number[];
-  isCore: boolean;
-  absenceWarningThreshold?: number | null;
-  absenceHighRiskThreshold?: number | null;
+function normalizeProjectionText(value: string | null | undefined): string | null {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
 }
 
-function pickPreferredText(primary: string | null | undefined, secondary: string | null | undefined): string | null {
-  const left = primary?.trim() || "";
-  const right = secondary?.trim() || "";
-  if (!left && !right) {
-    return null;
-  }
-  if (!left) {
-    return right;
-  }
-  if (!right) {
-    return left;
-  }
-  return right.length > left.length ? right : left;
-}
-
-function normalizePositiveIntList(values: number[]): number[] {
+function normalizeProjectionChapterOrders(chapterOrders: number[]): number[] {
   return Array.from(new Set(
-    values.filter((value) => Number.isInteger(value) && value >= 1),
-  )).sort((a, b) => a - b);
+    chapterOrders.filter((order) => Number.isInteger(order) && order > 0),
+  )).sort((left, right) => left - right);
 }
 
-function pickStricterThreshold(
-  primary: number | null | undefined,
-  secondary: number | null | undefined,
-): number | undefined {
-  const candidates = [primary, secondary].filter((value): value is number => typeof value === "number" && Number.isInteger(value) && value >= 1);
-  if (candidates.length === 0) {
-    return undefined;
+function pickLatestDefinedValue(current: number | null | undefined, next: number | null | undefined): number | null | undefined {
+  if (typeof next !== "number") {
+    return current;
   }
-  return Math.min(...candidates);
+  return next;
 }
 
-export function mergeProjectionAssignments<T extends ProjectionAssignmentLike>(assignments: T[]): T[] {
-  const merged = new Map<string, T>();
+export function mergeProjectionAssignments(
+  assignments: VolumeDynamicsProjection["assignments"],
+): VolumeDynamicsProjection["assignments"] {
+  const byKey = new Map<string, VolumeDynamicsProjection["assignments"][number]>();
 
   for (const assignment of assignments) {
-    const key = `${normalizeName(assignment.characterName)}:${assignment.volumeSortOrder}`;
-    const normalizedAssignment = {
-      ...assignment,
-      plannedChapterOrders: normalizePositiveIntList(assignment.plannedChapterOrders ?? []),
-    } as T;
-    const existing = merged.get(key);
+    const normalizedCharacterName = assignment.characterName.trim();
+    const normalizedRoleLabel = normalizeProjectionText(assignment.roleLabel);
+    const normalizedResponsibility = assignment.responsibility.trim();
+    const normalizedAppearanceExpectation = normalizeProjectionText(assignment.appearanceExpectation);
+    const normalizedPlannedChapterOrders = normalizeProjectionChapterOrders(assignment.plannedChapterOrders);
+    const key = `${normalizedCharacterName.toLowerCase()}::${assignment.volumeSortOrder}`;
+    const existing = byKey.get(key);
     if (!existing) {
-      merged.set(key, normalizedAssignment);
+      byKey.set(key, {
+        ...assignment,
+        characterName: normalizedCharacterName,
+        roleLabel: normalizedRoleLabel,
+        responsibility: normalizedResponsibility,
+        appearanceExpectation: normalizedAppearanceExpectation,
+        plannedChapterOrders: normalizedPlannedChapterOrders,
+      });
       continue;
     }
 
-    const mergedWarningThreshold = pickStricterThreshold(
-      existing.absenceWarningThreshold,
-      normalizedAssignment.absenceWarningThreshold,
-    );
-    const mergedHighRiskThreshold = pickStricterThreshold(
-      existing.absenceHighRiskThreshold,
-      normalizedAssignment.absenceHighRiskThreshold,
-    );
-    merged.set(key, {
+    byKey.set(key, {
       ...existing,
-      roleLabel: pickPreferredText(existing.roleLabel, normalizedAssignment.roleLabel),
-      responsibility: pickPreferredText(existing.responsibility, normalizedAssignment.responsibility) ?? existing.responsibility,
-      appearanceExpectation: pickPreferredText(existing.appearanceExpectation, normalizedAssignment.appearanceExpectation),
-      plannedChapterOrders: normalizePositiveIntList([
+      ...assignment,
+      characterName: existing.characterName,
+      roleLabel: normalizedRoleLabel ?? existing.roleLabel,
+      responsibility: normalizedResponsibility || existing.responsibility,
+      appearanceExpectation: normalizedAppearanceExpectation ?? existing.appearanceExpectation,
+      plannedChapterOrders: normalizeProjectionChapterOrders([
         ...existing.plannedChapterOrders,
-        ...normalizedAssignment.plannedChapterOrders,
+        ...normalizedPlannedChapterOrders,
       ]),
-      isCore: existing.isCore || normalizedAssignment.isCore,
-      absenceWarningThreshold: mergedWarningThreshold,
-      absenceHighRiskThreshold: typeof mergedHighRiskThreshold === "number"
-        ? Math.max(mergedHighRiskThreshold, mergedWarningThreshold ?? mergedHighRiskThreshold)
-        : mergedHighRiskThreshold,
+      isCore: existing.isCore || assignment.isCore,
+      absenceWarningThreshold: pickLatestDefinedValue(existing.absenceWarningThreshold, assignment.absenceWarningThreshold),
+      absenceHighRiskThreshold: pickLatestDefinedValue(existing.absenceHighRiskThreshold, assignment.absenceHighRiskThreshold),
     });
   }
 
-  return Array.from(merged.values());
+  return [...byKey.values()];
+}
+
+export function collapseVolumeProjectionAssignments(
+  assignments: VolumeDynamicsProjection["assignments"],
+): VolumeDynamicsProjection["assignments"] {
+  return mergeProjectionAssignments(assignments);
 }
 
 export function buildVolumeWindows(

@@ -16,6 +16,12 @@ interface DirectorTakeoverResetDeps {
 }
 
 function resolveAutoExecutionRange(state: DirectorTakeoverLoadedState): { startOrder: number; endOrder: number } | null {
+  if (state.requestedExecutionRange) {
+    return {
+      startOrder: state.requestedExecutionRange.startOrder,
+      endOrder: state.requestedExecutionRange.endOrder,
+    };
+  }
   const stateRange = resolveDirectorAutoExecutionRangeFromState(state.latestAutoExecutionState);
   if (stateRange) {
     return {
@@ -323,10 +329,13 @@ export async function resetDirectorTakeoverCurrentStep(input: {
 
   if (input.plan.effectiveStep === "story_macro") {
     await resetStoryMacroOutputs(input.novelId);
+    await resetCharacterOutputs(input.novelId);
+    await resetOutlineOutputs(input.novelId, input.deps);
     return;
   }
   if (input.plan.effectiveStep === "character") {
     await resetCharacterOutputs(input.novelId);
+    await resetOutlineOutputs(input.novelId, input.deps);
     return;
   }
   if (input.plan.effectiveStep === "outline") {

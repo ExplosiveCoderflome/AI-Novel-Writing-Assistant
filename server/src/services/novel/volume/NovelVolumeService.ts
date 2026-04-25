@@ -276,9 +276,14 @@ export class NovelVolumeService {
     return this.ensureVolumeWorkspace(novelId);
   }
 
-  async updateVolumes(novelId: string, input: unknown): Promise<VolumePlanDocument> {
+  async updateVolumes(novelId: string, input: unknown, options: {
+    emitEvent?: boolean;
+    volumeUpdateReason?: VolumeUpdateReason;
+    syncPayoffLedger?: boolean;
+  } = {}): Promise<VolumePlanDocument> {
     const { workspaceInput, syncToChapterExecution } = extractVolumeWorkspaceUpdateInput(input);
     return this.updateVolumesWithOptions(novelId, workspaceInput, {
+      ...options,
       syncToChapterExecution,
     });
   }
@@ -287,6 +292,7 @@ export class NovelVolumeService {
     novelId: string,
     input: unknown,
     options: {
+      emitEvent?: boolean;
       volumeUpdateReason?: VolumeUpdateReason;
       syncPayoffLedger?: boolean;
       syncToChapterExecution?: boolean;
@@ -295,6 +301,7 @@ export class NovelVolumeService {
     const currentDocument = await this.ensureVolumeWorkspace(novelId);
     const mergedDocument = mergeVolumeWorkspaceInput(novelId, currentDocument, input);
     const persistedDocument = await this.persistWorkspaceDocument(novelId, mergedDocument, {
+      emitEvent: options.emitEvent,
       volumeUpdateReason: options.volumeUpdateReason,
       syncPayoffLedger: options.syncPayoffLedger
         ?? hasPayoffLedgerRelevantPlanChanges(currentDocument.volumes, mergedDocument.volumes),

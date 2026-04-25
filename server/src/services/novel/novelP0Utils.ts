@@ -27,8 +27,17 @@ export function cleanJsonText(source: string): string {
   return source.replace(/```json|```/gi, "").trim();
 }
 
+function extractFencedJsonBody(source: string): string | null {
+  const match = source.match(/```(?:json)?\s*\n?([\s\S]*?)```/i);
+  if (!match) {
+    return null;
+  }
+  const body = match[1]?.trim();
+  return body ? body : null;
+}
+
 export function extractJSONValue(source: string): string {
-  const text = cleanJsonText(source);
+  const text = extractFencedJsonBody(source) ?? cleanJsonText(source);
   const objectStart = text.indexOf("{");
   const arrayStart = text.indexOf("[");
   const start = objectStart < 0
@@ -83,6 +92,14 @@ export function extractJSONObject(source: string): string {
   const extracted = extractJSONValue(source);
   if (!extracted.startsWith("{")) {
     throw new Error("未检测到有效 JSON 对象。");
+  }
+  return extracted;
+}
+
+export function extractJSONArray(source: string): string {
+  const extracted = extractJSONValue(source);
+  if (!extracted.startsWith("[")) {
+    throw new Error("未检测到有效 JSON 数组。");
   }
   return extracted;
 }

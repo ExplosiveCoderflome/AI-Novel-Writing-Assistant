@@ -2,6 +2,7 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { ChatOpenAI } from "@langchain/openai";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
 import { secretStore } from "../services/settings/secretStore";
+import { createAnthropicMessagesTransport } from "./anthropicTransport";
 import { resolveModelTemperature } from "./capabilities";
 import { attachLLMDebugLogging } from "./debugLogging";
 import { resolveProviderReasoningBehavior } from "./reasoning";
@@ -11,6 +12,7 @@ import {
   type StructuredOutputProfile,
   type StructuredOutputStrategy,
 } from "./structuredOutput";
+import { resolveTransportProtocol, type TransportProtocol } from "./transportRouting";
 import { attachLLMUsageTracking } from "./usageTracking";
 import { resolveModel, type TaskType } from "./modelRouter";
 import {
@@ -29,6 +31,7 @@ interface LLMOptions {
   baseURL?: string;
   maxTokens?: number;
   timeoutMs?: number;
+  maxRetries?: number;
   reasoningEnabled?: boolean;
   executionMode?: StructuredExecutionMode;
   structuredStrategy?: StructuredOutputStrategy;
@@ -50,11 +53,13 @@ export interface ResolvedLLMClientOptions {
   provider: LLMProvider;
   providerName: string;
   model: string;
+  transportProtocol: TransportProtocol;
   temperature: number;
   apiKey?: string;
   baseURL: string;
   maxTokens?: number;
   timeoutMs?: number;
+  maxRetries: number;
   reasoningEnabled: boolean;
   modelKwargs?: Record<string, unknown>;
   includeRawResponse: boolean;
@@ -68,6 +73,8 @@ export interface ResolvedLLMClientOptions {
 
 const providerSecrets = new Map<LLMProvider, ProviderSecret>();
 const RESOLVED_LLM_OPTIONS = Symbol("RESOLVED_LLM_OPTIONS");
+const DEFAULT_LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS ?? 600000);
+const DEFAULT_LLM_MAX_RETRIES = Number(process.env.LLM_MAX_RETRIES ?? 2);
 
 type ChatOpenAIWithResolvedOptions = ChatOpenAI & {
   [RESOLVED_LLM_OPTIONS]?: ResolvedLLMClientOptions;
@@ -92,6 +99,13 @@ function normalizeOptionalText(value: string | null | undefined): string | undef
 
 function normalizeOptionalTimeoutMs(value: number | undefined): number | undefined {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return undefined;
+  }
+  return Math.floor(value);
+}
+
+function normalizeOptionalRetries(value: number | undefined): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
     return undefined;
   }
   return Math.floor(value);
@@ -200,11 +214,20 @@ export async function resolveLLMClientOptions(
     }
   }
 
-  const dbSecret = await resolveProviderSecret(resolvedProvider);
+  const explicitApiKey = normalizeOptionalText(options.apiKey);
+  const explicitBaseURL = normalizeOptionalText(options.baseURL);
+  const canResolveWithoutDb = Boolean(
+    explicitApiKey
+    && resolvedModel
+    && (explicitBaseURL || isBuiltInProvider(resolvedProvider)),
+  );
+  const dbSecret = canResolveWithoutDb
+    ? undefined
+    : await resolveProviderSecret(resolvedProvider);
   const providerName = isBuiltInProvider(resolvedProvider)
     ? PROVIDERS[resolvedProvider].name
     : dbSecret?.displayName ?? resolvedProvider;
-  const apiKey = normalizeOptionalText(options.apiKey)
+  const apiKey = explicitApiKey
     ?? dbSecret?.key
     ?? getProviderEnvApiKey(resolvedProvider);
 
@@ -230,11 +253,13 @@ export async function resolveLLMClientOptions(
   }
 
   const temperature = resolveModelTemperature(resolvedProvider, model, resolvedTemperature);
-  const timeoutMs = normalizeOptionalTimeoutMs(options.timeoutMs);
+  const timeoutMs = normalizeOptionalTimeoutMs(options.timeoutMs) ?? DEFAULT_LLM_TIMEOUT_MS;
+  const maxRetries = normalizeOptionalRetries(options.maxRetries) ?? DEFAULT_LLM_MAX_RETRIES;
+  const transportProtocol = resolveTransportProtocol(resolvedProvider, model);
   const executionMode = options.executionMode ?? "plain";
   const structuredProfile = executionMode === "structured"
     ? resolveStructuredOutputProfile({
-      provider: resolvedProvider,
+      provider: transportProtocol === "anthropic" ? "anthropic" : resolvedProvider,
       model,
       baseURL,
       executionMode,
@@ -277,11 +302,13 @@ export async function resolveLLMClientOptions(
     provider: resolvedProvider,
     providerName,
     model,
+    transportProtocol,
     temperature,
     apiKey,
     baseURL,
     maxTokens: effectiveMaxTokens,
     timeoutMs,
+    maxRetries,
     reasoningEnabled: reasoningBehavior.reasoningEnabled,
     modelKwargs: Object.keys(modelKwargs).length > 0 ? modelKwargs : undefined,
     includeRawResponse: reasoningBehavior.includeRawResponse,
@@ -295,6 +322,29 @@ export async function resolveLLMClientOptions(
 }
 
 export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions): ChatOpenAI {
+  if (resolved.transportProtocol === "anthropic") {
+    const anthropicTransport = createAnthropicMessagesTransport(resolved, {
+      provider: resolved.provider,
+      model: resolved.model,
+      temperature: resolved.temperature,
+      maxTokens: resolved.maxTokens,
+      taskType: resolved.taskType,
+      baseURL: resolved.baseURL,
+      promptMeta: resolved.promptMeta,
+    });
+    const decorated = attachLLMDebugLogging(attachLLMUsageTracking(anthropicTransport as unknown as ChatOpenAI), {
+      provider: resolved.provider,
+      model: resolved.model,
+      temperature: resolved.temperature,
+      maxTokens: resolved.maxTokens,
+      taskType: resolved.taskType,
+      baseURL: resolved.baseURL,
+      promptMeta: resolved.promptMeta,
+    });
+    (decorated as ChatOpenAIWithResolvedOptions)[RESOLVED_LLM_OPTIONS] = resolved;
+    return decorated;
+  }
+
   const llm = new ChatOpenAI({
     apiKey: resolved.apiKey ?? "ollama",
     model: resolved.model,
@@ -302,6 +352,7 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
     temperature: resolved.temperature,
     maxTokens: resolved.maxTokens,
     timeout: resolved.timeoutMs,
+    maxRetries: resolved.maxRetries,
     modelKwargs: resolved.modelKwargs,
     __includeRawResponse: resolved.includeRawResponse,
     configuration: {

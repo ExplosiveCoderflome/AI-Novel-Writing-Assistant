@@ -140,7 +140,10 @@ async function persistStructuredOutlineVolumeSnapshot(input: {
   workspace: VolumePlanDocument;
   dependencies: Pick<DirectorPhaseDependencies, "volumeService">;
 }): Promise<VolumePlanDocument> {
-  return input.dependencies.volumeService.updateVolumes(input.novelId, input.workspace);
+  return input.dependencies.volumeService.updateVolumes(input.novelId, input.workspace, {
+    emitEvent: false,
+    syncPayoffLedger: false,
+  });
 }
 
 function buildVolumeStrategyPhaseUpdate(event: VolumeGenerationPhaseEvent): {
@@ -431,6 +434,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
     const recoveryCursor = resolveStructuredOutlineRecoveryCursor({
       workspace,
       plan: detailPlan,
+      estimatedChapterCount: request.estimatedChapterCount,
     });
 
     if (recoveryCursor.step === "beat_sheet") {
@@ -570,6 +574,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
         draftWorkspace: workspace,
       });
       workspace = await dependencies.volumeService.updateVolumesWithOptions(novelId, workspace, {
+        emitEvent: false,
         volumeUpdateReason: "chapter_execution_contract_refined",
         syncPayoffLedger: false,
       });
@@ -584,6 +589,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
   const preparedVolumeIds = resolveStructuredOutlineRecoveryCursor({
     workspace,
     plan: detailPlan,
+    estimatedChapterCount: request.estimatedChapterCount,
   }).preparedVolumeIds;
   const maxPreparedChapterOrder = Math.max(
     0,
@@ -619,6 +625,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
   const syncCursor = resolveStructuredOutlineRecoveryCursor({
     workspace: persistedOutlineWorkspace,
     plan: detailPlan,
+    estimatedChapterCount: request.estimatedChapterCount,
   });
   const selectedChapters = syncCursor.selectedChapters;
   if (selectedChapters.length === 0) {

@@ -33,12 +33,14 @@ export function resolveSafeDirectorPipelineStartPhase(input: {
 
 export function resolveAssetFirstRecoveryFromSnapshot(input: {
   runMode?: DirectorRunMode;
+  directorSessionPhase?: DirectorPipelinePhase | "candidate_selection" | "front10_ready" | null;
   structuredOutlineRecoveryStep?: StructuredOutlineRecoveryStep | null;
   volumeCount: number;
   hasVolumeStrategyPlan: boolean;
   hasActivePipelineJob: boolean;
   hasExecutableRange: boolean;
   hasAutoExecutionState: boolean;
+  chapterSyncReady?: boolean;
   latestCheckpointType?: "front10_ready" | "chapter_batch_ready" | "replan_required" | null;
 }):
   | {
@@ -50,8 +52,11 @@ export function resolveAssetFirstRecoveryFromSnapshot(input: {
     phase: "structured_outline";
   }
   | null {
+  const chapterSyncReady = input.chapterSyncReady !== false;
+
   if (
-    normalizeDirectorRunMode(input.runMode) === "auto_to_execution"
+    chapterSyncReady
+    && normalizeDirectorRunMode(input.runMode) === "auto_to_execution"
     && (
       input.hasActivePipelineJob
       || input.hasExecutableRange
@@ -70,6 +75,14 @@ export function resolveAssetFirstRecoveryFromSnapshot(input: {
         ? input.latestCheckpointType
         : "front10_ready",
     };
+  }
+
+  if (
+    input.directorSessionPhase === "story_macro"
+    || input.directorSessionPhase === "character_setup"
+    || input.directorSessionPhase === "volume_strategy"
+  ) {
+    return null;
   }
 
   if (input.hasVolumeStrategyPlan && (input.structuredOutlineRecoveryStep || input.volumeCount > 0)) {

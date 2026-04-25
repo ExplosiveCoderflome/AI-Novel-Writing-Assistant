@@ -473,6 +473,84 @@ test("continueTask resumes auto-director tasks that are still marked running aft
   }
 });
 
+test("continueTask resumes the interrupted volume strategy phase instead of jumping to structured outline", async () => {
+  const service = new NovelDirectorService();
+  const originalContinueCandidateStageTask = service.continueCandidateStageTask;
+  const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
+  const originalResolveObservedResumePhase = service.resolveObservedResumePhase;
+  const originalGetTaskByIdWithoutHealing = service.workflowService.getTaskByIdWithoutHealing;
+  const originalBootstrapTask = service.workflowService.bootstrapTask;
+  const originalMarkTaskRunning = service.workflowService.markTaskRunning;
+  const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
+  const originalRunDirectorPipeline = service.runDirectorPipeline;
+  const bootstrapCalls = [];
+  const runningCalls = [];
+  const scheduledRuns = [];
+  const pipelineRuns = [];
+
+  service.continueCandidateStageTask = async () => false;
+  service.resolveAssetFirstRecovery = async () => null;
+  service.resolveObservedResumePhase = async () => "structured_outline";
+  service.workflowService.getTaskByIdWithoutHealing = async () => ({
+    id: "task_volume_strategy_resume",
+    lane: "auto_director",
+    status: "queued",
+    pendingManualRecovery: true,
+    novelId: "novel_volume_strategy_resume",
+    checkpointType: null,
+    currentItemKey: "volume_skeleton",
+    seedPayloadJson: JSON.stringify({
+      directorInput: buildDirectorInput({
+        workflowTaskId: "task_volume_strategy_resume",
+        runMode: "auto_to_ready",
+      }),
+      directorSession: {
+        runMode: "auto_to_ready",
+        phase: "volume_strategy",
+        isBackgroundRunning: true,
+        lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
+        reviewScope: null,
+      },
+    }),
+  });
+  service.workflowService.bootstrapTask = async (input) => {
+    bootstrapCalls.push(input);
+    return { id: "task_volume_strategy_resume" };
+  };
+  service.workflowService.markTaskRunning = async (taskId, input) => {
+    runningCalls.push({ taskId, ...input });
+    return null;
+  };
+  service.scheduleBackgroundRun = (taskId, runner) => {
+    scheduledRuns.push(taskId);
+    void runner();
+  };
+  service.runDirectorPipeline = async (input) => {
+    pipelineRuns.push(input);
+  };
+
+  try {
+    await service.continueTask("task_volume_strategy_resume");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(bootstrapCalls.length, 1);
+    assert.equal(runningCalls.length, 1);
+    assert.equal(runningCalls[0].stage, "volume_strategy");
+    assert.equal(runningCalls[0].itemKey, "volume_strategy");
+    assert.equal(scheduledRuns.length, 1);
+    assert.equal(pipelineRuns.length, 1);
+    assert.equal(pipelineRuns[0].startPhase, "volume_strategy");
+  } finally {
+    service.continueCandidateStageTask = originalContinueCandidateStageTask;
+    service.resolveAssetFirstRecovery = originalResolveAssetFirstRecovery;
+    service.resolveObservedResumePhase = originalResolveObservedResumePhase;
+    service.workflowService.getTaskByIdWithoutHealing = originalGetTaskByIdWithoutHealing;
+    service.workflowService.bootstrapTask = originalBootstrapTask;
+    service.workflowService.markTaskRunning = originalMarkTaskRunning;
+    service.scheduleBackgroundRun = originalScheduleBackgroundRun;
+    service.runDirectorPipeline = originalRunDirectorPipeline;
+  }
+});
+
 test("continueTask resumes auto execution in the background instead of blocking the request", async () => {
   const service = new NovelDirectorService();
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;
@@ -566,6 +644,350 @@ test("continueTask resumes auto execution in the background instead of blocking 
   }
 });
 
+test("continueTask resumes cancelled pipeline recovery when checkpoint type is missing", async () => {
+  const service = new NovelDirectorService();
+  const originalContinueCandidateStageTask = service.continueCandidateStageTask;
+  const originalGetTaskByIdWithoutHealing = service.workflowService.getTaskByIdWithoutHealing;
+  const originalMarkTaskRunning = service.workflowService.markTaskRunning;
+  const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
+  const originalRunFromReady = service.autoExecutionRuntime.runFromReady;
+  const runningCalls = [];
+  const scheduledRuns = [];
+  const runtimeCalls = [];
+
+  service.continueCandidateStageTask = async () => false;
+  service.workflowService.getTaskByIdWithoutHealing = async () => ({
+    id: "task_cancelled_pipeline_resume",
+    lane: "auto_director",
+    status: "cancelled",
+    pendingManualRecovery: false,
+    novelId: "novel_cancelled_pipeline_resume",
+    checkpointType: null,
+    currentItemKey: "quality_repair",
+    resumeTargetJson: JSON.stringify({
+      stage: "pipeline",
+      chapterId: "chapter_8",
+    }),
+    lastError: "任务已取消，如仍需继续，可从最近检查点恢复。",
+    seedPayloadJson: JSON.stringify({
+      directorInput: buildDirectorInput({
+        workflowTaskId: "task_cancelled_pipeline_resume",
+        runMode: "auto_to_execution",
+      }),
+      directorSession: {
+        runMode: "auto_to_execution",
+        phase: "front10_ready",
+        isBackgroundRunning: false,
+        lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
+        reviewScope: null,
+      },
+      resumeTarget: {
+        stage: "pipeline",
+        chapterId: "chapter_8",
+      },
+      autoExecution: {
+        enabled: true,
+        mode: "chapter_range",
+        scopeLabel: "前 10 章",
+        startOrder: 1,
+        endOrder: 10,
+        totalChapterCount: 10,
+        nextChapterId: "chapter_8",
+        nextChapterOrder: 8,
+        remainingChapterCount: 3,
+        remainingChapterIds: ["chapter_8", "chapter_9", "chapter_10"],
+        remainingChapterOrders: [8, 9, 10],
+        pipelineJobId: "pipeline_cancelled",
+        pipelineStatus: "cancelled",
+      },
+    }),
+  });
+  service.workflowService.markTaskRunning = async (taskId, input) => {
+    runningCalls.push({ taskId, ...input });
+    return null;
+  };
+  service.scheduleBackgroundRun = (taskId, runner) => {
+    scheduledRuns.push({ taskId, runner });
+  };
+  service.autoExecutionRuntime.runFromReady = async (input) => {
+    runtimeCalls.push(input);
+  };
+
+  try {
+    await service.continueTask("task_cancelled_pipeline_resume");
+    assert.equal(runningCalls.length, 1);
+    assert.equal(runningCalls[0].taskId, "task_cancelled_pipeline_resume");
+    assert.equal(runningCalls[0].stage, "chapter_execution");
+    assert.equal(runningCalls[0].itemKey, "chapter_execution");
+    assert.equal(scheduledRuns.length, 1);
+    assert.equal(runtimeCalls.length, 0);
+
+    await scheduledRuns[0].runner();
+
+    assert.equal(runtimeCalls.length, 1);
+    assert.equal(runtimeCalls[0].taskId, "task_cancelled_pipeline_resume");
+    assert.equal(runtimeCalls[0].novelId, "novel_cancelled_pipeline_resume");
+    assert.equal(runtimeCalls[0].resumeCheckpointType, "chapter_batch_ready");
+  } finally {
+    service.continueCandidateStageTask = originalContinueCandidateStageTask;
+    service.workflowService.getTaskByIdWithoutHealing = originalGetTaskByIdWithoutHealing;
+    service.workflowService.markTaskRunning = originalMarkTaskRunning;
+    service.scheduleBackgroundRun = originalScheduleBackgroundRun;
+    service.autoExecutionRuntime.runFromReady = originalRunFromReady;
+  }
+});
+
+test("continueTask does not infer paused pipeline checkpoint for failed tasks", async () => {
+  const service = new NovelDirectorService();
+  const originalContinueCandidateStageTask = service.continueCandidateStageTask;
+  const originalGetTaskByIdWithoutHealing = service.workflowService.getTaskByIdWithoutHealing;
+  const originalMarkTaskRunning = service.workflowService.markTaskRunning;
+  const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
+  const originalRunFromReady = service.autoExecutionRuntime.runFromReady;
+  const runningCalls = [];
+  const scheduledRuns = [];
+  const runtimeCalls = [];
+
+  service.continueCandidateStageTask = async () => false;
+  service.workflowService.getTaskByIdWithoutHealing = async () => ({
+    id: "task_failed_pipeline_resume",
+    lane: "auto_director",
+    status: "failed",
+    pendingManualRecovery: false,
+    novelId: "novel_failed_pipeline_resume",
+    checkpointType: null,
+    currentItemKey: "quality_repair",
+    resumeTargetJson: JSON.stringify({
+      stage: "pipeline",
+      chapterId: "chapter_8",
+    }),
+    lastError: "当前阶段执行失败，建议从最近检查点恢复。",
+    seedPayloadJson: JSON.stringify({
+      directorInput: buildDirectorInput({
+        workflowTaskId: "task_failed_pipeline_resume",
+        runMode: "auto_to_execution",
+      }),
+      directorSession: {
+        runMode: "auto_to_execution",
+        phase: "front10_ready",
+        isBackgroundRunning: false,
+        lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
+        reviewScope: null,
+      },
+      resumeTarget: {
+        stage: "pipeline",
+        chapterId: "chapter_8",
+      },
+      autoExecution: {
+        enabled: true,
+        mode: "chapter_range",
+        scopeLabel: "前 10 章",
+        startOrder: 1,
+        endOrder: 10,
+        totalChapterCount: 10,
+        nextChapterId: "chapter_8",
+        nextChapterOrder: 8,
+        remainingChapterCount: 3,
+        remainingChapterIds: ["chapter_8", "chapter_9", "chapter_10"],
+        remainingChapterOrders: [8, 9, 10],
+        pipelineJobId: "pipeline_failed",
+        pipelineStatus: "failed",
+      },
+    }),
+  });
+  service.workflowService.markTaskRunning = async (taskId, input) => {
+    runningCalls.push({ taskId, ...input });
+    return null;
+  };
+  service.scheduleBackgroundRun = (taskId, runner) => {
+    scheduledRuns.push({ taskId, runner });
+  };
+  service.autoExecutionRuntime.runFromReady = async (input) => {
+    runtimeCalls.push(input);
+  };
+
+  try {
+    await service.continueTask("task_failed_pipeline_resume");
+    assert.equal(runningCalls.length, 1);
+    assert.equal(runningCalls[0].clearCheckpoint, false);
+    await scheduledRuns[0].runner();
+    assert.equal(runtimeCalls.length, 1);
+    assert.equal(runtimeCalls[0].resumeCheckpointType, "front10_ready");
+  } finally {
+    service.continueCandidateStageTask = originalContinueCandidateStageTask;
+    service.workflowService.getTaskByIdWithoutHealing = originalGetTaskByIdWithoutHealing;
+    service.workflowService.markTaskRunning = originalMarkTaskRunning;
+    service.scheduleBackgroundRun = originalScheduleBackgroundRun;
+    service.autoExecutionRuntime.runFromReady = originalRunFromReady;
+  }
+});
+
+test("continueTask preserves replan recovery state for replan checkpoints", async () => {
+  const service = new NovelDirectorService();
+  const originalContinueCandidateStageTask = service.continueCandidateStageTask;
+  const originalGetTaskByIdWithoutHealing = service.workflowService.getTaskByIdWithoutHealing;
+  const originalMarkTaskRunning = service.workflowService.markTaskRunning;
+  const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
+  const originalRunFromReady = service.autoExecutionRuntime.runFromReady;
+  const runningCalls = [];
+  const scheduledRuns = [];
+  const runtimeCalls = [];
+
+  service.continueCandidateStageTask = async () => false;
+  service.workflowService.getTaskByIdWithoutHealing = async () => ({
+    id: "task_replan_resume",
+    lane: "auto_director",
+    status: "failed",
+    pendingManualRecovery: false,
+    novelId: "novel_replan_resume",
+    checkpointType: "replan_required",
+    currentItemKey: "quality_repair",
+    resumeTargetJson: JSON.stringify({
+      stage: "pipeline",
+      chapterId: "chapter_8",
+    }),
+    lastError: "需要先处理重规划建议。",
+    seedPayloadJson: JSON.stringify({
+      directorInput: buildDirectorInput({
+        workflowTaskId: "task_replan_resume",
+        runMode: "auto_to_execution",
+      }),
+      directorSession: {
+        runMode: "auto_to_execution",
+        phase: "front10_ready",
+        isBackgroundRunning: false,
+        lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
+        reviewScope: null,
+      },
+      resumeTarget: {
+        stage: "pipeline",
+        chapterId: "chapter_8",
+      },
+      autoExecution: {
+        enabled: true,
+        mode: "chapter_range",
+        scopeLabel: "前 10 章",
+        startOrder: 1,
+        endOrder: 10,
+        totalChapterCount: 10,
+        nextChapterId: "chapter_8",
+        nextChapterOrder: 8,
+        remainingChapterCount: 3,
+        remainingChapterIds: ["chapter_8", "chapter_9", "chapter_10"],
+        remainingChapterOrders: [8, 9, 10],
+        pipelineJobId: "pipeline_replan",
+        pipelineStatus: "failed",
+      },
+    }),
+  });
+  service.workflowService.markTaskRunning = async (taskId, input) => {
+    runningCalls.push({ taskId, ...input });
+    return null;
+  };
+  service.scheduleBackgroundRun = (taskId, runner) => {
+    scheduledRuns.push({ taskId, runner });
+  };
+  service.autoExecutionRuntime.runFromReady = async (input) => {
+    runtimeCalls.push(input);
+  };
+
+  try {
+    await service.continueTask("task_replan_resume");
+    assert.equal(runningCalls.length, 1);
+    assert.equal(runningCalls[0].stage, "quality_repair");
+    assert.equal(runningCalls[0].itemKey, "quality_repair");
+    assert.equal(runningCalls[0].clearCheckpoint, true);
+    await scheduledRuns[0].runner();
+    assert.equal(runtimeCalls.length, 1);
+    assert.equal(runtimeCalls[0].resumeCheckpointType, "replan_required");
+  } finally {
+    service.continueCandidateStageTask = originalContinueCandidateStageTask;
+    service.workflowService.getTaskByIdWithoutHealing = originalGetTaskByIdWithoutHealing;
+    service.workflowService.markTaskRunning = originalMarkTaskRunning;
+    service.scheduleBackgroundRun = originalScheduleBackgroundRun;
+    service.autoExecutionRuntime.runFromReady = originalRunFromReady;
+  }
+});
+
+test("continueTask preserves expanded auto-execution scope instead of reverting to front10", async () => {
+  const service = new NovelDirectorService();
+  const originalContinueCandidateStageTask = service.continueCandidateStageTask;
+  const originalGetTaskByIdWithoutHealing = service.workflowService.getTaskByIdWithoutHealing;
+  const originalMarkTaskRunning = service.workflowService.markTaskRunning;
+  const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
+  const originalRunFromReady = service.autoExecutionRuntime.runFromReady;
+  const runtimeCalls = [];
+  const scheduledRuns = [];
+
+  service.continueCandidateStageTask = async () => false;
+  service.workflowService.getTaskByIdWithoutHealing = async () => ({
+    id: "task_auto_execution_resume",
+    lane: "auto_director",
+    status: "failed",
+    pendingManualRecovery: false,
+    novelId: "novel_auto_execution_resume",
+    checkpointType: "chapter_batch_ready",
+    currentItemKey: "quality_repair",
+    resumeTargetJson: JSON.stringify({
+      stage: "pipeline",
+      chapterId: "chapter_11",
+    }),
+    lastError: "当前还有章节待继续处理。",
+    seedPayloadJson: JSON.stringify({
+      directorInput: buildDirectorInput({
+        workflowTaskId: "task_auto_execution_resume",
+        runMode: "auto_to_execution",
+      }),
+      directorSession: {
+        runMode: "auto_to_execution",
+        phase: "front10_ready",
+        isBackgroundRunning: false,
+        lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
+        reviewScope: null,
+      },
+      autoExecution: {
+        enabled: true,
+        mode: "chapter_range",
+        scopeLabel: "第 11-60 章",
+        startOrder: 11,
+        endOrder: 60,
+        totalChapterCount: 50,
+        nextChapterId: "chapter_11",
+        nextChapterOrder: 11,
+        remainingChapterCount: 50,
+        remainingChapterOrders: Array.from({ length: 50 }, (_, index) => index + 11),
+        pipelineJobId: "pipeline_existing",
+        pipelineStatus: "failed",
+      },
+    }),
+  });
+  service.workflowService.markTaskRunning = async () => null;
+  service.scheduleBackgroundRun = (taskId, runner) => {
+    scheduledRuns.push({ taskId, runner });
+  };
+  service.autoExecutionRuntime.runFromReady = async (input) => {
+    runtimeCalls.push(input);
+  };
+
+  try {
+    await service.continueTask("task_auto_execution_resume", {
+      continuationMode: "auto_execute_range",
+    });
+    await scheduledRuns[0].runner();
+  } finally {
+    service.continueCandidateStageTask = originalContinueCandidateStageTask;
+    service.workflowService.getTaskByIdWithoutHealing = originalGetTaskByIdWithoutHealing;
+    service.workflowService.markTaskRunning = originalMarkTaskRunning;
+    service.scheduleBackgroundRun = originalScheduleBackgroundRun;
+    service.autoExecutionRuntime.runFromReady = originalRunFromReady;
+  }
+
+  assert.equal(runtimeCalls.length, 1);
+  assert.equal(runtimeCalls[0].existingState.startOrder, 11);
+  assert.equal(runtimeCalls[0].existingState.endOrder, 60);
+  assert.equal(runtimeCalls[0].existingState.totalChapterCount, 50);
+});
+
 test("runDirectorStructuredOutlinePhase resumes from the first incomplete beat and missing detail mode", async () => {
   const baseWorkspace = createStructuredOutlineWorkspace();
   const chapterListCompletedWorkspace = buildVolumeWorkspaceDocument({
@@ -619,6 +1041,7 @@ test("runDirectorStructuredOutlinePhase resumes from the first incomplete beat a
     request: buildDirectorInput({
       workflowTaskId: "task_structured_resume",
       runMode: "auto_to_execution",
+      estimatedChapterCount: 2,
       autoExecutionPlan: {
         mode: "volume",
         volumeOrder: 2,
@@ -664,6 +1087,10 @@ test("runDirectorStructuredOutlinePhase resumes from the first incomplete beat a
         },
         updateVolumes: async (novelId, workspace) => {
           persistCalls.push({ novelId, workspace });
+          return workspace;
+        },
+        updateVolumesWithOptions: async (novelId, workspace, options) => {
+          persistCalls.push({ novelId, workspace, options });
           return workspace;
         },
         syncVolumeChapters: async () => ({ preview: [] }),

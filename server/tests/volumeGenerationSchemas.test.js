@@ -379,6 +379,88 @@ test("volume beat sheet prompt render includes explicit JSON field contract", ()
   assert.match(systemPrompt, /volume-local numbering only/);
 });
 
+test("volume beat sheet prompt rejects chapter spans that undershoot the target", () => {
+  assert.throws(
+    () => volumeBeatSheetPrompt.postValidate({
+      beats: [
+        {
+          key: "open_hook",
+          label: "开卷抓手",
+          summary: "先把局势危险钉死。",
+          chapterSpanHint: "1章",
+          mustDeliver: ["压迫感"],
+        },
+        {
+          key: "first_escalation",
+          label: "第一次升级",
+          summary: "让主角第一次拿到反制抓手。",
+          chapterSpanHint: "2章",
+          mustDeliver: ["反制"],
+        },
+        {
+          key: "midpoint_turn",
+          label: "中段转向",
+          summary: "让本卷方向发生变化。",
+          chapterSpanHint: "3章",
+          mustDeliver: ["转向"],
+        },
+        {
+          key: "pressure_lock",
+          label: "高潮前挤压",
+          summary: "把敌方优势和主角代价同时抬高。",
+          chapterSpanHint: "4章",
+          mustDeliver: ["挤压"],
+        },
+        {
+          key: "climax",
+          label: "卷高潮",
+          summary: "完成本卷主承诺的正面兑现。",
+          chapterSpanHint: "5章",
+          mustDeliver: ["兑现"],
+        },
+        {
+          key: "end_hook",
+          label: "卷尾钩子",
+          summary: "用新威胁或新目标打开下一卷入口。",
+          chapterSpanHint: "6章",
+          mustDeliver: ["下卷钩子"],
+        },
+      ],
+    }, {
+      novel: {},
+      workspace: {
+        volumes: [],
+        strategyPlan: null,
+        critiqueReport: null,
+        beatSheets: [],
+        rebalanceDecisions: [],
+        readiness: {
+          canGenerateStrategy: true,
+          canGenerateSkeleton: false,
+          canGenerateBeatSheet: false,
+          canGenerateChapterList: false,
+          blockingReasons: [],
+        },
+        derivedOutline: "",
+        derivedStructuredOutline: "",
+        source: "empty",
+        activeVersionId: null,
+      },
+      storyMacroPlan: null,
+      strategyPlan: null,
+      targetVolume: createVolume(1),
+      targetChapterCount: 54,
+    }, {
+      blocks: [],
+      selectedBlockIds: [],
+      droppedBlockIds: [],
+      summarizedBlockIds: [],
+      estimatedInputTokens: 0,
+    }),
+    /必须覆盖目标 54 章/,
+  );
+});
+
 test("volume beat sheet context blocks include the current volume chapter target", () => {
   const blocks = buildVolumeBeatSheetContextBlocks({
     novel: { characters: [] },
