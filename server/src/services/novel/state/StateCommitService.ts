@@ -58,6 +58,7 @@ function buildVersionSummary(
 
 export interface StateCommitServiceInput extends ChapterFactExtractorInput {
   proposals?: StateChangeProposal[];
+  skipFactExtraction?: boolean;
 }
 
 interface PersistedProposalRow {
@@ -78,7 +79,7 @@ interface PersistedProposalRow {
 
 export class StateCommitService {
   async proposeAndCommit(input: StateCommitServiceInput): Promise<StateCommitResult> {
-    const extractedProposals = await chapterFactExtractor.extract(input);
+    const extractedProposals = input.skipFactExtraction ? [] : await chapterFactExtractor.extract(input);
     const rawProposals = input.proposals
       ? extractedProposals.concat(input.proposals)
       : extractedProposals;

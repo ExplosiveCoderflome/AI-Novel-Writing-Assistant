@@ -29,10 +29,16 @@ const characterResourceProposalParamsSchema = z.object({
   proposalId: z.string().trim().min(1),
 });
 
-const resourceExtractionSchema = z.object({
+const resourceLlmOptionsSchema = z.object({
   provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
+});
+
+const resourceExtractionSchema = resourceLlmOptionsSchema.default({});
+
+const resourceBackfillSchema = resourceLlmOptionsSchema.extend({
+  limit: z.number().int().min(1).max(10).optional(),
 }).default({});
 
 interface RegisterNovelCharacterResourceRoutesInput {
@@ -69,6 +75,8 @@ function mapProposal(row: {
   id: string;
   novelId: string;
   chapterId: string | null;
+  sourceType: string;
+  sourceStage: string | null;
   proposalType: string;
   riskLevel: string;
   status: string;
@@ -83,6 +91,8 @@ function mapProposal(row: {
     id: row.id,
     novelId: row.novelId,
     chapterId: row.chapterId,
+    sourceType: row.sourceType,
+    sourceStage: row.sourceStage,
     proposalType: "character_resource_update",
     riskLevel: row.riskLevel === "high" ? "high" : row.riskLevel === "medium" ? "medium" : "low",
     status: row.status === "committed" || row.status === "rejected" || row.status === "validated"
@@ -195,11 +205,84 @@ export function registerNovelCharacterResourceRoutes(
           sourceType: "manual_resource_extract",
           sourceStage: "chapter_resource_review",
           proposals,
+          skipFactExtraction: true,
         });
         res.status(200).json({
           success: true,
           data,
           message: "资源变化已提取，低风险变化会用于后续写作。",
+        } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.post(
+    "/:id/character-resources/backfill",
+    validate({ params: idParamsSchema, body: resourceBackfillSchema }),
+    async (req, res, next) => {
+      try {
+        const { id } = req.params as z.infer<typeof idParamsSchema>;
+        const body = resourceBackfillSchema.parse(req.body);
+        const limit = body.limit ?? 3;
+        const candidateChapters = await prisma.chapter.findMany({
+          where: {
+            novelId: id,
+            content: { not: null },
+          },
+          orderBy: { order: "desc" },
+          take: limit * 3,
+          select: { id: true, order: true, content: true },
+        });
+        const chapters = candidateChapters
+          .filter((chapter) => String(chapter.content ?? "").replace(/\s+/g, " ").trim().length > 0)
+          .slice(0, limit)
+          .sort((left, right) => left.order - right.order);
+
+        let committedCount = 0;
+        let pendingReviewCount = 0;
+        let rejectedCount = 0;
+        let proposalCount = 0;
+        for (const chapter of chapters) {
+          const proposals = await characterResourceExtractionService.extractChapterResourceProposals({
+            novelId: id,
+            chapterId: chapter.id,
+            chapterOrder: chapter.order,
+            provider: body.provider,
+            model: body.model,
+            temperature: body.temperature,
+            sourceType: "manual_resource_backfill",
+            sourceStage: "character_resource_backfill",
+          });
+          proposalCount += proposals.length;
+          const result = await stateCommitService.proposeAndCommit({
+            novelId: id,
+            chapterId: chapter.id,
+            chapterOrder: chapter.order,
+            sourceType: "manual_resource_backfill",
+            sourceStage: "character_resource_backfill",
+            proposals,
+            skipFactExtraction: true,
+          });
+          committedCount += result.committed.length;
+          pendingReviewCount += result.pendingReview.length;
+          rejectedCount += result.rejected.length;
+        }
+
+        const data = {
+          scannedChapterCount: chapters.length,
+          proposalCount,
+          committedCount,
+          pendingReviewCount,
+          rejectedCount,
+          items: await characterResourceLedgerService.listResources(id),
+          pendingProposals: await listPendingResourceProposals(id),
+        };
+        res.status(200).json({
+          success: true,
+          data,
+          message: "最近章节资源已回填。",
         } satisfies ApiResponse<typeof data>);
       } catch (error) {
         next(error);

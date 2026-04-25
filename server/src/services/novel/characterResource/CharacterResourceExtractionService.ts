@@ -7,8 +7,13 @@ import { compactText, normalizeResourceKey } from "./characterResourceShared";
 import { characterResourceLedgerService } from "./CharacterResourceLedgerService";
 
 const BACKGROUND_RESOURCE_SOURCE_TYPE = "chapter_background_sync";
+const MANUAL_BACKFILL_SOURCE_TYPE = "manual_resource_backfill";
 const RESOURCE_SYNC_CHECKPOINT_TYPE = "character_resource_sync_checkpoint";
-const inFlightBackgroundExtractions = new Set<string>();
+const DEDUPED_RESOURCE_SOURCE_TYPES = new Set([
+  BACKGROUND_RESOURCE_SOURCE_TYPE,
+  MANUAL_BACKFILL_SOURCE_TYPE,
+]);
+const inFlightDedupedExtractions = new Set<string>();
 
 function buildContentHash(content: string): string {
   return createHash("sha256").update(content).digest("hex").slice(0, 24);
@@ -39,13 +44,13 @@ function resolveCharacterId(
 }
 
 export class CharacterResourceExtractionService {
-  private async hasProcessedBackgroundContent(input: {
+  private async hasProcessedDedupedContent(input: {
     novelId: string;
     chapterId: string;
     sourceType: string;
     sourceStage: string;
   }): Promise<boolean> {
-    if (input.sourceType !== BACKGROUND_RESOURCE_SOURCE_TYPE) {
+    if (!DEDUPED_RESOURCE_SOURCE_TYPES.has(input.sourceType)) {
       return false;
     }
     const processedCount = await prisma.stateChangeProposal.count({
@@ -60,7 +65,7 @@ export class CharacterResourceExtractionService {
     return processedCount > 0;
   }
 
-  private async markBackgroundContentProcessed(input: {
+  private async markDedupedContentProcessed(input: {
     novelId: string;
     chapterId: string;
     chapterOrder: number;
@@ -68,7 +73,7 @@ export class CharacterResourceExtractionService {
     sourceStage: string;
     contentHash: string;
   }): Promise<void> {
-    if (input.sourceType !== BACKGROUND_RESOURCE_SOURCE_TYPE) {
+    if (!DEDUPED_RESOURCE_SOURCE_TYPES.has(input.sourceType)) {
       return;
     }
     await prisma.stateChangeProposal.create({
@@ -81,14 +86,16 @@ export class CharacterResourceExtractionService {
         proposalType: RESOURCE_SYNC_CHECKPOINT_TYPE,
         riskLevel: "low",
         status: "committed",
-        summary: "本章角色资源同步已完成，未发现需要进入账本的变化。",
+        summary: input.sourceType === MANUAL_BACKFILL_SOURCE_TYPE
+          ? "本章角色资源回填已检查，未发现需要进入账本的变化。"
+          : "本章角色资源同步已完成，未发现需要进入账本的变化。",
         payloadJson: JSON.stringify({
           syncContentHash: input.contentHash,
           chapterOrder: input.chapterOrder,
           updateCount: 0,
         }),
         evidenceJson: JSON.stringify([]),
-        validationNotesJson: JSON.stringify(["background character resource sync checkpoint"]),
+        validationNotesJson: JSON.stringify([`${input.sourceType} character resource sync checkpoint`]),
       },
     }).catch(() => null);
   }
@@ -129,11 +136,12 @@ export class CharacterResourceExtractionService {
     const sourceStage = getSourceStage(input);
     const contentHash = buildContentHash(content);
     const inFlightKey = `${input.novelId}:${input.chapterId}:${sourceType}:${sourceStage}:${contentHash}`;
-    if (sourceType === BACKGROUND_RESOURCE_SOURCE_TYPE) {
-      if (inFlightBackgroundExtractions.has(inFlightKey)) {
+    const shouldDedup = DEDUPED_RESOURCE_SOURCE_TYPES.has(sourceType);
+    if (shouldDedup) {
+      if (inFlightDedupedExtractions.has(inFlightKey)) {
         return [];
       }
-      if (await this.hasProcessedBackgroundContent({
+      if (await this.hasProcessedDedupedContent({
         novelId: input.novelId,
         chapterId: chapter.id,
         sourceType,
@@ -141,7 +149,7 @@ export class CharacterResourceExtractionService {
       })) {
         return [];
       }
-      inFlightBackgroundExtractions.add(inFlightKey);
+      inFlightDedupedExtractions.add(inFlightKey);
     }
 
     try {
@@ -168,7 +176,7 @@ export class CharacterResourceExtractionService {
     });
 
     if (result.output.updates.length === 0) {
-      await this.markBackgroundContentProcessed({
+      await this.markDedupedContentProcessed({
         novelId: input.novelId,
         chapterId: chapter.id,
         chapterOrder: chapter.order,
@@ -237,7 +245,7 @@ export class CharacterResourceExtractionService {
       };
     });
     } finally {
-      inFlightBackgroundExtractions.delete(inFlightKey);
+      inFlightDedupedExtractions.delete(inFlightKey);
     }
   }
 }

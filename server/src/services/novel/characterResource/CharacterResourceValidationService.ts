@@ -7,6 +7,7 @@ import { characterResourceUpdatePayloadSchema } from "@ai-novel/shared/types/cha
 import { compactText } from "./characterResourceShared";
 
 const HIGH_RISK_EVENTS = new Set<CharacterResourceEventType>(["lost", "consumed", "destroyed", "damaged"]);
+const AUTO_DIRECTOR_RESOURCE_SOURCE_TYPES = new Set(["chapter_background_sync"]);
 
 function parsePayload(proposal: StateChangeProposal): CharacterResourceUpdatePayload | null {
   const parsed = characterResourceUpdatePayloadSchema.safeParse(proposal.payload);
@@ -56,7 +57,7 @@ export class CharacterResourceValidationService {
       };
     }
 
-    if (proposal.riskLevel === "medium") {
+    if (proposal.riskLevel === "medium" && !AUTO_DIRECTOR_RESOURCE_SOURCE_TYPES.has(proposal.sourceType)) {
       return {
         ...proposal,
         status: "pending_review",
@@ -67,6 +68,9 @@ export class CharacterResourceValidationService {
     return {
       ...proposal,
       status: "committed",
+      validationNotes: proposal.riskLevel === "medium"
+        ? proposal.validationNotes.concat("auto-committed background resource update")
+        : proposal.validationNotes,
     };
   }
 }

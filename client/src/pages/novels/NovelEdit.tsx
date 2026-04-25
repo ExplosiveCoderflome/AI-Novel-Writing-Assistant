@@ -21,7 +21,9 @@ import { continueNovelWorkflow, getActiveAutoDirectorTask } from "@/api/novelWor
 import { cancelTask, retryTask } from "@/api/tasks";
 import {
   auditNovelChapter,
+  backfillNovelCharacterResources,
   confirmCharacterResourceProposal,
+  extractChapterResources,
   rejectCharacterResourceProposal,
   getChapterResourceContext,
   generateChapterPlan,
@@ -565,6 +567,10 @@ export default function NovelEdit() {
     }
     return raw as DirectorSessionState;
   }, [activeAutoDirectorTask]);
+  const chapterPendingCharacterResourceProposals = useMemo(
+    () => pendingCharacterResourceProposals.filter((proposal) => !selectedChapterId || proposal.chapterId === selectedChapterId),
+    [pendingCharacterResourceProposals, selectedChapterId],
+  );
   const activeAutoExecutionScopeLabel = resolveAutoExecutionScopeLabel(activeAutoDirectorTask);
   const activeChapterTitleWarning = useMemo(
     () => resolveChapterTitleWarning(activeAutoDirectorTask),
@@ -1340,9 +1346,12 @@ export default function NovelEdit() {
       queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterRelations(id) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCandidates(id) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterResources(id) }),
+      ...(selectedChapterId
+        ? [queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterResourceContext(id, selectedChapterId) })]
+        : []),
       queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(id) }),
     ]);
-  }, [activeAutoDirectorRefreshSignature, activeAutoDirectorTask, id, queryClient]);
+  }, [activeAutoDirectorRefreshSignature, activeAutoDirectorTask, id, queryClient, selectedChapterId]);
 
   useEffect(() => {
     if (!id || !activeAutoDirectorTask) {
@@ -1446,6 +1455,53 @@ export default function NovelEdit() {
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "忽略资源变更失败。");
+    },
+  });
+
+  const extractChapterResourcesMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedChapterId) {
+        throw new Error("请先选择要复查资源的章节。");
+      }
+      return extractChapterResources(id, selectedChapterId, {
+        provider: llm.provider,
+        model: llm.model,
+      });
+    },
+    onSuccess: async (response) => {
+      await invalidateCharacterResourceViews();
+      const committedCount = response.data?.committed.length ?? 0;
+      const pendingCount = response.data?.pendingReview.length ?? 0;
+      if (pendingCount > 0) {
+        toast.success(`已复查本章资源，${pendingCount} 个变更需要你判断。`);
+        return;
+      }
+      toast.success(committedCount > 0
+        ? `已复查本章资源，${committedCount} 个变更会用于后续写作。`
+        : "已复查本章资源，未发现需要更新的关键资源。");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "复查本章资源失败。");
+    },
+  });
+
+  const backfillCharacterResourcesMutation = useMutation({
+    mutationFn: () => backfillNovelCharacterResources(id, {
+      provider: llm.provider,
+      model: llm.model,
+      limit: 3,
+    }),
+    onSuccess: async (response) => {
+      await invalidateCharacterResourceViews();
+      const scanned = response.data?.scannedChapterCount ?? 0;
+      const committed = response.data?.committedCount ?? 0;
+      const pending = response.data?.pendingReviewCount ?? 0;
+      toast.success(pending > 0
+        ? `已回填最近 ${scanned} 章资源，${pending} 条变化需要你判断。`
+        : `已回填最近 ${scanned} 章资源，${committed} 条变化会用于后续写作。`);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "回填角色资源失败。");
     },
   });
 
@@ -1662,6 +1718,7 @@ export default function NovelEdit() {
     onGoToCharacterTab: goToCharacterTab,
     latestStateSnapshot,
     payoffLedger,
+    characterResources,
     outlineText,
     structuredDraftText,
     volumes: normalizedVolumeDraft,
@@ -1777,7 +1834,10 @@ export default function NovelEdit() {
     chapterStateSnapshot,
     chapterResourceContext,
     isLoadingChapterResourceContext: chapterResourceContextQuery.isLoading || chapterResourceContextQuery.isFetching,
-    pendingCharacterResourceProposals,
+    resourceWorkflowMode: activeDirectorSession ? ("auto_director" as const) : ("manual" as const),
+    pendingCharacterResourceProposals: chapterPendingCharacterResourceProposals,
+    onExtractChapterResources: () => extractChapterResourcesMutation.mutate(),
+    isExtractingChapterResources: extractChapterResourcesMutation.isPending,
     onConfirmCharacterResourceProposal: (proposalId: string) => confirmCharacterResourceProposalMutation.mutate(proposalId),
     onRejectCharacterResourceProposal: (proposalId: string) => rejectCharacterResourceProposalMutation.mutate(proposalId),
     confirmingCharacterResourceProposalId: confirmCharacterResourceProposalMutation.isPending
@@ -1808,7 +1868,7 @@ export default function NovelEdit() {
     directorTakeoverEntry: undefined,
   };
   const pipelineTab = { novelId: id, worldInjectionSummary, hasCharacters, onGoToCharacterTab: goToCharacterTab, pipelineForm, onPipelineFormChange: (field: "startOrder" | "endOrder" | "maxRetries" | "runMode" | "autoReview" | "autoRepair" | "skipCompleted" | "qualityThreshold" | "repairMode", value: number | boolean | string) => setPipelineForm((prev) => ({ ...prev, [field]: value } as typeof prev)), maxOrder, onGenerateBible: () => void bibleSSE.start(`/novels/${id}/bible/generate`, { provider: llm.provider, model: llm.model, temperature: 0.6 }), onAbortBible: bibleSSE.abort, isBibleStreaming: bibleSSE.isStreaming, bibleStreamContent: bibleSSE.content, onGenerateBeats: () => void beatsSSE.start(`/novels/${id}/beats/generate`, { provider: llm.provider, model: llm.model, targetChapters: pipelineForm.endOrder }), onAbortBeats: beatsSSE.abort, isBeatsStreaming: beatsSSE.isStreaming, beatsStreamContent: beatsSSE.content, onRunPipeline: (patch?: Partial<typeof pipelineForm>) => runPipelineMutation.mutate(patch), isRunningPipeline: runPipelineMutation.isPending, pipelineMessage, pipelineJob: pipelineJobQuery.data?.data, chapters, selectedChapterId, onSelectedChapterChange: setSelectedChapterId, onReviewChapter: () => reviewMutation.mutate(), isReviewing: reviewMutation.isPending, onRepairChapter: () => { setRepairBeforeContent(selectedChapter?.content ?? ""); setRepairAfterContent(""); setActiveRepairStream(selectedChapter ? { chapterId: selectedChapter.id, chapterLabel: `第${selectedChapter.order}章 ${selectedChapter.title || "未命名章节"}` } : null); void repairSSE.start(`/novels/${id}/chapters/${selectedChapterId}/repair`, { provider: llm.provider, model: llm.model, reviewIssues: reviewResult?.issues ?? [], auditIssueIds: openAuditIssueIds }); }, isRepairing: repairSSE.isStreaming, onGenerateHook: () => hookMutation.mutate(), isGeneratingHook: hookMutation.isPending, reviewResult, repairBeforeContent, repairAfterContent, repairStreamContent: repairSSE.content, isRepairStreaming: repairSSE.isStreaming, onAbortRepair: handleAbortRepair, qualitySummary, chapterReports: qualityReportQuery.data?.data?.chapterReports ?? [], bible, plotBeats };
-  const characterTab = { novelId: id, llmProvider: llm.provider, llmModel: llm.model, characterMessage, quickCharacterForm, onQuickCharacterFormChange: (field: "name" | "role", value: string) => setQuickCharacterForm((prev) => ({ ...prev, [field]: value })), onQuickCreateCharacter: (payload: QuickCharacterCreatePayload) => quickCreateCharacterMutation.mutate(payload), isQuickCreating: quickCreateCharacterMutation.isPending, onGenerateSupplementalCharacters: generateSupplementalCharacterMutation.mutateAsync, isGeneratingSupplementalCharacters: generateSupplementalCharacterMutation.isPending, onApplySupplementalCharacter: applySupplementalCharacterMutation.mutateAsync, isApplyingSupplementalCharacter: applySupplementalCharacterMutation.isPending, characters, coreCharacterCount, baseCharacters, selectedBaseCharacterId, onSelectedBaseCharacterChange: setSelectedBaseCharacterId, selectedBaseCharacter, importedBaseCharacterIds, onImportBaseCharacter: () => importBaseCharacterMutation.mutate(), isImportingBaseCharacter: importBaseCharacterMutation.isPending, selectedCharacterId, onSelectedCharacterChange: setSelectedCharacterId, onDeleteCharacter: (characterId: string) => deleteCharacterMutation.mutate(characterId), isDeletingCharacter: deleteCharacterMutation.isPending, deletingCharacterId: deleteCharacterMutation.variables ?? "", onSyncTimeline: () => syncTimelineMutation.mutate(), isSyncingTimeline: syncTimelineMutation.isPending, onSyncAllTimeline: () => syncAllTimelineMutation.mutate(), isSyncingAllTimeline: syncAllTimelineMutation.isPending, onEvolveCharacter: () => evolveCharacterMutation.mutate(), isEvolvingCharacter: evolveCharacterMutation.isPending, onWorldCheck: () => worldCheckMutation.mutate(), isCheckingWorld: worldCheckMutation.isPending, selectedCharacter, characterResources, pendingCharacterResourceCount: pendingCharacterResourceProposals.length, characterForm, onCharacterFormChange: (field: "name" | "role" | "gender" | "personality" | "background" | "development" | "currentState" | "currentGoal", value: string) => setCharacterForm((prev) => ({ ...prev, [field]: value })), onSaveCharacter: () => saveCharacterMutation.mutate(), isSavingCharacter: saveCharacterMutation.isPending, timelineEvents: characterTimelineQuery.data?.data ?? [] };
+  const characterTab = { novelId: id, llmProvider: llm.provider, llmModel: llm.model, characterMessage, quickCharacterForm, onQuickCharacterFormChange: (field: "name" | "role", value: string) => setQuickCharacterForm((prev) => ({ ...prev, [field]: value })), onQuickCreateCharacter: (payload: QuickCharacterCreatePayload) => quickCreateCharacterMutation.mutate(payload), isQuickCreating: quickCreateCharacterMutation.isPending, onGenerateSupplementalCharacters: generateSupplementalCharacterMutation.mutateAsync, isGeneratingSupplementalCharacters: generateSupplementalCharacterMutation.isPending, onApplySupplementalCharacter: applySupplementalCharacterMutation.mutateAsync, isApplyingSupplementalCharacter: applySupplementalCharacterMutation.isPending, characters, coreCharacterCount, baseCharacters, selectedBaseCharacterId, onSelectedBaseCharacterChange: setSelectedBaseCharacterId, selectedBaseCharacter, importedBaseCharacterIds, onImportBaseCharacter: () => importBaseCharacterMutation.mutate(), isImportingBaseCharacter: importBaseCharacterMutation.isPending, selectedCharacterId, onSelectedCharacterChange: setSelectedCharacterId, onDeleteCharacter: (characterId: string) => deleteCharacterMutation.mutate(characterId), isDeletingCharacter: deleteCharacterMutation.isPending, deletingCharacterId: deleteCharacterMutation.variables ?? "", onSyncTimeline: () => syncTimelineMutation.mutate(), isSyncingTimeline: syncTimelineMutation.isPending, onSyncAllTimeline: () => syncAllTimelineMutation.mutate(), isSyncingAllTimeline: syncAllTimelineMutation.isPending, onEvolveCharacter: () => evolveCharacterMutation.mutate(), isEvolvingCharacter: evolveCharacterMutation.isPending, onWorldCheck: () => worldCheckMutation.mutate(), isCheckingWorld: worldCheckMutation.isPending, selectedCharacter, characterResources, pendingCharacterResourceCount: pendingCharacterResourceProposals.length, onBackfillCharacterResources: () => backfillCharacterResourcesMutation.mutate(), isBackfillingCharacterResources: backfillCharacterResourcesMutation.isPending, characterForm, onCharacterFormChange: (field: "name" | "role" | "gender" | "personality" | "background" | "development" | "currentState" | "currentGoal", value: string) => setCharacterForm((prev) => ({ ...prev, [field]: value })), onSaveCharacter: () => saveCharacterMutation.mutate(), isSavingCharacter: saveCharacterMutation.isPending, timelineEvents: characterTimelineQuery.data?.data ?? [] };
 
   const activeStepTakeoverEntry = renderTakeoverEntry(
     activeTab === "story_macro"
@@ -1888,6 +1948,24 @@ export default function NovelEdit() {
           temperature: llm.temperature,
         },
         actions: taskDrawerActions,
+        resourceProposals: pendingCharacterResourceProposals,
+        onOpenResourceProposalSource: (proposal) => {
+          if (proposal.chapterId) {
+            setSelectedChapterId(proposal.chapterId);
+            setActiveTab("chapter");
+          } else {
+            setActiveTab("character");
+          }
+          setIsTaskDrawerOpen(false);
+        },
+        onConfirmResourceProposal: (proposalId) => confirmCharacterResourceProposalMutation.mutate(proposalId),
+        onRejectResourceProposal: (proposalId) => rejectCharacterResourceProposalMutation.mutate(proposalId),
+        confirmingResourceProposalId: confirmCharacterResourceProposalMutation.isPending
+          ? confirmCharacterResourceProposalMutation.variables ?? ""
+          : "",
+        rejectingResourceProposalId: rejectCharacterResourceProposalMutation.isPending
+          ? rejectCharacterResourceProposalMutation.variables ?? ""
+          : "",
         onOpenFullTaskCenter: openAutoDirectorTaskCenter,
       }}
     />

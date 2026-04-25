@@ -86,6 +86,39 @@ test("StateCommitService validate auto-commits low-risk character resource updat
   assert.equal(result.accepted[0].status, "committed");
 });
 
+test("StateCommitService validate auto-commits medium background character resource updates", () => {
+  const service = new StateCommitService();
+  const result = service.validate([
+    makeResourceProposal({
+      riskLevel: "medium",
+      payload: {
+        narrativeImpact: "Hero can use the marked sword in the next escape beat.",
+      },
+    }),
+  ]);
+
+  assert.equal(result.accepted.length, 1);
+  assert.equal(result.pendingReview.length, 0);
+  assert.equal(result.rejected.length, 0);
+  assert.equal(result.accepted[0].status, "committed");
+  assert.match(result.accepted[0].validationNotes.join(" "), /auto-committed background resource update/);
+});
+
+test("StateCommitService validate routes manual medium character resource updates into pending review", () => {
+  const service = new StateCommitService();
+  const result = service.validate([
+    makeResourceProposal({
+      sourceType: "manual_resource_extract",
+      riskLevel: "medium",
+    }),
+  ]);
+
+  assert.equal(result.accepted.length, 0);
+  assert.equal(result.pendingReview.length, 1);
+  assert.equal(result.rejected.length, 0);
+  assert.equal(result.pendingReview[0].status, "pending_review");
+});
+
 test("StateCommitService validate routes risky character resource updates into pending review", () => {
   const service = new StateCommitService();
   const result = service.validate([

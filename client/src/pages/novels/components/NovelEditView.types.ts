@@ -157,6 +157,7 @@ export interface OutlineTabViewProps {
   onGoToCharacterTab: () => void;
   latestStateSnapshot?: StoryStateSnapshot | null;
   payoffLedger?: PayoffLedgerResponse | null;
+  characterResources?: CharacterResourceLedgerItem[];
   draftText: string;
   volumes: VolumePlan[];
   onVolumeFieldChange: (volumeId: string, field: keyof Pick<VolumePlan, "title" | "summary" | "openingHook" | "mainPromise" | "primaryPressureSource" | "coreSellingPoint" | "escalationMode" | "protagonistChange" | "midVolumeRisk" | "climax" | "payoffType" | "nextVolumeHook" | "resetPoint">, value: string) => void;
@@ -323,7 +324,10 @@ export interface ChapterTabViewProps {
   chapterStateSnapshot?: StoryStateSnapshot | null;
   chapterResourceContext?: CharacterResourceContext | null;
   isLoadingChapterResourceContext?: boolean;
+  resourceWorkflowMode?: "auto_director" | "manual";
   pendingCharacterResourceProposals?: CharacterResourceProposalSummary[];
+  onExtractChapterResources?: () => void;
+  isExtractingChapterResources?: boolean;
   onConfirmCharacterResourceProposal?: (proposalId: string) => void;
   onRejectCharacterResourceProposal?: (proposalId: string) => void;
   confirmingCharacterResourceProposalId?: string;
@@ -512,6 +516,12 @@ export interface NovelTaskDrawerState {
     temperature: number;
   };
   actions: AITakeoverAction[];
+  resourceProposals?: CharacterResourceProposalSummary[];
+  onOpenResourceProposalSource?: (proposal: CharacterResourceProposalSummary) => void;
+  onConfirmResourceProposal?: (proposalId: string) => void;
+  onRejectResourceProposal?: (proposalId: string) => void;
+  confirmingResourceProposalId?: string;
+  rejectingResourceProposalId?: string;
   onOpenFullTaskCenter: () => void;
 }
 

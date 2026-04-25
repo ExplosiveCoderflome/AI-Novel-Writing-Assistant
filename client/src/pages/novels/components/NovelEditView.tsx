@@ -67,15 +67,25 @@ export default function NovelEditView(props: NovelEditViewProps) {
       })()
     : "default";
 
-  const taskAttentionLabel = taskDrawer?.task
-    ? taskDrawer.task.status === "failed"
-      ? "异常"
-      : taskDrawer.task.status === "waiting_approval"
-        ? "待审核"
-        : taskDrawer.task.status === "running" || taskDrawer.task.status === "queued"
-          ? "进行中"
-          : "最近任务"
-    : null;
+  const pendingResourceProposalCount = taskDrawer?.resourceProposals?.length ?? 0;
+  const taskAttentionLabel = (() => {
+    if (pendingResourceProposalCount > 0) {
+      return `${pendingResourceProposalCount} 条资源`;
+    }
+    if (!taskDrawer?.task) {
+      return null;
+    }
+    if (taskDrawer.task.status === "failed") {
+      return "异常";
+    }
+    if (taskDrawer.task.status === "waiting_approval") {
+      return "待审核";
+    }
+    if (taskDrawer.task.status === "running" || taskDrawer.task.status === "queued") {
+      return "进行中";
+    }
+    return "最近任务";
+  })();
 
   const normalizedActiveTab = normalizeNovelWorkspaceTab(activeTab);
   const normalizedWorkflowTab = normalizeNovelWorkspaceTab(workflowCurrentTab ?? activeTab);

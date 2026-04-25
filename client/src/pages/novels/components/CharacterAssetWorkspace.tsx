@@ -40,6 +40,8 @@ interface CharacterAssetWorkspaceProps {
   isCheckingWorld: boolean;
   characterResources?: CharacterResourceLedgerItem[];
   pendingCharacterResourceCount?: number;
+  onBackfillCharacterResources?: () => void;
+  isBackfillingCharacterResources?: boolean;
 }
 
 const CAST_ROLE_LABELS: Record<CharacterCastRole, string> = {
@@ -184,6 +186,8 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
     isCheckingWorld,
     characterResources = [],
     pendingCharacterResourceCount = 0,
+    onBackfillCharacterResources,
+    isBackfillingCharacterResources = false,
   } = props;
 
   const lastAppearanceChapter = useMemo(
@@ -324,6 +328,15 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
                   <div className="mt-1 text-xs leading-5 text-muted-foreground">{resourceDisplayMode.helper}</div>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onBackfillCharacterResources?.()}
+                    disabled={isBackfillingCharacterResources || !onBackfillCharacterResources}
+                  >
+                    {isBackfillingCharacterResources ? "回填中..." : "回填最近章节"}
+                  </Button>
                   <Badge variant="outline">{resourceDisplayMode.label}</Badge>
                   {pendingCharacterResourceCount > 0 ? (
                     <Badge variant="secondary">{pendingCharacterResourceCount} 条资源变更待确认</Badge>

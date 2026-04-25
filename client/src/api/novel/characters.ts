@@ -5,6 +5,7 @@ import type {
   CharacterResourceLedgerItem,
   CharacterResourceLedgerResponse,
 } from "@ai-novel/shared/types/characterResource";
+import type { StateCommitResult } from "@ai-novel/shared/types/canonicalState";
 import type {
   Character,
   CharacterCastApplyResult,
@@ -55,8 +56,32 @@ export async function extractChapterResources(
     temperature?: number;
   },
 ) {
-  const { data } = await apiClient.post(
+  const { data } = await apiClient.post<ApiResponse<StateCommitResult>>(
     `/novels/${id}/chapters/${chapterId}/resources/extract`,
+    payload ?? {},
+  );
+  return data;
+}
+
+export async function backfillNovelCharacterResources(
+  id: string,
+  payload?: {
+    provider?: LLMProvider;
+    model?: string;
+    temperature?: number;
+    limit?: number;
+  },
+) {
+  const { data } = await apiClient.post<ApiResponse<{
+    scannedChapterCount: number;
+    proposalCount: number;
+    committedCount: number;
+    pendingReviewCount: number;
+    rejectedCount: number;
+    items: CharacterResourceLedgerItem[];
+    pendingProposals: CharacterResourceLedgerResponse["pendingProposals"];
+  }>>(
+    `/novels/${id}/character-resources/backfill`,
     payload ?? {},
   );
   return data;

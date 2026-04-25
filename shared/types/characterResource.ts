@@ -141,6 +141,8 @@ export const characterResourceProposalSummarySchema = z.object({
   id: z.string(),
   novelId: z.string(),
   chapterId: z.string().nullable().optional(),
+  sourceType: z.string().optional(),
+  sourceStage: z.string().nullable().optional(),
   proposalType: z.literal("character_resource_update"),
   riskLevel: z.enum(["low", "medium", "high"]),
   status: z.enum(["validated", "committed", "pending_review", "rejected"]),

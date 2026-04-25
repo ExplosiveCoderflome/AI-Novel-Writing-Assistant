@@ -140,6 +140,8 @@ interface NovelCharacterPanelProps {
   selectedCharacter?: Character;
   characterResources?: CharacterResourceLedgerItem[];
   pendingCharacterResourceCount?: number;
+  onBackfillCharacterResources?: () => void;
+  isBackfillingCharacterResources?: boolean;
   characterForm: CharacterFormState;
   onCharacterFormChange: (field: keyof CharacterFormState, value: string) => void;
   onSaveCharacter: () => void;
@@ -187,6 +189,8 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
     selectedCharacter,
     characterResources = [],
     pendingCharacterResourceCount = 0,
+    onBackfillCharacterResources,
+    isBackfillingCharacterResources = false,
     characterForm,
     onCharacterFormChange,
     onSaveCharacter,
@@ -703,6 +707,8 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
         isCheckingWorld={isCheckingWorld}
         characterResources={characterResources}
         pendingCharacterResourceCount={pendingCharacterResourceCount}
+        onBackfillCharacterResources={onBackfillCharacterResources}
+        isBackfillingCharacterResources={isBackfillingCharacterResources}
       />
     </div>
   );
