@@ -8,6 +8,13 @@ import type {
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import { buildWorkflowResumeAction } from "../novelWorkflowExplainability";
 
+const CHANNEL_ACTION_CODES = new Set<AutoDirectorActionCode>([
+  "continue_auto_execution",
+  "retry_with_task_model",
+  "open_detail",
+  "open_follow_up_center",
+]);
+
 const REASON_LABELS: Record<AutoDirectorFollowUpReason, string> = {
   manual_recovery_required: "人工恢复待处理",
   runtime_failed: "失败待重试",
@@ -34,7 +41,7 @@ function mutationAction(input: {
 }
 
 function navigationAction(input: {
-  code: Extract<AutoDirectorActionCode, "go_replan" | "go_candidate_selection" | "open_detail">;
+  code: Extract<AutoDirectorActionCode, "go_replan" | "go_candidate_selection" | "open_detail" | "open_follow_up_center">;
   label: string;
   riskLevel?: AutoDirectorAction["riskLevel"];
   requiresConfirm?: boolean;
@@ -59,6 +66,8 @@ function finalizeResolvedReason(input: {
   batchActionCodes?: AutoDirectorMutationActionCode[];
 }): AutoDirectorResolvedFollowUpReason {
   const batchActionCodes = input.batchActionCodes ?? [];
+  const hasChannelAction = input.availableActions.some((item) => CHANNEL_ACTION_CODES.has(item.code));
+
   return {
     reason: input.reason,
     reasonLabel: REASON_LABELS[input.reason],
@@ -66,6 +75,10 @@ function finalizeResolvedReason(input: {
     availableActions: input.availableActions,
     batchActionCodes,
     supportsBatch: batchActionCodes.length > 0,
+    channelCapabilities: {
+      dingtalk: hasChannelAction,
+      wecom: hasChannelAction,
+    },
   };
 }
 
@@ -214,7 +227,7 @@ export function resolveAutoDirectorFollowUpReason(
       availableActions: [
         mutationAction({
           code: "continue_auto_execution",
-          label: getContinueLabel(input, "继续自动执行当前章节范围"),
+          label: getContinueLabel(input, "继续自动执行前 10 章"),
           riskLevel: "low",
           requiresConfirm: false,
         }),

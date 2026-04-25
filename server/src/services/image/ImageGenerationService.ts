@@ -5,8 +5,8 @@ import { AppError } from "../../middleware/errorHandler";
 import { generateImagesByProvider, isImageProviderSupported, resolveImageModel } from "./provider";
 import {
   persistGeneratedImageAsset,
-  removeLocalImageAssetFile,
-  resolveLocalImageAssetFile,
+  removeStoredImageAssetFile,
+  resolveImageAssetFile,
 } from "./imageAssetStorage";
 import {
   buildCharacterPrompt,
@@ -216,19 +216,19 @@ export class ImageGenerationService {
     });
 
     try {
-      await removeLocalImageAssetFile({
+      await removeStoredImageAssetFile({
         assetId: asset.id,
         url: asset.url,
         metadata: asset.metadata,
       });
     } catch (error) {
-      console.warn(`[image] failed to remove local asset file for ${asset.id}.`, error);
+      console.warn(`[image] failed to remove stored asset file for ${asset.id}.`, error);
     }
 
     return toImageAsset(asset);
   }
 
-  async getAssetFile(assetId: string): Promise<{ localPath: string; mimeType: string | null }> {
+  async getAssetFile(assetId: string): Promise<{ localPath?: string; stream?: NodeJS.ReadableStream; mimeType: string | null }> {
     const asset = await prisma.imageAsset.findUnique({
       where: { id: assetId },
       select: {
@@ -242,15 +242,17 @@ export class ImageGenerationService {
       throw new AppError("Image asset not found.", 404);
     }
 
-    const { localPath } = await resolveLocalImageAssetFile({
+    const resolved = await resolveImageAssetFile({
       assetId: asset.id,
       url: asset.url,
+      mimeType: asset.mimeType ?? null,
       metadata: asset.metadata,
     });
 
     return {
-      localPath,
-      mimeType: asset.mimeType ?? null,
+      localPath: resolved.localPath,
+      stream: resolved.stream,
+      mimeType: resolved.mimeType ?? asset.mimeType ?? null,
     };
   }
 
@@ -447,7 +449,7 @@ export class ImageGenerationService {
               baseCharacterId: task.baseCharacterId,
               provider: result.provider,
               model: result.model,
-              url: persisted.localPath,
+              url: persisted.persistedUrl,
               mimeType: persisted.mimeType,
               width: image.width ?? null,
               height: image.height ?? null,
@@ -460,6 +462,8 @@ export class ImageGenerationService {
                 localPath: persisted.localPath,
                 relativePath: persisted.relativePath,
                 sourceUrl: persisted.sourceUrl,
+                storageKey: persisted.storageKey,
+                storageDriver: persisted.storageDriver,
               }),
             },
           });

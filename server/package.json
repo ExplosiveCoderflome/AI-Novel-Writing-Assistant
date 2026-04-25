@@ -6,7 +6,10 @@
   "main": "dist/app.js",
   "files": [
     "dist",
-    "src/prisma/migrations"
+    "src/prisma/migrations",
+    "src/prisma/migrations.sqlite",
+    "src/prisma/schema.prisma",
+    "src/prisma/schema.sqlite.prisma"
   ],
   "prisma": {
     "seed": "ts-node-dev --transpile-only src/db/seed.ts"
@@ -24,22 +27,24 @@
     "test:routes": "pnpm --filter @ai-novel/shared build && pnpm run build && node --test tests/routes.test.js",
     "test:book-analysis": "pnpm --filter @ai-novel/shared build && pnpm run build && node --test tests/bookAnalysis.test.js",
     "prisma": "prisma",
-    "prisma:generate": "prisma generate --schema src/prisma/schema.prisma",
-    "prisma:push": "prisma db push --schema src/prisma/schema.prisma",
-    "prisma:deploy": "prisma migrate deploy --schema src/prisma/schema.prisma",
-    "prisma:migrate": "prisma migrate dev --name init --schema src/prisma/schema.prisma",
+    "prisma:generate": "prisma generate --config prisma.config.ts",
+    "prisma:push": "prisma db push --config prisma.config.ts",
+    "prisma:deploy": "prisma migrate deploy --config prisma.config.ts",
+    "prisma:migrate": "prisma migrate dev --name init --config prisma.config.ts",
     "db:migrate": "pnpm prisma:migrate",
-    "db:seed": "prisma db seed --schema src/prisma/schema.prisma",
-    "db:studio": "prisma studio --schema src/prisma/schema.prisma",
+    "db:seed": "prisma db seed --config prisma.config.ts",
+    "db:studio": "prisma studio --config prisma.config.ts",
     "db:restore": "node scripts/restore-dev-data.cjs"
   },
   "dependencies": {
     "@ai-novel/shared": "workspace:*",
+    "@aws-sdk/client-s3": "^3.910.0",
     "@langchain/community": "^1.1.21",
     "@langchain/core": "^1.1.29",
     "@langchain/langgraph": "^1.2.0",
     "@langchain/openai": "^1.2.11",
     "@prisma/adapter-better-sqlite3": "^7.4.2",
+    "@prisma/adapter-pg": "7.4.2",
     "@prisma/client": "^7.4.2",
     "better-sqlite3": "^12.6.2",
     "cors": "^2.8.6",
@@ -51,8 +56,8 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.19",
     "@types/better-sqlite3": "^7.6.13",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/morgan": "^1.9.10",
     "@types/node": "^25.3.3",

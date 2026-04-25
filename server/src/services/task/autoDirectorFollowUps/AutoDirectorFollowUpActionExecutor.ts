@@ -1,13 +1,18 @@
 import type {
   AutoDirectorActionExecutionResult,
   AutoDirectorActionRequest,
+  AutoDirectorBatchActionExecutionResult,
+  AutoDirectorBatchActionRequest,
   AutoDirectorMutationActionCode,
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
+import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { resolveModel, type TaskType } from "../../../llm/modelRouter";
 import { NovelDirectorService } from "../../novel/director/NovelDirectorService";
+import type { DirectorWorkflowSeedPayload } from "../../novel/director/novelDirectorHelpers";
 import { NovelWorkflowService } from "../../novel/workflow/NovelWorkflowService";
+import { parseSeedPayload } from "../../novel/workflow/novelWorkflow.shared";
 import { NovelWorkflowTaskAdapter } from "../adapters/NovelWorkflowTaskAdapter";
 import { resolveAutoDirectorFollowUpReason } from "./autoDirectorFollowUpReasonResolver";
 
@@ -15,36 +20,42 @@ type WorkflowTaskRow = NonNullable<Awaited<ReturnType<NovelWorkflowService["getT
 
 const EXECUTED_ACTION_CACHE = new Map<string, AutoDirectorActionExecutionResult>();
 
+const BATCH_ALLOWED_ACTIONS = new Set<AutoDirectorMutationActionCode>([
+  "continue_auto_execution",
+  "retry_with_task_model",
+]);
+
+function isMissingTableError(error: unknown): boolean {
+  return typeof error === "object"
+    && error !== null
+    && "code" in error
+    && (error as { code?: string }).code === "P2021";
+}
+
+function isDbUnavailableError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const code = "code" in error ? (error as { code?: string }).code : undefined;
+  const message = "message" in error ? String((error as { message?: unknown }).message ?? "") : "";
+  return code === "P1001" || /can't reach database server/i.test(message);
+}
+
+function getExecutionScopeLabel(seedPayloadJson: string | null | undefined): string | null {
+  const scopeLabel = parseSeedPayload<DirectorWorkflowSeedPayload>(seedPayloadJson)?.autoExecution?.scopeLabel;
+  return typeof scopeLabel === "string" && scopeLabel.trim() ? scopeLabel.trim() : null;
+}
+
+function toCheckpointType(value: string | null | undefined): NovelWorkflowCheckpoint | null {
+  return typeof value === "string" && value.trim() ? value as NovelWorkflowCheckpoint : null;
+}
+
 function buildExecutedCacheKey(input: {
   taskId: string;
   actionCode: AutoDirectorMutationActionCode;
   idempotencyKey: string;
 }): string {
   return `${input.taskId}:${input.actionCode}:${input.idempotencyKey}`;
-}
-
-function getExecutionScopeLabel(row: {
-  seedPayloadJson?: string | null;
-  checkpointSummary?: string | null;
-}): string | null {
-  if (!row.seedPayloadJson?.trim()) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(row.seedPayloadJson) as {
-      autoExecution?: {
-        scopeLabel?: unknown;
-      };
-    };
-    const scopeLabel = parsed.autoExecution?.scopeLabel;
-    return typeof scopeLabel === "string" && scopeLabel.trim() ? scopeLabel.trim() : null;
-  } catch {
-    return null;
-  }
-}
-
-function toCheckpointType(value: string | null | undefined): NovelWorkflowCheckpoint | null {
-  return typeof value === "string" && value.trim() ? value as NovelWorkflowCheckpoint : null;
 }
 
 function buildAlreadyProcessedResult(
@@ -55,7 +66,7 @@ function buildAlreadyProcessedResult(
     taskId: input.taskId,
     actionCode: input.actionCode,
     code: "already_processed",
-    message: "该操作已处理。",
+    message: "已处理",
     task,
   };
 }
@@ -69,8 +80,47 @@ function buildFailedResult(
     taskId: input.taskId,
     actionCode: input.actionCode,
     code: "failed",
-    message: message.trim() || "执行失败。",
+    message: message.trim() || "执行失败",
     task,
+  };
+}
+
+function summarizeBatchResult(input: {
+  successCount: number;
+  failureCount: number;
+  skippedCount: number;
+}): { code: AutoDirectorBatchActionExecutionResult["code"]; message: string } {
+  const parts: string[] = [];
+  if (input.successCount > 0) {
+    parts.push(`${input.successCount} 条成功`);
+  }
+  if (input.failureCount > 0) {
+    parts.push(`${input.failureCount} 条失败`);
+  }
+  if (input.skippedCount > 0) {
+    parts.push(`${input.skippedCount} 条跳过`);
+  }
+  if (input.successCount > 0 && input.failureCount === 0 && input.skippedCount === 0) {
+    return {
+      code: "success",
+      message: parts[0] ?? "执行成功",
+    };
+  }
+  if (input.successCount === 0 && input.failureCount === 0 && input.skippedCount > 0) {
+    return {
+      code: "skipped",
+      message: parts[0] ?? "已跳过",
+    };
+  }
+  if (input.successCount === 0 && input.failureCount > 0 && input.skippedCount === 0) {
+    return {
+      code: "failed",
+      message: parts[0] ?? "执行失败",
+    };
+  }
+  return {
+    code: "partial_success",
+    message: parts.join("，") || "部分执行完成",
   };
 }
 
@@ -88,6 +138,18 @@ export class AutoDirectorFollowUpActionExecutor {
       return buildAlreadyProcessedResult(input, await this.safeGetTaskDetail(input.taskId) ?? cached.task ?? null);
     }
 
+    const logged = await this.findLoggedExecution(input.idempotencyKey);
+    if (logged && logged.resultCode === "executed") {
+      const task = await this.safeGetTaskDetail(input.taskId);
+      const result = buildAlreadyProcessedResult(input, task);
+      EXECUTED_ACTION_CACHE.set(executedCacheKey, {
+        ...result,
+        code: "executed",
+        message: "执行成功",
+      });
+      return result;
+    }
+
     await this.workflowService.healAutoDirectorTaskState(input.taskId);
     const row = await this.workflowService.getTaskByIdWithoutHealing(input.taskId);
     if (!row) {
@@ -99,22 +161,27 @@ export class AutoDirectorFollowUpActionExecutor {
 
     const allowedActions = this.getAllowedMutationActions(row);
     if (!allowedActions) {
-      return {
+      const result: AutoDirectorActionExecutionResult = {
         taskId: input.taskId,
         actionCode: input.actionCode,
         code: "state_changed",
-        message: "任务状态已变化，请刷新后再试。",
+        message: "状态已变化",
         task: await this.safeGetTaskDetail(input.taskId),
       };
+      await this.recordActionLog(input, result);
+      return result;
     }
+
     if (!allowedActions.has(input.actionCode)) {
-      return {
+      const result: AutoDirectorActionExecutionResult = {
         taskId: input.taskId,
         actionCode: input.actionCode,
         code: "forbidden",
-        message: "当前任务不支持这个操作。",
+        message: "当前任务不支持该操作",
         task: await this.safeGetTaskDetail(input.taskId),
       };
+      await this.recordActionLog(input, result);
+      return result;
     }
 
     try {
@@ -123,26 +190,79 @@ export class AutoDirectorFollowUpActionExecutor {
         taskId: input.taskId,
         actionCode: input.actionCode,
         code: "executed",
-        message: "操作已执行。",
+        message: "执行成功",
         task,
       };
       EXECUTED_ACTION_CACHE.set(executedCacheKey, result);
+      await this.recordActionLog(input, result);
       return result;
     } catch (error) {
-      return buildFailedResult(
+      const result = buildFailedResult(
         input,
-        error instanceof Error ? error.message : "执行失败。",
+        error instanceof Error ? error.message : "执行失败",
         await this.safeGetTaskDetail(input.taskId),
       );
+      await this.recordActionLog(input, result);
+      return result;
     }
   }
 
+  async executeBatch(input: AutoDirectorBatchActionRequest): Promise<AutoDirectorBatchActionExecutionResult> {
+    if (!BATCH_ALLOWED_ACTIONS.has(input.actionCode)) {
+      throw new AppError("Unsupported batch action.", 400);
+    }
+
+    const uniqueTaskIds = Array.from(new Set(input.taskIds.map((item) => item.trim()).filter(Boolean)));
+    const itemResults: AutoDirectorActionExecutionResult[] = [];
+
+    for (const taskId of uniqueTaskIds) {
+      const result = await this.execute({
+        taskId,
+        actionCode: input.actionCode,
+        source: input.source,
+        operatorId: input.operatorId,
+        idempotencyKey: `${input.batchRequestKey}:${taskId}:${input.actionCode}`,
+        metadata: input.metadata,
+      });
+      itemResults.push(result);
+    }
+
+    const successCount = itemResults.filter((item) => item.code === "executed").length;
+    const failureCount = itemResults.filter((item) => item.code === "failed").length;
+    const skippedCount = itemResults.filter((item) => (
+      item.code === "already_processed"
+      || item.code === "state_changed"
+      || item.code === "forbidden"
+    )).length;
+    const summary = summarizeBatchResult({
+      successCount,
+      failureCount,
+      skippedCount,
+    });
+
+    return {
+      code: summary.code,
+      successCount,
+      failureCount,
+      skippedCount,
+      itemResults,
+    };
+  }
+
+  async resolveRouteModelOverride(
+    _taskId: string,
+    row: WorkflowTaskRow,
+  ): Promise<{ provider: string; model: string; temperature: number }> {
+    const resolved = await resolveModel(this.resolveRouteTaskType(row));
+    return {
+      provider: resolved.provider,
+      model: resolved.model,
+      temperature: resolved.temperature,
+    };
+  }
+
   private resolveRouteTaskType(row: WorkflowTaskRow): TaskType {
-    if (
-      row.checkpointType === "replan_required"
-      || row.currentItemKey === "quality_repair"
-      || row.currentStage?.includes("质量")
-    ) {
+    if (row.checkpointType === "replan_required" || row.currentStage?.includes("质量")) {
       return "repair";
     }
     return "planner";
@@ -153,7 +273,7 @@ export class AutoDirectorFollowUpActionExecutor {
       status: row.status,
       checkpointType: toCheckpointType(row.checkpointType),
       pendingManualRecovery: row.pendingManualRecovery,
-      executionScopeLabel: getExecutionScopeLabel(row),
+      executionScopeLabel: getExecutionScopeLabel(row.seedPayloadJson),
     });
     if (!resolved) {
       return null;
@@ -190,14 +310,10 @@ export class AutoDirectorFollowUpActionExecutor {
       });
     }
 
-    const routeModel = await resolveModel(this.resolveRouteTaskType(row));
+    const routeModel = await this.resolveRouteModelOverride(input.taskId, row);
     return this.workflowTaskAdapter.retry({
       id: input.taskId,
-      llmOverride: {
-        provider: routeModel.provider,
-        model: routeModel.model,
-        temperature: routeModel.temperature,
-      },
+      llmOverride: routeModel,
       resume: true,
     });
   }
@@ -207,6 +323,55 @@ export class AutoDirectorFollowUpActionExecutor {
       return await this.workflowTaskAdapter.detail(taskId);
     } catch {
       return null;
+    }
+  }
+
+  private async findLoggedExecution(idempotencyKey: string) {
+    try {
+      return await prisma.autoDirectorFollowUpActionLog.findUnique({
+        where: {
+          idempotencyKey,
+        },
+      });
+    } catch (error) {
+      if (isMissingTableError(error) || isDbUnavailableError(error)) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  private async recordActionLog(
+    input: AutoDirectorActionRequest,
+    result: AutoDirectorActionExecutionResult,
+  ): Promise<void> {
+    try {
+      const existing = await prisma.autoDirectorFollowUpActionLog.findUnique({
+        where: {
+          idempotencyKey: input.idempotencyKey,
+        },
+      });
+      if (existing) {
+        return;
+      }
+      await prisma.autoDirectorFollowUpActionLog.create({
+        data: {
+          taskId: input.taskId,
+          actionCode: input.actionCode,
+          sourceChannel: input.source,
+          sourceUser: input.operatorId?.trim() || null,
+          idempotencyKey: input.idempotencyKey,
+          resultCode: result.code,
+          failureReason: result.code === "failed" ? result.message : null,
+          metadataJson: input.metadata ? JSON.stringify(input.metadata) : null,
+          executedAt: new Date(),
+        },
+      });
+    } catch (error) {
+      if (isMissingTableError(error) || isDbUnavailableError(error)) {
+        return;
+      }
+      throw error;
     }
   }
 }

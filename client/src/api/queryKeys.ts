@@ -93,6 +93,11 @@ export const queryKeys = {
     recoveryCandidates: ["tasks", "recovery-candidates"] as const,
     autoDirectorFollowUpDetail: (taskId: string) => ["tasks", "auto-director-follow-up", taskId] as const,
   },
+  autoDirectorFollowUps: {
+    overview: ["auto-director-follow-ups", "overview"] as const,
+    list: (params: string) => ["auto-director-follow-ups", "list", params] as const,
+    detail: (taskId: string) => ["auto-director-follow-ups", "detail", taskId] as const,
+  },
   agentRuns: {
     list: (params: string) => ["agent-runs", "list", params] as const,
     detail: (id: string) => ["agent-runs", "detail", id] as const,
@@ -112,6 +117,7 @@ export const queryKeys = {
     modelRoutes: ["settings", "model-routes"] as const,
     modelRouteConnectivity: ["settings", "model-route-connectivity"] as const,
     structuredFallback: ["settings", "structured-fallback"] as const,
+    autoDirectorChannels: ["settings", "auto-director-channels"] as const,
   },
   novelsKnowledge: {
     bindings: (id: string) => ["novels", "knowledge-documents", id] as const,

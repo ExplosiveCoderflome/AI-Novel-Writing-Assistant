@@ -2,9 +2,11 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import {
+  getAutoDirectorChannelSettings,
   createCustomProvider,
   deleteCustomProvider,
   getAPIKeySettings,
+  saveAutoDirectorChannelSettings,
   getProviderBalances,
   refreshProviderBalance,
   refreshProviderModelList,
@@ -21,6 +23,8 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import DesktopLegacyDataImportCard from "@/components/layout/DesktopLegacyDataImportCard";
 import DesktopUpdateCard from "@/components/layout/DesktopUpdateCard";
+import { AutoDirectorChannelSettingsCard } from "./AutoDirectorChannelSettingsCard";
+import { buildAutoDirectorChannelDraft, type AutoDirectorChannelDraft } from "./autoDirectorEventOptions";
 import SettingsNavigationCards from "./components/SettingsNavigationCards";
 import StyleEngineRuntimeSettingsCard from "./components/StyleEngineRuntimeSettingsCard";
 
@@ -75,6 +79,7 @@ export default function SettingsPage() {
   });
   const [testResult, setTestResult] = useState("");
   const [actionResult, setActionResult] = useState("");
+  const [autoDirectorChannelDraft, setAutoDirectorChannelDraft] = useState<AutoDirectorChannelDraft | null>(null);
 
   const apiKeySettingsQuery = useQuery({
     queryKey: queryKeys.settings.apiKeys,
@@ -84,6 +89,11 @@ export default function SettingsPage() {
   const providerBalancesQuery = useQuery({
     queryKey: queryKeys.settings.apiKeyBalances,
     queryFn: getProviderBalances,
+  });
+
+  const autoDirectorChannelsQuery = useQuery({
+    queryKey: queryKeys.settings.autoDirectorChannels,
+    queryFn: getAutoDirectorChannelSettings,
   });
 
   const providerConfigs = useMemo(() => apiKeySettingsQuery.data?.data ?? [], [apiKeySettingsQuery.data?.data]);
@@ -243,13 +253,59 @@ export default function SettingsPage() {
     },
   });
 
+  const saveAutoDirectorChannelsMutation = useMutation({
+    mutationFn: (payload: {
+      baseUrl: string;
+      dingtalk: {
+        webhookUrl: string;
+        callbackToken: string;
+        operatorMapJson: string;
+        eventTypes: string[];
+      };
+      wecom: {
+        webhookUrl: string;
+        callbackToken: string;
+        operatorMapJson: string;
+        eventTypes: string[];
+      };
+    }) => saveAutoDirectorChannelSettings(payload),
+    onSuccess: async (response) => {
+      setActionResult(response.message ?? "导演跟进通道配置已保存。");
+      if (response.data) {
+        setAutoDirectorChannelDraft(buildAutoDirectorChannelDraft(response.data));
+      }
+      await queryClient.invalidateQueries({ queryKey: queryKeys.settings.autoDirectorChannels });
+    },
+    onError: (error) => {
+      setActionResult(error instanceof Error ? error.message : "保存导演跟进通道配置失败。");
+    },
+  });
+
   const providerBalanceMap = useMemo(
     () => new Map((providerBalancesQuery.data?.data ?? []).map((item) => [item.provider, item])),
     [providerBalancesQuery.data?.data],
   );
+  const autoDirectorChannels = autoDirectorChannelsQuery.data?.data;
   const modelOptions = editingConfig?.models ?? [];
   const canSelectListedModels = !isCreatingCustomProvider && modelOptions.length > 0;
   const primaryModelLabel = isCustomDialog ? "Default model name" : "Model name";
+  const channelDraft = autoDirectorChannelDraft ?? buildAutoDirectorChannelDraft(autoDirectorChannels);
+
+  const patchChannelDraft = (
+    channelType: "dingtalk" | "wecom",
+    patch: Partial<(typeof channelDraft)["dingtalk"]>,
+  ) => {
+    setAutoDirectorChannelDraft((prev) => {
+      const current = prev ?? channelDraft;
+      return {
+        ...current,
+        [channelType]: {
+          ...current[channelType],
+          ...patch,
+        },
+      };
+    });
+  };
 
   const isProviderExpanded = (provider: string) => expandedProviders[provider] === true;
   const toggleProviderExpanded = (provider: string) => {
@@ -306,6 +362,31 @@ export default function SettingsPage() {
 
       <SettingsNavigationCards />
       <StyleEngineRuntimeSettingsCard />
+
+      <AutoDirectorChannelSettingsCard
+        channelDraft={channelDraft}
+        onBaseUrlChange={(value) => setAutoDirectorChannelDraft((prev) => ({
+          ...(prev ?? channelDraft),
+          baseUrl: value,
+        }))}
+        onPatchChannelDraft={patchChannelDraft}
+        onSave={() => saveAutoDirectorChannelsMutation.mutate({
+          baseUrl: channelDraft.baseUrl.trim(),
+          dingtalk: {
+            webhookUrl: channelDraft.dingtalk.webhookUrl.trim(),
+            callbackToken: channelDraft.dingtalk.callbackToken.trim(),
+            operatorMapJson: channelDraft.dingtalk.operatorMapJson.trim(),
+            eventTypes: channelDraft.dingtalk.eventTypes,
+          },
+          wecom: {
+            webhookUrl: channelDraft.wecom.webhookUrl.trim(),
+            callbackToken: channelDraft.wecom.callbackToken.trim(),
+            operatorMapJson: channelDraft.wecom.operatorMapJson.trim(),
+            eventTypes: channelDraft.wecom.eventTypes,
+          },
+        })}
+        isSaving={saveAutoDirectorChannelsMutation.isPending}
+      />
 
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-3">
