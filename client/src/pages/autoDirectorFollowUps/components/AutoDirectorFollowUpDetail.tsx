@@ -6,7 +6,7 @@ import type {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 
 interface AutoDirectorFollowUpDetailPanelProps {
   detail: AutoDirectorFollowUpDetail | null;
@@ -15,7 +15,7 @@ interface AutoDirectorFollowUpDetailPanelProps {
   actionLoading: boolean;
   onExecuteAction: (item: AutoDirectorFollowUpItem, action: AutoDirectorAction) => void | Promise<void>;
   onRefreshValidation: () => void | Promise<void>;
-  onSafeFix: () => void;
+  onSafeFix: () => void | Promise<void>;
 }
 
 export function AutoDirectorFollowUpDetailPanel({
@@ -109,10 +109,11 @@ export function AutoDirectorFollowUpDetailPanel({
                     variant="outline"
                     size="sm"
                     disabled={actionLoading}
-                    title="当前没有可安全修复项；不会执行清正文、重写、重规划、模型切换或候选确认。"
-                    onClick={onSafeFix}
+                    className="border-yellow-400 bg-yellow-100 text-yellow-950 hover:bg-yellow-200 hover:text-yellow-950"
+                    title="仅修复校验标记为低风险的状态、检查点、进度、恢复目标、自动执行对账、替代原因、审计和通知记录；不会清除正文、重写资产、重规划、确认候选、切换模型或生成内容。"
+                    onClick={() => void onSafeFix()}
                   >
-                    <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                    <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                     一键安全修复
                   </Button>
                 </div>

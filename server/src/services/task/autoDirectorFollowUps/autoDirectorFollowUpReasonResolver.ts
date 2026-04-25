@@ -90,6 +90,9 @@ export function resolveAutoDirectorFollowUpReason(
   input: AutoDirectorFollowUpResolverInput,
 ): AutoDirectorResolvedFollowUpReason | null {
   if (input.validationResult && !input.validationResult.allowed) {
+    const hasSafeFix = input.validationResult.requiredActions.some((action) => (
+      action.safeToAutoFix === true && action.riskLevel === "low"
+    ));
     return finalizeResolvedReason({
       reason: "validation_required",
       priority: "P0",
@@ -98,6 +101,16 @@ export function resolveAutoDirectorFollowUpReason(
           code: "open_detail",
           label: "查看校验结果",
         }),
+        ...(hasSafeFix
+          ? [
+            mutationAction({
+              code: "safe_fix_validation",
+              label: "一键安全修复",
+              riskLevel: "low",
+              requiresConfirm: true,
+            }),
+          ]
+          : []),
       ],
     });
   }

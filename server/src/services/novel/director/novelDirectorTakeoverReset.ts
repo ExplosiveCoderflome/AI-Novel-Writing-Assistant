@@ -58,6 +58,24 @@ function resolveChapterOrderRange(chapterOrders: number[]): { startOrder: number
   };
 }
 
+function isChapterInRange(chapterOrder: number, range: { startOrder: number; endOrder: number }): boolean {
+  return chapterOrder >= range.startOrder && chapterOrder <= range.endOrder;
+}
+
+function filterChaptersOutsideRange<T extends { chapterOrder: number }>(
+  chapters: T[],
+  range: { startOrder: number; endOrder: number },
+): T[] {
+  return chapters.filter((chapter) => !isChapterInRange(chapter.chapterOrder, range));
+}
+
+function volumeOverlapsRange(
+  volume: VolumePlanDocument["volumes"][number],
+  range: { startOrder: number; endOrder: number },
+): boolean {
+  return volume.chapters.some((chapter) => isChapterInRange(chapter.chapterOrder, range));
+}
+
 export async function resolveDirectorTakeoverAutoExecutionResetRange(input: {
   novelId: string;
   autoExecutionPlan?: DirectorAutoExecutionPlan | null;
@@ -169,8 +187,38 @@ async function resetStructuredOutputs(
   novelId: string,
   state: DirectorTakeoverLoadedState,
   deps: DirectorTakeoverResetDeps,
+  range?: { startOrder: number; endOrder: number } | null,
 ): Promise<void> {
   const workspace = await deps.getVolumeWorkspace(novelId);
+  if (range) {
+    const affectedVolumes = new Set(
+      workspace.volumes
+        .filter((volume) => volumeOverlapsRange(volume, range))
+        .map((volume) => volume.id),
+    );
+    await deps.updateVolumeWorkspace(novelId, {
+      volumes: workspace.volumes.map((volume) => affectedVolumes.has(volume.id)
+        ? {
+          ...volume,
+          chapters: filterChaptersOutsideRange(volume.chapters, range),
+        }
+        : volume),
+      strategyPlan: workspace.strategyPlan,
+      critiqueReport: workspace.critiqueReport,
+      beatSheets: workspace.beatSheets.filter((sheet) => !affectedVolumes.has(sheet.volumeId)),
+      rebalanceDecisions: workspace.rebalanceDecisions.filter((decision) => (
+        !affectedVolumes.has(decision.anchorVolumeId) && !affectedVolumes.has(decision.affectedVolumeId)
+      )),
+    });
+    await deleteBlankChaptersByOrders(
+      novelId,
+      workspace.volumes
+        .flatMap((volume) => volume.chapters.map((chapter) => chapter.chapterOrder))
+        .filter((chapterOrder) => isChapterInRange(chapterOrder, range)),
+    );
+    return;
+  }
+
   const targetVolumeId = resolveStructuredTargetVolumeId(state, workspace);
   if (!targetVolumeId) {
     return;
@@ -343,7 +391,13 @@ export async function resetDirectorTakeoverCurrentStep(input: {
     return;
   }
   if (input.plan.effectiveStep === "structured") {
-    await resetStructuredOutputs(input.novelId, input.takeoverState, input.deps);
+    const structuredRange = await resolveDirectorTakeoverAutoExecutionResetRange({
+      novelId: input.novelId,
+      autoExecutionPlan: input.autoExecutionPlan,
+      takeoverState: input.takeoverState,
+      deps: input.deps,
+    });
+    await resetStructuredOutputs(input.novelId, input.takeoverState, input.deps, structuredRange);
     return;
   }
 

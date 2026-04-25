@@ -1,9 +1,16 @@
 import type { NovelWorkflowResumeTarget } from "@ai-novel/shared/types/novelWorkflow";
 import { AppError } from "../../../middleware/errorHandler";
+import {
+  acquireScopedHighMemoryReservation,
+  startHighMemoryReservationRenewal,
+  type HighMemoryReservationHandle,
+} from "../highMemoryReservation";
 import { parseResumeTarget } from "../workflow/novelWorkflow.shared";
 import type { NovelWorkflowService } from "../workflow/NovelWorkflowService";
 
 export const AUTO_DIRECTOR_HIGH_MEMORY_BATCH_LIMIT = 1;
+const AUTO_DIRECTOR_HIGH_MEMORY_RESERVATION_TTL_MS = 10 * 60 * 1000;
+const AUTO_DIRECTOR_HIGH_MEMORY_RESERVATION_RENEW_MS = 2 * 60 * 1000;
 
 export type HighMemoryDirectorDecisionReason =
   | "duplicate_active_high_memory_task"
@@ -39,6 +46,10 @@ type WorkflowTaskRow = Awaited<ReturnType<NovelWorkflowService["listActiveTasksB
 
 const backgroundStartedAtByTaskId = new Map<string, number>();
 const backgroundStartedByNovelScope = new Map<string, { taskId: string; startedAt: number }>();
+const directorReservationsByTaskId = new Map<string, Array<{
+  handle: HighMemoryReservationHandle;
+  stopRenewing: () => void;
+}>>();
 
 export function normalizeDirectorMemoryScope(input: {
   volumeId?: string | null;
@@ -104,6 +115,32 @@ function markHighMemoryBackgroundStarted(input: {
     taskId: input.taskId,
     startedAt: now,
   });
+}
+
+function trackHighMemoryDirectorReservation(taskId: string, handle: HighMemoryReservationHandle): void {
+  const stopRenewing = startHighMemoryReservationRenewal(handle, {
+    ttlMs: AUTO_DIRECTOR_HIGH_MEMORY_RESERVATION_TTL_MS,
+    intervalMs: AUTO_DIRECTOR_HIGH_MEMORY_RESERVATION_RENEW_MS,
+  });
+  const current = directorReservationsByTaskId.get(taskId) ?? [];
+  const replaced = current.filter((reservation) => reservation.handle.key === handle.key);
+  for (const reservation of replaced) {
+    reservation.stopRenewing();
+    void reservation.handle.release();
+  }
+  directorReservationsByTaskId.set(taskId, [
+    ...current.filter((reservation) => reservation.handle.key !== handle.key),
+    { handle, stopRenewing },
+  ]);
+}
+
+export async function releaseHighMemoryDirectorReservations(taskId: string): Promise<void> {
+  const reservations = directorReservationsByTaskId.get(taskId) ?? [];
+  directorReservationsByTaskId.delete(taskId);
+  await Promise.all(reservations.map(async (reservation) => {
+    reservation.stopRenewing();
+    await reservation.handle.release();
+  }));
 }
 
 function normalizeScope(value: string | null | undefined): string | null {
@@ -234,6 +271,29 @@ export async function assertHighMemoryDirectorStartAllowed(
       409,
     );
   }
+  const reservation = await acquireScopedHighMemoryReservation({
+    namespace: "novel-high-memory",
+    novelId: input.novelId,
+    scope,
+    ownerId: input.taskId,
+    ttlMs: AUTO_DIRECTOR_HIGH_MEMORY_RESERVATION_TTL_MS,
+    metadata: {
+      taskId: input.taskId,
+      stage: input.stage,
+      itemKey: input.itemKey,
+      volumeId: input.volumeId ?? null,
+      chapterId: input.chapterId ?? null,
+    },
+  });
+  if (!reservation.acquired) {
+    throw new AppError(
+      reservation.ownerId
+        ? `已有自动导演任务正在处理同一范围，请先查看任务 ${reservation.ownerId} 的进度。`
+        : "当前小说已有自动导演任务正在处理同一范围，请稍后再试。",
+      409,
+    );
+  }
+  trackHighMemoryDirectorReservation(input.taskId, reservation.handle);
   markHighMemoryBackgroundStarted({
     taskId: input.taskId,
     novelId: input.novelId,

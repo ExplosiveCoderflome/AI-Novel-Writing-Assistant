@@ -343,8 +343,14 @@ export default function AutoDirectorFollowUpCenterPage() {
     await revalidationMutation.mutateAsync(selectedTaskId);
   };
 
-  const handleSafeFix = () => {
-    toast.warning("当前没有可安全修复项。会保留正文、规划和候选选择，请先查看阻塞原因。");
+  const handleSafeFix = async () => {
+    if (!selectedTaskId) {
+      return;
+    }
+    await actionMutation.mutateAsync({
+      taskId: selectedTaskId,
+      actionCode: "safe_fix_validation",
+    });
   };
 
   return (

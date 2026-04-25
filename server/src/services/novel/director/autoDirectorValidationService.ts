@@ -126,6 +126,18 @@ function isEntryAtOrAfter(entryStep: DirectorTakeoverEntryStep, minimum: Directo
   return AUTO_DIRECTOR_TAKEOVER_ENTRY_ORDER[entryStep] >= AUTO_DIRECTOR_TAKEOVER_ENTRY_ORDER[minimum];
 }
 
+function isChapterRangeScope(
+  scope: AutoDirectorAffectedScope,
+): scope is Extract<AutoDirectorAffectedScope, { type: "chapter_range" }> {
+  return scope.type === "chapter_range";
+}
+
+function isVolumeScope(
+  scope: AutoDirectorAffectedScope,
+): scope is Extract<AutoDirectorAffectedScope, { type: "volume" }> {
+  return scope.type === "volume";
+}
+
 function validateScopeAgainstAssets(input: {
   affectedScope: AutoDirectorAffectedScope;
   assets: AutoDirectorTakeoverValidationInput["assets"];
@@ -133,26 +145,72 @@ function validateScopeAgainstAssets(input: {
 }): string[] {
   const reasons: string[] = [];
   const totalChapterCount = normalizeChapterOrder(input.assets.totalChapterCount ?? null);
-  if (input.affectedScope.type === "chapter_range" && totalChapterCount && input.affectedScope.endOrder > totalChapterCount) {
+  const volumeChapterRanges = Array.isArray(input.assets.volumeChapterRanges)
+    ? input.assets.volumeChapterRanges
+      .map((range) => ({
+        volumeOrder: normalizeChapterOrder(range.volumeOrder),
+        startOrder: normalizeChapterOrder(range.startOrder),
+        endOrder: normalizeChapterOrder(range.endOrder),
+      }))
+      .filter((range): range is { volumeOrder: number; startOrder: number; endOrder: number } => Boolean(range.volumeOrder && range.startOrder && range.endOrder))
+    : [];
+  const structuredOutlineChapterOrders = new Set(
+    (input.assets.structuredOutlineChapterOrders ?? [])
+      .map((order) => normalizeChapterOrder(order))
+      .filter((order): order is number => Boolean(order)),
+  );
+  const affectedScope = input.affectedScope;
+  if (isChapterRangeScope(affectedScope) && totalChapterCount && affectedScope.endOrder > totalChapterCount) {
     reasons.push(`目标章节范围超过当前全书规划章节数，请把范围调整到 ${totalChapterCount} 章以内。`);
   }
-  if (input.affectedScope.type === "volume") {
+  if (isVolumeScope(affectedScope)) {
     const volumeCount = normalizeChapterOrder(input.assets.volumeCount) ?? 0;
-    if (volumeCount > 0 && input.affectedScope.volumeOrder > volumeCount) {
-      reasons.push(`当前卷战略只有 ${volumeCount} 卷，不能直接执行第 ${input.affectedScope.volumeOrder} 卷。`);
+    if (volumeCount > 0 && affectedScope.volumeOrder > volumeCount) {
+      reasons.push(`当前卷战略只有 ${volumeCount} 卷，不能直接执行第 ${affectedScope.volumeOrder} 卷。`);
     }
   }
-  if (input.affectedScope.type === "chapter_range" && !isEntryAtOrAfter(input.entryStep, "structured")) {
+  if (isChapterRangeScope(affectedScope) && !isEntryAtOrAfter(input.entryStep, "structured")) {
     reasons.push("章节范围只能从节奏拆章、章节执行或质量修复开始。");
   }
-  if (input.affectedScope.type === "volume" && !isEntryAtOrAfter(input.entryStep, "outline")) {
+  if (isVolumeScope(affectedScope) && !isEntryAtOrAfter(input.entryStep, "outline")) {
     reasons.push("卷范围只能从卷战略、节奏拆章、章节执行或质量修复开始。");
   }
   if (isEntryAtOrAfter(input.entryStep, "structured") && !input.assets.hasVolumeStrategyPlan) {
     reasons.push("目标范围缺少卷战略支撑，需要先完成卷战略。");
   }
+  if (isChapterRangeScope(affectedScope) && volumeChapterRanges.length > 0) {
+    const isCoveredByVolumeStrategy = volumeChapterRanges.some((range) => (
+      range.startOrder <= affectedScope.startOrder && range.endOrder >= affectedScope.endOrder
+    ));
+    if (!isCoveredByVolumeStrategy) {
+      reasons.push("目标章节范围没有被当前卷战略完整覆盖，请先调整卷战略或缩小目标范围。");
+    }
+  }
   if (isEntryAtOrAfter(input.entryStep, "chapter") && !input.assets.hasStructuredOutline) {
     reasons.push("目标范围缺少节奏拆章，需要先完成或重新校验拆章结果。");
+  }
+  if (isEntryAtOrAfter(input.entryStep, "chapter") && structuredOutlineChapterOrders.size > 0) {
+    const missingOrders: number[] = [];
+    if (isChapterRangeScope(affectedScope)) {
+      for (let order = affectedScope.startOrder; order <= affectedScope.endOrder; order += 1) {
+        if (!structuredOutlineChapterOrders.has(order)) {
+          missingOrders.push(order);
+        }
+      }
+    }
+    if (isVolumeScope(affectedScope)) {
+      const range = volumeChapterRanges.find((item) => item.volumeOrder === affectedScope.volumeOrder);
+      if (range) {
+        for (let order = range.startOrder; order <= range.endOrder; order += 1) {
+          if (!structuredOutlineChapterOrders.has(order)) {
+            missingOrders.push(order);
+          }
+        }
+      }
+    }
+    if (missingOrders.length > 0) {
+      reasons.push(`目标范围缺少节奏拆章明细：第 ${missingOrders.slice(0, 5).join("、")} 章需要先完成或重新校验。`);
+    }
   }
   return reasons;
 }
@@ -170,8 +228,11 @@ export function validateAutoDirectorTakeoverRequest(
   if (isEntryAtOrAfter(entryStep, "character") && !input.assets.hasStoryMacroPlan) {
     blockingReasons.push("故事宏观规划尚未完成，不能直接进入角色准备。");
   }
-  if (isEntryAtOrAfter(entryStep, "outline") && (!input.assets.hasStoryMacroPlan || (input.assets.characterCount ?? 0) <= 0)) {
-    blockingReasons.push("角色准备尚未完成，不能直接进入卷战略。");
+  if (isEntryAtOrAfter(entryStep, "character") && !input.assets.hasBookContract) {
+    blockingReasons.push("Book Contract 尚未完成，不能直接进入角色准备或后续节点。");
+  }
+  if (isEntryAtOrAfter(entryStep, "outline") && (!input.assets.hasStoryMacroPlan || !input.assets.hasBookContract || (input.assets.characterCount ?? 0) <= 0)) {
+    blockingReasons.push("故事宏观规划、Book Contract 或角色准备尚未完成，不能直接进入卷战略。");
   }
   blockingReasons.push(...validateScopeAgainstAssets({
     affectedScope,

@@ -82,6 +82,7 @@ import {
 } from "./novelDirectorRecovery";
 import {
   assertHighMemoryDirectorStartAllowed,
+  releaseHighMemoryDirectorReservations,
   normalizeDirectorMemoryScope,
 } from "./autoDirectorMemorySafety";
 import {
@@ -89,9 +90,11 @@ import {
 } from "./autoDirectorValidationService";
 import {
   normalizeDirectorAutoApprovalConfig,
+  shouldAutoApproveDirectorApprovalPoint,
   shouldAutoApproveDirectorCheckpoint,
 } from "@ai-novel/shared/types/autoDirectorApproval";
 import { recordAutoDirectorAutoApprovalFromTask } from "../../task/autoDirectorFollowUps/autoDirectorAutoApprovalAudit";
+import { flattenPreparedOutlineChapters } from "./novelDirectorStructuredOutlineRecovery";
 
 type WorkflowTaskSnapshot = Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>;
 
@@ -157,6 +160,19 @@ export class NovelDirectorService {
     volumeWorkspaceService: this.volumeService,
     workflowService: this.workflowService,
     buildDirectorSeedPayload: (input, novelId, extra) => this.buildDirectorSeedPayload(input, novelId, extra),
+    shouldAutoContinueQualityRepair: async ({ request, qualityRepairRisk }) => (
+      qualityRepairRisk.autoContinuable
+      && shouldAutoApproveDirectorApprovalPoint(
+        normalizeDirectorAutoApprovalConfig(request.autoApproval),
+        "low_risk_quality_repair_continue",
+      )
+    ),
+    recordAutoApproval: async ({ taskId, checkpointType }) => {
+      await recordAutoDirectorAutoApprovalFromTask({
+        taskId,
+        checkpointType,
+      });
+    },
   });
 
   private async assertHighMemoryDirectorStartAllowed(input: {
@@ -181,6 +197,9 @@ export class NovelDirectorService {
         }
         const message = error instanceof Error ? error.message : "自动导演后台任务执行失败。";
         await this.workflowService.markTaskFailed(taskId, message);
+      })
+      .finally(async () => {
+        await releaseHighMemoryDirectorReservations(taskId);
       });
   }
 
@@ -262,6 +281,7 @@ export class NovelDirectorService {
       this.volumeService.getVolumes(novelId).catch(() => null),
     ]);
     const firstVolume = workspace?.volumes[0] ?? null;
+    const preparedOutlineChapters = workspace ? flattenPreparedOutlineChapters(workspace) : [];
     return {
       characterCount: characters.length,
       chapterCount: chapters.length,
@@ -269,6 +289,20 @@ export class NovelDirectorService {
       hasVolumeStrategyPlan: Boolean(workspace?.strategyPlan),
       firstVolumeId: firstVolume?.id ?? null,
       firstVolumeChapterCount: firstVolume?.chapters.length ?? 0,
+      volumeChapterRanges: (workspace?.volumes ?? []).map((volume) => {
+        const orders = volume.chapters
+          .map((chapter) => chapter.chapterOrder)
+          .filter((order) => Number.isFinite(order))
+          .sort((left, right) => left - right);
+        return orders.length > 0
+          ? {
+            volumeOrder: volume.sortOrder,
+            startOrder: orders[0],
+            endOrder: orders[orders.length - 1],
+          }
+          : null;
+      }).filter((range): range is { volumeOrder: number; startOrder: number; endOrder: number } => Boolean(range)),
+      structuredOutlineChapterOrders: preparedOutlineChapters.map((chapter) => chapter.chapterOrder),
     };
   }
 
@@ -935,6 +969,8 @@ export class NovelDirectorService {
         hasVolumeStrategyPlan: takeoverState.snapshot.hasVolumeStrategyPlan,
         hasStructuredOutline: takeoverState.snapshot.structuredOutlineRecoveryStep === "completed",
         totalChapterCount: takeoverState.snapshot.chapterCount,
+        volumeChapterRanges: takeoverState.snapshot.volumeChapterRanges,
+        structuredOutlineChapterOrders: takeoverState.snapshot.structuredOutlineChapterOrders,
       },
     });
     if (!takeoverValidation.allowed) {

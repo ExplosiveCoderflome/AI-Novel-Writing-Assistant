@@ -128,6 +128,19 @@ export interface DirectorAutoExecutionState extends DirectorAutoExecutionPlan {
   nextChapterOrder?: number | null;
   pipelineJobId?: string | null;
   pipelineStatus?: PipelineJobStatus | null;
+  qualityRepairRisk?: DirectorQualityRepairRisk | null;
+}
+
+export type DirectorQualityRepairRiskLevel = "low" | "large_scope" | "replan";
+
+export interface DirectorQualityRepairRisk {
+  riskLevel: DirectorQualityRepairRiskLevel;
+  autoContinuable: boolean;
+  reason: string;
+  noticeCode?: string | null;
+  repairMode?: string | null;
+  affectedChapterCount?: number;
+  remainingChapterCount?: number;
 }
 
 export const DIRECTOR_TAKEOVER_START_PHASES = [
@@ -327,6 +340,12 @@ export interface DirectorTakeoverReadinessResponse {
     volumeCount: number;
     firstVolumeId?: string | null;
     firstVolumeChapterCount: number;
+    volumeChapterRanges?: Array<{
+      volumeOrder: number;
+      startOrder: number;
+      endOrder: number;
+    }>;
+    structuredOutlineChapterOrders?: number[];
     firstVolumeBeatSheetReady?: boolean;
     firstVolumePreparedChapterCount?: number;
     generatedChapterCount?: number;

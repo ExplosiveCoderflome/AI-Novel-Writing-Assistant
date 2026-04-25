@@ -194,3 +194,10 @@ export function shouldAutoApproveDirectorCheckpoint(
   const pointCode = resolveDirectorAutoApprovalPointForCheckpoint(checkpointType);
   return Boolean(pointCode && config.approvalPointCodes.includes(pointCode));
 }
+
+export function shouldAutoApproveDirectorApprovalPoint(
+  config: DirectorAutoApprovalConfig | null | undefined,
+  pointCode: DirectorAutoApprovalPointCode,
+): boolean {
+  return Boolean(config?.enabled && config.approvalPointCodes.includes(pointCode));
+}

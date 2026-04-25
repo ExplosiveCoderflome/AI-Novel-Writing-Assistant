@@ -229,6 +229,19 @@ test("auto director follow-up routes expose overview, list, detail, and action e
     assert.equal(actionPayload.success, true);
     assert.equal(actionPayload.data.code, "executed");
 
+    const safeFixResponse = await fetch(`http://127.0.0.1:${port}/api/auto-director/follow-ups/task_1/actions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        actionCode: "safe_fix_validation",
+        idempotencyKey: "route-safe-fix-k1",
+      }),
+    });
+    assert.equal(safeFixResponse.status, 200);
+    const safeFixPayload = await safeFixResponse.json();
+    assert.equal(safeFixPayload.success, true);
+    assert.equal(safeFixPayload.data.code, "executed");
+
     const batchResponse = await fetch(`http://127.0.0.1:${port}/api/auto-director/follow-ups/batch-actions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -267,6 +280,13 @@ test("auto director follow-up routes expose overview, list, detail, and action e
         source: "web",
         operatorId: "anonymous",
         idempotencyKey: "route-k1",
+      }],
+      ["execute", {
+        taskId: "task_1",
+        actionCode: "safe_fix_validation",
+        source: "web",
+        operatorId: "anonymous",
+        idempotencyKey: "route-safe-fix-k1",
       }],
       ["batch", {
         actionCode: "retry_with_task_model",

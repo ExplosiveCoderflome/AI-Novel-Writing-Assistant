@@ -70,6 +70,12 @@ export interface AutoDirectorValidationAssetSnapshot {
   hasVolumeStrategyPlan?: boolean;
   hasStructuredOutline?: boolean;
   totalChapterCount?: number | null;
+  volumeChapterRanges?: Array<{
+    volumeOrder: number;
+    startOrder: number;
+    endOrder: number;
+  }>;
+  structuredOutlineChapterOrders?: number[];
 }
 
 export interface AutoDirectorTakeoverValidationInput {

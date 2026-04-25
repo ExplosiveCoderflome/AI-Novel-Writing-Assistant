@@ -19,6 +19,11 @@ import { NovelWorkflowTaskAdapter } from "../adapters/NovelWorkflowTaskAdapter";
 import { resolveAutoDirectorFollowUpReason } from "./autoDirectorFollowUpReasonResolver";
 import { resolveAutoDirectorFollowUpSection } from "../../novel/director/autoDirectorValidationService";
 import { extractBlockedAutoDirectorValidationResult } from "./autoDirectorFollowUpValidationResult";
+import {
+  applyAutoDirectorSafeFix,
+  buildAutoDirectorSafeFixPlan,
+  canApplyAutoDirectorSafeFix,
+} from "./autoDirectorSafeFix";
 
 type WorkflowTaskRow = NonNullable<Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>>;
 
@@ -104,6 +109,19 @@ function buildFailedResult(
   };
 }
 
+function mergeActionMetadata(
+  input: AutoDirectorActionRequest,
+  patch: Record<string, unknown>,
+): AutoDirectorActionRequest {
+  return {
+    ...input,
+    metadata: {
+      ...input.metadata,
+      ...patch,
+    },
+  };
+}
+
 function summarizeBatchResult(input: {
   successCount: number;
   failureCount: number;
@@ -171,13 +189,17 @@ export class AutoDirectorFollowUpActionExecutor {
       return result;
     }
 
-    await this.workflowService.healAutoDirectorTaskState(input.taskId);
+    const healed = await this.workflowService.healAutoDirectorTaskState(input.taskId);
     const row = await this.workflowService.getTaskByIdWithoutHealing(input.taskId);
     if (!row) {
       throw new AppError("Task not found.", 404);
     }
     if (row.lane !== "auto_director") {
       throw new AppError("Only auto director workflow tasks are supported.", 400);
+    }
+
+    if (input.actionCode === "safe_fix_validation") {
+      return this.executeSafeFix(row, input, executedCacheKey, healed);
     }
 
     if (input.metadata?.batchAction === true) {
@@ -357,6 +379,60 @@ export class AutoDirectorFollowUpActionExecutor {
         .filter((action): action is typeof action & { kind: "mutation" } => action.kind === "mutation")
         .map((action) => action.code as AutoDirectorMutationActionCode),
     );
+  }
+
+  private async executeSafeFix(
+    row: WorkflowTaskRow,
+    input: AutoDirectorActionRequest,
+    executedCacheKey: string,
+    healed: boolean,
+  ): Promise<AutoDirectorActionExecutionResult> {
+    const validationResult = extractBlockedAutoDirectorValidationResult(row.seedPayloadJson);
+    const safeFixPlan = buildAutoDirectorSafeFixPlan(validationResult);
+    if (!validationResult || !canApplyAutoDirectorSafeFix(validationResult)) {
+      const blockedLabels = safeFixPlan.blockedActions
+        .map((action) => action.label || action.code)
+        .filter(Boolean);
+      const result: AutoDirectorActionExecutionResult = {
+        taskId: input.taskId,
+        actionCode: input.actionCode,
+        code: "forbidden",
+        message: blockedLabels.length > 0
+          ? `当前校验项包含高风险动作，不能安全修复，请人工处理：${blockedLabels.join("、")}`
+          : "当前没有可安全修复项，请先重新校验或人工处理。",
+        task: await this.safeGetTaskDetail(input.taskId),
+      };
+      await this.recordActionLog(mergeActionMetadata(input, {
+        safeFix: {
+          safeActionCodes: safeFixPlan.safeActions.map((action) => action.code),
+          blockedActionCodes: safeFixPlan.blockedActions.map((action) => action.code),
+        },
+      }), result);
+      return result;
+    }
+
+    const applied = await applyAutoDirectorSafeFix({
+      taskId: input.taskId,
+      seedPayloadJson: row.seedPayloadJson,
+      validationResult,
+      healed,
+    });
+    const task = await this.safeGetTaskDetail(input.taskId);
+    const result: AutoDirectorActionExecutionResult = {
+      taskId: input.taskId,
+      actionCode: input.actionCode,
+      code: "executed",
+      message: "安全修复已完成",
+      task,
+    };
+    EXECUTED_ACTION_CACHE.set(executedCacheKey, result);
+    await this.recordActionLog(mergeActionMetadata(input, {
+      safeFix: {
+        safeActionCodes: applied.safeActionCodes,
+        healed,
+      },
+    }), result);
+    return result;
   }
 
   private async executeMutationAction(

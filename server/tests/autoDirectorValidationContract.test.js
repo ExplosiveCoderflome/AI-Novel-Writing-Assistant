@@ -77,6 +77,98 @@ test("validateAutoDirectorTakeoverRequest allows volume-scoped structured outlin
   assert.equal(result.nextAction, "continue_structured_outline");
 });
 
+test("validateAutoDirectorTakeoverRequest blocks later nodes when book contract is missing", () => {
+  const result = validateAutoDirectorTakeoverRequest({
+    source: "takeover",
+    request: {
+      novelId: "novel-1",
+      entryStep: "outline",
+      strategy: "continue_existing",
+      autoExecutionPlan: {
+        mode: "book",
+      },
+    },
+    assets: {
+      hasProjectSetup: true,
+      hasStoryMacroPlan: true,
+      hasBookContract: false,
+      characterCount: 3,
+      volumeCount: 3,
+      hasVolumeStrategyPlan: true,
+      hasStructuredOutline: true,
+      totalChapterCount: 60,
+    },
+  });
+
+  assert.equal(result.allowed, false);
+  assert.match(result.blockingReasons.join("\n"), /Book Contract|故事宏观规划/);
+});
+
+test("validateAutoDirectorTakeoverRequest blocks chapter ranges not covered by real volume strategy", () => {
+  const result = validateAutoDirectorTakeoverRequest({
+    source: "takeover",
+    request: {
+      novelId: "novel-1",
+      entryStep: "structured",
+      strategy: "continue_existing",
+      autoExecutionPlan: {
+        mode: "chapter_range",
+        startOrder: 11,
+        endOrder: 20,
+      },
+    },
+    assets: {
+      hasProjectSetup: true,
+      hasStoryMacroPlan: true,
+      hasBookContract: true,
+      characterCount: 3,
+      volumeCount: 2,
+      hasVolumeStrategyPlan: true,
+      hasStructuredOutline: false,
+      totalChapterCount: 20,
+      volumeChapterRanges: [
+        { volumeOrder: 1, startOrder: 1, endOrder: 10 },
+      ],
+    },
+  });
+
+  assert.equal(result.allowed, false);
+  assert.match(result.blockingReasons.join("\n"), /卷战略|目标范围/);
+});
+
+test("validateAutoDirectorTakeoverRequest blocks chapter execution when structured assets do not cover the requested range", () => {
+  const result = validateAutoDirectorTakeoverRequest({
+    source: "takeover",
+    request: {
+      novelId: "novel-1",
+      entryStep: "chapter",
+      strategy: "continue_existing",
+      autoExecutionPlan: {
+        mode: "chapter_range",
+        startOrder: 1,
+        endOrder: 5,
+      },
+    },
+    assets: {
+      hasProjectSetup: true,
+      hasStoryMacroPlan: true,
+      hasBookContract: true,
+      characterCount: 3,
+      volumeCount: 1,
+      hasVolumeStrategyPlan: true,
+      hasStructuredOutline: true,
+      totalChapterCount: 10,
+      volumeChapterRanges: [
+        { volumeOrder: 1, startOrder: 1, endOrder: 10 },
+      ],
+      structuredOutlineChapterOrders: [1, 2, 3, 4],
+    },
+  });
+
+  assert.equal(result.allowed, false);
+  assert.match(result.blockingReasons.join("\n"), /节奏拆章|第 5 章/);
+});
+
 test("validateAutoDirectorTakeoverRequest blocks chapter scope before structured entry", () => {
   const result = validateAutoDirectorTakeoverRequest({
     source: "takeover",

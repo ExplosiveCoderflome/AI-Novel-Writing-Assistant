@@ -42,6 +42,7 @@ const singleActionBodySchema = z.object({
     "continue_generic",
     "retry_with_task_model",
     "retry_with_route_model",
+    "safe_fix_validation",
   ]),
   idempotencyKey: z.string().trim().min(1),
 });
