@@ -22,6 +22,15 @@ export function getBeatSheetChapterSpanCount(chapterSpanHint: string): number {
   return Math.max(1, span.end - span.start + 1);
 }
 
+export function sumBeatSheetChapterSpanCounts(
+  beatSheet: Pick<VolumeBeatSheet, "beats"> | null | undefined,
+): number {
+  if (!beatSheet || !Array.isArray(beatSheet.beats)) {
+    return 0;
+  }
+  return beatSheet.beats.reduce((sum, beat) => sum + getBeatSheetChapterSpanCount(beat.chapterSpanHint), 0);
+}
+
 export function inferRequiredChapterCountFromBeatSheet(
   beatSheet: Pick<VolumeBeatSheet, "beats"> | null | undefined,
 ): number {
@@ -29,17 +38,32 @@ export function inferRequiredChapterCountFromBeatSheet(
     return 0;
   }
 
-  const spanCounts = beatSheet.beats
-    .map((beat) => getBeatSheetChapterSpanCount(beat.chapterSpanHint))
-    .filter((count) => count > 0);
-  if (spanCounts.length === beatSheet.beats.length) {
-    return spanCounts.reduce((sum, count) => sum + count, 0);
-  }
-
   return beatSheet.beats.reduce((maxValue, beat) => {
     const upperBound = getBeatSheetChapterSpanUpperBound(beat.chapterSpanHint);
     return upperBound > maxValue ? upperBound : maxValue;
   }, 0);
+}
+
+export function inferContinuousChapterCoverageFromBeatSheet(
+  beatSheet: Pick<VolumeBeatSheet, "beats"> | null | undefined,
+): number {
+  if (!beatSheet || !Array.isArray(beatSheet.beats)) {
+    return 0;
+  }
+
+  const spans = beatSheet.beats
+    .map((beat) => parseBeatSheetChapterSpan(beat.chapterSpanHint))
+    .filter((span): span is { start: number; end: number } => Boolean(span))
+    .sort((left, right) => left.start - right.start || left.end - right.end);
+
+  let continuousEnd = 0;
+  for (const span of spans) {
+    if (span.start > continuousEnd + 1) {
+      break;
+    }
+    continuousEnd = Math.max(continuousEnd, span.end);
+  }
+  return continuousEnd;
 }
 
 export function resolveTargetChapterCount(input: {
@@ -74,5 +98,79 @@ export function resolveTargetChapterCount(input: {
     targetChapterCount: Math.max(budgetedChapterCount, beatSheetRequiredChapterCount),
     beatSheetCountAccepted: true,
     maxTrustedChapterCount,
+  };
+}
+
+export function validateBeatSheetChapterCoverage(input: {
+  beatSheet: Pick<VolumeBeatSheet, "beats"> | null | undefined;
+  targetChapterCount: number;
+  toleranceChapterCount?: number;
+}): {
+  accepted: boolean;
+  targetChapterCount: number;
+  requiredChapterCount: number;
+  continuousChapterCount: number;
+  plannedChapterCount: number;
+  minTrustedChapterCount: number;
+  maxTrustedChapterCount: number;
+  message: string | null;
+} {
+  const targetChapterCount = Math.max(3, Math.round(input.targetChapterCount || 0));
+  const requiredChapterCount = inferRequiredChapterCountFromBeatSheet(input.beatSheet);
+  const continuousChapterCount = inferContinuousChapterCoverageFromBeatSheet(input.beatSheet);
+  const plannedChapterCount = sumBeatSheetChapterSpanCounts(input.beatSheet);
+  const toleranceChapterCount = Math.max(
+    2,
+    Math.round(input.toleranceChapterCount ?? Math.max(3, Math.ceil(targetChapterCount * 0.08))),
+  );
+  const minTrustedChapterCount = Math.max(1, targetChapterCount - toleranceChapterCount);
+  const maxTrustedChapterCount = targetChapterCount + toleranceChapterCount;
+
+  if (requiredChapterCount < minTrustedChapterCount || requiredChapterCount > maxTrustedChapterCount) {
+    return {
+      accepted: false,
+      targetChapterCount,
+      requiredChapterCount,
+      continuousChapterCount,
+      plannedChapterCount,
+      minTrustedChapterCount,
+      maxTrustedChapterCount,
+      message: `当前卷节奏板章节跨度应覆盖约 ${targetChapterCount} 章，实际只覆盖到 ${requiredChapterCount} 章。`,
+    };
+  }
+  if (continuousChapterCount < minTrustedChapterCount) {
+    return {
+      accepted: false,
+      targetChapterCount,
+      requiredChapterCount,
+      continuousChapterCount,
+      plannedChapterCount,
+      minTrustedChapterCount,
+      maxTrustedChapterCount,
+      message: `当前卷节奏板章节跨度应从第 1 章连续覆盖到约 ${targetChapterCount} 章，实际连续覆盖到第 ${continuousChapterCount} 章。`,
+    };
+  }
+  if (plannedChapterCount < minTrustedChapterCount || plannedChapterCount > maxTrustedChapterCount) {
+    return {
+      accepted: false,
+      targetChapterCount,
+      requiredChapterCount,
+      continuousChapterCount,
+      plannedChapterCount,
+      minTrustedChapterCount,
+      maxTrustedChapterCount,
+      message: `当前卷节奏板章节跨度合计应约 ${targetChapterCount} 章，实际合计 ${plannedChapterCount} 章。`,
+    };
+  }
+
+  return {
+    accepted: true,
+    targetChapterCount,
+    requiredChapterCount,
+    continuousChapterCount,
+    plannedChapterCount,
+    minTrustedChapterCount,
+    maxTrustedChapterCount,
+    message: null,
   };
 }

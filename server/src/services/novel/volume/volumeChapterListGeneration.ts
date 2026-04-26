@@ -12,6 +12,7 @@ import { buildVolumeChapterListContextBlocks } from "../../../prompting/prompts/
 import {
   inferRequiredChapterCountFromBeatSheet,
   resolveTargetChapterCount,
+  validateBeatSheetChapterCoverage,
 } from "./volumeBeatSheetChapterBudget";
 import {
   allocateChapterBudgets,
@@ -235,6 +236,7 @@ async function generateBeatChapterBlock(params: {
       itemKey: "chapter_list",
       scope: "chapter_list",
       entrypoint: params.options.entrypoint,
+      signal: params.options.signal,
     },
   });
 
@@ -293,6 +295,15 @@ export async function generateBeatChunkedChapterList(params: {
   });
   if (!resolvedTargetChapterCount.beatSheetCountAccepted && beatSheetRequiredChapterCount > 0) {
     throw new Error("当前卷节奏板的章节跨度异常，建议先重生成节奏板，再继续生成章节标题。");
+  }
+  if (resolvedTargetChapterCount.targetChapterCount >= 20) {
+    const beatSheetCoverage = validateBeatSheetChapterCoverage({
+      beatSheet: targetBeatSheet,
+      targetChapterCount: resolvedTargetChapterCount.targetChapterCount,
+    });
+    if (!beatSheetCoverage.accepted) {
+      throw new Error(`${beatSheetCoverage.message ?? "当前卷节奏板章节跨度没有覆盖目标章数。"}建议先重生成节奏板，再继续生成章节标题。`);
+    }
   }
 
   const generationMode = options.generationMode ?? "full_volume";

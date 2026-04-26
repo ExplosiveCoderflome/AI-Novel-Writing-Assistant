@@ -25,6 +25,10 @@ import {
   createChapterTaskSheetSchema,
   createVolumeChapterListSchema,
 } from "./volumeGenerationSchemas";
+import {
+  allocateChapterBudgets,
+  deriveChapterBudget,
+} from "./volumeChapterBudgetAllocation";
 import type {
   ChapterDetailMode,
   VolumeGenerateOptions,
@@ -32,20 +36,6 @@ import type {
   VolumeWorkspace,
 } from "./volumeModels";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
-
-function deriveChapterBudget(params: {
-  novel: VolumeGenerationNovel;
-  workspace: VolumeWorkspace;
-  options: VolumeGenerateOptions;
-}): number {
-  const { novel, workspace, options } = params;
-  return Math.max(
-    options.estimatedChapterCount ?? 0,
-    novel.estimatedChapterCount ?? 0,
-    workspace.volumes.flatMap((volume) => volume.chapters).length,
-    12,
-  );
-}
 
 function suggestVolumeCount(chapterBudget: number): number {
   if (chapterBudget <= 24) return 1;
@@ -63,38 +53,6 @@ function deriveVolumeCount(params: {
     return workspace.volumes.length;
   }
   return suggestVolumeCount(chapterBudget);
-}
-
-function allocateChapterBudgets(params: {
-  volumeCount: number;
-  chapterBudget: number;
-  existingVolumes: VolumePlan[];
-}): number[] {
-  const { volumeCount, chapterBudget, existingVolumes } = params;
-  const safeVolumeCount = Math.max(volumeCount, 1);
-  const minimumPerVolume = 3;
-  const totalBudget = Math.max(chapterBudget, safeVolumeCount * minimumPerVolume);
-  const existingCounts = Array.from({ length: safeVolumeCount }, (_, index) => Math.max(existingVolumes[index]?.chapters.length ?? 0, 0));
-  const hasUsefulWeights = existingCounts.some((count) => count >= minimumPerVolume);
-  const weights = hasUsefulWeights
-    ? existingCounts.map((count) => Math.max(count, 1))
-    : Array.from({ length: safeVolumeCount }, () => 1);
-  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
-  const budgets = weights.map((weight) => Math.max(minimumPerVolume, Math.round((totalBudget * weight) / totalWeight)));
-  let delta = totalBudget - budgets.reduce((sum, budget) => sum + budget, 0);
-
-  while (delta !== 0) {
-    const direction = delta > 0 ? 1 : -1;
-    for (let index = 0; index < budgets.length && delta !== 0; index += 1) {
-      if (direction < 0 && budgets[index] <= minimumPerVolume) {
-        continue;
-      }
-      budgets[index] += direction;
-      delta -= direction;
-    }
-  }
-
-  return budgets;
 }
 
 function mergeBookSkeletonIntoWorkspace(params: {
@@ -255,6 +213,7 @@ async function generateBookSkeleton(params: {
       provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.35,
+      signal: options.signal,
     },
   });
   return mergeBookSkeletonIntoWorkspace({
@@ -308,6 +267,7 @@ async function generateVolumeChapterList(params: {
       provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.35,
+      signal: options.signal,
     },
   });
 
@@ -361,6 +321,7 @@ async function generateChapterDetail(params: {
         provider: options.provider,
         model: options.model,
         temperature: options.temperature ?? 0.35,
+        signal: options.signal,
       },
     })
     : detailMode === "boundary"
@@ -371,6 +332,7 @@ async function generateChapterDetail(params: {
           provider: options.provider,
           model: options.model,
           temperature: options.temperature ?? 0.35,
+          signal: options.signal,
         },
       })
       : await runStructuredPrompt({
@@ -380,6 +342,7 @@ async function generateChapterDetail(params: {
           provider: options.provider,
           model: options.model,
           temperature: options.temperature ?? 0.35,
+          signal: options.signal,
         },
       });
 
@@ -531,4 +494,3 @@ export async function generateVolumePlanDocument(params: {
     activeVersionId: workspace.activeVersionId,
   };
 }
-

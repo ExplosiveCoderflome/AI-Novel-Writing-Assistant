@@ -33,3 +33,569 @@ body {
   @apply bg-background text-foreground antialiased;
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
 }
+
+@layer utilities {
+  .mobile-novel-workspace-panel {
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-safe-bottom {
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+
+  .mobile-site-main {
+    min-height: calc(100dvh - 3.5rem);
+    padding: 0.875rem;
+    padding-bottom: max(6.25rem, calc(5rem + env(safe-area-inset-bottom)));
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-site-main * {
+    min-width: 0;
+  }
+
+  .mobile-site-section {
+    border-radius: 1.25rem;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--background));
+    padding: 1rem;
+    box-shadow: 0 10px 30px rgb(15 23 42 / 0.06);
+  }
+
+  .mobile-site-soft-section {
+    border-radius: 1rem;
+    border: 1px solid hsl(var(--border) / 0.72);
+    background: hsl(var(--muted) / 0.24);
+    padding: 0.875rem;
+  }
+
+  .mobile-site-action-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+  }
+
+  .mobile-site-scroll-tabs {
+    display: flex;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .mobile-site-scroll-tabs::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .mobile-site-main > div {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .mobile-site-main .mobile-card-flat {
+    border-width: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .mobile-site-main .mobile-card-flat > div {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .mobile-site-main .mobile-stack {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mobile-site-main .mobile-full-actions > a,
+  .mobile-site-main .mobile-full-actions > button,
+  .mobile-site-main .mobile-full-actions [role="button"] {
+    width: 100%;
+  }
+
+  .mobile-site-main .grid[class*="sm:grid-cols"],
+  .mobile-site-main .grid[class*="md:grid-cols"],
+  .mobile-site-main .grid[class*="lg:grid-cols"],
+  .mobile-site-main .grid[class*="xl:grid-cols"],
+  .mobile-page-novel-edit .grid[class*="sm:grid-cols"],
+  .mobile-page-novel-edit .grid[class*="md:grid-cols"],
+  .mobile-page-novel-edit .grid[class*="lg:grid-cols"],
+  .mobile-page-novel-edit .grid[class*="xl:grid-cols"],
+  .mobile-page-chapter-edit .grid[class*="sm:grid-cols"],
+  .mobile-page-chapter-edit .grid[class*="md:grid-cols"],
+  .mobile-page-chapter-edit .grid[class*="lg:grid-cols"],
+  .mobile-page-chapter-edit .grid[class*="xl:grid-cols"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mobile-site-main [class*="w-[min"],
+  .mobile-site-main [class*="w-[calc"],
+  .mobile-page-novel-edit [class*="w-[min"],
+  .mobile-page-novel-edit [class*="w-[calc"],
+  .mobile-page-chapter-edit [class*="w-[min"],
+  .mobile-page-chapter-edit [class*="w-[calc"] {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .mobile-site-main [class*="min-h-[70vh"],
+  .mobile-site-main [class*="min-h-[72vh"],
+  .mobile-site-main [class*="h-[84vh"],
+  .mobile-site-main [class*="h-[88vh"],
+  .mobile-site-main [class*="h-[92vh"],
+  .mobile-page-novel-edit [class*="min-h-[70vh"],
+  .mobile-page-novel-edit [class*="min-h-[72vh"],
+  .mobile-page-novel-edit [class*="h-[84vh"],
+  .mobile-page-novel-edit [class*="h-[88vh"],
+  .mobile-page-novel-edit [class*="h-[92vh"],
+  .mobile-page-chapter-edit [class*="min-h-[70vh"],
+  .mobile-page-chapter-edit [class*="min-h-[72vh"],
+  .mobile-page-chapter-edit [class*="h-[84vh"],
+  .mobile-page-chapter-edit [class*="h-[88vh"],
+  .mobile-page-chapter-edit [class*="h-[92vh"] {
+    height: auto;
+    min-height: auto;
+    max-height: none;
+  }
+
+  .mobile-site-main .flex[class*="justify-between"],
+  .mobile-site-main .flex[class*="justify-end"],
+  .mobile-page-novel-edit .flex[class*="justify-between"],
+  .mobile-page-novel-edit .flex[class*="justify-end"],
+  .mobile-page-chapter-edit .flex[class*="justify-between"],
+  .mobile-page-chapter-edit .flex[class*="justify-end"] {
+    gap: 0.5rem;
+  }
+
+  .mobile-site-main .flex[class*="justify-between"] > .flex,
+  .mobile-site-main .flex[class*="justify-end"] > .flex,
+  .mobile-page-novel-edit .flex[class*="justify-between"] > .flex,
+  .mobile-page-novel-edit .flex[class*="justify-end"] > .flex,
+  .mobile-page-chapter-edit .flex[class*="justify-between"] > .flex,
+  .mobile-page-chapter-edit .flex[class*="justify-end"] > .flex {
+    min-width: 0;
+  }
+
+  .mobile-site-main .rounded-3xl,
+  .mobile-page-novel-edit .rounded-3xl,
+  .mobile-page-chapter-edit .rounded-3xl {
+    border-radius: 1.25rem;
+  }
+
+  .mobile-site-main .rounded-xl.border.bg-card,
+  .mobile-site-main .rounded-xl.border.bg-background {
+    border-radius: 1rem;
+    box-shadow: 0 10px 26px rgb(15 23 42 / 0.05);
+  }
+
+  .mobile-site-main .rounded-xl.border.bg-card > .p-6,
+  .mobile-site-main .rounded-xl.border.bg-background > .p-6 {
+    padding: 1rem;
+  }
+
+  .mobile-site-main .rounded-xl.border.bg-card > .p-6.pt-0,
+  .mobile-site-main .rounded-xl.border.bg-background > .p-6.pt-0 {
+    padding-top: 0;
+  }
+
+  .mobile-site-main .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-site-main .rounded-xl.border.bg-background .rounded-xl.border.bg-background,
+  .mobile-site-main .rounded-xl.border.bg-card .rounded-xl.border.bg-background,
+  .mobile-site-main .rounded-xl.border.bg-background .rounded-xl.border.bg-card {
+    box-shadow: none;
+  }
+
+  .mobile-site-main .rounded-xl.border.bg-card .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-site-main .rounded-xl.border.bg-background .rounded-xl.border.bg-background .rounded-xl.border.bg-background,
+  .mobile-site-main .rounded-xl.border.bg-card .rounded-xl.border.bg-background .rounded-xl.border.bg-card,
+  .mobile-site-main .rounded-xl.border.bg-background .rounded-xl.border.bg-card .rounded-xl.border.bg-background {
+    border-width: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .mobile-site-main .rounded-xl.border.bg-card .rounded-xl.border.bg-card .rounded-xl.border.bg-card > div,
+  .mobile-site-main .rounded-xl.border.bg-background .rounded-xl.border.bg-background .rounded-xl.border.bg-background > div {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .mobile-site-main button,
+  .mobile-site-main a[role="button"] {
+    white-space: normal;
+  }
+
+  .mobile-site-main input,
+  .mobile-site-main textarea,
+  .mobile-site-main select {
+    font-size: 16px;
+  }
+
+  .mobile-site-main [role="tablist"] {
+    max-width: 100%;
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .mobile-site-main [role="tab"] {
+    white-space: nowrap;
+  }
+
+  [role="dialog"] {
+    max-width: calc(100vw - 1rem);
+    max-height: 90dvh;
+    overflow-y: auto;
+  }
+
+  [role="dialog"] .grid,
+  .mobile-site-main .grid {
+    max-width: 100%;
+  }
+
+  .mobile-route-home,
+  .mobile-route-novels,
+  .mobile-route-novel-create,
+  .mobile-route-creative-hub,
+  .mobile-route-chat-legacy,
+  .mobile-route-book-analysis,
+  .mobile-route-tasks,
+  .mobile-route-auto-director-follow-ups,
+  .mobile-route-knowledge,
+  .mobile-route-genres,
+  .mobile-route-story-modes,
+  .mobile-route-titles,
+  .mobile-route-model-routes,
+  .mobile-route-settings,
+  .mobile-route-worlds,
+  .mobile-route-world-generator,
+  .mobile-route-world-workspace,
+  .mobile-route-style-engine,
+  .mobile-route-base-characters,
+  .mobile-route-novel-edit,
+  .mobile-route-chapter-edit {
+    overflow-x: hidden;
+  }
+
+  .mobile-route-home,
+  .mobile-route-novels,
+  .mobile-route-novel-create,
+  .mobile-route-creative-hub,
+  .mobile-route-chat-legacy,
+  .mobile-route-book-analysis,
+  .mobile-route-tasks,
+  .mobile-route-auto-director-follow-ups,
+  .mobile-route-knowledge,
+  .mobile-route-genres,
+  .mobile-route-story-modes,
+  .mobile-route-titles,
+  .mobile-route-model-routes,
+  .mobile-route-settings,
+  .mobile-route-worlds,
+  .mobile-route-world-generator,
+  .mobile-route-world-workspace,
+  .mobile-route-style-engine,
+  .mobile-route-base-characters,
+  .mobile-route-novel-edit,
+  .mobile-route-chapter-edit,
+  .mobile-page-novel-edit,
+  .mobile-page-chapter-edit {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .mobile-route-home {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mobile-route-home > .grid:first-child {
+    order: 2;
+  }
+
+  .mobile-route-home > :nth-child(2) {
+    order: 3;
+  }
+
+  .mobile-route-home > :nth-child(3) {
+    order: 1;
+  }
+
+  .mobile-route-home > :nth-child(4) {
+    order: 4;
+  }
+
+  .mobile-route-home > :nth-child(5) {
+    order: 5;
+  }
+
+  .mobile-route-home > .grid:first-child,
+  .mobile-route-tasks > .grid:first-child {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .mobile-route-home > .grid:first-child .rounded-xl,
+  .mobile-route-tasks > .grid:first-child .rounded-xl {
+    border-radius: 1rem;
+  }
+
+  .mobile-route-home > .grid:first-child .p-6,
+  .mobile-route-tasks > .grid:first-child .p-6 {
+    padding: 0.75rem;
+  }
+
+  .mobile-route-home > .grid:first-child h3,
+  .mobile-route-tasks > .grid:first-child h3 {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+
+  .mobile-route-home > .rounded-xl:nth-of-type(2) {
+    border-color: hsl(var(--primary) / 0.22);
+  }
+
+  .mobile-route-home > .rounded-xl:nth-of-type(3),
+  .mobile-route-home > .rounded-xl:nth-of-type(4),
+  .mobile-route-home > .rounded-xl:nth-of-type(5) {
+    box-shadow: none;
+  }
+
+  .mobile-route-home .flex.flex-wrap.items-center.justify-between,
+  .mobile-route-home .flex.flex-wrap.items-start.justify-between,
+  .mobile-route-home .flex.flex-wrap.items-center.gap-2,
+  .mobile-route-novels .flex.flex-wrap.items-center.justify-between,
+  .mobile-route-novels .flex.flex-wrap.gap-2,
+  .mobile-route-novel-create .flex.flex-wrap.gap-2 {
+    align-items: stretch;
+  }
+
+  .mobile-route-home .flex.flex-wrap.items-center.justify-between > *,
+  .mobile-route-home .flex.flex-wrap.items-start.justify-between > *,
+  .mobile-route-home .flex.flex-wrap.items-center.gap-2 > *,
+  .mobile-route-novels .flex.flex-wrap.items-center.justify-between > *,
+  .mobile-route-novels .flex.flex-wrap.gap-2 > *,
+  .mobile-route-novel-create .flex.flex-wrap.gap-2 > * {
+    flex: 1 1 100%;
+  }
+
+  .mobile-route-home .flex.flex-wrap.items-center.gap-2 .inline-flex,
+  .mobile-route-novels .flex.flex-wrap.items-center.gap-2 .inline-flex {
+    flex: 0 1 auto;
+  }
+
+  .mobile-route-home .mobile-full-actions,
+  .mobile-route-novels .mobile-full-actions,
+  .mobile-route-novel-create .mobile-full-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mobile-route-novels > .flex:first-child,
+  .mobile-route-worlds > .flex:first-child,
+  .mobile-route-base-characters > .flex:first-child,
+  .mobile-route-style-engine > .flex:first-child,
+  .mobile-route-model-routes .flex.items-center.justify-between,
+  .mobile-route-settings .flex.items-center.justify-between {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mobile-route-novels > .flex:first-child .flex,
+  .mobile-route-worlds > .flex:first-child,
+  .mobile-route-base-characters > .flex:first-child .flex,
+  .mobile-route-style-engine > .flex:first-child .flex {
+    width: 100%;
+  }
+
+  .mobile-route-novels > .grid,
+  .mobile-route-novels .grid.md\:grid-cols-2,
+  .mobile-route-worlds .grid.md\:grid-cols-2,
+  .mobile-route-home .grid.md\:grid-cols-2,
+  .mobile-route-base-characters .grid.md\:grid-cols-2,
+  .mobile-route-base-characters .grid.lg\:grid-cols-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mobile-route-creative-hub > .grid,
+  .mobile-route-chat-legacy,
+  .mobile-route-book-analysis > .grid,
+  .mobile-route-tasks > .grid,
+  .mobile-route-auto-director-follow-ups > .grid {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: auto;
+  }
+
+  .mobile-route-creative-hub > .grid {
+    height: auto;
+  }
+
+  .mobile-route-chat-legacy > .rounded-xl:first-child,
+  .mobile-route-creative-hub > .grid > div:first-child,
+  .mobile-route-book-analysis > .grid > :first-child,
+  .mobile-route-tasks > .grid > :first-child,
+  .mobile-route-auto-director-follow-ups > .grid > :first-child {
+    order: 1;
+  }
+
+  .mobile-route-chat-legacy > .rounded-xl:nth-child(2),
+  .mobile-route-creative-hub > .grid > div:nth-child(2),
+  .mobile-route-book-analysis > .grid > :nth-child(2),
+  .mobile-route-tasks > .grid > :nth-child(2),
+  .mobile-route-auto-director-follow-ups > .grid > :nth-child(2) {
+    order: 2;
+  }
+
+  .mobile-route-chat-legacy > :nth-child(3),
+  .mobile-route-creative-hub > .grid > div:nth-child(3),
+  .mobile-route-tasks > .grid > :nth-child(3) {
+    order: 3;
+  }
+
+  .mobile-route-chat-legacy > .rounded-xl,
+  .mobile-route-tasks > .grid > .rounded-xl,
+  .mobile-route-auto-director-follow-ups > .grid > .rounded-xl {
+    box-shadow: none;
+  }
+
+  .mobile-route-creative-hub .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-route-book-analysis .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-route-tasks .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-route-auto-director-follow-ups .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-route-knowledge .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-route-genres .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-route-story-modes .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-route-titles .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-route-model-routes .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-route-settings .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-route-worlds .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-route-world-generator .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-route-world-workspace .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-route-style-engine .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-route-base-characters .rounded-xl.border.bg-card .rounded-xl.border.bg-card {
+    border-color: hsl(var(--border) / 0.72);
+    background: hsl(var(--muted) / 0.18);
+    box-shadow: none;
+  }
+
+  .mobile-route-knowledge [role="tablist"],
+  .mobile-route-titles [role="tablist"],
+  .mobile-route-world-workspace [role="tablist"],
+  .mobile-route-style-engine [role="tablist"] {
+    display: flex;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .mobile-route-knowledge [role="tabpanel"],
+  .mobile-route-titles [role="tabpanel"],
+  .mobile-route-world-workspace [role="tabpanel"],
+  .mobile-route-style-engine [role="tabpanel"] {
+    min-width: 0;
+  }
+
+  .mobile-route-model-routes .grid.md\:grid-cols-4,
+  .mobile-route-settings .grid.md\:grid-cols-2,
+  .mobile-route-settings .grid.md\:grid-cols-3,
+  .mobile-route-settings .grid.md\:grid-cols-4,
+  .mobile-route-world-generator .grid.md\:grid-cols-2,
+  .mobile-route-world-generator .grid.lg\:grid-cols-2,
+  .mobile-route-world-workspace .grid.md\:grid-cols-2,
+  .mobile-route-world-workspace .grid.lg\:grid-cols-2,
+  .mobile-route-story-modes .grid.md\:grid-cols-2,
+  .mobile-route-story-modes .grid.lg\:grid-cols-2,
+  .mobile-route-genres .grid.md\:grid-cols-2,
+  .mobile-route-genres .grid.lg\:grid-cols-2,
+  .mobile-route-style-engine .grid.md\:grid-cols-2,
+  .mobile-route-style-engine .grid.lg\:grid-cols-2,
+  .mobile-route-style-engine .grid.lg\:grid-cols-3,
+  .mobile-route-style-engine .grid.xl\:grid-cols-4,
+  .mobile-route-knowledge .grid.md\:grid-cols-2,
+  .mobile-route-knowledge .grid.lg\:grid-cols-2,
+  .mobile-route-knowledge .grid.xl\:grid-cols-3,
+  .mobile-route-knowledge .grid.xl\:grid-cols-4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mobile-route-novel-create .rounded-xl > .p-6,
+  .mobile-route-genres .rounded-xl > .p-6,
+  .mobile-route-story-modes .rounded-xl > .p-6,
+  .mobile-route-titles .rounded-xl > .p-6,
+  .mobile-route-worlds .rounded-xl > .p-6,
+  .mobile-route-world-generator .rounded-xl > .p-6,
+  .mobile-route-world-workspace .rounded-xl > .p-6,
+  .mobile-route-base-characters .rounded-xl > .p-6 {
+    padding: 1rem;
+  }
+
+  .mobile-route-model-routes .flex.items-center.justify-end,
+  .mobile-route-settings .flex.items-center.justify-end,
+  .mobile-route-world-workspace .flex.items-center.justify-end,
+  .mobile-route-world-generator .flex.justify-end,
+  .mobile-route-knowledge .flex.justify-end,
+  .mobile-route-book-analysis .flex.justify-end {
+    justify-content: stretch;
+  }
+
+  .mobile-route-model-routes .flex.items-center.justify-end > *,
+  .mobile-route-settings .flex.items-center.justify-end > *,
+  .mobile-route-world-workspace .flex.items-center.justify-end > *,
+  .mobile-route-world-generator .flex.justify-end > *,
+  .mobile-route-knowledge .flex.justify-end > *,
+  .mobile-route-book-analysis .flex.justify-end > * {
+    flex: 1 1 100%;
+  }
+
+  .mobile-route-style-engine {
+    height: auto;
+    min-height: auto;
+  }
+
+  .mobile-route-style-engine [role="dialog"],
+  .mobile-route-model-routes [role="dialog"],
+  .mobile-route-settings [role="dialog"],
+  .mobile-route-story-modes [role="dialog"],
+  .mobile-route-genres [role="dialog"],
+  .mobile-route-base-characters [role="dialog"] {
+    width: calc(100vw - 1rem);
+    max-width: calc(100vw - 1rem);
+  }
+
+  .mobile-novel-workspace-panel > div > .rounded-xl.border.bg-card.shadow-sm,
+  .mobile-novel-workspace-panel > div > .rounded-xl.border.bg-background.shadow-sm,
+  .mobile-novel-workspace-panel > div > .rounded-xl.border.bg-background\/95 {
+    border-width: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .mobile-novel-workspace-panel > div > .rounded-xl.border.bg-card.shadow-sm > div,
+  .mobile-novel-workspace-panel > div > .rounded-xl.border.bg-background.shadow-sm > div {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .mobile-novel-workspace-panel > div > .rounded-xl.border.bg-card.shadow-sm > div:first-child,
+  .mobile-novel-workspace-panel > div > .rounded-xl.border.bg-background.shadow-sm > div:first-child {
+    padding-top: 0;
+  }
+
+  .mobile-chapter-editor-shell > div > .flex > .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mobile-chapter-editor-shell > div > .flex > .grid > :nth-child(1) {
+    order: 2;
+  }
+
+  .mobile-chapter-editor-shell > div > .flex > .grid > :nth-child(2) {
+    order: 1;
+  }
+
+  .mobile-chapter-editor-shell > div > .flex > .grid > :nth-child(3) {
+    order: 3;
+  }
+}

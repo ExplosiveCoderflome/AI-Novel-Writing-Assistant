@@ -1,24 +1,13 @@
 import type { DirectorProgressItemKey } from "./novelDirectorProgress";
+import type {
+  DirectorMarkTaskRunningCallback,
+  DirectorMutatingStage,
+} from "./novelDirectorPhaseTypes";
 
-export type DirectorTrackedStage =
-  | "auto_director"
-  | "story_macro"
-  | "character_setup"
-  | "volume_strategy"
-  | "structured_outline";
+export type DirectorTrackedStage = DirectorMutatingStage;
 
 interface DirectorTrackedCallbacks {
-  markDirectorTaskRunning: (
-    taskId: string,
-    stage: DirectorTrackedStage,
-    itemKey: DirectorProgressItemKey,
-    itemLabel: string,
-    progress: number,
-    options?: {
-      chapterId?: string | null;
-      volumeId?: string | null;
-    },
-  ) => Promise<void>;
+  markDirectorTaskRunning: DirectorMarkTaskRunningCallback;
 }
 
 function formatElapsed(ms: number): string {
@@ -41,6 +30,10 @@ function stringifyError(error: unknown): string {
   return String(error);
 }
 
+function isWorkflowTaskCancelledSignal(error: unknown): boolean {
+  return error instanceof Error && error.message === "WORKFLOW_TASK_CANCELLED";
+}
+
 export async function runDirectorTrackedStep<T>(input: {
   taskId: string;
   stage: DirectorTrackedStage;
@@ -59,14 +52,22 @@ export async function runDirectorTrackedStep<T>(input: {
       progress?: number;
     }) => Promise<void>;
     startedAt: number;
+    signal: AbortSignal;
   }) => Promise<T>;
 }): Promise<T> {
   const startedAt = Date.now();
   const heartbeatMs = Math.max(5000, input.heartbeatMs ?? 15000);
+  const abortController = new AbortController();
   let currentItemKey = input.itemKey;
   let currentLabel = input.itemLabel;
   let currentProgress = input.progress;
   let heartbeatInFlight = false;
+
+  const abortAsCancelled = () => {
+    if (!abortController.signal.aborted) {
+      abortController.abort(new Error("当前自动导演任务已取消。"));
+    }
+  };
 
   const applyStatus = async (nextStatus: {
     itemKey?: DirectorProgressItemKey;
@@ -76,17 +77,24 @@ export async function runDirectorTrackedStep<T>(input: {
     currentItemKey = nextStatus.itemKey ?? currentItemKey;
     currentLabel = nextStatus.itemLabel ?? currentLabel;
     currentProgress = nextStatus.progress ?? currentProgress;
-    await input.callbacks.markDirectorTaskRunning(
-      input.taskId,
-      input.stage,
-      currentItemKey,
-      currentLabel,
-      currentProgress,
-      {
-        chapterId: input.chapterId ?? null,
-        volumeId: input.volumeId ?? null,
-      },
-    );
+    try {
+      await input.callbacks.markDirectorTaskRunning(
+        input.taskId,
+        input.stage,
+        currentItemKey,
+        currentLabel,
+        currentProgress,
+        {
+          chapterId: input.chapterId ?? null,
+          volumeId: input.volumeId ?? null,
+        },
+      );
+    } catch (error) {
+      if (isWorkflowTaskCancelledSignal(error)) {
+        abortAsCancelled();
+      }
+      throw error;
+    }
   };
 
   await applyStatus({
@@ -115,6 +123,9 @@ export async function runDirectorTrackedStep<T>(input: {
         volumeId: input.volumeId ?? null,
       },
     ).catch((error) => {
+      if (isWorkflowTaskCancelledSignal(error)) {
+        abortAsCancelled();
+      }
       console.warn(
         `[director.step] event=heartbeat_failed taskId=${input.taskId} stage=${input.stage} itemKey=${currentItemKey} error=${JSON.stringify(stringifyError(error))}`,
       );
@@ -128,6 +139,7 @@ export async function runDirectorTrackedStep<T>(input: {
       updateLabel: async (nextLabel) => applyStatus({ itemLabel: nextLabel }),
       updateStatus: applyStatus,
       startedAt,
+      signal: abortController.signal,
     });
     console.info(
       `[director.step] event=done taskId=${input.taskId} stage=${input.stage} itemKey=${currentItemKey} elapsedMs=${Date.now() - startedAt} finalLabel=${JSON.stringify(currentLabel)}`,

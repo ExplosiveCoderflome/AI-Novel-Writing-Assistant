@@ -1246,6 +1246,9 @@ export class NovelWorkflowService {
     if (!existing) {
       return null;
     }
+    if (isTaskCancellationRequested(existing)) {
+      return existing;
+    }
     const stage = patch?.stage ?? "auto_director";
     const resumeTarget = parseResumeTarget(existing.resumeTargetJson) ?? this.buildResumeTarget({
       taskId,

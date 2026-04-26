@@ -277,6 +277,178 @@ test("generateBeatChunkedChapterList skips full-volume regeneration when all bea
   }
 });
 
+test("generateBeatChunkedChapterList rejects beat sheets that cover far fewer chapters than the budget target", async () => {
+  const document = buildVolumeWorkspaceDocument({
+    ...createDocument(),
+    volumes: [
+      {
+        ...createDocument().volumes[0],
+        chapters: Array.from({ length: 53 }, (_, index) => createChapter({
+          id: `volume-1-chapter-${index + 1}`,
+          chapterOrder: index + 1,
+          beatKey: "open_hook",
+          title: `第一卷第${index + 1}章`,
+          summary: `第一卷第${index + 1}章摘要`,
+        })),
+      },
+      {
+        ...createDocument().volumes[0],
+        id: "volume-2",
+        sortOrder: 2,
+        title: "第二卷",
+        chapters: [],
+      },
+      ...Array.from({ length: 6 }, (_, index) => ({
+        ...createDocument().volumes[0],
+        id: `volume-${index + 3}`,
+        sortOrder: index + 3,
+        title: `第${index + 3}卷`,
+        chapters: [],
+      })),
+    ],
+    beatSheets: [
+      {
+        volumeId: "volume-2",
+        volumeSortOrder: 2,
+        status: "generated",
+        beats: [
+          { key: "b1", label: "开局", summary: "开局", chapterSpanHint: "1章", mustDeliver: ["开局"] },
+          { key: "b2", label: "推进", summary: "推进", chapterSpanHint: "2章", mustDeliver: ["推进"] },
+          { key: "b3", label: "转向", summary: "转向", chapterSpanHint: "3-4章", mustDeliver: ["转向"] },
+          { key: "b4", label: "挤压", summary: "挤压", chapterSpanHint: "5章", mustDeliver: ["挤压"] },
+          { key: "b5", label: "高潮", summary: "高潮", chapterSpanHint: "6章", mustDeliver: ["高潮"] },
+          { key: "b6", label: "尾钩", summary: "尾钩", chapterSpanHint: "7章", mustDeliver: ["尾钩"] },
+        ],
+      },
+    ],
+  });
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  let promptCallCount = 0;
+
+  promptRunner.runStructuredPrompt = async () => {
+    promptCallCount += 1;
+    throw new Error("chapter-list prompt should not run for an under-covered beat sheet");
+  };
+
+  try {
+    await assert.rejects(
+      () => generateBeatChunkedChapterList({
+        document,
+        novel: {
+          title: "测试小说",
+          description: null,
+          targetAudience: null,
+          bookSellingPoint: null,
+          competingFeel: null,
+          first30ChapterPromise: null,
+          commercialTagsJson: null,
+          estimatedChapterCount: 430,
+          narrativePov: null,
+          pacePreference: null,
+          emotionIntensity: null,
+          storyModePromptBlock: null,
+          genre: null,
+          characters: [],
+        },
+        workspace: {
+          ...document,
+          workspaceVersion: "v2",
+          readiness: {},
+        },
+        storyMacroPlan: null,
+        options: {
+          targetVolumeId: "volume-2",
+          generationMode: "full_volume",
+        },
+        notifyPhase: async () => {},
+      }),
+      /节奏板/,
+    );
+    assert.equal(promptCallCount, 0);
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});
+
+test("generateBeatChunkedChapterList rejects disconnected beat sheet spans before prompting", async () => {
+  const document = buildVolumeWorkspaceDocument({
+    ...createDocument(),
+    volumes: [
+      {
+        ...createDocument().volumes[0],
+        id: "volume-1",
+        sortOrder: 1,
+        title: "第一卷",
+        chapters: [],
+      },
+      ...Array.from({ length: 7 }, (_, index) => ({
+        ...createDocument().volumes[0],
+        id: `volume-${index + 2}`,
+        sortOrder: index + 2,
+        title: `第${index + 2}卷`,
+        chapters: [],
+      })),
+    ],
+    beatSheets: [
+      {
+        volumeId: "volume-1",
+        volumeSortOrder: 1,
+        status: "generated",
+        beats: [
+          { key: "b1", label: "开局", summary: "开局", chapterSpanHint: "1-7章", mustDeliver: ["开局"] },
+          { key: "b2", label: "尾钩", summary: "尾钩", chapterSpanHint: "54章", mustDeliver: ["尾钩"] },
+        ],
+      },
+    ],
+  });
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  let promptCallCount = 0;
+
+  promptRunner.runStructuredPrompt = async () => {
+    promptCallCount += 1;
+    throw new Error("chapter-list prompt should not run for disconnected beat sheet spans");
+  };
+
+  try {
+    await assert.rejects(
+      () => generateBeatChunkedChapterList({
+        document,
+        novel: {
+          title: "测试小说",
+          description: null,
+          targetAudience: null,
+          bookSellingPoint: null,
+          competingFeel: null,
+          first30ChapterPromise: null,
+          commercialTagsJson: null,
+          estimatedChapterCount: 430,
+          narrativePov: null,
+          pacePreference: null,
+          emotionIntensity: null,
+          storyModePromptBlock: null,
+          genre: null,
+          characters: [],
+        },
+        workspace: {
+          ...document,
+          workspaceVersion: "v2",
+          readiness: {},
+        },
+        storyMacroPlan: null,
+        options: {
+          targetVolumeId: "volume-1",
+          generationMode: "full_volume",
+        },
+        notifyPhase: async () => {},
+      }),
+      /连续覆盖|节奏板/,
+    );
+    assert.equal(promptCallCount, 0);
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});
+
 test("generateBeatChunkedChapterList resumes after the last persisted complete beat", async () => {
   const document = createDocument();
   const partialDocument = {

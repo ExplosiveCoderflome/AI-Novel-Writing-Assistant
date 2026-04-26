@@ -1478,7 +1478,7 @@ export class NovelDirectorService {
         bookContractService: this.bookContractService,
       },
       callbacks: {
-        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress) => (
+        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, _options) => (
           this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress)
         ),
       },
@@ -1530,8 +1530,8 @@ export class NovelDirectorService {
       },
       callbacks: {
         buildDirectorSeedPayload: (request, takeoverNovelId, extra) => this.buildDirectorSeedPayload(request, takeoverNovelId, extra),
-        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress) => (
-          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress)
+        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
+          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, options)
         ),
       },
     });
@@ -1555,8 +1555,8 @@ export class NovelDirectorService {
       },
       callbacks: {
         buildDirectorSeedPayload: (request, takeoverNovelId, extra) => this.buildDirectorSeedPayload(request, takeoverNovelId, extra),
-        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress) => (
-          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress)
+        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
+          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, options)
         ),
       },
     });
@@ -1582,8 +1582,8 @@ export class NovelDirectorService {
       },
       callbacks: {
         buildDirectorSeedPayload: (request, takeoverNovelId, extra) => this.buildDirectorSeedPayload(request, takeoverNovelId, extra),
-        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress) => (
-          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress)
+        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
+          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, options)
         ),
       },
     });

@@ -10,6 +10,9 @@ const {
   runDirectorStructuredOutlinePhase,
 } = require("../dist/services/novel/director/novelDirectorPipelinePhases.js");
 const {
+  runDirectorTrackedStep,
+} = require("../dist/services/novel/director/directorProgressTracker.js");
+const {
   buildVolumeWorkspaceDocument,
 } = require("../dist/services/novel/volume/volumeWorkspaceDocument.js");
 
@@ -728,4 +731,45 @@ test("runDirectorStructuredOutlinePhase resumes from the first incomplete beat a
   assert.equal(checkpointCalls.length, 1);
   assert.equal(checkpointCalls[0].volumeId, "volume-2");
   assert.equal(checkpointCalls[0].chapterId, "volume-2-chapter-1");
+});
+
+test("runDirectorTrackedStep aborts the run helper signal when heartbeat observes cancellation", { timeout: 8000 }, async () => {
+  let markCallCount = 0;
+  let helperSignal = null;
+
+  await assert.rejects(
+    () => runDirectorTrackedStep({
+      taskId: "task_cancel_signal",
+      stage: "structured_outline",
+      itemKey: "beat_sheet",
+      itemLabel: "正在生成节奏板",
+      progress: 0.72,
+      heartbeatMs: 5000,
+      callbacks: {
+        markDirectorTaskRunning: async () => {
+          markCallCount += 1;
+          if (markCallCount > 1) {
+            throw new Error("WORKFLOW_TASK_CANCELLED");
+          }
+        },
+      },
+      run: async ({ signal }) => {
+        helperSignal = signal;
+        assert.ok(signal, "expected tracked step helper to expose an AbortSignal");
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error("expected heartbeat cancellation to abort the signal"));
+          }, 6500);
+          signal.addEventListener("abort", () => {
+            clearTimeout(timeout);
+            reject(signal.reason ?? new Error("aborted"));
+          }, { once: true });
+        });
+      },
+    }),
+    /取消|cancel/i,
+  );
+
+  assert.ok(helperSignal?.aborted);
+  assert.ok(markCallCount > 1);
 });
