@@ -331,26 +331,49 @@ body {
     order: 5;
   }
 
-  .mobile-route-home > .grid:first-child,
+  .mobile-route-home > .grid:first-child {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
   .mobile-route-tasks > .grid:first-child {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.5rem;
   }
 
-  .mobile-route-home > .grid:first-child .rounded-xl,
+  .mobile-route-home > .grid:first-child .rounded-xl {
+    border-radius: 0.75rem;
+  }
+
   .mobile-route-tasks > .grid:first-child .rounded-xl {
     border-radius: 1rem;
   }
 
-  .mobile-route-home > .grid:first-child .p-6,
+  .mobile-route-home > .grid:first-child .p-6 {
+    padding: 0.5rem;
+  }
+
   .mobile-route-tasks > .grid:first-child .p-6 {
     padding: 0.75rem;
   }
 
-  .mobile-route-home > .grid:first-child h3,
+  .mobile-route-home > .grid:first-child h3 {
+    font-size: 1rem;
+    line-height: 1.25rem;
+  }
+
   .mobile-route-tasks > .grid:first-child h3 {
     font-size: 1.25rem;
     line-height: 1.75rem;
+  }
+
+  .mobile-route-home > .grid:first-child p {
+    font-size: 0.6875rem;
+    line-height: 1rem;
+  }
+
+  .mobile-route-home > .grid:first-child .text-xs {
+    display: none;
   }
 
   .mobile-route-home > .rounded-xl:nth-of-type(2) {
@@ -458,6 +481,37 @@ body {
   .mobile-route-tasks > .grid > .rounded-xl,
   .mobile-route-auto-director-follow-ups > .grid > .rounded-xl {
     box-shadow: none;
+  }
+
+  .mobile-route-auto-director-follow-ups .auto-director-follow-up-overview-card > .p-6 {
+    padding: 0.75rem;
+  }
+
+  .mobile-route-auto-director-follow-ups .auto-director-follow-up-overview-card > .p-6.pt-0 {
+    padding-top: 0;
+  }
+
+  .mobile-route-auto-director-follow-ups .auto-director-follow-up-section-grid.grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .mobile-route-auto-director-follow-ups .auto-director-follow-up-section-grid button {
+    padding: 0.5rem;
+  }
+
+  .mobile-route-auto-director-follow-ups .auto-director-follow-up-section-grid .text-sm {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+
+  .mobile-route-auto-director-follow-ups .auto-director-follow-up-section-grid .text-xl {
+    font-size: 1rem;
+    line-height: 1.25rem;
+  }
+
+  .mobile-route-auto-director-follow-ups .auto-director-follow-up-section-grid .text-xs {
+    display: none;
   }
 
   .mobile-route-creative-hub .rounded-xl.border.bg-card .rounded-xl.border.bg-card,

@@ -115,6 +115,26 @@ test("auto-director follow-up center uses mobile contracts for single-column non
     "AUTO_DIRECTOR_MOBILE_CLASSES.followUpOverviewGrid",
     "follow-up section cards should be one column at phone width",
   );
+  assertContains(
+    overview,
+    "AUTO_DIRECTOR_MOBILE_CLASSES.followUpOverviewCard",
+    "follow-up status summary and section filters should share one compact mobile card",
+  );
+  assertContains(
+    overview,
+    "section: \"\"",
+    "follow-up section filters should include an all-items entry in the same compact card",
+  );
+  assertContains(
+    overview,
+    "label: \"全部\"",
+    "follow-up section filters should expose the all-items entry to users",
+  );
+  assertContains(
+    page,
+    "AutoDirectorFollowUpSection | \"\"",
+    "follow-up section switching should support clearing the section filter from the all-items entry",
+  );
   assertImportsMobileContracts(list, "follow-up list should use mobile list contracts");
   assertContains(
     list,

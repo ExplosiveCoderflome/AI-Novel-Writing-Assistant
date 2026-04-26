@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
 interface OverviewCardConfig {
-  section: AutoDirectorFollowUpSection;
+  section: AutoDirectorFollowUpSection | "";
   label: string;
   description: string;
   count: number;
@@ -15,7 +15,7 @@ interface AutoDirectorFollowUpOverviewCardsProps {
   overview: AutoDirectorFollowUpOverview | null;
   list: AutoDirectorFollowUpListResponse | null;
   activeSection: AutoDirectorFollowUpSection | "";
-  onSectionChange: (section: AutoDirectorFollowUpSection) => void;
+  onSectionChange: (section: AutoDirectorFollowUpSection | "") => void;
 }
 
 export function AutoDirectorFollowUpOverviewCards({
@@ -26,6 +26,12 @@ export function AutoDirectorFollowUpOverviewCards({
 }: AutoDirectorFollowUpOverviewCardsProps) {
   const counters = list?.countersBySection ?? overview?.countersBySection;
   const cards: OverviewCardConfig[] = [
+    {
+      section: "",
+      label: "全部",
+      description: "查看所有需要跟进的导演任务",
+      count: overview?.totalCount ?? list?.pagination.total ?? 0,
+    },
     {
       section: "needs_validation",
       label: "需校验",
@@ -60,38 +66,40 @@ export function AutoDirectorFollowUpOverviewCards({
 
   return (
     <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpOverviewGrid}>
-      <Card className="min-w-0 sm:col-span-2">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">导演跟进中心</CardTitle>
+      <Card className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpOverviewCard}>
+        <CardHeader className="pb-3">
+          <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpOverviewHeader}>
+            <div className="min-w-0">
+              <CardTitle className="text-base">导演跟进中心</CardTitle>
+              <div className={`mt-1 text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                今日恢复 {list?.summaryCounters.recoveredToday ?? 0} 项，今日完成 {list?.summaryCounters.completedToday ?? 0} 项
+              </div>
+            </div>
+            <div className="text-2xl font-semibold leading-none">{overview?.totalCount ?? 0}</div>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-semibold">{overview?.totalCount ?? 0}</div>
-          <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-            今日恢复 {list?.summaryCounters.recoveredToday ?? 0} 项，今日完成 {list?.summaryCounters.completedToday ?? 0} 项
+          <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpOverviewSectionGrid}>
+            {cards.map((card) => (
+              <button
+                key={card.section || "all"}
+                type="button"
+                onClick={() => onSectionChange(card.section)}
+                className={cn(
+                  "h-full min-w-0 rounded-lg border bg-background p-3 text-left transition hover:border-primary/50",
+                  activeSection === card.section && "border-primary bg-primary/5",
+                )}
+              >
+                <div className="text-sm font-medium">{card.label}</div>
+                <div className="mt-1 text-xl font-semibold leading-none">{card.count}</div>
+                <div className={`mt-1 text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                  {card.description}
+                </div>
+              </button>
+            ))}
           </div>
         </CardContent>
       </Card>
-
-      <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpOverviewSectionGrid}>
-        {cards.map((card) => (
-          <button
-            key={card.section}
-            type="button"
-            onClick={() => onSectionChange(card.section)}
-            className="h-full min-w-0 text-left"
-          >
-            <Card className={cn("h-full min-w-0", activeSection === card.section && "border-primary bg-primary/5")}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm sm:text-base">{card.label}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-semibold">{card.count}</div>
-                <div className={`mt-1 text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{card.description}</div>
-              </CardContent>
-            </Card>
-          </button>
-        ))}
-      </div>
     </div>
   );
 }

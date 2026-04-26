@@ -272,9 +272,16 @@ export default function AutoDirectorFollowUpCenterPage() {
     });
   };
 
-  const handleSectionChange = (nextSection: AutoDirectorFollowUpSection) => {
+  const handleSectionChange = (nextSection: AutoDirectorFollowUpSection | "") => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
+      if (!nextSection) {
+        next.delete("section");
+        next.delete("taskId");
+        next.delete("supportsBatch");
+        next.set("page", "1");
+        return next;
+      }
       if (section === nextSection) {
         next.delete("section");
       } else {
