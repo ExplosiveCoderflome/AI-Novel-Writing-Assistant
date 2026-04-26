@@ -66,6 +66,10 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/character/character.prompts").baseCharacterFinalPrompt as UnknownPromptAsset,
   },
   {
+    key: "character.sync.classify@v1",
+    load: () => require("./prompts/character/characterSync.prompts").characterSyncClassificationPrompt as UnknownPromptAsset,
+  },
+  {
     key: "image.character.prompt_optimize@v1",
     load: () => require("./prompts/image/image.prompts").imageCharacterPromptOptimizePrompt as UnknownPromptAsset,
   },

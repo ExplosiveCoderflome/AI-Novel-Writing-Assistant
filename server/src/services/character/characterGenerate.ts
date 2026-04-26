@@ -6,6 +6,7 @@ import {
   baseCharacterFinalPrompt,
   baseCharacterSkeletonPrompt,
 } from "../../prompting/prompts/character/character.prompts";
+import { characterLibrarySyncService } from "./CharacterLibrarySyncService";
 import { buildReferenceContext } from "./characterGenerateReference";
 
 const STORY_FUNCTION_VALUES = ["主角", "反派", "导师", "对照组", "配角"] as const;
@@ -399,6 +400,7 @@ export async function generateBaseCharacterFromAI(input: CharacterGenerateInput)
   const data = await prisma.baseCharacter.create({
     data: finalPayload,
   });
+  await characterLibrarySyncService.createBaseRevision(data.id, "AI 生成角色库角色。", "ai_base_character_generate");
 
   console.info("[base-characters.generate] done", {
     outputAnomaly,

@@ -4,6 +4,7 @@ export * from "./types/characterDynamics";
 export * from "./types/chapterLengthControl";
 export * from "./types/chapterRuntime";
 export * from "./types/characterResource";
+export * from "./types/characterSync";
 export * from "./types/llm";
 export * from "./types/knowledge";
 export * from "./types/novel";

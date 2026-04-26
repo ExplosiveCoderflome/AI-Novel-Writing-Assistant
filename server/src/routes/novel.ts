@@ -14,6 +14,7 @@ import { registerNovelChapterGenerationRoutes } from "./novelChapterGeneration";
 import { registerNovelCharacterDynamicsRoutes } from "./novelCharacterDynamicsRoutes";
 import { registerNovelCharacterPreparationRoutes } from "./novelCharacterPreparationRoutes";
 import { registerNovelCharacterResourceRoutes } from "./novelCharacterResourceRoutes";
+import { registerNovelCharacterSyncRoutes } from "./novelCharacterSyncRoutes";
 import { registerNovelFramingRoutes } from "./novelFramingRoutes";
 import { registerNovelPlanningRoutes } from "./novelPlanningRoutes";
 import { registerNovelProductionRoutes } from "./novelProductionRoutes";
@@ -608,6 +609,11 @@ registerNovelCharacterPreparationRoutes({
 });
 
 registerNovelCharacterResourceRoutes({
+  router,
+  idParamsSchema,
+});
+
+registerNovelCharacterSyncRoutes({
   router,
   idParamsSchema,
 });
