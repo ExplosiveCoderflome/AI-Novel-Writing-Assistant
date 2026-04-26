@@ -40,9 +40,15 @@ interface GenreOption {
   label: string;
 }
 
+interface WorldOption {
+  id: string;
+  name: string;
+}
+
 interface NovelAutoDirectorSetupPanelProps {
   basicForm: NovelBasicFormState;
   genreOptions: GenreOption[];
+  worldOptions: WorldOption[];
   idea: string;
   onIdeaChange: (value: string) => void;
   runMode: DirectorRunMode;
@@ -72,6 +78,7 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
   const {
     basicForm,
     genreOptions,
+    worldOptions,
     idea,
     onIdeaChange,
     runMode,
@@ -187,6 +194,29 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
                   />
                   <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                     会作为整书结构密度和后续卷章规划的参考，不是硬性上限。
+                  </div>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <FieldLabel htmlFor="director-basic-world" hint={BASIC_INFO_FIELD_HINTS.worldId}>绑定世界观</FieldLabel>
+                  <select
+                    id="director-basic-world"
+                    className="w-full rounded-md border bg-background p-2 text-sm"
+                    value={basicForm.worldId}
+                    onChange={(event) => onBasicFormChange({ worldId: event.target.value })}
+                  >
+                    <option value="">不绑定世界观</option>
+                    {worldOptions.length === 0 ? (
+                      <option value="" disabled>暂无可选世界观</option>
+                    ) : null}
+                    {worldOptions.map((world) => (
+                      <option key={world.id} value={world.id}>{world.name}</option>
+                    ))}
+                  </select>
+                  <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                    {worldOptions.length > 0
+                      ? "选择后，自动导演会把这个世界的规则和舞台作为规划边界。"
+                      : "没有可选世界观时，可以先用起始想法开书。"}
                   </div>
                 </div>
 

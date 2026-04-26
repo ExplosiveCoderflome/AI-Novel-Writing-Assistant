@@ -2,6 +2,7 @@ import {
   DIRECTOR_RUN_MODES,
 } from "@ai-novel/shared/types/novelDirector";
 import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
+import type { CharacterCastOption } from "@ai-novel/shared/types/novel";
 import { AppError } from "../../../middleware/errorHandler";
 import { runWithLlmUsageTracking } from "../../../llm/usageTracking";
 import type {
@@ -1485,6 +1486,20 @@ export class NovelDirectorService {
     });
   }
 
+  private async findReusableDirectorCharacterCastOption(targetNovelId: string): Promise<CharacterCastOption | null> {
+    const [existingOptions, existingCharacters] = await Promise.all([
+      this.characterPreparationService.listCharacterCastOptions(targetNovelId),
+      this.novelContextService.listCharacters(targetNovelId).catch(() => []),
+    ]);
+    const appliedOption = existingOptions.find((option) => option.status === "applied") ?? null;
+    if (appliedOption) {
+      return existingCharacters.length > 0
+        ? appliedOption
+        : { ...appliedOption, status: "draft" };
+    }
+    return existingOptions[0] ?? null;
+  }
+
   private buildDirectorCharacterPreparationService() {
     return {
       generateAutoCharacterCastOption: async (targetNovelId: string, options: {
@@ -1493,6 +1508,10 @@ export class NovelDirectorService {
         temperature?: number;
         storyInput?: string;
       }) => {
+        const reusableOption = await this.findReusableDirectorCharacterCastOption(targetNovelId);
+        if (reusableOption) {
+          return reusableOption;
+        }
         const generated = await generateAutoCharacterCastDraft(targetNovelId, options);
         await persistCharacterCastOptionsDraft(targetNovelId, generated.storyInput, {
           options: [generated.parsed.option],
@@ -1509,6 +1528,7 @@ export class NovelDirectorService {
       applyCharacterCastOption: (...args: Parameters<CharacterPreparationService["applyCharacterCastOption"]>) => (
         this.characterPreparationService.applyCharacterCastOption(...args)
       ),
+      findReusableCharacterCastOption: (targetNovelId: string) => this.findReusableDirectorCharacterCastOption(targetNovelId),
     };
   }
 
