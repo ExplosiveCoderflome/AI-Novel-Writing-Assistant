@@ -5,6 +5,7 @@ import { prisma } from "../db/prisma";
 import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
+import { characterLibrarySyncService } from "../services/character/CharacterLibrarySyncService";
 import { characterGenerateConstraintsSchema, generateBaseCharacterFromAI } from "../services/character/characterGenerate";
 
 const router = Router();
@@ -89,6 +90,7 @@ router.post("/", validate({ body: baseCharacterSchema }), async (req, res, next)
         tags: req.body.tags ?? "",
       },
     });
+    await characterLibrarySyncService.createBaseRevision(data.id, "创建角色库角色。", "manual_base_character_create");
     res.status(201).json({
       success: true,
       data,
@@ -132,6 +134,12 @@ router.put(
         where: { id },
         data: req.body as z.infer<typeof updateBaseCharacterSchema>,
       });
+      const revision = await characterLibrarySyncService.createBaseRevision(
+        data.id,
+        "更新角色库基础设定。",
+        "manual_base_character_update",
+      );
+      await characterLibrarySyncService.createLibraryUpdateProposals(data.id, revision.id);
       res.status(200).json({
         success: true,
         data,
