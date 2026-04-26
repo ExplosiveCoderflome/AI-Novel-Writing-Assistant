@@ -20,6 +20,184 @@ function getMobileRouteKeys() {
   return Array.from(routeBlock.matchAll(/key: "([^"]+)"/g), (match) => match[1]);
 }
 
+function getMobileMediaCss() {
+  const mediaStart = css.indexOf("@media (max-width: 767px)");
+  assert.notEqual(mediaStart, -1, "mobile media query should exist");
+
+  const blockStart = css.indexOf("{", mediaStart);
+  let depth = 0;
+  for (let index = blockStart; index < css.length; index += 1) {
+    if (css[index] === "{") {
+      depth += 1;
+    } else if (css[index] === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return css.slice(blockStart + 1, index);
+      }
+    }
+  }
+
+  throw new Error("mobile media query block should be closed");
+}
+
+function parseMobileGridTemplateRules() {
+  const mobileCss = getMobileMediaCss();
+  const rules = [];
+  const rulePattern = /([^{}]+)\{([^{}]*)\}/g;
+  let match;
+
+  while ((match = rulePattern.exec(mobileCss)) !== null) {
+    const selectors = match[1].trim().split(",").map((selector) => selector.trim());
+    const value = match[2].match(/grid-template-columns:\s*([^;]+);/)?.[1]?.trim();
+    if (!value) {
+      continue;
+    }
+    for (const selector of selectors) {
+      rules.push({
+        selector,
+        value,
+        order: rules.length,
+        specificity: getSelectorSpecificity(selector),
+      });
+    }
+  }
+
+  return rules;
+}
+
+function getSelectorSpecificity(selector) {
+  const withoutStrings = selector.replace(/"[^"]*"|'[^']*'/g, "");
+  const ids = (withoutStrings.match(/#[\w-]+/g) ?? []).length;
+  const classesAndAttributes =
+    (withoutStrings.match(/\.[\w\\:-]+/g) ?? []).length +
+    (withoutStrings.match(/\[[^\]]+\]/g) ?? []).length +
+    (withoutStrings.match(/:(?!:)[\w-]+(?:\([^)]*\))?/g) ?? []).length;
+  const typeSelectors = selector
+    .replace(/#[\w-]+|\.[\w\\:-]+|\[[^\]]+\]|::?[\w-]+(?:\([^)]*\))?/g, " ")
+    .split(/[\s>+~]+/)
+    .filter((part) => /^[a-zA-Z][\w-]*$/.test(part)).length;
+
+  return [ids, classesAndAttributes, typeSelectors];
+}
+
+function compareSpecificity(left, right) {
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return left[index] - right[index];
+    }
+  }
+  return 0;
+}
+
+function splitSelectorParts(selector) {
+  return selector
+    .replace(/\s*>\s*/g, " > ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function matchesCompoundSelector(compound, node) {
+  const typeMatch = compound.match(/^[a-zA-Z][\w-]*/)?.[0];
+  if (typeMatch && typeMatch.toLowerCase() !== node.tagName) {
+    return false;
+  }
+
+  for (const classMatch of compound.matchAll(/\.([\w\\:-]+)/g)) {
+    const className = classMatch[1].replace(/\\:/g, ":");
+    if (!node.classes.includes(className)) {
+      return false;
+    }
+  }
+
+  for (const attributeMatch of compound.matchAll(/\[class\*="([^"]+)"\]/g)) {
+    if (!node.className.includes(attributeMatch[1])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function selectorMatchesTarget(selector, targetNode, ancestorNodes) {
+  const parts = splitSelectorParts(selector);
+  let currentNode = targetNode;
+  let ancestorIndex = 0;
+
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    const part = parts[index];
+    if (part === ">") {
+      index -= 1;
+      const parentSelector = parts[index];
+      const parentNode = ancestorNodes[ancestorIndex];
+      if (!parentNode || !matchesCompoundSelector(parentSelector, parentNode)) {
+        return false;
+      }
+      currentNode = parentNode;
+      ancestorIndex += 1;
+      continue;
+    }
+
+    if (!matchesCompoundSelector(part, currentNode)) {
+      return false;
+    }
+
+    if (index === 0) {
+      return true;
+    }
+
+    const previousPart = parts[index - 1];
+    if (previousPart === ">") {
+      continue;
+    }
+
+    let matchedAncestor = false;
+    for (; ancestorIndex < ancestorNodes.length; ancestorIndex += 1) {
+      if (matchesCompoundSelector(previousPart, ancestorNodes[ancestorIndex])) {
+        currentNode = ancestorNodes[ancestorIndex];
+        matchedAncestor = true;
+        break;
+      }
+    }
+    if (!matchedAncestor) {
+      return false;
+    }
+    index -= 1;
+    ancestorIndex += 1;
+  }
+
+  return true;
+}
+
+function getWinningGridTemplateColumns({ routeClassName, elementClassName }) {
+  const targetNode = {
+    tagName: "div",
+    classes: elementClassName.split(/\s+/),
+    className: elementClassName,
+  };
+  const ancestorNodes = [
+    { tagName: "div", classes: ["space-y-4"], className: "space-y-4" },
+    {
+      tagName: "main",
+      classes: ["mobile-site-main", "mobile-safe-bottom", routeClassName],
+      className: `mobile-site-main mobile-safe-bottom ${routeClassName}`,
+    },
+  ];
+
+  return parseMobileGridTemplateRules()
+    .filter((rule) => selectorMatchesTarget(rule.selector, targetNode, ancestorNodes))
+    .reduce((winner, rule) => {
+      if (!winner) {
+        return rule;
+      }
+      const specificityDelta = compareSpecificity(rule.specificity, winner.specificity);
+      if (specificityDelta > 0 || (specificityDelta === 0 && rule.order > winner.order)) {
+        return rule;
+      }
+      return winner;
+    }, null);
+}
+
 test("mobile AppLayout uses the site shell for phone entry routes", () => {
   assert.match(appLayout, /useIsMobileViewport/);
   assert.match(appLayout, /MobileSiteShell/);
@@ -82,6 +260,33 @@ test("mobile task status metrics use follow-up style compact partitions", () => 
     css,
     /mobile-route-tasks \.task-status-summary-grid \.text-2xl[\s\S]+font-size: 1rem;/,
     "task status metric values should be reduced for a compact mobile row",
+  );
+});
+
+test("mobile status metrics keep four columns after generic grid collapse cascade", () => {
+  const expectedColumns = "repeat(4, minmax(0, 1fr))";
+  const homeWinner = getWinningGridTemplateColumns({
+    routeClassName: "mobile-route-home",
+    elementClassName: "home-status-summary-grid grid gap-4 sm:grid-cols-2 xl:grid-cols-4",
+  });
+  const taskWinner = getWinningGridTemplateColumns({
+    routeClassName: "mobile-route-tasks",
+    elementClassName: "task-status-summary-grid grid gap-4 sm:grid-cols-2 xl:grid-cols-4",
+  });
+
+  assert.equal(
+    homeWinner?.value,
+    expectedColumns,
+    `home status grid should resolve to four columns, got ${homeWinner?.value ?? "no matching rule"} from ${
+      homeWinner?.selector ?? "no selector"
+    }`,
+  );
+  assert.equal(
+    taskWinner?.value,
+    expectedColumns,
+    `task status grid should resolve to four columns, got ${taskWinner?.value ?? "no matching rule"} from ${
+      taskWinner?.selector ?? "no selector"
+    }`,
   );
 });
 

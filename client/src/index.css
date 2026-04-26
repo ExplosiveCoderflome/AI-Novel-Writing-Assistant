@@ -355,8 +355,8 @@ body {
     order: 5;
   }
 
-  .mobile-route-home .home-status-summary-grid,
-  .mobile-route-tasks .task-status-summary-grid {
+  .mobile-site-main.mobile-route-home .home-status-summary-grid.grid,
+  .mobile-site-main.mobile-route-tasks .task-status-summary-grid.grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.5rem;
   }
