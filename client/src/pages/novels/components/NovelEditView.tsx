@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +23,7 @@ import StoryMacroPlanTab from "./StoryMacroPlanTab";
 import StructuredOutlineTab from "./StructuredOutlineTab";
 import VersionHistoryTab from "./VersionHistoryTab";
 import BasicInfoTab from "./BasicInfoTab";
+import MobileNovelEditView from "../mobile/MobileNovelEditView";
 import type { NovelEditViewProps } from "./NovelEditView.types";
 import {
   getNovelWorkspaceFlowStepIndex,
@@ -31,6 +33,16 @@ import {
 } from "../novelWorkspaceNavigation";
 
 export default function NovelEditView(props: NovelEditViewProps) {
+  const isMobileViewport = useIsMobileViewport();
+
+  if (isMobileViewport) {
+    return <MobileNovelEditView {...props} />;
+  }
+
+  return <DesktopNovelEditView {...props} />;
+}
+
+function DesktopNovelEditView(props: NovelEditViewProps) {
   const {
     id,
     activeTab,

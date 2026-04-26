@@ -306,6 +306,30 @@ body {
     max-width: 100%;
   }
 
+  .mobile-page-novel-edit * {
+    min-width: 0;
+  }
+
+  .mobile-page-novel-edit {
+    overflow-x: hidden;
+  }
+
+  .mobile-novel-step-nav {
+    scrollbar-width: none;
+  }
+
+  .mobile-novel-step-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobile-auto-director-status-card {
+    padding: 0.75rem;
+  }
+
+  .mobile-floating-save-button {
+    max-width: calc(100vw - 1.5rem);
+  }
+
   .mobile-route-home {
     display: flex;
     flex-direction: column;
@@ -635,6 +659,10 @@ body {
   .mobile-novel-workspace-panel > div > .rounded-xl.border.bg-card.shadow-sm > div:first-child,
   .mobile-novel-workspace-panel > div > .rounded-xl.border.bg-background.shadow-sm > div:first-child {
     padding-top: 0;
+  }
+
+  .mobile-novel-workspace-panel {
+    overflow-x: hidden;
   }
 
   .mobile-chapter-editor-shell > div > .flex > .grid {

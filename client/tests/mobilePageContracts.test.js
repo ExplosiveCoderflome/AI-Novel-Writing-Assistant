@@ -5,6 +5,11 @@ import { readFileSync } from "node:fs";
 const appLayout = readFileSync("client/src/components/layout/AppLayout.tsx", "utf8");
 const css = readFileSync("client/src/index.css", "utf8");
 const mobileSiteNavigation = readFileSync("client/src/components/layout/mobile/mobileSiteNavigation.ts", "utf8");
+const novelEditView = readFileSync("client/src/pages/novels/components/NovelEditView.tsx", "utf8");
+const mobileNovelEditView = readFileSync("client/src/pages/novels/mobile/MobileNovelEditView.tsx", "utf8");
+const mobileNovelStepNav = readFileSync("client/src/pages/novels/mobile/MobileNovelStepNav.tsx", "utf8");
+const mobileAutoDirectorStatusCard = readFileSync("client/src/pages/novels/mobile/MobileAutoDirectorStatusCard.tsx", "utf8");
+const mobileFloatingSaveButton = readFileSync("client/src/pages/novels/mobile/MobileFloatingSaveButton.tsx", "utf8");
 
 function getMobileRouteKeys() {
   const routeBlock = mobileSiteNavigation.match(/export const MOBILE_ROUTE_PATTERNS[\s\S]*?\n\];/)?.[0] ?? "";
@@ -67,4 +72,49 @@ test("mobile follow-up overview combines summary and section filters in one comp
 test("mobile CSS enforces the no deep card nesting rule", () => {
   assert.match(css, /mobile-site-main[\s\S]+rounded-xl\.border\.bg-card \.rounded-xl\.border\.bg-card \.rounded-xl\.border\.bg-card/);
   assert.match(css, /border-width: 0;/);
+});
+
+test("novel edit page uses a dedicated mobile workspace instead of the desktop shell", () => {
+  assert.match(novelEditView, /useIsMobileViewport/);
+  assert.match(novelEditView, /<MobileNovelEditView \{\.\.\.props\} \/>/);
+  assert.match(mobileNovelEditView, /mobile-page-novel-edit/);
+  assert.match(mobileNovelEditView, /mobile-novel-workspace-header/);
+  assert.match(mobileNovelEditView, /MobileNovelStepNav/);
+  assert.match(mobileNovelEditView, /MobileAutoDirectorStatusCard/);
+});
+
+test("mobile novel workspace keeps step navigation horizontal and recommendation-aware", () => {
+  assert.match(mobileNovelStepNav, /NOVEL_WORKSPACE_FLOW_STEPS/);
+  assert.match(mobileNovelStepNav, /NOVEL_WORKSPACE_TOOL_TABS/);
+  assert.match(mobileNovelStepNav, /mobile-novel-step-nav/);
+  assert.match(mobileNovelStepNav, /overflow-x-auto/);
+  assert.match(mobileNovelStepNav, /流程推荐/);
+  assert.match(mobileNovelStepNav, /aria-current/);
+});
+
+test("mobile novel workspace collapses secondary tools behind one compact entry", () => {
+  assert.match(mobileNovelEditView, /MoreHorizontal/);
+  assert.match(mobileNovelEditView, /创作工具/);
+  assert.match(mobileNovelEditView, /查看任务进度/);
+  assert.match(mobileNovelEditView, /导出当前步骤/);
+  assert.match(mobileNovelEditView, /导出整本书/);
+  assert.doesNotMatch(mobileNovelEditView, /<AITakeoverContainer/);
+});
+
+test("mobile novel workspace has compact takeover status and reachable save action", () => {
+  assert.match(mobileAutoDirectorStatusCard, /mobile-auto-director-status-card/);
+  assert.match(mobileAutoDirectorStatusCard, /WorkflowProgressBar/);
+  assert.match(mobileAutoDirectorStatusCard, /takeover\.actions/);
+  assert.match(mobileFloatingSaveButton, /mobile-floating-save-button/);
+  assert.match(mobileFloatingSaveButton, /bottom:\s*"max\(1rem, env\(safe-area-inset-bottom\)\)"/);
+  assert.match(mobileNovelEditView, /MobileFloatingSaveButton/);
+});
+
+test("mobile novel edit CSS prevents overflow and keeps the workspace compact", () => {
+  assert.match(css, /mobile-page-novel-edit \*/);
+  assert.match(css, /mobile-novel-step-nav/);
+  assert.match(css, /scrollbar-width: none;/);
+  assert.match(css, /mobile-auto-director-status-card[\s\S]+padding: 0.75rem;/);
+  assert.match(css, /mobile-floating-save-button/);
+  assert.match(css, /mobile-novel-workspace-panel[\s\S]+overflow-x: hidden;/);
 });
