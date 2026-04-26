@@ -19,8 +19,12 @@ FROM deps AS build
 WORKDIR /app
 ARG VITE_API_BASE_URL=
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
-COPY client ./client
-COPY shared ./shared
+COPY shared/package.json shared/tsconfig.json ./shared/
+COPY shared/*.ts ./shared/
+COPY shared/types ./shared/types
+COPY client/package.json client/tsconfig.json client/vite.config.ts client/tailwind.config.ts client/postcss.config.js client/components.json client/index.html ./client/
+COPY client/public ./client/public
+COPY client/src ./client/src
 RUN pnpm --filter @ai-novel/shared build \
     && pnpm --filter @ai-novel/client build
 
