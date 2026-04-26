@@ -3,6 +3,7 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 
 const THINK_OPEN_TAG = "<think>";
 const THINK_CLOSE_TAG = "</think>";
+const DEEPSEEK_HOST_PATTERN = /(?:^|:\/\/)(?:api\.)?deepseek\.com(?:\/|$)/i;
 const MINIMAX_HOST_PATTERN = /(?:^|:\/\/)(?:api\.)?minimax(?:i)?\.(?:io|com)(?:\/|$)/i;
 const MINIMAX_MODEL_PATTERN = /^minimax-m2(?:[.-]|$)/i;
 
@@ -85,12 +86,42 @@ export function isMiniMaxCompatibleProvider(
   return Boolean(normalizedModel && MINIMAX_MODEL_PATTERN.test(normalizedModel));
 }
 
+export function isDeepSeekThinkingModeProvider(
+  provider: LLMProvider,
+  baseURL?: string,
+  model?: string,
+): boolean {
+  const normalizedModel = normalizeOptionalText(model)?.toLowerCase();
+  const supportsThinkingToggle = normalizedModel === "deepseek-v4-pro" || normalizedModel === "deepseek-reasoner";
+  if (!supportsThinkingToggle) {
+    return false;
+  }
+  if (provider === "deepseek") {
+    return true;
+  }
+  const normalizedBaseURL = normalizeOptionalText(baseURL);
+  return Boolean(normalizedBaseURL && DEEPSEEK_HOST_PATTERN.test(normalizedBaseURL));
+}
+
 export function resolveProviderReasoningBehavior(input: {
   provider: LLMProvider;
   baseURL: string;
   model: string;
   reasoningEnabled: boolean;
 }): ProviderReasoningBehavior {
+  if (isDeepSeekThinkingModeProvider(input.provider, input.baseURL, input.model)) {
+    return {
+      reasoningEnabled: input.reasoningEnabled,
+      modelKwargs: {
+        thinking: {
+          type: input.reasoningEnabled ? "enabled" : "disabled",
+        },
+      },
+      includeRawResponse: false,
+      usesAccumulatedStreamDeltas: false,
+    };
+  }
+
   const isMiniMax = isMiniMaxCompatibleProvider(input.provider, input.baseURL, input.model);
   if (isMiniMax) {
     return {

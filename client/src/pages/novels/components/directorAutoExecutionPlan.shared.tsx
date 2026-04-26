@@ -4,6 +4,7 @@ import type {
 } from "@ai-novel/shared/types/novelDirector";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
 export interface DirectorAutoExecutionDraftState {
   mode: DirectorAutoExecutionMode;
@@ -23,25 +24,49 @@ const DEFAULT_DIRECTOR_AUTO_EXECUTION_DRAFT: DirectorAutoExecutionDraftState = {
   autoRepair: true,
 };
 
-const AUTO_EXECUTION_SCOPE_OPTIONS: Array<{
+type DirectorAutoExecutionPlanUsage = "new_book" | "takeover";
+
+const NEW_BOOK_SCOPE_OPTIONS: Array<{
   value: DirectorAutoExecutionMode;
   label: string;
   description: string;
 }> = [
   {
-    value: "front10",
-    label: "默认前 10 章",
-    description: "适合新书起盘，AI 会直接把前 10 章写作、审校和修复跑完。",
+    value: "book",
+    label: "全书",
+    description: "适合直接让 AI 从规划到正文执行覆盖整本书。",
   },
   {
-    value: "chapter_range",
-    label: "指定章节范围",
-    description: "适合你只想让 AI 接手某一段，比如第 11-20 章。",
+    value: "front10",
+    label: "前 N 章",
+    description: "适合先跑出开局样章，默认前 10 章，可按整书章节数调整。",
   },
   {
     value: "volume",
-    label: "按卷执行",
-    description: "适合你想让 AI 一口气接管某一卷的章节批次。",
+    label: "前 1 卷",
+    description: "适合先让 AI 完成第一卷的拆章、写作、审校和修复。",
+  },
+];
+
+const TAKEOVER_SCOPE_OPTIONS: Array<{
+  value: DirectorAutoExecutionMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "book",
+    label: "全书",
+    description: "适合让 AI 重新校验全本规划，并按整本书范围继续执行。",
+  },
+  {
+    value: "chapter_range",
+    label: "章节范围",
+    description: "适合只让 AI 接手某一段，比如第 11-20 章。",
+  },
+  {
+    value: "volume",
+    label: "卷范围",
+    description: "适合让 AI 接管指定卷及卷下章节。",
   },
 ];
 
@@ -53,25 +78,47 @@ function normalizePositiveInteger(value: string | number | undefined, fallback: 
   return Math.max(1, Math.round(numericValue));
 }
 
-export function createDefaultDirectorAutoExecutionDraftState(): DirectorAutoExecutionDraftState {
-  return { ...DEFAULT_DIRECTOR_AUTO_EXECUTION_DRAFT };
+function clampChapterOrder(value: number, maxChapterCount?: number | null): number {
+  if (!maxChapterCount || maxChapterCount < 1) {
+    return Math.max(1, value);
+  }
+  return Math.min(Math.max(1, value), Math.max(1, Math.round(maxChapterCount)));
+}
+
+export function createDefaultDirectorAutoExecutionDraftState(
+  usage: DirectorAutoExecutionPlanUsage = "new_book",
+): DirectorAutoExecutionDraftState {
+  return {
+    ...DEFAULT_DIRECTOR_AUTO_EXECUTION_DRAFT,
+    mode: usage === "takeover" ? "book" : DEFAULT_DIRECTOR_AUTO_EXECUTION_DRAFT.mode,
+  };
 }
 
 export function normalizeDirectorAutoExecutionDraftState(
   plan: DirectorAutoExecutionPlan | null | undefined,
 ): DirectorAutoExecutionDraftState {
+  if (plan?.mode === "book") {
+    return {
+      mode: "book",
+      startOrder: DEFAULT_DIRECTOR_AUTO_EXECUTION_DRAFT.startOrder,
+      endOrder: DEFAULT_DIRECTOR_AUTO_EXECUTION_DRAFT.endOrder,
+      volumeOrder: DEFAULT_DIRECTOR_AUTO_EXECUTION_DRAFT.volumeOrder,
+      autoReview: plan.autoReview ?? true,
+      autoRepair: plan.autoReview === false ? false : (plan.autoRepair ?? true),
+    };
+  }
   if (plan?.mode === "chapter_range") {
     const startOrder = normalizePositiveInteger(plan.startOrder, 1);
     const endOrder = normalizePositiveInteger(plan.endOrder, Math.max(startOrder, 10));
-      return {
-        mode: "chapter_range",
-        startOrder: String(startOrder),
-        endOrder: String(Math.max(startOrder, endOrder)),
-        volumeOrder: DEFAULT_DIRECTOR_AUTO_EXECUTION_DRAFT.volumeOrder,
-        autoReview: plan.autoReview ?? true,
-        autoRepair: plan.autoReview === false ? false : (plan.autoRepair ?? true),
-      };
-    }
+    return {
+      mode: "chapter_range",
+      startOrder: String(startOrder),
+      endOrder: String(Math.max(startOrder, endOrder)),
+      volumeOrder: DEFAULT_DIRECTOR_AUTO_EXECUTION_DRAFT.volumeOrder,
+      autoReview: plan.autoReview ?? true,
+      autoRepair: plan.autoReview === false ? false : (plan.autoRepair ?? true),
+    };
+  }
   if (plan?.mode === "volume") {
     return {
       mode: "volume",
@@ -84,6 +131,7 @@ export function normalizeDirectorAutoExecutionDraftState(
   }
   return {
     ...createDefaultDirectorAutoExecutionDraftState(),
+    endOrder: String(normalizePositiveInteger(plan?.endOrder, 10)),
     autoReview: plan?.autoReview ?? true,
     autoRepair: plan?.autoReview === false ? false : (plan?.autoRepair ?? true),
   };
@@ -91,10 +139,24 @@ export function normalizeDirectorAutoExecutionDraftState(
 
 export function buildDirectorAutoExecutionPlanFromDraft(
   draft: DirectorAutoExecutionDraftState,
+  options?: {
+    usage?: DirectorAutoExecutionPlanUsage;
+    maxChapterCount?: number | null;
+  },
 ): DirectorAutoExecutionPlan {
+  if (draft.mode === "book") {
+    return {
+      mode: "book",
+      autoReview: draft.autoReview,
+      autoRepair: draft.autoReview ? draft.autoRepair : false,
+    };
+  }
   if (draft.mode === "chapter_range") {
-    const startOrder = normalizePositiveInteger(draft.startOrder, 1);
-    const endOrder = Math.max(startOrder, normalizePositiveInteger(draft.endOrder, 10));
+    const startOrder = clampChapterOrder(normalizePositiveInteger(draft.startOrder, 1), options?.maxChapterCount);
+    const endOrder = Math.max(
+      startOrder,
+      clampChapterOrder(normalizePositiveInteger(draft.endOrder, 10), options?.maxChapterCount),
+    );
     return {
       mode: "chapter_range",
       startOrder,
@@ -106,13 +168,16 @@ export function buildDirectorAutoExecutionPlanFromDraft(
   if (draft.mode === "volume") {
     return {
       mode: "volume",
-      volumeOrder: normalizePositiveInteger(draft.volumeOrder, 1),
+      volumeOrder: options?.usage === "new_book" ? 1 : normalizePositiveInteger(draft.volumeOrder, 1),
       autoReview: draft.autoReview,
       autoRepair: draft.autoReview ? draft.autoRepair : false,
     };
   }
+  const endOrder = clampChapterOrder(normalizePositiveInteger(draft.endOrder, 10), options?.maxChapterCount);
   return {
     mode: "front10",
+    startOrder: 1,
+    endOrder,
     autoReview: draft.autoReview,
     autoRepair: draft.autoReview ? draft.autoRepair : false,
   };
@@ -121,6 +186,9 @@ export function buildDirectorAutoExecutionPlanFromDraft(
 export function buildDirectorAutoExecutionPlanLabel(
   plan: DirectorAutoExecutionPlan | null | undefined,
 ): string {
+  if (plan?.mode === "book") {
+    return "全书";
+  }
   if (plan?.mode === "chapter_range") {
     const startOrder = normalizePositiveInteger(plan.startOrder, 1);
     const endOrder = Math.max(startOrder, normalizePositiveInteger(plan.endOrder, startOrder));
@@ -132,20 +200,28 @@ export function buildDirectorAutoExecutionPlanLabel(
   if (plan?.mode === "volume") {
     return `第 ${normalizePositiveInteger(plan.volumeOrder, 1)} 卷`;
   }
-  return "前 10 章";
+  return `前 ${normalizePositiveInteger(plan?.endOrder, 10)} 章`;
 }
 
 interface DirectorAutoExecutionPlanFieldsProps {
   draft: DirectorAutoExecutionDraftState;
   onChange: (patch: Partial<DirectorAutoExecutionDraftState>) => void;
+  usage?: DirectorAutoExecutionPlanUsage;
+  maxChapterCount?: number | null;
 }
 
 export function DirectorAutoExecutionPlanFields({
   draft,
   onChange,
+  usage = "new_book",
+  maxChapterCount,
 }: DirectorAutoExecutionPlanFieldsProps) {
-  const plan = buildDirectorAutoExecutionPlanFromDraft(draft);
+  const plan = buildDirectorAutoExecutionPlanFromDraft(draft, { usage, maxChapterCount });
   const scopeLabel = buildDirectorAutoExecutionPlanLabel(plan);
+  const scopeOptions = usage === "takeover" ? TAKEOVER_SCOPE_OPTIONS : NEW_BOOK_SCOPE_OPTIONS;
+  const canEditFrontCount = draft.mode === "front10";
+  const canEditChapterRange = draft.mode === "chapter_range";
+  const canEditVolumeOrder = usage === "takeover" && draft.mode === "volume";
   const reviewLabel = draft.autoReview
     ? draft.autoRepair
       ? "正文后自动审核 + 自动修复"
@@ -153,14 +229,14 @@ export function DirectorAutoExecutionPlanFields({
     : "正文后不做自动审核与修复";
 
   return (
-    <div className="mt-3 rounded-md border border-primary/15 bg-primary/5 p-3">
+    <div className="mt-3 min-w-0 rounded-md border border-primary/15 bg-primary/5 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-xs font-medium text-foreground">自动执行范围</div>
-        <div className="text-xs text-muted-foreground">当前将执行：{scopeLabel}</div>
+        <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>当前将执行：{scopeLabel}</div>
       </div>
 
-      <div className="mt-3 grid gap-3 md:grid-cols-3">
-        {AUTO_EXECUTION_SCOPE_OPTIONS.map((option) => {
+      <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-3">
+        {scopeOptions.map((option) => {
           const active = option.value === draft.mode;
           return (
             <button
@@ -174,20 +250,39 @@ export function DirectorAutoExecutionPlanFields({
               onClick={() => onChange({ mode: option.value })}
             >
               <div className="text-sm font-medium text-foreground">{option.label}</div>
-              <div className="mt-1 text-xs leading-5 text-muted-foreground">{option.description}</div>
+              <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{option.description}</div>
             </button>
           );
         })}
       </div>
 
-      {draft.mode === "chapter_range" ? (
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
+      {canEditFrontCount ? (
+        <div className="mt-4 max-w-xs">
+          <div className="text-xs font-medium text-foreground">章节数量</div>
+          <Input
+            className="mt-2"
+            type="number"
+            min={1}
+            max={maxChapterCount ?? undefined}
+            value={draft.endOrder}
+            onChange={(event) => onChange({ endOrder: event.target.value })}
+            placeholder="例如 10"
+          />
+          {maxChapterCount ? (
+            <div className="mt-1 text-xs text-muted-foreground">最多不超过全书规划的 {maxChapterCount} 章。</div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {canEditChapterRange ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div>
             <div className="text-xs font-medium text-foreground">起始章节</div>
             <Input
               className="mt-2"
               type="number"
               min={1}
+              max={maxChapterCount ?? undefined}
               value={draft.startOrder}
               onChange={(event) => onChange({ startOrder: event.target.value })}
               placeholder="例如 11"
@@ -199,6 +294,7 @@ export function DirectorAutoExecutionPlanFields({
               className="mt-2"
               type="number"
               min={1}
+              max={maxChapterCount ?? undefined}
               value={draft.endOrder}
               onChange={(event) => onChange({ endOrder: event.target.value })}
               placeholder="例如 20"
@@ -207,7 +303,7 @@ export function DirectorAutoExecutionPlanFields({
         </div>
       ) : null}
 
-      {draft.mode === "volume" ? (
+      {canEditVolumeOrder ? (
         <div className="mt-4 max-w-xs">
           <div className="text-xs font-medium text-foreground">卷序号</div>
           <Input
@@ -223,10 +319,10 @@ export function DirectorAutoExecutionPlanFields({
 
       <div className="mt-4 rounded-xl border bg-background/80 p-3">
         <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
+          <div className="min-w-0 space-y-1">
             <div className="text-sm font-medium text-foreground">正文生成后自动审核</div>
-            <div className="text-xs leading-5 text-muted-foreground">
-              关闭后，正文生成完成就直接结束当前章节，不再自动做质量校验。
+            <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+              关闭后，正文生成完成即结束当前章节，质量校验交给你手动处理。
             </div>
           </div>
           <Switch
@@ -240,9 +336,9 @@ export function DirectorAutoExecutionPlanFields({
         </div>
 
         <div className="mt-4 flex items-start justify-between gap-3">
-          <div className="space-y-1">
+          <div className="min-w-0 space-y-1">
             <div className="text-sm font-medium text-foreground">审核不通过时自动修复</div>
-            <div className="text-xs leading-5 text-muted-foreground">
+            <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               只在开启自动审核后生效；关闭时会保留问题，等待你手动处理或重跑。
             </div>
           </div>
@@ -255,8 +351,8 @@ export function DirectorAutoExecutionPlanFields({
         </div>
       </div>
 
-      <div className="mt-3 text-xs leading-5 text-muted-foreground">
-        系统会按你选定的章节范围或卷，自动准备节奏板、拆章和章节执行资源，再继续写作。
+      <div className={`mt-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+        系统会按你选定的范围，自动准备节奏板、拆章和章节执行资源，再继续写作。
         当前质量策略：{reviewLabel}。
       </div>
     </div>

@@ -327,7 +327,11 @@ export class ChapterRuntimeCoordinator {
     chapterId: string;
     request: ChapterRuntimeRequestInput;
     assembled: AssembledRuntimeChapter;
-  }): Promise<{ content: string; lengthControl?: ChapterRuntimePackage["lengthControl"] }> {
+  }): Promise<{
+    content: string;
+    lengthControl?: ChapterRuntimePackage["lengthControl"];
+    artifactsAlreadySynced?: boolean;
+  }> {
     const writerResult = await this.deps.chapterWritingGraph.createChapterStream({
       novelId: input.novelId,
       novelTitle: input.assembled.novel.title,
@@ -344,6 +348,7 @@ export class ChapterRuntimeCoordinator {
     return {
       content: normalized?.finalContent ?? fullContent,
       lengthControl: normalized?.lengthControl,
+      artifactsAlreadySynced: Boolean(normalized?.artifactsAlreadySynced),
     };
   }
 

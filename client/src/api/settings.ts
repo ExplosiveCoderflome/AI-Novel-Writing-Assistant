@@ -1,4 +1,7 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
+import type {
+  DirectorAutoApprovalPreferenceSettings,
+} from "@ai-novel/shared/types/autoDirectorApproval";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ModelRouteConfig, ModelRouteTaskType } from "@ai-novel/shared/types/novel";
 import { apiClient } from "./client";
@@ -150,6 +153,19 @@ export interface StructuredFallbackSettings {
   model: string;
   temperature: number;
   maxTokens: number | null;
+}
+
+export interface AutoDirectorChannelConfig {
+  webhookUrl: string;
+  callbackToken: string;
+  operatorMapJson: string;
+  eventTypes: string[];
+}
+
+export interface AutoDirectorChannelSettings {
+  baseUrl: string;
+  dingtalk: AutoDirectorChannelConfig;
+  wecom: AutoDirectorChannelConfig;
 }
 
 export async function getAPIKeySettings() {
@@ -350,6 +366,33 @@ export async function getStructuredFallbackConfig() {
 
 export async function saveStructuredFallbackConfig(payload: Partial<StructuredFallbackSettings>) {
   const { data } = await apiClient.put<ApiResponse<StructuredFallbackSettings>>("/llm/structured-fallback", payload);
+  return data;
+}
+
+export async function getAutoDirectorChannelSettings() {
+  const { data } = await apiClient.get<ApiResponse<AutoDirectorChannelSettings>>("/settings/auto-director/channels");
+  return data;
+}
+
+export async function saveAutoDirectorChannelSettings(payload: Partial<AutoDirectorChannelSettings>) {
+  const { data } = await apiClient.put<ApiResponse<AutoDirectorChannelSettings>>("/settings/auto-director/channels", payload);
+  return data;
+}
+
+export async function getAutoDirectorApprovalPreferenceSettings() {
+  const { data } = await apiClient.get<ApiResponse<DirectorAutoApprovalPreferenceSettings>>(
+    "/settings/auto-director/approval-preferences",
+  );
+  return data;
+}
+
+export async function saveAutoDirectorApprovalPreferenceSettings(payload: {
+  approvalPointCodes: string[];
+}) {
+  const { data } = await apiClient.put<ApiResponse<DirectorAutoApprovalPreferenceSettings>>(
+    "/settings/auto-director/approval-preferences",
+    payload,
+  );
   return data;
 }
 

@@ -537,6 +537,26 @@ test("novel director routes support candidates, refine and takeover flows", asyn
       volumeOrder: 2,
     });
 
+    const bookScopeTakeoverResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/takeover`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        novelId: "novel_director_demo",
+        entryStep: "story_macro",
+        strategy: "continue_existing",
+        runMode: "auto_to_execution",
+        autoExecutionPlan: {
+          mode: "book",
+        },
+      }),
+    });
+    assert.equal(bookScopeTakeoverResponse.status, 200);
+    const bookScopeTakeoverPayload = await bookScopeTakeoverResponse.json();
+    assert.equal(bookScopeTakeoverPayload.success, true);
+    assert.deepEqual(takeoverCalls.at(-1)?.autoExecutionPlan, {
+      mode: "book",
+    });
+
     const legacyTakeoverResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/takeover`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

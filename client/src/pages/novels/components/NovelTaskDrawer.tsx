@@ -1,5 +1,9 @@
-import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
+import type {
+  NovelWorkflowMilestone,
+  NovelWorkflowMilestoneType,
+} from "@ai-novel/shared/types/novelWorkflow";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
+import type { CharacterResourceProposalSummary } from "@ai-novel/shared/types/characterResource";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,8 +47,11 @@ function toStatusVariant(status: TaskStatus): "default" | "outline" | "secondary
   return "outline";
 }
 
-function formatCheckpoint(checkpoint: NovelWorkflowCheckpoint | null | undefined, scopeLabel?: string | null): string {
+function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null | undefined, scopeLabel?: string | null): string {
   const resolvedScopeLabel = scopeLabel?.trim() || "前 10 章";
+  if (checkpoint === "rewrite_snapshot_created") {
+    return "重写前备份已创建";
+  }
   if (checkpoint === "candidate_selection_required") {
     return "等待确认书级方向";
   }
@@ -100,16 +107,123 @@ function formatStepStatus(status: "idle" | "running" | "succeeded" | "failed" | 
   return "待处理";
 }
 
+function formatRiskLevel(riskLevel: CharacterResourceProposalSummary["riskLevel"]): string {
+  if (riskLevel === "high") {
+    return "高风险";
+  }
+  if (riskLevel === "medium") {
+    return "需判断";
+  }
+  return "低风险";
+}
+
+function formatProposalSource(proposal: CharacterResourceProposalSummary): string {
+  return proposal.sourceType === "chapter_background_sync" ? "自动同步发现" : "手动复查发现";
+}
+
+function readProposalPayloadText(
+  proposal: CharacterResourceProposalSummary,
+  key: string,
+): string {
+  const value = proposal.payload[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function ResourceProposalCard(props: {
+  proposal: CharacterResourceProposalSummary;
+  onOpenSource?: (proposal: CharacterResourceProposalSummary) => void;
+  onConfirm?: (proposalId: string) => void;
+  onReject?: (proposalId: string) => void;
+  confirmingProposalId?: string;
+  rejectingProposalId?: string;
+}) {
+  const {
+    proposal,
+    onOpenSource,
+    onConfirm,
+    onReject,
+    confirmingProposalId = "",
+    rejectingProposalId = "",
+  } = props;
+  const resourceName = readProposalPayloadText(proposal, "resourceName") || "关键资源";
+  const holderName = readProposalPayloadText(proposal, "holderCharacterName");
+  const narrativeImpact = readProposalPayloadText(proposal, "narrativeImpact");
+  const isConfirming = confirmingProposalId === proposal.id;
+  const isRejecting = rejectingProposalId === proposal.id;
+
+  return (
+    <div className="space-y-3 rounded-xl border bg-background/80 p-3">
+      <div className="flex flex-wrap items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium text-foreground">{resourceName}</div>
+          <div className="mt-1 text-xs leading-5 text-muted-foreground">
+            {holderName ? `${holderName}相关资源` : "资源归属需要确认"}
+          </div>
+        </div>
+        <Badge variant={proposal.riskLevel === "high" ? "destructive" : "secondary"}>
+          {formatRiskLevel(proposal.riskLevel)}
+        </Badge>
+      </div>
+      <div className="text-sm leading-6 text-muted-foreground">{proposal.summary}</div>
+      {narrativeImpact ? (
+        <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs leading-5 text-muted-foreground">
+          确认后影响：{narrativeImpact}
+        </div>
+      ) : null}
+      {proposal.evidence[0] ? (
+        <div className="text-xs leading-5 text-muted-foreground">证据：{proposal.evidence[0]}</div>
+      ) : null}
+      {proposal.validationNotes[0] ? (
+        <div className="text-xs leading-5 text-muted-foreground">判断原因：{proposal.validationNotes[0]}</div>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="outline">{formatProposalSource(proposal)}</Badge>
+        {proposal.chapterId ? <Badge variant="outline">来源章节</Badge> : null}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {proposal.chapterId ? (
+          <Button type="button" size="sm" variant="outline" onClick={() => onOpenSource?.(proposal)}>
+            查看来源
+          </Button>
+        ) : null}
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => onConfirm?.(proposal.id)}
+          disabled={isConfirming || !onConfirm}
+        >
+          {isConfirming ? "确认中..." : "确认并用于后续写作"}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => onReject?.(proposal.id)}
+          disabled={isRejecting || !onReject}
+        >
+          {isRejecting ? "处理中..." : "忽略这条变化"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function NovelTaskDrawer({
   open,
   onOpenChange,
   task,
   currentUiModel,
   actions,
+  resourceProposals = [],
+  onOpenResourceProposalSource,
+  onConfirmResourceProposal,
+  onRejectResourceProposal,
+  confirmingResourceProposalId = "",
+  rejectingResourceProposalId = "",
   onOpenFullTaskCenter,
 }: NovelTaskDrawerState) {
   const milestones = Array.isArray(task?.meta.milestones)
-    ? task.meta.milestones as Array<{ checkpointType: NovelWorkflowCheckpoint; summary: string; createdAt: string }>
+    ? task.meta.milestones as NovelWorkflowMilestone[]
     : [];
   const progressPercent = Math.max(0, Math.min(100, Math.round((task?.progress ?? 0) * 100)));
   const tokenUsage = task?.tokenUsage ?? null;
@@ -125,6 +239,38 @@ export default function NovelTaskDrawer({
         </DialogHeader>
 
         <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
+          {resourceProposals.length > 0 ? (
+            <section className="space-y-3 rounded-2xl border border-amber-300/60 bg-amber-50/40 p-4 dark:border-amber-700/50 dark:bg-amber-950/15">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="text-sm font-medium text-foreground">资源变更待确认</div>
+                  <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                    这些判断会影响后续章节能使用哪些关键资源。
+                  </div>
+                </div>
+                <Badge variant="secondary">{resourceProposals.length} 条</Badge>
+              </div>
+              <div className="space-y-2">
+                {resourceProposals.slice(0, 4).map((proposal) => (
+                  <ResourceProposalCard
+                    key={proposal.id}
+                    proposal={proposal}
+                    onOpenSource={onOpenResourceProposalSource}
+                    onConfirm={onConfirmResourceProposal}
+                    onReject={onRejectResourceProposal}
+                    confirmingProposalId={confirmingResourceProposalId}
+                    rejectingProposalId={rejectingResourceProposalId}
+                  />
+                ))}
+              </div>
+              {resourceProposals.length > 4 ? (
+                <div className="text-xs text-muted-foreground">
+                  还有 {resourceProposals.length - 4} 条资源变化，可在对应章节继续处理。
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
           {task ? (
             <>
               <section className="space-y-3 rounded-2xl border border-border/70 bg-muted/15 p-4">
@@ -282,7 +428,7 @@ export default function NovelTaskDrawer({
             </>
           ) : (
             <section className="rounded-2xl border border-dashed px-5 py-8 text-sm text-muted-foreground">
-              当前小说还没有可见的自动导演任务。你仍然可以打开完整任务中心查看其他后台任务。
+              当前小说还没有可见的自动导演任务。你仍然可以继续手动创作，或打开完整任务中心查看其他后台任务。
             </section>
           )}
         </div>

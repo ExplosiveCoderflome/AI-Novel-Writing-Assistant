@@ -89,9 +89,10 @@ export async function archiveTask(kind: TaskKind, id: string) {
   return data;
 }
 
-export async function getAutoDirectorFollowUpDetail(taskId: string) {
+export async function getAutoDirectorFollowUpDetail(taskId: string, options?: { revalidate?: boolean }) {
   try {
     const { data } = await apiClient.get<ApiResponse<AutoDirectorFollowUpDetail | null>>(`/tasks/auto-director-follow-ups/${taskId}`, {
+      params: options?.revalidate ? { revalidate: "true" } : undefined,
       silentErrorStatuses: [404],
     });
     return data;

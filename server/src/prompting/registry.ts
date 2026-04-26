@@ -66,6 +66,10 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/character/character.prompts").baseCharacterFinalPrompt as UnknownPromptAsset,
   },
   {
+    key: "character.sync.classify@v1",
+    load: () => require("./prompts/character/characterSync.prompts").characterSyncClassificationPrompt as UnknownPromptAsset,
+  },
+  {
     key: "image.character.prompt_optimize@v1",
     load: () => require("./prompts/image/image.prompts").imageCharacterPromptOptimizePrompt as UnknownPromptAsset,
   },
@@ -184,6 +188,10 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
   {
     key: "novel.characterDynamics.volumeProjection@v3",
     load: () => require("./prompts/novel/characterDynamics.prompts").volumeDynamicsProjectionPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.character_resource.extract_updates@v1",
+    load: () => require("./prompts/novel/characterResource.prompts").characterResourceExtractionPrompt as UnknownPromptAsset,
   },
   {
     key: "novel.character.castOptions@v2",

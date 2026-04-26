@@ -208,6 +208,7 @@ export function buildChapterWriteContext(input: {
     ledgerUrgentItems: input.contextPackage.ledgerUrgentItems,
     ledgerOverdueItems: input.contextPackage.ledgerOverdueItems,
     ledgerSummary: input.contextPackage.ledgerSummary ?? null,
+    characterResourceContext: input.contextPackage.characterResourceContext ?? null,
     recentChapterSummaries: takeUnique(input.contextPackage.previousChaptersSummary.slice(0, 3), 3),
     openingAntiRepeatHint: compactText(input.contextPackage.openingHint, "No recent opening guidance."),
     styleContract: input.contextPackage.styleContext?.compiledBlocks?.contract ?? null,
@@ -233,6 +234,9 @@ export function buildChapterReviewContext(
       ...writeContext.ledgerPendingItems.map((item) => buildLedgerItemLine(item, "pending payoff")),
       ...writeContext.ledgerUrgentItems.map((item) => buildLedgerItemLine(item, "urgent payoff")),
       ...writeContext.ledgerOverdueItems.map((item) => buildLedgerItemLine(item, "overdue payoff")),
+      ...(writeContext.characterResourceContext?.setupNeededItems ?? []).map((item) => `resource setup needed: ${item.name} / ${item.summary}`),
+      ...(writeContext.characterResourceContext?.blockedItems ?? []).map((item) => `resource unavailable: ${item.name} is ${item.status}; do not use it without repair setup`),
+      ...(writeContext.characterResourceContext?.pendingReviewItems ?? []).map((item) => `resource needs confirmation: ${item.name} / ${item.summary}`),
     ], 14),
     worldRules: summarizeWorldRules(contextPackage),
     historicalIssues: summarizeHistoricalIssues(contextPackage),
@@ -263,6 +267,8 @@ export function buildChapterRepairContext(input: {
       ...input.writeContext.ledgerPendingItems.map((item) => buildLedgerItemLine(item, "pending payoff")),
       ...input.writeContext.ledgerUrgentItems.map((item) => buildLedgerItemLine(item, "urgent payoff")),
       ...input.writeContext.ledgerOverdueItems.map((item) => buildLedgerItemLine(item, "overdue payoff")),
+      ...(input.writeContext.characterResourceContext?.setupNeededItems ?? []).map((item) => `resource setup needed: ${item.name} / ${item.summary}`),
+      ...(input.writeContext.characterResourceContext?.blockedItems ?? []).map((item) => `resource unavailable: ${item.name} is ${item.status}; patch locally before use`),
     ], 16),
     worldRules: summarizeWorldRules(input.contextPackage),
     historicalIssues: summarizeHistoricalIssues(input.contextPackage),
@@ -275,6 +281,8 @@ export function buildChapterRepairContext(input: {
       ...input.writeContext.ledgerPendingItems.map((item) => `Do not erase pending payoff setup: ${item.title}`),
       ...input.writeContext.ledgerUrgentItems.map((item) => `This chapter must visibly touch the urgent payoff thread: ${item.title}`),
       ...input.writeContext.ledgerOverdueItems.map((item) => `You must either兑现 or explicitly explain the overdue payoff pressure: ${item.title}`),
+      ...(input.writeContext.characterResourceContext?.blockedItems ?? []).map((item) => `Patch resource continuity before using ${item.name}; current status is ${item.status}.`),
+      ...(input.writeContext.characterResourceContext?.pendingReviewItems ?? []).map((item) => `Do not make an uncertain resource fact irreversible: ${item.name}.`),
       input.writeContext.chapterMission.hookTarget
         ? `Preserve or strengthen the ending tension: ${input.writeContext.chapterMission.hookTarget}`
         : "",
@@ -309,6 +317,42 @@ function hasLedgerPressure(writeContext: ChapterWriteContext): boolean {
   return writeContext.ledgerUrgentItems.length > 0
     || writeContext.ledgerOverdueItems.length > 0
     || writeContext.ledgerPendingItems.length > 0;
+}
+
+function hasCharacterResourcePressure(writeContext: ChapterWriteContext): boolean {
+  const context = writeContext.characterResourceContext;
+  if (!context) {
+    return false;
+  }
+  return context.availableItems.length > 0
+    || context.setupNeededItems.length > 0
+    || context.blockedItems.length > 0
+    || context.pendingReviewItems.length > 0
+    || context.riskSignals.length > 0;
+}
+
+function buildResourceItemLine(item: NonNullable<ChapterWriteContext["characterResourceContext"]>["availableItems"][number]): string {
+  const holder = item.holderCharacterName ? `holder=${item.holderCharacterName}` : "holder=unknown";
+  const window = item.expectedUseStartChapterOrder || item.expectedUseEndChapterOrder
+    ? `window=${item.expectedUseStartChapterOrder ?? "?"}-${item.expectedUseEndChapterOrder ?? "?"}`
+    : "";
+  const constraints = item.constraints.length > 0 ? `constraints=${item.constraints.slice(0, 2).join(" / ")}` : "";
+  return `${item.name} [${item.status}; ${holder}; ${item.narrativeFunction}] ${item.summary}${window ? ` | ${window}` : ""}${constraints ? ` | ${constraints}` : ""}`;
+}
+
+function buildCharacterResourceContextBlock(writeContext: ChapterWriteContext): string {
+  const context = writeContext.characterResourceContext;
+  if (!context) {
+    return "";
+  }
+  return [
+    `Resource ledger summary: ${context.summary}`,
+    toListBlock("Available resources", context.availableItems.slice(0, 6).map(buildResourceItemLine)),
+    toListBlock("Needs setup before use", context.setupNeededItems.slice(0, 5).map(buildResourceItemLine)),
+    toListBlock("Unavailable or risky to reuse", context.blockedItems.slice(0, 5).map(buildResourceItemLine)),
+    toListBlock("Pending confirmation", context.pendingReviewItems.slice(0, 4).map(buildResourceItemLine)),
+    toListBlock("Resource risk signals", context.riskSignals.slice(0, 5).map((item) => `${item.severity}: ${item.summary}`)),
+  ].filter(Boolean).join("\n");
 }
 
 function shouldIncludeCharacterDynamics(
@@ -364,6 +408,7 @@ export function buildChapterWriterContextBlocks(
   const isIncremental = mode === "incremental";
   const includeVolumeWindow = mode === "full" || mode === "review";
   const includePayoffLedger = mode === "full" && hasLedgerPressure(writeContext);
+  const includeCharacterResources = !isIncremental && hasCharacterResourcePressure(writeContext);
   const includeScenePlan = mode === "full" || mode === "review";
   const includeCharacterDynamics = shouldIncludeCharacterDynamics(writeContext, mode);
   const includeOpenConflicts = !isIncremental && writeContext.openConflictSummaries.length > 0;
@@ -473,10 +518,19 @@ export function buildChapterWriterContextBlocks(
         ].join("\n\n"),
       })
       : null,
+    includeCharacterResources
+      ? createContextBlock({
+        id: "character_resource_context",
+        group: "character_resource_context",
+        priority: 90,
+        required: mode === "review" || mode === "repair",
+        content: buildCharacterResourceContextBlock(writeContext),
+      })
+      : null,
     createContextBlock({
       id: "local_state",
       group: "local_state",
-      priority: 90,
+      priority: 89,
       required: true,
       content: `Local state before writing:\n${writeContext.localStateSummary}`,
     }),

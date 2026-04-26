@@ -11,6 +11,9 @@ const {
 const {
   buildVolumeWorkspaceDocument,
 } = require("../dist/services/novel/volume/volumeWorkspaceDocument.js");
+const {
+  resolveStructuredOutlineRecoveryCursor,
+} = require("../dist/services/novel/director/novelDirectorStructuredOutlineRecovery.js");
 
 function createChapter(input) {
   return {
@@ -269,6 +272,489 @@ test("generateBeatChunkedChapterList skips full-volume regeneration when all bea
     assert.deepEqual(notifyCalls, []);
     assert.deepEqual(result.mergedDocument.volumes[0].chapters, document.volumes[0].chapters);
     assert.deepEqual(result.mergedWorkspace.volumes[0].chapters, document.volumes[0].chapters);
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});
+
+test("generateBeatChunkedChapterList rejects beat sheets that cover far fewer chapters than the budget target", async () => {
+  const document = buildVolumeWorkspaceDocument({
+    ...createDocument(),
+    volumes: [
+      {
+        ...createDocument().volumes[0],
+        chapters: Array.from({ length: 53 }, (_, index) => createChapter({
+          id: `volume-1-chapter-${index + 1}`,
+          chapterOrder: index + 1,
+          beatKey: "open_hook",
+          title: `第一卷第${index + 1}章`,
+          summary: `第一卷第${index + 1}章摘要`,
+        })),
+      },
+      {
+        ...createDocument().volumes[0],
+        id: "volume-2",
+        sortOrder: 2,
+        title: "第二卷",
+        chapters: [],
+      },
+      ...Array.from({ length: 6 }, (_, index) => ({
+        ...createDocument().volumes[0],
+        id: `volume-${index + 3}`,
+        sortOrder: index + 3,
+        title: `第${index + 3}卷`,
+        chapters: [],
+      })),
+    ],
+    beatSheets: [
+      {
+        volumeId: "volume-2",
+        volumeSortOrder: 2,
+        status: "generated",
+        beats: [
+          { key: "b1", label: "开局", summary: "开局", chapterSpanHint: "1章", mustDeliver: ["开局"] },
+          { key: "b2", label: "推进", summary: "推进", chapterSpanHint: "2章", mustDeliver: ["推进"] },
+          { key: "b3", label: "转向", summary: "转向", chapterSpanHint: "3-4章", mustDeliver: ["转向"] },
+          { key: "b4", label: "挤压", summary: "挤压", chapterSpanHint: "5章", mustDeliver: ["挤压"] },
+          { key: "b5", label: "高潮", summary: "高潮", chapterSpanHint: "6章", mustDeliver: ["高潮"] },
+          { key: "b6", label: "尾钩", summary: "尾钩", chapterSpanHint: "7章", mustDeliver: ["尾钩"] },
+        ],
+      },
+    ],
+  });
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  let promptCallCount = 0;
+
+  promptRunner.runStructuredPrompt = async () => {
+    promptCallCount += 1;
+    throw new Error("chapter-list prompt should not run for an under-covered beat sheet");
+  };
+
+  try {
+    await assert.rejects(
+      () => generateBeatChunkedChapterList({
+        document,
+        novel: {
+          title: "测试小说",
+          description: null,
+          targetAudience: null,
+          bookSellingPoint: null,
+          competingFeel: null,
+          first30ChapterPromise: null,
+          commercialTagsJson: null,
+          estimatedChapterCount: 430,
+          narrativePov: null,
+          pacePreference: null,
+          emotionIntensity: null,
+          storyModePromptBlock: null,
+          genre: null,
+          characters: [],
+        },
+        workspace: {
+          ...document,
+          workspaceVersion: "v2",
+          readiness: {},
+        },
+        storyMacroPlan: null,
+        options: {
+          targetVolumeId: "volume-2",
+          generationMode: "full_volume",
+        },
+        notifyPhase: async () => {},
+      }),
+      /节奏板/,
+    );
+    assert.equal(promptCallCount, 0);
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});
+
+test("generateBeatChunkedChapterList rejects disconnected beat sheet spans before prompting", async () => {
+  const document = buildVolumeWorkspaceDocument({
+    ...createDocument(),
+    volumes: [
+      {
+        ...createDocument().volumes[0],
+        id: "volume-1",
+        sortOrder: 1,
+        title: "第一卷",
+        chapters: [],
+      },
+      ...Array.from({ length: 7 }, (_, index) => ({
+        ...createDocument().volumes[0],
+        id: `volume-${index + 2}`,
+        sortOrder: index + 2,
+        title: `第${index + 2}卷`,
+        chapters: [],
+      })),
+    ],
+    beatSheets: [
+      {
+        volumeId: "volume-1",
+        volumeSortOrder: 1,
+        status: "generated",
+        beats: [
+          { key: "b1", label: "开局", summary: "开局", chapterSpanHint: "1-7章", mustDeliver: ["开局"] },
+          { key: "b2", label: "尾钩", summary: "尾钩", chapterSpanHint: "54章", mustDeliver: ["尾钩"] },
+        ],
+      },
+    ],
+  });
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  let promptCallCount = 0;
+
+  promptRunner.runStructuredPrompt = async () => {
+    promptCallCount += 1;
+    throw new Error("chapter-list prompt should not run for disconnected beat sheet spans");
+  };
+
+  try {
+    await assert.rejects(
+      () => generateBeatChunkedChapterList({
+        document,
+        novel: {
+          title: "测试小说",
+          description: null,
+          targetAudience: null,
+          bookSellingPoint: null,
+          competingFeel: null,
+          first30ChapterPromise: null,
+          commercialTagsJson: null,
+          estimatedChapterCount: 430,
+          narrativePov: null,
+          pacePreference: null,
+          emotionIntensity: null,
+          storyModePromptBlock: null,
+          genre: null,
+          characters: [],
+        },
+        workspace: {
+          ...document,
+          workspaceVersion: "v2",
+          readiness: {},
+        },
+        storyMacroPlan: null,
+        options: {
+          targetVolumeId: "volume-1",
+          generationMode: "full_volume",
+        },
+        notifyPhase: async () => {},
+      }),
+      /连续覆盖|节奏板/,
+    );
+    assert.equal(promptCallCount, 0);
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});
+
+test("generateBeatChunkedChapterList resumes after the last persisted complete beat", async () => {
+  const document = createDocument();
+  const partialDocument = {
+    ...document,
+    volumes: [{
+      ...document.volumes[0],
+      chapters: document.volumes[0].chapters.slice(0, 2),
+    }],
+  };
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  const generatedBeatKeys = [];
+  const intermediateEvents = [];
+
+  promptRunner.runStructuredPrompt = async ({ promptInput }) => {
+    generatedBeatKeys.push(promptInput.targetBeat.key);
+    return {
+      output: {
+        beatKey: promptInput.targetBeat.key,
+        beatLabel: promptInput.targetBeat.label,
+        chapterCount: promptInput.targetBeatChapterCount,
+        chapters: Array.from({ length: promptInput.targetBeatChapterCount }, (_, index) => ({
+          beatKey: promptInput.targetBeat.key,
+          title: `${promptInput.targetBeat.label}-续跑${index + 1}`,
+          summary: `${promptInput.targetBeat.label}续跑摘要${index + 1}`,
+        })),
+      },
+    };
+  };
+
+  try {
+    const result = await generateBeatChunkedChapterList({
+      document: partialDocument,
+      novel: {
+        title: "测试小说",
+        description: null,
+        targetAudience: null,
+        bookSellingPoint: null,
+        competingFeel: null,
+        first30ChapterPromise: null,
+        commercialTagsJson: null,
+        estimatedChapterCount: 4,
+        narrativePov: null,
+        pacePreference: null,
+        emotionIntensity: null,
+        storyModePromptBlock: null,
+        genre: null,
+        characters: [],
+      },
+      workspace: {
+        ...partialDocument,
+        workspaceVersion: "v2",
+        readiness: {},
+      },
+      storyMacroPlan: null,
+      options: {
+        targetVolumeId: "volume-1",
+        generationMode: "full_volume",
+      },
+      notifyPhase: async () => {},
+      notifyIntermediateDocument: async (event) => {
+        intermediateEvents.push(event);
+      },
+    });
+
+    assert.deepEqual(generatedBeatKeys, ["mid_turn"]);
+    assert.equal(intermediateEvents[0].isFinal, false);
+    assert.equal(intermediateEvents[0].targetBeatKey, "mid_turn");
+    assert.deepEqual(
+      intermediateEvents[0].document.volumes[0].chapters.map((chapter) => chapter.title),
+      ["旧开卷一", "旧开卷二", "中段转向-续跑1", "中段转向-续跑2"],
+    );
+    assert.deepEqual(
+      result.mergedDocument.volumes[0].chapters.map((chapter) => chapter.title),
+      ["旧开卷一", "旧开卷二", "中段转向-续跑1", "中段转向-续跑2"],
+    );
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});
+
+test("generateBeatChunkedChapterList marks non-final complete chunks as resumable chapter list work", async () => {
+  const document = {
+    ...createDocument(),
+    volumes: [{
+      ...createDocument().volumes[0],
+      chapters: [],
+    }],
+  };
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  const intermediateEvents = [];
+
+  promptRunner.runStructuredPrompt = async ({ promptInput }) => ({
+    output: {
+      beatKey: promptInput.targetBeat.key,
+      beatLabel: promptInput.targetBeat.label,
+      chapterCount: promptInput.targetBeatChapterCount,
+      chapters: Array.from({ length: promptInput.targetBeatChapterCount }, (_, index) => ({
+        beatKey: promptInput.targetBeat.key,
+        title: `${promptInput.targetBeat.label}-中间${index + 1}`,
+        summary: `${promptInput.targetBeat.label}中间摘要${index + 1}`,
+      })),
+    },
+  });
+
+  try {
+    await generateBeatChunkedChapterList({
+      document,
+      novel: {
+        title: "测试小说",
+        description: null,
+        targetAudience: null,
+        bookSellingPoint: null,
+        competingFeel: null,
+        first30ChapterPromise: null,
+        commercialTagsJson: null,
+        estimatedChapterCount: 4,
+        narrativePov: null,
+        pacePreference: null,
+        emotionIntensity: null,
+        storyModePromptBlock: null,
+        genre: null,
+        characters: [],
+      },
+      workspace: {
+        ...document,
+        workspaceVersion: "v2",
+        readiness: {},
+      },
+      storyMacroPlan: null,
+      options: {
+        targetVolumeId: "volume-1",
+        generationMode: "full_volume",
+      },
+      notifyPhase: async () => {},
+      notifyIntermediateDocument: async (event) => {
+        intermediateEvents.push(event);
+      },
+    });
+
+    const lastNonFinal = intermediateEvents.filter((event) => event.isFinal === false).at(-1);
+    assert.ok(lastNonFinal);
+    assert.equal(lastNonFinal.document.volumes[0].chapters.length, 4);
+    assert.equal(lastNonFinal.document.volumes[0].status, "chapter_list_partial:active");
+    assert.equal(resolveStructuredOutlineRecoveryCursor({
+      workspace: lastNonFinal.document,
+      plan: { mode: "volume", volumeOrder: 1 },
+    }).step, "chapter_list");
+
+    const finalEvent = intermediateEvents.find((event) => event.isFinal === true);
+    assert.ok(finalEvent);
+    assert.equal(finalEvent.document.volumes[0].status, "active");
+    assert.equal(resolveStructuredOutlineRecoveryCursor({
+      workspace: finalEvent.document,
+      plan: { mode: "volume", volumeOrder: 1 },
+    }).step, "chapter_detail_bundle");
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});
+
+test("generateBeatChunkedChapterList emits a single-beat intermediate document without replacing other beats", async () => {
+  const document = createDocument();
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  const intermediateEvents = [];
+
+  promptRunner.runStructuredPrompt = async ({ promptInput }) => ({
+    output: {
+      beatKey: promptInput.targetBeat.key,
+      beatLabel: promptInput.targetBeat.label,
+      chapterCount: promptInput.targetBeatChapterCount,
+      chapters: Array.from({ length: promptInput.targetBeatChapterCount }, (_, index) => ({
+        beatKey: promptInput.targetBeat.key,
+        title: `${promptInput.targetBeat.label}-单段${index + 1}`,
+        summary: `${promptInput.targetBeat.label}单段摘要${index + 1}`,
+      })),
+    },
+  });
+
+  try {
+    const result = await generateBeatChunkedChapterList({
+      document,
+      novel: {
+        title: "测试小说",
+        description: null,
+        targetAudience: null,
+        bookSellingPoint: null,
+        competingFeel: null,
+        first30ChapterPromise: null,
+        commercialTagsJson: null,
+        estimatedChapterCount: 4,
+        narrativePov: null,
+        pacePreference: null,
+        emotionIntensity: null,
+        storyModePromptBlock: null,
+        genre: null,
+        characters: [],
+      },
+      workspace: {
+        ...document,
+        workspaceVersion: "v2",
+        readiness: {},
+      },
+      storyMacroPlan: null,
+      options: {
+        targetVolumeId: "volume-1",
+        generationMode: "single_beat",
+        targetBeatKey: "mid_turn",
+      },
+      notifyPhase: async () => {},
+      notifyIntermediateDocument: async (event) => {
+        intermediateEvents.push(event);
+      },
+    });
+
+    assert.equal(intermediateEvents.length, 2);
+    assert.equal(intermediateEvents[0].isFinal, false);
+    assert.equal(intermediateEvents[0].targetBeatKey, "mid_turn");
+    assert.deepEqual(
+      intermediateEvents[0].document.volumes[0].chapters.map((chapter) => chapter.title),
+      ["旧开卷一", "旧开卷二", "中段转向-单段1", "中段转向-单段2"],
+    );
+    assert.deepEqual(intermediateEvents[0].document.volumes[0].chapters, result.mergedDocument.volumes[0].chapters);
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});
+
+test("generateBeatChunkedChapterList emits a resumable intermediate document after each generated beat", async () => {
+  const document = createDocument();
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  const intermediateEvents = [];
+
+  promptRunner.runStructuredPrompt = async ({ promptInput }) => ({
+    output: {
+      beatKey: promptInput.targetBeat.key,
+      beatLabel: promptInput.targetBeat.label,
+      chapterCount: promptInput.targetBeatChapterCount,
+      chapters: Array.from({ length: promptInput.targetBeatChapterCount }, (_, index) => ({
+        beatKey: promptInput.targetBeat.key,
+        title: `${promptInput.targetBeat.label}-${index + 1}`,
+        summary: `${promptInput.targetBeat.label}摘要${index + 1}`,
+      })),
+    },
+  });
+
+  try {
+    const result = await generateBeatChunkedChapterList({
+      document: {
+        ...document,
+        volumes: [{
+          ...document.volumes[0],
+          chapters: [],
+        }],
+      },
+      novel: {
+        title: "测试小说",
+        description: null,
+        targetAudience: null,
+        bookSellingPoint: null,
+        competingFeel: null,
+        first30ChapterPromise: null,
+        commercialTagsJson: null,
+        estimatedChapterCount: 4,
+        narrativePov: null,
+        pacePreference: null,
+        emotionIntensity: null,
+        storyModePromptBlock: null,
+        genre: null,
+        characters: [],
+      },
+      workspace: {
+        ...document,
+        volumes: [{
+          ...document.volumes[0],
+          chapters: [],
+        }],
+        workspaceVersion: "v2",
+        readiness: {},
+      },
+      storyMacroPlan: null,
+      options: {
+        targetVolumeId: "volume-1",
+        generationMode: "full_volume",
+      },
+      notifyPhase: async () => {},
+      notifyIntermediateDocument: async (event) => {
+        intermediateEvents.push(event);
+      },
+    });
+
+    assert.equal(intermediateEvents.length, 3);
+    assert.equal(intermediateEvents[0].isFinal, false);
+    assert.equal(intermediateEvents[0].targetBeatKey, "open_hook");
+    assert.deepEqual(
+      intermediateEvents[0].document.volumes[0].chapters.map((chapter) => chapter.title),
+      ["开卷抓手-1", "开卷抓手-2"],
+    );
+    assert.equal(intermediateEvents[1].isFinal, false);
+    assert.equal(intermediateEvents[1].targetBeatKey, "mid_turn");
+    assert.deepEqual(
+      intermediateEvents[1].document.volumes[0].chapters.map((chapter) => chapter.title),
+      ["开卷抓手-1", "开卷抓手-2", "中段转向-1", "中段转向-2"],
+    );
+    assert.equal(intermediateEvents[2].isFinal, true);
+    assert.equal(intermediateEvents[2].targetBeatKey, "mid_turn");
+    assert.deepEqual(intermediateEvents[2].document.volumes[0].chapters, result.mergedDocument.volumes[0].chapters);
   } finally {
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
   }

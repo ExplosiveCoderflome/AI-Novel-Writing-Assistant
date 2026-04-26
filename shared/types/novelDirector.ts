@@ -16,6 +16,7 @@ import type { StoryMacroPlan } from "./storyMacro";
 import type { BookContract, BookContractDraft } from "./novelWorkflow";
 import type { TitleFactorySuggestion } from "./title";
 import type { StyleIntentSummary } from "./styleEngine";
+import type { DirectorAutoApprovalConfig } from "./autoDirectorApproval";
 
 export const DIRECTOR_CORRECTION_PRESETS = [
   {
@@ -89,6 +90,7 @@ export const DIRECTOR_MIN_TARGET_CHAPTER_COUNT = 12;
 export const DIRECTOR_MAX_TARGET_CHAPTER_COUNT = 2000;
 
 export const DIRECTOR_AUTO_EXECUTION_MODES = [
+  "book",
   "front10",
   "chapter_range",
   "volume",
@@ -126,6 +128,19 @@ export interface DirectorAutoExecutionState extends DirectorAutoExecutionPlan {
   nextChapterOrder?: number | null;
   pipelineJobId?: string | null;
   pipelineStatus?: PipelineJobStatus | null;
+  qualityRepairRisk?: DirectorQualityRepairRisk | null;
+}
+
+export type DirectorQualityRepairRiskLevel = "low" | "large_scope" | "replan";
+
+export interface DirectorQualityRepairRisk {
+  riskLevel: DirectorQualityRepairRiskLevel;
+  autoContinuable: boolean;
+  reason: string;
+  noticeCode?: string | null;
+  repairMode?: string | null;
+  affectedChapterCount?: number;
+  remainingChapterCount?: number;
 }
 
 export const DIRECTOR_TAKEOVER_START_PHASES = [
@@ -239,6 +254,7 @@ export interface DirectorTaskSeedPayloadSnapshot {
   batches?: DirectorCandidateBatch[];
   runMode?: DirectorRunMode;
   autoExecutionPlan?: DirectorAutoExecutionPlan;
+  autoApproval?: DirectorAutoApprovalConfig | null;
   styleProfileId?: string | null;
   styleIntentSummary?: StyleIntentSummary | null;
   taskNotice?: DirectorTaskNotice | null;
@@ -324,6 +340,12 @@ export interface DirectorTakeoverReadinessResponse {
     volumeCount: number;
     firstVolumeId?: string | null;
     firstVolumeChapterCount: number;
+    volumeChapterRanges?: Array<{
+      volumeOrder: number;
+      startOrder: number;
+      endOrder: number;
+    }>;
+    structuredOutlineChapterOrders?: number[];
     firstVolumeBeatSheetReady?: boolean;
     firstVolumePreparedChapterCount?: number;
     generatedChapterCount?: number;
@@ -343,6 +365,7 @@ export interface DirectorTakeoverRequest extends DirectorLLMOptions {
   entryStep?: DirectorTakeoverEntryStep;
   strategy?: DirectorTakeoverStrategy;
   autoExecutionPlan?: DirectorAutoExecutionPlan;
+  autoApproval?: DirectorAutoApprovalConfig;
   styleProfileId?: string;
 }
 
@@ -429,6 +452,7 @@ export interface DirectorConfirmRequest extends DirectorProjectContextInput, Dir
   candidate: DirectorCandidate;
   workflowTaskId?: string;
   autoExecutionPlan?: DirectorAutoExecutionPlan;
+  autoApproval?: DirectorAutoApprovalConfig;
 }
 
 export interface DirectorPlanScene {

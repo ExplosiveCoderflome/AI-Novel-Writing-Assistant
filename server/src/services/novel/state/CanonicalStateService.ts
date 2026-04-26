@@ -4,6 +4,7 @@ import type {
 } from "@ai-novel/shared/types/canonicalState";
 import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
 import { prisma } from "../../../db/prisma";
+import { characterResourceLedgerService } from "../characterResource/CharacterResourceLedgerService";
 
 function compactText(value: string | null | undefined, fallback = ""): string {
   return String(value ?? "").replace(/\s+/g, " ").trim() || fallback;
@@ -99,6 +100,7 @@ export class CanonicalStateService {
       relationStages,
       openConflicts,
       payoffItems,
+      characterResourceItems,
       timelineRows,
       currentChapter,
     ] = await Promise.all([
@@ -177,6 +179,7 @@ export class CanonicalStateService {
         where: { novelId },
         orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
       }),
+      characterResourceLedgerService.listResources(novelId).catch(() => []),
       prisma.chapter.findMany({
         where: {
           novelId,
@@ -232,6 +235,9 @@ export class CanonicalStateService {
       const relatedStages = relationStages.filter((item) => (
         item.sourceCharacterId === character.id || item.targetCharacterId === character.id
       ));
+      const characterResources = characterResourceItems.filter((item) => (
+        item.holderCharacterId === character.id || item.ownerCharacterId === character.id
+      ));
       return {
         characterId: character.id,
         name: character.name,
@@ -243,6 +249,7 @@ export class CanonicalStateService {
         emotion: compactText(state?.emotion) || null,
         knownFacts: parseStringArray(state?.knownFactsJson),
         relationStageLabels: takeUnique(relatedStages.map((item) => item.stageLabel), 4),
+        resources: characterResourceLedgerService.buildCharacterSummaries(characterResources),
         summary: compactText(state?.summary) || null,
         lastEventSummary: latestTimelineByCharacter.get(character.id) ?? null,
       };

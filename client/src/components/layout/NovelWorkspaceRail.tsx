@@ -19,6 +19,10 @@ import { Button } from "@/components/ui/button";
 import { extractWorkflowActivityTags } from "@/lib/novelWorkflowActivityTags";
 import { cn } from "@/lib/utils";
 import {
+  applyAutoDirectorResetStepReadiness,
+  extractAutoDirectorResetStepsFromMeta,
+} from "./novelWorkspaceRailState";
+import {
   getNovelWorkspaceTabLabel,
   NOVEL_WORKSPACE_FLOW_STEPS,
   normalizeNovelWorkspaceTab,
@@ -109,6 +113,10 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
   const workspace = volumeWorkspaceQuery.data?.data;
   const qualitySummary = qualityReportQuery.data?.data?.summary;
   const activeTask = activeTaskQuery.data?.data ?? null;
+  const resetSteps = useMemo(
+    () => extractAutoDirectorResetStepsFromMeta(activeTask?.meta),
+    [activeTask?.meta],
+  );
   const reviewScope = useMemo(() => {
     const rawMeta = activeTask?.meta;
     if (!rawMeta || typeof rawMeta !== "object") {
@@ -154,7 +162,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
       || Boolean((novelDetail?.plotBeats ?? []).length);
     const pipelineReady = Boolean(qualitySummary && qualitySummary.overall >= 75);
 
-    return {
+    return applyAutoDirectorResetStepReadiness({
       basic: basicReady,
       story_macro: storyMacroReady,
       character: characterReady,
@@ -162,8 +170,8 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
       structured: structuredReady,
       chapter: chapterReady,
       pipeline: pipelineReady,
-    } satisfies Record<NovelWorkspaceFlowTab, boolean>;
-  }, [novelDetail?.bible, novelDetail?.chapters, novelDetail?.characters, novelDetail?.plotBeats, qualitySummary, workspace]);
+    } satisfies Record<NovelWorkspaceFlowTab, boolean>, resetSteps);
+  }, [novelDetail?.bible, novelDetail?.chapters, novelDetail?.characters, novelDetail?.plotBeats, qualitySummary, resetSteps, workspace]);
 
   const workflowIndex = workflowCurrentTab
     ? NOVEL_WORKSPACE_FLOW_STEPS.findIndex((item) => item.key === workflowCurrentTab)
@@ -173,7 +181,8 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
     NOVEL_WORKSPACE_FLOW_STEPS.map((step, index) => {
       const isSelected = activeTab === step.key;
       const isWorkflowCurrent = workflowCurrentTab === step.key;
-      const isDone = stepReadiness[step.key] || (workflowIndex >= 0 && index < workflowIndex);
+      const isReset = resetSteps.has(step.key);
+      const isDone = !isReset && (stepReadiness[step.key] || (workflowIndex >= 0 && index < workflowIndex));
       const statusLabel = isWorkflowCurrent
         ? isSelected ? "当前步骤" : "流程中"
         : isSelected
@@ -190,7 +199,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
         statusLabel,
       };
     })
-  ), [activeTab, stepReadiness, workflowCurrentTab, workflowIndex]);
+  ), [activeTab, resetSteps, stepReadiness, workflowCurrentTab, workflowIndex]);
 
   const completedStepCount = stepStates.filter((item) => item.isDone).length;
   const novelTitle = novelDetail?.title?.trim() || "小说创作工作台";

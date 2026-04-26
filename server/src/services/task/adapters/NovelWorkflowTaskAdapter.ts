@@ -413,11 +413,13 @@ export class NovelWorkflowTaskAdapter {
     return visibleRows.map((row) => mapSummary(row));
   }
 
-  async detail(id: string): Promise<UnifiedTaskDetail | null> {
+  async detail(id: string, options: { heal?: boolean } = {}): Promise<UnifiedTaskDetail | null> {
     if (await isTaskArchived("novel_workflow", id)) {
       return null;
     }
-    await this.workflowService.healAutoDirectorTaskState(id);
+    if (options.heal !== false) {
+      await this.workflowService.healAutoDirectorTaskState(id);
+    }
 
     const row = await prisma.novelWorkflowTask.findUnique({
       where: { id },
@@ -503,8 +505,9 @@ export class NovelWorkflowTaskAdapter {
     id: string;
     llmOverride?: Pick<DirectorLLMOptions, "provider" | "model" | "temperature">;
     resume?: boolean;
+    batchAlreadyStartedCount?: number;
   }): Promise<UnifiedTaskDetail> {
-    const { id, llmOverride, resume } = input;
+    const { id, llmOverride, resume, batchAlreadyStartedCount } = input;
     if (await isTaskArchived("novel_workflow", id)) {
       throw new AppError("Task not found.", 404);
     }
@@ -517,7 +520,9 @@ export class NovelWorkflowTaskAdapter {
     }
     await this.workflowService.retryTask(id);
     if (row.lane === "auto_director" && resume) {
-      await this.novelDirectorService.continueTask(id);
+      await this.novelDirectorService.continueTask(id, {
+        batchAlreadyStartedCount,
+      });
     }
     const detail = await this.detail(id);
     if (!detail) {

@@ -8,6 +8,7 @@ import { parseJsonStringArray } from "../novelP0Utils";
 import { StyleBindingService } from "../../styleEngine/StyleBindingService";
 import { NovelWorldSliceService } from "../storyWorldSlice/NovelWorldSliceService";
 import { characterDynamicsQueryService } from "../dynamics/CharacterDynamicsQueryService";
+import { characterResourceLedgerService } from "../characterResource/CharacterResourceLedgerService";
 import { payoffLedgerSyncService } from "../../payoff/PayoffLedgerSyncService";
 import { buildSyntheticPayoffIssues } from "../../payoff/payoffLedgerShared";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
@@ -89,6 +90,62 @@ function buildWorldContextFromNovel(
   } | null,
 ): string {
   return buildLegacyWorldContextFromWorld(novel?.world ?? null);
+}
+
+function buildSyntheticCharacterResourceIssues(
+  context: GenerationContextPackage["characterResourceContext"],
+  input: {
+    novelId: string;
+    chapterId: string;
+  },
+): GenerationContextPackage["openAuditIssues"] {
+  if (!context) {
+    return [];
+  }
+  const now = new Date().toISOString();
+  const blockedIssues = context.blockedItems.slice(0, 4).map((item) => ({
+    id: `character-resource:${item.id}:blocked`,
+    reportId: `character-resource:${input.novelId}:${input.chapterId}`,
+    auditType: "continuity" as const,
+    severity: item.status === "destroyed" || item.status === "lost" ? "high" as const : "medium" as const,
+    code: "character_resource_unavailable",
+    description: `${item.name} 当前为 ${item.status}，本章不能直接当作可用资源使用。`,
+    evidence: item.evidence[0]?.summary ?? item.summary,
+    fixSuggestion: `优先做局部修复：补出重新获得、替代资源或不能使用的行动限制，避免无铺垫复用 ${item.name}。`,
+    status: "open" as const,
+    createdAt: now,
+    updatedAt: now,
+  }));
+  const reviewIssues = context.pendingReviewItems.slice(0, 3).map((item) => ({
+    id: `character-resource:${item.id}:pending-review`,
+    reportId: `character-resource:${input.novelId}:${input.chapterId}`,
+    auditType: "continuity" as const,
+    severity: "medium" as const,
+    code: "character_resource_pending_review",
+    description: `${item.name} 的持有、可见性或消耗状态需要确认，确认前不要写成不可逆事实。`,
+    evidence: item.evidence[0]?.summary ?? item.summary,
+    fixSuggestion: `将 ${item.name} 的使用写成可回收的小修补，或先在任务中心确认资源变更。`,
+    status: "open" as const,
+    createdAt: now,
+    updatedAt: now,
+  }));
+  const signalIssues = context.riskSignals
+    .filter((signal) => signal.severity === "high" || signal.severity === "critical")
+    .slice(0, 3)
+    .map((signal, index) => ({
+      id: `character-resource:signal:${index}:${signal.code}`,
+      reportId: `character-resource:${input.novelId}:${input.chapterId}`,
+      auditType: "continuity" as const,
+      severity: signal.severity,
+      code: signal.code || "character_resource_risk",
+      description: signal.summary,
+      evidence: signal.summary,
+      fixSuggestion: "优先采用 patch_first：只修补当前章节的资源归属、消耗或知情关系，不重写整段剧情。",
+      status: "open" as const,
+      createdAt: now,
+      updatedAt: now,
+    }));
+  return [...blockedIssues, ...reviewIssues, ...signalIssues];
 }
 
 function mapPlan(plan: Awaited<ReturnType<typeof plannerService.getChapterPlan>>): GenerationContextPackage["plan"] {
@@ -272,6 +329,7 @@ export class GenerationContextAssembler {
       continuationPack,
       styleContext,
       payoffLedger,
+      characterResourceContext,
     ] = await Promise.all([
       this.worldSliceService.ensureStoryWorldSlice(novelId, { builderMode: "runtime" }),
       plannerService.buildPlanPromptBlock(novelId, chapterId),
@@ -334,6 +392,9 @@ export class GenerationContextAssembler {
       payoffLedgerSyncService.getPayoffLedger(novelId, {
         chapterOrder: chapter.order,
       }),
+      characterResourceLedgerService.buildContext(novelId, {
+        chapterOrder: chapter.order,
+      }).catch(() => null),
     ]);
 
     const resolvedStateDrivenContext = await contextAssemblyService.build({
@@ -449,6 +510,7 @@ export class GenerationContextAssembler {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       })),
+      buildSyntheticCharacterResourceIssues(characterResourceContext, { novelId, chapterId }),
     );
     const runtimeContinuation = {
       enabled: continuationPack.enabled,
@@ -544,6 +606,7 @@ export class GenerationContextAssembler {
       ledgerUrgentItems: canonicalLedger.ledgerUrgentItems,
       ledgerOverdueItems: canonicalLedger.ledgerOverdueItems,
       ledgerSummary: canonicalLedger.ledgerSummary,
+      characterResourceContext,
       chapterMission: null,
       chapterWriteContext: null,
       chapterReviewContext: null,
@@ -636,6 +699,7 @@ export class GenerationContextAssembler {
       ledgerUrgentItems: canonicalLedger.ledgerUrgentItems,
       ledgerOverdueItems: canonicalLedger.ledgerOverdueItems,
       ledgerSummary: canonicalLedger.ledgerSummary,
+      characterResourceContext,
       chapterMission: chapterWriteContext.chapterMission,
       chapterWriteContext,
       chapterReviewContext,

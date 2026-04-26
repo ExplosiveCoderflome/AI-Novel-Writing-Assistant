@@ -8,7 +8,7 @@ CREATE TABLE "CanonicalStateVersion" (
     "summary" TEXT NOT NULL,
     "snapshotJson" TEXT NOT NULL,
     "acceptedProposalIdsJson" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "CanonicalStateVersion_novelId_fkey" FOREIGN KEY ("novelId") REFERENCES "Novel" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "CanonicalStateVersion_chapterId_fkey" FOREIGN KEY ("chapterId") REFERENCES "Chapter" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
@@ -28,8 +28,8 @@ CREATE TABLE "StateChangeProposal" (
     "evidenceJson" TEXT,
     "validationNotesJson" TEXT,
     "committedVersionId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "StateChangeProposal_novelId_fkey" FOREIGN KEY ("novelId") REFERENCES "Novel" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "StateChangeProposal_chapterId_fkey" FOREIGN KEY ("chapterId") REFERENCES "Chapter" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT "StateChangeProposal_committedVersionId_fkey" FOREIGN KEY ("committedVersionId") REFERENCES "CanonicalStateVersion" ("id") ON DELETE SET NULL ON UPDATE CASCADE

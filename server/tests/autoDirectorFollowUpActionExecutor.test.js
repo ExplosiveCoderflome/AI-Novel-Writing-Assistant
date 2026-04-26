@@ -2,131 +2,829 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 require("../dist/app.js");
-const modelRouter = require("../dist/llm/modelRouter.js");
-const {
-  AutoDirectorFollowUpActionExecutor,
-} = require("../dist/services/task/autoDirectorFollowUps/AutoDirectorFollowUpActionExecutor.js");
+const { AutoDirectorFollowUpActionExecutor } = require("../dist/services/task/autoDirectorFollowUps/AutoDirectorFollowUpActionExecutor.js");
+const { prisma } = require("../dist/db/prisma.js");
 
-test("AutoDirectorFollowUpActionExecutor continues front10 auto execution with the expected mode", async () => {
-  const executor = new AutoDirectorFollowUpActionExecutor();
-  const continueCalls = [];
-
-  executor.workflowService.healAutoDirectorTaskState = async () => false;
-  executor.workflowService.getTaskByIdWithoutHealing = async () => ({
-    id: "workflow-front10",
+function buildWorkflowRow(overrides = {}) {
+  return {
+    id: "task_default",
+    novelId: "novel_default",
     lane: "auto_director",
+    title: "AI 自动导演",
     status: "waiting_approval",
-    checkpointType: "front10_ready",
-    pendingManualRecovery: false,
     currentStage: "章节执行",
     currentItemKey: "chapter_execution",
+    currentItemLabel: "等待继续自动执行",
+    checkpointType: "front10_ready",
+    checkpointSummary: "前 10 章已准备完成。",
+    resumeTargetJson: null,
     seedPayloadJson: JSON.stringify({
+      provider: "anthropic",
+      model: "claude-sonnet-4-6",
+      temperature: 0.4,
+      novelId: "novel_default",
+      directorInput: {
+        provider: "anthropic",
+        model: "claude-sonnet-4-6",
+        temperature: 0.4,
+        runMode: "auto_to_execution",
+        candidate: {
+          workingTitle: "雾港巡夜人",
+        },
+      },
       autoExecution: {
         scopeLabel: "前 10 章",
+      },
+    }),
+    milestonesJson: "[]",
+    pendingManualRecovery: false,
+    attemptCount: 1,
+    lastError: null,
+    finishedAt: null,
+    updatedAt: new Date("2026-04-22T08:00:00.000Z"),
+    ...overrides,
+  };
+}
+
+function buildTaskDetail(taskId, overrides = {}) {
+  return {
+    id: taskId,
+    kind: "novel_workflow",
+    title: "AI 自动导演",
+    status: "running",
+    progress: 0.93,
+    currentStage: "章节执行",
+    currentItemKey: "chapter_execution",
+    currentItemLabel: "正在恢复当前章节批次",
+    executionScopeLabel: "前 10 章",
+    displayStatus: "正在恢复当前章节批次",
+    blockingReason: null,
+    resumeAction: "继续自动执行前 10 章",
+    lastHealthyStage: "章节执行",
+    attemptCount: 1,
+    maxAttempts: 3,
+    lastError: null,
+    createdAt: "2026-04-22T07:00:00.000Z",
+    updatedAt: "2026-04-22T08:05:00.000Z",
+    heartbeatAt: "2026-04-22T08:05:00.000Z",
+    ownerId: "novel_default",
+    ownerLabel: "《雾港巡夜人》",
+    sourceRoute: "/novels/novel_default/edit",
+    checkpointType: null,
+    checkpointSummary: null,
+    resumeTarget: null,
+    nextActionLabel: "继续自动执行前 10 章",
+    noticeCode: null,
+    noticeSummary: null,
+    failureCode: null,
+    failureSummary: null,
+    recoveryHint: null,
+    tokenUsage: null,
+    sourceResource: null,
+    targetResources: [],
+    provider: "anthropic",
+    model: "claude-sonnet-4-6",
+    startedAt: "2026-04-22T07:00:00.000Z",
+    finishedAt: null,
+    retryCountLabel: "1/3",
+    meta: {},
+    steps: [],
+    failureDetails: null,
+    ...overrides,
+  };
+}
+
+test("auto director follow-up action executor continues auto execution and deduplicates repeated idempotency keys", async () => {
+  const executor = new AutoDirectorFollowUpActionExecutor();
+  const calls = [];
+  const originals = {
+    actionLogFindUnique: prisma.autoDirectorFollowUpActionLog.findUnique,
+    actionLogCreate: prisma.autoDirectorFollowUpActionLog.create,
+    workflowUpdate: prisma.novelWorkflowTask.update,
+  };
+  const actionLogs = new Map();
+  const workflowUpdates = [];
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = async ({ where }) => actionLogs.get(where.idempotencyKey) ?? null;
+  prisma.autoDirectorFollowUpActionLog.create = async ({ data }) => {
+    actionLogs.set(data.idempotencyKey, {
+      ...data,
+      executedAt: data.executedAt ?? new Date(),
+    });
+    return actionLogs.get(data.idempotencyKey);
+  };
+  prisma.novelWorkflowTask.update = async ({ where, data }) => {
+    workflowUpdates.push({ where, data });
+    return { id: where.id, ...data };
+  };
+  executor.workflowService.healAutoDirectorTaskState = async () => false;
+  executor.workflowService.getTaskByIdWithoutHealing = async () => buildWorkflowRow({
+    id: "task_front10",
+    checkpointType: "front10_ready",
+  });
+  executor.novelDirectorService.continueTask = async (taskId, input) => {
+    calls.push({ taskId, input });
+  };
+  executor.workflowTaskAdapter.detail = async (taskId) => buildTaskDetail(taskId);
+
+  const first = await executor.execute({
+    taskId: "task_front10",
+    actionCode: "continue_auto_execution",
+    source: "web",
+    operatorId: "user_1",
+    idempotencyKey: "continue-front10-k1",
+  });
+
+  const second = await executor.execute({
+    taskId: "task_front10",
+    actionCode: "continue_auto_execution",
+    source: "web",
+    operatorId: "user_1",
+    idempotencyKey: "continue-front10-k1",
+  });
+
+  assert.equal(first.code, "executed");
+  assert.equal(first.taskId, "task_front10");
+  assert.equal(first.task.id, "task_front10");
+  assert.deepEqual(calls, [{
+    taskId: "task_front10",
+    input: {
+      continuationMode: "auto_execute_front10",
+    },
+  }]);
+  assert.equal(actionLogs.get("continue-front10-k1").resultCode, "executed");
+  assert.equal(second.code, "already_processed");
+  assert.equal(second.task.id, "task_front10");
+  assert.equal(actionLogs.size, 1);
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = originals.actionLogFindUnique;
+  prisma.autoDirectorFollowUpActionLog.create = originals.actionLogCreate;
+});
+
+test("auto director follow-up action executor retries with the route model and resumes execution", async () => {
+  const executor = new AutoDirectorFollowUpActionExecutor();
+  const calls = [];
+  const originals = {
+    actionLogFindUnique: prisma.autoDirectorFollowUpActionLog.findUnique,
+    actionLogCreate: prisma.autoDirectorFollowUpActionLog.create,
+    workflowUpdate: prisma.novelWorkflowTask.update,
+  };
+  const actionLogs = new Map();
+  const workflowUpdates = [];
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = async ({ where }) => actionLogs.get(where.idempotencyKey) ?? null;
+  prisma.autoDirectorFollowUpActionLog.create = async ({ data }) => {
+    actionLogs.set(data.idempotencyKey, {
+      ...data,
+      executedAt: data.executedAt ?? new Date(),
+    });
+    return actionLogs.get(data.idempotencyKey);
+  };
+  prisma.novelWorkflowTask.update = async ({ where, data }) => {
+    workflowUpdates.push({ where, data });
+    return { id: where.id, ...data };
+  };
+  executor.workflowService.healAutoDirectorTaskState = async () => false;
+  executor.workflowService.getTaskByIdWithoutHealing = async () => buildWorkflowRow({
+    id: "task_retry_route",
+    status: "failed",
+    checkpointType: "chapter_batch_ready",
+    lastError: "模型调用失败",
+  });
+  executor.resolveRouteModelOverride = async () => ({
+    provider: "openai",
+    model: "gpt-5.4",
+    temperature: 0.2,
+  });
+  executor.workflowTaskAdapter.retry = async (input) => {
+    calls.push(input);
+    return buildTaskDetail(input.id, {
+      status: "running",
+      provider: "openai",
+      model: "gpt-5.4",
+    });
+  };
+  executor.workflowTaskAdapter.detail = async (taskId) => buildTaskDetail(taskId, {
+    status: "running",
+    provider: "openai",
+    model: "gpt-5.4",
+  });
+
+  const result = await executor.execute({
+    taskId: "task_retry_route",
+    actionCode: "retry_with_route_model",
+    source: "web",
+    operatorId: "user_2",
+    idempotencyKey: "retry-route-k1",
+  });
+
+  assert.equal(result.code, "executed");
+  assert.deepEqual(calls, [{
+    id: "task_retry_route",
+    llmOverride: {
+      provider: "openai",
+      model: "gpt-5.4",
+      temperature: 0.2,
+    },
+    resume: true,
+  }]);
+  assert.equal(result.task.provider, "openai");
+  assert.equal(result.task.model, "gpt-5.4");
+  assert.equal(actionLogs.get("retry-route-k1").resultCode, "executed");
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = originals.actionLogFindUnique;
+  prisma.autoDirectorFollowUpActionLog.create = originals.actionLogCreate;
+  prisma.novelWorkflowTask.update = originals.workflowUpdate;
+});
+
+test("auto director follow-up action executor returns forbidden when the action is not allowed for the current reason", async () => {
+  const executor = new AutoDirectorFollowUpActionExecutor();
+  const originals = {
+    actionLogFindUnique: prisma.autoDirectorFollowUpActionLog.findUnique,
+    actionLogCreate: prisma.autoDirectorFollowUpActionLog.create,
+  };
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = async () => null;
+  prisma.autoDirectorFollowUpActionLog.create = async () => null;
+
+  executor.workflowService.healAutoDirectorTaskState = async () => false;
+  executor.workflowService.getTaskByIdWithoutHealing = async () => buildWorkflowRow({
+    id: "task_candidate",
+    checkpointType: "candidate_selection_required",
+    currentStage: "AI 自动导演",
+    currentItemKey: "auto_director",
+    currentItemLabel: "等待确认书级方向",
+  });
+  executor.workflowTaskAdapter.detail = async (taskId) => buildTaskDetail(taskId, {
+    status: "waiting_approval",
+    currentStage: "AI 自动导演",
+    currentItemKey: "auto_director",
+    currentItemLabel: "等待确认书级方向",
+    checkpointType: "candidate_selection_required",
+    checkpointSummary: "请先确认书级方向。",
+  });
+
+  const result = await executor.execute({
+    taskId: "task_candidate",
+    actionCode: "retry_with_task_model",
+    source: "web",
+    operatorId: "user_3",
+    idempotencyKey: "forbidden-k1",
+  });
+
+  assert.equal(result.code, "forbidden");
+  assert.equal(result.taskId, "task_candidate");
+  assert.match(result.message, /当前任务不支持该操作|不支持/);
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = originals.actionLogFindUnique;
+  prisma.autoDirectorFollowUpActionLog.create = originals.actionLogCreate;
+});
+
+test("auto director follow-up action executor returns state_changed when the follow-up is no longer actionable", async () => {
+  const executor = new AutoDirectorFollowUpActionExecutor();
+  const originals = {
+    actionLogFindUnique: prisma.autoDirectorFollowUpActionLog.findUnique,
+    actionLogCreate: prisma.autoDirectorFollowUpActionLog.create,
+  };
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = async () => null;
+  prisma.autoDirectorFollowUpActionLog.create = async () => null;
+
+  executor.workflowService.healAutoDirectorTaskState = async () => false;
+  executor.workflowService.getTaskByIdWithoutHealing = async () => buildWorkflowRow({
+    id: "task_done",
+    status: "succeeded",
+    checkpointType: "workflow_completed",
+    currentItemLabel: "任务已完成",
+    finishedAt: new Date("2026-04-22T08:10:00.000Z"),
+  });
+  executor.workflowTaskAdapter.detail = async (taskId) => buildTaskDetail(taskId, {
+    status: "succeeded",
+    currentItemLabel: "任务已完成",
+    checkpointType: "workflow_completed",
+    finishedAt: "2026-04-22T08:10:00.000Z",
+  });
+
+  const result = await executor.execute({
+    taskId: "task_done",
+    actionCode: "continue_generic",
+    source: "web",
+    operatorId: "user_4",
+    idempotencyKey: "state-changed-k1",
+  });
+
+  assert.equal(result.code, "state_changed");
+  assert.equal(result.task.status, "succeeded");
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = originals.actionLogFindUnique;
+  prisma.autoDirectorFollowUpActionLog.create = originals.actionLogCreate;
+});
+
+test("auto director follow-up action executor batches per-task results without all-or-nothing failure", async () => {
+  const executor = new AutoDirectorFollowUpActionExecutor();
+  const retryCalls = [];
+  const originals = {
+    actionLogFindUnique: prisma.autoDirectorFollowUpActionLog.findUnique,
+    actionLogCreate: prisma.autoDirectorFollowUpActionLog.create,
+    workflowUpdate: prisma.novelWorkflowTask.update,
+  };
+  const actionLogs = new Map();
+  const workflowUpdates = [];
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = async ({ where }) => actionLogs.get(where.idempotencyKey) ?? null;
+  prisma.autoDirectorFollowUpActionLog.create = async ({ data }) => {
+    actionLogs.set(data.idempotencyKey, {
+      ...data,
+      executedAt: data.executedAt ?? new Date(),
+    });
+    return actionLogs.get(data.idempotencyKey);
+  };
+  prisma.novelWorkflowTask.update = async ({ where, data }) => {
+    workflowUpdates.push({ where, data });
+    return { id: where.id, ...data };
+  };
+  executor.workflowService.healAutoDirectorTaskState = async () => false;
+  executor.workflowService.getTaskByIdWithoutHealing = async (taskId) => {
+    if (taskId === "task_ok") {
+      return buildWorkflowRow({
+        id: taskId,
+        status: "failed",
+        checkpointType: "chapter_batch_ready",
+      });
+    }
+    if (taskId === "task_skip") {
+      return buildWorkflowRow({
+        id: taskId,
+        checkpointType: "replan_required",
+      });
+    }
+    return buildWorkflowRow({
+      id: taskId,
+      status: "failed",
+      checkpointType: "chapter_batch_ready",
+    });
+  };
+  executor.workflowTaskAdapter.retry = async (input) => {
+    if (input.id === "task_fail") {
+      throw new Error("retry exploded");
+    }
+    retryCalls.push(input);
+    return buildTaskDetail(input.id);
+  };
+  executor.workflowTaskAdapter.detail = async (taskId) => buildTaskDetail(taskId, {
+    status: taskId === "task_skip" ? "waiting_approval" : "running",
+    checkpointType: taskId === "task_skip" ? "replan_required" : null,
+  });
+
+  const result = await executor.executeBatch({
+    actionCode: "retry_with_task_model",
+    taskIds: ["task_ok", "task_skip", "task_fail"],
+    source: "web",
+    operatorId: "user_5",
+    batchRequestKey: "batch-retry-k1",
+  });
+
+  assert.equal(result.code, "partial_success");
+  assert.equal(result.successCount, 1);
+  assert.equal(result.failureCount, 1);
+  assert.equal(result.skippedCount, 1);
+  assert.deepEqual(retryCalls, [{
+    id: "task_ok",
+    resume: true,
+  }]);
+  assert.deepEqual(result.itemResults.map((item) => [item.taskId, item.code]), [
+    ["task_ok", "executed"],
+    ["task_skip", "forbidden"],
+    ["task_fail", "failed"],
+  ]);
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = originals.actionLogFindUnique;
+  prisma.autoDirectorFollowUpActionLog.create = originals.actionLogCreate;
+  prisma.novelWorkflowTask.update = originals.workflowUpdate;
+});
+
+test("auto director follow-up action executor blocks mutation when unified validation fails", async () => {
+  const executor = new AutoDirectorFollowUpActionExecutor();
+  const calls = [];
+  const originals = {
+    actionLogFindUnique: prisma.autoDirectorFollowUpActionLog.findUnique,
+    actionLogCreate: prisma.autoDirectorFollowUpActionLog.create,
+  };
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = async () => null;
+  prisma.autoDirectorFollowUpActionLog.create = async () => null;
+
+  executor.workflowService.healAutoDirectorTaskState = async () => false;
+  executor.workflowService.getTaskByIdWithoutHealing = async () => buildWorkflowRow({
+    id: "task_blocked",
+    checkpointType: "front10_ready",
+  });
+  executor.novelDirectorService.continueTask = async (taskId, input) => {
+    calls.push({ taskId, input });
+  };
+  executor.workflowTaskAdapter.detail = async (taskId) => buildTaskDetail(taskId);
+  executor.validationService.validateAction = async () => ({
+    allowed: false,
+    blockingReasons: ["目标范围缺少节奏拆章，需要先重新校验。"],
+    warnings: [],
+    requiredActions: [],
+    affectedScope: {
+      type: "chapter_range",
+      label: "第 1-10 章",
+      startOrder: 1,
+      endOrder: 10,
+    },
+    nextAction: "revalidate",
+  });
+
+  const result = await executor.execute({
+    taskId: "task_blocked",
+    actionCode: "continue_auto_execution",
+    source: "web",
+    operatorId: "user_6",
+    idempotencyKey: "validation-block-k1",
+  });
+
+  assert.equal(result.code, "forbidden");
+  assert.match(result.message, /缺少节奏拆章/);
+  assert.deepEqual(calls, []);
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = originals.actionLogFindUnique;
+  prisma.autoDirectorFollowUpActionLog.create = originals.actionLogCreate;
+});
+
+test("auto director follow-up action executor passes batch high-memory count into later resumes", async () => {
+  const executor = new AutoDirectorFollowUpActionExecutor();
+  const continueCalls = [];
+  const originals = {
+    actionLogFindUnique: prisma.autoDirectorFollowUpActionLog.findUnique,
+    actionLogCreate: prisma.autoDirectorFollowUpActionLog.create,
+  };
+  const actionLogs = new Map();
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = async ({ where }) => actionLogs.get(where.idempotencyKey) ?? null;
+  prisma.autoDirectorFollowUpActionLog.create = async ({ data }) => {
+    actionLogs.set(data.idempotencyKey, {
+      ...data,
+      executedAt: data.executedAt ?? new Date(),
+    });
+    return actionLogs.get(data.idempotencyKey);
+  };
+
+  executor.workflowService.healAutoDirectorTaskState = async () => false;
+  executor.workflowService.getTaskByIdWithoutHealing = async (taskId) => buildWorkflowRow({
+    id: taskId,
+    checkpointType: "front10_ready",
+  });
+  executor.novelDirectorService.continueTask = async (taskId, input) => {
+    continueCalls.push({ taskId, input });
+  };
+  executor.workflowTaskAdapter.detail = async (taskId) => buildTaskDetail(taskId);
+
+  const result = await executor.executeBatch({
+    actionCode: "continue_auto_execution",
+    taskIds: ["task_one", "task_two"],
+    source: "web",
+    operatorId: "user_7",
+    batchRequestKey: "batch-continue-k1",
+  });
+
+  assert.equal(result.code, "success");
+  assert.deepEqual(continueCalls, [{
+    taskId: "task_one",
+    input: {
+      continuationMode: "auto_execute_front10",
+    },
+  }, {
+    taskId: "task_two",
+    input: {
+      continuationMode: "auto_execute_front10",
+      batchAlreadyStartedCount: 1,
+    },
+  }]);
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = originals.actionLogFindUnique;
+  prisma.autoDirectorFollowUpActionLog.create = originals.actionLogCreate;
+});
+
+test("auto director follow-up action executor restricts batch actions to matching sections", async () => {
+  const executor = new AutoDirectorFollowUpActionExecutor();
+  const continueCalls = [];
+  const retryCalls = [];
+  const originals = {
+    actionLogFindUnique: prisma.autoDirectorFollowUpActionLog.findUnique,
+    actionLogCreate: prisma.autoDirectorFollowUpActionLog.create,
+  };
+  const actionLogs = new Map();
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = async ({ where }) => actionLogs.get(where.idempotencyKey) ?? null;
+  prisma.autoDirectorFollowUpActionLog.create = async ({ data }) => {
+    actionLogs.set(data.idempotencyKey, {
+      ...data,
+      executedAt: data.executedAt ?? new Date(),
+    });
+    return actionLogs.get(data.idempotencyKey);
+  };
+
+  executor.workflowService.healAutoDirectorTaskState = async () => false;
+  executor.workflowService.getTaskByIdWithoutHealing = async (taskId) => {
+    if (taskId === "task_pending") {
+      return buildWorkflowRow({
+        id: taskId,
+        status: "waiting_approval",
+        checkpointType: "front10_ready",
+      });
+    }
+    if (taskId === "task_exception") {
+      return buildWorkflowRow({
+        id: taskId,
+        status: "failed",
+        checkpointType: "chapter_batch_ready",
+        lastError: "模型调用失败",
+      });
+    }
+    return buildWorkflowRow({
+      id: taskId,
+      status: "running",
+      checkpointType: null,
+    });
+  };
+  executor.novelDirectorService.continueTask = async (taskId, input) => {
+    continueCalls.push({ taskId, input });
+  };
+  executor.workflowTaskAdapter.retry = async (input) => {
+    retryCalls.push(input);
+    return buildTaskDetail(input.id);
+  };
+  executor.workflowTaskAdapter.detail = async (taskId) => buildTaskDetail(taskId);
+
+  const continueResult = await executor.executeBatch({
+    actionCode: "continue_auto_execution",
+    taskIds: ["task_pending", "task_exception", "task_running"],
+    source: "web",
+    operatorId: "user_8",
+    batchRequestKey: "batch-section-continue-k1",
+  });
+
+  const retryResult = await executor.executeBatch({
+    actionCode: "retry_with_task_model",
+    taskIds: ["task_pending", "task_exception", "task_running"],
+    source: "web",
+    operatorId: "user_8",
+    batchRequestKey: "batch-section-retry-k1",
+  });
+
+  assert.equal(continueResult.successCount, 1);
+  assert.equal(continueResult.skippedCount, 2);
+  assert.deepEqual(continueCalls.map((call) => call.taskId), ["task_pending"]);
+  assert.deepEqual(continueResult.itemResults.map((item) => [item.taskId, item.code]), [
+    ["task_pending", "executed"],
+    ["task_exception", "forbidden"],
+    ["task_running", "forbidden"],
+  ]);
+
+  assert.equal(retryResult.successCount, 1);
+  assert.equal(retryResult.skippedCount, 2);
+  assert.deepEqual(retryCalls.map((call) => call.id), ["task_exception"]);
+  assert.deepEqual(retryResult.itemResults.map((item) => [item.taskId, item.code]), [
+    ["task_pending", "forbidden"],
+    ["task_exception", "executed"],
+    ["task_running", "forbidden"],
+  ]);
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = originals.actionLogFindUnique;
+  prisma.autoDirectorFollowUpActionLog.create = originals.actionLogCreate;
+});
+
+test("auto director follow-up action executor blocks validation-required tasks from batch continue", async () => {
+  const executor = new AutoDirectorFollowUpActionExecutor();
+  const continueCalls = [];
+  const originals = {
+    actionLogFindUnique: prisma.autoDirectorFollowUpActionLog.findUnique,
+    actionLogCreate: prisma.autoDirectorFollowUpActionLog.create,
+  };
+  const actionLogs = new Map();
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = async ({ where }) => actionLogs.get(where.idempotencyKey) ?? null;
+  prisma.autoDirectorFollowUpActionLog.create = async ({ data }) => {
+    actionLogs.set(data.idempotencyKey, {
+      ...data,
+      executedAt: data.executedAt ?? new Date(),
+    });
+    return actionLogs.get(data.idempotencyKey);
+  };
+
+  executor.workflowService.healAutoDirectorTaskState = async () => false;
+  executor.workflowService.getTaskByIdWithoutHealing = async (taskId) => buildWorkflowRow({
+    id: taskId,
+    status: "waiting_approval",
+    checkpointType: "front10_ready",
+    seedPayloadJson: JSON.stringify({
+      autoExecution: {
+        scopeLabel: "第 1-10 章",
+        startOrder: 1,
+        endOrder: 10,
+      },
+      autoDirectorValidationResult: {
+        allowed: false,
+        blockingReasons: ["目标范围缺少节奏拆章，需要先重新校验。"],
+        warnings: [],
+        requiredActions: [{
+          code: "revalidate_assets",
+          label: "重新读取任务状态",
+          riskLevel: "low",
+          safeToAutoFix: true,
+        }],
+        affectedScope: {
+          type: "chapter_range",
+          label: "第 1-10 章",
+          startOrder: 1,
+          endOrder: 10,
+        },
+        nextAction: "revalidate",
       },
     }),
   });
   executor.novelDirectorService.continueTask = async (taskId, input) => {
     continueCalls.push({ taskId, input });
   };
-  executor.workflowTaskAdapter.detail = async (taskId) => ({
-    id: taskId,
-    kind: "novel_workflow",
-    title: "自动导演任务",
-    status: "running",
-    progress: 0.9,
-    attemptCount: 1,
-    maxAttempts: 3,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    ownerId: "novel-1",
-    ownerLabel: "小说 A",
-    sourceRoute: "/novels/novel-1/edit",
-    retryCountLabel: "1/3",
-    meta: {},
-    steps: [],
+  executor.workflowTaskAdapter.detail = async (taskId) => buildTaskDetail(taskId, {
+    status: "waiting_approval",
+    checkpointType: "front10_ready",
   });
 
-  const result = await executor.execute({
-    taskId: "workflow-front10",
+  const result = await executor.executeBatch({
     actionCode: "continue_auto_execution",
+    taskIds: ["task_validation_blocked"],
     source: "web",
-    operatorId: "tester",
-    idempotencyKey: "continue-front10-1",
+    operatorId: "user_9",
+    batchRequestKey: "batch-validation-block-k1",
+  });
+
+  assert.equal(result.code, "skipped");
+  assert.equal(result.successCount, 0);
+  assert.equal(result.skippedCount, 1);
+  assert.equal(result.itemResults[0].code, "forbidden");
+  assert.match(result.itemResults[0].message, /分区不支持|批量动作/);
+  assert.deepEqual(continueCalls, []);
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = originals.actionLogFindUnique;
+  prisma.autoDirectorFollowUpActionLog.create = originals.actionLogCreate;
+});
+
+test("auto director follow-up safe fix repairs only validator-marked safe actions", async () => {
+  const executor = new AutoDirectorFollowUpActionExecutor();
+  const calls = [];
+  const originals = {
+    actionLogFindUnique: prisma.autoDirectorFollowUpActionLog.findUnique,
+    actionLogCreate: prisma.autoDirectorFollowUpActionLog.create,
+    workflowUpdate: prisma.novelWorkflowTask.update,
+  };
+  const actionLogs = new Map();
+  const workflowUpdates = [];
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = async ({ where }) => actionLogs.get(where.idempotencyKey) ?? null;
+  prisma.autoDirectorFollowUpActionLog.create = async ({ data }) => {
+    actionLogs.set(data.idempotencyKey, {
+      ...data,
+      executedAt: data.executedAt ?? new Date(),
+    });
+    return actionLogs.get(data.idempotencyKey);
+  };
+  prisma.novelWorkflowTask.update = async ({ where, data }) => {
+    workflowUpdates.push({ where, data });
+    return { id: where.id, ...data };
+  };
+
+  executor.workflowService.healAutoDirectorTaskState = async (taskId) => {
+    calls.push(["heal", taskId]);
+    return true;
+  };
+  executor.workflowService.getTaskByIdWithoutHealing = async (taskId) => buildWorkflowRow({
+    id: taskId,
+    status: "failed",
+    checkpointType: "chapter_batch_ready",
+    lastError: "任务状态与章节资产不一致。",
+    seedPayloadJson: JSON.stringify({
+      autoExecution: {
+        scopeLabel: "第 1-10 章",
+        startOrder: 1,
+        endOrder: 10,
+      },
+      autoDirectorValidationResult: {
+        allowed: false,
+        blockingReasons: ["任务状态与章节资产不一致，需要先安全对账。"],
+        warnings: ["只会修复状态、检查点、进度和通知审计信息。"],
+        requiredActions: [{
+          code: "revalidate_assets",
+          label: "重新读取任务和章节资产",
+          riskLevel: "low",
+          safeToAutoFix: true,
+        }, {
+          code: "clear_checkpoint",
+          label: "清除已处理检查点",
+          riskLevel: "low",
+          safeToAutoFix: true,
+        }],
+        affectedScope: {
+          type: "chapter_range",
+          label: "第 1-10 章",
+          startOrder: 1,
+          endOrder: 10,
+        },
+        nextAction: "revalidate",
+      },
+    }),
+  });
+  executor.workflowTaskAdapter.detail = async (taskId) => buildTaskDetail(taskId, {
+    status: "waiting_approval",
+    checkpointType: "chapter_batch_ready",
+  });
+  executor.novelDirectorService.continueTask = async () => {
+    throw new Error("safe fix must not continue execution");
+  };
+  executor.workflowTaskAdapter.retry = async () => {
+    throw new Error("safe fix must not retry execution");
+  };
+
+  const result = await executor.execute({
+    taskId: "task_validation_fix",
+    actionCode: "safe_fix_validation",
+    source: "web",
+    operatorId: "user_10",
+    idempotencyKey: "safe-fix-k1",
   });
 
   assert.equal(result.code, "executed");
-  assert.deepEqual(continueCalls, [{
-    taskId: "workflow-front10",
-    input: {
-      continuationMode: "auto_execute_front10",
-    },
-  }]);
+  assert.match(result.message, /安全修复/);
+  assert.deepEqual(calls, [["heal", "task_validation_fix"]]);
+  assert.equal(workflowUpdates.length, 1);
+  assert.equal(JSON.parse(workflowUpdates[0].data.seedPayloadJson).autoDirectorValidationResult, undefined);
+  assert.equal(actionLogs.get("safe-fix-k1").resultCode, "executed");
+  assert.match(actionLogs.get("safe-fix-k1").metadataJson, /revalidate_assets/);
+  assert.doesNotMatch(actionLogs.get("safe-fix-k1").metadataJson, /create_rewrite_snapshot/);
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = originals.actionLogFindUnique;
+  prisma.autoDirectorFollowUpActionLog.create = originals.actionLogCreate;
+  prisma.novelWorkflowTask.update = originals.workflowUpdate;
 });
 
-test("AutoDirectorFollowUpActionExecutor retries with the resolved route model for replan follow-ups", async () => {
+test("auto director follow-up safe fix blocks unsafe validation repairs", async () => {
   const executor = new AutoDirectorFollowUpActionExecutor();
-  const originalResolveModel = modelRouter.resolveModel;
-  const retryCalls = [];
-
-  executor.workflowService.healAutoDirectorTaskState = async () => false;
-  executor.workflowService.getTaskByIdWithoutHealing = async () => ({
-    id: "workflow-replan",
-    lane: "auto_director",
-    status: "failed",
-    checkpointType: "replan_required",
-    pendingManualRecovery: false,
-    currentStage: "质量修复",
-    currentItemKey: "quality_repair",
-    seedPayloadJson: "{}",
-  });
-  executor.workflowTaskAdapter.retry = async (input) => {
-    retryCalls.push(input);
-    return {
-      id: input.id,
-      kind: "novel_workflow",
-      title: "自动导演任务",
-      status: "running",
-      progress: 0.12,
-      attemptCount: 2,
-      maxAttempts: 3,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      ownerId: "novel-1",
-      ownerLabel: "小说 A",
-      sourceRoute: "/novels/novel-1/edit",
-      retryCountLabel: "2/3",
-      meta: {},
-      steps: [],
-    };
+  const originals = {
+    actionLogFindUnique: prisma.autoDirectorFollowUpActionLog.findUnique,
+    actionLogCreate: prisma.autoDirectorFollowUpActionLog.create,
+    workflowUpdate: prisma.novelWorkflowTask.update,
   };
-  executor.workflowTaskAdapter.detail = async () => null;
-  modelRouter.resolveModel = async () => ({
-    provider: "openai",
-    model: "gpt-test-route",
-    temperature: 0.15,
+  const workflowUpdates = [];
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = async () => null;
+  prisma.autoDirectorFollowUpActionLog.create = async () => null;
+  prisma.novelWorkflowTask.update = async ({ where, data }) => {
+    workflowUpdates.push({ where, data });
+    return { id: where.id, ...data };
+  };
+  executor.workflowService.healAutoDirectorTaskState = async () => false;
+  executor.workflowService.getTaskByIdWithoutHealing = async (taskId) => buildWorkflowRow({
+    id: taskId,
+    status: "waiting_approval",
+    checkpointType: "front10_ready",
+    seedPayloadJson: JSON.stringify({
+      autoDirectorValidationResult: {
+        allowed: false,
+        blockingReasons: ["重新生成需要创建快照并清理正文。"],
+        warnings: ["该操作会影响正文和规划资产。"],
+        requiredActions: [{
+          code: "create_rewrite_snapshot",
+          label: "创建重写前快照",
+          riskLevel: "high",
+          safeToAutoFix: false,
+        }, {
+          code: "reset_downstream_state",
+          label: "重置目标节点后的状态",
+          riskLevel: "medium",
+          safeToAutoFix: false,
+        }],
+        affectedScope: { type: "book", label: "全书" },
+        nextAction: "manual_review",
+      },
+    }),
+  });
+  executor.workflowTaskAdapter.detail = async (taskId) => buildTaskDetail(taskId);
+
+  const result = await executor.execute({
+    taskId: "task_unsafe_fix",
+    actionCode: "safe_fix_validation",
+    source: "web",
+    operatorId: "user_10",
+    idempotencyKey: "safe-fix-unsafe-k1",
   });
 
-  try {
-    const result = await executor.execute({
-      taskId: "workflow-replan",
-      actionCode: "retry_with_route_model",
-      source: "web",
-      operatorId: "tester",
-      idempotencyKey: "retry-route-1",
-    });
+  assert.equal(result.code, "forbidden");
+  assert.match(result.message, /人工处理|不能安全修复|高风险/);
+  assert.equal(workflowUpdates.length, 0);
 
-    assert.equal(result.code, "executed");
-    assert.deepEqual(retryCalls, [{
-      id: "workflow-replan",
-      llmOverride: {
-        provider: "openai",
-        model: "gpt-test-route",
-        temperature: 0.15,
-      },
-      resume: true,
-    }]);
-  } finally {
-    modelRouter.resolveModel = originalResolveModel;
-  }
+  prisma.autoDirectorFollowUpActionLog.findUnique = originals.actionLogFindUnique;
+  prisma.autoDirectorFollowUpActionLog.create = originals.actionLogCreate;
+  prisma.novelWorkflowTask.update = originals.workflowUpdate;
 });

@@ -109,6 +109,55 @@ test("runPipelineChapterWithRuntime skips review and repair when autoReview is d
   });
 });
 
+test("runPipelineChapterWithRuntime does not save a generated draft twice when writer already synced artifacts", async () => {
+  const savedDrafts = [];
+
+  const result = await runPipelineChapterWithRuntime(
+    {
+      validateRequest(input) {
+        return input;
+      },
+      async ensureNovelCharacters() {},
+      async assemble() {
+        return {
+          novel: { id: "novel-1", title: "test novel" },
+          chapter: {
+            id: "chapter-1",
+            title: "chapter one",
+            order: 1,
+            content: null,
+            expectation: null,
+          },
+          contextPackage: {},
+        };
+      },
+      async generateDraftFromWriter() {
+        return { content: "generated draft", artifactsAlreadySynced: true };
+      },
+      async saveDraftAndArtifacts(_novelId, _chapterId, content, generationState) {
+        savedDrafts.push({ content, generationState });
+      },
+      async finalizeChapterContent({ content }) {
+        return {
+          finalContent: content,
+          runtimePackage: createRuntimePackage(90),
+        };
+      },
+      async markChapterGenerationState() {},
+    },
+    "novel-1",
+    "chapter-1",
+    {
+      autoReview: true,
+      autoRepair: true,
+    },
+  );
+
+  assert.deepEqual(savedDrafts, []);
+  assert.equal(result.pass, true);
+  assert.equal(result.reviewExecuted, true);
+});
+
 test("runPipelineChapterWithRuntime defaults to a single repair pass before stopping", async () => {
   const originalRunTextPrompt = promptRunner.runTextPrompt;
   const stages = [];

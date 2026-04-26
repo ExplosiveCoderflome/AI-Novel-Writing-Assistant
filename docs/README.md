@@ -32,6 +32,7 @@
 - [Knowledge Module Plan](./plans/knowledge-module-plan.md)
 - [Chapter Editor V2 Plan](./plans/chapter-editor-v2-plan.md)
 - [Desktop Plan](./plans/desktop-plan.md)
+- [Character Resource Ledger Plan](./plans/character-resource-ledger-plan.md)
 
 ### `docs/design`
 

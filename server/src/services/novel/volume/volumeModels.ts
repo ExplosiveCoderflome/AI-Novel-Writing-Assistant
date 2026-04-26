@@ -87,6 +87,10 @@ export interface VolumeGenerateOptions {
   respectExistingVolumeCount?: boolean;
   draftVolumes?: unknown;
   draftWorkspace?: unknown;
+  taskId?: string;
+  entrypoint?: string;
+  signal?: AbortSignal;
+  persistIntermediateDocuments?: boolean;
   onPhaseStart?: (event: VolumeGenerationPhaseEvent) => void | Promise<void>;
   onIntermediateDocument?: (event: VolumeIntermediateDocumentEvent) => void | Promise<void>;
 }

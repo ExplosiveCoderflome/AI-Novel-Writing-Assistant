@@ -5,6 +5,8 @@ export const queryKeys = {
     detail: (id: string) => ["novels", "detail", id] as const,
     chapters: (id: string) => ["novels", "chapters", id] as const,
     characters: (id: string) => ["novels", "characters", id] as const,
+    characterResources: (id: string) => ["novels", "character-resources", id] as const,
+    characterResourceContext: (id: string, chapterId: string) => ["novels", "character-resource-context", id, chapterId] as const,
     characterRelations: (id: string) => ["novels", "character-relations", id] as const,
     characterCastOptions: (id: string) => ["novels", "character-cast-options", id] as const,
     characterDynamicsOverview: (id: string, chapterOrder?: number) => ["novels", "character-dynamics-overview", id, chapterOrder ?? "latest"] as const,
@@ -91,6 +93,11 @@ export const queryKeys = {
     recoveryCandidates: ["tasks", "recovery-candidates"] as const,
     autoDirectorFollowUpDetail: (taskId: string) => ["tasks", "auto-director-follow-up", taskId] as const,
   },
+  autoDirectorFollowUps: {
+    overview: ["auto-director-follow-ups", "overview"] as const,
+    list: (params: string) => ["auto-director-follow-ups", "list", params] as const,
+    detail: (taskId: string) => ["auto-director-follow-ups", "detail", taskId] as const,
+  },
   agentRuns: {
     list: (params: string) => ["agent-runs", "list", params] as const,
     detail: (id: string) => ["agent-runs", "detail", id] as const,
@@ -110,6 +117,8 @@ export const queryKeys = {
     modelRoutes: ["settings", "model-routes"] as const,
     modelRouteConnectivity: ["settings", "model-route-connectivity"] as const,
     structuredFallback: ["settings", "structured-fallback"] as const,
+    autoDirectorChannels: ["settings", "auto-director-channels"] as const,
+    autoDirectorApprovalPreferences: ["settings", "auto-director-approval-preferences"] as const,
   },
   novelsKnowledge: {
     bindings: (id: string) => ["novels", "knowledge-documents", id] as const,

@@ -15,6 +15,7 @@ import { DIRECTOR_CHAPTER_DETAIL_MODES } from "./novelDirectorProgress";
 import {
   getBeatExpectedChapterCount,
   getBeatSheet,
+  isVolumeChapterListPartiallyPersisted,
   resolveVolumeChapterBeatKey,
 } from "../volume/volumeGenerationHelpers";
 
@@ -153,6 +154,9 @@ function selectPreparedOutlineChapters(
 ): PreparedOutlineChapterRef[] {
   const normalizedPlan = normalizeDirectorAutoExecutionPlan(plan);
   const prepared = flattenPreparedOutlineChapters(workspace);
+  if (normalizedPlan.mode === "book") {
+    return prepared;
+  }
   if (normalizedPlan.mode === "volume") {
     return prepared.filter((chapter) => chapter.volumeOrder === normalizedPlan.volumeOrder);
   }
@@ -178,6 +182,12 @@ function resolveVolumeChapterListCursor(input: {
     return {
       isReady: false,
       nextBeat: null,
+    };
+  }
+  if (isVolumeChapterListPartiallyPersisted(input.volume)) {
+    return {
+      isReady: false,
+      nextBeat: beatSheet.beats[0] ?? null,
     };
   }
 

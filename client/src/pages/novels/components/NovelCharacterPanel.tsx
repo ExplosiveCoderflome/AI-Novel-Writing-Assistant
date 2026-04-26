@@ -13,6 +13,7 @@ import type {
   SupplementalCharacterGenerationResult,
 } from "@ai-novel/shared/types/novel";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { CharacterResourceLedgerItem } from "@ai-novel/shared/types/characterResource";
 import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -137,6 +138,10 @@ interface NovelCharacterPanelProps {
   onWorldCheck: () => void;
   isCheckingWorld: boolean;
   selectedCharacter?: Character;
+  characterResources?: CharacterResourceLedgerItem[];
+  pendingCharacterResourceCount?: number;
+  onBackfillCharacterResources?: () => void;
+  isBackfillingCharacterResources?: boolean;
   characterForm: CharacterFormState;
   onCharacterFormChange: (field: keyof CharacterFormState, value: string) => void;
   onSaveCharacter: () => void;
@@ -182,6 +187,10 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
     onWorldCheck,
     isCheckingWorld,
     selectedCharacter,
+    characterResources = [],
+    pendingCharacterResourceCount = 0,
+    onBackfillCharacterResources,
+    isBackfillingCharacterResources = false,
     characterForm,
     onCharacterFormChange,
     onSaveCharacter,
@@ -696,6 +705,10 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
         isSyncingAllTimeline={isSyncingAllTimeline}
         onWorldCheck={onWorldCheck}
         isCheckingWorld={isCheckingWorld}
+        characterResources={characterResources}
+        pendingCharacterResourceCount={pendingCharacterResourceCount}
+        onBackfillCharacterResources={onBackfillCharacterResources}
+        isBackfillingCharacterResources={isBackfillingCharacterResources}
       />
     </div>
   );

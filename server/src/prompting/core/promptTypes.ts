@@ -39,7 +39,12 @@ export interface PromptInvocationMeta {
   taskType: TaskType;
   novelId?: string;
   chapterId?: string;
+  volumeId?: string;
+  taskId?: string;
   stage?: string;
+  itemKey?: string;
+  scope?: string;
+  entrypoint?: string;
   sceneIndex?: number;
   roundIndex?: number;
   triggerReason?: string;
@@ -62,7 +67,12 @@ export interface PromptExecutionOptions {
   signal?: AbortSignal;
   novelId?: string;
   chapterId?: string;
+  volumeId?: string;
+  taskId?: string;
   stage?: string;
+  itemKey?: string;
+  scope?: string;
+  entrypoint?: string;
   sceneIndex?: number;
   roundIndex?: number;
   triggerReason?: string;

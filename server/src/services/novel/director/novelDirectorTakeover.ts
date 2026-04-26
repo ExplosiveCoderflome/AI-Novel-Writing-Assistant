@@ -36,6 +36,12 @@ export interface DirectorTakeoverAssetSnapshot {
   hasVolumeStrategyPlan?: boolean;
   firstVolumeId: string | null;
   firstVolumeChapterCount: number;
+  volumeChapterRanges?: Array<{
+    volumeOrder: number;
+    startOrder: number;
+    endOrder: number;
+  }>;
+  structuredOutlineChapterOrders?: number[];
   firstVolumeBeatSheetReady?: boolean;
   firstVolumePreparedChapterCount?: number;
   structuredOutlineRecoveryStep?: "beat_sheet" | "chapter_list" | "chapter_detail_bundle" | "chapter_sync" | "completed" | null;

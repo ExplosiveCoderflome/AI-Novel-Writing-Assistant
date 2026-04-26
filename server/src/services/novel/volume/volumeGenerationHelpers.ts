@@ -25,6 +25,10 @@ import type {
   VolumeGenerationNovel,
   VolumeWorkspace,
 } from "./volumeModels";
+export {
+  allocateChapterBudgets,
+  deriveChapterBudget,
+} from "./volumeChapterBudgetAllocation";
 
 type StoryMacroPlanResult = Awaited<ReturnType<StoryMacroPlanService["getPlan"]>> | null;
 
@@ -39,6 +43,60 @@ export interface GeneratedVolumeChapterBlock {
   }>;
 }
 
+export const VOLUME_CHAPTER_LIST_PARTIAL_STATUS_PREFIX = "chapter_list_partial";
+
+export function isVolumeChapterListPartiallyPersisted(volume: Pick<VolumePlan, "status">): boolean {
+  const normalizedStatus = volume.status.trim();
+  return normalizedStatus === VOLUME_CHAPTER_LIST_PARTIAL_STATUS_PREFIX
+    || normalizedStatus.startsWith(`${VOLUME_CHAPTER_LIST_PARTIAL_STATUS_PREFIX}:`);
+}
+
+function resolveOriginalVolumeStatus(status: string): string {
+  const normalizedStatus = status.trim();
+  const prefixedStatus = `${VOLUME_CHAPTER_LIST_PARTIAL_STATUS_PREFIX}:`;
+  if (normalizedStatus.startsWith(prefixedStatus)) {
+    return normalizedStatus.slice(prefixedStatus.length).trim() || "active";
+  }
+  if (normalizedStatus === VOLUME_CHAPTER_LIST_PARTIAL_STATUS_PREFIX) {
+    return "active";
+  }
+  return normalizedStatus || "active";
+}
+
+function withVolumeChapterListPartialStatus(volume: VolumePlan, markAsPartial: boolean): VolumePlan {
+  if (markAsPartial) {
+    return {
+      ...volume,
+      status: isVolumeChapterListPartiallyPersisted(volume)
+        ? volume.status
+        : `${VOLUME_CHAPTER_LIST_PARTIAL_STATUS_PREFIX}:${resolveOriginalVolumeStatus(volume.status)}`,
+    };
+  }
+  return {
+    ...volume,
+    status: resolveOriginalVolumeStatus(volume.status),
+  };
+}
+
+export function setVolumeChapterListPartialStatus(
+  document: VolumePlanDocument,
+  targetVolumeId: string,
+  markAsPartial: boolean,
+): VolumePlanDocument {
+  return buildVolumeWorkspaceDocument({
+    novelId: document.novelId,
+    volumes: document.volumes.map((volume) => (
+      volume.id === targetVolumeId ? withVolumeChapterListPartialStatus(volume, markAsPartial) : volume
+    )),
+    strategyPlan: document.strategyPlan,
+    critiqueReport: document.critiqueReport,
+    beatSheets: document.beatSheets,
+    rebalanceDecisions: document.rebalanceDecisions,
+    source: "volume",
+    activeVersionId: document.activeVersionId,
+  });
+}
+
 export function normalizeScope(scope?: VolumeGenerationScopeInput): VolumeGenerationScope {
   if (scope === "book") {
     return "skeleton";
@@ -47,55 +105,6 @@ export function normalizeScope(scope?: VolumeGenerationScopeInput): VolumeGenera
     return "chapter_list";
   }
   return scope ?? "strategy";
-}
-
-export function deriveChapterBudget(params: {
-  novel: VolumeGenerationNovel;
-  workspace: VolumeWorkspace;
-  options: VolumeGenerateOptions;
-}): number {
-  const { novel, workspace, options } = params;
-  return Math.max(
-    options.estimatedChapterCount ?? 0,
-    novel.estimatedChapterCount ?? 0,
-    workspace.volumes.flatMap((volume) => volume.chapters).length,
-    12,
-  );
-}
-
-export function allocateChapterBudgets(params: {
-  volumeCount: number;
-  chapterBudget: number;
-  existingVolumes: VolumePlan[];
-}): number[] {
-  const { volumeCount, chapterBudget, existingVolumes } = params;
-  const safeVolumeCount = Math.max(volumeCount, 1);
-  const minimumPerVolume = 3;
-  const totalBudget = Math.max(chapterBudget, safeVolumeCount * minimumPerVolume);
-  const existingCounts = Array.from(
-    { length: safeVolumeCount },
-    (_, index) => Math.max(existingVolumes[index]?.chapters.length ?? 0, 0),
-  );
-  const hasUsefulWeights = existingCounts.some((count) => count >= minimumPerVolume);
-  const weights = hasUsefulWeights
-    ? existingCounts.map((count) => Math.max(count, 1))
-    : Array.from({ length: safeVolumeCount }, () => 1);
-  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
-  const budgets = weights.map((weight) => Math.max(minimumPerVolume, Math.round((totalBudget * weight) / totalWeight)));
-  let delta = totalBudget - budgets.reduce((sum, budget) => sum + budget, 0);
-
-  while (delta !== 0) {
-    const direction = delta > 0 ? 1 : -1;
-    for (let index = 0; index < budgets.length && delta !== 0; index += 1) {
-      if (direction < 0 && budgets[index] <= minimumPerVolume) {
-        continue;
-      }
-      budgets[index] += direction;
-      delta -= direction;
-    }
-  }
-
-  return budgets;
 }
 
 export function getTargetVolume(document: VolumePlanDocument, targetVolumeId?: string): VolumePlan {
@@ -375,6 +384,7 @@ export function mergeChapterList(
     generationMode?: VolumeChapterListGenerationMode;
     targetBeatKey?: string;
     resumeFromBeatKey?: string | null;
+    markAsPartial?: boolean;
   } = {},
 ): VolumePlanDocument {
   const mergedVolumes = document.volumes.map((volume) => {
@@ -454,13 +464,13 @@ export function mergeChapterList(
       nextChapters.push(...preservedUnmatched);
     }
 
-    return {
+    return withVolumeChapterListPartialStatus({
       ...volume,
       chapters: nextChapters.map((chapter, chapterIndex) => ({
         ...chapter,
         chapterOrder: chapterIndex + 1,
       })),
-    };
+    }, options.markAsPartial === true);
   });
 
   return buildVolumeWorkspaceDocument({
@@ -588,10 +598,16 @@ export async function generateChapterTaskSheetDetail(params: {
           provider: params.options.provider,
           model: params.options.model,
           temperature: params.options.temperature ?? 0.35,
+          taskId: params.options.taskId,
+          entrypoint: params.options.entrypoint,
           novelId: params.promptInput.workspace.novelId,
+          volumeId: params.promptInput.targetVolume.id,
           chapterId: params.promptInput.targetChapter.id,
           stage: "chapter_execution_contract",
+          itemKey: "chapter_detail_bundle",
+          scope: "chapter_detail",
           triggerReason: "chapter_detail_generation",
+          signal: params.options.signal,
         },
       });
       const scenePlan = normalizeChapterScenePlan(

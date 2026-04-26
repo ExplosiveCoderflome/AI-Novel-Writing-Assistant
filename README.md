@@ -32,22 +32,7 @@
 - 最新版本页：[Latest Release](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)
 - 建议优先下载 `Setup.exe` 安装版；如果你不想安装，或者想放在 U 盘 / 临时目录里直接运行，再选择 `portable` 版本
 
-## Beta 预发体验
 
-新功能会优先发布到 `beta` 分支，完成预发验证并稳定后再合入 `main`。如果你想提前体验最新能力，可以切换到 `beta` 分支运行源码版；如果你更看重稳定使用，建议继续使用 `main` 分支或 Releases 中的正式版本。
-
-```bash
-git fetch origin
-git switch beta
-git pull
-```
-
-如果本地还没有 `beta` 分支，可以使用：
-
-```bash
-git fetch origin
-git switch -c beta origin/beta
-```
 
 ## 项目定位
 
@@ -139,13 +124,12 @@ git switch -c beta origin/beta
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
-### 2026-04-26
+### 2026-04-27
 
-项目授权口径已调整为 AGPLv3 + 商业授权说明。
+自动导演前三章连续生成和接管配置继续补稳。新手把小说交给 AI 自动推进时，章节正文与配套资产会更稳地保存，恢复任务或重新打开弹窗时也更不容易被配置回跳打断。
 
-- 项目默认采用 GNU AGPLv3 授权，继续保留可学习、可修改、可按开源协议合规使用的路径。
-- 服务型商用口径已明确：将本项目或修改版本作为后端，以 SaaS、托管或其他形式向第三方提供服务，需要先取得作者商业授权。
-- 贡献者许可协议已补齐，外部贡献者提交 PR 时可以明确确认自己有权提交内容，并同意贡献可用于项目开源版本和维护者另行提供的商业授权版本。
+- 自动导演连续生成前三章的链路更稳，章节正文和配套资产同步会避开重复保存，并在本地数据库短暂繁忙时自动等待重试。
+- 开书和已有项目接管弹窗里的模型选择、自动审批偏好更稳定，恢复任务或重新打开弹窗时会减少重复刷新和配置回跳。
 
 ## 功能预览
 ### 功能概览中的95%以上编写都是AI完成

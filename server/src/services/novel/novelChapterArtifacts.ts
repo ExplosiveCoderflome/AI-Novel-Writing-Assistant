@@ -1,4 +1,5 @@
 import { prisma } from "../../db/prisma";
+import { withSqliteRetry } from "../../db/sqliteRetry";
 import { briefSummary, extractCharacterEventLines, extractFacts } from "./novelCoreShared";
 import { queueRagUpsert } from "./novelCoreSupport";
 import { chapterArtifactBackgroundSyncService } from "./runtime/ChapterArtifactBackgroundSyncService";
@@ -44,18 +45,21 @@ export async function syncCharacterTimelineForChapter(novelId: string, chapterId
     }
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.characterTimeline.deleteMany({
-      where: {
-        novelId,
-        chapterId,
-        source: "chapter_extract",
-      },
-    });
-    if (events.length > 0) {
-      await tx.characterTimeline.createMany({ data: events });
-    }
-  });
+  await withSqliteRetry(
+    () => prisma.$transaction(async (tx) => {
+      await tx.characterTimeline.deleteMany({
+        where: {
+          novelId,
+          chapterId,
+          source: "chapter_extract",
+        },
+      });
+      if (events.length > 0) {
+        await tx.characterTimeline.createMany({ data: events });
+      }
+    }),
+    { label: "novelChapterArtifacts.characterTimeline" },
+  );
 
   const timelines = await prisma.characterTimeline.findMany({
     where: {
@@ -75,44 +79,47 @@ export async function syncChapterArtifacts(novelId: string, chapterId: string, c
   const facts = extractFacts(content);
   const summary = briefSummary(content, facts);
 
-  await prisma.$transaction(async (tx) => {
-    await tx.chapterSummary.upsert({
-      where: { chapterId },
-      update: {
-        summary,
-        keyEvents: facts.map((item) => item.content).slice(0, 3).join(""),
-        characterStates: facts
-          .filter((item) => item.category === "character")
-          .map((item) => item.content)
-          .slice(0, 3)
-          .join(""),
-      },
-      create: {
-        novelId,
-        chapterId,
-        summary,
-        keyEvents: facts.map((item) => item.content).slice(0, 3).join(""),
-        characterStates: facts
-          .filter((item) => item.category === "character")
-          .map((item) => item.content)
-          .slice(0, 3)
-          .join(""),
-      },
-    });
-
-    await tx.consistencyFact.deleteMany({ where: { novelId, chapterId } });
-    if (facts.length > 0) {
-      await tx.consistencyFact.createMany({
-        data: facts.map((item) => ({
+  await withSqliteRetry(
+    () => prisma.$transaction(async (tx) => {
+      await tx.chapterSummary.upsert({
+        where: { chapterId },
+        update: {
+          summary,
+          keyEvents: facts.map((item) => item.content).slice(0, 3).join(""),
+          characterStates: facts
+            .filter((item) => item.category === "character")
+            .map((item) => item.content)
+            .slice(0, 3)
+            .join(""),
+        },
+        create: {
           novelId,
           chapterId,
-          category: item.category,
-          content: item.content,
-          source: "chapter_auto_extract",
-        })),
+          summary,
+          keyEvents: facts.map((item) => item.content).slice(0, 3).join(""),
+          characterStates: facts
+            .filter((item) => item.category === "character")
+            .map((item) => item.content)
+            .slice(0, 3)
+            .join(""),
+        },
       });
-    }
-  });
+
+      await tx.consistencyFact.deleteMany({ where: { novelId, chapterId } });
+      if (facts.length > 0) {
+        await tx.consistencyFact.createMany({
+          data: facts.map((item) => ({
+            novelId,
+            chapterId,
+            category: item.category,
+            content: item.content,
+            source: "chapter_auto_extract",
+          })),
+        });
+      }
+    }),
+    { label: "novelChapterArtifacts.summaryAndFacts" },
+  );
 
   await syncCharacterTimelineForChapter(novelId, chapterId, content);
   chapterArtifactBackgroundSyncService.scheduleChapterSync(novelId, chapterId, content);

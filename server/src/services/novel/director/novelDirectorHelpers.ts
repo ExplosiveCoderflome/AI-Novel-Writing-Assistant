@@ -20,6 +20,10 @@ import {
   DIRECTOR_MAX_TARGET_CHAPTER_COUNT,
   DIRECTOR_MIN_TARGET_CHAPTER_COUNT,
 } from "@ai-novel/shared/types/novelDirector";
+import {
+  normalizeDirectorAutoApprovalConfig,
+  type DirectorAutoApprovalConfig,
+} from "@ai-novel/shared/types/autoDirectorApproval";
 import type { BookContractDraft } from "@ai-novel/shared/types/novelWorkflow";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { titleGenerationService } from "../../title/TitleGenerationService";
@@ -53,6 +57,7 @@ export interface DirectorWorkflowSeedPayload extends Record<string, unknown> {
   temperature?: number | null;
   runMode?: DirectorRunMode;
   autoExecutionPlan?: DirectorAutoExecutionPlan;
+  autoApproval?: DirectorAutoApprovalConfig | null;
   batches?: DirectorCandidateBatch[];
   candidateStage?: DirectorCandidateStageState | null;
   candidate?: DirectorCandidate;
@@ -371,7 +376,10 @@ export function normalizeBookContract(parsed: DirectorBookContractParsed): BookC
 }
 
 export function buildWorkflowSeedPayload(
-  input: DirectorProjectContextInput & Pick<DirectorLLMOptions, "provider" | "model" | "temperature" | "runMode"> & { idea: string },
+  input: DirectorProjectContextInput & Pick<DirectorLLMOptions, "provider" | "model" | "temperature" | "runMode"> & {
+    idea: string;
+    autoApproval?: DirectorAutoApprovalConfig;
+  },
   extra?: Record<string, unknown>,
 ): Record<string, unknown> {
   const basicForm = {
@@ -404,6 +412,9 @@ export function buildWorkflowSeedPayload(
     continuationBookAnalysisId: input.continuationBookAnalysisId ?? "",
     continuationBookAnalysisSections: input.continuationBookAnalysisSections ?? [],
   };
+  const autoApproval = Object.prototype.hasOwnProperty.call(input, "autoApproval")
+    ? normalizeDirectorAutoApprovalConfig(input.autoApproval)
+    : null;
   return {
     title: basicForm.title || null,
     description: basicForm.description || null,
@@ -429,6 +440,7 @@ export function buildWorkflowSeedPayload(
     model: input.model?.trim() || null,
     temperature: typeof input.temperature === "number" ? input.temperature : null,
     runMode: input.runMode ?? "auto_to_ready",
+    ...(autoApproval ? { autoApproval } : {}),
     estimatedChapterCount: basicForm.estimatedChapterCount,
     idea: input.idea.trim(),
     basicForm,

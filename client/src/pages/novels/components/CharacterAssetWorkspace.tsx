@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { Character, CharacterCastRole, CharacterGender, CharacterTimeline } from "@ai-novel/shared/types/novel";
+import type { CharacterResourceLedgerItem } from "@ai-novel/shared/types/characterResource";
 import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,10 @@ interface CharacterAssetWorkspaceProps {
   isSyncingAllTimeline: boolean;
   onWorldCheck: () => void;
   isCheckingWorld: boolean;
+  characterResources?: CharacterResourceLedgerItem[];
+  pendingCharacterResourceCount?: number;
+  onBackfillCharacterResources?: () => void;
+  isBackfillingCharacterResources?: boolean;
 }
 
 const CAST_ROLE_LABELS: Record<CharacterCastRole, string> = {
@@ -93,6 +98,72 @@ function getEmotionSignal(selectedCharacter?: Character): string {
   return "待观察";
 }
 
+function getResourceDisplayMode(character?: Character): {
+  label: string;
+  helper: string;
+  limit: number;
+  shouldShowResource: (item: CharacterResourceLedgerItem) => boolean;
+} {
+  const roleText = `${character?.role ?? ""} ${character?.castRole ?? ""}`;
+  if (character?.castRole === "protagonist" || /主角|男主|女主|主人公/.test(roleText)) {
+    return {
+      label: "主角完整资源",
+      helper: "主角会完整展示道具、线索、身份凭证、底牌和消耗状态，后续章节会优先参考这些行动边界。",
+      limit: 10,
+      shouldShowResource: () => true,
+    };
+  }
+  if (/临时|路人|客串|一次性/.test(roleText)) {
+    return {
+      label: "临时角色资源",
+      helper: "临时角色只展示会跨章复用、牵动冲突、绑定伏笔或被主角带走的资源。",
+      limit: 5,
+      shouldShowResource: (item) => (
+        item.narrativeFunction === "promise"
+        || item.narrativeFunction === "hidden_card"
+        || item.expectedUseEndChapterOrder != null
+        || item.status === "transferred"
+      ),
+    };
+  }
+  return {
+    label: "长期角色关键资源",
+    helper: "长期角色优先展示会改变行动选择、关系筹码、读者知情或伏笔兑现的资源。",
+    limit: 6,
+    shouldShowResource: (item) => item.status !== "stale",
+  };
+}
+
+function getResourceStatusLabel(status: CharacterResourceLedgerItem["status"]): string {
+  const labels: Record<CharacterResourceLedgerItem["status"], string> = {
+    available: "可用",
+    hidden: "隐藏",
+    borrowed: "借用",
+    transferred: "转交",
+    lost: "丢失",
+    consumed: "已消耗",
+    damaged: "受损",
+    destroyed: "毁坏",
+    stale: "淡出",
+  };
+  return labels[status] ?? status;
+}
+
+function getResourceFunctionLabel(value: CharacterResourceLedgerItem["narrativeFunction"]): string {
+  const labels: Record<CharacterResourceLedgerItem["narrativeFunction"], string> = {
+    tool: "工具",
+    clue: "线索",
+    weapon: "武器",
+    proof: "证据",
+    key: "钥匙",
+    cost: "代价",
+    promise: "伏笔",
+    hidden_card: "底牌",
+    constraint: "限制",
+  };
+  return labels[value] ?? value;
+}
+
 export default function CharacterAssetWorkspace(props: CharacterAssetWorkspaceProps) {
   const {
     characters,
@@ -113,6 +184,10 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
     isSyncingAllTimeline,
     onWorldCheck,
     isCheckingWorld,
+    characterResources = [],
+    pendingCharacterResourceCount = 0,
+    onBackfillCharacterResources,
+    isBackfillingCharacterResources = false,
   } = props;
 
   const lastAppearanceChapter = useMemo(
@@ -121,6 +196,19 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
   );
   const emotionSignal = getEmotionSignal(selectedCharacter);
   const secretStatus = getSecretStatus(selectedCharacter);
+  const selectedCharacterResources = useMemo(
+    () => selectedCharacter
+      ? characterResources.filter((item) => (
+          item.holderCharacterId === selectedCharacter.id
+          || item.ownerCharacterId === selectedCharacter.id
+        ))
+      : [],
+    [characterResources, selectedCharacter],
+  );
+  const resourceDisplayMode = getResourceDisplayMode(selectedCharacter);
+  const displayedResources = selectedCharacterResources
+    .filter(resourceDisplayMode.shouldShowResource)
+    .slice(0, resourceDisplayMode.limit);
 
   return (
     <Card>
@@ -231,6 +319,61 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
                 <div className="text-xs text-muted-foreground">错误信念：{selectedCharacter.misbelief || "待补全"}</div>
                 <div className="text-xs text-muted-foreground">道德底线：{selectedCharacter.moralLine || "待补全"}</div>
               </div>
+            </div>
+
+            <div className="rounded-xl border p-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-sm font-medium">关键资源</div>
+                  <div className="mt-1 text-xs leading-5 text-muted-foreground">{resourceDisplayMode.helper}</div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onBackfillCharacterResources?.()}
+                    disabled={isBackfillingCharacterResources || !onBackfillCharacterResources}
+                  >
+                    {isBackfillingCharacterResources ? "回填中..." : "回填最近章节"}
+                  </Button>
+                  <Badge variant="outline">{resourceDisplayMode.label}</Badge>
+                  {pendingCharacterResourceCount > 0 ? (
+                    <Badge variant="secondary">{pendingCharacterResourceCount} 条资源变更待确认</Badge>
+                  ) : null}
+                </div>
+              </div>
+
+              {displayedResources.length > 0 ? (
+                <div className="mt-3 grid gap-2 lg:grid-cols-2">
+                  {displayedResources.map((resource) => (
+                    <div key={resource.id} className="rounded-lg border border-border/70 bg-muted/15 p-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="font-medium">{resource.name}</div>
+                        <Badge variant={resource.status === "available" || resource.status === "borrowed" ? "default" : "outline"}>
+                          {getResourceStatusLabel(resource.status)}
+                        </Badge>
+                        <Badge variant="secondary">{getResourceFunctionLabel(resource.narrativeFunction)}</Badge>
+                      </div>
+                      <div className="mt-1 text-xs leading-5 text-muted-foreground">{resource.summary}</div>
+                      <div className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+                        <div>持有者：{resource.holderCharacterName || selectedCharacter.name}</div>
+                        <div>读者知情：{resource.readerKnows ? "知情" : "未公开"}</div>
+                        {resource.expectedUseEndChapterOrder ? (
+                          <div>使用窗口：第{resource.expectedUseStartChapterOrder ?? "?"}章至第{resource.expectedUseEndChapterOrder}章</div>
+                        ) : null}
+                        {resource.constraints.length > 0 ? (
+                          <div>限制：{resource.constraints.slice(0, 2).join(" / ")}</div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-3 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  关键道具、线索、身份凭证或底牌会在章节写作后沉淀到这里；临时角色只保留会影响后续章节的资源。
+                </div>
+              )}
             </div>
 
             <details className="rounded-xl border p-3" open>

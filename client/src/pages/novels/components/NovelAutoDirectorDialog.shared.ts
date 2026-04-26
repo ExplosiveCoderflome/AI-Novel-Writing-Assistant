@@ -15,8 +15,8 @@ export const RUN_MODE_OPTIONS: Array<{
   },
   {
     value: "auto_to_execution",
-    label: "继续自动执行章节批次",
-    description: "默认执行前 10 章，也可以改成指定章节范围或按卷执行。",
+    label: "按范围执行",
+    description: "可选择全书、前 N 章或前 1 卷，让 AI 直接准备并执行目标范围。",
   },
 ];
 

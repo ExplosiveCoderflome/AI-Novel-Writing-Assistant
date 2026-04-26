@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const http = require("node:http");
 const { createApp } = require("../dist/app.js");
 const { NovelService } = require("../dist/services/novel/NovelService.js");
+const { AppError } = require("../dist/middleware/errorHandler.js");
 
 function listen(server) {
   return new Promise((resolve) => {
@@ -207,10 +208,14 @@ test("volume routes cover workspace, versions, impact analysis, sync and legacy 
   };
   const novelId = "novel-volume-route-test";
   const workspace = createWorkspace(novelId);
+  const updateCalls = [];
 
   NovelService.prototype.getVolumes = async () => workspace;
   NovelService.prototype.generateVolumes = async () => workspace;
-  NovelService.prototype.updateVolumes = async () => workspace;
+  NovelService.prototype.updateVolumes = async (_id, input) => {
+    updateCalls.push(input);
+    return workspace;
+  };
   NovelService.prototype.listVolumeVersions = async () => [createVersion(2, "draft"), createVersion(1, "active")];
   NovelService.prototype.createVolumeDraft = async () => createVersion(3, "draft");
   NovelService.prototype.activateVolumeVersion = async () => createVersion(2, "active");
@@ -242,6 +247,45 @@ test("volume routes cover workspace, versions, impact analysis, sync and legacy 
       body: JSON.stringify({ scope: "strategy" }),
     });
     assert.equal(strategyResponse.status, 200);
+
+    const slimChapterListResponse = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}/volumes/generate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        scope: "chapter_list",
+        targetVolumeId: "volume-1",
+        slimResponse: true,
+      }),
+    });
+    assert.equal(slimChapterListResponse.status, 200);
+    const slimChapterListPayload = await slimChapterListResponse.json();
+    assert.equal(slimChapterListPayload.data.slimmed, true);
+    assert.equal(slimChapterListPayload.data.derivedOutline, "");
+    assert.equal(slimChapterListPayload.data.critiqueReport, null);
+    assert.deepEqual(slimChapterListPayload.data.volumes, []);
+    assert.deepEqual(slimChapterListPayload.data.beatSheets, []);
+    assert.equal(updateCalls.length, 0);
+
+    const slimBeatSheetResponse = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}/volumes/generate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        scope: "beat_sheet",
+        targetVolumeId: "volume-1",
+        slimResponse: true,
+      }),
+    });
+    assert.equal(slimBeatSheetResponse.status, 200);
+    const slimBeatSheetPayload = await slimBeatSheetResponse.json();
+    assert.equal(slimBeatSheetPayload.data.slimmed, true);
+    assert.equal(slimBeatSheetPayload.data.derivedStructuredOutline, "");
+    assert.deepEqual(slimBeatSheetPayload.data.rebalanceDecisions, []);
+    assert.equal(updateCalls.length, 1);
+    assert.equal(updateCalls.at(-1).syncToChapterExecution, false);
 
     const draftResponse = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}/volumes/versions/draft`, {
       method: "POST",
@@ -343,6 +387,36 @@ test("volume routes cover workspace, versions, impact analysis, sync and legacy 
     assert.equal(missingTargetResponse.status, 400);
   } finally {
     Object.assign(NovelService.prototype, originalMethods);
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("volume generate route returns user-correctable 409 for duplicate high-memory work", async () => {
+  const originalGenerateVolumes = NovelService.prototype.generateVolumes;
+  NovelService.prototype.generateVolumes = async () => {
+    throw new AppError("当前小说已有高内存卷规划生成正在处理同一范围，请稍后再试。", 409);
+  };
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/novels/novel-volume-route-test/volumes/generate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        scope: "chapter_list",
+        targetVolumeId: "volume-1",
+      }),
+    });
+    assert.equal(response.status, 409);
+    const payload = await response.json();
+    assert.equal(payload.success, false);
+    assert.match(payload.error, /已有高内存卷规划生成/);
+  } finally {
+    NovelService.prototype.generateVolumes = originalGenerateVolumes;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });

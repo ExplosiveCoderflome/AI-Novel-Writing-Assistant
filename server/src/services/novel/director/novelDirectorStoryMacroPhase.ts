@@ -16,10 +16,8 @@ import {
 import { runDirectorTrackedStep } from "./directorProgressTracker";
 import {
   DIRECTOR_PROGRESS,
-  type DirectorProgressItemKey,
 } from "./novelDirectorProgress";
-
-type DirectorStoryMacroStage = "auto_director" | "story_macro" | "character_setup" | "volume_strategy" | "structured_outline";
+import type { DirectorMarkTaskRunningCallback } from "./novelDirectorPhaseTypes";
 
 interface DirectorStoryMacroDependencies {
   storyMacroService: StoryMacroPlanService;
@@ -27,13 +25,7 @@ interface DirectorStoryMacroDependencies {
 }
 
 interface DirectorStoryMacroCallbacks {
-  markDirectorTaskRunning: (
-    taskId: string,
-    stage: DirectorStoryMacroStage,
-    itemKey: DirectorProgressItemKey,
-    itemLabel: string,
-    progress: number,
-  ) => Promise<void>;
+  markDirectorTaskRunning: DirectorMarkTaskRunningCallback;
 }
 
 async function ensureDirectorConstraintEngine(

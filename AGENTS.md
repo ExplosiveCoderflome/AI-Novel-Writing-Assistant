@@ -55,25 +55,35 @@
 ## Development Branch Workflow
 
 - When developing a new feature that may affect the end-to-end product flow, default workflow, shared contracts, or other major system links, do not develop directly on `main`.
-- In these cases, first create or switch to a dedicated `dev` branch for that feature, complete implementation and functional verification there, and merge back to `main` only after the feature is tested and stable enough.
-- After the feature branch has been successfully merged back into `main`, clean up that development branch so old feature branches do not accumulate indefinitely.
+- In these cases, first create or switch to a dedicated feature development branch, complete implementation and functional verification there, then merge into the pre-release `beta` branch for integration verification. Merge back to `main` only after `beta` has been tested and stable enough for release.
+- After the feature branch has been successfully merged into `beta` and no longer needs follow-up work, clean up that development branch so old feature branches do not accumulate indefinitely.
 - This rule applies in particular to changes that touch cross-stage workflows, shared runtime/prompting/context contracts, automatic director chains, chapter execution chains, data migration behavior, or other changes that can impact the overall chain.
-- Small isolated fixes, copy changes, low-risk UI polish, or documentation-only updates can still be handled without requiring a separate feature `dev` branch unless the user explicitly asks otherwise.
+- Small isolated fixes, copy changes, low-risk UI polish, or documentation-only updates can still be handled without requiring a separate feature development branch unless the user explicitly asks otherwise. If the change is release-facing, still prefer passing through `beta` before `main`.
 
-### Temporary Desktop Branch Policy
+### Pre-release Beta Branch Workflow
 
-- Until desktopization work is completed and `desktop-dev` has been merged back into `main`, treat `desktop-dev` as the long-lived integration branch for desktop-related development.
-- During this temporary phase, `main` remains the stable branch for already verified work, small isolated fixes, documentation changes, and low-risk updates that do not need to wait for desktopization to finish.
-- Do not merge every new `main` commit into `desktop-dev` immediately by default. Sync in batches when it is actually useful, instead of creating unnecessary merge noise.
-- You must sync `main` into `desktop-dev` when any of the following is true:
-  - `main` changed shared contracts, shared runtime/state logic, build/dependency setup, or any other code that `desktop-dev` also depends on;
-  - a new `desktop-dev` work slice is about to start and it should build on the latest stable base;
-  - `desktop-dev` is about to enter integration testing, release verification, or merge-back into `main`;
-  - `desktop-dev` has drifted far enough from `main` that conflict risk is starting to rise.
-- If `main` only contains clearly unrelated small fixes, copy edits, or other low-risk changes that do not affect desktopization, it is acceptable to delay the sync and merge them into `desktop-dev` later as a batch.
-- If a new change is expected to affect both the normal web flow and the ongoing desktopization work, prefer implementing it on a dedicated short-lived feature branch or directly on `desktop-dev`, instead of landing it on `main` first and forcing immediate back-merges.
-- When syncing `main` into `desktop-dev`, prefer `merge` if the branch is shared by multiple collaborators. Only use `rebase` when the branch is effectively single-owner and history rewriting will not disrupt anyone else.
-- Once desktopization has been completed, merged into `main`, and the `desktop-dev` branch has been retired, this temporary policy should be considered expired and the repository should fall back to the normal feature-branch workflow above.
+- Use `beta` as the stable pre-release integration branch between feature development branches and `main`.
+- The normal release path is: feature branch -> self-test / targeted verification -> merge into `beta` -> integration testing / regression checks / packaging verification -> merge into `main` -> public release or packaging upload.
+- `main` is the stable release branch. Do not merge a feature branch directly into `main` when the change affects product flow, shared contracts, runtime behavior, data migration, desktop packaging, or other end-to-end links.
+- `beta` should represent the next candidate release. Keep it buildable, runnable, and suitable for acceptance testing; do not use it as a dumping ground for unfinished experiments.
+- If multiple feature branches are merged into `beta`, test the combined behavior on `beta` before promoting the batch to `main`, especially around automatic director flow, chapter execution, prompt/runtime contracts, migrations, and desktop startup or packaging.
+- If `beta` validation fails, fix the issue on the original feature branch when the fault is isolated, or on a short-lived `beta-fix` branch when the failure is caused by integration between multiple features. Merge the fix back into `beta` and rerun the failed checks before promoting.
+- Only promote `beta` to `main` when the release candidate has passed the required functional checks, build checks, and any packaging verification relevant to the release. After promotion, keep `beta` aligned with `main` so the next pre-release cycle starts from the released state.
+- For urgent production hotfixes, it is acceptable to branch from `main`, verify narrowly, merge back to `main`, and then immediately merge or cherry-pick the hotfix into `beta` so the pre-release branch does not lose the production fix.
+- Public desktop packaging and release upload should be performed from `main` or from a release tag created after `beta` has been promoted to `main`, not directly from a feature branch or an unverified `beta` state.
+- The branch name is `beta`. Do not create a separate `bate` branch; if such a typo branch appears, migrate any useful work to `beta` and remove the typo branch after confirming nothing is lost.
+
+### Desktop Branch Completion Workflow
+
+- Desktop feature development on `desktop-dev` is considered complete. Do not start new desktop feature work directly on `desktop-dev` unless the user explicitly reopens desktopization as an active development phase.
+- Treat `desktop-dev` as a completion candidate that must move through stabilization, pre-release verification, and branch retirement.
+- Before promoting desktop work, sync any required stable changes from `main` into `desktop-dev` when they affect shared contracts, runtime/state logic, build/dependency setup, desktop startup, packaging, or release verification.
+- Run desktop-focused verification on `desktop-dev` first, including development startup, first-run configuration, core web flow compatibility, build checks, and packaging checks relevant to the target release.
+- After `desktop-dev` passes its focused verification, merge it into `beta` for combined pre-release testing with the rest of the next release candidate.
+- Do not promote desktop work from `desktop-dev` directly to `main`. `beta` must pass integration testing and release packaging verification before the desktop work reaches `main`.
+- If `beta` exposes desktop integration failures, fix them on a short-lived desktop stabilization branch or directly on `desktop-dev` if the desktop branch has not yet been retired, then merge the fix back into `beta` and rerun the failed checks.
+- Once `beta` has been promoted to `main` and the released `main` contains the completed desktop work, retire `desktop-dev` so future desktop changes follow the normal feature branch -> `beta` -> `main` workflow.
+- After retirement, `desktop-dev` should not be reused as a long-lived integration branch. Create short-lived feature branches for future desktop fixes or improvements, and promote them through `beta`.
 
 ## Desktop Packaging Upload Rules
 

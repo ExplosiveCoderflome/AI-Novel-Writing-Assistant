@@ -13,6 +13,8 @@ import { registerNovelChapterRoutes } from "./novelChapterRoutes";
 import { registerNovelChapterGenerationRoutes } from "./novelChapterGeneration";
 import { registerNovelCharacterDynamicsRoutes } from "./novelCharacterDynamicsRoutes";
 import { registerNovelCharacterPreparationRoutes } from "./novelCharacterPreparationRoutes";
+import { registerNovelCharacterResourceRoutes } from "./novelCharacterResourceRoutes";
+import { registerNovelCharacterSyncRoutes } from "./novelCharacterSyncRoutes";
 import { registerNovelFramingRoutes } from "./novelFramingRoutes";
 import { registerNovelPlanningRoutes } from "./novelPlanningRoutes";
 import { registerNovelProductionRoutes } from "./novelProductionRoutes";
@@ -356,6 +358,7 @@ const volumeGenerateSchema = llmGenerateSchema.extend({
   respectExistingVolumeCount: z.boolean().optional(),
   draftVolumes: z.array(z.unknown()).optional(),
   draftWorkspace: volumeDocumentSchema.optional(),
+  slimResponse: z.boolean().optional(),
 }).superRefine((value, ctx) => {
   if ((value.scope === "volume" || value.scope === "beat_sheet" || value.scope === "chapter_list" || value.scope === "rebalance") && !value.targetVolumeId) {
     ctx.addIssue({
@@ -602,6 +605,16 @@ registerNovelCharacterDynamicsRoutes({
 registerNovelCharacterPreparationRoutes({
   router,
   novelService,
+  idParamsSchema,
+});
+
+registerNovelCharacterResourceRoutes({
+  router,
+  idParamsSchema,
+});
+
+registerNovelCharacterSyncRoutes({
+  router,
   idParamsSchema,
 });
 

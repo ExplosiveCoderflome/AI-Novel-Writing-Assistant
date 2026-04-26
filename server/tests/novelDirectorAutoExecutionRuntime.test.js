@@ -321,6 +321,324 @@ test("runFromReady records a normal checkpoint when pipeline completes with qual
   assert.deepEqual(calls[6], ["bootstrapTask", "succeeded"]);
 });
 
+test("runFromReady leaves low-risk quality repair at continue checkpoint when chapters still remain", async () => {
+  const calls = [];
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        return [
+          { id: "chapter-1", order: 1, generationState: "repaired", chapterStatus: "completed", content: "正文1" },
+          { id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" },
+        ];
+      },
+    },
+    novelService: {
+      async startPipelineJob() {
+        calls.push(["startPipelineJob"]);
+        return { id: "job-low-risk", status: "queued" };
+      },
+      async findActivePipelineJobForRange() {
+        return null;
+      },
+      async getPipelineJobById(jobId) {
+        calls.push(["getPipelineJobById", jobId]);
+        return {
+          id: "job-low-risk",
+          status: "succeeded",
+          progress: 1,
+          currentStage: null,
+          currentItemLabel: null,
+          payload: JSON.stringify({
+            repairMode: "light_repair",
+            qualityAlertDetails: ["第 1 章局部修复完成"],
+          }),
+          noticeCode: "PIPELINE_QUALITY_REVIEW",
+          noticeSummary: "Some chapters finished below the configured quality threshold: 第 1 章局部修复完成",
+          error: null,
+        };
+      },
+      async cancelPipelineJob() {
+        calls.push(["cancelPipelineJob"]);
+      },
+    },
+    workflowService: {
+      async bootstrapTask(input) {
+        calls.push(["bootstrapTask", input.seedPayload.autoExecution.qualityRepairRisk?.riskLevel ?? null]);
+      },
+      async getTaskById() {
+        return { status: "running" };
+      },
+      async markTaskRunning() {
+        calls.push(["markTaskRunning"]);
+      },
+      async recordCheckpoint(taskId, input) {
+        calls.push([
+          "recordCheckpoint",
+          taskId,
+          input.checkpointType,
+          input.seedPayload.autoExecution.qualityRepairRisk,
+          input.seedPayload.autoExecution.remainingChapterCount,
+        ]);
+      },
+      async markTaskFailed() {
+        calls.push(["markTaskFailed"]);
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+  });
+
+  await runtime.runFromReady({
+    taskId: "task-auto-exec",
+    novelId: "novel-1",
+    request: buildRequest(),
+    existingState: {
+      enabled: true,
+      mode: "chapter_range",
+      firstChapterId: "chapter-1",
+      startOrder: 1,
+      endOrder: 2,
+      totalChapterCount: 2,
+      pipelineJobId: null,
+      pipelineStatus: null,
+    },
+  });
+
+  const checkpointCall = calls.find((call) => call[0] === "recordCheckpoint");
+  assert.equal(checkpointCall[2], "chapter_batch_ready");
+  assert.equal(checkpointCall[3].riskLevel, "low");
+  assert.equal(checkpointCall[3].autoContinuable, true);
+  assert.equal(checkpointCall[4], 1);
+});
+
+test("runFromReady auto-continues only low-risk quality repair when approval point is selected", async () => {
+  const calls = [];
+  let phase = "initial";
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        if (phase === "initial") {
+          return [
+            { id: "chapter-1", order: 1, generationState: "planned", chapterStatus: "unplanned", content: "" },
+            { id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" },
+          ];
+        }
+        if (phase !== "completed") {
+          return [
+            { id: "chapter-1", order: 1, generationState: "repaired", chapterStatus: "completed", content: "正文1" },
+            { id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" },
+          ];
+        }
+        return [
+          { id: "chapter-1", order: 1, generationState: "repaired", chapterStatus: "completed", content: "正文1" },
+          { id: "chapter-2", order: 2, generationState: "approved", chapterStatus: "completed", content: "正文2" },
+        ];
+      },
+    },
+    novelService: {
+      async startPipelineJob(_novelId, options) {
+        calls.push(["startPipelineJob", options.startOrder, options.endOrder]);
+        return calls.filter((call) => call[0] === "startPipelineJob").length === 1
+          ? { id: "job-low-risk", status: "queued" }
+          : { id: "job-followup", status: "queued" };
+      },
+      async findActivePipelineJobForRange() {
+        return null;
+      },
+      async getPipelineJobById(jobId) {
+        calls.push(["getPipelineJobById", jobId]);
+        if (jobId === "job-low-risk") {
+          phase = "repair_done";
+          return {
+            id: jobId,
+            status: "succeeded",
+            progress: 1,
+            currentStage: null,
+            currentItemLabel: null,
+            payload: JSON.stringify({
+              repairMode: "light_repair",
+              qualityAlertDetails: ["第 1 章局部修复完成"],
+            }),
+            noticeCode: "PIPELINE_QUALITY_REVIEW",
+            noticeSummary: "Some chapters finished below the configured quality threshold: 第 1 章局部修复完成",
+            error: null,
+          };
+        }
+        phase = "completed";
+        return {
+          id: jobId,
+          status: "succeeded",
+          progress: 1,
+          currentStage: null,
+          currentItemLabel: null,
+          noticeSummary: null,
+          error: null,
+        };
+      },
+      async cancelPipelineJob() {
+        calls.push(["cancelPipelineJob"]);
+      },
+    },
+    workflowService: {
+      async bootstrapTask(input) {
+        calls.push(["bootstrapTask", input.seedPayload.autoExecution?.pipelineJobId ?? null]);
+      },
+      async getTaskById() {
+        return { status: "running" };
+      },
+      async markTaskRunning(_taskId, input) {
+        calls.push(["markTaskRunning", input.clearCheckpoint ?? false]);
+      },
+      async recordCheckpoint(taskId, input) {
+        calls.push(["recordCheckpoint", taskId, input.checkpointType]);
+      },
+      async markTaskFailed() {
+        calls.push(["markTaskFailed"]);
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+    async shouldAutoContinueQualityRepair(input) {
+      calls.push(["autoApprovalGuard", input.qualityRepairRisk.riskLevel, input.remainingChapterCount]);
+      return true;
+    },
+    async recordAutoApproval(input) {
+      calls.push(["recordAutoApproval", input.checkpointType, input.qualityRepairRisk.riskLevel]);
+    },
+  });
+
+  await runtime.runFromReady({
+    taskId: "task-auto-exec",
+    novelId: "novel-1",
+    request: buildRequest({
+      autoApproval: {
+        enabled: true,
+        approvalPointCodes: ["low_risk_quality_repair_continue"],
+      },
+    }),
+    existingState: {
+      enabled: true,
+      mode: "chapter_range",
+      firstChapterId: "chapter-1",
+      startOrder: 1,
+      endOrder: 2,
+      totalChapterCount: 2,
+      pipelineJobId: null,
+      pipelineStatus: null,
+    },
+  });
+
+  assert.ok(calls.some((call) => call[0] === "autoApprovalGuard" && call[1] === "low"));
+  assert.ok(calls.some((call) => call[0] === "recordAutoApproval" && call[1] === "chapter_batch_ready"));
+  assert.deepEqual(calls.filter((call) => call[0] === "startPipelineJob").map((call) => call.slice(1)), [
+    [1, 2],
+    [2, 2],
+  ]);
+  assert.equal(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "chapter_batch_ready"), false);
+  assert.ok(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed"));
+});
+
+test("runFromReady never auto-continues replan or large-scope repair notices", async () => {
+  const calls = [];
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        return [
+          { id: "chapter-1", order: 1, generationState: "repaired", chapterStatus: "completed", content: "正文1" },
+          { id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" },
+        ];
+      },
+    },
+    novelService: {
+      async startPipelineJob() {
+        calls.push(["startPipelineJob"]);
+        return { id: "job-replan", status: "queued" };
+      },
+      async findActivePipelineJobForRange() {
+        return null;
+      },
+      async getPipelineJobById(jobId) {
+        calls.push(["getPipelineJobById", jobId]);
+        return {
+          id: "job-replan",
+          status: "succeeded",
+          progress: 1,
+          currentStage: null,
+          currentItemLabel: null,
+          payload: JSON.stringify({
+            repairMode: "heavy_repair",
+            replanAlertDetails: ["第 2 章需要重规划"],
+          }),
+          noticeCode: "PIPELINE_REPLAN_REQUIRED",
+          noticeSummary: "State-driven replan is required before continuing: 第 2 章需要重规划",
+          error: null,
+        };
+      },
+      async cancelPipelineJob() {
+        calls.push(["cancelPipelineJob"]);
+      },
+    },
+    workflowService: {
+      async bootstrapTask(input) {
+        calls.push(["bootstrapTask", input.seedPayload.autoExecution?.qualityRepairRisk?.riskLevel ?? null]);
+      },
+      async getTaskById() {
+        return { status: "running" };
+      },
+      async markTaskRunning() {
+        calls.push(["markTaskRunning"]);
+      },
+      async recordCheckpoint(taskId, input) {
+        calls.push(["recordCheckpoint", taskId, input.checkpointType, input.seedPayload.autoExecution.qualityRepairRisk]);
+      },
+      async markTaskFailed() {
+        calls.push(["markTaskFailed"]);
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+    async shouldAutoContinueQualityRepair() {
+      calls.push(["autoApprovalGuard"]);
+      return true;
+    },
+    async recordAutoApproval() {
+      calls.push(["recordAutoApproval"]);
+    },
+  });
+
+  await runtime.runFromReady({
+    taskId: "task-auto-exec",
+    novelId: "novel-1",
+    request: buildRequest({
+      autoApproval: {
+        enabled: true,
+        approvalPointCodes: ["low_risk_quality_repair_continue", "replan_continue"],
+      },
+    }),
+    existingState: {
+      enabled: true,
+      mode: "chapter_range",
+      firstChapterId: "chapter-1",
+      startOrder: 1,
+      endOrder: 2,
+      totalChapterCount: 2,
+      pipelineJobId: null,
+      pipelineStatus: null,
+    },
+  });
+
+  const checkpointCall = calls.find((call) => call[0] === "recordCheckpoint");
+  assert.equal(checkpointCall[2], "replan_required");
+  assert.equal(checkpointCall[3].riskLevel, "replan");
+  assert.equal(checkpointCall[3].autoContinuable, false);
+  assert.equal(calls.filter((call) => call[0] === "startPipelineJob").length, 1);
+  assert.equal(calls.some((call) => call[0] === "autoApprovalGuard"), false);
+  assert.equal(calls.some((call) => call[0] === "recordAutoApproval"), false);
+});
+
 test("runFromReady records replan_required when pipeline completes with replan notice", async () => {
   const calls = [];
   const runtime = new NovelDirectorAutoExecutionRuntime({

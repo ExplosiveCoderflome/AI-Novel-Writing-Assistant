@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 enum ChapterGenerationState {
@@ -350,6 +350,8 @@ model Novel {
   continuationBookAnalysis BookAnalysis? @relation("NovelContinuationBookAnalysis", fields: [continuationBookAnalysisId], references: [id], onDelete: SetNull)
   chapters          Chapter[]
   characters        Character[]
+  characterLibraryLinks CharacterLibraryLink[]
+  characterSyncProposals CharacterSyncProposal[]
   characterRelations CharacterRelation[]
   characterCastOptions CharacterCastOption[]
   characterTimelines CharacterTimeline[]
@@ -357,6 +359,8 @@ model Novel {
   characterVolumeAssignments CharacterVolumeAssignment[]
   characterFactionTracks CharacterFactionTrack[]
   characterRelationStages CharacterRelationStage[]
+  characterResourceItems CharacterResourceLedgerItem[]
+  characterResourceEvents CharacterResourceEvent[]
   bible             NovelBible?
   plotBeats         PlotBeat[]
   chapterSummaries  ChapterSummary[]
@@ -380,6 +384,7 @@ model Novel {
   replanRuns         ReplanRun[]
   auditReports       AuditReport[]
   workflowTasks      NovelWorkflowTask[]
+  autoApprovalRecords AutoDirectorAutoApprovalRecord[]
   createdAt          DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
@@ -464,6 +469,9 @@ model Chapter {
   payoffLedgerLastTouchedItems PayoffLedgerItem[] @relation("PayoffLedgerLastTouchedChapter")
   payoffLedgerSetupItems PayoffLedgerItem[] @relation("PayoffLedgerSetupChapter")
   payoffLedgerPayoffItems PayoffLedgerItem[] @relation("PayoffLedgerPayoffChapter")
+  introducedCharacterResources CharacterResourceLedgerItem[] @relation("CharacterResourceIntroducedChapter")
+  lastTouchedCharacterResources CharacterResourceLedgerItem[] @relation("CharacterResourceLastTouchedChapter")
+  characterResourceEvents CharacterResourceEvent[]
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @updatedAt
 
@@ -499,6 +507,7 @@ model Character {
   novelId         String
   novel           Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
   baseCharacterId String?
+  libraryLink     CharacterLibraryLink?
   timelines       CharacterTimeline[]
   matchedCandidates CharacterCandidate[] @relation("CharacterCandidateMatchedCharacter")
   volumeAssignments CharacterVolumeAssignment[]
@@ -510,6 +519,12 @@ model Character {
   incomingRelations RelationState[] @relation("RelationStateTarget")
   outgoingCharacterRelations CharacterRelation[] @relation("CharacterRelationSource")
   incomingCharacterRelations CharacterRelation[] @relation("CharacterRelationTarget")
+  ownedResourceItems CharacterResourceLedgerItem[] @relation("CharacterResourceOwner")
+  heldResourceItems CharacterResourceLedgerItem[] @relation("CharacterResourceHolder")
+  actedResourceEvents CharacterResourceEvent[] @relation("CharacterResourceEventActor")
+  fromResourceEvents CharacterResourceEvent[] @relation("CharacterResourceEventFromHolder")
+  toResourceEvents CharacterResourceEvent[] @relation("CharacterResourceEventToHolder")
+  syncProposals   CharacterSyncProposal[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -741,10 +756,82 @@ model BaseCharacter {
   keyEvents   String?
   tags        String   @default("")
   category    String
+  revisions   BaseCharacterRevision[]
+  libraryLinks CharacterLibraryLink[]
+  syncProposals CharacterSyncProposal[]
   imageTasks  ImageGenerationTask[]
   imageAssets ImageAsset[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model BaseCharacterRevision {
+  id              String   @id @default(cuid())
+  baseCharacterId String
+  version         Int
+  snapshotJson    String
+  changeSummary   String?
+  sourceType      String   @default("manual")
+  sourceRefId     String?
+  baseCharacter   BaseCharacter @relation(fields: [baseCharacterId], references: [id], onDelete: Cascade)
+  libraryLinks    CharacterLibraryLink[]
+  syncProposals   CharacterSyncProposal[]
+  createdAt       DateTime @default(now())
+
+  @@unique([baseCharacterId, version])
+  @@index([baseCharacterId, createdAt])
+}
+
+model CharacterLibraryLink {
+  id                String   @id @default(cuid())
+  novelId           String
+  characterId       String   @unique
+  baseCharacterId   String
+  baseRevisionId    String?
+  syncPolicy        String   @default("manual_review")
+  linkStatus        String   @default("linked")
+  localOverridesJson String?
+  lastSyncedAt      DateTime?
+  novel             Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  character         Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  baseCharacter     BaseCharacter @relation(fields: [baseCharacterId], references: [id], onDelete: Cascade)
+  baseRevision      BaseCharacterRevision? @relation(fields: [baseRevisionId], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([novelId, linkStatus, updatedAt])
+  @@index([baseCharacterId, linkStatus, updatedAt])
+  @@index([baseRevisionId])
+}
+
+model CharacterSyncProposal {
+  id                String   @id @default(cuid())
+  novelId           String?
+  characterId       String?
+  baseCharacterId   String?
+  baseRevisionId    String?
+  direction         String
+  status            String   @default("pending_review")
+  confidence        Float?
+  summary           String
+  payloadJson       String
+  safeUpdatesJson   String?
+  novelOnlyUpdatesJson String?
+  riskyUpdatesJson  String?
+  recommendedAction String?
+  sourceType        String   @default("manual")
+  sourceRefId       String?
+  novel             Novel?   @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  character         Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
+  baseCharacter     BaseCharacter? @relation(fields: [baseCharacterId], references: [id], onDelete: Cascade)
+  baseRevision      BaseCharacterRevision? @relation(fields: [baseRevisionId], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([novelId, status, updatedAt])
+  @@index([characterId, status, updatedAt])
+  @@index([baseCharacterId, status, updatedAt])
+  @@index([baseRevisionId])
 }
 
 model ImageGenerationTask {
@@ -1533,12 +1620,71 @@ model NovelWorkflowTask {
   llmCallCount       Int                     @default(0)
   lastTokenRecordedAt DateTime?
   novel              Novel?                  @relation(fields: [novelId], references: [id], onDelete: SetNull)
+  autoApprovalRecords AutoDirectorAutoApprovalRecord[]
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
 
   @@index([novelId, status, updatedAt])
   @@index([status, updatedAt])
   @@index([lane, updatedAt])
+}
+
+model AutoDirectorAutoApprovalRecord {
+  id                 String   @id @default(cuid())
+  taskId             String
+  novelId            String
+  approvalPointCode  String
+  approvalPointLabel String
+  checkpointType     String
+  checkpointSummary  String?
+  summary            String
+  stage              String?
+  scopeLabel         String?
+  eventId            String   @unique
+  task               NovelWorkflowTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  novel              Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt          DateTime @default(now())
+
+  @@index([novelId, createdAt])
+  @@index([taskId, createdAt])
+}
+
+
+model AutoDirectorFollowUpActionLog {
+  id             String   @id @default(cuid())
+  taskId         String
+  actionCode     String
+  sourceChannel  String
+  sourceUser     String?
+  idempotencyKey String   @unique
+  resultCode     String
+  failureReason  String?
+  metadataJson   String?
+  executedAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  @@index([taskId, executedAt])
+  @@index([taskId, actionCode, executedAt])
+}
+
+model AutoDirectorFollowUpNotificationLog {
+  id             String   @id @default(cuid())
+  eventId        String
+  eventType      String
+  taskId         String
+  channelType    String
+  target         String?
+  requestPayload String?
+  responseBody   String?
+  responseStatus Int?
+  attemptCount   Int      @default(1)
+  deliveredAt    DateTime?
+  status         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([taskId, createdAt])
+  @@index([eventId, channelType, createdAt])
 }
 
 model StoryStateSnapshot {
@@ -1704,6 +1850,81 @@ model PayoffLedgerItem {
   @@index([setupChapterId])
   @@index([payoffChapterId])
   @@index([lastSnapshotId])
+}
+
+model CharacterResourceLedgerItem {
+  id                           String   @id @default(cuid())
+  novelId                      String
+  resourceKey                  String
+  name                         String
+  summary                      String
+  resourceType                 String
+  narrativeFunction            String
+  ownerType                    String
+  ownerId                      String?
+  ownerName                    String?
+  ownerCharacterId             String?
+  holderCharacterId            String?
+  holderCharacterName          String?
+  status                       String
+  readerKnows                  Boolean  @default(false)
+  holderKnows                  Boolean  @default(true)
+  knownByCharacterIdsJson      String?
+  introducedChapterId          String?
+  introducedChapterOrder       Int?
+  lastTouchedChapterId         String?
+  lastTouchedChapterOrder      Int?
+  expectedUseStartChapterOrder Int?
+  expectedUseEndChapterOrder   Int?
+  constraintsJson              String?
+  riskSignalsJson              String?
+  sourceRefsJson               String?
+  evidenceJson                 String?
+  confidence                   Float?
+  novel                        Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  ownerCharacter               Character? @relation("CharacterResourceOwner", fields: [ownerCharacterId], references: [id], onDelete: SetNull)
+  holderCharacter              Character? @relation("CharacterResourceHolder", fields: [holderCharacterId], references: [id], onDelete: SetNull)
+  introducedChapter            Chapter? @relation("CharacterResourceIntroducedChapter", fields: [introducedChapterId], references: [id], onDelete: SetNull)
+  lastTouchedChapter           Chapter? @relation("CharacterResourceLastTouchedChapter", fields: [lastTouchedChapterId], references: [id], onDelete: SetNull)
+  events                       CharacterResourceEvent[]
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+
+  @@unique([novelId, resourceKey])
+  @@index([novelId, status, updatedAt])
+  @@index([holderCharacterId, status])
+  @@index([ownerCharacterId])
+  @@index([novelId, lastTouchedChapterOrder])
+  @@index([introducedChapterId])
+  @@index([lastTouchedChapterId])
+}
+
+model CharacterResourceEvent {
+  id                    String   @id @default(cuid())
+  novelId               String
+  resourceId            String
+  chapterId             String?
+  chapterOrder          Int?
+  eventType             String
+  actorCharacterId      String?
+  fromHolderCharacterId String?
+  toHolderCharacterId   String?
+  summary               String
+  evidenceJson          String?
+  novel                 Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  resource              CharacterResourceLedgerItem @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  chapter               Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  actorCharacter        Character? @relation("CharacterResourceEventActor", fields: [actorCharacterId], references: [id], onDelete: SetNull)
+  fromHolderCharacter   Character? @relation("CharacterResourceEventFromHolder", fields: [fromHolderCharacterId], references: [id], onDelete: SetNull)
+  toHolderCharacter     Character? @relation("CharacterResourceEventToHolder", fields: [toHolderCharacterId], references: [id], onDelete: SetNull)
+  createdAt             DateTime @default(now())
+
+  @@index([novelId, createdAt])
+  @@index([resourceId, createdAt])
+  @@index([chapterId])
+  @@index([actorCharacterId])
+  @@index([fromHolderCharacterId])
+  @@index([toHolderCharacterId])
 }
 
 model CanonicalStateVersion {

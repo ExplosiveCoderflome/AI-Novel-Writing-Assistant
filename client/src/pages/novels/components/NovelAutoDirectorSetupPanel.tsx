@@ -1,6 +1,11 @@
 import type { DirectorRunMode } from "@ai-novel/shared/types/novelDirector";
+import type {
+  DirectorAutoApprovalGroup,
+  DirectorAutoApprovalPoint,
+} from "@ai-novel/shared/types/autoDirectorApproval";
 import type { StyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import LLMSelector from "@/components/common/LLMSelector";
+import AutoDirectorApprovalStrategyPanel from "@/components/autoDirector/AutoDirectorApprovalStrategyPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
@@ -21,6 +26,7 @@ import {
   FieldLabel,
   findOptionSummary,
 } from "./basicInfoForm/BasicInfoFormPrimitives";
+import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
 interface RunModeOption {
   value: DirectorRunMode;
@@ -34,9 +40,15 @@ interface GenreOption {
   label: string;
 }
 
+interface WorldOption {
+  id: string;
+  name: string;
+}
+
 interface NovelAutoDirectorSetupPanelProps {
   basicForm: NovelBasicFormState;
   genreOptions: GenreOption[];
+  worldOptions: WorldOption[];
   idea: string;
   onIdeaChange: (value: string) => void;
   runMode: DirectorRunMode;
@@ -44,6 +56,13 @@ interface NovelAutoDirectorSetupPanelProps {
   onRunModeChange: (value: DirectorRunMode) => void;
   autoExecutionDraft: DirectorAutoExecutionDraftState;
   onAutoExecutionDraftChange: (patch: Partial<DirectorAutoExecutionDraftState>) => void;
+  maxChapterCount?: number | null;
+  autoApprovalEnabled: boolean;
+  autoApprovalCodes: string[];
+  autoApprovalGroups?: DirectorAutoApprovalGroup[];
+  autoApprovalPoints?: DirectorAutoApprovalPoint[];
+  onAutoApprovalEnabledChange: (enabled: boolean) => void;
+  onAutoApprovalCodesChange: (next: string[]) => void;
   styleProfileOptions: Array<{ id: string; name: string }>;
   selectedStyleProfileId: string;
   selectedStyleSummary: StyleIntentSummary | null;
@@ -59,6 +78,7 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
   const {
     basicForm,
     genreOptions,
+    worldOptions,
     idea,
     onIdeaChange,
     runMode,
@@ -66,6 +86,13 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
     onRunModeChange,
     autoExecutionDraft,
     onAutoExecutionDraftChange,
+    maxChapterCount,
+    autoApprovalEnabled,
+    autoApprovalCodes,
+    autoApprovalGroups,
+    autoApprovalPoints,
+    onAutoApprovalEnabledChange,
+    onAutoApprovalCodesChange,
     styleProfileOptions,
     selectedStyleProfileId,
     selectedStyleSummary,
@@ -80,7 +107,7 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
   const hasEditableBasicForm = typeof onBasicFormChange === "function";
 
   return (
-    <div className="rounded-lg border bg-background/80 p-4">
+    <div className="min-w-0 overflow-hidden rounded-lg border bg-background/80 p-3 sm:p-4">
       <div className="text-sm font-medium text-foreground">你的起始想法</div>
       <textarea
         className="mt-2 min-h-[128px] w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
@@ -89,12 +116,12 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
         placeholder="例如：普通女大学生误入异能组织，一边上学打工，一边调查父亲失踪真相。"
       />
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-        <div className="space-y-4">
+      <div className="mt-4 grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+        <div className="min-w-0 space-y-4">
           {hasEditableBasicForm ? (
-            <section className="rounded-xl border bg-muted/20 p-4">
+            <section className="min-w-0 rounded-xl border bg-muted/20 p-3 sm:p-4">
               <div className="text-sm font-medium text-foreground">导演起始设置</div>
-              <div className="mt-1 text-xs leading-5 text-muted-foreground">
+              <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                 这里只保留自动导演真正需要你快速确认的参数。先保持默认也可以，只有你明确想要某种手感时再调整。
               </div>
 
@@ -113,7 +140,7 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
-                  <div className="text-xs text-muted-foreground">{findOptionSummary(POV_OPTIONS, basicForm.narrativePov)}</div>
+                  <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{findOptionSummary(POV_OPTIONS, basicForm.narrativePov)}</div>
                 </div>
 
                 <div className="space-y-2">
@@ -130,7 +157,7 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
-                  <div className="text-xs text-muted-foreground">{findOptionSummary(PACE_OPTIONS, basicForm.pacePreference)}</div>
+                  <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{findOptionSummary(PACE_OPTIONS, basicForm.pacePreference)}</div>
                 </div>
 
                 <div className="space-y-2">
@@ -147,7 +174,7 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
-                  <div className="text-xs text-muted-foreground">{findOptionSummary(EMOTION_OPTIONS, basicForm.emotionIntensity)}</div>
+                  <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{findOptionSummary(EMOTION_OPTIONS, basicForm.emotionIntensity)}</div>
                 </div>
 
                 <div className="space-y-2">
@@ -165,8 +192,31 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
                       ),
                     })}
                   />
-                  <div className="text-xs text-muted-foreground">
+                  <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                     会作为整书结构密度和后续卷章规划的参考，不是硬性上限。
+                  </div>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <FieldLabel htmlFor="director-basic-world" hint={BASIC_INFO_FIELD_HINTS.worldId}>绑定世界观</FieldLabel>
+                  <select
+                    id="director-basic-world"
+                    className="w-full rounded-md border bg-background p-2 text-sm"
+                    value={basicForm.worldId}
+                    onChange={(event) => onBasicFormChange({ worldId: event.target.value })}
+                  >
+                    <option value="">不绑定世界观</option>
+                    {worldOptions.length === 0 ? (
+                      <option value="" disabled>暂无可选世界观</option>
+                    ) : null}
+                    {worldOptions.map((world) => (
+                      <option key={world.id} value={world.id}>{world.name}</option>
+                    ))}
+                  </select>
+                  <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                    {worldOptions.length > 0
+                      ? "选择后，自动导演会把这个世界的规则和舞台作为规划边界。"
+                      : "没有可选世界观时，可以先用起始想法开书。"}
                   </div>
                 </div>
 
@@ -185,11 +235,11 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
                       <option key={option.id} value={option.id}>{option.name}</option>
                     ))}
                   </select>
-                  <div className="text-xs leading-5 text-muted-foreground">
-                    {selectedStyleSummary?.stageSummaryLines[0] ?? "如果已经有沉淀好的写法资产，建议直接选一套，能明显减少导演黑盒感。"}
+                  <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                    {selectedStyleSummary?.stageSummaryLines[0] ?? "有沉淀好的写法资产时，建议直接选一套，帮助你更清楚地预期导演会怎样写。"}
                   </div>
                   {selectedStyleSummary?.stageSummaryLines.length ? (
-                    <div className="rounded-xl border bg-muted/15 p-3 text-xs leading-6 text-muted-foreground">
+                    <div className={`rounded-xl border bg-muted/15 p-3 text-xs leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                       本阶段仅生效的写法摘要：{selectedStyleSummary.stageSummaryLines.join("；")}
                     </div>
                   ) : null}
@@ -214,15 +264,15 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
           ) : null}
         </div>
 
-        <div className="space-y-4">
-          <section className="rounded-xl border bg-background/70 p-4">
+        <div className="min-w-0 space-y-4">
+          <section className="min-w-0 rounded-xl border bg-background/70 p-3 sm:p-4">
             <div className="text-sm font-medium text-foreground">模型设置</div>
             <div className="mt-3">
               <LLMSelector />
             </div>
           </section>
 
-          <section className="rounded-xl border bg-background/70 p-4">
+          <section className="min-w-0 rounded-xl border bg-background/70 p-3 sm:p-4">
             <div className="text-sm font-medium text-foreground">自动导演运行方式</div>
             <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-1">
               {runModeOptions.map((option) => {
@@ -245,15 +295,27 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
               })}
             </div>
             {runMode === "auto_to_execution" ? (
-              <DirectorAutoExecutionPlanFields
-                draft={autoExecutionDraft}
-                onChange={onAutoExecutionDraftChange}
-              />
+              <>
+                <DirectorAutoExecutionPlanFields
+                  draft={autoExecutionDraft}
+                  onChange={onAutoExecutionDraftChange}
+                  usage="new_book"
+                  maxChapterCount={maxChapterCount}
+                />
+                <AutoDirectorApprovalStrategyPanel
+                  enabled={autoApprovalEnabled}
+                  approvalPointCodes={autoApprovalCodes}
+                  groups={autoApprovalGroups}
+                  approvalPoints={autoApprovalPoints}
+                  onEnabledChange={onAutoApprovalEnabledChange}
+                  onApprovalPointCodesChange={onAutoApprovalCodesChange}
+                />
+              </>
             ) : null}
           </section>
 
-          <div className="flex justify-end">
-            <Button type="button" onClick={onGenerate} disabled={!canGenerate}>
+          <div className={AUTO_DIRECTOR_MOBILE_CLASSES.actionRow}>
+            <Button type="button" className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} onClick={onGenerate} disabled={!canGenerate}>
               {isGenerating
                 ? "生成中..."
                 : batchCount === 0

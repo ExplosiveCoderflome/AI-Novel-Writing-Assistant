@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RefreshCw } from "lucide-react";
 import { buildReplanRecommendationFromAuditReports } from "../chapterPlanning.shared";
 import type { ChapterTabViewProps } from "./NovelEditView.types";
 import WorldInjectionHint from "./WorldInjectionHint";
@@ -13,6 +15,188 @@ import {
   type QueueFilterKey,
 } from "./chapterExecution.shared";
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
+
+type ChapterResourceContextItem = NonNullable<ChapterTabViewProps["chapterResourceContext"]>["availableItems"][number];
+type ChapterResourceProposal = NonNullable<ChapterTabViewProps["pendingCharacterResourceProposals"]>[number];
+
+function getResourceStatusLabel(status: ChapterResourceContextItem["status"]): string {
+  const labels: Record<ChapterResourceContextItem["status"], string> = {
+    available: "可用",
+    hidden: "隐藏",
+    borrowed: "借用",
+    transferred: "转交",
+    lost: "丢失",
+    consumed: "已消耗",
+    damaged: "受损",
+    destroyed: "毁坏",
+    stale: "淡出",
+  };
+  return labels[status] ?? status;
+}
+
+function getResourceLine(item: ChapterResourceContextItem): string {
+  const holder = item.holderCharacterName ? `${item.holderCharacterName}持有` : "持有者待确认";
+  const window = item.expectedUseEndChapterOrder
+    ? `第${item.expectedUseStartChapterOrder ?? "?"}章至第${item.expectedUseEndChapterOrder}章`
+    : "";
+  return [holder, getResourceStatusLabel(item.status), window].filter(Boolean).join(" · ");
+}
+
+function getProposalSourceLabel(proposal: ChapterResourceProposal): string {
+  return proposal.sourceType === "chapter_background_sync" ? "自动同步发现" : "手动复查发现";
+}
+
+function ResourceGroup(props: {
+  title: string;
+  items: ChapterResourceContextItem[];
+  emptyText: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border/70 bg-background p-3">
+      <div className="text-xs font-medium text-muted-foreground">{props.title}</div>
+      {props.items.length > 0 ? (
+        <div className="mt-2 space-y-2">
+          {props.items.slice(0, 4).map((item) => (
+            <div key={item.id} className="rounded-md border border-border/60 bg-muted/15 p-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium">{item.name}</span>
+                <Badge variant="outline">{getResourceStatusLabel(item.status)}</Badge>
+              </div>
+              <div className="mt-1 text-xs leading-5 text-muted-foreground">{item.summary}</div>
+              <div className="mt-1 text-[11px] text-muted-foreground">{getResourceLine(item)}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-2 text-xs leading-5 text-muted-foreground">{props.emptyText}</div>
+      )}
+    </div>
+  );
+}
+
+function CurrentChapterResourcePanel(props: {
+  chapterResourceContext: ChapterTabViewProps["chapterResourceContext"];
+  isLoadingChapterResourceContext?: boolean;
+  resourceWorkflowMode?: ChapterTabViewProps["resourceWorkflowMode"];
+  pendingCharacterResourceProposals: NonNullable<ChapterTabViewProps["pendingCharacterResourceProposals"]>;
+  onExtractChapterResources?: ChapterTabViewProps["onExtractChapterResources"];
+  isExtractingChapterResources?: boolean;
+  onConfirmCharacterResourceProposal?: ChapterTabViewProps["onConfirmCharacterResourceProposal"];
+  onRejectCharacterResourceProposal?: ChapterTabViewProps["onRejectCharacterResourceProposal"];
+  confirmingCharacterResourceProposalId?: string;
+  rejectingCharacterResourceProposalId?: string;
+}) {
+  const {
+    chapterResourceContext,
+    isLoadingChapterResourceContext,
+    resourceWorkflowMode = "manual",
+    pendingCharacterResourceProposals,
+    onExtractChapterResources,
+    isExtractingChapterResources = false,
+    onConfirmCharacterResourceProposal,
+    onRejectCharacterResourceProposal,
+    confirmingCharacterResourceProposalId = "",
+    rejectingCharacterResourceProposalId = "",
+  } = props;
+  const isAutoDirectorMode = resourceWorkflowMode === "auto_director";
+  const modeHint = isAutoDirectorMode
+    ? "自动导演会记录常规资源变化，只把影响后续写作的高风险变更留给你判断。"
+    : "改完正文后可以复查本章资源变化，确认后的结果会影响后续写作。";
+
+  return (
+    <div className="rounded-xl border border-border/70 bg-background p-4">
+      <div className="space-y-2 pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-base font-semibold leading-none tracking-tight">本章关键资源</div>
+            <div className="mt-1 text-xs leading-5 text-muted-foreground">
+              {isLoadingChapterResourceContext
+                ? "资源边界读取中。"
+                : chapterResourceContext?.summary ?? "选择章节后，系统会提示本章可用、需铺垫和不可直接使用的资源。"}
+            </div>
+            <div className="mt-1 text-xs leading-5 text-muted-foreground">{modeHint}</div>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <Badge variant={isAutoDirectorMode ? "secondary" : "outline"}>
+              {isAutoDirectorMode ? "自动同步" : "手动复查"}
+            </Badge>
+            {pendingCharacterResourceProposals.length > 0 ? (
+              <Badge variant="secondary">{pendingCharacterResourceProposals.length}</Badge>
+            ) : null}
+          </div>
+        </div>
+        {!isAutoDirectorMode ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onExtractChapterResources?.()}
+            disabled={isExtractingChapterResources || !onExtractChapterResources}
+            className="w-full justify-center gap-2"
+          >
+            <RefreshCw className={isExtractingChapterResources ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+            {isExtractingChapterResources ? "复查中..." : "复查本章资源"}
+          </Button>
+        ) : null}
+      </div>
+      <div className="space-y-3">
+        <ResourceGroup
+          title="可用资源"
+          items={chapterResourceContext?.availableItems ?? []}
+          emptyText="没有需要特别依赖的可用资源。"
+        />
+        <ResourceGroup
+          title="需要铺垫"
+          items={chapterResourceContext?.setupNeededItems ?? []}
+          emptyText="没有必须先铺垫的资源。"
+        />
+        <ResourceGroup
+          title="不能提前使用"
+          items={chapterResourceContext?.blockedItems ?? []}
+          emptyText="没有被消耗、丢失或毁坏的关键资源。"
+        />
+        <ResourceGroup
+          title="待确认"
+          items={chapterResourceContext?.pendingReviewItems ?? []}
+          emptyText="没有需要你确认的高风险资源。"
+        />
+
+        {pendingCharacterResourceProposals.length > 0 ? (
+          <div className="space-y-2 rounded-lg border border-border/70 bg-muted/10 p-3">
+            <div className="text-xs font-medium text-muted-foreground">需要判断的资源变更</div>
+            {pendingCharacterResourceProposals.slice(0, 2).map((proposal) => (
+              <div key={proposal.id} className="space-y-2 rounded-md border border-border/70 bg-background p-2">
+                <div className="flex flex-wrap items-start gap-2">
+                  <div className="min-w-0 flex-1 text-sm font-medium leading-5">{proposal.summary}</div>
+                  <Badge variant="outline">{getProposalSourceLabel(proposal)}</Badge>
+                </div>
+                {proposal.evidence[0] ? (
+                  <div className="text-[11px] leading-5 text-muted-foreground">证据：{proposal.evidence[0]}</div>
+                ) : null}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => onConfirmCharacterResourceProposal?.(proposal.id)}
+                    disabled={confirmingCharacterResourceProposalId === proposal.id}
+                  >
+                    {confirmingCharacterResourceProposalId === proposal.id ? "确认中..." : "确认"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onRejectCharacterResourceProposal?.(proposal.id)}
+                    disabled={rejectingCharacterResourceProposalId === proposal.id}
+                  >
+                    {rejectingCharacterResourceProposalId === proposal.id ? "处理中..." : "忽略"}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
 export default function ChapterManagementTab(props: ChapterTabViewProps) {
   const {
@@ -64,6 +248,16 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     chapterPlan,
     latestStateSnapshot,
     chapterStateSnapshot,
+    chapterResourceContext,
+    isLoadingChapterResourceContext,
+    resourceWorkflowMode = "manual",
+    pendingCharacterResourceProposals = [],
+    onExtractChapterResources,
+    isExtractingChapterResources = false,
+    onConfirmCharacterResourceProposal,
+    onRejectCharacterResourceProposal,
+    confirmingCharacterResourceProposalId = "",
+    rejectingCharacterResourceProposalId = "",
     chapterAuditReports,
     backgroundSyncActivities,
     isGeneratingChapterPlan,
@@ -208,7 +402,19 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
             />
           </div>
 
-          <div className="w-full xl:w-[320px] xl:flex-none">
+          <div className="w-full space-y-4 xl:w-[320px] xl:flex-none">
+            <CurrentChapterResourcePanel
+              chapterResourceContext={chapterResourceContext}
+              isLoadingChapterResourceContext={isLoadingChapterResourceContext}
+              resourceWorkflowMode={resourceWorkflowMode}
+              pendingCharacterResourceProposals={pendingCharacterResourceProposals}
+              onExtractChapterResources={onExtractChapterResources}
+              isExtractingChapterResources={isExtractingChapterResources}
+              onConfirmCharacterResourceProposal={onConfirmCharacterResourceProposal}
+              onRejectCharacterResourceProposal={onRejectCharacterResourceProposal}
+              confirmingCharacterResourceProposalId={confirmingCharacterResourceProposalId}
+              rejectingCharacterResourceProposalId={rejectingCharacterResourceProposalId}
+            />
             <ChapterExecutionActionPanel
               novelId={novelId}
               selectedChapter={selectedChapter}

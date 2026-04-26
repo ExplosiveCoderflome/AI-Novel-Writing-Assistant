@@ -2,6 +2,7 @@ import {
   DIRECTOR_RUN_MODES,
 } from "@ai-novel/shared/types/novelDirector";
 import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
+import type { CharacterCastOption } from "@ai-novel/shared/types/novel";
 import { AppError } from "../../../middleware/errorHandler";
 import { runWithLlmUsageTracking } from "../../../llm/usageTracking";
 import type {
@@ -72,6 +73,7 @@ import { DirectorRecoveryNotNeededError } from "./novelDirectorErrors";
 import { repairDirectorChapterTitles } from "./novelDirectorChapterTitleRepair";
 import { startDirectorTakeoverExecution } from "./novelDirectorTakeoverExecution";
 import { resetDirectorTakeoverCurrentStep } from "./novelDirectorTakeoverReset";
+import { cancelContinueExistingReplacedRuns } from "./novelDirectorTakeoverContinue";
 import { StyleBindingService } from "../../styleEngine/StyleBindingService";
 import { StyleProfileService } from "../../styleEngine/StyleProfileService";
 import {
@@ -79,6 +81,21 @@ import {
   resolveObservedResumePhaseFromWorkspace,
   resolveSafeDirectorPipelineStartPhase,
 } from "./novelDirectorRecovery";
+import {
+  assertHighMemoryDirectorStartAllowed,
+  releaseHighMemoryDirectorReservations,
+  normalizeDirectorMemoryScope,
+} from "./autoDirectorMemorySafety";
+import {
+  validateAutoDirectorTakeoverRequest,
+} from "./autoDirectorValidationService";
+import {
+  normalizeDirectorAutoApprovalConfig,
+  shouldAutoApproveDirectorApprovalPoint,
+  shouldAutoApproveDirectorCheckpoint,
+} from "@ai-novel/shared/types/autoDirectorApproval";
+import { recordAutoDirectorAutoApprovalFromTask } from "../../task/autoDirectorFollowUps/autoDirectorAutoApprovalAudit";
+import { flattenPreparedOutlineChapters } from "./novelDirectorStructuredOutlineRecovery";
 
 type WorkflowTaskSnapshot = Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>;
 
@@ -144,7 +161,33 @@ export class NovelDirectorService {
     volumeWorkspaceService: this.volumeService,
     workflowService: this.workflowService,
     buildDirectorSeedPayload: (input, novelId, extra) => this.buildDirectorSeedPayload(input, novelId, extra),
+    shouldAutoContinueQualityRepair: async ({ request, qualityRepairRisk }) => (
+      qualityRepairRisk.autoContinuable
+      && shouldAutoApproveDirectorApprovalPoint(
+        normalizeDirectorAutoApprovalConfig(request.autoApproval),
+        "low_risk_quality_repair_continue",
+      )
+    ),
+    recordAutoApproval: async ({ taskId, checkpointType }) => {
+      await recordAutoDirectorAutoApprovalFromTask({
+        taskId,
+        checkpointType,
+      });
+    },
   });
+
+  private async assertHighMemoryDirectorStartAllowed(input: {
+    taskId: string;
+    novelId: string;
+    stage: "structured_outline";
+    itemKey: "beat_sheet" | "chapter_list" | "chapter_detail_bundle" | "chapter_sync";
+    volumeId?: string | null;
+    chapterId?: string | null;
+    scope?: string | null;
+    batchAlreadyStartedCount?: number;
+  }): Promise<void> {
+    await assertHighMemoryDirectorStartAllowed(this.workflowService, input);
+  }
 
   private scheduleBackgroundRun(taskId: string, runner: () => Promise<void>) {
     void Promise.resolve()
@@ -155,6 +198,9 @@ export class NovelDirectorService {
         }
         const message = error instanceof Error ? error.message : "自动导演后台任务执行失败。";
         await this.workflowService.markTaskFailed(taskId, message);
+      })
+      .finally(async () => {
+        await releaseHighMemoryDirectorReservations(taskId);
       });
   }
 
@@ -236,6 +282,7 @@ export class NovelDirectorService {
       this.volumeService.getVolumes(novelId).catch(() => null),
     ]);
     const firstVolume = workspace?.volumes[0] ?? null;
+    const preparedOutlineChapters = workspace ? flattenPreparedOutlineChapters(workspace) : [];
     return {
       characterCount: characters.length,
       chapterCount: chapters.length,
@@ -243,6 +290,20 @@ export class NovelDirectorService {
       hasVolumeStrategyPlan: Boolean(workspace?.strategyPlan),
       firstVolumeId: firstVolume?.id ?? null,
       firstVolumeChapterCount: firstVolume?.chapters.length ?? 0,
+      volumeChapterRanges: (workspace?.volumes ?? []).map((volume) => {
+        const orders = volume.chapters
+          .map((chapter) => chapter.chapterOrder)
+          .filter((order) => Number.isFinite(order))
+          .sort((left, right) => left - right);
+        return orders.length > 0
+          ? {
+            volumeOrder: volume.sortOrder,
+            startOrder: orders[0],
+            endOrder: orders[orders.length - 1],
+          }
+          : null;
+      }).filter((range): range is { volumeOrder: number; startOrder: number; endOrder: number } => Boolean(range)),
+      structuredOutlineChapterOrders: preparedOutlineChapters.map((chapter) => chapter.chapterOrder),
     };
   }
 
@@ -580,6 +641,7 @@ export class NovelDirectorService {
 
   async continueTask(taskId: string, input?: {
     continuationMode?: DirectorContinuationMode;
+    batchAlreadyStartedCount?: number;
   }): Promise<void> {
     const row = await this.workflowService.getTaskById(taskId);
     if (!row) {
@@ -712,6 +774,22 @@ export class NovelDirectorService {
       taskId,
       stage: this.resolveDirectorEditStage(phase),
     });
+    const recoveryResumeTarget = mergeResumeTargets(
+      parseResumeTargetLike(row.resumeTargetJson),
+      parseResumeTargetLike(seedPayload.resumeTarget),
+    );
+    if (phase === "structured_outline") {
+      await this.assertHighMemoryDirectorStartAllowed({
+        taskId,
+        novelId,
+        stage: "structured_outline",
+        itemKey: "chapter_list",
+        volumeId: recoveryResumeTarget?.volumeId,
+        chapterId: recoveryResumeTarget?.chapterId,
+        scope: recoveryResumeTarget?.volumeId || recoveryResumeTarget?.chapterId ? null : "book",
+        batchAlreadyStartedCount: input?.batchAlreadyStartedCount,
+      });
+    }
     await this.workflowService.bootstrapTask({
       workflowTaskId: taskId,
       novelId,
@@ -729,6 +807,12 @@ export class NovelDirectorService {
         novelId,
         input: directorInput,
         startPhase: phase,
+        scope: normalizeDirectorMemoryScope({
+          volumeId: recoveryResumeTarget?.volumeId,
+          chapterId: recoveryResumeTarget?.chapterId,
+          fallback: recoveryResumeTarget?.volumeId || recoveryResumeTarget?.chapterId ? null : "book",
+        }),
+        batchAlreadyStartedCount: input?.batchAlreadyStartedCount,
       });
     });
   }
@@ -800,6 +884,14 @@ export class NovelDirectorService {
       stage: "structured",
       volumeId: targetVolume.id,
     });
+    await this.assertHighMemoryDirectorStartAllowed({
+      taskId,
+      novelId,
+      stage: "structured_outline",
+      itemKey: "chapter_list",
+      volumeId: targetVolume.id,
+      scope: `volume:${targetVolume.id}`,
+    });
     await this.workflowService.bootstrapTask({
       workflowTaskId: taskId,
       novelId,
@@ -862,8 +954,28 @@ export class NovelDirectorService {
       findActiveAutoDirectorTask: (targetNovelId) => this.workflowService.findActiveTaskByNovelAndLane(targetNovelId, "auto_director"),
       findLatestAutoDirectorTask: (targetNovelId) => this.workflowService.findLatestVisibleTaskByNovelId(targetNovelId, "auto_director"),
     });
-    if (takeoverState.hasActiveTask) {
+    const takeoverStrategy = input.strategy ?? (input.startPhase ? "restart_current_step" : "continue_existing");
+    if (takeoverState.hasActiveTask && takeoverStrategy !== "continue_existing") {
       throw new Error("当前已有自动导演任务在运行或等待审核，请先继续或取消当前任务。");
+    }
+    const takeoverValidation = validateAutoDirectorTakeoverRequest({
+      source: "takeover",
+      request: input,
+      assets: {
+        hasProjectSetup: true,
+        hasStoryMacroPlan: takeoverState.snapshot.hasStoryMacroPlan,
+        hasBookContract: takeoverState.snapshot.hasBookContract,
+        characterCount: takeoverState.snapshot.characterCount,
+        volumeCount: takeoverState.snapshot.volumeCount,
+        hasVolumeStrategyPlan: takeoverState.snapshot.hasVolumeStrategyPlan,
+        hasStructuredOutline: takeoverState.snapshot.structuredOutlineRecoveryStep === "completed",
+        totalChapterCount: takeoverState.snapshot.chapterCount,
+        volumeChapterRanges: takeoverState.snapshot.volumeChapterRanges,
+        structuredOutlineChapterOrders: takeoverState.snapshot.structuredOutlineChapterOrders,
+      },
+    });
+    if (!takeoverValidation.allowed) {
+      throw new AppError(takeoverValidation.blockingReasons.join("；") || "当前接管请求需要先重新校验。", 409);
     }
 
     const takeoverDirectorInput = buildDirectorTakeoverInput({
@@ -876,6 +988,7 @@ export class NovelDirectorService {
       ...takeoverDirectorInput,
       styleProfileId: input.styleProfileId ?? takeoverDirectorInput.styleProfileId,
       autoExecutionPlan: input.autoExecutionPlan,
+      autoApproval: input.autoApproval,
       provider: input.provider ?? takeoverDirectorInput.provider,
       model: input.model?.trim() || takeoverDirectorInput.model,
       temperature: typeof input.temperature === "number" ? input.temperature : takeoverDirectorInput.temperature,
@@ -890,6 +1003,18 @@ export class NovelDirectorService {
       buildDirectorSeedPayload: (request, novelId, extra) => this.buildDirectorSeedPayload(request, novelId, extra),
       scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, runner),
       runDirectorPipeline: (payload) => this.runDirectorPipeline(payload),
+      assertHighMemoryStartAllowed: (payload) => this.assertHighMemoryDirectorStartAllowed(payload),
+      createRewriteSnapshot: async ({ novelId, label }) => {
+        const snapshot = await this.novelService.createNovelSnapshot(novelId, "before_pipeline", label);
+        return {
+          snapshotId: snapshot.id,
+          label: snapshot.label ?? label,
+          restoreEntry: "version_history",
+        };
+      },
+      recordRewriteSnapshotMilestone: ({ taskId, summary }) => this.workflowService.recordRewriteSnapshotMilestone(taskId, {
+        summary,
+      }),
       prepareRestartStep: async ({ plan, takeoverState: currentTakeoverState, directorInput }) => {
         await resetDirectorTakeoverCurrentStep({
           novelId: input.novelId,
@@ -901,6 +1026,16 @@ export class NovelDirectorService {
             updateVolumeWorkspace: (targetNovelId, payload) => this.volumeService.updateVolumes(targetNovelId, payload),
             cancelPipelineJob: (jobId) => this.novelService.cancelPipelineJob(jobId),
           },
+        });
+      },
+      cancelReplacedRuns: async ({ replacementTaskId, directorInput, takeoverState: currentTakeoverState }) => {
+        await cancelContinueExistingReplacedRuns({
+          novelId: input.novelId,
+          replacementTaskId,
+          autoExecutionPlan: directorInput.autoExecutionPlan,
+          resolvedRange: currentTakeoverState.executableRange,
+          getVolumeWorkspace: (targetNovelId) => this.volumeService.getVolumes(targetNovelId),
+          cancelPipelineJob: (jobId) => this.novelService.cancelPipelineJob(jobId),
         });
       },
     });
@@ -1081,6 +1216,7 @@ export class NovelDirectorService {
             novelId: createdNovel.id,
             input: directorInput,
             startPhase: "story_macro",
+            scope: "book",
           });
         });
         const novel = await this.novelContextService.getNovelById(createdNovel.id) as unknown as DirectorConfirmApiResponse["novel"];
@@ -1232,6 +1368,8 @@ export class NovelDirectorService {
     novelId: string;
     input: DirectorConfirmRequest;
     startPhase: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline";
+    scope?: string | null;
+    batchAlreadyStartedCount?: number;
   }) {
     const safeStartPhase = await this.resolveSafePipelineStartPhase({
       novelId: input.novelId,
@@ -1258,8 +1396,24 @@ export class NovelDirectorService {
       if (!volumeWorkspace) {
         return;
       }
+      await this.assertHighMemoryDirectorStartAllowed({
+        taskId: input.taskId,
+        novelId: input.novelId,
+        stage: "structured_outline",
+        itemKey: "chapter_list",
+        volumeId: volumeWorkspace.volumes[0]?.id,
+          scope: normalizeDirectorMemoryScope({
+          volumeId: volumeWorkspace.volumes[0]?.id,
+          fallback: input.scope ?? "book",
+        }),
+        batchAlreadyStartedCount: input.batchAlreadyStartedCount,
+      });
       await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, volumeWorkspace);
-      if (normalizeDirectorRunMode(input.input.runMode) === "auto_to_execution") {
+      if (this.shouldAutoApproveCheckpoint(input.input, "front10_ready")) {
+        await recordAutoDirectorAutoApprovalFromTask({
+          taskId: input.taskId,
+          checkpointType: "front10_ready",
+        });
         await this.autoExecutionRuntime.runFromReady({
           taskId: input.taskId,
           novelId: input.novelId,
@@ -1271,8 +1425,24 @@ export class NovelDirectorService {
     }
 
     const currentWorkspace = await this.volumeService.getVolumes(input.novelId);
+    await this.assertHighMemoryDirectorStartAllowed({
+      taskId: input.taskId,
+      novelId: input.novelId,
+      stage: "structured_outline",
+      itemKey: "chapter_list",
+      volumeId: currentWorkspace.volumes[0]?.id,
+      scope: normalizeDirectorMemoryScope({
+        volumeId: currentWorkspace.volumes[0]?.id,
+        fallback: input.scope ?? "book",
+      }),
+      batchAlreadyStartedCount: input.batchAlreadyStartedCount,
+    });
     await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, currentWorkspace);
-    if (normalizeDirectorRunMode(input.input.runMode) === "auto_to_execution") {
+    if (this.shouldAutoApproveCheckpoint(input.input, "front10_ready")) {
+      await recordAutoDirectorAutoApprovalFromTask({
+        taskId: input.taskId,
+        checkpointType: "front10_ready",
+      });
       await this.autoExecutionRuntime.runFromReady({
         taskId: input.taskId,
         novelId: input.novelId,
@@ -1280,6 +1450,19 @@ export class NovelDirectorService {
         resumeCheckpointType: "front10_ready",
       });
     }
+  }
+
+  private shouldAutoApproveCheckpoint(
+    input: DirectorConfirmRequest,
+    checkpointType: "front10_ready" | "chapter_batch_ready" | "replan_required",
+  ): boolean {
+    if (Object.prototype.hasOwnProperty.call(input, "autoApproval")) {
+      return shouldAutoApproveDirectorCheckpoint(
+        normalizeDirectorAutoApprovalConfig(input.autoApproval),
+        checkpointType,
+      );
+    }
+    return checkpointType === "front10_ready" && normalizeDirectorRunMode(input.runMode) === "auto_to_execution";
   }
 
   private async runStoryMacroPhase(
@@ -1296,11 +1479,25 @@ export class NovelDirectorService {
         bookContractService: this.bookContractService,
       },
       callbacks: {
-        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress) => (
+        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, _options) => (
           this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress)
         ),
       },
     });
+  }
+
+  private async findReusableDirectorCharacterCastOption(targetNovelId: string): Promise<CharacterCastOption | null> {
+    const [existingOptions, existingCharacters] = await Promise.all([
+      this.characterPreparationService.listCharacterCastOptions(targetNovelId),
+      this.novelContextService.listCharacters(targetNovelId).catch(() => []),
+    ]);
+    const appliedOption = existingOptions.find((option) => option.status === "applied") ?? null;
+    if (appliedOption) {
+      return existingCharacters.length > 0
+        ? appliedOption
+        : { ...appliedOption, status: "draft" };
+    }
+    return existingOptions[0] ?? null;
   }
 
   private buildDirectorCharacterPreparationService() {
@@ -1311,6 +1508,10 @@ export class NovelDirectorService {
         temperature?: number;
         storyInput?: string;
       }) => {
+        const reusableOption = await this.findReusableDirectorCharacterCastOption(targetNovelId);
+        if (reusableOption) {
+          return reusableOption;
+        }
         const generated = await generateAutoCharacterCastDraft(targetNovelId, options);
         await persistCharacterCastOptionsDraft(targetNovelId, generated.storyInput, {
           options: [generated.parsed.option],
@@ -1327,6 +1528,7 @@ export class NovelDirectorService {
       applyCharacterCastOption: (...args: Parameters<CharacterPreparationService["applyCharacterCastOption"]>) => (
         this.characterPreparationService.applyCharacterCastOption(...args)
       ),
+      findReusableCharacterCastOption: (targetNovelId: string) => this.findReusableDirectorCharacterCastOption(targetNovelId),
     };
   }
 
@@ -1348,8 +1550,8 @@ export class NovelDirectorService {
       },
       callbacks: {
         buildDirectorSeedPayload: (request, takeoverNovelId, extra) => this.buildDirectorSeedPayload(request, takeoverNovelId, extra),
-        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress) => (
-          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress)
+        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
+          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, options)
         ),
       },
     });
@@ -1373,8 +1575,8 @@ export class NovelDirectorService {
       },
       callbacks: {
         buildDirectorSeedPayload: (request, takeoverNovelId, extra) => this.buildDirectorSeedPayload(request, takeoverNovelId, extra),
-        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress) => (
-          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress)
+        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
+          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, options)
         ),
       },
     });
@@ -1400,8 +1602,8 @@ export class NovelDirectorService {
       },
       callbacks: {
         buildDirectorSeedPayload: (request, takeoverNovelId, extra) => this.buildDirectorSeedPayload(request, takeoverNovelId, extra),
-        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress) => (
-          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress)
+        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
+          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, options)
         ),
       },
     });
