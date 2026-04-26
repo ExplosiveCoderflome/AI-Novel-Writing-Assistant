@@ -1,9 +1,15 @@
 AI Novel Writing Assistant 2
 Copyright 2026 ExplosiveCoderflome and contributors
 
-This repository is currently distributed under the Apache License, Version 2.0.
+This repository uses a dual-license model.
 
-Historical note:
-- Public revisions released before 2026-04-19 were published under the MIT License.
-- Those earlier revisions remain available under their original license terms.
-- The current repository root intentionally keeps a single active license file: Apache-2.0.
+By default, this repository is distributed under the GNU Affero General Public
+License v3.0 only (AGPL-3.0-only).
+
+Service-style commercial use requires separate commercial authorization from
+the project maintainer. This includes using this project, or a modified version
+of it, as a backend or core service to provide SaaS, hosted, managed, or
+similar services to third parties.
+
+Please comply with the open-source license terms and obtain the appropriate
+authorization where applicable.

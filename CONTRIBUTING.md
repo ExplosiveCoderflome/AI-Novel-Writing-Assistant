@@ -10,7 +10,10 @@ that:
 
 - you have the legal right to submit the contribution;
 - you agree that the contribution may be distributed as part of this project
-  under the Apache License 2.0;
+  under the GNU Affero General Public License v3.0 only (AGPL-3.0-only);
+- you agree that the project maintainer may include the contribution in
+  separately licensed commercial distributions or commercial authorizations for
+  this project;
 - you will clearly identify any third-party material and its license
   obligations in the pull request description or related discussion.
 
