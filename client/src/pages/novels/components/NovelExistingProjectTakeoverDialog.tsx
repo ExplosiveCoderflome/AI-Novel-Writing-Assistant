@@ -140,6 +140,7 @@ export default function NovelExistingProjectTakeoverDialog({
   const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState("takeover"));
   const [selectedStyleProfileId, setSelectedStyleProfileId] = useState("");
   const autoApprovalDraft = useDirectorAutoApprovalDraft(open);
+  const { reset: resetAutoApprovalDraft } = autoApprovalDraft;
 
   const readinessQuery = useQuery({
     queryKey: queryKeys.novels.autoDirectorTakeoverReadiness(novelId),
@@ -191,9 +192,9 @@ export default function NovelExistingProjectTakeoverDialog({
       setSelectedEntryStep(defaultEntryStep);
       setSelectedStrategy("continue_existing");
       setSelectedStyleProfileId("");
-      autoApprovalDraft.reset();
+      resetAutoApprovalDraft();
     }
-  }, [autoApprovalDraft, defaultEntryStep, open]);
+  }, [defaultEntryStep, open, resetAutoApprovalDraft]);
 
   useEffect(() => {
     if (!open) {
