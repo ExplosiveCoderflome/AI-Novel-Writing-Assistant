@@ -56,6 +56,7 @@ COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/server/package.json ./server/package.json
 COPY --from=prod-deps --chown=node:node /app/server/node_modules ./server/node_modules
 COPY --from=build --chown=node:node /app/server/prisma.config.ts ./server/prisma.config.ts
+COPY --from=build --chown=node:node /app/server/src/config/database.ts ./server/src/config/database.ts
 COPY --from=build --chown=node:node /app/server/dist ./server/dist
 COPY --from=build --chown=node:node /app/server/src/prisma ./server/src/prisma
 COPY --from=build --chown=node:node /app/shared/package.json ./shared/package.json
