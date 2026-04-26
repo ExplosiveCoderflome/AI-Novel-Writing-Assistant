@@ -601,7 +601,7 @@ docs/     设计文档、阶段检查点、模块计划与历史归档
 - 补充测试、错误回放和运行时可观察性
 
 欢迎直接提 Issue 或 Pull Request。
-提交 Pull Request 即表示你确认自己有权提交该内容，并同意项目以 Apache License 2.0 分发该贡献；如果包含第三方代码、素材或其他受许可证约束的内容，请在 PR 中明确说明来源和许可证。详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+提交 Pull Request 即表示你确认自己有权提交该内容，并已阅读且同意 [CLA.md](./CLA.md)；如果包含第三方代码、素材、AI 生成内容或其他受许可证约束的内容，请在 PR 中明确说明来源和许可证。详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
 ## 致谢
 
@@ -619,11 +619,10 @@ docs/     设计文档、阶段检查点、模块计划与历史归档
 # 
 ## License
 
-当前仓库版本以 Apache License 2.0 分发，详见 [LICENSE](./LICENSE)；归属与附加说明见 [NOTICE](./NOTICE)。
+本项目采用双许可证授权模式：
 
-历史说明：
+- 默认情况下，本项目基于 GNU Affero General Public License v3.0 (AGPLv3) 授权，详见 [LICENSE](./LICENSE)；归属与附加说明见 [NOTICE](./NOTICE)。
+- 服务型商用：将本项目（或其修改版本）作为后端以 SaaS、托管或其他形式向第三方提供服务，须通过作者获取商业授权许可。
+- 请遵守开源协议条款，并在适用场景下取得相应授权。
 
-- 2026-04-19 之前公开发布的版本按 MIT License 发布；
-- 这些历史版本继续保留其原始许可证；
-- 2026-04-19 之前的历史版本继续按其发布时附带的 MIT 许可文本解释；
-- 新贡献默认按 Apache-2.0 提交，详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+贡献说明：新贡献默认按 [CLA.md](./CLA.md) 提交，可随项目按 AGPL-3.0-only 分发，并可纳入项目维护者另行提供的商业授权；详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
