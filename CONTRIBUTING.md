@@ -6,7 +6,8 @@ Thanks for helping improve AI Novel Writing Assistant 2.
 
 By intentionally submitting code, prompts, tests, documentation, assets, or
 other material to this repository for inclusion in the project, you confirm
-that:
+that you have read and agree to [CLA.md](./CLA.md), including the following
+core terms:
 
 - you have the legal right to submit the contribution;
 - you agree that the contribution may be distributed as part of this project
