@@ -20,6 +20,8 @@ export const AUTO_DIRECTOR_MOBILE_CLASSES = {
   dialogContent:
     "flex h-[min(92vh,980px)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 sm:w-[calc(100vw-1.5rem)] sm:max-w-[calc(100vw-1.5rem)]",
   followUpBatchBar: "sticky bottom-3 z-20 min-w-0 border-primary/20 shadow-lg",
+  followUpFilterGrid: "auto-director-follow-up-filter-grid grid min-w-0 gap-2 md:grid-cols-2 xl:grid-cols-3",
+  followUpFilterTrigger: "h-9 rounded-md px-2 text-xs sm:h-11 sm:rounded-xl sm:px-3 sm:text-sm",
   followUpListHeader: "flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between",
   followUpMasterDetailGrid: "grid min-w-0 gap-4 xl:grid-cols-[360px_minmax(0,1fr)]",
   followUpOverviewCard: "auto-director-follow-up-overview-card min-w-0",

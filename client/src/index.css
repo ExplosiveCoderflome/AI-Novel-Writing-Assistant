@@ -379,6 +379,24 @@ body {
     line-height: 1.25rem;
   }
 
+  .mobile-site-main.mobile-route-tasks .task-filter-controls.grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .mobile-route-tasks .task-filter-header {
+    display: none;
+  }
+
+  .mobile-route-tasks .task-filter-controls.p-6 {
+    padding: 0.75rem;
+  }
+
+  .mobile-route-tasks .task-filter-controls select,
+  .mobile-route-tasks .task-filter-controls > input {
+    min-height: 2.25rem;
+    font-size: 0.8125rem;
+  }
+
   .mobile-route-home .home-status-summary-grid p,
   .mobile-route-tasks .task-status-summary-grid p {
     font-size: 0.6875rem;
@@ -507,6 +525,10 @@ body {
   .mobile-route-auto-director-follow-ups .auto-director-follow-up-section-grid.grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.5rem;
+  }
+
+  .mobile-site-main.mobile-route-auto-director-follow-ups .auto-director-follow-up-filter-grid.grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .mobile-route-auto-director-follow-ups .auto-director-follow-up-section-grid button {

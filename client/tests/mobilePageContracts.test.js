@@ -14,6 +14,11 @@ const mobileNovelEditView = readFileSync("client/src/pages/novels/mobile/MobileN
 const mobileNovelStepNav = readFileSync("client/src/pages/novels/mobile/MobileNovelStepNav.tsx", "utf8");
 const mobileAutoDirectorStatusCard = readFileSync("client/src/pages/novels/mobile/MobileAutoDirectorStatusCard.tsx", "utf8");
 const mobileFloatingSaveButton = readFileSync("client/src/pages/novels/mobile/MobileFloatingSaveButton.tsx", "utf8");
+const mobileAutoDirectorContracts = readFileSync("client/src/mobile/autoDirector/mobileSupportContracts.ts", "utf8");
+const autoDirectorFollowUpList = readFileSync(
+  "client/src/pages/autoDirectorFollowUps/components/AutoDirectorFollowUpList.tsx",
+  "utf8",
+);
 
 function getMobileRouteKeys() {
   const routeBlock = mobileSiteNavigation.match(/export const MOBILE_ROUTE_PATTERNS[\s\S]*?\n\];/)?.[0] ?? "";
@@ -198,6 +203,34 @@ function getWinningGridTemplateColumns({ routeClassName, elementClassName }) {
     }, null);
 }
 
+function getClassNameContaining(source, marker) {
+  const escapedMarker = marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = source.match(new RegExp(`className="([^"]*${escapedMarker}[^"]*)"`, "m"));
+  assert.ok(match, `${marker} should be present in a static className`);
+  return match[1];
+}
+
+function getAutoDirectorMobileClassValue(key) {
+  const match = mobileAutoDirectorContracts.match(new RegExp(`${key}:\\s*"([^"]+)"`));
+  assert.ok(match, `AUTO_DIRECTOR_MOBILE_CLASSES.${key} should define a static class contract`);
+  return match[1];
+}
+
+function assertAppearsBefore(source, first, second, message) {
+  const firstIndex = source.indexOf(first);
+  const secondIndex = source.indexOf(second);
+  assert.notEqual(firstIndex, -1, `${first} should be present`);
+  assert.notEqual(secondIndex, -1, `${second} should be present`);
+  assert.ok(firstIndex < secondIndex, message);
+}
+
+function assertClassIncludes(className, expectedClass, message) {
+  assert.ok(
+    className.split(/\s+/).includes(expectedClass),
+    `${message}: expected "${className}" to include "${expectedClass}"`,
+  );
+}
+
 test("mobile AppLayout uses the site shell for phone entry routes", () => {
   assert.match(appLayout, /useIsMobileViewport/);
   assert.match(appLayout, /MobileSiteShell/);
@@ -287,6 +320,96 @@ test("mobile status metrics keep four columns after generic grid collapse cascad
     `task status grid should resolve to four columns, got ${taskWinner?.value ?? "no matching rule"} from ${
       taskWinner?.selector ?? "no selector"
     }`,
+  );
+});
+
+test("mobile task filters stay in a compact three-column control grid", () => {
+  const expectedColumns = "repeat(3, minmax(0, 1fr))";
+  const taskFilterClassName = getClassNameContaining(taskCenterPage, "task-filter-controls");
+  const winner = getWinningGridTemplateColumns({
+    routeClassName: "mobile-route-tasks",
+    elementClassName: taskFilterClassName,
+  });
+
+  assert.match(taskCenterPage, /task-filter-card/);
+  assert.match(taskCenterPage, /task-filter-controls/);
+  assert.match(taskCenterPage, /task-filter-pill/);
+  assert.match(
+    css,
+    /mobile-route-tasks \.task-filter-controls\.grid[\s\S]+grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/,
+    "task filters should resolve to three compact mobile columns",
+  );
+  assert.equal(
+    winner?.value,
+    expectedColumns,
+    `task filter grid should keep three columns after mobile grid collapse rules, got ${winner?.value ?? "no matching rule"} from ${
+      winner?.selector ?? "no selector"
+    }`,
+  );
+
+  assertAppearsBefore(
+    taskCenterPage,
+    "task-filter-status",
+    "task-filter-pill",
+    "the anomaly filter should render after status so it fills the first mobile row",
+  );
+  assertAppearsBefore(
+    taskCenterPage,
+    "task-filter-pill",
+    "task-filter-keyword",
+    "the anomaly filter should render before the spanning keyword field to keep filters within two rows",
+  );
+  assertAppearsBefore(
+    taskCenterPage,
+    "task-filter-keyword",
+    "task-filter-sort",
+    "the spanning keyword field should render before sort so the second row is keyword plus sort",
+  );
+
+  const kindClassName = getClassNameContaining(taskCenterPage, "task-filter-kind");
+  const statusClassName = getClassNameContaining(taskCenterPage, "task-filter-status");
+  const anomalyClassName = getClassNameContaining(taskCenterPage, "task-filter-pill");
+  const keywordClassName = getClassNameContaining(taskCenterPage, "task-filter-keyword");
+  const sortClassName = getClassNameContaining(taskCenterPage, "task-filter-sort");
+
+  [
+    [kindClassName, "col-start-1", "type should occupy first row column 1"],
+    [kindClassName, "row-start-1", "type should occupy first row column 1"],
+    [statusClassName, "col-start-2", "status should occupy first row column 2"],
+    [statusClassName, "row-start-1", "status should occupy first row column 2"],
+    [anomalyClassName, "col-start-3", "anomaly pill should occupy first row column 3"],
+    [anomalyClassName, "row-start-1", "anomaly pill should occupy first row column 3"],
+    [keywordClassName, "col-span-2", "keyword should span the first two columns in row 2"],
+    [keywordClassName, "col-start-1", "keyword should span the first two columns in row 2"],
+    [keywordClassName, "row-start-2", "keyword should span the first two columns in row 2"],
+    [sortClassName, "col-start-3", "sort should occupy second row column 3"],
+    [sortClassName, "row-start-2", "sort should occupy second row column 3"],
+  ].forEach(([className, expectedClass, message]) => {
+    assertClassIncludes(className, expectedClass, message);
+  });
+});
+
+test("mobile follow-up filters stay in one compact row after generic grid collapse cascade", () => {
+  const expectedColumns = "repeat(3, minmax(0, 1fr))";
+  const followUpFilterClassName = getAutoDirectorMobileClassValue("followUpFilterGrid");
+  const winner = getWinningGridTemplateColumns({
+    routeClassName: "mobile-route-auto-director-follow-ups",
+    elementClassName: followUpFilterClassName,
+  });
+
+  assert.match(autoDirectorFollowUpList, /AUTO_DIRECTOR_MOBILE_CLASSES\.followUpFilterGrid/);
+  assert.match(autoDirectorFollowUpList, /AUTO_DIRECTOR_MOBILE_CLASSES\.followUpFilterTrigger/);
+  assert.match(
+    css,
+    /mobile-route-auto-director-follow-ups \.auto-director-follow-up-filter-grid\.grid[\s\S]+grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/,
+    "follow-up filters should resolve to three compact mobile columns",
+  );
+  assert.equal(
+    winner?.value,
+    expectedColumns,
+    `follow-up filter grid should keep three columns after mobile grid collapse rules, got ${
+      winner?.value ?? "no matching rule"
+    } from ${winner?.selector ?? "no selector"}`,
   );
 });
 

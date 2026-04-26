@@ -85,9 +85,9 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
         <CardTitle className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-base`}>{formatActiveSection(props.activeSection)}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterGrid}>
           <Select value={props.activeReason || "__all__"} onValueChange={(value) => props.onFilterChange("reason", value === "__all__" ? "" : value)}>
-            <SelectTrigger>
+            <SelectTrigger className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
               <SelectValue placeholder="全部原因" />
             </SelectTrigger>
             <SelectContent>
@@ -99,7 +99,7 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
           </Select>
 
           <Select value={props.activeStatus || "__all__"} onValueChange={(value) => props.onFilterChange("status", value === "__all__" ? "" : value)}>
-            <SelectTrigger>
+            <SelectTrigger className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
               <SelectValue placeholder="全部状态" />
             </SelectTrigger>
             <SelectContent>
@@ -111,7 +111,7 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
           </Select>
 
           <Select value={props.activeSupportsBatch || "__all__"} onValueChange={(value) => props.onFilterChange("supportsBatch", value === "__all__" ? "" : value)}>
-            <SelectTrigger>
+            <SelectTrigger className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
               <SelectValue placeholder="批量能力" />
             </SelectTrigger>
             <SelectContent>

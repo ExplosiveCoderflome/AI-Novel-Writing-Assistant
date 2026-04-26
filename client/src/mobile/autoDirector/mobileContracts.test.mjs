@@ -141,6 +141,16 @@ test("auto-director follow-up center uses mobile contracts for single-column non
     "AUTO_DIRECTOR_MOBILE_CLASSES.followUpListHeader",
     "follow-up list item header should stack before switching to row layout",
   );
+  assertContains(
+    list,
+    "AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterGrid",
+    "follow-up list filters should use the centralized compact mobile filter grid",
+  );
+  assertContains(
+    list,
+    "AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger",
+    "follow-up list filter selects should use compact mobile trigger sizing",
+  );
   assertImportsMobileContracts(detail, "follow-up detail should use mobile detail contracts");
   assertContains(
     detail,

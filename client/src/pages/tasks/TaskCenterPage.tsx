@@ -581,13 +581,13 @@ export default function TaskCenterPage() {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)_360px]">
-        <Card>
-          <CardHeader>
+        <Card className="task-filter-card">
+          <CardHeader className="task-filter-header">
             <CardTitle className="text-base">筛选</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="task-filter-controls grid min-w-0 grid-cols-3 gap-2 xl:grid-cols-1">
             <select
-              className="w-full rounded-md border bg-background p-2 text-sm"
+              className="task-filter-kind col-start-1 row-start-1 w-full rounded-md border bg-background px-2 py-2 text-sm xl:col-auto xl:row-auto"
               value={kind}
               onChange={(event) => setKind(event.target.value as TaskKind | "")}
             >
@@ -601,7 +601,7 @@ export default function TaskCenterPage() {
               <option value="agent_run">Agent 运行</option>
             </select>
             <select
-              className="w-full rounded-md border bg-background p-2 text-sm"
+              className="task-filter-status col-start-2 row-start-1 w-full rounded-md border bg-background px-2 py-2 text-sm xl:col-auto xl:row-auto"
               value={status}
               onChange={(event) => setStatus(event.target.value as TaskStatus | "")}
             >
@@ -613,13 +613,22 @@ export default function TaskCenterPage() {
               <option value="cancelled">已取消</option>
               <option value="succeeded">已完成</option>
             </select>
+            <label className="task-filter-pill col-start-3 row-start-1 flex items-center gap-1.5 rounded-md border bg-muted/30 px-1.5 py-2 text-xs text-muted-foreground sm:gap-2 sm:px-2 sm:text-sm xl:col-auto xl:row-auto">
+              <input
+                type="checkbox"
+                checked={onlyAnomaly}
+                onChange={(event) => setOnlyAnomaly(event.target.checked)}
+              />
+              仅看异常
+            </label>
             <Input
+              className="task-filter-keyword col-span-2 col-start-1 row-start-2 h-10 px-2 xl:col-auto xl:row-auto"
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
               placeholder="标题或关联对象"
             />
             <select
-              className="w-full rounded-md border bg-background p-2 text-sm"
+              className="task-filter-sort col-start-3 row-start-2 w-full rounded-md border bg-background px-2 py-2 text-sm xl:col-auto xl:row-auto"
               value={sortMode}
               onChange={(event) => setSortMode(event.target.value as TaskSortMode)}
             >
@@ -629,14 +638,6 @@ export default function TaskCenterPage() {
               <option value="heartbeat_asc">按最近心跳排序：最早优先</option>
               <option value="default">默认排序：失败优先</option>
             </select>
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={onlyAnomaly}
-                onChange={(event) => setOnlyAnomaly(event.target.checked)}
-              />
-              仅看异常任务
-            </label>
           </CardContent>
         </Card>
 
