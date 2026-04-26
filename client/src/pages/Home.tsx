@@ -303,7 +303,7 @@ export default function Home() {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="home-status-summary-grid grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           title="自动推进中"
           value={liveWorkflowCount}
@@ -319,7 +319,7 @@ export default function Home() {
         <MetricCard
           title="可进入章节执行"
           value={readyForExecutionCount}
-          hint="已经准备到可开写阶段，可以直接进入章节写作。"
+          hint="准备到可开写阶段，可以直接进入章节写作。"
           pending={novelQuery.isPending}
         />
         <MetricCard

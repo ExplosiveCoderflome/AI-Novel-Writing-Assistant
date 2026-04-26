@@ -155,25 +155,25 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
       <CardContent className="space-y-3 pt-0">
         {selectedVolumeNeedsChapterExpansion ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-800">
-            当前卷目前只有 {selectedVolumeChapters.length} 章，但节奏板已经排到 {selectedVolumeRequiredChapterCount} 章。需要先重新生成当前卷章节列表，后半段节奏才会真正映射到章节。
+            当前卷目前只有 {selectedVolumeChapters.length} 章，但节奏板覆盖到 {selectedVolumeRequiredChapterCount} 章。需要先重新生成当前卷章节列表，后半段节奏才会真正映射到章节。
           </div>
         ) : null}
 
         {selectedVolumeChapters.length > 0 ? (
           <>
-            <div className="max-h-[560px] space-y-3 overflow-y-auto pr-1 xl:max-h-[calc(100vh-12rem)]">
+            <div className="structured-chapter-navigation-list space-y-3 xl:max-h-[calc(100vh-12rem)] xl:overflow-y-auto xl:pr-1">
               {beatGroups.map((group) => {
                 const active = selectedBeatKey === group.key;
                 const expanded = selectedBeatKey === "all" || active;
                 return (
                   <div key={group.key} className="rounded-xl border border-border/70 bg-background/80 p-3">
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <button
                         type="button"
                         onClick={() => onSelectBeatKey(active ? "all" : group.key)}
                         className="min-w-0 flex-1 text-left"
                       >
-                        <div className="flex items-center justify-between gap-2">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex flex-wrap items-center gap-2">
                             <Badge variant={active ? "default" : "outline"}>{group.label}</Badge>
                             <Badge variant="secondary">{group.chapterSpanHint}</Badge>

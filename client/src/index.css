@@ -335,7 +335,7 @@ body {
     flex-direction: column;
   }
 
-  .mobile-route-home > .grid:first-child {
+  .mobile-route-home .home-status-summary-grid {
     order: 2;
   }
 
@@ -355,48 +355,37 @@ body {
     order: 5;
   }
 
-  .mobile-route-home > .grid:first-child {
+  .mobile-route-home .home-status-summary-grid,
+  .mobile-route-tasks .task-status-summary-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.5rem;
   }
 
-  .mobile-route-tasks > .grid:first-child {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.5rem;
-  }
-
-  .mobile-route-home > .grid:first-child .rounded-xl {
+  .mobile-route-home .home-status-summary-grid > .rounded-xl,
+  .mobile-route-tasks .task-status-summary-grid > .rounded-xl {
     border-radius: 0.75rem;
+    box-shadow: none;
   }
 
-  .mobile-route-tasks > .grid:first-child .rounded-xl {
-    border-radius: 1rem;
-  }
-
-  .mobile-route-home > .grid:first-child .p-6 {
+  .mobile-route-home .home-status-summary-grid .p-6,
+  .mobile-route-tasks .task-status-summary-grid .p-6 {
     padding: 0.5rem;
   }
 
-  .mobile-route-tasks > .grid:first-child .p-6 {
-    padding: 0.75rem;
-  }
-
-  .mobile-route-home > .grid:first-child h3 {
+  .mobile-route-home .home-status-summary-grid h3,
+  .mobile-route-tasks .task-status-summary-grid h3,
+  .mobile-route-tasks .task-status-summary-grid .text-2xl {
     font-size: 1rem;
     line-height: 1.25rem;
   }
 
-  .mobile-route-tasks > .grid:first-child h3 {
-    font-size: 1.25rem;
-    line-height: 1.75rem;
-  }
-
-  .mobile-route-home > .grid:first-child p {
+  .mobile-route-home .home-status-summary-grid p,
+  .mobile-route-tasks .task-status-summary-grid p {
     font-size: 0.6875rem;
     line-height: 1rem;
   }
 
-  .mobile-route-home > .grid:first-child .text-xs {
+  .mobile-route-home .home-status-summary-grid .text-xs {
     display: none;
   }
 
