@@ -118,7 +118,10 @@ router.post("/recovery-candidates/:kind/:id/resume", validate({ params: recovery
 router.get("/auto-director-follow-ups/:taskId", validate({ params: autoDirectorFollowUpParamsSchema }), async (req, res, next) => {
   try {
     const { taskId } = req.params as z.infer<typeof autoDirectorFollowUpParamsSchema>;
-    const data = await autoDirectorFollowUpService.getDetail(taskId);
+    const readonly = req.query.revalidate === "true";
+    const data = await autoDirectorFollowUpService.getDetail(taskId, {
+      heal: !readonly,
+    });
     if (!data) {
       res.status(404).json({
         success: false,

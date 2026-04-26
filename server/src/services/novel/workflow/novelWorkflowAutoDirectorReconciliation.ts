@@ -9,6 +9,7 @@ import {
   buildDirectorAutoExecutionPausedSummary,
   buildDirectorAutoExecutionScopeLabelFromState,
   buildDirectorAutoExecutionState,
+  resolveDirectorAutoExecutionBookRange,
   resolveDirectorAutoExecutionRangeFromState,
   type DirectorAutoExecutionChapterRef,
 } from "../director/novelDirectorAutoExecution";
@@ -35,7 +36,9 @@ export function reconcileAutoDirectorChapterBatchState(input: {
   chapters: DirectorAutoExecutionChapterRef[];
   failureMessage?: string | null;
 }): AutoDirectorChapterBatchReconciliation | null {
-  const range = resolveDirectorAutoExecutionRangeFromState(input.autoExecutionState);
+  const range = input.autoExecutionState?.mode === "book"
+    ? resolveDirectorAutoExecutionBookRange(input.chapters)
+    : resolveDirectorAutoExecutionRangeFromState(input.autoExecutionState);
   if (!range) {
     return null;
   }
@@ -43,6 +46,7 @@ export function reconcileAutoDirectorChapterBatchState(input: {
   const autoExecution = buildDirectorAutoExecutionState({
     range,
     chapters: input.chapters,
+    plan: input.autoExecutionState,
     pipelineJobId: input.autoExecutionState?.pipelineJobId ?? null,
     pipelineStatus: input.autoExecutionState?.pipelineStatus ?? null,
   });

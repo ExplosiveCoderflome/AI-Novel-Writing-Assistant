@@ -20,6 +20,16 @@ export type NovelWorkflowCheckpoint =
   | "replan_required"
   | "workflow_completed";
 
+export type NovelWorkflowMilestoneType =
+  | NovelWorkflowCheckpoint
+  | "rewrite_snapshot_created";
+
+export interface NovelWorkflowMilestone {
+  checkpointType: NovelWorkflowMilestoneType;
+  summary: string;
+  createdAt: string;
+}
+
 export interface NovelWorkflowResumeTarget {
   route: "/novels/create" | "/novels/:id/edit";
   novelId?: string | null;

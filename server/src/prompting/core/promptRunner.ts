@@ -11,6 +11,7 @@ import {
   resolveStructuredOutputProfile,
   selectStructuredOutputStrategy,
 } from "../../llm/structuredOutput";
+import { logMemoryUsage } from "../../runtime/memoryTelemetry";
 import { toText } from "../../services/novel/novelP0Utils";
 import { hasRegisteredPromptAsset } from "../registry";
 import { selectContextBlocks } from "./contextSelection";
@@ -62,7 +63,12 @@ function buildPromptInvocationMeta(
     taskType: asset.taskType,
     novelId: options?.novelId,
     chapterId: options?.chapterId,
+    volumeId: options?.volumeId,
+    taskId: options?.taskId,
     stage: options?.stage,
+    itemKey: options?.itemKey,
+    scope: options?.scope,
+    entrypoint: options?.entrypoint,
     sceneIndex: options?.sceneIndex,
     roundIndex: options?.roundIndex,
     triggerReason: options?.triggerReason,
@@ -109,6 +115,10 @@ function buildPromptCallOptions(options?: PromptExecutionOptions): Record<string
     callOptions.signal = options.signal;
   }
   return callOptions;
+}
+
+function estimateRenderedPromptChars(messages: BaseMessage[]): number {
+  return messages.reduce((sum, message) => sum + toText(message.content).length, 0);
 }
 
 function buildDefaultSemanticRetryMessages<I, R>(input: {
@@ -468,6 +478,7 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
     model: input.options?.model,
   });
   const startedAt = Date.now();
+  const renderedPromptChars = estimateRenderedPromptChars(prepared.messages);
   const result = await promptRunnerStructuredInvoker<R>({
     label: `${input.asset.id}@${input.asset.version}`,
     provider: input.options?.provider,
@@ -482,6 +493,23 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
     maxRepairAttempts: resolveStructuredRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
     promptMeta: prepared.invocation,
   });
+  logMemoryUsage({
+    event: "structured_invoke_done",
+    component: "runStructuredPrompt",
+    taskId: input.options?.taskId,
+    novelId: input.options?.novelId,
+    chapterId: input.options?.chapterId,
+    volumeId: input.options?.volumeId,
+    stage: input.options?.stage,
+    itemKey: input.options?.itemKey,
+    scope: input.options?.scope ?? input.options?.triggerReason,
+    entrypoint: input.options?.entrypoint,
+    promptId: input.asset.id,
+    promptVersion: input.asset.version,
+    provider: input.options?.provider,
+    model: input.options?.model,
+    renderedPromptChars,
+  });
   const resolved = await resolveStructuredOutput({
     asset: input.asset,
     promptInput: input.promptInput,
@@ -490,6 +518,23 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
     outputSchema,
     initialResult: result,
     options: input.options,
+  });
+  logMemoryUsage({
+    event: "before_prompt_result_return",
+    component: "runStructuredPrompt",
+    taskId: input.options?.taskId,
+    novelId: input.options?.novelId,
+    chapterId: input.options?.chapterId,
+    volumeId: input.options?.volumeId,
+    stage: input.options?.stage,
+    itemKey: input.options?.itemKey,
+    scope: input.options?.scope ?? input.options?.triggerReason,
+    entrypoint: input.options?.entrypoint,
+    promptId: input.asset.id,
+    promptVersion: input.asset.version,
+    provider: input.options?.provider,
+    model: input.options?.model,
+    renderedPromptChars,
   });
   return buildPromptRunResult({
     output: resolved.output,

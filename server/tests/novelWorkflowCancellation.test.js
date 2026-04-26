@@ -8,9 +8,11 @@ test("markTaskRunning does not revive cancelled auto director tasks", async () =
   const originals = {
     findUnique: prisma.novelWorkflowTask.findUnique,
     update: prisma.novelWorkflowTask.update,
+    archiveFindUnique: prisma.taskCenterArchive.findUnique,
   };
 
   let updateCalled = false;
+  prisma.taskCenterArchive.findUnique = async () => null;
   prisma.novelWorkflowTask.findUnique = async () => ({
     id: "task_cancelled",
     lane: "auto_director",
@@ -46,6 +48,50 @@ test("markTaskRunning does not revive cancelled auto director tasks", async () =
   } finally {
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
     prisma.novelWorkflowTask.update = originals.update;
+    prisma.taskCenterArchive.findUnique = originals.archiveFindUnique;
+  }
+});
+
+test("markTaskFailed does not overwrite cancelled auto director tasks", async () => {
+  const originals = {
+    findUnique: prisma.novelWorkflowTask.findUnique,
+    update: prisma.novelWorkflowTask.update,
+    archiveFindUnique: prisma.taskCenterArchive.findUnique,
+  };
+
+  let updateCalled = false;
+  const cancelledTask = {
+    id: "task_cancelled_failed",
+    lane: "auto_director",
+    novelId: "novel_demo",
+    status: "cancelled",
+    progress: 0.82,
+    currentStage: "节奏 / 拆章",
+    currentItemKey: "chapter_detail_bundle",
+    currentItemLabel: "正在细化第 4/10 章",
+    checkpointType: null,
+    checkpointSummary: null,
+    seedPayloadJson: null,
+    resumeTargetJson: null,
+    cancelRequestedAt: new Date("2026-04-14T03:00:00.000Z"),
+    startedAt: new Date("2026-04-14T02:00:00.000Z"),
+  };
+  prisma.taskCenterArchive.findUnique = async () => null;
+  prisma.novelWorkflowTask.findUnique = async () => cancelledTask;
+  prisma.novelWorkflowTask.update = async () => {
+    updateCalled = true;
+    throw new Error("update should not be called");
+  };
+
+  try {
+    const service = new NovelWorkflowService();
+    const result = await service.markTaskFailed("task_cancelled_failed", "后台模型调用已取消。");
+    assert.equal(result, cancelledTask);
+    assert.equal(updateCalled, false);
+  } finally {
+    prisma.novelWorkflowTask.findUnique = originals.findUnique;
+    prisma.novelWorkflowTask.update = originals.update;
+    prisma.taskCenterArchive.findUnique = originals.archiveFindUnique;
   }
 });
 
@@ -53,9 +99,11 @@ test("healAutoDirectorTaskState skips cancelled tasks instead of restoring them"
   const originals = {
     findUnique: prisma.novelWorkflowTask.findUnique,
     update: prisma.novelWorkflowTask.update,
+    archiveFindUnique: prisma.taskCenterArchive.findUnique,
   };
 
   let updateCalled = false;
+  prisma.taskCenterArchive.findUnique = async () => null;
   prisma.novelWorkflowTask.findUnique = async () => ({
     id: "task_cancelled_heal",
     lane: "auto_director",
@@ -88,5 +136,6 @@ test("healAutoDirectorTaskState skips cancelled tasks instead of restoring them"
   } finally {
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
     prisma.novelWorkflowTask.update = originals.update;
+    prisma.taskCenterArchive.findUnique = originals.archiveFindUnique;
   }
 });

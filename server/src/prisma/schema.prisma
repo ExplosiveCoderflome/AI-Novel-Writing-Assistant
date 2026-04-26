@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 enum ChapterGenerationState {
@@ -384,6 +384,7 @@ model Novel {
   replanRuns         ReplanRun[]
   auditReports       AuditReport[]
   workflowTasks      NovelWorkflowTask[]
+  autoApprovalRecords AutoDirectorAutoApprovalRecord[]
   createdAt          DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
@@ -1619,12 +1620,71 @@ model NovelWorkflowTask {
   llmCallCount       Int                     @default(0)
   lastTokenRecordedAt DateTime?
   novel              Novel?                  @relation(fields: [novelId], references: [id], onDelete: SetNull)
+  autoApprovalRecords AutoDirectorAutoApprovalRecord[]
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
 
   @@index([novelId, status, updatedAt])
   @@index([status, updatedAt])
   @@index([lane, updatedAt])
+}
+
+model AutoDirectorAutoApprovalRecord {
+  id                 String   @id @default(cuid())
+  taskId             String
+  novelId            String
+  approvalPointCode  String
+  approvalPointLabel String
+  checkpointType     String
+  checkpointSummary  String?
+  summary            String
+  stage              String?
+  scopeLabel         String?
+  eventId            String   @unique
+  task               NovelWorkflowTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  novel              Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt          DateTime @default(now())
+
+  @@index([novelId, createdAt])
+  @@index([taskId, createdAt])
+}
+
+
+model AutoDirectorFollowUpActionLog {
+  id             String   @id @default(cuid())
+  taskId         String
+  actionCode     String
+  sourceChannel  String
+  sourceUser     String?
+  idempotencyKey String   @unique
+  resultCode     String
+  failureReason  String?
+  metadataJson   String?
+  executedAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  @@index([taskId, executedAt])
+  @@index([taskId, actionCode, executedAt])
+}
+
+model AutoDirectorFollowUpNotificationLog {
+  id             String   @id @default(cuid())
+  eventId        String
+  eventType      String
+  taskId         String
+  channelType    String
+  target         String?
+  requestPayload String?
+  responseBody   String?
+  responseStatus Int?
+  attemptCount   Int      @default(1)
+  deliveredAt    DateTime?
+  status         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([taskId, createdAt])
+  @@index([eventId, channelType, createdAt])
 }
 
 model StoryStateSnapshot {

@@ -1,12 +1,23 @@
+import { Readable } from "node:stream";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import type { S3Client } from "@aws-sdk/client-s3";
+import { imageStorageConfig, isS3ImageStorageEnabled } from "../../config/imageStorage";
 import { AppError } from "../../middleware/errorHandler";
 import { resolveGeneratedImagesRoot } from "../../runtime/appPaths";
+import {
+  deleteImageObject,
+  normalizeStorageKey,
+  putImageObject,
+  resolveImageObject,
+} from "./objectImageStorage";
 
 interface ParsedAssetMetadata {
   localPath: string | null;
   sourceUrl: string | null;
   relativePath: string | null;
+  storageKey: string | null;
+  storageDriver: "local" | "s3" | null;
 }
 
 interface PersistGeneratedImageInput {
@@ -18,13 +29,31 @@ interface PersistGeneratedImageInput {
   mimeType?: string | null;
   storageRoot?: string;
   fetchImpl?: typeof fetch;
+  s3Client?: Pick<S3Client, "send">;
 }
 
 interface PersistedGeneratedImage {
-  localPath: string;
-  relativePath: string;
+  persistedUrl: string;
+  localPath: string | null;
+  relativePath: string | null;
+  storageKey: string | null;
+  storageDriver: "local" | "s3";
   sourceUrl: string | null;
   mimeType: string;
+}
+
+interface ImageAssetFileInput {
+  assetId: string;
+  url: string;
+  mimeType?: string | null;
+  metadata?: string | null;
+  s3Client?: Pick<S3Client, "send">;
+}
+
+interface ResolvedImageAssetFile {
+  localPath?: string;
+  stream?: Readable;
+  mimeType: string | null;
 }
 
 const MIME_EXTENSION_MAP: Record<string, string> = {
@@ -95,6 +124,21 @@ async function readImageBuffer(input: {
   }
 }
 
+function buildStorageSegments(input: PersistGeneratedImageInput, extension: string): {
+  relativePath: string;
+  localPath: string;
+} {
+  const storageRoot = input.storageRoot ?? resolveGeneratedImagesRoot();
+  const characterSegment = sanitizeSegment(input.baseCharacterId ?? input.taskId);
+  const taskSegment = sanitizeSegment(input.taskId);
+  const fileName = `image-${String(input.sortOrder + 1).padStart(2, "0")}.${extension}`;
+  const localPath = path.join(storageRoot, `${input.sceneType}s`, characterSegment, taskSegment, fileName);
+  return {
+    relativePath: path.relative(storageRoot, localPath).split(path.sep).join("/"),
+    localPath,
+  };
+}
+
 export function buildImageAssetPublicUrl(assetId: string): string {
   return `/api/images/assets/${assetId}/file`;
 }
@@ -105,6 +149,8 @@ export function parseImageAssetMetadata(metadata: string | null | undefined): Pa
       localPath: null,
       sourceUrl: null,
       relativePath: null,
+      storageKey: null,
+      storageDriver: null,
     };
   }
 
@@ -114,18 +160,21 @@ export function parseImageAssetMetadata(metadata: string | null | undefined): Pa
       localPath: typeof parsed.localPath === "string" && parsed.localPath.trim() ? parsed.localPath : null,
       sourceUrl: typeof parsed.sourceUrl === "string" && parsed.sourceUrl.trim() ? parsed.sourceUrl : null,
       relativePath: typeof parsed.relativePath === "string" && parsed.relativePath.trim() ? parsed.relativePath : null,
+      storageKey: typeof parsed.storageKey === "string" && parsed.storageKey.trim() ? parsed.storageKey : null,
+      storageDriver: parsed.storageDriver === "s3" || parsed.storageDriver === "local" ? parsed.storageDriver : null,
     };
   } catch {
     return {
       localPath: null,
       sourceUrl: null,
       relativePath: null,
+      storageKey: null,
+      storageDriver: null,
     };
   }
 }
 
 export async function persistGeneratedImageAsset(input: PersistGeneratedImageInput): Promise<PersistedGeneratedImage> {
-  const storageRoot = input.storageRoot ?? resolveGeneratedImagesRoot();
   const image = await readImageBuffer({
     url: input.url,
     mimeType: input.mimeType,
@@ -133,30 +182,57 @@ export async function persistGeneratedImageAsset(input: PersistGeneratedImageInp
   });
   const inferredExtension = getExtensionFromUrl(input.url);
   const extension = inferredExtension || getExtensionFromMimeType(image.mimeType);
-  const characterSegment = sanitizeSegment(input.baseCharacterId ?? input.taskId);
-  const taskSegment = sanitizeSegment(input.taskId);
-  const fileName = `image-${String(input.sortOrder + 1).padStart(2, "0")}.${extension}`;
-  const directory = path.join(storageRoot, `${input.sceneType}s`, characterSegment, taskSegment);
-  const localPath = path.join(directory, fileName);
-  const relativePath = path.relative(storageRoot, localPath).split(path.sep).join("/");
+  const { localPath, relativePath } = buildStorageSegments(input, extension);
 
-  await fs.mkdir(directory, { recursive: true });
+  if (isS3ImageStorageEnabled()) {
+    const storageKey = normalizeStorageKey(relativePath);
+    if (!storageKey) {
+      throw new AppError("Image object storage key is invalid.", 500);
+    }
+    await putImageObject({
+      buffer: image.buffer,
+      key: storageKey,
+      mimeType: image.mimeType,
+      s3Client: input.s3Client,
+    });
+    return {
+      persistedUrl: storageKey,
+      localPath: null,
+      relativePath,
+      storageKey,
+      storageDriver: "s3",
+      sourceUrl: image.sourceUrl,
+      mimeType: image.mimeType,
+    };
+  }
+
+  await fs.mkdir(path.dirname(localPath), { recursive: true });
   await fs.writeFile(localPath, image.buffer);
 
   return {
+    persistedUrl: localPath,
     localPath,
     relativePath,
+    storageKey: null,
+    storageDriver: "local",
     sourceUrl: image.sourceUrl,
     mimeType: image.mimeType,
   };
 }
 
-export async function resolveLocalImageAssetFile(input: {
-  assetId: string;
-  url: string;
-  metadata?: string | null;
-}): Promise<{ localPath: string }> {
+export async function resolveImageAssetFile(input: ImageAssetFileInput): Promise<ResolvedImageAssetFile> {
   const metadata = parseImageAssetMetadata(input.metadata);
+  if (metadata.storageDriver === "s3" || (!metadata.localPath && metadata.storageKey)) {
+    const resolved = await resolveImageObject({
+      key: metadata.storageKey ?? input.url,
+      s3Client: input.s3Client,
+    });
+    return {
+      stream: resolved.stream,
+      mimeType: resolved.mimeType ?? input.mimeType ?? null,
+    };
+  }
+
   const localPath = metadata.localPath
     ?? (path.isAbsolute(input.url) ? input.url : null);
 
@@ -170,11 +246,37 @@ export async function resolveLocalImageAssetFile(input: {
     throw new AppError("Local image asset file was not found.", 404);
   }
 
-  return { localPath };
+  return { localPath, mimeType: input.mimeType ?? null };
+}
+
+export async function resolveLocalImageAssetFile(input: ImageAssetFileInput): Promise<{ localPath: string }> {
+  const resolved = await resolveImageAssetFile(input);
+  if (!resolved.localPath) {
+    throw new AppError("Image asset is not stored locally yet.", 404);
+  }
+  return { localPath: resolved.localPath };
+}
+
+export async function removeStoredImageAssetFile(input: {
+  assetId?: string;
+  url: string;
+  metadata?: string | null;
+  storageRoot?: string;
+  s3Client?: Pick<S3Client, "send">;
+}): Promise<void> {
+  const metadata = parseImageAssetMetadata(input.metadata);
+  if (metadata.storageDriver === "s3" || metadata.storageKey) {
+    await deleteImageObject({
+      key: metadata.storageKey ?? input.url,
+      s3Client: input.s3Client,
+    });
+    return;
+  }
+  await removeLocalImageAssetFile(input);
 }
 
 export async function removeLocalImageAssetFile(input: {
-  assetId: string;
+  assetId?: string;
   url: string;
   metadata?: string | null;
   storageRoot?: string;
@@ -213,3 +315,5 @@ export async function removeLocalImageAssetFile(input: {
     }
   }
 }
+
+export { imageStorageConfig };

@@ -102,8 +102,13 @@ export function toImageAsset(row: Awaited<{
     throw new AppError("Image asset not found.", 404);
   }
   const metadata = parseImageAssetMetadata(row.metadata);
-  const localPath = metadata.localPath ?? (path.isAbsolute(row.url) ? row.url : null);
-  const sourceUrl = metadata.sourceUrl ?? (localPath ? null : row.url);
+  const isStoredAsset = Boolean(
+    metadata.localPath
+      || metadata.storageKey
+      || path.isAbsolute(row.url)
+      || !/^[a-z][a-z0-9+.-]*:/i.test(row.url),
+  );
+  const sourceUrl = metadata.sourceUrl ?? (isStoredAsset ? null : row.url);
   return {
     id: row.id,
     taskId: row.taskId,
@@ -111,8 +116,8 @@ export function toImageAsset(row: Awaited<{
     baseCharacterId: row.baseCharacterId,
     provider: row.provider,
     model: row.model,
-    url: localPath ? buildImageAssetPublicUrl(row.id) : row.url,
-    localPath,
+    url: isStoredAsset ? buildImageAssetPublicUrl(row.id) : row.url,
+    localPath: metadata.localPath ?? (path.isAbsolute(row.url) ? row.url : null),
     sourceUrl,
     mimeType: row.mimeType,
     width: row.width,

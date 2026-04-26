@@ -1,17 +1,14 @@
 import type {
   VolumeGenerationScope,
-  VolumePlan,
   VolumePlanDocument,
 } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../../db/prisma";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
-import { volumeBeatSheetPrompt } from "../../../prompting/prompts/novel/volume/beatSheet.prompts";
 import {
   volumeChapterBoundaryPrompt,
   volumeChapterPurposePrompt,
 } from "../../../prompting/prompts/novel/volume/chapterDetail.prompts";
 import {
-  buildVolumeBeatSheetContextBlocks,
   buildVolumeChapterDetailContextBlocks,
   buildVolumeRebalanceContextBlocks,
   buildVolumeSkeletonContextBlocks,
@@ -40,7 +37,6 @@ import {
   getBeatSheet,
   getTargetChapter,
   getTargetVolume,
-  mergeBeatSheet,
   mergeChapterDetail,
   mergeCritiqueReport,
   mergeRebalance,
@@ -56,6 +52,10 @@ import type {
 } from "./volumeModels";
 import { buildVolumeWorkspaceDocument } from "./volumeWorkspaceDocument";
 import { formatChapterDetailModeLabel } from "./chapterDetailModeLabel";
+import {
+  generateBeatSheet,
+  resolveBeatSheetTargetChapterCount,
+} from "./volumeBeatSheetGeneration";
 import {
   MAX_VOLUME_COUNT,
   buildVolumeCountGuidance,
@@ -211,6 +211,13 @@ async function generateStrategy(params: {
       provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.3,
+      novelId: document.novelId,
+      taskId: options.taskId,
+      stage: "volume_strategy",
+      itemKey: "volume_strategy",
+      scope: "strategy",
+      entrypoint: options.entrypoint,
+      signal: options.signal,
     },
   });
   return mergeStrategyPlan(document, generated.output);
@@ -254,6 +261,13 @@ async function generateStrategyCritique(params: {
       provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.2,
+      novelId: document.novelId,
+      taskId: options.taskId,
+      stage: "volume_strategy",
+      itemKey: "volume_strategy",
+      scope: "strategy_critique",
+      entrypoint: options.entrypoint,
+      signal: options.signal,
     },
   });
   return mergeCritiqueReport(document, generated.output);
@@ -310,81 +324,19 @@ async function generateSkeleton(params: {
       provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.35,
+      novelId: document.novelId,
+      taskId: options.taskId,
+      stage: "volume_strategy",
+      itemKey: "volume_skeleton",
+      scope: "skeleton",
+      entrypoint: options.entrypoint,
+      signal: options.signal,
     },
   });
   return mergeSkeleton(document, generated.output.volumes);
 }
 
-async function generateBeatSheet(params: {
-  document: VolumePlanDocument;
-  novel: VolumeGenerationNovel;
-  workspace: VolumeWorkspace;
-  storyMacroPlan: StoryMacroPlanResult;
-  options: VolumeGenerateOptions;
-}): Promise<VolumePlanDocument> {
-  const { document, novel, workspace, storyMacroPlan, options } = params;
-  const targetVolume = getTargetVolume(document, options.targetVolumeId);
-  const chapterBudget = deriveChapterBudget({ novel, workspace, options });
-  const chapterBudgets = allocateChapterBudgets({
-    volumeCount: Math.max(document.volumes.length, 1),
-    chapterBudget,
-    existingVolumes: document.volumes,
-  });
-  const targetIndex = document.volumes.findIndex((volume) => volume.id === targetVolume.id);
-  const targetChapterCount = resolveBeatSheetTargetChapterCount({
-    targetVolumeChapterCount: targetVolume.chapters.length,
-    targetVolumeIndex: targetIndex,
-    volumeCount: document.volumes.length,
-    chapterBudget,
-    chapterBudgets,
-  });
-  await notifyVolumeGenerationPhase({
-    novelId: document.novelId,
-    scope: "beat_sheet",
-    phase: "prompt",
-    label: `正在生成第 ${targetVolume.sortOrder} 卷节奏板`,
-    options,
-  });
-  const generated = await runStructuredPrompt({
-    asset: volumeBeatSheetPrompt,
-    promptInput: {
-      novel,
-      workspace,
-      storyMacroPlan,
-      strategyPlan: document.strategyPlan,
-      targetVolume,
-      targetChapterCount,
-      guidance: options.guidance,
-    },
-    contextBlocks: buildVolumeBeatSheetContextBlocks({
-      novel,
-      workspace,
-      storyMacroPlan,
-      strategyPlan: document.strategyPlan,
-      targetVolume,
-      targetChapterCount,
-      guidance: options.guidance,
-    }),
-    options: {
-      provider: options.provider,
-      model: options.model,
-      temperature: options.temperature ?? 0.35,
-    },
-  });
-  return mergeBeatSheet(document, targetVolume, generated.output.beats);
-}
-
-export function resolveBeatSheetTargetChapterCount(input: {
-  targetVolumeChapterCount: number;
-  targetVolumeIndex: number;
-  volumeCount: number;
-  chapterBudget: number;
-  chapterBudgets: number[];
-}): number {
-  const fallbackTargetChapterCount = input.chapterBudgets[input.targetVolumeIndex]
-    ?? Math.max(3, Math.round(input.chapterBudget / Math.max(input.volumeCount, 1)));
-  return Math.max(input.targetVolumeChapterCount, fallbackTargetChapterCount);
-}
+export { resolveBeatSheetTargetChapterCount };
 
 async function generateRebalance(params: {
   document: VolumePlanDocument;
@@ -431,6 +383,14 @@ async function generateRebalance(params: {
       provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.25,
+      novelId: document.novelId,
+      volumeId: anchorVolume.id,
+      taskId: options.taskId,
+      stage: "structured_outline",
+      itemKey: "chapter_list",
+      scope: "rebalance",
+      entrypoint: options.entrypoint,
+      signal: options.signal,
     },
   });
   return mergeRebalance(document, anchorVolume.id, generated.output.decisions);
@@ -458,7 +418,13 @@ async function generateChapterList(params: {
       label,
       options,
     }),
-    notifyIntermediateDocument: options.onIntermediateDocument,
+    notifyIntermediateDocument: options.persistIntermediateDocuments === true && options.onIntermediateDocument
+      ? async (event) => {
+        if (event.isFinal === false) {
+          await options.onIntermediateDocument?.(event);
+        }
+      }
+      : undefined,
   });
   const rebalancedDocument = await generateRebalance({
     document: mergedDocument,
@@ -524,10 +490,16 @@ async function generateChapterDetail(params: {
         provider: options.provider,
         model: options.model,
         temperature: options.temperature ?? 0.35,
+        taskId: options.taskId,
+        entrypoint: options.entrypoint,
         novelId: document.novelId,
+        volumeId: targetVolume.id,
         chapterId: targetChapter.id,
         stage: "chapter_detail_purpose",
+        itemKey: "chapter_detail_bundle",
+        scope: "chapter_detail",
         triggerReason: "chapter_detail_generation",
+        signal: options.signal,
       },
     })
     : detailMode === "boundary"
@@ -539,10 +511,16 @@ async function generateChapterDetail(params: {
           provider: options.provider,
           model: options.model,
           temperature: options.temperature ?? 0.35,
+          taskId: options.taskId,
+          entrypoint: options.entrypoint,
           novelId: document.novelId,
+          volumeId: targetVolume.id,
           chapterId: targetChapter.id,
           stage: "chapter_detail_boundary",
+          itemKey: "chapter_detail_bundle",
+          scope: "chapter_detail",
           triggerReason: "chapter_detail_generation",
+          signal: options.signal,
         },
       })
       : {
@@ -646,6 +624,7 @@ export async function generateVolumePlanDocument(params: {
       workspace: currentWorkspace,
       storyMacroPlan,
       options,
+      notifyVolumeGenerationPhase,
     });
   }
   if (scope === "chapter_list") {

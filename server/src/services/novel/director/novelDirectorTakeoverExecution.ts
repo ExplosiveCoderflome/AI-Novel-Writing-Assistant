@@ -14,9 +14,19 @@ import {
 } from "./novelDirectorTakeover";
 import type { DirectorTakeoverLoadedState } from "./novelDirectorTakeoverRuntime";
 import { resolveDirectorRunningStateForPhase } from "./novelDirectorTakeoverRuntime";
+import {
+  buildContinueExistingDownstreamReset,
+  buildRestartCurrentStepDownstreamReset,
+} from "./novelDirectorTakeoverContinue";
 
 interface TakeoverBootstrapTaskResult {
   id: string;
+}
+
+interface RewriteSnapshotReference {
+  snapshotId: string;
+  label: string;
+  restoreEntry: "version_history";
 }
 
 interface TakeoverExecutionWorkflowPort {
@@ -72,12 +82,38 @@ interface StartDirectorTakeoverExecutionInput {
     input: DirectorConfirmRequest;
     startPhase: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline";
   }) => Promise<void>;
+  assertHighMemoryStartAllowed?: (input: {
+    taskId: string;
+    novelId: string;
+    stage: "structured_outline";
+    itemKey: "beat_sheet" | "chapter_list" | "chapter_detail_bundle" | "chapter_sync";
+    volumeId?: string | null;
+    chapterId?: string | null;
+    scope?: string | null;
+    batchAlreadyStartedCount?: number;
+  }) => Promise<void>;
+  createRewriteSnapshot?: (input: {
+    novelId: string;
+    label: string;
+  }) => Promise<RewriteSnapshotReference>;
+  recordRewriteSnapshotMilestone?: (input: {
+    taskId: string;
+    snapshot: RewriteSnapshotReference;
+    summary: string;
+  }) => Promise<unknown>;
   prepareRestartStep?: (input: {
     request: DirectorTakeoverRequest;
     takeoverState: DirectorTakeoverLoadedState;
     directorInput: DirectorConfirmRequest;
     plan: DirectorTakeoverResolvedPlan;
   }) => Promise<void>;
+  cancelReplacedRuns?: (input: {
+    request: DirectorTakeoverRequest;
+    takeoverState: DirectorTakeoverLoadedState;
+    directorInput: DirectorConfirmRequest;
+    plan: DirectorTakeoverResolvedPlan;
+    replacementTaskId: string;
+  }) => Promise<unknown>;
 }
 
 function startPhaseToEntryStep(startPhase: NonNullable<DirectorTakeoverRequest["startPhase"]>): DirectorTakeoverEntryStep {
@@ -132,6 +168,11 @@ function buildTakeoverMetadata(plan: DirectorTakeoverResolvedPlan) {
     strategy: plan.strategy,
     effectiveStep: plan.effectiveStep,
     effectiveStage: plan.effectiveStage,
+    ...(plan.strategy === "continue_existing"
+      ? { downstreamReset: buildContinueExistingDownstreamReset(plan) }
+      : plan.strategy === "restart_current_step"
+        ? { downstreamReset: buildRestartCurrentStepDownstreamReset(plan) }
+      : {}),
   };
 }
 
@@ -157,6 +198,30 @@ function buildAutoExecutionRunningState(plan: DirectorTakeoverResolvedPlan): {
   };
 }
 
+const REWRITE_SNAPSHOT_LABEL = "自动导演重写前备份";
+
+async function createRewriteSnapshotForRestart(
+  input: StartDirectorTakeoverExecutionInput,
+): Promise<RewriteSnapshotReference> {
+  if (!input.createRewriteSnapshot) {
+    throw new Error("无法创建自动导演重写前备份：快照服务未配置");
+  }
+  try {
+    const snapshot = await input.createRewriteSnapshot({
+      novelId: input.request.novelId,
+      label: REWRITE_SNAPSHOT_LABEL,
+    });
+    return {
+      snapshotId: snapshot.snapshotId,
+      label: snapshot.label.trim() || REWRITE_SNAPSHOT_LABEL,
+      restoreEntry: "version_history",
+    };
+  } catch (error) {
+    const cause = error instanceof Error && error.message ? `：${error.message}` : "";
+    throw new Error(`无法创建自动导演重写前备份${cause}`);
+  }
+}
+
 export async function startDirectorTakeoverExecution(
   input: StartDirectorTakeoverExecutionInput,
 ): Promise<DirectorTakeoverResponse> {
@@ -176,7 +241,9 @@ export async function startDirectorTakeoverExecution(
     isBackgroundRunning: true,
   });
 
+  let rewriteSnapshot: RewriteSnapshotReference | null = null;
   if (selection.strategy === "restart_current_step") {
+    rewriteSnapshot = await createRewriteSnapshotForRestart(input);
     await input.prepareRestartStep?.({
       request: input.request,
       takeoverState: input.takeoverState,
@@ -200,8 +267,27 @@ export async function startDirectorTakeoverExecution(
       directorSession,
       resumeTarget: initialResumeTarget,
       takeover: buildTakeoverMetadata(plan),
+      ...(rewriteSnapshot ? { rewriteSnapshot } : {}),
     }),
   });
+
+  if (rewriteSnapshot) {
+    await input.recordRewriteSnapshotMilestone?.({
+      taskId: workflowTask.id,
+      snapshot: rewriteSnapshot,
+      summary: `${rewriteSnapshot.label}已创建：${rewriteSnapshot.snapshotId}`,
+    });
+  }
+
+  if (selection.strategy === "continue_existing") {
+    await input.cancelReplacedRuns?.({
+      request: input.request,
+      takeoverState: input.takeoverState,
+      directorInput: input.directorInput,
+      plan,
+      replacementTaskId: workflowTask.id,
+    });
+  }
 
   const resumeTarget = buildResumeTargetFromPlan({
     novelId: input.request.novelId,
@@ -211,6 +297,19 @@ export async function startDirectorTakeoverExecution(
   });
 
   if (plan.executionMode === "phase") {
+    if ((plan.phase ?? plan.startPhase) === "structured_outline") {
+      await input.assertHighMemoryStartAllowed?.({
+        taskId: workflowTask.id,
+        novelId: input.request.novelId,
+        stage: "structured_outline",
+        itemKey: "chapter_list",
+        volumeId: input.takeoverState.latestCheckpoint?.volumeId
+          ?? input.takeoverState.snapshot.firstVolumeId
+          ?? null,
+        chapterId: input.takeoverState.latestCheckpoint?.chapterId ?? null,
+        scope: "book",
+      });
+    }
     await input.workflowService.markTaskRunning(workflowTask.id, resolveDirectorRunningStateForPhase(plan.phase ?? plan.startPhase));
     input.scheduleBackgroundRun(workflowTask.id, async () => {
       await input.runDirectorPipeline({

@@ -3,6 +3,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { validate } from "../middleware/validate";
 import type { NovelService } from "../services/novel/NovelService";
+import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 
 interface RegisterNovelVolumeRoutesInput {
   router: Router;
@@ -15,6 +16,72 @@ interface RegisterNovelVolumeRoutesInput {
   volumeImpactSchema: z.ZodTypeAny;
   volumeGenerateSchema: z.ZodTypeAny;
   volumeSyncSchema: z.ZodTypeAny;
+}
+
+function isHighMemoryVolumeScope(scope: unknown): boolean {
+  return scope === "beat_sheet"
+    || scope === "chapter_list"
+    || scope === "chapter_detail"
+    || scope === "rebalance"
+    || scope === "volume";
+}
+
+function buildSlimVolumeGenerationResponse(
+  document: VolumePlanDocument,
+): {
+  novelId: string;
+  workspaceVersion: "v2";
+  volumes: VolumePlanDocument["volumes"];
+  strategyPlan: VolumePlanDocument["strategyPlan"];
+  critiqueReport: null;
+  beatSheets: VolumePlanDocument["beatSheets"];
+  rebalanceDecisions: VolumePlanDocument["rebalanceDecisions"];
+  readiness: VolumePlanDocument["readiness"];
+  derivedOutline: "";
+  derivedStructuredOutline: "";
+  source: VolumePlanDocument["source"];
+  activeVersionId: VolumePlanDocument["activeVersionId"];
+  slimmed: true;
+} {
+  return {
+    novelId: document.novelId,
+    workspaceVersion: document.workspaceVersion,
+    volumes: [],
+    strategyPlan: null,
+    critiqueReport: null,
+    beatSheets: [],
+    rebalanceDecisions: [],
+    readiness: document.readiness,
+    derivedOutline: "",
+    derivedStructuredOutline: "",
+    source: document.source,
+    activeVersionId: document.activeVersionId,
+    slimmed: true,
+  };
+}
+
+function shouldUseSlimVolumeGenerationResponse(body: unknown): boolean {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return false;
+  }
+  const input = body as { scope?: unknown; slimResponse?: unknown };
+  return input.slimResponse === true && isHighMemoryVolumeScope(input.scope);
+}
+
+function shouldPersistBeforeSlimVolumeResponse(body: unknown): boolean {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return false;
+  }
+  const scope = (body as { scope?: unknown }).scope;
+  return scope === "beat_sheet" || scope === "rebalance" || scope === "chapter_detail";
+}
+
+function shouldSyncSlimVolumeResponseToChapterExecution(body: unknown): boolean {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return false;
+  }
+  const scope = (body as { scope?: unknown }).scope;
+  return scope === "chapter_detail";
 }
 
 export function registerNovelVolumeRoutes(input: RegisterNovelVolumeRoutesInput): void {
@@ -74,6 +141,21 @@ export function registerNovelVolumeRoutes(input: RegisterNovelVolumeRoutesInput)
       try {
         const { id } = req.params as z.infer<typeof idParamsSchema>;
         const data = await novelService.generateVolumes(id, req.body as any);
+        if (shouldUseSlimVolumeGenerationResponse(req.body)) {
+          const persistedData = shouldPersistBeforeSlimVolumeResponse(req.body)
+            ? await novelService.updateVolumes(id, {
+              ...data,
+              syncToChapterExecution: shouldSyncSlimVolumeResponseToChapterExecution(req.body),
+            })
+            : data;
+          const responseData = buildSlimVolumeGenerationResponse(persistedData);
+          res.status(200).json({
+            success: true,
+            data: responseData,
+            message: "Volume workspace generated.",
+          } satisfies ApiResponse<typeof responseData>);
+          return;
+        }
         res.status(200).json({
           success: true,
           data,

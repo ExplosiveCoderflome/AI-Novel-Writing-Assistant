@@ -2,9 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
-import type { TaskStatus, UnifiedTaskDetail } from "@ai-novel/shared/types/task";
+import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import {
-  DIRECTOR_CANDIDATE_SETUP_STEPS,
   extractDirectorTaskSeedPayloadFromMeta,
   mergeDirectorCandidateBatches,
   type DirectorCandidate,
@@ -51,9 +50,23 @@ import {
   DEFAULT_VISIBLE_RUN_MODE,
   RUN_MODE_OPTIONS,
 } from "./NovelAutoDirectorDialog.shared";
-import NovelAutoDirectorCandidateBatches from "./NovelAutoDirectorCandidateBatches";
+import NovelAutoDirectorCandidateSelectionContent from "./NovelAutoDirectorCandidateSelectionContent";
+import {
+  NovelAutoDirectorDialogDescription,
+  NovelAutoDirectorDialogTitle,
+  type DirectorDialogMode,
+} from "./NovelAutoDirectorDialogHeader";
 import NovelAutoDirectorProgressPanel from "./NovelAutoDirectorProgressPanel";
-import NovelAutoDirectorSetupPanel from "./NovelAutoDirectorSetupPanel";
+import { useDirectorAutoApprovalDraft } from "./useDirectorAutoApprovalDraft";
+import {
+  ACTIVE_DIRECTOR_TASK_STATUSES,
+  DIRECTOR_CANDIDATE_SETUP_STEP_KEYS,
+} from "./NovelAutoDirectorDialog.constants";
+import {
+  applyDirectorCandidateTitleOption,
+  toggleDirectorCorrectionPreset,
+} from "./directorCandidateSelectionHandlers";
+import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
 interface NovelAutoDirectorDialogProps {
   basicForm: NovelBasicFormState;
@@ -73,11 +86,6 @@ interface NovelAutoDirectorDialogProps {
     } | null;
   }) => void;
 }
-
-type DirectorDialogMode = "candidate_selection" | "execution_progress" | "execution_failed";
-
-const ACTIVE_TASK_STATUSES = new Set<TaskStatus>(["queued", "running", "waiting_approval"]);
-const DIRECTOR_CANDIDATE_SETUP_STEP_KEYS = new Set<string>(DIRECTOR_CANDIDATE_SETUP_STEPS.map((step) => step.key));
 
 export default function NovelAutoDirectorDialog({
   basicForm,
@@ -108,6 +116,7 @@ export default function NovelAutoDirectorDialog({
   const [candidatePatchFeedbacks, setCandidatePatchFeedbacks] = useState<Record<string, string>>({});
   const [titlePatchFeedbacks, setTitlePatchFeedbacks] = useState<Record<string, string>>({});
   const confirmSubmitLockedRef = useRef(false);
+  const autoApprovalDraft = useDirectorAutoApprovalDraft(open);
 
   useEffect(() => {
     if (!workflowTaskIdProp || workflowTaskIdProp === workflowTaskId) {
@@ -147,13 +156,16 @@ export default function NovelAutoDirectorDialog({
     if (seedPayload?.autoExecutionPlan) {
       setAutoExecutionDraft(normalizeDirectorAutoExecutionDraftState(seedPayload.autoExecutionPlan));
     }
+    if (seedPayload?.autoApproval) {
+      autoApprovalDraft.applySnapshot(seedPayload.autoApproval);
+    }
     if (typeof seedPayload?.styleProfileId === "string") {
       setSelectedStyleProfileId(seedPayload.styleProfileId);
     }
     if (initialOpen) {
       setOpen(true);
     }
-  }, [initialOpen, restoredTask, workflowTaskId]);
+  }, [autoApprovalDraft, initialOpen, restoredTask, workflowTaskId]);
 
   const directorBasicForm = useMemo(
     () => patchNovelBasicForm(basicForm, {
@@ -187,7 +199,6 @@ export default function NovelAutoDirectorDialog({
     }),
     [directorBasicForm.styleTone, selectedStyleProfile],
   );
-
   const directorTaskQuery = useQuery({
     queryKey: queryKeys.tasks.detail("novel_workflow", workflowTaskId || "none"),
     queryFn: () => getTaskDetail("novel_workflow", workflowTaskId),
@@ -195,7 +206,7 @@ export default function NovelAutoDirectorDialog({
     retry: false,
     refetchInterval: (query) => {
       const task = query.state.data?.data;
-      return open && task && ACTIVE_TASK_STATUSES.has(task.status) ? 2000 : false;
+      return open && task && ACTIVE_DIRECTOR_TASK_STATUSES.has(task.status) ? 2000 : false;
     },
   });
 
@@ -218,10 +229,10 @@ export default function NovelAutoDirectorDialog({
 
   const candidateSetupInProgress = Boolean(
     directorTask
-    && ACTIVE_TASK_STATUSES.has(directorTask.status)
+    && ACTIVE_DIRECTOR_TASK_STATUSES.has(directorTask.status)
     && DIRECTOR_CANDIDATE_SETUP_STEP_KEYS.has(directorTask.currentItemKey ?? ""),
   );
-  const hasActiveDirectorTask = Boolean(directorTask && ACTIVE_TASK_STATUSES.has(directorTask.status));
+  const hasActiveDirectorTask = Boolean(directorTask && ACTIVE_DIRECTOR_TASK_STATUSES.has(directorTask.status));
   const triggerLabel = hasActiveDirectorTask ? "查看导演进度" : "AI 自动导演创建";
   const isBlockingExecutionView = dialogMode === "execution_progress" && hasActiveDirectorTask && !candidateSetupInProgress;
 
@@ -247,7 +258,7 @@ export default function NovelAutoDirectorDialog({
       setExecutionError(directorTask.lastError ?? "");
       return;
     }
-    if (ACTIVE_TASK_STATUSES.has(directorTask.status)) {
+    if (ACTIVE_DIRECTOR_TASK_STATUSES.has(directorTask.status)) {
       setDialogMode("execution_progress");
       if (directorTask.checkpointType !== "candidate_selection_required") {
         setExecutionRequested(false);
@@ -261,7 +272,10 @@ export default function NovelAutoDirectorDialog({
     }
 
     const autoExecutionPlan = runMode === "auto_to_execution"
-      ? buildDirectorAutoExecutionPlanFromDraft(autoExecutionDraft)
+      ? buildDirectorAutoExecutionPlanFromDraft(autoExecutionDraft, {
+        usage: "new_book",
+        maxChapterCount: directorBasicForm.estimatedChapterCount,
+      })
       : undefined;
     const response = await bootstrapNovelWorkflow({
       lane: "auto_director",
@@ -272,6 +286,9 @@ export default function NovelAutoDirectorDialog({
         batches,
         runMode,
         autoExecutionPlan,
+        autoApproval: {
+          ...autoApprovalDraft.buildPayload(runMode),
+        },
         styleProfileId: selectedStyleProfileId || null,
         styleIntentSummary: selectedStyleSummary ?? null,
       },
@@ -427,7 +444,10 @@ export default function NovelAutoDirectorDialog({
     mutationFn: async (payload: { candidate: DirectorCandidate; workflowTaskId?: string }) => {
       const currentWorkflowTaskId = payload.workflowTaskId || await ensureWorkflowTask();
       const autoExecutionPlan: DirectorAutoExecutionPlan | undefined = runMode === "auto_to_execution"
-        ? buildDirectorAutoExecutionPlanFromDraft(autoExecutionDraft)
+        ? buildDirectorAutoExecutionPlanFromDraft(autoExecutionDraft, {
+          usage: "new_book",
+          maxChapterCount: directorBasicForm.estimatedChapterCount,
+        })
         : undefined;
       const response = await confirmDirectorCandidate({
         ...buildAutoDirectorRequestPayload(directorBasicForm, idea, llm, runMode, currentWorkflowTaskId, {
@@ -437,6 +457,9 @@ export default function NovelAutoDirectorDialog({
         round: latestBatch?.round,
         candidate: payload.candidate,
         autoExecutionPlan,
+        autoApproval: {
+          ...autoApprovalDraft.buildPayload(runMode),
+        },
       });
       return {
         data: response.data ?? null,
@@ -459,7 +482,10 @@ export default function NovelAutoDirectorDialog({
       await queryClient.invalidateQueries({ queryKey: ["tasks"] });
       toast.success(
         data.directorSession?.runMode === "auto_to_execution"
-          ? `已创建《${data.novel.title}》，自动导演会继续自动执行${buildDirectorAutoExecutionPlanLabel(buildDirectorAutoExecutionPlanFromDraft(autoExecutionDraft))}。`
+          ? `已创建《${data.novel.title}》，自动导演会继续自动执行${buildDirectorAutoExecutionPlanLabel(buildDirectorAutoExecutionPlanFromDraft(autoExecutionDraft, {
+            usage: "new_book",
+            maxChapterCount: directorBasicForm.estimatedChapterCount,
+          }))}。`
           : `已创建《${data.novel.title}》，自动导演会继续在后台推进到可开写。`,
       );
       resetDialogState();
@@ -485,37 +511,11 @@ export default function NovelAutoDirectorDialog({
   });
 
   const togglePreset = (preset: DirectorCorrectionPreset) => {
-    setSelectedPresets((prev) => (
-      prev.includes(preset)
-        ? prev.filter((item) => item !== preset)
-        : [...prev, preset]
-    ));
+    setSelectedPresets((prev) => toggleDirectorCorrectionPreset(prev, preset));
   };
 
   const applyCandidateTitleOption = (batchId: string, candidateId: string, option: { title: string }) => {
-    setBatches((prev) => prev.map((batch) => {
-      if (batch.id !== batchId) {
-        return batch;
-      }
-      return {
-        ...batch,
-        candidates: batch.candidates.map((candidate) => {
-          if (candidate.id !== candidateId) {
-            return candidate;
-          }
-          const titleOptions = Array.isArray(candidate.titleOptions) ? candidate.titleOptions : [];
-          const selectedIndex = titleOptions.findIndex((item) => item.title === option.title);
-          const reorderedTitleOptions = selectedIndex <= 0
-            ? titleOptions
-            : [titleOptions[selectedIndex], ...titleOptions.filter((_, index) => index !== selectedIndex)];
-          return {
-            ...candidate,
-            workingTitle: option.title,
-            titleOptions: reorderedTitleOptions,
-          };
-        }),
-      };
-    }));
+    setBatches((prev) => applyDirectorCandidateTitleOption(prev, batchId, candidateId, option));
   };
 
   const resetDialogState = () => {
@@ -531,6 +531,7 @@ export default function NovelAutoDirectorDialog({
     setExecutionError("");
     setRunMode(DEFAULT_VISIBLE_RUN_MODE);
     setAutoExecutionDraft(createDefaultDirectorAutoExecutionDraftState());
+    autoApprovalDraft.reset();
     setSelectedStyleProfileId("");
     setCandidatePatchFeedbacks({});
     setTitlePatchFeedbacks({});
@@ -576,11 +577,7 @@ export default function NovelAutoDirectorDialog({
 
   const handleOpenTaskCenter = () => {
     setOpen(false);
-    if (workflowTaskId) {
-      navigate(`/tasks?kind=novel_workflow&id=${workflowTaskId}`);
-      return;
-    }
-    navigate("/tasks");
+    navigate(workflowTaskId ? `/tasks?kind=novel_workflow&id=${workflowTaskId}` : "/tasks");
   };
 
   const handleDialogOpenChange = (next: boolean) => {
@@ -593,10 +590,11 @@ export default function NovelAutoDirectorDialog({
       setOpen(true);
       return;
     }
-    if (isBlockingExecutionView) {
-      return;
-    }
-    setOpen(false);
+    if (!isBlockingExecutionView) setOpen(false);
+  };
+
+  const preventCloseWhileBlocking = (event: Event) => {
+    if (isBlockingExecutionView) event.preventDefault();
   };
 
   return (
@@ -609,101 +607,76 @@ export default function NovelAutoDirectorDialog({
 
       <Dialog open={open} onOpenChange={handleDialogOpenChange}>
         <DialogContent
-          className={`flex h-[min(92vh,980px)] w-[calc(100vw-1.5rem)] flex-col overflow-hidden p-0 ${
-            dialogMode === "candidate_selection" ? "max-w-6xl" : "max-w-4xl"
-          }`}
-          onEscapeKeyDown={(event) => {
-            if (isBlockingExecutionView) {
-              event.preventDefault();
-            }
-          }}
-          onPointerDownOutside={(event) => {
-            if (isBlockingExecutionView) {
-              event.preventDefault();
-            }
-          }}
-          onInteractOutside={(event) => {
-            if (isBlockingExecutionView) {
-              event.preventDefault();
-            }
-          }}
+          className={`${AUTO_DIRECTOR_MOBILE_CLASSES.dialogContent} ${dialogMode === "candidate_selection" ? "lg:max-w-6xl" : "lg:max-w-4xl"}`}
+          onEscapeKeyDown={preventCloseWhileBlocking}
+          onPointerDownOutside={preventCloseWhileBlocking}
+          onInteractOutside={preventCloseWhileBlocking}
         >
-          <DialogHeader className="shrink-0 border-b px-6 pb-4 pr-12 pt-6">
-            <DialogTitle>
-              {dialogMode === "candidate_selection"
-                ? "AI 自动导演创建"
-                : dialogMode === "execution_failed"
-                  ? "AI 自动导演执行失败"
-                  : "AI 自动导演执行中"}
-            </DialogTitle>
-            <DialogDescription>
-              {dialogMode === "candidate_selection"
-                ? "先补导演起始设置，再让 AI 给你 2 套整本书方向。你可以继续重生新批次，也可以只修某一套方案或它的标题组。"
-                : dialogMode === "execution_failed"
-                  ? "导演长流程已中断，当前会优先显示失败摘要、最近里程碑和恢复入口。"
-                  : "当前会实时显示导演主流程进度、当前动作和里程碑历史。"}
-            </DialogDescription>
+          <DialogHeader className="shrink-0 border-b px-4 pb-4 pr-12 pt-5 text-left sm:px-6 sm:pt-6">
+            <DialogTitle>{NovelAutoDirectorDialogTitle({ mode: dialogMode })}</DialogTitle>
+            <DialogDescription>{NovelAutoDirectorDialogDescription({ mode: dialogMode })}</DialogDescription>
           </DialogHeader>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4">
+          <div className={AUTO_DIRECTOR_MOBILE_CLASSES.dialogBody}>
             {dialogMode === "candidate_selection" ? (
-              <div className="space-y-4">
-                <NovelAutoDirectorSetupPanel
-                  basicForm={directorBasicForm}
-                  genreOptions={genreOptions}
-                  idea={idea}
-                  onIdeaChange={setIdea}
-                  runMode={runMode}
-                  runModeOptions={RUN_MODE_OPTIONS}
-                  onRunModeChange={setRunMode}
-                  autoExecutionDraft={autoExecutionDraft}
-                  onAutoExecutionDraftChange={(patch) => setAutoExecutionDraft((prev) => ({ ...prev, ...patch }))}
-                  styleProfileOptions={styleProfiles.map((profile) => ({ id: profile.id, name: profile.name }))}
-                  selectedStyleProfileId={selectedStyleProfileId}
-                  selectedStyleSummary={selectedStyleSummary}
-                  onStyleProfileChange={setSelectedStyleProfileId}
-                  onBasicFormChange={onBasicFormChange}
-                  canGenerate={canGenerate}
-                  isGenerating={generateMutation.isPending}
-                  batchCount={batches.length}
-                  onGenerate={() => generateMutation.mutate()}
-                />
-
-                <NovelAutoDirectorCandidateBatches
-                  batches={batches}
-                  selectedPresets={selectedPresets}
-                  feedback={feedback}
-                  onFeedbackChange={setFeedback}
-                  onTogglePreset={togglePreset}
-                  candidatePatchFeedbacks={candidatePatchFeedbacks}
-                  onCandidatePatchFeedbackChange={(candidateId, value) => setCandidatePatchFeedbacks((prev) => ({
-                    ...prev,
-                    [candidateId]: value,
-                  }))}
-                  titlePatchFeedbacks={titlePatchFeedbacks}
-                  onTitlePatchFeedbackChange={(candidateId, value) => setTitlePatchFeedbacks((prev) => ({
-                    ...prev,
-                    [candidateId]: value,
-                  }))}
-                  isGenerating={generateMutation.isPending}
-                  isPatchingCandidate={patchCandidateMutation.isPending}
-                  isRefiningTitle={refineTitleMutation.isPending}
-                  isConfirming={confirmMutation.isPending}
-                  onApplyCandidateTitleOption={applyCandidateTitleOption}
-                  onPatchCandidate={(batchId, candidate, nextFeedback) => patchCandidateMutation.mutate({
-                    batchId,
-                    candidate,
-                    feedback: nextFeedback,
-                  })}
-                  onRefineTitle={(batchId, candidate, nextFeedback) => refineTitleMutation.mutate({
-                    batchId,
-                    candidate,
-                    feedback: nextFeedback,
-                  })}
-                  onConfirmCandidate={handleConfirmCandidate}
-                  onGenerateNext={() => generateMutation.mutate()}
-                />
-              </div>
+              <NovelAutoDirectorCandidateSelectionContent
+                basicForm={directorBasicForm}
+                genreOptions={genreOptions}
+                idea={idea}
+                onIdeaChange={setIdea}
+                runMode={runMode}
+                runModeOptions={RUN_MODE_OPTIONS}
+                onRunModeChange={setRunMode}
+                autoExecutionDraft={autoExecutionDraft}
+                maxChapterCount={directorBasicForm.estimatedChapterCount}
+                onAutoExecutionDraftChange={(patch) => setAutoExecutionDraft((prev) => ({ ...prev, ...patch }))}
+                autoApprovalEnabled={autoApprovalDraft.enabled}
+                autoApprovalCodes={autoApprovalDraft.codes}
+                autoApprovalGroups={autoApprovalDraft.groups}
+                autoApprovalPoints={autoApprovalDraft.points}
+                onAutoApprovalEnabledChange={autoApprovalDraft.setEnabled}
+                onAutoApprovalCodesChange={autoApprovalDraft.setCodes}
+                styleProfileOptions={styleProfiles.map((profile) => ({ id: profile.id, name: profile.name }))}
+                selectedStyleProfileId={selectedStyleProfileId}
+                selectedStyleSummary={selectedStyleSummary}
+                onStyleProfileChange={setSelectedStyleProfileId}
+                onBasicFormChange={onBasicFormChange}
+                canGenerate={canGenerate}
+                isGenerating={generateMutation.isPending}
+                batchCount={batches.length}
+                onGenerate={() => generateMutation.mutate()}
+                batches={batches}
+                selectedPresets={selectedPresets}
+                feedback={feedback}
+                onFeedbackChange={setFeedback}
+                onTogglePreset={togglePreset}
+                candidatePatchFeedbacks={candidatePatchFeedbacks}
+                onCandidatePatchFeedbackChange={(candidateId, value) => setCandidatePatchFeedbacks((prev) => ({
+                  ...prev,
+                  [candidateId]: value,
+                }))}
+                titlePatchFeedbacks={titlePatchFeedbacks}
+                onTitlePatchFeedbackChange={(candidateId, value) => setTitlePatchFeedbacks((prev) => ({
+                  ...prev,
+                  [candidateId]: value,
+                }))}
+                isPatchingCandidate={patchCandidateMutation.isPending}
+                isRefiningTitle={refineTitleMutation.isPending}
+                isConfirming={confirmMutation.isPending}
+                onApplyCandidateTitleOption={applyCandidateTitleOption}
+                onPatchCandidate={(batchId, candidate, nextFeedback) => patchCandidateMutation.mutate({
+                  batchId,
+                  candidate,
+                  feedback: nextFeedback,
+                })}
+                onRefineTitle={(batchId, candidate, nextFeedback) => refineTitleMutation.mutate({
+                  batchId,
+                  candidate,
+                  feedback: nextFeedback,
+                })}
+                onConfirmCandidate={handleConfirmCandidate}
+                onGenerateNext={() => generateMutation.mutate()}
+              />
             ) : (
               <NovelAutoDirectorProgressPanel
                 mode={dialogMode}

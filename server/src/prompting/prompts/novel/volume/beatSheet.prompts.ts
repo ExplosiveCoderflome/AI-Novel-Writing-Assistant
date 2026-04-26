@@ -2,6 +2,7 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { PromptAsset } from "../../../core/promptTypes";
 import { renderSelectedContextBlocks } from "../../../core/renderContextBlocks";
 import { createVolumeBeatSheetSchema } from "../../../../services/novel/volume/volumeGenerationSchemas";
+import { validateBeatSheetChapterCoverage } from "../../../../services/novel/volume/volumeBeatSheetChapterBudget";
 import { type VolumeBeatSheetPromptInput } from "./shared";
 import { buildVolumeBeatSheetContextBlocks } from "./contextBlocks";
 import { NOVEL_PROMPT_BUDGETS } from "../promptBudgetProfiles";
@@ -23,6 +24,9 @@ export const volumeBeatSheetPrompt: PromptAsset<
   },
   repairPolicy: {
     maxAttempts: 2,
+  },
+  semanticRetryPolicy: {
+    maxAttempts: 1,
   },
   outputSchema: createVolumeBeatSheetSchema(),
   render: (input, context) => [
@@ -58,6 +62,7 @@ export const volumeBeatSheetPrompt: PromptAsset<
       "6. beats 必须至少覆盖：开卷抓手、第一次升级或反制、中段转向、高潮前挤压、卷高潮、卷尾钩子。",
       "7. 各 beat 的节奏职责必须有差异，不能把多个 beat 都写成‘冲突升级’或‘继续推进’。",
       "8. 不要把高潮前挤压写成提前高潮，也不要把卷尾钩子写成泛泛留白。",
+      `9. 所有 chapterSpanHint 必须从第 1 章连续覆盖到第 ${input.targetChapterCount} 章附近，不能只覆盖少量开头章节。`,
       "",
       "【卷骨架承接要求】",
       "1. 开头相关 beat 必须承接 target_volume 中的 openingHook 与 mainPromise。",
@@ -89,10 +94,21 @@ export const volumeBeatSheetPrompt: PromptAsset<
       "【当前卷节奏板上下文】",
       `- Current volume target chapter count: ${input.targetChapterCount}`,
       "- chapterSpanHint must stay within this volume only; do not use whole-book absolute chapter numbers",
+      `- all beat spans together must cover chapters 1-${input.targetChapterCount} of this volume`,
       "",
       renderSelectedContextBlocks(context),
     ].join("\n")),
   ],
+  postValidate: (output, input) => {
+    const coverage = validateBeatSheetChapterCoverage({
+      beatSheet: output,
+      targetChapterCount: input.targetChapterCount,
+    });
+    if (!coverage.accepted) {
+      throw new Error(coverage.message ?? "当前卷节奏板章节跨度没有覆盖目标章数。");
+    }
+    return output;
+  },
 };
 
 export { buildVolumeBeatSheetContextBlocks };

@@ -10,6 +10,9 @@ const {
   runDirectorStructuredOutlinePhase,
 } = require("../dist/services/novel/director/novelDirectorPipelinePhases.js");
 const {
+  runDirectorTrackedStep,
+} = require("../dist/services/novel/director/directorProgressTracker.js");
+const {
   buildVolumeWorkspaceDocument,
 } = require("../dist/services/novel/volume/volumeWorkspaceDocument.js");
 
@@ -251,30 +254,11 @@ test("generateCandidates marks workflow task failed when candidate-stage generat
 test("continueTask resumes queued candidate-stage tasks before novel creation", async () => {
   const service = new NovelDirectorService();
   const originalGetTaskById = service.workflowService.getTaskById;
-  const originalGetTaskByIdWithoutHealing = service.workflowService.getTaskByIdWithoutHealing;
   const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
   const originalGenerate = service.candidateStageService.generateCandidates;
   const resumed = [];
 
   service.workflowService.getTaskById = async () => ({
-    id: "task_candidate_resume",
-    lane: "auto_director",
-    status: "running",
-    novelId: null,
-    checkpointType: null,
-    currentItemKey: "candidate_direction_batch",
-    seedPayloadJson: JSON.stringify({
-      idea: "A courier discovers a hidden rule-bound city underworld.",
-      provider: "custom_coding_plan",
-      model: "kimi-k2.5",
-      temperature: 0.8,
-      runMode: "auto_to_ready",
-      candidateStage: {
-        mode: "generate",
-      },
-    }),
-  });
-  service.workflowService.getTaskByIdWithoutHealing = async () => ({
     id: "task_candidate_resume",
     lane: "auto_director",
     status: "queued",
@@ -310,7 +294,6 @@ test("continueTask resumes queued candidate-stage tasks before novel creation", 
     assert.equal(resumed[0].temperature, 0.8);
   } finally {
     service.workflowService.getTaskById = originalGetTaskById;
-    service.workflowService.getTaskByIdWithoutHealing = originalGetTaskByIdWithoutHealing;
     service.scheduleBackgroundRun = originalScheduleBackgroundRun;
     service.candidateStageService.generateCandidates = originalGenerate;
   }
@@ -318,7 +301,9 @@ test("continueTask resumes queued candidate-stage tasks before novel creation", 
 
 test("continueTask ignores stale candidate-stage state after the workflow has entered story macro", async () => {
   const service = new NovelDirectorService();
-  const originalGetTaskByIdWithoutHealing = service.workflowService.getTaskByIdWithoutHealing;
+  const originalGetTaskById = service.workflowService.getTaskById;
+  const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
+  const originalGetVolumes = service.volumeService.getVolumes;
   const originalBootstrapTask = service.workflowService.bootstrapTask;
   const originalMarkTaskRunning = service.workflowService.markTaskRunning;
   const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
@@ -330,7 +315,7 @@ test("continueTask ignores stale candidate-stage state after the workflow has en
   const pipelineRuns = [];
   let candidateResumeCount = 0;
 
-  service.workflowService.getTaskByIdWithoutHealing = async () => ({
+  service.workflowService.getTaskById = async () => ({
     id: "task_story_macro_resume",
     lane: "auto_director",
     status: "queued",
@@ -358,6 +343,8 @@ test("continueTask ignores stale candidate-stage state after the workflow has en
       },
     }),
   });
+  service.resolveAssetFirstRecovery = async () => null;
+  service.volumeService.getVolumes = async () => null;
   service.workflowService.bootstrapTask = async (input) => {
     bootstrapCalls.push(input);
     return {
@@ -393,8 +380,11 @@ test("continueTask ignores stale candidate-stage state after the workflow has en
     assert.equal(scheduledRuns.length, 1);
     assert.equal(pipelineRuns.length, 1);
     assert.equal(pipelineRuns[0].startPhase, "story_macro");
+    assert.equal(pipelineRuns[0].scope, "book");
   } finally {
-    service.workflowService.getTaskByIdWithoutHealing = originalGetTaskByIdWithoutHealing;
+    service.workflowService.getTaskById = originalGetTaskById;
+    service.resolveAssetFirstRecovery = originalResolveAssetFirstRecovery;
+    service.volumeService.getVolumes = originalGetVolumes;
     service.workflowService.bootstrapTask = originalBootstrapTask;
     service.workflowService.markTaskRunning = originalMarkTaskRunning;
     service.scheduleBackgroundRun = originalScheduleBackgroundRun;
@@ -406,7 +396,10 @@ test("continueTask ignores stale candidate-stage state after the workflow has en
 test("continueTask resumes auto-director tasks that are still marked running after manual-recovery pause", async () => {
   const service = new NovelDirectorService();
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;
-  const originalGetTaskByIdWithoutHealing = service.workflowService.getTaskByIdWithoutHealing;
+  const originalGetTaskById = service.workflowService.getTaskById;
+  const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
+  const originalAssertHighMemoryDirectorStartAllowed = service.assertHighMemoryDirectorStartAllowed;
+  const originalGetVolumes = service.volumeService.getVolumes;
   const originalBootstrapTask = service.workflowService.bootstrapTask;
   const originalMarkTaskRunning = service.workflowService.markTaskRunning;
   const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
@@ -417,7 +410,10 @@ test("continueTask resumes auto-director tasks that are still marked running aft
   const pipelineRuns = [];
 
   service.continueCandidateStageTask = async () => false;
-  service.workflowService.getTaskByIdWithoutHealing = async () => ({
+  service.resolveAssetFirstRecovery = async () => null;
+  service.assertHighMemoryDirectorStartAllowed = async () => undefined;
+  service.volumeService.getVolumes = async () => null;
+  service.workflowService.getTaskById = async () => ({
     id: "task_recovery_resume",
     lane: "auto_director",
     status: "running",
@@ -463,9 +459,13 @@ test("continueTask resumes auto-director tasks that are still marked running aft
     assert.equal(scheduledRuns.length, 1);
     assert.equal(pipelineRuns.length, 1);
     assert.equal(pipelineRuns[0].startPhase, "structured_outline");
+    assert.equal(pipelineRuns[0].scope, "book");
   } finally {
     service.continueCandidateStageTask = originalContinueCandidateStageTask;
-    service.workflowService.getTaskByIdWithoutHealing = originalGetTaskByIdWithoutHealing;
+    service.workflowService.getTaskById = originalGetTaskById;
+    service.resolveAssetFirstRecovery = originalResolveAssetFirstRecovery;
+    service.assertHighMemoryDirectorStartAllowed = originalAssertHighMemoryDirectorStartAllowed;
+    service.volumeService.getVolumes = originalGetVolumes;
     service.workflowService.bootstrapTask = originalBootstrapTask;
     service.workflowService.markTaskRunning = originalMarkTaskRunning;
     service.scheduleBackgroundRun = originalScheduleBackgroundRun;
@@ -476,7 +476,8 @@ test("continueTask resumes auto-director tasks that are still marked running aft
 test("continueTask resumes auto execution in the background instead of blocking the request", async () => {
   const service = new NovelDirectorService();
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;
-  const originalGetTaskByIdWithoutHealing = service.workflowService.getTaskByIdWithoutHealing;
+  const originalGetTaskById = service.workflowService.getTaskById;
+  const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
   const originalMarkTaskRunning = service.workflowService.markTaskRunning;
   const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
   const originalRunFromReady = service.autoExecutionRuntime.runFromReady;
@@ -485,7 +486,8 @@ test("continueTask resumes auto execution in the background instead of blocking 
   const runtimeCalls = [];
 
   service.continueCandidateStageTask = async () => false;
-  service.workflowService.getTaskByIdWithoutHealing = async () => ({
+  service.resolveAssetFirstRecovery = async () => null;
+  service.workflowService.getTaskById = async () => ({
     id: "task_auto_execution_resume",
     lane: "auto_director",
     status: "failed",
@@ -559,7 +561,8 @@ test("continueTask resumes auto execution in the background instead of blocking 
     assert.equal(runtimeCalls[0].allowSkipReviewBlockedChapter, true);
   } finally {
     service.continueCandidateStageTask = originalContinueCandidateStageTask;
-    service.workflowService.getTaskByIdWithoutHealing = originalGetTaskByIdWithoutHealing;
+    service.workflowService.getTaskById = originalGetTaskById;
+    service.resolveAssetFirstRecovery = originalResolveAssetFirstRecovery;
     service.workflowService.markTaskRunning = originalMarkTaskRunning;
     service.scheduleBackgroundRun = originalScheduleBackgroundRun;
     service.autoExecutionRuntime.runFromReady = originalRunFromReady;
@@ -601,6 +604,7 @@ test("runDirectorStructuredOutlinePhase resumes from the first incomplete beat a
           chapters: volume.chapters.map((chapter) => ({
             ...chapter,
             taskSheet: "第二卷章节任务单",
+            sceneCards: JSON.stringify([{ key: `${chapter.id}-scene-1`, title: "第二卷章节场景" }]),
           })),
         }
         : volume
@@ -666,7 +670,12 @@ test("runDirectorStructuredOutlinePhase resumes from the first incomplete beat a
           persistCalls.push({ novelId, workspace });
           return workspace;
         },
+        updateVolumesWithOptions: async (novelId, workspace) => {
+          persistCalls.push({ novelId, workspace });
+          return workspace;
+        },
         syncVolumeChapters: async () => ({ preview: [] }),
+        syncVolumeChaptersWithOptions: async () => ({ preview: [] }),
       },
     },
     callbacks: {
@@ -710,6 +719,8 @@ test("runDirectorStructuredOutlinePhase resumes from the first incomplete beat a
       },
     ],
   );
+  const chapterListCall = generateCalls.find((call) => call.scope === "chapter_list");
+  assert.equal(chapterListCall.persistIntermediateDocuments, true);
   assert.equal(persistCalls.length, 3);
   assert.ok(runningUpdates.some((update) => (
     update.itemKey === "chapter_detail_bundle"
@@ -720,4 +731,45 @@ test("runDirectorStructuredOutlinePhase resumes from the first incomplete beat a
   assert.equal(checkpointCalls.length, 1);
   assert.equal(checkpointCalls[0].volumeId, "volume-2");
   assert.equal(checkpointCalls[0].chapterId, "volume-2-chapter-1");
+});
+
+test("runDirectorTrackedStep aborts the run helper signal when heartbeat observes cancellation", { timeout: 8000 }, async () => {
+  let markCallCount = 0;
+  let helperSignal = null;
+
+  await assert.rejects(
+    () => runDirectorTrackedStep({
+      taskId: "task_cancel_signal",
+      stage: "structured_outline",
+      itemKey: "beat_sheet",
+      itemLabel: "正在生成节奏板",
+      progress: 0.72,
+      heartbeatMs: 5000,
+      callbacks: {
+        markDirectorTaskRunning: async () => {
+          markCallCount += 1;
+          if (markCallCount > 1) {
+            throw new Error("WORKFLOW_TASK_CANCELLED");
+          }
+        },
+      },
+      run: async ({ signal }) => {
+        helperSignal = signal;
+        assert.ok(signal, "expected tracked step helper to expose an AbortSignal");
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error("expected heartbeat cancellation to abort the signal"));
+          }, 6500);
+          signal.addEventListener("abort", () => {
+            clearTimeout(timeout);
+            reject(signal.reason ?? new Error("aborted"));
+          }, { once: true });
+        });
+      },
+    }),
+    /取消|cancel/i,
+  );
+
+  assert.ok(helperSignal?.aborted);
+  assert.ok(markCallCount > 1);
 });

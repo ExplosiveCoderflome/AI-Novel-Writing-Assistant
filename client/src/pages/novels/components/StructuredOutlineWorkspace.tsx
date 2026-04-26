@@ -272,7 +272,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-3 overflow-x-auto pb-1">
+            <div className="structured-volume-picker grid grid-cols-1 gap-2 md:flex md:gap-3 md:overflow-x-auto md:pb-1">
               {volumes.map((volume) => {
                 const volumeBeatSheet = findBeatSheet(beatSheets, volume.id);
                 const isSelected = selectedVolume.id === volume.id;
@@ -289,7 +289,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                       });
                     }}
                     className={cn(
-                      "min-w-[220px] shrink-0 rounded-2xl border p-3 text-left transition-colors",
+                      "w-full min-w-0 rounded-xl border p-3 text-left transition-colors md:min-w-[220px] md:shrink-0 md:rounded-2xl",
                       isSelected ? "border-primary/50 bg-primary/5" : "border-border/70 hover:border-primary/30",
                     )}
                   >
@@ -471,7 +471,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                     </div>
 
                     {showSyncPreview ? (
-                      <div className="max-h-64 space-y-2 overflow-auto rounded-xl border border-border/70 bg-muted/20 p-3 text-xs">
+                      <div className="structured-sync-preview-list space-y-2 rounded-xl border border-border/70 bg-muted/20 p-3 text-xs md:max-h-64 md:overflow-auto">
                         {syncPreview.items.map((item) => (
                           <div
                             key={`${item.action}-${item.chapterOrder}-${item.nextTitle}`}
@@ -502,7 +502,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                   </>
                 ) : (
                   <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                    当前章节规划先以“选章 + 细化”为主。批量补任务单、同步差异和 JSON 预览都已经收起，避免打断主流程。
+                    当前章节规划先以“选章 + 细化”为主。批量补任务单、同步差异和 JSON 预览默认收起，避免打断主流程。
                   </div>
                 )}
               </CardContent>

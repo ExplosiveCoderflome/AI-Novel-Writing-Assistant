@@ -64,10 +64,21 @@ export function normalizeDirectorAutoExecutionPlan(
       autoRepair,
     };
   }
+  if (plan?.mode === "book") {
+    return {
+      mode: "book",
+      autoReview,
+      autoRepair,
+    };
+  }
+  const frontEndOrder = Math.max(
+    DIRECTOR_FRONT10_START_ORDER,
+    Math.round(plan?.endOrder ?? DIRECTOR_FRONT10_END_ORDER),
+  );
   return {
     mode: "front10",
     startOrder: DIRECTOR_FRONT10_START_ORDER,
-    endOrder: DIRECTOR_FRONT10_END_ORDER,
+    endOrder: frontEndOrder,
     autoReview,
     autoRepair,
   };
@@ -77,7 +88,7 @@ export function resolveDirectorAutoExecutionPlanChapterRange(
   plan: DirectorAutoExecutionPlan | null | undefined,
 ): DirectorAutoExecutionChapterRange | null {
   const normalized = normalizeDirectorAutoExecutionPlan(plan);
-  if (normalized.mode === "volume") {
+  if (normalized.mode === "volume" || normalized.mode === "book") {
     return null;
   }
   const startOrder = Math.max(
@@ -104,6 +115,9 @@ export function buildDirectorAutoExecutionScopeLabel(
   fallbackVolumeTitle?: string | null,
 ): string {
   const normalized = normalizeDirectorAutoExecutionPlan(plan);
+  if (normalized.mode === "book") {
+    return "全书";
+  }
   if (normalized.mode === "chapter_range") {
     if ((normalized.startOrder ?? 1) === (normalized.endOrder ?? 1)) {
       return `第 ${normalized.startOrder} 章`;
@@ -114,7 +128,25 @@ export function buildDirectorAutoExecutionScopeLabel(
     const volumeLabel = fallbackVolumeTitle?.trim() ? ` · ${fallbackVolumeTitle.trim()}` : "";
     return `第 ${normalized.volumeOrder} 卷${volumeLabel}`;
   }
-  return `前 ${Math.max(1, fallbackTotalChapterCount ?? 10)} 章`;
+  return `前 ${Math.max(1, normalized.endOrder ?? fallbackTotalChapterCount ?? 10)} 章`;
+}
+
+export function resolveDirectorAutoExecutionBookRange(
+  chapters: DirectorAutoExecutionChapterRef[],
+): DirectorAutoExecutionRange | null {
+  const selected = chapters
+    .slice()
+    .filter((chapter) => chapter.order >= DIRECTOR_FRONT10_START_ORDER)
+    .sort((left, right) => left.order - right.order);
+  if (selected.length === 0) {
+    return null;
+  }
+  return {
+    startOrder: selected[0].order,
+    endOrder: selected[selected.length - 1].order,
+    totalChapterCount: selected.length,
+    firstChapterId: selected[0].id,
+  };
 }
 
 export function buildDirectorAutoExecutionScopeLabelFromState(

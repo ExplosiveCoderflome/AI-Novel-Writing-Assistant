@@ -16,6 +16,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
 import { novelEventBus } from "../../../events";
 import type { VolumeUpdateReason } from "../../../events";
+import { logMemoryUsage } from "../../../runtime/memoryTelemetry";
 import { payoffLedgerSyncService } from "../../payoff/PayoffLedgerSyncService";
 import { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import { StyleBindingService } from "../../styleEngine/StyleBindingService";
@@ -59,6 +60,12 @@ import {
   getLatestVersionRow,
   persistActiveVolumeWorkspace,
 } from "./volumeWorkspacePersistence";
+import {
+  resolveVolumeGenerationTelemetryItemKey,
+  resolveVolumeGenerationTelemetryStage,
+  type VolumeMemoryTelemetry,
+  withHighMemoryVolumeGenerationGuard,
+} from "./volumeGenerationTelemetry";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -103,8 +110,24 @@ export class NovelVolumeService {
       emitEvent?: boolean;
       syncPayoffLedger?: boolean;
       volumeUpdateReason?: VolumeUpdateReason;
+      memoryTelemetry?: VolumeMemoryTelemetry;
     } = {},
   ): Promise<VolumePlanDocument> {
+    logMemoryUsage({
+      event: "before_write",
+      component: "persistWorkspaceDocument",
+      novelId,
+      taskId: options.memoryTelemetry?.taskId,
+      stage: options.memoryTelemetry?.stage ?? "volume_workspace",
+      itemKey: options.memoryTelemetry?.itemKey,
+      scope: options.memoryTelemetry?.scope,
+      entrypoint: options.memoryTelemetry?.entrypoint,
+      volumeId: options.memoryTelemetry?.volumeId,
+      chapterId: options.memoryTelemetry?.chapterId,
+      volumeCount: document.volumes.length,
+      chapterCount: document.volumes.reduce((sum, volume) => sum + volume.chapters.length, 0),
+      beatSheetCount: document.beatSheets.length,
+    });
     const persistedDocument = await prisma.$transaction(async (tx) => {
       const { versionId } = await this.ensureActiveVersionRecord(tx, novelId, document);
       const nextDocument = {
@@ -112,14 +135,23 @@ export class NovelVolumeService {
         activeVersionId: versionId,
         source: "volume" as const,
       };
-      await tx.volumePlanVersion.update({
-        where: { id: versionId },
-        data: {
-          contentJson: serializeVolumeWorkspaceDocument(nextDocument),
-        },
-      });
       await persistActiveVolumeWorkspace(tx, novelId, nextDocument, versionId);
       return nextDocument;
+    });
+    logMemoryUsage({
+      event: "after_write",
+      component: "persistWorkspaceDocument",
+      novelId,
+      taskId: options.memoryTelemetry?.taskId,
+      stage: options.memoryTelemetry?.stage ?? "volume_workspace",
+      itemKey: options.memoryTelemetry?.itemKey,
+      scope: options.memoryTelemetry?.scope,
+      entrypoint: options.memoryTelemetry?.entrypoint,
+      volumeId: options.memoryTelemetry?.volumeId,
+      chapterId: options.memoryTelemetry?.chapterId,
+      volumeCount: persistedDocument.volumes.length,
+      chapterCount: persistedDocument.volumes.reduce((sum, volume) => sum + volume.chapters.length, 0),
+      beatSheetCount: persistedDocument.beatSheets.length,
     });
 
     if (options.emitEvent !== false) {
@@ -290,14 +322,18 @@ export class NovelVolumeService {
       volumeUpdateReason?: VolumeUpdateReason;
       syncPayoffLedger?: boolean;
       syncToChapterExecution?: boolean;
+      emitEvent?: boolean;
+      memoryTelemetry?: VolumeMemoryTelemetry;
     } = {},
   ): Promise<VolumePlanDocument> {
     const currentDocument = await this.ensureVolumeWorkspace(novelId);
     const mergedDocument = mergeVolumeWorkspaceInput(novelId, currentDocument, input);
     const persistedDocument = await this.persistWorkspaceDocument(novelId, mergedDocument, {
       volumeUpdateReason: options.volumeUpdateReason,
+      emitEvent: options.emitEvent,
       syncPayoffLedger: options.syncPayoffLedger
         ?? hasPayoffLedgerRelevantPlanChanges(currentDocument.volumes, mergedDocument.volumes),
+      memoryTelemetry: options.memoryTelemetry,
     });
     if (options.syncToChapterExecution) {
       try {
@@ -736,35 +772,80 @@ export class NovelVolumeService {
   }
 
   async generateVolumes(novelId: string, options: VolumeGenerateOptions = {}): Promise<VolumePlanDocument> {
-    const persistedWorkspace = await this.ensureVolumeWorkspace(novelId);
-    const workspace = options.draftWorkspace
-      ? mergeVolumeWorkspaceInput(novelId, persistedWorkspace, options.draftWorkspace)
-      : options.draftVolumes
-        ? mergeVolumeWorkspaceInput(novelId, persistedWorkspace, { volumes: options.draftVolumes })
-        : persistedWorkspace;
-    return generateVolumePlanDocument({
-      novelId,
-      workspace,
-      options: {
-        ...options,
-        onIntermediateDocument: (
-          options.onIntermediateDocument
-          || options.scope === "chapter_list"
-          || options.scope === "volume"
-        )
-          ? async (event) => {
-            const persistedDocument = await this.persistWorkspaceDocument(novelId, event.document, {
-              emitEvent: false,
-              syncPayoffLedger: false,
-            });
-            await options.onIntermediateDocument?.({
-              ...event,
-              document: persistedDocument,
-            });
-          }
-          : undefined,
-      },
-      storyMacroPlanService: this.storyMacroPlanService,
+    return withHighMemoryVolumeGenerationGuard(novelId, options, async () => {
+      const persistedWorkspace = await this.ensureVolumeWorkspace(novelId);
+      const workspace = options.draftWorkspace
+        ? mergeVolumeWorkspaceInput(novelId, persistedWorkspace, options.draftWorkspace)
+        : options.draftVolumes
+          ? mergeVolumeWorkspaceInput(novelId, persistedWorkspace, { volumes: options.draftVolumes })
+          : persistedWorkspace;
+      logMemoryUsage({
+        event: "before_generate",
+        component: "generateVolumes",
+        novelId,
+        taskId: options.taskId,
+        stage: resolveVolumeGenerationTelemetryStage(options),
+        itemKey: resolveVolumeGenerationTelemetryItemKey(options),
+        scope: options.scope ?? "strategy",
+        entrypoint: options.entrypoint,
+        volumeId: options.targetVolumeId,
+        chapterId: options.targetChapterId,
+        volumeCount: workspace.volumes.length,
+        chapterCount: workspace.volumes.reduce((sum, volume) => sum + volume.chapters.length, 0),
+        beatSheetCount: workspace.beatSheets.length,
+      });
+      const generatedDocument = await generateVolumePlanDocument({
+        novelId,
+        workspace,
+        options: {
+          ...options,
+          onIntermediateDocument: (
+            options.onIntermediateDocument
+            || options.scope === "chapter_list"
+            || options.scope === "volume"
+          )
+            ? async (event) => {
+              const shouldPersistIntermediate = event.isFinal !== false || options.persistIntermediateDocuments === true;
+              const persistedDocument = shouldPersistIntermediate
+                ? await this.persistWorkspaceDocument(novelId, event.document, {
+                  emitEvent: false,
+                  syncPayoffLedger: false,
+                  memoryTelemetry: {
+                    taskId: options.taskId,
+                    stage: resolveVolumeGenerationTelemetryStage(options),
+                    itemKey: event.scope === "chapter_detail" ? "chapter_detail_bundle" : event.scope,
+                    scope: event.scope,
+                    entrypoint: options.entrypoint,
+                    volumeId: event.targetVolumeId ?? options.targetVolumeId,
+                    chapterId: options.targetChapterId,
+                  },
+                })
+                : event.document;
+              await options.onIntermediateDocument?.({
+                ...event,
+                document: persistedDocument,
+              });
+            }
+            : undefined,
+        },
+        storyMacroPlanService: this.storyMacroPlanService,
+      });
+      logMemoryUsage({
+        event: "before_return",
+        component: "generateVolumes",
+        novelId,
+        taskId: options.taskId,
+        stage: resolveVolumeGenerationTelemetryStage(options),
+        itemKey: resolveVolumeGenerationTelemetryItemKey(options),
+        scope: options.scope ?? "strategy",
+        entrypoint: options.entrypoint,
+        volumeId: options.targetVolumeId,
+        chapterId: options.targetChapterId,
+        volumeCount: generatedDocument.volumes.length,
+        chapterCount: generatedDocument.volumes.reduce((sum, volume) => sum + volume.chapters.length, 0),
+        beatSheetCount: generatedDocument.beatSheets.length,
+      });
+      return generatedDocument;
     });
   }
 

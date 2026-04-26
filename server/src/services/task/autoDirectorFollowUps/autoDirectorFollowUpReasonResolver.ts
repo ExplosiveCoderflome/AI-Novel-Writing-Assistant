@@ -8,6 +8,13 @@ import type {
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import { buildWorkflowResumeAction } from "../novelWorkflowExplainability";
 
+const CHANNEL_ACTION_CODES = new Set<AutoDirectorActionCode>([
+  "continue_auto_execution",
+  "retry_with_task_model",
+  "open_detail",
+  "open_follow_up_center",
+]);
+
 const REASON_LABELS: Record<AutoDirectorFollowUpReason, string> = {
   manual_recovery_required: "人工恢复待处理",
   runtime_failed: "失败待重试",
@@ -16,6 +23,10 @@ const REASON_LABELS: Record<AutoDirectorFollowUpReason, string> = {
   runtime_cancelled: "已取消待恢复",
   front10_execution_pending: "自动执行待继续",
   quality_repair_pending: "质量修复待继续",
+  auto_progress_running: "自动推进中",
+  auto_approval_completed: "最近自动通过",
+  runtime_replaced: "任务已替代",
+  validation_required: "需要重新校验",
 };
 
 function mutationAction(input: {
@@ -34,7 +45,7 @@ function mutationAction(input: {
 }
 
 function navigationAction(input: {
-  code: Extract<AutoDirectorActionCode, "go_replan" | "go_candidate_selection" | "open_detail">;
+  code: Extract<AutoDirectorActionCode, "go_replan" | "go_candidate_selection" | "open_detail" | "open_follow_up_center">;
   label: string;
   riskLevel?: AutoDirectorAction["riskLevel"];
   requiresConfirm?: boolean;
@@ -59,6 +70,8 @@ function finalizeResolvedReason(input: {
   batchActionCodes?: AutoDirectorMutationActionCode[];
 }): AutoDirectorResolvedFollowUpReason {
   const batchActionCodes = input.batchActionCodes ?? [];
+  const hasChannelAction = input.availableActions.some((item) => CHANNEL_ACTION_CODES.has(item.code));
+
   return {
     reason: input.reason,
     reasonLabel: REASON_LABELS[input.reason],
@@ -66,12 +79,55 @@ function finalizeResolvedReason(input: {
     availableActions: input.availableActions,
     batchActionCodes,
     supportsBatch: batchActionCodes.length > 0,
+    channelCapabilities: {
+      dingtalk: hasChannelAction,
+      wecom: hasChannelAction,
+    },
   };
 }
 
 export function resolveAutoDirectorFollowUpReason(
   input: AutoDirectorFollowUpResolverInput,
 ): AutoDirectorResolvedFollowUpReason | null {
+  if (input.validationResult && !input.validationResult.allowed) {
+    const hasSafeFix = input.validationResult.requiredActions.some((action) => (
+      action.safeToAutoFix === true && action.riskLevel === "low"
+    ));
+    return finalizeResolvedReason({
+      reason: "validation_required",
+      priority: "P0",
+      availableActions: [
+        navigationAction({
+          code: "open_detail",
+          label: "查看校验结果",
+        }),
+        ...(hasSafeFix
+          ? [
+            mutationAction({
+              code: "safe_fix_validation",
+              label: "一键安全修复",
+              riskLevel: "low",
+              requiresConfirm: true,
+            }),
+          ]
+          : []),
+      ],
+    });
+  }
+
+  if (input.replacementTaskId?.trim() && input.status !== "failed" && input.status !== "waiting_approval" && input.status !== "running" && input.status !== "queued") {
+    return finalizeResolvedReason({
+      reason: "runtime_replaced",
+      priority: "P2",
+      availableActions: [
+        navigationAction({
+          code: "open_detail",
+          label: "查看替代详情",
+        }),
+      ],
+    });
+  }
+
   if (input.pendingManualRecovery) {
     return finalizeResolvedReason({
       reason: "manual_recovery_required",
@@ -86,6 +142,19 @@ export function resolveAutoDirectorFollowUpReason(
         navigationAction({
           code: "open_detail",
           label: "查看详情",
+        }),
+      ],
+    });
+  }
+
+  if (input.status === "queued" || input.status === "running") {
+    return finalizeResolvedReason({
+      reason: "auto_progress_running",
+      priority: "P2",
+      availableActions: [
+        navigationAction({
+          code: "open_detail",
+          label: "查看推进详情",
         }),
       ],
     });
@@ -214,7 +283,7 @@ export function resolveAutoDirectorFollowUpReason(
       availableActions: [
         mutationAction({
           code: "continue_auto_execution",
-          label: getContinueLabel(input, "继续自动执行当前章节范围"),
+          label: getContinueLabel(input, "继续自动执行前 10 章"),
           riskLevel: "low",
           requiresConfirm: false,
         }),

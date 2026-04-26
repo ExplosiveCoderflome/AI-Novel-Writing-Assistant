@@ -21,6 +21,31 @@ test("front10 normalizes to the explicit chapter range 1-10", () => {
   });
 });
 
+test("front10 can carry a user-selected front N chapter range", () => {
+  assert.deepEqual(normalizeDirectorAutoExecutionPlan({ mode: "front10", endOrder: 25 }), {
+    mode: "front10",
+    startOrder: 1,
+    endOrder: 25,
+    autoReview: true,
+    autoRepair: true,
+  });
+
+  assert.equal(buildDirectorAutoExecutionScopeLabel({
+    mode: "front10",
+    endOrder: 25,
+  }), "前 25 章");
+});
+
+test("book auto execution normalizes to full-book scope without chapter bounds", () => {
+  assert.deepEqual(normalizeDirectorAutoExecutionPlan({ mode: "book" }), {
+    mode: "book",
+    autoReview: true,
+    autoRepair: true,
+  });
+
+  assert.equal(buildDirectorAutoExecutionScopeLabel({ mode: "book" }), "全书");
+});
+
 test("resolveDirectorAutoExecutionRange sorts chapters and limits to front 10", () => {
   const range = resolveDirectorAutoExecutionRange([
     { id: "chapter-12", order: 12 },

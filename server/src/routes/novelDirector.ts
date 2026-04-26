@@ -17,6 +17,7 @@ import {
   BOOK_FRAMING_COMMERCIAL_TAG_MAX_LENGTH,
   BOOK_FRAMING_MAX_COMMERCIAL_TAGS,
 } from "@ai-novel/shared/types/novelFraming";
+import { DIRECTOR_AUTO_APPROVAL_POINTS } from "@ai-novel/shared/types/autoDirectorApproval";
 import { validate } from "../middleware/validate";
 import { llmProviderSchema } from "../llm/providerSchema";
 import { NovelDirectorService } from "../services/novel/director/NovelDirectorService";
@@ -45,6 +46,13 @@ const autoExecutionPlanSchema = z.object({
   volumeOrder: z.number().int().min(1).optional(),
   autoReview: z.boolean().optional(),
   autoRepair: z.boolean().optional(),
+}).optional();
+
+const autoApprovalPointValues = DIRECTOR_AUTO_APPROVAL_POINTS.map((item) => item.code) as [string, ...string[]];
+
+const autoApprovalSchema = z.object({
+  enabled: z.boolean(),
+  approvalPointCodes: z.array(z.enum(autoApprovalPointValues)),
 }).optional();
 
 const projectContextSchema = z.object({
@@ -140,6 +148,7 @@ const confirmSchema = projectContextSchema.extend({
   candidate: directorPersistedCandidateSchema,
   workflowTaskId: z.string().trim().optional(),
   autoExecutionPlan: autoExecutionPlanSchema,
+  autoApproval: autoApprovalSchema,
 }).merge(llmOptionsSchema);
 
 const takeoverParamsSchema = z.object({
@@ -152,6 +161,7 @@ const takeoverSchema = z.object({
   entryStep: z.enum(takeoverEntryStepValues).optional(),
   strategy: z.enum(takeoverStrategyValues).optional(),
   autoExecutionPlan: autoExecutionPlanSchema,
+  autoApproval: autoApprovalSchema,
   styleProfileId: z.string().trim().optional(),
 }).merge(llmOptionsSchema);
 

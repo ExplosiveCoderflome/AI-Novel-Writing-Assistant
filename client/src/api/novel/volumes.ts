@@ -12,6 +12,12 @@ import type {
 } from "@ai-novel/shared/types/novel";
 import { apiClient } from "../client";
 
+export type SlimVolumeGenerationResponse = VolumePlanDocument & {
+  slimmed: true;
+};
+
+export type VolumeGenerationResponse = VolumePlanDocument | SlimVolumeGenerationResponse;
+
 export async function getNovelVolumeWorkspace(id: string) {
   const { data } = await apiClient.get<ApiResponse<VolumePlanDocument>>(`/novels/${id}/volumes`);
   return data;
@@ -46,9 +52,10 @@ export async function generateNovelVolumes(
     respectExistingVolumeCount?: boolean;
     draftVolumes?: VolumePlan[];
     draftWorkspace?: Partial<VolumePlanDocument>;
+    slimResponse?: boolean;
   },
 ) {
-  const { data } = await apiClient.post<ApiResponse<VolumePlanDocument>>(`/novels/${id}/volumes/generate`, payload ?? {});
+  const { data } = await apiClient.post<ApiResponse<VolumeGenerationResponse>>(`/novels/${id}/volumes/generate`, payload ?? {});
   return data;
 }
 

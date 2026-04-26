@@ -167,6 +167,12 @@ export async function loadDirectorTakeoverState(input: {
     hasVolumeStrategyPlan: boolean;
     firstVolumeId: string | null;
     firstVolumeChapterCount: number;
+    volumeChapterRanges?: Array<{
+      volumeOrder: number;
+      startOrder: number;
+      endOrder: number;
+    }>;
+    structuredOutlineChapterOrders?: number[];
   }>;
   getVolumeWorkspace: (novelId: string) => Promise<VolumePlanDocument | null>;
   findActiveAutoDirectorTask: (novelId: string) => Promise<{ id: string } | null>;
@@ -329,6 +335,8 @@ export async function loadDirectorTakeoverState(input: {
       hasBookContract: Boolean(novel.bookContract),
       hasVolumeStrategyPlan: assets.hasVolumeStrategyPlan,
       firstVolumeId: assets.firstVolumeId,
+      volumeChapterRanges: assets.volumeChapterRanges,
+      structuredOutlineChapterOrders: assets.structuredOutlineChapterOrders,
       firstVolumeBeatSheetReady,
       firstVolumePreparedChapterCount,
       structuredOutlineRecoveryStep: structuredOutlineCursor?.step ?? null,
