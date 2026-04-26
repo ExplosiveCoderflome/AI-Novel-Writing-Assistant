@@ -32,6 +32,7 @@ import { AutoDirectorFollowUpListPanel } from "./components/AutoDirectorFollowUp
 import { AutoDirectorFollowUpOverviewCards } from "./components/AutoDirectorFollowUpOverview";
 import { reconcileSelectedTaskIds } from "./selectionState";
 import { toast } from "@/components/ui/toast";
+import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
 const TASK_STATUSES: readonly TaskStatus[] = [
   "queued",
@@ -354,7 +355,7 @@ export default function AutoDirectorFollowUpCenterPage() {
   };
 
   return (
-    <div className="mobile-page-follow-ups space-y-4">
+    <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpPageRoot}>
       <AutoDirectorFollowUpOverviewCards
         overview={overviewQuery.data?.data ?? null}
         list={listQuery.data?.data ?? null}
@@ -362,7 +363,7 @@ export default function AutoDirectorFollowUpCenterPage() {
         onSectionChange={handleSectionChange}
       />
 
-      <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+      <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpMasterDetailGrid}>
         <AutoDirectorFollowUpListPanel
           items={items}
           pagination={listQuery.data?.data?.pagination ?? null}

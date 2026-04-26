@@ -20,8 +20,10 @@ import {
   getBeatExpectedChapterCount,
   getBeatSheet,
   getTargetVolume,
+  isVolumeChapterListPartiallyPersisted,
   mergeChapterList,
   resolveVolumeChapterBeatKey,
+  setVolumeChapterListPartialStatus,
 } from "./volumeGenerationHelpers";
 import type {
   VolumeGenerateOptions,
@@ -317,7 +319,11 @@ export async function generateBeatChunkedChapterList(params: {
     ? [beatPlans[targetBeatIndex]]
     : beatPlans.slice(fullVolumeResumeState?.resumeBeatIndex ?? 0);
 
-  if (generationMode === "full_volume" && fullVolumeResumeState?.isAlreadyComplete) {
+  if (
+    generationMode === "full_volume"
+    && fullVolumeResumeState?.isAlreadyComplete
+    && !isVolumeChapterListPartiallyPersisted(targetVolume)
+  ) {
     return {
       mergedDocument: document,
       mergedWorkspace: {
@@ -361,6 +367,27 @@ export async function generateBeatChunkedChapterList(params: {
         : null,
     });
     generatedBlocks.push(generatedBlock);
+
+    const intermediateDocument = mergeChapterList(
+      document,
+      targetVolume.id,
+      targetBeatSheet,
+      generatedBlocks,
+      {
+        generationMode,
+        targetBeatKey: options.targetBeatKey,
+        resumeFromBeatKey: fullVolumeResumeState?.resumeBeatKey,
+        markAsPartial: true,
+      },
+    );
+    await params.notifyIntermediateDocument?.({
+      scope: "chapter_list",
+      document: intermediateDocument,
+      isFinal: false,
+      targetVolumeId: targetVolume.id,
+      targetBeatKey: beatPlan.beat.key,
+      generationMode,
+    });
   }
 
   logMemoryUsage({
@@ -375,17 +402,20 @@ export async function generateBeatChunkedChapterList(params: {
     volumeId: targetVolume.id,
     chapterCount: generatedBlocks.reduce((sum, block) => sum + block.chapters.length, 0),
   });
-  const mergedDocument = mergeChapterList(
-    document,
-    targetVolume.id,
-    targetBeatSheet,
-    generatedBlocks,
-    {
-      generationMode,
-      targetBeatKey: options.targetBeatKey,
-      resumeFromBeatKey: fullVolumeResumeState?.resumeBeatKey,
-    },
-  );
+  const mergedDocument = generatedBlocks.length > 0
+    ? mergeChapterList(
+      document,
+      targetVolume.id,
+      targetBeatSheet,
+      generatedBlocks,
+      {
+        generationMode,
+        targetBeatKey: options.targetBeatKey,
+        resumeFromBeatKey: fullVolumeResumeState?.resumeBeatKey,
+        markAsPartial: false,
+      },
+    )
+    : setVolumeChapterListPartialStatus(document, targetVolume.id, false);
   const mergedVolume = mergedDocument.volumes.find((volume) => volume.id === targetVolume.id);
   if (!mergedVolume) {
     throw new Error("当前卷章节列表已生成，但合并结果丢失了目标卷。");

@@ -323,3 +323,48 @@ test("continue_existing records downstream reset metadata and cancels replaced r
   ]);
   assert.equal(calls.includes("reset_assets"), false);
 });
+
+test("restart_current_step records downstream reset metadata for workspace navigation", async () => {
+  let bootstrapInput = null;
+  const takeoverState = buildTakeoverState();
+  takeoverState.snapshot.hasVolumeStrategyPlan = true;
+
+  await startDirectorTakeoverExecution({
+    request: {
+      novelId: "novel_takeover_demo",
+      entryStep: "structured",
+      strategy: "restart_current_step",
+    },
+    takeoverState,
+    directorInput: {
+      candidate: { workingTitle: "Neon Archive" },
+      runMode: "auto_to_execution",
+      autoExecutionPlan: { mode: "front10" },
+    },
+    workflowService: {
+      bootstrapTask: async (input) => {
+        bootstrapInput = input;
+        return { id: "workflow_takeover_demo" };
+      },
+      markTaskRunning: async () => {},
+    },
+    autoExecutionRuntime: {
+      prepareRequestedAutoExecution: async () => {},
+      runFromReady: async () => {},
+    },
+    buildDirectorSeedPayload: (_request, _novelId, extra) => ({ ...extra }),
+    scheduleBackgroundRun: () => {},
+    runDirectorPipeline: async () => {},
+    createRewriteSnapshot: async () => ({
+      snapshotId: "snapshot_before_rewrite",
+      label: "自动导演重写前备份",
+      restoreEntry: "version_history",
+    }),
+    prepareRestartStep: async () => {},
+    recordRewriteSnapshotMilestone: async () => {},
+  });
+
+  assert.equal(bootstrapInput.seedPayload.takeover.downstreamReset.preserveAssets, false);
+  assert.equal(bootstrapInput.seedPayload.takeover.downstreamReset.fromStep, "structured");
+  assert.deepEqual(bootstrapInput.seedPayload.takeover.downstreamReset.resetSteps, ["chapter", "pipeline"]);
+});

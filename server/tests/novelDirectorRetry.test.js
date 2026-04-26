@@ -716,6 +716,8 @@ test("runDirectorStructuredOutlinePhase resumes from the first incomplete beat a
       },
     ],
   );
+  const chapterListCall = generateCalls.find((call) => call.scope === "chapter_list");
+  assert.equal(chapterListCall.persistIntermediateDocuments, true);
   assert.equal(persistCalls.length, 3);
   assert.ok(runningUpdates.some((update) => (
     update.itemKey === "chapter_detail_bundle"

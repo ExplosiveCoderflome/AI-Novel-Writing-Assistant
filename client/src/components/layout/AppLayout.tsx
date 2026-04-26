@@ -6,9 +6,14 @@ import Navbar from "./Navbar";
 import NovelWorkspaceRail from "./NovelWorkspaceRail";
 import Sidebar from "./Sidebar";
 import TaskRecoveryDialog from "./TaskRecoveryDialog";
+import {
+  AUTO_DIRECTOR_MOBILE_CLASSES,
+  shouldUseAutoDirectorMobileFullWidthContent,
+} from "@/mobile/autoDirector";
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "ai-novel.sidebar.collapsed";
 const WORKSPACE_RAIL_COLLAPSED_STORAGE_KEY = "ai-novel.workspace-rail.collapsed";
+const DEFAULT_APP_MAIN_CLASS_NAME = "h-[calc(100vh-4rem)] min-w-0 flex-1 overflow-y-auto p-6";
 
 export default function AppLayout() {
   const location = useLocation();
@@ -35,6 +40,10 @@ export default function AppLayout() {
   }, [location.pathname]);
 
   const isNovelWorkspace = Boolean(workspaceRoute?.novelId);
+  const useMobileFullWidthContent = useMemo(
+    () => shouldUseAutoDirectorMobileFullWidthContent(location.pathname),
+    [location.pathname],
+  );
 
   useEffect(() => {
     const storedValue = window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
@@ -62,21 +71,23 @@ export default function AppLayout() {
         onWorkspaceNavModeChange={isNovelWorkspace ? setWorkspaceNavMode : undefined}
       />
       <div className="flex min-h-[calc(100vh-4rem)]">
-        {isNovelWorkspace && workspaceNavMode === "workspace" && workspaceRoute ? (
-          <NovelWorkspaceRail
-            novelId={workspaceRoute.novelId}
-            chapterId={workspaceRoute.chapterId}
-            collapsed={isWorkspaceRailCollapsed}
-            onToggle={() => setIsWorkspaceRailCollapsed((current) => !current)}
-            onSwitchToProjectNav={() => setWorkspaceNavMode("project")}
-          />
-        ) : (
-          <Sidebar
-            collapsed={isSidebarCollapsed}
-            onToggle={() => setIsSidebarCollapsed((current) => !current)}
-          />
-        )}
-        <main className="h-[calc(100vh-4rem)] flex-1 overflow-y-auto p-6">
+        <div className={useMobileFullWidthContent ? "hidden md:block" : "shrink-0"}>
+          {isNovelWorkspace && workspaceNavMode === "workspace" && workspaceRoute ? (
+            <NovelWorkspaceRail
+              novelId={workspaceRoute.novelId}
+              chapterId={workspaceRoute.chapterId}
+              collapsed={isWorkspaceRailCollapsed}
+              onToggle={() => setIsWorkspaceRailCollapsed((current) => !current)}
+              onSwitchToProjectNav={() => setWorkspaceNavMode("project")}
+            />
+          ) : (
+            <Sidebar
+              collapsed={isSidebarCollapsed}
+              onToggle={() => setIsSidebarCollapsed((current) => !current)}
+            />
+          )}
+        </div>
+        <main className={useMobileFullWidthContent ? AUTO_DIRECTOR_MOBILE_CLASSES.appMain : DEFAULT_APP_MAIN_CLASS_NAME}>
           <DesktopModelSetupGate />
           <Suspense fallback={<AppRouteFallback />}>
             <Outlet />

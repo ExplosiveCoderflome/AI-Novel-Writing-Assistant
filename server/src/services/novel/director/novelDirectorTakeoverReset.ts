@@ -1,6 +1,7 @@
-import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
+import type { VolumeBeat, VolumeBeatSheet, VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../../db/prisma";
 import type { DirectorAutoExecutionPlan } from "@ai-novel/shared/types/novelDirector";
+import { parseBeatSheetChapterSpan } from "../volume/volumeBeatSheetChapterBudget";
 import {
   normalizeDirectorAutoExecutionPlan,
   resolveDirectorAutoExecutionPlanChapterRange,
@@ -74,6 +75,70 @@ function volumeOverlapsRange(
   range: { startOrder: number; endOrder: number },
 ): boolean {
   return volume.chapters.some((chapter) => isChapterInRange(chapter.chapterOrder, range));
+}
+
+function rangeOverlaps(
+  left: { startOrder: number; endOrder: number },
+  right: { startOrder: number; endOrder: number },
+): boolean {
+  return left.startOrder <= right.endOrder && right.startOrder <= left.endOrder;
+}
+
+function resolveBeatAbsoluteChapterRange(
+  volume: VolumePlanDocument["volumes"][number] | null | undefined,
+  beat: Pick<VolumeBeat, "chapterSpanHint">,
+): { startOrder: number; endOrder: number } | null {
+  if (!volume || volume.chapters.length === 0) {
+    return null;
+  }
+  const span = parseBeatSheetChapterSpan(beat.chapterSpanHint);
+  if (!span) {
+    return null;
+  }
+  const orderedChapters = volume.chapters
+    .slice()
+    .sort((left, right) => left.chapterOrder - right.chapterOrder);
+  if (span.end <= orderedChapters.length) {
+    const startChapter = orderedChapters[span.start - 1];
+    const endChapter = orderedChapters[span.end - 1];
+    if (!startChapter || !endChapter) {
+      return null;
+    }
+    return {
+      startOrder: startChapter.chapterOrder,
+      endOrder: endChapter.chapterOrder,
+    };
+  }
+
+  const volumeRange = resolveChapterOrderRange(orderedChapters.map((chapter) => chapter.chapterOrder));
+  const absoluteRange = {
+    startOrder: span.start,
+    endOrder: span.end,
+  };
+  if (!volumeRange || !rangeOverlaps(volumeRange, absoluteRange)) {
+    return null;
+  }
+  return absoluteRange;
+}
+
+function filterBeatSheetsOutsideRange(
+  workspace: VolumePlanDocument,
+  range: { startOrder: number; endOrder: number },
+): VolumeBeatSheet[] {
+  const volumesById = new Map(workspace.volumes.map((volume) => [volume.id, volume]));
+  return workspace.beatSheets
+    .map((sheet) => {
+      const volume = volumesById.get(sheet.volumeId);
+      const beats = sheet.beats.filter((beat) => {
+        const beatRange = resolveBeatAbsoluteChapterRange(volume, beat);
+        return beatRange ? !rangeOverlaps(beatRange, range) : false;
+      });
+      return {
+        ...sheet,
+        beats,
+      };
+    })
+    .filter((sheet) => sheet.beats.length > 0);
 }
 
 export async function resolveDirectorTakeoverAutoExecutionResetRange(input: {
@@ -188,7 +253,7 @@ async function resetStructuredOutputs(
   state: DirectorTakeoverLoadedState,
   deps: DirectorTakeoverResetDeps,
   range?: { startOrder: number; endOrder: number } | null,
-): Promise<void> {
+): Promise<{ resetRange: { startOrder: number; endOrder: number } | null }> {
   const workspace = await deps.getVolumeWorkspace(novelId);
   if (range) {
     const affectedVolumes = new Set(
@@ -205,7 +270,7 @@ async function resetStructuredOutputs(
         : volume),
       strategyPlan: workspace.strategyPlan,
       critiqueReport: workspace.critiqueReport,
-      beatSheets: workspace.beatSheets.filter((sheet) => !affectedVolumes.has(sheet.volumeId)),
+      beatSheets: filterBeatSheetsOutsideRange(workspace, range),
       rebalanceDecisions: workspace.rebalanceDecisions.filter((decision) => (
         !affectedVolumes.has(decision.anchorVolumeId) && !affectedVolumes.has(decision.affectedVolumeId)
       )),
@@ -216,17 +281,18 @@ async function resetStructuredOutputs(
         .flatMap((volume) => volume.chapters.map((chapter) => chapter.chapterOrder))
         .filter((chapterOrder) => isChapterInRange(chapterOrder, range)),
     );
-    return;
+    return { resetRange: range };
   }
 
   const targetVolumeId = resolveStructuredTargetVolumeId(state, workspace);
   if (!targetVolumeId) {
-    return;
+    return { resetRange: null };
   }
   const targetVolume = workspace.volumes.find((volume) => volume.id === targetVolumeId);
   if (!targetVolume) {
-    return;
+    return { resetRange: null };
   }
+  const resetRange = resolveChapterOrderRange(targetVolume.chapters.map((chapter) => chapter.chapterOrder));
   await deps.updateVolumeWorkspace(novelId, {
     volumes: workspace.volumes.map((volume) => (
       volume.id === targetVolumeId
@@ -244,6 +310,7 @@ async function resetStructuredOutputs(
     novelId,
     targetVolume.chapters.map((chapter) => chapter.chapterOrder),
   );
+  return { resetRange };
 }
 
 async function resetChapterExecutionOutputs(
@@ -397,7 +464,9 @@ export async function resetDirectorTakeoverCurrentStep(input: {
       takeoverState: input.takeoverState,
       deps: input.deps,
     });
-    await resetStructuredOutputs(input.novelId, input.takeoverState, input.deps, structuredRange);
+    const structuredReset = await resetStructuredOutputs(input.novelId, input.takeoverState, input.deps, structuredRange);
+    await cancelActivePipelineJobIfNeeded(input.takeoverState, input.deps);
+    await resetChapterExecutionOutputs(input.novelId, structuredRange ?? structuredReset.resetRange);
     return;
   }
 

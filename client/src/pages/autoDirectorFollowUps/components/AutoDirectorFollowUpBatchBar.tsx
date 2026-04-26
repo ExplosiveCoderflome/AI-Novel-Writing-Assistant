@@ -2,6 +2,7 @@ import type { AutoDirectorFollowUpItem, AutoDirectorMutationActionCode } from "@
 import type { AutoDirectorFollowUpSection } from "@ai-novel/shared/types/autoDirectorValidation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
 interface AutoDirectorFollowUpBatchBarProps {
   selectedItems: AutoDirectorFollowUpItem[];
@@ -39,9 +40,9 @@ export function AutoDirectorFollowUpBatchBar({
   const selectedSection = getSelectedSection(selectedItems);
 
   return (
-    <Card>
+    <Card className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpBatchBar}>
       <CardContent className="flex flex-col gap-3 pt-6 md:flex-row md:items-center md:justify-between">
-        <div className="text-sm">
+        <div className={`min-w-0 text-sm ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
           已选择 {selectedItems.length} 项
           <div className="text-xs text-muted-foreground">
             {selectedSection === "pending" || selectedSection === "exception"
@@ -49,11 +50,11 @@ export function AutoDirectorFollowUpBatchBar({
               : "该分区不提供批量动作"}
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={onClear} disabled={loading}>
+        <div className="grid grid-cols-2 gap-2 md:flex">
+          <Button variant="outline" size="sm" className="w-full md:w-auto" onClick={onClear} disabled={loading}>
             清空
           </Button>
-          <Button size="sm" onClick={() => void onExecute()} disabled={!batchActionCode || loading}>
+          <Button size="sm" className="w-full md:w-auto" onClick={() => void onExecute()} disabled={!batchActionCode || loading}>
             执行批量动作
           </Button>
         </div>

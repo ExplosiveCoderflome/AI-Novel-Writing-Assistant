@@ -66,6 +66,7 @@ import {
   applyDirectorCandidateTitleOption,
   toggleDirectorCorrectionPreset,
 } from "./directorCandidateSelectionHandlers";
+import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
 interface NovelAutoDirectorDialogProps {
   basicForm: NovelBasicFormState;
@@ -606,17 +607,17 @@ export default function NovelAutoDirectorDialog({
 
       <Dialog open={open} onOpenChange={handleDialogOpenChange}>
         <DialogContent
-          className={`flex h-[min(92vh,980px)] w-[calc(100vw-1.5rem)] flex-col overflow-hidden p-0 ${dialogMode === "candidate_selection" ? "max-w-6xl" : "max-w-4xl"}`}
+          className={`${AUTO_DIRECTOR_MOBILE_CLASSES.dialogContent} ${dialogMode === "candidate_selection" ? "lg:max-w-6xl" : "lg:max-w-4xl"}`}
           onEscapeKeyDown={preventCloseWhileBlocking}
           onPointerDownOutside={preventCloseWhileBlocking}
           onInteractOutside={preventCloseWhileBlocking}
         >
-          <DialogHeader className="shrink-0 border-b px-6 pb-4 pr-12 pt-6">
+          <DialogHeader className="shrink-0 border-b px-4 pb-4 pr-12 pt-5 text-left sm:px-6 sm:pt-6">
             <DialogTitle>{NovelAutoDirectorDialogTitle({ mode: dialogMode })}</DialogTitle>
             <DialogDescription>{NovelAutoDirectorDialogDescription({ mode: dialogMode })}</DialogDescription>
           </DialogHeader>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4">
+          <div className={AUTO_DIRECTOR_MOBILE_CLASSES.dialogBody}>
             {dialogMode === "candidate_selection" ? (
               <NovelAutoDirectorCandidateSelectionContent
                 basicForm={directorBasicForm}

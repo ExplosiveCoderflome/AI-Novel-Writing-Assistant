@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
 interface AutoDirectorFollowUpListPanelProps {
   items: AutoDirectorFollowUpItem[];
@@ -79,12 +80,12 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
   const totalPages = props.pagination ? Math.max(1, Math.ceil(props.pagination.total / props.pagination.pageSize)) : 1;
 
   return (
-    <Card>
+    <Card className="min-w-0 overflow-hidden">
       <CardHeader>
-        <CardTitle className="text-base">{formatActiveSection(props.activeSection)}</CardTitle>
+        <CardTitle className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-base`}>{formatActiveSection(props.activeSection)}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
           <Select value={props.activeReason || "__all__"} onValueChange={(value) => props.onFilterChange("reason", value === "__all__" ? "" : value)}>
             <SelectTrigger>
               <SelectValue placeholder="全部原因" />
@@ -124,11 +125,11 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
 
         <div className="space-y-3">
           {props.loading ? (
-            <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">正在加载跟进项...</div>
+            <div className={`rounded-md border border-dashed p-6 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>正在加载跟进项...</div>
           ) : null}
 
           {!props.loading && props.items.length === 0 ? (
-            <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
+            <div className={`rounded-md border border-dashed p-6 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               {props.activeSection === "auto_progress"
                 ? "当前没有正在推进的任务或最近自动通过记录。"
                 : props.activeSection === "replaced"
@@ -146,17 +147,17 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
                 key={itemKey}
                 type="button"
                 className={cn(
-                  "w-full rounded-xl border p-4 text-left transition-colors",
+                  "w-full min-w-0 rounded-xl border p-4 text-left transition-colors",
                   selected ? "border-primary bg-primary/5" : "hover:bg-muted/40",
                 )}
                 onClick={() => props.onSelectTask(item.taskId)}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <div className="font-medium">{item.novelTitle}</div>
-                    <div className="text-sm text-muted-foreground">{item.followUpSummary}</div>
+                <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpListHeader}>
+                  <div className="min-w-0 space-y-1">
+                    <div className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} font-medium`}>{item.novelTitle}</div>
+                    <div className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-sm text-muted-foreground`}>{item.followUpSummary}</div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
                     {item.supportsBatch ? (
                       <input
                         type="checkbox"
@@ -172,34 +173,35 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
                   </div>
                 </div>
 
-                <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                <div className="mt-3 flex min-w-0 flex-wrap gap-2 text-xs text-muted-foreground">
                   {item.section === "auto_progress" ? <Badge variant="secondary">{formatItemType(item)}</Badge> : null}
                   <Badge variant="outline">{formatStatus(item.status)}</Badge>
                   <Badge variant="outline">{item.reasonLabel}</Badge>
                   <Badge variant="outline">{formatPriority(item.priority)}</Badge>
-                  {item.executionScope ? <Badge variant="outline">{item.executionScope}</Badge> : null}
+                  {item.executionScope ? <Badge variant="outline" className={`max-w-full whitespace-normal text-left ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{item.executionScope}</Badge> : null}
                   {item.supportsBatch ? <Badge variant="secondary">可批量</Badge> : null}
                   {buildChannelBadges(item).map((label) => (
                     <Badge key={`${item.taskId}:${label}`} variant="secondary">{label}</Badge>
                   ))}
                 </div>
 
-                <div className="mt-2 text-xs text-muted-foreground">
-                  当前阶段：{item.currentStage ?? "暂无"} | 当前模型：{item.currentModel ?? "暂无"} | 更新时间：{new Date(item.updatedAt).toLocaleString()}
+                <div className={`mt-2 text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                  当前阶段：{item.currentStage ?? "暂无"} · 当前模型：{item.currentModel ?? "暂无"} · 更新时间：{new Date(item.updatedAt).toLocaleString()}
                 </div>
               </button>
             );
           })}
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-xs text-muted-foreground">
             第 {props.pagination?.page ?? 1} / {totalPages} 页，共 {props.pagination?.total ?? 0} 条
           </div>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex">
             <Button
               variant="outline"
               size="sm"
+              className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
               disabled={(props.pagination?.page ?? 1) <= 1}
               onClick={() => props.onPageChange((props.pagination?.page ?? 1) - 1)}
             >
@@ -208,6 +210,7 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
             <Button
               variant="outline"
               size="sm"
+              className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
               disabled={(props.pagination?.page ?? 1) >= totalPages}
               onClick={() => props.onPageChange((props.pagination?.page ?? 1) + 1)}
             >

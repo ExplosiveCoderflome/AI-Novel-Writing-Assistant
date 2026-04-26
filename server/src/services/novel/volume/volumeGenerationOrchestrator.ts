@@ -490,8 +490,12 @@ async function generateChapterList(params: {
       label,
       options,
     }),
-    notifyIntermediateDocument: options.persistIntermediateDocuments === true
-      ? options.onIntermediateDocument
+    notifyIntermediateDocument: options.persistIntermediateDocuments === true && options.onIntermediateDocument
+      ? async (event) => {
+        if (event.isFinal === false) {
+          await options.onIntermediateDocument?.(event);
+        }
+      }
       : undefined,
   });
   const rebalancedDocument = await generateRebalance({

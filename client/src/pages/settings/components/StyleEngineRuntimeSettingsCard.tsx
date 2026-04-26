@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
 const MS_PER_MINUTE = 60_000;
 
@@ -63,11 +64,11 @@ export default function StyleEngineRuntimeSettingsCard() {
     && parsedMinutes <= limits.maxMinutes;
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-3">
-        <div className="space-y-1">
+    <Card className="min-w-0 overflow-hidden">
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-1">
           <CardTitle>写法引擎运行设置</CardTitle>
-          <CardDescription>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
             控制写法提取等待模型返回的最长时间。长篇原文提取可以适当调高，短文本保持较短更容易发现异常。
           </CardDescription>
         </div>
@@ -98,7 +99,7 @@ export default function StyleEngineRuntimeSettingsCard() {
               {saveMutation.isPending ? "保存中..." : "保存设置"}
             </Button>
           </div>
-          <div className="text-xs text-muted-foreground">
+          <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
             可设置范围：{limits.minMinutes}-{limits.maxMinutes} 分钟。默认值 {limits.defaultMinutes} 分钟。
             保存后，新提交和重试的写法提取任务会使用该等待时间。
           </div>
@@ -110,7 +111,7 @@ export default function StyleEngineRuntimeSettingsCard() {
           </div>
         ) : null}
 
-        {feedback ? <div className="text-sm text-muted-foreground">{feedback}</div> : null}
+        {feedback ? <div className={`text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{feedback}</div> : null}
       </CardContent>
     </Card>
   );

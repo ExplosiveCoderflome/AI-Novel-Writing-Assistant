@@ -38,20 +38,42 @@ export interface ContinueExistingDownstreamReset {
   resetSteps: DirectorTakeoverEntryStep[];
 }
 
+export interface RestartCurrentStepDownstreamReset {
+  preserveAssets: false;
+  resetStatus: "not_started";
+  fromStep: DirectorTakeoverEntryStep;
+  resetSteps: DirectorTakeoverEntryStep[];
+}
+
 export interface ContinueExistingReplacementResult {
   workflowTaskIds: string[];
   pipelineJobIds: string[];
 }
 
+function resolveDownstreamSteps(fromStep: DirectorTakeoverEntryStep): DirectorTakeoverEntryStep[] {
+  const startIndex = DIRECTOR_TAKEOVER_ENTRY_STEPS.indexOf(fromStep);
+  return startIndex >= 0 ? DIRECTOR_TAKEOVER_ENTRY_STEPS.slice(startIndex + 1) : [];
+}
+
 export function buildContinueExistingDownstreamReset(
   plan: Pick<DirectorTakeoverResolvedPlan, "entryStep">,
 ): ContinueExistingDownstreamReset {
-  const startIndex = DIRECTOR_TAKEOVER_ENTRY_STEPS.indexOf(plan.entryStep);
   return {
     preserveAssets: true,
     resetStatus: "not_started",
     fromStep: plan.entryStep,
-    resetSteps: startIndex >= 0 ? DIRECTOR_TAKEOVER_ENTRY_STEPS.slice(startIndex + 1) : [],
+    resetSteps: resolveDownstreamSteps(plan.entryStep),
+  };
+}
+
+export function buildRestartCurrentStepDownstreamReset(
+  plan: Pick<DirectorTakeoverResolvedPlan, "entryStep">,
+): RestartCurrentStepDownstreamReset {
+  return {
+    preserveAssets: false,
+    resetStatus: "not_started",
+    fromStep: plan.entryStep,
+    resetSteps: resolveDownstreamSteps(plan.entryStep),
   };
 }
 

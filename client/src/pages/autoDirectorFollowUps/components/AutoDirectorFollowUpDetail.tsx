@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
 interface AutoDirectorFollowUpDetailPanelProps {
   detail: AutoDirectorFollowUpDetail | null;
@@ -42,27 +43,27 @@ export function AutoDirectorFollowUpDetailPanel({
   } as const;
 
   return (
-    <Card>
+    <Card className="min-w-0 overflow-hidden">
       <CardHeader>
         <CardTitle className="text-base">跟进详情</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {loading ? (
-          <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">正在加载详情...</div>
+          <div className={`rounded-md border border-dashed p-6 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>正在加载详情...</div>
         ) : null}
 
         {!loading && (!detail || !selectedItem) ? (
-          <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">请选择一个导演跟进项查看详情。</div>
+          <div className={`rounded-md border border-dashed p-6 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>请选择一个导演跟进项查看详情。</div>
         ) : null}
 
         {detail && selectedItem ? (
           <>
             <div className="space-y-1">
-              <div className="font-medium">{selectedItem.novelTitle}</div>
-              <div className="text-sm text-muted-foreground">{selectedItem.reasonLabel}</div>
+              <div className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} font-medium`}>{selectedItem.novelTitle}</div>
+              <div className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-sm text-muted-foreground`}>{selectedItem.reasonLabel}</div>
             </div>
 
-            <div className="space-y-2 text-sm text-muted-foreground">
+            <div className={`space-y-2 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               <div>阻塞原因：{detail.blockingReason ?? "暂无"}</div>
               <div>下一步建议：{detail.nextStepSuggestion ?? "查看任务详情后再继续。"}</div>
               <div>检查点摘要：{detail.checkpointSummary ?? "暂无"}</div>
@@ -71,7 +72,7 @@ export function AutoDirectorFollowUpDetailPanel({
             </div>
 
             {selectedItem.section === "needs_validation" ? (
-              <div className="space-y-3 rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-950">
+              <div className={`space-y-3 rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-950 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                   <div>
@@ -95,10 +96,11 @@ export function AutoDirectorFollowUpDetailPanel({
                     ))}
                   </div>
                 ) : null}
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <Button
                     variant="outline"
                     size="sm"
+                    className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
                     disabled={actionLoading}
                     onClick={() => void onRefreshValidation()}
                   >
@@ -109,7 +111,7 @@ export function AutoDirectorFollowUpDetailPanel({
                     variant="outline"
                     size="sm"
                     disabled={actionLoading}
-                    className="border-yellow-400 bg-yellow-100 text-yellow-950 hover:bg-yellow-200 hover:text-yellow-950"
+                    className={`${AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} border-yellow-400 bg-yellow-100 text-yellow-950 hover:bg-yellow-200 hover:text-yellow-950`}
                     title="仅修复校验标记为低风险的状态、检查点、进度、恢复目标、自动执行对账、替代原因、审计和通知记录；不会清除正文、重写资产、重规划、确认候选、切换模型或生成内容。"
                     onClick={() => void onSafeFix()}
                   >
@@ -122,12 +124,13 @@ export function AutoDirectorFollowUpDetailPanel({
 
             <div className="space-y-2">
               <div className="text-sm font-medium">可执行动作</div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {detail.availableActions.map((action) => (
                   <Button
                     key={action.code}
                     variant={action.kind === "mutation" ? "default" : "outline"}
                     size="sm"
+                    className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
                     disabled={actionLoading}
                     onClick={() => void onExecuteAction(selectedItem, action)}
                   >
@@ -143,7 +146,7 @@ export function AutoDirectorFollowUpDetailPanel({
                 {detail.milestones.length === 0 ? (
                   <div className="text-sm text-muted-foreground">暂无里程碑</div>
                 ) : detail.milestones.map((milestone) => (
-                  <div key={`${milestone.at}:${milestone.label}`} className="rounded-md border p-3 text-sm">
+                  <div key={`${milestone.at}:${milestone.label}`} className={`rounded-md border p-3 text-sm ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                     <div className="font-medium">{milestone.label}</div>
                     <div className="text-xs text-muted-foreground">{new Date(milestone.at).toLocaleString()}</div>
                     {milestone.summary ? (
@@ -160,8 +163,8 @@ export function AutoDirectorFollowUpDetailPanel({
                 {(detail.channelDeliveries?.length ?? 0) === 0 ? (
                   <div className="text-sm text-muted-foreground">暂无通道投递记录</div>
                 ) : detail.channelDeliveries?.map((delivery) => (
-                  <div key={`${delivery.channelType}:${delivery.eventType}`} className="rounded-md border p-3 text-sm">
-                    <div className="flex items-center gap-2">
+                  <div key={`${delivery.channelType}:${delivery.eventType}`} className={`rounded-md border p-3 text-sm ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                    <div className="flex flex-wrap items-center gap-2">
                       <Badge variant={delivery.status === "delivered" ? "secondary" : (delivery.status === "failed" ? "destructive" : "outline")}>
                         {delivery.channelType === "dingtalk" ? "钉钉" : "企微"}
                       </Badge>

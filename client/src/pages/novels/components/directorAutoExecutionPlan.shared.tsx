@@ -4,6 +4,7 @@ import type {
 } from "@ai-novel/shared/types/novelDirector";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
 export interface DirectorAutoExecutionDraftState {
   mode: DirectorAutoExecutionMode;
@@ -228,13 +229,13 @@ export function DirectorAutoExecutionPlanFields({
     : "正文后不做自动审核与修复";
 
   return (
-    <div className="mt-3 rounded-md border border-primary/15 bg-primary/5 p-3">
+    <div className="mt-3 min-w-0 rounded-md border border-primary/15 bg-primary/5 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-xs font-medium text-foreground">自动执行范围</div>
-        <div className="text-xs text-muted-foreground">当前将执行：{scopeLabel}</div>
+        <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>当前将执行：{scopeLabel}</div>
       </div>
 
-      <div className="mt-3 grid gap-3 md:grid-cols-3">
+      <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-3">
         {scopeOptions.map((option) => {
           const active = option.value === draft.mode;
           return (
@@ -249,7 +250,7 @@ export function DirectorAutoExecutionPlanFields({
               onClick={() => onChange({ mode: option.value })}
             >
               <div className="text-sm font-medium text-foreground">{option.label}</div>
-              <div className="mt-1 text-xs leading-5 text-muted-foreground">{option.description}</div>
+              <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{option.description}</div>
             </button>
           );
         })}
@@ -274,7 +275,7 @@ export function DirectorAutoExecutionPlanFields({
       ) : null}
 
       {canEditChapterRange ? (
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div>
             <div className="text-xs font-medium text-foreground">起始章节</div>
             <Input
@@ -318,9 +319,9 @@ export function DirectorAutoExecutionPlanFields({
 
       <div className="mt-4 rounded-xl border bg-background/80 p-3">
         <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
+          <div className="min-w-0 space-y-1">
             <div className="text-sm font-medium text-foreground">正文生成后自动审核</div>
-            <div className="text-xs leading-5 text-muted-foreground">
+            <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               关闭后，正文生成完成即结束当前章节，质量校验交给你手动处理。
             </div>
           </div>
@@ -335,9 +336,9 @@ export function DirectorAutoExecutionPlanFields({
         </div>
 
         <div className="mt-4 flex items-start justify-between gap-3">
-          <div className="space-y-1">
+          <div className="min-w-0 space-y-1">
             <div className="text-sm font-medium text-foreground">审核不通过时自动修复</div>
-            <div className="text-xs leading-5 text-muted-foreground">
+            <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               只在开启自动审核后生效；关闭时会保留问题，等待你手动处理或重跑。
             </div>
           </div>
@@ -350,7 +351,7 @@ export function DirectorAutoExecutionPlanFields({
         </div>
       </div>
 
-      <div className="mt-3 text-xs leading-5 text-muted-foreground">
+      <div className={`mt-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
         系统会按你选定的范围，自动准备节奏板、拆章和章节执行资源，再继续写作。
         当前质量策略：{reviewLabel}。
       </div>

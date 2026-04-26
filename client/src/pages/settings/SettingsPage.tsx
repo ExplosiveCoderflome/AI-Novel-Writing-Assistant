@@ -26,6 +26,7 @@ import SettingsNavigationCards from "./components/SettingsNavigationCards";
 import StyleEngineRuntimeSettingsCard from "./components/StyleEngineRuntimeSettingsCard";
 import SettingsActionResult from "./SettingsActionResult";
 import { formatBalanceAmount, formatBalanceTime } from "./settingsFormatters";
+import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
 const MODEL_BADGE_COLLAPSE_COUNT = 8;
 
@@ -268,7 +269,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className={AUTO_DIRECTOR_MOBILE_CLASSES.settingsPageRoot}>
       <DesktopUpdateCard />
       <DesktopLegacyDataImportCard forceVisible />
 
@@ -277,17 +278,17 @@ export default function SettingsPage() {
 
       <AutoDirectorSettingsSection onActionResult={setActionResult} />
 
-      <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-3">
-          <div className="space-y-1">
+      <Card className="min-w-0 overflow-hidden">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 space-y-1">
             <CardTitle>Model Providers</CardTitle>
-            <CardDescription>
+            <CardDescription className="break-words [overflow-wrap:anywhere]">
               管理内置厂商连接，也可以新增 OpenAI-compatible 自定义厂商。
             </CardDescription>
           </div>
-          <Button onClick={openCreateCustomDialog}>新增自定义厂商</Button>
+          <Button className="w-full sm:w-auto" onClick={openCreateCustomDialog}>新增自定义厂商</Button>
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2">
+        <CardContent className="grid min-w-0 gap-3 md:grid-cols-2">
           {providerConfigs.map((item) => {
             const balance = providerBalanceMap.get(item.provider);
             const isBalanceRefreshing = refreshBalanceMutation.isPending && refreshBalanceMutation.variables === item.provider;
@@ -298,15 +299,15 @@ export default function SettingsPage() {
             return (
               <div
                 key={item.provider}
-                className={`rounded-md border p-3 transition-colors ${
+                className={`min-w-0 rounded-md border p-3 transition-colors ${
                   item.isConfigured
                     ? "border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/20"
                     : "border-border"
                 }`}
               >
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="font-medium">{item.name}</div>
+                <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <div className="break-words font-medium [overflow-wrap:anywhere]">{item.name}</div>
                     {item.kind === "custom" ? <Badge variant="outline">自定义</Badge> : null}
                   </div>
                   <Badge
@@ -316,23 +317,23 @@ export default function SettingsPage() {
                     {item.isConfigured ? "Configured" : "Not configured"}
                   </Badge>
                 </div>
-                <div className="mb-2 text-xs text-muted-foreground">Current model: {item.currentModel || "-"}</div>
+                <div className="mb-2 break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">Current model: {item.currentModel || "-"}</div>
                 {item.supportsImageGeneration ? (
-                  <div className="mb-2 text-xs text-muted-foreground">
+                  <div className="mb-2 break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
                     Image model: {item.currentImageModel || item.defaultImageModel || "-"}
                   </div>
                 ) : null}
-                <div className="mb-2 text-xs text-muted-foreground">API URL: {item.currentBaseURL || "-"}</div>
-                <div className="mb-3 flex items-center justify-between rounded-md border bg-background/60 px-3 py-2">
-                  <div className="space-y-1">
+                <div className="mb-2 break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">API URL: {item.currentBaseURL || "-"}</div>
+                <div className="mb-3 flex flex-col gap-3 rounded-md border bg-background/60 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 space-y-1">
                     <div className="text-xs font-medium text-muted-foreground">思考功能</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
                       {item.reasoningEnabled
                         ? "当前会返回并展示模型思考内容。"
                         : "当前会隐藏思考内容；MiniMax 会自动启用分离与清洗，避免 <think> 泄漏到正文。"}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
                     <span className="text-xs text-muted-foreground">{item.reasoningEnabled ? "已开启" : "已关闭"}</span>
                     <Switch
                       checked={item.reasoningEnabled}
@@ -349,7 +350,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="mb-3 rounded-md border border-dashed bg-background/60 p-3">
                   {item.kind === "custom" ? (
-                    <div className="space-y-1">
+                    <div className="space-y-1 break-words [overflow-wrap:anywhere]">
                       <div className="text-xs font-medium text-muted-foreground">余额</div>
                       <div className="text-sm text-muted-foreground">
                         自定义 OpenAI-compatible 厂商暂不接入余额查询。
@@ -357,7 +358,7 @@ export default function SettingsPage() {
                     </div>
                   ) : (
                     <>
-                      <div className="mb-2 flex items-center justify-between gap-2">
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <div className="text-xs font-medium text-muted-foreground">余额</div>
                         {balance?.status === "available" ? (
                           <Badge variant="outline">最近刷新 {formatBalanceTime(balance.fetchedAt)}</Badge>
@@ -370,7 +371,7 @@ export default function SettingsPage() {
                           <div className="text-lg font-semibold">
                             {formatBalanceAmount(balance.availableBalance, balance.currency)}
                           </div>
-                          <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+                          <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 break-words [overflow-wrap:anywhere]">
                             {balance.cashBalance !== null ? <div>现金余额：{formatBalanceAmount(balance.cashBalance, balance.currency)}</div> : null}
                             {balance.voucherBalance !== null ? <div>代金券余额：{formatBalanceAmount(balance.voucherBalance, balance.currency)}</div> : null}
                             {balance.chargeBalance !== null ? <div>充值余额：{formatBalanceAmount(balance.chargeBalance, balance.currency)}</div> : null}
@@ -380,7 +381,7 @@ export default function SettingsPage() {
                         </div>
                       ) : (
                         <div className="space-y-1">
-                          <div className="text-sm text-muted-foreground">
+                          <div className="break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
                             {balance?.error ?? balance?.message ?? (item.isConfigured ? "当前暂未获取余额信息。" : "请先配置 API Key。")}
                           </div>
                         </div>
@@ -389,7 +390,7 @@ export default function SettingsPage() {
                   )}
                 </div>
                 <div className="mb-3 space-y-2">
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex min-w-0 flex-wrap gap-1">
                     {(isProviderExpanded(item.provider)
                       ? item.models
                       : item.models.slice(0, MODEL_BADGE_COLLAPSE_COUNT)
@@ -397,7 +398,9 @@ export default function SettingsPage() {
                       <Badge
                         key={model}
                         variant={model === item.currentModel ? "default" : "outline"}
-                        className={model === item.currentModel ? "bg-primary" : ""}
+                        className={model === item.currentModel
+                          ? "max-w-full whitespace-normal break-words bg-primary text-left [overflow-wrap:anywhere]"
+                          : "max-w-full whitespace-normal break-words text-left [overflow-wrap:anywhere]"}
                       >
                         {model}
                       </Badge>
@@ -415,13 +418,14 @@ export default function SettingsPage() {
                     </button>
                   ) : null}
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" onClick={() => openBuiltInDialog(item.provider)}>
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                  <Button size="sm" className="w-full sm:w-auto" onClick={() => openBuiltInDialog(item.provider)}>
                     {item.kind === "custom" ? "编辑" : "Configure"}
                   </Button>
                   <Button
                     size="sm"
                     variant="secondary"
+                    className="w-full sm:w-auto"
                     onClick={() => {
                       setTestResult("");
                       testMutation.mutate({
@@ -437,6 +441,7 @@ export default function SettingsPage() {
                   <Button
                     size="sm"
                     variant="outline"
+                    className="w-full sm:w-auto"
                     onClick={() => {
                       setActionResult("");
                       refreshModelsMutation.mutate(item.provider);
@@ -451,6 +456,7 @@ export default function SettingsPage() {
                     <Button
                       size="sm"
                       variant="outline"
+                      className="w-full sm:w-auto"
                       onClick={() => {
                         setActionResult("");
                         refreshBalanceMutation.mutate(item.provider);
@@ -477,7 +483,7 @@ export default function SettingsPage() {
           }
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-lg overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {isCreatingCustomProvider
@@ -586,8 +592,9 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
               <Button
+                className="w-full sm:w-auto"
                 onClick={() => {
                   if (isCreatingCustomProvider) {
                     createCustomProviderMutation.mutate({
@@ -630,6 +637,7 @@ export default function SettingsPage() {
 
               <Button
                 variant="secondary"
+                className="w-full sm:w-auto"
                 onClick={() =>
                   testMutation.mutate({
                     provider: editingProvider || "custom_preview",
@@ -647,6 +655,7 @@ export default function SettingsPage() {
               {editingConfig?.kind === "custom" ? (
                 <Button
                   variant="destructive"
+                  className="col-span-2 w-full sm:col-span-1 sm:w-auto"
                   onClick={() => {
                     if (!editingProvider) {
                       return;
@@ -662,7 +671,7 @@ export default function SettingsPage() {
                 </Button>
               ) : null}
             </div>
-            {testResult ? <div className="text-sm text-muted-foreground">{testResult}</div> : null}
+            {testResult ? <div className="break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">{testResult}</div> : null}
           </div>
         </DialogContent>
       </Dialog>

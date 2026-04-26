@@ -16,6 +16,7 @@ import type { DirectorTakeoverLoadedState } from "./novelDirectorTakeoverRuntime
 import { resolveDirectorRunningStateForPhase } from "./novelDirectorTakeoverRuntime";
 import {
   buildContinueExistingDownstreamReset,
+  buildRestartCurrentStepDownstreamReset,
 } from "./novelDirectorTakeoverContinue";
 
 interface TakeoverBootstrapTaskResult {
@@ -169,6 +170,8 @@ function buildTakeoverMetadata(plan: DirectorTakeoverResolvedPlan) {
     effectiveStage: plan.effectiveStage,
     ...(plan.strategy === "continue_existing"
       ? { downstreamReset: buildContinueExistingDownstreamReset(plan) }
+      : plan.strategy === "restart_current_step"
+        ? { downstreamReset: buildRestartCurrentStepDownstreamReset(plan) }
       : {}),
   };
 }

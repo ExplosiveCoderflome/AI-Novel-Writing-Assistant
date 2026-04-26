@@ -6,6 +6,7 @@ import {
   type DirectorAutoApprovalPoint,
 } from "@ai-novel/shared/types/autoDirectorApproval";
 import { Badge } from "@/components/ui/badge";
+import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
 interface AutoDirectorApprovalPointMultiSelectProps {
   value: string[];
@@ -61,7 +62,7 @@ export default function AutoDirectorApprovalPointMultiSelect({
   const selected = normalizeDirectorAutoApprovalPointCodes(value, []);
 
   return (
-    <div className="space-y-3">
+    <div className="min-w-0 space-y-3">
       {groups.map((group) => {
         const points = approvalPoints.filter((item) => item.groupId === group.id);
         if (points.length === 0) {
@@ -71,8 +72,8 @@ export default function AutoDirectorApprovalPointMultiSelect({
         const selectedCount = pointCodes.filter((code) => selected.includes(code)).length;
         const allSelected = selectedCount === pointCodes.length;
         return (
-          <section key={group.id} className="rounded-md border bg-background p-3">
-            <label className="flex items-start gap-3">
+          <section key={group.id} className="min-w-0 rounded-md border bg-background p-3">
+            <label className="flex min-w-0 items-start gap-3">
               <input
                 type="checkbox"
                 className="mt-1"
@@ -80,15 +81,15 @@ export default function AutoDirectorApprovalPointMultiSelect({
                 onChange={(event) => onChange(toggleCodes(selected, pointCodes, event.target.checked))}
               />
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium text-foreground">{group.label}</span>
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <span className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-sm font-medium text-foreground`}>{group.label}</span>
                   <Badge variant="outline">{selectedCount}/{pointCodes.length}</Badge>
                 </div>
-                <div className="mt-1 text-xs leading-5 text-muted-foreground">{group.description}</div>
+                <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{group.description}</div>
               </div>
             </label>
 
-            <div className={`mt-3 grid gap-2 ${compact ? "" : "md:grid-cols-2"}`}>
+            <div className={`mt-3 grid min-w-0 gap-2 ${compact ? "" : "md:grid-cols-2"}`}>
               {points.map((point) => {
                 const checked = selected.includes(point.code);
                 return (
@@ -100,13 +101,13 @@ export default function AutoDirectorApprovalPointMultiSelect({
                       onChange={(event) => onChange(toggleCodes(selected, [point.code], event.target.checked))}
                     />
                     <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-medium text-foreground">{point.label}</span>
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <span className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-sm font-medium text-foreground`}>{point.label}</span>
                         <Badge variant="outline" className={riskClassName(point.riskLevel)}>
                           {riskLabel(point.riskLevel)}
                         </Badge>
                       </div>
-                      <div className="text-xs leading-5 text-muted-foreground">{point.description}</div>
+                      <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{point.description}</div>
                     </div>
                   </label>
                 );

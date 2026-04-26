@@ -582,6 +582,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
           draftWorkspace: workspace,
           taskId,
           entrypoint: "auto_director",
+          persistIntermediateDocuments: true,
           onPhaseStart: async (event) => {
             const update = buildStructuredOutlinePhaseUpdate(event);
             if (!update) {
