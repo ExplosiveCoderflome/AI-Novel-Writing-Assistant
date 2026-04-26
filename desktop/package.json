@@ -2,7 +2,7 @@
   "name": "@ai-novel/desktop",
   "version": "0.2.3",
   "private": true,
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "author": "AI Novel Writing Assistant Team",
   "description": "Windows desktop runtime for AI Novel Writing Assistant v2",
   "productName": "AI Novel Writing Assistant v2",
