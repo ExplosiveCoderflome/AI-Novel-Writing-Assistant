@@ -2,7 +2,6 @@ import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { BuiltinLLMProvider, LLMProvider } from "@ai-novel/shared/types/llm";
 import { z } from "zod";
-import { prisma } from "../db/prisma";
 import { setProviderSecretCache } from "../llm/factory";
 import { getProviderModels, refreshProviderModels } from "../llm/modelCatalog";
 import { llmProviderSchema } from "../llm/providerSchema";
@@ -44,6 +43,7 @@ import {
   MIN_STYLE_EXTRACTION_TIMEOUT_MS,
   saveStyleEngineRuntimeSettings,
 } from "../services/settings/StyleEngineRuntimeSettingsService";
+import { registerCustomProviderRoutes } from "./settings/customProviderRoutes";
 
 const router = Router();
 
@@ -56,22 +56,17 @@ const upsertApiKeySchema = z.object({
   key: z.string().trim().optional(),
   model: z.string().trim().optional(),
   imageModel: z.string().trim().optional(),
-  baseURL: z.union([z.string().trim().url("API URL is invalid."), z.literal("")]).optional(),
+  baseURL: z.union([z.string().trim().url("API URL 格式不正确。"), z.literal("")]).optional(),
   isActive: z.boolean().optional(),
   reasoningEnabled: z.boolean().optional(),
 });
 
-const createCustomProviderSchema = z.object({
-  name: z.string().trim().min(1),
-  key: z.string().trim().optional(),
-  model: z.string().trim().min(1),
-  baseURL: z.string().trim().url("API URL is invalid."),
-  isActive: z.boolean().optional(),
-  reasoningEnabled: z.boolean().optional(),
+const ragEmbeddingProviderSchema = z.object({
+  provider: z.string().trim().min(1).max(120),
 });
 
 const ragSettingsSchema = z.object({
-  embeddingProvider: z.enum(["openai", "siliconflow"]),
+  embeddingProvider: z.string().trim().min(1).max(120),
   embeddingModel: z.string().trim().min(1),
   collectionMode: z.enum(["auto", "manual"]),
   collectionName: z.string().trim().min(1),
@@ -104,10 +99,6 @@ const styleEngineRuntimeSettingsSchema = z.object({
     .int()
     .min(MIN_STYLE_EXTRACTION_TIMEOUT_MS)
     .max(MAX_STYLE_EXTRACTION_TIMEOUT_MS),
-});
-
-const ragEmbeddingProviderSchema = z.object({
-  provider: z.enum(["openai", "siliconflow"]),
 });
 
 type APIKeyRecordLike = {
@@ -166,26 +157,6 @@ function normalizeOptionalText(value: string | null | undefined): string | undef
   }
   const trimmed = value.trim();
   return trimmed || undefined;
-}
-
-function buildCustomProviderId(name: string): string {
-  const normalized = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-  return `custom_${normalized || "provider"}`;
-}
-
-async function ensureUniqueCustomProviderId(name: string): Promise<string> {
-  const baseId = buildCustomProviderId(name);
-  let candidate = baseId;
-  let suffix = 2;
-  while (await secretStore.hasProvider(candidate)) {
-    candidate = `${baseId}_${suffix}`;
-    suffix += 1;
-  }
-  return candidate;
 }
 
 function getFallbackModels(provider: LLMProvider, currentModel?: string): string[] {
@@ -285,6 +256,7 @@ async function buildCustomProviderStatus(item: {
 }
 
 router.use(authMiddleware);
+registerCustomProviderRoutes(router);
 
 router.get("/style-engine-runtime", async (_req, res, next) => {
   try {
@@ -450,107 +422,12 @@ router.get("/api-keys", async (_req, res, next) => {
     res.status(200).json({
       success: true,
       data,
-      message: "Loaded provider settings.",
+      message: "厂商配置已加载。",
     } satisfies ApiResponse<typeof data>);
   } catch (error) {
     next(error);
   }
 });
-
-router.post(
-  "/custom-providers",
-  validate({ body: createCustomProviderSchema }),
-  async (req, res, next) => {
-    try {
-      const body = req.body as z.infer<typeof createCustomProviderSchema>;
-      const provider = await ensureUniqueCustomProviderId(body.name);
-      const createData = {
-        displayName: body.name.trim(),
-        key: normalizeOptionalText(body.key) ?? null,
-        model: body.model.trim(),
-        baseURL: body.baseURL.trim(),
-        isActive: body.isActive ?? true,
-        reasoningEnabled: body.reasoningEnabled ?? true,
-      };
-      const data = await secretStore.createProvider(provider, createData) as APIKeyRecordLike;
-      setProviderSecretCache(provider, data.isActive ? {
-        displayName: data.displayName ?? undefined,
-        key: data.key ?? undefined,
-        model: data.model ?? undefined,
-        baseURL: data.baseURL ?? undefined,
-        reasoningEnabled: data.reasoningEnabled ?? true,
-      } : null);
-      let models = getFallbackModels(provider, data.model ?? undefined);
-      let message = "Created custom provider.";
-      try {
-        models = await refreshProviderModels(provider, data.key ?? undefined, data.baseURL ?? undefined);
-      } catch {
-        message = "Created custom provider, but refreshing models failed. You can refresh them later.";
-      }
-      res.status(201).json({
-        success: true,
-        data: {
-          provider: data.provider,
-          displayName: data.displayName,
-          model: data.model,
-          imageModel: null,
-          baseURL: data.baseURL,
-          isActive: data.isActive,
-          reasoningEnabled: data.reasoningEnabled ?? true,
-          models,
-          imageModels: [],
-          supportsImageGeneration: false,
-        },
-        message,
-      } satisfies ApiResponse<{
-        provider: string;
-        displayName: string | null;
-        model: string | null;
-        imageModel: string | null;
-        baseURL: string | null;
-        isActive: boolean;
-        reasoningEnabled: boolean;
-        models: string[];
-        imageModels: string[];
-        supportsImageGeneration: boolean;
-      }>);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-router.delete(
-  "/custom-providers/:provider",
-  validate({ params: providerSchema }),
-  async (req, res, next) => {
-    try {
-      const { provider } = req.params as z.infer<typeof providerSchema>;
-      if (isBuiltInProvider(provider)) {
-        throw new AppError("Built-in providers cannot be deleted.", 400);
-      }
-      const existing = await secretStore.getProvider(provider);
-      if (!existing) {
-        throw new AppError("Custom provider not found.", 404);
-      }
-      const routeInUse = await prisma.modelRouteConfig.findFirst({
-        where: { provider },
-        select: { taskType: true },
-      });
-      if (routeInUse) {
-        throw new AppError(`Please reassign model route ${routeInUse.taskType} before deleting this provider.`, 400);
-      }
-      await secretStore.deleteProvider(provider);
-      setProviderSecretCache(provider, null);
-      res.status(200).json({
-        success: true,
-        message: "Deleted custom provider.",
-      } satisfies ApiResponse<null>);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
 
 router.get("/api-keys/balances", async (_req, res, next) => {
   try {
@@ -582,7 +459,7 @@ router.put(
       const existing = await secretStore.getProvider(provider);
       const existingRecord = existing as APIKeyRecordLike | null;
       if (!isBuiltInProvider(provider) && !existing) {
-        throw new AppError("Custom provider not found.", 404);
+        throw new AppError("没有找到这个自定义厂商。", 404);
       }
 
       const nextKey = normalizeOptionalText(body.key) ?? normalizeOptionalText(existingRecord?.key);
@@ -599,13 +476,13 @@ router.put(
       const requiresApiKey = providerRequiresApiKey(provider);
 
       if (requiresApiKey && !effectiveKey) {
-        throw new AppError("API key is required.", 400);
+        throw new AppError("请先填写 API Key。", 400);
       }
       if (!isBuiltInProvider(provider) && !nextModel) {
-        throw new AppError("A default model is required for custom providers.", 400);
+        throw new AppError("请先为自定义厂商选择或填写默认模型。", 400);
       }
       if (!isBuiltInProvider(provider) && !nextBaseURL) {
-        throw new AppError("An API URL is required for custom providers.", 400);
+        throw new AppError("请先填写自定义厂商的 API URL。", 400);
       }
 
       const data = (isBuiltInProvider(provider)
@@ -638,11 +515,11 @@ router.put(
       } : null);
 
       let models = getFallbackModels(provider, data.model ?? undefined);
-      let message = "Saved provider settings.";
+      let message = "厂商配置已保存。";
       try {
         models = await refreshProviderModels(provider, effectiveKey, nextBaseURL ?? getProviderEnvBaseUrl(provider));
       } catch {
-        message = "Saved provider settings, but refreshing models failed. You can refresh them later.";
+        message = "厂商配置已保存，但模型列表刷新失败。可以稍后在厂商卡片中刷新。";
       }
 
       res.status(200).json({
@@ -685,7 +562,7 @@ router.post(
     try {
       const { provider } = req.params as z.infer<typeof providerSchema>;
       if (!isBuiltInProvider(provider)) {
-        throw new AppError("Balance refresh is not supported for custom providers.", 400);
+        throw new AppError("自定义厂商暂不支持刷新余额。", 400);
       }
       const keyConfig = await secretStore.getProvider(provider);
       const data = await providerBalanceService.getProviderBalance({
@@ -712,7 +589,7 @@ router.post(
       const keyConfig = await secretStore.getProvider(provider);
       const effectiveKey = normalizeOptionalText(keyConfig?.key) ?? getProviderEnvApiKey(provider);
       if (providerRequiresApiKey(provider) && !effectiveKey) {
-        throw new AppError("Configure an API key before refreshing models.", 400);
+        throw new AppError("请先配置 API Key，再刷新模型列表。", 400);
       }
       const models = await refreshProviderModels(
         provider,
@@ -729,7 +606,7 @@ router.post(
           models,
           currentModel,
         },
-        message: "Refreshed provider models.",
+        message: "模型列表已刷新。",
       } satisfies ApiResponse<{
         provider: string;
         models: string[];

@@ -299,6 +299,31 @@ test("GET /api/rag/jobs returns progress snapshots", async () => {
   }
 });
 
+test("DELETE /api/rag/jobs/finished clears finished job records", async () => {
+  const originalClearFinishedJobs = ragServices.ragJobCleanupService.clearFinishedJobs;
+  ragServices.ragJobCleanupService.clearFinishedJobs = async () => ({
+    deletedCount: 3,
+    activeCount: 1,
+  });
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/rag/jobs/finished`, {
+      method: "DELETE",
+    });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    assert.equal(payload.data.deletedCount, 3);
+    assert.equal(payload.data.activeCount, 1);
+  } finally {
+    ragServices.ragJobCleanupService.clearFinishedJobs = originalClearFinishedJobs;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
 test("POST /api/llm/model-routes/connectivity returns per-task connectivity statuses", async () => {
   const originalTestModelRoutes = llmConnectivityService.testModelRoutes;
   llmConnectivityService.testModelRoutes = async () => ({

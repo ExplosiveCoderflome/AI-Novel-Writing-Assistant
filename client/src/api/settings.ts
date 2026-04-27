@@ -6,7 +6,7 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ModelRouteConfig, ModelRouteTaskType } from "@ai-novel/shared/types/novel";
 import { apiClient } from "./client";
 
-export type EmbeddingProvider = Extract<LLMProvider, "openai" | "siliconflow">;
+export type EmbeddingProvider = LLMProvider;
 
 export interface APIKeyStatus {
   provider: LLMProvider;
@@ -253,7 +253,9 @@ export async function saveRagSettings(payload: {
 }
 
 export async function getRagEmbeddingModels(provider: EmbeddingProvider) {
-  const { data } = await apiClient.get<ApiResponse<RagEmbeddingModelStatus>>(`/settings/rag/models/${provider}`);
+  const { data } = await apiClient.get<ApiResponse<RagEmbeddingModelStatus>>(
+    `/settings/rag/models/${encodeURIComponent(provider)}`,
+  );
   return data;
 }
 
@@ -304,7 +306,7 @@ export async function saveAPIKeySetting(
 export async function createCustomProvider(payload: {
   name: string;
   key?: string;
-  model: string;
+  model?: string;
   baseURL: string;
   isActive?: boolean;
   reasoningEnabled?: boolean;
@@ -320,6 +322,19 @@ export async function createCustomProvider(payload: {
       models: string[];
     }>
   >("/settings/custom-providers", payload);
+  return data;
+}
+
+export async function previewCustomProviderModels(payload: {
+  key?: string;
+  baseURL: string;
+}) {
+  const { data } = await apiClient.post<
+    ApiResponse<{
+      models: string[];
+      defaultModel: string;
+    }>
+  >("/settings/custom-providers/models", payload);
   return data;
 }
 
