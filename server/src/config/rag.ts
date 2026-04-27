@@ -1,6 +1,12 @@
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import {
+  LLM_PROVIDERS,
+  isBuiltinLLMProvider,
+  type LLMProvider,
+} from "@ai-novel/shared/types/llm";
 
-export type EmbeddingProvider = "openai" | "siliconflow";
+export type EmbeddingProvider = LLMProvider;
+
+const DEFAULT_EMBEDDING_PROVIDER: EmbeddingProvider = "openai";
 
 function normalizeOptionalText(value: string | undefined): string | undefined {
   if (typeof value !== "string") {
@@ -28,11 +34,17 @@ function asInt(rawValue: string | undefined, fallback: number, min: number, max:
 }
 
 export function asEmbeddingProvider(rawValue: string | undefined): EmbeddingProvider {
-  const normalized = (rawValue ?? "").trim().toLowerCase();
-  if (normalized === "siliconflow") {
-    return "siliconflow";
+  const trimmed = rawValue?.trim();
+  if (!trimmed) {
+    return DEFAULT_EMBEDDING_PROVIDER;
   }
-  return "openai";
+
+  const normalizedBuiltin = trimmed.toLowerCase();
+  if (isBuiltinLLMProvider(normalizedBuiltin)) {
+    return normalizedBuiltin;
+  }
+
+  return trimmed;
 }
 
 function resolveEmbeddingProviderFromEnv(): EmbeddingProvider {
@@ -87,5 +99,5 @@ export const ragConfig = {
   workerMaxAttempts: asInt(process.env.RAG_WORKER_MAX_ATTEMPTS, 5, 1, 20),
   workerRetryBaseMs: asInt(process.env.RAG_WORKER_RETRY_BASE_MS, 5000, 1000, 300000),
   httpTimeoutMs: asInt(process.env.RAG_HTTP_TIMEOUT_MS, 30000, 1000, 300000),
-  providerPriority: ["openai", "siliconflow"] as Array<Extract<LLMProvider, "openai" | "siliconflow">>,
+  providerPriority: [...LLM_PROVIDERS] as EmbeddingProvider[],
 };

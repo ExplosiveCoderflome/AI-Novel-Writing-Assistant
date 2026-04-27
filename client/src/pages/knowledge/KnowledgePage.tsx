@@ -8,8 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { queryKeys } from "@/api/queryKeys";
 import {
   activateKnowledgeDocumentVersion,
+  clearFinishedRagJobs,
   createKnowledgeDocument,
   createKnowledgeDocumentVersion,
+  deleteRagJob,
   getKnowledgeDocument,
   getRagHealth,
   getRagJobs,
@@ -47,6 +49,7 @@ export default function KnowledgePage() {
   const [versionBusy, setVersionBusy] = useState(false);
   const [recallQuery, setRecallQuery] = useState("");
   const [recallResult, setRecallResult] = useState<KnowledgeRecallTestResult | null>(null);
+  const [ragJobsActionMessage, setRagJobsActionMessage] = useState("");
   const [ragForm, setRagForm] = useState<KnowledgeEmbeddingSettingsFormState>({
     embeddingProvider: "openai",
     embeddingModel: "text-embedding-3-small",
@@ -276,6 +279,28 @@ export default function KnowledgePage() {
     },
   });
 
+  const clearFinishedRagJobsMutation = useMutation({
+    mutationFn: clearFinishedRagJobs,
+    onSuccess: async (response) => {
+      setRagJobsActionMessage(response.message ?? "已清理已结束任务。");
+      await queryClient.invalidateQueries({ queryKey: ragJobsQueryKey });
+    },
+    onError: (error) => {
+      setRagJobsActionMessage(error instanceof Error ? error.message : "清理任务失败。");
+    },
+  });
+
+  const deleteRagJobMutation = useMutation({
+    mutationFn: (jobId: string) => deleteRagJob(jobId),
+    onSuccess: async (response) => {
+      setRagJobsActionMessage(response.message ?? "任务记录已删除。");
+      await queryClient.invalidateQueries({ queryKey: ragJobsQueryKey });
+    },
+    onError: (error) => {
+      setRagJobsActionMessage(error instanceof Error ? error.message : "删除任务失败。");
+    },
+  });
+
   const visibleDocuments = documentsQuery.data?.data ?? [];
   const knowledgeDocumentJobs = useMemo(
     () => (ragJobsQuery.data?.data ?? []).filter((item) => item.ownerType === "knowledge_document"),
@@ -422,6 +447,20 @@ export default function KnowledgePage() {
     });
   };
 
+  const handleClearFinishedRagJobs = () => {
+    if (!window.confirm("清理已结束任务记录？排队中和执行中的任务会保留。")) {
+      return;
+    }
+    clearFinishedRagJobsMutation.mutate();
+  };
+
+  const handleDeleteRagJob = (jobId: string) => {
+    if (!window.confirm("删除这条任务记录？排队中和执行中的任务不能删除。")) {
+      return;
+    }
+    deleteRagJobMutation.mutate(jobId);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -469,6 +508,11 @@ export default function KnowledgePage() {
             ragHealthNotice={ragHealthNotice}
             jobs={ragJobsQuery.data?.data ?? []}
             failedJobs={failedJobs}
+            actionMessage={ragJobsActionMessage}
+            isClearingJobs={clearFinishedRagJobsMutation.isPending}
+            deletingJobId={deleteRagJobMutation.isPending ? deleteRagJobMutation.variables : undefined}
+            onClearFinishedJobs={handleClearFinishedRagJobs}
+            onDeleteJob={handleDeleteRagJob}
           />
         </TabsContent>
 

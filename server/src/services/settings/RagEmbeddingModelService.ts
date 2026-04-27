@@ -1,11 +1,20 @@
 import { prisma } from "../../db/prisma";
 import { type EmbeddingProvider } from "../../config/rag";
 import { getProviderModels } from "../../llm/modelCatalog";
-import { getProviderEnvApiKey, getProviderEnvBaseUrl, PROVIDERS } from "../../llm/providers";
+import {
+  getProviderEnvApiKey,
+  getProviderEnvBaseUrl,
+  getProviderEnvModel,
+  isBuiltInProvider,
+  providerRequiresApiKey,
+  PROVIDERS,
+} from "../../llm/providers";
 
 interface ProviderSecret {
   apiKey?: string;
   baseURL?: string;
+  model?: string;
+  displayName?: string | null;
   isConfigured: boolean;
   isActive: boolean;
 }
@@ -20,7 +29,7 @@ export interface RagEmbeddingModelOptions {
   source: "remote" | "fallback";
 }
 
-const EMBEDDING_MODEL_FALLBACKS: Record<EmbeddingProvider, string[]> = {
+const EMBEDDING_MODEL_FALLBACKS: Partial<Record<string, string[]>> = {
   openai: ["text-embedding-3-small", "text-embedding-3-large"],
   siliconflow: [
     "BAAI/bge-m3",
@@ -31,6 +40,10 @@ const EMBEDDING_MODEL_FALLBACKS: Record<EmbeddingProvider, string[]> = {
     "Qwen/Qwen3-Embedding-4B",
     "Qwen/Qwen3-Embedding-8B",
   ],
+  qwen: ["text-embedding-v4", "text-embedding-v3", "text-embedding-v2"],
+  gemini: ["gemini-embedding-001", "text-embedding-004"],
+  glm: ["embedding-3"],
+  ollama: ["nomic-embed-text", "mxbai-embed-large", "bge-m3", "all-minilm"],
 };
 
 function isMissingTableError(error: unknown): boolean {
@@ -46,21 +59,39 @@ function uniqueModels(models: string[]): string[] {
   return Array.from(new Set(models.map((item) => item.trim()).filter(Boolean)));
 }
 
-function getFallbackModels(provider: EmbeddingProvider): string[] {
-  return uniqueModels(EMBEDDING_MODEL_FALLBACKS[provider]);
+function getFallbackModels(provider: EmbeddingProvider, configuredModel?: string): string[] {
+  const knownModels = EMBEDDING_MODEL_FALLBACKS[provider] ?? [];
+  return uniqueModels([
+    ...knownModels,
+    configuredModel ?? "",
+  ]).filter((model) => isLikelyEmbeddingModel(model));
 }
 
-function filterEmbeddingModels(provider: EmbeddingProvider, models: string[]): string[] {
-  const normalized = uniqueModels(models);
-  if (provider === "openai") {
-    return normalized.filter((model) => /^text-embedding-/i.test(model) || /embedding/i.test(model));
-  }
-  return normalized.filter((model) => /embedding/i.test(model)
+function isLikelyEmbeddingModel(model: string): boolean {
+  return /embedding|embed/i.test(model)
     || /\bbge\b/i.test(model)
     || /\be5\b/i.test(model)
     || /\bgte\b/i.test(model)
     || /\bbce\b/i.test(model)
-    || /jina/i.test(model));
+    || /jina/i.test(model)
+    || /nomic/i.test(model)
+    || /mxbai/i.test(model)
+    || /snowflake/i.test(model)
+    || /arctic/i.test(model)
+    || /\bm3e\b/i.test(model)
+    || /minilm/i.test(model);
+}
+
+function filterEmbeddingModels(models: string[]): string[] {
+  const normalized = uniqueModels(models);
+  return normalized.filter((model) => isLikelyEmbeddingModel(model));
+}
+
+function getProviderDisplayName(provider: EmbeddingProvider, displayName?: string | null): string {
+  if (isBuiltInProvider(provider)) {
+    return PROVIDERS[provider].name;
+  }
+  return displayName?.trim() || provider;
 }
 
 async function resolveProviderSecret(provider: EmbeddingProvider): Promise<ProviderSecret> {
@@ -70,23 +101,32 @@ async function resolveProviderSecret(provider: EmbeddingProvider): Promise<Provi
     });
     const dbApiKey = record?.isActive ? record.key?.trim() : undefined;
     const dbBaseURL = record?.isActive ? record.baseURL?.trim() : undefined;
+    const dbModel = record?.isActive ? record.model?.trim() : undefined;
     const envApiKey = getProviderEnvApiKey(provider)?.trim();
     const envBaseURL = getProviderEnvBaseUrl(provider)?.trim();
+    const envModel = getProviderEnvModel(provider)?.trim();
+    const canRunWithoutApiKey = !isBuiltInProvider(provider) || !providerRequiresApiKey(provider);
     return {
       apiKey: dbApiKey || envApiKey,
       baseURL: dbBaseURL || envBaseURL,
-      isConfigured: Boolean(dbApiKey || envApiKey),
-      isActive: record?.isActive ?? Boolean(envApiKey),
+      model: dbModel || envModel,
+      displayName: record?.displayName ?? null,
+      isConfigured: Boolean(dbApiKey || envApiKey) || (canRunWithoutApiKey && Boolean(dbBaseURL || envBaseURL || isBuiltInProvider(provider))),
+      isActive: record?.isActive ?? (Boolean(envApiKey) || canRunWithoutApiKey),
     };
   } catch (error) {
     if (isMissingTableError(error)) {
       const envApiKey = getProviderEnvApiKey(provider)?.trim();
       const envBaseURL = getProviderEnvBaseUrl(provider)?.trim();
+      const envModel = getProviderEnvModel(provider)?.trim();
+      const canRunWithoutApiKey = !isBuiltInProvider(provider) || !providerRequiresApiKey(provider);
       return {
         apiKey: envApiKey,
         baseURL: envBaseURL,
-        isConfigured: Boolean(envApiKey),
-        isActive: Boolean(envApiKey),
+        model: envModel,
+        displayName: null,
+        isConfigured: Boolean(envApiKey) || (canRunWithoutApiKey && Boolean(envBaseURL || isBuiltInProvider(provider))),
+        isActive: Boolean(envApiKey) || canRunWithoutApiKey,
       };
     }
     throw error;
@@ -97,15 +137,18 @@ export async function getRagEmbeddingModelOptions(
   provider: EmbeddingProvider,
 ): Promise<RagEmbeddingModelOptions> {
   const secret = await resolveProviderSecret(provider);
-  const fallbackModels = getFallbackModels(provider);
+  const fallbackModels = getFallbackModels(provider, secret.model);
 
   let remoteModels: string[] = [];
-  if (secret.apiKey) {
+  if (secret.apiKey || (secret.isActive && !providerRequiresApiKey(provider))) {
     const fetchedModels = await getProviderModels(provider, {
       apiKey: secret.apiKey,
       baseURL: secret.baseURL,
+      allowAnonymous: !providerRequiresApiKey(provider),
+      fallbackModel: secret.model,
+      fallbackModels,
     });
-    remoteModels = filterEmbeddingModels(provider, fetchedModels);
+    remoteModels = filterEmbeddingModels(fetchedModels);
   }
 
   const models = uniqueModels([
@@ -115,7 +158,7 @@ export async function getRagEmbeddingModelOptions(
 
   return {
     provider,
-    name: PROVIDERS[provider].name,
+    name: getProviderDisplayName(provider, secret.displayName),
     models,
     defaultModel: fallbackModels[0] ?? models[0] ?? "",
     isConfigured: secret.isConfigured,
