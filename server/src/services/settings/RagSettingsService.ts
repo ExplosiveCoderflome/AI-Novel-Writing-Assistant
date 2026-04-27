@@ -1,6 +1,12 @@
 import { prisma } from "../../db/prisma";
 import { ragConfig, asEmbeddingProvider, type EmbeddingProvider } from "../../config/rag";
-import { getProviderEnvApiKey, PROVIDERS } from "../../llm/providers";
+import {
+  getProviderEnvApiKey,
+  isBuiltInProvider,
+  providerRequiresApiKey,
+  PROVIDERS,
+  SUPPORTED_PROVIDERS,
+} from "../../llm/providers";
 import {
   getLegacyProviderEmbeddingModelEnv,
   isMissingTableError,
@@ -116,6 +122,17 @@ function normalizeCollectionTag(value: string | undefined): string {
 
 function normalizeCollectionName(value: string | undefined, fallback: string): string {
   return slugifySegment(value ?? fallback, slugifySegment(fallback, DEFAULT_RAG_COLLECTION_NAME)).slice(0, 120);
+}
+
+function uniqueProviders(providers: string[]): EmbeddingProvider[] {
+  return Array.from(new Set(providers.map((item) => item.trim()).filter(Boolean))) as EmbeddingProvider[];
+}
+
+function getProviderDisplayName(provider: EmbeddingProvider, displayName?: string | null): string {
+  if (isBuiltInProvider(provider)) {
+    return PROVIDERS[provider].name;
+  }
+  return normalizeOptionalText(displayName ?? undefined) ?? provider;
 }
 
 function buildAutoCollectionName(
@@ -359,35 +376,49 @@ export async function saveRagEmbeddingSettings(input: RagEmbeddingSettingsInput)
 }
 
 export async function getRagEmbeddingProviders(): Promise<RagEmbeddingProviderStatus[]> {
-  const providers: EmbeddingProvider[] = ["openai", "siliconflow"];
+  const builtInProviders = [...SUPPORTED_PROVIDERS];
   try {
     const items = await prisma.aPIKey.findMany({
-      where: {
-        provider: {
-          in: providers,
-        },
+      select: {
+        provider: true,
+        displayName: true,
+        key: true,
+        baseURL: true,
+        isActive: true,
       },
     });
     const itemMap = new Map(items.map((item) => [item.provider, item]));
+    const providers = uniqueProviders([
+      ...builtInProviders,
+      ...items
+        .filter((item) => !isBuiltInProvider(item.provider))
+        .map((item) => item.provider),
+    ]);
     return providers.map((provider) => {
       const item = itemMap.get(provider);
-      const envApiKey = normalizeOptionalText(getProviderEnvApiKey(provider));
+      const envApiKey = isBuiltInProvider(provider)
+        ? normalizeOptionalText(getProviderEnvApiKey(provider))
+        : undefined;
+      const configuredSecret = normalizeOptionalText(item?.key ?? undefined) ?? envApiKey;
+      const configuredBaseUrl = normalizeOptionalText(item?.baseURL ?? undefined);
+      const canRunWithoutApiKey = !isBuiltInProvider(provider) || !providerRequiresApiKey(provider);
       return {
         provider,
-        name: PROVIDERS[provider].name,
-        isConfigured: Boolean(normalizeOptionalText(item?.key) ?? envApiKey),
-        isActive: item?.isActive ?? Boolean(envApiKey),
+        name: getProviderDisplayName(provider, item?.displayName),
+        isConfigured: Boolean(configuredSecret) || (canRunWithoutApiKey && Boolean(configuredBaseUrl || isBuiltInProvider(provider))),
+        isActive: item?.isActive ?? (Boolean(envApiKey) || canRunWithoutApiKey),
       };
     });
   } catch (error) {
     if (isMissingTableError(error)) {
-      return providers.map((provider) => {
+      return builtInProviders.map((provider) => {
         const envApiKey = normalizeOptionalText(getProviderEnvApiKey(provider));
+        const canRunWithoutApiKey = !providerRequiresApiKey(provider);
         return {
           provider,
           name: PROVIDERS[provider].name,
-          isConfigured: Boolean(envApiKey),
-          isActive: Boolean(envApiKey),
+          isConfigured: Boolean(envApiKey) || canRunWithoutApiKey,
+          isActive: Boolean(envApiKey) || canRunWithoutApiKey,
         };
       });
     }

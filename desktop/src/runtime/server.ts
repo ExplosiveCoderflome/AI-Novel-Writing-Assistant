@@ -14,6 +14,8 @@ import {
 
 type DesktopServerMode = "external" | "managed";
 
+const DESKTOP_SQLITE_DATABASE_URL = "file:./dev.db";
+
 export interface DesktopServerHandle {
   mode: DesktopServerMode;
   port: number;
@@ -239,6 +241,8 @@ function startPackagedManagedServer(port: number): ManagedDesktopProcess {
       NODE_ENV: "production",
       AI_NOVEL_RUNTIME: "desktop",
       AI_NOVEL_APP_DATA_DIR: resolveDesktopAppDataDir(),
+      AI_NOVEL_DATABASE_MODE: "sqlite",
+      DATABASE_URL: DESKTOP_SQLITE_DATABASE_URL,
       PORT: String(port),
       HOST: "127.0.0.1",
       ALLOW_LAN: "false",

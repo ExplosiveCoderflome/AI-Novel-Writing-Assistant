@@ -46,6 +46,11 @@ export interface RagJobSummary {
   updatedAt: string;
 }
 
+export interface RagJobCleanupResult {
+  deletedCount: number;
+  activeCount: number;
+}
+
 export interface RagHealthStatus {
   embedding: {
     ok: boolean;
@@ -209,6 +214,20 @@ export async function getRagJobs(params?: {
   const { data } = await apiClient.get<ApiResponse<RagJobSummary[]>>("/rag/jobs", {
     params,
   });
+  return data;
+}
+
+export async function clearFinishedRagJobs() {
+  const { data } = await apiClient.delete<ApiResponse<RagJobCleanupResult>>("/rag/jobs/finished");
+  return data;
+}
+
+export async function deleteRagJob(jobId: string) {
+  const { data } = await apiClient.delete<ApiResponse<{
+    jobId: string;
+    deletedCount: number;
+    status: RagJobSummary["status"];
+  }>>(`/rag/jobs/${jobId}`);
   return data;
 }
 
