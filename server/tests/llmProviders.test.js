@@ -76,6 +76,58 @@ test("structured output profiles distinguish official, ModelScope Qwen and unkno
   assert.equal(openaiProfile.nativeJsonSchema, true);
   assert.equal(selectStructuredOutputStrategy(openaiProfile, schema), "json_schema");
 
+  const glmBehindProxyProfile = resolveStructuredOutputProfile({
+    provider: "openai",
+    model: "glm-5",
+    baseURL: "https://aiproxy.example.com/v1",
+    executionMode: "structured",
+  });
+  assert.equal(glmBehindProxyProfile.family, "glm");
+  assert.equal(glmBehindProxyProfile.nativeJsonSchema, false);
+  assert.equal(glmBehindProxyProfile.nativeJsonObject, true);
+  assert.equal(selectStructuredOutputStrategy(glmBehindProxyProfile, schema), "json_object");
+
+  const kimiBehindProxyProfile = resolveStructuredOutputProfile({
+    provider: "openai",
+    model: "kimi-k2.5",
+    baseURL: "https://aiproxy.example.com/v1",
+    executionMode: "structured",
+  });
+  assert.equal(kimiBehindProxyProfile.family, "kimi");
+  assert.equal(kimiBehindProxyProfile.nativeJsonSchema, false);
+  assert.equal(kimiBehindProxyProfile.nativeJsonObject, true);
+  assert.equal(selectStructuredOutputStrategy(kimiBehindProxyProfile, schema), "json_object");
+
+  const minimaxBehindProxyProfile = resolveStructuredOutputProfile({
+    provider: "openai",
+    model: "MiniMax-M2.5",
+    baseURL: "https://aiproxy.example.com/v1",
+    executionMode: "structured",
+  });
+  assert.equal(minimaxBehindProxyProfile.family, "minimax");
+  assert.equal(minimaxBehindProxyProfile.nativeJsonSchema, false);
+  assert.equal(selectStructuredOutputStrategy(minimaxBehindProxyProfile, schema), "prompt_json");
+
+  const qwenBehindProxyProfile = resolveStructuredOutputProfile({
+    provider: "openai",
+    model: "qwen3.6-plus",
+    baseURL: "https://aiproxy.example.com/v1",
+    executionMode: "structured",
+  });
+  assert.equal(qwenBehindProxyProfile.family, "custom_openai_compatible_qwen");
+  assert.equal(qwenBehindProxyProfile.nativeJsonSchema, false);
+  assert.equal(selectStructuredOutputStrategy(qwenBehindProxyProfile, schema), "prompt_json");
+
+  const deepseekBehindProxyProfile = resolveStructuredOutputProfile({
+    provider: "openai",
+    model: "deepseek-chat",
+    baseURL: "https://aiproxy.example.com/v1",
+    executionMode: "structured",
+  });
+  assert.equal(deepseekBehindProxyProfile.family, "deepseek");
+  assert.equal(deepseekBehindProxyProfile.nativeJsonSchema, false);
+  assert.equal(selectStructuredOutputStrategy(deepseekBehindProxyProfile, schema), "json_object");
+
   const kimiProfile = resolveStructuredOutputProfile({
     provider: "kimi",
     model: "kimi-k2.5",
@@ -156,6 +208,14 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     displayName: "ModelScope Qwen",
     reasoningEnabled: true,
   });
+  setProviderSecretCache("qwen", {
+    key: "test-key",
+    reasoningEnabled: true,
+  });
+  setProviderSecretCache("openai", {
+    key: "test-key",
+    reasoningEnabled: true,
+  });
 
   try {
     const modelscope = await resolveLLMClientOptions("custom_modelscope", {
@@ -168,6 +228,7 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     assert.equal(modelscope.reasoningForcedOff, true);
     assert.equal(modelscope.modelKwargs?.enable_thinking, false);
     assert.equal(modelscope.maxTokens, 8192);
+    assert.equal(modelscope.requestProtocol, "openai_compatible");
 
     const qwen = await resolveLLMClientOptions("qwen", {
       apiKey: "test-key",
@@ -182,6 +243,7 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     assert.equal(qwen.reasoningForcedOff, true);
     assert.equal(qwen.modelKwargs?.enable_thinking, false);
     assert.equal(qwen.maxTokens, undefined);
+    assert.equal(qwen.requestProtocol, "openai_compatible");
 
     const qwenThinking = await resolveLLMClientOptions("qwen", {
       apiKey: "test-key",
@@ -196,8 +258,22 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     assert.equal(qwenThinking.reasoningForcedOff, false);
     assert.equal(qwenThinking.modelKwargs?.enable_thinking, undefined);
     assert.equal(qwenThinking.maxTokens, 8192);
+    assert.equal(qwenThinking.requestProtocol, "openai_compatible");
+
+    const anthropicProtocol = await resolveLLMClientOptions("openai", {
+      apiKey: "test-key",
+      model: "claude-sonnet-4-5",
+      baseURL: "https://aiproxy.example.com/v1",
+      requestProtocol: "anthropic",
+      executionMode: "structured",
+      structuredStrategy: "prompt_json",
+    });
+    assert.equal(anthropicProtocol.requestProtocol, "anthropic");
+    assert.equal(anthropicProtocol.structuredProfile?.family, "anthropic");
   } finally {
     setProviderSecretCache("custom_modelscope", null);
+    setProviderSecretCache("qwen", null);
+    setProviderSecretCache("openai", null);
   }
 });
 

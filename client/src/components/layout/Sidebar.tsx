@@ -80,6 +80,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const taskQuery = useQuery({
     queryKey: queryKeys.tasks.overview,
     queryFn: getTaskOverview,
+    staleTime: 30_000,
     refetchInterval: (query) => {
       const overview = query.state.data?.data;
       return (overview?.queuedCount ?? 0) > 0 || (overview?.runningCount ?? 0) > 0 ? 4000 : false;

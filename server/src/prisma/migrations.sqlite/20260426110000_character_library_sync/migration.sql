@@ -1,4 +1,4 @@
-CREATE TABLE "BaseCharacterRevision" (
+CREATE TABLE IF NOT EXISTS "BaseCharacterRevision" (
   "id" TEXT NOT NULL PRIMARY KEY,
   "baseCharacterId" TEXT NOT NULL,
   "version" INTEGER NOT NULL,
@@ -10,7 +10,7 @@ CREATE TABLE "BaseCharacterRevision" (
   CONSTRAINT "BaseCharacterRevision_baseCharacterId_fkey" FOREIGN KEY ("baseCharacterId") REFERENCES "BaseCharacter" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE "CharacterLibraryLink" (
+CREATE TABLE IF NOT EXISTS "CharacterLibraryLink" (
   "id" TEXT NOT NULL PRIMARY KEY,
   "novelId" TEXT NOT NULL,
   "characterId" TEXT NOT NULL,
@@ -28,7 +28,7 @@ CREATE TABLE "CharacterLibraryLink" (
   CONSTRAINT "CharacterLibraryLink_baseRevisionId_fkey" FOREIGN KEY ("baseRevisionId") REFERENCES "BaseCharacterRevision" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
-CREATE TABLE "CharacterSyncProposal" (
+CREATE TABLE IF NOT EXISTS "CharacterSyncProposal" (
   "id" TEXT NOT NULL PRIMARY KEY,
   "novelId" TEXT,
   "characterId" TEXT,
@@ -53,13 +53,13 @@ CREATE TABLE "CharacterSyncProposal" (
   CONSTRAINT "CharacterSyncProposal_baseRevisionId_fkey" FOREIGN KEY ("baseRevisionId") REFERENCES "BaseCharacterRevision" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
-CREATE UNIQUE INDEX "BaseCharacterRevision_baseCharacterId_version_key" ON "BaseCharacterRevision"("baseCharacterId", "version");
-CREATE INDEX "BaseCharacterRevision_baseCharacterId_createdAt_idx" ON "BaseCharacterRevision"("baseCharacterId", "createdAt");
-CREATE UNIQUE INDEX "CharacterLibraryLink_characterId_key" ON "CharacterLibraryLink"("characterId");
-CREATE INDEX "CharacterLibraryLink_novelId_linkStatus_updatedAt_idx" ON "CharacterLibraryLink"("novelId", "linkStatus", "updatedAt");
-CREATE INDEX "CharacterLibraryLink_baseCharacterId_linkStatus_updatedAt_idx" ON "CharacterLibraryLink"("baseCharacterId", "linkStatus", "updatedAt");
-CREATE INDEX "CharacterLibraryLink_baseRevisionId_idx" ON "CharacterLibraryLink"("baseRevisionId");
-CREATE INDEX "CharacterSyncProposal_novelId_status_updatedAt_idx" ON "CharacterSyncProposal"("novelId", "status", "updatedAt");
-CREATE INDEX "CharacterSyncProposal_characterId_status_updatedAt_idx" ON "CharacterSyncProposal"("characterId", "status", "updatedAt");
-CREATE INDEX "CharacterSyncProposal_baseCharacterId_status_updatedAt_idx" ON "CharacterSyncProposal"("baseCharacterId", "status", "updatedAt");
-CREATE INDEX "CharacterSyncProposal_baseRevisionId_idx" ON "CharacterSyncProposal"("baseRevisionId");
+CREATE UNIQUE INDEX IF NOT EXISTS "BaseCharacterRevision_baseCharacterId_version_key" ON "BaseCharacterRevision"("baseCharacterId", "version");
+CREATE INDEX IF NOT EXISTS "BaseCharacterRevision_baseCharacterId_createdAt_idx" ON "BaseCharacterRevision"("baseCharacterId", "createdAt");
+CREATE UNIQUE INDEX IF NOT EXISTS "CharacterLibraryLink_characterId_key" ON "CharacterLibraryLink"("characterId");
+CREATE INDEX IF NOT EXISTS "CharacterLibraryLink_novelId_linkStatus_updatedAt_idx" ON "CharacterLibraryLink"("novelId", "linkStatus", "updatedAt");
+CREATE INDEX IF NOT EXISTS "CharacterLibraryLink_baseCharacterId_linkStatus_updatedAt_idx" ON "CharacterLibraryLink"("baseCharacterId", "linkStatus", "updatedAt");
+CREATE INDEX IF NOT EXISTS "CharacterLibraryLink_baseRevisionId_idx" ON "CharacterLibraryLink"("baseRevisionId");
+CREATE INDEX IF NOT EXISTS "CharacterSyncProposal_novelId_status_updatedAt_idx" ON "CharacterSyncProposal"("novelId", "status", "updatedAt");
+CREATE INDEX IF NOT EXISTS "CharacterSyncProposal_characterId_status_updatedAt_idx" ON "CharacterSyncProposal"("characterId", "status", "updatedAt");
+CREATE INDEX IF NOT EXISTS "CharacterSyncProposal_baseCharacterId_status_updatedAt_idx" ON "CharacterSyncProposal"("baseCharacterId", "status", "updatedAt");
+CREATE INDEX IF NOT EXISTS "CharacterSyncProposal_baseRevisionId_idx" ON "CharacterSyncProposal"("baseRevisionId");

@@ -6,6 +6,7 @@ import type {
   VolumePlanDiff,
   VolumePlanDocument,
   VolumePlanVersion,
+  VolumePlanVersionSummary,
   VolumeSyncPreview,
 } from "@ai-novel/shared/types/novel";
 import {
@@ -22,7 +23,6 @@ import { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import { StyleBindingService } from "../../styleEngine/StyleBindingService";
 import { buildWriterStyleContractText } from "../../styleEngine/styleContractText";
 import {
-  buildTaskSheetFromVolumeChapter,
   hasPayoffLedgerRelevantPlanChanges,
   hasPayoffLedgerSourceSignals,
   buildVolumeDiff,
@@ -39,6 +39,7 @@ import {
   type VolumeImpactInput,
   type VolumeSyncInput,
   mapVersionRow,
+  mapVersionSummaryRow,
 } from "./volumeModels";
 import {
   activateStorylineVersionCompat,
@@ -59,6 +60,7 @@ import {
   getActiveVersionRow,
   getLatestVersionRow,
   persistActiveVolumeWorkspace,
+  runVolumeWorkspaceTransaction,
 } from "./volumeWorkspacePersistence";
 import {
   resolveVolumeGenerationTelemetryItemKey,
@@ -128,7 +130,7 @@ export class NovelVolumeService {
       chapterCount: document.volumes.reduce((sum, volume) => sum + volume.chapters.length, 0),
       beatSheetCount: document.beatSheets.length,
     });
-    const persistedDocument = await prisma.$transaction(async (tx) => {
+    const persistedDocument = await runVolumeWorkspaceTransaction(async (tx) => {
       const { versionId } = await this.ensureActiveVersionRecord(tx, novelId, document);
       const nextDocument = {
         ...document,
@@ -353,13 +355,42 @@ export class NovelVolumeService {
     return persistedDocument;
   }
 
-  async listVolumeVersions(novelId: string): Promise<VolumePlanVersion[]> {
+  async listVolumeVersions(novelId: string): Promise<VolumePlanVersionSummary[]> {
+    await this.ensureVolumeWorkspace(novelId);
+    const rows = await prisma.volumePlanVersion.findMany({
+      where: { novelId },
+      select: {
+        id: true,
+        novelId: true,
+        version: true,
+        status: true,
+        diffSummary: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: [{ version: "desc" }],
+    });
+    return rows.map(mapVersionSummaryRow);
+  }
+
+  private async listVolumeVersionsWithContent(novelId: string): Promise<VolumePlanVersion[]> {
     await this.ensureVolumeWorkspace(novelId);
     const rows = await prisma.volumePlanVersion.findMany({
       where: { novelId },
       orderBy: [{ version: "desc" }],
     });
     return rows.map(mapVersionRow);
+  }
+
+  async getVolumeVersion(novelId: string, versionId: string): Promise<VolumePlanVersion> {
+    await this.ensureVolumeWorkspace(novelId);
+    const row = await prisma.volumePlanVersion.findFirst({
+      where: { id: versionId, novelId },
+    });
+    if (!row) {
+      throw new Error("卷级版本不存在。");
+    }
+    return mapVersionRow(row);
   }
 
   async createVolumeDraft(novelId: string, input: VolumeDraftInput): Promise<VolumePlanVersion> {
@@ -409,7 +440,7 @@ export class NovelVolumeService {
     if (document.volumes.length === 0) {
       throw new Error("卷级版本内容为空。");
     }
-    await prisma.$transaction(async (tx) => {
+    await runVolumeWorkspaceTransaction(async (tx) => {
       await tx.volumePlanVersion.updateMany({
         where: { novelId, status: "active" },
         data: { status: "frozen" },
@@ -551,7 +582,7 @@ export class NovelVolumeService {
       },
     );
 
-    await prisma.$transaction(async (tx) => {
+    await runVolumeWorkspaceTransaction(async (tx) => {
       const { versionId } = await this.ensureActiveVersionRecord(tx, novelId, mergedDocument);
       const persistedDocument = {
         ...mergedDocument,
@@ -566,7 +597,6 @@ export class NovelVolumeService {
       });
       await persistActiveVolumeWorkspace(tx, novelId, persistedDocument, versionId);
       for (const item of plan.creates) {
-        const taskSheet = item.chapter.taskSheet?.trim() || buildTaskSheetFromVolumeChapter(item.chapter);
         await tx.chapter.create({
           data: {
             novelId,
@@ -578,13 +608,12 @@ export class NovelVolumeService {
             conflictLevel: item.chapter.conflictLevel ?? null,
             revealLevel: item.chapter.revealLevel ?? null,
             mustAvoid: item.chapter.mustAvoid ?? null,
-            taskSheet,
+            taskSheet: item.chapter.taskSheet?.trim() || null,
             sceneCards: item.chapter.sceneCards ?? null,
           },
         });
       }
       for (const item of plan.updates) {
-        const taskSheet = item.chapter.taskSheet?.trim() || buildTaskSheetFromVolumeChapter(item.chapter);
         await tx.chapter.updateMany({
           where: { id: item.chapterId, novelId },
           data: {
@@ -595,7 +624,7 @@ export class NovelVolumeService {
             conflictLevel: item.chapter.conflictLevel ?? null,
             revealLevel: item.chapter.revealLevel ?? null,
             mustAvoid: item.chapter.mustAvoid ?? null,
-            taskSheet,
+            taskSheet: item.chapter.taskSheet?.trim() || null,
             sceneCards: item.chapter.sceneCards ?? null,
             ...(!item.preserveWorkflowState
               ? {
@@ -721,7 +750,7 @@ export class NovelVolumeService {
       throw new Error("章节执行合同中的场景预算无效。");
     }
 
-    const persistedChapter = await prisma.$transaction(async (tx) => {
+    const persistedChapter = await runVolumeWorkspaceTransaction(async (tx) => {
       const { versionId } = await this.ensureActiveVersionRecord(
         tx,
         novelId,
@@ -852,7 +881,7 @@ export class NovelVolumeService {
   async listStorylineVersionsCompat(novelId: string): Promise<StorylineVersion[]> {
     return listStorylineVersionsCompat({
       novelId,
-      listVolumeVersions: () => this.listVolumeVersions(novelId),
+      listVolumeVersions: () => this.listVolumeVersionsWithContent(novelId),
       parseVersionContent: (contentJson) => this.parseVersionContent(novelId, contentJson),
     });
   }

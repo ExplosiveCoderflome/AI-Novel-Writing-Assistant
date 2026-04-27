@@ -851,15 +851,18 @@ export interface VolumePlan {
   updatedAt: string;
 }
 
-export interface VolumePlanVersion {
+export interface VolumePlanVersionSummary {
   id: string;
   novelId: string;
   version: number;
   status: VolumePlanVersionStatus;
-  contentJson: string;
   diffSummary?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface VolumePlanVersion extends VolumePlanVersionSummary {
+  contentJson: string;
 }
 
 export interface VolumePlanDocument {
@@ -977,7 +980,26 @@ export interface ModelRouteConfig {
   model: string;
   temperature: number;
   maxTokens?: number | null;
+  requestProtocol?: ModelRouteRequestProtocol;
+  structuredResponseFormat?: ModelRouteStructuredResponseFormat;
 }
+
+export const MODEL_ROUTE_REQUEST_PROTOCOLS = [
+  "auto",
+  "openai_compatible",
+  "anthropic",
+] as const;
+
+export type ModelRouteRequestProtocol = typeof MODEL_ROUTE_REQUEST_PROTOCOLS[number];
+
+export const MODEL_ROUTE_STRUCTURED_RESPONSE_FORMATS = [
+  "auto",
+  "json_schema",
+  "json_object",
+  "prompt_json",
+] as const;
+
+export type ModelRouteStructuredResponseFormat = typeof MODEL_ROUTE_STRUCTURED_RESPONSE_FORMATS[number];
 
 export type {
   ChapterRuntimePackage,

@@ -168,6 +168,10 @@ export function initializeDesktopUpdater(options: DesktopUpdaterOptions): Deskto
   const checkForUpdates = async (): Promise<void> => {
     try {
       const snapshot = desktopUpdaterStore.getSnapshot();
+      if (snapshot.status === "checking" || snapshot.status === "downloading" || snapshot.status === "downloaded") {
+        return;
+      }
+
       if (snapshot.status === "update-available") {
         appendDesktopLog("desktop.updater", `Downloading approved update ${snapshot.availableVersion ?? "unknown"}.`);
         markUpdaterSnapshot(createUpdaterSnapshot({
@@ -190,7 +194,7 @@ export function initializeDesktopUpdater(options: DesktopUpdaterOptions): Deskto
     }
   };
 
-  const scheduleInitialCheck = (delayMs = 12_000): void => {
+  const scheduleInitialCheck = (delayMs = 1_000): void => {
     const timer = setTimeout(() => {
       void checkForUpdates().catch((error) => {
         logDesktopError("desktop.updater.schedule", error);

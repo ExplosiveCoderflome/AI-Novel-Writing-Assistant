@@ -107,6 +107,12 @@ interface StartDirectorTakeoverExecutionInput {
     directorInput: DirectorConfirmRequest;
     plan: DirectorTakeoverResolvedPlan;
   }) => Promise<void>;
+  resetDownstreamState?: (input: {
+    request: DirectorTakeoverRequest;
+    takeoverState: DirectorTakeoverLoadedState;
+    directorInput: DirectorConfirmRequest;
+    plan: DirectorTakeoverResolvedPlan;
+  }) => Promise<void>;
   cancelReplacedRuns?: (input: {
     request: DirectorTakeoverRequest;
     takeoverState: DirectorTakeoverLoadedState;
@@ -172,6 +178,24 @@ function buildTakeoverMetadata(plan: DirectorTakeoverResolvedPlan) {
       ? { downstreamReset: buildContinueExistingDownstreamReset(plan) }
       : plan.strategy === "restart_current_step"
         ? { downstreamReset: buildRestartCurrentStepDownstreamReset(plan) }
+      : {}),
+  };
+}
+
+function buildTakeoverSeedPayloadExtra(input: {
+  directorSession: DirectorSessionState;
+  resumeTarget: ReturnType<typeof buildResumeTargetFromPlan>;
+  plan: DirectorTakeoverResolvedPlan;
+  takeoverState: DirectorTakeoverLoadedState;
+  rewriteSnapshot: RewriteSnapshotReference | null;
+}) {
+  return {
+    directorSession: input.directorSession,
+    resumeTarget: input.resumeTarget,
+    takeover: buildTakeoverMetadata(input.plan),
+    ...(input.rewriteSnapshot ? { rewriteSnapshot: input.rewriteSnapshot } : {}),
+    ...(input.plan.executionMode === "auto_execution" && input.plan.usesCurrentBatch
+      ? { autoExecution: input.takeoverState.latestAutoExecutionState ?? null }
       : {}),
   };
 }
@@ -251,6 +275,18 @@ export async function startDirectorTakeoverExecution(
       plan,
     });
   }
+  if (
+    selection.strategy === "continue_existing"
+    && selection.entryStep === "structured"
+    && plan.effectiveStep === "structured"
+  ) {
+    await input.resetDownstreamState?.({
+      request: input.request,
+      takeoverState: input.takeoverState,
+      directorInput: input.directorInput,
+      plan,
+    });
+  }
 
   const initialResumeTarget = buildResumeTargetFromPlan({
     novelId: input.request.novelId,
@@ -263,12 +299,13 @@ export async function startDirectorTakeoverExecution(
     lane: "auto_director",
     title: input.takeoverState.novel.title,
     forceNew: true,
-    seedPayload: input.buildDirectorSeedPayload(input.directorInput, input.request.novelId, {
+    seedPayload: input.buildDirectorSeedPayload(input.directorInput, input.request.novelId, buildTakeoverSeedPayloadExtra({
       directorSession,
       resumeTarget: initialResumeTarget,
-      takeover: buildTakeoverMetadata(plan),
-      ...(rewriteSnapshot ? { rewriteSnapshot } : {}),
-    }),
+      plan,
+      takeoverState: input.takeoverState,
+      rewriteSnapshot,
+    })),
   });
 
   if (rewriteSnapshot) {

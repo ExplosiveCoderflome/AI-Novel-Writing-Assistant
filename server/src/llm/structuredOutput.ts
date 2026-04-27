@@ -1,5 +1,6 @@
 import { toJSONSchema, type ZodType } from "zod";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
 import { isBuiltInProvider } from "./providers";
 
 export type StructuredExecutionMode = "plain" | "structured";
@@ -141,6 +142,7 @@ export function resolveStructuredOutputProfile(input: {
   model?: string;
   baseURL?: string;
   executionMode?: StructuredExecutionMode;
+  requestProtocol?: ModelRouteRequestProtocol;
 }): StructuredOutputProfile {
   const provider = normalizeText(input.provider);
   const model = normalizeText(input.model);
@@ -153,12 +155,11 @@ export function resolveStructuredOutputProfile(input: {
   const isDashScopeQwen = input.provider === "qwen" || DASHSCOPE_HOST_PATTERN.test(host);
   const isModelScopeQwen = MODELSCOPE_HOST_PATTERN.test(host) || provider.includes("modelscope");
 
-  if (input.provider === "openai" || OPENAI_HOST_PATTERN.test(host)) {
+  if (input.requestProtocol === "anthropic") {
     return buildProfile({
-      family: "openai",
-      nativeJsonSchema: true,
-      nativeJsonObject: true,
-      preferredStructuredStrategy: "json_schema",
+      family: "anthropic",
+      preferredStructuredStrategy: "prompt_json",
+      safeStructuredMaxTokens: 8192,
     });
   }
   if (input.provider === "gemini" || GEMINI_HOST_PATTERN.test(host)) {
@@ -169,7 +170,14 @@ export function resolveStructuredOutputProfile(input: {
       preferredStructuredStrategy: "json_schema",
     });
   }
-  if (input.provider === "kimi" || MOONSHOT_HOST_PATTERN.test(host)) {
+  if (input.provider === "glm" || GLM_HOST_PATTERN.test(host) || model.startsWith("glm-")) {
+    return buildProfile({
+      family: "glm",
+      nativeJsonObject: true,
+      preferredStructuredStrategy: "json_object",
+    });
+  }
+  if (input.provider === "kimi" || MOONSHOT_HOST_PATTERN.test(host) || model.startsWith("kimi-")) {
     const supportsJsonObject = !model.includes("thinking");
     return buildProfile({
       family: "kimi",
@@ -177,21 +185,14 @@ export function resolveStructuredOutputProfile(input: {
       preferredStructuredStrategy: supportsJsonObject ? "json_object" : "prompt_json",
     });
   }
-  if (input.provider === "deepseek" || DEEPSEEK_HOST_PATTERN.test(host)) {
+  if (input.provider === "deepseek" || DEEPSEEK_HOST_PATTERN.test(host) || model.startsWith("deepseek-")) {
     return buildProfile({
       family: "deepseek",
       nativeJsonObject: true,
       preferredStructuredStrategy: "json_object",
     });
   }
-  if (input.provider === "glm" || GLM_HOST_PATTERN.test(host)) {
-    return buildProfile({
-      family: "glm",
-      nativeJsonObject: true,
-      preferredStructuredStrategy: "json_object",
-    });
-  }
-  if (input.provider === "grok" || GROK_HOST_PATTERN.test(host)) {
+  if (input.provider === "grok" || GROK_HOST_PATTERN.test(host) || model.startsWith("grok-")) {
     return buildProfile({
       family: "grok",
       nativeJsonObject: true,
@@ -223,6 +224,21 @@ export function resolveStructuredOutputProfile(input: {
       requiresNonThinkingForStructured: qwenMixedThinkingModel && !qwenThinkingOnlyModel,
       supportsReasoningToggle: qwenMixedThinkingModel && !qwenThinkingOnlyModel,
       safeStructuredMaxTokens: 8192,
+    });
+  }
+  if (qwenFamily) {
+    return buildProfile({
+      family: "custom_openai_compatible_qwen",
+      preferredStructuredStrategy: "prompt_json",
+      safeStructuredMaxTokens: 8192,
+    });
+  }
+  if (input.provider === "openai" || OPENAI_HOST_PATTERN.test(host)) {
+    return buildProfile({
+      family: "openai",
+      nativeJsonSchema: true,
+      nativeJsonObject: true,
+      preferredStructuredStrategy: "json_schema",
     });
   }
   if (input.provider === "anthropic") {

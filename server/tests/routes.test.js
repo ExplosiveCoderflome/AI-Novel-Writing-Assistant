@@ -553,6 +553,8 @@ test("GET /api/settings/api-keys exposes custom OpenAI-compatible providers", as
       baseURL: "https://gateway.example.com/v1",
       isActive: true,
       reasoningEnabled: true,
+      concurrencyLimit: 3,
+      requestIntervalMs: 5000,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -576,6 +578,8 @@ test("GET /api/settings/api-keys exposes custom OpenAI-compatible providers", as
     assert.equal(custom.requiresApiKey, false);
     assert.equal(custom.isConfigured, true);
     assert.equal(custom.reasoningEnabled, true);
+    assert.equal(custom.concurrencyLimit, 3);
+    assert.equal(custom.requestIntervalMs, 5000);
   } finally {
     prisma.aPIKey.findMany = originalFindMany;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -596,6 +600,8 @@ test("PUT /api/settings/api-keys/ollama saves custom baseURL without requiring a
     baseURL: create.baseURL,
     isActive: create.isActive,
     reasoningEnabled: create.reasoningEnabled,
+    concurrencyLimit: create.concurrencyLimit,
+    requestIntervalMs: create.requestIntervalMs,
     createdAt: new Date(),
     updatedAt: new Date(),
   });
@@ -620,6 +626,8 @@ test("PUT /api/settings/api-keys/ollama saves custom baseURL without requiring a
       body: JSON.stringify({
         model: "qwen3:8b",
         baseURL: "http://127.0.0.1:11434/v1",
+        concurrencyLimit: 2,
+        requestIntervalMs: 3000,
       }),
     });
     assert.equal(response.status, 200);
@@ -629,6 +637,8 @@ test("PUT /api/settings/api-keys/ollama saves custom baseURL without requiring a
     assert.equal(payload.data.model, "qwen3:8b");
     assert.equal(payload.data.baseURL, "http://127.0.0.1:11434/v1");
     assert.equal(payload.data.reasoningEnabled, true);
+    assert.equal(payload.data.concurrencyLimit, 2);
+    assert.equal(payload.data.requestIntervalMs, 3000);
     assert.ok(payload.data.models.includes("qwen3:8b"));
   } finally {
     prisma.aPIKey.findUnique = originalFindUnique;

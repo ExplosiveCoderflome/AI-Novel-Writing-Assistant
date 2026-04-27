@@ -46,6 +46,8 @@ import {
 import { registerCustomProviderRoutes } from "./settings/customProviderRoutes";
 
 const router = Router();
+const MAX_PROVIDER_CONCURRENCY_LIMIT = 100;
+const MAX_PROVIDER_REQUEST_INTERVAL_MS = 3_600_000;
 
 const providerSchema = z.object({
   provider: llmProviderSchema,
@@ -59,6 +61,8 @@ const upsertApiKeySchema = z.object({
   baseURL: z.union([z.string().trim().url("API URL 格式不正确。"), z.literal("")]).optional(),
   isActive: z.boolean().optional(),
   reasoningEnabled: z.boolean().optional(),
+  concurrencyLimit: z.coerce.number().int().min(0).max(MAX_PROVIDER_CONCURRENCY_LIMIT).optional(),
+  requestIntervalMs: z.coerce.number().int().min(0).max(MAX_PROVIDER_REQUEST_INTERVAL_MS).optional(),
 });
 
 const ragEmbeddingProviderSchema = z.object({
@@ -109,6 +113,8 @@ type APIKeyRecordLike = {
   baseURL: string | null;
   isActive: boolean;
   reasoningEnabled?: boolean | null;
+  concurrencyLimit?: number | null;
+  requestIntervalMs?: number | null;
 };
 
 type BuiltInProviderStatus = {
@@ -128,6 +134,8 @@ type BuiltInProviderStatus = {
   isConfigured: boolean;
   isActive: boolean;
   reasoningEnabled: boolean;
+  concurrencyLimit: number;
+  requestIntervalMs: number;
   supportsImageGeneration: boolean;
 };
 
@@ -148,6 +156,8 @@ type CustomProviderStatus = {
   isConfigured: boolean;
   isActive: boolean;
   reasoningEnabled: boolean;
+  concurrencyLimit: number;
+  requestIntervalMs: number;
   supportsImageGeneration: false;
 };
 
@@ -157,6 +167,13 @@ function normalizeOptionalText(value: string | null | undefined): string | undef
   }
   const trimmed = value.trim();
   return trimmed || undefined;
+}
+
+function normalizeProviderLimit(value: number | null | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return 0;
+  }
+  return Math.floor(value);
 }
 
 function getFallbackModels(provider: LLMProvider, currentModel?: string): string[] {
@@ -173,6 +190,8 @@ async function buildBuiltInProviderStatus(
     baseURL?: string | null;
     isActive?: boolean;
     reasoningEnabled?: boolean | null;
+    concurrencyLimit?: number | null;
+    requestIntervalMs?: number | null;
   } | undefined,
   imageModel: string | undefined,
 ): Promise<BuiltInProviderStatus> {
@@ -213,6 +232,8 @@ async function buildBuiltInProviderStatus(
     isConfigured,
     isActive: item?.isActive ?? isConfigured,
     reasoningEnabled: item?.reasoningEnabled ?? true,
+    concurrencyLimit: normalizeProviderLimit(item?.concurrencyLimit),
+    requestIntervalMs: normalizeProviderLimit(item?.requestIntervalMs),
     supportsImageGeneration,
   };
 }
@@ -225,6 +246,8 @@ async function buildCustomProviderStatus(item: {
   baseURL: string | null;
   isActive: boolean;
   reasoningEnabled?: boolean | null;
+  concurrencyLimit?: number | null;
+  requestIntervalMs?: number | null;
 }): Promise<CustomProviderStatus> {
   const currentModel = normalizeOptionalText(item.model) ?? "";
   const currentBaseURL = normalizeOptionalText(item.baseURL) ?? "";
@@ -251,6 +274,8 @@ async function buildCustomProviderStatus(item: {
     isConfigured: Boolean(currentModel && currentBaseURL),
     isActive: item.isActive,
     reasoningEnabled: item.reasoningEnabled ?? true,
+    concurrencyLimit: normalizeProviderLimit(item.concurrencyLimit),
+    requestIntervalMs: normalizeProviderLimit(item.requestIntervalMs),
     supportsImageGeneration: false,
   };
 }
@@ -473,6 +498,8 @@ router.put(
         ? normalizeOptionalText(body.displayName) ?? normalizeOptionalText(existingRecord?.displayName) ?? provider
         : undefined;
       const nextReasoningEnabled = body.reasoningEnabled ?? existingRecord?.reasoningEnabled ?? true;
+      const nextConcurrencyLimit = body.concurrencyLimit ?? normalizeProviderLimit(existingRecord?.concurrencyLimit);
+      const nextRequestIntervalMs = body.requestIntervalMs ?? normalizeProviderLimit(existingRecord?.requestIntervalMs);
       const requiresApiKey = providerRequiresApiKey(provider);
 
       if (requiresApiKey && !effectiveKey) {
@@ -492,6 +519,8 @@ router.put(
           baseURL: nextBaseURL ?? null,
           isActive: body.isActive ?? true,
           reasoningEnabled: nextReasoningEnabled,
+          concurrencyLimit: nextConcurrencyLimit,
+          requestIntervalMs: nextRequestIntervalMs,
         })
         : await secretStore.updateProvider(provider, {
           displayName: nextDisplayName,
@@ -500,6 +529,8 @@ router.put(
           baseURL: nextBaseURL ?? null,
           isActive: body.isActive ?? existingRecord?.isActive ?? true,
           reasoningEnabled: nextReasoningEnabled,
+          concurrencyLimit: nextConcurrencyLimit,
+          requestIntervalMs: nextRequestIntervalMs,
         })) as APIKeyRecordLike;
 
       const currentImageModel = body.imageModel !== undefined
@@ -512,6 +543,8 @@ router.put(
         model: data.model ?? undefined,
         baseURL: data.baseURL ?? undefined,
         reasoningEnabled: data.reasoningEnabled ?? true,
+        concurrencyLimit: data.concurrencyLimit ?? 0,
+        requestIntervalMs: data.requestIntervalMs ?? 0,
       } : null);
 
       let models = getFallbackModels(provider, data.model ?? undefined);
@@ -532,6 +565,8 @@ router.put(
           baseURL: data.baseURL,
           isActive: data.isActive,
           reasoningEnabled: data.reasoningEnabled ?? true,
+          concurrencyLimit: normalizeProviderLimit(data.concurrencyLimit),
+          requestIntervalMs: normalizeProviderLimit(data.requestIntervalMs),
           models,
           imageModels: supportsImageModelSettings(provider) ? getImageModelOptions(provider) : [],
           supportsImageGeneration: supportsImageModelSettings(provider),
@@ -545,6 +580,8 @@ router.put(
         baseURL: string | null;
         isActive: boolean;
         reasoningEnabled: boolean;
+        concurrencyLimit: number;
+        requestIntervalMs: number;
         models: string[];
         imageModels: string[];
         supportsImageGeneration: boolean;

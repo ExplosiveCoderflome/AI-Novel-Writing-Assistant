@@ -15,6 +15,7 @@ const {
 const {
   buildVolumeWorkspaceDocument,
 } = require("../dist/services/novel/volume/volumeWorkspaceDocument.js");
+const { prisma } = require("../dist/db/prisma.js");
 
 function buildDirectorInput(overrides = {}) {
   return {
@@ -61,6 +62,9 @@ function createVolumeChapter(input) {
     title: input.title ?? `第${input.chapterOrder}章`,
     summary: input.summary ?? `第${input.chapterOrder}章摘要`,
     purpose: input.purpose ?? null,
+    exclusiveEvent: input.exclusiveEvent ?? null,
+    endingState: input.endingState ?? null,
+    nextChapterEntryState: input.nextChapterEntryState ?? null,
     conflictLevel: input.conflictLevel ?? null,
     revealLevel: input.revealLevel ?? null,
     targetWordCount: input.targetWordCount ?? null,
@@ -71,6 +75,53 @@ function createVolumeChapter(input) {
     createdAt: new Date(0).toISOString(),
     updatedAt: new Date(0).toISOString(),
   };
+}
+
+function createSceneCards(chapter) {
+  return JSON.stringify({
+    targetWordCount: chapter.targetWordCount ?? 2600,
+    lengthBudget: {
+      targetWordCount: chapter.targetWordCount ?? 2600,
+      softMinWordCount: 2200,
+      softMaxWordCount: 3000,
+      hardMaxWordCount: 3400,
+    },
+    scenes: [
+      {
+        key: `${chapter.id}-scene-1`,
+        title: "起势",
+        purpose: "推进目标",
+        mustAdvance: ["主线"],
+        mustPreserve: ["人物动机"],
+        entryState: "进入冲突",
+        exitState: "压力升级",
+        forbiddenExpansion: [],
+        targetWordCount: 800,
+      },
+      {
+        key: `${chapter.id}-scene-2`,
+        title: "交锋",
+        purpose: "制造压力",
+        mustAdvance: ["冲突"],
+        mustPreserve: ["设定边界"],
+        entryState: "压力升级",
+        exitState: "代价显形",
+        forbiddenExpansion: [],
+        targetWordCount: 900,
+      },
+      {
+        key: `${chapter.id}-scene-3`,
+        title: "落点",
+        purpose: "形成钩子",
+        mustAdvance: ["章末推进"],
+        mustPreserve: ["后续入口"],
+        entryState: "代价显形",
+        exitState: "进入下一章",
+        forbiddenExpansion: [],
+        targetWordCount: 900,
+      },
+    ],
+  });
 }
 
 function createStructuredOutlineWorkspace() {
@@ -109,6 +160,10 @@ function createStructuredOutlineWorkspace() {
             targetWordCount: 2400,
             mustAvoid: "避免跑题",
             taskSheet: "执行任务单",
+            sceneCards: createSceneCards({
+              id: "volume-1-chapter-1",
+              targetWordCount: 2400,
+            }),
           }),
         ],
         createdAt: new Date(0).toISOString(),
@@ -486,7 +541,10 @@ test("continueTask resumes auto execution in the background instead of blocking 
   const runtimeCalls = [];
 
   service.continueCandidateStageTask = async () => false;
-  service.resolveAssetFirstRecovery = async () => null;
+  service.resolveAssetFirstRecovery = async () => ({
+    type: "auto_execution",
+    resumeCheckpointType: "chapter_batch_ready",
+  });
   service.workflowService.getTaskById = async () => ({
     id: "task_auto_execution_resume",
     lane: "auto_director",
@@ -569,7 +627,119 @@ test("continueTask resumes auto execution in the background instead of blocking 
   }
 });
 
+test("continueTask resumes structured outline when stale front10 checkpoint lacks a fully detailed range", async () => {
+  const service = new NovelDirectorService();
+  const originalContinueCandidateStageTask = service.continueCandidateStageTask;
+  const originalGetTaskById = service.workflowService.getTaskById;
+  const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
+  const originalAssertHighMemoryDirectorStartAllowed = service.assertHighMemoryDirectorStartAllowed;
+  const originalBootstrapTask = service.workflowService.bootstrapTask;
+  const originalMarkTaskRunning = service.workflowService.markTaskRunning;
+  const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
+  const originalRunDirectorPipeline = service.runDirectorPipeline;
+  const originalRunFromReady = service.autoExecutionRuntime.runFromReady;
+  const bootstrapCalls = [];
+  const runningCalls = [];
+  const scheduledRuns = [];
+  const pipelineRuns = [];
+  const runtimeCalls = [];
+
+  service.continueCandidateStageTask = async () => false;
+  service.resolveAssetFirstRecovery = async () => ({
+    type: "phase",
+    phase: "structured_outline",
+  });
+  service.assertHighMemoryDirectorStartAllowed = async () => undefined;
+  service.workflowService.getTaskById = async () => ({
+    id: "task_stale_front10_resume",
+    lane: "auto_director",
+    status: "waiting_approval",
+    pendingManualRecovery: false,
+    novelId: "novel_stale_front10_resume",
+    checkpointType: "front10_ready",
+    currentItemKey: "front10_ready",
+    resumeTargetJson: JSON.stringify({
+      stage: "structured_outline",
+      volumeId: "volume_1",
+    }),
+    seedPayloadJson: JSON.stringify({
+      directorInput: buildDirectorInput({
+        workflowTaskId: "task_stale_front10_resume",
+        runMode: "auto_to_execution",
+      }),
+      directorSession: {
+        runMode: "auto_to_execution",
+        phase: "front10_ready",
+        isBackgroundRunning: false,
+        lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
+        reviewScope: null,
+      },
+      autoExecution: {
+        enabled: true,
+        mode: "chapter_range",
+        scopeLabel: "第 1-10 章",
+        startOrder: 1,
+        endOrder: 10,
+        totalChapterCount: 10,
+        nextChapterId: "chapter_1",
+        nextChapterOrder: 1,
+      },
+    }),
+  });
+  service.workflowService.bootstrapTask = async (input) => {
+    bootstrapCalls.push(input);
+    return { id: "task_stale_front10_resume" };
+  };
+  service.workflowService.markTaskRunning = async (taskId, input) => {
+    runningCalls.push({ taskId, ...input });
+    return null;
+  };
+  service.scheduleBackgroundRun = (taskId, runner) => {
+    scheduledRuns.push({ taskId, runner });
+  };
+  service.runDirectorPipeline = async (input) => {
+    pipelineRuns.push(input);
+  };
+  service.autoExecutionRuntime.runFromReady = async (input) => {
+    runtimeCalls.push(input);
+  };
+
+  try {
+    await service.continueTask("task_stale_front10_resume", {
+      continuationMode: "auto_execute_range",
+    });
+
+    assert.equal(bootstrapCalls.length, 1);
+    assert.equal(runningCalls.length, 1);
+    assert.equal(runningCalls[0].stage, "structured_outline");
+    assert.equal(scheduledRuns.length, 1);
+    assert.equal(runtimeCalls.length, 0);
+
+    await scheduledRuns[0].runner();
+
+    assert.equal(pipelineRuns.length, 1);
+    assert.equal(pipelineRuns[0].taskId, "task_stale_front10_resume");
+    assert.equal(pipelineRuns[0].novelId, "novel_stale_front10_resume");
+    assert.equal(pipelineRuns[0].startPhase, "structured_outline");
+    assert.equal(runtimeCalls.length, 0);
+  } finally {
+    service.continueCandidateStageTask = originalContinueCandidateStageTask;
+    service.workflowService.getTaskById = originalGetTaskById;
+    service.resolveAssetFirstRecovery = originalResolveAssetFirstRecovery;
+    service.assertHighMemoryDirectorStartAllowed = originalAssertHighMemoryDirectorStartAllowed;
+    service.workflowService.bootstrapTask = originalBootstrapTask;
+    service.workflowService.markTaskRunning = originalMarkTaskRunning;
+    service.scheduleBackgroundRun = originalScheduleBackgroundRun;
+    service.runDirectorPipeline = originalRunDirectorPipeline;
+    service.autoExecutionRuntime.runFromReady = originalRunFromReady;
+  }
+});
+
 test("runDirectorStructuredOutlinePhase resumes from the first incomplete beat and missing detail mode", async () => {
+  const originals = {
+    chapterFindMany: prisma.chapter.findMany,
+    transaction: prisma.$transaction,
+  };
   const baseWorkspace = createStructuredOutlineWorkspace();
   const chapterListCompletedWorkspace = buildVolumeWorkspaceDocument({
     ...baseWorkspace,
@@ -603,8 +773,19 @@ test("runDirectorStructuredOutlinePhase resumes from the first incomplete beat a
           ...volume,
           chapters: volume.chapters.map((chapter) => ({
             ...chapter,
+            purpose: chapter.purpose ?? "第二卷章节目标",
+            exclusiveEvent: "第二卷章节独占事件",
+            endingState: "第二卷章节结束态",
+            nextChapterEntryState: "第二卷章节下章入口",
+            conflictLevel: chapter.conflictLevel ?? 3,
+            revealLevel: chapter.revealLevel ?? 2,
+            targetWordCount: chapter.targetWordCount ?? 2600,
+            mustAvoid: chapter.mustAvoid ?? "不要提前透底",
             taskSheet: "第二卷章节任务单",
-            sceneCards: JSON.stringify([{ key: `${chapter.id}-scene-1`, title: "第二卷章节场景" }]),
+            sceneCards: createSceneCards({
+              ...chapter,
+              targetWordCount: chapter.targetWordCount ?? 2600,
+            }),
           })),
         }
         : volume
@@ -616,86 +797,115 @@ test("runDirectorStructuredOutlinePhase resumes from the first incomplete beat a
   const runningUpdates = [];
   const workflowRunningCalls = [];
   const checkpointCalls = [];
+  prisma.chapter.findMany = async () => [{ id: "volume-2-chapter-1" }];
+  prisma.$transaction = async (callback) => callback({
+    chapter: { updateMany: async () => ({ count: 1 }) },
+    chapterSummary: { deleteMany: async () => ({ count: 0 }) },
+    consistencyFact: { deleteMany: async () => ({ count: 0 }) },
+    characterTimeline: { deleteMany: async () => ({ count: 0 }) },
+    characterCandidate: { deleteMany: async () => ({ count: 0 }) },
+    characterFactionTrack: { deleteMany: async () => ({ count: 0 }) },
+    characterRelationStage: { deleteMany: async () => ({ count: 0 }) },
+    qualityReport: { deleteMany: async () => ({ count: 0 }) },
+    auditReport: { deleteMany: async () => ({ count: 0 }) },
+    stateChangeProposal: { deleteMany: async () => ({ count: 0 }) },
+    openConflict: { deleteMany: async () => ({ count: 0 }) },
+    storyStateSnapshot: { deleteMany: async () => ({ count: 0 }) },
+  });
 
-  await runDirectorStructuredOutlinePhase({
-    taskId: "task_structured_resume",
-    novelId: "novel_resume_outline",
-    request: buildDirectorInput({
-      workflowTaskId: "task_structured_resume",
-      runMode: "auto_to_execution",
-      autoExecutionPlan: {
-        mode: "volume",
-        volumeOrder: 2,
-      },
-    }),
-    baseWorkspace,
-    dependencies: {
-      workflowService: {
-        bootstrapTask: async () => ({ id: "task_structured_resume" }),
-        markTaskRunning: async (taskId, input) => {
-          workflowRunningCalls.push({ taskId, ...input });
-          return null;
+  try {
+    await runDirectorStructuredOutlinePhase({
+      taskId: "task_structured_resume",
+      novelId: "novel_resume_outline",
+      request: buildDirectorInput({
+        workflowTaskId: "task_structured_resume",
+        runMode: "auto_to_execution",
+        autoExecutionPlan: {
+          mode: "volume",
+          volumeOrder: 2,
         },
-        recordCheckpoint: async (taskId, input) => {
-          checkpointCalls.push({ taskId, ...input });
-          return null;
+      }),
+      baseWorkspace,
+      dependencies: {
+        workflowService: {
+          bootstrapTask: async () => ({ id: "task_structured_resume" }),
+          markTaskRunning: async (taskId, input) => {
+            workflowRunningCalls.push({ taskId, ...input });
+            return null;
+          },
+          recordCheckpoint: async (taskId, input) => {
+            checkpointCalls.push({ taskId, ...input });
+            return null;
+          },
         },
-      },
-      novelContextService: {
-        listChapters: async () => [
+        novelContextService: {
+          listChapters: async () => [
           {
             id: "volume-2-chapter-1",
-            order: 1,
+            order: 2,
             generationState: "planned",
+              conflictLevel: 3,
+              revealLevel: 2,
+              targetWordCount: 2600,
+              mustAvoid: "不要提前透底",
+              taskSheet: "第二卷章节任务单",
+              sceneCards: createSceneCards({
+                id: "volume-2-chapter-1",
+                targetWordCount: 2600,
+              }),
+            },
+          ],
+          updateNovel: async () => null,
+        },
+        characterDynamicsService: {
+          rebuildDynamics: async () => null,
+        },
+        characterPreparationService: {},
+        volumeService: {
+          generateVolumes: async (novelId, options) => {
+            generateCalls.push({ novelId, ...options });
+            if (options.scope === "chapter_list") {
+              return chapterListCompletedWorkspace;
+            }
+            if (options.scope === "chapter_detail") {
+              return detailCompletedWorkspace;
+            }
+            throw new Error(`unexpected scope: ${options.scope}`);
           },
-        ],
-        updateNovel: async () => null,
-      },
-      characterDynamicsService: {
-        rebuildDynamics: async () => null,
-      },
-      characterPreparationService: {},
-      volumeService: {
-        generateVolumes: async (novelId, options) => {
-          generateCalls.push({ novelId, ...options });
-          if (options.scope === "chapter_list") {
-            return chapterListCompletedWorkspace;
-          }
-          if (options.scope === "chapter_detail") {
-            return detailCompletedWorkspace;
-          }
-          throw new Error(`unexpected scope: ${options.scope}`);
+          updateVolumes: async (novelId, workspace) => {
+            persistCalls.push({ novelId, workspace });
+            return workspace;
+          },
+          updateVolumesWithOptions: async (novelId, workspace) => {
+            persistCalls.push({ novelId, workspace });
+            return workspace;
+          },
+          syncVolumeChapters: async () => ({ preview: [] }),
+          syncVolumeChaptersWithOptions: async () => ({ preview: [] }),
         },
-        updateVolumes: async (novelId, workspace) => {
-          persistCalls.push({ novelId, workspace });
-          return workspace;
-        },
-        updateVolumesWithOptions: async (novelId, workspace) => {
-          persistCalls.push({ novelId, workspace });
-          return workspace;
-        },
-        syncVolumeChapters: async () => ({ preview: [] }),
-        syncVolumeChaptersWithOptions: async () => ({ preview: [] }),
       },
-    },
-    callbacks: {
-      buildDirectorSeedPayload: (request, novelId, extra = {}) => ({
-        directorInput: request,
-        novelId,
-        ...extra,
-      }),
-      markDirectorTaskRunning: async (taskId, stage, itemKey, itemLabel, progress, options) => {
-        runningUpdates.push({
-          taskId,
-          stage,
-          itemKey,
-          itemLabel,
-          progress,
-          options,
-        });
+      callbacks: {
+        buildDirectorSeedPayload: (request, novelId, extra = {}) => ({
+          directorInput: request,
+          novelId,
+          ...extra,
+        }),
+        markDirectorTaskRunning: async (taskId, stage, itemKey, itemLabel, progress, options) => {
+          runningUpdates.push({
+            taskId,
+            stage,
+            itemKey,
+            itemLabel,
+            progress,
+            options,
+          });
+        },
       },
-    },
-  });
+    });
+  } finally {
+    prisma.chapter.findMany = originals.chapterFindMany;
+    prisma.$transaction = originals.transaction;
+  }
 
   assert.deepEqual(
     generateCalls.map((call) => ({

@@ -22,7 +22,7 @@ import type {
   VolumePlan,
   VolumePlanningReadiness,
   VolumePlanDiff,
-  VolumePlanVersion,
+  VolumePlanVersionSummary,
   VolumeRebalanceDecision,
   VolumeStrategyPlan,
   VolumeCritiqueReport,
@@ -168,7 +168,7 @@ export interface OutlineTabViewProps {
   onSave: () => void;
   isSaving: boolean;
   volumeMessage: string;
-  volumeVersions: VolumePlanVersion[];
+  volumeVersions: VolumePlanVersionSummary[];
   selectedVersionId: string;
   onSelectedVersionChange: (id: string) => void;
   onCreateDraftVersion: () => void;

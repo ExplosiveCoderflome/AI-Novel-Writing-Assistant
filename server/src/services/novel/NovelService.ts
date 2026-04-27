@@ -63,6 +63,10 @@ export class NovelService extends NovelPipelineService {
     return this.volumeService.listVolumeVersions(...args);
   }
 
+  getVolumeVersion(...args: Parameters<NovelVolumeService["getVolumeVersion"]>) {
+    return this.volumeService.getVolumeVersion(...args);
+  }
+
   createVolumeDraft(...args: Parameters<NovelVolumeService["createVolumeDraft"]>) {
     return this.volumeService.createVolumeDraft(...args);
   }

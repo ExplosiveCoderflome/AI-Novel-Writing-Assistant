@@ -1,6 +1,6 @@
 import { HumanMessage, type BaseMessage, type BaseMessageChunk } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { getLLM } from "../../llm/factory";
+import { getLLM, getResolvedLLMClientOptionsFromInstance } from "../../llm/factory";
 import {
   invokeStructuredLlmDetailed,
   parseStructuredLlmRawContentDetailed,
@@ -665,21 +665,16 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
     taskType: input.asset.taskType,
     promptMeta: prepared.invocation,
     executionMode: "structured",
-    structuredStrategy: selectStructuredOutputStrategy(
-      resolveStructuredOutputProfile({
-        provider: input.options?.provider ?? "deepseek",
-        model: input.options?.model,
-        executionMode: "structured",
-      }),
-      outputSchema,
-    ),
   });
-  const profile = resolveStructuredOutputProfile({
-    provider: input.options?.provider ?? "deepseek",
-    model: input.options?.model,
+  const resolvedLLM = getResolvedLLMClientOptionsFromInstance(llm);
+  const profile = resolvedLLM?.structuredProfile ?? resolveStructuredOutputProfile({
+    provider: resolvedLLM?.provider ?? input.options?.provider ?? "deepseek",
+    model: resolvedLLM?.model ?? input.options?.model,
+    baseURL: resolvedLLM?.baseURL,
+    requestProtocol: resolvedLLM?.requestProtocol,
     executionMode: "structured",
   });
-  const strategy = selectStructuredOutputStrategy(profile, outputSchema);
+  const strategy = resolvedLLM?.structuredStrategy ?? selectStructuredOutputStrategy(profile, outputSchema);
   const invokeOptions: Record<string, unknown> = {};
   const responseFormat = buildStructuredResponseFormat({
     strategy,

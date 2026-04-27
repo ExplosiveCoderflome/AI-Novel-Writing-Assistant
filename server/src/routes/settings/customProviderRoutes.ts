@@ -10,6 +10,9 @@ import { AppError } from "../../middleware/errorHandler";
 import { validate } from "../../middleware/validate";
 import { secretStore } from "../../services/settings/secretStore";
 
+const MAX_PROVIDER_CONCURRENCY_LIMIT = 100;
+const MAX_PROVIDER_REQUEST_INTERVAL_MS = 3_600_000;
+
 const providerSchema = z.object({
   provider: llmProviderSchema,
 });
@@ -21,6 +24,8 @@ const createCustomProviderSchema = z.object({
   baseURL: z.string().trim().url("API URL 格式不正确。"),
   isActive: z.boolean().optional(),
   reasoningEnabled: z.boolean().optional(),
+  concurrencyLimit: z.coerce.number().int().min(0).max(MAX_PROVIDER_CONCURRENCY_LIMIT).optional(),
+  requestIntervalMs: z.coerce.number().int().min(0).max(MAX_PROVIDER_REQUEST_INTERVAL_MS).optional(),
 });
 
 const customProviderModelsSchema = z.object({
@@ -36,6 +41,8 @@ type APIKeyRecordLike = {
   baseURL: string | null;
   isActive: boolean;
   reasoningEnabled?: boolean | null;
+  concurrencyLimit?: number | null;
+  requestIntervalMs?: number | null;
 };
 
 function normalizeOptionalText(value: string | null | undefined): string | undefined {
@@ -44,6 +51,13 @@ function normalizeOptionalText(value: string | null | undefined): string | undef
   }
   const trimmed = value.trim();
   return trimmed || undefined;
+}
+
+function normalizeProviderLimit(value: number | null | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return 0;
+  }
+  return Math.floor(value);
 }
 
 function buildCustomProviderId(name: string): string {
@@ -138,6 +152,8 @@ export function registerCustomProviderRoutes(router: Router): void {
           baseURL,
           isActive: body.isActive ?? true,
           reasoningEnabled: body.reasoningEnabled ?? true,
+          concurrencyLimit: body.concurrencyLimit ?? 0,
+          requestIntervalMs: body.requestIntervalMs ?? 0,
         }) as APIKeyRecordLike;
         setProviderSecretCache(provider, data.isActive ? {
           displayName: data.displayName ?? undefined,
@@ -145,6 +161,8 @@ export function registerCustomProviderRoutes(router: Router): void {
           model: data.model ?? undefined,
           baseURL: data.baseURL ?? undefined,
           reasoningEnabled: data.reasoningEnabled ?? true,
+          concurrencyLimit: data.concurrencyLimit ?? 0,
+          requestIntervalMs: data.requestIntervalMs ?? 0,
         } : null);
         res.status(201).json({
           success: true,
@@ -156,6 +174,8 @@ export function registerCustomProviderRoutes(router: Router): void {
             baseURL: data.baseURL,
             isActive: data.isActive,
             reasoningEnabled: data.reasoningEnabled ?? true,
+            concurrencyLimit: normalizeProviderLimit(data.concurrencyLimit),
+            requestIntervalMs: normalizeProviderLimit(data.requestIntervalMs),
             models,
             imageModels: [],
             supportsImageGeneration: false,
@@ -169,6 +189,8 @@ export function registerCustomProviderRoutes(router: Router): void {
           baseURL: string | null;
           isActive: boolean;
           reasoningEnabled: boolean;
+          concurrencyLimit: number;
+          requestIntervalMs: number;
           models: string[];
           imageModels: string[];
           supportsImageGeneration: boolean;

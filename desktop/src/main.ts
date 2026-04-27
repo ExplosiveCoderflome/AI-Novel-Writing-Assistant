@@ -81,12 +81,25 @@ function closeSplashWindow(): void {
   splashWindow = null;
 }
 
-function maybeScheduleUpdateCheck(): void {
+function initializeDesktopUpdaterController(): void {
+  if (updaterController) {
+    return;
+  }
+
+  updaterController = initializeDesktopUpdater({
+    currentVersion: app.getVersion(),
+    updateChannel: resolveDesktopUpdateChannel(),
+    isPackaged: app.isPackaged,
+    isPortable: isPortableDesktopRuntime(),
+  });
+}
+
+function maybeScheduleUpdateCheck(delayMs?: number): void {
   if (initialUpdateCheckScheduled || !updaterController) {
     return;
   }
 
-  updaterController.scheduleInitialCheck();
+  updaterController.scheduleInitialCheck(delayMs);
   initialUpdateCheckScheduled = true;
 }
 
@@ -337,6 +350,8 @@ async function bootstrapDesktopApp(): Promise<void> {
     detail: "正在准备桌面运行时环境和随包资源。",
     canRetry: false,
   }));
+  initializeDesktopUpdaterController();
+  maybeScheduleUpdateCheck(1_000);
 
   const pendingImportPath = extractPendingDatabaseImportPath(process.argv);
   if (pendingImportPath) {
@@ -356,13 +371,6 @@ async function bootstrapDesktopApp(): Promise<void> {
   mainWindow.on("closed", () => {
     mainWindow = null;
     mainWindowShown = false;
-  });
-
-  updaterController = initializeDesktopUpdater({
-    currentVersion: app.getVersion(),
-    updateChannel: resolveDesktopUpdateChannel(),
-    isPackaged: app.isPackaged,
-    isPortable: isPortableDesktopRuntime(),
   });
 
   appendBootstrapStage("server-starting", `Starting desktop server on 127.0.0.1:${port}.`);
@@ -533,6 +541,8 @@ function registerStoreBroadcasts(): void {
 
 async function handleBootstrapFailure(error: unknown): Promise<void> {
   bootstrapFailed = true;
+  initializeDesktopUpdaterController();
+  maybeScheduleUpdateCheck(0);
   const errorMessage = error instanceof Error ? error.message : String(error);
   setBootstrapSnapshot(createBootstrapSnapshot({
     state: "error",

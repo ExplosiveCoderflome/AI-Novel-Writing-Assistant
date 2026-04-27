@@ -8,6 +8,7 @@ import type {
   VolumePlanDiff,
   VolumePlanDocument,
   VolumePlanVersion,
+  VolumePlanVersionSummary,
   VolumeSyncPreview,
 } from "@ai-novel/shared/types/novel";
 import { apiClient } from "../client";
@@ -60,7 +61,12 @@ export async function generateNovelVolumes(
 }
 
 export async function listVolumeVersions(id: string) {
-  const { data } = await apiClient.get<ApiResponse<VolumePlanVersion[]>>(`/novels/${id}/volumes/versions`);
+  const { data } = await apiClient.get<ApiResponse<VolumePlanVersionSummary[]>>(`/novels/${id}/volumes/versions`);
+  return data;
+}
+
+export async function getVolumeVersion(id: string, versionId: string) {
+  const { data } = await apiClient.get<ApiResponse<VolumePlanVersion>>(`/novels/${id}/volumes/versions/${versionId}`);
   return data;
 }
 

@@ -4,6 +4,7 @@ import type {
   VolumePlan,
   VolumePlanDocument,
 } from "@ai-novel/shared/types/novel";
+import { parseChapterScenePlan } from "@ai-novel/shared/types/chapterLengthControl";
 import type { DirectorAutoExecutionPlan } from "@ai-novel/shared/types/novelDirector";
 import {
   buildDirectorAutoExecutionScopeLabel,
@@ -74,7 +75,18 @@ export function hasPreparedOutlineChapterExecutionDetail(
   if (!chapter) {
     return false;
   }
-  return Boolean(chapter.taskSheet?.trim()) && Boolean(chapter.sceneCards?.trim());
+  if (!chapter.purpose?.trim()) {
+    return false;
+  }
+  if (typeof chapter.conflictLevel !== "number" || typeof chapter.revealLevel !== "number" || typeof chapter.targetWordCount !== "number") {
+    return false;
+  }
+  if (!chapter.mustAvoid?.trim() || !chapter.taskSheet?.trim()) {
+    return false;
+  }
+  return Boolean(parseChapterScenePlan(chapter.sceneCards, {
+    targetWordCount: chapter.targetWordCount,
+  }));
 }
 
 function hasPreparedOutlineChapterDetailMode(

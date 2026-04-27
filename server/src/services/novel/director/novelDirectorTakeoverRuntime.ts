@@ -1,5 +1,6 @@
 import type {
   DirectorTakeoverCheckpointSnapshot,
+  DirectorAutoExecutionPlan,
   DirectorTakeoverExecutableRangeSnapshot,
   DirectorTakeoverPipelineJobSnapshot,
 } from "@ai-novel/shared/types/novelDirector";
@@ -12,7 +13,10 @@ import { prisma } from "../../../db/prisma";
 import { normalizeNovelOutput } from "../novelCoreShared";
 import { DIRECTOR_PROGRESS } from "./novelDirectorProgress";
 import { parseSeedPayload } from "../workflow/novelWorkflow.shared";
-import { resolveDirectorAutoExecutionRangeFromState } from "./novelDirectorAutoExecution";
+import {
+  hasDirectorAutoExecutionChapterContract,
+  resolveDirectorAutoExecutionRangeFromState,
+} from "./novelDirectorAutoExecution";
 import { resolveStructuredOutlineRecoveryCursor } from "./novelDirectorStructuredOutlineRecovery";
 
 export interface DirectorTakeoverLoadedState {
@@ -43,39 +47,35 @@ interface TakeoverChapterRow {
   sceneCards: string | null;
 }
 
-function hasPreparedOutlineChapterBoundary(
-  chapter: VolumePlanDocument["volumes"][number]["chapters"][number] | null | undefined,
-): boolean {
-  if (!chapter) {
-    return false;
-  }
-  return typeof chapter.conflictLevel === "number"
-    || typeof chapter.revealLevel === "number"
-    || typeof chapter.targetWordCount === "number"
-    || Boolean(chapter.mustAvoid?.trim())
-    || chapter.payoffRefs.length > 0;
-}
-
 function hasPreparedOutlineChapterExecutionDetail(
   chapter: VolumePlanDocument["volumes"][number]["chapters"][number] | null | undefined,
 ): boolean {
   if (!chapter) {
     return false;
   }
-  return Boolean(chapter.purpose?.trim())
-    && hasPreparedOutlineChapterBoundary(chapter)
-    && Boolean(chapter.taskSheet?.trim());
+  return hasDirectorAutoExecutionChapterContract({
+    id: chapter.id,
+    order: chapter.chapterOrder,
+    conflictLevel: chapter.conflictLevel ?? null,
+    revealLevel: chapter.revealLevel ?? null,
+    targetWordCount: chapter.targetWordCount ?? null,
+    mustAvoid: chapter.mustAvoid ?? null,
+    taskSheet: chapter.taskSheet ?? null,
+    sceneCards: chapter.sceneCards ?? null,
+  }) && Boolean(chapter.purpose?.trim());
 }
 
 function hasSyncedExecutionChapterDetail(chapter: TakeoverChapterRow): boolean {
-  return Boolean(chapter.taskSheet?.trim())
-    && (
-      Boolean(chapter.sceneCards?.trim())
-      || typeof chapter.targetWordCount === "number"
-      || typeof chapter.conflictLevel === "number"
-      || typeof chapter.revealLevel === "number"
-      || Boolean(chapter.mustAvoid?.trim())
-    );
+  return hasDirectorAutoExecutionChapterContract({
+    id: chapter.id,
+    order: chapter.order,
+    conflictLevel: chapter.conflictLevel,
+    revealLevel: chapter.revealLevel,
+    targetWordCount: chapter.targetWordCount,
+    mustAvoid: chapter.mustAvoid,
+    taskSheet: chapter.taskSheet,
+    sceneCards: chapter.sceneCards,
+  });
 }
 
 function buildPreparedRangeFromSyncedChapters(
@@ -116,6 +116,23 @@ function buildPreparedRangeFromSyncedChapters(
     nextChapterId: nextPending?.id ?? null,
     nextChapterOrder: nextPending?.order ?? null,
   };
+}
+
+function buildPreparedRangeFromState(
+  chapterRows: TakeoverChapterRow[],
+  state: DirectorWorkflowSeedPayload["autoExecution"] | null | undefined,
+): DirectorTakeoverExecutableRangeSnapshot | null {
+  const stateRange = resolveDirectorAutoExecutionRangeFromState(state);
+  if (!stateRange) {
+    return null;
+  }
+  return buildPreparedRangeFromSyncedChapters(
+    chapterRows,
+    Array.from(
+      { length: Math.max(0, stateRange.endOrder - stateRange.startOrder + 1) },
+      (_item, index) => stateRange.startOrder + index,
+    ),
+  );
 }
 
 function buildCheckpointSnapshot(input: {
@@ -159,6 +176,7 @@ function buildCheckpointSnapshot(input: {
 
 export async function loadDirectorTakeoverState(input: {
   novelId: string;
+  autoExecutionPlan?: DirectorAutoExecutionPlan | null;
   getStoryMacroPlan: (novelId: string) => Promise<StoryMacroPlan | null>;
   getDirectorAssetSnapshot: (novelId: string) => Promise<{
     characterCount: number;
@@ -283,10 +301,11 @@ export async function loadDirectorTakeoverState(input: {
     return chapter.generationState !== "approved" && chapter.generationState !== "published";
   }).length;
   const latestSeedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(latestTask?.seedPayloadJson) ?? null;
+  const requestedAutoExecutionPlan = input.autoExecutionPlan ?? null;
   const structuredOutlineCursor = workspace
     ? resolveStructuredOutlineRecoveryCursor({
         workspace,
-        plan: latestSeedPayload?.autoExecutionPlan ?? latestSeedPayload?.autoExecution ?? null,
+        plan: requestedAutoExecutionPlan ?? latestSeedPayload?.autoExecutionPlan ?? latestSeedPayload?.autoExecution ?? null,
       })
     : null;
   const chapterOrderMap = new Map(chapterRows.map((chapter) => [chapter.id, chapter.order]));
@@ -307,7 +326,12 @@ export async function loadDirectorTakeoverState(input: {
     chapterOrderMap,
   });
 
-  const executableRangeFromState = resolveDirectorAutoExecutionRangeFromState(latestSeedPayload?.autoExecution);
+  const executableRangeFromState = requestedAutoExecutionPlan
+    ? null
+    : buildPreparedRangeFromState(
+        chapterRows as TakeoverChapterRow[],
+        latestSeedPayload?.autoExecution,
+      );
   const executableRangeFromSyncedChapters = structuredOutlineCursor
     && (structuredOutlineCursor.step === "chapter_sync" || structuredOutlineCursor.step === "completed")
     ? buildPreparedRangeFromSyncedChapters(
@@ -320,8 +344,8 @@ export async function loadDirectorTakeoverState(input: {
         startOrder: executableRangeFromState.startOrder,
         endOrder: executableRangeFromState.endOrder,
         totalChapterCount: executableRangeFromState.totalChapterCount,
-        nextChapterId: latestSeedPayload?.autoExecution?.nextChapterId ?? null,
-        nextChapterOrder: latestSeedPayload?.autoExecution?.nextChapterOrder ?? null,
+        nextChapterId: executableRangeFromState.nextChapterId,
+        nextChapterOrder: executableRangeFromState.nextChapterOrder,
       }
     : executableRangeFromSyncedChapters;
 

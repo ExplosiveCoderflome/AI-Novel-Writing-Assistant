@@ -12,6 +12,7 @@ import type {
   VolumeRebalanceDecision,
   VolumeStrategyPlan,
   VolumePlanVersion,
+  VolumePlanVersionSummary,
 } from "@ai-novel/shared/types/novel";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
@@ -127,6 +128,17 @@ export type VolumeRow = Prisma.VolumePlanGetPayload<{
 }>;
 
 export type VolumeVersionRow = Prisma.VolumePlanVersionGetPayload<Record<string, never>>;
+export type VolumeVersionSummaryRow = Prisma.VolumePlanVersionGetPayload<{
+  select: {
+    id: true;
+    novelId: true;
+    version: true;
+    status: true;
+    diffSummary: true;
+    createdAt: true;
+    updatedAt: true;
+  };
+}>;
 
 export function mapVolumeRow(row: VolumeRow): VolumePlan {
   return {
@@ -183,6 +195,18 @@ export function mapVersionRow(row: VolumeVersionRow): VolumePlanVersion {
     version: row.version,
     status: row.status,
     contentJson: row.contentJson,
+    diffSummary: row.diffSummary,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+export function mapVersionSummaryRow(row: VolumeVersionSummaryRow): VolumePlanVersionSummary {
+  return {
+    id: row.id,
+    novelId: row.novelId,
+    version: row.version,
+    status: row.status,
     diffSummary: row.diffSummary,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
