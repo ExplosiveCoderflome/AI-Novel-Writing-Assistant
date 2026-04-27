@@ -12,7 +12,10 @@ import { prisma } from "../../../db/prisma";
 import { normalizeNovelOutput } from "../novelCoreShared";
 import { DIRECTOR_PROGRESS } from "./novelDirectorProgress";
 import { parseSeedPayload } from "../workflow/novelWorkflow.shared";
-import { resolveDirectorAutoExecutionRangeFromState } from "./novelDirectorAutoExecution";
+import {
+  hasDirectorAutoExecutionChapterContract,
+  resolveDirectorAutoExecutionRangeFromState,
+} from "./novelDirectorAutoExecution";
 import { resolveStructuredOutlineRecoveryCursor } from "./novelDirectorStructuredOutlineRecovery";
 
 export interface DirectorTakeoverLoadedState {
@@ -43,39 +46,35 @@ interface TakeoverChapterRow {
   sceneCards: string | null;
 }
 
-function hasPreparedOutlineChapterBoundary(
-  chapter: VolumePlanDocument["volumes"][number]["chapters"][number] | null | undefined,
-): boolean {
-  if (!chapter) {
-    return false;
-  }
-  return typeof chapter.conflictLevel === "number"
-    || typeof chapter.revealLevel === "number"
-    || typeof chapter.targetWordCount === "number"
-    || Boolean(chapter.mustAvoid?.trim())
-    || chapter.payoffRefs.length > 0;
-}
-
 function hasPreparedOutlineChapterExecutionDetail(
   chapter: VolumePlanDocument["volumes"][number]["chapters"][number] | null | undefined,
 ): boolean {
   if (!chapter) {
     return false;
   }
-  return Boolean(chapter.purpose?.trim())
-    && hasPreparedOutlineChapterBoundary(chapter)
-    && Boolean(chapter.taskSheet?.trim());
+  return hasDirectorAutoExecutionChapterContract({
+    id: chapter.id,
+    order: chapter.chapterOrder,
+    conflictLevel: chapter.conflictLevel ?? null,
+    revealLevel: chapter.revealLevel ?? null,
+    targetWordCount: chapter.targetWordCount ?? null,
+    mustAvoid: chapter.mustAvoid ?? null,
+    taskSheet: chapter.taskSheet ?? null,
+    sceneCards: chapter.sceneCards ?? null,
+  }) && Boolean(chapter.purpose?.trim());
 }
 
 function hasSyncedExecutionChapterDetail(chapter: TakeoverChapterRow): boolean {
-  return Boolean(chapter.taskSheet?.trim())
-    && (
-      Boolean(chapter.sceneCards?.trim())
-      || typeof chapter.targetWordCount === "number"
-      || typeof chapter.conflictLevel === "number"
-      || typeof chapter.revealLevel === "number"
-      || Boolean(chapter.mustAvoid?.trim())
-    );
+  return hasDirectorAutoExecutionChapterContract({
+    id: chapter.id,
+    order: chapter.order,
+    conflictLevel: chapter.conflictLevel,
+    revealLevel: chapter.revealLevel,
+    targetWordCount: chapter.targetWordCount,
+    mustAvoid: chapter.mustAvoid,
+    taskSheet: chapter.taskSheet,
+    sceneCards: chapter.sceneCards,
+  });
 }
 
 function buildPreparedRangeFromSyncedChapters(

@@ -20,6 +20,7 @@ import {
 import {
   buildDirectorAutoExecutionState,
   countDirectorAutoExecutionChapterRange,
+  hasDirectorAutoExecutionChapterContract,
   normalizeDirectorAutoExecutionPlan,
   resolveDirectorAutoExecutionPlanChapterRange,
 } from "./novelDirectorAutoExecution";
@@ -484,6 +485,16 @@ export async function runDirectorStructuredOutlinePhase(input: {
   if (persistedChapters.length === 0) {
     throw new Error("自动导演已生成拆章结果，但章节资源没有成功同步到执行区。");
   }
+  const persistedChapterByOrder = new Map(persistedChapters.map((chapter) => [chapter.order, chapter] as const));
+  const incompleteDetailOrders = selectedChapterOrders.filter((order) => {
+    const chapter = persistedChapterByOrder.get(order);
+    return !chapter || !hasDirectorAutoExecutionChapterContract(chapter);
+  });
+  if (incompleteDetailOrders.length > 0) {
+    throw new Error(
+      `${autoExecutionScopeLabel}还有第 ${incompleteDetailOrders.slice(0, 5).join("、")} 章缺少可执行的章节细化合同，不能直接进入章节执行。请先补齐执行边界、任务单和场景拆解。`,
+    );
+  }
 
   await dependencies.novelContextService.updateNovel(novelId, {
     projectStatus: "in_progress",
@@ -504,7 +515,14 @@ export async function runDirectorStructuredOutlinePhase(input: {
       id: chapter.id,
       order: chapter.order,
       content: chapter.content ?? null,
+      conflictLevel: chapter.conflictLevel ?? null,
+      revealLevel: chapter.revealLevel ?? null,
+      targetWordCount: chapter.targetWordCount ?? null,
+      mustAvoid: chapter.mustAvoid ?? null,
+      taskSheet: chapter.taskSheet ?? null,
+      sceneCards: chapter.sceneCards ?? null,
       generationState: chapter.generationState ?? null,
+      chapterStatus: chapter.chapterStatus ?? null,
     })),
     plan: detailPlan,
     scopeLabel: autoExecutionScopeLabel,

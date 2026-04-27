@@ -22,7 +22,6 @@ import { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import { StyleBindingService } from "../../styleEngine/StyleBindingService";
 import { buildWriterStyleContractText } from "../../styleEngine/styleContractText";
 import {
-  buildTaskSheetFromVolumeChapter,
   hasPayoffLedgerRelevantPlanChanges,
   hasPayoffLedgerSourceSignals,
   buildVolumeDiff,
@@ -566,7 +565,6 @@ export class NovelVolumeService {
       });
       await persistActiveVolumeWorkspace(tx, novelId, persistedDocument, versionId);
       for (const item of plan.creates) {
-        const taskSheet = item.chapter.taskSheet?.trim() || buildTaskSheetFromVolumeChapter(item.chapter);
         await tx.chapter.create({
           data: {
             novelId,
@@ -578,13 +576,12 @@ export class NovelVolumeService {
             conflictLevel: item.chapter.conflictLevel ?? null,
             revealLevel: item.chapter.revealLevel ?? null,
             mustAvoid: item.chapter.mustAvoid ?? null,
-            taskSheet,
+            taskSheet: item.chapter.taskSheet?.trim() || null,
             sceneCards: item.chapter.sceneCards ?? null,
           },
         });
       }
       for (const item of plan.updates) {
-        const taskSheet = item.chapter.taskSheet?.trim() || buildTaskSheetFromVolumeChapter(item.chapter);
         await tx.chapter.updateMany({
           where: { id: item.chapterId, novelId },
           data: {
@@ -595,7 +592,7 @@ export class NovelVolumeService {
             conflictLevel: item.chapter.conflictLevel ?? null,
             revealLevel: item.chapter.revealLevel ?? null,
             mustAvoid: item.chapter.mustAvoid ?? null,
-            taskSheet,
+            taskSheet: item.chapter.taskSheet?.trim() || null,
             sceneCards: item.chapter.sceneCards ?? null,
             ...(!item.preserveWorkflowState
               ? {

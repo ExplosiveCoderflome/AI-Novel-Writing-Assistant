@@ -11,6 +11,9 @@ function createChapter(id, order, title) {
     title,
     summary: `${title} summary`,
     purpose: null,
+    exclusiveEvent: null,
+    endingState: null,
+    nextChapterEntryState: null,
     conflictLevel: null,
     revealLevel: null,
     targetWordCount: null,
@@ -39,6 +42,82 @@ function createBeatSheet() {
         mustDeliver: ["Opening"],
       },
     ],
+  };
+}
+
+function createSceneCards(chapter) {
+  return JSON.stringify({
+    targetWordCount: chapter.targetWordCount ?? 3000,
+    lengthBudget: {
+      targetWordCount: chapter.targetWordCount ?? 3000,
+      softMinWordCount: 2500,
+      softMaxWordCount: 3400,
+      hardMaxWordCount: 3800,
+    },
+    scenes: [
+      {
+        key: `${chapter.id}-scene-1`,
+        title: `${chapter.title} scene 1`,
+        purpose: "推进本章目标",
+        mustAdvance: ["主线"],
+        mustPreserve: ["人物动机"],
+        entryState: "进入冲突",
+        exitState: "压力升级",
+        forbiddenExpansion: [],
+        targetWordCount: 1000,
+      },
+      {
+        key: `${chapter.id}-scene-2`,
+        title: `${chapter.title} scene 2`,
+        purpose: "升级选择压力",
+        mustAdvance: ["冲突"],
+        mustPreserve: ["设定边界"],
+        entryState: "压力升级",
+        exitState: "代价显形",
+        forbiddenExpansion: [],
+        targetWordCount: 1000,
+      },
+      {
+        key: `${chapter.id}-scene-3`,
+        title: `${chapter.title} scene 3`,
+        purpose: "形成章末钩子",
+        mustAdvance: ["章末推进"],
+        mustPreserve: ["后续入口"],
+        entryState: "代价显形",
+        exitState: "进入下一章",
+        forbiddenExpansion: [],
+        targetWordCount: 1000,
+      },
+    ],
+  });
+}
+
+function applyCompleteChapterDetail(chapter) {
+  chapter.purpose = `${chapter.title} purpose`;
+  chapter.exclusiveEvent = `${chapter.title} exclusive event`;
+  chapter.endingState = `${chapter.title} ending state`;
+  chapter.nextChapterEntryState = `${chapter.title} next entry`;
+  chapter.conflictLevel = 4;
+  chapter.revealLevel = 3;
+  chapter.targetWordCount = 3000;
+  chapter.mustAvoid = `${chapter.title} avoid`;
+  chapter.taskSheet = `${chapter.title} task sheet`;
+  chapter.sceneCards = createSceneCards(chapter);
+}
+
+function mapWorkspaceChapterToExecution(chapter) {
+  return {
+    id: chapter.id,
+    order: chapter.chapterOrder,
+    content: "",
+    generationState: "planned",
+    chapterStatus: "unplanned",
+    conflictLevel: chapter.conflictLevel,
+    revealLevel: chapter.revealLevel,
+    targetWordCount: chapter.targetWordCount,
+    mustAvoid: chapter.mustAvoid,
+    taskSheet: chapter.taskSheet,
+    sceneCards: chapter.sceneCards,
   };
 }
 
@@ -127,17 +206,7 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
       const chapter = workspace.volumes[0].chapters.find((item) => item.id === options.targetChapterId);
       assert.ok(chapter, "target chapter should exist in draft workspace");
 
-      if (options.detailMode === "purpose") {
-        chapter.purpose = `${chapter.title} purpose`;
-      } else if (options.detailMode === "boundary") {
-        chapter.conflictLevel = "high";
-        chapter.revealLevel = "mid";
-        chapter.targetWordCount = 3200 + chapter.chapterOrder;
-        chapter.mustAvoid = `${chapter.title} avoid`;
-      } else {
-        chapter.taskSheet = `${chapter.title} task sheet`;
-        chapter.sceneCards = JSON.stringify([{ key: `${chapter.id}-scene-1`, title: `${chapter.title} scene` }]);
-      }
+      applyCompleteChapterDetail(chapter);
 
       return workspace;
     },
@@ -170,11 +239,7 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
       recordCheckpoint: async () => undefined,
     },
     novelContextService: {
-      listChapters: async () => lastSyncedWorkspace.volumes[0].chapters.map((chapter) => ({
-        id: chapter.id,
-        order: chapter.chapterOrder,
-        generationState: "planned",
-      })),
+      listChapters: async () => lastSyncedWorkspace.volumes[0].chapters.map(mapWorkspaceChapterToExecution),
       updateNovel: async () => undefined,
     },
     characterDynamicsService: {
@@ -232,10 +297,10 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
   assert.ok(resetDeletions.some(([table]) => table === "storyStateSnapshot"));
 
   const firstDetailSync = syncedSnapshots[0][0].chapters;
-  assert.equal(firstDetailSync[0].purpose, null);
+  assert.equal(firstDetailSync[0].purpose, "Chapter 1 purpose");
   assert.equal(firstDetailSync[0].taskSheet, "Chapter 1 task sheet");
   assert.ok(firstDetailSync[0].sceneCards);
-  assert.equal(firstDetailSync[1].purpose, null);
+  assert.equal(firstDetailSync[1].purpose, "Chapter 2 purpose");
   assert.equal(firstDetailSync[1].taskSheet, "Chapter 2 task sheet");
   assert.ok(firstDetailSync[1].sceneCards);
 });
@@ -253,7 +318,7 @@ test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter
     targetWordCount: 2800,
     mustAvoid: "Chapter 1 avoid",
     taskSheet: "Chapter 1 task sheet",
-    sceneCards: JSON.stringify([{ key: "chapter-1-scene-1", title: "Chapter 1 scene" }]),
+    sceneCards: createSceneCards({ id: "chapter-1", title: "Chapter 1", targetWordCount: 2800 }),
   };
   const baseWorkspace = {
     novelId: "novel-demo",
@@ -328,17 +393,7 @@ test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter
       const workspace = clone(options.draftWorkspace);
       const chapter = workspace.volumes[0].chapters.find((item) => item.id === options.targetChapterId);
       assert.ok(chapter, "target chapter should exist in draft workspace");
-      if (options.detailMode === "purpose") {
-        chapter.purpose = `${chapter.title} purpose`;
-      } else if (options.detailMode === "boundary") {
-        chapter.conflictLevel = 4;
-        chapter.revealLevel = 3;
-        chapter.targetWordCount = 3000;
-        chapter.mustAvoid = `${chapter.title} avoid`;
-      } else {
-        chapter.taskSheet = `${chapter.title} task sheet`;
-        chapter.sceneCards = JSON.stringify([{ key: `${chapter.id}-scene-1`, title: `${chapter.title} scene` }]);
-      }
+      applyCompleteChapterDetail(chapter);
       return workspace;
     },
     updateVolumes: async (_novelId, workspace) => clone(workspace),
@@ -366,11 +421,7 @@ test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter
       recordCheckpoint: async () => undefined,
     },
     novelContextService: {
-      listChapters: async () => lastSyncedWorkspace.volumes[0].chapters.map((chapter) => ({
-        id: chapter.id,
-        order: chapter.chapterOrder,
-        generationState: "planned",
-      })),
+      listChapters: async () => lastSyncedWorkspace.volumes[0].chapters.map(mapWorkspaceChapterToExecution),
       updateNovel: async () => undefined,
     },
     characterDynamicsService: {

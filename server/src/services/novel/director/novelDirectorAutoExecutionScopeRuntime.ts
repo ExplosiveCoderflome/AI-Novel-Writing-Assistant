@@ -6,6 +6,7 @@ import type { PipelineJobStatus, VolumePlanDocument } from "@ai-novel/shared/typ
 import {
   buildDirectorAutoExecutionScopeLabelFromState,
   buildDirectorAutoExecutionState,
+  hasDirectorAutoExecutionChapterContract,
   isDirectorAutoExecutionChapterProcessed,
   normalizeDirectorAutoExecutionPlan,
   resolveDirectorAutoExecutionBookRange,
@@ -44,6 +45,22 @@ function findMissingChapterOrders(
     }
   }
   return missing;
+}
+
+function findIncompleteChapterDetailOrders(
+  chapters: DirectorAutoExecutionChapterRef[],
+  range: DirectorAutoExecutionRange,
+  state?: DirectorAutoExecutionState | null,
+): number[] {
+  const skippedChapterIds = new Set(state?.skippedChapterIds ?? []);
+  const skippedChapterOrders = new Set(state?.skippedChapterOrders ?? []);
+  return chapters
+    .filter((chapter) => chapter.order >= range.startOrder && chapter.order <= range.endOrder)
+    .filter((chapter) => !skippedChapterIds.has(chapter.id) && !skippedChapterOrders.has(chapter.order))
+    .filter((chapter) => !isDirectorAutoExecutionChapterProcessed(chapter))
+    .filter((chapter) => !hasDirectorAutoExecutionChapterContract(chapter))
+    .map((chapter) => chapter.order)
+    .sort((left, right) => left - right);
 }
 
 export function applyReviewSkipOverride(input: {
@@ -256,6 +273,13 @@ export async function resolveAutoExecutionRangeAndState(input: {
     const resolvedScopeLabel = scopeLabel ?? buildDirectorAutoExecutionScopeLabelFromState(input.existingState, range.totalChapterCount);
     throw new Error(
       `${resolvedScopeLabel}对应的章节执行区还缺少第 ${missingChapterOrders.slice(0, 5).join("、")} 章，请先完成目标范围的拆章同步。`,
+    );
+  }
+  const incompleteDetailOrders = findIncompleteChapterDetailOrders(chapters, range, input.existingState);
+  if (incompleteDetailOrders.length > 0) {
+    const resolvedScopeLabel = scopeLabel ?? buildDirectorAutoExecutionScopeLabelFromState(input.existingState, range.totalChapterCount);
+    throw new Error(
+      `${resolvedScopeLabel}对应的章节执行区还有第 ${incompleteDetailOrders.slice(0, 5).join("、")} 章缺少可执行的章节细化合同，请先回到节奏 / 拆章补齐执行边界、任务单和场景拆解。`,
     );
   }
   return {
