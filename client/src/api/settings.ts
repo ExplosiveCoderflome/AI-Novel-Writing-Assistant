@@ -3,7 +3,12 @@ import type {
   DirectorAutoApprovalPreferenceSettings,
 } from "@ai-novel/shared/types/autoDirectorApproval";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import type { ModelRouteConfig, ModelRouteTaskType } from "@ai-novel/shared/types/novel";
+import type {
+  ModelRouteConfig,
+  ModelRouteRequestProtocol,
+  ModelRouteStructuredResponseFormat,
+  ModelRouteTaskType,
+} from "@ai-novel/shared/types/novel";
 import { apiClient } from "./client";
 
 export type EmbeddingProvider = Extract<LLMProvider, "openai" | "siliconflow">;
@@ -112,6 +117,8 @@ export interface ModelRoutesResponse {
     model: string;
     temperature: number;
     maxTokens: number | null;
+    requestProtocol: ModelRouteRequestProtocol;
+    structuredResponseFormat: ModelRouteStructuredResponseFormat;
   }>;
 }
 
@@ -122,15 +129,18 @@ export interface ModelRouteConnectivityStatus {
   ok: boolean;
   latency: number | null;
   error: string | null;
+  requestProtocol: ModelRouteRequestProtocol | null;
   plain: {
     ok: boolean;
     latency: number | null;
     error: string | null;
+    requestProtocol: ModelRouteRequestProtocol | null;
   } | null;
   structured: {
     ok: boolean;
     latency: number | null;
     error: string | null;
+    requestProtocol: ModelRouteRequestProtocol | null;
     strategy: string | null;
     reasoningForcedOff: boolean;
     fallbackAvailable: boolean;

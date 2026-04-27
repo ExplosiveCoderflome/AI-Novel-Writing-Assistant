@@ -22,13 +22,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import { MODEL_ROUTE_LABELS } from "./modelRouteLabels";
-import type { ModelRouteTaskType } from "@ai-novel/shared/types/novel";
+import type {
+  ModelRouteRequestProtocol,
+  ModelRouteStructuredResponseFormat,
+  ModelRouteTaskType,
+} from "@ai-novel/shared/types/novel";
 
 interface RouteDraft {
   provider: string;
   model: string;
   temperature: string;
   maxTokens: string;
+  requestProtocol: ModelRouteRequestProtocol;
+  structuredResponseFormat: ModelRouteStructuredResponseFormat;
 }
 
 interface StructuredFallbackDraft {
@@ -51,12 +57,20 @@ function getModelOptions(providerConfigs: APIKeyStatus[], provider: string, curr
   return [...new Set([currentModel, ...models].filter(Boolean))];
 }
 
+function getStructuredResponseFormatOptions(
+  requestProtocol: ModelRouteRequestProtocol,
+): ModelRouteStructuredResponseFormat[] {
+  return requestProtocol === "anthropic"
+    ? ["prompt_json"]
+    : ["auto", "json_schema", "json_object", "prompt_json"];
+}
+
 function formatStructuredStatus(status: ModelRouteConnectivityStatus["structured"]): string {
   if (!status) {
     return "结构化诊断：未执行";
   }
   if (status.ok) {
-    return `结构化正常 · ${status.strategy ?? "prompt_json"}${status.reasoningForcedOff ? " · 已强制关闭 thinking" : ""}`;
+    return `结构化正常 · ${status.requestProtocol ?? "auto"} · ${status.strategy ?? "prompt_json"}${status.reasoningForcedOff ? " · 已强制关闭 thinking" : ""}`;
   }
   return `结构化异常 · ${status.errorCategory ?? "unknown"} · ${status.error ?? "未知错误"}`;
 }
@@ -144,6 +158,8 @@ export default function ModelRoutesPage() {
       model: string;
       temperature: number;
       maxTokens?: number | null;
+      requestProtocol: ModelRouteRequestProtocol;
+      structuredResponseFormat: ModelRouteStructuredResponseFormat;
     }) => saveModelRoute(payload),
     onSuccess: async () => {
       setActionResult("模型路由已更新。");
@@ -196,6 +212,8 @@ export default function ModelRoutesPage() {
       model: route?.model ?? "",
       temperature: route?.temperature != null ? String(route.temperature) : "0.7",
       maxTokens: route?.maxTokens != null ? String(route.maxTokens) : "",
+      requestProtocol: route?.requestProtocol ?? "auto",
+      structuredResponseFormat: route?.structuredResponseFormat ?? "auto",
     };
   }
 
@@ -395,7 +413,12 @@ export default function ModelRoutesPage() {
           modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching,
         );
         const hasUnsavedRouteDiff = connectivity != null
-          && (draft.provider !== connectivity.provider || (draft.model.trim().length > 0 && draft.model !== connectivity.model));
+          && (
+            draft.provider !== connectivity.provider
+            || (draft.model.trim().length > 0 && draft.model !== connectivity.model)
+            || (draft.requestProtocol !== "auto" && draft.requestProtocol !== connectivity.requestProtocol)
+            || (draft.structuredResponseFormat !== "auto" && draft.structuredResponseFormat !== connectivity.structured?.strategy)
+          );
 
         return (
           <Card key={taskType}>
@@ -419,7 +442,7 @@ export default function ModelRoutesPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid gap-3 md:grid-cols-4">
+              <div className="grid gap-3 md:grid-cols-6">
                 <div className="space-y-1">
                   <div className="text-xs text-muted-foreground">服务商</div>
                   <Select
@@ -479,6 +502,52 @@ export default function ModelRoutesPage() {
                     onChange={(event) => patchDraft(taskType, { maxTokens: event.target.value })}
                   />
                 </div>
+
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">请求协议</div>
+                  <Select
+                    value={draft.requestProtocol}
+                    onValueChange={(value) => {
+                      const nextProtocol = value as ModelRouteRequestProtocol;
+                      patchDraft(taskType, {
+                        requestProtocol: nextProtocol,
+                        ...(nextProtocol === "anthropic"
+                          ? { structuredResponseFormat: "prompt_json" as ModelRouteStructuredResponseFormat }
+                          : {}),
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="自动选择" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">自动选择</SelectItem>
+                      <SelectItem value="openai_compatible">OpenAI 兼容</SelectItem>
+                      <SelectItem value="anthropic">Anthropic</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">结构化格式</div>
+                  <Select
+                    value={draft.structuredResponseFormat}
+                    onValueChange={(value) => patchDraft(taskType, {
+                      structuredResponseFormat: value as ModelRouteStructuredResponseFormat,
+                    })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="自动选择" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getStructuredResponseFormatOptions(draft.requestProtocol).map((format) => (
+                        <SelectItem key={format} value={format}>
+                          {format === "auto" ? "自动选择" : format}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="flex items-center justify-between gap-3">
@@ -490,6 +559,7 @@ export default function ModelRoutesPage() {
                   </div>
                   {connectivity?.structured ? (
                     <div>
+                      请求协议：{connectivity.structured.requestProtocol ?? connectivity.requestProtocol ?? "无"}，
                       结构化策略：{connectivity.structured.strategy ?? "无"}，
                       {connectivity.structured.reasoningForcedOff ? "已强制关闭 thinking" : "未强制关闭 thinking"}，
                       {connectivity.structured.fallbackAvailable ? "已配置备用模型" : "未配置备用模型"}
@@ -507,6 +577,8 @@ export default function ModelRoutesPage() {
                     model: draft.model,
                     temperature: Number(draft.temperature || 0.7),
                     maxTokens: draft.maxTokens.trim() ? Number(draft.maxTokens) : null,
+                    requestProtocol: draft.requestProtocol,
+                    structuredResponseFormat: draft.structuredResponseFormat,
                   })}
                   disabled={saveModelRouteMutation.isPending || !draft.provider.trim() || !draft.model.trim()}
                 >
