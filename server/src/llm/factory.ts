@@ -6,6 +6,7 @@ import { secretStore } from "../services/settings/secretStore";
 import { resolveModelTemperature } from "./capabilities";
 import { createAnthropicLLM } from "./anthropicClient";
 import { attachLLMDebugLogging } from "./debugLogging";
+import { attachLLMRequestLimiter } from "./requestLimiter";
 import { attachLLMRequestGuard } from "./requestGuard";
 import { resolveProviderReasoningBehavior } from "./reasoning";
 import {
@@ -48,6 +49,8 @@ export interface ProviderSecret {
   baseURL?: string;
   displayName?: string;
   reasoningEnabled?: boolean;
+  concurrencyLimit?: number | null;
+  requestIntervalMs?: number | null;
 }
 
 export interface ResolvedLLMClientOptions {
@@ -59,6 +62,8 @@ export interface ResolvedLLMClientOptions {
   baseURL: string;
   maxTokens?: number;
   timeoutMs?: number;
+  concurrencyLimit: number;
+  requestIntervalMs: number;
   reasoningEnabled: boolean;
   modelKwargs?: Record<string, unknown>;
   includeRawResponse: boolean;
@@ -109,7 +114,16 @@ function normalizeProviderSecret(secret: ProviderSecret): ProviderSecret {
     baseURL: normalizeOptionalText(secret.baseURL),
     displayName: normalizeOptionalText(secret.displayName),
     reasoningEnabled: secret.reasoningEnabled ?? true,
+    concurrencyLimit: normalizeLimitValue(secret.concurrencyLimit),
+    requestIntervalMs: normalizeLimitValue(secret.requestIntervalMs),
   };
+}
+
+function normalizeLimitValue(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return 0;
+  }
+  return Math.floor(value);
 }
 
 function toProviderSecret(item: {
@@ -118,6 +132,8 @@ function toProviderSecret(item: {
   baseURL?: string | null;
   displayName?: string | null;
   reasoningEnabled?: boolean | null;
+  concurrencyLimit?: number | null;
+  requestIntervalMs?: number | null;
 }): ProviderSecret {
   return normalizeProviderSecret({
     key: item.key ?? undefined,
@@ -125,6 +141,8 @@ function toProviderSecret(item: {
     baseURL: item.baseURL ?? undefined,
     displayName: item.displayName ?? undefined,
     reasoningEnabled: item.reasoningEnabled ?? undefined,
+    concurrencyLimit: normalizeLimitValue(item.concurrencyLimit),
+    requestIntervalMs: normalizeLimitValue(item.requestIntervalMs),
   });
 }
 
@@ -246,6 +264,8 @@ export async function resolveLLMClientOptions(
 
   const temperature = resolveModelTemperature(resolvedProvider, model, resolvedTemperature);
   const timeoutMs = normalizeOptionalTimeoutMs(options.timeoutMs);
+  const concurrencyLimit = normalizeLimitValue(dbSecret?.concurrencyLimit);
+  const requestIntervalMs = normalizeLimitValue(dbSecret?.requestIntervalMs);
   const requestProtocol = options.requestProtocol === "anthropic" ? "anthropic" : "openai_compatible";
   const structuredStrategy = options.structuredStrategy;
   const executionMode = options.executionMode ?? "plain";
@@ -300,6 +320,8 @@ export async function resolveLLMClientOptions(
     baseURL,
     maxTokens: effectiveMaxTokens,
     timeoutMs,
+    concurrencyLimit,
+    requestIntervalMs,
     reasoningEnabled: reasoningBehavior.reasoningEnabled,
     modelKwargs: Object.keys(modelKwargs).length > 0 ? modelKwargs : undefined,
     includeRawResponse: reasoningBehavior.includeRawResponse,
@@ -347,8 +369,14 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
     promptMeta: resolved.promptMeta,
   };
   const decorated = attachLLMDebugLogging(attachLLMUsageTracking(attachLLMRequestGuard(llm, meta)), meta);
-  (decorated as ChatOpenAIWithResolvedOptions)[RESOLVED_LLM_OPTIONS] = resolved;
-  return decorated;
+  const limited = attachLLMRequestLimiter(decorated, {
+    provider: resolved.provider,
+    model: resolved.model,
+    concurrencyLimit: resolved.concurrencyLimit,
+    requestIntervalMs: resolved.requestIntervalMs,
+  });
+  (limited as ChatOpenAIWithResolvedOptions)[RESOLVED_LLM_OPTIONS] = resolved;
+  return limited;
 }
 
 export async function getLLM(provider?: LLMProvider, options: LLMOptions = {}): Promise<ChatOpenAI> {

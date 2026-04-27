@@ -30,6 +30,8 @@ export interface APIKeyStatus {
   isConfigured: boolean;
   isActive: boolean;
   reasoningEnabled: boolean;
+  concurrencyLimit: number;
+  requestIntervalMs: number;
   supportsImageGeneration: boolean;
 }
 
@@ -292,6 +294,8 @@ export async function saveAPIKeySetting(
     baseURL?: string;
     isActive?: boolean;
     reasoningEnabled?: boolean;
+    concurrencyLimit?: number;
+    requestIntervalMs?: number;
   },
 ) {
   const { data } = await apiClient.put<
@@ -303,6 +307,8 @@ export async function saveAPIKeySetting(
       baseURL: string | null;
       isActive: boolean;
       reasoningEnabled: boolean;
+      concurrencyLimit: number;
+      requestIntervalMs: number;
       models: string[];
       imageModels: string[];
       supportsImageGeneration: boolean;
@@ -318,6 +324,8 @@ export async function createCustomProvider(payload: {
   baseURL: string;
   isActive?: boolean;
   reasoningEnabled?: boolean;
+  concurrencyLimit?: number;
+  requestIntervalMs?: number;
 }) {
   const { data } = await apiClient.post<
     ApiResponse<{
@@ -327,6 +335,8 @@ export async function createCustomProvider(payload: {
       baseURL: string | null;
       isActive: boolean;
       reasoningEnabled: boolean;
+      concurrencyLimit: number;
+      requestIntervalMs: number;
       models: string[];
     }>
   >("/settings/custom-providers", payload);

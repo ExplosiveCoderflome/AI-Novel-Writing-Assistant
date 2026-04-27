@@ -350,6 +350,8 @@ model Novel {
   continuationBookAnalysis BookAnalysis? @relation("NovelContinuationBookAnalysis", fields: [continuationBookAnalysisId], references: [id], onDelete: SetNull)
   chapters          Chapter[]
   characters        Character[]
+  characterLibraryLinks CharacterLibraryLink[]
+  characterSyncProposals CharacterSyncProposal[]
   characterRelations CharacterRelation[]
   characterCastOptions CharacterCastOption[]
   characterTimelines CharacterTimeline[]
@@ -505,6 +507,7 @@ model Character {
   novelId         String
   novel           Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
   baseCharacterId String?
+  libraryLink     CharacterLibraryLink?
   timelines       CharacterTimeline[]
   matchedCandidates CharacterCandidate[] @relation("CharacterCandidateMatchedCharacter")
   volumeAssignments CharacterVolumeAssignment[]
@@ -521,6 +524,7 @@ model Character {
   actedResourceEvents CharacterResourceEvent[] @relation("CharacterResourceEventActor")
   fromResourceEvents CharacterResourceEvent[] @relation("CharacterResourceEventFromHolder")
   toResourceEvents CharacterResourceEvent[] @relation("CharacterResourceEventToHolder")
+  syncProposals   CharacterSyncProposal[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -754,8 +758,80 @@ model BaseCharacter {
   category    String
   imageTasks  ImageGenerationTask[]
   imageAssets ImageAsset[]
+  revisions   BaseCharacterRevision[]
+  libraryLinks CharacterLibraryLink[]
+  syncProposals CharacterSyncProposal[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model BaseCharacterRevision {
+  id              String   @id @default(cuid())
+  baseCharacterId String
+  version         Int
+  snapshotJson    String
+  changeSummary   String?
+  sourceType      String   @default("manual")
+  sourceRefId     String?
+  baseCharacter   BaseCharacter @relation(fields: [baseCharacterId], references: [id], onDelete: Cascade)
+  libraryLinks    CharacterLibraryLink[]
+  syncProposals   CharacterSyncProposal[]
+  createdAt       DateTime @default(now())
+
+  @@unique([baseCharacterId, version])
+  @@index([baseCharacterId, createdAt])
+}
+
+model CharacterLibraryLink {
+  id                String   @id @default(cuid())
+  novelId           String
+  characterId       String   @unique
+  baseCharacterId   String
+  baseRevisionId    String?
+  syncPolicy        String   @default("manual_review")
+  linkStatus        String   @default("linked")
+  localOverridesJson String?
+  lastSyncedAt      DateTime?
+  novel             Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  character         Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  baseCharacter     BaseCharacter @relation(fields: [baseCharacterId], references: [id], onDelete: Cascade)
+  baseRevision      BaseCharacterRevision? @relation(fields: [baseRevisionId], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([novelId, linkStatus, updatedAt])
+  @@index([baseCharacterId, linkStatus, updatedAt])
+  @@index([baseRevisionId])
+}
+
+model CharacterSyncProposal {
+  id                String   @id @default(cuid())
+  novelId           String?
+  characterId       String?
+  baseCharacterId   String?
+  baseRevisionId    String?
+  direction         String
+  status            String   @default("pending_review")
+  confidence        Float?
+  summary           String
+  payloadJson       String
+  safeUpdatesJson   String?
+  novelOnlyUpdatesJson String?
+  riskyUpdatesJson  String?
+  recommendedAction String?
+  sourceType        String   @default("manual")
+  sourceRefId       String?
+  novel             Novel?   @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  character         Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
+  baseCharacter     BaseCharacter? @relation(fields: [baseCharacterId], references: [id], onDelete: Cascade)
+  baseRevision      BaseCharacterRevision? @relation(fields: [baseRevisionId], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([novelId, status, updatedAt])
+  @@index([characterId, status, updatedAt])
+  @@index([baseCharacterId, status, updatedAt])
+  @@index([baseRevisionId])
 }
 
 model ImageGenerationTask {
@@ -1139,6 +1215,8 @@ model APIKey {
   baseURL   String?
   isActive  Boolean  @default(true)
   reasoningEnabled Boolean @default(true)
+  concurrencyLimit Int @default(0)
+  requestIntervalMs Int @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1163,6 +1241,8 @@ model ModelRouteConfig {
   structuredResponseFormat String  @default("auto")
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
+
+  @@index([provider])
 }
 
 model NovelBible {
@@ -1411,6 +1491,7 @@ model VolumePlanVersion {
 
   @@unique([novelId, version])
   @@index([novelId, status, createdAt])
+  @@index([novelId, status, version])
 }
 
 model VolumePlan {
@@ -1933,6 +2014,8 @@ model StoryPlan {
   updatedAt            DateTime @updatedAt
 
   @@index([novelId, level, createdAt])
+  @@index([novelId, level, externalRef])
+  @@index([novelId, level, chapterId])
   @@index([chapterId, createdAt])
   @@index([externalRef])
   @@index([sourceStateSnapshotId])

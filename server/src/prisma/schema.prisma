@@ -1215,6 +1215,8 @@ model APIKey {
   baseURL   String?
   isActive  Boolean  @default(true)
   reasoningEnabled Boolean @default(true)
+  concurrencyLimit Int @default(0)
+  requestIntervalMs Int @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1239,6 +1241,8 @@ model ModelRouteConfig {
   structuredResponseFormat String  @default("auto")
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
+
+  @@index([provider])
 }
 
 model NovelBible {
@@ -1487,6 +1491,7 @@ model VolumePlanVersion {
 
   @@unique([novelId, version])
   @@index([novelId, status, createdAt])
+  @@index([novelId, status, version])
 }
 
 model VolumePlan {
@@ -2009,6 +2014,8 @@ model StoryPlan {
   updatedAt            DateTime @updatedAt
 
   @@index([novelId, level, createdAt])
+  @@index([novelId, level, externalRef])
+  @@index([novelId, level, chapterId])
   @@index([chapterId, createdAt])
   @@index([externalRef])
   @@index([sourceStateSnapshotId])

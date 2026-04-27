@@ -1,16 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import {
-  createCustomProvider,
-  deleteCustomProvider,
-  getAPIKeySettings,
-  getProviderBalances,
-  refreshProviderBalance,
-  refreshProviderModelList,
-  saveAPIKeySetting,
-  testLLMConnection,
-} from "@/api/settings";
+import { createCustomProvider, deleteCustomProvider, getAPIKeySettings, getProviderBalances, refreshProviderBalance, refreshProviderModelList, saveAPIKeySetting, testLLMConnection } from "@/api/settings";
 import { queryKeys } from "@/api/queryKeys";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import DesktopLegacyDataImportCard from "@/components/layout/DesktopLegacyDataImportCard";
 import DesktopUpdateCard from "@/components/layout/DesktopUpdateCard";
 import AutoDirectorSettingsSection from "./AutoDirectorSettingsSection";
+import ProviderRequestLimitFields, { ProviderRequestLimitSummary } from "./components/ProviderRequestLimitFields";
 import SettingsNavigationCards from "./components/SettingsNavigationCards";
 import StyleEngineRuntimeSettingsCard from "./components/StyleEngineRuntimeSettingsCard";
 import SettingsActionResult from "./SettingsActionResult";
@@ -41,6 +33,8 @@ export default function SettingsPage() {
     model: "",
     imageModel: "",
     baseURL: "",
+    concurrencyLimit: "0",
+    requestIntervalMs: "0",
   });
   const [testResult, setTestResult] = useState("");
   const [actionResult, setActionResult] = useState("");
@@ -72,6 +66,8 @@ export default function SettingsPage() {
       model: "",
       imageModel: "",
       baseURL: "",
+      concurrencyLimit: "0",
+      requestIntervalMs: "0",
     });
     setTestResult("");
   };
@@ -95,6 +91,8 @@ export default function SettingsPage() {
       model?: string;
       imageModel?: string;
       baseURL?: string;
+      concurrencyLimit?: number;
+      requestIntervalMs?: number;
     }) =>
       saveAPIKeySetting(payload.provider, {
         displayName: payload.displayName,
@@ -102,6 +100,8 @@ export default function SettingsPage() {
         model: payload.model,
         imageModel: payload.imageModel,
         baseURL: payload.baseURL,
+        concurrencyLimit: payload.concurrencyLimit,
+        requestIntervalMs: payload.requestIntervalMs,
       }),
     onSuccess: async (response) => {
       resetDialogState();
@@ -119,6 +119,8 @@ export default function SettingsPage() {
       key?: string;
       model: string;
       baseURL: string;
+      concurrencyLimit?: number;
+      requestIntervalMs?: number;
     }) =>
       createCustomProvider(payload),
     onSuccess: async (response) => {
@@ -241,6 +243,8 @@ export default function SettingsPage() {
       model: config.currentModel,
       imageModel: config.currentImageModel ?? config.defaultImageModel ?? "",
       baseURL: config.currentBaseURL,
+      concurrencyLimit: String(config.concurrencyLimit ?? 0),
+      requestIntervalMs: String(config.requestIntervalMs ?? 0),
     });
     setTestResult("");
     setActionResult("");
@@ -255,6 +259,8 @@ export default function SettingsPage() {
       model: "",
       imageModel: "",
       baseURL: "",
+      concurrencyLimit: "0",
+      requestIntervalMs: "0",
     });
     setTestResult("");
     setActionResult("");
@@ -323,7 +329,11 @@ export default function SettingsPage() {
                     Image model: {item.currentImageModel || item.defaultImageModel || "-"}
                   </div>
                 ) : null}
-                <div className="mb-2 break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">API URL: {item.currentBaseURL || "-"}</div>
+              <div className="mb-2 break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">API URL: {item.currentBaseURL || "-"}</div>
+                <ProviderRequestLimitSummary
+                  concurrencyLimit={item.concurrencyLimit}
+                  requestIntervalMs={item.requestIntervalMs}
+                />
                 <div className="mb-3 flex flex-col gap-3 rounded-md border bg-background/60 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 space-y-1">
                     <div className="text-xs font-medium text-muted-foreground">思考功能</div>
@@ -592,6 +602,12 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            <ProviderRequestLimitFields
+              concurrencyLimit={form.concurrencyLimit}
+              requestIntervalMs={form.requestIntervalMs}
+              onChange={(value) => setForm((prev) => ({ ...prev, ...value }))}
+            />
+
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
               <Button
                 className="w-full sm:w-auto"
@@ -602,6 +618,8 @@ export default function SettingsPage() {
                       key: form.key.trim() ? form.key : undefined,
                       model: form.model.trim(),
                       baseURL: form.baseURL.trim(),
+                      concurrencyLimit: Number.parseInt(form.concurrencyLimit, 10) || 0,
+                      requestIntervalMs: Number.parseInt(form.requestIntervalMs, 10) || 0,
                     });
                     return;
                   }
@@ -617,6 +635,8 @@ export default function SettingsPage() {
                       ? (form.imageModel.trim() || undefined)
                       : undefined,
                     baseURL: form.baseURL,
+                    concurrencyLimit: Number.parseInt(form.concurrencyLimit, 10) || 0,
+                    requestIntervalMs: Number.parseInt(form.requestIntervalMs, 10) || 0,
                   });
                 }}
                 disabled={
