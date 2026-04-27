@@ -7,8 +7,13 @@ import {
   getPreferredModel,
   getProviderConfig,
   getProviderDisplayName,
+  getStructuredResponseFormatOptions,
   type RouteDraft,
 } from "./modelRoutes.utils";
+import type {
+  ModelRouteRequestProtocol,
+  ModelRouteStructuredResponseFormat,
+} from "@ai-novel/shared/types/novel";
 
 interface ModelRouteFieldsProps {
   draft: RouteDraft;
@@ -19,6 +24,7 @@ interface ModelRouteFieldsProps {
   maxTokensPlaceholder: string;
   modelEmptyText: string;
   manualModelPlaceholder: string;
+  showProtocolFields?: boolean;
 }
 
 export default function ModelRouteFields({
@@ -30,11 +36,12 @@ export default function ModelRouteFields({
   maxTokensPlaceholder,
   modelEmptyText,
   manualModelPlaceholder,
+  showProtocolFields = true,
 }: ModelRouteFieldsProps) {
   const modelOptions = getModelOptions(providerConfigs, draft.provider, draft.model);
 
   return (
-    <div className="grid gap-3 md:grid-cols-4">
+    <div className={`grid gap-3 ${showProtocolFields ? "md:grid-cols-6" : "md:grid-cols-4"}`}>
       <div className="space-y-1">
         <div className="text-xs text-muted-foreground">服务商</div>
         <Select
@@ -94,6 +101,56 @@ export default function ModelRouteFields({
           onChange={(event) => onPatch({ maxTokens: event.target.value })}
         />
       </div>
+
+      {showProtocolFields ? (
+        <div className="space-y-1">
+          <div className="text-xs text-muted-foreground">请求协议</div>
+          <Select
+            value={draft.requestProtocol}
+            onValueChange={(value) => {
+              const nextProtocol = value as ModelRouteRequestProtocol;
+              onPatch({
+                requestProtocol: nextProtocol,
+                ...(nextProtocol === "anthropic"
+                  ? { structuredResponseFormat: "prompt_json" as ModelRouteStructuredResponseFormat }
+                  : {}),
+              });
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="自动选择" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="auto">自动选择</SelectItem>
+              <SelectItem value="openai_compatible">OpenAI 兼容</SelectItem>
+              <SelectItem value="anthropic">Anthropic</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
+
+      {showProtocolFields ? (
+        <div className="space-y-1">
+          <div className="text-xs text-muted-foreground">结构化格式</div>
+          <Select
+            value={draft.structuredResponseFormat}
+            onValueChange={(value) => onPatch({
+              structuredResponseFormat: value as ModelRouteStructuredResponseFormat,
+            })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="自动选择" />
+            </SelectTrigger>
+            <SelectContent>
+              {getStructuredResponseFormatOptions(draft.requestProtocol).map((format) => (
+                <SelectItem key={format} value={format}>
+                  {format === "auto" ? "自动选择" : format}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
     </div>
   );
 }

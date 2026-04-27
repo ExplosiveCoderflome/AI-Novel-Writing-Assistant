@@ -46,7 +46,7 @@ export interface GeneratedVolumeChapterBlock {
 export const VOLUME_CHAPTER_LIST_PARTIAL_STATUS_PREFIX = "chapter_list_partial";
 
 export function isVolumeChapterListPartiallyPersisted(volume: Pick<VolumePlan, "status">): boolean {
-  const normalizedStatus = volume.status.trim();
+  const normalizedStatus = volume.status?.trim() ?? "";
   return normalizedStatus === VOLUME_CHAPTER_LIST_PARTIAL_STATUS_PREFIX
     || normalizedStatus.startsWith(`${VOLUME_CHAPTER_LIST_PARTIAL_STATUS_PREFIX}:`);
 }

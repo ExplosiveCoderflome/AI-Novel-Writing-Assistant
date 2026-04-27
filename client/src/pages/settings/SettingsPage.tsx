@@ -20,6 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import DesktopLegacyDataImportCard from "@/components/layout/DesktopLegacyDataImportCard";
 import DesktopUpdateCard from "@/components/layout/DesktopUpdateCard";
 import AutoDirectorSettingsSection from "./AutoDirectorSettingsSection";
+import { ProviderRequestLimitSummary } from "./components/ProviderRequestLimitFields";
 import SettingsNavigationCards from "./components/SettingsNavigationCards";
 import ProviderConfigDialog, { type ProviderFormState } from "./components/ProviderConfigDialog";
 import StyleEngineRuntimeSettingsCard from "./components/StyleEngineRuntimeSettingsCard";
@@ -40,6 +41,8 @@ export default function SettingsPage() {
     model: "",
     imageModel: "",
     baseURL: "",
+    concurrencyLimit: "0",
+    requestIntervalMs: "0",
   });
   const [testResult, setTestResult] = useState("");
   const [actionResult, setActionResult] = useState("");
@@ -73,6 +76,8 @@ export default function SettingsPage() {
       model: "",
       imageModel: "",
       baseURL: "",
+      concurrencyLimit: "0",
+      requestIntervalMs: "0",
     });
     setTestResult("");
     setPreviewModels([]);
@@ -98,6 +103,8 @@ export default function SettingsPage() {
       model?: string;
       imageModel?: string;
       baseURL?: string;
+      concurrencyLimit?: number;
+      requestIntervalMs?: number;
     }) =>
       saveAPIKeySetting(payload.provider, {
         displayName: payload.displayName,
@@ -105,6 +112,8 @@ export default function SettingsPage() {
         model: payload.model,
         imageModel: payload.imageModel,
         baseURL: payload.baseURL,
+        concurrencyLimit: payload.concurrencyLimit,
+        requestIntervalMs: payload.requestIntervalMs,
       }),
     onSuccess: async (response) => {
       resetDialogState();
@@ -122,6 +131,8 @@ export default function SettingsPage() {
       key?: string;
       model?: string;
       baseURL: string;
+      concurrencyLimit?: number;
+      requestIntervalMs?: number;
     }) =>
       createCustomProvider(payload),
     onSuccess: async (response) => {
@@ -260,6 +271,8 @@ export default function SettingsPage() {
       model: config.currentModel,
       imageModel: config.currentImageModel ?? config.defaultImageModel ?? "",
       baseURL: config.currentBaseURL,
+      concurrencyLimit: String(config.concurrencyLimit ?? 0),
+      requestIntervalMs: String(config.requestIntervalMs ?? 0),
     });
     setTestResult("");
     setActionResult("");
@@ -276,6 +289,8 @@ export default function SettingsPage() {
       model: "",
       imageModel: "",
       baseURL: "",
+      concurrencyLimit: "0",
+      requestIntervalMs: "0",
     });
     setTestResult("");
     setActionResult("");
@@ -311,6 +326,8 @@ export default function SettingsPage() {
         key: form.key.trim() ? form.key : undefined,
         model: form.model.trim() || undefined,
         baseURL: form.baseURL.trim(),
+        concurrencyLimit: Number.parseInt(form.concurrencyLimit, 10) || 0,
+        requestIntervalMs: Number.parseInt(form.requestIntervalMs, 10) || 0,
       });
       return;
     }
@@ -324,6 +341,8 @@ export default function SettingsPage() {
       model: form.model.trim() || undefined,
       imageModel: editingConfig?.supportsImageGeneration ? (form.imageModel.trim() || undefined) : undefined,
       baseURL: form.baseURL,
+      concurrencyLimit: Number.parseInt(form.concurrencyLimit, 10) || 0,
+      requestIntervalMs: Number.parseInt(form.requestIntervalMs, 10) || 0,
     });
   };
 
@@ -412,6 +431,10 @@ export default function SettingsPage() {
                   </div>
                 ) : null}
                 <div className="mb-2 break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">API 地址：{item.currentBaseURL || "-"}</div>
+                <ProviderRequestLimitSummary
+                  concurrencyLimit={item.concurrencyLimit}
+                  requestIntervalMs={item.requestIntervalMs}
+                />
                 <div className="mb-3 flex flex-col gap-3 rounded-md border bg-background/60 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 space-y-1">
                     <div className="text-xs font-medium text-muted-foreground">思考功能</div>

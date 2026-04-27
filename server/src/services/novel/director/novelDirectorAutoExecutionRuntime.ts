@@ -136,6 +136,25 @@ function isNoChaptersToGenerateError(error: unknown): boolean {
   return error instanceof Error && error.message.includes("指定区间内没有可生成的章节");
 }
 
+function resolveNextChapterExecutionOrder(
+  range: DirectorAutoExecutionRange,
+  autoExecution: DirectorAutoExecutionState,
+): number {
+  const nextOrder = autoExecution.nextChapterOrder ?? range.startOrder;
+  return Math.max(range.startOrder, Math.min(nextOrder, range.endOrder));
+}
+
+function resolveSingleChapterExecutionRange(
+  range: DirectorAutoExecutionRange,
+  autoExecution: DirectorAutoExecutionState,
+): { startOrder: number; endOrder: number } {
+  const order = resolveNextChapterExecutionOrder(range, autoExecution);
+  return {
+    startOrder: order,
+    endOrder: order,
+  };
+}
+
 export class NovelDirectorAutoExecutionRuntime {
   constructor(private readonly deps: NovelDirectorAutoExecutionRuntimeDeps) {}
 
@@ -258,8 +277,8 @@ export class NovelDirectorAutoExecutionRuntime {
 
       const activeRangeJob = await this.deps.novelService.findActivePipelineJobForRange(
         input.novelId,
-        autoExecution.nextChapterOrder ?? range.startOrder,
-        autoExecution.remainingChapterOrders?.[autoExecution.remainingChapterOrders.length - 1] ?? range.endOrder,
+        resolveSingleChapterExecutionRange(range, autoExecution).startOrder,
+        resolveSingleChapterExecutionRange(range, autoExecution).endOrder,
         pipelineJobId || null,
       );
       if (activeRangeJob) {
@@ -318,8 +337,7 @@ export class NovelDirectorAutoExecutionRuntime {
               temperature: input.request.temperature,
               workflowTaskId: input.taskId,
               taskStyleProfileId: input.request.styleProfileId,
-              startOrder: autoExecution.nextChapterOrder ?? range.startOrder,
-              endOrder: autoExecution.remainingChapterOrders?.[autoExecution.remainingChapterOrders.length - 1] ?? range.endOrder,
+              ...resolveSingleChapterExecutionRange(range, autoExecution),
               autoReview: autoExecution.autoReview,
               autoRepair: autoExecution.autoRepair,
             }),
@@ -461,7 +479,34 @@ export class NovelDirectorAutoExecutionRuntime {
           return;
         }
 
-        if (job.status === "succeeded" || (autoExecution.remainingChapterCount ?? 0) === 0) {
+        if (job.status === "succeeded") {
+          const completedPipelineJobId = pipelineJobId;
+          pipelineJobId = "";
+          if ((autoExecution.remainingChapterCount ?? 0) > 0) {
+            await syncAutoExecutionTaskState(this.deps, {
+              taskId: input.taskId,
+              novelId: input.novelId,
+              request: input.request,
+              range,
+              autoExecution,
+              isBackgroundRunning: true,
+              resumeStage: "pipeline",
+            });
+            continue autoExecutionLoop;
+          }
+          await recordCompletedCheckpoint(this.deps, {
+            taskId: input.taskId,
+            novelId: input.novelId,
+            request: input.request,
+            range,
+            autoExecution,
+            pipelineJobId: completedPipelineJobId,
+            pipelineStatus: job.status,
+          });
+          return;
+        }
+
+        if ((autoExecution.remainingChapterCount ?? 0) === 0) {
           await recordCompletedCheckpoint(this.deps, {
             taskId: input.taskId,
             novelId: input.novelId,

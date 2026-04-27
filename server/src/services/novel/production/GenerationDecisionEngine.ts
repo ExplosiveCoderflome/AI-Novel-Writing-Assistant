@@ -14,7 +14,7 @@ export interface GenerationDecisionInput {
 
 export class GenerationDecisionEngine {
   decideNextAction(input: GenerationDecisionInput): GenerationNextAction {
-    if ((input.pendingReviewProposalCount ?? 0) > 0) {
+    if ((input.pendingReviewProposalCount ?? 0) > 0 && input.hasRepairableDraft) {
       return "hold_for_review";
     }
 

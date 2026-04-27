@@ -3,13 +3,19 @@ import type {
   ModelRouteConnectivityStatus,
   ModelRoutesResponse,
 } from "@/api/settings";
-import type { ModelRouteTaskType } from "@ai-novel/shared/types/novel";
+import type {
+  ModelRouteRequestProtocol,
+  ModelRouteStructuredResponseFormat,
+  ModelRouteTaskType,
+} from "@ai-novel/shared/types/novel";
 
 export interface RouteDraft {
   provider: string;
   model: string;
   temperature: string;
   maxTokens: string;
+  requestProtocol: ModelRouteRequestProtocol;
+  structuredResponseFormat: ModelRouteStructuredResponseFormat;
 }
 
 export interface StructuredFallbackDraft extends RouteDraft {
@@ -25,6 +31,8 @@ export interface RouteSavePayload {
   model: string;
   temperature: number;
   maxTokens?: number | null;
+  requestProtocol: ModelRouteRequestProtocol;
+  structuredResponseFormat: ModelRouteStructuredResponseFormat;
 }
 
 export function getProviderConfig(providerConfigs: APIKeyStatus[], provider: string) {
@@ -44,6 +52,14 @@ export function getModelOptions(providerConfigs: APIKeyStatus[], provider: strin
   const config = getProviderConfig(providerConfigs, provider);
   const models = config?.models ?? [];
   return [...new Set([currentModel, ...models].filter(Boolean))];
+}
+
+export function getStructuredResponseFormatOptions(
+  requestProtocol: ModelRouteRequestProtocol,
+): ModelRouteStructuredResponseFormat[] {
+  return requestProtocol === "anthropic"
+    ? ["prompt_json"]
+    : ["auto", "json_schema", "json_object", "prompt_json"];
 }
 
 function parseTemperature(value: string, fallback: number): number {
@@ -67,6 +83,8 @@ export function buildRouteSavePayload(taskType: ModelRouteTaskType, draft: Route
     model: draft.model,
     temperature: parseTemperature(draft.temperature, 0.7),
     maxTokens: parseMaxTokens(draft.maxTokens),
+    requestProtocol: draft.requestProtocol,
+    structuredResponseFormat: draft.structuredResponseFormat,
   };
 }
 
@@ -77,7 +95,9 @@ export function isSameRouteDraft(draft: RouteDraft, route: SavedModelRoute | und
   return draft.provider === route.provider
     && draft.model.trim() === route.model
     && parseTemperature(draft.temperature, 0.7) === route.temperature
-    && parseMaxTokens(draft.maxTokens) === route.maxTokens;
+    && parseMaxTokens(draft.maxTokens) === route.maxTokens
+    && draft.requestProtocol === route.requestProtocol
+    && draft.structuredResponseFormat === route.structuredResponseFormat;
 }
 
 export function formatStructuredStatus(status: ModelRouteConnectivityStatus["structured"]): string {
@@ -85,7 +105,7 @@ export function formatStructuredStatus(status: ModelRouteConnectivityStatus["str
     return "结构化诊断：未执行";
   }
   if (status.ok) {
-    return `结构化正常 · ${status.strategy ?? "prompt_json"}${status.reasoningForcedOff ? " · 会关闭 thinking" : ""}`;
+    return `结构化正常 · ${status.requestProtocol ?? "auto"} · ${status.strategy ?? "prompt_json"}${status.reasoningForcedOff ? " · 会关闭 thinking" : ""}`;
   }
   return `结构化异常 · ${status.errorCategory ?? "unknown"} · ${status.error ?? "未知错误"}`;
 }

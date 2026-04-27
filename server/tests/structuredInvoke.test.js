@@ -408,6 +408,92 @@ test("invokeStructuredLlmDetailed switches to the configured fallback model afte
   }
 });
 
+test("invokeStructuredLlmDetailed preserves explicit Anthropic protocol through repair calls", async () => {
+  const originalResolveOptions = factory.resolveLLMClientOptions;
+  const originalCreateLLM = factory.createLLMFromResolvedOptions;
+  const originalGetLLM = factory.getLLM;
+  const resolveCalls = [];
+  let repairRequestProtocol = null;
+
+  factory.resolveLLMClientOptions = async (provider, options = {}) => {
+    resolveCalls.push({
+      provider,
+      requestProtocol: options.requestProtocol,
+      structuredStrategy: options.structuredStrategy,
+      executionMode: options.executionMode,
+    });
+    const resolvedProvider = provider ?? "openai";
+    const resolvedModel = options.model ?? "claude-sonnet-4-5";
+    const requestProtocol = options.requestProtocol === "anthropic" ? "anthropic" : "openai_compatible";
+    const structuredProfile = options.executionMode === "structured"
+      ? resolveStructuredOutputProfile({
+        provider: resolvedProvider,
+        model: resolvedModel,
+        requestProtocol,
+        executionMode: "structured",
+      })
+      : null;
+    return {
+      provider: resolvedProvider,
+      providerName: resolvedProvider,
+      model: resolvedModel,
+      temperature: options.temperature ?? 0.3,
+      apiKey: "test-key",
+      baseURL: options.baseURL ?? "https://api.anthropic.com",
+      maxTokens: options.maxTokens,
+      requestProtocol,
+      reasoningEnabled: true,
+      modelKwargs: undefined,
+      includeRawResponse: false,
+      executionMode: options.executionMode ?? "plain",
+      structuredProfile,
+      structuredStrategy: options.structuredStrategy ?? null,
+      reasoningForcedOff: false,
+      taskType: options.taskType,
+      promptMeta: options.promptMeta,
+    };
+  };
+  factory.createLLMFromResolvedOptions = () => ({
+    invoke: async () => ({
+      content: "not-json",
+    }),
+  });
+  factory.getLLM = async (_provider, options = {}) => {
+    repairRequestProtocol = options.requestProtocol ?? null;
+    return {
+      invoke: async () => ({
+        content: "{\"value\":\"fixed\"}",
+      }),
+    };
+  };
+
+  try {
+    const result = await structuredInvoke.invokeStructuredLlmDetailed({
+      provider: "openai",
+      model: "claude-sonnet-4-5",
+      requestProtocol: "anthropic",
+      label: "structured.invoke.anthropic.repair",
+      taskType: "planner",
+      schema: z.object({
+        value: z.string(),
+      }),
+      systemPrompt: "只返回 JSON。",
+      userPrompt: "给我一个 value。",
+      disableFallbackModel: true,
+    });
+
+    assert.deepEqual(result.data, { value: "fixed" });
+    assert.equal(resolveCalls[0].requestProtocol, "anthropic");
+    assert.equal(resolveCalls[1].requestProtocol, "anthropic");
+    assert.deepEqual(resolveCalls.map((call) => call.structuredStrategy), [undefined, "prompt_json"]);
+    assert.equal(repairRequestProtocol, "anthropic");
+  } finally {
+    factory.resolveLLMClientOptions = originalResolveOptions;
+    factory.createLLMFromResolvedOptions = originalCreateLLM;
+    factory.getLLM = originalGetLLM;
+  }
+});
+
 test("parseStructuredLlmRawContentDetailed ignores generated string length limits while preserving trim normalization", async () => {
   const result = await structuredInvoke.parseStructuredLlmRawContentDetailed({
     rawContent: JSON.stringify({

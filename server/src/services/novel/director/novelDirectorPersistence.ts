@@ -1,6 +1,8 @@
 import type { DirectorPlanBlueprint } from "@ai-novel/shared/types/novelDirector";
 import { prisma } from "../../../db/prisma";
 
+export const DIRECTOR_BLUEPRINT_TRANSACTION_TIMEOUT_MS = 60_000;
+
 function buildOutlineText(blueprint: DirectorPlanBlueprint): string {
   return [
     `全书目标：${blueprint.bookPlan.objective}`,
@@ -163,6 +165,8 @@ export async function persistDirectorBlueprint(novelId: string, blueprint: Direc
       chapters,
       outline,
     };
+  }, {
+    timeout: DIRECTOR_BLUEPRINT_TRANSACTION_TIMEOUT_MS,
   });
 }
 

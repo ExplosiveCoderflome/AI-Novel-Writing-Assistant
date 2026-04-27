@@ -4,6 +4,7 @@ import SearchableSelect from "@/components/common/SearchableSelect";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import ProviderRequestLimitFields from "./ProviderRequestLimitFields";
 
 export interface ProviderFormState {
   displayName: string;
@@ -11,6 +12,8 @@ export interface ProviderFormState {
   model: string;
   imageModel: string;
   baseURL: string;
+  concurrencyLimit: string;
+  requestIntervalMs: string;
 }
 
 interface ProviderConfigDialogProps {
@@ -196,6 +199,12 @@ export default function ProviderConfigDialog({
               </div>
             </div>
           ) : null}
+
+          <ProviderRequestLimitFields
+            concurrencyLimit={form.concurrencyLimit}
+            requestIntervalMs={form.requestIntervalMs}
+            onChange={(value) => setForm((prev) => ({ ...prev, ...value }))}
+          />
 
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <Button className="w-full sm:w-auto" onClick={onSubmit} disabled={submitDisabled}>

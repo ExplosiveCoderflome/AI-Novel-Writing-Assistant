@@ -8,6 +8,7 @@ import type {
   DirectorAutoExecutionPlan,
   DirectorAutoExecutionState,
 } from "@ai-novel/shared/types/novelDirector";
+import { parseChapterScenePlan } from "@ai-novel/shared/types/chapterLengthControl";
 import {
   buildPipelineBackgroundActivityLabels,
   parsePipelinePayload,
@@ -36,6 +37,12 @@ export interface DirectorAutoExecutionChapterRef {
   id: string;
   order: number;
   content?: string | null;
+  conflictLevel?: number | null;
+  revealLevel?: number | null;
+  targetWordCount?: number | null;
+  mustAvoid?: string | null;
+  taskSheet?: string | null;
+  sceneCards?: string | null;
   generationState?: ChapterGenerationState | null;
   chapterStatus?: "unplanned" | "pending_generation" | "generating" | "pending_review" | "needs_repair" | "completed" | null;
 }
@@ -229,6 +236,18 @@ export function isDirectorAutoExecutionChapterProcessed(chapter: DirectorAutoExe
     return true;
   }
   return chapter.generationState === "reviewed" || chapter.generationState === "repaired";
+}
+
+export function hasDirectorAutoExecutionChapterContract(chapter: DirectorAutoExecutionChapterRef): boolean {
+  if (typeof chapter.conflictLevel !== "number" || typeof chapter.revealLevel !== "number" || typeof chapter.targetWordCount !== "number") {
+    return false;
+  }
+  if (!chapter.mustAvoid?.trim() || !chapter.taskSheet?.trim()) {
+    return false;
+  }
+  return Boolean(parseChapterScenePlan(chapter.sceneCards, {
+    targetWordCount: chapter.targetWordCount,
+  }));
 }
 
 export function buildDirectorAutoExecutionState(input: {

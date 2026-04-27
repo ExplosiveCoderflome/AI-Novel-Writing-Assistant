@@ -3,7 +3,12 @@ import type {
   DirectorAutoApprovalPreferenceSettings,
 } from "@ai-novel/shared/types/autoDirectorApproval";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import type { ModelRouteConfig, ModelRouteTaskType } from "@ai-novel/shared/types/novel";
+import type {
+  ModelRouteConfig,
+  ModelRouteRequestProtocol,
+  ModelRouteStructuredResponseFormat,
+  ModelRouteTaskType,
+} from "@ai-novel/shared/types/novel";
 import { apiClient } from "./client";
 
 export type EmbeddingProvider = LLMProvider;
@@ -25,6 +30,8 @@ export interface APIKeyStatus {
   isConfigured: boolean;
   isActive: boolean;
   reasoningEnabled: boolean;
+  concurrencyLimit: number;
+  requestIntervalMs: number;
   supportsImageGeneration: boolean;
 }
 
@@ -112,6 +119,8 @@ export interface ModelRoutesResponse {
     model: string;
     temperature: number;
     maxTokens: number | null;
+    requestProtocol: ModelRouteRequestProtocol;
+    structuredResponseFormat: ModelRouteStructuredResponseFormat;
   }>;
 }
 
@@ -122,15 +131,18 @@ export interface ModelRouteConnectivityStatus {
   ok: boolean;
   latency: number | null;
   error: string | null;
+  requestProtocol: ModelRouteRequestProtocol | null;
   plain: {
     ok: boolean;
     latency: number | null;
     error: string | null;
+    requestProtocol: ModelRouteRequestProtocol | null;
   } | null;
   structured: {
     ok: boolean;
     latency: number | null;
     error: string | null;
+    requestProtocol: ModelRouteRequestProtocol | null;
     strategy: string | null;
     reasoningForcedOff: boolean;
     fallbackAvailable: boolean;
@@ -284,6 +296,8 @@ export async function saveAPIKeySetting(
     baseURL?: string;
     isActive?: boolean;
     reasoningEnabled?: boolean;
+    concurrencyLimit?: number;
+    requestIntervalMs?: number;
   },
 ) {
   const { data } = await apiClient.put<
@@ -295,6 +309,8 @@ export async function saveAPIKeySetting(
       baseURL: string | null;
       isActive: boolean;
       reasoningEnabled: boolean;
+      concurrencyLimit: number;
+      requestIntervalMs: number;
       models: string[];
       imageModels: string[];
       supportsImageGeneration: boolean;
@@ -310,6 +326,8 @@ export async function createCustomProvider(payload: {
   baseURL: string;
   isActive?: boolean;
   reasoningEnabled?: boolean;
+  concurrencyLimit?: number;
+  requestIntervalMs?: number;
 }) {
   const { data } = await apiClient.post<
     ApiResponse<{
@@ -319,6 +337,8 @@ export async function createCustomProvider(payload: {
       baseURL: string | null;
       isActive: boolean;
       reasoningEnabled: boolean;
+      concurrencyLimit: number;
+      requestIntervalMs: number;
       models: string[];
     }>
   >("/settings/custom-providers", payload);

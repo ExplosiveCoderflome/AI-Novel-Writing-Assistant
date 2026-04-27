@@ -69,8 +69,19 @@ test("GenerationDecisionEngine prefers review hold when pending proposals exist"
   const action = engine.decideNextAction({
     snapshot: createSnapshot(),
     pendingReviewProposalCount: 2,
+    hasRepairableDraft: true,
   });
   assert.equal(action, "hold_for_review");
+});
+
+test("GenerationDecisionEngine keeps writing when pending proposals belong to a blank chapter", () => {
+  const engine = new GenerationDecisionEngine();
+  const action = engine.decideNextAction({
+    snapshot: createSnapshot(),
+    pendingReviewProposalCount: 2,
+    hasRepairableDraft: false,
+  });
+  assert.equal(action, "write_chapter");
 });
 
 test("GenerationDecisionEngine escalates overdue payoff pressure to replan", () => {

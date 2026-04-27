@@ -5,6 +5,8 @@ import {
 import { prisma } from "../../db/prisma";
 import { enrichStoryPlan } from "./plannerPlanMetadata";
 
+export const STORY_PLAN_PERSISTENCE_TRANSACTION_TIMEOUT_MS = 60_000;
+
 interface PersistPlanInput {
   novelId: string;
   chapterId?: string;
@@ -234,6 +236,8 @@ export async function persistStoryPlan(input: PersistPlanInput) {
     }
 
     return plan.id;
+  }, {
+    timeout: STORY_PLAN_PERSISTENCE_TRANSACTION_TIMEOUT_MS,
   });
 
   const persistedPlan = await prisma.storyPlan.findUnique({

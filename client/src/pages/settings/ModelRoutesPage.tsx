@@ -170,6 +170,8 @@ export default function ModelRoutesPage() {
       model: route?.model ?? "",
       temperature: route?.temperature != null ? String(route.temperature) : "0.7",
       maxTokens: route?.maxTokens != null ? String(route.maxTokens) : "",
+      requestProtocol: route?.requestProtocol ?? "auto",
+      structuredResponseFormat: route?.structuredResponseFormat ?? "auto",
     };
   }
 
@@ -182,6 +184,8 @@ export default function ModelRoutesPage() {
       model: defaultModel,
       temperature: "0.7",
       maxTokens: "",
+      requestProtocol: "auto",
+      structuredResponseFormat: "auto",
     };
   }
 
@@ -230,6 +234,8 @@ export default function ModelRoutesPage() {
       model: structuredFallback?.model ?? "deepseek-chat",
       temperature: structuredFallback != null ? String(structuredFallback.temperature) : "0.2",
       maxTokens: structuredFallback?.maxTokens != null ? String(structuredFallback.maxTokens) : "",
+      requestProtocol: "auto",
+      structuredResponseFormat: "auto",
     };
   }
 
@@ -317,6 +323,7 @@ export default function ModelRoutesPage() {
             maxTokensPlaceholder="留空则使用系统默认"
             modelEmptyText="这个服务商没有可选模型"
             manualModelPlaceholder="也可以手动输入模型名"
+            showProtocolFields={false}
           />
 
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -431,7 +438,15 @@ export default function ModelRoutesPage() {
         );
         const isDirty = dirtyTaskTypeSet.has(taskType);
         const hasUnsavedRouteDiff = connectivity != null
-          && (draft.provider !== connectivity.provider || (draft.model.trim().length > 0 && draft.model !== connectivity.model));
+          && (
+            draft.provider !== connectivity.provider
+            || (draft.model.trim().length > 0 && draft.model !== connectivity.model)
+            || (draft.requestProtocol !== "auto" && draft.requestProtocol !== connectivity.requestProtocol)
+            || (
+              draft.structuredResponseFormat !== "auto"
+              && draft.structuredResponseFormat !== connectivity.structured?.strategy
+            )
+          );
 
         return (
           <Card key={taskType}>
@@ -476,6 +491,7 @@ export default function ModelRoutesPage() {
                   </div>
                   {connectivity?.structured ? (
                     <div>
+                      请求协议：{connectivity.structured.requestProtocol ?? connectivity.requestProtocol ?? "无"}，
                       结构化策略：{connectivity.structured.strategy ?? "无"}，
                       {connectivity.structured.reasoningForcedOff ? "会关闭 thinking" : "保留 thinking"}，
                       {connectivity.structured.fallbackAvailable ? "备用模型可用" : "备用模型未启用"}

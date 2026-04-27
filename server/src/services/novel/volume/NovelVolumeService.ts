@@ -23,7 +23,6 @@ import { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import { StyleBindingService } from "../../styleEngine/StyleBindingService";
 import { buildWriterStyleContractText } from "../../styleEngine/styleContractText";
 import {
-  buildTaskSheetFromVolumeChapter,
   hasPayoffLedgerRelevantPlanChanges,
   hasPayoffLedgerSourceSignals,
   buildVolumeDiff,
@@ -61,6 +60,7 @@ import {
   getActiveVersionRow,
   getLatestVersionRow,
   persistActiveVolumeWorkspace,
+  runVolumeWorkspaceTransaction,
 } from "./volumeWorkspacePersistence";
 import {
   resolveVolumeGenerationTelemetryItemKey,
@@ -130,7 +130,7 @@ export class NovelVolumeService {
       chapterCount: document.volumes.reduce((sum, volume) => sum + volume.chapters.length, 0),
       beatSheetCount: document.beatSheets.length,
     });
-    const persistedDocument = await prisma.$transaction(async (tx) => {
+    const persistedDocument = await runVolumeWorkspaceTransaction(async (tx) => {
       const { versionId } = await this.ensureActiveVersionRecord(tx, novelId, document);
       const nextDocument = {
         ...document,
@@ -440,7 +440,7 @@ export class NovelVolumeService {
     if (document.volumes.length === 0) {
       throw new Error("卷级版本内容为空。");
     }
-    await prisma.$transaction(async (tx) => {
+    await runVolumeWorkspaceTransaction(async (tx) => {
       await tx.volumePlanVersion.updateMany({
         where: { novelId, status: "active" },
         data: { status: "frozen" },
@@ -582,7 +582,7 @@ export class NovelVolumeService {
       },
     );
 
-    await prisma.$transaction(async (tx) => {
+    await runVolumeWorkspaceTransaction(async (tx) => {
       const { versionId } = await this.ensureActiveVersionRecord(tx, novelId, mergedDocument);
       const persistedDocument = {
         ...mergedDocument,
@@ -597,7 +597,6 @@ export class NovelVolumeService {
       });
       await persistActiveVolumeWorkspace(tx, novelId, persistedDocument, versionId);
       for (const item of plan.creates) {
-        const taskSheet = item.chapter.taskSheet?.trim() || buildTaskSheetFromVolumeChapter(item.chapter);
         await tx.chapter.create({
           data: {
             novelId,
@@ -609,13 +608,12 @@ export class NovelVolumeService {
             conflictLevel: item.chapter.conflictLevel ?? null,
             revealLevel: item.chapter.revealLevel ?? null,
             mustAvoid: item.chapter.mustAvoid ?? null,
-            taskSheet,
+            taskSheet: item.chapter.taskSheet?.trim() || null,
             sceneCards: item.chapter.sceneCards ?? null,
           },
         });
       }
       for (const item of plan.updates) {
-        const taskSheet = item.chapter.taskSheet?.trim() || buildTaskSheetFromVolumeChapter(item.chapter);
         await tx.chapter.updateMany({
           where: { id: item.chapterId, novelId },
           data: {
@@ -626,7 +624,7 @@ export class NovelVolumeService {
             conflictLevel: item.chapter.conflictLevel ?? null,
             revealLevel: item.chapter.revealLevel ?? null,
             mustAvoid: item.chapter.mustAvoid ?? null,
-            taskSheet,
+            taskSheet: item.chapter.taskSheet?.trim() || null,
             sceneCards: item.chapter.sceneCards ?? null,
             ...(!item.preserveWorkflowState
               ? {
@@ -752,7 +750,7 @@ export class NovelVolumeService {
       throw new Error("章节执行合同中的场景预算无效。");
     }
 
-    const persistedChapter = await prisma.$transaction(async (tx) => {
+    const persistedChapter = await runVolumeWorkspaceTransaction(async (tx) => {
       const { versionId } = await this.ensureActiveVersionRecord(
         tx,
         novelId,

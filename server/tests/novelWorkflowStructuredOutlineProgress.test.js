@@ -130,6 +130,53 @@ function createMultiVolumeWorkspace() {
   });
 }
 
+function createSceneCards(chapterOrder) {
+  return JSON.stringify({
+    targetWordCount: 2500,
+    lengthBudget: {
+      targetWordCount: 2500,
+      softMinWordCount: 2200,
+      softMaxWordCount: 2800,
+      hardMaxWordCount: 3200,
+    },
+    scenes: [
+      {
+        key: `chapter-${chapterOrder}-scene-1`,
+        title: `第${chapterOrder}章场景1`,
+        purpose: "推进章节目标",
+        mustAdvance: ["主线"],
+        mustPreserve: ["人物动机"],
+        entryState: "进入冲突",
+        exitState: "压力升级",
+        forbiddenExpansion: [],
+        targetWordCount: 900,
+      },
+      {
+        key: `chapter-${chapterOrder}-scene-2`,
+        title: `第${chapterOrder}章场景2`,
+        purpose: "升级选择压力",
+        mustAdvance: ["冲突"],
+        mustPreserve: ["设定边界"],
+        entryState: "压力升级",
+        exitState: "代价显形",
+        forbiddenExpansion: [],
+        targetWordCount: 800,
+      },
+      {
+        key: `chapter-${chapterOrder}-scene-3`,
+        title: `第${chapterOrder}章场景3`,
+        purpose: "完成章末转折",
+        mustAdvance: ["章末钩子"],
+        mustPreserve: ["后续入口"],
+        entryState: "代价显形",
+        exitState: "进入下一章",
+        forbiddenExpansion: [],
+        targetWordCount: 800,
+      },
+    ],
+  });
+}
+
 function createDetailedChapter(id, chapterOrder, overrides = {}) {
   return {
     id,
@@ -142,7 +189,7 @@ function createDetailedChapter(id, chapterOrder, overrides = {}) {
     mustAvoid: `chapter ${chapterOrder} avoid`,
     taskSheet: `chapter ${chapterOrder} task sheet`,
     payoffRefs: [],
-    sceneCards: `chapter ${chapterOrder} scene cards`,
+    sceneCards: createSceneCards(chapterOrder),
     beatKey: overrides.beatKey ?? null,
     title: overrides.title ?? `第${chapterOrder}章`,
     summary: overrides.summary ?? `第${chapterOrder}章摘要`,

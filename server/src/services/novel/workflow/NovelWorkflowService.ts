@@ -53,6 +53,12 @@ import {
   isStaleAutoDirectorRunningTask,
   STALE_AUTO_DIRECTOR_RUNNING_MESSAGE,
 } from "./autoDirectorStaleTaskRecovery";
+import {
+  AutoDirectorFollowUpNotificationService,
+} from "../../task/autoDirectorFollowUps/AutoDirectorFollowUpNotificationService";
+import type {
+  AutoDirectorEventWorkflowSnapshot,
+} from "../../task/autoDirectorFollowUps/autoDirectorFollowUpEventBuilder";
 
 type WorkflowRow = Awaited<ReturnType<typeof prisma.novelWorkflowTask.findUnique>>;
 type NovelWorkflowTaskUpdateArgs = Parameters<typeof prisma.novelWorkflowTask.update>[0];
@@ -270,6 +276,8 @@ function isStructuredOutlineItemKey(itemKey: string | null | undefined): boolean
 export class NovelWorkflowService {
   private readonly volumeService = new NovelVolumeService();
 
+  private readonly autoDirectorFollowUpNotificationService = new AutoDirectorFollowUpNotificationService();
+
   private updateTaskWithRetry(args: NovelWorkflowTaskUpdateArgs) {
     return withSqliteRetry(
       () => prisma.novelWorkflowTask.update(args),
@@ -282,6 +290,122 @@ export class NovelWorkflowService {
       () => prisma.novelWorkflowTask.updateMany(args),
       { label: "novelWorkflowTask.updateMany" },
     );
+  }
+
+  private toAutoDirectorEventSnapshot(row: {
+    id: string;
+    novelId: string | null;
+    lane: string;
+    status: string;
+    progress?: number | null;
+    currentStage: string | null;
+    checkpointType: string | null;
+    checkpointSummary?: string | null;
+    currentItemLabel?: string | null;
+    pendingManualRecovery: boolean;
+    updatedAt: Date;
+    seedPayloadJson?: string | null;
+    novel?: {
+      title?: string | null;
+    } | null;
+  } | null): AutoDirectorEventWorkflowSnapshot | null {
+    if (!row || row.lane !== "auto_director") {
+      return null;
+    }
+    return {
+      id: row.id,
+      novelId: row.novelId,
+      status: row.status as TaskStatus,
+      progress: row.progress ?? null,
+      currentStage: row.currentStage,
+      checkpointType: row.checkpointType as NovelWorkflowCheckpoint | null,
+      checkpointSummary: row.checkpointSummary ?? null,
+      currentItemLabel: row.currentItemLabel ?? null,
+      pendingManualRecovery: row.pendingManualRecovery,
+      updatedAt: row.updatedAt,
+      seedPayloadJson: row.seedPayloadJson ?? null,
+      novel: row.novel ?? null,
+    };
+  }
+
+  private async notifyAutoDirectorTaskTransition(input: {
+    before: {
+      id: string;
+      novelId: string | null;
+      lane: string;
+      status: string;
+      progress?: number | null;
+      currentStage: string | null;
+      checkpointType: string | null;
+      checkpointSummary?: string | null;
+      currentItemLabel?: string | null;
+      pendingManualRecovery: boolean;
+      updatedAt: Date;
+      seedPayloadJson?: string | null;
+      novel?: {
+        title?: string | null;
+      } | null;
+    } | null;
+    after: {
+      id: string;
+      novelId: string | null;
+      lane: string;
+      status: string;
+      progress?: number | null;
+      currentStage: string | null;
+      checkpointType: string | null;
+      checkpointSummary?: string | null;
+      currentItemLabel?: string | null;
+      pendingManualRecovery: boolean;
+      updatedAt: Date;
+      seedPayloadJson?: string | null;
+      novel?: {
+        title?: string | null;
+      } | null;
+    } | null;
+  }): Promise<void> {
+    await this.autoDirectorFollowUpNotificationService.handleTaskTransition({
+      before: this.toAutoDirectorEventSnapshot(input.before),
+      after: this.toAutoDirectorEventSnapshot(input.after),
+    });
+  }
+
+  private async updateWorkflowTaskWithNotifications<T extends {
+    id: string;
+    novelId: string | null;
+    lane: string;
+    status: string;
+    progress?: number | null;
+    currentStage: string | null;
+    checkpointType: string | null;
+    checkpointSummary?: string | null;
+    currentItemLabel?: string | null;
+    pendingManualRecovery: boolean;
+    updatedAt: Date;
+    seedPayloadJson?: string | null;
+  }>(input: {
+    before: T;
+    data: NovelWorkflowTaskUpdateArgs["data"];
+  }): Promise<T> {
+    const next = await withSqliteRetry(
+      () => prisma.novelWorkflowTask.update({
+        where: { id: input.before.id },
+        data: input.data,
+        include: {
+          novel: {
+            select: {
+              title: true,
+            },
+          },
+        },
+      }),
+      { label: "novelWorkflowTask.update" },
+    ) as unknown as T;
+    await this.notifyAutoDirectorTaskTransition({
+      before: input.before,
+      after: next,
+    });
+    return next;
   }
 
   private async getVisibleRowsByNovelIdRaw(novelId: string, lane?: NovelWorkflowLane) {
@@ -1164,8 +1288,8 @@ export class NovelWorkflowService {
       chapterId: input.chapterId,
       volumeId: input.volumeId,
     });
-    return this.updateTaskWithRetry({
-      where: { id: taskId },
+    return this.updateWorkflowTaskWithNotifications({
+      before: existing,
       data: {
         status: "running",
         startedAt: existing.startedAt ?? new Date(),
@@ -1215,8 +1339,8 @@ export class NovelWorkflowService {
       chapterId: input.chapterId,
       volumeId: input.volumeId,
     });
-    return this.updateTaskWithRetry({
-      where: { id: taskId },
+    return this.updateWorkflowTaskWithNotifications({
+      before: existing,
       data: {
         status: "waiting_approval",
         finishedAt: null,
@@ -1258,8 +1382,8 @@ export class NovelWorkflowService {
       chapterId: patch?.chapterId,
       volumeId: patch?.volumeId,
     });
-    return this.updateTaskWithRetry({
-      where: { id: taskId },
+    return this.updateWorkflowTaskWithNotifications({
+      before: existing,
       data: {
         status: "failed",
         finishedAt: new Date(),
@@ -1280,8 +1404,8 @@ export class NovelWorkflowService {
     if (!existing) {
       throw new AppError("Task not found.", 404);
     }
-    return this.updateTaskWithRetry({
-      where: { id: taskId },
+    return this.updateWorkflowTaskWithNotifications({
+      before: existing,
       data: {
         status: "cancelled",
         cancelRequestedAt: new Date(),
@@ -1296,8 +1420,8 @@ export class NovelWorkflowService {
     if (!existing) {
       throw new AppError("Task not found.", 404);
     }
-      return this.updateTaskWithRetry({
-        where: { id: taskId },
+      return this.updateWorkflowTaskWithNotifications({
+        before: existing,
         data: {
           status: existing.checkpointType ? "waiting_approval" : "queued",
           pendingManualRecovery: false,
@@ -1330,8 +1454,8 @@ export class NovelWorkflowService {
           stage: checkpointStage,
         })
       );
-    return this.updateTaskWithRetry({
-      where: { id: taskId },
+    return this.updateWorkflowTaskWithNotifications({
+      before: existing,
         data: {
           status: checkpointType === "workflow_completed" ? "succeeded" : "waiting_approval",
           pendingManualRecovery: false,
@@ -1356,8 +1480,8 @@ export class NovelWorkflowService {
     if (isTaskCancellationRequested(existing)) {
       throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
     }
-      return this.updateTaskWithRetry({
-        where: { id: taskId },
+      return this.updateWorkflowTaskWithNotifications({
+        before: existing,
         data: {
           heartbeatAt: new Date(),
           pendingManualRecovery: false,
@@ -1371,8 +1495,8 @@ export class NovelWorkflowService {
     if (!existing) {
       throw new AppError("Task not found.", 404);
     }
-      return this.updateTaskWithRetry({
-        where: { id: taskId },
+      return this.updateWorkflowTaskWithNotifications({
+        before: existing,
         data: {
           status: "queued",
           pendingManualRecovery: true,
@@ -1395,8 +1519,8 @@ export class NovelWorkflowService {
     if (isTaskCancellationRequested(existing)) {
       throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
     }
-    return this.updateTaskWithRetry({
-      where: { id: taskId },
+    return this.updateWorkflowTaskWithNotifications({
+      before: existing,
       data: {
         status: "waiting_approval",
         currentStage: stageLabel("auto_director"),
@@ -1466,8 +1590,8 @@ export class NovelWorkflowService {
       chapterId: input.chapterId,
       volumeId: input.volumeId,
     });
-    return this.updateTaskWithRetry({
-      where: { id: taskId },
+    return this.updateWorkflowTaskWithNotifications({
+      before: existing,
       data: {
         status: input.checkpointType === "workflow_completed" ? "succeeded" : "waiting_approval",
         progress: input.progress ?? defaultProgressForStage(input.stage),

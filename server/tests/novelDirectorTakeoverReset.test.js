@@ -218,6 +218,9 @@ test("restart_current_step from structured cascades chapter and pipeline reset i
     characterRelationStage: { deleteMany: async (input) => deletions.push(["characterRelationStage", input]) },
     qualityReport: { deleteMany: async (input) => deletions.push(["qualityReport", input]) },
     auditReport: { deleteMany: async (input) => deletions.push(["auditReport", input]) },
+    stateChangeProposal: { deleteMany: async (input) => deletions.push(["stateChangeProposal", input]) },
+    openConflict: { deleteMany: async (input) => deletions.push(["openConflict", input]) },
+    storyStateSnapshot: { deleteMany: async (input) => deletions.push(["storyStateSnapshot", input]) },
   });
 
   try {
@@ -263,6 +266,9 @@ test("restart_current_step from structured cascades chapter and pipeline reset i
     assert.equal(chapterUpdates[0].data.qualityScore, null);
     assert.ok(deletions.some(([table]) => table === "qualityReport"));
     assert.ok(deletions.some(([table]) => table === "auditReport"));
+    assert.ok(deletions.some(([table]) => table === "stateChangeProposal"));
+    assert.ok(deletions.some(([table]) => table === "openConflict"));
+    assert.ok(deletions.some(([table]) => table === "storyStateSnapshot"));
     assert.ok(deletions.every(([, input]) => {
       const chapterIds = input.where.chapterId?.in ?? input.where.sourceChapterId?.in;
       return Array.isArray(chapterIds)
@@ -389,6 +395,9 @@ test("restart_current_step clears chapter body only inside the requested executi
     characterRelationStage: { deleteMany: async (input) => deletions.push(["characterRelationStage", input]) },
     qualityReport: { deleteMany: async (input) => deletions.push(["qualityReport", input]) },
     auditReport: { deleteMany: async (input) => deletions.push(["auditReport", input]) },
+    stateChangeProposal: { deleteMany: async (input) => deletions.push(["stateChangeProposal", input]) },
+    openConflict: { deleteMany: async (input) => deletions.push(["openConflict", input]) },
+    storyStateSnapshot: { deleteMany: async (input) => deletions.push(["storyStateSnapshot", input]) },
   });
 
   try {

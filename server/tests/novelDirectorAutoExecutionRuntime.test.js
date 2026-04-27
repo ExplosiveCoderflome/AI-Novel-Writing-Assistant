@@ -29,6 +29,67 @@ function buildRequest(overrides = {}) {
   };
 }
 
+function buildSceneCards(order) {
+  return JSON.stringify({
+    targetWordCount: 2800,
+    lengthBudget: {
+      targetWordCount: 2800,
+      softMinWordCount: 2380,
+      softMaxWordCount: 3220,
+      hardMaxWordCount: 3500,
+    },
+    scenes: [
+      {
+        key: `chapter-${order}-scene-1`,
+        title: "起势",
+        purpose: "推进本章核心目标",
+        mustAdvance: ["主线"],
+        mustPreserve: ["人物动机"],
+        entryState: "进入冲突",
+        exitState: "压力升级",
+        forbiddenExpansion: [],
+        targetWordCount: 900,
+      },
+      {
+        key: `chapter-${order}-scene-2`,
+        title: "交锋",
+        purpose: "制造选择压力",
+        mustAdvance: ["冲突"],
+        mustPreserve: ["设定边界"],
+        entryState: "压力升级",
+        exitState: "代价显形",
+        forbiddenExpansion: [],
+        targetWordCount: 900,
+      },
+      {
+        key: `chapter-${order}-scene-3`,
+        title: "落点",
+        purpose: "形成章末推进",
+        mustAdvance: ["章末钩子"],
+        mustPreserve: ["后续入口"],
+        entryState: "代价显形",
+        exitState: "进入下一章",
+        forbiddenExpansion: [],
+        targetWordCount: 1000,
+      },
+    ],
+  });
+}
+
+function withExecutionDetail(chapter) {
+  const order = chapter.order ?? chapter.chapterOrder ?? 1;
+  return {
+    purpose: `第${order}章目标`,
+    conflictLevel: 5,
+    revealLevel: 3,
+    targetWordCount: 2800,
+    mustAvoid: "不要展开无关支线",
+    taskSheet: `第${order}章任务单`,
+    sceneCards: buildSceneCards(order),
+    ...chapter,
+  };
+}
+
 function buildPreparedVolume(order, title, chapterOrders) {
   const volumeId = `volume-${order}`;
   const beatKey = `${volumeId}-beat-1`;
@@ -36,13 +97,11 @@ function buildPreparedVolume(order, title, chapterOrders) {
     id: volumeId,
     sortOrder: order,
     title,
-    chapters: chapterOrders.map((chapterOrder) => ({
+    chapters: chapterOrders.map((chapterOrder) => withExecutionDetail({
       id: `chapter-${chapterOrder}`,
       chapterOrder,
       title: `第${chapterOrder}章`,
       beatKey,
-      taskSheet: `task-${chapterOrder}`,
-      sceneCards: `scene-${chapterOrder}`,
       payoffRefs: [],
     })),
   };
@@ -145,12 +204,13 @@ test("runFromReady completes immediately when repaired chapters leave no remaini
 
 test("runFromReady reuses an existing active range job before starting a new pipeline", async () => {
   const calls = [];
+  let pipelineCompleted = false;
   const runtime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: {
       async listChapters() {
         return [
-          { id: "chapter-1", order: 1, generationState: "draft" },
-          { id: "chapter-2", order: 2, generationState: "draft" },
+          withExecutionDetail({ id: "chapter-1", order: 1, generationState: pipelineCompleted ? "approved" : "draft" }),
+          withExecutionDetail({ id: "chapter-2", order: 2, generationState: pipelineCompleted ? "approved" : "draft" }),
         ];
       },
     },
@@ -166,6 +226,7 @@ test("runFromReady reuses an existing active range job before starting a new pip
       async getPipelineJobById(jobId) {
         calls.push(["getPipelineJobById", jobId]);
         if (jobId === "job-active") {
+          pipelineCompleted = true;
           return {
             id: "job-active",
             status: "succeeded",
@@ -222,7 +283,7 @@ test("runFromReady reuses an existing active range job before starting a new pip
   assert.deepEqual(calls, [
     ["bootstrapTask", "job-stale", "running"],
     ["getPipelineJobById", "job-stale"],
-    ["findActivePipelineJobForRange", "novel-1", 1, 2, null],
+    ["findActivePipelineJobForRange", "novel-1", 1, 1, null],
     ["bootstrapTask", "job-active", "running"],
     ["getPipelineJobById", "job-active"],
     ["recordCheckpoint", "task-auto-exec", "job-active", "succeeded"],
@@ -235,8 +296,8 @@ test("runFromReady records a normal checkpoint when pipeline completes with qual
     novelContextService: {
       async listChapters() {
         return [
-          { id: "chapter-1", order: 1, generationState: "planned" },
-          { id: "chapter-2", order: 2, generationState: "planned" },
+          withExecutionDetail({ id: "chapter-1", order: 1, generationState: "planned" }),
+          withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned" }),
         ];
       },
     },
@@ -328,7 +389,7 @@ test("runFromReady leaves low-risk quality repair at continue checkpoint when ch
       async listChapters() {
         return [
           { id: "chapter-1", order: 1, generationState: "repaired", chapterStatus: "completed", content: "正文1" },
-          { id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" },
+          withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" }),
         ];
       },
     },
@@ -420,14 +481,14 @@ test("runFromReady auto-continues only low-risk quality repair when approval poi
       async listChapters() {
         if (phase === "initial") {
           return [
-            { id: "chapter-1", order: 1, generationState: "planned", chapterStatus: "unplanned", content: "" },
-            { id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" },
+            withExecutionDetail({ id: "chapter-1", order: 1, generationState: "planned", chapterStatus: "unplanned", content: "" }),
+            withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" }),
           ];
         }
         if (phase !== "completed") {
           return [
             { id: "chapter-1", order: 1, generationState: "repaired", chapterStatus: "completed", content: "正文1" },
-            { id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" },
+            withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" }),
           ];
         }
         return [
@@ -533,7 +594,7 @@ test("runFromReady auto-continues only low-risk quality repair when approval poi
   assert.ok(calls.some((call) => call[0] === "autoApprovalGuard" && call[1] === "low"));
   assert.ok(calls.some((call) => call[0] === "recordAutoApproval" && call[1] === "chapter_batch_ready"));
   assert.deepEqual(calls.filter((call) => call[0] === "startPipelineJob").map((call) => call.slice(1)), [
-    [1, 2],
+    [1, 1],
     [2, 2],
   ]);
   assert.equal(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "chapter_batch_ready"), false);
@@ -547,7 +608,7 @@ test("runFromReady never auto-continues replan or large-scope repair notices", a
       async listChapters() {
         return [
           { id: "chapter-1", order: 1, generationState: "repaired", chapterStatus: "completed", content: "正文1" },
-          { id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" },
+          withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" }),
         ];
       },
     },
@@ -645,8 +706,8 @@ test("runFromReady records replan_required when pipeline completes with replan n
     novelContextService: {
       async listChapters() {
         return [
-          { id: "chapter-1", order: 1, generationState: "planned" },
-          { id: "chapter-2", order: 2, generationState: "planned" },
+          withExecutionDetail({ id: "chapter-1", order: 1, generationState: "planned" }),
+          withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned" }),
         ];
       },
     },
@@ -726,13 +787,14 @@ test("runFromReady records replan_required when pipeline completes with replan n
 
 test("runFromReady uses the latest auto-execution review toggles instead of stale saved state when starting a new batch", async () => {
   const calls = [];
+  let pipelineCompleted = false;
   const runtime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: {
       async listChapters() {
-        return Array.from({ length: 10 }, (_, index) => ({
+        return Array.from({ length: 10 }, (_, index) => withExecutionDetail({
           id: `chapter-${index + 1}`,
           order: index + 1,
-          generationState: "planned",
+          generationState: pipelineCompleted ? "approved" : "planned",
         }));
       },
     },
@@ -746,6 +808,7 @@ test("runFromReady uses the latest auto-execution review toggles instead of stal
       },
       async getPipelineJobById(jobId) {
         calls.push(["getPipelineJobById", jobId]);
+        pipelineCompleted = true;
         return {
           id: jobId,
           status: "succeeded",
@@ -816,7 +879,7 @@ test("runFromReady uses the latest auto-execution review toggles instead of stal
 
   assert.deepEqual(calls[0], ["bootstrapTask", false, false]);
   assert.deepEqual(calls[1], ["markTaskRunning"]);
-  assert.deepEqual(calls[2], ["startPipelineJob", 1, 10, false, false]);
+  assert.deepEqual(calls[2], ["startPipelineJob", 1, 1, false, false]);
   assert.deepEqual(calls[3], ["bootstrapTask", false, false]);
   assert.deepEqual(calls[4], ["getPipelineJobById", "job-no-review"]);
   assert.deepEqual(calls[5], ["recordCheckpoint", "task-auto-exec", false, false]);
@@ -824,13 +887,15 @@ test("runFromReady uses the latest auto-execution review toggles instead of stal
 
 test("runFromReady skips the current review-blocked chapter when continuing explicit auto execution", async () => {
   const calls = [];
+  const completedOrders = new Set();
+  const jobOrderById = new Map();
   const runtime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: {
       async listChapters() {
         return [
           { id: "chapter-1", order: 1, generationState: "reviewed", chapterStatus: "needs_repair" },
-          { id: "chapter-2", order: 2, generationState: "planned" },
-          { id: "chapter-3", order: 3, generationState: "planned" },
+          withExecutionDetail({ id: "chapter-2", order: 2, generationState: completedOrders.has(2) ? "approved" : "planned" }),
+          withExecutionDetail({ id: "chapter-3", order: 3, generationState: completedOrders.has(3) ? "approved" : "planned" }),
         ];
       },
     },
@@ -841,7 +906,9 @@ test("runFromReady skips the current review-blocked chapter when continuing expl
           options.startOrder,
           options.endOrder,
         ]);
-        return { id: "job-skip-review", status: "queued" };
+        const jobId = `job-skip-review-${options.startOrder}`;
+        jobOrderById.set(jobId, options.startOrder);
+        return { id: jobId, status: "queued" };
       },
       async findActivePipelineJobForRange(_novelId, startOrder, endOrder, preferredJobId) {
         calls.push(["findActivePipelineJobForRange", startOrder, endOrder, preferredJobId]);
@@ -849,6 +916,10 @@ test("runFromReady skips the current review-blocked chapter when continuing expl
       },
       async getPipelineJobById(jobId) {
         calls.push(["getPipelineJobById", jobId]);
+        const order = jobOrderById.get(jobId);
+        if (typeof order === "number") {
+          completedOrders.add(order);
+        }
         return {
           id: jobId,
           status: "succeeded",
@@ -914,12 +985,16 @@ test("runFromReady skips the current review-blocked chapter when continuing expl
   });
 
   assert.deepEqual(calls[0], ["bootstrapTask", 2, [1]]);
-  assert.deepEqual(calls[1], ["findActivePipelineJobForRange", 2, 3, null]);
-  assert.deepEqual(calls[2], ["markTaskRunning"]);
-  assert.deepEqual(calls[3], ["startPipelineJob", 2, 3]);
-  assert.deepEqual(calls[4], ["bootstrapTask", 2, [1]]);
-  assert.deepEqual(calls[5], ["getPipelineJobById", "job-skip-review"]);
-  assert.deepEqual(calls[6], ["recordCheckpoint", "task-auto-exec", [1]]);
+  assert.deepEqual(calls[1], ["findActivePipelineJobForRange", 2, 2, null]);
+  assert.deepEqual(calls.filter((call) => call[0] === "startPipelineJob").map((call) => call.slice(1)), [
+    [2, 2],
+    [3, 3],
+  ]);
+  assert.deepEqual(calls.filter((call) => call[0] === "getPipelineJobById").map((call) => call[1]), [
+    "job-skip-review-2",
+    "job-skip-review-3",
+  ]);
+  assert.deepEqual(calls.find((call) => call[0] === "recordCheckpoint"), ["recordCheckpoint", "task-auto-exec", [1]]);
 });
 
 test("prepareRequestedAutoExecution resolves the selected volume range instead of falling back to front10", async () => {
@@ -931,10 +1006,10 @@ test("prepareRequestedAutoExecution resolves the selected volume range instead o
           { id: "chapter-2", order: 2, generationState: "approved" },
           { id: "chapter-3", order: 3, generationState: "approved" },
           { id: "chapter-4", order: 4, generationState: "approved" },
-          { id: "chapter-5", order: 5, generationState: "planned" },
-          { id: "chapter-6", order: 6, generationState: "planned" },
-          { id: "chapter-7", order: 7, generationState: "planned" },
-          { id: "chapter-8", order: 8, generationState: "planned" },
+          withExecutionDetail({ id: "chapter-5", order: 5, generationState: "planned" }),
+          withExecutionDetail({ id: "chapter-6", order: 6, generationState: "planned" }),
+          withExecutionDetail({ id: "chapter-7", order: 7, generationState: "planned" }),
+          withExecutionDetail({ id: "chapter-8", order: 8, generationState: "planned" }),
         ];
       },
     },
@@ -1017,10 +1092,10 @@ test("prepareRequestedAutoExecution refreshes a stale volume range after chapter
           { id: "chapter-2", order: 2, content: "正文2", generationState: "approved" },
           { id: "chapter-3", order: 3, content: "正文3", generationState: "approved" },
           { id: "chapter-4", order: 4, content: "正文4", generationState: "approved" },
-          { id: "chapter-5", order: 5, content: "", generationState: "planned" },
-          { id: "chapter-6", order: 6, content: "", generationState: "planned" },
-          { id: "chapter-7", order: 7, content: "", generationState: "planned" },
-          { id: "chapter-8", order: 8, content: "", generationState: "planned" },
+          withExecutionDetail({ id: "chapter-5", order: 5, content: "", generationState: "planned" }),
+          withExecutionDetail({ id: "chapter-6", order: 6, content: "", generationState: "planned" }),
+          withExecutionDetail({ id: "chapter-7", order: 7, content: "", generationState: "planned" }),
+          withExecutionDetail({ id: "chapter-8", order: 8, content: "", generationState: "planned" }),
         ];
       },
     },
@@ -1107,14 +1182,14 @@ test("prepareRequestedAutoExecution rejects skipping to a later volume while ear
     novelContextService: {
       async listChapters() {
         return [
-          { id: "chapter-1", order: 1, generationState: "planned" },
-          { id: "chapter-2", order: 2, generationState: "planned" },
-          { id: "chapter-3", order: 3, generationState: "planned" },
-          { id: "chapter-4", order: 4, generationState: "planned" },
-          { id: "chapter-5", order: 5, generationState: "planned" },
-          { id: "chapter-6", order: 6, generationState: "planned" },
-          { id: "chapter-7", order: 7, generationState: "planned" },
-          { id: "chapter-8", order: 8, generationState: "planned" },
+          withExecutionDetail({ id: "chapter-1", order: 1, generationState: "planned" }),
+          withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned" }),
+          withExecutionDetail({ id: "chapter-3", order: 3, generationState: "planned" }),
+          withExecutionDetail({ id: "chapter-4", order: 4, generationState: "planned" }),
+          withExecutionDetail({ id: "chapter-5", order: 5, generationState: "planned" }),
+          withExecutionDetail({ id: "chapter-6", order: 6, generationState: "planned" }),
+          withExecutionDetail({ id: "chapter-7", order: 7, generationState: "planned" }),
+          withExecutionDetail({ id: "chapter-8", order: 8, generationState: "planned" }),
         ];
       },
     },
@@ -1170,5 +1245,139 @@ test("prepareRequestedAutoExecution rejects skipping to a later volume while ear
       }),
     }),
     /开局卷仍有未完成章节（第 1 章起），不能直接跳到第 2 卷/,
+  );
+});
+
+test("prepareRequestedAutoExecution rejects chapter ranges with incomplete execution detail", async () => {
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        return [
+          {
+            id: "chapter-1",
+            order: 1,
+            generationState: "planned",
+            content: "",
+            taskSheet: "task-1",
+            sceneCards: JSON.stringify({
+              targetWordCount: 2800,
+              lengthBudget: {
+                targetWordCount: 2800,
+                softMinWordCount: 2380,
+                softMaxWordCount: 3220,
+                hardMaxWordCount: 3500,
+              },
+              scenes: [
+                {
+                  key: "s1",
+                  title: "场景一",
+                  purpose: "推进本章目标",
+                  mustAdvance: ["主线"],
+                  mustPreserve: ["设定"],
+                  entryState: "进入",
+                  exitState: "退出",
+                  forbiddenExpansion: [],
+                  targetWordCount: 900,
+                },
+                {
+                  key: "s2",
+                  title: "场景二",
+                  purpose: "升级冲突",
+                  mustAdvance: ["冲突"],
+                  mustPreserve: ["边界"],
+                  entryState: "进入",
+                  exitState: "退出",
+                  forbiddenExpansion: [],
+                  targetWordCount: 900,
+                },
+                {
+                  key: "s3",
+                  title: "场景三",
+                  purpose: "章末推进",
+                  mustAdvance: ["钩子"],
+                  mustPreserve: ["人物"],
+                  entryState: "进入",
+                  exitState: "退出",
+                  forbiddenExpansion: [],
+                  targetWordCount: 1000,
+                },
+              ],
+            }),
+            purpose: "完整章节目标",
+            conflictLevel: 5,
+            revealLevel: 3,
+            targetWordCount: 2800,
+            mustAvoid: "不要展开支线",
+          },
+          {
+            id: "chapter-2",
+            order: 2,
+            generationState: "planned",
+            content: "",
+            taskSheet: "fallback task only",
+            sceneCards: JSON.stringify([{ key: "too-short", title: "场景不足" }]),
+            purpose: "",
+            conflictLevel: null,
+            revealLevel: null,
+            targetWordCount: null,
+            mustAvoid: "",
+          },
+        ];
+      },
+    },
+    novelService: {
+      async startPipelineJob() {
+        throw new Error("should not start a pipeline in prepareRequestedAutoExecution");
+      },
+      async findActivePipelineJobForRange() {
+        return null;
+      },
+      async getPipelineJobById() {
+        return null;
+      },
+      async cancelPipelineJob() {},
+    },
+    workflowService: {
+      async bootstrapTask() {
+        throw new Error("should not bootstrap in prepareRequestedAutoExecution");
+      },
+      async getTaskById() {
+        return { status: "waiting_approval" };
+      },
+      async markTaskRunning() {
+        throw new Error("should not mark running in prepareRequestedAutoExecution");
+      },
+      async recordCheckpoint() {
+        throw new Error("should not record checkpoint in prepareRequestedAutoExecution");
+      },
+      async markTaskFailed() {
+        throw new Error("should not mark failed in prepareRequestedAutoExecution");
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+  });
+
+  await assert.rejects(
+    runtime.prepareRequestedAutoExecution({
+      taskId: "task-auto-exec",
+      novelId: "novel-1",
+      request: buildRequest({
+        autoExecutionPlan: {
+          mode: "chapter_range",
+          startOrder: 1,
+          endOrder: 2,
+        },
+      }),
+      existingState: {
+        enabled: true,
+        mode: "chapter_range",
+        startOrder: 1,
+        endOrder: 2,
+        totalChapterCount: 2,
+      },
+    }),
+    /第 2 章.*章节细化/,
   );
 });

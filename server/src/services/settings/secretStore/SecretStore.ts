@@ -6,6 +6,8 @@ export interface SecretStoreRecord {
   baseURL: string | null;
   isActive: boolean;
   reasoningEnabled: boolean | null;
+  concurrencyLimit: number | null;
+  requestIntervalMs: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -17,6 +19,8 @@ export interface SecretStoreWriteInput {
   baseURL?: string | null;
   isActive?: boolean;
   reasoningEnabled?: boolean;
+  concurrencyLimit?: number | null;
+  requestIntervalMs?: number | null;
 }
 
 export interface SecretStoreListOptions {

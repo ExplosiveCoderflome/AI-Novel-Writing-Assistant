@@ -1,9 +1,13 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
 import { ChatOpenAI } from "@langchain/openai";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
 import { secretStore } from "../services/settings/secretStore";
 import { resolveModelTemperature } from "./capabilities";
+import { createAnthropicLLM } from "./anthropicClient";
 import { attachLLMDebugLogging } from "./debugLogging";
+import { attachLLMRequestLimiter } from "./requestLimiter";
+import { attachLLMRequestGuard } from "./requestGuard";
 import { resolveProviderReasoningBehavior } from "./reasoning";
 import {
   resolveStructuredOutputProfile,
@@ -12,7 +16,7 @@ import {
   type StructuredOutputStrategy,
 } from "./structuredOutput";
 import { attachLLMUsageTracking } from "./usageTracking";
-import { resolveModel, type TaskType } from "./modelRouter";
+import { resolveModel, toStructuredOutputStrategy, type TaskType } from "./modelRouter";
 import {
   getProviderEnvApiKey,
   getProviderEnvModel,
@@ -32,6 +36,7 @@ interface LLMOptions {
   reasoningEnabled?: boolean;
   executionMode?: StructuredExecutionMode;
   structuredStrategy?: StructuredOutputStrategy;
+  requestProtocol?: ModelRouteRequestProtocol;
   modelKwargs?: Record<string, unknown>;
   fallbackProvider?: LLMProvider;
   taskType?: TaskType;
@@ -44,6 +49,8 @@ export interface ProviderSecret {
   baseURL?: string;
   displayName?: string;
   reasoningEnabled?: boolean;
+  concurrencyLimit?: number | null;
+  requestIntervalMs?: number | null;
 }
 
 export interface ResolvedLLMClientOptions {
@@ -55,9 +62,12 @@ export interface ResolvedLLMClientOptions {
   baseURL: string;
   maxTokens?: number;
   timeoutMs?: number;
+  concurrencyLimit: number;
+  requestIntervalMs: number;
   reasoningEnabled: boolean;
   modelKwargs?: Record<string, unknown>;
   includeRawResponse: boolean;
+  requestProtocol: ModelRouteRequestProtocol;
   executionMode: StructuredExecutionMode;
   structuredProfile?: StructuredOutputProfile | null;
   structuredStrategy?: StructuredOutputStrategy | null;
@@ -104,7 +114,16 @@ function normalizeProviderSecret(secret: ProviderSecret): ProviderSecret {
     baseURL: normalizeOptionalText(secret.baseURL),
     displayName: normalizeOptionalText(secret.displayName),
     reasoningEnabled: secret.reasoningEnabled ?? true,
+    concurrencyLimit: normalizeLimitValue(secret.concurrencyLimit),
+    requestIntervalMs: normalizeLimitValue(secret.requestIntervalMs),
   };
+}
+
+function normalizeLimitValue(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return 0;
+  }
+  return Math.floor(value);
 }
 
 function toProviderSecret(item: {
@@ -113,6 +132,8 @@ function toProviderSecret(item: {
   baseURL?: string | null;
   displayName?: string | null;
   reasoningEnabled?: boolean | null;
+  concurrencyLimit?: number | null;
+  requestIntervalMs?: number | null;
 }): ProviderSecret {
   return normalizeProviderSecret({
     key: item.key ?? undefined,
@@ -120,6 +141,8 @@ function toProviderSecret(item: {
     baseURL: item.baseURL ?? undefined,
     displayName: item.displayName ?? undefined,
     reasoningEnabled: item.reasoningEnabled ?? undefined,
+    concurrencyLimit: normalizeLimitValue(item.concurrencyLimit),
+    requestIntervalMs: normalizeLimitValue(item.requestIntervalMs),
   });
 }
 
@@ -169,8 +192,9 @@ async function resolveProviderSecret(provider: LLMProvider): Promise<ProviderSec
 
 export async function resolveLLMClientOptions(
   provider?: LLMProvider,
-  options: LLMOptions = {},
+  rawOptions: LLMOptions = {},
 ): Promise<ResolvedLLMClientOptions> {
+  const options: LLMOptions = { ...rawOptions };
   let resolvedProvider = provider ?? options.fallbackProvider ?? "deepseek";
   let resolvedModel = normalizeOptionalText(options.model);
   let resolvedTemperature: number | undefined = options.temperature;
@@ -197,6 +221,15 @@ export async function resolveLLMClientOptions(
     }
     if (options.maxTokens == null) {
       resolvedMaxTokens = route.maxTokens;
+    }
+    if (options.requestProtocol == null) {
+      options.requestProtocol = route.requestProtocol;
+    }
+    if (options.structuredStrategy == null) {
+      const routeStructuredStrategy = toStructuredOutputStrategy(route.structuredResponseFormat);
+      if (routeStructuredStrategy) {
+        options.structuredStrategy = routeStructuredStrategy;
+      }
     }
   }
 
@@ -231,6 +264,10 @@ export async function resolveLLMClientOptions(
 
   const temperature = resolveModelTemperature(resolvedProvider, model, resolvedTemperature);
   const timeoutMs = normalizeOptionalTimeoutMs(options.timeoutMs);
+  const concurrencyLimit = normalizeLimitValue(dbSecret?.concurrencyLimit);
+  const requestIntervalMs = normalizeLimitValue(dbSecret?.requestIntervalMs);
+  const requestProtocol = options.requestProtocol === "anthropic" ? "anthropic" : "openai_compatible";
+  const structuredStrategy = options.structuredStrategy;
   const executionMode = options.executionMode ?? "plain";
   const structuredProfile = executionMode === "structured"
     ? resolveStructuredOutputProfile({
@@ -238,9 +275,10 @@ export async function resolveLLMClientOptions(
       model,
       baseURL,
       executionMode,
+      requestProtocol,
     })
     : null;
-  const usesNativeStructured = options.structuredStrategy != null && options.structuredStrategy !== "prompt_json";
+  const usesNativeStructured = structuredStrategy != null && structuredStrategy !== "prompt_json";
   const requestedReasoningEnabled = options.reasoningEnabled ?? dbSecret?.reasoningEnabled ?? true;
   const shouldForceDisableReasoning = Boolean(
     structuredProfile
@@ -282,12 +320,15 @@ export async function resolveLLMClientOptions(
     baseURL,
     maxTokens: effectiveMaxTokens,
     timeoutMs,
+    concurrencyLimit,
+    requestIntervalMs,
     reasoningEnabled: reasoningBehavior.reasoningEnabled,
     modelKwargs: Object.keys(modelKwargs).length > 0 ? modelKwargs : undefined,
     includeRawResponse: reasoningBehavior.includeRawResponse,
+    requestProtocol,
     executionMode,
     structuredProfile,
-    structuredStrategy: options.structuredStrategy ?? null,
+    structuredStrategy: structuredStrategy ?? null,
     reasoningForcedOff: shouldForceDisableReasoning && requestedReasoningEnabled,
     taskType: options.taskType,
     promptMeta: options.promptMeta,
@@ -295,20 +336,29 @@ export async function resolveLLMClientOptions(
 }
 
 export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions): ChatOpenAI {
-  const llm = new ChatOpenAI({
-    apiKey: resolved.apiKey ?? "ollama",
-    model: resolved.model,
-    modelName: resolved.model,
-    temperature: resolved.temperature,
-    maxTokens: resolved.maxTokens,
-    timeout: resolved.timeoutMs,
-    modelKwargs: resolved.modelKwargs,
-    __includeRawResponse: resolved.includeRawResponse,
-    configuration: {
+  const llm = resolved.requestProtocol === "anthropic"
+    ? createAnthropicLLM({
+      apiKey: resolved.apiKey,
+      model: resolved.model,
       baseURL: resolved.baseURL,
-    },
-  });
-  const decorated = attachLLMDebugLogging(attachLLMUsageTracking(llm), {
+      temperature: resolved.temperature,
+      maxTokens: resolved.maxTokens,
+      timeoutMs: resolved.timeoutMs,
+    }) as ChatOpenAI
+    : new ChatOpenAI({
+      apiKey: resolved.apiKey ?? "ollama",
+      model: resolved.model,
+      modelName: resolved.model,
+      temperature: resolved.temperature,
+      maxTokens: resolved.maxTokens,
+      timeout: resolved.timeoutMs,
+      modelKwargs: resolved.modelKwargs,
+      __includeRawResponse: resolved.includeRawResponse,
+      configuration: {
+        baseURL: resolved.baseURL,
+      },
+    });
+  const meta = {
     provider: resolved.provider,
     model: resolved.model,
     temperature: resolved.temperature,
@@ -317,9 +367,16 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
     taskType: resolved.taskType,
     baseURL: resolved.baseURL,
     promptMeta: resolved.promptMeta,
+  };
+  const decorated = attachLLMDebugLogging(attachLLMUsageTracking(attachLLMRequestGuard(llm, meta)), meta);
+  const limited = attachLLMRequestLimiter(decorated, {
+    provider: resolved.provider,
+    model: resolved.model,
+    concurrencyLimit: resolved.concurrencyLimit,
+    requestIntervalMs: resolved.requestIntervalMs,
   });
-  (decorated as ChatOpenAIWithResolvedOptions)[RESOLVED_LLM_OPTIONS] = resolved;
-  return decorated;
+  (limited as ChatOpenAIWithResolvedOptions)[RESOLVED_LLM_OPTIONS] = resolved;
+  return limited;
 }
 
 export async function getLLM(provider?: LLMProvider, options: LLMOptions = {}): Promise<ChatOpenAI> {
