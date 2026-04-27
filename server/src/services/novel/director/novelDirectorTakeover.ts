@@ -309,9 +309,6 @@ function hasExecutableRange(input: {
 }): boolean {
   return Boolean(
     input.executableRange
-    || input.latestCheckpoint?.checkpointType === "front10_ready"
-    || input.latestCheckpoint?.checkpointType === "chapter_batch_ready"
-    || input.latestCheckpoint?.checkpointType === "replan_required"
     || input.activePipelineJob,
   );
 }
@@ -375,13 +372,13 @@ function resolveExecutionContinuationStep(input: {
   executableRange?: DirectorTakeoverExecutableRangeSnapshot | null;
   preferPipeline: boolean;
 }): DirectorTakeoverEntryStep | null {
-  const executable = hasExecutableRange(input);
-  if (!executable) {
-    return null;
-  }
   const pendingRepair = hasPendingRepairContext(input);
   if (pendingRepair) {
     return "pipeline";
+  }
+  const executable = hasExecutableRange(input);
+  if (!executable) {
+    return null;
   }
   if (input.preferPipeline) {
     return "chapter";

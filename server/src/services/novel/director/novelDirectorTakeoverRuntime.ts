@@ -117,6 +117,23 @@ function buildPreparedRangeFromSyncedChapters(
   };
 }
 
+function buildPreparedRangeFromState(
+  chapterRows: TakeoverChapterRow[],
+  state: DirectorWorkflowSeedPayload["autoExecution"] | null | undefined,
+): DirectorTakeoverExecutableRangeSnapshot | null {
+  const stateRange = resolveDirectorAutoExecutionRangeFromState(state);
+  if (!stateRange) {
+    return null;
+  }
+  return buildPreparedRangeFromSyncedChapters(
+    chapterRows,
+    Array.from(
+      { length: Math.max(0, stateRange.endOrder - stateRange.startOrder + 1) },
+      (_item, index) => stateRange.startOrder + index,
+    ),
+  );
+}
+
 function buildCheckpointSnapshot(input: {
   task: {
     checkpointType?: string | null;
@@ -306,7 +323,10 @@ export async function loadDirectorTakeoverState(input: {
     chapterOrderMap,
   });
 
-  const executableRangeFromState = resolveDirectorAutoExecutionRangeFromState(latestSeedPayload?.autoExecution);
+  const executableRangeFromState = buildPreparedRangeFromState(
+    chapterRows as TakeoverChapterRow[],
+    latestSeedPayload?.autoExecution,
+  );
   const executableRangeFromSyncedChapters = structuredOutlineCursor
     && (structuredOutlineCursor.step === "chapter_sync" || structuredOutlineCursor.step === "completed")
     ? buildPreparedRangeFromSyncedChapters(
@@ -319,8 +339,8 @@ export async function loadDirectorTakeoverState(input: {
         startOrder: executableRangeFromState.startOrder,
         endOrder: executableRangeFromState.endOrder,
         totalChapterCount: executableRangeFromState.totalChapterCount,
-        nextChapterId: latestSeedPayload?.autoExecution?.nextChapterId ?? null,
-        nextChapterOrder: latestSeedPayload?.autoExecution?.nextChapterOrder ?? null,
+        nextChapterId: executableRangeFromState.nextChapterId,
+        nextChapterOrder: executableRangeFromState.nextChapterOrder,
       }
     : executableRangeFromSyncedChapters;
 

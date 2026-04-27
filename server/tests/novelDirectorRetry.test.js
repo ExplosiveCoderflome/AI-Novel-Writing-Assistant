@@ -541,7 +541,10 @@ test("continueTask resumes auto execution in the background instead of blocking 
   const runtimeCalls = [];
 
   service.continueCandidateStageTask = async () => false;
-  service.resolveAssetFirstRecovery = async () => null;
+  service.resolveAssetFirstRecovery = async () => ({
+    type: "auto_execution",
+    resumeCheckpointType: "chapter_batch_ready",
+  });
   service.workflowService.getTaskById = async () => ({
     id: "task_auto_execution_resume",
     lane: "auto_director",
@@ -620,6 +623,114 @@ test("continueTask resumes auto execution in the background instead of blocking 
     service.resolveAssetFirstRecovery = originalResolveAssetFirstRecovery;
     service.workflowService.markTaskRunning = originalMarkTaskRunning;
     service.scheduleBackgroundRun = originalScheduleBackgroundRun;
+    service.autoExecutionRuntime.runFromReady = originalRunFromReady;
+  }
+});
+
+test("continueTask resumes structured outline when stale front10 checkpoint lacks a fully detailed range", async () => {
+  const service = new NovelDirectorService();
+  const originalContinueCandidateStageTask = service.continueCandidateStageTask;
+  const originalGetTaskById = service.workflowService.getTaskById;
+  const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
+  const originalAssertHighMemoryDirectorStartAllowed = service.assertHighMemoryDirectorStartAllowed;
+  const originalBootstrapTask = service.workflowService.bootstrapTask;
+  const originalMarkTaskRunning = service.workflowService.markTaskRunning;
+  const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
+  const originalRunDirectorPipeline = service.runDirectorPipeline;
+  const originalRunFromReady = service.autoExecutionRuntime.runFromReady;
+  const bootstrapCalls = [];
+  const runningCalls = [];
+  const scheduledRuns = [];
+  const pipelineRuns = [];
+  const runtimeCalls = [];
+
+  service.continueCandidateStageTask = async () => false;
+  service.resolveAssetFirstRecovery = async () => ({
+    type: "phase",
+    phase: "structured_outline",
+  });
+  service.assertHighMemoryDirectorStartAllowed = async () => undefined;
+  service.workflowService.getTaskById = async () => ({
+    id: "task_stale_front10_resume",
+    lane: "auto_director",
+    status: "waiting_approval",
+    pendingManualRecovery: false,
+    novelId: "novel_stale_front10_resume",
+    checkpointType: "front10_ready",
+    currentItemKey: "front10_ready",
+    resumeTargetJson: JSON.stringify({
+      stage: "structured_outline",
+      volumeId: "volume_1",
+    }),
+    seedPayloadJson: JSON.stringify({
+      directorInput: buildDirectorInput({
+        workflowTaskId: "task_stale_front10_resume",
+        runMode: "auto_to_execution",
+      }),
+      directorSession: {
+        runMode: "auto_to_execution",
+        phase: "front10_ready",
+        isBackgroundRunning: false,
+        lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
+        reviewScope: null,
+      },
+      autoExecution: {
+        enabled: true,
+        mode: "chapter_range",
+        scopeLabel: "第 1-10 章",
+        startOrder: 1,
+        endOrder: 10,
+        totalChapterCount: 10,
+        nextChapterId: "chapter_1",
+        nextChapterOrder: 1,
+      },
+    }),
+  });
+  service.workflowService.bootstrapTask = async (input) => {
+    bootstrapCalls.push(input);
+    return { id: "task_stale_front10_resume" };
+  };
+  service.workflowService.markTaskRunning = async (taskId, input) => {
+    runningCalls.push({ taskId, ...input });
+    return null;
+  };
+  service.scheduleBackgroundRun = (taskId, runner) => {
+    scheduledRuns.push({ taskId, runner });
+  };
+  service.runDirectorPipeline = async (input) => {
+    pipelineRuns.push(input);
+  };
+  service.autoExecutionRuntime.runFromReady = async (input) => {
+    runtimeCalls.push(input);
+  };
+
+  try {
+    await service.continueTask("task_stale_front10_resume", {
+      continuationMode: "auto_execute_range",
+    });
+
+    assert.equal(bootstrapCalls.length, 1);
+    assert.equal(runningCalls.length, 1);
+    assert.equal(runningCalls[0].stage, "structured_outline");
+    assert.equal(scheduledRuns.length, 1);
+    assert.equal(runtimeCalls.length, 0);
+
+    await scheduledRuns[0].runner();
+
+    assert.equal(pipelineRuns.length, 1);
+    assert.equal(pipelineRuns[0].taskId, "task_stale_front10_resume");
+    assert.equal(pipelineRuns[0].novelId, "novel_stale_front10_resume");
+    assert.equal(pipelineRuns[0].startPhase, "structured_outline");
+    assert.equal(runtimeCalls.length, 0);
+  } finally {
+    service.continueCandidateStageTask = originalContinueCandidateStageTask;
+    service.workflowService.getTaskById = originalGetTaskById;
+    service.resolveAssetFirstRecovery = originalResolveAssetFirstRecovery;
+    service.assertHighMemoryDirectorStartAllowed = originalAssertHighMemoryDirectorStartAllowed;
+    service.workflowService.bootstrapTask = originalBootstrapTask;
+    service.workflowService.markTaskRunning = originalMarkTaskRunning;
+    service.scheduleBackgroundRun = originalScheduleBackgroundRun;
+    service.runDirectorPipeline = originalRunDirectorPipeline;
     service.autoExecutionRuntime.runFromReady = originalRunFromReady;
   }
 });
