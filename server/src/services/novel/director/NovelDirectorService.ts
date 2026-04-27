@@ -335,6 +335,7 @@ export class NovelDirectorService {
   > {
     const takeoverState = await loadDirectorTakeoverState({
       novelId: input.novelId,
+      autoExecutionPlan: input.directorInput.autoExecutionPlan,
       getStoryMacroPlan: (targetNovelId) => this.storyMacroService.getPlan(targetNovelId),
       getDirectorAssetSnapshot: (targetNovelId) => this.getDirectorAssetSnapshot(targetNovelId),
       getVolumeWorkspace: (targetNovelId) => this.volumeService.getVolumes(targetNovelId),

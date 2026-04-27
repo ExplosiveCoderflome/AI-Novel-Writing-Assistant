@@ -53,6 +53,42 @@ test("asset-first recovery resumes auto execution from existing executable asset
   });
 });
 
+test("asset-first recovery keeps structured outline first when requested scope is not fully detailed", () => {
+  const recovery = resolveAssetFirstRecoveryFromSnapshot({
+    runMode: "auto_to_execution",
+    structuredOutlineRecoveryStep: "chapter_detail_bundle",
+    volumeCount: 10,
+    hasVolumeStrategyPlan: true,
+    hasActivePipelineJob: true,
+    hasExecutableRange: true,
+    hasAutoExecutionState: true,
+    latestCheckpointType: "chapter_batch_ready",
+  });
+
+  assert.deepEqual(recovery, {
+    type: "phase",
+    phase: "structured_outline",
+  });
+});
+
+test("asset-first recovery keeps structured outline at chapter sync when execution range is stale", () => {
+  const recovery = resolveAssetFirstRecoveryFromSnapshot({
+    runMode: "auto_to_execution",
+    structuredOutlineRecoveryStep: "chapter_sync",
+    volumeCount: 10,
+    hasVolumeStrategyPlan: true,
+    hasActivePipelineJob: true,
+    hasExecutableRange: false,
+    hasAutoExecutionState: true,
+    latestCheckpointType: "chapter_batch_ready",
+  });
+
+  assert.deepEqual(recovery, {
+    type: "phase",
+    phase: "structured_outline",
+  });
+});
+
 test("asset-first recovery resumes structured outline instead of regressing to volume strategy", () => {
   const recovery = resolveAssetFirstRecoveryFromSnapshot({
     runMode: "auto_to_ready",

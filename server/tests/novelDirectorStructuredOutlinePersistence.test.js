@@ -166,6 +166,7 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
   };
 
   const syncedSnapshots = [];
+  const syncCalls = [];
   const resetFindManyCalls = [];
   const resetDeletions = [];
   let lastSyncedWorkspace = clone(baseWorkspace);
@@ -221,7 +222,8 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
       };
       return { creates: [], updates: [], deletes: [] };
     },
-    syncVolumeChaptersWithOptions: async (_novelId, input) => {
+    syncVolumeChaptersWithOptions: async (_novelId, input, options) => {
+      syncCalls.push({ input, options });
       const snapshot = clone(input.volumes);
       syncedSnapshots.push(snapshot);
       lastSyncedWorkspace = {
@@ -287,6 +289,8 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
   }
 
   assert.equal(syncedSnapshots.length, 1);
+  assert.equal(syncCalls[0].input.applyDeletes, true);
+  assert.equal(syncCalls[0].input.preserveContent, false);
   assert.deepEqual(rebuildCalls, [{
     novelId: "novel-demo",
     options: { sourceType: "rebuild_projection" },

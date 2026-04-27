@@ -337,6 +337,7 @@ test("continue_existing from structured records downstream reset metadata and re
 
 test("continue_existing from structured resets downstream runtime state before bootstrap", async () => {
   const calls = [];
+  let bootstrapInput = null;
 
   await startDirectorTakeoverExecution({
     request: {
@@ -351,7 +352,8 @@ test("continue_existing from structured resets downstream runtime state before b
       autoExecutionPlan: { mode: "book" },
     },
     workflowService: {
-      bootstrapTask: async () => {
+      bootstrapTask: async (input) => {
+        bootstrapInput = input;
         calls.push("bootstrap");
         return { id: "workflow_takeover_demo" };
       },
@@ -382,6 +384,42 @@ test("continue_existing from structured resets downstream runtime state before b
     "reset_downstream:structured",
     "bootstrap",
   ]);
+  assert.equal(bootstrapInput.seedPayload.autoExecution, undefined);
+});
+
+test("continue_existing from chapter keeps current batch auto execution state in seed", async () => {
+  let bootstrapInput = null;
+
+  await startDirectorTakeoverExecution({
+    request: {
+      novelId: "novel_takeover_demo",
+      entryStep: "chapter",
+      strategy: "continue_existing",
+    },
+    takeoverState: buildTakeoverState(),
+    directorInput: {
+      candidate: { workingTitle: "Neon Archive" },
+      runMode: "auto_to_execution",
+      autoExecutionPlan: { mode: "front10" },
+    },
+    workflowService: {
+      bootstrapTask: async (input) => {
+        bootstrapInput = input;
+        return { id: "workflow_takeover_demo" };
+      },
+      markTaskRunning: async () => {},
+    },
+    autoExecutionRuntime: {
+      prepareRequestedAutoExecution: async () => {},
+      runFromReady: async () => {},
+    },
+    buildDirectorSeedPayload: (_request, _novelId, extra) => ({ ...extra }),
+    scheduleBackgroundRun: () => {},
+    runDirectorPipeline: async () => {},
+    cancelReplacedRuns: async () => {},
+  });
+
+  assert.equal(bootstrapInput.seedPayload.autoExecution?.nextChapterId, "chapter_1");
 });
 
 test("restart_current_step records downstream reset metadata for workspace navigation", async () => {

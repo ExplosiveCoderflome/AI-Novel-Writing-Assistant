@@ -52,6 +52,22 @@ export function resolveAssetFirstRecoveryFromSnapshot(input: {
   | null {
   if (
     normalizeDirectorRunMode(input.runMode) === "auto_to_execution"
+    && input.hasVolumeStrategyPlan
+    && input.structuredOutlineRecoveryStep
+    && (
+      input.structuredOutlineRecoveryStep !== "chapter_sync"
+      || !input.hasExecutableRange
+    )
+    && input.structuredOutlineRecoveryStep !== "completed"
+  ) {
+    return {
+      type: "phase",
+      phase: "structured_outline",
+    };
+  }
+
+  if (
+    normalizeDirectorRunMode(input.runMode) === "auto_to_execution"
     && (
       input.hasActivePipelineJob
       || input.hasExecutableRange

@@ -432,8 +432,8 @@ export async function runDirectorStructuredOutlinePhase(input: {
   });
   await dependencies.volumeService.syncVolumeChaptersWithOptions(novelId, {
     volumes: persistedOutlineWorkspace.volumes,
-    preserveContent: true,
-    applyDeletes: false,
+    preserveContent: false,
+    applyDeletes: true,
   }, {
     emitEvent: false,
     syncPayoffLedger: false,

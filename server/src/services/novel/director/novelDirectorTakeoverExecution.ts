@@ -182,6 +182,24 @@ function buildTakeoverMetadata(plan: DirectorTakeoverResolvedPlan) {
   };
 }
 
+function buildTakeoverSeedPayloadExtra(input: {
+  directorSession: DirectorSessionState;
+  resumeTarget: ReturnType<typeof buildResumeTargetFromPlan>;
+  plan: DirectorTakeoverResolvedPlan;
+  takeoverState: DirectorTakeoverLoadedState;
+  rewriteSnapshot: RewriteSnapshotReference | null;
+}) {
+  return {
+    directorSession: input.directorSession,
+    resumeTarget: input.resumeTarget,
+    takeover: buildTakeoverMetadata(input.plan),
+    ...(input.rewriteSnapshot ? { rewriteSnapshot: input.rewriteSnapshot } : {}),
+    ...(input.plan.executionMode === "auto_execution" && input.plan.usesCurrentBatch
+      ? { autoExecution: input.takeoverState.latestAutoExecutionState ?? null }
+      : {}),
+  };
+}
+
 function buildAutoExecutionRunningState(plan: DirectorTakeoverResolvedPlan): {
   stage: "chapter_execution" | "quality_repair";
   itemKey: "chapter_execution" | "quality_repair";
@@ -281,12 +299,13 @@ export async function startDirectorTakeoverExecution(
     lane: "auto_director",
     title: input.takeoverState.novel.title,
     forceNew: true,
-    seedPayload: input.buildDirectorSeedPayload(input.directorInput, input.request.novelId, {
+    seedPayload: input.buildDirectorSeedPayload(input.directorInput, input.request.novelId, buildTakeoverSeedPayloadExtra({
       directorSession,
       resumeTarget: initialResumeTarget,
-      takeover: buildTakeoverMetadata(plan),
-      ...(rewriteSnapshot ? { rewriteSnapshot } : {}),
-    }),
+      plan,
+      takeoverState: input.takeoverState,
+      rewriteSnapshot,
+    })),
   });
 
   if (rewriteSnapshot) {
