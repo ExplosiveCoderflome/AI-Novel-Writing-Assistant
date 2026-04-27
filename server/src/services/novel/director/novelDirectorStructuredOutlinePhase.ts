@@ -31,6 +31,7 @@ import {
 } from "./novelDirectorStructuredOutlineRecovery";
 import { runDirectorTrackedStep } from "./directorProgressTracker";
 import type { DirectorPhaseCallbacks, DirectorPhaseDependencies } from "./novelDirectorPhaseTypes";
+import { resetDirectorDownstreamChapterState } from "./novelDirectorDownstreamReset";
 
 function buildChapterOrderRangeLabel(startOrder: number, endOrder: number): string {
   return startOrder === endOrder ? `第 ${startOrder} 章` : `第 ${startOrder}-${endOrder} 章`;
@@ -462,6 +463,11 @@ export async function runDirectorStructuredOutlinePhase(input: {
     }
   }
   const autoExecutionScopeLabel = syncCursor.scopeLabel;
+  const downstreamResetRange = {
+    startOrder: selectedChapterOrders[0] ?? 1,
+    endOrder: selectedChapterOrders[selectedChapterOrders.length - 1] ?? selectedChapterOrders[0] ?? 1,
+  };
+  await resetDirectorDownstreamChapterState(novelId, downstreamResetRange);
 
   await callbacks.markDirectorTaskRunning(
     taskId,
