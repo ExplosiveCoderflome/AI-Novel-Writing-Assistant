@@ -73,7 +73,8 @@ export async function runDirectorCharacterSetupPhase(input: {
     }),
   });
   const storyInput = buildStoryInput(request, toBookSpec(request.candidate, request.idea, request.estimatedChapterCount));
-  const targetOption = await runDirectorTrackedStep({
+  const reusableOption = await dependencies.characterPreparationService.findReusableCharacterCastOption?.(novelId) ?? null;
+  const targetOption = reusableOption ?? await runDirectorTrackedStep({
     taskId,
     stage: "character_setup",
     itemKey: "character_setup",
@@ -87,6 +88,20 @@ export async function runDirectorCharacterSetupPhase(input: {
       storyInput,
     }),
   });
+  if (reusableOption) {
+    await callbacks.markDirectorTaskRunning(
+      taskId,
+      "character_setup",
+      "character_cast_apply",
+      targetOption.status === "applied"
+        ? `复用可直接使用的角色阵容「${targetOption.title}」`
+        : `复用候选角色阵容「${targetOption.title}」`,
+      DIRECTOR_PROGRESS.characterSetupReady,
+    );
+  }
+  if (targetOption.status === "applied") {
+    return false;
+  }
   const assessment = dependencies.characterPreparationService.assessCharacterCastOptions([targetOption], storyInput);
   if (assessment.autoApplicableOptionId !== targetOption.id) {
     const blockedSession = buildDirectorSessionState({

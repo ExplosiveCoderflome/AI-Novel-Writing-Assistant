@@ -49,7 +49,11 @@ interface RunPipelineChapterDeps {
     chapterId: string;
     request: ChapterRuntimeRequestInput;
     assembled: AssembledRuntimeChapter;
-  }) => Promise<{ content: string; lengthControl?: ChapterRuntimePackage["lengthControl"] }>;
+  }) => Promise<{
+    content: string;
+    lengthControl?: ChapterRuntimePackage["lengthControl"];
+    artifactsAlreadySynced?: boolean;
+  }>;
   saveDraftAndArtifacts: (
     novelId: string,
     chapterId: string,
@@ -119,7 +123,9 @@ export async function runPipelineChapterWithRuntime(
       });
       content = generatedDraft.content;
       latestLengthControl = generatedDraft.lengthControl;
-      await deps.saveDraftAndArtifacts(novelId, chapterId, content, "drafted");
+      if (!generatedDraft.artifactsAlreadySynced) {
+        await deps.saveDraftAndArtifacts(novelId, chapterId, content, "drafted");
+      }
     } else if (attempt === 0) {
       await deps.saveDraftAndArtifacts(novelId, chapterId, content, "drafted");
     }

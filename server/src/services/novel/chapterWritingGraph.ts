@@ -437,7 +437,11 @@ export class ChapterWritingGraph {
 
   async createChapterStream(input: ChapterStreamInput): Promise<{
     stream: AsyncIterable<BaseMessageChunk>;
-    onDone: (fullContent: string) => Promise<{ finalContent: string; lengthControl?: ChapterRuntimePackage["lengthControl"] } | void>;
+    onDone: (fullContent: string) => Promise<{
+      finalContent: string;
+      lengthControl?: ChapterRuntimePackage["lengthControl"];
+      artifactsAlreadySynced?: boolean;
+    } | void>;
   }> {
     const continuationPack = (input.contextPackage?.continuation as ContinuationPack | undefined)
       ?? await continuationService.buildChapterContextPack(input.novelId);
@@ -509,7 +513,7 @@ export class ChapterWritingGraph {
           lengthAdjusted,
           "drafted",
         );
-        return { finalContent: lengthAdjusted };
+        return { finalContent: lengthAdjusted, artifactsAlreadySynced: true };
       },
     };
   }

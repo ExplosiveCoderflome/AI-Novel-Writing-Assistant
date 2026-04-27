@@ -1,11 +1,8 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type {
-  APIKeyStatus,
-  ModelRouteConnectivityStatus,
-  StructuredFallbackSettings,
-} from "@/api/settings";
+import { ArrowLeft, CopyCheck, RefreshCw, Save } from "lucide-react";
+import type { StructuredFallbackSettings } from "@/api/settings";
 import {
   getAPIKeySettings,
   getModelRoutes,
@@ -15,81 +12,25 @@ import {
   testModelRouteConnectivity,
 } from "@/api/settings";
 import { queryKeys } from "@/api/queryKeys";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import SearchableSelect from "@/components/common/SearchableSelect";
+import ModelRouteFields from "./ModelRouteFields";
 import { MODEL_ROUTE_LABELS } from "./modelRouteLabels";
-import type {
-  ModelRouteRequestProtocol,
-  ModelRouteStructuredResponseFormat,
-  ModelRouteTaskType,
-} from "@ai-novel/shared/types/novel";
-
-interface RouteDraft {
-  provider: string;
-  model: string;
-  temperature: string;
-  maxTokens: string;
-  requestProtocol: ModelRouteRequestProtocol;
-  structuredResponseFormat: ModelRouteStructuredResponseFormat;
-}
-
-interface StructuredFallbackDraft {
-  enabled: boolean;
-  provider: string;
-  model: string;
-  temperature: string;
-  maxTokens: string;
-}
-
-type ConnectivityState = "idle" | "checking" | "healthy" | "failed";
-
-function getProviderConfig(providerConfigs: APIKeyStatus[], provider: string) {
-  return providerConfigs.find((item) => item.provider === provider);
-}
-
-function getModelOptions(providerConfigs: APIKeyStatus[], provider: string, currentModel: string): string[] {
-  const config = getProviderConfig(providerConfigs, provider);
-  const models = config?.models ?? [];
-  return [...new Set([currentModel, ...models].filter(Boolean))];
-}
-
-function getStructuredResponseFormatOptions(
-  requestProtocol: ModelRouteRequestProtocol,
-): ModelRouteStructuredResponseFormat[] {
-  return requestProtocol === "anthropic"
-    ? ["prompt_json"]
-    : ["auto", "json_schema", "json_object", "prompt_json"];
-}
-
-function formatStructuredStatus(status: ModelRouteConnectivityStatus["structured"]): string {
-  if (!status) {
-    return "结构化诊断：未执行";
-  }
-  if (status.ok) {
-    return `结构化正常 · ${status.requestProtocol ?? "auto"} · ${status.strategy ?? "prompt_json"}${status.reasoningForcedOff ? " · 已强制关闭 thinking" : ""}`;
-  }
-  return `结构化异常 · ${status.errorCategory ?? "unknown"} · ${status.error ?? "未知错误"}`;
-}
-
-function formatConnectivityStatus(status?: ModelRouteConnectivityStatus | null): string {
-  if (!status) {
-    return "尚未检测当前生效路由。";
-  }
-  const parts: string[] = [];
-  if (status.plain) {
-    parts.push(
-      status.plain.ok
-        ? `普通连通正常${status.plain.latency != null ? ` · ${status.plain.latency}ms` : ""}`
-        : `普通连通失败 · ${status.plain.error ?? "未知错误"}`,
-    );
-  }
-  parts.push(formatStructuredStatus(status.structured));
-  return `${status.provider} / ${status.model} · ${parts.join(" · ")}`;
-}
+import {
+  buildRouteSavePayload,
+  formatConnectivityStatus,
+  getPreferredModel,
+  getProviderDisplayName,
+  isSameRouteDraft,
+  resolveConnectivityState,
+  type ConnectivityState,
+  type RouteDraft,
+  type RouteSavePayload,
+  type StructuredFallbackDraft,
+} from "./modelRoutes.utils";
+import type { ModelRouteTaskType } from "@ai-novel/shared/types/novel";
 
 function RouteStatusDot({ state }: { state: ConnectivityState }) {
   const colorClass = state === "healthy"
@@ -103,29 +44,11 @@ function RouteStatusDot({ state }: { state: ConnectivityState }) {
   return <span className={`inline-block h-2.5 w-2.5 rounded-full ${colorClass}`} aria-hidden="true" />;
 }
 
-function resolveConnectivityState(
-  status: ModelRouteConnectivityStatus | undefined,
-  checking: boolean,
-): ConnectivityState {
-  if (checking) {
-    return "checking";
-  }
-  if (!status) {
-    return "idle";
-  }
-  if ((status.plain && !status.plain.ok) || (status.structured && !status.structured.ok)) {
-    return "failed";
-  }
-  if (status.plain?.ok || status.structured?.ok) {
-    return "healthy";
-  }
-  return "idle";
-}
-
 export default function ModelRoutesPage() {
   const queryClient = useQueryClient();
   const [actionResult, setActionResult] = useState("");
   const [routeDrafts, setRouteDrafts] = useState<Record<string, RouteDraft>>({});
+  const [bulkDraft, setBulkDraft] = useState<RouteDraft | null>(null);
   const [structuredFallbackDraft, setStructuredFallbackDraft] = useState<StructuredFallbackDraft | null>(null);
 
   const apiKeySettingsQuery = useQuery({
@@ -152,17 +75,23 @@ export default function ModelRoutesPage() {
   });
 
   const saveModelRouteMutation = useMutation({
-    mutationFn: (payload: {
-      taskType: ModelRouteTaskType;
-      provider: string;
-      model: string;
-      temperature: number;
-      maxTokens?: number | null;
-      requestProtocol: ModelRouteRequestProtocol;
-      structuredResponseFormat: ModelRouteStructuredResponseFormat;
-    }) => saveModelRoute(payload),
+    mutationFn: (payload: RouteSavePayload) => saveModelRoute(payload),
     onSuccess: async () => {
-      setActionResult("模型路由已更新。");
+      setActionResult("保存完成，这个任务会使用新路由。");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
+      ]);
+    },
+  });
+
+  const saveAllModelRoutesMutation = useMutation({
+    mutationFn: async (payloads: RouteSavePayload[]) => {
+      await Promise.all(payloads.map((payload) => saveModelRoute(payload)));
+      return payloads.length;
+    },
+    onSuccess: async (count) => {
+      setActionResult(`保存完成，${count} 个任务会使用新路由。`);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
@@ -173,7 +102,7 @@ export default function ModelRoutesPage() {
   const saveStructuredFallbackMutation = useMutation({
     mutationFn: (payload: Partial<StructuredFallbackSettings>) => saveStructuredFallbackConfig(payload),
     onSuccess: async () => {
-      setActionResult("结构化备用模型配置已更新。");
+      setActionResult("结构化备用模型保存完成。");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.structuredFallback }),
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
@@ -185,6 +114,7 @@ export default function ModelRoutesPage() {
   const modelRoutes = modelRoutesQuery.data?.data;
   const modelRouteConnectivity = modelRouteConnectivityQuery.data?.data;
   const structuredFallback = structuredFallbackQuery.data?.data;
+  const taskTypes = modelRoutes?.taskTypes ?? [];
   const providerOptions = useMemo(() => providerConfigs.map((item) => item.provider), [providerConfigs]);
   const routeMap = useMemo(() => new Map((modelRoutes?.routes ?? []).map((item) => [item.taskType, item])), [modelRoutes?.routes]);
   const connectivityMap = useMemo(
@@ -200,6 +130,34 @@ export default function ModelRoutesPage() {
       testedAt: modelRouteConnectivity?.testedAt ?? "",
     };
   }, [modelRouteConnectivity?.statuses, modelRouteConnectivity?.testedAt]);
+  const preferredProviderConfig = useMemo(
+    () => providerConfigs.find((item) => item.isConfigured && item.isActive && getPreferredModel(item))
+      ?? providerConfigs.find((item) => getPreferredModel(item))
+      ?? providerConfigs[0],
+    [providerConfigs],
+  );
+  const defaultProvider = preferredProviderConfig?.provider ?? "deepseek";
+  const defaultModel = getPreferredModel(preferredProviderConfig);
+  const dirtyTaskTypes = useMemo(
+    () => taskTypes.filter((taskType) => {
+      const draft = routeDrafts[taskType];
+      return draft ? !isSameRouteDraft(draft, routeMap.get(taskType)) : false;
+    }),
+    [routeDrafts, routeMap, taskTypes],
+  );
+  const dirtyTaskTypeSet = useMemo(() => new Set(dirtyTaskTypes), [dirtyTaskTypes]);
+  const failedTaskTypes = useMemo(
+    () => taskTypes.filter((taskType) => resolveConnectivityState(connectivityMap.get(taskType), false) === "failed"),
+    [connectivityMap, taskTypes],
+  );
+  const emptyRouteTaskTypes = useMemo(
+    () => taskTypes.filter((taskType) => {
+      const route = routeMap.get(taskType);
+      return !route?.provider || !route?.model;
+    }),
+    [routeMap, taskTypes],
+  );
+  const isSavingRoutes = saveModelRouteMutation.isPending || saveAllModelRoutesMutation.isPending;
 
   function getRouteDraft(taskType: ModelRouteTaskType): RouteDraft {
     const existing = routeDrafts[taskType];
@@ -217,6 +175,20 @@ export default function ModelRoutesPage() {
     };
   }
 
+  function getBulkDraft(): RouteDraft {
+    if (bulkDraft) {
+      return bulkDraft;
+    }
+    return {
+      provider: defaultProvider,
+      model: defaultModel,
+      temperature: "0.7",
+      maxTokens: "",
+      requestProtocol: "auto",
+      structuredResponseFormat: "auto",
+    };
+  }
+
   function patchDraft(taskType: ModelRouteTaskType, patch: Partial<RouteDraft>) {
     const current = getRouteDraft(taskType);
     setRouteDrafts((prev) => ({
@@ -226,6 +198,30 @@ export default function ModelRoutesPage() {
         ...patch,
       },
     }));
+  }
+
+  function patchBulkDraft(patch: Partial<RouteDraft>) {
+    const current = getBulkDraft();
+    setBulkDraft({
+      ...current,
+      ...patch,
+    });
+  }
+
+  function applyBulkDraftToRoutes(targetTaskTypes: ModelRouteTaskType[]) {
+    if (targetTaskTypes.length === 0) {
+      setActionResult("没有需要套用的任务。");
+      return;
+    }
+    const draft = getBulkDraft();
+    setRouteDrafts((prev) => {
+      const next = { ...prev };
+      targetTaskTypes.forEach((taskType) => {
+        next[taskType] = { ...draft };
+      });
+      return next;
+    });
+    setActionResult(`模型设置填入 ${targetTaskTypes.length} 个任务，保存后生效。`);
   }
 
   function getStructuredFallbackDraft(): StructuredFallbackDraft {
@@ -238,6 +234,8 @@ export default function ModelRoutesPage() {
       model: structuredFallback?.model ?? "deepseek-chat",
       temperature: structuredFallback != null ? String(structuredFallback.temperature) : "0.2",
       maxTokens: structuredFallback?.maxTokens != null ? String(structuredFallback.maxTokens) : "",
+      requestProtocol: "auto",
+      structuredResponseFormat: "auto",
     };
   }
 
@@ -250,7 +248,7 @@ export default function ModelRoutesPage() {
   }
 
   const fallbackDraft = getStructuredFallbackDraft();
-  const fallbackModelOptions = getModelOptions(providerConfigs, fallbackDraft.provider, fallbackDraft.model);
+  const routeBulkDraft = getBulkDraft();
 
   return (
     <div className="space-y-4">
@@ -258,12 +256,12 @@ export default function ModelRoutesPage() {
         <CardHeader>
           <CardTitle>模型路由管理</CardTitle>
           <CardDescription>
-            把不同任务分配给不同模型，并单独观察结构化输出稳定性。
+            为不同创作任务指定合适模型，并检查 JSON 输出是否稳定。
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-2 text-sm text-muted-foreground">
-            <div>当前会同时检测普通连通性和结构化输出兼容性。未保存的表单修改不会参与检测。</div>
+            <div>检测会覆盖普通对话和结构化输出；表单修改需要保存后参与检测。</div>
             <div className="flex flex-wrap items-center gap-3 text-xs">
               <span className="inline-flex items-center gap-2">
                 <RouteStatusDot
@@ -276,9 +274,9 @@ export default function ModelRoutesPage() {
                         : "idle"}
                 />
                 {modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching
-                  ? "正在检测当前生效路由..."
+                  ? "正在检测生效路由..."
                   : connectivitySummary.total > 0
-                    ? `已检测 ${connectivitySummary.total} 条路由，全部健康 ${connectivitySummary.healthy}，异常 ${connectivitySummary.failed}`
+                    ? `检测结果：${connectivitySummary.total} 条路由，健康 ${connectivitySummary.healthy}，异常 ${connectivitySummary.failed}`
                     : "尚未执行模型兼容性检测"}
               </span>
               {connectivitySummary.testedAt ? (
@@ -292,11 +290,89 @@ export default function ModelRoutesPage() {
               onClick={() => void modelRouteConnectivityQuery.refetch()}
               disabled={modelRouteConnectivityQuery.isFetching || !modelRoutesQuery.isSuccess}
             >
+              <RefreshCw className={`h-4 w-4 ${modelRouteConnectivityQuery.isFetching ? "animate-spin" : ""}`} />
               {modelRouteConnectivityQuery.isFetching ? "检测中..." : "重新检测"}
             </Button>
             <Button asChild variant="outline">
-              <Link to="/settings">返回系统设置</Link>
+              <Link to="/settings">
+                <ArrowLeft className="h-4 w-4" />
+                返回系统设置
+              </Link>
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CopyCheck className="h-5 w-5" />
+            快速套用模型
+          </CardTitle>
+          <CardDescription>
+            先选一套模型，再填入多个任务；统一保存后，后续创作会按新路由执行。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <ModelRouteFields
+            draft={routeBulkDraft}
+            providerConfigs={providerConfigs}
+            providerOptions={providerOptions}
+            onPatch={patchBulkDraft}
+            temperaturePlaceholder="0.7"
+            maxTokensPlaceholder="留空则使用系统默认"
+            modelEmptyText="这个服务商没有可选模型"
+            manualModelPlaceholder="也可以手动输入模型名"
+            showProtocolFields={false}
+          />
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-xs text-muted-foreground">
+              待保存任务 {dirtyTaskTypes.length} 个；检测异常任务 {failedTaskTypes.length} 个；空白路由 {emptyRouteTaskTypes.length} 个。
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => applyBulkDraftToRoutes(taskTypes)}
+                disabled={!routeBulkDraft.provider.trim() || !routeBulkDraft.model.trim() || taskTypes.length === 0}
+              >
+                <CopyCheck className="h-4 w-4" />
+                套用到全部任务
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => applyBulkDraftToRoutes(failedTaskTypes)}
+                disabled={!routeBulkDraft.provider.trim() || !routeBulkDraft.model.trim() || failedTaskTypes.length === 0}
+              >
+                <CopyCheck className="h-4 w-4" />
+                套用到异常任务
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => applyBulkDraftToRoutes(emptyRouteTaskTypes)}
+                disabled={!routeBulkDraft.provider.trim() || !routeBulkDraft.model.trim() || emptyRouteTaskTypes.length === 0}
+              >
+                <CopyCheck className="h-4 w-4" />
+                补齐空白任务
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => saveAllModelRoutesMutation.mutate(
+                  dirtyTaskTypes.map((taskType) => buildRouteSavePayload(taskType, getRouteDraft(taskType))),
+                )}
+                disabled={isSavingRoutes || dirtyTaskTypes.length === 0}
+              >
+                <Save className="h-4 w-4" />
+                {saveAllModelRoutesMutation.isPending ? "保存中..." : `保存全部修改${dirtyTaskTypes.length > 0 ? ` (${dirtyTaskTypes.length})` : ""}`}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -305,7 +381,7 @@ export default function ModelRoutesPage() {
         <CardHeader>
           <CardTitle>结构化备用模型</CardTitle>
           <CardDescription>
-            当前模型普通对话可用但 JSON 不稳时，可在所有结构化任务上统一启用备用模型。
+            主模型能对话但 JSON 不稳时，可在所有结构化任务上统一启用备用模型。
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -313,7 +389,7 @@ export default function ModelRoutesPage() {
             <div>
               <div className="font-medium">启用全局结构化回退</div>
               <div className="text-sm text-muted-foreground">
-                只有当前模型的结构化策略全部失败后，才会切到这套备用模型。
+                主模型的结构化策略全部失败后，才会切到这套备用模型。
               </div>
             </div>
             <Switch
@@ -322,67 +398,16 @@ export default function ModelRoutesPage() {
             />
           </div>
 
-          <div className="grid gap-3 md:grid-cols-4">
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">服务商</div>
-              <Select
-                value={fallbackDraft.provider}
-                onValueChange={(value) => {
-                  const nextModel = getProviderConfig(providerConfigs, value)?.currentModel ?? "";
-                  patchStructuredFallbackDraft({
-                    provider: value,
-                    model: nextModel || fallbackDraft.model,
-                  });
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="选择服务商" />
-                </SelectTrigger>
-                <SelectContent>
-                  {providerOptions.map((provider) => (
-                    <SelectItem key={provider} value={provider}>
-                      {getProviderConfig(providerConfigs, provider)?.name ?? provider}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">模型</div>
-              <SearchableSelect
-                value={fallbackDraft.model || undefined}
-                onValueChange={(value) => patchStructuredFallbackDraft({ model: value })}
-                options={fallbackModelOptions.map((model) => ({ value: model }))}
-                placeholder="选择模型"
-                searchPlaceholder="搜索模型"
-                emptyText="当前服务商暂无可选模型"
-              />
-              <Input
-                value={fallbackDraft.model}
-                placeholder="也可以手动输入模型名"
-                onChange={(event) => patchStructuredFallbackDraft({ model: event.target.value })}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">温度</div>
-              <Input
-                value={fallbackDraft.temperature}
-                placeholder="0.2"
-                onChange={(event) => patchStructuredFallbackDraft({ temperature: event.target.value })}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">最大输出长度</div>
-              <Input
-                value={fallbackDraft.maxTokens}
-                placeholder="留空则使用系统默认"
-                onChange={(event) => patchStructuredFallbackDraft({ maxTokens: event.target.value })}
-              />
-            </div>
-          </div>
+          <ModelRouteFields
+            draft={fallbackDraft}
+            providerConfigs={providerConfigs}
+            providerOptions={providerOptions}
+            onPatch={patchStructuredFallbackDraft}
+            temperaturePlaceholder="0.2"
+            maxTokensPlaceholder="留空则使用系统默认"
+            modelEmptyText="这个服务商没有可选模型"
+            manualModelPlaceholder="也可以手动输入模型名"
+          />
 
           <div className="flex items-center justify-end gap-2">
             <Button
@@ -402,22 +427,25 @@ export default function ModelRoutesPage() {
         </CardContent>
       </Card>
 
-      {(modelRoutes?.taskTypes ?? []).map((taskType) => {
+      {taskTypes.map((taskType) => {
         const draft = getRouteDraft(taskType);
-        const modelOptions = getModelOptions(providerConfigs, draft.provider, draft.model);
         const label = MODEL_ROUTE_LABELS[taskType];
-        const providerName = getProviderConfig(providerConfigs, draft.provider)?.name ?? draft.provider;
+        const providerName = getProviderDisplayName(providerConfigs, draft.provider);
         const connectivity = connectivityMap.get(taskType);
         const connectivityState = resolveConnectivityState(
           connectivity,
           modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching,
         );
+        const isDirty = dirtyTaskTypeSet.has(taskType);
         const hasUnsavedRouteDiff = connectivity != null
           && (
             draft.provider !== connectivity.provider
             || (draft.model.trim().length > 0 && draft.model !== connectivity.model)
             || (draft.requestProtocol !== "auto" && draft.requestProtocol !== connectivity.requestProtocol)
-            || (draft.structuredResponseFormat !== "auto" && draft.structuredResponseFormat !== connectivity.structured?.strategy)
+            || (
+              draft.structuredResponseFormat !== "auto"
+              && draft.structuredResponseFormat !== connectivity.structured?.strategy
+            )
           );
 
         return (
@@ -435,6 +463,7 @@ export default function ModelRoutesPage() {
                         ? "检测中"
                         : "未检测"}
                 </span>
+                {isDirty ? <Badge variant="secondary">待保存</Badge> : null}
               </CardTitle>
               <CardDescription>
                 {label.description}
@@ -442,117 +471,20 @@ export default function ModelRoutesPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid gap-3 md:grid-cols-6">
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground">服务商</div>
-                  <Select
-                    value={draft.provider}
-                    onValueChange={(value) => {
-                      const fallbackModel = getProviderConfig(providerConfigs, value)?.currentModel ?? "";
-                      patchDraft(taskType, {
-                        provider: value,
-                        model: fallbackModel,
-                      });
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="选择服务商" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {providerOptions.map((provider) => (
-                        <SelectItem key={provider} value={provider}>
-                          {getProviderConfig(providerConfigs, provider)?.name ?? provider}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground">模型</div>
-                  <SearchableSelect
-                    value={draft.model || undefined}
-                    onValueChange={(value) => patchDraft(taskType, { model: value })}
-                    options={modelOptions.map((model) => ({ value: model }))}
-                    placeholder="选择模型"
-                    searchPlaceholder="搜索模型"
-                    emptyText="当前服务商暂无可选模型"
-                  />
-                  <Input
-                    value={draft.model}
-                    placeholder="也可以直接手动输入模型名"
-                    onChange={(event) => patchDraft(taskType, { model: event.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground">温度</div>
-                  <Input
-                    value={draft.temperature}
-                    placeholder="0.7"
-                    onChange={(event) => patchDraft(taskType, { temperature: event.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground">最大输出长度</div>
-                  <Input
-                    value={draft.maxTokens}
-                    placeholder="留空则回退默认"
-                    onChange={(event) => patchDraft(taskType, { maxTokens: event.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground">请求协议</div>
-                  <Select
-                    value={draft.requestProtocol}
-                    onValueChange={(value) => {
-                      const nextProtocol = value as ModelRouteRequestProtocol;
-                      patchDraft(taskType, {
-                        requestProtocol: nextProtocol,
-                        ...(nextProtocol === "anthropic"
-                          ? { structuredResponseFormat: "prompt_json" as ModelRouteStructuredResponseFormat }
-                          : {}),
-                      });
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="自动选择" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="auto">自动选择</SelectItem>
-                      <SelectItem value="openai_compatible">OpenAI 兼容</SelectItem>
-                      <SelectItem value="anthropic">Anthropic</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground">结构化格式</div>
-                  <Select
-                    value={draft.structuredResponseFormat}
-                    onValueChange={(value) => patchDraft(taskType, {
-                      structuredResponseFormat: value as ModelRouteStructuredResponseFormat,
-                    })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="自动选择" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getStructuredResponseFormatOptions(draft.requestProtocol).map((format) => (
-                        <SelectItem key={format} value={format}>
-                          {format === "auto" ? "自动选择" : format}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              <ModelRouteFields
+                draft={draft}
+                providerConfigs={providerConfigs}
+                providerOptions={providerOptions}
+                onPatch={(patch) => patchDraft(taskType, patch)}
+                temperaturePlaceholder="0.7"
+                maxTokensPlaceholder="留空则使用系统默认"
+                modelEmptyText="这个服务商没有可选模型"
+                manualModelPlaceholder="也可以手动输入模型名"
+              />
 
               <div className="flex items-center justify-between gap-3">
                 <div className="space-y-1 text-xs text-muted-foreground">
-                  <div>表单当前选择：{providerName}。未填写字段会回退到系统默认路由。</div>
+                  <div>{isDirty ? "表单改动保存后生效。" : `任务使用：${providerName}。`}</div>
                   <div className="flex flex-wrap items-center gap-2">
                     <RouteStatusDot state={connectivityState} />
                     <span>{formatConnectivityStatus(connectivity)}</span>
@@ -561,27 +493,20 @@ export default function ModelRoutesPage() {
                     <div>
                       请求协议：{connectivity.structured.requestProtocol ?? connectivity.requestProtocol ?? "无"}，
                       结构化策略：{connectivity.structured.strategy ?? "无"}，
-                      {connectivity.structured.reasoningForcedOff ? "已强制关闭 thinking" : "未强制关闭 thinking"}，
-                      {connectivity.structured.fallbackAvailable ? "已配置备用模型" : "未配置备用模型"}
+                      {connectivity.structured.reasoningForcedOff ? "会关闭 thinking" : "保留 thinking"}，
+                      {connectivity.structured.fallbackAvailable ? "备用模型可用" : "备用模型未启用"}
                     </div>
                   ) : null}
                   {hasUnsavedRouteDiff ? (
-                    <div>当前检测基于已生效路由；保存后会自动重新检测。</div>
+                    <div>检测结果来自生效路由；保存后会自动重新检测。</div>
                   ) : null}
                 </div>
                 <Button
                   size="sm"
-                  onClick={() => saveModelRouteMutation.mutate({
-                    taskType,
-                    provider: draft.provider,
-                    model: draft.model,
-                    temperature: Number(draft.temperature || 0.7),
-                    maxTokens: draft.maxTokens.trim() ? Number(draft.maxTokens) : null,
-                    requestProtocol: draft.requestProtocol,
-                    structuredResponseFormat: draft.structuredResponseFormat,
-                  })}
-                  disabled={saveModelRouteMutation.isPending || !draft.provider.trim() || !draft.model.trim()}
+                  onClick={() => saveModelRouteMutation.mutate(buildRouteSavePayload(taskType, draft))}
+                  disabled={isSavingRoutes || !draft.provider.trim() || !draft.model.trim()}
                 >
+                  <Save className="h-4 w-4" />
                   保存路由
                 </Button>
               </div>

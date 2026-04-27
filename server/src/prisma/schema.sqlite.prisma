@@ -756,11 +756,11 @@ model BaseCharacter {
   keyEvents   String?
   tags        String   @default("")
   category    String
-  imageTasks  ImageGenerationTask[]
-  imageAssets ImageAsset[]
   revisions   BaseCharacterRevision[]
   libraryLinks CharacterLibraryLink[]
   syncProposals CharacterSyncProposal[]
+  imageTasks  ImageGenerationTask[]
+  imageAssets ImageAsset[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

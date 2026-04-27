@@ -2344,4 +2344,3 @@ ALTER TABLE "BookAnalysisSourceCache" ADD CONSTRAINT "BookAnalysisSourceCache_do
 
 -- AddForeignKey
 ALTER TABLE "BookAnalysisSection" ADD CONSTRAINT "BookAnalysisSection_analysisId_fkey" FOREIGN KEY ("analysisId") REFERENCES "BookAnalysis"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-

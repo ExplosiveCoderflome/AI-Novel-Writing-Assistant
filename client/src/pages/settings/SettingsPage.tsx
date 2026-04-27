@@ -1,20 +1,28 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { createCustomProvider, deleteCustomProvider, getAPIKeySettings, getProviderBalances, refreshProviderBalance, refreshProviderModelList, saveAPIKeySetting, testLLMConnection } from "@/api/settings";
+import {
+  createCustomProvider,
+  deleteCustomProvider,
+  getAPIKeySettings,
+  getProviderBalances,
+  previewCustomProviderModels,
+  refreshProviderBalance,
+  refreshProviderModelList,
+  saveAPIKeySetting,
+  testLLMConnection,
+} from "@/api/settings";
 import { queryKeys } from "@/api/queryKeys";
-import SearchableSelect from "@/components/common/SearchableSelect";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import DesktopLegacyDataImportCard from "@/components/layout/DesktopLegacyDataImportCard";
 import DesktopUpdateCard from "@/components/layout/DesktopUpdateCard";
 import AutoDirectorSettingsSection from "./AutoDirectorSettingsSection";
-import ProviderRequestLimitFields, { ProviderRequestLimitSummary } from "./components/ProviderRequestLimitFields";
+import { ProviderRequestLimitSummary } from "./components/ProviderRequestLimitFields";
 import SettingsNavigationCards from "./components/SettingsNavigationCards";
+import ProviderConfigDialog, { type ProviderFormState } from "./components/ProviderConfigDialog";
 import StyleEngineRuntimeSettingsCard from "./components/StyleEngineRuntimeSettingsCard";
 import SettingsActionResult from "./SettingsActionResult";
 import { formatBalanceAmount, formatBalanceTime } from "./settingsFormatters";
@@ -27,7 +35,7 @@ export default function SettingsPage() {
   const [editingProvider, setEditingProvider] = useState("");
   const [isCreatingCustomProvider, setIsCreatingCustomProvider] = useState(false);
   const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<ProviderFormState>({
     displayName: "",
     key: "",
     model: "",
@@ -38,6 +46,8 @@ export default function SettingsPage() {
   });
   const [testResult, setTestResult] = useState("");
   const [actionResult, setActionResult] = useState("");
+  const [previewModels, setPreviewModels] = useState<string[]>([]);
+  const [previewModelsResult, setPreviewModelsResult] = useState("");
 
   const apiKeySettingsQuery = useQuery({
     queryKey: queryKeys.settings.apiKeys,
@@ -70,6 +80,8 @@ export default function SettingsPage() {
       requestIntervalMs: "0",
     });
     setTestResult("");
+    setPreviewModels([]);
+    setPreviewModelsResult("");
   };
 
   const invalidateProviderQueries = async () => {
@@ -117,7 +129,7 @@ export default function SettingsPage() {
     mutationFn: (payload: {
       name: string;
       key?: string;
-      model: string;
+      model?: string;
       baseURL: string;
       concurrencyLimit?: number;
       requestIntervalMs?: number;
@@ -130,6 +142,23 @@ export default function SettingsPage() {
     },
     onError: (error) => {
       setActionResult(error instanceof Error ? error.message : "创建自定义厂商失败。");
+    },
+  });
+
+  const previewCustomProviderModelsMutation = useMutation({
+    mutationFn: (payload: { key?: string; baseURL: string }) => previewCustomProviderModels(payload),
+    onSuccess: (response) => {
+      const models = response.data?.models ?? [];
+      setPreviewModels(models);
+      setPreviewModelsResult(response.message ?? `已获取 ${models.length} 个模型。`);
+      setForm((prev) => ({
+        ...prev,
+        model: prev.model.trim() || models[0] || "",
+      }));
+    },
+    onError: (error) => {
+      setPreviewModels([]);
+      setPreviewModelsResult(error instanceof Error ? error.message : "获取模型列表失败。");
     },
   });
 
@@ -219,8 +248,7 @@ export default function SettingsPage() {
     [providerBalancesQuery.data?.data],
   );
   const modelOptions = editingConfig?.models ?? [];
-  const canSelectListedModels = !isCreatingCustomProvider && modelOptions.length > 0;
-  const primaryModelLabel = isCustomDialog ? "Default model name" : "Model name";
+  const selectableModels = isCreatingCustomProvider ? previewModels : modelOptions;
 
   const isProviderExpanded = (provider: string) => expandedProviders[provider] === true;
   const toggleProviderExpanded = (provider: string) => {
@@ -248,6 +276,8 @@ export default function SettingsPage() {
     });
     setTestResult("");
     setActionResult("");
+    setPreviewModels([]);
+    setPreviewModelsResult("");
   };
 
   const openCreateCustomDialog = () => {
@@ -264,6 +294,8 @@ export default function SettingsPage() {
     });
     setTestResult("");
     setActionResult("");
+    setPreviewModels([]);
+    setPreviewModelsResult("");
   };
 
   const canRefreshBalance = (provider: LLMProvider, kind: "builtin" | "custom", isConfigured: boolean) => {
@@ -273,6 +305,75 @@ export default function SettingsPage() {
     const balance = providerBalanceMap.get(provider);
     return Boolean(balance?.canRefresh ?? (provider === "deepseek" || provider === "siliconflow" || provider === "kimi"));
   };
+
+  const clearPreviewModels = () => {
+    setPreviewModels([]);
+    setPreviewModelsResult("");
+  };
+
+  const handlePreviewCustomModels = () => {
+    setPreviewModelsResult("");
+    previewCustomProviderModelsMutation.mutate({
+      key: form.key.trim() ? form.key : undefined,
+      baseURL: form.baseURL.trim(),
+    });
+  };
+
+  const handleSubmitProviderDialog = () => {
+    if (isCreatingCustomProvider) {
+      createCustomProviderMutation.mutate({
+        name: form.displayName.trim(),
+        key: form.key.trim() ? form.key : undefined,
+        model: form.model.trim() || undefined,
+        baseURL: form.baseURL.trim(),
+        concurrencyLimit: Number.parseInt(form.concurrencyLimit, 10) || 0,
+        requestIntervalMs: Number.parseInt(form.requestIntervalMs, 10) || 0,
+      });
+      return;
+    }
+    if (!editingProvider) {
+      return;
+    }
+    saveMutation.mutate({
+      provider: editingProvider,
+      displayName: isCustomDialog ? form.displayName.trim() || undefined : undefined,
+      key: form.key.trim() ? form.key : undefined,
+      model: form.model.trim() || undefined,
+      imageModel: editingConfig?.supportsImageGeneration ? (form.imageModel.trim() || undefined) : undefined,
+      baseURL: form.baseURL,
+      concurrencyLimit: Number.parseInt(form.concurrencyLimit, 10) || 0,
+      requestIntervalMs: Number.parseInt(form.requestIntervalMs, 10) || 0,
+    });
+  };
+
+  const handleTestProviderDialog = () => {
+    testMutation.mutate({
+      provider: editingProvider || "custom_preview",
+      apiKey: form.key.trim() ? form.key : undefined,
+      model: form.model.trim() || undefined,
+      baseURL: form.baseURL.trim() ? form.baseURL : undefined,
+      probeMode: "both",
+    });
+  };
+
+  const handleDeleteCustomProvider = () => {
+    if (!editingProvider || !editingConfig) {
+      return;
+    }
+    if (!window.confirm(`确认删除自定义厂商 ${editingConfig.name} 吗？`)) {
+      return;
+    }
+    deleteCustomProviderMutation.mutate(editingProvider);
+  };
+
+  const isSavingProvider = saveMutation.isPending || createCustomProviderMutation.isPending;
+  const providerSubmitDisabled = isSavingProvider
+    || previewCustomProviderModelsMutation.isPending
+    || (!isCreatingCustomProvider && !form.model.trim())
+    || (isCustomDialog && !form.displayName.trim())
+    || (isCreatingCustomProvider && !form.baseURL.trim())
+    || (!isCustomDialog && editingConfig?.requiresApiKey !== false && !form.key.trim() && !editingConfig?.isConfigured);
+  const providerSubmitLabel = isSavingProvider ? "保存中..." : isCreatingCustomProvider ? "创建厂商" : "保存";
 
   return (
     <div className={AUTO_DIRECTOR_MOBILE_CLASSES.settingsPageRoot}>
@@ -287,9 +388,9 @@ export default function SettingsPage() {
       <Card className="min-w-0 overflow-hidden">
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 space-y-1">
-            <CardTitle>Model Providers</CardTitle>
+            <CardTitle>模型厂商</CardTitle>
             <CardDescription className="break-words [overflow-wrap:anywhere]">
-              管理内置厂商连接，也可以新增 OpenAI-compatible 自定义厂商。
+              管理内置厂商连接，也可以新增 OpenAI 兼容的自定义厂商。
             </CardDescription>
           </div>
           <Button className="w-full sm:w-auto" onClick={openCreateCustomDialog}>新增自定义厂商</Button>
@@ -320,16 +421,16 @@ export default function SettingsPage() {
                     variant={item.isConfigured ? "default" : "outline"}
                     className={item.isConfigured ? "bg-emerald-600 text-white hover:bg-emerald-600" : ""}
                   >
-                    {item.isConfigured ? "Configured" : "Not configured"}
+                    {item.isConfigured ? "已配置" : "未配置"}
                   </Badge>
                 </div>
-                <div className="mb-2 break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">Current model: {item.currentModel || "-"}</div>
+                <div className="mb-2 break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">模型：{item.currentModel || "-"}</div>
                 {item.supportsImageGeneration ? (
                   <div className="mb-2 break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
-                    Image model: {item.currentImageModel || item.defaultImageModel || "-"}
+                    图像模型：{item.currentImageModel || item.defaultImageModel || "-"}
                   </div>
                 ) : null}
-              <div className="mb-2 break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">API URL: {item.currentBaseURL || "-"}</div>
+                <div className="mb-2 break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">API 地址：{item.currentBaseURL || "-"}</div>
                 <ProviderRequestLimitSummary
                   concurrencyLimit={item.concurrencyLimit}
                   requestIntervalMs={item.requestIntervalMs}
@@ -363,7 +464,7 @@ export default function SettingsPage() {
                     <div className="space-y-1 break-words [overflow-wrap:anywhere]">
                       <div className="text-xs font-medium text-muted-foreground">余额</div>
                       <div className="text-sm text-muted-foreground">
-                        自定义 OpenAI-compatible 厂商暂不接入余额查询。
+                        自定义 OpenAI 兼容厂商暂不接入余额查询。
                       </div>
                     </div>
                   ) : (
@@ -430,7 +531,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                   <Button size="sm" className="w-full sm:w-auto" onClick={() => openBuiltInDialog(item.provider)}>
-                    {item.kind === "custom" ? "编辑" : "Configure"}
+                    {item.kind === "custom" ? "编辑" : "配置"}
                   </Button>
                   <Button
                     size="sm"
@@ -446,7 +547,7 @@ export default function SettingsPage() {
                     }}
                     disabled={testMutation.isPending}
                   >
-                    Test
+                    测试连接
                   </Button>
                   <Button
                     size="sm"
@@ -459,8 +560,8 @@ export default function SettingsPage() {
                     disabled={!item.isConfigured || refreshModelsMutation.isPending}
                   >
                     {refreshModelsMutation.isPending && refreshModelsMutation.variables === item.provider
-                      ? "Refreshing..."
-                      : "Refresh models"}
+                      ? "刷新中..."
+                      : "刷新模型"}
                   </Button>
                   {item.kind === "builtin" ? (
                     <Button
@@ -473,7 +574,7 @@ export default function SettingsPage() {
                       }}
                       disabled={!refreshBalanceEnabled || isBalanceRefreshing}
                     >
-                      {isBalanceRefreshing ? "Refreshing balance..." : "刷新余额"}
+                      {isBalanceRefreshing ? "余额刷新中..." : "刷新余额"}
                     </Button>
                   ) : null}
                 </div>
@@ -485,216 +586,33 @@ export default function SettingsPage() {
 
       <SettingsActionResult message={actionResult} />
 
-      <Dialog
+      <ProviderConfigDialog
         open={isDialogOpen}
         onOpenChange={(open) => {
           if (!open) {
             resetDialogState();
           }
         }}
-      >
-        <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-lg overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {isCreatingCustomProvider
-                ? "新增自定义厂商"
-                : isCustomDialog
-                  ? "编辑自定义厂商"
-                  : "Configure Model Provider"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            {isCustomDialog ? (
-              <div className="space-y-1">
-                <div className="text-xs text-muted-foreground">厂商名称</div>
-                <Input
-                  value={form.displayName}
-                  placeholder="例如：My Gateway"
-                  onChange={(event) => setForm((prev) => ({ ...prev, displayName: event.target.value }))}
-                />
-              </div>
-            ) : null}
-
-            {(isCustomDialog || editingConfig?.requiresApiKey === false) ? (
-              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                这一项支持本地或免密接入，API Key 可以留空；重点配置模型名和 API URL。
-              </div>
-            ) : null}
-
-            <Input
-              type="password"
-              value={form.key}
-              placeholder={editingConfig?.isConfigured ? "留空则沿用当前已保存的 API Key" : "Enter API key"}
-              onChange={(event) => setForm((prev) => ({ ...prev, key: event.target.value }))}
-            />
-
-            {canSelectListedModels ? (
-              <div className="space-y-1">
-                <div className="text-xs text-muted-foreground">Available models</div>
-                <SearchableSelect
-                  value={form.model}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, model: value }))}
-                  options={modelOptions.map((model) => ({ value: model }))}
-                  placeholder="Select a model"
-                  searchPlaceholder="Search models"
-                  emptyText="No models available"
-                />
-              </div>
-            ) : null}
-
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">{primaryModelLabel}</div>
-              {isCreatingCustomProvider ? (
-                <div className="text-xs text-muted-foreground">
-                  New custom providers do not have a model list yet. Enter one working default model name first,
-                  then save and use "Refresh models" on the provider card afterwards.
-                </div>
-              ) : editingConfig?.kind === "custom" && !canSelectListedModels ? (
-                <div className="text-xs text-muted-foreground">
-                  No remote model list is available yet. You can keep editing the default model name manually and
-                  refresh the model list later from the provider card.
-                </div>
-              ) : (
-                <div className="text-xs text-muted-foreground">
-                  You can also type a model name manually if it is not listed above.
-                </div>
-              )}
-            </div>
-            <Input
-              value={form.model}
-              placeholder="也可以直接手动输入模型名"
-              onChange={(event) => setForm((prev) => ({ ...prev, model: event.target.value }))}
-            />
-
-            {editingConfig?.supportsImageGeneration ? (
-              <div className="space-y-3 rounded-md border bg-muted/20 p-3">
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground">Image model</div>
-                  <SearchableSelect
-                    value={form.imageModel}
-                    onValueChange={(value) => setForm((prev) => ({ ...prev, imageModel: value }))}
-                    options={(editingConfig.imageModels ?? []).map((model) => ({ value: model }))}
-                    placeholder="Select an image model"
-                    searchPlaceholder="Search image models"
-                    emptyText="No image models available"
-                  />
-                </div>
-                <Input
-                  value={form.imageModel}
-                  placeholder={editingConfig.defaultImageModel ?? "Enter image model"}
-                  onChange={(event) => setForm((prev) => ({ ...prev, imageModel: event.target.value }))}
-                />
-                <div className="text-xs text-muted-foreground">
-                  Used by the built-in image generation flow for this provider.
-                </div>
-              </div>
-            ) : null}
-
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">API URL</div>
-              <Input
-                value={form.baseURL}
-                placeholder={editingConfig?.defaultBaseURL ?? "https://api.example.com/v1"}
-                onChange={(event) => setForm((prev) => ({ ...prev, baseURL: event.target.value }))}
-              />
-              <div className="text-xs text-muted-foreground">
-                本地 Ollama 常见地址是 `http://127.0.0.1:11434/v1`。留空会回退到当前默认地址。
-              </div>
-            </div>
-
-            <ProviderRequestLimitFields
-              concurrencyLimit={form.concurrencyLimit}
-              requestIntervalMs={form.requestIntervalMs}
-              onChange={(value) => setForm((prev) => ({ ...prev, ...value }))}
-            />
-
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-              <Button
-                className="w-full sm:w-auto"
-                onClick={() => {
-                  if (isCreatingCustomProvider) {
-                    createCustomProviderMutation.mutate({
-                      name: form.displayName.trim(),
-                      key: form.key.trim() ? form.key : undefined,
-                      model: form.model.trim(),
-                      baseURL: form.baseURL.trim(),
-                      concurrencyLimit: Number.parseInt(form.concurrencyLimit, 10) || 0,
-                      requestIntervalMs: Number.parseInt(form.requestIntervalMs, 10) || 0,
-                    });
-                    return;
-                  }
-                  if (!editingProvider) {
-                    return;
-                  }
-                  saveMutation.mutate({
-                    provider: editingProvider,
-                    displayName: isCustomDialog ? form.displayName.trim() || undefined : undefined,
-                    key: form.key.trim() ? form.key : undefined,
-                    model: form.model.trim() || undefined,
-                    imageModel: editingConfig?.supportsImageGeneration
-                      ? (form.imageModel.trim() || undefined)
-                      : undefined,
-                    baseURL: form.baseURL,
-                    concurrencyLimit: Number.parseInt(form.concurrencyLimit, 10) || 0,
-                    requestIntervalMs: Number.parseInt(form.requestIntervalMs, 10) || 0,
-                  });
-                }}
-                disabled={
-                  saveMutation.isPending
-                  || createCustomProviderMutation.isPending
-                  || !form.model.trim()
-                  || (isCustomDialog && !form.displayName.trim())
-                  || (isCreatingCustomProvider && !form.baseURL.trim())
-                  || (!isCustomDialog && editingConfig?.requiresApiKey !== false && !form.key.trim() && !editingConfig?.isConfigured)
-                }
-              >
-                {saveMutation.isPending || createCustomProviderMutation.isPending
-                  ? "Saving..."
-                  : isCreatingCustomProvider
-                    ? "Create provider"
-                    : "Save"}
-              </Button>
-
-              <Button
-                variant="secondary"
-                className="w-full sm:w-auto"
-                onClick={() =>
-                  testMutation.mutate({
-                    provider: editingProvider || "custom_preview",
-                    apiKey: form.key.trim() ? form.key : undefined,
-                    model: form.model.trim() || undefined,
-                    baseURL: form.baseURL.trim() ? form.baseURL : undefined,
-                    probeMode: "both",
-                  })
-                }
-                disabled={testMutation.isPending || !form.model.trim() || !form.baseURL.trim()}
-              >
-                Test
-              </Button>
-
-              {editingConfig?.kind === "custom" ? (
-                <Button
-                  variant="destructive"
-                  className="col-span-2 w-full sm:col-span-1 sm:w-auto"
-                  onClick={() => {
-                    if (!editingProvider) {
-                      return;
-                    }
-                    if (!window.confirm(`确认删除自定义厂商 ${editingConfig.name} 吗？`)) {
-                      return;
-                    }
-                    deleteCustomProviderMutation.mutate(editingProvider);
-                  }}
-                  disabled={deleteCustomProviderMutation.isPending}
-                >
-                  {deleteCustomProviderMutation.isPending ? "Deleting..." : "Delete"}
-                </Button>
-              ) : null}
-            </div>
-            {testResult ? <div className="break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">{testResult}</div> : null}
-          </div>
-        </DialogContent>
-      </Dialog>
+        isCreatingCustomProvider={isCreatingCustomProvider}
+        isCustomDialog={isCustomDialog}
+        editingConfig={editingConfig}
+        form={form}
+        setForm={setForm}
+        selectableModels={selectableModels}
+        previewModelsResult={previewModelsResult}
+        isPreviewingModels={previewCustomProviderModelsMutation.isPending}
+        onClearPreviewModels={clearPreviewModels}
+        onPreviewModels={handlePreviewCustomModels}
+        onSubmit={handleSubmitProviderDialog}
+        submitDisabled={providerSubmitDisabled}
+        submitLabel={providerSubmitLabel}
+        onTest={handleTestProviderDialog}
+        testDisabled={testMutation.isPending || !form.model.trim() || !form.baseURL.trim()}
+        testResult={testResult}
+        onDeleteCustomProvider={handleDeleteCustomProvider}
+        deleteDisabled={deleteCustomProviderMutation.isPending}
+        deleteLabel={deleteCustomProviderMutation.isPending ? "删除中..." : "删除"}
+      />
     </div>
   );
 }

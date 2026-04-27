@@ -48,6 +48,7 @@ export interface DirectorPhaseDependencies {
       novelId: string,
       optionId: string,
     ) => ReturnType<CharacterPreparationService["applyCharacterCastOption"]>;
+    findReusableCharacterCastOption?: (novelId: string) => Promise<CharacterCastOption | null>;
   };
   volumeService: NovelVolumeService;
 }

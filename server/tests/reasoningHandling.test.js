@@ -5,9 +5,39 @@ const {
   diffAccumulatedText,
   extractMiniMaxRawStreamData,
   extractReasoningTextFromChunk,
+  isDeepSeekThinkingModeProvider,
   isMiniMaxCompatibleProvider,
   resolveProviderReasoningBehavior,
 } = require("../dist/llm/reasoning.js");
+
+test("deepseek v4 pro behavior maps reasoning toggle to thinking mode", () => {
+  const disabled = resolveProviderReasoningBehavior({
+    provider: "deepseek",
+    baseURL: "https://api.deepseek.com/v1",
+    model: "deepseek-v4-pro",
+    reasoningEnabled: false,
+  });
+
+  assert.equal(disabled.reasoningEnabled, false);
+  assert.deepEqual(disabled.modelKwargs, { thinking: { type: "disabled" } });
+
+  const enabled = resolveProviderReasoningBehavior({
+    provider: "custom_gateway",
+    baseURL: "https://api.deepseek.com/v1",
+    model: "deepseek-reasoner",
+    reasoningEnabled: true,
+  });
+
+  assert.equal(enabled.reasoningEnabled, true);
+  assert.deepEqual(enabled.modelKwargs, { thinking: { type: "enabled" } });
+});
+
+test("deepseek thinking mode detection is limited to toggle-capable models", () => {
+  assert.equal(isDeepSeekThinkingModeProvider("deepseek", undefined, "deepseek-v4-pro"), true);
+  assert.equal(isDeepSeekThinkingModeProvider("custom_gateway", "https://api.deepseek.com/v1", "deepseek-reasoner"), true);
+  assert.equal(isDeepSeekThinkingModeProvider("deepseek", undefined, "deepseek-chat"), false);
+  assert.equal(isDeepSeekThinkingModeProvider("openai", "https://api.openai.com/v1", "deepseek-v4-pro"), false);
+});
 
 test("minimax provider behavior enables reasoning_split and raw response parsing", () => {
   const behavior = resolveProviderReasoningBehavior({

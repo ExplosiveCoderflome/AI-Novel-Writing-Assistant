@@ -1,19 +1,26 @@
 import { prisma } from "../../db/prisma";
 import { ragConfig } from "../../config/rag";
-import { getProviderEnvApiKey, getProviderEnvBaseUrl, PROVIDERS } from "../../llm/providers";
+import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import {
+  getProviderEnvApiKey,
+  isBuiltInProvider,
+  providerRequiresApiKey,
+  PROVIDERS,
+  resolveProviderBaseUrl,
+} from "../../llm/providers";
 import { normalizeRagText } from "./utils";
 import { getRagEmbeddingSettings } from "../settings/RagSettingsService";
 
 interface EmbeddingResult {
   vectors: number[][];
   model: string;
-  provider: "openai" | "siliconflow";
+  provider: LLMProvider;
 }
 
 interface EmbeddingRuntimeTarget {
-  provider: "openai" | "siliconflow";
+  provider: LLMProvider;
   model: string;
-  apiKey: string;
+  apiKey?: string;
   baseUrl: string;
 }
 
@@ -100,7 +107,7 @@ export class EmbeddingService {
     return new EmbeddingRequestError("Embedding request failed.", false, false);
   }
 
-  private async resolveRuntimeSettings(): Promise<{ provider: "openai" | "siliconflow"; model: string }> {
+  private async resolveRuntimeSettings(): Promise<{ provider: LLMProvider; model: string }> {
     const settings = await getRagEmbeddingSettings();
     return {
       provider: settings.embeddingProvider,
@@ -108,7 +115,7 @@ export class EmbeddingService {
     };
   }
 
-  private async resolveApiKey(provider: "openai" | "siliconflow"): Promise<string> {
+  private async resolveApiKey(provider: LLMProvider): Promise<string | undefined> {
     try {
       const dbSecret = await prisma.aPIKey.findUnique({ where: { provider } });
       if (dbSecret?.isActive && dbSecret.key?.trim()) {
@@ -125,14 +132,19 @@ export class EmbeddingService {
       return envApiKey;
     }
 
+    if (!providerRequiresApiKey(provider)) {
+      return undefined;
+    }
+
     throw new Error(`Embedding API key is not configured for provider=${provider}.`);
   }
 
-  private async resolveBaseUrl(provider: "openai" | "siliconflow"): Promise<string> {
+  private async resolveBaseUrl(provider: LLMProvider): Promise<string> {
+    let dbBaseURL: string | undefined;
     try {
       const record = await prisma.aPIKey.findUnique({ where: { provider } });
       if (record?.isActive && record.baseURL?.trim()) {
-        return record.baseURL.trim().replace(/\/+$/, "");
+        dbBaseURL = record.baseURL.trim();
       }
     } catch (error) {
       if (!isMissingTableError(error)) {
@@ -140,14 +152,22 @@ export class EmbeddingService {
       }
     }
 
-    return (
-      getProviderEnvBaseUrl(provider)
-      ?? PROVIDERS[provider].baseURL
-    ).replace(/\/+$/, "");
+    const resolved = resolveProviderBaseUrl(provider, dbBaseURL, dbBaseURL);
+    if (resolved) {
+      return resolved.replace(/\/+$/, "");
+    }
+
+    throw new Error(`Embedding API URL is not configured for provider=${provider}.`);
   }
 
-  private resolveModel(provider: "openai" | "siliconflow", model?: string): string {
-    return model?.trim() || ragConfig.embeddingModel || PROVIDERS[provider].defaultModel;
+  private resolveModel(provider: LLMProvider, model?: string): string {
+    const resolved = model?.trim()
+      || ragConfig.embeddingModel
+      || (isBuiltInProvider(provider) ? PROVIDERS[provider].defaultModel : "");
+    if (!resolved) {
+      throw new Error(`Embedding model is not configured for provider=${provider}.`);
+    }
+    return resolved;
   }
 
   private async requestEmbeddingBatch(texts: string[], target: EmbeddingRuntimeTarget): Promise<number[][]> {
@@ -157,7 +177,7 @@ export class EmbeddingService {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${target.apiKey}`,
+            ...(target.apiKey ? { Authorization: `Bearer ${target.apiKey}` } : {}),
           },
           body: JSON.stringify({
             model: target.model,

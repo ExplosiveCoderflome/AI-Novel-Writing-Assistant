@@ -17,6 +17,7 @@ import NovelAutoDirectorSetupPanel from "./NovelAutoDirectorSetupPanel";
 interface NovelAutoDirectorCandidateSelectionContentProps {
   basicForm: NovelBasicFormState;
   genreOptions: Array<{ id: string; path: string; label: string }>;
+  worldOptions: Array<{ id: string; name: string }>;
   idea: string;
   onIdeaChange: (value: string) => void;
   runMode: DirectorRunMode;
@@ -62,6 +63,7 @@ interface NovelAutoDirectorCandidateSelectionContentProps {
 export default function NovelAutoDirectorCandidateSelectionContent({
   basicForm,
   genreOptions,
+  worldOptions,
   idea,
   onIdeaChange,
   runMode,
@@ -108,6 +110,7 @@ export default function NovelAutoDirectorCandidateSelectionContent({
       <NovelAutoDirectorSetupPanel
         basicForm={basicForm}
         genreOptions={genreOptions}
+        worldOptions={worldOptions}
         idea={idea}
         onIdeaChange={onIdeaChange}
         runMode={runMode}

@@ -71,6 +71,7 @@ import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 interface NovelAutoDirectorDialogProps {
   basicForm: NovelBasicFormState;
   genreOptions: Array<{ id: string; path: string; label: string }>;
+  worldOptions: Array<{ id: string; name: string }>;
   workflowTaskId?: string;
   restoredTask?: UnifiedTaskDetail | null;
   initialOpen?: boolean;
@@ -90,6 +91,7 @@ interface NovelAutoDirectorDialogProps {
 export default function NovelAutoDirectorDialog({
   basicForm,
   genreOptions,
+  worldOptions,
   workflowTaskId: workflowTaskIdProp,
   restoredTask,
   initialOpen = false,
@@ -117,6 +119,7 @@ export default function NovelAutoDirectorDialog({
   const [titlePatchFeedbacks, setTitlePatchFeedbacks] = useState<Record<string, string>>({});
   const confirmSubmitLockedRef = useRef(false);
   const autoApprovalDraft = useDirectorAutoApprovalDraft(open);
+  const { applySnapshot: applyAutoApprovalSnapshot } = autoApprovalDraft;
 
   useEffect(() => {
     if (!workflowTaskIdProp || workflowTaskIdProp === workflowTaskId) {
@@ -157,7 +160,7 @@ export default function NovelAutoDirectorDialog({
       setAutoExecutionDraft(normalizeDirectorAutoExecutionDraftState(seedPayload.autoExecutionPlan));
     }
     if (seedPayload?.autoApproval) {
-      autoApprovalDraft.applySnapshot(seedPayload.autoApproval);
+      applyAutoApprovalSnapshot(seedPayload.autoApproval);
     }
     if (typeof seedPayload?.styleProfileId === "string") {
       setSelectedStyleProfileId(seedPayload.styleProfileId);
@@ -165,7 +168,7 @@ export default function NovelAutoDirectorDialog({
     if (initialOpen) {
       setOpen(true);
     }
-  }, [autoApprovalDraft, initialOpen, restoredTask, workflowTaskId]);
+  }, [applyAutoApprovalSnapshot, initialOpen, restoredTask, workflowTaskId]);
 
   const directorBasicForm = useMemo(
     () => patchNovelBasicForm(basicForm, {
@@ -622,6 +625,7 @@ export default function NovelAutoDirectorDialog({
               <NovelAutoDirectorCandidateSelectionContent
                 basicForm={directorBasicForm}
                 genreOptions={genreOptions}
+                worldOptions={worldOptions}
                 idea={idea}
                 onIdeaChange={setIdea}
                 runMode={runMode}
