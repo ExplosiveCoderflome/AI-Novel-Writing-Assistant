@@ -1,10 +1,16 @@
+import { useEffect, useRef, useState } from "react";
+import { Download, RefreshCw, RotateCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  checkForDesktopUpdates,
   copyDesktopLogPath,
   openDesktopLogsDirectory,
   restartDesktopApp,
+  quitAndInstallDesktopUpdate,
   type DesktopBootstrapSnapshot,
+  type DesktopUpdaterSnapshot,
+  useDesktopUpdater,
 } from "@/lib/desktop";
 import { cn } from "@/lib/utils";
 import DesktopBrandMark from "./DesktopBrandMark";
@@ -71,6 +77,64 @@ function resolveProgressHint(snapshot: DesktopBootstrapSnapshot): string {
   }
 }
 
+function resolveUpdaterStatusLabel(status: DesktopUpdaterSnapshot["status"]): string {
+  switch (status) {
+    case "disabled":
+      return "不可用";
+    case "idle":
+      return "待检查";
+    case "checking":
+      return "检查中";
+    case "update-available":
+      return "发现更新";
+    case "downloading":
+      return "下载中";
+    case "downloaded":
+      return "待安装";
+    case "not-available":
+      return "无需更新";
+    case "error":
+      return "检查失败";
+    default:
+      return status;
+  }
+}
+
+function resolveUpdaterHint(updater: DesktopUpdaterSnapshot, bootstrapState: DesktopBootstrapSnapshot["state"]): string {
+  if (!updater.isSupported) {
+    if (updater.isPortable) {
+      return "便携版需要下载新版安装包后手动替换。";
+    }
+
+    if (!updater.isPackaged) {
+      return "开发运行不会连接发布更新通道，打包安装版会自动检查桌面版本。";
+    }
+
+    return updater.message;
+  }
+
+  switch (updater.status) {
+    case "idle":
+      return bootstrapState === "error"
+        ? "启动受阻时会同步检查桌面版本，方便先安装可用修复。"
+        : "进入工作区前会检查桌面版本，有可用版本时会在这里提示。";
+    case "checking":
+      return "版本检查中，有可用版本时会提示下载。";
+    case "update-available":
+      return `桌面版 ${updater.availableVersion ?? "新版本"} 可用，建议先下载更新包。`;
+    case "downloading":
+      return "更新包下载中，请保持应用打开。";
+    case "downloaded":
+      return "更新包已下载，重启应用后完成安装。";
+    case "not-available":
+      return "本机安装版本与发布通道保持同步。";
+    case "error":
+      return updater.message || "版本检查失败，可以稍后重试。";
+    default:
+      return updater.message;
+  }
+}
+
 function formatSnapshotTime(value: string): string {
   if (!value) {
     return "-";
@@ -84,6 +148,135 @@ function formatSnapshotTime(value: string): string {
   return parsed.toLocaleString("zh-CN", {
     hour12: false,
   });
+}
+
+function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapSnapshot }) {
+  const updater = useDesktopUpdater();
+  const didRequestStartupCheckRef = useRef(false);
+  const [isBusy, setIsBusy] = useState(false);
+  const isPromptingUpdate = updater.status === "update-available" || updater.status === "downloaded";
+  const isCheckingOrDownloading = updater.status === "checking" || updater.status === "downloading";
+  const showDownloadButton = updater.status === "update-available";
+  const showInstallButton = updater.status === "downloaded";
+  const showCheckButton = updater.isSupported && !showDownloadButton && !showInstallButton && updater.status !== "downloading";
+
+  useEffect(() => {
+    if (didRequestStartupCheckRef.current || !updater.isSupported) {
+      return;
+    }
+
+    if (updater.lastCheckedAt || updater.status !== "idle") {
+      return;
+    }
+
+    if (snapshot.state !== "launching" && snapshot.state !== "starting-server" && snapshot.state !== "error") {
+      return;
+    }
+
+    didRequestStartupCheckRef.current = true;
+    void checkForDesktopUpdates().catch(() => {
+      didRequestStartupCheckRef.current = false;
+    });
+  }, [snapshot.state, updater.isSupported, updater.lastCheckedAt, updater.status]);
+
+  const runUpdaterAction = async (action: "check" | "install") => {
+    setIsBusy(true);
+    try {
+      if (action === "install") {
+        await quitAndInstallDesktopUpdate();
+      } else {
+        await checkForDesktopUpdates();
+      }
+    } catch (error) {
+      console.error("[desktop] updater action failed.", error);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  return (
+    <div
+      className={cn(
+        "rounded-3xl border p-5",
+        isPromptingUpdate
+          ? "border-amber-300/70 bg-amber-300/10"
+          : "border-slate-800 bg-slate-900/70",
+      )}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">版本检查</div>
+        <Badge
+          variant="outline"
+          className={cn(
+            "border-slate-600 bg-slate-950/60 text-slate-100",
+            isPromptingUpdate ? "border-amber-300/80 bg-amber-300/15 text-amber-100" : null,
+          )}
+        >
+          {resolveUpdaterStatusLabel(updater.status)}
+        </Badge>
+      </div>
+
+      <div className="mt-3 grid gap-2 text-sm text-slate-300">
+        <div className="flex items-center justify-between gap-3">
+          <span>本机版本</span>
+          <span className="font-medium text-slate-100">{updater.currentVersion}</span>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <span>可用版本</span>
+          <span className="font-medium text-slate-100">{updater.availableVersion ?? "-"}</span>
+        </div>
+        <div className="flex items-center justify-between gap-3 text-slate-400">
+          <span>检查时间</span>
+          <span className="font-medium text-slate-200">{formatSnapshotTime(updater.lastCheckedAt ?? "")}</span>
+        </div>
+      </div>
+
+      <div className="mt-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm leading-6 text-slate-300">
+        {resolveUpdaterHint(updater, snapshot.state)}
+        {typeof updater.progressPercent === "number" ? ` 下载进度 ${Math.round(updater.progressPercent)}%。` : ""}
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-3">
+        {showCheckButton ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="border-slate-600 bg-slate-800 text-slate-100 hover:bg-slate-700 hover:text-white"
+            disabled={isBusy || updater.status === "checking"}
+            onClick={() => void runUpdaterAction("check")}
+          >
+            <RefreshCw className={cn("h-4 w-4", updater.status === "checking" ? "animate-spin" : null)} aria-hidden="true" />
+            {updater.status === "checking" ? "检查中" : updater.status === "error" || updater.status === "not-available" ? "重新检查" : "检查更新"}
+          </Button>
+        ) : null}
+        {showDownloadButton ? (
+          <Button
+            type="button"
+            size="sm"
+            className="bg-amber-300 text-slate-950 hover:bg-amber-200"
+            disabled={isBusy || isCheckingOrDownloading}
+            onClick={() => void runUpdaterAction("check")}
+          >
+            <Download className="h-4 w-4" aria-hidden="true" />
+            下载更新
+          </Button>
+        ) : null}
+        {showInstallButton ? (
+          <Button
+            type="button"
+            size="sm"
+            className="bg-cyan-400 text-slate-950 hover:bg-cyan-300"
+            disabled={isBusy || !updater.canInstall}
+            onClick={() => void runUpdaterAction("install")}
+          >
+            <RotateCw className="h-4 w-4" aria-hidden="true" />
+            重启安装
+          </Button>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 export default function DesktopBootstrapShell({ snapshot, overlay = false }: DesktopBootstrapShellProps) {
@@ -147,6 +340,8 @@ export default function DesktopBootstrapShell({ snapshot, overlay = false }: Des
                 </div>
               </div>
             </div>
+
+            <DesktopBootstrapUpdatePanel snapshot={snapshot} />
 
             <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
               <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">日志与排查</div>

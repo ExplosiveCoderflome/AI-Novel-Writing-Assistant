@@ -4,6 +4,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { CreativeHubResourceBinding, CreativeHubThread } from "@ai-novel/shared/types/creativeHub";
 import type { LangChainMessage } from "@assistant-ui/react-langgraph";
 import { useSearchParams } from "react-router-dom";
+import { AlertTriangle } from "lucide-react";
 import {
   createCreativeHubThread,
   deleteCreativeHubThread,
@@ -402,6 +403,14 @@ export default function CreativeHubPage() {
         {currentCheckpointId ? (
           <Badge variant="outline">Checkpoint {currentCheckpointId.slice(0, 8)}</Badge>
         ) : null}
+      </div>
+
+      <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        <div>
+          <div className="font-medium">待完善</div>
+          <div className="mt-0.5 leading-6">当前模块还在开发中，尚未完善；可先用于创作问题诊断、方案讨论和轻量推进。</div>
+        </div>
       </div>
 
       <div className="grid min-h-[72vh] gap-4 lg:h-[calc(100vh-11rem)] lg:grid-cols-[240px_minmax(0,1fr)_320px]">
