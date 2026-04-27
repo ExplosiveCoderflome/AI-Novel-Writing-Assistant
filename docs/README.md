@@ -33,6 +33,7 @@
 - [Chapter Editor V2 Plan](./plans/chapter-editor-v2-plan.md)
 - [Desktop Plan](./plans/desktop-plan.md)
 - [Character Resource Ledger Plan](./plans/character-resource-ledger-plan.md)
+- [Prompt Workbench, Context and Step Runtime Plan](./plans/prompt-workbench-context-and-step-runtime-plan.md)
 
 ### `docs/design`
 
