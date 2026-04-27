@@ -443,3 +443,27 @@ export async function resetDirectorTakeoverCurrentStep(input: {
   }
   await resetQualityRepairOutputs(input.novelId, autoExecutionRange);
 }
+
+export async function resetDirectorTakeoverDownstreamState(input: {
+  novelId: string;
+  plan: DirectorTakeoverResolvedPlan;
+  autoExecutionPlan?: DirectorAutoExecutionPlan | null;
+  takeoverState: DirectorTakeoverLoadedState;
+  deps: DirectorTakeoverResetDeps;
+}): Promise<void> {
+  if (
+    input.plan.strategy !== "continue_existing"
+    || input.plan.effectiveStep !== "structured"
+  ) {
+    return;
+  }
+
+  const range = await resolveDirectorTakeoverAutoExecutionResetRange({
+    novelId: input.novelId,
+    autoExecutionPlan: input.autoExecutionPlan,
+    takeoverState: input.takeoverState,
+    deps: input.deps,
+  });
+  await cancelActivePipelineJobIfNeeded(input.takeoverState, input.deps);
+  await resetChapterExecutionOutputs(input.novelId, range);
+}

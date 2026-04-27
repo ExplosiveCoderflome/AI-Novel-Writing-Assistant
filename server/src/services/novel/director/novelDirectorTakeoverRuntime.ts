@@ -1,5 +1,6 @@
 import type {
   DirectorTakeoverCheckpointSnapshot,
+  DirectorAutoExecutionPlan,
   DirectorTakeoverExecutableRangeSnapshot,
   DirectorTakeoverPipelineJobSnapshot,
 } from "@ai-novel/shared/types/novelDirector";
@@ -175,6 +176,7 @@ function buildCheckpointSnapshot(input: {
 
 export async function loadDirectorTakeoverState(input: {
   novelId: string;
+  autoExecutionPlan?: DirectorAutoExecutionPlan | null;
   getStoryMacroPlan: (novelId: string) => Promise<StoryMacroPlan | null>;
   getDirectorAssetSnapshot: (novelId: string) => Promise<{
     characterCount: number;
@@ -299,10 +301,11 @@ export async function loadDirectorTakeoverState(input: {
     return chapter.generationState !== "approved" && chapter.generationState !== "published";
   }).length;
   const latestSeedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(latestTask?.seedPayloadJson) ?? null;
+  const requestedAutoExecutionPlan = input.autoExecutionPlan ?? null;
   const structuredOutlineCursor = workspace
     ? resolveStructuredOutlineRecoveryCursor({
         workspace,
-        plan: latestSeedPayload?.autoExecutionPlan ?? latestSeedPayload?.autoExecution ?? null,
+        plan: requestedAutoExecutionPlan ?? latestSeedPayload?.autoExecutionPlan ?? latestSeedPayload?.autoExecution ?? null,
       })
     : null;
   const chapterOrderMap = new Map(chapterRows.map((chapter) => [chapter.id, chapter.order]));
@@ -323,10 +326,12 @@ export async function loadDirectorTakeoverState(input: {
     chapterOrderMap,
   });
 
-  const executableRangeFromState = buildPreparedRangeFromState(
-    chapterRows as TakeoverChapterRow[],
-    latestSeedPayload?.autoExecution,
-  );
+  const executableRangeFromState = requestedAutoExecutionPlan
+    ? null
+    : buildPreparedRangeFromState(
+        chapterRows as TakeoverChapterRow[],
+        latestSeedPayload?.autoExecution,
+      );
   const executableRangeFromSyncedChapters = structuredOutlineCursor
     && (structuredOutlineCursor.step === "chapter_sync" || structuredOutlineCursor.step === "completed")
     ? buildPreparedRangeFromSyncedChapters(

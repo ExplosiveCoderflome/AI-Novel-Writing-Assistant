@@ -263,10 +263,12 @@ test("continue_existing does not invoke restart preparation", async () => {
   assert.equal(restartCalled, false);
 });
 
-test("continue_existing records downstream reset metadata and cancels replaced runs after bootstrap", async () => {
+test("continue_existing from structured records downstream reset metadata and restarts structured phase", async () => {
   const calls = [];
   let bootstrapInput = null;
   let cancelInput = null;
+  const scheduled = [];
+  let runningState = null;
 
   await startDirectorTakeoverExecution({
     request: {
@@ -286,21 +288,25 @@ test("continue_existing records downstream reset metadata and cancels replaced r
         calls.push("bootstrap");
         return { id: "workflow_takeover_demo" };
       },
-      markTaskRunning: async () => {
+      markTaskRunning: async (_taskId, input) => {
+        runningState = input;
         calls.push("mark_running");
       },
     },
     autoExecutionRuntime: {
       prepareRequestedAutoExecution: async () => {
-        calls.push("prepare_auto_execution");
+        throw new Error("structured takeover should not enter auto execution before downstream reset");
       },
       runFromReady: async () => {},
     },
     buildDirectorSeedPayload: (_request, _novelId, extra) => ({ ...extra }),
-    scheduleBackgroundRun: () => {
+    scheduleBackgroundRun: (_taskId, runner) => {
       calls.push("schedule");
+      scheduled.push(runner);
     },
-    runDirectorPipeline: async () => {},
+    runDirectorPipeline: async (_input) => {
+      calls.push("phase_pipeline");
+    },
     cancelReplacedRuns: async (input) => {
       cancelInput = input;
       calls.push("cancel_replaced_runs");
@@ -315,13 +321,67 @@ test("continue_existing records downstream reset metadata and cancels replaced r
   assert.deepEqual(bootstrapInput.seedPayload.takeover.downstreamReset.resetSteps, ["chapter", "pipeline"]);
   assert.equal(cancelInput.replacementTaskId, "workflow_takeover_demo");
   assert.equal(cancelInput.plan.strategy, "continue_existing");
+  assert.equal(cancelInput.plan.effectiveStep, "structured");
+  assert.equal(cancelInput.plan.executionMode, "phase");
+  assert.equal(runningState.stage, "structured_outline");
   assert.deepEqual(calls.slice(0, 4), [
     "bootstrap",
     "cancel_replaced_runs",
-    "prepare_auto_execution",
     "mark_running",
+    "schedule",
   ]);
   assert.equal(calls.includes("reset_assets"), false);
+  await Promise.all(scheduled.map((runner) => runner()));
+  assert.ok(calls.includes("phase_pipeline"));
+});
+
+test("continue_existing from structured resets downstream runtime state before bootstrap", async () => {
+  const calls = [];
+
+  await startDirectorTakeoverExecution({
+    request: {
+      novelId: "novel_takeover_demo",
+      entryStep: "structured",
+      strategy: "continue_existing",
+    },
+    takeoverState: buildTakeoverState(),
+    directorInput: {
+      candidate: { workingTitle: "Neon Archive" },
+      runMode: "auto_to_execution",
+      autoExecutionPlan: { mode: "book" },
+    },
+    workflowService: {
+      bootstrapTask: async () => {
+        calls.push("bootstrap");
+        return { id: "workflow_takeover_demo" };
+      },
+      markTaskRunning: async () => {
+        calls.push("mark_running");
+      },
+    },
+    autoExecutionRuntime: {
+      prepareRequestedAutoExecution: async () => {
+        throw new Error("structured takeover should not prepare auto execution");
+      },
+      runFromReady: async () => {},
+    },
+    buildDirectorSeedPayload: () => ({}),
+    scheduleBackgroundRun: () => {
+      calls.push("schedule");
+    },
+    runDirectorPipeline: async () => {},
+    resetDownstreamState: async ({ plan }) => {
+      calls.push(`reset_downstream:${plan.effectiveStep}`);
+    },
+    cancelReplacedRuns: async () => {
+      calls.push("cancel_replaced_runs");
+    },
+  });
+
+  assert.deepEqual(calls.slice(0, 2), [
+    "reset_downstream:structured",
+    "bootstrap",
+  ]);
 });
 
 test("restart_current_step records downstream reset metadata for workspace navigation", async () => {

@@ -388,6 +388,7 @@ function resolveExecutionContinuationStep(input: {
 
 function resolveContinueTargetStep(input: {
   entryStep: DirectorTakeoverEntryStep;
+  selectedEntryStep?: DirectorTakeoverEntryStep;
   snapshot: DirectorTakeoverAssetSnapshot;
   activePipelineJob?: DirectorTakeoverPipelineJobSnapshot | null;
   latestCheckpoint?: DirectorTakeoverCheckpointSnapshot | null;
@@ -410,17 +411,18 @@ function resolveContinueTargetStep(input: {
   }
   if (input.entryStep === "story_macro") {
     if (!storyReady) return "story_macro";
-    return resolveContinueTargetStep({ ...input, entryStep: "character" });
+    return resolveContinueTargetStep({ ...input, selectedEntryStep: input.selectedEntryStep ?? input.entryStep, entryStep: "character" });
   }
   if (input.entryStep === "character") {
     if (!characterReady) return "character";
-    return resolveContinueTargetStep({ ...input, entryStep: "outline" });
+    return resolveContinueTargetStep({ ...input, selectedEntryStep: input.selectedEntryStep ?? input.entryStep, entryStep: "outline" });
   }
   if (input.entryStep === "outline") {
     if (!outlineReady) return "outline";
-    return resolveContinueTargetStep({ ...input, entryStep: "structured" });
+    return resolveContinueTargetStep({ ...input, selectedEntryStep: input.selectedEntryStep ?? input.entryStep, entryStep: "structured" });
   }
   if (input.entryStep === "structured") {
+    if ((input.selectedEntryStep ?? input.entryStep) === "structured") return "structured";
     if (!structuredExecutionReady) return "structured";
     return resolveExecutionContinuationStep({
       ...input,

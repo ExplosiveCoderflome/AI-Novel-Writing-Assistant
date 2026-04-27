@@ -71,7 +71,10 @@ import {
 import { DirectorRecoveryNotNeededError } from "./novelDirectorErrors";
 import { repairDirectorChapterTitles } from "./novelDirectorChapterTitleRepair";
 import { startDirectorTakeoverExecution } from "./novelDirectorTakeoverExecution";
-import { resetDirectorTakeoverCurrentStep } from "./novelDirectorTakeoverReset";
+import {
+  resetDirectorTakeoverCurrentStep,
+  resetDirectorTakeoverDownstreamState,
+} from "./novelDirectorTakeoverReset";
 import { cancelContinueExistingReplacedRuns } from "./novelDirectorTakeoverContinue";
 import { StyleBindingService } from "../../styleEngine/StyleBindingService";
 import { StyleProfileService } from "../../styleEngine/StyleProfileService";
@@ -929,6 +932,7 @@ export class NovelDirectorService {
   async startTakeover(input: DirectorTakeoverRequest): Promise<DirectorTakeoverResponse> {
     const takeoverState = await loadDirectorTakeoverState({
       novelId: input.novelId,
+      autoExecutionPlan: input.autoExecutionPlan,
       getStoryMacroPlan: (targetNovelId) => this.storyMacroService.getPlan(targetNovelId),
       getDirectorAssetSnapshot: (targetNovelId) => this.getDirectorAssetSnapshot(targetNovelId),
       getVolumeWorkspace: (targetNovelId) => this.volumeService.getVolumes(targetNovelId),
@@ -998,6 +1002,19 @@ export class NovelDirectorService {
       }),
       prepareRestartStep: async ({ plan, takeoverState: currentTakeoverState, directorInput }) => {
         await resetDirectorTakeoverCurrentStep({
+          novelId: input.novelId,
+          plan,
+          autoExecutionPlan: directorInput.autoExecutionPlan,
+          takeoverState: currentTakeoverState,
+          deps: {
+            getVolumeWorkspace: (targetNovelId) => this.volumeService.getVolumes(targetNovelId),
+            updateVolumeWorkspace: (targetNovelId, payload) => this.volumeService.updateVolumes(targetNovelId, payload),
+            cancelPipelineJob: (jobId) => this.novelService.cancelPipelineJob(jobId),
+          },
+        });
+      },
+      resetDownstreamState: async ({ plan, takeoverState: currentTakeoverState, directorInput }) => {
+        await resetDirectorTakeoverDownstreamState({
           novelId: input.novelId,
           plan,
           autoExecutionPlan: directorInput.autoExecutionPlan,

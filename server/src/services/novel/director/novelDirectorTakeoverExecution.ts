@@ -107,6 +107,12 @@ interface StartDirectorTakeoverExecutionInput {
     directorInput: DirectorConfirmRequest;
     plan: DirectorTakeoverResolvedPlan;
   }) => Promise<void>;
+  resetDownstreamState?: (input: {
+    request: DirectorTakeoverRequest;
+    takeoverState: DirectorTakeoverLoadedState;
+    directorInput: DirectorConfirmRequest;
+    plan: DirectorTakeoverResolvedPlan;
+  }) => Promise<void>;
   cancelReplacedRuns?: (input: {
     request: DirectorTakeoverRequest;
     takeoverState: DirectorTakeoverLoadedState;
@@ -245,6 +251,18 @@ export async function startDirectorTakeoverExecution(
   if (selection.strategy === "restart_current_step") {
     rewriteSnapshot = await createRewriteSnapshotForRestart(input);
     await input.prepareRestartStep?.({
+      request: input.request,
+      takeoverState: input.takeoverState,
+      directorInput: input.directorInput,
+      plan,
+    });
+  }
+  if (
+    selection.strategy === "continue_existing"
+    && selection.entryStep === "structured"
+    && plan.effectiveStep === "structured"
+  ) {
+    await input.resetDownstreamState?.({
       request: input.request,
       takeoverState: input.takeoverState,
       directorInput: input.directorInput,
