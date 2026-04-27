@@ -19,6 +19,7 @@ export * from "./types/styleEngine";
 export * from "./types/storyMacro";
 export * from "./types/title";
 export * from "./types/novelDirector";
+export * from "./types/directorRuntime";
 export * from "./types/autoDirectorApproval";
 export * from "./types/autoDirectorFollowUp";
 export * from "./types/autoDirectorValidation";

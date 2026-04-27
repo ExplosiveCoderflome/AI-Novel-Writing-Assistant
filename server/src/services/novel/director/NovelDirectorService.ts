@@ -6,6 +6,13 @@ import type { CharacterCastOption } from "@ai-novel/shared/types/novel";
 import { AppError } from "../../../middleware/errorHandler";
 import { runWithLlmUsageTracking } from "../../../llm/usageTracking";
 import type {
+  DirectorArtifactRef,
+  DirectorPolicyMode,
+  DirectorRuntimePolicySnapshot,
+  DirectorRuntimeSnapshot,
+  DirectorWorkspaceAnalysis,
+} from "@ai-novel/shared/types/directorRuntime";
+import type {
   DirectorContinuationMode,
   BookSpec,
   DirectorCandidateBatch,
@@ -17,6 +24,7 @@ import type {
   DirectorCandidatesResponse,
   DirectorConfirmApiResponse,
   DirectorConfirmRequest,
+  DirectorLLMOptions,
   DirectorRefineResponse,
   DirectorRefinementRequest,
   DirectorTakeoverReadinessResponse,
@@ -99,6 +107,7 @@ import {
 } from "@ai-novel/shared/types/autoDirectorApproval";
 import { recordAutoDirectorAutoApprovalFromTask } from "../../task/autoDirectorFollowUps/autoDirectorAutoApprovalAudit";
 import { flattenPreparedOutlineChapters } from "./novelDirectorStructuredOutlineRecovery";
+import { DirectorRuntimeService } from "./runtime/DirectorRuntimeService";
 
 type WorkflowTaskSnapshot = Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>;
 
@@ -155,6 +164,7 @@ export class NovelDirectorService {
   private readonly characterDynamicsService = new CharacterDynamicsService();
   private readonly volumeService = new NovelVolumeService();
   private readonly workflowService = new NovelWorkflowService();
+  private readonly directorRuntime = new DirectorRuntimeService();
   private readonly styleProfileService = new StyleProfileService();
   private readonly styleBindingService = new StyleBindingService();
   private readonly candidateStageService = new NovelDirectorCandidateStageService(this.workflowService);
@@ -631,13 +641,51 @@ export class NovelDirectorService {
   private async runCandidateStageWithFailureHandling<T>(
     workflowTaskId: string | null | undefined,
     runner: () => Promise<T>,
+    runtimeNode?: {
+      nodeKey: string;
+      label: string;
+    },
   ): Promise<T> {
+    const taskId = workflowTaskId?.trim() || null;
+    if (taskId && runtimeNode) {
+      await this.directorRuntime.initializeRun({
+        taskId,
+        entrypoint: "candidate_stage",
+        policyMode: "run_next_step",
+        summary: "自动导演候选阶段已进入统一运行时。",
+      });
+      await this.directorRuntime.recordStepStarted({
+        taskId,
+        nodeKey: runtimeNode.nodeKey,
+        label: runtimeNode.label,
+        targetType: "global",
+      });
+    }
     try {
-      return await this.withWorkflowTaskUsage(workflowTaskId, runner);
+      const result = await this.withWorkflowTaskUsage(workflowTaskId, runner);
+      if (taskId && runtimeNode) {
+        await this.directorRuntime.recordStepCompleted({
+          taskId,
+          nodeKey: runtimeNode.nodeKey,
+          label: runtimeNode.label,
+          targetType: "global",
+        });
+      }
+      return result;
     } catch (error) {
-      if (workflowTaskId?.trim()) {
+      if (taskId && runtimeNode) {
         const message = error instanceof Error ? error.message : "自动导演候选阶段执行失败。";
-        await this.workflowService.markTaskFailed(workflowTaskId.trim(), message);
+        await this.directorRuntime.recordStepFailed({
+          taskId,
+          nodeKey: runtimeNode.nodeKey,
+          label: runtimeNode.label,
+          targetType: "global",
+          error: message,
+        });
+      }
+      if (taskId) {
+        const message = error instanceof Error ? error.message : "自动导演候选阶段执行失败。";
+        await this.workflowService.markTaskFailed(taskId, message);
       }
       throw error;
     }
@@ -662,6 +710,20 @@ export class NovelDirectorService {
     const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(row.seedPayloadJson) ?? {};
     const directorInput = getDirectorInputFromSeedPayload(seedPayload);
     const novelId = row.novelId ?? seedPayload.novelId ?? null;
+    await this.directorRuntime.initializeRun({
+      taskId,
+      novelId,
+      entrypoint: "continue",
+      policyMode: input?.continuationMode ? "auto_safe_scope" : "run_until_gate",
+      summary: "自动导演任务从统一运行时继续。",
+    });
+    if (novelId) {
+      await this.directorRuntime.analyzeWorkspace({
+        novelId,
+        workflowTaskId: taskId,
+        includeAiInterpretation: false,
+      });
+    }
     const resumedCandidateStage = await this.continueCandidateStageTask(taskId, {
       novelId,
       status: row.status,
@@ -931,6 +993,34 @@ export class NovelDirectorService {
     });
   }
 
+  async analyzeRuntimeWorkspace(novelId: string, input?: {
+    workflowTaskId?: string | null;
+    includeAiInterpretation?: boolean;
+    llm?: DirectorLLMOptions;
+  }): Promise<DirectorWorkspaceAnalysis> {
+    return this.directorRuntime.analyzeWorkspace({
+      novelId,
+      workflowTaskId: input?.workflowTaskId,
+      includeAiInterpretation: input?.includeAiInterpretation,
+      llm: input?.llm,
+    });
+  }
+
+  async getRuntimeSnapshot(taskId: string): Promise<DirectorRuntimeSnapshot | null> {
+    return this.directorRuntime.getSnapshot(taskId);
+  }
+
+  async updateRuntimePolicy(taskId: string, input: {
+    mode: DirectorPolicyMode;
+    patch?: Partial<Omit<DirectorRuntimePolicySnapshot, "mode" | "updatedAt">>;
+  }): Promise<DirectorRuntimeSnapshot | null> {
+    return this.directorRuntime.updatePolicy({
+      taskId,
+      mode: input.mode,
+      patch: input.patch,
+    });
+  }
+
   async startTakeover(input: DirectorTakeoverRequest): Promise<DirectorTakeoverResponse> {
     const takeoverState = await loadDirectorTakeoverState({
       novelId: input.novelId,
@@ -981,14 +1071,57 @@ export class NovelDirectorService {
       temperature: typeof input.temperature === "number" ? input.temperature : takeoverDirectorInput.temperature,
     });
     await this.ensurePrimaryNovelStyleBinding(input.novelId, directorInput.styleProfileId);
-    return startDirectorTakeoverExecution({
+    const takeoverWorkspaceAnalysis = await this.directorRuntime.analyzeWorkspace({
+      novelId: input.novelId,
+      includeAiInterpretation: true,
+      llm: input,
+    });
+    const response = await startDirectorTakeoverExecution({
       request: input,
       takeoverState,
       directorInput,
       workflowService: this.workflowService,
       autoExecutionRuntime: this.autoExecutionRuntime,
       buildDirectorSeedPayload: (request, novelId, extra) => this.buildDirectorSeedPayload(request, novelId, extra),
-      scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, runner),
+      scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, async () => {
+        await this.directorRuntime.initializeRun({
+          taskId,
+          novelId: input.novelId,
+          entrypoint: "takeover",
+          policyMode: "run_until_gate",
+          summary: "AI 自动导演接管已并入统一运行时。",
+        });
+        await this.directorRuntime.recordWorkspaceAnalysis({
+          taskId,
+          analysis: takeoverWorkspaceAnalysis,
+        });
+        await this.directorRuntime.recordStepStarted({
+          taskId,
+          novelId: input.novelId,
+          nodeKey: "takeover_execution",
+          label: "执行 AI 自动导演接管",
+          targetType: "global",
+        });
+        try {
+          await runner();
+          await this.refreshRuntimeWorkspaceAfterNode({
+            taskId,
+            novelId: input.novelId,
+            nodeKey: "takeover_execution",
+            label: "执行 AI 自动导演接管",
+          });
+        } catch (error) {
+          await this.directorRuntime.recordStepFailed({
+            taskId,
+            novelId: input.novelId,
+            nodeKey: "takeover_execution",
+            label: "执行 AI 自动导演接管",
+            targetType: "global",
+            error: error instanceof Error ? error.message : String(error),
+          });
+          throw error;
+        }
+      }),
       runDirectorPipeline: (payload) => this.runDirectorPipeline(payload),
       assertHighMemoryStartAllowed: (payload) => this.assertHighMemoryDirectorStartAllowed(payload),
       createRewriteSnapshot: async ({ novelId, label }) => {
@@ -1039,12 +1172,25 @@ export class NovelDirectorService {
         });
       },
     });
+    await this.directorRuntime.initializeRun({
+      taskId: response.workflowTaskId,
+      novelId: input.novelId,
+      entrypoint: "takeover",
+      policyMode: "run_until_gate",
+      summary: "AI 自动导演接管已并入统一运行时。",
+    });
+    await this.directorRuntime.recordWorkspaceAnalysis({
+      taskId: response.workflowTaskId,
+      analysis: takeoverWorkspaceAnalysis,
+    });
+    return response;
   }
 
   async generateCandidates(input: DirectorCandidatesRequest): Promise<DirectorCandidatesResponse> {
     return this.runCandidateStageWithFailureHandling(
       input.workflowTaskId,
       async () => this.candidateStageService.generateCandidates(await this.enrichDirectorStyleContext(input)),
+      { nodeKey: "candidate_generation", label: "生成书级候选" },
     );
   }
 
@@ -1052,6 +1198,7 @@ export class NovelDirectorService {
     return this.runCandidateStageWithFailureHandling(
       input.workflowTaskId,
       async () => this.candidateStageService.refineCandidates(await this.enrichDirectorStyleContext(input)),
+      { nodeKey: "candidate_refine", label: "修订候选方向" },
     );
   }
 
@@ -1059,6 +1206,7 @@ export class NovelDirectorService {
     return this.runCandidateStageWithFailureHandling(
       input.workflowTaskId,
       async () => this.candidateStageService.patchCandidate(await this.enrichDirectorStyleContext(input)),
+      { nodeKey: "candidate_patch", label: "定向修正候选" },
     );
   }
 
@@ -1068,6 +1216,7 @@ export class NovelDirectorService {
     return this.runCandidateStageWithFailureHandling(
       input.workflowTaskId,
       async () => this.candidateStageService.refineCandidateTitleOptions(await this.enrichDirectorStyleContext(input)),
+      { nodeKey: "candidate_title_refine", label: "优化候选书名" },
     );
   }
 
@@ -1093,9 +1242,21 @@ export class NovelDirectorService {
         }),
       }),
     });
+    await this.directorRuntime.initializeRun({
+      taskId: workflowTask.id,
+      novelId: workflowTask.novelId,
+      entrypoint: "candidate_confirm",
+      policyMode: runMode === "stage_review" ? "run_next_step" : "run_until_gate",
+      summary: "自动导演确认方案后进入统一运行时。",
+    });
 
     if (workflowTask.novelId) {
       await this.ensurePrimaryNovelStyleBinding(workflowTask.novelId, resolvedInput.styleProfileId);
+      await this.directorRuntime.analyzeWorkspace({
+        novelId: workflowTask.novelId,
+        workflowTaskId: workflowTask.id,
+        includeAiInterpretation: false,
+      });
       return this.buildExistingConfirmResponse(workflowTask, resolvedInput, bookSpec);
     }
 
@@ -1202,6 +1363,19 @@ export class NovelDirectorService {
             directorSession,
             resumeTarget,
           }),
+        });
+        await this.directorRuntime.initializeRun({
+          taskId: workflowTask.id,
+          novelId: createdNovel.id,
+          entrypoint: "candidate_confirm",
+          policyMode: runMode === "stage_review" ? "run_next_step" : "run_until_gate",
+          summary: "自动导演已创建小说项目并进入统一运行时。",
+        });
+        await this.refreshRuntimeWorkspaceAfterNode({
+          taskId: workflowTask.id,
+          novelId: createdNovel.id,
+          nodeKey: "novel_create",
+          label: "创建小说项目",
         });
         await this.markDirectorTaskRunning(
           workflowTask.id,
@@ -1351,6 +1525,7 @@ export class NovelDirectorService {
     options?: {
       chapterId?: string | null;
       volumeId?: string | null;
+      novelId?: string | null;
     },
   ) {
     await this.workflowService.markTaskRunning(taskId, {
@@ -1360,6 +1535,36 @@ export class NovelDirectorService {
       progress,
       chapterId: options?.chapterId,
       volumeId: options?.volumeId,
+    });
+    await this.directorRuntime.recordStepStarted({
+      taskId,
+      novelId: options?.novelId,
+      nodeKey: `${stage}.${itemKey}`,
+      label: itemLabel,
+      targetType: options?.chapterId ? "chapter" : options?.volumeId ? "volume" : "global",
+      targetId: options?.chapterId ?? options?.volumeId ?? null,
+    });
+  }
+
+  private async refreshRuntimeWorkspaceAfterNode(input: {
+    taskId: string;
+    novelId: string;
+    nodeKey: string;
+    label: string;
+    artifacts?: DirectorArtifactRef[];
+  }): Promise<void> {
+    const analysis = await this.directorRuntime.analyzeWorkspace({
+      novelId: input.novelId,
+      workflowTaskId: input.taskId,
+      includeAiInterpretation: false,
+    });
+    await this.directorRuntime.recordStepCompleted({
+      taskId: input.taskId,
+      novelId: input.novelId,
+      nodeKey: input.nodeKey,
+      label: input.label,
+      targetType: "global",
+      producedArtifacts: input.artifacts ?? analysis.inventory.artifacts,
     });
   }
 
@@ -1377,14 +1582,40 @@ export class NovelDirectorService {
     });
 
     if (safeStartPhase === "story_macro") {
+      await this.directorRuntime.recordStepStarted({
+        taskId: input.taskId,
+        novelId: input.novelId,
+        nodeKey: "story_macro_phase",
+        label: "生成书级规划资产",
+        targetType: "global",
+      });
       await this.runStoryMacroPhase(input.taskId, input.novelId, input.input);
+      await this.refreshRuntimeWorkspaceAfterNode({
+        taskId: input.taskId,
+        novelId: input.novelId,
+        nodeKey: "story_macro_phase",
+        label: "生成书级规划资产",
+      });
     }
 
     if (safeStartPhase === "story_macro" || safeStartPhase === "character_setup") {
+      await this.directorRuntime.recordStepStarted({
+        taskId: input.taskId,
+        novelId: input.novelId,
+        nodeKey: "character_setup_phase",
+        label: "准备角色阵容与角色资产",
+        targetType: "global",
+      });
       const paused = await this.runCharacterSetupPhase(input.taskId, input.novelId, input.input);
       if (paused) {
         return;
       }
+      await this.refreshRuntimeWorkspaceAfterNode({
+        taskId: input.taskId,
+        novelId: input.novelId,
+        nodeKey: "character_setup_phase",
+        label: "准备角色阵容与角色资产",
+      });
     }
 
     if (
@@ -1392,10 +1623,23 @@ export class NovelDirectorService {
       || safeStartPhase === "character_setup"
       || safeStartPhase === "volume_strategy"
     ) {
+      await this.directorRuntime.recordStepStarted({
+        taskId: input.taskId,
+        novelId: input.novelId,
+        nodeKey: "volume_strategy_phase",
+        label: "生成分卷策略与推进路线",
+        targetType: "global",
+      });
       const volumeWorkspace = await this.runVolumeStrategyPhase(input.taskId, input.novelId, input.input);
       if (!volumeWorkspace) {
         return;
       }
+      await this.refreshRuntimeWorkspaceAfterNode({
+        taskId: input.taskId,
+        novelId: input.novelId,
+        nodeKey: "volume_strategy_phase",
+        label: "生成分卷策略与推进路线",
+      });
       await this.assertHighMemoryDirectorStartAllowed({
         taskId: input.taskId,
         novelId: input.novelId,
@@ -1408,7 +1652,20 @@ export class NovelDirectorService {
         }),
         batchAlreadyStartedCount: input.batchAlreadyStartedCount,
       });
+      await this.directorRuntime.recordStepStarted({
+        taskId: input.taskId,
+        novelId: input.novelId,
+        nodeKey: "structured_outline_phase",
+        label: "生成章节任务单",
+        targetType: "global",
+      });
       await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, volumeWorkspace);
+      await this.refreshRuntimeWorkspaceAfterNode({
+        taskId: input.taskId,
+        novelId: input.novelId,
+        nodeKey: "structured_outline_phase",
+        label: "生成章节任务单",
+      });
       if (this.shouldAutoApproveCheckpoint(input.input, "front10_ready")) {
         await recordAutoDirectorAutoApprovalFromTask({
           taskId: input.taskId,
@@ -1437,7 +1694,20 @@ export class NovelDirectorService {
       }),
       batchAlreadyStartedCount: input.batchAlreadyStartedCount,
     });
+    await this.directorRuntime.recordStepStarted({
+      taskId: input.taskId,
+      novelId: input.novelId,
+      nodeKey: "structured_outline_phase",
+      label: "生成章节任务单",
+      targetType: "global",
+    });
     await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, currentWorkspace);
+    await this.refreshRuntimeWorkspaceAfterNode({
+      taskId: input.taskId,
+      novelId: input.novelId,
+      nodeKey: "structured_outline_phase",
+      label: "生成章节任务单",
+    });
     if (this.shouldAutoApproveCheckpoint(input.input, "front10_ready")) {
       await recordAutoDirectorAutoApprovalFromTask({
         taskId: input.taskId,
@@ -1479,8 +1749,11 @@ export class NovelDirectorService {
         bookContractService: this.bookContractService,
       },
       callbacks: {
-        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, _options) => (
-          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress)
+        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
+          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
+            ...options,
+            novelId,
+          })
         ),
       },
     });
@@ -1551,7 +1824,10 @@ export class NovelDirectorService {
       callbacks: {
         buildDirectorSeedPayload: (request, takeoverNovelId, extra) => this.buildDirectorSeedPayload(request, takeoverNovelId, extra),
         markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
-          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, options)
+          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
+            ...options,
+            novelId,
+          })
         ),
       },
     });
@@ -1576,7 +1852,10 @@ export class NovelDirectorService {
       callbacks: {
         buildDirectorSeedPayload: (request, takeoverNovelId, extra) => this.buildDirectorSeedPayload(request, takeoverNovelId, extra),
         markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
-          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, options)
+          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
+            ...options,
+            novelId,
+          })
         ),
       },
     });
@@ -1603,7 +1882,10 @@ export class NovelDirectorService {
       callbacks: {
         buildDirectorSeedPayload: (request, takeoverNovelId, extra) => this.buildDirectorSeedPayload(request, takeoverNovelId, extra),
         markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
-          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, options)
+          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
+            ...options,
+            novelId,
+          })
         ),
       },
     });

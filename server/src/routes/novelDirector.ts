@@ -2,6 +2,14 @@ import { Router } from "express";
 import { z } from "zod";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import {
+  DIRECTOR_POLICY_MODES,
+  type DirectorPolicyMode,
+  type DirectorRuntimePolicyUpdateRequest,
+  type DirectorRuntimePolicyUpdateResponse,
+  type DirectorRuntimeSnapshotResponse,
+  type DirectorWorkspaceAnalysisResponse,
+} from "@ai-novel/shared/types/directorRuntime";
+import {
   DIRECTOR_CORRECTION_PRESETS,
   DIRECTOR_AUTO_EXECUTION_MODES,
   DIRECTOR_TAKEOVER_ENTRY_STEPS,
@@ -31,6 +39,7 @@ const takeoverStartPhaseValues = [...DIRECTOR_TAKEOVER_START_PHASES] as [string,
 const takeoverEntryStepValues = [...DIRECTOR_TAKEOVER_ENTRY_STEPS] as [string, ...string[]];
 const takeoverStrategyValues = [...DIRECTOR_TAKEOVER_STRATEGIES] as [string, ...string[]];
 const autoExecutionModeValues = [...DIRECTOR_AUTO_EXECUTION_MODES] as [string, ...string[]];
+const runtimePolicyModeValues = [...DIRECTOR_POLICY_MODES] as [DirectorPolicyMode, ...DirectorPolicyMode[]];
 
 const llmOptionsSchema = z.object({
   provider: llmProviderSchema.optional(),
@@ -155,6 +164,32 @@ const takeoverParamsSchema = z.object({
   novelId: z.string().trim().min(1),
 });
 
+const runtimeTaskParamsSchema = z.object({
+  taskId: z.string().trim().min(1),
+});
+
+const workspaceAnalysisQuerySchema = z.object({
+  workflowTaskId: z.string().trim().min(1).optional(),
+  ai: z.enum(["true", "false"]).optional(),
+});
+
+const runtimePolicySchema = z.object({
+  mode: z.enum(runtimePolicyModeValues),
+  mayOverwriteUserContent: z.boolean().optional(),
+  allowExpensiveReview: z.boolean().optional(),
+  modelTier: z.enum(["cheap_fast", "balanced", "high_quality"]).optional(),
+});
+
+const runtimeContinueSchema = z.object({
+  mode: z.enum(runtimePolicyModeValues).optional(),
+  mayOverwriteUserContent: z.boolean().optional(),
+  allowExpensiveReview: z.boolean().optional(),
+  modelTier: z.enum(["cheap_fast", "balanced", "high_quality"]).optional(),
+  continuationMode: z.enum(["resume", "auto_execute_range", "auto_execute_front10"]).optional(),
+  batchAlreadyStartedCount: z.number().int().min(0).optional(),
+}).optional();
+type RuntimeContinueBody = Exclude<z.infer<typeof runtimeContinueSchema>, undefined>;
+
 const takeoverSchema = z.object({
   novelId: z.string().trim().min(1),
   startPhase: z.enum(takeoverStartPhaseValues).optional(),
@@ -243,6 +278,103 @@ router.get("/takeover-readiness/:novelId", validate({ params: takeoverParamsSche
     next(error);
   }
 });
+
+router.get(
+  "/workspace-analysis/:novelId",
+  validate({ params: takeoverParamsSchema, query: workspaceAnalysisQuerySchema }),
+  async (req, res, next) => {
+    try {
+      const { novelId } = req.params as z.infer<typeof takeoverParamsSchema>;
+      const query = req.query as z.infer<typeof workspaceAnalysisQuerySchema>;
+      const analysis = await novelDirectorService.analyzeRuntimeWorkspace(novelId, {
+        workflowTaskId: query.workflowTaskId,
+        includeAiInterpretation: query.ai !== "false",
+      });
+      const data: DirectorWorkspaceAnalysisResponse = { analysis };
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Director workspace analysis loaded.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.get("/runtime/:taskId", validate({ params: runtimeTaskParamsSchema }), async (req, res, next) => {
+  try {
+    const { taskId } = req.params as z.infer<typeof runtimeTaskParamsSchema>;
+    const snapshot = await novelDirectorService.getRuntimeSnapshot(taskId);
+    const data: DirectorRuntimeSnapshotResponse = { snapshot };
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Director runtime snapshot loaded.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post(
+  "/runtime/:taskId/policy",
+  validate({ params: runtimeTaskParamsSchema, body: runtimePolicySchema }),
+  async (req, res, next) => {
+    try {
+      const { taskId } = req.params as z.infer<typeof runtimeTaskParamsSchema>;
+      const body = req.body as DirectorRuntimePolicyUpdateRequest;
+      const snapshot = await novelDirectorService.updateRuntimePolicy(taskId, {
+        mode: body.mode,
+        patch: {
+          mayOverwriteUserContent: body.mayOverwriteUserContent,
+          allowExpensiveReview: body.allowExpensiveReview,
+          modelTier: body.modelTier,
+        },
+      });
+      const data: DirectorRuntimePolicyUpdateResponse = { snapshot };
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Director runtime policy updated.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/runtime/:taskId/continue",
+  validate({ params: runtimeTaskParamsSchema, body: runtimeContinueSchema }),
+  async (req, res, next) => {
+    try {
+      const { taskId } = req.params as z.infer<typeof runtimeTaskParamsSchema>;
+      const body = (req.body ?? {}) as RuntimeContinueBody;
+      if (body.mode) {
+        await novelDirectorService.updateRuntimePolicy(taskId, {
+          mode: body.mode,
+          patch: {
+            mayOverwriteUserContent: body.mayOverwriteUserContent,
+            allowExpensiveReview: body.allowExpensiveReview,
+            modelTier: body.modelTier,
+          },
+        });
+      }
+      await novelDirectorService.continueTask(taskId, {
+        continuationMode: body.continuationMode,
+        batchAlreadyStartedCount: body.batchAlreadyStartedCount,
+      });
+      res.status(202).json({
+        success: true,
+        data: { taskId },
+        message: "Director runtime continue accepted.",
+      } satisfies ApiResponse<{ taskId: string }>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 router.post("/takeover", validate({ body: takeoverSchema }), async (req, res, next) => {
   try {

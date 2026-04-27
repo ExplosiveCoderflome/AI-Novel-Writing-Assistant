@@ -1,5 +1,11 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type {
+  DirectorRuntimePolicyUpdateRequest,
+  DirectorRuntimePolicyUpdateResponse,
+  DirectorRuntimeSnapshotResponse,
+  DirectorWorkspaceAnalysisResponse,
+} from "@ai-novel/shared/types/directorRuntime";
+import type {
   DirectorCandidatePatchRequest,
   DirectorCandidatePatchResponse,
   DirectorCandidateTitleRefineRequest,
@@ -48,5 +54,54 @@ export async function getDirectorTakeoverReadiness(novelId: string) {
 
 export async function startDirectorTakeover(payload: DirectorTakeoverRequest) {
   const { data } = await apiClient.post<ApiResponse<DirectorTakeoverResponse>>("/novels/director/takeover", payload);
+  return data;
+}
+
+export async function getDirectorWorkspaceAnalysis(
+  novelId: string,
+  options?: {
+    workflowTaskId?: string;
+    ai?: boolean;
+  },
+) {
+  const { data } = await apiClient.get<ApiResponse<DirectorWorkspaceAnalysisResponse>>(
+    `/novels/director/workspace-analysis/${novelId}`,
+    {
+      params: {
+        workflowTaskId: options?.workflowTaskId,
+        ai: typeof options?.ai === "boolean" ? String(options.ai) : undefined,
+      },
+    },
+  );
+  return data;
+}
+
+export async function getDirectorRuntimeSnapshot(taskId: string) {
+  const { data } = await apiClient.get<ApiResponse<DirectorRuntimeSnapshotResponse>>(`/novels/director/runtime/${taskId}`);
+  return data;
+}
+
+export async function updateDirectorRuntimePolicy(
+  taskId: string,
+  payload: DirectorRuntimePolicyUpdateRequest,
+) {
+  const { data } = await apiClient.post<ApiResponse<DirectorRuntimePolicyUpdateResponse>>(
+    `/novels/director/runtime/${taskId}/policy`,
+    payload,
+  );
+  return data;
+}
+
+export async function continueDirectorRuntime(
+  taskId: string,
+  payload?: Partial<DirectorRuntimePolicyUpdateRequest> & {
+    continuationMode?: "resume" | "auto_execute_range" | "auto_execute_front10";
+    batchAlreadyStartedCount?: number;
+  },
+) {
+  const { data } = await apiClient.post<ApiResponse<{ taskId: string }>>(
+    `/novels/director/runtime/${taskId}/continue`,
+    payload ?? {},
+  );
   return data;
 }

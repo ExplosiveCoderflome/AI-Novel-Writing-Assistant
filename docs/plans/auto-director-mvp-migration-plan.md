@@ -736,6 +736,33 @@ type ChapterRetentionContract = {
 
 这四件事做完，系统还没有完全重构，但已经从“多条链路各自演化”变成“同一运行时逐步接管旧能力”。这时再做 Policy Engine、Node Runner、低风险 LangGraph 试点，风险会小很多。
 
-## 13. 一句话结论
+## 13. 2026-04-28 MVP 实现进度
+
+本轮实现已把 MVP 的底座接入现有链路，仍以旧阶段为执行主体，避免一次性重写自动导演：
+
+- 新增共享运行时契约：`DirectorRuntimeSnapshot`、`DirectorStepRun`、`DirectorEvent`、`DirectorArtifactRef`、`DirectorWorkspaceAnalysis`、`DirectorPolicyDecision`。
+- 新增 `DirectorRuntimeService` 门面，封装 run 初始化、状态快照、工作区分析、策略切换、节点记录和 NodeRunner。
+- 新增 `DirectorWorkspaceAnalyzer`，先做确定性 Inventory，再通过注册 PromptAsset 进行 AI 结构化解释。
+- 新增 Artifact Ledger wrapper：暂存于 workflow task 的 `directorRuntime.artifacts`，通过 `contentRef` 指向旧业务表，不迁移数据表。
+- 新增 Policy Engine V1：支持 `suggest_only`、`run_next_step`、`run_until_gate`、`auto_safe_scope`，并把自动修复预算固定为一次。
+- 自动导演候选、确认、接管、继续和主 pipeline 阶段已经开始写入 runtime step / event / workspace analysis。
+- 新增后端路由与前端 API：工作区分析、运行时快照、策略切换、运行时继续。
+- 新增策略单测，覆盖只建议模式、用户内容保护和一次自动修复预算。
+
+仍未在本轮直接完成的内容：
+
+- 未新增独立数据库表；Artifact Ledger 先作为旧 workflow seed payload 的 wrapper 索引。
+- 未把章节执行、质量修复和 pipeline job 完整拆成标准 NodeContract，只在运行时层记录关键入口和交接事件。
+- 未把 LangGraph 接到自动导演主链；当前仍保持“运行时先统一，图编排后替换”的路线。
+- 未把世界观生成、角色治理、拆书知识库编排纳入主链执行，只在 Workspace Inventory 中保留是否已绑定的判断基础。
+
+下一轮更适合做：
+
+1. 把章节执行与质量修复封装成标准节点，保证失败后只阻断受影响范围。
+2. 把 `reader_promise`、`chapter_retention_contract`、`character_governance_state` 升级成真实产物索引。
+3. 在创作中枢中调用 runtime API，而不是直接碰旧自动导演阶段函数。
+4. 选候选确认或 workspace analyze -> run next step 做低风险 LangGraph 试点。
+
+## 14. 一句话结论
 
 总纲是方向，MVP 是切片。先做可见性、统一入口、工作区分析、产物索引和策略边界，再包装旧节点，最后用低风险 LangGraph 试点验证编排。不要一开始就把所有创作质量模块和完整图编排同时上线。

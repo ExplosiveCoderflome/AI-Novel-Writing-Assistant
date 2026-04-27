@@ -15,6 +15,7 @@ import type {
   DirectorSessionState,
   DirectorTaskNotice,
 } from "@ai-novel/shared/types/novelDirector";
+import type { DirectorRuntimeSnapshot } from "@ai-novel/shared/types/directorRuntime";
 import {
   DIRECTOR_CORRECTION_PRESETS,
   DIRECTOR_MAX_TARGET_CHAPTER_COUNT,
@@ -70,6 +71,7 @@ export interface DirectorWorkflowSeedPayload extends Record<string, unknown> {
   resumeTarget?: NovelWorkflowResumeTarget | null;
   autoExecution?: DirectorAutoExecutionState;
   taskNotice?: DirectorTaskNotice | null;
+  directorRuntime?: DirectorRuntimeSnapshot | null;
 }
 
 export interface CandidateGenerationContext {
