@@ -7,6 +7,7 @@ import { featureFlags } from "@/config/featureFlags";
 const Home = lazy(() => import("@/pages/Home"));
 const NovelList = lazy(() => import("@/pages/novels/NovelList"));
 const NovelCreate = lazy(() => import("@/pages/novels/NovelCreate"));
+const NovelPreview = lazy(() => import("@/pages/novels/NovelPreview"));
 const NovelEdit = lazy(() => import("@/pages/novels/NovelEdit"));
 const NovelChapterEdit = lazy(() => import("@/pages/novels/NovelChapterEdit"));
 const CreativeHubPage = lazy(() => import("@/pages/creativeHub/CreativeHubPage"));
@@ -34,6 +35,7 @@ const routes: RouteObject[] = [
       { index: true, element: <Home /> },
       { path: "novels", element: <NovelList /> },
       { path: "novels/create", element: <NovelCreate /> },
+      { path: "novels/:id/preview", element: <NovelPreview /> },
       { path: "novels/:id/edit", element: <NovelEdit /> },
       { path: "novels/:id/chapters/:chapterId", element: <NovelChapterEdit /> },
       { path: "creative-hub", element: <CreativeHubPage /> },

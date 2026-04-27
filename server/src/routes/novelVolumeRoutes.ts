@@ -240,6 +240,24 @@ export function registerNovelVolumeRoutes(input: RegisterNovelVolumeRoutesInput)
   );
 
   router.get(
+    "/:id/volumes/versions/:versionId",
+    validate({ params: volumeVersionParamsSchema }),
+    async (req, res, next) => {
+      try {
+        const { id, versionId } = req.params as z.infer<typeof volumeVersionParamsSchema>;
+        const data = await novelService.getVolumeVersion(id, versionId);
+        res.status(200).json({
+          success: true,
+          data,
+          message: "Volume version loaded.",
+        } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.get(
     "/:id/volumes/versions/:versionId/diff",
     validate({ params: volumeVersionParamsSchema, query: volumeDiffQuerySchema }),
     async (req, res, next) => {

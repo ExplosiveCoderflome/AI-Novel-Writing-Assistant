@@ -27,7 +27,17 @@ import {
   toCursor,
   type ListTasksFilters,
 } from "./taskCenter.shared";
-import { getArchivedTaskIds } from "./taskArchive";
+import { getArchivedTaskIdsByKind } from "./taskArchive";
+
+const overviewTaskKinds: TaskKind[] = [
+  "book_analysis",
+  "novel_pipeline",
+  "knowledge_document",
+  "image_generation",
+  "agent_run",
+  "novel_workflow",
+  "style_extraction",
+];
 
 export class TaskCenterService {
   private readonly novelService = new NovelService();
@@ -47,23 +57,14 @@ export class TaskCenterService {
   private readonly styleExtractionAdapter = new StyleExtractionTaskAdapter();
 
   async getOverview(): Promise<TaskOverviewSummary> {
-    const [
-      archivedBookIds,
-      archivedPipelineIds,
-      archivedKnowledgeIds,
-      archivedImageIds,
-      archivedAgentIds,
-      archivedWorkflowIds,
-      archivedStyleExtractionIds,
-    ] = await Promise.all([
-      getArchivedTaskIds("book_analysis"),
-      getArchivedTaskIds("novel_pipeline"),
-      getArchivedTaskIds("knowledge_document"),
-      getArchivedTaskIds("image_generation"),
-      getArchivedTaskIds("agent_run"),
-      getArchivedTaskIds("novel_workflow"),
-      getArchivedTaskIds("style_extraction"),
-    ]);
+    const archivedIdsByKind = await getArchivedTaskIdsByKind(overviewTaskKinds);
+    const archivedBookIds = archivedIdsByKind.get("book_analysis") ?? [];
+    const archivedPipelineIds = archivedIdsByKind.get("novel_pipeline") ?? [];
+    const archivedKnowledgeIds = archivedIdsByKind.get("knowledge_document") ?? [];
+    const archivedImageIds = archivedIdsByKind.get("image_generation") ?? [];
+    const archivedAgentIds = archivedIdsByKind.get("agent_run") ?? [];
+    const archivedWorkflowIds = archivedIdsByKind.get("novel_workflow") ?? [];
+    const archivedStyleExtractionIds = archivedIdsByKind.get("style_extraction") ?? [];
 
     const [
       bookRows,

@@ -23,6 +23,7 @@ export const MOBILE_ROUTE_PATTERNS: MobileRoutePattern[] = [
   { key: "home", pattern: /^\/$/, title: "首页", group: "home" },
   { key: "novels", pattern: /^\/novels\/?$/, title: "小说", group: "novels" },
   { key: "novel-create", pattern: /^\/novels\/create\/?$/, title: "创建小说", group: "novels" },
+  { key: "novel-preview", pattern: /^\/novels\/[^/]+\/preview\/?$/, title: "小说预览", group: "novels" },
   { key: "novel-edit", pattern: /^\/novels\/[^/]+\/edit\/?$/, title: "小说工作区", group: "novels" },
   { key: "chapter-edit", pattern: /^\/novels\/[^/]+\/chapters\/[^/]+\/?$/, title: "章节正文", group: "novels" },
   { key: "creative-hub", pattern: /^\/creative-hub\/?$/, title: "创作中枢", group: "creation" },

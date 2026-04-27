@@ -851,15 +851,18 @@ export interface VolumePlan {
   updatedAt: string;
 }
 
-export interface VolumePlanVersion {
+export interface VolumePlanVersionSummary {
   id: string;
   novelId: string;
   version: number;
   status: VolumePlanVersionStatus;
-  contentJson: string;
   diffSummary?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface VolumePlanVersion extends VolumePlanVersionSummary {
+  contentJson: string;
 }
 
 export interface VolumePlanDocument {
