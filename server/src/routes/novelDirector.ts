@@ -7,6 +7,7 @@ import {
   type DirectorRuntimePolicyUpdateRequest,
   type DirectorRuntimePolicyUpdateResponse,
   type DirectorRuntimeSnapshotResponse,
+  type DirectorManualEditImpactResponse,
   type DirectorWorkspaceAnalysisResponse,
 } from "@ai-novel/shared/types/directorRuntime";
 import {
@@ -173,6 +174,10 @@ const workspaceAnalysisQuerySchema = z.object({
   ai: z.enum(["true", "false"]).optional(),
 });
 
+const manualEditImpactQuerySchema = workspaceAnalysisQuerySchema.extend({
+  chapterId: z.string().trim().min(1).optional(),
+});
+
 const runtimePolicySchema = z.object({
   mode: z.enum(runtimePolicyModeValues),
   mayOverwriteUserContent: z.boolean().optional(),
@@ -295,6 +300,30 @@ router.get(
         success: true,
         data,
         message: "Director workspace analysis loaded.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.get(
+  "/manual-edit-impact/:novelId",
+  validate({ params: takeoverParamsSchema, query: manualEditImpactQuerySchema }),
+  async (req, res, next) => {
+    try {
+      const { novelId } = req.params as z.infer<typeof takeoverParamsSchema>;
+      const query = req.query as z.infer<typeof manualEditImpactQuerySchema>;
+      const impact = await novelDirectorService.evaluateManualEditImpact(novelId, {
+        workflowTaskId: query.workflowTaskId,
+        chapterId: query.chapterId,
+        includeAiInterpretation: query.ai !== "false",
+      });
+      const data: DirectorManualEditImpactResponse = { impact };
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Director manual edit impact loaded.",
       } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);

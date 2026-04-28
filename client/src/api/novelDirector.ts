@@ -3,6 +3,7 @@ import type {
   DirectorRuntimePolicyUpdateRequest,
   DirectorRuntimePolicyUpdateResponse,
   DirectorRuntimeSnapshotResponse,
+  DirectorManualEditImpactResponse,
   DirectorWorkspaceAnalysisResponse,
 } from "@ai-novel/shared/types/directorRuntime";
 import type {
@@ -78,6 +79,27 @@ export async function getDirectorWorkspaceAnalysis(
 
 export async function getDirectorRuntimeSnapshot(taskId: string) {
   const { data } = await apiClient.get<ApiResponse<DirectorRuntimeSnapshotResponse>>(`/novels/director/runtime/${taskId}`);
+  return data;
+}
+
+export async function getDirectorManualEditImpact(
+  novelId: string,
+  options?: {
+    workflowTaskId?: string;
+    chapterId?: string;
+    ai?: boolean;
+  },
+) {
+  const { data } = await apiClient.get<ApiResponse<DirectorManualEditImpactResponse>>(
+    `/novels/director/manual-edit-impact/${novelId}`,
+    {
+      params: {
+        workflowTaskId: options?.workflowTaskId,
+        chapterId: options?.chapterId,
+        ai: typeof options?.ai === "boolean" ? String(options.ai) : undefined,
+      },
+    },
+  );
   return data;
 }
 

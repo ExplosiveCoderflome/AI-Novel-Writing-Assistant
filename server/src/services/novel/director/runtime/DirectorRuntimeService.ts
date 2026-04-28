@@ -4,6 +4,7 @@ import type {
   DirectorRuntimePolicySnapshot,
   DirectorRuntimeSnapshot,
   DirectorStepRun,
+  DirectorManualEditImpact,
   DirectorWorkspaceAnalysis,
 } from "@ai-novel/shared/types/directorRuntime";
 import type { DirectorLLMOptions } from "@ai-novel/shared/types/novelDirector";
@@ -70,6 +71,12 @@ export class DirectorRuntimeService {
 
   analyzeWorkspace(input: DirectorRuntimeWorkspaceAnalysisInput): Promise<DirectorWorkspaceAnalysis> {
     return this.analyzer.analyze(input);
+  }
+
+  evaluateManualEditImpact(input: DirectorRuntimeWorkspaceAnalysisInput & {
+    chapterId?: string | null;
+  }): Promise<DirectorManualEditImpact> {
+    return this.analyzer.evaluateManualEditImpact(input);
   }
 
   recordWorkspaceAnalysis(input: {

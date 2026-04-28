@@ -6,18 +6,17 @@ import type { CharacterCastOption } from "@ai-novel/shared/types/novel";
 import { AppError } from "../../../middleware/errorHandler";
 import { runWithLlmUsageTracking } from "../../../llm/usageTracking";
 import type {
-  DirectorArtifactRef,
   DirectorPolicyMode,
   DirectorRuntimeProjection,
   DirectorRuntimePolicySnapshot,
   DirectorRuntimeSnapshot,
+  DirectorManualEditImpact,
   DirectorWorkspaceAnalysis,
 } from "@ai-novel/shared/types/directorRuntime";
 import type {
   DirectorContinuationMode,
   BookSpec,
   DirectorCandidateBatch,
-  DirectorAutoExecutionState,
   DirectorCandidatePatchRequest,
   DirectorCandidatePatchResponse,
   DirectorCandidateTitleRefineRequest,
@@ -33,7 +32,6 @@ import type {
   DirectorTakeoverRequest,
   DirectorTakeoverResponse,
 } from "@ai-novel/shared/types/novelDirector";
-import type { NovelWorkflowStage } from "@ai-novel/shared/types/novelWorkflow";
 import { BookContractService } from "../BookContractService";
 import { CharacterPreparationService } from "../characterPrep/CharacterPreparationService";
 import { generateAutoCharacterCastDraft, persistCharacterCastOptionsDraft } from "../characterPrep/characterCastGeneration";
@@ -112,6 +110,10 @@ import { recordAutoDirectorAutoApprovalFromTask } from "../../task/autoDirectorF
 import { flattenPreparedOutlineChapters } from "./novelDirectorStructuredOutlineRecovery";
 import { DirectorRuntimeService } from "./runtime/DirectorRuntimeService";
 import { DirectorEventProjectionService } from "./runtime/DirectorEventProjectionService";
+import {
+  isDirectorRuntimeGateError,
+  NovelDirectorRuntimeOrchestrator,
+} from "./novelDirectorRuntimeOrchestrator";
 
 type WorkflowTaskSnapshot = Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>;
 
@@ -159,17 +161,6 @@ function isWorkflowTaskCancelledError(error: unknown): boolean {
     && error.message === "WORKFLOW_TASK_CANCELLED";
 }
 
-class DirectorRuntimeGateError extends AppError {
-  constructor(message: string) {
-    super(message, 409);
-    this.name = "DirectorRuntimeGateError";
-  }
-}
-
-function isDirectorRuntimeGateError(error: unknown): boolean {
-  return error instanceof DirectorRuntimeGateError;
-}
-
 export class NovelDirectorService {
   private readonly novelContextService = new NovelContextService();
   private readonly characterPreparationService = new CharacterPreparationService();
@@ -203,6 +194,11 @@ export class NovelDirectorService {
         checkpointType,
       });
     },
+  });
+  private readonly directorRuntimeOrchestrator = new NovelDirectorRuntimeOrchestrator({
+    directorRuntime: this.directorRuntime,
+    workflowService: this.workflowService,
+    autoExecutionRuntime: this.autoExecutionRuntime,
   });
 
   private async assertHighMemoryDirectorStartAllowed(input: {
@@ -673,7 +669,7 @@ export class NovelDirectorService {
     }
     try {
       if (taskId && runtimeNode) {
-        return await this.runRuntimeNode<T>({
+        return await this.directorRuntimeOrchestrator.runNode<T>({
           taskId,
           nodeKey: runtimeNode.nodeKey,
           label: runtimeNode.label,
@@ -797,7 +793,7 @@ export class NovelDirectorService {
         }),
       });
       this.scheduleBackgroundRun(taskId, async () => {
-        await this.runChapterExecutionRuntimeNode({
+        await this.directorRuntimeOrchestrator.runChapterExecutionNode({
           taskId,
           novelId,
           request: directorInput,
@@ -1014,6 +1010,21 @@ export class NovelDirectorService {
     });
   }
 
+  async evaluateManualEditImpact(novelId: string, input?: {
+    workflowTaskId?: string | null;
+    chapterId?: string | null;
+    includeAiInterpretation?: boolean;
+    llm?: DirectorLLMOptions;
+  }): Promise<DirectorManualEditImpact> {
+    return this.directorRuntime.evaluateManualEditImpact({
+      novelId,
+      workflowTaskId: input?.workflowTaskId,
+      chapterId: input?.chapterId,
+      includeAiInterpretation: input?.includeAiInterpretation,
+      llm: input?.llm,
+    });
+  }
+
   async getRuntimeSnapshot(taskId: string): Promise<DirectorRuntimeSnapshot | null> {
     return this.directorRuntime.getSnapshot(taskId);
   }
@@ -1095,7 +1106,7 @@ export class NovelDirectorService {
       workflowService: this.workflowService,
       autoExecutionRuntime: {
         prepareRequestedAutoExecution: (payload) => this.autoExecutionRuntime.prepareRequestedAutoExecution(payload),
-        runFromReady: (payload) => this.runChapterExecutionRuntimeNode(payload),
+        runFromReady: (payload) => this.directorRuntimeOrchestrator.runChapterExecutionNode(payload),
       },
       buildDirectorSeedPayload: (request, novelId, extra) => this.buildDirectorSeedPayload(request, novelId, extra),
       scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, async () => {
@@ -1119,7 +1130,7 @@ export class NovelDirectorService {
         });
         try {
           await runner();
-          await this.refreshRuntimeWorkspaceAfterNode({
+          await this.directorRuntimeOrchestrator.refreshWorkspaceAfterNode({
             taskId,
             novelId: input.novelId,
             nodeKey: "takeover_execution",
@@ -1320,7 +1331,7 @@ export class NovelDirectorService {
           runMode,
         };
 
-        await this.markDirectorTaskRunning(
+        await this.directorRuntimeOrchestrator.markTaskRunning(
           workflowTask.id,
           "auto_director",
           "novel_create",
@@ -1386,13 +1397,13 @@ export class NovelDirectorService {
           policyMode: runMode === "stage_review" ? "run_next_step" : "run_until_gate",
           summary: "自动导演已创建小说项目并进入统一运行时。",
         });
-        await this.refreshRuntimeWorkspaceAfterNode({
+        await this.directorRuntimeOrchestrator.refreshWorkspaceAfterNode({
           taskId: workflowTask.id,
           novelId: createdNovel.id,
           nodeKey: "novel_create",
           label: "创建小说项目",
         });
-        await this.markDirectorTaskRunning(
+        await this.directorRuntimeOrchestrator.markTaskRunning(
           workflowTask.id,
           "story_macro",
           "book_contract",
@@ -1531,179 +1542,6 @@ export class NovelDirectorService {
     });
   }
 
-  private async markDirectorTaskRunning(
-    taskId: string,
-    stage: "auto_director" | "story_macro" | "character_setup" | "volume_strategy" | "structured_outline",
-    itemKey: DirectorProgressItemKey,
-    itemLabel: string,
-    progress: number,
-    options?: {
-      chapterId?: string | null;
-      volumeId?: string | null;
-      novelId?: string | null;
-    },
-  ) {
-    await this.workflowService.markTaskRunning(taskId, {
-      stage,
-      itemKey,
-      itemLabel,
-      progress,
-      chapterId: options?.chapterId,
-      volumeId: options?.volumeId,
-    });
-    await this.directorRuntime.recordStepStarted({
-      taskId,
-      novelId: options?.novelId,
-      nodeKey: `${stage}.${itemKey}`,
-      label: itemLabel,
-      targetType: options?.chapterId ? "chapter" : options?.volumeId ? "volume" : "global",
-      targetId: options?.chapterId ?? options?.volumeId ?? null,
-    });
-  }
-
-  private async refreshRuntimeWorkspaceAfterNode(input: {
-    taskId: string;
-    novelId: string;
-    nodeKey: string;
-    label: string;
-    artifacts?: DirectorArtifactRef[];
-  }): Promise<void> {
-    const analysis = await this.directorRuntime.analyzeWorkspace({
-      novelId: input.novelId,
-      workflowTaskId: input.taskId,
-      includeAiInterpretation: false,
-    });
-    await this.directorRuntime.recordStepCompleted({
-      taskId: input.taskId,
-      novelId: input.novelId,
-      nodeKey: input.nodeKey,
-      label: input.label,
-      targetType: "global",
-      producedArtifacts: input.artifacts ?? analysis.inventory.artifacts,
-    });
-  }
-
-  private async collectRuntimeArtifactsAfterNode(input: {
-    taskId: string;
-    novelId?: string | null;
-  }): Promise<DirectorArtifactRef[]> {
-    if (!input.novelId) {
-      return [];
-    }
-    const analysis = await this.directorRuntime.analyzeWorkspace({
-      novelId: input.novelId,
-      workflowTaskId: input.taskId,
-      includeAiInterpretation: false,
-    });
-    return analysis.inventory.artifacts;
-  }
-
-  private async runRuntimeNode<T>(input: {
-    taskId: string;
-    novelId?: string | null;
-    nodeKey: string;
-    label: string;
-    reads: string[];
-    writes: string[];
-    mayModifyUserContent?: boolean;
-    requiresApprovalByDefault?: boolean;
-    supportsAutoRetry?: boolean;
-    targetType?: "novel" | "volume" | "chapter" | "global" | null;
-    targetId?: string | null;
-    waitingState?: {
-      stage: NovelWorkflowStage;
-      itemKey?: string | null;
-      itemLabel?: string | null;
-      progress?: number;
-    };
-    runner: () => Promise<T>;
-    collectArtifacts?: (output: T) => Promise<DirectorArtifactRef[]> | DirectorArtifactRef[];
-  }): Promise<T> {
-    const result = await this.directorRuntime.runNode<void, {
-      output: T;
-      artifacts: DirectorArtifactRef[];
-    }>(
-      {
-        nodeKey: input.nodeKey,
-        label: input.label,
-        reads: input.reads,
-        writes: input.writes,
-        mayModifyUserContent: input.mayModifyUserContent ?? false,
-        requiresApprovalByDefault: input.requiresApprovalByDefault ?? false,
-        supportsAutoRetry: input.supportsAutoRetry ?? false,
-        run: async () => {
-          const output = await input.runner();
-          const artifacts = input.collectArtifacts
-            ? await input.collectArtifacts(output)
-            : await this.collectRuntimeArtifactsAfterNode({
-              taskId: input.taskId,
-              novelId: input.novelId,
-            });
-          return { output, artifacts };
-        },
-      },
-      {
-        taskId: input.taskId,
-        novelId: input.novelId,
-        targetType: input.targetType ?? "global",
-        targetId: input.targetId ?? null,
-        payload: undefined,
-      },
-      (output) => output.artifacts,
-    );
-
-    if (result.status === "completed" && result.output) {
-      return result.output.output;
-    }
-
-    const reason = result.reason ?? "当前自动导演策略需要确认后继续。";
-    if (input.waitingState) {
-      await this.workflowService.markTaskWaitingApproval(input.taskId, {
-        stage: input.waitingState.stage,
-        itemKey: input.waitingState.itemKey ?? input.nodeKey,
-        itemLabel: input.waitingState.itemLabel ?? reason,
-        progress: input.waitingState.progress,
-        checkpointSummary: reason,
-      });
-    }
-    throw new DirectorRuntimeGateError(reason);
-  }
-
-  private async runChapterExecutionRuntimeNode(input: {
-    taskId: string;
-    novelId: string;
-    request: DirectorConfirmRequest;
-    existingPipelineJobId?: string | null;
-    existingState?: DirectorAutoExecutionState | null;
-    resumeCheckpointType?: "front10_ready" | "chapter_batch_ready" | "replan_required" | null;
-    resumeStage?: "chapter" | "pipeline";
-    previousFailureMessage?: string | null;
-    allowSkipReviewBlockedChapter?: boolean;
-  }): Promise<void> {
-    const isQualityRepair = input.resumeCheckpointType === "replan_required";
-    await this.runRuntimeNode({
-      taskId: input.taskId,
-      novelId: input.novelId,
-      nodeKey: isQualityRepair ? "chapter_quality_repair_node" : "chapter_execution_node",
-      label: isQualityRepair ? "执行章节质量修复" : "执行章节生成批次",
-      targetType: "novel",
-      targetId: input.novelId,
-      reads: ["chapter_task_sheet", "chapter_draft", "audit_report"],
-      writes: isQualityRepair
-        ? ["chapter_draft", "audit_report", "repair_ticket"]
-        : ["chapter_draft", "audit_report"],
-      mayModifyUserContent: false,
-      supportsAutoRetry: isQualityRepair,
-      waitingState: {
-        stage: isQualityRepair ? "quality_repair" : "chapter_execution",
-        itemKey: isQualityRepair ? "quality_repair" : "chapter_execution",
-        itemLabel: isQualityRepair ? "等待确认章节修复" : "等待确认章节执行",
-        progress: isQualityRepair ? 0.975 : 0.93,
-      },
-      runner: () => this.autoExecutionRuntime.runFromReady(input),
-    });
-  }
-
   private async runDirectorPipeline(input: {
     taskId: string;
     novelId: string;
@@ -1718,7 +1556,7 @@ export class NovelDirectorService {
     });
 
     if (safeStartPhase === "story_macro") {
-      await this.runRuntimeNode({
+      await this.directorRuntimeOrchestrator.runNode({
         taskId: input.taskId,
         novelId: input.novelId,
         nodeKey: "story_macro_phase",
@@ -1738,7 +1576,7 @@ export class NovelDirectorService {
     }
 
     if (safeStartPhase === "story_macro" || safeStartPhase === "character_setup") {
-      const paused = await this.runRuntimeNode({
+      const paused = await this.directorRuntimeOrchestrator.runNode({
         taskId: input.taskId,
         novelId: input.novelId,
         nodeKey: "character_setup_phase",
@@ -1765,7 +1603,7 @@ export class NovelDirectorService {
       || safeStartPhase === "character_setup"
       || safeStartPhase === "volume_strategy"
     ) {
-      const volumeWorkspace = await this.runRuntimeNode({
+      const volumeWorkspace = await this.directorRuntimeOrchestrator.runNode({
         taskId: input.taskId,
         novelId: input.novelId,
         nodeKey: "volume_strategy_phase",
@@ -1797,7 +1635,7 @@ export class NovelDirectorService {
         }),
         batchAlreadyStartedCount: input.batchAlreadyStartedCount,
       });
-      await this.runRuntimeNode({
+      await this.directorRuntimeOrchestrator.runNode({
         taskId: input.taskId,
         novelId: input.novelId,
         nodeKey: "structured_outline_phase",
@@ -1819,7 +1657,7 @@ export class NovelDirectorService {
           taskId: input.taskId,
           checkpointType: "front10_ready",
         });
-        await this.runChapterExecutionRuntimeNode({
+        await this.directorRuntimeOrchestrator.runChapterExecutionNode({
           taskId: input.taskId,
           novelId: input.novelId,
           request: input.input,
@@ -1842,7 +1680,7 @@ export class NovelDirectorService {
       }),
       batchAlreadyStartedCount: input.batchAlreadyStartedCount,
     });
-    await this.runRuntimeNode({
+    await this.directorRuntimeOrchestrator.runNode({
       taskId: input.taskId,
       novelId: input.novelId,
       nodeKey: "structured_outline_phase",
@@ -1864,7 +1702,7 @@ export class NovelDirectorService {
         taskId: input.taskId,
         checkpointType: "front10_ready",
       });
-      await this.runChapterExecutionRuntimeNode({
+      await this.directorRuntimeOrchestrator.runChapterExecutionNode({
         taskId: input.taskId,
         novelId: input.novelId,
         request: input.input,
@@ -1901,7 +1739,7 @@ export class NovelDirectorService {
       },
       callbacks: {
         markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
-          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
+          this.directorRuntimeOrchestrator.markTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
             ...options,
             novelId,
           })
@@ -1975,7 +1813,7 @@ export class NovelDirectorService {
       callbacks: {
         buildDirectorSeedPayload: (request, takeoverNovelId, extra) => this.buildDirectorSeedPayload(request, takeoverNovelId, extra),
         markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
-          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
+          this.directorRuntimeOrchestrator.markTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
             ...options,
             novelId,
           })
@@ -2003,7 +1841,7 @@ export class NovelDirectorService {
       callbacks: {
         buildDirectorSeedPayload: (request, takeoverNovelId, extra) => this.buildDirectorSeedPayload(request, takeoverNovelId, extra),
         markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
-          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
+          this.directorRuntimeOrchestrator.markTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
             ...options,
             novelId,
           })
@@ -2033,7 +1871,7 @@ export class NovelDirectorService {
       callbacks: {
         buildDirectorSeedPayload: (request, takeoverNovelId, extra) => this.buildDirectorSeedPayload(request, takeoverNovelId, extra),
         markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
-          this.markDirectorTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
+          this.directorRuntimeOrchestrator.markTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
             ...options,
             novelId,
           })
