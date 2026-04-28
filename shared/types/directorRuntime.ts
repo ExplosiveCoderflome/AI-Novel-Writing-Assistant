@@ -60,10 +60,22 @@ export interface DirectorArtifactRef {
   promptAssetKey?: string | null;
   promptVersion?: string | null;
   modelRoute?: string | null;
+  sourceStepRunId?: string | null;
+  protectedUserContent?: boolean | null;
+  dependsOn?: Array<{
+    artifactId: string;
+    version?: number | null;
+  }>;
   updatedAt?: string | null;
 }
 
-export type DirectorStepRunStatus = "running" | "succeeded" | "failed" | "skipped";
+export type DirectorStepRunStatus =
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "skipped"
+  | "waiting_approval"
+  | "blocked_scope";
 
 export interface DirectorStepRun {
   idempotencyKey: string;
@@ -76,6 +88,7 @@ export interface DirectorStepRun {
   finishedAt?: string | null;
   error?: string | null;
   producedArtifacts?: DirectorArtifactRef[];
+  policyDecision?: DirectorPolicyDecision | null;
 }
 
 export type DirectorEventType =
@@ -144,8 +157,41 @@ export interface DirectorRuntimePolicyUpdateResponse {
   snapshot: DirectorRuntimeSnapshot | null;
 }
 
+export type DirectorRuntimeProjectionStatus =
+  | "idle"
+  | "running"
+  | "waiting_approval"
+  | "blocked"
+  | "failed"
+  | "completed";
+
+export interface DirectorRuntimeProjectionEvent {
+  eventId: string;
+  type: DirectorEventType;
+  summary: string;
+  nodeKey?: string | null;
+  artifactType?: DirectorArtifactType | null;
+  severity?: DirectorEvent["severity"];
+  occurredAt: string;
+}
+
+export interface DirectorRuntimeProjection {
+  runId: string;
+  novelId?: string | null;
+  status: DirectorRuntimeProjectionStatus;
+  currentNodeKey?: string | null;
+  currentLabel?: string | null;
+  lastEventSummary?: string | null;
+  requiresUserAction: boolean;
+  blockedReason?: string | null;
+  policyMode: DirectorPolicyMode;
+  updatedAt: string;
+  recentEvents: DirectorRuntimeProjectionEvent[];
+}
+
 export interface DirectorRuntimeSnapshotResponse {
   snapshot: DirectorRuntimeSnapshot | null;
+  projection?: DirectorRuntimeProjection | null;
 }
 
 export interface DirectorWorkspaceAnalysisResponse {

@@ -45,14 +45,34 @@ export class DirectorNodeRunner {
     input: DirectorNodeRunInput<TInput>,
     collectArtifacts?: (output: TOutput) => DirectorArtifactRef[],
   ): Promise<DirectorNodeRunResult<TOutput>> {
+    const snapshot = input.taskId?.trim()
+      ? await this.runtimeStore.getSnapshot(input.taskId.trim())
+      : null;
     const policyDecision = this.policyEngine.decide({
       action: "run_node",
       mayOverwriteUserContent: contract.mayModifyUserContent,
+      requiresApprovalByDefault: contract.requiresApprovalByDefault,
+      policy: input.policy?.policy ?? snapshot?.policy ?? null,
       ...input.policy,
     });
     if (!policyDecision.canRun || policyDecision.requiresApproval) {
+      let runtimeSnapshot: DirectorRuntimeSnapshot | null = snapshot;
+      if (input.taskId?.trim()) {
+        await this.runtimeStore.recordNodeGate({
+          taskId: input.taskId.trim(),
+          novelId: input.novelId,
+          nodeKey: contract.nodeKey,
+          label: contract.label,
+          targetType: input.targetType,
+          targetId: input.targetId,
+          status: policyDecision.canRun ? "waiting_approval" : "blocked_scope",
+          decision: policyDecision,
+        });
+        runtimeSnapshot = await this.runtimeStore.getSnapshot(input.taskId.trim());
+      }
       return {
         status: policyDecision.canRun ? "needs_approval" : "blocked_scope",
+        runtimeSnapshot,
         producedArtifacts: [],
         reason: policyDecision.reason,
       };
@@ -79,6 +99,8 @@ export class DirectorNodeRunner {
           novelId: input.novelId,
           nodeKey: contract.nodeKey,
           label: contract.label,
+          targetType: input.targetType,
+          targetId: input.targetId,
           producedArtifacts,
         });
         runtimeSnapshot = await this.runtimeStore.getSnapshot(input.taskId.trim());
@@ -97,6 +119,8 @@ export class DirectorNodeRunner {
           novelId: input.novelId,
           nodeKey: contract.nodeKey,
           label: contract.label,
+          targetType: input.targetType,
+          targetId: input.targetId,
           error: message,
         });
       }

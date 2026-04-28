@@ -8,7 +8,7 @@ import type {
 } from "@ai-novel/shared/types/directorRuntime";
 import type { DirectorLLMOptions } from "@ai-novel/shared/types/novelDirector";
 import { DirectorNodeRunner, type DirectorNodeContract, type DirectorNodeRunResult } from "./DirectorNodeRunner";
-import { DirectorPolicyEngine } from "./DirectorPolicyEngine";
+import { DirectorPolicyEngine, type DirectorPolicyRequest } from "./DirectorPolicyEngine";
 import { DirectorRuntimeStore } from "./DirectorRuntimeStore";
 import { DirectorWorkspaceAnalyzer } from "./DirectorWorkspaceAnalyzer";
 
@@ -107,6 +107,7 @@ export class DirectorRuntimeService {
       targetType?: DirectorStepRun["targetType"];
       targetId?: string | null;
       payload: TInput;
+      policy?: Omit<Partial<DirectorPolicyRequest>, "action">;
     },
     collectArtifacts?: (output: TOutput) => DirectorArtifactRef[],
   ): Promise<DirectorNodeRunResult<TOutput>> {
@@ -118,6 +119,7 @@ export class DirectorRuntimeService {
         targetType: input.targetType,
         targetId: input.targetId,
         input: input.payload,
+        policy: input.policy,
       },
       collectArtifacts,
     );

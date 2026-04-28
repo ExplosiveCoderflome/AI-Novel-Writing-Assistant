@@ -60,3 +60,16 @@ test("director runtime policy allows one automatic repair attempt", () => {
   assert.equal(decision.autoRetryBudget, 1);
   assert.equal(decision.onQualityFailure, "repair_once");
 });
+
+test("director runtime policy gates default-approval nodes outside safe auto scope", () => {
+  const engine = new DirectorPolicyEngine();
+  const decision = engine.decide({
+    action: "run_node",
+    mode: "run_until_gate",
+    requiresApprovalByDefault: true,
+  });
+
+  assert.equal(decision.canRun, false);
+  assert.equal(decision.requiresApproval, true);
+  assert.match(decision.reason, /需要确认/);
+});

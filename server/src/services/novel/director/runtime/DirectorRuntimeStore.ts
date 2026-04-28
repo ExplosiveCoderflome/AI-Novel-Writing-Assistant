@@ -3,6 +3,7 @@ import type {
   DirectorArtifactRef,
   DirectorEvent,
   DirectorEventType,
+  DirectorPolicyDecision,
   DirectorPolicyMode,
   DirectorRuntimePolicySnapshot,
   DirectorRuntimeSnapshot,
@@ -233,6 +234,8 @@ export class DirectorRuntimeStore {
     novelId?: string | null;
     nodeKey: string;
     label: string;
+    targetType?: DirectorStepRun["targetType"];
+    targetId?: string | null;
     producedArtifacts?: DirectorArtifactRef[];
   }): Promise<void> {
     const idempotencyKey = this.buildStepIdempotencyKey(input);
@@ -245,6 +248,8 @@ export class DirectorRuntimeStore {
         nodeKey: input.nodeKey,
         label: input.label,
         status: "succeeded",
+        targetType: input.targetType ?? null,
+        targetId: input.targetId ?? null,
         startedAt: snapshot.steps.find((step) => step.idempotencyKey === idempotencyKey)?.startedAt ?? now,
         finishedAt: now,
         producedArtifacts: input.producedArtifacts,
@@ -269,6 +274,8 @@ export class DirectorRuntimeStore {
     novelId?: string | null;
     nodeKey: string;
     label: string;
+    targetType?: DirectorStepRun["targetType"];
+    targetId?: string | null;
     error: string;
   }): Promise<void> {
     const idempotencyKey = this.buildStepIdempotencyKey(input);
@@ -280,6 +287,8 @@ export class DirectorRuntimeStore {
         nodeKey: input.nodeKey,
         label: input.label,
         status: "failed",
+        targetType: input.targetType ?? null,
+        targetId: input.targetId ?? null,
         startedAt: snapshot.steps.find((step) => step.idempotencyKey === idempotencyKey)?.startedAt ?? now,
         finishedAt: now,
         error: input.error,
@@ -294,6 +303,52 @@ export class DirectorRuntimeStore {
           summary: `${input.label}失败：${input.error}`,
           occurredAt: now,
           severity: "medium",
+        }),
+      ],
+    }));
+  }
+
+  async recordNodeGate(input: {
+    taskId: string;
+    novelId?: string | null;
+    nodeKey: string;
+    label: string;
+    targetType?: DirectorStepRun["targetType"];
+    targetId?: string | null;
+    status: Extract<DirectorStepRun["status"], "waiting_approval" | "blocked_scope">;
+    decision: DirectorPolicyDecision;
+  }): Promise<void> {
+    const idempotencyKey = this.buildStepIdempotencyKey(input);
+    const now = new Date().toISOString();
+    await this.mutateSnapshot(input.taskId, (snapshot) => ({
+      ...snapshot,
+      novelId: snapshot.novelId ?? input.novelId ?? null,
+      steps: upsertStep(snapshot.steps, {
+        idempotencyKey,
+        nodeKey: input.nodeKey,
+        label: input.label,
+        status: input.status,
+        targetType: input.targetType ?? null,
+        targetId: input.targetId ?? null,
+        startedAt: snapshot.steps.find((step) => step.idempotencyKey === idempotencyKey)?.startedAt ?? now,
+        finishedAt: now,
+        policyDecision: input.decision,
+      }),
+      events: [
+        ...snapshot.events,
+        this.buildEvent({
+          type: "approval_required",
+          taskId: input.taskId,
+          novelId: input.novelId ?? snapshot.novelId ?? null,
+          nodeKey: input.nodeKey,
+          summary: input.decision.reason,
+          occurredAt: now,
+          affectedScope: input.decision.affectedArtifacts.join(",") || null,
+          severity: input.status === "blocked_scope" ? "high" : "medium",
+          metadata: {
+            policyDecision: input.decision,
+            nodeLabel: input.label,
+          },
         }),
       ],
     }));

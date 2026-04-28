@@ -34,6 +34,7 @@
 - [Desktop Plan](./plans/desktop-plan.md)
 - [Character Resource Ledger Plan](./plans/character-resource-ledger-plan.md)
 - [Prompt Workbench, Context and Step Runtime Plan](./plans/prompt-workbench-context-and-step-runtime-plan.md)
+- [Auto Director Runtime Full Execution Plan](./plans/auto-director-runtime-full-execution-plan.md)
 
 ### `docs/design`
 

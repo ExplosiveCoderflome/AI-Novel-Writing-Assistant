@@ -8,6 +8,7 @@ import { runWithLlmUsageTracking } from "../../../llm/usageTracking";
 import type {
   DirectorArtifactRef,
   DirectorPolicyMode,
+  DirectorRuntimeProjection,
   DirectorRuntimePolicySnapshot,
   DirectorRuntimeSnapshot,
   DirectorWorkspaceAnalysis,
@@ -16,6 +17,7 @@ import type {
   DirectorContinuationMode,
   BookSpec,
   DirectorCandidateBatch,
+  DirectorAutoExecutionState,
   DirectorCandidatePatchRequest,
   DirectorCandidatePatchResponse,
   DirectorCandidateTitleRefineRequest,
@@ -31,6 +33,7 @@ import type {
   DirectorTakeoverRequest,
   DirectorTakeoverResponse,
 } from "@ai-novel/shared/types/novelDirector";
+import type { NovelWorkflowStage } from "@ai-novel/shared/types/novelWorkflow";
 import { BookContractService } from "../BookContractService";
 import { CharacterPreparationService } from "../characterPrep/CharacterPreparationService";
 import { generateAutoCharacterCastDraft, persistCharacterCastOptionsDraft } from "../characterPrep/characterCastGeneration";
@@ -108,6 +111,7 @@ import {
 import { recordAutoDirectorAutoApprovalFromTask } from "../../task/autoDirectorFollowUps/autoDirectorAutoApprovalAudit";
 import { flattenPreparedOutlineChapters } from "./novelDirectorStructuredOutlineRecovery";
 import { DirectorRuntimeService } from "./runtime/DirectorRuntimeService";
+import { DirectorEventProjectionService } from "./runtime/DirectorEventProjectionService";
 
 type WorkflowTaskSnapshot = Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>;
 
@@ -155,6 +159,17 @@ function isWorkflowTaskCancelledError(error: unknown): boolean {
     && error.message === "WORKFLOW_TASK_CANCELLED";
 }
 
+class DirectorRuntimeGateError extends AppError {
+  constructor(message: string) {
+    super(message, 409);
+    this.name = "DirectorRuntimeGateError";
+  }
+}
+
+function isDirectorRuntimeGateError(error: unknown): boolean {
+  return error instanceof DirectorRuntimeGateError;
+}
+
 export class NovelDirectorService {
   private readonly novelContextService = new NovelContextService();
   private readonly characterPreparationService = new CharacterPreparationService();
@@ -165,6 +180,7 @@ export class NovelDirectorService {
   private readonly volumeService = new NovelVolumeService();
   private readonly workflowService = new NovelWorkflowService();
   private readonly directorRuntime = new DirectorRuntimeService();
+  private readonly directorEventProjectionService = new DirectorEventProjectionService();
   private readonly styleProfileService = new StyleProfileService();
   private readonly styleBindingService = new StyleBindingService();
   private readonly candidateStageService = new NovelDirectorCandidateStageService(this.workflowService);
@@ -206,7 +222,7 @@ export class NovelDirectorService {
     void Promise.resolve()
       .then(() => runWithLlmUsageTracking({ workflowTaskId: taskId }, runner))
       .catch(async (error) => {
-        if (isWorkflowTaskCancelledError(error)) {
+        if (isWorkflowTaskCancelledError(error) || isDirectorRuntimeGateError(error)) {
           return;
         }
         const message = error instanceof Error ? error.message : "自动导演后台任务执行失败。";
@@ -654,36 +670,28 @@ export class NovelDirectorService {
         policyMode: "run_next_step",
         summary: "自动导演候选阶段已进入统一运行时。",
       });
-      await this.directorRuntime.recordStepStarted({
-        taskId,
-        nodeKey: runtimeNode.nodeKey,
-        label: runtimeNode.label,
-        targetType: "global",
-      });
     }
     try {
-      const result = await this.withWorkflowTaskUsage(workflowTaskId, runner);
       if (taskId && runtimeNode) {
-        await this.directorRuntime.recordStepCompleted({
+        return await this.runRuntimeNode<T>({
           taskId,
           nodeKey: runtimeNode.nodeKey,
           label: runtimeNode.label,
+          reads: ["user_seed"],
+          writes: ["candidate_batch"],
           targetType: "global",
+          waitingState: {
+            stage: "auto_director",
+            itemKey: runtimeNode.nodeKey,
+            itemLabel: runtimeNode.label,
+          },
+          runner: () => this.withWorkflowTaskUsage(workflowTaskId, runner),
+          collectArtifacts: () => [],
         });
       }
-      return result;
+      return await this.withWorkflowTaskUsage(workflowTaskId, runner);
     } catch (error) {
-      if (taskId && runtimeNode) {
-        const message = error instanceof Error ? error.message : "自动导演候选阶段执行失败。";
-        await this.directorRuntime.recordStepFailed({
-          taskId,
-          nodeKey: runtimeNode.nodeKey,
-          label: runtimeNode.label,
-          targetType: "global",
-          error: message,
-        });
-      }
-      if (taskId) {
+      if (taskId && !isDirectorRuntimeGateError(error)) {
         const message = error instanceof Error ? error.message : "自动导演候选阶段执行失败。";
         await this.workflowService.markTaskFailed(taskId, message);
       }
@@ -789,7 +797,7 @@ export class NovelDirectorService {
         }),
       });
       this.scheduleBackgroundRun(taskId, async () => {
-        await this.autoExecutionRuntime.runFromReady({
+        await this.runChapterExecutionRuntimeNode({
           taskId,
           novelId,
           request: directorInput,
@@ -1010,6 +1018,10 @@ export class NovelDirectorService {
     return this.directorRuntime.getSnapshot(taskId);
   }
 
+  buildRuntimeProjection(snapshot: DirectorRuntimeSnapshot | null): DirectorRuntimeProjection | null {
+    return this.directorEventProjectionService.buildSnapshotProjection(snapshot);
+  }
+
   async updateRuntimePolicy(taskId: string, input: {
     mode: DirectorPolicyMode;
     patch?: Partial<Omit<DirectorRuntimePolicySnapshot, "mode" | "updatedAt">>;
@@ -1081,7 +1093,10 @@ export class NovelDirectorService {
       takeoverState,
       directorInput,
       workflowService: this.workflowService,
-      autoExecutionRuntime: this.autoExecutionRuntime,
+      autoExecutionRuntime: {
+        prepareRequestedAutoExecution: (payload) => this.autoExecutionRuntime.prepareRequestedAutoExecution(payload),
+        runFromReady: (payload) => this.runChapterExecutionRuntimeNode(payload),
+      },
       buildDirectorSeedPayload: (request, novelId, extra) => this.buildDirectorSeedPayload(request, novelId, extra),
       scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, async () => {
         await this.directorRuntime.initializeRun({
@@ -1568,6 +1583,127 @@ export class NovelDirectorService {
     });
   }
 
+  private async collectRuntimeArtifactsAfterNode(input: {
+    taskId: string;
+    novelId?: string | null;
+  }): Promise<DirectorArtifactRef[]> {
+    if (!input.novelId) {
+      return [];
+    }
+    const analysis = await this.directorRuntime.analyzeWorkspace({
+      novelId: input.novelId,
+      workflowTaskId: input.taskId,
+      includeAiInterpretation: false,
+    });
+    return analysis.inventory.artifacts;
+  }
+
+  private async runRuntimeNode<T>(input: {
+    taskId: string;
+    novelId?: string | null;
+    nodeKey: string;
+    label: string;
+    reads: string[];
+    writes: string[];
+    mayModifyUserContent?: boolean;
+    requiresApprovalByDefault?: boolean;
+    supportsAutoRetry?: boolean;
+    targetType?: "novel" | "volume" | "chapter" | "global" | null;
+    targetId?: string | null;
+    waitingState?: {
+      stage: NovelWorkflowStage;
+      itemKey?: string | null;
+      itemLabel?: string | null;
+      progress?: number;
+    };
+    runner: () => Promise<T>;
+    collectArtifacts?: (output: T) => Promise<DirectorArtifactRef[]> | DirectorArtifactRef[];
+  }): Promise<T> {
+    const result = await this.directorRuntime.runNode<void, {
+      output: T;
+      artifacts: DirectorArtifactRef[];
+    }>(
+      {
+        nodeKey: input.nodeKey,
+        label: input.label,
+        reads: input.reads,
+        writes: input.writes,
+        mayModifyUserContent: input.mayModifyUserContent ?? false,
+        requiresApprovalByDefault: input.requiresApprovalByDefault ?? false,
+        supportsAutoRetry: input.supportsAutoRetry ?? false,
+        run: async () => {
+          const output = await input.runner();
+          const artifacts = input.collectArtifacts
+            ? await input.collectArtifacts(output)
+            : await this.collectRuntimeArtifactsAfterNode({
+              taskId: input.taskId,
+              novelId: input.novelId,
+            });
+          return { output, artifacts };
+        },
+      },
+      {
+        taskId: input.taskId,
+        novelId: input.novelId,
+        targetType: input.targetType ?? "global",
+        targetId: input.targetId ?? null,
+        payload: undefined,
+      },
+      (output) => output.artifacts,
+    );
+
+    if (result.status === "completed" && result.output) {
+      return result.output.output;
+    }
+
+    const reason = result.reason ?? "当前自动导演策略需要确认后继续。";
+    if (input.waitingState) {
+      await this.workflowService.markTaskWaitingApproval(input.taskId, {
+        stage: input.waitingState.stage,
+        itemKey: input.waitingState.itemKey ?? input.nodeKey,
+        itemLabel: input.waitingState.itemLabel ?? reason,
+        progress: input.waitingState.progress,
+        checkpointSummary: reason,
+      });
+    }
+    throw new DirectorRuntimeGateError(reason);
+  }
+
+  private async runChapterExecutionRuntimeNode(input: {
+    taskId: string;
+    novelId: string;
+    request: DirectorConfirmRequest;
+    existingPipelineJobId?: string | null;
+    existingState?: DirectorAutoExecutionState | null;
+    resumeCheckpointType?: "front10_ready" | "chapter_batch_ready" | "replan_required" | null;
+    resumeStage?: "chapter" | "pipeline";
+    previousFailureMessage?: string | null;
+    allowSkipReviewBlockedChapter?: boolean;
+  }): Promise<void> {
+    const isQualityRepair = input.resumeCheckpointType === "replan_required";
+    await this.runRuntimeNode({
+      taskId: input.taskId,
+      novelId: input.novelId,
+      nodeKey: isQualityRepair ? "chapter_quality_repair_node" : "chapter_execution_node",
+      label: isQualityRepair ? "执行章节质量修复" : "执行章节生成批次",
+      targetType: "novel",
+      targetId: input.novelId,
+      reads: ["chapter_task_sheet", "chapter_draft", "audit_report"],
+      writes: isQualityRepair
+        ? ["chapter_draft", "audit_report", "repair_ticket"]
+        : ["chapter_draft", "audit_report"],
+      mayModifyUserContent: false,
+      supportsAutoRetry: isQualityRepair,
+      waitingState: {
+        stage: isQualityRepair ? "quality_repair" : "chapter_execution",
+        itemKey: isQualityRepair ? "quality_repair" : "chapter_execution",
+        itemLabel: isQualityRepair ? "等待确认章节修复" : "等待确认章节执行",
+        progress: isQualityRepair ? 0.975 : 0.93,
+      },
+      runner: () => this.autoExecutionRuntime.runFromReady(input),
+    });
+  }
+
   private async runDirectorPipeline(input: {
     taskId: string;
     novelId: string;
@@ -1582,40 +1718,46 @@ export class NovelDirectorService {
     });
 
     if (safeStartPhase === "story_macro") {
-      await this.directorRuntime.recordStepStarted({
+      await this.runRuntimeNode({
         taskId: input.taskId,
         novelId: input.novelId,
         nodeKey: "story_macro_phase",
         label: "生成书级规划资产",
-        targetType: "global",
-      });
-      await this.runStoryMacroPhase(input.taskId, input.novelId, input.input);
-      await this.refreshRuntimeWorkspaceAfterNode({
-        taskId: input.taskId,
-        novelId: input.novelId,
-        nodeKey: "story_macro_phase",
-        label: "生成书级规划资产",
+        targetType: "novel",
+        targetId: input.novelId,
+        reads: ["book_seed", "candidate_batch"],
+        writes: ["story_macro", "book_contract"],
+        waitingState: {
+          stage: "story_macro",
+          itemKey: "book_contract",
+          itemLabel: "等待确认书级规划资产",
+          progress: DIRECTOR_PROGRESS.bookContract,
+        },
+        runner: () => this.runStoryMacroPhase(input.taskId, input.novelId, input.input),
       });
     }
 
     if (safeStartPhase === "story_macro" || safeStartPhase === "character_setup") {
-      await this.directorRuntime.recordStepStarted({
+      const paused = await this.runRuntimeNode({
         taskId: input.taskId,
         novelId: input.novelId,
         nodeKey: "character_setup_phase",
         label: "准备角色阵容与角色资产",
-        targetType: "global",
+        targetType: "novel",
+        targetId: input.novelId,
+        reads: ["book_contract", "story_macro"],
+        writes: ["character_cast"],
+        waitingState: {
+          stage: "character_setup",
+          itemKey: "character_setup",
+          itemLabel: "等待确认角色阵容",
+          progress: DIRECTOR_PROGRESS.characterSetup,
+        },
+        runner: () => this.runCharacterSetupPhase(input.taskId, input.novelId, input.input),
       });
-      const paused = await this.runCharacterSetupPhase(input.taskId, input.novelId, input.input);
       if (paused) {
         return;
       }
-      await this.refreshRuntimeWorkspaceAfterNode({
-        taskId: input.taskId,
-        novelId: input.novelId,
-        nodeKey: "character_setup_phase",
-        label: "准备角色阵容与角色资产",
-      });
     }
 
     if (
@@ -1623,23 +1765,26 @@ export class NovelDirectorService {
       || safeStartPhase === "character_setup"
       || safeStartPhase === "volume_strategy"
     ) {
-      await this.directorRuntime.recordStepStarted({
+      const volumeWorkspace = await this.runRuntimeNode({
         taskId: input.taskId,
         novelId: input.novelId,
         nodeKey: "volume_strategy_phase",
         label: "生成分卷策略与推进路线",
-        targetType: "global",
+        targetType: "novel",
+        targetId: input.novelId,
+        reads: ["book_contract", "story_macro", "character_cast"],
+        writes: ["volume_strategy"],
+        waitingState: {
+          stage: "volume_strategy",
+          itemKey: "volume_strategy",
+          itemLabel: "等待确认分卷策略",
+          progress: DIRECTOR_PROGRESS.volumeStrategy,
+        },
+        runner: () => this.runVolumeStrategyPhase(input.taskId, input.novelId, input.input),
       });
-      const volumeWorkspace = await this.runVolumeStrategyPhase(input.taskId, input.novelId, input.input);
       if (!volumeWorkspace) {
         return;
       }
-      await this.refreshRuntimeWorkspaceAfterNode({
-        taskId: input.taskId,
-        novelId: input.novelId,
-        nodeKey: "volume_strategy_phase",
-        label: "生成分卷策略与推进路线",
-      });
       await this.assertHighMemoryDirectorStartAllowed({
         taskId: input.taskId,
         novelId: input.novelId,
@@ -1652,26 +1797,29 @@ export class NovelDirectorService {
         }),
         batchAlreadyStartedCount: input.batchAlreadyStartedCount,
       });
-      await this.directorRuntime.recordStepStarted({
+      await this.runRuntimeNode({
         taskId: input.taskId,
         novelId: input.novelId,
         nodeKey: "structured_outline_phase",
         label: "生成章节任务单",
-        targetType: "global",
-      });
-      await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, volumeWorkspace);
-      await this.refreshRuntimeWorkspaceAfterNode({
-        taskId: input.taskId,
-        novelId: input.novelId,
-        nodeKey: "structured_outline_phase",
-        label: "生成章节任务单",
+        targetType: "novel",
+        targetId: input.novelId,
+        reads: ["volume_strategy", "character_cast"],
+        writes: ["chapter_task_sheet"],
+        waitingState: {
+          stage: "structured_outline",
+          itemKey: "chapter_detail_bundle",
+          itemLabel: "等待确认章节任务单",
+          progress: DIRECTOR_PROGRESS.chapterDetailStart,
+        },
+        runner: () => this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, volumeWorkspace),
       });
       if (this.shouldAutoApproveCheckpoint(input.input, "front10_ready")) {
         await recordAutoDirectorAutoApprovalFromTask({
           taskId: input.taskId,
           checkpointType: "front10_ready",
         });
-        await this.autoExecutionRuntime.runFromReady({
+        await this.runChapterExecutionRuntimeNode({
           taskId: input.taskId,
           novelId: input.novelId,
           request: input.input,
@@ -1694,26 +1842,29 @@ export class NovelDirectorService {
       }),
       batchAlreadyStartedCount: input.batchAlreadyStartedCount,
     });
-    await this.directorRuntime.recordStepStarted({
+    await this.runRuntimeNode({
       taskId: input.taskId,
       novelId: input.novelId,
       nodeKey: "structured_outline_phase",
       label: "生成章节任务单",
-      targetType: "global",
-    });
-    await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, currentWorkspace);
-    await this.refreshRuntimeWorkspaceAfterNode({
-      taskId: input.taskId,
-      novelId: input.novelId,
-      nodeKey: "structured_outline_phase",
-      label: "生成章节任务单",
+      targetType: "novel",
+      targetId: input.novelId,
+      reads: ["volume_strategy", "character_cast"],
+      writes: ["chapter_task_sheet"],
+      waitingState: {
+        stage: "structured_outline",
+        itemKey: "chapter_detail_bundle",
+        itemLabel: "等待确认章节任务单",
+        progress: DIRECTOR_PROGRESS.chapterDetailStart,
+      },
+      runner: () => this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, currentWorkspace),
     });
     if (this.shouldAutoApproveCheckpoint(input.input, "front10_ready")) {
       await recordAutoDirectorAutoApprovalFromTask({
         taskId: input.taskId,
         checkpointType: "front10_ready",
       });
-      await this.autoExecutionRuntime.runFromReady({
+      await this.runChapterExecutionRuntimeNode({
         taskId: input.taskId,
         novelId: input.novelId,
         request: input.input,

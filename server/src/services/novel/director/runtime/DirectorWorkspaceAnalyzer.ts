@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type {
   AiWorkspaceInterpretation,
   DirectorArtifactRef,
@@ -20,6 +21,29 @@ interface ArtifactTarget {
   targetId?: string | null;
   contentRef: DirectorArtifactRef["contentRef"];
   updatedAt?: Date | string | null;
+  status?: DirectorArtifactRef["status"];
+  source?: DirectorArtifactRef["source"];
+  contentHash?: string | null;
+  protectedUserContent?: boolean | null;
+  dependsOn?: DirectorArtifactRef["dependsOn"];
+}
+
+function stableContentHash(value: string | null | undefined): string | null {
+  const normalized = value?.trim();
+  if (!normalized) {
+    return null;
+  }
+  return createHash("sha256").update(normalized).digest("hex");
+}
+
+function buildArtifactId(input: {
+  type: DirectorArtifactType;
+  targetType: DirectorArtifactRef["targetType"];
+  targetId?: string | null;
+  table: string;
+  id: string;
+}): string {
+  return `${input.type}:${input.targetType}:${input.targetId ?? "global"}:${input.table}:${input.id}`;
 }
 
 function buildArtifact(input: {
@@ -30,22 +54,29 @@ function buildArtifact(input: {
   table: string;
   id: string;
   updatedAt?: Date | string | null;
+  status?: DirectorArtifactRef["status"];
+  source?: DirectorArtifactRef["source"];
+  contentHash?: string | null;
+  protectedUserContent?: boolean | null;
+  dependsOn?: DirectorArtifactRef["dependsOn"];
 }): DirectorArtifactRef {
   return {
-    id: `${input.type}:${input.targetType}:${input.targetId ?? "global"}:${input.table}:${input.id}`,
+    id: buildArtifactId(input),
     novelId: input.novelId,
     artifactType: input.type,
     targetType: input.targetType,
     targetId: input.targetId ?? null,
     version: 1,
-    status: "active",
-    source: "backfilled",
+    status: input.status ?? "active",
+    source: input.source ?? "backfilled",
     contentRef: {
       table: input.table,
       id: input.id,
     },
-    contentHash: null,
+    contentHash: input.contentHash ?? null,
     schemaVersion: "legacy-wrapper-v1",
+    protectedUserContent: input.protectedUserContent ?? null,
+    dependsOn: input.dependsOn,
     updatedAt: input.updatedAt
       ? (input.updatedAt instanceof Date ? input.updatedAt.toISOString() : input.updatedAt)
       : null,
@@ -63,6 +94,11 @@ function uniqueArtifacts(items: ArtifactTarget[], novelId: string): DirectorArti
       table: item.contentRef.table,
       id: item.contentRef.id,
       updatedAt: item.updatedAt,
+      status: item.status,
+      source: item.source,
+      contentHash: item.contentHash,
+      protectedUserContent: item.protectedUserContent,
+      dependsOn: item.dependsOn,
     });
     byKey.set(artifact.id, artifact);
   }
@@ -149,6 +185,7 @@ export class DirectorWorkspaceAnalyzer {
       bookContract,
       storyMacro,
       characterCount,
+      latestCharacter,
       volumePlans,
       chapterPlanCount,
       chapters,
@@ -167,6 +204,11 @@ export class DirectorWorkspaceAnalyzer {
         select: { id: true, updatedAt: true },
       }),
       prisma.character.count({ where: { novelId } }),
+      prisma.character.findFirst({
+        where: { novelId },
+        select: { id: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+      }),
       prisma.volumePlan.findMany({
         where: { novelId },
         select: { id: true, updatedAt: true },
@@ -183,6 +225,7 @@ export class DirectorWorkspaceAnalyzer {
           id: true,
           content: true,
           taskSheet: true,
+          repairHistory: true,
           generationState: true,
           chapterStatus: true,
           updatedAt: true,
@@ -260,6 +303,37 @@ export class DirectorWorkspaceAnalyzer {
         updatedAt: storyMacro.updatedAt,
       });
     }
+    if (characterCount > 0 && latestCharacter) {
+      artifactTargets.push({
+        artifactType: "character_cast",
+        targetType: "novel",
+        targetId: novelId,
+        contentRef: { table: "Character", id: `novel:${novelId}` },
+        updatedAt: latestCharacter.updatedAt,
+        dependsOn: [
+          ...(bookContract ? [{
+            artifactId: buildArtifactId({
+              type: "book_contract",
+              targetType: "novel",
+              targetId: novelId,
+              table: "BookContract",
+              id: bookContract.id,
+            }),
+            version: 1,
+          }] : []),
+          ...(storyMacro ? [{
+            artifactId: buildArtifactId({
+              type: "story_macro",
+              targetType: "novel",
+              targetId: novelId,
+              table: "StoryMacroPlan",
+              id: storyMacro.id,
+            }),
+            version: 1,
+          }] : []),
+        ],
+      });
+    }
     for (const volume of volumePlans) {
       artifactTargets.push({
         artifactType: "volume_strategy",
@@ -267,9 +341,35 @@ export class DirectorWorkspaceAnalyzer {
         targetId: volume.id,
         contentRef: { table: "VolumePlan", id: volume.id },
         updatedAt: volume.updatedAt,
+        dependsOn: [
+          ...(storyMacro ? [{
+            artifactId: buildArtifactId({
+              type: "story_macro",
+              targetType: "novel",
+              targetId: novelId,
+              table: "StoryMacroPlan",
+              id: storyMacro.id,
+            }),
+            version: 1,
+          }] : []),
+        ],
       });
     }
     for (const chapter of chapters) {
+      const taskSheetArtifactId = buildArtifactId({
+        type: "chapter_task_sheet",
+        targetType: "chapter",
+        targetId: chapter.id,
+        table: "Chapter",
+        id: chapter.id,
+      });
+      const draftArtifactId = buildArtifactId({
+        type: "chapter_draft",
+        targetType: "chapter",
+        targetId: chapter.id,
+        table: "Chapter",
+        id: chapter.id,
+      });
       if (chapter.taskSheet?.trim()) {
         artifactTargets.push({
           artifactType: "chapter_task_sheet",
@@ -277,6 +377,7 @@ export class DirectorWorkspaceAnalyzer {
           targetId: chapter.id,
           contentRef: { table: "Chapter", id: chapter.id },
           updatedAt: chapter.updatedAt,
+          contentHash: stableContentHash(chapter.taskSheet),
         });
       }
       if (chapter.content?.trim()) {
@@ -286,6 +387,25 @@ export class DirectorWorkspaceAnalyzer {
           targetId: chapter.id,
           contentRef: { table: "Chapter", id: chapter.id },
           updatedAt: chapter.updatedAt,
+          source: "user_edited",
+          contentHash: stableContentHash(chapter.content),
+          protectedUserContent: true,
+          dependsOn: chapter.taskSheet?.trim()
+            ? [{ artifactId: taskSheetArtifactId, version: 1 }]
+            : [],
+        });
+      }
+      if (chapter.chapterStatus === "needs_repair") {
+        artifactTargets.push({
+          artifactType: "repair_ticket",
+          targetType: "chapter",
+          targetId: chapter.id,
+          contentRef: { table: "Chapter", id: chapter.id },
+          updatedAt: chapter.updatedAt,
+          contentHash: stableContentHash(chapter.repairHistory ?? chapter.content),
+          dependsOn: chapter.content?.trim()
+            ? [{ artifactId: draftArtifactId, version: 1 }]
+            : [],
         });
       }
     }
@@ -296,6 +416,18 @@ export class DirectorWorkspaceAnalyzer {
         targetId: report.chapterId ?? novelId,
         contentRef: { table: "QualityReport", id: report.id },
         updatedAt: report.updatedAt,
+        dependsOn: report.chapterId
+          ? [{
+            artifactId: buildArtifactId({
+              type: "chapter_draft",
+              targetType: "chapter",
+              targetId: report.chapterId,
+              table: "Chapter",
+              id: report.chapterId,
+            }),
+            version: 1,
+          }]
+          : [],
       });
     }
     for (const report of auditReports) {
@@ -305,6 +437,16 @@ export class DirectorWorkspaceAnalyzer {
         targetId: report.chapterId,
         contentRef: { table: "AuditReport", id: report.id },
         updatedAt: report.updatedAt,
+        dependsOn: [{
+          artifactId: buildArtifactId({
+            type: "chapter_draft",
+            targetType: "chapter",
+            targetId: report.chapterId,
+            table: "Chapter",
+            id: report.chapterId,
+          }),
+          version: 1,
+        }],
       });
     }
 

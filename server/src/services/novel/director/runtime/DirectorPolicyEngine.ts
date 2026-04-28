@@ -13,6 +13,7 @@ export interface DirectorPolicyRequest {
   action: "analyze" | "run_node" | "repair" | "overwrite" | "auto_continue";
   affectedArtifacts?: DirectorArtifactRef[];
   mayOverwriteUserContent?: boolean;
+  requiresApprovalByDefault?: boolean;
   qualityGateResult?: DirectorQualityGateResult | null;
 }
 
@@ -68,6 +69,18 @@ export class DirectorPolicyEngine {
         canRun: false,
         requiresApproval: true,
         reason: "当前策略只给建议，不自动执行写入动作。",
+        mayOverwriteUserContent: overwritesUserContent,
+        affectedArtifacts,
+        autoRetryBudget: 0,
+        onQualityFailure: "pause_for_manual",
+      };
+    }
+
+    if (input.requiresApprovalByDefault && policy.mode !== "auto_safe_scope") {
+      return {
+        canRun: false,
+        requiresApproval: true,
+        reason: "该导演节点默认需要确认，当前策略不会自动执行。",
         mayOverwriteUserContent: overwritesUserContent,
         affectedArtifacts,
         autoRetryBudget: 0,

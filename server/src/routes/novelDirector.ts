@@ -306,7 +306,8 @@ router.get("/runtime/:taskId", validate({ params: runtimeTaskParamsSchema }), as
   try {
     const { taskId } = req.params as z.infer<typeof runtimeTaskParamsSchema>;
     const snapshot = await novelDirectorService.getRuntimeSnapshot(taskId);
-    const data: DirectorRuntimeSnapshotResponse = { snapshot };
+    const projection = novelDirectorService.buildRuntimeProjection(snapshot);
+    const data: DirectorRuntimeSnapshotResponse = { snapshot, projection };
     res.status(200).json({
       success: true,
       data,
