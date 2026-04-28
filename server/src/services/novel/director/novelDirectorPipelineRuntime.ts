@@ -24,9 +24,9 @@ import {
   runDirectorVolumeStrategyPhase,
 } from "./novelDirectorPipelinePhases";
 import { resolveSafeDirectorPipelineStartPhase } from "./novelDirectorRecovery";
-import { getDirectorStageNodeAdapter } from "./novelDirectorStageNodeAdapters";
 import { runDirectorStoryMacroPhase } from "./novelDirectorStoryMacroPhase";
 import type { NovelDirectorRuntimeOrchestrator } from "./novelDirectorRuntimeOrchestrator";
+import { getDirectorPlanningStepModule } from "./workflowStepRuntime/directorWorkflowStepModules";
 
 export interface DirectorPipelineRunInput {
   taskId: string;
@@ -71,9 +71,9 @@ export class NovelDirectorPipelineRuntime {
     });
 
     if (safeStartPhase === "story_macro") {
-      const adapter = getDirectorStageNodeAdapter("story_macro");
-      await this.deps.runtimeOrchestrator.runNode({
-        ...adapter,
+      const module = getDirectorPlanningStepModule("story_macro");
+      await this.deps.runtimeOrchestrator.runStepModule({
+        module,
         taskId: input.taskId,
         novelId: input.novelId,
         targetId: input.novelId,
@@ -82,9 +82,9 @@ export class NovelDirectorPipelineRuntime {
     }
 
     if (safeStartPhase === "story_macro" || safeStartPhase === "character_setup") {
-      const adapter = getDirectorStageNodeAdapter("character_setup");
-      const paused = await this.deps.runtimeOrchestrator.runNode({
-        ...adapter,
+      const module = getDirectorPlanningStepModule("character_setup");
+      const paused = await this.deps.runtimeOrchestrator.runStepModule({
+        module,
         taskId: input.taskId,
         novelId: input.novelId,
         targetId: input.novelId,
@@ -108,9 +108,9 @@ export class NovelDirectorPipelineRuntime {
   }
 
   private async runVolumeAndOutline(input: DirectorPipelineRunInput): Promise<void> {
-    const volumeStrategyAdapter = getDirectorStageNodeAdapter("volume_strategy");
-    const volumeWorkspace = await this.deps.runtimeOrchestrator.runNode({
-      ...volumeStrategyAdapter,
+    const volumeStrategyModule = getDirectorPlanningStepModule("volume_strategy");
+    const volumeWorkspace = await this.deps.runtimeOrchestrator.runStepModule({
+      module: volumeStrategyModule,
       taskId: input.taskId,
       novelId: input.novelId,
       targetId: input.novelId,
@@ -153,9 +153,9 @@ export class NovelDirectorPipelineRuntime {
     input: DirectorPipelineRunInput,
     workspace: VolumePlanDocument,
   ): Promise<void> {
-    const adapter = getDirectorStageNodeAdapter("structured_outline");
-    await this.deps.runtimeOrchestrator.runNode({
-      ...adapter,
+    const module = getDirectorPlanningStepModule("structured_outline");
+    await this.deps.runtimeOrchestrator.runStepModule({
+      module,
       taskId: input.taskId,
       novelId: input.novelId,
       targetId: input.novelId,

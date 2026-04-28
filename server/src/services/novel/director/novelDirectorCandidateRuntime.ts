@@ -11,13 +11,13 @@ import {
 import type { NovelDirectorCandidateStageService } from "./novelDirectorCandidateStage";
 import type { DirectorRuntimeService } from "./runtime/DirectorRuntimeService";
 import {
-  getDirectorCandidateNodeAdapter,
   type DirectorCandidateStageNode,
 } from "./novelDirectorCandidateNodeAdapters";
 import {
   isDirectorRuntimeGateError,
   type NovelDirectorRuntimeOrchestrator,
 } from "./novelDirectorRuntimeOrchestrator";
+import { getDirectorCandidateStepModule } from "./workflowStepRuntime/directorWorkflowStepModules";
 
 type WorkflowTaskFailurePort = Pick<NovelWorkflowService, "markTaskFailed">;
 
@@ -118,8 +118,8 @@ export class NovelDirectorCandidateRuntime {
     runtimeNode?: DirectorCandidateStageNode,
   ): Promise<T> {
     const taskId = workflowTaskId?.trim() || null;
-    const adapter = runtimeNode ? getDirectorCandidateNodeAdapter(runtimeNode) : null;
-    if (taskId && adapter) {
+    const module = runtimeNode ? getDirectorCandidateStepModule(runtimeNode) : null;
+    if (taskId && module) {
       await this.deps.directorRuntime.initializeRun({
         taskId,
         entrypoint: "candidate_stage",
@@ -128,9 +128,9 @@ export class NovelDirectorCandidateRuntime {
       });
     }
     try {
-      if (taskId && adapter) {
-        return await this.deps.runtimeOrchestrator.runNode<T>({
-          ...adapter,
+      if (taskId && module) {
+        return await this.deps.runtimeOrchestrator.runStepModule<T>({
+          module,
           taskId,
           runner: () => this.deps.withWorkflowTaskUsage(workflowTaskId, runner),
           collectArtifacts: () => [],

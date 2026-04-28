@@ -12,7 +12,9 @@ import type { DirectorPolicyRequest } from "./runtime/DirectorPolicyEngine";
 import type { DirectorRuntimeService } from "./runtime/DirectorRuntimeService";
 import type { NovelDirectorAutoExecutionRuntime } from "./novelDirectorAutoExecutionRuntime";
 import type { DirectorProgressItemKey } from "./novelDirectorProgress";
-import { getDirectorExecutionNodeSequence } from "./novelDirectorExecutionNodeAdapters";
+import type { WorkflowStepModuleDescriptor } from "./workflowStepRuntime/WorkflowStepModule";
+import { buildChapterPipelineWorkflowTemplate } from "./workflowStepRuntime/directorWorkflowPlans";
+import { directorWorkflowStepModuleRegistry } from "./workflowStepRuntime/directorWorkflowStepModules";
 
 export class DirectorRuntimeGateError extends AppError {
   constructor(message: string) {
@@ -157,6 +159,34 @@ export class NovelDirectorRuntimeOrchestrator {
     throw new DirectorRuntimeGateError(reason);
   }
 
+  async runStepModule<T>(input: {
+    module: WorkflowStepModuleDescriptor;
+    taskId: string;
+    novelId?: string | null;
+    targetType?: DirectorArtifactRef["targetType"] | null;
+    targetId?: string | null;
+    runner: () => Promise<T>;
+    collectArtifacts?: (output: T) => Promise<DirectorArtifactRef[]> | DirectorArtifactRef[];
+  }): Promise<T> {
+    return this.runNode({
+      nodeKey: input.module.nodeKey,
+      label: input.module.label,
+      reads: input.module.reads,
+      writes: input.module.writes,
+      policyAction: input.module.policyAction,
+      mayModifyUserContent: input.module.mayModifyUserContent,
+      requiresApprovalByDefault: input.module.requiresApprovalByDefault,
+      supportsAutoRetry: input.module.supportsAutoRetry,
+      targetType: input.targetType ?? input.module.targetType,
+      targetId: input.targetId,
+      waitingState: input.module.defaultWaitingState,
+      taskId: input.taskId,
+      novelId: input.novelId,
+      runner: input.runner,
+      collectArtifacts: input.collectArtifacts,
+    });
+  }
+
   async runChapterExecutionNode(input: {
     taskId: string;
     novelId: string;
@@ -169,15 +199,18 @@ export class NovelDirectorRuntimeOrchestrator {
     allowSkipReviewBlockedChapter?: boolean;
   }): Promise<void> {
     const isQualityRepair = input.resumeCheckpointType === "replan_required";
-    const nodeSequence = getDirectorExecutionNodeSequence(
+    const workflowPlan = buildChapterPipelineWorkflowTemplate(
       isQualityRepair ? "quality_repair" : "chapter_execution",
     );
+    const nodeSequence = workflowPlan.steps.map((step) => (
+      directorWorkflowStepModuleRegistry.get(step.stepId)
+    ));
     const [entryAdapter, ...projectionAdapters] = nodeSequence;
     if (!entryAdapter) {
       throw new Error("章节执行节点序列为空，无法继续自动导演运行。");
     }
-    await this.runNode({
-      ...entryAdapter,
+    await this.runStepModule({
+      module: entryAdapter,
       taskId: input.taskId,
       novelId: input.novelId,
       targetId: input.novelId,
@@ -193,8 +226,8 @@ export class NovelDirectorRuntimeOrchestrator {
       novelId: input.novelId,
     });
     for (const adapter of projectionAdapters) {
-      await this.runNode({
-        ...adapter,
+      await this.runStepModule({
+        module: adapter,
         taskId: input.taskId,
         novelId: input.novelId,
         targetId: input.novelId,
