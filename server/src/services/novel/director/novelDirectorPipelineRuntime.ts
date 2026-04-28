@@ -1,0 +1,398 @@
+import type { CharacterCastOption, VolumePlanDocument } from "@ai-novel/shared/types/novel";
+import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
+import {
+  normalizeDirectorAutoApprovalConfig,
+  shouldAutoApproveDirectorCheckpoint,
+} from "@ai-novel/shared/types/autoDirectorApproval";
+import type { BookContractService } from "../BookContractService";
+import type { CharacterPreparationService } from "../characterPrep/CharacterPreparationService";
+import { generateAutoCharacterCastDraft, persistCharacterCastOptionsDraft } from "../characterPrep/characterCastGeneration";
+import type { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
+import type { NovelContextService } from "../NovelContextService";
+import type { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
+import type { NovelVolumeService } from "../volume/NovelVolumeService";
+import type { NovelWorkflowService } from "../workflow/NovelWorkflowService";
+import { recordAutoDirectorAutoApprovalFromTask } from "../../task/autoDirectorFollowUps/autoDirectorAutoApprovalAudit";
+import { normalizeDirectorMemoryScope } from "./autoDirectorMemorySafety";
+import {
+  buildWorkflowSeedPayload,
+  normalizeDirectorRunMode,
+} from "./novelDirectorHelpers";
+import {
+  runDirectorCharacterSetupPhase,
+  runDirectorStructuredOutlinePhase,
+  runDirectorVolumeStrategyPhase,
+} from "./novelDirectorPipelinePhases";
+import { DIRECTOR_PROGRESS } from "./novelDirectorProgress";
+import { resolveSafeDirectorPipelineStartPhase } from "./novelDirectorRecovery";
+import { runDirectorStoryMacroPhase } from "./novelDirectorStoryMacroPhase";
+import type { NovelDirectorRuntimeOrchestrator } from "./novelDirectorRuntimeOrchestrator";
+
+export interface DirectorPipelineRunInput {
+  taskId: string;
+  novelId: string;
+  input: DirectorConfirmRequest;
+  startPhase: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline";
+  scope?: string | null;
+  batchAlreadyStartedCount?: number;
+}
+
+export class NovelDirectorPipelineRuntime {
+  constructor(private readonly deps: {
+    workflowService: NovelWorkflowService;
+    novelContextService: NovelContextService;
+    characterDynamicsService: CharacterDynamicsService;
+    characterPreparationService: CharacterPreparationService;
+    storyMacroService: StoryMacroPlanService;
+    bookContractService: BookContractService;
+    volumeService: NovelVolumeService;
+    runtimeOrchestrator: NovelDirectorRuntimeOrchestrator;
+    buildDirectorSeedPayload: (
+      input: DirectorConfirmRequest,
+      novelId: string | null,
+      extra?: Record<string, unknown>,
+    ) => ReturnType<typeof buildWorkflowSeedPayload>;
+    assertHighMemoryStartAllowed: (input: {
+      taskId: string;
+      novelId: string;
+      stage: "structured_outline";
+      itemKey: "beat_sheet" | "chapter_list" | "chapter_detail_bundle" | "chapter_sync";
+      volumeId?: string | null;
+      chapterId?: string | null;
+      scope?: string | null;
+      batchAlreadyStartedCount?: number;
+    }) => Promise<void>;
+  }) {}
+
+  async runPipeline(input: DirectorPipelineRunInput): Promise<void> {
+    const safeStartPhase = await this.resolveSafePipelineStartPhase({
+      novelId: input.novelId,
+      requestedPhase: input.startPhase,
+    });
+
+    if (safeStartPhase === "story_macro") {
+      await this.deps.runtimeOrchestrator.runNode({
+        taskId: input.taskId,
+        novelId: input.novelId,
+        nodeKey: "story_macro_phase",
+        label: "生成书级规划资产",
+        targetType: "novel",
+        targetId: input.novelId,
+        reads: ["book_seed", "candidate_batch"],
+        writes: ["story_macro", "book_contract"],
+        waitingState: {
+          stage: "story_macro",
+          itemKey: "book_contract",
+          itemLabel: "等待确认书级规划资产",
+          progress: DIRECTOR_PROGRESS.bookContract,
+        },
+        runner: () => this.runStoryMacroPhase(input.taskId, input.novelId, input.input),
+      });
+    }
+
+    if (safeStartPhase === "story_macro" || safeStartPhase === "character_setup") {
+      const paused = await this.deps.runtimeOrchestrator.runNode({
+        taskId: input.taskId,
+        novelId: input.novelId,
+        nodeKey: "character_setup_phase",
+        label: "准备角色阵容与角色资产",
+        targetType: "novel",
+        targetId: input.novelId,
+        reads: ["book_contract", "story_macro"],
+        writes: ["character_cast"],
+        waitingState: {
+          stage: "character_setup",
+          itemKey: "character_setup",
+          itemLabel: "等待确认角色阵容",
+          progress: DIRECTOR_PROGRESS.characterSetup,
+        },
+        runner: () => this.runCharacterSetupPhase(input.taskId, input.novelId, input.input),
+      });
+      if (paused) {
+        return;
+      }
+    }
+
+    if (
+      safeStartPhase === "story_macro"
+      || safeStartPhase === "character_setup"
+      || safeStartPhase === "volume_strategy"
+    ) {
+      await this.runVolumeAndOutline(input);
+      return;
+    }
+
+    await this.runOutlineFromCurrentWorkspace(input);
+  }
+
+  private async runVolumeAndOutline(input: DirectorPipelineRunInput): Promise<void> {
+    const volumeWorkspace = await this.deps.runtimeOrchestrator.runNode({
+      taskId: input.taskId,
+      novelId: input.novelId,
+      nodeKey: "volume_strategy_phase",
+      label: "生成分卷策略与推进路线",
+      targetType: "novel",
+      targetId: input.novelId,
+      reads: ["book_contract", "story_macro", "character_cast"],
+      writes: ["volume_strategy"],
+      waitingState: {
+        stage: "volume_strategy",
+        itemKey: "volume_strategy",
+        itemLabel: "等待确认分卷策略",
+        progress: DIRECTOR_PROGRESS.volumeStrategy,
+      },
+      runner: () => this.runVolumeStrategyPhase(input.taskId, input.novelId, input.input),
+    });
+    if (!volumeWorkspace) {
+      return;
+    }
+    await this.assertOutlineStartAllowed(input, volumeWorkspace);
+    await this.runStructuredOutlineNode(input, volumeWorkspace);
+    await this.maybeRunAutoApprovedChapters(input);
+  }
+
+  private async runOutlineFromCurrentWorkspace(input: DirectorPipelineRunInput): Promise<void> {
+    const currentWorkspace = await this.deps.volumeService.getVolumes(input.novelId);
+    await this.assertOutlineStartAllowed(input, currentWorkspace);
+    await this.runStructuredOutlineNode(input, currentWorkspace);
+    await this.maybeRunAutoApprovedChapters(input);
+  }
+
+  private async assertOutlineStartAllowed(
+    input: DirectorPipelineRunInput,
+    workspace: VolumePlanDocument,
+  ): Promise<void> {
+    await this.deps.assertHighMemoryStartAllowed({
+      taskId: input.taskId,
+      novelId: input.novelId,
+      stage: "structured_outline",
+      itemKey: "chapter_list",
+      volumeId: workspace.volumes[0]?.id,
+      scope: normalizeDirectorMemoryScope({
+        volumeId: workspace.volumes[0]?.id,
+        fallback: input.scope ?? "book",
+      }),
+      batchAlreadyStartedCount: input.batchAlreadyStartedCount,
+    });
+  }
+
+  private async runStructuredOutlineNode(
+    input: DirectorPipelineRunInput,
+    workspace: VolumePlanDocument,
+  ): Promise<void> {
+    await this.deps.runtimeOrchestrator.runNode({
+      taskId: input.taskId,
+      novelId: input.novelId,
+      nodeKey: "structured_outline_phase",
+      label: "生成章节任务单",
+      targetType: "novel",
+      targetId: input.novelId,
+      reads: ["volume_strategy", "character_cast"],
+      writes: ["chapter_task_sheet"],
+      waitingState: {
+        stage: "structured_outline",
+        itemKey: "chapter_detail_bundle",
+        itemLabel: "等待确认章节任务单",
+        progress: DIRECTOR_PROGRESS.chapterDetailStart,
+      },
+      runner: () => this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, workspace),
+    });
+  }
+
+  private async maybeRunAutoApprovedChapters(input: DirectorPipelineRunInput): Promise<void> {
+    if (!this.shouldAutoApproveCheckpoint(input.input, "front10_ready")) {
+      return;
+    }
+    await recordAutoDirectorAutoApprovalFromTask({
+      taskId: input.taskId,
+      checkpointType: "front10_ready",
+    });
+    await this.deps.runtimeOrchestrator.runChapterExecutionNode({
+      taskId: input.taskId,
+      novelId: input.novelId,
+      request: input.input,
+      resumeCheckpointType: "front10_ready",
+    });
+  }
+
+  private async resolveSafePipelineStartPhase(input: {
+    novelId: string;
+    requestedPhase: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline";
+  }): Promise<"story_macro" | "character_setup" | "volume_strategy" | "structured_outline"> {
+    const workspace = await this.deps.volumeService.getVolumes(input.novelId).catch(() => null);
+    return resolveSafeDirectorPipelineStartPhase({
+      requestedPhase: input.requestedPhase,
+      hasVolumeWorkspace: Boolean(workspace?.volumes.length),
+      hasVolumeStrategyPlan: Boolean(workspace?.strategyPlan),
+    });
+  }
+
+  private shouldAutoApproveCheckpoint(
+    input: DirectorConfirmRequest,
+    checkpointType: "front10_ready" | "chapter_batch_ready" | "replan_required",
+  ): boolean {
+    if (Object.prototype.hasOwnProperty.call(input, "autoApproval")) {
+      return shouldAutoApproveDirectorCheckpoint(
+        normalizeDirectorAutoApprovalConfig(input.autoApproval),
+        checkpointType,
+      );
+    }
+    return checkpointType === "front10_ready" && normalizeDirectorRunMode(input.runMode) === "auto_to_execution";
+  }
+
+  private async runStoryMacroPhase(
+    taskId: string,
+    novelId: string,
+    input: DirectorConfirmRequest,
+  ): Promise<void> {
+    await runDirectorStoryMacroPhase({
+      taskId,
+      novelId,
+      request: input,
+      dependencies: {
+        storyMacroService: this.deps.storyMacroService,
+        bookContractService: this.deps.bookContractService,
+      },
+      callbacks: {
+        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
+          this.deps.runtimeOrchestrator.markTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
+            ...options,
+            novelId,
+          })
+        ),
+      },
+    });
+  }
+
+  private async findReusableDirectorCharacterCastOption(targetNovelId: string): Promise<CharacterCastOption | null> {
+    const [existingOptions, existingCharacters] = await Promise.all([
+      this.deps.characterPreparationService.listCharacterCastOptions(targetNovelId),
+      this.deps.novelContextService.listCharacters(targetNovelId).catch(() => []),
+    ]);
+    const appliedOption = existingOptions.find((option) => option.status === "applied") ?? null;
+    if (appliedOption) {
+      return existingCharacters.length > 0
+        ? appliedOption
+        : { ...appliedOption, status: "draft" };
+    }
+    return existingOptions[0] ?? null;
+  }
+
+  private buildDirectorCharacterPreparationService() {
+    return {
+      generateAutoCharacterCastOption: async (targetNovelId: string, options: {
+        provider?: DirectorConfirmRequest["provider"];
+        model?: string;
+        temperature?: number;
+        storyInput?: string;
+      }) => {
+        const reusableOption = await this.findReusableDirectorCharacterCastOption(targetNovelId);
+        if (reusableOption) {
+          return reusableOption;
+        }
+        const generated = await generateAutoCharacterCastDraft(targetNovelId, options);
+        await persistCharacterCastOptionsDraft(targetNovelId, generated.storyInput, {
+          options: [generated.parsed.option],
+        });
+        const [persistedOption] = await this.deps.characterPreparationService.listCharacterCastOptions(targetNovelId);
+        if (!persistedOption) {
+          throw new Error("Auto director character cast option was not persisted.");
+        }
+        return persistedOption;
+      },
+      assessCharacterCastOptions: (...args: Parameters<CharacterPreparationService["assessCharacterCastOptions"]>) => (
+        this.deps.characterPreparationService.assessCharacterCastOptions(...args)
+      ),
+      applyCharacterCastOption: (...args: Parameters<CharacterPreparationService["applyCharacterCastOption"]>) => (
+        this.deps.characterPreparationService.applyCharacterCastOption(...args)
+      ),
+      findReusableCharacterCastOption: (targetNovelId: string) => this.findReusableDirectorCharacterCastOption(targetNovelId),
+    };
+  }
+
+  private async runCharacterSetupPhase(
+    taskId: string,
+    novelId: string,
+    input: DirectorConfirmRequest,
+  ): Promise<boolean> {
+    return runDirectorCharacterSetupPhase({
+      taskId,
+      novelId,
+      request: input,
+      dependencies: {
+        workflowService: this.deps.workflowService,
+        novelContextService: this.deps.novelContextService,
+        characterDynamicsService: this.deps.characterDynamicsService,
+        characterPreparationService: this.buildDirectorCharacterPreparationService(),
+        volumeService: this.deps.volumeService,
+      },
+      callbacks: {
+        buildDirectorSeedPayload: (request, takeoverNovelId, extra) => this.deps.buildDirectorSeedPayload(request, takeoverNovelId, extra),
+        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
+          this.deps.runtimeOrchestrator.markTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
+            ...options,
+            novelId,
+          })
+        ),
+      },
+    });
+  }
+
+  private async runVolumeStrategyPhase(
+    taskId: string,
+    novelId: string,
+    input: DirectorConfirmRequest,
+  ): Promise<VolumePlanDocument | null> {
+    return runDirectorVolumeStrategyPhase({
+      taskId,
+      novelId,
+      request: input,
+      dependencies: {
+        workflowService: this.deps.workflowService,
+        novelContextService: this.deps.novelContextService,
+        characterDynamicsService: this.deps.characterDynamicsService,
+        characterPreparationService: this.buildDirectorCharacterPreparationService(),
+        volumeService: this.deps.volumeService,
+      },
+      callbacks: {
+        buildDirectorSeedPayload: (request, takeoverNovelId, extra) => this.deps.buildDirectorSeedPayload(request, takeoverNovelId, extra),
+        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
+          this.deps.runtimeOrchestrator.markTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
+            ...options,
+            novelId,
+          })
+        ),
+      },
+    });
+  }
+
+  private async runStructuredOutlinePhase(
+    taskId: string,
+    novelId: string,
+    input: DirectorConfirmRequest,
+    baseWorkspace: VolumePlanDocument,
+  ): Promise<void> {
+    await runDirectorStructuredOutlinePhase({
+      taskId,
+      novelId,
+      request: input,
+      baseWorkspace,
+      dependencies: {
+        workflowService: this.deps.workflowService,
+        novelContextService: this.deps.novelContextService,
+        characterDynamicsService: this.deps.characterDynamicsService,
+        characterPreparationService: this.buildDirectorCharacterPreparationService(),
+        volumeService: this.deps.volumeService,
+      },
+      callbacks: {
+        buildDirectorSeedPayload: (request, takeoverNovelId, extra) => this.deps.buildDirectorSeedPayload(request, takeoverNovelId, extra),
+        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
+          this.deps.runtimeOrchestrator.markTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
+            ...options,
+            novelId,
+          })
+        ),
+      },
+    });
+  }
+}
