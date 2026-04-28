@@ -158,6 +158,37 @@ function resolveSingleChapterExecutionRange(
   };
 }
 
+function markCurrentQualityNoticeChapterSkipped(
+  autoExecution: DirectorAutoExecutionState,
+): DirectorAutoExecutionState {
+  const nextChapterId = autoExecution.nextChapterId?.trim() || null;
+  const nextChapterOrder = typeof autoExecution.nextChapterOrder === "number"
+    ? autoExecution.nextChapterOrder
+    : null;
+  if (!nextChapterId && nextChapterOrder == null) {
+    return autoExecution;
+  }
+  const skippedChapterIds = Array.from(new Set(
+    [
+      ...(autoExecution.skippedChapterIds ?? []),
+      ...(nextChapterId ? [nextChapterId] : []),
+    ],
+  ));
+  const skippedChapterOrders = Array.from(new Set(
+    [
+      ...(autoExecution.skippedChapterOrders ?? []),
+      ...(typeof nextChapterOrder === "number" ? [nextChapterOrder] : []),
+    ],
+  )).sort((left, right) => left - right);
+  return {
+    ...autoExecution,
+    skippedChapterIds,
+    skippedChapterOrders,
+    pipelineJobId: null,
+    pipelineStatus: null,
+  };
+}
+
 export class NovelDirectorAutoExecutionRuntime {
   constructor(private readonly deps: NovelDirectorAutoExecutionRuntimeDeps) {}
 
@@ -505,7 +536,7 @@ export class NovelDirectorAutoExecutionRuntime {
             pipelineJobId = "";
             ({ range, autoExecution } = await this.resolveRangeAndState({
               novelId: input.novelId,
-              existingState: noticeAction.checkpointState,
+              existingState: markCurrentQualityNoticeChapterSkipped(noticeAction.checkpointState),
               pipelineJobId: null,
               pipelineStatus: "queued",
             }));

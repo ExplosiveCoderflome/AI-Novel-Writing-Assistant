@@ -496,7 +496,7 @@ test("runFromReady notifies and continues low-risk quality repair in AI-driver e
               withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" }),
             ]
           : [
-              { id: "chapter-1", order: 1, generationState: "repaired", chapterStatus: "completed", content: "正文1" },
+              withExecutionDetail({ id: "chapter-1", order: 1, generationState: "reviewed", chapterStatus: "needs_repair", content: "正文1" }),
               withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" }),
             ];
       },
