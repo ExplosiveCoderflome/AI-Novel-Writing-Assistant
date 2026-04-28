@@ -142,7 +142,9 @@ test("task center list only queries auto director workflow rows", async () => {
 
   const adapter = new NovelWorkflowTaskAdapter();
   const originalHeal = adapter.workflowService.healAutoDirectorTaskState;
-  adapter.workflowService.healAutoDirectorTaskState = async () => false;
+  adapter.workflowService.healAutoDirectorTaskState = async () => {
+    throw new Error("task list must not heal workflow task state");
+  };
 
   try {
     const list = await adapter.list({
