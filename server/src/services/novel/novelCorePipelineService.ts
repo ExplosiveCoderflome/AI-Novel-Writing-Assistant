@@ -370,6 +370,7 @@ export class NovelCorePipelineService {
             provider: options.provider ?? "deepseek",
             model: options.model ?? "",
             temperature: options.temperature ?? 0.8,
+            controlPolicy: options.controlPolicy,
             workflowTaskId: options.workflowTaskId?.trim() || undefined,
             taskStyleProfileId: options.taskStyleProfileId?.trim() || undefined,
             maxRetries: options.maxRetries ?? 1,
@@ -552,6 +553,7 @@ export class NovelCorePipelineService {
       provider: persistedPayload.provider ?? options.provider ?? "deepseek",
       model: persistedPayload.model ?? options.model ?? "",
       temperature: persistedPayload.temperature ?? options.temperature ?? 0.8,
+      controlPolicy: persistedPayload.controlPolicy ?? options.controlPolicy,
       workflowTaskId: persistedPayload.workflowTaskId ?? options.workflowTaskId,
       taskStyleProfileId: persistedPayload.taskStyleProfileId ?? options.taskStyleProfileId,
       maxRetries: persistedPayload.maxRetries ?? options.maxRetries ?? 1,
@@ -564,7 +566,6 @@ export class NovelCorePipelineService {
     };
     let totalRetryCount = Math.max(existingJob?.retryCount ?? 0, 0);
     const qualityAlertDetails = [...(persistedPayload.qualityAlertDetails ?? [])];
-    const replanAlertDetails = [...(persistedPayload.replanAlertDetails ?? [])];
 
     try {
       await runWithLlmUsageTracking({
@@ -677,6 +678,7 @@ export class NovelCorePipelineService {
               provider: options.provider,
               model: options.model,
               temperature: options.temperature,
+              controlPolicy: runtimePayload.controlPolicy,
               taskStyleProfileId: runtimePayload.taskStyleProfileId,
               maxRetries,
               autoReview: options.autoReview,
@@ -711,16 +713,6 @@ export class NovelCorePipelineService {
             });
           }
 
-          const replanRecommendation = chapterResult.runtimePackage?.replanRecommendation;
-          if (replanRecommendation?.recommended) {
-            const impactedOrders = replanRecommendation.affectedChapterOrders?.length
-              ? `影响章节=${replanRecommendation.affectedChapterOrders.join(",")}`
-              : `锚点章节=${replanRecommendation.anchorChapterOrder ?? chapter.order}`;
-            replanAlertDetails.push(
-              `第${chapter.order}章需要重规划（${impactedOrders}；原因=${replanRecommendation.triggerReason ?? replanRecommendation.reason}）`,
-            );
-          }
-
           completed += 1;
           await this.updateJobSafe(jobId, {
             completedCount: completed,
@@ -730,7 +722,6 @@ export class NovelCorePipelineService {
             payload: this.stringifyPipelinePayload({
               ...runtimePayload,
               qualityAlertDetails,
-              replanAlertDetails,
             }),
           });
           logPipelineInfo("任务进度更新", {
@@ -766,7 +757,6 @@ export class NovelCorePipelineService {
           payload: this.stringifyPipelinePayload({
             ...runtimePayload,
             qualityAlertDetails,
-            replanAlertDetails,
           }),
         });
         logPipelineInfo("任务执行结束", {
@@ -792,7 +782,6 @@ export class NovelCorePipelineService {
           payload: this.stringifyPipelinePayload({
             ...runtimePayload,
             qualityAlertDetails,
-            replanAlertDetails,
           }),
         });
         void novelEventBus.emit({
@@ -810,7 +799,6 @@ export class NovelCorePipelineService {
         payload: this.stringifyPipelinePayload({
           ...runtimePayload,
           qualityAlertDetails,
-          replanAlertDetails,
         }),
       });
       logPipelineError("任务执行异常", {

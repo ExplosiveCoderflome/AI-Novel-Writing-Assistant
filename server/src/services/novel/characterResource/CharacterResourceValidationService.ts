@@ -9,6 +9,11 @@ import { compactText } from "./characterResourceShared";
 const HIGH_RISK_EVENTS = new Set<CharacterResourceEventType>(["lost", "consumed", "destroyed", "damaged"]);
 const AUTO_DIRECTOR_RESOURCE_SOURCE_TYPES = new Set(["chapter_background_sync"]);
 
+function isAiDriverResourceUpdate(proposal: StateChangeProposal): boolean {
+  return proposal.sourceType === "chapter_background_sync"
+    && proposal.sourceStage === "ai_driver_chapter_execution";
+}
+
 function parsePayload(proposal: StateChangeProposal): CharacterResourceUpdatePayload | null {
   const parsed = characterResourceUpdatePayloadSchema.safeParse(proposal.payload);
   return parsed.success ? parsed.data : null;
@@ -48,6 +53,13 @@ export class CharacterResourceValidationService {
       || payload.statusAfter === "lost";
 
     if (proposal.riskLevel === "high" || lowConfidence || highImpact) {
+      if (isAiDriverResourceUpdate(proposal)) {
+        return {
+          ...proposal,
+          status: "committed",
+          validationNotes: proposal.validationNotes.concat("auto-committed AI-driver resource update"),
+        };
+      }
       return {
         ...proposal,
         status: "pending_review",

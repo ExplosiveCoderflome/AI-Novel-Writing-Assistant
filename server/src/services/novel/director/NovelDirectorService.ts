@@ -22,6 +22,7 @@ import type {
   DirectorTakeoverReadinessResponse,
   DirectorTakeoverRequest,
   DirectorTakeoverResponse,
+  DirectorTakeoverStrategy,
 } from "@ai-novel/shared/types/novelDirector";
 import { BookContractService } from "../BookContractService";
 import { CharacterPreparationService } from "../characterPrep/CharacterPreparationService";
@@ -138,6 +139,10 @@ function parseResumeTargetLike(value: unknown) {
     return value as NonNullable<ReturnType<typeof parseResumeTarget>>;
   }
   return null;
+}
+
+function canTakeoverContinueFromStructuredOutline(step: unknown): boolean {
+  return step === "chapter_sync" || step === "completed";
 }
 
 function isWorkflowTaskCancelledError(error: unknown): boolean {
@@ -800,6 +805,7 @@ export class NovelDirectorService {
         novelId,
         input: directorInput,
         startPhase: phase,
+        takeoverStrategy: "continue_existing",
         scope: normalizeDirectorMemoryScope({
           volumeId: recoveryResumeTarget?.volumeId,
           chapterId: recoveryResumeTarget?.chapterId,
@@ -962,7 +968,8 @@ export class NovelDirectorService {
         characterCount: takeoverState.snapshot.characterCount,
         volumeCount: takeoverState.snapshot.volumeCount,
         hasVolumeStrategyPlan: takeoverState.snapshot.hasVolumeStrategyPlan,
-        hasStructuredOutline: takeoverState.snapshot.structuredOutlineRecoveryStep === "completed",
+        hasStructuredOutline: canTakeoverContinueFromStructuredOutline(takeoverState.snapshot.structuredOutlineRecoveryStep)
+          || Boolean(takeoverState.executableRange),
         totalChapterCount: takeoverState.snapshot.chapterCount,
         volumeChapterRanges: takeoverState.snapshot.volumeChapterRanges,
         structuredOutlineChapterOrders: takeoverState.snapshot.structuredOutlineChapterOrders,
@@ -1375,6 +1382,7 @@ export class NovelDirectorService {
     novelId: string;
     input: DirectorConfirmRequest;
     startPhase: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline";
+    takeoverStrategy?: DirectorTakeoverStrategy;
     scope?: string | null;
     batchAlreadyStartedCount?: number;
   }) {
@@ -1415,7 +1423,9 @@ export class NovelDirectorService {
         }),
         batchAlreadyStartedCount: input.batchAlreadyStartedCount,
       });
-      await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, volumeWorkspace);
+      await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, volumeWorkspace, {
+        takeoverStrategy: input.takeoverStrategy,
+      });
       if (this.shouldAutoApproveCheckpoint(input.input, "front10_ready")) {
         await recordAutoDirectorAutoApprovalFromTask({
           taskId: input.taskId,
@@ -1444,7 +1454,9 @@ export class NovelDirectorService {
       }),
       batchAlreadyStartedCount: input.batchAlreadyStartedCount,
     });
-    await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, currentWorkspace);
+    await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, currentWorkspace, {
+      takeoverStrategy: input.takeoverStrategy,
+    });
     if (this.shouldAutoApproveCheckpoint(input.input, "front10_ready")) {
       await recordAutoDirectorAutoApprovalFromTask({
         taskId: input.taskId,
@@ -1594,12 +1606,16 @@ export class NovelDirectorService {
     novelId: string,
     input: DirectorConfirmRequest,
     baseWorkspace: Awaited<ReturnType<NovelVolumeService["getVolumes"]>>,
+    options: {
+      takeoverStrategy?: DirectorTakeoverStrategy;
+    } = {},
   ) {
     await runDirectorStructuredOutlinePhase({
       taskId,
       novelId,
       request: input,
       baseWorkspace,
+      takeoverStrategy: options.takeoverStrategy,
       dependencies: {
         workflowService: this.workflowService,
         novelContextService: this.novelContextService,

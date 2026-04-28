@@ -81,6 +81,7 @@ interface StartDirectorTakeoverExecutionInput {
     novelId: string;
     input: DirectorConfirmRequest;
     startPhase: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline";
+    takeoverStrategy?: "continue_existing" | "restart_current_step";
   }) => Promise<void>;
   assertHighMemoryStartAllowed?: (input: {
     taskId: string;
@@ -354,6 +355,7 @@ export async function startDirectorTakeoverExecution(
         novelId: input.request.novelId,
         input: input.directorInput,
         startPhase: plan.phase ?? plan.startPhase,
+        takeoverStrategy: selection.strategy,
       });
     });
   } else {

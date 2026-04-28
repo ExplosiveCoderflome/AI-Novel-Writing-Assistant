@@ -721,7 +721,7 @@ test("runFromReady honors approval selection for low-risk quality repair outside
   assert.ok(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed"));
 });
 
-test("runFromReady notifies and continues replan notices in AI-driver execution", async () => {
+test("runFromReady treats legacy replan notices as quality notices in AI-driver execution", async () => {
   const calls = [];
   let phase = "initial";
   const runtime = new NovelDirectorAutoExecutionRuntime({
@@ -831,7 +831,7 @@ test("runFromReady notifies and continues replan notices in AI-driver execution"
   });
 
   assert.equal(calls.some((call) => call[0] === "replanNovel"), false);
-  assert.ok(calls.some((call) => call[0] === "recordAutoApproval" && call[1] === "replan_required" && call[2] === "replan"));
+  assert.ok(calls.some((call) => call[0] === "recordAutoApproval" && call[1] === "chapter_batch_ready" && call[2] === "low"));
   assert.deepEqual(calls.filter((call) => call[0] === "startPipelineJob").map((call) => call.slice(1)), [
     [1, 1],
     [2, 2],
@@ -840,7 +840,7 @@ test("runFromReady notifies and continues replan notices in AI-driver execution"
   assert.ok(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed"));
 });
 
-test("runFromReady records replan_required outside AI-driver execution when pipeline completes with replan notice", async () => {
+test("runFromReady records chapter_batch_ready outside AI-driver execution for legacy replan notice", async () => {
   const calls = [];
   const runtime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: {
@@ -920,9 +920,9 @@ test("runFromReady records replan_required outside AI-driver execution when pipe
   });
 
   assert.equal(calls[5][0], "recordCheckpoint");
-  assert.equal(calls[5][2], "replan_required");
-  assert.match(String(calls[5][3]), /等待处理重规划建议/);
-  assert.match(String(calls[5][4]), /replan/i);
+  assert.equal(calls[5][2], "chapter_batch_ready");
+  assert.doesNotMatch(String(calls[5][3]), /重规划/);
+  assert.doesNotMatch(String(calls[5][4]), /replan|重规划/i);
 });
 
 test("runFromReady uses the latest auto-execution review toggles instead of stale saved state when starting a new batch", async () => {

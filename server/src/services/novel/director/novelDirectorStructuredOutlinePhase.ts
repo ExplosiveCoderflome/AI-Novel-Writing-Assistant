@@ -2,6 +2,7 @@ import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type {
   DirectorConfirmRequest,
   DirectorTaskNotice,
+  DirectorTakeoverStrategy,
 } from "@ai-novel/shared/types/novelDirector";
 import type { VolumeGenerationPhaseEvent } from "../volume/volumeModels";
 import { getChapterTitleDiversityIssue } from "../volume/chapterTitleDiversity";
@@ -33,9 +34,45 @@ import {
 import { runDirectorTrackedStep } from "./directorProgressTracker";
 import type { DirectorPhaseCallbacks, DirectorPhaseDependencies } from "./novelDirectorPhaseTypes";
 import { resetDirectorDownstreamChapterState } from "./novelDirectorDownstreamReset";
+import { executionChapterListMatchesWorkspace } from "./novelDirectorChapterSyncGuards";
+
+export type StructuredOutlineChapterSyncMode =
+  | "reset_execution"
+  | "preserve_matching_execution";
 
 function buildChapterOrderRangeLabel(startOrder: number, endOrder: number): string {
   return startOrder === endOrder ? `第 ${startOrder} 章` : `第 ${startOrder}-${endOrder} 章`;
+}
+
+function resolveStructuredOutlineChapterSyncMode(input: {
+  explicitMode?: StructuredOutlineChapterSyncMode;
+  takeoverStrategy?: DirectorTakeoverStrategy | null;
+}): StructuredOutlineChapterSyncMode {
+  if (input.explicitMode) {
+    return input.explicitMode;
+  }
+  return input.takeoverStrategy === "continue_existing"
+    ? "preserve_matching_execution"
+    : "reset_execution";
+}
+
+async function shouldPreserveMatchingExecutionChapters(input: {
+  novelId: string;
+  workspace: VolumePlanDocument;
+  syncMode: StructuredOutlineChapterSyncMode;
+  dependencies: Pick<DirectorPhaseDependencies, "novelContextService">;
+}): Promise<boolean> {
+  if (input.syncMode !== "preserve_matching_execution") {
+    return false;
+  }
+  const chapters = await input.dependencies.novelContextService.listChapters(input.novelId);
+  return executionChapterListMatchesWorkspace({
+    workspace: input.workspace,
+    chapters: chapters.map((chapter) => ({
+      order: chapter.order,
+      title: chapter.title,
+    })),
+  });
 }
 
 function findMissingSelectedChapterOrders(
@@ -140,10 +177,16 @@ export async function runDirectorStructuredOutlinePhase(input: {
   novelId: string;
   request: DirectorConfirmRequest;
   baseWorkspace: VolumePlanDocument;
+  chapterSyncMode?: StructuredOutlineChapterSyncMode;
+  takeoverStrategy?: DirectorTakeoverStrategy;
   dependencies: DirectorPhaseDependencies;
   callbacks: DirectorPhaseCallbacks;
 }): Promise<void> {
   const { taskId, novelId, request, baseWorkspace, dependencies, callbacks } = input;
+  const chapterSyncMode = resolveStructuredOutlineChapterSyncMode({
+    explicitMode: input.chapterSyncMode,
+    takeoverStrategy: input.takeoverStrategy,
+  });
   logMemoryUsage({
     event: "start",
     component: "runDirectorStructuredOutlinePhase",
@@ -430,9 +473,15 @@ export async function runDirectorStructuredOutlinePhase(input: {
       entrypoint: "auto_director",
     },
   });
+  const preserveMatchingExecutionChapters = await shouldPreserveMatchingExecutionChapters({
+    novelId,
+    workspace: persistedOutlineWorkspace,
+    syncMode: chapterSyncMode,
+    dependencies,
+  });
   await dependencies.volumeService.syncVolumeChaptersWithOptions(novelId, {
     volumes: persistedOutlineWorkspace.volumes,
-    preserveContent: false,
+    preserveContent: preserveMatchingExecutionChapters,
     applyDeletes: true,
   }, {
     emitEvent: false,
@@ -468,7 +517,9 @@ export async function runDirectorStructuredOutlinePhase(input: {
     startOrder: selectedChapterOrders[0] ?? 1,
     endOrder: selectedChapterOrders[selectedChapterOrders.length - 1] ?? selectedChapterOrders[0] ?? 1,
   };
-  await resetDirectorDownstreamChapterState(novelId, downstreamResetRange);
+  if (!preserveMatchingExecutionChapters) {
+    await resetDirectorDownstreamChapterState(novelId, downstreamResetRange);
+  }
 
   await callbacks.markDirectorTaskRunning(
     taskId,
