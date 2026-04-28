@@ -171,10 +171,11 @@ export class NovelDirectorService {
         "low_risk_quality_repair_continue",
       )
     ),
-    recordAutoApproval: async ({ taskId, checkpointType }) => {
+    recordAutoApproval: async ({ taskId, checkpointType, checkpointSummary }) => {
       await recordAutoDirectorAutoApprovalFromTask({
         taskId,
         checkpointType,
+        checkpointSummary,
       });
     },
   });

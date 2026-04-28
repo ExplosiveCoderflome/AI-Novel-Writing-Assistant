@@ -382,27 +382,54 @@ test("runFromReady records a normal checkpoint when pipeline completes with qual
   assert.deepEqual(calls[6], ["bootstrapTask", "succeeded"]);
 });
 
-test("runFromReady leaves low-risk quality repair at continue checkpoint when chapters still remain", async () => {
+test("runFromReady notifies and continues low-risk quality repair in AI-driver execution", async () => {
   const calls = [];
+  let phase = "quality_notice";
   const runtime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: {
       async listChapters() {
-        return [
-          { id: "chapter-1", order: 1, generationState: "repaired", chapterStatus: "completed", content: "正文1" },
-          withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" }),
-        ];
+        if (phase === "completed") {
+          return [
+            { id: "chapter-1", order: 1, generationState: "repaired", chapterStatus: "completed", content: "正文1" },
+            { id: "chapter-2", order: 2, generationState: "approved", chapterStatus: "completed", content: "正文2" },
+          ];
+        }
+        return phase === "quality_notice"
+          ? [
+              withExecutionDetail({ id: "chapter-1", order: 1, generationState: "planned", chapterStatus: "unplanned", content: "" }),
+              withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" }),
+            ]
+          : [
+              { id: "chapter-1", order: 1, generationState: "repaired", chapterStatus: "completed", content: "正文1" },
+              withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" }),
+            ];
       },
     },
     novelService: {
-      async startPipelineJob() {
-        calls.push(["startPipelineJob"]);
-        return { id: "job-low-risk", status: "queued" };
+      async startPipelineJob(_novelId, options) {
+        calls.push(["startPipelineJob", options.startOrder, options.endOrder, options.maxRetries, options.autoRepair]);
+        return calls.filter((call) => call[0] === "startPipelineJob").length === 1
+          ? { id: "job-low-risk", status: "queued" }
+          : { id: "job-followup", status: "queued" };
       },
       async findActivePipelineJobForRange() {
         return null;
       },
       async getPipelineJobById(jobId) {
         calls.push(["getPipelineJobById", jobId]);
+        if (jobId === "job-followup") {
+          phase = "completed";
+          return {
+            id: "job-followup",
+            status: "succeeded",
+            progress: 1,
+            currentStage: null,
+            currentItemLabel: null,
+            noticeSummary: null,
+            error: null,
+          };
+        }
+        phase = "after_quality_notice";
         return {
           id: "job-low-risk",
           status: "succeeded",
@@ -437,7 +464,7 @@ test("runFromReady leaves low-risk quality repair at continue checkpoint when ch
           "recordCheckpoint",
           taskId,
           input.checkpointType,
-          input.seedPayload.autoExecution.qualityRepairRisk,
+          input.seedPayload.autoExecution?.qualityRepairRisk,
           input.seedPayload.autoExecution.remainingChapterCount,
         ]);
       },
@@ -447,6 +474,9 @@ test("runFromReady leaves low-risk quality repair at continue checkpoint when ch
     },
     buildDirectorSeedPayload(_request, _novelId, extra) {
       return extra ?? {};
+    },
+    async recordAutoApproval(input) {
+      calls.push(["recordAutoApproval", input.checkpointType, input.qualityRepairRisk.riskLevel, input.checkpointSummary]);
     },
   });
 
@@ -466,14 +496,103 @@ test("runFromReady leaves low-risk quality repair at continue checkpoint when ch
     },
   });
 
-  const checkpointCall = calls.find((call) => call[0] === "recordCheckpoint");
-  assert.equal(checkpointCall[2], "chapter_batch_ready");
-  assert.equal(checkpointCall[3].riskLevel, "low");
-  assert.equal(checkpointCall[3].autoContinuable, true);
-  assert.equal(checkpointCall[4], 1);
+  assert.ok(calls.some((call) => call[0] === "recordAutoApproval" && call[1] === "chapter_batch_ready" && call[2] === "low"));
+  assert.ok(calls.some((call) => call[0] === "recordAutoApproval" && /quality threshold/.test(String(call[3]))));
+  assert.deepEqual(calls.filter((call) => call[0] === "startPipelineJob").map((call) => call.slice(1)), [
+    [1, 1, 1, true],
+    [2, 2, 1, true],
+  ]);
+  assert.equal(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "chapter_batch_ready"), false);
+  assert.ok(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed"));
 });
 
-test("runFromReady auto-continues only low-risk quality repair when approval point is selected", async () => {
+test("runFromReady notifies final low-risk quality repair without pausing AI-driver execution", async () => {
+  const calls = [];
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        return [
+          { id: "chapter-1", order: 1, generationState: "repaired", chapterStatus: "completed", content: "正文1" },
+        ];
+      },
+    },
+    novelService: {
+      async startPipelineJob(_novelId, options) {
+        calls.push(["startPipelineJob", options.startOrder, options.endOrder]);
+        return { id: "job-final-low-risk", status: "queued" };
+      },
+      async findActivePipelineJobForRange() {
+        return null;
+      },
+      async getPipelineJobById(jobId) {
+        calls.push(["getPipelineJobById", jobId]);
+        return {
+          id: "job-final-low-risk",
+          status: "succeeded",
+          progress: 1,
+          currentStage: null,
+          currentItemLabel: null,
+          payload: JSON.stringify({
+            repairMode: "light_repair",
+            qualityAlertDetails: ["第 1 章自动修复后仍低于质量阈值"],
+          }),
+          noticeCode: "PIPELINE_QUALITY_REVIEW",
+          noticeSummary: "Some chapters finished below the configured quality threshold: 第 1 章自动修复后仍低于质量阈值",
+          error: null,
+        };
+      },
+      async cancelPipelineJob() {
+        calls.push(["cancelPipelineJob"]);
+      },
+    },
+    workflowService: {
+      async bootstrapTask(input) {
+        calls.push(["bootstrapTask", input.seedPayload.autoExecution?.remainingChapterCount ?? null]);
+      },
+      async getTaskById() {
+        return { status: "running" };
+      },
+      async markTaskRunning() {
+        calls.push(["markTaskRunning"]);
+      },
+      async recordCheckpoint(taskId, input) {
+        calls.push(["recordCheckpoint", taskId, input.checkpointType]);
+      },
+      async markTaskFailed() {
+        calls.push(["markTaskFailed"]);
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+    async recordAutoApproval(input) {
+      calls.push(["recordAutoApproval", input.checkpointType, input.qualityRepairRisk.riskLevel, input.checkpointSummary]);
+    },
+  });
+
+  await runtime.runFromReady({
+    taskId: "task-auto-exec",
+    novelId: "novel-1",
+    request: buildRequest(),
+    existingState: {
+      enabled: true,
+      mode: "chapter_range",
+      firstChapterId: "chapter-1",
+      startOrder: 1,
+      endOrder: 1,
+      totalChapterCount: 1,
+      pipelineJobId: "job-final-low-risk",
+      pipelineStatus: "queued",
+    },
+    existingPipelineJobId: "job-final-low-risk",
+  });
+
+  assert.ok(calls.some((call) => call[0] === "recordAutoApproval" && call[1] === "chapter_batch_ready" && call[2] === "low"));
+  assert.equal(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "chapter_batch_ready"), false);
+  assert.ok(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed"));
+});
+
+test("runFromReady honors approval selection for low-risk quality repair outside AI-driver execution", async () => {
   const calls = [];
   let phase = "initial";
   const runtime = new NovelDirectorAutoExecutionRuntime({
@@ -574,6 +693,7 @@ test("runFromReady auto-continues only low-risk quality repair when approval poi
     taskId: "task-auto-exec",
     novelId: "novel-1",
     request: buildRequest({
+      runMode: "auto_to_ready",
       autoApproval: {
         enabled: true,
         approvalPointCodes: ["low_risk_quality_repair_continue"],
@@ -601,11 +721,24 @@ test("runFromReady auto-continues only low-risk quality repair when approval poi
   assert.ok(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed"));
 });
 
-test("runFromReady never auto-continues replan or large-scope repair notices", async () => {
+test("runFromReady notifies and continues replan notices in AI-driver execution", async () => {
   const calls = [];
+  let phase = "initial";
   const runtime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: {
       async listChapters() {
+        if (phase === "initial") {
+          return [
+            withExecutionDetail({ id: "chapter-1", order: 1, generationState: "planned", chapterStatus: "unplanned", content: "" }),
+            withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" }),
+          ];
+        }
+        if (phase === "completed") {
+          return [
+            { id: "chapter-1", order: 1, generationState: "repaired", chapterStatus: "completed", content: "正文1" },
+            { id: "chapter-2", order: 2, generationState: "approved", chapterStatus: "completed", content: "正文2" },
+          ];
+        }
         return [
           { id: "chapter-1", order: 1, generationState: "repaired", chapterStatus: "completed", content: "正文1" },
           withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" }),
@@ -613,15 +746,30 @@ test("runFromReady never auto-continues replan or large-scope repair notices", a
       },
     },
     novelService: {
-      async startPipelineJob() {
-        calls.push(["startPipelineJob"]);
-        return { id: "job-replan", status: "queued" };
+      async startPipelineJob(_novelId, options) {
+        calls.push(["startPipelineJob", options.startOrder, options.endOrder]);
+        return calls.filter((call) => call[0] === "startPipelineJob").length === 1
+          ? { id: "job-replan", status: "queued" }
+          : { id: "job-after-replan", status: "queued" };
       },
       async findActivePipelineJobForRange() {
         return null;
       },
       async getPipelineJobById(jobId) {
         calls.push(["getPipelineJobById", jobId]);
+        if (jobId === "job-after-replan") {
+          phase = "completed";
+          return {
+            id: jobId,
+            status: "succeeded",
+            progress: 1,
+            currentStage: null,
+            currentItemLabel: null,
+            noticeSummary: null,
+            error: null,
+          };
+        }
+        phase = "after_replan_notice";
         return {
           id: "job-replan",
           status: "succeeded",
@@ -661,24 +809,15 @@ test("runFromReady never auto-continues replan or large-scope repair notices", a
     buildDirectorSeedPayload(_request, _novelId, extra) {
       return extra ?? {};
     },
-    async shouldAutoContinueQualityRepair() {
-      calls.push(["autoApprovalGuard"]);
-      return true;
-    },
-    async recordAutoApproval() {
-      calls.push(["recordAutoApproval"]);
+    async recordAutoApproval(input) {
+      calls.push(["recordAutoApproval", input.checkpointType, input.qualityRepairRisk.riskLevel, input.checkpointSummary]);
     },
   });
 
   await runtime.runFromReady({
     taskId: "task-auto-exec",
     novelId: "novel-1",
-    request: buildRequest({
-      autoApproval: {
-        enabled: true,
-        approvalPointCodes: ["low_risk_quality_repair_continue", "replan_continue"],
-      },
-    }),
+    request: buildRequest(),
     existingState: {
       enabled: true,
       mode: "chapter_range",
@@ -691,16 +830,17 @@ test("runFromReady never auto-continues replan or large-scope repair notices", a
     },
   });
 
-  const checkpointCall = calls.find((call) => call[0] === "recordCheckpoint");
-  assert.equal(checkpointCall[2], "replan_required");
-  assert.equal(checkpointCall[3].riskLevel, "replan");
-  assert.equal(checkpointCall[3].autoContinuable, false);
-  assert.equal(calls.filter((call) => call[0] === "startPipelineJob").length, 1);
-  assert.equal(calls.some((call) => call[0] === "autoApprovalGuard"), false);
-  assert.equal(calls.some((call) => call[0] === "recordAutoApproval"), false);
+  assert.equal(calls.some((call) => call[0] === "replanNovel"), false);
+  assert.ok(calls.some((call) => call[0] === "recordAutoApproval" && call[1] === "replan_required" && call[2] === "replan"));
+  assert.deepEqual(calls.filter((call) => call[0] === "startPipelineJob").map((call) => call.slice(1)), [
+    [1, 1],
+    [2, 2],
+  ]);
+  assert.equal(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "replan_required"), false);
+  assert.ok(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed"));
 });
 
-test("runFromReady records replan_required when pipeline completes with replan notice", async () => {
+test("runFromReady records replan_required outside AI-driver execution when pipeline completes with replan notice", async () => {
   const calls = [];
   const runtime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: {
@@ -767,7 +907,7 @@ test("runFromReady records replan_required when pipeline completes with replan n
   await runtime.runFromReady({
     taskId: "task-auto-exec",
     novelId: "novel-1",
-    request: buildRequest(),
+    request: buildRequest({ runMode: "auto_to_ready" }),
     existingState: {
       enabled: true,
       firstChapterId: "chapter-1",
