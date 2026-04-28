@@ -355,9 +355,6 @@ export class NovelDirectorAutoExecutionRuntime {
           const job = await this.deps.novelService.startPipelineJob(
             input.novelId,
             buildDirectorAutoExecutionPipelineOptions({
-              provider: input.request.provider,
-              model: input.request.model,
-              temperature: input.request.temperature,
               workflowTaskId: input.taskId,
               taskStyleProfileId: input.request.styleProfileId,
               ...resolveSingleChapterExecutionRange(range, autoExecution),
