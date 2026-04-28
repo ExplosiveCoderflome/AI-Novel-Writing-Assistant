@@ -15,6 +15,13 @@ export const INTENT_NAMES = [
   "unbind_world_from_novel",
   "produce_novel",
   "query_novel_production_status",
+  "analyze_director_workspace",
+  "query_director_status",
+  "explain_director_next_action",
+  "run_director_next_step",
+  "run_director_until_gate",
+  "switch_director_policy",
+  "evaluate_manual_edit_impact",
   "query_novel_title",
   "query_chapter_content",
   "query_progress",
@@ -50,6 +57,58 @@ const WORKFLOW_RECIPES = [
       "整本生成到哪一步了",
       "为什么整本生成没有启动",
       "当前资产准备完成了吗",
+    ],
+  },
+  {
+    intent: "query_director_status",
+    when: "用户在问自动导演运行到哪、是否等待确认、当前节点或最近事件。",
+    examples: [
+      "自动导演现在到哪一步了",
+      "当前导演任务是不是卡住了",
+      "这条自动导演任务状态如何",
+    ],
+  },
+  {
+    intent: "explain_director_next_action",
+    when: "用户询问当前小说下一步该做什么、为什么这样推进、是否能继续自动导演。",
+    examples: [
+      "这本书现在该做什么",
+      "下一步怎么推进",
+      "自动导演建议我接下来做什么",
+    ],
+  },
+  {
+    intent: "evaluate_manual_edit_impact",
+    when: "用户说自己改了正文、动机、伏笔或设定，并希望判断后续影响。",
+    examples: [
+      "我改了第三章，看看影响什么",
+      "我改了主角动机，后续要不要重算",
+      "我删了一个伏笔，会影响哪些章节",
+    ],
+  },
+  {
+    intent: "run_director_next_step",
+    when: "用户明确要求创作中枢继续自动导演下一步。",
+    examples: [
+      "继续自动导演下一步",
+      "让导演继续推进一步",
+    ],
+  },
+  {
+    intent: "run_director_until_gate",
+    when: "用户明确要求自动导演持续推进到下一个检查点或确认点。",
+    examples: [
+      "继续自动导演到检查点",
+      "让导演推进到需要我确认的地方",
+    ],
+  },
+  {
+    intent: "switch_director_policy",
+    when: "用户明确要求调整自动导演推进方式或自动化强度。",
+    examples: [
+      "把自动导演切到只给建议",
+      "改成推进到检查点",
+      "允许安全范围自动推进",
     ],
   },
   {
@@ -116,6 +175,10 @@ export const intentSchema: z.ZodType<StructuredIntent> = z.object({
   emotionIntensity: z.enum(["low", "medium", "high"]).optional(),
   aiFreedom: z.enum(["low", "medium", "high"]).optional(),
   defaultChapterLength: z.number().int().min(500).max(10000).optional(),
+  directorPolicyMode: z.enum(["suggest_only", "run_next_step", "run_until_gate", "auto_safe_scope"]).optional(),
+  mayOverwriteUserContent: z.boolean().optional(),
+  allowExpensiveReview: z.boolean().optional(),
+  modelTier: z.enum(["cheap_fast", "balanced", "high_quality"]).optional(),
   chapterSelectors: z.object({
     chapterId: z.string().trim().min(1).optional(),
     orders: z.array(z.number().int().min(1)).max(8).optional(),
@@ -216,6 +279,9 @@ export function buildPlannerIntentPromptParts(input: PlannerInput): { systemProm
       "如果用户明确提到小说标题，可以放入 novelTitle。",
       "如果用户明确提到世界观名称，可以放入 worldName。",
       "如果用户是在描述一本完整新书的生产任务，请使用 produce_novel，并尽量提取 description、targetChapterCount、genre、worldType、styleTone、projectMode、pacePreference、narrativePov、emotionIntensity、aiFreedom、defaultChapterLength。",
+      "如果用户围绕自动导演询问当前状态、下一步、继续推进、推进到检查点、切换推进方式或手动改文影响，应优先使用对应 director intent，而不是普通任务状态或整本生产状态。",
+      "切换自动导演策略时，如果用户指定只给建议、推进下一步、推进到检查点或安全范围自动推进，应分别填 directorPolicyMode 为 suggest_only、run_next_step、run_until_gate、auto_safe_scope。",
+      "如果用户明确允许覆盖手写内容，mayOverwriteUserContent 可设为 true；否则不要猜测。",
       "如果用户在问某个关键词、关系模式、题材、设定或世界观原型是否存在于知识库、已索引的拆书资料或世界观中，或者想找类似于 X 的设定或参考案例，优先使用 search_knowledge，不要误判成 general_chat。",
       "如果用户是在取消或解绑当前小说的世界观，例如不要这个世界观了、取消世界观绑定、先不用某某世界观，优先使用 unbind_world_from_novel，不要误判成 bind_world_to_novel。",
       "如果用户想基于当前标题、已有设定或当前工作区信息生成几套备选方案，例如给我备选、给几个方向、提供 3 套核心设定或故事承诺或题材风格方案，优先使用 ideate_novel_setup，不要误判成 general_chat。",

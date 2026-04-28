@@ -151,6 +151,17 @@ export function summarizeOutput(tool: string, output: Record<string, unknown>): 
   if (tool === "start_full_novel_pipeline" || tool === "get_novel_production_status") {
     return typeof output.summary === "string" ? output.summary : `${tool} 执行完成。`;
   }
+  if (
+    tool === "analyze_director_workspace"
+    || tool === "get_director_run_status"
+    || tool === "explain_director_next_action"
+    || tool === "evaluate_manual_edit_impact"
+    || tool === "run_director_next_step"
+    || tool === "run_director_until_gate"
+    || tool === "switch_director_policy"
+  ) {
+    return typeof output.summary === "string" ? output.summary : `${tool} 执行完成。`;
+  }
   if (tool === "get_novel_context") {
     const title = typeof output.title === "string" ? output.title.trim() : "";
     const chapterCount = typeof output.chapterCount === "number" ? output.chapterCount : null;
@@ -275,7 +286,12 @@ export function buildFinalMessage(results: ToolExecutionResult[], waitingForAppr
 }
 
 function isWriteTool(tool: ToolCall["tool"]): boolean {
-  return tool === "save_chapter_draft" || tool === "apply_chapter_patch" || tool === "queue_pipeline_run";
+  return tool === "save_chapter_draft"
+    || tool === "apply_chapter_patch"
+    || tool === "queue_pipeline_run"
+    || tool === "run_director_next_step"
+    || tool === "run_director_until_gate"
+    || tool === "switch_director_policy";
 }
 
 export function shouldUseDryRunPreview(toolCall: ToolCall): boolean {

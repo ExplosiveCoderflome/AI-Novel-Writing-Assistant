@@ -173,6 +173,15 @@ export function deriveNextBindingsFromRunSteps(
         nextBindings.novelId = output.novelId.trim();
       }
     }
+
+    if (tool.startsWith("director_") || tool.includes("_director_") || tool === "evaluate_manual_edit_impact") {
+      if (typeof output.novelId === "string" && output.novelId.trim()) {
+        nextBindings.novelId = output.novelId.trim();
+      }
+      if (typeof output.taskId === "string" && output.taskId.trim()) {
+        nextBindings.taskId = output.taskId.trim();
+      }
+    }
   }
 
   return nextBindings;

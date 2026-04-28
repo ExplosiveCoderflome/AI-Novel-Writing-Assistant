@@ -3,6 +3,13 @@ import type { AgentName, PlannedAction, PlannerInput, StructuredIntent, ToolCall
 import { buildIdempotencyKey, slug } from "./utils";
 import { resolveWorkflow } from "../../prompting/workflows/workflowRegistry";
 
+const HIGH_RISK_TOOLS = new Set<string>([
+  "apply_chapter_patch",
+  "queue_pipeline_run",
+  "run_director_next_step",
+  "run_director_until_gate",
+]);
+
 function toolAction(
   agent: AgentName,
   tool: AgentPlan["actions"][number]["tool"],
@@ -56,12 +63,12 @@ export function compileIntentToPlan(parsed: StructuredIntent, input: PlannerInpu
     goal: parsed.goal,
     contextNeeds,
     actions: uniqueActions,
-    riskLevel: uniqueActions.some((item) => item.tool === "apply_chapter_patch" || item.tool === "queue_pipeline_run")
+    riskLevel: uniqueActions.some((item) => HIGH_RISK_TOOLS.has(item.tool))
       ? "high"
       : uniqueActions.length > 0
         ? "medium"
         : "low",
-    requiresApproval: uniqueActions.some((item) => item.tool === "apply_chapter_patch" || item.tool === "queue_pipeline_run"),
+    requiresApproval: uniqueActions.some((item) => HIGH_RISK_TOOLS.has(item.tool)),
     confidence: parsed.confidence,
   };
 }

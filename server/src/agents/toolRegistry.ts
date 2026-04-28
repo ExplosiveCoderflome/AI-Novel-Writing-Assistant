@@ -1,6 +1,7 @@
 import type { AgentToolName } from "./types";
 import { bookAnalysisToolDefinitions } from "./tools/bookAnalysisTools";
 import { characterToolDefinitions } from "./tools/characterTools";
+import { directorRuntimeToolDefinitions } from "./tools/directorRuntimeTools";
 import { formulaToolDefinitions } from "./tools/formulaTools";
 import { knowledgeToolDefinitions } from "./tools/knowledgeTools";
 import { novelToolDefinitions } from "./tools/novelTools";
@@ -17,6 +18,7 @@ const definitions = {
   ...worldToolDefinitions,
   ...formulaToolDefinitions,
   ...characterToolDefinitions,
+  ...directorRuntimeToolDefinitions,
   ...taskToolDefinitions,
   ...writeToolDefinitions,
 } as Record<AgentToolName, AgentToolDefinition<Record<string, unknown>, Record<string, unknown>>>;

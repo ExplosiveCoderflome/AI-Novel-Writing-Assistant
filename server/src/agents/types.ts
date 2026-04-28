@@ -1,4 +1,5 @@
 import type { AgentApproval, AgentRun, AgentStep } from "@ai-novel/shared/types/agent";
+import type { DirectorPolicyMode, DirectorRuntimePolicySnapshot } from "@ai-novel/shared/types/directorRuntime";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { AgentPlan, AgentToolErrorCode } from "@ai-novel/shared/types/agent";
 
@@ -18,6 +19,13 @@ export type AgentToolName =
   | "sync_chapters_from_structured_outline"
   | "start_full_novel_pipeline"
   | "get_novel_production_status"
+  | "analyze_director_workspace"
+  | "get_director_run_status"
+  | "explain_director_next_action"
+  | "run_director_next_step"
+  | "run_director_until_gate"
+  | "switch_director_policy"
+  | "evaluate_manual_edit_impact"
   | "get_novel_context"
   | "list_chapters"
   | "get_chapter_by_order"
@@ -72,6 +80,13 @@ export type AgentIntentName =
   | "unbind_world_from_novel"
   | "produce_novel"
   | "query_novel_production_status"
+  | "analyze_director_workspace"
+  | "query_director_status"
+  | "explain_director_next_action"
+  | "run_director_next_step"
+  | "run_director_until_gate"
+  | "switch_director_policy"
+  | "evaluate_manual_edit_impact"
   | "query_novel_title"
   | "query_chapter_content"
   | "query_progress"
@@ -110,6 +125,10 @@ export interface StructuredIntent {
   emotionIntensity?: "low" | "medium" | "high";
   aiFreedom?: "low" | "medium" | "high";
   defaultChapterLength?: number;
+  directorPolicyMode?: DirectorPolicyMode;
+  mayOverwriteUserContent?: boolean;
+  allowExpensiveReview?: boolean;
+  modelTier?: DirectorRuntimePolicySnapshot["modelTier"];
   chapterSelectors: {
     chapterId?: string;
     orders?: number[];

@@ -26,6 +26,13 @@ test("tool registry exposes chapter range and cross-domain tools", () => {
   assert.ok(tools.includes("sync_chapters_from_structured_outline"));
   assert.ok(tools.includes("start_full_novel_pipeline"));
   assert.ok(tools.includes("get_novel_production_status"));
+  assert.ok(tools.includes("analyze_director_workspace"));
+  assert.ok(tools.includes("get_director_run_status"));
+  assert.ok(tools.includes("explain_director_next_action"));
+  assert.ok(tools.includes("run_director_next_step"));
+  assert.ok(tools.includes("run_director_until_gate"));
+  assert.ok(tools.includes("switch_director_policy"));
+  assert.ok(tools.includes("evaluate_manual_edit_impact"));
   assert.ok(tools.includes("list_writing_formulas"));
   assert.ok(tools.includes("list_base_characters"));
   assert.ok(tools.includes("list_tasks"));

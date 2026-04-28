@@ -22,6 +22,13 @@ const AGENT_TOOL_ALLOWLIST: Record<AgentName, Set<AgentToolName>> = {
     "sync_chapters_from_structured_outline",
     "start_full_novel_pipeline",
     "get_novel_production_status",
+    "analyze_director_workspace",
+    "get_director_run_status",
+    "explain_director_next_action",
+    "run_director_next_step",
+    "run_director_until_gate",
+    "switch_director_policy",
+    "evaluate_manual_edit_impact",
     "get_novel_context",
     "list_chapters",
     "get_chapter_by_order",
@@ -76,6 +83,10 @@ const AGENT_TOOL_ALLOWLIST: Record<AgentName, Set<AgentToolName>> = {
     "get_world_constraints",
     "search_knowledge",
     "get_chapter_content",
+    "analyze_director_workspace",
+    "get_director_run_status",
+    "explain_director_next_action",
+    "evaluate_manual_edit_impact",
   ]),
   Continuity: new Set<AgentToolName>([
     "get_novel_context",
@@ -87,6 +98,10 @@ const AGENT_TOOL_ALLOWLIST: Record<AgentName, Set<AgentToolName>> = {
     "get_timeline_facts",
     "get_world_constraints",
     "get_chapter_content",
+    "analyze_director_workspace",
+    "get_director_run_status",
+    "explain_director_next_action",
+    "evaluate_manual_edit_impact",
   ]),
   Repair: new Set<AgentToolName>([
     "get_novel_context",
@@ -134,6 +149,32 @@ export function evaluateApprovalRequirement(tool: AgentToolName, input: Record<s
       targetType: "pipeline",
       targetId: typeof input.novelId === "string" ? input.novelId : "unknown",
     };
+  }
+
+  if (tool === "run_director_next_step" || tool === "run_director_until_gate") {
+    return {
+      required: true,
+      summary: tool === "run_director_until_gate"
+        ? "自动导演将持续推进到下一个检查点，需要确认。"
+        : "自动导演将继续推进下一步，需要确认。",
+      targetType: "director_runtime",
+      targetId: typeof input.taskId === "string"
+        ? input.taskId
+        : typeof input.novelId === "string" ? input.novelId : "unknown",
+    };
+  }
+
+  if (tool === "switch_director_policy") {
+    if (input.mode === "auto_safe_scope" || input.mayOverwriteUserContent === true) {
+      return {
+        required: true,
+        summary: "切换到更高自动化或允许覆盖用户内容前需要确认。",
+        targetType: "director_policy",
+        targetId: typeof input.taskId === "string"
+          ? input.taskId
+          : typeof input.novelId === "string" ? input.novelId : "unknown",
+      };
+    }
   }
 
   if (tool === "apply_chapter_patch") {
