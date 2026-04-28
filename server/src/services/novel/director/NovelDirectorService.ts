@@ -649,6 +649,21 @@ export class NovelDirectorService {
     }
   }
 
+  private async isLinkedAutoExecutionPipelineWaitingRecovery(
+    seedPayload: DirectorWorkflowSeedPayload,
+  ): Promise<boolean> {
+    const pipelineJobId = seedPayload.autoExecution?.pipelineJobId?.trim();
+    if (!pipelineJobId) {
+      return false;
+    }
+    const pipelineJob = await this.novelService.getPipelineJobById(pipelineJobId).catch(() => null);
+    return Boolean(
+      pipelineJob
+      && pipelineJob.pendingManualRecovery
+      && (pipelineJob.status === "queued" || pipelineJob.status === "running"),
+    );
+  }
+
   async continueTask(taskId: string, input?: {
     continuationMode?: DirectorContinuationMode;
     batchAlreadyStartedCount?: number;
@@ -661,11 +676,15 @@ export class NovelDirectorService {
       await this.workflowService.continueTask(taskId);
       return;
     }
-    if (row.status === "running" && !row.pendingManualRecovery) {
-      return;
-    }
 
     const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(row.seedPayloadJson) ?? {};
+    if (
+      row.status === "running"
+      && !row.pendingManualRecovery
+      && !await this.isLinkedAutoExecutionPipelineWaitingRecovery(seedPayload)
+    ) {
+      return;
+    }
     const directorInput = getDirectorInputFromSeedPayload(seedPayload);
     const novelId = row.novelId ?? seedPayload.novelId ?? null;
     const resumedCandidateStage = await this.continueCandidateStageTask(taskId, {

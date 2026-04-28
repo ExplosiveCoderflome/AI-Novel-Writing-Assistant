@@ -149,9 +149,6 @@ export function getChapterTitleDiversityIssue(titles: string[]): string | null {
 }
 
 export function isChapterTitleDiversityIssue(message: string | null | undefined): boolean {
-  if (!ENABLE_CHAPTER_TITLE_DIVERSITY_VALIDATION) {
-    return false;
-  }
   const normalized = message?.trim();
   if (!normalized) {
     return false;

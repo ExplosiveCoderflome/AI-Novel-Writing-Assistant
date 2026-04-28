@@ -95,11 +95,13 @@ interface NovelDirectorAutoExecutionNovelPort {
     progress: number;
     currentStage?: string | null;
     currentItemLabel?: string | null;
+    pendingManualRecovery?: boolean | null;
     noticeCode?: string | null;
     payload?: string | null;
     noticeSummary?: string | null;
     error?: string | null;
   } | null>;
+  resumePipelineJob?(jobId: string): Promise<void>;
   cancelPipelineJob(jobId: string): Promise<unknown>;
 }
 
@@ -111,7 +113,7 @@ interface NovelDirectorAutoExecutionRuntimeDeps {
   novelContextService: Pick<NovelDirectorAutoExecutionNovelPort, "listChapters">;
   novelService: Pick<
     NovelDirectorAutoExecutionNovelPort,
-    "startPipelineJob" | "findActivePipelineJobForRange" | "getPipelineJobById" | "cancelPipelineJob"
+    "startPipelineJob" | "findActivePipelineJobForRange" | "getPipelineJobById" | "resumePipelineJob" | "cancelPipelineJob"
   >;
   volumeWorkspaceService?: Pick<NovelDirectorAutoExecutionVolumeWorkspacePort, "getVolumes">;
   workflowService: NovelDirectorAutoExecutionWorkflowPort;
@@ -235,6 +237,24 @@ export class NovelDirectorAutoExecutionRuntime {
     return true;
   }
 
+  private async resumePipelineJobIfWaitingManualRecovery(job: {
+    id: string;
+    status: PipelineJobStatus;
+    pendingManualRecovery?: boolean | null;
+  }): Promise<boolean> {
+    if (
+      !job.pendingManualRecovery
+      || (job.status !== "queued" && job.status !== "running")
+    ) {
+      return false;
+    }
+    if (!this.deps.novelService.resumePipelineJob) {
+      throw new Error("章节流水线任务正在等待手动恢复，请先恢复章节流水线。");
+    }
+    await this.deps.novelService.resumePipelineJob(job.id);
+    return true;
+  }
+
   async runFromReady(input: {
     taskId: string;
     novelId: string;
@@ -273,6 +293,8 @@ export class NovelDirectorAutoExecutionRuntime {
         const existingJob = await this.deps.novelService.getPipelineJobById(pipelineJobId);
         if (!existingJob || ["failed", "cancelled"].includes(existingJob.status)) {
           pipelineJobId = "";
+        } else {
+          await this.resumePipelineJobIfWaitingManualRecovery(existingJob);
         }
       }
 
@@ -390,6 +412,24 @@ export class NovelDirectorAutoExecutionRuntime {
         const job = await this.deps.novelService.getPipelineJobById(pipelineJobId);
         if (!job) {
           throw new Error("自动执行章节批次时未能找到对应的批量任务。");
+        }
+        if (await this.resumePipelineJobIfWaitingManualRecovery(job)) {
+          ({ range, autoExecution } = await this.resolveRangeAndState({
+            novelId: input.novelId,
+            existingState: autoExecution,
+            pipelineJobId,
+            pipelineStatus: job.status,
+          }));
+          await syncAutoExecutionTaskState(this.deps, {
+            taskId: input.taskId,
+            novelId: input.novelId,
+            request: input.request,
+            range,
+            autoExecution,
+            isBackgroundRunning: true,
+            resumeStage: "pipeline",
+          });
+          continue;
         }
         if (job.status === "queued" || job.status === "running") {
           const runningState = resolveDirectorAutoExecutionWorkflowState(job, range, autoExecution);

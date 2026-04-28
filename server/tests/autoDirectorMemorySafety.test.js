@@ -329,6 +329,24 @@ test("isStaleAutoDirectorRunningTask marks old running structured-outline tasks 
   assert.equal(fresh, false);
 });
 
+test("isStaleAutoDirectorRunningTask also covers stale auto-execution stages", () => {
+  const now = new Date("2026-04-25T12:00:00.000Z");
+
+  for (const currentItemKey of ["chapter_execution", "quality_repair"]) {
+    const stale = isStaleAutoDirectorRunningTask({
+      status: "running",
+      lane: "auto_director",
+      currentItemKey,
+      heartbeatAt: new Date("2026-04-25T08:00:00.000Z"),
+      updatedAt: new Date("2026-04-25T08:00:00.000Z"),
+      pendingManualRecovery: false,
+      cancelRequestedAt: null,
+    }, now);
+
+    assert.equal(stale, true);
+  }
+});
+
 test("resolveHighMemoryVolumeGenerationKey covers direct volume generation high-memory scopes", () => {
   assert.equal(isHighMemoryVolumeGeneration({ scope: "chapter_list" }), true);
   assert.equal(isHighMemoryVolumeGeneration({ scope: "strategy" }), false);

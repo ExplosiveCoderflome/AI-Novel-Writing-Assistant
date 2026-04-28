@@ -290,6 +290,102 @@ test("runFromReady reuses an existing active range job before starting a new pip
   ]);
 });
 
+test("runFromReady resumes an existing pipeline job that is waiting for manual recovery", async () => {
+  const calls = [];
+  let lookupCount = 0;
+  let pipelineCompleted = false;
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        return [
+          withExecutionDetail({ id: "chapter-1", order: 1, generationState: pipelineCompleted ? "approved" : "draft" }),
+          withExecutionDetail({ id: "chapter-2", order: 2, generationState: pipelineCompleted ? "approved" : "draft" }),
+        ];
+      },
+    },
+    novelService: {
+      async startPipelineJob() {
+        calls.push(["startPipelineJob"]);
+        throw new Error("should not start a new pipeline job");
+      },
+      async findActivePipelineJobForRange(novelId, startOrder, endOrder, preferredJobId) {
+        calls.push(["findActivePipelineJobForRange", novelId, startOrder, endOrder, preferredJobId]);
+        return { id: "job-paused", status: "running" };
+      },
+      async getPipelineJobById(jobId) {
+        calls.push(["getPipelineJobById", jobId]);
+        lookupCount += 1;
+        if (lookupCount === 1) {
+          return {
+            id: jobId,
+            status: "queued",
+            progress: 0,
+            currentStage: "queued",
+            currentItemLabel: null,
+            pendingManualRecovery: true,
+            error: "服务重启后任务已暂停，等待手动恢复。",
+          };
+        }
+        pipelineCompleted = true;
+        return {
+          id: jobId,
+          status: "succeeded",
+          progress: 1,
+          currentStage: null,
+          currentItemLabel: null,
+          pendingManualRecovery: false,
+          error: null,
+        };
+      },
+      async resumePipelineJob(jobId) {
+        calls.push(["resumePipelineJob", jobId]);
+      },
+      async cancelPipelineJob() {
+        calls.push(["cancelPipelineJob"]);
+      },
+    },
+    workflowService: {
+      async bootstrapTask(input) {
+        calls.push(["bootstrapTask", input.seedPayload.autoExecution.pipelineJobId, input.seedPayload.autoExecution.pipelineStatus]);
+      },
+      async getTaskById() {
+        return { status: "running" };
+      },
+      async markTaskRunning() {
+        calls.push(["markTaskRunning"]);
+      },
+      async recordCheckpoint(taskId, input) {
+        calls.push(["recordCheckpoint", taskId, input.seedPayload.autoExecution.pipelineJobId, input.seedPayload.autoExecution.pipelineStatus]);
+      },
+      async markTaskFailed() {
+        calls.push(["markTaskFailed"]);
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+  });
+
+  await runtime.runFromReady({
+    taskId: "task-auto-exec",
+    novelId: "novel-1",
+    request: buildRequest(),
+    existingState: {
+      enabled: true,
+      firstChapterId: "chapter-1",
+      startOrder: 1,
+      endOrder: 2,
+      totalChapterCount: 2,
+      pipelineJobId: "job-paused",
+      pipelineStatus: "queued",
+    },
+    existingPipelineJobId: "job-paused",
+  });
+
+  assert.ok(calls.some((call) => call[0] === "resumePipelineJob" && call[1] === "job-paused"));
+  assert.equal(calls.some((call) => call[0] === "startPipelineJob"), false);
+});
+
 test("runFromReady records a normal checkpoint when pipeline completes with quality notices", async () => {
   const calls = [];
   const runtime = new NovelDirectorAutoExecutionRuntime({
