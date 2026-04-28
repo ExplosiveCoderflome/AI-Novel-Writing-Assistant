@@ -25,7 +25,7 @@ import {
 import { toast } from "@/components/ui/toast";
 import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 
-const HOME_NOVEL_FETCH_LIMIT = 100;
+const HOME_NOVEL_FETCH_LIMIT = 12;
 const HOME_RECENT_LIMIT = 6;
 const DIRECTOR_CREATE_LINK = "/novels/create?mode=director";
 const MANUAL_CREATE_LINK = "/novels/create";
@@ -105,6 +105,7 @@ export default function Home() {
   const taskQuery = useQuery({
     queryKey: queryKeys.tasks.overview,
     queryFn: getTaskOverview,
+    staleTime: 30_000,
     refetchInterval: (query) => {
       const overview = query.state.data?.data;
       return (overview?.queuedCount ?? 0) > 0 || (overview?.runningCount ?? 0) > 0 ? 4000 : false;
@@ -114,6 +115,7 @@ export default function Home() {
   const novelQuery = useQuery({
     queryKey: queryKeys.novels.list(1, HOME_NOVEL_FETCH_LIMIT),
     queryFn: () => getNovelList({ page: 1, limit: HOME_NOVEL_FETCH_LIMIT }),
+    staleTime: 30_000,
   });
 
   const continueWorkflowMutation = useMutation({
@@ -305,21 +307,21 @@ export default function Home() {
     <div className="space-y-4">
       <div className="home-status-summary-grid grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          title="自动推进中"
+          title="最近自动推进中"
           value={liveWorkflowCount}
-          hint="当前仍在后台推进中的自动导演或自动执行项目。"
+          hint="最近项目中仍在后台推进的自动导演或自动执行项目。"
           pending={novelQuery.isPending}
         />
         <MetricCard
-          title="待你处理"
+          title="最近待你处理"
           value={actionRequiredCount}
-          hint="等待审核、失败或已取消后需要你决定下一步的项目。"
+          hint="最近项目里等待审核、失败或已取消后需要你决定下一步的项目。"
           pending={novelQuery.isPending}
         />
         <MetricCard
-          title="可进入章节执行"
+          title="最近可进入章节执行"
           value={readyForExecutionCount}
-          hint="准备到可开写阶段，可以直接进入章节写作。"
+          hint="最近项目里准备到可开写阶段，可以直接进入章节写作。"
           pending={novelQuery.isPending}
         />
         <MetricCard

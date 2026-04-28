@@ -46,6 +46,34 @@ export async function getArchivedTaskIds(taskKind: TaskKind): Promise<string[]> 
   return rows.map((row) => row.taskId);
 }
 
+export async function getArchivedTaskIdsByKind(taskKinds: TaskKind[]): Promise<Map<TaskKind, string[]>> {
+  const uniqueTaskKinds = Array.from(new Set(taskKinds));
+  const result = new Map<TaskKind, string[]>(uniqueTaskKinds.map((taskKind) => [taskKind, []]));
+  if (uniqueTaskKinds.length === 0) {
+    return result;
+  }
+
+  const rows = await prisma.taskCenterArchive.findMany({
+    where: {
+      taskKind: {
+        in: uniqueTaskKinds,
+      },
+    },
+    select: {
+      taskKind: true,
+      taskId: true,
+    },
+  });
+
+  for (const row of rows) {
+    const bucket = result.get(row.taskKind as TaskKind);
+    if (bucket) {
+      bucket.push(row.taskId);
+    }
+  }
+  return result;
+}
+
 export async function getArchivedTaskIdSet(taskKind: TaskKind, taskIds: string[]): Promise<Set<string>> {
   if (taskIds.length === 0) {
     return new Set<string>();

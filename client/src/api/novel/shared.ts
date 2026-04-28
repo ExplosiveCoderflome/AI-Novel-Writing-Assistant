@@ -10,27 +10,61 @@ import type {
   PlotBeat,
 } from "@ai-novel/shared/types/novel";
 
+export type NovelListItem = Pick<
+  Novel,
+  | "id"
+  | "title"
+  | "description"
+  | "targetAudience"
+  | "bookSellingPoint"
+  | "competingFeel"
+  | "first30ChapterPromise"
+  | "commercialTags"
+  | "status"
+  | "writingMode"
+  | "projectMode"
+  | "narrativePov"
+  | "pacePreference"
+  | "styleTone"
+  | "emotionIntensity"
+  | "aiFreedom"
+  | "defaultChapterLength"
+  | "estimatedChapterCount"
+  | "projectStatus"
+  | "storylineStatus"
+  | "outlineStatus"
+  | "resourceReadyScore"
+  | "sourceNovelId"
+  | "sourceKnowledgeDocumentId"
+  | "continuationBookAnalysisId"
+  | "continuationBookAnalysisSections"
+  | "genreId"
+  | "primaryStoryModeId"
+  | "secondaryStoryModeId"
+  | "worldId"
+  | "tokenUsage"
+  | "createdAt"
+  | "updatedAt"
+> & {
+  _count: {
+    chapters: number;
+    characters: number;
+    plotBeats?: number;
+  };
+  genre?: {
+    id: string;
+    name: string;
+  } | null;
+  world?: {
+    id: string;
+    name: string;
+    worldType?: string | null;
+  } | null;
+  latestAutoDirectorTask?: NovelAutoDirectorTaskSummary | null;
+};
+
 export interface NovelListResponse {
-  items: Array<
-    Novel & {
-      _count: {
-        chapters: number;
-        characters: number;
-      };
-      genre?: {
-        id: string;
-        name: string;
-      } | null;
-      primaryStoryMode?: NovelStoryMode | null;
-      secondaryStoryMode?: NovelStoryMode | null;
-      world?: {
-        id: string;
-        name: string;
-        worldType?: string | null;
-      } | null;
-      latestAutoDirectorTask?: NovelAutoDirectorTaskSummary | null;
-    }
-  >;
+  items: NovelListItem[];
   page: number;
   limit: number;
   total: number;

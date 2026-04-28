@@ -6,6 +6,7 @@ import type {
   VolumePlanDiff,
   VolumePlanDocument,
   VolumePlanVersion,
+  VolumePlanVersionSummary,
   VolumeSyncPreview,
 } from "@ai-novel/shared/types/novel";
 import {
@@ -38,6 +39,7 @@ import {
   type VolumeImpactInput,
   type VolumeSyncInput,
   mapVersionRow,
+  mapVersionSummaryRow,
 } from "./volumeModels";
 import {
   activateStorylineVersionCompat,
@@ -353,13 +355,42 @@ export class NovelVolumeService {
     return persistedDocument;
   }
 
-  async listVolumeVersions(novelId: string): Promise<VolumePlanVersion[]> {
+  async listVolumeVersions(novelId: string): Promise<VolumePlanVersionSummary[]> {
+    await this.ensureVolumeWorkspace(novelId);
+    const rows = await prisma.volumePlanVersion.findMany({
+      where: { novelId },
+      select: {
+        id: true,
+        novelId: true,
+        version: true,
+        status: true,
+        diffSummary: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: [{ version: "desc" }],
+    });
+    return rows.map(mapVersionSummaryRow);
+  }
+
+  private async listVolumeVersionsWithContent(novelId: string): Promise<VolumePlanVersion[]> {
     await this.ensureVolumeWorkspace(novelId);
     const rows = await prisma.volumePlanVersion.findMany({
       where: { novelId },
       orderBy: [{ version: "desc" }],
     });
     return rows.map(mapVersionRow);
+  }
+
+  async getVolumeVersion(novelId: string, versionId: string): Promise<VolumePlanVersion> {
+    await this.ensureVolumeWorkspace(novelId);
+    const row = await prisma.volumePlanVersion.findFirst({
+      where: { id: versionId, novelId },
+    });
+    if (!row) {
+      throw new Error("卷级版本不存在。");
+    }
+    return mapVersionRow(row);
   }
 
   async createVolumeDraft(novelId: string, input: VolumeDraftInput): Promise<VolumePlanVersion> {
@@ -850,7 +881,7 @@ export class NovelVolumeService {
   async listStorylineVersionsCompat(novelId: string): Promise<StorylineVersion[]> {
     return listStorylineVersionsCompat({
       novelId,
-      listVolumeVersions: () => this.listVolumeVersions(novelId),
+      listVolumeVersions: () => this.listVolumeVersionsWithContent(novelId),
       parseVersionContent: (contentJson) => this.parseVersionContent(novelId, contentJson),
     });
   }

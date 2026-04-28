@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import type { ProjectProgressStatus } from "@ai-novel/shared/types/novel";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { BookOpen } from "lucide-react";
 import { continueNovelWorkflow } from "@/api/novelWorkflow";
 import { deleteNovel, downloadNovelExport, getNovelList } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
@@ -73,6 +74,7 @@ export default function NovelList() {
   const novelListQuery = useQuery({
     queryKey: queryKeys.novels.list(1, 100),
     queryFn: () => getNovelList({ page: 1, limit: 100 }),
+    staleTime: 30_000,
   });
 
   const deleteNovelMutation = useMutation({
@@ -443,6 +445,13 @@ export default function NovelList() {
                         <Link to={getTaskCenterLink(workflowTask.id)} onClick={stopCardClick}>任务中心</Link>
                       </Button>
                     ) : null}
+
+                    <Button asChild size="sm" variant="outline">
+                      <Link to={`/novels/${novel.id}/preview`} onClick={stopCardClick}>
+                        <BookOpen className="h-4 w-4" aria-hidden="true" />
+                        预览
+                      </Link>
+                    </Button>
 
                     <Button
                       size="sm"

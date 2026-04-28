@@ -7,7 +7,7 @@ import type {
   VolumePlan,
   VolumePlanDocument,
   VolumePlanDiff,
-  VolumePlanVersion,
+  VolumePlanVersionSummary,
   VolumeRebalanceDecision,
   VolumeStrategyPlan,
 } from "@ai-novel/shared/types/novel";
@@ -17,6 +17,7 @@ import {
   createVolumeDraft,
   freezeVolumeVersion,
   getVolumeDiff,
+  getVolumeVersion,
   listVolumeVersions,
 } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
@@ -165,21 +166,38 @@ export function useVolumeVersionControl({
     },
   });
 
+  const loadSelectedVersionMutation = useMutation({
+    mutationFn: () => {
+      if (!selectedVersionId) {
+        throw new Error("请先选择一个卷级版本。");
+      }
+      return getVolumeVersion(novelId, selectedVersionId);
+    },
+    onSuccess: (response) => {
+      const version = response.data;
+      if (!version) {
+        setMessage("读取卷级版本内容失败。");
+        return;
+      }
+      try {
+        const parsed = JSON.parse(version.contentJson) as Partial<VolumePlanDocument>;
+        setDraftVolumes(parsed.volumes ?? []);
+        setStrategyPlan(parsed.strategyPlan ?? null);
+        setCritiqueReport(parsed.critiqueReport ?? null);
+        setBeatSheets(parsed.beatSheets ?? []);
+        setRebalanceDecisions(parsed.rebalanceDecisions ?? []);
+        setMessage(`已加载 V${version.version} 到当前卷级草稿。`);
+      } catch {
+        setMessage("读取卷级版本内容失败。");
+      }
+    },
+    onError: (error) => {
+      setMessage(error instanceof Error ? error.message : "读取卷级版本内容失败。");
+    },
+  });
+
   const loadSelectedVersionToDraft = () => {
-    if (!selectedVersion) {
-      return;
-    }
-    try {
-      const parsed = JSON.parse(selectedVersion.contentJson) as Partial<VolumePlanDocument>;
-      setDraftVolumes(parsed.volumes ?? []);
-      setStrategyPlan(parsed.strategyPlan ?? null);
-      setCritiqueReport(parsed.critiqueReport ?? null);
-      setBeatSheets(parsed.beatSheets ?? []);
-      setRebalanceDecisions(parsed.rebalanceDecisions ?? []);
-      setMessage(`已加载 V${selectedVersion.version} 到当前卷级草稿。`);
-    } catch {
-      setMessage("读取卷级版本内容失败。");
-    }
+    loadSelectedVersionMutation.mutate();
   };
 
   return {
@@ -187,7 +205,7 @@ export function useVolumeVersionControl({
     volumeVersions: versions,
     selectedVersionId,
     setSelectedVersionId,
-    selectedVersion: selectedVersion as VolumePlanVersion | undefined,
+    selectedVersion: selectedVersion as VolumePlanVersionSummary | undefined,
     diffResult,
     impactResult,
     isLoadingVersions: volumeVersionsQuery.isLoading,

@@ -12,7 +12,7 @@ import type {
   VolumeImpactResult,
   VolumePlan,
   VolumePlanDiff,
-  VolumePlanVersion,
+  VolumePlanVersionSummary,
   VolumePlanningReadiness,
   VolumeRebalanceDecision,
   VolumeStrategyPlan,
@@ -82,7 +82,7 @@ interface BuildNovelEditPlanningTabsInput {
   onSaveOutline: () => void;
   isSavingOutline: boolean;
   volumeMessage: string;
-  volumeVersions: VolumePlanVersion[];
+  volumeVersions: VolumePlanVersionSummary[];
   selectedVersionId: string;
   onSelectedVersionChange: (id: string) => void;
   onCreateDraftVersion: () => void;
