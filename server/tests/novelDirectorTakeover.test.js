@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  isTakeoverStructuredOutlineReadyForValidation,
   resolveDirectorTakeoverPlan,
 } = require("../dist/services/novel/director/novelDirectorTakeover.js");
 const {
@@ -99,6 +100,15 @@ test("continue_existing from basic prefers repair continuation when pending fixe
   assert.equal(plan.effectiveStage, "quality_repair");
   assert.equal(plan.usesCurrentBatch, true);
   assert.deepEqual(plan.skipSteps, ["basic", "story_macro", "character", "outline", "structured", "chapter"]);
+});
+
+test("chapter sync structured outline is accepted by takeover validation readiness", () => {
+  assert.equal(isTakeoverStructuredOutlineReadyForValidation({
+    structuredOutlineRecoveryStep: "chapter_sync",
+  }), true);
+  assert.equal(isTakeoverStructuredOutlineReadyForValidation({
+    structuredOutlineRecoveryStep: "chapter_detail_bundle",
+  }), false);
 });
 
 test("continue_existing from story macro only fills missing character step", () => {

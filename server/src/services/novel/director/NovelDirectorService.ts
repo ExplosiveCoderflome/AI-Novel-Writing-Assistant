@@ -63,6 +63,7 @@ import {
 import {
   buildDirectorTakeoverInput,
   buildDirectorTakeoverReadiness,
+  isTakeoverStructuredOutlineReadyForValidation,
 } from "./novelDirectorTakeover";
 import { NovelDirectorAutoExecutionRuntime } from "./novelDirectorAutoExecutionRuntime";
 import {
@@ -962,7 +963,7 @@ export class NovelDirectorService {
         characterCount: takeoverState.snapshot.characterCount,
         volumeCount: takeoverState.snapshot.volumeCount,
         hasVolumeStrategyPlan: takeoverState.snapshot.hasVolumeStrategyPlan,
-        hasStructuredOutline: takeoverState.snapshot.structuredOutlineRecoveryStep === "completed",
+        hasStructuredOutline: isTakeoverStructuredOutlineReadyForValidation(takeoverState.snapshot),
         totalChapterCount: takeoverState.snapshot.chapterCount,
         volumeChapterRanges: takeoverState.snapshot.volumeChapterRanges,
         structuredOutlineChapterOrders: takeoverState.snapshot.structuredOutlineChapterOrders,
