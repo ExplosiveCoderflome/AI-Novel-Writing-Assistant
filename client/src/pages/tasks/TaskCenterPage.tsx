@@ -11,6 +11,7 @@ import type {
   NovelWorkflowMilestoneType,
   NovelWorkflowResumeTarget,
 } from "@ai-novel/shared/types/novelWorkflow";
+import { getDirectorRuntimeSnapshot } from "@/api/novelDirector";
 import { continueNovelWorkflow } from "@/api/novelWorkflow";
 import {
   archiveTask,
@@ -22,6 +23,7 @@ import {
   retryTask,
 } from "@/api/tasks";
 import { queryKeys } from "@/api/queryKeys";
+import DirectorRuntimeProjectionCard from "@/components/autoDirector/DirectorRuntimeProjectionCard";
 import LLMSelector, { type LLMSelectorValue } from "@/components/common/LLMSelector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -342,6 +344,9 @@ export default function TaskCenterPage() {
 
   const invalidateTaskQueries = async () => {
     await queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    if (selectedId) {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.tasks.directorRuntime(selectedId) });
+    }
   };
 
   const retryMutation = useMutation({
@@ -489,6 +494,23 @@ export default function TaskCenterPage() {
     },
   });
   const selectedAutoDirectorFollowUp = autoDirectorFollowUpQuery.data?.data ?? null;
+  const directorRuntimeQuery = useQuery({
+    queryKey: queryKeys.tasks.directorRuntime(selectedId ?? "none"),
+    queryFn: () => getDirectorRuntimeSnapshot(selectedId as string),
+    enabled: Boolean(selectedId && isAutoDirectorTask),
+    retry: false,
+    refetchInterval: (query) => {
+      const projection = query.state.data?.data?.projection;
+      return (
+        (selectedTask && ACTIVE_STATUSES.has(selectedTask.status))
+        || projection?.status === "running"
+        || projection?.status === "waiting_approval"
+      )
+        ? 4000
+        : false;
+    },
+  });
+  const selectedDirectorRuntimeProjection = directorRuntimeQuery.data?.data?.projection ?? null;
 
   useEffect(() => {
     setRetryOverride({
@@ -826,6 +848,9 @@ export default function TaskCenterPage() {
                   <div className="rounded-md border bg-muted/20 p-2 text-muted-foreground">
                     {selectedTask.checkpointSummary}
                   </div>
+                ) : null}
+                {isAutoDirectorTask ? (
+                  <DirectorRuntimeProjectionCard projection={selectedDirectorRuntimeProjection} />
                 ) : null}
                 {selectedAutoDirectorFollowUp ? (
                   <div className="rounded-md border border-primary/20 bg-primary/5 p-3">

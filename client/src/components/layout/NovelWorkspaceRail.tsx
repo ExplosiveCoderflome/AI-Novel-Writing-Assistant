@@ -12,6 +12,7 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import type { DirectorLockScope } from "@ai-novel/shared/types/novelDirector";
 import type { VolumePlan } from "@ai-novel/shared/types/novel";
 import { getNovelDetail, getNovelQualityReport, getNovelVolumeWorkspace } from "@/api/novel";
+import { getDirectorRuntimeSnapshot } from "@/api/novelDirector";
 import { getActiveAutoDirectorTask } from "@/api/novelWorkflow";
 import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
@@ -113,6 +114,18 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
   const workspace = volumeWorkspaceQuery.data?.data;
   const qualitySummary = qualityReportQuery.data?.data?.summary;
   const activeTask = activeTaskQuery.data?.data ?? null;
+  const runtimeProjectionQuery = useQuery({
+    queryKey: queryKeys.tasks.directorRuntime(activeTask?.id ?? "none"),
+    queryFn: () => getDirectorRuntimeSnapshot(activeTask?.id as string),
+    enabled: Boolean(activeTask?.id),
+    retry: false,
+    refetchInterval: () => (
+      activeTask && (activeTask.status === "queued" || activeTask.status === "running" || activeTask.status === "waiting_approval")
+        ? 4000
+        : false
+    ),
+  });
+  const runtimeProjection = runtimeProjectionQuery.data?.data?.projection ?? null;
   const resetSteps = useMemo(
     () => extractAutoDirectorResetStepsFromMeta(activeTask?.meta),
     [activeTask?.meta],
@@ -203,12 +216,19 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
 
   const completedStepCount = stepStates.filter((item) => item.isDone).length;
   const novelTitle = novelDetail?.title?.trim() || "小说创作工作台";
+  const runtimeSummary = runtimeProjection?.requiresUserAction
+    ? `需要处理：${runtimeProjection.blockedReason ?? runtimeProjection.lastEventSummary ?? runtimeProjection.currentLabel ?? "请先查看当前停留点"}`
+    : runtimeProjection?.currentLabel
+      || runtimeProjection?.lastEventSummary
+      || runtimeProjection?.blockedReason
+      || null;
   const cockpitSummary = activeTask
-    ? activeTask.status === "failed"
+    ? runtimeSummary
+      || (activeTask.status === "failed"
       ? activeTask.lastError || "后台任务已中断，建议先查看任务中心。"
       : activeTask.status === "waiting_approval"
         ? `等待处理：${getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}`
-        : activeTask.currentItemLabel || `AI 正在推进 ${getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}`
+        : activeTask.currentItemLabel || `AI 正在推进 ${getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}`)
     : "当前没有后台导演任务，可以直接继续手动创作。";
   const cockpitActivityTags = extractWorkflowActivityTags(activeTask?.currentItemLabel);
   const cockpitVariant = activeTask?.status === "failed"

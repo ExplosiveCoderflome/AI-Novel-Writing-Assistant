@@ -7,6 +7,10 @@ import {
   extractDirectorTaskSeedPayloadFromMeta,
 } from "@ai-novel/shared/types/novelDirector";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
+import { useQuery } from "@tanstack/react-query";
+import { getDirectorRuntimeSnapshot } from "@/api/novelDirector";
+import { queryKeys } from "@/api/queryKeys";
+import DirectorRuntimeProjectionCard from "@/components/autoDirector/DirectorRuntimeProjectionCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import AITakeoverContainer, { type AITakeoverMode } from "@/components/workflow/AITakeoverContainer";
@@ -52,6 +56,8 @@ const AUTO_DIRECTOR_PLACEHOLDER_TITLES = new Set([
   "AI 自动导演小说",
   "小说流程任务",
 ]);
+
+const ACTIVE_DIRECTOR_TASK_STATUSES = new Set(["queued", "running", "waiting_approval"]);
 
 function formatDate(value: string | null | undefined): string {
   if (!value) {
@@ -262,6 +268,17 @@ export default function NovelAutoDirectorProgressPanel({
 }: NovelAutoDirectorProgressPanelProps) {
   const taskChapterTitleWarning = resolveChapterTitleWarning(task);
   const chapterTitleRepairMutation = useDirectorChapterTitleRepair();
+  const runtimeTaskId = task?.id ?? taskId;
+  const runtimeSnapshotQuery = useQuery({
+    queryKey: queryKeys.tasks.directorRuntime(runtimeTaskId || "none"),
+    queryFn: () => getDirectorRuntimeSnapshot(runtimeTaskId),
+    enabled: Boolean(runtimeTaskId),
+    retry: false,
+    refetchInterval: () => (
+      task && ACTIVE_DIRECTOR_TASK_STATUSES.has(task.status) ? 4000 : false
+    ),
+  });
+  const runtimeProjection = runtimeSnapshotQuery.data?.data?.projection ?? null;
   const fallbackChapterTitleWarning = !taskChapterTitleWarning && isChapterTitleDiversitySummary(fallbackError)
     ? {
       summary: fallbackError?.trim() ?? "",
@@ -273,18 +290,21 @@ export default function NovelAutoDirectorProgressPanel({
   const visualMode: DirectorExecutionViewMode = mode === "execution_failed" && !chapterTitleWarning
     ? "execution_failed"
     : "execution_progress";
-  const currentAction = (
+  const projectedCurrentAction = runtimeProjection?.currentLabel?.trim();
+  const isContinuingExecution = Boolean(
     task?.status === "running"
     && task?.checkpointType === "chapter_batch_ready"
-    && task.currentItemLabel?.includes("已暂停")
-  )
-    ? `正在继续自动执行${resolveAutoExecutionScopeLabel(task)}`
-    : (
-      task?.currentItemLabel?.trim()
-      || (visualMode === "execution_failed"
-        ? "导演任务执行中断"
-        : (chapterTitleWarning ? "章节列表已生成，等待修复标题结构" : "正在准备导演任务"))
-    );
+    && task.currentItemLabel?.includes("已暂停"),
+  );
+  const currentAction = projectedCurrentAction
+    || (isContinuingExecution
+      ? `正在继续自动执行${resolveAutoExecutionScopeLabel(task)}`
+      : (
+        task?.currentItemLabel?.trim()
+        || (visualMode === "execution_failed"
+          ? "导演任务执行中断"
+          : (chapterTitleWarning ? "章节列表已生成，等待修复标题结构" : "正在准备导演任务"))
+      ));
   const activityTags = extractWorkflowActivityTags(task?.currentItemLabel);
   const workflowTitle = task?.title?.trim() || "";
   const hintedTitle = titleHint?.trim() || "";
@@ -305,10 +325,11 @@ export default function NovelAutoDirectorProgressPanel({
   const tokenUsage = task?.tokenUsage ?? null;
   const styleSeed = resolveDirectorStyleSeed(task);
   const containerMode: AITakeoverMode = visualMode === "execution_failed"
+    || runtimeProjection?.status === "failed"
     ? "failed"
     : !task
       ? "loading"
-      : (task.status === "waiting_approval" || chapterTitleWarning)
+      : (task.status === "waiting_approval" || runtimeProjection?.requiresUserAction || chapterTitleWarning)
         ? "waiting"
         : "running";
   const description = candidateSetupFlow
@@ -381,6 +402,11 @@ export default function NovelAutoDirectorProgressPanel({
             </div>
           </div>
         ) : null}
+
+        <DirectorRuntimeProjectionCard
+          projection={runtimeProjection}
+          className="mt-4"
+        />
 
         {styleSeed ? (
           <div className="mt-4 rounded-xl border bg-background/80 p-4">

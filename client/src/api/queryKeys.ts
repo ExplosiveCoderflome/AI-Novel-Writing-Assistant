@@ -92,6 +92,7 @@ export const queryKeys = {
     detail: (kind: string, id: string) => ["tasks", "detail", kind, id] as const,
     recoveryCandidates: ["tasks", "recovery-candidates"] as const,
     autoDirectorFollowUpDetail: (taskId: string) => ["tasks", "auto-director-follow-up", taskId] as const,
+    directorRuntime: (taskId: string) => ["tasks", "director-runtime", taskId] as const,
   },
   autoDirectorFollowUps: {
     overview: ["auto-director-follow-ups", "overview"] as const,
