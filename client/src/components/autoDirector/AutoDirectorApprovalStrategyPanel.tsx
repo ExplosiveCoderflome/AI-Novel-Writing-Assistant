@@ -26,7 +26,7 @@ export default function AutoDirectorApprovalStrategyPanel({
 }: AutoDirectorApprovalStrategyPanelProps) {
   return (
     <div className="mt-3 min-w-0 rounded-md border border-primary/15 bg-primary/5 p-3">
-      <div className="text-xs font-medium text-foreground">审批策略</div>
+      <div className="text-xs font-medium text-foreground">自动推进方式</div>
       <div className={AUTO_DIRECTOR_MOBILE_CLASSES.approvalStrategyGrid}>
         <button
           type="button"
@@ -35,9 +35,9 @@ export default function AutoDirectorApprovalStrategyPanel({
           }`}
           onClick={() => onEnabledChange(true)}
         >
-          <div className="text-sm font-medium text-foreground">AI 推进</div>
+          <div className="text-sm font-medium text-foreground">AI 自动推进</div>
           <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-            勾选的审批点由 AI 自动通过，未勾选的审批点仍会等待你确认。
+            按推荐授权连续完成目标范围，遇到未授权或高风险节点会停下让你确认。
           </div>
         </button>
         <button
@@ -47,18 +47,24 @@ export default function AutoDirectorApprovalStrategyPanel({
           }`}
           onClick={() => onEnabledChange(false)}
         >
-          <div className="text-sm font-medium text-foreground">AI 副驾</div>
+          <div className="text-sm font-medium text-foreground">AI 副驾确认</div>
           <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-            自动导演遇到审批点会停下，等你确认后再继续。
+            每个审批点都交给你判断，适合逐步审阅规划和正文推进结果。
           </div>
         </button>
       </div>
 
-      {enabled ? (
-        <div className="mt-3 space-y-3">
-          <div className={`rounded-md border bg-background/80 p-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-            本次自动通过：{summarizeDirectorAutoApprovalPoints(approvalPointCodes)}
-          </div>
+      <div className={`mt-3 rounded-md border bg-background/80 p-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+        {enabled
+          ? `已授权自动确认：${summarizeDirectorAutoApprovalPoints(approvalPointCodes)}。`
+          : "未开启自动确认；自动导演会在审批点等待你确认。切回自动推进时，会继续使用下方授权范围。"}
+      </div>
+
+      <details className="mt-3 rounded-md border bg-background">
+        <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-foreground">
+          高级审批授权
+        </summary>
+        <div className="border-t p-3">
           <AutoDirectorApprovalPointMultiSelect
             value={approvalPointCodes}
             onChange={onApprovalPointCodesChange}
@@ -67,7 +73,7 @@ export default function AutoDirectorApprovalStrategyPanel({
             compact
           />
         </div>
-      ) : null}
+      </details>
     </div>
   );
 }

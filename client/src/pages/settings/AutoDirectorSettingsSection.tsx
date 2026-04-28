@@ -53,14 +53,14 @@ export default function AutoDirectorSettingsSection(props: {
   const saveApprovalPreferenceMutation = useMutation({
     mutationFn: saveAutoDirectorApprovalPreferenceSettings,
     onSuccess: async (response) => {
-      onActionResult(response.message ?? "自动推进偏好已保存。");
+      onActionResult(response.message ?? "审批授权偏好已保存。");
       if (response.data) {
         setApprovalPreferenceDraft(response.data.approvalPointCodes);
       }
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.autoDirectorApprovalPreferences });
     },
     onError: (error) => {
-      onActionResult(error instanceof Error ? error.message : "保存自动推进偏好失败。");
+      onActionResult(error instanceof Error ? error.message : "保存审批授权偏好失败。");
     },
   });
 

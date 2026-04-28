@@ -31,7 +31,7 @@ export const AUTO_DIRECTOR_EVENT_OPTIONS: AutoDirectorEventOption[] = [
   {
     code: "auto_director.auto_approved",
     label: "AI 已自动通过",
-    description: "AI 推进替你通过审批点并继续执行时通知你。",
+    description: "系统按审批授权通过检查点并继续执行时通知你。",
   },
   {
     code: "auto_director.exception",

@@ -24,9 +24,9 @@ export function AutoDirectorApprovalPreferenceCard(props: {
   return (
     <Card className="min-w-0 overflow-hidden">
       <CardHeader>
-        <CardTitle>自动推进偏好</CardTitle>
+        <CardTitle>审批授权偏好</CardTitle>
         <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-          选择 AI 推进时，系统会按这里的默认授权先勾选本次允许自动通过的审批点；每本书启动前都可以单独调整。
+          自动导演按范围执行时，会先带入这里的默认授权。未授权的审批点仍会停下等待你确认。
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -41,7 +41,7 @@ export function AutoDirectorApprovalPreferenceCard(props: {
         />
         <div className={AUTO_DIRECTOR_MOBILE_CLASSES.settingsActionRow}>
           <Button className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} onClick={onSave} disabled={isSaving}>
-            {isSaving ? "保存中..." : "保存自动推进偏好"}
+            {isSaving ? "保存中..." : "保存审批授权偏好"}
           </Button>
         </div>
       </CardContent>
