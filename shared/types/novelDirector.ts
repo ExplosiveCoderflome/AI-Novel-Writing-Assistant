@@ -264,6 +264,7 @@ export interface DirectorLLMOptions {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
+  llmBindingMode?: "route" | "task";
   runMode?: DirectorRunMode;
 }
 

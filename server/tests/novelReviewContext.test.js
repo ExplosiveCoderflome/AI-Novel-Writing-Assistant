@@ -167,12 +167,18 @@ function createAssembledContextPackage() {
         title: "第1章",
         objective: "推进冲突",
         expectation: "推进冲突",
+        targetWordCount: null,
         planRole: "pressure",
         hookTarget: "留下下一轮压力",
         mustAdvance: ["推进冲突"],
         mustPreserve: ["压迫感"],
         riskNotes: [],
       },
+      nextAction: "write_chapter",
+      chapterStateGoal: null,
+      protectedSecrets: [],
+      lengthBudget: null,
+      scenePlan: null,
       participants: [{
         id: "char-1",
         name: "主角",
@@ -290,6 +296,68 @@ test("manual review and manual audit pass assembled chapter review context into 
   }
 });
 
+test("manual review does not trigger replanning from audit recommendations", async () => {
+  const originalChapterFindFirst = prisma.chapter.findFirst;
+  const originalChapterUpdate = prisma.chapter.update;
+  const originalQualityReportCreate = prisma.qualityReport.create;
+  const originalBuildReplanRecommendation = plannerService.buildReplanRecommendation;
+  const originalReplan = plannerService.replan;
+  const originalAuditChapter = auditService.auditChapter;
+  const originalAssemble = GenerationContextAssembler.prototype.assemble;
+
+  let replanCallCount = 0;
+  prisma.chapter.findFirst = async () => ({
+    id: "chapter-1",
+    title: "第1章",
+    content: "章节正文",
+    novel: { title: "测试小说" },
+  });
+  prisma.chapter.update = async () => null;
+  prisma.qualityReport.create = async () => null;
+  plannerService.buildReplanRecommendation = () => ({
+    recommended: true,
+    reason: "存在阻塞问题",
+    triggerReason: "存在阻塞问题",
+    blockingIssueIds: ["issue-1"],
+  });
+  plannerService.replan = async () => {
+    replanCallCount += 1;
+    return { generatedPlans: [] };
+  };
+  GenerationContextAssembler.prototype.assemble = async () => ({
+    novel: { id: "novel-1", title: "测试小说" },
+    chapter: { id: "chapter-1", title: "第1章", order: 1, content: "章节正文", expectation: "推进冲突" },
+    contextPackage: createAssembledContextPackage(),
+  });
+  auditService.auditChapter = async () => ({
+    score: {
+      coherence: 85,
+      repetition: 10,
+      pacing: 82,
+      voice: 81,
+      engagement: 84,
+      overall: 84,
+    },
+    issues: [],
+    auditReports: [{ id: "report-1", issues: [] }],
+    contextPackage: createAssembledContextPackage(),
+  });
+
+  try {
+    const service = new NovelCoreReviewService();
+    await service.reviewChapter("novel-1", "chapter-1", {});
+    assert.equal(replanCallCount, 0);
+  } finally {
+    prisma.chapter.findFirst = originalChapterFindFirst;
+    prisma.chapter.update = originalChapterUpdate;
+    prisma.qualityReport.create = originalQualityReportCreate;
+    plannerService.buildReplanRecommendation = originalBuildReplanRecommendation;
+    plannerService.replan = originalReplan;
+    auditService.auditChapter = originalAuditChapter;
+    GenerationContextAssembler.prototype.assemble = originalAssemble;
+  }
+});
+
 test("repair stream builds prompt blocks from the assembled repair context package", async () => {
   const originalNovelFindUnique = prisma.novel.findUnique;
   const originalChapterFindFirst = prisma.chapter.findFirst;
@@ -336,7 +404,7 @@ test("repair stream builds prompt blocks from the assembled repair context packa
     });
 
     assert.ok(Array.isArray(capturedContextBlocks));
-    assert.ok(capturedContextBlocks.some((block) => block.id === "character_dynamics"));
+    assert.ok(capturedContextBlocks.some((block) => block.id === "chapter_mission"));
     assert.ok(capturedContextBlocks.some((block) => block.id === "structure_obligations"));
     assert.ok(capturedContextBlocks.some((block) => block.id === "repair_boundaries"));
   } finally {

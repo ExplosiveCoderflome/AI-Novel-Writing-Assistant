@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const {
   resolveDirectorTakeoverAutoExecutionResetRange,
   resetDirectorTakeoverCurrentStep,
+  resetDirectorTakeoverDownstreamState,
 } = require("../dist/services/novel/director/novelDirectorTakeoverReset.js");
 const { prisma } = require("../dist/db/prisma.js");
 
@@ -77,6 +78,75 @@ test("takeover reset range resolves requested volume from current workspace chap
     startOrder: 11,
     endOrder: 15,
   });
+});
+
+test("continue_existing from structured preserves matching execution chapter content", async () => {
+  const originals = {
+    chapterFindMany: prisma.chapter.findMany,
+    transaction: prisma.$transaction,
+  };
+  const findManyCalls = [];
+  const cancelledJobs = [];
+  prisma.chapter.findMany = async (input) => {
+    findManyCalls.push(input);
+    return [
+      { id: "chapter-1", order: 1, title: "Chapter 1", content: "正文1" },
+      { id: "chapter-2", order: 2, title: "Chapter 2", content: "" },
+    ];
+  };
+  prisma.$transaction = async () => {
+    throw new Error("matching continue reset should preserve chapter execution content");
+  };
+
+  try {
+    await resetDirectorTakeoverDownstreamState({
+      novelId: "novel-1",
+      plan: {
+        strategy: "continue_existing",
+        effectiveStep: "structured",
+      },
+      autoExecutionPlan: {
+        mode: "chapter_range",
+        startOrder: 1,
+        endOrder: 2,
+      },
+      takeoverState: {
+        ...buildTakeoverState(),
+        activePipelineJob: { id: "pipeline-1", startOrder: 1, endOrder: 2 },
+      },
+      deps: {
+        async getVolumeWorkspace() {
+          return {
+            volumes: [
+              {
+                id: "volume-1",
+                sortOrder: 1,
+                title: "Volume 1",
+                chapters: [
+                  { id: "chapter-1", chapterOrder: 1, title: "Chapter 1" },
+                  { id: "chapter-2", chapterOrder: 2, title: "Chapter 2" },
+                ],
+              },
+            ],
+            beatSheets: [],
+          };
+        },
+        async updateVolumeWorkspace() {
+          throw new Error("continue downstream reset should not rewrite volume workspace");
+        },
+        async cancelPipelineJob(jobId) {
+          cancelledJobs.push(jobId);
+        },
+      },
+    });
+
+    assert.deepEqual(cancelledJobs, ["pipeline-1"]);
+    assert.equal(findManyCalls.length, 1);
+    assert.deepEqual(findManyCalls[0].where.order, { gte: 1, lte: 2 });
+  } finally {
+    prisma.chapter.findMany = originals.chapterFindMany;
+    prisma.$transaction = originals.transaction;
+  }
 });
 
 test("restart_current_step clears structured assets only inside the requested chapter range", async () => {

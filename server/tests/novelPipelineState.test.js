@@ -5,6 +5,10 @@ const { prisma } = require("../dist/db/prisma.js");
 const { novelEventBus } = require("../dist/events/index.js");
 const reviewService = require("../dist/services/novel/novelCoreReviewService.js");
 const { NovelCorePipelineService } = require("../dist/services/novel/novelCorePipelineService.js");
+const {
+  parsePipelinePayload,
+  stringifyPipelinePayload,
+} = require("../dist/services/novel/pipelineJobState.js");
 
 test("listRecoverablePipelineJobs excludes cancellation-pending jobs", async () => {
   const originalFindMany = prisma.generationJob.findMany;
@@ -42,6 +46,116 @@ test("retryPipelineJob rejects jobs that are still cancelling", async () => {
     );
   } finally {
     prisma.generationJob.findUnique = originalFindUnique;
+  }
+});
+
+test("pipeline payload keeps omitted model settings route-following", () => {
+  const payload = parsePipelinePayload(stringifyPipelinePayload({
+    workflowTaskId: "workflow-route",
+    runMode: "fast",
+    autoReview: true,
+    autoRepair: true,
+    skipCompleted: true,
+    qualityThreshold: 75,
+    repairMode: "light_repair",
+  }));
+
+  assert.equal(payload.provider, undefined);
+  assert.equal(payload.model, undefined);
+  assert.equal(payload.temperature, undefined);
+  assert.equal(payload.workflowTaskId, "workflow-route");
+});
+
+test("executePipeline preserves route-following model options for chapter runtime", async () => {
+  const original = {
+    generationFindUnique: prisma.generationJob.findUnique,
+    generationUpdate: prisma.generationJob.update,
+    novelFindUnique: prisma.novel.findUnique,
+    chapterFindMany: prisma.chapter.findMany,
+    createQualityReport: reviewService.createQualityReport,
+    emit: novelEventBus.emit,
+  };
+
+  let capturedRuntimeOptions = null;
+  prisma.generationJob.findUnique = async (input) => {
+    if (input.select?.startedAt) {
+      return {
+        startedAt: null,
+        completedCount: 0,
+        totalCount: 1,
+        retryCount: 0,
+        payload: stringifyPipelinePayload({
+          workflowTaskId: "workflow-route",
+          runMode: "fast",
+          autoReview: true,
+          autoRepair: true,
+          skipCompleted: true,
+          qualityThreshold: 75,
+          repairMode: "light_repair",
+        }),
+      };
+    }
+    if (input.select?.status) {
+      return {
+        status: "running",
+        cancelRequestedAt: null,
+      };
+    }
+    throw new Error(`Unexpected generationJob.findUnique call: ${JSON.stringify(input)}`);
+  };
+  prisma.generationJob.update = async (input) => input;
+  prisma.novel.findUnique = async () => ({
+    id: "novel-route",
+    title: "路由小说",
+  });
+  prisma.chapter.findMany = async () => ([
+    { id: "chapter-route", order: 1, title: "第一章", content: "" },
+  ]);
+  reviewService.createQualityReport = async () => null;
+  novelEventBus.emit = async () => null;
+
+  const service = new NovelCorePipelineService();
+  service.chapterRuntimeCoordinator.runPipelineChapter = async (_novelId, _chapterId, options) => {
+    capturedRuntimeOptions = options;
+    return {
+      retryCountUsed: 0,
+      score: {
+        coherence: 88,
+        repetition: 8,
+        pacing: 82,
+        voice: 80,
+        engagement: 86,
+        overall: 84,
+      },
+      issues: [],
+      pass: true,
+    };
+  };
+
+  try {
+    await service.executePipeline("job-route", "novel-route", {
+      startOrder: 1,
+      endOrder: 1,
+      runMode: "fast",
+      autoReview: true,
+      autoRepair: true,
+      skipCompleted: true,
+      qualityThreshold: 75,
+      repairMode: "light_repair",
+      maxRetries: 1,
+    });
+
+    assert.ok(capturedRuntimeOptions);
+    assert.equal(capturedRuntimeOptions.provider, undefined);
+    assert.equal(capturedRuntimeOptions.model, undefined);
+    assert.equal(capturedRuntimeOptions.temperature, undefined);
+  } finally {
+    prisma.generationJob.findUnique = original.generationFindUnique;
+    prisma.generationJob.update = original.generationUpdate;
+    prisma.novel.findUnique = original.novelFindUnique;
+    prisma.chapter.findMany = original.chapterFindMany;
+    reviewService.createQualityReport = original.createQualityReport;
+    novelEventBus.emit = original.emit;
   }
 });
 
@@ -136,6 +250,235 @@ test("executePipeline preserves persisted quality alerts across resume", async (
     assert.equal(finalUpdate.data.error, null);
     assert.match(finalUpdate.data.payload, /qualityAlertDetails/);
     assert.match(finalUpdate.data.payload, /1章/);
+  } finally {
+    prisma.generationJob.findUnique = original.generationFindUnique;
+    prisma.generationJob.update = original.generationUpdate;
+    prisma.novel.findUnique = original.novelFindUnique;
+    prisma.chapter.findMany = original.chapterFindMany;
+    reviewService.createQualityReport = original.createQualityReport;
+    novelEventBus.emit = original.emit;
+  }
+});
+
+test("executePipeline keeps director control policy and suppresses replan notices in AI-driver mode", async () => {
+  const original = {
+    generationFindUnique: prisma.generationJob.findUnique,
+    generationUpdate: prisma.generationJob.update,
+    novelFindUnique: prisma.novel.findUnique,
+    chapterFindMany: prisma.chapter.findMany,
+    createQualityReport: reviewService.createQualityReport,
+    emit: novelEventBus.emit,
+  };
+
+  const updates = [];
+  let capturedRuntimeOptions = null;
+  prisma.generationJob.findUnique = async (input) => {
+    if (input.select?.startedAt) {
+      return {
+        startedAt: null,
+        completedCount: 0,
+        totalCount: 1,
+        retryCount: 0,
+        payload: JSON.stringify({
+          provider: "openai",
+          model: "glm-5",
+          temperature: 0.7,
+          workflowTaskId: "workflow-1",
+          runMode: "fast",
+          autoReview: true,
+          autoRepair: true,
+          skipCompleted: true,
+          qualityThreshold: 75,
+          repairMode: "light_repair",
+          controlPolicy: {
+            kickoffMode: "director_start",
+            advanceMode: "auto_to_execution",
+            reviewCheckpoints: ["chapter_batch"],
+          },
+        }),
+      };
+    }
+    if (input.select?.status) {
+      return {
+        status: "running",
+        cancelRequestedAt: null,
+      };
+    }
+    throw new Error(`Unexpected generationJob.findUnique call: ${JSON.stringify(input)}`);
+  };
+  prisma.generationJob.update = async (input) => {
+    updates.push(input);
+    return input;
+  };
+  prisma.novel.findUnique = async () => ({
+    id: "novel-1",
+    title: "测试小说",
+  });
+  prisma.chapter.findMany = async () => ([
+    { id: "chapter-1", order: 1, title: "第一章", content: "" },
+  ]);
+  reviewService.createQualityReport = async () => null;
+  novelEventBus.emit = async () => null;
+
+  const service = new NovelCorePipelineService();
+  service.chapterRuntimeCoordinator.runPipelineChapter = async (_novelId, _chapterId, options) => {
+    capturedRuntimeOptions = options;
+    return {
+      retryCountUsed: 0,
+      score: {
+        coherence: 88,
+        repetition: 8,
+        pacing: 82,
+        voice: 80,
+        engagement: 86,
+        overall: 84,
+      },
+      issues: [],
+      pass: true,
+      reviewExecuted: true,
+      runtimePackage: {
+        replanRecommendation: {
+          recommended: true,
+          reason: "重规划提醒",
+          affectedChapterOrders: [2],
+          anchorChapterOrder: 1,
+          triggerReason: "overdue payoff",
+        },
+      },
+    };
+  };
+
+  try {
+    await service.executePipeline("job-1", "novel-1", {
+      startOrder: 1,
+      endOrder: 1,
+      provider: "openai",
+      model: "glm-5",
+      temperature: 0.7,
+      runMode: "fast",
+      autoReview: true,
+      autoRepair: true,
+      skipCompleted: true,
+      qualityThreshold: 75,
+      repairMode: "light_repair",
+    });
+
+    assert.deepEqual(capturedRuntimeOptions.controlPolicy, {
+      kickoffMode: "director_start",
+      advanceMode: "auto_to_execution",
+      reviewCheckpoints: ["chapter_batch"],
+    });
+    const finalUpdate = updates[updates.length - 1];
+    assert.equal(finalUpdate.data.status, "succeeded");
+    const finalPayload = JSON.parse(finalUpdate.data.payload);
+    assert.equal(finalPayload.replanAlertDetails, undefined);
+  } finally {
+    prisma.generationJob.findUnique = original.generationFindUnique;
+    prisma.generationJob.update = original.generationUpdate;
+    prisma.novel.findUnique = original.novelFindUnique;
+    prisma.chapter.findMany = original.chapterFindMany;
+    reviewService.createQualityReport = original.createQualityReport;
+    novelEventBus.emit = original.emit;
+  }
+});
+
+test("executePipeline does not persist replan notices from quality review", async () => {
+  const original = {
+    generationFindUnique: prisma.generationJob.findUnique,
+    generationUpdate: prisma.generationJob.update,
+    novelFindUnique: prisma.novel.findUnique,
+    chapterFindMany: prisma.chapter.findMany,
+    createQualityReport: reviewService.createQualityReport,
+    emit: novelEventBus.emit,
+  };
+
+  const updates = [];
+  prisma.generationJob.findUnique = async (input) => {
+    if (input.select?.startedAt) {
+      return {
+        startedAt: null,
+        completedCount: 0,
+        totalCount: 1,
+        retryCount: 0,
+        payload: JSON.stringify({
+          provider: "deepseek",
+          model: "deepseek-chat",
+          temperature: 0.8,
+          runMode: "fast",
+          autoReview: true,
+          autoRepair: true,
+          skipCompleted: true,
+          qualityThreshold: 75,
+          repairMode: "light_repair",
+        }),
+      };
+    }
+    if (input.select?.status) {
+      return {
+        status: "running",
+        cancelRequestedAt: null,
+      };
+    }
+    throw new Error(`Unexpected generationJob.findUnique call: ${JSON.stringify(input)}`);
+  };
+  prisma.generationJob.update = async (input) => {
+    updates.push(input);
+    return input;
+  };
+  prisma.novel.findUnique = async () => ({
+    id: "novel-1",
+    title: "测试小说",
+  });
+  prisma.chapter.findMany = async () => ([
+    { id: "chapter-1", order: 1, title: "第一章", content: "" },
+  ]);
+  reviewService.createQualityReport = async () => null;
+  novelEventBus.emit = async () => null;
+
+  const service = new NovelCorePipelineService();
+  service.chapterRuntimeCoordinator.runPipelineChapter = async () => ({
+    retryCountUsed: 0,
+    score: {
+      coherence: 88,
+      repetition: 8,
+      pacing: 82,
+      voice: 80,
+      engagement: 86,
+      overall: 84,
+    },
+    issues: [],
+    pass: true,
+    reviewExecuted: true,
+    runtimePackage: {
+      replanRecommendation: {
+        recommended: true,
+        reason: "重规划提醒",
+        affectedChapterOrders: [2],
+        anchorChapterOrder: 1,
+        triggerReason: "overdue payoff",
+      },
+    },
+  });
+
+  try {
+    await service.executePipeline("job-1", "novel-1", {
+      startOrder: 1,
+      endOrder: 1,
+      provider: "deepseek",
+      model: "deepseek-chat",
+      temperature: 0.8,
+      runMode: "fast",
+      autoReview: true,
+      autoRepair: true,
+      skipCompleted: true,
+      qualityThreshold: 75,
+      repairMode: "light_repair",
+    });
+
+    const finalUpdate = updates[updates.length - 1];
+    assert.equal(finalUpdate.data.status, "succeeded");
+    const finalPayload = JSON.parse(finalUpdate.data.payload);
+    assert.equal(finalPayload.replanAlertDetails, undefined);
   } finally {
     prisma.generationJob.findUnique = original.generationFindUnique;
     prisma.generationJob.update = original.generationUpdate;

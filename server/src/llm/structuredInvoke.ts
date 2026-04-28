@@ -137,7 +137,7 @@ async function resolveAttemptTarget(input: {
     structuredStrategy: input.structuredStrategy,
     executionMode: "plain",
   });
-  const preferredStrategy = input.structuredStrategy ?? (route
+  const preferredStrategy = input.structuredStrategy ?? resolved.structuredStrategy ?? (route
     && resolved.provider === route.provider
     && resolved.model === route.model
     ? toStructuredOutputStrategy(route.structuredResponseFormat)
@@ -341,7 +341,7 @@ export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInpu
     model: input.model,
     apiKey: input.apiKey,
     baseURL: input.baseURL,
-    temperature: input.temperature ?? 0.3,
+    temperature: input.temperature,
     maxTokens: input.maxTokens,
     taskType: input.taskType ?? "planner",
     requestProtocol: input.requestProtocol,

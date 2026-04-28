@@ -90,6 +90,20 @@ test("buildDirectorAutoExecutionPipelineOptions uses front10-safe defaults", () 
   assert.equal(options.controlPolicy?.advanceMode, "auto_to_execution");
 });
 
+test("buildDirectorAutoExecutionPipelineOptions leaves model selection to model routes", () => {
+  const options = buildDirectorAutoExecutionPipelineOptions({
+    provider: "openai",
+    model: "glm-5",
+    temperature: 0.7,
+    startOrder: 7,
+    endOrder: 7,
+  });
+
+  assert.equal(Object.hasOwn(options, "provider"), false);
+  assert.equal(Object.hasOwn(options, "model"), false);
+  assert.equal(Object.hasOwn(options, "temperature"), false);
+});
+
 test("buildDirectorAutoExecutionPipelineOptions respects review and repair toggles", () => {
   const options = buildDirectorAutoExecutionPipelineOptions({
     startOrder: 11,

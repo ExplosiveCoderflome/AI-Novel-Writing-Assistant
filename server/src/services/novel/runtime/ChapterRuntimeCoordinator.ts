@@ -183,7 +183,7 @@ export class ChapterRuntimeCoordinator {
     await this.markChapterStatus(chapterId, "generating");
 
     const assembled = await this.deps.assembler.assemble(novelId, chapterId, request);
-    this.assertStateDrivenReady(assembled.contextPackage);
+    this.assertStateDrivenReady(assembled.contextPackage, request);
     const agentRuntime = this.getAgentRuntime();
 
     let traceRunId: string | null = null;
@@ -261,7 +261,7 @@ export class ChapterRuntimeCoordinator {
     const request = this.deps.validateRequest(options);
     await this.markChapterStatus(chapterId, "generating");
     const assembled = await this.deps.assembler.assemble(novelId, chapterId, request);
-    this.assertStateDrivenReady(assembled.contextPackage);
+    this.assertStateDrivenReady(assembled.contextPackage, request);
     return runPipelineChapterWithRuntime(
       {
         validateRequest: () => request,
@@ -291,7 +291,12 @@ export class ChapterRuntimeCoordinator {
     return (this.deps.agentRuntime ?? require("../../../agents").agentRuntime) as AgentRuntimeLike;
   }
 
-  private assertStateDrivenReady(contextPackage: GenerationContextPackage): void {
+  private assertStateDrivenReady(contextPackage: GenerationContextPackage, request: ChapterRuntimeRequestInput): void {
+    const isAiDriverExecution = request.controlPolicy?.kickoffMode === "director_start"
+      && request.controlPolicy.advanceMode === "auto_to_execution";
+    if (isAiDriverExecution) {
+      return;
+    }
     if (contextPackage.nextAction === "hold_for_review") {
       const reasons = [
         contextPackage.pendingReviewProposalCount > 0

@@ -157,6 +157,9 @@ export async function recordQualityRepairCheckpoint(
     qualityRepairRisk: input.qualityRepairRisk,
   };
   const scopeLabel = buildDirectorAutoExecutionScopeLabelFromState(checkpointState, input.range.totalChapterCount);
+  const pauseMessage = input.checkpointType === "replan_required"
+    ? input.pauseMessage
+    : input.qualityRepairRisk.reason;
   await deps.workflowService.recordCheckpoint(input.taskId, {
     stage: "quality_repair",
     checkpointType: input.checkpointType,
@@ -167,7 +170,7 @@ export async function recordQualityRepairCheckpoint(
       scopeLabel,
       remainingChapterCount: checkpointState.remainingChapterCount ?? 0,
       nextChapterOrder: checkpointState.nextChapterOrder ?? null,
-      failureMessage: input.pauseMessage,
+      failureMessage: pauseMessage,
     }),
     chapterId: checkpointState.nextChapterId ?? input.range.firstChapterId,
     progress: 0.98,
@@ -204,9 +207,8 @@ export async function resolveQualityRepairNoticeAction(
   checkpointState: DirectorAutoExecutionState;
   qualityRepairRisk: DirectorQualityRepairRisk;
 }> {
-  const checkpointType = input.noticeCode === PIPELINE_REPLAN_NOTICE_CODE
-    ? "replan_required"
-    : "chapter_batch_ready";
+  const isLegacyReplanNotice = input.noticeCode === PIPELINE_REPLAN_NOTICE_CODE;
+  const checkpointType = "chapter_batch_ready";
   const qualityRepairRisk = buildDirectorQualityRepairRisk({
     noticeCode: input.noticeCode,
     noticeSummary: input.noticeSummary,
@@ -226,7 +228,7 @@ export async function resolveQualityRepairNoticeAction(
   const shouldNotifyAndContinueAiDriverQualityNotice = checkpointType === "chapter_batch_ready"
     && qualityRepairRisk.autoContinuable
     && isAiDriverExecution
-    && hasQualityAlertDetails;
+    && (hasQualityAlertDetails || isLegacyReplanNotice);
   const canAutoContinue = checkpointType === "chapter_batch_ready"
     && qualityRepairRisk.autoContinuable
     && remainingChapterCount > 0

@@ -165,3 +165,67 @@ test("createChapterStream blocks when state-driven decision requires review firs
     /blocked until review is resolved/i,
   );
 });
+
+test("runPipelineChapter lets AI-driver execution continue past pending state proposals", async () => {
+  const assembled = createAssembledChapter();
+  assembled.contextPackage.nextAction = "hold_for_review";
+  assembled.contextPackage.pendingReviewProposalCount = 3;
+  assembled.contextPackage.openAuditIssues = [{
+    description: "pending resource proposal",
+  }];
+  let writerCalled = false;
+
+  const coordinator = new ChapterRuntimeCoordinator({
+    validateRequest: (input) => input,
+    ensureNovelCharacters: async () => undefined,
+    assembler: {
+      assemble: async () => assembled,
+    },
+    chapterWritingGraph: {
+      createChapterStream: async () => {
+        writerCalled = true;
+        return {
+          stream: createEmptyStream(),
+          onDone: async () => ({ finalContent: "正文草稿" }),
+        };
+      },
+    },
+    artifactSyncService: {
+      saveDraftAndArtifacts: async () => undefined,
+    },
+    agentRuntime: createAgentRuntime(),
+  });
+  coordinator.markChapterStatus = async () => undefined;
+  coordinator.finalizeChapterContent = async () => ({
+    finalContent: "正文草稿",
+    runtimePackage: {
+      audit: {
+        score: {
+          coherence: 90,
+          pacing: 90,
+          repetition: 0,
+          engagement: 90,
+          voice: 90,
+          overall: 90,
+        },
+        openIssues: [],
+        reports: [],
+        hasBlockingIssues: false,
+      },
+    },
+  });
+  coordinator.markChapterGenerationState = async () => undefined;
+
+  const result = await coordinator.runPipelineChapter("novel-1", "chapter-1", {
+    controlPolicy: {
+      kickoffMode: "director_start",
+      advanceMode: "auto_to_execution",
+      reviewCheckpoints: ["chapter_batch"],
+    },
+    autoReview: true,
+    autoRepair: true,
+  });
+
+  assert.equal(writerCalled, true);
+  assert.equal(result.pass, true);
+});

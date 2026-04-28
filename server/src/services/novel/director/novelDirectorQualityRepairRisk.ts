@@ -25,9 +25,6 @@ function buildReason(input: {
   affectedChapterCount: number;
   remainingChapterCount: number;
 }): string {
-  if (input.noticeCode === PIPELINE_REPLAN_NOTICE_CODE) {
-    return "质量检查要求先处理重规划，后续章节需要人工确认后再继续。";
-  }
   if (input.repairMode === "heavy_repair") {
     return "本次修复属于大范围返工，建议人工确认修复结果后再继续章节执行。";
   }
@@ -41,33 +38,15 @@ export function buildDirectorQualityRepairRisk(
   input: DirectorQualityRepairRiskInput,
 ): DirectorQualityRepairRisk {
   const payload = parsePipelinePayload(input.payload);
-  const noticeCode = input.noticeCode?.trim() || null;
-  const repairMode = payload.repairMode ?? null;
-  const replanCount = normalizeCount(payload.replanAlertDetails?.length);
+  const rawNoticeCode = input.noticeCode?.trim() || null;
+  const isLegacyReplanNotice = rawNoticeCode === PIPELINE_REPLAN_NOTICE_CODE;
+  const noticeCode = isLegacyReplanNotice ? PIPELINE_QUALITY_NOTICE_CODE : rawNoticeCode;
+  const repairMode = isLegacyReplanNotice ? null : payload.repairMode ?? null;
   const qualityCount = normalizeCount(payload.qualityAlertDetails?.length);
-  const affectedChapterCount = noticeCode === PIPELINE_REPLAN_NOTICE_CODE
-    ? replanCount
-    : qualityCount;
+  const affectedChapterCount = qualityCount;
   const remainingChapterCount = normalizeCount(input.remainingChapterCount);
   const totalChapterCount = Math.max(1, normalizeCount(input.totalChapterCount) || remainingChapterCount || 1);
   const largeScopeThreshold = Math.max(3, Math.ceil(totalChapterCount * 0.25));
-
-  if (noticeCode === PIPELINE_REPLAN_NOTICE_CODE || replanCount > 0) {
-    return {
-      riskLevel: "replan",
-      autoContinuable: false,
-      reason: buildReason({
-        noticeCode: PIPELINE_REPLAN_NOTICE_CODE,
-        repairMode,
-        affectedChapterCount: replanCount,
-        remainingChapterCount,
-      }),
-      noticeCode: PIPELINE_REPLAN_NOTICE_CODE,
-      repairMode,
-      affectedChapterCount: replanCount,
-      remainingChapterCount,
-    };
-  }
 
   const isLargeScope = repairMode === "heavy_repair" || affectedChapterCount >= largeScopeThreshold;
   if (isLargeScope) {

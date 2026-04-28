@@ -25,6 +25,7 @@ import { titleGenerationService } from "../../title/TitleGenerationService";
 import { isNearDuplicateTitle } from "../../title/titleGeneration.shared";
 import type { NovelWorkflowService } from "../workflow/NovelWorkflowService";
 import {
+  buildRouteFollowingDirectorLlmOptions,
   buildRefinementSummary,
   buildWorkflowSeedPayload,
   enhanceCandidateTitles,
@@ -183,11 +184,9 @@ export class NovelDirectorCandidateStageService {
         presets: context.presets,
         feedback: context.feedback,
       }),
-      options: {
-        provider: context.options.provider,
-        model: context.options.model,
+      options: buildRouteFollowingDirectorLlmOptions(context.options, {
         temperature: clampTemperature(context.options.temperature, 0.45),
-      },
+      }),
     });
 
     const normalizedCandidates = parsed.output.candidates.map((candidate, index) => normalizeCandidate(candidate, index));
@@ -251,7 +250,7 @@ export class NovelDirectorCandidateStageService {
       batches: [],
       presets: [],
       request: input,
-      options: input,
+      options: buildRouteFollowingDirectorLlmOptions(input),
       workflowTaskId: input.workflowTaskId,
     });
     if (!input.workflowTaskId?.trim()) {
@@ -321,7 +320,7 @@ export class NovelDirectorCandidateStageService {
       presets: input.presets ?? [],
       feedback: input.feedback,
       request: input,
-      options: input,
+      options: buildRouteFollowingDirectorLlmOptions(input),
       workflowTaskId: input.workflowTaskId,
     });
     if (!input.workflowTaskId?.trim()) {
@@ -411,11 +410,9 @@ export class NovelDirectorCandidateStageService {
         presets: input.presets ?? [],
         feedback: input.feedback,
       }),
-      options: {
-        provider: input.provider,
-        model: input.model,
+      options: buildRouteFollowingDirectorLlmOptions(input, {
         temperature: clampTemperature(input.temperature, 0.4),
-      },
+      }),
     });
 
     await this.markCandidateProgress(
@@ -434,7 +431,7 @@ export class NovelDirectorCandidateStageService {
       presets: input.presets ?? [],
       feedback: input.feedback,
       request: input,
-      options: input,
+      options: buildRouteFollowingDirectorLlmOptions(input),
     });
 
     const nextBatch = replaceCandidateInBatch(
@@ -524,9 +521,9 @@ export class NovelDirectorCandidateStageService {
       }),
       genreId: input.genreId ?? null,
       count: 4,
-      provider: input.provider,
-      model: input.model,
-      temperature: clampTemperature(input.temperature, 0.85),
+      ...buildRouteFollowingDirectorLlmOptions(input, {
+        temperature: clampTemperature(input.temperature, 0.85),
+      }),
     });
 
     const titleOptions = mergeTitleOptions(response.titles, targetCandidate);

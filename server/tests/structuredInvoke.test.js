@@ -320,6 +320,167 @@ test("invokeStructuredLlmDetailed degrades to prompt JSON before using fallback 
   }
 });
 
+test("invokeStructuredLlmDetailed preserves routed structured format for explicit routed provider and model", async () => {
+  const originalResolveOptions = factory.resolveLLMClientOptions;
+  const originalCreateLLM = factory.createLLMFromResolvedOptions;
+  const originalGetFallbackSettings = structuredFallbackSettings.getStructuredFallbackSettings;
+  const calls = [];
+
+  factory.resolveLLMClientOptions = async (provider, options = {}) => {
+    const resolvedProvider = provider ?? "openai";
+    const resolvedModel = options.model ?? "MiniMax-M2.5";
+    const baseURL = options.baseURL ?? "https://api.openai.com/v1";
+    const structuredProfile = options.executionMode === "structured"
+      ? resolveStructuredOutputProfile({
+        provider: resolvedProvider,
+        model: resolvedModel,
+        baseURL,
+        executionMode: "structured",
+      })
+      : null;
+    const inheritedRouteStrategy = options.taskType === "planner"
+      && resolvedProvider === "openai"
+      && resolvedModel === "MiniMax-M2.5"
+      ? "json_object"
+      : null;
+    return {
+      provider: resolvedProvider,
+      providerName: resolvedProvider,
+      model: resolvedModel,
+      temperature: options.temperature ?? 0.3,
+      apiKey: "test-key",
+      baseURL,
+      maxTokens: options.maxTokens,
+      requestProtocol: "openai_compatible",
+      reasoningEnabled: !(structuredProfile?.requiresNonThinkingForStructured),
+      modelKwargs: undefined,
+      includeRawResponse: false,
+      executionMode: options.executionMode ?? "plain",
+      structuredProfile,
+      structuredStrategy: options.structuredStrategy ?? inheritedRouteStrategy,
+      reasoningForcedOff: Boolean(structuredProfile?.requiresNonThinkingForStructured),
+      taskType: options.taskType,
+      promptMeta: options.promptMeta,
+    };
+  };
+  factory.createLLMFromResolvedOptions = (resolved) => ({
+    invoke: async () => {
+      calls.push({
+        provider: resolved.provider,
+        model: resolved.model,
+        strategy: resolved.structuredStrategy,
+      });
+      return {
+        content: "{\"value\":\"route-json-object\"}",
+      };
+    },
+  });
+  structuredFallbackSettings.getStructuredFallbackSettings = async () => ({
+    enabled: false,
+    provider: "deepseek",
+    model: "deepseek-chat",
+    temperature: 0.2,
+    maxTokens: null,
+  });
+
+  try {
+    const result = await structuredInvoke.invokeStructuredLlmDetailed({
+      provider: "openai",
+      model: "MiniMax-M2.5",
+      label: "structured.invoke.explicit.routed-format",
+      taskType: "planner",
+      schema: z.object({
+        value: z.string(),
+      }),
+      systemPrompt: "只返回 JSON。",
+      userPrompt: "给我一个 value。",
+      disableFallbackModel: true,
+    });
+
+    assert.deepEqual(result.data, { value: "route-json-object" });
+    assert.deepEqual(calls, [
+      { provider: "openai", model: "MiniMax-M2.5", strategy: "json_object" },
+    ]);
+  } finally {
+    factory.resolveLLMClientOptions = originalResolveOptions;
+    factory.createLLMFromResolvedOptions = originalCreateLLM;
+    structuredFallbackSettings.getStructuredFallbackSettings = originalGetFallbackSettings;
+  }
+});
+
+test("invokeStructuredLlmDetailed leaves route temperature unset when caller does not override it", async () => {
+  const originalResolveOptions = factory.resolveLLMClientOptions;
+  const originalCreateLLM = factory.createLLMFromResolvedOptions;
+  const originalGetFallbackSettings = structuredFallbackSettings.getStructuredFallbackSettings;
+  const temperatures = [];
+
+  factory.resolveLLMClientOptions = async (provider, options = {}) => {
+    temperatures.push(options.temperature);
+    const resolvedProvider = provider ?? "openai";
+    const resolvedModel = options.model ?? "glm-5";
+    const baseURL = options.baseURL ?? "https://api.openai.com/v1";
+    const structuredProfile = options.executionMode === "structured"
+      ? resolveStructuredOutputProfile({
+        provider: resolvedProvider,
+        model: resolvedModel,
+        baseURL,
+        executionMode: "structured",
+      })
+      : null;
+    return {
+      provider: resolvedProvider,
+      providerName: resolvedProvider,
+      model: resolvedModel,
+      temperature: options.temperature ?? 0.42,
+      apiKey: "test-key",
+      baseURL,
+      maxTokens: options.maxTokens,
+      requestProtocol: "openai_compatible",
+      reasoningEnabled: !(structuredProfile?.requiresNonThinkingForStructured),
+      modelKwargs: undefined,
+      includeRawResponse: false,
+      executionMode: options.executionMode ?? "plain",
+      structuredProfile,
+      structuredStrategy: options.structuredStrategy ?? "json_object",
+      reasoningForcedOff: Boolean(structuredProfile?.requiresNonThinkingForStructured),
+      taskType: options.taskType,
+      promptMeta: options.promptMeta,
+    };
+  };
+  factory.createLLMFromResolvedOptions = () => ({
+    invoke: async () => ({
+      content: "{\"value\":\"route-temperature\"}",
+    }),
+  });
+  structuredFallbackSettings.getStructuredFallbackSettings = async () => ({
+    enabled: false,
+    provider: "deepseek",
+    model: "deepseek-chat",
+    temperature: 0.2,
+    maxTokens: null,
+  });
+
+  try {
+    const result = await structuredInvoke.invokeStructuredLlmDetailed({
+      label: "structured.invoke.route-temperature",
+      taskType: "planner",
+      schema: z.object({
+        value: z.string(),
+      }),
+      systemPrompt: "只返回 JSON。",
+      userPrompt: "给我一个 value。",
+      disableFallbackModel: true,
+    });
+
+    assert.deepEqual(result.data, { value: "route-temperature" });
+    assert.equal(temperatures[0], undefined);
+  } finally {
+    factory.resolveLLMClientOptions = originalResolveOptions;
+    factory.createLLMFromResolvedOptions = originalCreateLLM;
+    structuredFallbackSettings.getStructuredFallbackSettings = originalGetFallbackSettings;
+  }
+});
+
 test("invokeStructuredLlmDetailed switches to the configured fallback model after primary transport failure", async () => {
   const originalResolveOptions = factory.resolveLLMClientOptions;
   const originalCreateLLM = factory.createLLMFromResolvedOptions;

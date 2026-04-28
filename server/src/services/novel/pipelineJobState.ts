@@ -102,6 +102,33 @@ function normalizePipelineBackgroundSync(value: unknown): PipelineBackgroundSync
   return activities.length > 0 ? { activities } : undefined;
 }
 
+function normalizePipelineControlPolicy(value: unknown): PipelinePayload["controlPolicy"] | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const raw = value as Record<string, unknown>;
+  const kickoffMode = raw.kickoffMode;
+  const advanceMode = raw.advanceMode;
+  if (
+    (kickoffMode !== "manual_start" && kickoffMode !== "director_start" && kickoffMode !== "takeover_start")
+    || (
+      advanceMode !== "manual"
+      && advanceMode !== "stage_review"
+      && advanceMode !== "auto_to_ready"
+      && advanceMode !== "auto_to_execution"
+    )
+  ) {
+    return undefined;
+  }
+  return {
+    kickoffMode,
+    advanceMode,
+    reviewCheckpoints: Array.isArray(raw.reviewCheckpoints)
+      ? raw.reviewCheckpoints.filter((item): item is string => typeof item === "string")
+      : [],
+  };
+}
+
 export function buildPipelineBackgroundActivityLabels(
   backgroundSync: PipelineBackgroundSyncState | null | undefined,
 ): string[] {
@@ -176,6 +203,7 @@ export function parsePipelinePayload(payload: string | null | undefined): Pipeli
       model: typeof parsed.model === "string" ? parsed.model : undefined,
       temperature: typeof parsed.temperature === "number" ? parsed.temperature : undefined,
       workflowTaskId: typeof parsed.workflowTaskId === "string" ? parsed.workflowTaskId : undefined,
+      controlPolicy: normalizePipelineControlPolicy(parsed.controlPolicy),
       maxRetries: typeof parsed.maxRetries === "number" ? parsed.maxRetries : undefined,
       runMode: parsed.runMode === "polish" ? "polish" : parsed.runMode === "fast" ? "fast" : undefined,
       autoReview: typeof parsed.autoReview === "boolean" ? parsed.autoReview : undefined,
@@ -192,7 +220,6 @@ export function parsePipelinePayload(payload: string | null | undefined): Pipeli
           ? parsed.repairMode
           : undefined,
       qualityAlertDetails: normalizeStringList(parsed.qualityAlertDetails ?? parsed.failedDetails),
-      replanAlertDetails: normalizeStringList(parsed.replanAlertDetails),
       backgroundSync: normalizePipelineBackgroundSync(parsed.backgroundSync),
     };
   } catch {
@@ -202,13 +229,13 @@ export function parsePipelinePayload(payload: string | null | undefined): Pipeli
 
 export function stringifyPipelinePayload(input: PipelinePayload): string {
   const qualityAlertDetails = normalizeStringList(input.qualityAlertDetails) ?? [];
-  const replanAlertDetails = normalizeStringList(input.replanAlertDetails) ?? [];
   const backgroundSync = normalizePipelineBackgroundSync(input.backgroundSync);
   return JSON.stringify({
-    provider: input.provider ?? "deepseek",
-    model: input.model ?? "",
-    temperature: input.temperature ?? 0.8,
+    ...(input.provider ? { provider: input.provider } : {}),
+    ...(input.model?.trim() ? { model: input.model.trim() } : {}),
+    ...(typeof input.temperature === "number" ? { temperature: input.temperature } : {}),
     ...(input.workflowTaskId?.trim() ? { workflowTaskId: input.workflowTaskId.trim() } : {}),
+    ...(input.controlPolicy ? { controlPolicy: input.controlPolicy } : {}),
     ...(typeof input.maxRetries === "number" ? { maxRetries: input.maxRetries } : {}),
     runMode: input.runMode ?? "fast",
     autoReview: input.autoReview ?? true,
@@ -217,7 +244,6 @@ export function stringifyPipelinePayload(input: PipelinePayload): string {
     qualityThreshold: input.qualityThreshold ?? null,
     repairMode: input.repairMode ?? "light_repair",
     ...(qualityAlertDetails.length > 0 ? { qualityAlertDetails } : {}),
-    ...(replanAlertDetails.length > 0 ? { replanAlertDetails } : {}),
     ...(backgroundSync?.activities?.length ? { backgroundSync } : {}),
   });
 }
@@ -242,32 +268,10 @@ export function getPipelineQualityNotice(details: string[] | undefined): Pipelin
   };
 }
 
-export function getPipelineReplanNotice(details: string[] | undefined): PipelineJobDecorations {
-  const replanAlertDetails = normalizeStringList(details) ?? [];
-  if (replanAlertDetails.length === 0) {
-    return {
-      displayStatus: null,
-      noticeCode: null,
-      noticeSummary: null,
-      qualityAlertDetails: [],
-      backgroundActivityLabels: [],
-    };
-  }
-  return {
-    displayStatus: "Completed with replan required",
-    noticeCode: PIPELINE_REPLAN_NOTICE_CODE,
-    noticeSummary: `State-driven replan is required before continuing: ${replanAlertDetails.join("; ")}`,
-    qualityAlertDetails: [],
-    backgroundActivityLabels: [],
-  };
-}
-
 export function decoratePipelineJob<T extends PipelineJobLike>(job: T): DecoratedPipelineJob<T> {
   const payload = parsePipelinePayload(job.payload);
   const notice = job.status === "succeeded"
-    ? (getPipelineReplanNotice(payload.replanAlertDetails).noticeCode
-      ? getPipelineReplanNotice(payload.replanAlertDetails)
-      : getPipelineQualityNotice(payload.qualityAlertDetails))
+    ? getPipelineQualityNotice(payload.qualityAlertDetails)
     : {
       displayStatus: null,
       noticeCode: null,

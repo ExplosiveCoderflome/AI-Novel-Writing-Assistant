@@ -36,9 +36,9 @@ export interface GenerateNovelTitlesInput extends TitleGenerationLLMOptions {
 }
 
 async function shouldForceTitleJsonOutput(input: TitleGenerationLLMOptions): Promise<boolean> {
-  const resolved = await resolveLLMClientOptions(input.provider ?? "deepseek", {
+  const resolved = await resolveLLMClientOptions(input.provider, {
     model: input.model,
-    temperature: input.temperature ?? 0.85,
+    temperature: input.temperature,
     maxTokens: input.maxTokens,
     taskType: titleGenerationPrompt.taskType,
     executionMode: "structured",
@@ -193,7 +193,6 @@ export class TitleGenerationService {
     llmOptions: TitleGenerationLLMOptions,
     blockedTitles: string[] = [],
   ): Promise<{ titles: TitleFactorySuggestion[] }> {
-    const provider = llmOptions.provider ?? "deepseek";
     const forceJson = await shouldForceTitleJsonOutput(llmOptions);
     const count = normalizeRequestedCount(promptContext.count, DEFAULT_TITLE_COUNT);
 
@@ -214,9 +213,9 @@ export class TitleGenerationService {
             retryReason,
           },
           options: {
-            provider,
+            provider: llmOptions.provider,
             model: llmOptions.model,
-            temperature: llmOptions.temperature ?? 0.85,
+            temperature: llmOptions.temperature,
             maxTokens: llmOptions.maxTokens,
           },
         });

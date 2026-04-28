@@ -1,4 +1,3 @@
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
   ChapterGenerationState,
   PipelineJobStatus,
@@ -366,9 +365,6 @@ export function buildDirectorAutoExecutionCompletedSummary(input: {
 }
 
 export function buildDirectorAutoExecutionPipelineOptions(input: {
-  provider?: LLMProvider;
-  model?: string;
-  temperature?: number;
   workflowTaskId?: string;
   taskStyleProfileId?: string;
   startOrder: number;
@@ -389,9 +385,6 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
     skipCompleted: true,
     qualityThreshold: 75,
     repairMode: "light_repair" as const,
-    provider: input.provider,
-    model: input.model,
-    temperature: input.temperature,
     workflowTaskId: input.workflowTaskId,
     taskStyleProfileId: input.taskStyleProfileId,
   };
