@@ -1,27 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type {
-  AutoDirectorAction,
-  AutoDirectorMutationActionCode,
-} from "@ai-novel/shared/types/autoDirectorFollowUp";
+import type { AutoDirectorAction, AutoDirectorMutationActionCode } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import type { TaskKind, TaskStatus } from "@ai-novel/shared/types/task";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import type {
-  NovelWorkflowMilestone,
-  NovelWorkflowMilestoneType,
-  NovelWorkflowResumeTarget,
-} from "@ai-novel/shared/types/novelWorkflow";
+import type { NovelWorkflowMilestone } from "@ai-novel/shared/types/novelWorkflow";
 import { getDirectorRuntimeSnapshot } from "@/api/novelDirector";
 import { continueNovelWorkflow } from "@/api/novelWorkflow";
-import {
-  archiveTask,
-  cancelTask,
-  executeAutoDirectorFollowUpAction,
-  getAutoDirectorFollowUpDetail,
-  getTaskDetail,
-  listTasks,
-  retryTask,
-} from "@/api/tasks";
+import { archiveTask, cancelTask, executeAutoDirectorFollowUpAction, getAutoDirectorFollowUpDetail, getTaskDetail, listTasks, retryTask } from "@/api/tasks";
 import { queryKeys } from "@/api/queryKeys";
 import DirectorRuntimeProjectionCard from "@/components/autoDirector/DirectorRuntimeProjectionCard";
 import LLMSelector, { type LLMSelectorValue } from "@/components/common/LLMSelector";
@@ -29,201 +14,33 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 import { useDirectorChapterTitleRepair } from "@/hooks/useDirectorChapterTitleRepair";
 import { syncKnownTaskCaches } from "@/lib/taskQueryCache";
-import {
-  buildTaskNoticeRoute,
-  isChapterTitleDiversitySummary,
-  parseDirectorTaskNotice,
-  resolveChapterTitleWarning,
-} from "@/lib/directorTaskNotice";
+import { buildTaskNoticeRoute, isChapterTitleDiversitySummary, parseDirectorTaskNotice, resolveChapterTitleWarning } from "@/lib/directorTaskNotice";
 import { canContinueFront10AutoExecution, getCandidateSelectionLink, requiresCandidateSelection } from "@/lib/novelWorkflowTaskUi";
 import { useLLMStore } from "@/store/llmStore";
-
-const ACTIVE_STATUSES = new Set<TaskStatus>(["queued", "running", "waiting_approval"]);
-const ANOMALY_STATUSES = new Set<TaskStatus>(["failed", "cancelled"]);
-const ARCHIVABLE_STATUSES = new Set<TaskStatus>(["succeeded", "failed", "cancelled"]);
-
-function getTaskListPriority(status: TaskStatus): number {
-  return status === "failed" ? 0 : 1;
-}
-
-type TaskSortMode = "default" | "updated_desc" | "updated_asc" | "heartbeat_desc" | "heartbeat_asc";
-
-function getTimestamp(value: string | null | undefined): number {
-  if (!value) {
-    return Number.NaN;
-  }
-  return new Date(value).getTime();
-}
-
-function formatDate(value: string | null | undefined): string {
-  if (!value) {
-    return "暂无";
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "暂无";
-  }
-  return date.toLocaleString();
-}
-
-function formatTokenCount(value: number | null | undefined): string {
-  return new Intl.NumberFormat("zh-CN").format(Math.max(0, Math.round(value ?? 0)));
-}
-
-function formatKind(kind: TaskKind): string {
-  if (kind === "book_analysis") {
-    return "拆书分析";
-  }
-  if (kind === "novel_workflow") {
-    return "小说创作";
-  }
-  if (kind === "novel_pipeline") {
-    return "小说流水线";
-  }
-  if (kind === "knowledge_document") {
-    return "知识库索引";
-  }
-  if (kind === "style_extraction") {
-    return "写法提取";
-  }
-  if (kind === "agent_run") {
-    return "Agent 运行";
-  }
-  return "图片生成";
-}
-
-function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null | undefined, scopeLabel?: string | null): string {
-  const resolvedScopeLabel = scopeLabel?.trim() || "前 10 章";
-  if (checkpoint === "rewrite_snapshot_created") {
-    return "重写前备份已创建";
-  }
-  if (checkpoint === "candidate_selection_required") {
-    return "等待确认书级方向";
-  }
-  if (checkpoint === "book_contract_ready") {
-    return "Book Contract 已就绪";
-  }
-  if (checkpoint === "character_setup_required") {
-    return "角色准备待审核";
-  }
-  if (checkpoint === "volume_strategy_ready") {
-    return "卷战略已就绪";
-  }
-  if (checkpoint === "front10_ready") {
-    return `${resolvedScopeLabel}可开写`;
-  }
-  if (checkpoint === "chapter_batch_ready") {
-    return `${resolvedScopeLabel}自动执行已暂停`;
-  }
-  if (checkpoint === "replan_required") {
-    return "需要重规划";
-  }
-  if (checkpoint === "workflow_completed") {
-    return "主流程完成";
-  }
-  return "暂无";
-}
-
-function formatResumeTarget(target: NovelWorkflowResumeTarget | null | undefined): string {
-  if (!target) {
-    return "暂无";
-  }
-  if (target.route === "/novels/create") {
-    return target.mode === "director" ? "创建页 / AI 自动导演" : "创建页";
-  }
-  if (target.stage === "story_macro") {
-    return "小说编辑页 / 故事宏观规划";
-  }
-  if (target.stage === "character") {
-    return "小说编辑页 / 角色准备";
-  }
-  if (target.stage === "outline") {
-    return "小说编辑页 / 卷战略";
-  }
-  if (target.stage === "structured") {
-    return "小说编辑页 / 节奏拆章";
-  }
-  if (target.stage === "chapter") {
-    return "小说编辑页 / 章节执行";
-  }
-  if (target.stage === "pipeline") {
-    return "小说编辑页 / 质量修复";
-  }
-  return "小说编辑页 / 项目设定";
-}
-
-function formatStatus(status: TaskStatus): string {
-  if (status === "queued") {
-    return "排队中";
-  }
-  if (status === "running") {
-    return "运行中";
-  }
-  if (status === "waiting_approval") {
-    return "等待审批";
-  }
-  if (status === "succeeded") {
-    return "已完成";
-  }
-  if (status === "failed") {
-    return "失败";
-  }
-  return "已取消";
-}
-
-function toStatusVariant(status: TaskStatus): "default" | "outline" | "secondary" | "destructive" {
-  if (status === "running") {
-    return "default";
-  }
-  if (status === "waiting_approval") {
-    return "secondary";
-  }
-  if (status === "queued") {
-    return "secondary";
-  }
-  if (status === "failed") {
-    return "destructive";
-  }
-  return "outline";
-}
-
-function serializeListParams(input: {
-  kind: TaskKind | "";
-  status: TaskStatus | "";
-  keyword: string;
-}): string {
-  return JSON.stringify({
-    kind: input.kind || null,
-    status: input.status || null,
-    keyword: input.keyword.trim() || null,
-  });
-}
-
-function createIdempotencyKey(taskId: string, actionCode: string): string {
-  if (typeof globalThis.crypto?.randomUUID === "function") {
-    return `${taskId}:${actionCode}:${globalThis.crypto.randomUUID()}`;
-  }
-  return `${taskId}:${actionCode}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
-}
-
-function formatFollowUpPriority(priority: "P0" | "P1" | "P2"): string {
-  if (priority === "P0") {
-    return "P0 立即处理";
-  }
-  if (priority === "P1") {
-    return "P1 尽快处理";
-  }
-  return "P2 可稍后处理";
-}
-
-function followUpActionVariant(action: AutoDirectorAction): "default" | "outline" {
-  return action.kind === "navigation" || action.riskLevel !== "low" ? "outline" : "default";
-}
+import TaskCenterFilterPanel from "./components/TaskCenterFilterPanel";
+import TaskCenterDetailSummary from "./components/TaskCenterDetailSummary";
+import TaskCenterListPanel from "./components/TaskCenterListPanel";
+import TaskCenterMilestoneHistory from "./components/TaskCenterMilestoneHistory";
+import TaskCenterSummaryCards from "./components/TaskCenterSummaryCards";
+import {
+  ACTIVE_STATUSES,
+  ANOMALY_STATUSES,
+  ARCHIVABLE_STATUSES,
+  createIdempotencyKey,
+  followUpActionVariant,
+  formatCheckpoint,
+  formatFollowUpPriority,
+  formatStatus,
+  getTaskListPriority,
+  getTimestamp,
+  serializeListParams,
+  toStatusVariant,
+  type TaskSortMode,
+} from "./taskCenterUtils";
 
 export default function TaskCenterPage() {
   const navigate = useNavigate();
@@ -567,163 +384,40 @@ export default function TaskCenterPage() {
 
   return (
     <div className="space-y-4">
-      <div className="task-status-summary-grid grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">运行中</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold">{runningCount}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">排队中</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold">{queuedCount}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">失败</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold">{failedCount}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">24h 完成</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold">{completed24hCount}</div>
-          </CardContent>
-        </Card>
-      </div>
+      <TaskCenterSummaryCards
+        runningCount={runningCount}
+        queuedCount={queuedCount}
+        failedCount={failedCount}
+        completed24hCount={completed24hCount}
+      />
 
       <div className="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)_360px]">
-        <Card className="task-filter-card">
-          <CardHeader className="task-filter-header">
-            <CardTitle className="text-base">筛选</CardTitle>
-          </CardHeader>
-          <CardContent className="task-filter-controls grid min-w-0 grid-cols-3 gap-2 xl:grid-cols-1">
-            <select
-              className="task-filter-kind col-start-1 row-start-1 w-full rounded-md border bg-background px-2 py-2 text-sm xl:col-auto xl:row-auto"
-              value={kind}
-              onChange={(event) => setKind(event.target.value as TaskKind | "")}
-            >
-              <option value="">全部类型</option>
-              <option value="book_analysis">拆书分析</option>
-              <option value="novel_workflow">小说创作</option>
-              <option value="novel_pipeline">小说流水线</option>
-              <option value="knowledge_document">知识库索引</option>
-              <option value="image_generation">图片生成</option>
-              <option value="style_extraction">写法提取</option>
-              <option value="agent_run">Agent 运行</option>
-            </select>
-            <select
-              className="task-filter-status col-start-2 row-start-1 w-full rounded-md border bg-background px-2 py-2 text-sm xl:col-auto xl:row-auto"
-              value={status}
-              onChange={(event) => setStatus(event.target.value as TaskStatus | "")}
-            >
-              <option value="">全部状态</option>
-              <option value="queued">排队中</option>
-              <option value="running">运行中</option>
-              <option value="waiting_approval">等待审批</option>
-              <option value="failed">失败</option>
-              <option value="cancelled">已取消</option>
-              <option value="succeeded">已完成</option>
-            </select>
-            <label className="task-filter-pill col-start-3 row-start-1 flex items-center gap-1.5 rounded-md border bg-muted/30 px-1.5 py-2 text-xs text-muted-foreground sm:gap-2 sm:px-2 sm:text-sm xl:col-auto xl:row-auto">
-              <input
-                type="checkbox"
-                checked={onlyAnomaly}
-                onChange={(event) => setOnlyAnomaly(event.target.checked)}
-              />
-              仅看异常
-            </label>
-            <Input
-              className="task-filter-keyword col-span-2 col-start-1 row-start-2 h-10 px-2 xl:col-auto xl:row-auto"
-              value={keyword}
-              onChange={(event) => setKeyword(event.target.value)}
-              placeholder="标题或关联对象"
-            />
-            <select
-              className="task-filter-sort col-start-3 row-start-2 w-full rounded-md border bg-background px-2 py-2 text-sm xl:col-auto xl:row-auto"
-              value={sortMode}
-              onChange={(event) => setSortMode(event.target.value as TaskSortMode)}
-            >
-              <option value="updated_desc">按更新时间排序：最新优先</option>
-              <option value="updated_asc">按更新时间排序：最早优先</option>
-              <option value="heartbeat_desc">按最近心跳排序：最新优先</option>
-              <option value="heartbeat_asc">按最近心跳排序：最早优先</option>
-              <option value="default">默认排序：失败优先</option>
-            </select>
-          </CardContent>
-        </Card>
+        <TaskCenterFilterPanel
+          kind={kind}
+          status={status}
+          keyword={keyword}
+          onlyAnomaly={onlyAnomaly}
+          sortMode={sortMode}
+          onKindChange={setKind}
+          onStatusChange={setStatus}
+          onKeywordChange={setKeyword}
+          onOnlyAnomalyChange={setOnlyAnomaly}
+          onSortModeChange={setSortMode}
+        />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">任务列表</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {visibleRows.map((task) => {
-              const isSelected = task.kind === selectedKind && task.id === selectedId;
-              return (
-                <button
-                  key={`${task.kind}:${task.id}`}
-                  type="button"
-                  className={`w-full rounded-md border p-3 text-left transition-colors ${
-                    isSelected ? "border-primary bg-primary/5" : "hover:bg-muted/40"
-                  }`}
-                  onClick={() => {
-                    setSearchParams((prev) => {
-                      const next = new URLSearchParams(prev);
-                      next.set("kind", task.kind);
-                      next.set("id", task.id);
-                      return next;
-                    });
-                  }}
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="font-medium">{task.title}</div>
-                  <Badge variant={toStatusVariant(task.status)}>{formatStatus(task.status)}</Badge>
-                </div>
-                <div className="mt-2 text-xs text-muted-foreground">
-                  {formatKind(task.kind)} | 进度 {Math.round(task.progress * 100)}%
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  阶段：{task.currentStage ?? "暂无"} | 当前项：{task.currentItemLabel ?? "暂无"}
-                </div>
-                {task.displayStatus || task.lastHealthyStage ? (
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    状态：{task.displayStatus ?? formatStatus(task.status)} | 最近健康阶段：{task.lastHealthyStage ?? "暂无"}
-                  </div>
-                ) : null}
-                {task.kind === "novel_workflow" ? (
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    检查点：{formatCheckpoint(task.checkpointType, task.executionScopeLabel)} | 建议继续：{task.resumeAction ?? task.nextActionLabel ?? "继续主流程"}
-                  </div>
-                ) : null}
-                {task.blockingReason ? (
-                  <div className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                    原因：{task.blockingReason}
-                  </div>
-                ) : null}
-                <div className="mt-1 text-xs text-muted-foreground">
-                  最近心跳：{formatDate(task.heartbeatAt)} | 更新时间：{formatDate(task.updatedAt)}
-                </div>
-              </button>
-              );
-            })}
-            {visibleRows.length === 0 ? (
-              <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-                当前没有符合条件的任务。
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
+        <TaskCenterListPanel
+          tasks={visibleRows}
+          selectedKind={selectedKind}
+          selectedId={selectedId}
+          onSelectTask={(task) => {
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.set("kind", task.kind);
+              next.set("id", task.id);
+              return next;
+            });
+          }}
+        />
 
         <Card>
           <CardHeader>
@@ -732,53 +426,11 @@ export default function TaskCenterPage() {
           <CardContent className="space-y-3 text-sm">
             {selectedTask ? (
               <>
-                <div className="space-y-1">
-                  <div className="font-medium">{selectedTask.title}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatKind(selectedTask.kind)} | 归属：{selectedTask.ownerLabel}
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant={toStatusVariant(selectedTask.status)}>{formatStatus(selectedTask.status)}</Badge>
-                  <Badge variant="outline">进度 {Math.round(selectedTask.progress * 100)}%</Badge>
-                </div>
-                <div className="space-y-1 text-muted-foreground">
-                  <div>展示状态：{selectedTask.displayStatus ?? formatStatus(selectedTask.status)}</div>
-                  <div>当前阶段：{selectedTask.currentStage ?? "暂无"}</div>
-                  <div>当前项：{selectedTask.currentItemLabel ?? "暂无"}</div>
-                  {selectedTask.kind === "novel_workflow" ? (
-                    <>
-                      <div>最近检查点：{formatCheckpoint(selectedTask.checkpointType, selectedTask.executionScopeLabel)}</div>
-                      <div>恢复目标页：{formatResumeTarget(selectedTask.resumeTarget)}</div>
-                      <div>建议继续：{selectedTask.resumeAction ?? selectedTask.nextActionLabel ?? "继续小说主流程"}</div>
-                      <div>最近健康阶段：{selectedTask.lastHealthyStage ?? "暂无"}</div>
-                    </>
-                  ) : null}
-                  {selectedTask.blockingReason ? (
-                    <div>阻塞原因：{selectedTask.blockingReason}</div>
-                  ) : null}
-                  <div>最近心跳：{formatDate(selectedTask.heartbeatAt)}</div>
-                  <div>开始时间：{formatDate(selectedTask.startedAt)}</div>
-                  <div>结束时间：{formatDate(selectedTask.finishedAt)}</div>
-                  <div>重试计数：{selectedTask.retryCountLabel}</div>
-                  {(selectedTask.provider || selectedTask.model) ? (
-                    <div>调用模型：{selectedTask.provider ?? "暂无"} / {selectedTask.model ?? "暂无"}</div>
-                  ) : null}
-                  {isAutoDirectorTask ? (
-                    <>
-                      <div>当前界面模型：{llm.provider} / {llm.model}</div>
-                    </>
-                  ) : null}
-                  {(selectedTask.tokenUsage || selectedTask.provider || selectedTask.model) ? (
-                    <>
-                      <div>累计调用：{formatTokenCount(selectedTask.tokenUsage?.llmCallCount ?? 0)}</div>
-                      <div>输入 Tokens：{formatTokenCount(selectedTask.tokenUsage?.promptTokens ?? 0)}</div>
-                      <div>输出 Tokens：{formatTokenCount(selectedTask.tokenUsage?.completionTokens ?? 0)}</div>
-                      <div>累计总 Tokens：{formatTokenCount(selectedTask.tokenUsage?.totalTokens ?? 0)}</div>
-                      <div>最近记录：{formatDate(selectedTask.tokenUsage?.lastRecordedAt)}</div>
-                    </>
-                  ) : null}
-                </div>
+                <TaskCenterDetailSummary
+                  task={selectedTask}
+                  isAutoDirectorTask={isAutoDirectorTask}
+                  currentModelLabel={`${llm.provider} / ${llm.model}`}
+                />
                 {selectedTask.noticeCode || selectedTask.noticeSummary ? (
                   <div className="rounded-md border border-amber-300/50 bg-amber-50/70 p-2 text-amber-900">
                     <div className="font-medium">
@@ -1023,17 +675,8 @@ export default function TaskCenterPage() {
                     </div>
                   ))}
                 </div>
-                {selectedTask.kind === "novel_workflow" && Array.isArray(selectedTask.meta.milestones) && selectedTask.meta.milestones.length > 0 ? (
-                  <div className="space-y-2">
-                    <div className="font-medium">里程碑历史</div>
-                    {(selectedTask.meta.milestones as NovelWorkflowMilestone[]).map((item) => (
-                      <div key={`${item.checkpointType}:${item.createdAt}`} className="rounded-md border p-2 text-muted-foreground">
-                        <div className="font-medium text-foreground">{formatCheckpoint(item.checkpointType)}</div>
-                        <div className="mt-1">{item.summary}</div>
-                        <div className="mt-1 text-xs">记录时间：{formatDate(item.createdAt)}</div>
-                      </div>
-                    ))}
-                  </div>
+                {selectedTask.kind === "novel_workflow" && Array.isArray(selectedTask.meta.milestones) ? (
+                  <TaskCenterMilestoneHistory milestones={selectedTask.meta.milestones as NovelWorkflowMilestone[]} />
                 ) : null}
               </>
             ) : (
