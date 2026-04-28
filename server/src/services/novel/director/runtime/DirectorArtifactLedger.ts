@@ -54,6 +54,8 @@ export interface DirectorArtifactLedgerSummary {
   needsRepairArtifacts: DirectorArtifactRef[];
 }
 
+type DirectorArtifactDependency = NonNullable<DirectorArtifactRef["dependsOn"]>[number];
+
 export function stableDirectorContentHash(value: string | null | undefined): string | null {
   const normalized = value?.trim();
   if (!normalized) {
@@ -70,6 +72,20 @@ export function buildDirectorArtifactId(input: {
   id: string;
 }): string {
   return `${input.type}:${input.targetType}:${input.targetId ?? "global"}:${input.table}:${input.id}`;
+}
+
+export function compactDirectorArtifactDependencies(
+  dependencies: Array<string | DirectorArtifactDependency | null | undefined>,
+): DirectorArtifactRef["dependsOn"] {
+  const normalized = dependencies.flatMap((dependency): DirectorArtifactDependency[] => {
+    if (!dependency) {
+      return [];
+    }
+    return typeof dependency === "string"
+      ? [{ artifactId: dependency, version: 1 }]
+      : [dependency];
+  });
+  return normalizeDependencies(normalized);
 }
 
 export function normalizeDirectorArtifactTargets(

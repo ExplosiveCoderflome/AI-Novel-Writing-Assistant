@@ -2,7 +2,6 @@ import type {
   AiManualEditImpactDecision,
   AiWorkspaceInterpretation,
   DirectorArtifactRef,
-  DirectorArtifactType,
   DirectorManualEditImpact,
   DirectorManualEditInventory,
   DirectorWorkspaceAnalysis,
@@ -20,13 +19,7 @@ import {
   directorManualEditImpactPrompt,
 } from "../../../../prompting/prompts/novel/directorManualEditImpact.prompts";
 import { DirectorRuntimeStore } from "./DirectorRuntimeStore";
-import {
-  buildDirectorArtifactId,
-  normalizeDirectorArtifactTargets,
-  stableDirectorContentHash,
-  summarizeDirectorArtifactLedger,
-  type DirectorArtifactTarget,
-} from "./DirectorArtifactLedger";
+import { buildDirectorWorkspaceArtifactInventory } from "./DirectorWorkspaceArtifactInventory";
 
 function timestampOf(value?: string | null): number {
   if (!value) {
@@ -159,27 +152,6 @@ function buildManualEditRecommendation(impact: DirectorManualEditImpact): Direct
     affectedScope: impact.changedChapters.map((chapter) => `chapter:${chapter.chapterId}`).join(","),
     riskLevel: impact.impactLevel === "high" ? "high" : impact.impactLevel === "medium" ? "medium" : "low",
   };
-}
-
-function buildExpectedArtifactTypes(input: {
-  hasBookContract: boolean;
-  hasStoryMacro: boolean;
-  hasCharacters: boolean;
-  hasVolumeStrategy: boolean;
-  hasChapterPlan: boolean;
-  draftedChapterCount: number;
-  pendingRepairChapterCount: number;
-}): DirectorArtifactType[] {
-  const expected: DirectorArtifactType[] = [];
-  if (!input.hasBookContract) expected.push("book_contract");
-  if (!input.hasStoryMacro) expected.push("story_macro");
-  if (!input.hasCharacters) expected.push("character_cast");
-  if (!input.hasVolumeStrategy) expected.push("volume_strategy");
-  if (!input.hasChapterPlan) expected.push("chapter_task_sheet");
-  if (input.hasChapterPlan && input.draftedChapterCount === 0) expected.push("chapter_draft");
-  if (input.draftedChapterCount > 0) expected.push("audit_report");
-  if (input.pendingRepairChapterCount > 0) expected.push("repair_ticket");
-  return expected;
 }
 
 export class DirectorWorkspaceAnalyzer {
@@ -386,6 +358,10 @@ export class DirectorWorkspaceAnalyzer {
       latestCharacter,
       volumePlans,
       chapterPlanCount,
+      volumeChapterPlans,
+      world,
+      sourceKnowledgeDocument,
+      continuationBookAnalysis,
       chapters,
       qualityReports,
       auditReports,
@@ -417,10 +393,36 @@ export class DirectorWorkspaceAnalyzer {
           volume: { novelId },
         },
       }),
+      prisma.volumeChapterPlan.findMany({
+        where: {
+          volume: { novelId },
+        },
+        select: { volumeId: true, chapterOrder: true },
+        orderBy: { chapterOrder: "asc" },
+      }),
+      novel.worldId
+        ? prisma.world.findUnique({
+          where: { id: novel.worldId },
+          select: { id: true, status: true, version: true, updatedAt: true },
+        })
+        : Promise.resolve(null),
+      novel.sourceKnowledgeDocumentId
+        ? prisma.knowledgeDocument.findUnique({
+          where: { id: novel.sourceKnowledgeDocumentId },
+          select: { id: true, activeVersionId: true, activeVersionNumber: true, updatedAt: true },
+        })
+        : Promise.resolve(null),
+      novel.continuationBookAnalysisId
+        ? prisma.bookAnalysis.findUnique({
+          where: { id: novel.continuationBookAnalysisId },
+          select: { id: true, documentVersionId: true, status: true, updatedAt: true },
+        })
+        : Promise.resolve(null),
       prisma.chapter.findMany({
         where: { novelId },
         select: {
           id: true,
+          order: true,
           content: true,
           taskSheet: true,
           repairHistory: true,
@@ -481,183 +483,27 @@ export class DirectorWorkspaceAnalyzer {
       || chapter.chapterStatus === "completed"
     )).length;
     const pendingRepairChapterCount = chapters.filter((chapter) => chapter.chapterStatus === "needs_repair").length;
-
-    const artifactTargets: DirectorArtifactTarget[] = [];
-    if (bookContract) {
-      artifactTargets.push({
-        artifactType: "book_contract",
-        targetType: "novel",
-        targetId: novelId,
-        contentRef: { table: "BookContract", id: bookContract.id },
-        updatedAt: bookContract.updatedAt,
-      });
-    }
-    if (storyMacro) {
-      artifactTargets.push({
-        artifactType: "story_macro",
-        targetType: "novel",
-        targetId: novelId,
-        contentRef: { table: "StoryMacroPlan", id: storyMacro.id },
-        updatedAt: storyMacro.updatedAt,
-      });
-    }
-    if (characterCount > 0 && latestCharacter) {
-      artifactTargets.push({
-        artifactType: "character_cast",
-        targetType: "novel",
-        targetId: novelId,
-        contentRef: { table: "Character", id: `novel:${novelId}` },
-        updatedAt: latestCharacter.updatedAt,
-        dependsOn: [
-          ...(bookContract ? [{
-            artifactId: buildDirectorArtifactId({
-              type: "book_contract",
-              targetType: "novel",
-              targetId: novelId,
-              table: "BookContract",
-              id: bookContract.id,
-            }),
-            version: 1,
-          }] : []),
-          ...(storyMacro ? [{
-            artifactId: buildDirectorArtifactId({
-              type: "story_macro",
-              targetType: "novel",
-              targetId: novelId,
-              table: "StoryMacroPlan",
-              id: storyMacro.id,
-            }),
-            version: 1,
-          }] : []),
-        ],
-      });
-    }
-    for (const volume of volumePlans) {
-      artifactTargets.push({
-        artifactType: "volume_strategy",
-        targetType: "volume",
-        targetId: volume.id,
-        contentRef: { table: "VolumePlan", id: volume.id },
-        updatedAt: volume.updatedAt,
-        dependsOn: [
-          ...(storyMacro ? [{
-            artifactId: buildDirectorArtifactId({
-              type: "story_macro",
-              targetType: "novel",
-              targetId: novelId,
-              table: "StoryMacroPlan",
-              id: storyMacro.id,
-            }),
-            version: 1,
-          }] : []),
-        ],
-      });
-    }
-    for (const chapter of chapters) {
-      const taskSheetArtifactId = buildDirectorArtifactId({
-        type: "chapter_task_sheet",
-        targetType: "chapter",
-        targetId: chapter.id,
-        table: "Chapter",
-        id: chapter.id,
-      });
-      const draftArtifactId = buildDirectorArtifactId({
-        type: "chapter_draft",
-        targetType: "chapter",
-        targetId: chapter.id,
-        table: "Chapter",
-        id: chapter.id,
-      });
-      if (chapter.taskSheet?.trim()) {
-        artifactTargets.push({
-          artifactType: "chapter_task_sheet",
-          targetType: "chapter",
-          targetId: chapter.id,
-          contentRef: { table: "Chapter", id: chapter.id },
-          updatedAt: chapter.updatedAt,
-          contentHash: stableDirectorContentHash(chapter.taskSheet),
-        });
-      }
-      if (chapter.content?.trim()) {
-        artifactTargets.push({
-          artifactType: "chapter_draft",
-          targetType: "chapter",
-          targetId: chapter.id,
-          contentRef: { table: "Chapter", id: chapter.id },
-          updatedAt: chapter.updatedAt,
-          source: "user_edited",
-          contentHash: stableDirectorContentHash(chapter.content),
-          protectedUserContent: true,
-          dependsOn: chapter.taskSheet?.trim()
-            ? [{ artifactId: taskSheetArtifactId, version: 1 }]
-            : [],
-        });
-      }
-      if (chapter.chapterStatus === "needs_repair") {
-        artifactTargets.push({
-          artifactType: "repair_ticket",
-          targetType: "chapter",
-          targetId: chapter.id,
-          contentRef: { table: "Chapter", id: chapter.id },
-          updatedAt: chapter.updatedAt,
-          contentHash: stableDirectorContentHash(chapter.repairHistory ?? chapter.content),
-          dependsOn: chapter.content?.trim()
-            ? [{ artifactId: draftArtifactId, version: 1 }]
-            : [],
-        });
-      }
-    }
-    for (const report of qualityReports) {
-      artifactTargets.push({
-        artifactType: "audit_report",
-        targetType: report.chapterId ? "chapter" : "novel",
-        targetId: report.chapterId ?? novelId,
-        contentRef: { table: "QualityReport", id: report.id },
-        updatedAt: report.updatedAt,
-        dependsOn: report.chapterId
-          ? [{
-            artifactId: buildDirectorArtifactId({
-              type: "chapter_draft",
-              targetType: "chapter",
-              targetId: report.chapterId,
-              table: "Chapter",
-              id: report.chapterId,
-            }),
-            version: 1,
-          }]
-          : [],
-      });
-    }
-    for (const report of auditReports) {
-      artifactTargets.push({
-        artifactType: "audit_report",
-        targetType: "chapter",
-        targetId: report.chapterId,
-        contentRef: { table: "AuditReport", id: report.id },
-        updatedAt: report.updatedAt,
-        dependsOn: [{
-          artifactId: buildDirectorArtifactId({
-            type: "chapter_draft",
-            targetType: "chapter",
-            targetId: report.chapterId,
-            table: "Chapter",
-            id: report.chapterId,
-          }),
-          version: 1,
-        }],
-      });
-    }
-
-    const artifacts = normalizeDirectorArtifactTargets(artifactTargets, novelId);
-    const ledgerSummary = summarizeDirectorArtifactLedger(artifacts, buildExpectedArtifactTypes({
-      hasBookContract: Boolean(bookContract),
-      hasStoryMacro: Boolean(storyMacro),
-      hasCharacters: characterCount > 0,
-      hasVolumeStrategy: volumePlans.length > 0,
-      hasChapterPlan: chapterPlanCount > 0 || chapters.some((chapter) => Boolean(chapter.taskSheet?.trim())),
+    const artifactInventory = buildDirectorWorkspaceArtifactInventory({
+      novelId,
+      hasWorldBinding: Boolean(novel.worldId),
+      hasSourceKnowledge: Boolean(novel.sourceKnowledgeDocumentId),
+      hasContinuationAnalysis: Boolean(novel.continuationBookAnalysisId),
+      bookContract,
+      storyMacro,
+      characterCount,
+      latestCharacter,
+      volumePlans,
+      chapterPlanCount,
+      volumeChapterPlans,
+      world,
+      sourceKnowledgeDocument,
+      continuationBookAnalysis,
+      chapters,
+      qualityReports,
+      auditReports,
       draftedChapterCount: draftedChapters.length,
       pendingRepairChapterCount,
-    }));
+    });
 
     return {
       novelId,
@@ -666,7 +512,7 @@ export class DirectorWorkspaceAnalyzer {
       hasStoryMacro: Boolean(storyMacro),
       hasCharacters: characterCount > 0,
       hasVolumeStrategy: volumePlans.length > 0,
-      hasChapterPlan: chapterPlanCount > 0 || chapters.some((chapter) => Boolean(chapter.taskSheet?.trim())),
+      hasChapterPlan: artifactInventory.hasChapterPlan,
       chapterCount: chapters.length,
       draftedChapterCount: draftedChapters.length,
       approvedChapterCount,
@@ -679,8 +525,8 @@ export class DirectorWorkspaceAnalyzer {
       activePipelineJobId: activePipelineJob?.id ?? null,
       activeDirectorTaskId: activeDirectorRun?.id ?? null,
       latestDirectorTaskId: latestDirectorRun?.id ?? null,
-      ...ledgerSummary,
-      artifacts,
+      ...artifactInventory.ledgerSummary,
+      artifacts: artifactInventory.artifacts,
     };
   }
 }
