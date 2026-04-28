@@ -81,6 +81,7 @@ import { NovelDirectorPipelineRuntime } from "./novelDirectorPipelineRuntime";
 import { NovelDirectorConfirmRuntime } from "./novelDirectorConfirmRuntime";
 import { NovelDirectorChapterTitleRepairRuntime } from "./novelDirectorChapterTitleRepairRuntime";
 import { NovelDirectorContinueRuntime } from "./novelDirectorContinueRuntime";
+import { prisma } from "../../../db/prisma";
 
 function isWorkflowTaskCancelledError(error: unknown): boolean {
   return error instanceof AppError
@@ -267,16 +268,41 @@ export class NovelDirectorService {
   }
 
   private async getDirectorAssetSnapshot(novelId: string) {
-    const [characters, chapters, workspace] = await Promise.all([
+    const [characters, chapters, workspace, novel] = await Promise.all([
       this.novelContextService.listCharacters(novelId),
       this.novelContextService.listChapters(novelId),
       this.volumeService.getVolumes(novelId).catch(() => null),
+      prisma.novel.findUnique({
+        where: { id: novelId },
+        select: { estimatedChapterCount: true },
+      }),
     ]);
     const firstVolume = workspace?.volumes[0] ?? null;
     const preparedOutlineChapters = workspace ? flattenPreparedOutlineChapters(workspace) : [];
+    const volumeChapterRangeMax = Math.max(
+      0,
+      ...(workspace?.volumes ?? []).flatMap((volume) => (
+        volume.chapters
+          .map((chapter) => chapter.chapterOrder)
+          .filter((order) => Number.isFinite(order))
+      )),
+    );
+    const structuredOutlineMax = Math.max(
+      0,
+      ...preparedOutlineChapters
+        .map((chapter) => chapter.chapterOrder)
+        .filter((order) => Number.isFinite(order)),
+    );
+    const plannedChapterCount = Math.max(
+      novel?.estimatedChapterCount ?? 0,
+      volumeChapterRangeMax,
+      structuredOutlineMax,
+      chapters.length,
+    ) || null;
     return {
       characterCount: characters.length,
       chapterCount: chapters.length,
+      plannedChapterCount,
       volumeCount: workspace?.volumes.length ?? 0,
       hasVolumeStrategyPlan: Boolean(workspace?.strategyPlan),
       firstVolumeId: firstVolume?.id ?? null,
@@ -422,6 +448,7 @@ export class NovelDirectorService {
         volumeCount: takeoverState.snapshot.volumeCount,
         hasVolumeStrategyPlan: takeoverState.snapshot.hasVolumeStrategyPlan,
         hasStructuredOutline: takeoverState.snapshot.structuredOutlineRecoveryStep === "completed",
+        plannedChapterCount: takeoverState.snapshot.plannedChapterCount,
         totalChapterCount: takeoverState.snapshot.chapterCount,
         volumeChapterRanges: takeoverState.snapshot.volumeChapterRanges,
         structuredOutlineChapterOrders: takeoverState.snapshot.structuredOutlineChapterOrders,

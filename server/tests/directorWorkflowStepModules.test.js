@@ -12,6 +12,7 @@ const {
 const {
   directorWorkflowStepModuleRegistry,
   getDirectorCandidateStepModule,
+  getDirectorConfirmNovelCreateStepModule,
   getDirectorExecutionStepModule,
   getDirectorExecutionStepModuleSequence,
   getDirectorPlanningStepModule,
@@ -23,6 +24,7 @@ test("director workflow step registry exposes unified step modules", () => {
 
   assert.equal(ids.length, new Set(ids).size);
   assert.ok(ids.includes("book.candidate.generate"));
+  assert.ok(ids.includes("book.project.create"));
   assert.ok(ids.includes("story.macro.plan"));
   assert.ok(ids.includes("chapter.draft.write"));
   assert.ok(ids.includes("chapter.quality.review"));
@@ -31,6 +33,11 @@ test("director workflow step registry exposes unified step modules", () => {
   const candidateModule = getDirectorCandidateStepModule("candidate_generation");
   assert.equal(candidateModule.nodeKey, "candidate_generation");
   assert.equal(candidateModule.targetType, "global");
+
+  const novelCreateModule = getDirectorConfirmNovelCreateStepModule();
+  assert.equal(novelCreateModule.nodeKey, "novel_create");
+  assert.deepEqual(novelCreateModule.reads, ["candidate_batch", "book_seed"]);
+  assert.deepEqual(novelCreateModule.writes, ["novel_project", "director_runtime"]);
 
   const outlineModule = getDirectorPlanningStepModule("structured_outline");
   assert.equal(outlineModule.id, "chapter.task_sheet.plan");

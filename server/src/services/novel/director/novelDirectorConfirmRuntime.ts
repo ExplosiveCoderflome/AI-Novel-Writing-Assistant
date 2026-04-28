@@ -22,6 +22,7 @@ import { DIRECTOR_PROGRESS } from "./novelDirectorProgress";
 import type { DirectorRuntimeService } from "./runtime/DirectorRuntimeService";
 import type { NovelDirectorRuntimeOrchestrator } from "./novelDirectorRuntimeOrchestrator";
 import type { NovelDirectorPipelineRuntime } from "./novelDirectorPipelineRuntime";
+import { getDirectorConfirmNovelCreateStepModule } from "./workflowStepRuntime/directorWorkflowStepModules";
 
 type WorkflowTaskSnapshot = Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>;
 
@@ -95,6 +96,13 @@ export class NovelDirectorConfirmRuntime {
         throw new Error("自动导演确认链缺少已附着的任务快照。");
       }
       if (attachedTask.novelId) {
+        await this.deps.directorRuntime.initializeRun({
+          taskId: workflowTask.id,
+          novelId: attachedTask.novelId,
+          entrypoint: "candidate_confirm",
+          policyMode: runMode === "stage_review" ? "run_next_step" : "run_until_gate",
+          summary: "自动导演复用已创建的小说项目并进入统一运行时。",
+        });
         await this.deps.ensurePrimaryNovelStyleBinding(attachedTask.novelId, resolvedInput.styleProfileId);
       }
       return this.buildExistingConfirmResponse(attachedTask, resolvedInput, bookSpec);
@@ -102,6 +110,13 @@ export class NovelDirectorConfirmRuntime {
     if (novelCreationClaim.status === "in_progress") {
       const existingTask = await this.waitForExistingConfirmedNovel(workflowTask.id);
       if (existingTask?.novelId) {
+        await this.deps.directorRuntime.initializeRun({
+          taskId: workflowTask.id,
+          novelId: existingTask.novelId,
+          entrypoint: "candidate_confirm",
+          policyMode: runMode === "stage_review" ? "run_next_step" : "run_until_gate",
+          summary: "自动导演复用正在创建完成的小说项目并进入统一运行时。",
+        });
         await this.deps.ensurePrimaryNovelStyleBinding(existingTask.novelId, resolvedInput.styleProfileId);
         return this.buildExistingConfirmResponse(existingTask, resolvedInput, bookSpec);
       }
@@ -130,45 +145,75 @@ export class NovelDirectorConfirmRuntime {
           runMode,
         };
 
-        await this.deps.runtimeOrchestrator.markTaskRunning(
-          workflowTask.id,
-          "auto_director",
-          "novel_create",
-          "正在创建小说项目",
-          DIRECTOR_PROGRESS.novelCreate,
-        );
-        const createdNovel = await this.deps.novelContextService.createNovel({
-          title,
-          description,
-          targetAudience: resolvedBookFraming.targetAudience,
-          bookSellingPoint: resolvedBookFraming.bookSellingPoint,
-          competingFeel: resolvedBookFraming.competingFeel,
-          first30ChapterPromise: resolvedBookFraming.first30ChapterPromise,
-          commercialTags: resolvedBookFraming.commercialTags,
-          genreId: resolvedInput.genreId?.trim() || undefined,
-          primaryStoryModeId: resolvedInput.primaryStoryModeId?.trim() || undefined,
-          secondaryStoryModeId: resolvedInput.secondaryStoryModeId?.trim() || undefined,
-          worldId: resolvedInput.worldId?.trim() || undefined,
-          writingMode: resolvedInput.writingMode,
-          projectMode: resolvedInput.projectMode,
-          narrativePov: resolvedInput.narrativePov,
-          pacePreference: resolvedInput.pacePreference,
-          styleTone: resolvedInput.styleTone?.trim() || undefined,
-          emotionIntensity: resolvedInput.emotionIntensity,
-          aiFreedom: resolvedInput.aiFreedom,
-          defaultChapterLength: resolvedInput.defaultChapterLength,
-          estimatedChapterCount: resolvedInput.estimatedChapterCount ?? bookSpec.targetChapterCount,
-          projectStatus: resolvedInput.projectStatus,
-          storylineStatus: resolvedInput.storylineStatus,
-          outlineStatus: resolvedInput.outlineStatus,
-          resourceReadyScore: resolvedInput.resourceReadyScore,
-          sourceNovelId: resolvedInput.sourceNovelId ?? undefined,
-          sourceKnowledgeDocumentId: resolvedInput.sourceKnowledgeDocumentId ?? undefined,
-          continuationBookAnalysisId: resolvedInput.continuationBookAnalysisId ?? undefined,
-          continuationBookAnalysisSections: resolvedInput.continuationBookAnalysisSections ?? undefined,
+        const novelCreateModule = getDirectorConfirmNovelCreateStepModule();
+        const createdNovel = await this.deps.runtimeOrchestrator.runNode({
+          taskId: workflowTask.id,
+          nodeKey: novelCreateModule.nodeKey,
+          label: novelCreateModule.label,
+          reads: novelCreateModule.reads,
+          writes: novelCreateModule.writes,
+          policyAction: novelCreateModule.policyAction,
+          mayModifyUserContent: novelCreateModule.mayModifyUserContent,
+          requiresApprovalByDefault: novelCreateModule.requiresApprovalByDefault,
+          supportsAutoRetry: novelCreateModule.supportsAutoRetry,
+          targetType: novelCreateModule.targetType,
+          targetId: workflowTask.id,
+          runner: async () => {
+            await this.deps.workflowService.markTaskRunning(workflowTask.id, {
+              stage: "auto_director",
+              itemKey: "novel_create",
+              itemLabel: "正在创建小说项目",
+              progress: DIRECTOR_PROGRESS.novelCreate,
+            });
+            const novel = await this.deps.novelContextService.createNovel({
+              title,
+              description,
+              targetAudience: resolvedBookFraming.targetAudience,
+              bookSellingPoint: resolvedBookFraming.bookSellingPoint,
+              competingFeel: resolvedBookFraming.competingFeel,
+              first30ChapterPromise: resolvedBookFraming.first30ChapterPromise,
+              commercialTags: resolvedBookFraming.commercialTags,
+              genreId: resolvedInput.genreId?.trim() || undefined,
+              primaryStoryModeId: resolvedInput.primaryStoryModeId?.trim() || undefined,
+              secondaryStoryModeId: resolvedInput.secondaryStoryModeId?.trim() || undefined,
+              worldId: resolvedInput.worldId?.trim() || undefined,
+              writingMode: resolvedInput.writingMode,
+              projectMode: resolvedInput.projectMode,
+              narrativePov: resolvedInput.narrativePov,
+              pacePreference: resolvedInput.pacePreference,
+              styleTone: resolvedInput.styleTone?.trim() || undefined,
+              emotionIntensity: resolvedInput.emotionIntensity,
+              aiFreedom: resolvedInput.aiFreedom,
+              defaultChapterLength: resolvedInput.defaultChapterLength,
+              estimatedChapterCount: resolvedInput.estimatedChapterCount ?? bookSpec.targetChapterCount,
+              projectStatus: resolvedInput.projectStatus,
+              storylineStatus: resolvedInput.storylineStatus,
+              outlineStatus: resolvedInput.outlineStatus,
+              resourceReadyScore: resolvedInput.resourceReadyScore,
+              sourceNovelId: resolvedInput.sourceNovelId ?? undefined,
+              sourceKnowledgeDocumentId: resolvedInput.sourceKnowledgeDocumentId ?? undefined,
+              continuationBookAnalysisId: resolvedInput.continuationBookAnalysisId ?? undefined,
+              continuationBookAnalysisSections: resolvedInput.continuationBookAnalysisSections ?? undefined,
+            });
+            await this.deps.workflowService.attachNovelToTask(workflowTask.id, novel.id, "project_setup");
+            return novel;
+          },
+          collectArtifacts: async (novel) => {
+            if (!novel?.id) {
+              return [];
+            }
+            const analysis = await this.deps.directorRuntime.analyzeWorkspace({
+              novelId: novel.id,
+              workflowTaskId: workflowTask.id,
+              includeAiInterpretation: false,
+            }).catch(() => null);
+            return analysis?.inventory.artifacts ?? [];
+          },
         });
+        if (!createdNovel?.id) {
+          throw new Error("自动导演建书节点没有返回小说项目。");
+        }
         await this.deps.ensurePrimaryNovelStyleBinding(createdNovel.id, resolvedInput.styleProfileId);
-        await this.deps.workflowService.attachNovelToTask(workflowTask.id, createdNovel.id, "project_setup");
         const directorSession = buildDirectorSessionState({
           runMode,
           phase: "story_macro",
@@ -195,12 +240,6 @@ export class NovelDirectorConfirmRuntime {
           entrypoint: "candidate_confirm",
           policyMode: runMode === "stage_review" ? "run_next_step" : "run_until_gate",
           summary: "自动导演已创建小说项目并进入统一运行时。",
-        });
-        await this.deps.runtimeOrchestrator.refreshWorkspaceAfterNode({
-          taskId: workflowTask.id,
-          novelId: createdNovel.id,
-          nodeKey: "novel_create",
-          label: "创建小说项目",
         });
         await this.deps.runtimeOrchestrator.markTaskRunning(
           workflowTask.id,

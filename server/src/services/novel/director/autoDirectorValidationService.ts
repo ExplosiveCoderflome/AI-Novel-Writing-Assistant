@@ -138,13 +138,26 @@ function isVolumeScope(
   return scope.type === "volume";
 }
 
+function resolvePlannedChapterCount(input: {
+  assets: AutoDirectorTakeoverValidationInput["assets"];
+  volumeChapterRanges: Array<{ volumeOrder: number; startOrder: number; endOrder: number }>;
+  structuredOutlineChapterOrders: Set<number>;
+}): number | null {
+  const candidates = [
+    normalizeChapterOrder(input.assets.plannedChapterCount ?? null),
+    ...input.volumeChapterRanges.map((range) => normalizeChapterOrder(range.endOrder)),
+    ...Array.from(input.structuredOutlineChapterOrders).map((order) => normalizeChapterOrder(order)),
+    normalizeChapterOrder(input.assets.totalChapterCount ?? null),
+  ].filter((count): count is number => Boolean(count));
+  return candidates.length > 0 ? Math.max(...candidates) : null;
+}
+
 function validateScopeAgainstAssets(input: {
   affectedScope: AutoDirectorAffectedScope;
   assets: AutoDirectorTakeoverValidationInput["assets"];
   entryStep: DirectorTakeoverEntryStep;
 }): string[] {
   const reasons: string[] = [];
-  const totalChapterCount = normalizeChapterOrder(input.assets.totalChapterCount ?? null);
   const volumeChapterRanges = Array.isArray(input.assets.volumeChapterRanges)
     ? input.assets.volumeChapterRanges
       .map((range) => ({
@@ -159,9 +172,14 @@ function validateScopeAgainstAssets(input: {
       .map((order) => normalizeChapterOrder(order))
       .filter((order): order is number => Boolean(order)),
   );
+  const plannedChapterCount = resolvePlannedChapterCount({
+    assets: input.assets,
+    volumeChapterRanges,
+    structuredOutlineChapterOrders,
+  });
   const affectedScope = input.affectedScope;
-  if (isChapterRangeScope(affectedScope) && totalChapterCount && affectedScope.endOrder > totalChapterCount) {
-    reasons.push(`目标章节范围超过当前全书规划章节数，请把范围调整到 ${totalChapterCount} 章以内。`);
+  if (isChapterRangeScope(affectedScope) && plannedChapterCount && affectedScope.endOrder > plannedChapterCount) {
+    reasons.push(`目标章节范围超过当前全书规划章节数，请把范围调整到 ${plannedChapterCount} 章以内。`);
   }
   if (isVolumeScope(affectedScope)) {
     const volumeCount = normalizeChapterOrder(input.assets.volumeCount) ?? 0;

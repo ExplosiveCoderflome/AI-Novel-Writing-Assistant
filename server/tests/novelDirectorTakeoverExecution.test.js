@@ -319,6 +319,9 @@ test("continue_existing from structured records downstream reset metadata and re
   assert.equal(bootstrapInput.seedPayload.takeover.downstreamReset.preserveAssets, true);
   assert.equal(bootstrapInput.seedPayload.takeover.downstreamReset.fromStep, "structured");
   assert.deepEqual(bootstrapInput.seedPayload.takeover.downstreamReset.resetSteps, ["chapter", "pipeline"]);
+  assert.equal(bootstrapInput.initialState.stage, "structured_outline");
+  assert.equal(bootstrapInput.initialState.itemKey, "beat_sheet");
+  assert.equal(bootstrapInput.initialState.volumeId, "volume_1");
   assert.equal(cancelInput.replacementTaskId, "workflow_takeover_demo");
   assert.equal(cancelInput.plan.strategy, "continue_existing");
   assert.equal(cancelInput.plan.effectiveStep, "structured");
@@ -465,4 +468,58 @@ test("restart_current_step records downstream reset metadata for workspace navig
   assert.equal(bootstrapInput.seedPayload.takeover.downstreamReset.preserveAssets, false);
   assert.equal(bootstrapInput.seedPayload.takeover.downstreamReset.fromStep, "structured");
   assert.deepEqual(bootstrapInput.seedPayload.takeover.downstreamReset.resetSteps, ["chapter", "pipeline"]);
+});
+
+test("takeover startup failure after bootstrap marks the replacement task failed", async () => {
+  const calls = [];
+
+  await assert.rejects(
+    () => startDirectorTakeoverExecution({
+      request: {
+        novelId: "novel_takeover_demo",
+        entryStep: "structured",
+        strategy: "continue_existing",
+      },
+      takeoverState: buildTakeoverState(),
+      directorInput: {
+        candidate: { workingTitle: "Neon Archive" },
+        runMode: "auto_to_execution",
+        autoExecutionPlan: { mode: "front10" },
+      },
+      workflowService: {
+        bootstrapTask: async (input) => {
+          calls.push(["bootstrap", input.initialState.stage, input.initialState.itemKey]);
+          return { id: "workflow_takeover_demo" };
+        },
+        markTaskRunning: async () => {
+          calls.push("mark_running");
+        },
+        markTaskFailed: async (taskId, message) => {
+          calls.push(["mark_failed", taskId, message]);
+        },
+      },
+      autoExecutionRuntime: {
+        prepareRequestedAutoExecution: async () => {},
+        runFromReady: async () => {},
+      },
+      buildDirectorSeedPayload: (_request, _novelId, extra) => ({ ...extra }),
+      scheduleBackgroundRun: () => {
+        calls.push("schedule");
+      },
+      runDirectorPipeline: async () => {},
+      cancelReplacedRuns: async () => {
+        calls.push("cancel_replaced_runs");
+      },
+      assertHighMemoryStartAllowed: async () => {
+        throw new Error("已有自动导演任务正在处理同一范围");
+      },
+    }),
+    /已有自动导演任务正在处理同一范围/,
+  );
+
+  assert.deepEqual(calls, [
+    ["bootstrap", "structured_outline", "beat_sheet"],
+    "cancel_replaced_runs",
+    ["mark_failed", "workflow_takeover_demo", "已有自动导演任务正在处理同一范围"],
+  ]);
 });

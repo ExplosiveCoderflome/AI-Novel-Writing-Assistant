@@ -32,6 +32,7 @@ export interface DirectorTakeoverAssetSnapshot {
   hasBookContract: boolean;
   characterCount: number;
   chapterCount: number;
+  plannedChapterCount?: number | null;
   volumeCount: number;
   hasVolumeStrategyPlan?: boolean;
   firstVolumeId: string | null;

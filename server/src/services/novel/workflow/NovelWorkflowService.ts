@@ -50,6 +50,9 @@ import {
 import { syncAutoDirectorChapterBatchCheckpoint } from "./novelWorkflowAutoDirectorReconciliation";
 import { repairAutoDirectorCandidateSeedPayload } from "./novelWorkflowCandidateSeedRepair";
 import {
+  resolveAutoDirectorBootstrapInitialState,
+} from "./novelWorkflowAutoDirectorInitialState";
+import {
   isStaleAutoDirectorRunningTask,
   STALE_AUTO_DIRECTOR_RUNNING_MESSAGE,
 } from "./autoDirectorStaleTaskRecovery";
@@ -76,6 +79,14 @@ interface BootstrapWorkflowInput {
   title?: string | null;
   seedPayload?: Record<string, unknown>;
   forceNew?: boolean;
+  initialState?: {
+    stage: NovelWorkflowStage;
+    itemKey?: string | null;
+    itemLabel: string;
+    progress?: number;
+    chapterId?: string | null;
+    volumeId?: string | null;
+  };
 }
 
 interface SyncWorkflowStageInput {
@@ -1076,6 +1087,15 @@ export class NovelWorkflowService {
 
   private async createWorkflow(input: BootstrapWorkflowInput) {
     const novelTitle = input.novelId ? await this.getNovelTitle(input.novelId) : null;
+    const initialState = input.initialState ?? resolveAutoDirectorBootstrapInitialState(input);
+    const initialStage = initialState?.stage
+      ?? (input.lane === "auto_director" ? "auto_director" : "project_setup");
+    const initialItemKey = initialState?.itemKey
+      ?? (input.lane === "auto_director" ? "auto_director" : "project_setup");
+    const initialItemLabel = initialState?.itemLabel
+      ?? (input.lane === "auto_director" ? "等待生成候选方向" : "等待创建项目");
+    const initialProgress = initialState?.progress
+      ?? (input.novelId ? defaultProgressForStage(initialStage) : 0);
     const created = await prisma.novelWorkflowTask.create({
       data: {
         novelId: input.novelId ?? null,
@@ -1086,16 +1106,18 @@ export class NovelWorkflowService {
           novelTitle,
         }),
         status: "queued",
-        progress: input.novelId ? defaultProgressForStage("project_setup") : 0,
-        currentStage: input.lane === "auto_director" ? "AI 自动导演" : "项目设定",
-        currentItemKey: input.lane === "auto_director" ? "auto_director" : "project_setup",
-        currentItemLabel: input.lane === "auto_director" ? "等待生成候选方向" : "等待创建项目",
+        progress: initialProgress,
+        currentStage: stageLabel(initialStage),
+        currentItemKey: initialItemKey,
+        currentItemLabel: initialItemLabel,
         resumeTargetJson: stringifyResumeTarget(
           this.buildResumeTarget({
             taskId: "",
             novelId: input.novelId ?? null,
             lane: input.lane,
-            stage: input.lane === "auto_director" ? "auto_director" : "project_setup",
+            stage: initialStage,
+            chapterId: initialState?.chapterId,
+            volumeId: initialState?.volumeId,
           }),
         ),
         seedPayloadJson: input.seedPayload ? JSON.stringify(input.seedPayload) : null,
@@ -1105,7 +1127,9 @@ export class NovelWorkflowService {
       taskId: created.id,
       novelId: created.novelId,
       lane: created.lane,
-      stage: created.lane === "auto_director" ? "auto_director" : "project_setup",
+      stage: initialStage,
+      chapterId: initialState?.chapterId,
+      volumeId: initialState?.volumeId,
     });
     return this.updateTaskWithRetry({
       where: { id: created.id },

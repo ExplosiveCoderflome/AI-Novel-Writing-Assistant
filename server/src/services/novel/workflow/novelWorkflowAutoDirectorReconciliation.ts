@@ -125,10 +125,22 @@ export async function syncAutoDirectorChapterBatchCheckpoint(input: {
       chapterStatus: true,
     },
   });
+  const chaptersWithContent = chapters.map((chapter) => ({
+    ...chapter,
+    content: typeof chapter.content === "string"
+      ? chapter.content
+      : (
+        chapter.generationState === "approved"
+        || chapter.generationState === "published"
+        || chapter.chapterStatus === "completed"
+          ? "status-confirmed"
+          : ""
+      ),
+  }));
   const reconciliation = reconcileAutoDirectorChapterBatchState({
     title: existing.title,
     autoExecutionState: seedPayload?.autoExecution,
-    chapters,
+    chapters: chaptersWithContent,
     failureMessage: existing.lastError,
   });
   if (!reconciliation) {

@@ -22,13 +22,23 @@ function buildRepairStatusLabel(input: {
   return `正在 AI 修复第 ${input.volumeOrder} 卷章节标题`;
 }
 
-function hasTargetBeatSheet(workspace: Awaited<ReturnType<NovelVolumeService["getVolumes"]>>, volumeId: string): boolean {
-  return workspace.beatSheets.some((item) => item.volumeId === volumeId && item.beats.length > 0);
-}
-
 function shouldRefreshBeatSheetForRepair(lastError: string | null | undefined): boolean {
   const normalized = lastError?.trim() ?? "";
   return normalized.includes("当前卷节奏板的章节跨度异常");
+}
+
+async function loadWorkflowTaskForTitleRepair(
+  workflowService: NovelWorkflowService,
+  taskId: string,
+): Promise<Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>> | null> {
+  const reader = workflowService as Partial<Pick<NovelWorkflowService, "getTaskByIdWithoutHealing" | "getTaskById">>;
+  if (typeof reader.getTaskByIdWithoutHealing === "function") {
+    return reader.getTaskByIdWithoutHealing(taskId);
+  }
+  if (typeof reader.getTaskById === "function") {
+    return reader.getTaskById(taskId);
+  }
+  return null;
 }
 
 export async function repairDirectorChapterTitles(input: {
@@ -56,9 +66,9 @@ export async function repairDirectorChapterTitles(input: {
     stage: "structured",
     volumeId: targetVolume.id,
   });
-  const currentTask = await input.workflowService.getTaskByIdWithoutHealing(input.taskId);
+  const currentTask = await loadWorkflowTaskForTitleRepair(input.workflowService, input.taskId);
   let workingWorkspace = currentWorkspace;
-  if (!hasTargetBeatSheet(workingWorkspace, targetVolume.id) || shouldRefreshBeatSheetForRepair(currentTask?.lastError)) {
+  if (shouldRefreshBeatSheetForRepair(currentTask?.lastError)) {
     workingWorkspace = await input.volumeService.generateVolumes(input.novelId, {
       provider: input.request.provider,
       model: input.request.model,

@@ -10,6 +10,9 @@ const {
   NovelWorkflowService,
 } = require("../dist/services/novel/workflow/NovelWorkflowService.js");
 const {
+  resolveAutoDirectorBootstrapInitialState,
+} = require("../dist/services/novel/workflow/novelWorkflowAutoDirectorInitialState.js");
+const {
   normalizeWorkflowResumeTargetForCandidateSelection,
 } = require("../dist/services/task/adapters/NovelWorkflowTaskAdapter.js");
 
@@ -65,6 +68,52 @@ test("structured auto-director tasks fall back to seed resume target when row re
 
   assert.equal(resumeTarget.stage, "structured");
   assert.equal(resumeTarget.volumeId, "volume-1");
+});
+
+test("auto-director takeover bootstrap derives initial progress from runtime resume metadata", () => {
+  const initialState = resolveAutoDirectorBootstrapInitialState({
+    lane: "auto_director",
+    novelId: "novel-1",
+    seedPayload: {
+      directorSession: {
+        phase: "structured_outline",
+      },
+      takeover: {
+        effectiveStage: "structured_outline",
+      },
+      resumeTarget: {
+        route: "/novels/:id/edit",
+        novelId: "novel-1",
+        taskId: null,
+        stage: "structured",
+        volumeId: "volume-1",
+      },
+    },
+  });
+
+  assert.equal(initialState.stage, "structured_outline");
+  assert.equal(initialState.itemKey, "beat_sheet");
+  assert.equal(initialState.volumeId, "volume-1");
+  assert.notEqual(initialState.itemLabel, "等待生成候选方向");
+});
+
+test("auto-director candidate bootstrap keeps candidate-stage default before a novel exists", () => {
+  const initialState = resolveAutoDirectorBootstrapInitialState({
+    lane: "auto_director",
+    novelId: null,
+    seedPayload: {
+      directorSession: {
+        phase: "structured_outline",
+      },
+      resumeTarget: {
+        route: "/novels/:id/edit",
+        novelId: "novel-1",
+        stage: "structured",
+      },
+    },
+  });
+
+  assert.equal(initialState, null);
 });
 
 test("bootstrapTask does not auto-attach a pre-confirmation auto-director task to a novel", async () => {

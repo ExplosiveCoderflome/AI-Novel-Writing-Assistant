@@ -152,8 +152,8 @@ export class NovelDirectorRuntimeOrchestrator {
       (output) => output.artifacts,
     );
 
-    if (result.status === "completed" && result.output) {
-      return result.output.output;
+    if (result.status === "completed") {
+      return result.output?.output as T;
     }
 
     const reason = result.reason ?? "当前自动导演策略需要确认后继续。";

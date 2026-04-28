@@ -136,6 +136,72 @@ test("validateAutoDirectorTakeoverRequest blocks chapter ranges not covered by r
   assert.match(result.blockingReasons.join("\n"), /卷战略|目标范围/);
 });
 
+test("validateAutoDirectorTakeoverRequest uses planning assets instead of synced chapter rows as chapter limit", () => {
+  const result = validateAutoDirectorTakeoverRequest({
+    source: "takeover",
+    request: {
+      novelId: "novel-1",
+      entryStep: "structured",
+      strategy: "continue_existing",
+      autoExecutionPlan: {
+        mode: "chapter_range",
+        startOrder: 1,
+        endOrder: 10,
+      },
+    },
+    assets: {
+      hasProjectSetup: true,
+      hasStoryMacroPlan: true,
+      hasBookContract: true,
+      characterCount: 3,
+      volumeCount: 1,
+      hasVolumeStrategyPlan: true,
+      hasStructuredOutline: false,
+      totalChapterCount: 1,
+      volumeChapterRanges: [
+        { volumeOrder: 1, startOrder: 1, endOrder: 40 },
+      ],
+    },
+  });
+
+  assert.equal(result.allowed, true);
+  assert.deepEqual(result.affectedScope, {
+    type: "chapter_range",
+    label: "第 1-10 章",
+    startOrder: 1,
+    endOrder: 10,
+  });
+});
+
+test("validateAutoDirectorTakeoverRequest uses estimated planned chapters when outline has not been synced", () => {
+  const result = validateAutoDirectorTakeoverRequest({
+    source: "takeover",
+    request: {
+      novelId: "novel-1",
+      entryStep: "structured",
+      strategy: "continue_existing",
+      autoExecutionPlan: {
+        mode: "chapter_range",
+        startOrder: 1,
+        endOrder: 10,
+      },
+    },
+    assets: {
+      hasProjectSetup: true,
+      hasStoryMacroPlan: true,
+      hasBookContract: true,
+      characterCount: 3,
+      volumeCount: 1,
+      hasVolumeStrategyPlan: true,
+      hasStructuredOutline: false,
+      plannedChapterCount: 80,
+      totalChapterCount: 0,
+    },
+  });
+
+  assert.equal(result.allowed, true);
+});
+
 test("validateAutoDirectorTakeoverRequest blocks chapter execution when structured assets do not cover the requested range", () => {
   const result = validateAutoDirectorTakeoverRequest({
     source: "takeover",

@@ -35,6 +35,32 @@ test("safe pipeline phase falls back to volume strategy when structured outline 
   assert.equal(phase, "volume_strategy");
 });
 
+test("safe pipeline phase skips story macro when protected planning assets already exist", () => {
+  const phase = resolveSafeDirectorPipelineStartPhase({
+    requestedPhase: "story_macro",
+    hasStoryMacroPlan: true,
+    hasBookContract: false,
+    hasCharacters: false,
+    hasVolumeWorkspace: false,
+    hasVolumeStrategyPlan: false,
+  });
+
+  assert.equal(phase, "character_setup");
+});
+
+test("safe pipeline phase skips character setup when characters already exist", () => {
+  const phase = resolveSafeDirectorPipelineStartPhase({
+    requestedPhase: "story_macro",
+    hasStoryMacroPlan: true,
+    hasBookContract: true,
+    hasCharacters: true,
+    hasVolumeWorkspace: false,
+    hasVolumeStrategyPlan: false,
+  });
+
+  assert.equal(phase, "volume_strategy");
+});
+
 test("asset-first recovery resumes auto execution from existing executable assets", () => {
   const recovery = resolveAssetFirstRecoveryFromSnapshot({
     runMode: "auto_to_execution",

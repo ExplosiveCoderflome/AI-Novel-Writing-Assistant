@@ -115,7 +115,7 @@ export class NovelDirectorPipelineRuntime {
       novelId: input.novelId,
       targetId: input.novelId,
       runner: () => this.runVolumeStrategyPhase(input.taskId, input.novelId, input.input),
-    });
+    }) ?? await this.loadVolumeWorkspaceForOutline(input.novelId);
     if (!volumeWorkspace) {
       return;
     }
@@ -163,6 +163,14 @@ export class NovelDirectorPipelineRuntime {
     });
   }
 
+  private async loadVolumeWorkspaceForOutline(novelId: string): Promise<VolumePlanDocument | null> {
+    const workspace = await this.deps.volumeService.getVolumes(novelId).catch(() => null);
+    if (!workspace?.volumes.length || !workspace.strategyPlan) {
+      return null;
+    }
+    return workspace;
+  }
+
   private async maybeRunAutoApprovedChapters(input: DirectorPipelineRunInput): Promise<void> {
     if (!this.shouldAutoApproveCheckpoint(input.input, "front10_ready")) {
       return;
@@ -183,9 +191,17 @@ export class NovelDirectorPipelineRuntime {
     novelId: string;
     requestedPhase: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline";
   }): Promise<"story_macro" | "character_setup" | "volume_strategy" | "structured_outline"> {
-    const workspace = await this.deps.volumeService.getVolumes(input.novelId).catch(() => null);
+    const [workspace, storyMacroPlan, bookContract, characters] = await Promise.all([
+      this.deps.volumeService.getVolumes(input.novelId).catch(() => null),
+      this.deps.storyMacroService.getPlan(input.novelId).catch(() => null),
+      this.deps.bookContractService.getByNovelId(input.novelId).catch(() => null),
+      this.deps.novelContextService.listCharacters(input.novelId).catch(() => []),
+    ]);
     return resolveSafeDirectorPipelineStartPhase({
       requestedPhase: input.requestedPhase,
+      hasStoryMacroPlan: Boolean(storyMacroPlan),
+      hasBookContract: Boolean(bookContract),
+      hasCharacters: characters.length > 0,
       hasVolumeWorkspace: Boolean(workspace?.volumes.length),
       hasVolumeStrategyPlan: Boolean(workspace?.strategyPlan),
     });
@@ -229,7 +245,7 @@ export class NovelDirectorPipelineRuntime {
   }
 
   private async findReusableDirectorCharacterCastOption(targetNovelId: string): Promise<CharacterCastOption | null> {
-    const [existingOptions, existingCharacters] = await Promise.all([
+    const [existingOptions, existingCharacters]: [CharacterCastOption[], Awaited<ReturnType<NovelContextService["listCharacters"]>>] = await Promise.all([
       this.deps.characterPreparationService.listCharacterCastOptions(targetNovelId),
       this.deps.novelContextService.listCharacters(targetNovelId).catch(() => []),
     ]);

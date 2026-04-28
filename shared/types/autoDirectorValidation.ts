@@ -69,6 +69,7 @@ export interface AutoDirectorValidationAssetSnapshot {
   volumeCount?: number;
   hasVolumeStrategyPlan?: boolean;
   hasStructuredOutline?: boolean;
+  plannedChapterCount?: number | null;
   totalChapterCount?: number | null;
   volumeChapterRanges?: Array<{
     volumeOrder: number;

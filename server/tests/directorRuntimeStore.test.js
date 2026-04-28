@@ -95,7 +95,7 @@ test("director runtime store dual-writes runtime snapshot into persistent ledger
     eventUpsert: prisma.directorEvent.upsert,
     artifactUpsert: prisma.directorArtifact.upsert,
     dependencyDeleteMany: prisma.directorArtifactDependency.deleteMany,
-    dependencyCreate: prisma.directorArtifactDependency.create,
+    dependencyUpsert: prisma.directorArtifactDependency.upsert,
   };
 
   prisma.novelWorkflowTask.findUnique = async () => ({
@@ -127,8 +127,8 @@ test("director runtime store dual-writes runtime snapshot into persistent ledger
     calls.push(["dependency.deleteMany", where.artifactId]);
     return { count: 0 };
   };
-  prisma.directorArtifactDependency.create = async ({ data }) => {
-    calls.push(["dependency.create", data.artifactId, data.dependsOnArtifactId]);
+  prisma.directorArtifactDependency.upsert = async ({ create, update }) => {
+    calls.push(["dependency.upsert", create.artifactId, create.dependsOnArtifactId, update.dependsOnVersion]);
     return {};
   };
 
@@ -194,7 +194,7 @@ test("director runtime store dual-writes runtime snapshot into persistent ledger
     assert.ok(calls.some((call) => call[0] === "event.upsert" && call[2] === "node_completed"));
     assert.equal(calls.filter((call) => call[0] === "artifact.upsert").length, 2);
     assert.ok(calls.some((call) => (
-      call[0] === "dependency.create"
+      call[0] === "dependency.upsert"
       && call[1] === "audit_report:chapter:chapter-1:AuditReport:audit-1"
     )));
   } finally {
@@ -205,6 +205,90 @@ test("director runtime store dual-writes runtime snapshot into persistent ledger
     prisma.directorEvent.upsert = originals.eventUpsert;
     prisma.directorArtifact.upsert = originals.artifactUpsert;
     prisma.directorArtifactDependency.deleteMany = originals.dependencyDeleteMany;
-    prisma.directorArtifactDependency.create = originals.dependencyCreate;
+    prisma.directorArtifactDependency.upsert = originals.dependencyUpsert;
+  }
+});
+
+test("director runtime store deduplicates repeated artifact dependencies before ledger upsert", async () => {
+  const store = new DirectorRuntimeStore();
+  const dependencyCalls = [];
+  const originals = {
+    workflowFindUnique: prisma.novelWorkflowTask.findUnique,
+    workflowUpdate: prisma.novelWorkflowTask.update,
+    runUpsert: prisma.directorRun.upsert,
+    dependencyDeleteMany: prisma.directorArtifactDependency.deleteMany,
+    dependencyUpsert: prisma.directorArtifactDependency.upsert,
+    artifactUpsert: prisma.directorArtifact.upsert,
+  };
+
+  prisma.novelWorkflowTask.findUnique = async () => ({
+    id: "task-1",
+    novelId: "novel-1",
+    seedPayloadJson: JSON.stringify({ novelId: "novel-1" }),
+  });
+  prisma.novelWorkflowTask.update = async () => ({});
+  prisma.directorRun.upsert = async () => ({});
+  prisma.directorArtifact.upsert = async () => ({});
+  prisma.directorArtifactDependency.deleteMany = async () => ({ count: 0 });
+  prisma.directorArtifactDependency.upsert = async ({ create }) => {
+    dependencyCalls.push([create.artifactId, create.dependsOnArtifactId, create.dependsOnVersion]);
+    return {};
+  };
+
+  try {
+    await store.mutateSnapshot("task-1", (snapshot) => ({
+      ...snapshot,
+      runId: "task-1",
+      novelId: "novel-1",
+      artifacts: [
+        {
+          id: "story_macro:novel:novel-1:StoryMacroPlan:macro-1",
+          novelId: "novel-1",
+          artifactType: "story_macro",
+          targetType: "novel",
+          targetId: "novel-1",
+          version: 1,
+          status: "active",
+          source: "ai_generated",
+          contentRef: { table: "StoryMacroPlan", id: "macro-1" },
+          schemaVersion: "test",
+        },
+        {
+          id: "volume_strategy:novel:novel-1:VolumePlan:volume-1",
+          novelId: "novel-1",
+          artifactType: "volume_strategy",
+          targetType: "novel",
+          targetId: "novel-1",
+          version: 1,
+          status: "active",
+          source: "ai_generated",
+          contentRef: { table: "VolumePlan", id: "volume-1" },
+          schemaVersion: "test",
+          dependsOn: [
+            {
+              artifactId: "story_macro:novel:novel-1:StoryMacroPlan:macro-1",
+              version: 1,
+            },
+            {
+              artifactId: "story_macro:novel:novel-1:StoryMacroPlan:macro-1",
+              version: 1,
+            },
+          ],
+        },
+      ],
+    }));
+
+    assert.deepEqual(dependencyCalls, [[
+      "volume_strategy:novel:novel-1:VolumePlan:volume-1",
+      "story_macro:novel:novel-1:StoryMacroPlan:macro-1",
+      1,
+    ]]);
+  } finally {
+    prisma.novelWorkflowTask.findUnique = originals.workflowFindUnique;
+    prisma.novelWorkflowTask.update = originals.workflowUpdate;
+    prisma.directorRun.upsert = originals.runUpsert;
+    prisma.directorArtifactDependency.deleteMany = originals.dependencyDeleteMany;
+    prisma.directorArtifactDependency.upsert = originals.dependencyUpsert;
+    prisma.directorArtifact.upsert = originals.artifactUpsert;
   }
 });

@@ -99,6 +99,7 @@ export class NovelDirectorContinueRuntime {
     getDirectorAssetSnapshot: (novelId: string) => Promise<{
       characterCount: number;
       chapterCount: number;
+      plannedChapterCount?: number | null;
       volumeCount: number;
       hasVolumeStrategyPlan: boolean;
       firstVolumeId: string | null;

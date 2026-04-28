@@ -1,6 +1,6 @@
 # AI 长篇成书当前执行计划（小白用户导向）
 
-更新时间：2026-04-28
+更新时间：2026-04-29
 适用范围：当前 `AI-Novel-Writing-Assistant2` 代码库现状  
 目标用户：完全不懂写作、希望通过 AI 引导或全自动规划完成整本小说创作的用户  
 当前定位：强辅助型 AI 小说工作台  
@@ -1134,12 +1134,16 @@ P2 重点解决：
 ### 自动导演完整统一运行时
 - 标识：`task-87bf3232fd`
 - 状态：开发中
-- 最近更新：2026-04-28 22:45
+- 最近更新：2026-04-28 23:39
 - 概要：优先完成自动导演正常主流程：新建确认、规划、拆章、章节执行、服务重启恢复、失败重试与用户内容保护先跑稳；创作中枢闭环暂后置。
 
 计划清单：
 - [ ] 正常主流程收口：候选确认、建书、story_macro、character_setup、volume_strategy、structured_outline、章节执行和质量修复继续迁入 Step Module -> NodeRunner -> PolicyEngine。
-- [ ] 恢复链稳定：服务重启后的待手动恢复、用户确认继续、失败重试、章节批次恢复都要留下 Runtime event，并从最后可信 step/artifact 继续。
+- [ ] 建书写入关口：novel_create 已注册为正式 Step Module，并通过 RuntimeOrchestrator.runNode 执行；成功语义包含创建小说并绑定任务，重复确认会补 runtime novelId。
+- [ ] 规划恢复链稳定：已有 story_macro/book_contract/角色资产时跳过对应写入节点；volume_strategy 幂等重放无返回值时从持久化卷规划继续 structured_outline。
+- [ ] 章节批次恢复：chapter_batch_ready 对账按首个未完成章节恢复，不把缺正文的 repaired 章节误判为完成。
+- [ ] Artifact Ledger 幂等恢复：DirectorArtifactDependency 写入需要去重和 upsert，历史任务重复恢复同一依赖不得触发唯一约束。
+- [ ] 章节标题质量门禁：章名结构集中会进入语义重试；标题修复可兼容 workflow service 读取差异，并在仍集中时保留任务提示。
 - [ ] PolicyEngine 硬 gate：正常流程内的写入、覆盖用户内容、高风险修复和高成本审校先过策略判断，自动修复预算保持一次。
 - [ ] Artifact Ledger 正常流真相：DirectorRun/StepRun/Event/Artifact/Dependency 已落 additive schema 与双写，Workspace Analyzer 已优先合并持久化 ledger，再用旧表 backfill。
 - [ ] 质量闭环：reader_promise、chapter_retention_contract、continuity_state、rolling_window_review、character_governance_state 先服务正常章节执行与局部修复闭环。
@@ -1148,6 +1152,56 @@ P2 重点解决：
 - [ ] 技术债收口：继续拆分旧主流程服务、DirectorRuntimeStore 和 workflow registry，NovelDirectorService 不再承接新的主编排。
 
 进度记录：
-- 2026-04-28 22:45 [开发中] 按用户要求已把优先级切回完整正常流程，暂不继续扩创作中枢。本轮新增 run_resumed 运行时事件，并在 continueTask 的正常恢复链中记录手动恢复确认/继续请求；server typecheck/build 与 31 个 runtime、恢复、章节执行定向测试通过。
+- 2026-04-28 23:39 [开发中] 修复历史小说任务继续时的 Artifact Ledger 依赖重复入账问题：DirectorArtifactDependency 写入先按 artifactId 去重并改为 upsert，避免重复恢复同一依赖时触发唯一约束；新增 runtime store 回归测试。
 <!-- task-md-sync:item:task-87bf3232fd:end -->
+<!-- task-md-sync:item:task-7efc49bcdc:start -->
+### 自动导演接管状态投影恢复
+- 标识：`task-7efc49bcdc`
+- 状态：已完成
+- 最近更新：2026-04-29 00:11
+- 概要：排查退出自动导演后重新接管回到候选阶段的问题，确认其属于任务投影与运行时恢复真相分裂，并补齐接管 bootstrap 的运行时初始状态推导与失败落态。
+
+计划清单：
+- [ ] 核对真实任务数据，区分旧自动导演任务、手动编辑任务和新接管任务
+- [ ] 让接管任务创建时根据恢复计划写入真实阶段与 resumeTarget
+- [ ] 抽出自动导演 bootstrap 初始状态解析模块，避免通用任务默认投影回候选阶段
+- [ ] 接管启动失败时标记任务失败并保留原因，避免留下伪 queued 任务
+- [ ] 补 takeover、候选路由、恢复、高内存和结构化拆章恢复相关回归测试
+
+进度记录：
+- 2026-04-29 00:11 [已完成] 已确认该问题与 P0-1/P0-E1/统一运行时计划重合，并完成状态投影恢复修复与定向验证。
+<!-- task-md-sync:item:task-7efc49bcdc:end -->
+<!-- task-md-sync:item:task-862b165a7c:start -->
+### 自动导演按范围执行规划口径清理
+- 标识：`task-862b165a7c`
+- 状态：已完成
+- 最近更新：2026-04-29 00:25
+- 概要：清理自动导演按范围执行校验的旧口径，把章节范围上限从章节执行表数量迁到规划资产章节数，避免任务单细化阶段误把已同步章节数当作全书规划章数。
+
+计划清单：
+- [ ] 确认报错来源为 takeover 校验把 Chapter 表数量作为 totalChapterCount
+- [ ] 新增 plannedChapterCount 规划口径，优先使用预计章节数、卷纲范围和拆章明细最大章序
+- [ ] 保留 chapterCount 作为执行表同步数量，不再作为规划范围硬上限
+- [ ] 补按范围执行 1-10 在未同步执行表时仍可通过的验证用例
+
+进度记录：
+- 2026-04-29 00:25 [已完成] 已完成旧口径清理，并通过 shared/server 构建与自动导演校验、接管、恢复相关定向测试。
+<!-- task-md-sync:item:task-862b165a7c:end -->
+<!-- task-md-sync:item:task-00ff651cc0:start -->
+### 自动导演剩余未执行盘点
+- 标识：`task-00ff651cc0`
+- 状态：已计划
+- 最近更新：2026-04-29 00:27
+- 概要：对照 P0 与自动导演统一运行时计划，梳理当前已清理旧口径后仍未执行的结构性收口项。
+
+计划清单：
+- [ ] 优先收口所有写入节点到 Step Module / NodeRunner / PolicyEngine
+- [ ] 推进 Artifact Ledger 从 wrapper 索引到可恢复、可查询的持久化真相
+- [ ] 补旧项目接管、服务重启手动恢复、失败重试、章节批量执行的真实 Prisma 回归
+- [ ] 把质量产物推进到可评估、可失效、可局部修复闭环
+- [ ] 暂缓创作中枢主导编排，先保证自动导演正常主流程闭环
+
+进度记录：
+- 2026-04-29 00:27 [已计划] 已完成本轮剩余计划盘点，下一步建议继续做 P0-1/P0-E1 的执行合同和真实数据回归。
+<!-- task-md-sync:item:task-00ff651cc0:end -->
 <!-- task-md-sync:end -->

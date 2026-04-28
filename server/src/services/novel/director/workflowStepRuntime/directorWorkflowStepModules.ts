@@ -2,6 +2,7 @@ import {
   DIRECTOR_CANDIDATE_NODE_ADAPTERS,
   type DirectorCandidateStageNode,
 } from "../novelDirectorCandidateNodeAdapters";
+import { getDirectorConfirmNovelCreateNodeAdapter } from "../novelDirectorConfirmNodeAdapters";
 import {
   getDirectorExecutionNodeAdapter,
   getDirectorExecutionNodeSequence,
@@ -44,6 +45,7 @@ export const DIRECTOR_EXECUTION_STEP_IDS: Record<DirectorExecutionStage, string>
 };
 
 export const DIRECTOR_TAKEOVER_STEP_ID = "workflow.takeover.execute";
+export const DIRECTOR_CONFIRM_NOVEL_CREATE_STEP_ID = "book.project.create";
 
 function uniqueModules(
   modules: readonly WorkflowStepModuleDescriptor[],
@@ -148,8 +150,15 @@ export const DIRECTOR_TAKEOVER_STEP_MODULE = createWorkflowStepDescriptorFromDir
   adapter: getDirectorTakeoverNodeAdapter(),
 });
 
+export const DIRECTOR_CONFIRM_NOVEL_CREATE_STEP_MODULE = createWorkflowStepDescriptorFromDirectorAdapter({
+  id: DIRECTOR_CONFIRM_NOVEL_CREATE_STEP_ID,
+  stage: "candidate_confirm",
+  adapter: getDirectorConfirmNovelCreateNodeAdapter(),
+});
+
 export const DIRECTOR_WORKFLOW_STEP_MODULES = uniqueModules([
   ...Object.values(DIRECTOR_CANDIDATE_STEP_MODULES),
+  DIRECTOR_CONFIRM_NOVEL_CREATE_STEP_MODULE,
   ...Object.values(DIRECTOR_PLANNING_STEP_MODULES),
   ...Object.values(DIRECTOR_EXECUTION_STEP_MODULES),
   DIRECTOR_TAKEOVER_STEP_MODULE,
@@ -193,4 +202,8 @@ export function getDirectorExecutionStepModuleSequence(
 
 export function getDirectorTakeoverStepModule(): WorkflowStepModuleDescriptor {
   return DIRECTOR_TAKEOVER_STEP_MODULE;
+}
+
+export function getDirectorConfirmNovelCreateStepModule(): WorkflowStepModuleDescriptor {
+  return DIRECTOR_CONFIRM_NOVEL_CREATE_STEP_MODULE;
 }

@@ -17,6 +17,9 @@ export function resolveObservedResumePhaseFromWorkspace(input: {
 
 export function resolveSafeDirectorPipelineStartPhase(input: {
   requestedPhase: DirectorPipelinePhase;
+  hasStoryMacroPlan?: boolean;
+  hasBookContract?: boolean;
+  hasCharacters?: boolean;
   hasVolumeWorkspace: boolean;
   hasVolumeStrategyPlan: boolean;
 }): DirectorPipelinePhase {
@@ -28,7 +31,18 @@ export function resolveSafeDirectorPipelineStartPhase(input: {
     hasVolumeWorkspace: input.hasVolumeWorkspace,
     hasVolumeStrategyPlan: input.hasVolumeStrategyPlan,
   });
-  return observedPhase ?? input.requestedPhase;
+  if (observedPhase) {
+    return observedPhase;
+  }
+
+  let safePhase = input.requestedPhase;
+  if (safePhase === "story_macro" && (input.hasStoryMacroPlan || input.hasBookContract)) {
+    safePhase = "character_setup";
+  }
+  if ((safePhase === "story_macro" || safePhase === "character_setup") && input.hasCharacters) {
+    safePhase = "volume_strategy";
+  }
+  return safePhase;
 }
 
 export function resolveAssetFirstRecoveryFromSnapshot(input: {

@@ -36,6 +36,14 @@ interface TakeoverExecutionWorkflowPort {
     title: string;
     forceNew: true;
     seedPayload: Record<string, unknown>;
+    initialState?: {
+      stage: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline" | "chapter_execution" | "quality_repair";
+      itemKey?: string | null;
+      itemLabel: string;
+      progress?: number;
+      chapterId?: string | null;
+      volumeId?: string | null;
+    };
   }): Promise<TakeoverBootstrapTaskResult>;
   markTaskRunning(taskId: string, input: {
     stage: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline" | "chapter_execution" | "quality_repair";
@@ -44,6 +52,7 @@ interface TakeoverExecutionWorkflowPort {
     progress?: number;
     clearCheckpoint?: boolean;
   }): Promise<unknown>;
+  markTaskFailed?(taskId: string, message: string): Promise<unknown>;
 }
 
 interface TakeoverExecutionAutoRuntimePort {
@@ -222,6 +231,30 @@ function buildAutoExecutionRunningState(plan: DirectorTakeoverResolvedPlan): {
   };
 }
 
+function buildTakeoverInitialState(input: {
+  plan: DirectorTakeoverResolvedPlan;
+  takeoverState: DirectorTakeoverLoadedState;
+}) {
+  const runningState = input.plan.executionMode === "phase"
+    ? resolveDirectorRunningStateForPhase(input.plan.phase ?? input.plan.startPhase)
+    : buildAutoExecutionRunningState(input.plan);
+  return {
+    ...runningState,
+    chapterId: input.takeoverState.latestCheckpoint?.chapterId
+      ?? input.takeoverState.executableRange?.nextChapterId
+      ?? input.takeoverState.latestAutoExecutionState?.nextChapterId
+      ?? null,
+    volumeId: input.takeoverState.latestCheckpoint?.volumeId
+      ?? (runningState.stage === "structured_outline" ? input.takeoverState.snapshot.firstVolumeId : null)
+      ?? input.takeoverState.snapshot.firstVolumeId
+      ?? null,
+  };
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "自动导演接管启动失败。";
+}
+
 const REWRITE_SNAPSHOT_LABEL = "自动导演重写前备份";
 
 async function createRewriteSnapshotForRestart(
@@ -294,11 +327,13 @@ export async function startDirectorTakeoverExecution(
     plan,
   });
 
+  const initialState = buildTakeoverInitialState({ plan, takeoverState: input.takeoverState });
   const workflowTask = await input.workflowService.bootstrapTask({
     novelId: input.request.novelId,
     lane: "auto_director",
     title: input.takeoverState.novel.title,
     forceNew: true,
+    initialState,
     seedPayload: input.buildDirectorSeedPayload(input.directorInput, input.request.novelId, buildTakeoverSeedPayloadExtra({
       directorSession,
       resumeTarget: initialResumeTarget,
@@ -308,86 +343,91 @@ export async function startDirectorTakeoverExecution(
     })),
   });
 
-  if (rewriteSnapshot) {
-    await input.recordRewriteSnapshotMilestone?.({
-      taskId: workflowTask.id,
-      snapshot: rewriteSnapshot,
-      summary: `${rewriteSnapshot.label}已创建：${rewriteSnapshot.snapshotId}`,
-    });
-  }
-
-  if (selection.strategy === "continue_existing") {
-    await input.cancelReplacedRuns?.({
-      request: input.request,
-      takeoverState: input.takeoverState,
-      directorInput: input.directorInput,
-      plan,
-      replacementTaskId: workflowTask.id,
-    });
-  }
-
-  const resumeTarget = buildResumeTargetFromPlan({
-    novelId: input.request.novelId,
-    workflowTaskId: workflowTask.id,
-    takeoverState: input.takeoverState,
-    plan,
-  });
-
-  if (plan.executionMode === "phase") {
-    if ((plan.phase ?? plan.startPhase) === "structured_outline") {
-      await input.assertHighMemoryStartAllowed?.({
+  try {
+    if (rewriteSnapshot) {
+      await input.recordRewriteSnapshotMilestone?.({
         taskId: workflowTask.id,
-        novelId: input.request.novelId,
-        stage: "structured_outline",
-        itemKey: "chapter_list",
-        volumeId: input.takeoverState.latestCheckpoint?.volumeId
-          ?? input.takeoverState.snapshot.firstVolumeId
-          ?? null,
-        chapterId: input.takeoverState.latestCheckpoint?.chapterId ?? null,
-        scope: "book",
+        snapshot: rewriteSnapshot,
+        summary: `${rewriteSnapshot.label}已创建：${rewriteSnapshot.snapshotId}`,
       });
     }
-    await input.workflowService.markTaskRunning(workflowTask.id, resolveDirectorRunningStateForPhase(plan.phase ?? plan.startPhase));
-    input.scheduleBackgroundRun(workflowTask.id, async () => {
-      await input.runDirectorPipeline({
-        taskId: workflowTask.id,
-        novelId: input.request.novelId,
-        input: input.directorInput,
-        startPhase: plan.phase ?? plan.startPhase,
+
+    if (selection.strategy === "continue_existing") {
+      await input.cancelReplacedRuns?.({
+        request: input.request,
+        takeoverState: input.takeoverState,
+        directorInput: input.directorInput,
+        plan,
+        replacementTaskId: workflowTask.id,
       });
-    });
-  } else {
-    await input.autoExecutionRuntime.prepareRequestedAutoExecution({
+    }
+
+    const resumeTarget = buildResumeTargetFromPlan({
       novelId: input.request.novelId,
-      request: input.directorInput,
-      existingPipelineJobId: plan.usesCurrentBatch ? (input.takeoverState.activePipelineJob?.id ?? null) : null,
-      existingState: plan.usesCurrentBatch ? (input.takeoverState.latestAutoExecutionState ?? null) : null,
+      workflowTaskId: workflowTask.id,
+      takeoverState: input.takeoverState,
+      plan,
     });
-    await input.workflowService.markTaskRunning(workflowTask.id, buildAutoExecutionRunningState(plan));
-    input.scheduleBackgroundRun(workflowTask.id, async () => {
-      await input.autoExecutionRuntime.runFromReady({
-        taskId: workflowTask.id,
+
+    if (plan.executionMode === "phase") {
+      if ((plan.phase ?? plan.startPhase) === "structured_outline") {
+        await input.assertHighMemoryStartAllowed?.({
+          taskId: workflowTask.id,
+          novelId: input.request.novelId,
+          stage: "structured_outline",
+          itemKey: "chapter_list",
+          volumeId: input.takeoverState.latestCheckpoint?.volumeId
+            ?? input.takeoverState.snapshot.firstVolumeId
+            ?? null,
+          chapterId: input.takeoverState.latestCheckpoint?.chapterId ?? null,
+          scope: "book",
+        });
+      }
+      await input.workflowService.markTaskRunning(workflowTask.id, resolveDirectorRunningStateForPhase(plan.phase ?? plan.startPhase));
+      input.scheduleBackgroundRun(workflowTask.id, async () => {
+        await input.runDirectorPipeline({
+          taskId: workflowTask.id,
+          novelId: input.request.novelId,
+          input: input.directorInput,
+          startPhase: plan.phase ?? plan.startPhase,
+        });
+      });
+    } else {
+      await input.autoExecutionRuntime.prepareRequestedAutoExecution({
         novelId: input.request.novelId,
         request: input.directorInput,
         existingPipelineJobId: plan.usesCurrentBatch ? (input.takeoverState.activePipelineJob?.id ?? null) : null,
         existingState: plan.usesCurrentBatch ? (input.takeoverState.latestAutoExecutionState ?? null) : null,
-        resumeCheckpointType: plan.usesCurrentBatch ? (plan.resumeCheckpointType ?? null) : null,
-        resumeStage: plan.resumeStage === "pipeline" ? "pipeline" : "chapter",
       });
-    });
-  }
+      await input.workflowService.markTaskRunning(workflowTask.id, buildAutoExecutionRunningState(plan));
+      input.scheduleBackgroundRun(workflowTask.id, async () => {
+        await input.autoExecutionRuntime.runFromReady({
+          taskId: workflowTask.id,
+          novelId: input.request.novelId,
+          request: input.directorInput,
+          existingPipelineJobId: plan.usesCurrentBatch ? (input.takeoverState.activePipelineJob?.id ?? null) : null,
+          existingState: plan.usesCurrentBatch ? (input.takeoverState.latestAutoExecutionState ?? null) : null,
+          resumeCheckpointType: plan.usesCurrentBatch ? (plan.resumeCheckpointType ?? null) : null,
+          resumeStage: plan.resumeStage === "pipeline" ? "pipeline" : "chapter",
+        });
+      });
+    }
 
-  return {
-    novelId: input.request.novelId,
-    workflowTaskId: workflowTask.id,
-    startPhase: plan.startPhase,
-    entryStep: selection.entryStep,
-    strategy: selection.strategy,
-    effectiveStage: plan.effectiveStage,
-    directorSession,
-    resumeTarget: {
-      ...resumeTarget,
-      taskId: workflowTask.id,
-    },
-  };
+    return {
+      novelId: input.request.novelId,
+      workflowTaskId: workflowTask.id,
+      startPhase: plan.startPhase,
+      entryStep: selection.entryStep,
+      strategy: selection.strategy,
+      effectiveStage: plan.effectiveStage,
+      directorSession,
+      resumeTarget: {
+        ...resumeTarget,
+        taskId: workflowTask.id,
+      },
+    };
+  } catch (error) {
+    await input.workflowService.markTaskFailed?.(workflowTask.id, getErrorMessage(error)).catch(() => null);
+    throw error;
+  }
 }

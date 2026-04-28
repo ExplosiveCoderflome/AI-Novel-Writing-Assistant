@@ -817,14 +817,28 @@ export class DirectorRuntimeStore {
           await prisma.directorArtifactDependency.deleteMany({
             where: { artifactId: normalized.id },
           });
-          const dependencies = (normalized.dependsOn ?? []).filter((dependency) => (
-            artifactIds.has(dependency.artifactId)
-          ));
+          const dependencyMap = new Map<string, NonNullable<typeof normalized.dependsOn>[number]>();
+          for (const dependency of normalized.dependsOn ?? []) {
+            if (!artifactIds.has(dependency.artifactId)) {
+              continue;
+            }
+            dependencyMap.set(dependency.artifactId, dependency);
+          }
+          const dependencies = [...dependencyMap.values()];
           for (const dependency of dependencies) {
-            await prisma.directorArtifactDependency.create({
-              data: {
+            await prisma.directorArtifactDependency.upsert({
+              where: {
+                artifactId_dependsOnArtifactId: {
+                  artifactId: normalized.id,
+                  dependsOnArtifactId: dependency.artifactId,
+                },
+              },
+              create: {
                 artifactId: normalized.id,
                 dependsOnArtifactId: dependency.artifactId,
+                dependsOnVersion: dependency.version ?? null,
+              },
+              update: {
                 dependsOnVersion: dependency.version ?? null,
               },
             });
