@@ -25,6 +25,28 @@ export interface ContextPolicy {
   dropOrder?: string[];
 }
 
+export type PromptContextFreshnessMode = "snapshot" | "fresh" | "hybrid";
+
+export interface PromptContextRequirement {
+  group: string;
+  required?: boolean;
+  priority: number;
+  maxTokens?: number;
+  freshness?: PromptContextFreshnessMode;
+  sourceHint?: string;
+}
+
+export type PromptEditableSlotRiskLevel = "low" | "medium" | "high";
+
+export interface PromptEditableSlot {
+  key: string;
+  label: string;
+  description: string;
+  riskLevel: PromptEditableSlotRiskLevel;
+  maxLength?: number;
+  defaultValue?: string;
+}
+
 export interface PromptRenderContext {
   blocks: PromptContextBlock[];
   selectedBlockIds: string[];
@@ -145,6 +167,8 @@ export interface PromptAsset<I, O, R = O> {
   semanticRetryPolicy?: PromptSemanticRetryPolicy<I, R>;
   outputSchema?: ZodType<R>;
   structuredOutputHint?: PromptStructuredOutputHint<I, R>;
+  editableSlots?: PromptEditableSlot[];
+  contextRequirements?: PromptContextRequirement[];
   render: (input: I, context: PromptRenderContext) => BaseMessage[];
   postValidate?: (output: R, input: I, context: PromptRenderContext) => O;
   postValidateFailureRecovery?: (input: PromptPostValidateFailureRecoveryInput<I, R>) => O;

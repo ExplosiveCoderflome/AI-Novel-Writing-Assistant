@@ -29,6 +29,7 @@ import novelDecisionsRouter from "./routes/novelDecisions";
 import novelChapterSummaryRouter from "./routes/novelChapterSummary";
 import novelExportRouter from "./routes/novelExport";
 import novelWorkflowsRouter from "./routes/novelWorkflows";
+import promptWorkbenchRouter from "./routes/promptWorkbench";
 import ragRouter from "./routes/rag";
 import settingsAutoDirectorRouter from "./routes/settingsAutoDirector";
 import settingsRouter from "./routes/settings";
@@ -131,6 +132,7 @@ export function createApp() {
   app.use("/api/writing-formula", writingFormulaRouter);
   app.use("/api/chat", chatRouter);
   app.use("/api/creative-hub", creativeHubRouter);
+  app.use("/api/prompt-workbench", promptWorkbenchRouter);
   app.use("/api/images", imagesRouter);
   app.use("/api/tasks", tasksRouter);
   app.use("/api/auto-director/follow-ups", autoDirectorFollowUpsRouter);
