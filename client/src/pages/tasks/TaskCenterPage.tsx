@@ -26,6 +26,7 @@ import TaskCenterDetailSummary from "./components/TaskCenterDetailSummary";
 import TaskCenterListPanel from "./components/TaskCenterListPanel";
 import TaskCenterManualEditImpactCard from "./components/TaskCenterManualEditImpactCard";
 import TaskCenterMilestoneHistory from "./components/TaskCenterMilestoneHistory";
+import TaskCenterRuntimePolicyCard from "./components/TaskCenterRuntimePolicyCard";
 import TaskCenterSummaryCards from "./components/TaskCenterSummaryCards";
 import {
   ACTIVE_STATUSES,
@@ -328,6 +329,7 @@ export default function TaskCenterPage() {
         : false;
     },
   });
+  const selectedDirectorRuntimeSnapshot = directorRuntimeQuery.data?.data?.snapshot ?? null;
   const selectedDirectorRuntimeProjection = directorRuntimeQuery.data?.data?.projection ?? null;
 
   useEffect(() => {
@@ -504,6 +506,9 @@ export default function TaskCenterPage() {
                 ) : null}
                 {isAutoDirectorTask ? (
                   <DirectorRuntimeProjectionCard projection={selectedDirectorRuntimeProjection} />
+                ) : null}
+                {isAutoDirectorTask ? (
+                  <TaskCenterRuntimePolicyCard taskId={selectedTask.id} snapshot={selectedDirectorRuntimeSnapshot} />
                 ) : null}
                 {isAutoDirectorTask ? (
                   <TaskCenterManualEditImpactCard task={selectedTask} />
