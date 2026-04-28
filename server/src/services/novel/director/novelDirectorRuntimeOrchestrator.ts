@@ -11,6 +11,7 @@ import type { NovelWorkflowService } from "../workflow/NovelWorkflowService";
 import type { DirectorRuntimeService } from "./runtime/DirectorRuntimeService";
 import type { NovelDirectorAutoExecutionRuntime } from "./novelDirectorAutoExecutionRuntime";
 import type { DirectorProgressItemKey } from "./novelDirectorProgress";
+import { getDirectorExecutionNodeAdapter } from "./novelDirectorExecutionNodeAdapters";
 
 export class DirectorRuntimeGateError extends AppError {
   constructor(message: string) {
@@ -165,25 +166,12 @@ export class NovelDirectorRuntimeOrchestrator {
     allowSkipReviewBlockedChapter?: boolean;
   }): Promise<void> {
     const isQualityRepair = input.resumeCheckpointType === "replan_required";
+    const adapter = getDirectorExecutionNodeAdapter(isQualityRepair ? "quality_repair" : "chapter_execution");
     await this.runNode({
+      ...adapter,
       taskId: input.taskId,
       novelId: input.novelId,
-      nodeKey: isQualityRepair ? "chapter_quality_repair_node" : "chapter_execution_node",
-      label: isQualityRepair ? "执行章节质量修复" : "执行章节生成批次",
-      targetType: "novel",
       targetId: input.novelId,
-      reads: ["chapter_task_sheet", "chapter_draft", "audit_report"],
-      writes: isQualityRepair
-        ? ["chapter_draft", "audit_report", "repair_ticket"]
-        : ["chapter_draft", "audit_report"],
-      mayModifyUserContent: false,
-      supportsAutoRetry: isQualityRepair,
-      waitingState: {
-        stage: isQualityRepair ? "quality_repair" : "chapter_execution",
-        itemKey: isQualityRepair ? "quality_repair" : "chapter_execution",
-        itemLabel: isQualityRepair ? "等待确认章节修复" : "等待确认章节执行",
-        progress: isQualityRepair ? 0.975 : 0.93,
-      },
       runner: () => this.deps.autoExecutionRuntime.runFromReady(input),
     });
   }
