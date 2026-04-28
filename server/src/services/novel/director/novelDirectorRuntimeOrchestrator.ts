@@ -8,10 +8,11 @@ import type {
 import type { NovelWorkflowStage } from "@ai-novel/shared/types/novelWorkflow";
 import { AppError } from "../../../middleware/errorHandler";
 import type { NovelWorkflowService } from "../workflow/NovelWorkflowService";
+import type { DirectorPolicyRequest } from "./runtime/DirectorPolicyEngine";
 import type { DirectorRuntimeService } from "./runtime/DirectorRuntimeService";
 import type { NovelDirectorAutoExecutionRuntime } from "./novelDirectorAutoExecutionRuntime";
 import type { DirectorProgressItemKey } from "./novelDirectorProgress";
-import { getDirectorExecutionNodeAdapter } from "./novelDirectorExecutionNodeAdapters";
+import { getDirectorExecutionNodeSequence } from "./novelDirectorExecutionNodeAdapters";
 
 export class DirectorRuntimeGateError extends AppError {
   constructor(message: string) {
@@ -90,6 +91,7 @@ export class NovelDirectorRuntimeOrchestrator {
     label: string;
     reads: string[];
     writes: string[];
+    policyAction?: DirectorPolicyRequest["action"];
     mayModifyUserContent?: boolean;
     requiresApprovalByDefault?: boolean;
     supportsAutoRetry?: boolean;
@@ -113,6 +115,7 @@ export class NovelDirectorRuntimeOrchestrator {
         label: input.label,
         reads: input.reads,
         writes: input.writes,
+        policyAction: input.policyAction,
         mayModifyUserContent: input.mayModifyUserContent ?? false,
         requiresApprovalByDefault: input.requiresApprovalByDefault ?? false,
         supportsAutoRetry: input.supportsAutoRetry ?? false,
@@ -166,14 +169,39 @@ export class NovelDirectorRuntimeOrchestrator {
     allowSkipReviewBlockedChapter?: boolean;
   }): Promise<void> {
     const isQualityRepair = input.resumeCheckpointType === "replan_required";
-    const adapter = getDirectorExecutionNodeAdapter(isQualityRepair ? "quality_repair" : "chapter_execution");
+    const nodeSequence = getDirectorExecutionNodeSequence(
+      isQualityRepair ? "quality_repair" : "chapter_execution",
+    );
+    const [entryAdapter, ...projectionAdapters] = nodeSequence;
+    if (!entryAdapter) {
+      throw new Error("章节执行节点序列为空，无法继续自动导演运行。");
+    }
     await this.runNode({
-      ...adapter,
+      ...entryAdapter,
       taskId: input.taskId,
       novelId: input.novelId,
       targetId: input.novelId,
       runner: () => this.deps.autoExecutionRuntime.runFromReady(input),
     });
+
+    if (projectionAdapters.length === 0) {
+      return;
+    }
+
+    const artifacts = await this.collectArtifactsAfterNode({
+      taskId: input.taskId,
+      novelId: input.novelId,
+    });
+    for (const adapter of projectionAdapters) {
+      await this.runNode({
+        ...adapter,
+        taskId: input.taskId,
+        novelId: input.novelId,
+        targetId: input.novelId,
+        runner: async () => undefined,
+        collectArtifacts: () => artifacts,
+      });
+    }
   }
 
   private async collectArtifactsAfterNode(input: {

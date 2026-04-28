@@ -125,3 +125,45 @@ test("director node runner records target-scoped step completion", async () => {
   assert.equal(store.calls[1].input.targetId, "chapter-1");
   assert.equal(store.calls[1].input.producedArtifacts.length, 1);
 });
+
+test("director node runner passes contract policy action into policy decisions", async () => {
+  const store = buildStore(buildSnapshot({
+    mode: "run_until_gate",
+    mayOverwriteUserContent: false,
+    maxAutoRepairAttempts: 1,
+    allowExpensiveReview: false,
+    modelTier: "balanced",
+    updatedAt: "2026-04-28T00:00:00.000Z",
+  }));
+  const decisions = [];
+  const runner = new DirectorNodeRunner(store, {
+    decide: (input) => {
+      decisions.push(input);
+      return {
+        canRun: true,
+        requiresApproval: false,
+        reason: "ok",
+        mayOverwriteUserContent: false,
+        affectedArtifacts: [],
+        autoRetryBudget: input.action === "repair" ? 1 : 0,
+        onQualityFailure: input.action === "repair" ? "repair_once" : "continue_with_risk",
+      };
+    },
+  });
+
+  const contract = {
+    ...buildContract(async () => ({ ok: true })),
+    policyAction: "repair",
+  };
+  const result = await runner.run(contract, {
+    taskId: "task-1",
+    novelId: "novel-1",
+    targetType: "chapter",
+    targetId: "chapter-1",
+    input: undefined,
+  });
+
+  assert.equal(result.status, "completed");
+  assert.equal(decisions.length, 1);
+  assert.equal(decisions[0].action, "repair");
+});

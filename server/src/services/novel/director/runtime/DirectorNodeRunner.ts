@@ -11,6 +11,7 @@ export interface DirectorNodeContract<TInput, TOutput> {
   label: string;
   reads: string[];
   writes: string[];
+  policyAction?: DirectorPolicyRequest["action"];
   mayModifyUserContent: boolean;
   requiresApprovalByDefault: boolean;
   supportsAutoRetry: boolean;
@@ -49,11 +50,11 @@ export class DirectorNodeRunner {
       ? await this.runtimeStore.getSnapshot(input.taskId.trim())
       : null;
     const policyDecision = this.policyEngine.decide({
-      action: "run_node",
       mayOverwriteUserContent: contract.mayModifyUserContent,
       requiresApprovalByDefault: contract.requiresApprovalByDefault,
-      policy: input.policy?.policy ?? snapshot?.policy ?? null,
       ...input.policy,
+      action: contract.policyAction ?? "run_node",
+      policy: input.policy?.policy ?? snapshot?.policy ?? null,
     });
     if (!policyDecision.canRun || policyDecision.requiresApproval) {
       let runtimeSnapshot: DirectorRuntimeSnapshot | null = snapshot;
