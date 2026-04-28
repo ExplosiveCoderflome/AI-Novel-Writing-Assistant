@@ -48,7 +48,7 @@ import { NovelDirectorAutoExecutionRuntime } from "./novelDirectorAutoExecutionR
 import {
   loadDirectorTakeoverState,
 } from "./novelDirectorTakeoverRuntime";
-import { getDirectorTakeoverNodeAdapter } from "./novelDirectorTakeoverNodeAdapters";
+import { getDirectorTakeoverStepModule } from "./workflowStepRuntime/directorWorkflowStepModules";
 import { startDirectorTakeoverExecution } from "./novelDirectorTakeoverExecution";
 import {
   resetDirectorTakeoverCurrentStep,
@@ -490,7 +490,7 @@ export class NovelDirectorService {
       },
       buildDirectorSeedPayload: (request, novelId, extra) => this.buildDirectorSeedPayload(request, novelId, extra),
       scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, async () => {
-        const adapter = getDirectorTakeoverNodeAdapter();
+        const module = getDirectorTakeoverStepModule();
         await this.directorRuntime.initializeRun({
           taskId,
           novelId: input.novelId,
@@ -502,8 +502,8 @@ export class NovelDirectorService {
           taskId,
           analysis: takeoverWorkspaceAnalysis,
         });
-        await this.directorRuntimeOrchestrator.runNode({
-          ...adapter,
+        await this.directorRuntimeOrchestrator.runStepModule({
+          module,
           taskId,
           novelId: input.novelId,
           runner,

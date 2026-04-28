@@ -139,7 +139,7 @@ test("pipeline resumes structured outline from persisted volume workspace when v
   assert.equal(highMemoryChecks[0].volumeId, "volume_1");
 });
 
-test("pipeline does not rerun story macro when existing planning assets are present", async () => {
+test("pipeline resumes book contract when story macro exists without contract", async () => {
   const modules = [];
   const runtime = createRuntime({
     storyMacroService: {
@@ -164,6 +164,42 @@ test("pipeline does not rerun story macro when existing planning assets are pres
     taskId: "task_pipeline_story_skip",
     novelId: "novel_pipeline_story_skip",
     input: buildDirectorInput({ workflowTaskId: "task_pipeline_story_skip" }),
+    startPhase: "story_macro",
+  });
+
+  assert.deepEqual(modules, ["book.contract.create", "character.cast.prepare", "volume.strategy.plan"]);
+});
+
+test("pipeline does not rerun book planning nodes when story macro and contract already exist", async () => {
+  const modules = [];
+  const runtime = createRuntime({
+    storyMacroService: {
+      async getPlan() {
+        return { id: "story_macro_existing" };
+      },
+    },
+    bookContractService: {
+      async getByNovelId() {
+        return { id: "book_contract_existing" };
+      },
+    },
+    runtimeOrchestrator: {
+      async runStepModule({ module }) {
+        modules.push(module.id);
+        if (module.id === "character.cast.prepare") {
+          return false;
+        }
+        return null;
+      },
+      async runChapterExecutionNode() {},
+      async markTaskRunning() {},
+    },
+  });
+
+  await runtime.runPipeline({
+    taskId: "task_pipeline_book_skip",
+    novelId: "novel_pipeline_book_skip",
+    input: buildDirectorInput({ workflowTaskId: "task_pipeline_book_skip" }),
     startPhase: "story_macro",
   });
 

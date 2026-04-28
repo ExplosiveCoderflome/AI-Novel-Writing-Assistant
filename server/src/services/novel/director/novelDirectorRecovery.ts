@@ -4,6 +4,7 @@ import type { StructuredOutlineRecoveryStep } from "./novelDirectorStructuredOut
 
 export type DirectorPipelinePhase =
   | "story_macro"
+  | "book_contract"
   | "character_setup"
   | "volume_strategy"
   | "structured_outline";
@@ -36,10 +37,20 @@ export function resolveSafeDirectorPipelineStartPhase(input: {
   }
 
   let safePhase = input.requestedPhase;
-  if (safePhase === "story_macro" && (input.hasStoryMacroPlan || input.hasBookContract)) {
+  if (safePhase === "story_macro" && input.hasStoryMacroPlan && !input.hasBookContract) {
+    safePhase = "book_contract";
+  }
+  if (
+    (safePhase === "story_macro" || safePhase === "book_contract")
+    && input.hasStoryMacroPlan
+    && input.hasBookContract
+  ) {
     safePhase = "character_setup";
   }
-  if ((safePhase === "story_macro" || safePhase === "character_setup") && input.hasCharacters) {
+  if (safePhase === "book_contract" && !input.hasStoryMacroPlan) {
+    safePhase = "story_macro";
+  }
+  if ((safePhase === "story_macro" || safePhase === "book_contract" || safePhase === "character_setup") && input.hasCharacters) {
     safePhase = "volume_strategy";
   }
   return safePhase;

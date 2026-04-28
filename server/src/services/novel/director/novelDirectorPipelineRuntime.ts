@@ -24,15 +24,19 @@ import {
   runDirectorVolumeStrategyPhase,
 } from "./novelDirectorPipelinePhases";
 import { resolveSafeDirectorPipelineStartPhase } from "./novelDirectorRecovery";
-import { runDirectorStoryMacroPhase } from "./novelDirectorStoryMacroPhase";
+import {
+  runDirectorBookContractPhase,
+  runDirectorStoryMacroAssetPhase,
+} from "./novelDirectorStoryMacroPhase";
 import type { NovelDirectorRuntimeOrchestrator } from "./novelDirectorRuntimeOrchestrator";
 import { getDirectorPlanningStepModule } from "./workflowStepRuntime/directorWorkflowStepModules";
+import type { DirectorPipelinePhase } from "./novelDirectorRecovery";
 
 export interface DirectorPipelineRunInput {
   taskId: string;
   novelId: string;
   input: DirectorConfirmRequest;
-  startPhase: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline";
+  startPhase: Exclude<DirectorPipelinePhase, "book_contract">;
   scope?: string | null;
   batchAlreadyStartedCount?: number;
 }
@@ -81,7 +85,22 @@ export class NovelDirectorPipelineRuntime {
       });
     }
 
-    if (safeStartPhase === "story_macro" || safeStartPhase === "character_setup") {
+    if (safeStartPhase === "story_macro" || safeStartPhase === "book_contract") {
+      const module = getDirectorPlanningStepModule("book_contract");
+      await this.deps.runtimeOrchestrator.runStepModule({
+        module,
+        taskId: input.taskId,
+        novelId: input.novelId,
+        targetId: input.novelId,
+        runner: () => this.runBookContractPhase(input.taskId, input.novelId, input.input),
+      });
+    }
+
+    if (
+      safeStartPhase === "story_macro"
+      || safeStartPhase === "book_contract"
+      || safeStartPhase === "character_setup"
+    ) {
       const module = getDirectorPlanningStepModule("character_setup");
       const paused = await this.deps.runtimeOrchestrator.runStepModule({
         module,
@@ -97,6 +116,7 @@ export class NovelDirectorPipelineRuntime {
 
     if (
       safeStartPhase === "story_macro"
+      || safeStartPhase === "book_contract"
       || safeStartPhase === "character_setup"
       || safeStartPhase === "volume_strategy"
     ) {
@@ -189,8 +209,8 @@ export class NovelDirectorPipelineRuntime {
 
   private async resolveSafePipelineStartPhase(input: {
     novelId: string;
-    requestedPhase: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline";
-  }): Promise<"story_macro" | "character_setup" | "volume_strategy" | "structured_outline"> {
+    requestedPhase: Exclude<DirectorPipelinePhase, "book_contract">;
+  }): Promise<DirectorPipelinePhase> {
     const [workspace, storyMacroPlan, bookContract, characters] = await Promise.all([
       this.deps.volumeService.getVolumes(input.novelId).catch(() => null),
       this.deps.storyMacroService.getPlan(input.novelId).catch(() => null),
@@ -224,8 +244,31 @@ export class NovelDirectorPipelineRuntime {
     taskId: string,
     novelId: string,
     input: DirectorConfirmRequest,
+  ) {
+    return runDirectorStoryMacroAssetPhase({
+      taskId,
+      novelId,
+      request: input,
+      dependencies: {
+        storyMacroService: this.deps.storyMacroService,
+      },
+      callbacks: {
+        markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
+          this.deps.runtimeOrchestrator.markTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
+            ...options,
+            novelId,
+          })
+        ),
+      },
+    });
+  }
+
+  private async runBookContractPhase(
+    taskId: string,
+    novelId: string,
+    input: DirectorConfirmRequest,
   ): Promise<void> {
-    await runDirectorStoryMacroPhase({
+    await runDirectorBookContractPhase({
       taskId,
       novelId,
       request: input,

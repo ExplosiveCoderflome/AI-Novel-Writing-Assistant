@@ -234,10 +234,10 @@ test("confirm runtime creates the novel through the standard runtime node", asyn
       },
     },
     runtimeOrchestrator: {
-      runNode: async (node) => {
-        calls.push(["runNode", node.nodeKey, node.reads.join(","), node.writes.join(",")]);
-        const output = await node.runner();
-        await node.collectArtifacts?.(output);
+      runStepModule: async ({ module, runner, collectArtifacts }) => {
+        calls.push(["runStepModule", module.nodeKey, module.reads.join(","), module.writes.join(",")]);
+        const output = await runner();
+        await collectArtifacts?.(output);
         return output;
       },
       markTaskRunning: async (_taskId, stage, itemKey) => {
@@ -268,7 +268,7 @@ test("confirm runtime creates the novel through the standard runtime node", asyn
   assert.equal(result.novel.id, "novel_created_demo");
   assert.equal(backgroundRuns.length, 1);
   assert.ok(calls.some((call) => (
-    call[0] === "runNode"
+    call[0] === "runStepModule"
     && call[1] === "novel_create"
     && call[2] === "candidate_batch,book_seed"
   )));

@@ -1134,12 +1134,12 @@ P2 重点解决：
 ### 自动导演完整统一运行时
 - 标识：`task-87bf3232fd`
 - 状态：开发中
-- 最近更新：2026-04-29 00:41
+- 最近更新：2026-04-29 01:08
 - 概要：优先完成自动导演正常主流程：新建确认、规划、拆章、章节执行、服务重启恢复、失败重试与用户内容保护先跑稳；创作中枢闭环暂后置。
 
 计划清单：
-- [ ] 正常主流程收口：候选确认、建书、story_macro、character_setup、volume_strategy、structured_outline、章节执行和质量修复继续迁入 Step Module -> NodeRunner -> PolicyEngine。
-- [ ] 建书写入关口：novel_create 已注册为正式 Step Module，并通过 RuntimeOrchestrator.runNode 执行；成功语义包含创建小说并绑定任务，重复确认会补 runtime novelId。
+- [x] 正常主流程收口：候选、确认、接管、story_macro、book_contract、character_setup、volume_strategy、structured_outline、章节执行、审校、修复和状态提交已纳入 Step Module -> NodeRunner -> PolicyEngine 合同。
+- [x] 建书写入关口：novel_create 已注册为正式 Step Module，并通过 RuntimeOrchestrator.runStepModule 执行；成功语义包含创建小说并绑定任务，重复确认会补 runtime novelId。
 - [ ] 规划恢复链稳定：已有 story_macro/book_contract/角色资产时跳过对应写入节点；volume_strategy 幂等重放无返回值时从持久化卷规划继续 structured_outline。
 - [x] 章节批次恢复：chapter_batch_ready 对账按首个未完成章节恢复，不把缺正文的 repaired 章节误判为完成。
 - [ ] Artifact Ledger 幂等恢复：DirectorArtifactDependency 写入需要去重和 upsert，历史任务重复恢复同一依赖不得触发唯一约束。
@@ -1154,6 +1154,7 @@ P2 重点解决：
 进度记录：
 - 2026-04-28 23:39 [开发中] 修复历史小说任务继续时的 Artifact Ledger 依赖重复入账问题：DirectorArtifactDependency 写入先按 artifactId 去重并改为 upsert，避免重复恢复同一依赖时触发唯一约束；新增 runtime store 回归测试。
 - 2026-04-29 00:41 [已完成] 收口章节批次恢复对账：从数据库读取到正文为空的 repaired/completed 章节时，仍按未完成章节恢复到该章，不再误判整批完成；补充自动导演章节批次对账回归测试。
+- 2026-04-29 01:08 [已完成] 完成自动导演写入合同全量收口：新增完整 Step Module 写入合同校验，拆分 story_macro 与 book_contract 独立节点，确认建书和接管入口改为直接 runStepModule，章节执行/审校/修复/状态提交继续由统一节点序列覆盖。
 <!-- task-md-sync:item:task-87bf3232fd:end -->
 <!-- task-md-sync:item:task-7efc49bcdc:start -->
 ### 自动导演接管状态投影恢复
@@ -1205,4 +1206,20 @@ P2 重点解决：
 进度记录：
 - 2026-04-29 00:27 [已计划] 已完成本轮剩余计划盘点，下一步建议继续做 P0-1/P0-E1 的执行合同和真实数据回归。
 <!-- task-md-sync:item:task-00ff651cc0:end -->
+<!-- task-md-sync:item:task-474cb61b53:start -->
+### 自动导演写入合同全量收口
+- 标识：`task-474cb61b53`
+- 状态：已完成
+- 最近更新：2026-04-29 00:51
+- 概要：把自动导演候选、确认、接管、规划、拆章、章节执行、审校、修复与状态提交统一纳入 Step Module -> NodeRunner -> PolicyEngine 写入合同，减少 legacy adapter + runtime 记录混合形态。
+
+计划清单：
+- [ ] 补齐统一写入合同清单与运行时校验，所有写入步骤必须声明 reads/writes/risk/approval/retry/scope。
+- [ ] 拆分 story_macro 与 book_contract 规划节点，让书级规划与书级契约分别拥有独立 Step Module 和幂等恢复记录。
+- [ ] 让自动导演规划计划、章节流水线和确认/接管入口都通过同一 Step Module 注册表校验。
+- [ ] 补定向测试覆盖完整写入面、计划顺序、缺合同失败和 story_macro/book_contract 独立节点。
+
+进度记录：
+- 2026-04-29 00:51 [已完成] 已完成自动导演写入合同收口：关键写入面全部进入 Step Module 注册表校验，story_macro/book_contract 独立节点化，确认建书与接管入口改为 runStepModule，定向构建与 42 个自动导演运行时测试通过。
+<!-- task-md-sync:item:task-474cb61b53:end -->
 <!-- task-md-sync:end -->

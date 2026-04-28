@@ -29,6 +29,7 @@ export const DIRECTOR_CANDIDATE_STEP_IDS: Record<DirectorCandidateStageNode, str
 
 export const DIRECTOR_PLANNING_STEP_IDS: Record<DirectorPlanningStage, string> = {
   story_macro: "story.macro.plan",
+  book_contract: "book.contract.create",
   character_setup: "character.cast.prepare",
   volume_strategy: "volume.strategy.plan",
   structured_outline: "chapter.task_sheet.plan",
@@ -82,6 +83,11 @@ export const DIRECTOR_PLANNING_STEP_MODULES: Record<
     id: DIRECTOR_PLANNING_STEP_IDS.story_macro,
     stage: "story_macro",
     adapter: getDirectorStageNodeAdapter("story_macro"),
+  }),
+  book_contract: createWorkflowStepDescriptorFromDirectorAdapter({
+    id: DIRECTOR_PLANNING_STEP_IDS.book_contract,
+    stage: "story_macro",
+    adapter: getDirectorStageNodeAdapter("book_contract"),
   }),
   character_setup: createWorkflowStepDescriptorFromDirectorAdapter({
     id: DIRECTOR_PLANNING_STEP_IDS.character_setup,
@@ -167,6 +173,71 @@ export const DIRECTOR_WORKFLOW_STEP_MODULES = uniqueModules([
 export const directorWorkflowStepModuleRegistry = new WorkflowStepModuleRegistry(
   DIRECTOR_WORKFLOW_STEP_MODULES,
 );
+
+const REQUIRED_DIRECTOR_WRITE_CONTRACTS: Array<{
+  id: string;
+  writes: string[];
+  mayModifyUserContent: boolean;
+}> = [
+  { id: DIRECTOR_CANDIDATE_STEP_IDS.candidate_generation, writes: ["candidate_batch"], mayModifyUserContent: false },
+  { id: DIRECTOR_CANDIDATE_STEP_IDS.candidate_refine, writes: ["candidate_batch"], mayModifyUserContent: false },
+  { id: DIRECTOR_CANDIDATE_STEP_IDS.candidate_patch, writes: ["candidate_batch"], mayModifyUserContent: false },
+  { id: DIRECTOR_CANDIDATE_STEP_IDS.candidate_title_refine, writes: ["candidate_batch"], mayModifyUserContent: false },
+  { id: DIRECTOR_CONFIRM_NOVEL_CREATE_STEP_ID, writes: ["novel_project", "director_runtime"], mayModifyUserContent: false },
+  { id: DIRECTOR_TAKEOVER_STEP_ID, writes: ["workflow_task", "director_runtime"], mayModifyUserContent: false },
+  { id: DIRECTOR_PLANNING_STEP_IDS.story_macro, writes: ["story_macro"], mayModifyUserContent: true },
+  { id: DIRECTOR_PLANNING_STEP_IDS.book_contract, writes: ["book_contract"], mayModifyUserContent: true },
+  { id: DIRECTOR_PLANNING_STEP_IDS.character_setup, writes: ["character_cast"], mayModifyUserContent: true },
+  { id: DIRECTOR_PLANNING_STEP_IDS.volume_strategy, writes: ["volume_strategy"], mayModifyUserContent: true },
+  { id: DIRECTOR_PLANNING_STEP_IDS.structured_outline, writes: ["chapter_task_sheet"], mayModifyUserContent: true },
+  { id: DIRECTOR_EXECUTION_STEP_IDS.chapter_execution, writes: ["chapter_draft"], mayModifyUserContent: true },
+  { id: DIRECTOR_EXECUTION_STEP_IDS.chapter_quality_review, writes: ["audit_report", "rolling_window_review"], mayModifyUserContent: false },
+  { id: DIRECTOR_EXECUTION_STEP_IDS.chapter_repair, writes: ["chapter_draft", "audit_report", "repair_ticket"], mayModifyUserContent: true },
+  { id: DIRECTOR_EXECUTION_STEP_IDS.chapter_state_commit, writes: ["continuity_state", "character_governance_state"], mayModifyUserContent: false },
+  { id: DIRECTOR_EXECUTION_STEP_IDS.payoff_ledger_sync, writes: ["reader_promise", "repair_ticket"], mayModifyUserContent: false },
+  { id: DIRECTOR_EXECUTION_STEP_IDS.character_resource_sync, writes: ["character_governance_state", "continuity_state"], mayModifyUserContent: false },
+];
+
+export function validateDirectorWorkflowStepWriteContracts(
+  modules: readonly WorkflowStepModuleDescriptor[] = DIRECTOR_WORKFLOW_STEP_MODULES,
+): void {
+  const byId = new Map(modules.map((module) => [module.id, module]));
+  const failures: string[] = [];
+
+  for (const requirement of REQUIRED_DIRECTOR_WRITE_CONTRACTS) {
+    const module = byId.get(requirement.id);
+    if (!module) {
+      failures.push(`${requirement.id}: missing step module`);
+      continue;
+    }
+    for (const write of requirement.writes) {
+      if (!module.writes.includes(write)) {
+        failures.push(`${requirement.id}: missing write ${write}`);
+      }
+    }
+    if (module.reads.length === 0) {
+      failures.push(`${requirement.id}: reads must be declared`);
+    }
+    if (module.targetType !== "global" && module.targetType !== "novel" && module.targetType !== "volume" && module.targetType !== "chapter") {
+      failures.push(`${requirement.id}: invalid target scope`);
+    }
+    if (module.mayModifyUserContent !== requirement.mayModifyUserContent) {
+      failures.push(`${requirement.id}: mayModifyUserContent mismatch`);
+    }
+    if (typeof module.requiresApprovalByDefault !== "boolean") {
+      failures.push(`${requirement.id}: requiresApprovalByDefault must be boolean`);
+    }
+    if (typeof module.supportsAutoRetry !== "boolean") {
+      failures.push(`${requirement.id}: supportsAutoRetry must be boolean`);
+    }
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`Director workflow step write contract is incomplete: ${failures.join("; ")}`);
+  }
+}
+
+validateDirectorWorkflowStepWriteContracts();
 
 export function getDirectorCandidateStepModule(
   stage: DirectorCandidateStageNode,

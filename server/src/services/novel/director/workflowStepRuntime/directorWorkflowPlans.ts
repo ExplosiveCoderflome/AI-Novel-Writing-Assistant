@@ -11,6 +11,7 @@ import {
 
 const DIRECTOR_PLANNING_SEQUENCE: DirectorPlanningStage[] = [
   "story_macro",
+  "book_contract",
   "character_setup",
   "volume_strategy",
   "structured_outline",

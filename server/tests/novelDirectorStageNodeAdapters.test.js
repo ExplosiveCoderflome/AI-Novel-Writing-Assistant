@@ -8,6 +8,7 @@ const {
 
 test("director planning stages expose standard node adapter contracts", () => {
   assert.deepEqual(Object.keys(DIRECTOR_STAGE_NODE_ADAPTERS).sort(), [
+    "book_contract",
     "character_setup",
     "story_macro",
     "structured_outline",
@@ -38,4 +39,19 @@ test("structured outline adapter declares chapter task sheet output", () => {
   assert.deepEqual(adapter.writes, ["chapter_task_sheet"]);
   assert.equal(adapter.waitingState.stage, "structured_outline");
   assert.equal(adapter.waitingState.itemKey, "chapter_detail_bundle");
+});
+
+test("story macro and book contract use independent write contracts", () => {
+  const storyMacro = getDirectorStageNodeAdapter("story_macro");
+  const bookContract = getDirectorStageNodeAdapter("book_contract");
+
+  assert.equal(storyMacro.nodeKey, "story_macro_phase");
+  assert.deepEqual(storyMacro.writes, ["story_macro"]);
+  assert.equal(storyMacro.waitingState.itemKey, "story_macro");
+
+  assert.equal(bookContract.nodeKey, "book_contract_phase");
+  assert.deepEqual(bookContract.reads, ["story_macro", "book_seed", "candidate_batch"]);
+  assert.deepEqual(bookContract.writes, ["book_contract"]);
+  assert.equal(bookContract.waitingState.stage, "story_macro");
+  assert.equal(bookContract.waitingState.itemKey, "book_contract");
 });

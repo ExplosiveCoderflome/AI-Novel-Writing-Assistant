@@ -80,13 +80,13 @@ async function generateDirectorBookContract(input: {
   return normalizeBookContract(parsed.output);
 }
 
-export async function runDirectorStoryMacroPhase(input: {
+export async function runDirectorStoryMacroAssetPhase(input: {
   taskId: string;
   novelId: string;
   request: DirectorConfirmRequest;
-  dependencies: DirectorStoryMacroDependencies;
+  dependencies: Pick<DirectorStoryMacroDependencies, "storyMacroService">;
   callbacks: DirectorStoryMacroCallbacks;
-}): Promise<void> {
+}): Promise<StoryMacroPlan> {
   const { taskId, novelId, request, dependencies, callbacks } = input;
   const bookSpec = toBookSpec(request.candidate, request.idea, request.estimatedChapterCount);
   const storyInput = buildStoryInput(request, bookSpec);
@@ -112,6 +112,20 @@ export async function runDirectorStoryMacroPhase(input: {
       storyMacroPlan,
     ),
   });
+  return hydratedStoryMacroPlan;
+}
+
+export async function runDirectorBookContractPhase(input: {
+  taskId: string;
+  novelId: string;
+  request: DirectorConfirmRequest;
+  storyMacroPlan?: StoryMacroPlan | null;
+  dependencies: DirectorStoryMacroDependencies;
+  callbacks: DirectorStoryMacroCallbacks;
+}): Promise<void> {
+  const { taskId, novelId, request, dependencies, callbacks } = input;
+  const hydratedStoryMacroPlan = input.storyMacroPlan
+    ?? await dependencies.storyMacroService.getPlan(novelId);
   const bookContractDraft = await runDirectorTrackedStep({
     taskId,
     stage: "story_macro",
@@ -127,4 +141,18 @@ export async function runDirectorStoryMacroPhase(input: {
     }),
   });
   await dependencies.bookContractService.upsert(novelId, bookContractDraft);
+}
+
+export async function runDirectorStoryMacroPhase(input: {
+  taskId: string;
+  novelId: string;
+  request: DirectorConfirmRequest;
+  dependencies: DirectorStoryMacroDependencies;
+  callbacks: DirectorStoryMacroCallbacks;
+}): Promise<void> {
+  const storyMacroPlan = await runDirectorStoryMacroAssetPhase(input);
+  await runDirectorBookContractPhase({
+    ...input,
+    storyMacroPlan,
+  });
 }

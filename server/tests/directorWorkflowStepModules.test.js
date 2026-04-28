@@ -17,6 +17,7 @@ const {
   getDirectorExecutionStepModuleSequence,
   getDirectorPlanningStepModule,
   getDirectorTakeoverStepModule,
+  validateDirectorWorkflowStepWriteContracts,
 } = require("../dist/services/novel/director/workflowStepRuntime/directorWorkflowStepModules.js");
 
 test("director workflow step registry exposes unified step modules", () => {
@@ -26,6 +27,7 @@ test("director workflow step registry exposes unified step modules", () => {
   assert.ok(ids.includes("book.candidate.generate"));
   assert.ok(ids.includes("book.project.create"));
   assert.ok(ids.includes("story.macro.plan"));
+  assert.ok(ids.includes("book.contract.create"));
   assert.ok(ids.includes("chapter.draft.write"));
   assert.ok(ids.includes("chapter.quality.review"));
   assert.ok(ids.includes("workflow.takeover.execute"));
@@ -47,6 +49,20 @@ test("director workflow step registry exposes unified step modules", () => {
   const takeoverModule = getDirectorTakeoverStepModule();
   assert.equal(takeoverModule.id, "workflow.takeover.execute");
   assert.equal(takeoverModule.nodeKey, "takeover_execution");
+});
+
+test("director workflow write contract covers every write-capable runtime step", () => {
+  assert.doesNotThrow(() => validateDirectorWorkflowStepWriteContracts());
+
+  assert.throws(
+    () => validateDirectorWorkflowStepWriteContracts([
+      {
+        ...getDirectorPlanningStepModule("story_macro"),
+        writes: [],
+      },
+    ]),
+    /missing write story_macro|missing step module/,
+  );
 });
 
 test("chapter pipeline template converts execution flow into ordered step plan", () => {
@@ -97,6 +113,20 @@ test("planning workflow plan can start from any director planning phase", () => 
     "chapter.task_sheet.plan",
   ]);
   assert.deepEqual(plan.steps[1].dependsOn, ["volume.strategy.plan"]);
+});
+
+test("planning workflow keeps story macro and book contract as separate write nodes", () => {
+  const plan = buildDirectorPlanningWorkflowPlan({ startPhase: "story_macro" });
+
+  assert.deepEqual(plan.steps.map((step) => step.stepId), [
+    "story.macro.plan",
+    "book.contract.create",
+    "character.cast.prepare",
+    "volume.strategy.plan",
+    "chapter.task_sheet.plan",
+  ]);
+  assert.deepEqual(plan.steps[1].writes, ["book_contract"]);
+  assert.deepEqual(plan.steps[1].dependsOn, ["story.macro.plan"]);
 });
 
 test("workflow step module can be converted back to DirectorNodeRunner contract", async () => {

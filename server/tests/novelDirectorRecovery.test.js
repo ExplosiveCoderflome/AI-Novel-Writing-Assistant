@@ -35,7 +35,7 @@ test("safe pipeline phase falls back to volume strategy when structured outline 
   assert.equal(phase, "volume_strategy");
 });
 
-test("safe pipeline phase skips story macro when protected planning assets already exist", () => {
+test("safe pipeline phase resumes book contract when story macro exists without contract", () => {
   const phase = resolveSafeDirectorPipelineStartPhase({
     requestedPhase: "story_macro",
     hasStoryMacroPlan: true,
@@ -45,7 +45,7 @@ test("safe pipeline phase skips story macro when protected planning assets alrea
     hasVolumeStrategyPlan: false,
   });
 
-  assert.equal(phase, "character_setup");
+  assert.equal(phase, "book_contract");
 });
 
 test("safe pipeline phase skips character setup when characters already exist", () => {

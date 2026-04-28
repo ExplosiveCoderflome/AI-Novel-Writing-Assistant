@@ -146,17 +146,9 @@ export class NovelDirectorConfirmRuntime {
         };
 
         const novelCreateModule = getDirectorConfirmNovelCreateStepModule();
-        const createdNovel = await this.deps.runtimeOrchestrator.runNode({
+        const createdNovel = await this.deps.runtimeOrchestrator.runStepModule({
+          module: novelCreateModule,
           taskId: workflowTask.id,
-          nodeKey: novelCreateModule.nodeKey,
-          label: novelCreateModule.label,
-          reads: novelCreateModule.reads,
-          writes: novelCreateModule.writes,
-          policyAction: novelCreateModule.policyAction,
-          mayModifyUserContent: novelCreateModule.mayModifyUserContent,
-          requiresApprovalByDefault: novelCreateModule.requiresApprovalByDefault,
-          supportsAutoRetry: novelCreateModule.supportsAutoRetry,
-          targetType: novelCreateModule.targetType,
           targetId: workflowTask.id,
           runner: async () => {
             await this.deps.workflowService.markTaskRunning(workflowTask.id, {

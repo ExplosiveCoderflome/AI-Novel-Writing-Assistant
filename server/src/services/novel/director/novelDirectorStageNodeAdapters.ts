@@ -4,6 +4,7 @@ import { DIRECTOR_PROGRESS, type DirectorProgressItemKey } from "./novelDirector
 
 export type DirectorPlanningStage =
   | "story_macro"
+  | "book_contract"
   | "character_setup"
   | "volume_strategy"
   | "structured_outline";
@@ -28,17 +29,33 @@ export interface DirectorStageNodeAdapter {
 export const DIRECTOR_STAGE_NODE_ADAPTERS: Record<DirectorPlanningStage, DirectorStageNodeAdapter> = {
   story_macro: {
     nodeKey: "story_macro_phase",
-    label: "生成书级规划资产",
+    label: "生成故事宏观规划",
     targetType: "novel",
     reads: ["book_seed", "candidate_batch"],
-    writes: ["story_macro", "book_contract"],
+    writes: ["story_macro"],
+    mayModifyUserContent: true,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: false,
+    waitingState: {
+      stage: "story_macro",
+      itemKey: "story_macro",
+      itemLabel: "等待确认故事宏观规划",
+      progress: DIRECTOR_PROGRESS.storyMacro,
+    },
+  },
+  book_contract: {
+    nodeKey: "book_contract_phase",
+    label: "生成书级创作约定",
+    targetType: "novel",
+    reads: ["story_macro", "book_seed", "candidate_batch"],
+    writes: ["book_contract"],
     mayModifyUserContent: true,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
     waitingState: {
       stage: "story_macro",
       itemKey: "book_contract",
-      itemLabel: "等待确认书级规划资产",
+      itemLabel: "等待确认书级创作约定",
       progress: DIRECTOR_PROGRESS.bookContract,
     },
   },
