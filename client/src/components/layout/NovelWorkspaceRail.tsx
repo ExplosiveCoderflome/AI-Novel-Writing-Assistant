@@ -216,9 +216,14 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
 
   const completedStepCount = stepStates.filter((item) => item.isDone).length;
   const novelTitle = novelDetail?.title?.trim() || "小说创作工作台";
+  const runtimeActionSummary = runtimeProjection?.nextActionLabel
+    ? `下一步：${runtimeProjection.nextActionLabel}`
+    : null;
   const runtimeSummary = runtimeProjection?.requiresUserAction
     ? `需要处理：${runtimeProjection.blockedReason ?? runtimeProjection.lastEventSummary ?? runtimeProjection.currentLabel ?? "请先查看当前停留点"}`
-    : runtimeProjection?.currentLabel
+    : runtimeProjection?.headline
+      || runtimeActionSummary
+      || runtimeProjection?.currentLabel
       || runtimeProjection?.lastEventSummary
       || runtimeProjection?.blockedReason
       || null;

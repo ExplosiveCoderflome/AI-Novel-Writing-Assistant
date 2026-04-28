@@ -106,12 +106,19 @@ export default function DirectorRuntimeProjectionCard({
   if (!projection) {
     return null;
   }
-  const primaryText = projection.currentLabel?.trim()
+  const primaryText = projection.headline?.trim()
+    || projection.currentLabel?.trim()
     || projection.lastEventSummary?.trim()
     || "等待同步当前推进状态";
+  const detailText = projection.detail?.trim();
   const attentionText = projection.requiresUserAction
     ? projection.blockedReason?.trim() || projection.lastEventSummary?.trim() || "请先处理当前停留点。"
     : projection.blockedReason?.trim();
+  const helperLines = [
+    projection.nextActionLabel ? `下一步：${projection.nextActionLabel}` : null,
+    projection.scopeSummary,
+    projection.progressSummary,
+  ].filter((line): line is string => Boolean(line?.trim()));
   const recentEvents = projection.recentEvents.slice(0, compact ? 2 : 4);
 
   return (
@@ -132,6 +139,22 @@ export default function DirectorRuntimeProjectionCard({
       {attentionText ? (
         <div className="mt-3 rounded-md border bg-background/70 px-3 py-2 text-sm leading-5">
           {projection.requiresUserAction ? "需要你处理：" : "暂停原因："}{attentionText}
+        </div>
+      ) : null}
+
+      {detailText && detailText !== attentionText ? (
+        <div className="mt-3 rounded-md border bg-background/70 px-3 py-2 text-sm leading-5">
+          {detailText}
+        </div>
+      ) : null}
+
+      {helperLines.length > 0 && !compact ? (
+        <div className="mt-3 space-y-2">
+          {helperLines.map((line) => (
+            <div key={line} className="rounded-md border bg-background/70 px-3 py-2 text-xs leading-5 text-muted-foreground">
+              {line}
+            </div>
+          ))}
         </div>
       ) : null}
 

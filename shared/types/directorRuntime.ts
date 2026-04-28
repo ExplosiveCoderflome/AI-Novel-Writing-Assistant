@@ -181,9 +181,14 @@ export interface DirectorRuntimeProjection {
   status: DirectorRuntimeProjectionStatus;
   currentNodeKey?: string | null;
   currentLabel?: string | null;
+  headline?: string | null;
+  detail?: string | null;
   lastEventSummary?: string | null;
   requiresUserAction: boolean;
   blockedReason?: string | null;
+  nextActionLabel?: string | null;
+  scopeSummary?: string | null;
+  progressSummary?: string | null;
   policyMode: DirectorPolicyMode;
   updatedAt: string;
   recentEvents: DirectorRuntimeProjectionEvent[];
