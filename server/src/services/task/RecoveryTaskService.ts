@@ -82,7 +82,6 @@ export class RecoveryTaskService {
   }
 
   async listRecoveryCandidates(): Promise<RecoverableTaskListResponse> {
-    await this.waitUntilReady();
     const [
       workflowRows,
       pipelineRows,
@@ -330,6 +329,7 @@ export class RecoveryTaskService {
   }
 
   async resumeAllRecoveryCandidates(): Promise<Array<{ kind: TaskKind; id: string }>> {
+    await this.waitUntilReady();
     const { items } = await this.listRecoveryCandidates();
     const resumed: Array<{ kind: TaskKind; id: string }> = [];
     let highMemoryWorkflowStartedCount = 0;

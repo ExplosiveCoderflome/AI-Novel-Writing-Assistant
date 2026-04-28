@@ -296,3 +296,59 @@ test("recovery candidate listing builds lightweight summaries without task detai
     taskCenterService.getTaskDetail = originals.getTaskDetail;
   }
 });
+
+test("recovery candidate listing does not wait for startup recovery initialization", async () => {
+  const { RecoveryTaskService } = require("../dist/services/task/RecoveryTaskService.js");
+  const { prisma } = require("../dist/db/prisma.js");
+  const originals = {
+    workflowFindMany: prisma.novelWorkflowTask.findMany,
+    pipelineFindMany: prisma.generationJob.findMany,
+    bookFindMany: prisma.bookAnalysis.findMany,
+    imageFindMany: prisma.imageGenerationTask.findMany,
+    styleFindMany: prisma.styleExtractionTask.findMany,
+  };
+
+  let resumeStarted = false;
+  const neverResolve = new Promise(() => {});
+  prisma.novelWorkflowTask.findMany = async () => [];
+  prisma.generationJob.findMany = async () => [];
+  prisma.bookAnalysis.findMany = async () => [];
+  prisma.imageGenerationTask.findMany = async () => [];
+  prisma.styleExtractionTask.findMany = async () => [];
+
+  const recoveryService = new RecoveryTaskService(
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      async markPendingBookAnalysesForManualRecovery() {},
+      async markPendingImageTasksForManualRecovery() {},
+      async resumePendingAutoDirectorTasks() {
+        resumeStarted = true;
+        return neverResolve;
+      },
+      async markPendingPipelineJobsForManualRecovery() {},
+      async markPendingStyleTasksForManualRecovery() {},
+    },
+  );
+
+  try {
+    recoveryService.initializePendingRecoveries();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const result = await Promise.race([
+      recoveryService.listRecoveryCandidates(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("listRecoveryCandidates waited for startup recovery")), 50)),
+    ]);
+
+    assert.equal(resumeStarted, true);
+    assert.deepEqual(result, { items: [] });
+  } finally {
+    prisma.novelWorkflowTask.findMany = originals.workflowFindMany;
+    prisma.generationJob.findMany = originals.pipelineFindMany;
+    prisma.bookAnalysis.findMany = originals.bookFindMany;
+    prisma.imageGenerationTask.findMany = originals.imageFindMany;
+    prisma.styleExtractionTask.findMany = originals.styleFindMany;
+  }
+});
