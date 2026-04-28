@@ -220,30 +220,42 @@ export class DirectorRuntimeStore {
   }): Promise<void> {
     const idempotencyKey = this.buildStepIdempotencyKey(input);
     const now = new Date().toISOString();
-    await this.mutateSnapshot(input.taskId, (snapshot) => ({
-      ...snapshot,
-      novelId: snapshot.novelId ?? input.novelId ?? null,
-      steps: upsertStep(snapshot.steps, {
-        idempotencyKey,
-        nodeKey: input.nodeKey,
-        label: input.label,
-        status: "running",
-        targetType: input.targetType ?? null,
-        targetId: input.targetId ?? null,
-        startedAt: now,
-      }),
-      events: [
-        ...snapshot.events,
-        this.buildEvent({
-          type: "node_started",
-          taskId: input.taskId,
-          novelId: input.novelId ?? snapshot.novelId ?? null,
+    await this.mutateSnapshot(input.taskId, (snapshot) => {
+      const existingStep = snapshot.steps.find((step) => step.idempotencyKey === idempotencyKey);
+      const eventType: DirectorEventType = existingStep?.status === "running"
+        ? "node_heartbeat"
+        : "node_started";
+      return {
+        ...snapshot,
+        novelId: snapshot.novelId ?? input.novelId ?? null,
+        steps: upsertStep(snapshot.steps, {
+          idempotencyKey,
           nodeKey: input.nodeKey,
-          summary: input.label,
-          occurredAt: now,
+          label: input.label,
+          status: "running",
+          targetType: input.targetType ?? null,
+          targetId: input.targetId ?? null,
+          startedAt: existingStep?.startedAt ?? now,
         }),
-      ],
-    }));
+        events: [
+          ...snapshot.events,
+          this.buildEvent({
+            type: eventType,
+            taskId: input.taskId,
+            novelId: input.novelId ?? snapshot.novelId ?? null,
+            nodeKey: input.nodeKey,
+            summary: input.label,
+            affectedScope: `${input.targetType ?? "global"}:${input.targetId ?? input.novelId ?? "global"}`,
+            severity: eventType === "node_heartbeat" ? "low" : null,
+            occurredAt: now,
+            metadata: {
+              targetType: input.targetType ?? null,
+              targetId: input.targetId ?? null,
+            },
+          }),
+        ],
+      };
+    });
   }
 
   async recordStepCompleted(input: {

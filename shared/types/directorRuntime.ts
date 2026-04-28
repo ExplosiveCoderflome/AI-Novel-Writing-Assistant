@@ -95,6 +95,7 @@ export type DirectorEventType =
   | "run_started"
   | "run_resumed"
   | "node_started"
+  | "node_heartbeat"
   | "node_completed"
   | "node_failed"
   | "artifact_indexed"

@@ -234,3 +234,39 @@ test("director event projection summarizes workspace progress and next action", 
   assert.equal(projection.scopeSummary, "工作区：12 章，4 章有正文，1 章待修复，1 类产物待补齐。");
   assert.equal(projection.progressSummary, "进展：0/1 个步骤完成，2 个产物记录，1 个用户内容受保护，1 个产物需确认，1 个修复任务。");
 });
+
+test("director event projection keeps heartbeat as latest running progress", () => {
+  const service = new DirectorEventProjectionService();
+  const projection = service.buildSnapshotProjection(buildSnapshot({
+    steps: [{
+      idempotencyKey: "task-1:volume_strategy.volume_generation:volume:volume-1",
+      nodeKey: "volume_strategy.volume_generation",
+      label: "正在生成卷战略（已等待 30s）",
+      status: "running",
+      targetType: "volume",
+      targetId: "volume-1",
+      startedAt: "2026-04-28T00:00:01.000Z",
+    }],
+    events: [
+      {
+        eventId: "event-start",
+        type: "node_started",
+        nodeKey: "volume_strategy.volume_generation",
+        summary: "正在生成卷战略",
+        occurredAt: "2026-04-28T00:00:01.000Z",
+      },
+      {
+        eventId: "event-heartbeat",
+        type: "node_heartbeat",
+        nodeKey: "volume_strategy.volume_generation",
+        summary: "正在生成卷战略（已等待 30s）",
+        occurredAt: "2026-04-28T00:00:31.000Z",
+      },
+    ],
+  }));
+
+  assert.equal(projection.status, "running");
+  assert.equal(projection.headline, "推进任务：正在生成卷战略（已等待 30s）");
+  assert.equal(projection.detail, "最近进展：正在生成卷战略（已等待 30s）");
+  assert.equal(projection.recentEvents[0].type, "node_heartbeat");
+});
