@@ -189,7 +189,7 @@ test("markPendingAutoDirectorTasksForManualRecovery marks stale running tasks as
   ]);
 });
 
-test("startup recovery initialization auto-continues interrupted auto director tasks", async () => {
+test("startup recovery initialization marks interrupted auto director tasks for manual recovery", async () => {
   const calls = [];
   const { RecoveryTaskService } = require("../dist/services/task/RecoveryTaskService.js");
   const recoveryService = new RecoveryTaskService(
@@ -204,8 +204,8 @@ test("startup recovery initialization auto-continues interrupted auto director t
       async markPendingImageTasksForManualRecovery() {
         calls.push(["manual-image"]);
       },
-      async resumePendingAutoDirectorTasks() {
-        calls.push(["resume-auto-director"]);
+      async markPendingAutoDirectorTasksForManualRecovery() {
+        calls.push(["manual-auto-director"]);
       },
       async markPendingPipelineJobsForManualRecovery() {
         calls.push(["manual-pipeline"]);
@@ -219,6 +219,6 @@ test("startup recovery initialization auto-continues interrupted auto director t
   await recoveryService.initializePendingRecoveries();
 
   assert.deepEqual(calls.filter((call) => call[0].includes("auto-director")), [
-    ["resume-auto-director"],
+    ["manual-auto-director"],
   ]);
 });

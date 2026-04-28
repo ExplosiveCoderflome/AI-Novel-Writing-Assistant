@@ -1,6 +1,6 @@
 # AI 长篇成书当前执行计划（小白用户导向）
 
-更新时间：2026-04-26
+更新时间：2026-04-28
 适用范围：当前 `AI-Novel-Writing-Assistant2` 代码库现状  
 目标用户：完全不懂写作、希望通过 AI 引导或全自动规划完成整本小说创作的用户  
 当前定位：强辅助型 AI 小说工作台  
@@ -90,6 +90,10 @@
 - 任务状态可解释性的基础合同已进入主链：`displayStatus / blockingReason / resumeAction / lastHealthyStage` 已接入自动导演任务摘要、任务中心、首页与小说列表，后续重点转为补齐 `pendingReviewCount / nextAction` 这类更细粒度状态
 - `auto_to_ready` 单检查点语义已基本成立，且当前系统已超出旧方案进入 `auto_to_execution`；不再把“只跑到 front10_ready”本身当作新的主待办
 - 当前最值得优先推进的稳定性收口集中在：章节细化可用性门禁、轻量 `taskSheet` 执行摘要与非阻塞 `artifactHealth`、阶段级模型路由与 fallback、默认 `patch_first` 修复，以及 `统一状态源 + 状态驱动生成 + 手动/导演共线` 向书级前半段和真实数据链路继续收口
+- 2026-04-28 自动导演统一运行时 MVP 底座约完成 `80%`；按完整统一运行时目标衡量约完成 `60%-65%`
+- 自动导演主执行链当前仍不是 LangGraph；LangGraph 已进入 `DirectorLangGraphPilot` 低风险试点，后续只作为编排、interrupt、resume、trace 外壳接入
+- 服务重启后的自动导演策略已调整为“标记待手动恢复 -> 用户确认 -> 从真实资产断点继续”，不做后台静默自动续跑
+- 下一轮自动导演重点不是继续扩入口，而是把所有写入动作收口到 `Step Module / NodeRunner / PolicyEngine`，并用真实 Prisma 数据验证旧项目接管、手动恢复、章节批量执行和改文后局部修复
 
 当前唯一主线仍然是 `P0`：
 
@@ -114,7 +118,7 @@
 - 旧 `outline / structuredOutline` 已降级为兼容性迁移参考，不再是默认主结构源
 - runtime package 与统一章节 `contextPackage` 已接入 planner / runtime / review / audit / repair 主入口
 - 动态角色系统已进入 planner 结构化上下文，不再只停留在 digest / package 展示层
-- 自动导演工作流已补上服务重启恢复链，并已超出原 `v1` 计划落到 `auto_to_execution` 与现有项目接管
+- 自动导演工作流已补上服务重启后的待手动恢复链，并已超出原 `v1` 计划落到 `auto_to_execution` 与现有项目接管
 - 统一状态主干的章节后半段已落地：`CanonicalStateService / StateCommitService / GenerationDecisionEngine / NovelProductionOrchestrator` 已接入 `chapter_preparation / chapter_execution / quality_repair`
 - 任务状态可解释性已接入任务中心、首页、小说列表与恢复弹窗，不再只停留在后台状态字段
 - 当前卷章节标题/摘要已改为按 beat 分块生成，并支持 `single_beat` 局部重生与章节 `beatKey` 绑定
@@ -657,6 +661,11 @@ P0 的默认主链统一为：
 - 任务详情、任务中心与小说编辑页读取旧自动导演任务时，已能在读取阶段自动对账 `chapter_batch_ready` 检查点，避免不同入口看到不一致状态
 - 已用真实数据库副本完成旧项目接管场景回归，确认“部分修复后从首个未完成章节继续”和“全部修复后自动完成”两条路径成立
 - `waiting_approval` 在 UI 层的基础 live / checkpoint 识别已落地，不再把“暂停显示成失败”作为独立主待办
+- 统一运行时已进入 MVP 落地阶段：`DirectorRuntimeService / DirectorRuntimeStore / DirectorWorkspaceAnalyzer / DirectorPolicyEngine / DirectorNodeRunner` 已可支撑快照、事件、策略、产物索引和工作区分析
+- Artifact Ledger 当前是 workflow task payload wrapper，已能记录来源、hash、依赖、stale 和用户内容保护，但还不是独立持久化账本
+- 创作中枢已能通过 runtime tools 读取自动导演状态、解释下一步、评估改文影响和请求继续推进；当前是工具级接入，不是完整中枢主导编排
+- `DirectorLangGraphPilot` 已具备低风险图和 interrupt / resume / trace 测试，但自动导演主执行链仍走 DirectorRuntimeOrchestrator / StepModule / legacy adapter，不走 LangGraph
+- 服务重启后的自动导演会进入待手动恢复提示，用户确认后再按当前小说资产判断断点继续，不做后台静默自动续跑
 
 已归档结论：
 
@@ -665,28 +674,48 @@ P0 的默认主链统一为：
 - `auto_to_ready` 单检查点语义已并入现行导演流，不再按独立功能待办维护
 - 旧的“front10 only”边界已被 `auto_to_execution` 超出，不再作为当前 roadmap 的默认约束
 
+2026-04-28 已完成工作：
+
+- Director Runtime 共享类型、状态快照、事件、步骤运行、策略快照和前端 projection 已完成第一轮接入
+- Workspace Analyzer 和 Manual Edit Impact 已采用“确定性 inventory + AI 结构化判断”的 AI-first 方案
+- Policy Engine 已覆盖只建议、推进下一步、推进到检查点、安全范围自动推进、用户内容保护和一次自动修复预算
+- 章节执行、质量检查、修复、状态提交、伏笔同步和角色资源同步已开始进入 Step Module / Workflow Plan 投影
+- Prompt Workbench 只读目录、Context Broker 和 runtime context resolver 已落地，章节写作 / 审校 / 工作区分析开始共用上下文块
+- 任务中心、开书进度面板和小说工作台侧栏已开始消费 runtime projection，展示当前节点、最近事件、阻塞原因和推进方式
+- 定向验证已覆盖 runtime policy、NodeRunner、Artifact Ledger、Event Projection、LangGraph Pilot、Step Module、Prompt Workbench、Context Broker、director runtime tools 和启动恢复初始化
+
 当前剩余问题：
 
 - 三种运行模式与现有项目接管虽然都已接上，但真实 Prisma 数据下的完整端到端稳定性仍缺持续回归
-- `chapter_batch_ready` 之后的剩余章节对账、继续执行与修复后自动收口已完成一轮真实数据验证，但暂停恢复 / 失败重试仍需继续做穿插回归
-- 自动导演产物虽然已进入章节执行，但与默认 `P0` 主链之间仍有残余分叉
-- 当前任务摘要仍缺 `displayStatus / blockingReason / resumeAction / lastHealthyStage / artifactHealthSummary` 等更强可解释字段
+- `chapter_batch_ready` 之后的剩余章节对账、继续执行与修复后自动收口已完成一轮真实数据验证，但服务重启后手动恢复 / 失败重试仍需继续做穿插回归
+- 自动导演产物虽然已进入章节执行，但与默认 `P0` 主链之间仍有残余分叉，尤其是前半段规划依据、知识消费和章节执行前置状态
+- 任务状态可解释性基础字段已进入主链，但仍缺更细的 `pendingReviewCount / nextAction / artifactHealthSummary / affectedScope` 等字段
+- Step Module / NodeRunner 还没有成为所有自动导演写入动作的唯一执行合同，部分旧阶段仍是 legacy adapter + runtime 记录的混合形态
+- Artifact Ledger 仍是 wrapper 索引，缺独立持久化、跨任务可查询、版本生命周期和完整恢复能力
+- `reader_promise / chapter_retention_contract / continuity_state / rolling_window_review / character_governance_state` 已进入记录和依赖链，但还没有形成稳定评估 -> 修复 -> 再评估闭环
+- 创作中枢接入仍偏工具级，尚未形成“中枢规划 -> director runtime -> step execution -> projection -> 用户确认”的完整体验
+- `server/src/prompting/workflows/workflowRegistry.ts` 已超过 700 行，后续继续扩展 intent 前应拆出按域 workflow definitions；当前按本轮要求暂不处理
 - 当前仍没有形成跨多卷、跨长周期的完整自动推进闭环
 - 在默认主链稳定前，自动导演仍不应抬为唯一创建入口，但可以承担新手推荐入口角色
 
 当前重点：
 
-- 继续补齐 `stage_review / auto_to_ready / auto_to_execution / 现有项目接管` 四类路径的真实数据端到端验收，但不再把 `auto_to_ready` 单检查点本身当作独立功能待办
-- 把 `chapter_batch_ready` 之后的暂停恢复、失败重试、质量修复与继续执行继续做穿插回归，尤其补足真实 Prisma 数据与旧项目接管场景下的非理想状态
+- 优先把候选、确认、接管、规划、拆章、章节执行、审校、修复、状态提交收口到 Step Module / NodeRunner / PolicyEngine
+- 围绕 `stage_review / auto_to_ready / auto_to_execution / 现有项目接管` 四类路径做真实数据端到端验收，但不再把 `auto_to_ready` 单检查点本身当作独立功能待办
+- 把服务重启后的手动恢复、失败重试、质量修复与继续执行继续做穿插回归，尤其补足真实 Prisma 数据与旧项目接管场景下的非理想状态
 - 继续减少导演链与当前 `P0` 默认主链之间的分叉，确保 `story macro / book contract / volume assets / chapter detail bundle` 被后续默认消费
-- 继续补失败恢复、重试、模型覆写和任务可观测性，避免自动导演一旦失败就变成不可维护的黑盒
-- 补齐导演任务的 `displayStatus / blockingReason / resumeAction / lastHealthyStage / artifactHealthSummary`，让暂停、失败、自动恢复与继续执行更可解释
+- 把 reader promise、chapter retention、continuity、rolling review、character governance 从记录型产物推进为可判断、可失效、可局部修复的闭环
+- 让创作中枢接入从工具调用推进到完整审批、继续执行、状态投影和用户确认闭环
+- LangGraph 只在上述领域合同稳定后接入低风险入口，先验证编排、interrupt、resume 和 trace，不承载业务真相
 
 完成标志：
 
 - 自动导演在真实 Prisma 数据下可稳定完成 `auto_to_ready / stage_review / auto_to_execution / 现有项目接管` 四类主路径
-- `chapter_batch_ready` 之后的暂停恢复、失败重试、质量修复与继续执行形成默认闭环
-- 任务中心、任务详情和编辑页对暂停 / 失败 / 自动恢复 / 可继续状态的语义一致且可操作
+- `chapter_batch_ready` 之后的手动恢复、失败重试、质量修复与继续执行形成默认闭环
+- 任务中心、任务详情和编辑页对暂停 / 失败 / 待手动恢复 / 可继续状态的语义一致且可操作
+- 关键写入动作都通过 Step Module / NodeRunner / PolicyEngine，用户手写内容默认被保护
+- Artifact Ledger 能支持缺失判断、版本来源、依赖、stale、用户内容保护和局部恢复
+- 创作中枢可以基于 runtime snapshot 和 workspace analysis 给出下一步建议，并通过 approval gate 安全推进自动导演
 - 在默认主链稳定前，自动导演只作为受控并行项推进，不直接抬为唯一创建入口；但首页、列表和空状态可将其作为新手推荐入口前置
 
 ---

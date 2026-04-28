@@ -18,7 +18,7 @@ import { taskCenterService } from "./TaskCenterService";
 interface RecoveryInitializationDeps {
   markPendingBookAnalysesForManualRecovery(): Promise<unknown>;
   markPendingImageTasksForManualRecovery(): Promise<unknown>;
-  resumePendingAutoDirectorTasks(): Promise<unknown>;
+  markPendingAutoDirectorTasksForManualRecovery(): Promise<unknown>;
   markPendingPipelineJobsForManualRecovery(): Promise<unknown>;
   markPendingStyleTasksForManualRecovery(): Promise<unknown>;
 }
@@ -52,7 +52,7 @@ export class RecoveryTaskService {
     private readonly initializationDeps: RecoveryInitializationDeps = {
       markPendingBookAnalysesForManualRecovery: () => bookAnalysisService.markPendingAnalysesForManualRecovery(),
       markPendingImageTasksForManualRecovery: () => imageGenerationService.markPendingTasksForManualRecovery(),
-      resumePendingAutoDirectorTasks: () => this.novelWorkflowRuntimeService.resumePendingAutoDirectorTasks(),
+      markPendingAutoDirectorTasksForManualRecovery: () => this.novelWorkflowRuntimeService.markPendingAutoDirectorTasksForManualRecovery(),
       markPendingPipelineJobsForManualRecovery: () => this.novelPipelineRuntimeService.markPendingPipelineJobsForManualRecovery(),
       markPendingStyleTasksForManualRecovery: () => styleExtractionTaskService.markPendingTasksForManualRecovery(),
     },
@@ -63,7 +63,7 @@ export class RecoveryTaskService {
       this.initializationPromise = Promise.all([
         this.initializationDeps.markPendingBookAnalysesForManualRecovery(),
         this.initializationDeps.markPendingImageTasksForManualRecovery(),
-        this.initializationDeps.resumePendingAutoDirectorTasks(),
+        this.initializationDeps.markPendingAutoDirectorTasksForManualRecovery(),
         this.initializationDeps.markPendingPipelineJobsForManualRecovery(),
         this.initializationDeps.markPendingStyleTasksForManualRecovery(),
       ]).then(() => undefined);

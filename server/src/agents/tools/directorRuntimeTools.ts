@@ -226,6 +226,21 @@ function normalizePolicyPatch(input: {
   };
 }
 
+function describeDirectorPolicyMode(mode: DirectorPolicyMode): string {
+  switch (mode) {
+    case "suggest_only":
+      return "只给建议";
+    case "run_next_step":
+      return "推进下一步";
+    case "run_until_gate":
+      return "推进到下一个检查点";
+    case "auto_safe_scope":
+      return "安全范围自动推进";
+    default:
+      return "当前推进方式";
+  }
+}
+
 function buildManualImpactOutput(input: {
   taskId: string | null;
   impact: DirectorManualEditImpact;
@@ -265,15 +280,14 @@ async function runDirectorWithMode(
 ) {
   const { novelDirectorService } = await getServices();
   const scope = await resolveDirectorRuntimeScope(context, input);
+  const modeLabel = describeDirectorPolicyMode(mode);
   if (context.dryRun || input.dryRun) {
     return {
       taskId: scope.taskId,
       novelId: scope.novelId,
       mode,
       status: "preview_only" as const,
-      summary: mode === "run_until_gate"
-        ? "将通过自动导演运行时推进到下一个检查点，执行前会保留策略和审批边界。"
-        : "将通过自动导演运行时推进下一步，执行前会保留策略和审批边界。",
+      summary: `将按“${modeLabel}”请求自动导演继续执行，执行前会保留策略和审批边界。`,
     };
   }
   await novelDirectorService.updateRuntimePolicy(scope.taskId, { mode });
@@ -283,9 +297,7 @@ async function runDirectorWithMode(
     novelId: scope.novelId,
     mode,
     status: "accepted" as const,
-    summary: mode === "run_until_gate"
-      ? "已请求自动导演推进到下一个检查点。"
-      : "已请求自动导演继续推进下一步。",
+    summary: `已请求自动导演按“${modeLabel}”继续执行。`,
   };
 }
 
@@ -456,7 +468,7 @@ export const directorRuntimeToolDefinitions: Partial<
           novelId: scope.novelId,
           mode: input.mode,
           status: "preview_only",
-          summary: `将把自动导演推进方式切换为 ${input.mode}。`,
+          summary: `将把自动导演推进方式切换为“${describeDirectorPolicyMode(input.mode)}”。`,
         });
       }
       const { novelDirectorService } = await getServices();
@@ -469,7 +481,7 @@ export const directorRuntimeToolDefinitions: Partial<
         novelId: scope.novelId,
         mode: input.mode,
         status: "updated",
-        summary: `已把自动导演推进方式切换为 ${input.mode}。`,
+        summary: `已把自动导演推进方式切换为“${describeDirectorPolicyMode(input.mode)}”。`,
       });
     },
   },

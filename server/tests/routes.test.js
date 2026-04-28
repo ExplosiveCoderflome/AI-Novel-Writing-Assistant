@@ -4,6 +4,7 @@ const http = require("node:http");
 const { createApp } = require("../dist/app.js");
 const { AgentTraceStore } = require("../dist/agents/traceStore.js");
 const { creativeHubLangGraph } = require("../dist/creativeHub/CreativeHubLangGraph.js");
+const { creativeHubInterruptLangGraph } = require("../dist/creativeHub/CreativeHubInterruptLangGraph.js");
 const { creativeHubService } = require("../dist/creativeHub/CreativeHubService.js");
 const { llmConnectivityService } = require("../dist/llm/connectivity.js");
 const structuredFallbackSettings = require("../dist/llm/structuredFallbackSettings.js");
@@ -196,6 +197,7 @@ test("PUT /api/settings/rag saves extended settings and auto-enqueues reindex", 
     });
   } finally {
     ragServices.ragIndexService.enqueueReindex = originalEnqueueReindex;
+    ragServices.ragWorker.stop();
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });
@@ -1262,6 +1264,7 @@ test("creative hub state route exposes latest turn summary metadata", async () =
 });
 
 test("creative hub interrupt route resumes via langgraph and updates thread state", async () => {
+  const originalResolveInterrupt = creativeHubInterruptLangGraph.resolveInterrupt;
   const app = createApp();
   const server = http.createServer(app);
   const port = await listen(server);
@@ -1331,6 +1334,43 @@ test("creative hub interrupt route resumes via langgraph and updates thread stat
         source: "test_seed",
       },
     });
+    creativeHubInterruptLangGraph.resolveInterrupt = async (input) => {
+      const state = await creativeHubService.getThreadState(input.threadId);
+      const messages = [
+        ...state.messages,
+        {
+          id: "ai_test_resume",
+          type: "ai",
+          content: "审批已通过，继续执行测试任务。",
+        },
+      ];
+      const checkpoint = await creativeHubService.saveCheckpoint(input.threadId, {
+        checkpointId: `cp_resumed_${run.id}`,
+        parentCheckpointId: state.currentCheckpointId,
+        runId: run.id,
+        status: "idle",
+        messages,
+        interrupts: [],
+        resourceBindings: state.thread.resourceBindings,
+        metadata: {
+          source: "test_interrupt_mock",
+          interruptId: input.interruptId,
+          action: input.action,
+        },
+      });
+      return {
+        runId: run.id,
+        assistantOutput: "审批已通过，继续执行测试任务。",
+        checkpoint,
+        interrupts: [],
+        status: "idle",
+        latestError: null,
+        messages,
+        resourceBindings: state.thread.resourceBindings,
+        diagnostics: undefined,
+        turnSummary: null,
+      };
+    };
 
     const response = await fetch(`http://127.0.0.1:${port}/api/creative-hub/threads/${thread.id}/interrupts/${approval.id}`, {
       method: "POST",
@@ -1350,6 +1390,7 @@ test("creative hub interrupt route resumes via langgraph and updates thread stat
     assert.ok(Array.isArray(payload.data.messages));
     assert.ok(payload.data.messages.some((item) => item.type === "ai"));
   } finally {
+    creativeHubInterruptLangGraph.resolveInterrupt = originalResolveInterrupt;
     await safeDeleteCreativeHubThread(threadId);
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }

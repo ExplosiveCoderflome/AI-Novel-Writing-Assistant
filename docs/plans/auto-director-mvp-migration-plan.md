@@ -723,7 +723,7 @@ type ChapterRetentionContract = {
 5. 用户只润色第 3 章正文，系统只更新连续性记忆，不重做宏观规划。
 6. 第 5 章审核失败，生成 repair_ticket，不冻结整本书。
 7. 自动修复一次失败后，进入人工修复或带风险继续选择。
-8. 服务重启后，从最后成功 artifact / step 恢复，不重复创建章节。
+8. 服务重启后先标记为可手动恢复；用户确认恢复后，从最后成功 artifact / step 继续，不重复创建章节。
 
 ## 12. 第一轮开工建议
 
@@ -747,21 +747,39 @@ type ChapterRetentionContract = {
 - 新增 Policy Engine V1：支持 `suggest_only`、`run_next_step`、`run_until_gate`、`auto_safe_scope`，并把自动修复预算固定为一次。
 - 自动导演候选、确认、接管、继续和主 pipeline 阶段已经开始写入 runtime step / event / workspace analysis。
 - 新增后端路由与前端 API：工作区分析、运行时快照、策略切换、运行时继续。
-- 新增策略单测，覆盖只建议模式、用户内容保护和一次自动修复预算。
+- 新增任务中心、开书进度面板和小说工作台侧栏的 runtime projection 展示，用户可以看到当前节点、最近事件、是否需要处理和推进方式。
+- 新增手动编辑影响分析，先通过确定性 artifact / hash inventory 找出变化，再交给注册 PromptAsset 做 AI 结构化判断。
+- 新增 Context Broker、Prompt Workbench 只读目录 / 预览底座，章节写作、章节审校和自动导演工作区分析开始共用上下文块组织。
+- 新增 Step Module / Workflow Plan 底座，章节执行、质量检查、修复、状态提交、伏笔同步和角色资源同步已开始标准节点投影。
+- 新增 `DirectorLangGraphPilot` 低风险试点，验证 workspace analyze -> recommend next action -> run next step -> approval interrupt 的 interrupt / resume / trace 能力，但未接主链。
+- 启动恢复策略已定为服务重启后先标记为待手动恢复，由用户确认后再继续，不做后台静默自动续跑。
+- 新增策略和运行时相关定向测试，覆盖只建议模式、用户内容保护、一次自动修复预算、NodeRunner、Artifact Ledger、Event Projection、LangGraph Pilot、Prompt Workbench、Context Broker、director runtime tools 和启动恢复初始化。
+
+当前完成度判断：
+
+- 按本 MVP 底座衡量，当前约完成 `80%`。
+- 按自动导演统一运行时完整形态衡量，当前约完成 `60%-65%`。
+- 当前最重要的剩余工作不是“直接把主链改成 LangGraph”，而是先让 Step Module / NodeRunner / PolicyEngine 成为所有写入动作的统一执行合同。
 
 仍未在本轮直接完成的内容：
 
 - 未新增独立数据库表；Artifact Ledger 先作为旧 workflow seed payload 的 wrapper 索引。
-- 未把章节执行、质量修复和 pipeline job 完整拆成标准 NodeContract，只在运行时层记录关键入口和交接事件。
-- 未把 LangGraph 接到自动导演主链；当前仍保持“运行时先统一，图编排后替换”的路线。
+- 未把所有自动导演旧阶段完整改成标准 Step Module / NodeRunner 执行；部分路径仍属于旧阶段 + runtime 记录的混合形态。
+- 未把章节执行、质量修复和 pipeline job 全部做成可组合、可重放、可审计的统一 Step Runtime。
+- 未把 LangGraph 接到自动导演主链；当前仍保持“运行时先统一，图编排后替换外壳”的路线。
+- 未把 `reader_promise`、`chapter_retention_contract`、`continuity_state`、`rolling_window_review`、`character_governance_state` 做成完整评估 -> 修复 -> 再评估闭环。
 - 未把世界观生成、角色治理、拆书知识库编排纳入主链执行，只在 Workspace Inventory 中保留是否已绑定的判断基础。
+- 未完成真实 Prisma 数据的系统性回归，尤其是旧项目接管、服务重启后手动恢复、章节批量执行、改文后局部修复和多卷长周期推进。
+- 未处理 `server/src/prompting/workflows/workflowRegistry.ts` 超过 700 行的模块化技术债，后续继续扩展 intent 前应拆分按域 workflow definitions。
 
 下一轮更适合做：
 
-1. 把章节执行与质量修复封装成标准节点，保证失败后只阻断受影响范围。
-2. 把 `reader_promise`、`chapter_retention_contract`、`character_governance_state` 升级成真实产物索引。
-3. 在创作中枢中调用 runtime API，而不是直接碰旧自动导演阶段函数。
-4. 选候选确认或 workspace analyze -> run next step 做低风险 LangGraph 试点。
+1. **执行合同收口**：把候选、确认、接管、规划、拆章、章节执行、审校、修复、状态提交都收口到 Step Module / NodeRunner / PolicyEngine。
+2. **真实恢复回归**：围绕服务重启后手动恢复、失败重试、旧项目接管和批量章节执行做真实 Prisma 数据抽样。
+3. **产物账本深化**：把 reader promise、chapter retention、continuity、rolling review、character governance 升级为可追踪、可失效、可修复的产物体系。
+4. **创作中枢闭环**：让中枢工具调用不只读 runtime，还能稳定走 approval gate、runtime continue、projection 回传和用户确认。
+5. **LangGraph 低风险接入**：先把 `DirectorLangGraphPilot` 接到 workspace analyze -> run next step 这类低风险入口，只做编排、interrupt、resume 和 trace。
+6. **模块化清债**：拆分 `workflowRegistry.ts`，避免 director intent 继续堆进单个中心化大表。
 
 ## 14. 一句话结论
 

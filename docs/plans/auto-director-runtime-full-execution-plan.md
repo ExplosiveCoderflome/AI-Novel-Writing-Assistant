@@ -40,21 +40,33 @@
 - `DirectorWorkspaceAnalyzer`：先做确定性 inventory，再通过注册 PromptAsset 做 AI 结构化解释。
 - `DirectorPolicyEngine`：已有 `suggest_only`、`run_next_step`、`run_until_gate`、`auto_safe_scope` 四种模式与一次自动修复预算。
 - `DirectorNodeRunner`：已有标准节点契约和策略判断入口。
-- 自动导演候选、确认、接管、继续和主 pipeline 阶段已经开始写 runtime step / event / workspace analysis。
-- 后端路由和前端 API wrapper 已提供 workspace analysis、runtime snapshot、policy update、runtime continue。
-- 策略单测覆盖只建议模式、用户内容保护和一次自动修复预算。
+- 自动导演候选、确认、接管、继续和主 pipeline 阶段已经开始通过 runtime orchestration 写入 step / event / workspace analysis。
+- 章节执行、质量检查、修复、状态提交、伏笔同步和角色资源同步已开始以 Step Module / Workflow Plan 形式投影，但并非所有旧阶段都已完全由 Step Module 执行。
+- 后端路由和前端 API wrapper 已提供 workspace analysis、runtime snapshot、policy update、runtime continue，任务中心、进度面板和小说工作台侧栏已开始消费 runtime projection。
+- 创作中枢已通过 director runtime tools 读取状态、解释下一步、评估改文影响和请求继续推进；当前属于工具级接入，不是完整中枢主导编排。
+- Context Broker、Prompt Workbench 只读目录 / 预览、runtime context resolver 已落地，章节写作、章节审校和 director workspace analysis 已开始共用上下文块组织方式。
+- `DirectorLangGraphPilot` 已实现低风险图，覆盖 workspace analyze、recommend next action、run next step、approval interrupt，并通过单测验证 interrupt / resume / trace；但尚未接入自动导演主链。
+- 启动恢复策略已明确为服务重启后先标记为待手动恢复，用户确认后再从真实资产断点继续，不做后台静默自动续跑。
+- 定向测试已覆盖 runtime policy、NodeRunner、Artifact Ledger、Event Projection、LangGraph Pilot、Step Module、Prompt Workbench、Context Broker、director runtime tools 和启动恢复初始化。
 
 当前未完成但必须纳入完整交付：
 
-- `DirectorNodeRunner` 还没有真正包住旧阶段，旧阶段大多仍直接调用 `recordStepStarted` / `recordStepCompleted`。
-- `PolicyEngine` 还不是所有写入动作的硬 gate。
-- Artifact Ledger 仍是 seed payload wrapper 索引，没有完整依赖、版本演进、hash、stale 判断和可恢复能力。
-- 章节执行、质量修复、pipeline job 尚未成为标准 NodeContract。
-- Runtime event 还没有投影到任务中心、自动导演进度面板和创作中枢。
-- 前端只新增 API wrapper，还没有完整消费 runtime snapshot。
-- 创作中枢尚未通过 runtime API 控制自动导演。
-- Prompt Workbench、Context Broker、Prompt Override 和统一 Step Module Runtime 仍处于方案阶段。
-- `NovelDirectorService.ts` 仍然过长，必须在完整交付内瘦身。
+- Step Module / NodeRunner 还没有成为所有自动导演写入动作的唯一执行合同，部分旧阶段仍保留直接编排或手动记录 runtime step 的路径。
+- `PolicyEngine` 还不是所有写入动作、覆盖动作和高成本审校动作的硬 gate。
+- Artifact Ledger 仍是 seed payload wrapper 索引，缺独立持久化表、完整生命周期、跨任务依赖演进和可恢复查询能力。
+- 章节执行、质量修复、pipeline job 已开始标准节点化，但还没有完全达到可组合、可重放、可审计的统一 Step Runtime。
+- `reader_promise`、`chapter_retention_contract`、`continuity_state`、`rolling_window_review`、`character_governance_state` 等质量产物已进入索引和依赖链，但还没有形成稳定的评估 -> 修复 -> 再评估闭环。
+- 创作中枢接入仍偏工具级；还没有形成“中枢规划 -> director runtime -> step execution -> projection -> 用户确认”的完整闭环体验。
+- 自动导演主执行链当前不使用 LangGraph；LangGraph 只能作为后续编排壳接入，不能替代 runtime、policy、ledger 和 step contract。
+- `server/src/prompting/workflows/workflowRegistry.ts` 已超过 700 行硬阈值，后续继续扩展 intent 前应拆出按域 workflow definitions。
+- 真实 Prisma 端到端回归仍不足，尤其是旧项目接管、服务重启后手动恢复、章节批量执行、改文后局部修复和多卷长周期推进。
+- `NovelDirectorService.ts` 仍然过长，必须继续把执行域下沉到 runtime orchestration、adapters 和 step modules。
+
+当前完成度判断：
+
+- 按 MVP 底座衡量：约 `80%` 已完成。
+- 按完整统一运行时衡量：约 `60%-65%` 已完成。
+- 剩余风险不在“是否使用 LangGraph”，而在执行合同是否彻底收口、产物真相是否可恢复、真实数据链路是否稳定。
 
 ## 3. 执行原则
 
@@ -302,7 +314,7 @@ Task Center / Auto Director UI / Creative Hub Projection / Prompt Trace
 - 第 5 章审核失败时生成 repair ticket，不冻结整本书。
 - 自动修复一次失败后进入人工修复或带风险继续。
 - 继续第 6 章时不会重复创建第 5 章 pipeline job。
-- 服务重启后从最后成功 step / artifact 继续，不重复写正文。
+- 服务重启后先提示用户手动恢复；用户确认恢复后从最后成功 step / artifact 继续，不重复写正文。
 
 ### 5.6 手动编辑影响分析
 
@@ -605,7 +617,7 @@ Projection 更新任务中心、自动导演 UI、创作中枢
 6. 用户删除关键伏笔，系统指出后续 payoff 和章节任务影响范围。
 7. 第 5 章审核失败，生成 repair ticket，不冻结整本书。
 8. 自动修复一次失败后，进入人工修复或带风险继续。
-9. 服务重启后，从最后成功 artifact / step 恢复，不重复创建章节或 pipeline job。
+9. 服务重启后先标记为可手动恢复；用户确认恢复后，从最后成功 artifact / step 继续，不重复创建章节或 pipeline job。
 10. 用户在创作中枢询问“现在该怎么办”，系统能基于 runtime snapshot 和 workspace analysis 给出建议。
 11. 用户在创作中枢要求继续自动导演，系统通过 runtime policy 和 approval gate 执行。
 12. 自动导演长时间运行时，前端仍显示当前步骤、最近事件和可理解等待说明。
