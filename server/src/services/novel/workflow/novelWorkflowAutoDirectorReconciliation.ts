@@ -84,6 +84,22 @@ export function reconcileAutoDirectorChapterBatchState(input: {
   };
 }
 
+function normalizeChapterContentForReconciliation(chapter: DirectorAutoExecutionChapterRef): string {
+  if (typeof chapter.content === "string") {
+    return chapter.content;
+  }
+  if (Object.prototype.hasOwnProperty.call(chapter, "content")) {
+    return "";
+  }
+  return (
+    chapter.generationState === "approved"
+    || chapter.generationState === "published"
+    || chapter.chapterStatus === "completed"
+      ? "status-confirmed"
+      : ""
+  );
+}
+
 export async function syncAutoDirectorChapterBatchCheckpoint(input: {
   taskId: string;
   row: {
@@ -127,15 +143,7 @@ export async function syncAutoDirectorChapterBatchCheckpoint(input: {
   });
   const chaptersWithContent = chapters.map((chapter) => ({
     ...chapter,
-    content: typeof chapter.content === "string"
-      ? chapter.content
-      : (
-        chapter.generationState === "approved"
-        || chapter.generationState === "published"
-        || chapter.chapterStatus === "completed"
-          ? "status-confirmed"
-          : ""
-      ),
+    content: normalizeChapterContentForReconciliation(chapter),
   }));
   const reconciliation = reconcileAutoDirectorChapterBatchState({
     title: existing.title,

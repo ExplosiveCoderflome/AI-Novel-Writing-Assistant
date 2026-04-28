@@ -1134,14 +1134,14 @@ P2 重点解决：
 ### 自动导演完整统一运行时
 - 标识：`task-87bf3232fd`
 - 状态：开发中
-- 最近更新：2026-04-28 23:39
+- 最近更新：2026-04-29 00:41
 - 概要：优先完成自动导演正常主流程：新建确认、规划、拆章、章节执行、服务重启恢复、失败重试与用户内容保护先跑稳；创作中枢闭环暂后置。
 
 计划清单：
 - [ ] 正常主流程收口：候选确认、建书、story_macro、character_setup、volume_strategy、structured_outline、章节执行和质量修复继续迁入 Step Module -> NodeRunner -> PolicyEngine。
 - [ ] 建书写入关口：novel_create 已注册为正式 Step Module，并通过 RuntimeOrchestrator.runNode 执行；成功语义包含创建小说并绑定任务，重复确认会补 runtime novelId。
 - [ ] 规划恢复链稳定：已有 story_macro/book_contract/角色资产时跳过对应写入节点；volume_strategy 幂等重放无返回值时从持久化卷规划继续 structured_outline。
-- [ ] 章节批次恢复：chapter_batch_ready 对账按首个未完成章节恢复，不把缺正文的 repaired 章节误判为完成。
+- [x] 章节批次恢复：chapter_batch_ready 对账按首个未完成章节恢复，不把缺正文的 repaired 章节误判为完成。
 - [ ] Artifact Ledger 幂等恢复：DirectorArtifactDependency 写入需要去重和 upsert，历史任务重复恢复同一依赖不得触发唯一约束。
 - [ ] 章节标题质量门禁：章名结构集中会进入语义重试；标题修复可兼容 workflow service 读取差异，并在仍集中时保留任务提示。
 - [ ] PolicyEngine 硬 gate：正常流程内的写入、覆盖用户内容、高风险修复和高成本审校先过策略判断，自动修复预算保持一次。
@@ -1153,6 +1153,7 @@ P2 重点解决：
 
 进度记录：
 - 2026-04-28 23:39 [开发中] 修复历史小说任务继续时的 Artifact Ledger 依赖重复入账问题：DirectorArtifactDependency 写入先按 artifactId 去重并改为 upsert，避免重复恢复同一依赖时触发唯一约束；新增 runtime store 回归测试。
+- 2026-04-29 00:41 [已完成] 收口章节批次恢复对账：从数据库读取到正文为空的 repaired/completed 章节时，仍按未完成章节恢复到该章，不再误判整批完成；补充自动导演章节批次对账回归测试。
 <!-- task-md-sync:item:task-87bf3232fd:end -->
 <!-- task-md-sync:item:task-7efc49bcdc:start -->
 ### 自动导演接管状态投影恢复
