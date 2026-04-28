@@ -34,6 +34,34 @@ test("resumePendingAutoDirectorTasks requeues interrupted running tasks before c
   ]);
 });
 
+test("resumePendingAutoDirectorTasks continues queued tasks without marking them for manual recovery", async () => {
+  const calls = [];
+  const runtimeService = new NovelWorkflowRuntimeService(
+    {
+      async listRecoverableAutoDirectorTasks() {
+        return [{ id: "task-queued", status: "queued" }];
+      },
+      async requeueTaskForRecovery(taskId, message) {
+        calls.push(["requeue", taskId, message]);
+      },
+      async markTaskFailed(taskId, message) {
+        calls.push(["failed", taskId, message]);
+      },
+    },
+    {
+      async continueTask(taskId) {
+        calls.push(["continue", taskId]);
+      },
+    },
+  );
+
+  await runtimeService.resumePendingAutoDirectorTasks();
+
+  assert.deepEqual(calls, [
+    ["continue", "task-queued"],
+  ]);
+});
+
 test("resumePendingAutoDirectorTasks marks failed when recovery throws", async () => {
   const calls = [];
   const runtimeService = new NovelWorkflowRuntimeService(
@@ -158,5 +186,39 @@ test("markPendingAutoDirectorTasksForManualRecovery marks stale running tasks as
   assert.deepEqual(calls, [
     ["failed", "task-stale", "自动导演任务长时间没有心跳，可能已因服务重启或内存不足中断。请检查后继续或重试。"],
     ["requeue", "task-fresh", "服务重启后任务已暂停，等待手动恢复。"],
+  ]);
+});
+
+test("startup recovery initialization auto-continues interrupted auto director tasks", async () => {
+  const calls = [];
+  const { RecoveryTaskService } = require("../dist/services/task/RecoveryTaskService.js");
+  const recoveryService = new RecoveryTaskService(
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      async markPendingBookAnalysesForManualRecovery() {
+        calls.push(["manual-book"]);
+      },
+      async markPendingImageTasksForManualRecovery() {
+        calls.push(["manual-image"]);
+      },
+      async resumePendingAutoDirectorTasks() {
+        calls.push(["resume-auto-director"]);
+      },
+      async markPendingPipelineJobsForManualRecovery() {
+        calls.push(["manual-pipeline"]);
+      },
+      async markPendingStyleTasksForManualRecovery() {
+        calls.push(["manual-style"]);
+      },
+    },
+  );
+
+  await recoveryService.initializePendingRecoveries();
+
+  assert.deepEqual(calls.filter((call) => call[0].includes("auto-director")), [
+    ["resume-auto-director"],
   ]);
 });

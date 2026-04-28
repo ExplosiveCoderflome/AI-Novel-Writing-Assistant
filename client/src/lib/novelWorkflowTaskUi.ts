@@ -157,8 +157,7 @@ export function canContinueDirector(task?: NovelAutoDirectorTaskSummary | null):
     task
       && task.status === "waiting_approval"
       && task.checkpointType !== "candidate_selection_required"
-      && task.checkpointType !== "front10_ready"
-      && task.checkpointType !== "chapter_batch_ready",
+      && task.checkpointType !== "front10_ready",
   );
 }
 
@@ -171,9 +170,6 @@ export function canContinueFront10AutoExecution(task?: NovelAutoDirectorTaskSumm
     return false;
   }
   if (task.status === "waiting_approval" && task.checkpointType === "front10_ready") {
-    return true;
-  }
-  if (task.status === "waiting_approval" && task.checkpointType === "chapter_batch_ready") {
     return true;
   }
   return (task.status === "failed" || task.status === "cancelled") && task.checkpointType === "chapter_batch_ready";

@@ -1317,6 +1317,154 @@ test("prepareRequestedAutoExecution refreshes a stale volume range after chapter
   assert.deepEqual(resolved.autoExecution.remainingChapterOrders, [5, 6, 7, 8]);
 });
 
+test("prepareRequestedAutoExecution reruns the earliest ungenerated chapter instead of preserving stale skips", async () => {
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        return [
+          { id: "chapter-5", order: 5, content: "正文5", generationState: "approved" },
+          withExecutionDetail({ id: "chapter-6", order: 6, content: "", generationState: "planned" }),
+          { id: "chapter-7", order: 7, content: "正文7", generationState: "approved" },
+          withExecutionDetail({ id: "chapter-8", order: 8, content: "", generationState: "planned" }),
+        ];
+      },
+    },
+    novelService: {
+      async startPipelineJob() {
+        throw new Error("should not start a pipeline in prepareRequestedAutoExecution");
+      },
+      async findActivePipelineJobForRange() {
+        return null;
+      },
+      async getPipelineJobById() {
+        return null;
+      },
+      async cancelPipelineJob() {
+        return null;
+      },
+    },
+    workflowService: {
+      async bootstrapTask() {
+        throw new Error("should not bootstrap in prepareRequestedAutoExecution");
+      },
+      async getTaskById() {
+        return { status: "waiting_approval" };
+      },
+      async markTaskRunning() {
+        throw new Error("should not mark running in prepareRequestedAutoExecution");
+      },
+      async recordCheckpoint() {
+        throw new Error("should not record checkpoint in prepareRequestedAutoExecution");
+      },
+      async markTaskFailed() {
+        throw new Error("should not mark failed in prepareRequestedAutoExecution");
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+  });
+
+  const resolved = await runtime.prepareRequestedAutoExecution({
+    novelId: "novel-1",
+    request: buildRequest({
+      autoExecutionPlan: {
+        mode: "chapter_range",
+        startOrder: 5,
+        endOrder: 8,
+      },
+    }),
+    existingState: {
+      enabled: true,
+      mode: "chapter_range",
+      startOrder: 5,
+      endOrder: 8,
+      totalChapterCount: 4,
+      nextChapterId: "chapter-7",
+      nextChapterOrder: 7,
+      remainingChapterIds: ["chapter-7", "chapter-8"],
+      remainingChapterOrders: [7, 8],
+      skippedChapterIds: ["chapter-6"],
+      skippedChapterOrders: [6],
+    },
+  });
+
+  assert.deepEqual(resolved.autoExecution.skippedChapterOrders, []);
+  assert.deepEqual(resolved.autoExecution.remainingChapterOrders, [6, 8]);
+  assert.equal(resolved.autoExecution.nextChapterOrder, 6);
+});
+
+test("prepareRequestedAutoExecution does not let stale skips bypass execution detail checks", async () => {
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        return [
+          { id: "chapter-5", order: 5, content: "正文5", generationState: "approved" },
+          { id: "chapter-6", order: 6, content: "", generationState: "planned" },
+          { id: "chapter-7", order: 7, content: "正文7", generationState: "approved" },
+        ];
+      },
+    },
+    novelService: {
+      async startPipelineJob() {
+        throw new Error("should not start a pipeline in prepareRequestedAutoExecution");
+      },
+      async findActivePipelineJobForRange() {
+        return null;
+      },
+      async getPipelineJobById() {
+        return null;
+      },
+      async cancelPipelineJob() {
+        return null;
+      },
+    },
+    workflowService: {
+      async bootstrapTask() {
+        throw new Error("should not bootstrap in prepareRequestedAutoExecution");
+      },
+      async getTaskById() {
+        return { status: "waiting_approval" };
+      },
+      async markTaskRunning() {
+        throw new Error("should not mark running in prepareRequestedAutoExecution");
+      },
+      async recordCheckpoint() {
+        throw new Error("should not record checkpoint in prepareRequestedAutoExecution");
+      },
+      async markTaskFailed() {
+        throw new Error("should not mark failed in prepareRequestedAutoExecution");
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+  });
+
+  await assert.rejects(
+    runtime.prepareRequestedAutoExecution({
+      novelId: "novel-1",
+      request: buildRequest({
+        autoExecutionPlan: {
+          mode: "chapter_range",
+          startOrder: 5,
+          endOrder: 7,
+        },
+      }),
+      existingState: {
+        enabled: true,
+        mode: "chapter_range",
+        startOrder: 5,
+        endOrder: 7,
+        totalChapterCount: 3,
+        skippedChapterIds: ["chapter-6"],
+        skippedChapterOrders: [6],
+      },
+    }),
+    /第 6 章.*章节细化/,
+  );
+});
+
 test("prepareRequestedAutoExecution rejects skipping to a later volume while earlier volumes are unfinished", async () => {
   const runtime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: {

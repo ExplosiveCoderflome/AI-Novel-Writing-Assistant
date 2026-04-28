@@ -141,6 +141,34 @@ test("auto execution does not treat empty reviewed chapters as processed", () =>
   assert.deepEqual(state.remainingChapterOrders, [11]);
 });
 
+test("auto execution state discards stale skips for chapters that still need generation", () => {
+  const state = buildDirectorAutoExecutionState({
+    range: {
+      startOrder: 5,
+      endOrder: 7,
+      totalChapterCount: 3,
+      firstChapterId: "chapter-5",
+    },
+    chapters: [
+      { id: "chapter-5", order: 5, content: "正文5", generationState: "approved" },
+      { id: "chapter-6", order: 6, content: "", generationState: "planned" },
+      { id: "chapter-7", order: 7, content: "正文7", generationState: "approved" },
+    ],
+    plan: {
+      enabled: true,
+      mode: "chapter_range",
+      startOrder: 5,
+      endOrder: 7,
+      skippedChapterIds: ["chapter-6"],
+      skippedChapterOrders: [6],
+    },
+  });
+
+  assert.deepEqual(state.skippedChapterOrders, []);
+  assert.deepEqual(state.remainingChapterOrders, [6]);
+  assert.equal(state.nextChapterOrder, 6);
+});
+
 test("buildDirectorAutoExecutionScopeLabel supports chapter ranges and volume labels", () => {
   assert.equal(buildDirectorAutoExecutionScopeLabel({
     mode: "chapter_range",
