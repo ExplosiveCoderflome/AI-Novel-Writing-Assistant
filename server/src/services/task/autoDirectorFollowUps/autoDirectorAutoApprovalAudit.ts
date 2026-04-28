@@ -72,10 +72,17 @@ function buildEventId(input: {
 }
 
 function buildSummary(input: {
+  checkpointType: NovelWorkflowCheckpoint;
   approvalPointLabel: string;
   checkpointSummary?: string | null;
 }): string {
   const checkpointSummary = input.checkpointSummary?.trim();
+  if (input.checkpointType === "replan_required") {
+    if (checkpointSummary) {
+      return `AI 已记录重规划提醒，并继续推进。${checkpointSummary}`;
+    }
+    return "AI 已记录重规划提醒，并继续推进。";
+  }
   if (checkpointSummary) {
     return `AI 已自动通过「${input.approvalPointLabel}」，并继续推进。${checkpointSummary}`;
   }
@@ -96,6 +103,7 @@ export async function recordAutoDirectorAutoApproval(
   const occurredAt = input.occurredAt ?? new Date();
   const approvalPointLabel = getAutoApprovalPointLabel(approvalPointCode);
   const summary = buildSummary({
+    checkpointType: input.checkpointType,
     approvalPointLabel,
     checkpointSummary: input.checkpointSummary,
   });
@@ -179,6 +187,7 @@ async function appendAutoApprovalMilestone(input: {
 export async function recordAutoDirectorAutoApprovalFromTask(input: {
   taskId: string;
   checkpointType: NovelWorkflowCheckpoint;
+  checkpointSummary?: string | null;
   occurredAt?: Date;
 }): Promise<AutoDirectorAutoApprovalRecordRow | null> {
   const task = await prisma.novelWorkflowTask.findUnique({
@@ -201,7 +210,7 @@ export async function recordAutoDirectorAutoApprovalFromTask(input: {
     novelId: task.novelId,
     novelTitle: task.novel?.title ?? null,
     checkpointType: input.checkpointType,
-    checkpointSummary: task.checkpointSummary,
+    checkpointSummary: input.checkpointSummary ?? task.checkpointSummary,
     stage: task.currentStage,
     scopeLabel: typeof scopeLabel === "string" ? scopeLabel : null,
     occurredAt: input.occurredAt,

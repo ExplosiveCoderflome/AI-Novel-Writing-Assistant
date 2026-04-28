@@ -15,7 +15,7 @@ import {
   type DirectorAutoExecutionRange,
 } from "./novelDirectorAutoExecution";
 import { buildDirectorSessionState } from "./novelDirectorHelpers";
-import { PIPELINE_REPLAN_NOTICE_CODE } from "../pipelineJobState";
+import { PIPELINE_REPLAN_NOTICE_CODE, parsePipelinePayload } from "../pipelineJobState";
 import { buildDirectorQualityRepairRisk } from "./novelDirectorQualityRepairRisk";
 
 export type AutoExecutionResumeStage = "chapter" | "pipeline";
@@ -55,6 +55,7 @@ export interface AutoExecutionCheckpointRuntimeDeps {
     taskId: string;
     checkpointType: NovelWorkflowCheckpoint;
     qualityRepairRisk: DirectorQualityRepairRisk;
+    checkpointSummary?: string | null;
   }) => Promise<unknown>;
 }
 
@@ -220,21 +221,43 @@ export async function resolveQualityRepairNoticeAction(
     qualityRepairRisk,
   };
   const remainingChapterCount = checkpointState.remainingChapterCount ?? 0;
+  const isAiDriverExecution = input.request.runMode === "auto_to_execution";
+  const hasQualityAlertDetails = (parsePipelinePayload(input.payload).qualityAlertDetails?.length ?? 0) > 0;
+  const shouldNotifyAndContinueAiDriverQualityNotice = checkpointType === "chapter_batch_ready"
+    && qualityRepairRisk.autoContinuable
+    && isAiDriverExecution
+    && hasQualityAlertDetails;
   const canAutoContinue = checkpointType === "chapter_batch_ready"
     && qualityRepairRisk.autoContinuable
     && remainingChapterCount > 0
-    && await deps.shouldAutoContinueQualityRepair?.({
-      request: input.request,
-      qualityRepairRisk,
-      remainingChapterCount,
-    });
+    && (
+      shouldNotifyAndContinueAiDriverQualityNotice
+      || await deps.shouldAutoContinueQualityRepair?.({
+        request: input.request,
+        qualityRepairRisk,
+        remainingChapterCount,
+      })
+    );
 
-  if (canAutoContinue) {
+  if (canAutoContinue || shouldNotifyAndContinueAiDriverQualityNotice) {
     await deps.recordAutoApproval?.({
       taskId: input.taskId,
       checkpointType,
       qualityRepairRisk,
+      checkpointSummary: input.noticeSummary,
     });
+  }
+
+  if (canAutoContinue) {
+    return {
+      action: "auto_continue",
+      checkpointType,
+      checkpointState,
+      qualityRepairRisk,
+    };
+  }
+
+  if (shouldNotifyAndContinueAiDriverQualityNotice) {
     return {
       action: "auto_continue",
       checkpointType,

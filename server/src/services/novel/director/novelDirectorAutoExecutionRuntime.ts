@@ -89,7 +89,7 @@ interface NovelDirectorAutoExecutionNovelPort {
     endOrder: number,
     preferredJobId?: string | null,
   ): Promise<{ id: string; status: PipelineJobStatus } | null>;
-    getPipelineJobById(jobId: string): Promise<{
+  getPipelineJobById(jobId: string): Promise<{
     id: string;
     status: PipelineJobStatus;
     progress: number;
@@ -129,6 +129,7 @@ interface NovelDirectorAutoExecutionRuntimeDeps {
     taskId: string;
     checkpointType: NovelWorkflowCheckpoint;
     qualityRepairRisk: DirectorQualityRepairRisk;
+    checkpointSummary?: string | null;
   }) => Promise<unknown>;
 }
 
@@ -435,6 +436,34 @@ export class NovelDirectorAutoExecutionRuntime {
             noticeSummary: job.noticeSummary.trim(),
             payload: job.payload,
           });
+          if (
+            noticeAction.checkpointType === "replan_required"
+            && input.request.runMode === "auto_to_execution"
+          ) {
+            await this.deps.recordAutoApproval?.({
+              taskId: input.taskId,
+              checkpointType: noticeAction.checkpointType,
+              qualityRepairRisk: noticeAction.qualityRepairRisk,
+              checkpointSummary: job.noticeSummary.trim(),
+            });
+            pipelineJobId = "";
+            ({ range, autoExecution } = await this.resolveRangeAndState({
+              novelId: input.novelId,
+              existingState: noticeAction.checkpointState,
+              pipelineJobId: null,
+              pipelineStatus: "queued",
+            }));
+            await syncAutoExecutionTaskState(this.deps, {
+              taskId: input.taskId,
+              novelId: input.novelId,
+              request: input.request,
+              range,
+              autoExecution,
+              isBackgroundRunning: true,
+              resumeStage: "pipeline",
+            });
+            continue autoExecutionLoop;
+          }
           if (noticeAction.action === "auto_continue") {
             pipelineJobId = "";
             ({ range, autoExecution } = await this.resolveRangeAndState({

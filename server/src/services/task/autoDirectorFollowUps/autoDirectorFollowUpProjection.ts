@@ -10,6 +10,7 @@ import type {
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import {
   AUTO_DIRECTOR_FOLLOW_UP_REASONS,
+  type AutoDirectorFollowUpReason,
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import {
   AUTO_DIRECTOR_FOLLOW_UP_SECTIONS,
@@ -37,6 +38,22 @@ import {
   summarizeAutoDirectorValidationResult,
 } from "./autoDirectorFollowUpValidationResult";
 import type { AutoDirectorAutoApprovalRecordRow } from "./autoDirectorAutoApprovalAudit";
+
+function resolveAutoApprovalRecordReason(checkpointType: string | null | undefined): {
+  reason: AutoDirectorFollowUpReason;
+  reasonLabel: string;
+} {
+  if (checkpointType === "replan_required") {
+    return {
+      reason: "auto_progress_running",
+      reasonLabel: "重规划提醒已记录",
+    };
+  }
+  return {
+    reason: "auto_approval_completed",
+    reasonLabel: "最近自动通过",
+  };
+}
 
 export interface RawFollowUpWorkflowRow {
   id: string;
@@ -337,6 +354,7 @@ export function projectAutoApprovalRecordItem(
   taskById: ReadonlyMap<string, FollowUpWorkflowRow>,
 ): AutoDirectorFollowUpItem {
   const task = taskById.get(row.taskId);
+  const resolvedReason = resolveAutoApprovalRecordReason(row.checkpointType);
   return {
     itemType: "auto_approval_record",
     taskId: row.taskId,
@@ -348,9 +366,9 @@ export function projectAutoApprovalRecordItem(
     status: task?.status ?? "running",
     currentStage: row.stage ?? task?.currentStage ?? null,
     checkpointType: normalizeCheckpointType(row.checkpointType),
-    reason: "auto_approval_completed",
+    reason: resolvedReason.reason,
     section: "auto_progress",
-    reasonLabel: "最近自动通过",
+    reasonLabel: resolvedReason.reasonLabel,
     priority: "P2",
     followUpSummary: row.summary,
     blockingReason: null,

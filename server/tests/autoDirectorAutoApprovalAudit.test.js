@@ -92,6 +92,70 @@ test("auto director auto-approval audit records the event, appends a milestone, 
   }
 });
 
+test("auto director replan notice audit records a reminder instead of an auto-approved wording", async () => {
+  const originals = {
+    taskFindUnique: prisma.novelWorkflowTask.findUnique,
+    taskUpdate: prisma.novelWorkflowTask.update,
+    upsert: prisma.autoDirectorAutoApprovalRecord.upsert,
+    findMany: prisma.autoDirectorAutoApprovalRecord.findMany,
+    deleteMany: prisma.autoDirectorAutoApprovalRecord.deleteMany,
+    appSettingFindMany: prisma.appSetting.findMany,
+  };
+  const taskUpdates = [];
+  const previousEnv = {
+    AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL: process.env.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL,
+    AUTO_DIRECTOR_WECOM_WEBHOOK_URL: process.env.AUTO_DIRECTOR_WECOM_WEBHOOK_URL,
+  };
+  delete process.env.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL;
+  delete process.env.AUTO_DIRECTOR_WECOM_WEBHOOK_URL;
+
+  prisma.novelWorkflowTask.findUnique = async () => ({
+    id: "task_replan_notice",
+    milestonesJson: "[]",
+  });
+  prisma.novelWorkflowTask.update = async ({ data }) => {
+    taskUpdates.push(data);
+    return { id: "task_replan_notice", ...data };
+  };
+  prisma.autoDirectorAutoApprovalRecord.upsert = async ({ create }) => ({
+    id: "auto_replan_notice",
+    ...create,
+  });
+  prisma.autoDirectorAutoApprovalRecord.findMany = async () => [];
+  prisma.autoDirectorAutoApprovalRecord.deleteMany = async () => ({ count: 0 });
+  prisma.appSetting.findMany = async () => [];
+
+  try {
+    const record = await recordAutoDirectorAutoApproval({
+      taskId: "task_replan_notice",
+      novelId: "novel_replan_notice",
+      novelTitle: "《雾港巡夜人》",
+      checkpointType: "replan_required",
+      checkpointSummary: "第 2 章出现重规划建议。",
+      stage: "quality_repair",
+      occurredAt: new Date("2026-04-22T09:30:00.000Z"),
+    });
+
+    assert.equal(record.id, "auto_replan_notice");
+    assert.equal(record.approvalPointCode, "replan_continue");
+    assert.equal(record.approvalPointLabel, "重规划处理后继续");
+    assert.match(record.summary, /AI 已记录重规划提醒，并继续推进/);
+    assert.doesNotMatch(record.summary, /自动通过/);
+    const milestones = JSON.parse(taskUpdates[0].milestonesJson);
+    assert.equal(milestones[0].checkpointType, "replan_required");
+    assert.match(milestones[0].summary, /AI 已记录重规划提醒，并继续推进/);
+  } finally {
+    prisma.novelWorkflowTask.findUnique = originals.taskFindUnique;
+    prisma.novelWorkflowTask.update = originals.taskUpdate;
+    prisma.autoDirectorAutoApprovalRecord.upsert = originals.upsert;
+    prisma.autoDirectorAutoApprovalRecord.findMany = originals.findMany;
+    prisma.autoDirectorAutoApprovalRecord.deleteMany = originals.deleteMany;
+    prisma.appSetting.findMany = originals.appSettingFindMany;
+    process.env.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL = previousEnv.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL;
+    process.env.AUTO_DIRECTOR_WECOM_WEBHOOK_URL = previousEnv.AUTO_DIRECTOR_WECOM_WEBHOOK_URL;
+  }
+});
+
 test("auto director auto-approval audit loads the latest 10 records per novel", async () => {
   const originalFindMany = prisma.autoDirectorAutoApprovalRecord.findMany;
   const calls = [];

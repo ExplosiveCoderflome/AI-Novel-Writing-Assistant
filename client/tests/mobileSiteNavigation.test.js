@@ -13,6 +13,7 @@ const routedPaths = [
   "/",
   "/novels",
   "/novels/create",
+  "/novels/demo/preview",
   "/novels/demo/edit",
   "/novels/demo/chapters/chapter-1",
   "/creative-hub",

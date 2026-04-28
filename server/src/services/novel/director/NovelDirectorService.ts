@@ -171,10 +171,11 @@ export class NovelDirectorService {
         "low_risk_quality_repair_continue",
       )
     ),
-    recordAutoApproval: async ({ taskId, checkpointType }) => {
+    recordAutoApproval: async ({ taskId, checkpointType, checkpointSummary }) => {
       await recordAutoDirectorAutoApprovalFromTask({
         taskId,
         checkpointType,
+        checkpointSummary,
       });
     },
   });
@@ -686,6 +687,13 @@ export class NovelDirectorService {
     const runMode = normalizeDirectorRunMode(directorInput.runMode ?? fallbackRunMode);
     const shouldResumeStoredBatchCheckpoint = runMode === "auto_to_execution"
       && (row.checkpointType === "chapter_batch_ready" || row.checkpointType === "replan_required");
+    const canSkipReviewBlockedChapter = (
+      row.status === "failed"
+      || row.status === "cancelled"
+    ) && (
+      input?.continuationMode === "auto_execute_range"
+      || input?.continuationMode === "auto_execute_front10"
+    );
     if (
       assetFirstRecovery?.type === "auto_execution"
       || shouldResumeStoredBatchCheckpoint
@@ -735,8 +743,7 @@ export class NovelDirectorService {
           existingState: seedPayload.autoExecution ?? null,
           resumeCheckpointType,
           previousFailureMessage: row.lastError ?? null,
-          allowSkipReviewBlockedChapter: input?.continuationMode === "auto_execute_range"
-            || input?.continuationMode === "auto_execute_front10",
+          allowSkipReviewBlockedChapter: canSkipReviewBlockedChapter,
         });
       });
       return;
