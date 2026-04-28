@@ -238,6 +238,17 @@ export function isDirectorAutoExecutionChapterProcessed(chapter: DirectorAutoExe
   return chapter.generationState === "reviewed" || chapter.generationState === "repaired";
 }
 
+export function canPreserveDirectorAutoExecutionSkippedChapter(chapter: DirectorAutoExecutionChapterRef): boolean {
+  if (isDirectorAutoExecutionChapterProcessed(chapter)) {
+    return true;
+  }
+  if (!hasDirectorAutoExecutionChapterContent(chapter)) {
+    return false;
+  }
+  return chapter.chapterStatus === "needs_repair"
+    && (chapter.generationState === "reviewed" || chapter.generationState === "repaired");
+}
+
 export function hasDirectorAutoExecutionChapterContract(chapter: DirectorAutoExecutionChapterRef): boolean {
   if (typeof chapter.conflictLevel !== "number" || typeof chapter.revealLevel !== "number" || typeof chapter.targetWordCount !== "number") {
     return false;
@@ -266,8 +277,16 @@ export function buildDirectorAutoExecutionState(input: {
   const selected = input.chapters
     .filter((chapter) => chapter.order >= input.range.startOrder && chapter.order <= input.range.endOrder)
     .sort((left, right) => left.order - right.order);
-  const skipped = selected.filter((chapter) => skippedChapterIds.has(chapter.id) || skippedChapterOrders.has(chapter.order));
-  const actionable = selected.filter((chapter) => !skippedChapterIds.has(chapter.id) && !skippedChapterOrders.has(chapter.order));
+  const skipped = selected.filter((chapter) => (
+    (skippedChapterIds.has(chapter.id) || skippedChapterOrders.has(chapter.order))
+    && canPreserveDirectorAutoExecutionSkippedChapter(chapter)
+  ));
+  const preservedSkippedChapterIds = new Set(skipped.map((chapter) => chapter.id));
+  const preservedSkippedChapterOrders = new Set(skipped.map((chapter) => chapter.order));
+  const actionable = selected.filter((chapter) => (
+    !preservedSkippedChapterIds.has(chapter.id)
+    && !preservedSkippedChapterOrders.has(chapter.order)
+  ));
   const completed = actionable.filter((chapter) => isDirectorAutoExecutionChapterProcessed(chapter));
   const remaining = actionable.filter((chapter) => !isDirectorAutoExecutionChapterProcessed(chapter));
   const totalChapterCount = Math.max(input.range.totalChapterCount, selected.length);

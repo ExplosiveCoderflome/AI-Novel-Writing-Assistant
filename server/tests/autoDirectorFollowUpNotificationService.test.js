@@ -644,3 +644,92 @@ test("auto director follow-up notification service delivers auto-approved events
     process.env.APP_BASE_URL = previousEnv.APP_BASE_URL;
   }
 });
+
+test("auto director follow-up notification service labels replan reminders without auto-approved wording", async () => {
+  const originals = {
+    fetch: global.fetch,
+    notificationLogCreate: prisma.autoDirectorFollowUpNotificationLog.create,
+    appSettingFindMany: prisma.appSetting.findMany,
+  };
+  const notifications = [];
+  const fetchCalls = [];
+
+  prisma.autoDirectorFollowUpNotificationLog.create = async ({ data }) => {
+    notifications.push(data);
+    return data;
+  };
+  prisma.appSetting.findMany = async () => [];
+  global.fetch = async (url, init) => {
+    fetchCalls.push({
+      url,
+      method: init?.method ?? "GET",
+      headers: init?.headers ?? {},
+      body: init?.body ? JSON.parse(String(init.body)) : null,
+    });
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 202,
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+  };
+
+  const previousEnv = {
+    AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL: process.env.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL,
+    AUTO_DIRECTOR_DINGTALK_CALLBACK_TOKEN: process.env.AUTO_DIRECTOR_DINGTALK_CALLBACK_TOKEN,
+    AUTO_DIRECTOR_DINGTALK_OPERATOR_MAP_JSON: process.env.AUTO_DIRECTOR_DINGTALK_OPERATOR_MAP_JSON,
+    AUTO_DIRECTOR_DINGTALK_EVENT_TYPES: process.env.AUTO_DIRECTOR_DINGTALK_EVENT_TYPES,
+    AUTO_DIRECTOR_WECOM_WEBHOOK_URL: process.env.AUTO_DIRECTOR_WECOM_WEBHOOK_URL,
+    AUTO_DIRECTOR_WECOM_CALLBACK_TOKEN: process.env.AUTO_DIRECTOR_WECOM_CALLBACK_TOKEN,
+    AUTO_DIRECTOR_WECOM_OPERATOR_MAP_JSON: process.env.AUTO_DIRECTOR_WECOM_OPERATOR_MAP_JSON,
+    AUTO_DIRECTOR_WECOM_EVENT_TYPES: process.env.AUTO_DIRECTOR_WECOM_EVENT_TYPES,
+    APP_BASE_URL: process.env.APP_BASE_URL,
+  };
+  process.env.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL = "https://relay.example.test/dingtalk";
+  delete process.env.AUTO_DIRECTOR_DINGTALK_CALLBACK_TOKEN;
+  delete process.env.AUTO_DIRECTOR_DINGTALK_OPERATOR_MAP_JSON;
+  delete process.env.AUTO_DIRECTOR_DINGTALK_EVENT_TYPES;
+  process.env.AUTO_DIRECTOR_WECOM_WEBHOOK_URL = "https://relay.example.test/wecom";
+  delete process.env.AUTO_DIRECTOR_WECOM_CALLBACK_TOKEN;
+  delete process.env.AUTO_DIRECTOR_WECOM_OPERATOR_MAP_JSON;
+  delete process.env.AUTO_DIRECTOR_WECOM_EVENT_TYPES;
+  process.env.APP_BASE_URL = "https://writer.example.test";
+
+  const service = new AutoDirectorFollowUpNotificationService();
+
+  try {
+    await service.notifyAutoApproved({
+      taskId: "task_replan_notice",
+      novelId: "novel_1",
+      novelTitle: "《雾港巡夜人》",
+      checkpointType: "replan_required",
+      checkpointSummary: "第 2 章出现重规划建议。",
+      approvalPointCode: "replan_continue",
+      approvalPointLabel: "重规划处理后继续",
+      stage: "quality_repair",
+      summary: "AI 已记录重规划提醒，并继续推进。第 2 章出现重规划建议。",
+      occurredAt: new Date("2026-04-22T10:40:00.000Z"),
+    });
+
+    assert.equal(fetchCalls.length, 2);
+    assert.equal(fetchCalls[0].body.card.title, "AI 已记录重规划提醒并继续推进");
+    assert.equal(fetchCalls[0].body.card.reasonLabel, "重规划提醒已记录");
+    assert.match(fetchCalls[1].body.markdown.content, /AI 已记录重规划提醒并继续推进/);
+    assert.match(fetchCalls[1].body.markdown.content, /AI 已记录重规划提醒，并继续推进。/);
+    assert.doesNotMatch(fetchCalls[1].body.markdown.content, /AI 已自动通过并继续推进/);
+    assert.equal(notifications.length, 2);
+  } finally {
+    prisma.autoDirectorFollowUpNotificationLog.create = originals.notificationLogCreate;
+    prisma.appSetting.findMany = originals.appSettingFindMany;
+    global.fetch = originals.fetch;
+    process.env.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL = previousEnv.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL;
+    process.env.AUTO_DIRECTOR_DINGTALK_CALLBACK_TOKEN = previousEnv.AUTO_DIRECTOR_DINGTALK_CALLBACK_TOKEN;
+    process.env.AUTO_DIRECTOR_DINGTALK_OPERATOR_MAP_JSON = previousEnv.AUTO_DIRECTOR_DINGTALK_OPERATOR_MAP_JSON;
+    process.env.AUTO_DIRECTOR_DINGTALK_EVENT_TYPES = previousEnv.AUTO_DIRECTOR_DINGTALK_EVENT_TYPES;
+    process.env.AUTO_DIRECTOR_WECOM_WEBHOOK_URL = previousEnv.AUTO_DIRECTOR_WECOM_WEBHOOK_URL;
+    process.env.AUTO_DIRECTOR_WECOM_CALLBACK_TOKEN = previousEnv.AUTO_DIRECTOR_WECOM_CALLBACK_TOKEN;
+    process.env.AUTO_DIRECTOR_WECOM_OPERATOR_MAP_JSON = previousEnv.AUTO_DIRECTOR_WECOM_OPERATOR_MAP_JSON;
+    process.env.AUTO_DIRECTOR_WECOM_EVENT_TYPES = previousEnv.AUTO_DIRECTOR_WECOM_EVENT_TYPES;
+    process.env.APP_BASE_URL = previousEnv.APP_BASE_URL;
+  }
+});
