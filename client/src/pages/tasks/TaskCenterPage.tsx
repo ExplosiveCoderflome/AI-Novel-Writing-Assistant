@@ -4,7 +4,7 @@ import type {
   AutoDirectorAction,
   AutoDirectorMutationActionCode,
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
-import type { TaskKind, TaskStatus } from "@ai-novel/shared/types/task";
+import type { TaskKind, TaskStatus, UnifiedTaskStep } from "@ai-novel/shared/types/task";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type {
   NovelWorkflowMilestone,
@@ -30,6 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
+import { resolveInternalNavigationTarget } from "@/lib/internalNavigation";
 import { useDirectorChapterTitleRepair } from "@/hooks/useDirectorChapterTitleRepair";
 import { syncKnownTaskCaches } from "@/lib/taskQueryCache";
 import {
@@ -221,6 +222,17 @@ function formatFollowUpPriority(priority: "P0" | "P1" | "P2"): string {
 
 function followUpActionVariant(action: AutoDirectorAction): "default" | "outline" {
   return action.kind === "navigation" || action.riskLevel !== "low" ? "outline" : "default";
+}
+
+function normalizeTaskMeta(meta: unknown): Record<string, unknown> {
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) {
+    return {};
+  }
+  return meta as Record<string, unknown>;
+}
+
+function normalizeTaskSteps(steps: unknown): UnifiedTaskStep[] {
+  return Array.isArray(steps) ? (steps as UnifiedTaskStep[]) : [];
 }
 
 export default function TaskCenterPage() {
@@ -437,10 +449,18 @@ export default function TaskCenterPage() {
   });
 
   const selectedTask = detailQuery.data?.data;
+  const selectedTaskMeta = useMemo(
+    () => normalizeTaskMeta(selectedTask?.meta),
+    [selectedTask?.meta],
+  );
+  const selectedTaskSteps = useMemo(
+    () => normalizeTaskSteps(selectedTask?.steps),
+    [selectedTask?.steps],
+  );
   const isAutoDirectorTask = Boolean(
     selectedTask
     && selectedTask.kind === "novel_workflow"
-    && selectedTask.meta.lane === "auto_director",
+    && selectedTaskMeta.lane === "auto_director",
   );
   const isActiveAutoDirectorTask = Boolean(
     selectedTask
@@ -458,8 +478,8 @@ export default function TaskCenterPage() {
     && requiresCandidateSelection(selectedTask),
   );
   const selectedTaskNotice = useMemo(
-    () => parseDirectorTaskNotice(selectedTask?.meta),
-    [selectedTask?.meta],
+    () => parseDirectorTaskNotice(selectedTask ? selectedTaskMeta : null),
+    [selectedTask, selectedTaskMeta],
   );
   const selectedTaskNoticeRoute = useMemo(
     () => (selectedTask ? buildTaskNoticeRoute(selectedTask, selectedTaskNotice) : null),
@@ -528,7 +548,16 @@ export default function TaskCenterPage() {
       return;
     }
     if (action.kind === "navigation") {
-      navigate(action.targetUrl ?? selectedTask.sourceRoute);
+      const targetUrl = action.targetUrl ?? selectedTask.sourceRoute;
+      const internalTarget = resolveInternalNavigationTarget(targetUrl);
+      if (internalTarget) {
+        navigate(internalTarget);
+        return;
+      }
+      const externalTarget = targetUrl?.trim();
+      if (externalTarget && /^https?:\/\//i.test(externalTarget)) {
+        window.location.assign(externalTarget);
+      }
       return;
     }
     if (action.requiresConfirm) {
@@ -991,17 +1020,19 @@ export default function TaskCenterPage() {
                 </div>
                 <div className="space-y-2">
                   <div className="font-medium">步骤状态</div>
-                  {selectedTask.steps.map((step) => (
+                  {selectedTaskSteps.length === 0 ? (
+                    <div className="rounded-md border border-dashed p-2 text-muted-foreground">暂无步骤状态。</div>
+                  ) : selectedTaskSteps.map((step) => (
                     <div key={step.key} className="flex items-center justify-between rounded-md border p-2">
                       <div>{step.label}</div>
                       <Badge variant="outline">{step.status}</Badge>
                     </div>
                   ))}
                 </div>
-                {selectedTask.kind === "novel_workflow" && Array.isArray(selectedTask.meta.milestones) && selectedTask.meta.milestones.length > 0 ? (
+                {selectedTask.kind === "novel_workflow" && Array.isArray(selectedTaskMeta.milestones) && selectedTaskMeta.milestones.length > 0 ? (
                   <div className="space-y-2">
                     <div className="font-medium">里程碑历史</div>
-                    {(selectedTask.meta.milestones as NovelWorkflowMilestone[]).map((item) => (
+                    {(selectedTaskMeta.milestones as NovelWorkflowMilestone[]).map((item) => (
                       <div key={`${item.checkpointType}:${item.createdAt}`} className="rounded-md border p-2 text-muted-foreground">
                         <div className="font-medium text-foreground">{formatCheckpoint(item.checkpointType)}</div>
                         <div className="mt-1">{item.summary}</div>

@@ -16,7 +16,7 @@ import {
   type AutoDirectorFollowUpSection,
 } from "@ai-novel/shared/types/autoDirectorValidation";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   executeAutoDirectorFollowUpAction,
   executeAutoDirectorFollowUpBatchAction,
@@ -32,6 +32,7 @@ import { AutoDirectorFollowUpListPanel } from "./components/AutoDirectorFollowUp
 import { AutoDirectorFollowUpOverviewCards } from "./components/AutoDirectorFollowUpOverview";
 import { reconcileSelectedTaskIds } from "./selectionState";
 import { toast } from "@/components/ui/toast";
+import { resolveInternalNavigationTarget } from "@/lib/internalNavigation";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
 const TASK_STATUSES: readonly TaskStatus[] = [
@@ -109,6 +110,7 @@ function parseEnumParam<T extends string>(value: string | null, candidates: read
 
 export default function AutoDirectorFollowUpCenterPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
 
@@ -319,8 +321,14 @@ export default function AutoDirectorFollowUpCenterPage() {
 
   const handleExecuteAction = async (item: AutoDirectorFollowUpItem, action: AutoDirectorAction) => {
     if (action.kind === "navigation") {
-      if (action.targetUrl) {
-        window.location.href = action.targetUrl;
+      const internalTarget = resolveInternalNavigationTarget(action.targetUrl);
+      if (internalTarget) {
+        navigate(internalTarget);
+        return;
+      }
+      const externalTarget = action.targetUrl?.trim();
+      if (externalTarget && /^https?:\/\//i.test(externalTarget)) {
+        window.location.assign(externalTarget);
       }
       return;
     }
