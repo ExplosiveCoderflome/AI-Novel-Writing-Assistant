@@ -11,10 +11,30 @@ import {
   type DirectorArtifactLedgerSummary,
   type DirectorArtifactTarget,
 } from "./DirectorArtifactLedger";
+import {
+  buildContinuityArtifactIdsByChapter,
+  buildDraftDependency,
+  buildRetentionArtifactIdsByChapter,
+  pushChapterRetentionArtifacts,
+  pushContinuityArtifacts,
+  pushQualityFoundationArtifacts,
+  pushRollingWindowReviewArtifacts,
+} from "./DirectorWorkspaceQualityArtifactInventory";
 
 interface TimestampedRow {
   id: string;
   updatedAt: Date | string;
+}
+
+interface ReaderPromiseSource {
+  readingPromise?: string | null;
+  protagonistFantasy?: string | null;
+  coreSellingPoint?: string | null;
+  chapter3Payoff?: string | null;
+  chapter10Payoff?: string | null;
+  chapter30Payoff?: string | null;
+  escalationLadder?: string | null;
+  relationshipMainline?: string | null;
 }
 
 export interface DirectorWorkspaceArtifactInventoryInput {
@@ -22,15 +42,30 @@ export interface DirectorWorkspaceArtifactInventoryInput {
   hasWorldBinding: boolean;
   hasSourceKnowledge: boolean;
   hasContinuationAnalysis: boolean;
-  bookContract: TimestampedRow | null;
+  bookContract: (TimestampedRow & ReaderPromiseSource) | null;
   storyMacro: TimestampedRow | null;
   characterCount: number;
   latestCharacter: TimestampedRow | null;
-  volumePlans: TimestampedRow[];
+  volumePlans: Array<TimestampedRow & {
+    mainPromise?: string | null;
+    openPayoffsJson?: string | null;
+    escalationMode?: string | null;
+    protagonistChange?: string | null;
+    nextVolumeHook?: string | null;
+  }>;
   chapterPlanCount: number;
   volumeChapterPlans: Array<{
+    id: string;
     volumeId: string;
     chapterOrder: number;
+    purpose?: string | null;
+    conflictLevel?: number | null;
+    revealLevel?: number | null;
+    mustAvoid?: string | null;
+    taskSheet?: string | null;
+    sceneCards?: string | null;
+    payoffRefsJson?: string | null;
+    updatedAt: Date | string;
   }>;
   world: (TimestampedRow & {
     status: string;
@@ -49,6 +84,9 @@ export interface DirectorWorkspaceArtifactInventoryInput {
     order: number;
     content?: string | null;
     taskSheet?: string | null;
+    hook?: string | null;
+    expectation?: string | null;
+    riskFlags?: string | null;
     repairHistory?: string | null;
     chapterStatus?: string | null;
     updatedAt: Date | string;
@@ -63,6 +101,34 @@ export interface DirectorWorkspaceArtifactInventoryInput {
     chapterId: string;
     updatedAt: Date | string;
   }>;
+  storyStateSnapshots: Array<{
+    id: string;
+    sourceChapterId?: string | null;
+    summary?: string | null;
+    rawStateJson?: string | null;
+    updatedAt: Date | string;
+  }>;
+  payoffLedgerItems: Array<{
+    id: string;
+    currentStatus: string;
+    lastTouchedChapterId?: string | null;
+    setupChapterId?: string | null;
+    payoffChapterId?: string | null;
+    sourceRefsJson?: string | null;
+    evidenceJson?: string | null;
+    riskSignalsJson?: string | null;
+    updatedAt: Date | string;
+  }>;
+  characterResourceItems: Array<{
+    id: string;
+    status: string;
+    ownerCharacterId?: string | null;
+    holderCharacterId?: string | null;
+    introducedChapterId?: string | null;
+    lastTouchedChapterId?: string | null;
+    riskSignalsJson?: string | null;
+    updatedAt: Date | string;
+  }>;
   draftedChapterCount: number;
   pendingRepairChapterCount: number;
 }
@@ -71,6 +137,18 @@ export interface DirectorWorkspaceArtifactInventoryResult {
   artifacts: DirectorArtifactRef[];
   ledgerSummary: DirectorArtifactLedgerSummary;
   hasChapterPlan: boolean;
+}
+
+export interface DirectorWorkspaceCoreArtifactIds {
+  volumeIdByChapterOrder: Map<number, string>;
+  bookContractArtifactId: string | null;
+  storyMacroArtifactId: string | null;
+  characterCastArtifactId: string | null;
+  volumeStrategyArtifactIds: Map<string, string>;
+  worldArtifactId: string | null;
+  sourceKnowledgeArtifactIds: Array<string | null>;
+  readerPromiseArtifactIds: Array<string | null>;
+  characterGovernanceArtifactId: string | null;
 }
 
 function buildExpectedArtifactTypes(input: {
@@ -84,6 +162,8 @@ function buildExpectedArtifactTypes(input: {
   hasWorldBinding: boolean;
   hasSourceKnowledge: boolean;
   hasContinuationAnalysis: boolean;
+  hasStoryStateSnapshot: boolean;
+  hasRollingReviewSource: boolean;
 }): DirectorArtifactType[] {
   const expected: DirectorArtifactType[] = [];
   if (!input.hasBookContract) expected.push("book_contract");
@@ -91,10 +171,15 @@ function buildExpectedArtifactTypes(input: {
   if (!input.hasCharacters) expected.push("character_cast");
   if (!input.hasVolumeStrategy) expected.push("volume_strategy");
   if (!input.hasChapterPlan) expected.push("chapter_task_sheet");
+  if (input.hasBookContract) expected.push("reader_promise");
+  if (input.hasCharacters) expected.push("character_governance_state");
+  if (input.hasChapterPlan) expected.push("chapter_retention_contract");
   if (input.hasWorldBinding) expected.push("world_skeleton");
   if (input.hasSourceKnowledge || input.hasContinuationAnalysis) expected.push("source_knowledge_pack");
   if (input.hasChapterPlan && input.draftedChapterCount === 0) expected.push("chapter_draft");
+  if (input.draftedChapterCount > 0 || input.hasStoryStateSnapshot) expected.push("continuity_state");
   if (input.draftedChapterCount > 0) expected.push("audit_report");
+  if (input.draftedChapterCount >= 5 || input.hasRollingReviewSource) expected.push("rolling_window_review");
   if (input.pendingRepairChapterCount > 0) expected.push("repair_ticket");
   return expected;
 }
@@ -106,6 +191,8 @@ export function buildDirectorWorkspaceArtifactInventory(
   const artifactTargets: DirectorArtifactTarget[] = [];
   const ids = buildCoreArtifactIds(input);
   const auditArtifactIdsByChapter = buildAuditArtifactIdsByChapter(input);
+  const retentionArtifactIdsByChapter = buildRetentionArtifactIdsByChapter(input);
+  const continuityArtifactIdsByChapter = buildContinuityArtifactIdsByChapter(input);
 
   if (input.bookContract) {
     artifactTargets.push({
@@ -135,10 +222,14 @@ export function buildDirectorWorkspaceArtifactInventory(
       dependsOn: compactDirectorArtifactDependencies([ids.bookContractArtifactId, ids.storyMacroArtifactId]),
     });
   }
+  pushQualityFoundationArtifacts(artifactTargets, input, ids);
   pushWorldAndSourceArtifacts(artifactTargets, input);
   pushVolumeStrategyArtifacts(artifactTargets, input, ids);
-  pushChapterArtifacts(artifactTargets, input, ids, auditArtifactIdsByChapter);
+  pushChapterRetentionArtifacts(artifactTargets, input, ids, retentionArtifactIdsByChapter);
+  pushChapterArtifacts(artifactTargets, input, ids, auditArtifactIdsByChapter, retentionArtifactIdsByChapter);
+  pushContinuityArtifacts(artifactTargets, input);
   pushAuditReportArtifacts(artifactTargets, input);
+  pushRollingWindowReviewArtifacts(artifactTargets, input, auditArtifactIdsByChapter, continuityArtifactIdsByChapter);
 
   const artifacts = normalizeDirectorArtifactTargets(artifactTargets, input.novelId);
   const ledgerSummary = summarizeDirectorArtifactLedger(artifacts, buildExpectedArtifactTypes({
@@ -152,12 +243,14 @@ export function buildDirectorWorkspaceArtifactInventory(
     hasWorldBinding: input.hasWorldBinding,
     hasSourceKnowledge: input.hasSourceKnowledge,
     hasContinuationAnalysis: input.hasContinuationAnalysis,
+    hasStoryStateSnapshot: input.storyStateSnapshots.length > 0,
+    hasRollingReviewSource: input.qualityReports.length + input.auditReports.length >= 5,
   }));
 
   return { artifacts, ledgerSummary, hasChapterPlan };
 }
 
-function buildCoreArtifactIds(input: DirectorWorkspaceArtifactInventoryInput) {
+function buildCoreArtifactIds(input: DirectorWorkspaceArtifactInventoryInput): DirectorWorkspaceCoreArtifactIds {
   const volumeStrategyArtifactIds = new Map(input.volumePlans.map((volume) => [
     volume.id,
     buildDirectorArtifactId({
@@ -215,7 +308,47 @@ function buildCoreArtifactIds(input: DirectorWorkspaceArtifactInventoryInput) {
         id: input.continuationBookAnalysis.id,
       }) : null,
     ],
+    readerPromiseArtifactIds: [
+      input.bookContract ? buildDirectorArtifactId({
+        type: "reader_promise",
+        targetType: "novel",
+        targetId: input.novelId,
+        table: "BookContract",
+        id: input.bookContract.id,
+      }) : null,
+      ...input.volumePlans
+        .filter(hasVolumeReaderPromiseSignal)
+        .map((volume) => buildDirectorArtifactId({
+          type: "reader_promise",
+          targetType: "volume",
+          targetId: volume.id,
+          table: "VolumePlan",
+          id: volume.id,
+        })),
+    ],
+    characterGovernanceArtifactId: buildCharacterGovernanceArtifactId(input),
   };
+}
+
+function hasVolumeReaderPromiseSignal(volume: DirectorWorkspaceArtifactInventoryInput["volumePlans"][number]): boolean {
+  return [volume.mainPromise, volume.openPayoffsJson, volume.escalationMode, volume.protagonistChange, volume.nextVolumeHook]
+    .some((value) => typeof value === "string" && value.trim().length > 0);
+}
+
+function buildCharacterGovernanceArtifactId(input: DirectorWorkspaceArtifactInventoryInput): string | null {
+  if (input.characterCount <= 0 || !input.latestCharacter) {
+    return null;
+  }
+  const latestResource = input.characterResourceItems
+    .slice()
+    .sort((left, right) => timestampOf(right.updatedAt) - timestampOf(left.updatedAt))[0];
+  return buildDirectorArtifactId({
+    type: "character_governance_state",
+    targetType: "novel",
+    targetId: input.novelId,
+    table: latestResource ? "CharacterResourceLedgerItem" : "Character",
+    id: latestResource?.id ?? `novel:${input.novelId}`,
+  });
 }
 
 function buildAuditArtifactIdsByChapter(input: DirectorWorkspaceArtifactInventoryInput): Map<string, string[]> {
@@ -299,6 +432,7 @@ function pushVolumeStrategyArtifacts(
       updatedAt: volume.updatedAt,
       dependsOn: compactDirectorArtifactDependencies([
         ids.storyMacroArtifactId,
+        ...ids.readerPromiseArtifactIds,
         ids.worldArtifactId,
         ...ids.sourceKnowledgeArtifactIds,
       ]),
@@ -311,6 +445,7 @@ function pushChapterArtifacts(
   input: DirectorWorkspaceArtifactInventoryInput,
   ids: ReturnType<typeof buildCoreArtifactIds>,
   auditArtifactIdsByChapter: Map<string, string[]>,
+  retentionArtifactIdsByChapter: Map<string, string[]>,
 ): void {
   for (const chapter of input.chapters) {
     const taskSheetArtifactId = buildDirectorArtifactId({
@@ -341,6 +476,7 @@ function pushChapterArtifacts(
         contentHash: stableDirectorContentHash(chapter.taskSheet),
         dependsOn: compactDirectorArtifactDependencies([
           ids.characterCastArtifactId,
+          ids.characterGovernanceArtifactId,
           chapterVolumeStrategyArtifactId,
           ids.worldArtifactId,
           ...ids.sourceKnowledgeArtifactIds,
@@ -357,9 +493,10 @@ function pushChapterArtifacts(
         source: "user_edited",
         contentHash: stableDirectorContentHash(chapter.content),
         protectedUserContent: true,
-        dependsOn: chapter.taskSheet?.trim()
-          ? [{ artifactId: taskSheetArtifactId, version: 1 }]
-          : [],
+        dependsOn: compactDirectorArtifactDependencies([
+          chapter.taskSheet?.trim() ? taskSheetArtifactId : null,
+          ...(retentionArtifactIdsByChapter.get(chapter.id) ?? []),
+        ]),
       });
     }
     if (chapter.chapterStatus === "needs_repair") {
@@ -372,6 +509,7 @@ function pushChapterArtifacts(
         contentHash: stableDirectorContentHash(chapter.repairHistory ?? chapter.content),
         dependsOn: compactDirectorArtifactDependencies([
           chapter.content?.trim() ? draftArtifactId : null,
+          ...(retentionArtifactIdsByChapter.get(chapter.id) ?? []),
           ...(auditArtifactIdsByChapter.get(chapter.id) ?? []),
         ]),
       });
@@ -407,15 +545,8 @@ function pushAuditReportArtifacts(
   }
 }
 
-function buildDraftDependency(chapterId: string) {
-  return {
-    artifactId: buildDirectorArtifactId({
-      type: "chapter_draft",
-      targetType: "chapter",
-      targetId: chapterId,
-      table: "Chapter",
-      id: chapterId,
-    }),
-    version: 1,
-  };
+function timestampOf(value: Date | string): number {
+  const normalized = value instanceof Date ? value.toISOString() : value;
+  const timestamp = Date.parse(normalized);
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
