@@ -137,7 +137,7 @@ async function resolveAttemptTarget(input: {
     structuredStrategy: input.structuredStrategy,
     executionMode: "plain",
   });
-  const preferredStrategy = input.structuredStrategy ?? (route
+  const preferredStrategy = input.structuredStrategy ?? resolved.structuredStrategy ?? (route
     && resolved.provider === route.provider
     && resolved.model === route.model
     ? toStructuredOutputStrategy(route.structuredResponseFormat)
