@@ -4,6 +4,7 @@ import { buildPromptAssetKey, type PromptAsset, type PromptContextRequirement } 
 import { preparePromptExecution } from "./core/promptRunner";
 import { ContextBroker } from "./context/ContextBroker";
 import { createDefaultContextResolverRegistry } from "./context/defaultContextRegistry";
+import { derivePromptContextRequirements } from "./context/promptContextResolution";
 import type { PromptExecutionContext } from "./context/types";
 import { getRegisteredPromptAsset, listRegisteredPromptAssets } from "./registry";
 
@@ -71,26 +72,6 @@ const LOCKED_PROMPT_FIELDS = [
   "approvalBoundary",
 ];
 
-function deriveContextRequirements(asset: UnknownPromptAsset): PromptContextRequirement[] {
-  if (asset.contextRequirements && asset.contextRequirements.length > 0) {
-    return asset.contextRequirements;
-  }
-
-  const required = (asset.contextPolicy.requiredGroups ?? []).map((group, index) => ({
-    group,
-    required: true,
-    priority: 100 - index,
-    sourceHint: "asset.contextPolicy.requiredGroups",
-  } satisfies PromptContextRequirement));
-  const preferred = (asset.contextPolicy.preferredGroups ?? []).map((group, index) => ({
-    group,
-    required: false,
-    priority: 50 - index,
-    sourceHint: "asset.contextPolicy.preferredGroups",
-  } satisfies PromptContextRequirement));
-  return [...required, ...preferred];
-}
-
 function toCatalogItem(asset: UnknownPromptAsset): PromptCatalogItem {
   return {
     key: buildPromptAssetKey(asset),
@@ -100,7 +81,7 @@ function toCatalogItem(asset: UnknownPromptAsset): PromptCatalogItem {
     mode: asset.mode,
     language: asset.language,
     contextPolicy: asset.contextPolicy,
-    contextRequirements: deriveContextRequirements(asset),
+    contextRequirements: derivePromptContextRequirements(asset),
     editableSlots: asset.editableSlots ?? [],
     overrideSupported: false,
     lockedFields: LOCKED_PROMPT_FIELDS,

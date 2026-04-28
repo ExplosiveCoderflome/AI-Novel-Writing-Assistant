@@ -92,6 +92,15 @@ export const auditChapterLightPrompt: PromptAsset<AuditChapterPromptInput, z.inf
       "historical_issues",
     ],
   },
+  contextRequirements: [
+    { group: "chapter_mission", priority: 100 },
+    { group: "structure_obligations", priority: 94 },
+    { group: "local_state", priority: 89 },
+    { group: "world_rules", priority: 84 },
+    { group: "historical_issues", priority: 82 },
+    { group: "recent_chapters", priority: 70 },
+    { group: "participant_subset", priority: 68 },
+  ],
   structuredOutputHint: {
     example: LIGHT_AUDIT_EXAMPLE,
     note: "轻审校只做是否继续推进的快速判断。只有明显结构异常、严重偏离合同、硬性长度失控等情况才把 continueRecommendation 设为 full_audit。",
@@ -151,6 +160,16 @@ export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<ty
       "open_conflicts",
     ],
   },
+  contextRequirements: [
+    { group: "chapter_mission", priority: 100 },
+    { group: "structure_obligations", required: true, priority: 94 },
+    { group: "local_state", priority: 89 },
+    { group: "world_rules", priority: 84 },
+    { group: "historical_issues", priority: 82 },
+    { group: "recent_chapters", priority: 70 },
+    { group: "participant_subset", priority: 68 },
+    { group: "open_conflicts", priority: 66 },
+  ],
   structuredOutputHint: {
     example: AUDIT_CHAPTER_EXAMPLE,
     note: "severity 只能是 low/medium/high/critical；issues.category 只能是 coherence/repetition/pacing/voice/engagement/logic，不要输出 plot、character 或中文分类名。",

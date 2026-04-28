@@ -10,6 +10,7 @@ import type {
 import type { DirectorLLMOptions } from "@ai-novel/shared/types/novelDirector";
 import { prisma } from "../../../../db/prisma";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
+import { resolvePromptContextBlocksForAsset } from "../../../../prompting/context/promptContextResolution";
 import {
   buildDirectorWorkspaceAnalysisContextBlocks,
   directorWorkspaceAnalysisPrompt,
@@ -168,10 +169,23 @@ export class DirectorWorkspaceAnalyzer {
     let promptMeta: DirectorWorkspaceAnalysis["prompt"] = null;
 
     if (input.includeAiInterpretation !== false) {
+      const fallbackContextBlocks = buildDirectorWorkspaceAnalysisContextBlocks({ inventory });
+      const resolvedContext = await resolvePromptContextBlocksForAsset({
+        asset: directorWorkspaceAnalysisPrompt,
+        executionContext: {
+          entrypoint: "auto_director",
+          novelId: input.novelId,
+          taskId: input.workflowTaskId ?? undefined,
+          metadata: {
+            workspaceInventory: inventory,
+          },
+        },
+        fallbackBlocks: fallbackContextBlocks,
+      });
       const result = await runStructuredPrompt({
         asset: directorWorkspaceAnalysisPrompt,
         promptInput: { inventory },
-        contextBlocks: buildDirectorWorkspaceAnalysisContextBlocks({ inventory }),
+        contextBlocks: resolvedContext.blocks,
         options: {
           provider: input.llm?.provider,
           model: input.llm?.model,
@@ -238,10 +252,24 @@ export class DirectorWorkspaceAnalyzer {
     let promptMeta: DirectorManualEditImpact["prompt"] = null;
 
     if (input.includeAiInterpretation !== false && editInventory.changedChapters.length > 0) {
+      const fallbackContextBlocks = buildDirectorManualEditImpactContextBlocks({ inventory, editInventory });
+      const resolvedContext = await resolvePromptContextBlocksForAsset({
+        asset: directorManualEditImpactPrompt,
+        executionContext: {
+          entrypoint: "auto_director",
+          novelId: input.novelId,
+          taskId: taskId ?? undefined,
+          metadata: {
+            workspaceInventory: inventory,
+            manualEditInventory: editInventory,
+          },
+        },
+        fallbackBlocks: fallbackContextBlocks,
+      });
       const result = await runStructuredPrompt({
         asset: directorManualEditImpactPrompt,
         promptInput: { inventory, editInventory },
-        contextBlocks: buildDirectorManualEditImpactContextBlocks({ inventory, editInventory }),
+        contextBlocks: resolvedContext.blocks,
         options: {
           provider: input.llm?.provider,
           model: input.llm?.model,

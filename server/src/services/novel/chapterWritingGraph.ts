@@ -13,6 +13,7 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { TaskType } from "../../llm/modelRouter";
 import { createContextBlock } from "../../prompting/core/contextBudget";
 import { runTextPrompt, streamTextPrompt } from "../../prompting/core/promptRunner";
+import { resolvePromptContextBlocksForAsset } from "../../prompting/context/promptContextResolution";
 import {
   buildChapterWriterContextBlocks,
   resolveTargetWordRange,
@@ -273,6 +274,20 @@ export class ChapterWritingGraph {
         removedBlockIds: sanitized.removedBlockIds,
       });
     }
+    const resolvedContext = await resolvePromptContextBlocksForAsset({
+      asset: chapterWriterPrompt,
+      executionContext: {
+        entrypoint: "chapter_pipeline",
+        novelId: input.novelId,
+        chapterId: input.chapter.id,
+        metadata: {
+          chapterWriteContext: writeContext,
+          chapterBlockMode: "full",
+          extraContextBlocks: sanitized.allowedBlocks.filter((block) => block.group === "current_draft_excerpt"),
+        },
+      },
+      fallbackBlocks: sanitized.allowedBlocks,
+    });
 
     const completion = await runTextPrompt({
       asset: chapterWriterPrompt,
@@ -286,7 +301,7 @@ export class ChapterWritingGraph {
         maxWordCount: lengthGoal.maxWordCount,
         missingWordGap,
       },
-      contextBlocks: sanitized.allowedBlocks,
+      contextBlocks: resolvedContext.blocks,
       options: {
         provider: input.options.provider,
         model: input.options.model,
@@ -462,6 +477,19 @@ export class ChapterWritingGraph {
         removedBlockIds: sanitized.removedBlockIds,
       });
     }
+    const resolvedContext = await resolvePromptContextBlocksForAsset({
+      asset: chapterWriterPrompt,
+      executionContext: {
+        entrypoint: "chapter_pipeline",
+        novelId: input.novelId,
+        chapterId: input.chapter.id,
+        metadata: {
+          chapterWriteContext,
+          chapterBlockMode: "full",
+        },
+      },
+      fallbackBlocks: sanitized.allowedBlocks,
+    });
 
     const streamed = await streamTextPrompt({
       asset: chapterWriterPrompt,
@@ -474,7 +502,7 @@ export class ChapterWritingGraph {
         minWordCount: targetRange.minWordCount,
         maxWordCount: targetRange.maxWordCount,
       },
-      contextBlocks: sanitized.allowedBlocks,
+      contextBlocks: resolvedContext.blocks,
       options: {
         provider: input.options.provider,
         model: input.options.model,

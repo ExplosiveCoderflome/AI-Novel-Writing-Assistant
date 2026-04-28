@@ -51,6 +51,19 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
       "opening_constraints",
     ],
   },
+  contextRequirements: [
+    { group: "book_contract", required: true, priority: 104 },
+    { group: "chapter_mission", required: true, priority: 100 },
+    { group: "story_macro", priority: 98 },
+    { group: "volume_window", required: true, priority: 96 },
+    { group: "participant_subset", required: true, priority: 92 },
+    { group: "local_state", required: true, priority: 89 },
+    { group: "open_conflicts", priority: 88 },
+    { group: "recent_chapters", priority: 86 },
+    { group: "opening_constraints", priority: 80 },
+    { group: "style_contract", required: true, priority: 74 },
+    { group: "continuation_constraints", priority: 72 },
+  ],
   render: (input, context) => {
     const mode = input.mode ?? "draft";
     const hasTarget = typeof input.targetWordCount === "number" && input.targetWordCount > 0;

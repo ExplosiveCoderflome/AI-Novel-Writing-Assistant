@@ -293,7 +293,7 @@ export function buildChapterRepairContext(input: {
       input.writeContext.pendingCandidateGuards.length > 0
         ? "Pending character candidates remain read-only unless they are confirmed outside the repair flow."
         : "",
-      ...input.writeContext.protectedSecrets.map((item) => `do not disclose: ${item}`),
+      ...(input.writeContext.protectedSecrets ?? []).map((item) => `do not disclose: ${item}`),
       ...input.writeContext.chapterMission.mustPreserve.map((item) => `must preserve: ${item}`),
     ], 12),
   };
@@ -364,7 +364,7 @@ function shouldIncludeCharacterDynamics(
       || writeContext.pendingCandidateGuards.length > 0;
   }
   if (mode === "repair") {
-    return writeContext.activeRelationStages.length > 0;
+    return writeContext.characterBehaviorGuides.length > 0 || writeContext.activeRelationStages.length > 0;
   }
   return writeContext.characterBehaviorGuides.length > 0
     || writeContext.activeRelationStages.length > 0

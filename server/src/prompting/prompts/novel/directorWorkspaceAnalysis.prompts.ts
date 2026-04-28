@@ -120,6 +120,9 @@ export const directorWorkspaceAnalysisPrompt: PromptAsset<
     maxTokensBudget: 3200,
     requiredGroups: ["workspace_inventory"],
   },
+  contextRequirements: [
+    { group: "workspace_inventory", required: true, priority: 100 },
+  ],
   outputSchema: directorWorkspaceInterpretationSchema,
   render: (_input, context) => [
     new SystemMessage([

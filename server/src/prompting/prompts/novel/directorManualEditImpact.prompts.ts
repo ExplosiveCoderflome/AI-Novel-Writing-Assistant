@@ -86,6 +86,10 @@ export const directorManualEditImpactPrompt: PromptAsset<
     maxTokensBudget: 3600,
     requiredGroups: ["manual_edit_inventory"],
   },
+  contextRequirements: [
+    { group: "manual_edit_inventory", required: true, priority: 100 },
+    { group: "workspace_inventory", priority: 80 },
+  ],
   outputSchema: directorManualEditImpactDecisionSchema,
   render: (_input, context) => [
     new SystemMessage([

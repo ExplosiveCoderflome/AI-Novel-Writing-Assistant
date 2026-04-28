@@ -15,8 +15,8 @@ import {
 import { ragServices } from "../rag";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { auditChapterLightPrompt, auditChapterPrompt } from "../../prompting/prompts/audit/audit.prompts";
-import { buildChapterReviewContextBlocks } from "../../prompting/prompts/novel/chapterLayeredContext";
 import type { LightAuditOutput } from "./auditSchemas";
+import { resolveAuditChapterContextBlocks } from "./auditPromptContext";
 
 interface AuditOptions {
   provider?: LLMProvider;
@@ -349,6 +349,12 @@ export class AuditService {
       } catch {
         storyModeContext = "";
       }
+      const contextBlocks = await resolveAuditChapterContextBlocks({
+        asset: auditChapterPrompt,
+        novelId,
+        contextPackage: options.contextPackage,
+        ragContext,
+      });
       const result = await runStructuredPrompt({
         asset: auditChapterPrompt,
         promptInput: {
@@ -359,9 +365,7 @@ export class AuditService {
           content,
           ragContext,
         },
-        contextBlocks: options.contextPackage?.chapterReviewContext
-          ? buildChapterReviewContextBlocks(options.contextPackage.chapterReviewContext)
-          : undefined,
+        contextBlocks,
         options: {
           provider: options.provider,
           model: options.model,
@@ -440,6 +444,12 @@ export class AuditService {
       } catch {
         storyModeContext = "";
       }
+      const contextBlocks = await resolveAuditChapterContextBlocks({
+        asset: auditChapterLightPrompt,
+        novelId,
+        contextPackage: options.contextPackage,
+        ragContext,
+      });
       const result = await runStructuredPrompt({
         asset: auditChapterLightPrompt,
         promptInput: {
@@ -450,9 +460,7 @@ export class AuditService {
           content,
           ragContext,
         },
-        contextBlocks: options.contextPackage?.chapterReviewContext
-          ? buildChapterReviewContextBlocks(options.contextPackage.chapterReviewContext)
-          : undefined,
+        contextBlocks,
         options: {
           provider: options.provider,
           model: options.model,
