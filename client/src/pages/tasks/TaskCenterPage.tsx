@@ -24,6 +24,7 @@ import { useLLMStore } from "@/store/llmStore";
 import TaskCenterFilterPanel from "./components/TaskCenterFilterPanel";
 import TaskCenterDetailSummary from "./components/TaskCenterDetailSummary";
 import TaskCenterListPanel from "./components/TaskCenterListPanel";
+import TaskCenterManualEditImpactCard from "./components/TaskCenterManualEditImpactCard";
 import TaskCenterMilestoneHistory from "./components/TaskCenterMilestoneHistory";
 import TaskCenterSummaryCards from "./components/TaskCenterSummaryCards";
 import {
@@ -503,6 +504,9 @@ export default function TaskCenterPage() {
                 ) : null}
                 {isAutoDirectorTask ? (
                   <DirectorRuntimeProjectionCard projection={selectedDirectorRuntimeProjection} />
+                ) : null}
+                {isAutoDirectorTask ? (
+                  <TaskCenterManualEditImpactCard task={selectedTask} />
                 ) : null}
                 {selectedAutoDirectorFollowUp ? (
                   <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
