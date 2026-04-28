@@ -6,6 +6,7 @@ const {
   normalizeDirectorArtifactTargets,
   reconcileDirectorArtifactLedger,
   stableDirectorContentHash,
+  summarizeDirectorArtifactLedger,
 } = require("../dist/services/novel/director/runtime/DirectorArtifactLedger.js");
 
 function chapterDraft(hash, version = 1) {
@@ -102,4 +103,18 @@ test("director artifact targets normalize hashes and stable ids", () => {
   assert.equal(artifacts[0].contentHash.length, 64);
   assert.equal(artifacts[0].source, "user_edited");
   assert.equal(artifacts[0].protectedUserContent, true);
+});
+
+test("director artifact ledger summary exposes missing, stale and protected content", () => {
+  const staleAudit = { ...auditReport(1), status: "stale" };
+  const protectedDraft = chapterDraft("hash-new", 2);
+  const summary = summarizeDirectorArtifactLedger(
+    [protectedDraft, staleAudit],
+    ["book_contract", "chapter_draft", "audit_report"],
+  );
+
+  assert.deepEqual(summary.missingArtifactTypes, ["book_contract"]);
+  assert.deepEqual(summary.staleArtifacts.map((artifact) => artifact.id), [staleAudit.id]);
+  assert.deepEqual(summary.protectedUserContentArtifacts.map((artifact) => artifact.id), [protectedDraft.id]);
+  assert.deepEqual(summary.needsRepairArtifacts, []);
 });

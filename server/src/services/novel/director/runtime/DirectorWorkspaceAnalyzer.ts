@@ -2,6 +2,7 @@ import type {
   AiManualEditImpactDecision,
   AiWorkspaceInterpretation,
   DirectorArtifactRef,
+  DirectorArtifactType,
   DirectorManualEditImpact,
   DirectorManualEditInventory,
   DirectorWorkspaceAnalysis,
@@ -23,6 +24,7 @@ import {
   buildDirectorArtifactId,
   normalizeDirectorArtifactTargets,
   stableDirectorContentHash,
+  summarizeDirectorArtifactLedger,
   type DirectorArtifactTarget,
 } from "./DirectorArtifactLedger";
 
@@ -157,6 +159,27 @@ function buildManualEditRecommendation(impact: DirectorManualEditImpact): Direct
     affectedScope: impact.changedChapters.map((chapter) => `chapter:${chapter.chapterId}`).join(","),
     riskLevel: impact.impactLevel === "high" ? "high" : impact.impactLevel === "medium" ? "medium" : "low",
   };
+}
+
+function buildExpectedArtifactTypes(input: {
+  hasBookContract: boolean;
+  hasStoryMacro: boolean;
+  hasCharacters: boolean;
+  hasVolumeStrategy: boolean;
+  hasChapterPlan: boolean;
+  draftedChapterCount: number;
+  pendingRepairChapterCount: number;
+}): DirectorArtifactType[] {
+  const expected: DirectorArtifactType[] = [];
+  if (!input.hasBookContract) expected.push("book_contract");
+  if (!input.hasStoryMacro) expected.push("story_macro");
+  if (!input.hasCharacters) expected.push("character_cast");
+  if (!input.hasVolumeStrategy) expected.push("volume_strategy");
+  if (!input.hasChapterPlan) expected.push("chapter_task_sheet");
+  if (input.hasChapterPlan && input.draftedChapterCount === 0) expected.push("chapter_draft");
+  if (input.draftedChapterCount > 0) expected.push("audit_report");
+  if (input.pendingRepairChapterCount > 0) expected.push("repair_ticket");
+  return expected;
 }
 
 export class DirectorWorkspaceAnalyzer {
@@ -625,6 +648,17 @@ export class DirectorWorkspaceAnalyzer {
       });
     }
 
+    const artifacts = normalizeDirectorArtifactTargets(artifactTargets, novelId);
+    const ledgerSummary = summarizeDirectorArtifactLedger(artifacts, buildExpectedArtifactTypes({
+      hasBookContract: Boolean(bookContract),
+      hasStoryMacro: Boolean(storyMacro),
+      hasCharacters: characterCount > 0,
+      hasVolumeStrategy: volumePlans.length > 0,
+      hasChapterPlan: chapterPlanCount > 0 || chapters.some((chapter) => Boolean(chapter.taskSheet?.trim())),
+      draftedChapterCount: draftedChapters.length,
+      pendingRepairChapterCount,
+    }));
+
     return {
       novelId,
       novelTitle: novel.title,
@@ -645,7 +679,8 @@ export class DirectorWorkspaceAnalyzer {
       activePipelineJobId: activePipelineJob?.id ?? null,
       activeDirectorTaskId: activeDirectorRun?.id ?? null,
       latestDirectorTaskId: latestDirectorRun?.id ?? null,
-      artifacts: normalizeDirectorArtifactTargets(artifactTargets, novelId),
+      ...ledgerSummary,
+      artifacts,
     };
   }
 }

@@ -312,6 +312,10 @@ export interface DirectorWorkspaceInventory {
   latestDirectorTaskId?: string | null;
   activeDirectorTaskId?: string | null;
   activePipelineJobId?: string | null;
+  missingArtifactTypes: DirectorArtifactType[];
+  staleArtifacts: DirectorArtifactRef[];
+  protectedUserContentArtifacts: DirectorArtifactRef[];
+  needsRepairArtifacts: DirectorArtifactRef[];
   artifacts: DirectorArtifactRef[];
 }
 

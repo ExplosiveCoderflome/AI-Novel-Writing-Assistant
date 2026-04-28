@@ -47,6 +47,13 @@ export interface DirectorArtifactLedgerReconciliation {
   staleArtifacts: DirectorArtifactRef[];
 }
 
+export interface DirectorArtifactLedgerSummary {
+  missingArtifactTypes: DirectorArtifactType[];
+  staleArtifacts: DirectorArtifactRef[];
+  protectedUserContentArtifacts: DirectorArtifactRef[];
+  needsRepairArtifacts: DirectorArtifactRef[];
+}
+
 export function stableDirectorContentHash(value: string | null | undefined): string | null {
   const normalized = value?.trim();
   if (!normalized) {
@@ -215,6 +222,27 @@ export function reconcileDirectorArtifactLedger(
     artifacts: [...byId.values()],
     indexedArtifacts,
     staleArtifacts,
+  };
+}
+
+export function summarizeDirectorArtifactLedger(
+  artifacts: DirectorArtifactRef[],
+  expectedArtifactTypes: DirectorArtifactType[],
+): DirectorArtifactLedgerSummary {
+  const normalized = artifacts.map((artifact) => normalizeDirectorArtifactRef(artifact));
+  const presentTypes = new Set(
+    normalized
+      .filter((artifact) => artifact.status !== "rejected" && artifact.status !== "superseded")
+      .map((artifact) => artifact.artifactType),
+  );
+  return {
+    missingArtifactTypes: [...new Set(expectedArtifactTypes)].filter((type) => !presentTypes.has(type)),
+    staleArtifacts: normalized.filter((artifact) => artifact.status === "stale"),
+    protectedUserContentArtifacts: normalized.filter((artifact) => (
+      artifact.protectedUserContent === true
+      || (artifact.source === "user_edited" && artifact.status === "active")
+    )),
+    needsRepairArtifacts: normalized.filter((artifact) => artifact.artifactType === "repair_ticket" && artifact.status !== "rejected"),
   };
 }
 
