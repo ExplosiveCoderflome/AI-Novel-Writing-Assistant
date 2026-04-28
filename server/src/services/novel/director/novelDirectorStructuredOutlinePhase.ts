@@ -9,6 +9,7 @@ import { getChapterTitleDiversityIssue } from "../volume/chapterTitleDiversity";
 import { buildNovelEditResumeTarget } from "../workflow/novelWorkflow.shared";
 import { logMemoryUsage } from "../../../runtime/memoryTelemetry";
 import {
+  buildRouteFollowingDirectorLlmOptions,
   buildDirectorSessionState,
   normalizeDirectorRunMode,
 } from "./novelDirectorHelpers";
@@ -183,6 +184,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
   callbacks: DirectorPhaseCallbacks;
 }): Promise<void> {
   const { taskId, novelId, request, baseWorkspace, dependencies, callbacks } = input;
+  const routeLlmOptions = buildRouteFollowingDirectorLlmOptions(request);
   const chapterSyncMode = resolveStructuredOutlineChapterSyncMode({
     explicitMode: input.chapterSyncMode,
     takeoverStrategy: input.takeoverStrategy,
@@ -264,9 +266,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
         volumeId: targetVolume.id,
         callbacks,
         run: async ({ updateStatus, signal }) => dependencies.volumeService.generateVolumes(novelId, {
-          provider: request.provider,
-          model: request.model,
-          temperature: request.temperature,
+          ...routeLlmOptions,
           scope: "beat_sheet",
           targetVolumeId: targetVolume.id,
           draftWorkspace: workspace,
@@ -308,9 +308,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
         volumeId: targetVolume.id,
         callbacks,
         run: async ({ updateStatus, signal }) => dependencies.volumeService.generateVolumes(novelId, {
-          provider: request.provider,
-          model: request.model,
-          temperature: request.temperature,
+          ...routeLlmOptions,
           scope: "chapter_list",
           targetVolumeId: targetVolume.id,
           draftWorkspace: workspace,
@@ -393,9 +391,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
         volumeId: targetVolumeId,
         callbacks,
         run: async ({ signal }) => dependencies.volumeService.generateVolumes(novelId, {
-          provider: request.provider,
-          model: request.model,
-          temperature: request.temperature,
+          ...routeLlmOptions,
           scope: "chapter_detail",
           targetVolumeId,
           targetChapterId,

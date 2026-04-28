@@ -341,7 +341,7 @@ export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInpu
     model: input.model,
     apiKey: input.apiKey,
     baseURL: input.baseURL,
-    temperature: input.temperature ?? 0.3,
+    temperature: input.temperature,
     maxTokens: input.maxTokens,
     taskType: input.taskType ?? "planner",
     requestProtocol: input.requestProtocol,

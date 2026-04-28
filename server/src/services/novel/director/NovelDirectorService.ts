@@ -43,10 +43,11 @@ import {
 import { NovelDirectorCandidateStageService } from "./novelDirectorCandidateStage";
 import { resolveDirectorBookFraming } from "./novelDirectorFraming";
 import {
+  buildRouteFollowingDirectorLlmOptions,
+  buildTaskModelDirectorLlmOptions,
   buildDirectorSessionState,
   buildWorkflowSeedPayload,
   getDirectorInputFromSeedPayload,
-  getDirectorLlmOptionsFromSeedPayload,
   type DirectorWorkflowSeedPayload,
   normalizeDirectorRunMode,
   toBookSpec,
@@ -461,7 +462,7 @@ export class NovelDirectorService {
     if (!idea) {
       return null;
     }
-    const llm = getDirectorLlmOptionsFromSeedPayload(seedPayload);
+    const llm = buildRouteFollowingDirectorLlmOptions(seedPayload);
     const runMode = typeof seedPayload.runMode === "string"
       && (DIRECTOR_RUN_MODES as readonly string[]).includes(seedPayload.runMode)
       ? seedPayload.runMode as (typeof DIRECTOR_RUN_MODES)[number]
@@ -882,7 +883,7 @@ export class NovelDirectorService {
       throw new Error("当前任务指向的目标卷不存在，无法继续 AI 修复章节标题。");
     }
 
-    const boundLlm = getDirectorLlmOptionsFromSeedPayload(seedPayload);
+    const boundLlm = buildTaskModelDirectorLlmOptions(seedPayload);
     const repairRequest: DirectorConfirmRequest = {
       ...directorInput,
       provider: boundLlm?.provider ?? directorInput.provider,
@@ -1166,9 +1167,7 @@ export class NovelDirectorService {
           description,
           suggest: (suggestInput) => novelFramingSuggestionService.suggest({
             ...suggestInput,
-            provider: resolvedInput.provider,
-            model: resolvedInput.model,
-            temperature: resolvedInput.temperature,
+            ...buildRouteFollowingDirectorLlmOptions(resolvedInput),
           }),
         });
         const directorInput: DirectorConfirmRequest = {

@@ -11,6 +11,7 @@ import type { TaskStatus, UnifiedTaskDetail, UnifiedTaskSummary } from "@ai-nove
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { NovelDirectorService } from "../../novel/director/NovelDirectorService";
+import { resolveModel, type TaskType } from "../../../llm/modelRouter";
 import {
   buildSkippableAutoExecutionReviewBlockingReason,
   buildSkippableAutoExecutionReviewCheckpointSummary,
@@ -20,7 +21,9 @@ import {
 } from "../../novel/director/novelDirectorAutoExecutionFailure";
 import { NovelWorkflowService } from "../../novel/workflow/NovelWorkflowService";
 import {
+  buildTaskModelDirectorLlmOptions,
   getDirectorLlmOptionsFromSeedPayload,
+  isDirectorTaskModelBinding,
   type DirectorWorkflowSeedPayload,
 } from "../../novel/director/novelDirectorHelpers";
 import { isAutoDirectorRecoveryInProgress } from "../../novel/workflow/novelWorkflowRecoveryHeuristics";
@@ -148,6 +151,48 @@ function parseAutoExecutionState(seedPayloadJson?: string | null): DirectorAutoE
     return null;
   }
   return seedPayload.autoExecution as DirectorAutoExecutionState;
+}
+
+function resolveWorkflowTaskRouteTaskType(input: {
+  checkpointType?: string | null;
+  currentStage?: string | null;
+  currentItemKey?: string | null;
+}): TaskType {
+  if (
+    input.checkpointType === "replan_required"
+    || input.currentItemKey === "quality_repair"
+    || input.currentStage?.includes("质量")
+  ) {
+    return "repair";
+  }
+  if (
+    input.currentItemKey === "chapter_execution"
+    || input.currentStage?.includes("章节执行")
+  ) {
+    return "writer";
+  }
+  return "planner";
+}
+
+async function resolveAutoDirectorDetailLlm(input: {
+  seedPayload: DirectorWorkflowSeedPayload | null;
+  checkpointType?: string | null;
+  currentStage?: string | null;
+  currentItemKey?: string | null;
+}): Promise<Pick<DirectorLLMOptions, "provider" | "model" | "temperature"> | null> {
+  if (isDirectorTaskModelBinding(input.seedPayload)) {
+    return buildTaskModelDirectorLlmOptions(input.seedPayload);
+  }
+  try {
+    const route = await resolveModel(resolveWorkflowTaskRouteTaskType(input));
+    return {
+      provider: route.provider,
+      model: route.model,
+      temperature: route.temperature,
+    };
+  } catch {
+    return getDirectorLlmOptionsFromSeedPayload(input.seedPayload);
+  }
 }
 
 export function normalizeWorkflowResumeTargetForCandidateSelection(input: {
@@ -422,7 +467,12 @@ export class NovelWorkflowTaskAdapter {
     const directorSession = workflowSeedPayload && typeof workflowSeedPayload.directorSession === "object"
       ? workflowSeedPayload.directorSession
       : null;
-    const boundLlm = getDirectorLlmOptionsFromSeedPayload(workflowSeedPayload);
+    const boundLlm = await resolveAutoDirectorDetailLlm({
+      seedPayload: workflowSeedPayload,
+      checkpointType: row.checkpointType,
+      currentStage: row.currentStage,
+      currentItemKey: row.currentItemKey,
+    });
 
     return {
       ...summary,

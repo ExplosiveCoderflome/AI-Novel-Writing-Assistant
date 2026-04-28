@@ -8,8 +8,18 @@ const { prisma } = require("../dist/db/prisma.js");
 test("task detail exposes candidate-stage bound model before directorInput exists", async () => {
   const originals = {
     findUnique: prisma.novelWorkflowTask.findUnique,
+    routeFindUnique: prisma.modelRouteConfig.findUnique,
   };
 
+  prisma.modelRouteConfig.findUnique = async ({ where }) => ({
+    taskType: where.taskType,
+    provider: "openai",
+    model: "route-planner-model",
+    temperature: 0.31,
+    maxTokens: null,
+    requestProtocol: "openai_compatible",
+    structuredResponseFormat: "json_object",
+  });
   prisma.novelWorkflowTask.findUnique = async () => ({
     id: "task_candidate_binding",
     title: "AI 自动导演",
@@ -59,6 +69,83 @@ test("task detail exposes candidate-stage bound model before directorInput exist
   try {
     const detail = await adapter.detail("task_candidate_binding");
     assert.ok(detail);
+    assert.equal(detail.provider, "openai");
+    assert.equal(detail.model, "route-planner-model");
+    assert.deepEqual(detail.meta.llm, {
+      provider: "openai",
+      model: "route-planner-model",
+      temperature: 0.31,
+    });
+  } finally {
+    prisma.novelWorkflowTask.findUnique = originals.findUnique;
+    prisma.modelRouteConfig.findUnique = originals.routeFindUnique;
+    adapter.workflowService.healAutoDirectorTaskState = originalHeal;
+  }
+});
+
+test("task detail exposes explicit task model when auto director seed is task-bound", async () => {
+  const originals = {
+    findUnique: prisma.novelWorkflowTask.findUnique,
+    routeFindUnique: prisma.modelRouteConfig.findUnique,
+  };
+
+  prisma.modelRouteConfig.findUnique = async ({ where }) => ({
+    taskType: where.taskType,
+    provider: "openai",
+    model: "route-planner-model",
+    temperature: 0.31,
+    maxTokens: null,
+    requestProtocol: "openai_compatible",
+    structuredResponseFormat: "json_object",
+  });
+  prisma.novelWorkflowTask.findUnique = async () => ({
+    id: "task_bound_model",
+    title: "AI 自动导演",
+    lane: "auto_director",
+    status: "failed",
+    progress: 0.1,
+    currentStage: "AI 自动导演",
+    currentItemKey: "candidate_direction_batch",
+    currentItemLabel: "正在生成第一批书级方案",
+    checkpointType: null,
+    checkpointSummary: null,
+    resumeTargetJson: null,
+    attemptCount: 1,
+    maxAttempts: 3,
+    lastError: null,
+    createdAt: new Date("2026-04-09T09:00:00.000Z"),
+    updatedAt: new Date("2026-04-09T09:05:00.000Z"),
+    heartbeatAt: new Date("2026-04-09T09:05:00.000Z"),
+    promptTokens: 1200,
+    completionTokens: 600,
+    totalTokens: 1800,
+    llmCallCount: 2,
+    lastTokenRecordedAt: new Date("2026-04-09T09:05:00.000Z"),
+    novelId: null,
+    novel: null,
+    startedAt: new Date("2026-04-09T09:00:00.000Z"),
+    finishedAt: null,
+    cancelRequestedAt: null,
+    milestonesJson: null,
+    seedPayloadJson: JSON.stringify({
+      idea: "A courier discovers a hidden rule-bound city underworld.",
+      provider: "custom_coding_plan",
+      model: "kimi-k2.5",
+      temperature: 0.8,
+      llmBindingMode: "task",
+      candidateStage: {
+        mode: "generate",
+      },
+    }),
+  });
+
+  const adapter = new NovelWorkflowTaskAdapter();
+  const originalHeal = adapter.workflowService.healAutoDirectorTaskState;
+  adapter.workflowService.healAutoDirectorTaskState = async () => false;
+
+  try {
+    const detail = await adapter.detail("task_bound_model");
+    assert.ok(detail);
     assert.equal(detail.provider, "custom_coding_plan");
     assert.equal(detail.model, "kimi-k2.5");
     assert.deepEqual(detail.meta.llm, {
@@ -68,6 +155,7 @@ test("task detail exposes candidate-stage bound model before directorInput exist
     });
   } finally {
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
+    prisma.modelRouteConfig.findUnique = originals.routeFindUnique;
     adapter.workflowService.healAutoDirectorTaskState = originalHeal;
   }
 });

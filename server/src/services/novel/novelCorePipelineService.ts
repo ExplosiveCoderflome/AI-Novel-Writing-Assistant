@@ -346,8 +346,8 @@ export class NovelCorePipelineService {
         matchedChapters: chapters.length,
         availableRange: `${chapterStats._min.order ?? 1}-${chapterStats._max.order ?? 1}`,
         maxRetries: options.maxRetries ?? 1,
-        provider: options.provider ?? "deepseek",
-        model: options.model ?? "",
+        provider: options.provider ?? "route",
+        model: options.model ?? "route",
       });
 
       const job = await prisma.generationJob.create({
@@ -367,9 +367,9 @@ export class NovelCorePipelineService {
           maxRetries: options.maxRetries ?? 1,
           currentStage: "queued",
           payload: this.stringifyPipelinePayload({
-            provider: options.provider ?? "deepseek",
-            model: options.model ?? "",
-            temperature: options.temperature ?? 0.8,
+            provider: options.provider,
+            model: options.model,
+            temperature: options.temperature,
             controlPolicy: options.controlPolicy,
             workflowTaskId: options.workflowTaskId?.trim() || undefined,
             taskStyleProfileId: options.taskStyleProfileId?.trim() || undefined,
@@ -550,9 +550,9 @@ export class NovelCorePipelineService {
     });
     const persistedPayload = this.parsePipelinePayload(existingJob?.payload);
     const runtimePayload: PipelinePayload = {
-      provider: persistedPayload.provider ?? options.provider ?? "deepseek",
-      model: persistedPayload.model ?? options.model ?? "",
-      temperature: persistedPayload.temperature ?? options.temperature ?? 0.8,
+      provider: persistedPayload.provider ?? options.provider,
+      model: persistedPayload.model ?? options.model,
+      temperature: persistedPayload.temperature ?? options.temperature,
       controlPolicy: persistedPayload.controlPolicy ?? options.controlPolicy,
       workflowTaskId: persistedPayload.workflowTaskId ?? options.workflowTaskId,
       taskStyleProfileId: persistedPayload.taskStyleProfileId ?? options.taskStyleProfileId,
@@ -675,16 +675,16 @@ export class NovelCorePipelineService {
             novelId,
             chapter.id,
             {
-              provider: options.provider,
-              model: options.model,
-              temperature: options.temperature,
+              provider: runtimePayload.provider,
+              model: runtimePayload.model,
+              temperature: runtimePayload.temperature,
               controlPolicy: runtimePayload.controlPolicy,
               taskStyleProfileId: runtimePayload.taskStyleProfileId,
               maxRetries,
-              autoReview: options.autoReview,
-              autoRepair: options.autoRepair,
+              autoReview: runtimePayload.autoReview,
+              autoRepair: runtimePayload.autoRepair,
               qualityThreshold,
-              repairMode: options.repairMode,
+              repairMode: runtimePayload.repairMode,
             },
             {
               onCheckCancelled: () => this.ensurePipelineNotCancelled(jobId),

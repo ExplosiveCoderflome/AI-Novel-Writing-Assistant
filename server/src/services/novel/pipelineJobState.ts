@@ -231,9 +231,9 @@ export function stringifyPipelinePayload(input: PipelinePayload): string {
   const qualityAlertDetails = normalizeStringList(input.qualityAlertDetails) ?? [];
   const backgroundSync = normalizePipelineBackgroundSync(input.backgroundSync);
   return JSON.stringify({
-    provider: input.provider ?? "deepseek",
-    model: input.model ?? "",
-    temperature: input.temperature ?? 0.8,
+    ...(input.provider ? { provider: input.provider } : {}),
+    ...(input.model?.trim() ? { model: input.model.trim() } : {}),
+    ...(typeof input.temperature === "number" ? { temperature: input.temperature } : {}),
     ...(input.workflowTaskId?.trim() ? { workflowTaskId: input.workflowTaskId.trim() } : {}),
     ...(input.controlPolicy ? { controlPolicy: input.controlPolicy } : {}),
     ...(typeof input.maxRetries === "number" ? { maxRetries: input.maxRetries } : {}),
