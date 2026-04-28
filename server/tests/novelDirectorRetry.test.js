@@ -448,6 +448,32 @@ test("continueTask ignores stale candidate-stage state after the workflow has en
   }
 });
 
+test("resolveAssetFirstRecovery uses the runtime default resolver without recursive callback", async () => {
+  const service = new NovelDirectorService();
+  const originalResolveFromAssets = service.continueRuntime.resolveAssetFirstRecoveryFromAvailableAssets;
+  const calls = [];
+
+  service.continueRuntime.resolveAssetFirstRecoveryFromAvailableAssets = async (input) => {
+    calls.push(input);
+    return null;
+  };
+
+  try {
+    const result = await service.resolveAssetFirstRecovery({
+      novelId: "novel_no_recursion",
+      directorInput: buildDirectorInput({
+        workflowTaskId: "task_no_recursion",
+      }),
+    });
+
+    assert.equal(result, null);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].novelId, "novel_no_recursion");
+  } finally {
+    service.continueRuntime.resolveAssetFirstRecoveryFromAvailableAssets = originalResolveFromAssets;
+  }
+});
+
 test("continueTask resumes auto-director tasks that are still marked running after manual-recovery pause", async () => {
   const service = new NovelDirectorService();
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;

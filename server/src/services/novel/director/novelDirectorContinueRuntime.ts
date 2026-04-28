@@ -349,6 +349,13 @@ export class NovelDirectorContinueRuntime {
     if (this.deps.resolveAssetFirstRecovery) {
       return this.deps.resolveAssetFirstRecovery(input);
     }
+    return this.resolveAssetFirstRecoveryFromAvailableAssets(input);
+  }
+
+  async resolveAssetFirstRecoveryFromAvailableAssets(input: {
+    novelId: string;
+    directorInput: DirectorConfirmRequest;
+  }): Promise<DirectorAssetFirstRecovery> {
     const takeoverState = await loadDirectorTakeoverState({
       novelId: input.novelId,
       autoExecutionPlan: input.directorInput.autoExecutionPlan,

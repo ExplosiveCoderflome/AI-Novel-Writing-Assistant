@@ -315,7 +315,7 @@ export class NovelDirectorService {
   async resolveAssetFirstRecovery(
     input: Parameters<NovelDirectorContinueRuntime["resolveAssetFirstRecovery"]>[0],
   ): ReturnType<NovelDirectorContinueRuntime["resolveAssetFirstRecovery"]> {
-    return this.continueRuntime.resolveAssetFirstRecovery(input);
+    return this.continueRuntime.resolveAssetFirstRecoveryFromAvailableAssets(input);
   }
 
   async runDirectorPipeline(
