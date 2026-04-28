@@ -70,6 +70,53 @@ test("task detail exposes candidate-stage bound model before directorInput exist
   }
 });
 
+test("auto-director retry resumes failed tasks by default", async () => {
+  const originals = {
+    archiveFindUnique: prisma.taskCenterArchive.findUnique,
+  };
+  const adapter = new NovelWorkflowTaskAdapter();
+  const originalGetTaskById = adapter.workflowService.getTaskById;
+  const originalRetryTask = adapter.workflowService.retryTask;
+  const originalContinueTask = adapter.novelDirectorService.continueTask;
+  const originalDetail = adapter.detail;
+  const calls = [];
+
+  prisma.taskCenterArchive.findUnique = async () => null;
+  adapter.workflowService.getTaskById = async () => ({
+    id: "task_failed_auto_director",
+    lane: "auto_director",
+    status: "failed",
+  });
+  adapter.workflowService.retryTask = async (taskId) => {
+    calls.push(["retry", taskId]);
+  };
+  adapter.novelDirectorService.continueTask = async (taskId, input) => {
+    calls.push(["continue", taskId, input]);
+  };
+  adapter.detail = async (taskId) => ({
+    id: taskId,
+    kind: "novel_workflow",
+  });
+
+  try {
+    const detail = await adapter.retry({
+      id: "task_failed_auto_director",
+    });
+
+    assert.equal(detail.id, "task_failed_auto_director");
+    assert.deepEqual(calls, [
+      ["retry", "task_failed_auto_director"],
+      ["continue", "task_failed_auto_director", { batchAlreadyStartedCount: undefined }],
+    ]);
+  } finally {
+    prisma.taskCenterArchive.findUnique = originals.archiveFindUnique;
+    adapter.workflowService.getTaskById = originalGetTaskById;
+    adapter.workflowService.retryTask = originalRetryTask;
+    adapter.novelDirectorService.continueTask = originalContinueTask;
+    adapter.detail = originalDetail;
+  }
+});
+
 test("task center list only queries auto director workflow rows", async () => {
   const originals = {
     findMany: prisma.novelWorkflowTask.findMany,

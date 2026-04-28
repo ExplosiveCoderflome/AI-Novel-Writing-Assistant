@@ -631,6 +631,7 @@ export default function TaskCenterPage() {
                           retryMutation.mutate({
                             kind: selectedTask.kind,
                             id: selectedTask.id,
+                            resume: isAutoDirectorTask ? true : undefined,
                           })
                         }
                         disabled={retryMutation.isPending}

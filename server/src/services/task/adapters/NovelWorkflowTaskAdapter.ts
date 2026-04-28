@@ -518,8 +518,12 @@ export class NovelWorkflowTaskAdapter {
     if (row.lane === "auto_director" && llmOverride) {
       await this.workflowService.applyAutoDirectorLlmOverride(id, llmOverride);
     }
+    const shouldResumeAutoDirector = row.lane === "auto_director" && (
+      resume === true
+      || (resume !== false && (row.status === "failed" || row.status === "cancelled"))
+    );
     await this.workflowService.retryTask(id);
-    if (row.lane === "auto_director" && resume) {
+    if (shouldResumeAutoDirector) {
       await this.novelDirectorService.continueTask(id, {
         batchAlreadyStartedCount,
       });
