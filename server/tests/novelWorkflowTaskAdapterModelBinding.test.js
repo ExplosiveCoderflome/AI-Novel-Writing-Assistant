@@ -52,7 +52,9 @@ test("task detail exposes candidate-stage bound model before directorInput exist
 
   const adapter = new NovelWorkflowTaskAdapter();
   const originalHeal = adapter.workflowService.healAutoDirectorTaskState;
-  adapter.workflowService.healAutoDirectorTaskState = async () => false;
+  adapter.workflowService.healAutoDirectorTaskState = async () => {
+    throw new Error("task detail refresh must not heal workflow task state");
+  };
 
   try {
     const detail = await adapter.detail("task_candidate_binding");
@@ -64,6 +66,71 @@ test("task detail exposes candidate-stage bound model before directorInput exist
       model: "kimi-k2.5",
       temperature: 0.8,
     });
+  } finally {
+    prisma.novelWorkflowTask.findUnique = originals.findUnique;
+    adapter.workflowService.healAutoDirectorTaskState = originalHeal;
+  }
+});
+
+test("task detail only heals workflow state when explicitly requested", async () => {
+  const originals = {
+    findUnique: prisma.novelWorkflowTask.findUnique,
+  };
+  const healCalls = [];
+
+  prisma.novelWorkflowTask.findUnique = async () => ({
+    id: "task_detail_explicit_heal",
+    title: "AI 自动导演",
+    lane: "auto_director",
+    status: "running",
+    progress: 0.42,
+    currentStage: "章节执行",
+    currentItemKey: "chapter_execution",
+    currentItemLabel: "正在执行第 6 章",
+    checkpointType: null,
+    checkpointSummary: null,
+    resumeTargetJson: null,
+    attemptCount: 1,
+    maxAttempts: 3,
+    lastError: null,
+    createdAt: new Date("2026-04-09T09:00:00.000Z"),
+    updatedAt: new Date("2026-04-09T09:05:00.000Z"),
+    heartbeatAt: new Date("2026-04-09T09:05:00.000Z"),
+    promptTokens: 1200,
+    completionTokens: 600,
+    totalTokens: 1800,
+    llmCallCount: 2,
+    lastTokenRecordedAt: new Date("2026-04-09T09:05:00.000Z"),
+    novelId: "novel_detail",
+    novel: {
+      title: "示例小说",
+    },
+    startedAt: new Date("2026-04-09T09:00:00.000Z"),
+    finishedAt: null,
+    cancelRequestedAt: null,
+    milestonesJson: null,
+    seedPayloadJson: JSON.stringify({
+      provider: "openai",
+      model: "glm-5",
+      temperature: 0.7,
+    }),
+  });
+
+  const adapter = new NovelWorkflowTaskAdapter();
+  const originalHeal = adapter.workflowService.healAutoDirectorTaskState;
+  adapter.workflowService.healAutoDirectorTaskState = async (taskId) => {
+    healCalls.push(taskId);
+    return false;
+  };
+
+  try {
+    const readOnlyDetail = await adapter.detail("task_detail_explicit_heal");
+    assert.ok(readOnlyDetail);
+    assert.deepEqual(healCalls, []);
+
+    const healedDetail = await adapter.detail("task_detail_explicit_heal", { heal: true });
+    assert.ok(healedDetail);
+    assert.deepEqual(healCalls, ["task_detail_explicit_heal"]);
   } finally {
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
     adapter.workflowService.healAutoDirectorTaskState = originalHeal;

@@ -381,7 +381,7 @@ export class NovelWorkflowTaskAdapter {
     if (await isTaskArchived("novel_workflow", id)) {
       return null;
     }
-    if (options.heal !== false) {
+    if (options.heal === true) {
       await this.workflowService.healAutoDirectorTaskState(id);
     }
 
