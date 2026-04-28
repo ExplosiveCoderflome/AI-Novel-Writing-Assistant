@@ -48,6 +48,7 @@ import { NovelDirectorAutoExecutionRuntime } from "./novelDirectorAutoExecutionR
 import {
   loadDirectorTakeoverState,
 } from "./novelDirectorTakeoverRuntime";
+import { getDirectorTakeoverNodeAdapter } from "./novelDirectorTakeoverNodeAdapters";
 import { startDirectorTakeoverExecution } from "./novelDirectorTakeoverExecution";
 import {
   resetDirectorTakeoverCurrentStep,
@@ -439,6 +440,7 @@ export class NovelDirectorService {
       },
       buildDirectorSeedPayload: (request, novelId, extra) => this.buildDirectorSeedPayload(request, novelId, extra),
       scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, async () => {
+        const adapter = getDirectorTakeoverNodeAdapter();
         await this.directorRuntime.initializeRun({
           taskId,
           novelId: input.novelId,
@@ -450,32 +452,12 @@ export class NovelDirectorService {
           taskId,
           analysis: takeoverWorkspaceAnalysis,
         });
-        await this.directorRuntime.recordStepStarted({
+        await this.directorRuntimeOrchestrator.runNode({
+          ...adapter,
           taskId,
           novelId: input.novelId,
-          nodeKey: "takeover_execution",
-          label: "执行 AI 自动导演接管",
-          targetType: "global",
+          runner,
         });
-        try {
-          await runner();
-          await this.directorRuntimeOrchestrator.refreshWorkspaceAfterNode({
-            taskId,
-            novelId: input.novelId,
-            nodeKey: "takeover_execution",
-            label: "执行 AI 自动导演接管",
-          });
-        } catch (error) {
-          await this.directorRuntime.recordStepFailed({
-            taskId,
-            novelId: input.novelId,
-            nodeKey: "takeover_execution",
-            label: "执行 AI 自动导演接管",
-            targetType: "global",
-            error: error instanceof Error ? error.message : String(error),
-          });
-          throw error;
-        }
       }),
       runDirectorPipeline: (payload) => this.directorPipelineRuntime.runPipeline(payload),
       assertHighMemoryStartAllowed: (payload) => this.assertHighMemoryDirectorStartAllowed(payload),
