@@ -7,6 +7,7 @@ import {
   compactDirectorArtifactDependencies,
   normalizeDirectorArtifactTargets,
   stableDirectorContentHash,
+  reconcileDirectorArtifactLedger,
   summarizeDirectorArtifactLedger,
   type DirectorArtifactLedgerSummary,
   type DirectorArtifactTarget,
@@ -131,6 +132,7 @@ export interface DirectorWorkspaceArtifactInventoryInput {
   }>;
   draftedChapterCount: number;
   pendingRepairChapterCount: number;
+  persistedArtifacts?: DirectorArtifactRef[] | null;
 }
 
 export interface DirectorWorkspaceArtifactInventoryResult {
@@ -231,7 +233,10 @@ export function buildDirectorWorkspaceArtifactInventory(
   pushAuditReportArtifacts(artifactTargets, input);
   pushRollingWindowReviewArtifacts(artifactTargets, input, auditArtifactIdsByChapter, continuityArtifactIdsByChapter);
 
-  const artifacts = normalizeDirectorArtifactTargets(artifactTargets, input.novelId);
+  const backfilledArtifacts = normalizeDirectorArtifactTargets(artifactTargets, input.novelId);
+  const artifacts = input.persistedArtifacts?.length
+    ? reconcileDirectorArtifactLedger(input.persistedArtifacts, backfilledArtifacts).artifacts
+    : backfilledArtifacts;
   const ledgerSummary = summarizeDirectorArtifactLedger(artifacts, buildExpectedArtifactTypes({
     hasBookContract: Boolean(input.bookContract),
     hasStoryMacro: Boolean(input.storyMacro),

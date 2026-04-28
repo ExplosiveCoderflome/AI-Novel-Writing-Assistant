@@ -43,6 +43,60 @@ test("director runtime policy protects user-edited artifacts from overwrite", ()
   assert.equal(decision.mayOverwriteUserContent, true);
 });
 
+test("director runtime policy treats possible chapter writes as safe until protected content is affected", () => {
+  const engine = new DirectorPolicyEngine();
+  const decision = engine.decide({
+    action: "run_node",
+    mode: "run_until_gate",
+    mayOverwriteUserContent: true,
+    affectedArtifacts: [
+      {
+        id: "chapter_draft:chapter:c1:Chapter:c1",
+        novelId: "novel-1",
+        artifactType: "chapter_draft",
+        targetType: "chapter",
+        targetId: "c1",
+        version: 1,
+        status: "active",
+        source: "ai_generated",
+        contentRef: { table: "Chapter", id: "c1" },
+        schemaVersion: "test",
+      },
+    ],
+  });
+
+  assert.equal(decision.canRun, true);
+  assert.equal(decision.requiresApproval, false);
+  assert.equal(decision.mayOverwriteUserContent, false);
+});
+
+test("director runtime policy also protects artifacts explicitly marked as user content", () => {
+  const engine = new DirectorPolicyEngine();
+  const decision = engine.decide({
+    action: "run_node",
+    mode: "auto_safe_scope",
+    affectedArtifacts: [
+      {
+        id: "chapter_draft:chapter:c2:Chapter:c2",
+        novelId: "novel-1",
+        artifactType: "chapter_draft",
+        targetType: "chapter",
+        targetId: "c2",
+        version: 1,
+        status: "active",
+        source: "ai_generated",
+        protectedUserContent: true,
+        contentRef: { table: "Chapter", id: "c2" },
+        schemaVersion: "test",
+      },
+    ],
+  });
+
+  assert.equal(decision.canRun, false);
+  assert.equal(decision.requiresApproval, true);
+  assert.equal(decision.mayOverwriteUserContent, true);
+});
+
 test("director runtime policy allows one automatic repair attempt", () => {
   const engine = new DirectorPolicyEngine();
   const decision = engine.decide({

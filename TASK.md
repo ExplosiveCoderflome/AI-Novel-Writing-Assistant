@@ -1115,4 +1115,39 @@ P2 重点解决：
 进度记录：
 - 2026-04-26 14:27 [开发中] 已新增角色系统升级长期方案文档和第一期开发方案，并与角色资源账本文档建立互链
 <!-- task-md-sync:item:task-3ae84511d6:end -->
+<!-- task-md-sync:item:task-ab0ec9ac7b:start -->
+### 自动导演执行节点用户内容保护
+- 标识：`task-ab0ec9ac7b`
+- 状态：已完成
+- 最近更新：2026-04-28 21:53
+- 概要：已补齐自动导演执行节点的用户内容保护：章节正文写入和修复节点会通过 PolicyEngine 判断受保护正文覆盖风险。
+
+计划清单：
+- [ ] 已调整章节执行与章节修复 Step Module/Node Adapter 的写入风险标记
+- [ ] 已完善 PolicyEngine 对潜在写入与真实受保护产物的区分，避免无用户正文时误阻断
+- [ ] 已补充定向测试，验证用户编辑正文会触发审批，普通 AI 产物可继续执行
+
+进度记录：
+- 2026-04-28 21:53 [已完成] 已完成章节执行/修复节点的用户内容保护接入：写入型节点会把已有相关产物交给 PolicyEngine 判断，用户编辑或受保护正文会要求确认；服务端 typecheck/build 与 22 个定向测试已通过。
+<!-- task-md-sync:item:task-ab0ec9ac7b:end -->
+<!-- task-md-sync:item:task-87bf3232fd:start -->
+### 自动导演完整统一运行时
+- 标识：`task-87bf3232fd`
+- 状态：开发中
+- 最近更新：2026-04-28 22:45
+- 概要：优先完成自动导演正常主流程：新建确认、规划、拆章、章节执行、服务重启恢复、失败重试与用户内容保护先跑稳；创作中枢闭环暂后置。
+
+计划清单：
+- [ ] 正常主流程收口：候选确认、建书、story_macro、character_setup、volume_strategy、structured_outline、章节执行和质量修复继续迁入 Step Module -> NodeRunner -> PolicyEngine。
+- [ ] 恢复链稳定：服务重启后的待手动恢复、用户确认继续、失败重试、章节批次恢复都要留下 Runtime event，并从最后可信 step/artifact 继续。
+- [ ] PolicyEngine 硬 gate：正常流程内的写入、覆盖用户内容、高风险修复和高成本审校先过策略判断，自动修复预算保持一次。
+- [ ] Artifact Ledger 正常流真相：DirectorRun/StepRun/Event/Artifact/Dependency 已落 additive schema 与双写，Workspace Analyzer 已优先合并持久化 ledger，再用旧表 backfill。
+- [ ] 质量闭环：reader_promise、chapter_retention_contract、continuity_state、rolling_window_review、character_governance_state 先服务正常章节执行与局部修复闭环。
+- [ ] LangGraph 低风险接入暂保持试点，不改主执行链；业务真相仍在 Runtime/Policy/Ledger/NodeRunner。
+- [ ] 创作中枢闭环暂后置：保留已有工具能力，不作为当前继续开发重点。
+- [ ] 技术债收口：继续拆分旧主流程服务、DirectorRuntimeStore 和 workflow registry，NovelDirectorService 不再承接新的主编排。
+
+进度记录：
+- 2026-04-28 22:45 [开发中] 按用户要求已把优先级切回完整正常流程，暂不继续扩创作中枢。本轮新增 run_resumed 运行时事件，并在 continueTask 的正常恢复链中记录手动恢复确认/继续请求；server typecheck/build 与 31 个 runtime、恢复、章节执行定向测试通过。
+<!-- task-md-sync:item:task-87bf3232fd:end -->
 <!-- task-md-sync:end -->

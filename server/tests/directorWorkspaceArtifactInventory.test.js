@@ -9,6 +9,34 @@ function row(id) {
   return { id, updatedAt: "2026-04-28T01:00:00.000Z" };
 }
 
+function emptyInventoryInput(overrides = {}) {
+  return {
+    novelId: "novel-1",
+    hasWorldBinding: false,
+    hasSourceKnowledge: false,
+    hasContinuationAnalysis: false,
+    bookContract: null,
+    storyMacro: null,
+    characterCount: 0,
+    latestCharacter: null,
+    volumePlans: [],
+    chapterPlanCount: 0,
+    volumeChapterPlans: [],
+    world: null,
+    sourceKnowledgeDocument: null,
+    continuationBookAnalysis: null,
+    chapters: [],
+    qualityReports: [],
+    auditReports: [],
+    storyStateSnapshots: [],
+    payoffLedgerItems: [],
+    characterResourceItems: [],
+    draftedChapterCount: 0,
+    pendingRepairChapterCount: 0,
+    ...overrides,
+  };
+}
+
 test("workspace artifact inventory links chapter task sheets to upstream planning assets", () => {
   const result = buildDirectorWorkspaceArtifactInventory({
     novelId: "novel-1",
@@ -129,4 +157,32 @@ test("workspace artifact inventory links chapter task sheets to upstream plannin
     "chapter_retention_contract:chapter:chapter-1:VolumeChapterPlan:volume-chapter-1",
     "chapter_draft:chapter:chapter-1:Chapter:chapter-1",
   ].sort());
+});
+
+test("workspace artifact inventory uses persisted ledger artifacts before legacy backfill", () => {
+  const persistedDraft = {
+    id: "chapter_draft:chapter:chapter-9:Chapter:chapter-9",
+    novelId: "novel-1",
+    artifactType: "chapter_draft",
+    targetType: "chapter",
+    targetId: "chapter-9",
+    version: 2,
+    status: "active",
+    source: "user_edited",
+    contentRef: { table: "Chapter", id: "chapter-9" },
+    contentHash: "persisted-hash",
+    schemaVersion: "runtime-ledger-v1",
+    protectedUserContent: null,
+    updatedAt: "2026-04-28T03:00:00.000Z",
+  };
+  const result = buildDirectorWorkspaceArtifactInventory(emptyInventoryInput({
+    persistedArtifacts: [persistedDraft],
+  }));
+
+  const draft = result.artifacts.find((artifact) => artifact.id === persistedDraft.id);
+
+  assert.ok(draft);
+  assert.equal(draft.source, "user_edited");
+  assert.equal(draft.version, 2);
+  assert.equal(result.ledgerSummary.protectedUserContentArtifacts.map((artifact) => artifact.id).includes(persistedDraft.id), true);
 });

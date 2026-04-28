@@ -195,7 +195,9 @@ export function reconcileDirectorArtifactLedger(
       ...next,
       version,
       status: next.status,
-      source: next.source,
+      source: next.source === "backfilled" && existing.source !== "backfilled"
+        ? existing.source
+        : next.source,
       contentHash: next.contentHash ?? existing.contentHash ?? null,
       promptAssetKey: next.promptAssetKey ?? existing.promptAssetKey ?? null,
       promptVersion: next.promptVersion ?? existing.promptVersion ?? null,

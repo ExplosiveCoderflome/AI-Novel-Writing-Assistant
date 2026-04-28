@@ -6,6 +6,15 @@ import type {
 import { DirectorPolicyEngine, type DirectorPolicyRequest } from "./DirectorPolicyEngine";
 import { DirectorRuntimeStore } from "./DirectorRuntimeStore";
 
+function buildNodeIdempotencyKey(input: {
+  taskId: string;
+  nodeKey: string;
+  targetType?: DirectorStepRun["targetType"];
+  targetId?: string | null;
+}): string {
+  return `${input.taskId}:${input.nodeKey}:${input.targetType ?? "global"}:${input.targetId ?? "global"}`;
+}
+
 export interface DirectorNodeContract<TInput, TOutput> {
   nodeKey: string;
   label: string;
@@ -49,6 +58,25 @@ export class DirectorNodeRunner {
     const snapshot = input.taskId?.trim()
       ? await this.runtimeStore.getSnapshot(input.taskId.trim())
       : null;
+    const idempotencyKey = input.taskId?.trim()
+      ? buildNodeIdempotencyKey({
+        taskId: input.taskId.trim(),
+        nodeKey: contract.nodeKey,
+        targetType: input.targetType,
+        targetId: input.targetId,
+      })
+      : null;
+    const completedStep = idempotencyKey
+      ? snapshot?.steps.find((step) => step.idempotencyKey === idempotencyKey && step.status === "succeeded")
+      : null;
+    if (completedStep) {
+      return {
+        status: "completed",
+        runtimeSnapshot: snapshot,
+        producedArtifacts: completedStep.producedArtifacts ?? [],
+        reason: "该导演节点已成功完成，本次复用已有运行记录。",
+      };
+    }
     const policyDecision = this.policyEngine.decide({
       mayOverwriteUserContent: contract.mayModifyUserContent,
       requiresApprovalByDefault: contract.requiresApprovalByDefault,

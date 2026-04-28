@@ -126,6 +126,67 @@ test("director node runner records target-scoped step completion", async () => {
   assert.equal(store.calls[1].input.producedArtifacts.length, 1);
 });
 
+test("director node runner reuses completed idempotent step without rerunning", async () => {
+  let executed = false;
+  const store = buildStore(buildSnapshot({
+    mode: "run_until_gate",
+    mayOverwriteUserContent: false,
+    maxAutoRepairAttempts: 1,
+    allowExpensiveReview: false,
+    modelTier: "balanced",
+    updatedAt: "2026-04-28T00:00:00.000Z",
+  }));
+  store.getSnapshot = async () => ({
+    ...buildSnapshot({
+      mode: "run_until_gate",
+      mayOverwriteUserContent: false,
+      maxAutoRepairAttempts: 1,
+      allowExpensiveReview: false,
+      modelTier: "balanced",
+      updatedAt: "2026-04-28T00:00:00.000Z",
+    }),
+    steps: [{
+      idempotencyKey: "task-1:chapter_execution_node:chapter:chapter-1",
+      nodeKey: "chapter_execution_node",
+      label: "执行章节节点",
+      status: "succeeded",
+      targetType: "chapter",
+      targetId: "chapter-1",
+      startedAt: "2026-04-28T00:00:01.000Z",
+      finishedAt: "2026-04-28T00:00:02.000Z",
+      producedArtifacts: [{
+        id: "chapter_draft:chapter:chapter-1:Chapter:chapter-1",
+        novelId: "novel-1",
+        artifactType: "chapter_draft",
+        targetType: "chapter",
+        targetId: "chapter-1",
+        version: 1,
+        status: "active",
+        source: "ai_generated",
+        contentRef: { table: "Chapter", id: "chapter-1" },
+        schemaVersion: "test",
+      }],
+    }],
+  });
+  const runner = new DirectorNodeRunner(store, new DirectorPolicyEngine());
+
+  const result = await runner.run(buildContract(async () => {
+    executed = true;
+    return { ok: true };
+  }), {
+    taskId: "task-1",
+    novelId: "novel-1",
+    targetType: "chapter",
+    targetId: "chapter-1",
+    input: undefined,
+  });
+
+  assert.equal(executed, false);
+  assert.equal(result.status, "completed");
+  assert.equal(result.producedArtifacts.length, 1);
+  assert.equal(store.calls.length, 0);
+});
+
 test("director node runner passes contract policy action into policy decisions", async () => {
   const store = buildStore(buildSnapshot({
     mode: "run_until_gate",

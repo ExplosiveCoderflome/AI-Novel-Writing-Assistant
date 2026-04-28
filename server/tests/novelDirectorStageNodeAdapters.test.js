@@ -20,7 +20,7 @@ test("director planning stages expose standard node adapter contracts", () => {
     assert.equal(adapter.targetType, "novel", stage);
     assert.ok(adapter.reads.length > 0, `${stage} should declare reads`);
     assert.ok(adapter.writes.length > 0, `${stage} should declare writes`);
-    assert.equal(adapter.mayModifyUserContent, false, stage);
+    assert.equal(adapter.mayModifyUserContent, true, stage);
     assert.equal(adapter.requiresApprovalByDefault, false, stage);
     assert.equal(adapter.supportsAutoRetry, false, stage);
     assert.equal(typeof adapter.waitingState.stage, "string", stage);

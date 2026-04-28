@@ -18,15 +18,18 @@ export interface DirectorPolicyRequest {
 }
 
 function hasProtectedUserContent(artifacts: DirectorArtifactRef[] | undefined): boolean {
-  return (artifacts ?? []).some((artifact) => artifact.source === "user_edited" && artifact.status === "active");
+  return (artifacts ?? []).some((artifact) => (
+    artifact.status === "active"
+    && (artifact.source === "user_edited" || artifact.protectedUserContent === true)
+  ));
 }
 
 export class DirectorPolicyEngine {
   decide(input: DirectorPolicyRequest): DirectorPolicyDecision {
     const policy = input.policy ?? buildDefaultDirectorPolicy(input.mode);
     const affectedArtifacts = (input.affectedArtifacts ?? []).map((artifact) => artifact.id);
-    const overwritesUserContent = input.mayOverwriteUserContent === true
-      || hasProtectedUserContent(input.affectedArtifacts);
+    const affectsProtectedUserContent = hasProtectedUserContent(input.affectedArtifacts);
+    const overwritesUserContent = affectsProtectedUserContent || input.action === "overwrite";
 
     if (input.action === "analyze") {
       return {

@@ -85,6 +85,23 @@ test("director artifact ledger marks dependents stale when dependency version ad
   assert.deepEqual(result.staleArtifacts.map((artifact) => artifact.id), [existingAudit.id]);
 });
 
+test("director artifact ledger keeps explicit content source when backfill refreshes the same artifact", () => {
+  const existingDraft = {
+    ...chapterDraft("hash-same"),
+    protectedUserContent: null,
+  };
+  const backfilledDraft = {
+    ...chapterDraft("hash-same"),
+    source: "backfilled",
+    protectedUserContent: null,
+  };
+  const result = reconcileDirectorArtifactLedger([existingDraft], [backfilledDraft]);
+
+  assert.equal(result.artifacts.length, 1);
+  assert.equal(result.artifacts[0].source, "user_edited");
+  assert.equal(result.artifacts[0].protectedUserContent, null);
+});
+
 test("director artifact targets normalize hashes and stable ids", () => {
   const artifacts = normalizeDirectorArtifactTargets([
     {

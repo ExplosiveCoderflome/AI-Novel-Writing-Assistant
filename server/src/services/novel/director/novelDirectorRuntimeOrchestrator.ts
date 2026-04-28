@@ -108,6 +108,15 @@ export class NovelDirectorRuntimeOrchestrator {
     runner: () => Promise<T>;
     collectArtifacts?: (output: T) => Promise<DirectorArtifactRef[]> | DirectorArtifactRef[];
   }): Promise<T> {
+    const affectedArtifacts = input.mayModifyUserContent
+      ? await this.collectAffectedArtifactsBeforeNode({
+        taskId: input.taskId,
+        novelId: input.novelId,
+        writes: input.writes,
+        targetType: input.targetType ?? "global",
+        targetId: input.targetId ?? null,
+      })
+      : [];
     const result = await this.deps.directorRuntime.runNode<void, {
       output: T;
       artifacts: DirectorArtifactRef[];
@@ -138,6 +147,7 @@ export class NovelDirectorRuntimeOrchestrator {
         targetType: input.targetType ?? "global",
         targetId: input.targetId ?? null,
         payload: undefined,
+        policy: affectedArtifacts.length > 0 ? { affectedArtifacts } : undefined,
       },
       (output) => output.artifacts,
     );
@@ -253,5 +263,38 @@ export class NovelDirectorRuntimeOrchestrator {
       return [];
     }
     return analysis.inventory.artifacts;
+  }
+
+  private async collectAffectedArtifactsBeforeNode(input: {
+    taskId: string;
+    novelId?: string | null;
+    writes: string[];
+    targetType?: DirectorArtifactRef["targetType"] | null;
+    targetId?: string | null;
+  }): Promise<DirectorArtifactRef[]> {
+    if (!input.novelId || input.writes.length === 0) {
+      return [];
+    }
+    const analysis = await this.deps.directorRuntime.analyzeWorkspace({
+      novelId: input.novelId,
+      workflowTaskId: input.taskId,
+      includeAiInterpretation: false,
+    }).catch(() => null);
+    if (!analysis) {
+      return [];
+    }
+    const writeTypes = new Set(input.writes);
+    return analysis.inventory.artifacts.filter((artifact) => {
+      if (!writeTypes.has(artifact.artifactType)) {
+        return false;
+      }
+      if (input.targetType && input.targetType !== "novel" && artifact.targetType !== input.targetType) {
+        return false;
+      }
+      if (input.targetId && input.targetType && input.targetType !== "novel" && artifact.targetId !== input.targetId) {
+        return false;
+      }
+      return artifact.status === "active";
+    });
   }
 }

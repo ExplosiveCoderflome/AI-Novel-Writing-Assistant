@@ -32,7 +32,7 @@ export const DIRECTOR_STAGE_NODE_ADAPTERS: Record<DirectorPlanningStage, Directo
     targetType: "novel",
     reads: ["book_seed", "candidate_batch"],
     writes: ["story_macro", "book_contract"],
-    mayModifyUserContent: false,
+    mayModifyUserContent: true,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
     waitingState: {
@@ -48,7 +48,7 @@ export const DIRECTOR_STAGE_NODE_ADAPTERS: Record<DirectorPlanningStage, Directo
     targetType: "novel",
     reads: ["book_contract", "story_macro"],
     writes: ["character_cast"],
-    mayModifyUserContent: false,
+    mayModifyUserContent: true,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
     waitingState: {
@@ -64,7 +64,7 @@ export const DIRECTOR_STAGE_NODE_ADAPTERS: Record<DirectorPlanningStage, Directo
     targetType: "novel",
     reads: ["book_contract", "story_macro", "character_cast"],
     writes: ["volume_strategy"],
-    mayModifyUserContent: false,
+    mayModifyUserContent: true,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
     waitingState: {
@@ -80,7 +80,7 @@ export const DIRECTOR_STAGE_NODE_ADAPTERS: Record<DirectorPlanningStage, Directo
     targetType: "novel",
     reads: ["volume_strategy", "character_cast"],
     writes: ["chapter_task_sheet"],
-    mayModifyUserContent: false,
+    mayModifyUserContent: true,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
     waitingState: {

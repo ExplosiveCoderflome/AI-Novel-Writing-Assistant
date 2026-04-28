@@ -19,6 +19,7 @@ import {
   buildDirectorManualEditImpactContextBlocks,
   directorManualEditImpactPrompt,
 } from "../../../../prompting/prompts/novel/directorManualEditImpact.prompts";
+import { normalizeDirectorArtifactRef } from "./DirectorArtifactLedger";
 import { DirectorRuntimeStore } from "./DirectorRuntimeStore";
 import { buildDirectorWorkspaceArtifactInventory } from "./DirectorWorkspaceArtifactInventory";
 
@@ -399,6 +400,7 @@ export class DirectorWorkspaceAnalyzer {
       activePipelineJob,
       activeDirectorRun,
       latestDirectorRun,
+      persistedArtifacts,
     ] = await Promise.all([
       prisma.bookContract.findUnique({
         where: { novelId },
@@ -578,6 +580,7 @@ export class DirectorWorkspaceAnalyzer {
         select: { id: true },
         orderBy: { updatedAt: "desc" },
       }),
+      this.loadPersistedArtifacts(novelId),
     ]);
 
     const draftedChapters = chapters.filter((chapter) => (
@@ -614,6 +617,7 @@ export class DirectorWorkspaceAnalyzer {
       characterResourceItems,
       draftedChapterCount: draftedChapters.length,
       pendingRepairChapterCount,
+      persistedArtifacts,
     });
 
     return {
@@ -639,5 +643,68 @@ export class DirectorWorkspaceAnalyzer {
       ...artifactInventory.ledgerSummary,
       artifacts: artifactInventory.artifacts,
     };
+  }
+
+  private async loadPersistedArtifacts(novelId: string): Promise<DirectorArtifactRef[]> {
+    const artifacts = await prisma.directorArtifact.findMany({
+      where: { novelId },
+      select: {
+        id: true,
+        runId: true,
+        novelId: true,
+        artifactType: true,
+        targetType: true,
+        targetId: true,
+        version: true,
+        status: true,
+        source: true,
+        contentTable: true,
+        contentId: true,
+        contentHash: true,
+        schemaVersion: true,
+        promptAssetKey: true,
+        promptVersion: true,
+        modelRoute: true,
+        sourceStepRunId: true,
+        protectedUserContent: true,
+        artifactUpdatedAt: true,
+        updatedAt: true,
+        dependencies: {
+          select: {
+            dependsOnArtifactId: true,
+            dependsOnVersion: true,
+          },
+        },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 300,
+    });
+    return artifacts.map((artifact) => normalizeDirectorArtifactRef({
+      id: artifact.id,
+      novelId: artifact.novelId,
+      runId: artifact.runId,
+      artifactType: artifact.artifactType as DirectorArtifactRef["artifactType"],
+      targetType: artifact.targetType as DirectorArtifactRef["targetType"],
+      targetId: artifact.targetId,
+      version: artifact.version,
+      status: artifact.status as DirectorArtifactRef["status"],
+      source: artifact.source as DirectorArtifactRef["source"],
+      contentRef: {
+        table: artifact.contentTable,
+        id: artifact.contentId,
+      },
+      contentHash: artifact.contentHash,
+      schemaVersion: artifact.schemaVersion,
+      promptAssetKey: artifact.promptAssetKey,
+      promptVersion: artifact.promptVersion,
+      modelRoute: artifact.modelRoute,
+      sourceStepRunId: artifact.sourceStepRunId,
+      protectedUserContent: artifact.protectedUserContent,
+      dependsOn: artifact.dependencies.map((dependency) => ({
+        artifactId: dependency.dependsOnArtifactId,
+        version: dependency.dependsOnVersion,
+      })),
+      updatedAt: artifact.artifactUpdatedAt?.toISOString() ?? artifact.updatedAt.toISOString(),
+    }));
   }
 }

@@ -24,7 +24,6 @@ test("director chapter execution adapters expose standard runtime contracts", ()
     assert.equal(adapter.targetType, "novel", stage);
     assert.ok(adapter.reads.length > 0, stage);
     assert.ok(adapter.writes.length > 0, stage);
-    assert.equal(adapter.mayModifyUserContent, false, stage);
     assert.equal(adapter.requiresApprovalByDefault, false, stage);
     assert.ok(["chapter_execution", "quality_repair"].includes(adapter.waitingState.stage), stage);
     assert.ok(["chapter_execution", "quality_repair"].includes(adapter.waitingState.itemKey), stage);
@@ -39,6 +38,7 @@ test("quality repair adapter declares repair ticket output and auto retry suppor
   assert.equal(adapter.nodeKey, "chapter_repair_node");
   assert.deepEqual(adapter.writes, ["chapter_draft", "audit_report", "repair_ticket"]);
   assert.equal(adapter.policyAction, "repair");
+  assert.equal(adapter.mayModifyUserContent, true);
   assert.equal(adapter.supportsAutoRetry, true);
 });
 
@@ -47,7 +47,19 @@ test("chapter execution adapter preserves the existing projected node key", () =
 
   assert.equal(adapter.nodeKey, "chapter_execution_node");
   assert.deepEqual(adapter.writes, ["chapter_draft"]);
+  assert.equal(adapter.mayModifyUserContent, true);
   assert.equal(adapter.supportsAutoRetry, false);
+});
+
+test("read-only execution projection nodes do not claim user content writes", () => {
+  for (const stage of [
+    "chapter_quality_review",
+    "chapter_state_commit",
+    "payoff_ledger_sync",
+    "character_resource_sync",
+  ]) {
+    assert.equal(getDirectorExecutionNodeAdapter(stage).mayModifyUserContent, false, stage);
+  }
 });
 
 test("chapter execution flow projects the standard post-execution nodes", () => {

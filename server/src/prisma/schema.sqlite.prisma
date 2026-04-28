@@ -385,6 +385,9 @@ model Novel {
   auditReports       AuditReport[]
   workflowTasks      NovelWorkflowTask[]
   autoApprovalRecords AutoDirectorAutoApprovalRecord[]
+  directorRuns       DirectorRun[]
+  directorEvents     DirectorEvent[]
+  directorArtifacts  DirectorArtifact[]
   createdAt          DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
@@ -1628,12 +1631,134 @@ model NovelWorkflowTask {
   lastTokenRecordedAt DateTime?
   novel              Novel?                  @relation(fields: [novelId], references: [id], onDelete: SetNull)
   autoApprovalRecords AutoDirectorAutoApprovalRecord[]
+  directorRun        DirectorRun?
+  directorSteps      DirectorStepRun[]
+  directorEvents     DirectorEvent[]
+  directorArtifacts  DirectorArtifact[]
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
 
   @@index([novelId, status, updatedAt])
   @@index([status, updatedAt])
   @@index([lane, updatedAt])
+}
+
+model DirectorRun {
+  id                         String             @id
+  taskId                     String             @unique
+  novelId                    String?
+  entrypoint                 String?
+  policyJson                 String
+  lastWorkspaceAnalysisJson  String?
+  task                       NovelWorkflowTask  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  novel                      Novel?             @relation(fields: [novelId], references: [id], onDelete: SetNull)
+  steps                      DirectorStepRun[]
+  events                     DirectorEvent[]
+  artifacts                  DirectorArtifact[]
+  createdAt                  DateTime           @default(now())
+  updatedAt                  DateTime           @updatedAt
+
+  @@index([novelId, updatedAt])
+}
+
+model DirectorStepRun {
+  id                    String            @id @default(cuid())
+  runId                 String
+  taskId                String
+  novelId               String?
+  idempotencyKey        String            @unique
+  nodeKey               String
+  label                 String
+  status                String
+  targetType            String?
+  targetId              String?
+  startedAt             DateTime
+  finishedAt            DateTime?
+  error                 String?
+  producedArtifactsJson String?
+  policyDecisionJson    String?
+  run                   DirectorRun       @relation(fields: [runId], references: [id], onDelete: Cascade)
+  task                  NovelWorkflowTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@index([runId, status, updatedAt])
+  @@index([taskId, nodeKey])
+  @@index([novelId, updatedAt])
+}
+
+model DirectorEvent {
+  id             String             @id
+  runId          String?
+  taskId         String?
+  novelId        String?
+  type           String
+  nodeKey        String?
+  artifactId     String?
+  artifactType   String?
+  summary        String
+  affectedScope  String?
+  severity       String?
+  metadataJson   String?
+  occurredAt     DateTime
+  run            DirectorRun?       @relation(fields: [runId], references: [id], onDelete: Cascade)
+  task           NovelWorkflowTask? @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  novel          Novel?             @relation(fields: [novelId], references: [id], onDelete: SetNull)
+  createdAt      DateTime           @default(now())
+
+  @@index([runId, occurredAt])
+  @@index([taskId, occurredAt])
+  @@index([novelId, occurredAt])
+  @@index([type, occurredAt])
+}
+
+model DirectorArtifact {
+  id                   String                       @id
+  runId                String?
+  novelId              String
+  taskId               String?
+  artifactType         String
+  targetType           String
+  targetId             String?
+  version              Int                          @default(1)
+  status               String
+  source               String
+  contentTable         String
+  contentId            String
+  contentHash          String?
+  schemaVersion        String
+  promptAssetKey       String?
+  promptVersion        String?
+  modelRoute           String?
+  sourceStepRunId      String?
+  protectedUserContent Boolean?
+  artifactUpdatedAt    DateTime?
+  run                  DirectorRun?                 @relation(fields: [runId], references: [id], onDelete: SetNull)
+  task                 NovelWorkflowTask?           @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  novel                Novel                        @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  dependencies         DirectorArtifactDependency[] @relation("DirectorArtifactDependencies")
+  dependents           DirectorArtifactDependency[] @relation("DirectorArtifactDependents")
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
+
+  @@index([novelId, artifactType, status])
+  @@index([runId, updatedAt])
+  @@index([taskId, updatedAt])
+  @@index([targetType, targetId])
+  @@index([sourceStepRunId])
+}
+
+model DirectorArtifactDependency {
+  id                  String           @id @default(cuid())
+  artifactId          String
+  dependsOnArtifactId String
+  dependsOnVersion    Int?
+  artifact            DirectorArtifact @relation("DirectorArtifactDependencies", fields: [artifactId], references: [id], onDelete: Cascade)
+  dependsOn           DirectorArtifact @relation("DirectorArtifactDependents", fields: [dependsOnArtifactId], references: [id], onDelete: Cascade)
+  createdAt           DateTime         @default(now())
+
+  @@unique([artifactId, dependsOnArtifactId])
+  @@index([dependsOnArtifactId])
 }
 
 model AutoDirectorAutoApprovalRecord {

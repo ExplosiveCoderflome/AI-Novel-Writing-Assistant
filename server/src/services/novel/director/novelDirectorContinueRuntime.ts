@@ -145,6 +145,14 @@ export class NovelDirectorContinueRuntime {
       policyMode: input?.continuationMode ? "auto_safe_scope" : "run_until_gate",
       summary: "自动导演任务从统一运行时继续。",
     });
+    await this.deps.directorRuntime.recordRunResumed({
+      taskId,
+      novelId,
+      summary: row.pendingManualRecovery
+        ? "用户确认后，自动导演从待手动恢复状态继续。"
+        : "自动导演按当前任务状态继续运行。",
+      reason: row.pendingManualRecovery ? "manual_recovery_confirmed" : "continue_requested",
+    });
     if (novelId) {
       await this.deps.directorRuntime.analyzeWorkspace({
         novelId,

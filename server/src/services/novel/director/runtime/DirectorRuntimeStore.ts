@@ -29,6 +29,47 @@ function stringifySeedPayload(payload: DirectorWorkflowSeedPayload): string {
   return JSON.stringify(payload);
 }
 
+function stringifyJson(value: unknown): string {
+  return JSON.stringify(value);
+}
+
+function parseJson<T>(value: string | null | undefined, fallback: T): T {
+  if (!value?.trim()) {
+    return fallback;
+  }
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function parseNullableJson<T>(value: string | null | undefined): T | null {
+  if (!value?.trim()) {
+    return null;
+  }
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+}
+
+function dateFromIso(value: string | null | undefined): Date | null {
+  if (!value) {
+    return null;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isoFromDate(value: Date | string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  return value instanceof Date ? value.toISOString() : value;
+}
+
 function normalizeRuntimeSnapshot(input: {
   taskId: string;
   novelId?: string | null;
@@ -127,6 +168,10 @@ export class DirectorRuntimeStore {
     if (!row) {
       return null;
     }
+    const persisted = await this.getPersistentSnapshot(taskId);
+    if (persisted) {
+      return persisted;
+    }
     const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(row.seedPayloadJson) ?? {};
     return normalizeRuntimeSnapshot({
       taskId: row.id,
@@ -173,7 +218,104 @@ export class DirectorRuntimeStore {
       }),
       { label: "directorRuntime.seedPayload.update" },
     );
+    await this.persistSnapshot({
+      taskId,
+      novelId: row.novelId,
+      snapshot: nextRuntime,
+    });
     return nextRuntime;
+  }
+
+  async getPersistentSnapshot(taskId: string): Promise<DirectorRuntimeSnapshot | null> {
+    const run = await prisma.directorRun.findUnique({
+      where: { taskId },
+      include: {
+        steps: {
+          orderBy: [{ updatedAt: "desc" }, { startedAt: "desc" }],
+          take: MAX_RUNTIME_STEPS,
+        },
+        events: {
+          orderBy: { occurredAt: "desc" },
+          take: MAX_RUNTIME_EVENTS,
+        },
+        artifacts: {
+          include: {
+            dependencies: true,
+          },
+          orderBy: { updatedAt: "desc" },
+          take: MAX_RUNTIME_ARTIFACTS,
+        },
+      },
+    });
+    if (!run) {
+      return null;
+    }
+    return {
+      schemaVersion: 1,
+      runId: run.id,
+      novelId: run.novelId,
+      entrypoint: run.entrypoint,
+      policy: parseJson<DirectorRuntimePolicySnapshot>(
+        run.policyJson,
+        buildDefaultDirectorPolicy(),
+      ),
+      steps: [...run.steps].reverse().map((step) => ({
+        idempotencyKey: step.idempotencyKey,
+        nodeKey: step.nodeKey,
+        label: step.label,
+        status: step.status as DirectorStepRun["status"],
+        targetType: step.targetType as DirectorStepRun["targetType"],
+        targetId: step.targetId,
+        startedAt: step.startedAt.toISOString(),
+        finishedAt: step.finishedAt?.toISOString() ?? null,
+        error: step.error,
+        producedArtifacts: parseNullableJson<DirectorArtifactRef[]>(step.producedArtifactsJson) ?? undefined,
+        policyDecision: parseNullableJson<DirectorPolicyDecision>(step.policyDecisionJson),
+      })),
+      events: [...run.events].reverse().map((event) => ({
+        eventId: event.id,
+        type: event.type as DirectorEventType,
+        taskId: event.taskId,
+        novelId: event.novelId,
+        nodeKey: event.nodeKey,
+        artifactId: event.artifactId,
+        artifactType: event.artifactType as DirectorEvent["artifactType"],
+        summary: event.summary,
+        affectedScope: event.affectedScope,
+        severity: event.severity as DirectorEvent["severity"],
+        occurredAt: event.occurredAt.toISOString(),
+        metadata: parseNullableJson<Record<string, unknown>>(event.metadataJson) ?? undefined,
+      })),
+      artifacts: [...run.artifacts].reverse().map((artifact) => normalizeDirectorArtifactRef({
+        id: artifact.id,
+        novelId: artifact.novelId,
+        runId: artifact.runId,
+        artifactType: artifact.artifactType as DirectorArtifactRef["artifactType"],
+        targetType: artifact.targetType as DirectorArtifactRef["targetType"],
+        targetId: artifact.targetId,
+        version: artifact.version,
+        status: artifact.status as DirectorArtifactRef["status"],
+        source: artifact.source as DirectorArtifactRef["source"],
+        contentRef: {
+          table: artifact.contentTable,
+          id: artifact.contentId,
+        },
+        contentHash: artifact.contentHash,
+        schemaVersion: artifact.schemaVersion,
+        promptAssetKey: artifact.promptAssetKey,
+        promptVersion: artifact.promptVersion,
+        modelRoute: artifact.modelRoute,
+        sourceStepRunId: artifact.sourceStepRunId,
+        protectedUserContent: artifact.protectedUserContent,
+        dependsOn: artifact.dependencies.map((dependency) => ({
+          artifactId: dependency.dependsOnArtifactId,
+          version: dependency.dependsOnVersion,
+        })),
+        updatedAt: artifact.artifactUpdatedAt?.toISOString() ?? artifact.updatedAt.toISOString(),
+      })),
+      lastWorkspaceAnalysis: parseNullableJson<DirectorWorkspaceAnalysis>(run.lastWorkspaceAnalysisJson) ?? undefined,
+      updatedAt: run.updatedAt.toISOString(),
+    };
   }
 
   async initializeRun(input: {
@@ -208,6 +350,33 @@ export class DirectorRuntimeStore {
           ],
       };
     });
+  }
+
+  async recordRunResumed(input: {
+    taskId: string;
+    novelId?: string | null;
+    summary?: string;
+    reason?: string | null;
+  }): Promise<void> {
+    const now = new Date().toISOString();
+    await this.mutateSnapshot(input.taskId, (snapshot) => ({
+      ...snapshot,
+      novelId: snapshot.novelId ?? input.novelId ?? null,
+      events: [
+        ...snapshot.events,
+        this.buildEvent({
+          type: "run_resumed",
+          taskId: input.taskId,
+          novelId: input.novelId ?? snapshot.novelId ?? null,
+          summary: input.summary ?? "自动导演已按当前资产继续运行。",
+          occurredAt: now,
+          severity: "low",
+          metadata: {
+            reason: input.reason ?? null,
+          },
+        }),
+      ],
+    }));
   }
 
   async recordStepStarted(input: {
@@ -484,6 +653,186 @@ export class DirectorRuntimeStore {
         ],
       };
     });
+  }
+
+  private async persistSnapshot(input: {
+    taskId: string;
+    novelId?: string | null;
+    snapshot: DirectorRuntimeSnapshot;
+  }): Promise<void> {
+    const snapshot = trimRuntimeSnapshot(input.snapshot);
+    const novelId = snapshot.novelId ?? input.novelId ?? null;
+    await withSqliteRetry(
+      async () => {
+        await prisma.directorRun.upsert({
+          where: { taskId: input.taskId },
+          create: {
+            id: snapshot.runId,
+            taskId: input.taskId,
+            novelId,
+            entrypoint: snapshot.entrypoint ?? null,
+            policyJson: stringifyJson(snapshot.policy),
+            lastWorkspaceAnalysisJson: snapshot.lastWorkspaceAnalysis
+              ? stringifyJson(snapshot.lastWorkspaceAnalysis)
+              : null,
+          },
+          update: {
+            novelId,
+            entrypoint: snapshot.entrypoint ?? null,
+            policyJson: stringifyJson(snapshot.policy),
+            lastWorkspaceAnalysisJson: snapshot.lastWorkspaceAnalysis
+              ? stringifyJson(snapshot.lastWorkspaceAnalysis)
+              : null,
+          },
+        });
+
+        for (const step of snapshot.steps) {
+          await prisma.directorStepRun.upsert({
+            where: { idempotencyKey: step.idempotencyKey },
+            create: {
+              runId: snapshot.runId,
+              taskId: input.taskId,
+              novelId,
+              idempotencyKey: step.idempotencyKey,
+              nodeKey: step.nodeKey,
+              label: step.label,
+              status: step.status,
+              targetType: step.targetType ?? null,
+              targetId: step.targetId ?? null,
+              startedAt: dateFromIso(step.startedAt) ?? new Date(),
+              finishedAt: dateFromIso(step.finishedAt),
+              error: step.error ?? null,
+              producedArtifactsJson: step.producedArtifacts
+                ? stringifyJson(step.producedArtifacts)
+                : null,
+              policyDecisionJson: step.policyDecision
+                ? stringifyJson(step.policyDecision)
+                : null,
+            },
+            update: {
+              runId: snapshot.runId,
+              novelId,
+              nodeKey: step.nodeKey,
+              label: step.label,
+              status: step.status,
+              targetType: step.targetType ?? null,
+              targetId: step.targetId ?? null,
+              startedAt: dateFromIso(step.startedAt) ?? new Date(),
+              finishedAt: dateFromIso(step.finishedAt),
+              error: step.error ?? null,
+              producedArtifactsJson: step.producedArtifacts
+                ? stringifyJson(step.producedArtifacts)
+                : null,
+              policyDecisionJson: step.policyDecision
+                ? stringifyJson(step.policyDecision)
+                : null,
+            },
+          });
+        }
+
+        for (const event of snapshot.events) {
+          await prisma.directorEvent.upsert({
+            where: { id: event.eventId },
+            create: {
+              id: event.eventId,
+              runId: snapshot.runId,
+              taskId: input.taskId,
+              novelId: event.novelId ?? novelId,
+              type: event.type,
+              nodeKey: event.nodeKey ?? null,
+              artifactId: event.artifactId ?? null,
+              artifactType: event.artifactType ?? null,
+              summary: event.summary,
+              affectedScope: event.affectedScope ?? null,
+              severity: event.severity ?? null,
+              metadataJson: event.metadata ? stringifyJson(event.metadata) : null,
+              occurredAt: dateFromIso(event.occurredAt) ?? new Date(),
+            },
+            update: {
+              runId: snapshot.runId,
+              novelId: event.novelId ?? novelId,
+              type: event.type,
+              nodeKey: event.nodeKey ?? null,
+              artifactId: event.artifactId ?? null,
+              artifactType: event.artifactType ?? null,
+              summary: event.summary,
+              affectedScope: event.affectedScope ?? null,
+              severity: event.severity ?? null,
+              metadataJson: event.metadata ? stringifyJson(event.metadata) : null,
+              occurredAt: dateFromIso(event.occurredAt) ?? new Date(),
+            },
+          });
+        }
+
+        const artifactIds = new Set(snapshot.artifacts.map((artifact) => artifact.id));
+        for (const artifact of snapshot.artifacts) {
+          const normalized = normalizeDirectorArtifactRef({
+            ...artifact,
+            runId: artifact.runId ?? snapshot.runId,
+          });
+          await prisma.directorArtifact.upsert({
+            where: { id: normalized.id },
+            create: {
+              id: normalized.id,
+              runId: normalized.runId ?? snapshot.runId,
+              novelId: normalized.novelId,
+              taskId: input.taskId,
+              artifactType: normalized.artifactType,
+              targetType: normalized.targetType,
+              targetId: normalized.targetId ?? null,
+              version: normalized.version,
+              status: normalized.status,
+              source: normalized.source,
+              contentTable: normalized.contentRef.table,
+              contentId: normalized.contentRef.id,
+              contentHash: normalized.contentHash ?? null,
+              schemaVersion: normalized.schemaVersion,
+              promptAssetKey: normalized.promptAssetKey ?? null,
+              promptVersion: normalized.promptVersion ?? null,
+              modelRoute: normalized.modelRoute ?? null,
+              sourceStepRunId: normalized.sourceStepRunId ?? null,
+              protectedUserContent: normalized.protectedUserContent ?? null,
+              artifactUpdatedAt: dateFromIso(normalized.updatedAt),
+            },
+            update: {
+              runId: normalized.runId ?? snapshot.runId,
+              taskId: input.taskId,
+              version: normalized.version,
+              status: normalized.status,
+              source: normalized.source,
+              contentHash: normalized.contentHash ?? null,
+              schemaVersion: normalized.schemaVersion,
+              promptAssetKey: normalized.promptAssetKey ?? null,
+              promptVersion: normalized.promptVersion ?? null,
+              modelRoute: normalized.modelRoute ?? null,
+              sourceStepRunId: normalized.sourceStepRunId ?? null,
+              protectedUserContent: normalized.protectedUserContent ?? null,
+              artifactUpdatedAt: dateFromIso(normalized.updatedAt),
+            },
+          });
+        }
+
+        for (const artifact of snapshot.artifacts) {
+          const normalized = normalizeDirectorArtifactRef(artifact);
+          await prisma.directorArtifactDependency.deleteMany({
+            where: { artifactId: normalized.id },
+          });
+          const dependencies = (normalized.dependsOn ?? []).filter((dependency) => (
+            artifactIds.has(dependency.artifactId)
+          ));
+          for (const dependency of dependencies) {
+            await prisma.directorArtifactDependency.create({
+              data: {
+                artifactId: normalized.id,
+                dependsOnArtifactId: dependency.artifactId,
+                dependsOnVersion: dependency.version ?? null,
+              },
+            });
+          }
+        }
+      },
+      { label: "directorRuntime.persistent.upsert" },
+    );
   }
 
   private buildArtifactIndexedEvents(input: {
