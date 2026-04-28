@@ -1,6 +1,6 @@
 # 自动导演统一运行时完整执行计划
 
-更新日期：2026-04-28
+更新日期：2026-04-29
 
 关联文档：
 
@@ -40,8 +40,8 @@
 - `DirectorWorkspaceAnalyzer`：先做确定性 inventory，再通过注册 PromptAsset 做 AI 结构化解释。
 - `DirectorPolicyEngine`：已有 `suggest_only`、`run_next_step`、`run_until_gate`、`auto_safe_scope` 四种模式与一次自动修复预算。
 - `DirectorNodeRunner`：已有标准节点契约和策略判断入口。
-- 自动导演候选、确认、接管、继续和主 pipeline 阶段已经开始通过 runtime orchestration 写入 step / event / workspace analysis。
-- 章节执行、质量检查、修复、状态提交、伏笔同步和角色资源同步已开始以 Step Module / Workflow Plan 形式投影，但并非所有旧阶段都已完全由 Step Module 执行。
+- 自动导演候选、确认建书、已有小说接管、`story_macro`、`book_contract`、角色准备、卷规划、结构化拆章、章节执行、质量检查、修复、状态提交、伏笔同步和角色资源同步已进入统一 Step Module 写入合同，并通过 NodeRunner / PolicyEngine 路径执行或受控投影。
+- `story_macro` 与 `book_contract` 已拆为独立恢复节点；已有故事宏观规划但缺少书级创作约定时，会从书级约定继续，不再跳过到角色准备。
 - 后端路由和前端 API wrapper 已提供 workspace analysis、runtime snapshot、policy update、runtime continue，任务中心、进度面板和小说工作台侧栏已开始消费 runtime projection。
 - 创作中枢已通过 director runtime tools 读取状态、解释下一步、评估改文影响和请求继续推进；当前属于工具级接入，不是完整中枢主导编排。
 - Context Broker、Prompt Workbench 只读目录 / 预览、runtime context resolver 已落地，章节写作、章节审校和 director workspace analysis 已开始共用上下文块组织方式。
@@ -51,7 +51,7 @@
 
 当前未完成但必须纳入完整交付：
 
-- Step Module / NodeRunner 还没有成为所有自动导演写入动作的唯一执行合同，部分旧阶段仍保留直接编排或手动记录 runtime step 的路径。
+- Step Module / NodeRunner / PolicyEngine 写入合同已覆盖自动导演关键写入面；下一步重点转为真实数据恢复、ledger 真相层、质量闭环和状态驱动 replan。
 - `PolicyEngine` 还不是所有写入动作、覆盖动作和高成本审校动作的硬 gate。
 - Artifact Ledger 仍是 seed payload wrapper 索引，缺独立持久化表、完整生命周期、跨任务依赖演进和可恢复查询能力。
 - 章节执行、质量修复、pipeline job 已开始标准节点化，但还没有完全达到可组合、可重放、可审计的统一 Step Runtime。
@@ -65,8 +65,26 @@
 当前完成度判断：
 
 - 按 MVP 底座衡量：约 `80%` 已完成。
-- 按完整统一运行时衡量：约 `60%-65%` 已完成。
-- 剩余风险不在“是否使用 LangGraph”，而在执行合同是否彻底收口、产物真相是否可恢复、真实数据链路是否稳定。
+- 按完整统一运行时衡量：约 `65%-70%` 已完成。
+- 剩余风险不在“是否使用 LangGraph”，而在产物真相是否可恢复、真实数据链路是否稳定、质量闭环是否能局部修复，以及状态驱动 replan 是否真正成为默认判断。
+
+## 2.1 下一轮最高优先级开发队列
+
+以下 13 项作为 `codex/auto-director-runtime-mvp-plan` 分支的下一轮即将开发项目，优先级高于后续扩入口、创作中枢主导编排和 LangGraph 主链化。
+
+1. **规划恢复链稳定**：补齐 `volume_strategy` 幂等重放、持久化卷规划恢复到 `structured_outline` 的真实数据回归；确保已有资产不会被重复生成或跳过。
+2. **真实 Prisma 抽样回归**：覆盖旧项目接管、服务重启手动恢复、失败重试、章节批量执行、候选变更和状态版本，重点验证 `migration -> 章节写入 -> 候选变更 -> 状态版本`。
+3. **Artifact Ledger 真相层**：从 wrapper 索引推进到跨任务可查询、版本生命周期、stale、用户内容保护和局部恢复能力；保持 additive schema，不破坏旧数据。
+4. **PolicyEngine 硬 gate 深化**：高成本审校、高风险修复、大范围自动执行、覆盖用户内容等场景必须在写入前经过策略判断和审批边界。
+5. **质量产物闭环**：`reader_promise / chapter_retention_contract / continuity_state / rolling_window_review / character_governance_state` 从记录型产物推进为评估、失效、局部修复、再评估闭环。
+6. **Planner / Replan 状态驱动化**：`PlannerService.replan` 的窗口决策、触发理由和章节选择切到 `CanonicalStateService / ContextAssemblyService / ChapterStateGoal`。
+7. **章节任务单质量门禁**：为 `purpose / boundary / taskSheet` 增加 schema + 语义可用性双门禁，拦截坏细化产物进入同步和执行链。
+8. **章节修复策略**：补 `patch_first` 默认策略；动态角色系统进入执行期角色筛选、修复边界和 replan 判断。
+9. **模型路由细化**：从 `planner / writer / review / repair` 粗粒度推进到小说生产阶段级路由与 fallback。
+10. **卷级工作台消费链**：把 `critique / rebalance / uncertainty / canonical payoff ledger` 接成卷级工作台默认消费链，并让卷级账本视图成为主视图。
+11. **新手入口收敛**：首页、创建页、空状态统一为“AI 自动导演推荐入口 + 手动高级入口”；关键节点只保留一个推荐下一步。
+12. **拆书任务合同**：补齐 `scope / pause / resume / coverage`，形成“前 N 片段试跑 -> 扩范围继续”的渐进式流程。
+13. **技术债收口**：拆分 `workflowRegistry.ts`，继续瘦身 `NovelDirectorService` 和 `DirectorRuntimeStore`，避免新能力继续堆回主 service。
 
 ## 3. 执行原则
 

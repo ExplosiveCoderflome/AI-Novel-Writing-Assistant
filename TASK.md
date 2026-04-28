@@ -167,17 +167,21 @@ P0 的默认主链统一为：
 
 ### 当前未完成待做清单（按优先级）
 
-- `P0-E1 / P0-A`：在真实 Prisma 链路完成 `migration -> 章节写入 -> 候选变更 -> 状态版本` 抽样回归，覆盖旧项目、批量执行、自动导演恢复链
-- `P0-E1`：继续把 `story_macro / book_contract / character_prep / volume_planning / takeover_start` 收口到 `NovelProductionOrchestrator`
-- `P0-E1 / P0-E`：把 `PlannerService.replan` 的窗口决策、触发理由、章节选择正式切到 canonical/state-driven 主判断
-- `P0-B`：为 `purpose / boundary / taskSheet` 增加 schema + 语义可用性双门禁，拦截坏细化产物进入同步和执行链
-- `P0-B`：把 `taskSheet` 收口为轻量执行摘要，并补 `artifactHealth / artifactHealthSummary` 诊断合同，但保持非阻塞
-- `P0-B`：补章节 repair 的 `patch_first` 默认策略，并把动态角色系统继续推进到执行期角色筛选、修复边界与 replan 判断
-- `P0-B`：把模型路由从 `planner / writer / review / repair` 粗粒度推进到小说生产阶段级路由与 fallback
-- `P0-C / P0-D`：继续把 `critique / rebalance / uncertainty / canonical payoff ledger` 接成卷级工作台默认消费链，并让卷级账本视图成为主视图
-- `P0-F`：把首页、创建页、空状态统一收敛为“AI 自动导演推荐入口 + 手动高级入口”，并在关键节点只保留一个推荐下一步
-- `P0-G`：为拆书任务补齐 `scope / pause / resume / coverage` 合同，形成“前 N 片段试跑 -> 扩范围继续”的渐进式流程
-- `task-3b8c9c2f4a`：落实 LLM JSON 修复链路优化，包括预修复、错误分类、失败提示与定向回归测试
+以下 13 项作为下一轮即将开发项目，优先级高于本节后续历史条目：
+
+1. `P0-E1 / 恢复链`：规划恢复链继续稳定，补齐 `volume_strategy` 幂等重放、持久化卷规划恢复到 `structured_outline` 的真实数据回归。
+2. `P0-A / 真实数据`：真实 Prisma 抽样回归，覆盖旧项目接管、服务重启手动恢复、失败重试、章节批量执行、候选变更、状态版本。
+3. `P0-E1 / Artifact Ledger`：Artifact Ledger 真相层，从 wrapper 索引推进到跨任务可查询、版本生命周期、stale、用户内容保护、局部恢复。
+4. `P0-E1 / PolicyEngine`：PolicyEngine 硬 gate 深化，覆盖高成本审校、高风险修复、大范围自动执行、覆盖用户内容等场景。
+5. `P0-B / 质量闭环`：`reader_promise / chapter_retention_contract / continuity_state / rolling_window_review / character_governance_state` 形成评估、失效、局部修复、再评估闭环。
+6. `P0-E / Replan`：`PlannerService.replan` 的窗口决策、触发理由、章节选择切到 canonical/state-driven 主判断。
+7. `P0-B / 任务单门禁`：为 `purpose / boundary / taskSheet` 增加 schema + 语义可用性双门禁，拦截坏细化产物进入同步和执行链。
+8. `P0-B / 修复策略`：补章节 repair 的 `patch_first` 默认策略，并把动态角色系统推进到执行期角色筛选、修复边界与 replan 判断。
+9. `P0-B / 模型路由`：把模型路由从 `planner / writer / review / repair` 粗粒度推进到小说生产阶段级路由与 fallback。
+10. `P0-C / P0-D`：卷级工作台消费链，继续把 `critique / rebalance / uncertainty / canonical payoff ledger` 接成默认消费链，并让卷级账本视图成为主视图。
+11. `P0-F`：新手入口收敛，首页、创建页、空状态统一为“AI 自动导演推荐入口 + 手动高级入口”，关键节点只保留一个推荐下一步。
+12. `P0-G`：拆书任务合同，补齐 `scope / pause / resume / coverage`，形成“前 N 片段试跑 -> 扩范围继续”的渐进式流程。
+13. `P0-TechDebt`：技术债收口，拆 `workflowRegistry.ts`，继续瘦身 `NovelDirectorService` 和 `DirectorRuntimeStore`。
 
 ### P0-A 真实 Prisma 数据端到端验收（暂缓单列）
 
@@ -1222,4 +1226,19 @@ P2 重点解决：
 进度记录：
 - 2026-04-29 00:51 [已完成] 已完成自动导演写入合同收口：关键写入面全部进入 Step Module 注册表校验，story_macro/book_contract 独立节点化，确认建书与接管入口改为 runStepModule，定向构建与 42 个自动导演运行时测试通过。
 <!-- task-md-sync:item:task-474cb61b53:end -->
+<!-- task-md-sync:item:task-42d07ce43a:start -->
+### P0 下一轮最高优先级开发队列
+- 标识：`task-42d07ce43a`
+- 状态：已计划
+- 最近更新：2026-04-29 00:59
+- 概要：将 13 项剩余功能作为下一轮最高优先级开发项目，聚焦真实数据恢复、Artifact Ledger、PolicyEngine、质量闭环、状态驱动 replan、任务单门禁、入口收敛、拆书合同和技术债。
+
+计划清单：
+- [ ] 按 13 项队列依次推进，优先真实 Prisma 回归、规划恢复链和 Artifact Ledger 真相层。
+- [ ] 创作中枢主导编排与 LangGraph 主链化继续后置，不抢占正常流程闭环。
+- [ ] 每完成一项后同步 TASK、计划文档与必要验证记录。
+
+进度记录：
+- 2026-04-29 00:59 [已计划] 已把 13 项剩余功能更新为 TASK 最高优先级，并同步到自动导演完整执行计划文档。
+<!-- task-md-sync:item:task-42d07ce43a:end -->
 <!-- task-md-sync:end -->
