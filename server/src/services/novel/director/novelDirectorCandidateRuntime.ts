@@ -11,14 +11,13 @@ import {
 import type { NovelDirectorCandidateStageService } from "./novelDirectorCandidateStage";
 import type { DirectorRuntimeService } from "./runtime/DirectorRuntimeService";
 import {
+  getDirectorCandidateNodeAdapter,
+  type DirectorCandidateStageNode,
+} from "./novelDirectorCandidateNodeAdapters";
+import {
   isDirectorRuntimeGateError,
   type NovelDirectorRuntimeOrchestrator,
 } from "./novelDirectorRuntimeOrchestrator";
-
-interface CandidateRuntimeNode {
-  nodeKey: string;
-  label: string;
-}
 
 type WorkflowTaskFailurePort = Pick<NovelWorkflowService, "markTaskFailed">;
 
@@ -116,10 +115,11 @@ export class NovelDirectorCandidateRuntime {
   async runWithFailureHandling<T>(
     workflowTaskId: string | null | undefined,
     runner: () => Promise<T>,
-    runtimeNode?: CandidateRuntimeNode,
+    runtimeNode?: DirectorCandidateStageNode,
   ): Promise<T> {
     const taskId = workflowTaskId?.trim() || null;
-    if (taskId && runtimeNode) {
+    const adapter = runtimeNode ? getDirectorCandidateNodeAdapter(runtimeNode) : null;
+    if (taskId && adapter) {
       await this.deps.directorRuntime.initializeRun({
         taskId,
         entrypoint: "candidate_stage",
@@ -128,19 +128,10 @@ export class NovelDirectorCandidateRuntime {
       });
     }
     try {
-      if (taskId && runtimeNode) {
+      if (taskId && adapter) {
         return await this.deps.runtimeOrchestrator.runNode<T>({
+          ...adapter,
           taskId,
-          nodeKey: runtimeNode.nodeKey,
-          label: runtimeNode.label,
-          reads: ["user_seed"],
-          writes: ["candidate_batch"],
-          targetType: "global",
-          waitingState: {
-            stage: "auto_director",
-            itemKey: runtimeNode.nodeKey,
-            itemLabel: runtimeNode.label,
-          },
           runner: () => this.deps.withWorkflowTaskUsage(workflowTaskId, runner),
           collectArtifacts: () => [],
         });

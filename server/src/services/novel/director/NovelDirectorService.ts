@@ -545,7 +545,7 @@ export class NovelDirectorService {
     return this.candidateRuntime.runWithFailureHandling(
       input.workflowTaskId,
       async () => this.candidateStageService.generateCandidates(await this.enrichDirectorStyleContext(input)),
-      { nodeKey: "candidate_generation", label: "生成书级候选" },
+      "candidate_generation",
     );
   }
 
@@ -553,7 +553,7 @@ export class NovelDirectorService {
     return this.candidateRuntime.runWithFailureHandling(
       input.workflowTaskId,
       async () => this.candidateStageService.refineCandidates(await this.enrichDirectorStyleContext(input)),
-      { nodeKey: "candidate_refine", label: "修订候选方向" },
+      "candidate_refine",
     );
   }
 
@@ -561,7 +561,7 @@ export class NovelDirectorService {
     return this.candidateRuntime.runWithFailureHandling(
       input.workflowTaskId,
       async () => this.candidateStageService.patchCandidate(await this.enrichDirectorStyleContext(input)),
-      { nodeKey: "candidate_patch", label: "定向修正候选" },
+      "candidate_patch",
     );
   }
 
@@ -571,7 +571,7 @@ export class NovelDirectorService {
     return this.candidateRuntime.runWithFailureHandling(
       input.workflowTaskId,
       async () => this.candidateStageService.refineCandidateTitleOptions(await this.enrichDirectorStyleContext(input)),
-      { nodeKey: "candidate_title_refine", label: "优化候选书名" },
+      "candidate_title_refine",
     );
   }
 
