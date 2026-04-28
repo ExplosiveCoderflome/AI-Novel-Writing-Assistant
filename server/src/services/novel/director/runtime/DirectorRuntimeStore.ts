@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type {
   DirectorArtifactRef,
+  DirectorArtifactType,
   DirectorEvent,
   DirectorEventType,
   DirectorPolicyDecision,
@@ -14,6 +15,10 @@ import { prisma } from "../../../../db/prisma";
 import { withSqliteRetry } from "../../../../db/sqliteRetry";
 import { parseSeedPayload } from "../../workflow/novelWorkflow.shared";
 import type { DirectorWorkflowSeedPayload } from "../novelDirectorHelpers";
+import {
+  normalizeDirectorArtifactRef,
+  reconcileDirectorArtifactLedger,
+} from "./DirectorArtifactLedger";
 import { buildDefaultDirectorPolicy, buildEmptyDirectorRuntimeSnapshot } from "./directorRuntimeDefaults";
 
 const MAX_RUNTIME_EVENTS = 120;
@@ -40,7 +45,9 @@ function normalizeRuntimeSnapshot(input: {
       policy: existing.policy ?? buildDefaultDirectorPolicy(input.policyMode),
       steps: Array.isArray(existing.steps) ? existing.steps : [],
       events: Array.isArray(existing.events) ? existing.events : [],
-      artifacts: Array.isArray(existing.artifacts) ? existing.artifacts : [],
+      artifacts: Array.isArray(existing.artifacts)
+        ? existing.artifacts.map((artifact) => normalizeDirectorArtifactRef(artifact))
+        : [],
       updatedAt: existing.updatedAt ?? new Date().toISOString(),
     };
   }
@@ -59,17 +66,6 @@ function trimRuntimeSnapshot(snapshot: DirectorRuntimeSnapshot): DirectorRuntime
     events: snapshot.events.slice(-MAX_RUNTIME_EVENTS),
     artifacts: snapshot.artifacts.slice(-MAX_RUNTIME_ARTIFACTS),
   };
-}
-
-function mergeArtifacts(existing: DirectorArtifactRef[], next: DirectorArtifactRef[]): DirectorArtifactRef[] {
-  const byKey = new Map<string, DirectorArtifactRef>();
-  for (const artifact of existing) {
-    byKey.set(`${artifact.artifactType}:${artifact.targetType}:${artifact.targetId ?? ""}:${artifact.contentRef.table}:${artifact.contentRef.id}`, artifact);
-  }
-  for (const artifact of next) {
-    byKey.set(`${artifact.artifactType}:${artifact.targetType}:${artifact.targetId ?? ""}:${artifact.contentRef.table}:${artifact.contentRef.id}`, artifact);
-  }
-  return [...byKey.values()];
 }
 
 function upsertStep(steps: DirectorStepRun[], next: DirectorStepRun): DirectorStepRun[] {
@@ -95,6 +91,27 @@ function compactPolicyPatch(
   return Object.fromEntries(
     Object.entries(patch).filter(([, value]) => value !== undefined),
   ) as Partial<Omit<DirectorRuntimePolicySnapshot, "mode" | "updatedAt">>;
+}
+
+function artifactTypeLabel(type: DirectorArtifactType): string {
+  const labels: Record<DirectorArtifactType, string> = {
+    book_contract: "书级创作约定",
+    story_macro: "故事宏观规划",
+    character_cast: "角色阵容",
+    volume_strategy: "分卷策略",
+    chapter_task_sheet: "章节任务单",
+    chapter_draft: "章节正文",
+    audit_report: "审校报告",
+    repair_ticket: "修复任务",
+    reader_promise: "读者承诺",
+    character_governance_state: "角色治理状态",
+    world_skeleton: "世界框架",
+    source_knowledge_pack: "续写资料包",
+    chapter_retention_contract: "章节留存约定",
+    continuity_state: "连续性状态",
+    rolling_window_review: "近期章节复盘",
+  };
+  return labels[type];
 }
 
 export class DirectorRuntimeStore {
@@ -240,33 +257,58 @@ export class DirectorRuntimeStore {
   }): Promise<void> {
     const idempotencyKey = this.buildStepIdempotencyKey(input);
     const now = new Date().toISOString();
-    await this.mutateSnapshot(input.taskId, (snapshot) => ({
-      ...snapshot,
-      novelId: snapshot.novelId ?? input.novelId ?? null,
-      steps: upsertStep(snapshot.steps, {
-        idempotencyKey,
-        nodeKey: input.nodeKey,
-        label: input.label,
-        status: "succeeded",
-        targetType: input.targetType ?? null,
-        targetId: input.targetId ?? null,
-        startedAt: snapshot.steps.find((step) => step.idempotencyKey === idempotencyKey)?.startedAt ?? now,
-        finishedAt: now,
-        producedArtifacts: input.producedArtifacts,
-      }),
-      artifacts: mergeArtifacts(snapshot.artifacts, input.producedArtifacts ?? []),
-      events: [
-        ...snapshot.events,
-        this.buildEvent({
-          type: "node_completed",
-          taskId: input.taskId,
-          novelId: input.novelId ?? snapshot.novelId ?? null,
+    await this.mutateSnapshot(input.taskId, (snapshot) => {
+      const artifacts = reconcileDirectorArtifactLedger(
+        snapshot.artifacts,
+        input.producedArtifacts ?? [],
+        {
+          runId: snapshot.runId,
+          sourceStepRunId: idempotencyKey,
+        },
+      );
+      return {
+        ...snapshot,
+        novelId: snapshot.novelId ?? input.novelId ?? null,
+        steps: upsertStep(snapshot.steps, {
+          idempotencyKey,
           nodeKey: input.nodeKey,
-          summary: `${input.label}完成。`,
-          occurredAt: now,
+          label: input.label,
+          status: "succeeded",
+          targetType: input.targetType ?? null,
+          targetId: input.targetId ?? null,
+          startedAt: snapshot.steps.find((step) => step.idempotencyKey === idempotencyKey)?.startedAt ?? now,
+          finishedAt: now,
+          producedArtifacts: input.producedArtifacts,
         }),
-      ],
-    }));
+        artifacts: artifacts.artifacts,
+        events: [
+          ...snapshot.events,
+          this.buildEvent({
+            type: "node_completed",
+            taskId: input.taskId,
+            novelId: input.novelId ?? snapshot.novelId ?? null,
+            nodeKey: input.nodeKey,
+            summary: `${input.label}完成。`,
+            occurredAt: now,
+          }),
+          ...this.buildArtifactIndexedEvents({
+            taskId: input.taskId,
+            novelId: input.novelId ?? snapshot.novelId ?? null,
+            nodeKey: input.nodeKey,
+            artifacts: artifacts.indexedArtifacts,
+            occurredAt: now,
+          }),
+          ...this.buildArtifactIndexedEvents({
+            taskId: input.taskId,
+            novelId: input.novelId ?? snapshot.novelId ?? null,
+            nodeKey: input.nodeKey,
+            artifacts: artifacts.staleArtifacts,
+            occurredAt: now,
+            stale: true,
+          }),
+        ],
+      };
+    });
   }
 
   async recordStepFailed(input: {
@@ -358,22 +400,48 @@ export class DirectorRuntimeStore {
     taskId: string;
     analysis: DirectorWorkspaceAnalysis;
   }): Promise<void> {
-    await this.mutateSnapshot(input.taskId, (snapshot) => ({
-      ...snapshot,
-      novelId: snapshot.novelId ?? input.analysis.novelId,
-      lastWorkspaceAnalysis: input.analysis,
-      artifacts: mergeArtifacts(snapshot.artifacts, input.analysis.inventory.artifacts),
-      events: [
-        ...snapshot.events,
-        this.buildEvent({
-          type: "workspace_analyzed",
-          taskId: input.taskId,
-          novelId: input.analysis.novelId,
-          summary: input.analysis.interpretation?.summary ?? "工作区分析已完成。",
-          occurredAt: input.analysis.generatedAt,
-        }),
-      ],
-    }));
+    await this.mutateSnapshot(input.taskId, (snapshot) => {
+      const artifacts = reconcileDirectorArtifactLedger(
+        snapshot.artifacts,
+        input.analysis.inventory.artifacts,
+        { runId: snapshot.runId },
+      );
+      return {
+        ...snapshot,
+        novelId: snapshot.novelId ?? input.analysis.novelId,
+        lastWorkspaceAnalysis: {
+          ...input.analysis,
+          inventory: {
+            ...input.analysis.inventory,
+            artifacts: artifacts.artifacts,
+          },
+        },
+        artifacts: artifacts.artifacts,
+        events: [
+          ...snapshot.events,
+          this.buildEvent({
+            type: "workspace_analyzed",
+            taskId: input.taskId,
+            novelId: input.analysis.novelId,
+            summary: input.analysis.interpretation?.summary ?? "工作区分析已完成。",
+            occurredAt: input.analysis.generatedAt,
+          }),
+          ...this.buildArtifactIndexedEvents({
+            taskId: input.taskId,
+            novelId: input.analysis.novelId,
+            artifacts: artifacts.indexedArtifacts,
+            occurredAt: input.analysis.generatedAt,
+          }),
+          ...this.buildArtifactIndexedEvents({
+            taskId: input.taskId,
+            novelId: input.analysis.novelId,
+            artifacts: artifacts.staleArtifacts,
+            occurredAt: input.analysis.generatedAt,
+            stale: true,
+          }),
+        ],
+      };
+    });
   }
 
   async updatePolicy(input: {
@@ -404,6 +472,38 @@ export class DirectorRuntimeStore {
         ],
       };
     });
+  }
+
+  private buildArtifactIndexedEvents(input: {
+    taskId: string;
+    novelId?: string | null;
+    nodeKey?: string | null;
+    artifacts: DirectorArtifactRef[];
+    occurredAt: string;
+    stale?: boolean;
+  }): DirectorEvent[] {
+    return input.artifacts.map((artifact) => this.buildEvent({
+      type: "artifact_indexed",
+      taskId: input.taskId,
+      novelId: input.novelId ?? artifact.novelId,
+      nodeKey: input.nodeKey,
+      artifactId: artifact.id,
+      artifactType: artifact.artifactType,
+      summary: input.stale
+        ? `${artifactTypeLabel(artifact.artifactType)}需要重新确认。`
+        : `${artifactTypeLabel(artifact.artifactType)}已纳入自动导演记录。`,
+      affectedScope: `${artifact.targetType}:${artifact.targetId ?? artifact.novelId}`,
+      severity: input.stale ? "medium" : "low",
+      occurredAt: input.occurredAt,
+      metadata: {
+        targetType: artifact.targetType,
+        targetId: artifact.targetId ?? null,
+        version: artifact.version,
+        status: artifact.status,
+        source: artifact.source,
+        sourceStepRunId: artifact.sourceStepRunId ?? null,
+      },
+    }));
   }
 
   buildStepIdempotencyKey(input: {

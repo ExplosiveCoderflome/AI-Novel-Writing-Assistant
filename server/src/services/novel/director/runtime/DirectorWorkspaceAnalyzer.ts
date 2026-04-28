@@ -1,9 +1,7 @@
-import { createHash } from "node:crypto";
 import type {
   AiManualEditImpactDecision,
   AiWorkspaceInterpretation,
   DirectorArtifactRef,
-  DirectorArtifactType,
   DirectorManualEditImpact,
   DirectorManualEditInventory,
   DirectorWorkspaceAnalysis,
@@ -21,96 +19,12 @@ import {
   directorManualEditImpactPrompt,
 } from "../../../../prompting/prompts/novel/directorManualEditImpact.prompts";
 import { DirectorRuntimeStore } from "./DirectorRuntimeStore";
-
-interface ArtifactTarget {
-  artifactType: DirectorArtifactRef["artifactType"];
-  targetType: DirectorArtifactRef["targetType"];
-  targetId?: string | null;
-  contentRef: DirectorArtifactRef["contentRef"];
-  updatedAt?: Date | string | null;
-  status?: DirectorArtifactRef["status"];
-  source?: DirectorArtifactRef["source"];
-  contentHash?: string | null;
-  protectedUserContent?: boolean | null;
-  dependsOn?: DirectorArtifactRef["dependsOn"];
-}
-
-function stableContentHash(value: string | null | undefined): string | null {
-  const normalized = value?.trim();
-  if (!normalized) {
-    return null;
-  }
-  return createHash("sha256").update(normalized).digest("hex");
-}
-
-function buildArtifactId(input: {
-  type: DirectorArtifactType;
-  targetType: DirectorArtifactRef["targetType"];
-  targetId?: string | null;
-  table: string;
-  id: string;
-}): string {
-  return `${input.type}:${input.targetType}:${input.targetId ?? "global"}:${input.table}:${input.id}`;
-}
-
-function buildArtifact(input: {
-  novelId: string;
-  type: DirectorArtifactType;
-  targetType: DirectorArtifactRef["targetType"];
-  targetId?: string | null;
-  table: string;
-  id: string;
-  updatedAt?: Date | string | null;
-  status?: DirectorArtifactRef["status"];
-  source?: DirectorArtifactRef["source"];
-  contentHash?: string | null;
-  protectedUserContent?: boolean | null;
-  dependsOn?: DirectorArtifactRef["dependsOn"];
-}): DirectorArtifactRef {
-  return {
-    id: buildArtifactId(input),
-    novelId: input.novelId,
-    artifactType: input.type,
-    targetType: input.targetType,
-    targetId: input.targetId ?? null,
-    version: 1,
-    status: input.status ?? "active",
-    source: input.source ?? "backfilled",
-    contentRef: {
-      table: input.table,
-      id: input.id,
-    },
-    contentHash: input.contentHash ?? null,
-    schemaVersion: "legacy-wrapper-v1",
-    protectedUserContent: input.protectedUserContent ?? null,
-    dependsOn: input.dependsOn,
-    updatedAt: input.updatedAt
-      ? (input.updatedAt instanceof Date ? input.updatedAt.toISOString() : input.updatedAt)
-      : null,
-  };
-}
-
-function uniqueArtifacts(items: ArtifactTarget[], novelId: string): DirectorArtifactRef[] {
-  const byKey = new Map<string, DirectorArtifactRef>();
-  for (const item of items) {
-    const artifact = buildArtifact({
-      novelId,
-      type: item.artifactType,
-      targetType: item.targetType,
-      targetId: item.targetId,
-      table: item.contentRef.table,
-      id: item.contentRef.id,
-      updatedAt: item.updatedAt,
-      status: item.status,
-      source: item.source,
-      contentHash: item.contentHash,
-      protectedUserContent: item.protectedUserContent,
-      dependsOn: item.dependsOn,
-    });
-    byKey.set(artifact.id, artifact);
-  }
-  return [...byKey.values()];
-}
+import {
+  buildDirectorArtifactId,
+  normalizeDirectorArtifactTargets,
+  stableDirectorContentHash,
+  type DirectorArtifactTarget,
+} from "./DirectorArtifactLedger";
 
 function timestampOf(value?: string | null): number {
   if (!value) {
@@ -545,7 +459,7 @@ export class DirectorWorkspaceAnalyzer {
     )).length;
     const pendingRepairChapterCount = chapters.filter((chapter) => chapter.chapterStatus === "needs_repair").length;
 
-    const artifactTargets: ArtifactTarget[] = [];
+    const artifactTargets: DirectorArtifactTarget[] = [];
     if (bookContract) {
       artifactTargets.push({
         artifactType: "book_contract",
@@ -573,7 +487,7 @@ export class DirectorWorkspaceAnalyzer {
         updatedAt: latestCharacter.updatedAt,
         dependsOn: [
           ...(bookContract ? [{
-            artifactId: buildArtifactId({
+            artifactId: buildDirectorArtifactId({
               type: "book_contract",
               targetType: "novel",
               targetId: novelId,
@@ -583,7 +497,7 @@ export class DirectorWorkspaceAnalyzer {
             version: 1,
           }] : []),
           ...(storyMacro ? [{
-            artifactId: buildArtifactId({
+            artifactId: buildDirectorArtifactId({
               type: "story_macro",
               targetType: "novel",
               targetId: novelId,
@@ -604,7 +518,7 @@ export class DirectorWorkspaceAnalyzer {
         updatedAt: volume.updatedAt,
         dependsOn: [
           ...(storyMacro ? [{
-            artifactId: buildArtifactId({
+            artifactId: buildDirectorArtifactId({
               type: "story_macro",
               targetType: "novel",
               targetId: novelId,
@@ -617,14 +531,14 @@ export class DirectorWorkspaceAnalyzer {
       });
     }
     for (const chapter of chapters) {
-      const taskSheetArtifactId = buildArtifactId({
+      const taskSheetArtifactId = buildDirectorArtifactId({
         type: "chapter_task_sheet",
         targetType: "chapter",
         targetId: chapter.id,
         table: "Chapter",
         id: chapter.id,
       });
-      const draftArtifactId = buildArtifactId({
+      const draftArtifactId = buildDirectorArtifactId({
         type: "chapter_draft",
         targetType: "chapter",
         targetId: chapter.id,
@@ -638,7 +552,7 @@ export class DirectorWorkspaceAnalyzer {
           targetId: chapter.id,
           contentRef: { table: "Chapter", id: chapter.id },
           updatedAt: chapter.updatedAt,
-          contentHash: stableContentHash(chapter.taskSheet),
+          contentHash: stableDirectorContentHash(chapter.taskSheet),
         });
       }
       if (chapter.content?.trim()) {
@@ -649,7 +563,7 @@ export class DirectorWorkspaceAnalyzer {
           contentRef: { table: "Chapter", id: chapter.id },
           updatedAt: chapter.updatedAt,
           source: "user_edited",
-          contentHash: stableContentHash(chapter.content),
+          contentHash: stableDirectorContentHash(chapter.content),
           protectedUserContent: true,
           dependsOn: chapter.taskSheet?.trim()
             ? [{ artifactId: taskSheetArtifactId, version: 1 }]
@@ -663,7 +577,7 @@ export class DirectorWorkspaceAnalyzer {
           targetId: chapter.id,
           contentRef: { table: "Chapter", id: chapter.id },
           updatedAt: chapter.updatedAt,
-          contentHash: stableContentHash(chapter.repairHistory ?? chapter.content),
+          contentHash: stableDirectorContentHash(chapter.repairHistory ?? chapter.content),
           dependsOn: chapter.content?.trim()
             ? [{ artifactId: draftArtifactId, version: 1 }]
             : [],
@@ -679,7 +593,7 @@ export class DirectorWorkspaceAnalyzer {
         updatedAt: report.updatedAt,
         dependsOn: report.chapterId
           ? [{
-            artifactId: buildArtifactId({
+            artifactId: buildDirectorArtifactId({
               type: "chapter_draft",
               targetType: "chapter",
               targetId: report.chapterId,
@@ -699,7 +613,7 @@ export class DirectorWorkspaceAnalyzer {
         contentRef: { table: "AuditReport", id: report.id },
         updatedAt: report.updatedAt,
         dependsOn: [{
-          artifactId: buildArtifactId({
+          artifactId: buildDirectorArtifactId({
             type: "chapter_draft",
             targetType: "chapter",
             targetId: report.chapterId,
@@ -731,7 +645,7 @@ export class DirectorWorkspaceAnalyzer {
       activePipelineJobId: activePipelineJob?.id ?? null,
       activeDirectorTaskId: activeDirectorRun?.id ?? null,
       latestDirectorTaskId: latestDirectorRun?.id ?? null,
-      artifacts: uniqueArtifacts(artifactTargets, novelId),
+      artifacts: normalizeDirectorArtifactTargets(artifactTargets, novelId),
     };
   }
 }
