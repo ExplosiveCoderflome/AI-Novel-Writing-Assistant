@@ -6,6 +6,7 @@ import type { PipelineJobStatus, VolumePlanDocument } from "@ai-novel/shared/typ
 import {
   buildDirectorAutoExecutionScopeLabelFromState,
   buildDirectorAutoExecutionState,
+  canPreserveDirectorAutoExecutionSkippedChapter,
   hasDirectorAutoExecutionChapterContract,
   isDirectorAutoExecutionChapterProcessed,
   normalizeDirectorAutoExecutionPlan,
@@ -56,7 +57,10 @@ function findIncompleteChapterDetailOrders(
   const skippedChapterOrders = new Set(state?.skippedChapterOrders ?? []);
   return chapters
     .filter((chapter) => chapter.order >= range.startOrder && chapter.order <= range.endOrder)
-    .filter((chapter) => !skippedChapterIds.has(chapter.id) && !skippedChapterOrders.has(chapter.order))
+    .filter((chapter) => (
+      !(skippedChapterIds.has(chapter.id) || skippedChapterOrders.has(chapter.order))
+      || !canPreserveDirectorAutoExecutionSkippedChapter(chapter)
+    ))
     .filter((chapter) => !isDirectorAutoExecutionChapterProcessed(chapter))
     .filter((chapter) => !hasDirectorAutoExecutionChapterContract(chapter))
     .map((chapter) => chapter.order)

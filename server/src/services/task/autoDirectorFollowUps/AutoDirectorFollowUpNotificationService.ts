@@ -71,6 +71,22 @@ function parseReplacementTaskId(seedPayloadJson: string | null | undefined): str
   }
 }
 
+function buildAutoApprovalNotificationCopy(checkpointType: NovelWorkflowCheckpoint): {
+  cardTitle: string;
+  reasonLabel: string;
+} {
+  if (checkpointType === "replan_required") {
+    return {
+      cardTitle: "AI 已记录重规划提醒并继续推进",
+      reasonLabel: "重规划提醒已记录",
+    };
+  }
+  return {
+    cardTitle: "AI 已自动通过并继续推进",
+    reasonLabel: "最近自动通过",
+  };
+}
+
 function resolveReasonInput(input: AutoDirectorEventWorkflowSnapshot) {
   return {
     status: input.status,
@@ -136,13 +152,14 @@ export class AutoDirectorFollowUpNotificationService {
     summary: string;
     occurredAt: Date;
   }): Promise<void> {
+    const copy = buildAutoApprovalNotificationCopy(input.checkpointType);
     const after = {
       taskId: input.taskId,
       novelId: input.novelId,
       novelTitle: input.novelTitle,
       summary: input.summary,
       reason: "auto_approval_completed" as const,
-      reasonLabel: "最近自动通过",
+      reasonLabel: copy.reasonLabel,
       availableMutationActions: [],
       stage: input.stage ?? null,
       checkpointType: input.checkpointType,
@@ -174,16 +191,16 @@ export class AutoDirectorFollowUpNotificationService {
       event,
       after: snapshot,
       channelSettings,
-      cardTitle: "AI 已自动通过并继续推进",
-      reasonLabel: "最近自动通过",
+      cardTitle: copy.cardTitle,
+      reasonLabel: copy.reasonLabel,
       availableActions: [],
     });
     await this.notifyWeCom({
       event,
       after: snapshot,
       channelSettings,
-      cardTitle: "AI 已自动通过并继续推进",
-      reasonLabel: "最近自动通过",
+      cardTitle: copy.cardTitle,
+      reasonLabel: copy.reasonLabel,
       availableActions: [],
     });
   }

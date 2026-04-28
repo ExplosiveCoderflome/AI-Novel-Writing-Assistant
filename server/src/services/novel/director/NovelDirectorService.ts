@@ -115,10 +115,11 @@ export class NovelDirectorService {
         "low_risk_quality_repair_continue",
       )
     ),
-    recordAutoApproval: async ({ taskId, checkpointType }) => {
+    recordAutoApproval: async ({ taskId, checkpointType, checkpointSummary }) => {
       await recordAutoDirectorAutoApprovalFromTask({
         taskId,
         checkpointType,
+        checkpointSummary,
       });
     },
   });
@@ -175,6 +176,9 @@ export class NovelDirectorService {
     runtimeOrchestrator: this.directorRuntimeOrchestrator,
     candidateRuntime: this.candidateRuntime,
     pipelineRuntime: this.directorPipelineRuntime,
+    continueCandidateStageTask: (taskId, payload) => this.continueCandidateStageTask(taskId, payload),
+    resolveAssetFirstRecovery: (payload) => this.resolveAssetFirstRecovery(payload),
+    runDirectorPipeline: (payload) => this.runDirectorPipeline(payload),
     buildDirectorSeedPayload: (directorInput, novelId, extra) => this.buildDirectorSeedPayload(directorInput, novelId, extra),
     getDirectorAssetSnapshot: (novelId) => this.getDirectorAssetSnapshot(novelId),
     assertHighMemoryStartAllowed: (payload) => this.assertHighMemoryDirectorStartAllowed(payload),
@@ -299,6 +303,25 @@ export class NovelDirectorService {
     batchAlreadyStartedCount?: number;
   }): Promise<void> {
     return this.continueRuntime.continueTask(taskId, input);
+  }
+
+  async continueCandidateStageTask(
+    taskId: string,
+    input: Parameters<NovelDirectorCandidateRuntime["continueTask"]>[1],
+  ): Promise<boolean> {
+    return this.candidateRuntime.continueTask(taskId, input);
+  }
+
+  async resolveAssetFirstRecovery(
+    input: Parameters<NovelDirectorContinueRuntime["resolveAssetFirstRecovery"]>[0],
+  ): ReturnType<NovelDirectorContinueRuntime["resolveAssetFirstRecovery"]> {
+    return this.continueRuntime.resolveAssetFirstRecovery(input);
+  }
+
+  async runDirectorPipeline(
+    input: Parameters<NovelDirectorPipelineRuntime["runPipeline"]>[0],
+  ): ReturnType<NovelDirectorPipelineRuntime["runPipeline"]> {
+    return this.directorPipelineRuntime.runPipeline(input);
   }
 
   async repairChapterTitles(taskId: string, input?: {

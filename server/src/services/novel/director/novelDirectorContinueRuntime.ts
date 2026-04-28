@@ -27,8 +27,19 @@ import {
 } from "./novelDirectorTakeoverRuntime";
 import type { DirectorRuntimeService } from "./runtime/DirectorRuntimeService";
 import type { NovelDirectorCandidateRuntime } from "./novelDirectorCandidateRuntime";
-import type { NovelDirectorPipelineRuntime } from "./novelDirectorPipelineRuntime";
+import type { DirectorPipelineRunInput, NovelDirectorPipelineRuntime } from "./novelDirectorPipelineRuntime";
 import type { NovelDirectorRuntimeOrchestrator } from "./novelDirectorRuntimeOrchestrator";
+
+export type DirectorAssetFirstRecovery =
+  | {
+    type: "auto_execution";
+    resumeCheckpointType: "front10_ready" | "chapter_batch_ready" | "replan_required";
+  }
+  | {
+    type: "phase";
+    phase: "structured_outline";
+  }
+  | null;
 
 function mergeResumeTargets(
   primary: ReturnType<typeof parseResumeTarget>,
@@ -71,6 +82,15 @@ export class NovelDirectorContinueRuntime {
     runtimeOrchestrator: NovelDirectorRuntimeOrchestrator;
     candidateRuntime: NovelDirectorCandidateRuntime;
     pipelineRuntime: NovelDirectorPipelineRuntime;
+    continueCandidateStageTask?: (
+      taskId: string,
+      input: Parameters<NovelDirectorCandidateRuntime["continueTask"]>[1],
+    ) => Promise<boolean>;
+    resolveAssetFirstRecovery?: (input: {
+      novelId: string;
+      directorInput: DirectorConfirmRequest;
+    }) => Promise<DirectorAssetFirstRecovery>;
+    runDirectorPipeline?: (input: DirectorPipelineRunInput) => Promise<void>;
     buildDirectorSeedPayload: (
       input: DirectorConfirmRequest,
       novelId: string | null,
@@ -130,9 +150,9 @@ export class NovelDirectorContinueRuntime {
         novelId,
         workflowTaskId: taskId,
         includeAiInterpretation: false,
-      });
+      }).catch(() => null);
     }
-    const resumedCandidateStage = await this.deps.candidateRuntime.continueTask(taskId, {
+    const resumedCandidateStage = await this.continueCandidateStageTask(taskId, {
       novelId,
       status: row.status,
       checkpointType: row.checkpointType,
@@ -156,6 +176,13 @@ export class NovelDirectorContinueRuntime {
     const runMode = normalizeDirectorRunMode(directorInput.runMode ?? fallbackRunMode);
     const shouldResumeStoredBatchCheckpoint = runMode === "auto_to_execution"
       && (row.checkpointType === "chapter_batch_ready" || row.checkpointType === "replan_required");
+    const canSkipReviewBlockedChapter = (
+      row.status === "failed"
+      || row.status === "cancelled"
+    ) && (
+      input?.continuationMode === "auto_execute_range"
+      || input?.continuationMode === "auto_execute_front10"
+    );
     if (
       assetFirstRecovery?.type === "auto_execution"
       || shouldResumeStoredBatchCheckpoint
@@ -205,8 +232,7 @@ export class NovelDirectorContinueRuntime {
           existingState: seedPayload.autoExecution ?? null,
           resumeCheckpointType,
           previousFailureMessage: row.lastError ?? null,
-          allowSkipReviewBlockedChapter: input?.continuationMode === "auto_execute_range"
-            || input?.continuationMode === "auto_execute_front10",
+          allowSkipReviewBlockedChapter: canSkipReviewBlockedChapter,
         });
       });
       return;
@@ -258,7 +284,7 @@ export class NovelDirectorContinueRuntime {
     });
     await this.deps.workflowService.markTaskRunning(taskId, resolveDirectorRunningStateForPhase(phase));
     this.deps.scheduleBackgroundRun(taskId, async () => {
-      await this.deps.pipelineRuntime.runPipeline({
+      await this.runDirectorPipeline({
         taskId,
         novelId,
         input: directorInput,
@@ -291,6 +317,21 @@ export class NovelDirectorContinueRuntime {
     return "chapter";
   }
 
+  private continueCandidateStageTask(
+    taskId: string,
+    input: Parameters<NovelDirectorCandidateRuntime["continueTask"]>[1],
+  ): Promise<boolean> {
+    return this.deps.continueCandidateStageTask
+      ? this.deps.continueCandidateStageTask(taskId, input)
+      : this.deps.candidateRuntime.continueTask(taskId, input);
+  }
+
+  private runDirectorPipeline(input: DirectorPipelineRunInput): Promise<void> {
+    return this.deps.runDirectorPipeline
+      ? this.deps.runDirectorPipeline(input)
+      : this.deps.pipelineRuntime.runPipeline(input);
+  }
+
   private async resolveObservedResumePhase(
     novelId: string,
   ): Promise<"structured_outline" | null> {
@@ -301,20 +342,13 @@ export class NovelDirectorContinueRuntime {
     });
   }
 
-  private async resolveAssetFirstRecovery(input: {
+  async resolveAssetFirstRecovery(input: {
     novelId: string;
     directorInput: DirectorConfirmRequest;
-  }): Promise<
-    | {
-      type: "auto_execution";
-      resumeCheckpointType: "front10_ready" | "chapter_batch_ready" | "replan_required";
+  }): Promise<DirectorAssetFirstRecovery> {
+    if (this.deps.resolveAssetFirstRecovery) {
+      return this.deps.resolveAssetFirstRecovery(input);
     }
-    | {
-      type: "phase";
-      phase: "structured_outline";
-    }
-    | null
-  > {
     const takeoverState = await loadDirectorTakeoverState({
       novelId: input.novelId,
       autoExecutionPlan: input.directorInput.autoExecutionPlan,

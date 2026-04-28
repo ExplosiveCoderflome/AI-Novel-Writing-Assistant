@@ -15,6 +15,14 @@ import { NovelWorkflowRuntimeService } from "../novel/workflow/NovelWorkflowRunt
 import { styleExtractionTaskService } from "../styleEngine/StyleExtractionTaskService";
 import { taskCenterService } from "./TaskCenterService";
 
+interface RecoveryInitializationDeps {
+  markPendingBookAnalysesForManualRecovery(): Promise<unknown>;
+  markPendingImageTasksForManualRecovery(): Promise<unknown>;
+  resumePendingAutoDirectorTasks(): Promise<unknown>;
+  markPendingPipelineJobsForManualRecovery(): Promise<unknown>;
+  markPendingStyleTasksForManualRecovery(): Promise<unknown>;
+}
+
 function toRecoverableTaskSummary(detail: UnifiedTaskDetail | null): RecoverableTaskSummary | null {
   if (!detail || (detail.status !== "queued" && detail.status !== "running")) {
     return null;
@@ -41,18 +49,23 @@ export class RecoveryTaskService {
     private readonly novelPipelineRuntimeService = new NovelPipelineRuntimeService(),
     private readonly novelDirectorService = new NovelDirectorService(),
     private readonly novelService = new NovelService(),
+    private readonly initializationDeps: RecoveryInitializationDeps = {
+      markPendingBookAnalysesForManualRecovery: () => bookAnalysisService.markPendingAnalysesForManualRecovery(),
+      markPendingImageTasksForManualRecovery: () => imageGenerationService.markPendingTasksForManualRecovery(),
+      resumePendingAutoDirectorTasks: () => this.novelWorkflowRuntimeService.resumePendingAutoDirectorTasks(),
+      markPendingPipelineJobsForManualRecovery: () => this.novelPipelineRuntimeService.markPendingPipelineJobsForManualRecovery(),
+      markPendingStyleTasksForManualRecovery: () => styleExtractionTaskService.markPendingTasksForManualRecovery(),
+    },
   ) {}
 
   initializePendingRecoveries(): Promise<void> {
     if (!this.initializationPromise) {
       this.initializationPromise = Promise.all([
-        bookAnalysisService.markPendingAnalysesForManualRecovery(),
-        imageGenerationService.markPendingTasksForManualRecovery(),
-        this.novelWorkflowRuntimeService.markPendingAutoDirectorTasksForManualRecovery({
-          staleRunningAsFailed: true,
-        }),
-        this.novelPipelineRuntimeService.markPendingPipelineJobsForManualRecovery(),
-        styleExtractionTaskService.markPendingTasksForManualRecovery(),
+        this.initializationDeps.markPendingBookAnalysesForManualRecovery(),
+        this.initializationDeps.markPendingImageTasksForManualRecovery(),
+        this.initializationDeps.resumePendingAutoDirectorTasks(),
+        this.initializationDeps.markPendingPipelineJobsForManualRecovery(),
+        this.initializationDeps.markPendingStyleTasksForManualRecovery(),
       ]).then(() => undefined);
     }
     return this.initializationPromise;

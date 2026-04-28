@@ -627,6 +627,101 @@ test("continueTask resumes auto execution in the background instead of blocking 
   }
 });
 
+test("continueTask does not skip the current chapter when approving a waiting auto-execution checkpoint", async () => {
+  const service = new NovelDirectorService();
+  const originalContinueCandidateStageTask = service.continueCandidateStageTask;
+  const originalGetTaskById = service.workflowService.getTaskById;
+  const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
+  const originalMarkTaskRunning = service.workflowService.markTaskRunning;
+  const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
+  const originalRunFromReady = service.autoExecutionRuntime.runFromReady;
+  const runningCalls = [];
+  const scheduledRuns = [];
+  const runtimeCalls = [];
+
+  service.continueCandidateStageTask = async () => false;
+  service.resolveAssetFirstRecovery = async () => ({
+    type: "auto_execution",
+    resumeCheckpointType: "chapter_batch_ready",
+  });
+  service.workflowService.getTaskById = async () => ({
+    id: "task_waiting_auto_execution_resume",
+    lane: "auto_director",
+    status: "waiting_approval",
+    pendingManualRecovery: false,
+    novelId: "novel_waiting_auto_execution_resume",
+    checkpointType: "chapter_batch_ready",
+    currentItemKey: "quality_repair",
+    resumeTargetJson: JSON.stringify({
+      stage: "pipeline",
+      chapterId: "chapter_6",
+    }),
+    lastError: "Chapter generation is blocked until review is resolved.",
+    seedPayloadJson: JSON.stringify({
+      directorInput: buildDirectorInput({
+        workflowTaskId: "task_waiting_auto_execution_resume",
+        runMode: "auto_to_execution",
+      }),
+      directorSession: {
+        runMode: "auto_to_execution",
+        phase: "front10_ready",
+        isBackgroundRunning: false,
+        lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
+        reviewScope: null,
+      },
+      autoExecution: {
+        enabled: true,
+        mode: "chapter_range",
+        scopeLabel: "第 5-8 章",
+        startOrder: 5,
+        endOrder: 8,
+        totalChapterCount: 4,
+        nextChapterId: "chapter_6",
+        nextChapterOrder: 6,
+        remainingChapterCount: 3,
+        remainingChapterIds: ["chapter_6", "chapter_7", "chapter_8"],
+        remainingChapterOrders: [6, 7, 8],
+        pipelineJobId: "pipeline_waiting",
+        pipelineStatus: "failed",
+      },
+    }),
+  });
+  service.workflowService.markTaskRunning = async (taskId, input) => {
+    runningCalls.push({ taskId, ...input });
+    return null;
+  };
+  service.scheduleBackgroundRun = (taskId, runner) => {
+    scheduledRuns.push({ taskId, runner });
+  };
+  service.autoExecutionRuntime.runFromReady = async (input) => {
+    runtimeCalls.push(input);
+  };
+
+  try {
+    await service.continueTask("task_waiting_auto_execution_resume", {
+      continuationMode: "auto_execute_range",
+    });
+    assert.equal(runningCalls.length, 1);
+    assert.equal(scheduledRuns.length, 1);
+    assert.equal(runtimeCalls.length, 0);
+
+    await scheduledRuns[0].runner();
+
+    assert.equal(runtimeCalls.length, 1);
+    assert.equal(runtimeCalls[0].taskId, "task_waiting_auto_execution_resume");
+    assert.equal(runtimeCalls[0].novelId, "novel_waiting_auto_execution_resume");
+    assert.equal(runtimeCalls[0].resumeCheckpointType, "chapter_batch_ready");
+    assert.equal(runtimeCalls[0].allowSkipReviewBlockedChapter, false);
+  } finally {
+    service.continueCandidateStageTask = originalContinueCandidateStageTask;
+    service.workflowService.getTaskById = originalGetTaskById;
+    service.resolveAssetFirstRecovery = originalResolveAssetFirstRecovery;
+    service.workflowService.markTaskRunning = originalMarkTaskRunning;
+    service.scheduleBackgroundRun = originalScheduleBackgroundRun;
+    service.autoExecutionRuntime.runFromReady = originalRunFromReady;
+  }
+});
+
 test("continueTask resumes structured outline when stale front10 checkpoint lacks a fully detailed range", async () => {
   const service = new NovelDirectorService();
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;

@@ -248,7 +248,10 @@ export class NovelDirectorRuntimeOrchestrator {
       novelId: input.novelId,
       workflowTaskId: input.taskId,
       includeAiInterpretation: false,
-    });
+    }).catch(() => null);
+    if (!analysis) {
+      return [];
+    }
     return analysis.inventory.artifacts;
   }
 }
