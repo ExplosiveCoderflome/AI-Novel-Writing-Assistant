@@ -23,8 +23,8 @@ import {
   runDirectorStructuredOutlinePhase,
   runDirectorVolumeStrategyPhase,
 } from "./novelDirectorPipelinePhases";
-import { DIRECTOR_PROGRESS } from "./novelDirectorProgress";
 import { resolveSafeDirectorPipelineStartPhase } from "./novelDirectorRecovery";
+import { getDirectorStageNodeAdapter } from "./novelDirectorStageNodeAdapters";
 import { runDirectorStoryMacroPhase } from "./novelDirectorStoryMacroPhase";
 import type { NovelDirectorRuntimeOrchestrator } from "./novelDirectorRuntimeOrchestrator";
 
@@ -71,41 +71,23 @@ export class NovelDirectorPipelineRuntime {
     });
 
     if (safeStartPhase === "story_macro") {
+      const adapter = getDirectorStageNodeAdapter("story_macro");
       await this.deps.runtimeOrchestrator.runNode({
+        ...adapter,
         taskId: input.taskId,
         novelId: input.novelId,
-        nodeKey: "story_macro_phase",
-        label: "生成书级规划资产",
-        targetType: "novel",
         targetId: input.novelId,
-        reads: ["book_seed", "candidate_batch"],
-        writes: ["story_macro", "book_contract"],
-        waitingState: {
-          stage: "story_macro",
-          itemKey: "book_contract",
-          itemLabel: "等待确认书级规划资产",
-          progress: DIRECTOR_PROGRESS.bookContract,
-        },
         runner: () => this.runStoryMacroPhase(input.taskId, input.novelId, input.input),
       });
     }
 
     if (safeStartPhase === "story_macro" || safeStartPhase === "character_setup") {
+      const adapter = getDirectorStageNodeAdapter("character_setup");
       const paused = await this.deps.runtimeOrchestrator.runNode({
+        ...adapter,
         taskId: input.taskId,
         novelId: input.novelId,
-        nodeKey: "character_setup_phase",
-        label: "准备角色阵容与角色资产",
-        targetType: "novel",
         targetId: input.novelId,
-        reads: ["book_contract", "story_macro"],
-        writes: ["character_cast"],
-        waitingState: {
-          stage: "character_setup",
-          itemKey: "character_setup",
-          itemLabel: "等待确认角色阵容",
-          progress: DIRECTOR_PROGRESS.characterSetup,
-        },
         runner: () => this.runCharacterSetupPhase(input.taskId, input.novelId, input.input),
       });
       if (paused) {
@@ -126,21 +108,12 @@ export class NovelDirectorPipelineRuntime {
   }
 
   private async runVolumeAndOutline(input: DirectorPipelineRunInput): Promise<void> {
+    const volumeStrategyAdapter = getDirectorStageNodeAdapter("volume_strategy");
     const volumeWorkspace = await this.deps.runtimeOrchestrator.runNode({
+      ...volumeStrategyAdapter,
       taskId: input.taskId,
       novelId: input.novelId,
-      nodeKey: "volume_strategy_phase",
-      label: "生成分卷策略与推进路线",
-      targetType: "novel",
       targetId: input.novelId,
-      reads: ["book_contract", "story_macro", "character_cast"],
-      writes: ["volume_strategy"],
-      waitingState: {
-        stage: "volume_strategy",
-        itemKey: "volume_strategy",
-        itemLabel: "等待确认分卷策略",
-        progress: DIRECTOR_PROGRESS.volumeStrategy,
-      },
       runner: () => this.runVolumeStrategyPhase(input.taskId, input.novelId, input.input),
     });
     if (!volumeWorkspace) {
@@ -180,21 +153,12 @@ export class NovelDirectorPipelineRuntime {
     input: DirectorPipelineRunInput,
     workspace: VolumePlanDocument,
   ): Promise<void> {
+    const adapter = getDirectorStageNodeAdapter("structured_outline");
     await this.deps.runtimeOrchestrator.runNode({
+      ...adapter,
       taskId: input.taskId,
       novelId: input.novelId,
-      nodeKey: "structured_outline_phase",
-      label: "生成章节任务单",
-      targetType: "novel",
       targetId: input.novelId,
-      reads: ["volume_strategy", "character_cast"],
-      writes: ["chapter_task_sheet"],
-      waitingState: {
-        stage: "structured_outline",
-        itemKey: "chapter_detail_bundle",
-        itemLabel: "等待确认章节任务单",
-        progress: DIRECTOR_PROGRESS.chapterDetailStart,
-      },
       runner: () => this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, workspace),
     });
   }
