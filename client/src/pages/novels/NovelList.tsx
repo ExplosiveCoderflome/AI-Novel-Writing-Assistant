@@ -20,6 +20,7 @@ import {
   getWorkflowBadge,
   getWorkflowDescription,
   isWorkflowRunningInBackground,
+  LIVE_TASK_STATUSES,
   requiresCandidateSelection,
 } from "@/lib/novelWorkflowTaskUi";
 import { toast } from "@/components/ui/toast";
@@ -75,6 +76,13 @@ export default function NovelList() {
     queryKey: queryKeys.novels.list(1, 100),
     queryFn: () => getNovelList({ page: 1, limit: 100 }),
     staleTime: 30_000,
+    refetchInterval: (query) => {
+      const novels = query.state.data?.data?.items ?? [];
+      return novels.some((novel) => {
+        const task = novel.latestAutoDirectorTask;
+        return Boolean(task && LIVE_TASK_STATUSES.has(task.status));
+      }) ? 4000 : false;
+    },
   });
 
   const deleteNovelMutation = useMutation({

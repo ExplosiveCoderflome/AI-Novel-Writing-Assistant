@@ -34,6 +34,8 @@ import type {
   DirectorCandidateResponse,
 } from "./novelDirectorSchemas";
 
+export type DirectorLlmBindingMode = "route" | "task";
+
 export type LLMOptions = Pick<DirectorCandidatesRequest, "provider" | "model" | "temperature">;
 
 export type DirectorCandidateStageMode =
@@ -55,6 +57,7 @@ export interface DirectorWorkflowSeedPayload extends Record<string, unknown> {
   provider?: DirectorLLMOptions["provider"] | null;
   model?: string | null;
   temperature?: number | null;
+  llmBindingMode?: DirectorLlmBindingMode;
   runMode?: DirectorRunMode;
   autoExecutionPlan?: DirectorAutoExecutionPlan;
   autoApproval?: DirectorAutoApprovalConfig | null;
@@ -227,8 +230,7 @@ export async function enhanceCandidateTitles(
       brief: buildCandidateTitleBrief(candidate, context),
       genreId: context.request.genreId ?? null,
       count: 4,
-      provider: context.options.provider,
-      model: context.options.model,
+      ...buildRouteFollowingDirectorLlmOptions(context.options),
     });
     const mergedOptions = mergeTitleOptions(response.titles, candidate);
     const primaryTitle = mergedOptions[0]?.title?.trim();
@@ -379,6 +381,7 @@ export function buildWorkflowSeedPayload(
   input: DirectorProjectContextInput & Pick<DirectorLLMOptions, "provider" | "model" | "temperature" | "runMode"> & {
     idea: string;
     autoApproval?: DirectorAutoApprovalConfig;
+    llmBindingMode?: DirectorLlmBindingMode;
   },
   extra?: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -439,6 +442,7 @@ export function buildWorkflowSeedPayload(
     provider: input.provider ?? null,
     model: input.model?.trim() || null,
     temperature: typeof input.temperature === "number" ? input.temperature : null,
+    llmBindingMode: input.llmBindingMode === "task" ? "task" : "route",
     runMode: input.runMode ?? "auto_to_ready",
     ...(autoApproval ? { autoApproval } : {}),
     estimatedChapterCount: basicForm.estimatedChapterCount,
@@ -450,12 +454,12 @@ export function buildWorkflowSeedPayload(
 
 export function getDirectorInputFromSeedPayload(
   seedPayload: DirectorWorkflowSeedPayload | null | undefined,
-): DirectorConfirmRequest | null {
+): (DirectorConfirmRequest & { llmBindingMode?: DirectorLlmBindingMode }) | null {
   const directorInput = seedPayload?.directorInput;
   if (!directorInput || typeof directorInput !== "object") {
     return null;
   }
-  return directorInput as DirectorConfirmRequest;
+  return directorInput as DirectorConfirmRequest & { llmBindingMode?: DirectorLlmBindingMode };
 }
 
 export function getDirectorLlmOptionsFromSeedPayload(
@@ -482,6 +486,38 @@ export function getDirectorLlmOptionsFromSeedPayload(
   };
 }
 
+export function isDirectorTaskModelBinding(
+  seedPayload: DirectorWorkflowSeedPayload | null | undefined,
+): boolean {
+  return seedPayload?.llmBindingMode === "task";
+}
+
+export function buildTaskModelDirectorLlmOptions(
+  seedPayload: DirectorWorkflowSeedPayload | null | undefined,
+): Pick<DirectorLLMOptions, "provider" | "model" | "temperature"> | null {
+  return getDirectorLlmOptionsFromSeedPayload(seedPayload);
+}
+
+export function buildRouteFollowingDirectorLlmOptions(
+  seedPayloadOrOptions: DirectorWorkflowSeedPayload | Pick<DirectorLLMOptions, "provider" | "model" | "temperature"> | null | undefined,
+  override?: {
+    temperature?: number;
+  },
+): Pick<DirectorLLMOptions, "provider" | "model" | "temperature"> {
+  if (isDirectorTaskModelBinding(seedPayloadOrOptions as DirectorWorkflowSeedPayload | null | undefined)) {
+    const taskModel = getDirectorLlmOptionsFromSeedPayload(seedPayloadOrOptions as DirectorWorkflowSeedPayload);
+    const temperature = typeof override?.temperature === "number"
+      ? override.temperature
+      : taskModel?.temperature;
+    return {
+      ...(taskModel?.provider ? { provider: taskModel.provider } : {}),
+      ...(taskModel?.model ? { model: taskModel.model } : {}),
+      ...(typeof temperature === "number" ? { temperature } : {}),
+    };
+  }
+  return {};
+}
+
 export function applyDirectorLlmOverride(
   seedPayload: DirectorWorkflowSeedPayload | null | undefined,
   llmOverride: Pick<DirectorLLMOptions, "provider" | "model" | "temperature">,
@@ -498,12 +534,14 @@ export function applyDirectorLlmOverride(
   const nextProvider = llmOverride.provider ?? seedPayload.provider ?? directorInput?.provider ?? null;
   return {
     ...seedPayload,
+    llmBindingMode: "task",
     provider: nextProvider,
     model: nextModel,
     temperature: nextTemperature,
     directorInput: directorInput
       ? {
         ...directorInput,
+        llmBindingMode: "task",
         provider: nextProvider ?? directorInput.provider,
         model: nextModel || directorInput.model,
         temperature: typeof nextTemperature === "number"

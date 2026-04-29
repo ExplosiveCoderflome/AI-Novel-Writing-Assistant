@@ -102,9 +102,9 @@ test("healAutoDirectorTaskState also reconciles chapter batch checkpoints when t
 
   prisma.novelWorkflowTask.findUnique = async () => currentRow;
   prisma.chapter.findMany = async () => [
-    { id: "chapter-1", order: 1, generationState: "approved" },
-    { id: "chapter-2", order: 2, generationState: "reviewed" },
-    { id: "chapter-3", order: 3, generationState: "approved" },
+    { id: "chapter-1", order: 1, content: "正文内容", generationState: "approved" },
+    { id: "chapter-2", order: 2, content: "", generationState: "reviewed", chapterStatus: "pending_review" },
+    { id: "chapter-3", order: 3, content: "正文内容", generationState: "approved" },
   ];
   prisma.novelWorkflowTask.update = async ({ data }) => {
     currentRow = {
@@ -235,6 +235,103 @@ test("healAutoDirectorTaskState revives front10 auto execution tasks that only f
     assert.equal(currentRow.checkpointType, null);
     assert.equal(currentRow.lastError, null);
     assert.equal(JSON.parse(currentRow.resumeTargetJson).chapterId, "chapter-2");
+  } finally {
+    prisma.novelWorkflowTask.findUnique = originals.findUnique;
+    prisma.generationJob.findUnique = originals.generationJobFindUnique;
+    prisma.novelWorkflowTask.update = originals.update;
+  }
+});
+
+test("healAutoDirectorTaskState marks running auto director tasks recoverable when the linked pipeline paused", async () => {
+  const originals = {
+    findUnique: prisma.novelWorkflowTask.findUnique,
+    generationJobFindUnique: prisma.generationJob.findUnique,
+    update: prisma.novelWorkflowTask.update,
+  };
+
+  let currentRow = {
+    id: "task_pipeline_paused",
+    title: "示例项目",
+    novelId: "novel_demo",
+    lane: "auto_director",
+    status: "running",
+    pendingManualRecovery: false,
+    progress: 0.972,
+    currentStage: "质量修复",
+    currentItemKey: "quality_repair",
+    currentItemLabel: "正在自动审校前 10 章 · 第 4/10 章 · 示例章节",
+    checkpointType: null,
+    checkpointSummary: null,
+    resumeTargetJson: JSON.stringify({
+      route: "/novels/novel_demo/edit",
+      stage: "pipeline",
+      novelId: "novel_demo",
+      taskId: "task_pipeline_paused",
+      chapterId: "chapter-4",
+      volumeId: null,
+    }),
+    seedPayloadJson: JSON.stringify({
+      autoExecution: {
+        enabled: true,
+        mode: "front10",
+        firstChapterId: "chapter-1",
+        startOrder: 1,
+        endOrder: 10,
+        totalChapterCount: 10,
+        nextChapterId: "chapter-4",
+        nextChapterOrder: 4,
+        pipelineJobId: "job-paused",
+        pipelineStatus: "running",
+      },
+    }),
+    lastError: null,
+    finishedAt: null,
+    heartbeatAt: new Date("2026-04-28T12:39:17.000Z"),
+    cancelRequestedAt: null,
+    milestonesJson: null,
+  };
+
+  prisma.novelWorkflowTask.findUnique = async () => currentRow;
+  prisma.generationJob.findUnique = async () => ({
+    id: "job-paused",
+    status: "queued",
+    pendingManualRecovery: true,
+    error: "服务重启后任务已暂停，等待手动恢复。",
+  });
+  prisma.novelWorkflowTask.update = async ({ data }) => {
+    currentRow = {
+      ...currentRow,
+      status: data.status ?? currentRow.status,
+      pendingManualRecovery: Object.prototype.hasOwnProperty.call(data, "pendingManualRecovery")
+        ? data.pendingManualRecovery
+        : currentRow.pendingManualRecovery,
+      heartbeatAt: Object.prototype.hasOwnProperty.call(data, "heartbeatAt")
+        ? data.heartbeatAt
+        : currentRow.heartbeatAt,
+      finishedAt: Object.prototype.hasOwnProperty.call(data, "finishedAt")
+        ? data.finishedAt
+        : currentRow.finishedAt,
+      cancelRequestedAt: Object.prototype.hasOwnProperty.call(data, "cancelRequestedAt")
+        ? data.cancelRequestedAt
+        : currentRow.cancelRequestedAt,
+      lastError: Object.prototype.hasOwnProperty.call(data, "lastError")
+        ? data.lastError
+        : currentRow.lastError,
+      seedPayloadJson: data.seedPayloadJson ?? currentRow.seedPayloadJson,
+    };
+    return currentRow;
+  };
+
+  try {
+    const service = new NovelWorkflowService();
+    const healed = await service.healAutoDirectorTaskState("task_pipeline_paused");
+
+    assert.equal(healed, true);
+    assert.equal(currentRow.status, "queued");
+    assert.equal(currentRow.pendingManualRecovery, true);
+    assert.equal(currentRow.heartbeatAt, null);
+    assert.match(currentRow.lastError, /等待手动恢复/);
+    assert.equal(JSON.parse(currentRow.seedPayloadJson).autoExecution.pipelineStatus, "queued");
   } finally {
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
     prisma.generationJob.findUnique = originals.generationJobFindUnique;

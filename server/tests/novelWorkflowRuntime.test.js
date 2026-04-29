@@ -222,3 +222,133 @@ test("startup recovery initialization auto-continues interrupted auto director t
     ["resume-auto-director"],
   ]);
 });
+
+test("recovery candidate listing builds lightweight summaries without task details", async () => {
+  const { RecoveryTaskService } = require("../dist/services/task/RecoveryTaskService.js");
+  const { taskCenterService } = require("../dist/services/task/TaskCenterService.js");
+  const { prisma } = require("../dist/db/prisma.js");
+  const originals = {
+    workflowFindMany: prisma.novelWorkflowTask.findMany,
+    pipelineFindMany: prisma.generationJob.findMany,
+    bookFindMany: prisma.bookAnalysis.findMany,
+    imageFindMany: prisma.imageGenerationTask.findMany,
+    styleFindMany: prisma.styleExtractionTask.findMany,
+    getTaskDetail: taskCenterService.getTaskDetail,
+  };
+
+  prisma.novelWorkflowTask.findMany = async () => ([{
+    id: "task-recovery-workflow",
+    title: "AI 自动导演",
+    status: "running",
+    currentStage: "节奏 / 拆章",
+    currentItemKey: "chapter_detail_bundle",
+    currentItemLabel: "正在细化章节",
+    checkpointType: null,
+    resumeTargetJson: JSON.stringify({
+      route: "/novels/:id/edit",
+      novelId: "novel-recovery",
+      taskId: "task-recovery-workflow",
+      stage: "structured",
+    }),
+    seedPayloadJson: JSON.stringify({
+      autoExecution: {
+        scopeLabel: "全书",
+      },
+    }),
+    lastError: "服务重启后任务已暂停，等待手动恢复。",
+    novelId: "novel-recovery",
+    updatedAt: new Date("2026-04-28T10:00:00.000Z"),
+    novel: {
+      title: "恢复测试书",
+    },
+  }]);
+  prisma.generationJob.findMany = async () => [];
+  prisma.bookAnalysis.findMany = async () => [];
+  prisma.imageGenerationTask.findMany = async () => [];
+  prisma.styleExtractionTask.findMany = async () => [];
+  taskCenterService.getTaskDetail = async () => {
+    throw new Error("recovery candidate list must not load task details");
+  };
+
+  try {
+    const recoveryService = new RecoveryTaskService();
+    const result = await recoveryService.listRecoveryCandidates();
+
+    assert.equal(result.items.length, 1);
+    assert.deepEqual(result.items[0], {
+      id: "task-recovery-workflow",
+      kind: "novel_workflow",
+      title: "AI 自动导演",
+      ownerLabel: "恢复测试书",
+      status: "running",
+      currentStage: "节奏 / 拆章",
+      currentItemLabel: "正在细化章节",
+      resumeAction: "查看当前进度",
+      sourceRoute: "/novels/novel-recovery/edit?stage=structured&taskId=task-recovery-workflow",
+      recoveryHint: "服务重启后任务已暂停，等待手动恢复。",
+    });
+  } finally {
+    prisma.novelWorkflowTask.findMany = originals.workflowFindMany;
+    prisma.generationJob.findMany = originals.pipelineFindMany;
+    prisma.bookAnalysis.findMany = originals.bookFindMany;
+    prisma.imageGenerationTask.findMany = originals.imageFindMany;
+    prisma.styleExtractionTask.findMany = originals.styleFindMany;
+    taskCenterService.getTaskDetail = originals.getTaskDetail;
+  }
+});
+
+test("recovery candidate listing does not wait for startup recovery initialization", async () => {
+  const { RecoveryTaskService } = require("../dist/services/task/RecoveryTaskService.js");
+  const { prisma } = require("../dist/db/prisma.js");
+  const originals = {
+    workflowFindMany: prisma.novelWorkflowTask.findMany,
+    pipelineFindMany: prisma.generationJob.findMany,
+    bookFindMany: prisma.bookAnalysis.findMany,
+    imageFindMany: prisma.imageGenerationTask.findMany,
+    styleFindMany: prisma.styleExtractionTask.findMany,
+  };
+
+  let resumeStarted = false;
+  const neverResolve = new Promise(() => {});
+  prisma.novelWorkflowTask.findMany = async () => [];
+  prisma.generationJob.findMany = async () => [];
+  prisma.bookAnalysis.findMany = async () => [];
+  prisma.imageGenerationTask.findMany = async () => [];
+  prisma.styleExtractionTask.findMany = async () => [];
+
+  const recoveryService = new RecoveryTaskService(
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      async markPendingBookAnalysesForManualRecovery() {},
+      async markPendingImageTasksForManualRecovery() {},
+      async resumePendingAutoDirectorTasks() {
+        resumeStarted = true;
+        return neverResolve;
+      },
+      async markPendingPipelineJobsForManualRecovery() {},
+      async markPendingStyleTasksForManualRecovery() {},
+    },
+  );
+
+  try {
+    recoveryService.initializePendingRecoveries();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const result = await Promise.race([
+      recoveryService.listRecoveryCandidates(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("listRecoveryCandidates waited for startup recovery")), 50)),
+    ]);
+
+    assert.equal(resumeStarted, true);
+    assert.deepEqual(result, { items: [] });
+  } finally {
+    prisma.novelWorkflowTask.findMany = originals.workflowFindMany;
+    prisma.generationJob.findMany = originals.pipelineFindMany;
+    prisma.bookAnalysis.findMany = originals.bookFindMany;
+    prisma.imageGenerationTask.findMany = originals.imageFindMany;
+    prisma.styleExtractionTask.findMany = originals.styleFindMany;
+  }
+});

@@ -86,8 +86,23 @@ test("buildDirectorAutoExecutionPipelineOptions uses front10-safe defaults", () 
   assert.equal(options.skipCompleted, true);
   assert.equal(options.qualityThreshold, 75);
   assert.equal(options.repairMode, "light_repair");
+  assert.equal(options.advanceAfterAutoRepairLimit, true);
   assert.equal(options.controlPolicy?.kickoffMode, "director_start");
   assert.equal(options.controlPolicy?.advanceMode, "auto_to_execution");
+});
+
+test("buildDirectorAutoExecutionPipelineOptions leaves model selection to model routes", () => {
+  const options = buildDirectorAutoExecutionPipelineOptions({
+    provider: "openai",
+    model: "glm-5",
+    temperature: 0.7,
+    startOrder: 7,
+    endOrder: 7,
+  });
+
+  assert.equal(Object.hasOwn(options, "provider"), false);
+  assert.equal(Object.hasOwn(options, "model"), false);
+  assert.equal(Object.hasOwn(options, "temperature"), false);
 });
 
 test("buildDirectorAutoExecutionPipelineOptions respects review and repair toggles", () => {
@@ -100,6 +115,7 @@ test("buildDirectorAutoExecutionPipelineOptions respects review and repair toggl
 
   assert.equal(options.autoReview, false);
   assert.equal(options.autoRepair, false);
+  assert.equal(options.advanceAfterAutoRepairLimit, false);
 });
 
 test("auto execution does not treat empty reviewed chapters as processed", () => {
@@ -120,6 +136,20 @@ test("auto execution does not treat empty reviewed chapters as processed", () =>
 
   assert.equal(isDirectorAutoExecutionChapterProcessed(emptyReviewedChapter), false);
   assert.equal(isDirectorAutoExecutionChapterProcessed(draftedReviewedChapter), true);
+  assert.equal(isDirectorAutoExecutionChapterProcessed({
+    id: "chapter-repaired-once",
+    order: 13,
+    content: "修复后的正文",
+    generationState: "repaired",
+    chapterStatus: "needs_repair",
+  }), true);
+  assert.equal(isDirectorAutoExecutionChapterProcessed({
+    id: "chapter-reviewed-needs-repair",
+    order: 14,
+    content: "初审正文",
+    generationState: "reviewed",
+    chapterStatus: "needs_repair",
+  }), false);
 
   const state = buildDirectorAutoExecutionState({
     range: {

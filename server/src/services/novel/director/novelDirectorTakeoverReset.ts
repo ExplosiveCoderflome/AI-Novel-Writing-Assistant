@@ -10,6 +10,7 @@ import {
 import type { DirectorTakeoverResolvedPlan } from "./novelDirectorTakeover";
 import type { DirectorTakeoverLoadedState } from "./novelDirectorTakeoverRuntime";
 import { resetDirectorDownstreamChapterState } from "./novelDirectorDownstreamReset";
+import { executionChapterListMatchesWorkspace } from "./novelDirectorChapterSyncGuards";
 
 interface DirectorTakeoverResetDeps {
   getVolumeWorkspace: (novelId: string) => Promise<VolumePlanDocument>;
@@ -465,5 +466,24 @@ export async function resetDirectorTakeoverDownstreamState(input: {
     deps: input.deps,
   });
   await cancelActivePipelineJobIfNeeded(input.takeoverState, input.deps);
+  if (range) {
+    const [workspace, chapters] = await Promise.all([
+      input.deps.getVolumeWorkspace(input.novelId),
+      prisma.chapter.findMany({
+        where: {
+          novelId: input.novelId,
+          order: {
+            gte: range.startOrder,
+            lte: range.endOrder,
+          },
+        },
+        orderBy: { order: "asc" },
+        select: { order: true, title: true },
+      }),
+    ]);
+    if (executionChapterListMatchesWorkspace({ workspace, chapters, range })) {
+      return;
+    }
+  }
   await resetChapterExecutionOutputs(input.novelId, range);
 }

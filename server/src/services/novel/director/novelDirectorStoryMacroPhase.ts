@@ -9,6 +9,7 @@ import {
 import { BookContractService } from "../BookContractService";
 import { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import {
+  buildRouteFollowingDirectorLlmOptions,
   buildStoryInput,
   normalizeBookContract,
   toBookSpec,
@@ -71,11 +72,7 @@ async function generateDirectorBookContract(input: {
       storyMacroPlan,
       targetChapterCount: request.estimatedChapterCount ?? bookSpec.targetChapterCount,
     }),
-    options: {
-      provider: request.provider,
-      model: request.model,
-      temperature,
-    },
+    options: buildRouteFollowingDirectorLlmOptions(request, { temperature }),
   });
   return normalizeBookContract(parsed.output);
 }
@@ -97,7 +94,11 @@ export async function runDirectorStoryMacroPhase(input: {
     itemLabel: "正在生成故事宏观规划",
     progress: DIRECTOR_PROGRESS.storyMacro,
     callbacks,
-    run: async () => dependencies.storyMacroService.decompose(novelId, storyInput, request),
+    run: async () => dependencies.storyMacroService.decompose(
+      novelId,
+      storyInput,
+      buildRouteFollowingDirectorLlmOptions(request),
+    ),
   });
   const hydratedStoryMacroPlan = await runDirectorTrackedStep({
     taskId,

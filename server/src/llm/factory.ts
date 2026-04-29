@@ -204,12 +204,17 @@ export async function resolveLLMClientOptions(
     const hasExplicitProvider = provider != null;
     const hasExplicitModel = options.model != null;
     const shouldUseRouteProvider = !hasExplicitProvider && !hasExplicitModel;
-    const route = await resolveModel(options.taskType, {
-      ...(shouldUseRouteProvider ? {} : { provider: resolvedProvider }),
-      ...(options.model != null ? { model: options.model } : {}),
-      ...(options.temperature != null ? { temperature: options.temperature } : {}),
-      ...(options.maxTokens != null ? { maxTokens: options.maxTokens } : {}),
-    });
+    const route = await resolveModel(
+      options.taskType,
+      shouldUseRouteProvider
+        ? undefined
+        : {
+            provider: resolvedProvider,
+            ...(options.model != null ? { model: options.model } : {}),
+            ...(options.temperature != null ? { temperature: options.temperature } : {}),
+            ...(options.maxTokens != null ? { maxTokens: options.maxTokens } : {}),
+          },
+    );
     if (shouldUseRouteProvider) {
       resolvedProvider = route.provider;
     }

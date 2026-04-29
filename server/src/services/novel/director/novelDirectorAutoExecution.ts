@@ -1,4 +1,3 @@
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
   ChapterGenerationState,
   PipelineJobStatus,
@@ -230,7 +229,7 @@ export function isDirectorAutoExecutionChapterProcessed(chapter: DirectorAutoExe
     return true;
   }
   if (chapter.chapterStatus === "needs_repair") {
-    return false;
+    return chapter.generationState === "repaired";
   }
   if (chapter.chapterStatus === "pending_review") {
     return true;
@@ -366,9 +365,6 @@ export function buildDirectorAutoExecutionCompletedSummary(input: {
 }
 
 export function buildDirectorAutoExecutionPipelineOptions(input: {
-  provider?: LLMProvider;
-  model?: string;
-  temperature?: number;
   workflowTaskId?: string;
   taskStyleProfileId?: string;
   startOrder: number;
@@ -389,9 +385,7 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
     skipCompleted: true,
     qualityThreshold: 75,
     repairMode: "light_repair" as const,
-    provider: input.provider,
-    model: input.model,
-    temperature: input.temperature,
+    advanceAfterAutoRepairLimit: autoReview && (input.autoRepair ?? true),
     workflowTaskId: input.workflowTaskId,
     taskStyleProfileId: input.taskStyleProfileId,
   };

@@ -82,6 +82,7 @@ interface NovelDirectorAutoExecutionNovelPort {
     skipCompleted: boolean;
     qualityThreshold: number;
     repairMode: "light_repair";
+    advanceAfterAutoRepairLimit?: boolean;
   }): Promise<{ id: string; status: PipelineJobStatus }>;
   findActivePipelineJobForRange(
     novelId: string,
@@ -95,11 +96,13 @@ interface NovelDirectorAutoExecutionNovelPort {
     progress: number;
     currentStage?: string | null;
     currentItemLabel?: string | null;
+    pendingManualRecovery?: boolean | null;
     noticeCode?: string | null;
     payload?: string | null;
     noticeSummary?: string | null;
     error?: string | null;
   } | null>;
+  resumePipelineJob?(jobId: string): Promise<void>;
   cancelPipelineJob(jobId: string): Promise<unknown>;
 }
 
@@ -111,7 +114,7 @@ interface NovelDirectorAutoExecutionRuntimeDeps {
   novelContextService: Pick<NovelDirectorAutoExecutionNovelPort, "listChapters">;
   novelService: Pick<
     NovelDirectorAutoExecutionNovelPort,
-    "startPipelineJob" | "findActivePipelineJobForRange" | "getPipelineJobById" | "cancelPipelineJob"
+    "startPipelineJob" | "findActivePipelineJobForRange" | "getPipelineJobById" | "resumePipelineJob" | "cancelPipelineJob"
   >;
   volumeWorkspaceService?: Pick<NovelDirectorAutoExecutionVolumeWorkspacePort, "getVolumes">;
   workflowService: NovelDirectorAutoExecutionWorkflowPort;
@@ -153,6 +156,37 @@ function resolveSingleChapterExecutionRange(
   return {
     startOrder: order,
     endOrder: order,
+  };
+}
+
+function markCurrentQualityNoticeChapterSkipped(
+  autoExecution: DirectorAutoExecutionState,
+): DirectorAutoExecutionState {
+  const nextChapterId = autoExecution.nextChapterId?.trim() || null;
+  const nextChapterOrder = typeof autoExecution.nextChapterOrder === "number"
+    ? autoExecution.nextChapterOrder
+    : null;
+  if (!nextChapterId && nextChapterOrder == null) {
+    return autoExecution;
+  }
+  const skippedChapterIds = Array.from(new Set(
+    [
+      ...(autoExecution.skippedChapterIds ?? []),
+      ...(nextChapterId ? [nextChapterId] : []),
+    ],
+  ));
+  const skippedChapterOrders = Array.from(new Set(
+    [
+      ...(autoExecution.skippedChapterOrders ?? []),
+      ...(typeof nextChapterOrder === "number" ? [nextChapterOrder] : []),
+    ],
+  )).sort((left, right) => left - right);
+  return {
+    ...autoExecution,
+    skippedChapterIds,
+    skippedChapterOrders,
+    pipelineJobId: null,
+    pipelineStatus: null,
   };
 }
 
@@ -235,6 +269,24 @@ export class NovelDirectorAutoExecutionRuntime {
     return true;
   }
 
+  private async resumePipelineJobIfWaitingManualRecovery(job: {
+    id: string;
+    status: PipelineJobStatus;
+    pendingManualRecovery?: boolean | null;
+  }): Promise<boolean> {
+    if (
+      !job.pendingManualRecovery
+      || (job.status !== "queued" && job.status !== "running")
+    ) {
+      return false;
+    }
+    if (!this.deps.novelService.resumePipelineJob) {
+      throw new Error("章节流水线任务正在等待手动恢复，请先恢复章节流水线。");
+    }
+    await this.deps.novelService.resumePipelineJob(job.id);
+    return true;
+  }
+
   async runFromReady(input: {
     taskId: string;
     novelId: string;
@@ -273,6 +325,8 @@ export class NovelDirectorAutoExecutionRuntime {
         const existingJob = await this.deps.novelService.getPipelineJobById(pipelineJobId);
         if (!existingJob || ["failed", "cancelled"].includes(existingJob.status)) {
           pipelineJobId = "";
+        } else {
+          await this.resumePipelineJobIfWaitingManualRecovery(existingJob);
         }
       }
 
@@ -333,9 +387,6 @@ export class NovelDirectorAutoExecutionRuntime {
           const job = await this.deps.novelService.startPipelineJob(
             input.novelId,
             buildDirectorAutoExecutionPipelineOptions({
-              provider: input.request.provider,
-              model: input.request.model,
-              temperature: input.request.temperature,
               workflowTaskId: input.taskId,
               taskStyleProfileId: input.request.styleProfileId,
               ...resolveSingleChapterExecutionRange(range, autoExecution),
@@ -390,6 +441,24 @@ export class NovelDirectorAutoExecutionRuntime {
         const job = await this.deps.novelService.getPipelineJobById(pipelineJobId);
         if (!job) {
           throw new Error("自动执行章节批次时未能找到对应的批量任务。");
+        }
+        if (await this.resumePipelineJobIfWaitingManualRecovery(job)) {
+          ({ range, autoExecution } = await this.resolveRangeAndState({
+            novelId: input.novelId,
+            existingState: autoExecution,
+            pipelineJobId,
+            pipelineStatus: job.status,
+          }));
+          await syncAutoExecutionTaskState(this.deps, {
+            taskId: input.taskId,
+            novelId: input.novelId,
+            request: input.request,
+            range,
+            autoExecution,
+            isBackgroundRunning: true,
+            resumeStage: "pipeline",
+          });
+          continue;
         }
         if (job.status === "queued" || job.status === "running") {
           const runningState = resolveDirectorAutoExecutionWorkflowState(job, range, autoExecution);
@@ -468,7 +537,7 @@ export class NovelDirectorAutoExecutionRuntime {
             pipelineJobId = "";
             ({ range, autoExecution } = await this.resolveRangeAndState({
               novelId: input.novelId,
-              existingState: noticeAction.checkpointState,
+              existingState: markCurrentQualityNoticeChapterSkipped(noticeAction.checkpointState),
               pipelineJobId: null,
               pipelineStatus: "queued",
             }));

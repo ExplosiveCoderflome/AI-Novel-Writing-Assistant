@@ -3,7 +3,10 @@ import { buildNovelEditResumeTarget } from "../workflow/novelWorkflow.shared";
 import { getChapterTitleDiversityIssue } from "../volume/chapterTitleDiversity";
 import type { NovelVolumeService } from "../volume/NovelVolumeService";
 import type { NovelWorkflowService } from "../workflow/NovelWorkflowService";
-import { buildDirectorSessionState } from "./novelDirectorHelpers";
+import {
+  buildDirectorSessionState,
+  buildRouteFollowingDirectorLlmOptions,
+} from "./novelDirectorHelpers";
 import { DIRECTOR_PROGRESS } from "./novelDirectorProgress";
 import { buildChapterTitleDiversityTaskNotice } from "./novelDirectorTaskNotice";
 
@@ -57,12 +60,11 @@ export async function repairDirectorChapterTitles(input: {
     volumeId: targetVolume.id,
   });
   const currentTask = await input.workflowService.getTaskByIdWithoutHealing(input.taskId);
+  const routeLlmOptions = buildRouteFollowingDirectorLlmOptions(input.request);
   let workingWorkspace = currentWorkspace;
   if (!hasTargetBeatSheet(workingWorkspace, targetVolume.id) || shouldRefreshBeatSheetForRepair(currentTask?.lastError)) {
     workingWorkspace = await input.volumeService.generateVolumes(input.novelId, {
-      provider: input.request.provider,
-      model: input.request.model,
-      temperature: input.request.temperature,
+      ...routeLlmOptions,
       scope: "beat_sheet",
       targetVolumeId: targetVolume.id,
       draftWorkspace: workingWorkspace,
@@ -78,9 +80,7 @@ export async function repairDirectorChapterTitles(input: {
   }
 
   const repairedWorkspace = await input.volumeService.generateVolumes(input.novelId, {
-    provider: input.request.provider,
-    model: input.request.model,
-    temperature: input.request.temperature,
+    ...routeLlmOptions,
     scope: "chapter_list",
     targetVolumeId: targetVolume.id,
     draftWorkspace: workingWorkspace,

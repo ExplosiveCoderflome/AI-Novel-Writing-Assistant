@@ -209,6 +209,9 @@ test("listNovels attaches latest visible auto director summary, skips archived t
 
   try {
     const service = new NovelCoreCrudService();
+    service.workflowService.healAutoDirectorTaskState = async () => {
+      throw new Error("listNovels must not heal auto director tasks during read-only listing");
+    };
     const result = await service.listNovels({ page: 1, limit: 20 });
 
     assert.equal(result.items.length, 2);

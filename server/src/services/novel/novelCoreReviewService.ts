@@ -108,22 +108,6 @@ export class NovelCoreReviewService {
       },
     });
     await createQualityReport(novelId, chapterId, review.score, review.issues);
-    const replanRecommendation = plannerService.buildReplanRecommendation({
-      auditReports: review.auditReports ?? [],
-      ledgerSummary: review.contextPackage?.ledgerSummary ?? null,
-      contextPackage: review.contextPackage ?? null,
-    });
-    if ((review.auditReports?.length ?? 0) > 0 && replanRecommendation.recommended) {
-      await plannerService.replan(novelId, {
-        chapterId,
-        triggerType: "audit_failure",
-        reason: replanRecommendation.triggerReason || replanRecommendation.reason,
-        sourceIssueIds: replanRecommendation.blockingIssueIds,
-        provider: options.provider,
-        model: options.model,
-        temperature: options.temperature,
-      }).catch(() => null);
-    }
 
     return review;
   }

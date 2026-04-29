@@ -270,9 +270,11 @@ test("auto director follow-up routes expose overview, list, detail, and action e
         page: 1,
         pageSize: 20,
       }],
-      ["detail", "task_1", undefined],
       ["detail", "task_1", {
         heal: false,
+      }],
+      ["detail", "task_1", {
+        heal: true,
       }],
       ["execute", {
         taskId: "task_1",

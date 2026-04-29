@@ -119,7 +119,8 @@ export class AutoDirectorFollowUpService {
       return null;
     }
 
-    if (options.heal !== false) {
+    const shouldHeal = options.heal === true;
+    if (shouldHeal) {
       await this.workflowService.healAutoDirectorTaskState(taskId);
     }
 
@@ -155,7 +156,7 @@ export class AutoDirectorFollowUpService {
     }
 
     const task = await this.workflowTaskAdapter.detail(taskId, {
-      heal: options.heal,
+      heal: shouldHeal,
     });
     if (!task) {
       return null;
@@ -242,13 +243,6 @@ export class AutoDirectorFollowUpService {
 
   private async loadRows(): Promise<FollowUpWorkflowRow[]> {
     const archivedIds = await getArchivedTaskIds("novel_workflow");
-    const rows = await this.fetchRows(archivedIds);
-    const healed = await Promise.all(
-      rows.map((row) => this.workflowService.healAutoDirectorTaskState(row.id, row)),
-    );
-    if (!healed.some(Boolean)) {
-      return rows;
-    }
     return this.fetchRows(archivedIds);
   }
 

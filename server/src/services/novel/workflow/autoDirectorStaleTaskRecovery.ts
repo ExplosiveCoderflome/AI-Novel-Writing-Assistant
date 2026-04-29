@@ -14,6 +14,14 @@ function isStructuredOutlineItemKey(itemKey: string | null | undefined): boolean
     || itemKey === "chapter_detail_bundle";
 }
 
+function isAutoExecutionItemKey(itemKey: string | null | undefined): boolean {
+  return itemKey === "chapter_execution" || itemKey === "quality_repair";
+}
+
+function isRecoverableRunningItemKey(itemKey: string | null | undefined): boolean {
+  return isStructuredOutlineItemKey(itemKey) || isAutoExecutionItemKey(itemKey);
+}
+
 function resolveLastActivityAt(row: {
   heartbeatAt?: Date | null;
   updatedAt?: Date | null;
@@ -38,7 +46,7 @@ export function isStaleAutoDirectorRunningTask(
     || row.status !== "running"
     || row.pendingManualRecovery
     || row.cancelRequestedAt
-    || !isStructuredOutlineItemKey(row.currentItemKey)
+    || !isRecoverableRunningItemKey(row.currentItemKey)
   ) {
     return false;
   }

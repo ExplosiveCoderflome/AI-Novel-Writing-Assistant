@@ -114,7 +114,9 @@ router.get("/", validate({ query: listQuerySchema }), async (req, res, next) => 
 router.get("/:taskId", validate({ params: taskParamsSchema }), async (req, res, next) => {
   try {
     const { taskId } = req.params as z.infer<typeof taskParamsSchema>;
-    const data = await followUpService.getDetail(taskId);
+    const data = await followUpService.getDetail(taskId, {
+      heal: false,
+    });
     if (!data) {
       res.status(404).json({
         success: false,
@@ -136,7 +138,7 @@ router.get("/:taskId/revalidation", validate({ params: taskParamsSchema }), asyn
   try {
     const { taskId } = req.params as z.infer<typeof taskParamsSchema>;
     const data = await followUpService.getDetail(taskId, {
-      heal: false,
+      heal: true,
     });
     if (!data) {
       res.status(404).json({

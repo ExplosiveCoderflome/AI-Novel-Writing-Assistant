@@ -38,6 +38,7 @@ function createRuntimePackage(overallScore) {
 test("runPipelineChapterWithRuntime skips review and repair when autoReview is disabled", async () => {
   const stages = [];
   const generationStates = [];
+  const chapterStatuses = [];
   const savedDrafts = [];
   let finalizeCalled = false;
 
@@ -73,6 +74,9 @@ test("runPipelineChapterWithRuntime skips review and repair when autoReview is d
       async markChapterGenerationState(_chapterId, generationState) {
         generationStates.push(generationState);
       },
+      async markChapterStatus(_chapterId, chapterStatus) {
+        chapterStatuses.push(chapterStatus);
+      },
     },
     "novel-1",
     "chapter-1",
@@ -94,6 +98,7 @@ test("runPipelineChapterWithRuntime skips review and repair when autoReview is d
     generationState: "drafted",
   }]);
   assert.deepEqual(generationStates, ["approved"]);
+  assert.deepEqual(chapterStatuses, ["completed"]);
   assert.equal(result.reviewExecuted, false);
   assert.equal(result.pass, true);
   assert.equal(result.retryCountUsed, 0);
@@ -144,6 +149,7 @@ test("runPipelineChapterWithRuntime does not save a generated draft twice when w
         };
       },
       async markChapterGenerationState() {},
+      async markChapterStatus() {},
     },
     "novel-1",
     "chapter-1",
@@ -164,6 +170,7 @@ test("runPipelineChapterWithRuntime defaults to a single repair pass before stop
   const finalizeInputs = [];
   const savedDrafts = [];
   const generationStates = [];
+  const chapterStatuses = [];
   let reviewCount = 0;
 
   promptRunner.runTextPrompt = async () => ({
@@ -207,6 +214,9 @@ test("runPipelineChapterWithRuntime defaults to a single repair pass before stop
         async markChapterGenerationState(_chapterId, generationState) {
           generationStates.push(generationState);
         },
+        async markChapterStatus(_chapterId, chapterStatus) {
+          chapterStatuses.push(chapterStatus);
+        },
       },
       "novel-1",
       "chapter-1",
@@ -227,6 +237,96 @@ test("runPipelineChapterWithRuntime defaults to a single repair pass before stop
     assert.equal(result.retryCountUsed, 1);
     assert.equal(result.pass, false);
     assert.deepEqual(generationStates, ["reviewed", "reviewed"]);
+    assert.deepEqual(chapterStatuses, ["needs_repair"]);
+    assert.deepEqual(savedDrafts, [
+      {
+        content: "生成后的正文",
+        generationState: "drafted",
+      },
+      {
+        content: "修后正文",
+        generationState: "repaired",
+      },
+    ]);
+  } finally {
+    promptRunner.runTextPrompt = originalRunTextPrompt;
+  }
+});
+
+test("runPipelineChapterWithRuntime can stop after auto repair count is used for director execution", async () => {
+  const originalRunTextPrompt = promptRunner.runTextPrompt;
+  const stages = [];
+  const finalizeInputs = [];
+  const savedDrafts = [];
+  const generationStates = [];
+  const chapterStatuses = [];
+
+  promptRunner.runTextPrompt = async () => ({
+    output: "修后正文",
+  });
+
+  try {
+    const result = await runPipelineChapterWithRuntime(
+      {
+        validateRequest(input) {
+          return input;
+        },
+        async ensureNovelCharacters() {},
+        async assemble() {
+          return {
+            novel: { id: "novel-1", title: "测试小说" },
+            chapter: {
+              id: "chapter-1",
+              title: "第一章",
+              order: 1,
+              content: null,
+              expectation: null,
+            },
+            contextPackage: {},
+          };
+        },
+        async generateDraftFromWriter() {
+          return { content: "生成后的正文" };
+        },
+        async saveDraftAndArtifacts(_novelId, _chapterId, content, generationState) {
+          savedDrafts.push({ content, generationState });
+        },
+        async finalizeChapterContent({ content }) {
+          finalizeInputs.push(content);
+          return {
+            finalContent: "初审正文",
+            runtimePackage: createRuntimePackage(72),
+          };
+        },
+        async markChapterGenerationState(_chapterId, generationState) {
+          generationStates.push(generationState);
+        },
+        async markChapterStatus(_chapterId, chapterStatus) {
+          chapterStatuses.push(chapterStatus);
+        },
+      },
+      "novel-1",
+      "chapter-1",
+      {
+        autoReview: true,
+        autoRepair: true,
+        maxRetries: 1,
+        advanceAfterAutoRepairLimit: true,
+      },
+      {
+        async onStageChange(stage) {
+          stages.push(stage);
+        },
+      },
+    );
+
+    assert.deepEqual(stages, ["generating_chapters", "reviewing", "repairing"]);
+    assert.deepEqual(finalizeInputs, ["生成后的正文"]);
+    assert.equal(result.retryCountUsed, 1);
+    assert.equal(result.pass, false);
+    assert.equal(result.reviewExecuted, true);
+    assert.deepEqual(generationStates, ["reviewed"]);
+    assert.deepEqual(chapterStatuses, ["needs_repair"]);
     assert.deepEqual(savedDrafts, [
       {
         content: "生成后的正文",

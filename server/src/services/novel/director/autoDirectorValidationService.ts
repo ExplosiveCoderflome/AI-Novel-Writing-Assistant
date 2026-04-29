@@ -144,6 +144,7 @@ function validateScopeAgainstAssets(input: {
   entryStep: DirectorTakeoverEntryStep;
 }): string[] {
   const reasons: string[] = [];
+  const affectedScope = input.affectedScope;
   const totalChapterCount = normalizeChapterOrder(input.assets.totalChapterCount ?? null);
   const volumeChapterRanges = Array.isArray(input.assets.volumeChapterRanges)
     ? input.assets.volumeChapterRanges
@@ -159,7 +160,38 @@ function validateScopeAgainstAssets(input: {
       .map((order) => normalizeChapterOrder(order))
       .filter((order): order is number => Boolean(order)),
   );
-  const affectedScope = input.affectedScope;
+  const missingStructuredOutlineOrders: number[] = [];
+  if (isEntryAtOrAfter(input.entryStep, "chapter") && structuredOutlineChapterOrders.size > 0) {
+    if (isChapterRangeScope(affectedScope)) {
+      for (let order = affectedScope.startOrder; order <= affectedScope.endOrder; order += 1) {
+        if (!structuredOutlineChapterOrders.has(order)) {
+          missingStructuredOutlineOrders.push(order);
+        }
+      }
+    }
+    if (isVolumeScope(affectedScope)) {
+      const range = volumeChapterRanges.find((item) => item.volumeOrder === affectedScope.volumeOrder);
+      if (range) {
+        for (let order = range.startOrder; order <= range.endOrder; order += 1) {
+          if (!structuredOutlineChapterOrders.has(order)) {
+            missingStructuredOutlineOrders.push(order);
+          }
+        }
+      }
+    }
+  }
+  const structuredOutlineListCoversScope = structuredOutlineChapterOrders.size > 0
+    && missingStructuredOutlineOrders.length === 0
+    && (
+      isChapterRangeScope(affectedScope)
+      || isVolumeScope(affectedScope)
+    );
+  const getStructuredOutlineMissingMessage = (): string => {
+    if (structuredOutlineListCoversScope) {
+      return "目标范围已拆出章节列表，但还没有完成章节细化或同步到执行区，需要先回到节奏 / 拆章补齐执行边界、任务单和场景拆解。";
+    }
+    return "目标范围缺少节奏拆章，需要先完成或重新校验拆章结果。";
+  };
   if (isChapterRangeScope(affectedScope) && totalChapterCount && affectedScope.endOrder > totalChapterCount) {
     reasons.push(`目标章节范围超过当前全书规划章节数，请把范围调整到 ${totalChapterCount} 章以内。`);
   }
@@ -187,30 +219,10 @@ function validateScopeAgainstAssets(input: {
     }
   }
   if (isEntryAtOrAfter(input.entryStep, "chapter") && !input.assets.hasStructuredOutline) {
-    reasons.push("目标范围缺少节奏拆章，需要先完成或重新校验拆章结果。");
+    reasons.push(getStructuredOutlineMissingMessage());
   }
-  if (isEntryAtOrAfter(input.entryStep, "chapter") && structuredOutlineChapterOrders.size > 0) {
-    const missingOrders: number[] = [];
-    if (isChapterRangeScope(affectedScope)) {
-      for (let order = affectedScope.startOrder; order <= affectedScope.endOrder; order += 1) {
-        if (!structuredOutlineChapterOrders.has(order)) {
-          missingOrders.push(order);
-        }
-      }
-    }
-    if (isVolumeScope(affectedScope)) {
-      const range = volumeChapterRanges.find((item) => item.volumeOrder === affectedScope.volumeOrder);
-      if (range) {
-        for (let order = range.startOrder; order <= range.endOrder; order += 1) {
-          if (!structuredOutlineChapterOrders.has(order)) {
-            missingOrders.push(order);
-          }
-        }
-      }
-    }
-    if (missingOrders.length > 0) {
-      reasons.push(`目标范围缺少节奏拆章明细：第 ${missingOrders.slice(0, 5).join("、")} 章需要先完成或重新校验。`);
-    }
+  if (isEntryAtOrAfter(input.entryStep, "chapter") && missingStructuredOutlineOrders.length > 0) {
+    reasons.push(`目标范围缺少节奏拆章明细：第 ${missingStructuredOutlineOrders.slice(0, 5).join("、")} 章需要先完成或重新校验。`);
   }
   return reasons;
 }

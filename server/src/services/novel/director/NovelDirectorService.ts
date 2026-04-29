@@ -22,6 +22,7 @@ import type {
   DirectorTakeoverReadinessResponse,
   DirectorTakeoverRequest,
   DirectorTakeoverResponse,
+  DirectorTakeoverStrategy,
 } from "@ai-novel/shared/types/novelDirector";
 import { BookContractService } from "../BookContractService";
 import { CharacterPreparationService } from "../characterPrep/CharacterPreparationService";
@@ -42,10 +43,11 @@ import {
 import { NovelDirectorCandidateStageService } from "./novelDirectorCandidateStage";
 import { resolveDirectorBookFraming } from "./novelDirectorFraming";
 import {
+  buildRouteFollowingDirectorLlmOptions,
+  buildTaskModelDirectorLlmOptions,
   buildDirectorSessionState,
   buildWorkflowSeedPayload,
   getDirectorInputFromSeedPayload,
-  getDirectorLlmOptionsFromSeedPayload,
   type DirectorWorkflowSeedPayload,
   normalizeDirectorRunMode,
   toBookSpec,
@@ -138,6 +140,10 @@ function parseResumeTargetLike(value: unknown) {
     return value as NonNullable<ReturnType<typeof parseResumeTarget>>;
   }
   return null;
+}
+
+function canTakeoverContinueFromStructuredOutline(step: unknown): boolean {
+  return step === "chapter_sync" || step === "completed";
 }
 
 function isWorkflowTaskCancelledError(error: unknown): boolean {
@@ -456,7 +462,7 @@ export class NovelDirectorService {
     if (!idea) {
       return null;
     }
-    const llm = getDirectorLlmOptionsFromSeedPayload(seedPayload);
+    const llm = buildRouteFollowingDirectorLlmOptions(seedPayload);
     const runMode = typeof seedPayload.runMode === "string"
       && (DIRECTOR_RUN_MODES as readonly string[]).includes(seedPayload.runMode)
       ? seedPayload.runMode as (typeof DIRECTOR_RUN_MODES)[number]
@@ -644,6 +650,21 @@ export class NovelDirectorService {
     }
   }
 
+  private async isLinkedAutoExecutionPipelineWaitingRecovery(
+    seedPayload: DirectorWorkflowSeedPayload,
+  ): Promise<boolean> {
+    const pipelineJobId = seedPayload.autoExecution?.pipelineJobId?.trim();
+    if (!pipelineJobId) {
+      return false;
+    }
+    const pipelineJob = await this.novelService.getPipelineJobById(pipelineJobId).catch(() => null);
+    return Boolean(
+      pipelineJob
+      && pipelineJob.pendingManualRecovery
+      && (pipelineJob.status === "queued" || pipelineJob.status === "running"),
+    );
+  }
+
   async continueTask(taskId: string, input?: {
     continuationMode?: DirectorContinuationMode;
     batchAlreadyStartedCount?: number;
@@ -656,11 +677,15 @@ export class NovelDirectorService {
       await this.workflowService.continueTask(taskId);
       return;
     }
-    if (row.status === "running" && !row.pendingManualRecovery) {
-      return;
-    }
 
     const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(row.seedPayloadJson) ?? {};
+    if (
+      row.status === "running"
+      && !row.pendingManualRecovery
+      && !await this.isLinkedAutoExecutionPipelineWaitingRecovery(seedPayload)
+    ) {
+      return;
+    }
     const directorInput = getDirectorInputFromSeedPayload(seedPayload);
     const novelId = row.novelId ?? seedPayload.novelId ?? null;
     const resumedCandidateStage = await this.continueCandidateStageTask(taskId, {
@@ -800,6 +825,7 @@ export class NovelDirectorService {
         novelId,
         input: directorInput,
         startPhase: phase,
+        takeoverStrategy: "continue_existing",
         scope: normalizeDirectorMemoryScope({
           volumeId: recoveryResumeTarget?.volumeId,
           chapterId: recoveryResumeTarget?.chapterId,
@@ -857,7 +883,7 @@ export class NovelDirectorService {
       throw new Error("当前任务指向的目标卷不存在，无法继续 AI 修复章节标题。");
     }
 
-    const boundLlm = getDirectorLlmOptionsFromSeedPayload(seedPayload);
+    const boundLlm = buildTaskModelDirectorLlmOptions(seedPayload);
     const repairRequest: DirectorConfirmRequest = {
       ...directorInput,
       provider: boundLlm?.provider ?? directorInput.provider,
@@ -962,7 +988,8 @@ export class NovelDirectorService {
         characterCount: takeoverState.snapshot.characterCount,
         volumeCount: takeoverState.snapshot.volumeCount,
         hasVolumeStrategyPlan: takeoverState.snapshot.hasVolumeStrategyPlan,
-        hasStructuredOutline: takeoverState.snapshot.structuredOutlineRecoveryStep === "completed",
+        hasStructuredOutline: canTakeoverContinueFromStructuredOutline(takeoverState.snapshot.structuredOutlineRecoveryStep)
+          || Boolean(takeoverState.executableRange),
         totalChapterCount: takeoverState.snapshot.chapterCount,
         volumeChapterRanges: takeoverState.snapshot.volumeChapterRanges,
         structuredOutlineChapterOrders: takeoverState.snapshot.structuredOutlineChapterOrders,
@@ -1140,9 +1167,7 @@ export class NovelDirectorService {
           description,
           suggest: (suggestInput) => novelFramingSuggestionService.suggest({
             ...suggestInput,
-            provider: resolvedInput.provider,
-            model: resolvedInput.model,
-            temperature: resolvedInput.temperature,
+            ...buildRouteFollowingDirectorLlmOptions(resolvedInput),
           }),
         });
         const directorInput: DirectorConfirmRequest = {
@@ -1375,6 +1400,7 @@ export class NovelDirectorService {
     novelId: string;
     input: DirectorConfirmRequest;
     startPhase: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline";
+    takeoverStrategy?: DirectorTakeoverStrategy;
     scope?: string | null;
     batchAlreadyStartedCount?: number;
   }) {
@@ -1415,7 +1441,9 @@ export class NovelDirectorService {
         }),
         batchAlreadyStartedCount: input.batchAlreadyStartedCount,
       });
-      await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, volumeWorkspace);
+      await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, volumeWorkspace, {
+        takeoverStrategy: input.takeoverStrategy,
+      });
       if (this.shouldAutoApproveCheckpoint(input.input, "front10_ready")) {
         await recordAutoDirectorAutoApprovalFromTask({
           taskId: input.taskId,
@@ -1444,7 +1472,9 @@ export class NovelDirectorService {
       }),
       batchAlreadyStartedCount: input.batchAlreadyStartedCount,
     });
-    await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, currentWorkspace);
+    await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, currentWorkspace, {
+      takeoverStrategy: input.takeoverStrategy,
+    });
     if (this.shouldAutoApproveCheckpoint(input.input, "front10_ready")) {
       await recordAutoDirectorAutoApprovalFromTask({
         taskId: input.taskId,
@@ -1594,12 +1624,16 @@ export class NovelDirectorService {
     novelId: string,
     input: DirectorConfirmRequest,
     baseWorkspace: Awaited<ReturnType<NovelVolumeService["getVolumes"]>>,
+    options: {
+      takeoverStrategy?: DirectorTakeoverStrategy;
+    } = {},
   ) {
     await runDirectorStructuredOutlinePhase({
       taskId,
       novelId,
       request: input,
       baseWorkspace,
+      takeoverStrategy: options.takeoverStrategy,
       dependencies: {
         workflowService: this.workflowService,
         novelContextService: this.novelContextService,

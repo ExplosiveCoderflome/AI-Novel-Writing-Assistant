@@ -169,6 +169,74 @@ test("validateAutoDirectorTakeoverRequest blocks chapter execution when structur
   assert.match(result.blockingReasons.join("\n"), /节奏拆章|第 5 章/);
 });
 
+test("validateAutoDirectorTakeoverRequest accepts chapter execution when structured outline is ready and covers the requested range", () => {
+  const result = validateAutoDirectorTakeoverRequest({
+    source: "takeover",
+    request: {
+      novelId: "novel-1",
+      entryStep: "chapter",
+      strategy: "continue_existing",
+      autoExecutionPlan: {
+        mode: "chapter_range",
+        startOrder: 1,
+        endOrder: 2,
+      },
+    },
+    assets: {
+      hasProjectSetup: true,
+      hasStoryMacroPlan: true,
+      hasBookContract: true,
+      characterCount: 3,
+      volumeCount: 1,
+      hasVolumeStrategyPlan: true,
+      hasStructuredOutline: true,
+      totalChapterCount: 10,
+      volumeChapterRanges: [
+        { volumeOrder: 1, startOrder: 1, endOrder: 10 },
+      ],
+      structuredOutlineChapterOrders: [1, 2],
+    },
+  });
+
+  assert.equal(result.allowed, true);
+  assert.equal(result.nextAction, "continue_auto_execution");
+});
+
+test("validateAutoDirectorTakeoverRequest reports missing chapter detail instead of missing beat outline when chapter list covers the range", () => {
+  const result = validateAutoDirectorTakeoverRequest({
+    source: "takeover",
+    request: {
+      novelId: "novel-1",
+      entryStep: "chapter",
+      strategy: "continue_existing",
+      autoExecutionPlan: {
+        mode: "chapter_range",
+        startOrder: 1,
+        endOrder: 2,
+      },
+    },
+    assets: {
+      hasProjectSetup: true,
+      hasStoryMacroPlan: true,
+      hasBookContract: true,
+      characterCount: 3,
+      volumeCount: 1,
+      hasVolumeStrategyPlan: true,
+      hasStructuredOutline: false,
+      totalChapterCount: 10,
+      volumeChapterRanges: [
+        { volumeOrder: 1, startOrder: 1, endOrder: 10 },
+      ],
+      structuredOutlineChapterOrders: [1, 2],
+    },
+  });
+
+  assert.equal(result.allowed, false);
+  assert.match(result.blockingReasons.join("\n"), /章节列表/);
+  assert.match(result.blockingReasons.join("\n"), /章节细化|同步到执行区/);
+  assert.doesNotMatch(result.blockingReasons.join("\n"), /缺少节奏拆章，需要先完成/);
+});
+
 test("validateAutoDirectorTakeoverRequest blocks chapter scope before structured entry", () => {
   const result = validateAutoDirectorTakeoverRequest({
     source: "takeover",

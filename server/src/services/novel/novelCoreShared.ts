@@ -163,6 +163,7 @@ export interface PipelineRunOptions extends LLMGenerateOptions {
   skipCompleted?: boolean;
   qualityThreshold?: number;
   repairMode?: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only";
+  advanceAfterAutoRepairLimit?: boolean;
 }
 
 export type PipelineBackgroundSyncKind = "character_dynamics" | "state_snapshot" | "payoff_ledger" | "character_resources" | "canonical_state";
@@ -194,6 +195,7 @@ export interface PipelinePayload extends LLMGenerateOptions {
   skipCompleted?: boolean;
   qualityThreshold?: number;
   repairMode?: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only";
+  advanceAfterAutoRepairLimit?: boolean;
   qualityAlertDetails?: string[];
   replanAlertDetails?: string[];
   backgroundSync?: PipelineBackgroundSyncState;

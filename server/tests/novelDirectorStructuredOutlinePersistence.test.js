@@ -309,6 +309,179 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
   assert.ok(firstDetailSync[1].sceneCards);
 });
 
+test("runDirectorStructuredOutlinePhase preserves matching execution chapter content on continue", async () => {
+  const originals = {
+    chapterFindMany: prisma.chapter.findMany,
+    transaction: prisma.$transaction,
+  };
+  const detailedChapter1 = {
+    ...createChapter("chapter-1", 1, "Chapter 1"),
+    beatKey: "opening",
+  };
+  const detailedChapter2 = {
+    ...createChapter("chapter-2", 2, "Chapter 2"),
+    beatKey: "opening",
+  };
+  applyCompleteChapterDetail(detailedChapter1);
+  applyCompleteChapterDetail(detailedChapter2);
+
+  const baseWorkspace = {
+    novelId: "novel-demo",
+    workspaceVersion: "v2",
+    source: "volume",
+    activeVersionId: "version-1",
+    derivedOutline: "",
+    derivedStructuredOutline: "",
+    readiness: {},
+    strategyPlan: null,
+    critiqueReport: null,
+    beatSheets: [createBeatSheet()],
+    rebalanceDecisions: [],
+    volumes: [
+      {
+        id: "volume-1",
+        sortOrder: 1,
+        title: "Volume 1",
+        summary: "",
+        openingHook: "",
+        mainPromise: "",
+        primaryPressureSource: "",
+        coreSellingPoint: "",
+        escalationMode: "",
+        protagonistChange: "",
+        midVolumeRisk: "",
+        climax: "",
+        payoffType: "",
+        nextVolumeHook: "",
+        resetPoint: "",
+        openPayoffs: [],
+        status: "draft",
+        chapters: [detailedChapter1, detailedChapter2],
+      },
+    ],
+  };
+
+  const syncCalls = [];
+  const resetFindManyCalls = [];
+  let checkpointPayload = null;
+  let persistedChapters = [
+    {
+      ...mapWorkspaceChapterToExecution(detailedChapter1),
+      title: detailedChapter1.title,
+      content: "第一章已经写好的正文",
+      generationState: "approved",
+      chapterStatus: "completed",
+    },
+    {
+      ...mapWorkspaceChapterToExecution(detailedChapter2),
+      title: detailedChapter2.title,
+      content: "",
+      generationState: "planned",
+      chapterStatus: "unplanned",
+    },
+  ];
+
+  prisma.chapter.findMany = async (input) => {
+    resetFindManyCalls.push(input);
+    return persistedChapters.map((chapter) => ({ id: chapter.id }));
+  };
+  prisma.$transaction = async () => {
+    throw new Error("matching continue sync should not reset chapter execution content");
+  };
+
+  const volumeService = {
+    generateVolumes: async (_novelId, options) => clone(options.draftWorkspace),
+    updateVolumes: async (_novelId, workspace) => clone(workspace),
+    updateVolumesWithOptions: async (_novelId, workspace) => clone(workspace),
+    syncVolumeChapters: async (_novelId, input) => {
+      persistedChapters = input.volumes[0].chapters.map((chapter) => ({
+        ...mapWorkspaceChapterToExecution(chapter),
+        title: chapter.title,
+      }));
+      return { creates: [], updates: [], deletes: [] };
+    },
+    syncVolumeChaptersWithOptions: async (_novelId, input, options) => {
+      syncCalls.push({ input, options });
+      persistedChapters = input.volumes[0].chapters.map((chapter) => {
+        const existing = persistedChapters.find((item) => item.order === chapter.chapterOrder);
+        return {
+          ...mapWorkspaceChapterToExecution(chapter),
+          title: chapter.title,
+          content: input.preserveContent ? (existing?.content ?? "") : "",
+          generationState: input.preserveContent ? (existing?.generationState ?? "planned") : "planned",
+          chapterStatus: input.preserveContent ? (existing?.chapterStatus ?? "unplanned") : "unplanned",
+        };
+      });
+      return { creates: [], updates: [], deletes: [] };
+    },
+  };
+
+  const dependencies = {
+    workflowService: {
+      bootstrapTask: async () => undefined,
+      markTaskRunning: async () => undefined,
+      recordCheckpoint: async (_taskId, input) => {
+        checkpointPayload = input;
+      },
+    },
+    novelContextService: {
+      listChapters: async () => clone(persistedChapters),
+      updateNovel: async () => undefined,
+    },
+    characterDynamicsService: {
+      rebuildDynamics: async () => undefined,
+    },
+    characterPreparationService: {},
+    volumeService,
+  };
+
+  const callbacks = {
+    buildDirectorSeedPayload: (_request, novelId, extra) => ({
+      novelId,
+      ...extra,
+    }),
+    markDirectorTaskRunning: async () => undefined,
+  };
+
+  try {
+    await runDirectorStructuredOutlinePhase({
+      taskId: "task-continue",
+      novelId: "novel-demo",
+      request: {
+        runMode: "auto_to_execution",
+        provider: "deepseek",
+        model: "deepseek-chat",
+        temperature: 0.7,
+        autoExecutionPlan: {
+          mode: "chapter_range",
+          startOrder: 1,
+          endOrder: 2,
+        },
+        candidate: {
+          workingTitle: "Demo Novel",
+        },
+      },
+      baseWorkspace,
+      takeoverStrategy: "continue_existing",
+      dependencies,
+      callbacks,
+    });
+  } finally {
+    prisma.chapter.findMany = originals.chapterFindMany;
+    prisma.$transaction = originals.transaction;
+  }
+
+  assert.equal(syncCalls.length, 1);
+  assert.equal(syncCalls[0].input.applyDeletes, true);
+  assert.equal(syncCalls[0].input.preserveContent, true);
+  assert.equal(resetFindManyCalls.length, 0);
+  assert.equal(persistedChapters[0].content, "第一章已经写好的正文");
+  assert.equal(checkpointPayload.seedPayload.autoExecution.completedChapterCount, 1);
+  assert.equal(checkpointPayload.seedPayload.autoExecution.remainingChapterCount, 1);
+  assert.deepEqual(checkpointPayload.seedPayload.autoExecution.remainingChapterOrders, [2]);
+  assert.equal(checkpointPayload.seedPayload.autoExecution.nextChapterOrder, 2);
+});
+
 test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter", async () => {
   const originals = {
     chapterFindMany: prisma.chapter.findMany,

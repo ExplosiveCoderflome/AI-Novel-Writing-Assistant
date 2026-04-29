@@ -103,7 +103,9 @@ test("auto director follow-up service overview counts actionable rows by reason"
 
   const service = new AutoDirectorFollowUpService();
   const originalHeal = service.workflowService.healAutoDirectorTaskState;
-  service.workflowService.healAutoDirectorTaskState = async () => false;
+  service.workflowService.healAutoDirectorTaskState = async () => {
+    throw new Error("overview refresh must not heal workflow state");
+  };
 
   try {
     const overview = await service.getOverview();
@@ -189,7 +191,9 @@ test("auto director follow-up service lists recent auto-approved records in auto
 
   const service = new AutoDirectorFollowUpService();
   const originalHeal = service.workflowService.healAutoDirectorTaskState;
-  service.workflowService.healAutoDirectorTaskState = async () => false;
+  service.workflowService.healAutoDirectorTaskState = async () => {
+    throw new Error("follow-up list refresh must not heal workflow state");
+  };
 
   try {
     const response = await service.list({
@@ -536,7 +540,8 @@ test("auto director follow-up service detail reuses workflow detail and adds fol
       updatedAt: new Date("2026-04-22T09:20:00.000Z"),
     },
   ]);
-  NovelWorkflowTaskAdapter.prototype.detail = async function detailMock(taskId) {
+  NovelWorkflowTaskAdapter.prototype.detail = async function detailMock(taskId, options) {
+    assert.deepEqual(options, { heal: false });
     return {
       id: taskId,
       kind: "novel_workflow",
@@ -604,7 +609,9 @@ test("auto director follow-up service detail reuses workflow detail and adds fol
 
   const service = new AutoDirectorFollowUpService();
   const originalHeal = service.workflowService.healAutoDirectorTaskState;
-  service.workflowService.healAutoDirectorTaskState = async () => false;
+  service.workflowService.healAutoDirectorTaskState = async () => {
+    throw new Error("follow-up detail refresh must not heal workflow state");
+  };
 
   try {
     const detail = await service.getDetail("task_detail");

@@ -38,6 +38,11 @@ function detectChapterChangeFlags(content: string, taskSheet: string | null | un
   };
 }
 
+function isAiDriverPipelinePayload(payload: PipelinePayload): boolean {
+  return payload.controlPolicy?.kickoffMode === "director_start"
+    && payload.controlPolicy.advanceMode === "auto_to_execution";
+}
+
 export class ChapterArtifactBackgroundSyncService {
   private readonly characterDynamicsService = new CharacterDynamicsService();
 
@@ -85,6 +90,8 @@ export class ChapterArtifactBackgroundSyncService {
 
     await Promise.allSettled([stateSyncPromise, dynamicsSyncPromise]);
 
+    const isAiDriverSync = await this.hasAiDriverActiveJob(novelId, chapter.order);
+    const sourceStage = isAiDriverSync ? "ai_driver_chapter_execution" : "chapter_execution";
     let characterResourceProposals: StateChangeProposal[] = [];
     await this.runTrackedActivity(novelId, context, "character_resources", async () => {
       characterResourceProposals = await characterResourceExtractionService.extractChapterResourceProposals({
@@ -92,7 +99,7 @@ export class ChapterArtifactBackgroundSyncService {
         chapterId,
         chapterOrder: chapter.order,
         sourceType: "chapter_background_sync",
-        sourceStage: "chapter_execution",
+        sourceStage,
       });
     }).catch((error) => {
       console.warn("[chapter-artifact-background-sync] character resource extraction skipped", {
@@ -118,7 +125,7 @@ export class ChapterArtifactBackgroundSyncService {
         chapterId,
         chapterOrder: chapter.order,
         sourceType: "chapter_background_sync",
-        sourceStage: "chapter_execution",
+        sourceStage,
         proposals: characterResourceProposals,
       });
     });
@@ -244,6 +251,11 @@ export class ChapterArtifactBackgroundSyncService {
         payload: true,
       },
     });
+  }
+
+  private async hasAiDriverActiveJob(novelId: string, chapterOrder: number): Promise<boolean> {
+    const jobRows = await this.findActiveJobsForChapter(novelId, chapterOrder);
+    return jobRows.some((job) => isAiDriverPipelinePayload(parsePipelinePayload(job.payload)));
   }
 }
 

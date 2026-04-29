@@ -273,6 +273,29 @@ function isStructuredOutlineItemKey(itemKey: string | null | undefined): boolean
     || itemKey === "chapter_detail_bundle";
 }
 
+function getAutoExecutionPipelineJobId(seedPayloadJson: string | null | undefined): string | null {
+  const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(seedPayloadJson);
+  const pipelineJobId = seedPayload?.autoExecution?.pipelineJobId?.trim();
+  return pipelineJobId || null;
+}
+
+function withAutoExecutionPipelineStatus(
+  seedPayloadJson: string | null | undefined,
+  pipelineStatus: "queued" | "running",
+): string | null | undefined {
+  const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(seedPayloadJson);
+  if (!seedPayload?.autoExecution?.pipelineJobId?.trim()) {
+    return seedPayloadJson;
+  }
+  return JSON.stringify({
+    ...seedPayload,
+    autoExecution: {
+      ...seedPayload.autoExecution,
+      pipelineStatus,
+    },
+  });
+}
+
 export class NovelWorkflowService {
   private readonly volumeService = new NovelVolumeService();
 
@@ -689,8 +712,11 @@ export class NovelWorkflowService {
       const front10Healed = await this.healHistoricalAutoDirectorFront10RecoveryFailure(taskId, normalizedRow);
       const titleDiversityHealed = await this.healChapterTitleDiversitySoftFailure(taskId, normalizedRow);
       const structuredOutlineHealed = await this.healStaleAutoDirectorStructuredOutlineProgress(taskId, normalizedRow);
-      const staleRunningHealed = await this.healStaleAutoDirectorRunningTask(taskId, normalizedRow);
-      const checkpointRow = (brokenSeedHealed || queuedHealed || historicalHealed || front10Healed || titleDiversityHealed || structuredOutlineHealed || staleRunningHealed)
+      const linkedPipelineRecoveryHealed = await this.healAutoDirectorLinkedPipelineRecovery(taskId, normalizedRow);
+      const staleRunningHealed = linkedPipelineRecoveryHealed
+        ? false
+        : await this.healStaleAutoDirectorRunningTask(taskId, normalizedRow);
+      const checkpointRow = (brokenSeedHealed || queuedHealed || historicalHealed || front10Healed || titleDiversityHealed || structuredOutlineHealed || linkedPipelineRecoveryHealed || staleRunningHealed)
         ? await this.getVisibleRowByIdRaw(taskId)
         : (normalizedRow ?? await this.getVisibleRowByIdRaw(taskId));
     const checkpointHealed = isChapterBatchCheckpointRow(checkpointRow)
@@ -699,7 +725,64 @@ export class NovelWorkflowService {
         row: checkpointRow,
       })
       : false;
-    return brokenSeedHealed || queuedHealed || historicalHealed || front10Healed || titleDiversityHealed || structuredOutlineHealed || staleRunningHealed || checkpointHealed;
+    return brokenSeedHealed || queuedHealed || historicalHealed || front10Healed || titleDiversityHealed || structuredOutlineHealed || linkedPipelineRecoveryHealed || staleRunningHealed || checkpointHealed;
+  }
+
+  async healAutoDirectorLinkedPipelineRecovery(
+    taskId: string,
+    row = null as {
+      lane?: string | null;
+      status?: string | null;
+      pendingManualRecovery?: boolean | null;
+      cancelRequestedAt?: Date | null;
+      seedPayloadJson?: string | null;
+    } | null,
+  ): Promise<boolean> {
+    const candidate = row ?? await this.getVisibleRowByIdRaw(taskId);
+    if (
+      !candidate
+      || candidate.lane !== "auto_director"
+      || candidate.pendingManualRecovery
+      || isTaskCancellationRequested(candidate)
+      || (candidate.status !== "queued" && candidate.status !== "running")
+    ) {
+      return false;
+    }
+    const pipelineJobId = getAutoExecutionPipelineJobId(candidate.seedPayloadJson);
+    if (!pipelineJobId) {
+      return false;
+    }
+
+    const pipelineJob = await prisma.generationJob.findUnique({
+      where: { id: pipelineJobId },
+      select: {
+        id: true,
+        status: true,
+        pendingManualRecovery: true,
+        error: true,
+      },
+    });
+    if (
+      !pipelineJob
+      || !pipelineJob.pendingManualRecovery
+      || (pipelineJob.status !== "queued" && pipelineJob.status !== "running")
+    ) {
+      return false;
+    }
+
+    await this.updateTaskWithRetry({
+      where: { id: taskId },
+      data: {
+        status: "queued",
+        pendingManualRecovery: true,
+        heartbeatAt: null,
+        finishedAt: null,
+        cancelRequestedAt: null,
+        lastError: pipelineJob.error?.trim() || "章节流水线任务已暂停，等待手动恢复。",
+        seedPayloadJson: withAutoExecutionPipelineStatus(candidate.seedPayloadJson, pipelineJob.status),
+      },
+    });
+    return true;
   }
 
   async healStaleAutoDirectorRunningTask(

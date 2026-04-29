@@ -4,6 +4,7 @@ import { buildCharacterCastBlockedMessage } from "../characterPrep/characterCast
 import type { VolumeGenerationPhaseEvent } from "../volume/volumeModels";
 import { buildNovelEditResumeTarget } from "../workflow/novelWorkflow.shared";
 import {
+  buildRouteFollowingDirectorLlmOptions,
   buildDirectorSessionState,
   buildStoryInput,
   normalizeDirectorRunMode,
@@ -73,6 +74,7 @@ export async function runDirectorCharacterSetupPhase(input: {
     }),
   });
   const storyInput = buildStoryInput(request, toBookSpec(request.candidate, request.idea, request.estimatedChapterCount));
+  const routeLlmOptions = buildRouteFollowingDirectorLlmOptions(request);
   const reusableOption = await dependencies.characterPreparationService.findReusableCharacterCastOption?.(novelId) ?? null;
   const targetOption = reusableOption ?? await runDirectorTrackedStep({
     taskId,
@@ -82,9 +84,7 @@ export async function runDirectorCharacterSetupPhase(input: {
     progress: DIRECTOR_PROGRESS.characterSetup,
     callbacks,
     run: async () => dependencies.characterPreparationService.generateAutoCharacterCastOption(novelId, {
-      provider: request.provider,
-      model: request.model,
-      temperature: request.temperature,
+      ...routeLlmOptions,
       storyInput,
     }),
   });
@@ -182,6 +182,7 @@ export async function runDirectorVolumeStrategyPhase(input: {
   callbacks: DirectorPhaseCallbacks;
 }): Promise<VolumePlanDocument | null> {
   const { taskId, novelId, request, dependencies, callbacks } = input;
+  const routeLlmOptions = buildRouteFollowingDirectorLlmOptions(request);
   const directorSession = buildDirectorSessionState({
     runMode: request.runMode,
     phase: "volume_strategy",
@@ -210,9 +211,7 @@ export async function runDirectorVolumeStrategyPhase(input: {
     progress: DIRECTOR_PROGRESS.volumeStrategy,
     callbacks,
     run: async ({ updateStatus, signal }) => dependencies.volumeService.generateVolumes(novelId, {
-      provider: request.provider,
-      model: request.model,
-      temperature: request.temperature,
+      ...routeLlmOptions,
       scope: "strategy",
       estimatedChapterCount: request.estimatedChapterCount ?? toBookSpec(request.candidate, request.idea, request.estimatedChapterCount).targetChapterCount,
       signal,
@@ -233,9 +232,7 @@ export async function runDirectorVolumeStrategyPhase(input: {
     progress: DIRECTOR_PROGRESS.volumeSkeleton,
     callbacks,
     run: async ({ updateStatus, signal }) => dependencies.volumeService.generateVolumes(novelId, {
-      provider: request.provider,
-      model: request.model,
-      temperature: request.temperature,
+      ...routeLlmOptions,
       scope: "skeleton",
       estimatedChapterCount: request.estimatedChapterCount ?? toBookSpec(request.candidate, request.idea, request.estimatedChapterCount).targetChapterCount,
       draftWorkspace: workspace,

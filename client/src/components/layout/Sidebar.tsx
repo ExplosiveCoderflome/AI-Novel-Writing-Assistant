@@ -83,7 +83,11 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     staleTime: 30_000,
     refetchInterval: (query) => {
       const overview = query.state.data?.data;
-      return (overview?.queuedCount ?? 0) > 0 || (overview?.runningCount ?? 0) > 0 ? 4000 : false;
+      return (overview?.queuedCount ?? 0) > 0
+        || (overview?.runningCount ?? 0) > 0
+        || (overview?.waitingApprovalCount ?? 0) > 0
+        ? 4000
+        : false;
     },
   });
 

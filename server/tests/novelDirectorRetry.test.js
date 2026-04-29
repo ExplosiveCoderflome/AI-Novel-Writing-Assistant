@@ -627,6 +627,114 @@ test("continueTask resumes auto execution in the background instead of blocking 
   }
 });
 
+test("continueTask resumes a running auto director task when its linked pipeline is waiting for recovery", async () => {
+  const service = new NovelDirectorService();
+  const originalContinueCandidateStageTask = service.continueCandidateStageTask;
+  const originalGetTaskById = service.workflowService.getTaskById;
+  const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
+  const originalGetPipelineJobById = service.novelService.getPipelineJobById;
+  const originalMarkTaskRunning = service.workflowService.markTaskRunning;
+  const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
+  const originalRunFromReady = service.autoExecutionRuntime.runFromReady;
+  const pipelineLookups = [];
+  const runningCalls = [];
+  const scheduledRuns = [];
+  const runtimeCalls = [];
+
+  service.continueCandidateStageTask = async () => false;
+  service.resolveAssetFirstRecovery = async () => ({
+    type: "auto_execution",
+    resumeCheckpointType: "chapter_batch_ready",
+  });
+  service.workflowService.getTaskById = async () => ({
+    id: "task_parent_running_pipeline_paused",
+    lane: "auto_director",
+    status: "running",
+    pendingManualRecovery: false,
+    novelId: "novel_parent_running_pipeline_paused",
+    checkpointType: "chapter_batch_ready",
+    currentItemKey: "quality_repair",
+    resumeTargetJson: JSON.stringify({
+      stage: "pipeline",
+      chapterId: "chapter-4",
+    }),
+    lastError: null,
+    seedPayloadJson: JSON.stringify({
+      directorInput: buildDirectorInput({
+        workflowTaskId: "task_parent_running_pipeline_paused",
+        runMode: "auto_to_execution",
+      }),
+      directorSession: {
+        runMode: "auto_to_execution",
+        phase: "front10_ready",
+        isBackgroundRunning: true,
+        lockedScopes: ["chapter", "pipeline"],
+        reviewScope: null,
+      },
+      autoExecution: {
+        enabled: true,
+        mode: "front10",
+        startOrder: 1,
+        endOrder: 10,
+        totalChapterCount: 10,
+        nextChapterId: "chapter-4",
+        nextChapterOrder: 4,
+        pipelineJobId: "pipeline_waiting_recovery",
+        pipelineStatus: "queued",
+      },
+    }),
+  });
+  service.novelService.getPipelineJobById = async (jobId) => {
+    pipelineLookups.push(jobId);
+    return {
+      id: jobId,
+      status: "queued",
+      progress: 0.4,
+      currentStage: "queued",
+      currentItemLabel: null,
+      pendingManualRecovery: true,
+      error: "服务重启后任务已暂停，等待手动恢复。",
+    };
+  };
+  service.workflowService.markTaskRunning = async (taskId, input) => {
+    runningCalls.push({ taskId, ...input });
+    return null;
+  };
+  service.scheduleBackgroundRun = (taskId, runner) => {
+    scheduledRuns.push({ taskId, runner });
+  };
+  service.autoExecutionRuntime.runFromReady = async (input) => {
+    runtimeCalls.push(input);
+  };
+
+  try {
+    await service.continueTask("task_parent_running_pipeline_paused", {
+      continuationMode: "auto_execute_front10",
+    });
+
+    assert.deepEqual(pipelineLookups, ["pipeline_waiting_recovery"]);
+    assert.equal(runningCalls.length, 1);
+    assert.equal(runningCalls[0].stage, "chapter_execution");
+    assert.equal(runningCalls[0].itemKey, "chapter_execution");
+    assert.equal(scheduledRuns.length, 1);
+    assert.equal(runtimeCalls.length, 0);
+
+    await scheduledRuns[0].runner();
+
+    assert.equal(runtimeCalls.length, 1);
+    assert.equal(runtimeCalls[0].existingPipelineJobId, "pipeline_waiting_recovery");
+    assert.equal(runtimeCalls[0].resumeCheckpointType, "chapter_batch_ready");
+  } finally {
+    service.continueCandidateStageTask = originalContinueCandidateStageTask;
+    service.workflowService.getTaskById = originalGetTaskById;
+    service.resolveAssetFirstRecovery = originalResolveAssetFirstRecovery;
+    service.novelService.getPipelineJobById = originalGetPipelineJobById;
+    service.workflowService.markTaskRunning = originalMarkTaskRunning;
+    service.scheduleBackgroundRun = originalScheduleBackgroundRun;
+    service.autoExecutionRuntime.runFromReady = originalRunFromReady;
+  }
+});
+
 test("continueTask does not skip the current chapter when approving a waiting auto-execution checkpoint", async () => {
   const service = new NovelDirectorService();
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;

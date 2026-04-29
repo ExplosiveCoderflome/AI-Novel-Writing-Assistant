@@ -142,6 +142,31 @@ test("StateCommitService validate routes risky character resource updates into p
   assert.match(result.pendingReview[0].validationNotes.join(" "), /low confidence|manual review/);
 });
 
+test("StateCommitService validate auto-commits risky AI-driver character resource updates", () => {
+  const service = new StateCommitService();
+  const result = service.validate([
+    makeResourceProposal({
+      sourceType: "chapter_background_sync",
+      sourceStage: "ai_driver_chapter_execution",
+      riskLevel: "high",
+      payload: {
+        resourceName: "villain hidden ledger",
+        narrativeFunction: "hidden_card",
+        updateType: "destroyed",
+        statusAfter: "destroyed",
+        confidence: 0.42,
+        narrativeImpact: "The villain loses a core blackmail resource.",
+      },
+    }),
+  ]);
+
+  assert.equal(result.accepted.length, 1);
+  assert.equal(result.pendingReview.length, 0);
+  assert.equal(result.rejected.length, 0);
+  assert.equal(result.accepted[0].status, "committed");
+  assert.match(result.accepted[0].validationNotes.join(" "), /auto-committed AI-driver resource update/);
+});
+
 test("StateCommitService validate rejects character resource updates without evidence", () => {
   const service = new StateCommitService();
   const result = service.validate([
