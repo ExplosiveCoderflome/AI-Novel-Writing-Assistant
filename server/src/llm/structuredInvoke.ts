@@ -31,6 +31,11 @@ import {
   wrapStructuredInvokeError,
   type StructuredInvokeResult,
 } from "./structuredInvokeParser";
+import {
+  createLlmInvocationDiagnostic,
+  extractUpstreamRequestId,
+  finishLlmInvocationDiagnostic,
+} from "./invocationDiagnostics";
 import { toText } from "../services/novel/novelP0Utils";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
 
@@ -105,6 +110,28 @@ function computeAttemptTemperature(baseTemperature: number, strategyIndex: numbe
     return baseTemperature;
   }
   return Math.min(baseTemperature, 0.2);
+}
+
+function estimateMessagesChars(messages: BaseMessage[]): number {
+  return messages.reduce((sum, message) => sum + toText(message.content).length, 0);
+}
+
+function resolveTransportRetryDelaysMs(): number[] {
+  const configured = process.env.STRUCTURED_OUTPUT_TRANSPORT_RETRY_DELAYS_MS?.trim();
+  if (configured) {
+    const parsed = configured
+      .split(",")
+      .map((item) => Number(item.trim()))
+      .filter((item) => Number.isFinite(item) && item >= 0);
+    if (parsed.length > 0) {
+      return parsed.slice(0, 2);
+    }
+  }
+  return [1500, 4000];
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function resolveAttemptTarget(input: {
@@ -199,6 +226,19 @@ async function invokeStructuredAttempt<T>(input: {
   }
 
   const messages = buildInvokeMessages(input.baseInput);
+  const messageChars = estimateMessagesChars(messages);
+  const diagnosticId = await createLlmInvocationDiagnostic({
+    promptMeta: input.baseInput.promptMeta,
+    provider: resolved.provider,
+    model: resolved.model,
+    baseURL: resolved.baseURL,
+    requestProtocol: resolved.requestProtocol,
+    strategy: input.strategy,
+    estimatedInputTokens: input.baseInput.promptMeta?.estimatedInputTokens,
+    renderedPromptChars: input.baseInput.promptMeta?.renderedPromptChars ?? messageChars,
+    messageChars,
+    warningCode: input.baseInput.promptMeta?.warningCode,
+  });
   logStructuredInvokeEvent({
     event: "invoke_start",
     label: input.baseInput.label,
@@ -206,6 +246,7 @@ async function invokeStructuredAttempt<T>(input: {
     model: resolved.model,
     taskType: input.baseInput.taskType,
     strategy: input.strategy,
+    diagnosticId,
     fallbackUsed: input.fallbackUsed,
     reasoningForcedOff: resolved.reasoningForcedOff,
   });
@@ -221,15 +262,22 @@ async function invokeStructuredAttempt<T>(input: {
       ),
     });
     const rawContent = toText(result.content);
+    const latencyMs = Date.now() - startedAt;
+    await finishLlmInvocationDiagnostic(diagnosticId, {
+      status: "succeeded",
+      latencyMs,
+      rawChars: rawContent.length,
+    });
     logStructuredInvokeEvent({
       event: "invoke_done",
       label: input.baseInput.label,
       provider: resolved.provider,
       model: resolved.model,
       taskType: input.baseInput.taskType,
-      latencyMs: Date.now() - startedAt,
+      latencyMs,
       rawChars: rawContent.length,
       strategy: input.strategy,
+      diagnosticId,
       fallbackUsed: input.fallbackUsed,
       reasoningForcedOff: resolved.reasoningForcedOff,
     });
@@ -259,15 +307,25 @@ async function invokeStructuredAttempt<T>(input: {
     const category = error instanceof StructuredOutputError
       ? error.category
       : classifyStructuredOutputFailure({ error });
+    const errorMessage = error instanceof Error ? error.message : String(error ?? "");
+    const latencyMs = Date.now() - startedAt;
+    await finishLlmInvocationDiagnostic(diagnosticId, {
+      status: "failed",
+      latencyMs,
+      errorCategory: category,
+      errorMessage,
+      upstreamRequestId: extractUpstreamRequestId(errorMessage),
+    });
     logStructuredInvokeEvent({
       event: "invoke_error",
       label: input.baseInput.label,
       provider: resolved.provider,
       model: resolved.model,
       taskType: input.baseInput.taskType,
-      latencyMs: Date.now() - startedAt,
+      latencyMs,
       strategy: input.strategy,
       errorCategory: category,
+      diagnosticId,
       fallbackUsed: input.fallbackUsed,
       reasoningForcedOff: resolved.reasoningForcedOff,
     });
@@ -279,8 +337,65 @@ async function invokeStructuredAttempt<T>(input: {
       reasoningForcedOff: resolved.reasoningForcedOff,
       fallbackAvailable: input.fallbackAvailable,
       fallbackUsed: input.fallbackUsed,
+      diagnosticId,
     });
   }
+}
+
+async function invokeStructuredAttemptWithTransportRetry<T>(input: {
+  baseInput: StructuredInvokeInput<T>;
+  target: StructuredAttemptTarget;
+  strategy: StructuredOutputStrategy;
+  strategyIndex: number;
+  fallbackAvailable: boolean;
+  fallbackUsed: boolean;
+}): Promise<StructuredInvokeResult<T>> {
+  const retryDelays = resolveTransportRetryDelaysMs();
+  let lastError: StructuredOutputError | null = null;
+  for (let attemptIndex = 0; attemptIndex <= retryDelays.length; attemptIndex += 1) {
+    try {
+      return await invokeStructuredAttempt(input);
+    } catch (error) {
+      const wrapped = wrapStructuredInvokeError({
+        label: input.baseInput.label,
+        error,
+        strategy: input.strategy,
+        profile: input.target.profile,
+        fallbackAvailable: input.fallbackAvailable,
+        fallbackUsed: input.fallbackUsed,
+      });
+      lastError = wrapped;
+      const shouldRetry = wrapped.category === "transport_error"
+        && attemptIndex < retryDelays.length
+        && !input.baseInput.signal?.aborted;
+      if (!shouldRetry) {
+        throw wrapped;
+      }
+      const delayMs = retryDelays[attemptIndex] ?? 0;
+      logStructuredInvokeEvent({
+        event: "invoke_retry_scheduled",
+        label: input.baseInput.label,
+        provider: input.target.provider,
+        model: input.target.model,
+        taskType: input.baseInput.taskType,
+        strategy: input.strategy,
+        errorCategory: wrapped.category,
+        retryAttempt: attemptIndex + 1,
+        fallbackUsed: input.fallbackUsed,
+      });
+      if (delayMs > 0) {
+        await sleep(delayMs);
+      }
+    }
+  }
+  throw lastError ?? buildStructuredError({
+    message: `[${input.baseInput.label}] Structured output failed.`,
+    category: "transport_error",
+    strategy: input.strategy,
+    profile: input.target.profile,
+    fallbackAvailable: input.fallbackAvailable,
+    fallbackUsed: input.fallbackUsed,
+  });
 }
 
 async function tryStructuredStrategies<T>(input: {
@@ -300,7 +415,7 @@ async function tryStructuredStrategies<T>(input: {
   for (let index = 0; index < preferredSequence.length; index += 1) {
     const strategy = preferredSequence[index]!;
     try {
-      return await invokeStructuredAttempt({
+      return await invokeStructuredAttemptWithTransportRetry({
         baseInput: input.baseInput,
         target: input.target,
         strategy,

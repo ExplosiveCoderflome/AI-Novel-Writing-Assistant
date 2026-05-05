@@ -5,6 +5,7 @@ import { renderSelectedContextBlocks } from "../../core/renderContextBlocks";
 import { fullAuditOutputSchema } from "../../../services/audit/auditSchemas";
 import { chapterSummaryOutputSchema } from "../../../services/novel/chapterSummarySchemas";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
+import { renderHardInvariantsText } from "./chapterLayeredContextShared";
 
 export interface ChapterSummaryPromptInput {
   novelTitle: string;
@@ -122,6 +123,9 @@ export const chapterReviewPrompt: PromptAsset<
       "5. engagement：是否具有持续阅读动力，结尾钩子、冲突推进与信息揭示是否有效。",
       "6. overall：综合质量判断，应反映本章是否达到可发布或需重点修整的水平。",
       "",
+      "【硬性不可违反规则】",
+      renderHardInvariantsText(),
+      "",
       "【issues 要求】",
       "1. issues 必须只抓真正影响阅读与连载质量的问题，避免吹毛求疵式碎问题泛滥。",
       "2. 每条 issue 都必须具体，不能只写“节奏不好”“描写偏弱”“有点重复”这种空泛判断。",
@@ -191,6 +195,8 @@ export const chapterRepairPrompt: PromptAsset<ChapterRepairPromptInput, string, 
       "2. 优先保证 chapter_mission、repair_boundaries、world_rules 的约束被满足。",
       "3. 保留原章已经有效的推进、情绪、细节与角色状态，不要把有用内容一起洗掉。",
       "4. 若多个问题冲突，优先修复影响主线推进、逻辑连贯和阅读节奏的问题。",
+      "5. 修复后必须仍然遵守以下硬性不可违反规则：",
+      renderHardInvariantsText(),
       "",
       "【具体要求】",
       "1. 修复后章节必须仍然是自然可读的完整正文，而不是拼补痕迹明显的修改稿。",

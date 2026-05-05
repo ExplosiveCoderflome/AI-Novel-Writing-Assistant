@@ -4,6 +4,16 @@ import type {
 } from "@ai-novel/shared/types/chapterRuntime";
 import { resolveLengthBudgetContract } from "@ai-novel/shared/types/chapterLengthControl";
 import { buildPlannerStyleContractSummaryText } from "../../../services/styleEngine/styleContractText";
+import type { GenreProfile } from "../../../prompting/references/genreProfiles";
+import {
+  HOOK_TYPE_LABELS,
+  COOL_POINT_LABELS,
+  MICRO_PAYOFF_LABELS,
+  HARD_INVARIANTS,
+  SOFT_GUIDANCES,
+  type HardInvariant,
+  type SoftGuidance,
+} from "../../../prompting/references/readingPowerTaxonomy";
 
 export function compactText(value: string | null | undefined, fallback = ""): string {
   return value?.replace(/\s+/g, " ").trim() || fallback;
@@ -296,5 +306,91 @@ export function buildPendingCandidateGuardText(writeContext: ChapterWriteContext
       ], 4);
       return `- ${candidate.proposedName}: ${parts.join(" | ")}`;
     }),
+  ].join("\n");
+}
+
+// ─── Genre / Reading Power guidance rendering ───
+
+/**
+ * 将 GenreProfile 渲染为可直接注入 prompt 的中文引导文本。
+ * 用于 chapter writer、review、repair 等上下文块。
+ */
+export function renderGenreGuidanceText(profile: GenreProfile | null | undefined): string {
+  if (!profile) return "";
+
+  const hookPrimary = profile.hookConfig.primary
+    .map((h) => HOOK_TYPE_LABELS[h] ?? h)
+    .join("、");
+  const hookSecondary = profile.hookConfig.secondary
+    .map((h) => HOOK_TYPE_LABELS[h] ?? h)
+    .join("、");
+  const hookAvoid = profile.hookConfig.avoidOveruse
+    .map((h) => HOOK_TYPE_LABELS[h] ?? h)
+    .join("、");
+
+  const coolSignature = profile.coolPointConfig.signature
+    .map((c) => COOL_POINT_LABELS[c] ?? c)
+    .join("、");
+  const coolOccasional = profile.coolPointConfig.occasional
+    .map((c) => COOL_POINT_LABELS[c] ?? c)
+    .join("、");
+
+  const microFrequent = profile.microPayoffConfig.frequent
+    .map((m) => MICRO_PAYOFF_LABELS[m] ?? m)
+    .join("、");
+  const microModerate = profile.microPayoffConfig.moderate
+    .map((m) => MICRO_PAYOFF_LABELS[m] ?? m)
+    .join("、");
+
+  const pacing = profile.pacingConfig;
+
+  return [
+    `【题材追读力引导 — ${profile.label}】`,
+    `题材说明：${profile.description}`,
+    ``,
+    `钩子策略：`,
+    `  主要钩子：${hookPrimary}`,
+    `  辅助钩子：${hookSecondary}`,
+    `  避免过度使用：${hookAvoid}`,
+    ``,
+    `爽点策略：`,
+    `  招牌爽点：${coolSignature}`,
+    `  偶尔使用：${coolOccasional}`,
+    ``,
+    `微回报策略：`,
+    `  高频：${microFrequent}`,
+    `  适度：${microModerate}`,
+    ``,
+    `节奏配置：`,
+    `  每章钩子密度：${pacing.chapterHookDensity}个`,
+    `  爽点间隔：每${pacing.coolPointInterval}章至少1个大爽点`,
+    `  张力范围：${pacing.tensionFloor}~${pacing.tensionCeiling}`,
+    `  铺垫/爆发比：${pacing.buildupToPayoffRatio}`,
+    ``,
+    `语调关键词：${profile.toneKeywords.join("、")}`,
+    `避免：${profile.avoidKeywords.join("、")}`,
+  ].join("\n");
+}
+
+/**
+ * 渲染硬约束列表为 prompt 文本。
+ */
+export function renderHardInvariantsText(invariants: readonly HardInvariant[] = HARD_INVARIANTS): string {
+  if (invariants.length === 0) return "";
+  return [
+    "【硬约束 — 不可违反】",
+    ...invariants.map((inv) => `- ${inv.label}：${inv.description}`),
+  ].join("\n");
+}
+
+/**
+ * 渲染软引导列表为 prompt 文本，按权重降序。
+ */
+export function renderSoftGuidancesText(guidances: readonly SoftGuidance[] = SOFT_GUIDANCES): string {
+  if (guidances.length === 0) return "";
+  const sorted = [...guidances].sort((a, b) => b.weight - a.weight);
+  return [
+    "【软引导 — 建议遵循】",
+    ...sorted.map((g) => `- ${g.label}(权重${g.weight})：${g.description}`),
   ].join("\n");
 }

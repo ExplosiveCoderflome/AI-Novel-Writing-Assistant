@@ -26,6 +26,9 @@ import {
   buildPendingCandidateGuardText,
   buildRelationStageText,
   compactText,
+  renderGenreGuidanceText,
+  renderHardInvariantsText,
+  renderSoftGuidancesText,
   resolveTargetWordRange,
   splitLines,
   summarizeContinuationConstraints,
@@ -38,6 +41,8 @@ import {
   toListBlock,
 } from "./chapterLayeredContextShared";
 import { RUNTIME_PROMPT_BUDGET_PROFILES } from "./promptBudgetProfiles";
+import { genreProfileRegistry } from "../../references/genreProfileRegistry";
+import type { GenreProfile } from "../../references/genreProfiles";
 
 export const WRITER_FORBIDDEN_GROUPS = [
   "full_outline",
@@ -680,4 +685,74 @@ export function withChapterRepairContext(
     ...contextPackage,
     chapterRepairContext,
   };
+}
+
+// ─── Genre Reading Power context blocks ───
+
+/**
+ * 根据小说 genre 标签解析对应的 GenreProfile，
+ * 并构建追读力引导 context blocks 注入到 prompt 中。
+ *
+ * @param genre - 小说的题材标签（如 "仙侠"、"爽文"）
+ * @param options - 控制输出内容的选项
+ * @returns PromptContextBlock[] — 可直接合并到 writer/review/repair blocks
+ */
+export function buildGenreReadingPowerBlocks(
+  genre: string | null | undefined,
+  options: {
+    includeHardInvariants?: boolean;
+    includeSoftGuidances?: boolean;
+    profile?: GenreProfile | null;
+  } = {},
+): PromptContextBlock[] {
+  const profile = options.profile ?? genreProfileRegistry.resolve(genre);
+  const blocks: Array<PromptContextBlock | null> = [];
+
+  // 1. Genre-specific guidance block
+  if (profile) {
+    const guidanceText = renderGenreGuidanceText(profile);
+    if (guidanceText) {
+      blocks.push(
+        createContextBlock({
+          id: "genre_reading_power",
+          group: "genre_reading_power",
+          priority: 76,
+          content: guidanceText,
+        }),
+      );
+    }
+  }
+
+  // 2. Hard invariants block
+  if (options.includeHardInvariants !== false) {
+    const hardText = renderHardInvariantsText();
+    if (hardText) {
+      blocks.push(
+        createContextBlock({
+          id: "hard_invariants",
+          group: "hard_invariants",
+          priority: 98,
+          required: true,
+          content: hardText,
+        }),
+      );
+    }
+  }
+
+  // 3. Soft guidances block
+  if (options.includeSoftGuidances !== false) {
+    const softText = renderSoftGuidancesText();
+    if (softText) {
+      blocks.push(
+        createContextBlock({
+          id: "soft_guidances",
+          group: "soft_guidances",
+          priority: 70,
+          content: softText,
+        }),
+      );
+    }
+  }
+
+  return blocks.filter((block): block is PromptContextBlock => block !== null && block.content.trim().length > 0);
 }

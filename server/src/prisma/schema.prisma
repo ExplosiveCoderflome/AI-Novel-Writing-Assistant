@@ -1656,6 +1656,37 @@ model AutoDirectorAutoApprovalRecord {
   @@index([taskId, createdAt])
 }
 
+model LlmInvocationDiagnostic {
+  id                   String   @id @default(cuid())
+  taskId               String?
+  novelId              String?
+  promptId             String?
+  promptVersion        String?
+  stage                String?
+  itemKey              String?
+  provider             String
+  model                String
+  baseUrlHost          String?
+  requestProtocol      String?
+  strategy             String?
+  status               String
+  errorCategory        String?
+  errorMessage         String?
+  upstreamRequestId    String?
+  estimatedInputTokens Int?
+  renderedPromptChars  Int?
+  messageChars         Int?
+  rawChars             Int?
+  latencyMs            Int?
+  warningCode          String?
+  createdAt            DateTime @default(now())
+
+  @@index([taskId, createdAt])
+  @@index([novelId, createdAt])
+  @@index([promptId, createdAt])
+  @@index([status, createdAt])
+}
+
 
 model AutoDirectorFollowUpActionLog {
   id             String   @id @default(cuid())
@@ -2271,4 +2302,19 @@ model TaskCenterArchive {
 
   @@unique([taskKind, taskId])
   @@index([taskKind, archivedAt])
+}
+
+model DirectorExecutionLog {
+  id         String   @id @default(cuid())
+  taskId     String
+  novelId    String?
+  stage      String
+  level      String   @default("info")
+  message    String
+  detail     String?
+  durationMs Int?
+  createdAt  DateTime @default(now())
+
+  @@index([taskId, createdAt])
+  @@index([novelId, createdAt])
 }

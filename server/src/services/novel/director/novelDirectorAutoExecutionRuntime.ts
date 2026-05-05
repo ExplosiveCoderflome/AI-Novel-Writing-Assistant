@@ -28,6 +28,7 @@ import {
   resolveAutoExecutionRangeAndState,
 } from "./novelDirectorAutoExecutionScopeRuntime";
 import { isSkippableAutoExecutionReviewFailure } from "./novelDirectorAutoExecutionFailure";
+import { directorExecutionLogger } from "./directorExecutionLogger";
 
 interface NovelDirectorAutoExecutionWorkflowPort {
   bootstrapTask(input: {
@@ -322,13 +323,15 @@ export class NovelDirectorAutoExecutionRuntime {
           return;
         }
 
+        const scopeLabelForLog = buildDirectorAutoExecutionScopeLabelFromState(autoExecution, range.totalChapterCount);
         await this.deps.workflowService.markTaskRunning(input.taskId, {
           stage: "chapter_execution",
           itemKey: "chapter_execution",
-          itemLabel: `正在自动执行${buildDirectorAutoExecutionScopeLabelFromState(autoExecution, range.totalChapterCount)}`,
+          itemLabel: `正在自动执行${scopeLabelForLog}`,
           progress: 0.93,
           clearCheckpoint: input.resumeCheckpointType === "chapter_batch_ready",
         });
+        directorExecutionLogger.info(input.taskId, "chapter_execution", `开始自动执行章节批次：${scopeLabelForLog}`, { novelId: input.novelId }).catch(() => {});
         try {
           const job = await this.deps.novelService.startPipelineJob(
             input.novelId,
@@ -385,6 +388,7 @@ export class NovelDirectorAutoExecutionRuntime {
 
       while (pipelineJobId) {
         if (await this.shouldStopAutoExecution(input.taskId, pipelineJobId)) {
+          directorExecutionLogger.warn(input.taskId, "chapter_execution", "任务已被取消，正在停止自动执行", { novelId: input.novelId }).catch(() => {});
           return;
         }
         const job = await this.deps.novelService.getPipelineJobById(pipelineJobId);
@@ -465,6 +469,7 @@ export class NovelDirectorAutoExecutionRuntime {
             continue autoExecutionLoop;
           }
           if (noticeAction.action === "auto_continue") {
+            directorExecutionLogger.info(input.taskId, "quality_repair", "质量检查通过，自动继续下一批次", { novelId: input.novelId }).catch(() => {});
             pipelineJobId = "";
             ({ range, autoExecution } = await this.resolveRangeAndState({
               novelId: input.novelId,
@@ -484,6 +489,7 @@ export class NovelDirectorAutoExecutionRuntime {
             continue autoExecutionLoop;
           }
 
+          directorExecutionLogger.warn(input.taskId, "quality_repair", `章节需要质量修复，已暂停：${job.noticeSummary?.trim()}`, { novelId: input.novelId }).catch(() => {});
           await recordQualityRepairCheckpoint(this.deps, {
             taskId: input.taskId,
             novelId: input.novelId,
@@ -509,6 +515,7 @@ export class NovelDirectorAutoExecutionRuntime {
         }
 
         if (job.status === "succeeded") {
+          directorExecutionLogger.success(input.taskId, "chapter_execution", `章节批次执行完成，剩余 ${autoExecution.remainingChapterCount ?? 0} 章`, { novelId: input.novelId }).catch(() => {});
           const completedPipelineJobId = pipelineJobId;
           pipelineJobId = "";
           if ((autoExecution.remainingChapterCount ?? 0) > 0) {
@@ -553,6 +560,7 @@ export class NovelDirectorAutoExecutionRuntime {
           || (job.status === "cancelled"
             ? `${scopeLabel}自动执行已取消。`
             : `${scopeLabel}自动执行未能全部通过质量要求。`);
+        directorExecutionLogger.error(input.taskId, "chapter_execution", `章节执行失败：${failureMessage}`, { novelId: input.novelId }).catch(() => {});
         await this.deps.workflowService.markTaskFailed(input.taskId, failureMessage, {
           stage: "quality_repair",
           itemKey: "quality_repair",

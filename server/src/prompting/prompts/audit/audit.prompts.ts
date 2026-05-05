@@ -4,6 +4,7 @@ import type { PromptAsset } from "../../core/promptTypes";
 import { renderSelectedContextBlocks } from "../../core/renderContextBlocks";
 import { fullAuditOutputSchema, lightAuditOutputSchema } from "../../../services/audit/auditSchemas";
 import { NOVEL_PROMPT_BUDGETS } from "../novel/promptBudgetProfiles";
+import { renderHardInvariantsText } from "../novel/chapterLayeredContextShared";
 
 const AUDIT_CHAPTER_EXAMPLE = {
   score: {
@@ -110,6 +111,9 @@ export const auditChapterLightPrompt: PromptAsset<AuditChapterPromptInput, z.inf
       "3. issues 只保留最关键的 0-4 条，必须具体且可执行。",
       "4. continueRecommendation 只能是 continue、suggest_repair、full_audit。",
       "5. shouldRunFullAudit 只有在确实需要完整重审校时才设为 true。",
+      "",
+      "硬性不可违反规则（违反任何一条 = 必须 suggest_repair 或 full_audit）：",
+      renderHardInvariantsText(),
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,
@@ -173,6 +177,9 @@ export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<ty
       "2. 所有问题都必须具体，evidence 必须指向文本中的明确现象，fixSuggestion 必须可执行。",
       "3. score、issues、auditReports 三部分必须彼此一致，不能互相矛盾。",
       "4. requestedTypes 中要求的类型必须全部覆盖；即使问题不明显，也要给出简短结论。",
+      "",
+      "硬性不可违反规则（违反任何一条 = severity 至少 high）：",
+      renderHardInvariantsText(),
       "",
       "评分维度：",
       "1. coherence：连贯性、因果与信息自洽。",

@@ -13,8 +13,10 @@ import { resolveDesktopServerPort, startDesktopServer } from "./runtime/server";
 import {
   isPortableDesktopRuntime,
   resolveDesktopAppDataDir,
+  resolveDesktopChromiumCacheDir,
   resolveDesktopLogsDir,
   resolveDesktopRuntimeConfig,
+  resolveDesktopSessionDataDir,
   resolveDesktopUpdateChannel,
   resolveDesktopWindowIcon,
   resolveRendererDevUrl,
@@ -563,6 +565,8 @@ async function handleBootstrapFailure(error: unknown): Promise<void> {
 }
 
 app.setPath("userData", resolveDesktopAppDataDir());
+app.setPath("sessionData", resolveDesktopSessionDataDir());
+app.commandLine.appendSwitch("disk-cache-dir", resolveDesktopChromiumCacheDir());
 app.setAppUserModelId(APP_USER_MODEL_ID);
 registerDesktopIpcHandlers();
 registerStoreBroadcasts();

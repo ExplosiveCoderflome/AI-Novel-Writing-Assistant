@@ -51,8 +51,8 @@ export function createVolumeStrategyPrompt(
     contextPolicy: {
       maxTokensBudget: NOVEL_PROMPT_BUDGETS.volumeStrategy,
       requiredGroups: ["book_contract", "volume_count_guidance"],
-      preferredGroups: ["macro_constraints", "existing_volume_window", "guidance"],
-      dropOrder: ["existing_volume_window"],
+      preferredGroups: ["macro_constraints", "existing_volume_window", "genre_reading_power", "guidance"],
+      dropOrder: ["existing_volume_window", "genre_reading_power"],
     },
     outputSchema: createVolumeStrategySchema({
       maxVolumeCount,

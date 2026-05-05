@@ -228,6 +228,7 @@ function buildDiagnostics(input: {
   fallbackAvailable?: boolean;
   fallbackUsed?: boolean;
   errorCategory?: StructuredOutputErrorCategory | null;
+  diagnosticId?: string | null;
 }): StructuredOutputDiagnostics {
   return {
     strategy: input.strategy,
@@ -236,6 +237,7 @@ function buildDiagnostics(input: {
     fallbackAvailable: input.fallbackAvailable ?? false,
     fallbackUsed: input.fallbackUsed ?? false,
     errorCategory: input.errorCategory ?? null,
+    diagnosticId: input.diagnosticId ?? null,
   };
 }
 
@@ -250,6 +252,8 @@ export function logStructuredInvokeEvent(input: {
   repairAttempt?: number;
   strategy?: StructuredOutputStrategy;
   errorCategory?: StructuredOutputErrorCategory | null;
+  diagnosticId?: string | null;
+  retryAttempt?: number;
   fallbackUsed?: boolean;
   reasoningForcedOff?: boolean;
 }): void {
@@ -263,6 +267,8 @@ export function logStructuredInvokeEvent(input: {
       `taskType=${input.taskType ?? "planner"}`,
       input.strategy ? `strategy=${input.strategy}` : "",
       input.errorCategory ? `errorCategory=${input.errorCategory}` : "",
+      input.diagnosticId ? `diagnosticId=${input.diagnosticId}` : "",
+      typeof input.retryAttempt === "number" ? `retryAttempt=${input.retryAttempt}` : "",
       typeof input.repairAttempt === "number" ? `repairAttempt=${input.repairAttempt}` : "",
       typeof input.latencyMs === "number" ? `latencyMs=${input.latencyMs}` : "",
       typeof input.rawChars === "number" ? `rawChars=${input.rawChars}` : "",
@@ -280,9 +286,11 @@ export function buildStructuredError(input: {
   reasoningForcedOff?: boolean;
   fallbackAvailable?: boolean;
   fallbackUsed?: boolean;
+  diagnosticId?: string | null;
 }): StructuredOutputError {
+  const diagnosticSuffix = input.diagnosticId?.trim() ? ` diagnosticId=${input.diagnosticId.trim()}` : "";
   return new StructuredOutputError({
-    message: input.message,
+    message: `${input.message}${diagnosticSuffix}`,
     category: input.category,
     diagnostics: buildDiagnostics({
       strategy: input.strategy,
@@ -291,6 +299,7 @@ export function buildStructuredError(input: {
       fallbackAvailable: input.fallbackAvailable,
       fallbackUsed: input.fallbackUsed,
       errorCategory: input.category,
+      diagnosticId: input.diagnosticId,
     }),
   });
 }
@@ -304,8 +313,21 @@ export function wrapStructuredInvokeError(input: {
   reasoningForcedOff?: boolean;
   fallbackAvailable?: boolean;
   fallbackUsed?: boolean;
+  diagnosticId?: string | null;
 }): StructuredOutputError {
   if (input.error instanceof StructuredOutputError) {
+    if (input.diagnosticId && !input.error.diagnostics.diagnosticId) {
+      return buildStructuredError({
+        message: input.error.message.replace(/^\[STRUCTURED_OUTPUT:[^\]]+\]\s*/i, ""),
+        category: input.error.category,
+        strategy: input.strategy,
+        profile: input.profile,
+        reasoningForcedOff: input.reasoningForcedOff,
+        fallbackAvailable: input.fallbackAvailable,
+        fallbackUsed: input.fallbackUsed,
+        diagnosticId: input.diagnosticId,
+      });
+    }
     return input.error;
   }
   const category = classifyStructuredOutputFailure({
@@ -325,6 +347,7 @@ export function wrapStructuredInvokeError(input: {
     reasoningForcedOff: input.reasoningForcedOff,
     fallbackAvailable: input.fallbackAvailable,
     fallbackUsed: input.fallbackUsed,
+    diagnosticId: input.diagnosticId,
   });
 }
 

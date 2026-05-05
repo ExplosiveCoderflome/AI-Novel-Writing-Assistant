@@ -22,6 +22,8 @@ import {
   directorPlanBlueprintSchema,
 } from "../../../services/novel/director/novelDirectorSchemas";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
+import { genreProfileRegistry } from "../../references/genreProfileRegistry";
+import { renderGenreGuidanceText } from "./chapterLayeredContextShared";
 
 export interface DirectorCandidatePromptInput {
   idea: string;
@@ -153,6 +155,8 @@ export const directorCandidatePrompt: PromptAsset<
       "2. 不要脱离上下文臆造庞杂设定块。",
       "3. 如果上一轮候选已有明显不合适方向，应主动避开重复。",
       "4. 信息不足时可以保守补全，但必须保证每个候选完整、可执行、可区分。",
+      "5. hookStrategy 应体现具体的前期抓手策略（如：悬念钩、反转钩、冲突钩、金手指亮相、身份落差），而不是笼统写'制造悬念'。",
+      "6. progressionLoop 应体现可循环的推进模式（如：实力阶梯、解锁地图、博弈对局、关系裂变、任务链），而不是泛写'不断升级'。",
     ].join("\n")),
     new HumanMessage([
       "请基于以下上下文，生成书级候选方向。",
@@ -162,6 +166,9 @@ export const directorCandidatePrompt: PromptAsset<
       "",
       "【项目上下文补充】",
       formatProjectContext(input.context) || "none",
+      "",
+      "【类型追读力指导】",
+      renderGenreGuidanceText(genreProfileRegistry.resolve(input.context.genreId)) || "none",
       "",
       "【上一轮候选】",
       formatLatestBatchDigest(input.batches),
@@ -233,6 +240,9 @@ export const directorCandidatePatchPrompt: PromptAsset<
       "",
       "【项目上下文补充】",
       formatProjectContext(input.context) || "none",
+      "",
+      "【类型追读力指导】",
+      renderGenreGuidanceText(genreProfileRegistry.resolve(input.context.genreId)) || "none",
       "",
       "【当前选中方案】",
       formatCandidateDigest(input.candidate, 0),
@@ -409,6 +419,9 @@ export const directorBookContractPrompt: PromptAsset<
       "",
       "【分层上下文】",
       renderSelectedContextBlocks(context),
+      "",
+      "【类型追读力指导】",
+      renderGenreGuidanceText(genreProfileRegistry.resolve(input.context.genreId)) || "none",
       "",
       "【目标章节总数】",
       String(input.targetChapterCount),

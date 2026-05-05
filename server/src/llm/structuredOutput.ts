@@ -31,6 +31,7 @@ export interface StructuredOutputDiagnostics {
   fallbackAvailable: boolean;
   fallbackUsed: boolean;
   errorCategory: StructuredOutputErrorCategory | null;
+  diagnosticId?: string | null;
 }
 
 const QWEN_FAMILY_PATTERN = /(?:^|[/:_-])qwen(?:\d+(?:\.\d+)?)?/i;

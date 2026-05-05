@@ -23,6 +23,32 @@ export interface TaskTokenUsageSummary {
   lastRecordedAt?: string | null;
 }
 
+export interface TaskLlmInvocationDiagnostic {
+  id: string;
+  taskId?: string | null;
+  novelId?: string | null;
+  promptId?: string | null;
+  promptVersion?: string | null;
+  stage?: string | null;
+  itemKey?: string | null;
+  provider: string;
+  model: string;
+  baseUrlHost?: string | null;
+  requestProtocol?: string | null;
+  strategy?: string | null;
+  status: string;
+  errorCategory?: string | null;
+  errorMessage?: string | null;
+  upstreamRequestId?: string | null;
+  estimatedInputTokens?: number | null;
+  renderedPromptChars?: number | null;
+  messageChars?: number | null;
+  rawChars?: number | null;
+  latencyMs?: number | null;
+  warningCode?: string | null;
+  createdAt: string;
+}
+
 export interface UnifiedTaskStep {
   key: string;
   label: string;
@@ -77,6 +103,7 @@ export interface UnifiedTaskDetail extends UnifiedTaskSummary {
   meta: Record<string, unknown>;
   steps: UnifiedTaskStep[];
   failureDetails?: string | null;
+  recentLlmDiagnostic?: TaskLlmInvocationDiagnostic | null;
 }
 
 export interface UnifiedTaskListResponse {

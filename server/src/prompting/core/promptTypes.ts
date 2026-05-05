@@ -52,6 +52,9 @@ export interface PromptInvocationMeta {
   droppedContextBlockIds: string[];
   summarizedContextBlockIds: string[];
   estimatedInputTokens: number;
+  renderedPromptChars?: number;
+  messageChars?: number;
+  warningCode?: string | null;
   repairUsed: boolean;
   repairAttempts: number;
   semanticRetryUsed: boolean;

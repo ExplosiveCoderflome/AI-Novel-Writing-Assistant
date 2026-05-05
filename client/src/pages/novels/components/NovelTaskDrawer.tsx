@@ -6,6 +6,7 @@ import type { TaskStatus } from "@ai-novel/shared/types/task";
 import type { CharacterResourceProposalSummary } from "@ai-novel/shared/types/characterResource";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LlmInvocationDiagnosticCard } from "@/components/common/LlmInvocationDiagnosticCard";
 import {
   Dialog,
   DialogContent,
@@ -391,6 +392,12 @@ export default function NovelTaskDrawer({
                   </div>
                 )}
               </section>
+
+              {task.recentLlmDiagnostic ? (
+                <section className="space-y-3">
+                  <LlmInvocationDiagnosticCard diagnostic={task.recentLlmDiagnostic} className="bg-background/80" />
+                </section>
+              ) : null}
 
               <section className="space-y-3">
                 <div className="text-sm font-medium text-foreground">步骤状态</div>

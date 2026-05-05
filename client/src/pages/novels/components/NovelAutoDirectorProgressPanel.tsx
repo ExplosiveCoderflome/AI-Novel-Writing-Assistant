@@ -9,6 +9,7 @@ import {
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LlmInvocationDiagnosticCard } from "@/components/common/LlmInvocationDiagnosticCard";
 import AITakeoverContainer, { type AITakeoverMode } from "@/components/workflow/AITakeoverContainer";
 import {
   isChapterTitleDiversitySummary,
@@ -16,6 +17,7 @@ import {
 } from "@/lib/directorTaskNotice";
 import { extractWorkflowActivityTags } from "@/lib/novelWorkflowActivityTags";
 import { useDirectorChapterTitleRepair } from "@/hooks/useDirectorChapterTitleRepair";
+import DirectorExecutionLogTimeline from "@/components/workflow/DirectorExecutionLogTimeline";
 
 type DirectorExecutionViewMode = "execution_progress" | "execution_failed";
 
@@ -420,6 +422,16 @@ export default function NovelAutoDirectorProgressPanel({
             </div>
           </div>
         ) : null}
+
+        <LlmInvocationDiagnosticCard diagnostic={task?.recentLlmDiagnostic} className="mt-4 bg-background/80 p-4" />
+
+        <DirectorExecutionLogTimeline
+          taskId={taskId || task?.id}
+          isRunning={containerMode === "running"}
+          defaultExpanded={true}
+          maxVisible={20}
+          className="mt-4"
+        />
 
         {chapterTitleWarning ? (
           <div className="mt-4 rounded-xl border border-amber-300/60 bg-amber-50/80 p-4 text-sm text-amber-950">

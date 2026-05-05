@@ -65,6 +65,14 @@ export function resolveDesktopMainLogFile(): string {
   return path.join(resolveDesktopLogsDir(), "desktop-main.log");
 }
 
+export function resolveDesktopSessionDataDir(): string {
+  return path.join(resolveDesktopAppDataDir(), "session");
+}
+
+export function resolveDesktopChromiumCacheDir(): string {
+  return path.join(resolveDesktopAppDataDir(), "cache", "chromium");
+}
+
 export function resolveDesktopUpdateChannel(): string {
   const configuredChannel = process.env.AI_NOVEL_UPDATE_CHANNEL?.trim();
   return configuredChannel || "beta";
