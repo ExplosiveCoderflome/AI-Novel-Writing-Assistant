@@ -47,6 +47,44 @@ User Command
 
 ## 3. P0 改造清单
 
+### P0 本轮实施记录（2026-05-05）
+
+本轮已在 `codex/director-p0-pipeline-state-closure` 分支完成 P0 第一阶段收口提交：
+
+```text
+48d23b6 Refactor director P0 pipeline state foundation
+```
+
+已完成或已落地骨架：
+
+- [x] 从 `beta` 新建功能分支 `codex/director-p0-pipeline-state-closure`。
+- [x] 新增 `DirectorCommandInterpreter`，统一解释 `continue / resume_from_checkpoint / retry / takeover / cancel / confirm_candidate / repair_chapter_titles` 等命令意图。
+- [x] 新增 `DirectorPipelineEngine.dispatch()`，`DirectorExecutionService` 已降级为薄适配层，Worker 命令统一进入 Pipeline。
+- [x] 新增 `DirectorStateReader`，聚合 task、runtime、run、active step、latest command、章节执行矩阵，供 Pipeline 读取 canonical state。
+- [x] 新增 `DirectorStateCommitter`，先承接 pipeline dispatch 事件写入，作为后续 start / complete / fail / block / cancel 统一提交口。
+- [x] 扩展 `WorkflowStepModule` 契约，补齐 `inspect / buildInput / validateOutput / commit / inspectProgress / recover / completeCriteria`。
+- [x] 修复 `chapter_repair` 与 `quality_repair` 复用同一 step id 的问题；运行时 id 已拆为 `chapter.draft.repair` 与 `chapter.quality.repair`。
+- [x] 新增 `ChapterExecutionProgressInspector`，章节执行进度由章节产物矩阵推导，`needs_repair` 作为局部可恢复状态，不直接判定全书失败。
+- [x] runtime projection 新增 `chapterExecutionProgress` 摘要，包含当前章节、当前子阶段、待修复章节数、可恢复范围和阶段 evidence。
+- [x] 新增 `ArtifactReader / ArtifactWriter` 网关骨架，先复用现有 `DirectorArtifact` 表，不做破坏性 migration。
+- [x] 收口 `runtimeStatusForTaskStatus`：不再把旧 task status 当作 runtime completion 的直接事实。
+- [x] 收口 `ensureRuntimeInstance`：优先明确 `runId`，其次 task，不再只按 `novelId` 静默重绑其他任务 runtime。
+
+本轮仍属于 P0 基础层，尚未完全闭合的部分：
+
+- [ ] Pipeline 内部仍有旧 service adapter 过渡调用，尚未把四个核心步骤全部改成只通过 `buildInput -> execute -> validateOutput -> commit` 自闭环执行。
+- [ ] `DirectorStateCommitter` 还没有覆盖全部 step lifecycle 写入，只完成 pipeline dispatch 事件入口和事实源接口骨架。
+- [ ] Artifact Ledger 已有读写网关，但 stale / protected / dependency 影响分析还没有接入 Workspace Analyzer。
+- [ ] Progress 已具备 StepModule 契约和章节矩阵，但旧 `DIRECTOR_PROGRESS` 固定百分比仍需继续降级为纯 fallback。
+- [ ] Worker 持久化 delta 写入、projection 响应体大小约束和长任务阻塞性能测试仍需在下一阶段补齐。
+
+本轮验证：
+
+- `pnpm --filter @ai-novel/shared build`
+- `pnpm --filter @ai-novel/server build`
+- `pnpm --filter @ai-novel/client typecheck`
+- `node --test server/tests/directorWorkflowStepModules.test.js server/tests/directorExecutionService.test.js server/tests/directorRuntimeExecutionService.test.js server/tests/directorChapterExecutionProgress.test.js`
+
 ### P0-1 统一入口语义
 
 目标：自动导演、继续、恢复、接管、重试、确认 gate 全部变成 command，不再各自拥有业务流程。
