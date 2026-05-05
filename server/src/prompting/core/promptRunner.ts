@@ -56,6 +56,11 @@ function buildPromptInvocationMeta(
   semanticRetryUsed: boolean,
   semanticRetryAttempts: number,
   options?: PromptExecutionOptions,
+  metrics?: {
+    renderedPromptChars?: number;
+    messageChars?: number;
+    warningCode?: string | null;
+  },
 ): PromptInvocationMeta {
   return {
     promptId: asset.id,
@@ -76,6 +81,9 @@ function buildPromptInvocationMeta(
     droppedContextBlockIds: context.droppedBlockIds,
     summarizedContextBlockIds: context.summarizedBlockIds,
     estimatedInputTokens: context.estimatedInputTokens,
+    renderedPromptChars: metrics?.renderedPromptChars,
+    messageChars: metrics?.messageChars,
+    warningCode: metrics?.warningCode ?? null,
     repairUsed,
     repairAttempts,
     semanticRetryUsed,
@@ -119,6 +127,38 @@ function buildPromptCallOptions(options?: PromptExecutionOptions): Record<string
 
 function estimateRenderedPromptChars(messages: BaseMessage[]): number {
   return messages.reduce((sum, message) => sum + toText(message.content).length, 0);
+}
+
+function resolveInputBudgetWarningThresholds(): { tokens: number; chars: number } {
+  const tokenThreshold = Number(process.env.PROMPT_INPUT_WARNING_TOKEN_THRESHOLD ?? "12000");
+  const charThreshold = Number(process.env.PROMPT_INPUT_WARNING_CHAR_THRESHOLD ?? "48000");
+  return {
+    tokens: Number.isFinite(tokenThreshold) && tokenThreshold > 0 ? tokenThreshold : 12000,
+    chars: Number.isFinite(charThreshold) && charThreshold > 0 ? charThreshold : 48000,
+  };
+}
+
+function resolveInputBudgetWarningCode(input: {
+  context: PromptRenderContext;
+  messageChars: number;
+}): string | null {
+  const thresholds = resolveInputBudgetWarningThresholds();
+  if (input.context.estimatedInputTokens >= thresholds.tokens || input.messageChars >= thresholds.chars) {
+    return "input_budget_high";
+  }
+  return null;
+}
+
+function promptInvocationMetricsFrom(meta: PromptInvocationMeta): {
+  renderedPromptChars?: number;
+  messageChars?: number;
+  warningCode?: string | null;
+} {
+  return {
+    renderedPromptChars: meta.renderedPromptChars,
+    messageChars: meta.messageChars,
+    warningCode: meta.warningCode,
+  };
 }
 
 function buildDefaultSemanticRetryMessages<I, R>(input: {
@@ -179,13 +219,16 @@ export function preparePromptExecution<I, O, R = O>(input: {
   assertRegistered(input.asset as PromptAsset<unknown, unknown, unknown>);
   const context = buildRenderContext(input.asset as PromptAsset<unknown, unknown, unknown>, input.contextBlocks ?? []);
   const renderedMessages = input.asset.render(input.promptInput, context);
+  const messages = appendStructuredOutputHintMessages({
+    asset: input.asset,
+    promptInput: input.promptInput,
+    context,
+    messages: renderedMessages,
+  });
+  const renderedPromptChars = estimateRenderedPromptChars(renderedMessages);
+  const messageChars = estimateRenderedPromptChars(messages);
   return {
-    messages: appendStructuredOutputHintMessages({
-      asset: input.asset,
-      promptInput: input.promptInput,
-      context,
-      messages: renderedMessages,
-    }),
+    messages,
     context,
     invocation: buildPromptInvocationMeta(
       input.asset as PromptAsset<unknown, unknown, unknown>,
@@ -195,6 +238,11 @@ export function preparePromptExecution<I, O, R = O>(input: {
       false,
       0,
       input.options,
+      {
+        renderedPromptChars,
+        messageChars,
+        warningCode: resolveInputBudgetWarningCode({ context, messageChars }),
+      },
     ),
   };
 }
@@ -221,6 +269,9 @@ function logPromptCompletion(input: {
       `droppedContextBlockIds=${input.meta.droppedContextBlockIds.join(",") || "none"}`,
       `summarizedContextBlockIds=${input.meta.summarizedContextBlockIds.join(",") || "none"}`,
       `estimatedInputTokens=${input.meta.estimatedInputTokens}`,
+      typeof input.meta.renderedPromptChars === "number" ? `renderedPromptChars=${input.meta.renderedPromptChars}` : "",
+      typeof input.meta.messageChars === "number" ? `messageChars=${input.meta.messageChars}` : "",
+      input.meta.warningCode ? `warning=${input.meta.warningCode}` : "",
       `repairUsed=${input.meta.repairUsed}`,
       `repairAttempts=${input.meta.repairAttempts}`,
       `semanticRetryUsed=${input.meta.semanticRetryUsed}`,
@@ -334,6 +385,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
   promptInput: I;
   context: PromptRenderContext;
   baseMessages: BaseMessage[];
+  baseInvocation: PromptInvocationMeta;
   outputSchema: NonNullable<PromptAsset<I, O, R>["outputSchema"]>;
   initialResult: StructuredInvokeResult<R>;
   options?: PromptExecutionOptions;
@@ -367,6 +419,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
           semanticRetryAttempts > 0,
           semanticRetryAttempts,
           input.options,
+          promptInvocationMetricsFrom(input.baseInvocation),
         ),
       };
     } catch (error) {
@@ -397,6 +450,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
               semanticRetryAttempts > 0,
               semanticRetryAttempts,
               input.options,
+              promptInvocationMetricsFrom(input.baseInvocation),
             ),
           };
         }
@@ -422,6 +476,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
         validationError: stringifyPromptError(error),
         attempt: semanticRetryAttempts,
       });
+      const semanticRetryMessageChars = estimateRenderedPromptChars(currentMessages);
       currentResult = await promptRunnerStructuredInvoker<R>({
         label: `${input.asset.id}@${input.asset.version}#semantic-retry-${semanticRetryAttempts}`,
         provider: input.options?.provider,
@@ -442,6 +497,14 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
           true,
           semanticRetryAttempts,
           input.options,
+          {
+            renderedPromptChars: semanticRetryMessageChars,
+            messageChars: semanticRetryMessageChars,
+            warningCode: resolveInputBudgetWarningCode({
+              context: input.context,
+              messageChars: semanticRetryMessageChars,
+            }),
+          },
         ),
       });
       logPromptEvent({
@@ -515,6 +578,7 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
     promptInput: input.promptInput,
     context: prepared.context,
     baseMessages: prepared.messages,
+    baseInvocation: prepared.invocation,
     outputSchema,
     initialResult: result,
     options: input.options,
@@ -714,6 +778,7 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
         promptInput: input.promptInput,
         context: prepared.context,
         baseMessages: prepared.messages,
+        baseInvocation: prepared.invocation,
         outputSchema,
         initialResult: parsed,
         options: input.options,

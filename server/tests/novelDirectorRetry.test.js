@@ -528,6 +528,85 @@ test("continueTask resumes auto-director tasks that are still marked running aft
   }
 });
 
+test("continueTask force-resumes running story macro tasks after explicit retry", async () => {
+  const service = new NovelDirectorService();
+  const originalContinueCandidateStageTask = service.continueCandidateStageTask;
+  const originalGetTaskById = service.workflowService.getTaskById;
+  const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
+  const originalGetVolumes = service.volumeService.getVolumes;
+  const originalBootstrapTask = service.workflowService.bootstrapTask;
+  const originalMarkTaskRunning = service.workflowService.markTaskRunning;
+  const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
+  const originalRunDirectorPipeline = service.runDirectorPipeline;
+  const bootstrapCalls = [];
+  const runningCalls = [];
+  const scheduledRuns = [];
+  const pipelineRuns = [];
+
+  service.continueCandidateStageTask = async () => false;
+  service.resolveAssetFirstRecovery = async () => null;
+  service.volumeService.getVolumes = async () => null;
+  service.workflowService.getTaskById = async () => ({
+    id: "task_running_story_macro_retry",
+    lane: "auto_director",
+    status: "running",
+    pendingManualRecovery: false,
+    novelId: "novel_running_story_macro_retry",
+    checkpointType: null,
+    currentItemKey: "story_macro",
+    seedPayloadJson: JSON.stringify({
+      directorInput: buildDirectorInput({
+        workflowTaskId: "task_running_story_macro_retry",
+      }),
+      directorSession: {
+        runMode: "auto_to_ready",
+        phase: "story_macro",
+        isBackgroundRunning: true,
+        lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
+        reviewScope: null,
+      },
+    }),
+  });
+  service.workflowService.bootstrapTask = async (input) => {
+    bootstrapCalls.push(input);
+    return { id: "task_running_story_macro_retry" };
+  };
+  service.workflowService.markTaskRunning = async (taskId, input) => {
+    runningCalls.push({ taskId, ...input });
+    return null;
+  };
+  service.scheduleBackgroundRun = (taskId, runner) => {
+    scheduledRuns.push(taskId);
+    void runner();
+  };
+  service.runDirectorPipeline = async (input) => {
+    pipelineRuns.push(input);
+  };
+
+  try {
+    await service.continueTask("task_running_story_macro_retry", {
+      forceResumeRunning: true,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(bootstrapCalls.length, 1);
+    assert.equal(runningCalls.length, 1);
+    assert.equal(runningCalls[0].stage, "story_macro");
+    assert.equal(scheduledRuns.length, 1);
+    assert.equal(pipelineRuns.length, 1);
+    assert.equal(pipelineRuns[0].startPhase, "story_macro");
+    assert.equal(pipelineRuns[0].scope, "book");
+  } finally {
+    service.continueCandidateStageTask = originalContinueCandidateStageTask;
+    service.workflowService.getTaskById = originalGetTaskById;
+    service.resolveAssetFirstRecovery = originalResolveAssetFirstRecovery;
+    service.volumeService.getVolumes = originalGetVolumes;
+    service.workflowService.bootstrapTask = originalBootstrapTask;
+    service.workflowService.markTaskRunning = originalMarkTaskRunning;
+    service.scheduleBackgroundRun = originalScheduleBackgroundRun;
+    service.runDirectorPipeline = originalRunDirectorPipeline;
+  }
+});
+
 test("continueTask resumes auto execution in the background instead of blocking the request", async () => {
   const service = new NovelDirectorService();
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;

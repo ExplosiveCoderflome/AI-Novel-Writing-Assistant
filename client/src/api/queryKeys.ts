@@ -92,6 +92,7 @@ export const queryKeys = {
     detail: (kind: string, id: string) => ["tasks", "detail", kind, id] as const,
     recoveryCandidates: ["tasks", "recovery-candidates"] as const,
     autoDirectorFollowUpDetail: (taskId: string) => ["tasks", "auto-director-follow-up", taskId] as const,
+    executionLogs: (taskId: string) => ["tasks", "execution-logs", taskId] as const,
   },
   autoDirectorFollowUps: {
     overview: ["auto-director-follow-ups", "overview"] as const,

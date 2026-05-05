@@ -62,6 +62,7 @@ import {
 } from "@ai-novel/shared/types/volumePlanning";
 
 type StoryMacroPlanResult = Awaited<ReturnType<StoryMacroPlanService["getPlan"]>> | null;
+const VOLUME_SKELETON_CHUNK_SIZE = 5;
 
 async function notifyVolumeGenerationPhase(input: {
   novelId: string;
@@ -292,7 +293,8 @@ async function generateSkeleton(params: {
     userPreferredVolumeCount: options.userPreferredVolumeCount,
     maxVolumeCount: MAX_VOLUME_COUNT,
   });
-  const targetVolumeCount = document.strategyPlan.recommendedVolumeCount;
+  const strategyPlan = document.strategyPlan;
+  const targetVolumeCount = strategyPlan.recommendedVolumeCount;
   await notifyVolumeGenerationPhase({
     novelId: document.novelId,
     scope: "skeleton",
@@ -300,40 +302,67 @@ async function generateSkeleton(params: {
     label: "正在生成卷骨架",
     options,
   });
-  const generated = await runStructuredPrompt({
-    asset: createVolumeSkeletonPrompt(targetVolumeCount),
-    promptInput: {
-      novel,
-      workspace,
-      storyMacroPlan,
-      strategyPlan: document.strategyPlan,
-      guidance: options.guidance,
-      volumeCountGuidance,
-      chapterBudget,
-    },
-    contextBlocks: buildVolumeSkeletonContextBlocks({
-      novel,
-      workspace,
-      storyMacroPlan,
-      strategyPlan: document.strategyPlan,
-      guidance: options.guidance,
-      volumeCountGuidance,
-      chapterBudget,
-    }),
-    options: {
-      provider: options.provider,
-      model: options.model,
-      temperature: options.temperature ?? 0.35,
-      novelId: document.novelId,
-      taskId: options.taskId,
-      stage: "volume_strategy",
-      itemKey: "volume_skeleton",
-      scope: "skeleton",
-      entrypoint: options.entrypoint,
-      signal: options.signal,
-    },
-  });
-  return mergeSkeleton(document, generated.output.volumes);
+  const generatedVolumes: Parameters<typeof mergeSkeleton>[1] = [];
+  for (let offset = 0; offset < targetVolumeCount; offset += VOLUME_SKELETON_CHUNK_SIZE) {
+    const chunkSize = Math.min(VOLUME_SKELETON_CHUNK_SIZE, targetVolumeCount - offset);
+    const chunkStart = offset + 1;
+    const chunkEnd = offset + chunkSize;
+    const chunkStrategyVolumes = strategyPlan.volumes.slice(offset, offset + chunkSize);
+    const chunkGuidance = [
+      options.guidance,
+      `Only generate global volumes ${chunkStart}-${chunkEnd} of ${targetVolumeCount}. Do not output any other volumes.`,
+    ].filter(Boolean).join("\n");
+    const chunkVolumeCountGuidance = {
+      ...volumeCountGuidance,
+      recommendedVolumeCount: chunkSize,
+      respectedExistingVolumeCount: chunkSize,
+    };
+    const chunkStrategyPlan = {
+      ...strategyPlan,
+      recommendedVolumeCount: chunkSize,
+      hardPlannedVolumeCount: chunkStrategyVolumes.filter((volume) => volume.planningMode === "hard").length,
+      notes: [
+        strategyPlan.notes,
+        `This is a chunked skeleton request for global volumes ${chunkStart}-${chunkEnd} of ${targetVolumeCount}.`,
+      ].filter(Boolean).join("\n"),
+      volumes: chunkStrategyVolumes,
+    };
+    const generated = await runStructuredPrompt({
+      asset: createVolumeSkeletonPrompt(chunkSize),
+      promptInput: {
+        novel,
+        workspace,
+        storyMacroPlan,
+        strategyPlan: chunkStrategyPlan,
+        guidance: chunkGuidance,
+        volumeCountGuidance: chunkVolumeCountGuidance,
+        chapterBudget,
+      },
+      contextBlocks: buildVolumeSkeletonContextBlocks({
+        novel,
+        workspace,
+        storyMacroPlan,
+        strategyPlan: chunkStrategyPlan,
+        guidance: chunkGuidance,
+        volumeCountGuidance: chunkVolumeCountGuidance,
+        chapterBudget,
+      }),
+      options: {
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature ?? 0.35,
+        novelId: document.novelId,
+        taskId: options.taskId,
+        stage: "volume_strategy",
+        itemKey: "volume_skeleton",
+        scope: "skeleton",
+        entrypoint: options.entrypoint,
+        signal: options.signal,
+      },
+    });
+    generatedVolumes.push(...generated.output.volumes);
+  }
+  return mergeSkeleton(document, generatedVolumes);
 }
 
 export { resolveBeatSheetTargetChapterCount };

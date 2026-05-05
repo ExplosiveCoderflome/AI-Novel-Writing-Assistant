@@ -356,3 +356,47 @@ test("task detail treats review-blocked auto execution as skippable continuation
     adapter.workflowService.healAutoDirectorTaskState = originalHeal;
   }
 });
+
+test("retry resumes auto-director tasks without forcing a running task to restart", async () => {
+  const adapter = new NovelWorkflowTaskAdapter();
+  const originals = {
+    detail: adapter.detail,
+    getTaskById: adapter.workflowService.getTaskById,
+    retryTask: adapter.workflowService.retryTask,
+    continueTask: adapter.novelDirectorService.continueTask,
+  };
+  const continueCalls = [];
+
+  adapter.workflowService.getTaskById = async () => ({
+    id: "task_retry_no_force_resume",
+    lane: "auto_director",
+    status: "failed",
+    checkpointType: null,
+  });
+  adapter.workflowService.retryTask = async () => null;
+  adapter.novelDirectorService.continueTask = async (taskId, input) => {
+    continueCalls.push({ taskId, input });
+  };
+  adapter.detail = async () => ({ id: "task_retry_no_force_resume" });
+
+  try {
+    const detail = await adapter.retry({
+      id: "task_retry_no_force_resume",
+      resume: true,
+      batchAlreadyStartedCount: 2,
+    });
+
+    assert.deepEqual(detail, { id: "task_retry_no_force_resume" });
+    assert.deepEqual(continueCalls, [{
+      taskId: "task_retry_no_force_resume",
+      input: {
+        batchAlreadyStartedCount: 2,
+      },
+    }]);
+  } finally {
+    adapter.detail = originals.detail;
+    adapter.workflowService.getTaskById = originals.getTaskById;
+    adapter.workflowService.retryTask = originals.retryTask;
+    adapter.novelDirectorService.continueTask = originals.continueTask;
+  }
+});

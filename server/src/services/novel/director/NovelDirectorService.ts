@@ -98,8 +98,13 @@ import {
   shouldAutoApproveDirectorApprovalPoint,
   shouldAutoApproveDirectorCheckpoint,
 } from "@ai-novel/shared/types/autoDirectorApproval";
+import { directorExecutionLogger } from "./directorExecutionLogger";
 import { recordAutoDirectorAutoApprovalFromTask } from "../../task/autoDirectorFollowUps/autoDirectorAutoApprovalAudit";
 import { flattenPreparedOutlineChapters } from "./novelDirectorStructuredOutlineRecovery";
+import {
+  buildLlmDiagnosticFailureAppendix,
+  findLatestLlmInvocationDiagnosticForTask,
+} from "../../../llm/invocationDiagnostics";
 
 type WorkflowTaskSnapshot = Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>;
 
@@ -164,6 +169,10 @@ function isWorkflowTaskCancelledError(error: unknown): boolean {
     && error.message === "WORKFLOW_TASK_CANCELLED";
 }
 
+function stringifyDirectorTaskError(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export class NovelDirectorService {
   private readonly novelContextService = new NovelContextService();
   private readonly characterPreparationService = new CharacterPreparationService();
@@ -211,6 +220,18 @@ export class NovelDirectorService {
     await assertHighMemoryDirectorStartAllowed(this.workflowService, input);
   }
 
+  private async markTaskFailedWithLatestDiagnostic(taskId: string, message: string): Promise<void> {
+    const latestDiagnostic = await findLatestLlmInvocationDiagnosticForTask(taskId);
+    const diagnosticAppendix = buildLlmDiagnosticFailureAppendix(latestDiagnostic);
+    await this.workflowService.markTaskFailed(
+      taskId,
+      diagnosticAppendix && !message.includes(latestDiagnostic?.id ?? "")
+        ? `${message}\n${diagnosticAppendix}`
+        : message,
+    );
+    directorExecutionLogger.error(taskId, "task_failed", `任务失败：${message}`).catch(() => {});
+  }
+
   private scheduleBackgroundRun(taskId: string, runner: () => Promise<void>) {
     void Promise.resolve()
       .then(() => runWithLlmUsageTracking({ workflowTaskId: taskId }, runner))
@@ -218,8 +239,10 @@ export class NovelDirectorService {
         if (isWorkflowTaskCancelledError(error)) {
           return;
         }
-        const message = error instanceof Error ? error.message : "自动导演后台任务执行失败。";
-        await this.workflowService.markTaskFailed(taskId, message);
+        await this.markTaskFailedWithLatestDiagnostic(
+          taskId,
+          stringifyDirectorTaskError(error, "自动导演后台任务执行失败。"),
+        );
       })
       .finally(async () => {
         await releaseHighMemoryDirectorReservations(taskId);
@@ -655,8 +678,10 @@ export class NovelDirectorService {
       return await this.withWorkflowTaskUsage(workflowTaskId, runner);
     } catch (error) {
       if (workflowTaskId?.trim()) {
-        const message = error instanceof Error ? error.message : "自动导演候选阶段执行失败。";
-        await this.workflowService.markTaskFailed(workflowTaskId.trim(), message);
+        await this.markTaskFailedWithLatestDiagnostic(
+          workflowTaskId.trim(),
+          stringifyDirectorTaskError(error, "自动导演候选阶段执行失败。"),
+        );
       }
       throw error;
     }
@@ -665,6 +690,7 @@ export class NovelDirectorService {
   async continueTask(taskId: string, input?: {
     continuationMode?: DirectorContinuationMode;
     batchAlreadyStartedCount?: number;
+    forceResumeRunning?: boolean;
   }): Promise<void> {
     const row = await this.workflowService.getTaskById(taskId);
     if (!row) {
@@ -674,7 +700,7 @@ export class NovelDirectorService {
       await this.workflowService.continueTask(taskId);
       return;
     }
-    if (row.status === "running" && !row.pendingManualRecovery) {
+    if (row.status === "running" && !row.pendingManualRecovery && input?.forceResumeRunning !== true) {
       return;
     }
 
@@ -1272,8 +1298,10 @@ export class NovelDirectorService {
         };
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "自动导演确认链执行失败。";
-      await this.workflowService.markTaskFailed(workflowTask.id, message);
+      await this.markTaskFailedWithLatestDiagnostic(
+        workflowTask.id,
+        stringifyDirectorTaskError(error, "自动导演确认链执行失败。"),
+      );
       throw error;
     }
   }
@@ -1389,6 +1417,7 @@ export class NovelDirectorService {
       chapterId: options?.chapterId,
       volumeId: options?.volumeId,
     });
+    directorExecutionLogger.info(taskId, stage, itemLabel).catch(() => {});
   }
 
   private async runDirectorPipeline(input: {
@@ -1405,14 +1434,19 @@ export class NovelDirectorService {
     });
 
     if (safeStartPhase === "story_macro") {
+      directorExecutionLogger.info(input.taskId, "story_macro", "开始生成故事宏观规划", { novelId: input.novelId }).catch(() => {});
       await this.runStoryMacroPhase(input.taskId, input.novelId, input.input);
+      directorExecutionLogger.success(input.taskId, "story_macro", "故事宏观规划完成", { novelId: input.novelId }).catch(() => {});
     }
 
     if (safeStartPhase === "story_macro" || safeStartPhase === "character_setup") {
+      directorExecutionLogger.info(input.taskId, "character_setup", "开始角色配置", { novelId: input.novelId }).catch(() => {});
       const paused = await this.runCharacterSetupPhase(input.taskId, input.novelId, input.input);
       if (paused) {
+        directorExecutionLogger.warn(input.taskId, "character_setup", "角色配置需要人工确认，已暂停", { novelId: input.novelId }).catch(() => {});
         return;
       }
+      directorExecutionLogger.success(input.taskId, "character_setup", "角色配置完成", { novelId: input.novelId }).catch(() => {});
     }
 
     if (
@@ -1420,10 +1454,13 @@ export class NovelDirectorService {
       || safeStartPhase === "character_setup"
       || safeStartPhase === "volume_strategy"
     ) {
+      directorExecutionLogger.info(input.taskId, "volume_strategy", "开始生成卷战略规划", { novelId: input.novelId }).catch(() => {});
       const volumeWorkspace = await this.runVolumeStrategyPhase(input.taskId, input.novelId, input.input);
       if (!volumeWorkspace) {
+        directorExecutionLogger.warn(input.taskId, "volume_strategy", "卷战略规划未能完成", { novelId: input.novelId }).catch(() => {});
         return;
       }
+      directorExecutionLogger.success(input.taskId, "volume_strategy", `卷战略规划完成，共 ${volumeWorkspace.volumes.length} 卷`, { novelId: input.novelId }).catch(() => {});
       await this.assertHighMemoryDirectorStartAllowed({
         taskId: input.taskId,
         novelId: input.novelId,
@@ -1436,8 +1473,11 @@ export class NovelDirectorService {
         }),
         batchAlreadyStartedCount: input.batchAlreadyStartedCount,
       });
+      directorExecutionLogger.info(input.taskId, "structured_outline", "开始生成章节大纲", { novelId: input.novelId }).catch(() => {});
       await this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, volumeWorkspace);
+      directorExecutionLogger.success(input.taskId, "structured_outline", "章节大纲生成完成，规划阶段就绪", { novelId: input.novelId }).catch(() => {});
       if (this.shouldAutoApproveCheckpoint(input.input, "front10_ready")) {
+        directorExecutionLogger.info(input.taskId, "front10_ready", "自动批准规划检查点，进入章节执行阶段", { novelId: input.novelId }).catch(() => {});
         await recordAutoDirectorAutoApprovalFromTask({
           taskId: input.taskId,
           checkpointType: "front10_ready",

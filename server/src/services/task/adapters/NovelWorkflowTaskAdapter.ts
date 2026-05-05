@@ -45,6 +45,7 @@ import {
 import { buildNovelWorkflowDetailSteps } from "../novelWorkflowDetailSteps";
 import { buildWorkflowExplainability } from "../novelWorkflowExplainability";
 import { buildNovelWorkflowNextActionLabel } from "../novelWorkflowTaskSummary";
+import { findLatestLlmInvocationDiagnosticForTask } from "../../../llm/invocationDiagnostics";
 
 function buildOwnerLabel(row: {
   novel?: { title: string } | null;
@@ -459,6 +460,7 @@ export class NovelWorkflowTaskAdapter {
       ? workflowSeedPayload.directorSession
       : null;
     const boundLlm = getDirectorLlmOptionsFromSeedPayload(workflowSeedPayload);
+    const recentLlmDiagnostic = await findLatestLlmInvocationDiagnosticForTask(row.id);
 
     return {
       ...summary,
@@ -498,6 +500,7 @@ export class NovelWorkflowTaskAdapter {
         updatedAt: summary.updatedAt,
       }),
       failureDetails: row.lastError,
+      recentLlmDiagnostic,
     };
   }
 

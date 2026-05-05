@@ -9,6 +9,9 @@ const structuredInvoke = require("../dist/llm/structuredInvoke.js");
 const { plannerOutputSchema } = require("../dist/services/planner/plannerSchemas.js");
 const { normalizePlannerOutput } = require("../dist/services/planner/PlannerService.js");
 
+process.env.LLM_INVOCATION_DIAGNOSTICS_DISABLE_PERSISTENCE = "1";
+process.env.STRUCTURED_OUTPUT_TRANSPORT_RETRY_DELAYS_MS = "0,0";
+
 test("parseStructuredLlmRawContentDetailed recovers when repair output is truncated but completable", async () => {
   const originalGetLLM = factory.getLLM;
 
@@ -231,6 +234,226 @@ test("summarizeStructuredOutputFailure tells users to retry or switch models for
   assert.match(summary.summary, /更强模型|备用模型/);
 });
 
+test("invokeStructuredLlmDetailed retries transient transport errors on the same structured strategy", async () => {
+  const originalResolveOptions = factory.resolveLLMClientOptions;
+  const originalCreateLLM = factory.createLLMFromResolvedOptions;
+  const calls = [];
+
+  factory.resolveLLMClientOptions = async (provider, options = {}) => {
+    const resolvedProvider = provider ?? "deepseek";
+    const resolvedModel = options.model ?? "deepseek-chat";
+    const baseURL = options.baseURL ?? "https://api.deepseek.com/v1";
+    const requestProtocol = options.requestProtocol ?? "openai_compatible";
+    const structuredProfile = options.executionMode === "structured"
+      ? resolveStructuredOutputProfile({
+        provider: resolvedProvider,
+        model: resolvedModel,
+        baseURL,
+        requestProtocol,
+        executionMode: "structured",
+      })
+      : null;
+    return {
+      provider: resolvedProvider,
+      providerName: resolvedProvider,
+      model: resolvedModel,
+      temperature: options.temperature ?? 0.3,
+      apiKey: "test-key",
+      baseURL,
+      maxTokens: options.maxTokens,
+      requestProtocol,
+      reasoningEnabled: true,
+      modelKwargs: undefined,
+      includeRawResponse: false,
+      executionMode: options.executionMode ?? "plain",
+      structuredProfile,
+      structuredStrategy: options.structuredStrategy ?? null,
+      reasoningForcedOff: false,
+      taskType: options.taskType,
+      promptMeta: options.promptMeta,
+    };
+  };
+  factory.createLLMFromResolvedOptions = (resolved) => ({
+    invoke: async () => {
+      calls.push({
+        provider: resolved.provider,
+        strategy: resolved.structuredStrategy,
+      });
+      if (calls.length === 1) {
+        throw new Error("500 upstream error: do request failed (request id: retry-once)");
+      }
+      return {
+        content: "{\"value\":\"retry-ok\"}",
+      };
+    },
+  });
+
+  try {
+    const result = await structuredInvoke.invokeStructuredLlmDetailed({
+      provider: "deepseek",
+      model: "deepseek-chat",
+      label: "structured.invoke.transport.retry",
+      taskType: "planner",
+      schema: z.object({
+        value: z.string(),
+      }),
+      systemPrompt: "只返回 JSON。",
+      userPrompt: "给我一个 value。",
+      disableFallbackModel: true,
+    });
+
+    assert.deepEqual(result.data, { value: "retry-ok" });
+    assert.deepEqual(calls, [
+      { provider: "deepseek", strategy: "json_object" },
+      { provider: "deepseek", strategy: "json_object" },
+    ]);
+  } finally {
+    factory.resolveLLMClientOptions = originalResolveOptions;
+    factory.createLLMFromResolvedOptions = originalCreateLLM;
+  }
+});
+
+test("invokeStructuredLlmDetailed includes diagnosticId after repeated transport errors", async () => {
+  const originalResolveOptions = factory.resolveLLMClientOptions;
+  const originalCreateLLM = factory.createLLMFromResolvedOptions;
+  let calls = 0;
+
+  factory.resolveLLMClientOptions = async (provider, options = {}) => {
+    const resolvedProvider = provider ?? "deepseek";
+    const resolvedModel = options.model ?? "deepseek-chat";
+    const baseURL = options.baseURL ?? "https://api.deepseek.com/v1";
+    const requestProtocol = options.requestProtocol ?? "openai_compatible";
+    const structuredProfile = options.executionMode === "structured"
+      ? resolveStructuredOutputProfile({
+        provider: resolvedProvider,
+        model: resolvedModel,
+        baseURL,
+        requestProtocol,
+        executionMode: "structured",
+      })
+      : null;
+    return {
+      provider: resolvedProvider,
+      providerName: resolvedProvider,
+      model: resolvedModel,
+      temperature: options.temperature ?? 0.3,
+      apiKey: "test-key",
+      baseURL,
+      maxTokens: options.maxTokens,
+      requestProtocol,
+      reasoningEnabled: true,
+      modelKwargs: undefined,
+      includeRawResponse: false,
+      executionMode: options.executionMode ?? "plain",
+      structuredProfile,
+      structuredStrategy: options.structuredStrategy ?? null,
+      reasoningForcedOff: false,
+      taskType: options.taskType,
+      promptMeta: options.promptMeta,
+    };
+  };
+  factory.createLLMFromResolvedOptions = () => ({
+    invoke: async () => {
+      calls += 1;
+      throw new Error(`500 upstream error: do request failed (request id: retry-failed-${calls})`);
+    },
+  });
+
+  try {
+    await assert.rejects(async () => structuredInvoke.invokeStructuredLlmDetailed({
+      provider: "deepseek",
+      model: "deepseek-chat",
+      label: "structured.invoke.transport.retry.exhausted",
+      taskType: "planner",
+      schema: z.object({
+        value: z.string(),
+      }),
+      systemPrompt: "只返回 JSON。",
+      userPrompt: "给我一个 value。",
+      disableFallbackModel: true,
+    }), (error) => {
+      assert.equal(error.category, "transport_error");
+      assert.match(error.message, /diagnosticId=/);
+      assert.equal(calls, 3);
+      return true;
+    });
+  } finally {
+    factory.resolveLLMClientOptions = originalResolveOptions;
+    factory.createLLMFromResolvedOptions = originalCreateLLM;
+  }
+});
+
+test("invokeStructuredLlmDetailed does not apply transport retry to schema mismatches", async () => {
+  const originalResolveOptions = factory.resolveLLMClientOptions;
+  const originalCreateLLM = factory.createLLMFromResolvedOptions;
+  const calls = [];
+
+  factory.resolveLLMClientOptions = async (provider, options = {}) => {
+    const resolvedProvider = provider ?? "deepseek";
+    const resolvedModel = options.model ?? "deepseek-chat";
+    const baseURL = options.baseURL ?? "https://api.deepseek.com/v1";
+    const requestProtocol = options.requestProtocol ?? "openai_compatible";
+    const structuredProfile = options.executionMode === "structured"
+      ? resolveStructuredOutputProfile({
+        provider: resolvedProvider,
+        model: resolvedModel,
+        baseURL,
+        requestProtocol,
+        executionMode: "structured",
+      })
+      : null;
+    return {
+      provider: resolvedProvider,
+      providerName: resolvedProvider,
+      model: resolvedModel,
+      temperature: options.temperature ?? 0.3,
+      apiKey: "test-key",
+      baseURL,
+      maxTokens: options.maxTokens,
+      requestProtocol,
+      reasoningEnabled: true,
+      modelKwargs: undefined,
+      includeRawResponse: false,
+      executionMode: options.executionMode ?? "plain",
+      structuredProfile,
+      structuredStrategy: options.structuredStrategy ?? null,
+      reasoningForcedOff: false,
+      taskType: options.taskType,
+      promptMeta: options.promptMeta,
+    };
+  };
+  factory.createLLMFromResolvedOptions = (resolved) => ({
+    invoke: async () => {
+      calls.push(resolved.structuredStrategy);
+      return {
+        content: "{\"value\":\"present\"}",
+      };
+    },
+  });
+
+  try {
+    await assert.rejects(async () => structuredInvoke.invokeStructuredLlmDetailed({
+      provider: "deepseek",
+      model: "deepseek-chat",
+      label: "structured.invoke.schema.no-transport-retry",
+      taskType: "planner",
+      schema: z.object({
+        value: z.string(),
+        requiredField: z.string(),
+      }),
+      maxRepairAttempts: 0,
+      systemPrompt: "只返回 JSON。",
+      userPrompt: "给我一个 value。",
+      disableFallbackModel: true,
+    }), /STRUCTURED_OUTPUT:schema_mismatch/i);
+
+    assert.deepEqual(calls, ["json_object", "prompt_json"]);
+  } finally {
+    factory.resolveLLMClientOptions = originalResolveOptions;
+    factory.createLLMFromResolvedOptions = originalCreateLLM;
+  }
+});
+
 test("invokeStructuredLlmDetailed degrades to prompt JSON before using fallback models", async () => {
   const originalResolveOptions = factory.resolveLLMClientOptions;
   const originalCreateLLM = factory.createLLMFromResolvedOptions;
@@ -398,6 +621,8 @@ test("invokeStructuredLlmDetailed switches to the configured fallback model afte
     assert.deepEqual(result.data, { value: "fallback-ok" });
     assert.equal(result.diagnostics.fallbackUsed, true);
     assert.deepEqual(calls, [
+      { provider: "openai", strategy: "json_schema" },
+      { provider: "openai", strategy: "json_schema" },
       { provider: "openai", strategy: "json_schema" },
       { provider: "deepseek", strategy: "json_object" },
     ]);

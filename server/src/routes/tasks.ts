@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { TaskKind, TaskStatus } from "@ai-novel/shared/types/task";
+import type { DirectorExecutionLogListResponse } from "@ai-novel/shared/types/directorExecutionLog";
 import { z } from "zod";
 import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
@@ -9,6 +10,7 @@ import { recoveryTaskService } from "../services/task/RecoveryTaskService";
 import { AutoDirectorFollowUpActionExecutor } from "../services/task/autoDirectorFollowUps/AutoDirectorFollowUpActionExecutor";
 import { AutoDirectorFollowUpService } from "../services/task/autoDirectorFollowUps/AutoDirectorFollowUpService";
 import { taskCenterService } from "../services/task/TaskCenterService";
+import { directorExecutionLogger } from "../services/novel/director/directorExecutionLogger";
 
 const router = Router();
 const autoDirectorFollowUpService = new AutoDirectorFollowUpService();
@@ -245,6 +247,49 @@ router.post("/:kind/:id/archive", validate({ params: taskParamsSchema }), async 
       data,
       message: "Task archived.",
     } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ── 导演执行日志 ──────────────────────────────────────
+
+const executionLogParamsSchema = z.object({
+  taskId: z.string().trim().min(1),
+});
+
+const executionLogQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
+
+router.get("/execution-logs/:taskId", validate({ params: executionLogParamsSchema, query: executionLogQuerySchema }), async (req, res, next) => {
+  try {
+    const { taskId } = req.params as z.infer<typeof executionLogParamsSchema>;
+    const query = executionLogQuerySchema.parse(req.query);
+    const data = await directorExecutionLogger.getByTaskId(taskId, {
+      limit: query.limit,
+      offset: query.offset,
+    });
+    const response: DirectorExecutionLogListResponse = {
+      logs: data.logs.map((log) => ({
+        id: log.id,
+        taskId: log.taskId,
+        novelId: log.novelId,
+        stage: log.stage,
+        level: log.level as "info" | "warn" | "error" | "success",
+        message: log.message,
+        detail: log.detail,
+        durationMs: log.durationMs,
+        createdAt: log.createdAt.toISOString(),
+      })),
+      total: data.total,
+    };
+    res.status(200).json({
+      success: true,
+      data: response,
+      message: "Execution logs loaded.",
+    } satisfies ApiResponse<DirectorExecutionLogListResponse>);
   } catch (error) {
     next(error);
   }

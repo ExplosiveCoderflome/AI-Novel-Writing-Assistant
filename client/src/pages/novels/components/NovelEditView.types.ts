@@ -470,6 +470,8 @@ export interface CharacterTabViewProps {
   selectedCharacter?: Character;
   characterResources?: CharacterResourceLedgerItem[];
   pendingCharacterResourceCount?: number;
+  onBackfillCharacterResources?: () => void;
+  isBackfillingCharacterResources?: boolean;
   characterForm: {
     name: string;
     role: string;

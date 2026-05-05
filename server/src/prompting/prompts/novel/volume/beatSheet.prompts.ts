@@ -19,8 +19,8 @@ export const volumeBeatSheetPrompt: PromptAsset<
   contextPolicy: {
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.volumeBeatSheet,
     requiredGroups: ["book_contract", "target_volume", "target_chapter_count"],
-    preferredGroups: ["macro_constraints", "strategy_context", "volume_window"],
-    dropOrder: ["soft_future_summary"],
+    preferredGroups: ["macro_constraints", "strategy_context", "volume_window", "genre_reading_power"],
+    dropOrder: ["soft_future_summary", "genre_reading_power"],
   },
   repairPolicy: {
     maxAttempts: 2,

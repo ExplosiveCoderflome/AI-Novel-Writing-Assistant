@@ -24,6 +24,9 @@ import {
   type VolumeStrategyCritiquePromptInput,
   type VolumeStrategyPromptInput,
 } from "./shared";
+import { genreProfileRegistry } from "../../../references/genreProfileRegistry";
+import { renderGenreGuidanceText } from "../chapterLayeredContextShared";
+import type { VolumeGenerationNovel } from "../../../../services/novel/volume/volumeModels";
 
 function guidanceBlock(guidance?: string): PromptContextBlock | null {
   if (!guidance?.trim()) {
@@ -34,6 +37,20 @@ function guidanceBlock(guidance?: string): PromptContextBlock | null {
     group: "guidance",
     priority: 70,
     content: `User guidance:\n${guidance.trim()}`,
+  });
+}
+
+function genreReadingPowerBlock(novel: VolumeGenerationNovel): PromptContextBlock | null {
+  const profile = genreProfileRegistry.resolve(novel.genre?.name);
+  const text = renderGenreGuidanceText(profile);
+  if (!text) {
+    return null;
+  }
+  return createContextBlock({
+    id: "genre_reading_power",
+    group: "genre_reading_power",
+    priority: 76,
+    content: text,
   });
 }
 
@@ -65,6 +82,7 @@ export function buildVolumeStrategyContextBlocks(input: VolumeStrategyPromptInpu
       required: true,
       content: `Volume count guidance:\n${buildVolumeCountGuidanceContext(input.volumeCountGuidance)}`,
     }),
+    genreReadingPowerBlock(input.novel),
     guidanceBlock(input.guidance),
   ].filter((block): block is PromptContextBlock => Boolean(block));
 }
@@ -194,6 +212,7 @@ export function buildVolumeBeatSheetContextBlocks(input: VolumeBeatSheetPromptIn
       priority: 74,
       content: `Future soft summary:\n${buildSoftFutureVolumeSummary(input.workspace.volumes, input.targetVolume.id)}`,
     }),
+    genreReadingPowerBlock(input.novel),
     guidanceBlock(input.guidance),
   ].filter((block): block is PromptContextBlock => Boolean(block));
 }
