@@ -66,8 +66,19 @@ export function commandPriority(commandType: string): number {
   if (commandType === "cancel") {
     return 100;
   }
+  if (commandType === "policy_update" || commandType === "approve_gate") {
+    return 90;
+  }
   if (commandType === "confirm_candidate") {
     return 85;
+  }
+  if (
+    commandType === "generate_candidates"
+    || commandType === "refine_candidates"
+    || commandType === "patch_candidate"
+    || commandType === "refine_titles"
+  ) {
+    return 82;
   }
   if (commandType === "resume_from_checkpoint" || commandType === "retry") {
     return 80;
@@ -82,8 +93,28 @@ export function commandPriority(commandType: string): number {
 }
 
 export function stepTypeForCommand(commandType: string): string {
+  if (
+    commandType === "generate_candidates"
+    || commandType === "refine_candidates"
+    || commandType === "patch_candidate"
+    || commandType === "refine_titles"
+  ) {
+    return "candidate_selection";
+  }
   if (commandType === "confirm_candidate") {
     return "create_project_from_candidate";
+  }
+  if (commandType === "approve_gate") {
+    return "approve_gate";
+  }
+  if (commandType === "policy_update") {
+    return "policy_update";
+  }
+  if (commandType === "workspace_analysis") {
+    return "workspace_analysis";
+  }
+  if (commandType === "manual_edit_impact") {
+    return "manual_edit_impact";
   }
   if (commandType === "repair_chapter_titles") {
     return "repair_chapter";
@@ -101,8 +132,22 @@ export function stepTypeForCommand(commandType: string): string {
 }
 
 export function resourceClassForCommand(commandType: string): string {
+  if (
+    commandType === "generate_candidates"
+    || commandType === "refine_candidates"
+    || commandType === "patch_candidate"
+    || commandType === "refine_titles"
+  ) {
+    return "planner";
+  }
   if (commandType === "repair_chapter_titles") {
     return "repair";
+  }
+  if (commandType === "workspace_analysis" || commandType === "manual_edit_impact") {
+    return "state_resolution";
+  }
+  if (commandType === "policy_update" || commandType === "approve_gate") {
+    return "state_resolution";
   }
   if (commandType === "confirm_candidate") {
     return "state_resolution";

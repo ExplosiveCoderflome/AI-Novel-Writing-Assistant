@@ -711,11 +711,19 @@ export interface DirectorRuntimeSnapshotResponse {
 }
 
 export const DIRECTOR_RUN_COMMAND_TYPES = [
+  "generate_candidates",
+  "refine_candidates",
+  "patch_candidate",
+  "refine_titles",
   "confirm_candidate",
   "continue",
   "resume_from_checkpoint",
   "retry",
   "takeover",
+  "approve_gate",
+  "policy_update",
+  "workspace_analysis",
+  "manual_edit_impact",
   "repair_chapter_titles",
   "cancel",
 ] as const;
@@ -744,6 +752,15 @@ export interface DirectorCommandAcceptedResponse {
   runtimeId?: string | null;
   runtimeStatus?: string | null;
   projectionUrl?: string | null;
+}
+
+export interface DirectorCommandResultResponse<T = unknown> {
+  commandId: string;
+  taskId: string;
+  commandType: DirectorRunCommandType | string;
+  status: DirectorRunCommandStatus | string;
+  result?: T | null;
+  errorMessage?: string | null;
 }
 
 export interface DirectorWorkspaceAnalysisResponse {

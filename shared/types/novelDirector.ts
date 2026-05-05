@@ -395,6 +395,7 @@ export interface DirectorTaskNotice {
 export interface DirectorTaskSeedPayloadSnapshot {
   idea?: string;
   batches?: DirectorCandidateBatch[];
+  directorCommandResults?: Record<string, unknown>;
   runMode?: DirectorRunMode;
   autoExecutionPlan?: DirectorAutoExecutionPlan;
   autoApproval?: DirectorAutoApprovalConfig | null;

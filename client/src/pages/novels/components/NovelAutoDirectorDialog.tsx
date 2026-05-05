@@ -18,6 +18,7 @@ import { bootstrapNovelWorkflow, continueNovelWorkflow } from "@/api/novelWorkfl
 import {
   confirmDirectorCandidate,
   generateDirectorCandidates,
+  getDirectorCommandResult,
   patchDirectorCandidate,
   refineDirectorCandidateTitles,
   refineDirectorCandidates,
@@ -322,6 +323,24 @@ export default function NovelAutoDirectorDialog({
     }
   };
 
+  const waitForCandidateCommandResult = async <T extends { batch: DirectorCandidateBatch; workflowTaskId?: string }>(
+    commandId: string,
+  ): Promise<T> => {
+    for (let attempt = 0; attempt < 90; attempt += 1) {
+      const response = await getDirectorCommandResult<T>(commandId);
+      const result = response.data?.result;
+      if (result?.batch) {
+        return result;
+      }
+      const status = response.data?.status;
+      if (status === "failed" || status === "cancelled" || status === "stale") {
+        throw new Error(response.data?.errorMessage || "Director candidate command failed.");
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 2000));
+    }
+    throw new Error("Director candidate command timed out. Check Task Center for progress.");
+  };
+
   const generateMutation = useMutation({
     onMutate: () => {
       setDialogMode("execution_progress");
@@ -345,9 +364,20 @@ export default function NovelAutoDirectorDialog({
           presets: selectedPresets,
           feedback: feedback.trim() || undefined,
         });
+      const command = response.data;
+      if (!command?.commandId) {
+        throw new Error("Director candidate command was not accepted.");
+      }
+      if (command.taskId && command.taskId !== currentWorkflowTaskId) {
+        setWorkflowTaskId(command.taskId);
+        onWorkflowTaskChange?.(command.taskId);
+      }
+      const result = await waitForCandidateCommandResult<{ batch: DirectorCandidateBatch; workflowTaskId?: string }>(
+        command.commandId,
+      );
       return {
-        batch: response.data?.batch ?? null,
-        workflowTaskId: response.data?.workflowTaskId ?? currentWorkflowTaskId,
+        batch: result.batch ?? null,
+        workflowTaskId: result.workflowTaskId ?? command.taskId ?? currentWorkflowTaskId,
       };
     },
     onSuccess: ({ batch, workflowTaskId: nextWorkflowTaskId }) => {
@@ -389,9 +419,16 @@ export default function NovelAutoDirectorDialog({
         candidateId: payload.candidate.id,
         feedback: payload.feedback.trim(),
       });
+      const command = response.data;
+      if (!command?.commandId) {
+        throw new Error("Director candidate patch command was not accepted.");
+      }
+      const result = await waitForCandidateCommandResult<{ batch: DirectorCandidateBatch; candidate: DirectorCandidate; workflowTaskId?: string }>(
+        command.commandId,
+      );
       return {
-        batch: response.data?.batch ?? null,
-        workflowTaskId: response.data?.workflowTaskId ?? currentWorkflowTaskId,
+        batch: result.batch ?? null,
+        workflowTaskId: result.workflowTaskId ?? command.taskId ?? currentWorkflowTaskId,
         candidateId: payload.candidate.id,
       };
     },
@@ -427,9 +464,16 @@ export default function NovelAutoDirectorDialog({
         candidateId: payload.candidate.id,
         feedback: payload.feedback.trim(),
       });
+      const command = response.data;
+      if (!command?.commandId) {
+        throw new Error("Director title refinement command was not accepted.");
+      }
+      const result = await waitForCandidateCommandResult<{ batch: DirectorCandidateBatch; candidate: DirectorCandidate; workflowTaskId?: string }>(
+        command.commandId,
+      );
       return {
-        batch: response.data?.batch ?? null,
-        workflowTaskId: response.data?.workflowTaskId ?? currentWorkflowTaskId,
+        batch: result.batch ?? null,
+        workflowTaskId: result.workflowTaskId ?? command.taskId ?? currentWorkflowTaskId,
         candidateId: payload.candidate.id,
       };
     },

@@ -41,6 +41,7 @@ test("candidate confirmation is queued through director commands", () => {
   const routeSource = readSource("server/src/routes/novelDirector.ts");
   const commandSource = readSource("server/src/services/novel/director/DirectorCommandService.ts");
   const executionSource = readSource("server/src/services/novel/director/DirectorExecutionService.ts");
+  const pipelineSource = readSource("server/src/services/novel/director/DirectorPipelineEngine.ts");
   const apiSource = readSource("client/src/api/novelDirector.ts");
 
   assert.match(
@@ -49,9 +50,10 @@ test("candidate confirmation is queued through director commands", () => {
   );
   assert.match(commandSource, /commandType:\s*"confirm_candidate"/);
   assert.match(commandSource, /buildDirectorWorkflowSeedPayload/);
+  assert.match(executionSource, /pipelineEngine\.dispatch/);
   assert.match(
-    executionSource,
-    /command\.commandType === "confirm_candidate"[\s\S]*confirmCandidate/,
+    pipelineSource,
+    /pipelineCommand\.intent === "confirm_candidate"[\s\S]*confirmCandidate/,
   );
   assert.match(apiSource, /ApiResponse<DirectorCommandAcceptedResponse>/);
 });
@@ -59,7 +61,7 @@ test("candidate confirmation is queued through director commands", () => {
 test("chapter title repair is queued through director commands", () => {
   const routeSource = readSource("server/src/routes/novelWorkflows.ts");
   const commandSource = readSource("server/src/services/novel/director/DirectorCommandService.ts");
-  const executionSource = readSource("server/src/services/novel/director/DirectorExecutionService.ts");
+  const pipelineSource = readSource("server/src/services/novel/director/DirectorPipelineEngine.ts");
   const hookSource = readSource("client/src/hooks/useDirectorChapterTitleRepair.ts");
 
   assert.match(
@@ -69,8 +71,8 @@ test("chapter title repair is queued through director commands", () => {
   assert.match(commandSource, /commandType:\s*"repair_chapter_titles"/);
   assert.match(commandSource, /preserveLastError:\s*true/);
   assert.match(
-    executionSource,
-    /command\.commandType === "repair_chapter_titles"[\s\S]*executeChapterTitleRepair/,
+    pipelineSource,
+    /pipelineCommand\.intent === "repair_chapter_titles"[\s\S]*executeChapterTitleRepair/,
   );
   assert.doesNotMatch(
     hookSource,
@@ -121,17 +123,51 @@ test("director command migrations keep queue indexes aligned across database pro
 });
 
 test("director worker commands force a real continuation instead of trusting stale running task state", () => {
-  const source = readSource("server/src/services/novel/director/DirectorExecutionService.ts");
+  const source = readSource("server/src/services/novel/director/DirectorPipelineEngine.ts");
   assert.doesNotMatch(
     source,
     /executeContinueTask\s*\(\s*command\.taskId\s*,\s*payload\s*\)/,
     "Director Worker must not pass command payload through unchanged because stale running tasks can swallow the command.",
   );
+  assert.match(source, /pipelineCommand\.intent === "continue"/);
+  assert.match(source, /pipelineCommand\.intent === "resume_from_checkpoint"/);
+  assert.match(source, /pipelineCommand\.intent === "retry"/);
+  assert.match(source, /pipelineCommand\.intent === "approve_gate"/);
   assert.match(
     source,
-    /executeContinueTask\s*\(\s*command\.taskId\s*,\s*\{[\s\S]*\.\.\.payload[\s\S]*forceResume:\s*true[\s\S]*\}\s*\)/,
+    /executeContinueTask\s*\(\s*pipelineCommand\.taskId\s*,\s*\{[\s\S]*\.\.\.pipelineCommand\.payload[\s\S]*forceResume:\s*true[\s\S]*\}\s*\)/,
     "Director Worker command execution must force continuation after a command has been leased.",
   );
+});
+
+test("candidate generation and refinement routes only enqueue commandized work", () => {
+  const routeSource = readSource("server/src/routes/novelDirector.ts");
+  const apiSource = readSource("client/src/api/novelDirector.ts");
+
+  assert.match(routeSource, /"\/candidates"[\s\S]*enqueueGenerateCandidatesCommand[\s\S]*res\.status\(202\)/);
+  assert.match(routeSource, /"\/refine"[\s\S]*enqueueRefineCandidatesCommand[\s\S]*res\.status\(202\)/);
+  assert.match(routeSource, /"\/patch-candidate"[\s\S]*enqueuePatchCandidateCommand[\s\S]*res\.status\(202\)/);
+  assert.match(routeSource, /"\/refine-titles"[\s\S]*enqueueRefineTitlesCommand[\s\S]*res\.status\(202\)/);
+  assert.doesNotMatch(routeSource, /\.generateCandidates\s*\(/);
+  assert.doesNotMatch(routeSource, /\.refineCandidates\s*\(/);
+  assert.doesNotMatch(routeSource, /\.patchCandidate\s*\(/);
+  assert.doesNotMatch(routeSource, /\.refineCandidateTitleOptions\s*\(/);
+  assert.match(apiSource, /generateDirectorCandidates[\s\S]*Promise<ApiResponse<DirectorCommandAcceptedResponse>>/);
+  assert.match(apiSource, /refineDirectorCandidates[\s\S]*Promise<ApiResponse<DirectorCommandAcceptedResponse>>/);
+  assert.match(apiSource, /patchDirectorCandidate[\s\S]*Promise<ApiResponse<DirectorCommandAcceptedResponse>>/);
+  assert.match(apiSource, /refineDirectorCandidateTitles[\s\S]*Promise<ApiResponse<DirectorCommandAcceptedResponse>>/);
+});
+
+test("policy update and waiting approval approval are explicit director commands", () => {
+  const directorRouteSource = readSource("server/src/routes/novelDirector.ts");
+  const workflowsRouteSource = readSource("server/src/routes/novelWorkflows.ts");
+  const apiSource = readSource("client/src/api/novelDirector.ts");
+
+  assert.match(directorRouteSource, /"\/runtime\/:taskId\/policy"[\s\S]*enqueuePolicyUpdateCommand[\s\S]*res\.status\(202\)/);
+  assert.match(directorRouteSource, /continuationMode === "resume"[\s\S]*enqueueApproveGateCommand/);
+  assert.match(workflowsRouteSource, /continuationMode === "resume"[\s\S]*enqueueApproveGateCommand/);
+  assert.match(apiSource, /updateDirectorRuntimePolicy[\s\S]*Promise<ApiResponse<DirectorCommandAcceptedResponse>>/);
+  assert.match(apiSource, /approveDirectorGate[\s\S]*Promise<ApiResponse<DirectorCommandAcceptedResponse>>/);
 });
 
 test("director continue command does not run workspace artifact analysis as a default preflight", () => {

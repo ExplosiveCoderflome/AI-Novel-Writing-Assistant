@@ -2,11 +2,11 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type {
   DirectorBookAutomationProjectionResponse,
   DirectorRuntimePolicyUpdateRequest,
-  DirectorRuntimePolicyUpdateResponse,
   DirectorRuntimeEventHistoryResponse,
   DirectorRuntimeProjection,
   DirectorRuntimeSnapshotResponse,
   DirectorCommandAcceptedResponse,
+  DirectorCommandResultResponse,
   DirectorManualEditImpactResponse,
   DirectorWorkspaceAnalysisResponse,
 } from "@ai-novel/shared/types/directorRuntime";
@@ -25,23 +25,30 @@ import type {
 } from "@ai-novel/shared/types/novelDirector";
 import { apiClient } from "./client";
 
-export async function generateDirectorCandidates(payload: DirectorCandidatesRequest) {
-  const { data } = await apiClient.post<ApiResponse<DirectorCandidatesResponse>>("/novels/director/candidates", payload);
+export async function generateDirectorCandidates(payload: DirectorCandidatesRequest): Promise<ApiResponse<DirectorCommandAcceptedResponse>> {
+  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>("/novels/director/candidates", payload);
   return data;
 }
 
-export async function refineDirectorCandidates(payload: DirectorRefinementRequest) {
-  const { data } = await apiClient.post<ApiResponse<DirectorRefineResponse>>("/novels/director/refine", payload);
+export async function refineDirectorCandidates(payload: DirectorRefinementRequest): Promise<ApiResponse<DirectorCommandAcceptedResponse>> {
+  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>("/novels/director/refine", payload);
   return data;
 }
 
-export async function patchDirectorCandidate(payload: DirectorCandidatePatchRequest) {
-  const { data } = await apiClient.post<ApiResponse<DirectorCandidatePatchResponse>>("/novels/director/patch-candidate", payload);
+export async function patchDirectorCandidate(payload: DirectorCandidatePatchRequest): Promise<ApiResponse<DirectorCommandAcceptedResponse>> {
+  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>("/novels/director/patch-candidate", payload);
   return data;
 }
 
-export async function refineDirectorCandidateTitles(payload: DirectorCandidateTitleRefineRequest) {
-  const { data } = await apiClient.post<ApiResponse<DirectorCandidateTitleRefineResponse>>("/novels/director/refine-titles", payload);
+export async function refineDirectorCandidateTitles(payload: DirectorCandidateTitleRefineRequest): Promise<ApiResponse<DirectorCommandAcceptedResponse>> {
+  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>("/novels/director/refine-titles", payload);
+  return data;
+}
+
+export async function getDirectorCommandResult<T = unknown>(commandId: string) {
+  const { data } = await apiClient.get<ApiResponse<DirectorCommandResultResponse<T>>>(
+    `/novels/director/commands/${commandId}/result`,
+  );
   return data;
 }
 
@@ -130,10 +137,18 @@ export async function getDirectorManualEditImpact(
 export async function updateDirectorRuntimePolicy(
   taskId: string,
   payload: DirectorRuntimePolicyUpdateRequest,
-) {
-  const { data } = await apiClient.post<ApiResponse<DirectorRuntimePolicyUpdateResponse>>(
+): Promise<ApiResponse<DirectorCommandAcceptedResponse>> {
+  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>(
     `/novels/director/runtime/${taskId}/policy`,
     payload,
+  );
+  return data;
+}
+
+export async function approveDirectorGate(taskId: string): Promise<ApiResponse<DirectorCommandAcceptedResponse>> {
+  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>(
+    `/novels/director/runtime/${taskId}/continue`,
+    { continuationMode: "resume" },
   );
   return data;
 }

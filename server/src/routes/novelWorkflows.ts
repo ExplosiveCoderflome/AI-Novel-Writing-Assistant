@@ -108,9 +108,13 @@ router.post("/:id/continue", validate({ params: continueParamsSchema, body: cont
   try {
     const { id } = req.params as z.infer<typeof continueParamsSchema>;
     const body = req.body as z.infer<typeof continueBodySchema>;
-    const data = await directorCommandService.enqueueContinueCommand(id, {
-      continuationMode: body.continuationMode,
-    });
+    const data = body.continuationMode === "resume"
+      ? await directorCommandService.enqueueApproveGateCommand(id, {
+        continuationMode: body.continuationMode,
+      })
+      : await directorCommandService.enqueueContinueCommand(id, {
+        continuationMode: body.continuationMode,
+      });
     res.status(202).json({
       success: true,
       data,

@@ -91,17 +91,24 @@ User Command
 
 任务：
 
-- [ ] 建立 `DirectorPipelineEngine.dispatch(command)` 作为唯一执行入口。
-- [ ] 将 `continue / resume_from_checkpoint / retry / takeover / approve_gate` 收敛为同一套 command 解释语义。
-- [ ] 禁止新入口直接调用旧 phase service、chapter pipeline、takeover runtime 或 `scheduleBackgroundRun`。
-- [ ] 候选确认、标题修复等旧入口也要进入可序列化 command，避免留下同步准备和旧式后台调度。
-- [ ] API route 只能写 command 或读 projection，不执行 LLM、章节生成、拆章、修复、接管分析。
+- [x] 建立 `DirectorPipelineEngine.dispatch(command)` 作为唯一执行入口。
+- [x] 将 `continue / resume_from_checkpoint / retry / takeover / approve_gate` 收敛为同一套 command 解释语义。
+- [x] 禁止新入口直接调用旧 phase service、chapter pipeline、takeover runtime 或 `scheduleBackgroundRun`。
+- [x] 候选确认、候选生成/改写/补丁/标题精修、标题修复等旧入口也进入可序列化 command，避免留下同步准备和旧式后台调度。
+- [x] API route 只能写 command 或读 projection，不执行 LLM、章节生成、拆章、修复、接管分析。
 
 完成标准：
 
-- 所有重型导演动作都由 Worker lease 后执行。
-- 重复点击继续或恢复只产生一个 active command。
-- `continue` 不再根据旧任务状态空转成功。
+- [x] 所有重型导演动作都由 Worker lease 后执行。
+- [x] 重复点击继续、恢复、审批继续或候选生成只产生一个 active command。
+- [x] `continue` 不再根据旧任务状态空转成功。
+
+实施记录：
+
+- 已覆盖 command 类型：`generate_candidates`、`refine_candidates`、`patch_candidate`、`refine_titles`、`confirm_candidate`、`continue`、`resume_from_checkpoint`、`retry`、`takeover`、`approve_gate`、`repair_chapter_titles`、`policy_update`、`workspace_analysis`、`manual_edit_impact`、`cancel`。
+- 写入型 route 已收口为 `DirectorCommandService.enqueue*Command()`，候选弹窗改为提交 command 后读取 command result projection。
+- `DirectorRuntimeExecutionService` 保持旧 API 兼容，但 Worker 执行路径进入 `DirectorPipelineEngine.dispatch()`；Pipeline 内部 adapter 包装旧重型服务，route 层不再直调。
+- 验证命令：`pnpm --filter @ai-novel/shared build`、`pnpm --filter @ai-novel/server build`、`pnpm --filter @ai-novel/client typecheck`、`node --test server/tests/directorControlPlaneBoundary.test.js server/tests/directorRunCommandService.test.js server/tests/directorExecutionService.test.js server/tests/directorWorker.test.js`。
 
 ### P0-2 做实 StepModule 契约
 

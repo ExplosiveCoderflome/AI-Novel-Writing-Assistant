@@ -1,4 +1,4 @@
-import crypto from "node:crypto";
+﻿import crypto from "node:crypto";
 import type {
   DirectorCommandAcceptedResponse,
   DirectorRunCommandStatus,
@@ -7,15 +7,36 @@ import type {
 import type {
   DirectorConfirmRequest,
   DirectorContinuationMode,
+  DirectorCandidatePatchRequest,
+  DirectorCandidateTitleRefineRequest,
+  DirectorCandidatesRequest,
+  DirectorRefinementRequest,
   DirectorTakeoverRequest,
 } from "@ai-novel/shared/types/novelDirector";
+import type { DirectorRuntimePolicyUpdateRequest } from "@ai-novel/shared/types/directorRuntime";
 
 export interface DirectorCommandPayload {
+  candidatesRequest?: DirectorCandidatesRequest;
+  refinementRequest?: DirectorRefinementRequest;
+  candidatePatchRequest?: DirectorCandidatePatchRequest;
+  titleRefineRequest?: DirectorCandidateTitleRefineRequest;
   confirmRequest?: DirectorConfirmRequest;
   continuationMode?: DirectorContinuationMode;
   batchAlreadyStartedCount?: number;
   forceResume?: boolean;
   takeoverRequest?: DirectorTakeoverRequest;
+  policyUpdateRequest?: DirectorRuntimePolicyUpdateRequest;
+  workspaceAnalysisRequest?: {
+    novelId: string;
+    workflowTaskId?: string | null;
+    includeAiInterpretation?: boolean;
+  };
+  manualEditImpactRequest?: {
+    novelId: string;
+    workflowTaskId?: string | null;
+    chapterId?: string | null;
+    includeAiInterpretation?: boolean;
+  };
   volumeId?: string | null;
 }
 
@@ -95,6 +116,39 @@ export function buildAcceptedTaskState(commandType: DirectorRunCommandType): {
       currentItemKey: "candidate_confirm",
       currentItemLabel: "书级方向提交完成，等待 AI 创建小说项目",
       progress: 0.18,
+      checkpointType: null,
+      checkpointSummary: null,
+    };
+  }
+  if (
+    commandType === "generate_candidates"
+    || commandType === "refine_candidates"
+    || commandType === "patch_candidate"
+    || commandType === "refine_titles"
+  ) {
+    return {
+      currentStage: "AI 自动导演",
+      currentItemKey: "candidate_direction_batch",
+      currentItemLabel: "AI 正在生成书级方向候选",
+      progress: 0.12,
+      checkpointType: null,
+      checkpointSummary: null,
+    };
+  }
+  if (commandType === "approve_gate") {
+    return {
+      currentStage: "AI 自动导演",
+      currentItemKey: "approve_gate",
+      currentItemLabel: "已确认当前关卡，等待 AI 继续推进",
+      checkpointType: null,
+      checkpointSummary: null,
+    };
+  }
+  if (commandType === "policy_update") {
+    return {
+      currentStage: "AI 自动导演",
+      currentItemKey: "policy_update",
+      currentItemLabel: "已提交运行策略调整，等待 AI 按新策略推进",
       checkpointType: null,
       checkpointSummary: null,
     };

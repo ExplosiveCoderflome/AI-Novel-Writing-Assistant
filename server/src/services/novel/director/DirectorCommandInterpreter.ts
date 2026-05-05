@@ -4,11 +4,19 @@ import type { DirectorCommandPayload } from "./DirectorCommandServiceHelpers";
 import type { DirectorTakeoverRequest } from "@ai-novel/shared/types/novelDirector";
 
 export type DirectorPipelineCommandIntent =
+  | "generate_candidates"
+  | "refine_candidates"
+  | "patch_candidate"
+  | "refine_titles"
   | "confirm_candidate"
   | "continue"
   | "resume_from_checkpoint"
   | "retry"
   | "takeover"
+  | "approve_gate"
+  | "policy_update"
+  | "workspace_analysis"
+  | "manual_edit_impact"
   | "repair_chapter_titles"
   | "cancel";
 
@@ -24,11 +32,19 @@ export interface DirectorPipelineCommand {
 }
 
 const SUPPORTED_COMMANDS = new Set<DirectorPipelineCommandIntent>([
+  "generate_candidates",
+  "refine_candidates",
+  "patch_candidate",
+  "refine_titles",
   "confirm_candidate",
   "continue",
   "resume_from_checkpoint",
   "retry",
   "takeover",
+  "approve_gate",
+  "policy_update",
+  "workspace_analysis",
+  "manual_edit_impact",
   "repair_chapter_titles",
   "cancel",
 ]);
@@ -49,10 +65,10 @@ export class DirectorCommandInterpreter {
       intent,
       payload,
       takeoverRequest: payload.takeoverRequest ?? null,
-      forceResume: intent === "continue" || intent === "resume_from_checkpoint" || intent === "retry"
+      forceResume: intent === "continue" || intent === "resume_from_checkpoint" || intent === "retry" || intent === "approve_gate"
         ? true
         : Boolean(payload.forceResume),
-      isControlOnly: intent === "cancel",
+      isControlOnly: intent === "cancel" || intent === "policy_update",
     };
   }
 }
