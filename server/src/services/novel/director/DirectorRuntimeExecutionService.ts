@@ -625,6 +625,24 @@ export class DirectorRuntimeExecutionService {
     runId?: string | null;
     runMode?: string | null;
   }) {
+    if (input.runId) {
+      const existingByRun = await prisma.directorRuntimeInstance.findFirst({
+        where: { runId: input.runId },
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      });
+      if (existingByRun) {
+        return prisma.directorRuntimeInstance.update({
+          where: { id: existingByRun.id },
+          data: {
+            workflowTaskId: input.taskId,
+            novelId: input.novelId ?? existingByRun.novelId,
+            runMode: input.runMode ?? existingByRun.runMode,
+            status: existingByRun.status === "cancelled" ? "waiting_worker" : existingByRun.status,
+            cancelRequestedAt: null,
+          },
+        });
+      }
+    }
     const existingByTask = await prisma.directorRuntimeInstance.findFirst({
       where: { workflowTaskId: input.taskId },
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
@@ -640,26 +658,6 @@ export class DirectorRuntimeExecutionService {
           cancelRequestedAt: null,
         },
       });
-    }
-    if (input.novelId) {
-      const reusable = await prisma.directorRuntimeInstance.findFirst({
-        where: {
-          novelId: input.novelId,
-          status: { notIn: [...TERMINAL_RUNTIME_STATUSES] },
-        },
-        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-      });
-      if (reusable) {
-        return prisma.directorRuntimeInstance.update({
-          where: { id: reusable.id },
-          data: {
-            workflowTaskId: input.taskId,
-            runId: input.runId ?? reusable.runId,
-            runMode: input.runMode ?? reusable.runMode,
-            cancelRequestedAt: null,
-          },
-        });
-      }
     }
     return prisma.directorRuntimeInstance.create({
       data: {

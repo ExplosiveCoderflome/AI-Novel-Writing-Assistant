@@ -130,7 +130,13 @@ export function runtimeStatusForTaskStatus(input: {
   if (input.taskStatus === "succeeded") {
     return "completed";
   }
-  return "completed";
+  if (input.taskStatus === "running") {
+    return "running";
+  }
+  if (input.taskStatus === "queued") {
+    return "waiting_worker";
+  }
+  return "waiting_worker";
 }
 
 export function buildRuntimeEventId(runtimeId: string, type: string): string {

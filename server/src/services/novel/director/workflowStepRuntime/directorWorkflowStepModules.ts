@@ -42,7 +42,7 @@ export const DIRECTOR_EXECUTION_STEP_IDS: Record<DirectorExecutionStage, string>
   chapter_state_commit: "chapter.state.commit",
   payoff_ledger_sync: "payoff.ledger.sync",
   character_resource_sync: "character.resource.sync",
-  quality_repair: "chapter.draft.repair",
+  quality_repair: "chapter.quality.repair",
 };
 
 export const DIRECTOR_TAKEOVER_STEP_ID = "workflow.takeover.execute";
@@ -178,6 +178,7 @@ const REQUIRED_DIRECTOR_WRITE_CONTRACTS: Array<{
   id: string;
   writes: string[];
   mayModifyUserContent: boolean;
+  requiresPolicyAction?: boolean;
 }> = [
   { id: DIRECTOR_CANDIDATE_STEP_IDS.candidate_generation, writes: ["candidate_batch"], mayModifyUserContent: false },
   { id: DIRECTOR_CANDIDATE_STEP_IDS.candidate_refine, writes: ["candidate_batch"], mayModifyUserContent: false },
@@ -192,7 +193,8 @@ const REQUIRED_DIRECTOR_WRITE_CONTRACTS: Array<{
   { id: DIRECTOR_PLANNING_STEP_IDS.structured_outline, writes: ["chapter_task_sheet"], mayModifyUserContent: true },
   { id: DIRECTOR_EXECUTION_STEP_IDS.chapter_execution, writes: ["chapter_draft"], mayModifyUserContent: true },
   { id: DIRECTOR_EXECUTION_STEP_IDS.chapter_quality_review, writes: ["audit_report", "rolling_window_review"], mayModifyUserContent: false },
-  { id: DIRECTOR_EXECUTION_STEP_IDS.chapter_repair, writes: ["chapter_draft", "audit_report", "repair_ticket"], mayModifyUserContent: true },
+  { id: DIRECTOR_EXECUTION_STEP_IDS.chapter_repair, writes: ["chapter_draft", "audit_report", "repair_ticket"], mayModifyUserContent: true, requiresPolicyAction: true },
+  { id: DIRECTOR_EXECUTION_STEP_IDS.quality_repair, writes: ["chapter_draft", "audit_report", "repair_ticket"], mayModifyUserContent: true, requiresPolicyAction: true },
   { id: DIRECTOR_EXECUTION_STEP_IDS.chapter_state_commit, writes: ["continuity_state", "character_governance_state"], mayModifyUserContent: false },
   { id: DIRECTOR_EXECUTION_STEP_IDS.payoff_ledger_sync, writes: ["reader_promise", "repair_ticket"], mayModifyUserContent: false },
   { id: DIRECTOR_EXECUTION_STEP_IDS.character_resource_sync, writes: ["character_governance_state", "continuity_state"], mayModifyUserContent: false },
@@ -203,6 +205,9 @@ export function validateDirectorWorkflowStepWriteContracts(
 ): void {
   const byId = new Map(modules.map((module) => [module.id, module]));
   const failures: string[] = [];
+  if (byId.size !== modules.length) {
+    failures.push("step ids must be unique");
+  }
 
   for (const requirement of REQUIRED_DIRECTOR_WRITE_CONTRACTS) {
     const module = byId.get(requirement.id);
@@ -229,6 +234,15 @@ export function validateDirectorWorkflowStepWriteContracts(
     }
     if (typeof module.supportsAutoRetry !== "boolean") {
       failures.push(`${requirement.id}: supportsAutoRetry must be boolean`);
+    }
+    if (requirement.requiresPolicyAction && !module.policyAction) {
+      failures.push(`${requirement.id}: write-capable risky step must declare policyAction`);
+    }
+    if (module.writes.length > 0 && module.mayModifyUserContent && !module.policyAction && module.requiresApprovalByDefault) {
+      failures.push(`${requirement.id}: protected write step must declare policyAction or avoid default approval`);
+    }
+    if (module.promptAssets?.length === 0) {
+      failures.push(`${requirement.id}: promptAssets must be omitted or non-empty`);
     }
   }
 

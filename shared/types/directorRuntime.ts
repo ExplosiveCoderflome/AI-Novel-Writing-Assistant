@@ -391,6 +391,44 @@ export interface DirectorRuntimeQualityBudgetSummary {
   explanation: string;
 }
 
+export type ChapterExecutionProgressStage =
+  | "execution_contract_ready"
+  | "context_package_ready"
+  | "draft_started"
+  | "draft_saved"
+  | "audit_completed"
+  | "repair_completed_or_not_needed"
+  | "runtime_package_saved"
+  | "chapter_artifacts_synced"
+  | "chapter_state_committed"
+  | "reviewable_or_approved";
+
+export interface DirectorChapterExecutionProgressItem {
+  chapterId: string;
+  chapterOrder: number;
+  status: string;
+  currentStage: ChapterExecutionProgressStage;
+  completedStages: ChapterExecutionProgressStage[];
+  missingStages: ChapterExecutionProgressStage[];
+  recoverable: boolean;
+  nextAction: string;
+}
+
+export interface DirectorChapterExecutionProgressSummary {
+  totalChapters: number;
+  completedChapters: number;
+  needsRepairChapters: number;
+  currentChapterId?: string | null;
+  currentChapterOrder?: number | null;
+  currentStage?: ChapterExecutionProgressStage | null;
+  recoverableRange?: {
+    startOrder: number | null;
+    endOrder: number | null;
+  };
+  ratio: number;
+  chapters?: DirectorChapterExecutionProgressItem[];
+}
+
 export interface DirectorRuntimeProjection {
   runId: string;
   novelId?: string | null;
@@ -428,6 +466,7 @@ export interface DirectorRuntimeProjection {
   scopeSummary?: string | null;
   progressSummary?: string | null;
   progressBreakdown?: DirectorRuntimeProgressBreakdown;
+  chapterExecutionProgress?: DirectorChapterExecutionProgressSummary | null;
   visibleRiskBadges?: DirectorRuntimeVisibleRiskBadge[];
   qualityDebtSummary?: DirectorRuntimeQualityDebtSummary | null;
   qualityBudgetSummary?: DirectorRuntimeQualityBudgetSummary | null;

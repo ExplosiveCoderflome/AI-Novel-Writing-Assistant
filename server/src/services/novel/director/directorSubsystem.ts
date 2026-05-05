@@ -4,6 +4,10 @@
  */
 export { DirectorCommandService } from "./DirectorCommandService";
 export { DirectorExecutionService } from "./DirectorExecutionService";
+export { DirectorPipelineEngine } from "./DirectorPipelineEngine";
+export { DirectorCommandInterpreter } from "./DirectorCommandInterpreter";
+export { DirectorStateReader } from "./DirectorStateReader";
+export { DirectorStateCommitter } from "./DirectorStateCommitter";
 export { DirectorRuntimeExecutionService } from "./DirectorRuntimeExecutionService";
 export type { RuntimeExecutionLease } from "./DirectorRuntimeExecutionService";
 export { DirectorWorkerReconciliationService } from "./DirectorWorkerReconciliationService";

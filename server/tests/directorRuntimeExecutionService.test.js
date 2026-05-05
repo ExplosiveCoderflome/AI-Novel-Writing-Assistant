@@ -5,6 +5,9 @@ const { prisma } = require("../dist/db/prisma.js");
 const {
   DirectorRuntimeExecutionService,
 } = require("../dist/services/novel/director/DirectorRuntimeExecutionService.js");
+const {
+  runtimeStatusForTaskStatus,
+} = require("../dist/services/novel/director/DirectorRuntimeExecutionHelpers.js");
 
 function createQueuedRuntimeCommand(overrides = {}) {
   return {
@@ -158,6 +161,15 @@ test("runtime execution service leases different novels in parallel but keeps on
   } finally {
     harness.restore();
   }
+});
+
+test("runtime status helper does not complete runtime from task status alone", () => {
+  assert.equal(runtimeStatusForTaskStatus({ taskStatus: "running" }), "running");
+  assert.equal(runtimeStatusForTaskStatus({ taskStatus: "queued" }), "waiting_worker");
+  assert.equal(runtimeStatusForTaskStatus({ taskStatus: "succeeded" }), "completed");
+  assert.equal(runtimeStatusForTaskStatus({ taskStatus: "failed" }), "failed_recoverable");
+  assert.equal(runtimeStatusForTaskStatus({ taskStatus: "cancelled" }), "cancelled");
+  assert.equal(runtimeStatusForTaskStatus({ taskStatus: "unknown" }), "waiting_worker");
 });
 
 test("runtime execution service scans past a blocked candidate batch", async () => {

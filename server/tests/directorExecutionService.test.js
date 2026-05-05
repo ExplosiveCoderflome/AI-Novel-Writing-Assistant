@@ -3,6 +3,8 @@ const assert = require("node:assert/strict");
 
 const { prisma } = require("../dist/db/prisma.js");
 const { DirectorExecutionService } = require("../dist/services/novel/director/DirectorExecutionService.js");
+const { DirectorPipelineEngine } = require("../dist/services/novel/director/DirectorPipelineEngine.js");
+const { DirectorStateReader } = require("../dist/services/novel/director/DirectorStateReader.js");
 const { NovelDirectorService } = require("../dist/services/novel/director/NovelDirectorService.js");
 const { NovelWorkflowService } = require("../dist/services/novel/workflow/NovelWorkflowService.js");
 
@@ -49,7 +51,49 @@ function confirmCommand() {
   };
 }
 
-test("director execution confirms candidates through the worker command path", async () => {
+function mockPipelineState(t, overrides = {}) {
+  const original = DirectorStateReader.prototype.readByTaskId;
+  DirectorStateReader.prototype.readByTaskId = async (taskId) => ({
+    task: {
+      id: taskId,
+      novelId: "novel-1",
+      status: "running",
+      ...overrides.task,
+    },
+    run: overrides.run ?? null,
+    runtime: overrides.runtime ?? null,
+    latestCommand: overrides.latestCommand ?? null,
+    activeStep: overrides.activeStep ?? null,
+    seedPayload: overrides.seedPayload ?? {},
+    chapterProgress: overrides.chapterProgress ?? null,
+  });
+  t.after(() => {
+    DirectorStateReader.prototype.readByTaskId = original;
+  });
+}
+
+test("director execution delegates worker commands through the pipeline engine", async (t) => {
+  const calls = [];
+  const original = DirectorPipelineEngine.prototype.dispatch;
+  DirectorPipelineEngine.prototype.dispatch = async function dispatchMock(input) {
+    calls.push(input);
+    return "completed";
+  };
+  t.after(() => {
+    DirectorPipelineEngine.prototype.dispatch = original;
+  });
+
+  const service = new DirectorExecutionService();
+  const outcome = await service.executeCommand(recoveryCommand("continue"));
+
+  assert.equal(outcome, "completed");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].command.commandType, "continue");
+  assert.deepEqual(calls[0].payload, { forceResume: true });
+});
+
+test("director execution confirms candidates through the worker command path", async (t) => {
+  mockPipelineState(t);
   const calls = [];
   const originalConfirm = NovelDirectorService.prototype.confirmCandidate;
   NovelDirectorService.prototype.confirmCandidate = async function confirmCandidateMock(input) {
@@ -69,7 +113,8 @@ test("director execution confirms candidates through the worker command path", a
   }
 });
 
-test("director execution replays takeover request when recovery task lacks director input", async () => {
+test("director execution replays takeover request when recovery task lacks director input", async (t) => {
+  mockPipelineState(t);
   const calls = [];
   const takeoverRequest = {
     novelId: "novel-1",
@@ -123,7 +168,8 @@ test("director execution replays takeover request when recovery task lacks direc
   }
 });
 
-test("director execution reports cancelled outcome after inline takeover observes cancellation", async () => {
+test("director execution reports cancelled outcome after inline takeover observes cancellation", async (t) => {
+  mockPipelineState(t);
   const takeoverRequest = {
     novelId: "novel-1",
     entryStep: "structured",
@@ -162,7 +208,8 @@ test("director execution reports cancelled outcome after inline takeover observe
   }
 });
 
-test("director execution replays takeover request when a contextless recovery is continued", async () => {
+test("director execution replays takeover request when a contextless recovery is continued", async (t) => {
+  mockPipelineState(t);
   const calls = [];
   const takeoverRequest = {
     novelId: "novel-1",
@@ -216,7 +263,8 @@ test("director execution replays takeover request when a contextless recovery is
   }
 });
 
-test("director execution keeps normal recovery path when director input is already persisted", async () => {
+test("director execution keeps normal recovery path when director input is already persisted", async (t) => {
+  mockPipelineState(t);
   const calls = [];
   const originals = {
     startTakeover: NovelDirectorService.prototype.startTakeover,

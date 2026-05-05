@@ -27,9 +27,54 @@ export interface WorkflowStepWaitingState {
 export interface WorkflowStepExecutionContext {
   taskId?: string | null;
   novelId?: string | null;
+  runId?: string | null;
+  commandId?: string | null;
   targetType?: DirectorArtifactRef["targetType"] | null;
   targetId?: string | null;
   policyMode?: DirectorPolicyMode | null;
+  artifacts?: DirectorArtifactRef[];
+  projectionHints?: Record<string, unknown>;
+}
+
+export type WorkflowStepProgressStatus =
+  | "not_started"
+  | "blocked"
+  | "running"
+  | "partially_done"
+  | "completed"
+  | "failed"
+  | "needs_review";
+
+export interface WorkflowStepProgress {
+  status: WorkflowStepProgressStatus;
+  current: number;
+  total: number;
+  ratio: number;
+  label: string;
+  evidence?: Record<string, unknown>;
+  nextAction?: string | null;
+}
+
+export type WorkflowStepInspection =
+  | { status: "ready"; evidence?: Record<string, unknown> }
+  | { status: "blocked"; reason: string; evidence?: Record<string, unknown> }
+  | { status: "completed"; evidence?: Record<string, unknown> };
+
+export interface WorkflowStepValidation {
+  valid: boolean;
+  reason?: string;
+  evidence?: Record<string, unknown>;
+}
+
+export interface WorkflowStepCommitResult {
+  producedArtifacts?: DirectorArtifactRef[];
+  summary?: string;
+}
+
+export interface WorkflowStepRecoveryPlan {
+  recoverable: boolean;
+  resumeFrom?: string | null;
+  reason?: string;
 }
 
 export type WorkflowStepGateResult =
@@ -63,11 +108,24 @@ export interface WorkflowStepModuleDescriptor {
 }
 
 export interface WorkflowStepModule<I, O> extends WorkflowStepModuleDescriptor {
+  inspect?: (context: WorkflowStepExecutionContext) => Promise<WorkflowStepInspection>;
+  buildInput?: (context: WorkflowStepExecutionContext) => Promise<I>;
   validatePreconditions?: (
     input: I,
     context: WorkflowStepExecutionContext,
   ) => Promise<WorkflowStepGateResult>;
   execute: (input: I, context: WorkflowStepExecutionContext) => Promise<O>;
+  validateOutput?: (
+    output: O,
+    context: WorkflowStepExecutionContext,
+  ) => Promise<WorkflowStepValidation>;
+  commit?: (
+    output: O,
+    context: WorkflowStepExecutionContext,
+  ) => Promise<WorkflowStepCommitResult>;
+  inspectProgress?: (context: WorkflowStepExecutionContext) => Promise<WorkflowStepProgress>;
+  recover?: (context: WorkflowStepExecutionContext) => Promise<WorkflowStepRecoveryPlan>;
+  completeCriteria?: (output: O, context: WorkflowStepExecutionContext) => boolean | Promise<boolean>;
   summarizeResult?: (output: O) => WorkflowStepSummary;
   getApprovalRequirement?: (
     input: I,
@@ -150,13 +208,29 @@ export function createWorkflowStepModule<I, O>(
   execute: WorkflowStepModule<I, O>["execute"],
   options?: Pick<
     WorkflowStepModule<I, O>,
-    "validatePreconditions" | "summarizeResult" | "getApprovalRequirement"
+    | "inspect"
+    | "buildInput"
+    | "validatePreconditions"
+    | "validateOutput"
+    | "commit"
+    | "inspectProgress"
+    | "recover"
+    | "completeCriteria"
+    | "summarizeResult"
+    | "getApprovalRequirement"
   >,
 ): WorkflowStepModule<I, O> {
   return {
     ...descriptor,
     execute,
+    inspect: options?.inspect,
+    buildInput: options?.buildInput,
     validatePreconditions: options?.validatePreconditions,
+    validateOutput: options?.validateOutput,
+    commit: options?.commit,
+    inspectProgress: options?.inspectProgress,
+    recover: options?.recover,
+    completeCriteria: options?.completeCriteria,
     summarizeResult: options?.summarizeResult,
     getApprovalRequirement: options?.getApprovalRequirement,
   };
