@@ -24,7 +24,6 @@ import {
   buildDirectorWorkflowSeedPayload,
 } from "./novelDirectorHelpers";
 import { parseSeedPayload } from "../workflow/novelWorkflow.shared";
-import { DirectorRuntimeExecutionService } from "./DirectorRuntimeExecutionService";
 import {
   buildAcceptedTaskState,
   hashPayload,
@@ -90,10 +89,7 @@ function isAutoRecoverableStaleCommand(command: {
 }
 
 export class DirectorCommandService {
-  constructor(
-    private readonly workflowService = new NovelWorkflowService(),
-    private readonly runtimeExecutionService = new DirectorRuntimeExecutionService(),
-  ) {}
+  constructor(private readonly workflowService = new NovelWorkflowService()) {}
 
   async enqueueGenerateCandidatesCommand(input: DirectorCandidatesRequest): Promise<DirectorCommandAcceptedResponse> {
     const task = await this.ensureCandidateTask(input, {
@@ -351,7 +347,6 @@ export class DirectorCommandService {
         errorMessage: "用户请求取消自动导演任务。",
       },
     });
-    await this.runtimeExecutionService.requestRuntimeCancel(taskId);
     await this.closeCancelledTaskRuntimeState(taskId, new Date());
     const now = new Date();
     const command = await withSqliteRetry(() => prisma.directorRunCommand.create({
@@ -379,10 +374,7 @@ export class DirectorCommandService {
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
     if (reusableCommand) {
-      const runtime = await this.runtimeExecutionService.ensureRuntimeCommandForLegacyCommand(reusableCommand, {
-        runMode: takeoverInput.runMode,
-      });
-      return toAcceptedResponse(reusableCommand, runtime?.runtime ?? null);
+      return toAcceptedResponse(reusableCommand, null);
     }
 
     const task = await this.workflowService.bootstrapTask({
@@ -810,10 +802,7 @@ export class DirectorCommandService {
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
     if (reusableCommand) {
-      const runtime = await this.runtimeExecutionService.ensureRuntimeCommandForLegacyCommand(reusableCommand, {
-        runMode: input.payload.confirmRequest?.runMode ?? input.payload.takeoverRequest?.runMode ?? null,
-      });
-      return toAcceptedResponse(reusableCommand, runtime?.runtime ?? null);
+      return toAcceptedResponse(reusableCommand, null);
     }
 
     const normalizedPayload = Object.fromEntries(
@@ -834,14 +823,11 @@ export class DirectorCommandService {
 
     try {
       const command = await withSqliteRetry(createCommand, { label: "director.command.create" });
-      const runtime = await this.runtimeExecutionService.ensureRuntimeCommandForLegacyCommand(command, {
-        runMode: input.payload.confirmRequest?.runMode ?? input.payload.takeoverRequest?.runMode ?? null,
-      });
       await this.markCommandAcceptedOnTask(input.taskId, input.commandType, {
         preserveLastError: input.preserveLastError,
       });
       taskDispatcher.notify({ commandType: input.commandType, taskId: input.taskId });
-      return toAcceptedResponse(command, runtime?.runtime ?? null);
+      return toAcceptedResponse(command, null);
     } catch (error) {
       if (!isUniqueConstraintError(error) || input.allowTerminalReuse === false) {
         throw error;
@@ -857,10 +843,7 @@ export class DirectorCommandService {
       if (!existing) {
         throw error;
       }
-      const runtime = await this.runtimeExecutionService.ensureRuntimeCommandForLegacyCommand(existing, {
-        runMode: input.payload.confirmRequest?.runMode ?? input.payload.takeoverRequest?.runMode ?? null,
-      });
-      return toAcceptedResponse(existing, runtime?.runtime ?? null);
+      return toAcceptedResponse(existing, null);
     }
   }
 

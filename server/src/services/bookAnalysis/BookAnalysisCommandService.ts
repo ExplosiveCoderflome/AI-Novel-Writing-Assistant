@@ -37,6 +37,10 @@ export class BookAnalysisCommandService {
     this.watchdogService.startWatchdog();
   }
 
+  stopWatchdog(): void {
+    this.watchdogService.stopWatchdog();
+  }
+
   async markPendingAnalysesForManualRecovery(): Promise<void> {
     await this.watchdogService.markPendingAnalysesForManualRecovery();
   }

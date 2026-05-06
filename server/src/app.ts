@@ -50,6 +50,7 @@ import {
   hasSystemResourceBootstrapChanges,
 } from "./services/bootstrap/SystemResourceBootstrapService";
 import { initializeRagSettingsCompatibility } from "./services/settings/RagCompatibilityBootstrapService";
+import { DirectorWorker } from "./workers/directorWorker";
 
 registerNovelEventHandlers(novelEventBus);
 const novelPipelineRuntimeService = new NovelPipelineRuntimeService();
@@ -190,6 +191,10 @@ export interface StartedServer {
   close: () => Promise<void>;
 }
 
+interface BackgroundServicesHandle {
+  stop: () => Promise<void>;
+}
+
 function resolveServerStartOptions(options?: ServerStartOptions): {
   host: string;
   port: number;
@@ -213,8 +218,12 @@ function logServerReady(host: string, port: number): void {
   }
 }
 
-function initializeBackgroundServices(): void {
+function initializeBackgroundServices(): BackgroundServicesHandle {
   ragServices.ragWorker.start();
+  const directorWorker = new DirectorWorker();
+  void directorWorker.start().catch((error) => {
+    console.error("[director.worker] unexpected stop", error);
+  });
   const recoveryInitialization = recoveryTaskService.initializePendingRecoveries();
 
   void loadProviderApiKeys().catch((error) => {
@@ -241,6 +250,15 @@ function initializeBackgroundServices(): void {
       bookAnalysisService.startWatchdog();
       novelPipelineRuntimeService.startWatchdog();
     });
+
+  return {
+    stop: async () => {
+      directorWorker.stop();
+      ragServices.ragWorker.stop();
+      bookAnalysisService.stopWatchdog();
+      novelPipelineRuntimeService.stopWatchdog();
+    },
+  };
 }
 
 export async function startServer(options?: ServerStartOptions): Promise<StartedServer> {
@@ -256,12 +274,12 @@ export async function startServer(options?: ServerStartOptions): Promise<Started
 
   const app = createApp();
   const { host, port, allowLan } = resolveServerStartOptions(options);
-  initializeBackgroundServices();
 
   const server = await new Promise<Server>((resolve, reject) => {
     const listeningServer = app.listen(port, host, () => resolve(listeningServer));
     listeningServer.once("error", reject);
   });
+  const backgroundServices = initializeBackgroundServices();
 
   logServerReady(host, port);
 
@@ -273,6 +291,7 @@ export async function startServer(options?: ServerStartOptions): Promise<Started
     allowLan,
     url: createServerUrl(host, port),
     close: async () => {
+      await backgroundServices.stop();
       await new Promise<void>((resolve, reject) => {
         server.close((error) => {
           if (error) {

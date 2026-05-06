@@ -236,6 +236,12 @@ export function createWorkflowStepModule<I, O>(
   };
 }
 
+export function isExecutableWorkflowStepModule(
+  module: WorkflowStepModuleDescriptor,
+): module is WorkflowStepModule<unknown, unknown> {
+  return typeof (module as Partial<WorkflowStepModule<unknown, unknown>>).execute === "function";
+}
+
 export function workflowStepModuleToDirectorNodeContract<I, O>(
   module: WorkflowStepModule<I, O>,
   context: WorkflowStepExecutionContext = {},

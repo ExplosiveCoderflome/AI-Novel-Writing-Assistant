@@ -1,47 +1,85 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type {
   DirectorBookAutomationProjectionResponse,
+  DirectorCommandResultResponse,
   DirectorRuntimePolicyUpdateRequest,
   DirectorRuntimeEventHistoryResponse,
   DirectorRuntimeProjection,
   DirectorRuntimeSnapshotResponse,
   DirectorCommandAcceptedResponse,
-  DirectorCommandResultResponse,
   DirectorManualEditImpactResponse,
+  DirectorTaskSnapshotResponse,
   DirectorWorkspaceAnalysisResponse,
 } from "@ai-novel/shared/types/directorRuntime";
 import type {
   DirectorCandidatePatchRequest,
-  DirectorCandidatePatchResponse,
   DirectorCandidateTitleRefineRequest,
-  DirectorCandidateTitleRefineResponse,
   DirectorCandidatesRequest,
-  DirectorCandidatesResponse,
   DirectorConfirmRequest,
-  DirectorRefineResponse,
   DirectorRefinementRequest,
   DirectorTakeoverReadinessResponse,
   DirectorTakeoverRequest,
 } from "@ai-novel/shared/types/novelDirector";
 import { apiClient } from "./client";
 
+async function getDirectorTaskSnapshot(taskId: string) {
+  const { data } = await apiClient.get<ApiResponse<DirectorTaskSnapshotResponse>>(`/novels/director/tasks/${taskId}`);
+  return data;
+}
+
 export async function generateDirectorCandidates(payload: DirectorCandidatesRequest): Promise<ApiResponse<DirectorCommandAcceptedResponse>> {
-  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>("/novels/director/candidates", payload);
+  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>("/novels/director/tasks", {
+    taskType: "generate_candidates",
+    payload,
+  });
   return data;
 }
 
 export async function refineDirectorCandidates(payload: DirectorRefinementRequest): Promise<ApiResponse<DirectorCommandAcceptedResponse>> {
-  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>("/novels/director/refine", payload);
+  const taskId = payload.workflowTaskId?.trim();
+  if (!taskId) {
+    throw new Error("Refine candidates requires an existing workflowTaskId.");
+  }
+  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>(`/novels/director/tasks/${taskId}/commands`, {
+    commandType: "refine_candidates",
+    payload,
+  });
   return data;
 }
 
 export async function patchDirectorCandidate(payload: DirectorCandidatePatchRequest): Promise<ApiResponse<DirectorCommandAcceptedResponse>> {
-  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>("/novels/director/patch-candidate", payload);
+  const taskId = payload.workflowTaskId?.trim();
+  if (!taskId) {
+    throw new Error("Patch candidate requires an existing workflowTaskId.");
+  }
+  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>(`/novels/director/tasks/${taskId}/commands`, {
+    commandType: "patch_candidate",
+    payload,
+  });
   return data;
 }
 
 export async function refineDirectorCandidateTitles(payload: DirectorCandidateTitleRefineRequest): Promise<ApiResponse<DirectorCommandAcceptedResponse>> {
-  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>("/novels/director/refine-titles", payload);
+  const taskId = payload.workflowTaskId?.trim();
+  if (!taskId) {
+    throw new Error("Refine titles requires an existing workflowTaskId.");
+  }
+  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>(`/novels/director/tasks/${taskId}/commands`, {
+    commandType: "refine_titles",
+    payload,
+  });
+  return data;
+}
+
+export async function confirmDirectorCandidate(payload: DirectorConfirmRequest) {
+  const taskId = payload.workflowTaskId?.trim();
+  if (!taskId) {
+    throw new Error("Confirm candidate requires an existing workflowTaskId.");
+  }
+  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>(`/novels/director/tasks/${taskId}/commands`, {
+    commandType: "confirm_candidate",
+    payload,
+  });
   return data;
 }
 
@@ -49,11 +87,6 @@ export async function getDirectorCommandResult<T = unknown>(commandId: string) {
   const { data } = await apiClient.get<ApiResponse<DirectorCommandResultResponse<T>>>(
     `/novels/director/commands/${commandId}/result`,
   );
-  return data;
-}
-
-export async function confirmDirectorCandidate(payload: DirectorConfirmRequest) {
-  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>("/novels/director/confirm", payload);
   return data;
 }
 
@@ -70,7 +103,10 @@ export async function getDirectorBookAutomationProjection(novelId: string) {
 }
 
 export async function startDirectorTakeover(payload: DirectorTakeoverRequest) {
-  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>("/novels/director/takeover", payload);
+  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>("/novels/director/tasks", {
+    taskType: "takeover",
+    payload,
+  });
   return data;
 }
 
@@ -94,23 +130,38 @@ export async function getDirectorWorkspaceAnalysis(
 }
 
 export async function getDirectorRuntimeSnapshot(taskId: string) {
-  const { data } = await apiClient.get<ApiResponse<DirectorRuntimeSnapshotResponse>>(`/novels/director/runtime/${taskId}`);
-  return data;
+  const snapshot = await getDirectorTaskSnapshot(taskId);
+  return {
+    ...snapshot,
+    data: {
+      snapshot: snapshot.data?.snapshot?.runtime ?? null,
+      projection: snapshot.data?.snapshot?.projection ?? null,
+    } satisfies DirectorRuntimeSnapshotResponse,
+  };
 }
 
 export async function getDirectorRuntimeProjection(taskId: string) {
-  const { data } = await apiClient.get<ApiResponse<{ projection: DirectorRuntimeProjection | null }>>(
-    `/novels/director/runtime/${taskId}/projection`,
-  );
-  return data;
+  const snapshot = await getDirectorTaskSnapshot(taskId);
+  return {
+    ...snapshot,
+    data: {
+      projection: snapshot.data?.snapshot?.projection ?? null,
+    } satisfies { projection: DirectorRuntimeProjection | null },
+  };
 }
 
 export async function getDirectorRuntimeEventHistory(taskId: string, options?: { limit?: number }) {
-  const { data } = await apiClient.get<ApiResponse<DirectorRuntimeEventHistoryResponse>>(
-    `/novels/director/runtime/${taskId}/events`,
-    { params: { limit: options?.limit } },
-  );
-  return data;
+  const snapshot = await getDirectorTaskSnapshot(taskId);
+  const events = snapshot.data?.snapshot?.recentEvents ?? [];
+  const limit = options?.limit ?? events.length;
+  return {
+    ...snapshot,
+    data: {
+      events: events.slice(-limit),
+      totalCount: events.length,
+      limit,
+    } satisfies DirectorRuntimeEventHistoryResponse,
+  };
 }
 
 export async function getDirectorManualEditImpact(
@@ -139,16 +190,19 @@ export async function updateDirectorRuntimePolicy(
   payload: DirectorRuntimePolicyUpdateRequest,
 ): Promise<ApiResponse<DirectorCommandAcceptedResponse>> {
   const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>(
-    `/novels/director/runtime/${taskId}/policy`,
-    payload,
+    `/novels/director/tasks/${taskId}/commands`,
+    {
+      commandType: "policy_update",
+      payload,
+    },
   );
   return data;
 }
 
 export async function approveDirectorGate(taskId: string): Promise<ApiResponse<DirectorCommandAcceptedResponse>> {
   const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>(
-    `/novels/director/runtime/${taskId}/continue`,
-    { continuationMode: "resume" },
+    `/novels/director/tasks/${taskId}/commands`,
+    { commandType: "approve_gate", payload: {} },
   );
   return data;
 }
@@ -161,8 +215,11 @@ export async function continueDirectorRuntime(
   },
 ) {
   const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>(
-    `/novels/director/runtime/${taskId}/continue`,
-    payload ?? {},
+    `/novels/director/tasks/${taskId}/commands`,
+    {
+      commandType: "continue",
+      payload: payload ?? {},
+    },
   );
   return data;
 }

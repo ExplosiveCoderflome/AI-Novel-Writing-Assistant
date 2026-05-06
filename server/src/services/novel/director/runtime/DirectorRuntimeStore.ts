@@ -13,20 +13,14 @@ import type {
 import { prisma } from "../../../../db/prisma";
 import { parseSeedPayload } from "../../workflow/novelWorkflow.shared";
 import type { DirectorWorkflowSeedPayload } from "../novelDirectorHelpers";
-import {
-  normalizeDirectorArtifactRef,
-  reconcileDirectorArtifactLedger,
-} from "./DirectorArtifactLedger";
+import { normalizeDirectorArtifactRef, reconcileDirectorArtifactLedger } from "./DirectorArtifactLedger";
 import { buildDefaultDirectorPolicy, buildEmptyDirectorRuntimeSnapshot } from "./directorRuntimeDefaults";
 import {
   buildArtifactIndexedEvents,
   buildDirectorRuntimePersistenceDelta,
   persistDirectorRuntimeSnapshot,
 } from "./DirectorRuntimePersistence";
-import {
-  hasLegacyRuntimeArtifacts,
-  mergeLegacyRuntimeArtifacts,
-} from "./DirectorRuntimeSnapshotMerge";
+import { mergeLegacyRuntimeArtifacts } from "./DirectorRuntimeSnapshotMerge";
 
 const MAX_RUNTIME_EVENTS = 120;
 const MAX_RUNTIME_STEPS = 120;
@@ -68,21 +62,6 @@ function normalizeRuntimeSnapshot(input: {
   entrypoint?: string | null;
   policyMode?: DirectorPolicyMode;
 }): DirectorRuntimeSnapshot {
-  const existing = input.seedPayload.directorRuntime;
-  if (existing?.schemaVersion === 1 && existing.runId) {
-    return {
-      ...existing,
-      runId: existing.runId || input.taskId,
-      novelId: existing.novelId ?? input.novelId ?? input.seedPayload.novelId ?? null,
-      policy: existing.policy ?? buildDefaultDirectorPolicy(input.policyMode),
-      steps: Array.isArray(existing.steps) ? existing.steps : [],
-      events: Array.isArray(existing.events) ? existing.events : [],
-      artifacts: Array.isArray(existing.artifacts)
-        ? existing.artifacts.map((artifact) => normalizeDirectorArtifactRef(artifact))
-        : [],
-      updatedAt: existing.updatedAt ?? new Date().toISOString(),
-    };
-  }
   return buildEmptyDirectorRuntimeSnapshot({
     runId: input.taskId,
     novelId: input.novelId ?? input.seedPayload.novelId ?? null,
@@ -141,18 +120,18 @@ export class DirectorRuntimeStore {
       return null;
     }
     const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(row.seedPayloadJson) ?? {};
-    const seedSnapshot = normalizeRuntimeSnapshot({
+    const emptySnapshot = normalizeRuntimeSnapshot({
       taskId: row.id,
       novelId: row.novelId,
       seedPayload,
     });
     const persisted = await this.getPersistentSnapshot(taskId);
     if (persisted) {
-      const snapshot = mergeLegacyRuntimeArtifacts(persisted, seedSnapshot);
+      const snapshot = mergeLegacyRuntimeArtifacts(persisted, emptySnapshot);
       this.snapshotCache.set(taskId, snapshot);
       return snapshot;
     }
-    return seedSnapshot;
+    return emptySnapshot;
   }
 
   async mutateSnapshot(
@@ -171,24 +150,22 @@ export class DirectorRuntimeStore {
       return null;
     }
     const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(row.seedPayloadJson) ?? {};
-    const seedSnapshot = normalizeRuntimeSnapshot({
+    const emptySnapshot = normalizeRuntimeSnapshot({
       taskId: row.id,
       novelId: row.novelId,
       seedPayload,
     });
     const cached = this.snapshotCache.get(taskId);
-    const persisted = cached && !hasLegacyRuntimeArtifacts(seedSnapshot)
-      ? null
-      : await this.getPersistentSnapshot(taskId);
+    const persisted = await this.getPersistentSnapshot(taskId);
     const current = mergeLegacyRuntimeArtifacts(
-      cached ?? persisted ?? seedSnapshot,
-      seedSnapshot,
+      cached ?? persisted ?? emptySnapshot,
+      emptySnapshot,
     );
     const nextRuntime = trimRuntimeSnapshot({
       ...mutator(current, seedPayload),
       updatedAt: new Date().toISOString(),
     });
-    const deltaBase = persisted ?? (cached && !hasLegacyRuntimeArtifacts(seedSnapshot) ? cached : null);
+    const deltaBase = persisted ?? cached ?? null;
     const delta = buildDirectorRuntimePersistenceDelta(deltaBase, nextRuntime);
     await persistDirectorRuntimeSnapshot({
       taskId,

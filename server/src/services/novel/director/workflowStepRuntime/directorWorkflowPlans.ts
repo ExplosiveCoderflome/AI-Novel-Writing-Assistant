@@ -5,6 +5,7 @@ import {
   type WorkflowPlan,
 } from "./WorkflowStepModule";
 import {
+  getDirectorExecutionContractSyncStepModule,
   getDirectorExecutionStepModuleSequence,
   getDirectorPlanningStepModule,
 } from "./directorWorkflowStepModules";
@@ -30,7 +31,10 @@ export function buildDirectorPlanningWorkflowPlan(input?: {
     goal: "director_planning",
     source: "auto_director",
     mode: "run_until_gate",
-    modules: sequence.map(getDirectorPlanningStepModule),
+    modules: [
+      ...sequence.map(getDirectorPlanningStepModule),
+      getDirectorExecutionContractSyncStepModule(),
+    ],
   });
 }
 

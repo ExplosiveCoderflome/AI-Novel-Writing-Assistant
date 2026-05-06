@@ -3,14 +3,12 @@
  * 减少对目录内数十个文件的直接耦合。
  */
 export { DirectorCommandService } from "./DirectorCommandService";
-export { DirectorExecutionService } from "./DirectorExecutionService";
-export { DirectorPipelineEngine } from "./DirectorPipelineEngine";
+export { DirectorCommandExecutor } from "./DirectorCommandExecutor";
 export { DirectorCommandInterpreter } from "./DirectorCommandInterpreter";
 export { DirectorStateReader } from "./DirectorStateReader";
 export { DirectorStateCommitter } from "./DirectorStateCommitter";
-export { DirectorRuntimeExecutionService } from "./DirectorRuntimeExecutionService";
-export type { RuntimeExecutionLease } from "./DirectorRuntimeExecutionService";
-export { DirectorWorkerReconciliationService } from "./DirectorWorkerReconciliationService";
+export { DirectorStateStore } from "./DirectorStateStore";
+export { DirectorTaskSnapshotService } from "./DirectorTaskSnapshotService";
 export { NovelDirectorService } from "./NovelDirectorService";
 
 export { taskDispatcher } from "../../../workers/TaskDispatcher";

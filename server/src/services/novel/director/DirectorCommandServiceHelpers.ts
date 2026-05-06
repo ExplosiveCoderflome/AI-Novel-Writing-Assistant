@@ -81,7 +81,7 @@ export function toAcceptedResponse(command: {
     leaseExpiresAt: command.leaseExpiresAt?.toISOString() ?? null,
     runtimeId: runtime?.id ?? null,
     runtimeStatus: runtime?.status ?? null,
-    projectionUrl: runtime ? `/api/novels/director/runtime/${command.taskId}/projection` : null,
+    projectionUrl: `/api/novels/director/tasks/${command.taskId}`,
   };
 }
 

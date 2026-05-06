@@ -35,7 +35,10 @@ import {
   runDirectorStoryMacroAssetPhase,
 } from "./novelDirectorStoryMacroPhase";
 import type { NovelDirectorRuntimeOrchestrator } from "./novelDirectorRuntimeOrchestrator";
-import { getDirectorPlanningStepModule } from "./workflowStepRuntime/directorWorkflowStepModules";
+import {
+  getDirectorExecutionContractSyncStepModule,
+  getDirectorPlanningStepModule,
+} from "./workflowStepRuntime/directorWorkflowStepModules";
 import type { DirectorPipelinePhase } from "./novelDirectorRecovery";
 
 export interface DirectorPipelineRunInput {
@@ -92,7 +95,6 @@ export class NovelDirectorPipelineRuntime {
         targetId: input.novelId,
         approveCurrentGate: approval.approveCurrentGate,
         approveAutoExecutionScope: approval.approveAutoExecutionScope,
-        runner: () => this.runStoryMacroPhase(input.taskId, input.novelId, input.input),
       });
     }
 
@@ -105,7 +107,6 @@ export class NovelDirectorPipelineRuntime {
         targetId: input.novelId,
         approveCurrentGate: approval.approveCurrentGate,
         approveAutoExecutionScope: approval.approveAutoExecutionScope,
-        runner: () => this.runBookContractPhase(input.taskId, input.novelId, input.input),
       });
     }
 
@@ -163,6 +164,7 @@ export class NovelDirectorPipelineRuntime {
     }
     await this.assertOutlineStartAllowed(input, volumeWorkspace);
     await this.runStructuredOutlineNode(input, volumeWorkspace);
+    await this.runExecutionContractSyncNode(input);
     await this.maybeRunAutoApprovedChapters(input);
   }
 
@@ -170,6 +172,7 @@ export class NovelDirectorPipelineRuntime {
     const currentWorkspace = await this.deps.volumeService.getVolumes(input.novelId);
     await this.assertOutlineStartAllowed(input, currentWorkspace);
     await this.runStructuredOutlineNode(input, currentWorkspace);
+    await this.runExecutionContractSyncNode(input);
     await this.maybeRunAutoApprovedChapters(input);
   }
 
@@ -204,11 +207,25 @@ export class NovelDirectorPipelineRuntime {
       targetId: input.novelId,
       approveCurrentGate: structuredOutlineApproval.approveCurrentGate,
       approveAutoExecutionScope: structuredOutlineApproval.approveAutoExecutionScope,
-      runner: () => this.runStructuredOutlinePhase(input.taskId, input.novelId, input.input, workspace),
     });
   }
 
-  private async loadVolumeWorkspaceForOutline(novelId: string): Promise<VolumePlanDocument | null> {
+  private async runExecutionContractSyncNode(
+    input: DirectorPipelineRunInput,
+  ): Promise<void> {
+    const module = getDirectorExecutionContractSyncStepModule();
+    const approval = this.resolveRuntimeApproval(input, "structured_outline_ready");
+    await this.deps.runtimeOrchestrator.runStepModule({
+      module,
+      taskId: input.taskId,
+      novelId: input.novelId,
+      targetId: input.novelId,
+      approveCurrentGate: approval.approveCurrentGate,
+      approveAutoExecutionScope: approval.approveAutoExecutionScope,
+    });
+  }
+
+  async loadVolumeWorkspaceForOutline(novelId: string): Promise<VolumePlanDocument | null> {
     const workspace = await this.deps.volumeService.getVolumes(novelId).catch(() => null);
     if (!workspace?.volumes.length || !workspace.strategyPlan) {
       return null;
@@ -294,7 +311,7 @@ export class NovelDirectorPipelineRuntime {
     };
   }
 
-  private async runStoryMacroPhase(
+  async executeStoryMacroStep(
     taskId: string,
     novelId: string,
     input: DirectorConfirmRequest,
@@ -317,7 +334,7 @@ export class NovelDirectorPipelineRuntime {
     });
   }
 
-  private async runBookContractPhase(
+  async executeBookContractStep(
     taskId: string,
     novelId: string,
     input: DirectorConfirmRequest,
@@ -443,7 +460,7 @@ export class NovelDirectorPipelineRuntime {
     });
   }
 
-  private async runStructuredOutlinePhase(
+  async executeStructuredOutlineStep(
     taskId: string,
     novelId: string,
     input: DirectorConfirmRequest,
@@ -471,5 +488,30 @@ export class NovelDirectorPipelineRuntime {
         ),
       },
     });
+  }
+
+  private async runStoryMacroPhase(
+    taskId: string,
+    novelId: string,
+    input: DirectorConfirmRequest,
+  ) {
+    return this.executeStoryMacroStep(taskId, novelId, input);
+  }
+
+  private async runBookContractPhase(
+    taskId: string,
+    novelId: string,
+    input: DirectorConfirmRequest,
+  ): Promise<void> {
+    await this.executeBookContractStep(taskId, novelId, input);
+  }
+
+  private async runStructuredOutlinePhase(
+    taskId: string,
+    novelId: string,
+    input: DirectorConfirmRequest,
+    baseWorkspace: VolumePlanDocument,
+  ): Promise<void> {
+    await this.executeStructuredOutlineStep(taskId, novelId, input, baseWorkspace);
   }
 }

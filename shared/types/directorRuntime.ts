@@ -710,6 +710,51 @@ export interface DirectorRuntimeSnapshotResponse {
   projection?: DirectorRuntimeProjection | null;
 }
 
+export interface DirectorTaskShell {
+  id: string;
+  novelId?: string | null;
+  status: string;
+  currentStage?: string | null;
+  currentItemKey?: string | null;
+  currentItemLabel?: string | null;
+  progress?: number | null;
+  checkpointType?: string | null;
+  checkpointSummary?: string | null;
+  lastError?: string | null;
+  pendingManualRecovery?: boolean | null;
+  cancelRequestedAt?: string | null;
+}
+
+export interface DirectorTaskSnapshot {
+  task: DirectorTaskShell;
+  run: {
+    id: string;
+    novelId?: string | null;
+    entrypoint?: string | null;
+  } | null;
+  activeStep: {
+    idempotencyKey: string;
+    nodeKey: string;
+    label: string;
+    status: string;
+  } | null;
+  latestCommand: {
+    id: string;
+    commandType: string;
+    status: string;
+  } | null;
+  runtime: DirectorRuntimeSnapshot | null;
+  projection: DirectorRuntimeProjection | null;
+  recentEvents: DirectorEvent[];
+  artifacts: DirectorArtifactRef[];
+  chapterProgress?: DirectorChapterExecutionProgressSummary | null;
+  nextActions: string[];
+}
+
+export interface DirectorTaskSnapshotResponse {
+  snapshot: DirectorTaskSnapshot | null;
+}
+
 export const DIRECTOR_RUN_COMMAND_TYPES = [
   "generate_candidates",
   "refine_candidates",

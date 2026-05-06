@@ -28,6 +28,7 @@ test("director workflow step registry exposes unified step modules", () => {
   assert.ok(ids.includes("book.project.create"));
   assert.ok(ids.includes("story.macro.plan"));
   assert.ok(ids.includes("book.contract.create"));
+  assert.ok(ids.includes("chapter.execution_contract.sync"));
   assert.ok(ids.includes("chapter.draft.write"));
   assert.ok(ids.includes("chapter.quality.review"));
   assert.ok(ids.includes("chapter.draft.repair"));
@@ -117,8 +118,10 @@ test("planning workflow plan can start from any director planning phase", () => 
   assert.deepEqual(plan.steps.map((step) => step.stepId), [
     "volume.strategy.plan",
     "chapter.task_sheet.plan",
+    "chapter.execution_contract.sync",
   ]);
   assert.deepEqual(plan.steps[1].dependsOn, ["volume.strategy.plan"]);
+  assert.deepEqual(plan.steps[2].dependsOn, ["chapter.task_sheet.plan"]);
 });
 
 test("planning workflow keeps story macro and book contract as separate write nodes", () => {
@@ -130,6 +133,7 @@ test("planning workflow keeps story macro and book contract as separate write no
     "character.cast.prepare",
     "volume.strategy.plan",
     "chapter.task_sheet.plan",
+    "chapter.execution_contract.sync",
   ]);
   assert.deepEqual(plan.steps[1].writes, ["book_contract"]);
   assert.deepEqual(plan.steps[1].dependsOn, ["story.macro.plan"]);

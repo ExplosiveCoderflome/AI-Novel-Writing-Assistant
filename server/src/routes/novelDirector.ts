@@ -1,32 +1,30 @@
 import { Router } from "express";
 import { z } from "zod";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
-import {
-  DIRECTOR_POLICY_MODES,
-  type DirectorPolicyMode,
-  type DirectorBookAutomationProjectionResponse,
-  type DirectorRuntimePolicyUpdateRequest,
-  type DirectorRuntimePolicyUpdateResponse,
-  type DirectorCommandResultResponse,
-  type DirectorRuntimeEventHistoryResponse,
-  type DirectorRuntimeSnapshotResponse,
-  type DirectorManualEditImpactResponse,
-  type DirectorWorkspaceAnalysisResponse,
+import type {
+  DirectorBookAutomationProjectionResponse,
+  DirectorCommandAcceptedResponse,
+  DirectorManualEditImpactResponse,
+  DirectorPolicyMode,
+  DirectorRuntimePolicyUpdateRequest,
+  DirectorTaskSnapshotResponse,
+  DirectorWorkspaceAnalysisResponse,
 } from "@ai-novel/shared/types/directorRuntime";
 import {
-  DIRECTOR_CORRECTION_PRESETS,
   DIRECTOR_AUTO_EXECUTION_MODES,
+  DIRECTOR_CORRECTION_PRESETS,
   DIRECTOR_RUN_MODES,
   DIRECTOR_TAKEOVER_ENTRY_STEPS,
+  DIRECTOR_TAKEOVER_START_PHASES,
+  DIRECTOR_TAKEOVER_STRATEGIES,
   type DirectorCandidatePatchRequest,
   type DirectorCandidateTitleRefineRequest,
   type DirectorConfirmRequest,
   type DirectorRefinementRequest,
-  DIRECTOR_TAKEOVER_STRATEGIES,
-  DIRECTOR_TAKEOVER_START_PHASES,
   type DirectorRunMode,
   type DirectorTakeoverRequest,
 } from "@ai-novel/shared/types/novelDirector";
+import { DIRECTOR_POLICY_MODES } from "@ai-novel/shared/types/directorRuntime";
 import {
   BOOK_FRAMING_COMMERCIAL_TAG_MAX_LENGTH,
   BOOK_FRAMING_MAX_COMMERCIAL_TAGS,
@@ -34,16 +32,17 @@ import {
 import { DIRECTOR_AUTO_APPROVAL_POINTS } from "@ai-novel/shared/types/autoDirectorApproval";
 import { validate } from "../middleware/validate";
 import { llmProviderSchema } from "../llm/providerSchema";
-import { NovelDirectorService } from "../services/novel/director/NovelDirectorService";
-import { DirectorCommandService } from "../services/novel/director/DirectorCommandService";
 import { DirectorBookAutomationProjectionService } from "../services/novel/director/DirectorBookAutomationProjectionService";
+import { DirectorCommandService } from "../services/novel/director/DirectorCommandService";
+import { DirectorTaskSnapshotService } from "../services/novel/director/DirectorTaskSnapshotService";
+import { NovelDirectorService } from "../services/novel/director/NovelDirectorService";
 import { directorPersistedCandidateSchema } from "../services/novel/director/novelDirectorSchemas";
-import { loadPersistentDirectorRuntimeEventHistory } from "../services/novel/director/novelDirectorRuntimeProjection";
 
 const router = Router();
+const commandService = new DirectorCommandService();
+const snapshotService = new DirectorTaskSnapshotService();
 const novelDirectorService = new NovelDirectorService();
-const directorCommandService = new DirectorCommandService();
-const directorBookAutomationProjectionService = new DirectorBookAutomationProjectionService();
+const projectionService = new DirectorBookAutomationProjectionService();
 
 const correctionPresetValues = DIRECTOR_CORRECTION_PRESETS.map((item) => item.value) as [string, ...string[]];
 const takeoverStartPhaseValues = [...DIRECTOR_TAKEOVER_START_PHASES] as [string, ...string[]];
@@ -52,6 +51,7 @@ const takeoverStrategyValues = [...DIRECTOR_TAKEOVER_STRATEGIES] as [string, ...
 const autoExecutionModeValues = [...DIRECTOR_AUTO_EXECUTION_MODES] as [string, ...string[]];
 const directorRunModeValues = [...DIRECTOR_RUN_MODES] as [DirectorRunMode, ...DirectorRunMode[]];
 const runtimePolicyModeValues = [...DIRECTOR_POLICY_MODES] as [DirectorPolicyMode, ...DirectorPolicyMode[]];
+const autoApprovalPointValues = DIRECTOR_AUTO_APPROVAL_POINTS.map((item) => item.code) as [string, ...string[]];
 
 const llmOptionsSchema = z.object({
   provider: llmProviderSchema.optional(),
@@ -68,8 +68,6 @@ const autoExecutionPlanSchema = z.object({
   autoReview: z.boolean().optional(),
   autoRepair: z.boolean().optional(),
 }).optional();
-
-const autoApprovalPointValues = DIRECTOR_AUTO_APPROVAL_POINTS.map((item) => item.code) as [string, ...string[]];
 
 const autoApprovalSchema = z.object({
   enabled: z.boolean(),
@@ -172,16 +170,29 @@ const confirmSchema = projectContextSchema.extend({
   autoApproval: autoApprovalSchema,
 }).merge(llmOptionsSchema);
 
-const takeoverParamsSchema = z.object({
+const takeoverSchema = z.object({
   novelId: z.string().trim().min(1),
+  startPhase: z.enum(takeoverStartPhaseValues).optional(),
+  entryStep: z.enum(takeoverEntryStepValues).optional(),
+  strategy: z.enum(takeoverStrategyValues).optional(),
+  autoExecutionPlan: autoExecutionPlanSchema,
+  autoApproval: autoApprovalSchema,
+  styleProfileId: z.string().trim().optional(),
+}).merge(llmOptionsSchema);
+
+const runtimePolicySchema = z.object({
+  mode: z.enum(runtimePolicyModeValues),
+  mayOverwriteUserContent: z.boolean().optional(),
+  allowExpensiveReview: z.boolean().optional(),
+  modelTier: z.enum(["cheap_fast", "balanced", "high_quality"]).optional(),
 });
 
-const runtimeTaskParamsSchema = z.object({
+const taskParamsSchema = z.object({
   taskId: z.string().trim().min(1),
 });
 
-const runtimeEventHistoryQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(500).optional(),
+const takeoverParamsSchema = z.object({
+  novelId: z.string().trim().min(1),
 });
 
 const workspaceAnalysisQuerySchema = z.object({
@@ -193,80 +204,164 @@ const manualEditImpactQuerySchema = workspaceAnalysisQuerySchema.extend({
   chapterId: z.string().trim().min(1).optional(),
 });
 
-const runtimePolicySchema = z.object({
-  mode: z.enum(runtimePolicyModeValues),
-  mayOverwriteUserContent: z.boolean().optional(),
-  allowExpensiveReview: z.boolean().optional(),
-  modelTier: z.enum(["cheap_fast", "balanced", "high_quality"]).optional(),
-});
+const createTaskSchema = z.discriminatedUnion("taskType", [
+  z.object({ taskType: z.literal("generate_candidates"), payload: candidatesSchema }),
+  z.object({ taskType: z.literal("takeover"), payload: takeoverSchema }),
+  z.object({
+    taskType: z.literal("workspace_analysis"),
+    payload: z.object({
+      novelId: z.string().trim().min(1),
+      workflowTaskId: z.string().trim().optional(),
+      includeAiInterpretation: z.boolean().optional(),
+    }),
+  }),
+  z.object({
+    taskType: z.literal("manual_edit_impact"),
+    payload: z.object({
+      novelId: z.string().trim().min(1),
+      workflowTaskId: z.string().trim().optional(),
+      chapterId: z.string().trim().optional(),
+      includeAiInterpretation: z.boolean().optional(),
+    }),
+  }),
+]);
 
-const runtimeContinueSchema = z.object({
-  mode: z.enum(runtimePolicyModeValues).optional(),
-  mayOverwriteUserContent: z.boolean().optional(),
-  allowExpensiveReview: z.boolean().optional(),
-  modelTier: z.enum(["cheap_fast", "balanced", "high_quality"]).optional(),
-  continuationMode: z.enum(["resume", "auto_execute_range", "auto_execute_front10"]).optional(),
-  batchAlreadyStartedCount: z.number().int().min(0).optional(),
-}).optional();
-type RuntimeContinueBody = Exclude<z.infer<typeof runtimeContinueSchema>, undefined>;
+const appendCommandSchema = z.discriminatedUnion("commandType", [
+  z.object({ commandType: z.literal("refine_candidates"), payload: refineSchema }),
+  z.object({ commandType: z.literal("patch_candidate"), payload: patchCandidateSchema }),
+  z.object({ commandType: z.literal("refine_titles"), payload: refineTitleSchema }),
+  z.object({ commandType: z.literal("confirm_candidate"), payload: confirmSchema }),
+  z.object({ commandType: z.literal("continue"), payload: z.object({
+    continuationMode: z.enum(["resume", "auto_execute_range", "auto_execute_front10"]).optional(),
+    batchAlreadyStartedCount: z.number().int().min(0).optional(),
+    forceResume: z.boolean().optional(),
+  }).optional() }),
+  z.object({ commandType: z.literal("resume_from_checkpoint"), payload: z.object({
+    continuationMode: z.enum(["resume", "auto_execute_range", "auto_execute_front10"]).optional(),
+    batchAlreadyStartedCount: z.number().int().min(0).optional(),
+    forceResume: z.boolean().optional(),
+  }).optional() }),
+  z.object({ commandType: z.literal("retry"), payload: z.object({
+    provider: llmProviderSchema.optional(),
+    model: z.string().trim().optional(),
+    temperature: z.number().min(0).max(2).optional(),
+    batchAlreadyStartedCount: z.number().int().min(0).optional(),
+  }).optional() }),
+  z.object({ commandType: z.literal("approve_gate"), payload: z.object({}).optional() }),
+  z.object({ commandType: z.literal("policy_update"), payload: runtimePolicySchema }),
+  z.object({ commandType: z.literal("cancel"), payload: z.object({}).optional() }),
+  z.object({ commandType: z.literal("repair_chapter_titles"), payload: z.object({ volumeId: z.string().trim().optional() }).optional() }),
+]);
 
-const takeoverSchema = z.object({
-  novelId: z.string().trim().min(1),
-  startPhase: z.enum(takeoverStartPhaseValues).optional(),
-  entryStep: z.enum(takeoverEntryStepValues).optional(),
-  strategy: z.enum(takeoverStrategyValues).optional(),
-  autoExecutionPlan: autoExecutionPlanSchema,
-  autoApproval: autoApprovalSchema,
-  styleProfileId: z.string().trim().optional(),
-}).merge(llmOptionsSchema);
+function accepted<T>(data: T, message: string) {
+  return {
+    success: true,
+    data,
+    message,
+  } satisfies ApiResponse<T>;
+}
 
-router.post("/candidates", validate({ body: candidatesSchema }), async (req, res, next) => {
+router.post("/tasks", validate({ body: createTaskSchema }), async (req, res, next) => {
   try {
-    const data = await directorCommandService.enqueueGenerateCandidatesCommand(req.body as z.infer<typeof candidatesSchema>);
-    res.status(202).json({
-      success: true,
-      data,
-      message: "Director candidate generation accepted.",
-    } satisfies ApiResponse<typeof data>);
+    const body = req.body as z.infer<typeof createTaskSchema>;
+    let data: DirectorCommandAcceptedResponse;
+    switch (body.taskType) {
+      case "generate_candidates":
+        data = await commandService.enqueueGenerateCandidatesCommand(body.payload);
+        break;
+      case "takeover":
+        data = await commandService.enqueueTakeoverCommand(body.payload as DirectorTakeoverRequest);
+        break;
+      case "workspace_analysis":
+        data = await commandService.enqueueWorkspaceAnalysisCommand(body.payload);
+        break;
+      case "manual_edit_impact":
+        data = await commandService.enqueueManualEditImpactCommand(body.payload);
+        break;
+      default:
+        throw new Error("Unsupported director task type.");
+    }
+    res.status(202).json(accepted(data, "Director task accepted."));
   } catch (error) {
     next(error);
   }
 });
 
-router.post("/refine", validate({ body: refineSchema }), async (req, res, next) => {
+router.post("/tasks/:taskId/commands", validate({ params: taskParamsSchema, body: appendCommandSchema }), async (req, res, next) => {
   try {
-    const data = await directorCommandService.enqueueRefineCandidatesCommand(req.body as DirectorRefinementRequest);
-    res.status(202).json({
-      success: true,
-      data,
-      message: "Director candidate refinement accepted.",
-    } satisfies ApiResponse<typeof data>);
+    const { taskId } = req.params as z.infer<typeof taskParamsSchema>;
+    const body = req.body as z.infer<typeof appendCommandSchema>;
+    let data: DirectorCommandAcceptedResponse;
+    switch (body.commandType) {
+      case "refine_candidates":
+        data = await commandService.enqueueRefineCandidatesCommand({
+          ...body.payload,
+          workflowTaskId: taskId,
+        } as DirectorRefinementRequest);
+        break;
+      case "patch_candidate":
+        data = await commandService.enqueuePatchCandidateCommand({
+          ...body.payload,
+          workflowTaskId: taskId,
+        } as DirectorCandidatePatchRequest);
+        break;
+      case "refine_titles":
+        data = await commandService.enqueueRefineTitlesCommand({
+          ...body.payload,
+          workflowTaskId: taskId,
+        } as DirectorCandidateTitleRefineRequest);
+        break;
+      case "confirm_candidate":
+        data = await commandService.enqueueConfirmCandidateCommand({
+          ...body.payload,
+          workflowTaskId: taskId,
+        } as DirectorConfirmRequest);
+        break;
+      case "continue":
+        data = await commandService.enqueueContinueCommand(taskId, body.payload ?? {});
+        break;
+      case "resume_from_checkpoint":
+        data = await commandService.enqueueRecoveryCommand(taskId, body.payload ?? {});
+        break;
+      case "retry":
+        data = await commandService.enqueueRetryCommand({
+          taskId,
+          llmOverride: body.payload?.provider || body.payload?.model || typeof body.payload?.temperature === "number"
+            ? {
+              provider: body.payload?.provider,
+              model: body.payload?.model,
+              temperature: body.payload?.temperature,
+            }
+            : undefined,
+          batchAlreadyStartedCount: body.payload?.batchAlreadyStartedCount,
+        });
+        break;
+      case "approve_gate":
+        data = await commandService.enqueueApproveGateCommand(taskId);
+        break;
+      case "policy_update":
+        data = await commandService.enqueuePolicyUpdateCommand(taskId, body.payload as DirectorRuntimePolicyUpdateRequest);
+        break;
+      case "cancel":
+        data = await commandService.enqueueCancelCommand(taskId);
+        break;
+      case "repair_chapter_titles":
+        data = await commandService.enqueueChapterTitleRepairCommand(taskId, body.payload ?? {});
+        break;
+      default:
+        throw new Error("Unsupported director command type.");
+    }
+    res.status(202).json(accepted(data, "Director command accepted."));
   } catch (error) {
     next(error);
   }
 });
 
-router.post("/patch-candidate", validate({ body: patchCandidateSchema }), async (req, res, next) => {
+router.get("/tasks/:taskId", validate({ params: taskParamsSchema }), async (req, res, next) => {
   try {
-    const data = await directorCommandService.enqueuePatchCandidateCommand(req.body as DirectorCandidatePatchRequest);
-    res.status(202).json({
-      success: true,
-      data,
-      message: "Director candidate patch accepted.",
-    } satisfies ApiResponse<typeof data>);
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.post("/refine-titles", validate({ body: refineTitleSchema }), async (req, res, next) => {
-  try {
-    const data = await directorCommandService.enqueueRefineTitlesCommand(req.body as DirectorCandidateTitleRefineRequest);
-    res.status(202).json({
-      success: true,
-      data,
-      message: "Director title refinement accepted.",
-    } satisfies ApiResponse<typeof data>);
+    const { taskId } = req.params as z.infer<typeof taskParamsSchema>;
+    const data = await snapshotService.getTaskSnapshot(taskId) as DirectorTaskSnapshotResponse;
+    res.status(200).json(accepted(data, "Director task snapshot loaded."));
   } catch (error) {
     next(error);
   }
@@ -274,25 +369,8 @@ router.post("/refine-titles", validate({ body: refineTitleSchema }), async (req,
 
 router.get("/commands/:commandId/result", validate({ params: z.object({ commandId: z.string().trim().min(1) }) }), async (req, res, next) => {
   try {
-    const data = await directorCommandService.getCommandResult((req.params as { commandId: string }).commandId) as DirectorCommandResultResponse;
-    res.status(200).json({
-      success: true,
-      data,
-      message: "Director command result loaded.",
-    } satisfies ApiResponse<typeof data>);
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.post("/confirm", validate({ body: confirmSchema }), async (req, res, next) => {
-  try {
-    const data = await directorCommandService.enqueueConfirmCandidateCommand(req.body as DirectorConfirmRequest);
-    res.status(202).json({
-      success: true,
-      data,
-      message: "Director candidate confirmation accepted.",
-    } satisfies ApiResponse<typeof data>);
+    const data = await commandService.getCommandResult((req.params as { commandId: string }).commandId);
+    res.status(200).json(accepted(data, "Director command result loaded."));
   } catch (error) {
     next(error);
   }
@@ -302,11 +380,7 @@ router.get("/takeover-readiness/:novelId", validate({ params: takeoverParamsSche
   try {
     const { novelId } = req.params as z.infer<typeof takeoverParamsSchema>;
     const data = await novelDirectorService.getTakeoverReadiness(novelId);
-    res.status(200).json({
-      success: true,
-      data,
-      message: "Director takeover readiness loaded.",
-    } satisfies ApiResponse<typeof data>);
+    res.status(200).json(accepted(data, "Director takeover readiness loaded."));
   } catch (error) {
     next(error);
   }
@@ -315,204 +389,40 @@ router.get("/takeover-readiness/:novelId", validate({ params: takeoverParamsSche
 router.get("/book-automation/:novelId", validate({ params: takeoverParamsSchema }), async (req, res, next) => {
   try {
     const { novelId } = req.params as z.infer<typeof takeoverParamsSchema>;
-    const projection = await directorBookAutomationProjectionService.getProjection(novelId);
+    const projection = await projectionService.getProjection(novelId);
     const data: DirectorBookAutomationProjectionResponse = { projection };
-    res.status(200).json({
-      success: true,
-      data,
-      message: "Director book automation projection loaded.",
-    } satisfies ApiResponse<typeof data>);
+    res.status(200).json(accepted(data, "Director book automation projection loaded."));
   } catch (error) {
     next(error);
   }
 });
 
-router.get(
-  "/workspace-analysis/:novelId",
-  validate({ params: takeoverParamsSchema, query: workspaceAnalysisQuerySchema }),
-  async (req, res, next) => {
-    try {
-      const { novelId } = req.params as z.infer<typeof takeoverParamsSchema>;
-      const query = req.query as z.infer<typeof workspaceAnalysisQuerySchema>;
-      if (query.ai === "true") {
-        const data = await directorCommandService.enqueueWorkspaceAnalysisCommand({
-          novelId,
-          workflowTaskId: query.workflowTaskId,
-          includeAiInterpretation: true,
-        });
-        res.status(202).json({
-          success: true,
-          data,
-          message: "Director workspace analysis accepted.",
-        } satisfies ApiResponse<typeof data>);
-        return;
-      }
-      const analysis = await novelDirectorService.analyzeRuntimeWorkspace(novelId, {
-        workflowTaskId: query.workflowTaskId,
-        includeAiInterpretation: false,
-      });
-      const data: DirectorWorkspaceAnalysisResponse = { analysis };
-      res.status(200).json({
-        success: true,
-        data,
-        message: "Director workspace analysis loaded.",
-      } satisfies ApiResponse<typeof data>);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-router.get(
-  "/manual-edit-impact/:novelId",
-  validate({ params: takeoverParamsSchema, query: manualEditImpactQuerySchema }),
-  async (req, res, next) => {
-    try {
-      const { novelId } = req.params as z.infer<typeof takeoverParamsSchema>;
-      const query = req.query as z.infer<typeof manualEditImpactQuerySchema>;
-      if (query.ai !== "false") {
-        const data = await directorCommandService.enqueueManualEditImpactCommand({
-          novelId,
-          workflowTaskId: query.workflowTaskId,
-          chapterId: query.chapterId,
-          includeAiInterpretation: true,
-        });
-        res.status(202).json({
-          success: true,
-          data,
-          message: "Director manual edit impact analysis accepted.",
-        } satisfies ApiResponse<typeof data>);
-        return;
-      }
-      const impact = await novelDirectorService.evaluateManualEditImpact(novelId, {
-        workflowTaskId: query.workflowTaskId,
-        chapterId: query.chapterId,
-        includeAiInterpretation: false,
-      });
-      const data: DirectorManualEditImpactResponse = { impact };
-      res.status(200).json({
-        success: true,
-        data,
-        message: "Director manual edit impact loaded.",
-      } satisfies ApiResponse<typeof data>);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-router.get("/runtime/:taskId", validate({ params: runtimeTaskParamsSchema }), async (req, res, next) => {
+router.get("/workspace-analysis/:novelId", validate({ params: takeoverParamsSchema, query: workspaceAnalysisQuerySchema }), async (req, res, next) => {
   try {
-    const { taskId } = req.params as z.infer<typeof runtimeTaskParamsSchema>;
-    const snapshot = await novelDirectorService.getRuntimeSnapshot(taskId);
-    const projection = novelDirectorService.buildRuntimeProjection(snapshot);
-    const data: DirectorRuntimeSnapshotResponse = { snapshot, projection };
-    res.status(200).json({
-      success: true,
-      data,
-      message: "Director runtime snapshot loaded.",
-    } satisfies ApiResponse<typeof data>);
+    const { novelId } = req.params as z.infer<typeof takeoverParamsSchema>;
+    const query = req.query as z.infer<typeof workspaceAnalysisQuerySchema>;
+    const analysis = await novelDirectorService.analyzeRuntimeWorkspace(novelId, {
+      workflowTaskId: query.workflowTaskId,
+      includeAiInterpretation: query.ai === "true",
+    });
+    const data: DirectorWorkspaceAnalysisResponse = { analysis };
+    res.status(200).json(accepted(data, "Director workspace analysis loaded."));
   } catch (error) {
     next(error);
   }
 });
 
-router.get("/runtime/:taskId/projection", validate({ params: runtimeTaskParamsSchema }), async (req, res, next) => {
+router.get("/manual-edit-impact/:novelId", validate({ params: takeoverParamsSchema, query: manualEditImpactQuerySchema }), async (req, res, next) => {
   try {
-    const { taskId } = req.params as z.infer<typeof runtimeTaskParamsSchema>;
-    const projection = await novelDirectorService.getRuntimeProjection(taskId);
-    const data = { projection };
-    res.status(200).json({
-      success: true,
-      data,
-      message: "Director runtime projection loaded.",
-    } satisfies ApiResponse<typeof data>);
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.get(
-  "/runtime/:taskId/events",
-  validate({ params: runtimeTaskParamsSchema, query: runtimeEventHistoryQuerySchema }),
-  async (req, res, next) => {
-    try {
-      const { taskId } = req.params as z.infer<typeof runtimeTaskParamsSchema>;
-      const query = req.query as z.infer<typeof runtimeEventHistoryQuerySchema>;
-      const data: DirectorRuntimeEventHistoryResponse = await loadPersistentDirectorRuntimeEventHistory(taskId, query.limit);
-      res.status(200).json({
-        success: true,
-        data,
-        message: "Director runtime event history loaded.",
-      } satisfies ApiResponse<typeof data>);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-router.post(
-  "/runtime/:taskId/policy",
-  validate({ params: runtimeTaskParamsSchema, body: runtimePolicySchema }),
-  async (req, res, next) => {
-    try {
-      const { taskId } = req.params as z.infer<typeof runtimeTaskParamsSchema>;
-      const body = req.body as DirectorRuntimePolicyUpdateRequest;
-      const data = await directorCommandService.enqueuePolicyUpdateCommand(taskId, body);
-      res.status(202).json({
-        success: true,
-        data,
-        message: "Director runtime policy update accepted.",
-      } satisfies ApiResponse<typeof data>);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-router.post(
-  "/runtime/:taskId/continue",
-  validate({ params: runtimeTaskParamsSchema, body: runtimeContinueSchema }),
-  async (req, res, next) => {
-    try {
-      const { taskId } = req.params as z.infer<typeof runtimeTaskParamsSchema>;
-      const body = (req.body ?? {}) as RuntimeContinueBody;
-      if (body.mode) {
-        await novelDirectorService.updateRuntimePolicy(taskId, {
-          mode: body.mode,
-          patch: {
-            mayOverwriteUserContent: body.mayOverwriteUserContent,
-            allowExpensiveReview: body.allowExpensiveReview,
-            modelTier: body.modelTier,
-          },
-        });
-      }
-      const enqueue = body.continuationMode === "resume"
-        ? directorCommandService.enqueueApproveGateCommand.bind(directorCommandService)
-        : directorCommandService.enqueueContinueCommand.bind(directorCommandService);
-      const data = await enqueue(taskId, {
-        continuationMode: body.continuationMode,
-        batchAlreadyStartedCount: body.batchAlreadyStartedCount,
-      });
-      res.status(202).json({
-        success: true,
-        data,
-        message: "Director runtime continue accepted.",
-      } satisfies ApiResponse<typeof data>);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-router.post("/takeover", validate({ body: takeoverSchema }), async (req, res, next) => {
-  try {
-    const data = await directorCommandService.enqueueTakeoverCommand(req.body as DirectorTakeoverRequest);
-    res.status(202).json({
-      success: true,
-      data,
-      message: "Director takeover accepted.",
-    } satisfies ApiResponse<typeof data>);
+    const { novelId } = req.params as z.infer<typeof takeoverParamsSchema>;
+    const query = req.query as z.infer<typeof manualEditImpactQuerySchema>;
+    const impact = await novelDirectorService.evaluateManualEditImpact(novelId, {
+      workflowTaskId: query.workflowTaskId,
+      chapterId: query.chapterId,
+      includeAiInterpretation: query.ai !== "false",
+    });
+    const data: DirectorManualEditImpactResponse = { impact };
+    res.status(200).json(accepted(data, "Director manual edit impact loaded."));
   } catch (error) {
     next(error);
   }

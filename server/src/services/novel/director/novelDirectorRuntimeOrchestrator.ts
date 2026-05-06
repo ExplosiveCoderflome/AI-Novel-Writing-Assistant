@@ -14,10 +14,15 @@ import type { DirectorRuntimeService } from "./runtime/DirectorRuntimeService";
 import { buildDefaultDirectorPolicy } from "./runtime/directorRuntimeDefaults";
 import type { NovelDirectorAutoExecutionRuntime } from "./novelDirectorAutoExecutionRuntime";
 import type { DirectorProgressItemKey } from "./novelDirectorProgress";
-import type { WorkflowStepModuleDescriptor } from "./workflowStepRuntime/WorkflowStepModule";
+import {
+  isExecutableWorkflowStepModule,
+  type WorkflowStepModule,
+  type WorkflowStepModuleDescriptor,
+} from "./workflowStepRuntime/WorkflowStepModule";
 import { buildChapterPipelineWorkflowTemplate } from "./workflowStepRuntime/directorWorkflowPlans";
 import { directorWorkflowStepModuleRegistry } from "./workflowStepRuntime/directorWorkflowStepModules";
 import { isInitializationPlaceholderVolumeStrategyArtifact } from "./runtime/DirectorWorkspaceArtifactInventory";
+import { DirectorStateCommitter } from "./DirectorStateCommitter";
 
 export class DirectorRuntimeGateError extends AppError {
   constructor(message: string) {
@@ -28,6 +33,16 @@ export class DirectorRuntimeGateError extends AppError {
 
 export function isDirectorRuntimeGateError(error: unknown): boolean {
   return error instanceof DirectorRuntimeGateError;
+}
+
+function isExecutableModuleContextError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("Director workflow task not found.")
+    || message.includes("Director step module requires persisted director input.")
+    || message.includes("Director step module requires a bound novel.")
+    || message.includes("Director step module requires task context.")
+  );
 }
 
 function filterArtifactsByWrites(
@@ -48,6 +63,8 @@ function filterPolicyAffectedArtifacts(
 }
 
 export class NovelDirectorRuntimeOrchestrator {
+  private readonly stateCommitter = new DirectorStateCommitter();
+
   constructor(private readonly deps: {
     directorRuntime: DirectorRuntimeService;
     workflowService: Pick<NovelWorkflowService, "markTaskRunning" | "markTaskWaitingApproval">;
@@ -211,9 +228,24 @@ export class NovelDirectorRuntimeOrchestrator {
     approveCurrentGate?: boolean;
     approveAutoExecutionScope?: boolean;
     reuseCompletedStep?: boolean;
-    runner: () => Promise<T>;
+    runner?: () => Promise<T>;
     collectArtifacts?: (output: T) => Promise<DirectorArtifactRef[]> | DirectorArtifactRef[];
   }): Promise<T> {
+    if (isExecutableWorkflowStepModule(input.module)) {
+      try {
+        return await this.runExecutableStepModule({
+          ...input,
+          module: input.module,
+        }) as T;
+      } catch (error) {
+        if (!input.runner || !isExecutableModuleContextError(error)) {
+          throw error;
+        }
+      }
+    }
+    if (!input.runner) {
+      throw new Error(`Workflow step module ${input.module.id} requires an explicit runner.`);
+    }
     return this.runNode({
       nodeKey: input.module.nodeKey,
       label: input.module.label,
@@ -234,6 +266,116 @@ export class NovelDirectorRuntimeOrchestrator {
       runner: input.runner,
       collectArtifacts: input.collectArtifacts,
     });
+  }
+
+  private async runExecutableStepModule<TOutput>(input: {
+    module: WorkflowStepModule<unknown, TOutput>;
+    taskId: string;
+    novelId?: string | null;
+    targetType?: DirectorArtifactRef["targetType"] | null;
+    targetId?: string | null;
+    approveCurrentGate?: boolean;
+    approveAutoExecutionScope?: boolean;
+    reuseCompletedStep?: boolean;
+  }): Promise<TOutput> {
+    const context = {
+      taskId: input.taskId,
+      novelId: input.novelId,
+      targetType: input.targetType ?? input.module.targetType,
+      targetId: input.targetId ?? null,
+    };
+    const inspection = input.module.inspect
+      ? await input.module.inspect(context)
+      : { status: "ready" as const };
+    if (inspection.status === "completed") {
+      return undefined as TOutput;
+    }
+    if (inspection.status === "blocked") {
+      const reason = inspection.reason || input.module.defaultWaitingState?.itemLabel || "当前导演步骤需要补齐上游条件。";
+      if (input.module.defaultWaitingState) {
+        await this.deps.workflowService.markTaskWaitingApproval(input.taskId, {
+          stage: input.module.defaultWaitingState.stage,
+          itemKey: input.module.defaultWaitingState.itemKey ?? input.module.nodeKey,
+          itemLabel: input.module.defaultWaitingState.itemLabel ?? reason,
+          progress: input.module.defaultWaitingState.progress,
+          checkpointSummary: reason,
+        });
+      }
+      await this.stateCommitter.markRuntimeWaitingGate({
+        runtimeId: null,
+        taskId: input.taskId,
+        novelId: input.novelId,
+        message: reason,
+      });
+      throw new DirectorRuntimeGateError(reason);
+    }
+
+    const builtInput = input.module.buildInput
+      ? await input.module.buildInput(context)
+      : undefined;
+    const preconditions = input.module.validatePreconditions
+      ? await input.module.validatePreconditions(builtInput, context)
+      : { status: "ready" as const };
+    if (preconditions.status !== "ready") {
+      const reason = preconditions.reason;
+      if (input.module.defaultWaitingState) {
+        await this.deps.workflowService.markTaskWaitingApproval(input.taskId, {
+          stage: input.module.defaultWaitingState.stage,
+          itemKey: input.module.defaultWaitingState.itemKey ?? input.module.nodeKey,
+          itemLabel: input.module.defaultWaitingState.itemLabel ?? reason,
+          progress: input.module.defaultWaitingState.progress,
+          checkpointSummary: reason,
+        });
+      }
+      throw new DirectorRuntimeGateError(reason);
+    }
+
+    const result = await this.runNode<{
+      output: TOutput;
+      producedArtifacts: DirectorArtifactRef[];
+    }>({
+      nodeKey: input.module.nodeKey,
+      label: input.module.label,
+      reads: input.module.reads,
+      writes: input.module.writes,
+      policyAction: input.module.policyAction,
+      mayModifyUserContent: input.module.mayModifyUserContent,
+      requiresApprovalByDefault: input.module.requiresApprovalByDefault,
+      supportsAutoRetry: input.module.supportsAutoRetry,
+      approveCurrentGate: input.approveCurrentGate,
+      approveAutoExecutionScope: input.approveAutoExecutionScope,
+      reuseCompletedStep: input.reuseCompletedStep,
+      targetType: input.targetType ?? input.module.targetType,
+      targetId: input.targetId,
+      waitingState: input.module.defaultWaitingState,
+      taskId: input.taskId,
+      novelId: input.novelId,
+      runner: async () => {
+        const output = await input.module.execute(builtInput, context);
+        const validation = input.module.validateOutput
+          ? await input.module.validateOutput(output, context)
+          : { valid: true };
+        if (!validation.valid) {
+          throw new Error(validation.reason || `${input.module.id} produced an invalid output.`);
+        }
+        const completed = input.module.completeCriteria
+          ? await input.module.completeCriteria(output, context)
+          : true;
+        if (!completed) {
+          throw new Error(`${input.module.id} did not satisfy its completion criteria.`);
+        }
+        const commit = input.module.commit
+          ? await input.module.commit(output, context)
+          : undefined;
+        const producedArtifacts = commit?.producedArtifacts ?? [];
+        return {
+          output,
+          producedArtifacts,
+        };
+      },
+      collectArtifacts: (moduleResult) => moduleResult.producedArtifacts,
+    });
+    return result.output as TOutput;
   }
 
   async runChapterExecutionNode(input: {

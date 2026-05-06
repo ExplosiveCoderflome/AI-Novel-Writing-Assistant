@@ -1,4 +1,9 @@
 import { prisma } from "../../../../db/prisma";
+import {
+  hasDirectorAutoExecutionChapterContract,
+  hasDirectorSyncedChapterExecutionContext,
+  type DirectorAutoExecutionChapterRef,
+} from "../novelDirectorAutoExecution";
 
 export const CHAPTER_EXECUTION_PROGRESS_STAGES = [
   "execution_contract_ready",
@@ -69,6 +74,10 @@ export class ChapterExecutionProgressInspector {
         id: true,
         order: true,
         content: true,
+        conflictLevel: true,
+        revealLevel: true,
+        targetWordCount: true,
+        mustAvoid: true,
         taskSheet: true,
         sceneCards: true,
         expectation: true,
@@ -107,10 +116,14 @@ export class ChapterExecutionProgressInspector {
     };
   }
 
-  inspectChapterRow(chapter: {
+  inspectChapterRow(chapter: DirectorAutoExecutionChapterRef & {
     id: string;
     order: number;
     content: string | null;
+    conflictLevel: number | null;
+    revealLevel: number | null;
+    targetWordCount: number | null;
+    mustAvoid: string | null;
     taskSheet: string | null;
     sceneCards: string | null;
     expectation: string | null;
@@ -123,7 +136,33 @@ export class ChapterExecutionProgressInspector {
     canonicalStateVersions: unknown[];
   }): ChapterExecutionProgress {
     const completed = new Set<ChapterExecutionProgressStage>();
-    const hasExecutionContract = hasText(chapter.taskSheet) || hasText(chapter.sceneCards) || hasText(chapter.expectation);
+    const hasExecutionContext = hasDirectorSyncedChapterExecutionContext({
+      id: chapter.id,
+      order: chapter.order,
+      content: chapter.content,
+      conflictLevel: chapter.conflictLevel,
+      revealLevel: chapter.revealLevel,
+      targetWordCount: chapter.targetWordCount,
+      mustAvoid: chapter.mustAvoid,
+      taskSheet: chapter.taskSheet,
+      sceneCards: chapter.sceneCards,
+      expectation: chapter.expectation,
+      generationState: chapter.generationState,
+      chapterStatus: chapter.chapterStatus,
+    });
+    const hasExecutableContract = hasDirectorAutoExecutionChapterContract({
+      id: chapter.id,
+      order: chapter.order,
+      content: chapter.content,
+      conflictLevel: chapter.conflictLevel,
+      revealLevel: chapter.revealLevel,
+      targetWordCount: chapter.targetWordCount,
+      mustAvoid: chapter.mustAvoid,
+      taskSheet: chapter.taskSheet,
+      sceneCards: chapter.sceneCards,
+      generationState: chapter.generationState,
+      chapterStatus: chapter.chapterStatus,
+    });
     const hasDraft = hasText(chapter.content);
     const hasAudit = chapter.auditReports.length > 0 || chapter.qualityReports.length > 0;
     const hasOpenBlockingIssue = chapter.auditReports.some((report) => report.issues.some((issue) => (
@@ -133,8 +172,8 @@ export class ChapterExecutionProgressInspector {
     const hasStateCommit = chapter.storyStateSnapshots.length > 0 || chapter.canonicalStateVersions.length > 0;
     const isApproved = chapter.generationState === "approved" || chapter.chapterStatus === "completed";
 
-    if (hasExecutionContract) completed.add("execution_contract_ready");
-    if (hasExecutionContract) completed.add("context_package_ready");
+    if (hasExecutionContext) completed.add("execution_contract_ready");
+    if (hasExecutionContext) completed.add("context_package_ready");
     if (hasDraft || chapter.chapterStatus === "generating") completed.add("draft_started");
     if (hasDraft) completed.add("draft_saved");
     if (hasAudit) completed.add("audit_completed");
@@ -176,7 +215,8 @@ export class ChapterExecutionProgressInspector {
       completedStages,
       missingStages,
       evidence: {
-        hasExecutionContract,
+        hasExecutionContract: hasExecutionContext,
+        hasExecutableContract,
         hasDraft,
         hasAudit,
         needsRepair,

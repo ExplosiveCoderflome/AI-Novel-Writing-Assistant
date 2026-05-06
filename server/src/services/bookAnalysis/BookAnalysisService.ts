@@ -17,6 +17,10 @@ class BookAnalysisServiceFacade {
     this.commandService.startWatchdog();
   }
 
+  stopWatchdog(): void {
+    this.commandService.stopWatchdog();
+  }
+
   markPendingAnalysesForManualRecovery(): Promise<void> {
     return this.commandService.markPendingAnalysesForManualRecovery();
   }

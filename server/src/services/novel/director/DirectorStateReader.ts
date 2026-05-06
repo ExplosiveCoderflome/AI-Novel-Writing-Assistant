@@ -12,6 +12,9 @@ export interface DirectorCanonicalState {
     currentItemKey?: string | null;
     currentItemLabel?: string | null;
     progress?: number | null;
+    checkpointType?: string | null;
+    checkpointSummary?: string | null;
+    lastError?: string | null;
     pendingManualRecovery?: boolean | null;
     cancelRequestedAt?: Date | null;
   };
@@ -57,6 +60,9 @@ export class DirectorStateReader {
         currentItemKey: true,
         currentItemLabel: true,
         progress: true,
+        checkpointType: true,
+        checkpointSummary: true,
+        lastError: true,
         pendingManualRecovery: true,
         cancelRequestedAt: true,
         seedPayloadJson: true,
@@ -65,15 +71,10 @@ export class DirectorStateReader {
     if (!task) {
       return null;
     }
-    const [run, runtime, latestCommand, activeStep] = await Promise.all([
+    const [run, latestCommand, activeStep] = await Promise.all([
       prisma.directorRun.findUnique({
         where: { taskId },
         select: { id: true, novelId: true, entrypoint: true },
-      }).catch(() => null),
-      prisma.directorRuntimeInstance.findFirst({
-        where: { workflowTaskId: taskId },
-        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-        select: { id: true, status: true, currentStep: true, runId: true },
       }).catch(() => null),
       prisma.directorRunCommand.findFirst({
         where: { taskId },
@@ -98,11 +99,21 @@ export class DirectorStateReader {
         currentItemKey: task.currentItemKey,
         currentItemLabel: task.currentItemLabel,
         progress: task.progress,
+        checkpointType: task.checkpointType,
+        checkpointSummary: task.checkpointSummary,
+        lastError: task.lastError,
         pendingManualRecovery: task.pendingManualRecovery,
         cancelRequestedAt: task.cancelRequestedAt,
       },
       run,
-      runtime,
+      runtime: run
+        ? {
+          id: run.id,
+          status: task.status,
+          currentStep: activeStep?.nodeKey ?? task.currentItemKey ?? null,
+          runId: run.id,
+        }
+        : null,
       latestCommand,
       activeStep,
       seedPayload: parseSeedPayload<DirectorWorkflowSeedPayload>(task.seedPayloadJson) ?? {},

@@ -10,7 +10,7 @@ import { prisma } from "../../../db/prisma";
 import { buildDefaultDirectorPolicy } from "./runtime/directorRuntimeDefaults";
 import { DirectorEventProjectionService } from "./runtime/DirectorEventProjectionService";
 import { directorUsageTelemetryQueryService } from "./runtime/DirectorUsageTelemetryQueryService";
-import { isDirectorRuntimeTableUnavailable } from "./DirectorRuntimeExecutionService";
+import { isDirectorRuntimeTableUnavailable } from "./DirectorRuntimeExecutionHelpers";
 import { ChapterExecutionProgressInspector } from "./runtime/ChapterExecutionProgressInspector";
 
 function parseJsonOrNull<T>(value: string | null | undefined): T | null {
