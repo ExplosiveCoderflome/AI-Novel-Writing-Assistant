@@ -11,27 +11,27 @@ import type { NovelVolumeService } from "../volume/NovelVolumeService";
 import type { NovelWorkflowService } from "../workflow/NovelWorkflowService";
 import {
   buildNovelEditResumeTarget,
-  parseSeedPayload,
   parseResumeTarget,
+  parseSeedPayload,
 } from "../workflow/novelWorkflow.shared";
 import { normalizeDirectorMemoryScope } from "./autoDirectorMemorySafety";
 import { DirectorRecoveryNotNeededError } from "./novelDirectorErrors";
 import {
+  applyDirectorRunModeContract,
   buildDirectorSessionState,
   getDirectorInputFromSeedPayload,
-  applyDirectorRunModeContract,
   normalizeDirectorRunMode,
   type DirectorWorkflowSeedPayload,
 } from "./novelDirectorHelpers";
-import { resolveAssetFirstRecoveryFromSnapshot, resolveObservedResumePhaseFromWorkspace } from "./novelDirectorRecovery";
+import { resolveAssetFirstRecoveryFromSnapshot } from "./novelDirectorRecovery";
 import {
   loadDirectorTakeoverState,
   resolveDirectorRunningStateForPhase,
 } from "./novelDirectorTakeoverRuntime";
-import type { DirectorRuntimeService } from "./runtime/DirectorRuntimeService";
 import type { NovelDirectorCandidateRuntime } from "./novelDirectorCandidateRuntime";
 import type { DirectorPipelineRunInput, NovelDirectorPipelineRuntime } from "./novelDirectorPipelineRuntime";
 import type { NovelDirectorRuntimeOrchestrator } from "./novelDirectorRuntimeOrchestrator";
+import type { DirectorRuntimeService } from "./runtime/DirectorRuntimeService";
 
 export type DirectorAssetFirstRecovery =
   | {
@@ -40,7 +40,7 @@ export type DirectorAssetFirstRecovery =
   }
   | {
     type: "phase";
-    phase: "structured_outline";
+    phase: "story_macro" | "book_contract" | "character_setup" | "volume_strategy" | "structured_outline";
   }
   | null;
 
@@ -161,8 +161,8 @@ export class NovelDirectorContinueRuntime {
       taskId,
       novelId,
       summary: row.pendingManualRecovery
-        ? "用户确认后，自动导演从待手动恢复状态继续。"
-        : "自动导演按当前任务状态继续运行。",
+        ? "用户确认后，自动导演从待恢复状态继续。"
+        : "自动导演按当前工作区内容重新判断后继续运行。",
       reason: row.pendingManualRecovery ? "manual_recovery_confirmed" : "continue_requested",
     });
     const resumedCandidateStage = await this.continueCandidateStageTask(taskId, {
@@ -178,6 +178,7 @@ export class NovelDirectorContinueRuntime {
     if (!directorInput || !novelId) {
       throw new Error("自动导演任务缺少恢复所需上下文。");
     }
+
     const requestedAutoExecutionContinue = (
       input?.continuationMode === "auto_execute_range"
       || input?.continuationMode === "auto_execute_front10"
@@ -195,8 +196,6 @@ export class NovelDirectorContinueRuntime {
       novelId,
       directorInput: effectiveDirectorInput,
     });
-    const shouldResumeStoredBatchCheckpoint = isDirectorAutoExecutionRunMode(runMode)
-      && (row.checkpointType === "chapter_batch_ready" || row.checkpointType === "replan_required");
     const canSkipReviewBlockedChapter = (
       row.status === "failed"
       || row.status === "cancelled"
@@ -206,17 +205,8 @@ export class NovelDirectorContinueRuntime {
     );
     const approveCurrentGate = input?.continuationMode === "resume" || isFullBookAutopilot;
     const approveAutoExecutionGate = approveCurrentGate || requestedAutoExecutionContinue;
-    if (
-      assetFirstRecovery?.type === "auto_execution"
-      || shouldResumeStoredBatchCheckpoint
-    ) {
-      const resumeCheckpointType = assetFirstRecovery?.type === "auto_execution"
-        ? assetFirstRecovery.resumeCheckpointType
-        : (
-          row.checkpointType === "chapter_batch_ready" || row.checkpointType === "replan_required"
-            ? row.checkpointType
-            : "front10_ready"
-        );
+
+    if (assetFirstRecovery?.type === "auto_execution") {
       const resumedChapterId = (
         parseResumeTargetLike(row.resumeTargetJson)?.chapterId
         ?? parseResumeTargetLike(seedPayload.resumeTarget)?.chapterId
@@ -224,13 +214,14 @@ export class NovelDirectorContinueRuntime {
         ?? null
       );
       await this.deps.workflowService.markTaskRunning(taskId, {
-        stage: resumeCheckpointType === "replan_required" ? "quality_repair" : "chapter_execution",
-        itemKey: resumeCheckpointType === "replan_required" ? "quality_repair" : "chapter_execution",
-        itemLabel: resumeCheckpointType === "replan_required"
-          ? "正在恢复当前质量修复批次"
-          : "正在恢复当前章节批次",
-        progress: resumeCheckpointType === "replan_required" ? 0.975 : 0.93,
-        clearCheckpoint: resumeCheckpointType === "chapter_batch_ready" || resumeCheckpointType === "replan_required",
+        stage: assetFirstRecovery.resumeCheckpointType === "replan_required" ? "quality_repair" : "chapter_execution",
+        itemKey: assetFirstRecovery.resumeCheckpointType === "replan_required" ? "quality_repair" : "chapter_execution",
+        itemLabel: assetFirstRecovery.resumeCheckpointType === "replan_required"
+          ? "正在根据当前内容恢复质量修复"
+          : "正在根据当前内容恢复章节执行",
+        progress: assetFirstRecovery.resumeCheckpointType === "replan_required" ? 0.975 : 0.93,
+        clearCheckpoint: assetFirstRecovery.resumeCheckpointType === "chapter_batch_ready"
+          || assetFirstRecovery.resumeCheckpointType === "replan_required",
         seedPayload: this.deps.buildDirectorSeedPayload(effectiveDirectorInput, novelId, {
           directorSession: buildDirectorSessionState({
             runMode: effectiveDirectorInput.runMode,
@@ -253,7 +244,7 @@ export class NovelDirectorContinueRuntime {
           request: effectiveDirectorInput,
           existingPipelineJobId: seedPayload.autoExecution?.pipelineJobId ?? null,
           existingState: seedPayload.autoExecution ?? null,
-          resumeCheckpointType,
+          resumeCheckpointType: assetFirstRecovery.resumeCheckpointType,
           previousFailureMessage: row.lastError ?? null,
           allowSkipReviewBlockedChapter: canSkipReviewBlockedChapter,
           approveCurrentGate: approveAutoExecutionGate,
@@ -265,15 +256,11 @@ export class NovelDirectorContinueRuntime {
 
     const phase = assetFirstRecovery?.type === "phase"
       ? assetFirstRecovery.phase
-      : await this.resolveResumePhase({
-        novelId,
-        checkpointType: row.checkpointType,
-        directorSessionPhase: seedPayload.directorSession?.phase,
-      });
-
+      : await this.resolveResumePhase({ novelId });
+    const directorSessionPhase = phase === "book_contract" ? "story_macro" : phase;
     const directorSession = buildDirectorSessionState({
       runMode: effectiveDirectorInput.runMode,
-      phase,
+      phase: directorSessionPhase,
       isBackgroundRunning: true,
     });
     const recoveryResumeTarget = mergeResumeTargets(
@@ -310,7 +297,7 @@ export class NovelDirectorContinueRuntime {
       }),
     });
     await this.deps.workflowService.markTaskRunning(taskId, {
-      ...resolveDirectorRunningStateForPhase(phase),
+      ...resolveDirectorRunningStateForPhase(phase === "book_contract" ? "story_macro" : phase),
       volumeId: recoveryResumeTarget?.volumeId,
       chapterId: recoveryResumeTarget?.chapterId,
     });
@@ -319,7 +306,7 @@ export class NovelDirectorContinueRuntime {
         taskId,
         novelId,
         input: effectiveDirectorInput,
-        startPhase: phase,
+        startPhase: phase === "book_contract" ? "story_macro" : phase,
         scope: normalizeDirectorMemoryScope({
           volumeId: recoveryResumeTarget?.volumeId,
           chapterId: recoveryResumeTarget?.chapterId,
@@ -333,9 +320,9 @@ export class NovelDirectorContinueRuntime {
   }
 
   private resolveDirectorEditStage(
-    phase: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline" | "front10_ready",
+    phase: "story_macro" | "book_contract" | "character_setup" | "volume_strategy" | "structured_outline" | "front10_ready",
   ): "story_macro" | "character" | "outline" | "structured" | "chapter" {
-    if (phase === "story_macro") {
+    if (phase === "story_macro" || phase === "book_contract") {
       return "story_macro";
     }
     if (phase === "character_setup") {
@@ -365,16 +352,6 @@ export class NovelDirectorContinueRuntime {
       : this.deps.pipelineRuntime.runPipeline(input);
   }
 
-  private async resolveObservedResumePhase(
-    novelId: string,
-  ): Promise<"structured_outline" | null> {
-    const workspace = await this.deps.volumeService.getVolumes(novelId).catch(() => null);
-    return resolveObservedResumePhaseFromWorkspace({
-      hasVolumeWorkspace: Boolean(workspace?.volumes.length),
-      hasVolumeStrategyPlan: Boolean(workspace?.strategyPlan),
-    });
-  }
-
   async resolveAssetFirstRecovery(input: {
     novelId: string;
     directorInput: DirectorConfirmRequest;
@@ -400,55 +377,67 @@ export class NovelDirectorContinueRuntime {
     });
     const structuredOutlineStep = takeoverState.snapshot.structuredOutlineRecoveryStep;
     const latestCheckpointType = takeoverState.latestCheckpoint?.checkpointType ?? null;
-    return resolveAssetFirstRecoveryFromSnapshot({
+    const generatedChapterCount = takeoverState.snapshot.generatedChapterCount ?? 0;
+    const autoExecutionRecovery = resolveAssetFirstRecoveryFromSnapshot({
       runMode: input.directorInput.runMode,
       structuredOutlineRecoveryStep: structuredOutlineStep,
       volumeCount: takeoverState.snapshot.volumeCount,
       hasVolumeStrategyPlan: Boolean(takeoverState.snapshot.hasVolumeStrategyPlan),
       hasActivePipelineJob: Boolean(takeoverState.activePipelineJob),
       hasExecutableRange: Boolean(takeoverState.executableRange),
-      hasAutoExecutionState: Boolean(takeoverState.latestAutoExecutionState?.enabled),
-      latestCheckpointType,
+      hasAutoExecutionState: Boolean(takeoverState.latestAutoExecutionState?.enabled) || generatedChapterCount > 0,
+      latestCheckpointType: (
+        latestCheckpointType === "replan_required"
+        || latestCheckpointType === "chapter_batch_ready"
+      )
+        ? latestCheckpointType
+        : (generatedChapterCount > 0 ? "chapter_batch_ready" : "front10_ready"),
     });
+    if (autoExecutionRecovery) {
+      return autoExecutionRecovery;
+    }
+    return this.resolvePlanningPhaseFromTakeoverState(takeoverState);
   }
 
   private async resolveResumePhase(input: {
     novelId: string;
-    checkpointType: string | null;
-    directorSessionPhase?: "candidate_selection" | "story_macro" | "character_setup" | "volume_strategy" | "structured_outline" | "front10_ready";
-  }): Promise<"story_macro" | "character_setup" | "volume_strategy" | "structured_outline"> {
-    const observedPhase = await this.resolveObservedResumePhase(input.novelId);
-    if (observedPhase) {
-      return observedPhase;
+  }): Promise<"story_macro" | "book_contract" | "character_setup" | "volume_strategy" | "structured_outline"> {
+    const takeoverState = await loadDirectorTakeoverState({
+      novelId: input.novelId,
+      getStoryMacroPlan: (targetNovelId) => this.deps.storyMacroService.getPlan(targetNovelId),
+      getDirectorAssetSnapshot: (targetNovelId) => this.deps.getDirectorAssetSnapshot(targetNovelId),
+      getVolumeWorkspace: (targetNovelId) => this.deps.volumeService.getVolumes(targetNovelId),
+      findActiveAutoDirectorTask: (targetNovelId) => this.deps.workflowService.findActiveTaskByNovelAndLane(targetNovelId, "auto_director"),
+      findLatestAutoDirectorTask: (targetNovelId) => this.deps.workflowService.findLatestVisibleTaskByNovelId(targetNovelId, "auto_director"),
+    });
+    const planningRecovery = this.resolvePlanningPhaseFromTakeoverState(takeoverState);
+    if (planningRecovery?.type === "phase") {
+      return planningRecovery.phase;
     }
-    if (input.checkpointType === "character_setup_required") {
-      const characters = await this.deps.novelContextService.listCharacters(input.novelId);
-      if (characters.length === 0) {
-        return "character_setup";
-      }
-      return "volume_strategy";
+    throw new DirectorRecoveryNotNeededError();
+  }
+
+  private resolvePlanningPhaseFromTakeoverState(
+    input: Awaited<ReturnType<typeof loadDirectorTakeoverState>>,
+  ): DirectorAssetFirstRecovery {
+    if (!input.snapshot.hasStoryMacroPlan) {
+      return { type: "phase", phase: "story_macro" };
     }
-    if (input.checkpointType === "volume_strategy_ready") {
-      return "structured_outline";
+    if (!input.snapshot.hasBookContract) {
+      return { type: "phase", phase: "book_contract" };
     }
-    if (input.checkpointType === "front10_ready") {
-      const assets = await this.deps.getDirectorAssetSnapshot(input.novelId);
-      if (assets.characterCount === 0) {
-        return "character_setup";
-      }
-      if (assets.chapterCount === 0 || assets.firstVolumeChapterCount === 0) {
-        return assets.hasVolumeStrategyPlan ? "structured_outline" : "volume_strategy";
-      }
-      throw new DirectorRecoveryNotNeededError();
+    if (input.snapshot.characterCount === 0) {
+      return { type: "phase", phase: "character_setup" };
     }
-    if (
-      input.directorSessionPhase === "story_macro"
-      || input.directorSessionPhase === "character_setup"
-      || input.directorSessionPhase === "volume_strategy"
-      || input.directorSessionPhase === "structured_outline"
-    ) {
-      return input.directorSessionPhase;
+    if (!input.snapshot.hasVolumeStrategyPlan) {
+      return { type: "phase", phase: "volume_strategy" };
     }
-    throw new Error("当前检查点不支持继续自动导演。");
+    if ((input.snapshot.structuredOutlineChapterOrders?.length ?? 0) === 0 && !input.executableRange) {
+      return { type: "phase", phase: "structured_outline" };
+    }
+    if (!input.executableRange && (input.snapshot.chapterCount ?? 0) === 0) {
+      return { type: "phase", phase: "structured_outline" };
+    }
+    return null;
   }
 }

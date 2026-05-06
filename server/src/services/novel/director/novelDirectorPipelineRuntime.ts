@@ -39,6 +39,7 @@ import {
   getDirectorExecutionContractSyncStepModule,
   getDirectorPlanningStepModule,
 } from "./workflowStepRuntime/directorWorkflowStepModules";
+import type { WorkflowStepModuleDescriptor } from "./workflowStepRuntime/WorkflowStepModule";
 import type { DirectorPipelinePhase } from "./novelDirectorRecovery";
 
 export interface DirectorPipelineRunInput {
@@ -84,63 +85,122 @@ export class NovelDirectorPipelineRuntime {
       novelId: input.novelId,
       requestedPhase: input.startPhase,
     });
+    const sequence: DirectorPipelinePhase[] = [
+      "story_macro",
+      "book_contract",
+      "character_setup",
+      "volume_strategy",
+      "structured_outline",
+    ];
+    const startIndex = Math.max(0, sequence.indexOf(safeStartPhase));
     const approval = this.resolveRuntimeApproval(input);
+    const bookContractApproval = approval;
+    for (const phase of sequence.slice(startIndex)) {
+      if (phase === "story_macro") {
+        const storyMacroModule = getDirectorPlanningStepModule("story_macro");
+        if (!(await this.isModuleCompleted(storyMacroModule, input))) {
+          await this.deps.runtimeOrchestrator.runStepModule({
+            module: storyMacroModule,
+            taskId: input.taskId,
+            novelId: input.novelId,
+            targetId: input.novelId,
+            approveCurrentGate: approval.approveCurrentGate,
+            approveAutoExecutionScope: approval.approveAutoExecutionScope,
+          });
+        }
+        continue;
+      }
 
-    if (safeStartPhase === "story_macro") {
-      const module = getDirectorPlanningStepModule("story_macro");
-      await this.deps.runtimeOrchestrator.runStepModule({
-        module,
-        taskId: input.taskId,
-        novelId: input.novelId,
-        targetId: input.novelId,
-        approveCurrentGate: approval.approveCurrentGate,
-        approveAutoExecutionScope: approval.approveAutoExecutionScope,
-      });
-    }
+      if (phase === "book_contract") {
+        const bookContractModule = getDirectorPlanningStepModule("book_contract");
+        if (!(await this.isModuleCompleted(bookContractModule, input))) {
+          await this.deps.runtimeOrchestrator.runStepModule({
+            module: bookContractModule,
+            taskId: input.taskId,
+            novelId: input.novelId,
+            targetId: input.novelId,
+            approveCurrentGate: bookContractApproval.approveCurrentGate,
+            approveAutoExecutionScope: bookContractApproval.approveAutoExecutionScope,
+          });
+        }
+        continue;
+      }
 
-    if (safeStartPhase === "story_macro" || safeStartPhase === "book_contract") {
-      const module = getDirectorPlanningStepModule("book_contract");
-      await this.deps.runtimeOrchestrator.runStepModule({
-        module,
-        taskId: input.taskId,
-        novelId: input.novelId,
-        targetId: input.novelId,
-        approveCurrentGate: approval.approveCurrentGate,
-        approveAutoExecutionScope: approval.approveAutoExecutionScope,
-      });
-    }
+      if (phase === "character_setup") {
+        const module = getDirectorPlanningStepModule("character_setup");
+        if (await this.isModuleCompleted(module, input)) {
+          continue;
+        }
+        const paused = await this.deps.runtimeOrchestrator.runStepModule({
+          module,
+          taskId: input.taskId,
+          novelId: input.novelId,
+          targetId: input.novelId,
+          approveCurrentGate: approval.approveCurrentGate,
+          approveAutoExecutionScope: approval.approveAutoExecutionScope,
+        });
+        if (paused) {
+          return;
+        }
+        continue;
+      }
 
-    if (
-      safeStartPhase === "story_macro"
-      || safeStartPhase === "book_contract"
-      || safeStartPhase === "character_setup"
-    ) {
-      const module = getDirectorPlanningStepModule("character_setup");
-      const paused = await this.deps.runtimeOrchestrator.runStepModule({
-        module,
-        taskId: input.taskId,
-        novelId: input.novelId,
-        targetId: input.novelId,
-        approveCurrentGate: approval.approveCurrentGate,
-        approveAutoExecutionScope: approval.approveAutoExecutionScope,
-        runner: () => this.runCharacterSetupPhase(input.taskId, input.novelId, input.input),
-      });
-      if (paused) {
+      if (phase === "volume_strategy") {
+        const module = getDirectorPlanningStepModule("volume_strategy");
+        if (await this.isModuleCompleted(module, input)) {
+          continue;
+        }
+        const volumeApproval = this.resolveRuntimeApproval(input, "volume_strategy_ready");
+        const paused = await this.deps.runtimeOrchestrator.runStepModule({
+          module,
+          taskId: input.taskId,
+          novelId: input.novelId,
+          targetId: input.novelId,
+          approveCurrentGate: volumeApproval.approveCurrentGate,
+          approveAutoExecutionScope: volumeApproval.approveAutoExecutionScope,
+        });
+        if (paused === null) {
+          return;
+        }
+        continue;
+      }
+
+      const currentWorkspace = await this.loadVolumeWorkspaceForOutline(input.novelId);
+      if (!currentWorkspace) {
         return;
       }
-    }
-
-    if (
-      safeStartPhase === "story_macro"
-      || safeStartPhase === "book_contract"
-      || safeStartPhase === "character_setup"
-      || safeStartPhase === "volume_strategy"
-    ) {
-      await this.runVolumeAndOutline(input);
+      await this.assertOutlineStartAllowed(input, currentWorkspace);
+      await this.runStructuredOutlineNode(input, currentWorkspace);
+      await this.runExecutionContractSyncNode(input);
+      await this.maybeRunAutoApprovedChapters(input);
       return;
     }
+  }
 
-    await this.runOutlineFromCurrentWorkspace(input);
+  private async isModuleCompleted(
+    module: WorkflowStepModuleDescriptor,
+    input: Pick<DirectorPipelineRunInput, "taskId" | "novelId">,
+  ): Promise<boolean> {
+    if (module.id === "story.macro.plan") {
+      const plan = await this.deps.storyMacroService.getPlan(input.novelId).catch(() => null);
+      return Boolean(
+        plan
+        && typeof plan.storyInput === "string"
+        && plan.storyInput.trim()
+        && plan.decomposition,
+      );
+    }
+    if (module.id === "book.contract.create") {
+      return Boolean(await this.deps.bookContractService.getByNovelId(input.novelId).catch(() => null));
+    }
+    if (module.id === "character.cast.prepare") {
+      return (await this.deps.novelContextService.listCharacters(input.novelId).catch(() => [])).length > 0;
+    }
+    if (module.id === "volume.strategy.plan") {
+      const workspace = await this.deps.volumeService.getVolumes(input.novelId).catch(() => null);
+      return Boolean(workspace?.strategyPlan) && (workspace?.volumes.length ?? 0) > 0;
+    }
+    return false;
   }
 
   private async runVolumeAndOutline(input: DirectorPipelineRunInput): Promise<void> {
@@ -356,6 +416,22 @@ export class NovelDirectorPipelineRuntime {
         ),
       },
     });
+  }
+
+  async executeCharacterSetupStep(
+    taskId: string,
+    novelId: string,
+    input: DirectorConfirmRequest,
+  ): Promise<boolean> {
+    return this.runCharacterSetupPhase(taskId, novelId, input);
+  }
+
+  async executeVolumeStrategyStep(
+    taskId: string,
+    novelId: string,
+    input: DirectorConfirmRequest,
+  ): Promise<VolumePlanDocument | null> {
+    return this.runVolumeStrategyPhase(taskId, novelId, input);
   }
 
   private async findReusableDirectorCharacterCastOption(targetNovelId: string): Promise<CharacterCastOption | null> {

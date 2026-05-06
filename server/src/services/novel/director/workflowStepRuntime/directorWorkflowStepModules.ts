@@ -316,6 +316,165 @@ function createBookContractExecutableModule(
   );
 }
 
+function createCharacterSetupExecutableModule(
+  descriptor: WorkflowStepModuleDescriptor,
+): WorkflowStepModule<{ taskId: string; novelId: string; request: DirectorConfirmRequest }, boolean> {
+  return createWorkflowStepModule(
+    descriptor,
+    async (input) => getDirectorCoreStepRuntime().executeCharacterSetupStep(input),
+    {
+      inspect: async (context) => {
+        const { novelId } = await loadDirectorModuleState(context);
+        const characterCount = (await getDirectorCoreStepRuntime().getCharacters(novelId)).length;
+        if (characterCount > 0) {
+          return { status: "completed", evidence: { artifactType: "character_cast", characterCount } };
+        }
+        const plan = await getDirectorCoreStepRuntime().getStoryMacroPlan(novelId);
+        const contract = await getDirectorCoreStepRuntime().getBookContract(novelId);
+        if (!plan?.decomposition || !contract) {
+          return {
+            status: "blocked",
+            reason: "Story macro and book contract are required before character setup.",
+            evidence: {
+              hasStoryMacro: Boolean(plan?.decomposition),
+              hasBookContract: Boolean(contract),
+            },
+          };
+        }
+        return { status: "ready", evidence: { artifactType: "character_cast" } };
+      },
+      buildInput: async (context) => {
+        const { novelId, request } = await loadDirectorModuleState(context);
+        return {
+          taskId: context.taskId?.trim() ?? "",
+          novelId,
+          request,
+        };
+      },
+      commit: async (_output, context) => {
+        const { state, novelId } = await loadDirectorModuleState(context);
+        const producedArtifacts = await getDirectorCoreStepRuntime().collectWrittenArtifacts(
+          novelId,
+          state.task.id,
+          descriptor.writes,
+        );
+        await getDirectorCoreStateCommitter().recordArtifactsIndexed({
+          taskId: state.task.id,
+          novelId,
+          runtimeId: state.runtime?.id ?? null,
+          nodeKey: descriptor.nodeKey,
+          artifacts: producedArtifacts,
+        });
+        return { producedArtifacts };
+      },
+      inspectProgress: async (context) => {
+        const { novelId } = await loadDirectorModuleState(context);
+        const characterCount = (await getDirectorCoreStepRuntime().getCharacters(novelId)).length;
+        return characterCount > 0
+          ? buildSimpleProgress({
+            status: "completed",
+            ratio: 1,
+            label: "角色准备已完成",
+            evidence: { artifactType: "character_cast", characterCount },
+          })
+          : buildSimpleProgress({
+            status: "not_started",
+            ratio: 0,
+            label: "等待补齐角色阵容",
+            nextAction: "run_character_setup",
+          });
+      },
+      recover: async (_context) => ({
+        recoverable: true,
+        resumeFrom: "character_setup",
+        reason: "Character setup can resume from the current workspace.",
+      }),
+      completeCriteria: async () => true,
+    },
+  );
+}
+
+function createVolumeStrategyExecutableModule(
+  descriptor: WorkflowStepModuleDescriptor,
+): WorkflowStepModule<{ taskId: string; novelId: string; request: DirectorConfirmRequest }, VolumePlanDocument | null> {
+  return createWorkflowStepModule(
+    descriptor,
+    async (input) => getDirectorCoreStepRuntime().executeVolumeStrategyStep(input),
+    {
+      inspect: async (context) => {
+        const { novelId } = await loadDirectorModuleState(context);
+        const workspace = await getDirectorCoreStepRuntime().getVolumeWorkspace(novelId);
+        if (workspace?.strategyPlan && workspace.volumes.length > 0) {
+          return {
+            status: "completed",
+            evidence: { artifactType: "volume_strategy", volumeCount: workspace.volumes.length },
+          };
+        }
+        const characterCount = (await getDirectorCoreStepRuntime().getCharacters(novelId)).length;
+        if (characterCount === 0) {
+          return {
+            status: "blocked",
+            reason: "Character setup is required before volume strategy.",
+            evidence: { characterCount },
+          };
+        }
+        return { status: "ready", evidence: { artifactType: "volume_strategy" } };
+      },
+      buildInput: async (context) => {
+        const { novelId, request } = await loadDirectorModuleState(context);
+        return {
+          taskId: context.taskId?.trim() ?? "",
+          novelId,
+          request,
+        };
+      },
+      commit: async (_output, context) => {
+        const { state, novelId } = await loadDirectorModuleState(context);
+        const producedArtifacts = await getDirectorCoreStepRuntime().collectWrittenArtifacts(
+          novelId,
+          state.task.id,
+          descriptor.writes,
+        );
+        await getDirectorCoreStateCommitter().recordArtifactsIndexed({
+          taskId: state.task.id,
+          novelId,
+          runtimeId: state.runtime?.id ?? null,
+          nodeKey: descriptor.nodeKey,
+          artifacts: producedArtifacts,
+        });
+        return { producedArtifacts };
+      },
+      inspectProgress: async (context) => {
+        const { novelId } = await loadDirectorModuleState(context);
+        const workspace = await getDirectorCoreStepRuntime().getVolumeWorkspace(novelId);
+        return workspace?.strategyPlan && workspace.volumes.length > 0
+          ? buildSimpleProgress({
+            status: "completed",
+            ratio: 1,
+            label: "分卷策略已完成",
+            evidence: { artifactType: "volume_strategy", volumeCount: workspace.volumes.length },
+          })
+          : buildSimpleProgress({
+            status: "not_started",
+            ratio: 0,
+            label: "等待生成分卷策略",
+            nextAction: "run_volume_strategy",
+          });
+      },
+      recover: async (_context) => ({
+        recoverable: true,
+        resumeFrom: "volume_strategy",
+        reason: "Volume strategy can resume from the current workspace.",
+      }),
+      completeCriteria: async (_output, context) => {
+        const { novelId } = await loadDirectorModuleState(context);
+        const workspace = await getDirectorCoreStepRuntime().getVolumeWorkspace(novelId);
+        return Boolean(workspace?.strategyPlan) && (workspace?.volumes.length ?? 0) > 0;
+      },
+    },
+  );
+}
+
 function createStructuredOutlineExecutableModule(
   descriptor: WorkflowStepModuleDescriptor,
 ): WorkflowStepModule<{ taskId: string; novelId: string; request: DirectorConfirmRequest; baseWorkspace: VolumePlanDocument }, void> {
@@ -736,16 +895,16 @@ export const DIRECTOR_PLANNING_STEP_MODULES: Record<
     stage: "story_macro",
     adapter: getDirectorStageNodeAdapter("book_contract"),
   })),
-  character_setup: createWorkflowStepDescriptorFromDirectorAdapter({
+  character_setup: createCharacterSetupExecutableModule(createWorkflowStepDescriptorFromDirectorAdapter({
     id: DIRECTOR_PLANNING_STEP_IDS.character_setup,
     stage: "character_setup",
     adapter: getDirectorStageNodeAdapter("character_setup"),
-  }),
-  volume_strategy: createWorkflowStepDescriptorFromDirectorAdapter({
+  })),
+  volume_strategy: createVolumeStrategyExecutableModule(createWorkflowStepDescriptorFromDirectorAdapter({
     id: DIRECTOR_PLANNING_STEP_IDS.volume_strategy,
     stage: "volume_strategy",
     adapter: getDirectorStageNodeAdapter("volume_strategy"),
-  }),
+  })),
   structured_outline: createStructuredOutlineExecutableModule(createWorkflowStepDescriptorFromDirectorAdapter({
     id: DIRECTOR_PLANNING_STEP_IDS.structured_outline,
     stage: "structured_outline",

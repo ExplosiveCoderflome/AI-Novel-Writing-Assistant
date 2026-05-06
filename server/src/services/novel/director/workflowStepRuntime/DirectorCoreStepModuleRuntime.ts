@@ -161,6 +161,22 @@ export class DirectorCoreStepModuleRuntime {
     await this.pipelineRuntime.executeBookContractStep(input.taskId, input.novelId, input.request);
   }
 
+  async executeCharacterSetupStep(input: {
+    taskId: string;
+    novelId: string;
+    request: DirectorConfirmRequest;
+  }): Promise<boolean> {
+    return this.pipelineRuntime.executeCharacterSetupStep(input.taskId, input.novelId, input.request);
+  }
+
+  async executeVolumeStrategyStep(input: {
+    taskId: string;
+    novelId: string;
+    request: DirectorConfirmRequest;
+  }): Promise<VolumePlanDocument | null> {
+    return this.pipelineRuntime.executeVolumeStrategyStep(input.taskId, input.novelId, input.request);
+  }
+
   async executeStructuredOutlineStep(input: {
     taskId: string;
     novelId: string;

@@ -68,18 +68,6 @@ export class DirectorNodeRunner {
         targetId: input.targetId,
       })
       : null;
-    const shouldReuseCompletedStep = input.reuseCompletedStep !== false;
-    const completedStep = shouldReuseCompletedStep && idempotencyKey
-      ? snapshot?.steps.find((step) => step.idempotencyKey === idempotencyKey && step.status === "succeeded")
-      : null;
-    if (completedStep) {
-      return {
-        status: "completed",
-        runtimeSnapshot: snapshot,
-        producedArtifacts: completedStep.producedArtifacts ?? [],
-        reason: "该导演节点已成功完成，本次复用已有运行记录。",
-      };
-    }
     const policyDecision = this.policyEngine.decide({
       reads: contract.reads,
       writes: contract.writes,
