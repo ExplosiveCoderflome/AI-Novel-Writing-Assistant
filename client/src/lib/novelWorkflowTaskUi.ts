@@ -9,6 +9,7 @@ type WorkflowTaskLike = {
   status: TaskStatus;
   checkpointType?: NovelWorkflowCheckpoint | null;
   executionScopeLabel?: string | null;
+  pendingManualRecovery?: boolean | null;
 };
 
 export const LIVE_TASK_STATUSES = new Set<TaskStatus>(["queued", "running", "waiting_approval"]);
@@ -159,6 +160,18 @@ export function canContinueDirector(task?: NovelAutoDirectorTaskSummary | null):
       && task.checkpointType !== "candidate_selection_required"
       && task.checkpointType !== "front10_ready",
   );
+}
+
+export function canCancelDirectorTask(
+  task?: Pick<WorkflowTaskLike, "status" | "pendingManualRecovery"> | null,
+): boolean {
+  if (!task) {
+    return false;
+  }
+  if (task.pendingManualRecovery) {
+    return true;
+  }
+  return task.status === "queued" || task.status === "running" || task.status === "waiting_approval";
 }
 
 export function requiresCandidateSelection(task?: Pick<WorkflowTaskLike, "status" | "checkpointType"> | null): boolean {

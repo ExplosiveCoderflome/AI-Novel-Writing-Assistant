@@ -45,8 +45,8 @@ test("director workflow step registry exposes unified step modules", () => {
   assert.deepEqual(novelCreateModule.writes, ["novel_project", "director_runtime"]);
 
   const outlineModule = getDirectorPlanningStepModule("structured_outline");
-  assert.equal(outlineModule.id, "chapter.task_sheet.plan");
-  assert.equal(outlineModule.nodeKey, "structured_outline_phase");
+  assert.equal(outlineModule.id, "volume.beat_sheet.generate");
+  assert.equal(outlineModule.nodeKey, "volume_beat_sheet_generate");
   assert.deepEqual(outlineModule.writes, ["chapter_task_sheet"]);
 
   const takeoverModule = getDirectorTakeoverStepModule();
@@ -117,11 +117,15 @@ test("planning workflow plan can start from any director planning phase", () => 
   assert.equal(plan.source, "auto_director");
   assert.deepEqual(plan.steps.map((step) => step.stepId), [
     "volume.strategy.plan",
-    "chapter.task_sheet.plan",
+    "volume.beat_sheet.generate",
+    "volume.chapter_list.generate",
+    "volume.chapter_detail_bundle.generate",
     "chapter.execution_contract.sync",
   ]);
   assert.deepEqual(plan.steps[1].dependsOn, ["volume.strategy.plan"]);
-  assert.deepEqual(plan.steps[2].dependsOn, ["chapter.task_sheet.plan"]);
+  assert.deepEqual(plan.steps[2].dependsOn, ["volume.beat_sheet.generate"]);
+  assert.deepEqual(plan.steps[3].dependsOn, ["volume.chapter_list.generate"]);
+  assert.deepEqual(plan.steps[4].dependsOn, ["volume.chapter_detail_bundle.generate"]);
 });
 
 test("planning workflow keeps story macro and book contract as separate write nodes", () => {
@@ -132,32 +136,42 @@ test("planning workflow keeps story macro and book contract as separate write no
     "book.contract.create",
     "character.cast.prepare",
     "volume.strategy.plan",
-    "chapter.task_sheet.plan",
+    "volume.beat_sheet.generate",
+    "volume.chapter_list.generate",
+    "volume.chapter_detail_bundle.generate",
     "chapter.execution_contract.sync",
   ]);
   assert.deepEqual(plan.steps[1].writes, ["book_contract"]);
   assert.deepEqual(plan.steps[1].dependsOn, ["story.macro.plan"]);
 });
 
-test("workflow step module exposes inspect, input, progress, recovery and commit hooks", async () => {
+test("workflow step module exposes fact inspection, input, progress, recovery and commit hooks", async () => {
   const descriptor = getDirectorPlanningStepModule("book_contract");
   const module = createWorkflowStepModule(descriptor, async (input) => ({
     contract: input.seed,
   }), {
-    inspect: async (context) => ({
+    inspectReadiness: async (context) => ({
       ready: Boolean(context.novelId),
-      reasons: [],
-      evidence: [{ type: "novel", id: context.novelId }],
+      blockers: [],
+      evidence: { novelId: context.novelId },
+      resumeFrom: null,
+    }),
+    inspectCompletion: async (context) => ({
+      stepId: descriptor.id,
+      completed: Boolean(context.novelId),
+      completenessRatio: context.novelId ? 1 : 0,
+      evidence: { novelId: context.novelId },
+      producedArtifacts: [],
     }),
     buildInput: async (context) => ({
       seed: context.novelId,
     }),
     validateOutput: async (output) => ({
       valid: Boolean(output.contract),
-      errors: [],
     }),
     commit: async (output) => ({
-      artifacts: [{ type: "book_contract", id: output.contract }],
+      producedArtifacts: [],
+      summary: output.contract,
     }),
     inspectProgress: async () => ({
       status: "completed",
@@ -165,37 +179,58 @@ test("workflow step module exposes inspect, input, progress, recovery and commit
       total: 1,
       ratio: 1,
       label: "complete",
-      evidence: [{ type: "artifact", id: "book_contract" }],
+      evidence: { artifactType: "book_contract" },
       nextAction: null,
     }),
     recover: async () => ({
       recoverable: true,
       reason: null,
-      nextAction: "resume_from_artifact",
+      resumeFrom: "resume_from_artifact",
     }),
-    completeCriteria: {
-      requiredArtifacts: ["book_contract"],
-    },
+    completeCriteria: async () => true,
   });
   const context = { taskId: "task-1", novelId: "novel-1" };
 
   assert.deepEqual(await module.buildInput(context), { seed: "novel-1" });
   assert.deepEqual(await module.execute({ seed: "novel-1" }, context), { contract: "novel-1" });
-  assert.equal((await module.inspect(context)).ready, true);
+  assert.equal((await module.inspectReadiness(context)).ready, true);
+  assert.equal((await module.inspectCompletion(context)).completed, true);
   assert.equal((await module.validateOutput({ contract: "novel-1" }, context)).valid, true);
   assert.deepEqual(await module.commit({ contract: "book-contract-1" }, context), {
-    artifacts: [{ type: "book_contract", id: "book-contract-1" }],
+    producedArtifacts: [],
+    summary: "book-contract-1",
   });
   assert.equal((await module.inspectProgress(context)).status, "completed");
-  assert.equal((await module.recover(context)).nextAction, "resume_from_artifact");
-  assert.deepEqual(module.completeCriteria.requiredArtifacts, ["book_contract"]);
+  assert.equal((await module.recover(context)).resumeFrom, "resume_from_artifact");
+  assert.equal(await module.completeCriteria({ contract: "book-contract-1" }, context), true);
 });
 
 test("workflow step module can be converted back to DirectorNodeRunner contract", async () => {
   const descriptor = getDirectorExecutionStepModule("chapter_quality_review");
   const module = createWorkflowStepModule(descriptor, async (input) => ({
     reviewed: input.chapterId,
-  }));
+  }), {
+    inspectReadiness: async () => ({ ready: true, blockers: [], resumeFrom: null }),
+    inspectCompletion: async () => ({
+      stepId: descriptor.id,
+      completed: false,
+      completenessRatio: 0,
+      producedArtifacts: [],
+    }),
+    buildInput: async (context) => ({ chapterId: context.targetId }),
+    inspectProgress: async () => ({
+      status: "running",
+      current: 0,
+      total: 1,
+      ratio: 0,
+      label: "review",
+      nextAction: "run_quality_review",
+    }),
+    recover: async () => ({
+      recoverable: true,
+      resumeFrom: "chapter.quality.review",
+    }),
+  });
   const contract = workflowStepModuleToDirectorNodeContract(module, {
     taskId: "task-1",
     novelId: "novel-1",

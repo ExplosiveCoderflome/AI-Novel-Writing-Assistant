@@ -284,14 +284,14 @@ export class NovelDirectorRuntimeOrchestrator {
       targetType: input.targetType ?? input.module.targetType,
       targetId: input.targetId ?? null,
     };
-    const inspection = input.module.inspect
-      ? await input.module.inspect(context)
-      : { status: "ready" as const };
-    if (inspection.status === "completed") {
+    const completion = await input.module.inspectCompletion(context);
+    if (completion.completed) {
       return undefined as TOutput;
     }
-    if (inspection.status === "blocked") {
-      const reason = inspection.reason || input.module.defaultWaitingState?.itemLabel || "当前导演步骤需要补齐上游条件。";
+    const readiness = await input.module.inspectReadiness(context);
+    if (!readiness.ready) {
+      const blocker = readiness.blockers[0] ?? null;
+      const reason = blocker?.reason || input.module.defaultWaitingState?.itemLabel || "当前导演步骤需要补齐上游条件。";
       if (input.module.defaultWaitingState) {
         await this.deps.workflowService.markTaskWaitingApproval(input.taskId, {
           stage: input.module.defaultWaitingState.stage,
@@ -310,9 +310,7 @@ export class NovelDirectorRuntimeOrchestrator {
       throw new DirectorRuntimeGateError(reason);
     }
 
-    const builtInput = input.module.buildInput
-      ? await input.module.buildInput(context)
-      : undefined;
+    const builtInput = await input.module.buildInput(context);
     const preconditions = input.module.validatePreconditions
       ? await input.module.validatePreconditions(builtInput, context)
       : { status: "ready" as const };

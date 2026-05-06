@@ -50,9 +50,13 @@ import type {
 } from "@ai-novel/shared/types/characterResource";
 import type { StoryWorldSliceOverrides, StoryWorldSliceView } from "@ai-novel/shared/types/storyWorldSlice";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
+import type { AutoDirectorAction, AutoDirectorFollowUpDetail } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import type {
+  DirectorManualEditImpact,
   DirectorBookAutomationAction,
   DirectorBookAutomationProjection,
+  DirectorRuntimeSnapshot,
+  DirectorTaskSnapshot,
 } from "@ai-novel/shared/types/directorRuntime";
 import type { ChapterExecutionBackgroundActivity } from "./chapterExecution.shared";
 import type { QuickCharacterCreatePayload } from "./characterPanel.utils";
@@ -62,6 +66,7 @@ import type { StructuredSyncOptions } from "../novelEdit.utils";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 import type { ExistingOutlineChapter } from "../volumePlan.utils";
 import type { AITakeoverAction } from "@/components/workflow/AITakeoverContainer";
+import type { LLMSelectorValue } from "@/components/common/LLMSelector";
 import type { SSEFrame } from "@ai-novel/shared/types/api";
 import type { ReactNode } from "react";
 
@@ -514,6 +519,8 @@ export interface NovelTaskDrawerState {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   task: UnifiedTaskDetail | null;
+  snapshot?: DirectorTaskSnapshot | null;
+  runtimeSnapshot?: DirectorRuntimeSnapshot | null;
   projection?: DirectorBookAutomationProjection | null;
   currentUiModel: {
     provider: string;
@@ -528,6 +535,30 @@ export interface NovelTaskDrawerState {
   onRejectResourceProposal?: (proposalId: string) => void;
   confirmingResourceProposalId?: string;
   rejectingResourceProposalId?: string;
+  followUp?: AutoDirectorFollowUpDetail | null;
+  onFollowUpAction?: (action: AutoDirectorAction) => void;
+  executingFollowUpAction?: boolean;
+  runtimeHardBlocked?: boolean;
+  runtimeBlockedReason?: string | null;
+  manualEditImpact?: DirectorManualEditImpact | null;
+  manualEditImpactLoading?: boolean;
+  onInspectManualEditImpact?: () => void;
+  overrideModel?: LLMSelectorValue;
+  onOverrideModelChange?: (value: LLMSelectorValue) => void;
+  onRetryWithOverrideModel?: () => void;
+  retryWithOverrideModelPending?: boolean;
+  canRetryWithOverrideModel?: boolean;
+  onRetryWithTaskModel?: () => void;
+  retryWithTaskModelPending?: boolean;
+  capabilities?: {
+    availableActions: boolean;
+    availableFollowUps: boolean;
+    canAdjustRuntimePolicy: boolean;
+    canInspectManualEditImpact: boolean;
+    canRetryWithOverrideModel: boolean;
+    canCancel: boolean;
+    canArchive: boolean;
+  };
   onOpenFullTaskCenter: () => void;
 }
 

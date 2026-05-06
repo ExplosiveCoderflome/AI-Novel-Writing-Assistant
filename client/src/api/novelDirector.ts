@@ -2,6 +2,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type {
   DirectorBookAutomationProjectionResponse,
   DirectorCommandResultResponse,
+  DirectorTaskFactInspectionResponse,
   DirectorRuntimePolicyUpdateRequest,
   DirectorRuntimeEventHistoryResponse,
   DirectorRuntimeProjection,
@@ -22,8 +23,15 @@ import type {
 } from "@ai-novel/shared/types/novelDirector";
 import { apiClient } from "./client";
 
-async function getDirectorTaskSnapshot(taskId: string) {
+export async function getDirectorTaskSnapshot(taskId: string) {
   const { data } = await apiClient.get<ApiResponse<DirectorTaskSnapshotResponse>>(`/novels/director/tasks/${taskId}`);
+  return data;
+}
+
+export async function getDirectorTaskFactInspection(taskId: string) {
+  const { data } = await apiClient.get<ApiResponse<DirectorTaskFactInspectionResponse>>(
+    `/novels/director/tasks/${taskId}/fact-inspection`,
+  );
   return data;
 }
 

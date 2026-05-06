@@ -1,46 +1,34 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type {
-  AutoDirectorAction,
-  AutoDirectorMutationActionCode,
-} from "@ai-novel/shared/types/autoDirectorFollowUp";
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
 import type { TaskKind, TaskStatus, UnifiedTaskStep } from "@ai-novel/shared/types/task";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { NovelWorkflowMilestone } from "@ai-novel/shared/types/novelWorkflow";
 import { getDirectorRuntimeSnapshot } from "@/api/novelDirector";
 import { continueNovelWorkflow } from "@/api/novelWorkflow";
-import { archiveTask, cancelTask, executeAutoDirectorFollowUpAction, getAutoDirectorFollowUpDetail, getTaskDetail, listTasks, retryTask } from "@/api/tasks";
+import { archiveTask, cancelTask, getTaskDetail, listTasks, retryTask } from "@/api/tasks";
 import { queryKeys } from "@/api/queryKeys";
 import DirectorRuntimeProjectionCard from "@/components/autoDirector/DirectorRuntimeProjectionCard";
-import LLMSelector, { type LLMSelectorValue } from "@/components/common/LLMSelector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
 import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
-import { resolveInternalNavigationTarget } from "@/lib/internalNavigation";
 import { useDirectorChapterTitleRepair } from "@/hooks/useDirectorChapterTitleRepair";
 import { syncKnownTaskCaches } from "@/lib/taskQueryCache";
 import { buildTaskNoticeRoute, isChapterTitleDiversitySummary, parseDirectorTaskNotice, resolveChapterTitleWarning } from "@/lib/directorTaskNotice";
-import { canContinueFront10AutoExecution, getCandidateSelectionLink, requiresCandidateSelection } from "@/lib/novelWorkflowTaskUi";
+import { canCancelDirectorTask, canContinueFront10AutoExecution, getCandidateSelectionLink, requiresCandidateSelection } from "@/lib/novelWorkflowTaskUi";
 import { useLLMStore } from "@/store/llmStore";
 import TaskCenterFilterPanel from "./components/TaskCenterFilterPanel";
 import TaskCenterDetailSummary from "./components/TaskCenterDetailSummary";
 import TaskCenterListPanel from "./components/TaskCenterListPanel";
-import TaskCenterManualEditImpactCard from "./components/TaskCenterManualEditImpactCard";
 import TaskCenterMilestoneHistory from "./components/TaskCenterMilestoneHistory";
-import TaskCenterRuntimePolicyCard from "./components/TaskCenterRuntimePolicyCard";
 import TaskCenterSummaryCards from "./components/TaskCenterSummaryCards";
 import {
   ACTIVE_STATUSES,
   ANOMALY_STATUSES,
   ARCHIVABLE_STATUSES,
-  createIdempotencyKey,
-  followUpActionVariant,
   formatCheckpoint,
-  formatFollowUpPriority,
   formatStatus,
   getTaskListPriority,
   getTimestamp,
@@ -70,11 +58,6 @@ export default function TaskCenterPage() {
   const [keyword, setKeyword] = useState("");
   const [onlyAnomaly, setOnlyAnomaly] = useState(false);
   const [sortMode, setSortMode] = useState<TaskSortMode>("updated_desc");
-  const [retryOverride, setRetryOverride] = useState<LLMSelectorValue>({
-    provider: llm.provider,
-    model: llm.model,
-    temperature: llm.temperature,
-  });
 
   const selectedKind = (searchParams.get("kind") as TaskKind | null) ?? null;
   const selectedId = searchParams.get("id");
@@ -252,7 +235,7 @@ export default function TaskCenterPage() {
           next.set("id", selectedTask.id);
           return next;
         });
-        navigate(selectedTask.sourceRoute);
+        navigate(selectedTask!.sourceRoute);
         return;
       }
       toast.success(feedback.message);
@@ -325,18 +308,6 @@ export default function TaskCenterPage() {
       selectedTask.failureSummary ?? selectedTask.lastError ?? null,
     ),
   );
-  const canRetryWithSelectedModel = Boolean(retryOverride.provider && retryOverride.model.trim());
-  const autoDirectorFollowUpQuery = useQuery({
-    queryKey: queryKeys.tasks.autoDirectorFollowUpDetail(selectedId ?? "none"),
-    queryFn: () => getAutoDirectorFollowUpDetail(selectedId as string),
-    enabled: Boolean(selectedId && isAutoDirectorTask),
-    retry: false,
-    refetchInterval: (query) => {
-      const followUp = query.state.data?.data;
-      return followUp?.task && ACTIVE_STATUSES.has(followUp.task.status) ? 4000 : false;
-    },
-  });
-  const selectedAutoDirectorFollowUp = autoDirectorFollowUpQuery.data?.data ?? null;
   const directorRuntimeQuery = useQuery({
     queryKey: queryKeys.tasks.directorRuntime(selectedId ?? "none"),
     queryFn: () => getDirectorRuntimeSnapshot(selectedId as string),
@@ -353,78 +324,13 @@ export default function TaskCenterPage() {
         : false;
     },
   });
-  const selectedDirectorRuntimeSnapshot = directorRuntimeQuery.data?.data?.snapshot ?? null;
   const selectedDirectorRuntimeProjection = directorRuntimeQuery.data?.data?.projection ?? null;
   const runtimeHardBlocked = selectedDirectorRuntimeProjection?.status === "blocked";
   const runtimeBlockedReason = selectedDirectorRuntimeProjection?.blockedReason?.trim()
     || selectedDirectorRuntimeProjection?.detail?.trim()
     || null;
 
-  useEffect(() => {
-    setRetryOverride({
-      provider: llm.provider,
-      model: llm.model,
-      temperature: llm.temperature,
-    });
-  }, [llm.model, llm.provider, llm.temperature, selectedTask?.id]);
 
-  const executeFollowUpActionMutation = useMutation({
-    mutationFn: (payload: { taskId: string; actionCode: AutoDirectorMutationActionCode }) =>
-      executeAutoDirectorFollowUpAction(payload.taskId, {
-        actionCode: payload.actionCode,
-        idempotencyKey: createIdempotencyKey(payload.taskId, payload.actionCode),
-      }),
-    onSuccess: async (response) => {
-      const result = response.data;
-      if (result?.task) {
-        syncKnownTaskCaches(queryClient, result.task);
-      }
-      await Promise.all([
-        invalidateTaskQueries(),
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.tasks.autoDirectorFollowUpDetail(result?.taskId ?? selectedId ?? "none"),
-        }),
-      ]);
-      if (result?.code === "failed" || result?.code === "forbidden") {
-        toast.error(result.message);
-        return;
-      }
-      toast.success(result?.message ?? "操作已执行");
-    },
-  });
-
-  const handleFollowUpAction = (action: AutoDirectorAction) => {
-    if (!selectedTask) {
-      return;
-    }
-    if (action.kind === "navigation") {
-      const targetUrl = action.targetUrl ?? selectedTask.sourceRoute;
-      const internalTarget = resolveInternalNavigationTarget(targetUrl);
-      if (internalTarget) {
-        navigate(internalTarget);
-        return;
-      }
-      const externalTarget = targetUrl?.trim();
-      if (externalTarget && /^https?:\/\//i.test(externalTarget)) {
-        window.location.assign(externalTarget);
-      }
-      return;
-    }
-    if (runtimeHardBlocked) {
-      toast.error(runtimeBlockedReason ?? "请先处理当前导演停留点。");
-      return;
-    }
-    if (action.requiresConfirm) {
-      const confirmed = window.confirm(`确认执行“${action.label}”？`);
-      if (!confirmed) {
-        return;
-      }
-    }
-    executeFollowUpActionMutation.mutate({
-      taskId: selectedTask.id,
-      actionCode: action.code as AutoDirectorMutationActionCode,
-    });
-  };
 
   return (
     <div className="space-y-4">
@@ -549,84 +455,12 @@ export default function TaskCenterPage() {
                   <DirectorRuntimeProjectionCard projection={selectedDirectorRuntimeProjection} />
                 ) : null}
                 {isAutoDirectorTask ? (
-                  <TaskCenterRuntimePolicyCard taskId={selectedTask.id} snapshot={selectedDirectorRuntimeSnapshot} />
-                ) : null}
-                {isAutoDirectorTask ? (
-                  <TaskCenterManualEditImpactCard task={selectedTask} />
-                ) : null}
-                {selectedAutoDirectorFollowUp ? (
-                  <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="font-medium">当前待处理动作</div>
-                      <Badge variant="outline">{selectedAutoDirectorFollowUp.reasonLabel}</Badge>
-                      <Badge variant={selectedAutoDirectorFollowUp.priority === "P0" ? "destructive" : "secondary"}>
-                        {formatFollowUpPriority(selectedAutoDirectorFollowUp.priority)}
-                      </Badge>
-                    </div>
-                    <div className="mt-2 text-sm text-muted-foreground">
-                      {selectedAutoDirectorFollowUp.followUpSummary}
-                    </div>
-                    {selectedAutoDirectorFollowUp.blockingReason ? (
-                      <div className="mt-2 text-sm text-muted-foreground">
-                        阻塞原因：{selectedAutoDirectorFollowUp.blockingReason}
-                      </div>
-                    ) : null}
-                    {selectedAutoDirectorFollowUp.currentModel ? (
-                      <div className="mt-2 text-sm text-muted-foreground">
-                        当前任务模型：{selectedAutoDirectorFollowUp.currentModel}
-                      </div>
-                    ) : null}
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {selectedAutoDirectorFollowUp.availableActions.map((action) => (
-                        <Button
-                          key={action.code}
-                          size="sm"
-                          variant={followUpActionVariant(action)}
-                          onClick={() => handleFollowUpAction(action)}
-                          disabled={executeFollowUpActionMutation.isPending || (runtimeHardBlocked && action.kind !== "navigation")}
-                        >
-                          {action.label}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-                {(selectedTask.status === "failed" || selectedTask.status === "cancelled") && isAutoDirectorTask ? (
-                  <div className="rounded-md border bg-muted/20 p-3">
-                    <div className="text-xs text-muted-foreground">使用其他模型重试</div>
-                    <div className="mt-2 flex flex-col gap-2">
-                      <LLMSelector
-                        value={retryOverride}
-                        onChange={setRetryOverride}
-                        compact
-                        showBadge={false}
-                        showHelperText={false}
-                      />
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() =>
-                            retryMutation.mutate({
-                              kind: selectedTask.kind,
-                              id: selectedTask.id,
-                              llmOverride: {
-                                provider: retryOverride.provider,
-                                model: retryOverride.model,
-                                temperature: retryOverride.temperature,
-                              },
-                              resume: true,
-                            })
-                          }
-                          disabled={retryMutation.isPending || !canRetryWithSelectedModel}
-                        >
-                          使用所选模型重试
-                        </Button>
-                      </div>
-                    </div>
+                  <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">
+                    继续导演、恢复任务、切换模型、推进策略和改动影响检查，请回到小说页面右侧的执行详情面板处理。这里保留任务记录、状态摘要以及取消、归档、打开来源页等基础操作。
                   </div>
                 ) : null}
                 <div className="flex flex-wrap gap-2">
-                  {!selectedAutoDirectorFollowUp && needsCandidateSelection ? (
+                  {!isAutoDirectorTask && needsCandidateSelection ? (
                     <Button
                       size="sm"
                       onClick={() => navigate(getCandidateSelectionLink(selectedTask.id))}
@@ -634,7 +468,7 @@ export default function TaskCenterPage() {
                       {selectedTask.resumeAction ?? "继续确认书级方向"}
                     </Button>
                   ) : null}
-                  {!selectedAutoDirectorFollowUp && canResumeFront10AutoExecution ? (
+                  {!isAutoDirectorTask && canResumeFront10AutoExecution ? (
                     <Button
                       size="sm"
                       onClick={() => {
@@ -656,7 +490,7 @@ export default function TaskCenterPage() {
                       {selectedTask.resumeAction ?? `继续自动执行${selectedTask.executionScopeLabel ?? "当前章节范围"}`}
                     </Button>
                   ) : null}
-                  {!selectedAutoDirectorFollowUp
+                  {!isAutoDirectorTask
                   && selectedTask.kind === "novel_workflow"
                   && !needsCandidateSelection
                   && !canResumeFront10AutoExecution
@@ -673,7 +507,7 @@ export default function TaskCenterPage() {
                       {selectedTask.resumeAction ?? (isActiveAutoDirectorTask ? "查看进度" : "继续")}
                     </Button>
                   ) : null}
-                  {(selectedTask.status === "failed" || selectedTask.status === "cancelled") && (!isAutoDirectorTask || !selectedAutoDirectorFollowUp) ? (
+                  {(selectedTask.status === "failed" || selectedTask.status === "cancelled") && !isAutoDirectorTask ? (
                     <>
                       <Button
                         size="sm"
@@ -691,7 +525,13 @@ export default function TaskCenterPage() {
                       </Button>
                     </>
                   ) : null}
-                  {(selectedTask.status === "queued" || selectedTask.status === "running" || selectedTask.status === "waiting_approval") ? (
+                  {(
+                    (selectedTask.kind === "novel_workflow" && canCancelDirectorTask(selectedTask))
+                    || (selectedTask.kind !== "novel_workflow"
+                      && (selectedTask.status === "queued"
+                        || selectedTask.status === "running"
+                        || selectedTask.status === "waiting_approval"))
+                  ) ? (
                     <Button
                       size="sm"
                       variant="outline"
@@ -720,12 +560,8 @@ export default function TaskCenterPage() {
                     </Button>
                   ) : null}
                   <Button asChild size="sm" variant="outline">
-                    <Link to={selectedTask.sourceRoute}>打开来源页面</Link>
+                    <Link to={selectedTask!.sourceRoute}>打开来源页面</Link>
                   </Button>
-                  <OpenInCreativeHubButton
-                    bindings={{ taskId: selectedTask.id }}
-                    label="在创作中枢诊断"
-                  />
                 </div>
                 <div className="space-y-2">
                   <div className="font-medium">步骤状态</div>

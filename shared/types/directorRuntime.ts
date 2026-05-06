@@ -70,6 +70,47 @@ export interface DirectorArtifactRef {
   updatedAt?: string | null;
 }
 
+export interface DirectorArtifactVersionRef {
+  artifactId: string;
+  version?: number | null;
+}
+
+export interface DirectorStepBlocker {
+  code: string;
+  reason: string;
+  retryable?: boolean;
+  nextAction?: string | null;
+  evidence?: Record<string, unknown>;
+}
+
+export interface DirectorStepCompletionEvidence {
+  stepId: string;
+  completed: boolean;
+  completenessRatio: number;
+  evidence?: Record<string, unknown>;
+  producedArtifacts?: DirectorArtifactRef[];
+}
+
+export interface DirectorRecoveryCursor {
+  stepId: string;
+  resumeFrom?: string | null;
+  scope?: string | null;
+  targetId?: string | null;
+  evidence?: Record<string, unknown>;
+}
+
+export interface DirectorStepFactInspection {
+  stepId: string;
+  ready: boolean;
+  completed: boolean;
+  blockers: DirectorStepBlocker[];
+  evidence?: Record<string, unknown>;
+  producedArtifacts?: DirectorArtifactRef[];
+  completenessRatio: number;
+  nextAction?: string | null;
+  resumeFrom?: string | null;
+}
+
 export type DirectorStepRunStatus =
   | "running"
   | "succeeded"
@@ -416,6 +457,8 @@ export interface DirectorChapterExecutionProgressItem {
 
 export interface DirectorChapterExecutionProgressSummary {
   totalChapters: number;
+  draftedChapterCount: number;
+  approvedChapterCount: number;
   completedChapters: number;
   needsRepairChapters: number;
   currentChapterId?: string | null;
@@ -453,6 +496,9 @@ export interface DirectorRuntimeProjection {
   workerHealth?: DirectorWorkerHealthSummary | null;
   currentNodeKey?: string | null;
   currentLabel?: string | null;
+  currentFactStepId?: string | null;
+  currentFactStepLabel?: string | null;
+  currentFactEvidence?: Record<string, unknown> | null;
   headline?: string | null;
   detail?: string | null;
   lastEventSummary?: string | null;
@@ -725,6 +771,57 @@ export interface DirectorTaskShell {
   cancelRequestedAt?: string | null;
 }
 
+export type DirectorDisplayStageKey =
+  | "project_setup"
+  | "story_planning"
+  | "character_setup"
+  | "volume_strategy"
+  | "structured_outline"
+  | "chapter_execution"
+  | "quality_repair";
+
+export type DirectorDisplayMode =
+  | "idle"
+  | "running"
+  | "waiting"
+  | "needs_recovery"
+  | "failed"
+  | "completed";
+
+export type DirectorDisplayStepStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "attention";
+
+export interface DirectorDisplayStep {
+  key: DirectorDisplayStageKey;
+  label: string;
+  status: DirectorDisplayStepStatus;
+  isCurrent: boolean;
+}
+
+export interface DirectorDisplayState {
+  stageKey: DirectorDisplayStageKey;
+  stageLabel: string;
+  stepIndex: number;
+  totalSteps: number;
+  mode: DirectorDisplayMode;
+  headline: string;
+  description: string;
+  currentAction: string;
+  checkpointLabel: string;
+  progressPercent: number;
+  nextActionLabel?: string | null;
+  currentFactStepId?: string | null;
+  currentFactStepLabel?: string | null;
+  currentFactDescription?: string | null;
+  requiresUserAction: boolean;
+  isLiveRunning: boolean;
+  needsRecovery: boolean;
+  steps: DirectorDisplayStep[];
+}
+
 export interface DirectorTaskSnapshot {
   task: DirectorTaskShell;
   run: {
@@ -747,12 +844,54 @@ export interface DirectorTaskSnapshot {
   projection: DirectorRuntimeProjection | null;
   recentEvents: DirectorEvent[];
   artifacts: DirectorArtifactRef[];
+  currentFactStepId?: string | null;
+  currentFactStepLabel?: string | null;
+  currentFactEvidence?: Record<string, unknown> | null;
   chapterProgress?: DirectorChapterExecutionProgressSummary | null;
+  displayState: DirectorDisplayState;
   nextActions: string[];
 }
 
 export interface DirectorTaskSnapshotResponse {
   snapshot: DirectorTaskSnapshot | null;
+}
+
+export interface DirectorTaskFactInspectionStep {
+  stepId: string;
+  label: string;
+  stage: string;
+  targetType: DirectorArtifactTargetType;
+  ready: boolean;
+  completed: boolean;
+  completenessRatio: number;
+  nextAction?: string | null;
+  resumeFrom?: string | null;
+  blockers: DirectorStepBlocker[];
+  evidence?: Record<string, unknown>;
+  producedArtifacts?: DirectorArtifactRef[];
+  progress?: {
+    status: string;
+    ratio: number;
+    label: string;
+    nextAction?: string | null;
+    evidence?: Record<string, unknown>;
+  } | null;
+  inspectError?: string | null;
+  isCurrentFactStep?: boolean;
+  isActiveRuntimeStep?: boolean;
+}
+
+export interface DirectorTaskFactInspection {
+  taskId: string;
+  novelId?: string | null;
+  currentFactStepId?: string | null;
+  currentFactStepLabel?: string | null;
+  currentFactEvidence?: Record<string, unknown> | null;
+  steps: DirectorTaskFactInspectionStep[];
+}
+
+export interface DirectorTaskFactInspectionResponse {
+  inspection: DirectorTaskFactInspection | null;
 }
 
 export const DIRECTOR_RUN_COMMAND_TYPES = [

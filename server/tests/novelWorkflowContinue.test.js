@@ -16,7 +16,7 @@ function listen(server) {
   });
 }
 
-test("novel workflow auto director route prefers the active auto director task over stale visible entries", async () => {
+test("novel workflow auto director route prefers the active auto director task over stale visible entries", { concurrency: false }, async () => {
   const calls = [];
   const originalFindActive = NovelWorkflowService.prototype.findActiveTaskByNovelAndLane;
   const originalFindLatest = NovelWorkflowService.prototype.findLatestVisibleTaskByNovelId;
@@ -67,7 +67,52 @@ test("novel workflow auto director route prefers the active auto director task o
   }
 });
 
-test("novel workflow continue route enqueues auto_execute_front10 continuation mode", async () => {
+test("novel workflow auto director route returns null when only historical visible tasks remain", { concurrency: false }, async () => {
+  const calls = [];
+  const originalFindActive = NovelWorkflowService.prototype.findActiveTaskByNovelAndLane;
+  const originalFindLatest = NovelWorkflowService.prototype.findLatestVisibleTaskByNovelId;
+  const originalDetail = NovelWorkflowTaskAdapter.prototype.detail;
+
+  NovelWorkflowService.prototype.findActiveTaskByNovelAndLane = async function findActiveTaskByNovelAndLaneMock(novelId, lane) {
+    calls.push(["active", novelId, lane]);
+    return null;
+  };
+  NovelWorkflowService.prototype.findLatestVisibleTaskByNovelId = async function findLatestVisibleTaskByNovelIdMock() {
+    calls.push(["latest"]);
+    return {
+      id: "workflow-historical",
+    };
+  };
+  NovelWorkflowTaskAdapter.prototype.detail = async function detailMock(taskId) {
+    calls.push(["detail", taskId]);
+    return {
+      id: taskId,
+    };
+  };
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/novel-workflows/novels/novel-idle/auto-director`);
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    assert.equal(payload.data, null);
+    assert.equal(payload.message, "No active auto director task found.");
+    assert.deepEqual(calls, [
+      ["active", "novel-idle", "auto_director"],
+    ]);
+  } finally {
+    NovelWorkflowService.prototype.findActiveTaskByNovelAndLane = originalFindActive;
+    NovelWorkflowService.prototype.findLatestVisibleTaskByNovelId = originalFindLatest;
+    NovelWorkflowTaskAdapter.prototype.detail = originalDetail;
+    await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+  }
+});
+
+test("novel workflow continue route enqueues auto_execute_front10 continuation mode", { concurrency: false }, async () => {
   const calls = [];
   const originalEnqueue = DirectorCommandService.prototype.enqueueContinueCommand;
   const originalDetail = NovelWorkflowTaskAdapter.prototype.detail;

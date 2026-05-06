@@ -43,6 +43,8 @@ export interface ChapterExecutionProgress {
 
 export interface ChapterExecutionProgressSummary {
   totalChapters: number;
+  draftedChapterCount: number;
+  approvedChapterCount: number;
   completedChapters: number;
   needsRepairChapters: number;
   currentChapterId: string | null;
@@ -94,6 +96,8 @@ export class ChapterExecutionProgressInspector {
     const current = matrix.find((chapter) => chapter.status === "running" || chapter.status === "needs_repair")
       ?? matrix.find((chapter) => chapter.status === "not_started")
       ?? null;
+    const draftedChapterCount = matrix.filter((chapter) => chapter.completedStages.includes("draft_saved")).length;
+    const approvedChapterCount = matrix.filter((chapter) => chapter.status === "approved").length;
     const completedChapters = matrix.filter((chapter) => (
       chapter.status === "approved" || chapter.status === "completed"
     )).length;
@@ -102,6 +106,8 @@ export class ChapterExecutionProgressInspector {
     const completedStageCount = matrix.reduce((sum, chapter) => sum + chapter.completedStages.length, 0);
     return {
       totalChapters: matrix.length,
+      draftedChapterCount,
+      approvedChapterCount,
       completedChapters,
       needsRepairChapters: matrix.filter((chapter) => chapter.status === "needs_repair").length,
       currentChapterId: current?.chapterId ?? null,

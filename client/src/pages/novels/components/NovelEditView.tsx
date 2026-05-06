@@ -15,6 +15,7 @@ import {
 import KnowledgeBindingPanel from "@/components/knowledge/KnowledgeBindingPanel";
 import AITakeoverContainer from "@/components/workflow/AITakeoverContainer";
 import ChapterManagementTab from "./ChapterManagementTab";
+import DirectorFactDebugDialog from "./DirectorFactDebugDialog";
 import NovelCharacterPanel from "./NovelCharacterPanel";
 import NovelTaskDrawer from "./NovelTaskDrawer";
 import OutlineTab from "./OutlineTab";
@@ -30,6 +31,7 @@ import {
   getNovelWorkspaceTabLabel,
   NOVEL_WORKSPACE_FLOW_STEPS,
   normalizeNovelWorkspaceTab,
+  tabFromDirectorDisplayStage,
 } from "../novelWorkspaceNavigation";
 
 export default function NovelEditView(props: NovelEditViewProps) {
@@ -109,13 +111,24 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
       ? "basic"
       : normalizedWorkflowTab
     : normalizedActiveTab;
-  const novelTitle = basicTab.basicForm.title.trim() || "未命名小说";
-  const currentStepLabel = getNovelWorkspaceTabLabel(normalizedActiveTab);
-  const workflowStepLabel = getNovelWorkspaceTabLabel(normalizedWorkflowTab);
-  const stepIndex = getNovelWorkspaceFlowStepIndex(guidedFlowTab);
-  const progressLabel = stepIndex >= 0
-    ? `第 ${stepIndex + 1} 步 / 共 ${NOVEL_WORKSPACE_FLOW_STEPS.length} 步`
+  const novelTitle = basicTab.basicForm.title.trim() || "\u672a\u547d\u540d\u5c0f\u8bf4";
+  const directorDisplayState = taskDrawer?.snapshot?.displayState ?? null;
+  const currentPageLabel = getNovelWorkspaceTabLabel(normalizedActiveTab);
+  const currentStepLabel = directorDisplayState?.stageLabel ?? currentPageLabel;
+  const recommendedWorkflowTab = directorDisplayState
+    ? tabFromDirectorDisplayStage(directorDisplayState.stageKey)
+    : normalizedWorkflowTab;
+  const workflowStepLabel = recommendedWorkflowTab
+    ? getNovelWorkspaceTabLabel(recommendedWorkflowTab)
     : null;
+  const stepIndex = directorDisplayState?.stepIndex ?? getNovelWorkspaceFlowStepIndex(guidedFlowTab);
+  const progressLabel = stepIndex >= 0
+    ? `\u7b2c ${stepIndex + 1} \u6b65 / \u5171 ${directorDisplayState?.totalSteps ?? NOVEL_WORKSPACE_FLOW_STEPS.length} \u6b65`
+    : null;
+  const showWorkflowRecommendation = Boolean(
+    recommendedWorkflowTab
+    && recommendedWorkflowTab !== normalizedActiveTab,
+  );
   const isTakeoverLoading = takeover?.mode === "loading";
   const hideTakeoverEntry = takeover?.mode === "running" || takeover?.mode === "waiting";
 
@@ -149,17 +162,19 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
           <div className="flex min-w-0 flex-wrap items-center gap-3 text-sm">
             <span className="truncate font-semibold text-foreground">{novelTitle}</span>
             <span className="h-1 w-1 shrink-0 rounded-full bg-border" />
-            <span className="shrink-0 text-muted-foreground">当前步骤：{currentStepLabel}</span>
+            <span className="shrink-0 text-muted-foreground">{"\u5f53\u524d\u6b65\u9aa4\uff1a"}{currentStepLabel}</span>
             {progressLabel ? (
               <>
                 <span className="h-1 w-1 shrink-0 rounded-full bg-border" />
                 <span className="shrink-0 text-muted-foreground">{progressLabel}</span>
               </>
             ) : null}
-            {normalizedWorkflowTab !== normalizedActiveTab ? (
+            <span className="h-1 w-1 shrink-0 rounded-full bg-border" />
+            <span className="shrink-0 text-muted-foreground">{"\u5f53\u524d\u9875\u9762\uff1a"}{currentPageLabel}</span>
+            {showWorkflowRecommendation && workflowStepLabel ? (
               <>
                 <span className="h-1 w-1 shrink-0 rounded-full bg-border" />
-                <span className="shrink-0 text-sky-700">流程推荐：{workflowStepLabel}</span>
+                <span className="shrink-0 text-sky-700">{"\u6d41\u7a0b\u63a8\u8350\uff1a\u5efa\u8bae\u5207\u6362\u5230 "}{workflowStepLabel}</span>
               </>
             ) : null}
           </div>
@@ -230,6 +245,8 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                 </div>
               </DialogContent>
             </Dialog>
+
+            <DirectorFactDebugDialog taskId={taskDrawer?.task?.id ?? null} />
 
             <Dialog open={isProjectToolsOpen} onOpenChange={setIsProjectToolsOpen}>
               <DialogTrigger asChild>
