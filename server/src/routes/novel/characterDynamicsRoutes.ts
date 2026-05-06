@@ -1,14 +1,14 @@
 import type { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
-import { validate } from "../middleware/validate";
-import type { NovelService } from "../services/novel/NovelService";
+import { validate } from "../../middleware/validate";
+import type { NovelService } from "../../services/novel/NovelService";
 import {
   confirmCandidateInputSchema,
   mergeCandidateInputSchema,
   updateCharacterDynamicStateInputSchema,
   updateRelationStageInputSchema,
-} from "../services/novel/dynamics/characterDynamicsSchemas";
+} from "../../services/novel/dynamics/characterDynamicsSchemas";
 
 const candidateParamsSchema = z.object({
   id: z.string().trim().min(1),

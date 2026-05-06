@@ -1,9 +1,9 @@
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
-import { authMiddleware } from "../middleware/auth";
-import { validate } from "../middleware/validate";
-import { novelDecisionService } from "../services/novel/NovelDecisionService";
+import { authMiddleware } from "../../middleware/auth";
+import { validate } from "../../middleware/validate";
+import { novelDecisionService } from "../../services/novel/NovelDecisionService";
 
 const router = Router();
 

@@ -1,9 +1,9 @@
 import type { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
-import { llmProviderSchema } from "../llm/providerSchema";
-import { validate } from "../middleware/validate";
-import { StoryMacroPlanService } from "../services/novel/storyMacro/StoryMacroPlanService";
+import { llmProviderSchema } from "../../llm/providerSchema";
+import { validate } from "../../middleware/validate";
+import { StoryMacroPlanService } from "../../services/novel/storyMacro/StoryMacroPlanService";
 
 const llmGenerateSchema = z.object({
   provider: llmProviderSchema.optional(),

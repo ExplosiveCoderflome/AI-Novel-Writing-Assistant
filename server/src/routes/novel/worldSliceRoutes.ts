@@ -5,9 +5,9 @@ import {
   storyWorldSliceOverridesSchema,
 } from "@ai-novel/shared/types/storyWorldSlice";
 import { z } from "zod";
-import { llmProviderSchema } from "../llm/providerSchema";
-import { validate } from "../middleware/validate";
-import { NovelService } from "../services/novel/NovelService";
+import { llmProviderSchema } from "../../llm/providerSchema";
+import { validate } from "../../middleware/validate";
+import { NovelService } from "../../services/novel/NovelService";
 
 const llmGenerateSchema = z.object({
   provider: llmProviderSchema.optional(),

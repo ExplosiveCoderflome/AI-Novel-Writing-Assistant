@@ -1,9 +1,9 @@
 import type { Router } from "express";
 import { z } from "zod";
-import { streamToSSE } from "../llm/streaming";
-import { validate } from "../middleware/validate";
-import type { NovelService } from "../services/novel/NovelService";
-import { chapterRuntimeRequestSchema } from "../services/novel/runtime/chapterRuntimeSchema";
+import { streamToSSE } from "../../llm/streaming";
+import { validate } from "../../middleware/validate";
+import type { NovelService } from "../../services/novel/NovelService";
+import { chapterRuntimeRequestSchema } from "../../services/novel/runtime/chapterRuntimeSchema";
 
 interface RegisterNovelChapterGenerationRoutesInput {
   router: Router;

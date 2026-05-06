@@ -2,9 +2,9 @@ import type { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { BookFramingSuggestionInput } from "@ai-novel/shared/types/novelFraming";
 import { z } from "zod";
-import { llmProviderSchema } from "../llm/providerSchema";
-import { validate } from "../middleware/validate";
-import { novelFramingSuggestionService } from "../services/novel/NovelFramingSuggestionService";
+import { llmProviderSchema } from "../../llm/providerSchema";
+import { validate } from "../../middleware/validate";
+import { novelFramingSuggestionService } from "../../services/novel/NovelFramingSuggestionService";
 
 const llmGenerateSchema = z.object({
   provider: llmProviderSchema.optional(),

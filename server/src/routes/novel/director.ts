@@ -18,10 +18,10 @@ import {
   BOOK_FRAMING_MAX_COMMERCIAL_TAGS,
 } from "@ai-novel/shared/types/novelFraming";
 import { DIRECTOR_AUTO_APPROVAL_POINTS } from "@ai-novel/shared/types/autoDirectorApproval";
-import { validate } from "../middleware/validate";
-import { llmProviderSchema } from "../llm/providerSchema";
-import { NovelDirectorService } from "../services/novel/director/NovelDirectorService";
-import { directorPersistedCandidateSchema } from "../services/novel/director/novelDirectorSchemas";
+import { validate } from "../../middleware/validate";
+import { llmProviderSchema } from "../../llm/providerSchema";
+import { NovelDirectorService } from "../../services/novel/director/NovelDirectorService";
+import { directorPersistedCandidateSchema } from "../../services/novel/director/novelDirectorSchemas";
 
 const router = Router();
 const novelDirectorService = new NovelDirectorService();

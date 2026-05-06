@@ -2,11 +2,11 @@ import type { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { NOVEL_LIST_PAGE_LIMIT_DEFAULT, NOVEL_LIST_PAGE_LIMIT_MAX } from "@ai-novel/shared/types/pagination";
 import { z } from "zod";
-import { llmProviderSchema } from "../llm/providerSchema";
-import { validate } from "../middleware/validate";
-import { KnowledgeService } from "../services/knowledge/KnowledgeService";
-import { novelCreateResourceRecommendationService } from "../services/novel/NovelCreateResourceRecommendationService";
-import { NovelService } from "../services/novel/NovelService";
+import { llmProviderSchema } from "../../llm/providerSchema";
+import { validate } from "../../middleware/validate";
+import { KnowledgeService } from "../../services/knowledge/KnowledgeService";
+import { novelCreateResourceRecommendationService } from "../../services/novel/NovelCreateResourceRecommendationService";
+import { NovelService } from "../../services/novel/NovelService";
 
 const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

@@ -1,9 +1,9 @@
 import type { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
-import { streamToSSE } from "../llm/streaming";
-import { validate } from "../middleware/validate";
-import type { NovelService } from "../services/novel/NovelService";
+import { streamToSSE } from "../../llm/streaming";
+import { validate } from "../../middleware/validate";
+import type { NovelService } from "../../services/novel/NovelService";
 
 const snapshotCreateSchema = z.object({
   triggerType: z.enum(["manual", "auto_milestone", "before_pipeline"]),

@@ -6,13 +6,13 @@ import type {
 import { characterResourceUpdatePayloadSchema } from "@ai-novel/shared/types/characterResource";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
-import { llmProviderSchema } from "../llm/providerSchema";
-import { prisma } from "../db/prisma";
-import { AppError } from "../middleware/errorHandler";
-import { validate } from "../middleware/validate";
-import { characterResourceExtractionService } from "../services/novel/characterResource/CharacterResourceExtractionService";
-import { characterResourceLedgerService } from "../services/novel/characterResource/CharacterResourceLedgerService";
-import { stateCommitService } from "../services/novel/state/StateCommitService";
+import { llmProviderSchema } from "../../llm/providerSchema";
+import { prisma } from "../../db/prisma";
+import { AppError } from "../../middleware/errorHandler";
+import { validate } from "../../middleware/validate";
+import { characterResourceExtractionService } from "../../services/novel/characterResource/CharacterResourceExtractionService";
+import { characterResourceLedgerService } from "../../services/novel/characterResource/CharacterResourceLedgerService";
+import { stateCommitService } from "../../services/novel/state/StateCommitService";
 
 const characterResourceCharacterParamsSchema = z.object({
   id: z.string().trim().min(1),

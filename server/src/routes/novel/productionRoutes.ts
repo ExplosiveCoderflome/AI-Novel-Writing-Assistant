@@ -1,10 +1,10 @@
 import type { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
-import { streamToSSE } from "../llm/streaming";
-import { validate } from "../middleware/validate";
-import type { NovelDraftOptimizeService } from "../services/novel/NovelDraftOptimizeService";
-import type { NovelService } from "../services/novel/NovelService";
+import { streamToSSE } from "../../llm/streaming";
+import { validate } from "../../middleware/validate";
+import type { NovelDraftOptimizeService } from "../../services/novel/NovelDraftOptimizeService";
+import type { NovelService } from "../../services/novel/NovelService";
 
 interface RegisterNovelProductionRoutesInput {
   router: Router;

@@ -5,10 +5,10 @@ import {
   novelCharacterSaveToLibraryInputSchema,
 } from "@ai-novel/shared/types/characterSync";
 import { z } from "zod";
-import { llmProviderSchema } from "../llm/providerSchema";
-import { validate } from "../middleware/validate";
-import { characterLibrarySyncService } from "../services/character/CharacterLibrarySyncService";
-import { CharacterDynamicsService } from "../services/novel/dynamics/CharacterDynamicsService";
+import { llmProviderSchema } from "../../llm/providerSchema";
+import { validate } from "../../middleware/validate";
+import { characterLibrarySyncService } from "../../services/character/CharacterLibrarySyncService";
+import { CharacterDynamicsService } from "../../services/novel/dynamics/CharacterDynamicsService";
 
 const characterParamsSchema = z.object({
   id: z.string().trim().min(1),
