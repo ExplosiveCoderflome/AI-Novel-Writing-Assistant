@@ -28,8 +28,11 @@ test("director workflow step registry exposes unified step modules", () => {
   assert.ok(ids.includes("book.project.create"));
   assert.ok(ids.includes("story.macro.plan"));
   assert.ok(ids.includes("book.contract.create"));
+  assert.ok(ids.includes("chapter.execution_contract.sync"));
   assert.ok(ids.includes("chapter.draft.write"));
   assert.ok(ids.includes("chapter.quality.review"));
+  assert.ok(ids.includes("chapter.draft.repair"));
+  assert.ok(ids.includes("chapter.quality.repair"));
   assert.ok(ids.includes("workflow.takeover.execute"));
 
   const candidateModule = getDirectorCandidateStepModule("candidate_generation");
@@ -88,10 +91,14 @@ test("chapter pipeline template converts execution flow into ordered step plan",
 test("quality repair template starts from repair step and preserves policy action", () => {
   const plan = buildChapterPipelineWorkflowTemplate("quality_repair");
   const repairModule = getDirectorExecutionStepModule("chapter_repair");
+  const qualityRepairModule = getDirectorExecutionStepModule("quality_repair");
 
   assert.equal(plan.steps[0].stepId, "chapter.draft.repair");
   assert.equal(plan.steps[0].nodeKey, "chapter_repair_node");
   assert.equal(repairModule.policyAction, "repair");
+  assert.equal(qualityRepairModule.id, "chapter.quality.repair");
+  assert.equal(qualityRepairModule.nodeKey, "chapter_repair_node");
+  assert.equal(qualityRepairModule.policyAction, "repair");
   assert.deepEqual(
     getDirectorExecutionStepModuleSequence("quality_repair").map((module) => module.id),
     [
@@ -111,8 +118,10 @@ test("planning workflow plan can start from any director planning phase", () => 
   assert.deepEqual(plan.steps.map((step) => step.stepId), [
     "volume.strategy.plan",
     "chapter.task_sheet.plan",
+    "chapter.execution_contract.sync",
   ]);
   assert.deepEqual(plan.steps[1].dependsOn, ["volume.strategy.plan"]);
+  assert.deepEqual(plan.steps[2].dependsOn, ["chapter.task_sheet.plan"]);
 });
 
 test("planning workflow keeps story macro and book contract as separate write nodes", () => {
@@ -124,9 +133,62 @@ test("planning workflow keeps story macro and book contract as separate write no
     "character.cast.prepare",
     "volume.strategy.plan",
     "chapter.task_sheet.plan",
+    "chapter.execution_contract.sync",
   ]);
   assert.deepEqual(plan.steps[1].writes, ["book_contract"]);
   assert.deepEqual(plan.steps[1].dependsOn, ["story.macro.plan"]);
+});
+
+test("workflow step module exposes inspect, input, progress, recovery and commit hooks", async () => {
+  const descriptor = getDirectorPlanningStepModule("book_contract");
+  const module = createWorkflowStepModule(descriptor, async (input) => ({
+    contract: input.seed,
+  }), {
+    inspect: async (context) => ({
+      ready: Boolean(context.novelId),
+      reasons: [],
+      evidence: [{ type: "novel", id: context.novelId }],
+    }),
+    buildInput: async (context) => ({
+      seed: context.novelId,
+    }),
+    validateOutput: async (output) => ({
+      valid: Boolean(output.contract),
+      errors: [],
+    }),
+    commit: async (output) => ({
+      artifacts: [{ type: "book_contract", id: output.contract }],
+    }),
+    inspectProgress: async () => ({
+      status: "completed",
+      current: 1,
+      total: 1,
+      ratio: 1,
+      label: "complete",
+      evidence: [{ type: "artifact", id: "book_contract" }],
+      nextAction: null,
+    }),
+    recover: async () => ({
+      recoverable: true,
+      reason: null,
+      nextAction: "resume_from_artifact",
+    }),
+    completeCriteria: {
+      requiredArtifacts: ["book_contract"],
+    },
+  });
+  const context = { taskId: "task-1", novelId: "novel-1" };
+
+  assert.deepEqual(await module.buildInput(context), { seed: "novel-1" });
+  assert.deepEqual(await module.execute({ seed: "novel-1" }, context), { contract: "novel-1" });
+  assert.equal((await module.inspect(context)).ready, true);
+  assert.equal((await module.validateOutput({ contract: "novel-1" }, context)).valid, true);
+  assert.deepEqual(await module.commit({ contract: "book-contract-1" }, context), {
+    artifacts: [{ type: "book_contract", id: "book-contract-1" }],
+  });
+  assert.equal((await module.inspectProgress(context)).status, "completed");
+  assert.equal((await module.recover(context)).nextAction, "resume_from_artifact");
+  assert.deepEqual(module.completeCriteria.requiredArtifacts, ["book_contract"]);
 });
 
 test("workflow step module can be converted back to DirectorNodeRunner contract", async () => {

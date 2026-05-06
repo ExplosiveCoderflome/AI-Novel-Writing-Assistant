@@ -1,4 +1,4 @@
-const test = require("node:test");
+﻿const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { DirectorCommandService } = require("../dist/services/novel/director/DirectorCommandService.js");
@@ -47,6 +47,22 @@ function createConfirmRequest(overrides = {}) {
   };
 }
 
+function createCandidatesRequest(overrides = {}) {
+  return {
+    idea: "A college girl accidentally enters a supernatural organization.",
+    title: "Neon Archive",
+    narrativePov: "third_person",
+    pacePreference: "balanced",
+    emotionIntensity: "medium",
+    aiFreedom: "medium",
+    projectMode: "ai_led",
+    writingMode: "original",
+    estimatedChapterCount: 30,
+    runMode: "auto_to_execution",
+    ...overrides,
+  };
+}
+
 function createHarness(task = createTask()) {
   const commands = [];
   const bootstraps = [];
@@ -81,6 +97,9 @@ function createHarness(task = createTask()) {
     async getTaskById(taskId) {
       return taskId === task.id ? task : null;
     },
+    async getTaskByIdWithoutHealing(taskId) {
+      return taskId === task.id ? task : null;
+    },
     async retryTask() {
       task.status = "queued";
       task.updatedAt = new Date(task.updatedAt.getTime() + 1);
@@ -105,7 +124,7 @@ function createHarness(task = createTask()) {
     async bootstrapTask(input) {
       bootstraps.push(input);
       task.id = input.workflowTaskId?.trim() || (input.novelId ? `takeover-task-${commands.length + 1}` : task.id);
-      task.novelId = input.novelId;
+      task.novelId = input.novelId ?? null;
       task.lane = input.lane;
       task.status = "queued";
       task.updatedAt = new Date(task.updatedAt.getTime() + 1);
@@ -313,6 +332,84 @@ test("director command service queues candidate confirmation as a serialized com
     assert.equal(harness.task.currentItemKey, "candidate_confirm");
     assert.equal(harness.task.currentItemLabel, "书级方向提交完成，等待 AI 创建小说项目");
     assert.equal(harness.task.pendingManualRecovery, false);
+  } finally {
+    harness.restore();
+  }
+});
+
+test("director command service queues candidate generation as a serialized command", async () => {
+  const harness = createHarness(createTask({
+    novelId: null,
+    status: "queued",
+  }));
+  try {
+    const accepted = await harness.service.enqueueGenerateCandidatesCommand(createCandidatesRequest());
+
+    assert.equal(accepted.status, "queued");
+    assert.equal(accepted.commandType, "generate_candidates");
+    assert.equal(accepted.taskId, "task-1");
+    assert.equal(harness.commands.length, 1);
+    assert.equal(harness.bootstraps.length, 1);
+    assert.equal(harness.bootstraps[0].initialState.itemKey, "candidate_direction_batch");
+    const payload = JSON.parse(harness.commands[0].payloadJson);
+    assert.equal(payload.candidatesRequest.workflowTaskId, "task-1");
+    assert.equal(payload.candidatesRequest.idea, "A college girl accidentally enters a supernatural organization.");
+    assert.equal(harness.task.currentItemLabel, "AI 正在生成书级方向候选");
+  } finally {
+    harness.restore();
+  }
+});
+
+test("director command service reuses active candidate generation commands", async () => {
+  const harness = createHarness(createTask({
+    novelId: null,
+    status: "queued",
+  }));
+  try {
+    const first = await harness.service.enqueueGenerateCandidatesCommand(createCandidatesRequest());
+    const second = await harness.service.enqueueGenerateCandidatesCommand(createCandidatesRequest());
+
+    assert.equal(first.commandId, second.commandId);
+    assert.equal(harness.commands.length, 1);
+    assert.equal(harness.commands[0].commandType, "generate_candidates");
+  } finally {
+    harness.restore();
+  }
+});
+
+test("director command service queues approve gate as a one-shot command", async () => {
+  const harness = createHarness();
+  try {
+    const accepted = await harness.service.enqueueApproveGateCommand("task-1");
+
+    assert.equal(accepted.status, "queued");
+    assert.equal(accepted.commandType, "approve_gate");
+    assert.equal(harness.commands.length, 1);
+    const payload = JSON.parse(harness.commands[0].payloadJson);
+    assert.equal(payload.continuationMode, "resume");
+    assert.equal(payload.forceResume, true);
+    assert.equal(harness.task.currentItemKey, "approve_gate");
+  } finally {
+    harness.restore();
+  }
+});
+
+test("director command service queues policy updates without directly mutating runtime policy", async () => {
+  const harness = createHarness();
+  try {
+    const accepted = await harness.service.enqueuePolicyUpdateCommand("task-1", {
+      mode: "run_next_step",
+      autoApproveActions: ["chapter_execution_continue"],
+    });
+
+    assert.equal(accepted.status, "queued");
+    assert.equal(accepted.commandType, "policy_update");
+    assert.equal(harness.commands.length, 1);
+    const payload = JSON.parse(harness.commands[0].payloadJson);
+    assert.equal(payload.policyUpdateRequest.mode, "run_next_step");
+    assert.deepEqual(payload.policyUpdateRequest.autoApproveActions, ["chapter_execution_continue"]);
+    assert.equal(harness.task.currentItemKey, "policy_update");
+    assert.equal(harness.task.currentItemLabel, "已提交运行策略调整，等待 AI 按新策略推进");
   } finally {
     harness.restore();
   }

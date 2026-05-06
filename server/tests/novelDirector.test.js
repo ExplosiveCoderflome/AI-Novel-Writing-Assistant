@@ -2,8 +2,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const http = require("node:http");
 const { createApp } = require("../dist/app.js");
-const { NovelDirectorService } = require("../dist/services/novel/director/NovelDirectorService.js");
 const { DirectorCommandService } = require("../dist/services/novel/director/DirectorCommandService.js");
+const { DirectorTaskSnapshotService } = require("../dist/services/novel/director/DirectorTaskSnapshotService.js");
 
 function listen(server) {
   return new Promise((resolve) => {
@@ -14,617 +14,155 @@ function listen(server) {
   });
 }
 
-function buildCandidate(id = "candidate_1", title = "Neon Archive") {
-  return {
-    id,
-    workingTitle: title,
-    logline: "A college girl slips into a hidden power network while tracing her missing father.",
-    positioning: "Urban supernatural growth thriller with strong rookie-to-operator momentum.",
-    sellingPoint: "An ordinary girl is forced to level up inside a dangerous secret organization.",
-    coreConflict: "The closer she gets to the truth, the harder the organization pushes back.",
-    protagonistPath: "She grows from self-protective student into someone willing to break the board.",
-    endingDirection: "Bittersweet but hopeful, with a real price paid before the breakthrough.",
-    hookStrategy: "Each phase reveals one layer of the father case and a bigger city conspiracy.",
-    progressionLoop: "Find clue, get forced deeper, pay a cost, strike back with new leverage.",
-    whyItFits: "It keeps the urban realism while making the main conflict and growth line clearer.",
-    toneKeywords: ["urban", "thriller", "growth"],
-    targetChapterCount: 30,
-  };
+function requestJson(port, method, path, body) {
+  return new Promise((resolve, reject) => {
+    const payload = body ? JSON.stringify(body) : null;
+    const req = http.request({
+      host: "127.0.0.1",
+      port,
+      path,
+      method,
+      headers: payload
+        ? {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(payload),
+        }
+        : undefined,
+    }, (res) => {
+      let raw = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => {
+        raw += chunk;
+      });
+      res.on("end", () => {
+        resolve({
+          status: res.statusCode,
+          body: raw ? JSON.parse(raw) : null,
+        });
+      });
+    });
+    req.on("error", reject);
+    if (payload) {
+      req.write(payload);
+    }
+    req.end();
+  });
 }
 
-function buildBatch(round = 1) {
-  return {
-    id: `batch_${round}`,
-    round,
-    roundLabel: `Round ${round}`,
-    idea: "A college girl accidentally enters a supernatural organization.",
-    refinementSummary: round === 1 ? null : "Push the conflict harder.",
-    presets: round === 1 ? [] : ["stronger_conflict"],
-    candidates: [
-      buildCandidate(`candidate_${round}_1`, "Neon Archive"),
-      buildCandidate(`candidate_${round}_2`, "Midnight Circuit"),
-    ],
-    createdAt: new Date().toISOString(),
+test("director task routes accept task creation, command append and snapshot reads", async (t) => {
+  const originals = {
+    enqueueGenerateCandidatesCommand: DirectorCommandService.prototype.enqueueGenerateCandidatesCommand,
+    enqueueContinueCommand: DirectorCommandService.prototype.enqueueContinueCommand,
+    getTaskSnapshot: DirectorTaskSnapshotService.prototype.getTaskSnapshot,
   };
-}
+  const calls = [];
 
-function buildStoryMacroPlan() {
-  return {
-    id: "macro_demo",
-    novelId: "novel_director_demo",
-    storyInput: "A college girl accidentally enters a supernatural organization.",
-    expansion: {
-      expanded_premise: "A student is dragged into a secret urban power network tied to her missing father.",
-      protagonist_core: "Cautious but stubborn, with a deep need to know what happened to her family.",
-      conflict_engine: "Every clue pushes her closer to the conspiracy and closer to being erased by it.",
-      conflict_layers: {
-        external: "A hidden organization hunts everyone who touches the case.",
-        internal: "She fears she is too weak to survive what the truth demands.",
-        relational: "Her allies want to protect her, but each secret breaks trust.",
-      },
-      mystery_box: "The father case and the current disappearances are the same buried incident.",
-      emotional_line: "She moves from survival-first to choosing responsibility.",
-      setpiece_seeds: ["subway pursuit", "archive blackout", "old district siege"],
-      tone_reference: "Grounded city thriller with supernatural escalation.",
-    },
-    decomposition: {
-      selling_point: "An ordinary college girl becomes the unlikely breaker of a city conspiracy.",
-      core_conflict: "To learn the truth she must enter the system designed to silence her.",
-      main_hook: "Her missing father is tied to the same case now swallowing the city.",
-      progression_loop: "Clue, pressure, sacrifice, counterplay, deeper truth.",
-      growth_path: "From avoiding danger to taking command of danger.",
-      major_payoffs: ["father truth", "organization exposure", "heroine counterattack"],
-      ending_flavor: "Costly but hopeful.",
-    },
-    constraints: ["Keep the city-life grounding.", "Do not make the heroine suddenly overpowered."],
-    issues: [],
-    lockedFields: {},
-    constraintEngine: null,
-    state: { currentPhase: 0, progress: 0, protagonistState: "" },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-}
-
-function buildTakeoverReadiness() {
-  return {
-    novelId: "novel_director_demo",
-    novelTitle: "Neon Archive",
-    hasActiveTask: false,
-    activeTaskId: null,
-    snapshot: {
-      hasStoryMacroPlan: true,
-      hasBookContract: true,
-      characterCount: 4,
-      chapterCount: 0,
-      volumeCount: 1,
-      firstVolumeId: "volume_1",
-      firstVolumeChapterCount: 0,
-      firstVolumeBeatSheetReady: true,
-      firstVolumePreparedChapterCount: 0,
-      generatedChapterCount: 0,
-      approvedChapterCount: 0,
-      pendingRepairChapterCount: 0,
-    },
-    activePipelineJob: null,
-    latestCheckpoint: {
-      checkpointType: "front10_ready",
-      stage: "chapter_execution",
-      volumeId: "volume_1",
-      chapterId: null,
-    },
-    executableRange: {
-      startOrder: 1,
-      endOrder: 10,
-      nextChapterOrder: 1,
-      nextChapterId: null,
-      remainingChapterCount: 10,
-    },
-    entrySteps: [
-      {
-        step: "basic",
-        label: "从项目设定开始",
-        description: "先检查当前项目基础资产，再接管后续导演流程。",
-        available: true,
-        recommended: false,
-        status: "complete",
-        reason: "当前项目基础信息足够。",
-        previews: [],
-      },
-      {
-        step: "story_macro",
-        label: "从故事宏观规划开始",
-        description: "先补齐 Story Macro 和 Book Contract。",
-        available: true,
-        recommended: false,
-        status: "complete",
-        reason: "当前书级信息足够。",
-        previews: [],
-      },
-      {
-        step: "character",
-        label: "从角色准备开始",
-        description: "沿用书级方向继续角色准备。",
-        available: true,
-        recommended: false,
-        status: "complete",
-        reason: "书级方向资产已齐。",
-        previews: [],
-      },
-      {
-        step: "outline",
-        label: "从卷战略开始",
-        description: "继续卷战略和卷骨架。",
-        available: true,
-        recommended: true,
-        status: "ready",
-        reason: "角色资产已齐，可以从卷战略开始。",
-        previews: [
-          {
-            strategy: "continue_existing",
-            summary: "继续已有进度，接着补卷战略。",
-            effectSummary: "会复用现有书级规划与角色资产，只补卷战略和卷骨架。",
-            effectiveStep: "outline",
-            effectiveStage: "volume_strategy",
-            skipSteps: ["basic", "story_macro", "character"],
-            continueStep: "outline",
-            restartStep: null,
-            usesCurrentBatch: false,
-            impactNotes: [],
-          },
-          {
-            strategy: "restart_current_step",
-            summary: "重新生成当前步，从卷战略重跑。",
-            effectSummary: "会先清空当前卷战略与卷骨架，再从卷战略重跑。",
-            effectiveStep: "outline",
-            effectiveStage: "volume_strategy",
-            skipSteps: ["basic", "story_macro", "character"],
-            continueStep: null,
-            restartStep: "outline",
-            usesCurrentBatch: false,
-            impactNotes: ["保留前置书级规划与角色。", "不会清空已有正文。"],
-          },
-        ],
-      },
-      {
-        step: "structured",
-        label: "从节奏 / 拆章开始",
-        description: "继续第 1 卷节奏与拆章。",
-        available: true,
-        recommended: false,
-        status: "partial",
-        reason: "卷级资产已经存在。",
-        previews: [],
-      },
-      {
-        step: "chapter",
-        label: "从章节执行开始",
-        description: "优先恢复当前章节批次或准备好的章节范围。",
-        available: true,
-        recommended: false,
-        status: "ready",
-        reason: "前 10 章已具备可执行范围。",
-        previews: [],
-      },
-      {
-        step: "pipeline",
-        label: "从质量修复开始",
-        description: "优先恢复当前修复批次或待修章节。",
-        available: true,
-        recommended: false,
-        status: "ready",
-        reason: "存在可恢复的修复检查点。",
-        previews: [],
-      },
-    ],
-  };
-}
-
-test("novel director routes support candidates, refine and takeover flows", async () => {
-  const confirmCalls = [];
-  const patchCalls = [];
-  const refineTitleCalls = [];
-  const takeoverCalls = [];
-  const originalGenerate = NovelDirectorService.prototype.generateCandidates;
-  const originalRefine = NovelDirectorService.prototype.refineCandidates;
-  const originalPatch = NovelDirectorService.prototype.patchCandidate;
-  const originalRefineTitles = NovelDirectorService.prototype.refineCandidateTitleOptions;
-  const originalConfirm = NovelDirectorService.prototype.confirmCandidate;
-  const originalGetTakeoverReadiness = NovelDirectorService.prototype.getTakeoverReadiness;
-  const originalEnqueueConfirmCommand = DirectorCommandService.prototype.enqueueConfirmCandidateCommand;
-  const originalEnqueueTakeoverCommand = DirectorCommandService.prototype.enqueueTakeoverCommand;
-
-  NovelDirectorService.prototype.generateCandidates = async function generateCandidatesMock() {
-    return { batch: buildBatch(1) };
-  };
-  NovelDirectorService.prototype.refineCandidates = async function refineCandidatesMock() {
-    return { batch: buildBatch(2) };
-  };
-  NovelDirectorService.prototype.patchCandidate = async function patchCandidateMock(input) {
-    patchCalls.push(input);
-    const batch = buildBatch(2);
-    batch.candidates[0] = {
-      ...batch.candidates[0],
-      workingTitle: "Neon Bureau",
-      positioning: "Urban supernatural investigation with stronger city-pressure rhythm.",
-    };
-    return { batch, candidate: batch.candidates[0] };
-  };
-  NovelDirectorService.prototype.refineCandidateTitleOptions = async function refineTitlesMock(input) {
-    refineTitleCalls.push(input);
-    const batch = buildBatch(2);
-    batch.candidates[0] = {
-      ...batch.candidates[0],
-      workingTitle: "Neon Switchboard",
-      titleOptions: [
-        {
-          title: "Neon Switchboard",
-          clickRate: 79,
-          style: "high_concept",
-          angle: "new main title",
-          reason: "Feels colder and more urban.",
-        },
-      ],
-    };
-    return { batch, candidate: batch.candidates[0] };
-  };
-  NovelDirectorService.prototype.confirmCandidate = async function confirmCandidateMock(input) {
-    confirmCalls.push(input);
+  DirectorCommandService.prototype.enqueueGenerateCandidatesCommand = async function mockGenerate(payload) {
+    calls.push(["create", payload.idea]);
     return {
-      novel: {
-        id: "novel_director_demo",
-        title: "Neon Archive",
-        description: "Urban supernatural growth thriller.",
-        status: "draft",
-        writingMode: "original",
-        projectMode: "ai_led",
-        narrativePov: "third_person",
-        pacePreference: "balanced",
-        styleTone: "grounded suspense",
-        emotionIntensity: "medium",
-        aiFreedom: "medium",
-        defaultChapterLength: 2800,
-        estimatedChapterCount: 30,
-        projectStatus: "in_progress",
-        storylineStatus: "in_progress",
-        outlineStatus: "in_progress",
-        resourceReadyScore: 0,
-        sourceNovelId: null,
-        sourceKnowledgeDocumentId: null,
-        continuationBookAnalysisId: null,
-        continuationBookAnalysisSections: null,
-        outline: "Full blueprint",
-        structuredOutline: null,
-        genreId: null,
-        worldId: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      storyMacroPlan: buildStoryMacroPlan(),
-      bookSpec: {
-        storyInput: "A college girl accidentally enters a supernatural organization.",
-        positioning: "Urban supernatural growth thriller with strong rookie-to-operator momentum.",
-        sellingPoint: "An ordinary girl is forced to level up inside a dangerous secret organization.",
-        coreConflict: "The closer she gets to the truth, the harder the organization pushes back.",
-        protagonistPath: "She grows from self-protective student into someone willing to break the board.",
-        endingDirection: "Bittersweet but hopeful, with a real price paid before the breakthrough.",
-        hookStrategy: "Each phase reveals one layer of the father case and a bigger city conspiracy.",
-        progressionLoop: "Find clue, get forced deeper, pay a cost, strike back with new leverage.",
-        targetChapterCount: 30,
-      },
-      batch: { id: "batch_2", round: 2 },
-      createdChapterCount: 30,
-      createdArcCount: 3,
-      plans: {
-        book: {
-          level: "book",
-          id: "plan_book",
-          title: "Full Book Plan",
-          objective: "Drive the main conspiracy forward.",
-          chapterId: null,
-          externalRef: null,
-          rawPlanJson: "{}",
-        },
-        arcs: [],
-        chapters: [],
-      },
-      seededPlans: {
-        book: {
-          level: "book",
-          id: "plan_book",
-          title: "Full Book Plan",
-          objective: "Drive the main conspiracy forward.",
-          chapterId: null,
-          externalRef: null,
-          rawPlanJson: "{}",
-        },
-        arcs: [],
-        chapters: [],
-      },
-    };
-  };
-  NovelDirectorService.prototype.getTakeoverReadiness = async function getTakeoverReadinessMock() {
-    return buildTakeoverReadiness();
-  };
-  DirectorCommandService.prototype.enqueueConfirmCandidateCommand = async function enqueueConfirmCandidateCommandMock(input) {
-    confirmCalls.push(input);
-    return {
-      commandId: "command_confirm_demo",
-      taskId: input.workflowTaskId ?? "workflow_confirm_demo",
-      novelId: null,
-      commandType: "confirm_candidate",
+      commandId: "command-create",
+      taskId: "task-created",
+      novelId: "novel-created",
+      commandType: "generate_candidates",
       status: "queued",
-      leaseExpiresAt: null,
+      projectionUrl: "/api/novels/director/tasks/task-created",
     };
   };
-  DirectorCommandService.prototype.enqueueTakeoverCommand = async function enqueueTakeoverCommandMock(input) {
-    takeoverCalls.push(input);
+  DirectorCommandService.prototype.enqueueContinueCommand = async function mockContinue(taskId, payload) {
+    calls.push(["continue", taskId, payload?.continuationMode ?? null]);
     return {
-      commandId: "command_takeover_demo",
-      taskId: "workflow_takeover_demo",
-      novelId: "novel_director_demo",
-      commandType: "takeover",
+      commandId: "command-continue",
+      taskId,
+      novelId: "novel-created",
+      commandType: "continue",
       status: "queued",
-      leaseExpiresAt: null,
+      projectionUrl: `/api/novels/director/tasks/${taskId}`,
     };
   };
+  DirectorTaskSnapshotService.prototype.getTaskSnapshot = async function mockSnapshot(taskId) {
+    calls.push(["snapshot", taskId]);
+    return {
+      snapshot: {
+        task: {
+          id: taskId,
+          novelId: "novel-created",
+          status: "running",
+          currentStage: "AI 自动导演",
+          currentItemKey: "chapter_execution",
+          currentItemLabel: "AI 正在推进正文生成",
+          progress: 0.72,
+          checkpointType: null,
+          checkpointSummary: null,
+          lastError: null,
+          pendingManualRecovery: false,
+          cancelRequestedAt: null,
+        },
+        run: {
+          id: "run-1",
+          novelId: "novel-created",
+          entrypoint: "confirm_candidate",
+        },
+        activeStep: {
+          idempotencyKey: "step-1",
+          nodeKey: "chapter_execution_node",
+          label: "章节正文生成",
+          status: "running",
+        },
+        latestCommand: {
+          id: "command-continue",
+          commandType: "continue",
+          status: "running",
+        },
+        runtime: null,
+        projection: null,
+        recentEvents: [],
+        artifacts: [],
+        chapterProgress: null,
+        nextActions: ["continue"],
+      },
+    };
+  };
+
+  t.after(() => {
+    DirectorCommandService.prototype.enqueueGenerateCandidatesCommand = originals.enqueueGenerateCandidatesCommand;
+    DirectorCommandService.prototype.enqueueContinueCommand = originals.enqueueContinueCommand;
+    DirectorTaskSnapshotService.prototype.getTaskSnapshot = originals.getTaskSnapshot;
+  });
 
   const app = createApp();
   const server = http.createServer(app);
   const port = await listen(server);
+  t.after(() => server.close());
 
-  try {
-    const candidatesResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/candidates`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        idea: "A college girl accidentally enters a supernatural organization.",
-        narrativePov: "third_person",
-        pacePreference: "balanced",
-        emotionIntensity: "medium",
-        aiFreedom: "medium",
-        projectMode: "ai_led",
-        writingMode: "original",
-        estimatedChapterCount: 30,
-      }),
-    });
-    assert.equal(candidatesResponse.status, 200);
-    const candidatesPayload = await candidatesResponse.json();
-    assert.equal(candidatesPayload.success, true);
-    assert.equal(candidatesPayload.data.batch.round, 1);
-    assert.equal(candidatesPayload.data.batch.candidates.length, 2);
+  const createResponse = await requestJson(port, "POST", "/api/novels/director/tasks", {
+    taskType: "generate_candidates",
+    payload: {
+      idea: "A rookie courier discovers a hidden city rule system.",
+      title: "Rulebound Courier",
+      writingMode: "original",
+      projectMode: "ai_led",
+    },
+  });
+  assert.equal(createResponse.status, 202);
+  assert.equal(createResponse.body.data.taskId, "task-created");
 
-    const refineResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/refine`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        idea: "A college girl accidentally enters a supernatural organization.",
-        narrativePov: "third_person",
-        pacePreference: "balanced",
-        emotionIntensity: "medium",
-        aiFreedom: "medium",
-        projectMode: "ai_led",
-        writingMode: "original",
-        estimatedChapterCount: 30,
-        previousBatches: [buildBatch(1)],
-        presets: ["stronger_conflict"],
-        feedback: "Push the main conflict harder and keep the heroine more active.",
-      }),
-    });
-    assert.equal(refineResponse.status, 200);
-    const refinePayload = await refineResponse.json();
-    assert.equal(refinePayload.success, true);
-    assert.equal(refinePayload.data.batch.round, 2);
+  const continueResponse = await requestJson(port, "POST", "/api/novels/director/tasks/task-created/commands", {
+    commandType: "continue",
+    payload: {
+      continuationMode: "resume",
+    },
+  });
+  assert.equal(continueResponse.status, 202);
+  assert.equal(continueResponse.body.data.commandId, "command-continue");
 
-    const patchResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/patch-candidate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        idea: "A college girl accidentally enters a supernatural organization.",
-        narrativePov: "third_person",
-        pacePreference: "balanced",
-        emotionIntensity: "medium",
-        aiFreedom: "medium",
-        projectMode: "ai_led",
-        writingMode: "original",
-        estimatedChapterCount: 30,
-        previousBatches: [buildBatch(1), buildBatch(2)],
-        batchId: "batch_2",
-        candidateId: "candidate_2_1",
-        feedback: "Keep this direction, but make it feel more urban and more investigative.",
-      }),
-    });
-    assert.equal(patchResponse.status, 200);
-    const patchPayload = await patchResponse.json();
-    assert.equal(patchPayload.success, true);
-    assert.equal(patchPayload.data.candidate.workingTitle, "Neon Bureau");
-    assert.equal(patchCalls[0].previousBatches[1].candidates[0].id, "candidate_2_1");
+  const snapshotResponse = await requestJson(port, "GET", "/api/novels/director/tasks/task-created");
+  assert.equal(snapshotResponse.status, 200);
+  assert.equal(snapshotResponse.body.data.snapshot.task.id, "task-created");
+  assert.deepEqual(snapshotResponse.body.data.snapshot.nextActions, ["continue"]);
 
-    const refineTitlesResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/refine-titles`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        idea: "A college girl accidentally enters a supernatural organization.",
-        narrativePov: "third_person",
-        pacePreference: "balanced",
-        emotionIntensity: "medium",
-        aiFreedom: "medium",
-        projectMode: "ai_led",
-        writingMode: "original",
-        estimatedChapterCount: 30,
-        previousBatches: [buildBatch(1), buildBatch(2)],
-        batchId: "batch_2",
-        candidateId: "candidate_2_1",
-        feedback: "This title group is too old-school. Make it feel colder and more urban.",
-      }),
-    });
-    assert.equal(refineTitlesResponse.status, 200);
-    const refineTitlesPayload = await refineTitlesResponse.json();
-    assert.equal(refineTitlesPayload.success, true);
-    assert.equal(refineTitlesPayload.data.candidate.workingTitle, "Neon Switchboard");
-    assert.equal(refineTitleCalls[0].previousBatches[1].candidates[0].id, "candidate_2_1");
-
-    const confirmResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/confirm`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        idea: "A college girl accidentally enters a supernatural organization.",
-        narrativePov: "third_person",
-        pacePreference: "balanced",
-        emotionIntensity: "medium",
-        aiFreedom: "medium",
-        projectMode: "ai_led",
-        writingMode: "original",
-        estimatedChapterCount: 30,
-        runMode: "auto_to_execution",
-        autoExecutionPlan: {
-          mode: "chapter_range",
-          startOrder: 11,
-          endOrder: 20,
-        },
-        batchId: "batch_2",
-        round: 2,
-        candidate: buildCandidate(),
-      }),
-    });
-    assert.equal(confirmResponse.status, 202);
-    const confirmPayload = await confirmResponse.json();
-    assert.equal(confirmPayload.success, true);
-    assert.equal(confirmPayload.data.commandType, "confirm_candidate");
-    assert.equal(confirmPayload.data.taskId, "workflow_confirm_demo");
-    assert.equal(confirmCalls.at(-1)?.runMode, "auto_to_execution");
-    assert.deepEqual(confirmCalls.at(-1)?.autoExecutionPlan, {
-      mode: "chapter_range",
-      startOrder: 11,
-      endOrder: 20,
-    });
-
-    const readinessResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/takeover-readiness/novel_director_demo`);
-    assert.equal(readinessResponse.status, 200);
-    const readinessPayload = await readinessResponse.json();
-    assert.equal(readinessPayload.success, true);
-    assert.equal(readinessPayload.data.snapshot.characterCount, 4);
-    assert.equal(readinessPayload.data.entrySteps.find((item) => item.step === "outline").recommended, true);
-    assert.equal(readinessPayload.data.latestCheckpoint.checkpointType, "front10_ready");
-
-    const takeoverResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/takeover`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        novelId: "novel_director_demo",
-        entryStep: "pipeline",
-        strategy: "continue_existing",
-        runMode: "auto_to_execution",
-        autoExecutionPlan: {
-          mode: "volume",
-          volumeOrder: 2,
-        },
-      }),
-    });
-    assert.equal(takeoverResponse.status, 202);
-    const takeoverPayload = await takeoverResponse.json();
-    assert.equal(takeoverPayload.success, true);
-    assert.equal(takeoverPayload.data.taskId, "workflow_takeover_demo");
-    assert.equal(takeoverPayload.data.commandType, "takeover");
-    assert.equal(takeoverCalls.at(-1)?.entryStep, "pipeline");
-    assert.equal(takeoverCalls.at(-1)?.strategy, "continue_existing");
-    assert.deepEqual(takeoverCalls.at(-1)?.autoExecutionPlan, {
-      mode: "volume",
-      volumeOrder: 2,
-    });
-
-    const bookScopeTakeoverResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/takeover`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        novelId: "novel_director_demo",
-        entryStep: "story_macro",
-        strategy: "continue_existing",
-        runMode: "auto_to_execution",
-        autoExecutionPlan: {
-          mode: "book",
-        },
-      }),
-    });
-    assert.equal(bookScopeTakeoverResponse.status, 202);
-    const bookScopeTakeoverPayload = await bookScopeTakeoverResponse.json();
-    assert.equal(bookScopeTakeoverPayload.success, true);
-    assert.deepEqual(takeoverCalls.at(-1)?.autoExecutionPlan, {
-      mode: "book",
-    });
-
-    const legacyTakeoverResponse = await fetch(`http://127.0.0.1:${port}/api/novels/director/takeover`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        novelId: "novel_director_demo",
-        startPhase: "volume_strategy",
-      }),
-    });
-    assert.equal(legacyTakeoverResponse.status, 202);
-    const legacyTakeoverPayload = await legacyTakeoverResponse.json();
-    assert.equal(legacyTakeoverPayload.success, true);
-    assert.equal(legacyTakeoverPayload.data.commandType, "takeover");
-    assert.equal(takeoverCalls.at(-1)?.startPhase, "volume_strategy");
-  } finally {
-    NovelDirectorService.prototype.generateCandidates = originalGenerate;
-    NovelDirectorService.prototype.refineCandidates = originalRefine;
-    NovelDirectorService.prototype.patchCandidate = originalPatch;
-    NovelDirectorService.prototype.refineCandidateTitleOptions = originalRefineTitles;
-    NovelDirectorService.prototype.confirmCandidate = originalConfirm;
-    NovelDirectorService.prototype.getTakeoverReadiness = originalGetTakeoverReadiness;
-    DirectorCommandService.prototype.enqueueConfirmCandidateCommand = originalEnqueueConfirmCommand;
-    DirectorCommandService.prototype.enqueueTakeoverCommand = originalEnqueueTakeoverCommand;
-    await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
-  }
-});
-
-test("novel director candidates route surfaces upstream connection details", async () => {
-  const originalGenerate = NovelDirectorService.prototype.generateCandidates;
-  NovelDirectorService.prototype.generateCandidates = async function generateCandidatesConnectionMock() {
-    const socketError = new Error("Client network socket disconnected before secure TLS connection was established");
-    socketError.code = "ECONNRESET";
-    socketError.host = "api.deepseek.com";
-    socketError.port = 443;
-    const fetchError = new Error("fetch failed", { cause: socketError });
-    const error = new Error("Connection error.", { cause: fetchError });
-    throw error;
-  };
-
-  const app = createApp();
-  const server = http.createServer(app);
-  const port = await listen(server);
-
-  try {
-    const response = await fetch(`http://127.0.0.1:${port}/api/novels/director/candidates`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        idea: "A college girl accidentally enters a supernatural organization.",
-        writingMode: "original",
-        projectMode: "co_pilot",
-        narrativePov: "third_person",
-        pacePreference: "balanced",
-        emotionIntensity: "medium",
-        aiFreedom: "medium",
-        defaultChapterLength: 2800,
-        estimatedChapterCount: 20,
-        projectStatus: "not_started",
-        storylineStatus: "not_started",
-        outlineStatus: "not_started",
-        resourceReadyScore: 0,
-        provider: "deepseek",
-        model: "deepseek-chat",
-        temperature: 0.7,
-      }),
-    });
-    assert.equal(response.status, 502);
-    const payload = await response.json();
-    assert.equal(payload.success, false);
-    assert.match(payload.error, /api\.deepseek\.com:443/);
-    assert.match(payload.error, /ECONNRESET/);
-  } finally {
-    NovelDirectorService.prototype.generateCandidates = originalGenerate;
-    await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
-  }
+  assert.deepEqual(calls, [
+    ["create", "A rookie courier discovers a hidden city rule system."],
+    ["continue", "task-created", "resume"],
+    ["snapshot", "task-created"],
+  ]);
 });

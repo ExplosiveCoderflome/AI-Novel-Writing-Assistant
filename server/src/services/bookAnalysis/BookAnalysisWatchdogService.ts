@@ -20,6 +20,14 @@ export class BookAnalysisWatchdogService {
     }, BOOK_ANALYSIS_WATCHDOG_INTERVAL_MS);
   }
 
+  stopWatchdog(): void {
+    if (!this.watchdogTimer) {
+      return;
+    }
+    clearInterval(this.watchdogTimer);
+    this.watchdogTimer = null;
+  }
+
   async markPendingAnalysesForManualRecovery(): Promise<void> {
     try {
       const rows = await prisma.bookAnalysis.findMany({

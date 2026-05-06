@@ -103,12 +103,7 @@ function isWorkflowTaskCancelledError(error: unknown): boolean {
     || message.includes("This operation was aborted");
 }
 
-type BackgroundRunMode = "detached" | "inline";
-type InlineBackgroundRunner = () => Promise<void>;
-
 export class NovelDirectorService {
-  private readonly backgroundRunMode: BackgroundRunMode;
-  private inlineBackgroundRuns: InlineBackgroundRunner[] | null = null;
   private readonly novelContextService = new NovelContextService();
   private readonly characterPreparationService = new CharacterPreparationService();
   private readonly storyMacroService = new StoryMacroPlanService();
@@ -207,9 +202,7 @@ export class NovelDirectorService {
     scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, runner),
   });
 
-  constructor(options?: { backgroundRunMode?: BackgroundRunMode }) {
-    this.backgroundRunMode = options?.backgroundRunMode ?? "detached";
-  }
+  constructor(_options?: Record<string, never>) {}
 
   private async assertHighMemoryDirectorStartAllowed(input: {
     taskId: string;
@@ -225,10 +218,6 @@ export class NovelDirectorService {
   }
 
   private scheduleBackgroundRun(taskId: string, runner: () => Promise<void>) {
-    if (this.backgroundRunMode === "inline" && this.inlineBackgroundRuns) {
-      this.inlineBackgroundRuns.push(() => this.runScheduledBackgroundRun(taskId, runner));
-      return;
-    }
     setImmediate(() => {
       void this.runScheduledBackgroundRun(taskId, runner);
     });
@@ -246,27 +235,9 @@ export class NovelDirectorService {
       }
       const message = error instanceof Error ? error.message : "自动导演后台任务执行失败。";
       await this.workflowService.markTaskFailed(taskId, message);
-      throw error;
+      console.error(`[director.background] task failed taskId=${taskId}`, error);
     } finally {
       await releaseHighMemoryDirectorReservations(taskId);
-    }
-  }
-
-  private async runWithInlineBackgroundRuns<T>(action: () => Promise<T>): Promise<T> {
-    const scheduledRuns: InlineBackgroundRunner[] = [];
-    const previousRuns = this.inlineBackgroundRuns;
-    this.inlineBackgroundRuns = scheduledRuns;
-    try {
-      const result = await action();
-      while (scheduledRuns.length > 0) {
-        const nextRun = scheduledRuns.shift();
-        if (nextRun) {
-          await nextRun();
-        }
-      }
-      return result;
-    } finally {
-      this.inlineBackgroundRuns = previousRuns;
     }
   }
 
@@ -416,7 +387,7 @@ export class NovelDirectorService {
     batchAlreadyStartedCount?: number;
     forceResume?: boolean;
   }): Promise<void> {
-    return this.runWithInlineBackgroundRuns(() => this.continueRuntime.continueTask(taskId, input));
+    return this.continueRuntime.continueTask(taskId, input);
   }
 
   async continueCandidateStageTask(
@@ -447,7 +418,7 @@ export class NovelDirectorService {
   async executeChapterTitleRepair(taskId: string, input?: {
     volumeId?: string | null;
   }): Promise<void> {
-    return this.runWithInlineBackgroundRuns(() => this.chapterTitleRepairRuntime.repairChapterTitles(taskId, input));
+    return this.chapterTitleRepairRuntime.repairChapterTitles(taskId, input);
   }
 
   async getTakeoverReadiness(novelId: string): Promise<DirectorTakeoverReadinessResponse> {
@@ -531,9 +502,6 @@ export class NovelDirectorService {
   async startTakeover(input: DirectorTakeoverRequest, options: {
     workflowTaskId?: string | null;
   } = {}): Promise<DirectorTakeoverResponse> {
-    if (this.backgroundRunMode === "inline" && !this.inlineBackgroundRuns) {
-      return this.runWithInlineBackgroundRuns(() => this.startTakeover(input, options));
-    }
     const commandTaskId = options.workflowTaskId?.trim() || null;
     const takeoverState = await loadDirectorTakeoverState({
       novelId: input.novelId,

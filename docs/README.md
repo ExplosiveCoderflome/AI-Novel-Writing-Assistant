@@ -36,6 +36,7 @@
 - [Prompt Workbench, Context and Step Runtime Plan](./plans/prompt-workbench-context-and-step-runtime-plan.md)
 - [Auto Director Runtime Full Execution Plan](./plans/auto-director-runtime-full-execution-plan.md)
 - [Auto Director Execution Plane Isolation Plan](./plans/auto-director-execution-plane-isolation-plan.md)
+- [Director Mode Module and State Refactor Checklist](./plans/director-mode-module-state-refactor-checklist.md)
 
 ### `docs/design`
 

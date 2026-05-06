@@ -10,7 +10,8 @@ import { prisma } from "../../../db/prisma";
 import { buildDefaultDirectorPolicy } from "./runtime/directorRuntimeDefaults";
 import { DirectorEventProjectionService } from "./runtime/DirectorEventProjectionService";
 import { directorUsageTelemetryQueryService } from "./runtime/DirectorUsageTelemetryQueryService";
-import { isDirectorRuntimeTableUnavailable } from "./DirectorRuntimeExecutionService";
+import { isDirectorRuntimeTableUnavailable } from "./DirectorRuntimeExecutionHelpers";
+import { ChapterExecutionProgressInspector } from "./runtime/ChapterExecutionProgressInspector";
 
 function parseJsonOrNull<T>(value: string | null | undefined): T | null {
   if (!value?.trim()) {
@@ -543,7 +544,16 @@ export async function loadPersistentDirectorRuntimeProjection(
     : false;
 
   if (!run) {
-    return runtime ? buildRuntimeOnlyProjection(taskId, runtime) : null;
+    if (!runtime) {
+      return null;
+    }
+    const chapterExecutionProgress = runtime.novelId
+      ? await new ChapterExecutionProgressInspector().inspectNovel(runtime.novelId).catch(() => null)
+      : null;
+    return {
+      ...buildRuntimeOnlyProjection(taskId, runtime),
+      chapterExecutionProgress,
+    };
   }
 
   const snapshot: DirectorRuntimeSnapshot = {
@@ -598,8 +608,12 @@ export async function loadPersistentDirectorRuntimeProjection(
   );
   const commandToOverlay = isTaskTerminal ? null : activeCommand;
   const runtimeToOverlay = isTaskTerminal ? null : runtime;
+  const chapterExecutionProgress = run.novelId
+    ? await new ChapterExecutionProgressInspector().inspectNovel(run.novelId).catch(() => null)
+    : null;
   return {
     ...overlayRuntimeInstance(overlayActiveCommand(projection, commandToOverlay), runtimeToOverlay),
+    chapterExecutionProgress,
     usageSummary: usageTelemetry.summary,
     recentUsage: usageTelemetry.recentUsage,
     stepUsage: usageTelemetry.stepUsage,

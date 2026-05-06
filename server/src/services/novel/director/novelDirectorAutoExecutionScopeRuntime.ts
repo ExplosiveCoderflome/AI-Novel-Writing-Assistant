@@ -7,7 +7,7 @@ import {
   buildDirectorAutoExecutionScopeLabelFromState,
   buildDirectorAutoExecutionState,
   canPreserveDirectorAutoExecutionSkippedChapter,
-  hasDirectorAutoExecutionChapterContract,
+  hasDirectorSyncedChapterExecutionContext,
   isDirectorAutoExecutionChapterProcessed,
   normalizeDirectorAutoExecutionPlan,
   resolveDirectorAutoExecutionBookRange,
@@ -48,7 +48,7 @@ function findMissingChapterOrders(
   return missing;
 }
 
-function findIncompleteChapterDetailOrders(
+function findMissingExecutionContextOrders(
   chapters: DirectorAutoExecutionChapterRef[],
   range: DirectorAutoExecutionRange,
   state?: DirectorAutoExecutionState | null,
@@ -62,7 +62,7 @@ function findIncompleteChapterDetailOrders(
       || !canPreserveDirectorAutoExecutionSkippedChapter(chapter)
     ))
     .filter((chapter) => !isDirectorAutoExecutionChapterProcessed(chapter))
-    .filter((chapter) => !hasDirectorAutoExecutionChapterContract(chapter))
+    .filter((chapter) => !hasDirectorSyncedChapterExecutionContext(chapter))
     .map((chapter) => chapter.order)
     .sort((left, right) => left - right);
 }
@@ -279,11 +279,11 @@ export async function resolveAutoExecutionRangeAndState(input: {
       `${resolvedScopeLabel}对应的章节执行区还缺少第 ${missingChapterOrders.slice(0, 5).join("、")} 章，请先完成目标范围的拆章同步。`,
     );
   }
-  const incompleteDetailOrders = findIncompleteChapterDetailOrders(chapters, range, input.existingState);
-  if (incompleteDetailOrders.length > 0) {
+  const missingExecutionContextOrders = findMissingExecutionContextOrders(chapters, range, input.existingState);
+  if (missingExecutionContextOrders.length > 0) {
     const resolvedScopeLabel = scopeLabel ?? buildDirectorAutoExecutionScopeLabelFromState(input.existingState, range.totalChapterCount);
     throw new Error(
-      `${resolvedScopeLabel}对应的章节执行区还有第 ${incompleteDetailOrders.slice(0, 5).join("、")} 章缺少可执行的章节细化合同，请先回到节奏 / 拆章补齐执行边界、任务单和场景拆解。`,
+      `${resolvedScopeLabel}对应的章节执行区还有第 ${missingExecutionContextOrders.slice(0, 5).join("、")} 章缺少已同步的章节执行上下文，请先回到节奏 / 拆章补齐基础章节信息后再继续。`,
     );
   }
   return {

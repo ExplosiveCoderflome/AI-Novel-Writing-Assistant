@@ -44,6 +44,7 @@ export interface DirectorAutoExecutionChapterRef {
   mustAvoid?: string | null;
   taskSheet?: string | null;
   sceneCards?: string | null;
+  expectation?: string | null;
   generationState?: ChapterGenerationState | null;
   chapterStatus?: "unplanned" | "pending_generation" | "generating" | "pending_review" | "needs_repair" | "completed" | null;
 }
@@ -321,6 +322,16 @@ export function hasDirectorAutoExecutionChapterContract(chapter: DirectorAutoExe
   return Boolean(parseChapterScenePlan(chapter.sceneCards, {
     targetWordCount: chapter.targetWordCount,
   }));
+}
+
+export function hasDirectorSyncedChapterExecutionContext(chapter: DirectorAutoExecutionChapterRef): boolean {
+  return typeof chapter.conflictLevel === "number"
+    || typeof chapter.revealLevel === "number"
+    || typeof chapter.targetWordCount === "number"
+    || Boolean(chapter.mustAvoid?.trim())
+    || Boolean(chapter.taskSheet?.trim())
+    || Boolean(chapter.sceneCards?.trim())
+    || Boolean(chapter.expectation?.trim());
 }
 
 export function buildDirectorAutoExecutionState(input: {

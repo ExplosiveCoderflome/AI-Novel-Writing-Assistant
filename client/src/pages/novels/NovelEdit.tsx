@@ -1265,6 +1265,16 @@ export default function NovelEdit() {
         });
       }
     } else if (
+      task.status === "failed"
+      || task.status === "cancelled"
+      || task.pendingManualRecovery
+    ) {
+      actions.push({
+        label: "退出导演模式",
+        onClick: dismissTakeover,
+        variant: "secondary",
+      });
+    } else if (
       task.status === "waiting_approval"
       || (task.status === "succeeded" && task.checkpointType === "workflow_completed")
     ) {

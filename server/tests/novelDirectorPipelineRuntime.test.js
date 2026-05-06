@@ -134,7 +134,11 @@ test("pipeline resumes structured outline from persisted volume workspace when v
     startPhase: "volume_strategy",
   });
 
-  assert.deepEqual(modules, ["volume.strategy.plan", "chapter.task_sheet.plan"]);
+  assert.deepEqual(modules, [
+    "volume.strategy.plan",
+    "chapter.task_sheet.plan",
+    "chapter.execution_contract.sync",
+  ]);
   assert.equal(highMemoryChecks.length, 1);
   assert.equal(highMemoryChecks[0].volumeId, "volume_1");
 });

@@ -391,6 +391,44 @@ export interface DirectorRuntimeQualityBudgetSummary {
   explanation: string;
 }
 
+export type ChapterExecutionProgressStage =
+  | "execution_contract_ready"
+  | "context_package_ready"
+  | "draft_started"
+  | "draft_saved"
+  | "audit_completed"
+  | "repair_completed_or_not_needed"
+  | "runtime_package_saved"
+  | "chapter_artifacts_synced"
+  | "chapter_state_committed"
+  | "reviewable_or_approved";
+
+export interface DirectorChapterExecutionProgressItem {
+  chapterId: string;
+  chapterOrder: number;
+  status: string;
+  currentStage: ChapterExecutionProgressStage;
+  completedStages: ChapterExecutionProgressStage[];
+  missingStages: ChapterExecutionProgressStage[];
+  recoverable: boolean;
+  nextAction: string;
+}
+
+export interface DirectorChapterExecutionProgressSummary {
+  totalChapters: number;
+  completedChapters: number;
+  needsRepairChapters: number;
+  currentChapterId?: string | null;
+  currentChapterOrder?: number | null;
+  currentStage?: ChapterExecutionProgressStage | null;
+  recoverableRange?: {
+    startOrder: number | null;
+    endOrder: number | null;
+  };
+  ratio: number;
+  chapters?: DirectorChapterExecutionProgressItem[];
+}
+
 export interface DirectorRuntimeProjection {
   runId: string;
   novelId?: string | null;
@@ -428,6 +466,7 @@ export interface DirectorRuntimeProjection {
   scopeSummary?: string | null;
   progressSummary?: string | null;
   progressBreakdown?: DirectorRuntimeProgressBreakdown;
+  chapterExecutionProgress?: DirectorChapterExecutionProgressSummary | null;
   visibleRiskBadges?: DirectorRuntimeVisibleRiskBadge[];
   qualityDebtSummary?: DirectorRuntimeQualityDebtSummary | null;
   qualityBudgetSummary?: DirectorRuntimeQualityBudgetSummary | null;
@@ -671,12 +710,65 @@ export interface DirectorRuntimeSnapshotResponse {
   projection?: DirectorRuntimeProjection | null;
 }
 
+export interface DirectorTaskShell {
+  id: string;
+  novelId?: string | null;
+  status: string;
+  currentStage?: string | null;
+  currentItemKey?: string | null;
+  currentItemLabel?: string | null;
+  progress?: number | null;
+  checkpointType?: string | null;
+  checkpointSummary?: string | null;
+  lastError?: string | null;
+  pendingManualRecovery?: boolean | null;
+  cancelRequestedAt?: string | null;
+}
+
+export interface DirectorTaskSnapshot {
+  task: DirectorTaskShell;
+  run: {
+    id: string;
+    novelId?: string | null;
+    entrypoint?: string | null;
+  } | null;
+  activeStep: {
+    idempotencyKey: string;
+    nodeKey: string;
+    label: string;
+    status: string;
+  } | null;
+  latestCommand: {
+    id: string;
+    commandType: string;
+    status: string;
+  } | null;
+  runtime: DirectorRuntimeSnapshot | null;
+  projection: DirectorRuntimeProjection | null;
+  recentEvents: DirectorEvent[];
+  artifacts: DirectorArtifactRef[];
+  chapterProgress?: DirectorChapterExecutionProgressSummary | null;
+  nextActions: string[];
+}
+
+export interface DirectorTaskSnapshotResponse {
+  snapshot: DirectorTaskSnapshot | null;
+}
+
 export const DIRECTOR_RUN_COMMAND_TYPES = [
+  "generate_candidates",
+  "refine_candidates",
+  "patch_candidate",
+  "refine_titles",
   "confirm_candidate",
   "continue",
   "resume_from_checkpoint",
   "retry",
   "takeover",
+  "approve_gate",
+  "policy_update",
+  "workspace_analysis",
+  "manual_edit_impact",
   "repair_chapter_titles",
   "cancel",
 ] as const;
@@ -705,6 +797,15 @@ export interface DirectorCommandAcceptedResponse {
   runtimeId?: string | null;
   runtimeStatus?: string | null;
   projectionUrl?: string | null;
+}
+
+export interface DirectorCommandResultResponse<T = unknown> {
+  commandId: string;
+  taskId: string;
+  commandType: DirectorRunCommandType | string;
+  status: DirectorRunCommandStatus | string;
+  result?: T | null;
+  errorMessage?: string | null;
 }
 
 export interface DirectorWorkspaceAnalysisResponse {

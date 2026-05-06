@@ -2,39 +2,40 @@ import "dotenv/config";
 import { ensureRuntimeDatabaseReady } from "../db/runtimeMigrations";
 import { loadProviderApiKeys } from "../llm/factory";
 import { initializeRagSettingsCompatibility } from "../services/settings/RagCompatibilityBootstrapService";
-import { DirectorExecutionService } from "../services/novel/director/directorSubsystem";
+import { DirectorCommandExecutor } from "../services/novel/director/DirectorCommandExecutor";
 import { DirectorTaskQueue, type DirectorTaskQueueOptions } from "./DirectorTaskQueue";
 import { taskDispatcher } from "./TaskDispatcher";
 
+// DirectorWorker 通常由 app.ts 的 initializeBackgroundServices() 在同进程内启动。
+// 此文件保留独立进程入口（`require.main === module`），仅供需要分离部署时使用。
+
 export interface DirectorWorkerDeps {
   queue: DirectorTaskQueue;
-  executionService: { executeCommand: DirectorExecutionService["executeCommand"] };
+  commandExecutor: { execute: DirectorCommandExecutor["execute"] };
 }
 
 /**
- * DirectorWorker v2 — 事件驱动 + 轮询兜底。
+ * Single-track director worker.
  *
- * 架构改进：
- * 1. 用 TaskDispatcher 事件总线替代纯 setTimeout 轮询——有新任务时立即唤醒。
- * 2. 用 DirectorTaskQueue 统一封装双队列（legacy + runtime）操作，
- *    worker 层不再直接操作 DirectorRunCommand / DirectorRuntimeCommand。
- * 3. 资源限流通过 ResourceGate 集中管理，slot 只负责消费循环。
- * 4. 轮询作为兜底保留（跨进程场景、crash recovery），间隔提高到 5 秒。
+ * The worker leases `directorRunCommand` rows, renews leases while work is in
+ * flight, and delegates execution to `DirectorCommandExecutor`. Resource
+ * throttling stays local to the worker, while `TaskDispatcher` handles wakeups
+ * and polling remains only as a stale-recovery fallback.
  */
 export class DirectorWorker {
   private stopped = false;
   private readonly queue: DirectorTaskQueue;
-  private readonly executionService: DirectorWorkerDeps["executionService"];
+  private readonly commandExecutor: DirectorWorkerDeps["commandExecutor"];
 
   constructor(options?: DirectorTaskQueueOptions);
   constructor(deps: DirectorWorkerDeps);
   constructor(arg?: DirectorTaskQueueOptions | DirectorWorkerDeps) {
     if (arg && "queue" in arg) {
       this.queue = arg.queue;
-      this.executionService = arg.executionService;
+      this.commandExecutor = arg.commandExecutor;
     } else {
       this.queue = new DirectorTaskQueue(arg);
-      this.executionService = new DirectorExecutionService();
+      this.commandExecutor = new DirectorCommandExecutor();
     }
   }
 
@@ -72,33 +73,33 @@ export class DirectorWorker {
     const leased = await this.queue.leaseNext(slotId);
     if (!leased) return false;
 
-    const { lease, legacyCommand } = leased;
-    const stopRenewal = this.queue.startLeaseRenewal(lease, slotId);
+    const { command } = leased;
+    const stopRenewal = this.queue.startLeaseRenewal(command.id, slotId);
 
     try {
-      await this.queue.acquireResourceGate(lease.novelId, lease.resourceClass);
+      await this.queue.acquireResourceGate(command.novelId, command.commandType);
       try {
-        await this.queue.markRunning(lease, slotId);
+        await this.queue.markRunning(command.id, slotId);
 
         console.log(
-          `[director.worker] executing commandId=${legacyCommand.id} type=${legacyCommand.commandType} taskId=${legacyCommand.taskId} novelId=${lease.novelId} slot=${slotId}`,
+          `[director.worker] executing commandId=${command.id} type=${command.commandType} taskId=${command.taskId} novelId=${command.novelId} slot=${slotId}`,
         );
 
-        const outcome = await this.executionService.executeCommand(legacyCommand);
+        const outcome = await this.commandExecutor.execute(command.id);
 
         if (outcome === "cancelled") {
-          await this.queue.cancelTask(lease, slotId);
-          console.log(`[director.worker] cancelled commandId=${legacyCommand.id}`);
+          await this.queue.cancelTask(command.id, slotId);
+          console.log(`[director.worker] cancelled commandId=${command.id}`);
         } else {
-          await this.queue.completeTask(lease, slotId);
-          console.log(`[director.worker] completed commandId=${legacyCommand.id}`);
+          await this.queue.completeTask(command.id, slotId);
+          console.log(`[director.worker] completed commandId=${command.id}`);
         }
       } finally {
-        this.queue.releaseResourceGate(lease.novelId, lease.resourceClass);
+        this.queue.releaseResourceGate(command.novelId, command.commandType);
       }
     } catch (error) {
-      console.error(`[director.worker] command failed commandId=${legacyCommand.id}`, error);
-      await this.queue.failTask(lease, slotId, error);
+      console.error(`[director.worker] command failed commandId=${command.id}`, error);
+      await this.queue.failTask(command.id, slotId, error);
     } finally {
       stopRenewal();
     }
