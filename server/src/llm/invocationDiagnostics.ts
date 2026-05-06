@@ -132,13 +132,22 @@ export function extractUpstreamRequestId(message?: string | null): string | null
   return null;
 }
 
-export async function createLlmInvocationDiagnostic(
+let pendingDiagnosticPersistence: Promise<unknown> = Promise.resolve();
+
+function trackDiagnosticPersistence(task: Promise<unknown>): void {
+  pendingDiagnosticPersistence = pendingDiagnosticPersistence
+    .catch(() => undefined)
+    .then(() => task.catch(() => undefined));
+}
+
+export function waitForPendingLlmInvocationDiagnostics(): Promise<void> {
+  return pendingDiagnosticPersistence.then(() => undefined);
+}
+
+async function persistCreateDiagnostic(
+  id: string,
   input: LlmInvocationDiagnosticCreateInput,
-): Promise<string> {
-  const id = buildDiagnosticId();
-  if (shouldSkipDiagnosticPersistence()) {
-    return id;
-  }
+): Promise<void> {
   try {
     await prisma.llmInvocationDiagnostic.create({
       data: {
@@ -164,19 +173,12 @@ export async function createLlmInvocationDiagnostic(
   } catch (error) {
     warnDiagnosticPersistenceError("create", error);
   }
-  return id;
 }
 
-export async function finishLlmInvocationDiagnostic(
-  id: string | null | undefined,
+async function persistFinishDiagnostic(
+  id: string,
   input: LlmInvocationDiagnosticFinishInput,
 ): Promise<void> {
-  if (!id?.trim()) {
-    return;
-  }
-  if (shouldSkipDiagnosticPersistence()) {
-    return;
-  }
   try {
     await prisma.llmInvocationDiagnostic.update({
       where: { id },
@@ -192,6 +194,31 @@ export async function finishLlmInvocationDiagnostic(
   } catch (error) {
     warnDiagnosticPersistenceError("finish", error);
   }
+}
+
+export async function createLlmInvocationDiagnostic(
+  input: LlmInvocationDiagnosticCreateInput,
+): Promise<string> {
+  const id = buildDiagnosticId();
+  if (shouldSkipDiagnosticPersistence()) {
+    return id;
+  }
+  trackDiagnosticPersistence(persistCreateDiagnostic(id, input));
+  return id;
+}
+
+export async function finishLlmInvocationDiagnostic(
+  id: string | null | undefined,
+  input: LlmInvocationDiagnosticFinishInput,
+): Promise<void> {
+  const normalizedId = id?.trim();
+  if (!normalizedId) {
+    return;
+  }
+  if (shouldSkipDiagnosticPersistence()) {
+    return;
+  }
+  trackDiagnosticPersistence(persistFinishDiagnostic(normalizedId, input));
 }
 
 export function toLlmInvocationDiagnosticSnapshot(row: {
