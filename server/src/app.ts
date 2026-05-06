@@ -22,6 +22,7 @@ import genreRouter from "./routes/genre";
 import healthRouter from "./routes/health";
 import imagesRouter from "./routes/images";
 import knowledgeRouter from "./routes/knowledge";
+import maintenanceRouter from "./routes/maintenance";
 import llmRouter from "./routes/llm";
 import novelRouter from "./routes/novel";
 import novelDirectorRouter from "./routes/novelDirector";
@@ -49,6 +50,7 @@ import {
   hasSystemResourceBootstrapChanges,
 } from "./services/bootstrap/SystemResourceBootstrapService";
 import { initializeRagSettingsCompatibility } from "./services/settings/RagCompatibilityBootstrapService";
+import { diagnosticCleanupService } from "./services/diagnosticCleanupService";
 
 registerNovelEventHandlers(novelEventBus);
 const novelPipelineRuntimeService = new NovelPipelineRuntimeService();
@@ -137,6 +139,7 @@ export function createApp() {
   app.use("/api/settings/auto-director", settingsAutoDirectorRouter);
   app.use("/api/auto-director/channel-callbacks", autoDirectorChannelCallbacksRouter);
   app.use("/api/settings", settingsRouter);
+  app.use("/api/maintenance", maintenanceRouter);
   app.use("/api/astrology", astrologyRouter);
 
   app.use((_req, res) => {
@@ -213,6 +216,7 @@ function logServerReady(host: string, port: number): void {
 
 function initializeBackgroundServices(): void {
   ragServices.ragWorker.start();
+  diagnosticCleanupService.start();
   const recoveryInitialization = recoveryTaskService.initializePendingRecoveries();
 
   void loadProviderApiKeys().catch((error) => {

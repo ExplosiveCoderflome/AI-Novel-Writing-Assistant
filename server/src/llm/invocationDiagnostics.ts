@@ -295,6 +295,15 @@ export async function findLatestLlmInvocationDiagnosticForTask(
   }
 }
 
+export async function cleanupOldLlmInvocationDiagnostics(olderThanDays: number = 30): Promise<number> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - olderThanDays);
+  const result = await prisma.llmInvocationDiagnostic.deleteMany({
+    where: { createdAt: { lt: cutoff } },
+  });
+  return result.count;
+}
+
 export function buildLlmDiagnosticFailureAppendix(
   diagnostic: LlmInvocationDiagnosticSnapshot | null | undefined,
 ): string | null {
