@@ -64,7 +64,7 @@ const {
 } = require("../dist/services/novel/chapterWritingGraphShared.js");
 const {
   directorPlanBlueprintSchema,
-} = require("../dist/services/novel/director/novelDirectorSchemas.js");
+} = require("../dist/services/director/schemas.js");
 
 const promptKey = (asset) => `${asset.id}@${asset.version}`;
 

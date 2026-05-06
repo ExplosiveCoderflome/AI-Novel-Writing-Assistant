@@ -1,6 +1,6 @@
 import type { DirectorRunMode } from "@ai-novel/shared/types/novelDirector";
-import { normalizeDirectorRunMode } from "./novelDirectorHelpers";
-import type { StructuredOutlineRecoveryStep } from "./novelDirectorStructuredOutlineRecovery";
+import { normalizeDirectorRunMode } from "./helpers";
+import type { StructuredOutlineRecoveryStep } from "./structuredOutlineRecovery";
 
 export type DirectorPipelinePhase =
   | "story_macro"

@@ -5,7 +5,7 @@ import type {
 } from "@ai-novel/shared/types/novelDirector";
 import type { PipelineJobStatus } from "@ai-novel/shared/types/novel";
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
-import { buildNovelEditResumeTarget } from "../workflow/novelWorkflow.shared";
+import { buildNovelEditResumeTarget } from "../novel/workflow/novelWorkflow.shared";
 import {
   buildDirectorAutoExecutionCompletedLabel,
   buildDirectorAutoExecutionCompletedSummary,
@@ -13,10 +13,10 @@ import {
   buildDirectorAutoExecutionPausedSummary,
   buildDirectorAutoExecutionScopeLabelFromState,
   type DirectorAutoExecutionRange,
-} from "./novelDirectorAutoExecution";
-import { buildDirectorSessionState } from "./novelDirectorHelpers";
-import { PIPELINE_REPLAN_NOTICE_CODE, parsePipelinePayload } from "../pipelineJobState";
-import { buildDirectorQualityRepairRisk } from "./novelDirectorQualityRepairRisk";
+} from "./autoExecution";
+import { buildDirectorSessionState } from "./helpers";
+import { PIPELINE_REPLAN_NOTICE_CODE, parsePipelinePayload } from "../novel/pipelineJobState";
+import { buildDirectorQualityRepairRisk } from "./qualityRepairRisk";
 
 export type AutoExecutionResumeStage = "chapter" | "pipeline";
 

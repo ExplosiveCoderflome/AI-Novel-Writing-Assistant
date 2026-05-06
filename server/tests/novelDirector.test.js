@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const http = require("node:http");
 const { createApp } = require("../dist/app.js");
-const { NovelDirectorService } = require("../dist/services/novel/director/NovelDirectorService.js");
+const { NovelDirectorService } = require("../dist/services/director/DirectorService.js");
 
 function listen(server) {
   return new Promise((resolve) => {

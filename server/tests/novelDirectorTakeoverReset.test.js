@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const {
   resolveDirectorTakeoverAutoExecutionResetRange,
   resetDirectorTakeoverCurrentStep,
-} = require("../dist/services/novel/director/novelDirectorTakeoverReset.js");
+} = require("../dist/services/director/takeoverReset.js");
 const { prisma } = require("../dist/db/prisma.js");
 
 function buildTakeoverState() {

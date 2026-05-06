@@ -1,12 +1,12 @@
 import type { NovelWorkflowResumeTarget } from "@ai-novel/shared/types/novelWorkflow";
-import { AppError } from "../../../middleware/errorHandler";
+import { AppError } from "../../middleware/errorHandler";
 import {
   acquireScopedHighMemoryReservation,
   startHighMemoryReservationRenewal,
   type HighMemoryReservationHandle,
-} from "../highMemoryReservation";
-import { parseResumeTarget } from "../workflow/novelWorkflow.shared";
-import type { NovelWorkflowService } from "../workflow/NovelWorkflowService";
+} from "../novel/highMemoryReservation";
+import { parseResumeTarget } from "../novel/workflow/novelWorkflow.shared";
+import type { NovelWorkflowService } from "../novel/workflow/NovelWorkflowService";
 
 export const AUTO_DIRECTOR_HIGH_MEMORY_BATCH_LIMIT = 1;
 const AUTO_DIRECTOR_HIGH_MEMORY_RESERVATION_TTL_MS = 10 * 60 * 1000;

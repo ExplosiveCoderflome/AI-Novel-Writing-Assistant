@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const { NovelWorkflowService } = require("../dist/services/novel/workflow/NovelWorkflowService.js");
 const {
   resolveStructuredOutlineRecoveryCursor,
-} = require("../dist/services/novel/director/novelDirectorStructuredOutlineRecovery.js");
+} = require("../dist/services/director/structuredOutlineRecovery.js");
 const { NovelVolumeService } = require("../dist/services/novel/volume/NovelVolumeService.js");
 const {
   buildVolumeWorkspaceDocument,

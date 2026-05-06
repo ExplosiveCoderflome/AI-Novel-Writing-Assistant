@@ -1,5 +1,5 @@
 import type { DirectorPlanBlueprint } from "@ai-novel/shared/types/novelDirector";
-import { prisma } from "../../../db/prisma";
+import { prisma } from "../../db/prisma";
 
 export const DIRECTOR_BLUEPRINT_TRANSACTION_TIMEOUT_MS = 60_000;
 

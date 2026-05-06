@@ -3,7 +3,7 @@ import {
   PIPELINE_QUALITY_NOTICE_CODE,
   PIPELINE_REPLAN_NOTICE_CODE,
   parsePipelinePayload,
-} from "../pipelineJobState";
+} from "../novel/pipelineJobState";
 
 type PipelineRepairMode = NonNullable<ReturnType<typeof parsePipelinePayload>["repairMode"]>;
 

@@ -8,7 +8,7 @@ const {
 } = require("../../shared/dist/types/autoDirectorApproval.js");
 const {
   buildWorkflowSeedPayload,
-} = require("../dist/services/novel/director/novelDirectorHelpers.js");
+} = require("../dist/services/director/helpers.js");
 
 test("auto approval config normalizes concrete point codes and ignores invalid values", () => {
   assert.deepEqual(

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { DirectorWorkflowSeedPayload } from "../director/novelDirectorHelpers";
+import type { DirectorWorkflowSeedPayload } from "../../director/helpers";
 import { parseSeedPayload } from "./novelWorkflow.shared";
 
 interface AutoDirectorCandidateSeedRepairResult {

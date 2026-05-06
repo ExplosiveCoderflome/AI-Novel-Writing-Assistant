@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { prisma } = require("../dist/db/prisma.js");
-const { directorExecutionLogger } = require("../dist/services/novel/director/directorExecutionLogger.js");
+const { directorExecutionLogger } = require("../dist/services/director/executionLogger.js");
 
 function mockPrismaLog() {
   const calls = { create: 0, count: 0, findMany: 0, deleteMany: 0 };

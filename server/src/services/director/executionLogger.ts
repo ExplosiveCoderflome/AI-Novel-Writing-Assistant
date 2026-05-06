@@ -1,4 +1,4 @@
-import { prisma } from "../../../db/prisma";
+import { prisma } from "../../db/prisma";
 import type { DirectorExecutionLogLevel } from "@ai-novel/shared/types/directorExecutionLog";
 
 const MAX_LOGS_PER_TASK = 200;

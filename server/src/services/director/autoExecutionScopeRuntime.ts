@@ -15,12 +15,12 @@ import {
   resolveDirectorAutoExecutionRangeFromState,
   type DirectorAutoExecutionChapterRef,
   type DirectorAutoExecutionRange,
-} from "./novelDirectorAutoExecution";
-import { isSkippableAutoExecutionReviewFailure } from "./novelDirectorAutoExecutionFailure";
+} from "./autoExecution";
+import { isSkippableAutoExecutionReviewFailure } from "./autoExecutionFailure";
 import {
   flattenPreparedOutlineChapters,
   resolveStructuredOutlineRecoveryCursor,
-} from "./novelDirectorStructuredOutlineRecovery";
+} from "./structuredOutlineRecovery";
 
 interface DirectorAutoExecutionResolvedScope {
   range: DirectorAutoExecutionRange;

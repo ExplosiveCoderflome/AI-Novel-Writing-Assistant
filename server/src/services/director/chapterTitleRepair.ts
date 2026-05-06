@@ -1,11 +1,11 @@
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
-import { buildNovelEditResumeTarget } from "../workflow/novelWorkflow.shared";
-import { getChapterTitleDiversityIssue } from "../volume/chapterTitleDiversity";
-import type { NovelVolumeService } from "../volume/NovelVolumeService";
-import type { NovelWorkflowService } from "../workflow/NovelWorkflowService";
-import { buildDirectorSessionState } from "./novelDirectorHelpers";
-import { DIRECTOR_PROGRESS } from "./novelDirectorProgress";
-import { buildChapterTitleDiversityTaskNotice } from "./novelDirectorTaskNotice";
+import { buildNovelEditResumeTarget } from "../novel/workflow/novelWorkflow.shared";
+import { getChapterTitleDiversityIssue } from "../novel/volume/chapterTitleDiversity";
+import type { NovelVolumeService } from "../novel/volume/NovelVolumeService";
+import type { NovelWorkflowService } from "../novel/workflow/NovelWorkflowService";
+import { buildDirectorSessionState } from "./helpers";
+import { DIRECTOR_PROGRESS } from "./progress";
+import { buildChapterTitleDiversityTaskNotice } from "./taskNotice";
 
 function buildRepairStatusLabel(input: {
   volumeOrder: number;

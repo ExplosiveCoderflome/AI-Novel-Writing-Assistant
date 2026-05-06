@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 
 const {
   NovelDirectorAutoExecutionRuntime,
-} = require("../dist/services/novel/director/novelDirectorAutoExecutionRuntime.js");
+} = require("../dist/services/director/autoExecutionRuntime.js");
 
 function buildRequest(overrides = {}) {
   return {

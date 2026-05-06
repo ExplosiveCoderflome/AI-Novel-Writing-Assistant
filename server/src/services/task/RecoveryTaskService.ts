@@ -10,7 +10,7 @@ import { bookAnalysisService } from "../bookAnalysis/BookAnalysisService";
 import { imageGenerationService } from "../image/ImageGenerationService";
 import { NovelPipelineRuntimeService } from "../novel/NovelPipelineRuntimeService";
 import { NovelService } from "../novel/NovelService";
-import { NovelDirectorService } from "../novel/director/NovelDirectorService";
+import { NovelDirectorService } from "../director/DirectorService";
 import { NovelWorkflowRuntimeService } from "../novel/workflow/NovelWorkflowRuntimeService";
 import { styleExtractionTaskService } from "../styleEngine/StyleExtractionTaskService";
 import { taskCenterService } from "./TaskCenterService";

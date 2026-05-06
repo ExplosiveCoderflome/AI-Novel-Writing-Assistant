@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 
 const {
   resolveDirectorAutoExecutionWorkflowState,
-} = require("../dist/services/novel/director/novelDirectorAutoExecution.js");
+} = require("../dist/services/director/autoExecution.js");
 const {
   stringifyPipelinePayload,
 } = require("../dist/services/novel/pipelineJobState.js");

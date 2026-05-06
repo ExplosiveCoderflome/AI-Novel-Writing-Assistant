@@ -21,11 +21,11 @@ import type { TaskStatus } from "@ai-novel/shared/types/task";
 import {
   getDirectorLlmOptionsFromSeedPayload,
   type DirectorWorkflowSeedPayload,
-} from "../../novel/director/novelDirectorHelpers";
+} from "../../director/helpers";
 import {
   compareAutoDirectorFollowUpSections,
   resolveAutoDirectorFollowUpSection,
-} from "../../novel/director/autoDirectorValidationService";
+} from "../../director/autoValidationService";
 import {
   parseMilestones,
   parseSeedPayload,

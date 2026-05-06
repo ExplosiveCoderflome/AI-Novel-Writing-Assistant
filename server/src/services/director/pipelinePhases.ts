@@ -1,26 +1,26 @@
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
-import { buildCharacterCastBlockedMessage } from "../characterPrep/characterCastQuality";
-import type { VolumeGenerationPhaseEvent } from "../volume/volumeModels";
-import { buildNovelEditResumeTarget } from "../workflow/novelWorkflow.shared";
+import { buildCharacterCastBlockedMessage } from "../novel/characterPrep/characterCastQuality";
+import type { VolumeGenerationPhaseEvent } from "../novel/volume/volumeModels";
+import { buildNovelEditResumeTarget } from "../novel/workflow/novelWorkflow.shared";
 import {
   buildDirectorSessionState,
   buildStoryInput,
   normalizeDirectorRunMode,
   toBookSpec,
-} from "./novelDirectorHelpers";
+} from "./helpers";
 import {
   DIRECTOR_PROGRESS,
   type DirectorProgressItemKey,
-} from "./novelDirectorProgress";
+} from "./progress";
 import {
   normalizeDirectorAutoApprovalConfig,
   shouldAutoApproveDirectorCheckpoint,
 } from "@ai-novel/shared/types/autoDirectorApproval";
-import { recordAutoDirectorAutoApproval } from "../../task/autoDirectorFollowUps/autoDirectorAutoApprovalAudit";
-import { runDirectorTrackedStep } from "./directorProgressTracker";
-import type { DirectorPhaseCallbacks, DirectorPhaseDependencies } from "./novelDirectorPhaseTypes";
-export { runDirectorStructuredOutlinePhase } from "./novelDirectorStructuredOutlinePhase";
+import { recordAutoDirectorAutoApproval } from "../task/autoDirectorFollowUps/autoDirectorAutoApprovalAudit";
+import { runDirectorTrackedStep } from "./progressTracker";
+import type { DirectorPhaseCallbacks, DirectorPhaseDependencies } from "./phaseTypes";
+export { runDirectorStructuredOutlinePhase } from "./structuredOutlinePhase";
 
 function buildVolumeStrategyPhaseUpdate(event: VolumeGenerationPhaseEvent): {
   itemKey: DirectorProgressItemKey;

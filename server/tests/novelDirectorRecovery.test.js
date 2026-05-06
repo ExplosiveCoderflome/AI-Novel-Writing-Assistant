@@ -5,7 +5,7 @@ const {
   resolveAssetFirstRecoveryFromSnapshot,
   resolveObservedResumePhaseFromWorkspace,
   resolveSafeDirectorPipelineStartPhase,
-} = require("../dist/services/novel/director/novelDirectorRecovery.js");
+} = require("../dist/services/director/recovery.js");
 
 test("observed resume phase only advances to structured outline when strategy plan exists", () => {
   const phase = resolveObservedResumePhaseFromWorkspace({

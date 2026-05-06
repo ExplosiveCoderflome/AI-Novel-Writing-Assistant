@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const { prisma } = require("../dist/db/prisma.js");
 const { cleanupOldLlmInvocationDiagnostics } = require("../dist/llm/invocationDiagnostics.js");
 const { DiagnosticCleanupService } = require("../dist/services/diagnosticCleanupService.js");
-const { directorExecutionLogger } = require("../dist/services/novel/director/directorExecutionLogger.js");
+const { directorExecutionLogger } = require("../dist/services/director/executionLogger.js");
 
 test("cleanupOldLlmInvocationDiagnostics deletes records older than specified days", async () => {
   const original = prisma.llmInvocationDiagnostic.deleteMany;

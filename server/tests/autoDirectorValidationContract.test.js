@@ -5,7 +5,7 @@ const {
   validateAutoDirectorAction,
   validateAutoDirectorTakeoverRequest,
   resolveAutoDirectorFollowUpSection,
-} = require("../dist/services/novel/director/autoDirectorValidationService.js");
+} = require("../dist/services/director/autoValidationService.js");
 
 test("validateAutoDirectorTakeoverRequest blocks chapter ranges before structured outline support exists", () => {
   const result = validateAutoDirectorTakeoverRequest({

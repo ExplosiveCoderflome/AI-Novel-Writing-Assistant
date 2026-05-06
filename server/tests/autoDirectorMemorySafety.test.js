@@ -6,7 +6,7 @@ const {
   assertHighMemoryDirectorStartAllowed,
   isHighMemoryDirectorStage,
   AUTO_DIRECTOR_HIGH_MEMORY_BATCH_LIMIT,
-} = require("../dist/services/novel/director/autoDirectorMemorySafety.js");
+} = require("../dist/services/director/autoMemorySafety.js");
 const {
   isStaleAutoDirectorRunningTask,
 } = require("../dist/services/novel/workflow/autoDirectorStaleTaskRecovery.js");

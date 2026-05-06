@@ -1,4 +1,4 @@
-import { formatChapterDetailModeLabel } from "../volume/chapterDetailModeLabel";
+import { formatChapterDetailModeLabel } from "../novel/volume/chapterDetailModeLabel";
 
 export const DIRECTOR_PROGRESS = {
   candidateSeedAlignment: 0.03,

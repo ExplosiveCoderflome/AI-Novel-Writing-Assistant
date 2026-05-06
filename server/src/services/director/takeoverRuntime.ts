@@ -4,20 +4,20 @@ import type {
   DirectorTakeoverExecutableRangeSnapshot,
   DirectorTakeoverPipelineJobSnapshot,
 } from "@ai-novel/shared/types/novelDirector";
-import type { DirectorTakeoverNovelContext, DirectorTakeoverAssetSnapshot } from "./novelDirectorTakeover";
+import type { DirectorTakeoverNovelContext, DirectorTakeoverAssetSnapshot } from "./takeover";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
-import type { BookContractService } from "../BookContractService";
-import type { DirectorWorkflowSeedPayload } from "./novelDirectorHelpers";
+import type { BookContractService } from "../novel/BookContractService";
+import type { DirectorWorkflowSeedPayload } from "./helpers";
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
-import { prisma } from "../../../db/prisma";
-import { normalizeNovelOutput } from "../novelCoreShared";
-import { DIRECTOR_PROGRESS } from "./novelDirectorProgress";
-import { parseSeedPayload } from "../workflow/novelWorkflow.shared";
+import { prisma } from "../../db/prisma";
+import { normalizeNovelOutput } from "../novel/novelCoreShared";
+import { DIRECTOR_PROGRESS } from "./progress";
+import { parseSeedPayload } from "../novel/workflow/novelWorkflow.shared";
 import {
   hasDirectorAutoExecutionChapterContract,
   resolveDirectorAutoExecutionRangeFromState,
-} from "./novelDirectorAutoExecution";
-import { resolveStructuredOutlineRecoveryCursor } from "./novelDirectorStructuredOutlineRecovery";
+} from "./autoExecution";
+import { resolveStructuredOutlineRecoveryCursor } from "./structuredOutlineRecovery";
 
 export interface DirectorTakeoverLoadedState {
   novel: DirectorTakeoverNovelContext;

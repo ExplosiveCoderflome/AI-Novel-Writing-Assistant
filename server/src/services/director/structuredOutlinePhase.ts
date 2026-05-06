@@ -3,36 +3,36 @@ import type {
   DirectorConfirmRequest,
   DirectorTaskNotice,
 } from "@ai-novel/shared/types/novelDirector";
-import type { VolumeGenerationPhaseEvent } from "../volume/volumeModels";
-import { getChapterTitleDiversityIssue } from "../volume/chapterTitleDiversity";
-import { buildNovelEditResumeTarget } from "../workflow/novelWorkflow.shared";
-import { logMemoryUsage } from "../../../runtime/memoryTelemetry";
+import type { VolumeGenerationPhaseEvent } from "../novel/volume/volumeModels";
+import { getChapterTitleDiversityIssue } from "../novel/volume/chapterTitleDiversity";
+import { buildNovelEditResumeTarget } from "../novel/workflow/novelWorkflow.shared";
+import { logMemoryUsage } from "../../runtime/memoryTelemetry";
 import {
   buildDirectorSessionState,
   normalizeDirectorRunMode,
-} from "./novelDirectorHelpers";
+} from "./helpers";
 import {
   buildChapterDetailBundleLabel,
   buildChapterDetailBundleProgress,
   DIRECTOR_PROGRESS,
   type DirectorProgressItemKey,
-} from "./novelDirectorProgress";
+} from "./progress";
 import {
   buildDirectorAutoExecutionState,
   countDirectorAutoExecutionChapterRange,
   hasDirectorAutoExecutionChapterContract,
   normalizeDirectorAutoExecutionPlan,
   resolveDirectorAutoExecutionPlanChapterRange,
-} from "./novelDirectorAutoExecution";
+} from "./autoExecution";
 import {
   flattenPreparedOutlineChapters,
   resolveStructuredOutlineRecoveryCursor,
   type StructuredOutlineDetailMode,
   type StructuredOutlineRecoveryCursor,
-} from "./novelDirectorStructuredOutlineRecovery";
-import { runDirectorTrackedStep } from "./directorProgressTracker";
-import type { DirectorPhaseCallbacks, DirectorPhaseDependencies } from "./novelDirectorPhaseTypes";
-import { resetDirectorDownstreamChapterState } from "./novelDirectorDownstreamReset";
+} from "./structuredOutlineRecovery";
+import { runDirectorTrackedStep } from "./progressTracker";
+import type { DirectorPhaseCallbacks, DirectorPhaseDependencies } from "./phaseTypes";
+import { resetDirectorDownstreamChapterState } from "./downstreamReset";
 
 function buildChapterOrderRangeLabel(startOrder: number, endOrder: number): string {
   return startOrder === endOrder ? `第 ${startOrder} 章` : `第 ${startOrder}-${endOrder} 章`;

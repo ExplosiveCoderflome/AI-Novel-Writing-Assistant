@@ -12,12 +12,12 @@ import { parseChapterScenePlan } from "@ai-novel/shared/types/chapterLengthContr
 import {
   buildPipelineBackgroundActivityLabels,
   parsePipelinePayload,
-} from "../pipelineJobState";
-import { buildPipelineExecutionControlPolicy } from "../production/ChapterExecutionStageRunner";
+} from "../novel/pipelineJobState";
+import { buildPipelineExecutionControlPolicy } from "../novel/production/ChapterExecutionStageRunner";
 import {
   buildSkippableAutoExecutionReviewCheckpointSummary,
   isSkippableAutoExecutionReviewFailure,
-} from "./novelDirectorAutoExecutionFailure";
+} from "./autoExecutionFailure";
 export interface DirectorAutoExecutionRange {
   startOrder: number;
   endOrder: number;

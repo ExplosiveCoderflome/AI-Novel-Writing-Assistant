@@ -9,7 +9,7 @@ const {
   normalizeDirectorAutoExecutionPlan,
   resolveDirectorAutoExecutionRange,
   resolveDirectorAutoExecutionWorkflowState,
-} = require("../dist/services/novel/director/novelDirectorAutoExecution.js");
+} = require("../dist/services/director/autoExecution.js");
 
 test("front10 normalizes to the explicit chapter range 1-10", () => {
   assert.deepEqual(normalizeDirectorAutoExecutionPlan({ mode: "front10" }), {

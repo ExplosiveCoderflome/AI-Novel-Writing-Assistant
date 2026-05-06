@@ -1,23 +1,23 @@
 import type { BookContractDraft } from "@ai-novel/shared/types/novelWorkflow";
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
-import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import {
   buildDirectorBookContractContextBlocks,
   directorBookContractPrompt,
-} from "../../../prompting/prompts/novel/directorPlanning.prompts";
-import { BookContractService } from "../BookContractService";
-import { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
+} from "../../prompting/prompts/novel/directorPlanning.prompts";
+import { BookContractService } from "../novel/BookContractService";
+import { StoryMacroPlanService } from "../novel/storyMacro/StoryMacroPlanService";
 import {
   buildStoryInput,
   normalizeBookContract,
   toBookSpec,
-} from "./novelDirectorHelpers";
-import { runDirectorTrackedStep } from "./directorProgressTracker";
+} from "./helpers";
+import { runDirectorTrackedStep } from "./progressTracker";
 import {
   DIRECTOR_PROGRESS,
-} from "./novelDirectorProgress";
-import type { DirectorMarkTaskRunningCallback } from "./novelDirectorPhaseTypes";
+} from "./progress";
+import type { DirectorMarkTaskRunningCallback } from "./phaseTypes";
 
 interface DirectorStoryMacroDependencies {
   storyMacroService: StoryMacroPlanService;

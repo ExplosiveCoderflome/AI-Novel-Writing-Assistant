@@ -14,21 +14,21 @@ import {
   applyDirectorLlmOverride,
   normalizeDirectorRunMode,
   type DirectorWorkflowSeedPayload,
-} from "../director/novelDirectorHelpers";
+} from "../../director/helpers";
 import {
   buildChapterDetailBundleLabel,
   buildChapterDetailBundleProgress,
   DIRECTOR_PROGRESS,
-} from "../director/novelDirectorProgress";
+} from "../../director/progress";
 import {
   buildDirectorAutoExecutionScopeLabel,
   normalizeDirectorAutoExecutionPlan,
   resolveDirectorAutoExecutionBookRange,
   resolveDirectorAutoExecutionRangeFromState,
   resolveDirectorAutoExecutionWorkflowState,
-} from "../director/novelDirectorAutoExecution";
+} from "../../director/autoExecution";
 import { NovelVolumeService } from "../volume/NovelVolumeService";
-import { resolveStructuredOutlineRecoveryCursor } from "../director/novelDirectorStructuredOutlineRecovery";
+import { resolveStructuredOutlineRecoveryCursor } from "../../director/structuredOutlineRecovery";
 import {
   appendMilestone,
   buildNovelCreateResumeTarget,

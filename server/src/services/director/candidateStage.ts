@@ -15,23 +15,23 @@ import {
   type DirectorRefinementRequest,
 } from "@ai-novel/shared/types/novelDirector";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
-import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import {
   buildDirectorCandidateContextBlocks,
   directorCandidatePatchPrompt,
   directorCandidatePrompt,
-} from "../../../prompting/prompts/novel/directorPlanning.prompts";
-import { titleGenerationService } from "../../title/TitleGenerationService";
-import { isNearDuplicateTitle } from "../../title/titleGeneration.shared";
-import type { NovelWorkflowService } from "../workflow/NovelWorkflowService";
+} from "../../prompting/prompts/novel/directorPlanning.prompts";
+import { titleGenerationService } from "../title/TitleGenerationService";
+import { isNearDuplicateTitle } from "../title/titleGeneration.shared";
+import type { NovelWorkflowService } from "../novel/workflow/NovelWorkflowService";
 import {
   buildRefinementSummary,
   buildWorkflowSeedPayload,
   enhanceCandidateTitles,
   normalizeCandidate,
   type CandidateGenerationContext,
-} from "./novelDirectorHelpers";
-import { DIRECTOR_PROGRESS } from "./novelDirectorProgress";
+} from "./helpers";
+import { DIRECTOR_PROGRESS } from "./progress";
 
 type WorkflowDependency = Pick<NovelWorkflowService, "bootstrapTask" | "markTaskRunning" | "recordCandidateSelectionRequired">;
 

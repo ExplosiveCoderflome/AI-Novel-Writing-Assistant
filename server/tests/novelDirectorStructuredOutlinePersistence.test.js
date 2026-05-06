@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { runDirectorStructuredOutlinePhase } = require("../dist/services/novel/director/novelDirectorPipelinePhases.js");
+const { runDirectorStructuredOutlinePhase } = require("../dist/services/director/pipelinePhases.js");
 const { prisma } = require("../dist/db/prisma.js");
 
 function createChapter(id, order, title) {

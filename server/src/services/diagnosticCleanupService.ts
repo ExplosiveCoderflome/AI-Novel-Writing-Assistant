@@ -1,4 +1,4 @@
-import { directorExecutionLogger } from "./novel/director/directorExecutionLogger";
+import { directorExecutionLogger } from "./director/executionLogger";
 import { cleanupOldLlmInvocationDiagnostics } from "../llm/invocationDiagnostics";
 
 const DEFAULT_RETENTION_DAYS = 30;

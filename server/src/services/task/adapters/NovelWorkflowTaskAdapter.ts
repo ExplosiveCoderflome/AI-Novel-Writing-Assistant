@@ -10,19 +10,19 @@ import type { ResourceRef } from "@ai-novel/shared/types/agent";
 import type { TaskStatus, UnifiedTaskDetail, UnifiedTaskSummary } from "@ai-novel/shared/types/task";
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
-import { NovelDirectorService } from "../../novel/director/NovelDirectorService";
+import { NovelDirectorService } from "../../director/DirectorService";
 import {
   buildSkippableAutoExecutionReviewBlockingReason,
   buildSkippableAutoExecutionReviewCheckpointSummary,
   buildSkippableAutoExecutionReviewFailureSummary,
   buildSkippableAutoExecutionReviewRecoveryHint,
   isSkippableAutoExecutionReviewFailure,
-} from "../../novel/director/novelDirectorAutoExecutionFailure";
+} from "../../director/autoExecutionFailure";
 import { NovelWorkflowService } from "../../novel/workflow/NovelWorkflowService";
 import {
   getDirectorLlmOptionsFromSeedPayload,
   type DirectorWorkflowSeedPayload,
-} from "../../novel/director/novelDirectorHelpers";
+} from "../../director/helpers";
 import { isAutoDirectorRecoveryInProgress } from "../../novel/workflow/novelWorkflowRecoveryHeuristics";
 import {
   buildNovelCreateResumeTarget,

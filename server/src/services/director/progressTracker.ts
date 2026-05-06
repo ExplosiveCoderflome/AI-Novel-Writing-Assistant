@@ -1,8 +1,8 @@
-import type { DirectorProgressItemKey } from "./novelDirectorProgress";
+import type { DirectorProgressItemKey } from "./progress";
 import type {
   DirectorMarkTaskRunningCallback,
   DirectorMutatingStage,
-} from "./novelDirectorPhaseTypes";
+} from "./phaseTypes";
 
 export type DirectorTrackedStage = DirectorMutatingStage;
 

@@ -20,7 +20,7 @@ import {
   directorCandidateSchema,
   directorCandidateResponseSchema,
   directorPlanBlueprintSchema,
-} from "../../../services/novel/director/novelDirectorSchemas";
+} from "../../../services/director/schemas";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
 import { genreProfileRegistry } from "../../references/genreProfileRegistry";
 import { renderGenreGuidanceText } from "./chapterLayeredContextShared";

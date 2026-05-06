@@ -10,7 +10,7 @@ import { recoveryTaskService } from "../services/task/RecoveryTaskService";
 import { AutoDirectorFollowUpActionExecutor } from "../services/task/autoDirectorFollowUps/AutoDirectorFollowUpActionExecutor";
 import { AutoDirectorFollowUpService } from "../services/task/autoDirectorFollowUps/AutoDirectorFollowUpService";
 import { taskCenterService } from "../services/task/TaskCenterService";
-import { directorExecutionLogger } from "../services/novel/director/directorExecutionLogger";
+import { directorExecutionLogger } from "../services/director/executionLogger";
 
 const router = Router();
 const autoDirectorFollowUpService = new AutoDirectorFollowUpService();

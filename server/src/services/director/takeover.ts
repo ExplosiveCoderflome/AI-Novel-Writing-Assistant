@@ -18,7 +18,7 @@ import type {
 import type { NovelWorkflowStage, BookContract } from "@ai-novel/shared/types/novelWorkflow";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
 import { DIRECTOR_TAKEOVER_ENTRY_STEPS } from "@ai-novel/shared/types/novelDirector";
-import { normalizeDirectorTargetChapterCount } from "./novelDirectorHelpers";
+import { normalizeDirectorTargetChapterCount } from "./helpers";
 
 export interface DirectorTakeoverNovelContext extends Omit<DirectorProjectContextInput, "description"> {
   id: string;

@@ -1,10 +1,10 @@
 import type { CharacterCastOption } from "@ai-novel/shared/types/novel";
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
-import type { CharacterPreparationService } from "../characterPrep/CharacterPreparationService";
-import type { NovelContextService } from "../NovelContextService";
-import type { NovelVolumeService } from "../volume/NovelVolumeService";
-import type { NovelWorkflowService } from "../workflow/NovelWorkflowService";
-import type { DirectorProgressItemKey } from "./novelDirectorProgress";
+import type { CharacterPreparationService } from "../novel/characterPrep/CharacterPreparationService";
+import type { NovelContextService } from "../novel/NovelContextService";
+import type { NovelVolumeService } from "../novel/volume/NovelVolumeService";
+import type { NovelWorkflowService } from "../novel/workflow/NovelWorkflowService";
+import type { DirectorProgressItemKey } from "./progress";
 
 export type DirectorMutatingStage =
   | "auto_director"

@@ -5,19 +5,19 @@ import type {
   DirectorTakeoverRequest,
   DirectorTakeoverResponse,
 } from "@ai-novel/shared/types/novelDirector";
-import { buildNovelEditResumeTarget } from "../workflow/novelWorkflow.shared";
+import { buildNovelEditResumeTarget } from "../novel/workflow/novelWorkflow.shared";
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
-import { buildDirectorSessionState } from "./novelDirectorHelpers";
+import { buildDirectorSessionState } from "./helpers";
 import {
   resolveDirectorTakeoverPlan,
   type DirectorTakeoverResolvedPlan,
-} from "./novelDirectorTakeover";
-import type { DirectorTakeoverLoadedState } from "./novelDirectorTakeoverRuntime";
-import { resolveDirectorRunningStateForPhase } from "./novelDirectorTakeoverRuntime";
+} from "./takeover";
+import type { DirectorTakeoverLoadedState } from "./takeoverRuntime";
+import { resolveDirectorRunningStateForPhase } from "./takeoverRuntime";
 import {
   buildContinueExistingDownstreamReset,
   buildRestartCurrentStepDownstreamReset,
-} from "./novelDirectorTakeoverContinue";
+} from "./takeoverContinue";
 
 interface TakeoverBootstrapTaskResult {
   id: string;

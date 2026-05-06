@@ -10,14 +10,14 @@ import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkfl
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { resolveModel, type TaskType } from "../../../llm/modelRouter";
-import { NovelDirectorService } from "../../novel/director/NovelDirectorService";
-import { AutoDirectorValidationService } from "../../novel/director/autoDirectorValidationService";
-import type { DirectorWorkflowSeedPayload } from "../../novel/director/novelDirectorHelpers";
+import { NovelDirectorService } from "../../director/DirectorService";
+import { AutoDirectorValidationService } from "../../director/autoValidationService";
+import type { DirectorWorkflowSeedPayload } from "../../director/helpers";
 import { NovelWorkflowService } from "../../novel/workflow/NovelWorkflowService";
 import { parseSeedPayload } from "../../novel/workflow/novelWorkflow.shared";
 import { NovelWorkflowTaskAdapter } from "../adapters/NovelWorkflowTaskAdapter";
 import { resolveAutoDirectorFollowUpReason } from "./autoDirectorFollowUpReasonResolver";
-import { resolveAutoDirectorFollowUpSection } from "../../novel/director/autoDirectorValidationService";
+import { resolveAutoDirectorFollowUpSection } from "../../director/autoValidationService";
 import { extractBlockedAutoDirectorValidationResult } from "./autoDirectorFollowUpValidationResult";
 import {
   applyAutoDirectorSafeFix,

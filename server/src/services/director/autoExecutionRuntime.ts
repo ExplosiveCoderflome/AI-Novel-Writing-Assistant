@@ -14,21 +14,21 @@ import {
   resolveDirectorAutoExecutionWorkflowState,
   type DirectorAutoExecutionChapterRef,
   type DirectorAutoExecutionRange,
-} from "./novelDirectorAutoExecution";
+} from "./autoExecution";
 import {
   recordCompletedCheckpoint,
   recordQualityRepairCheckpoint,
   resolveQualityRepairNoticeAction,
   syncAutoExecutionTaskState,
   type AutoExecutionResumeStage,
-} from "./novelDirectorAutoExecutionCheckpointRuntime";
+} from "./autoExecutionCheckpointRuntime";
 import {
   applyReviewSkipOverride,
   buildRequestedAutoExecutionState,
   resolveAutoExecutionRangeAndState,
-} from "./novelDirectorAutoExecutionScopeRuntime";
-import { isSkippableAutoExecutionReviewFailure } from "./novelDirectorAutoExecutionFailure";
-import { directorExecutionLogger } from "./directorExecutionLogger";
+} from "./autoExecutionScopeRuntime";
+import { isSkippableAutoExecutionReviewFailure } from "./autoExecutionFailure";
+import { directorExecutionLogger } from "./executionLogger";
 
 interface NovelDirectorAutoExecutionWorkflowPort {
   bootstrapTask(input: {

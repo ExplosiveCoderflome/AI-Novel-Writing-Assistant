@@ -3,8 +3,8 @@ import {
 } from "@ai-novel/shared/types/novelDirector";
 import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import type { CharacterCastOption } from "@ai-novel/shared/types/novel";
-import { AppError } from "../../../middleware/errorHandler";
-import { runWithLlmUsageTracking } from "../../../llm/usageTracking";
+import { AppError } from "../../middleware/errorHandler";
+import { runWithLlmUsageTracking } from "../../llm/usageTracking";
 import type {
   DirectorContinuationMode,
   BookSpec,
@@ -23,24 +23,24 @@ import type {
   DirectorTakeoverRequest,
   DirectorTakeoverResponse,
 } from "@ai-novel/shared/types/novelDirector";
-import { BookContractService } from "../BookContractService";
-import { CharacterPreparationService } from "../characterPrep/CharacterPreparationService";
-import { generateAutoCharacterCastDraft, persistCharacterCastOptionsDraft } from "../characterPrep/characterCastGeneration";
-import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
-import { NovelContextService } from "../NovelContextService";
-import { NovelService } from "../NovelService";
-import { novelFramingSuggestionService } from "../NovelFramingSuggestionService";
-import { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
-import { NovelVolumeService } from "../volume/NovelVolumeService";
-import { isChapterTitleDiversityIssue } from "../volume/chapterTitleDiversity";
-import { NovelWorkflowService } from "../workflow/NovelWorkflowService";
+import { BookContractService } from "../novel/BookContractService";
+import { CharacterPreparationService } from "../novel/characterPrep/CharacterPreparationService";
+import { generateAutoCharacterCastDraft, persistCharacterCastOptionsDraft } from "../novel/characterPrep/characterCastGeneration";
+import { CharacterDynamicsService } from "../novel/dynamics/CharacterDynamicsService";
+import { NovelContextService } from "../novel/NovelContextService";
+import { NovelService } from "../novel/NovelService";
+import { novelFramingSuggestionService } from "../novel/NovelFramingSuggestionService";
+import { StoryMacroPlanService } from "../novel/storyMacro/StoryMacroPlanService";
+import { NovelVolumeService } from "../novel/volume/NovelVolumeService";
+import { isChapterTitleDiversityIssue } from "../novel/volume/chapterTitleDiversity";
+import { NovelWorkflowService } from "../novel/workflow/NovelWorkflowService";
 import {
   buildNovelEditResumeTarget,
   parseSeedPayload,
   parseResumeTarget,
-} from "../workflow/novelWorkflow.shared";
-import { NovelDirectorCandidateStageService } from "./novelDirectorCandidateStage";
-import { resolveDirectorBookFraming } from "./novelDirectorFraming";
+} from "../novel/workflow/novelWorkflow.shared";
+import { NovelDirectorCandidateStageService } from "./candidateStage";
+import { resolveDirectorBookFraming } from "./framing";
 import {
   buildDirectorSessionState,
   buildWorkflowSeedPayload,
@@ -49,62 +49,62 @@ import {
   type DirectorWorkflowSeedPayload,
   normalizeDirectorRunMode,
   toBookSpec,
-} from "./novelDirectorHelpers";
+} from "./helpers";
 import {
   runDirectorCharacterSetupPhase,
   runDirectorStructuredOutlinePhase,
   runDirectorVolumeStrategyPhase,
-} from "./novelDirectorPipelinePhases";
-import { runDirectorStoryMacroPhase } from "./novelDirectorStoryMacroPhase";
+} from "./pipelinePhases";
+import { runDirectorStoryMacroPhase } from "./storyMacroPhase";
 import {
   DIRECTOR_PROGRESS,
   type DirectorProgressItemKey,
-} from "./novelDirectorProgress";
+} from "./progress";
 import {
   buildDirectorTakeoverInput,
   buildDirectorTakeoverReadiness,
   isTakeoverStructuredOutlineReadyForValidation,
-} from "./novelDirectorTakeover";
-import { NovelDirectorAutoExecutionRuntime } from "./novelDirectorAutoExecutionRuntime";
+} from "./takeover";
+import { NovelDirectorAutoExecutionRuntime } from "./autoExecutionRuntime";
 import {
   loadDirectorTakeoverState,
   resolveDirectorRunningStateForPhase,
-} from "./novelDirectorTakeoverRuntime";
-import { DirectorRecoveryNotNeededError } from "./novelDirectorErrors";
-import { repairDirectorChapterTitles } from "./novelDirectorChapterTitleRepair";
-import { startDirectorTakeoverExecution } from "./novelDirectorTakeoverExecution";
+} from "./takeoverRuntime";
+import { DirectorRecoveryNotNeededError } from "./errors";
+import { repairDirectorChapterTitles } from "./chapterTitleRepair";
+import { startDirectorTakeoverExecution } from "./takeoverExecution";
 import {
   resetDirectorTakeoverCurrentStep,
   resetDirectorTakeoverDownstreamState,
-} from "./novelDirectorTakeoverReset";
-import { cancelContinueExistingReplacedRuns } from "./novelDirectorTakeoverContinue";
-import { StyleBindingService } from "../../styleEngine/StyleBindingService";
-import { StyleProfileService } from "../../styleEngine/StyleProfileService";
+} from "./takeoverReset";
+import { cancelContinueExistingReplacedRuns } from "./takeoverContinue";
+import { StyleBindingService } from "../styleEngine/StyleBindingService";
+import { StyleProfileService } from "../styleEngine/StyleProfileService";
 import {
   resolveAssetFirstRecoveryFromSnapshot,
   resolveObservedResumePhaseFromWorkspace,
   resolveSafeDirectorPipelineStartPhase,
-} from "./novelDirectorRecovery";
+} from "./recovery";
 import {
   assertHighMemoryDirectorStartAllowed,
   releaseHighMemoryDirectorReservations,
   normalizeDirectorMemoryScope,
-} from "./autoDirectorMemorySafety";
+} from "./autoMemorySafety";
 import {
   validateAutoDirectorTakeoverRequest,
-} from "./autoDirectorValidationService";
+} from "./autoValidationService";
 import {
   normalizeDirectorAutoApprovalConfig,
   shouldAutoApproveDirectorApprovalPoint,
   shouldAutoApproveDirectorCheckpoint,
 } from "@ai-novel/shared/types/autoDirectorApproval";
-import { directorExecutionLogger } from "./directorExecutionLogger";
-import { recordAutoDirectorAutoApprovalFromTask } from "../../task/autoDirectorFollowUps/autoDirectorAutoApprovalAudit";
-import { flattenPreparedOutlineChapters } from "./novelDirectorStructuredOutlineRecovery";
+import { directorExecutionLogger } from "./executionLogger";
+import { recordAutoDirectorAutoApprovalFromTask } from "../task/autoDirectorFollowUps/autoDirectorAutoApprovalAudit";
+import { flattenPreparedOutlineChapters } from "./structuredOutlineRecovery";
 import {
   buildLlmDiagnosticFailureAppendix,
   findLatestLlmInvocationDiagnosticForTask,
-} from "../../../llm/invocationDiagnostics";
+} from "../../llm/invocationDiagnostics";
 
 type WorkflowTaskSnapshot = Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>;
 

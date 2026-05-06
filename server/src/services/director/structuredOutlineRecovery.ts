@@ -11,14 +11,14 @@ import {
   countDirectorAutoExecutionChapterRange,
   normalizeDirectorAutoExecutionPlan,
   resolveDirectorAutoExecutionPlanChapterRange,
-} from "./novelDirectorAutoExecution";
-import { DIRECTOR_CHAPTER_DETAIL_MODES } from "./novelDirectorProgress";
+} from "./autoExecution";
+import { DIRECTOR_CHAPTER_DETAIL_MODES } from "./progress";
 import {
   getBeatExpectedChapterCount,
   getBeatSheet,
   isVolumeChapterListPartiallyPersisted,
   resolveVolumeChapterBeatKey,
-} from "../volume/volumeGenerationHelpers";
+} from "../novel/volume/volumeGenerationHelpers";
 
 export type StructuredOutlineDetailMode = (typeof DIRECTOR_CHAPTER_DETAIL_MODES)[number];
 export type StructuredOutlineRecoveryStep =

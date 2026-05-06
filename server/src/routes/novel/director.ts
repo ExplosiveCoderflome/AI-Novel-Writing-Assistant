@@ -20,8 +20,8 @@ import {
 import { DIRECTOR_AUTO_APPROVAL_POINTS } from "@ai-novel/shared/types/autoDirectorApproval";
 import { validate } from "../../middleware/validate";
 import { llmProviderSchema } from "../../llm/providerSchema";
-import { NovelDirectorService } from "../../services/novel/director/NovelDirectorService";
-import { directorPersistedCandidateSchema } from "../../services/novel/director/novelDirectorSchemas";
+import { NovelDirectorService } from "../../services/director/DirectorService";
+import { directorPersistedCandidateSchema } from "../../services/director/schemas";
 
 const router = Router();
 const novelDirectorService = new NovelDirectorService();
