@@ -7,6 +7,7 @@ import type {
   DirectorManualEditImpactResponse,
   DirectorPolicyMode,
   DirectorRuntimePolicyUpdateRequest,
+  DirectorTaskFactInspectionResponse,
   DirectorTaskSnapshotResponse,
   DirectorWorkspaceAnalysisResponse,
 } from "@ai-novel/shared/types/directorRuntime";
@@ -362,6 +363,16 @@ router.get("/tasks/:taskId", validate({ params: taskParamsSchema }), async (req,
     const { taskId } = req.params as z.infer<typeof taskParamsSchema>;
     const data = await snapshotService.getTaskSnapshot(taskId) as DirectorTaskSnapshotResponse;
     res.status(200).json(accepted(data, "Director task snapshot loaded."));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/tasks/:taskId/fact-inspection", validate({ params: taskParamsSchema }), async (req, res, next) => {
+  try {
+    const { taskId } = req.params as z.infer<typeof taskParamsSchema>;
+    const data = await snapshotService.getTaskFactInspection(taskId) as DirectorTaskFactInspectionResponse;
+    res.status(200).json(accepted(data, "Director fact inspection loaded."));
   } catch (error) {
     next(error);
   }

@@ -109,7 +109,7 @@ export class DirectorStateReader {
       runtime: run
         ? {
           id: run.id,
-          status: task.status,
+          status: activeStep?.status ?? latestCommand?.status ?? "idle",
           currentStep: activeStep?.nodeKey ?? task.currentItemKey ?? null,
           runId: run.id,
         }

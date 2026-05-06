@@ -5,9 +5,9 @@ import {
   type WorkflowPlan,
 } from "./WorkflowStepModule";
 import {
-  getDirectorExecutionContractSyncStepModule,
   getDirectorExecutionStepModuleSequence,
   getDirectorPlanningStepModule,
+  getDirectorStructuredOutlineStepModules,
 } from "./directorWorkflowStepModules";
 
 const DIRECTOR_PLANNING_SEQUENCE: DirectorPlanningStage[] = [
@@ -32,8 +32,10 @@ export function buildDirectorPlanningWorkflowPlan(input?: {
     source: "auto_director",
     mode: "run_until_gate",
     modules: [
-      ...sequence.map(getDirectorPlanningStepModule),
-      getDirectorExecutionContractSyncStepModule(),
+      ...sequence
+        .filter((stage) => stage !== "structured_outline")
+        .map(getDirectorPlanningStepModule),
+      ...getDirectorStructuredOutlineStepModules(),
     ],
   });
 }

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  canCancelDirectorTask,
   canContinueDirector,
   canContinueFront10AutoExecution,
 } from "../src/lib/novelWorkflowTaskUi.ts";
@@ -33,4 +34,31 @@ test("failed chapter batch can still use automatic execution continuation", () =
 
   assert.equal(canContinueFront10AutoExecution(task), true);
   assert.equal(canContinueDirector(task), false);
+});
+
+test("pending manual recovery tasks can still be cancelled", () => {
+  const task = buildTask({
+    status: "queued",
+    pendingManualRecovery: true,
+  });
+
+  assert.equal(canCancelDirectorTask(task), true);
+});
+
+test("waiting approval tasks can be cancelled from the editor and task center", () => {
+  const task = buildTask({
+    status: "waiting_approval",
+    pendingManualRecovery: false,
+  });
+
+  assert.equal(canCancelDirectorTask(task), true);
+});
+
+test("completed tasks are not cancelable", () => {
+  const task = buildTask({
+    status: "succeeded",
+    pendingManualRecovery: false,
+  });
+
+  assert.equal(canCancelDirectorTask(task), false);
 });

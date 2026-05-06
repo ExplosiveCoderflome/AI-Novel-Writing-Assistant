@@ -2,7 +2,7 @@ import type {
   NovelWorkflowMilestone,
   NovelWorkflowMilestoneType,
 } from "@ai-novel/shared/types/novelWorkflow";
-import { getDirectorNodeDisplayLabel } from "@ai-novel/shared/types/directorRuntime";
+import type { DirectorDisplayStepStatus } from "@ai-novel/shared/types/directorRuntime";
 import {
   DIRECTOR_CANDIDATE_SETUP_STEPS,
   extractDirectorTaskSeedPayloadFromMeta,
@@ -10,8 +10,7 @@ import {
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import { useQuery } from "@tanstack/react-query";
 import {
-  getDirectorRuntimeEventHistory,
-  getDirectorRuntimeProjection,
+  getDirectorTaskSnapshot,
 } from "@/api/novelDirector";
 import { queryKeys } from "@/api/queryKeys";
 import DirectorRuntimeProjectionCard from "@/components/autoDirector/DirectorRuntimeProjectionCard";
@@ -268,15 +267,28 @@ function stepBadgeClasses(status: DirectorStepVisualStatus): string {
 
 function stepStatusLabel(status: DirectorStepVisualStatus): string {
   if (status === "completed") {
-    return "已完成";
+    return "\u5df2\u5b8c\u6210";
   }
   if (status === "running") {
-    return "进行中";
+    return "\u8fdb\u884c\u4e2d";
   }
   if (status === "failed") {
-    return "失败";
+    return "\u9700\u5904\u7406";
   }
-  return "待推进";
+  return "\u5f85\u63a8\u8fdb";
+}
+
+function mapDisplayStepStatus(status: DirectorDisplayStepStatus | null | undefined): DirectorStepVisualStatus {
+  if (status === "completed") {
+    return "completed";
+  }
+  if (status === "running") {
+    return "running";
+  }
+  if (status === "attention") {
+    return "failed";
+  }
+  return "pending";
 }
 
 export default function NovelAutoDirectorProgressPanel({
@@ -293,35 +305,24 @@ export default function NovelAutoDirectorProgressPanel({
   const taskChapterTitleWarning = resolveChapterTitleWarning(task);
   const chapterTitleRepairMutation = useDirectorChapterTitleRepair();
   const runtimeTaskId = task?.id ?? taskId;
-  const runtimeProjectionQuery = useQuery({
+  const snapshotQuery = useQuery({
     queryKey: queryKeys.tasks.directorRuntime(runtimeTaskId || "none"),
-    queryFn: () => getDirectorRuntimeProjection(runtimeTaskId),
+    queryFn: () => getDirectorTaskSnapshot(runtimeTaskId),
     enabled: Boolean(runtimeTaskId),
     retry: false,
     refetchInterval: () => (
-      task && !task.pendingManualRecovery && (task.status === "queued" || task.status === "running") ? 4000 : false
+      task && (task.status === "queued" || task.status === "running" || task.status === "waiting_approval") ? 4000 : false
     ),
   });
-  const eventHistoryQuery = useQuery({
-    queryKey: ["director-runtime-events", runtimeTaskId],
-    queryFn: () => getDirectorRuntimeEventHistory(runtimeTaskId, { limit: 200 }),
-    enabled: Boolean(runtimeTaskId),
-    retry: false,
-    refetchInterval: () => (
-      task && !task.pendingManualRecovery && (task.status === "queued" || task.status === "running") ? 10000 : false
-    ),
-  });
-  const runtimeProjection = runtimeProjectionQuery.data?.data?.projection ?? null;
-  const eventHistory = eventHistoryQuery.data?.data ?? null;
-  const historyEvents = eventHistory?.events ?? [];
-  const isPendingManualRecovery = Boolean(task?.pendingManualRecovery);
-  const runtimeProjectionForDisplay = isPendingManualRecovery ? null : runtimeProjection;
-  const projectedProgressPercent = runtimeProjectionForDisplay?.progressBreakdown?.totalPercent;
-  const displayProgress = typeof projectedProgressPercent === "number"
-    ? projectedProgressPercent
-    : task ? task.progress : null;
+  const snapshot = snapshotQuery.data?.data?.snapshot ?? null;
+  const displayState = snapshot?.displayState ?? null;
+  const runtimeProjection = snapshot?.projection ?? null;
+  const runtimeProjectionForDisplay = displayState?.needsRecovery ? null : runtimeProjection;
+  const historyEvents = snapshot?.recentEvents ?? [];
+  const displayProgress = displayState?.progressPercent ?? task?.progress ?? null;
   const runtimeRequiresUserAction = Boolean(
-    runtimeProjectionForDisplay?.requiresUserAction
+    displayState?.requiresUserAction
+    || runtimeProjectionForDisplay?.requiresUserAction
     || runtimeProjectionForDisplay?.status === "blocked"
     || runtimeProjectionForDisplay?.status === "waiting_approval",
   );
@@ -336,29 +337,13 @@ export default function NovelAutoDirectorProgressPanel({
   const visualMode: DirectorExecutionViewMode = mode === "execution_failed" && !chapterTitleWarning
     ? "execution_failed"
     : "execution_progress";
-  const projectedCurrentAction = runtimeProjectionForDisplay?.currentLabel?.trim();
-  const isContinuingExecution = Boolean(
-    task?.status === "running"
-    && task?.checkpointType === "chapter_batch_ready"
-    && task.currentItemLabel?.includes("已暂停"),
-  );
-  const currentAction = isPendingManualRecovery
-    ? (
-      task?.blockingReason?.trim()
-      || task?.recoveryHint?.trim()
-      || task?.lastError?.trim()
-      || "任务已暂停，等待从最近检查点恢复。"
-    )
-    : projectedCurrentAction
-    || (isContinuingExecution
-      ? `正在继续自动执行${resolveAutoExecutionScopeLabel(task)}`
-      : (
-        task?.currentItemLabel?.trim()
-        || (visualMode === "execution_failed"
-          ? "导演任务执行中断"
-          : (chapterTitleWarning ? "章节列表已生成，等待修复标题结构" : "正在准备导演任务"))
-      ));
-  const activityTags = extractWorkflowActivityTags(task?.currentItemLabel);
+  const currentAction = displayState?.currentAction
+    || runtimeProjectionForDisplay?.currentLabel?.trim()
+    || task?.currentItemLabel?.trim()
+    || (visualMode === "execution_failed"
+      ? "导演任务执行中断"
+      : (chapterTitleWarning ? "章节列表已生成，等待修复标题结构" : "正在准备导演任务"));
+  const activityTags = extractWorkflowActivityTags(displayState?.currentFactStepLabel || task?.currentItemLabel);
   const workflowTitle = task?.title?.trim() || "";
   const hintedTitle = titleHint?.trim() || "";
   const taskTitle = (
@@ -370,10 +355,13 @@ export default function NovelAutoDirectorProgressPanel({
     ? task.meta.milestones as NovelWorkflowMilestone[]
     : [];
   const candidateSetupFlow = isCandidateSetupFlow(task);
+  const displaySteps = displayState?.steps ?? [];
   const stepDefinitions = candidateSetupFlow
     ? DIRECTOR_CANDIDATE_SETUP_STEPS
-    : DIRECTOR_EXECUTION_STEPS;
-  const steps = resolveDirectorStepStatuses(task, visualMode, stepDefinitions);
+    : displaySteps.map((step) => ({ key: step.key, label: step.label }));
+  const steps = candidateSetupFlow
+    ? resolveDirectorStepStatuses(task, visualMode, stepDefinitions)
+    : displaySteps.map((step) => mapDisplayStepStatus(step.status));
   const failureMessage = task?.lastError?.trim() || fallbackError?.trim() || "导演任务执行失败，但没有记录明确错误。";
   const tokenUsage = task?.tokenUsage ?? null;
   const styleSeed = resolveDirectorStyleSeed(task);
@@ -382,9 +370,9 @@ export default function NovelAutoDirectorProgressPanel({
     ? "failed"
     : !task
       ? "loading"
-      : isPendingManualRecovery
+      : displayState?.needsRecovery
         ? "action_required"
-        : (task.status === "waiting_approval" || runtimeProjectionForDisplay?.requiresUserAction || chapterTitleWarning)
+        : ((displayState?.mode === "waiting") || runtimeProjectionForDisplay?.requiresUserAction || chapterTitleWarning)
         ? "waiting"
         : "running";
   const description = candidateSetupFlow
@@ -394,18 +382,17 @@ export default function NovelAutoDirectorProgressPanel({
         : "系统会先整理项目设定、对齐书级 framing，再生成两套书级方案和对应标题组。"
     )
     : (
-      visualMode === "execution_failed"
+      displayState?.description
+      || (visualMode === "execution_failed"
         ? "任务已停在最近一步，可以先查看执行详情，再决定是否恢复。"
-        : isPendingManualRecovery
-          ? "任务已暂停在当前进度，你可以从最近进度点恢复。"
-          : chapterTitleWarning
+        : chapterTitleWarning
           ? "章节列表已经保留，这是一条可直接处理的结构提醒。你可以快速修复标题，再决定是否继续后续导演流程。"
           : task?.status === "waiting_approval"
             ? "当前导演流程已经停在审核点，你可以先检查产物，再决定是否继续自动推进。"
-            : "可离开当前页面，任务会继续运行；回来后可在 AI 驾驶舱查看进度。"
+            : "可离开当前页面，任务会继续运行；回来后可在 AI 驾驶舱查看进度。")
     );
   const needsConfirmationAction = visualMode === "execution_progress"
-    && !isPendingManualRecovery
+    && !displayState?.needsRecovery
     && !chapterTitleWarning
     && (task?.status === "waiting_approval" || runtimeRequiresUserAction);
   const actions = [
@@ -417,7 +404,7 @@ export default function NovelAutoDirectorProgressPanel({
         disabled: isConfirmingAndContinuing,
       }]
       : []),
-    ...(visualMode === "execution_progress" && !isPendingManualRecovery && task?.status !== "waiting_approval" && !runtimeRequiresUserAction && !chapterTitleWarning
+    ...(visualMode === "execution_progress" && !displayState?.needsRecovery && task?.status !== "waiting_approval" && !runtimeRequiresUserAction && !chapterTitleWarning
       ? [{
         label: "后台继续",
         onClick: onBackgroundContinue,
@@ -436,21 +423,23 @@ export default function NovelAutoDirectorProgressPanel({
       <AITakeoverContainer
         mode={containerMode}
         title={visualMode === "execution_failed"
-          ? (candidateSetupFlow ? "候选方案生成失败" : "导演执行失败")
-          : isPendingManualRecovery
-            ? `《${taskTitle}》等待恢复`
-          : candidateSetupFlow
-            ? "正在生成导演候选方案"
-            : `正在导演《${taskTitle}》`}
+          ? (candidateSetupFlow ? "\u5019\u9009\u65b9\u6848\u751f\u6210\u5931\u8d25" : "\u5bfc\u6f14\u6267\u884c\u5931\u8d25")
+          : displayState?.needsRecovery
+            ? `\u300a${taskTitle}\u300b\u7b49\u5f85\u6062\u590d`
+            : candidateSetupFlow
+              ? "\u6b63\u5728\u751f\u6210\u5bfc\u6f14\u5019\u9009\u65b9\u6848"
+              : `\u300a${taskTitle}\u300b\u6b63\u5728\u81ea\u52a8\u5bfc\u6f14`}
         description={description}
         progress={displayProgress}
         currentAction={currentAction}
-        checkpointLabel={formatCheckpoint(task?.checkpointType, task)}
+        checkpointLabel={displayState?.checkpointLabel || formatCheckpoint(task?.checkpointType, task)}
         taskId={task?.id || taskId}
         actions={actions}
       >
-        <div className={`grid gap-3 ${candidateSetupFlow ? "md:grid-cols-4" : "md:grid-cols-6"}`}>
-          {stepDefinitions.map((step, index) => (
+        <div className={`grid gap-3 ${candidateSetupFlow ? "md:grid-cols-4" : "md:grid-cols-7"}`}>
+          {(candidateSetupFlow
+            ? stepDefinitions
+            : displaySteps.map((step) => ({ key: step.key, label: step.label }))).map((step, index) => (
             <div key={step.key} className={`rounded-xl border p-3 ${stepClasses(steps[index] ?? "pending")}`}>
               <div className="flex items-center justify-between gap-2">
                 <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${stepBadgeClasses(steps[index] ?? "pending")}`}>
@@ -465,7 +454,7 @@ export default function NovelAutoDirectorProgressPanel({
 
         {activityTags.length > 0 ? (
           <div className="mt-4 rounded-xl border bg-background/80 p-3">
-            <div className="text-xs font-medium text-muted-foreground">后台附属分析</div>
+            <div className="text-xs font-medium text-muted-foreground">{"\u540e\u53f0\u9644\u5c5e\u5206\u6790"}</div>
             <div className="mt-2 flex flex-wrap gap-2">
               {activityTags.map((tag) => (
                 <Badge key={tag} variant="secondary">{tag}</Badge>
@@ -482,21 +471,16 @@ export default function NovelAutoDirectorProgressPanel({
         <div className="mt-4 rounded-xl border bg-background/80 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <div className="text-sm font-medium text-foreground">全部进展</div>
+              <div className="text-sm font-medium text-foreground">{"\u5168\u90e8\u8fdb\u5c55"}</div>
               <div className="mt-1 text-xs text-muted-foreground">
-                {eventHistory
-                  ? `显示 ${historyEvents.length}/${eventHistory.totalCount} 条进展`
-                  : "正在读取进展记录"}
+                {historyEvents.length > 0 ? `\u663e\u793a ${historyEvents.length} \u6761\u6700\u8fd1\u8fdb\u5c55` : "\u6b63\u5728\u8bfb\u53d6\u8fdb\u5c55\u8bb0\u5f55"}
               </div>
             </div>
-            {eventHistory && eventHistory.totalCount > historyEvents.length ? (
-              <Badge variant="outline">显示最近 {eventHistory.limit} 条</Badge>
-            ) : null}
           </div>
 
-          {eventHistoryQuery.isLoading ? (
+          {snapshotQuery.isLoading ? (
             <div className="mt-3 rounded-lg border bg-muted/15 px-3 py-2 text-sm text-muted-foreground">
-              正在读取进展记录。
+              {"\u6b63\u5728\u8bfb\u53d6\u8fdb\u5c55\u8bb0\u5f55\u3002"}
             </div>
           ) : historyEvents.length > 0 ? (
             <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
@@ -504,16 +488,16 @@ export default function NovelAutoDirectorProgressPanel({
                 <div key={event.eventId} className="rounded-lg border bg-muted/15 p-3 text-sm">
                   <div className="font-medium text-foreground">{event.summary}</div>
                   <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                    <span>记录时间：{formatDate(event.occurredAt)}</span>
-                    {event.nodeKey ? <span>步骤：{getDirectorNodeDisplayLabel({ nodeKey: event.nodeKey })}</span> : null}
-                    {event.artifactType ? <span>产物：{event.artifactType}</span> : null}
+                    <span>{"\u8bb0\u5f55\u65f6\u95f4\uff1a"}{formatDate(event.occurredAt)}</span>
+                    {event.nodeKey ? <span>{"\u6b65\u9aa4\uff1a"}{event.nodeKey}</span> : null}
+                    {event.artifactType ? <span>{"\u4ea7\u7269\uff1a"}{event.artifactType}</span> : null}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
             <div className="mt-3 rounded-lg border bg-muted/15 px-3 py-2 text-sm text-muted-foreground">
-              任务运行后会在这里写入进展记录。
+              {"\u4efb\u52a1\u8fd0\u884c\u540e\u4f1a\u5728\u8fd9\u91cc\u5199\u5165\u8fdb\u5c55\u8bb0\u5f55\u3002"}
             </div>
           )}
         </div>

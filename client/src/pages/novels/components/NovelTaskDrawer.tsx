@@ -5,7 +5,9 @@ import type {
 import type { DirectorBookAutomationAction } from "@ai-novel/shared/types/directorRuntime";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
 import type { CharacterResourceProposalSummary } from "@ai-novel/shared/types/characterResource";
+import type { AutoDirectorAction } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import AICockpit from "@/components/autoDirector/AICockpit";
+import LLMSelector from "@/components/common/LLMSelector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +17,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Link } from "react-router-dom";
+import TaskCenterManualEditImpactCard from "@/pages/tasks/components/TaskCenterManualEditImpactCard";
+import TaskCenterRuntimePolicyCard from "@/pages/tasks/components/TaskCenterRuntimePolicyCard";
 import type { NovelTaskDrawerState } from "./NovelEditView.types";
 
 type DrawerTask = NonNullable<NovelTaskDrawerState["task"]>;
@@ -139,6 +144,20 @@ function formatProposalSource(proposal: CharacterResourceProposalSummary): strin
   return proposal.sourceType === "chapter_background_sync" ? "自动同步发现" : "手动复查发现";
 }
 
+function followUpActionVariant(action: AutoDirectorAction): "default" | "outline" {
+  return action.kind === "mutation" && action.riskLevel !== "high" ? "default" : "outline";
+}
+
+function formatFollowUpPriority(priority: "P0" | "P1" | "P2"): string {
+  if (priority === "P0") {
+    return "P0 绔嬪嵆澶勭悊";
+  }
+  if (priority === "P1") {
+    return "P1 浼樺厛澶勭悊";
+  }
+  return "P2 鍙帓鏈熷鐞?";
+}
+
 function readProposalPayloadText(
   proposal: CharacterResourceProposalSummary,
   key: string,
@@ -230,6 +249,8 @@ export default function NovelTaskDrawer({
   open,
   onOpenChange,
   task,
+  snapshot,
+  runtimeSnapshot,
   projection,
   currentUiModel,
   actions,
@@ -240,12 +261,26 @@ export default function NovelTaskDrawer({
   onRejectResourceProposal,
   confirmingResourceProposalId = "",
   rejectingResourceProposalId = "",
+  followUp,
+  onFollowUpAction,
+  executingFollowUpAction = false,
+  runtimeHardBlocked = false,
+  runtimeBlockedReason = null,
+  overrideModel,
+  onOverrideModelChange,
+  onRetryWithOverrideModel,
+  retryWithOverrideModelPending = false,
+  canRetryWithOverrideModel = false,
+  onRetryWithTaskModel,
+  retryWithTaskModelPending = false,
+  capabilities,
   onOpenFullTaskCenter,
 }: NovelTaskDrawerState) {
   const milestones = Array.isArray(task?.meta.milestones)
     ? task.meta.milestones as NovelWorkflowMilestone[]
     : [];
-  const projectedProgressPercent = projection?.runtimeProjection?.progressBreakdown?.totalPercent;
+  const displayState = snapshot?.displayState ?? null;
+  const projectedProgressPercent = displayState?.progressPercent ?? projection?.runtimeProjection?.progressBreakdown?.totalPercent;
   const workflowProgressFraction = typeof task?.progress === "number" && Number.isFinite(task.progress)
     ? task.progress
     : null;
@@ -295,6 +330,10 @@ export default function NovelTaskDrawer({
     }
     runProjectedAction(action);
   };
+  const canShowRuntimePolicy = capabilities?.canAdjustRuntimePolicy !== false && Boolean(task?.id && runtimeSnapshot);
+  const canShowManualImpact = capabilities?.canInspectManualEditImpact !== false && Boolean(task);
+  const canShowRetryWithOverrideModel = capabilities?.canRetryWithOverrideModel === true;
+  const canShowFollowUp = capabilities?.availableFollowUps !== false && Boolean(followUp);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -311,7 +350,7 @@ export default function NovelTaskDrawer({
             <AICockpit
               projection={projection}
               mode="focusedNovel"
-              fallbackSummary={task?.blockingReason || task?.currentItemLabel || "当前没有需要处理的 AI 推进动作。"}
+              fallbackSummary={displayState?.currentAction || task?.blockingReason || task?.currentItemLabel || "当前没有需要处理的 AI 推进动作。"}
               fallbackStatusLabel={task ? formatTaskStatus(task) : "未开启"}
               showDetailsAction={false}
               onAction={(_projection, action) => handleProjectionAction(action)}
@@ -361,15 +400,15 @@ export default function NovelTaskDrawer({
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-xl border bg-background/80 p-3">
                     <div className="text-xs text-muted-foreground">当前阶段</div>
-                    <div className="mt-1 text-sm font-medium text-foreground">{task.currentStage ?? "暂无"}</div>
+                    <div className="mt-1 text-sm font-medium text-foreground">{displayState?.stageLabel ?? task.currentStage ?? "暂无"}</div>
                   </div>
                   <div className="rounded-xl border bg-background/80 p-3">
                     <div className="text-xs text-muted-foreground">当前动作</div>
-                    <div className="mt-1 text-sm font-medium text-foreground">{task.currentItemLabel ?? "暂无"}</div>
+                    <div className="mt-1 text-sm font-medium text-foreground">{displayState?.currentAction ?? task.currentItemLabel ?? "暂无"}</div>
                   </div>
                   <div className="rounded-xl border bg-background/80 p-3">
                     <div className="text-xs text-muted-foreground">最近检查点</div>
-                    <div className="mt-1 text-sm font-medium text-foreground">{formatCheckpoint(task.checkpointType, task.executionScopeLabel)}</div>
+                    <div className="mt-1 text-sm font-medium text-foreground">{displayState?.checkpointLabel ?? formatCheckpoint(task.checkpointType, task.executionScopeLabel)}</div>
                   </div>
                   <div className="rounded-xl border bg-background/80 p-3">
                     <div className="text-xs text-muted-foreground">最近心跳</div>
@@ -394,6 +433,92 @@ export default function NovelTaskDrawer({
                   </div>
                 ) : null}
               </section>
+
+              {canShowFollowUp && followUp ? (
+                <section className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="text-sm font-medium text-foreground">褰撳墠寰呭鐞嗗姩浣?</div>
+                    <Badge variant="outline">{followUp.reasonLabel}</Badge>
+                    <Badge variant={followUp.priority === "P0" ? "destructive" : "secondary"}>
+                      {formatFollowUpPriority(followUp.priority)}
+                    </Badge>
+                  </div>
+                  <div className="text-sm leading-6 text-muted-foreground">{followUp.followUpSummary}</div>
+                  {followUp.blockingReason ? (
+                    <div className="text-sm text-muted-foreground">闃诲鍘熷洜锛?{followUp.blockingReason}</div>
+                  ) : null}
+                  {followUp.currentModel ? (
+                    <div className="text-sm text-muted-foreground">褰撳墠浠诲姟妯″瀷锛?{followUp.currentModel}</div>
+                  ) : null}
+                  {runtimeHardBlocked && runtimeBlockedReason ? (
+                    <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                      {runtimeBlockedReason}
+                    </div>
+                  ) : null}
+                  <div className="flex flex-wrap gap-2">
+                    {followUp.availableActions.map((action) => (
+                      <Button
+                        key={action.code}
+                        type="button"
+                        size="sm"
+                        variant={followUpActionVariant(action)}
+                        onClick={() => onFollowUpAction?.(action)}
+                        disabled={executingFollowUpAction || (runtimeHardBlocked && action.kind !== "navigation")}
+                      >
+                        {action.label}
+                      </Button>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {canShowRuntimePolicy && task ? (
+                <section className="space-y-3">
+                  <div className="text-sm font-medium text-foreground">鎺ㄨ繘鏂瑰紡</div>
+                  <TaskCenterRuntimePolicyCard taskId={task.id} snapshot={runtimeSnapshot} />
+                </section>
+              ) : null}
+
+              {canShowManualImpact && task ? (
+                <section className="space-y-3">
+                  <div className="text-sm font-medium text-foreground">椋庨櫓涓庢敼鍔ㄥ奖鍝?</div>
+                  <TaskCenterManualEditImpactCard task={task} />
+                </section>
+              ) : null}
+
+              {canShowRetryWithOverrideModel && overrideModel && onOverrideModelChange ? (
+                <section className="space-y-3 rounded-2xl border border-border/70 bg-muted/15 p-4">
+                  <div className="text-sm font-medium text-foreground">浣跨敤鍏朵粬妯″瀷閲嶈瘯</div>
+                  <LLMSelector
+                    value={overrideModel}
+                    onChange={onOverrideModelChange}
+                    compact
+                    showBadge={false}
+                    showHelperText={false}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={onRetryWithOverrideModel}
+                      disabled={retryWithOverrideModelPending || !canRetryWithOverrideModel}
+                    >
+                      {retryWithOverrideModelPending ? "閲嶈瘯涓?.." : "浣跨敤鎵€閫夋ā鍨嬮噸璇?"}
+                    </Button>
+                    {onRetryWithTaskModel ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={onRetryWithTaskModel}
+                        disabled={retryWithTaskModelPending}
+                      >
+                        {retryWithTaskModelPending ? "閲嶈瘯涓?.." : "鐢ㄥ師妯″瀷閲嶈瘯"}
+                      </Button>
+                    ) : null}
+                  </div>
+                </section>
+              ) : null}
 
               <section className="space-y-3">
                 <div className="text-sm font-medium text-foreground">快捷动作</div>
@@ -474,10 +599,18 @@ export default function NovelTaskDrawer({
               <section className="space-y-3">
                 <div className="text-sm font-medium text-foreground">步骤状态</div>
                 <div className="space-y-2">
-                  {task.steps.map((step) => (
+                  {(displayState?.steps ?? task.steps).map((step) => (
                     <div key={step.key} className="flex items-center justify-between rounded-xl border bg-background/80 px-3 py-2">
                       <div className="text-sm text-foreground">{step.label}</div>
-                      <Badge variant="outline">{formatStepStatus(step.status)}</Badge>
+                      <Badge variant="outline">{"isCurrent" in step
+                        ? (step.status === "attention"
+                          ? "\u9700\u5904\u7406"
+                          : step.status === "running"
+                            ? "\u8fdb\u884c\u4e2d"
+                            : step.status === "completed"
+                              ? "\u5df2\u5b8c\u6210"
+                              : "\u5f85\u63a8\u8fdb")
+                        : formatStepStatus(step.status)}</Badge>
                     </div>
                   ))}
                 </div>
@@ -516,6 +649,11 @@ export default function NovelTaskDrawer({
           {primaryAction ? (
             <Button type="button" className="w-full" onClick={() => handleProjectionAction(primaryAction)}>
               {primaryActionLabel || "继续处理"}
+            </Button>
+          ) : null}
+          {task?.sourceRoute ? (
+            <Button asChild type="button" variant="outline" className="w-full">
+              <Link to={task.sourceRoute}>鎵撳紑鏉ユ簮椤甸潰</Link>
             </Button>
           ) : null}
           <Button type="button" variant={primaryAction ? "ghost" : "outline"} className="w-full" onClick={onOpenFullTaskCenter}>

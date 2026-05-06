@@ -60,6 +60,8 @@ test("chapter execution progress treats needs_repair as a local recoverable stat
   const chapter6 = summary.chapters.find((item) => item.chapterOrder === 6);
 
   assert.equal(summary.totalChapters, 2);
+  assert.equal(summary.draftedChapterCount, 1);
+  assert.equal(summary.approvedChapterCount, 0);
   assert.equal(summary.needsRepairChapters, 1);
   assert.equal(summary.recoverableRange.startOrder, 5);
   assert.equal(chapter5.status, "needs_repair");

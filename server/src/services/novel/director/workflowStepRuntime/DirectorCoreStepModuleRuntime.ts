@@ -15,6 +15,11 @@ import type { NovelDirectorPipelineRuntime } from "../novelDirectorPipelineRunti
 import type { NovelDirectorRuntimeOrchestrator } from "../novelDirectorRuntimeOrchestrator";
 import type { DirectorRuntimeService } from "../runtime/DirectorRuntimeService";
 import type { ChapterExecutionProgressInspector } from "../runtime/ChapterExecutionProgressInspector";
+import { normalizeDirectorAutoExecutionPlan } from "../novelDirectorAutoExecution";
+import {
+  resolveStructuredOutlineRecoveryCursor,
+  type StructuredOutlineRecoveryCursor,
+} from "../novelDirectorStructuredOutlineRecovery";
 
 export class DirectorCoreStepModuleRuntime {
   private readonly workflowService: NovelWorkflowService;
@@ -120,6 +125,20 @@ export class DirectorCoreStepModuleRuntime {
     return this.pipelineRuntime.loadVolumeWorkspaceForOutline(novelId);
   }
 
+  async getStructuredOutlineRecoveryCursor(
+    novelId: string,
+    request?: DirectorConfirmRequest | null,
+  ): Promise<StructuredOutlineRecoveryCursor | null> {
+    const workspace = await this.getVolumeWorkspace(novelId);
+    if (!workspace) {
+      return null;
+    }
+    return resolveStructuredOutlineRecoveryCursor({
+      workspace,
+      plan: request ? normalizeDirectorAutoExecutionPlan(request.autoExecutionPlan) : undefined,
+    });
+  }
+
   async inspectChapterExecutionProgress(novelId: string): Promise<DirectorChapterExecutionProgressSummary | null> {
     return this.chapterProgressInspector.inspectNovel(novelId).catch(() => null);
   }
@@ -189,6 +208,21 @@ export class DirectorCoreStepModuleRuntime {
       input.request,
       input.baseWorkspace,
     );
+  }
+
+  async executeStructuredOutlineFactStep(input: {
+    taskId: string;
+    novelId: string;
+    request: DirectorConfirmRequest;
+  }): Promise<void> {
+    const baseWorkspace = await this.getVolumeWorkspace(input.novelId);
+    if (!baseWorkspace) {
+      throw new Error("Structured outline requires an existing volume strategy workspace.");
+    }
+    await this.executeStructuredOutlineStep({
+      ...input,
+      baseWorkspace,
+    });
   }
 
   async executeChapterExecutionContractSyncStep(input: {

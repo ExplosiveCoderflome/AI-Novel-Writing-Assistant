@@ -3,6 +3,8 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import { queryKeys } from "@/api/queryKeys";
 
+const ACTIVE_AUTO_DIRECTOR_STATUSES = new Set(["queued", "running", "waiting_approval"]);
+
 function mergeTaskResponse(
   previous: ApiResponse<UnifiedTaskDetail | null> | undefined,
   task: UnifiedTaskDetail,
@@ -31,12 +33,22 @@ export function syncAutoDirectorTaskCache(
   novelId: string,
   task: UnifiedTaskDetail | null | undefined,
 ): void {
-  if (!task) {
+  if (!task || !ACTIVE_AUTO_DIRECTOR_STATUSES.has(task.status)) {
+    queryClient.setQueryData<ApiResponse<UnifiedTaskDetail | null>>(
+      queryKeys.novels.autoDirectorTask(novelId),
+      (previous) => ({
+        success: previous?.success ?? true,
+        data: null,
+        error: undefined,
+        message: "No active auto director task found.",
+      }),
+    );
+    syncTaskDetailCache(queryClient, task);
     return;
   }
   queryClient.setQueryData<ApiResponse<UnifiedTaskDetail | null>>(
     queryKeys.novels.autoDirectorTask(novelId),
-    (previous) => mergeTaskResponse(previous, task, "Latest auto director task loaded."),
+    (previous) => mergeTaskResponse(previous, task, "Active auto director task loaded."),
   );
   syncTaskDetailCache(queryClient, task);
 }

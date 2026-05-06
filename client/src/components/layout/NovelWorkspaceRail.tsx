@@ -142,7 +142,9 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
   const novelDetail = novelDetailQuery.data?.data;
   const workspace = volumeWorkspaceQuery.data?.data;
   const qualitySummary = qualityReportQuery.data?.data?.summary;
-  const activeTask = activeTaskQuery.data?.data ?? null;
+  const activeTask = activeTaskQuery.isFetchedAfterMount
+    ? activeTaskQuery.data?.data ?? null
+    : null;
   const bookAutomationProjection = bookAutomationQuery.data?.data?.projection ?? null;
   const runtimeProjectionQuery = useQuery({
     queryKey: queryKeys.tasks.directorRuntime(activeTask?.id ?? "none"),

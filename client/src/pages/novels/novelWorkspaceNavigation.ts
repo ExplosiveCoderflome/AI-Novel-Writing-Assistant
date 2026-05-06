@@ -1,3 +1,4 @@
+import type { DirectorDisplayStageKey } from "@ai-novel/shared/types/directorRuntime";
 import type { DirectorLockScope } from "@ai-novel/shared/types/novelDirector";
 
 export type NovelWorkspaceFlowTab =
@@ -92,6 +93,27 @@ export function tabFromWorkflowStageName(stage: string | null | undefined): Nove
     case "project_setup":
       return "basic";
     case "story_macro":
+      return "story_macro";
+    case "character_setup":
+      return "character";
+    case "volume_strategy":
+      return "outline";
+    case "structured_outline":
+      return "structured";
+    case "chapter_execution":
+      return "chapter";
+    case "quality_repair":
+      return "pipeline";
+    default:
+      return null;
+  }
+}
+
+export function tabFromDirectorDisplayStage(stage: DirectorDisplayStageKey | null | undefined): NovelWorkspaceFlowTab | null {
+  switch (stage) {
+    case "project_setup":
+      return "basic";
+    case "story_planning":
       return "story_macro";
     case "character_setup":
       return "character";

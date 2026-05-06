@@ -1,6 +1,7 @@
 import type {
   DirectorArtifactType,
   DirectorAutopilotRecoveryDecision,
+  DirectorChapterExecutionProgressSummary,
   DirectorEvent,
   DirectorNextAction,
   DirectorRuntimeProgressBreakdown,
@@ -274,6 +275,13 @@ function buildChapterExecutionPercent(snapshot: DirectorRuntimeSnapshot, invento
   return stepProgressPercent(snapshot.steps, CHAPTER_EXECUTION_NODE_HINTS);
 }
 
+function buildChapterExecutionPercentFromFacts(chapterProgress: DirectorChapterExecutionProgressSummary | null | undefined): number | null {
+  if (!chapterProgress) {
+    return null;
+  }
+  return clampPercent(chapterProgress.ratio * 100);
+}
+
 function buildQualityRepairPercent(snapshot: DirectorRuntimeSnapshot, inventory: DirectorWorkspaceInventory | null | undefined): number {
   if (inventory) {
     if (inventory.draftedChapterCount <= 0) {
@@ -286,6 +294,16 @@ function buildQualityRepairPercent(snapshot: DirectorRuntimeSnapshot, inventory:
   }
   const percent = stepProgressPercent(snapshot.steps, QUALITY_NODE_HINTS);
   return percent > 0 ? percent : 100;
+}
+
+function buildQualityRepairPercentFromFacts(chapterProgress: DirectorChapterExecutionProgressSummary | null | undefined): number | null {
+  if (!chapterProgress?.chapters?.length) {
+    return null;
+  }
+  const repairedCount = chapterProgress.chapters.filter((chapter) => (
+    chapter.completedStages.includes("repair_completed_or_not_needed")
+  )).length;
+  return percentFromCount(repairedCount, chapterProgress.chapters.length);
 }
 
 function buildActiveJobPercent(snapshot: DirectorRuntimeSnapshot): number {
@@ -305,11 +323,14 @@ function buildActiveJobPercent(snapshot: DirectorRuntimeSnapshot): number {
 function buildProgressBreakdown(
   snapshot: DirectorRuntimeSnapshot,
   inventory: DirectorWorkspaceInventory | null | undefined,
+  chapterProgress?: DirectorChapterExecutionProgressSummary | null,
 ): DirectorRuntimeProgressBreakdown {
   const completedSteps = snapshot.steps.filter((step) => step.status === "succeeded").length;
   const planningPercent = buildPlanningPercent(snapshot, inventory);
-  const chapterExecutionPercent = buildChapterExecutionPercent(snapshot, inventory);
-  const qualityRepairPercent = buildQualityRepairPercent(snapshot, inventory);
+  const chapterExecutionPercent = buildChapterExecutionPercentFromFacts(chapterProgress)
+    ?? buildChapterExecutionPercent(snapshot, inventory);
+  const qualityRepairPercent = buildQualityRepairPercentFromFacts(chapterProgress)
+    ?? buildQualityRepairPercent(snapshot, inventory);
   const activeJobProgress = buildActiveJobPercent(snapshot);
   const totalPercent = clampPercent(
     planningPercent * 0.35
@@ -580,7 +601,18 @@ function buildQualityBudgetSummary(
 }
 
 export class DirectorEventProjectionService {
-  buildSnapshotProjection(snapshot: DirectorRuntimeSnapshot | null): DirectorRuntimeProjection | null {
+  buildSnapshotProjection(
+    snapshot: DirectorRuntimeSnapshot | null,
+    options?: {
+      chapterProgress?: DirectorChapterExecutionProgressSummary | null;
+      currentFactStep?: {
+        stepId: string;
+        stepLabel: string;
+        evidence?: Record<string, unknown> | null;
+        nextActionLabel?: string | null;
+      } | null;
+    },
+  ): DirectorRuntimeProjection | null {
     if (!snapshot) {
       return null;
     }
@@ -594,7 +626,7 @@ export class DirectorEventProjectionService {
       ?? snapshot.lastWorkspaceAnalysis?.interpretation?.recommendedAction
       ?? null;
     const headline = buildHeadline({ status, step, event });
-    const progressBreakdown = buildProgressBreakdown(snapshot, inventory);
+    const progressBreakdown = buildProgressBreakdown(snapshot, inventory, options?.chapterProgress ?? null);
     const qualityDebtSummary = buildQualityDebtSummary(snapshot.events);
     const qualityBudgetSummary = buildQualityBudgetSummary(snapshot.events);
     const recoveryDecision = buildRecoveryDecision({
@@ -632,19 +664,23 @@ export class DirectorEventProjectionService {
       status,
       currentNodeKey: step?.nodeKey ?? event?.nodeKey ?? null,
       currentLabel: step?.label ?? event?.summary ?? null,
+      currentFactStepId: options?.currentFactStep?.stepId ?? null,
+      currentFactStepLabel: options?.currentFactStep?.stepLabel ?? null,
+      currentFactEvidence: options?.currentFactStep?.evidence ?? null,
       headline,
       detail: buildDetail({ status, step, event, blockedReason }),
       lastEventSummary: event?.summary ?? null,
       requiresUserAction,
       blockedReason,
       blockingReason: blockedReason,
-      nextActionLabel: formatNextAction(recommendation),
+      nextActionLabel: options?.currentFactStep?.nextActionLabel ?? formatNextAction(recommendation),
       recommendedAction: recommendation,
       recoveryDecision,
       isAutopilotRecoverable,
       scopeSummary: buildScopeSummary(inventory),
       progressSummary: buildProgressSummary(snapshot, inventory),
       progressBreakdown,
+      chapterExecutionProgress: options?.chapterProgress ?? null,
       visibleRiskBadges,
       qualityDebtSummary,
       qualityBudgetSummary,

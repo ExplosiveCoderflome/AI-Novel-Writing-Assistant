@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import type { DirectorLockScope, DirectorSessionState } from "@ai-novel/shared/types/novelDirector";
+import type { AutoDirectorAction, AutoDirectorMutationActionCode } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import type { DirectorBookAutomationAction } from "@ai-novel/shared/types/directorRuntime";
 import type { NovelExportDownloadFormat, NovelExportScope } from "@ai-novel/shared/types/novelExport";
 import type {
@@ -16,11 +17,12 @@ import type {
   VolumeStrategyPlan,
 } from "@ai-novel/shared/types/novel";
 import NovelEditView from "./components/NovelEditView";
+import type { LLMSelectorValue } from "@/components/common/LLMSelector";
 import { getBaseCharacterList } from "@/api/character";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
-import { getDirectorBookAutomationProjection } from "@/api/novelDirector";
+import { getDirectorBookAutomationProjection, getDirectorRuntimeSnapshot, getDirectorTaskSnapshot } from "@/api/novelDirector";
 import { continueNovelWorkflow, getActiveAutoDirectorTask } from "@/api/novelWorkflow";
-import { cancelTask, retryTask } from "@/api/tasks";
+import { cancelTask, executeAutoDirectorFollowUpAction, getAutoDirectorFollowUpDetail, retryTask } from "@/api/tasks";
 import {
   auditNovelChapter,
   backfillNovelCharacterResources,
@@ -70,15 +72,16 @@ import type { ChapterReviewResult } from "./chapterPlanning.shared";
 import type { NovelEditTakeoverState, NovelTaskDrawerState } from "./components/NovelEditView.types";
 import NovelExistingProjectTakeoverDialog from "./components/NovelExistingProjectTakeoverDialog";
 import { syncNovelWorkflowStageSilently, workflowStageFromTab } from "./novelWorkflow.client";
-import { isNovelWorkspaceFlowTab, scopeFromWorkspaceTab, tabFromDirectorProgress, tabFromScope } from "./novelWorkspaceNavigation";
+import { isNovelWorkspaceFlowTab, scopeFromWorkspaceTab, tabFromDirectorDisplayStage, tabFromDirectorProgress, tabFromScope } from "./novelWorkspaceNavigation";
 import { resolveChapterTitleWarning } from "@/lib/directorTaskNotice";
+import { resolveInternalNavigationTarget } from "@/lib/internalNavigation";
 import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 import {
   getDirectorCockpitActionHref,
   getDirectorCockpitContinuationMode,
   isDirectorCockpitContinuationAction,
 } from "@/lib/directorCockpitActions";
-import { getCandidateSelectionLink } from "@/lib/novelWorkflowTaskUi";
+import { canCancelDirectorTask, getCandidateSelectionLink } from "@/lib/novelWorkflowTaskUi";
 import { syncAutoDirectorTaskCache } from "@/lib/taskQueryCache";
 import {
   buildContinueAutoExecutionActionLabel,
@@ -215,6 +218,11 @@ export default function NovelEdit() {
   } = useNovelEditWorkflow(id);
   const [isTaskDrawerOpen, setIsTaskDrawerOpen] = useState(false);
   const [autoOpenedFailedTaskId, setAutoOpenedFailedTaskId] = useState("");
+  const [retryOverride, setRetryOverride] = useState<LLMSelectorValue>({
+    provider: llm.provider,
+    model: llm.model,
+    temperature: llm.temperature,
+  });
   const [basicForm, setBasicForm] = useState(() => createDefaultNovelBasicFormState());
   const [volumeDraft, setVolumeDraft] = useState<VolumePlan[]>([]);
   const [volumeStrategyPlan, setVolumeStrategyPlan] = useState<VolumeStrategyPlan | null>(null);
@@ -582,7 +590,10 @@ export default function NovelEdit() {
     () => parsePipelineBackgroundActivities(pipelineJobQuery.data?.data?.payload ?? null),
     [pipelineJobQuery.data?.data?.payload],
   );
-  const latestAutoDirectorTask = activeAutoDirectorTaskQuery.data?.data ?? null;
+  const hasValidatedActiveAutoDirectorTask = activeAutoDirectorTaskQuery.isFetchedAfterMount;
+  const latestAutoDirectorTask = hasValidatedActiveAutoDirectorTask
+    ? activeAutoDirectorTaskQuery.data?.data ?? null
+    : null;
   const activeAutoDirectorTask = latestAutoDirectorTask?.status === "cancelled"
     ? null
     : latestAutoDirectorTask;
@@ -639,19 +650,80 @@ export default function NovelEdit() {
     () => resolveChapterTitleWarning(activeAutoDirectorTask),
     [activeAutoDirectorTask],
   );
+  const directorTaskSnapshotQuery = useQuery({
+    queryKey: queryKeys.tasks.directorRuntime(activeAutoDirectorTask?.id ?? "none"),
+    queryFn: () => getDirectorTaskSnapshot(activeAutoDirectorTask!.id),
+    enabled: Boolean(activeAutoDirectorTask?.id),
+    retry: false,
+    refetchInterval: () => (
+      activeAutoDirectorTask && (
+        activeAutoDirectorTask.status === "queued"
+        || activeAutoDirectorTask.status === "running"
+        || activeAutoDirectorTask.status === "waiting_approval"
+      )
+        ? 4000
+        : false
+    ),
+  });
+  const activeDirectorSnapshot = directorTaskSnapshotQuery.data?.data?.snapshot ?? null;
+  const activeDirectorRuntimeQuery = useQuery({
+    queryKey: queryKeys.tasks.directorRuntime(activeAutoDirectorTask?.id ?? "none"),
+    queryFn: () => getDirectorRuntimeSnapshot(activeAutoDirectorTask!.id),
+    enabled: Boolean(activeAutoDirectorTask?.id),
+    retry: false,
+    refetchInterval: () => (
+      activeAutoDirectorTask && (
+        activeAutoDirectorTask.status === "queued"
+        || activeAutoDirectorTask.status === "running"
+        || activeAutoDirectorTask.status === "waiting_approval"
+      )
+        ? 4000
+        : false
+    ),
+  });
+  const activeDirectorRuntimeSnapshot = activeDirectorRuntimeQuery.data?.data?.snapshot ?? null;
+  const activeDirectorRuntimeProjection = activeDirectorRuntimeQuery.data?.data?.projection ?? null;
+  const activeDirectorRuntimeHardBlocked = activeDirectorRuntimeProjection?.status === "blocked";
+  const activeDirectorRuntimeBlockedReason = activeDirectorRuntimeProjection?.blockedReason?.trim()
+    || activeDirectorRuntimeProjection?.detail?.trim()
+    || null;
+  const activeAutoDirectorFollowUpQuery = useQuery({
+    queryKey: queryKeys.tasks.autoDirectorFollowUpDetail(activeAutoDirectorTask?.id ?? "none"),
+    queryFn: () => getAutoDirectorFollowUpDetail(activeAutoDirectorTask!.id),
+    enabled: Boolean(activeAutoDirectorTask?.id),
+    retry: false,
+    refetchInterval: () => (
+      activeAutoDirectorTask && (
+        activeAutoDirectorTask.status === "queued"
+        || activeAutoDirectorTask.status === "running"
+        || activeAutoDirectorTask.status === "waiting_approval"
+      )
+        ? 4000
+        : false
+    ),
+  });
+  const activeAutoDirectorFollowUp = activeAutoDirectorFollowUpQuery.data?.data ?? null;
   const workflowCurrentTab = useMemo(
-    () => tabFromDirectorProgress({
-      currentStage: activeAutoDirectorTask?.currentStage,
-      currentItemKey: activeAutoDirectorTask?.currentItemKey,
-      checkpointType: activeAutoDirectorTask?.checkpointType,
-      reviewScope: activeDirectorSession?.reviewScope ?? null,
-      status: activeAutoDirectorTask?.status,
-    }),
+    () => {
+      const displayStageTab = tabFromDirectorDisplayStage(activeDirectorSnapshot?.displayState.stageKey ?? null);
+      if (displayStageTab) {
+        return displayStageTab;
+      }
+      return tabFromDirectorProgress({
+        currentStage: activeAutoDirectorTask?.currentStage,
+        currentItemKey: activeAutoDirectorTask?.currentItemKey,
+        checkpointType: activeAutoDirectorTask?.checkpointType,
+        reviewScope: activeDirectorSession?.reviewScope ?? null,
+        status: activeAutoDirectorTask?.status,
+      });
+    },
     [
+      activeDirectorSnapshot?.displayState.stageKey,
       activeAutoDirectorTask?.checkpointType,
       activeAutoDirectorTask?.currentItemKey,
       activeAutoDirectorTask?.currentStage,
       activeDirectorSession?.reviewScope,
+      activeAutoDirectorTask?.status,
     ],
   );
   const autoDirectorRefreshSignatureRef = useRef("");
@@ -660,29 +732,20 @@ export default function NovelEdit() {
     if (!activeAutoDirectorTask) {
       return "";
     }
-    const milestoneCount = Array.isArray(activeAutoDirectorTask.meta?.milestones)
-      ? activeAutoDirectorTask.meta.milestones.length
-      : 0;
     return [
+      activeAutoDirectorTask.id,
       activeAutoDirectorTask.status,
       activeAutoDirectorTask.pendingManualRecovery ? "manual_recovery" : "",
-      activeAutoDirectorTask.displayStatus ?? "",
-      activeAutoDirectorTask.blockingReason ?? "",
       activeAutoDirectorTask.currentStage ?? "",
       activeAutoDirectorTask.currentItemKey ?? "",
-      activeAutoDirectorTask.currentItemLabel ?? "",
       activeAutoDirectorTask.checkpointType ?? "",
-      milestoneCount,
     ].join("|");
   }, [
     activeAutoDirectorTask,
-    activeAutoDirectorTask?.blockingReason,
     activeAutoDirectorTask?.checkpointType,
     activeAutoDirectorTask?.currentItemKey,
-    activeAutoDirectorTask?.currentItemLabel,
     activeAutoDirectorTask?.currentStage,
-    activeAutoDirectorTask?.displayStatus,
-    activeAutoDirectorTask?.meta,
+    activeAutoDirectorTask?.id,
     activeAutoDirectorTask?.pendingManualRecovery,
     activeAutoDirectorTask?.status,
   ]);
@@ -717,7 +780,7 @@ export default function NovelEdit() {
       takeoverDismissStorageKey(id),
       activeAutoDirectorRefreshSignature,
     );
-    toast.success("已完成本轮导演交接，当前工作台已退出导演模式。");
+    toast.success("已收起这条导演接管提醒。需要时仍可从执行详情继续处理。");
   };
   const isTakeoverDismissed = Boolean(
     activeAutoDirectorRefreshSignature
@@ -747,6 +810,7 @@ export default function NovelEdit() {
       invalidations.push(
         queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail("novel_workflow", taskId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.tasks.directorRuntime(taskId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.tasks.autoDirectorFollowUpDetail(taskId) }),
       );
     }
     await Promise.allSettled(invalidations);
@@ -903,6 +967,32 @@ export default function NovelEdit() {
       toast.error(message);
     },
   });
+  const executeFollowUpActionMutation = useMutation({
+    mutationFn: async (actionCode: AutoDirectorMutationActionCode) => {
+      if (!activeAutoDirectorTask?.id) {
+        throw new Error("褰撳墠娌℃湁鍙鐞嗙殑瀵兼紨浠诲姟銆?");
+      }
+      return executeAutoDirectorFollowUpAction(activeAutoDirectorTask.id, {
+        actionCode,
+        idempotencyKey: `${activeAutoDirectorTask.id}:${actionCode}:${Date.now()}`,
+      });
+    },
+    onSuccess: async (response) => {
+      const result = response.data;
+      if (result?.task) {
+        syncAutoDirectorTaskCache(queryClient, id, result.task);
+      }
+      await invalidateAutoDirectorTaskState(result?.taskId ?? activeAutoDirectorTask?.id);
+      if (result?.code === "failed" || result?.code === "forbidden") {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result?.message ?? "宸叉墽琛屽綋鍓嶅鐞嗗姩浣溿€?");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "鎵ц褰撳墠澶勭悊鍔ㄤ綔澶辫触銆?");
+    },
+  });
   const consistencyIssue = useMemo(
     () => resolveDirectorConsistencyIssue({
       checkpointType: activeAutoDirectorTask?.checkpointType,
@@ -990,6 +1080,24 @@ export default function NovelEdit() {
     setIsTaskDrawerOpen(false);
     navigate(getDirectorCockpitActionHref(bookAutomationProjection, action));
   };
+  const handleDrawerFollowUpAction = (action: AutoDirectorAction) => {
+    if (action.kind === "navigation") {
+      const targetUrl = action.targetUrl?.trim() || activeAutoDirectorTask?.sourceRoute || "";
+      const internalTarget = resolveInternalNavigationTarget(targetUrl);
+      if (internalTarget) {
+        setIsTaskDrawerOpen(false);
+        navigate(internalTarget);
+        return;
+      }
+      if (/^https?:\/\//i.test(targetUrl)) {
+        window.location.assign(targetUrl);
+      }
+      return;
+    }
+    executeFollowUpActionMutation.mutate(
+      (action.executorActionCode ?? action.code) as AutoDirectorMutationActionCode,
+    );
+  };
   const chapterTitleRepairMutation = useDirectorChapterTitleRepair({
     navigateOnSuccess: false,
     onAfterStart: () => {
@@ -1057,6 +1165,13 @@ export default function NovelEdit() {
       toast.error(message);
     },
   });
+  useEffect(() => {
+    setRetryOverride({
+      provider: llm.provider,
+      model: llm.model,
+      temperature: llm.temperature,
+    });
+  }, [activeAutoDirectorTask?.id, llm.model, llm.provider, llm.temperature]);
   useEffect(() => {
     if (activeAutoDirectorTask?.status !== "failed") {
       if (autoOpenedFailedTaskId) {
@@ -1242,7 +1357,8 @@ export default function NovelEdit() {
         variant: mode === "running" ? "outline" : "default",
       });
     }
-    if (!task.pendingManualRecovery && (task.status === "queued" || task.status === "running")) {
+    const canCancelTask = canCancelDirectorTask(task);
+    if (canCancelTask) {
       if (isDirectorExitActionExpanded) {
         actions.push({
           label: "继续导演",
@@ -1258,7 +1374,7 @@ export default function NovelEdit() {
         });
       } else {
         actions.push({
-          label: "停止导演",
+          label: "退出导演模式",
           onClick: () => setIsDirectorExitActionExpanded(true),
           variant: "destructive",
           disabled: cancelAutoDirectorMutation.isPending,
@@ -1267,10 +1383,9 @@ export default function NovelEdit() {
     } else if (
       task.status === "failed"
       || task.status === "cancelled"
-      || task.pendingManualRecovery
     ) {
       actions.push({
-        label: "退出导演模式",
+        label: "收起此提醒",
         onClick: dismissTakeover,
         variant: "secondary",
       });
@@ -1279,7 +1394,7 @@ export default function NovelEdit() {
       || (task.status === "succeeded" && task.checkpointType === "workflow_completed")
     ) {
       actions.push({
-        label: "完成并退出",
+        label: "完成并收起",
         onClick: dismissTakeover,
         variant: "secondary",
       });
@@ -1477,22 +1592,9 @@ export default function NovelEdit() {
       });
     }
 
-    if (task.status === "failed" || task.status === "cancelled") {
-      actions.push({
-        label: retryAutoDirectorWithCurrentModelMutation.isPending ? "切换中..." : "用当前模型重试",
-        onClick: () => retryAutoDirectorWithCurrentModelMutation.mutate(),
-        variant: "default",
-        disabled: retryAutoDirectorWithCurrentModelMutation.isPending,
-      });
-      actions.push({
-        label: retryAutoDirectorWithTaskModelMutation.isPending ? "重试中..." : "用原模型重试",
-        onClick: () => retryAutoDirectorWithTaskModelMutation.mutate(),
-        variant: "outline",
-        disabled: retryAutoDirectorWithTaskModelMutation.isPending,
-      });
-    }
 
-    if (task.status === "queued" || task.status === "running" || task.status === "waiting_approval") {
+
+    if (canCancelDirectorTask(task)) {
       actions.push({
         label: cancelAutoDirectorMutation.isPending ? "取消中..." : "取消任务",
         onClick: () => cancelAutoDirectorMutation.mutate(),
@@ -1514,8 +1616,6 @@ export default function NovelEdit() {
     openReviewStage,
     openChapterExecution,
     openQualityRepair,
-    retryAutoDirectorWithCurrentModelMutation,
-    retryAutoDirectorWithTaskModelMutation,
     reviewTab,
     setActiveTab,
   ]);
@@ -2209,6 +2309,8 @@ export default function NovelEdit() {
           }
         },
         task: displayAutoDirectorTask,
+        snapshot: activeDirectorSnapshot,
+        runtimeSnapshot: activeDirectorRuntimeSnapshot,
         projection: bookAutomationProjection,
         currentUiModel: {
           provider: llm.provider,
@@ -2217,6 +2319,27 @@ export default function NovelEdit() {
         },
         actions: taskDrawerActions,
         onProjectionAction: handleTaskDrawerProjectionAction,
+        followUp: activeAutoDirectorFollowUp,
+        onFollowUpAction: handleDrawerFollowUpAction,
+        executingFollowUpAction: executeFollowUpActionMutation.isPending,
+        runtimeHardBlocked: activeDirectorRuntimeHardBlocked,
+        runtimeBlockedReason: activeDirectorRuntimeBlockedReason,
+        overrideModel: retryOverride,
+        onOverrideModelChange: setRetryOverride,
+        onRetryWithOverrideModel: () => retryAutoDirectorWithCurrentModelMutation.mutate(),
+        retryWithOverrideModelPending: retryAutoDirectorWithCurrentModelMutation.isPending,
+        canRetryWithOverrideModel: Boolean(retryOverride.provider && retryOverride.model.trim()),
+        onRetryWithTaskModel: () => retryAutoDirectorWithTaskModelMutation.mutate(),
+        retryWithTaskModelPending: retryAutoDirectorWithTaskModelMutation.isPending,
+        capabilities: {
+          availableActions: taskDrawerActions.length > 0,
+          availableFollowUps: Boolean(activeAutoDirectorFollowUp),
+          canAdjustRuntimePolicy: Boolean(activeDirectorRuntimeSnapshot && displayAutoDirectorTask),
+          canInspectManualEditImpact: Boolean(displayAutoDirectorTask),
+          canRetryWithOverrideModel: Boolean(displayAutoDirectorTask && (displayAutoDirectorTask.status === "failed" || displayAutoDirectorTask.status === "cancelled")),
+          canCancel: Boolean(displayAutoDirectorTask && canCancelDirectorTask(displayAutoDirectorTask)),
+          canArchive: Boolean(displayAutoDirectorTask && (displayAutoDirectorTask.status === "succeeded" || displayAutoDirectorTask.status === "failed" || displayAutoDirectorTask.status === "cancelled")),
+        },
         resourceProposals: pendingCharacterResourceProposals,
         onOpenResourceProposalSource: (proposal) => {
           if (proposal.chapterId) {
