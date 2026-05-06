@@ -200,7 +200,7 @@ function createAssembledContextPackage() {
         isCoreInVolume: true,
         shouldPreferAppearance: true,
       }],
-      activeRelationStages: [],
+      activeRelationStages: [{ characterName: "林晓", stage: "初识", description: "刚认识" }],
       pendingCandidateGuards: [],
       ledgerPendingItems: [],
       ledgerUrgentItems: [],
@@ -213,6 +213,7 @@ function createAssembledContextPackage() {
       styleConstraints: [],
       continuationConstraints: [],
       ragFacts: [],
+      protectedSecrets: [],
     },
     chapterReviewContext: {
       marker: "shared-review-context",

@@ -20,7 +20,7 @@
     "start": "node dist/app.js",
     "typecheck": "pnpm prisma:generate && tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm --filter @ai-novel/shared build && pnpm run build && node --test tests/**/*.test.js",
+    "test": "pnpm --filter @ai-novel/shared build && pnpm run build && node --test --test-force-exit tests/**/*.test.js",
     "test:planner": "pnpm --filter @ai-novel/shared build && pnpm run build && node --test tests/planner.test.js",
     "test:tools": "pnpm --filter @ai-novel/shared build && pnpm run build && node --test tests/tools.test.js",
     "test:runtime": "pnpm --filter @ai-novel/shared build && pnpm run build && node --test tests/runtime.test.js",

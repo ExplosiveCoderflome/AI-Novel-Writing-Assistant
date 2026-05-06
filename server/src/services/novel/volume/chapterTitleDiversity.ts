@@ -5,7 +5,7 @@ export type ChapterTitleSurfaceFrame =
   | "question_hook"
   | "plain_statement";
 
-const ENABLE_CHAPTER_TITLE_DIVERSITY_VALIDATION = false;
+const ENABLE_CHAPTER_TITLE_DIVERSITY_VALIDATION = true;
 const CHAPTER_TITLE_OF_PHRASE_PATTERN = /^[^，,：:？?的\s]{1,18}的[^，,：:？?的\s]{1,18}$/u;
 
 function normalizeChapterTitle(title: string): string {

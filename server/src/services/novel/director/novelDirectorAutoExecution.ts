@@ -235,7 +235,7 @@ export function isDirectorAutoExecutionChapterProcessed(chapter: DirectorAutoExe
   if (chapter.chapterStatus === "pending_review") {
     return true;
   }
-  return chapter.generationState === "reviewed" || chapter.generationState === "repaired";
+  return false;
 }
 
 export function canPreserveDirectorAutoExecutionSkippedChapter(chapter: DirectorAutoExecutionChapterRef): boolean {

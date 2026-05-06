@@ -61,7 +61,7 @@ test("repairDirectorChapterTitles clears warning notice after titles are diversi
     readiness: {},
     strategyPlan: null,
     critiqueReport: null,
-    beatSheets: [],
+    beatSheets: [{ volumeId: "volume-1", beats: [{ key: "open_hook", label: "开卷抓手" }] }],
     rebalanceDecisions: [],
     volumes: [
       createVolume("volume-1", 1, [
@@ -99,6 +99,7 @@ test("repairDirectorChapterTitles clears warning notice after titles are diversi
     updateVolumes: async () => repairedWorkspace,
   };
   const workflowService = {
+    getTaskByIdWithoutHealing: async () => null,
     markTaskRunning: async (_taskId, payload) => {
       markTaskRunningCalls.push(payload);
     },
@@ -140,7 +141,7 @@ test("repairDirectorChapterTitles keeps warning notice when repaired titles are 
     readiness: {},
     strategyPlan: null,
     critiqueReport: null,
-    beatSheets: [],
+    beatSheets: [{ volumeId: "volume-1", beats: [{ key: "open_hook", label: "开卷抓手" }] }],
     rebalanceDecisions: [],
     volumes: [
       createVolume("volume-1", 1, repetitiveTitles),
@@ -154,6 +155,7 @@ test("repairDirectorChapterTitles keeps warning notice when repaired titles are 
     updateVolumes: async () => workspace,
   };
   const workflowService = {
+    getTaskByIdWithoutHealing: async () => null,
     markTaskRunning: async () => undefined,
     markTaskWaitingApproval: async (_taskId, payload) => {
       markTaskWaitingApprovalCalls.push(payload);

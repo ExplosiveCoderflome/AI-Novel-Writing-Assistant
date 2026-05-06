@@ -15,7 +15,7 @@ permissions:
 jobs:
   checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,7 +28,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - name: Install dependencies
@@ -42,6 +42,9 @@ jobs:
 
       - name: Source file length check
         run: pnpm check:source-length
+
+      - name: Prepare test database
+        run: node server/scripts/ensure-dev-prisma.cjs
 
       - name: Server tests
         run: pnpm --filter @ai-novel/server test

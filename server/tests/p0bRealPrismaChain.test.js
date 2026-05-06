@@ -295,7 +295,8 @@ function runScenario(scenario) {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
     });
-    return JSON.parse(stdout.trim());
+    const lines = stdout.trim().split("\n");
+    return JSON.parse(lines[lines.length - 1]);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
