@@ -2,8 +2,11 @@ import { prisma } from "../../../db/prisma";
 import type { DirectorExecutionLogLevel } from "@ai-novel/shared/types/directorExecutionLog";
 
 const MAX_LOGS_PER_TASK = 200;
+const ENFORCE_EVERY_N = 10;
 
 class DirectorExecutionLogger {
+  private logCountSinceLastEnforce = 0;
+
   async log(
     taskId: string,
     level: DirectorExecutionLogLevel,
@@ -21,7 +24,13 @@ class DirectorExecutionLogger {
           detail: meta ? JSON.stringify(meta) : undefined,
         },
       });
-      await this.enforceLogLimit(taskId);
+      this.logCountSinceLastEnforce++;
+      if (this.logCountSinceLastEnforce >= ENFORCE_EVERY_N) {
+        this.logCountSinceLastEnforce = 0;
+        void this.enforceLogLimit(taskId).catch((err) => {
+          console.error("[DirectorExecutionLogger] enforceLogLimit 失败:", err);
+        });
+      }
     } catch (error) {
       console.error("[DirectorExecutionLogger] 写入日志失败:", error);
     }
