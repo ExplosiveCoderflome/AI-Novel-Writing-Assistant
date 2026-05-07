@@ -61,12 +61,16 @@ function writeDesktopUpdaterConfig() {
   const releaseType = releaseChannel === "beta" ? "prerelease" : "release";
   const owner = (process.env.AI_NOVEL_GITHUB_OWNER || "ExplosiveCoderflome").trim();
   const repo = (process.env.AI_NOVEL_GITHUB_REPO || "AI-Novel-Writing-Assistant").trim();
+  const publisherName = (process.env.AI_NOVEL_WINDOWS_PUBLISHER_NAME || "AI Novel Writing Assistant Team").trim();
+  const minimumVersion = (process.env.AI_NOVEL_DESKTOP_MINIMUM_UPDATE_VERSION || "").trim();
   const config = [
     "provider: github",
     `owner: ${owner}`,
     `repo: ${repo}`,
     `channel: ${releaseChannel}`,
     `releaseType: ${releaseType}`,
+    `publisherName: ${publisherName}`,
+    ...(minimumVersion ? [`minimumAllowedVersion: ${minimumVersion}`] : []),
     "updaterCacheDirName: ai-novel-writing-assistant-v2-updater",
     "",
   ].join("\n");

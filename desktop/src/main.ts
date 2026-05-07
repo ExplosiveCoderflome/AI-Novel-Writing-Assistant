@@ -14,6 +14,7 @@ import {
   isPortableDesktopRuntime,
   resolveDesktopAppDataDir,
   resolveDesktopLogsDir,
+  resolveDesktopMinimumUpdateVersion,
   resolveDesktopRuntimeConfig,
   resolveDesktopUpdateChannel,
   resolveDesktopWindowIcon,
@@ -91,6 +92,7 @@ function initializeDesktopUpdaterController(): void {
     updateChannel: resolveDesktopUpdateChannel(),
     isPackaged: app.isPackaged,
     isPortable: isPortableDesktopRuntime(),
+    minimumAllowedVersion: resolveDesktopMinimumUpdateVersion(),
   });
 }
 
