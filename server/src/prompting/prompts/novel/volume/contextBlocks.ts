@@ -24,9 +24,8 @@ import {
   type VolumeStrategyCritiquePromptInput,
   type VolumeStrategyPromptInput,
 } from "./shared";
-import { genreProfileRegistry } from "../../../references/genreProfileRegistry";
-import { renderGenreGuidanceText } from "../chapterLayeredContextShared";
 import type { VolumeGenerationNovel } from "../../../../services/novel/volume/volumeModels";
+import { buildReadingPowerContextBlock } from "../readingPowerInjector";
 
 function guidanceBlock(guidance?: string): PromptContextBlock | null {
   if (!guidance?.trim()) {
@@ -41,17 +40,7 @@ function guidanceBlock(guidance?: string): PromptContextBlock | null {
 }
 
 function genreReadingPowerBlock(novel: VolumeGenerationNovel): PromptContextBlock | null {
-  const profile = genreProfileRegistry.resolve(novel.genre?.name);
-  const text = renderGenreGuidanceText(profile);
-  if (!text) {
-    return null;
-  }
-  return createContextBlock({
-    id: "genre_reading_power",
-    group: "genre_reading_power",
-    priority: 76,
-    content: text,
-  });
+  return buildReadingPowerContextBlock({ genreLabel: novel.genre?.name });
 }
 
 export function buildVolumeStrategyContextBlocks(input: VolumeStrategyPromptInput): PromptContextBlock[] {

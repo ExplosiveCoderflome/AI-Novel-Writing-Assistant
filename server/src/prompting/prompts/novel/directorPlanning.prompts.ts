@@ -22,8 +22,7 @@ import {
   directorPlanBlueprintSchema,
 } from "../../../services/director/schemas";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
-import { genreProfileRegistry } from "../../references/genreProfileRegistry";
-import { renderGenreGuidanceText } from "./chapterLayeredContextShared";
+import { buildReadingPowerTextSection } from "./readingPowerInjector";
 
 export interface DirectorCandidatePromptInput {
   idea: string;
@@ -167,8 +166,10 @@ export const directorCandidatePrompt: PromptAsset<
       "【项目上下文补充】",
       formatProjectContext(input.context) || "none",
       "",
-      "【类型追读力指导】",
-      renderGenreGuidanceText(genreProfileRegistry.resolve(input.context.genreId)) || "none",
+      buildReadingPowerTextSection({
+        genreLabel: input.context.genreId,
+        title: "【类型追读力指导】",
+      }) || "【类型追读力指导】\nnone",
       "",
       "【上一轮候选】",
       formatLatestBatchDigest(input.batches),
@@ -241,8 +242,10 @@ export const directorCandidatePatchPrompt: PromptAsset<
       "【项目上下文补充】",
       formatProjectContext(input.context) || "none",
       "",
-      "【类型追读力指导】",
-      renderGenreGuidanceText(genreProfileRegistry.resolve(input.context.genreId)) || "none",
+      buildReadingPowerTextSection({
+        genreLabel: input.context.genreId,
+        title: "【类型追读力指导】",
+      }) || "【类型追读力指导】\nnone",
       "",
       "【当前选中方案】",
       formatCandidateDigest(input.candidate, 0),
@@ -420,8 +423,10 @@ export const directorBookContractPrompt: PromptAsset<
       "【分层上下文】",
       renderSelectedContextBlocks(context),
       "",
-      "【类型追读力指导】",
-      renderGenreGuidanceText(genreProfileRegistry.resolve(input.context.genreId)) || "none",
+      buildReadingPowerTextSection({
+        genreLabel: input.context.genreId,
+        title: "【类型追读力指导】",
+      }) || "【类型追读力指导】\nnone",
       "",
       "【目标章节总数】",
       String(input.targetChapterCount),

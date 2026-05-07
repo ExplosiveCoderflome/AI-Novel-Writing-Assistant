@@ -2,8 +2,7 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
 import { novelBiblePayloadSchema } from "../../../services/novel/novelCoreSchemas";
-import { genreProfileRegistry } from "../../references/genreProfileRegistry";
-import { renderGenreGuidanceText } from "./chapterLayeredContextShared";
+import { buildReadingPowerGuidanceText } from "./readingPowerInjector";
 
 export interface NovelOutlinePromptInput {
   title: string;
@@ -402,7 +401,7 @@ export const novelBiblePrompt: PromptAsset<
         referenceBlock,
         "",
         (() => {
-          const genreGuidance = renderGenreGuidanceText(genreProfileRegistry.resolve(input.genreName));
+          const genreGuidance = buildReadingPowerGuidanceText({ genreLabel: input.genreName });
           return genreGuidance ? `\n${genreGuidance}\n` : "";
         })(),
         "请输出作品圣经 JSON。",
