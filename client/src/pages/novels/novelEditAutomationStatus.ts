@@ -68,6 +68,16 @@ export function buildDisplayAutoDirectorTask(
   };
 }
 
+export function canArchiveCompletedAutoDirectorTask(
+  task?: Pick<UnifiedTaskDetail, "status" | "checkpointType"> | null,
+): boolean {
+  return Boolean(
+    task
+      && task.status === "succeeded"
+      && task.checkpointType === "workflow_completed",
+  );
+}
+
 export function resolveTakeoverModeFromAutomation(input: {
   task: UnifiedTaskDetail;
   projection: DirectorBookAutomationProjection | null | undefined;

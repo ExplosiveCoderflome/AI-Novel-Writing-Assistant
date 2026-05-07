@@ -22,7 +22,7 @@ import { getBaseCharacterList } from "@/api/character";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
 import { getDirectorBookAutomationProjection, getDirectorRuntimeSnapshot, getDirectorTaskSnapshot } from "@/api/novelDirector";
 import { continueNovelWorkflow, getActiveAutoDirectorTask } from "@/api/novelWorkflow";
-import { cancelTask, executeAutoDirectorFollowUpAction, getAutoDirectorFollowUpDetail, getTaskDetail, retryTask } from "@/api/tasks";
+import { archiveTask, cancelTask, executeAutoDirectorFollowUpAction, getAutoDirectorFollowUpDetail, getTaskDetail, retryTask } from "@/api/tasks";
 import {
   auditNovelChapter,
   backfillNovelCharacterResources,
@@ -92,6 +92,7 @@ import {
 } from "./novelEditTakeover.shared";
 import {
   buildDisplayAutoDirectorTask,
+  canArchiveCompletedAutoDirectorTask,
   resolveAutomationActionText,
   resolveTakeoverModeFromAutomation,
 } from "./novelEditAutomationStatus";
@@ -1185,6 +1186,24 @@ export default function NovelEdit() {
       toast.error(message);
     },
   });
+  const archiveCompletedAutoDirectorMutation = useMutation({
+    mutationFn: async (targetTaskId?: string) => {
+      const taskId = targetTaskId || displayAutoDirectorTask?.id;
+      if (!taskId) {
+        throw new Error("当前没有可收起的自动导演完成记录。");
+      }
+      return archiveTask("novel_workflow", taskId);
+    },
+    onSuccess: async (_response, targetTaskId) => {
+      setIsDirectorExitActionExpanded(false);
+      await invalidateAutoDirectorTaskState(targetTaskId ?? displayAutoDirectorTask?.id);
+      toast.success("已收起这次自动导演完成提醒。");
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "收起自动导演完成提醒失败。";
+      toast.error(message);
+    },
+  });
   useEffect(() => {
     setRetryOverride({
       provider: llm.provider,
@@ -1415,10 +1434,14 @@ export default function NovelEdit() {
         onClick: dismissTakeover,
         variant: "secondary",
       });
-    } else if (
-      task.status === "waiting_approval"
-      || (task.status === "succeeded" && task.checkpointType === "workflow_completed")
-    ) {
+    } else if (canArchiveCompletedAutoDirectorTask(task)) {
+      actions.push({
+        label: archiveCompletedAutoDirectorMutation.isPending ? "收起中..." : "完成并收起",
+        onClick: () => archiveCompletedAutoDirectorMutation.mutate(task.id),
+        variant: "secondary",
+        disabled: archiveCompletedAutoDirectorMutation.isPending,
+      });
+    } else if (task.status === "waiting_approval") {
       actions.push({
         label: "完成并收起",
         onClick: dismissTakeover,
@@ -1489,6 +1512,7 @@ export default function NovelEdit() {
     activeChapterTitleWarning,
     activeDirectorSession,
     activeTab,
+    archiveCompletedAutoDirectorMutation,
     bookAutomationProjection,
     chapters.length,
     chapterTitleRepairMutation,
