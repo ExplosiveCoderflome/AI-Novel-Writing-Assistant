@@ -31,12 +31,19 @@ import { DirectorFactSummaryService } from "../DirectorFactSummaryService";
 import {
   hasDirectorAutoExecutionChapterContract,
   hasDirectorSyncedChapterExecutionContext,
+  resolveDirectorAutoExecutionPlanChapterRange,
+  resolveDirectorAutoExecutionRangeFromState,
 } from "../novelDirectorAutoExecution";
 import type { DirectorAutoExecutionState, DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import { isDirectorAutoExecutionRunMode } from "@ai-novel/shared/types/novelDirector";
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
-import type { DirectorArtifactRef } from "@ai-novel/shared/types/directorRuntime";
+import type {
+  DirectorArtifactRef,
+  DirectorChapterExecutionProgressItem,
+  DirectorChapterExecutionProgressSummary,
+} from "@ai-novel/shared/types/directorRuntime";
+import { CHAPTER_EXECUTION_PROGRESS_STAGES } from "../runtime/ChapterExecutionProgressInspector";
 
 export const DIRECTOR_CANDIDATE_STEP_IDS: Record<DirectorCandidateStageNode, string> = {
   candidate_generation: "book.candidate.generate",
@@ -162,6 +169,70 @@ function countMaterializedExecutionChapters(input: {
       .filter((order) => Number.isFinite(order)),
   );
   return input.plannedChapterOrders.filter((order) => executionChapterOrders.has(order)).length;
+}
+
+function resolveChapterExecutionProgressScope(input: {
+  state: Awaited<ReturnType<DirectorFactSummaryService["getState"]>>;
+  request?: DirectorConfirmRequest | null;
+}): { startOrder: number; endOrder: number } | null {
+  const stateRange = resolveDirectorAutoExecutionRangeFromState(input.state.seedPayload.autoExecution);
+  if (stateRange) {
+    return {
+      startOrder: stateRange.startOrder,
+      endOrder: stateRange.endOrder,
+    };
+  }
+  return resolveDirectorAutoExecutionPlanChapterRange(
+    input.request?.autoExecutionPlan ?? input.state.seedPayload.autoExecutionPlan ?? null,
+  );
+}
+
+function resolveCurrentScopedChapter(
+  chapters: DirectorChapterExecutionProgressItem[],
+): DirectorChapterExecutionProgressItem | null {
+  const active = chapters.find((chapter) => chapter.status === "running") ?? null;
+  return active
+    ?? chapters.find((chapter) => chapter.status === "needs_repair")
+    ?? chapters.find((chapter) => chapter.status === "not_started")
+    ?? chapters.find((chapter) => chapter.status === "running")
+    ?? null;
+}
+
+function scopeChapterExecutionProgress(
+  progress: DirectorChapterExecutionProgressSummary | null,
+  range: { startOrder: number; endOrder: number } | null,
+): DirectorChapterExecutionProgressSummary | null {
+  if (!progress || !range) {
+    return progress;
+  }
+  const chapters = (progress.chapters ?? []).filter((chapter) => (
+    chapter.chapterOrder >= range.startOrder && chapter.chapterOrder <= range.endOrder
+  ));
+  const current = resolveCurrentScopedChapter(chapters);
+  const recoverableChapters = chapters.filter((chapter) => chapter.recoverable);
+  const totalStageCount = Math.max(1, chapters.length * CHAPTER_EXECUTION_PROGRESS_STAGES.length);
+  const completedStageCount = chapters.reduce((sum, chapter) => sum + chapter.completedStages.length, 0);
+  return {
+    ...progress,
+    totalChapters: chapters.length,
+    draftedChapterCount: chapters.filter((chapter) => chapter.completedStages.includes("draft_saved")).length,
+    approvedChapterCount: chapters.filter((chapter) => chapter.status === "approved").length,
+    completedChapters: chapters.filter((chapter) => (
+      chapter.status === "approved" || chapter.status === "completed"
+    )).length,
+    needsRepairChapters: chapters.filter((chapter) => chapter.status === "needs_repair").length,
+    activeChapterId: current?.status === "running" ? current.chapterId : null,
+    activeChapterOrder: current?.status === "running" ? current.chapterOrder : null,
+    currentChapterId: current?.chapterId ?? null,
+    currentChapterOrder: current?.chapterOrder ?? null,
+    currentStage: current?.currentStage ?? null,
+    recoverableRange: {
+      startOrder: recoverableChapters[0]?.chapterOrder ?? null,
+      endOrder: recoverableChapters[recoverableChapters.length - 1]?.chapterOrder ?? null,
+    },
+    ratio: chapters.length === 0 ? 0 : completedStageCount / totalStageCount,
+    chapters,
+  };
 }
 
 function getCandidateStageMode(stage: DirectorCandidateStageNode): string | null {
@@ -1020,8 +1091,11 @@ function createChapterDraftExecutableModule(
         });
       },
       inspectCompletion: async (context) => {
-        const { state, novelId } = await loadDirectorModuleState(context);
-        const chapterProgress = state.chapterProgress ?? await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId);
+        const { state, novelId, request } = await loadDirectorModuleState(context);
+        const chapterProgress = scopeChapterExecutionProgress(
+          state.chapterProgress ?? await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId),
+          resolveChapterExecutionProgressScope({ state, request }),
+        );
         const draftedChapterCount = chapterProgress?.draftedChapterCount ?? 0;
         const totalChapters = chapterProgress?.totalChapters ?? 0;
         return totalChapters > 0 && draftedChapterCount >= totalChapters
@@ -1065,8 +1139,11 @@ function createChapterDraftExecutableModule(
         };
       },
       validateOutput: async (_output, context) => {
-        const { novelId } = await loadDirectorModuleState(context);
-        const progress = await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId);
+        const { state, novelId, request } = await loadDirectorModuleState(context);
+        const progress = scopeChapterExecutionProgress(
+          state.chapterProgress ?? await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId),
+          resolveChapterExecutionProgressScope({ state, request }),
+        );
         return {
           valid: Boolean(progress && progress.totalChapters > 0),
           reason: progress?.totalChapters ? undefined : "Chapter execution did not produce observable chapter progress.",
@@ -1089,8 +1166,11 @@ function createChapterDraftExecutableModule(
         return { producedArtifacts };
       },
       inspectProgress: async (context) => {
-        const { novelId } = await loadDirectorModuleState(context);
-        const progress = await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId);
+        const { state, novelId, request } = await loadDirectorModuleState(context);
+        const progress = scopeChapterExecutionProgress(
+          state.chapterProgress ?? await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId),
+          resolveChapterExecutionProgressScope({ state, request }),
+        );
         if (!progress || progress.totalChapters === 0) {
           return buildSimpleProgress({
             status: "not_started",
@@ -1138,8 +1218,11 @@ function createChapterDraftExecutableModule(
         });
       },
       recover: async (context) => {
-        const { novelId, state } = await loadDirectorModuleState(context);
-        const progress = await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId);
+        const { novelId, state, request } = await loadDirectorModuleState(context);
+        const progress = scopeChapterExecutionProgress(
+          state.chapterProgress ?? await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId),
+          resolveChapterExecutionProgressScope({ state, request }),
+        );
         const resumeChapterOrder = progress?.activeChapterOrder ?? progress?.currentChapterOrder;
         const resumeFrom = resumeChapterOrder
           ? `chapter:${resumeChapterOrder}`
@@ -1161,8 +1244,11 @@ function createChapterDraftExecutableModule(
         };
       },
       completeCriteria: async (_output, context) => {
-        const { novelId } = await loadDirectorModuleState(context);
-        const progress = await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId);
+        const { state, novelId, request } = await loadDirectorModuleState(context);
+        const progress = scopeChapterExecutionProgress(
+          state.chapterProgress ?? await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId),
+          resolveChapterExecutionProgressScope({ state, request }),
+        );
         return Boolean(
           progress
           && progress.totalChapters > 0

@@ -159,6 +159,139 @@ test("chapter pipeline template converts execution flow into ordered step plan",
   });
 });
 
+function buildProgressChapter(order, patch = {}) {
+  const drafted = patch.drafted ?? false;
+  const completedStages = drafted
+    ? [
+      "execution_contract_ready",
+      "context_package_ready",
+      "draft_started",
+      "draft_saved",
+      "audit_completed",
+      "repair_completed_or_not_needed",
+      "runtime_package_saved",
+      "chapter_artifacts_synced",
+      "chapter_state_committed",
+      "reviewable_or_approved",
+    ]
+    : [
+      "execution_contract_ready",
+      "context_package_ready",
+    ];
+  return {
+    chapterId: `chapter-${order}`,
+    chapterOrder: order,
+    status: drafted ? "completed" : "not_started",
+    currentStage: drafted ? "reviewable_or_approved" : "draft_started",
+    completedStages,
+    missingStages: [],
+    evidence: {
+      chapterStatus: drafted ? "completed" : "unplanned",
+    },
+    recoverable: true,
+    nextAction: drafted ? "continue_next_chapter" : "write_draft",
+    ...patch,
+  };
+}
+
+function buildChapterProgressSummary(chapters) {
+  const draftedChapterCount = chapters.filter((chapter) => chapter.completedStages.includes("draft_saved")).length;
+  return {
+    totalChapters: chapters.length,
+    draftedChapterCount,
+    approvedChapterCount: chapters.filter((chapter) => chapter.status === "approved").length,
+    completedChapters: chapters.filter((chapter) => (
+      chapter.status === "approved" || chapter.status === "completed"
+    )).length,
+    needsRepairChapters: chapters.filter((chapter) => chapter.status === "needs_repair").length,
+    activeChapterId: null,
+    activeChapterOrder: null,
+    currentChapterId: chapters.find((chapter) => chapter.status === "not_started")?.chapterId ?? null,
+    currentChapterOrder: chapters.find((chapter) => chapter.status === "not_started")?.chapterOrder ?? null,
+    currentStage: chapters.find((chapter) => chapter.status === "not_started")?.currentStage ?? null,
+    recoverableRange: {
+      startOrder: chapters[0]?.chapterOrder ?? null,
+      endOrder: chapters[chapters.length - 1]?.chapterOrder ?? null,
+    },
+    ratio: draftedChapterCount / Math.max(1, chapters.length),
+    chapters,
+  };
+}
+
+function buildDirectorStateHint(seedPayload, chapterProgress) {
+  return {
+    task: {
+      id: "task-scoped-chapter-execution",
+      novelId: "novel-scoped",
+      lane: "auto_director",
+      status: "running",
+      currentStage: "chapter_execution",
+      currentItemKey: "chapter_execution",
+      currentItemLabel: "Executing chapters",
+      progress: 0.98,
+      checkpointType: null,
+      checkpointSummary: null,
+      lastError: null,
+      pendingManualRecovery: false,
+      cancelRequestedAt: null,
+    },
+    run: null,
+    runtime: null,
+    latestCommand: null,
+    activeStep: null,
+    seedPayload,
+    chapterProgress,
+  };
+}
+
+test("chapter draft completion is scoped to the active auto execution range", async () => {
+  const module = getDirectorExecutionStepModule("chapter_execution");
+  const chapters = Array.from({ length: 67 }, (_, index) => {
+    const order = index + 1;
+    return buildProgressChapter(order, {
+      drafted: order >= 11 && order <= 13,
+    });
+  });
+  const context = {
+    taskId: "task-scoped-chapter-execution",
+    novelId: "novel-scoped",
+    projectionHints: {
+      directorCanonicalState: buildDirectorStateHint({
+        autoExecutionPlan: {
+          mode: "chapter_range",
+          startOrder: 11,
+          endOrder: 13,
+          autoReview: true,
+          autoRepair: true,
+        },
+        autoExecution: {
+          enabled: true,
+          mode: "chapter_range",
+          startOrder: 11,
+          endOrder: 13,
+          totalChapterCount: 3,
+          completedChapterCount: 3,
+          remainingChapterCount: 0,
+          autoReview: true,
+          autoRepair: true,
+        },
+      }, buildChapterProgressSummary(chapters)),
+    },
+  };
+
+  const completion = await module.inspectCompletion(context);
+  const progress = await module.inspectProgress(context);
+  const completeCriteria = await module.completeCriteria(undefined, context);
+
+  assert.equal(completion.completed, true);
+  assert.equal(completion.evidence.draftedChapterCount, 3);
+  assert.equal(completion.evidence.totalChapters, 3);
+  assert.equal(progress.status, "completed");
+  assert.equal(progress.evidence.draftedChapterCount, 3);
+  assert.equal(progress.evidence.totalChapters, 3);
+  assert.equal(completeCriteria, true);
+});
+
 test("quality repair template starts from repair step and preserves policy action", () => {
   const plan = buildChapterPipelineWorkflowTemplate("quality_repair");
   const repairModule = getDirectorExecutionStepModule("chapter_repair");

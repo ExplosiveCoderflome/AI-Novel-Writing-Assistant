@@ -5,6 +5,9 @@ const {
   NovelDirectorRuntimeOrchestrator,
 } = require("../dist/services/novel/director/novelDirectorRuntimeOrchestrator.js");
 const {
+  createWorkflowStepModule,
+} = require("../dist/services/novel/director/workflowStepRuntime/WorkflowStepModule.js");
+const {
   getDirectorPlanningStepModule,
 } = require("../dist/services/novel/director/workflowStepRuntime/directorWorkflowStepModules.js");
 const {
@@ -82,6 +85,62 @@ function buildOrchestrator(artifacts = [artifact], options = {}) {
     getPipelineRuns: () => pipelineRuns,
   };
 }
+
+test("executable projection steps inspect preloaded artifacts before validation", async () => {
+  const readerPromise = buildArtifact("reader_promise");
+  const { orchestrator, runtimeCalls } = buildOrchestrator([readerPromise]);
+  const module = createWorkflowStepModule(
+    {
+      id: "test.reader_promise.sync",
+      nodeKey: "test_reader_promise_sync",
+      label: "Sync reader promise",
+      stage: "quality_repair",
+      targetType: "novel",
+      reads: [],
+      writes: ["reader_promise"],
+      mayModifyUserContent: false,
+      requiresApprovalByDefault: false,
+      supportsAutoRetry: false,
+    },
+    async () => undefined,
+    {
+      inspectReadiness: async () => ({ ready: true, blockers: [] }),
+      inspectCompletion: async (context) => ({
+        stepId: "test.reader_promise.sync",
+        completed: (context.artifacts ?? []).some((item) => item.artifactType === "reader_promise"),
+        completenessRatio: (context.artifacts ?? []).some((item) => item.artifactType === "reader_promise") ? 1 : 0,
+      }),
+      buildInput: async () => undefined,
+      validateOutput: async (_output, context) => ({
+        valid: (context.artifacts ?? []).some((item) => item.artifactType === "reader_promise"),
+        reason: "reader promise artifact missing from execution context",
+      }),
+      inspectProgress: async () => ({
+        status: "completed",
+        current: 1,
+        total: 1,
+        ratio: 1,
+        label: "done",
+      }),
+      recover: async () => ({ recoverable: true }),
+      completeCriteria: async (_output, context) => (
+        (context.artifacts ?? []).some((item) => item.artifactType === "reader_promise")
+      ),
+      commit: async () => ({ producedArtifacts: [readerPromise] }),
+    },
+  );
+
+  await orchestrator.runStepModule({
+    module,
+    taskId: "task-1",
+    novelId: "novel-1",
+    targetId: "novel-1",
+    runner: async () => undefined,
+    collectArtifacts: () => [readerPromise],
+  });
+
+  assert.deepEqual(runtimeCalls, []);
+});
 
 test.skip("chapter execution records the standard node sequence without rerunning the pipeline", async () => {
   const mixedArtifacts = [
