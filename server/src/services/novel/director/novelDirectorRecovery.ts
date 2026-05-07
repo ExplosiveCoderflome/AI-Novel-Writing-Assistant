@@ -76,11 +76,11 @@ export function resolveAssetFirstRecoveryFromSnapshot(input: {
   hasActivePipelineJob: boolean;
   hasExecutableRange: boolean;
   hasAutoExecutionState: boolean;
-  latestCheckpointType?: "front10_ready" | "chapter_batch_ready" | "replan_required" | null;
+  latestCheckpointType?: "chapter_batch_ready" | "replan_required" | null;
 }):
   | {
     type: "auto_execution";
-    resumeCheckpointType: "front10_ready" | "chapter_batch_ready" | "replan_required";
+    resumeCheckpointType: "chapter_batch_ready" | "replan_required";
   }
   | {
     type: "phase";
@@ -121,7 +121,7 @@ export function resolveAssetFirstRecoveryFromSnapshot(input: {
       type: "auto_execution",
       resumeCheckpointType: input.latestCheckpointType === "chapter_batch_ready" || input.latestCheckpointType === "replan_required"
         ? input.latestCheckpointType
-        : "front10_ready",
+        : "chapter_batch_ready",
     };
   }
 

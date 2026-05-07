@@ -503,12 +503,10 @@ export class AutoDirectorFollowUpActionExecutor {
       : undefined;
     if (input.actionCode === "continue_auto_execution") {
       const continueInput: {
-        continuationMode: "auto_execute_front10" | "auto_execute_range";
+        continuationMode: "auto_execute_range";
         batchAlreadyStartedCount?: number;
       } = {
-        continuationMode: row.checkpointType === "front10_ready"
-          ? "auto_execute_front10"
-          : "auto_execute_range",
+        continuationMode: "auto_execute_range",
       };
       if (batchAlreadyStartedCount !== undefined) {
         continueInput.batchAlreadyStartedCount = batchAlreadyStartedCount;

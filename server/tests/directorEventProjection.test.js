@@ -98,7 +98,60 @@ test("director event projection keeps latest event first", () => {
         occurredAt: "2026-04-28T00:00:03.000Z",
       },
     ],
-  }));
+  }), {
+    factSummary: {
+      allStepsCompleted: true,
+      completedStepCount: 1,
+      totalStepCount: 1,
+      currentFactStepId: null,
+      currentFactStepLabel: null,
+      currentFactEvidence: null,
+      hasNovelProject: true,
+      hasStoryMacro: true,
+      hasBookContract: true,
+      characterCount: 1,
+      hasVolumeStrategy: true,
+      volumeCount: 1,
+      outlineFacts: {
+        beatSheetReady: true,
+        chapterListReady: true,
+        chapterDetailReady: true,
+        plannedChapterCount: 1,
+        selectedChapterCount: 1,
+        completedDetailSteps: 1,
+        totalDetailSteps: 1,
+        syncedChapterCount: 1,
+      },
+      chapterExecutionFacts: {
+        totalChapters: 1,
+        draftedChapterCount: 1,
+        reviewedChapterCount: 1,
+        approvedChapterCount: 1,
+        committedChapterCount: 1,
+        completedChapters: 1,
+        needsRepairChapters: 0,
+        ratio: 1,
+        expectedChapterCount: 1,
+      },
+      repairFacts: {
+        draftedChapterCount: 1,
+        reviewedChapterCount: 1,
+        committedChapterCount: 1,
+        needsRepairChapters: 0,
+        payoffArtifactCount: 1,
+        characterResourceArtifactCount: 1,
+      },
+      steps: [{
+        stepId: "story.macro.plan",
+        label: "鐢熸垚涔︾骇瑙勫垝璧勪骇",
+        stage: "story_macro",
+        completed: true,
+        completenessRatio: 1,
+        evidence: { artifactType: "story_macro" },
+        nextAction: null,
+      }],
+    },
+  });
 
   assert.equal(projection.status, "completed");
   assert.equal(projection.requiresUserAction, false);

@@ -1,4 +1,4 @@
-﻿const test = require("node:test");
+const test = require("node:test");
 const assert = require("node:assert/strict");
 const { compileIntentToPlan } = require("../dist/agents/planner/compiler.js");
 const { normalizeIntentPayload } = require("../dist/agents/planner/utils.js");

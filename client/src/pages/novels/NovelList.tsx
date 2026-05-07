@@ -1,4 +1,4 @@
-import type { KeyboardEvent, MouseEvent } from "react";
+﻿import type { KeyboardEvent, MouseEvent } from "react";
 import { useMemo, useState } from "react";
 import type { ProjectProgressStatus } from "@ai-novel/shared/types/novel";
 import type {
@@ -26,7 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   canContinueDirector,
-  canContinueFront10AutoExecution,
+  canContinueChapterBatchAutoExecution,
   canEnterChapterExecution,
   getCandidateSelectionLink,
   getWorkflowBadge,
@@ -137,7 +137,7 @@ export default function NovelList() {
   const continueWorkflowMutation = useMutation({
     mutationFn: async (input: {
       taskId: string;
-      mode?: "resume" | "auto_execute_range" | "auto_execute_front10";
+      mode?: "resume" | "auto_execute_range";
     }) => continueNovelWorkflow(input.taskId, input.mode ? { continuationMode: input.mode } : undefined),
     onSuccess: async (response, input) => {
       const invalidations = [
@@ -457,7 +457,7 @@ export default function NovelList() {
                       AI 驾驶舱
                     </Button>
 
-                    {canContinueFront10AutoExecution(workflowTask) ? (
+                    {canContinueChapterBatchAutoExecution(workflowTask) ? (
                       <Button
                         size="sm"
                         onClick={(event) => {

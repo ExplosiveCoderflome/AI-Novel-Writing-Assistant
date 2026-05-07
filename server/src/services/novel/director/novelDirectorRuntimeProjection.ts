@@ -185,20 +185,20 @@ function buildWorkerHealth(runtime: RuntimeInstanceProjectionRow): DirectorRunti
     .sort((left, right) => (left.runAfter ?? left.createdAt).getTime() - (right.runAfter ?? right.createdAt).getTime())[0] ?? null;
   const blockedReason = runtime.lastErrorMessage ?? current?.errorMessage ?? activeExecution?.errorMessage ?? null;
   const derivedState = (() => {
-    if (activeExecutionStale || staleCommands.length > 0) {
-      return "auto_recovering" as const;
-    }
     if (activeExecution?.status === "running") {
       return "running_step" as const;
+    }
+    if (runtime.status === "waiting_gate") {
+      return "waiting_gate" as const;
+    }
+    if (activeExecutionStale || staleCommands.length > 0) {
+      return "auto_recovering" as const;
     }
     if (activeExecution?.status === "leased" || leased.length > 0) {
       return "leased_starting" as const;
     }
     if (queued.length > 0) {
       return "queued_waiting_worker" as const;
-    }
-    if (runtime.status === "waiting_gate") {
-      return "waiting_gate" as const;
     }
     if (runtime.status === "failed_recoverable") {
       return "failed_recoverable" as const;

@@ -1,4 +1,4 @@
-import type { KeyboardEvent, MouseEvent } from "react";
+﻿import type { KeyboardEvent, MouseEvent } from "react";
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   canContinueDirector,
-  canContinueFront10AutoExecution,
+  canContinueChapterBatchAutoExecution,
   canEnterChapterExecution,
   getCandidateSelectionLink,
   getWorkflowBadge,
@@ -44,7 +44,7 @@ function formatDate(value: string | undefined): string {
 
 function getNovelPriorityScore(novel: HomeNovelItem): number {
   const task = novel.latestAutoDirectorTask ?? null;
-  if (canContinueFront10AutoExecution(task)) {
+  if (canContinueChapterBatchAutoExecution(task)) {
     return 0;
   }
   if (requiresCandidateSelection(task)) {
@@ -120,7 +120,7 @@ export default function Home() {
   const continueWorkflowMutation = useMutation({
     mutationFn: async (input: {
       taskId: string;
-      mode?: "resume" | "auto_execute_range" | "auto_execute_front10";
+      mode?: "resume" | "auto_execute_range";
     }) => continueNovelWorkflow(input.taskId, input.mode ? { continuationMode: input.mode } : undefined),
     onSuccess: async (response, input) => {
       await Promise.all([
@@ -210,7 +210,7 @@ export default function Home() {
       }
     };
 
-    if (canContinueFront10AutoExecution(task)) {
+    if (canContinueChapterBatchAutoExecution(task)) {
       return (
         <Button
           size={size}

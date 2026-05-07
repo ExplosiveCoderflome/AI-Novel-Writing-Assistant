@@ -99,20 +99,20 @@ function buildWorkerHealth(input: {
   const activeOwner = splitLeaseOwner(activeCommand?.leaseOwner);
   const blockedReason = activeCommand?.errorMessage ?? null;
   const derivedState: DirectorWorkerHealthSummary["derivedState"] = (() => {
-    if (staleCommands.length > 0) {
-      return "auto_recovering";
-    }
     if (runningCommands.length > 0) {
       return "running_step";
+    }
+    if (input.status === "waiting_approval") {
+      return "waiting_gate";
+    }
+    if (staleCommands.length > 0) {
+      return "auto_recovering";
     }
     if (leasedCommands.length > 0) {
       return "leased_starting";
     }
     if (queuedCommands.length > 0) {
       return "queued_waiting_worker";
-    }
-    if (input.status === "waiting_approval") {
-      return "waiting_gate";
     }
     if (input.status === "waiting_recovery" || input.status === "failed" || input.status === "blocked") {
       return "failed_recoverable";
@@ -344,9 +344,11 @@ export class DirectorBookAutomationProjectionService {
         ? "queued"
         : taskStatus === "waiting_recovery"
           ? "waiting_recovery"
-          : runtimeStatus !== "idle"
-            ? runtimeStatus
-            : taskStatus;
+          : taskStatus === "cancelled"
+            ? "cancelled"
+            : runtimeStatus !== "idle"
+              ? runtimeStatus
+              : taskStatus;
     const workerHealth = buildWorkerHealth({
       commands,
       status,

@@ -51,10 +51,10 @@ test("auto approval config maps known checkpoints to approval points", () => {
     ],
   });
 
-  assert.equal(shouldAutoApproveDirectorCheckpoint(config, "front10_ready"), true);
+  assert.equal(shouldAutoApproveDirectorCheckpoint(config, "chapter_batch_ready"), true);
   assert.equal(shouldAutoApproveDirectorCheckpoint(config, "chapter_batch_ready"), true);
   assert.equal(shouldAutoApproveDirectorCheckpoint(config, "replan_required"), false);
-  assert.equal(shouldAutoApproveDirectorCheckpoint({ ...config, enabled: false }, "front10_ready"), false);
+  assert.equal(shouldAutoApproveDirectorCheckpoint({ ...config, enabled: false }, "chapter_batch_ready"), false);
 });
 
 test("full auto approval covers every defined approval point", () => {
@@ -65,7 +65,7 @@ test("full auto approval covers every defined approval point", () => {
 
   assert.equal(fullAutoConfig.enabled, true);
   assert.deepEqual(fullAutoConfig.approvalPointCodes, ALL_DIRECTOR_AUTO_APPROVAL_POINT_CODES);
-  assert.equal(shouldAutoApproveDirectorCheckpoint(fullAutoConfig, "front10_ready"), true);
+  assert.equal(shouldAutoApproveDirectorCheckpoint(fullAutoConfig, "chapter_batch_ready"), true);
   assert.equal(shouldAutoApproveDirectorCheckpoint(fullAutoConfig, "chapter_batch_ready"), true);
   assert.equal(shouldAutoApproveDirectorCheckpoint(fullAutoConfig, "replan_required"), true);
 });
@@ -100,3 +100,4 @@ test("director seed payload stores book-level auto approval selection", () => {
     approvalPointCodes: ["chapter_execution_continue"],
   });
 });
+

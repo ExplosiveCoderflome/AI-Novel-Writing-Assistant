@@ -46,14 +46,14 @@ test("extractDirectorTaskSeedPayloadFromMeta returns candidate-stage batches fro
       runMode: "stage_review",
       batches: [firstBatch],
       autoExecutionPlan: {
-        mode: "front10",
+        mode: "chapter_range",
       },
     },
   });
 
   assert.equal(result?.idea, "拾荒者的赛博人生");
   assert.equal(result?.runMode, "stage_review");
-  assert.equal(result?.autoExecutionPlan?.mode, "front10");
+  assert.equal(result?.autoExecutionPlan?.mode, "chapter_range");
   assert.deepEqual(result?.batches, [firstBatch]);
 });
 

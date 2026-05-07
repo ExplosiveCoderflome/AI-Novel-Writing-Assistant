@@ -3,12 +3,12 @@ import assert from "node:assert/strict";
 
 import { tabFromDirectorProgress } from "./novelWorkspaceNavigation.ts";
 
-test("running chapter execution uses the active item over a stale front10 checkpoint", () => {
+test("running chapter execution uses the active item over a stale chapter batch checkpoint", () => {
   assert.equal(tabFromDirectorProgress({
     status: "running",
     currentStage: "章节执行",
     currentItemKey: "chapter_execution",
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
   }), "chapter");
 });
 
@@ -17,7 +17,7 @@ test("running chapter execution accepts runtime node keys over stale checkpoints
     status: "running",
     currentStage: "chapter_execution",
     currentItemKey: "chapter_execution_node",
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
   }), "chapter");
 });
 
@@ -26,15 +26,15 @@ test("chapter quality node keeps the rail on chapter execution instead of regres
     status: "running",
     currentStage: "quality_repair",
     currentItemKey: "chapter_quality_review_node",
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
   }), "pipeline");
 });
 
-test("waiting front10 checkpoint stays on structured outline before execution starts", () => {
+test("waiting chapter batch checkpoint stays on structured outline before execution starts", () => {
   assert.equal(tabFromDirectorProgress({
     status: "waiting_approval",
     currentStage: "章节执行",
     currentItemKey: "chapter_execution",
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
   }), "structured");
 });

@@ -16,7 +16,7 @@ function buildWorkflowRow(overrides = {}) {
     currentStage: "章节执行",
     currentItemKey: "chapter_execution",
     currentItemLabel: "等待继续自动执行",
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
     checkpointSummary: "前 10 章已准备完成。",
     resumeTargetJson: null,
     seedPayloadJson: JSON.stringify({
@@ -120,8 +120,8 @@ test("auto director follow-up action executor continues auto execution and dedup
   };
   executor.workflowService.healAutoDirectorTaskState = async () => false;
   executor.workflowService.getTaskByIdWithoutHealing = async () => buildWorkflowRow({
-    id: "task_front10",
-    checkpointType: "front10_ready",
+    id: "task_chapter_range",
+    checkpointType: "chapter_batch_ready",
   });
   executor.novelDirectorService.continueTask = async (taskId, input) => {
     calls.push({ taskId, input });
@@ -129,33 +129,33 @@ test("auto director follow-up action executor continues auto execution and dedup
   executor.workflowTaskAdapter.detail = async (taskId) => buildTaskDetail(taskId);
 
   const first = await executor.execute({
-    taskId: "task_front10",
+    taskId: "task_chapter_range",
     actionCode: "continue_auto_execution",
     source: "web",
     operatorId: "user_1",
-    idempotencyKey: "continue-front10-k1",
+    idempotencyKey: "continue-chapter_range-k1",
   });
 
   const second = await executor.execute({
-    taskId: "task_front10",
+    taskId: "task_chapter_range",
     actionCode: "continue_auto_execution",
     source: "web",
     operatorId: "user_1",
-    idempotencyKey: "continue-front10-k1",
+    idempotencyKey: "continue-chapter_range-k1",
   });
 
   assert.equal(first.code, "executed");
-  assert.equal(first.taskId, "task_front10");
-  assert.equal(first.task.id, "task_front10");
+  assert.equal(first.taskId, "task_chapter_range");
+  assert.equal(first.task.id, "task_chapter_range");
   assert.deepEqual(calls, [{
-    taskId: "task_front10",
+    taskId: "task_chapter_range",
     input: {
-      continuationMode: "auto_execute_front10",
+      continuationMode: "auto_execute_range",
     },
   }]);
-  assert.equal(actionLogs.get("continue-front10-k1").resultCode, "executed");
+  assert.equal(actionLogs.get("continue-chapter_range-k1").resultCode, "executed");
   assert.equal(second.code, "already_processed");
-  assert.equal(second.task.id, "task_front10");
+  assert.equal(second.task.id, "task_chapter_range");
   assert.equal(actionLogs.size, 1);
 
   prisma.autoDirectorFollowUpActionLog.findUnique = originals.actionLogFindUnique;
@@ -464,7 +464,7 @@ test("auto director follow-up action executor blocks mutation when unified valid
   executor.workflowService.healAutoDirectorTaskState = async () => false;
   executor.workflowService.getTaskByIdWithoutHealing = async () => buildWorkflowRow({
     id: "task_blocked",
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
   });
   executor.novelDirectorService.continueTask = async (taskId, input) => {
     calls.push({ taskId, input });
@@ -521,7 +521,7 @@ test("auto director follow-up action executor passes batch high-memory count int
   executor.workflowService.healAutoDirectorTaskState = async () => false;
   executor.workflowService.getTaskByIdWithoutHealing = async (taskId) => buildWorkflowRow({
     id: taskId,
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
   });
   executor.novelDirectorService.continueTask = async (taskId, input) => {
     continueCalls.push({ taskId, input });
@@ -540,12 +540,12 @@ test("auto director follow-up action executor passes batch high-memory count int
   assert.deepEqual(continueCalls, [{
     taskId: "task_one",
     input: {
-      continuationMode: "auto_execute_front10",
+      continuationMode: "auto_execute_range",
     },
   }, {
     taskId: "task_two",
     input: {
-      continuationMode: "auto_execute_front10",
+      continuationMode: "auto_execute_range",
       batchAlreadyStartedCount: 1,
     },
   }]);
@@ -579,7 +579,7 @@ test("auto director follow-up action executor restricts batch actions to matchin
       return buildWorkflowRow({
         id: taskId,
         status: "waiting_approval",
-        checkpointType: "front10_ready",
+        checkpointType: "chapter_batch_ready",
       });
     }
     if (taskId === "task_exception") {
@@ -665,7 +665,7 @@ test("auto director follow-up action executor blocks validation-required tasks f
   executor.workflowService.getTaskByIdWithoutHealing = async (taskId) => buildWorkflowRow({
     id: taskId,
     status: "waiting_approval",
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
     seedPayloadJson: JSON.stringify({
       autoExecution: {
         scopeLabel: "第 1-10 章",
@@ -697,7 +697,7 @@ test("auto director follow-up action executor blocks validation-required tasks f
   };
   executor.workflowTaskAdapter.detail = async (taskId) => buildTaskDetail(taskId, {
     status: "waiting_approval",
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
   });
 
   const result = await executor.executeBatch({
@@ -747,7 +747,7 @@ test("auto director follow-up action executor clears validation and resumes stru
   executor.workflowService.getTaskByIdWithoutHealing = async (taskId) => buildWorkflowRow({
     id: taskId,
     status: "waiting_approval",
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
     seedPayloadJson: JSON.stringify({
       autoDirectorValidationResult: {
         allowed: false,
@@ -922,7 +922,7 @@ test("auto director follow-up safe fix blocks unsafe validation repairs", async 
   executor.workflowService.getTaskByIdWithoutHealing = async (taskId) => buildWorkflowRow({
     id: taskId,
     status: "waiting_approval",
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
     seedPayloadJson: JSON.stringify({
       autoDirectorValidationResult: {
         allowed: false,

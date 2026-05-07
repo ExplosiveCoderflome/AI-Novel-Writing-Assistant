@@ -34,7 +34,7 @@ test("auto director follow-up routes expose overview, list, detail, and action e
         candidate_selection_required: 0,
         replan_required: 1,
         runtime_cancelled: 0,
-        front10_execution_pending: 1,
+        chapter_batch_execution_pending: 1,
         quality_repair_pending: 0,
         auto_progress_running: 0,
         auto_approval_completed: 0,
@@ -62,8 +62,8 @@ test("auto director follow-up routes expose overview, list, detail, and action e
         lane: "auto_director",
         status: "waiting_approval",
         currentStage: "章节执行",
-        checkpointType: "front10_ready",
-        reason: "front10_execution_pending",
+        checkpointType: "chapter_batch_ready",
+        reason: "chapter_batch_execution_pending",
         section: "pending",
         reasonLabel: "自动执行待继续",
         priority: "P2",
@@ -89,7 +89,7 @@ test("auto director follow-up routes expose overview, list, detail, and action e
         candidate_selection_required: 0,
         replan_required: 0,
         runtime_cancelled: 0,
-        front10_execution_pending: 1,
+        chapter_batch_execution_pending: 1,
         quality_repair_pending: 0,
         auto_progress_running: 0,
         auto_approval_completed: 0,
@@ -109,7 +109,7 @@ test("auto director follow-up routes expose overview, list, detail, and action e
       },
       availableFilters: {
         sections: ["pending"],
-        reasons: ["front10_execution_pending"],
+        reasons: ["chapter_batch_execution_pending"],
         statuses: ["waiting_approval"],
         channelTypes: ["dingtalk", "wecom"],
       },
@@ -190,7 +190,7 @@ test("auto director follow-up routes expose overview, list, detail, and action e
     assert.equal(overviewPayload.data.totalCount, 3);
 
     const listResponse = await fetch(
-      `http://127.0.0.1:${port}/api/auto-director/follow-ups?section=pending&reason=front10_execution_pending&supportsBatch=true&page=1&pageSize=20`,
+      `http://127.0.0.1:${port}/api/auto-director/follow-ups?section=pending&reason=chapter_batch_execution_pending&supportsBatch=true&page=1&pageSize=20`,
     );
     assert.equal(listResponse.status, 200);
     const listPayload = await listResponse.json();
@@ -259,7 +259,7 @@ test("auto director follow-up routes expose overview, list, detail, and action e
     assert.deepEqual(calls, [
       ["list", {
         section: "pending",
-        reason: "front10_execution_pending",
+        reason: "chapter_batch_execution_pending",
         supportsBatch: true,
         page: 1,
         pageSize: 20,

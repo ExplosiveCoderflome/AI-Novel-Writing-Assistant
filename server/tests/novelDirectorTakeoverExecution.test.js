@@ -26,7 +26,7 @@ function buildTakeoverState() {
     },
     activePipelineJob: null,
     latestCheckpoint: {
-      checkpointType: "front10_ready",
+      checkpointType: "chapter_batch_ready",
       stage: "chapter_execution",
       volumeId: "volume_1",
       chapterId: "chapter_1",
@@ -40,7 +40,7 @@ function buildTakeoverState() {
     },
     latestAutoExecutionState: {
       enabled: true,
-      mode: "front10",
+      mode: "chapter_range",
       startOrder: 1,
       endOrder: 10,
       totalChapterCount: 10,
@@ -65,7 +65,7 @@ test("restart_current_step prepares reset before bootstrapping execution", async
     directorInput: {
       candidate: { workingTitle: "Neon Archive" },
       runMode: "auto_to_execution",
-      autoExecutionPlan: { mode: "front10" },
+      autoExecutionPlan: { mode: "chapter_range" },
     },
     workflowService: {
       bootstrapTask: async () => {
@@ -129,7 +129,7 @@ test("restart_current_step stores rewrite snapshot reference in task seed and mi
     directorInput: {
       candidate: { workingTitle: "Neon Archive" },
       runMode: "auto_to_execution",
-      autoExecutionPlan: { mode: "front10" },
+      autoExecutionPlan: { mode: "chapter_range" },
     },
     workflowService: {
       bootstrapTask: async (input) => {
@@ -194,7 +194,7 @@ test("restart_current_step stops before reset when rewrite snapshot creation fai
       directorInput: {
         candidate: { workingTitle: "Neon Archive" },
         runMode: "auto_to_execution",
-        autoExecutionPlan: { mode: "front10" },
+        autoExecutionPlan: { mode: "chapter_range" },
       },
       workflowService: {
         bootstrapTask: async () => {
@@ -240,7 +240,7 @@ test("continue_existing does not invoke restart preparation", async () => {
     directorInput: {
       candidate: { workingTitle: "Neon Archive" },
       runMode: "auto_to_execution",
-      autoExecutionPlan: { mode: "front10" },
+      autoExecutionPlan: { mode: "chapter_range" },
     },
     workflowService: {
       bootstrapTask: async () => ({ id: "workflow_takeover_demo" }),
@@ -280,7 +280,7 @@ test("continue_existing from structured records downstream reset metadata and re
     directorInput: {
       candidate: { workingTitle: "Neon Archive" },
       runMode: "auto_to_execution",
-      autoExecutionPlan: { mode: "front10" },
+      autoExecutionPlan: { mode: "chapter_range" },
     },
     workflowService: {
       bootstrapTask: async (input) => {
@@ -403,7 +403,7 @@ test("continue_existing from chapter keeps current batch auto execution state in
     directorInput: {
       candidate: { workingTitle: "Neon Archive" },
       runMode: "auto_to_execution",
-      autoExecutionPlan: { mode: "front10" },
+      autoExecutionPlan: { mode: "chapter_range" },
     },
     workflowService: {
       bootstrapTask: async (input) => {
@@ -440,7 +440,7 @@ test("restart_current_step records downstream reset metadata for workspace navig
     directorInput: {
       candidate: { workingTitle: "Neon Archive" },
       runMode: "auto_to_execution",
-      autoExecutionPlan: { mode: "front10" },
+      autoExecutionPlan: { mode: "chapter_range" },
     },
     workflowService: {
       bootstrapTask: async (input) => {
@@ -484,7 +484,7 @@ test("takeover startup failure after bootstrap marks the replacement task failed
       directorInput: {
         candidate: { workingTitle: "Neon Archive" },
         runMode: "auto_to_execution",
-        autoExecutionPlan: { mode: "front10" },
+        autoExecutionPlan: { mode: "chapter_range" },
       },
       workflowService: {
         bootstrapTask: async (input) => {

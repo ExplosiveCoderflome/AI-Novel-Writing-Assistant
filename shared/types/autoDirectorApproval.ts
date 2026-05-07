@@ -143,8 +143,7 @@ const CHECKPOINT_APPROVAL_POINT_MAP: Partial<Record<NovelWorkflowCheckpoint, Dir
   candidate_selection_required: "candidate_direction_confirmed",
   character_setup_required: "character_setup_ready",
   volume_strategy_ready: "volume_strategy_ready",
-  front10_ready: "structured_outline_ready",
-  chapter_batch_ready: "chapter_execution_continue",
+  chapter_batch_ready: "structured_outline_ready",
   replan_required: "replan_continue",
 };
 

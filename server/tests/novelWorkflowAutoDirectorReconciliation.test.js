@@ -31,7 +31,7 @@ test("syncAutoDirectorChapterBatchCheckpoint refreshes resume target to the firs
         novelId: "novel-1",
         status: "failed",
         checkpointType: "chapter_batch_ready",
-        currentItemLabel: "前 3 章自动执行已暂停",
+        currentItemLabel: "第 1-3 章自动执行已暂停",
         checkpointSummary: "旧摘要",
         resumeTargetJson: null,
         seedPayloadJson: JSON.stringify({
@@ -45,7 +45,7 @@ test("syncAutoDirectorChapterBatchCheckpoint refreshes resume target to the firs
             pipelineStatus: "failed",
           },
         }),
-        lastError: "前 10 章自动执行未能全部通过质量要求。",
+        lastError: "第 1-10 章自动执行未能全部通过质量要求。",
         finishedAt: new Date("2026-04-04T10:00:00.000Z"),
         milestonesJson: null,
       },
@@ -58,7 +58,7 @@ test("syncAutoDirectorChapterBatchCheckpoint refreshes resume target to the firs
     const seedPayload = JSON.parse(patch.seedPayloadJson);
 
     assert.equal(resumeTarget.chapterId, "chapter-3");
-    assert.equal(patch.currentItemLabel, "前 3 章自动执行已暂停");
+    assert.equal(patch.currentItemLabel, "第 1-3 章自动执行已暂停");
     assert.match(patch.checkpointSummary, /当前仍有 1 章待继续/);
     assert.equal(seedPayload.autoExecution.remainingChapterCount, 1);
     assert.equal(seedPayload.autoExecution.nextChapterId, "chapter-3");
@@ -93,7 +93,7 @@ test("syncAutoDirectorChapterBatchCheckpoint marks workflow completed once all r
         novelId: "novel-1",
         status: "failed",
         checkpointType: "chapter_batch_ready",
-        currentItemLabel: "前 2 章自动执行已暂停",
+        currentItemLabel: "第 1-2 章自动执行已暂停",
         checkpointSummary: "旧摘要",
         resumeTargetJson: null,
         seedPayloadJson: JSON.stringify({
@@ -107,7 +107,7 @@ test("syncAutoDirectorChapterBatchCheckpoint marks workflow completed once all r
             pipelineStatus: "failed",
           },
         }),
-        lastError: "前 10 章自动执行未能全部通过质量要求。",
+        lastError: "第 1-10 章自动执行未能全部通过质量要求。",
         finishedAt: null,
         milestonesJson: null,
       },
@@ -120,7 +120,7 @@ test("syncAutoDirectorChapterBatchCheckpoint marks workflow completed once all r
 
     assert.equal(patch.status, "succeeded");
     assert.equal(patch.checkpointType, "workflow_completed");
-    assert.equal(patch.currentItemLabel, "前 2 章自动执行完成");
+    assert.equal(patch.currentItemLabel, "第 1-2 章自动执行完成");
     assert.equal(seedPayload.autoExecution.remainingChapterCount, 0);
     assert.equal(seedPayload.autoExecution.nextChapterId, null);
     assert.equal(patch.lastError, null);
@@ -154,7 +154,7 @@ test("syncAutoDirectorChapterBatchCheckpoint keeps repaired chapters without con
         novelId: "novel-1",
         status: "failed",
         checkpointType: "chapter_batch_ready",
-        currentItemLabel: "前 2 章自动执行已暂停",
+        currentItemLabel: "第 1-2 章自动执行已暂停",
         checkpointSummary: "旧摘要",
         resumeTargetJson: null,
         seedPayloadJson: JSON.stringify({
@@ -168,7 +168,7 @@ test("syncAutoDirectorChapterBatchCheckpoint keeps repaired chapters without con
             pipelineStatus: "failed",
           },
         }),
-        lastError: "前 2 章自动执行未能全部通过质量要求。",
+        lastError: "第 1-2 章自动执行未能全部通过质量要求。",
         finishedAt: null,
         milestonesJson: null,
       },
@@ -181,7 +181,7 @@ test("syncAutoDirectorChapterBatchCheckpoint keeps repaired chapters without con
     const seedPayload = JSON.parse(patch.seedPayloadJson);
 
     assert.equal(patch.status, undefined);
-    assert.equal(patch.currentItemLabel, "前 2 章自动执行已暂停");
+    assert.equal(patch.currentItemLabel, "第 1-2 章自动执行已暂停");
     assert.equal(resumeTarget.chapterId, "chapter-2");
     assert.equal(seedPayload.autoExecution.remainingChapterCount, 1);
     assert.equal(seedPayload.autoExecution.nextChapterId, "chapter-2");
@@ -219,7 +219,7 @@ test("syncAutoDirectorChapterBatchCheckpoint does not overwrite actively running
         novelId: "novel-1",
         status: "running",
         checkpointType: "chapter_batch_ready",
-        currentItemLabel: "正在自动执行前 2 章",
+        currentItemLabel: "正在自动执行第 1-2 章",
         checkpointSummary: "旧摘要",
         resumeTargetJson: null,
         seedPayloadJson: JSON.stringify({

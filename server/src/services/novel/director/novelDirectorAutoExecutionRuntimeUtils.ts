@@ -6,11 +6,9 @@ export function isNoChaptersToGenerateError(error: unknown): boolean {
 }
 
 export function shouldClearAutoExecutionCheckpoint(
-  checkpointType?: "front10_ready" | "chapter_batch_ready" | "replan_required" | null,
+  checkpointType?: "chapter_batch_ready" | "replan_required" | null,
 ): boolean {
-  return checkpointType === "front10_ready"
-    || checkpointType === "chapter_batch_ready"
-    || checkpointType === "replan_required";
+  return checkpointType === "chapter_batch_ready" || checkpointType === "replan_required";
 }
 
 function resolveNextChapterExecutionOrder(

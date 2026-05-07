@@ -52,7 +52,7 @@ export class VolumeChapterSyncService {
   ): Promise<VolumeSyncPreview> {
     const workspace = await this.deps.ensureVolumeWorkspace(novelId);
     const mergedDocument = mergeVolumeWorkspaceInput(novelId, workspace, { volumes: input.volumes });
-    this.assertSyncableChapterExecutionContracts(mergedDocument);
+    this.assertSyncableChapterExecutionContracts(mergedDocument, input.executionContractChapterRange);
     const shouldSyncPayoffLedger = hasPayoffLedgerRelevantPlanChanges(workspace.volumes, mergedDocument.volumes);
     const existingChapters = await prisma.chapter.findMany({
       where: { novelId },
@@ -158,9 +158,18 @@ export class VolumeChapterSyncService {
     return plan.preview;
   }
 
-  private assertSyncableChapterExecutionContracts(document: VolumePlanDocument): void {
+  private assertSyncableChapterExecutionContracts(
+    document: VolumePlanDocument,
+    chapterRange?: VolumeSyncInput["executionContractChapterRange"],
+  ): void {
     for (const volume of document.volumes) {
       for (const chapter of volume.chapters) {
+        if (
+          chapterRange
+          && (chapter.chapterOrder < chapterRange.startOrder || chapter.chapterOrder > chapterRange.endOrder)
+        ) {
+          continue;
+        }
         const hasExecutionArtifact = Boolean(chapter.taskSheet?.trim() || chapter.sceneCards?.trim());
         if (!hasExecutionArtifact) {
           continue;

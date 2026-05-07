@@ -37,6 +37,7 @@ import {
 import type { NovelDirectorRuntimeOrchestrator } from "./novelDirectorRuntimeOrchestrator";
 import {
   getDirectorPlanningStepModule,
+  getDirectorExecutionContractSyncStepModule,
   getDirectorStructuredOutlineStepModules,
 } from "./workflowStepRuntime/directorWorkflowStepModules";
 import {
@@ -169,9 +170,46 @@ export class NovelDirectorPipelineRuntime {
         continue;
       }
 
-      await this.runStructuredOutlineFactModules(input);
+      const currentWorkspace = await this.loadVolumeWorkspaceForOutline(input.novelId);
+      if (!currentWorkspace) {
+        return;
+      }
+      await this.runStructuredOutlineNode(input, currentWorkspace);
+      const executionContractSyncModule = getDirectorExecutionContractSyncStepModule();
+      const structuredApproval = this.resolveRuntimeApproval(input, "structured_outline_ready");
+      if (!(await this.isModuleFactCompleted(executionContractSyncModule, input))) {
+        await this.deps.runtimeOrchestrator.runStepModule({
+          module: executionContractSyncModule,
+          taskId: input.taskId,
+          novelId: input.novelId,
+          targetId: input.novelId,
+          approveCurrentGate: structuredApproval.approveCurrentGate,
+          approveAutoExecutionScope: structuredApproval.approveAutoExecutionScope,
+        });
+      }
       await this.maybeRunAutoApprovedChapters(input);
       return;
+    }
+  }
+
+  async runStructuredOutlineNode(
+    input: DirectorPipelineRunInput,
+    workspace: VolumePlanDocument,
+  ): Promise<void> {
+    await this.assertOutlineStartAllowed(input, workspace);
+    const approval = this.resolveRuntimeApproval(input, "structured_outline_ready");
+    for (const module of getDirectorStructuredOutlineStepModules()) {
+      if (module.id === "chapter.execution_contract.sync") {
+        continue;
+      }
+      await this.deps.runtimeOrchestrator.runStepModule({
+        module,
+        taskId: input.taskId,
+        novelId: input.novelId,
+        targetId: input.novelId,
+        approveCurrentGate: approval.approveCurrentGate,
+        approveAutoExecutionScope: approval.approveAutoExecutionScope,
+      });
     }
   }
 
@@ -179,14 +217,14 @@ export class NovelDirectorPipelineRuntime {
     module: WorkflowStepModuleDescriptor,
     input: Pick<DirectorPipelineRunInput, "taskId" | "novelId">,
   ): Promise<boolean> {
-    if (isExecutableWorkflowStepModule(module)) {
-      const facts = await inspectWorkflowStepFacts(module, {
-        taskId: input.taskId,
-        novelId: input.novelId,
-      });
-      return facts.completed;
+    if (!isExecutableWorkflowStepModule(module)) {
+      return false;
     }
-    return false;
+    const facts = await inspectWorkflowStepFacts(module, {
+      taskId: input.taskId,
+      novelId: input.novelId,
+    });
+    return facts.completed;
   }
 
   private async assertOutlineStartAllowed(
@@ -207,31 +245,6 @@ export class NovelDirectorPipelineRuntime {
     });
   }
 
-  private async runStructuredOutlineFactModules(
-    input: DirectorPipelineRunInput,
-  ): Promise<void> {
-    const currentWorkspace = await this.loadVolumeWorkspaceForOutline(input.novelId);
-    if (!currentWorkspace) {
-      return;
-    }
-    await this.assertOutlineStartAllowed(input, currentWorkspace);
-    const modules = getDirectorStructuredOutlineStepModules();
-    const approval = this.resolveRuntimeApproval(input, "structured_outline_ready");
-    for (const module of modules) {
-      if (await this.isModuleFactCompleted(module, input)) {
-        continue;
-      }
-      await this.deps.runtimeOrchestrator.runStepModule({
-        module,
-        taskId: input.taskId,
-        novelId: input.novelId,
-        targetId: input.novelId,
-        approveCurrentGate: approval.approveCurrentGate,
-        approveAutoExecutionScope: approval.approveAutoExecutionScope,
-      });
-    }
-  }
-
   async loadVolumeWorkspaceForOutline(novelId: string): Promise<VolumePlanDocument | null> {
     const workspace = await this.deps.volumeService.getVolumes(novelId).catch(() => null);
     if (!workspace?.volumes.length || !workspace.strategyPlan) {
@@ -241,19 +254,19 @@ export class NovelDirectorPipelineRuntime {
   }
 
   private async maybeRunAutoApprovedChapters(input: DirectorPipelineRunInput): Promise<void> {
-    if (!this.shouldAutoApproveCheckpoint(input.input, "front10_ready")) {
+    if (!this.shouldAutoApproveCheckpoint(input.input, "chapter_batch_ready")) {
       return;
     }
     await recordAutoDirectorAutoApprovalFromTask({
       taskId: input.taskId,
-      checkpointType: "front10_ready",
+      checkpointType: "chapter_batch_ready",
     });
     const approval = this.resolveRuntimeApproval(input, "structured_outline_ready");
     await this.deps.runtimeOrchestrator.runChapterExecutionNode({
       taskId: input.taskId,
       novelId: input.novelId,
       request: input.input,
-      resumeCheckpointType: "front10_ready",
+      resumeCheckpointType: "chapter_batch_ready",
       approveCurrentGate: approval.approveCurrentGate,
       approveAutoExecutionScope: approval.approveAutoExecutionScope,
     });
@@ -286,7 +299,7 @@ export class NovelDirectorPipelineRuntime {
 
   private shouldAutoApproveCheckpoint(
     input: DirectorConfirmRequest,
-    checkpointType: "front10_ready" | "chapter_batch_ready" | "replan_required",
+    checkpointType: "chapter_batch_ready" | "replan_required",
   ): boolean {
     if (Object.prototype.hasOwnProperty.call(input, "autoApproval")) {
       return shouldAutoApproveDirectorCheckpoint(
@@ -294,7 +307,7 @@ export class NovelDirectorPipelineRuntime {
         checkpointType,
       );
     }
-    return checkpointType === "front10_ready" && isDirectorAutoExecutionRunMode(normalizeDirectorRunMode(input.runMode));
+    return checkpointType === "chapter_batch_ready" && isDirectorAutoExecutionRunMode(normalizeDirectorRunMode(input.runMode));
   }
 
   private resolveRuntimeApproval(

@@ -291,6 +291,10 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
   assert.equal(syncedSnapshots.length, 1);
   assert.equal(syncCalls[0].input.applyDeletes, false);
   assert.equal(syncCalls[0].input.preserveContent, true);
+  assert.deepEqual(syncCalls[0].input.executionContractChapterRange, {
+    startOrder: 1,
+    endOrder: 2,
+  });
   assert.deepEqual(rebuildCalls, [{
     novelId: "novel-demo",
     options: { sourceType: "rebuild_projection" },

@@ -11,9 +11,9 @@ const {
   resolveDirectorAutoExecutionWorkflowState,
 } = require("../dist/services/novel/director/novelDirectorAutoExecution.js");
 
-test("front10 normalizes to the explicit chapter range 1-10", () => {
-  assert.deepEqual(normalizeDirectorAutoExecutionPlan({ mode: "front10" }), {
-    mode: "front10",
+test("chapter_range normalizes to the explicit chapter range 1-10", () => {
+  assert.deepEqual(normalizeDirectorAutoExecutionPlan({ mode: "chapter_range", endOrder: 10 }), {
+    mode: "chapter_range",
     startOrder: 1,
     endOrder: 10,
     autoReview: true,
@@ -21,9 +21,9 @@ test("front10 normalizes to the explicit chapter range 1-10", () => {
   });
 });
 
-test("front10 can carry a user-selected front N chapter range", () => {
-  assert.deepEqual(normalizeDirectorAutoExecutionPlan({ mode: "front10", endOrder: 25 }), {
-    mode: "front10",
+test("chapter_range can carry a user-selected chapter range", () => {
+  assert.deepEqual(normalizeDirectorAutoExecutionPlan({ mode: "chapter_range", endOrder: 25 }), {
+    mode: "chapter_range",
     startOrder: 1,
     endOrder: 25,
     autoReview: true,
@@ -31,9 +31,9 @@ test("front10 can carry a user-selected front N chapter range", () => {
   });
 
   assert.equal(buildDirectorAutoExecutionScopeLabel({
-    mode: "front10",
+    mode: "chapter_range",
     endOrder: 25,
-  }), "前 25 章");
+  }), "第 1-25 章");
 });
 
 test("book auto execution normalizes to full-book scope without chapter bounds", () => {
@@ -46,7 +46,7 @@ test("book auto execution normalizes to full-book scope without chapter bounds",
   assert.equal(buildDirectorAutoExecutionScopeLabel({ mode: "book" }), "全书");
 });
 
-test("resolveDirectorAutoExecutionRange sorts chapters and limits to front 10", () => {
+test("resolveDirectorAutoExecutionRange sorts chapters and limits to the selected range", () => {
   const range = resolveDirectorAutoExecutionRange([
     { id: "chapter-12", order: 12 },
     { id: "chapter-3", order: 3 },
@@ -70,7 +70,7 @@ test("resolveDirectorAutoExecutionRange sorts chapters and limits to front 10", 
   });
 });
 
-test("buildDirectorAutoExecutionPipelineOptions uses front10-safe defaults", () => {
+test("buildDirectorAutoExecutionPipelineOptions uses chapter_range-safe defaults", () => {
   const options = buildDirectorAutoExecutionPipelineOptions({
     provider: "deepseek",
     model: "deepseek-chat",
@@ -208,7 +208,7 @@ test("resolveDirectorAutoExecutionWorkflowState maps review and repair into qual
   }, range);
   assert.equal(reviewingState.stage, "quality_repair");
   assert.equal(reviewingState.itemKey, "quality_repair");
-  assert.match(reviewingState.itemLabel, /自动审校前 10 章/);
+  assert.match(reviewingState.itemLabel, /自动审校第 1-10 章/);
 
   const repairingState = resolveDirectorAutoExecutionWorkflowState({
     progress: 0.5,
@@ -217,7 +217,7 @@ test("resolveDirectorAutoExecutionWorkflowState maps review and repair into qual
   }, range);
   assert.equal(repairingState.stage, "quality_repair");
   assert.equal(repairingState.itemKey, "quality_repair");
-  assert.match(repairingState.itemLabel, /自动修复前 10 章/);
+  assert.match(repairingState.itemLabel, /自动修复第 1-10 章/);
 
   const draftingState = resolveDirectorAutoExecutionWorkflowState({
     progress: 0.25,
@@ -226,5 +226,5 @@ test("resolveDirectorAutoExecutionWorkflowState maps review and repair into qual
   }, range);
   assert.equal(draftingState.stage, "chapter_execution");
   assert.equal(draftingState.itemKey, "chapter_execution");
-  assert.match(draftingState.itemLabel, /自动执行前 10 章/);
+  assert.match(draftingState.itemLabel, /自动执行第 1-10 章/);
 });

@@ -1,4 +1,4 @@
-import type { NovelAutoDirectorTaskSummary } from "@ai-novel/shared/types/novel";
+﻿import type { NovelAutoDirectorTaskSummary } from "@ai-novel/shared/types/novel";
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
 
@@ -15,7 +15,7 @@ type WorkflowTaskLike = {
 export const LIVE_TASK_STATUSES = new Set<TaskStatus>(["queued", "running", "waiting_approval"]);
 export const BACKGROUND_RUNNING_TASK_STATUSES = new Set<TaskStatus>(["running"]);
 
-function getExecutionScopeLabel(scopeLabel?: string | null, fallback = "前 10 章"): string {
+function getExecutionScopeLabel(scopeLabel?: string | null, fallback = "第 1-10 章"): string {
   return scopeLabel?.trim() || fallback;
 }
 
@@ -44,9 +44,6 @@ export function formatWorkflowCheckpoint(checkpoint?: NovelWorkflowCheckpoint | 
   if (checkpoint === "volume_strategy_ready") {
     return "卷战略待审核";
   }
-  if (checkpoint === "front10_ready") {
-    return `${getExecutionScopeLabel(scopeLabel)}可开写`;
-  }
   if (checkpoint === "chapter_batch_ready") {
     return buildAutoExecutionPausedLabel(scopeLabel);
   }
@@ -69,7 +66,7 @@ export function getWorkflowBadge(task?: NovelAutoDirectorTaskSummary | null): {
   const displayStatus = task.displayStatus?.trim() || null;
   if (
     (task.status === "queued" || task.status === "running")
-    && (task.checkpointType === "front10_ready" || task.checkpointType === "chapter_batch_ready")
+    && task.checkpointType === "chapter_batch_ready"
   ) {
     return {
       label: displayStatus ?? buildAutoExecutionRunningLabel(task.executionScopeLabel),
@@ -128,7 +125,7 @@ export function getWorkflowDescription(task?: NovelAutoDirectorTaskSummary | nul
   }
   if (
     (task.status === "queued" || task.status === "running")
-    && (task.checkpointType === "front10_ready" || task.checkpointType === "chapter_batch_ready")
+    && task.checkpointType === "chapter_batch_ready"
   ) {
     return `AI 正在后台继续执行${getExecutionScopeLabel(task.executionScopeLabel)}，当前进度 ${Math.round(task.progress * 100)}%。`;
   }
@@ -158,7 +155,7 @@ export function canContinueDirector(task?: NovelAutoDirectorTaskSummary | null):
     task
       && task.status === "waiting_approval"
       && task.checkpointType !== "candidate_selection_required"
-      && task.checkpointType !== "front10_ready",
+      && task.checkpointType !== "chapter_batch_ready",
   );
 }
 
@@ -171,19 +168,19 @@ export function canCancelDirectorTask(
   if (task.pendingManualRecovery) {
     return true;
   }
-  return task.status === "queued" || task.status === "running" || task.status === "waiting_approval";
+  return task.status === "queued"
+    || task.status === "running"
+    || task.status === "waiting_approval"
+    || task.status === "failed";
 }
 
 export function requiresCandidateSelection(task?: Pick<WorkflowTaskLike, "status" | "checkpointType"> | null): boolean {
   return Boolean(task && task.status === "waiting_approval" && task.checkpointType === "candidate_selection_required");
 }
 
-export function canContinueFront10AutoExecution(task?: NovelAutoDirectorTaskSummary | null): boolean {
+export function canContinueChapterBatchAutoExecution(task?: NovelAutoDirectorTaskSummary | null): boolean {
   if (!task) {
     return false;
-  }
-  if (task.status === "waiting_approval" && task.checkpointType === "front10_ready") {
-    return true;
   }
   return (task.status === "failed" || task.status === "cancelled") && task.checkpointType === "chapter_batch_ready";
 }
@@ -191,8 +188,7 @@ export function canContinueFront10AutoExecution(task?: NovelAutoDirectorTaskSumm
 export function canEnterChapterExecution(task?: NovelAutoDirectorTaskSummary | null): boolean {
   return Boolean(
     task
-      && (task.checkpointType === "front10_ready"
-        || task.checkpointType === "chapter_batch_ready"
+      && (task.checkpointType === "chapter_batch_ready"
         || task.checkpointType === "workflow_completed"),
   );
 }

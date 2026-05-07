@@ -112,7 +112,7 @@ test("novel workflow auto director route returns null when only historical visib
   }
 });
 
-test("novel workflow continue route enqueues auto_execute_front10 continuation mode", { concurrency: false }, async () => {
+test("novel workflow continue route enqueues auto_execute_range continuation mode", { concurrency: false }, async () => {
   const calls = [];
   const originalEnqueue = DirectorCommandService.prototype.enqueueContinueCommand;
   const originalDetail = NovelWorkflowTaskAdapter.prototype.detail;
@@ -133,7 +133,7 @@ test("novel workflow continue route enqueues auto_execute_front10 continuation m
       id: taskId,
       lane: "auto_director",
       status: "running",
-      checkpointType: "front10_ready",
+      checkpointType: "chapter_batch_ready",
       progress: 0.93,
       currentItemLabel: "正在自动执行前 10 章",
     };
@@ -148,7 +148,7 @@ test("novel workflow continue route enqueues auto_execute_front10 continuation m
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        continuationMode: "auto_execute_front10",
+        continuationMode: "auto_execute_range",
       }),
     });
     assert.equal(response.status, 202);
@@ -159,7 +159,7 @@ test("novel workflow continue route enqueues auto_execute_front10 continuation m
       {
         taskId: "workflow-auto-exec",
         input: {
-          continuationMode: "auto_execute_front10",
+          continuationMode: "auto_execute_range",
         },
       },
     ]);

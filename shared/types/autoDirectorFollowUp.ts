@@ -13,7 +13,7 @@ export const AUTO_DIRECTOR_FOLLOW_UP_REASONS = [
   "candidate_selection_required",
   "replan_required",
   "runtime_cancelled",
-  "front10_execution_pending",
+  "chapter_batch_execution_pending",
   "quality_repair_pending",
   "auto_progress_running",
   "auto_approval_completed",

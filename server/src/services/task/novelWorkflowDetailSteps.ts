@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   NovelWorkflowCheckpoint,
   NovelWorkflowStage,
 } from "@ai-novel/shared/types/novelWorkflow";
@@ -34,7 +34,6 @@ const CHECKPOINT_STAGE_MAP: Record<NovelWorkflowCheckpoint, NovelWorkflowStage> 
   book_contract_ready: "story_macro",
   character_setup_required: "character_setup",
   volume_strategy_ready: "volume_strategy",
-  front10_ready: "chapter_execution",
   chapter_batch_ready: "chapter_execution",
   replan_required: "quality_repair",
   workflow_completed: "quality_repair",
@@ -46,7 +45,7 @@ function resolveDirectorPhaseStage(phase: unknown): NovelWorkflowStage | null {
   if (phase === "character_setup") return "character_setup";
   if (phase === "volume_strategy") return "volume_strategy";
   if (phase === "structured_outline") return "structured_outline";
-  if (phase === "front10_ready") return "chapter_execution";
+  if (phase === "chapter_batch_ready") return "chapter_execution";
   return null;
 }
 
@@ -114,3 +113,4 @@ export function buildNovelWorkflowDetailSteps(input: {
 
   return steps;
 }
+

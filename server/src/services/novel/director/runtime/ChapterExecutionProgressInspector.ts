@@ -47,6 +47,8 @@ export interface ChapterExecutionProgressSummary {
   approvedChapterCount: number;
   completedChapters: number;
   needsRepairChapters: number;
+  activeChapterId: string | null;
+  activeChapterOrder: number | null;
   currentChapterId: string | null;
   currentChapterOrder: number | null;
   currentStage: ChapterExecutionProgressStage | null;
@@ -93,8 +95,13 @@ export class ChapterExecutionProgressInspector {
       },
     });
     const matrix = chapters.map((chapter) => this.inspectChapterRow(chapter));
-    const current = matrix.find((chapter) => chapter.status === "running" || chapter.status === "needs_repair")
+    const active = matrix.find((chapter) => (
+      chapter.status === "running" && chapter.evidence.chapterStatus === "generating"
+    )) ?? null;
+    const current = active
+      ?? matrix.find((chapter) => chapter.status === "needs_repair")
       ?? matrix.find((chapter) => chapter.status === "not_started")
+      ?? matrix.find((chapter) => chapter.status === "running")
       ?? null;
     const draftedChapterCount = matrix.filter((chapter) => chapter.completedStages.includes("draft_saved")).length;
     const approvedChapterCount = matrix.filter((chapter) => chapter.status === "approved").length;
@@ -110,6 +117,8 @@ export class ChapterExecutionProgressInspector {
       approvedChapterCount,
       completedChapters,
       needsRepairChapters: matrix.filter((chapter) => chapter.status === "needs_repair").length,
+      activeChapterId: active?.chapterId ?? null,
+      activeChapterOrder: active?.chapterOrder ?? null,
       currentChapterId: current?.chapterId ?? null,
       currentChapterOrder: current?.chapterOrder ?? null,
       currentStage: current?.currentStage ?? null,

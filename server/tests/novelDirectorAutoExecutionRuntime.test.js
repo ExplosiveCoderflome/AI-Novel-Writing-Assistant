@@ -206,7 +206,7 @@ test("runFromReady completes immediately when repaired chapters leave no remaini
   assert.equal(calls.length, 2);
   assert.deepEqual(calls[0], ["bootstrapTask", 0]);
   assert.deepEqual(calls[1].slice(0, 3), ["recordCheckpoint", "task-auto-exec", "workflow_completed"]);
-  assert.match(String(calls[1][3]), /前 ?2 章自动执行完成/);
+  assert.match(String(calls[1][3]), /第 1-2 章自动执行完成/);
   assert.equal(calls[1][4], 0);
 });
 
@@ -366,7 +366,7 @@ test("runFromReady records a normal checkpoint when pipeline completes with qual
     taskId: "task-auto-exec",
     novelId: "novel-1",
     request: buildRequest(),
-    resumeCheckpointType: "front10_ready",
+    resumeCheckpointType: "chapter_batch_ready",
     existingState: {
       enabled: true,
       firstChapterId: "chapter-1",
@@ -1287,14 +1287,14 @@ test("runFromReady uses the latest auto-execution review toggles instead of stal
     novelId: "novel-1",
     request: buildRequest({
       autoExecutionPlan: {
-        mode: "front10",
+        mode: "chapter_range",
         autoReview: false,
         autoRepair: false,
       },
     }),
     existingState: {
       enabled: true,
-      mode: "front10",
+      mode: "chapter_range",
       startOrder: 1,
       endOrder: 2,
       totalChapterCount: 2,
@@ -1398,7 +1398,7 @@ test("runFromReady skips the current review-blocked chapter when continuing expl
     request: buildRequest(),
     existingState: {
       enabled: true,
-      mode: "front10",
+      mode: "chapter_range",
       firstChapterId: "chapter-1",
       startOrder: 1,
       endOrder: 3,
@@ -1425,7 +1425,7 @@ test("runFromReady skips the current review-blocked chapter when continuing expl
   assert.deepEqual(calls.find((call) => call[0] === "recordCheckpoint"), ["recordCheckpoint", "task-auto-exec", [1]]);
 });
 
-test("prepareRequestedAutoExecution resolves the selected volume range instead of falling back to front10", async () => {
+test("prepareRequestedAutoExecution resolves the selected volume range instead of falling back to chapter_range", async () => {
   const runtime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: {
       async listChapters() {

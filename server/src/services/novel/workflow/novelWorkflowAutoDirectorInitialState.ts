@@ -44,7 +44,7 @@ function normalizeAutoDirectorPhase(value: unknown): NovelWorkflowStage | null {
   ) {
     return value;
   }
-  if (value === "front10_ready" || value === "chapter_batch_ready") {
+  if (value === "chapter_batch_ready") {
     return "chapter_execution";
   }
   if (value === "replan_required") {

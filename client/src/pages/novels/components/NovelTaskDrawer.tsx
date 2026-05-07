@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   NovelWorkflowMilestone,
   NovelWorkflowMilestoneType,
 } from "@ai-novel/shared/types/novelWorkflow";
@@ -86,9 +86,6 @@ function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null | undefi
   }
   if (checkpoint === "volume_strategy_ready") {
     return "卷战略 / 卷骨架待审核";
-  }
-  if (checkpoint === "front10_ready") {
-    return `${resolvedScopeLabel}可开写`;
   }
   if (checkpoint === "chapter_batch_ready") {
     return `${resolvedScopeLabel}自动执行已暂停`;
@@ -448,7 +445,7 @@ export default function NovelTaskDrawer({
                     <div className="text-sm text-muted-foreground">闃诲鍘熷洜锛?{followUp.blockingReason}</div>
                   ) : null}
                   {followUp.currentModel ? (
-                    <div className="text-sm text-muted-foreground">褰撳墠浠诲姟妯″瀷锛?{followUp.currentModel}</div>
+                    <div className="text-sm text-muted-foreground">当前任务模型：{followUp.currentModel}</div>
                   ) : null}
                   {runtimeHardBlocked && runtimeBlockedReason ? (
                     <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
@@ -474,21 +471,21 @@ export default function NovelTaskDrawer({
 
               {canShowRuntimePolicy && task ? (
                 <section className="space-y-3">
-                  <div className="text-sm font-medium text-foreground">鎺ㄨ繘鏂瑰紡</div>
+                  <div className="text-sm font-medium text-foreground">推进方式</div>
                   <TaskCenterRuntimePolicyCard taskId={task.id} snapshot={runtimeSnapshot} />
                 </section>
               ) : null}
 
               {canShowManualImpact && task ? (
                 <section className="space-y-3">
-                  <div className="text-sm font-medium text-foreground">椋庨櫓涓庢敼鍔ㄥ奖鍝?</div>
+                  <div className="text-sm font-medium text-foreground">风险与改动影响</div>
                   <TaskCenterManualEditImpactCard task={task} />
                 </section>
               ) : null}
 
               {canShowRetryWithOverrideModel && overrideModel && onOverrideModelChange ? (
                 <section className="space-y-3 rounded-2xl border border-border/70 bg-muted/15 p-4">
-                  <div className="text-sm font-medium text-foreground">浣跨敤鍏朵粬妯″瀷閲嶈瘯</div>
+                  <div className="text-sm font-medium text-foreground">使用其他模型重试</div>
                   <LLMSelector
                     value={overrideModel}
                     onChange={onOverrideModelChange}
@@ -503,7 +500,7 @@ export default function NovelTaskDrawer({
                       onClick={onRetryWithOverrideModel}
                       disabled={retryWithOverrideModelPending || !canRetryWithOverrideModel}
                     >
-                      {retryWithOverrideModelPending ? "閲嶈瘯涓?.." : "浣跨敤鎵€閫夋ā鍨嬮噸璇?"}
+                      {retryWithOverrideModelPending ? "重试中…" : "使用所选模型重试"}
                     </Button>
                     {onRetryWithTaskModel ? (
                       <Button
@@ -513,7 +510,7 @@ export default function NovelTaskDrawer({
                         onClick={onRetryWithTaskModel}
                         disabled={retryWithTaskModelPending}
                       >
-                        {retryWithTaskModelPending ? "閲嶈瘯涓?.." : "鐢ㄥ師妯″瀷閲嶈瘯"}
+                        {retryWithTaskModelPending ? "重试中…" : "用原模型重试"}
                       </Button>
                     ) : null}
                   </div>
@@ -653,7 +650,7 @@ export default function NovelTaskDrawer({
           ) : null}
           {task?.sourceRoute ? (
             <Button asChild type="button" variant="outline" className="w-full">
-              <Link to={task.sourceRoute}>鎵撳紑鏉ユ簮椤甸潰</Link>
+              <Link to={task.sourceRoute}>打开来源页面</Link>
             </Button>
           ) : null}
           <Button type="button" variant={primaryAction ? "ghost" : "outline"} className="w-full" onClick={onOpenFullTaskCenter}>

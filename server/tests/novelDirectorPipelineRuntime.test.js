@@ -136,7 +136,9 @@ test("pipeline resumes structured outline from persisted volume workspace when v
 
   assert.deepEqual(modules, [
     "volume.strategy.plan",
-    "chapter.task_sheet.plan",
+    "volume.beat_sheet.generate",
+    "volume.chapter_list.generate",
+    "volume.chapter_detail_bundle.generate",
     "chapter.execution_contract.sync",
   ]);
   assert.equal(highMemoryChecks.length, 1);
@@ -181,7 +183,7 @@ test("auto-to-execution volume strategy approval is passed into the runtime gate
   }]);
 });
 
-test("auto-to-execution structured outline approval is passed into the runtime gate", async () => {
+test("auto-to-execution structured outline approval is passed into each structured runtime gate", async () => {
   const calls = [];
   const workspace = {
     volumes: [{ id: "volume_1", chapters: [] }],
@@ -216,11 +218,23 @@ test("auto-to-execution structured outline approval is passed into the runtime g
     startPhase: "structured_outline",
   }, workspace);
 
-  assert.deepEqual(calls, [{
-    moduleId: "chapter.task_sheet.plan",
-    approveCurrentGate: true,
-    approveAutoExecutionScope: true,
-  }]);
+  assert.deepEqual(calls, [
+    {
+      moduleId: "volume.beat_sheet.generate",
+      approveCurrentGate: true,
+      approveAutoExecutionScope: true,
+    },
+    {
+      moduleId: "volume.chapter_list.generate",
+      approveCurrentGate: true,
+      approveAutoExecutionScope: true,
+    },
+    {
+      moduleId: "volume.chapter_detail_bundle.generate",
+      approveCurrentGate: true,
+      approveAutoExecutionScope: true,
+    },
+  ]);
 });
 
 test("auto-to-execution does not pass planning gates without matching approval", async () => {

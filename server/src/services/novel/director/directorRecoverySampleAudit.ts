@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+﻿import { createHash } from "node:crypto";
 
 type Nullable<T> = T | null | undefined;
 
@@ -275,7 +275,7 @@ function isChapterBatchTask(task: DirectorRecoverySampleTask): boolean {
   return task.currentStage === "chapter_execution"
     || task.currentStage === "quality_repair"
     || Boolean(task.autoExecutionMode)
-    || task.checkpointType === "front10_ready"
+    || task.checkpointType === "chapter_batch_ready"
     || task.checkpointType === "chapter_batch_ready"
     || task.checkpointType === "replan_required";
 }
@@ -628,3 +628,4 @@ export function buildDirectorRecoverySampleAudit(
     },
   };
 }
+

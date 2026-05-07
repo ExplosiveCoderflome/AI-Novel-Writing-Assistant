@@ -112,7 +112,7 @@ test("markTaskWaitingApproval delivers WeCom notification for auto director appr
       stage: "chapter_execution",
       itemKey: "chapter_execution",
       itemLabel: "等待继续自动执行",
-      checkpointType: "front10_ready",
+      checkpointType: "chapter_batch_ready",
       checkpointSummary: "前 10 章已准备完成。",
       progress: 0.72,
     });

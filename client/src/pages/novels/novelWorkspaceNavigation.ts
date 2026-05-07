@@ -150,9 +150,8 @@ export function tabFromDirectorProgress(input: {
       return "character";
     case "volume_strategy_ready":
       return "outline";
-    case "front10_ready":
-      return "structured";
     case "chapter_batch_ready":
+      return "structured";
     case "workflow_completed":
       return "pipeline";
     default:

@@ -117,6 +117,10 @@ export interface VolumeSyncInput {
   volumes: unknown;
   preserveContent?: boolean;
   applyDeletes?: boolean;
+  executionContractChapterRange?: {
+    startOrder: number;
+    endOrder: number;
+  };
 }
 
 export type DbClient = Prisma.TransactionClient | typeof prisma;

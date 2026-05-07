@@ -278,7 +278,7 @@ test("resolveStructuredOutlineRecoveryCursor returns chapter_list for the first 
   assert.equal(cursor.beatLabel, "中段转向");
 });
 
-test("resolveStructuredOutlineRecoveryCursor returns chapter_detail_bundle with the next missing detail mode", () => {
+test("resolveStructuredOutlineRecoveryCursor treats incomplete execution contract as pending chapter detail", () => {
   const cursor = resolveStructuredOutlineRecoveryCursor({
     workspace: createWorkspace({
       chapters: [
@@ -298,7 +298,6 @@ test("resolveStructuredOutlineRecoveryCursor returns chapter_detail_bundle with 
   assert.equal(cursor.step, "chapter_detail_bundle");
   assert.equal(cursor.chapterId, "chapter-1");
   assert.equal(cursor.detailMode, "task_sheet");
-  // chapter-2 已通过 task_sheet；chapter-1 因 sceneCards=null 仍为缺口，光标停在 chapter-1。
   assert.equal(cursor.completedDetailSteps, 1);
 });
 
@@ -320,14 +319,14 @@ test("resolveStructuredOutlineRecoveryCursor returns chapter_sync after all sele
   assert.equal(cursor.completedDetailSteps, 2);
 });
 
-test("front10 is resolved as chapter range 1-10 even when it spans volumes", () => {
+test("chapter_range is resolved as chapter range 1-10 even when it spans volumes", () => {
   const cursor = resolveStructuredOutlineRecoveryCursor({
     workspace: createMultiVolumeWorkspace(),
-    plan: { mode: "front10" },
+    plan: { mode: "chapter_range", endOrder: 10 },
   });
 
   assert.equal(cursor.step, "chapter_sync");
-  assert.equal(cursor.scopeLabel, "前 10 章");
+  assert.equal(cursor.scopeLabel, "第 1-10 章");
   assert.deepEqual(cursor.requiredVolumes.map((volume) => volume.id), ["volume-1", "volume-2"]);
   assert.deepEqual(cursor.selectedChapters.map((chapter) => chapter.chapterOrder), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 });
@@ -353,7 +352,7 @@ test("healStaleAutoDirectorStructuredOutlineProgress advances stale chapter list
     checkpointSummary: null,
     seedPayloadJson: JSON.stringify({
       runMode: "auto_to_execution",
-      autoExecutionPlan: { mode: "front10" },
+      autoExecutionPlan: { mode: "chapter_range", endOrder: 10 },
       directorInput: { runMode: "auto_to_execution" },
     }),
     cancelRequestedAt: null,

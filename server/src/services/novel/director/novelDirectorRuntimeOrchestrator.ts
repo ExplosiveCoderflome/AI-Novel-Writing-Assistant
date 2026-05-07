@@ -382,7 +382,7 @@ export class NovelDirectorRuntimeOrchestrator {
     request: DirectorConfirmRequest;
     existingPipelineJobId?: string | null;
     existingState?: DirectorAutoExecutionState | null;
-    resumeCheckpointType?: "front10_ready" | "chapter_batch_ready" | "replan_required" | null;
+    resumeCheckpointType?: "chapter_batch_ready" | "replan_required" | null;
     resumeStage?: "chapter" | "pipeline";
     previousFailureMessage?: string | null;
     allowSkipReviewBlockedChapter?: boolean;

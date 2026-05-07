@@ -615,7 +615,7 @@ test("continueTask resumes auto execution in the background instead of blocking 
       }),
       directorSession: {
         runMode: "auto_to_execution",
-        phase: "front10_ready",
+        phase: "chapter_execution",
         isBackgroundRunning: false,
         lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
         reviewScope: null,
@@ -716,7 +716,7 @@ test("continueTask lets full_book_autopilot recover review-blocked chapter check
       }),
       directorSession: {
         runMode: "full_book_autopilot",
-        phase: "front10_ready",
+        phase: "chapter_execution",
         isBackgroundRunning: false,
         lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
         reviewScope: null,
@@ -800,17 +800,17 @@ test("continueTask upgrades an explicit auto-execution continuation to execution
     recoveryInputs.push(input);
     return {
       type: "auto_execution",
-      resumeCheckpointType: "front10_ready",
+      resumeCheckpointType: "chapter_batch_ready",
     };
   };
   service.workflowService.getTaskById = async () => ({
-    id: "task_front10_execution_continue",
+    id: "task_chapter_range_execution_continue",
     lane: "auto_director",
     status: "waiting_approval",
     pendingManualRecovery: false,
-    novelId: "novel_front10_execution_continue",
-    checkpointType: "front10_ready",
-    currentItemKey: "front10_ready",
+    novelId: "novel_chapter_range_execution_continue",
+    checkpointType: "chapter_batch_ready",
+    currentItemKey: "chapter_batch_ready",
     resumeTargetJson: JSON.stringify({
       stage: "pipeline",
       chapterId: "chapter_1",
@@ -818,19 +818,19 @@ test("continueTask upgrades an explicit auto-execution continuation to execution
     seedPayloadJson: JSON.stringify({
       runMode: "auto_to_ready",
       directorInput: buildDirectorInput({
-        workflowTaskId: "task_front10_execution_continue",
+        workflowTaskId: "task_chapter_range_execution_continue",
         runMode: "auto_to_ready",
       }),
       directorSession: {
         runMode: "auto_to_ready",
-        phase: "front10_ready",
+        phase: "chapter_execution",
         isBackgroundRunning: false,
         lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
         reviewScope: null,
       },
       autoExecution: {
         enabled: true,
-        mode: "front10",
+        mode: "chapter_range",
         scopeLabel: "front 10",
         startOrder: 1,
         endOrder: 10,
@@ -859,7 +859,7 @@ test("continueTask upgrades an explicit auto-execution continuation to execution
         status: "waiting_approval",
         nodeKey: "chapter_execution_node",
         targetType: "novel",
-        targetId: "novel_front10_execution_continue",
+        targetId: "novel_chapter_range_execution_continue",
       },
     ],
     artifacts: [],
@@ -869,7 +869,7 @@ test("continueTask upgrades an explicit auto-execution continuation to execution
   };
 
   try {
-    await service.continueTask("task_front10_execution_continue", {
+    await service.continueTask("task_chapter_range_execution_continue", {
       continuationMode: "auto_execute_range",
     });
 
@@ -884,7 +884,7 @@ test("continueTask upgrades an explicit auto-execution continuation to execution
 
     assert.equal(runtimeCalls.length, 1);
     assert.equal(runtimeCalls[0].request.runMode, "auto_to_execution");
-    assert.equal(runtimeCalls[0].resumeCheckpointType, "front10_ready");
+    assert.equal(runtimeCalls[0].resumeCheckpointType, "chapter_batch_ready");
     assert.equal(runtimeNodeInputs[0]?.nodeKey, "chapter_execution_node");
     assert.equal(runtimeNodeInputs[0]?.input?.policy?.policy?.mode, "auto_safe_scope");
     assert.equal(runtimeNodeInputs[0]?.input?.policy?.policy?.allowExpensiveReview, true);
@@ -938,7 +938,7 @@ test("continueTask does not skip the current chapter when approving a waiting au
       }),
       directorSession: {
         runMode: "auto_to_execution",
-        phase: "front10_ready",
+        phase: "chapter_execution",
         isBackgroundRunning: false,
         lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
         reviewScope: null,
@@ -997,7 +997,7 @@ test("continueTask does not skip the current chapter when approving a waiting au
   }
 });
 
-test("continueTask resumes structured outline when stale front10 checkpoint lacks a fully detailed range", async () => {
+test("continueTask resumes structured outline when stale chapter_range checkpoint lacks a fully detailed range", async () => {
   const service = new NovelDirectorService();
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;
   const originalGetTaskById = service.workflowService.getTaskById;
@@ -1021,25 +1021,25 @@ test("continueTask resumes structured outline when stale front10 checkpoint lack
   });
   service.assertHighMemoryDirectorStartAllowed = async () => undefined;
   service.workflowService.getTaskById = async () => ({
-    id: "task_stale_front10_resume",
+    id: "task_stale_chapter_range_resume",
     lane: "auto_director",
     status: "waiting_approval",
     pendingManualRecovery: false,
-    novelId: "novel_stale_front10_resume",
-    checkpointType: "front10_ready",
-    currentItemKey: "front10_ready",
+    novelId: "novel_stale_chapter_range_resume",
+    checkpointType: "chapter_batch_ready",
+    currentItemKey: "chapter_batch_ready",
     resumeTargetJson: JSON.stringify({
       stage: "structured_outline",
       volumeId: "volume_1",
     }),
     seedPayloadJson: JSON.stringify({
       directorInput: buildDirectorInput({
-        workflowTaskId: "task_stale_front10_resume",
+        workflowTaskId: "task_stale_chapter_range_resume",
         runMode: "auto_to_execution",
       }),
       directorSession: {
         runMode: "auto_to_execution",
-        phase: "front10_ready",
+        phase: "chapter_execution",
         isBackgroundRunning: false,
         lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
         reviewScope: null,
@@ -1058,7 +1058,7 @@ test("continueTask resumes structured outline when stale front10 checkpoint lack
   });
   service.workflowService.bootstrapTask = async (input) => {
     bootstrapCalls.push(input);
-    return { id: "task_stale_front10_resume" };
+    return { id: "task_stale_chapter_range_resume" };
   };
   service.workflowService.markTaskRunning = async (taskId, input) => {
     runningCalls.push({ taskId, ...input });
@@ -1075,7 +1075,7 @@ test("continueTask resumes structured outline when stale front10 checkpoint lack
   };
 
   try {
-    await service.continueTask("task_stale_front10_resume", {
+    await service.continueTask("task_stale_chapter_range_resume", {
       continuationMode: "auto_execute_range",
     });
 
@@ -1088,8 +1088,8 @@ test("continueTask resumes structured outline when stale front10 checkpoint lack
     await scheduledRuns[0].runner();
 
     assert.equal(pipelineRuns.length, 1);
-    assert.equal(pipelineRuns[0].taskId, "task_stale_front10_resume");
-    assert.equal(pipelineRuns[0].novelId, "novel_stale_front10_resume");
+    assert.equal(pipelineRuns[0].taskId, "task_stale_chapter_range_resume");
+    assert.equal(pipelineRuns[0].novelId, "novel_stale_chapter_range_resume");
     assert.equal(pipelineRuns[0].startPhase, "structured_outline");
     assert.equal(runtimeCalls.length, 0);
   } finally {

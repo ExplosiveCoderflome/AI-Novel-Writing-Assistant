@@ -9,7 +9,7 @@ export function isDirectorCockpitContinuationAction(action: DirectorBookAutomati
 
 export function getDirectorCockpitContinuationMode(
   action: DirectorBookAutomationAction,
-): "resume" | "auto_execute_range" | "auto_execute_front10" | undefined {
+): "resume" | "auto_execute_range" | undefined {
   if (action.type === "auto_execute_range") {
     return "auto_execute_range";
   }

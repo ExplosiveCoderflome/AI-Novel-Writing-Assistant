@@ -53,8 +53,7 @@ const CHECKPOINT_DISPLAY_STATUS: Record<NovelWorkflowCheckpoint, string> = {
   book_contract_ready: "Book Contract 已就绪",
   character_setup_required: "角色准备待审核",
   volume_strategy_ready: "卷战略待审核",
-  front10_ready: "前 10 章已可进入章节执行",
-  chapter_batch_ready: "前 10 章自动执行已暂停",
+  chapter_batch_ready: "已准备章节可进入执行",
   replan_required: "等待处理重规划",
   workflow_completed: "自动导演已完成",
 };
@@ -64,8 +63,7 @@ const CHECKPOINT_BLOCKING_REASON: Record<NovelWorkflowCheckpoint, string> = {
   book_contract_ready: "Book Contract 已生成，需先确认核心承诺后再继续后续规划。",
   character_setup_required: "角色准备已生成，需先审核角色阵容后再继续推进。",
   volume_strategy_ready: "卷战略与卷骨架已就绪，需先确认卷级推进方案后再继续。",
-  front10_ready: "前 10 章细化已准备完成，你可以进入章节执行，或继续让系统自动执行前 10 章。",
-  chapter_batch_ready: "前 10 章自动执行在批量阶段暂停了，建议先看结果，再决定是否继续自动执行剩余章节。",
+  chapter_batch_ready: "章节范围的拆章与执行资源已经准备好，可以进入章节执行或继续自动执行当前范围。",
   replan_required: "审计结果要求先处理重规划，后续章节才能继续推进。",
   workflow_completed: "默认主流程已跑通，你可以直接进入章节执行继续写作。",
 };
@@ -75,13 +73,12 @@ const CHECKPOINT_LAST_HEALTHY_STAGE: Record<NovelWorkflowCheckpoint, NovelWorkfl
   book_contract_ready: "story_macro",
   character_setup_required: "character_setup",
   volume_strategy_ready: "volume_strategy",
-  front10_ready: "structured_outline",
-  chapter_batch_ready: "chapter_execution",
+  chapter_batch_ready: "structured_outline",
   replan_required: "quality_repair",
   workflow_completed: "quality_repair",
 };
 
-function getExecutionScopeLabel(input: WorkflowExplainabilityInput, fallback = "前 10 章"): string {
+function getExecutionScopeLabel(input: WorkflowExplainabilityInput, fallback = "第 1-10 章"): string {
   return input.executionScopeLabel?.trim() || fallback;
 }
 
@@ -114,11 +111,26 @@ function buildAutoExecutionPausedReason(input: WorkflowExplainabilityInput): str
   return `${getExecutionScopeLabel(input)}自动执行在批量阶段暂停了，建议先看结果，再决定是否继续自动执行当前范围。`;
 }
 
+function isPreparedChapterBatchCheckpoint(input: WorkflowExplainabilityInput): boolean {
+  return input.checkpointType === "chapter_batch_ready" && input.status === "waiting_approval";
+}
+
+function isPausedChapterBatchCheckpoint(input: WorkflowExplainabilityInput): boolean {
+  return input.checkpointType === "chapter_batch_ready"
+    && (input.status === "failed" || input.status === "cancelled");
+}
+
 function getStageLabel(stage: NovelWorkflowStage | null | undefined): string | null {
   return stage ? (NOVEL_WORKFLOW_STAGE_LABELS[stage] ?? stage) : null;
 }
 
 function getLastHealthyStage(input: WorkflowExplainabilityInput): string | null {
+  if (isPreparedChapterBatchCheckpoint(input)) {
+    return getStageLabel("structured_outline");
+  }
+  if (isPausedChapterBatchCheckpoint(input)) {
+    return getStageLabel("chapter_execution");
+  }
   if (input.checkpointType) {
     return getStageLabel(CHECKPOINT_LAST_HEALTHY_STAGE[input.checkpointType]);
   }
@@ -165,9 +177,6 @@ export function buildWorkflowResumeAction(
     if (checkpointType === "volume_strategy_ready") {
       return "查看卷战略";
     }
-    if (checkpointType === "front10_ready") {
-      return buildAutoExecutionResumeAction(explainabilityInput);
-    }
     if (checkpointType === "chapter_batch_ready") {
       return buildAutoExecutionResumeAction(explainabilityInput);
     }
@@ -183,9 +192,6 @@ export function buildWorkflowResumeAction(
     return "从最近检查点恢复";
   }
   if (status === "failed" || status === "cancelled") {
-    if (checkpointType === "front10_ready") {
-      return buildAutoExecutionResumeAction(explainabilityInput);
-    }
     if (checkpointType === "chapter_batch_ready") {
       return buildAutoExecutionResumeAction(explainabilityInput);
     }
@@ -215,16 +221,13 @@ function buildDisplayStatus(input: WorkflowExplainabilityInput): string | null {
   }
   if (
     (input.status === "queued" || input.status === "running")
-    && (input.checkpointType === "front10_ready" || input.checkpointType === "chapter_batch_ready")
+    && input.checkpointType === "chapter_batch_ready"
   ) {
     return buildAutoExecutionRunningStatus(input);
   }
   if (input.status === "waiting_approval") {
-    if (input.checkpointType === "front10_ready") {
-      return buildAutoExecutionPreparedStatus(input);
-    }
     if (input.checkpointType === "chapter_batch_ready") {
-      return buildAutoExecutionPausedStatus(input);
+      return buildAutoExecutionPreparedStatus(input);
     }
     return input.checkpointType
       ? CHECKPOINT_DISPLAY_STATUS[input.checkpointType]
@@ -271,11 +274,8 @@ function buildBlockingReason(input: WorkflowExplainabilityInput): string | null 
     return "任务已进入队列，正在等待工作线程和模型资源可用。";
   }
   if (input.status === "waiting_approval") {
-    if (input.checkpointType === "front10_ready") {
-      return buildAutoExecutionPreparedReason(input);
-    }
     if (input.checkpointType === "chapter_batch_ready") {
-      return buildAutoExecutionPausedReason(input);
+      return buildAutoExecutionPreparedReason(input);
     }
     return input.checkpointType
       ? CHECKPOINT_BLOCKING_REASON[input.checkpointType]

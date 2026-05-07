@@ -7,7 +7,7 @@ const { prisma } = require("../dist/db/prisma.js");
 
 function buildWorkflowRow(overrides = {}) {
   return {
-    id: "task_front10",
+    id: "task_chapter_range",
     novelId: "novel_1",
     lane: "auto_director",
     title: "AI 自动导演",
@@ -16,7 +16,7 @@ function buildWorkflowRow(overrides = {}) {
     currentStage: "章节执行",
     currentItemKey: "chapter_execution",
     currentItemLabel: "等待继续自动执行",
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
     checkpointSummary: "前 10 章已准备完成。",
     seedPayloadJson: JSON.stringify({
       autoExecution: {
@@ -91,7 +91,7 @@ test("auto director follow-up notification service delivers approval-required ev
   });
   const after = buildWorkflowRow({
     status: "waiting_approval",
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
     checkpointSummary: "前 10 章已准备完成。",
     updatedAt: new Date("2026-04-22T10:00:00.000Z"),
   });
@@ -107,7 +107,7 @@ test("auto director follow-up notification service delivers approval-required ev
     assert.equal(fetchCalls[0].method, "POST");
     assert.equal(fetchCalls[0].body.channelType, "dingtalk");
     assert.equal(fetchCalls[0].body.event.eventType, "auto_director.approval_required");
-    assert.equal(fetchCalls[0].body.event.reason, "front10_execution_pending");
+    assert.equal(fetchCalls[0].body.event.reason, "chapter_batch_execution_pending");
     assert.equal(fetchCalls[0].body.card.actions[0].kind, "callback");
     assert.equal(fetchCalls[0].body.card.actions[0].actionCode, "continue_auto_execution");
     assert.equal(
@@ -120,7 +120,7 @@ test("auto director follow-up notification service delivers approval-required ev
     );
     assert.equal(
       fetchCalls[0].body.card.actions.at(-1).url,
-      "https://writer.example.test/auto-director/follow-ups?taskId=task_front10",
+      "https://writer.example.test/auto-director/follow-ups?taskId=task_chapter_range",
     );
 
     assert.equal(notifications.length, 1);
@@ -200,7 +200,7 @@ test("auto director follow-up notification service delivers approval-required ev
   });
   const after = buildWorkflowRow({
     status: "waiting_approval",
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
     checkpointSummary: "前 10 章已准备完成。",
     updatedAt: new Date("2026-04-22T10:00:00.000Z"),
   });
@@ -221,8 +221,8 @@ test("auto director follow-up notification service delivers approval-required ev
     assert.match(fetchCalls[0].body.markdown.content, /actionCode=continue_auto_execution/);
     assert.match(fetchCalls[0].body.markdown.content, /callbackId=/);
     assert.match(fetchCalls[0].body.markdown.content, /signature=/);
-    assert.match(fetchCalls[0].body.markdown.content, /\[查看详情\]\(https:\/\/writer\.example\.test\/tasks\?kind=novel_workflow&id=task_front10\)/);
-    assert.match(fetchCalls[0].body.markdown.content, /\[打开跟进中心\]\(https:\/\/writer\.example\.test\/auto-director\/follow-ups\?taskId=task_front10\)/);
+    assert.match(fetchCalls[0].body.markdown.content, /\[查看详情\]\(https:\/\/writer\.example\.test\/tasks\?kind=novel_workflow&id=task_chapter_range\)/);
+    assert.match(fetchCalls[0].body.markdown.content, /\[打开跟进中心\]\(https:\/\/writer\.example\.test\/auto-director\/follow-ups\?taskId=task_chapter_range\)/);
 
     assert.equal(notifications.length, 1);
     assert.equal(notifications[0].eventType, "auto_director.approval_required");
@@ -296,7 +296,7 @@ test("auto director follow-up notification service degrades dingtalk actions to 
       }),
       after: buildWorkflowRow({
         status: "waiting_approval",
-        checkpointType: "front10_ready",
+        checkpointType: "chapter_batch_ready",
         checkpointSummary: "前 10 章已准备完成。",
         updatedAt: new Date("2026-04-22T10:00:00.000Z"),
       }),
@@ -381,7 +381,7 @@ test("auto director follow-up notification service skips progress_changed by def
     status: "waiting_approval",
     currentStage: "章节细化",
     progress: 0.62,
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
     checkpointSummary: "前 10 章已准备完成。",
     updatedAt: new Date("2026-04-22T09:55:00.000Z"),
   });
@@ -389,7 +389,7 @@ test("auto director follow-up notification service skips progress_changed by def
     status: "waiting_approval",
     currentStage: "章节执行",
     progress: 0.74,
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
     checkpointSummary: "前 10 章已准备完成。",
     updatedAt: new Date("2026-04-22T10:00:00.000Z"),
   });
@@ -506,7 +506,7 @@ test("auto director follow-up notification service prefers saved baseUrl when bu
       }),
       after: buildWorkflowRow({
         status: "waiting_approval",
-        checkpointType: "front10_ready",
+        checkpointType: "chapter_batch_ready",
         checkpointSummary: "前 10 章已准备完成。",
         updatedAt: new Date("2026-04-22T10:00:00.000Z"),
       }),
@@ -516,7 +516,7 @@ test("auto director follow-up notification service prefers saved baseUrl when bu
     assert.equal(fetchCalls[0].url, "https://relay.example.test/dingtalk");
     assert.equal(
       fetchCalls[0].body.card.actions.at(-1).url,
-      "https://book.example.test/auto-director/follow-ups?taskId=task_front10",
+      "https://book.example.test/auto-director/follow-ups?taskId=task_chapter_range",
     );
     assert.equal(
       fetchCalls[0].body.card.actions[0].callback.endpoint,

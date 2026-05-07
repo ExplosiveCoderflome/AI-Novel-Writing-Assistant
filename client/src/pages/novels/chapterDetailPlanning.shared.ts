@@ -1,4 +1,5 @@
 import type { VolumePlan } from "@ai-novel/shared/types/novel";
+import { assessChapterExecutionContractShape } from "@ai-novel/shared/types/chapterTaskSheetQuality";
 
 export type StructuredVolumeChapter = VolumePlan["chapters"][number];
 export type ChapterDetailMode = "purpose" | "boundary" | "task_sheet";
@@ -33,7 +34,25 @@ export function hasChapterDetailDraft(
       || Boolean(chapter.mustAvoid?.trim())
       || chapter.payoffRefs.length > 0;
   }
-  return Boolean(chapter.taskSheet?.trim()) && Boolean(chapter.sceneCards?.trim());
+  return assessChapterExecutionContractShape({
+    novelId: "workspace",
+    volumeId: chapter.volumeId,
+    chapterId: chapter.id,
+    chapterOrder: chapter.chapterOrder,
+    title: chapter.title,
+    summary: chapter.summary,
+    purpose: chapter.purpose,
+    exclusiveEvent: chapter.exclusiveEvent,
+    endingState: chapter.endingState,
+    nextChapterEntryState: chapter.nextChapterEntryState,
+    conflictLevel: chapter.conflictLevel,
+    revealLevel: chapter.revealLevel,
+    targetWordCount: chapter.targetWordCount,
+    mustAvoid: chapter.mustAvoid,
+    payoffRefs: chapter.payoffRefs,
+    taskSheet: chapter.taskSheet,
+    sceneCards: chapter.sceneCards,
+  }).canEnterExecution;
 }
 
 export function hasAnyChapterDetailDraft(chapter: StructuredVolumeChapter): boolean {

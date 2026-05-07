@@ -17,7 +17,7 @@ import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinua
 import { useDirectorChapterTitleRepair } from "@/hooks/useDirectorChapterTitleRepair";
 import { syncKnownTaskCaches } from "@/lib/taskQueryCache";
 import { buildTaskNoticeRoute, isChapterTitleDiversitySummary, parseDirectorTaskNotice, resolveChapterTitleWarning } from "@/lib/directorTaskNotice";
-import { canCancelDirectorTask, canContinueFront10AutoExecution, getCandidateSelectionLink, requiresCandidateSelection } from "@/lib/novelWorkflowTaskUi";
+import { canCancelDirectorTask, canContinueChapterBatchAutoExecution, getCandidateSelectionLink, requiresCandidateSelection } from "@/lib/novelWorkflowTaskUi";
 import { useLLMStore } from "@/store/llmStore";
 import TaskCenterFilterPanel from "./components/TaskCenterFilterPanel";
 import TaskCenterDetailSummary from "./components/TaskCenterDetailSummary";
@@ -281,7 +281,7 @@ export default function TaskCenterPage() {
   const canResumeFront10AutoExecution = Boolean(
     selectedTask
     && selectedTask.kind === "novel_workflow"
-    && canContinueFront10AutoExecution(selectedTask),
+    && canContinueChapterBatchAutoExecution(selectedTask),
   );
   const needsCandidateSelection = Boolean(
     selectedTask

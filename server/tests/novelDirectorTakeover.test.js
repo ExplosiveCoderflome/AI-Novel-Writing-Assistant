@@ -81,7 +81,7 @@ test("continue_existing from basic prefers repair continuation when pending fixe
     strategy: "continue_existing",
     snapshot: buildSnapshot(),
     latestCheckpoint: {
-      checkpointType: "front10_ready",
+      checkpointType: "chapter_batch_ready",
       stage: "chapter_execution",
       volumeId: "volume_1",
       chapterId: null,
@@ -126,7 +126,7 @@ test("continue_existing from story macro only fills missing character step", () 
   assert.equal(plan.startPhase, "character_setup");
 });
 
-test("continue_existing from structured ignores stale front10 checkpoint when the target range is not fully detailed", () => {
+test("continue_existing from structured ignores stale chapter_range checkpoint when the target range is not fully detailed", () => {
   const plan = resolveDirectorTakeoverPlan({
     entryStep: "structured",
     strategy: "continue_existing",
@@ -137,7 +137,7 @@ test("continue_existing from structured ignores stale front10 checkpoint when th
       approvedChapterCount: 0,
     }),
     latestCheckpoint: {
-      checkpointType: "front10_ready",
+      checkpointType: "chapter_batch_ready",
       stage: "chapter_execution",
       volumeId: "volume_1",
       chapterId: null,
@@ -357,7 +357,7 @@ test("loadDirectorTakeoverState does not trust stale auto execution state when o
       findActiveAutoDirectorTask: async () => null,
       findLatestAutoDirectorTask: async () => ({
         id: "task_stale_ready",
-        checkpointType: "front10_ready",
+        checkpointType: "chapter_batch_ready",
         checkpointSummary: "旧任务认为前 2 章可执行",
         resumeTargetJson: JSON.stringify({ volumeId: "volume_1", chapterId: "chapter_1" }),
         seedPayloadJson: JSON.stringify({

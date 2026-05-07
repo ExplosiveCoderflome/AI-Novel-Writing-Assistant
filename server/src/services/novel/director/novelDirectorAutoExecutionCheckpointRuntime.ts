@@ -77,7 +77,7 @@ export async function syncAutoExecutionTaskState(
 ): Promise<void> {
   const directorSession = buildDirectorSessionState({
     runMode: input.request.runMode,
-    phase: "front10_ready",
+    phase: "chapter_execution",
     isBackgroundRunning: input.isBackgroundRunning,
   });
   const resumeTarget = buildNovelEditResumeTarget({
@@ -127,7 +127,7 @@ export async function recordCompletedCheckpoint(
     seedPayload: deps.buildDirectorSeedPayload(input.request, input.novelId, {
       directorSession: buildDirectorSessionState({
         runMode: input.request.runMode,
-        phase: "front10_ready",
+        phase: "chapter_execution",
         isBackgroundRunning: false,
       }),
       resumeTarget: buildNovelEditResumeTarget({
@@ -175,7 +175,7 @@ export async function recordQualityRepairCheckpoint(
     seedPayload: deps.buildDirectorSeedPayload(input.request, input.novelId, {
       directorSession: buildDirectorSessionState({
         runMode: input.request.runMode,
-        phase: "front10_ready",
+        phase: "chapter_execution",
         isBackgroundRunning: false,
       }),
       resumeTarget: buildNovelEditResumeTarget({

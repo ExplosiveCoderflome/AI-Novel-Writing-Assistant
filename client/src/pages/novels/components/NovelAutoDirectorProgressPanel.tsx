@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   NovelWorkflowMilestone,
   NovelWorkflowMilestoneType,
 } from "@ai-novel/shared/types/novelWorkflow";
@@ -135,9 +135,6 @@ function formatCheckpoint(
   if (checkpoint === "volume_strategy_ready") {
     return "卷战略已就绪";
   }
-  if (checkpoint === "front10_ready") {
-    return `${resolveAutoExecutionScopeLabel(task)}可开写`;
-  }
   if (checkpoint === "chapter_batch_ready") {
     return `${resolveAutoExecutionScopeLabel(task)}自动执行已暂停`;
   }
@@ -175,8 +172,7 @@ function resolveDirectorExecutionStepIndex(task: UnifiedTaskDetail | null): numb
     return 5;
   }
   if (
-    task?.checkpointType === "front10_ready"
-    || (task?.status === "running" && task?.checkpointType === "chapter_batch_ready")
+    (task?.status === "running" && task?.checkpointType === "chapter_batch_ready")
     || itemKey === "chapter_detail_bundle"
     || chapterExecutionKeys.has(itemKey)
   ) {
@@ -221,7 +217,7 @@ function resolveDirectorStepStatuses(
   mode: DirectorExecutionViewMode,
   steps: ReadonlyArray<DirectorStepDefinition>,
 ): DirectorStepVisualStatus[] {
-  if (task?.checkpointType === "front10_ready" || task?.status === "succeeded") {
+  if (task?.checkpointType === "chapter_batch_ready" || task?.status === "succeeded") {
     return steps.map(() => "completed");
   }
 

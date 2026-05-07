@@ -102,7 +102,7 @@ test("resumePendingAutoDirectorTasks restores checkpoint instead of failing when
   const runtimeService = new NovelWorkflowRuntimeService(
     {
       async listRecoverableAutoDirectorTasks() {
-        return [{ id: "task-front10", status: "queued" }];
+        return [{ id: "task-chapter_range", status: "queued" }];
       },
       async requeueTaskForRecovery(taskId, message) {
         calls.push(["requeue", taskId, message]);
@@ -126,7 +126,7 @@ test("resumePendingAutoDirectorTasks restores checkpoint instead of failing when
   await runtimeService.resumePendingAutoDirectorTasks();
 
   assert.deepEqual(calls, [
-    ["restore", "task-front10"],
+    ["restore", "task-chapter_range"],
   ]);
 });
 

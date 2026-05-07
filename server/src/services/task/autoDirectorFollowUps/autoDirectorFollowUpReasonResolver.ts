@@ -21,7 +21,7 @@ const REASON_LABELS: Record<AutoDirectorFollowUpReason, string> = {
   candidate_selection_required: "待确认书级方向",
   replan_required: "待处理重规划",
   runtime_cancelled: "已取消待恢复",
-  front10_execution_pending: "自动执行待继续",
+  chapter_batch_execution_pending: "自动执行待继续",
   quality_repair_pending: "质量修复待继续",
   auto_progress_running: "自动推进中",
   auto_approval_completed: "最近自动通过",
@@ -267,14 +267,14 @@ export function resolveAutoDirectorFollowUpReason(
     });
   }
 
-  if (input.checkpointType === "front10_ready") {
+  if (input.checkpointType === "chapter_batch_ready" && input.status === "waiting_approval") {
     return finalizeResolvedReason({
-      reason: "front10_execution_pending",
+      reason: "chapter_batch_execution_pending",
       priority: "P2",
       availableActions: [
         mutationAction({
           code: "continue_auto_execution",
-          label: getContinueLabel(input, "继续自动执行前 10 章"),
+          label: getContinueLabel(input, "继续自动执行当前范围"),
           riskLevel: "low",
           requiresConfirm: false,
         }),
@@ -294,7 +294,7 @@ export function resolveAutoDirectorFollowUpReason(
       availableActions: [
         mutationAction({
           code: "continue_auto_execution",
-          label: getContinueLabel(input, "继续自动执行前 10 章"),
+          label: getContinueLabel(input, "继续自动执行当前范围"),
           riskLevel: "low",
           requiresConfirm: false,
         }),

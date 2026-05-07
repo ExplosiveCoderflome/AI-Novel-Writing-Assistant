@@ -35,6 +35,13 @@ export async function getDirectorTaskFactInspection(taskId: string) {
   return data;
 }
 
+export async function getDirectorNovelFactInspection(novelId: string) {
+  const { data } = await apiClient.get<ApiResponse<DirectorTaskFactInspectionResponse>>(
+    `/novels/director/novels/${novelId}/fact-inspection`,
+  );
+  return data;
+}
+
 export async function generateDirectorCandidates(payload: DirectorCandidatesRequest): Promise<ApiResponse<DirectorCommandAcceptedResponse>> {
   const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>("/novels/director/tasks", {
     taskType: "generate_candidates",
@@ -218,7 +225,7 @@ export async function approveDirectorGate(taskId: string): Promise<ApiResponse<D
 export async function continueDirectorRuntime(
   taskId: string,
   payload?: Partial<DirectorRuntimePolicyUpdateRequest> & {
-    continuationMode?: "resume" | "auto_execute_range" | "auto_execute_front10";
+    continuationMode?: "resume" | "auto_execute_range";
     batchAlreadyStartedCount?: number;
   },
 ) {

@@ -7,6 +7,7 @@ export interface DirectorCanonicalState {
   task: {
     id: string;
     novelId: string | null;
+    lane: string;
     status: string;
     currentStage?: string | null;
     currentItemKey?: string | null;
@@ -49,12 +50,28 @@ export class DirectorStateReader {
     private readonly chapterProgressInspector = new ChapterExecutionProgressInspector(),
   ) {}
 
+  async readLatestByNovelId(novelId: string): Promise<DirectorCanonicalState | null> {
+    const latestTask = await prisma.novelWorkflowTask.findFirst({
+      where: {
+        novelId,
+        lane: "auto_director",
+      },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+      select: { id: true },
+    });
+    if (!latestTask?.id) {
+      return null;
+    }
+    return this.readByTaskId(latestTask.id);
+  }
+
   async readByTaskId(taskId: string): Promise<DirectorCanonicalState | null> {
     const task = await prisma.novelWorkflowTask.findUnique({
       where: { id: taskId },
       select: {
         id: true,
         novelId: true,
+        lane: true,
         status: true,
         currentStage: true,
         currentItemKey: true,
@@ -94,6 +111,7 @@ export class DirectorStateReader {
       task: {
         id: task.id,
         novelId: task.novelId,
+        lane: task.lane,
         status: task.status,
         currentStage: task.currentStage,
         currentItemKey: task.currentItemKey,

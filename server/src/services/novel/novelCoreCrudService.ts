@@ -6,6 +6,7 @@ import { mapNovelAutoDirectorTaskSummary } from "../task/novelWorkflowTaskSummar
 import { getArchivedTaskIdSet } from "../task/taskArchive";
 import { NovelWorkflowService } from "./workflow/NovelWorkflowService";
 import { NovelContinuationService } from "./NovelContinuationService";
+import { NovelVolumeService } from "./volume/NovelVolumeService";
 import { STORY_WORLD_SLICE_SCHEMA_VERSION } from "./storyWorldSlice/storyWorldSlicePersistence";
 import { syncChapterArtifacts } from "./novelChapterArtifacts";
 import { listNovelTokenUsageByNovelIds } from "./novelTokenUsageSummary";
@@ -25,6 +26,7 @@ import { queueRagDelete, queueRagUpsert } from "./novelCoreSupport";
 export class NovelCoreCrudService {
   private readonly novelContinuationService = new NovelContinuationService();
   private readonly workflowService = new NovelWorkflowService();
+  private readonly volumeService = new NovelVolumeService();
 
   private validateStoryModeSelection(primaryStoryModeId?: string | null, secondaryStoryModeId?: string | null): void {
     if (primaryStoryModeId && secondaryStoryModeId && primaryStoryModeId === secondaryStoryModeId) {
@@ -396,6 +398,17 @@ export class NovelCoreCrudService {
     if (chapter.content) {
       await syncChapterArtifacts(novelId, chapter.id, chapter.content);
     }
+    await this.volumeService.mirrorChapterIntoWorkspace(novelId, {
+      order: chapter.order,
+      title: chapter.title,
+      expectation: chapter.expectation,
+      targetWordCount: chapter.targetWordCount,
+      conflictLevel: chapter.conflictLevel,
+      revealLevel: chapter.revealLevel,
+      mustAvoid: chapter.mustAvoid,
+      taskSheet: chapter.taskSheet,
+      sceneCards: chapter.sceneCards,
+    }).catch(() => null);
     queueRagUpsert("chapter", chapter.id);
     return chapter;
   }
@@ -432,6 +445,17 @@ export class NovelCoreCrudService {
     if (typeof input.content === "string") {
       await syncChapterArtifacts(novelId, chapterId, input.content);
     }
+    await this.volumeService.mirrorChapterIntoWorkspace(novelId, {
+      order: chapter.order,
+      title: chapter.title,
+      expectation: chapter.expectation,
+      targetWordCount: chapter.targetWordCount,
+      conflictLevel: chapter.conflictLevel,
+      revealLevel: chapter.revealLevel,
+      mustAvoid: chapter.mustAvoid,
+      taskSheet: chapter.taskSheet,
+      sceneCards: chapter.sceneCards,
+    }).catch(() => null);
     queueRagUpsert("chapter", chapterId);
     return chapter;
   }

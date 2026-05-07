@@ -27,18 +27,18 @@ test("director recovery sample audit classifies real-data recovery fixtures", ()
         updatedAt: "2026-04-29T00:00:00.000Z",
       },
       {
-        id: "task-front10",
+        id: "task-chapter_range",
         novelId: "novel-2",
         status: "waiting_approval",
         pendingManualRecovery: false,
-        checkpointType: "front10_ready",
+        checkpointType: "chapter_batch_ready",
         currentStage: "chapter_execution",
         currentItemKey: "chapter_execution",
         currentItemLabel: "waiting",
         seedPayloadJson: JSON.stringify({
           directorInput: { runMode: "auto_to_execution" },
-          directorSession: { phase: "front10_ready" },
-          autoExecution: { mode: "front10", nextChapterOrder: 1 },
+          directorSession: { phase: "chapter_batch_ready" },
+          autoExecution: { mode: "chapter_range", nextChapterOrder: 1 },
         }),
         resumeTargetJson: JSON.stringify({ stage: "chapter" }),
         updatedAt: "2026-04-29T00:01:00.000Z",
@@ -108,7 +108,7 @@ test("director recovery sample audit classifies real-data recovery fixtures", ()
       },
       {
         id: "cmd-confirm",
-        taskId: "task-front10",
+        taskId: "task-chapter_range",
         novelId: "novel-2",
         commandType: "confirm_candidate",
         status: "failed",
@@ -117,7 +117,7 @@ test("director recovery sample audit classifies real-data recovery fixtures", ()
       },
       {
         id: "cmd-title",
-        taskId: "task-front10",
+        taskId: "task-chapter_range",
         novelId: "novel-2",
         commandType: "repair_chapter_titles",
         status: "stale",
@@ -240,7 +240,7 @@ test("director recovery sample audit classifies real-data recovery fixtures", ()
   );
   assert.equal(
     audit.samples.taskDiagnostics.find((diagnosis) => diagnosis.taskId === "task-old-fk").supersededByTaskId,
-    "task-front10",
+    "task-chapter_range",
   );
   assert.deepEqual(
     audit.samples.commandDiagnostics.map((diagnosis) => diagnosis.code),

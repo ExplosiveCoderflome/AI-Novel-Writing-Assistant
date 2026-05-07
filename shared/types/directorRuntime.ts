@@ -432,6 +432,67 @@ export interface DirectorRuntimeQualityBudgetSummary {
   explanation: string;
 }
 
+export interface DirectorOutlineFactSummary {
+  beatSheetReady: boolean;
+  chapterListReady: boolean;
+  chapterDetailReady: boolean;
+  plannedChapterCount: number;
+  selectedChapterCount: number;
+  completedDetailSteps: number;
+  totalDetailSteps: number;
+  syncedChapterCount: number;
+}
+
+export interface DirectorChapterExecutionFactSummary {
+  totalChapters: number;
+  draftedChapterCount: number;
+  reviewedChapterCount: number;
+  approvedChapterCount: number;
+  committedChapterCount: number;
+  completedChapters: number;
+  needsRepairChapters: number;
+  ratio: number;
+  expectedChapterCount?: number | null;
+}
+
+export interface DirectorRepairFactSummary {
+  draftedChapterCount: number;
+  reviewedChapterCount: number;
+  committedChapterCount: number;
+  needsRepairChapters: number;
+  payoffArtifactCount: number;
+  characterResourceArtifactCount: number;
+}
+
+export interface DirectorTaskFactSummaryStep {
+  stepId: string;
+  label: string;
+  stage: string;
+  completed: boolean;
+  completenessRatio: number;
+  evidence?: Record<string, unknown>;
+  nextAction?: string | null;
+}
+
+export interface DirectorTaskFactSummary {
+  allStepsCompleted: boolean;
+  completedStepCount: number;
+  totalStepCount: number;
+  currentFactStepId?: string | null;
+  currentFactStepLabel?: string | null;
+  currentFactEvidence?: Record<string, unknown> | null;
+  hasNovelProject: boolean;
+  hasStoryMacro: boolean;
+  hasBookContract: boolean;
+  characterCount: number;
+  hasVolumeStrategy: boolean;
+  volumeCount: number;
+  outlineFacts: DirectorOutlineFactSummary;
+  chapterExecutionFacts: DirectorChapterExecutionFactSummary;
+  repairFacts: DirectorRepairFactSummary;
+  steps: DirectorTaskFactSummaryStep[];
+}
+
 export type ChapterExecutionProgressStage =
   | "execution_contract_ready"
   | "context_package_ready"
@@ -461,6 +522,8 @@ export interface DirectorChapterExecutionProgressSummary {
   approvedChapterCount: number;
   completedChapters: number;
   needsRepairChapters: number;
+  activeChapterId?: string | null;
+  activeChapterOrder?: number | null;
   currentChapterId?: string | null;
   currentChapterOrder?: number | null;
   currentStage?: ChapterExecutionProgressStage | null;
@@ -499,6 +562,7 @@ export interface DirectorRuntimeProjection {
   currentFactStepId?: string | null;
   currentFactStepLabel?: string | null;
   currentFactEvidence?: Record<string, unknown> | null;
+  factSummary?: DirectorTaskFactSummary | null;
   headline?: string | null;
   detail?: string | null;
   lastEventSummary?: string | null;
@@ -576,7 +640,7 @@ export interface DirectorBookAutomationAction {
   target: DirectorBookAutomationActionTarget;
   commandPayload?: {
     taskId?: string | null;
-    continuationMode?: "resume" | "auto_execute_range" | "auto_execute_front10" | null;
+    continuationMode?: "resume" | "auto_execute_range" | null;
   } | null;
   emphasis?: "primary" | "secondary" | "destructive";
 }
@@ -847,6 +911,7 @@ export interface DirectorTaskSnapshot {
   currentFactStepId?: string | null;
   currentFactStepLabel?: string | null;
   currentFactEvidence?: Record<string, unknown> | null;
+  factSummary?: DirectorTaskFactSummary | null;
   chapterProgress?: DirectorChapterExecutionProgressSummary | null;
   displayState: DirectorDisplayState;
   nextActions: string[];
@@ -887,6 +952,7 @@ export interface DirectorTaskFactInspection {
   currentFactStepId?: string | null;
   currentFactStepLabel?: string | null;
   currentFactEvidence?: Record<string, unknown> | null;
+  factSummary?: DirectorTaskFactSummary | null;
   steps: DirectorTaskFactInspectionStep[];
 }
 

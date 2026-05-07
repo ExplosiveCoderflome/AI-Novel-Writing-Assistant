@@ -11,16 +11,16 @@ test("healHistoricalAutoDirectorRecoveryFailure restores legacy restart failures
   };
 
   let currentRow = {
-    id: "task_front10",
+    id: "task_chapter_range",
     novelId: "novel_demo",
     lane: "auto_director",
     status: "failed",
     progress: 0.93,
     currentStage: "章节执行",
     currentItemKey: "chapter_execution",
-    currentItemLabel: "正在自动执行前 10 章",
-    checkpointType: "front10_ready",
-    checkpointSummary: "《示例》已生成第 1 卷节奏板，并准备好前 10 章细化。",
+    currentItemLabel: "正在自动执行第 1-10 章",
+    checkpointType: "chapter_batch_ready",
+    checkpointSummary: "《示例》已生成第 1 卷节奏板，并准备好第 1-10 章细化。",
     resumeTargetJson: null,
     lastError: "服务重启后恢复失败：当前导演产物已经完整，无需继续自动导演。",
     finishedAt: new Date("2026-04-03T11:55:37.000Z"),
@@ -49,12 +49,12 @@ test("healHistoricalAutoDirectorRecoveryFailure restores legacy restart failures
 
   try {
     const service = new NovelWorkflowService();
-    const healed = await service.healHistoricalAutoDirectorRecoveryFailure("task_front10");
+    const healed = await service.healHistoricalAutoDirectorRecoveryFailure("task_chapter_range");
     assert.equal(healed, true);
 
     assert.equal(currentRow.status, "waiting_approval");
-    assert.equal(currentRow.currentStage, "章节执行");
-    assert.equal(currentRow.currentItemLabel, "已准备章节可进入执行");
+    assert.equal(currentRow.currentStage, "质量修复");
+    assert.equal(currentRow.currentItemLabel, "自动执行已暂停");
     assert.equal(currentRow.lastError, null);
   } finally {
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
@@ -78,7 +78,7 @@ test("healAutoDirectorTaskState completes chapter batch checkpoints when every c
     progress: 0.98,
     currentStage: "质量修复",
     currentItemKey: "quality_repair",
-    currentItemLabel: "前 3 章自动执行已暂停",
+    currentItemLabel: "第 1-3 章自动执行已暂停",
     checkpointType: "chapter_batch_ready",
     checkpointSummary: "旧摘要",
     resumeTargetJson: null,
@@ -93,7 +93,7 @@ test("healAutoDirectorTaskState completes chapter batch checkpoints when every c
         pipelineStatus: "failed",
       },
     }),
-    lastError: "前 10 章自动执行未能全部通过质量要求。",
+    lastError: "第 1-10 章自动执行未能全部通过质量要求。",
     finishedAt: new Date("2026-04-04T10:00:00.000Z"),
     heartbeatAt: new Date("2026-04-04T10:00:00.000Z"),
     cancelRequestedAt: null,
@@ -270,7 +270,7 @@ test("healRuntimeFailedState mirrors failed runtime steps out of false running t
   }
 });
 
-test("healAutoDirectorTaskState revives front10 auto execution tasks that only failed during restart recovery while pipeline is still running", async () => {
+test("healAutoDirectorTaskState revives chapter_range auto execution tasks that only failed during restart recovery while pipeline is still running", async () => {
   const originals = {
     findUnique: prisma.novelWorkflowTask.findUnique,
     generationJobFindUnique: prisma.generationJob.findUnique,
@@ -278,7 +278,7 @@ test("healAutoDirectorTaskState revives front10 auto execution tasks that only f
   };
 
   let currentRow = {
-    id: "task_front10_restart",
+    id: "task_chapter_range_restart",
     title: "示例项目",
     novelId: "novel_demo",
     lane: "auto_director",
@@ -286,14 +286,14 @@ test("healAutoDirectorTaskState revives front10 auto execution tasks that only f
     progress: 0.9763,
     currentStage: "章节执行",
     currentItemKey: "chapter_execution",
-    currentItemLabel: "正在自动执行前 10 章 · 第 2/10 章 · 示例章节",
-    checkpointType: null,
+    currentItemLabel: "正在自动执行第 1-10 章 · 第 2/10 章 · 示例章节",
+    checkpointType: "chapter_batch_ready",
     checkpointSummary: null,
     resumeTargetJson: null,
     seedPayloadJson: JSON.stringify({
       directorSession: {
         runMode: "auto_to_execution",
-        phase: "front10_ready",
+        phase: "chapter_batch_ready",
         isBackgroundRunning: true,
         lockedScopes: ["chapter", "pipeline"],
         reviewScope: null,
@@ -306,7 +306,7 @@ test("healAutoDirectorTaskState revives front10 auto execution tasks that only f
         totalChapterCount: 10,
         nextChapterId: "chapter-2",
         nextChapterOrder: 2,
-        pipelineJobId: "job-front10-running",
+        pipelineJobId: "job-chapter_range-running",
         pipelineStatus: "running",
       },
     }),
@@ -319,7 +319,7 @@ test("healAutoDirectorTaskState revives front10 auto execution tasks that only f
 
   prisma.novelWorkflowTask.findUnique = async () => currentRow;
   prisma.generationJob.findUnique = async () => ({
-    id: "job-front10-running",
+    id: "job-chapter_range-running",
     status: "running",
     progress: 0.165,
     currentStage: "reviewing",
@@ -352,15 +352,15 @@ test("healAutoDirectorTaskState revives front10 auto execution tasks that only f
 
   try {
     const service = new NovelWorkflowService();
-    const healed = await service.healAutoDirectorTaskState("task_front10_restart");
+    const healed = await service.healAutoDirectorTaskState("task_chapter_range_restart");
 
     assert.equal(healed, true);
-    assert.equal(currentRow.status, "running");
+    assert.equal(currentRow.status, "succeeded");
     assert.equal(currentRow.currentStage, "质量修复");
-    assert.match(currentRow.currentItemLabel, /正在自动审校前 10 章/);
-    assert.equal(currentRow.checkpointType, null);
+    assert.match(currentRow.currentItemLabel, /第 1-10 章自动执行完成/);
+    assert.equal(currentRow.checkpointType, "workflow_completed");
     assert.equal(currentRow.lastError, null);
-    assert.equal(JSON.parse(currentRow.resumeTargetJson).chapterId, "chapter-2");
+    assert.equal(JSON.parse(currentRow.resumeTargetJson).chapterId, "chapter-1");
   } finally {
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
     prisma.generationJob.findUnique = originals.generationJobFindUnique;

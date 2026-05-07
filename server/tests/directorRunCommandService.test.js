@@ -1,4 +1,4 @@
-﻿const test = require("node:test");
+const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { DirectorCommandService } = require("../dist/services/novel/director/DirectorCommandService.js");
@@ -424,7 +424,7 @@ test("director command service applies the full-book autopilot contract before q
     await harness.service.enqueueConfirmCandidateCommand(createConfirmRequest({
       runMode: "full_book_autopilot",
       autoExecutionPlan: {
-        mode: "front10",
+        mode: "chapter_range",
         endOrder: 10,
         autoReview: false,
         autoRepair: false,

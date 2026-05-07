@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Bug, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
 import type { DirectorTaskFactInspectionStep } from "@ai-novel/shared/types/directorRuntime";
-import { getDirectorTaskFactInspection } from "@/api/novelDirector";
+import { getDirectorNovelFactInspection } from "@/api/novelDirector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,11 +35,29 @@ function formatStageLabel(stage: string): string {
 
 function formatNextAction(action?: string | null): string {
   if (!action) return "当前没有额外动作建议";
+  if (action === "run_chapter_detail_generation") return "继续细化剩余章节任务单";
+  if (action === "run_chapter_list_generation") return "继续补齐卷拆章列表";
+  if (action === "sync_execution_contracts") return "同步章节执行合同";
   const text = action
     .replace(/_/g, " ")
     .replace(/\./g, " ")
     .trim();
   return text || action;
+}
+
+function formatResumeFrom(resumeFrom?: string | null): string {
+  if (!resumeFrom) return "按当前现场重新判断";
+  if (resumeFrom === "chapter_detail_bundle") return "从剩余未细化章节继续";
+  if (resumeFrom === "chapter_list") return "从卷拆章列表继续";
+  if (resumeFrom === "beat_sheet") return "从卷节奏板继续";
+  if (resumeFrom.startsWith("chapter:")) {
+    const rawOrder = resumeFrom.slice("chapter:".length).trim();
+    const order = Number(rawOrder);
+    if (Number.isFinite(order) && order > 0) {
+      return `第 ${order} 章`;
+    }
+  }
+  return resumeFrom.replace(/_/g, " ").trim() || resumeFrom;
 }
 
 function summarizeStep(step: DirectorTaskFactInspectionStep): {
@@ -135,7 +153,7 @@ function StepFactCard({ step }: { step: DirectorTaskFactInspectionStep }) {
           </div>
           <div className="rounded-lg border border-border/70 bg-muted/10 p-3">
             <div className="text-xs text-muted-foreground">如果中断，建议从哪继续</div>
-            <div className="mt-1 text-sm font-medium text-foreground">{step.resumeFrom || "按当前现场重新判断"}</div>
+            <div className="mt-1 text-sm font-medium text-foreground">{formatResumeFrom(step.resumeFrom)}</div>
           </div>
           <div className="rounded-lg border border-border/70 bg-muted/10 p-3">
             <div className="text-xs text-muted-foreground">这一步最近的事实描述</div>
@@ -168,15 +186,16 @@ function StepFactCard({ step }: { step: DirectorTaskFactInspectionStep }) {
 }
 
 export default function DirectorFactDebugDialog(input: {
+  novelId: string;
   taskId?: string | null;
   disabled?: boolean;
 }) {
-  const { taskId, disabled = false } = input;
+  const { novelId, disabled = false } = input;
   const [open, setOpen] = useState(false);
   const query = useQuery({
-    queryKey: ["director-task-fact-inspection", taskId],
-    queryFn: () => getDirectorTaskFactInspection(taskId ?? ""),
-    enabled: open && Boolean(taskId),
+    queryKey: ["director-novel-fact-inspection", novelId],
+    queryFn: () => getDirectorNovelFactInspection(novelId),
+    enabled: open && Boolean(novelId),
     staleTime: 0,
   });
 
@@ -193,7 +212,7 @@ export default function DirectorFactDebugDialog(input: {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" disabled={disabled || !taskId}>
+        <Button variant="outline" disabled={disabled || !novelId}>
           <Bug className="h-4 w-4" />
           调试检查
         </Button>
@@ -226,7 +245,7 @@ export default function DirectorFactDebugDialog(input: {
               variant="outline"
               size="sm"
               onClick={() => void query.refetch()}
-              disabled={query.isFetching || !taskId}
+              disabled={query.isFetching || !novelId}
             >
               {query.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               重新检查

@@ -28,7 +28,6 @@ const checkpointSchema = z.enum([
   "book_contract_ready",
   "character_setup_required",
   "volume_strategy_ready",
-  "front10_ready",
   "chapter_batch_ready",
   "replan_required",
   "workflow_completed",
@@ -47,7 +46,7 @@ const continueParamsSchema = z.object({
 });
 
 const continueBodySchema = z.object({
-  continuationMode: z.enum(["resume", "auto_execute_range", "auto_execute_front10"]).optional(),
+  continuationMode: z.enum(["resume", "auto_execute_range"]).optional(),
 });
 
 const repairChapterTitlesBodySchema = z.object({

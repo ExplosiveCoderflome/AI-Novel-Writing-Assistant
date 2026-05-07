@@ -8,6 +8,7 @@ import type {
   DirectorRuntimeProjection,
   DirectorRuntimeProjectionStatus,
   DirectorRuntimeSnapshot,
+  DirectorTaskFactSummary,
   DirectorRuntimeVisibleRiskBadge,
   DirectorStepRun,
   DirectorWorkspaceInventory,
@@ -46,9 +47,12 @@ function latestEvent(events: DirectorEvent[]): DirectorEvent | null {
   }, null);
 }
 
-function statusFromStep(step: DirectorStepRun | null): DirectorRuntimeProjectionStatus {
+function statusFromStep(
+  step: DirectorStepRun | null,
+  factSummary?: DirectorTaskFactSummary | null,
+): DirectorRuntimeProjectionStatus {
   if (!step) {
-    return "idle";
+    return factSummary?.allStepsCompleted ? "completed" : "idle";
   }
   if (step.status === "waiting_approval") {
     return "waiting_approval";
@@ -62,7 +66,10 @@ function statusFromStep(step: DirectorStepRun | null): DirectorRuntimeProjection
   if (step.status === "running") {
     return "running";
   }
-  return "completed";
+  if (!factSummary) {
+    return "completed";
+  }
+  return factSummary.allStepsCompleted ? "completed" : "idle";
 }
 
 function resolveBlockedReason(step: DirectorStepRun | null, event: DirectorEvent | null): string | null {
@@ -157,8 +164,13 @@ function buildScopeSummary(inventory: DirectorWorkspaceInventory | null | undefi
   return `工作区：${parts.join("，")}。`;
 }
 
-function buildProgressSummary(snapshot: DirectorRuntimeSnapshot, inventory: DirectorWorkspaceInventory | null | undefined): string {
-  const completedSteps = snapshot.steps.filter((step) => step.status === "succeeded").length;
+function buildProgressSummary(
+  snapshot: DirectorRuntimeSnapshot,
+  inventory: DirectorWorkspaceInventory | null | undefined,
+  factSummary?: DirectorTaskFactSummary | null,
+): string {
+  const completedSteps = factSummary?.completedStepCount ?? snapshot.steps.filter((step) => step.status === "succeeded").length;
+  const totalSteps = factSummary?.totalStepCount ?? snapshot.steps.length;
   const waitingSteps = snapshot.steps.filter((step) => step.status === "waiting_approval" || step.status === "blocked_scope").length;
   const failedSteps = snapshot.steps.filter((step) => step.status === "failed").length;
   const protectedCount = inventory?.protectedUserContentArtifacts.length
@@ -250,7 +262,21 @@ function stepProgressPercent(steps: DirectorStepRun[], hints: string[]): number 
   return percentFromCount(completed + running, matched.length);
 }
 
-function buildPlanningPercent(snapshot: DirectorRuntimeSnapshot, inventory: DirectorWorkspaceInventory | null | undefined): number {
+function buildPlanningPercent(
+  snapshot: DirectorRuntimeSnapshot,
+  inventory: DirectorWorkspaceInventory | null | undefined,
+  factSummary?: DirectorTaskFactSummary | null,
+): number {
+  if (factSummary) {
+    const completed = [
+      factSummary.hasBookContract,
+      factSummary.hasStoryMacro,
+      factSummary.characterCount > 0,
+      factSummary.hasVolumeStrategy,
+      factSummary.outlineFacts.plannedChapterCount > 0,
+    ].filter(Boolean).length;
+    return percentFromCount(completed, 5);
+  }
   if (inventory) {
     const completed = [
       inventory.hasBookContract,
@@ -264,7 +290,14 @@ function buildPlanningPercent(snapshot: DirectorRuntimeSnapshot, inventory: Dire
   return stepProgressPercent(snapshot.steps, PLANNING_NODE_HINTS);
 }
 
-function buildChapterExecutionPercent(snapshot: DirectorRuntimeSnapshot, inventory: DirectorWorkspaceInventory | null | undefined): number {
+function buildChapterExecutionPercent(
+  snapshot: DirectorRuntimeSnapshot,
+  inventory: DirectorWorkspaceInventory | null | undefined,
+  factSummary?: DirectorTaskFactSummary | null,
+): number {
+  if (factSummary) {
+    return clampPercent(factSummary.chapterExecutionFacts.ratio * 100);
+  }
   if (inventory?.chapterCount) {
     const continuableChapters = Math.max(
       inventory.approvedChapterCount,
@@ -282,7 +315,20 @@ function buildChapterExecutionPercentFromFacts(chapterProgress: DirectorChapterE
   return clampPercent(chapterProgress.ratio * 100);
 }
 
-function buildQualityRepairPercent(snapshot: DirectorRuntimeSnapshot, inventory: DirectorWorkspaceInventory | null | undefined): number {
+function buildQualityRepairPercent(
+  snapshot: DirectorRuntimeSnapshot,
+  inventory: DirectorWorkspaceInventory | null | undefined,
+  factSummary?: DirectorTaskFactSummary | null,
+): number {
+  if (factSummary) {
+    if (factSummary.repairFacts.draftedChapterCount <= 0) {
+      return 0;
+    }
+    return percentFromCount(
+      Math.max(0, factSummary.repairFacts.draftedChapterCount - factSummary.repairFacts.needsRepairChapters),
+      factSummary.repairFacts.draftedChapterCount,
+    );
+  }
   if (inventory) {
     if (inventory.draftedChapterCount <= 0) {
       return 0;
@@ -324,13 +370,14 @@ function buildProgressBreakdown(
   snapshot: DirectorRuntimeSnapshot,
   inventory: DirectorWorkspaceInventory | null | undefined,
   chapterProgress?: DirectorChapterExecutionProgressSummary | null,
+  factSummary?: DirectorTaskFactSummary | null,
 ): DirectorRuntimeProgressBreakdown {
-  const completedSteps = snapshot.steps.filter((step) => step.status === "succeeded").length;
-  const planningPercent = buildPlanningPercent(snapshot, inventory);
+  const completedSteps = factSummary?.completedStepCount ?? snapshot.steps.filter((step) => step.status === "succeeded").length;
+  const planningPercent = buildPlanningPercent(snapshot, inventory, factSummary);
   const chapterExecutionPercent = buildChapterExecutionPercentFromFacts(chapterProgress)
-    ?? buildChapterExecutionPercent(snapshot, inventory);
+    ?? buildChapterExecutionPercent(snapshot, inventory, factSummary);
   const qualityRepairPercent = buildQualityRepairPercentFromFacts(chapterProgress)
-    ?? buildQualityRepairPercent(snapshot, inventory);
+    ?? buildQualityRepairPercent(snapshot, inventory, factSummary);
   const activeJobProgress = buildActiveJobPercent(snapshot);
   const totalPercent = clampPercent(
     planningPercent * 0.35
@@ -356,7 +403,7 @@ function buildProgressBreakdown(
     qualityRepairPercent,
     totalPercent,
     completedSteps,
-    totalSteps: snapshot.steps.length,
+    totalSteps: factSummary?.totalStepCount ?? snapshot.steps.length,
     draftedChapters,
     continuableChapters,
     totalChapters,
@@ -605,6 +652,7 @@ export class DirectorEventProjectionService {
     snapshot: DirectorRuntimeSnapshot | null,
     options?: {
       chapterProgress?: DirectorChapterExecutionProgressSummary | null;
+      factSummary?: DirectorTaskFactSummary | null;
       currentFactStep?: {
         stepId: string;
         stepLabel: string;
@@ -618,7 +666,7 @@ export class DirectorEventProjectionService {
     }
     const step = latestStep(snapshot.steps);
     const event = latestEvent(snapshot.events);
-    const status = statusFromStep(step);
+    const status = statusFromStep(step, options?.factSummary ?? null);
     const requiresUserAction = status === "waiting_approval" || status === "blocked";
     const blockedReason = resolveBlockedReason(step, event);
     const inventory = snapshot.lastWorkspaceAnalysis?.inventory ?? null;
@@ -626,7 +674,12 @@ export class DirectorEventProjectionService {
       ?? snapshot.lastWorkspaceAnalysis?.interpretation?.recommendedAction
       ?? null;
     const headline = buildHeadline({ status, step, event });
-    const progressBreakdown = buildProgressBreakdown(snapshot, inventory, options?.chapterProgress ?? null);
+    const progressBreakdown = buildProgressBreakdown(
+      snapshot,
+      inventory,
+      options?.chapterProgress ?? null,
+      options?.factSummary ?? null,
+    );
     const qualityDebtSummary = buildQualityDebtSummary(snapshot.events);
     const qualityBudgetSummary = buildQualityBudgetSummary(snapshot.events);
     const recoveryDecision = buildRecoveryDecision({
@@ -667,6 +720,7 @@ export class DirectorEventProjectionService {
       currentFactStepId: options?.currentFactStep?.stepId ?? null,
       currentFactStepLabel: options?.currentFactStep?.stepLabel ?? null,
       currentFactEvidence: options?.currentFactStep?.evidence ?? null,
+      factSummary: options?.factSummary ?? null,
       headline,
       detail: buildDetail({ status, step, event, blockedReason }),
       lastEventSummary: event?.summary ?? null,
@@ -678,7 +732,7 @@ export class DirectorEventProjectionService {
       recoveryDecision,
       isAutopilotRecoverable,
       scopeSummary: buildScopeSummary(inventory),
-      progressSummary: buildProgressSummary(snapshot, inventory),
+      progressSummary: buildProgressSummary(snapshot, inventory, options?.factSummary ?? null),
       progressBreakdown,
       chapterExecutionProgress: options?.chapterProgress ?? null,
       visibleRiskBadges,

@@ -19,7 +19,7 @@ export const DIRECTOR_PROGRESS = {
   chapterSync: 0.82,
   chapterDetailStart: 0.82,
   chapterDetailDone: 0.92,
-  front10Ready: 0.92,
+  chapterBatchReady: 0.92,
 } as const;
 
 export const DIRECTOR_CHAPTER_DETAIL_MODES = ["task_sheet"] as const;

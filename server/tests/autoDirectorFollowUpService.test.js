@@ -19,7 +19,7 @@ function buildWorkflowRow(overrides = {}) {
     currentStage: "章节执行",
     currentItemKey: "chapter_execution",
     currentItemLabel: "第 11-20 章已准备完成",
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
     checkpointSummary: "第 11-20 章细化已准备完成。",
     resumeTargetJson: JSON.stringify({
       route: "/novels/:id/edit",
@@ -37,7 +37,7 @@ function buildWorkflowRow(overrides = {}) {
     }),
     milestonesJson: JSON.stringify([
       {
-        checkpointType: "front10_ready",
+        checkpointType: "chapter_batch_ready",
         summary: "第 11-20 章细化已准备完成。",
         createdAt: "2026-04-21T09:00:00.000Z",
       },
@@ -113,7 +113,7 @@ test("auto director follow-up service overview counts actionable rows by reason"
       candidate_selection_required: 1,
       replan_required: 0,
       runtime_cancelled: 0,
-      front10_execution_pending: 0,
+      chapter_batch_execution_pending: 0,
       quality_repair_pending: 0,
       auto_progress_running: 0,
       auto_approval_completed: 0,
@@ -240,7 +240,7 @@ test("auto director follow-up service lists actionable items with filters, count
   prisma.novelWorkflowTask.findMany = async ({ where }) => {
     assert.equal(where.lane, "auto_director");
     return [
-      buildWorkflowRow({ id: "task_front10", novelId: "novel_a", updatedAt: new Date("2026-04-21T10:05:00.000Z") }),
+      buildWorkflowRow({ id: "task_chapter_range", novelId: "novel_a", updatedAt: new Date("2026-04-21T10:05:00.000Z") }),
       buildWorkflowRow({
         id: "task_replan",
         novelId: "novel_b",
@@ -262,7 +262,7 @@ test("auto director follow-up service lists actionable items with filters, count
         id: "task_cancelled",
         novelId: "novel_a",
         status: "cancelled",
-        checkpointType: "front10_ready",
+        checkpointType: "chapter_batch_ready",
         currentItemLabel: "第 11-20 章自动执行已取消",
         updatedAt: new Date("2026-04-21T09:05:00.000Z"),
       }),
@@ -337,7 +337,7 @@ test("auto director follow-up service returns section-first counts and filters s
     buildWorkflowRow({
       id: "task_pending",
       status: "waiting_approval",
-      checkpointType: "front10_ready",
+      checkpointType: "chapter_batch_ready",
       updatedAt: new Date("2026-04-21T08:00:00.000Z"),
     }),
     buildWorkflowRow({
@@ -357,7 +357,7 @@ test("auto director follow-up service returns section-first counts and filters s
     buildWorkflowRow({
       id: "task_replaced",
       status: "cancelled",
-      checkpointType: "front10_ready",
+      checkpointType: "chapter_batch_ready",
       currentItemLabel: "任务已由新导演任务接管",
       lastError: "已由自动导演任务 task_new 替代。",
       seedPayloadJson: JSON.stringify({
@@ -386,7 +386,7 @@ test("auto director follow-up service returns section-first counts and filters s
     buildWorkflowRow({
       id: "task_validation",
       status: "waiting_approval",
-      checkpointType: "front10_ready",
+      checkpointType: "chapter_batch_ready",
       currentItemLabel: "等待继续自动执行",
       seedPayloadJson: JSON.stringify({
         autoExecution: {
@@ -784,7 +784,7 @@ test("auto director follow-up service reflects runtime channel capabilities from
   prisma.novelWorkflowTask.findMany = async () => ([
     buildWorkflowRow({
       id: "task_runtime_channels",
-      checkpointType: "front10_ready",
+      checkpointType: "chapter_batch_ready",
     }),
   ]);
   prisma.autoDirectorAutoApprovalRecord.findMany = async () => [];

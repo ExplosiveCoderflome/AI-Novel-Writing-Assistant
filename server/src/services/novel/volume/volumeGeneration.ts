@@ -175,7 +175,21 @@ function mergeChapterDetailIntoWorkspace(params: {
         }
         return {
           ...chapter,
+          purpose: typeof generatedDetail.purpose === "string" ? generatedDetail.purpose : chapter.purpose,
+          exclusiveEvent: typeof generatedDetail.exclusiveEvent === "string" ? generatedDetail.exclusiveEvent : chapter.exclusiveEvent,
+          endingState: typeof generatedDetail.endingState === "string" ? generatedDetail.endingState : chapter.endingState,
+          nextChapterEntryState: typeof generatedDetail.nextChapterEntryState === "string"
+            ? generatedDetail.nextChapterEntryState
+            : chapter.nextChapterEntryState,
+          conflictLevel: typeof generatedDetail.conflictLevel === "number" ? generatedDetail.conflictLevel : chapter.conflictLevel,
+          revealLevel: typeof generatedDetail.revealLevel === "number" ? generatedDetail.revealLevel : chapter.revealLevel,
+          targetWordCount: typeof generatedDetail.targetWordCount === "number" ? generatedDetail.targetWordCount : chapter.targetWordCount,
+          mustAvoid: typeof generatedDetail.mustAvoid === "string" ? generatedDetail.mustAvoid : chapter.mustAvoid,
+          payoffRefs: Array.isArray(generatedDetail.payoffRefs)
+            ? generatedDetail.payoffRefs.filter((item): item is string => typeof item === "string")
+            : chapter.payoffRefs,
           taskSheet: typeof generatedDetail.taskSheet === "string" ? generatedDetail.taskSheet : chapter.taskSheet,
+          sceneCards: typeof generatedDetail.sceneCards === "string" ? generatedDetail.sceneCards : chapter.sceneCards,
         };
       }),
     };

@@ -25,6 +25,7 @@ export default function DirectorBookAutomationCard({
   onOpenTaskCenter,
   onSwitchToProjectNav,
 }: DirectorBookAutomationCardProps) {
+  const effectiveProjection = projection?.status === "cancelled" ? null : projection;
   const handleAction = (_projection: DirectorBookAutomationProjection, action: DirectorBookAutomationAction) => {
     if (action.type === "open_details") {
       onOpenTaskCenter();
@@ -36,12 +37,12 @@ export default function DirectorBookAutomationCard({
   return (
     <div className="space-y-2">
       <AICockpit
-        projection={projection}
+        projection={effectiveProjection}
         mode={compact ? "compact" : "focusedNovel"}
         fallbackSummary={fallbackSummary}
         fallbackStatusLabel={fallbackStatusLabel}
         onAction={handleAction}
-        onOpenDetails={projection?.latestTask ? () => onOpenTaskCenter() : undefined}
+        onOpenDetails={effectiveProjection?.latestTask ? () => onOpenTaskCenter() : undefined}
         onOpenNovel={() => onOpenProgress?.()}
         onOpenFallbackDetails={onOpenProgress ?? onOpenTaskCenter}
       />

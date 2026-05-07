@@ -79,6 +79,22 @@ export class DirectorNodeRunner {
       action: contract.policyAction ?? "run_node",
       policy: input.policy?.policy ?? snapshot?.policy ?? null,
     });
+    const completedStep = (
+      input.reuseCompletedStep !== false
+      && idempotencyKey
+      ? snapshot?.steps.find((step) => (
+        step.idempotencyKey === idempotencyKey
+        && step.status === "succeeded"
+      )) ?? null
+      : null
+    );
+    if (completedStep) {
+      return {
+        status: "completed",
+        runtimeSnapshot: snapshot ?? null,
+        producedArtifacts: completedStep.producedArtifacts ?? [],
+      };
+    }
     if (!policyDecision.canRun || policyDecision.requiresApproval) {
       let runtimeSnapshot: DirectorRuntimeSnapshot | null = snapshot;
       if (input.taskId?.trim()) {

@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   AutoDirectorAction,
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import type { TaskKind, TaskStatus } from "@ai-novel/shared/types/task";
@@ -77,9 +77,6 @@ export function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null |
   }
   if (checkpoint === "volume_strategy_ready") {
     return "卷战略已就绪";
-  }
-  if (checkpoint === "front10_ready") {
-    return `${resolvedScopeLabel}可开写`;
   }
   if (checkpoint === "chapter_batch_ready") {
     return `${resolvedScopeLabel}自动执行已暂停`;

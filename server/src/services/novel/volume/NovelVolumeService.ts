@@ -89,6 +89,108 @@ export class NovelVolumeService {
   private readonly storyMacroPlanService = new StoryMacroPlanService();
   private readonly styleBindingService = new StyleBindingService();
 
+  private async hydrateCanonicalChapterFields(
+    novelId: string,
+    document: VolumePlanDocument,
+  ): Promise<VolumePlanDocument> {
+    const chapterRows = await prisma.chapter.findMany({
+      where: { novelId },
+      orderBy: { order: "asc" },
+      select: {
+        id: true,
+        order: true,
+        title: true,
+        expectation: true,
+        targetWordCount: true,
+        conflictLevel: true,
+        revealLevel: true,
+        mustAvoid: true,
+        taskSheet: true,
+        sceneCards: true,
+      },
+    });
+    if (chapterRows.length === 0) {
+      return document;
+    }
+
+    const chapterByOrder = new Map(chapterRows.map((row) => [row.order, row] as const));
+    let changed = false;
+    const volumes = document.volumes.map((volume) => {
+      const chapters = volume.chapters.map((chapter) => {
+        const row = chapterByOrder.get(chapter.chapterOrder);
+        if (!row) {
+          return chapter;
+        }
+        const nextChapter = {
+          ...chapter,
+          title: row.title,
+          summary: row.expectation?.trim() || chapter.summary,
+          targetWordCount: row.targetWordCount ?? null,
+          conflictLevel: row.conflictLevel ?? null,
+          revealLevel: row.revealLevel ?? null,
+          mustAvoid: row.mustAvoid ?? null,
+          taskSheet: row.taskSheet ?? null,
+          sceneCards: row.sceneCards ?? null,
+        };
+        if (JSON.stringify(nextChapter) !== JSON.stringify(chapter)) {
+          changed = true;
+        }
+        return nextChapter;
+      });
+      return changed ? { ...volume, chapters } : volume;
+    });
+
+    return changed ? { ...document, volumes } : document;
+  }
+
+  async mirrorChapterIntoWorkspace(
+    novelId: string,
+    chapter: {
+      order: number;
+      title: string;
+      expectation?: string | null;
+      targetWordCount?: number | null;
+      conflictLevel?: number | null;
+      revealLevel?: number | null;
+      mustAvoid?: string | null;
+      taskSheet?: string | null;
+      sceneCards?: string | null;
+    },
+  ): Promise<void> {
+    const document = await this.ensureVolumeWorkspace(novelId);
+    let changed = false;
+    const nextVolumes = document.volumes.map((volume) => {
+      const chapters = volume.chapters.map((item) => {
+        if (item.chapterOrder !== chapter.order) {
+          return item;
+        }
+        changed = true;
+        return {
+          ...item,
+          title: chapter.title,
+          summary: chapter.expectation?.trim() || item.summary,
+          targetWordCount: chapter.targetWordCount ?? null,
+          conflictLevel: chapter.conflictLevel ?? null,
+          revealLevel: chapter.revealLevel ?? null,
+          mustAvoid: chapter.mustAvoid ?? null,
+          taskSheet: chapter.taskSheet ?? null,
+          sceneCards: chapter.sceneCards ?? null,
+        };
+      });
+      return changed ? { ...volume, chapters } : volume;
+    });
+    if (!changed) {
+      return;
+    }
+    await this.persistWorkspaceDocument(novelId, {
+      ...document,
+      volumes: nextVolumes,
+    }, {
+      emitEvent: false,
+      syncPayoffLedger: false,
+    });
+  }
+
   private emitVolumeUpdated(novelId: string, reason: VolumeUpdateReason): void {
     void novelEventBus.emit({
       type: "volume:updated",
@@ -172,10 +274,11 @@ export class NovelVolumeService {
   }
 
   private async ensureVolumeWorkspace(novelId: string): Promise<VolumePlanDocument> {
-    return ensureVolumeWorkspaceDocument({
+    const document = await ensureVolumeWorkspaceDocument({
       novelId,
       getLegacySource: () => getLegacyVolumeSource(novelId),
     });
+    return this.hydrateCanonicalChapterFields(novelId, document);
   }
 
   private findVolumeChapterMatch(

@@ -70,6 +70,17 @@ function normalizeRuntimeSnapshot(input: {
   });
 }
 
+function getLegacySeedRuntimeSnapshot(
+  seedPayload: DirectorWorkflowSeedPayload,
+): DirectorRuntimeSnapshot | null {
+  const runtime = (seedPayload as { directorRuntime?: unknown }).directorRuntime;
+  if (!runtime || typeof runtime !== "object") {
+    return null;
+  }
+  const snapshot = runtime as DirectorRuntimeSnapshot;
+  return Array.isArray(snapshot.artifacts) ? snapshot : null;
+}
+
 function trimRuntimeSnapshot(snapshot: DirectorRuntimeSnapshot): DirectorRuntimeSnapshot {
   return {
     ...snapshot,
@@ -125,13 +136,19 @@ export class DirectorRuntimeStore {
       novelId: row.novelId,
       seedPayload,
     });
+    const legacySeedSnapshot = getLegacySeedRuntimeSnapshot(seedPayload);
     const persisted = await this.getPersistentSnapshot(taskId);
     if (persisted) {
-      const snapshot = mergeLegacyRuntimeArtifacts(persisted, emptySnapshot);
+      const snapshot = mergeLegacyRuntimeArtifacts(
+        mergeLegacyRuntimeArtifacts(persisted, legacySeedSnapshot ?? emptySnapshot),
+        emptySnapshot,
+      );
       this.snapshotCache.set(taskId, snapshot);
       return snapshot;
     }
-    return emptySnapshot;
+    return legacySeedSnapshot
+      ? mergeLegacyRuntimeArtifacts(emptySnapshot, legacySeedSnapshot)
+      : emptySnapshot;
   }
 
   async mutateSnapshot(
@@ -155,17 +172,21 @@ export class DirectorRuntimeStore {
       novelId: row.novelId,
       seedPayload,
     });
+    const legacySeedSnapshot = getLegacySeedRuntimeSnapshot(seedPayload);
     const cached = this.snapshotCache.get(taskId);
     const persisted = await this.getPersistentSnapshot(taskId);
     const current = mergeLegacyRuntimeArtifacts(
-      cached ?? persisted ?? emptySnapshot,
+      mergeLegacyRuntimeArtifacts(
+        cached ?? persisted ?? emptySnapshot,
+        legacySeedSnapshot ?? emptySnapshot,
+      ),
       emptySnapshot,
     );
     const nextRuntime = trimRuntimeSnapshot({
       ...mutator(current, seedPayload),
       updatedAt: new Date().toISOString(),
     });
-    const deltaBase = persisted ?? cached ?? null;
+    const deltaBase = persisted ?? emptySnapshot;
     const delta = buildDirectorRuntimePersistenceDelta(deltaBase, nextRuntime);
     await persistDirectorRuntimeSnapshot({
       taskId,

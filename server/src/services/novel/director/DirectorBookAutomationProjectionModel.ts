@@ -175,6 +175,9 @@ export function buildHeadline(input: {
   if (input.status === "waiting_recovery") {
     return "等待恢复自动导演";
   }
+  if (input.status === "cancelled") {
+    return "自动导演已取消";
+  }
   if (input.runtimeProjection?.headline?.trim()) {
     return input.runtimeProjection.headline.trim();
   }
@@ -194,9 +197,6 @@ export function buildHeadline(input: {
   if (input.status === "failed") {
     return "自动导演遇到问题";
   }
-  if (input.status === "cancelled") {
-    return "自动导演已取消";
-  }
   if (input.status === "completed") {
     return "自动导演完成最近一次推进";
   }
@@ -214,6 +214,9 @@ export function buildDetail(input: {
 }): string | null {
   if (input.status === "waiting_recovery") {
     return input.task?.lastError?.trim() || "后台执行中断后保留了进度点，确认恢复后会从最近进展继续。";
+  }
+  if (input.status === "cancelled") {
+    return "自动导演任务已取消。";
   }
   if (input.runtimeProjection?.detail?.trim()) {
     return input.runtimeProjection.detail.trim();
@@ -436,7 +439,7 @@ export function buildPrimaryAction(input: {
         emphasis: "primary",
       });
     }
-    if (input.task?.checkpointType === "front10_ready" || input.task?.checkpointType === "chapter_batch_ready") {
+    if (input.task?.checkpointType === "chapter_batch_ready") {
       return action({
         type: "auto_execute_range",
         label: "继续自动执行章节",

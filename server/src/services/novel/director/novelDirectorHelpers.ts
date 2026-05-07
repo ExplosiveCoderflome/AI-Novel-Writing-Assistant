@@ -176,7 +176,7 @@ function resolveDirectorLockedScopes(input: {
     ) {
       return DIRECTOR_ALL_MUTATING_SCOPES;
     }
-    if (input.phase === "front10_ready") {
+    if (input.phase === "chapter_execution") {
       if (isDirectorAutoExecutionRunMode(input.runMode)) {
         return ["chapter", "pipeline"];
       }
@@ -195,7 +195,7 @@ function resolveDirectorLockedScopes(input: {
   if (input.phase === "volume_strategy") {
     return ["structured", "chapter", "pipeline"];
   }
-  if (input.phase === "front10_ready") {
+  if (input.phase === "chapter_execution") {
     return [];
   }
   if (input.phase === "story_macro") {
@@ -214,7 +214,7 @@ function resolveDirectorReviewScope(phase: DirectorSessionState["phase"]): Direc
   if (phase === "volume_strategy") {
     return "outline";
   }
-  if (phase === "front10_ready") {
+  if (phase === "chapter_execution") {
     return "chapter";
   }
   return null;

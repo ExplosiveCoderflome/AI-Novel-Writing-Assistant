@@ -134,7 +134,6 @@ const WORKFLOW_CHECKPOINTS: readonly NovelWorkflowCheckpoint[] = [
   "book_contract_ready",
   "character_setup_required",
   "volume_strategy_ready",
-  "front10_ready",
   "chapter_batch_ready",
   "replan_required",
   "workflow_completed",

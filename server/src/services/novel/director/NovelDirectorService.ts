@@ -54,7 +54,6 @@ import { NovelDirectorAutoExecutionRuntime } from "./novelDirectorAutoExecutionR
 import {
   loadDirectorTakeoverState,
 } from "./novelDirectorTakeoverRuntime";
-import { getDirectorTakeoverStepModule } from "./workflowStepRuntime/directorWorkflowStepModules";
 import { startDirectorTakeoverExecution } from "./novelDirectorTakeoverExecution";
 import {
   resetDirectorTakeoverCurrentStep,
@@ -192,6 +191,7 @@ export class NovelDirectorService {
     directorRuntime: this.directorRuntime,
     runtimeOrchestrator: this.directorRuntimeOrchestrator,
     candidateRuntime: this.candidateRuntime,
+    autoExecutionRuntime: this.autoExecutionRuntime,
     pipelineRuntime: this.directorPipelineRuntime,
     continueCandidateStageTask: (taskId, payload) => this.continueCandidateStageTask(taskId, payload),
     resolveAssetFirstRecovery: (payload) => this.resolveAssetFirstRecovery(payload),
@@ -580,7 +580,6 @@ export class NovelDirectorService {
       },
       buildDirectorSeedPayload: (request, novelId, extra) => buildDirectorWorkflowSeedPayload(request, novelId, extra),
       scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, async () => {
-        const module = getDirectorTakeoverStepModule();
         await this.directorRuntime.initializeRun({
           taskId,
           novelId: input.novelId,
@@ -592,14 +591,9 @@ export class NovelDirectorService {
           taskId,
           analysis: takeoverWorkspaceAnalysis,
         });
-        await this.directorRuntimeOrchestrator.runStepModule({
-          module,
-          taskId,
-          novelId: input.novelId,
-          approveCurrentGate: isFullBookAutopilot,
-          approveAutoExecutionScope: isFullBookAutopilot,
-          runner,
-        });
+        // Runtime initialization makes the takeover bookkeeping module complete.
+        // Run the scheduled continuation directly so phase/chapter execution is not skipped.
+        await runner();
       }),
       runDirectorPipeline: (payload) => this.directorPipelineRuntime.runPipeline(payload),
       assertHighMemoryStartAllowed: (payload) => this.assertHighMemoryDirectorStartAllowed(payload),

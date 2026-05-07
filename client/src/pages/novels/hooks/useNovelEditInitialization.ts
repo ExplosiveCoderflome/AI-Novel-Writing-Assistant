@@ -43,6 +43,7 @@ interface UseNovelEditInitializationArgs {
   sourceNovelBookAnalysisOptions: Array<{ id: string }>;
   sourceBookAnalysesLoading: boolean;
   sourceBookAnalysesFetching: boolean;
+  hydrateVolumeDraftFromDetail: boolean;
   setBasicForm: (value: NovelBasicFormState | ((prev: NovelBasicFormState) => NovelBasicFormState)) => void;
   setVolumeDraft: (value: VolumePlan[]) => void;
   setPipelineForm: (value: PipelineFormState | ((prev: PipelineFormState) => PipelineFormState)) => void;
@@ -76,6 +77,7 @@ export function useNovelEditInitialization({
   sourceNovelBookAnalysisOptions,
   sourceBookAnalysesLoading,
   sourceBookAnalysesFetching,
+  hydrateVolumeDraftFromDetail,
   setBasicForm,
   setVolumeDraft,
   setPipelineForm,
@@ -121,7 +123,9 @@ export function useNovelEditInitialization({
       continuationBookAnalysisId: detail.continuationBookAnalysisId ?? "",
       continuationBookAnalysisSections: detail.continuationBookAnalysisSections ?? [],
     });
-    setVolumeDraft(detail.volumes ?? []);
+    if (hydrateVolumeDraftFromDetail) {
+      setVolumeDraft(detail.volumes ?? []);
+    }
     const recommendedEndOrder = Math.max(
       detail.estimatedChapterCount ?? DEFAULT_ESTIMATED_CHAPTER_COUNT,
       detail.volumes?.flatMap((volume) => volume.chapters).length ?? 0,
@@ -132,7 +136,7 @@ export function useNovelEditInitialization({
       ...prev,
       endOrder: Math.max(prev.endOrder, recommendedEndOrder),
     }));
-  }, [detail, setBasicForm, setPipelineForm, setVolumeDraft]);
+  }, [detail, hydrateVolumeDraftFromDetail, setBasicForm, setPipelineForm, setVolumeDraft]);
 
   useEffect(() => {
     if (!selectedChapterId && chapters.length > 0) {

@@ -118,7 +118,7 @@ function isEntryStepAllowedForScope(
   entryStep: DirectorTakeoverEntryStep,
   scopeMode: DirectorAutoExecutionMode,
 ): boolean {
-  if (scopeMode === "chapter_range" || scopeMode === "front10") {
+  if (scopeMode === "chapter_range") {
     return entryStep === "structured" || entryStep === "chapter" || entryStep === "pipeline";
   }
   if (scopeMode === "volume") {

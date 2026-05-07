@@ -76,7 +76,7 @@ export interface DirectorTakeoverResolvedPlan {
   restartStep?: DirectorTakeoverEntryStep | null;
   executionMode: "phase" | "auto_execution";
   phase?: DirectorTakeoverStartPhase;
-  resumeCheckpointType?: "front10_ready" | "chapter_batch_ready" | "replan_required" | null;
+  resumeCheckpointType?: "chapter_batch_ready" | "replan_required" | null;
 }
 
 const DIRECTOR_TAKEOVER_STAGE_META: Record<
@@ -884,7 +884,7 @@ function buildEntryReason(input: {
     if (input.activePipelineJob) {
       return "检测到活动中的章节批次，继续模式会优先恢复当前批次。";
     }
-    if (input.latestCheckpoint?.checkpointType === "front10_ready" || input.executableRange) {
+    if (input.latestCheckpoint?.checkpointType === "chapter_batch_ready" || input.executableRange) {
       return "检测到可执行章节范围，继续模式会按当前范围恢复或续跑。";
     }
     return "当前可以从章节执行接管。";

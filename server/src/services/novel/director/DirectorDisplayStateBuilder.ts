@@ -5,6 +5,7 @@ import type {
   DirectorDisplayState,
   DirectorDisplayStep,
   DirectorRuntimeProjection,
+  DirectorTaskFactSummary,
 } from "@ai-novel/shared/types/directorRuntime";
 import type { NovelWorkflowMilestoneType } from "@ai-novel/shared/types/novelWorkflow";
 import type { WorkflowStepProgress } from "./workflowStepRuntime/WorkflowStepModule";
@@ -116,8 +117,7 @@ const CHECKPOINT_STAGE_MAP: Partial<Record<NovelWorkflowMilestoneType, DirectorD
   book_contract_ready: "story_planning",
   character_setup_required: "character_setup",
   volume_strategy_ready: "volume_strategy",
-  front10_ready: "structured_outline",
-  chapter_batch_ready: "chapter_execution",
+  chapter_batch_ready: "structured_outline",
   replan_required: "quality_repair",
   workflow_completed: "quality_repair",
 };
@@ -156,6 +156,7 @@ function resolveDisplayStage(input: {
   activeNodeKey?: string | null;
   taskCurrentItemKey?: string | null;
   checkpointType?: string | null;
+  taskStatus?: string | null;
   currentStage?: string | null;
 }): DirectorDisplayStageKey {
   const candidates = [
@@ -175,7 +176,9 @@ function resolveDisplayStage(input: {
       return NODE_STAGE_MAP[candidate];
     }
   }
-  const checkpointStage = input.checkpointType
+  const checkpointStage = input.checkpointType === "chapter_batch_ready" && input.taskStatus && input.taskStatus !== "waiting_approval"
+    ? "chapter_execution"
+    : input.checkpointType
     ? CHECKPOINT_STAGE_MAP[input.checkpointType as NovelWorkflowMilestoneType] ?? null
     : null;
   if (checkpointStage) {
@@ -201,7 +204,7 @@ function buildCheckpointLabel(task: SnapshotTaskLike): string {
   if (checkpoint === "volume_strategy_ready") {
     return "卷战略已就绪";
   }
-  if (checkpoint === "front10_ready") {
+  if (checkpoint === "chapter_batch_ready" && task.status === "waiting_approval") {
     return "节奏拆章完成，可进入章节执行";
   }
   if (checkpoint === "chapter_batch_ready") {
@@ -232,6 +235,7 @@ function hasLiveRuntimeProgress(task: SnapshotTaskLike, projection: DirectorRunt
 function buildMode(input: {
   task: SnapshotTaskLike;
   projection: DirectorRuntimeProjection | null;
+  factSummary?: DirectorTaskFactSummary | null;
   showPendingManualRecovery: boolean;
 }): DirectorDisplayMode {
   if (input.showPendingManualRecovery) {
@@ -259,11 +263,10 @@ function buildMode(input: {
   ) {
     return "running";
   }
-  if (
-    input.projection?.status === "completed"
-    || input.task.status === "succeeded"
-    || input.task.checkpointType === "workflow_completed"
-  ) {
+  if (input.factSummary) {
+    return input.factSummary.allStepsCompleted ? "completed" : "idle";
+  }
+  if (input.task.checkpointType === "workflow_completed") {
     return "completed";
   }
   return "idle";
@@ -402,6 +405,7 @@ function buildSteps(currentStageKey: DirectorDisplayStageKey, mode: DirectorDisp
 export function buildDirectorDisplayState(input: {
   task: SnapshotTaskLike;
   projection: DirectorRuntimeProjection | null;
+  factSummary?: DirectorTaskFactSummary | null;
   activeStepNodeKey?: string | null;
   currentFactStepId?: string | null;
   currentFactStepLabel?: string | null;
@@ -416,12 +420,14 @@ export function buildDirectorDisplayState(input: {
     activeNodeKey: input.activeStepNodeKey ?? null,
     taskCurrentItemKey: input.task.currentItemKey ?? null,
     checkpointType: input.task.checkpointType ?? null,
+    taskStatus: input.task.status ?? null,
     currentStage: input.task.currentStage ?? null,
   });
   const stage = DISPLAY_STAGES.find((item) => item.key === stageKey) ?? DISPLAY_STAGES[0];
   const mode = buildMode({
     task: input.task,
     projection: input.projection,
+    factSummary: input.factSummary ?? null,
     showPendingManualRecovery: needsRecovery,
   });
   const stepIndex = Math.max(0, DISPLAY_STAGES.findIndex((item) => item.key === stage.key));

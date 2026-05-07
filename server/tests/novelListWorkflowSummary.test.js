@@ -124,7 +124,7 @@ test("listNovels attaches latest visible auto director summary, skips archived t
       currentStage: "chapter_execution",
       currentItemKey: "chapter_execution",
       currentItemLabel: "前 10 章可进入章节执行",
-      checkpointType: "front10_ready",
+      checkpointType: "chapter_batch_ready",
       checkpointSummary: "这条任务应该被归档过滤。",
       resumeTargetJson: null,
       seedPayloadJson: null,

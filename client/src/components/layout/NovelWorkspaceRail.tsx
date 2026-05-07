@@ -99,9 +99,6 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
     }
     return normalizeNovelWorkspaceTab(searchParams.get("stage"));
   }, [location.pathname, searchParams]);
-  const shouldLoadVolumeWorkspace = activeTab === "outline" || activeTab === "structured";
-  const shouldLoadQualityReport = activeTab === "pipeline";
-
   const novelDetailQuery = useQuery({
     queryKey: queryKeys.novels.detail(novelId),
     queryFn: () => getNovelDetail(novelId),
@@ -110,12 +107,12 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
   const volumeWorkspaceQuery = useQuery({
     queryKey: queryKeys.novels.volumeWorkspace(novelId),
     queryFn: () => getNovelVolumeWorkspace(novelId),
-    enabled: Boolean(novelId && shouldLoadVolumeWorkspace),
+    enabled: Boolean(novelId),
   });
   const qualityReportQuery = useQuery({
     queryKey: queryKeys.novels.qualityReport(novelId),
     queryFn: () => getNovelQualityReport(novelId),
-    enabled: Boolean(novelId && shouldLoadQualityReport),
+    enabled: Boolean(novelId),
   });
   const activeTaskQuery = useQuery({
     queryKey: queryKeys.novels.autoDirectorTask(novelId),
@@ -142,10 +139,14 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
   const novelDetail = novelDetailQuery.data?.data;
   const workspace = volumeWorkspaceQuery.data?.data;
   const qualitySummary = qualityReportQuery.data?.data?.summary;
-  const activeTask = activeTaskQuery.isFetchedAfterMount
+  const latestActiveTask = activeTaskQuery.isFetchedAfterMount
     ? activeTaskQuery.data?.data ?? null
     : null;
-  const bookAutomationProjection = bookAutomationQuery.data?.data?.projection ?? null;
+  const activeTask = latestActiveTask?.status === "cancelled" ? null : latestActiveTask;
+  const latestBookAutomationProjection = bookAutomationQuery.data?.data?.projection ?? null;
+  const bookAutomationProjection = latestBookAutomationProjection?.status === "cancelled"
+    ? null
+    : latestBookAutomationProjection;
   const runtimeProjectionQuery = useQuery({
     queryKey: queryKeys.tasks.directorRuntime(activeTask?.id ?? "none"),
     queryFn: () => getDirectorRuntimeProjection(activeTask?.id as string),

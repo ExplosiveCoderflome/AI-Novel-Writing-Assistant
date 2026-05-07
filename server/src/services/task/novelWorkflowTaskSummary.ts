@@ -20,7 +20,7 @@ export function buildNovelWorkflowNextActionLabel(
   if (!resumeAction) {
     return null;
   }
-  if (status === "waiting_approval" && checkpointType === "front10_ready") {
+  if (status === "waiting_approval" && checkpointType === "chapter_batch_ready") {
     return "进入已准备章节";
   }
   return resumeAction;

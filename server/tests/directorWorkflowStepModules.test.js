@@ -52,6 +52,18 @@ test("director workflow step registry exposes unified step modules", () => {
   const takeoverModule = getDirectorTakeoverStepModule();
   assert.equal(takeoverModule.id, "workflow.takeover.execute");
   assert.equal(takeoverModule.nodeKey, "takeover_execution");
+  for (const module of [
+    candidateModule,
+    novelCreateModule,
+    takeoverModule,
+    outlineModule,
+  ]) {
+    assert.equal(typeof module.inspectReadiness, "function");
+    assert.equal(typeof module.inspectCompletion, "function");
+    assert.equal(typeof module.inspectProgress, "function");
+    assert.equal(typeof module.recover, "function");
+    assert.equal(typeof module.completeCriteria, "function");
+  }
 });
 
 test("director workflow write contract covers every write-capable runtime step", () => {
@@ -66,6 +78,65 @@ test("director workflow write contract covers every write-capable runtime step",
     ]),
     /missing write story_macro|missing step module/,
   );
+});
+
+test("confirmed existing novel project does not require candidate batches", async () => {
+  const module = getDirectorConfirmNovelCreateStepModule();
+  const context = {
+    taskId: "task-existing-project",
+    novelId: "novel-existing",
+    artifacts: [],
+    projectionHints: {
+      directorFactBaseSummary: {
+        hasNovelProject: true,
+        candidate: {
+          batchCount: 0,
+          candidateCount: 0,
+          mode: null,
+          checkpointReady: false,
+        },
+        book: {
+          hasStoryMacro: false,
+          hasBookContract: false,
+          characterCount: 0,
+        },
+        outline: {
+          hasVolumeStrategy: false,
+          volumeCount: 0,
+          plannedChapterCount: 0,
+          beatSheetReady: false,
+          chapterListReady: false,
+          chapterDetailReady: false,
+          selectedChapterCount: 0,
+          completedDetailSteps: 0,
+          totalDetailSteps: 0,
+          syncedChapterCount: 0,
+          cursorStep: null,
+        },
+        chapterExecution: null,
+        repair: {
+          draftedChapterCount: 0,
+          reviewedChapterCount: 0,
+          committedChapterCount: 0,
+          needsRepairChapterCount: 0,
+          hasReviewableDrafts: false,
+        },
+        artifactSync: {
+          payoffArtifactCount: 0,
+          characterResourceArtifactCount: 0,
+        },
+      },
+    },
+  };
+
+  const readiness = await module.inspectReadiness(context);
+
+  assert.equal(readiness.ready, true);
+  assert.deepEqual(readiness.blockers, []);
+  assert.deepEqual(readiness.evidence, {
+    batchCount: 0,
+    hasNovelProject: true,
+  });
 });
 
 test("chapter pipeline template converts execution flow into ordered step plan", () => {

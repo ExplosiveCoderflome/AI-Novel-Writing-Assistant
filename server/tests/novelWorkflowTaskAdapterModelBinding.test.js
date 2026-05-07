@@ -442,7 +442,7 @@ test("task center list surfaces actual auto execution range in explainability fi
       currentStage: "章节执行",
       currentItemKey: "chapter_execution",
       currentItemLabel: "第 11-20 章已准备完成",
-      checkpointType: "front10_ready",
+      checkpointType: "chapter_batch_ready",
       checkpointSummary: "第 11-20 章细化已准备完成。",
       resumeTargetJson: null,
       attemptCount: 1,
@@ -533,7 +533,7 @@ test("task detail treats review-blocked auto execution as skippable continuation
       model: "deepseek-chat",
       autoExecution: {
         enabled: true,
-        mode: "front10",
+        mode: "chapter_range",
         scopeLabel: "前 10 章",
         startOrder: 1,
         endOrder: 10,

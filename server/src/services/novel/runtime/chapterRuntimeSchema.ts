@@ -6,7 +6,7 @@ const chapterRuntimeControlPolicySchema = z.object({
   advanceMode: z.enum(["manual", "stage_review", "auto_to_ready", "auto_to_execution", "full_book_autopilot"]),
   reviewCheckpoints: z.array(z.string()).default([]),
   autoExecutionRange: z.object({
-    mode: z.enum(["book", "front10", "volume", "chapter_range"]),
+    mode: z.enum(["book", "volume", "chapter_range"]),
     start: z.number().int().nullable().optional(),
     end: z.number().int().nullable().optional(),
     volumeOrder: z.number().int().nullable().optional(),

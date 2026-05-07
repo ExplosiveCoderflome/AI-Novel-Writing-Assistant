@@ -447,6 +447,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
     // Structured outline sync refreshes execution contracts; generated prose stays protected.
     preserveContent: true,
     applyDeletes: false,
+    executionContractChapterRange: targetChapterRange ?? undefined,
   }, {
     emitEvent: false,
     syncPayoffLedger: false,
@@ -545,7 +546,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
 
   const pausedSession = buildDirectorSessionState({
     runMode: request.runMode,
-    phase: "front10_ready",
+    phase: "chapter_execution",
     isBackgroundRunning: false,
   });
   const chapterResumeTarget = buildNovelEditResumeTarget({
@@ -557,12 +558,12 @@ export async function runDirectorStructuredOutlinePhase(input: {
   });
   await dependencies.workflowService.recordCheckpoint(taskId, {
     stage: "chapter_execution",
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
     checkpointSummary: `《${request.candidate.workingTitle.trim() || request.title?.trim() || "当前项目"}》已准备好${autoExecutionScopeLabel}的章节执行资源。`,
     itemLabel: `${autoExecutionScopeLabel}已可进入章节执行`,
     volumeId: selectedChapters[0]?.volumeId ?? firstVolume.id,
     chapterId: selectedChapters[0]?.id ?? null,
-    progress: DIRECTOR_PROGRESS.front10Ready,
+    progress: DIRECTOR_PROGRESS.chapterBatchReady,
     seedPayload: callbacks.buildDirectorSeedPayload(request, novelId, {
       directorSession: pausedSession,
       resumeTarget: chapterResumeTarget,
@@ -575,7 +576,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
     taskId,
     novelId,
     stage: "structured_outline",
-    itemKey: "front10_ready",
+    itemKey: "chapter_batch_ready",
     scope: autoExecutionScopeLabel,
     entrypoint: "auto_director",
     volumeCount: persistedOutlineWorkspace.volumes.length,

@@ -16,7 +16,7 @@ export interface DirectorAutoExecutionDraftState {
 }
 
 const DEFAULT_DIRECTOR_AUTO_EXECUTION_DRAFT: DirectorAutoExecutionDraftState = {
-  mode: "front10",
+  mode: "chapter_range",
   startOrder: "1",
   endOrder: "10",
   volumeOrder: "1",
@@ -37,9 +37,9 @@ const NEW_BOOK_SCOPE_OPTIONS: Array<{
     description: "适合直接让 AI 从规划到正文执行覆盖整本书。",
   },
   {
-    value: "front10",
-    label: "前 N 章",
-    description: "适合先跑出开局样章，默认前 10 章，可按整书章节数调整。",
+    value: "chapter_range",
+    label: "第 1-N 章",
+    description: "适合先跑出开局样章，默认第 1-10 章，可按整书章节数调整。",
   },
   {
     value: "volume",
@@ -175,7 +175,7 @@ export function buildDirectorAutoExecutionPlanFromDraft(
   }
   const endOrder = clampChapterOrder(normalizePositiveInteger(draft.endOrder, 10), options?.maxChapterCount);
   return {
-    mode: "front10",
+    mode: "chapter_range",
     startOrder: 1,
     endOrder,
     autoReview: draft.autoReview,
@@ -200,7 +200,7 @@ export function buildDirectorAutoExecutionPlanLabel(
   if (plan?.mode === "volume") {
     return `第 ${normalizePositiveInteger(plan.volumeOrder, 1)} 卷`;
   }
-  return `前 ${normalizePositiveInteger(plan?.endOrder, 10)} 章`;
+  return `第 1-${normalizePositiveInteger(plan?.endOrder, 10)} 章`;
 }
 
 interface DirectorAutoExecutionPlanFieldsProps {
@@ -219,8 +219,8 @@ export function DirectorAutoExecutionPlanFields({
   const plan = buildDirectorAutoExecutionPlanFromDraft(draft, { usage, maxChapterCount });
   const scopeLabel = buildDirectorAutoExecutionPlanLabel(plan);
   const scopeOptions = usage === "takeover" ? TAKEOVER_SCOPE_OPTIONS : NEW_BOOK_SCOPE_OPTIONS;
-  const canEditFrontCount = draft.mode === "front10";
-  const canEditChapterRange = draft.mode === "chapter_range";
+  const canEditChapterCount = usage === "new_book" && draft.mode === "chapter_range";
+  const canEditChapterRange = usage === "takeover" && draft.mode === "chapter_range";
   const canEditVolumeOrder = usage === "takeover" && draft.mode === "volume";
   const reviewLabel = draft.autoReview
     ? draft.autoRepair
@@ -256,7 +256,7 @@ export function DirectorAutoExecutionPlanFields({
         })}
       </div>
 
-      {canEditFrontCount ? (
+      {canEditChapterCount ? (
         <div className="mt-4 max-w-xs">
           <div className="text-xs font-medium text-foreground">章节数量</div>
           <Input

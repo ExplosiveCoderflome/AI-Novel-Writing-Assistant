@@ -7,6 +7,7 @@ import {
   buildDirectorAutoExecutionScopeLabelFromState,
   buildDirectorAutoExecutionState,
   canPreserveDirectorAutoExecutionSkippedChapter,
+  hasDirectorAutoExecutionChapterContract,
   hasDirectorSyncedChapterExecutionContext,
   isDirectorAutoExecutionChapterProcessed,
   normalizeDirectorAutoExecutionPlan,
@@ -62,7 +63,10 @@ function findMissingExecutionContextOrders(
       || !canPreserveDirectorAutoExecutionSkippedChapter(chapter)
     ))
     .filter((chapter) => !isDirectorAutoExecutionChapterProcessed(chapter))
-    .filter((chapter) => !hasDirectorSyncedChapterExecutionContext(chapter))
+    .filter((chapter) => (
+      !hasDirectorAutoExecutionChapterContract(chapter)
+      && !hasDirectorSyncedChapterExecutionContext(chapter)
+    ) || !hasDirectorAutoExecutionChapterContract(chapter))
     .map((chapter) => chapter.order)
     .sort((left, right) => left - right);
 }
@@ -283,7 +287,7 @@ export async function resolveAutoExecutionRangeAndState(input: {
   if (missingExecutionContextOrders.length > 0) {
     const resolvedScopeLabel = scopeLabel ?? buildDirectorAutoExecutionScopeLabelFromState(input.existingState, range.totalChapterCount);
     throw new Error(
-      `${resolvedScopeLabel}对应的章节执行区还有第 ${missingExecutionContextOrders.slice(0, 5).join("、")} 章缺少已同步的章节执行上下文，请先回到节奏 / 拆章补齐基础章节信息后再继续。`,
+      `${resolvedScopeLabel}对应的章节执行区还有第 ${missingExecutionContextOrders.slice(0, 5).join("、")} 章缺少完整章节细化，请先回到节奏 / 拆章补齐章节细化后再继续。`,
     );
   }
   return {

@@ -31,8 +31,8 @@ export interface DirectorAutoExecutionChapterRange {
   endOrder: number;
 }
 
-export const DIRECTOR_FRONT10_START_ORDER = 1;
-export const DIRECTOR_FRONT10_END_ORDER = 10;
+export const DIRECTOR_DEFAULT_RANGE_START_ORDER = 1;
+export const DIRECTOR_DEFAULT_RANGE_END_ORDER = 10;
 
 export interface DirectorAutoExecutionChapterRef {
   id: string;
@@ -54,6 +54,9 @@ export function normalizeDirectorAutoExecutionPlan(
 ): DirectorAutoExecutionPlan {
   const autoReview = plan?.autoReview ?? true;
   const autoRepair = autoReview ? (plan?.autoRepair ?? true) : false;
+  const rawMode = typeof (plan as { mode?: unknown } | null | undefined)?.mode === "string"
+    ? (plan as { mode?: string }).mode
+    : null;
   if (plan?.mode === "chapter_range") {
     const startOrder = Math.max(1, Math.round(plan.startOrder ?? 1));
     const endOrder = Math.max(startOrder, Math.round(plan.endOrder ?? startOrder));
@@ -80,14 +83,18 @@ export function normalizeDirectorAutoExecutionPlan(
       autoRepair,
     };
   }
-  const frontEndOrder = Math.max(
-    DIRECTOR_FRONT10_START_ORDER,
-    Math.round(plan?.endOrder ?? DIRECTOR_FRONT10_END_ORDER),
+  const fallbackStartOrder = Math.max(
+    DIRECTOR_DEFAULT_RANGE_START_ORDER,
+    Math.round(plan?.startOrder ?? DIRECTOR_DEFAULT_RANGE_START_ORDER),
+  );
+  const fallbackEndOrder = Math.max(
+    fallbackStartOrder,
+    Math.round(plan?.endOrder ?? (rawMode ? fallbackStartOrder : DIRECTOR_DEFAULT_RANGE_END_ORDER)),
   );
   return {
-    mode: "front10",
-    startOrder: DIRECTOR_FRONT10_START_ORDER,
-    endOrder: frontEndOrder,
+    mode: "chapter_range",
+    startOrder: fallbackStartOrder,
+    endOrder: fallbackEndOrder,
     autoReview,
     autoRepair,
   };
@@ -101,12 +108,12 @@ export function resolveDirectorAutoExecutionPlanChapterRange(
     return null;
   }
   const startOrder = Math.max(
-    DIRECTOR_FRONT10_START_ORDER,
-    Math.round(normalized.startOrder ?? DIRECTOR_FRONT10_START_ORDER),
+    DIRECTOR_DEFAULT_RANGE_START_ORDER,
+    Math.round(normalized.startOrder ?? DIRECTOR_DEFAULT_RANGE_START_ORDER),
   );
   const endOrder = Math.max(
     startOrder,
-    Math.round(normalized.endOrder ?? DIRECTOR_FRONT10_END_ORDER),
+    Math.round(normalized.endOrder ?? DIRECTOR_DEFAULT_RANGE_END_ORDER),
   );
   return {
     startOrder,
@@ -137,7 +144,7 @@ export function buildDirectorAutoExecutionScopeLabel(
     const volumeLabel = fallbackVolumeTitle?.trim() ? ` · ${fallbackVolumeTitle.trim()}` : "";
     return `第 ${normalized.volumeOrder} 卷${volumeLabel}`;
   }
-  return `前 ${Math.max(1, normalized.endOrder ?? fallbackTotalChapterCount ?? 10)} 章`;
+  return `第 1-${Math.max(1, normalized.endOrder ?? fallbackTotalChapterCount ?? 10)} 章`;
 }
 
 export function resolveDirectorAutoExecutionBookRange(
@@ -145,7 +152,7 @@ export function resolveDirectorAutoExecutionBookRange(
 ): DirectorAutoExecutionRange | null {
   const selected = chapters
     .slice()
-    .filter((chapter) => chapter.order >= DIRECTOR_FRONT10_START_ORDER)
+    .filter((chapter) => chapter.order >= DIRECTOR_DEFAULT_RANGE_START_ORDER)
     .sort((left, right) => left.order - right.order);
   if (selected.length === 0) {
     return null;
@@ -172,20 +179,21 @@ export function resolveDirectorAutoExecutionRange(
   chapters: DirectorAutoExecutionChapterRef[],
   preferredChapterCount = 10,
 ): DirectorAutoExecutionRange | null {
-  const startOrder = DIRECTOR_FRONT10_START_ORDER;
-  const endOrder = Math.max(startOrder, Math.round(preferredChapterCount));
+  const normalizedPreferredChapterCount = Math.max(1, Math.round(preferredChapterCount));
+  const startOrder = DIRECTOR_DEFAULT_RANGE_START_ORDER;
+  const endOrder = Math.max(startOrder, normalizedPreferredChapterCount);
   const selected = chapters
     .slice()
     .filter((chapter) => chapter.order >= startOrder && chapter.order <= endOrder)
     .sort((left, right) => left.order - right.order)
-    .slice(0, preferredChapterCount);
+    .slice(0, normalizedPreferredChapterCount);
   if (selected.length === 0) {
     return null;
   }
   return {
     startOrder,
     endOrder,
-    totalChapterCount: preferredChapterCount,
+    totalChapterCount: normalizedPreferredChapterCount,
     firstChapterId: selected[0].id,
   };
 }

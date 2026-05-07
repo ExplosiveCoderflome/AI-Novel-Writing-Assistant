@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   AutoDirectorActionValidationInput,
   AutoDirectorAffectedScope,
   AutoDirectorFollowUpSection,
@@ -61,18 +61,13 @@ function resolveScopeFromPlan(plan: DirectorAutoExecutionPlan | null | undefined
       volumeOrder,
     };
   }
-  if (plan?.mode === "front10") {
-    const endOrder = Math.max(1, normalizeChapterOrder(plan.endOrder) ?? 10);
-    return {
-      type: "chapter_range",
-      label: `前 ${endOrder} 章`,
-      startOrder: 1,
-      endOrder,
-    };
-  }
+  const startOrder = normalizeChapterOrder(plan?.startOrder) ?? 1;
+  const endOrder = Math.max(startOrder, normalizeChapterOrder(plan?.endOrder) ?? startOrder);
   return {
-    type: "book",
-    label: "全书",
+    type: "chapter_range",
+    label: startOrder === endOrder ? `第 ${startOrder} 章` : `第 ${startOrder}-${endOrder} 章`,
+    startOrder,
+    endOrder,
   };
 }
 
@@ -374,7 +369,7 @@ export function validateAutoDirectorTakeoverRequest(
           }),
         ]
         : [],
-    nextCheckpoint: "front10_ready",
+    nextCheckpoint: "chapter_batch_ready",
     nextAction: blockingReasons.length > 0
       ? canBackfillStructuredOutline
         ? "auto_backfill_structured_outline"
@@ -406,7 +401,7 @@ export function validateAutoDirectorAction(input: AutoDirectorActionValidationIn
   if (input.actionCode === "continue_auto_execution" && input.task.status !== "waiting_approval") {
     blockingReasons.push("当前任务不在等待继续状态，请先重新校验任务状态。");
   }
-  if (input.actionCode === "continue_auto_execution" && input.task.checkpointType !== "front10_ready" && input.task.checkpointType !== "chapter_batch_ready") {
+  if (input.actionCode === "continue_auto_execution" && input.task.checkpointType !== "chapter_batch_ready") {
     blockingReasons.push("当前检查点不能直接继续章节执行，请先查看任务详情。");
   }
   if ((input.actionCode === "retry_with_task_model" || input.actionCode === "retry_with_route_model") && input.task.status !== "failed" && input.task.status !== "cancelled") {

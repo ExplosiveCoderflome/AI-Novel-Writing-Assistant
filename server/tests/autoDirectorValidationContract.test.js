@@ -137,7 +137,7 @@ test("validateAutoDirectorTakeoverRequest allows volume-scoped structured outlin
     label: "第 2 卷",
     volumeOrder: 2,
   });
-  assert.equal(result.nextCheckpoint, "front10_ready");
+  assert.equal(result.nextCheckpoint, "chapter_batch_ready");
   assert.equal(result.nextAction, "continue_structured_outline");
 });
 
@@ -421,7 +421,7 @@ test("validateAutoDirectorAction marks safe follow-up continue with required che
       id: "task-2",
       lane: "auto_director",
       status: "waiting_approval",
-      checkpointType: "front10_ready",
+      checkpointType: "chapter_batch_ready",
       pendingManualRecovery: false,
       novelId: "novel-1",
       seedPayload: {
@@ -444,7 +444,7 @@ test("validateAutoDirectorAction marks safe follow-up continue with required che
 test("resolveAutoDirectorFollowUpSection gives validation issues top priority over actionable waiting state", () => {
   const section = resolveAutoDirectorFollowUpSection({
     status: "waiting_approval",
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
     validationResult: {
       allowed: false,
       blockingReasons: ["目标范围缺少节奏拆章，需要先重新校验。"],
@@ -484,7 +484,7 @@ test("resolveAutoDirectorFollowUpSection prioritizes validation, exceptions, pen
 
   assert.equal(resolveAutoDirectorFollowUpSection({
     status: "waiting_approval",
-    checkpointType: "front10_ready",
+    checkpointType: "chapter_batch_ready",
     replacementTaskId: "task_new",
   }), "pending");
 

@@ -117,3 +117,75 @@ test("display state keeps running mode when recovery flag exists but live runtim
   assert.equal(displayState.needsRecovery, false);
   assert.equal(displayState.isLiveRunning, true);
 });
+
+test("display state does not mark succeeded task as completed before facts close", () => {
+  const displayState = buildDirectorDisplayState({
+    task: {
+      status: "succeeded",
+      currentStage: "story_macro",
+      currentItemKey: "story.macro.plan",
+      currentItemLabel: "鏁呬簨瀹忚瑙勫垝",
+      progress: 1,
+      checkpointType: "workflow_completed",
+      checkpointSummary: "workflow completed",
+      lastError: null,
+      pendingManualRecovery: false,
+    },
+    projection: {
+      status: "idle",
+      requiresUserAction: false,
+      progressBreakdown: {
+        totalPercent: 70,
+        activeJobProgress: 0,
+      },
+    },
+    factSummary: {
+      allStepsCompleted: false,
+      completedStepCount: 7,
+      totalStepCount: 10,
+      hasNovelProject: true,
+      hasStoryMacro: true,
+      hasBookContract: true,
+      characterCount: 3,
+      hasVolumeStrategy: true,
+      volumeCount: 1,
+      outlineFacts: {
+        beatSheetReady: true,
+        chapterListReady: true,
+        chapterDetailReady: false,
+        plannedChapterCount: 20,
+        selectedChapterCount: 10,
+        completedDetailSteps: 5,
+        totalDetailSteps: 10,
+        syncedChapterCount: 8,
+      },
+      chapterExecutionFacts: {
+        totalChapters: 20,
+        draftedChapterCount: 8,
+        reviewedChapterCount: 4,
+        approvedChapterCount: 2,
+        committedChapterCount: 2,
+        completedChapters: 2,
+        needsRepairChapters: 2,
+        ratio: 0.4,
+        expectedChapterCount: 20,
+      },
+      repairFacts: {
+        draftedChapterCount: 8,
+        reviewedChapterCount: 4,
+        committedChapterCount: 2,
+        needsRepairChapters: 2,
+        payoffArtifactCount: 1,
+        characterResourceArtifactCount: 1,
+      },
+      steps: [],
+    },
+    activeStepNodeKey: null,
+    currentFactStepId: "volume.chapter_detail_bundle.generate",
+    currentFactStepLabel: "绔犺妭浠诲姟鍗曠粏鍖?",
+    factStep: null,
+    chapterProgress: null,
+  });
+
+  assert.notEqual(displayState.mode, "completed");
+});

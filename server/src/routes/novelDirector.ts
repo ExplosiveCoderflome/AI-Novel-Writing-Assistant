@@ -233,12 +233,12 @@ const appendCommandSchema = z.discriminatedUnion("commandType", [
   z.object({ commandType: z.literal("refine_titles"), payload: refineTitleSchema }),
   z.object({ commandType: z.literal("confirm_candidate"), payload: confirmSchema }),
   z.object({ commandType: z.literal("continue"), payload: z.object({
-    continuationMode: z.enum(["resume", "auto_execute_range", "auto_execute_front10"]).optional(),
+    continuationMode: z.enum(["resume", "auto_execute_range"]).optional(),
     batchAlreadyStartedCount: z.number().int().min(0).optional(),
     forceResume: z.boolean().optional(),
   }).optional() }),
   z.object({ commandType: z.literal("resume_from_checkpoint"), payload: z.object({
-    continuationMode: z.enum(["resume", "auto_execute_range", "auto_execute_front10"]).optional(),
+    continuationMode: z.enum(["resume", "auto_execute_range"]).optional(),
     batchAlreadyStartedCount: z.number().int().min(0).optional(),
     forceResume: z.boolean().optional(),
   }).optional() }),
@@ -373,6 +373,16 @@ router.get("/tasks/:taskId/fact-inspection", validate({ params: taskParamsSchema
     const { taskId } = req.params as z.infer<typeof taskParamsSchema>;
     const data = await snapshotService.getTaskFactInspection(taskId) as DirectorTaskFactInspectionResponse;
     res.status(200).json(accepted(data, "Director fact inspection loaded."));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/novels/:novelId/fact-inspection", validate({ params: takeoverParamsSchema }), async (req, res, next) => {
+  try {
+    const { novelId } = req.params as z.infer<typeof takeoverParamsSchema>;
+    const data = await snapshotService.getNovelFactInspection(novelId) as DirectorTaskFactInspectionResponse;
+    res.status(200).json(accepted(data, "Director novel fact inspection loaded."));
   } catch (error) {
     next(error);
   }

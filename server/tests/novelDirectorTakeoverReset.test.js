@@ -11,7 +11,7 @@ function buildTakeoverState() {
   return {
     latestAutoExecutionState: {
       enabled: true,
-      mode: "front10",
+      mode: "chapter_range",
       startOrder: 1,
       endOrder: 10,
       totalChapterCount: 10,

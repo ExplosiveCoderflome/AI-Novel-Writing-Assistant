@@ -1,274 +1,274 @@
-# 自动导演统一运行时完整执行计划
+﻿# 鑷姩瀵兼紨缁熶竴杩愯鏃跺畬鏁存墽琛岃鍒?
 
-更新日期：2026-04-29
+鏇存柊鏃ユ湡锛?026-04-29
 
-关联文档：
+鍏宠仈鏂囨。锛?
 
-- [自动导演统一运行时重构方案](./auto-director-unified-runtime-refactor-plan.md)
-- [自动导演统一运行时 MVP 落地切片方案](./auto-director-mvp-migration-plan.md)
-- [自动导演执行面隔离与 API 保活计划](./auto-director-execution-plane-isolation-plan.md)
-- [提示词工作台、上下文装配与统一步骤运行时方案](./prompt-workbench-context-and-step-runtime-plan.md)
+- [鑷姩瀵兼紨缁熶竴杩愯鏃堕噸鏋勬柟妗圿(./auto-director-unified-runtime-refactor-plan.md)
+- [鑷姩瀵兼紨缁熶竴杩愯鏃?MVP 钀藉湴鍒囩墖鏂规](./auto-director-mvp-migration-plan.md)
+- [鑷姩瀵兼紨鎵ц闈㈤殧绂讳笌 API 淇濇椿璁″垝](./auto-director-execution-plane-isolation-plan.md)
+- [鎻愮ず璇嶅伐浣滃彴銆佷笂涓嬫枃瑁呴厤涓庣粺涓€姝ラ杩愯鏃舵柟妗圿(./prompt-workbench-context-and-step-runtime-plan.md)
 - [Auto Director Progress Audit](../checkpoints/auto-director-progress-audit.md)
 
-## 1. 文档定位
+## 1. 鏂囨。瀹氫綅
 
-本文基于 `codex/auto-director-runtime-mvp-plan` 当前实现进度，定义自动导演统一运行时的完整执行计划。
+鏈枃鍩轰簬 `codex/auto-director-runtime-mvp-plan` 褰撳墠瀹炵幇杩涘害锛屽畾涔夎嚜鍔ㄥ婕旂粺涓€杩愯鏃剁殑瀹屾暣鎵ц璁″垝銆?
 
-本计划不按“做完一阶段再决定下一阶段”的方式推进，而按一次完整改造交付来组织。所有执行域都属于同一个交付目标：把当前自动导演从“旧链路旁挂 runtime 记录”推进为“可控制、可恢复、可解释、可扩展的统一小说生产运行时”。
+鏈鍒掍笉鎸夆€滃仛瀹屼竴闃舵鍐嶅喅瀹氫笅涓€闃舵鈥濈殑鏂瑰紡鎺ㄨ繘锛岃€屾寜涓€娆″畬鏁存敼閫犱氦浠樻潵缁勭粐銆傛墍鏈夋墽琛屽煙閮藉睘浜庡悓涓€涓氦浠樼洰鏍囷細鎶婂綋鍓嶈嚜鍔ㄥ婕斾粠鈥滄棫閾捐矾鏃佹寕 runtime 璁板綍鈥濇帹杩涗负鈥滃彲鎺у埗銆佸彲鎭㈠銆佸彲瑙ｉ噴銆佸彲鎵╁睍鐨勭粺涓€灏忚鐢熶骇杩愯鏃垛€濄€?
 
-工程上仍必须遵守依赖顺序，例如写入型节点必须先接入 PolicyEngine，前端进度必须先有可投影事件，创作中枢不能绕过 DirectorRuntime 直接调用旧服务。这些顺序不是分阶段验收，而是同一次完整交付内的实施依赖。
+宸ョ▼涓婁粛蹇呴』閬靛畧渚濊禆椤哄簭锛屼緥濡傚啓鍏ュ瀷鑺傜偣蹇呴』鍏堟帴鍏?PolicyEngine锛屽墠绔繘搴﹀繀椤诲厛鏈夊彲鎶曞奖浜嬩欢锛屽垱浣滀腑鏋笉鑳界粫杩?DirectorRuntime 鐩存帴璋冪敤鏃ф湇鍔°€傝繖浜涢『搴忎笉鏄垎闃舵楠屾敹锛岃€屾槸鍚屼竴娆″畬鏁翠氦浠樺唴鐨勫疄鏂戒緷璧栥€?
 
-完整交付完成后，系统应达到：
+瀹屾暣浜や粯瀹屾垚鍚庯紝绯荤粺搴旇揪鍒帮細
 
-- 自动导演新建、接管、继续、失败恢复、手动编辑后继续，都进入同一套 DirectorRuntime。
-- 关键写入动作都通过 NodeRunner 和 PolicyEngine，不再直接散落在旧 service 分支里。
-- 产物账本能支持缺失判断、版本来源、依赖、stale、用户内容保护和局部恢复。
-- Runtime event 能投影到任务中心、自动导演进度面板和创作中枢。
-- 章节执行和质量修复能局部失败、局部修复，不冻结整本书。
-- 用户手动修改后，系统能用 AI 结构化分析影响范围和最小修复路径。
-- 创作中枢能通过 runtime API 解释和控制自动导演，而不是直接调用旧阶段函数。
-- Context Broker、Prompt Catalog 和只读 Prompt Preview 为提示词工作台打下基础。
-- LangGraph 只作为低风险编排试点接入，不吞掉运行时、策略、产物和节点边界。
-- 第一批网文质量模块进入统一运行时，帮助新手持续写完整本书。
+- 鑷姩瀵兼紨鏂板缓銆佹帴绠°€佺户缁€佸け璐ユ仮澶嶃€佹墜鍔ㄧ紪杈戝悗缁х画锛岄兘杩涘叆鍚屼竴濂?DirectorRuntime銆?
+- 鍏抽敭鍐欏叆鍔ㄤ綔閮介€氳繃 NodeRunner 鍜?PolicyEngine锛屼笉鍐嶇洿鎺ユ暎钀藉湪鏃?service 鍒嗘敮閲屻€?
+- 浜х墿璐︽湰鑳芥敮鎸佺己澶卞垽鏂€佺増鏈潵婧愩€佷緷璧栥€乻tale銆佺敤鎴峰唴瀹逛繚鎶ゅ拰灞€閮ㄦ仮澶嶃€?
+- Runtime event 鑳芥姇褰卞埌浠诲姟涓績銆佽嚜鍔ㄥ婕旇繘搴﹂潰鏉垮拰鍒涗綔涓灑銆?
+- 绔犺妭鎵ц鍜岃川閲忎慨澶嶈兘灞€閮ㄥけ璐ャ€佸眬閮ㄤ慨澶嶏紝涓嶅喕缁撴暣鏈功銆?
+- 鐢ㄦ埛鎵嬪姩淇敼鍚庯紝绯荤粺鑳界敤 AI 缁撴瀯鍖栧垎鏋愬奖鍝嶈寖鍥村拰鏈€灏忎慨澶嶈矾寰勩€?
+- 鍒涗綔涓灑鑳介€氳繃 runtime API 瑙ｉ噴鍜屾帶鍒惰嚜鍔ㄥ婕旓紝鑰屼笉鏄洿鎺ヨ皟鐢ㄦ棫闃舵鍑芥暟銆?
+- Context Broker銆丳rompt Catalog 鍜屽彧璇?Prompt Preview 涓烘彁绀鸿瘝宸ヤ綔鍙版墦涓嬪熀纭€銆?
+- LangGraph 鍙綔涓轰綆椋庨櫓缂栨帓璇曠偣鎺ュ叆锛屼笉鍚炴帀杩愯鏃躲€佺瓥鐣ャ€佷骇鐗╁拰鑺傜偣杈圭晫銆?
+- 绗竴鎵圭綉鏂囪川閲忔ā鍧楄繘鍏ョ粺涓€杩愯鏃讹紝甯姪鏂版墜鎸佺画鍐欏畬鏁存湰涔︺€?
 
-## 2. 当前基线
+## 2. 褰撳墠鍩虹嚎
 
-当前已经完成：
+褰撳墠宸茬粡瀹屾垚锛?
 
-- 共享运行时契约：`DirectorRuntimeSnapshot`、`DirectorStepRun`、`DirectorEvent`、`DirectorArtifactRef`、`DirectorWorkspaceAnalysis`、`DirectorPolicyDecision`。
-- `DirectorRuntimeService` 门面：支持初始化运行、获取快照、工作区分析、策略更新、节点运行入口。
-- `DirectorRuntimeStore`：暂存 runtime snapshot 到 `NovelWorkflowTask.seedPayloadJson.directorRuntime`，并记录 step、event、artifact。
-- `DirectorWorkspaceAnalyzer`：先做确定性 inventory，再通过注册 PromptAsset 做 AI 结构化解释。
-- `DirectorPolicyEngine`：已有 `suggest_only`、`run_next_step`、`run_until_gate`、`auto_safe_scope` 四种模式与一次自动修复预算。
-- `DirectorNodeRunner`：已有标准节点契约和策略判断入口。
-- 自动导演候选、确认建书、已有小说接管、`story_macro`、`book_contract`、角色准备、卷规划、结构化拆章、章节执行、质量检查、修复、状态提交、伏笔同步和角色资源同步已进入统一 Step Module 写入合同，并通过 NodeRunner / PolicyEngine 路径执行或受控投影。
-- `story_macro` 与 `book_contract` 已拆为独立恢复节点；已有故事宏观规划但缺少书级创作约定时，会从书级约定继续，不再跳过到角色准备。
-- 后端路由和前端 API wrapper 已提供 workspace analysis、runtime snapshot、policy update、runtime continue，任务中心、进度面板和小说工作台侧栏已开始消费 runtime projection。
-- 创作中枢已通过 director runtime tools 读取状态、解释下一步、评估改文影响和请求继续推进；当前属于工具级接入，不是完整中枢主导编排。
-- Context Broker、Prompt Workbench 只读目录 / 预览、runtime context resolver 已落地，章节写作、章节审校和 director workspace analysis 已开始共用上下文块组织方式。
-- `DirectorLangGraphPilot` 已实现低风险图，覆盖 workspace analyze、recommend next action、run next step、approval interrupt，并通过单测验证 interrupt / resume / trace；但尚未接入自动导演主链。
-- 启动恢复策略已明确为服务重启后先标记为待手动恢复，用户确认后再从真实资产断点继续，不做后台静默自动续跑。
-- 定向测试已覆盖 runtime policy、NodeRunner、Artifact Ledger、Event Projection、LangGraph Pilot、Step Module、Prompt Workbench、Context Broker、director runtime tools 和启动恢复初始化。
+- 鍏变韩杩愯鏃跺绾︼細`DirectorRuntimeSnapshot`銆乣DirectorStepRun`銆乣DirectorEvent`銆乣DirectorArtifactRef`銆乣DirectorWorkspaceAnalysis`銆乣DirectorPolicyDecision`銆?
+- `DirectorRuntimeService` 闂ㄩ潰锛氭敮鎸佸垵濮嬪寲杩愯銆佽幏鍙栧揩鐓с€佸伐浣滃尯鍒嗘瀽銆佺瓥鐣ユ洿鏂般€佽妭鐐硅繍琛屽叆鍙ｃ€?
+- `DirectorRuntimeStore`锛氭殏瀛?runtime snapshot 鍒?`NovelWorkflowTask.seedPayloadJson.directorRuntime`锛屽苟璁板綍 step銆乪vent銆乤rtifact銆?
+- `DirectorWorkspaceAnalyzer`锛氬厛鍋氱‘瀹氭€?inventory锛屽啀閫氳繃娉ㄥ唽 PromptAsset 鍋?AI 缁撴瀯鍖栬В閲娿€?
+- `DirectorPolicyEngine`锛氬凡鏈?`suggest_only`銆乣run_next_step`銆乣run_until_gate`銆乣auto_safe_scope` 鍥涚妯″紡涓庝竴娆¤嚜鍔ㄤ慨澶嶉绠椼€?
+- `DirectorNodeRunner`锛氬凡鏈夋爣鍑嗚妭鐐瑰绾﹀拰绛栫暐鍒ゆ柇鍏ュ彛銆?
+- 鑷姩瀵兼紨鍊欓€夈€佺‘璁ゅ缓涔︺€佸凡鏈夊皬璇存帴绠°€乣story_macro`銆乣book_contract`銆佽鑹插噯澶囥€佸嵎瑙勫垝銆佺粨鏋勫寲鎷嗙珷銆佺珷鑺傛墽琛屻€佽川閲忔鏌ャ€佷慨澶嶃€佺姸鎬佹彁浜ゃ€佷紡绗斿悓姝ュ拰瑙掕壊璧勬簮鍚屾宸茶繘鍏ョ粺涓€ Step Module 鍐欏叆鍚堝悓锛屽苟閫氳繃 NodeRunner / PolicyEngine 璺緞鎵ц鎴栧彈鎺ф姇褰便€?
+- `story_macro` 涓?`book_contract` 宸叉媶涓虹嫭绔嬫仮澶嶈妭鐐癸紱宸叉湁鏁呬簨瀹忚瑙勫垝浣嗙己灏戜功绾у垱浣滅害瀹氭椂锛屼細浠庝功绾х害瀹氱户缁紝涓嶅啀璺宠繃鍒拌鑹插噯澶囥€?
+- 鍚庣璺敱鍜屽墠绔?API wrapper 宸叉彁渚?workspace analysis銆乺untime snapshot銆乸olicy update銆乺untime continue锛屼换鍔′腑蹇冦€佽繘搴﹂潰鏉垮拰灏忚宸ヤ綔鍙颁晶鏍忓凡寮€濮嬫秷璐?runtime projection銆?
+- 鍒涗綔涓灑宸查€氳繃 director runtime tools 璇诲彇鐘舵€併€佽В閲婁笅涓€姝ャ€佽瘎浼版敼鏂囧奖鍝嶅拰璇锋眰缁х画鎺ㄨ繘锛涘綋鍓嶅睘浜庡伐鍏风骇鎺ュ叆锛屼笉鏄畬鏁翠腑鏋富瀵肩紪鎺掋€?
+- Context Broker銆丳rompt Workbench 鍙鐩綍 / 棰勮銆乺untime context resolver 宸茶惤鍦帮紝绔犺妭鍐欎綔銆佺珷鑺傚鏍″拰 director workspace analysis 宸插紑濮嬪叡鐢ㄤ笂涓嬫枃鍧楃粍缁囨柟寮忋€?
+- `DirectorLangGraphPilot` 宸插疄鐜颁綆椋庨櫓鍥撅紝瑕嗙洊 workspace analyze銆乺ecommend next action銆乺un next step銆乤pproval interrupt锛屽苟閫氳繃鍗曟祴楠岃瘉 interrupt / resume / trace锛涗絾灏氭湭鎺ュ叆鑷姩瀵兼紨涓婚摼銆?
+- 鍚姩鎭㈠绛栫暐宸叉槑纭负鏈嶅姟閲嶅惎鍚庡厛鏍囪涓哄緟鎵嬪姩鎭㈠锛岀敤鎴风‘璁ゅ悗鍐嶄粠鐪熷疄璧勪骇鏂偣缁х画锛屼笉鍋氬悗鍙伴潤榛樿嚜鍔ㄧ画璺戙€?
+- 瀹氬悜娴嬭瘯宸茶鐩?runtime policy銆丯odeRunner銆丄rtifact Ledger銆丒vent Projection銆丩angGraph Pilot銆丼tep Module銆丳rompt Workbench銆丆ontext Broker銆乨irector runtime tools 鍜屽惎鍔ㄦ仮澶嶅垵濮嬪寲銆?
 
-当前未完成但必须纳入完整交付：
+褰撳墠鏈畬鎴愪絾蹇呴』绾冲叆瀹屾暣浜や粯锛?
 
-- 自动导演执行面已完成第一版 Worker 化：`continue / resume_from_checkpoint / retry / takeover` 已进入 `DirectorRunCommand` 队列并由独立 Director Worker 执行，前端运行态也已改为轻量 projection 轮询。但候选确认、标题修复等旧入口仍有同步准备或旧式后台调度，SQLite 写锁、运行态 delta 持久化和真实 Prisma 长链路回归仍是后续收口重点，不能把 route 内 fire-and-forget 当作新增能力接入方式。
-- Step Module / NodeRunner / PolicyEngine 写入合同已覆盖自动导演关键写入面；下一步重点转为真实数据恢复、ledger 真相层、质量闭环和状态驱动 replan。
-- `PolicyEngine` 还不是所有写入动作、覆盖动作和高成本审校动作的硬 gate。
-- Artifact Ledger 仍是 seed payload wrapper 索引，缺独立持久化表、完整生命周期、跨任务依赖演进和可恢复查询能力。
-- 章节执行、质量修复、pipeline job 已开始标准节点化，但还没有完全达到可组合、可重放、可审计的统一 Step Runtime。
-- `reader_promise`、`chapter_retention_contract`、`continuity_state`、`rolling_window_review`、`character_governance_state` 等质量产物已进入索引和依赖链，但还没有形成稳定的评估 -> 修复 -> 再评估闭环。
-- 创作中枢接入仍偏工具级；还没有形成“中枢规划 -> director runtime -> step execution -> projection -> 用户确认”的完整闭环体验。
-- 自动导演主执行链当前不使用 LangGraph；LangGraph 只能作为后续编排壳接入，不能替代 runtime、policy、ledger 和 step contract。
-- `server/src/prompting/workflows/workflowRegistry.ts` 已超过 700 行硬阈值，后续继续扩展 intent 前应拆出按域 workflow definitions。
-- 真实 Prisma 端到端回归仍不足，尤其是旧项目接管、服务重启后手动恢复、章节批量执行、改文后局部修复和多卷长周期推进。
-- `NovelDirectorService.ts` 仍然过长，必须继续把执行域下沉到 runtime orchestration、adapters 和 step modules。
+- 鑷姩瀵兼紨鎵ц闈㈠凡瀹屾垚绗竴鐗?Worker 鍖栵細`continue / resume_from_checkpoint / retry / takeover` 宸茶繘鍏?`DirectorRunCommand` 闃熷垪骞剁敱鐙珛 Director Worker 鎵ц锛屽墠绔繍琛屾€佷篃宸叉敼涓鸿交閲?projection 杞銆備絾鍊欓€夌‘璁ゃ€佹爣棰樹慨澶嶇瓑鏃у叆鍙ｄ粛鏈夊悓姝ュ噯澶囨垨鏃у紡鍚庡彴璋冨害锛孲QLite 鍐欓攣銆佽繍琛屾€?delta 鎸佷箙鍖栧拰鐪熷疄 Prisma 闀块摼璺洖褰掍粛鏄悗缁敹鍙ｉ噸鐐癸紝涓嶈兘鎶?route 鍐?fire-and-forget 褰撲綔鏂板鑳藉姏鎺ュ叆鏂瑰紡銆?
+- Step Module / NodeRunner / PolicyEngine 鍐欏叆鍚堝悓宸茶鐩栬嚜鍔ㄥ婕斿叧閿啓鍏ラ潰锛涗笅涓€姝ラ噸鐐硅浆涓虹湡瀹炴暟鎹仮澶嶃€乴edger 鐪熺浉灞傘€佽川閲忛棴鐜拰鐘舵€侀┍鍔?replan銆?
+- `PolicyEngine` 杩樹笉鏄墍鏈夊啓鍏ュ姩浣溿€佽鐩栧姩浣滃拰楂樻垚鏈鏍″姩浣滅殑纭?gate銆?
+- Artifact Ledger 浠嶆槸 seed payload wrapper 绱㈠紩锛岀己鐙珛鎸佷箙鍖栬〃銆佸畬鏁寸敓鍛藉懆鏈熴€佽法浠诲姟渚濊禆婕旇繘鍜屽彲鎭㈠鏌ヨ鑳藉姏銆?
+- 绔犺妭鎵ц銆佽川閲忎慨澶嶃€乸ipeline job 宸插紑濮嬫爣鍑嗚妭鐐瑰寲锛屼絾杩樻病鏈夊畬鍏ㄨ揪鍒板彲缁勫悎銆佸彲閲嶆斁銆佸彲瀹¤鐨勭粺涓€ Step Runtime銆?
+- `reader_promise`銆乣chapter_retention_contract`銆乣continuity_state`銆乣rolling_window_review`銆乣character_governance_state` 绛夎川閲忎骇鐗╁凡杩涘叆绱㈠紩鍜屼緷璧栭摼锛屼絾杩樻病鏈夊舰鎴愮ǔ瀹氱殑璇勪及 -> 淇 -> 鍐嶈瘎浼伴棴鐜€?
+- 鍒涗綔涓灑鎺ュ叆浠嶅亸宸ュ叿绾э紱杩樻病鏈夊舰鎴愨€滀腑鏋㈣鍒?-> director runtime -> step execution -> projection -> 鐢ㄦ埛纭鈥濈殑瀹屾暣闂幆浣撻獙銆?
+- 鑷姩瀵兼紨涓绘墽琛岄摼褰撳墠涓嶄娇鐢?LangGraph锛汱angGraph 鍙兘浣滀负鍚庣画缂栨帓澹虫帴鍏ワ紝涓嶈兘鏇夸唬 runtime銆乸olicy銆乴edger 鍜?step contract銆?
+- `server/src/prompting/workflows/workflowRegistry.ts` 宸茶秴杩?700 琛岀‖闃堝€硷紝鍚庣画缁х画鎵╁睍 intent 鍓嶅簲鎷嗗嚭鎸夊煙 workflow definitions銆?
+- 鐪熷疄 Prisma 绔埌绔洖褰掍粛涓嶈冻锛屽挨鍏舵槸鏃ч」鐩帴绠°€佹湇鍔￠噸鍚悗鎵嬪姩鎭㈠銆佺珷鑺傛壒閲忔墽琛屻€佹敼鏂囧悗灞€閮ㄤ慨澶嶅拰澶氬嵎闀垮懆鏈熸帹杩涖€?
+- `NovelDirectorService.ts` 浠嶇劧杩囬暱锛屽繀椤荤户缁妸鎵ц鍩熶笅娌夊埌 runtime orchestration銆乤dapters 鍜?step modules銆?
 
-当前完成度判断：
+褰撳墠瀹屾垚搴﹀垽鏂細
 
-- 按 MVP 底座衡量：约 `85%` 已完成。
-- 按完整统一运行时衡量：约 `70%` 已完成。
-- 按完整 P0“让新手稳定完成整本小说”产品目标衡量：约 `55%-60%` 已完成。
-- 剩余风险不在“是否使用 LangGraph”，而在执行面二次隔离是否彻底、产物真相是否可恢复、真实数据链路是否稳定、质量闭环是否能局部修复，以及状态驱动 replan 是否真正成为默认判断。
+- 鎸?MVP 搴曞骇琛￠噺锛氱害 `85%` 宸插畬鎴愩€?
+- 鎸夊畬鏁寸粺涓€杩愯鏃惰　閲忥細绾?`70%` 宸插畬鎴愩€?
+- 鎸夊畬鏁?P0鈥滆鏂版墜绋冲畾瀹屾垚鏁存湰灏忚鈥濅骇鍝佺洰鏍囪　閲忥細绾?`55%-60%` 宸插畬鎴愩€?
+- 鍓╀綑椋庨櫓涓嶅湪鈥滄槸鍚︿娇鐢?LangGraph鈥濓紝鑰屽湪鎵ц闈簩娆￠殧绂绘槸鍚﹀交搴曘€佷骇鐗╃湡鐩告槸鍚﹀彲鎭㈠銆佺湡瀹炴暟鎹摼璺槸鍚︾ǔ瀹氥€佽川閲忛棴鐜槸鍚﹁兘灞€閮ㄤ慨澶嶏紝浠ュ強鐘舵€侀┍鍔?replan 鏄惁鐪熸鎴愪负榛樿鍒ゆ柇銆?
 
-## 2.0.1 2026-04-30 分支阶段总结
+## 2.0.1 2026-04-30 鍒嗘敮闃舵鎬荤粨
 
-当前 `codex/auto-director-runtime-mvp-plan` 分支相对优化前已经完成以下关键升级：
+褰撳墠 `codex/auto-director-runtime-mvp-plan` 鍒嗘敮鐩稿浼樺寲鍓嶅凡缁忓畬鎴愪互涓嬪叧閿崌绾э細
 
-- 从旧自动导演长流程函数推进为统一运行时边界：`DirectorRuntimeService / NodeRunner / PolicyEngine / Step Module / Runtime Projection / DirectorEvent` 已成为主骨架。
-- 从 Web API 直接执行重型链路推进为第一版执行面隔离：`DirectorRunCommand`、独立 `Director Worker`、租约、续租、失败落态和轻量 projection 轮询已落地。
-- 恢复链从“失败后人工猜测”推进为从真实资产断点恢复：服务重启、租约过期、残留 running step、缺失 outline、历史接管任务和上下文丢失继续都已有针对性处理。
-- 任务状态从后台字段推进到用户可解释状态：任务中心、编辑页、小说列表和恢复弹窗开始展示当前阶段、阻塞原因、恢复动作和最近健康阶段。
-- 书级自动化状态投影已落地第一版：自动导演任务、命令、运行事件、自动确认记录和产物概况可以按 `novelId` 聚合为书级驾驶舱，任务中心继续作为执行详情入口。
-- 章节执行交接从“拆章确认态”推进到真实执行态：正文开始生成后，侧栏流程和 checkpoint 会跟随章节执行阶段，避免用户看到“已经写正文但流程仍待拆章”的错位。
-- Artifact Ledger、Prompt Workbench、Context Broker 和 runtime tools 已进入统一运行时，后续可以继续承接产物真相、提示词治理和创作中枢控制。
+- 浠庢棫鑷姩瀵兼紨闀挎祦绋嬪嚱鏁版帹杩涗负缁熶竴杩愯鏃惰竟鐣岋細`DirectorRuntimeService / NodeRunner / PolicyEngine / Step Module / Runtime Projection / DirectorEvent` 宸叉垚涓轰富楠ㄦ灦銆?
+- 浠?Web API 鐩存帴鎵ц閲嶅瀷閾捐矾鎺ㄨ繘涓虹涓€鐗堟墽琛岄潰闅旂锛歚DirectorRunCommand`銆佺嫭绔?`Director Worker`銆佺绾︺€佺画绉熴€佸け璐ヨ惤鎬佸拰杞婚噺 projection 杞宸茶惤鍦般€?
+- 鎭㈠閾句粠鈥滃け璐ュ悗浜哄伐鐚滄祴鈥濇帹杩涗负浠庣湡瀹炶祫浜ф柇鐐规仮澶嶏細鏈嶅姟閲嶅惎銆佺绾﹁繃鏈熴€佹畫鐣?running step銆佺己澶?outline銆佸巻鍙叉帴绠′换鍔″拰涓婁笅鏂囦涪澶辩户缁兘宸叉湁閽堝鎬у鐞嗐€?
+- 浠诲姟鐘舵€佷粠鍚庡彴瀛楁鎺ㄨ繘鍒扮敤鎴峰彲瑙ｉ噴鐘舵€侊細浠诲姟涓績銆佺紪杈戦〉銆佸皬璇村垪琛ㄥ拰鎭㈠寮圭獥寮€濮嬪睍绀哄綋鍓嶉樁娈点€侀樆濉炲師鍥犮€佹仮澶嶅姩浣滃拰鏈€杩戝仴搴烽樁娈点€?
+- 涔︾骇鑷姩鍖栫姸鎬佹姇褰卞凡钀藉湴绗竴鐗堬細鑷姩瀵兼紨浠诲姟銆佸懡浠ゃ€佽繍琛屼簨浠躲€佽嚜鍔ㄧ‘璁よ褰曞拰浜х墿姒傚喌鍙互鎸?`novelId` 鑱氬悎涓轰功绾ч┚椹惰埍锛屼换鍔′腑蹇冪户缁綔涓烘墽琛岃鎯呭叆鍙ｃ€?
+- 绔犺妭鎵ц浜ゆ帴浠庘€滄媶绔犵‘璁ゆ€佲€濇帹杩涘埌鐪熷疄鎵ц鎬侊細姝ｆ枃寮€濮嬬敓鎴愬悗锛屼晶鏍忔祦绋嬪拰 checkpoint 浼氳窡闅忕珷鑺傛墽琛岄樁娈碉紝閬垮厤鐢ㄦ埛鐪嬪埌鈥滃凡缁忓啓姝ｆ枃浣嗘祦绋嬩粛寰呮媶绔犫€濈殑閿欎綅銆?
+- Artifact Ledger銆丳rompt Workbench銆丆ontext Broker 鍜?runtime tools 宸茶繘鍏ョ粺涓€杩愯鏃讹紝鍚庣画鍙互缁х画鎵挎帴浜х墿鐪熺浉銆佹彁绀鸿瘝娌荤悊鍜屽垱浣滀腑鏋㈡帶鍒躲€?
 
-当前仍不视为完成的内容：
+褰撳墠浠嶄笉瑙嗕负瀹屾垚鐨勫唴瀹癸細
 
-- 执行面隔离仍需二次收口：SQLite WAL / busy timeout、运行态 delta 持久化、可见工作区刷新边界，以及候选确认、标题修复等旧入口 command 化。
-- 真实 Prisma 抽样回归仍需覆盖旧项目接管、服务重启恢复、章节批次恢复、取消后重试、章节执行和状态版本。
-- 章节细化质量门禁已完成第一刀，`purpose / boundary / taskSheet / sceneCards` 会先经过结构校验和 AI 语义可用性评估，坏任务单不得直接进入章节同步或执行链。章节修复策略也已完成 `patch_first` 第一刀，质量闭环 MVP 已能把留存、连续性和滚动窗口状态记录到章节风险标记；Artifact Ledger 查询真相层已能为书级驾驶舱提供 active/stale/protected/dependency/content hash 基础状态；实际 Replan 执行窗口已切到 AI 结构化决策。后续缺口转为补丁失败计数、保护正文 gate、写入事件全覆盖、阶段级模型路由、角色治理状态和新手入口收敛。
+- 鎵ц闈㈤殧绂讳粛闇€浜屾鏀跺彛锛歋QLite WAL / busy timeout銆佽繍琛屾€?delta 鎸佷箙鍖栥€佸彲瑙佸伐浣滃尯鍒锋柊杈圭晫锛屼互鍙婂€欓€夌‘璁ゃ€佹爣棰樹慨澶嶇瓑鏃у叆鍙?command 鍖栥€?
+- 鐪熷疄 Prisma 鎶芥牱鍥炲綊浠嶉渶瑕嗙洊鏃ч」鐩帴绠°€佹湇鍔￠噸鍚仮澶嶃€佺珷鑺傛壒娆℃仮澶嶃€佸彇娑堝悗閲嶈瘯銆佺珷鑺傛墽琛屽拰鐘舵€佺増鏈€?
+- 绔犺妭缁嗗寲璐ㄩ噺闂ㄧ宸插畬鎴愮涓€鍒€锛宍purpose / boundary / taskSheet / sceneCards` 浼氬厛缁忚繃缁撴瀯鏍￠獙鍜?AI 璇箟鍙敤鎬ц瘎浼帮紝鍧忎换鍔″崟涓嶅緱鐩存帴杩涘叆绔犺妭鍚屾鎴栨墽琛岄摼銆傜珷鑺備慨澶嶇瓥鐣ヤ篃宸插畬鎴?`patch_first` 绗竴鍒€锛岃川閲忛棴鐜?MVP 宸茶兘鎶婄暀瀛樸€佽繛缁€у拰婊氬姩绐楀彛鐘舵€佽褰曞埌绔犺妭椋庨櫓鏍囪锛汚rtifact Ledger 鏌ヨ鐪熺浉灞傚凡鑳戒负涔︾骇椹鹃┒鑸辨彁渚?active/stale/protected/dependency/content hash 鍩虹鐘舵€侊紱瀹為檯 Replan 鎵ц绐楀彛宸插垏鍒?AI 缁撴瀯鍖栧喅绛栥€傚悗缁己鍙ｈ浆涓鸿ˉ涓佸け璐ヨ鏁般€佷繚鎶ゆ鏂?gate銆佸啓鍏ヤ簨浠跺叏瑕嗙洊銆侀樁娈电骇妯″瀷璺敱銆佽鑹叉不鐞嗙姸鎬佸拰鏂版墜鍏ュ彛鏀舵暃銆?
 
-## 2.1 下一轮最高优先级开发队列
+## 2.1 涓嬩竴杞渶楂樹紭鍏堢骇寮€鍙戦槦鍒?
 
-以下 14 项作为 `codex/auto-director-runtime-mvp-plan` 分支的下一轮即将开发项目，优先级高于后续扩入口、创作中枢主导编排和 LangGraph 主链化。
+浠ヤ笅 14 椤逛綔涓?`codex/auto-director-runtime-mvp-plan` 鍒嗘敮鐨勪笅涓€杞嵆灏嗗紑鍙戦」鐩紝浼樺厛绾ч珮浜庡悗缁墿鍏ュ彛銆佸垱浣滀腑鏋富瀵肩紪鎺掑拰 LangGraph 涓婚摼鍖栥€?
 
-1. **执行面隔离与 API 保活二次收口**：在第一版命令化入口、独立 Director Worker 和轻量 runtime projection 基础上，继续收口 SQLite WAL / busy timeout、运行态 delta 持久化、可见工作区刷新边界，以及候选确认、标题修复等旧入口 command 化；禁止 Web API route 新增直接执行自动导演重型链路。
-2. **规划恢复链稳定**：在 Worker 语义下补齐 `volume_strategy` 幂等重放、持久化卷规划恢复到 `structured_outline` 的真实数据回归；确保已有资产不会被重复生成或跳过。
-3. **真实 Prisma 抽样回归**：只读审计已覆盖旧项目接管、服务重启手动恢复、章节批量执行、候选确认、标题修复失败隔离、retry/resume/continue/cancel 命令、手动改文影响和缺正文账本基线；后续补真实副本 E2E 样本执行记录，重点验证 `migration -> 章节写入 -> 候选变更 -> 状态版本`。
-4. **Artifact Ledger 真相层**：第一刀已完成。书级投影可直接读取持久化账本的 active/stale/protected/dependency/content hash 基础状态，并向 AI 驾驶舱提供按类型汇总和最近产物记录；后续补齐写入事件全覆盖、legacy backfill 审计和局部恢复能力。
-5. **PolicyEngine 硬 gate 深化**：高成本审校、高风险修复、大范围自动执行、覆盖用户内容等场景必须在写入前经过策略判断和审批边界。
-6. **质量产物闭环**：第一刀已完成。`chapter_retention_contract / continuity_state / rolling_window_review` 会在章节审校和批量执行后形成统一评估状态并写入章节风险标记；后续把该状态写入 Ledger 真相层，补齐连续修复失败计数、角色治理状态和自动再评估触发。
-7. **Planner / Replan 状态驱动化**：第一刀已完成。`PlannerService.replan` 的实际执行窗口由 PromptAsset 结构化 AI 决策消费 canonical state、章节目标、审校报告和伏笔账本，确定性代码只做可用章节过滤和窗口上限校验；后续把 Replan 结果写入 Ledger 事件并驱动后续批次自动续跑。
-8. **章节任务单质量门禁**：第一刀已完成。`purpose / boundary / taskSheet / sceneCards` 已有 shared 合同、服务端结构校验、AI 语义可用性评估和同步前阻断；后续把质量结论写入 Ledger 真相层，并接入局部修复闭环。
-9. **章节修复策略**：第一刀已完成。章节自动修复和手动修复入口默认先走 `patch_first` 局部补丁，`heavy_repair` 才进入整章修复；后续补齐连续补丁失败升级、保护正文 gate、修复记录入 Ledger，以及动态角色系统进入执行期角色筛选、修复边界和 replan 判断。
-10. **模型路由细化**：从 `planner / writer / review / repair` 粗粒度推进到小说生产阶段级路由与 fallback。
-11. **卷级工作台消费链**：把 `critique / rebalance / uncertainty / canonical payoff ledger` 接成卷级工作台默认消费链，并让卷级账本视图成为主视图。
-12. **新手入口收敛**：首页、创建页、空状态统一为“AI 自动导演推荐入口 + 手动高级入口”；关键节点只保留一个推荐下一步。
-13. **拆书任务合同**：补齐 `scope / pause / resume / coverage`，形成“前 N 片段试跑 -> 扩范围继续”的渐进式流程。
-14. **技术债收口**：拆分 `workflowRegistry.ts`，继续瘦身 `NovelDirectorService` 和 `DirectorRuntimeStore`，避免新能力继续堆回主 service。
+1. **鎵ц闈㈤殧绂讳笌 API 淇濇椿浜屾鏀跺彛**锛氬湪绗竴鐗堝懡浠ゅ寲鍏ュ彛銆佺嫭绔?Director Worker 鍜岃交閲?runtime projection 鍩虹涓婏紝缁х画鏀跺彛 SQLite WAL / busy timeout銆佽繍琛屾€?delta 鎸佷箙鍖栥€佸彲瑙佸伐浣滃尯鍒锋柊杈圭晫锛屼互鍙婂€欓€夌‘璁ゃ€佹爣棰樹慨澶嶇瓑鏃у叆鍙?command 鍖栵紱绂佹 Web API route 鏂板鐩存帴鎵ц鑷姩瀵兼紨閲嶅瀷閾捐矾銆?
+2. **瑙勫垝鎭㈠閾剧ǔ瀹?*锛氬湪 Worker 璇箟涓嬭ˉ榻?`volume_strategy` 骞傜瓑閲嶆斁銆佹寔涔呭寲鍗疯鍒掓仮澶嶅埌 `structured_outline` 鐨勭湡瀹炴暟鎹洖褰掞紱纭繚宸叉湁璧勪骇涓嶄細琚噸澶嶇敓鎴愭垨璺宠繃銆?
+3. **鐪熷疄 Prisma 鎶芥牱鍥炲綊**锛氬彧璇诲璁″凡瑕嗙洊鏃ч」鐩帴绠°€佹湇鍔￠噸鍚墜鍔ㄦ仮澶嶃€佺珷鑺傛壒閲忔墽琛屻€佸€欓€夌‘璁ゃ€佹爣棰樹慨澶嶅け璐ラ殧绂汇€乺etry/resume/continue/cancel 鍛戒护銆佹墜鍔ㄦ敼鏂囧奖鍝嶅拰缂烘鏂囪处鏈熀绾匡紱鍚庣画琛ョ湡瀹炲壇鏈?E2E 鏍锋湰鎵ц璁板綍锛岄噸鐐归獙璇?`migration -> 绔犺妭鍐欏叆 -> 鍊欓€夊彉鏇?-> 鐘舵€佺増鏈琡銆?
+4. **Artifact Ledger 鐪熺浉灞?*锛氱涓€鍒€宸插畬鎴愩€備功绾ф姇褰卞彲鐩存帴璇诲彇鎸佷箙鍖栬处鏈殑 active/stale/protected/dependency/content hash 鍩虹鐘舵€侊紝骞跺悜 AI 椹鹃┒鑸辨彁渚涙寜绫诲瀷姹囨€诲拰鏈€杩戜骇鐗╄褰曪紱鍚庣画琛ラ綈鍐欏叆浜嬩欢鍏ㄨ鐩栥€乴egacy backfill 瀹¤鍜屽眬閮ㄦ仮澶嶈兘鍔涖€?
+5. **PolicyEngine 纭?gate 娣卞寲**锛氶珮鎴愭湰瀹℃牎銆侀珮椋庨櫓淇銆佸ぇ鑼冨洿鑷姩鎵ц銆佽鐩栫敤鎴峰唴瀹圭瓑鍦烘櫙蹇呴』鍦ㄥ啓鍏ュ墠缁忚繃绛栫暐鍒ゆ柇鍜屽鎵硅竟鐣屻€?
+6. **璐ㄩ噺浜х墿闂幆**锛氱涓€鍒€宸插畬鎴愩€俙chapter_retention_contract / continuity_state / rolling_window_review` 浼氬湪绔犺妭瀹℃牎鍜屾壒閲忔墽琛屽悗褰㈡垚缁熶竴璇勪及鐘舵€佸苟鍐欏叆绔犺妭椋庨櫓鏍囪锛涘悗缁妸璇ョ姸鎬佸啓鍏?Ledger 鐪熺浉灞傦紝琛ラ綈杩炵画淇澶辫触璁℃暟銆佽鑹叉不鐞嗙姸鎬佸拰鑷姩鍐嶈瘎浼拌Е鍙戙€?
+7. **Planner / Replan 鐘舵€侀┍鍔ㄥ寲**锛氱涓€鍒€宸插畬鎴愩€俙PlannerService.replan` 鐨勫疄闄呮墽琛岀獥鍙ｇ敱 PromptAsset 缁撴瀯鍖?AI 鍐崇瓥娑堣垂 canonical state銆佺珷鑺傜洰鏍囥€佸鏍℃姤鍛婂拰浼忕瑪璐︽湰锛岀‘瀹氭€т唬鐮佸彧鍋氬彲鐢ㄧ珷鑺傝繃婊ゅ拰绐楀彛涓婇檺鏍￠獙锛涘悗缁妸 Replan 缁撴灉鍐欏叆 Ledger 浜嬩欢骞堕┍鍔ㄥ悗缁壒娆¤嚜鍔ㄧ画璺戙€?
+8. **绔犺妭浠诲姟鍗曡川閲忛棬绂?*锛氱涓€鍒€宸插畬鎴愩€俙purpose / boundary / taskSheet / sceneCards` 宸叉湁 shared 鍚堝悓銆佹湇鍔＄缁撴瀯鏍￠獙銆丄I 璇箟鍙敤鎬ц瘎浼板拰鍚屾鍓嶉樆鏂紱鍚庣画鎶婅川閲忕粨璁哄啓鍏?Ledger 鐪熺浉灞傦紝骞舵帴鍏ュ眬閮ㄤ慨澶嶉棴鐜€?
+9. **绔犺妭淇绛栫暐**锛氱涓€鍒€宸插畬鎴愩€傜珷鑺傝嚜鍔ㄤ慨澶嶅拰鎵嬪姩淇鍏ュ彛榛樿鍏堣蛋 `patch_first` 灞€閮ㄨˉ涓侊紝`heavy_repair` 鎵嶈繘鍏ユ暣绔犱慨澶嶏紱鍚庣画琛ラ綈杩炵画琛ヤ竵澶辫触鍗囩骇銆佷繚鎶ゆ鏂?gate銆佷慨澶嶈褰曞叆 Ledger锛屼互鍙婂姩鎬佽鑹茬郴缁熻繘鍏ユ墽琛屾湡瑙掕壊绛涢€夈€佷慨澶嶈竟鐣屽拰 replan 鍒ゆ柇銆?
+10. **妯″瀷璺敱缁嗗寲**锛氫粠 `planner / writer / review / repair` 绮楃矑搴︽帹杩涘埌灏忚鐢熶骇闃舵绾ц矾鐢变笌 fallback銆?
+11. **鍗风骇宸ヤ綔鍙版秷璐归摼**锛氭妸 `critique / rebalance / uncertainty / canonical payoff ledger` 鎺ユ垚鍗风骇宸ヤ綔鍙伴粯璁ゆ秷璐归摼锛屽苟璁╁嵎绾ц处鏈鍥炬垚涓轰富瑙嗗浘銆?
+12. **鏂版墜鍏ュ彛鏀舵暃**锛氶椤点€佸垱寤洪〉銆佺┖鐘舵€佺粺涓€涓衡€淎I 鑷姩瀵兼紨鎺ㄨ崘鍏ュ彛 + 鎵嬪姩楂樼骇鍏ュ彛鈥濓紱鍏抽敭鑺傜偣鍙繚鐣欎竴涓帹鑽愪笅涓€姝ャ€?
+13. **鎷嗕功浠诲姟鍚堝悓**锛氳ˉ榻?`scope / pause / resume / coverage`锛屽舰鎴愨€滃墠 N 鐗囨璇曡窇 -> 鎵╄寖鍥寸户缁€濈殑娓愯繘寮忔祦绋嬨€?
+14. **鎶€鏈€烘敹鍙?*锛氭媶鍒?`workflowRegistry.ts`锛岀户缁槮韬?`NovelDirectorService` 鍜?`DirectorRuntimeStore`锛岄伩鍏嶆柊鑳藉姏缁х画鍫嗗洖涓?service銆?
 
-## 3. 执行原则
+## 3. 鎵ц鍘熷垯
 
-### 3.1 一次完整交付
+### 3.1 涓€娆″畬鏁翠氦浠?
 
-本计划按完整改造交付执行，不拆成可长期停留的半成品阶段。允许在同一次交付内按依赖先后实施，但最终验收必须覆盖全链路。
+鏈鍒掓寜瀹屾暣鏀归€犱氦浠樻墽琛岋紝涓嶆媶鎴愬彲闀挎湡鍋滅暀鐨勫崐鎴愬搧闃舵銆傚厑璁稿湪鍚屼竴娆′氦浠樺唴鎸変緷璧栧厛鍚庡疄鏂斤紝浣嗘渶缁堥獙鏀跺繀椤昏鐩栧叏閾捐矾銆?
 
-不接受的完成状态：
+涓嶆帴鍙楃殑瀹屾垚鐘舵€侊細
 
-- 只有 runtime 记录，没有策略接管。
-- 只有后端 snapshot，没有前端可见进度。
-- 只有工作区分析，没有手动编辑影响分析。
-- 只有章节执行记录，没有局部失败和 repair ticket。
-- 只有创作中枢工具声明，却仍直接碰旧自动导演阶段函数。
-- 只有 Context Broker 草案，却没有任何真实 prompt 或 step 消费。
+- 鍙湁 runtime 璁板綍锛屾病鏈夌瓥鐣ユ帴绠°€?
+- 鍙湁鍚庣 snapshot锛屾病鏈夊墠绔彲瑙佽繘搴︺€?
+- 鍙湁宸ヤ綔鍖哄垎鏋愶紝娌℃湁鎵嬪姩缂栬緫褰卞搷鍒嗘瀽銆?
+- 鍙湁绔犺妭鎵ц璁板綍锛屾病鏈夊眬閮ㄥけ璐ュ拰 repair ticket銆?
+- 鍙湁鍒涗綔涓灑宸ュ叿澹版槑锛屽嵈浠嶇洿鎺ョ鏃ц嚜鍔ㄥ婕旈樁娈靛嚱鏁般€?
+- 鍙湁 Context Broker 鑽夋锛屽嵈娌℃湁浠讳綍鐪熷疄 prompt 鎴?step 娑堣垂銆?
 
 ### 3.2 AI-first
 
-工作区阶段判断、手动编辑影响分析、下一步推荐、质量风险判断、修复路径建议，必须通过 AI 结构化理解完成。
+宸ヤ綔鍖洪樁娈靛垽鏂€佹墜鍔ㄧ紪杈戝奖鍝嶅垎鏋愩€佷笅涓€姝ユ帹鑽愩€佽川閲忛闄╁垽鏂€佷慨澶嶈矾寰勫缓璁紝蹇呴』閫氳繃 AI 缁撴瀯鍖栫悊瑙ｅ畬鎴愩€?
 
-允许确定性代码做：
+鍏佽纭畾鎬т唬鐮佸仛锛?
 
-- 资产存在性扫描。
-- 输入校验。
-- 幂等、锁、权限和覆盖保护。
-- AI 输出后的范围检查和安全过滤。
+- 璧勪骇瀛樺湪鎬ф壂鎻忋€?
+- 杈撳叆鏍￠獙銆?
+- 骞傜瓑銆侀攣銆佹潈闄愬拰瑕嗙洊淇濇姢銆?
+- AI 杈撳嚭鍚庣殑鑼冨洿妫€鏌ュ拰瀹夊叏杩囨护銆?
 
-不允许用关键词、正则、硬编码分支替代核心判断。
+涓嶅厑璁哥敤鍏抽敭璇嶃€佹鍒欍€佺‖缂栫爜鍒嗘敮鏇夸唬鏍稿績鍒ゆ柇銆?
 
-### 3.3 新手完成整本书优先
+### 3.3 鏂版墜瀹屾垚鏁存湰涔︿紭鍏?
 
-所有 UI、策略和运行时能力都服务于一个目标：让完全写作新手知道下一步该做什么，并能持续推进到完整小说。
+鎵€鏈?UI銆佺瓥鐣ュ拰杩愯鏃惰兘鍔涢兘鏈嶅姟浜庝竴涓洰鏍囷細璁╁畬鍏ㄥ啓浣滄柊鎵嬬煡閬撲笅涓€姝ヨ鍋氫粈涔堬紝骞惰兘鎸佺画鎺ㄨ繘鍒板畬鏁村皬璇淬€?
 
-因此完整交付必须让用户看到：
+鍥犳瀹屾暣浜や粯蹇呴』璁╃敤鎴风湅鍒帮細
 
-- 当前小说做到哪里。
-- 系统推荐下一步是什么。
-- 为什么推荐这一步。
-- 哪些内容会被保护。
-- 哪些风险只影响局部范围。
-- 失败后如何继续。
+- 褰撳墠灏忚鍋氬埌鍝噷銆?
+- 绯荤粺鎺ㄨ崘涓嬩竴姝ユ槸浠€涔堛€?
+- 涓轰粈涔堟帹鑽愯繖涓€姝ャ€?
+- 鍝簺鍐呭浼氳淇濇姢銆?
+- 鍝簺椋庨櫓鍙奖鍝嶅眬閮ㄨ寖鍥淬€?
+- 澶辫触鍚庡浣曠户缁€?
 
-### 3.4 先收口再扩展，但同属一次交付
+### 3.4 鍏堟敹鍙ｅ啀鎵╁睍锛屼絾鍚屽睘涓€娆′氦浠?
 
-Reader Promise、Chapter Retention Contract、Rolling Window Review、World Skeleton、Character Governance 等创作质量模块最终要进入统一运行时。
+Reader Promise銆丆hapter Retention Contract銆丷olling Window Review銆乄orld Skeleton銆丆haracter Governance 绛夊垱浣滆川閲忔ā鍧楁渶缁堣杩涘叆缁熶竴杩愯鏃躲€?
 
-但它们不能绕过 runtime、policy、artifact、event 边界单独堆功能。完整交付的执行顺序必须先建立边界，再把质量模块接进边界。
+浣嗗畠浠笉鑳界粫杩?runtime銆乸olicy銆乤rtifact銆乪vent 杈圭晫鍗曠嫭鍫嗗姛鑳姐€傚畬鏁翠氦浠樼殑鎵ц椤哄簭蹇呴』鍏堝缓绔嬭竟鐣岋紝鍐嶆妸璐ㄩ噺妯″潡鎺ヨ繘杈圭晫銆?
 
-### 3.5 数据安全
+### 3.5 鏁版嵁瀹夊叏
 
-完整执行期间如涉及数据库迁移，默认只允许 additive schema change。
+瀹屾暣鎵ц鏈熼棿濡傛秹鍙婃暟鎹簱杩佺Щ锛岄粯璁ゅ彧鍏佽 additive schema change銆?
 
-任何删除、重置、覆盖旧数据、重算并覆盖用户内容的操作，必须满足项目数据保护规则：
+浠讳綍鍒犻櫎銆侀噸缃€佽鐩栨棫鏁版嵁銆侀噸绠楀苟瑕嗙洊鐢ㄦ埛鍐呭鐨勬搷浣滐紝蹇呴』婊¤冻椤圭洰鏁版嵁淇濇姢瑙勫垯锛?
 
-- 明确用户批准。
-- 有可验证备份路径。
-- 有恢复验证或至少备份存在性与大小检查。
+- 鏄庣‘鐢ㄦ埛鎵瑰噯銆?
+- 鏈夊彲楠岃瘉澶囦唤璺緞銆?
+- 鏈夋仮澶嶉獙璇佹垨鑷冲皯澶囦唤瀛樺湪鎬т笌澶у皬妫€鏌ャ€?
 
-## 4. 完整目标架构
+## 4. 瀹屾暣鐩爣鏋舵瀯
 
 ```text
-自动导演入口 / 接管入口 / 继续入口 / 创作中枢入口 / 手动修改后继续
-  ↓
+鑷姩瀵兼紨鍏ュ彛 / 鎺ョ鍏ュ彛 / 缁х画鍏ュ彛 / 鍒涗綔涓灑鍏ュ彛 / 鎵嬪姩淇敼鍚庣户缁?
+  鈫?
 DirectorRuntimeService
-  ↓
+  鈫?
 PolicyEngine
-  ↓
+  鈫?
 NodeRunner
-  ↓
+  鈫?
 Legacy Stage Adapter / Step Module
-  ↓
+  鈫?
 Context Broker
-  ↓
+  鈫?
 Prompt Runner
-  ↓
+  鈫?
 Artifact Ledger
-  ↓
+  鈫?
 DirectorEvent
-  ↓
+  鈫?
 Task Center / Auto Director UI / Creative Hub Projection / Prompt Trace
 ```
 
-模块职责：
+妯″潡鑱岃矗锛?
 
-| 模块 | 完整交付职责 |
+| 妯″潡 | 瀹屾暣浜や粯鑱岃矗 |
 | --- | --- |
-| DirectorRuntimeService | 统一运行入口、运行状态、策略切换、节点调度、恢复语义 |
-| PolicyEngine | 自动/手动策略、覆盖保护、修复预算、失败范围控制、审批要求 |
-| NodeRunner | 标准节点执行、幂等、step/event/artifact 写入、错误记录 |
-| Legacy Stage Adapter | 包装旧候选、规划、拆章、接管、章节执行和修复能力 |
-| Step Module | 新能力的标准执行单元，供自动导演、章节流水线和创作中枢复用 |
-| Context Broker | 统一取数、预算、快照和上下文块生成 |
-| Prompt Runner | 继续作为产品级 prompt 调用入口，执行注册、结构化输出和校验 |
-| Artifact Ledger | 保存产物索引、来源、版本、依赖、stale、保护状态 |
-| DirectorEvent Projection | 把运行事实投影到用户可见进度、任务中心和创作中枢 |
-| LangGraph Pilot | 只负责低风险编排、interrupt、resume 和 trace |
+| DirectorRuntimeService | 缁熶竴杩愯鍏ュ彛銆佽繍琛岀姸鎬併€佺瓥鐣ュ垏鎹€佽妭鐐硅皟搴︺€佹仮澶嶈涔?|
+| PolicyEngine | 鑷姩/鎵嬪姩绛栫暐銆佽鐩栦繚鎶ゃ€佷慨澶嶉绠椼€佸け璐ヨ寖鍥存帶鍒躲€佸鎵硅姹?|
+| NodeRunner | 鏍囧噯鑺傜偣鎵ц銆佸箓绛夈€乻tep/event/artifact 鍐欏叆銆侀敊璇褰?|
+| Legacy Stage Adapter | 鍖呰鏃у€欓€夈€佽鍒掋€佹媶绔犮€佹帴绠°€佺珷鑺傛墽琛屽拰淇鑳藉姏 |
+| Step Module | 鏂拌兘鍔涚殑鏍囧噯鎵ц鍗曞厓锛屼緵鑷姩瀵兼紨銆佺珷鑺傛祦姘寸嚎鍜屽垱浣滀腑鏋㈠鐢?|
+| Context Broker | 缁熶竴鍙栨暟銆侀绠椼€佸揩鐓у拰涓婁笅鏂囧潡鐢熸垚 |
+| Prompt Runner | 缁х画浣滀负浜у搧绾?prompt 璋冪敤鍏ュ彛锛屾墽琛屾敞鍐屻€佺粨鏋勫寲杈撳嚭鍜屾牎楠?|
+| Artifact Ledger | 淇濆瓨浜х墿绱㈠紩銆佹潵婧愩€佺増鏈€佷緷璧栥€乻tale銆佷繚鎶ょ姸鎬?|
+| DirectorEvent Projection | 鎶婅繍琛屼簨瀹炴姇褰卞埌鐢ㄦ埛鍙杩涘害銆佷换鍔′腑蹇冨拰鍒涗綔涓灑 |
+| LangGraph Pilot | 鍙礋璐ｄ綆椋庨櫓缂栨帓銆乮nterrupt銆乺esume 鍜?trace |
 
-## 5. 完整执行范围
+## 5. 瀹屾暣鎵ц鑼冨洿
 
-### 5.1 Runtime 接管旧阶段
+### 5.1 Runtime 鎺ョ鏃ч樁娈?
 
-必须完成：
+蹇呴』瀹屾垚锛?
 
-- 建立 runtime adapters：
+- 寤虹珛 runtime adapters锛?
   - `CandidateStageNodeAdapter`
   - `PlanningStageNodeAdapter`
   - `StructuredOutlineNodeAdapter`
   - `TakeoverNodeAdapter`
   - `ChapterExecutionNodeAdapter`
   - `QualityRepairNodeAdapter`
-- 旧阶段通过 `DirectorNodeRunner.run()` 执行，不再只手动记录 step。
-- 每个 adapter 声明：
+- 鏃ч樁娈甸€氳繃 `DirectorNodeRunner.run()` 鎵ц锛屼笉鍐嶅彧鎵嬪姩璁板綍 step銆?
+- 姣忎釜 adapter 澹版槑锛?
   - reads
   - writes
   - mayModifyUserContent
   - requiresApprovalByDefault
   - supportsAutoRetry
   - affectedScope resolver
-- `NovelDirectorService` 保留 API facade 和兼容入口，主编排职责下沉到 runtime orchestration 和 adapters。
+- `NovelDirectorService` 淇濈暀 API facade 鍜屽吋瀹瑰叆鍙ｏ紝涓荤紪鎺掕亴璐ｄ笅娌夊埌 runtime orchestration 鍜?adapters銆?
 
-完成标准：
+瀹屾垚鏍囧噯锛?
 
-- 候选、书级规划、角色准备、分卷策略、结构化拆章、接管、章节执行、质量修复都至少有标准 adapter。
-- 写入型节点执行前必须经过 PolicyEngine。
-- `suggest_only` 模式下不执行写入节点。
-- 用户正文相关节点在未允许覆盖时进入确认或阻断范围。
-- `NovelDirectorService.ts` 不继续增长，并开始拆出明显职责。
+- 鍊欓€夈€佷功绾ц鍒掋€佽鑹插噯澶囥€佸垎鍗风瓥鐣ャ€佺粨鏋勫寲鎷嗙珷銆佹帴绠°€佺珷鑺傛墽琛屻€佽川閲忎慨澶嶉兘鑷冲皯鏈夋爣鍑?adapter銆?
+- 鍐欏叆鍨嬭妭鐐规墽琛屽墠蹇呴』缁忚繃 PolicyEngine銆?
+- `suggest_only` 妯″紡涓嬩笉鎵ц鍐欏叆鑺傜偣銆?
+- 鐢ㄦ埛姝ｆ枃鐩稿叧鑺傜偣鍦ㄦ湭鍏佽瑕嗙洊鏃惰繘鍏ョ‘璁ゆ垨闃绘柇鑼冨洿銆?
+- `NovelDirectorService.ts` 涓嶇户缁闀匡紝骞跺紑濮嬫媶鍑烘槑鏄捐亴璐ｃ€?
 
-### 5.2 PolicyEngine 硬接入
+### 5.2 PolicyEngine 纭帴鍏?
 
-必须完成：
+蹇呴』瀹屾垚锛?
 
-- 将策略判断接到所有写入型 NodeRunner 节点。
-- 支持策略：
+- 灏嗙瓥鐣ュ垽鏂帴鍒版墍鏈夊啓鍏ュ瀷 NodeRunner 鑺傜偣銆?
+- 鏀寔绛栫暐锛?
   - `suggest_only`
   - `run_next_step`
   - `run_until_gate`
   - `auto_safe_scope`
-- 支持审批判断：
-  - 覆盖用户内容。
-  - 重算下游产物。
-  - 自动执行大范围章节。
-  - 高风险修复。
-- 支持质量失败处理：
+- 鏀寔瀹℃壒鍒ゆ柇锛?
+  - 瑕嗙洊鐢ㄦ埛鍐呭銆?
+  - 閲嶇畻涓嬫父浜х墿銆?
+  - 鑷姩鎵ц澶ц寖鍥寸珷鑺傘€?
+  - 楂橀闄╀慨澶嶃€?
+- 鏀寔璐ㄩ噺澶辫触澶勭悊锛?
   - `repair_once`
   - `pause_for_manual`
   - `continue_with_risk`
   - `block_scope`
-- 自动修复预算固定为一次，后续扩展必须显式设计。
+- 鑷姩淇棰勭畻鍥哄畾涓轰竴娆★紝鍚庣画鎵╁睍蹇呴』鏄惧紡璁捐銆?
 
-完成标准：
+瀹屾垚鏍囧噯锛?
 
-- PolicyEngine 不再只是单测对象，而是实际阻止不符合策略的写入动作。
-- 单章失败只影响受影响章节或范围，不冻结全书。
-- 高风险覆盖默认需要确认。
-- 非破坏性问题允许记录风险后继续。
+- PolicyEngine 涓嶅啀鍙槸鍗曟祴瀵硅薄锛岃€屾槸瀹為檯闃绘涓嶇鍚堢瓥鐣ョ殑鍐欏叆鍔ㄤ綔銆?
+- 鍗曠珷澶辫触鍙奖鍝嶅彈褰卞搷绔犺妭鎴栬寖鍥达紝涓嶅喕缁撳叏涔︺€?
+- 楂橀闄╄鐩栭粯璁ら渶瑕佺‘璁ゃ€?
+- 闈炵牬鍧忔€ч棶棰樺厑璁歌褰曢闄╁悗缁х画銆?
 
-### 5.3 Artifact Ledger 完整 wrapper
+### 5.3 Artifact Ledger 瀹屾暣 wrapper
 
-必须完成：
+蹇呴』瀹屾垚锛?
 
-- 索引核心产物：
+- 绱㈠紩鏍稿績浜х墿锛?
   - `book_contract`
   - `story_macro`
   - `character_cast`
@@ -284,114 +284,114 @@ Task Center / Auto Director UI / Creative Hub Projection / Prompt Trace
   - `chapter_retention_contract`
   - `continuity_state`
   - `rolling_window_review`
-- 给 artifact 增加：
+- 缁?artifact 澧炲姞锛?
   - source
   - sourceStepRunId
   - promptAssetKey / promptVersion
-  - contentHash 或 contentSignature
+  - contentHash 鎴?contentSignature
   - dependsOn
   - status: draft / active / superseded / stale / rejected
   - protectedUserContent marker
-- Workspace Analyzer 读取 ledger 判断：
+- Workspace Analyzer 璇诲彇 ledger 鍒ゆ柇锛?
   - missing
   - active
   - stale
   - protected user edited
   - needs repair
 
-完成标准：
+瀹屾垚鏍囧噯锛?
 
-- 已有小说能 backfill 基础 artifact 索引。
-- 新生成产物写旧业务表后同步写 ledger wrapper。
-- 用户编辑章节正文后，对应 draft 被识别为受保护内容。
-- 章纲依赖上游角色、分卷、世界规则；正文依赖章纲；修复票据依赖审核报告和正文。
-- Analyzer 的推荐动作能基于 ledger 缺失、stale、保护状态输出。
+- 宸叉湁灏忚鑳?backfill 鍩虹 artifact 绱㈠紩銆?
+- 鏂扮敓鎴愪骇鐗╁啓鏃т笟鍔¤〃鍚庡悓姝ュ啓 ledger wrapper銆?
+- 鐢ㄦ埛缂栬緫绔犺妭姝ｆ枃鍚庯紝瀵瑰簲 draft 琚瘑鍒负鍙椾繚鎶ゅ唴瀹广€?
+- 绔犵翰渚濊禆涓婃父瑙掕壊銆佸垎鍗枫€佷笘鐣岃鍒欙紱姝ｆ枃渚濊禆绔犵翰锛涗慨澶嶇エ鎹緷璧栧鏍告姤鍛婂拰姝ｆ枃銆?
+- Analyzer 鐨勬帹鑽愬姩浣滆兘鍩轰簬 ledger 缂哄け銆乻tale銆佷繚鎶ょ姸鎬佽緭鍑恒€?
 
-### 5.4 DirectorEvent 投影和用户可见进度
+### 5.4 DirectorEvent 鎶曞奖鍜岀敤鎴峰彲瑙佽繘搴?
 
-必须完成：
+蹇呴』瀹屾垚锛?
 
-- 建立 `DirectorEventProjectionService`。
-- Runtime events 投影到：
-  - task center detail step。
-  - auto director progress panel。
-  - workflow explainability summary。
-  - creative hub message/tool result。
-- 长步骤 heartbeat：
-  - 候选生成。
-  - 长 prompt 调用。
-  - volume generation。
-  - chapter detail bundle。
-  - chapter execution / review / repair。
-- 修复已知进度问题：
-  - `book_contract` 进度不能低于前置 `constraint_engine`。
-  - 任务中心和弹窗不应显示互相冲突的阶段。
+- 寤虹珛 `DirectorEventProjectionService`銆?
+- Runtime events 鎶曞奖鍒帮細
+  - task center detail step銆?
+  - auto director progress panel銆?
+  - workflow explainability summary銆?
+  - creative hub message/tool result銆?
+- 闀挎楠?heartbeat锛?
+  - 鍊欓€夌敓鎴愩€?
+  - 闀?prompt 璋冪敤銆?
+  - volume generation銆?
+  - chapter detail bundle銆?
+  - chapter execution / review / repair銆?
+- 淇宸茬煡杩涘害闂锛?
+  - `book_contract` 杩涘害涓嶈兘浣庝簬鍓嶇疆 `constraint_engine`銆?
+  - 浠诲姟涓績鍜屽脊绐椾笉搴旀樉绀轰簰鐩稿啿绐佺殑闃舵銆?
 
-完成标准：
+瀹屾垚鏍囧噯锛?
 
-- 自动导演运行超过 30 秒时，用户仍能看到当前阶段、等待说明和最近事件。
-- 章节执行中的生成、审校、修复能在 UI 或任务详情中区分。
-- `front10_ready`、`chapter_batch_ready`、`workflow_completed` 有明确下一步建议。
-- 用户看到的是任务语言，不是后端迁移或重构语言。
+- 鑷姩瀵兼紨杩愯瓒呰繃 30 绉掓椂锛岀敤鎴蜂粛鑳界湅鍒板綋鍓嶉樁娈点€佺瓑寰呰鏄庡拰鏈€杩戜簨浠躲€?
+- 绔犺妭鎵ц涓殑鐢熸垚銆佸鏍°€佷慨澶嶈兘鍦?UI 鎴栦换鍔¤鎯呬腑鍖哄垎銆?
+- `chapter_batch_ready`銆乣chapter_batch_ready`銆乣workflow_completed` 鏈夋槑纭笅涓€姝ュ缓璁€?
+- 鐢ㄦ埛鐪嬪埌鐨勬槸浠诲姟璇█锛屼笉鏄悗绔縼绉绘垨閲嶆瀯璇█銆?
 
-### 5.5 章节执行与质量修复标准节点
+### 5.5 绔犺妭鎵ц涓庤川閲忎慨澶嶆爣鍑嗚妭鐐?
 
-必须完成：
+蹇呴』瀹屾垚锛?
 
-- 新增标准节点：
+- 鏂板鏍囧噯鑺傜偣锛?
   - `chapter_execution_node`
   - `chapter_quality_review_node`
   - `chapter_repair_node`
   - `chapter_state_commit_node`
   - `payoff_ledger_sync_node`
   - `character_resource_sync_node`
-- Pipeline job 保留为子执行器，但入口、结果、失败、恢复都由 NodeRunner 管理。
-- 审核结果写入 `audit_report` 和必要的 `repair_ticket`。
-- 修复失败后进入人工修复或带风险继续。
+- Pipeline job 淇濈暀涓哄瓙鎵ц鍣紝浣嗗叆鍙ｃ€佺粨鏋溿€佸け璐ャ€佹仮澶嶉兘鐢?NodeRunner 绠＄悊銆?
+- 瀹℃牳缁撴灉鍐欏叆 `audit_report` 鍜屽繀瑕佺殑 `repair_ticket`銆?
+- 淇澶辫触鍚庤繘鍏ヤ汉宸ヤ慨澶嶆垨甯﹂闄╃户缁€?
 
-完成标准：
+瀹屾垚鏍囧噯锛?
 
-- 第 5 章审核失败时生成 repair ticket，不冻结整本书。
-- 自动修复一次失败后进入人工修复或带风险继续。
-- 继续第 6 章时不会重复创建第 5 章 pipeline job。
-- 服务重启后先提示用户手动恢复；用户确认恢复后从最后成功 step / artifact 继续，不重复写正文。
+- 绗?5 绔犲鏍稿け璐ユ椂鐢熸垚 repair ticket锛屼笉鍐荤粨鏁存湰涔︺€?
+- 鑷姩淇涓€娆″け璐ュ悗杩涘叆浜哄伐淇鎴栧甫椋庨櫓缁х画銆?
+- 缁х画绗?6 绔犳椂涓嶄細閲嶅鍒涘缓绗?5 绔?pipeline job銆?
+- 鏈嶅姟閲嶅惎鍚庡厛鎻愮ず鐢ㄦ埛鎵嬪姩鎭㈠锛涚敤鎴风‘璁ゆ仮澶嶅悗浠庢渶鍚庢垚鍔?step / artifact 缁х画锛屼笉閲嶅鍐欐鏂囥€?
 
-### 5.6 手动编辑影响分析
+### 5.6 鎵嬪姩缂栬緫褰卞搷鍒嗘瀽
 
-必须完成：
+蹇呴』瀹屾垚锛?
 
-- 扩展 Workspace Analyzer schema：
+- 鎵╁睍 Workspace Analyzer schema锛?
   - `manualEditImpact`
   - `affectedArtifacts`
   - `minimalRepairPath`
   - `safeToContinue`
   - `requiresApproval`
-- 增加确定性 edit inventory：
-  - 最近修改章节。
-  - 修改后的 contentHash。
-  - 相关下游 task sheet / draft / audit report。
-  - 相关 reader promise / payoff / character state。
-- 暴露 runtime API：
-  - 可以作为 workspace analysis mode。
-  - 或新增 `evaluate-manual-edit-impact` 路由。
-- 前端和创作中枢展示：
-  - 当前改动影响了什么。
-  - 推荐下一步。
-  - 是否可以直接继续。
-  - 是否需要确认局部重算。
+- 澧炲姞纭畾鎬?edit inventory锛?
+  - 鏈€杩戜慨鏀圭珷鑺傘€?
+  - 淇敼鍚庣殑 contentHash銆?
+  - 鐩稿叧涓嬫父 task sheet / draft / audit report銆?
+  - 鐩稿叧 reader promise / payoff / character state銆?
+- 鏆撮湶 runtime API锛?
+  - 鍙互浣滀负 workspace analysis mode銆?
+  - 鎴栨柊澧?`evaluate-manual-edit-impact` 璺敱銆?
+- 鍓嶇鍜屽垱浣滀腑鏋㈠睍绀猴細
+  - 褰撳墠鏀瑰姩褰卞搷浜嗕粈涔堛€?
+  - 鎺ㄨ崘涓嬩竴姝ャ€?
+  - 鏄惁鍙互鐩存帴缁х画銆?
+  - 鏄惁闇€瑕佺‘璁ゅ眬閮ㄩ噸绠椼€?
 
-完成标准：
+瀹屾垚鏍囧噯锛?
 
-- 用户只润色第 3 章正文时，系统不重做宏观规划，只建议审核或更新连续性。
-- 用户改主角动机时，系统建议复核角色治理、卷目标和后续章纲。
-- 用户删除关键伏笔时，系统指出影响后续 payoff 或相关章节任务。
-- 推荐来自 AI 结构化输出，确定性代码只做范围保护和安全过滤。
+- 鐢ㄦ埛鍙鼎鑹茬 3 绔犳鏂囨椂锛岀郴缁熶笉閲嶅仛瀹忚瑙勫垝锛屽彧寤鸿瀹℃牳鎴栨洿鏂拌繛缁€с€?
+- 鐢ㄦ埛鏀逛富瑙掑姩鏈烘椂锛岀郴缁熷缓璁鏍歌鑹叉不鐞嗐€佸嵎鐩爣鍜屽悗缁珷绾层€?
+- 鐢ㄦ埛鍒犻櫎鍏抽敭浼忕瑪鏃讹紝绯荤粺鎸囧嚭褰卞搷鍚庣画 payoff 鎴栫浉鍏崇珷鑺備换鍔°€?
+- 鎺ㄨ崘鏉ヨ嚜 AI 缁撴瀯鍖栬緭鍑猴紝纭畾鎬т唬鐮佸彧鍋氳寖鍥翠繚鎶ゅ拰瀹夊叏杩囨护銆?
 
-### 5.7 创作中枢接入 DirectorRuntime
+### 5.7 鍒涗綔涓灑鎺ュ叆 DirectorRuntime
 
-必须完成：
+蹇呴』瀹屾垚锛?
 
-- 创作中枢新增自动导演工具：
+- 鍒涗綔涓灑鏂板鑷姩瀵兼紨宸ュ叿锛?
   - `analyze_director_workspace`
   - `get_director_run_status`
   - `explain_director_next_action`
@@ -399,27 +399,27 @@ Task Center / Auto Director UI / Creative Hub Projection / Prompt Trace
   - `run_director_until_gate`
   - `switch_director_policy`
   - `evaluate_manual_edit_impact`
-- 工具只调用 DirectorRuntime 公开 API。
-- 高风险动作进入创作中枢 approval gate。
-- 中枢回答必须面向新手：
-  - 当前小说状态。
-  - 推荐下一步。
-  - 风险和影响范围。
-  - 是否需要用户确认。
+- 宸ュ叿鍙皟鐢?DirectorRuntime 鍏紑 API銆?
+- 楂橀闄╁姩浣滆繘鍏ュ垱浣滀腑鏋?approval gate銆?
+- 涓灑鍥炵瓟蹇呴』闈㈠悜鏂版墜锛?
+  - 褰撳墠灏忚鐘舵€併€?
+  - 鎺ㄨ崘涓嬩竴姝ャ€?
+  - 椋庨櫓鍜屽奖鍝嶈寖鍥淬€?
+  - 鏄惁闇€瑕佺敤鎴风‘璁ゃ€?
 
-完成标准：
+瀹屾垚鏍囧噯锛?
 
-- 用户在创作中枢问“这本书现在该做什么”，系统能基于 runtime/workspace analysis 回复。
-- 用户要求继续自动导演时，中枢通过 runtime policy 和 continue API 执行。
-- 中枢不直接调用 `runStructuredOutlinePhase()`、`continueTakeoverExecution()` 等旧内部函数。
-- 覆盖用户内容、重算下游、大范围自动执行都进入 approval gate。
+- 鐢ㄦ埛鍦ㄥ垱浣滀腑鏋㈤棶鈥滆繖鏈功鐜板湪璇ュ仛浠€涔堚€濓紝绯荤粺鑳藉熀浜?runtime/workspace analysis 鍥炲銆?
+- 鐢ㄦ埛瑕佹眰缁х画鑷姩瀵兼紨鏃讹紝涓灑閫氳繃 runtime policy 鍜?continue API 鎵ц銆?
+- 涓灑涓嶇洿鎺ヨ皟鐢?`runStructuredOutlinePhase()`銆乣continueTakeoverExecution()` 绛夋棫鍐呴儴鍑芥暟銆?
+- 瑕嗙洊鐢ㄦ埛鍐呭銆侀噸绠椾笅娓搞€佸ぇ鑼冨洿鑷姩鎵ц閮借繘鍏?approval gate銆?
 
-### 5.8 Context Broker 和 Prompt Catalog
+### 5.8 Context Broker 鍜?Prompt Catalog
 
-必须完成：
+蹇呴』瀹屾垚锛?
 
-- 新增 Context Resolver Registry。
-- 首批 resolver：
+- 鏂板 Context Resolver Registry銆?
+- 棣栨壒 resolver锛?
   - `book_contract`
   - `story_macro`
   - `chapter_mission`
@@ -432,196 +432,196 @@ Task Center / Auto Director UI / Creative Hub Projection / Prompt Trace
   - `rag_context`
   - `creative_hub.bindings`
   - `creative_hub.recent_messages`
-- 新增 Context Broker：
-  - 支持 snapshot / fresh / hybrid。
-  - 支持 token 预算。
-  - 输出 PromptContextBlock。
-- 新增只读 Prompt Catalog API：
+- 鏂板 Context Broker锛?
+  - 鏀寔 snapshot / fresh / hybrid銆?
+  - 鏀寔 token 棰勭畻銆?
+  - 杈撳嚭 PromptContextBlock銆?
+- 鏂板鍙 Prompt Catalog API锛?
   - prompt id
   - version
   - taskType
   - mode
   - contextPolicy
   - outputSchema presence
-- 新增 Prompt Preview API：
-  - 给定 scope 和 prompt id 渲染最终 messages。
-  - 不调用模型。
-  - 不保存 override。
+- 鏂板 Prompt Preview API锛?
+  - 缁欏畾 scope 鍜?prompt id 娓叉煋鏈€缁?messages銆?
+  - 涓嶈皟鐢ㄦā鍨嬨€?
+  - 涓嶄繚瀛?override銆?
 
-完成标准：
+瀹屾垚鏍囧噯锛?
 
-- 章节写作、章节审核、workspace analysis 至少各有一个调用路径使用 Context Broker。
-- Prompt Catalog 能列出注册 prompt。
-- Prompt Preview 能展示最终上下文块和消息。
-- 不开放自由编辑完整 prompt。
+- 绔犺妭鍐欎綔銆佺珷鑺傚鏍搞€亀orkspace analysis 鑷冲皯鍚勬湁涓€涓皟鐢ㄨ矾寰勪娇鐢?Context Broker銆?
+- Prompt Catalog 鑳藉垪鍑烘敞鍐?prompt銆?
+- Prompt Preview 鑳藉睍绀烘渶缁堜笂涓嬫枃鍧楀拰娑堟伅銆?
+- 涓嶅紑鏀捐嚜鐢辩紪杈戝畬鏁?prompt銆?
 
-### 5.9 统一 Step Module Runtime
+### 5.9 缁熶竴 Step Module Runtime
 
-必须完成：
+蹇呴』瀹屾垚锛?
 
-- 建立 `WorkflowStepModule` 契约。
-- 将旧自动导演 adapter 和章节 pipeline 节点对齐为 Step Module。
-- 建立 Workflow Plan 结构：
+- 寤虹珛 `WorkflowStepModule` 濂戠害銆?
+- 灏嗘棫鑷姩瀵兼紨 adapter 鍜岀珷鑺?pipeline 鑺傜偣瀵归綈涓?Step Module銆?
+- 寤虹珛 Workflow Plan 缁撴瀯锛?
   - goal
   - policy
   - steps
   - dependencies
   - approval requirement
-- 章节流水线变成 Workflow Template。
-- 自动导演变成 Workflow Planner，输出或调整 Workflow Plan。
+- 绔犺妭娴佹按绾垮彉鎴?Workflow Template銆?
+- 鑷姩瀵兼紨鍙樻垚 Workflow Planner锛岃緭鍑烘垨璋冩暣 Workflow Plan銆?
 
-完成标准：
+瀹屾垚鏍囧噯锛?
 
-- 自动导演和章节流水线不再长期分成两套执行语义。
-- 手动按钮、自动导演和创作中枢能进入同一批 Step Module。
-- 新增能力通过 Step Module、Context Resolver、PromptAsset、Artifact 类型接入。
+- 鑷姩瀵兼紨鍜岀珷鑺傛祦姘寸嚎涓嶅啀闀挎湡鍒嗘垚涓ゅ鎵ц璇箟銆?
+- 鎵嬪姩鎸夐挳銆佽嚜鍔ㄥ婕斿拰鍒涗綔涓灑鑳借繘鍏ュ悓涓€鎵?Step Module銆?
+- 鏂板鑳藉姏閫氳繃 Step Module銆丆ontext Resolver銆丳romptAsset銆丄rtifact 绫诲瀷鎺ュ叆銆?
 
-### 5.10 低风险 LangGraph 试点
+### 5.10 浣庨闄?LangGraph 璇曠偣
 
-必须完成：
+蹇呴』瀹屾垚锛?
 
-- 选择一个低风险图：
+- 閫夋嫨涓€涓綆椋庨櫓鍥撅細
 
 ```text
 workspace_analyze
-  ↓
+  鈫?
 recommend_next_action
-  ↓
+  鈫?
 run_next_step
-  ↓
+  鈫?
 gate
 ```
 
-或：
+鎴栵細
 
 ```text
 candidate_generation
-  ↓
+  鈫?
 title_pack
-  ↓
+  鈫?
 candidate_selection_required interrupt
 ```
 
-- LangGraph 只负责：
-  - 下一步去哪。
-  - interrupt。
-  - resume。
-  - trace。
-- 业务状态仍来自：
-  - DirectorRuntime。
-  - PolicyEngine。
-  - Artifact Ledger。
-  - NodeRunner。
+- LangGraph 鍙礋璐ｏ細
+  - 涓嬩竴姝ュ幓鍝€?
+  - interrupt銆?
+  - resume銆?
+  - trace銆?
+- 涓氬姟鐘舵€佷粛鏉ヨ嚜锛?
+  - DirectorRuntime銆?
+  - PolicyEngine銆?
+  - Artifact Ledger銆?
+  - NodeRunner銆?
 
-完成标准：
+瀹屾垚鏍囧噯锛?
 
-- interrupt / resume 后不会重复执行已成功节点。
-- 图试点失败不影响旧入口正常运行。
-- LangGraph 不直接承载产物真相和覆盖策略。
+- interrupt / resume 鍚庝笉浼氶噸澶嶆墽琛屽凡鎴愬姛鑺傜偣銆?
+- 鍥捐瘯鐐瑰け璐ヤ笉褰卞搷鏃у叆鍙ｆ甯歌繍琛屻€?
+- LangGraph 涓嶇洿鎺ユ壙杞戒骇鐗╃湡鐩稿拰瑕嗙洊绛栫暐銆?
 
-### 5.11 第一批网文质量模块
+### 5.11 绗竴鎵圭綉鏂囪川閲忔ā鍧?
 
-必须完成：
+蹇呴』瀹屾垚锛?
 
 1. Reader Promise Ledger
-   - 书级承诺。
-   - 卷级承诺。
-   - 节奏段承诺。
-   - 章节承诺。
-   - 审核承诺兑现度。
+   - 涔︾骇鎵胯銆?
+   - 鍗风骇鎵胯銆?
+   - 鑺傚娈垫壙璇恒€?
+   - 绔犺妭鎵胯銆?
+   - 瀹℃牳鎵胯鍏戠幇搴︺€?
 2. Chapter Retention Contract
-   - 本章目标。
-   - 新信息。
-   - 可见变化。
-   - 小回报。
-   - 未解压力。
-   - 章末钩子类型。
-   - 角色驱动力。
-   - 世界规则使用。
+   - 鏈珷鐩爣銆?
+   - 鏂颁俊鎭€?
+   - 鍙鍙樺寲銆?
+   - 灏忓洖鎶ャ€?
+   - 鏈В鍘嬪姏銆?
+   - 绔犳湯閽╁瓙绫诲瀷銆?
+   - 瑙掕壊椹卞姩鍔涖€?
+   - 涓栫晫瑙勫垯浣跨敤銆?
 3. Rolling Window Review
-   - 最近 5 章是否同质。
-   - 主角目标有没有推进。
-   - 读者承诺有没有兑现或加码。
-   - 结尾钩子是否重复。
-   - 角色关系是否停滞。
-   - 世界规则是否参与冲突。
+   - 鏈€杩?5 绔犳槸鍚﹀悓璐ㄣ€?
+   - 涓昏鐩爣鏈夋病鏈夋帹杩涖€?
+   - 璇昏€呮壙璇烘湁娌℃湁鍏戠幇鎴栧姞鐮併€?
+   - 缁撳熬閽╁瓙鏄惁閲嶅銆?
+   - 瑙掕壊鍏崇郴鏄惁鍋滄粸銆?
+   - 涓栫晫瑙勫垯鏄惁鍙備笌鍐茬獊銆?
 4. World Skeleton V1
-   - 没有绑定世界观时，按题材判断是否生成项目级世界规则骨架。
-   - 世界规则必须转化为冲突、代价、资源、禁区、组织或地点。
+   - 娌℃湁缁戝畾涓栫晫瑙傛椂锛屾寜棰樻潗鍒ゆ柇鏄惁鐢熸垚椤圭洰绾т笘鐣岃鍒欓鏋躲€?
+   - 涓栫晫瑙勫垯蹇呴』杞寲涓哄啿绐併€佷唬浠枫€佽祫婧愩€佺鍖恒€佺粍缁囨垨鍦扮偣銆?
 5. Character Governance V1
-   - 主角阶段目标、误区、代价和状态。
-   - 配角功能、关系推进、出场责任。
-   - 章节任务必须说明关键角色带来的冲突或选择。
+   - 涓昏闃舵鐩爣銆佽鍖恒€佷唬浠峰拰鐘舵€併€?
+   - 閰嶈鍔熻兘銆佸叧绯绘帹杩涖€佸嚭鍦鸿矗浠汇€?
+   - 绔犺妭浠诲姟蹇呴』璇存槑鍏抽敭瑙掕壊甯︽潵鐨勫啿绐佹垨閫夋嫨銆?
 
-完成标准：
+瀹屾垚鏍囧噯锛?
 
-- 每章任务单不只说明事件，还说明读者获得感和追读理由。
-- 最近 5 章重复或停滞时，系统能生成具体修复建议。
-- 世界观不只是背景资料，而能参与章节冲突。
-- 角色不只是参与者，而能驱动每章冲突和选择。
-- 审核失败输出 affected scope，不冻结全书。
+- 姣忕珷浠诲姟鍗曚笉鍙鏄庝簨浠讹紝杩樿鏄庤鑰呰幏寰楁劅鍜岃拷璇荤悊鐢便€?
+- 鏈€杩?5 绔犻噸澶嶆垨鍋滄粸鏃讹紝绯荤粺鑳界敓鎴愬叿浣撲慨澶嶅缓璁€?
+- 涓栫晫瑙備笉鍙槸鑳屾櫙璧勬枡锛岃€岃兘鍙備笌绔犺妭鍐茬獊銆?
+- 瑙掕壊涓嶅彧鏄弬涓庤€咃紝鑰岃兘椹卞姩姣忕珷鍐茬獊鍜岄€夋嫨銆?
+- 瀹℃牳澶辫触杈撳嚭 affected scope锛屼笉鍐荤粨鍏ㄤ功銆?
 
-## 6. 端到端执行主线
+## 6. 绔埌绔墽琛屼富绾?
 
-完整交付按这条主线收束：
+瀹屾暣浜や粯鎸夎繖鏉′富绾挎敹鏉燂細
 
 ```text
-用户入口
-  ↓
-Runtime 初始化或恢复
-  ↓
-Workspace Analyzer 读取 Ledger + Inventory
-  ↓
-AI 结构化判断生产阶段、风险、推荐动作
-  ↓
-PolicyEngine 判断是否可执行、是否需审批、是否保护用户内容
-  ↓
-NodeRunner 执行标准节点或旧阶段 Adapter
-  ↓
-Context Broker 组装上下文
-  ↓
-Prompt Runner 调用注册 prompt
-  ↓
-旧业务表写入 + Artifact Ledger 索引
-  ↓
-DirectorEvent 记录事实
-  ↓
-Projection 更新任务中心、自动导演 UI、创作中枢
-  ↓
-失败时根据 affected scope 局部修复、人工确认或带风险继续
+鐢ㄦ埛鍏ュ彛
+  鈫?
+Runtime 鍒濆鍖栨垨鎭㈠
+  鈫?
+Workspace Analyzer 璇诲彇 Ledger + Inventory
+  鈫?
+AI 缁撴瀯鍖栧垽鏂敓浜ч樁娈点€侀闄┿€佹帹鑽愬姩浣?
+  鈫?
+PolicyEngine 鍒ゆ柇鏄惁鍙墽琛屻€佹槸鍚﹂渶瀹℃壒銆佹槸鍚︿繚鎶ょ敤鎴峰唴瀹?
+  鈫?
+NodeRunner 鎵ц鏍囧噯鑺傜偣鎴栨棫闃舵 Adapter
+  鈫?
+Context Broker 缁勮涓婁笅鏂?
+  鈫?
+Prompt Runner 璋冪敤娉ㄥ唽 prompt
+  鈫?
+鏃т笟鍔¤〃鍐欏叆 + Artifact Ledger 绱㈠紩
+  鈫?
+DirectorEvent 璁板綍浜嬪疄
+  鈫?
+Projection 鏇存柊浠诲姟涓績銆佽嚜鍔ㄥ婕?UI銆佸垱浣滀腑鏋?
+  鈫?
+澶辫触鏃舵牴鎹?affected scope 灞€閮ㄤ慨澶嶃€佷汉宸ョ‘璁ゆ垨甯﹂闄╃户缁?
 ```
 
-这条主线必须覆盖：
+杩欐潯涓荤嚎蹇呴』瑕嗙洊锛?
 
-- 新建小说。
-- AI 接管已有小说。
-- 手动修改后继续。
-- 失败恢复。
-- 自动执行章节。
-- 质量审核和修复。
-- 创作中枢询问和控制。
+- 鏂板缓灏忚銆?
+- AI 鎺ョ宸叉湁灏忚銆?
+- 鎵嬪姩淇敼鍚庣户缁€?
+- 澶辫触鎭㈠銆?
+- 鑷姩鎵ц绔犺妭銆?
+- 璐ㄩ噺瀹℃牳鍜屼慨澶嶃€?
+- 鍒涗綔涓灑璇㈤棶鍜屾帶鍒躲€?
 
-## 7. 非目标
+## 7. 闈炵洰鏍?
 
-完整执行期间不做：
+瀹屾暣鎵ц鏈熼棿涓嶅仛锛?
 
-- 不重置数据库。
-- 不删除或批量迁移旧业务数据。
-- 不把自动导演主链一次性全量 LangGraph 化。
-- 不开放自由编辑完整 prompt。
-- 不让创作中枢直接调用自动导演旧内部阶段函数。
-- 不用关键词、正则、硬编码 fallback 替代 AI 结构化判断。
-- 不在没有备份验证的情况下执行任何 destructive data operation。
+- 涓嶉噸缃暟鎹簱銆?
+- 涓嶅垹闄ゆ垨鎵归噺杩佺Щ鏃т笟鍔℃暟鎹€?
+- 涓嶆妸鑷姩瀵兼紨涓婚摼涓€娆℃€у叏閲?LangGraph 鍖栥€?
+- 涓嶅紑鏀捐嚜鐢辩紪杈戝畬鏁?prompt銆?
+- 涓嶈鍒涗綔涓灑鐩存帴璋冪敤鑷姩瀵兼紨鏃у唴閮ㄩ樁娈靛嚱鏁般€?
+- 涓嶇敤鍏抽敭璇嶃€佹鍒欍€佺‖缂栫爜 fallback 鏇夸唬 AI 缁撴瀯鍖栧垽鏂€?
+- 涓嶅湪娌℃湁澶囦唤楠岃瘉鐨勬儏鍐典笅鎵ц浠讳綍 destructive data operation銆?
 
-## 8. 数据模型策略
+## 8. 鏁版嵁妯″瀷绛栫暐
 
-短期继续沿用：
+鐭湡缁х画娌跨敤锛?
 
 - `NovelWorkflowTask`
 - `seedPayloadJson.directorRuntime`
-- 旧业务表：BookContract、StoryMacroPlan、VolumePlan、Chapter、QualityReport、AuditReport 等。
+- 鏃т笟鍔¤〃锛欱ookContract銆丼toryMacroPlan銆乂olumePlan銆丆hapter銆丵ualityReport銆丄uditReport 绛夈€?
 
-完整交付中可以通过 additive migration 增加：
+瀹屾暣浜や粯涓彲浠ラ€氳繃 additive migration 澧炲姞锛?
 
 - `DirectorRun`
 - `DirectorStepRun`
@@ -631,94 +631,95 @@ Projection 更新任务中心、自动导演 UI、创作中枢
 - `ContextSnapshot`
 - `PromptRunTrace`
 
-新增独立表的触发条件：
+鏂板鐙珛琛ㄧ殑瑙﹀彂鏉′欢锛?
 
-- seed payload 存储已经影响查询、投影、恢复或体积控制。
-- artifact dependency 需要跨任务查询。
-- prompt trace 和 context snapshot 需要可重放。
-- runtime event 需要稳定投影到多个入口。
+- seed payload 瀛樺偍宸茬粡褰卞搷鏌ヨ銆佹姇褰便€佹仮澶嶆垨浣撶Н鎺у埗銆?
+- artifact dependency 闇€瑕佽法浠诲姟鏌ヨ銆?
+- prompt trace 鍜?context snapshot 闇€瑕佸彲閲嶆斁銆?
+- runtime event 闇€瑕佺ǔ瀹氭姇褰卞埌澶氫釜鍏ュ彛銆?
 
-迁移约束：
+杩佺Щ绾︽潫锛?
 
-- 只做 additive migration。
-- 迁移前说明备份路径。
-- 不删除旧字段。
-- 旧任务仍能读取。
+- 鍙仛 additive migration銆?
+- 杩佺Щ鍓嶈鏄庡浠借矾寰勩€?
+- 涓嶅垹闄ゆ棫瀛楁銆?
+- 鏃т换鍔′粛鑳借鍙栥€?
 
-## 9. 统一验收场景
+## 9. 缁熶竴楠屾敹鍦烘櫙
 
-完整交付必须覆盖以下场景：
+瀹屾暣浜や粯蹇呴』瑕嗙洊浠ヤ笅鍦烘櫙锛?
 
-1. 一句话灵感新建小说，生成候选并停在候选确认。
-2. 确认候选后生成 Book Contract、角色、卷规划、前 10 章任务单。
-3. 已有小说有角色和前 8 章正文，接管后先分析工作区，再推荐补第 9-20 章任务单。
-4. 用户修改主角动机，系统判断角色、卷目标和后续章纲需要复核。
-5. 用户只润色第 3 章正文，系统不重做宏观规划，只建议审核或更新连续性。
-6. 用户删除关键伏笔，系统指出后续 payoff 和章节任务影响范围。
-7. 第 5 章审核失败，生成 repair ticket，不冻结整本书。
-8. 自动修复一次失败后，进入人工修复或带风险继续。
-9. 服务重启后先标记为可手动恢复；用户确认恢复后，从最后成功 artifact / step 继续，不重复创建章节或 pipeline job。
-10. 用户在创作中枢询问“现在该怎么办”，系统能基于 runtime snapshot 和 workspace analysis 给出建议。
-11. 用户在创作中枢要求继续自动导演，系统通过 runtime policy 和 approval gate 执行。
-12. 自动导演长时间运行时，前端仍显示当前步骤、最近事件和可理解等待说明。
-13. 最近 5 章出现重复推进时，Rolling Window Review 生成修复建议。
-14. 没有绑定世界观时，系统能判断是否需要项目级世界规则骨架。
-15. 章节任务单能说明本章追读理由、角色驱动力和世界规则使用。
+1. 涓€鍙ヨ瘽鐏垫劅鏂板缓灏忚锛岀敓鎴愬€欓€夊苟鍋滃湪鍊欓€夌‘璁ゃ€?
+2. 纭鍊欓€夊悗鐢熸垚 Book Contract銆佽鑹层€佸嵎瑙勫垝銆佸墠 10 绔犱换鍔″崟銆?
+3. 宸叉湁灏忚鏈夎鑹插拰鍓?8 绔犳鏂囷紝鎺ョ鍚庡厛鍒嗘瀽宸ヤ綔鍖猴紝鍐嶆帹鑽愯ˉ绗?9-20 绔犱换鍔″崟銆?
+4. 鐢ㄦ埛淇敼涓昏鍔ㄦ満锛岀郴缁熷垽鏂鑹层€佸嵎鐩爣鍜屽悗缁珷绾查渶瑕佸鏍搞€?
+5. 鐢ㄦ埛鍙鼎鑹茬 3 绔犳鏂囷紝绯荤粺涓嶉噸鍋氬畯瑙傝鍒掞紝鍙缓璁鏍告垨鏇存柊杩炵画鎬с€?
+6. 鐢ㄦ埛鍒犻櫎鍏抽敭浼忕瑪锛岀郴缁熸寚鍑哄悗缁?payoff 鍜岀珷鑺備换鍔″奖鍝嶈寖鍥淬€?
+7. 绗?5 绔犲鏍稿け璐ワ紝鐢熸垚 repair ticket锛屼笉鍐荤粨鏁存湰涔︺€?
+8. 鑷姩淇涓€娆″け璐ュ悗锛岃繘鍏ヤ汉宸ヤ慨澶嶆垨甯﹂闄╃户缁€?
+9. 鏈嶅姟閲嶅惎鍚庡厛鏍囪涓哄彲鎵嬪姩鎭㈠锛涚敤鎴风‘璁ゆ仮澶嶅悗锛屼粠鏈€鍚庢垚鍔?artifact / step 缁х画锛屼笉閲嶅鍒涘缓绔犺妭鎴?pipeline job銆?
+10. 鐢ㄦ埛鍦ㄥ垱浣滀腑鏋㈣闂€滅幇鍦ㄨ鎬庝箞鍔炩€濓紝绯荤粺鑳藉熀浜?runtime snapshot 鍜?workspace analysis 缁欏嚭寤鸿銆?
+11. 鐢ㄦ埛鍦ㄥ垱浣滀腑鏋㈣姹傜户缁嚜鍔ㄥ婕旓紝绯荤粺閫氳繃 runtime policy 鍜?approval gate 鎵ц銆?
+12. 鑷姩瀵兼紨闀挎椂闂磋繍琛屾椂锛屽墠绔粛鏄剧ず褰撳墠姝ラ銆佹渶杩戜簨浠跺拰鍙悊瑙ｇ瓑寰呰鏄庛€?
+13. 鏈€杩?5 绔犲嚭鐜伴噸澶嶆帹杩涙椂锛孯olling Window Review 鐢熸垚淇寤鸿銆?
+14. 娌℃湁缁戝畾涓栫晫瑙傛椂锛岀郴缁熻兘鍒ゆ柇鏄惁闇€瑕侀」鐩骇涓栫晫瑙勫垯楠ㄦ灦銆?
+15. 绔犺妭浠诲姟鍗曡兘璇存槑鏈珷杩借鐞嗙敱銆佽鑹查┍鍔ㄥ姏鍜屼笘鐣岃鍒欎娇鐢ㄣ€?
 
-## 10. 质量门
+## 10. 璐ㄩ噺闂?
 
-完整交付前必须通过：
+瀹屾暣浜や粯鍓嶅繀椤婚€氳繃锛?
 
 - `pnpm --filter @ai-novel/shared build`
 - `pnpm --filter @ai-novel/server build`
 - `pnpm --filter @ai-novel/client typecheck`
-- Runtime / Policy / NodeRunner 单测。
-- Workspace Analyzer schema 和 prompt output validation 测试。
-- Artifact Ledger dependency / stale / protection 单测。
-- Event Projection 单测。
-- Chapter execution / repair failure recovery 集成测试。
-- Creative Hub runtime tool tests。
-- Context Broker resolver tests。
-- LangGraph pilot resume / interrupt tests。
-- 自动导演新建链路 smoke test。
-- 自动导演接管链路 smoke test。
-- 手动编辑后继续 smoke test。
-- 任务中心和自动导演进度展示 smoke test。
+- Runtime / Policy / NodeRunner 鍗曟祴銆?
+- Workspace Analyzer schema 鍜?prompt output validation 娴嬭瘯銆?
+- Artifact Ledger dependency / stale / protection 鍗曟祴銆?
+- Event Projection 鍗曟祴銆?
+- Chapter execution / repair failure recovery 闆嗘垚娴嬭瘯銆?
+- Creative Hub runtime tool tests銆?
+- Context Broker resolver tests銆?
+- LangGraph pilot resume / interrupt tests銆?
+- 鑷姩瀵兼紨鏂板缓閾捐矾 smoke test銆?
+- 鑷姩瀵兼紨鎺ョ閾捐矾 smoke test銆?
+- 鎵嬪姩缂栬緫鍚庣户缁?smoke test銆?
+- 浠诲姟涓績鍜岃嚜鍔ㄥ婕旇繘搴﹀睍绀?smoke test銆?
 
-如果改动影响桌面启动或打包，还必须补：
+濡傛灉鏀瑰姩褰卞搷妗岄潰鍚姩鎴栨墦鍖咃紝杩樺繀椤昏ˉ锛?
 
-- 桌面启动 smoke test。
-- 相关桌面 packaging verification。
+- 妗岄潰鍚姩 smoke test銆?
+- 鐩稿叧妗岄潰 packaging verification銆?
 
-## 11. 风险与缓解
+## 11. 椋庨櫓涓庣紦瑙?
 
-| 风险 | 影响 | 缓解 |
+| 椋庨櫓 | 褰卞搷 | 缂撹В |
 | --- | --- | --- |
-| Runtime 继续只是记录器 | 旧链路仍然割裂 | 旧阶段必须通过 NodeRunner adapter 执行 |
-| PolicyEngine 没有硬接入 | 覆盖保护形同虚设 | 所有写入型节点先过 policy decision |
-| Ledger 信息不足 | 手动编辑后仍无法判断影响 | 增加 hash、source、dependsOn、stale、protected marker |
-| 前端不消费 runtime | 用户仍觉得卡住 | Runtime event 必须投影到任务中心和自动导演面板 |
-| 章节执行仍是旧黑箱 | 单章失败仍可能冻结全链 | 章节执行和修复必须成为标准节点 |
-| 创作中枢绕过 runtime | 两套控制语义继续分裂 | 中枢工具只能调用 DirectorRuntime 公开 API |
-| 过早 LangGraph 化 | 把旧复杂度搬进图 | LangGraph 只做低风险试点，业务状态不进图 |
-| Prompt 工作台过早开放编辑 | 破坏结构化输出 | 先只读 catalog / preview，不做自由 override |
-| `NovelDirectorService` 继续膨胀 | 后续维护困难 | 每个执行域都必须减少主 service 职责 |
+| Runtime 缁х画鍙槸璁板綍鍣?| 鏃ч摼璺粛鐒跺壊瑁?| 鏃ч樁娈靛繀椤婚€氳繃 NodeRunner adapter 鎵ц |
+| PolicyEngine 娌℃湁纭帴鍏?| 瑕嗙洊淇濇姢褰㈠悓铏氳 | 鎵€鏈夊啓鍏ュ瀷鑺傜偣鍏堣繃 policy decision |
+| Ledger 淇℃伅涓嶈冻 | 鎵嬪姩缂栬緫鍚庝粛鏃犳硶鍒ゆ柇褰卞搷 | 澧炲姞 hash銆乻ource銆乨ependsOn銆乻tale銆乸rotected marker |
+| 鍓嶇涓嶆秷璐?runtime | 鐢ㄦ埛浠嶈寰楀崱浣?| Runtime event 蹇呴』鎶曞奖鍒颁换鍔′腑蹇冨拰鑷姩瀵兼紨闈㈡澘 |
+| 绔犺妭鎵ц浠嶆槸鏃ч粦绠?| 鍗曠珷澶辫触浠嶅彲鑳藉喕缁撳叏閾?| 绔犺妭鎵ц鍜屼慨澶嶅繀椤绘垚涓烘爣鍑嗚妭鐐?|
+| 鍒涗綔涓灑缁曡繃 runtime | 涓ゅ鎺у埗璇箟缁х画鍒嗚 | 涓灑宸ュ叿鍙兘璋冪敤 DirectorRuntime 鍏紑 API |
+| 杩囨棭 LangGraph 鍖?| 鎶婃棫澶嶆潅搴︽惉杩涘浘 | LangGraph 鍙仛浣庨闄╄瘯鐐癸紝涓氬姟鐘舵€佷笉杩涘浘 |
+| Prompt 宸ヤ綔鍙拌繃鏃╁紑鏀剧紪杈?| 鐮村潖缁撴瀯鍖栬緭鍑?| 鍏堝彧璇?catalog / preview锛屼笉鍋氳嚜鐢?override |
+| `NovelDirectorService` 缁х画鑶ㄨ儉 | 鍚庣画缁存姢鍥伴毦 | 姣忎釜鎵ц鍩熼兘蹇呴』鍑忓皯涓?service 鑱岃矗 |
 
-## 12. 交付完成定义
+## 12. 浜や粯瀹屾垚瀹氫箟
 
-完整改造完成的判断标准：
+瀹屾暣鏀归€犲畬鎴愮殑鍒ゆ柇鏍囧噯锛?
 
-- 自动导演入口都能从统一 runtime 获取状态。
-- 关键写入动作都通过 NodeRunner 和 PolicyEngine。
-- 用户能看到当前步骤、等待原因、风险和下一步。
-- 用户手写内容被默认保护。
-- 单章失败能局部处理，不冻结整本书。
-- 手动编辑后系统能判断影响范围和最小修复路径。
-- 创作中枢可以解释和控制自动导演，但不绕过 runtime。
-- Context Broker 被真实 prompt / step 使用。
-- Prompt Catalog 和 Preview 可用于只读排查。
-- 低风险 LangGraph 试点验证 interrupt / resume，但不承载业务真相。
-- Reader Promise、Chapter Retention、Rolling Window Review、World Skeleton、Character Governance 进入统一产物和节点体系。
-- 后续新增创作能力可以通过 Step Module、Context Resolver、PromptAsset 和 Artifact 类型接入，而不是改旧主 service 分支。
+- 鑷姩瀵兼紨鍏ュ彛閮借兘浠庣粺涓€ runtime 鑾峰彇鐘舵€併€?
+- 鍏抽敭鍐欏叆鍔ㄤ綔閮介€氳繃 NodeRunner 鍜?PolicyEngine銆?
+- 鐢ㄦ埛鑳界湅鍒板綋鍓嶆楠ゃ€佺瓑寰呭師鍥犮€侀闄╁拰涓嬩竴姝ャ€?
+- 鐢ㄦ埛鎵嬪啓鍐呭琚粯璁や繚鎶ゃ€?
+- 鍗曠珷澶辫触鑳藉眬閮ㄥ鐞嗭紝涓嶅喕缁撴暣鏈功銆?
+- 鎵嬪姩缂栬緫鍚庣郴缁熻兘鍒ゆ柇褰卞搷鑼冨洿鍜屾渶灏忎慨澶嶈矾寰勩€?
+- 鍒涗綔涓灑鍙互瑙ｉ噴鍜屾帶鍒惰嚜鍔ㄥ婕旓紝浣嗕笉缁曡繃 runtime銆?
+- Context Broker 琚湡瀹?prompt / step 浣跨敤銆?
+- Prompt Catalog 鍜?Preview 鍙敤浜庡彧璇绘帓鏌ャ€?
+- 浣庨闄?LangGraph 璇曠偣楠岃瘉 interrupt / resume锛屼絾涓嶆壙杞戒笟鍔＄湡鐩搞€?
+- Reader Promise銆丆hapter Retention銆丷olling Window Review銆乄orld Skeleton銆丆haracter Governance 杩涘叆缁熶竴浜х墿鍜岃妭鐐逛綋绯汇€?
+- 鍚庣画鏂板鍒涗綔鑳藉姏鍙互閫氳繃 Step Module銆丆ontext Resolver銆丳romptAsset 鍜?Artifact 绫诲瀷鎺ュ叆锛岃€屼笉鏄敼鏃т富 service 鍒嗘敮銆?
 
-一句话：本计划按完整执行交付推进，目标是一次性把自动导演改造成统一、可恢复、可解释、能持续帮助新手完成整本小说的 AI 原生运行时。
+涓€鍙ヨ瘽锛氭湰璁″垝鎸夊畬鏁存墽琛屼氦浠樻帹杩涳紝鐩爣鏄竴娆℃€ф妸鑷姩瀵兼紨鏀归€犳垚缁熶竴銆佸彲鎭㈠銆佸彲瑙ｉ噴銆佽兘鎸佺画甯姪鏂版墜瀹屾垚鏁存湰灏忚鐨?AI 鍘熺敓杩愯鏃躲€?
+

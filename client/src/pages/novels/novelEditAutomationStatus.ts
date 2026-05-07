@@ -35,6 +35,9 @@ export function buildDisplayAutoDirectorTask(
   task: UnifiedTaskDetail | null,
   projection: DirectorBookAutomationProjection | null | undefined,
 ): UnifiedTaskDetail | null {
+  if (task?.status === "cancelled") {
+    return task;
+  }
   if (!task || !projectionMatchesTask(projection, task)) {
     return task;
   }

@@ -1,4 +1,4 @@
-import type { DirectorChapterExecutionProgressSummary, DirectorArtifactRef, DirectorArtifactType } from "@ai-novel/shared/types/directorRuntime";
+﻿import type { DirectorChapterExecutionProgressSummary, DirectorArtifactRef, DirectorArtifactType } from "@ai-novel/shared/types/directorRuntime";
 import type { DirectorAutoExecutionState, DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type { BookContractService } from "../../BookContractService";
@@ -252,7 +252,7 @@ export class DirectorCoreStepModuleRuntime {
     request: DirectorConfirmRequest;
     existingPipelineJobId?: string | null;
     existingState?: DirectorAutoExecutionState | null;
-    resumeCheckpointType?: "front10_ready" | "chapter_batch_ready" | "replan_required" | null;
+    resumeCheckpointType?: "chapter_batch_ready" | "chapter_batch_ready" | "replan_required" | null;
     previousFailureMessage?: string | null;
     allowSkipReviewBlockedChapter?: boolean;
   }): Promise<void> {
@@ -268,3 +268,4 @@ export class DirectorCoreStepModuleRuntime {
     });
   }
 }
+

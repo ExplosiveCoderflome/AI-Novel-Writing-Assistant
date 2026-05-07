@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   NovelWorkflowCheckpoint,
   NovelWorkflowLane,
   NovelWorkflowResumeTarget,
@@ -110,8 +110,7 @@ const CHECKPOINT_STAGE_MAP: Record<NovelWorkflowCheckpoint, NovelWorkflowStage> 
   book_contract_ready: "story_macro",
   character_setup_required: "character_setup",
   volume_strategy_ready: "volume_strategy",
-  front10_ready: "chapter_execution",
-  chapter_batch_ready: "quality_repair",
+  chapter_batch_ready: "chapter_execution",
   replan_required: "quality_repair",
   workflow_completed: "quality_repair",
 };
@@ -121,8 +120,7 @@ const CHECKPOINT_ITEM_LABELS: Record<NovelWorkflowCheckpoint, string> = {
   book_contract_ready: "Book Contract 已就绪",
   character_setup_required: "等待审核角色准备",
   volume_strategy_ready: "卷战略已就绪",
-  front10_ready: "已准备章节可进入执行",
-  chapter_batch_ready: "自动执行已暂停",
+  chapter_batch_ready: "已准备章节可进入执行",
   replan_required: "等待处理重规划建议",
   workflow_completed: "小说主流程已完成",
 };
@@ -140,6 +138,28 @@ function buildChapterTitleDiversityTaskNotice(input: {
       volumeId: input.volumeId?.trim() || null,
     },
   };
+}
+
+function resolveCheckpointStageFromRow(input: {
+  checkpointType: NovelWorkflowCheckpoint;
+  status?: string | null;
+}): NovelWorkflowStage {
+  if (input.checkpointType !== "chapter_batch_ready") {
+    return CHECKPOINT_STAGE_MAP[input.checkpointType];
+  }
+  return input.status === "waiting_approval" ? "chapter_execution" : "quality_repair";
+}
+
+function resolveCheckpointItemLabelFromRow(input: {
+  checkpointType: NovelWorkflowCheckpoint;
+  status?: string | null;
+}): string {
+  if (input.checkpointType !== "chapter_batch_ready") {
+    return CHECKPOINT_ITEM_LABELS[input.checkpointType] ?? input.checkpointType;
+  }
+  return input.status === "waiting_approval"
+    ? "已准备章节可进入执行"
+    : "自动执行已暂停";
 }
 
 function parseSeedResumeTarget(seedPayloadJson: string | null | undefined) {
@@ -720,13 +740,13 @@ export class NovelWorkflowService {
       }
       const queuedHealed = await this.healStaleAutoDirectorQueuedProgress(taskId, normalizedRow);
       const historicalHealed = await this.healHistoricalAutoDirectorRecoveryFailure(taskId, normalizedRow);
-      const front10Healed = await this.healHistoricalAutoDirectorFront10RecoveryFailure(taskId, normalizedRow);
+      const legacyRangeHealed = await this.healHistoricalAutoDirectorFront10RecoveryFailure(taskId, normalizedRow);
       const titleDiversityHealed = await this.healChapterTitleDiversitySoftFailure(taskId, normalizedRow);
       const structuredOutlineHealed = await this.healStaleAutoDirectorStructuredOutlineProgress(taskId, normalizedRow);
       const runtimeGateHealed = await this.healRuntimeGateApprovalState(taskId, normalizedRow);
       const runtimeFailureHealed = await this.healRuntimeFailedState(taskId, normalizedRow);
       const staleRunningHealed = await this.healStaleAutoDirectorRunningTask(taskId, normalizedRow);
-      const checkpointRow = (brokenSeedHealed || queuedHealed || historicalHealed || front10Healed || titleDiversityHealed || structuredOutlineHealed || runtimeGateHealed || runtimeFailureHealed || staleRunningHealed)
+      const checkpointRow = (brokenSeedHealed || queuedHealed || historicalHealed || legacyRangeHealed || titleDiversityHealed || structuredOutlineHealed || runtimeGateHealed || runtimeFailureHealed || staleRunningHealed)
         ? await this.getVisibleRowByIdRaw(taskId)
         : (normalizedRow ?? await this.getVisibleRowByIdRaw(taskId));
     const checkpointHealed = isChapterBatchCheckpointRow(checkpointRow)
@@ -735,7 +755,7 @@ export class NovelWorkflowService {
         row: checkpointRow,
       })
       : false;
-    return brokenSeedHealed || queuedHealed || historicalHealed || front10Healed || titleDiversityHealed || structuredOutlineHealed || runtimeGateHealed || runtimeFailureHealed || staleRunningHealed || checkpointHealed;
+    return brokenSeedHealed || queuedHealed || historicalHealed || legacyRangeHealed || titleDiversityHealed || structuredOutlineHealed || runtimeGateHealed || runtimeFailureHealed || staleRunningHealed || checkpointHealed;
   }
 
   async healRuntimeGateApprovalState(
@@ -1004,7 +1024,7 @@ export class NovelWorkflowService {
       !existing.novelId
       || !autoExecution
       || !pipelineJobId
-      || directorSession?.phase !== "front10_ready"
+      || directorSession?.phase !== "chapter_execution"
     ) {
       return false;
     }
@@ -1651,7 +1671,10 @@ export class NovelWorkflowService {
       return existing;
     }
     const checkpointType = existing.checkpointType as NovelWorkflowCheckpoint;
-    const checkpointStage = CHECKPOINT_STAGE_MAP[checkpointType];
+    const checkpointStage = resolveCheckpointStageFromRow({
+      checkpointType,
+      status: existing.status,
+    });
     const resumeTarget = checkpointType === "candidate_selection_required"
       ? buildNovelCreateResumeTarget(taskId, "director")
       : (
@@ -1672,7 +1695,10 @@ export class NovelWorkflowService {
         heartbeatAt: new Date(),
         currentStage: stageLabel(checkpointStage),
         currentItemKey: checkpointStage,
-        currentItemLabel: CHECKPOINT_ITEM_LABELS[checkpointType] ?? existing.currentItemLabel,
+        currentItemLabel: resolveCheckpointItemLabelFromRow({
+          checkpointType,
+          status: existing.status,
+        }) ?? existing.currentItemLabel,
         progress: Math.max(existing.progress, defaultProgressForStage(checkpointStage)),
         resumeTargetJson: stringifyResumeTarget(resumeTarget),
         lastError: null,
@@ -1852,3 +1878,4 @@ export class NovelWorkflowService {
     });
   }
 }
+

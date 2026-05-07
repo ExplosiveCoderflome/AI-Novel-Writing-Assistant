@@ -246,7 +246,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
               </DialogContent>
             </Dialog>
 
-            <DirectorFactDebugDialog taskId={taskDrawer?.task?.id ?? null} />
+            <DirectorFactDebugDialog novelId={id} taskId={taskDrawer?.task?.id ?? null} />
 
             <Dialog open={isProjectToolsOpen} onOpenChange={setIsProjectToolsOpen}>
               <DialogTrigger asChild>

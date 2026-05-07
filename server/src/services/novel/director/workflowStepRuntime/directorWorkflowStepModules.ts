@@ -27,6 +27,7 @@ import { DirectorCoreStepModuleRuntime } from "./DirectorCoreStepModuleRuntime";
 import { DirectorStateReader } from "../DirectorStateReader";
 import { DirectorStateCommitter } from "../DirectorStateCommitter";
 import { getDirectorInputFromSeedPayload } from "../novelDirectorHelpers";
+import { DirectorFactSummaryService } from "../DirectorFactSummaryService";
 import {
   hasDirectorAutoExecutionChapterContract,
   hasDirectorSyncedChapterExecutionContext,
@@ -76,6 +77,7 @@ export const DIRECTOR_CONFIRM_NOVEL_CREATE_STEP_ID = "book.project.create";
 let directorCoreStepRuntime: DirectorCoreStepModuleRuntime | null = null;
 let directorCoreStateReader: DirectorStateReader | null = null;
 let directorCoreStateCommitter: DirectorStateCommitter | null = null;
+let directorFactSummaryService: DirectorFactSummaryService | null = null;
 
 function getDirectorCoreStepRuntime(): DirectorCoreStepModuleRuntime {
   if (!directorCoreStepRuntime) {
@@ -98,26 +100,36 @@ function getDirectorCoreStateCommitter(): DirectorStateCommitter {
   return directorCoreStateCommitter;
 }
 
-async function loadDirectorModuleState(context: WorkflowStepExecutionContext) {
-  if (!context.taskId?.trim()) {
-    throw new Error("Director step module requires task context.");
+function getDirectorFactSummary(): DirectorFactSummaryService {
+  if (!directorFactSummaryService) {
+    directorFactSummaryService = new DirectorFactSummaryService({
+      stateReader: getDirectorCoreStateReader(),
+      runtime: getDirectorCoreStepRuntime(),
+    });
   }
-  const state = await getDirectorCoreStateReader().readByTaskId(context.taskId.trim());
-  if (!state) {
-    throw new Error("Director workflow task not found.");
-  }
+  return directorFactSummaryService;
+}
+
+async function loadDirectorModuleState(
+  context: WorkflowStepExecutionContext,
+  options: {
+    requireNovel?: boolean;
+    requireRequest?: boolean;
+  } = {},
+) {
+  const state = await getDirectorFactSummary().getState(context);
   const novelId = context.novelId?.trim() || state.task.novelId?.trim() || "";
-  if (!novelId) {
+  if (options.requireNovel !== false && !novelId) {
     throw new Error("Director step module requires a bound novel.");
   }
   const request = getDirectorInputFromSeedPayload(state.seedPayload);
-  if (!request) {
+  if ((options.requireRequest ?? false) && !request) {
     throw new Error("Director step module requires persisted director input.");
   }
   return {
     state,
     novelId,
-    request,
+    request: request ?? null,
   };
 }
 
@@ -150,6 +162,39 @@ function countMaterializedExecutionChapters(input: {
       .filter((order) => Number.isFinite(order)),
   );
   return input.plannedChapterOrders.filter((order) => executionChapterOrders.has(order)).length;
+}
+
+function getCandidateStageMode(stage: DirectorCandidateStageNode): string | null {
+  switch (stage) {
+    case "candidate_generation":
+      return null;
+    case "candidate_refine":
+      return "refine";
+    case "candidate_patch":
+      return "patch_candidate";
+    case "candidate_title_refine":
+      return "refine_titles";
+    default:
+      return null;
+  }
+}
+
+function isCandidateStageFactCompleted(input: {
+  stage: DirectorCandidateStageNode;
+  batchCount: number;
+  mode: string | null;
+  hasNovelProject: boolean;
+}): boolean {
+  if (input.batchCount <= 0) {
+    return false;
+  }
+  if (input.stage === "candidate_generation") {
+    return true;
+  }
+  if (input.hasNovelProject) {
+    return true;
+  }
+  return input.mode === getCandidateStageMode(input.stage);
 }
 
 function completedFact(stepId: string, input?: {
@@ -224,6 +269,29 @@ function blockedState(reason: string, input?: {
   };
 }
 
+async function loadFactBaseSummary(context: WorkflowStepExecutionContext) {
+  return getDirectorFactSummary().getBaseSummary(context);
+}
+
+function requireDirectorRequest(request: DirectorConfirmRequest | null): DirectorConfirmRequest {
+  if (!request) {
+    throw new Error("Director step module requires persisted director input.");
+  }
+  return request;
+}
+
+function getActiveArtifactsFromContext(
+  context: WorkflowStepExecutionContext,
+  types: string[],
+): DirectorArtifactRef[] {
+  const allowed = new Set(types);
+  return (context.artifacts ?? []).filter((artifact): artifact is DirectorArtifactRef => (
+    Boolean(artifact)
+    && artifact.status === "active"
+    && allowed.has(artifact.artifactType)
+  ));
+}
+
 function createStoryMacroExecutableModule(
   descriptor: WorkflowStepModuleDescriptor,
 ): WorkflowStepModule<{ taskId: string; novelId: string; request: DirectorConfirmRequest }, StoryMacroPlan> {
@@ -252,7 +320,7 @@ function createStoryMacroExecutableModule(
         return {
           taskId: context.taskId?.trim() ?? "",
           novelId,
-          request,
+          request: requireDirectorRequest(request),
         };
       },
       validateOutput: async (output, context) => {
@@ -343,7 +411,7 @@ function createBookContractExecutableModule(
         return {
           taskId: context.taskId?.trim() ?? "",
           novelId,
-          request,
+          request: requireDirectorRequest(request),
         };
       },
       validateOutput: async (_output, context) => {
@@ -447,7 +515,7 @@ function createCharacterSetupExecutableModule(
         return {
           taskId: context.taskId?.trim() ?? "",
           novelId,
-          request,
+          request: requireDirectorRequest(request),
         };
       },
       commit: async (_output, context) => {
@@ -488,7 +556,10 @@ function createCharacterSetupExecutableModule(
         resumeFrom: "character_setup",
         reason: "Character setup can resume from the current workspace.",
       }),
-      completeCriteria: async () => true,
+      completeCriteria: async (_output, context) => {
+        const summary = await loadFactBaseSummary(context);
+        return summary.book.characterCount > 0;
+      },
     },
   );
 }
@@ -540,7 +611,7 @@ function createVolumeStrategyExecutableModule(
         return {
           taskId: context.taskId?.trim() ?? "",
           novelId,
-          request,
+          request: requireDirectorRequest(request),
         };
       },
       commit: async (_output, context) => {
@@ -627,7 +698,7 @@ function createStructuredOutlineExecutableModule(
         return {
           taskId: context.taskId?.trim() ?? "",
           novelId,
-          request,
+          request: requireDirectorRequest(request),
           baseWorkspace,
         };
       },
@@ -730,24 +801,28 @@ async function inspectStructuredOutlineFactState(
   context: WorkflowStepExecutionContext,
   step: StructuredOutlineFactStep,
 ) {
-  const { novelId, request } = await loadDirectorModuleState(context);
-  const runtime = getDirectorCoreStepRuntime();
-  const workspace = await runtime.getVolumeWorkspace(novelId);
-  const characterCount = (await runtime.getCharacters(novelId)).length;
-  const cursor = workspace ? await runtime.getStructuredOutlineRecoveryCursor(novelId, request) : null;
-  const hasStrategy = Boolean(workspace?.strategyPlan);
-  const beatsReady = cursor ? cursor.step !== "beat_sheet" : false;
-  const chapterListReady = cursor ? (cursor.step === "chapter_detail_bundle" || cursor.step === "chapter_sync" || cursor.step === "completed") : false;
-  const detailReady = cursor ? (cursor.step === "chapter_sync" || cursor.step === "completed") : false;
-  const selectedChapterCount = cursor?.selectedChapters.length ?? 0;
+  const summary = await loadFactBaseSummary(context);
+  const hasStrategy = summary.outline.hasVolumeStrategy;
+  const beatsReady = summary.outline.beatSheetReady;
+  const chapterListReady = summary.outline.chapterListReady;
+  const detailReady = summary.outline.chapterDetailReady;
+  const selectedChapterCount = summary.outline.selectedChapterCount;
+  const completedDetailSteps = summary.outline.completedDetailSteps;
+  const totalDetailSteps = summary.outline.totalDetailSteps;
+  const detailRatio = selectedChapterCount > 0 && totalDetailSteps > 0
+    ? completedDetailSteps / totalDetailSteps
+    : chapterListReady ? 0.6 : 0;
   const evidence = {
     hasVolumeStrategy: hasStrategy,
-    characterCount,
-    cursorStep: cursor?.step ?? null,
-    preparedVolumeIds: cursor?.preparedVolumeIds ?? [],
+    characterCount: summary.book.characterCount,
+    cursorStep: summary.outline.cursorStep,
+    preparedVolumeIds: [],
     selectedChapterCount,
+    completedDetailSteps,
+    totalDetailSteps,
+    remainingDetailSteps: Math.max(0, totalDetailSteps - completedDetailSteps),
   };
-  if (!workspace || !hasStrategy || characterCount === 0) {
+  if (!hasStrategy || summary.book.characterCount === 0) {
     return {
       readiness: blockedState("Volume strategy and character setup must exist before structured outline.", {
         code: "missing_structured_outline_inputs",
@@ -771,7 +846,7 @@ async function inspectStructuredOutlineFactState(
 
   if (step === "beat_sheet") {
     return {
-      readiness: readyState({ evidence, resumeFrom: cursor?.step ?? "beat_sheet" }),
+      readiness: readyState({ evidence, resumeFrom: summary.outline.cursorStep ?? "beat_sheet" }),
       completion: beatsReady
         ? completedFact(DIRECTOR_STRUCTURED_OUTLINE_STEP_IDS.beat_sheet, { evidence })
         : pendingFact(DIRECTOR_STRUCTURED_OUTLINE_STEP_IDS.beat_sheet, { evidence }),
@@ -789,7 +864,7 @@ async function inspectStructuredOutlineFactState(
     const ready = beatsReady;
     return {
       readiness: ready
-        ? readyState({ evidence, resumeFrom: cursor?.step ?? "chapter_list" })
+        ? readyState({ evidence, resumeFrom: summary.outline.cursorStep ?? "chapter_list" })
         : blockedState("Beat sheet must exist before chapter list generation.", {
           code: "missing_beat_sheet",
           evidence,
@@ -814,7 +889,7 @@ async function inspectStructuredOutlineFactState(
   const ready = chapterListReady;
   return {
     readiness: ready
-      ? readyState({ evidence, resumeFrom: cursor?.step ?? "chapter_detail_bundle" })
+      ? readyState({ evidence, resumeFrom: summary.outline.cursorStep ?? "chapter_detail_bundle" })
       : blockedState("Chapter list must exist before chapter detail generation.", {
         code: "missing_chapter_list",
         evidence,
@@ -823,17 +898,19 @@ async function inspectStructuredOutlineFactState(
     completion: detailReady
       ? completedFact(DIRECTOR_STRUCTURED_OUTLINE_STEP_IDS.chapter_detail_bundle, { evidence })
       : pendingFact(DIRECTOR_STRUCTURED_OUTLINE_STEP_IDS.chapter_detail_bundle, {
-        ratio: selectedChapterCount > 0 && cursor?.totalDetailSteps
-          ? cursor.completedDetailSteps / cursor.totalDetailSteps
-          : chapterListReady ? 0.6 : 0,
+        ratio: detailRatio,
         evidence,
       }),
     progress: buildSimpleProgress({
       status: detailReady ? "completed" : chapterListReady ? "partially_done" : "blocked",
-      ratio: detailReady ? 1 : selectedChapterCount > 0 && cursor?.totalDetailSteps
-        ? cursor.completedDetailSteps / cursor.totalDetailSteps
-        : chapterListReady ? 0.6 : 0,
-      label: detailReady ? "章节任务单与执行细化已就绪" : chapterListReady ? "正在细化章节执行资源" : "等待章节列表完成",
+      ratio: detailReady ? 1 : detailRatio,
+      label: detailReady
+        ? "章节任务单与执行细化已就绪"
+        : chapterListReady && totalDetailSteps > 0 && completedDetailSteps > 0
+          ? `已细化 ${completedDetailSteps}/${totalDetailSteps} 章，继续补齐剩余章节任务单`
+          : chapterListReady
+            ? "正在细化章节执行资源"
+            : "等待章节列表完成",
       evidence,
       nextAction: detailReady ? "sync_execution_contracts" : chapterListReady ? "run_chapter_detail_generation" : "run_chapter_list_generation",
     }),
@@ -855,7 +932,7 @@ function createStructuredOutlineFactModule(input: {
         return {
           taskId: context.taskId?.trim() ?? "",
           novelId,
-          request,
+          request: requireDirectorRequest(request),
         };
       },
       validateOutput: async (_output, context) => {
@@ -914,7 +991,7 @@ function createChapterDraftExecutableModule(
   request: DirectorConfirmRequest;
   existingPipelineJobId?: string | null;
   existingState?: DirectorAutoExecutionState | null;
-  resumeCheckpointType?: "front10_ready" | "chapter_batch_ready" | "replan_required" | null;
+  resumeCheckpointType?: "chapter_batch_ready" | "replan_required" | null;
   previousFailureMessage?: string | null;
   allowSkipReviewBlockedChapter?: boolean;
 }, void> {
@@ -969,22 +1046,22 @@ function createChapterDraftExecutableModule(
       },
       buildInput: async (context) => {
         const { state, novelId, request } = await loadDirectorModuleState(context);
+        const directorRequest = requireDirectorRequest(request);
         const requestedAutoExecutionContinue = state.task.status === "failed" || state.task.status === "cancelled";
         return {
           taskId: state.task.id,
           novelId,
-          request,
+          request: directorRequest,
           existingPipelineJobId: state.seedPayload.autoExecution?.pipelineJobId ?? null,
           existingState: state.seedPayload.autoExecution ?? null,
           resumeCheckpointType: (
             state.task.checkpointType === "chapter_batch_ready"
             || state.task.checkpointType === "replan_required"
-            || state.task.checkpointType === "front10_ready"
           )
             ? state.task.checkpointType
-            : "front10_ready",
+            : "chapter_batch_ready",
           previousFailureMessage: state.task.lastError ?? null,
-          allowSkipReviewBlockedChapter: requestedAutoExecutionContinue && isDirectorAutoExecutionRunMode(request.runMode),
+          allowSkipReviewBlockedChapter: requestedAutoExecutionContinue && isDirectorAutoExecutionRunMode(directorRequest.runMode),
         };
       },
       validateOutput: async (_output, context) => {
@@ -1043,10 +1120,14 @@ function createChapterDraftExecutableModule(
         return buildSimpleProgress({
           status: "partially_done",
           ratio: draftedRatio,
-          label: progress.currentChapterOrder
-            ? `\u6b63\u5728\u63a8\u8fdb\u7b2c ${progress.currentChapterOrder} \u7ae0`
-            : "\u6b63\u5728\u63a8\u8fdb\u7ae0\u8282\u6267\u884c",
+          label: progress.activeChapterOrder
+            ? `\u6b63\u5728\u63a8\u8fdb\u7b2c ${progress.activeChapterOrder} \u7ae0`
+            : progress.currentChapterOrder
+              ? `\u5f53\u524d\u53ef\u4ece\u7b2c ${progress.currentChapterOrder} \u7ae0\u7ee7\u7eed\u8865\u9f50`
+              : "\u6b63\u5728\u63a8\u8fdb\u7ae0\u8282\u6267\u884c",
           evidence: {
+            activeChapterOrder: progress.activeChapterOrder,
+            currentChapterOrder: progress.currentChapterOrder,
             draftedChapterCount: progress.draftedChapterCount,
             approvedChapterCount: progress.approvedChapterCount,
             completedChapters: progress.completedChapters,
@@ -1059,8 +1140,9 @@ function createChapterDraftExecutableModule(
       recover: async (context) => {
         const { novelId, state } = await loadDirectorModuleState(context);
         const progress = await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId);
-        const resumeFrom = progress?.currentChapterOrder
-          ? `chapter:${progress.currentChapterOrder}`
+        const resumeChapterOrder = progress?.activeChapterOrder ?? progress?.currentChapterOrder;
+        const resumeFrom = resumeChapterOrder
+          ? `chapter:${resumeChapterOrder}`
           : "chapter_execution";
         await getDirectorCoreStateCommitter().recordRecoveryHint({
           taskId: state.task.id,
@@ -1099,50 +1181,32 @@ function createChapterExecutionContractSyncModule(
     async (input) => getDirectorCoreStepRuntime().executeChapterExecutionContractSyncStep(input),
     {
       inspectReadiness: async (context) => {
-        const { novelId } = await loadDirectorModuleState(context);
-        const workspace = await getDirectorCoreStepRuntime().getVolumeWorkspace(novelId);
-        const executionChapters = await getDirectorCoreStepRuntime().getExecutionChapters(novelId);
-        const plannedChapterOrders = workspace?.volumes.flatMap((volume) => (
-          volume.chapters
-            .map((chapter) => chapter.chapterOrder)
-            .filter((order) => Number.isFinite(order))
-        )) ?? [];
-        const plannedChapterCount = plannedChapterOrders.length;
-        const syncedChapterCount = countMaterializedExecutionChapters({
-          plannedChapterOrders,
-          executionChapters,
-        });
+        const summary = await loadFactBaseSummary(context);
+        const plannedChapterCount = summary.outline.plannedChapterCount;
+        const syncedChapterCount = summary.outline.syncedChapterCount;
+        const unsyncedChapterCount = Math.max(0, plannedChapterCount - syncedChapterCount);
         if (plannedChapterCount === 0) {
-          return blockedState("Chapter planning must finish before formal chapter sync.", {
+          return blockedState("Chapter planning must finish before execution-ready chapter records can be checked.", {
             code: "missing_chapter_plan",
-            evidence: { plannedChapterCount, syncedChapterCount },
+            evidence: { plannedChapterCount, syncedChapterCount, unsyncedChapterCount },
             nextAction: "run_chapter_detail_generation",
           });
         }
         return readyState({
-          evidence: { plannedChapterCount, syncedChapterCount },
+          evidence: { plannedChapterCount, syncedChapterCount, unsyncedChapterCount },
           resumeFrom: syncedChapterCount >= plannedChapterCount ? "chapter_execution_contract_sync_done" : "chapter_execution_contract_sync",
         });
       },
       inspectCompletion: async (context) => {
-        const { novelId } = await loadDirectorModuleState(context);
-        const workspace = await getDirectorCoreStepRuntime().getVolumeWorkspace(novelId);
-        const executionChapters = await getDirectorCoreStepRuntime().getExecutionChapters(novelId);
-        const plannedChapterOrders = workspace?.volumes.flatMap((volume) => (
-          volume.chapters
-            .map((chapter) => chapter.chapterOrder)
-            .filter((order) => Number.isFinite(order))
-        )) ?? [];
-        const plannedChapterCount = plannedChapterOrders.length;
-        const syncedChapterCount = countMaterializedExecutionChapters({
-          plannedChapterOrders,
-          executionChapters,
-        });
+        const summary = await loadFactBaseSummary(context);
+        const plannedChapterCount = summary.outline.plannedChapterCount;
+        const syncedChapterCount = summary.outline.syncedChapterCount;
+        const unsyncedChapterCount = Math.max(0, plannedChapterCount - syncedChapterCount);
         return plannedChapterCount > 0 && syncedChapterCount >= plannedChapterCount
-          ? completedFact(descriptor.id, { evidence: { plannedChapterCount, syncedChapterCount } })
+          ? completedFact(descriptor.id, { evidence: { plannedChapterCount, syncedChapterCount, unsyncedChapterCount } })
           : pendingFact(descriptor.id, {
             ratio: plannedChapterCount > 0 ? Math.min(1, syncedChapterCount / plannedChapterCount) : 0,
-            evidence: { plannedChapterCount, syncedChapterCount },
+            evidence: { plannedChapterCount, syncedChapterCount, unsyncedChapterCount },
           });
       },
       buildInput: async (context) => {
@@ -1150,22 +1214,12 @@ function createChapterExecutionContractSyncModule(
         return { novelId };
       },
       validateOutput: async (_output, context) => {
-        const { novelId } = await loadDirectorModuleState(context);
-        const workspace = await getDirectorCoreStepRuntime().getVolumeWorkspace(novelId);
-        const executionChapters = await getDirectorCoreStepRuntime().getExecutionChapters(novelId);
-        const plannedChapterOrders = workspace?.volumes.flatMap((volume) => (
-          volume.chapters
-            .map((chapter) => chapter.chapterOrder)
-            .filter((order) => Number.isFinite(order))
-        )) ?? [];
-        const plannedChapterCount = plannedChapterOrders.length;
-        const syncedChapterCount = countMaterializedExecutionChapters({
-          plannedChapterOrders,
-          executionChapters,
-        });
+        const summary = await loadFactBaseSummary(context);
+        const plannedChapterCount = summary.outline.plannedChapterCount;
+        const syncedChapterCount = summary.outline.syncedChapterCount;
         return {
           valid: plannedChapterCount > 0 && syncedChapterCount >= plannedChapterCount,
-          reason: "Formal chapter sync did not materialize the planned chapter records.",
+          reason: "Execution-ready chapter records are not complete yet.",
         };
       },
       commit: async (_output, context) => {
@@ -1188,19 +1242,9 @@ function createChapterExecutionContractSyncModule(
         };
       },
       inspectProgress: async (context) => {
-        const { novelId } = await loadDirectorModuleState(context);
-        const workspace = await getDirectorCoreStepRuntime().getVolumeWorkspace(novelId);
-        const executionChapters = await getDirectorCoreStepRuntime().getExecutionChapters(novelId);
-        const plannedChapterOrders = workspace?.volumes.flatMap((volume) => (
-          volume.chapters
-            .map((chapter) => chapter.chapterOrder)
-            .filter((order) => Number.isFinite(order))
-        )) ?? [];
-        const plannedChapterCount = plannedChapterOrders.length;
-        const syncedChapterCount = countMaterializedExecutionChapters({
-          plannedChapterOrders,
-          executionChapters,
-        });
+        const summary = await loadFactBaseSummary(context);
+        const plannedChapterCount = summary.outline.plannedChapterCount;
+        const syncedChapterCount = summary.outline.syncedChapterCount;
         return buildSimpleProgress({
           status: plannedChapterCount > 0 && syncedChapterCount >= plannedChapterCount ? "completed" : "partially_done",
           ratio: plannedChapterCount > 0 ? Math.min(1, syncedChapterCount / plannedChapterCount) : 0,
@@ -1217,19 +1261,9 @@ function createChapterExecutionContractSyncModule(
         reason: "Formal chapter sync can rerun from the current workspace.",
       }),
       completeCriteria: async (_output, context) => {
-        const { novelId } = await loadDirectorModuleState(context);
-        const workspace = await getDirectorCoreStepRuntime().getVolumeWorkspace(novelId);
-        const executionChapters = await getDirectorCoreStepRuntime().getExecutionChapters(novelId);
-        const plannedChapterOrders = workspace?.volumes.flatMap((volume) => (
-          volume.chapters
-            .map((chapter) => chapter.chapterOrder)
-            .filter((order) => Number.isFinite(order))
-        )) ?? [];
-        const plannedChapterCount = plannedChapterOrders.length;
-        const syncedChapterCount = countMaterializedExecutionChapters({
-          plannedChapterOrders,
-          executionChapters,
-        });
+        const summary = await loadFactBaseSummary(context);
+        const plannedChapterCount = summary.outline.plannedChapterCount;
+        const syncedChapterCount = summary.outline.syncedChapterCount;
         return plannedChapterCount > 0 && syncedChapterCount >= plannedChapterCount;
       },
     },
@@ -1324,19 +1358,235 @@ function uniqueModules(
   });
 }
 
+async function externalRunnerOnlyExecute(): Promise<void> {
+  throw new Error("Workflow step module requires an explicit runner.");
+}
+
+function createCandidateExecutableModule(
+  stage: DirectorCandidateStageNode,
+  descriptor: WorkflowStepModuleDescriptor,
+): WorkflowStepModule<Record<string, never>, void> {
+  return createWorkflowStepModule(
+    descriptor,
+    externalRunnerOnlyExecute,
+    {
+      inspectReadiness: async (context) => {
+        const { state } = await loadDirectorModuleState(context, { requireNovel: false, requireRequest: false });
+        const summary = await loadFactBaseSummary(context);
+        return summary.candidate.candidateCount > 0 || state.seedPayload.idea
+          ? readyState({
+            evidence: {
+              batchCount: summary.candidate.batchCount,
+              candidateCount: summary.candidate.candidateCount,
+              mode: summary.candidate.mode,
+            },
+          })
+          : blockedState("Candidate generation requires a persisted idea seed.", {
+            code: "missing_candidate_seed",
+          });
+      },
+      inspectCompletion: async (context) => {
+        const summary = await loadFactBaseSummary(context);
+        const completed = isCandidateStageFactCompleted({
+          stage,
+          batchCount: summary.candidate.batchCount,
+          mode: summary.candidate.mode,
+          hasNovelProject: summary.hasNovelProject,
+        });
+        return completed
+          ? completedFact(descriptor.id, {
+            evidence: {
+              batchCount: summary.candidate.batchCount,
+              candidateCount: summary.candidate.candidateCount,
+              mode: summary.candidate.mode,
+              hasNovelProject: summary.hasNovelProject,
+            },
+          })
+          : pendingFact(descriptor.id, {
+            ratio: stage === "candidate_generation" && summary.candidate.batchCount > 0 ? 1 : 0,
+            evidence: {
+              batchCount: summary.candidate.batchCount,
+              candidateCount: summary.candidate.candidateCount,
+              mode: summary.candidate.mode,
+              hasNovelProject: summary.hasNovelProject,
+            },
+          });
+      },
+      buildInput: async () => ({}),
+      validateOutput: async (_output, context) => {
+        const summary = await loadFactBaseSummary(context);
+        return {
+          valid: isCandidateStageFactCompleted({
+            stage,
+            batchCount: summary.candidate.batchCount,
+            mode: summary.candidate.mode,
+            hasNovelProject: summary.hasNovelProject,
+          }),
+          reason: "Candidate stage facts are not complete yet.",
+        };
+      },
+      inspectProgress: async (context) => {
+        const summary = await loadFactBaseSummary(context);
+        const completed = isCandidateStageFactCompleted({
+          stage,
+          batchCount: summary.candidate.batchCount,
+          mode: summary.candidate.mode,
+          hasNovelProject: summary.hasNovelProject,
+        });
+        return buildSimpleProgress({
+          status: completed ? "completed" : summary.candidate.batchCount > 0 ? "partially_done" : "not_started",
+          ratio: completed ? 1 : summary.candidate.batchCount > 0 ? 0.5 : 0,
+          label: completed && summary.hasNovelProject && stage !== "candidate_generation"
+            ? "小说已建立，候选方向修订阶段已封存"
+            : descriptor.label,
+          evidence: {
+            batchCount: summary.candidate.batchCount,
+            candidateCount: summary.candidate.candidateCount,
+            mode: summary.candidate.mode,
+            hasNovelProject: summary.hasNovelProject,
+          },
+          nextAction: completed ? null : "continue",
+        });
+      },
+      recover: async () => ({
+        recoverable: true,
+        resumeFrom: descriptor.id,
+        reason: "Candidate selection can resume from persisted candidate facts.",
+      }),
+      completeCriteria: async (_output, context) => {
+        const summary = await loadFactBaseSummary(context);
+        return isCandidateStageFactCompleted({
+          stage,
+          batchCount: summary.candidate.batchCount,
+          mode: summary.candidate.mode,
+          hasNovelProject: summary.hasNovelProject,
+        });
+      },
+    },
+  );
+}
+
+function createConfirmNovelCreateExecutableModule(
+  descriptor: WorkflowStepModuleDescriptor,
+): WorkflowStepModule<Record<string, never>, void> {
+  return createWorkflowStepModule(
+    descriptor,
+    externalRunnerOnlyExecute,
+    {
+      inspectReadiness: async (context) => {
+        const summary = await loadFactBaseSummary(context);
+        return summary.hasNovelProject || summary.candidate.batchCount > 0
+          ? readyState({
+            evidence: {
+              batchCount: summary.candidate.batchCount,
+              hasNovelProject: summary.hasNovelProject,
+            },
+          })
+          : blockedState("Candidate confirmation requires at least one candidate batch.", {
+            code: "missing_candidate_batch",
+          });
+      },
+      inspectCompletion: async (context) => {
+        const summary = await loadFactBaseSummary(context);
+        return summary.hasNovelProject
+          ? completedFact(descriptor.id, { evidence: { hasNovelProject: true } })
+          : pendingFact(descriptor.id, { evidence: { hasNovelProject: false, batchCount: summary.candidate.batchCount } });
+      },
+      buildInput: async () => ({}),
+      validateOutput: async (_output, context) => ({
+        valid: (await loadFactBaseSummary(context)).hasNovelProject,
+        reason: "Novel project was not materialized.",
+      }),
+      inspectProgress: async (context) => {
+        const summary = await loadFactBaseSummary(context);
+        return buildSimpleProgress({
+          status: summary.hasNovelProject ? "completed" : "partially_done",
+          ratio: summary.hasNovelProject ? 1 : summary.candidate.batchCount > 0 ? 0.5 : 0,
+          label: descriptor.label,
+          evidence: { hasNovelProject: summary.hasNovelProject, batchCount: summary.candidate.batchCount },
+          nextAction: summary.hasNovelProject ? "run_story_macro" : "continue",
+        });
+      },
+      recover: async () => ({
+        recoverable: true,
+        resumeFrom: descriptor.id,
+        reason: "Novel creation can resume from persisted confirmation facts.",
+      }),
+      completeCriteria: async (_output, context) => (await loadFactBaseSummary(context)).hasNovelProject,
+    },
+  );
+}
+
+function createTakeoverExecutableModule(
+  descriptor: WorkflowStepModuleDescriptor,
+): WorkflowStepModule<Record<string, never>, void> {
+  return createWorkflowStepModule(
+    descriptor,
+    externalRunnerOnlyExecute,
+    {
+      inspectReadiness: async (context) => {
+        const { state } = await loadDirectorModuleState(context, { requireRequest: false });
+        return state.task.novelId?.trim()
+          ? readyState({ evidence: { novelId: state.task.novelId } })
+          : blockedState("Takeover requires a bound novel project.", {
+            code: "missing_takeover_novel",
+          });
+      },
+      inspectCompletion: async (context) => {
+        const { state } = await loadDirectorModuleState(context, { requireRequest: false });
+        const completed = Boolean(state.task.novelId?.trim() && state.run?.id);
+        return completed
+          ? completedFact(descriptor.id, { evidence: { novelId: state.task.novelId, runtimeId: state.run?.id ?? null } })
+          : pendingFact(descriptor.id, { evidence: { novelId: state.task.novelId ?? null, runtimeId: state.run?.id ?? null } });
+      },
+      buildInput: async () => ({}),
+      validateOutput: async (_output, context) => {
+        const { state } = await loadDirectorModuleState(context, { requireRequest: false });
+        return {
+          valid: Boolean(state.task.novelId?.trim() && state.run?.id),
+          reason: "Takeover runtime facts were not materialized.",
+        };
+      },
+      inspectProgress: async (context) => {
+        const { state } = await loadDirectorModuleState(context, { requireRequest: false });
+        const completed = Boolean(state.task.novelId?.trim() && state.run?.id);
+        return buildSimpleProgress({
+          status: completed ? "completed" : "partially_done",
+          ratio: completed ? 1 : state.task.novelId?.trim() ? 0.5 : 0,
+          label: descriptor.label,
+          evidence: { novelId: state.task.novelId ?? null, runtimeId: state.run?.id ?? null },
+          nextAction: completed ? "continue" : null,
+        });
+      },
+      recover: async () => ({
+        recoverable: true,
+        resumeFrom: descriptor.id,
+        reason: "Takeover can resume from persisted runtime facts.",
+      }),
+      completeCriteria: async (_output, context) => {
+        const { state } = await loadDirectorModuleState(context, { requireRequest: false });
+        return Boolean(state.task.novelId?.trim() && state.run?.id);
+      },
+    },
+  );
+}
+
 export const DIRECTOR_CANDIDATE_STEP_MODULES: Record<
   DirectorCandidateStageNode,
   WorkflowStepModuleDescriptor
 > = Object.fromEntries(
   Object.entries(DIRECTOR_CANDIDATE_NODE_ADAPTERS).map(([stage, adapter]) => [
     stage,
-    createWorkflowStepDescriptorFromDirectorAdapter({
-      id: DIRECTOR_CANDIDATE_STEP_IDS[stage as DirectorCandidateStageNode],
-      stage: "candidate_selection",
-      adapter,
-    }),
+    createCandidateExecutableModule(
+      stage as DirectorCandidateStageNode,
+      createWorkflowStepDescriptorFromDirectorAdapter({
+        id: DIRECTOR_CANDIDATE_STEP_IDS[stage as DirectorCandidateStageNode],
+        stage: "candidate_selection",
+        adapter,
+      }),
+    ),
   ]),
-) as Record<DirectorCandidateStageNode, WorkflowStepModuleDescriptor>;
+) as unknown as Record<DirectorCandidateStageNode, WorkflowStepModuleDescriptor>;
 
 export const DIRECTOR_PLANNING_STEP_MODULES: Record<
   DirectorPlanningStage,
@@ -1447,22 +1697,23 @@ export const DIRECTOR_EXECUTION_STEP_MODULES: Record<
       promptAssets: [{ id: "audit.chapter.full", version: "v2" }],
     }),
     inspectFacts: async (context) => {
-      const { novelId } = await loadDirectorModuleState(context);
-      const progress = await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId);
-      const drafted = progress?.chapters?.filter((chapter) => chapterHasCompletedStage(chapter, "draft_saved")) ?? [];
-      const reviewed = drafted.filter((chapter) => chapterHasCompletedStage(chapter, "audit_completed")).length;
+      const summary = await loadFactBaseSummary(context);
+      const draftedCount = summary.repair.draftedChapterCount;
+      const reviewedCount = summary.repair.reviewedChapterCount;
+      const drafted = { length: draftedCount };
+      const reviewed = reviewedCount;
       return {
-        readiness: drafted.length > 0
-          ? readyState({ evidence: { draftedChapterCount: drafted.length, reviewedChapterCount: reviewed } })
+        readiness: draftedCount > 0
+          ? readyState({ evidence: { draftedChapterCount: draftedCount, reviewedChapterCount: reviewedCount } })
           : blockedState("Draft chapters are required before quality review.", {
             code: "missing_chapter_drafts",
             nextAction: "continue_chapter_execution",
           }),
-        completion: drafted.length > 0 && reviewed >= drafted.length
-          ? completedFact(DIRECTOR_EXECUTION_STEP_IDS.chapter_quality_review, { evidence: { draftedChapterCount: drafted.length, reviewedChapterCount: reviewed } })
+        completion: draftedCount > 0 && reviewedCount >= draftedCount
+          ? completedFact(DIRECTOR_EXECUTION_STEP_IDS.chapter_quality_review, { evidence: { draftedChapterCount: draftedCount, reviewedChapterCount: reviewedCount } })
           : pendingFact(DIRECTOR_EXECUTION_STEP_IDS.chapter_quality_review, {
-            ratio: drafted.length > 0 ? reviewed / drafted.length : 0,
-            evidence: { draftedChapterCount: drafted.length, reviewedChapterCount: reviewed },
+            ratio: draftedCount > 0 ? reviewedCount / draftedCount : 0,
+            evidence: { draftedChapterCount: draftedCount, reviewedChapterCount: reviewedCount },
           }),
         progress: buildSimpleProgress({
           status: drafted.length > 0 && reviewed >= drafted.length ? "completed" : drafted.length > 0 ? "partially_done" : "blocked",
@@ -1481,22 +1732,40 @@ export const DIRECTOR_EXECUTION_STEP_MODULES: Record<
       adapter: getDirectorExecutionNodeAdapter("chapter_repair"),
     }),
     inspectFacts: async (context) => {
-      const { novelId } = await loadDirectorModuleState(context);
-      const progress = await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId);
+      const summary = await loadFactBaseSummary(context);
+      const draftedChapterCount = summary.repair.draftedChapterCount;
+      const reviewedChapterCount = summary.repair.reviewedChapterCount;
+      const needsRepairChapters = summary.repair.needsRepairChapterCount;
+      const hasRepairContext = reviewedChapterCount > 0 || needsRepairChapters > 0;
+      const progress = {
+        needsRepairChapters: hasRepairContext ? needsRepairChapters : 1,
+        totalChapters: Math.max(draftedChapterCount, 1),
+      };
       return {
-        readiness: readyState({ evidence: { needsRepairChapters: progress?.needsRepairChapters ?? 0 } }),
-        completion: (progress?.needsRepairChapters ?? 0) === 0
-          ? completedFact(DIRECTOR_EXECUTION_STEP_IDS.chapter_repair, { evidence: { needsRepairChapters: 0 } })
+        readiness: draftedChapterCount === 0
+          ? blockedState("Draft chapters are required before chapter repair.", {
+            code: "missing_chapter_drafts",
+            nextAction: "continue_chapter_execution",
+          })
+          : hasRepairContext
+            ? readyState({ evidence: { draftedChapterCount, reviewedChapterCount, needsRepairChapters } })
+            : blockedState("Quality review facts must exist before chapter repair.", {
+              code: "missing_quality_review_facts",
+              evidence: { draftedChapterCount, reviewedChapterCount, needsRepairChapters },
+              nextAction: "run_quality_review",
+            }),
+        completion: hasRepairContext && needsRepairChapters === 0
+          ? completedFact(DIRECTOR_EXECUTION_STEP_IDS.chapter_repair, { evidence: { draftedChapterCount, reviewedChapterCount, needsRepairChapters: 0 } })
           : pendingFact(DIRECTOR_EXECUTION_STEP_IDS.chapter_repair, {
-            ratio: progress?.totalChapters ? 1 - ((progress.needsRepairChapters ?? 0) / progress.totalChapters) : 0,
-            evidence: { needsRepairChapters: progress?.needsRepairChapters ?? 0, totalChapters: progress?.totalChapters ?? 0 },
+            ratio: hasRepairContext ? Math.max(0, 1 - (needsRepairChapters / Math.max(draftedChapterCount, 1))) : 0,
+            evidence: { draftedChapterCount, reviewedChapterCount, needsRepairChapters, totalChapters: draftedChapterCount },
           }),
         progress: buildSimpleProgress({
-          status: (progress?.needsRepairChapters ?? 0) === 0 ? "completed" : "needs_review",
-          ratio: progress?.totalChapters ? 1 - ((progress.needsRepairChapters ?? 0) / progress.totalChapters) : 0,
+          status: draftedChapterCount === 0 ? "blocked" : hasRepairContext ? ((progress?.needsRepairChapters ?? 0) === 0 ? "completed" : "needs_review") : "not_started",
+          ratio: hasRepairContext ? Math.max(0, 1 - (needsRepairChapters / Math.max(draftedChapterCount, 1))) : 0,
           label: (progress?.needsRepairChapters ?? 0) === 0 ? "章节修复已收敛" : "仍有章节处于待修复状态",
-          evidence: { needsRepairChapters: progress?.needsRepairChapters ?? 0 },
-          nextAction: (progress?.needsRepairChapters ?? 0) === 0 ? "run_quality_review" : "repair_chapter",
+          evidence: { draftedChapterCount, reviewedChapterCount, needsRepairChapters },
+          nextAction: draftedChapterCount === 0 ? "continue_chapter_execution" : hasRepairContext ? ((progress?.needsRepairChapters ?? 0) === 0 ? "run_quality_review" : "repair_chapter") : "run_quality_review",
         }),
       };
     },
@@ -1508,10 +1777,11 @@ export const DIRECTOR_EXECUTION_STEP_MODULES: Record<
       adapter: getDirectorExecutionNodeAdapter("chapter_state_commit"),
     }),
     inspectFacts: async (context) => {
-      const { novelId } = await loadDirectorModuleState(context);
-      const progress = await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId);
-      const drafted = progress?.chapters?.filter((chapter) => chapterHasCompletedStage(chapter, "draft_saved")) ?? [];
-      const committed = drafted.filter((chapter) => chapterHasCompletedStage(chapter, "chapter_state_committed")).length;
+      const summary = await loadFactBaseSummary(context);
+      const draftedCount = summary.repair.draftedChapterCount;
+      const committedCount = summary.repair.committedChapterCount;
+      const drafted = { length: draftedCount };
+      const committed = committedCount;
       return {
         readiness: drafted.length > 0
           ? readyState({ evidence: { draftedChapterCount: drafted.length, committedChapterCount: committed } })
@@ -1540,8 +1810,7 @@ export const DIRECTOR_EXECUTION_STEP_MODULES: Record<
       promptAssets: [{ id: "novel.payoff_ledger.sync", version: "v5" }],
     }),
     inspectFacts: async (context) => {
-      const { artifacts } = await collectRuntimeArtifactsForTypes(context, ["reader_promise", "repair_ticket"]);
-      const activeArtifacts = artifacts.filter((artifact) => artifact.status === "active");
+      const activeArtifacts = getActiveArtifactsFromContext(context, ["reader_promise", "repair_ticket"]);
       return {
         readiness: readyState({ evidence: { artifactCount: activeArtifacts.length } }),
         completion: activeArtifacts.length > 0
@@ -1564,8 +1833,7 @@ export const DIRECTOR_EXECUTION_STEP_MODULES: Record<
       adapter: getDirectorExecutionNodeAdapter("character_resource_sync"),
     }),
     inspectFacts: async (context) => {
-      const { artifacts } = await collectRuntimeArtifactsForTypes(context, ["character_governance_state", "continuity_state"]);
-      const activeArtifacts = artifacts.filter((artifact) => artifact.status === "active");
+      const activeArtifacts = getActiveArtifactsFromContext(context, ["character_governance_state", "continuity_state"]);
       return {
         readiness: readyState({ evidence: { artifactCount: activeArtifacts.length } }),
         completion: activeArtifacts.length > 0
@@ -1588,39 +1856,61 @@ export const DIRECTOR_EXECUTION_STEP_MODULES: Record<
       adapter: getDirectorExecutionNodeAdapter("quality_repair"),
     }),
     inspectFacts: async (context) => {
-      const { novelId } = await loadDirectorModuleState(context);
-      const progress = await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId);
+      const summary = await loadFactBaseSummary(context);
+      const draftedChapterCount = summary.repair.draftedChapterCount;
+      const reviewedChapterCount = summary.repair.reviewedChapterCount;
+      const needsRepairChapters = summary.repair.needsRepairChapterCount;
+      const hasRepairContext = reviewedChapterCount > 0 || needsRepairChapters > 0;
+      const progress = {
+        needsRepairChapters: hasRepairContext ? needsRepairChapters : 1,
+        totalChapters: Math.max(draftedChapterCount, 1),
+      };
       return {
-        readiness: readyState({ evidence: { needsRepairChapters: progress?.needsRepairChapters ?? 0 } }),
-        completion: (progress?.needsRepairChapters ?? 0) === 0
-          ? completedFact(DIRECTOR_EXECUTION_STEP_IDS.quality_repair, { evidence: { needsRepairChapters: 0 } })
+        readiness: draftedChapterCount === 0
+          ? blockedState("Draft chapters are required before quality repair.", {
+            code: "missing_chapter_drafts",
+            nextAction: "continue_chapter_execution",
+          })
+          : hasRepairContext
+            ? readyState({ evidence: { draftedChapterCount, reviewedChapterCount, needsRepairChapters } })
+            : blockedState("Quality review facts must exist before quality repair.", {
+              code: "missing_quality_review_facts",
+              evidence: { draftedChapterCount, reviewedChapterCount, needsRepairChapters },
+              nextAction: "run_quality_review",
+            }),
+        completion: hasRepairContext && needsRepairChapters === 0
+          ? completedFact(DIRECTOR_EXECUTION_STEP_IDS.quality_repair, { evidence: { draftedChapterCount, reviewedChapterCount, needsRepairChapters: 0 } })
           : pendingFact(DIRECTOR_EXECUTION_STEP_IDS.quality_repair, {
-            ratio: progress?.totalChapters ? 1 - ((progress.needsRepairChapters ?? 0) / progress.totalChapters) : 0,
-            evidence: { needsRepairChapters: progress?.needsRepairChapters ?? 0, totalChapters: progress?.totalChapters ?? 0 },
+            ratio: hasRepairContext ? Math.max(0, 1 - (needsRepairChapters / Math.max(draftedChapterCount, 1))) : 0,
+            evidence: { draftedChapterCount, reviewedChapterCount, needsRepairChapters, totalChapters: draftedChapterCount },
           }),
         progress: buildSimpleProgress({
-          status: (progress?.needsRepairChapters ?? 0) === 0 ? "completed" : "needs_review",
-          ratio: progress?.totalChapters ? 1 - ((progress.needsRepairChapters ?? 0) / progress.totalChapters) : 0,
+          status: draftedChapterCount === 0 ? "blocked" : hasRepairContext ? ((progress?.needsRepairChapters ?? 0) === 0 ? "completed" : "needs_review") : "not_started",
+          ratio: hasRepairContext ? Math.max(0, 1 - (needsRepairChapters / Math.max(draftedChapterCount, 1))) : 0,
           label: (progress?.needsRepairChapters ?? 0) === 0 ? "质量修复链已收敛" : "仍有章节等待质量修复",
-          evidence: { needsRepairChapters: progress?.needsRepairChapters ?? 0 },
-          nextAction: (progress?.needsRepairChapters ?? 0) === 0 ? "continue_chapter_execution" : "repair_chapter",
+          evidence: { draftedChapterCount, reviewedChapterCount, needsRepairChapters },
+          nextAction: draftedChapterCount === 0 ? "continue_chapter_execution" : hasRepairContext ? ((progress?.needsRepairChapters ?? 0) === 0 ? "continue_chapter_execution" : "repair_chapter") : "run_quality_review",
         }),
       };
     },
   }),
 };
 
-export const DIRECTOR_TAKEOVER_STEP_MODULE = createWorkflowStepDescriptorFromDirectorAdapter({
-  id: DIRECTOR_TAKEOVER_STEP_ID,
-  stage: "takeover",
-  adapter: getDirectorTakeoverNodeAdapter(),
-});
+export const DIRECTOR_TAKEOVER_STEP_MODULE = createTakeoverExecutableModule(
+  createWorkflowStepDescriptorFromDirectorAdapter({
+    id: DIRECTOR_TAKEOVER_STEP_ID,
+    stage: "takeover",
+    adapter: getDirectorTakeoverNodeAdapter(),
+  }),
+);
 
-export const DIRECTOR_CONFIRM_NOVEL_CREATE_STEP_MODULE = createWorkflowStepDescriptorFromDirectorAdapter({
-  id: DIRECTOR_CONFIRM_NOVEL_CREATE_STEP_ID,
-  stage: "candidate_confirm",
-  adapter: getDirectorConfirmNovelCreateNodeAdapter(),
-});
+export const DIRECTOR_CONFIRM_NOVEL_CREATE_STEP_MODULE = createConfirmNovelCreateExecutableModule(
+  createWorkflowStepDescriptorFromDirectorAdapter({
+    id: DIRECTOR_CONFIRM_NOVEL_CREATE_STEP_ID,
+    stage: "candidate_confirm",
+    adapter: getDirectorConfirmNovelCreateNodeAdapter(),
+  }),
+);
 
 export const DIRECTOR_WORKFLOW_STEP_MODULES = uniqueModules([
   ...Object.values(DIRECTOR_CANDIDATE_STEP_MODULES),

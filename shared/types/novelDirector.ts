@@ -182,7 +182,6 @@ export const DIRECTOR_MAX_TARGET_CHAPTER_COUNT = 2000;
 
 export const DIRECTOR_AUTO_EXECUTION_MODES = [
   "book",
-  "front10",
   "chapter_range",
   "volume",
 ] as const;
@@ -239,7 +238,16 @@ export function buildFullBookAutopilotExecutionPlan(): DirectorAutoExecutionPlan
   };
 }
 
-export type DirectorContinuationMode = "resume" | "auto_execute_range" | "auto_execute_front10";
+export type DirectorContinuationMode = "resume" | "auto_execute_range";
+
+export function normalizeDirectorContinuationMode(
+  value: unknown,
+): DirectorContinuationMode | null {
+  if (value === "resume" || value === "auto_execute_range") {
+    return value;
+  }
+  return null;
+}
 
 export interface DirectorAutoExecutionState extends DirectorAutoExecutionPlan {
   enabled: boolean;
@@ -336,7 +344,7 @@ export interface DirectorSessionState {
     | "character_setup"
     | "volume_strategy"
     | "structured_outline"
-    | "front10_ready";
+    | "chapter_execution";
   reviewScope?: DirectorLockScope | null;
 }
 
@@ -456,7 +464,7 @@ export interface DirectorTakeoverPipelineJobSnapshot {
 }
 
 export interface DirectorTakeoverCheckpointSnapshot {
-  checkpointType: "front10_ready" | "chapter_batch_ready" | "replan_required" | null;
+  checkpointType: "chapter_batch_ready" | "replan_required" | null;
   checkpointSummary?: string | null;
   chapterId?: string | null;
   chapterOrder?: number | null;

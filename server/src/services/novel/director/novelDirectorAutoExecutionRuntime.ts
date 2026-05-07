@@ -271,10 +271,11 @@ export class NovelDirectorAutoExecutionRuntime {
     request: DirectorConfirmRequest;
     existingPipelineJobId?: string | null;
     existingState?: DirectorAutoExecutionState | null;
-    resumeCheckpointType?: "front10_ready" | "chapter_batch_ready" | "replan_required" | null;
+    resumeCheckpointType?: "chapter_batch_ready" | "chapter_batch_ready" | "replan_required" | null;
     resumeStage?: AutoExecutionResumeStage;
     previousFailureMessage?: string | null;
     allowSkipReviewBlockedChapter?: boolean;
+    approveAutoExecutionScope?: boolean;
   }): Promise<void> {
     let { range, autoExecution, pipelineJobId } = await this.prepareRequestedAutoExecution({
       novelId: input.novelId,
@@ -899,3 +900,4 @@ export class NovelDirectorAutoExecutionRuntime {
     }
   }
 }
+

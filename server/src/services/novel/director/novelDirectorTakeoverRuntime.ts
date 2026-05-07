@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   DirectorTakeoverCheckpointSnapshot,
   DirectorAutoExecutionPlan,
   DirectorTakeoverExecutableRangeSnapshot,
@@ -144,7 +144,7 @@ function buildCheckpointSnapshot(input: {
   chapterOrderMap: Map<string, number>;
 }): DirectorTakeoverCheckpointSnapshot | null {
   const checkpointType = input.task?.checkpointType;
-  if (checkpointType !== "front10_ready" && checkpointType !== "chapter_batch_ready" && checkpointType !== "replan_required") {
+  if (checkpointType !== "chapter_batch_ready" && checkpointType !== "replan_required") {
     return null;
   }
 
@@ -413,3 +413,4 @@ export function resolveDirectorRunningStateForPhase(
     progress: DIRECTOR_PROGRESS.beatSheet,
   };
 }
+

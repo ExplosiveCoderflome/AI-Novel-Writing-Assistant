@@ -70,7 +70,7 @@ interface TakeoverExecutionAutoRuntimePort {
     request: DirectorConfirmRequest;
     existingPipelineJobId?: string | null;
     existingState?: DirectorAutoExecutionState | null;
-    resumeCheckpointType?: "front10_ready" | "chapter_batch_ready" | "replan_required" | null;
+    resumeCheckpointType?: "chapter_batch_ready" | "replan_required" | null;
     resumeStage?: "chapter" | "pipeline";
     approveCurrentGate?: boolean;
     approveAutoExecutionScope?: boolean;
@@ -301,7 +301,7 @@ export async function startDirectorTakeoverExecution(
 
   const directorSession: DirectorSessionState = buildDirectorSessionState({
     runMode: input.directorInput.runMode,
-    phase: plan.executionMode === "phase" ? plan.phase ?? plan.startPhase : "front10_ready",
+    phase: plan.executionMode === "phase" ? plan.phase ?? plan.startPhase : "chapter_execution",
     isBackgroundRunning: true,
   });
   const isFullBookAutopilot = isFullBookAutopilotRunMode(input.directorInput.runMode);
