@@ -78,8 +78,33 @@ export function resolveDesktopUpdateChannel(): string {
   return configuredChannel || "beta";
 }
 
+function readDesktopUpdaterConfigValue(key: string): string {
+  const configPath = path.join(resolveDesktopResourcesDir(), "app-update.yml");
+  if (!fs.existsSync(configPath)) {
+    return "";
+  }
+
+  const lines = fs.readFileSync(configPath, "utf8").split(/\r?\n/);
+  const prefix = `${key}:`;
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine.startsWith(prefix)) {
+      continue;
+    }
+
+    return trimmedLine.slice(prefix.length).trim().replace(/^['"]|['"]$/g, "");
+  }
+
+  return "";
+}
+
 export function resolveDesktopMinimumUpdateVersion(): string {
-  return process.env.AI_NOVEL_DESKTOP_MINIMUM_UPDATE_VERSION?.trim() || "";
+  const configuredVersion = process.env.AI_NOVEL_DESKTOP_MINIMUM_UPDATE_VERSION?.trim();
+  if (configuredVersion) {
+    return configuredVersion;
+  }
+
+  return readDesktopUpdaterConfigValue("minimumAllowedVersion");
 }
 
 export function resolveDesktopRuntimeConfig(options: {

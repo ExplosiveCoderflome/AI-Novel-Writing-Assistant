@@ -38,7 +38,7 @@ test("version floor rejects candidate versions below the minimum safe release", 
   assert.equal(updaterRuntime.isVersionAllowedByFloor("0.2.11", "0.2.10"), true);
   assert.equal(updaterRuntime.isVersionAllowedByFloor("0.2.11", "0.2.11"), true);
   assert.equal(updaterRuntime.isVersionAllowedByFloor("0.2.11", "0.2.12"), false);
-  assert.equal(updaterRuntime.isVersionAllowedByFloor("0.2.11-beta.1", "0.2.11"), true);
+  assert.equal(updaterRuntime.isVersionAllowedByFloor("0.2.11-beta.1", "0.2.11"), false);
 });
 
 test("version floor falls back to allow when no minimum is configured", () => {
@@ -67,6 +67,23 @@ test("public release workflow does not allow unsigned installers", () => {
   );
 
   assert.ok(!workflow.includes('AI_NOVEL_ALLOW_UNSIGNED_RELEASE: "true"'));
+  assert.ok(!workflow.includes('desktop-v*'));
+  assert.ok(!workflow.includes("startsWith(github.ref_name, 'desktop-v')"));
   assert.ok(workflow.includes("CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}"));
   assert.ok(workflow.includes("CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}"));
+});
+
+test("staged updater config persists minimum allowed version for packaged builds", () => {
+  const stageScript = fs.readFileSync(
+    path.join(__dirname, "..", "scripts", "stage-desktop.cjs"),
+    "utf8",
+  );
+  const runtimePaths = fs.readFileSync(
+    path.join(__dirname, "..", "src", "runtime", "paths.ts"),
+    "utf8",
+  );
+
+  assert.ok(stageScript.includes("minimumAllowedVersion:"));
+  assert.ok(runtimePaths.includes("resolveDesktopMinimumUpdateVersion"));
+  assert.ok(!runtimePaths.includes("process.env.AI_NOVEL_DESKTOP_MINIMUM_UPDATE_VERSION?.trim() || \"\""));
 });

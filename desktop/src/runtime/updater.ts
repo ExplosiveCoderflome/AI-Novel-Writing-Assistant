@@ -47,6 +47,16 @@ function parseVersionParts(version: string): number[] | null {
   return match.slice(1, 4).map((part) => Number(part));
 }
 
+function parsePrereleaseParts(version: string): Array<number | string> | null {
+  const normalized = version.trim().replace(/^v/i, "");
+  const match = normalized.match(/^\d+\.\d+\.\d+-([0-9A-Za-z.-]+)(?:\+.*)?$/);
+  if (!match) {
+    return null;
+  }
+
+  return match[1].split(".").map((part) => (/^\d+$/.test(part) ? Number(part) : part));
+}
+
 function compareVersions(left: string, right: string): number {
   const leftParts = parseVersionParts(left);
   const rightParts = parseVersionParts(right);
@@ -60,6 +70,49 @@ function compareVersions(left: string, right: string): number {
     if (diff !== 0) {
       return diff;
     }
+  }
+
+  const leftPrerelease = parsePrereleaseParts(left);
+  const rightPrerelease = parsePrereleaseParts(right);
+
+  if (!leftPrerelease && !rightPrerelease) {
+    return 0;
+  }
+  if (!leftPrerelease) {
+    return 1;
+  }
+  if (!rightPrerelease) {
+    return -1;
+  }
+
+  const maxLength = Math.max(leftPrerelease.length, rightPrerelease.length);
+  for (let index = 0; index < maxLength; index += 1) {
+    const leftPart = leftPrerelease[index];
+    const rightPart = rightPrerelease[index];
+
+    if (leftPart === undefined) {
+      return -1;
+    }
+    if (rightPart === undefined) {
+      return 1;
+    }
+    if (leftPart === rightPart) {
+      continue;
+    }
+
+    const leftIsNumber = typeof leftPart === "number";
+    const rightIsNumber = typeof rightPart === "number";
+    if (leftIsNumber && rightIsNumber) {
+      return leftPart - rightPart;
+    }
+    if (leftIsNumber) {
+      return -1;
+    }
+    if (rightIsNumber) {
+      return 1;
+    }
+
+    return String(leftPart).localeCompare(String(rightPart));
   }
 
   return 0;
