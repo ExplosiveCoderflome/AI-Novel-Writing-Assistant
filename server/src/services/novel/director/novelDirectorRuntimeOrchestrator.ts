@@ -269,7 +269,7 @@ export class NovelDirectorRuntimeOrchestrator {
   }
 
   private async runExecutableStepModule<TOutput>(input: {
-    module: WorkflowStepModule<unknown, TOutput>;
+    module: WorkflowStepModule<unknown, unknown>;
     taskId: string;
     novelId?: string | null;
     targetType?: DirectorArtifactRef["targetType"] | null;
@@ -277,12 +277,17 @@ export class NovelDirectorRuntimeOrchestrator {
     approveCurrentGate?: boolean;
     approveAutoExecutionScope?: boolean;
     reuseCompletedStep?: boolean;
+    collectArtifacts?: (output: TOutput) => Promise<DirectorArtifactRef[]> | DirectorArtifactRef[];
   }): Promise<TOutput> {
+    const preloadedArtifacts = input.collectArtifacts && input.collectArtifacts.length === 0
+      ? await Promise.resolve(input.collectArtifacts(undefined as TOutput)).catch(() => [])
+      : [];
     const context = {
       taskId: input.taskId,
       novelId: input.novelId,
       targetType: input.targetType ?? input.module.targetType,
       targetId: input.targetId ?? null,
+      artifacts: preloadedArtifacts,
     };
     const completion = await input.module.inspectCompletion(context);
     if (completion.completed) {
@@ -367,7 +372,7 @@ export class NovelDirectorRuntimeOrchestrator {
           : undefined;
         const producedArtifacts = commit?.producedArtifacts ?? [];
         return {
-          output,
+          output: output as TOutput,
           producedArtifacts,
         };
       },
