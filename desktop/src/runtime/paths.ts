@@ -78,6 +78,10 @@ export function resolveDesktopUpdateChannel(): string {
   return configuredChannel || "beta";
 }
 
+export function resolveDesktopMinimumUpdateVersion(): string {
+  return process.env.AI_NOVEL_DESKTOP_MINIMUM_UPDATE_VERSION?.trim() || "";
+}
+
 export function resolveDesktopRuntimeConfig(options: {
   port: number;
   isPackaged: boolean;

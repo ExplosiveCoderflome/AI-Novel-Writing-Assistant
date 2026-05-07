@@ -92,6 +92,15 @@ function main() {
   if (!updaterConfigSource.includes("provider: github")) {
     throw new Error("Desktop updater feed configuration is missing the GitHub provider.");
   }
+  if (!updaterConfigSource.includes("owner: ExplosiveCoderflome")) {
+    throw new Error("Desktop updater feed configuration is missing the expected GitHub owner.");
+  }
+  if (!updaterConfigSource.includes("repo: AI-Novel-Writing-Assistant")) {
+    throw new Error("Desktop updater feed configuration is missing the expected GitHub repo.");
+  }
+  if (!updaterConfigSource.includes("publisherName: AI Novel Writing Assistant Team")) {
+    throw new Error("Desktop updater feed configuration is missing the expected Windows publisher name.");
+  }
 
   const packagedFiles = new Set(asar.listPackage(unpackedAppArchive).map((entry) => entry.replace(/^\\/, "").replace(/\\/g, "/")));
   const packagedEntries = Array.from(packagedFiles);
