@@ -2,6 +2,7 @@ import type { BaseMessage, BaseMessageChunk } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ZodType } from "zod";
 import type { TaskType } from "../../llm/modelRouter";
+import { buildPromptVersion } from "./promptVersion";
 
 export type PromptMode = "structured" | "text";
 export type PromptLanguage = "zh" | "en";
@@ -140,6 +141,7 @@ export interface PromptStructuredOutputHint<I, R> {
 export interface PromptAsset<I, O, R = O> {
   id: string;
   version: string;
+  versionSource?: unknown;
   taskType: TaskType;
   mode: PromptMode;
   language: PromptLanguage;
@@ -151,6 +153,41 @@ export interface PromptAsset<I, O, R = O> {
   render: (input: I, context: PromptRenderContext) => BaseMessage[];
   postValidate?: (output: R, input: I, context: PromptRenderContext) => O;
   postValidateFailureRecovery?: (input: PromptPostValidateFailureRecoveryInput<I, R>) => O;
+}
+
+export interface PromptAssetDefinition<I, O, R = O> extends Omit<PromptAsset<I, O, R>, "version"> {
+  versionSource: unknown;
+}
+
+function buildPromptAssetVersionSource<I, O, R = O>(asset: Omit<PromptAsset<I, O, R>, "version">): unknown {
+  return {
+    id: asset.id,
+    taskType: asset.taskType,
+    mode: asset.mode,
+    language: asset.language,
+    contextPolicy: asset.contextPolicy,
+    repairPolicy: asset.repairPolicy ?? null,
+    semanticRetryPolicy: asset.semanticRetryPolicy ?? null,
+    structuredOutputHint: asset.structuredOutputHint ?? null,
+    outputSchema: asset.outputSchema ?? null,
+    render: asset.render,
+    postValidate: asset.postValidate ?? null,
+    postValidateFailureRecovery: asset.postValidateFailureRecovery ?? null,
+    versionSource: asset.versionSource ?? null,
+  };
+}
+
+export function resolvePromptAssetVersion<I, O, R = O>(asset: Omit<PromptAsset<I, O, R>, "version">): string {
+  return buildPromptVersion(buildPromptAssetVersionSource(asset));
+}
+
+export function definePromptAsset<I, O, R = O>(
+  definition: PromptAssetDefinition<I, O, R>,
+): PromptAsset<I, O, R> {
+  return {
+    ...definition,
+    version: resolvePromptAssetVersion(definition),
+  };
 }
 
 export function buildPromptAssetKey(asset: Pick<PromptAsset<unknown, unknown, unknown>, "id" | "version">): string {

@@ -1,5 +1,5 @@
 import type { PromptAsset } from "./core/promptTypes";
-import { buildPromptAssetKey } from "./core/promptTypes";
+import { buildPromptAssetKey, resolvePromptAssetVersion } from "./core/promptTypes";
 
 type UnknownPromptAsset = PromptAsset<unknown, unknown, unknown>;
 type PromptAssetLoader = () => UnknownPromptAsset;
@@ -434,6 +434,7 @@ function findCachedPromptAssetByLoader(load: PromptAssetLoader): UnknownPromptAs
 }
 
 function cacheLoadedPromptAsset(entry: PromptAssetLoaderEntry, asset: UnknownPromptAsset): UnknownPromptAsset {
+  asset.version = resolvePromptAssetVersion(asset);
   const actualKey = buildPromptAssetKey(asset);
   const registeredLoader = promptAssetLoaderByKey.get(actualKey);
   if (registeredLoader && registeredLoader !== entry.load) {
@@ -507,7 +508,10 @@ function loadRegisteredPromptAsset(key: string): UnknownPromptAsset | null {
     }
 
     const asset = hydratePromptAssetEntry(entry);
-    return buildPromptAssetKey(asset) === key ? asset : promptAssetByKey.get(key) ?? null;
+    if (buildPromptAssetKey(asset) === key) {
+      return asset;
+    }
+    return asset;
   }
 
   hydratePromptAssetByKey(key);

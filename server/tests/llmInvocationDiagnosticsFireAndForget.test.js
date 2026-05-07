@@ -186,7 +186,7 @@ test("diagnostic data still reaches prisma after fire-and-forget flush", async (
         taskId: "task-persisted",
         novelId: "novel-1",
         promptId: "novel.story_macro.decomposition",
-        promptVersion: "v1",
+        promptVersion: "h1234567890ab",
         stage: "story_macro",
         itemKey: "book_contract",
       },
@@ -206,6 +206,7 @@ test("diagnostic data still reaches prisma after fire-and-forget flush", async (
     assert.equal(createCalls[0].model, "deepseek-v4-pro");
     assert.equal(createCalls[0].status, "started");
     assert.equal(createCalls[0].estimatedInputTokens, 321);
+    assert.equal(createCalls[0].promptVersion, "h1234567890ab");
 
     assert.equal(updateCalls.length, 1);
     assert.equal(updateCalls[0].id, id);

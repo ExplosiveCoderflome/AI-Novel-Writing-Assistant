@@ -9,7 +9,7 @@ const meta = {
   taskType: "auto_director",
   promptMeta: {
     promptId: "novel.volume.chapter_list",
-    promptVersion: "v7",
+    promptVersion: "h1234567890ab",
   },
 };
 

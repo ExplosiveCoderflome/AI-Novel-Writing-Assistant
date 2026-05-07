@@ -19,6 +19,7 @@ const {
 } = require("../dist/prompting/core/contextSelection.js");
 const {
   getRegisteredPromptAsset,
+  listRegisteredPromptAssets,
 } = require("../dist/prompting/registry.js");
 const {
   resolveWorkflow,
@@ -67,71 +68,73 @@ const {
 } = require("../dist/services/director/schemas.js");
 
 const promptKey = (asset) => `${asset.id}@${asset.version}`;
+const findRegisteredAsset = (id) => listRegisteredPromptAssets().find((asset) => asset.id === id) ?? null;
 
 test("prompt registry exposes versioned planning assets", () => {
-  const keys = [
-    "planner.intent.parse@v1",
-    "agent.runtime.fallback_answer@v1",
-    "agent.runtime.setup_guidance@v1",
-    "agent.runtime.setup_ideation@v1",
-    "planner.chapter.plan@v1",
-    "novel.director.candidates@v1",
-    "novel.director.candidate_patch@v1",
-    "novel.director.blueprint@v1",
-    "novel.character.castOptions@v2",
-    "novel.character.castOptions.repair@v1",
-    "novel.character.castOptions.zhNormalize@v1",
-    "novel.character.supplemental@v1",
-    "novel.character.supplemental.zhNormalize@v1",
-    "novel.story_macro.decomposition@v1",
-    "novel.volume.strategy@v2",
-    "novel.volume.strategy.critique@v1",
-    "novel.volume.skeleton@v2",
-    "title.generation@v1",
-    "audit.chapter.full@v2",
-    "bookAnalysis.source.note@v1",
-    "character.base.skeleton@v1",
-    "novel.continuation.rewrite_similarity@v1",
-    "novel.draft_optimize.selection@v1",
-    "novel.draft_optimize.full@v1",
-    "novel.framing.suggest@v1",
-    "novel.production.characters@v1",
-    "state.snapshot.extract@v4",
-    "novel.payoff_ledger.sync@v5",
-    "novel.characterDynamics.volumeProjection@v3",
-    "novel.character_resource.extract_updates@v1",
-    "storyMode.child.generate@v1",
-    "storyMode.tree.generate@v1",
-    "storyWorldSlice.generate@v1",
-    promptKey(styleDetectionPrompt),
-    "style.generate@v1",
-    promptKey(styleRewritePrompt),
-    promptKey(styleProfileExtractionPrompt),
-    promptKey(styleProfileFromBookAnalysisPrompt),
-    "style.recommendation@v1",
-    "novel.review.chapter@v1",
-    promptKey(chapterWriterPrompt),
-    "world.draft.generate@v1",
-    "world.draft.refine@v1",
-    "world.draft.refine_alternatives@v1",
-    "world.inspiration.concept_card@v1",
-    "world.inspiration.localize_concept_card@v1",
-    "world.property_options.generate@v1",
-    "world.deepening.questions@v1",
-    "world.consistency.check@v1",
-    "world.layer.generate@v1",
-    "world.layer.localize@v1",
-    "world.import.extract@v1",
-    "world.reference.inspiration@v1",
-    "world.structure.generate@v1",
+  const ids = [
+    "planner.intent.parse",
+    "agent.runtime.fallback_answer",
+    "agent.runtime.setup_guidance",
+    "agent.runtime.setup_ideation",
+    "planner.chapter.plan",
+    "novel.director.candidates",
+    "novel.director.candidate_patch",
+    "novel.director.blueprint",
+    "novel.character.castOptions",
+    "novel.character.castOptions.repair",
+    "novel.character.castOptions.zhNormalize",
+    "novel.character.supplemental",
+    "novel.character.supplemental.zhNormalize",
+    "novel.story_macro.decomposition",
+    "novel.volume.strategy",
+    "novel.volume.strategy.critique",
+    "novel.volume.skeleton",
+    "title.generation",
+    "audit.chapter.full",
+    "bookAnalysis.source.note",
+    "character.base.skeleton",
+    "novel.continuation.rewrite_similarity",
+    "novel.draft_optimize.selection",
+    "novel.draft_optimize.full",
+    "novel.framing.suggest",
+    "novel.production.characters",
+    "state.snapshot.extract",
+    "novel.payoff_ledger.sync",
+    "novel.characterDynamics.volumeProjection",
+    "novel.character_resource.extract_updates",
+    "storyMode.child.generate",
+    "storyMode.tree.generate",
+    "storyWorldSlice.generate",
+    styleDetectionPrompt.id,
+    "style.generate",
+    styleRewritePrompt.id,
+    styleProfileExtractionPrompt.id,
+    styleProfileFromBookAnalysisPrompt.id,
+    "style.recommendation",
+    "novel.review.chapter",
+    chapterWriterPrompt.id,
+    "world.draft.generate",
+    "world.draft.refine",
+    "world.draft.refine_alternatives",
+    "world.inspiration.concept_card",
+    "world.inspiration.localize_concept_card",
+    "world.property_options.generate",
+    "world.deepening.questions",
+    "world.consistency.check",
+    "world.layer.generate",
+    "world.layer.localize",
+    "world.import.extract",
+    "world.reference.inspiration",
+    "world.structure.generate",
   ];
 
-  for (const key of keys) {
-    const [id, version] = key.split("@");
-    assert.ok(getRegisteredPromptAsset(id, version), `missing prompt asset ${key}`);
+  for (const id of ids) {
+    const asset = findRegisteredAsset(id);
+    assert.ok(asset, `missing prompt asset ${id}`);
+    assert.match(asset.version, /^h[a-f0-9]{12}$/, `expected hash version for ${id}, got ${asset.version}`);
   }
 
-  const chapterAsset = getRegisteredPromptAsset("planner.chapter.plan", "v1");
+  const chapterAsset = findRegisteredAsset("planner.chapter.plan");
   assert.ok(chapterAsset);
   assert.equal(chapterAsset.taskType, "planner");
 });
@@ -148,7 +151,7 @@ test("prompt registry resolves style prompts by their declared asset versions", 
 });
 
 test("character cast prompt hardens real-name constraints and required gender output", () => {
-  const asset = getRegisteredPromptAsset("novel.character.castOptions", "v2");
+  const asset = findRegisteredAsset("novel.character.castOptions");
   assert.ok(asset);
 
   const messages = asset.render({
@@ -248,7 +251,7 @@ test("volume strategy prompt renders volume count guidance and fixed-count const
 });
 
 test("workspace diagnosis prompt requires english recommendedAction enum values", () => {
-  const asset = getRegisteredPromptAsset("novel.chapter_editor.workspace_diagnosis", "v1");
+  const asset = findRegisteredAsset("novel.chapter_editor.workspace_diagnosis");
   assert.ok(asset);
 
   const messages = asset.render({
@@ -278,8 +281,8 @@ test("workspace diagnosis prompt requires english recommendedAction enum values"
 });
 
 test("character dynamics prompts harden plannedChapterOrders and confidence output contracts", () => {
-  const volumeAsset = getRegisteredPromptAsset("novel.characterDynamics.volumeProjection", "v3");
-  const chapterAsset = getRegisteredPromptAsset("novel.characterDynamics.chapterExtract", "v1");
+  const volumeAsset = findRegisteredAsset("novel.characterDynamics.volumeProjection");
+  const chapterAsset = findRegisteredAsset("novel.characterDynamics.chapterExtract");
   assert.ok(volumeAsset);
   assert.ok(chapterAsset);
 
@@ -406,32 +409,15 @@ test("scene contract block omits direct length budget metadata", () => {
 
 test("novel main-chain prompt assets declare explicit non-zero context budgets", () => {
   const expectedBudgets = new Map([
-    ["novel.director.candidates@v1", NOVEL_PROMPT_BUDGETS.directorCandidates],
-    ["novel.director.candidate_patch@v1", NOVEL_PROMPT_BUDGETS.directorCandidatePatch],
-    ["novel.director.blueprint@v1", NOVEL_PROMPT_BUDGETS.directorBlueprint],
-    ["novel.story_macro.decomposition@v1", NOVEL_PROMPT_BUDGETS.storyMacroDecomposition],
-    ["novel.story_macro.field_regeneration@v1", NOVEL_PROMPT_BUDGETS.storyMacroFieldRegeneration],
-    ["novel.volume.strategy@v2", NOVEL_PROMPT_BUDGETS.volumeStrategy],
-    ["novel.volume.strategy.critique@v1", NOVEL_PROMPT_BUDGETS.volumeStrategyCritique],
-    ["novel.volume.skeleton@v2", NOVEL_PROMPT_BUDGETS.volumeSkeleton],
-    ["novel.volume.beat_sheet@v1", NOVEL_PROMPT_BUDGETS.volumeBeatSheet],
-    ["novel.volume.chapter_list@v7", NOVEL_PROMPT_BUDGETS.volumeChapterList],
-    ["novel.volume.chapter_purpose@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
-    ["novel.volume.chapter_boundary@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
-    ["novel.volume.chapter_task_sheet@v2", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
-    ["novel.volume.rebalance.adjacent@v1", NOVEL_PROMPT_BUDGETS.volumeRebalance],
-    [promptKey(chapterWriterPrompt), NOVEL_PROMPT_BUDGETS.chapterWriter],
-    ["novel.review.chapter@v1", NOVEL_PROMPT_BUDGETS.chapterReview],
-    ["novel.review.repair@v1", NOVEL_PROMPT_BUDGETS.chapterRepair],
-    ["audit.chapter.full@v2", NOVEL_PROMPT_BUDGETS.chapterReview],
+    ["novel.director.candidates", NOVEL_PROMPT_BUDGETS.directorCandidates], ["novel.director.candidate_patch", NOVEL_PROMPT_BUDGETS.directorCandidatePatch], ["novel.director.blueprint", NOVEL_PROMPT_BUDGETS.directorBlueprint], ["novel.story_macro.decomposition", NOVEL_PROMPT_BUDGETS.storyMacroDecomposition], ["novel.story_macro.field_regeneration", NOVEL_PROMPT_BUDGETS.storyMacroFieldRegeneration], ["novel.volume.strategy", NOVEL_PROMPT_BUDGETS.volumeStrategy], ["novel.volume.strategy.critique", NOVEL_PROMPT_BUDGETS.volumeStrategyCritique], ["novel.volume.skeleton", NOVEL_PROMPT_BUDGETS.volumeSkeleton], ["novel.volume.beat_sheet", NOVEL_PROMPT_BUDGETS.volumeBeatSheet],
+    ["novel.volume.chapter_list", NOVEL_PROMPT_BUDGETS.volumeChapterList], ["novel.volume.chapter_purpose", NOVEL_PROMPT_BUDGETS.volumeChapterDetail], ["novel.volume.chapter_boundary", NOVEL_PROMPT_BUDGETS.volumeChapterDetail], ["novel.volume.chapter_task_sheet", NOVEL_PROMPT_BUDGETS.volumeChapterDetail], ["novel.volume.rebalance.adjacent", NOVEL_PROMPT_BUDGETS.volumeRebalance], [chapterWriterPrompt.id, NOVEL_PROMPT_BUDGETS.chapterWriter], ["novel.review.chapter", NOVEL_PROMPT_BUDGETS.chapterReview], ["novel.review.repair", NOVEL_PROMPT_BUDGETS.chapterRepair], ["audit.chapter.full", NOVEL_PROMPT_BUDGETS.chapterReview],
   ]);
 
-  for (const [key, budget] of expectedBudgets.entries()) {
-    const [id, version] = key.split("@");
-    const asset = getRegisteredPromptAsset(id, version);
-    assert.ok(asset, `missing prompt asset ${key}`);
-    assert.equal(asset.contextPolicy.maxTokensBudget, budget, `${key} budget mismatch`);
-    assert.ok(asset.contextPolicy.maxTokensBudget > 0, `${key} should not use zero budget`);
+  for (const [id, budget] of expectedBudgets.entries()) {
+    const asset = findRegisteredAsset(id);
+    assert.ok(asset, `missing prompt asset ${id}`);
+    assert.equal(asset.contextPolicy.maxTokensBudget, budget, `${id} budget mismatch`);
+    assert.ok(asset.contextPolicy.maxTokensBudget > 0, `${id} should not use zero budget`);
   }
 });
 
