@@ -19,17 +19,12 @@ const windowsSigningLink = firstNonEmpty(
   process.env.AI_NOVEL_WINDOWS_CSC_LINK,
   process.env.AI_NOVEL_WINDOWS_CSC_FILE,
 );
-const allowUnsignedRelease =
-  firstNonEmpty(
-    process.env.AI_NOVEL_ALLOW_UNSIGNED_RELEASE,
-    process.env.AI_NOVEL_ALLOW_UNSIGNED_WINDOWS_RELEASE,
-  ).toLowerCase() === "true";
 const hasWindowsSigningMaterial = Boolean(windowsSigningLink);
 const builderIconPath = path.join("builder", "app-icon.ico");
 
-if (!isBetaRelease && !hasWindowsSigningMaterial && !allowUnsignedRelease) {
+if (!isBetaRelease && !hasWindowsSigningMaterial) {
   throw new Error(
-    "Public Windows desktop releases require signing material. Provide CSC_LINK/WIN_CSC_LINK, or explicitly opt in to an unsigned release.",
+    "Public Windows desktop releases require signing material. Unsigned public release publishing is not allowed.",
   );
 }
 
@@ -78,11 +73,9 @@ module.exports = {
       releaseType: isBetaRelease ? "prerelease" : "release",
     },
   ],
-  electronUpdaterCompatibility: ">=2.16",
-  generateUpdatesFilesForAllChannels: false,
   win: {
     icon: builderIconPath,
-    // Keep EXE resource editing enabled for unsigned builds so Windows uses the app icon and metadata.
+    // Keep EXE resource editing enabled so Windows uses the app icon and metadata.
     signAndEditExecutable: true,
     target: [
       {
@@ -95,6 +88,8 @@ module.exports = {
       },
     ],
   },
+  electronUpdaterCompatibility: ">=2.16",
+  generateUpdatesFilesForAllChannels: false,
   nsis: {
     artifactName: "${productName}-${version}-setup-${arch}.${ext}",
     oneClick: false,

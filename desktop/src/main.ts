@@ -15,6 +15,7 @@ import {
   resolveDesktopAppDataDir,
   resolveDesktopChromiumCacheDir,
   resolveDesktopLogsDir,
+  resolveDesktopMinimumUpdateVersion,
   resolveDesktopRuntimeConfig,
   resolveDesktopSessionDataDir,
   resolveDesktopUpdateChannel,
@@ -93,6 +94,7 @@ function initializeDesktopUpdaterController(): void {
     updateChannel: resolveDesktopUpdateChannel(),
     isPackaged: app.isPackaged,
     isPortable: isPortableDesktopRuntime(),
+    minimumAllowedVersion: resolveDesktopMinimumUpdateVersion(),
   });
 }
 

@@ -16,6 +16,7 @@ jobs:
       AI_NOVEL_RELEASE_CHANNEL: beta
       AI_NOVEL_GITHUB_OWNER: ExplosiveCoderflome
       AI_NOVEL_GITHUB_REPO: AI-Novel-Writing-Assistant
+      AI_NOVEL_WINDOWS_PUBLISHER_NAME: AI Novel Writing Assistant Team
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
       CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}

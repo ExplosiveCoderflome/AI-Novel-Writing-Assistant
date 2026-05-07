@@ -5,20 +5,19 @@ on:
   push:
     tags:
       - "v*"
-      - "desktop-v*"
 
 permissions:
   contents: write
 
 jobs:
   publish-release:
-    if: ${{ startsWith(github.ref_name, 'desktop-v') || !contains(github.ref_name, '-') }}
+    if: ${{ !contains(github.ref_name, '-') }}
     runs-on: windows-latest
     env:
       AI_NOVEL_RELEASE_CHANNEL: release
-      AI_NOVEL_ALLOW_UNSIGNED_RELEASE: "true"
       AI_NOVEL_GITHUB_OWNER: ExplosiveCoderflome
       AI_NOVEL_GITHUB_REPO: AI-Novel-Writing-Assistant
+      AI_NOVEL_WINDOWS_PUBLISHER_NAME: AI Novel Writing Assistant Team
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
       CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
