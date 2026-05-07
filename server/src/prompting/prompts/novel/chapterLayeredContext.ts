@@ -19,6 +19,7 @@ import { createContextBlock } from "../../core/contextBudget";
 import type { PromptContextBlock } from "../../core/promptTypes";
 import { buildWriterStyleContractText } from "../../../services/styleEngine/styleContractText";
 import { buildDynamicCharacterGuidance, buildParticipants } from "./chapterLayeredContextCharacters";
+import { buildReadingPowerContextBlock } from "./readingPowerInjector";
 import {
   buildCharacterGuidanceText,
   buildLedgerItemLine,
@@ -26,7 +27,6 @@ import {
   buildPendingCandidateGuardText,
   buildRelationStageText,
   compactText,
-  renderGenreGuidanceText,
   renderHardInvariantsText,
   renderSoftGuidancesText,
   resolveTargetWordRange,
@@ -41,7 +41,6 @@ import {
   toListBlock,
 } from "./chapterLayeredContextShared";
 import { RUNTIME_PROMPT_BUDGET_PROFILES } from "./promptBudgetProfiles";
-import { genreProfileRegistry } from "../../references/genreProfileRegistry";
 import type { GenreProfile } from "../../references/genreProfiles";
 
 export const WRITER_FORBIDDEN_GROUPS = [
@@ -705,23 +704,10 @@ export function buildGenreReadingPowerBlocks(
     profile?: GenreProfile | null;
   } = {},
 ): PromptContextBlock[] {
-  const profile = options.profile ?? genreProfileRegistry.resolve(genre);
   const blocks: Array<PromptContextBlock | null> = [];
 
   // 1. Genre-specific guidance block
-  if (profile) {
-    const guidanceText = renderGenreGuidanceText(profile);
-    if (guidanceText) {
-      blocks.push(
-        createContextBlock({
-          id: "genre_reading_power",
-          group: "genre_reading_power",
-          priority: 76,
-          content: guidanceText,
-        }),
-      );
-    }
-  }
+  blocks.push(buildReadingPowerContextBlock({ genreLabel: genre, profile: options.profile }));
 
   // 2. Hard invariants block
   if (options.includeHardInvariants !== false) {
