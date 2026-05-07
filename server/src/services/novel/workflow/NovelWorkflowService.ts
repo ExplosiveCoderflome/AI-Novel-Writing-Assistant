@@ -5,10 +5,7 @@ import type {
   NovelWorkflowStage,
 } from "@ai-novel/shared/types/novelWorkflow";
 import { prisma } from "../../../db/prisma";
-import { withSqliteRetry } from "../../../db/sqliteRetry";
-import type { TaskStatus } from "@ai-novel/shared/types/task";
 import { AppError } from "../../../middleware/errorHandler";
-import { getArchivedTaskIdSet, isTaskArchived } from "../../task/taskArchive";
 import type { DirectorLLMOptions } from "@ai-novel/shared/types/novelDirector";
 import {
   applyDirectorLlmOverride,
@@ -56,318 +53,119 @@ import {
 import {
   AutoDirectorFollowUpNotificationService,
 } from "../../task/autoDirectorFollowUps/AutoDirectorFollowUpNotificationService";
-import type {
-  AutoDirectorEventWorkflowSnapshot,
-} from "../../task/autoDirectorFollowUps/autoDirectorFollowUpEventBuilder";
-
-type WorkflowRow = Awaited<ReturnType<typeof prisma.novelWorkflowTask.findUnique>>;
-type NovelWorkflowTaskUpdateArgs = Parameters<typeof prisma.novelWorkflowTask.update>[0];
-type NovelWorkflowTaskUpdateManyArgs = Parameters<typeof prisma.novelWorkflowTask.updateMany>[0];
-
-interface AutoDirectorNovelCreationClaim {
-  status: "claimed" | "attached" | "in_progress";
-  task: WorkflowRow;
-}
-
-interface BootstrapWorkflowInput {
-  workflowTaskId?: string | null;
-  novelId?: string | null;
-  lane: NovelWorkflowLane;
-  title?: string | null;
-  seedPayload?: Record<string, unknown>;
-  forceNew?: boolean;
-}
-
-interface SyncWorkflowStageInput {
-  stage: NovelWorkflowStage;
-  itemLabel: string;
-  itemKey?: string | null;
-  checkpointType?: NovelWorkflowCheckpoint | null;
-  checkpointSummary?: string | null;
-  chapterId?: string | null;
-  volumeId?: string | null;
-  progress?: number;
-  status?: TaskStatus;
-}
-
-const ACTIVE_STATUSES = ["queued", "running", "waiting_approval"] as const;
-const CHECKPOINT_STAGE_MAP: Record<NovelWorkflowCheckpoint, NovelWorkflowStage> = {
-  candidate_selection_required: "auto_director",
-  book_contract_ready: "story_macro",
-  character_setup_required: "character_setup",
-  volume_strategy_ready: "volume_strategy",
-  front10_ready: "chapter_execution",
-  chapter_batch_ready: "quality_repair",
-  replan_required: "quality_repair",
-  workflow_completed: "quality_repair",
-};
-
-const CHECKPOINT_ITEM_LABELS: Record<NovelWorkflowCheckpoint, string> = {
-  candidate_selection_required: "等待确认书级方向",
-  book_contract_ready: "Book Contract 已就绪",
-  character_setup_required: "等待审核角色准备",
-  volume_strategy_ready: "卷战略已就绪",
-  front10_ready: "已准备章节可进入执行",
-  chapter_batch_ready: "自动执行已暂停",
-  replan_required: "等待处理重规划建议",
-  workflow_completed: "小说主流程已完成",
-};
-
-function buildChapterTitleDiversityTaskNotice(input: {
-  issue: string;
-  volumeId?: string | null;
-}) {
-  return {
-    code: "CHAPTER_TITLE_DIVERSITY",
-    summary: input.issue.trim(),
-    action: {
-      type: "open_structured_outline" as const,
-      label: "快速修复章节标题",
-      volumeId: input.volumeId?.trim() || null,
-    },
-  };
-}
-
-function parseSeedResumeTarget(seedPayloadJson: string | null | undefined) {
-  const seedPayload = parseSeedPayload<{ resumeTarget?: unknown }>(seedPayloadJson);
-  if (typeof seedPayload?.resumeTarget === "string") {
-    return parseResumeTarget(seedPayload.resumeTarget);
-  }
-  if (seedPayload?.resumeTarget && typeof seedPayload.resumeTarget === "object") {
-    return seedPayload.resumeTarget as NonNullable<ReturnType<typeof parseResumeTarget>>;
-  }
-  return null;
-}
-
-function mergeResumeTargets(
-  primary: ReturnType<typeof parseResumeTarget>,
-  fallback: ReturnType<typeof parseResumeTarget>,
-) {
-  if (!primary) {
-    return fallback;
-  }
-  if (!fallback) {
-    return primary;
-  }
-  return {
-    ...fallback,
-    ...primary,
-    stage: primary.stage === "basic" && fallback.stage !== "basic"
-      ? fallback.stage
-      : primary.stage,
-    chapterId: primary.chapterId ?? fallback.chapterId ?? null,
-    volumeId: primary.volumeId ?? fallback.volumeId ?? null,
-  };
-}
-
-interface ChapterBatchCheckpointRow {
-  title: string;
-  novelId: string | null;
-  status: string;
-  checkpointType: string | null;
-  currentItemLabel: string | null;
-  checkpointSummary: string | null;
-  resumeTargetJson: string | null;
-  seedPayloadJson: string | null;
-  lastError: string | null;
-  finishedAt: Date | null;
-  milestonesJson: string | null;
-}
-
-function isQueuedWorkflowItemKey(itemKey: string | null | undefined): boolean {
-  return itemKey === "project_setup" || itemKey === "auto_director" || !itemKey;
-}
-
-function isCandidateSelectionItemKey(itemKey: string | null | undefined): boolean {
-  return itemKey === "auto_director" || itemKey?.startsWith("candidate_") === true;
-}
-
-function hasCandidateSelectionPhase(seedPayloadJson: string | null | undefined): boolean {
-  const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(seedPayloadJson);
-  if (!seedPayload) {
-    return false;
-  }
-  if (seedPayload.candidateStage) {
-    return true;
-  }
-  const phase = seedPayload.directorSession && typeof seedPayload.directorSession === "object"
-    ? (seedPayload.directorSession as { phase?: unknown }).phase
-    : null;
-  return phase === "candidate_selection";
-}
-
-function isPreNovelAutoDirectorCandidateTask(row: {
-  lane?: string | null;
-  novelId?: string | null;
-  checkpointType?: string | null;
-  currentItemKey?: string | null;
-  seedPayloadJson?: string | null;
-} | null): boolean {
-  return Boolean(
-    row
-    && row.lane === "auto_director"
-    && !row.novelId
-    && (
-      row.checkpointType === "candidate_selection_required"
-      || isCandidateSelectionItemKey(row.currentItemKey)
-      || hasCandidateSelectionPhase(row.seedPayloadJson)
-    ),
-  );
-}
-
-function isChapterBatchCheckpointRow(
-  row: ChapterBatchCheckpointRow | {
-    title?: string | null;
-    novelId?: string | null;
-    status?: string | null;
-    checkpointType?: string | null;
-    currentItemLabel?: string | null;
-    checkpointSummary?: string | null;
-    resumeTargetJson?: string | null;
-    seedPayloadJson?: string | null;
-    lastError?: string | null;
-    finishedAt?: Date | null;
-    milestonesJson?: string | null;
-  } | null,
-): row is ChapterBatchCheckpointRow {
-  return Boolean(
-    row
-    && typeof row.title === "string"
-    && typeof row.status === "string"
-    && Object.prototype.hasOwnProperty.call(row, "resumeTargetJson")
-    && Object.prototype.hasOwnProperty.call(row, "seedPayloadJson")
-    && Object.prototype.hasOwnProperty.call(row, "finishedAt")
-    && Object.prototype.hasOwnProperty.call(row, "milestonesJson"),
-  );
-}
-
-function mapStageToTab(stage: NovelWorkflowStage): NovelWorkflowResumeTarget["stage"] {
-  if (stage === "story_macro") return "story_macro";
-  if (stage === "character_setup") return "character";
-  if (stage === "volume_strategy") return "outline";
-  if (stage === "structured_outline") return "structured";
-  if (stage === "chapter_execution") return "chapter";
-  if (stage === "quality_repair") return "pipeline";
-  return "basic";
-}
-
-function defaultProgressForStage(stage: NovelWorkflowStage): number {
-  return NOVEL_WORKFLOW_STAGE_PROGRESS[stage] ?? 0.08;
-}
-
-function stageLabel(stage: NovelWorkflowStage): string {
-  return NOVEL_WORKFLOW_STAGE_LABELS[stage] ?? stage;
-}
-
-function isTaskCancellationRequested(row: {
-  status?: string | null;
-  cancelRequestedAt?: Date | null;
-} | null | undefined): boolean {
-  return Boolean(row && (row.status === "cancelled" || row.cancelRequestedAt));
-}
-
-function isStructuredOutlineItemKey(itemKey: string | null | undefined): boolean {
-  return itemKey === "beat_sheet"
-    || itemKey === "chapter_list"
-    || itemKey === "chapter_sync"
-    || itemKey === "chapter_detail_bundle";
-}
+import {
+  ACTIVE_STATUSES,
+  AutoDirectorNovelCreationClaim,
+  BootstrapWorkflowInput,
+  buildChapterTitleDiversityTaskNotice,
+  ChapterBatchCheckpointRow,
+  CHECKPOINT_ITEM_LABELS,
+  CHECKPOINT_STAGE_MAP,
+  defaultProgressForStage,
+  hasCandidateSelectionPhase,
+  isCandidateSelectionItemKey,
+  isChapterBatchCheckpointRow,
+  isPreNovelAutoDirectorCandidateTask,
+  isQueuedWorkflowItemKey,
+  isStructuredOutlineItemKey,
+  isTaskCancellationRequested,
+  mapStageToTab,
+  mergeResumeTargets,
+  parseSeedResumeTarget,
+  stageLabel,
+  SyncWorkflowStageInput,
+} from "./novelWorkflowServiceSupport";
+import {
+  updateWorkflowTaskManyWithRetry,
+  updateWorkflowTaskWithRetry,
+  type NovelWorkflowTaskUpdateArgs,
+  type NovelWorkflowTaskUpdateManyArgs,
+} from "./workflowTaskPersistence";
+import { updateWorkflowTaskWithNotifications } from "./workflowTaskNotifications";
+import {
+  getVisibleRowByIdRaw,
+  getVisibleRowsByNovelIdRaw,
+  listRecoverableAutoDirectorTasks,
+} from "./workflowTaskVisibility";
+import {
+  healAutoDirectorTaskState as healAutoDirectorTaskStateRuntime,
+  healBrokenAutoDirectorCandidateSeedPayload as healBrokenAutoDirectorCandidateSeedPayloadRuntime,
+  healChapterTitleDiversitySoftFailure as healChapterTitleDiversitySoftFailureRuntime,
+  healHistoricalAutoDirectorFront10RecoveryFailure as healHistoricalAutoDirectorFront10RecoveryFailureRuntime,
+  healHistoricalAutoDirectorRecoveryFailure as healHistoricalAutoDirectorRecoveryFailureRuntime,
+  healStaleAutoDirectorQueuedProgress as healStaleAutoDirectorQueuedProgressRuntime,
+  healStaleAutoDirectorRunningTask as healStaleAutoDirectorRunningTaskRuntime,
+  healStaleAutoDirectorStructuredOutlineProgress as healStaleAutoDirectorStructuredOutlineProgressRuntime,
+  resolveStructuredOutlineTaskProgress as resolveStructuredOutlineTaskProgressRuntime,
+} from "./novelWorkflowAutoDirectorHealing";
+import {
+  attachNovelToTask as attachNovelToTaskRuntime,
+  bootstrapTask as bootstrapTaskRuntime,
+  claimAutoDirectorNovelCreation as claimAutoDirectorNovelCreationRuntime,
+  createWorkflow as createWorkflowRuntime,
+  syncStageByNovelId as syncStageByNovelIdRuntime,
+} from "./workflowLifecycle";
+import {
+  cancelTask as cancelTaskRuntime,
+  continueTask as continueTaskRuntime,
+  markTaskFailed as markTaskFailedRuntime,
+  markTaskRunning as markTaskRunningRuntime,
+  markTaskWaitingApproval as markTaskWaitingApprovalRuntime,
+  recordCandidateSelectionRequired as recordCandidateSelectionRequiredRuntime,
+  recordCheckpoint as recordCheckpointRuntime,
+  recordRewriteSnapshotMilestone as recordRewriteSnapshotMilestoneRuntime,
+  requeueTaskForRecovery as requeueTaskForRecoveryRuntime,
+  restoreTaskToCheckpoint as restoreTaskToCheckpointRuntime,
+  retryTask as retryTaskRuntime,
+} from "./workflowTaskCommands";
 
 export class NovelWorkflowService {
   private readonly volumeService = new NovelVolumeService();
 
   private readonly autoDirectorFollowUpNotificationService = new AutoDirectorFollowUpNotificationService();
 
-  private updateTaskWithRetry(args: NovelWorkflowTaskUpdateArgs) {
-    return withSqliteRetry(
-      () => prisma.novelWorkflowTask.update(args),
-      { label: "novelWorkflowTask.update" },
-    );
-  }
-
-  private updateTaskManyWithRetry(args: NovelWorkflowTaskUpdateManyArgs) {
-    return withSqliteRetry(
-      () => prisma.novelWorkflowTask.updateMany(args),
-      { label: "novelWorkflowTask.updateMany" },
-    );
-  }
-
-  private toAutoDirectorEventSnapshot(row: {
-    id: string;
-    novelId: string | null;
-    lane: string;
-    status: string;
-    progress?: number | null;
-    currentStage: string | null;
-    checkpointType: string | null;
-    checkpointSummary?: string | null;
-    currentItemLabel?: string | null;
-    pendingManualRecovery: boolean;
-    updatedAt: Date;
-    seedPayloadJson?: string | null;
-    novel?: {
-      title?: string | null;
-    } | null;
-  } | null): AutoDirectorEventWorkflowSnapshot | null {
-    if (!row || row.lane !== "auto_director") {
-      return null;
-    }
+  private getHealingDeps() {
     return {
-      id: row.id,
-      novelId: row.novelId,
-      status: row.status as TaskStatus,
-      progress: row.progress ?? null,
-      currentStage: row.currentStage,
-      checkpointType: row.checkpointType as NovelWorkflowCheckpoint | null,
-      checkpointSummary: row.checkpointSummary ?? null,
-      currentItemLabel: row.currentItemLabel ?? null,
-      pendingManualRecovery: row.pendingManualRecovery,
-      updatedAt: row.updatedAt,
-      seedPayloadJson: row.seedPayloadJson ?? null,
-      novel: row.novel ?? null,
+      volumeService: this.volumeService,
+      getVisibleRowByIdRaw: this.getVisibleRowByIdRaw.bind(this),
+      updateTaskWithRetry: this.updateTaskWithRetry.bind(this),
+      markTaskFailed: this.markTaskFailed.bind(this),
+      restoreTaskToCheckpoint: this.restoreTaskToCheckpoint.bind(this),
+      buildResumeTarget: this.buildResumeTarget.bind(this),
     };
   }
 
-  private async notifyAutoDirectorTaskTransition(input: {
-    before: {
-      id: string;
-      novelId: string | null;
-      lane: string;
-      status: string;
-      progress?: number | null;
-      currentStage: string | null;
-      checkpointType: string | null;
-      checkpointSummary?: string | null;
-      currentItemLabel?: string | null;
-      pendingManualRecovery: boolean;
-      updatedAt: Date;
-      seedPayloadJson?: string | null;
-      novel?: {
-        title?: string | null;
-      } | null;
-    } | null;
-    after: {
-      id: string;
-      novelId: string | null;
-      lane: string;
-      status: string;
-      progress?: number | null;
-      currentStage: string | null;
-      checkpointType: string | null;
-      checkpointSummary?: string | null;
-      currentItemLabel?: string | null;
-      pendingManualRecovery: boolean;
-      updatedAt: Date;
-      seedPayloadJson?: string | null;
-      novel?: {
-        title?: string | null;
-      } | null;
-    } | null;
-  }): Promise<void> {
-    await this.autoDirectorFollowUpNotificationService.handleTaskTransition({
-      before: this.toAutoDirectorEventSnapshot(input.before),
-      after: this.toAutoDirectorEventSnapshot(input.after),
-    });
+  private getLifecycleDeps() {
+    return {
+      getNovelTitle: this.getNovelTitle.bind(this),
+      getVisibleRowById: this.getVisibleRowById.bind(this),
+      getVisibleRowByIdRaw: this.getVisibleRowByIdRaw.bind(this),
+      getVisibleRowsByNovelId: this.getVisibleRowsByNovelId.bind(this),
+      buildResumeTarget: this.buildResumeTarget.bind(this),
+      updateTaskWithRetry: this.updateTaskWithRetry.bind(this),
+      updateTaskManyWithRetry: this.updateTaskManyWithRetry.bind(this),
+      bootstrapTask: this.bootstrapTask.bind(this),
+      attachNovelToTask: this.attachNovelToTask.bind(this),
+    };
+  }
+
+  private getCommandDeps() {
+    return {
+      getVisibleRowById: this.getVisibleRowById.bind(this),
+      getVisibleRowByIdRaw: this.getVisibleRowByIdRaw.bind(this),
+      buildResumeTarget: this.buildResumeTarget.bind(this),
+      updateWorkflowTaskWithNotifications: this.updateWorkflowTaskWithNotifications.bind(this),
+      updateTaskWithRetry: this.updateTaskWithRetry.bind(this),
+      bootstrapTask: this.bootstrapTask.bind(this),
+    };
+  }
+
+  private updateTaskWithRetry(args: NovelWorkflowTaskUpdateArgs) {
+    return updateWorkflowTaskWithRetry(args);
+  }
+
+  private updateTaskManyWithRetry(args: NovelWorkflowTaskUpdateManyArgs) {
+    return updateWorkflowTaskManyWithRetry(args);
   }
 
   private async updateWorkflowTaskWithNotifications<T extends {
@@ -387,38 +185,11 @@ export class NovelWorkflowService {
     before: T;
     data: NovelWorkflowTaskUpdateArgs["data"];
   }): Promise<T> {
-    const next = await withSqliteRetry(
-      () => prisma.novelWorkflowTask.update({
-        where: { id: input.before.id },
-        data: input.data,
-        include: {
-          novel: {
-            select: {
-              title: true,
-            },
-          },
-        },
-      }),
-      { label: "novelWorkflowTask.update" },
-    ) as unknown as T;
-    await this.notifyAutoDirectorTaskTransition({
-      before: input.before,
-      after: next,
-    });
-    return next;
+    return updateWorkflowTaskWithNotifications(this.autoDirectorFollowUpNotificationService, input);
   }
 
   private async getVisibleRowsByNovelIdRaw(novelId: string, lane?: NovelWorkflowLane) {
-    const rows = await prisma.novelWorkflowTask.findMany({
-      where: {
-        novelId,
-        ...(lane ? { lane } : {}),
-      },
-      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-      take: 10,
-    });
-    const archived = await getArchivedTaskIdSet("novel_workflow", rows.map((row) => row.id));
-    return rows.filter((row) => !archived.has(row.id));
+    return getVisibleRowsByNovelIdRaw(novelId, lane);
   }
 
   private async getVisibleRowsByNovelId(novelId: string, lane?: NovelWorkflowLane) {
@@ -433,12 +204,7 @@ export class NovelWorkflowService {
   }
 
   private async getVisibleRowByIdRaw(taskId: string) {
-    if (await isTaskArchived("novel_workflow", taskId)) {
-      return null;
-    }
-    return prisma.novelWorkflowTask.findUnique({
-      where: { id: taskId },
-    });
+    return getVisibleRowByIdRaw(taskId);
   }
 
   private async getVisibleRowById(taskId: string) {
@@ -471,36 +237,7 @@ export class NovelWorkflowService {
   async listRecoverableAutoDirectorTasks(options: {
     includeStaleRunningFlag?: boolean;
   } = {}) {
-    const rows = await prisma.novelWorkflowTask.findMany({
-      where: {
-        lane: "auto_director",
-        status: {
-          in: ["queued", "running"],
-        },
-        pendingManualRecovery: false,
-      },
-      orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
-      select: {
-        id: true,
-        status: true,
-        lane: true,
-        currentItemKey: true,
-        pendingManualRecovery: true,
-        cancelRequestedAt: true,
-        heartbeatAt: true,
-        updatedAt: true,
-      },
-    });
-    const archived = await getArchivedTaskIdSet("novel_workflow", rows.map((row) => row.id));
-    return rows
-      .filter((row) => !archived.has(row.id))
-      .map((row) => ({
-        id: row.id,
-        status: row.status,
-        ...(options.includeStaleRunningFlag
-          ? { stale: isStaleAutoDirectorRunningTask(row) }
-          : {}),
-      }));
+    return listRecoverableAutoDirectorTasks(options);
   }
 
   async getTaskById(taskId: string) {
@@ -523,84 +260,7 @@ export class NovelWorkflowService {
     volumeId: string | null;
     chapterId: string | null;
   } | null> {
-    const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(input.seedPayloadJson);
-    const runMode = normalizeDirectorRunMode(
-      seedPayload?.directorInput?.runMode
-      ?? seedPayload?.runMode,
-    );
-    const plan = normalizeDirectorAutoExecutionPlan(
-      runMode === "auto_to_execution"
-        ? (seedPayload?.autoExecutionPlan ?? seedPayload?.directorInput?.autoExecutionPlan)
-        : undefined,
-    );
-
-    const workspace = await this.volumeService.getVolumes(input.novelId).catch(() => null);
-    if (!workspace) {
-      return null;
-    }
-    const recoveryCursor = resolveStructuredOutlineRecoveryCursor({
-      workspace,
-      plan,
-    });
-    if (recoveryCursor.step === "completed") {
-      return null;
-    }
-
-    if (recoveryCursor.step === "beat_sheet") {
-      return {
-        step: "beat_sheet",
-        currentItemKey: "beat_sheet",
-        currentItemLabel: `正在生成第 ${recoveryCursor.volumeOrder} 卷节奏板`,
-        progress: DIRECTOR_PROGRESS.beatSheet,
-        scopeLabel: recoveryCursor.scopeLabel,
-        volumeId: recoveryCursor.volumeId,
-        chapterId: null,
-      };
-    }
-
-    if (recoveryCursor.step === "chapter_list") {
-      const targetLabel = recoveryCursor.beatLabel?.trim()
-        ? `正在生成第 ${recoveryCursor.volumeOrder} 卷节奏段：${recoveryCursor.beatLabel.trim()}`
-        : `正在生成第 ${recoveryCursor.volumeOrder} 卷章节列表`;
-      return {
-        step: "chapter_list",
-        currentItemKey: "chapter_list",
-        currentItemLabel: targetLabel,
-        progress: DIRECTOR_PROGRESS.chapterList,
-        scopeLabel: recoveryCursor.scopeLabel,
-        volumeId: recoveryCursor.volumeId,
-        chapterId: null,
-      };
-    }
-
-    if (recoveryCursor.step === "chapter_sync") {
-      return {
-        step: "chapter_sync",
-        currentItemKey: "chapter_sync",
-        currentItemLabel: `${recoveryCursor.scopeLabel}细化已完成，正在同步章节执行资源`,
-        progress: DIRECTOR_PROGRESS.chapterDetailDone,
-        scopeLabel: recoveryCursor.scopeLabel,
-        volumeId: recoveryCursor.selectedChapters[0]?.volumeId ?? null,
-        chapterId: recoveryCursor.selectedChapters[0]?.id ?? null,
-      };
-    }
-
-    return {
-      step: "chapter_detail_bundle",
-      currentItemKey: "chapter_detail_bundle",
-      currentItemLabel: buildChapterDetailBundleLabel(
-        (recoveryCursor.nextChapterIndex ?? 0) + 1,
-        recoveryCursor.totalChapterCount,
-        recoveryCursor.detailMode ?? "task_sheet",
-      ),
-      progress: buildChapterDetailBundleProgress(
-        recoveryCursor.completedDetailSteps,
-        recoveryCursor.totalDetailSteps,
-      ),
-      scopeLabel: recoveryCursor.scopeLabel,
-      volumeId: recoveryCursor.volumeId,
-      chapterId: recoveryCursor.chapterId,
-    };
+    return resolveStructuredOutlineTaskProgressRuntime(this.getHealingDeps(), input);
   }
 
   async healBrokenAutoDirectorCandidateSeedPayload(
@@ -616,42 +276,7 @@ export class NovelWorkflowService {
       seedPayloadJson?: string | null;
     } | null,
   ): Promise<boolean> {
-    const candidate = row ?? await this.getVisibleRowByIdRaw(taskId);
-    if (!candidate || candidate.lane !== "auto_director") {
-      return false;
-    }
-
-    const repaired = repairAutoDirectorCandidateSeedPayload(candidate.seedPayloadJson);
-    if (!repaired) {
-      return false;
-    }
-
-    const shouldRestoreCandidateSelection = repaired.staleTargetedCandidate
-      && isPreNovelAutoDirectorCandidateTask(candidate);
-    await this.updateTaskWithRetry({
-      where: { id: taskId },
-      data: {
-        seedPayloadJson: repaired.seedPayloadJson,
-        heartbeatAt: new Date(),
-        status: shouldRestoreCandidateSelection ? "waiting_approval" : undefined,
-        currentStage: shouldRestoreCandidateSelection ? stageLabel("auto_director") : undefined,
-        currentItemKey: shouldRestoreCandidateSelection ? "auto_director" : undefined,
-        currentItemLabel: shouldRestoreCandidateSelection
-          ? CHECKPOINT_ITEM_LABELS.candidate_selection_required
-          : undefined,
-        checkpointType: shouldRestoreCandidateSelection ? "candidate_selection_required" : undefined,
-        checkpointSummary: shouldRestoreCandidateSelection
-          ? (candidate.checkpointSummary ?? "候选方案已恢复，请重新确认或继续微调。")
-          : undefined,
-        resumeTargetJson: shouldRestoreCandidateSelection
-          ? stringifyResumeTarget(buildNovelCreateResumeTarget(taskId, "director"))
-          : undefined,
-        lastError: shouldRestoreCandidateSelection ? null : undefined,
-        finishedAt: shouldRestoreCandidateSelection ? null : undefined,
-        cancelRequestedAt: shouldRestoreCandidateSelection ? null : undefined,
-      },
-    });
-    return true;
+    return healBrokenAutoDirectorCandidateSeedPayloadRuntime(this.getHealingDeps(), taskId, row);
   }
 
   async healAutoDirectorTaskState(
@@ -676,30 +301,7 @@ export class NovelWorkflowService {
         cancelRequestedAt?: Date | null;
       } | null,
     ): Promise<boolean> {
-      if (isTaskCancellationRequested(row)) {
-        return false;
-      }
-      const brokenSeedHealed = await this.healBrokenAutoDirectorCandidateSeedPayload(taskId, row);
-      const normalizedRow = brokenSeedHealed ? await this.getVisibleRowByIdRaw(taskId) : row;
-      if (isTaskCancellationRequested(normalizedRow)) {
-        return false;
-      }
-      const queuedHealed = await this.healStaleAutoDirectorQueuedProgress(taskId, normalizedRow);
-      const historicalHealed = await this.healHistoricalAutoDirectorRecoveryFailure(taskId, normalizedRow);
-      const front10Healed = await this.healHistoricalAutoDirectorFront10RecoveryFailure(taskId, normalizedRow);
-      const titleDiversityHealed = await this.healChapterTitleDiversitySoftFailure(taskId, normalizedRow);
-      const structuredOutlineHealed = await this.healStaleAutoDirectorStructuredOutlineProgress(taskId, normalizedRow);
-      const staleRunningHealed = await this.healStaleAutoDirectorRunningTask(taskId, normalizedRow);
-      const checkpointRow = (brokenSeedHealed || queuedHealed || historicalHealed || front10Healed || titleDiversityHealed || structuredOutlineHealed || staleRunningHealed)
-        ? await this.getVisibleRowByIdRaw(taskId)
-        : (normalizedRow ?? await this.getVisibleRowByIdRaw(taskId));
-    const checkpointHealed = isChapterBatchCheckpointRow(checkpointRow)
-      ? await syncAutoDirectorChapterBatchCheckpoint({
-        taskId,
-        row: checkpointRow,
-      })
-      : false;
-    return brokenSeedHealed || queuedHealed || historicalHealed || front10Healed || titleDiversityHealed || structuredOutlineHealed || staleRunningHealed || checkpointHealed;
+    return healAutoDirectorTaskStateRuntime(this.getHealingDeps(), taskId, row);
   }
 
   async healStaleAutoDirectorRunningTask(
@@ -714,12 +316,7 @@ export class NovelWorkflowService {
       updatedAt?: Date | null;
     } | null,
   ): Promise<boolean> {
-    const candidate = row ?? await this.getVisibleRowByIdRaw(taskId);
-    if (!candidate || !isStaleAutoDirectorRunningTask(candidate)) {
-      return false;
-    }
-    await this.markTaskFailed(taskId, STALE_AUTO_DIRECTOR_RUNNING_MESSAGE);
-    return true;
+    return healStaleAutoDirectorRunningTaskRuntime(this.getHealingDeps(), taskId, row);
   }
 
   async healStaleAutoDirectorQueuedProgress(
@@ -735,35 +332,7 @@ export class NovelWorkflowService {
       cancelRequestedAt?: Date | null;
     } | null,
   ): Promise<boolean> {
-    const candidate = row ?? await this.getVisibleRowByIdRaw(taskId);
-    if (!candidate || candidate.lane !== "auto_director" || isTaskCancellationRequested(candidate)) {
-      return false;
-    }
-
-    const shouldPromoteToRunning = candidate.status === "queued"
-      && !isQueuedWorkflowItemKey(candidate.currentItemKey);
-    const hasStaleCandidateCheckpoint = candidate.checkpointType === "candidate_selection_required"
-      && !isCandidateSelectionItemKey(candidate.currentItemKey);
-
-    if (!shouldPromoteToRunning && !hasStaleCandidateCheckpoint) {
-      return false;
-    }
-
-    await this.updateTaskWithRetry({
-      where: { id: taskId },
-      data: {
-        status: shouldPromoteToRunning ? "running" : undefined,
-        checkpointType: hasStaleCandidateCheckpoint ? null : undefined,
-        checkpointSummary: hasStaleCandidateCheckpoint ? null : undefined,
-        heartbeatAt: candidate.heartbeatAt ?? new Date(),
-        finishedAt: shouldPromoteToRunning ? null : undefined,
-        cancelRequestedAt: shouldPromoteToRunning ? null : undefined,
-        lastError: shouldPromoteToRunning && candidate.lastError?.includes("恢复失败")
-          ? null
-          : undefined,
-      },
-    });
-    return true;
+    return healStaleAutoDirectorQueuedProgressRuntime(this.getHealingDeps(), taskId, row);
   }
 
   async healHistoricalAutoDirectorRecoveryFailure(
@@ -775,16 +344,7 @@ export class NovelWorkflowService {
       lastError?: string | null;
     } | null,
   ): Promise<boolean> {
-    const candidate = row ?? await this.getVisibleRowByIdRaw(taskId);
-    if (!candidate || !isHistoricalAutoDirectorRecoveryNotNeededFailure(candidate)) {
-      return false;
-    }
-    const existing = await this.getVisibleRowByIdRaw(taskId);
-    if (!existing) {
-      return false;
-    }
-    await this.restoreTaskToCheckpoint(taskId, existing);
-    return true;
+    return healHistoricalAutoDirectorRecoveryFailureRuntime(this.getHealingDeps(), taskId, row);
   }
 
   async healHistoricalAutoDirectorFront10RecoveryFailure(
@@ -799,89 +359,7 @@ export class NovelWorkflowService {
       lastError?: string | null;
     } | null,
   ): Promise<boolean> {
-    const candidate = row ?? await this.getVisibleRowByIdRaw(taskId);
-    if (!candidate || !isHistoricalAutoDirectorFront10RecoveryUnsupportedFailure(candidate)) {
-      return false;
-    }
-
-    const existing = await this.getVisibleRowByIdRaw(taskId);
-    if (!existing) {
-      return false;
-    }
-
-    const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(existing.seedPayloadJson);
-    const directorSession = seedPayload?.directorSession;
-    const autoExecution = seedPayload?.autoExecution;
-    const pipelineJobId = autoExecution?.pipelineJobId?.trim();
-    if (
-      !existing.novelId
-      || !autoExecution
-      || !pipelineJobId
-      || directorSession?.phase !== "front10_ready"
-    ) {
-      return false;
-    }
-
-    const job = await prisma.generationJob.findUnique({
-      where: { id: pipelineJobId },
-      select: {
-        id: true,
-        status: true,
-        progress: true,
-        currentStage: true,
-        currentItemLabel: true,
-        payload: true,
-      },
-    });
-    if (!job || (job.status !== "queued" && job.status !== "running")) {
-      return false;
-    }
-
-    const chapters = autoExecution.mode === "book"
-      ? await prisma.chapter.findMany({
-          where: { novelId: existing.novelId },
-          orderBy: { order: "asc" },
-          select: { id: true, order: true },
-        })
-      : [];
-    const range = autoExecution.mode === "book"
-      ? resolveDirectorAutoExecutionBookRange(chapters)
-      : resolveDirectorAutoExecutionRangeFromState(autoExecution);
-    if (!range) {
-      return false;
-    }
-
-    const runningState = resolveDirectorAutoExecutionWorkflowState({
-      progress: job.progress,
-      currentStage: job.currentStage,
-      currentItemLabel: job.currentItemLabel,
-      payload: job.payload,
-    }, range, autoExecution);
-    const nextResumeTarget = buildNovelEditResumeTarget({
-      novelId: existing.novelId,
-      taskId,
-      stage: runningState.stage === "quality_repair" ? "pipeline" : "chapter",
-      chapterId: autoExecution?.nextChapterId ?? autoExecution?.firstChapterId ?? null,
-    });
-
-    await this.updateTaskWithRetry({
-      where: { id: taskId },
-      data: {
-        status: job.status === "queued" ? "queued" : "running",
-        progress: Math.max(existing.progress ?? 0, runningState.progress ?? defaultProgressForStage(runningState.stage)),
-        currentStage: stageLabel(runningState.stage),
-        currentItemKey: runningState.itemKey,
-        currentItemLabel: runningState.itemLabel,
-        checkpointType: null,
-        checkpointSummary: null,
-        resumeTargetJson: stringifyResumeTarget(nextResumeTarget),
-        heartbeatAt: new Date(),
-        finishedAt: null,
-        cancelRequestedAt: null,
-        lastError: null,
-      },
-    });
-    return true;
+    return healHistoricalAutoDirectorFront10RecoveryFailureRuntime(this.getHealingDeps(), taskId, row);
   }
 
   async healChapterTitleDiversitySoftFailure(
@@ -897,62 +375,7 @@ export class NovelWorkflowService {
       lastError?: string | null;
     } | null,
   ): Promise<boolean> {
-    const candidate = row ?? await this.getVisibleRowByIdRaw(taskId);
-    const issue = candidate?.lastError?.trim() || "";
-    if (
-      !candidate
-      || candidate.lane !== "auto_director"
-      || candidate.status !== "failed"
-      || !isChapterTitleDiversityIssue(issue)
-    ) {
-      return false;
-    }
-
-    const existing = await this.getVisibleRowByIdRaw(taskId);
-    if (!existing) {
-      return false;
-    }
-
-    const resumeTarget = mergeResumeTargets(
-      parseResumeTarget(existing.resumeTargetJson),
-      parseSeedResumeTarget(existing.seedPayloadJson),
-    );
-    const notice = buildChapterTitleDiversityTaskNotice({
-      issue,
-      volumeId: resumeTarget?.volumeId ?? null,
-    });
-    const nextResumeTarget = (resumeTarget && resumeTarget.stage !== "basic")
-      ? {
-        ...resumeTarget,
-        volumeId: resumeTarget.volumeId ?? notice.action.volumeId ?? null,
-      }
-      : buildNovelEditResumeTarget({
-        novelId: existing.novelId ?? resumeTarget?.novelId ?? "",
-        taskId,
-        stage: "structured",
-        volumeId: resumeTarget?.volumeId ?? notice.action.volumeId ?? null,
-      });
-
-    await this.updateTaskWithRetry({
-      where: { id: taskId },
-      data: {
-        status: "waiting_approval",
-        currentStage: stageLabel("structured_outline"),
-        currentItemKey: existing.currentItemKey ?? "chapter_list",
-        currentItemLabel: "章节列表已生成，但标题结构仍需分散",
-        checkpointType: null,
-        checkpointSummary: null,
-        resumeTargetJson: stringifyResumeTarget(nextResumeTarget),
-        seedPayloadJson: mergeSeedPayload(existing.seedPayloadJson, {
-          taskNotice: notice,
-        }),
-        heartbeatAt: new Date(),
-        finishedAt: null,
-        cancelRequestedAt: null,
-        lastError: null,
-      },
-    });
-    return true;
+    return healChapterTitleDiversitySoftFailureRuntime(this.getHealingDeps(), taskId, row);
   }
 
   async healStaleAutoDirectorStructuredOutlineProgress(
@@ -970,55 +393,7 @@ export class NovelWorkflowService {
       cancelRequestedAt?: Date | null;
     } | null,
   ): Promise<boolean> {
-    const candidate = row ?? await this.getVisibleRowByIdRaw(taskId);
-    if (
-      !candidate
-      || candidate.lane !== "auto_director"
-      || !candidate.novelId
-      || candidate.status !== "running"
-      || candidate.checkpointType
-      || isTaskCancellationRequested(candidate)
-      || (!isStructuredOutlineItemKey(candidate.currentItemKey) && candidate.currentStage !== stageLabel("structured_outline"))
-    ) {
-      return false;
-    }
-
-    const progressState = await this.resolveStructuredOutlineTaskProgress({
-      novelId: candidate.novelId,
-      seedPayloadJson: candidate.seedPayloadJson,
-    });
-    if (!progressState) {
-      return false;
-    }
-
-    if (
-      candidate.currentItemKey === progressState.currentItemKey
-      && candidate.currentItemLabel === progressState.currentItemLabel
-      && typeof candidate.progress === "number"
-      && Math.abs(candidate.progress - progressState.progress) < 0.0001
-    ) {
-      return false;
-    }
-
-    await this.updateTaskWithRetry({
-      where: { id: taskId },
-      data: {
-        currentStage: stageLabel("structured_outline"),
-        currentItemKey: progressState.currentItemKey,
-        currentItemLabel: progressState.currentItemLabel,
-        progress: Math.max(candidate.progress ?? 0, progressState.progress),
-        resumeTargetJson: stringifyResumeTarget(this.buildResumeTarget({
-          taskId,
-          novelId: candidate.novelId,
-          lane: "auto_director",
-          stage: "structured_outline",
-          chapterId: progressState.chapterId,
-          volumeId: progressState.volumeId,
-        })),
-        heartbeatAt: new Date(),
-      },
-    });
-    return true;
+    return healStaleAutoDirectorStructuredOutlineProgressRuntime(this.getHealingDeps(), taskId, row);
   }
 
   async applyAutoDirectorLlmOverride(
@@ -1075,192 +450,22 @@ export class NovelWorkflowService {
   }
 
   private async createWorkflow(input: BootstrapWorkflowInput) {
-    const novelTitle = input.novelId ? await this.getNovelTitle(input.novelId) : null;
-    const created = await prisma.novelWorkflowTask.create({
-      data: {
-        novelId: input.novelId ?? null,
-        lane: input.lane,
-        title: defaultWorkflowTitle({
-          lane: input.lane,
-          title: input.title,
-          novelTitle,
-        }),
-        status: "queued",
-        progress: input.novelId ? defaultProgressForStage("project_setup") : 0,
-        currentStage: input.lane === "auto_director" ? "AI 自动导演" : "项目设定",
-        currentItemKey: input.lane === "auto_director" ? "auto_director" : "project_setup",
-        currentItemLabel: input.lane === "auto_director" ? "等待生成候选方向" : "等待创建项目",
-        resumeTargetJson: stringifyResumeTarget(
-          this.buildResumeTarget({
-            taskId: "",
-            novelId: input.novelId ?? null,
-            lane: input.lane,
-            stage: input.lane === "auto_director" ? "auto_director" : "project_setup",
-          }),
-        ),
-        seedPayloadJson: input.seedPayload ? JSON.stringify(input.seedPayload) : null,
-      },
-    });
-    const resumeTarget = this.buildResumeTarget({
-      taskId: created.id,
-      novelId: created.novelId,
-      lane: created.lane,
-      stage: created.lane === "auto_director" ? "auto_director" : "project_setup",
-    });
-    return this.updateTaskWithRetry({
-      where: { id: created.id },
-      data: {
-        resumeTargetJson: stringifyResumeTarget(resumeTarget),
-      },
-    });
+    return createWorkflowRuntime(this.getLifecycleDeps(), input);
   }
 
   async bootstrapTask(input: BootstrapWorkflowInput) {
-    if (input.workflowTaskId?.trim()) {
-      const existing = await this.getVisibleRowById(input.workflowTaskId.trim());
-      if (existing) {
-        if (input.novelId?.trim() && existing.novelId !== input.novelId.trim()) {
-          if (isPreNovelAutoDirectorCandidateTask(existing)) {
-            return existing;
-          }
-          const attached = await this.attachNovelToTask(existing.id, input.novelId.trim());
-          if (input.seedPayload) {
-            return this.updateTaskWithRetry({
-              where: { id: attached.id },
-              data: {
-                seedPayloadJson: mergeSeedPayload(attached.seedPayloadJson, input.seedPayload),
-                heartbeatAt: new Date(),
-              },
-            });
-          }
-          return attached;
-        }
-        if (input.seedPayload) {
-          return this.updateTaskWithRetry({
-            where: { id: existing.id },
-            data: {
-              seedPayloadJson: mergeSeedPayload(existing.seedPayloadJson, input.seedPayload),
-              heartbeatAt: new Date(),
-            },
-          });
-        }
-        return existing;
-      }
-    }
-
-    if (input.novelId?.trim() && input.forceNew !== true) {
-      const visibleRows = await this.getVisibleRowsByNovelId(input.novelId.trim(), input.lane);
-      const active = visibleRows.find((row) => ACTIVE_STATUSES.includes(row.status as (typeof ACTIVE_STATUSES)[number]));
-      if (active) {
-        return active;
-      }
-      const latest = visibleRows[0];
-      if (latest) {
-        return latest;
-      }
-    }
-
-    return this.createWorkflow({
-      ...input,
-      novelId: input.novelId?.trim() || null,
-    });
+    return bootstrapTaskRuntime(this.getLifecycleDeps(), input);
   }
 
   async attachNovelToTask(taskId: string, novelId: string, stage: NovelWorkflowStage = "project_setup") {
-    const existing = await this.getVisibleRowById(taskId);
-    if (!existing) {
-      throw new AppError("Workflow task not found.", 404);
-    }
-    const novelTitle = await this.getNovelTitle(novelId);
-    return this.updateTaskWithRetry({
-      where: { id: taskId },
-      data: {
-        novelId,
-        title: novelTitle ?? existing.title,
-        progress: Math.max(existing.progress, defaultProgressForStage(stage)),
-        currentStage: stageLabel(stage),
-        currentItemKey: existing.lane === "auto_director"
-          ? (existing.currentItemKey ?? "novel_create")
-          : stage,
-        currentItemLabel: existing.lane === "auto_director"
-          ? (existing.currentItemLabel ?? "正在创建小说项目")
-          : (stage === "project_setup" ? "小说项目已创建" : (existing.currentItemLabel ?? "已恢复小说主任务")),
-        resumeTargetJson: stringifyResumeTarget(this.buildResumeTarget({
-          taskId,
-          novelId,
-          lane: existing.lane,
-          stage,
-        })),
-        heartbeatAt: new Date(),
-      },
-    });
+    return attachNovelToTaskRuntime(this.getLifecycleDeps(), taskId, novelId, stage);
   }
 
   async claimAutoDirectorNovelCreation(taskId: string, input: {
     itemLabel: string;
     progress: number;
   }): Promise<AutoDirectorNovelCreationClaim> {
-    const existing = await this.getVisibleRowByIdRaw(taskId);
-    if (!existing) {
-      throw new AppError("Workflow task not found.", 404);
-    }
-    if (existing.lane !== "auto_director") {
-      throw new AppError("Only auto director workflow tasks can claim novel creation.", 400);
-    }
-    if (existing.novelId) {
-      return {
-        status: "attached",
-        task: existing,
-      };
-    }
-
-    const now = new Date();
-    const claimed = await this.updateTaskManyWithRetry({
-      where: {
-        id: taskId,
-        lane: "auto_director",
-        novelId: null,
-        OR: [
-          { currentItemKey: null },
-          { currentItemKey: "auto_director" },
-          { currentItemKey: { startsWith: "candidate_" } },
-          {
-            status: {
-              in: ["failed", "cancelled"],
-            },
-          },
-        ],
-      },
-      data: {
-        status: "running",
-        startedAt: existing.startedAt ?? now,
-        finishedAt: null,
-        heartbeatAt: now,
-        progress: Math.max(existing.progress ?? 0, input.progress),
-        currentStage: stageLabel("auto_director"),
-        currentItemKey: "novel_create",
-        currentItemLabel: input.itemLabel,
-        checkpointType: null,
-        checkpointSummary: null,
-        lastError: null,
-        cancelRequestedAt: null,
-      },
-    });
-
-    const latest = await this.getVisibleRowByIdRaw(taskId);
-    if (!latest) {
-      throw new AppError("Workflow task not found.", 404);
-    }
-    if (latest.novelId) {
-      return {
-        status: "attached",
-        task: latest,
-      };
-    }
-    return {
-      status: claimed.count > 0 ? "claimed" : "in_progress",
-      task: latest,
-    };
+    return claimAutoDirectorNovelCreationRuntime(this.getLifecycleDeps(), taskId, input);
   }
 
   async markTaskRunning(taskId: string, input: {
@@ -1273,43 +478,7 @@ export class NovelWorkflowService {
     volumeId?: string | null;
     seedPayload?: Record<string, unknown>;
   }) {
-    const existing = await this.getVisibleRowById(taskId);
-    if (!existing) {
-      throw new AppError("Workflow task not found.", 404);
-    }
-    if (isTaskCancellationRequested(existing)) {
-      throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
-    }
-    const resumeTarget = this.buildResumeTarget({
-      taskId,
-      novelId: existing.novelId,
-      lane: existing.lane,
-      stage: input.stage,
-      chapterId: input.chapterId,
-      volumeId: input.volumeId,
-    });
-    return this.updateWorkflowTaskWithNotifications({
-      before: existing,
-      data: {
-        status: "running",
-        startedAt: existing.startedAt ?? new Date(),
-        finishedAt: null,
-        heartbeatAt: new Date(),
-        pendingManualRecovery: false,
-        currentStage: stageLabel(input.stage),
-        currentItemKey: input.itemKey ?? input.stage,
-        currentItemLabel: input.itemLabel,
-        progress: Math.max(existing.progress, input.progress ?? defaultProgressForStage(input.stage)),
-        checkpointType: input.clearCheckpoint ? null : existing.checkpointType,
-        checkpointSummary: input.clearCheckpoint ? null : existing.checkpointSummary,
-        resumeTargetJson: stringifyResumeTarget(resumeTarget),
-        seedPayloadJson: input.seedPayload
-          ? mergeSeedPayload(existing.seedPayloadJson, input.seedPayload)
-          : existing.seedPayloadJson,
-        lastError: null,
-        cancelRequestedAt: null,
-      },
-    });
+    return markTaskRunningRuntime(this.getCommandDeps(), taskId, input);
   }
 
   async markTaskWaitingApproval(taskId: string, input: {
@@ -1324,245 +493,47 @@ export class NovelWorkflowService {
     volumeId?: string | null;
     seedPayload?: Record<string, unknown>;
   }) {
-    const existing = await this.getVisibleRowById(taskId);
-    if (!existing) {
-      throw new AppError("Workflow task not found.", 404);
-    }
-    if (isTaskCancellationRequested(existing)) {
-      throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
-    }
-    const resumeTarget = this.buildResumeTarget({
-      taskId,
-      novelId: existing.novelId,
-      lane: existing.lane,
-      stage: input.stage,
-      chapterId: input.chapterId,
-      volumeId: input.volumeId,
-    });
-    return this.updateWorkflowTaskWithNotifications({
-      before: existing,
-      data: {
-        status: "waiting_approval",
-        finishedAt: null,
-        heartbeatAt: new Date(),
-        currentStage: stageLabel(input.stage),
-        currentItemKey: input.itemKey ?? input.stage,
-        currentItemLabel: input.itemLabel,
-        progress: Math.max(existing.progress, input.progress ?? defaultProgressForStage(input.stage)),
-        checkpointType: input.clearCheckpoint
-          ? null
-          : (input.checkpointType ?? existing.checkpointType),
-        checkpointSummary: input.clearCheckpoint
-          ? null
-          : (input.checkpointSummary ?? existing.checkpointSummary),
-        resumeTargetJson: stringifyResumeTarget(resumeTarget),
-        seedPayloadJson: input.seedPayload
-          ? mergeSeedPayload(existing.seedPayloadJson, input.seedPayload)
-          : existing.seedPayloadJson,
-        lastError: null,
-        cancelRequestedAt: null,
-      },
-    });
+    return markTaskWaitingApprovalRuntime(this.getCommandDeps(), taskId, input);
   }
 
   async markTaskFailed(taskId: string, message: string, patch?: Partial<SyncWorkflowStageInput>) {
-    const existing = await this.getVisibleRowById(taskId);
-    if (!existing) {
-      return null;
-    }
-    if (isTaskCancellationRequested(existing)) {
-      return existing;
-    }
-    const stage = patch?.stage ?? "auto_director";
-    const resumeTarget = parseResumeTarget(existing.resumeTargetJson) ?? this.buildResumeTarget({
-      taskId,
-      novelId: existing.novelId,
-      lane: existing.lane,
-      stage,
-      chapterId: patch?.chapterId,
-      volumeId: patch?.volumeId,
-    });
-    return this.updateWorkflowTaskWithNotifications({
-      before: existing,
-      data: {
-        status: "failed",
-        finishedAt: new Date(),
-        heartbeatAt: new Date(),
-        currentStage: patch?.stage ? stageLabel(patch.stage) : existing.currentStage,
-        currentItemKey: patch?.itemKey ?? existing.currentItemKey,
-        currentItemLabel: patch?.itemLabel ?? existing.currentItemLabel,
-        checkpointType: patch?.checkpointType ?? existing.checkpointType,
-        checkpointSummary: patch?.checkpointSummary ?? existing.checkpointSummary,
-        resumeTargetJson: stringifyResumeTarget(resumeTarget),
-        lastError: message.trim(),
-      },
-    });
+    return markTaskFailedRuntime(this.getCommandDeps(), taskId, message, patch);
   }
 
   async cancelTask(taskId: string) {
-    const existing = await this.getVisibleRowById(taskId);
-    if (!existing) {
-      throw new AppError("Task not found.", 404);
-    }
-    return this.updateWorkflowTaskWithNotifications({
-      before: existing,
-      data: {
-        status: "cancelled",
-        cancelRequestedAt: new Date(),
-        finishedAt: new Date(),
-        heartbeatAt: new Date(),
-      },
-    });
+    return cancelTaskRuntime(this.getCommandDeps(), taskId);
   }
 
   async retryTask(taskId: string) {
-    const existing = await this.getVisibleRowById(taskId);
-    if (!existing) {
-      throw new AppError("Task not found.", 404);
-    }
-      return this.updateWorkflowTaskWithNotifications({
-        before: existing,
-        data: {
-          status: existing.checkpointType ? "waiting_approval" : "queued",
-          pendingManualRecovery: false,
-          attemptCount: existing.attemptCount + 1,
-          lastError: null,
-        finishedAt: null,
-        cancelRequestedAt: null,
-        heartbeatAt: new Date(),
-      },
-    });
+    return retryTaskRuntime(this.getCommandDeps(), taskId);
   }
 
   async restoreTaskToCheckpoint(
     taskId: string,
     row = null as Awaited<ReturnType<typeof prisma.novelWorkflowTask.findUnique>> | null,
   ) {
-    const existing = row ?? await this.getVisibleRowByIdRaw(taskId);
-    if (!existing || !existing.checkpointType) {
-      return existing;
-    }
-    const checkpointType = existing.checkpointType as NovelWorkflowCheckpoint;
-    const checkpointStage = CHECKPOINT_STAGE_MAP[checkpointType];
-    const resumeTarget = checkpointType === "candidate_selection_required"
-      ? buildNovelCreateResumeTarget(taskId, "director")
-      : (
-        parseResumeTarget(existing.resumeTargetJson) ?? this.buildResumeTarget({
-          taskId,
-          novelId: existing.novelId,
-          lane: existing.lane,
-          stage: checkpointStage,
-        })
-      );
-    return this.updateWorkflowTaskWithNotifications({
-      before: existing,
-        data: {
-          status: checkpointType === "workflow_completed" ? "succeeded" : "waiting_approval",
-          pendingManualRecovery: false,
-          finishedAt: checkpointType === "workflow_completed" ? (existing.finishedAt ?? new Date()) : null,
-        cancelRequestedAt: null,
-        heartbeatAt: new Date(),
-        currentStage: stageLabel(checkpointStage),
-        currentItemKey: checkpointStage,
-        currentItemLabel: CHECKPOINT_ITEM_LABELS[checkpointType] ?? existing.currentItemLabel,
-        progress: Math.max(existing.progress, defaultProgressForStage(checkpointStage)),
-        resumeTargetJson: stringifyResumeTarget(resumeTarget),
-        lastError: null,
-      },
-    });
+    return restoreTaskToCheckpointRuntime(this.getCommandDeps(), taskId, row);
   }
 
   async continueTask(taskId: string) {
-    const existing = await this.getVisibleRowById(taskId);
-    if (!existing) {
-      throw new AppError("Task not found.", 404);
-    }
-    if (isTaskCancellationRequested(existing)) {
-      throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
-    }
-      return this.updateWorkflowTaskWithNotifications({
-        before: existing,
-        data: {
-          heartbeatAt: new Date(),
-          pendingManualRecovery: false,
-          status: existing.status === "queued" ? "running" : existing.status,
-        },
-      });
+    return continueTaskRuntime(this.getCommandDeps(), taskId);
   }
 
   async requeueTaskForRecovery(taskId: string, message: string) {
-    const existing = await this.getVisibleRowById(taskId);
-    if (!existing) {
-      throw new AppError("Task not found.", 404);
-    }
-      return this.updateWorkflowTaskWithNotifications({
-        before: existing,
-        data: {
-          status: "queued",
-          pendingManualRecovery: true,
-          finishedAt: null,
-          cancelRequestedAt: null,
-          heartbeatAt: null,
-        lastError: message.trim(),
-      },
-    });
+    return requeueTaskForRecoveryRuntime(this.getCommandDeps(), taskId, message);
   }
 
   async recordCandidateSelectionRequired(taskId: string, input: {
     seedPayload?: Record<string, unknown>;
     summary: string;
   }) {
-    const existing = await this.getVisibleRowById(taskId);
-    if (!existing) {
-      throw new AppError("Workflow task not found.", 404);
-    }
-    if (isTaskCancellationRequested(existing)) {
-      throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
-    }
-    return this.updateWorkflowTaskWithNotifications({
-      before: existing,
-      data: {
-        status: "waiting_approval",
-        currentStage: stageLabel("auto_director"),
-        currentItemKey: "auto_director",
-        currentItemLabel: "等待确认书级方向",
-        checkpointType: "candidate_selection_required",
-        checkpointSummary: input.summary,
-        resumeTargetJson: stringifyResumeTarget(buildNovelCreateResumeTarget(taskId, "director")),
-        progress: Math.max(existing.progress, defaultProgressForStage("auto_director")),
-        heartbeatAt: new Date(),
-        seedPayloadJson: input.seedPayload
-          ? mergeSeedPayload(existing.seedPayloadJson, input.seedPayload)
-          : existing.seedPayloadJson,
-        milestonesJson: appendMilestone(existing.milestonesJson, "candidate_selection_required", input.summary),
-      },
-    });
+    return recordCandidateSelectionRequiredRuntime(this.getCommandDeps(), taskId, input);
   }
 
   async recordRewriteSnapshotMilestone(taskId: string, input: {
     summary: string;
   }) {
-    const existing = await this.getVisibleRowById(taskId);
-    if (!existing) {
-      throw new AppError("Workflow task not found.", 404);
-    }
-    if (isTaskCancellationRequested(existing)) {
-      throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
-    }
-    return this.updateTaskWithRetry({
-      where: { id: taskId },
-      data: {
-        heartbeatAt: new Date(),
-        milestonesJson: JSON.stringify([
-          ...parseMilestones(existing.milestonesJson),
-          {
-            checkpointType: "rewrite_snapshot_created",
-            summary: input.summary,
-            createdAt: new Date().toISOString(),
-          },
-        ]),
-      },
-    });
+    return recordRewriteSnapshotMilestoneRuntime(this.getCommandDeps(), taskId, input);
   }
 
   async recordCheckpoint(taskId: string, input: {
@@ -1575,72 +546,10 @@ export class NovelWorkflowService {
     progress?: number;
     seedPayload?: Record<string, unknown>;
   }) {
-    const existing = await this.getVisibleRowById(taskId);
-    if (!existing) {
-      throw new AppError("Workflow task not found.", 404);
-    }
-    if (isTaskCancellationRequested(existing)) {
-      throw new AppError("WORKFLOW_TASK_CANCELLED", 409);
-    }
-    const resumeTarget = this.buildResumeTarget({
-      taskId,
-      novelId: existing.novelId,
-      lane: existing.lane,
-      stage: input.stage,
-      chapterId: input.chapterId,
-      volumeId: input.volumeId,
-    });
-    return this.updateWorkflowTaskWithNotifications({
-      before: existing,
-      data: {
-        status: input.checkpointType === "workflow_completed" ? "succeeded" : "waiting_approval",
-        progress: input.progress ?? defaultProgressForStage(input.stage),
-        currentStage: stageLabel(input.stage),
-        currentItemKey: input.stage,
-        currentItemLabel: input.itemLabel,
-        checkpointType: input.checkpointType,
-        checkpointSummary: input.checkpointSummary,
-        resumeTargetJson: stringifyResumeTarget(resumeTarget),
-        heartbeatAt: new Date(),
-        finishedAt: input.checkpointType === "workflow_completed" ? new Date() : null,
-        seedPayloadJson: input.seedPayload
-          ? mergeSeedPayload(existing.seedPayloadJson, input.seedPayload)
-          : existing.seedPayloadJson,
-        milestonesJson: appendMilestone(existing.milestonesJson, input.checkpointType, input.checkpointSummary),
-        lastError: null,
-      },
-    });
+    return recordCheckpointRuntime(this.getCommandDeps(), taskId, input);
   }
 
   async syncStageByNovelId(novelId: string, input: SyncWorkflowStageInput) {
-    const task = await this.bootstrapTask({
-      novelId,
-      lane: "manual_create",
-    });
-    const resumeTarget = this.buildResumeTarget({
-      taskId: task.id,
-      novelId,
-      lane: task.lane,
-      stage: input.stage,
-      chapterId: input.chapterId,
-      volumeId: input.volumeId,
-    });
-    return this.updateTaskWithRetry({
-      where: { id: task.id },
-      data: {
-        status: input.status ?? "waiting_approval",
-        progress: input.progress ?? Math.max(task.progress, defaultProgressForStage(input.stage)),
-        currentStage: stageLabel(input.stage),
-        currentItemKey: input.itemKey ?? input.stage,
-        currentItemLabel: input.itemLabel,
-        checkpointType: input.checkpointType ?? task.checkpointType,
-        checkpointSummary: input.checkpointSummary ?? task.checkpointSummary,
-        resumeTargetJson: stringifyResumeTarget(resumeTarget),
-        heartbeatAt: new Date(),
-        milestonesJson: input.checkpointType && input.checkpointSummary
-          ? appendMilestone(task.milestonesJson, input.checkpointType, input.checkpointSummary)
-          : task.milestonesJson,
-      },
-    });
+    return syncStageByNovelIdRuntime(this.getLifecycleDeps(), novelId, input);
   }
 }
