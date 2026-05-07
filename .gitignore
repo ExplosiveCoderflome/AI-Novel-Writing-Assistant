@@ -46,3 +46,4 @@ DIPS
 @ai-noveldesktop-data/
 .codex-backups/
 .learnings/
+.playwright-cli/
