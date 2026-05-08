@@ -22,6 +22,7 @@ const {
 } = require("../dist/prompting/registry.js");
 const {
   resolveWorkflow,
+  listWorkflowDefinitions,
 } = require("../dist/prompting/workflows/workflowRegistry.js");
 const {
   plannerChapterPlanPrompt,
@@ -711,6 +712,24 @@ test("workflow registry expands produce_novel into the fixed production chain", 
   ]);
   assert.equal(resolution.actions[0].input.title, "信号轨道");
   assert.equal(resolution.actions[6].input.targetChapterCount, 18);
+});
+
+test("workflow registry split keeps key workflow domains registered", () => {
+  const definitions = listWorkflowDefinitions();
+  const intents = new Set(definitions.map((definition) => definition.intent));
+
+  assert.ok(definitions.length >= 33);
+  [
+    "produce_novel",
+    "analyze_director_workspace",
+    "evaluate_manual_edit_impact",
+    "write_chapter",
+    "rewrite_chapter",
+    "query_progress",
+    "unknown",
+  ].forEach((intent) => assert.ok(intents.has(intent), `${intent} should stay registered`));
+
+  assert.equal(definitions.length, intents.size);
 });
 
 test("planner chapter prompt post validator rejects structurally unusable chapter plans", () => {

@@ -64,6 +64,32 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
     { group: "style_contract", required: true, priority: 74 },
     { group: "continuation_constraints", priority: 72 },
   ],
+  editableSlots: [
+    {
+      key: "writer.tonePreference",
+      label: "章节语气偏好",
+      description: "调整正文语气、节奏和读感倾向；仅作为管理元数据展示，当前不参与运行时覆盖。",
+      riskLevel: "low",
+      maxLength: 600,
+      defaultValue: "语言自然流畅，适合网文阅读节奏。",
+    },
+    {
+      key: "writer.antiAiRules",
+      label: "反 AI 味规则",
+      description: "控制空泛表达、重复回顾和模板化句式；仅作为管理元数据展示，当前不参与运行时覆盖。",
+      riskLevel: "low",
+      maxLength: 800,
+      defaultValue: "避免长段空洞描写或“AI感”八股表达。",
+    },
+    {
+      key: "writer.endingHookPreference",
+      label: "章末钩子偏好",
+      description: "调整章末悬念、决策点、突发变化或压力升级的表达偏好；当前不改变生产 prompt。",
+      riskLevel: "low",
+      maxLength: 500,
+      defaultValue: "结尾必须形成新的钩子，推动读者进入下一章。",
+    },
+  ],
   render: (input, context) => {
     const mode = input.mode ?? "draft";
     const hasTarget = typeof input.targetWordCount === "number" && input.targetWordCount > 0;

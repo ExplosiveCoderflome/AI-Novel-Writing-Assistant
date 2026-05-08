@@ -47,6 +47,18 @@ export interface PromptEditableSlot {
   defaultValue?: string;
 }
 
+export type PromptOverrideScope = "global" | "project" | "novel" | "experiment";
+export type PromptOverrideStatus = "draft" | "published" | "rolled_back";
+
+export interface PromptOverrideDraft {
+  promptId: string;
+  baseVersion: string;
+  scope: PromptOverrideScope;
+  status: PromptOverrideStatus;
+  slots: Record<string, string>;
+  notes?: string;
+}
+
 export interface PromptRenderContext {
   blocks: PromptContextBlock[];
   selectedBlockIds: string[];
@@ -78,6 +90,29 @@ export interface PromptInvocationMeta {
   repairAttempts: number;
   semanticRetryUsed: boolean;
   semanticRetryAttempts: number;
+}
+
+export interface PromptRunTrace {
+  promptId: string;
+  promptVersion: string;
+  taskType: TaskType;
+  provider?: LLMProvider;
+  model?: string;
+  latencyMs?: number;
+  contextBlockIds: string[];
+  droppedContextBlockIds: string[];
+  summarizedContextBlockIds: string[];
+  estimatedInputTokens: number;
+  repairUsed: boolean;
+  repairAttempts: number;
+  semanticRetryUsed: boolean;
+  semanticRetryAttempts: number;
+  entrypoint?: string;
+  novelId?: string;
+  chapterId?: string;
+  taskId?: string;
+  compiledHash?: string;
+  contextSnapshotHash?: string;
 }
 
 export interface PromptExecutionOptions {
