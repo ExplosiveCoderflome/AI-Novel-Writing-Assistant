@@ -106,6 +106,40 @@ export interface PromptPreviewResult {
   };
 }
 
+export type NovelMaterialImportance = "must" | "high" | "medium" | "low";
+
+export interface NovelMaterialBlock {
+  id: string;
+  group: string;
+  title: string;
+  content: string;
+  required: boolean;
+  importance: NovelMaterialImportance;
+  source: {
+    type: "novel" | "chapter" | "plan" | "state" | "character" | "world" | "style" | "audit" | "task";
+    id?: string;
+    updatedAt?: string;
+  };
+  estimatedTokens: number;
+}
+
+export interface NovelMaterialExportPayload {
+  novelId: string;
+  chapterId?: string;
+  taskId?: string;
+  volumeId?: string;
+  groups?: string[];
+  maxTokens?: number;
+}
+
+export interface NovelMaterialExportResult {
+  blocks: NovelMaterialBlock[];
+  missingGroups: string[];
+  missingInputs: string[];
+  warnings: string[];
+  generatedAt: string;
+}
+
 export interface PromptCatalogParams {
   keyword?: string;
   taskType?: string;
@@ -137,5 +171,13 @@ export async function getPromptCatalog(params: PromptCatalogParams = {}) {
 
 export async function previewPrompt(payload: PromptPreviewPayload) {
   const { data } = await apiClient.post<ApiResponse<PromptPreviewResult>>("/prompt-workbench/preview", payload);
+  return data;
+}
+
+export async function exportNovelPromptMaterials(payload: NovelMaterialExportPayload) {
+  const { data } = await apiClient.post<ApiResponse<NovelMaterialExportResult>>(
+    "/prompt-workbench/materials/export",
+    payload,
+  );
   return data;
 }

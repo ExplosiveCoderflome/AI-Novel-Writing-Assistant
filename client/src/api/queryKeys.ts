@@ -109,6 +109,7 @@ export const queryKeys = {
   promptWorkbench: {
     catalog: (params: string) => ["prompt-workbench", "catalog", params] as const,
     preview: (promptKey: string) => ["prompt-workbench", "preview", promptKey] as const,
+    materials: (params: string) => ["prompt-workbench", "materials", params] as const,
   },
   creativeHub: {
     threads: ["creative-hub", "threads"] as const,

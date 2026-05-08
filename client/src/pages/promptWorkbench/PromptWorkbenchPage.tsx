@@ -3,8 +3,11 @@ import type { ReactNode } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Braces, Eye, LockKeyhole, RefreshCw, Search, ShieldCheck } from "lucide-react";
 import {
+  exportNovelPromptMaterials,
   getPromptCatalog,
   previewPrompt,
+  type NovelMaterialBlock,
+  type NovelMaterialImportance,
   type PromptCatalogItem,
   type PromptPreviewResult,
 } from "@/api/promptWorkbench";
@@ -26,6 +29,13 @@ const MANAGEMENT_STATUS_LABELS: Record<PromptCatalogItem["managementStatus"], st
   complete: "元数据完整",
   missing_context_requirements: "缺上下文需求",
   missing_editable_slots: "缺编辑槽位",
+};
+
+const MATERIAL_IMPORTANCE_LABELS: Record<NovelMaterialImportance, string> = {
+  must: "必需",
+  high: "重要",
+  medium: "辅助",
+  low: "参考",
 };
 
 function buildPreviewPromptInput(prompt: PromptCatalogItem): Record<string, unknown> {
@@ -120,6 +130,30 @@ function JsonBlock({ value }: { value: unknown }) {
   );
 }
 
+function MaterialBlockCard({ block }: { block: NovelMaterialBlock }) {
+  return (
+    <div className="rounded-md border">
+      <div className="flex flex-col gap-2 border-b bg-muted/40 px-3 py-2 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold">{block.title}</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {block.group} · {block.source.type}{block.source.id ? ` · ${block.source.id}` : ""}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Badge variant={block.required ? "default" : "secondary"}>
+            {MATERIAL_IMPORTANCE_LABELS[block.importance]}
+          </Badge>
+          <Badge variant="outline">{block.estimatedTokens} tokens</Badge>
+        </div>
+      </div>
+      <pre className="max-h-72 overflow-auto whitespace-pre-wrap p-3 text-xs leading-relaxed">
+        {block.content}
+      </pre>
+    </div>
+  );
+}
+
 function PreviewPanel({ preview }: { preview: PromptPreviewResult | null }) {
   if (!preview) {
     return (
@@ -190,6 +224,10 @@ export default function PromptWorkbenchPage() {
   const [keyword, setKeyword] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [entrypoint, setEntrypoint] = useState("manual_test");
+  const [materialNovelId, setMaterialNovelId] = useState("");
+  const [materialChapterId, setMaterialChapterId] = useState("");
+  const [materialTaskId, setMaterialTaskId] = useState("");
+  const [materialMaxTokens, setMaterialMaxTokens] = useState("6000");
 
   const catalogParamsKey = useMemo(() => JSON.stringify({ keyword: keyword.trim() }), [keyword]);
   const catalogQuery = useQuery({
@@ -216,6 +254,21 @@ export default function PromptWorkbenchPage() {
         },
       },
       maxContextTokens: prompt.contextPolicy.maxTokensBudget,
+    }),
+  });
+
+  const materialGroups = useMemo(
+    () => selectedPrompt?.contextRequirements.map((requirement) => requirement.group) ?? [],
+    [selectedPrompt?.contextRequirements],
+  );
+
+  const materialsMutation = useMutation({
+    mutationFn: () => exportNovelPromptMaterials({
+      novelId: materialNovelId.trim(),
+      chapterId: materialChapterId.trim() || undefined,
+      taskId: materialTaskId.trim() || undefined,
+      groups: materialGroups.length > 0 ? materialGroups : undefined,
+      maxTokens: Number.parseInt(materialMaxTokens, 10) || 6000,
     }),
   });
 
@@ -272,10 +325,11 @@ export default function PromptWorkbenchPage() {
                   key={prompt.key}
                   prompt={prompt}
                   active={prompt.key === selectedPrompt?.key}
-                  onSelect={() => {
-                    setSelectedKey(prompt.key);
-                    previewMutation.reset();
-                  }}
+                      onSelect={() => {
+                        setSelectedKey(prompt.key);
+                        previewMutation.reset();
+                        materialsMutation.reset();
+                      }}
                 />
               ))
             )}
@@ -391,6 +445,109 @@ export default function PromptWorkbenchPage() {
                       </div>
                     </div>
                   </DetailSection>
+                </CardContent>
+              </Card>
+
+              <Card className="rounded-lg">
+                <CardHeader>
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <CardTitle className="text-lg tracking-normal">资料检查</CardTitle>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        按当前提示词需要的资料组读取小说资料，确认资料是否齐全。
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={() => materialsMutation.mutate()}
+                      disabled={materialsMutation.isPending || !materialNovelId.trim()}
+                    >
+                      {materialsMutation.isPending ? "读取中..." : "读取资料"}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-3 md:grid-cols-4">
+                    <Input
+                      value={materialNovelId}
+                      onChange={(event) => setMaterialNovelId(event.target.value)}
+                      placeholder="novelId"
+                    />
+                    <Input
+                      value={materialChapterId}
+                      onChange={(event) => setMaterialChapterId(event.target.value)}
+                      placeholder="chapterId"
+                    />
+                    <Input
+                      value={materialTaskId}
+                      onChange={(event) => setMaterialTaskId(event.target.value)}
+                      placeholder="taskId"
+                    />
+                    <Input
+                      value={materialMaxTokens}
+                      onChange={(event) => setMaterialMaxTokens(event.target.value)}
+                      placeholder="资料预算"
+                    />
+                  </div>
+
+                  <DetailSection title="需要的资料组">
+                    <div className="flex flex-wrap gap-2">
+                      {materialGroups.length > 0 ? materialGroups.map((group) => (
+                        <Badge key={group} variant="outline">{group}</Badge>
+                      )) : (
+                        <span className="text-sm text-muted-foreground">当前提示词未声明资料需求，将读取默认核心资料组。</span>
+                      )}
+                    </div>
+                  </DetailSection>
+
+                  {materialsMutation.data?.data ? (
+                    <div className="space-y-4">
+                      <div className="grid gap-3 md:grid-cols-4">
+                        <div className="rounded-md border p-3">
+                          <div className="text-xs text-muted-foreground">已拿到</div>
+                          <div className="mt-1 text-sm font-semibold">{materialsMutation.data.data.blocks.length}</div>
+                        </div>
+                        <div className="rounded-md border p-3">
+                          <div className="text-xs text-muted-foreground">缺资料组</div>
+                          <div className="mt-1 text-sm font-semibold">{materialsMutation.data.data.missingGroups.length}</div>
+                        </div>
+                        <div className="rounded-md border p-3">
+                          <div className="text-xs text-muted-foreground">缺输入</div>
+                          <div className="mt-1 text-sm font-semibold">{materialsMutation.data.data.missingInputs.length}</div>
+                        </div>
+                        <div className="rounded-md border p-3">
+                          <div className="text-xs text-muted-foreground">裁剪提醒</div>
+                          <div className="mt-1 text-sm font-semibold">{materialsMutation.data.data.warnings.length}</div>
+                        </div>
+                      </div>
+
+                      {materialsMutation.data.data.missingInputs.length > 0 ? (
+                        <div className="rounded-md border bg-amber-50 p-3 text-sm text-amber-900">
+                          需要补充输入：{materialsMutation.data.data.missingInputs.join("、")}
+                        </div>
+                      ) : null}
+                      {materialsMutation.data.data.missingGroups.length > 0 ? (
+                        <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+                          未拿到资料：{materialsMutation.data.data.missingGroups.join("、")}
+                        </div>
+                      ) : null}
+                      {materialsMutation.data.data.warnings.length > 0 ? (
+                        <div className="rounded-md border bg-amber-50 p-3 text-sm text-amber-900">
+                          {materialsMutation.data.data.warnings.join(" ")}
+                        </div>
+                      ) : null}
+
+                      <div className="space-y-3">
+                        {materialsMutation.data.data.blocks.map((item) => (
+                          <MaterialBlockCard key={item.id} block={item} />
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                      输入小说 ID 后读取资料，检查当前提示词开工前的资料是否齐全。
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

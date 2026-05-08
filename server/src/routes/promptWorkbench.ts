@@ -8,6 +8,10 @@ import {
   type PromptCatalogFilter,
   type PromptPreviewInput,
 } from "../prompting/PromptWorkbenchService";
+import {
+  exportNovelPromptMaterials,
+  type NovelMaterialExportInput,
+} from "../prompting/materials";
 
 const router = Router();
 
@@ -67,6 +71,15 @@ const previewBodySchema = z.object({
   path: ["promptKey"],
 });
 
+const materialExportBodySchema = z.object({
+  novelId: z.string().trim().min(1),
+  chapterId: z.string().trim().min(1).optional(),
+  taskId: z.string().trim().min(1).optional(),
+  volumeId: z.string().trim().min(1).optional(),
+  groups: z.array(z.string().trim().min(1)).max(40).optional(),
+  maxTokens: z.number().int().min(0).max(200000).optional(),
+});
+
 router.get("/catalog", validate({ query: catalogQuerySchema }), (req, res) => {
   const query = req.query as z.infer<typeof catalogQuerySchema>;
   const data = promptWorkbenchService.listCatalog({
@@ -89,6 +102,20 @@ router.post("/preview", validate({ body: previewBodySchema }), async (req, res, 
       success: true,
       data,
       message: "Prompt preview rendered.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/materials/export", validate({ body: materialExportBodySchema }), async (req, res, next) => {
+  try {
+    const body = req.body as z.infer<typeof materialExportBodySchema>;
+    const data = await exportNovelPromptMaterials(body as NovelMaterialExportInput);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Prompt materials exported.",
     } satisfies ApiResponse<typeof data>);
   } catch (error) {
     next(error);
