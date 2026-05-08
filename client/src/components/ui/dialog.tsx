@@ -68,6 +68,53 @@ const DialogDescription = React.forwardRef<
 ));
 DialogDescription.displayName = DialogPrimitive.Description.displayName;
 
+type AppDialogContentProps = React.ComponentPropsWithoutRef<typeof DialogContent> & {
+  title: React.ReactNode;
+  description?: React.ReactNode;
+  bodyClassName?: string;
+  footer?: React.ReactNode;
+  footerClassName?: string;
+  headerClassName?: string;
+};
+
+const AppDialogContent = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Content>,
+  AppDialogContentProps
+>(({
+  title,
+  description,
+  bodyClassName,
+  children,
+  className,
+  footer,
+  footerClassName,
+  headerClassName,
+  ...props
+}, ref) => (
+  <DialogContent
+    ref={ref}
+    className={cn(
+      "flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-1.5rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0",
+      className,
+    )}
+    {...props}
+  >
+    <DialogHeader className={cn("shrink-0 border-b px-6 py-4 pr-12", headerClassName)}>
+      <DialogTitle>{title}</DialogTitle>
+      {description ? <DialogDescription>{description}</DialogDescription> : null}
+    </DialogHeader>
+    <div className={cn("min-h-0 flex-1 overflow-y-auto px-6 py-4", bodyClassName)}>
+      {children}
+    </div>
+    {footer ? (
+      <DialogFooter className={cn("shrink-0 border-t px-6 py-4", footerClassName)}>
+        {footer}
+      </DialogFooter>
+    ) : null}
+  </DialogContent>
+));
+AppDialogContent.displayName = "AppDialogContent";
+
 export {
   Dialog,
   DialogTrigger,
@@ -79,4 +126,5 @@ export {
   DialogFooter,
   DialogTitle,
   DialogDescription,
+  AppDialogContent,
 };

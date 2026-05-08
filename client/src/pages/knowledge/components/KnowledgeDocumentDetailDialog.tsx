@@ -2,7 +2,7 @@ import type { KnowledgeDocumentDetail, KnowledgeRecallTestResult } from "@ai-nov
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { formatStatus } from "./knowledgeRagUi";
 
@@ -43,11 +43,11 @@ export default function KnowledgeDocumentDetailDialog({
 }: KnowledgeDocumentDetailDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90vh] w-[calc(100vw-2rem)] max-w-4xl flex-col overflow-hidden">
-        <DialogHeader className="shrink-0">
-          <DialogTitle>{document?.title ?? "知识文档详情"}</DialogTitle>
-        </DialogHeader>
-        <div className="min-h-0 min-w-0 flex-1 space-y-4 overflow-y-auto pr-1">
+      <AppDialogContent
+        className="max-w-4xl"
+        title={document?.title ?? "知识文档详情"}
+        bodyClassName="min-w-0 space-y-4"
+      >
           <div className="flex flex-wrap gap-2">
             <input
               type="file"
@@ -177,8 +177,7 @@ export default function KnowledgeDocumentDetailDialog({
               正在加载文档详情...
             </div>
           )}
-        </div>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   );
 }

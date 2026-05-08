@@ -3,7 +3,7 @@ import type { ImageAsset } from "@ai-novel/shared/types/image";
 import { resolveImageAssetUrl } from "@/api/images";
 import type { BaseCharacter } from "@ai-novel/shared/types/novel";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 
 interface CharacterCardProps {
   character: BaseCharacter;
@@ -139,45 +139,49 @@ export function CharacterCard({
           }
         }}
       >
-        <DialogContent className="w-[96vw] max-w-[1000px]">
-          <DialogHeader>
-            <DialogTitle>{previewAsset ? `${character.name} - 图片预览` : "图片预览"}</DialogTitle>
-          </DialogHeader>
+        <AppDialogContent
+          className="max-w-[1000px]"
+          title={previewAsset ? `${character.name} - 图片预览` : "图片预览"}
+          bodyClassName="space-y-3"
+          footer={previewAsset ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={previewAsset.isPrimary || settingPrimary || deletingAssetId === previewAsset.id}
+                onClick={() => onSetPrimary(previewAsset.id)}
+              >
+                设为主图
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={deletingAssetId === previewAsset.id}
+                onClick={() => void handleDeleteAsset(previewAsset)}
+              >
+                {deletingAssetId === previewAsset.id ? "删除中..." : "删除图片"}
+              </Button>
+            </>
+          ) : null}
+          footerClassName="gap-2"
+        >
           {previewAsset ? (
             <>
-            <div className="flex max-h-[78vh] items-center justify-center overflow-auto rounded-md bg-muted/30 p-2">
-              <img
-                src={resolveImageAssetUrl(previewAsset.url)}
-                alt={`${character.name}-预览图`}
-                className="max-h-[72vh] w-auto max-w-full rounded-md object-contain"
-              />
-            </div>
+              <div className="flex max-h-[70vh] items-center justify-center overflow-auto rounded-md bg-muted/30 p-2">
+                <img
+                  src={resolveImageAssetUrl(previewAsset.url)}
+                  alt={`${character.name}-预览图`}
+                  className="max-h-[66vh] w-auto max-w-full rounded-md object-contain"
+                />
+              </div>
               {previewAsset.localPath ? (
                 <div className="text-xs text-muted-foreground break-all">
                   本地路径：{previewAsset.localPath}
                 </div>
               ) : null}
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={previewAsset.isPrimary || settingPrimary || deletingAssetId === previewAsset.id}
-                  onClick={() => onSetPrimary(previewAsset.id)}
-                >
-                  设为主图
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  disabled={deletingAssetId === previewAsset.id}
-                  onClick={() => void handleDeleteAsset(previewAsset)}
-                >
-                  {deletingAssetId === previewAsset.id ? "删除中..." : "删除图片"}
-                </Button>
-              </div>
             </>
           ) : null}
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
     </div>
   );

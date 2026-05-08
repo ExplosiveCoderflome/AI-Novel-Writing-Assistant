@@ -6,6 +6,7 @@ import Navbar from "./Navbar";
 import NovelWorkspaceRail from "./NovelWorkspaceRail";
 import Sidebar from "./Sidebar";
 import MobileSiteShell from "./mobile/MobileSiteShell";
+import { TaskRecoveryProvider } from "./TaskRecoveryContext";
 import TaskRecoveryDialog from "./TaskRecoveryDialog";
 import { useIsMobileViewport } from "./mobile/useIsMobileViewport";
 import {
@@ -71,59 +72,65 @@ export default function AppLayout() {
 
   if (useMobileNovelWorkspaceLayout) {
     return (
-      <div className="min-h-screen bg-background">
-        <DesktopModelSetupGate />
-        <Suspense fallback={<AppRouteFallback />}>
-          <Outlet />
-        </Suspense>
-        <TaskRecoveryDialog />
-      </div>
+      <TaskRecoveryProvider>
+        <div className="min-h-screen bg-background">
+          <DesktopModelSetupGate />
+          <Suspense fallback={<AppRouteFallback />}>
+            <Outlet />
+          </Suspense>
+          <TaskRecoveryDialog />
+        </div>
+      </TaskRecoveryProvider>
     );
   }
 
   if (useMobileSiteLayout) {
     return (
-      <MobileSiteShell>
-        <DesktopModelSetupGate />
-        <Suspense fallback={<AppRouteFallback />}>
-          <Outlet />
-        </Suspense>
-        <TaskRecoveryDialog />
-      </MobileSiteShell>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-background">
-      <Navbar
-        workspaceNavMode={isNovelWorkspace ? workspaceNavMode : undefined}
-        onWorkspaceNavModeChange={isNovelWorkspace ? setWorkspaceNavMode : undefined}
-      />
-      <div className="flex min-h-[calc(100vh-4rem)]">
-        <div className={useMobileFullWidthContent ? "hidden md:block" : "shrink-0"}>
-          {isNovelWorkspace && workspaceNavMode === "workspace" && workspaceRoute ? (
-            <NovelWorkspaceRail
-              novelId={workspaceRoute.novelId}
-              chapterId={workspaceRoute.chapterId}
-              collapsed={isWorkspaceRailCollapsed}
-              onToggle={() => setIsWorkspaceRailCollapsed((current) => !current)}
-              onSwitchToProjectNav={() => setWorkspaceNavMode("project")}
-            />
-          ) : (
-            <Sidebar
-              collapsed={isSidebarCollapsed}
-              onToggle={() => setIsSidebarCollapsed((current) => !current)}
-            />
-          )}
-        </div>
-        <main className={useMobileFullWidthContent ? AUTO_DIRECTOR_MOBILE_CLASSES.appMain : DEFAULT_APP_MAIN_CLASS_NAME}>
+      <TaskRecoveryProvider>
+        <MobileSiteShell>
           <DesktopModelSetupGate />
           <Suspense fallback={<AppRouteFallback />}>
             <Outlet />
           </Suspense>
-        </main>
+          <TaskRecoveryDialog />
+        </MobileSiteShell>
+      </TaskRecoveryProvider>
+    );
+  }
+
+  return (
+    <TaskRecoveryProvider>
+      <div className="min-h-screen bg-background">
+        <Navbar
+          workspaceNavMode={isNovelWorkspace ? workspaceNavMode : undefined}
+          onWorkspaceNavModeChange={isNovelWorkspace ? setWorkspaceNavMode : undefined}
+        />
+        <div className="flex min-h-[calc(100vh-4rem)]">
+          <div className={useMobileFullWidthContent ? "hidden md:block" : "shrink-0"}>
+            {isNovelWorkspace && workspaceNavMode === "workspace" && workspaceRoute ? (
+              <NovelWorkspaceRail
+                novelId={workspaceRoute.novelId}
+                chapterId={workspaceRoute.chapterId}
+                collapsed={isWorkspaceRailCollapsed}
+                onToggle={() => setIsWorkspaceRailCollapsed((current) => !current)}
+                onSwitchToProjectNav={() => setWorkspaceNavMode("project")}
+              />
+            ) : (
+              <Sidebar
+                collapsed={isSidebarCollapsed}
+                onToggle={() => setIsSidebarCollapsed((current) => !current)}
+              />
+            )}
+          </div>
+          <main className={useMobileFullWidthContent ? AUTO_DIRECTOR_MOBILE_CLASSES.appMain : DEFAULT_APP_MAIN_CLASS_NAME}>
+            <DesktopModelSetupGate />
+            <Suspense fallback={<AppRouteFallback />}>
+              <Outlet />
+            </Suspense>
+          </main>
+        </div>
+        <TaskRecoveryDialog />
       </div>
-      <TaskRecoveryDialog />
-    </div>
+    </TaskRecoveryProvider>
   );
 }

@@ -5,12 +5,8 @@ import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  AppDialogContent,
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 
@@ -68,14 +64,22 @@ export default function GenreEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>编辑题材基底</DialogTitle>
-          <DialogDescription>
-            可以修改名称、说明和挂载位置。子节点与已绑定小说会继续保留。
-          </DialogDescription>
-        </DialogHeader>
-
+      <AppDialogContent
+        className="max-w-2xl"
+        title="编辑题材基底"
+        description="可以修改名称、说明和挂载位置。子节点与已绑定小说会继续保留。"
+        footer={(
+          <>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              取消
+            </Button>
+            <Button type="button" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending || !name.trim()}>
+              {updateMutation.isPending ? "保存中..." : "保存修改"}
+            </Button>
+          </>
+        )}
+        footerClassName="gap-2"
+      >
         <div className="space-y-4">
           <label className="space-y-2 text-sm">
             <span className="font-medium text-foreground">名称</span>
@@ -108,16 +112,7 @@ export default function GenreEditDialog({
             </select>
           </label>
         </div>
-
-        <DialogFooter className="gap-2">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            取消
-          </Button>
-          <Button type="button" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending || !name.trim()}>
-            {updateMutation.isPending ? "保存中..." : "保存修改"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   );
 }

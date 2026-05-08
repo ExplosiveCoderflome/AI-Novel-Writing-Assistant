@@ -28,11 +28,8 @@ import { getStyleProfiles } from "@/api/styleEngine";
 import { getTaskDetail } from "@/api/tasks";
 import { Button } from "@/components/ui/button";
 import {
+  AppDialogContent,
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { isChapterTitleDiversitySummary } from "@/lib/directorTaskNotice";
@@ -711,18 +708,15 @@ export default function NovelAutoDirectorDialog({
       </div>
 
       <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-        <DialogContent
+        <AppDialogContent
           className={`${AUTO_DIRECTOR_MOBILE_CLASSES.dialogContent} ${dialogMode === "candidate_selection" ? "lg:max-w-6xl" : "lg:max-w-4xl"}`}
+          title={NovelAutoDirectorDialogTitle({ mode: dialogMode })}
+          description={NovelAutoDirectorDialogDescription({ mode: dialogMode })}
+          bodyClassName={AUTO_DIRECTOR_MOBILE_CLASSES.dialogBody}
           onEscapeKeyDown={preventCloseWhileBlocking}
           onPointerDownOutside={preventCloseWhileBlocking}
           onInteractOutside={preventCloseWhileBlocking}
         >
-          <DialogHeader className="shrink-0 border-b px-4 pb-4 pr-12 pt-5 text-left sm:px-6 sm:pt-6">
-            <DialogTitle>{NovelAutoDirectorDialogTitle({ mode: dialogMode })}</DialogTitle>
-            <DialogDescription>{NovelAutoDirectorDialogDescription({ mode: dialogMode })}</DialogDescription>
-          </DialogHeader>
-
-          <div className={AUTO_DIRECTOR_MOBILE_CLASSES.dialogBody}>
             {dialogMode === "candidate_selection" ? (
               <NovelAutoDirectorCandidateSelectionContent
                 basicForm={directorBasicForm}
@@ -796,8 +790,7 @@ export default function NovelAutoDirectorDialog({
                 onOpenTaskCenter={handleOpenTaskCenter}
               />
             )}
-          </div>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
     </>
   );
