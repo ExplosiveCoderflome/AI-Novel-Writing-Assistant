@@ -7,9 +7,74 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="apple-touch-icon" sizes="128x128" href="/apple-touch-icon.png" />
     <title>AI 小说创作工作台 | AI Novel Production Engine</title>
+    <style>
+      :root {
+        color: #0f172a;
+        background: #ffffff;
+        font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        background: #ffffff;
+      }
+
+      .app-startup-shell {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        box-sizing: border-box;
+      }
+
+      .app-startup-content {
+        width: min(100%, 420px);
+        text-align: center;
+      }
+
+      .app-startup-spinner {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 20px;
+        border-radius: 999px;
+        border: 1px solid #e2e8f0;
+        border-top-color: #0f172a;
+        animation: app-startup-spin 0.9s linear infinite;
+      }
+
+      .app-startup-title {
+        margin: 0;
+        font-size: 20px;
+        line-height: 1.35;
+        font-weight: 650;
+        letter-spacing: 0;
+      }
+
+      .app-startup-copy {
+        margin: 12px 0 0;
+        color: #64748b;
+        font-size: 14px;
+        line-height: 1.7;
+      }
+
+      @keyframes app-startup-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="app-startup-shell">
+        <div class="app-startup-content">
+          <div class="app-startup-spinner" aria-hidden="true"></div>
+          <h1 class="app-startup-title">正在加载创作工作台</h1>
+          <p class="app-startup-copy">系统会在界面和本地创作服务准备好后自动进入。</p>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

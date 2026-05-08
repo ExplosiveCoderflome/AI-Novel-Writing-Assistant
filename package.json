@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "node scripts/run-with-log.cjs --name dev -- pnpm dev:raw",
-    "dev:raw": "concurrently \"pnpm dev:shared\" \"pnpm dev:server\" \"pnpm dev:client:wait\"",
+    "dev:raw": "concurrently \"pnpm dev:shared\" \"pnpm dev:server\" \"pnpm dev:client\"",
     "dev:log": "node scripts/run-with-log.cjs --name dev -- pnpm dev:raw",
     "dev:shared": "pnpm --filter @ai-novel/shared dev",
     "dev:server": "pnpm --filter @ai-novel/server dev",
