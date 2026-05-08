@@ -1,12 +1,22 @@
 import type { BaseMessage } from "@langchain/core/messages";
 import type { TaskType } from "../llm/modelRouter";
-import { buildPromptAssetKey, type PromptAsset, type PromptContextRequirement } from "./core/promptTypes";
+import {
+  buildPromptAssetKey,
+  type PromptAsset,
+  type PromptContextRequirement,
+  type PromptRunTrace,
+} from "./core/promptTypes";
 import { preparePromptExecution } from "./core/promptRunner";
 import { ContextBroker } from "./context/ContextBroker";
 import { createDefaultContextResolverRegistry } from "./context/defaultContextRegistry";
 import { derivePromptContextRequirements } from "./context/promptContextResolution";
 import type { PromptExecutionContext } from "./context/types";
 import { getRegisteredPromptAsset, listRegisteredPromptAssets } from "./registry";
+import {
+  getPromptAddendumScopeLabels,
+  getPromptCatalogDescription,
+  isPromptAddendumSupported,
+} from "./addendums/PromptAddendumService";
 
 type UnknownPromptAsset = PromptAsset<unknown, unknown, unknown>;
 
@@ -17,11 +27,22 @@ export interface PromptCatalogItem {
   taskType: TaskType;
   mode: string;
   language: string;
+  family: string;
+  description: string;
+  outputType: "structured" | "text";
   contextPolicy: UnknownPromptAsset["contextPolicy"];
   contextRequirements: PromptContextRequirement[];
   editableSlots: NonNullable<UnknownPromptAsset["editableSlots"]>;
   overrideSupported: false;
+  addendumSupported: boolean;
+  addendumScopeLabels: string[];
+  overrideLifecycle: {
+    draftSupported: false;
+    publishSupported: false;
+    runtimeOverrideEnabled: false;
+  };
   lockedFields: string[];
+  managementStatus: "complete" | "missing_context_requirements" | "missing_editable_slots";
   capabilities: {
     hasOutputSchema: boolean;
     hasPostValidate: boolean;
@@ -58,6 +79,13 @@ export interface PromptPreviewResult {
   messages: PromptPreviewMessage[];
   context: ReturnType<typeof serializePromptContext>;
   brokerResolution: Awaited<ReturnType<ContextBroker["resolve"]>>;
+  diagnostics: {
+    entrypoint: string;
+    missingRequiredGroups: string[];
+    resolverErrors: Awaited<ReturnType<ContextBroker["resolve"]>>["resolverErrors"];
+    tracePreview: PromptRunTrace;
+    notes: string[];
+  };
 }
 
 const LOCKED_PROMPT_FIELDS = [
@@ -73,6 +101,13 @@ const LOCKED_PROMPT_FIELDS = [
 ];
 
 function toCatalogItem(asset: UnknownPromptAsset): PromptCatalogItem {
+  const contextRequirements = derivePromptContextRequirements(asset);
+  const editableSlots = asset.editableSlots ?? [];
+  const managementStatus: PromptCatalogItem["managementStatus"] = contextRequirements.length === 0
+    ? "missing_context_requirements"
+    : editableSlots.length === 0
+      ? "missing_editable_slots"
+      : "complete";
   return {
     key: buildPromptAssetKey(asset),
     id: asset.id,
@@ -80,11 +115,22 @@ function toCatalogItem(asset: UnknownPromptAsset): PromptCatalogItem {
     taskType: asset.taskType,
     mode: asset.mode,
     language: asset.language,
+    family: asset.id.split(".")[0] ?? asset.id,
+    description: getPromptCatalogDescription(asset.id, asset.taskType),
+    outputType: asset.mode === "structured" ? "structured" : "text",
     contextPolicy: asset.contextPolicy,
-    contextRequirements: derivePromptContextRequirements(asset),
-    editableSlots: asset.editableSlots ?? [],
+    contextRequirements,
+    editableSlots,
     overrideSupported: false,
+    addendumSupported: isPromptAddendumSupported(asset.id),
+    addendumScopeLabels: getPromptAddendumScopeLabels(asset.id),
+    overrideLifecycle: {
+      draftSupported: false,
+      publishSupported: false,
+      runtimeOverrideEnabled: false,
+    },
     lockedFields: LOCKED_PROMPT_FIELDS,
+    managementStatus,
     capabilities: {
       hasOutputSchema: Boolean(asset.outputSchema),
       hasPostValidate: Boolean(asset.postValidate),
@@ -93,6 +139,51 @@ function toCatalogItem(asset: UnknownPromptAsset): PromptCatalogItem {
       hasStructuredOutputHint: Boolean(asset.structuredOutputHint),
     },
   };
+}
+
+function buildPromptTracePreview(input: {
+  asset: UnknownPromptAsset;
+  prepared: ReturnType<typeof preparePromptExecution>;
+  options: Pick<PromptPreviewInput, "executionContext">;
+}): PromptRunTrace {
+  return {
+    promptId: input.asset.id,
+    promptVersion: input.asset.version,
+    taskType: input.asset.taskType,
+    contextBlockIds: input.prepared.context.selectedBlockIds,
+    droppedContextBlockIds: input.prepared.context.droppedBlockIds,
+    summarizedContextBlockIds: input.prepared.context.summarizedBlockIds,
+    customAddendumBlockIds: input.prepared.context.selectedBlockIds.filter((id) => id.startsWith("custom_addendum:")),
+    estimatedInputTokens: input.prepared.context.estimatedInputTokens,
+    repairUsed: false,
+    repairAttempts: 0,
+    semanticRetryUsed: false,
+    semanticRetryAttempts: 0,
+    entrypoint: input.options.executionContext.entrypoint,
+    novelId: input.options.executionContext.novelId,
+    chapterId: input.options.executionContext.chapterId,
+    taskId: input.options.executionContext.taskId,
+  };
+}
+
+function buildPreviewNotes(input: {
+  prompt: PromptCatalogItem;
+  brokerResolution: Awaited<ReturnType<ContextBroker["resolve"]>>;
+}): string[] {
+  const notes: string[] = [];
+  if (input.prompt.overrideSupported === false) {
+    notes.push("Prompt override is disabled for this read-only preview.");
+  }
+  if (input.brokerResolution.missingRequiredGroups.length > 0) {
+    notes.push(`Missing required context groups: ${input.brokerResolution.missingRequiredGroups.join(", ")}.`);
+  }
+  if (input.brokerResolution.resolverErrors.length > 0) {
+    notes.push("One or more context resolvers returned errors.");
+  }
+  if (input.prompt.contextRequirements.length === 0) {
+    notes.push("This prompt has no declared context requirements.");
+  }
+  return notes;
 }
 
 function matchesCatalogFilter(item: PromptCatalogItem, filter?: PromptCatalogFilter): boolean {
@@ -109,6 +200,7 @@ function matchesCatalogFilter(item: PromptCatalogItem, filter?: PromptCatalogFil
   return [
     item.key,
     item.id,
+    item.description,
     item.version,
     item.taskType,
     item.mode,
@@ -116,6 +208,13 @@ function matchesCatalogFilter(item: PromptCatalogItem, filter?: PromptCatalogFil
     item.contextRequirements.map((requirement) => requirement.group).join(" "),
     item.editableSlots.map((slot) => `${slot.key} ${slot.label}`).join(" "),
   ].some((value) => value.toLowerCase().includes(keyword));
+}
+
+function sortCatalogItems(left: PromptCatalogItem, right: PromptCatalogItem): number {
+  if (left.addendumSupported !== right.addendumSupported) {
+    return left.addendumSupported ? -1 : 1;
+  }
+  return left.key.localeCompare(right.key);
 }
 
 function getAssetFromPreviewInput(input: PromptPreviewInput): UnknownPromptAsset {
@@ -200,7 +299,7 @@ export class PromptWorkbenchService {
     return listRegisteredPromptAssets()
       .map(toCatalogItem)
       .filter((item) => matchesCatalogFilter(item, filter))
-      .sort((left, right) => left.key.localeCompare(right.key));
+      .sort(sortCatalogItems);
   }
 
   async preview(input: PromptPreviewInput): Promise<PromptPreviewResult> {
@@ -230,6 +329,13 @@ export class PromptWorkbenchService {
       messages: serializeMessages(prepared.messages),
       context: serializePromptContext(prepared.context),
       brokerResolution,
+      diagnostics: {
+        entrypoint: input.executionContext.entrypoint,
+        missingRequiredGroups: brokerResolution.missingRequiredGroups,
+        resolverErrors: brokerResolution.resolverErrors,
+        tracePreview: buildPromptTracePreview({ asset, prepared, options: input }),
+        notes: buildPreviewNotes({ prompt, brokerResolution }),
+      },
     };
   }
 }

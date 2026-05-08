@@ -6,6 +6,9 @@ const path = require("node:path");
 const SERVER_ROOT = path.join(__dirname, "..");
 const SOURCE_ROOT = path.join(SERVER_ROOT, "src");
 const PROMPT_ROOT = path.join(SOURCE_ROOT, "prompting", "prompts");
+const {
+  listRegisteredPromptAssets,
+} = require("../dist/prompting/registry.js");
 
 const GOVERNED_DIRECTORIES = [
   path.join(SOURCE_ROOT, "services"),
@@ -48,6 +51,18 @@ const PROMPT_SCHEMA_SERVICE_IMPORT_DENYLIST = [
   "../../../services/genre/genreSchemas",
   "../../../services/storyMode/storyModeSchemas",
   "../../../services/novel/characterPrep/characterPreparationSchemas",
+];
+
+const CORE_AUDIT_PROMPTS = [
+  "planner.intent.parse",
+  "novel.chapter.writer",
+  "audit.chapter.full",
+  "audit.chapter.light",
+  "novel.director.workspace_analysis",
+  "novel.director.manual_edit_impact",
+  "novel.chapter_editor.user_intent",
+  "novel.chapter_editor.workspace_diagnosis",
+  "novel.chapter_editor.rewrite_candidates",
 ];
 
 function listSourceFiles(directory) {
@@ -141,4 +156,29 @@ test("prompt governance keeps prompt-local schemas out of services schema files 
     }
   }
   assert.deepEqual(violations, []);
+});
+
+test("prompt governance keeps registered prompt assets auditable", () => {
+  const incomplete = listRegisteredPromptAssets()
+    .filter((asset) => !asset.id
+      || !asset.version
+      || !asset.taskType
+      || !asset.mode
+      || !asset.contextPolicy
+      || typeof asset.render !== "function")
+    .map((asset) => `${asset.id || "<missing-id>"}@${asset.version || "<missing-version>"}`);
+
+  assert.deepEqual(incomplete, []);
+});
+
+test("core prompt management surfaces expose context and low-risk slot metadata", () => {
+  const assets = new Map(listRegisteredPromptAssets().map((asset) => [asset.id, asset]));
+  const missingContext = CORE_AUDIT_PROMPTS
+    .filter((id) => !Array.isArray(assets.get(id)?.contextRequirements)
+      || assets.get(id).contextRequirements.length === 0);
+
+  assert.deepEqual(missingContext, []);
+  assert.ok(assets.get("novel.chapter.writer").editableSlots.some((slot) => slot.key === "writer.tonePreference"));
+  assert.ok(assets.get("audit.chapter.full").editableSlots.some((slot) => slot.key === "audit.reportStyle"));
+  assert.ok(assets.get("novel.chapter_editor.rewrite_candidates").editableSlots.some((slot) => slot.key === "chapterEditor.candidateStyle"));
 });

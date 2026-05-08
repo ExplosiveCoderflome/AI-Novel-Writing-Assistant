@@ -101,6 +101,16 @@ export const auditChapterLightPrompt: PromptAsset<AuditChapterPromptInput, z.inf
     { group: "recent_chapters", priority: 70 },
     { group: "participant_subset", priority: 68 },
   ],
+  editableSlots: [
+    {
+      key: "audit.reportStyle",
+      label: "轻审校报告表达",
+      description: "调整轻审校结果的表达侧重；仅作为管理元数据展示，当前不参与运行时覆盖。",
+      riskLevel: "low",
+      maxLength: 500,
+      defaultValue: "问题必须具体且可执行，默认优先让章节继续推进。",
+    },
+  ],
   structuredOutputHint: {
     example: LIGHT_AUDIT_EXAMPLE,
     note: "轻审校只做是否继续推进的快速判断。只有明显结构异常、严重偏离合同、硬性长度失控等情况才把 continueRecommendation 设为 full_audit。",
@@ -169,6 +179,16 @@ export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<ty
     { group: "recent_chapters", priority: 70 },
     { group: "participant_subset", priority: 68 },
     { group: "open_conflicts", priority: 66 },
+  ],
+  editableSlots: [
+    {
+      key: "audit.reportStyle",
+      label: "完整审校报告表达",
+      description: "调整完整审校的报告表达方式；仅作为管理元数据展示，当前不参与运行时覆盖。",
+      riskLevel: "low",
+      maxLength: 600,
+      defaultValue: "所有问题都必须具体，evidence 指向明确现象，fixSuggestion 必须可执行。",
+    },
   ],
   structuredOutputHint: {
     example: AUDIT_CHAPTER_EXAMPLE,

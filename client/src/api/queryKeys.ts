@@ -106,6 +106,12 @@ export const queryKeys = {
     detail: (id: string) => ["agent-runs", "detail", id] as const,
   },
   agentCatalog: ["agent-catalog"] as const,
+  promptWorkbench: {
+    catalog: (params: string) => ["prompt-workbench", "catalog", params] as const,
+    preview: (promptKey: string) => ["prompt-workbench", "preview", promptKey] as const,
+    materials: (params: string) => ["prompt-workbench", "materials", params] as const,
+    addendums: (params: string) => ["prompt-workbench", "addendums", params] as const,
+  },
   creativeHub: {
     threads: ["creative-hub", "threads"] as const,
     state: (threadId: string) => ["creative-hub", "state", threadId] as const,
