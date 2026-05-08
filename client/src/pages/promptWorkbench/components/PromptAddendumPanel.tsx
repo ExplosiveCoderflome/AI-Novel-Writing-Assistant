@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Power, Save, Trash2 } from "lucide-react";
 import { getNovelList } from "@/api/novel/core";
@@ -59,6 +59,7 @@ function AddendumEditor({
   form,
   active,
   pending,
+  headerControl,
   onChange,
   onSave,
   onToggle,
@@ -70,6 +71,7 @@ function AddendumEditor({
   form: AddendumFormState;
   active: boolean;
   pending?: boolean;
+  headerControl?: ReactNode;
   onChange: (next: AddendumFormState) => void;
   onSave: () => void;
   onToggle: () => void;
@@ -87,7 +89,8 @@ function AddendumEditor({
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{description}</p>
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+          {headerControl}
           <Button type="button" variant="outline" size="sm" onClick={onToggle} disabled={disabled || !form.id || pending}>
             <Power className="mr-2 h-4 w-4" />
             {active ? "停用" : "启用"}
@@ -213,28 +216,14 @@ export function PromptAddendumPanel({ prompt }: { prompt: PromptCatalogItem }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_260px]">
-        <div className="rounded-md border bg-muted/30 p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <CheckCircle2 className="h-4 w-4 text-primary" />
-            实际生效顺序
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            启用后，系统会先追加全局补充要求，再追加本书补充要求。内置提示词、结构化输出和工具边界保持不变。
-          </p>
+      <div className="rounded-md border bg-muted/30 p-4">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <CheckCircle2 className="h-4 w-4 text-primary" />
+          实际生效顺序
         </div>
-        <select
-          value={selectedNovelId}
-          onChange={(event) => setSelectedNovelId(event.target.value)}
-          className="h-11 rounded-md border bg-background px-3 text-sm"
-        >
-          <option value="">选择小说后编辑本书补充</option>
-          {novels.map((novel) => (
-            <option key={novel.id} value={novel.id}>
-              {novel.title || novel.id}
-            </option>
-          ))}
-        </select>
+        <p className="mt-2 text-sm text-muted-foreground">
+          启用后，系统会先追加全局补充要求，再追加本书补充要求。内置提示词、结构化输出和工具边界保持不变。
+        </p>
       </div>
 
       <AddendumEditor
@@ -256,6 +245,20 @@ export function PromptAddendumPanel({ prompt }: { prompt: PromptCatalogItem }) {
         form={novelForm}
         active={Boolean(novelAddendum?.enabled)}
         pending={pending}
+        headerControl={(
+          <select
+            value={selectedNovelId}
+            onChange={(event) => setSelectedNovelId(event.target.value)}
+            className="h-9 min-w-64 rounded-md border bg-background px-3 text-sm"
+          >
+            <option value="">选择小说后编辑本书补充</option>
+            {novels.map((novel) => (
+              <option key={novel.id} value={novel.id}>
+                {novel.title || novel.id}
+              </option>
+            ))}
+          </select>
+        )}
         onChange={setNovelForm}
         onSave={saveNovel}
         onToggle={() => novelForm.id && toggleMutation.mutate({ id: novelForm.id, enabled: !novelAddendum?.enabled })}
