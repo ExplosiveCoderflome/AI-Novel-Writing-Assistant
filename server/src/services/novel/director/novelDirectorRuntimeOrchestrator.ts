@@ -277,6 +277,7 @@ export class NovelDirectorRuntimeOrchestrator {
     approveCurrentGate?: boolean;
     approveAutoExecutionScope?: boolean;
     reuseCompletedStep?: boolean;
+    runner?: () => Promise<TOutput>;
     collectArtifacts?: (output: TOutput) => Promise<DirectorArtifactRef[]> | DirectorArtifactRef[];
   }): Promise<TOutput> {
     const preloadedArtifacts = input.collectArtifacts && input.collectArtifacts.length === 0
@@ -354,7 +355,9 @@ export class NovelDirectorRuntimeOrchestrator {
       taskId: input.taskId,
       novelId: input.novelId,
       runner: async () => {
-        const output = await input.module.execute(builtInput, context);
+        const output = input.runner
+          ? await input.runner()
+          : await input.module.execute(builtInput, context);
         const validation = input.module.validateOutput
           ? await input.module.validateOutput(output, context)
           : { valid: true };
