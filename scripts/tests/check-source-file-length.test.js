@@ -46,3 +46,34 @@ test("checkSourceFileLengths flags allowlisted files that grow past their baseli
   assert.equal(result.violations[0].relativePath, "server/src/services/Existing.ts");
   assert.equal(result.violations[0].reason, "allowlisted_file_grew");
 });
+
+test("repository test files use the .test.js suffix only", () => {
+  const repoRoot = path.resolve(__dirname, "..", "..");
+  const legacyTestFiles = [];
+
+  function visit(directory) {
+    const entries = fs.readdirSync(directory, { withFileTypes: true });
+    for (const entry of entries) {
+      if (
+        entry.name === ".git"
+        || entry.name === "node_modules"
+        || entry.name === ".worktrees"
+      ) {
+        continue;
+      }
+
+      const fullPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        visit(fullPath);
+        continue;
+      }
+
+      if (entry.isFile() && entry.name.endsWith(".test.cjs")) {
+        legacyTestFiles.push(path.relative(repoRoot, fullPath));
+      }
+    }
+  }
+
+  visit(repoRoot);
+  assert.deepEqual(legacyTestFiles.sort(), []);
+});
