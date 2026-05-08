@@ -2,7 +2,6 @@
   "client/src/pages/novels/NovelEdit.tsx": 1938,
   "client/src/pages/novels/components/NovelCharacterPanel.tsx": 715,
   "client/src/pages/novels/components/OutlineTab.tsx": 755,
-  "client/src/pages/tasks/TaskCenterPage.tsx": 1018,
   "client/src/pages/worlds/components/workspace/WorldStructureTab.tsx": 1212,
   "server/src/prompting/core/promptRunner.ts": 806,
   "server/src/prompting/prompts/novel/chapterLayeredContext.ts": 758,
