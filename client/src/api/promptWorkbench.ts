@@ -25,6 +25,7 @@ export interface PromptCatalogItem {
   mode: string;
   language: string;
   family: string;
+  description: string;
   outputType: "structured" | "text";
   contextPolicy: {
     maxTokensBudget: number;
@@ -35,6 +36,8 @@ export interface PromptCatalogItem {
   contextRequirements: PromptContextRequirement[];
   editableSlots: PromptEditableSlot[];
   overrideSupported: false;
+  addendumSupported: boolean;
+  addendumScopeLabels: string[];
   overrideLifecycle: {
     draftSupported: false;
     publishSupported: false;
@@ -92,6 +95,7 @@ export interface PromptPreviewResult {
       contextBlockIds: string[];
       droppedContextBlockIds: string[];
       summarizedContextBlockIds: string[];
+      customAddendumBlockIds: string[];
       estimatedInputTokens: number;
       repairUsed: boolean;
       repairAttempts: number;
@@ -146,6 +150,30 @@ export interface PromptCatalogParams {
   mode?: "structured" | "text";
 }
 
+export type PromptAddendumScope = "global" | "novel";
+
+export interface PromptAddendum {
+  id: string;
+  scope: PromptAddendumScope;
+  novelId?: string | null;
+  promptId: string;
+  title: string;
+  content: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PromptAddendumPayload {
+  id?: string;
+  scope: PromptAddendumScope;
+  novelId?: string | null;
+  promptId: string;
+  title: string;
+  content: string;
+  enabled?: boolean;
+}
+
 export interface PromptPreviewPayload {
   promptKey: string;
   promptInput?: unknown;
@@ -179,5 +207,30 @@ export async function exportNovelPromptMaterials(payload: NovelMaterialExportPay
     "/prompt-workbench/materials/export",
     payload,
   );
+  return data;
+}
+
+export async function getPromptAddendums(params: { promptId?: string; novelId?: string } = {}) {
+  const { data } = await apiClient.get<ApiResponse<PromptAddendum[]>>("/prompt-workbench/addendums", {
+    params,
+  });
+  return data;
+}
+
+export async function savePromptAddendum(payload: PromptAddendumPayload) {
+  const { data } = await apiClient.put<ApiResponse<PromptAddendum>>("/prompt-workbench/addendums", payload);
+  return data;
+}
+
+export async function setPromptAddendumEnabled(id: string, enabled: boolean) {
+  const { data } = await apiClient.patch<ApiResponse<PromptAddendum>>(
+    `/prompt-workbench/addendums/${id}/enabled`,
+    { enabled },
+  );
+  return data;
+}
+
+export async function deletePromptAddendum(id: string) {
+  const { data } = await apiClient.delete<ApiResponse<null>>(`/prompt-workbench/addendums/${id}`);
   return data;
 }

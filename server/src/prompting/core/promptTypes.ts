@@ -85,6 +85,7 @@ export interface PromptInvocationMeta {
   contextBlockIds: string[];
   droppedContextBlockIds: string[];
   summarizedContextBlockIds: string[];
+  customAddendumBlockIds: string[];
   estimatedInputTokens: number;
   repairUsed: boolean;
   repairAttempts: number;
@@ -102,6 +103,7 @@ export interface PromptRunTrace {
   contextBlockIds: string[];
   droppedContextBlockIds: string[];
   summarizedContextBlockIds: string[];
+  customAddendumBlockIds: string[];
   estimatedInputTokens: number;
   repairUsed: boolean;
   repairAttempts: number;

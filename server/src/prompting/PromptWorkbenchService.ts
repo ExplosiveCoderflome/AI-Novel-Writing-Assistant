@@ -12,6 +12,11 @@ import { createDefaultContextResolverRegistry } from "./context/defaultContextRe
 import { derivePromptContextRequirements } from "./context/promptContextResolution";
 import type { PromptExecutionContext } from "./context/types";
 import { getRegisteredPromptAsset, listRegisteredPromptAssets } from "./registry";
+import {
+  getPromptAddendumScopeLabels,
+  getPromptCatalogDescription,
+  isPromptAddendumSupported,
+} from "./addendums/PromptAddendumService";
 
 type UnknownPromptAsset = PromptAsset<unknown, unknown, unknown>;
 
@@ -23,11 +28,14 @@ export interface PromptCatalogItem {
   mode: string;
   language: string;
   family: string;
+  description: string;
   outputType: "structured" | "text";
   contextPolicy: UnknownPromptAsset["contextPolicy"];
   contextRequirements: PromptContextRequirement[];
   editableSlots: NonNullable<UnknownPromptAsset["editableSlots"]>;
   overrideSupported: false;
+  addendumSupported: boolean;
+  addendumScopeLabels: string[];
   overrideLifecycle: {
     draftSupported: false;
     publishSupported: false;
@@ -108,11 +116,14 @@ function toCatalogItem(asset: UnknownPromptAsset): PromptCatalogItem {
     mode: asset.mode,
     language: asset.language,
     family: asset.id.split(".")[0] ?? asset.id,
+    description: getPromptCatalogDescription(asset.id, asset.taskType),
     outputType: asset.mode === "structured" ? "structured" : "text",
     contextPolicy: asset.contextPolicy,
     contextRequirements,
     editableSlots,
     overrideSupported: false,
+    addendumSupported: isPromptAddendumSupported(asset.id),
+    addendumScopeLabels: getPromptAddendumScopeLabels(asset.id),
     overrideLifecycle: {
       draftSupported: false,
       publishSupported: false,
@@ -142,6 +153,7 @@ function buildPromptTracePreview(input: {
     contextBlockIds: input.prepared.context.selectedBlockIds,
     droppedContextBlockIds: input.prepared.context.droppedBlockIds,
     summarizedContextBlockIds: input.prepared.context.summarizedBlockIds,
+    customAddendumBlockIds: input.prepared.context.selectedBlockIds.filter((id) => id.startsWith("custom_addendum:")),
     estimatedInputTokens: input.prepared.context.estimatedInputTokens,
     repairUsed: false,
     repairAttempts: 0,
@@ -188,6 +200,7 @@ function matchesCatalogFilter(item: PromptCatalogItem, filter?: PromptCatalogFil
   return [
     item.key,
     item.id,
+    item.description,
     item.version,
     item.taskType,
     item.mode,

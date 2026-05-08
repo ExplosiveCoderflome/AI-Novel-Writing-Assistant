@@ -5,9 +5,13 @@ const {
   createContextBlock,
 } = require("../dist/prompting/core/contextBudget.js");
 const {
+  promptAddendumService,
+} = require("../dist/prompting/addendums/PromptAddendumService.js");
+const {
   NOVEL_PROMPT_BUDGETS,
 } = require("../dist/prompting/prompts/novel/promptBudgetProfiles.js");
 const {
+  runTextPrompt,
   runStructuredPrompt,
   setPromptRunnerLLMFactoryForTests,
   setPromptRunnerStructuredInvokerForTests,
@@ -1212,6 +1216,111 @@ test("streamTextPrompt buffers streamed output and resolves completion metadata"
     assert.equal(completed.meta.invocation.repairAttempts, 0);
   } finally {
     styleRewritePrompt.contextPolicy = originalContextPolicy;
+    setPromptRunnerLLMFactoryForTests();
+  }
+});
+
+test("prompt runner injects enabled custom addendum blocks for supported prompts", async () => {
+  const originalResolveContextBlocks = promptAddendumService.resolveContextBlocks;
+  let capturedMessages = [];
+  promptAddendumService.resolveContextBlocks = async ({ promptId, novelId }) => {
+    assert.equal(promptId, "novel.chapter.writer");
+    assert.equal(novelId, "novel-1");
+    return [
+      createContextBlock({
+        id: "custom_addendum:global:test",
+        group: "custom_addendum",
+        priority: 999,
+        required: true,
+        content: "【全局补充要求】\n禁止模板化表达。",
+      }),
+      createContextBlock({
+        id: "custom_addendum:novel:test",
+        group: "custom_addendum",
+        priority: 899,
+        required: true,
+        content: "【本书补充要求】\n保留主角冷静克制的表达。",
+      }),
+    ];
+  };
+  setPromptRunnerLLMFactoryForTests(async () => ({
+    invoke: async (messages) => {
+      capturedMessages = messages;
+      return { content: "正文" };
+    },
+  }));
+
+  try {
+    const result = await runTextPrompt({
+      asset: chapterWriterPrompt,
+      promptInput: {
+        novelTitle: "测试小说",
+        chapterOrder: 1,
+        chapterTitle: "第一章",
+      },
+      contextBlocks: [],
+      options: { novelId: "novel-1" },
+    });
+
+    assert.equal(result.output, "正文");
+    assert.deepEqual(result.meta.invocation.customAddendumBlockIds, [
+      "custom_addendum:global:test",
+      "custom_addendum:novel:test",
+    ]);
+    const rendered = capturedMessages.map((message) => String(message.content)).join("\n");
+    assert.match(rendered, /禁止模板化表达/);
+    assert.match(rendered, /保留主角冷静克制的表达/);
+  } finally {
+    promptAddendumService.resolveContextBlocks = originalResolveContextBlocks;
+    setPromptRunnerLLMFactoryForTests();
+  }
+});
+
+test("prompt runner skips custom addendums for prompts outside the allowlist", async () => {
+  const originalResolveContextBlocks = promptAddendumService.resolveContextBlocks;
+  let called = false;
+  promptAddendumService.resolveContextBlocks = async () => {
+    called = true;
+    return [
+      createContextBlock({
+        id: "custom_addendum:global:unexpected",
+        group: "custom_addendum",
+        priority: 999,
+        required: true,
+        content: "不应注入。",
+      }),
+    ];
+  };
+  setPromptRunnerLLMFactoryForTests(async () => ({
+    stream: async () => ({
+      async *[Symbol.asyncIterator]() {
+        yield { content: "修订" };
+      },
+    }),
+  }));
+
+  try {
+    const handle = await streamTextPrompt({
+      asset: styleRewritePrompt,
+      promptInput: {
+        styleBlock: "叙事紧凑",
+        characterBlock: "动作表达情绪",
+        antiAiBlock: "禁止解释性心理描写",
+        content: "原文",
+        issuesBlock: "问题",
+      },
+      contextBlocks: [],
+      options: { novelId: "novel-1" },
+    });
+
+    for await (const _chunk of handle.stream) {
+      // drain stream
+    }
+    const completed = await handle.complete;
+    assert.equal(completed.meta.invocation.customAddendumBlockIds.length, 0);
+    assert.equal(called, false);
+  } finally {
+    promptAddendumService.resolveContextBlocks = originalResolveContextBlocks;
     setPromptRunnerLLMFactoryForTests();
   }
 });

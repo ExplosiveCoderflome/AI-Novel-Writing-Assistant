@@ -12,6 +12,11 @@ import {
   exportNovelPromptMaterials,
   type NovelMaterialExportInput,
 } from "../prompting/materials";
+import {
+  promptAddendumService,
+  type PromptAddendumFilter,
+  type PromptAddendumInput,
+} from "../prompting/addendums/PromptAddendumService";
 
 const router = Router();
 
@@ -80,6 +85,25 @@ const materialExportBodySchema = z.object({
   maxTokens: z.number().int().min(0).max(200000).optional(),
 });
 
+const addendumQuerySchema = z.object({
+  promptId: z.string().trim().min(1).optional(),
+  novelId: z.string().trim().min(1).optional(),
+});
+
+const addendumBodySchema = z.object({
+  id: z.string().trim().min(1).optional(),
+  scope: z.enum(["global", "novel"]),
+  novelId: z.string().trim().min(1).nullable().optional(),
+  promptId: z.string().trim().min(1),
+  title: z.string().trim().min(1).max(80),
+  content: z.string().trim().min(1).max(4000),
+  enabled: z.boolean().optional(),
+});
+
+const addendumEnabledBodySchema = z.object({
+  enabled: z.boolean(),
+});
+
 router.get("/catalog", validate({ query: catalogQuerySchema }), (req, res) => {
   const query = req.query as z.infer<typeof catalogQuerySchema>;
   const data = promptWorkbenchService.listCatalog({
@@ -117,6 +141,61 @@ router.post("/materials/export", validate({ body: materialExportBodySchema }), a
       data,
       message: "Prompt materials exported.",
     } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/addendums", validate({ query: addendumQuerySchema }), async (req, res, next) => {
+  try {
+    const query = req.query as z.infer<typeof addendumQuerySchema>;
+    const data = await promptAddendumService.list(query as PromptAddendumFilter);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Prompt addendums loaded.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put("/addendums", validate({ body: addendumBodySchema }), async (req, res, next) => {
+  try {
+    const body = req.body as z.infer<typeof addendumBodySchema>;
+    const data = await promptAddendumService.save(body as PromptAddendumInput);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Prompt addendum saved.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch("/addendums/:id/enabled", validate({ body: addendumEnabledBodySchema }), async (req, res, next) => {
+  try {
+    const body = req.body as z.infer<typeof addendumEnabledBodySchema>;
+    const data = await promptAddendumService.setEnabled(String(req.params.id), body.enabled);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Prompt addendum updated.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete("/addendums/:id", async (req, res, next) => {
+  try {
+    await promptAddendumService.delete(String(req.params.id));
+    res.status(200).json({
+      success: true,
+      data: null,
+      message: "Prompt addendum deleted.",
+    } satisfies ApiResponse<null>);
   } catch (error) {
     next(error);
   }

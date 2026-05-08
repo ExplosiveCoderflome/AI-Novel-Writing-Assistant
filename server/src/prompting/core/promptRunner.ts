@@ -14,6 +14,11 @@ import {
 import { logMemoryUsage } from "../../runtime/memoryTelemetry";
 import { toText } from "../../services/novel/novelP0Utils";
 import { hasRegisteredPromptAsset } from "../registry";
+import {
+  CUSTOM_ADDENDUM_CONTEXT_GROUP,
+  isPromptAddendumSupported,
+  promptAddendumService,
+} from "../addendums/PromptAddendumService";
 import { selectContextBlocks } from "./contextSelection";
 import { appendStructuredOutputHintMessages } from "./structuredOutputHint";
 import type {
@@ -75,12 +80,29 @@ function buildPromptInvocationMeta(
     contextBlockIds: context.selectedBlockIds,
     droppedContextBlockIds: context.droppedBlockIds,
     summarizedContextBlockIds: context.summarizedBlockIds,
+    customAddendumBlockIds: context.selectedBlockIds.filter((id) => id.startsWith(`${CUSTOM_ADDENDUM_CONTEXT_GROUP}:`)),
     estimatedInputTokens: context.estimatedInputTokens,
     repairUsed,
     repairAttempts,
     semanticRetryUsed,
     semanticRetryAttempts,
   };
+}
+
+async function resolveContextBlocksWithAddendums(input: {
+  asset: PromptAsset<unknown, unknown, unknown>;
+  contextBlocks?: Parameters<typeof selectContextBlocks>[0];
+  options?: PromptExecutionOptions;
+}): Promise<Parameters<typeof selectContextBlocks>[0]> {
+  const blocks = input.contextBlocks ?? [];
+  if (!isPromptAddendumSupported(input.asset.id)) {
+    return blocks;
+  }
+  const addendumBlocks = await promptAddendumService.resolveContextBlocks({
+    promptId: input.asset.id,
+    novelId: input.options?.novelId,
+  });
+  return addendumBlocks.length > 0 ? [...blocks, ...addendumBlocks] : blocks;
 }
 
 function resolveStructuredRepairAttempts(asset: PromptAsset<unknown, unknown, unknown>): number {
@@ -469,7 +491,12 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
   }
 
   const outputSchema = input.asset.outputSchema;
-  const prepared = preparePromptExecution(input);
+  const contextBlocks = await resolveContextBlocksWithAddendums({
+    asset: input.asset as PromptAsset<unknown, unknown, unknown>,
+    contextBlocks: input.contextBlocks,
+    options: input.options,
+  });
+  const prepared = preparePromptExecution({ ...input, contextBlocks });
   logPromptEvent({
     event: "started",
     asset: input.asset as PromptAsset<unknown, unknown, unknown>,
@@ -556,7 +583,12 @@ export async function runTextPrompt<I>(input: {
     throw new Error(`Prompt asset ${input.asset.id}@${input.asset.version} is not a text prompt.`);
   }
 
-  const prepared = preparePromptExecution(input);
+  const contextBlocks = await resolveContextBlocksWithAddendums({
+    asset: input.asset as PromptAsset<unknown, unknown, unknown>,
+    contextBlocks: input.contextBlocks,
+    options: input.options,
+  });
+  const prepared = preparePromptExecution({ ...input, contextBlocks });
   const startedAt = Date.now();
   const llm = await promptRunnerLLMFactory(input.options?.provider, {
     fallbackProvider: "deepseek",
@@ -601,7 +633,12 @@ export async function streamTextPrompt<I>(input: {
     throw new Error(`Prompt asset ${input.asset.id}@${input.asset.version} is not a text prompt.`);
   }
 
-  const prepared = preparePromptExecution(input);
+  const contextBlocks = await resolveContextBlocksWithAddendums({
+    asset: input.asset as PromptAsset<unknown, unknown, unknown>,
+    contextBlocks: input.contextBlocks,
+    options: input.options,
+  });
+  const prepared = preparePromptExecution({ ...input, contextBlocks });
   const startedAt = Date.now();
   const llm = await promptRunnerLLMFactory(input.options?.provider, {
     fallbackProvider: "deepseek",
@@ -654,7 +691,12 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
   }
 
   const outputSchema = input.asset.outputSchema;
-  const prepared = preparePromptExecution(input);
+  const contextBlocks = await resolveContextBlocksWithAddendums({
+    asset: input.asset as PromptAsset<unknown, unknown, unknown>,
+    contextBlocks: input.contextBlocks,
+    options: input.options,
+  });
+  const prepared = preparePromptExecution({ ...input, contextBlocks });
   const startedAt = Date.now();
   const llm = await promptRunnerLLMFactory(input.options?.provider, {
     fallbackProvider: "deepseek",

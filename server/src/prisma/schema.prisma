@@ -390,6 +390,7 @@ model Novel {
   directorEvents     DirectorEvent[]
   directorArtifacts  DirectorArtifact[]
   directorLlmUsageRecords DirectorLlmUsageRecord[]
+  promptAddendums    PromptAddendum[]
   createdAt          DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
@@ -401,6 +402,23 @@ model Novel {
   @@index([sourceNovelId])
   @@index([sourceKnowledgeDocumentId])
   @@index([continuationBookAnalysisId])
+}
+
+model PromptAddendum {
+  id        String   @id @default(cuid())
+  scope     String
+  novelId   String?
+  promptId  String
+  title     String
+  content   String
+  enabled   Boolean  @default(true)
+  novel     Novel?   @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([scope, promptId, enabled])
+  @@index([novelId, promptId, enabled])
+  @@index([updatedAt])
 }
 
 model CreativeDecision {

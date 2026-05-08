@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { PromptAddendumPanel } from "./components/PromptAddendumPanel";
 
 const ENTRYPOINT_OPTIONS = [
   { value: "creative_hub", label: "创作中枢" },
@@ -104,9 +105,12 @@ function PromptListItem({
           <div className="mt-1 text-xs text-muted-foreground">
             {prompt.version} · {prompt.taskType} · {prompt.mode}
           </div>
+          <div className="mt-2 max-h-10 overflow-hidden text-xs leading-relaxed text-muted-foreground">
+            {prompt.description}
+          </div>
         </div>
-        <Badge variant={statusBadgeVariant(prompt.managementStatus)} className="shrink-0">
-          {MANAGEMENT_STATUS_LABELS[prompt.managementStatus]}
+        <Badge variant={prompt.addendumSupported ? "default" : statusBadgeVariant(prompt.managementStatus)} className="shrink-0">
+          {prompt.addendumSupported ? "可补充" : MANAGEMENT_STATUS_LABELS[prompt.managementStatus]}
         </Badge>
       </div>
     </button>
@@ -286,7 +290,7 @@ export default function PromptWorkbenchPage() {
             </div>
             <h1 className="mt-2 text-2xl font-semibold tracking-normal text-foreground">Prompt Workbench</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              查看注册提示词、上下文需求、锁定字段和只读预览诊断。
+              查看内置提示词，并为主要写作链路追加自定义补充要求。
             </p>
           </div>
 
@@ -363,18 +367,16 @@ export default function PromptWorkbenchPage() {
                           <option key={option.value} value={option.value}>{option.label}</option>
                         ))}
                       </select>
-                      <Button
-                        type="button"
-                        onClick={() => previewMutation.mutate(selectedPrompt)}
-                        disabled={previewMutation.isPending}
-                      >
-                        <Eye className="mr-2 h-4 w-4" />
-                        {previewMutation.isPending ? "预览中..." : "生成预览"}
-                      </Button>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="grid gap-5 lg:grid-cols-2">
+                  <DetailSection title="提示词用途">
+                    <div className="rounded-md border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground">
+                      {selectedPrompt.description}
+                    </div>
+                  </DetailSection>
+
                   <DetailSection title="基础信息">
                     <JsonBlock
                       value={{
@@ -382,7 +384,8 @@ export default function PromptWorkbenchPage() {
                         language: selectedPrompt.language,
                         family: selectedPrompt.family,
                         maxTokensBudget: selectedPrompt.contextPolicy.maxTokensBudget,
-                        override: selectedPrompt.overrideLifecycle,
+                        addendumSupported: selectedPrompt.addendumSupported,
+                        addendumScopes: selectedPrompt.addendumScopeLabels,
                       }}
                     />
                   </DetailSection>
@@ -404,7 +407,7 @@ export default function PromptWorkbenchPage() {
                           <div className="flex items-center justify-between gap-3">
                             <span className="font-semibold">{requirement.group}</span>
                             <Badge variant={requirement.required ? "default" : "outline"}>
-                              {requirement.required ? "必需" : `优先级 ${requirement.priority}`}
+                              {requirement.required ? "必需" : "辅助"}
                             </Badge>
                           </div>
                           {requirement.sourceHint ? (
@@ -450,9 +453,21 @@ export default function PromptWorkbenchPage() {
 
               <Card className="rounded-lg">
                 <CardHeader>
+                  <CardTitle className="text-lg tracking-normal">自定义补充要求</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <PromptAddendumPanel prompt={selectedPrompt} />
+                </CardContent>
+              </Card>
+
+              <details className="rounded-lg border bg-card">
+                <summary className="cursor-pointer px-6 py-4 text-lg font-semibold tracking-normal">
+                  调试查看
+                </summary>
+                <div className="space-y-6 border-t p-6">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                      <CardTitle className="text-lg tracking-normal">资料检查</CardTitle>
+                      <h2 className="text-lg font-semibold tracking-normal">资料检查</h2>
                       <p className="mt-1 text-sm text-muted-foreground">
                         按当前提示词需要的资料组读取小说资料，确认资料是否齐全。
                       </p>
@@ -465,8 +480,7 @@ export default function PromptWorkbenchPage() {
                       {materialsMutation.isPending ? "读取中..." : "读取资料"}
                     </Button>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
+                  <div className="space-y-4">
                   <div className="grid gap-3 md:grid-cols-4">
                     <Input
                       value={materialNovelId}
@@ -548,17 +562,29 @@ export default function PromptWorkbenchPage() {
                       输入小说 ID 后读取资料，检查当前提示词开工前的资料是否齐全。
                     </div>
                   )}
-                </CardContent>
-              </Card>
 
-              <Card className="rounded-lg">
-                <CardHeader>
-                  <CardTitle className="text-lg tracking-normal">预览诊断</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <PreviewPanel preview={preview} />
-                </CardContent>
-              </Card>
+                  <div className="border-t pt-6">
+                    <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <h2 className="text-lg font-semibold tracking-normal">预览诊断</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          查看最终消息、上下文选择和诊断结果。
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => previewMutation.mutate(selectedPrompt)}
+                        disabled={previewMutation.isPending}
+                      >
+                        <Eye className="mr-2 h-4 w-4" />
+                        {previewMutation.isPending ? "预览中..." : "生成预览"}
+                      </Button>
+                    </div>
+                    <PreviewPanel preview={preview} />
+                  </div>
+                </div>
+                </div>
+              </details>
             </>
           ) : (
             <div className="rounded-md border p-6 text-sm text-muted-foreground">请选择一个提示词。</div>

@@ -23,6 +23,8 @@ test("prompt workbench catalog exposes registered prompts without override execu
 
   assert.ok(planner);
   assert.equal(planner.overrideSupported, false);
+  assert.equal(planner.addendumSupported, false);
+  assert.ok(planner.description.includes("意图"));
   assert.equal(planner.outputType, "structured");
   assert.equal(planner.overrideLifecycle.runtimeOverrideEnabled, false);
   assert.ok(planner.contextRequirements.some((requirement) => requirement.group === "creative_hub.bindings"));
@@ -35,6 +37,9 @@ test("prompt workbench catalog exposes registered prompts without override execu
   const chapterWriter = service.listCatalog({ keyword: "novel.chapter.writer" })
     .find((item) => item.key === "novel.chapter.writer@v5");
   assert.ok(chapterWriter);
+  assert.equal(chapterWriter.addendumSupported, true);
+  assert.deepEqual(chapterWriter.addendumScopeLabels, ["全局", "单本小说"]);
+  assert.ok(chapterWriter.description.includes("章节正文"));
   assert.ok(chapterWriter.editableSlots.some((slot) => slot.key === "writer.antiAiRules"));
   assert.ok(chapterWriter.lockedFields.includes("contextPolicy"));
 });
@@ -98,6 +103,7 @@ test("prompt preview renders base prompt messages with resolved context but does
   assert.deepEqual(preview.diagnostics.missingRequiredGroups, []);
   assert.equal(preview.diagnostics.tracePreview.promptId, "planner.intent.parse");
   assert.ok(preview.diagnostics.tracePreview.contextBlockIds.includes("creative_hub.bindings"));
+  assert.deepEqual(preview.diagnostics.tracePreview.customAddendumBlockIds, []);
   assert.ok(preview.diagnostics.notes.some((note) => note.includes("read-only preview")));
 });
 
