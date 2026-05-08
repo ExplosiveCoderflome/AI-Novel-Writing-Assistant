@@ -210,6 +210,13 @@ function matchesCatalogFilter(item: PromptCatalogItem, filter?: PromptCatalogFil
   ].some((value) => value.toLowerCase().includes(keyword));
 }
 
+function sortCatalogItems(left: PromptCatalogItem, right: PromptCatalogItem): number {
+  if (left.addendumSupported !== right.addendumSupported) {
+    return left.addendumSupported ? -1 : 1;
+  }
+  return left.key.localeCompare(right.key);
+}
+
 function getAssetFromPreviewInput(input: PromptPreviewInput): UnknownPromptAsset {
   if (input.promptKey) {
     const separatorIndex = input.promptKey.lastIndexOf("@");
@@ -292,7 +299,7 @@ export class PromptWorkbenchService {
     return listRegisteredPromptAssets()
       .map(toCatalogItem)
       .filter((item) => matchesCatalogFilter(item, filter))
-      .sort((left, right) => left.key.localeCompare(right.key));
+      .sort(sortCatalogItems);
   }
 
   async preview(input: PromptPreviewInput): Promise<PromptPreviewResult> {

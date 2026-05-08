@@ -44,6 +44,18 @@ test("prompt workbench catalog exposes registered prompts without override execu
   assert.ok(chapterWriter.lockedFields.includes("contextPolicy"));
 });
 
+test("prompt workbench catalog lists addendum-supported prompts first", () => {
+  const service = new PromptWorkbenchService();
+  const catalog = service.listCatalog();
+  const firstUnsupportedIndex = catalog.findIndex((item) => !item.addendumSupported);
+  const lastSupportedIndex = catalog.findLastIndex((item) => item.addendumSupported);
+
+  assert.ok(firstUnsupportedIndex > 0);
+  assert.ok(lastSupportedIndex >= 0);
+  assert.ok(lastSupportedIndex < firstUnsupportedIndex);
+  assert.ok(catalog.slice(0, lastSupportedIndex + 1).every((item) => item.addendumSupported));
+});
+
 test("context broker resolves creative hub bindings and supplied recent messages", async () => {
   const broker = new ContextBroker(createDefaultContextResolverRegistry());
   const result = await broker.resolve({
