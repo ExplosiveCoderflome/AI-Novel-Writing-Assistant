@@ -173,6 +173,7 @@ test("volume chapter list prompt render hardens title diversity rules", () => {
   assert.match(String(messages[0].content), /章名结构过于集中/);
 });
 
+test.describe("volume chapter list semantic retry behavior", { concurrency: false }, () => {
 test("volume chapter list prompt retries semantically when titles are structurally repetitive", async () => {
   const calls = [];
 
@@ -269,4 +270,5 @@ test("volume chapter list prompt throws after semantic retries are exhausted", a
   } finally {
     setPromptRunnerStructuredInvokerForTests();
   }
+});
 });
