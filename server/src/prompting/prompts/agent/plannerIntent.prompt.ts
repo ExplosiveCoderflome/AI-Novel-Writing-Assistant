@@ -18,6 +18,12 @@ export const plannerIntentPrompt: PromptAsset<PlannerInput, StructuredIntent, Re
   contextPolicy: {
     maxTokensBudget: 0,
   },
+  contextRequirements: [
+    { group: "creative_hub.bindings", priority: 100, sourceHint: "Current resource bindings for intent parsing." },
+    { group: "creative_hub.recent_messages", priority: 80, sourceHint: "Recent conversation turns for intent continuity." },
+    { group: "creative_hub.novel_setup_status", priority: 70, sourceHint: "Novel setup readiness for beginner guidance." },
+    { group: "creative_hub.production_status", priority: 68, sourceHint: "Current production status for workflow routing." },
+  ],
   semanticRetryPolicy: {
     maxAttempts: 1,
   },

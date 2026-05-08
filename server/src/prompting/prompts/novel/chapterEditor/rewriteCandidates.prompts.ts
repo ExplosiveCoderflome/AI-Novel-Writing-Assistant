@@ -41,6 +41,23 @@ export const chapterEditorRewriteCandidatesPrompt: PromptAsset<
   contextPolicy: {
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterEditorRewrite,
   },
+  contextRequirements: [
+    { group: "chapter_mission", priority: 100, sourceHint: "Chapter goal and current editing task." },
+    { group: "style_contract", priority: 88, sourceHint: "Current style profile and anti-AI guidance." },
+    { group: "participant_subset", priority: 82, sourceHint: "Relevant character state for local rewrite." },
+    { group: "world_slice", priority: 76, sourceHint: "World constraints that local edits must preserve." },
+    { group: "recent_chapters", priority: 64, sourceHint: "Nearby continuity for editor preview." },
+  ],
+  editableSlots: [
+    {
+      key: "chapterEditor.candidateStyle",
+      label: "候选改写风格",
+      description: "调整候选版本的差异化表达方式；仅作为管理元数据展示，当前不参与运行时覆盖。",
+      riskLevel: "low",
+      maxLength: 600,
+      defaultValue: "候选要形成清晰差异，例如更自然、更克制、更强化情绪，但都要可用。",
+    },
+  ],
   outputSchema: chapterEditorRewriteCandidatesSchema,
   structuredOutputHint: {
     mode: "auto",

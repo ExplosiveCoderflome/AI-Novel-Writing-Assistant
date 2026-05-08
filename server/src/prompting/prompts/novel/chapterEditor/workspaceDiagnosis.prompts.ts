@@ -44,6 +44,13 @@ export const chapterEditorWorkspaceDiagnosisPrompt: PromptAsset<
   contextPolicy: {
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterEditorWorkspaceDiagnosis,
   },
+  contextRequirements: [
+    { group: "chapter_mission", required: true, priority: 100, sourceHint: "Chapter task shown in the editor workspace." },
+    { group: "volume_window", priority: 90, sourceHint: "Volume position and adjacent chapter direction." },
+    { group: "open_conflicts", priority: 84, sourceHint: "Active conflicts and unresolved pressure." },
+    { group: "participant_subset", priority: 78, sourceHint: "Characters that matter to current edit decisions." },
+    { group: "current_draft_excerpt", priority: 72, sourceHint: "Current chapter draft excerpt for diagnosis preview." },
+  ],
   outputSchema: chapterEditorWorkspaceDiagnosisSchema,
   structuredOutputHint: {
     mode: "auto",

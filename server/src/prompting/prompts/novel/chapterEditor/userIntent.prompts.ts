@@ -26,6 +26,11 @@ export const chapterEditorUserIntentPrompt: PromptAsset<
   contextPolicy: {
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterEditorUserIntent,
   },
+  contextRequirements: [
+    { group: "chapter_mission", priority: 100, sourceHint: "Chapter goal for edit-intent interpretation." },
+    { group: "style_contract", priority: 82, sourceHint: "Current prose style constraints." },
+    { group: "local_state", priority: 78, sourceHint: "Current chapter state and continuity boundaries." },
+  ],
   outputSchema: chapterEditorUserIntentSchema,
   structuredOutputHint: {
     mode: "auto",
