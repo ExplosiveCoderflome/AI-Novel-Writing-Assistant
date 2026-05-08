@@ -970,6 +970,7 @@ test("world draft refine alternatives post validator enforces exact alternative 
   }));
 });
 
+test.describe("prompt runner global test-double behavior", { concurrency: false }, () => {
 test("runStructuredPrompt forwards repair policy and context telemetry", async () => {
   const originalRepairPolicy = genreTreePrompt.repairPolicy;
   const originalContextPolicy = { ...genreTreePrompt.contextPolicy };
@@ -1365,4 +1366,5 @@ test("streamStructuredPrompt can recover with semantic retry after streamed outp
     setPromptRunnerLLMFactoryForTests();
     setPromptRunnerStructuredInvokerForTests();
   }
+});
 });
