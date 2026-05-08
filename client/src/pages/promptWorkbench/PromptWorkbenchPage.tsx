@@ -290,7 +290,7 @@ export default function PromptWorkbenchPage() {
             </div>
             <h1 className="mt-2 text-2xl font-semibold tracking-normal text-foreground">Prompt Workbench</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              查看内置提示词，并为主要写作链路追加自定义补充要求。
+              查看内置提示词，并为主要写作链路追加自定义补充要求；当前只开放部分章节写作、审校和修复提示词。
             </p>
           </div>
 
