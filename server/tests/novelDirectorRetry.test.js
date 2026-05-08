@@ -1035,11 +1035,11 @@ test("continueTask resumes structured outline when stale chapter_range checkpoin
     seedPayloadJson: JSON.stringify({
       directorInput: buildDirectorInput({
         workflowTaskId: "task_stale_chapter_range_resume",
-        runMode: "auto_to_execution",
+        runMode: "auto_to_ready",
       }),
       directorSession: {
-        runMode: "auto_to_execution",
-        phase: "chapter_execution",
+        runMode: "auto_to_ready",
+        phase: "front10_ready",
         isBackgroundRunning: false,
         lockedScopes: ["basic", "story_macro", "character", "outline", "structured", "chapter", "pipeline"],
         reviewScope: null,
@@ -1091,6 +1091,7 @@ test("continueTask resumes structured outline when stale chapter_range checkpoin
     assert.equal(pipelineRuns[0].taskId, "task_stale_chapter_range_resume");
     assert.equal(pipelineRuns[0].novelId, "novel_stale_chapter_range_resume");
     assert.equal(pipelineRuns[0].startPhase, "structured_outline");
+    assert.equal(pipelineRuns[0].input.runMode, "auto_to_execution");
     assert.equal(runtimeCalls.length, 0);
   } finally {
     service.continueCandidateStageTask = originalContinueCandidateStageTask;
