@@ -223,8 +223,8 @@ export default function PromptWorkbenchPage() {
   const preview = previewMutation.data?.data ?? null;
 
   return (
-    <div className="min-h-full bg-background">
-      <div className="border-b bg-muted/20 px-6 py-5">
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      <div className="shrink-0 border-b bg-muted/20 px-6 py-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="flex items-center gap-2 text-sm font-semibold text-primary">
@@ -249,8 +249,8 @@ export default function PromptWorkbenchPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 p-6 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <aside className="space-y-4">
+      <div className="grid min-h-0 flex-1 gap-6 p-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <aside className="flex min-h-0 flex-col gap-4">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -261,7 +261,7 @@ export default function PromptWorkbenchPage() {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
             {catalogQuery.isLoading ? (
               <div className="rounded-md border p-4 text-sm text-muted-foreground">正在读取提示词目录...</div>
             ) : prompts.length === 0 ? (
@@ -282,7 +282,7 @@ export default function PromptWorkbenchPage() {
           </div>
         </aside>
 
-        <main className="space-y-6">
+        <main className="min-h-0 space-y-6 overflow-y-auto pr-1">
           {selectedPrompt ? (
             <>
               <Card className="rounded-lg">
