@@ -15,6 +15,126 @@ interface DesktopUpdaterOptions {
   updateChannel: string;
   isPackaged: boolean;
   isPortable: boolean;
+  minimumAllowedVersion: string;
+}
+
+// Security policy for desktop auto-updates is enforced in three places:
+// 1. staged feed metadata must point at the expected GitHub repo/channel,
+// 2. public release packaging must require signing material,
+// 3. runtime rejects update candidates that violate publisher or version-floor policy.
+const TRUSTED_UPDATE_HOSTS = new Set([
+  "github.com",
+  "objects.githubusercontent.com",
+  "github-releases.githubusercontent.com",
+]);
+
+export function isTrustedUpdateUrl(rawUrl: string): boolean {
+  try {
+    const parsed = new URL(rawUrl);
+    return parsed.protocol === "https:" && TRUSTED_UPDATE_HOSTS.has(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function parseVersionParts(version: string): number[] | null {
+  const normalized = version.trim().replace(/^v/i, "");
+  const match = normalized.match(/^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/);
+  if (!match) {
+    return null;
+  }
+
+  return match.slice(1, 4).map((part) => Number(part));
+}
+
+function parsePrereleaseParts(version: string): Array<number | string> | null {
+  const normalized = version.trim().replace(/^v/i, "");
+  const match = normalized.match(/^\d+\.\d+\.\d+-([0-9A-Za-z.-]+)(?:\+.*)?$/);
+  if (!match) {
+    return null;
+  }
+
+  return match[1].split(".").map((part) => (/^\d+$/.test(part) ? Number(part) : part));
+}
+
+function compareVersions(left: string, right: string): number {
+  const leftParts = parseVersionParts(left);
+  const rightParts = parseVersionParts(right);
+
+  if (!leftParts || !rightParts) {
+    return left.localeCompare(right);
+  }
+
+  for (let index = 0; index < 3; index += 1) {
+    const diff = leftParts[index] - rightParts[index];
+    if (diff !== 0) {
+      return diff;
+    }
+  }
+
+  const leftPrerelease = parsePrereleaseParts(left);
+  const rightPrerelease = parsePrereleaseParts(right);
+
+  if (!leftPrerelease && !rightPrerelease) {
+    return 0;
+  }
+  if (!leftPrerelease) {
+    return 1;
+  }
+  if (!rightPrerelease) {
+    return -1;
+  }
+
+  const maxLength = Math.max(leftPrerelease.length, rightPrerelease.length);
+  for (let index = 0; index < maxLength; index += 1) {
+    const leftPart = leftPrerelease[index];
+    const rightPart = rightPrerelease[index];
+
+    if (leftPart === undefined) {
+      return -1;
+    }
+    if (rightPart === undefined) {
+      return 1;
+    }
+    if (leftPart === rightPart) {
+      continue;
+    }
+
+    const leftIsNumber = typeof leftPart === "number";
+    const rightIsNumber = typeof rightPart === "number";
+    if (leftIsNumber && rightIsNumber) {
+      return leftPart - rightPart;
+    }
+    if (leftIsNumber) {
+      return -1;
+    }
+    if (rightIsNumber) {
+      return 1;
+    }
+
+    return String(leftPart).localeCompare(String(rightPart));
+  }
+
+  return 0;
+}
+
+export function isVersionAllowedByFloor(candidateVersion: string, minimumVersion: string): boolean {
+  if (!minimumVersion.trim()) {
+    return true;
+  }
+
+  return compareVersions(candidateVersion, minimumVersion) >= 0;
+}
+
+export function validateWindowsPublisher(
+  publisherNames: string[],
+  expectedPublisherNames: string[],
+): boolean {
+  if (publisherNames.length === 0 || expectedPublisherNames.length === 0) {
+    return false;
+  }
+
+  return expectedPublisherNames.some((expectedPublisherName) => publisherNames.includes(expectedPublisherName));
 }
 
 function markUpdaterSnapshot(snapshot: ReturnType<typeof createUpdaterSnapshot>): void {
@@ -35,6 +155,16 @@ function isUpdaterSupported(options: DesktopUpdaterOptions): boolean {
 
 function hasPackagedUpdateFeedConfig(): boolean {
   return fs.existsSync(path.join(process.resourcesPath, "app-update.yml"));
+}
+
+function resolveCandidateUpdateUrls(info: { files?: Array<{ url?: string }>; path?: string | null }): string[] {
+  const fileUrls = Array.isArray(info.files)
+    ? info.files
+      .map((file) => file?.url?.trim() || "")
+      .filter(Boolean)
+    : [];
+  const legacyPath = typeof info.path === "string" ? info.path.trim() : "";
+  return legacyPath ? [...fileUrls, legacyPath] : fileUrls;
 }
 
 export function initializeDesktopUpdater(options: DesktopUpdaterOptions): DesktopUpdaterController {
@@ -100,6 +230,40 @@ export function initializeDesktopUpdater(options: DesktopUpdaterOptions): Deskto
   });
 
   autoUpdater.on("update-available", (info) => {
+    const candidateUrls = resolveCandidateUpdateUrls(info);
+    const hasOnlyTrustedUrls = candidateUrls.length === 0 || candidateUrls.every((candidateUrl) => isTrustedUpdateUrl(candidateUrl));
+
+    if (!hasOnlyTrustedUrls) {
+      const rejectedUrl = candidateUrls.find((candidateUrl) => !isTrustedUpdateUrl(candidateUrl)) ?? "unknown";
+      appendDesktopLog("desktop.updater", `Rejected update ${info.version} because feed URL is not trusted: ${rejectedUrl}.`);
+      markUpdaterSnapshot(createUpdaterSnapshot({
+        ...desktopUpdaterStore.getSnapshot(),
+        status: "error",
+        message: `Blocked update ${info.version} because the update source is not trusted.`,
+        availableVersion: null,
+        canInstall: false,
+        progressPercent: null,
+        bytesPerSecond: null,
+        lastCheckedAt: new Date().toISOString(),
+      }));
+      return;
+    }
+
+    if (!isVersionAllowedByFloor(info.version, options.minimumAllowedVersion)) {
+      appendDesktopLog("desktop.updater", `Rejected update ${info.version} below minimum version ${options.minimumAllowedVersion}.`);
+      markUpdaterSnapshot(createUpdaterSnapshot({
+        ...desktopUpdaterStore.getSnapshot(),
+        status: "error",
+        message: `Blocked update ${info.version} because it is below the minimum allowed version ${options.minimumAllowedVersion}.`,
+        availableVersion: null,
+        canInstall: false,
+        progressPercent: null,
+        bytesPerSecond: null,
+        lastCheckedAt: new Date().toISOString(),
+      }));
+      return;
+    }
+
     appendDesktopLog("desktop.updater", `Update ${info.version} is available and waiting for download approval.`);
     markUpdaterSnapshot(createUpdaterSnapshot({
       ...desktopUpdaterStore.getSnapshot(),

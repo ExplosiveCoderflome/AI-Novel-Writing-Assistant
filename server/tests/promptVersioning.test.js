@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { createVolumeChapterListPrompt } = require("../dist/prompting/prompts/novel/volume/chapterList.prompts.js");
 const { definePromptAsset } = require("../dist/prompting/core/promptTypes.js");
 const { preparePromptExecution } = require("../dist/prompting/core/promptRunner.js");
 const {
@@ -77,4 +78,15 @@ test("preparePromptExecution exposes auto-generated promptVersion in invocation 
 
   assert.equal(prepared.invocation.promptVersion, asset.version);
   assert.match(prepared.invocation.promptVersion, /^h[a-f0-9]{12}$/);
+});
+
+test("recreated chapter list prompt instances keep the registered runtime version", () => {
+  const asset = createVolumeChapterListPrompt({
+    targetChapterCount: 4,
+    targetBeatKey: "open_hook",
+    targetBeatLabel: "开卷抓手",
+  });
+
+  assert.match(asset.version, /^h[a-f0-9]{12}$/);
+  assert.equal(getRegisteredPromptAsset(asset.id, asset.version)?.version, asset.version);
 });

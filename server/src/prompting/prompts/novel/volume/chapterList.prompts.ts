@@ -1,5 +1,5 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import type { PromptAsset } from "../../../core/promptTypes";
+import { definePromptAsset, type PromptAsset } from "../../../core/promptTypes";
 import { renderSelectedContextBlocks } from "../../../core/renderContextBlocks";
 import { createVolumeChapterBeatBlockSchema } from "../../../../services/novel/volume/volumeGenerationSchemas";
 import { type VolumeChapterListPromptInput } from "./shared";
@@ -68,9 +68,8 @@ export function createVolumeChapterListPrompt(
     targetBeatLabel,
   } = resolvePromptConfig(input);
 
-  return {
+  return definePromptAsset({
     id: "novel.volume.chapter_list",
-    version: "v7",
     taskType: "planner",
     mode: "structured",
     language: "zh",
@@ -206,7 +205,11 @@ export function createVolumeChapterListPrompt(
       assertChapterTitleDiversity(output.chapters.map((c) => c.title));
       return output;
     },
-  };
+    versionSource: {
+      family: "novel.volume.chapter_list",
+      schemaVersion: "v7",
+    },
+  });
 }
 
 export { buildVolumeChapterListContextBlocks };

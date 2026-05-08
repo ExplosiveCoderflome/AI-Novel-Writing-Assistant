@@ -1,8 +1,14 @@
 declare module "electron-updater" {
+  export interface UpdateFileInfo {
+    url?: string;
+  }
+
   export interface UpdateInfo {
     version: string;
     releaseName?: string | null;
     releaseNotes?: string | null;
+    files?: UpdateFileInfo[];
+    path?: string | null;
   }
 
   export interface ProgressInfo {
