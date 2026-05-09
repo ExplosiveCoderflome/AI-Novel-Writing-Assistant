@@ -7,7 +7,7 @@ updates:
       day: "monday"
       time: "08:30"
       timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 0
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
     commit-message:
