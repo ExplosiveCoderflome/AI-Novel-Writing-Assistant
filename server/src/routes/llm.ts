@@ -161,6 +161,7 @@ const modelRouteUpsertSchema = z.object({
   maxTokens: z.union([z.number().int().min(64).max(16384), z.null()]).optional(),
   requestProtocol: z.enum(["auto", "openai_compatible", "anthropic"]).optional(),
   structuredResponseFormat: z.enum(["auto", "json_schema", "json_object", "prompt_json"]).optional(),
+  requestHeadersText: z.string().trim().max(8192).optional(),
 });
 
 router.put(
@@ -176,6 +177,7 @@ router.put(
         maxTokens: body.maxTokens ?? null,
         requestProtocol: body.requestProtocol,
         structuredResponseFormat: body.structuredResponseFormat,
+        requestHeadersText: body.requestHeadersText,
       });
       res.status(200).json({
         success: true,

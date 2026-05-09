@@ -175,3 +175,32 @@ test("resolveModel keeps strict routes non-degraded when explicitly configured",
     prisma.modelRouteConfig.findUnique = originalFindUnique;
   }
 });
+
+
+test("resolveModel returns requestHeadersText and allows user override", async () => {
+  const originalFindUnique = prisma.modelRouteConfig.findUnique;
+
+  prisma.modelRouteConfig.findUnique = async () => ({
+    taskType: "planner",
+    provider: "openai",
+    model: "glm-5",
+    temperature: 0.3,
+    maxTokens: null,
+    requestProtocol: "openai_compatible",
+    structuredResponseFormat: "json_object",
+    requestHeadersText: "X-Test: 1",
+  });
+
+  try {
+    const resolved = await resolveModel("planner");
+    assert.equal(resolved.requestHeadersText, "X-Test: 1");
+
+    const overrideKeeps = await resolveModel("planner", { provider: "openai" });
+    assert.equal(overrideKeeps.requestHeadersText, "X-Test: 1");
+
+    const overrideReplaces = await resolveModel("planner", { requestHeadersText: "X-Test: 2" });
+    assert.equal(overrideReplaces.requestHeadersText, "X-Test: 2");
+  } finally {
+    prisma.modelRouteConfig.findUnique = originalFindUnique;
+  }
+});

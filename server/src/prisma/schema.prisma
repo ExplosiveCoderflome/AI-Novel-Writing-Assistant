@@ -1262,6 +1262,7 @@ model ModelRouteConfig {
   maxTokens                Int?
   requestProtocol          String  @default("auto")
   structuredResponseFormat String  @default("auto")
+  requestHeadersText       String?
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 

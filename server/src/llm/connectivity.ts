@@ -105,6 +105,7 @@ async function testPlainConnection(input: {
   apiKey?: string;
   baseURL?: string;
   requestProtocol?: ModelRouteRequestProtocol;
+  requestHeadersText?: string | null;
 }): Promise<LLMConnectivityStatus> {
   try {
     const resolved = await resolveLLMClientOptions(input.provider, {
@@ -114,6 +115,7 @@ async function testPlainConnection(input: {
       temperature: 0.1,
       maxTokens: 16,
       requestProtocol: input.requestProtocol,
+      requestHeadersText: input.requestHeadersText,
     });
     const llm = await getLLM(input.provider, {
       apiKey: input.apiKey,
@@ -122,6 +124,7 @@ async function testPlainConnection(input: {
       temperature: 0.1,
       maxTokens: 16,
       requestProtocol: resolved.requestProtocol,
+      requestHeadersText: input.requestHeadersText,
     });
     const start = Date.now();
     await llm.invoke([new HumanMessage("请只回复 ok")]);
@@ -168,6 +171,7 @@ async function testStructuredConnection(input: {
   baseURL?: string;
   requestProtocol?: ModelRouteRequestProtocol;
   structuredResponseFormat?: ModelRouteStructuredResponseFormat;
+  requestHeadersText?: string | null;
 }): Promise<LLMConnectivityStatus> {
   const resolved = await resolveLLMClientOptions(input.provider, {
     apiKey: input.apiKey,
@@ -177,6 +181,7 @@ async function testStructuredConnection(input: {
     maxTokens: 256,
     requestProtocol: input.requestProtocol,
     structuredStrategy: toStructuredOutputStrategy(input.structuredResponseFormat ?? "auto") ?? undefined,
+    requestHeadersText: input.requestHeadersText,
     executionMode: "plain",
   });
   try {
@@ -191,6 +196,7 @@ async function testStructuredConnection(input: {
       taskType: "planner",
       requestProtocol: resolved.requestProtocol,
       structuredStrategy: toStructuredOutputStrategy(input.structuredResponseFormat ?? "auto") ?? undefined,
+      requestHeadersText: input.requestHeadersText,
       label: "llm.connectivity.structured_probe",
       schema: STRUCTURED_PROBE_SCHEMA,
       messages: [
@@ -290,6 +296,7 @@ async function testConnection(input: {
   probeMode?: ConnectivityProbeMode;
   requestProtocol?: ModelRouteRequestProtocol;
   structuredResponseFormat?: ModelRouteStructuredResponseFormat;
+  requestHeadersText?: string | null;
 }): Promise<LLMConnectivityStatus> {
   const probeMode = input.probeMode ?? "both";
   let plain: LLMConnectivityStatus | null = null;
@@ -345,6 +352,7 @@ async function testModelRoutes(taskTypes: readonly ModelRouteTaskType[] = MODEL_
       route.model,
       route.requestProtocol,
       route.structuredResponseFormat,
+      route.requestHeadersText ?? "",
     ].join("::");
     if (!dedupedChecks.has(key)) {
       dedupedChecks.set(key, testConnection({
@@ -352,6 +360,7 @@ async function testModelRoutes(taskTypes: readonly ModelRouteTaskType[] = MODEL_
         model: route.model,
         requestProtocol: route.requestProtocol,
         structuredResponseFormat: route.structuredResponseFormat,
+        requestHeadersText: route.requestHeadersText,
         probeMode: "both",
       }));
     }
@@ -363,6 +372,7 @@ async function testModelRoutes(taskTypes: readonly ModelRouteTaskType[] = MODEL_
       route.model,
       route.requestProtocol,
       route.structuredResponseFormat,
+      route.requestHeadersText ?? "",
     ].join("::");
     const result = await dedupedChecks.get(key)!;
     const effectiveProtocol = result.structured?.requestProtocol ?? result.plain?.requestProtocol ?? route.requestProtocol;
@@ -383,6 +393,7 @@ async function testModelRoutes(taskTypes: readonly ModelRouteTaskType[] = MODEL_
         maxTokens: route.maxTokens,
         requestProtocol: effectiveProtocol,
         structuredResponseFormat: effectiveFormat,
+        requestHeadersText: route.requestHeadersText,
       });
     }
     return {

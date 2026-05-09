@@ -48,8 +48,17 @@ export interface ResolvedModel {
   maxTokens?: number;
   requestProtocol: ModelRouteRequestProtocol;
   structuredResponseFormat: ModelRouteStructuredResponseFormat;
+  requestHeadersText?: string;
   routeKey: ModelRouteTaskType | "default";
   routeDegraded: boolean;
+}
+
+function normalizeRequestHeadersText(value?: string | null): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
 }
 
 const STRICT_ROUTE_TASK_TYPES = new Set<ModelRouteTaskType>([
@@ -218,6 +227,7 @@ function applyOverrides(
     maxTokens?: number;
     requestProtocol?: ModelRouteRequestProtocol;
     structuredResponseFormat?: ModelRouteStructuredResponseFormat;
+    requestHeadersText?: string | null;
   },
 ): ResolvedModel {
   const merged: ResolvedModel = {
@@ -230,6 +240,9 @@ function applyOverrides(
     ...(userOverride?.structuredResponseFormat != null && {
       structuredResponseFormat: userOverride.structuredResponseFormat,
     }),
+    ...(userOverride && "requestHeadersText" in userOverride
+      ? { requestHeadersText: normalizeRequestHeadersText(userOverride.requestHeadersText) }
+      : null),
   };
   const routePreferences = normalizeRoutePreferences({
     requestProtocol: merged.requestProtocol,
@@ -239,6 +252,7 @@ function applyOverrides(
     ...merged,
     ...routePreferences,
     maxTokens: normalizeMaxTokens(merged.provider, merged.maxTokens),
+    requestHeadersText: normalizeRequestHeadersText(merged.requestHeadersText),
     routeKey: merged.routeKey,
     routeDegraded: merged.routeDegraded,
   };
@@ -267,6 +281,7 @@ export async function resolveModel(
     maxTokens?: number;
     requestProtocol?: ModelRouteRequestProtocol;
     structuredResponseFormat?: ModelRouteStructuredResponseFormat;
+    requestHeadersText?: string | null;
   },
 ): Promise<ResolvedModel> {
   const normalizedTaskType = normalizeTaskType(taskType);
@@ -288,6 +303,9 @@ export async function resolveModel(
         temperature: row.temperature,
         maxTokens: normalizeMaxTokens(provider, row.maxTokens ?? undefined),
         ...routePreferences,
+        requestHeadersText: normalizeRequestHeadersText(
+          "requestHeadersText" in row ? (row as any).requestHeadersText : null,
+        ),
         routeKey: normalizedTaskType,
         routeDegraded: false,
       };
@@ -313,6 +331,7 @@ export async function listModelRouteConfigs(): Promise<Array<{
   maxTokens: number | null;
   requestProtocol: ModelRouteRequestProtocol;
   structuredResponseFormat: ModelRouteStructuredResponseFormat;
+  requestHeadersText: string | null;
 }>> {
   try {
     const rows = await prisma.modelRouteConfig.findMany({
@@ -331,6 +350,9 @@ export async function listModelRouteConfigs(): Promise<Array<{
         temperature: r.temperature,
         maxTokens: normalizeMaxTokens(provider, r.maxTokens ?? undefined) ?? null,
         ...routePreferences,
+        requestHeadersText: normalizeRequestHeadersText(
+          "requestHeadersText" in r ? (r as any).requestHeadersText : null,
+        ) ?? null,
       };
     });
   } catch {
@@ -347,6 +369,7 @@ export async function upsertModelRouteConfig(
     maxTokens?: number | null;
     requestProtocol?: string | null;
     structuredResponseFormat?: string | null;
+    requestHeadersText?: string | null;
   },
 ): Promise<void> {
   const normalizedTaskType = normalizeTaskType(taskType as TaskType);
@@ -359,6 +382,7 @@ export async function upsertModelRouteConfig(
     requestProtocol: data.requestProtocol,
     structuredResponseFormat: data.structuredResponseFormat,
   });
+  const requestHeadersText = normalizeRequestHeadersText(data.requestHeadersText) ?? null;
   await prisma.modelRouteConfig.upsert({
     where: { taskType: normalizedTaskType },
     create: {
@@ -369,6 +393,7 @@ export async function upsertModelRouteConfig(
       maxTokens: normalizedMaxTokens,
       requestProtocol,
       structuredResponseFormat,
+      requestHeadersText,
     },
     update: {
       provider,
@@ -377,6 +402,7 @@ export async function upsertModelRouteConfig(
       maxTokens: normalizedMaxTokens,
       requestProtocol,
       structuredResponseFormat,
+      requestHeadersText,
     },
   });
 }
