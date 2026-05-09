@@ -9,7 +9,7 @@ export async function getDirectorExecutionLogs(
   if (options?.limit != null) params.set("limit", String(options.limit));
   if (options?.offset != null) params.set("offset", String(options.offset));
   const qs = params.toString();
-  const url = `/api/tasks/execution-logs/${taskId}${qs ? `?${qs}` : ""}`;
+  const url = `/tasks/execution-logs/${taskId}${qs ? `?${qs}` : ""}`;
   const response = await apiClient.get(url);
   return response.data.data;
 }

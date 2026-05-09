@@ -134,6 +134,7 @@ export interface ModelRouteConfig {
   maxTokens?: number | null;
   requestProtocol?: ModelRouteRequestProtocol;
   structuredResponseFormat?: ModelRouteStructuredResponseFormat;
+  requestHeadersText?: string | null;
 }
 
 export interface QualityScore {

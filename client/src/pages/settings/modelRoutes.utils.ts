@@ -16,6 +16,7 @@ export interface RouteDraft {
   maxTokens: string;
   requestProtocol: ModelRouteRequestProtocol;
   structuredResponseFormat: ModelRouteStructuredResponseFormat;
+  requestHeadersText: string;
 }
 
 export interface StructuredFallbackDraft extends RouteDraft {
@@ -33,6 +34,7 @@ export interface RouteSavePayload {
   maxTokens?: number | null;
   requestProtocol: ModelRouteRequestProtocol;
   structuredResponseFormat: ModelRouteStructuredResponseFormat;
+  requestHeadersText?: string | null;
 }
 
 export function getProviderConfig(providerConfigs: APIKeyStatus[], provider: string) {
@@ -85,6 +87,7 @@ export function buildRouteSavePayload(taskType: ModelRouteTaskType, draft: Route
     maxTokens: parseMaxTokens(draft.maxTokens),
     requestProtocol: draft.requestProtocol,
     structuredResponseFormat: draft.structuredResponseFormat,
+    requestHeadersText: draft.requestHeadersText?.trim() ? draft.requestHeadersText : null,
   };
 }
 
@@ -97,7 +100,8 @@ export function isSameRouteDraft(draft: RouteDraft, route: SavedModelRoute | und
     && parseTemperature(draft.temperature, 0.7) === route.temperature
     && parseMaxTokens(draft.maxTokens) === route.maxTokens
     && draft.requestProtocol === route.requestProtocol
-    && draft.structuredResponseFormat === route.structuredResponseFormat;
+    && draft.structuredResponseFormat === route.structuredResponseFormat
+    && (draft.requestHeadersText ?? "").trim() === (route.requestHeadersText ?? "").trim();
 }
 
 export function formatStructuredStatus(status: ModelRouteConnectivityStatus["structured"]): string {

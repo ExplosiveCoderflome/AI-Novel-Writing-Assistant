@@ -25,6 +25,7 @@ interface ModelRouteFieldsProps {
   modelEmptyText: string;
   manualModelPlaceholder: string;
   showProtocolFields?: boolean;
+  showRequestHeadersField?: boolean;
 }
 
 export default function ModelRouteFields({
@@ -37,11 +38,19 @@ export default function ModelRouteFields({
   modelEmptyText,
   manualModelPlaceholder,
   showProtocolFields = true,
+  showRequestHeadersField = showProtocolFields,
 }: ModelRouteFieldsProps) {
   const modelOptions = getModelOptions(providerConfigs, draft.provider, draft.model);
 
+  const columnClass = showProtocolFields
+    ? "md:grid-cols-7"
+    : showRequestHeadersField
+      ? "md:grid-cols-4"
+      : "md:grid-cols-4";
+  const requestHeadersColumnClass = showProtocolFields ? "md:col-span-7" : "md:col-span-4";
+
   return (
-    <div className={`grid gap-3 ${showProtocolFields ? "md:grid-cols-6" : "md:grid-cols-4"}`}>
+    <div className={`grid gap-3 ${columnClass}`}>
       <div className="space-y-1">
         <div className="text-xs text-muted-foreground">服务商</div>
         <Select
@@ -149,6 +158,18 @@ export default function ModelRouteFields({
               ))}
             </SelectContent>
           </Select>
+        </div>
+      ) : null}
+
+      {showRequestHeadersField ? (
+        <div className={`space-y-1 ${requestHeadersColumnClass}`}>
+          <div className="text-xs text-muted-foreground">请求头信息</div>
+          <textarea
+            value={draft.requestHeadersText}
+            placeholder="每行填写一个请求头，例如 X-Client: claude-code；也支持 User-Agent+Mozilla/5.0"
+            onChange={(event) => onPatch({ requestHeadersText: event.target.value })}
+            className="min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          />
         </div>
       ) : null}
     </div>

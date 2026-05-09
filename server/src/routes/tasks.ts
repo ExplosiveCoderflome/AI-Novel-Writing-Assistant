@@ -62,6 +62,15 @@ const autoDirectorFollowUpActionBodySchema = z.object({
   idempotencyKey: z.string().trim().min(1),
 });
 
+const executionLogParamsSchema = z.object({
+  taskId: z.string().trim().min(1),
+});
+
+const executionLogQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
+
 router.use(authMiddleware);
 
 router.get("/overview", async (_req, res, next) => {
@@ -185,6 +194,38 @@ router.get("/", validate({ query: listQuerySchema }), async (req, res, next) => 
   }
 });
 
+router.get("/execution-logs/:taskId", validate({ params: executionLogParamsSchema, query: executionLogQuerySchema }), async (req, res, next) => {
+  try {
+    const { taskId } = req.params as z.infer<typeof executionLogParamsSchema>;
+    const query = executionLogQuerySchema.parse(req.query);
+    const data = await directorExecutionLogger.getByTaskId(taskId, {
+      limit: query.limit,
+      offset: query.offset,
+    });
+    const response: DirectorExecutionLogListResponse = {
+      logs: data.logs.map((log) => ({
+        id: log.id,
+        taskId: log.taskId,
+        novelId: log.novelId,
+        stage: log.stage,
+        level: log.level as "info" | "warn" | "error" | "success",
+        message: log.message,
+        detail: log.detail,
+        durationMs: log.durationMs,
+        createdAt: log.createdAt.toISOString(),
+      })),
+      total: data.total,
+    };
+    res.status(200).json({
+      success: true,
+      data: response,
+      message: "Execution logs loaded.",
+    } satisfies ApiResponse<DirectorExecutionLogListResponse>);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get("/:kind/:id", validate({ params: taskParamsSchema }), async (req, res, next) => {
   try {
     const { kind, id } = req.params as z.infer<typeof taskParamsSchema>;
@@ -247,49 +288,6 @@ router.post("/:kind/:id/archive", validate({ params: taskParamsSchema }), async 
       data,
       message: "Task archived.",
     } satisfies ApiResponse<typeof data>);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// ── 导演执行日志 ──────────────────────────────────────
-
-const executionLogParamsSchema = z.object({
-  taskId: z.string().trim().min(1),
-});
-
-const executionLogQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(200).optional(),
-  offset: z.coerce.number().int().min(0).optional(),
-});
-
-router.get("/execution-logs/:taskId", validate({ params: executionLogParamsSchema, query: executionLogQuerySchema }), async (req, res, next) => {
-  try {
-    const { taskId } = req.params as z.infer<typeof executionLogParamsSchema>;
-    const query = executionLogQuerySchema.parse(req.query);
-    const data = await directorExecutionLogger.getByTaskId(taskId, {
-      limit: query.limit,
-      offset: query.offset,
-    });
-    const response: DirectorExecutionLogListResponse = {
-      logs: data.logs.map((log) => ({
-        id: log.id,
-        taskId: log.taskId,
-        novelId: log.novelId,
-        stage: log.stage,
-        level: log.level as "info" | "warn" | "error" | "success",
-        message: log.message,
-        detail: log.detail,
-        durationMs: log.durationMs,
-        createdAt: log.createdAt.toISOString(),
-      })),
-      total: data.total,
-    };
-    res.status(200).json({
-      success: true,
-      data: response,
-      message: "Execution logs loaded.",
-    } satisfies ApiResponse<DirectorExecutionLogListResponse>);
   } catch (error) {
     next(error);
   }

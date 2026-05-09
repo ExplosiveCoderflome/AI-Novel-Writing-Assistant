@@ -64,7 +64,7 @@ export default function ModelRoutesPage() {
   const modelRouteConnectivityQuery = useQuery({
     queryKey: queryKeys.settings.modelRouteConnectivity,
     queryFn: testModelRouteConnectivity,
-    enabled: modelRoutesQuery.isSuccess,
+    enabled: false,
     refetchOnWindowFocus: false,
   });
 
@@ -77,11 +77,8 @@ export default function ModelRoutesPage() {
   const saveModelRouteMutation = useMutation({
     mutationFn: (payload: RouteSavePayload) => saveModelRoute(payload),
     onSuccess: async () => {
-      setActionResult("保存完成，这个任务会使用新路由。");
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
-      ]);
+      setActionResult("保存完成，这个任务会使用新路由。需要检测时请点击重新检测。");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes });
     },
   });
 
@@ -91,22 +88,16 @@ export default function ModelRoutesPage() {
       return payloads.length;
     },
     onSuccess: async (count) => {
-      setActionResult(`保存完成，${count} 个任务会使用新路由。`);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
-      ]);
+      setActionResult(`保存完成，${count} 个任务会使用新路由。需要检测时请点击重新检测。`);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes });
     },
   });
 
   const saveStructuredFallbackMutation = useMutation({
     mutationFn: (payload: Partial<StructuredFallbackSettings>) => saveStructuredFallbackConfig(payload),
     onSuccess: async () => {
-      setActionResult("结构化备用模型保存完成。");
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.settings.structuredFallback }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
-      ]);
+      setActionResult("结构化备用模型保存完成。需要检测时请点击重新检测。");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.settings.structuredFallback });
     },
   });
 
@@ -146,6 +137,12 @@ export default function ModelRoutesPage() {
     [routeDrafts, routeMap, taskTypes],
   );
   const dirtyTaskTypeSet = useMemo(() => new Set(dirtyTaskTypes), [dirtyTaskTypes]);
+  const bulkDraftDirty = useMemo(() => {
+    if (!bulkDraft || taskTypes.length === 0) {
+      return false;
+    }
+    return taskTypes.some((taskType) => !isSameRouteDraft(bulkDraft, routeMap.get(taskType)));
+  }, [bulkDraft, routeMap, taskTypes]);
   const failedTaskTypes = useMemo(
     () => taskTypes.filter((taskType) => resolveConnectivityState(connectivityMap.get(taskType), false) === "failed"),
     [connectivityMap, taskTypes],
@@ -172,6 +169,7 @@ export default function ModelRoutesPage() {
       maxTokens: route?.maxTokens != null ? String(route.maxTokens) : "",
       requestProtocol: route?.requestProtocol ?? "auto",
       structuredResponseFormat: route?.structuredResponseFormat ?? "auto",
+      requestHeadersText: route?.requestHeadersText ?? "",
     };
   }
 
@@ -186,6 +184,7 @@ export default function ModelRoutesPage() {
       maxTokens: "",
       requestProtocol: "auto",
       structuredResponseFormat: "auto",
+      requestHeadersText: "",
     };
   }
 
@@ -206,6 +205,13 @@ export default function ModelRoutesPage() {
       ...current,
       ...patch,
     });
+  }
+
+  function buildBulkSavePayloads(): RouteSavePayload[] {
+    const draft = getBulkDraft();
+    return taskTypes
+      .filter((taskType) => !isSameRouteDraft(draft, routeMap.get(taskType)))
+      .map((taskType) => buildRouteSavePayload(taskType, draft));
   }
 
   function applyBulkDraftToRoutes(targetTaskTypes: ModelRouteTaskType[]) {
@@ -236,6 +242,7 @@ export default function ModelRoutesPage() {
       maxTokens: structuredFallback?.maxTokens != null ? String(structuredFallback.maxTokens) : "",
       requestProtocol: "auto",
       structuredResponseFormat: "auto",
+      requestHeadersText: "",
     };
   }
 
@@ -265,7 +272,7 @@ export default function ModelRoutesPage() {
             <div className="flex flex-wrap items-center gap-3 text-xs">
               <span className="inline-flex items-center gap-2">
                 <RouteStatusDot
-                  state={modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching
+                  state={modelRouteConnectivityQuery.isFetching
                     ? "checking"
                     : connectivitySummary.failed > 0
                       ? "failed"
@@ -273,7 +280,7 @@ export default function ModelRoutesPage() {
                         ? "healthy"
                         : "idle"}
                 />
-                {modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching
+                {modelRouteConnectivityQuery.isFetching
                   ? "正在检测生效路由..."
                   : connectivitySummary.total > 0
                     ? `检测结果：${connectivitySummary.total} 条路由，健康 ${connectivitySummary.healthy}，异常 ${connectivitySummary.failed}`
@@ -326,9 +333,19 @@ export default function ModelRoutesPage() {
             showProtocolFields={false}
           />
 
+          <div className="space-y-1">
+            <div className="text-xs text-muted-foreground">请求头信息</div>
+            <textarea
+              value={routeBulkDraft.requestHeadersText}
+              placeholder="每行填写一个请求头，例如 X-Client: claude-code；也支持 User-Agent+Mozilla/5.0"
+              onChange={(event) => patchBulkDraft({ requestHeadersText: event.target.value })}
+              className="min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </div>
+
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="text-xs text-muted-foreground">
-              待保存任务 {dirtyTaskTypes.length} 个；检测异常任务 {failedTaskTypes.length} 个；空白路由 {emptyRouteTaskTypes.length} 个。
+              待保存任务 {bulkDraftDirty ? buildBulkSavePayloads().length : dirtyTaskTypes.length} 个；检测异常任务 {failedTaskTypes.length} 个；空白路由 {emptyRouteTaskTypes.length} 个。
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button
@@ -365,12 +382,16 @@ export default function ModelRoutesPage() {
                 type="button"
                 size="sm"
                 onClick={() => saveAllModelRoutesMutation.mutate(
-                  dirtyTaskTypes.map((taskType) => buildRouteSavePayload(taskType, getRouteDraft(taskType))),
+                  bulkDraftDirty
+                    ? buildBulkSavePayloads()
+                    : dirtyTaskTypes.map((taskType) => buildRouteSavePayload(taskType, getRouteDraft(taskType))),
                 )}
-                disabled={isSavingRoutes || dirtyTaskTypes.length === 0}
+                disabled={isSavingRoutes || (!bulkDraftDirty && dirtyTaskTypes.length === 0)}
               >
                 <Save className="h-4 w-4" />
-                {saveAllModelRoutesMutation.isPending ? "保存中..." : `保存全部修改${dirtyTaskTypes.length > 0 ? ` (${dirtyTaskTypes.length})` : ""}`}
+                {saveAllModelRoutesMutation.isPending
+                  ? "保存中..."
+                  : `保存全部修改${bulkDraftDirty ? ` (${buildBulkSavePayloads().length})` : dirtyTaskTypes.length > 0 ? ` (${dirtyTaskTypes.length})` : ""}`}
               </Button>
             </div>
           </div>
@@ -407,6 +428,7 @@ export default function ModelRoutesPage() {
             maxTokensPlaceholder="留空则使用系统默认"
             modelEmptyText="这个服务商没有可选模型"
             manualModelPlaceholder="也可以手动输入模型名"
+            showRequestHeadersField={false}
           />
 
           <div className="flex items-center justify-end gap-2">
@@ -434,7 +456,7 @@ export default function ModelRoutesPage() {
         const connectivity = connectivityMap.get(taskType);
         const connectivityState = resolveConnectivityState(
           connectivity,
-          modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching,
+          modelRouteConnectivityQuery.isFetching,
         );
         const isDirty = dirtyTaskTypeSet.has(taskType);
         const hasUnsavedRouteDiff = connectivity != null

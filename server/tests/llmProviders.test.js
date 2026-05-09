@@ -265,11 +265,16 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
       model: "claude-sonnet-4-5",
       baseURL: "https://aiproxy.example.com/v1",
       requestProtocol: "anthropic",
+      requestHeadersText: "User-Agent+Claude-Code/1.0\nX-Gateway: elysiver",
       executionMode: "structured",
       structuredStrategy: "prompt_json",
     });
     assert.equal(anthropicProtocol.requestProtocol, "anthropic");
     assert.equal(anthropicProtocol.structuredProfile?.family, "anthropic");
+    assert.deepEqual(anthropicProtocol.requestHeaders, {
+      "User-Agent": "Claude-Code/1.0",
+      "X-Gateway": "elysiver",
+    });
   } finally {
     setProviderSecretCache("custom_modelscope", null);
     setProviderSecretCache("qwen", null);

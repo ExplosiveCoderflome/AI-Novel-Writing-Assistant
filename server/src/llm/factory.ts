@@ -17,6 +17,7 @@ import {
 } from "./structuredOutput";
 import { attachLLMUsageTracking } from "./usageTracking";
 import { resolveModel, toStructuredOutputStrategy, type TaskType } from "./modelRouter";
+import { parseRequestHeadersText } from "./requestHeaders";
 import {
   getProviderEnvApiKey,
   getProviderEnvModel,
@@ -38,6 +39,7 @@ interface LLMOptions {
   structuredStrategy?: StructuredOutputStrategy;
   requestProtocol?: ModelRouteRequestProtocol;
   modelKwargs?: Record<string, unknown>;
+  requestHeadersText?: string | null;
   fallbackProvider?: LLMProvider;
   taskType?: TaskType;
   promptMeta?: PromptInvocationMeta;
@@ -65,6 +67,7 @@ export interface ResolvedLLMClientOptions {
   concurrencyLimit: number;
   requestIntervalMs: number;
   reasoningEnabled: boolean;
+  requestHeaders: Record<string, string>;
   modelKwargs?: Record<string, unknown>;
   includeRawResponse: boolean;
   requestProtocol: ModelRouteRequestProtocol;
@@ -199,6 +202,7 @@ export async function resolveLLMClientOptions(
   let resolvedModel = normalizeOptionalText(options.model);
   let resolvedTemperature: number | undefined = options.temperature;
   let resolvedMaxTokens: number | undefined = options.maxTokens;
+  let resolvedRequestHeadersText = normalizeOptionalText(options.requestHeadersText);
 
   if (options.taskType) {
     const hasExplicitProvider = provider != null;
@@ -209,6 +213,7 @@ export async function resolveLLMClientOptions(
       ...(options.model != null ? { model: options.model } : {}),
       ...(options.temperature != null ? { temperature: options.temperature } : {}),
       ...(options.maxTokens != null ? { maxTokens: options.maxTokens } : {}),
+      ...("requestHeadersText" in options ? { requestHeadersText: options.requestHeadersText } : {}),
     });
     if (shouldUseRouteProvider) {
       resolvedProvider = route.provider;
@@ -221,6 +226,9 @@ export async function resolveLLMClientOptions(
     }
     if (options.maxTokens == null) {
       resolvedMaxTokens = route.maxTokens;
+    }
+    if (resolvedRequestHeadersText == null) {
+      resolvedRequestHeadersText = route.requestHeadersText;
     }
     if (options.requestProtocol == null) {
       options.requestProtocol = route.requestProtocol;
@@ -310,6 +318,7 @@ export async function resolveLLMClientOptions(
     ...(reasoningBehavior.modelKwargs ?? {}),
     ...baseModelKwargs,
   };
+  const requestHeaders = parseRequestHeadersText(resolvedRequestHeadersText);
 
   return {
     provider: resolvedProvider,
@@ -323,6 +332,7 @@ export async function resolveLLMClientOptions(
     concurrencyLimit,
     requestIntervalMs,
     reasoningEnabled: reasoningBehavior.reasoningEnabled,
+    requestHeaders,
     modelKwargs: Object.keys(modelKwargs).length > 0 ? modelKwargs : undefined,
     includeRawResponse: reasoningBehavior.includeRawResponse,
     requestProtocol,
@@ -344,6 +354,7 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
       temperature: resolved.temperature,
       maxTokens: resolved.maxTokens,
       timeoutMs: resolved.timeoutMs,
+      requestHeaders: resolved.requestHeaders,
     }) as ChatOpenAI
     : new ChatOpenAI({
       apiKey: resolved.apiKey ?? "ollama",
@@ -356,6 +367,7 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
       __includeRawResponse: resolved.includeRawResponse,
       configuration: {
         baseURL: resolved.baseURL,
+        defaultHeaders: resolved.requestHeaders,
       },
     });
   const meta = {

@@ -60,6 +60,7 @@ export interface StructuredInvokeInput<T> {
   timeoutMs?: number;
   signal?: AbortSignal;
   taskType?: TaskType;
+  requestHeadersText?: string | null;
   requestProtocol?: ModelRouteRequestProtocol;
   structuredStrategy?: StructuredOutputStrategy;
   label: string;
@@ -77,6 +78,7 @@ interface StructuredAttemptTarget {
   maxTokens?: number;
   profile: StructuredOutputProfile;
   requestProtocol: ResolvedLLMClientOptions["requestProtocol"];
+  requestHeadersText?: string | null;
   preferredStrategy: StructuredOutputStrategy | null;
 }
 
@@ -142,6 +144,7 @@ async function resolveAttemptTarget(input: {
   temperature?: number;
   maxTokens?: number;
   taskType?: TaskType;
+  requestHeadersText?: string | null;
   requestProtocol?: ModelRouteRequestProtocol;
   structuredStrategy?: StructuredOutputStrategy;
 }): Promise<StructuredAttemptTarget> {
@@ -160,6 +163,7 @@ async function resolveAttemptTarget(input: {
     temperature: input.temperature,
     maxTokens: input.maxTokens,
     taskType: input.taskType ?? "planner",
+    requestHeadersText: input.requestHeadersText,
     requestProtocol: input.requestProtocol,
     structuredStrategy: input.structuredStrategy,
     executionMode: "plain",
@@ -177,6 +181,7 @@ async function resolveAttemptTarget(input: {
     temperature: resolved.temperature,
     maxTokens: resolved.maxTokens,
     requestProtocol: resolved.requestProtocol,
+    requestHeadersText: input.requestHeadersText ?? route?.requestHeadersText,
     preferredStrategy,
     profile: resolveStructuredOutputProfile({
       provider: resolved.provider,
@@ -206,6 +211,7 @@ async function invokeStructuredAttempt<T>(input: {
     maxTokens: input.target.maxTokens,
     timeoutMs: input.baseInput.timeoutMs,
     taskType: input.baseInput.taskType ?? "planner",
+    requestHeadersText: input.target.requestHeadersText,
     promptMeta: input.baseInput.promptMeta,
     executionMode: "structured",
     structuredStrategy: input.strategy,
@@ -459,6 +465,7 @@ export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInpu
     temperature: input.temperature ?? 0.3,
     maxTokens: input.maxTokens,
     taskType: input.taskType ?? "planner",
+    requestHeadersText: input.requestHeadersText,
     requestProtocol: input.requestProtocol,
     structuredStrategy: input.structuredStrategy,
   });

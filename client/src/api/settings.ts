@@ -121,6 +121,7 @@ export interface ModelRoutesResponse {
     maxTokens: number | null;
     requestProtocol: ModelRouteRequestProtocol;
     structuredResponseFormat: ModelRouteStructuredResponseFormat;
+    requestHeadersText: string | null;
   }>;
 }
 
