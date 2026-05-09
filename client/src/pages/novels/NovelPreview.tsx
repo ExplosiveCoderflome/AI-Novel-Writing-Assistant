@@ -1,8 +1,9 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Chapter, ChapterStatus } from "@ai-novel/shared/types/novel";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BookOpen, Edit3, FileText, ListTree } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, Copy, Edit3, FileText, ListTree } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 import { getNovelChapters, getNovelDetail } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
@@ -50,9 +51,37 @@ function normalizeChapterText(content: string | null | undefined): string {
   return content?.trim() ?? "";
 }
 
+async function writeTextToClipboard(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return;
+  } catch {
+    // Some desktop webviews and local browser contexts deny Clipboard API writes.
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.setAttribute("readonly", "true");
+  textArea.style.position = "fixed";
+  textArea.style.top = "0";
+  textArea.style.left = "-9999px";
+  document.body.appendChild(textArea);
+  textArea.select();
+
+  try {
+    const copied = document.execCommand("copy");
+    if (!copied) {
+      throw new Error("copy command rejected");
+    }
+  } finally {
+    document.body.removeChild(textArea);
+  }
+}
+
 export default function NovelPreview() {
   const { id = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [copiedChapterId, setCopiedChapterId] = useState<string | null>(null);
   const selectedChapterId = searchParams.get("chapterId") ?? "";
 
   const novelQuery = useQuery({
@@ -106,6 +135,24 @@ export default function NovelPreview() {
       next.set("chapterId", chapter.id);
       return next;
     });
+  };
+
+  const copyActiveChapter = async () => {
+    if (!activeChapter || !activeContent) {
+      toast.error("当前章节还没有可复制的正文。");
+      return;
+    }
+
+    try {
+      await writeTextToClipboard(activeContent);
+      setCopiedChapterId(activeChapter.id);
+      toast.success("正文已复制到剪贴板。");
+      window.setTimeout(() => {
+        setCopiedChapterId((current) => (current === activeChapter.id ? null : current));
+      }, 1600);
+    } catch {
+      toast.error("复制失败，请手动选择正文后复制。");
+    }
   };
 
   if (!id) {
@@ -290,12 +337,28 @@ export default function NovelPreview() {
                   ) : null}
                 </div>
                 {activeChapter ? (
-                  <Button asChild variant="outline" size="sm">
-                    <Link to={`/novels/${id}/chapters/${activeChapter.id}`}>
-                      <Edit3 className="h-4 w-4" aria-hidden="true" />
-                      编辑本章
-                    </Link>
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void copyActiveChapter()}
+                      disabled={!activeContent}
+                    >
+                      {copiedChapterId === activeChapter.id ? (
+                        <Check className="h-4 w-4" aria-hidden="true" />
+                      ) : (
+                        <Copy className="h-4 w-4" aria-hidden="true" />
+                      )}
+                      {copiedChapterId === activeChapter.id ? "已复制" : "复制正文"}
+                    </Button>
+                    <Button asChild variant="outline" size="sm">
+                      <Link to={`/novels/${id}/chapters/${activeChapter.id}`}>
+                        <Edit3 className="h-4 w-4" aria-hidden="true" />
+                        编辑本章
+                      </Link>
+                    </Button>
+                  </div>
                 ) : null}
               </div>
             </CardHeader>

@@ -7,7 +7,7 @@ import type {
 } from "@ai-novel/shared/types/directorRuntime";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Gauge } from "lucide-react";
+import { BookOpen, Gauge, RotateCcw } from "lucide-react";
 import { getDirectorBookAutomationProjection } from "@/api/novelDirector";
 import { continueNovelWorkflow } from "@/api/novelWorkflow";
 import { deleteNovel, downloadNovelExport, getNovelList } from "@/api/novel";
@@ -17,11 +17,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  AppDialogContent,
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
@@ -41,6 +38,7 @@ import {
   getDirectorCockpitContinuationMode,
   isDirectorCockpitContinuationAction,
 } from "@/lib/directorCockpitActions";
+import { useTaskRecovery } from "@/components/layout/TaskRecoveryContext";
 import NovelWorkflowRunningIndicator from "./components/NovelWorkflowRunningIndicator";
 
 type StatusFilter = "all" | "draft" | "published";
@@ -88,11 +86,21 @@ export default function NovelList() {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [writingMode, setWritingMode] = useState<WritingModeFilter>("all");
   const [cockpitNovelId, setCockpitNovelId] = useState<string | null>(null);
+  const { candidateCount: recoveryCandidateCount, openDialog: openRecoveryDialog } = useTaskRecovery();
 
   const novelListQuery = useQuery({
     queryKey: queryKeys.novels.list(1, 100),
     queryFn: () => getNovelList({ page: 1, limit: 100 }),
     staleTime: 30_000,
+    refetchInterval: (query) => {
+      const items = query.state.data?.data?.items ?? [];
+      return items.some((novel) => {
+        const task = novel.latestAutoDirectorTask;
+        return task?.status === "queued" || task?.status === "running" || task?.status === "waiting_approval";
+      })
+        ? 4000
+        : false;
+    },
   });
 
   const cockpitProjectionQuery = useQuery({
@@ -268,6 +276,13 @@ export default function NovelList() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {recoveryCandidateCount > 0 ? (
+            <Button variant="outline" onClick={openRecoveryDialog}>
+              <RotateCcw className="h-4 w-4" aria-hidden="true" />
+              待恢复任务
+              <Badge variant="secondary">{recoveryCandidateCount}</Badge>
+            </Button>
+          ) : null}
           <Button asChild>
             <Link to={DIRECTOR_CREATE_LINK}>AI 自动导演开书</Link>
           </Button>
@@ -332,6 +347,7 @@ export default function NovelList() {
         <div className="grid gap-3 md:grid-cols-2">
           {novels.map((novel) => {
             const workflowTask = novel.latestAutoDirectorTask ?? null;
+            const workflowCurrentAction = workflowTask?.currentItemLabel?.trim() || "";
             const workflowBadge = getWorkflowBadge(workflowTask);
             const workflowDescription = getWorkflowDescription(workflowTask);
             const isWorkflowRunning = isWorkflowRunningInBackground(workflowTask);
@@ -408,11 +424,11 @@ export default function NovelList() {
                         <NovelWorkflowRunningIndicator
                           className="mt-3"
                           progress={workflowTask.progress}
-                          label={workflowTask.currentItemLabel?.trim() || "AI 正在后台持续推进"}
+                          label={workflowCurrentAction || "AI 正在后台持续推进"}
                         />
                       ) : null}
                       <div className="mt-2 text-xs text-muted-foreground">
-                        当前阶段：{workflowTask.currentStage ?? "自动导演"}{workflowTask.currentItemLabel ? ` · ${workflowTask.currentItemLabel}` : ""}
+                        当前阶段：{workflowTask.currentStage ?? "自动导演"}{workflowCurrentAction ? ` · ${workflowCurrentAction}` : ""}
                       </div>
                       {workflowTask.lastHealthyStage ? (
                         <div className="mt-1 text-xs text-muted-foreground">
@@ -560,16 +576,15 @@ export default function NovelList() {
           }
         }}
       >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>AI 驾驶舱</DialogTitle>
-            <DialogDescription>
-              {selectedCockpitNovel?.title
-                ? `查看《${selectedCockpitNovel.title}》的 AI 推进状态和下一步动作。`
-                : "查看这本书的 AI 推进状态和下一步动作。"}
-            </DialogDescription>
-          </DialogHeader>
-
+        <AppDialogContent
+          className="max-w-2xl"
+          title="AI 驾驶舱"
+          description={
+            selectedCockpitNovel?.title
+              ? `查看《${selectedCockpitNovel.title}》的 AI 推进状态和下一步动作。`
+              : "查看这本书的 AI 推进状态和下一步动作。"
+          }
+        >
           {cockpitProjectionQuery.isPending ? (
             <div className="rounded-lg border p-3 text-sm text-muted-foreground">
               读取这本书的 AI 状态...
@@ -601,7 +616,7 @@ export default function NovelList() {
           ) : (
             <AICockpit fallbackSummary="这本书没有需要处理的 AI 自动推进任务。" />
           )}
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
     </div>
   );

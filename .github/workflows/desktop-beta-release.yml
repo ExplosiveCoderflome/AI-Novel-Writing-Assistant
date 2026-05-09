@@ -51,8 +51,14 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Build and stage desktop app
+        run: pnpm stage:desktop
+
       - name: Verify packaged desktop layout
-        run: pnpm verify:desktop-package
+        run: pnpm verify:desktop-package:reuse-stage
 
       - name: Publish beta installer to GitHub Releases
-        run: pnpm publish:desktop:beta
+        run: pnpm publish:desktop:beta:reuse-stage
+
+      - name: Update GitHub release notes
+        run: node scripts/update-desktop-release-notes.cjs

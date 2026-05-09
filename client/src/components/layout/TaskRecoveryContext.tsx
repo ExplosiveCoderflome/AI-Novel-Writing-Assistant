@@ -1,0 +1,191 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { RecoverableTaskSummary } from "@ai-novel/shared/types/task";
+import {
+  listRecoveryCandidates,
+  resumeAllRecoveryCandidates,
+  resumeRecoveryCandidate,
+} from "@/api/tasks";
+import { queryKeys } from "@/api/queryKeys";
+import { toast } from "@/components/ui/toast";
+
+const DISMISSED_RECOVERY_SIGNATURE_STORAGE_KEY = "ai-novel.task-recovery.dismissed-signature";
+
+type RecoveryTaskInput = {
+  kind: RecoverableTaskSummary["kind"];
+  id: string;
+};
+
+type TaskRecoveryContextValue = {
+  items: RecoverableTaskSummary[];
+  candidateCount: number;
+  isOpen: boolean;
+  isLoading: boolean;
+  isResumeSinglePending: boolean;
+  isResumeAllPending: boolean;
+  busyTaskId: string;
+  openDialog: () => void;
+  closeDialog: () => void;
+  resumeSingle: (input: RecoveryTaskInput) => void;
+  resumeAll: () => void;
+};
+
+const TaskRecoveryContext = createContext<TaskRecoveryContextValue | null>(null);
+
+function recoveryItemKey(item: { kind: string; id: string }): string {
+  return `${item.kind}:${item.id}`;
+}
+
+function buildRecoverySignature(items: Array<{ kind: string; id: string }>): string {
+  return items.map(recoveryItemKey).sort().join("|");
+}
+
+function readDismissedRecoverySignature(): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
+  return window.sessionStorage.getItem(DISMISSED_RECOVERY_SIGNATURE_STORAGE_KEY) ?? "";
+}
+
+function writeDismissedRecoverySignature(signature: string): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  if (signature) {
+    window.sessionStorage.setItem(DISMISSED_RECOVERY_SIGNATURE_STORAGE_KEY, signature);
+    return;
+  }
+  window.sessionStorage.removeItem(DISMISSED_RECOVERY_SIGNATURE_STORAGE_KEY);
+}
+
+export function TaskRecoveryProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
+  const [manualOpen, setManualOpen] = useState(false);
+  const [dismissedSignature, setDismissedSignature] = useState(() => readDismissedRecoverySignature());
+  const [acceptedRecoveryKeys, setAcceptedRecoveryKeys] = useState<Set<string>>(() => new Set());
+
+  const recoveryQuery = useQuery({
+    queryKey: queryKeys.tasks.recoveryCandidates,
+    queryFn: listRecoveryCandidates,
+    staleTime: 10_000,
+  });
+
+  const rawItems = recoveryQuery.data?.data?.items ?? [];
+  const items = useMemo(
+    () => rawItems.filter((item) => !acceptedRecoveryKeys.has(recoveryItemKey(item))),
+    [acceptedRecoveryKeys, rawItems],
+  );
+  const signature = useMemo(() => buildRecoverySignature(items), [items]);
+
+  useEffect(() => {
+    if (recoveryQuery.isSuccess && rawItems.length === 0) {
+      setManualOpen(false);
+      setAcceptedRecoveryKeys(new Set());
+      setDismissedSignature("");
+      writeDismissedRecoverySignature("");
+    }
+  }, [rawItems.length, recoveryQuery.isSuccess]);
+
+  const refreshTaskState = useCallback(() => {
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["tasks"] }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.novels.all }),
+    ]);
+  }, [queryClient]);
+
+  const resumeSingleMutation = useMutation({
+    mutationFn: (input: RecoveryTaskInput) => resumeRecoveryCandidate(input.kind, input.id),
+    onSuccess: (_response, variables) => {
+      setAcceptedRecoveryKeys((previous) => {
+        const next = new Set(previous);
+        next.add(recoveryItemKey(variables));
+        return next;
+      });
+      toast.success("已开始恢复任务。");
+      refreshTaskState();
+      void recoveryQuery.refetch();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "恢复任务失败。");
+    },
+  });
+
+  const resumeAllMutation = useMutation({
+    mutationFn: resumeAllRecoveryCandidates,
+    onSuccess: (response) => {
+      const resumedCount = response.data?.resumed.length ?? 0;
+      setAcceptedRecoveryKeys((previous) => {
+        const next = new Set(previous);
+        for (const item of response.data?.resumed ?? []) {
+          next.add(recoveryItemKey(item));
+        }
+        return next;
+      });
+      toast.success(resumedCount > 0 ? `已开始恢复 ${resumedCount} 个任务。` : "当前没有可恢复任务。");
+      refreshTaskState();
+      void recoveryQuery.refetch();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "批量恢复任务失败。");
+    },
+  });
+
+  const busyTaskId = useMemo(() => {
+    if (!resumeSingleMutation.isPending) {
+      return "";
+    }
+    return resumeSingleMutation.variables?.id ?? "";
+  }, [resumeSingleMutation.isPending, resumeSingleMutation.variables]);
+
+  const isOpen = items.length > 0 && (manualOpen || signature !== dismissedSignature);
+
+  const closeDialog = useCallback(() => {
+    setManualOpen(false);
+    setDismissedSignature(signature);
+    writeDismissedRecoverySignature(signature);
+  }, [signature]);
+
+  const openDialog = useCallback(() => {
+    if (items.length === 0) {
+      return;
+    }
+    setManualOpen(true);
+  }, [items.length]);
+
+  const value = useMemo<TaskRecoveryContextValue>(() => ({
+    items,
+    candidateCount: items.length,
+    isOpen,
+    isLoading: recoveryQuery.isLoading,
+    isResumeSinglePending: resumeSingleMutation.isPending,
+    isResumeAllPending: resumeAllMutation.isPending,
+    busyTaskId,
+    openDialog,
+    closeDialog,
+    resumeSingle: (input) => resumeSingleMutation.mutate(input),
+    resumeAll: () => resumeAllMutation.mutate(),
+  }), [
+    busyTaskId,
+    closeDialog,
+    isOpen,
+    items,
+    openDialog,
+    recoveryQuery.isLoading,
+    resumeAllMutation,
+    resumeSingleMutation,
+  ]);
+
+  return (
+    <TaskRecoveryContext.Provider value={value}>
+      {children}
+    </TaskRecoveryContext.Provider>
+  );
+}
+
+export function useTaskRecovery() {
+  const context = useContext(TaskRecoveryContext);
+  if (!context) {
+    throw new Error("useTaskRecovery must be used within TaskRecoveryProvider.");
+  }
+  return context;
+}

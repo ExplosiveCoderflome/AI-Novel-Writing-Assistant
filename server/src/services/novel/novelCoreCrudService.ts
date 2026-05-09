@@ -152,12 +152,53 @@ export class NovelCoreCrudService {
     }
 
     const archivedTaskIds = await getArchivedTaskIdSet("novel_workflow", rows.map((row) => row.id));
-    const taskByNovelId = new Map<string, NovelAutoDirectorTaskSummary>();
+    const visibleRows: typeof rows = [];
+    const seenNovelIds = new Set<string>();
     for (const row of rows) {
-      if (!row.novelId || archivedTaskIds.has(row.id) || taskByNovelId.has(row.novelId)) {
+      if (!row.novelId || archivedTaskIds.has(row.id) || seenNovelIds.has(row.novelId)) {
         continue;
       }
-      taskByNovelId.set(row.novelId, mapNovelAutoDirectorTaskSummary(row));
+      visibleRows.push(row);
+      seenNovelIds.add(row.novelId);
+    }
+
+    const liveTaskIds = visibleRows
+      .filter((row) => row.status === "queued" || row.status === "running" || row.status === "waiting_approval")
+      .map((row) => row.id);
+    const latestLiveStepLabelByTaskId = new Map<string, string>();
+    if (liveTaskIds.length > 0) {
+      const liveSteps = await prisma.directorStepRun.findMany({
+        where: {
+          taskId: {
+            in: liveTaskIds,
+          },
+          status: {
+            in: ["running", "waiting_approval", "blocked_scope"],
+          },
+        },
+        select: {
+          taskId: true,
+          label: true,
+        },
+        orderBy: [{ updatedAt: "desc" }, { startedAt: "desc" }],
+      });
+      for (const step of liveSteps) {
+        if (!latestLiveStepLabelByTaskId.has(step.taskId) && step.label.trim().length > 0) {
+          latestLiveStepLabelByTaskId.set(step.taskId, step.label.trim());
+        }
+      }
+    }
+
+    const taskByNovelId = new Map<string, NovelAutoDirectorTaskSummary>();
+    for (const row of visibleRows) {
+      const novelId = row.novelId;
+      if (!novelId) {
+        continue;
+      }
+      taskByNovelId.set(novelId, mapNovelAutoDirectorTaskSummary({
+        ...row,
+        currentItemLabel: latestLiveStepLabelByTaskId.get(row.id) ?? row.currentItemLabel,
+      }));
     }
     return taskByNovelId;
   }

@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { APIKeyStatus } from "@/api/settings";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import ProviderRequestLimitFields from "./ProviderRequestLimitFields";
 
@@ -68,12 +68,38 @@ export default function ProviderConfigDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-lg overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {isCreatingCustomProvider ? "新增自定义厂商" : isCustomDialog ? "编辑自定义厂商" : "配置模型厂商"}
-          </DialogTitle>
-        </DialogHeader>
+      <AppDialogContent
+        className="max-w-lg"
+        title={isCreatingCustomProvider ? "新增自定义厂商" : isCustomDialog ? "编辑自定义厂商" : "配置模型厂商"}
+        footer={(
+          <>
+            <Button className="w-full sm:w-auto" onClick={onSubmit} disabled={submitDisabled}>
+              {submitLabel}
+            </Button>
+
+            <Button
+              variant="secondary"
+              className="w-full sm:w-auto"
+              onClick={onTest}
+              disabled={testDisabled}
+            >
+              测试连接
+            </Button>
+
+            {editingConfig?.kind === "custom" ? (
+              <Button
+                variant="destructive"
+                className="w-full sm:w-auto"
+                onClick={onDeleteCustomProvider}
+                disabled={deleteDisabled}
+              >
+                {deleteLabel}
+              </Button>
+            ) : null}
+          </>
+        )}
+        footerClassName="gap-2"
+      >
         <div className="space-y-3">
           {isCustomDialog ? (
             <div className="space-y-1">
@@ -206,34 +232,9 @@ export default function ProviderConfigDialog({
             onChange={(value) => setForm((prev) => ({ ...prev, ...value }))}
           />
 
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            <Button className="w-full sm:w-auto" onClick={onSubmit} disabled={submitDisabled}>
-              {submitLabel}
-            </Button>
-
-            <Button
-              variant="secondary"
-              className="w-full sm:w-auto"
-              onClick={onTest}
-              disabled={testDisabled}
-            >
-              测试连接
-            </Button>
-
-            {editingConfig?.kind === "custom" ? (
-              <Button
-                variant="destructive"
-                className="col-span-2 w-full sm:col-span-1 sm:w-auto"
-                onClick={onDeleteCustomProvider}
-                disabled={deleteDisabled}
-              >
-                {deleteLabel}
-              </Button>
-            ) : null}
-          </div>
           {testResult ? <div className="break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">{testResult}</div> : null}
         </div>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   );
 }

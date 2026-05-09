@@ -12,7 +12,7 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import type { DirectorLockScope } from "@ai-novel/shared/types/novelDirector";
 import type { VolumePlan } from "@ai-novel/shared/types/novel";
 import { getNovelDetail, getNovelQualityReport, getNovelVolumeWorkspace } from "@/api/novel";
-import { getDirectorBookAutomationProjection, getDirectorRuntimeProjection } from "@/api/novelDirector";
+import { getDirectorBookAutomationProjection, getDirectorRuntimeProjection, getDirectorTaskSnapshot } from "@/api/novelDirector";
 import { continueNovelWorkflow, getActiveAutoDirectorTask } from "@/api/novelWorkflow";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
@@ -158,7 +158,19 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
         : false
     ),
   });
+  const runtimeSnapshotQuery = useQuery({
+    queryKey: queryKeys.tasks.directorTaskSnapshot(activeTask?.id ?? "none"),
+    queryFn: () => getDirectorTaskSnapshot(activeTask?.id as string),
+    enabled: Boolean(activeTask?.id),
+    retry: false,
+    refetchInterval: () => (
+      activeTask && (activeTask.status === "queued" || activeTask.status === "running" || activeTask.status === "waiting_approval")
+        ? 4000
+        : false
+    ),
+  });
   const runtimeProjection = runtimeProjectionQuery.data?.data?.projection ?? null;
+  const runtimeSnapshot = runtimeSnapshotQuery.data?.data?.snapshot ?? null;
   const resetSteps = useMemo(
     () => extractAutoDirectorResetStepsFromMeta(activeTask?.meta),
     [activeTask?.meta],
@@ -253,7 +265,8 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
     : null;
   const runtimeSummary = runtimeProjection?.requiresUserAction
     ? `需要处理：${runtimeProjection.blockedReason ?? runtimeProjection.lastEventSummary ?? runtimeProjection.currentLabel ?? "请先查看当前停留点"}`
-    : runtimeProjection?.headline
+    : runtimeSnapshot?.displayState.currentAction?.trim()
+      || runtimeProjection?.headline
       || runtimeActionSummary
       || runtimeProjection?.currentLabel
       || runtimeProjection?.lastEventSummary
@@ -265,8 +278,21 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
       ? activeTask.lastError || "后台任务已中断，可打开执行详情查看原因。"
       : activeTask.status === "waiting_approval"
         ? `等待处理：${getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}`
-        : activeTask.currentItemLabel || `AI 正在推进 ${getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}`)
+      : activeTask.currentItemLabel || `AI 正在推进 ${getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}`)
     : "当前没有后台导演任务，可以直接继续手动创作。";
+  const cockpitProjection = useMemo(() => {
+    if (!bookAutomationProjection || !runtimeSummary?.trim()) {
+      return bookAutomationProjection;
+    }
+    const summary = runtimeSummary.trim();
+    return {
+      ...bookAutomationProjection,
+      userHeadline: summary,
+      headline: summary,
+      detail: summary,
+      automationSummary: summary,
+    };
+  }, [bookAutomationProjection, runtimeSummary]);
 
   const goToTab = (tab: NovelWorkspaceTab) => {
     const next = new URLSearchParams(searchParams);
@@ -477,7 +503,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
 
           {!collapsed ? (
             <DirectorBookAutomationCard
-              projection={bookAutomationProjection}
+              projection={cockpitProjection}
               fallbackStatusLabel={formatTaskStatus(activeTask?.status)}
               fallbackSummary={cockpitSummary}
               compact

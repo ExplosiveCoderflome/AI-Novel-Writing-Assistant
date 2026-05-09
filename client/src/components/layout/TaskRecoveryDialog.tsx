@@ -1,24 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { RecoverableTaskSummary } from "@ai-novel/shared/types/task";
 import { Link } from "react-router-dom";
-import {
-  listRecoveryCandidates,
-  resumeAllRecoveryCandidates,
-  resumeRecoveryCandidate,
-} from "@/api/tasks";
-import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  AppDialogContent,
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { toast } from "@/components/ui/toast";
+import { useTaskRecovery } from "./TaskRecoveryContext";
 
 function formatTaskKind(kind: RecoverableTaskSummary["kind"]): string {
   if (kind === "novel_workflow") {
@@ -36,96 +25,34 @@ function formatTaskKind(kind: RecoverableTaskSummary["kind"]): string {
   return "图片任务";
 }
 
-function recoveryItemKey(item: { kind: string; id: string }): string {
-  return `${item.kind}:${item.id}`;
-}
-
 export default function TaskRecoveryDialog() {
-  const queryClient = useQueryClient();
-  const [dismissed, setDismissed] = useState(false);
-  const [acceptedRecoveryKeys, setAcceptedRecoveryKeys] = useState<Set<string>>(() => new Set());
-
-  const recoveryQuery = useQuery({
-    queryKey: queryKeys.tasks.recoveryCandidates,
-    queryFn: listRecoveryCandidates,
-    staleTime: 10_000,
-  });
-
-  const rawItems = recoveryQuery.data?.data?.items ?? [];
-  const items = useMemo(
-    () => rawItems.filter((item) => !acceptedRecoveryKeys.has(recoveryItemKey(item))),
-    [acceptedRecoveryKeys, rawItems],
-  );
-  const open = !dismissed && items.length > 0;
-
-  useEffect(() => {
-    if (rawItems.length === 0) {
-      setDismissed(false);
-      setAcceptedRecoveryKeys(new Set());
-    }
-  }, [rawItems.length]);
-
-  const refreshTaskState = () => {
-    void Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["tasks"] }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.novels.all }),
-    ]);
-  };
-
-  const resumeSingleMutation = useMutation({
-    mutationFn: (input: { kind: RecoverableTaskSummary["kind"]; id: string }) => resumeRecoveryCandidate(input.kind, input.id),
-    onSuccess: (_response, variables) => {
-      setAcceptedRecoveryKeys((previous) => {
-        const next = new Set(previous);
-        next.add(recoveryItemKey(variables));
-        return next;
-      });
-      toast.success("已开始恢复任务。");
-      refreshTaskState();
-      void recoveryQuery.refetch();
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "恢复任务失败。");
-    },
-  });
-
-  const resumeAllMutation = useMutation({
-    mutationFn: resumeAllRecoveryCandidates,
-    onSuccess: (response) => {
-      const resumedCount = response.data?.resumed.length ?? 0;
-      setAcceptedRecoveryKeys((previous) => {
-        const next = new Set(previous);
-        for (const item of response.data?.resumed ?? []) {
-          next.add(recoveryItemKey(item));
-        }
-        return next;
-      });
-      toast.success(resumedCount > 0 ? `已开始恢复 ${resumedCount} 个任务。` : "当前没有可恢复任务。");
-      refreshTaskState();
-      void recoveryQuery.refetch();
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "批量恢复任务失败。");
-    },
-  });
-
-  const busyTaskId = useMemo(() => {
-    if (!resumeSingleMutation.isPending) {
-      return "";
-    }
-    return resumeSingleMutation.variables?.id ?? "";
-  }, [resumeSingleMutation.isPending, resumeSingleMutation.variables]);
+  const {
+    items,
+    isOpen,
+    busyTaskId,
+    isResumeSinglePending,
+    isResumeAllPending,
+    closeDialog,
+    resumeSingle,
+    resumeAll,
+  } = useTaskRecovery();
 
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) setDismissed(true); }}>
-      <DialogContent className="max-h-[88vh] w-[calc(100vw-1.5rem)] max-w-3xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>检测到待恢复任务</DialogTitle>
-          <DialogDescription>
-            系统启动时发现有后台任务在服务重启前中断了。现在不会自动继续执行，你可以先逐个确认，再决定是否恢复。
-          </DialogDescription>
-        </DialogHeader>
-
+    <Dialog open={isOpen} onOpenChange={(nextOpen) => { if (!nextOpen) closeDialog(); }}>
+      <AppDialogContent
+        title="检测到待恢复任务"
+        description="系统启动时发现有后台任务在服务重启前中断了。现在不会自动继续执行，你可以先逐个确认，再决定是否恢复。"
+        footer={(
+          <>
+            <Button variant="outline" onClick={closeDialog}>
+              稍后处理
+            </Button>
+            <Button onClick={resumeAll} disabled={isResumeSinglePending || isResumeAllPending}>
+              {isResumeAllPending ? "恢复全部中..." : "继续全部"}
+            </Button>
+          </>
+        )}
+      >
         <div className="space-y-3">
           {items.map((item) => (
             <Card key={`${item.kind}-${item.id}`}>
@@ -144,13 +71,13 @@ export default function TaskRecoveryDialog() {
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
                       size="sm"
-                      onClick={() => resumeSingleMutation.mutate({ kind: item.kind, id: item.id })}
-                      disabled={resumeAllMutation.isPending || (resumeSingleMutation.isPending && busyTaskId !== item.id)}
+                      onClick={() => resumeSingle({ kind: item.kind, id: item.id })}
+                      disabled={isResumeAllPending || (isResumeSinglePending && busyTaskId !== item.id)}
                     >
-                      {resumeSingleMutation.isPending && busyTaskId === item.id ? "恢复中..." : "继续单个"}
+                      {isResumeSinglePending && busyTaskId === item.id ? "恢复中..." : "继续单个"}
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link to={item.sourceRoute} onClick={() => setDismissed(true)}>打开任务位置</Link>
+                      <Link to={item.sourceRoute} onClick={closeDialog}>打开任务位置</Link>
                     </Button>
                   </div>
                 </div>
@@ -165,16 +92,7 @@ export default function TaskRecoveryDialog() {
             </Card>
           ))}
         </div>
-
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button variant="outline" onClick={() => setDismissed(true)}>
-            稍后处理
-          </Button>
-          <Button onClick={() => resumeAllMutation.mutate()} disabled={resumeSingleMutation.isPending || resumeAllMutation.isPending}>
-            {resumeAllMutation.isPending ? "恢复全部中..." : "继续全部"}
-          </Button>
-        </div>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   );
 }
