@@ -1,11 +1,13 @@
 node_modules/
+.cursor/
+*.log
+tmp/
 dist/
 .turbo/
 .DS_Store
 .env
 .env.local
 dev.db
-m[[]0])
 client/.env
 client/.env.local
 server/.env
