@@ -92,6 +92,15 @@ export default function NovelList() {
     queryKey: queryKeys.novels.list(1, 100),
     queryFn: () => getNovelList({ page: 1, limit: 100 }),
     staleTime: 30_000,
+    refetchInterval: (query) => {
+      const items = query.state.data?.data?.items ?? [];
+      return items.some((novel) => {
+        const task = novel.latestAutoDirectorTask;
+        return task?.status === "queued" || task?.status === "running" || task?.status === "waiting_approval";
+      })
+        ? 4000
+        : false;
+    },
   });
 
   const cockpitProjectionQuery = useQuery({
@@ -338,6 +347,7 @@ export default function NovelList() {
         <div className="grid gap-3 md:grid-cols-2">
           {novels.map((novel) => {
             const workflowTask = novel.latestAutoDirectorTask ?? null;
+            const workflowCurrentAction = workflowTask?.currentItemLabel?.trim() || "";
             const workflowBadge = getWorkflowBadge(workflowTask);
             const workflowDescription = getWorkflowDescription(workflowTask);
             const isWorkflowRunning = isWorkflowRunningInBackground(workflowTask);
@@ -414,11 +424,11 @@ export default function NovelList() {
                         <NovelWorkflowRunningIndicator
                           className="mt-3"
                           progress={workflowTask.progress}
-                          label={workflowTask.currentItemLabel?.trim() || "AI 正在后台持续推进"}
+                          label={workflowCurrentAction || "AI 正在后台持续推进"}
                         />
                       ) : null}
                       <div className="mt-2 text-xs text-muted-foreground">
-                        当前阶段：{workflowTask.currentStage ?? "自动导演"}{workflowTask.currentItemLabel ? ` · ${workflowTask.currentItemLabel}` : ""}
+                        当前阶段：{workflowTask.currentStage ?? "自动导演"}{workflowCurrentAction ? ` · ${workflowCurrentAction}` : ""}
                       </div>
                       {workflowTask.lastHealthyStage ? (
                         <div className="mt-1 text-xs text-muted-foreground">

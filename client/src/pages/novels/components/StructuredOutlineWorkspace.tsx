@@ -383,6 +383,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                 locked={locked}
                 onGenerateChapterList={onGenerateChapterList}
                 onAddChapter={onAddChapter}
+                onRemoveChapter={onRemoveChapter}
                 onSelectBeatKey={(beatKey) => patchWorkspace(workspaceId, { selectedBeatKey: beatKey })}
                 onSelectChapter={(chapterId) => patchWorkspace(workspaceId, { selectedChapterId: chapterId })}
               />

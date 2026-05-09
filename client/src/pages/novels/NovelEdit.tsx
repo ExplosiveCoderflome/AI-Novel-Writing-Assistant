@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import type { DirectorLockScope, DirectorSessionState } from "@ai-novel/shared/types/novelDirector";
 import type { AutoDirectorAction, AutoDirectorMutationActionCode } from "@ai-novel/shared/types/autoDirectorFollowUp";
-import type { DirectorBookAutomationAction } from "@ai-novel/shared/types/directorRuntime";
+import type { DirectorBookAutomationAction, DirectorTaskSnapshot } from "@ai-novel/shared/types/directorRuntime";
 import type { NovelExportDownloadFormat, NovelExportScope } from "@ai-novel/shared/types/novelExport";
 import type {
   PipelineRepairMode,
@@ -198,6 +198,29 @@ function resolveDirectorConsistencyIssue(input: {
 
 function takeoverDismissStorageKey(novelId: string): string {
   return `novel-edit:takeover-dismissed:${novelId}`;
+}
+
+function resolveActiveStructuredOutlineChapterId(snapshot: DirectorTaskSnapshot | null): string {
+  if (!snapshot) {
+    return "";
+  }
+  const activeRuntimeStep = snapshot.runtime?.steps.find((step) => (
+    step.idempotencyKey === snapshot.activeStep?.idempotencyKey
+  ));
+  if (
+    activeRuntimeStep?.nodeKey === "structured_outline.chapter_detail_bundle"
+    && activeRuntimeStep.targetType === "chapter"
+    && activeRuntimeStep.targetId?.trim()
+  ) {
+    return activeRuntimeStep.targetId.trim();
+  }
+  const latestStructuredChapterStep = [...(snapshot.runtime?.steps ?? [])].reverse().find((step) => (
+    step.nodeKey === "structured_outline.chapter_detail_bundle"
+    && step.status === "running"
+    && step.targetType === "chapter"
+    && step.targetId?.trim()
+  ));
+  return latestStructuredChapterStep?.targetId?.trim() ?? "";
 }
 
 export default function NovelEdit() {
@@ -686,6 +709,10 @@ export default function NovelEdit() {
     ),
   });
   const activeDirectorSnapshot = directorTaskSnapshotQuery.data?.data?.snapshot ?? null;
+  const activeStructuredOutlineChapterId = useMemo(
+    () => resolveActiveStructuredOutlineChapterId(activeDirectorSnapshot),
+    [activeDirectorSnapshot],
+  );
   const activeDirectorRuntimeQuery = useQuery({
     queryKey: queryKeys.tasks.directorRuntime(selectedDirectorTaskId || "none"),
     queryFn: () => getDirectorRuntimeSnapshot(selectedDirectorTaskId),
@@ -1492,6 +1519,8 @@ export default function NovelEdit() {
               || task.lastError?.trim()
               || "任务已暂停，等待从最近检查点恢复。"
             )
+          : activeDirectorSnapshot?.displayState.currentAction?.trim()
+            ? activeDirectorSnapshot.displayState.currentAction.trim()
           : automationActionText
             ? automationActionText
           : mode === "running" && task.checkpointType === "chapter_batch_ready" && task.currentItemLabel?.includes("已暂停")
@@ -1510,6 +1539,7 @@ export default function NovelEdit() {
   }, [
     activeAutoDirectorTask,
     activeChapterTitleWarning,
+    activeDirectorSnapshot?.displayState.currentAction,
     activeDirectorSession,
     activeTab,
     archiveCompletedAutoDirectorMutation,
@@ -1713,6 +1743,31 @@ export default function NovelEdit() {
       selectedChapterId: selectedChapterId || undefined,
     });
   }, [id, selectedChapterId, selectedVolumeId]);
+
+  useEffect(() => {
+    if (!id || activeTab !== "structured" || !activeStructuredOutlineChapterId) {
+      return;
+    }
+    const targetVolume = normalizedVolumeDraft.find((volume) => (
+      volume.chapters.some((chapter) => chapter.id === activeStructuredOutlineChapterId)
+    ));
+    if (!targetVolume) {
+      return;
+    }
+    const currentWorkspace = useStructuredOutlineWorkspaceStore.getState().workspaces[id];
+    if (
+      currentWorkspace?.selectedChapterId === activeStructuredOutlineChapterId
+      && currentWorkspace.selectedVolumeId === targetVolume.id
+      && currentWorkspace.selectedBeatKey === "all"
+    ) {
+      return;
+    }
+    useStructuredOutlineWorkspaceStore.getState().patchWorkspace(id, {
+      selectedVolumeId: targetVolume.id,
+      selectedChapterId: activeStructuredOutlineChapterId,
+      selectedBeatKey: "all",
+    });
+  }, [activeStructuredOutlineChapterId, activeTab, id, normalizedVolumeDraft]);
 
   useEffect(() => {
     if (!id) {
