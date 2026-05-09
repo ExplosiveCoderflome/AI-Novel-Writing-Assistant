@@ -56,3 +56,6 @@ jobs:
 
       - name: Publish beta installer to GitHub Releases
         run: pnpm publish:desktop:beta
+
+      - name: Update GitHub release notes
+        run: node scripts/update-desktop-release-notes.cjs
