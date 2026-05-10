@@ -20,12 +20,14 @@ const visibleProfileFieldsSchema = z.object({
 
 const visibleProfileApplySchema = z.object({
   fields: visibleProfileFieldsSchema,
+  overwriteExisting: z.boolean().optional(),
 });
 
 const visibleProfileBatchApplySchema = z.object({
   items: z.array(z.object({
     characterId: z.string().trim().min(1),
     fields: visibleProfileFieldsSchema,
+    overwriteExisting: z.boolean().optional(),
   })).min(1).max(80),
 });
 
@@ -78,7 +80,9 @@ export function registerNovelCharacterVisibleProfileRoutes(
       try {
         const { id, charId } = req.params as z.infer<typeof characterParamsSchema>;
         const body = req.body as z.infer<typeof visibleProfileApplySchema>;
-        const data = await novelService.applyCharacterVisibleProfile(id, charId, body.fields);
+        const data = await novelService.applyCharacterVisibleProfile(id, charId, body.fields, {
+          overwriteExisting: body.overwriteExisting,
+        });
         res.status(200).json({
           success: true,
           data,

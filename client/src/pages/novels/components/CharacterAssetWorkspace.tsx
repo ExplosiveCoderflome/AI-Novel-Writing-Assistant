@@ -425,7 +425,7 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
                           : `“${visibleProfileSuggestion.characterName}”当前没有可写入的外显资料`}
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
-                        请先看下面差异，确认后点击写入当前角色。
+                        请先看下面差异，确认后点击保存到角色卡。
                       </div>
                     </div>
                     <Button
@@ -433,9 +433,16 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
                       onClick={onApplyVisibleProfile}
                       disabled={isApplyingVisibleProfile || applicableVisibleProfileCount === 0}
                     >
-                      {isApplyingVisibleProfile ? "写入中..." : "写入当前角色"}
+                      {isApplyingVisibleProfile ? "保存中..." : "保存到角色卡"}
                     </Button>
                   </div>
+                  {visibleProfileSuggestion.warnings.length > 0 ? (
+                    <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs leading-5 text-amber-900">
+                      {visibleProfileSuggestion.warnings.map((warning) => (
+                        <div key={warning}>提醒：{warning}</div>
+                      ))}
+                    </div>
+                  ) : null}
                   <div className="mt-2 grid gap-2 lg:grid-cols-2">
                     {VISIBLE_PROFILE_FIELDS.map((field) => {
                       const nextValue = visibleProfileSuggestion.fields[field.key];
@@ -449,16 +456,11 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
                       );
                     })}
                   </div>
-                  {visibleProfileSuggestion.warnings.length > 0 ? (
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      提醒：{visibleProfileSuggestion.warnings.join(" / ")}
-                    </div>
-                  ) : null}
                 </div>
               ) : null}
               {!isGeneratingVisibleProfile && !hasVisibleProfileSuggestionForSelected ? (
                 <div className="mt-3 rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
-                  点击“AI 补全外显资料”后，会先在这里显示即将写入的差异；确认后再写入角色卡。
+                  点击“AI 补全外显资料”后，会先在这里显示即将保存的差异；确认后再保存到角色卡。
                 </div>
               ) : null}
               {batchVisibleProfileResult ? (

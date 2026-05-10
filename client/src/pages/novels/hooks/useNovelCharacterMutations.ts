@@ -170,8 +170,11 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
 
   const applyVisibleProfileMutation = useMutation({
     mutationFn: () => {
-      const fields = generateVisibleProfileMutation.data?.data?.fields ?? {};
-      return applyCharacterVisibleProfile(id, selectedCharacterId, fields);
+      const suggestion = generateVisibleProfileMutation.data?.data;
+      const fields = suggestion?.fields ?? {};
+      return applyCharacterVisibleProfile(id, selectedCharacterId, fields, {
+        overwriteExisting: suggestion?.allowsOverwriteExisting,
+      });
     },
     onSuccess: async (response) => {
       const count = response.data?.appliedFields.length ?? 0;
@@ -204,7 +207,11 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
     mutationFn: () => {
       const items = (generateBatchVisibleProfilesMutation.data?.data?.results ?? [])
         .filter((item) => item.hasApplicableChanges)
-        .map((item) => ({ characterId: item.characterId, fields: item.fields }));
+        .map((item) => ({
+          characterId: item.characterId,
+          fields: item.fields,
+          overwriteExisting: item.allowsOverwriteExisting,
+        }));
       return applyBatchCharacterVisibleProfiles(id, items);
     },
     onSuccess: async (response) => {

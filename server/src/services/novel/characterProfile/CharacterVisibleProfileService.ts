@@ -14,6 +14,11 @@ import type { LLMGenerateOptions } from "../novelCoreShared";
 
 export interface CharacterVisibleProfileGenerateOptions extends LLMGenerateOptions {
   userGuidance?: string;
+  overwriteExisting?: boolean;
+}
+
+interface CharacterVisibleProfileApplyOptions {
+  overwriteExisting?: boolean;
 }
 
 export const VISIBLE_PROFILE_FIELDS: CharacterVisibleProfileField[] = [
@@ -83,6 +88,7 @@ export function isVagueVisibleProfileText(value: string | null | undefined): boo
 export function pickApplicableVisibleProfileFields(input: {
   existing: CharacterVisibleProfileFields;
   suggested: CharacterVisibleProfileFields;
+  overwriteExisting?: boolean;
 }): {
   fields: CharacterVisibleProfileFields;
   skippedFields: Partial<Record<CharacterVisibleProfileField, string>>;
@@ -94,8 +100,10 @@ export function pickApplicableVisibleProfileFields(input: {
     const existingText = normalizeVisibleProfileText(input.existing[field]);
     const suggestedText = normalizeVisibleProfileText(input.suggested[field]);
     if (existingText && !isVagueVisibleProfileText(existingText)) {
-      skippedFields[field] = "已有明确资料";
-      continue;
+      if (!input.overwriteExisting) {
+        skippedFields[field] = "已有明确资料";
+        continue;
+      }
     }
     if (!suggestedText || isVagueVisibleProfileText(suggestedText)) {
       skippedFields[field] = "AI 建议不够具体";
@@ -263,9 +271,11 @@ export class CharacterVisibleProfileService {
       voiceTexture: output.voiceTexture,
       presenceImpression: output.presenceImpression,
     };
+    const allowsOverwriteExisting = Boolean(options.overwriteExisting || options.userGuidance?.trim());
     const applicable = pickApplicableVisibleProfileFields({
       existing: this.extractFields(character),
       suggested,
+      overwriteExisting: allowsOverwriteExisting,
     });
     const warnings = [...output.warnings];
     if (output.confidence < 0.55) {
@@ -278,6 +288,7 @@ export class CharacterVisibleProfileService {
         confidence: output.confidence,
         warnings,
         hasApplicableChanges: false,
+        allowsOverwriteExisting,
       };
     }
 
@@ -289,6 +300,7 @@ export class CharacterVisibleProfileService {
       confidence: output.confidence,
       warnings,
       hasApplicableChanges: Object.keys(applicable.fields).length > 0,
+      allowsOverwriteExisting,
     };
   }
 
@@ -331,6 +343,7 @@ export class CharacterVisibleProfileService {
     novelId: string,
     characterId: string,
     fields: CharacterVisibleProfileFields,
+    options: CharacterVisibleProfileApplyOptions = {},
   ): Promise<CharacterVisibleProfileApplyResult> {
     const character = await prisma.character.findFirst({
       where: { id: characterId, novelId },
@@ -342,6 +355,7 @@ export class CharacterVisibleProfileService {
     const applicable = pickApplicableVisibleProfileFields({
       existing: this.extractFields(character),
       suggested: fields,
+      overwriteExisting: options.overwriteExisting,
     });
     const appliedFields = Object.keys(applicable.fields) as CharacterVisibleProfileField[];
     if (appliedFields.length === 0) {
@@ -367,14 +381,16 @@ export class CharacterVisibleProfileService {
 
   async applyBatchVisibleProfiles(
     novelId: string,
-    items: Array<{ characterId: string; fields: CharacterVisibleProfileFields }>,
+    items: Array<{ characterId: string; fields: CharacterVisibleProfileFields; overwriteExisting?: boolean }>,
   ): Promise<{
     novelId: string;
     results: CharacterVisibleProfileApplyResult[];
   }> {
     const results: CharacterVisibleProfileApplyResult[] = [];
     for (const item of items) {
-      results.push(await this.applyCharacterVisibleProfile(novelId, item.characterId, item.fields));
+      results.push(await this.applyCharacterVisibleProfile(novelId, item.characterId, item.fields, {
+        overwriteExisting: item.overwriteExisting,
+      }));
     }
     return { novelId, results };
   }

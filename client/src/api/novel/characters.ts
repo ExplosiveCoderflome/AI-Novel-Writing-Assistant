@@ -340,10 +340,13 @@ export async function applyCharacterVisibleProfile(
   id: string,
   charId: string,
   fields: CharacterVisibleProfileFields,
+  options?: {
+    overwriteExisting?: boolean;
+  },
 ) {
   const { data } = await apiClient.post<ApiResponse<CharacterVisibleProfileApplyResult>>(
     `/novels/${id}/characters/${charId}/visible-profile/apply`,
-    { fields },
+    { fields, overwriteExisting: options?.overwriteExisting },
   );
   return data;
 }
@@ -366,7 +369,7 @@ export async function generateBatchCharacterVisibleProfiles(
 
 export async function applyBatchCharacterVisibleProfiles(
   id: string,
-  items: Array<{ characterId: string; fields: CharacterVisibleProfileFields }>,
+  items: Array<{ characterId: string; fields: CharacterVisibleProfileFields; overwriteExisting?: boolean }>,
 ) {
   const { data } = await apiClient.post<ApiResponse<{
     novelId: string;

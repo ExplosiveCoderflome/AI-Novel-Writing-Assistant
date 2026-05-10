@@ -29,6 +29,21 @@ test("visible profile field selection preserves existing clear profile", () => {
   assert.equal(result.fields.physique, "肩背薄而挺，走路时习惯把重心压得很低。");
 });
 
+test("visible profile field selection can overwrite clear profile after explicit author guidance", () => {
+  const result = pickApplicableVisibleProfileFields({
+    existing: {
+      physique: "身形纤细单薄，长期在医疗队工作让她动作克制。",
+    },
+    suggested: {
+      physique: "体态丰满匀称，行动时仍保持医疗队训练出的克制和稳。",
+    },
+    overwriteExisting: true,
+  });
+
+  assert.equal(result.fields.physique, "体态丰满匀称，行动时仍保持医疗队训练出的克制和稳。");
+  assert.equal(result.skippedFields.physique, undefined);
+});
+
 test("visible profile validator treats generic prose as vague", () => {
   assert.equal(isVagueVisibleProfileText("很好看"), true);
   assert.equal(isVagueVisibleProfileText("气质独特"), true);

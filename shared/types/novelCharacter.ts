@@ -68,6 +68,7 @@ export interface CharacterVisibleProfileSuggestion {
   confidence: number;
   warnings: string[];
   hasApplicableChanges: boolean;
+  allowsOverwriteExisting?: boolean;
 }
 
 export interface CharacterVisibleProfileBatchResult {
