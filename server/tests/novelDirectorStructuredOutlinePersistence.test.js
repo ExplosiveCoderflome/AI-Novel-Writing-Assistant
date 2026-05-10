@@ -288,13 +288,23 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
     prisma.$transaction = originals.transaction;
   }
 
-  assert.equal(syncedSnapshots.length, 1);
+  assert.equal(syncedSnapshots.length, 3);
   assert.equal(syncCalls[0].input.applyDeletes, false);
   assert.equal(syncCalls[0].input.preserveContent, true);
-  assert.deepEqual(syncCalls[0].input.executionContractChapterRange, {
-    startOrder: 1,
-    endOrder: 2,
-  });
+  assert.deepEqual(syncCalls.map((call) => call.input.executionContractChapterRange), [
+    {
+      startOrder: 1,
+      endOrder: 1,
+    },
+    {
+      startOrder: 2,
+      endOrder: 2,
+    },
+    {
+      startOrder: 1,
+      endOrder: 2,
+    },
+  ]);
   assert.deepEqual(rebuildCalls, [{
     novelId: "novel-demo",
     options: { sourceType: "rebuild_projection" },
@@ -304,13 +314,19 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
   assert.ok(resetDeletions.some(([table]) => table === "openConflict"));
   assert.ok(resetDeletions.some(([table]) => table === "storyStateSnapshot"));
 
-  const firstDetailSync = syncedSnapshots[0][0].chapters;
-  assert.equal(firstDetailSync[0].purpose, "Chapter 1 purpose");
-  assert.equal(firstDetailSync[0].taskSheet, "Chapter 1 task sheet");
-  assert.ok(firstDetailSync[0].sceneCards);
-  assert.equal(firstDetailSync[1].purpose, "Chapter 2 purpose");
-  assert.equal(firstDetailSync[1].taskSheet, "Chapter 2 task sheet");
-  assert.ok(firstDetailSync[1].sceneCards);
+  const firstIncrementalSync = syncedSnapshots[0][0].chapters;
+  assert.equal(firstIncrementalSync[0].purpose, "Chapter 1 purpose");
+  assert.equal(firstIncrementalSync[0].taskSheet, "Chapter 1 task sheet");
+  assert.ok(firstIncrementalSync[0].sceneCards);
+  assert.equal(firstIncrementalSync[1].taskSheet, null);
+
+  const finalSync = syncedSnapshots[2][0].chapters;
+  assert.equal(finalSync[0].purpose, "Chapter 1 purpose");
+  assert.equal(finalSync[0].taskSheet, "Chapter 1 task sheet");
+  assert.ok(finalSync[0].sceneCards);
+  assert.equal(finalSync[1].purpose, "Chapter 2 purpose");
+  assert.equal(finalSync[1].taskSheet, "Chapter 2 task sheet");
+  assert.ok(finalSync[1].sceneCards);
 });
 
 test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter", async () => {
@@ -371,6 +387,7 @@ test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter
   };
 
   const generatedTargets = [];
+  const syncCalls = [];
   const resetFindManyCalls = [];
   let lastSyncedWorkspace = clone(baseWorkspace);
   const rebuildCalls = [];
@@ -417,6 +434,7 @@ test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter
       return { creates: [], updates: [], deletes: [] };
     },
     syncVolumeChaptersWithOptions: async (_novelId, input) => {
+      syncCalls.push({ input });
       lastSyncedWorkspace = {
         ...lastSyncedWorkspace,
         volumes: clone(input.volumes),
@@ -481,6 +499,16 @@ test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter
 
   assert.deepEqual(generatedTargets, [
     "chapter-2:task_sheet",
+  ]);
+  assert.deepEqual(syncCalls.map((call) => call.input.executionContractChapterRange), [
+    {
+      startOrder: 2,
+      endOrder: 2,
+    },
+    {
+      startOrder: 1,
+      endOrder: 2,
+    },
   ]);
   assert.deepEqual(resetFindManyCalls[0].where.order, { gte: 1, lte: 2 });
   assert.deepEqual(rebuildCalls, [{
